@@ -6,10 +6,15 @@ webhook delivery names as `user_openid`. The TikTok app key, app secret and redi
 operator configuration (`adapters/tiktok.py: app_config`); a channel stores only its own tokens,
 encrypted with `secret_box`.
 """
+import os
+
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
-from .channel import SECRET_GROUPS
+from . import secret_box
+from .channel import INVALID, SECRET_GROUPS
+from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
+from odoo.addons.liwan_inbox.adapters import tiktok
 
 
 class LiwanInboxChannel(models.Model):
@@ -38,3 +43,26 @@ class LiwanInboxChannel(models.Model):
         for channel in self.filtered(lambda channel: channel.kind == 'tiktok'):
             if not channel.tiktok_business_id:
                 raise ValidationError(self.env._('A TikTok channel needs the business account open id.'))
+
+    @api.model
+    def _liwan_tiktok_config(self):
+        """The operator's TikTok app configuration (environment); 422 `inbox_tiktok_not_configured` without it."""
+        config = tiktok.app_config(os.environ)
+        if config is None:
+            message = self.env._('The TikTok app is not configured.')
+            raise LiwanAccessRule(INVALID, message, details={'reason': 'inbox_tiktok_not_configured'})
+        return config
+
+    def _liwan_tiktok_store(self, grant, profile=None):
+        """Store one OAuth answer on the channel (tokens encrypted) and mark it connected."""
+        self.ensure_one()
+        self.write({
+            'tiktok_business_id': grant.open_id,
+            'tiktok_username': profile.username if profile else self.tiktok_username,
+            'access_token_enc': secret_box.encrypt(self.env, grant.access_token),
+            'refresh_token_enc': secret_box.encrypt(self.env, grant.refresh_token),
+            'token_expires_at': grant.expires_at,
+            'refresh_expires_at': grant.refresh_expires_at,
+            'state': 'connected',
+            'last_error': False,
+        })
