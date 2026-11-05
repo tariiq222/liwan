@@ -17,6 +17,8 @@ class LiwanAiAgentSetting(models.Model):
     enabled = fields.Boolean(required=True, default=True)
     read_only = fields.Boolean(required=True, default=False)
     role_ids = fields.Many2many('liwan.access.role', 'liwan_ai_agent_setting_role_rel', 'setting_id', 'role_id')
+    # Bumped by every change of the agent or of its tools' modes; a save based on an older read answers 409.
+    revision = fields.Integer(required=True, default=0)
 
     _agent_key_unique = models.Constraint('UNIQUE(agent_key)', 'one setting per agent')
 

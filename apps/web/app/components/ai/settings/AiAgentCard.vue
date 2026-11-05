@@ -5,7 +5,8 @@ import { useSettingsForm } from '@/composables/settings/useSettingsForm'
 
 // One specialist agent as the administrator narrows it (spec 2026-11-04 §6.7): on or off, read only, limited to some
 // roles, and each tool on, waiting for the user's approval, or off. None of it can give an employee more than their own
-// permissions; the server enforces every choice. `roles` is null for a manager who cannot read the role catalog.
+// permissions; the server enforces every choice. `roles` is null for a manager who cannot read the role catalog. A save
+// carries the revision it was read at; another administrator's save first answers 409 and the card locks until reloaded.
 const props = defineProps<{ agent: AiAgentSetting; roles: RoleSummary[] | null; reloadAgents: () => Promise<AiAgentSettings> }>()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
@@ -21,13 +22,13 @@ const current = (agents: AiAgentSettings) => agents.items.find(item => item.key 
 const { draft, state, save, revert, reload } = useSettingsForm<AiAgentSetting, Draft>({
   source: () => props.agent,
   read,
-  save: async (values) => {
+  save: async (values, latest) => {
     // Roles are sent only when changed: a manager without the role catalog, or an agent kept on a role archived since,
     // still saves its other choices.
     const { role_ids: roleIds, ...rest } = values
     const rolesChanged = JSON.stringify([...roleIds].sort()) !== JSON.stringify([...props.agent.role_ids].sort())
-    const patch = props.roles !== null && rolesChanged ? values : rest
-    const saved = await saveAgent({ key: props.agent.key, patch })
+    const changes = props.roles !== null && rolesChanged ? values : rest
+    const saved = await saveAgent({ key: props.agent.key, patch: { ...changes, revision: latest.revision } })
     toast.add({ title: t('ai.settings.saved'), color: 'success' })
     return current(saved)
   },

@@ -309,6 +309,8 @@ export const AiAgentSettingSchema = z.object({
   enabled: z.boolean(),
   read_only: z.boolean(),
   role_ids: z.array(z.number().int().positive()),
+  /** Bumped by every change of the agent or its tools; a save sends the revision it read and a stale one answers 409. */
+  revision: z.number().int().nonnegative(),
   tools: z.array(z.object({
     name: z.string(), kind: AiToolKindSchema, description: AiTextSchema, external: z.boolean(), mode: AiToolModeSchema,
   }).strict()),
@@ -318,9 +320,10 @@ export const AiAgentSettingsSchema = z.object({ items: z.array(AiAgentSettingSch
 export type AiAgentSettings = z.infer<typeof AiAgentSettingsSchema>
 /** `PATCH /api/v1/ai/agents/{key}`: any of these; settings only narrow what the agent may do. */
 export const AiAgentPatchSchema = z.object({
+  revision: z.number().int().nonnegative(),
   enabled: z.boolean().optional(),
   read_only: z.boolean().optional(),
   role_ids: z.array(z.number().int().positive()).optional(),
   tools: z.record(z.string(), AiToolModeSchema).optional(),
-}).strict().refine(value => Object.keys(value).length > 0, 'nothing to change')
+}).strict().refine(value => Object.keys(value).length > 1, 'nothing to change')
 export type AiAgentPatch = z.infer<typeof AiAgentPatchSchema>

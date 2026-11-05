@@ -118,6 +118,9 @@ export async function pumpRun(event: H3Event, session: RunSession, stream: Event
   let auditFailed = options.auditFailed ?? false
   let announced = false
   let finalDone: unknown = { status: 'failed' }
+  // A read this server turned into a card (its catalog asks for approval, the run's tool list did not): the run now waits
+  // for the user, whatever status the service reported.
+  let upgraded = false
   let next: Response | null = response
   while (next) {
     const current: Response = next
@@ -136,7 +139,7 @@ export async function pumpRun(event: H3Event, session: RunSession, stream: Event
       }
       if (name === 'done') {
         // The done of a stream that is about to be resumed is not the end of the run.
-        if (!action) finalDone = data
+        if (!action) finalDone = upgraded && data.status === 'waiting_tool' ? { ...data, status: 'waiting_user' } : data
         break
       }
       if (name === 'tool_request' && action) continue
@@ -149,6 +152,7 @@ export async function pumpRun(event: H3Event, session: RunSession, stream: Event
       } else if (name === 'tool_request' && data.kind === 'read') {
         // The catalog asks for approval although the run's tool list did not (it changed since): the browser shows a card.
         data.requires_approval = true
+        upgraded = true
       } else if (name === 'tool_request' && data.kind === 'draft') {
         const recorded = await tryAudit(event, { conversation_id: runId, kind: 'draft', agent: data.agent, tool_name: data.tool, input: data.input, result: 'proposed', http_status: null, draft: data.input, approved: null, attested: false })
         auditFailed ||= !recorded

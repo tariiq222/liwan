@@ -152,11 +152,12 @@ describe('LiwanOS AI usage contracts', () => {
 
   it('parses the agent settings and refuses an empty or widening patch', () => {
     const tool = { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'مهامي', en: 'My tasks' }, external: false, mode: 'approval' }
-    const parsed = AiAgentSettingsSchema.parse({ items: [{ key: 'pmo', name: PMO_AGENT.name, description: PMO_AGENT.description, enabled: true, read_only: false, role_ids: [], tools: [tool] }], total: 1 })
+    const parsed = AiAgentSettingsSchema.parse({ items: [{ key: 'pmo', name: PMO_AGENT.name, description: PMO_AGENT.description, enabled: true, read_only: false, role_ids: [], revision: 0, tools: [tool] }], total: 1 })
     expect(parsed.items[0]!.tools[0]!.mode).toBe('approval')
-    expect(() => AiAgentPatchSchema.parse({})).toThrow()
-    expect(() => AiAgentPatchSchema.parse({ tools: { 'pmo.list_my_tasks': 'always' } })).toThrow()
-    expect(AiAgentPatchSchema.parse({ read_only: true }).read_only).toBe(true)
+    expect(() => AiAgentPatchSchema.parse({ revision: 0 })).toThrow()
+    expect(() => AiAgentPatchSchema.parse({ revision: 0, tools: { 'pmo.list_my_tasks': 'always' } })).toThrow()
+    expect(() => AiAgentPatchSchema.parse({ read_only: true })).toThrow()
+    expect(AiAgentPatchSchema.parse({ revision: 2, read_only: true }).read_only).toBe(true)
     expect(aiToolAgent('pmo.list_my_tasks')).toBe('pmo')
   })
 })

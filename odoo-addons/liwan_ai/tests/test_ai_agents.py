@@ -86,8 +86,18 @@ class TestAiAgentSettings(AiProbe, LiwanApiCase):
         return self.api('GET', '/api/v1/ai/tools').json()
 
     def _patch(self, body, key='probe', as_user=('ai_agents_admin', 'ai_agents_admin_pass_123')):
+        """Save ``body`` on the current revision unless it names one."""
+        self.env.invalidate_all()
+        current = self.env['liwan.ai.agent.setting'].search([('agent_key', '=', key)]).revision
         self.authenticate(*as_user)
-        return self.api('PATCH', f'/api/v1/ai/agents/{key}', body)
+        return self.api('PATCH', f'/api/v1/ai/agents/{key}', {'revision': current or 0, **body})
+
+    def test_a_save_from_an_older_read_is_refused(self):
+        self.assertEqual(self._patch({'tools': {'probe.list_things': 'off'}}).json()['items'][0]['revision'], 1)
+        stale = self._patch({'read_only': True, 'tools': {'probe.list_things': 'on'}, 'revision': 0})
+        self.assertEqual((stale.status_code, stale.json()['code']), (409, 'conflict'))
+        self.assertNotIn('probe.list_things', [item['name'] for item in self._catalog()['items']])
+        self.assertEqual(self._patch({'color': 'red', 'revision': 'x'}).json()['field'], 'revision')
 
     def test_the_catalog_carries_the_agents_and_drops_external_sends_by_default(self):
         body = self._catalog()

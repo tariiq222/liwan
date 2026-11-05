@@ -36,6 +36,7 @@ def dump_agent_settings(env):
             'enabled': row.enabled if row else True,
             'read_only': bool(row and row.read_only),
             'role_ids': sorted(roles.get(row.id, ())) if row else [],
+            'revision': row.revision if row else 0,
             'tools': [
                 {
                     'name': tool['name'],
@@ -58,7 +59,12 @@ def _bool(payload, key):
 
 
 def parse_agent_patch(payload, tools):
-    """The validated changes of one agent: ``enabled``, ``read_only``, ``role_ids`` and ``tools`` (each optional)."""
+    """``(changes, revision)`` of one agent's save: any of ``enabled``, ``read_only``, ``role_ids`` and ``tools``, and the
+    revision the change was based on."""
+    payload = dict(payload)
+    revision = payload.pop('revision', None)
+    if not isinstance(revision, int) or isinstance(revision, bool) or revision < 0:
+        raise ApiError(422, 'invalid', 'revision must be the revision that was read', field='revision')
     unknown = sorted(set(payload) - AGENT_PATCH_KEYS)
     if unknown:
         raise ApiError(422, 'unknown_field', f'field {unknown[0]!r} is not accepted', field=unknown[0])
@@ -81,4 +87,4 @@ def parse_agent_patch(payload, tools):
             if mode not in TOOL_MODES:
                 raise ApiError(422, 'invalid', f'mode must be one of {TOOL_MODES}', field=f'tools.{name}')
         changes['tools'] = dict(modes)
-    return changes
+    return changes, revision

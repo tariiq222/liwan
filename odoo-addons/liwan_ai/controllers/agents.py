@@ -41,10 +41,13 @@ class AiAgentsController(http.Controller):
         agent = available_agents(env).get(key)
         if agent is None:
             raise ApiError(404, 'not_found', 'no such agent')
-        changes = parse_agent_patch(payload, agent[1])
+        changes, revision = parse_agent_patch(payload, agent[1])
         before = self._snapshot(env, key)
         setting = env['liwan.ai.agent.setting'].search([('agent_key', '=', key)]) or env['liwan.ai.agent.setting'].create({'agent_key': key})
+        if setting.revision != revision:
+            raise ApiError(409, 'conflict', 'the agent settings changed since they were read')
         values = {field: changes[field] for field in ('enabled', 'read_only') if field in changes}
+        values['revision'] = revision + 1
         if 'role_ids' in changes:
             # Naming roles needs the role catalog, as anywhere else in LiwanOS.
             env['liwan.access.service']._liwan_require_capability(ROLES_READ)
@@ -52,8 +55,7 @@ class AiAgentsController(http.Controller):
             if len(roles) != len(changes['role_ids']):
                 raise ApiError(422, 'invalid', 'role_ids names an unknown role', field='role_ids')
             values['role_ids'] = [Command.set(roles.ids)]
-        if values:
-            setting.write(values)
+        setting.write(values)
         ToolSetting = env['liwan.ai.tool.setting']
         for name, mode in changes.get('tools', {}).items():
             row = ToolSetting.search([('tool_name', '=', name)])

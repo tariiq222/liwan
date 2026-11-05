@@ -1398,6 +1398,11 @@
           "read_only": {
             "type": "boolean"
           },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
           "role_ids": {
             "items": {
               "exclusiveMinimum": 0,
@@ -1421,6 +1426,9 @@
             "type": "object"
           }
         },
+        "required": [
+          "revision"
+        ],
         "type": "object"
       },
       "AiAgentSchema": {
@@ -1552,6 +1560,11 @@
           "read_only": {
             "type": "boolean"
           },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
           "role_ids": {
             "items": {
               "exclusiveMinimum": 0,
@@ -1624,6 +1637,7 @@
           "enabled",
           "read_only",
           "role_ids",
+          "revision",
           "tools"
         ],
         "type": "object"
@@ -1681,6 +1695,11 @@
                 },
                 "read_only": {
                   "type": "boolean"
+                },
+                "revision": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
                 },
                 "role_ids": {
                   "items": {
@@ -1754,6 +1773,7 @@
                 "enabled",
                 "read_only",
                 "role_ids",
+                "revision",
                 "tools"
               ],
               "type": "object"

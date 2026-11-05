@@ -147,7 +147,7 @@ const PMO_AGENT = {
   key: 'pmo', name: { ar: 'وكيل المشاريع', en: 'Projects agent' }, description: { ar: 'المشاريع ومهامها وميزانياتها', en: 'Projects, their tasks and budgets' },
   instructions: { ar: 'أنت وكيل المشاريع.', en: 'You are the projects agent.' }, pages: ['pmo', 'project'],
 }
-const AI_AGENT_SETTINGS = { pmo: { enabled: true, read_only: false, role_ids: [], tools: { 'pmo.list_my_tasks': 'on', 'pmo.draft_project': 'on' } } }
+const AI_AGENT_SETTINGS = { pmo: { enabled: true, read_only: false, role_ids: [], revision: 0, tools: { 'pmo.list_my_tasks': 'on', 'pmo.draft_project': 'on' } } }
 const AI_AGENT_TOOLS = [
   { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'يعرض مهامي', en: 'List my tasks' }, external: false },
   { name: 'pmo.draft_project', kind: 'draft', description: { ar: 'مسودة مشروع', en: 'Project draft' }, external: false },
@@ -156,7 +156,7 @@ function aiAgentSetting(key) {
   const state = AI_AGENT_SETTINGS[key]
   return {
     key, name: PMO_AGENT.name, description: PMO_AGENT.description, enabled: state.enabled, read_only: state.read_only,
-    role_ids: state.role_ids, tools: AI_AGENT_TOOLS.map(tool => ({ ...tool, mode: state.tools[tool.name] })),
+    role_ids: state.role_ids, revision: state.revision, tools: AI_AGENT_TOOLS.map(tool => ({ ...tool, mode: state.tools[tool.name] })),
   }
 }
 const AI_SETTINGS = {
@@ -515,8 +515,9 @@ async function handle(req, res) {
       if (!AI_AGENT_SETTINGS[key]) return json(res, 404, { code: 'not_found', message: 'no such agent' })
       let body = {}
       try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
-      const { tools, ...rest } = body
-      Object.assign(AI_AGENT_SETTINGS[key], rest)
+      const { tools, revision, ...rest } = body
+      if (revision !== AI_AGENT_SETTINGS[key].revision) return json(res, 409, { code: 'conflict', message: 'the agent settings changed since they were read' })
+      Object.assign(AI_AGENT_SETTINGS[key], rest, { revision: revision + 1 })
       Object.assign(AI_AGENT_SETTINGS[key].tools, tools ?? {})
     } else if (method !== 'GET' || path !== '/api/v1/ai/agents') return json(res, 405, { code: 'invalid', message: 'method' })
     return json(res, 200, { items: [aiAgentSetting('pmo')], total: 1 })

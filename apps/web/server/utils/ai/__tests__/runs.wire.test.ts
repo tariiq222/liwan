@@ -224,6 +224,7 @@ describe('POST /api/ai/runs', () => {
       expect(list.map(([n]) => n)).toEqual(['run', 'tool_request', 'done'])
       // The service's tool list predates the setting; the browser still gets a card to approve.
       expect(list[1]![1]).toMatchObject({ kind: 'read', requires_approval: true })
+      expect(list[2]![1]).toEqual({ status: 'waiting_user' })
       expect(odooCalls.some(c => c.url.startsWith('/api/v1/tasks'))).toBe(false)
       expect(serviceCalls.some(c => c.url.endsWith('/resume'))).toBe(false)
     } finally {
