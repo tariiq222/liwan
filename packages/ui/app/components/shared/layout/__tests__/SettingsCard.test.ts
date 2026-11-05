@@ -21,7 +21,7 @@ function pageRegistry() {
       entries.set(entry.id, entry)
       return () => { entries.delete(entry.id) }
     },
-    saveAll: () => undefined,
+    saveAll: async () => undefined,
     revertAll: () => undefined,
   }
   return { registry, entries }
@@ -74,12 +74,13 @@ describe('SharedSettingsCard', () => {
     expect(clean).not.toContain('app.unsaved')
   })
 
-  it('submits its own form and reverts through its events when the page bar asks', async () => {
+  it('runs its save handler and resolves after it when the page bar asks, and reverts through its event', async () => {
     const page = pageRegistry()
-    await render({ dirty: true }, page.registry)
+    let saved = false
+    await render({ dirty: true, onSave: async () => { saved = true } }, page.registry)
     const entry = page.entries.get('followup')!
-    expect(entry.submit).toBeTypeOf('function')
-    expect(() => entry.submit()).not.toThrow()
+    await entry.submit()
+    expect(saved).toBe(true)
     expect(entry.revert).toBeTypeOf('function')
   })
 

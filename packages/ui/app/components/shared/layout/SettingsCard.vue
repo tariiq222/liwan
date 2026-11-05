@@ -10,7 +10,7 @@
  * made elsewhere. The state comes from the page's form composable; the card only draws it. UForm's own submit loading is
  * off: it would disable every field for a tick, so a card could not move focus to its first invalid field.
  */
-import { reactive, watchEffect } from 'vue'
+import { reactive, watch, watchEffect } from 'vue'
 import { useSettingsSaveRegistry, type SettingsSaveEntry } from '../../../composables/useSettingsSave'
 
 const props = withDefaults(defineProps<{
@@ -27,12 +27,28 @@ const props = withDefaults(defineProps<{
   reloadFailed?: boolean
   /** The card's own button label: an action card that keeps its footer and its own confirm. */
   saveLabel?: string
+  /**
+   * The card's save (`@save`), a prop rather than an event so the page bar can await it: the cards of one settings
+   * object share a revision, so the bar saves them one after another, each with the revision the previous save returned.
+   */
+  onSave?: () => unknown
 }>(), { dirty: false, saving: false, reloading: false, conflict: false, message: '', reloadFailed: false })
-const emit = defineEmits<{ save: []; revert: []; reload: [] }>()
+const emit = defineEmits<{ revert: []; reload: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const busy = computed(() => !hydrated.value || props.saving || props.reloading)
-const form = ref<{ submit: () => void } | null>(null)
+// Resolves once the card's save handler returned and its `saving` state settled, so the next card starts afterwards.
+async function runSave() {
+  await props.onSave?.()
+  if (!props.saving) return
+  await new Promise<void>((done) => {
+    const stop = watch(() => props.saving, (saving) => {
+      if (saving) return
+      stop()
+      done()
+    })
+  })
+}
 const registry = useSettingsSaveRegistry()
 // An action card with its own label owns its button and confirm, so it keeps its footer even inside a settings page.
 const managed = Boolean(registry) && !props.saveLabel
@@ -42,7 +58,7 @@ const entry = reactive<SettingsSaveEntry>({
   saving: props.saving,
   conflict: props.conflict,
   failed: Boolean(props.message),
-  submit: () => form.value?.submit(),
+  submit: runSave,
   revert: () => emit('revert'),
 })
 if (managed && registry) onBeforeUnmount(registry.register(entry))
@@ -55,7 +71,7 @@ watchEffect(() => {
 </script>
 
 <template>
-  <UForm ref="form" novalidate :state="{}" :loading-auto="false" class="liwan-form" method="post" data-slot="settings-card" @submit="emit('save')">
+  <UForm novalidate :state="{}" :loading-auto="false" class="liwan-form" method="post" data-slot="settings-card" @submit="runSave">
     <SharedUnsavedChanges :dirty="canEdit && (dirty || saving)" />
     <SharedRecordSection :id="id" variant="panel" class="liwan-settings-anchor" :title="title" :description="description">
       <template v-if="!canEdit || $slots.actions || (managed && dirty)" #actions>

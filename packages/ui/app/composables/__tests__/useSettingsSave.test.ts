@@ -4,7 +4,7 @@ import { createHostNode, hostRenderer } from '../../../test/helpers/hostRenderer
 import { provideSettingsSave, type SettingsSaveEntry, type SettingsSaveRegistry } from '../useSettingsSave'
 
 const entry = (id: string, patch: Partial<SettingsSaveEntry> = {}): SettingsSaveEntry => reactive({
-  id, dirty: false, saving: false, conflict: false, failed: false, submit: vi.fn(), revert: vi.fn(), ...patch,
+  id, dirty: false, saving: false, conflict: false, failed: false, submit: vi.fn(async () => undefined), revert: vi.fn(), ...patch,
 })
 
 /** `provide` needs a component instance, so the registry is provided from a throwaway root. */
@@ -51,7 +51,7 @@ describe('useSettingsSaveRegistry', () => {
     expect(registry.failed.value).toBe(false)
   })
 
-  it('saveAll submits only the dirty cards, leaving out a conflicted or already saving one', () => {
+  it('saveAll submits only the dirty cards, leaving out a conflicted or already saving one', async () => {
     const registry = withRegistry()
     const clean = entry('clean')
     const dirty = entry('dirty', { dirty: true })
@@ -59,12 +59,31 @@ describe('useSettingsSaveRegistry', () => {
     const saving = entry('saving', { dirty: true, saving: true })
     for (const candidate of [clean, dirty, conflicted, saving]) registry.register(candidate)
 
-    registry.saveAll()
+    await registry.saveAll()
 
     expect(dirty.submit).toHaveBeenCalledTimes(1)
     expect(clean.submit).not.toHaveBeenCalled()
     expect(conflicted.submit).not.toHaveBeenCalled()
     expect(saving.submit).not.toHaveBeenCalled()
+  })
+
+  it('saveAll saves the cards one after another, so each reads the revision the previous save stored', async () => {
+    const registry = withRegistry()
+    let finishFirst: () => void = () => undefined
+    const first = entry('first', { dirty: true, submit: vi.fn(() => new Promise<void>((done) => { finishFirst = done })) })
+    const second = entry('second', { dirty: true, submit: vi.fn(async () => undefined) })
+    registry.register(first)
+    registry.register(second)
+
+    const all = registry.saveAll()
+    expect(first.submit).toHaveBeenCalledTimes(1)
+    expect(second.submit).not.toHaveBeenCalled()
+    expect(registry.saving.value).toBe(true)
+
+    finishFirst()
+    await all
+    expect(second.submit).toHaveBeenCalledTimes(1)
+    expect(registry.saving.value).toBe(false)
   })
 
   it('revertAll reverts every dirty card and nothing else', () => {

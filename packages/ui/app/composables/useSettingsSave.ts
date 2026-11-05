@@ -1,4 +1,4 @@
-import { computed, inject, provide, reactive, type ComputedRef, type InjectionKey } from 'vue'
+import { computed, inject, provide, reactive, ref, type ComputedRef, type InjectionKey } from 'vue'
 
 /** One settings card's live state as its page's save bar sees it. */
 export interface SettingsSaveEntry {
@@ -10,8 +10,8 @@ export interface SettingsSaveEntry {
   conflict: boolean
   /** The card shows a save failure message. */
   failed: boolean
-  /** Submits the card's own form, so its validation and focus handling still run. */
-  submit: () => void
+  /** Runs the card's save and resolves once it has settled. */
+  submit: () => Promise<void>
   revert: () => void
 }
 
@@ -25,8 +25,8 @@ export interface SettingsSaveRegistry {
   failed: ComputedRef<boolean>
   /** Adds a card to the page bar; the returned function removes it again. */
   register: (entry: SettingsSaveEntry) => () => void
-  /** Submits every dirty card that is neither locked by a conflict nor already saving. */
-  saveAll: () => void
+  /** Saves every dirty card that is neither locked by a conflict nor already saving, one after another. */
+  saveAll: () => Promise<void>
   /** Reverts every dirty card. */
   revertAll: () => void
 }
@@ -41,18 +41,26 @@ const SETTINGS_SAVE: InjectionKey<SettingsSaveRegistry> = Symbol('settings-save'
 export function provideSettingsSave(): SettingsSaveRegistry {
   const entries = reactive(new Map<string, SettingsSaveEntry>())
   const values = () => Array.from(entries.values())
+  const running = ref(false)
   const registry: SettingsSaveRegistry = {
     pending: computed(() => values().filter(entry => entry.dirty).length),
-    saving: computed(() => values().some(entry => entry.saving)),
+    saving: computed(() => running.value || values().some(entry => entry.saving)),
     failed: computed(() => values().some(entry => entry.failed)),
     register(entry) {
       entries.set(entry.id, entry)
       return () => { if (entries.get(entry.id) === entry) entries.delete(entry.id) }
     },
-    // A conflicted card is locked until its current values are reloaded, and a card already saving must not submit
-    // twice, so the bar leaves both out.
-    saveAll() {
-      for (const entry of values()) if (entry.dirty && !entry.conflict && !entry.saving) entry.submit()
+    // Cards of one settings object share a revision: saving them together would send the same revision twice and the
+    // second would answer 409. So the bar saves them in turn, each card reading the revision the previous save stored.
+    // A conflicted card is locked until its current values are reloaded, and a card already saving is left alone.
+    async saveAll() {
+      if (running.value) return
+      running.value = true
+      try {
+        for (const entry of values()) if (entry.dirty && !entry.conflict && !entry.saving) await entry.submit()
+      } finally {
+        running.value = false
+      }
     },
     revertAll() {
       for (const entry of values()) if (entry.dirty) entry.revert()

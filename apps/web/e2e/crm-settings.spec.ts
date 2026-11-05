@@ -49,6 +49,21 @@ test('a draft on one tab survives switching tabs and the one save bar saves it',
   await expect(page.getByTestId('settings-save-bar')).toBeHidden()
 })
 
+test('the save bar saves two cards of the shared settings in one press without a revision conflict', async ({ page }) => {
+  await page.goto('/settings/apps/crm?tab=workflow')
+  await page.locator('#distribution-mode').click()
+  await page.getByRole('option').nth(1).click()
+  const retry = page.locator('#followup').getByRole('switch').first()
+  const retryWas = await retry.isChecked()
+  await retry.click()
+  await expect(page.getByTestId('settings-save-bar')).toContainText('2')
+  await page.getByTestId('settings-save-bar-save').click()
+  await expect(page.getByTestId('settings-save-bar')).toBeHidden()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await page.reload()
+  await expect(page.locator('#followup').getByRole('switch').first()).toBeChecked({ checked: !retryWas })
+})
+
 test('the privacy card offers own and everyone, never the removed team mode', async ({ page }) => {
   await page.goto('/settings/apps/crm?tab=privacy')
   await page.locator('#visibility').click()

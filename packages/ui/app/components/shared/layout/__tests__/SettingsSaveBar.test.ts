@@ -13,7 +13,7 @@ const Bar = loadShared('SettingsSaveBar', { modules, messages })
 const BarBeforeHydration = loadShared('SettingsSaveBar', { modules, messages, hydrated: false })
 
 function entry(patch: Partial<SettingsSaveEntry> = {}): SettingsSaveEntry {
-  return reactive({ id: 'card', dirty: true, saving: false, conflict: false, failed: false, submit: vi.fn(), revert: vi.fn(), ...patch })
+  return reactive({ id: 'card', dirty: true, saving: false, conflict: false, failed: false, submit: vi.fn(async () => undefined), revert: vi.fn(), ...patch })
 }
 
 /** Mounts the bar under a root that provides a settings page registry, as SharedSettingsPage does. */
@@ -61,12 +61,12 @@ describe('SharedSettingsSaveBar', () => {
     expect(findNode(host, node => node.text === 'app.saveSomeFailed')).toBeTruthy()
   })
 
-  it('saves and reverts every edited card from the two buttons', () => {
+  it('saves and reverts every edited card from the two buttons', async () => {
     const first = entry({ id: 'a' })
     const second = entry({ id: 'b' })
     const host = mountBar([first, second])
 
-    ;(byTestId(host, 'settings-save-bar-save')!.props.onClick as () => void)()
+    await (byTestId(host, 'settings-save-bar-save')!.props.onClick as () => Promise<void>)()
     expect(first.submit).toHaveBeenCalledTimes(1)
     expect(second.submit).toHaveBeenCalledTimes(1)
 
