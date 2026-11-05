@@ -180,7 +180,7 @@ function partLinks({ page, parts }: { page: SettingsPage; parts: AppSettingsPart
 /**
  * The settings sidebar: the overview and one link per page on top, always (the applications' pages under their own
  * heading); below them the parts of the open page under its heading. Each page link opens the first part the identity
- * may use. A page with tabs lists no parts: its tab strip replaces the sub-list.
+ * may use. A page with tabs lists only its parts that open a page of their own: the tab strip holds its cards.
  */
 function settingsContextLinks(path: string | undefined, identity?: AccessIdentity): ShellContextLink[] {
   const visible = visibleSettingsPages(identity)
@@ -193,8 +193,8 @@ function settingsContextLinks(path: string | undefined, identity?: AccessIdentit
     })),
   ]
   const open = path ? visible.find(({ page }) => page.id === settingsPageForPath(path)?.id) : undefined
-  // A page with tabs replaces its sub-list with the tab strip, so it lists no parts here.
-  const parts = open && !open.page.groups?.length ? partLinks(open) : []
+  // A page with tabs shows its cards in the tab strip, so the sub-list keeps only the parts with a page of their own.
+  const parts = !open ? [] : open.page.groups?.length ? partLinks({ page: open.page, parts: open.parts.filter(part => part.to) }) : partLinks(open)
   return [...top, ...parts]
 }
 

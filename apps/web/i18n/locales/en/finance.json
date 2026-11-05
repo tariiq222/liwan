@@ -271,6 +271,13 @@
           "onboarded": "Onboarded"
         }
       }
+    },
+    "settingsGroups": {
+      "setup": "Setup",
+      "accounting": "Analytics and closing",
+      "zatca": "E-invoicing",
+      "audit": "Audit log",
+      "label": "Finance settings sections"
     }
   }
 }

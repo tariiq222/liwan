@@ -265,7 +265,7 @@ test.describe('payroll finance settings', () => {
     expect(HrShiftSettingsSchema.parse(await shiftSettings.json())).toMatchObject({
       day_reference: 'company', company_timezone: 'Asia/Riyadh', effective_timezone: 'Asia/Riyadh', revision: 0,
     })
-    await open(page, '/settings/apps/hr', 'الموارد البشرية')
+    await open(page, '/settings/apps/hr?tab=payroll', 'الموارد البشرية')
     await expect(page.getByTestId('hr-payroll-finance-form')).toBeVisible()
     await expect(page.getByTestId('hr-payroll-finance-submit')).toBeDisabled()
     await page.getByTestId('hr-payroll-finance-detail').click()
@@ -284,7 +284,7 @@ test.describe('payroll finance settings', () => {
     expect((await page.request.post('/api/v1/__mock/reset-payroll', { data: { finance: false } })).status()).toBe(200)
     // The refused finance request is logged by the browser; it is the behaviour under test.
     const withoutFinanceRefusals = trackRefusedRequests(page, '/api/v1/hr/payroll/finance-settings')
-    await open(page, '/settings/apps/hr', 'الموارد البشرية')
+    await open(page, '/settings/apps/hr?tab=payroll', 'الموارد البشرية')
     await expect(page.getByTestId('hr-payroll-settings-form')).toBeVisible()
     errors = withoutFinanceRefusals(errors)
     await expect(page.getByTestId('hr-payroll-finance-form')).toHaveCount(0)
@@ -294,7 +294,7 @@ test.describe('payroll finance settings', () => {
 
 test.describe('payroll settings', () => {
   test('saves a changed day divisor', async ({ page }) => {
-    await open(page, '/settings/apps/hr', 'الموارد البشرية')
+    await open(page, '/settings/apps/hr?tab=payroll', 'الموارد البشرية')
     await expect(page.getByTestId('hr-payroll-settings-submit')).toBeDisabled()
     await page.getByTestId('hr-payroll-divisor').click()
     await page.getByRole('option', { name: '31' }).click()
@@ -306,7 +306,7 @@ test.describe('payroll settings', () => {
   })
 
   test('a save after another administrator changed the settings keeps the draft and offers a reload', async ({ page }) => {
-    await open(page, '/settings/apps/hr', 'الموارد البشرية')
+    await open(page, '/settings/apps/hr?tab=payroll', 'الموارد البشرية')
     await page.getByTestId('hr-payroll-divisor').click()
     await page.getByRole('option', { name: '28' }).click()
     // Another administrator saves first, from the revision this page also read.
@@ -333,7 +333,7 @@ test.describe('payroll settings', () => {
   })
 
   test('a GOSI rate form refuses a missing start date and a company rate is deleted after an inline confirmation', async ({ page }) => {
-    await open(page, '/settings/apps/hr', 'الموارد البشرية')
+    await open(page, '/settings/apps/hr?tab=payroll', 'الموارد البشرية')
     await expect(row(page, /المعاشات.*مشتركة/)).toBeVisible()
     await expect(page.getByTestId('hr-gosi-submit')).toHaveCount(0)
     await page.getByTestId('hr-gosi-add').click()
@@ -435,7 +435,7 @@ test.describe('payroll salary files', () => {
   })
 
   test('a company bank profile is added with a constant column, a shared one is read-only', async ({ page }) => {
-    await open(page, '/settings/apps/hr', 'الموارد البشرية')
+    await open(page, '/settings/apps/hr?tab=payroll', 'الموارد البشرية')
     await expect(row(page, /ملف بنكي عام.*مشترك/)).toBeVisible()
     await page.getByTestId('hr-bank-profile-add').click()
     await page.getByTestId('hr-bank-profile-name').fill('تحويل الراجحي')
@@ -512,7 +512,7 @@ test.describe('end of service', () => {
   })
 
   test('the settings map a departure reason to a case', async ({ page }) => {
-    await open(page, '/settings/apps/hr', 'الموارد البشرية')
+    await open(page, '/settings/apps/hr?tab=payroll', 'الموارد البشرية')
     await expect(page.getByTestId('hr-eos-case-2')).toContainText('غير مربوط')
     await page.getByTestId('hr-eos-case-2').click()
     await page.getByRole('option', { name: 'انتهاء العقد' }).click()

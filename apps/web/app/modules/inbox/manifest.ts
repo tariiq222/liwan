@@ -28,6 +28,12 @@ const manifest: AppManifest = {
       { id: 'campaigns', labelKey: 'inbox.campaigns.settings.title', icon: 'i-lucide-megaphone', capability: 'inbox.campaigns.manage' },
       { id: 'channels', labelKey: 'inbox.settings.channels.title', icon: 'i-lucide-plug-zap', capability: 'inbox.channels.manage', within: '/settings/apps/inbox/channels' },
     ],
+    // The page's tabs; the presets sit above them, and the parts with a page of their own stay in the sidebar.
+    groups: [
+      { id: 'basics', labelKey: 'inbox.settings.groups.basics', parts: ['policy', 'departments', 'tags'] },
+      { id: 'replies', labelKey: 'inbox.settings.groups.replies', parts: ['canned-replies', 'auto-messages', 'campaigns'] },
+      { id: 'channels', labelKey: 'inbox.settings.groups.channels', parts: ['channels'] },
+    ],
   },
   sidebarPanel: { module: 'inbox', width: 'wide', load: () => import('../../components/inbox/InboxSidebarPanel.vue') },
   contextLinks: () => [

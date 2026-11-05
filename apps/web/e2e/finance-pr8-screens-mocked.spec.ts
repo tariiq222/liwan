@@ -20,7 +20,7 @@ const SCREENS: { screen: string; path: string }[] = [
   { screen: 'VAT report', path: '/finance/reports/vat' },
   { screen: 'zakat base', path: '/finance/reports/zakat-base' },
   { screen: 'budget record (cost-center split)', path: '/finance/budgets/1' },
-  { screen: 'ZATCA work queue', path: '/settings/apps/finance' },
+  { screen: 'ZATCA work queue', path: '/settings/apps/finance?tab=zatca' },
 ]
 
 for (const locale of ['ar', 'en'] as const) {

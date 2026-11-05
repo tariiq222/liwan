@@ -100,6 +100,14 @@ const manifest: AppManifest = {
       { id: 'zatca', labelKey: 'finance.nav.zatca', icon: 'i-lucide-qr-code', capability: 'finance.zatca.read' },
       { id: 'audit', labelKey: 'finance.nav.audit', icon: 'i-lucide-history', capability: 'finance.audit.read', within: '/settings/apps/finance/audit' },
     ],
+    // The page's tabs; the account, journal, tax, payment-term and asset-profile lists have pages of their own and stay
+    // in the sidebar.
+    groups: [
+      { id: 'setup', labelKey: 'finance.settingsGroups.setup', parts: ['setup'] },
+      { id: 'accounting', labelKey: 'finance.settingsGroups.accounting', parts: ['analytic', 'closing'] },
+      { id: 'zatca', labelKey: 'finance.settingsGroups.zatca', parts: ['zatca'] },
+      { id: 'audit', labelKey: 'finance.settingsGroups.audit', parts: ['audit'] },
+    ],
   },
   contextLinks: (path) => {
     const section = financeSectionOf(path)
