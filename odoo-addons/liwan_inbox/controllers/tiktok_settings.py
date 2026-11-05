@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""The TikTok suggested questions and chat prompts of one channel: list, create, edit, delete and enable."""
+"""One TikTok channel's settings: its suggested questions and chat prompts, and its history import."""
 from odoo import http
 from odoo.http import request
 
@@ -23,8 +23,10 @@ from odoo.addons.liwan_inbox.models.access_service import MANAGE_CHANNELS
 from odoo.addons.liwan_inbox.models.constants import TIKTOK_FEATURE
 from odoo.addons.liwan_inbox.models.tiktok_shortcut import LIMITS
 from odoo.addons.liwan_inbox.serializers.settings import dump_tiktok_shortcut
+from odoo.addons.liwan_inbox.serializers.tiktok import dump_sync
 
 SHORTCUTS_PATH = '/api/v1/inbox/channels/<int:channel_id>/tiktok/shortcuts'
+SYNC_PATH = '/api/v1/inbox/channels/<int:channel_id>/tiktok/sync'
 CREATE_FIELDS = {'kind', 'sequence', 'question', 'answer', 'title', 'content'}
 PATCH_FIELDS = {'sequence', 'question', 'answer', 'title', 'content'}
 # The content fields and their lengths, by kind.
@@ -140,3 +142,22 @@ class TikTokSettingsController(http.Controller):
             'kind': payload['kind'], 'enabled': payload['enabled'],
             'items': [dump_tiktok_shortcut(shortcut) for shortcut in shortcuts], 'total': len(shortcuts),
         }
+
+    # history import (D11)
+
+    @http.route(SYNC_PATH, type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature(TIKTOK_FEATURE, operation='read')
+    @requires_capability(MANAGE_CHANNELS)
+    def latest_sync(self, channel_id, **_):
+        """The channel's latest history import, or null before the first one."""
+        job = request.env['liwan.inbox.tiktok.sync'].search([('channel_id', '=', tiktok_channel(channel_id).id)], limit=1)
+        return {'job': dump_sync(job) if job else None}
+
+    @http.route(SYNC_PATH, type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature(TIKTOK_FEATURE, operation='write')
+    @requires_capability(MANAGE_CHANNELS)
+    def start_sync(self, channel_id, **_):
+        """Queue a history import on demand; a second one while it runs is 422 `inbox_tiktok_sync_running`."""
+        return request.make_json_response(dump_sync(tiktok_channel(channel_id)._liwan_tiktok_queue_sync()), status=201)
