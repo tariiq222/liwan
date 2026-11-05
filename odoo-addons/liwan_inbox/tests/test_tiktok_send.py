@@ -4,15 +4,21 @@ import base64
 from datetime import timedelta
 from unittest.mock import patch
 
-from odoo import fields
+from odoo import Command, fields
 from odoo.tests import tagged
 
 from . import tiktok_payloads as tt
+from .automation_common import RULE_BODY
 from .common import LiwanInboxCase
 from .media_samples import PDF, PNG
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_inbox.adapters import errors, tiktok
-from odoo.addons.liwan_inbox.models.constants import REPLY_WINDOWS, TIKTOK_FEATURE
+from odoo.addons.liwan_inbox.controllers.reply_parsing import parse_interactive
+from odoo.addons.liwan_inbox.models.constants import (
+    AUTOMATION_FEATURE,
+    REPLY_WINDOWS,
+    TIKTOK_FEATURE,
+)
 
 ACCESS_TOKEN = 'tiktok-access-token-send'
 REFRESH_TOKEN = 'tiktok-refresh-token-send'
@@ -179,3 +185,73 @@ class TestTikTokSend(LiwanInboxCase):
         self.assertEqual((send_text.call_count, message.delivery_state, message.attempts), (0, 'failed', 1))
         self.assertIn('reconnect', message.error.lower())
         self.assertEqual(self.tiktok.state, 'error')
+
+    # button cards, typing and read receipts
+
+    def card(self, buttons):
+        return {'type': 'buttons', 'body': 'Pick one', 'header': None, 'footer': None, 'buttons': buttons}
+
+    def test_a_rule_reply_with_three_buttons_goes_out_as_a_card(self):
+        rule = self.env['liwan.inbox.rule'].create({
+            'name': 'Pick', 'channel_id': self.tiktok.id, 'match_kind': 'contains',
+            'keyword_ids': [Command.create({'value': 'pick'})],
+        })
+        rule._liwan_set_reply(parse_interactive(self.card(
+            [{'id': f'id-{number}', 'title': f'Choice {number}'} for number in range(3)],
+        ), self.tiktok))
+        message = self.env['liwan.inbox.message']._liwan_queue_automated(
+            self.conversation, rule.reply_ids._liwan_message_values(),
+        )
+        with patch.object(tiktok, 'send_buttons', return_value='msg-card-1') as send_buttons:
+            self.run_outbox()
+        credentials, conversation_id, title, buttons = send_buttons.call_args.args
+        self.assertEqual((credentials.business_id, conversation_id, title), (tt.BUSINESS_ID, tt.CONVERSATION_ID, 'Pick one'))
+        self.assertEqual([(button.id, button.title) for button in buttons], [('id-0', 'Choice 0'), ('id-1', 'Choice 1'), ('id-2', 'Choice 2')])
+        self.assertEqual((message.delivery_state, message.provider_message_id), ('sent', 'msg-card-1'))
+
+    def test_a_rule_for_a_tiktok_channel_refuses_four_buttons(self):
+        set_probe_feature(self, key=AUTOMATION_FEATURE, enabled=True)
+        self.login(self.manager)
+        buttons = [{'id': f'id-{number}', 'title': f'Choice {number}'} for number in range(4)]
+        response = self.api('POST', '/api/v1/inbox/rules', {
+            **RULE_BODY, 'channel_id': self.tiktok.id, 'keywords': ['pick'], 'reply': {'interactive': self.card(buttons)},
+        })
+        self.assertError(response, 422, 'invalid')
+        self.assertEqual(response.json()['details']['reason'], REASON_UNSUPPORTED)
+        three = [{'id': f'id-{number}', 'title': f'Choice {number}'} for number in range(3)]
+        accepted = self.api('POST', '/api/v1/inbox/rules', {
+            **RULE_BODY, 'channel_id': self.tiktok.id, 'keywords': ['pick'], 'reply': {'interactive': self.card(three)},
+        })
+        self.assertEqual(accepted.status_code, 201, accepted.text)
+        self.assertEqual(len(accepted.json()['reply']['interactive']['buttons']), 3)
+
+    def request_typing(self):
+        self.conversation.write({'typing_pending': True, 'typing_requested_at': fields.Datetime.now()})
+
+    def test_typing_uses_a_sender_action(self):
+        self.request_typing()
+        with patch.object(tiktok, 'send_action') as send_action:
+            self.run_outbox()
+        credentials, conversation_id, action = send_action.call_args.args
+        self.assertEqual((credentials.business_id, conversation_id, action), (tt.BUSINESS_ID, tt.CONVERSATION_ID, 'TYPING'))
+        self.assertFalse(self.conversation.typing_pending)
+        self.run_outbox()
+        self.assertEqual(send_action.call_count, 1)
+
+    def test_a_read_receipt_marks_the_conversation_read(self):
+        inbound = self.conversation.message_ids[0]
+        inbound.read_receipt = 'pending'
+        with patch.object(tiktok, 'send_action') as send_action:
+            self.run_outbox()
+        self.assertEqual(send_action.call_args.args[1:], (tt.CONVERSATION_ID, 'MARK_READ'))
+        self.assertEqual(inbound.read_receipt, 'sent')
+
+    def test_an_outbound_reaction_is_refused(self):
+        message = self.env['liwan.inbox.message'].create({
+            'conversation_id': self.conversation.id, 'company_id': self.conversation.company_id.id,
+            'direction': 'out', 'body': 'Already sent', 'delivery_state': 'sent', 'provider_message_id': 'msg-sent-old',
+        })
+        response = self.api('POST', f'/api/v1/inbox/messages/{message.id}/reaction', {'emoji': '👍'})
+        self.assertError(response, 422, 'invalid')
+        self.assertEqual(response.json()['details']['reason'], REASON_UNSUPPORTED)
+        self.assertFalse(message.agent_reaction_pending or message.agent_reaction)

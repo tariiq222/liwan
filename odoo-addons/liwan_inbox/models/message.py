@@ -476,6 +476,11 @@ class LiwanInboxMessage(models.Model):
         """Set (or, with an empty emoji, remove) the agent's reaction; the outbox sends it."""
         self.ensure_one()
         conversation = self.conversation_id
+        if conversation.channel_id.kind == 'tiktok':
+            raise LiwanAccessRule(
+                INVALID, self.env._('TikTok does not accept an outbound reaction.'),
+                details={'reason': 'inbox_tiktok_unsupported_kind'},
+            )
         if self.direction == 'note' or not self.provider_message_id:
             raise ValidationError(self.env._('Only a delivered message can be reacted to.'))
         self._liwan_require_sendable(conversation)

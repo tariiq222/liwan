@@ -59,18 +59,25 @@ class LiwanInboxMessageOutbox(models.Model):
 
     @api.model
     def _liwan_send_typing(self, conversation):
-        """The typing indicator (which also marks the newest inbound message read); a failure is only logged."""
+        """The typing indicator; a failure is only logged."""
         conversation.typing_pending = False
         inbound = conversation._liwan_latest_inbound()
         if (not inbound or fields.Datetime.now() - conversation.typing_requested_at > TYPING_MAX_AGE
                 or conversation._liwan_replied_since(conversation.typing_requested_at)):
             return
+        channel = conversation.channel_id
         try:
-            whatsapp.mark_read(conversation.channel_id._liwan_credentials(), inbound.provider_message_id, typing=True)
+            credentials = channel._liwan_credentials()
+            if channel.kind == 'tiktok':
+                tiktok.send_action(credentials, conversation.provider_conversation_id, 'TYPING')
+            else:
+                whatsapp.mark_read(credentials, inbound.provider_message_id, typing=True)
         except (errors.ProviderError, UserError) as error:
             _logger.warning('typing indicator of conversation %s failed: %s', conversation.id, type(error).__name__)
         else:
-            inbound.write({'read_receipt': 'sent', 'receipt_attempts': 0})
+            # A WhatsApp read receipt travels with the typing indicator; TikTok marks a conversation read on its own.
+            if channel.kind != 'tiktok':
+                inbound.write({'read_receipt': 'sent', 'receipt_attempts': 0})
 
     @api.model
     def _liwan_unexpected_failure(self, message, error):
@@ -229,9 +236,13 @@ class LiwanInboxMessageOutbox(models.Model):
 
     def _liwan_send_read_receipt(self):
         self.ensure_one()
+        conversation = self.conversation_id
         try:
-            credentials = self.conversation_id.channel_id._liwan_credentials()
-            whatsapp.mark_read(credentials, self.provider_message_id)
+            credentials = conversation.channel_id._liwan_credentials()
+            if conversation.channel_id.kind == 'tiktok':
+                tiktok.send_action(credentials, conversation.provider_conversation_id, 'MARK_READ')
+            else:
+                whatsapp.mark_read(credentials, self.provider_message_id)
         except errors.ProviderError as error:
             self._liwan_receipt_failed(error.retryable)
         except UserError:
