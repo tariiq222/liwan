@@ -45,9 +45,7 @@ class LiwanInboxInbound(models.AbstractModel):
             elif isinstance(item, tiktok.AutoMessageChanged):
                 channel._liwan_tiktok_refresh_audit()
             elif isinstance(item, tiktok.EuNotice):
-                # TikTok sends no content for a sender in the EEA, Switzerland or the UK (D8); the history import
-                # fetches it, so this notice is only a dispatch point today (E6.2).
-                continue
+                self._liwan_ingest_tiktok_eu(channel)
         return changed
 
     @api.model
@@ -79,6 +77,16 @@ class LiwanInboxInbound(models.AbstractModel):
         })
         automation._liwan_run(conversation, message)
         return conversation
+
+    @api.model
+    def _liwan_ingest_tiktok_eu(self, channel):
+        """TikTok sent no content because the sender sits in the EEA, Switzerland or the UK (D8): import the history.
+
+        An import that is already running reads the same conversations, so this notice neither starts a second one
+        nor raises.
+        """
+        if not channel._liwan_tiktok_active_sync():
+            channel._liwan_tiktok_queue_sync()
 
     @api.model
     def _liwan_tiktok_identity(self, channel, item):

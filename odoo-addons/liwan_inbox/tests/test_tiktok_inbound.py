@@ -245,3 +245,17 @@ class TestTikTokInbound(LiwanInboxCase):
         self.deliver(tt.referral('short_link', ref='campaign_1'))
         self.assertEqual((conversation.referral_source, conversation.referral_ref), ('short_link', 'campaign_1'))
         self.assertEqual(self.env['liwan.inbox.message'].search_count([('conversation_id', '=', conversation.id)]), count)
+
+    def test_an_eu_notice_queues_a_history_import(self):
+        """TikTok sends no content for an EEA, Swiss or UK sender: the notice imports that history instead (D8)."""
+        Sync = self.env['liwan.inbox.tiktok.sync']
+        self.assertFalse(Sync.search([('channel_id', '=', self.tiktok.id)]))
+        event = self.deliver(tt.eu_notice())
+        self.assertEqual((event.state, event.attempts), ('done', 0))
+        job = Sync.search([('channel_id', '=', self.tiktok.id)])
+        self.assertEqual(len(job), 1)
+        self.assertEqual((job.state, job.owner_company_id), ('queued', self.tiktok.owner_company_id))
+        self.assertFalse(self.env['liwan.inbox.conversation'].search_count([]))
+        # An import already queued reads the same messages: a second notice starts nothing and raises nothing.
+        self.assertEqual(self.deliver(tt.eu_notice()).state, 'done')
+        self.assertEqual(len(Sync.search([('channel_id', '=', self.tiktok.id)])), 1)
