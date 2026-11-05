@@ -11,6 +11,7 @@ from odoo.exceptions import MissingError
 from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.common import parse_positive_int
+from odoo.addons.liwan_inbox.adapters import tiktok
 from odoo.addons.liwan_inbox.controllers.helpers import (
     check_fields,
     find_agent,
@@ -141,6 +142,11 @@ def parse_message_block(channel, payload, purpose, setting, low, high):
         values[f'{purpose}_{setting}'] = parse_int(block[setting], setting, low, high)
     if 'content' in block:
         contents[purpose] = parse_content(block['content'], channel=channel) if block['content'] is not None else None
+    content = contents.get(purpose)
+    if channel.kind == 'tiktok' and purpose == 'welcome' and content is not None and (
+        set(content) != {'body'} or len(content['body']) > tiktok.WELCOME_MAX
+    ):
+        reject('a TikTok welcome message is a text of at most 250 characters', 'welcome', 'inbox_tiktok_unsupported_kind')
     enabled = values.get(f'{purpose}_enabled', channel[f'{purpose}_enabled'])
     has_content = contents[purpose] is not None if purpose in contents else bool(channel._liwan_auto_message(purpose))
     if enabled and not has_content:

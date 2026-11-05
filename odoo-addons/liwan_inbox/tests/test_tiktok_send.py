@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """TikTok outbound: the 48-hour window and the reply limit, the content TikTok accepts, and the send."""
 import base64
+import calendar
+import json
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -17,6 +19,7 @@ from odoo.addons.liwan_inbox.controllers.reply_parsing import parse_interactive
 from odoo.addons.liwan_inbox.models.constants import (
     AUTOMATION_FEATURE,
     REPLY_WINDOWS,
+    TIKTOK_ECHO_SETTLE,
     TIKTOK_FEATURE,
 )
 
@@ -26,8 +29,8 @@ REASON_UNSUPPORTED = 'inbox_tiktok_unsupported_kind'
 
 
 @tagged('post_install', '-at_install', 'liwan')
-class TestTikTokSend(LiwanInboxCase):
-    """An agent replying on a TikTok conversation: what may be queued, and what leaves the outbox."""
+class TikTokCase(LiwanInboxCase):
+    """The fixtures of the TikTok outbound tests: a connected account and a customer conversation."""
 
     @classmethod
     def setUpClass(cls):
@@ -71,6 +74,9 @@ class TestTikTokSend(LiwanInboxCase):
         super().setUp()
         set_probe_feature(self, key=TIKTOK_FEATURE, enabled=True)
         self.login(self.agent)
+        capability = patch.object(tiktok, 'image_send_capable', return_value=True)
+        capability.start()
+        self.addCleanup(capability.stop)
 
     def path(self, suffix='', conversation=None):
         return f'/api/v1/inbox/conversations/{(conversation or self.conversation).id}{suffix}'
@@ -90,6 +96,29 @@ class TestTikTokSend(LiwanInboxCase):
 
     def queued(self, message_id):
         return self.env['liwan.inbox.message'].browse(message_id)
+
+    def deliver(self, payload):
+        """Deliver one webhook payload and process it after the echo settle time."""
+        self.env['liwan.inbox.event'].create({
+            'channel_id': self.tiktok.id, 'owner_company_id': self.tiktok.owner_company_id.id,
+            'payload': json.dumps(payload),
+        })
+        later = fields.Datetime.now() + TIKTOK_ECHO_SETTLE + timedelta(seconds=1)
+        with patch('odoo.fields.Datetime.now', return_value=later):
+            self.env['liwan.inbox.event']._liwan_run_events()
+        latest = self.env['liwan.inbox.message'].search([
+            ('conversation_id.channel_id', '=', self.tiktok.id),
+        ], order='id desc', limit=1)
+        return latest.conversation_id
+
+    def receive_now(self, body='Hi'):
+        """An inbound text delivered at the current moment (the fixtures' fixed timestamp is months old)."""
+        moment = calendar.timegm(fields.Datetime.now().timetuple()) * 1000
+        return tt.receive_text(body=body, timestamp=moment)
+
+
+class TestTikTokSend(TikTokCase):
+    """An agent replying on a TikTok conversation: what may be queued, and what leaves the outbox."""
 
     # what may be queued
 
@@ -255,3 +284,87 @@ class TestTikTokSend(LiwanInboxCase):
         self.assertError(response, 422, 'invalid')
         self.assertEqual(response.json()['details']['reason'], REASON_UNSUPPORTED)
         self.assertFalse(message.agent_reaction_pending or message.agent_reaction)
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestTikTokAutomation(TikTokCase):
+    """The TikTok automation messages: the welcome is TikTok's own, the away and the survey leave LiwanOS."""
+
+    def setUp(self):
+        super().setUp()
+        set_probe_feature(self, key=AUTOMATION_FEATURE, enabled=True)
+        self.login(self.manager)
+
+    def patch_automation(self, payload):
+        return self.api('PATCH', f'/api/v1/inbox/channels/{self.tiktok.id}/automation', payload)
+
+    def closed_hours(self):
+        tomorrow = (fields.Datetime.now().weekday() + 1) % 7
+        return {
+            'timezone': 'UTC', 'holidays': [],
+            'days': [{'weekday': tomorrow, 'from': '00:00', 'to': '24:00'}],
+        }
+
+    def test_saving_the_welcome_message_pushes_it_to_tiktok(self):
+        with patch.object(tiktok, 'create_auto_message', return_value='am-welcome-1') as create:
+            response = self.patch_automation({
+                'welcome': {'enabled': True, 'content': {'body': 'Welcome to the shop'}},
+            })
+        self.assertEqual(response.status_code, 200, response.text)
+        credentials, auto_type, content = create.call_args.args
+        self.assertEqual((credentials.business_id, auto_type), (tt.BUSINESS_ID, 'WELCOME_MESSAGE'))
+        self.assertEqual(content, {'welcome_message': {'content': 'Welcome to the shop'}})
+        self.tiktok.invalidate_recordset(['tiktok_welcome_id', 'tiktok_welcome_audit'])
+        self.assertEqual((self.tiktok.tiktok_welcome_id, self.tiktok.tiktok_welcome_audit), ('am-welcome-1', 'reviewing'))
+        self.assertEqual(self.tiktok._liwan_auto_message('welcome').body, 'Welcome to the shop')
+
+    def test_a_welcome_that_is_not_a_short_text_is_refused(self):
+        set_probe_feature(self, key=TIKTOK_FEATURE, enabled=True)
+        for content in (
+            {'body': 'x' * (tiktok.WELCOME_MAX + 1)},
+            {'interactive': {'type': 'buttons', 'body': 'Pick', 'buttons': [{'id': 'yes', 'title': 'Yes'}]}},
+        ):
+            with patch.object(tiktok, 'create_auto_message') as create:
+                response = self.patch_automation({'welcome': {'enabled': True, 'content': content}})
+            self.assertError(response, 422, 'invalid')
+            self.assertEqual(create.call_count, 0)
+        self.assertFalse(self.tiktok._liwan_auto_message('welcome'))
+
+    def test_the_welcome_is_never_sent_by_liwanos(self):
+        with patch.object(tiktok, 'create_auto_message', return_value='am-welcome-1'):
+            self.patch_automation({'welcome': {'enabled': True, 'content': {'body': 'Welcome to the shop'}}})
+        conversation = self.deliver(self.receive_now())
+        self.assertFalse(conversation.message_ids.filtered(lambda message: message.direction == 'out'))
+
+    def test_the_away_message_is_sent_by_liwanos(self):
+        self.env['liwan.inbox.working.hours']._liwan_write(self.settings, self.closed_hours())
+        with patch.object(tiktok, 'create_auto_message', return_value='am-welcome-1'):
+            self.patch_automation({'away': {'enabled': True, 'content': {'body': 'We are away'}}})
+        conversation = self.deliver(self.receive_now())
+        message = conversation.message_ids.filtered(lambda message: message.direction == 'out')
+        self.assertEqual((message.body, message.automated, message.author_id), ('We are away', True, self.env['res.users']))
+        # The delivery runs the automation 31 seconds ahead (the echo settle time); the outbox sends it right after.
+        message.next_attempt_at = fields.Datetime.now() - timedelta(seconds=1)
+        with patch.object(tiktok, 'send_text', return_value='msg-away-1') as send_text:
+            self.run_outbox()
+        self.assertEqual(send_text.call_args.args[1:3], (tt.CONVERSATION_ID, 'We are away'))
+        self.assertEqual((message.delivery_state, message.provider_message_id), ('sent', 'msg-away-1'))
+        self.assertTrue(conversation.away_sent_at)
+
+    def test_the_survey_is_a_button_card_and_a_click_records_the_score(self):
+        self.tiktok.write({'csat_enabled': True})
+        self.conversation._liwan_send_csat_survey()
+        with patch.object(tiktok, 'send_buttons', return_value='msg-csat-1') as send_buttons:
+            self.run_outbox()
+        _credentials, conversation_id, title, buttons = send_buttons.call_args.args
+        self.assertEqual((conversation_id, title), (tt.CONVERSATION_ID, self.tiktok.csat_question))
+        self.assertEqual([button.id for button in buttons], ['csat_good', 'csat_neutral', 'csat_bad'])
+        address = self.conversation.identity_id.address
+        self.deliver(tt.inbound(
+            'text', {'body': 'Excellent'}, message_id='msg-click-csat',
+            from_user={'id': address, 'role': 'personal_account'}, **{'from': address},
+            referenced_message_info={'referenced_message_id': 'msg-csat-1'},
+            reply_source_payload={'reply_source_msg_id': 'msg-csat-1', 'reply_source_unique_id': 'csat_good'},
+        ))
+        self.conversation.invalidate_recordset(['csat_score', 'csat_at'])
+        self.assertEqual(self.conversation.csat_score, 'good')

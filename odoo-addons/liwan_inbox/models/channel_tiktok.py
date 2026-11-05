@@ -110,3 +110,33 @@ class LiwanInboxChannel(models.Model):
         message = self.env._('Reconnect the TikTok account: its authorization is no longer valid.')
         self.write({'state': 'error', 'last_error': message})
         raise UserError(message)
+
+    # automation
+
+    def _liwan_set_auto_message(self, purpose, content):
+        """Store the welcome record and mirror it to TikTok; the away and rule replies stay LiwanOS's own."""
+        super()._liwan_set_auto_message(purpose, content)
+        if self.kind == 'tiktok' and purpose == 'welcome':
+            self._liwan_tiktok_push_welcome()
+
+    def _liwan_tiktok_push_welcome(self):
+        """Push the welcome record to TikTok's own WELCOME_MESSAGE (D10); LiwanOS never sends that message itself."""
+        self.ensure_one()
+        if not self.access_token_enc:
+            return
+        credentials = self._liwan_credentials()
+        welcome = self._liwan_auto_message('welcome')
+        try:
+            if not welcome:
+                if self.tiktok_welcome_id:
+                    tiktok.delete_auto_message(credentials, 'WELCOME_MESSAGE', self.tiktok_welcome_id)
+                    self.write({'tiktok_welcome_id': False, 'tiktok_welcome_audit': False})
+                return
+            content = {'welcome_message': {'content': welcome.body}}
+            if self.tiktok_welcome_id:
+                tiktok.update_auto_message(credentials, 'WELCOME_MESSAGE', self.tiktok_welcome_id, content)
+            else:
+                self.tiktok_welcome_id = tiktok.create_auto_message(credentials, 'WELCOME_MESSAGE', content)
+        except errors.ProviderError as error:
+            raise UserError(str(error)) from error
+        self.tiktok_welcome_audit = 'reviewing'
