@@ -114,7 +114,9 @@
   --liwan-rail-active: #eee8f8;
   /* Round icon chips (rail circles on hover, context sidebar links). */
   --liwan-chip: #f5efe3;
-  --liwan-chip-active: #ffffff;
+  /* The active chip (rail circle and context sidebar chip) is the brand fill with a light sand icon. */
+  --liwan-chip-active: var(--primary-solid);
+  --liwan-chip-active-ink: var(--liwan-sand);
   --liwan-rail-active-ink: #7843c6;
   /* Floating shell cards (header, rail, context sidebar) lift off the canvas with these shadows; the active context link is tinted. */
   --liwan-shell-shadow: 0 12px 32px rgb(20 16 42 / 8%);
@@ -231,7 +233,6 @@
   --liwan-rail-ink: #d2c3a3;
   --liwan-rail-active: #2e2852;
   --liwan-chip: #231e42;
-  --liwan-chip-active: #14102a;
   --liwan-rail-active-ink: #c2aae5;
   --liwan-shell-shadow: 0 12px 32px rgb(0 0 0 / 35%);
   --liwan-rail-shadow: 0 12px 32px rgb(0 0 0 / 35%);

@@ -41,9 +41,13 @@ describe('the module rail is a white floating card', () => {
     expect(contrastRatio(light.get('--liwan-rail-active-ink')!, light.get('--liwan-rail-active')!)).toBeGreaterThanOrEqual(4.5)
     expect(contrastRatio(dark.get('--liwan-rail-ink')!, DARK_SURFACES.bg)).toBeGreaterThanOrEqual(4.5)
     expect(contrastRatio(dark.get('--liwan-rail-active-ink')!, dark.get('--liwan-rail-active')!)).toBeGreaterThanOrEqual(4.5)
-    expect(contrastRatio(light.get('--liwan-rail-active-ink')!, light.get('--liwan-chip-active')!)).toBeGreaterThanOrEqual(4.5)
+    // The active chip is the brand fill under a sand icon in both modes: 3:1 for an icon.
+    expect(light.get('--liwan-chip-active')).toBe('var(--primary-solid)')
+    expect(light.get('--liwan-chip-active-ink')).toBe('var(--liwan-sand)')
+    expect(contrastRatio(LIGHT_SAND, LIWAN_PRIMARY)).toBeGreaterThanOrEqual(3)
     expect(contrastRatio(light.get('--liwan-rail-ink')!, light.get('--liwan-chip')!)).toBeGreaterThanOrEqual(4.5)
-    expect(contrastRatio(dark.get('--liwan-rail-active-ink')!, dark.get('--liwan-chip-active')!)).toBeGreaterThanOrEqual(4.5)
+    expect(dark.has('--liwan-chip-active')).toBe(false)
+    expect(contrastRatio(DARK_SAND, DARK_PRIMARY_FILL)).toBeGreaterThanOrEqual(3)
   })
 })
 
