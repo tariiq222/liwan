@@ -106,6 +106,12 @@ set -a; source .env; set +a
 DOMAIN="${1:?usage: provision.sh <domain> <db name>}"
 DB_NAME="${2:?usage: provision.sh <domain> <db name>}"
 [[ "$DB_NAME" =~ ^[a-zA-Z0-9_]+$ ]] || { echo "db name must be [a-zA-Z0-9_]+" >&2; exit 1; }
+# With the ai profile the tenant database name also becomes the AI tenant id and the AI database name, which
+# the service accepts only as ^[a-z][a-z0-9_]{0,62}$. Refuse it here, before any install work starts.
+if grep -Eq '^COMPOSE_PROFILES=([^#]*,)?ai(,|$|[[:space:]])' .env; then
+  [[ "$DB_NAME" =~ ^[a-z][a-z0-9_]{0,62}$ ]] \
+    || { echo "db name '$DB_NAME' must match ^[a-z][a-z0-9_]{0,62}$ when the ai profile is enabled" >&2; exit 1; }
+fi
 # The public origin is https://<domain>: a lowercase DNS name, no port, no trailing dot.
 [ "${#DOMAIN}" -le 253 ] && [[ "$DOMAIN" =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$ ]] \
   || { echo "domain must be a lowercase DNS name" >&2; exit 1; }
@@ -172,8 +178,11 @@ set_public_origin
 docker compose exec -T db psql -U odoo -d postgres -v ON_ERROR_STOP=1 -v tenant_db="$DB_NAME" \
   < ai/tenant_schema.sql
 # The runtime validates AI state and never runs DDL: the operator bootstrap creates the tables in that
-# schema, so it runs here for every tenant while the ai profile is enabled.
+# schema, so it runs here for every tenant while the ai profile is enabled. The control state comes first (once per
+# deployment, idempotent: it validates an existing state), so the service does not restart-loop on
+# ai_control_state_uninitialized.
 if grep -Eq '^COMPOSE_PROFILES=([^#]*,)?ai(,|$|[[:space:]])' .env; then
+  docker compose run --rm -T ai python -m liwan_ai_service.store --initialize-control
   docker compose run --rm -T ai python -m liwan_ai_service.store --initialize-tenant "$DB_NAME"
 fi
 docker compose up -d

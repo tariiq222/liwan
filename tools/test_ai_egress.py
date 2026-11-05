@@ -124,6 +124,13 @@ class ProviderHostsCase(unittest.TestCase):
         self.assert_hosts('api.openai.com', 'openai')
         self.assert_hosts('ollama:11434', 'ollama')
 
+    def test_anthropic_ignores_the_base_url(self):
+        # The service's anthropic provider never uses AI_BASE_URL, so the egress allowlist must not open
+        # another host (a local model server included) for it.
+        self.assert_hosts('api.anthropic.com', 'anthropic', 'http://ollama:11434')
+        self.assert_hosts('api.anthropic.com', 'anthropic', 'https://gateway.internal:8443/v1')
+        self.assert_hosts('api.anthropic.com', 'anthropic', 'https://api.anthropic.com')
+
     def test_provider_hosts_with_a_base_url(self):
         # A base URL replaces the provider default; the port appears whenever it is not 443.
         self.assert_hosts('openrouter.ai', 'openrouter', 'https://openrouter.ai/api/v1')

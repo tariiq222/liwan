@@ -14,13 +14,24 @@ stops at every tool with an `interrupt`; the Nuxt server executes tools and resu
     # 2. tenant state in schema liwan_ai of each tenant database
     AI_DATABASE_URL=postgresql://localhost/liwan_ai_dev \
     .venv/bin/python -m liwan_ai_service.store --initialize-tenant dev_tenant
+
+    # Run against those databases: AI_SERVICE_TOKEN is required and must be at least 24 characters.
     AI_PROVIDER=ollama AI_MODEL=qwen2.5:7b AI_BASE_URL=http://localhost:11434 \
     AI_DATABASE_URL=postgresql://localhost/liwan_ai_dev \
+    AI_SERVICE_TOKEN="$(python3 -c 'import secrets; print(secrets.token_hex(32))')" \
     LIWAN_TENANCY_MODE=dedicated AI_TENANT_DATABASE=dev_tenant \
     .venv/bin/uvicorn liwan_ai_service.service:app --port 8600
 
-`AI_DATABASE_URL` is required: without it the service refuses to start. For local development only, set
-`AI_ALLOW_MEMORY_STATE=true` (exactly) to keep the state in memory; the service then logs a warning at startup.
+    # Or run without a database and without a token (local development only): in-memory state, no authentication.
+    AI_PROVIDER=ollama AI_MODEL=qwen2.5:7b AI_BASE_URL=http://localhost:11434 \
+    AI_ALLOW_MEMORY_STATE=true AI_DEV_INSECURE=true \
+    .venv/bin/uvicorn liwan_ai_service.service:app --port 8600
+
+`AI_DATABASE_URL` is required for real state: without it the service refuses to start. For local development only,
+`AI_ALLOW_MEMORY_STATE=true` (exactly) keeps the state in memory; the service then logs a warning at startup, and
+`AI_SERVICE_TOKEN` is still required. `AI_DEV_INSECURE=true` is the only token-free mode: the service accepts it only
+together with `AI_ALLOW_MEMORY_STATE=true` and no `AI_DATABASE_URL`, it serves every route unauthenticated, and it
+must stay unset outside local development.
 
 ## Environment
 
@@ -39,9 +50,10 @@ stops at every tool with an `interrupt`; the Nuxt server executes tools and resu
 | `AI_GENERATION_ID` | stable unique release generation id (`[a-z][a-z0-9_-]{0,62}`); required with a service token for release administration; reuse the same id on restart, never reuse a drained id for a replacement generation |
 | `AI_STATE_VERSION` | default `1`; run schema, graph/checkpoint payload and tool-result compatibility contract; another value refuses startup |
 | `AI_ALLOW_MEMORY_STATE` | `true` (exactly) lets the service start without a database, keeping state in memory (development only) |
+| `AI_DEV_INSECURE` | `true` (exactly) removes the service token requirement; accepted only with `AI_ALLOW_MEMORY_STATE=true` and no `AI_DATABASE_URL`, so development only, and it must stay unset in deployments |
 | `AI_RUN_RETENTION_DAYS` | default 30; `python -m liwan_ai_service.cleanup` deletes older runs |
 | `AI_DEFAULT_TIMEOUT_SECONDS` | default 120 |
-| `AI_SERVICE_TOKEN` | optional for development (the service logs a warning at startup when unset), at least 24 characters (it refuses to start with a shorter one) |
+| `AI_SERVICE_TOKEN` | required: at least 24 characters (a shorter one refuses startup, and a missing one refuses it too), the only exception being `AI_DEV_INSECURE=true` above |
 
 ## Providers
 
@@ -87,10 +99,13 @@ final. Titles are never retried.
 
 ## Service token
 
-When `AI_SERVICE_TOKEN` is set, every route except `GET /healthz` requires the header `X-Liwan-Service-Token` to equal it
-(constant-time comparison); anything else answers 401 with a fixed body. Without it the service is open (development only).
-The token is never logged or sent in an event. The Nuxt server sends it from `NUXT_AI_SERVICE_TOKEN`.
-Release administration always requires a configured token, including local memory mode.
+Every route except `GET /healthz` requires the header `X-Liwan-Service-Token` to equal `AI_SERVICE_TOKEN`
+(constant-time comparison); anything else answers 401 with a fixed body. The token is required: the service refuses
+to start when it is missing or shorter than 24 characters. The one exception is `AI_DEV_INSECURE=true` (development
+only), which the service accepts only with `AI_ALLOW_MEMORY_STATE=true` and no `AI_DATABASE_URL`, and which makes it
+start without a token and serve every route unauthenticated. The token is never logged or sent in an event. The Nuxt
+server sends it from `NUXT_AI_SERVICE_TOKEN`. Release administration always requires a configured token, including
+local memory mode.
 
 ## State initialization and release continuity
 
@@ -98,7 +113,7 @@ AI state has two parts.
 
 **Control state** in the service database `AI_DATABASE_URL`: `ai_state_schema` holds the schema contract and the immutable `state_<uuidhex>` `state_id`, and `ai_generations` holds the release generation draining flags. It holds no tenant content. Bootstrap generates the identity; it is not an environment label, and two independently initialized databases have different state identities even with the same version and generation label.
 
-**Tenant state** in each tenant's own database, in schema `liwan_ai`: `ai_runs`, the LangGraph checkpoint tables and `ai_tenant_schema`. The run table has no `tenant` column because the database is the tenant. `TenantStates` opens one Postgres pool per tenant database, with `search_path=liwan_ai` and a bounded size, keeps the most recently used pools (LRU) up to `max_open`, and closes a pool after its idle window; concurrent requests for one database share a single pool. The tenant is mapped to its database from deployment configuration only: `AI_TENANT_DATABASE` in dedicated mode, `LIWAN_TENANT_REGISTRY_PATH` in shared mode. A tenant the deployment does not serve answers 403 before any connection. A tenant database whose schema was never bootstrapped answers 503 `ai_state_uninitialized`; that failure affects only that tenant and no other.
+**Tenant state** in each tenant's own database, in schema `liwan_ai`: `ai_runs`, the LangGraph checkpoint tables and `ai_tenant_schema`. The run table has no `tenant` column because the database is the tenant. `TenantStates` opens one Postgres pool per tenant database, with `search_path=liwan_ai` and a bounded size, keeps the most recently used pools (LRU) up to `max_open`, and closes a pool after its idle window; concurrent requests for one database share a single pool. The tenant is mapped to its database from deployment configuration only: `AI_TENANT_DATABASE` in dedicated mode, `LIWAN_TENANT_REGISTRY_PATH` in shared mode. A tenant the deployment does not serve answers 403 before any connection. A tenant database whose schema was never bootstrapped answers 503 `ai_state_uninitialized`; a tenant database that cannot be reached at all (refused connection, timeout, bad credentials) answers 503 `ai_state_unavailable`. Both failures affect only that tenant and no other.
 
 Operator bootstrap commands (the runtime only validates state and never runs DDL):
 

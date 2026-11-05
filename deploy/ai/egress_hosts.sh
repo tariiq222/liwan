@@ -3,7 +3,8 @@
 #   sh ai/egress_hosts.sh <provider> [base url]        (provision.sh writes the result into deploy/.env)
 # A bare hostname allows CONNECT to port 443 only; host:port allows exactly that port, which is how a local
 # model server such as ollama:11434 is reached. An explicit base URL replaces the provider default, and its
-# port is included whenever it is not 443.
+# port is included whenever it is not 443. The anthropic provider ignores AI_BASE_URL in the service, so it
+# always prints api.anthropic.com.
 set -eu
 
 provider="${1:?usage: egress_hosts.sh <provider> [base url]}"
@@ -25,11 +26,16 @@ is_port() {
   [ "${#1}" -le 5 ] && [ "$1" -ge 1 ] && [ "$1" -le 65535 ]
 }
 
+# The anthropic provider always uses its own endpoint, whatever base URL is configured.
+if [ "$provider" = anthropic ]; then
+  printf '%s\n' api.anthropic.com
+  exit 0
+fi
+
 url="$base_url"
 if [ -z "$url" ]; then
   case "$provider" in
     openrouter) printf '%s\n' openrouter.ai; exit 0 ;;
-    anthropic) printf '%s\n' api.anthropic.com; exit 0 ;;
     openai) printf '%s\n' api.openai.com; exit 0 ;;
     ollama) url='http://ollama:11434' ;;
     *) fail "unknown AI provider '$provider'" ;;

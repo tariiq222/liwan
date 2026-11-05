@@ -191,12 +191,27 @@ the process's stable `AI_GENERATION_ID`, `url` equals trusted `pools.json.aiUrl`
 `sharedStateId` equals its actual stored `state_id`, and `aiStateVersion` equals
 the manifest and routed pool version. `state_id` comes from the AI service's control
 state (`ai_state_schema` in the service database), which holds no tenant content;
-release activity is summed across every tenant database that the service serves,
-and readiness reports it with `activity_scope` `tenant_states`. A matching version string alone is not
+release activity is summed across every tenant database that the service serves, and
+readiness reports it with `activity_scope` `tenant_states`. Those sums cover only the tenants the directory serves,
+meaning its enabled registry entries; a tenant whose state was never initialized is skipped. So a deployment whose AI
+serves no initialized Postgres tenant reports empty connection counts, and the coordinator refuses it (fail closed)
+instead of reading the absence of tenants as a quiescent pool. A matching version string alone is not
 state identity. The candidate must still accept new work. One directly observed
 process owns each generation id. Rendered pools derive stable generation ids from the immutable manifest digest and pool name, so a later release reusing the pool receives a new id;
 restart retains the id, replacement uses a new id. A persisted drained id cannot
 be reused for new admission.
+
+The AI role is a writer principal of every tenant database it may connect to. A tenant whose database grants
+`CONNECT` to `liwan_ai` (every tenant with AI enabled) must declare that role among its writer roles in the release
+configuration, as an extra entry of the tenant's `roles` map, for example
+`"roles": {"blue": "runtime_blue", "green": "runtime_green", "ai": "liwan_ai"}`. The backup window then fences
+`liwan_ai` and restores its `CONNECT` afterwards like the generation roles. Without that entry the window refuses the
+tenant with `unsupported_writer_principal` rather than promise isolation it cannot prove (fail closed).
+
+A pool-mode AI service (`ai: {"mode": "pool", ...}`) gets `LIWAN_TENANCY_MODE` from the pool. In shared mode its
+`ai` entry must also name `registryDir`, the host directory holding the tenant registry, which is mounted read-only
+at `/etc/liwan`; without it the pool configuration is rejected, because the service would serve no tenant. A
+dedicated pool passes its one database as `AI_TENANT_DATABASE`.
 
 `tools/continuous_updates_acceptance/docker_odoo.py` preserves a separate Docker
 HTTP/cron experiment on an explicitly new restored scratch database. Its fixed
