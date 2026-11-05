@@ -7,7 +7,12 @@ from odoo import api, fields, models
 from odoo.exceptions import UserError
 
 from .batch import process_each
-from .constants import EVENT_BATCH, MAX_ATTEMPTS, PROCESSED_EVENT_DAYS
+from .constants import (
+    EVENT_BATCH,
+    MAX_ATTEMPTS,
+    PROCESSED_EVENT_DAYS,
+    TIKTOK_ECHO_SETTLE,
+)
 from odoo.addons.liwan_inbox.adapters import tiktok, whatsapp
 
 ERROR_TEXT_LENGTH = 200
@@ -35,9 +40,15 @@ class LiwanInboxEvent(models.Model):
 
     @api.model
     def _liwan_run_events(self):
-        """Process a batch of pending (or retryable failed) events, committing after each one."""
+        """Process a batch of pending (or retryable failed) events, committing after each one.
+
+        A TikTok event younger than `TIKTOK_ECHO_SETTLE` waits for the next run: the outbox may still be sending
+        the message TikTok echoes, and processing the echo first would store the same message twice (D6).
+        """
         events = self.search([
             ('state', 'in', ('pending', 'failed')), ('attempts', '<', MAX_ATTEMPTS),
+            '|', ('channel_id.kind', '!=', 'tiktok'),
+            ('create_date', '<=', fields.Datetime.now() - TIKTOK_ECHO_SETTLE),
         ], limit=EVENT_BATCH)
         process_each(events, lambda event: event._liwan_process(), self._liwan_record_failure)
 
