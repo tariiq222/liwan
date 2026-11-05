@@ -28,7 +28,7 @@ function seed() {
   const channels = [{
     id: 1, name: 'واتساب الاستقبال', kind: 'whatsapp', state: 'connected', department: { id: 1, name: 'الاستقبال' },
     phone_number_id: '109876543210987', business_account_id: '203456789012345', has_access_token: true, has_app_secret: true, app_id: '1234567890123',
-    verify_token: 'mock-verify-token-4f9c2a', callback_url: 'https://app.example.test/api/v1/inbox/hooks/whatsapp',
+    has_verify_token: true, callback_url: 'https://app.example.test/api/v1/inbox/hooks/whatsapp',
     last_error: null, last_event_at: ago(0.2), health: seedHealth(ago),
   }]
   const contacts = [
@@ -58,7 +58,7 @@ function seed() {
   let nextMessageId = 100
   const message = (direction, body, hoursAgo, extra = {}) => ({
     id: nextMessageId++, direction, kind: 'text', body, author: direction === 'in' ? null : AGENTS[0], template: null, campaign: null,
-    delivery_state: direction === 'in' ? 'received' : 'sent', error: null, attachments: [], reply_to: null,
+    delivery_state: direction === 'in' ? 'received' : 'sent', error: null, error_code: null, unconfirmed: false, attachments: [], reply_to: null,
     reactions: { customer: null, agent: null }, location: null, interactive: null, selected_option: null, flow_response: null, automated: false, commerce: null, created_at: ago(hoursAgo), ...extra,
   })
   const quote = target => ({ id: target.id, preview: target.body.slice(0, 80) })
@@ -214,7 +214,7 @@ function seed() {
     { id: 2, shortcut: 'hours', body: 'ساعات العمل من 9 صباحًا حتى 5 مساءً، من الأحد إلى الخميس.' },
   ]
   return {
-    settings: { visibility_policy: 'department', auto_close_hours: 72, retention_months: 24, assignment_policy: 'manual', first_response_alert_minutes: 0 },
+    settings: { visibility_policy: 'department', auto_close_hours: 72, retention_months: 24, assignment_policy: 'manual', first_response_alert_minutes: 0, report_retention_months: 36 },
     hours: { timezone: 'Asia/Riyadh', days: [0, 1, 2, 3, 6].map(weekday => ({ weekday, from: '09:00', to: '17:00' })), holidays: [{ name: 'اليوم الوطني', date_from: '2026-09-23', date_to: '2026-09-23' }] },
     // Department id -> its own hours; a department without an entry follows the company's.
     departmentHours: new Map(),
@@ -313,7 +313,7 @@ function patchConversation(conv, body) {
 
 function appendMessage(conv, fields) {
   const created = {
-    id: state.ids.message(), direction: 'out', kind: 'text', body: '', author: ME, template: null, campaign: null, delivery_state: 'queued', error: null, attachments: [],
+    id: state.ids.message(), direction: 'out', kind: 'text', body: '', author: ME, template: null, campaign: null, delivery_state: 'queued', error: null, error_code: null, unconfirmed: false, attachments: [],
     reply_to: null, reactions: { customer: null, agent: null }, location: null, interactive: null, selected_option: null, flow_response: null, automated: false, commerce: null, created_at: iso(Date.now()), ...fields,
   }
   state.messages[conv.id].push(created)
@@ -531,7 +531,7 @@ function channelRoute(method, parts, body, url) {
     phone_number_id: current?.phone_number_id ?? input.phone_number_id, business_account_id: current?.business_account_id ?? input.business_account_id,
     has_access_token: current?.has_access_token || !!input.access_token, has_app_secret: current?.has_app_secret || !!input.app_secret,
     app_id: 'app_id' in input ? input.app_id : current?.app_id ?? null,
-    verify_token: current?.verify_token ?? `mock-verify-token-${state.ids.channel}`, callback_url: 'https://app.example.test/api/v1/inbox/hooks/whatsapp',
+    has_verify_token: true, callback_url: 'https://app.example.test/api/v1/inbox/hooks/whatsapp',
     last_error: current?.last_error ?? null, last_event_at: current?.last_event_at ?? null, health: current?.health ?? emptyHealth(),
   }))
 }
@@ -1035,7 +1035,7 @@ export function inboxPreviewData(method, path, url, body = {}) {
     if (parts[5] === 'retry' && method === 'POST') {
       const item = Object.values(state.messages).flat().find(candidate => candidate.id === id)
       if (!item || item.delivery_state !== 'failed') return fail(422, 'invalid', 'only a failed message can be retried')
-      Object.assign(item, { delivery_state: 'queued', error: null })
+      Object.assign(item, { delivery_state: 'queued', error: null, error_code: null, unconfirmed: false })
       state.statuses.set(item.id, Date.now())
       return ok(item)
     }

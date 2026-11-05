@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useInboxProviderError } from '@/composables/inbox/inboxProviderError'
 import type { InboxCatalogItem } from '@liwan/contracts'
 import { REVIEW_TONE, SYNC_STATE_TONE, formatInboxMoney } from '@/composables/inbox/inboxCommerce'
 import { usePatchInboxCatalogItem } from '@/composables/inbox/useInboxCatalog'
@@ -7,6 +8,7 @@ import { usePatchInboxCatalogItem } from '@/composables/inbox/useInboxCatalog'
 // the review failed, and a switch that lists or unlists the item. A row opens the item's page.
 const props = defineProps<{ items: InboxCatalogItem[]; manage: boolean }>()
 const { t, locale } = useI18n()
+const { providerText } = useInboxProviderError()
 const hydrated = useHydrated()
 const toast = useToast()
 const { mutate: patch } = usePatchInboxCatalogItem()
@@ -26,7 +28,7 @@ function toggle(item: InboxCatalogItem, listed: boolean) {
           <SharedStatusBadge size="sm" :tone="SYNC_STATE_TONE[item.sync_state]" :label="t(`inbox.catalog.sync.${item.sync_state}`)" data-testid="inbox-item-sync" />
           <SharedStatusBadge size="sm" :tone="REVIEW_TONE[item.review_status]" :label="t(`inbox.catalog.review.${item.review_status}`)" data-testid="inbox-item-review" />
         </span>
-        <span v-if="item.sync_error" class="block text-xs text-error" data-testid="inbox-item-error">{{ item.sync_error }}</span>
+        <span v-if="item.sync_error" class="block text-xs text-error" data-testid="inbox-item-error">{{ providerText(item.sync_error) }}</span>
         <span v-if="item.review_reason" class="block text-xs text-error">{{ t('inbox.catalog.reviewReason') }}: <bdi>{{ item.review_reason }}</bdi></span>
       </NuxtLink>
       <USwitch :model-value="item.listed" :disabled="!hydrated || !props.manage" :aria-label="t('inbox.catalog.items.listed', { name: item.name })" :data-testid="`inbox-item-listed-${item.id}`" @update:model-value="toggle(item, $event)" />

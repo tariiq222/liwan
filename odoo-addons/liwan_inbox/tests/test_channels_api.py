@@ -12,7 +12,7 @@ from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTE
 
 CHANNEL_KEYS = {
     'id', 'name', 'kind', 'state', 'department', 'phone_number_id', 'business_account_id', 'has_access_token',
-    'has_app_secret', 'app_id', 'verify_token', 'callback_url', 'last_error', 'last_event_at', 'health',
+    'has_app_secret', 'app_id', 'has_verify_token', 'callback_url', 'last_error', 'last_event_at', 'health',
 }
 NEW_CHANNEL = {
     'name': 'Branch line', 'kind': 'whatsapp', 'phone_number_id': '300000000001',
@@ -23,6 +23,25 @@ NEW_CHANNEL = {
 @tagged('post_install', '-at_install', 'liwan')
 class TestChannelsApi(LiwanInboxCase):
 
+    def test_the_handshake_token_is_never_read_and_rotates_once(self):
+        self.login(self.manager)
+        before = self.channel._liwan_verify_token()
+        self.assertTrue(before)
+        read = self.api('GET', f'/api/v1/inbox/channels/{self.channel.id}')
+        self.assertNotIn(before, read.text)
+        self.assertTrue(read.json()['has_verify_token'])
+        rotated = self.api('POST', f'/api/v1/inbox/channels/{self.channel.id}/verify-token')
+        self.assertEqual(rotated.status_code, 200, rotated.text)
+        token = rotated.json()['verify_token']
+        self.assertNotEqual(token, before)
+        self.assertEqual(self.channel._liwan_verify_token(), token)
+        # The old token no longer completes the handshake.
+        self.assertError(self.verify_token_query(before), 403, 'forbidden')
+        self.assertEqual(self.verify_token_query(token).status_code, 200)
+
+    def verify_token_query(self, token):
+        return self.get(f'/api/v1/inbox/hooks/whatsapp?hub.mode=subscribe&hub.verify_token={token}&hub.challenge=9')
+
     def test_create_returns_the_shape_without_secrets_and_stores_ciphertext(self):
         self.login(self.manager)
         result = self.api('POST', '/api/v1/inbox/channels', {**NEW_CHANNEL, 'department_id': self.department.id})
@@ -31,7 +50,7 @@ class TestChannelsApi(LiwanInboxCase):
         self.assertEqual(set(body), CHANNEL_KEYS)
         self.assertEqual((body['state'], body['has_access_token'], body['has_app_secret']), ('draft', True, True))
         self.assertTrue(body['callback_url'].startswith('https://') and body['callback_url'].endswith('/api/v1/inbox/hooks/whatsapp'))
-        self.assertGreaterEqual(len(body['verify_token']), 32)
+        self.assertFalse(body['has_verify_token'])
         self.assertNotIn('x' * 20, result.text)
         self.env.cr.execute('SELECT access_token_enc, app_secret_enc FROM liwan_inbox_channel WHERE id = %s', [body['id']])
         stored = self.env.cr.fetchone()

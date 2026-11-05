@@ -353,11 +353,13 @@ class Media:
 class ProviderError(Exception):
     """The provider refused or could not be reached; `retryable` says whether a later attempt may succeed."""
 
-    def __init__(self, message, retryable, code=None):
+    def __init__(self, message, retryable, code=None, unconfirmed=False):
         super().__init__(message)
         self.retryable = retryable
         # Meta's numeric error code (for example 200: a missing permission), when the answer carried one.
         self.code = code
+        # The request may have been carried out even though no answer arrived: never retried automatically.
+        self.unconfirmed = unconfirmed
 
 
 def verify_signature(app_secret, raw, header):
@@ -747,13 +749,6 @@ def account_business_ids(payload):
     return {value for value in ids if isinstance(value, str)}
 
 
-def _error_code(response):
-    try:
-        return _int_or_none(response.json()['error']['code'])
-    except (ValueError, KeyError, TypeError):
-        return None
-
-
 def _error_text(response):
     try:
         message = response.json()['error']['message']
@@ -774,7 +769,13 @@ def _call(method, url, credentials, timeout=TIMEOUT_SECONDS, scheme='Bearer', he
     headers = {'Authorization': f'{scheme} {credentials.access_token}', **(headers or {})}
     try:
         response = requests.request(method, url, headers=headers, timeout=timeout, **kwargs)
+    except requests.exceptions.ReadTimeout:
+        # The request reached Meta and the answer did not arrive: the send may well have happened, so a silent
+        # retry could deliver the same message twice. The agent sees an unconfirmed send and retries by hand.
+        message = 'provider did not confirm the send'
+        raise ProviderError(message, retryable=False, unconfirmed=True) from None
     except requests.RequestException as error:
+        # Connect/connection failures happen before anything reached Meta: a retry is safe.
         raise ProviderError(f'provider unreachable: {type(error).__name__}', retryable=True) from None
     if response.status_code >= 400:
         code = _error_code(response)

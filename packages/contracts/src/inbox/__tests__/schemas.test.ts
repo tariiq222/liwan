@@ -233,7 +233,7 @@ describe('automation schemas', () => {
   })
 
   it('carries the assignment policy in settings', () => {
-    const settings = { visibility_policy: 'department', auto_close_hours: 72, retention_months: 24, assignment_policy: 'round_robin', first_response_alert_minutes: 15 }
+    const settings = { visibility_policy: 'department', auto_close_hours: 72, retention_months: 24, assignment_policy: 'round_robin', first_response_alert_minutes: 15, report_retention_months: 36 }
     expect(InboxSettingsSchema.parse(settings)).toEqual(settings)
   })
 })

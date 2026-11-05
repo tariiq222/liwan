@@ -134,6 +134,8 @@ def dump_message(message, attachments, products):
         'template': dump_message_template(message) if message.template_name else None,
         'delivery_state': message.delivery_state,
         'error': message.error or None,
+        'error_code': message.error_code or None,
+        'unconfirmed': message.unconfirmed,
         'attachments': attachments,
         'reply_to': {'id': message.reply_to_id.id, 'preview': message.reply_to_id._liwan_reply_preview()}
         if message.reply_to_id else None,

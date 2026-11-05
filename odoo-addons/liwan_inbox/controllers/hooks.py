@@ -80,8 +80,12 @@ class WhatsAppHookController(http.Controller):
         env = request.env
         channels = env['liwan.inbox.channel'].search([('kind', '=', 'whatsapp'), ('state', '!=', 'disabled')])
         token = args.get('hub.verify_token', '').encode()
-        # Every channel is compared, so the time taken does not reveal which one matched.
-        matches = [hmac.compare_digest(channel.verify_token.encode(), token) for channel in channels]
+        # Every channel is compared, so the time taken does not reveal which one matched. A channel without a
+        # stored token never matches, so an empty query value cannot subscribe anyone.
+        matches = []
+        for channel in channels:
+            stored = channel._liwan_verify_token()
+            matches.append(bool(stored) and bool(token) and hmac.compare_digest(stored.encode(), token))
         if args.get('hub.mode') != 'subscribe' or not any(matches):
             reject_webhook()
         return request.make_response(args.get('hub.challenge', ''), headers=[

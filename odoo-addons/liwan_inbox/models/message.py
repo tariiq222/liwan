@@ -101,6 +101,8 @@ class LiwanInboxMessage(models.Model):
         required=True, default='queued', index=True,
     )
     error = fields.Char()
+    # The provider may have sent it: a read timeout after the request reached Meta; never retried automatically.
+    unconfirmed = fields.Boolean(default=False, copy=False)
     attempts = fields.Integer(default=0)
     next_attempt_at = fields.Datetime(index=True)
 
@@ -378,7 +380,7 @@ class LiwanInboxMessage(models.Model):
             self._liwan_require_window(self.conversation_id)
         self.write({
             'delivery_state': 'queued', 'attempts': 0, 'error': False, 'error_code': False, 'held_for_quality': False,
-            'next_attempt_at': fields.Datetime.now(), 'media_id': False,
+            'unconfirmed': False, 'next_attempt_at': fields.Datetime.now(), 'media_id': False,
         })
         self._liwan_wake_outbox()
 

@@ -34,7 +34,7 @@ class TestBranchCompanyWebhook(LiwanInboxCase):
         cls.branch_channel = cls.make_channel(phone_id='700000000001', owner_company_id=cls.branch.id)
 
     def test_get_verify_reaches_a_branch_channel(self):
-        query = f'hub.mode=subscribe&hub.verify_token={self.branch_channel.verify_token}&hub.challenge=77'
+        query = f'hub.mode=subscribe&hub.verify_token={self.branch_channel._liwan_verify_token()}&hub.challenge=77'
         response = self.url_open(f'{HOOK}?{query}')
         self.assertEqual((response.status_code, response.text), (200, '77'))
 

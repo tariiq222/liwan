@@ -94,8 +94,10 @@ class LiwanInboxConversation(models.Model):
     def _compute_last_message(self):
         for conversation in self:
             customer_visible = conversation.message_ids.filtered(lambda message: message.direction != 'note')
-            last = customer_visible.sorted(lambda message: (message.date, message.id))[-1:]
-            conversation.last_message_at = last.date
+            # The newest message without sorting the whole thread: `max` keeps the first of equal keys and
+            # the pair (date, id) breaks the tie the same way the old sort did.
+            last = max(customer_visible, key=lambda message: (message.date, message.id), default=None)
+            conversation.last_message_at = last.date if last else False
             conversation.last_message_preview = ' '.join((last._liwan_caption() or '').split())[:PREVIEW_LENGTH] if last else False
             conversation.last_message_kind = last.kind if last else False
 

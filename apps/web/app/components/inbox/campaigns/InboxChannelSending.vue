@@ -50,7 +50,7 @@ function runRefresh() {
         <span>
           <span class="block font-medium text-highlighted">{{ t('inbox.campaigns.sending.mmApi') }}</span>
           <span class="block text-xs text-muted">{{ t('inbox.campaigns.sending.mmApiHint') }}</span>
-          <span v-if="sending.marketing_api === 'marketing_messages' && sending.marketing_onboarding !== 'onboarded'" class="mt-1 block text-xs text-warning" role="status">{{ t('inbox.campaigns.sending.mmNotOnboarded') }}</span>
+          <span v-if="sending.marketing_api === 'marketing_messages' && sending.marketing_onboarding !== 'onboarded'" class="mt-1 block text-xs text-status-warning-foreground" role="status">{{ t('inbox.campaigns.sending.mmNotOnboarded') }}</span>
         </span>
       </label>
       <p v-else class="text-sm text-muted">{{ t('inbox.campaigns.sending.api', { api: t(`inbox.campaigns.sending.apiName.${sending.marketing_api}`) }) }}</p>

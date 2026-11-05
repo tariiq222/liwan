@@ -12,6 +12,7 @@ def dump_settings(settings):
         'retention_months': settings.retention_months,
         'assignment_policy': settings.assignment_policy,
         'first_response_alert_minutes': settings.first_response_alert_minutes,
+        'report_retention_months': settings.report_retention_months,
     }
 
 
@@ -85,7 +86,7 @@ def dump_channel(channel, callback_url):
         'has_access_token': bool(channel.access_token_enc),
         'has_app_secret': bool(channel.app_secret_enc),
         'app_id': channel.app_id or None,
-        'verify_token': channel.verify_token,
+        'has_verify_token': bool(channel.verify_token_enc),
         'callback_url': callback_url,
         'last_error': channel.last_error or None,
         'last_event_at': iso(channel.last_event_at),

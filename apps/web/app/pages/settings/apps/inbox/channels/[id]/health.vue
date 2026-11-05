@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useInboxProviderError } from '@/composables/inbox/inboxProviderError'
 import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import InboxChannelActions from '@/components/inbox/InboxChannelActions.vue'
@@ -15,6 +16,7 @@ import { useInboxChannel, useTestInboxChannel } from '@/composables/inbox/useInb
 // subscriptions to set up and the number administration actions. "Refresh now" asks Meta again.
 const route = useRoute()
 const { t } = useI18n()
+const { providerText } = useInboxProviderError()
 const hydrated = useHydrated()
 const toast = useToast()
 const id = computed(() => {
@@ -64,7 +66,7 @@ function runRefresh() {
     <template v-if="channel && id">
       <InboxChannelTabs :channel-id="id" />
       <p class="text-sm text-muted" data-testid="inbox-health-checked">{{ checked }}</p>
-      <UAlert v-if="channel.last_error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('inbox.settings.channels.lastError')" :description="channel.last_error" data-testid="inbox-channel-error" />
+      <UAlert v-if="channel.last_error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('inbox.settings.channels.lastError')" :description="providerText(channel.last_error)" data-testid="inbox-channel-error" />
       <InboxChannelHealthCard :health="channel.health" />
       <InboxChannelSending v-if="campaignsOn" :channel-id="id" can-edit />
       <InboxChannelAlerts :channel-id="id" />

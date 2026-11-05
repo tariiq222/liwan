@@ -26,13 +26,17 @@ class TestWhatsAppWebhook(LiwanInboxCase):
         return self.url_open(f'{HOOK}?{query}')
 
     def test_verification_with_the_channel_token_echoes_the_challenge(self):
-        response = self.verify(self.channel.verify_token)
+        response = self.verify(self.channel._liwan_verify_token())
         self.assertEqual((response.status_code, response.text), (200, '1158201444'))
         self.assertTrue(response.headers['Content-Type'].startswith('text/plain'))
 
     def test_verification_with_a_wrong_token_or_mode_is_403(self):
         self.assertError(self.verify('wrong-token'), 403, 'forbidden')
-        self.assertError(self.verify(self.channel.verify_token, mode='unsubscribe'), 403, 'forbidden')
+        self.assertError(self.verify(self.channel._liwan_verify_token(), mode='unsubscribe'), 403, 'forbidden')
+
+    def test_an_empty_token_never_subscribes(self):
+        # An empty query value is a missing handshake parameter, refused before any channel is read.
+        self.assertError(self.verify(''), 400, 'invalid')
 
     def test_a_handshake_without_meta_parameters_is_400_invalid(self):
         self.assertError(self.url_open(HOOK), 400, 'invalid')
@@ -40,7 +44,7 @@ class TestWhatsAppWebhook(LiwanInboxCase):
 
     def test_a_disabled_channel_does_not_verify(self):
         self.channel.state = 'disabled'
-        self.assertError(self.verify(self.channel.verify_token), 403, 'forbidden')
+        self.assertError(self.verify(self.channel._liwan_verify_token()), 403, 'forbidden')
 
     def test_a_signed_delivery_creates_one_event_and_nothing_else(self):
         raw = wa.body_of(wa.inbound_text())
@@ -74,7 +78,7 @@ class TestWhatsAppWebhook(LiwanInboxCase):
     def test_closed_whatsapp_feature_refuses_the_hook(self):
         set_probe_feature(self, key='inbox.whatsapp', enabled=False)
         self.assertError(self.post(wa.inbound_text()), 403, 'feature_not_included')
-        self.assertError(self.verify(self.channel.verify_token), 403, 'feature_not_included')
+        self.assertError(self.verify(self.channel._liwan_verify_token()), 403, 'feature_not_included')
 
     def test_without_the_master_key_a_delivery_is_refused_like_a_bad_signature(self):
         with patch.dict('os.environ', {}, clear=False) as env:
