@@ -60,7 +60,7 @@ describe('shortcuts', () => {
     await last().mutationFn!({ kind: 'question', enabled: true } as never)
     expect($api).toHaveBeenLastCalledWith('/api/v1/inbox/channels/4/tiktok/shortcuts/enable', expect.objectContaining({ method: 'POST', body: { kind: 'question', enabled: true } }))
     await last().onSuccess!(answer, { kind: 'question', enabled: true })
-    expect(queryClient.setQueryData).toHaveBeenCalledWith(['inbox', 'tiktok-shortcuts', 4], answer)
+    expect(queryClient.setQueryData).toHaveBeenCalledWith(['inbox', 'tiktok-shortcuts', 4], { items: [], total: 0 })
   })
 })
 
