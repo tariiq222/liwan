@@ -141,14 +141,15 @@ docker compose run --rm -T -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$
 docker compose run --rm -T -e VENDOR_PASSWORD -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
   shell -d "$DB_NAME" --no-http < data/seed/seed_branding.py
 set_public_origin
-# LiwanOS AI's database role must not connect to a customer database. Postgres grants CONNECT on a
-# new database to PUBLIC, so close it for the tenant database just created. A no-op when the
-# liwan_ai role does not exist (deployments without AI); a real error still stops provisioning.
-docker compose exec -T db psql -U odoo -d postgres -v ON_ERROR_STOP=1 -v tenant_db="$DB_NAME" <<'SQL'
-SELECT format('REVOKE CONNECT ON DATABASE %I FROM PUBLIC', :'tenant_db')
-  WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'liwan_ai') \gexec
-SELECT format('REVOKE CONNECT ON DATABASE %I FROM liwan_ai', :'tenant_db')
-  WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'liwan_ai') \gexec
-SQL
+# Close the tenant database to PUBLIC and give LiwanOS AI's role its own schema there, with no access to
+# schema public (ai/tenant_schema.sql). A no-op when the liwan_ai role does not exist (deployments
+# without AI); a real error still stops provisioning.
+docker compose exec -T db psql -U odoo -d postgres -v ON_ERROR_STOP=1 -v tenant_db="$DB_NAME" \
+  < ai/tenant_schema.sql
+# The runtime validates AI state and never runs DDL: the operator bootstrap creates the tables in that
+# schema, so it runs here for every tenant while the ai profile is enabled.
+if grep -Eq '^COMPOSE_PROFILES=([^#]*,)?ai(,|$|[[:space:]])' .env; then
+  docker compose run --rm -T ai python -m liwan_ai_service.store --initialize-tenant "$DB_NAME"
+fi
 docker compose up -d
 echo "https://$DOMAIN is provisioning; vendor login: admin / (VENDOR_PASSWORD from .env)."

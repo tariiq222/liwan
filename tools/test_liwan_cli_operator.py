@@ -257,7 +257,7 @@ class OperatorCase(unittest.TestCase):
             module_dir.mkdir()
             (module_dir / '__manifest__.py').write_text('{}')
         self.tools = {}
-        for name in ('odoo-bin', 'psql', 'pg_dump', 'pg_restore', 'createdb'):
+        for name in ('odoo-bin', 'psql', 'pg_dump', 'pg_restore', 'createdb', 'ai-python'):
             path = self.root / name
             path.write_text('fixture')
             self.tools[name] = str(path)
@@ -286,10 +286,11 @@ class OperatorCase(unittest.TestCase):
         }
         self.write_inventory()
         self.old_env = {name: os.environ.get(name) for name in (
-            operator.INVENTORY_ENV, operator.STATE_ENV, 'PGPASSWORD')}
+            operator.INVENTORY_ENV, operator.STATE_ENV, 'PGPASSWORD', 'AI_DATABASE_URL')}
         os.environ[operator.INVENTORY_ENV] = str(self.inventory)
         os.environ[operator.STATE_ENV] = str(self.state)
         os.environ['PGPASSWORD'] = 'hidden-password'
+        os.environ.pop('AI_DATABASE_URL', None)
         self.addCleanup(self.restore_env)
 
     def restore_env(self):
@@ -541,6 +542,115 @@ class OperatorCase(unittest.TestCase):
                 self.assertEqual(code, expected_code, payload)
                 self.assertEqual(payload['stage'], 'health_verified' if expected_code == 0 else 'policy_verification')
                 self.assertEqual(self.policy.read_bytes(), original_bytes)
+
+    def create_runner(self, calls, ai_python, *, fail=None):
+        """Fake child commands of a full ``tenant.create``; ``fail`` names one AI step to reject."""
+        features = {'users.limit': None, 'storage.limit_mb': None, 'pmo.enabled': True,
+                    'meetings.enabled': True, 'projects.max_projects': None}
+        modules = ['liwan_core', 'liwan_platform', 'liwan_api', 'liwan_pmo', 'liwan_meetings']
+
+        def runner(argv, env=None, stdin_text=None):
+            calls.append((argv, env))
+            if argv[0] == ai_python:
+                return (1, '', '') if fail == 'bootstrap' else (0, '', '')
+            if '-f' in argv:
+                return (1, '', '') if fail == 'schema' else (0, '', '')
+            if argv[0] == self.tools['createdb'] or '-i' in argv:
+                return 0, '', ''
+            if 'shell' in argv:
+                return 0, 'LIWAN_OPERATOR_RESULT:{"status":"ok","changed":true,"policy_revision":1}\n', ''
+            sql = argv[-1]
+            if 'pg_database' in sql:
+                return 0, '', ''
+            if 'features::text' in sql:
+                return 0, json.dumps(features) + '\n', ''
+            if "state = 'installed'" in sql:
+                return 0, ''.join(name + '\n' for name in modules), ''
+            if 'ir_module_module' in sql or 'pg_stat_activity' in sql:
+                return 0, '0\n', ''
+            return 0, 'non_saas\x1flocal_policy\x1f\x1f1\x1f0\x1factive\n', ''
+        return runner
+
+    def create_with_ai(self, calls, *, ai_python=None, fail=None, request_id='create_ai'):
+        """A tenant.create over an inventory entry that optionally names the AI interpreter.
+
+        Each call gets its own journal: a failed bootstrap leaves an unresolved receipt on the target,
+        which would make a later request on the same journal a refusal instead of a new attempt.
+        """
+        os.environ[operator.STATE_ENV] = str(self.root / f'state-{request_id}')
+        self.policy.write_text(json.dumps({
+            'schema_version': 1, 'channel': 'local_policy',
+            'modules': ['liwan_core', 'liwan_platform', 'liwan_api', 'liwan_pmo', 'liwan_meetings'],
+            'features': {'users.limit': None, 'storage.limit_mb': None, 'pmo.enabled': True,
+                         'meetings.enabled': True, 'projects.max_projects': None},
+        }))
+        entry = dict(self.entry)
+        if ai_python is not None:
+            entry['ai_python'] = ai_python
+        self.write_inventory(entry)
+        return operator.operation_adapter(
+            self.fields('tenant.create', policy_file=str(self.policy), request_id=request_id),
+            runner=self.create_runner(calls, ai_python, fail=fail))
+
+    def test_create_with_ai_python_grants_the_tenant_schema_then_bootstraps_ai_state(self):
+        calls = []
+        os.environ['AI_DATABASE_URL'] = 'postgresql://liwan_ai:secret@db/liwan_ai'
+        code, payload = self.create_with_ai(calls, ai_python=self.tools['ai-python'])
+        self.assertEqual(code, 0, payload)
+        self.assertEqual(payload['stage'], 'health_verified')
+        schema_index = next(index for index, call in enumerate(calls) if '-f' in call[0])
+        schema = calls[schema_index][0]
+        self.assertEqual(schema[0], self.tools['psql'])
+        self.assertEqual(schema[schema.index('-d') + 1], 'postgres')
+        self.assertEqual(schema[schema.index('-f') + 1],
+                         str(Path(operator.__file__).resolve().parents[2] / 'deploy/ai/tenant_schema.sql'))
+        self.assertIn('tenant_db=liwan_scratch_demo', schema)
+        bootstrap_index = next(index for index, call in enumerate(calls)
+                               if call[0][0] == self.tools['ai-python'])
+        self.assertLess(schema_index, bootstrap_index)
+        self.assertEqual(calls[bootstrap_index][0],
+                         [self.tools['ai-python'], '-m', 'liwan_ai_service.store',
+                          '--initialize-tenant', 'liwan_scratch_demo'])
+        self.assertEqual(calls[bootstrap_index][1]['AI_DATABASE_URL'],
+                         'postgresql://liwan_ai:secret@db/liwan_ai')
+        self.assertNotIn('postgresql://', ' '.join(calls[bootstrap_index][0]))
+        self.assertNotIn('postgresql://', json.dumps(payload))
+
+    def test_create_with_ai_python_needs_intervention_when_the_connection_url_is_absent(self):
+        calls = []
+        code, payload = self.create_with_ai(calls, ai_python=self.tools['ai-python'], request_id='create_no_url')
+        self.assertEqual(code, 6, payload)
+        self.assertEqual(payload['status'], 'needs_intervention')
+        self.assertEqual(payload['stage'], 'ai_bootstrap')
+        self.assertEqual(payload['error']['code'], 'operation_failed')
+        self.assertTrue(payload['changed'])
+        # The grants ran (they need no credential); the bootstrap did not.
+        self.assertEqual(len([call for call in calls if '-f' in call[0]]), 1)
+        self.assertEqual([call for call in calls if call[0][0] == self.tools['ai-python']], [])
+
+    def test_create_with_ai_python_needs_intervention_when_a_step_fails(self):
+        os.environ['AI_DATABASE_URL'] = 'postgresql://liwan_ai:secret@db/liwan_ai'
+        for fail, expects_bootstrap, request_id in (('schema', False, 'create_schema_failed'),
+                                                    ('bootstrap', True, 'create_bootstrap_failed')):
+            with self.subTest(fail=fail):
+                calls = []
+                code, payload = self.create_with_ai(
+                    calls, ai_python=self.tools['ai-python'], fail=fail, request_id=request_id)
+                self.assertEqual(code, 6, payload)
+                self.assertEqual(payload['stage'], 'ai_bootstrap')
+                self.assertEqual(payload['error']['code'], 'operation_failed')
+                self.assertNotIn('postgresql://', json.dumps(payload))
+                bootstrapped = [call for call in calls if call[0][0] == self.tools['ai-python']]
+                self.assertEqual(len(bootstrapped), 1 if expects_bootstrap else 0)
+
+    def test_create_without_ai_python_never_bootstraps_ai_state(self):
+        os.environ['AI_DATABASE_URL'] = 'postgresql://liwan_ai:secret@db/liwan_ai'
+        calls = []
+        code, payload = self.create_with_ai(calls, request_id='create_plain')
+        self.assertEqual(code, 0, payload)
+        self.assertEqual(payload['stage'], 'health_verified')
+        self.assertEqual([call for call in calls if '-f' in call[0] or call[0][0] == self.tools['ai-python']], [])
+        self.assertEqual([call for call in calls if 'AI_DATABASE_URL' in call[1]], [])
 
     def test_create_rejects_unowned_module_composition(self):
         self.policy.write_text(json.dumps({

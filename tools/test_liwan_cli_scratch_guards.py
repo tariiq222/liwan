@@ -82,7 +82,7 @@ class ScratchGuardCase(unittest.TestCase):
             module_dir.mkdir()
             (module_dir / '__manifest__.py').write_text('{}')
         self.tools = {}
-        for name in ('odoo-bin', 'psql', 'pg_dump', 'pg_restore', 'createdb'):
+        for name in ('odoo-bin', 'psql', 'pg_dump', 'pg_restore', 'createdb', 'ai-python'):
             path = self.root / name
             path.write_text('fixture')
             self.tools[name] = str(path)
@@ -296,6 +296,37 @@ class ScratchGuardCase(unittest.TestCase):
         incomplete.pop('pg_user')
         self.write_inventory({'demo': incomplete})
         self.refuse(2, 'invalid_input')
+
+    def test_ai_python_is_the_only_optional_entry_key_and_is_admitted(self):
+        """An entry that names the AI interpreter is valid; the key set is exact, not open."""
+        runner = _InspectRunner()
+        self.write_inventory({'demo': self.entry(ai_python=self.tools['ai-python'])})
+        code, payload = operator.operation_adapter(self.fields(), runner=runner)
+        self.assertEqual(code, 0, payload)
+        self.assertTrue(runner.calls)
+
+    def test_ai_python_must_be_an_absolute_file(self):
+        for value in ('relative/python', str(self.root / 'absent-python')):
+            with self.subTest(value=value):
+                self.write_inventory({'demo': self.entry(ai_python=value)})
+                self.refuse(2, 'invalid_input')
+
+    def test_another_extra_key_is_still_refused_beside_ai_python(self):
+        self.write_inventory({'demo': self.entry(ai_python=self.tools['ai-python'],
+                                                 other_python=self.tools['ai-python'])})
+        self.refuse(2, 'invalid_input')
+
+    def test_an_unselected_entry_with_ai_python_is_admitted(self):
+        other_data = self.root / 'data-ai'
+        other_data.mkdir()
+        self.write_inventory({
+            'demo': self.base_entry,
+            'ai': self.entry(database='liwan_scratch_ai', data_dir=str(other_data),
+                             ai_python=self.tools['ai-python']),
+        })
+        runner = _InspectRunner()
+        code, payload = operator.operation_adapter(self.fields(target='demo'), runner=runner)
+        self.assertEqual(code, 0, payload)
 
     def test_entry_with_an_extra_key_is_invalid_input(self):
         self.write_inventory({'demo': self.entry(unexpected_key='value')})

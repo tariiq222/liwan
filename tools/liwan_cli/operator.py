@@ -37,10 +37,15 @@ ENTRY_KEYS = frozenset({
     'addons_paths', 'data_dir', 'psql', 'pg_dump', 'pg_restore', 'createdb',
     'backup_root', 'release_root', 'classification_file',
 })
+# The one optional key: an entry that names the AI service's interpreter also bootstraps that service's
+# state, inside a schema of this target's own database.
+AI_KEY = 'ai_python'
+ENTRY_KEY_SETS = (ENTRY_KEYS, ENTRY_KEYS | {AI_KEY})
 PATH_KEYS = frozenset({
     'python', 'odoo_bin', 'data_dir', 'psql', 'pg_dump', 'pg_restore',
-    'createdb', 'backup_root', 'release_root', 'classification_file',
+    'createdb', 'backup_root', 'release_root', 'classification_file', AI_KEY,
 })
+SYMLINK_PATH_KEYS = frozenset({'python', 'psql', 'pg_dump', 'pg_restore', 'createdb', AI_KEY})
 CREATE_MODULES = (
     'liwan_core', 'liwan_platform', 'liwan_api', 'liwan_directory', 'liwan_notify',
     'liwan_pmo', 'liwan_meetings', 'liwan_meetings_pmo', 'liwan_hr', 'liwan_access_hr',
@@ -192,12 +197,12 @@ def _inventory(target):
             or not isinstance(document['targets'], dict)):
         _fail(2, 'invalid_input', 'inventory', 'inventory version 2 is required')
     entry = document['targets'].get(target)
-    if not isinstance(entry, dict) or set(entry) != ENTRY_KEYS:
+    if not isinstance(entry, dict) or set(entry) not in ENTRY_KEY_SETS:
         _fail(2, 'invalid_input', 'inventory', 'target is absent or inventory entry is incomplete')
     for other_id, other in document['targets'].items():
         if other_id == target:
             continue
-        if not isinstance(other, dict) or set(other) != ENTRY_KEYS:
+        if not isinstance(other, dict) or set(other) not in ENTRY_KEY_SETS:
             _fail(2, 'invalid_input', 'inventory', 'inventory contains an incomplete target entry')
         same_db = (other['pg_host'], other['pg_port'], other['database']) == (
             entry['pg_host'], entry['pg_port'], entry['database'])
@@ -216,11 +221,11 @@ def _inventory(target):
             or not isinstance(entry['pg_user'], str) or not IDENTIFIER.fullmatch(entry['pg_user'])
             or type(entry['pg_port']) is not int or not 1 <= entry['pg_port'] <= 65535):
         _fail(2, 'invalid_input', 'inventory', 'explicit PostgreSQL coordinates are required')
-    for key in PATH_KEYS:
+    for key in sorted(PATH_KEYS & set(entry)):
         value = entry[key]
         path = Path(value) if isinstance(value, str) else Path('.')
         if not isinstance(value, str) or not path.is_absolute() or (
-                path.is_symlink() and key not in {'python', 'psql', 'pg_dump', 'pg_restore', 'createdb'}):
+                path.is_symlink() and key not in SYMLINK_PATH_KEYS):
             _fail(2, 'invalid_input', 'inventory', f'inventory {key} requires an absolute path')
         if key in {'data_dir', 'backup_root', 'release_root'}:
             if not path.is_dir():
@@ -338,14 +343,36 @@ def _run(runner, argv, entry, stdin_text=None, **extra):
     return code, out
 
 
-def _psql(runner, entry, database, sql):
-    argv = [entry['psql'], '-X', '-v', 'ON_ERROR_STOP=1', '-A', '-t', '-F', '\x1f',
+def _psql_argv(entry, database, *options):
+    return [entry['psql'], '-X', '-v', 'ON_ERROR_STOP=1', '-A', '-t', '-F', '\x1f',
             '-h', entry['pg_host'], '-p', str(entry['pg_port']), '-U', entry['pg_user'],
-            '-d', database, '-c', sql]
+            '-d', database, *options]
+
+
+def _psql(runner, entry, database, sql):
+    argv = _psql_argv(entry, database, '-c', sql)
     code, out = _run(runner, argv, entry)
     if code != 0 or len(out) > 65536:
         _fail(5, 'operation_failed', 'database', 'database query failed')
     return [line.split('\x1f') for line in out.splitlines() if line.strip()]
+
+
+def _bootstrap_ai_state(entry, runner, database):
+    """Give the AI role its schema in this database, then bootstrap its tables; True when both succeeded.
+
+    The grants never need a credential (the script is a no-op without the role). The table bootstrap does,
+    and its connection string travels only in the child's environment, never in argv, output or the result.
+    """
+    schema_script = Path(__file__).resolve().parents[2] / 'deploy' / 'ai' / 'tenant_schema.sql'
+    # psql processes its options in order and -f runs the file at that point, so the variable comes first.
+    code, _ = _run(runner, _psql_argv(entry, 'postgres', '-v', 'tenant_db=' + database,
+                                      '-f', str(schema_script)), entry)
+    ai_database_url = os.environ.get('AI_DATABASE_URL')
+    if code != 0 or not ai_database_url:
+        return False
+    argv = [entry[AI_KEY], '-m', 'liwan_ai_service.store', '--initialize-tenant', database]
+    code, _ = _run(runner, argv, entry, AI_DATABASE_URL=ai_database_url)
+    return code == 0
 
 
 def _profile(runner, entry):
@@ -715,6 +742,10 @@ def _other_mutation(fields, entry, fingerprint, runner, store):
                 return _payload(fields, 'needs_intervention', 'module_verification', changed=True,
                                 error={'code': 'modules_missing',
                                        'message': 'Selected local modules were not all installed'})
+            if AI_KEY in entry and not _bootstrap_ai_state(entry, runner, database):
+                return _payload(fields, 'needs_intervention', 'ai_bootstrap', changed=True,
+                                error={'code': 'operation_failed',
+                                       'message': 'AI state bootstrap requires inspection'})
             return _payload(fields, 'ok', 'health_verified', changed=True,
                             policy_revision=result.get('policy_revision'),
                             database=database, installed_modules=modules,
