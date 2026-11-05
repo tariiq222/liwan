@@ -133,7 +133,6 @@ def _status(key: TenantKey | None) -> KeyStatus:
     return KeyStatus(True, key.provider, key.model, key.api_key[-LAST_CHARACTERS:], key.updated_at)
 
 
-CONFIG_COLUMNS = "retention_days, key_provider, key_model, key_last4, key_updated_at"
 
 
 class PostgresTenantConfig:
@@ -144,13 +143,16 @@ class PostgresTenantConfig:
 
     async def get(self) -> TenantConfig:
         async with self.pool.connection() as conn:
-            row = await (await conn.execute(f"SELECT {CONFIG_COLUMNS} FROM ai_tenant_config WHERE singleton")).fetchone()
+            row = await (await conn.execute(
+                "SELECT retention_days, key_provider, key_model, key_last4, key_updated_at FROM ai_tenant_config WHERE singleton",
+            )).fetchone()
         return _config_of(row)
 
     async def set_retention(self, days: int) -> TenantConfig:
         async with self.pool.connection() as conn:
             row = await (await conn.execute(
-                f"UPDATE ai_tenant_config SET retention_days = %s WHERE singleton RETURNING {CONFIG_COLUMNS}", (check_retention(days),),
+                "UPDATE ai_tenant_config SET retention_days = %s WHERE singleton"
+                " RETURNING retention_days, key_provider, key_model, key_last4, key_updated_at", (check_retention(days),),
             )).fetchone()
         return _config_of(row)
 
@@ -161,7 +163,8 @@ class PostgresTenantConfig:
             row = await (await conn.execute(
                 "UPDATE ai_tenant_config SET key_provider = %s, key_model = %s,"
                 " key_ciphertext = pgp_sym_encrypt(%s, %s, 'cipher-algo=aes256'), key_id = %s, key_last4 = %s, key_updated_at = now()"
-                f" WHERE singleton RETURNING {CONFIG_COLUMNS}",
+                " WHERE singleton"
+                " RETURNING retention_days, key_provider, key_model, key_last4, key_updated_at",
                 (provider, model, api_key, keyring.secret(keyring.current_id), keyring.current_id, api_key[-LAST_CHARACTERS:]),
             )).fetchone()
         return _config_of(row)
@@ -170,7 +173,8 @@ class PostgresTenantConfig:
         async with self.pool.connection() as conn:
             row = await (await conn.execute(
                 "UPDATE ai_tenant_config SET key_provider = NULL, key_model = NULL, key_ciphertext = NULL, key_id = NULL,"
-                f" key_last4 = NULL, key_updated_at = NULL WHERE singleton RETURNING {CONFIG_COLUMNS}",
+                " key_last4 = NULL, key_updated_at = NULL WHERE singleton"
+                " RETURNING retention_days, key_provider, key_model, key_last4, key_updated_at",
             )).fetchone()
         return _config_of(row)
 
