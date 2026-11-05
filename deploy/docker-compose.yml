@@ -57,6 +57,11 @@ services:
       USER: odoo
       PASSWORD: "${DB_PASSWORD}"
       LIWAN_INBOX_SECRET_KEY: "${LIWAN_INBOX_SECRET_KEY:-}"
+      # The TikTok app (D1), direct-webhook topology: unset means the channel reports
+      # `inbox_tiktok_not_configured` and no shared relay is involved.
+      LIWAN_TIKTOK_CLIENT_KEY: "${LIWAN_TIKTOK_CLIENT_KEY:-}"
+      LIWAN_TIKTOK_CLIENT_SECRET: "${LIWAN_TIKTOK_CLIENT_SECRET:-}"
+      LIWAN_TIKTOK_REDIRECT_URI: "${LIWAN_TIKTOK_REDIRECT_URI:-}"
     volumes:
       - ./data/odoo.conf:/etc/odoo/odoo.conf:ro
       - odoo_data:/var/lib/odoo
