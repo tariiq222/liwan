@@ -101,6 +101,12 @@ class RuntimeTests(unittest.TestCase):
             (path / filename).write_bytes(b'existing-tenant-data')
         self.runtime = LocalRuntime(self.state,self.config,role_inspector=lambda container,expected,**kwargs:{'ready':True,'dbUser':expected['dbUser']},classifier=lambda *_:{'ready':True},inventory_inspector=lambda _:None)
 
+
+    def test_the_ai_role_is_a_declared_tenant_writer_fenced_with_the_generation_roles(self):
+        """A tenant with AI grants liwan_ai CONNECT: declared beside the pool roles, the backup window fences it."""
+        self.config['tenants']['tenant_a']['roles']['ai'] = 'liwan_ai'
+        self.assertEqual(self.runtime._writer_roles(self.binding), ('liwan_ai', 'runtime_blue', 'runtime_green'))
+        self.assertEqual(self.runtime._role(self.binding, 'green'), 'runtime_green')  # pool roles are unchanged
     def target(self, *, readiness_status=200, asset_status=200, identity=None, user=None, attachment=b'existing-tenant-data', guard=None):
         requests = []
 

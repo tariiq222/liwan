@@ -52,7 +52,9 @@ services:
       args:
         LIWAN_TENANCY_MODE: shared
     ports: !reset []
-    networks: [guard_web]
+    # `!override`, not a plain list: the base file now declares [default, ai_internal] and Compose unions the two
+    # lists otherwise. In shared mode `ai` is already on guard_web, so web needs nothing else.
+    networks: !override [guard_web]
     environment:
       NUXT_ODOO_URL: http://guard:8080
       NUXT_ODOO_DB: ""
@@ -84,14 +86,30 @@ services:
 
   ai:
     ports: !reset []
-    networks: [guard_web, database]
+    # Shared mode: the tenant registry maps a tenant id to its database; no single tenant database here.
+    environment:
+      LIWAN_TENANCY_MODE: shared
+      LIWAN_TENANT_REGISTRY_PATH: /etc/liwan/registry.json
+      AI_TENANT_DATABASE: ""
+    volumes:
+      - ${LIWAN_TENANT_REGISTRY_DIR:?set LIWAN_TENANT_REGISTRY_DIR}:/etc/liwan:ro
+    # ai_internal is added to guard_web and database (both internal); the proxy is its only way out.
+    # `!override` states the complete list, so inheritance cannot silently add a routed network later.
+    networks: !override [guard_web, database, ai_internal]
+
+  ai-egress:
+    # Egress needs one network with a route off the host: the edge, never a customer-facing service network.
+    # `!override` drops the base file's `default` network, which has a route out but is not declared here.
+    networks: !override [ai_internal, edge]
 
   db:
     ports: !reset []
-    networks: [database]
+    # `!override`: the base file declares [default, ai_internal], and adding `database` must not keep `default`.
+    networks: !override [database]
 
 networks:
   edge: {}
   guard_web: { internal: true }
   guard_odoo: { internal: true }
   database: { internal: true }
+  ai_internal: { internal: true }

@@ -55,7 +55,7 @@ Not started by these tools. Named volumes, not bind mounts:
 | `db` | `postgres:16` | volume `db_data` → `/var/lib/postgresql/data` |
 | `odoo` | `liwan-odoo:${LIWAN_IMAGE_TAG}` | baked Odoo and LiwanOS addons; volume `odoo_data` → `/var/lib/odoo` (`data_dir`); filestore inside the volume at `filestore/${DB_NAME}` |
 | `web` | apps/web image | listens on container port `3000` |
-| `ai` (profile `ai`, optional) | apps/ai-service image | LiwanOS AI service on container port `8600`, no published port; run state in the `liwan_ai` database under the `liwan_ai` role |
+| `ai` (profile `ai`, optional) | apps/ai-service image | LiwanOS AI service on container port `8600`, no published port; release control state in the `liwan_ai` database, tenant run state in schema `liwan_ai` of each tenant database under the `liwan_ai` role |
 | `proxy` | `liwan-caddy:${LIWAN_IMAGE_TAG}` from `deploy/proxy/Dockerfile` | `80`/`443`; official Caddy plus `http.handlers.rate_limit` |
 
 Every Compose service drops all Linux capabilities (`cap_drop: [ALL]`) and none can gain privileges
@@ -84,19 +84,42 @@ mounting the volume themselves. This tool does not `docker exec`, `docker cp`,
 
 ## LiwanOS AI
 
-The `ai` service (`apps/ai-service`, port `8600`, `/healthz`) is optional and off by default: it sits under the Compose profile `ai`, so it does not exist unless `COMPOSE_PROFILES=ai` is set. Only `web` reaches it, through `NUXT_AI_SERVICE_URL=http://ai:8600`; it publishes no port. In the shared overlay it sits on `guard_web` (reachable from `web`) and `database` (reaches `db`) only.
+The `ai` service (`apps/ai-service`, port `8600`, `/healthz`) is optional and off by default: it sits under the Compose profile `ai`, so it does not exist unless `COMPOSE_PROFILES=ai` is set. Only `web` reaches it, through `NUXT_AI_SERVICE_URL=http://ai:8600`; it publishes no port. In the shared overlay it sits on `guard_web` (reachable from `web`), `database` (reaches `db`) and `ai_internal`, all three internal, while `ai-egress` sits on `ai_internal` and `edge`; it reads the same read-only tenant registry as `guard` and `web`.
 
-Variables (see `deploy/ai/.env.example`): `AI_PROVIDER` (`anthropic`, `openai`, `ollama` or `openrouter`), `AI_MODEL` (required once enabled; the service fails at start with its own error when it is empty), `AI_API_KEY` (required for anthropic/openai/openrouter), `AI_BASE_URL`, `AI_OPENROUTER_REFERER` and `AI_OPENROUTER_TITLE` (optional, openrouter only), `AI_RUN_RETENTION_DAYS` (default 30), `AI_DB_PASSWORD`, `AI_SERVICE_TOKEN`. None of them is required by Compose interpolation, so deployments that never enable AI need none of them.
+AI state has two parts. The `liwan_ai` database holds release control state only: the deployment `state_id` (`ai_state_schema`) and the generation draining flags (`ai_generations`). It holds no tenant content. Each tenant's runs and LangGraph checkpoints live in schema `liwan_ai` inside that tenant's own database, so a tenant backup, restore or deletion carries its AI state with it.
+
+Tenancy is set per deployment. In the dedicated stack the service serves the one tenant database from `DB_NAME` (`LIWAN_TENANCY_MODE=dedicated`, `AI_TENANT_DATABASE="${DB_NAME}"`). In the shared stack it maps a tenant id to its database from the tenant registry (`LIWAN_TENANCY_MODE=shared`, `LIWAN_TENANT_REGISTRY_PATH=/etc/liwan/registry.json`), and an unknown tenant is refused with 403 before any connection. A database name must match `^[a-z][a-z0-9_]{0,62}$`; the service refuses to start otherwise, and so does `deploy/provision.sh` when the `ai` profile is enabled, before it does any install work.
+
+Provisioning applies `deploy/ai/tenant_schema.sql` to each tenant database it creates, then, when the `ai` profile is enabled, runs the operator bootstraps that create the tables in schema `liwan_ai` of that database, after the control state:
+
+```sh
+docker compose exec -T db psql -U odoo -d postgres -v ON_ERROR_STOP=1 -v tenant_db="$DB_NAME" < ai/tenant_schema.sql
+docker compose run --rm -T ai python -m liwan_ai_service.store --initialize-control
+docker compose run --rm -T ai python -m liwan_ai_service.store --initialize-tenant "$DB_NAME"
+```
+
+The control bootstrap runs once per deployment, and the tenant bootstrap once per tenant. The runtime validates state and never runs DDL.
+
+The role `liwan_ai` can connect to each tenant database and use (with CREATE) schema `liwan_ai` there. It holds no grant on any Odoo table or sequence and loses its own schema-`public` privileges, so it can read no Odoo table; PostgreSQL still gives every role USAGE on schema `public` and EXECUTE on functions through `PUBLIC`, and Odoo grants nothing on its tables to `PUBLIC`.
+
+The `ai` container has no direct internet access: it sits on internal networks only, and every outbound call, Ollama included, goes through `ai-egress`, a Squid forward proxy that allows CONNECT to port 443 for the hosts in `AI_EGRESS_HOSTS` (comma separated; `host:port` allows exactly that port for a local model server such as `ollama:11434`) and denies everything else, logging each refusal by host. `deploy/provision.sh` fills `AI_EGRESS_HOSTS` from `AI_PROVIDER` (and `AI_BASE_URL`) when it is empty, via `deploy/ai/egress_hosts.sh` (for `anthropic` it always resolves to `api.anthropic.com`, because that provider ignores `AI_BASE_URL`); to allow another host, add it to that line in `deploy/.env` and restart `ai-egress`.
+
+Variables (see `deploy/ai/.env.example`): `AI_PROVIDER` (`anthropic`, `openai`, `ollama` or `openrouter`), `AI_MODEL` (required once enabled; the service fails at start with its own error when it is empty), `AI_API_KEY` (required for anthropic/openai/openrouter), `AI_BASE_URL`, `AI_OPENROUTER_REFERER` and `AI_OPENROUTER_TITLE` (optional, openrouter only), `AI_RUN_RETENTION_DAYS` (default 30), `AI_DB_PASSWORD`, `AI_SERVICE_TOKEN`. The last two are generated by `deploy/ai/ensure_secrets.sh`, which `deploy/provision.sh` calls when `COMPOSE_PROFILES` in `deploy/.env` contains `ai`; other variables stay operator-set, so a deployment that never enables AI needs none of them. `AI_DEV_INSECURE` is not a deployment variable: see the note after the enabling steps.
 
 OpenRouter: set `AI_PROVIDER=openrouter`, `AI_API_KEY` to the OpenRouter key and `AI_MODEL` to an OpenRouter model id such as `anthropic/claude-sonnet-4.5`; the optional `AI_OPENROUTER_REFERER` and `AI_OPENROUTER_TITLE` are sent as `HTTP-Referer` and `X-Title` for attribution. Any other OpenAI-compatible endpoint needs only `AI_PROVIDER=openai` with `AI_BASE_URL`.
 
 Enabling:
 
-1. Generate the secrets: `AI_DB_PASSWORD=$(openssl rand -hex 24)` and `AI_SERVICE_TOKEN=$(openssl rand -hex 32)`. `AI_DB_PASSWORD` must be URL-safe (hex or base64url) because it is placed inside `AI_DATABASE_URL`, which you set to `postgresql://liwan_ai:<AI_DB_PASSWORD>@db:5432/liwan_ai`. `AI_SERVICE_TOKEN` is at least 24 characters; `web` sends it as `X-Liwan-Service-Token` (`NUXT_AI_SERVICE_TOKEN`) and the service rejects any other caller.
-2. In `deploy/.env` set `COMPOSE_PROFILES=ai`, `NUXT_AI_SERVICE_URL=http://ai:8600`, `AI_MODEL`, the provider variables, `AI_DB_PASSWORD`, `AI_DATABASE_URL` and `AI_SERVICE_TOKEN`. `AI_DATABASE_URL` is mandatory: the service refuses to start without it (only `AI_ALLOW_MEMORY_STATE=true` allows in-memory state, for development). A claimed write whose executor crashed is never executed twice: after the stale window the run reports `failed` and only a new user message continues it.
-3. `docker compose up -d`. Without `NUXT_AI_SERVICE_URL` the `/ai` page stays hidden.
+1. `AI_DB_PASSWORD` and `AI_SERVICE_TOKEN` are generated by `deploy/ai/ensure_secrets.sh`, which `deploy/provision.sh` runs right after it finds `deploy/.env` and only when `COMPOSE_PROFILES` there contains `ai`: a name that is absent or empty gets a 64-character hex value written into `deploy/.env` (mode `600`), a value that already exists is kept byte-for-byte, and no value is ever printed. An existing `AI_DB_PASSWORD` must stay URL-safe (hex or base64url) because it is placed inside `AI_DATABASE_URL`, the control database URL, which you set to `postgresql://liwan_ai:<AI_DB_PASSWORD>@db:5432/liwan_ai`. `AI_SERVICE_TOKEN` is at least 24 characters; `web` sends it as `X-Liwan-Service-Token` (`NUXT_AI_SERVICE_TOKEN`) and the service rejects any other caller. Set `AI_DATABASE_URL` to `postgresql://liwan_ai:<AI_DB_PASSWORD>@db:5432/liwan_ai` after reading the generated password from `deploy/.env`.
+2. In `deploy/.env` set `COMPOSE_PROFILES=ai`, `NUXT_AI_SERVICE_URL=http://ai:8600`, `AI_MODEL`, the provider variables and `AI_DATABASE_URL`. `AI_SERVICE_TOKEN` and `AI_DB_PASSWORD` come from step 1; Compose refuses to start the `ai` service when the token is empty, and so does the service itself. `AI_DATABASE_URL` is mandatory: the service refuses to start without it (only `AI_ALLOW_MEMORY_STATE=true` allows in-memory state, for development). A claimed write whose executor crashed is never executed twice: after the stale window the run reports `failed` and only a new user message continues it.
+3. Bootstrap the AI state once per deployment and once per tenant: `python -m liwan_ai_service.store --initialize-control` (`docker compose run --rm -T ai python -m liwan_ai_service.store --initialize-control`), then `--initialize-tenant <db>` for each tenant. Both are idempotent, and `provision.sh` runs them itself, in that order, when the `ai` profile is enabled; a tenant database created by another route still needs the tenant schema and the tenant bootstrap described under Database isolation below.
+4. `docker compose up -d`. Without `NUXT_AI_SERVICE_URL` the `/ai` page stays hidden; outside development an AI URL with an empty token also keeps it hidden (the server logs one line naming the variable).
 
-Database isolation: the service connects as the dedicated role `liwan_ai`, which owns only the `liwan_ai` database. It is not the `odoo` superuser and has no access to tenant databases. `deploy/ai/init-db.sh` (mounted into `/docker-entrypoint-initdb.d/20-liwan-ai.sh`) runs on a fresh `db_data` volume only and, when `AI_DB_PASSWORD` is non-empty, creates the role and database, revokes `CONNECT` on `liwan_ai` from `PUBLIC`, and revokes `CONNECT` on every other existing database from `PUBLIC` and from `liwan_ai` (`postgres`, `template1`). `deploy/provision.sh` does the same for each tenant database it creates, right after the install and before the services start: when the `liwan_ai` role exists it revokes `CONNECT` on the tenant database from `PUBLIC` and from `liwan_ai`, and it does nothing when the role does not exist. Only a database created before this step existed, or by another route (shared-mode tenant databases), still inherits the default `PUBLIC` `CONNECT`; revoke it for each: `docker compose exec db psql -U odoo -c 'REVOKE CONNECT ON DATABASE "<tenant_db>" FROM PUBLIC'`. Tenant tables grant nothing to `PUBLIC`, so even a connection could read no table data.
+`AI_DEV_INSECURE=true` removes the service token requirement, so it is for development only. The service accepts it only together with `AI_ALLOW_MEMORY_STATE=true` and no `AI_DATABASE_URL`, and it must stay unset in any deployment.
+
+Do not rotate `AI_SERVICE_TOKEN` or `AI_DB_PASSWORD` casually. The token is one shared secret: rotating it means restarting `web` and `ai` together, otherwise the old token still held by `web` is rejected and `/ai` fails until both run the same value. The password belongs to the `liwan_ai` role on a fresh `db_data` volume and to `AI_DATABASE_URL`, so rotating it needs the role, the URL and the `ai` service updated together. Re-running `deploy/provision.sh` never rotates either one.
+
+Database isolation: the service connects as the dedicated role `liwan_ai`, which owns the `liwan_ai` control database and can connect to each tenant database with USAGE and CREATE on schema `liwan_ai` only. It is not the `odoo` superuser and holds no grant on any Odoo table or sequence, having lost its own schema-`public` privileges, so it can read no Odoo table; PostgreSQL still gives every role USAGE on schema `public` and EXECUTE on functions through `PUBLIC`, and Odoo grants nothing on its tables to `PUBLIC`. `deploy/ai/init-db.sh` (mounted into `/docker-entrypoint-initdb.d/20-liwan-ai.sh`) runs on a fresh `db_data` volume only and, when `AI_DB_PASSWORD` is non-empty, creates the role and database, revokes `CONNECT` on `liwan_ai` from `PUBLIC`, and revokes `CONNECT` on every other existing database from `PUBLIC` and from `liwan_ai`. A tenant database created later gets `CONNECT` granted selectively by `deploy/ai/tenant_schema.sql`, which `deploy/provision.sh` applies to each tenant database it creates, right after the install and before the services start: when the `liwan_ai` role exists it grants `CONNECT` there, creates schema `liwan_ai`, and revokes `public` from the role; it does nothing when the role does not exist. A tenant database created by another route (shared-mode tenant databases) needs the same script once: `docker compose exec -T db psql -U odoo -d postgres -v ON_ERROR_STOP=1 -v tenant_db="<tenant_db>" < ai/tenant_schema.sql`, then the tenant bootstrap below.
 
 Existing `db_data` volume (init scripts do not rerun): create the role and database once, by hand, with the password passed as a psql variable:
 
@@ -110,9 +133,16 @@ SELECT format('REVOKE CONNECT ON DATABASE %I FROM liwan_ai', datname) FROM pg_da
 SQL
 ```
 
+Then, for each tenant database, apply `ai/tenant_schema.sql` as shown above and run the control and tenant bootstraps:
+
+```sh
+docker compose run --rm -T ai python -m liwan_ai_service.store --initialize-control
+docker compose run --rm -T ai python -m liwan_ai_service.store --initialize-tenant "<tenant_db>"
+```
+
 (`docker compose exec` forwards the host shell's `AI_DB_PASSWORD` through the `-v` argument, so export it first; the value never appears in SQL text.)
 
-- Retention cleanup of old runs: `docker compose exec ai python -m liwan_ai_service.cleanup`, scheduled by the host cron.
+- Retention cleanup of old runs: `docker compose exec ai python -m liwan_ai_service.cleanup`, scheduled by the host cron; it visits every tenant database in the directory.
 - Stopping `ai`, or never enabling the profile, changes nothing else: `web`, `odoo` and `proxy` do not depend on it (works in `saas` and `non_saas`).
 - Threat model: the service holds no LiwanOS credential (no Odoo session or token, no `odoo` database password), only its own database role and the shared service token; all LiwanOS data reaches it per request through `web`, under the caller's own permissions.
 

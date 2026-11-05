@@ -31,7 +31,7 @@ def manifest(**changes):
 def ai_server(**changes):
     observation = {'state_version': '1', 'accepting': True, 'drained': False, 'active_runs': 0, 'running': 0,
                    'claimed_writes': 0, 'pending_reads': 0, 'local_requests': 0, 'settling': 0,
-                   'connections': {'pool_size': 1, 'pool_available': 1}, 'activity_scope': 'shared_state', 'state_id': STATE_ID, 'generation_id': None, **changes}
+                   'connections': {'pool_size': 1, 'pool_available': 1}, 'activity_scope': 'tenant_states', 'state_id': STATE_ID, 'generation_id': None, **changes}
     calls = []
     class Handler(BaseHTTPRequestHandler):
         def handle_call(self):

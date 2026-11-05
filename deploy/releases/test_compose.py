@@ -60,13 +60,30 @@ class ComposeTests(unittest.TestCase):
             value = operator(pool)
             value['upstreams']['ai'] = f'http://{pool}-ai:8081'
             value['allowedUpstreams'].append(value['upstreams']['ai'])
-            value['ai'] = {'mode': 'pool', 'stateStore': 'ai_state', 'config': '/etc/liwan/ai.conf'}
+            value['ai'] = {'mode': 'pool', 'stateStore': 'ai_state', 'config': '/etc/liwan/ai.conf', 'registryDir': '/etc/liwan/tenants'}
             return render_pool(manifest, value)['services'][pool + '-ai']['environment']['AI_GENERATION_ID']
         blue = generation('blue', 'r1')
         self.assertEqual(blue, generation('blue', 'r1'))
         self.assertNotEqual(blue, generation('green', 'r1'))
         self.assertNotEqual(blue, generation('blue', 'r3'))
         self.assertRegex(blue, r'^[a-z][a-z0-9_-]{0,62}$')
+
+    def test_shared_pool_ai_reads_the_tenant_registry_read_only(self):
+        manifest = release(images={**release()['images'], 'ai': 'liwan/ai@sha256:' + 'c' * 64})
+        value = operator()
+        value['upstreams']['ai'] = 'http://green-ai:8081'
+        value['allowedUpstreams'].append(value['upstreams']['ai'])
+        value['ai'] = {'mode': 'pool', 'stateStore': 'ai_state', 'config': '/etc/liwan/ai.conf'}
+        with self.assertRaises(ValueError):  # shared AI without the registry would serve no tenant
+            render_pool(manifest, value)
+        value['ai']['registryDir'] = '/etc/liwan/tenants'
+        service = render_pool(manifest, value)['services']['green-ai']
+        self.assertEqual(service['environment']['LIWAN_TENANCY_MODE'], 'shared')
+        self.assertEqual(service['environment']['LIWAN_TENANT_REGISTRY_PATH'], '/etc/liwan/registry.json')
+        registry = [m for m in service['volumes'] if m.get('target') == '/etc/liwan']
+        self.assertEqual(len(registry), 1)
+        self.assertEqual(registry[0]['source'], '/etc/liwan/tenants')
+        self.assertTrue(registry[0]['read_only'])
 
     def test_runtime_secret_files_are_consumed_by_services(self):
         result = render_pool(release(), operator())
@@ -93,7 +110,7 @@ class ComposeTests(unittest.TestCase):
         value = operator()
         value['upstreams']['ai'] = 'http://green-ai:8081'
         value['allowedUpstreams'].append(value['upstreams']['ai'])
-        value['ai'] = {'mode': 'pool', 'stateStore': 'ai_state', 'config': '/etc/liwan/ai.conf'}
+        value['ai'] = {'mode': 'pool', 'stateStore': 'ai_state', 'config': '/etc/liwan/ai.conf', 'registryDir': '/etc/liwan/tenants'}
         self.assertEqual(render_pool(manifest, value)['services']['green-ai']['image'], manifest['images']['ai'])
         stable = operator(); stable['ai'] = {'mode': 'stable', 'url': 'http://stable-ai:8081'}
         stable['upstreams']['ai'] = 'http://stable-ai:8081'; stable['allowedUpstreams'].append('http://stable-ai:8081')

@@ -1,32 +1,59 @@
-"""Delete runs (and their checkpoints) older than AI_RUN_RETENTION_DAYS. Scheduled by the deployment."""
+"""Delete runs (and their checkpoints) older than AI_RUN_RETENTION_DAYS in every tenant. Scheduled by the deployment."""
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
 import sys
 
 from liwan_ai_service.settings import CleanupSettings
-from liwan_ai_service.store import open_state
+from liwan_ai_service.tenancy import directory_from_env
+from liwan_ai_service.tenant_state import TenantStates
 
 
-async def run() -> str:
+def open_tenant_states(database_url: str | None) -> TenantStates:
+    """Every served tenant's state; retention deletes rows only, so no graph is built."""
+    return TenantStates(directory_from_env(os.environ), database_url, lambda _checkpointer: None)
+
+
+async def run() -> tuple[str, list[str]]:
+    """Clean every tenant database; one tenant's failure is a line of its own and never stops the others."""
     settings = CleanupSettings.from_env(os.environ)
-    store, _checkpointer, aclose = await open_state(settings.database_url)
+    states = open_tenant_states(settings.database_url)
+    deleted = 0
+    cleaned_tenants = 0
+    failures: list[str] = []
     try:
-        gone = await store.delete_older_than(settings.retention_days)
+        def unavailable(database: str, error: Exception) -> None:
+            failures.append(f"{database}: {type(error).__name__}")
+
+        if not states.directory.databases():
+            # A real deployment always serves a tenant: an empty directory is a missing or pending registry,
+            # and a job that cleaned nothing must not report success.
+            failures.append("directory: no tenant database served")
+        async with contextlib.aclosing(states.each(on_unavailable=unavailable)) as sweep:
+            async for state in sweep:
+                try:
+                    deleted += len(await state.store.delete_older_than(settings.retention_days))
+                except Exception as error:  # noqa: BLE001 - one tenant must not stop the others; the text may carry its connection string
+                    failures.append(f"{state.database}: {type(error).__name__}")
+                else:
+                    cleaned_tenants += 1
     finally:
-        await aclose()
-    return f"deleted {len(gone)} runs older than {settings.retention_days} days"
+        await states.aclose()
+    return f"deleted {deleted} runs older than {settings.retention_days} days in {cleaned_tenants} tenants", failures
 
 
 async def main() -> int:
     try:
-        report = await run()
+        report, failures = await run()
     except Exception as error:  # noqa: BLE001 - the job reports why it failed by class only; the text may carry the connection string
         print(f"cleanup failed: {type(error).__name__}", file=sys.stderr)
         return 1
     print(report)
-    return 0
+    for line in failures:
+        print(f"cleanup failed for {line}", file=sys.stderr)
+    return 1 if failures else 0
 
 
 if __name__ == "__main__":

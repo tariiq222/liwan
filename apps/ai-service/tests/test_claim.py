@@ -4,11 +4,9 @@ import json
 
 import httpx
 from langchain_core.messages import AIMessage, ToolMessage
-from langgraph.checkpoint.memory import InMemorySaver
 
-from liwan_ai_service.service import create_app
 from liwan_ai_service.store import MemoryRunStore
-from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call, new_id
+from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call, make_memory_app, new_id
 from tests.test_recovery import age
 from tests.test_service import BODY, HEADERS, RESUME_C1, SETTINGS, fresh, parse_sse
 
@@ -18,7 +16,7 @@ OTHER = {"X-Liwan-Tenant": "t1", "X-Liwan-User": "43"}
 
 
 def make_client(responses, store=None):
-    app = create_app(ScriptedChatModel(responses), store or MemoryRunStore(), InMemorySaver(), SETTINGS)
+    app = make_memory_app(ScriptedChatModel(responses), SETTINGS, store=store)
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai")
 
 
@@ -149,7 +147,7 @@ async def test_a_stale_executing_run_is_never_claimed_or_resumed_again_and_reads
 async def test_a_new_message_continues_a_stale_executing_run_and_the_model_learns_the_result_is_unknown():
     store = MemoryRunStore()
     model = ScriptedChatModel([ai_tool_call(DRAFT, {"name": "بوابة"}, "c_1"), ai_text("لا أعرف إن نُفذ")])
-    app = create_app(model, store, InMemorySaver(), SETTINGS)
+    app = make_memory_app(model, SETTINGS, store=store)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai") as client:
         run_id = await start(client)
         assert (await claim(client, run_id)).status_code == 200
@@ -180,7 +178,7 @@ async def test_a_stale_executing_run_without_a_pending_call_can_be_continued():
 
 async def test_the_store_claims_only_waiting_user_with_the_same_pending_call():
     store = MemoryRunStore()
-    record = await store.create(new_id(), "t1", "42")
+    record = await store.create(new_id(), "42")
     await store.finish(record.run_id, "waiting_user", record.lease, "c_1")
     assert await store.acquire(record.run_id, ("waiting_user",), stale_after_seconds=60, pending_call_id="c_2", to_status="executing") is None
     lease = await store.acquire(record.run_id, ("waiting_user",), stale_after_seconds=60, pending_call_id="c_1", to_status="executing")

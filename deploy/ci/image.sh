@@ -80,8 +80,10 @@ smoke_started web -e NUXT_ODOO_URL=http://127.0.0.1:1
 PROBE=(node -e "$HTTP_PROBE" http://127.0.0.1:3100/robots.txt)
 smoke_started vendor-admin
 # ai-service: /healthz answers (ollama needs no key; in-memory state needs no database; no model call is made).
+# The service requires its service token outside development. AI_DEV_INSECURE=true is the only token-free mode, accepted
+# only with AI_ALLOW_MEMORY_STATE=true and no AI_DATABASE_URL, which is exactly this smoke run.
 PROBE=(python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8600/healthz', timeout=2)")
-smoke_started ai-service -e AI_PROVIDER=ollama -e AI_MODEL=ci-smoke -e AI_ALLOW_MEMORY_STATE=true
+smoke_started ai-service -e AI_PROVIDER=ollama -e AI_MODEL=ci-smoke -e AI_ALLOW_MEMORY_STATE=true -e AI_DEV_INSECURE=true
 # guard: starts in shared mode with a deny-all bootstrap registry, and its own healthcheck answers.
 printf '%s\n' '{"schemaVersion":1,"snapshotRevision":0,"targets":[]}' > "$IMAGE_ROOT/registry.json"
 chmod 644 "$IMAGE_ROOT/registry.json"

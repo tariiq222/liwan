@@ -12,6 +12,36 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 [ -f .env ] || { echo "deploy/.env missing (copy .env.example)"; exit 1; }
+# The AI service refuses to run without its token, so when the ai profile is enabled we generate the missing
+# AI_SERVICE_TOKEN and AI_DB_PASSWORD once. An existing value is never printed or rotated.
+if grep -Eq '^COMPOSE_PROFILES=([^#]*,)?ai(,|$|[[:space:]])' .env; then
+  sh ai/ensure_secrets.sh .env
+  # `ai` has no internet route of its own: every outbound call goes through the ai-egress host allowlist.
+  # An operator-set AI_EGRESS_HOSTS is kept as it is; when it is empty or absent it is derived once from the
+  # provider (and AI_BASE_URL, when set) so a fresh deployment can reach its provider without another step.
+  if ! grep -Eq '^AI_EGRESS_HOSTS=.' .env; then
+    env_file_value() { awk -v key="$1" 'index($0, key "=") == 1 { print substr($0, length(key) + 2); exit }' .env; }
+    provider="$(env_file_value AI_PROVIDER)"
+    [ -n "$provider" ] || provider=ollama
+    egress_hosts="$(sh ai/egress_hosts.sh "$provider" "$(env_file_value AI_BASE_URL)")" \
+      || { echo "provision: could not derive AI_EGRESS_HOSTS from AI_PROVIDER/AI_BASE_URL in deploy/.env" >&2; exit 1; }
+    # Same write rule as ai/ensure_secrets.sh: replace one assignment in place, append otherwise, never echo a value.
+    # The temporary file holds every secret in .env, so it is created in a subshell whose umask is owner-only.
+    ( umask 077
+      AI_EGRESS_HOSTS="$egress_hosts" awk '
+        index($0, "AI_EGRESS_HOSTS=") == 1 {
+          if (!written) { print "AI_EGRESS_HOSTS=" ENVIRON["AI_EGRESS_HOSTS"]; written = 1 }
+          next
+        }
+        { print }
+        END { if (!written) print "AI_EGRESS_HOSTS=" ENVIRON["AI_EGRESS_HOSTS"] }
+      ' .env > .env.tmp
+      mv .env.tmp .env
+    )
+    chmod 600 .env
+    echo "provision: AI_EGRESS_HOSTS=$egress_hosts (edit deploy/.env to allow another provider host)"
+  fi
+fi
 [ -f branding.json ] || { echo "deploy/branding.json missing (copy branding.example.json)"; exit 1; }
 
 # Copies branding.json + the logo it names into data/seed/, resolving a
@@ -76,6 +106,12 @@ set -a; source .env; set +a
 DOMAIN="${1:?usage: provision.sh <domain> <db name>}"
 DB_NAME="${2:?usage: provision.sh <domain> <db name>}"
 [[ "$DB_NAME" =~ ^[a-zA-Z0-9_]+$ ]] || { echo "db name must be [a-zA-Z0-9_]+" >&2; exit 1; }
+# With the ai profile the tenant database name also becomes the AI tenant id and the AI database name, which
+# the service accepts only as ^[a-z][a-z0-9_]{0,62}$. Refuse it here, before any install work starts.
+if grep -Eq '^COMPOSE_PROFILES=([^#]*,)?ai(,|$|[[:space:]])' .env; then
+  [[ "$DB_NAME" =~ ^[a-z][a-z0-9_]{0,62}$ ]] \
+    || { echo "db name '$DB_NAME' must match ^[a-z][a-z0-9_]{0,62}$ when the ai profile is enabled" >&2; exit 1; }
+fi
 # The public origin is https://<domain>: a lowercase DNS name, no port, no trailing dot.
 [ "${#DOMAIN}" -le 253 ] && [[ "$DOMAIN" =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$ ]] \
   || { echo "domain must be a lowercase DNS name" >&2; exit 1; }
@@ -136,14 +172,18 @@ docker compose run --rm -T -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$
 docker compose run --rm -T -e VENDOR_PASSWORD -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
   shell -d "$DB_NAME" --no-http < data/seed/seed_branding.py
 set_public_origin
-# LiwanOS AI's database role must not connect to a customer database. Postgres grants CONNECT on a
-# new database to PUBLIC, so close it for the tenant database just created. A no-op when the
-# liwan_ai role does not exist (deployments without AI); a real error still stops provisioning.
-docker compose exec -T db psql -U odoo -d postgres -v ON_ERROR_STOP=1 -v tenant_db="$DB_NAME" <<'SQL'
-SELECT format('REVOKE CONNECT ON DATABASE %I FROM PUBLIC', :'tenant_db')
-  WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'liwan_ai') \gexec
-SELECT format('REVOKE CONNECT ON DATABASE %I FROM liwan_ai', :'tenant_db')
-  WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'liwan_ai') \gexec
-SQL
+# Close the tenant database to PUBLIC and give LiwanOS AI's role its own schema there, with no access to
+# schema public (ai/tenant_schema.sql). A no-op when the liwan_ai role does not exist (deployments
+# without AI); a real error still stops provisioning.
+docker compose exec -T db psql -U odoo -d postgres -v ON_ERROR_STOP=1 -v tenant_db="$DB_NAME" \
+  < ai/tenant_schema.sql
+# The runtime validates AI state and never runs DDL: the operator bootstrap creates the tables in that
+# schema, so it runs here for every tenant while the ai profile is enabled. The control state comes first (once per
+# deployment, idempotent: it validates an existing state), so the service does not restart-loop on
+# ai_control_state_uninitialized.
+if grep -Eq '^COMPOSE_PROFILES=([^#]*,)?ai(,|$|[[:space:]])' .env; then
+  docker compose run --rm -T ai python -m liwan_ai_service.store --initialize-control
+  docker compose run --rm -T ai python -m liwan_ai_service.store --initialize-tenant "$DB_NAME"
+fi
 docker compose up -d
 echo "https://$DOMAIN is provisioning; vendor login: admin / (VENDOR_PASSWORD from .env)."
