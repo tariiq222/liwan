@@ -36,8 +36,8 @@ class AiSetupController(http.Controller):
     @requires_feature(AI_FEATURE, operation='write')
     @requires_capability(AI_USE)
     def apply_setting(self, key, **payload):
-        if set(payload) != {'value'}:
-            raise ApiError(422, 'invalid', 'send exactly the value', field='value')
+        if set(payload) != {'value', 'expected'}:
+            raise ApiError(422, 'invalid', 'send the new value and the value it replaces', field='value')
         registry = request.env['liwan.ai.setting.registry']
         item = next((item for item in registry._liwan_ai_manageable() if item['key'] == key), None)
         if item is None:
@@ -48,6 +48,9 @@ class AiSetupController(http.Controller):
             value = registry._liwan_ai_check_value(item, payload['value'])
         except ValueError as error:
             raise ApiError(422, 'invalid', str(error), field='value') from error
+        if registry._liwan_ai_current_value(item) != payload['expected']:
+            # The proposal was made on a value someone has changed since: approving it must not overwrite that change.
+            raise ApiError(409, 'conflict', 'this setting changed since it was read; read it again', field='expected')
         try:
             with request.env.cr.savepoint():
                 before, after = registry._liwan_ai_apply(item, value)

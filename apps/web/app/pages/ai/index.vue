@@ -89,7 +89,9 @@ watch([identity, currentRunId], ([owner, id], [beforeOwner]) => {
 // Reopen a run by link/refresh; a `resume` query means the create page finished (or left) a draft.
 onMounted(async () => {
   if (disabledByConfig.value) return
-  // Without `?run=` the conversation the sheet has open continues here.
+  // Without `?run=` the conversation the sheet has open continues here, except that the setup assistant always starts
+  // a conversation of its own (an ordinary one would keep its mode and never offer the setup tools).
+  if (setupMode.value && typeof route.query.run !== 'string') currentRunId.value = null
   const id = typeof route.query.run === 'string' ? route.query.run : currentRunId.value
   if (!id) return
   const owner = identity.value
@@ -142,6 +144,11 @@ watch(runId, async (id) => {
   if (id) currentRunId.value = id
   if (id && route.query.run !== id) await router.replace({ path: '/ai', query: { ...route.query, run: id } })
 }, { flush: 'sync' })
+
+// Opening the setup assistant while this page is already shown starts a fresh setup conversation.
+watch(setupMode, (setup) => {
+  if (setup && typeof route.query.run !== 'string') currentRunId.value = null
+})
 
 // The history list opens another conversation or starts a new one by changing `?run=` (back/forward do the same).
 watch(() => route.query.run, async (value) => {

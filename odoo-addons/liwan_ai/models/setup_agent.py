@@ -47,16 +47,21 @@ SETUP_TOOLS = (
     },
     {
         'name': 'ai.apply_setting', 'owner': OWNER, 'kind': 'write_light', 'capability': AI_USE, 'feature_key': 'ai.enabled',
-        'description_ar': 'يطبّق قيمة جديدة لإعداد واحد بعد موافقة المستخدم',
-        'description_en': 'Apply a new value to one setting after the user approves',
+        'description_ar': 'يطبّق قيمة جديدة لإعداد واحد بعد موافقة المستخدم، مع القيمة الحالية التي عرضتها أداة القراءة',
+        'description_en': 'Apply a new value to one setting after the user approves, with the current value the list tool showed',
         'route': {'method': 'POST', 'path': '/api/v1/ai/setup/settings/{key}'},
         'input_schema': {
             'type': 'object',
-            'properties': {'key': SETTING_KEY_SCHEMA, 'value': {'type': ['string', 'integer', 'boolean']}},
-            'required': ['key', 'value'],
+            'properties': {
+                'key': SETTING_KEY_SCHEMA,
+                'value': {'type': ['string', 'integer', 'boolean']},
+                # The value ai.list_settings showed: the change is refused if the setting moved since.
+                'expected': {'type': ['string', 'integer', 'boolean']},
+            },
+            'required': ['key', 'value', 'expected'],
             'additionalProperties': False,
         },
-        'input_map': {'path': {'key': '$key'}, 'body': {'value': '$value'}},
+        'input_map': {'path': {'key': '$key'}, 'body': {'value': '$value', 'expected': '$expected'}},
         'result_summary': ['key', 'before', 'after'],
     },
 )
