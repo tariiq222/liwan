@@ -22,6 +22,16 @@ const groups = computed(() => [
   { key: 'opportunity', label: t('crm.settings.terms.opportunity') },
   { key: 'package', label: t('crm.settings.terms.package') },
 ] as const)
+// The table's columns: one header row on wide screens; each input carries its term and column as its accessible name.
+const columns = computed(() => [
+  { key: 'arSingular', label: t('crm.settings.terms.arSingular') },
+  { key: 'arPlural', label: t('crm.settings.terms.arPlural') },
+  { key: 'enSingular', label: t('crm.settings.terms.enSingular') },
+  { key: 'enPlural', label: t('crm.settings.terms.enPlural') },
+  { key: 'gender', label: t('crm.settings.terms.gender') },
+  { key: 'example', label: t('crm.settings.terms.previewLabel') },
+])
+const nameOf = (term: string, column: string) => `${term}، ${column}`
 // The agreement the renamed word gets in the UI language, shown beside the fields so the manager sees the effect.
 const preview = (key: 'customer' | 'opportunity' | 'package') => {
   const term = draft.value.terms[key]
@@ -32,24 +42,31 @@ const preview = (key: 'customer' | 'opportunity' | 'package') => {
 
 <template>
   <SharedSettingsCard id="terms" v-bind="state" :title="t('crm.settings.terms.title')" :description="t('crm.settings.terms.hint')" :can-edit="canEdit" @save="save" @revert="revert" @reload="reload">
-    <fieldset v-for="group in groups" :key="group.key" class="liwan-auto-grid gap-3 not-first:border-t not-first:border-default not-first:pt-4">
-      <legend class="mb-2 text-sm font-medium text-highlighted">{{ group.label }}</legend>
-      <UFormField :label="t('crm.settings.terms.arSingular')" :name="`${group.key}-ar-singular`">
-        <UInput :id="`${group.key}-ar-singular`" v-model="draft.terms[group.key].ar.singular" class="w-full" :maxlength="60" :disabled="locked" />
-      </UFormField>
-      <UFormField :label="t('crm.settings.terms.arPlural')" :name="`${group.key}-ar-plural`">
-        <UInput :id="`${group.key}-ar-plural`" v-model="draft.terms[group.key].ar.plural" class="w-full" :maxlength="60" :disabled="locked" />
-      </UFormField>
-      <UFormField :label="t('crm.settings.terms.enSingular')" :name="`${group.key}-en-singular`">
-        <UInput :id="`${group.key}-en-singular`" v-model="draft.terms[group.key].en.singular" class="w-full" dir="ltr" :maxlength="60" :disabled="locked" />
-      </UFormField>
-      <UFormField :label="t('crm.settings.terms.enPlural')" :name="`${group.key}-en-plural`">
-        <UInput :id="`${group.key}-en-plural`" v-model="draft.terms[group.key].en.plural" class="w-full" dir="ltr" :maxlength="60" :disabled="locked" />
-      </UFormField>
-      <UFormField :label="t('crm.settings.terms.gender')" :name="`${group.key}-gender`" :help="t('crm.settings.terms.genderHint')">
-        <USelect :id="`${group.key}-gender`" v-model="draft.terms[group.key].gender" class="w-full" :items="genders" :disabled="locked" />
-      </UFormField>
-      <p class="self-end pb-2 text-sm text-muted">{{ t('crm.settings.terms.previewLabel') }}: <span class="font-medium text-default">{{ preview(group.key) }}</span></p>
-    </fieldset>
+    <div class="grid gap-4 md:gap-2">
+      <div class="hidden gap-3 text-xs font-medium text-muted md:grid md:grid-cols-[7rem_repeat(4,minmax(0,1fr))_8rem_8rem]" aria-hidden="true">
+        <span />
+        <span v-for="column in columns" :key="column.key">{{ column.label }}</span>
+      </div>
+      <div v-for="group in groups" :key="group.key" role="group" :aria-labelledby="`terms-${group.key}`" class="grid items-center gap-3 not-first:border-t not-first:border-default not-first:pt-4 md:grid-cols-[7rem_repeat(4,minmax(0,1fr))_8rem_8rem] md:not-first:border-t-0 md:not-first:pt-0">
+        <span :id="`terms-${group.key}`" class="text-sm font-medium text-highlighted">{{ group.label }}</span>
+        <UFormField :label="columns[0]!.label" :name="`${group.key}-ar-singular`" :ui="{ label: 'md:sr-only' }">
+          <UInput :id="`${group.key}-ar-singular`" v-model="draft.terms[group.key].ar.singular" class="w-full" :maxlength="60" :disabled="locked" :aria-label="nameOf(group.label, columns[0]!.label)" />
+        </UFormField>
+        <UFormField :label="columns[1]!.label" :name="`${group.key}-ar-plural`" :ui="{ label: 'md:sr-only' }">
+          <UInput :id="`${group.key}-ar-plural`" v-model="draft.terms[group.key].ar.plural" class="w-full" :maxlength="60" :disabled="locked" :aria-label="nameOf(group.label, columns[1]!.label)" />
+        </UFormField>
+        <UFormField :label="columns[2]!.label" :name="`${group.key}-en-singular`" :ui="{ label: 'md:sr-only' }">
+          <UInput :id="`${group.key}-en-singular`" v-model="draft.terms[group.key].en.singular" class="w-full" dir="ltr" :maxlength="60" :disabled="locked" :aria-label="nameOf(group.label, columns[2]!.label)" />
+        </UFormField>
+        <UFormField :label="columns[3]!.label" :name="`${group.key}-en-plural`" :ui="{ label: 'md:sr-only' }">
+          <UInput :id="`${group.key}-en-plural`" v-model="draft.terms[group.key].en.plural" class="w-full" dir="ltr" :maxlength="60" :disabled="locked" :aria-label="nameOf(group.label, columns[3]!.label)" />
+        </UFormField>
+        <UFormField :label="columns[4]!.label" :name="`${group.key}-gender`" :ui="{ label: 'md:sr-only' }">
+          <USelect :id="`${group.key}-gender`" v-model="draft.terms[group.key].gender" class="w-full" :items="genders" :disabled="locked" :aria-label="nameOf(group.label, columns[4]!.label)" />
+        </UFormField>
+        <p class="text-sm text-muted"><span class="md:sr-only">{{ columns[5]!.label }}: </span><span class="font-medium text-default">{{ preview(group.key) }}</span></p>
+      </div>
+      <p class="text-xs text-muted">{{ t('crm.settings.terms.genderHint') }}</p>
+    </div>
   </SharedSettingsCard>
 </template>

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { appSettingsPages, partIsExact, settingsPageForPath, settingsPages, settingsPartPath, settingsPartTarget } from '../settingsSections'
+import { appSettingsPages, partIsExact, settingsActiveGroup, settingsPageForPath, settingsPages, settingsPartGroup, settingsPartPath, settingsPartTarget, visibleSettingsGroups } from '../settingsSections'
 import { isContextLinkActive } from '../../useShellNavigation'
 import { appManifests, withManifests } from '../../../modules/manifests'
 import type { AppManifest } from '../../../modules/types'
 
 const page = (id: string) => settingsPages().find(candidate => candidate.id === id)!
+const part = (pageId: string, partId: string) => page(pageId).parts.find(candidate => candidate.id === partId)!
 
 describe('settings pages', () => {
   it('are the foundation pages around one page per application, in a fixed order', () => {
@@ -56,6 +57,36 @@ describe('settings pages', () => {
     expect(settingsPartPath(page('team'), page('team').parts[0]!)).toBe('/settings/team/users')
     expect(settingsPartPath(page('company'), page('company').parts[3]!)).toBe('/settings/company#branding')
     expect(settingsPartPath(page('company'), { ...page('company').parts[0]!, within: '/settings/company/all' })).toBe('/settings/company/all')
+  })
+  it('opens a grouped part on its tab, and leaves an ungrouped part above the tabs', () => {
+    expect(settingsPartGroup(page('crm'), 'terms')).toBe('basics')
+    expect(settingsPartGroup(page('crm'), 'sources')).toBe('workflow')
+    expect(settingsPartGroup(page('crm'), 'privacy')).toBe('privacy')
+    expect(settingsPartGroup(page('crm'), 'preset')).toBeUndefined()
+    expect(settingsPartGroup(page('company'), 'profile')).toBeUndefined()
+    expect(settingsPartTarget(page('crm'), part('crm', 'terms'))).toEqual({ path: '/settings/apps/crm', query: { tab: 'basics' }, hash: '#terms' })
+    expect(settingsPartTarget(page('crm'), part('crm', 'preset'))).toEqual({ path: '/settings/apps/crm', hash: '#preset' })
+    expect(settingsPartPath(page('crm'), part('crm', 'terms'))).toBe('/settings/apps/crm?tab=basics#terms')
+    expect(settingsPartPath(page('crm'), part('crm', 'preset'))).toBe('/settings/apps/crm#preset')
+    // A part with its own page or full list keeps its own target, whatever its group.
+    expect(settingsPartPath(page('crm'), { ...part('crm', 'terms'), to: '/settings/apps/crm/terms' })).toBe('/settings/apps/crm/terms')
+    expect(settingsPartTarget(page('crm'), { ...part('crm', 'terms'), to: '/settings/apps/crm/terms' })).toBe('/settings/apps/crm/terms')
+  })
+  it('keeps only the groups that keep a visible part', () => {
+    const groups = [{ id: 'one', labelKey: 'one', parts: ['a', 'b'] }, { id: 'two', labelKey: 'two', parts: ['c'] }]
+    expect(visibleSettingsGroups(groups, ['a', 'c'])).toEqual([{ id: 'one', labelKey: 'one', parts: ['a'] }, { id: 'two', labelKey: 'two', parts: ['c'] }])
+    expect(visibleSettingsGroups(groups, ['b'])).toEqual([{ id: 'one', labelKey: 'one', parts: ['b'] }])
+    expect(visibleSettingsGroups(groups, ['x'])).toEqual([])
+    expect(visibleSettingsGroups(undefined, ['a'])).toEqual([])
+  })
+  it('picks the tab from the hash, else the query, else the first visible group', () => {
+    const groups = [{ id: 'one', labelKey: 'one', parts: ['a', 'b'] }, { id: 'two', labelKey: 'two', parts: ['c'] }]
+    expect(settingsActiveGroup(groups, '#c', 'one')).toBe('two')
+    expect(settingsActiveGroup(groups, '#c', undefined)).toBe('two')
+    expect(settingsActiveGroup(groups, '', 'two')).toBe('two')
+    expect(settingsActiveGroup(groups, '#zzz', 'zzz')).toBe('one')
+    expect(settingsActiveGroup(groups, '', undefined)).toBe('one')
+    expect(settingsActiveGroup([], '', 'one')).toBeNull()
   })
   it('keeps a part with sibling pages beneath it from matching them', () => {
     const [pack, change] = page('billing').parts

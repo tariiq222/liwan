@@ -1,8 +1,8 @@
 // Relative imports: unit-tested directly under plain vitest.
 import { activeManifests } from '../../modules/manifests'
-import type { AppSettingsPage, AppSettingsPart } from '../../modules/types'
+import type { AppSettingsGroup, AppSettingsPage, AppSettingsPart } from '../../modules/types'
 
-export type SettingsPartTarget = string | { path: string; hash: string }
+export type SettingsPartTarget = string | { path: string; hash: string; query?: { tab: string } }
 /** A settings page: the foundation's own (company, team, system, billing) and one per application manifest. */
 export interface SettingsPage extends AppSettingsPage {
   /** Path prefix that marks the page as open. */
@@ -70,14 +70,45 @@ export function settingsPageForPath(path: string): SettingsPage | null {
   return settingsPages().find(page => pathname === page.within || pathname.startsWith(`${page.within}/`)) ?? null
 }
 
-/** Where a part leads when it is not scrolled to: its own page, else the path with its id as the hash. */
+/** The group a part belongs to on its page, or undefined when it sits above the page's tabs. */
+export function settingsPartGroup(page: SettingsPage, partId: string): string | undefined {
+  return page.groups?.find(group => group.parts.includes(partId))?.id
+}
+
+/** Where a part leads when it is not scrolled to: its own page, else the page on the part's tab with its id as the hash. */
 export function settingsPartTarget(page: SettingsPage, part: AppSettingsPart): SettingsPartTarget {
-  return part.to ?? { path: page.to, hash: `#${part.id}` }
+  if (part.to) return part.to
+  const hash = `#${part.id}`
+  // A part with a full list page (`within`) names its card on the page itself, not on a tab.
+  const group = part.within ? undefined : settingsPartGroup(page, part.id)
+  return group ? { path: page.to, query: { tab: group }, hash } : { path: page.to, hash }
 }
 
 /** The path a nav item (palette, search, shortcuts) opens for a part: its own or full page, else the page with the hash. */
 export function settingsPartPath(page: SettingsPage, part: AppSettingsPart): string {
-  return part.to ?? part.within ?? `${page.to}#${part.id}`
+  const ownTarget = part.to ?? part.within
+  if (ownTarget) return ownTarget
+  const group = settingsPartGroup(page, part.id)
+  return group ? `${page.to}?tab=${group}#${part.id}` : `${page.to}#${part.id}`
+}
+
+/** The page's groups that keep at least one visible part, in page order, each holding only those visible parts. */
+export function visibleSettingsGroups(groups: readonly AppSettingsGroup[] | undefined, visiblePartIds: readonly string[]): AppSettingsGroup[] {
+  return (groups ?? []).flatMap(group => {
+    const parts = group.parts.filter(id => visiblePartIds.includes(id))
+    return parts.length ? [{ ...group, parts }] : []
+  })
+}
+
+/**
+ * The tab a settings page shows: the group of the part the hash names (when that part is visible), else the `tab`
+ * query when it names a visible group, else the first visible group; null when no group is visible.
+ */
+export function settingsActiveGroup(groups: readonly AppSettingsGroup[], hash: string, tab: unknown): string | null {
+  const anchored = groups.find(group => group.parts.includes(hash.replace(/^#/, '')))?.id
+  if (anchored) return anchored
+  const wanted = typeof tab === 'string' ? tab : undefined
+  return groups.find(group => group.id === wanted)?.id ?? groups[0]?.id ?? null
 }
 
 /** A part whose page has sibling pages beneath it must match only itself, not its siblings. */

@@ -31,8 +31,8 @@ const busy = computed(() => !hydrated.value || saving.value)
       <UButton
         type="button"
         color="neutral"
-        variant="outline"
-        class="text-inverted"
+        variant="ghost"
+        class="text-inverted ring ring-inset ring-current/40 hover:bg-transparent hover:text-inverted hover:ring-current"
         :label="t('app.revert')"
         :disabled="busy"
         data-testid="settings-save-bar-revert"

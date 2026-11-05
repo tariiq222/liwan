@@ -30,7 +30,7 @@ const afterItems = computed(() => [
       <UInputNumber id="followup-interval" v-model="draft.followup_interval_hours" class="w-full" :min="range.followup_interval_hours.min" :max="range.followup_interval_hours.max" :disabled="locked" />
     </UFormField>
     <UFormField orientation="horizontal" :label="t('crm.settings.followup.afterAttempts')" name="after-attempts" :description="t('crm.settings.followup.afterAttemptsHint')">
-      <USelect id="after-attempts" v-model="draft.after_attempts" class="w-full" :items="afterItems" :disabled="locked" />
+      <USelect id="after-attempts" v-model="draft.after_attempts" class="w-full min-w-44" :items="afterItems" :disabled="locked" />
     </UFormField>
     <UFormField orientation="horizontal" :label="t('crm.settings.followup.recycle')" :description="t('crm.settings.followup.recycleHint')">
       <USwitch v-model="draft.recycle_enabled" :disabled="locked" :aria-label="t('crm.settings.followup.recycle')" />

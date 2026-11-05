@@ -28,6 +28,13 @@ const manifest: AppManifest = {
       { id: 'lostReasons', labelKey: 'crm.settings.lostReasons.title', icon: 'i-lucide-circle-x', capability: 'crm.settings.read' },
       { id: 'sources', labelKey: 'crm.settings.sources.title', icon: 'i-lucide-radio-tower', capability: 'crm.settings.read' },
     ],
+    // The page's tabs; the preset card sits above them, since it sets values across the others.
+    groups: [
+      { id: 'basics', labelKey: 'crm.settings.groups.basics', parts: ['terms', 'customFields'] },
+      { id: 'workflow', labelKey: 'crm.settings.groups.workflow', parts: ['followup', 'distribution', 'stages', 'outcomes', 'lostReasons', 'sources'] },
+      { id: 'sales', labelKey: 'crm.settings.groups.sales', parts: ['pricing', 'packages'] },
+      { id: 'privacy', labelKey: 'crm.settings.groups.privacy', parts: ['privacy'] },
+    ],
   },
   contextLinks: () => [
     { id: 'crm-dashboard', labelKey: 'crm.nav.dashboard', icon: 'i-lucide-layout-dashboard', to: '/crm', capability: 'crm.leads.read', exact: true },

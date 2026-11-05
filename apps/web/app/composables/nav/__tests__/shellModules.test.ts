@@ -117,6 +117,15 @@ describe('contextual module links', () => {
     expect(links.find(link => link.id === 'contact')).toMatchObject({ to: { path: '/settings/company', hash: '#contact' }, section: 'settings.sections.company.title' })
     expect(contextLinksForModule('settings', company, '/settings/team').find(link => link.id === 'users')).toMatchObject({ to: { path: '/settings/team', hash: '#users' }, within: '/settings/team/users' })
   })
+  it('hides the sub-list of a page with tabs, and keeps its top link', () => {
+    const crmAdmin = { capabilities: ['crm.settings.read'] }
+    const links = contextLinksForModule('settings', crmAdmin, '/settings/apps/crm')
+    expect(links.map(link => link.id)).toEqual(['settings-overview', 'settings-crm'])
+    expect(links.find(link => link.id === 'settings-crm')).toMatchObject({ within: '/settings/apps/crm' })
+    // Another page keeps its sub-list, and a tab page's palette links still name their tab.
+    expect(contextLinksForModule('settings', admin, '/settings/company')).toContainEqual(expect.objectContaining({ id: 'branding' }))
+    expect(useNav(crmAdmin).find(item => item.to === '/settings/apps/crm?tab=workflow#sources')).toMatchObject({ group: 'settings', module: 'settings' })
+  })
   it('lists one link per application under the Applications heading, gated by capability and feature', () => {
     const pmoAdmin = { capabilities: ['pmo.settings.manage', 'operations.processes.manage'] }
     const apps = (identity: typeof pmoAdmin, path: string) => contextLinksForModule('settings', identity, path)

@@ -31,7 +31,7 @@ const members = computed({
 <template>
   <SharedSettingsCard id="distribution" v-bind="state" :title="t('crm.settings.distribution.title')" :description="t('crm.settings.distribution.hint')" :can-edit="canEdit" @save="save" @revert="revert" @reload="reload">
     <UFormField orientation="horizontal" :label="t('crm.settings.distribution.mode')" name="distribution-mode" :description="modeHint">
-      <USelect id="distribution-mode" v-model="draft.distribution_mode" class="w-full" :items="modeItems" :disabled="locked" />
+      <USelect id="distribution-mode" v-model="draft.distribution_mode" class="w-full min-w-44" :items="modeItems" :disabled="locked" />
     </UFormField>
     <UFormField orientation="horizontal" :label="t('crm.settings.distribution.members')" name="distribution-members" :description="t('crm.settings.distribution.membersHint')">
       <SharedPersonPicker id="distribution-members" v-model="members" multiple value-key="user_id" :known="props.settings.distribution_users" :disabled="locked" />

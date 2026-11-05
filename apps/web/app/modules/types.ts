@@ -60,6 +60,15 @@ export interface AppSettingsPart {
   within?: string
 }
 /**
+ * One tab of a long settings page: its label and the parts it shows. A page with groups shows one tab per group; a
+ * part listed in no group sits above the tabs on every tab; every listed part id must exist in `parts`.
+ */
+export interface AppSettingsGroup {
+  id: string
+  labelKey: string
+  parts: string[]
+}
+/**
  * The one settings page an application registers under Settings > Applications (`/settings/apps/<app>` or a path
  * beneath it). `to` owns its whole subtree for route access; the first part's capability opens the page itself.
  */
@@ -67,6 +76,8 @@ export interface AppSettingsPage {
   id: string; labelKey: string; icon: AppIcon
   to: string
   parts: AppSettingsPart[]
+  /** Tabs of a long page; absent when every part is one scrolled list. */
+  groups?: AppSettingsGroup[]
 }
 /**
  * `shortLabelKey` names the entry under its rail icon when the full label (still the tooltip) needs two lines.
