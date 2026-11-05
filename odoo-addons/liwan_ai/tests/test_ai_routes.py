@@ -51,7 +51,7 @@ class TestAiToolsRoute(AiProbe, LiwanApiCase):
         self._set_limit('ai.tool_calls.per_run', 5)
         body = self.api('GET', '/api/v1/ai/tools').json()
         self.assertEqual(body['limits'], {
-            'tool_calls_per_run': 5, 'messages_monthly': None, 'messages_used': 0,
+            'tool_calls_per_run': 5, 'messages_monthly': None, 'messages_used': 0, 'setup_monthly': None, 'setup_used': 0,
             'policy': {
                 'provider_mode': 'platform', 'outside_allowed': False,
                 'tokens_monthly': None, 'tokens_used': 0, 'output_tokens_per_run': None,

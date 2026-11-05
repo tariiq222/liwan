@@ -11,5 +11,7 @@ from . import (
     ai_usage,
     feature_registry,
     res_users,
+    setting_registry,
+    setup_agent,
     tool_registry,
 )

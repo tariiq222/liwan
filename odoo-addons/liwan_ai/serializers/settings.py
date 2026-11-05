@@ -1,11 +1,14 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.addons.liwan_ai.models import consent_text
-from odoo.addons.liwan_ai.models.ai_settings import EXTERNAL_SEND_MODES, PROVIDER_MODES
+from odoo.addons.liwan_ai.models.ai_settings import (
+    EXTERNAL_SEND_MODES,
+    MAX_MESSAGES_PER_USER,
+    PROVIDER_MODES,
+)
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.serializers.common import iso
 
 SETTING_KEYS = frozenset({'provider_mode', 'messages_per_user_monthly', 'external_send'})
-MAX_MESSAGES_PER_USER = 100_000
 CONSENT_KEYS = frozenset({'text_version', 'text_hash'})
 
 

@@ -11,8 +11,11 @@ from odoo.addons.liwan_ai.models.agent_registry import CORE_AGENT
 from odoo.addons.liwan_ai.models.tool_registry import TOOL_KINDS
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
-AUDIT_KINDS = ('message', *TOOL_KINDS)
+# A user message of an ordinary conversation, or of a setup conversation (counted against the vendor's setup budget).
+MESSAGE_KINDS = ('message', 'setup')
+AUDIT_KINDS = (*MESSAGE_KINDS, *TOOL_KINDS)
 MONTHLY_MESSAGES = 'ai.messages.monthly'
+SETUP_MONTHLY = 'ai.setup.monthly'
 MONTHLY_TOKENS = 'ai.tokens.monthly'
 PER_USER_MESSAGES = 'ai.messages.per_user_monthly'
 AUDIT_RESULTS = ('ok', 'denied', 'failed', 'proposed', 'approved', 'rejected')
@@ -160,7 +163,7 @@ class LiwanAiAudit(models.Model):
             invalid('http_status', 'http_status must be an HTTP status code')
         tool = None
         agent = values.get('agent')
-        if kind == 'message':
+        if kind in MESSAGE_KINDS:
             for field in ('agent', 'tool_name', 'input', 'draft', 'approved', 'http_status'):
                 if values.get(field) is not None:
                     invalid(field, f'a message audit has no {field}')
@@ -198,7 +201,7 @@ class LiwanAiAudit(models.Model):
             'user_id': self.env.user.id,
             'conversation_id': conversation_id,
             'kind': kind,
-            'agent_key': agent if kind != 'message' else False,
+            'agent_key': agent if kind not in MESSAGE_KINDS else False,
             'tool_name': tool_name,
             'result': result,
             'http_status': http_status,
@@ -213,6 +216,17 @@ class LiwanAiAudit(models.Model):
         self.env['liwan.access.service']._liwan_require_capability(AI_USE)
         rows = [self._liwan_ai_prepare(values) for values in vals_list]
         messages = sum(row['kind'] == 'message' for row in rows)
+        setup = sum(row['kind'] == 'setup' for row in rows)
+        self._liwan_ai_check_mode(rows)
+        if setup:
+            if not self.env['liwan.ai.setting.registry']._liwan_ai_manageable():
+                # The free setup agent serves those who may change a setting; it is no general chat for everyone.
+                raise AccessError(self.env._('You may not change any setting, so the setup assistant has nothing to do for you.'))
+            # The free setup agent runs outside the package's message and token limits, against the vendor's budget.
+            entitlement = self.env['liwan.entitlement.service']
+            if entitlement._liwan_limit_value(SETUP_MONTHLY) is not None:
+                entitlement._liwan_profile()._liwan_bump_quota_revision()
+            entitlement.require_within_limit(SETUP_MONTHLY, self._liwan_ai_count_messages(kind='setup') + setup)
         if messages:
             entitlement = self.env['liwan.entitlement.service']
             settings = self.env['liwan.ai.settings']._liwan_current()
@@ -244,21 +258,42 @@ class LiwanAiAudit(models.Model):
         return super().create(rows)
 
     @api.model
+    def _liwan_ai_check_mode(self, rows):
+        """A conversation keeps the mode it started in: a setup conversation never takes an ordinary message, nor an
+        ordinary one a setup message, so neither budget can pay for the other's conversation."""
+        for row in rows:
+            if row['kind'] not in MESSAGE_KINDS:
+                continue
+            other = 'message' if row['kind'] == 'setup' else 'setup'
+            self.env.cr.execute(
+                'SELECT 1 FROM liwan_ai_audit WHERE conversation_id = %s AND kind = %s LIMIT 1', [row['conversation_id'], other],
+            )
+            if self.env.cr.fetchone():
+                raise_invalid(self.env, 'kind', 'this conversation belongs to the other mode', code='mode_mismatch')
+
+    @api.model
+    def _liwan_ai_conversation_mode(self, conversation_id):
+        """``setup``, ``assistant`` or None for a conversation of the caller, from their own message rows."""
+        rows = self.search([('conversation_id', '=', conversation_id), ('user_id', '=', self.env.uid), ('kind', 'in', MESSAGE_KINDS)], limit=1)
+        return None if not rows else ('setup' if rows.kind == 'setup' else 'assistant')
+
+    @api.model
     def _liwan_ai_month_start(self):
         now = datetime.now(timezone.utc)
         return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
 
     @api.model
-    def _liwan_ai_count_messages(self, user=None):
-        """Message rows of the whole tenant since the start of this UTC month.
+    def _liwan_ai_count_messages(self, user=None, kind='message'):
+        """Message rows (``kind`` ``message``, or ``setup`` for setup conversations) of the whole tenant since the start of
+        this UTC month.
 
         The monthly limit belongs to the one tenant profile, so the count spans every company and
         user. It is plain SQL on this table (no ORM read access to other users' rows). It feeds
         ``limits.messages_used`` and the limit check only, never ``_liwan_count_usage``: a rolling
         monthly flow must not block a plan change as stock usage would.
         """
-        query = "SELECT count(*) FROM liwan_ai_audit WHERE kind = 'message' AND create_date >= %s"
-        params = [self._liwan_ai_month_start()]
+        query = 'SELECT count(*) FROM liwan_ai_audit WHERE kind = %s AND create_date >= %s'
+        params = [kind, self._liwan_ai_month_start()]
         if user is not None:
             query += ' AND user_id = %s'
             params.append(user.id)

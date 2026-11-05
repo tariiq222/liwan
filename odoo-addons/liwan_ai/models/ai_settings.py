@@ -5,6 +5,7 @@ PROVIDER_MODES = ('platform', 'tenant_key')
 # How the assistant may reach an outside party (a customer's WhatsApp, an email): prepare a draft the employee sends,
 # or send after the employee approves (spec 2026-11-04 §6.9).
 EXTERNAL_SEND_MODES = ('draft_only', 'approve')
+MAX_MESSAGES_PER_USER = 100_000
 
 
 class LiwanAiSettings(models.Model):
