@@ -423,6 +423,8 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 }
 .liwan-navigation-submenu .liwan-quick-chip { width: var(--liwan-nav-submenu-chip-size); height: var(--liwan-nav-submenu-chip-size); border-radius: 0; }
 .liwan-navigation-submenu .liwan-quick-link .liwan-quick-chip { background: transparent; }
+/* A child keeps a bare icon: the active one takes the brand ink, since the sand icon is for the filled chip only. */
+.liwan-navigation-submenu .liwan-quick-link[data-active="true"] .liwan-quick-chip { color: var(--liwan-rail-active-ink); }
 .liwan-navigation-submenu .liwan-submenu-branch { --liwan-nav-chip-size: var(--liwan-nav-submenu-chip-size); }
 /* Nested branch icons stay plain; a surface-coloured mask keeps their guide below the glyph. */
 .liwan-navigation-submenu .liwan-submenu-trigger .liwan-quick-chip { background: var(--context-surface); }
