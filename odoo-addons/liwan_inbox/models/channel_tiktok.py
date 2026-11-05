@@ -96,7 +96,11 @@ class LiwanInboxChannel(models.Model):
         config = self._liwan_tiktok_config()
         try:
             grant = tiktok.refresh_tokens(config, secret_box.decrypt(self.env, self.refresh_token_enc))
-        except errors.ProviderError:
+        except errors.ProviderError as error:
+            # A transient failure (rate limit, 5xx, network) is retried by the caller: only a refused
+            # authorization means the customer has to reconnect the account.
+            if error.retryable:
+                raise
             self._liwan_tiktok_reconnect_required()
         self._liwan_tiktok_store(grant)
         return tiktok.Credentials(self.tiktok_business_id, grant.access_token)
