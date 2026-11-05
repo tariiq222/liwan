@@ -7,7 +7,7 @@ from odoo.tests import tagged
 from . import whatsapp_payloads as wa
 from .common import LiwanInboxCase
 from odoo.addons.liwan_inbox.adapters import errors, whatsapp
-from odoo.addons.liwan_inbox.models.constants import REPLY_WINDOW
+from odoo.addons.liwan_inbox.models.constants import REPLY_WINDOWS
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -34,7 +34,7 @@ class TestEventProcessing(LiwanInboxCase):
         self.assertEqual((conversation.contact_id.name, conversation.contact_id.phone), ('Sara', '+966501112222'))
         self.assertEqual(conversation.identity_id.address, '966501112222')
         self.assertEqual(conversation.last_message_preview, 'Hello')
-        self.assertEqual(conversation.reply_window_ends_at - conversation.last_inbound_at, REPLY_WINDOW)
+        self.assertEqual(conversation.reply_window_ends_at - conversation.last_inbound_at, REPLY_WINDOWS['whatsapp'])
         self.assertTrue(self.channel.last_event_at)
 
     def test_a_duplicate_delivery_creates_nothing_new(self):

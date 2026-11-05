@@ -10,7 +10,7 @@ from .constants import (
     CSAT_SCORES,
     MESSAGE_KINDS,
     PREVIEW_LENGTH,
-    REPLY_WINDOW,
+    REPLY_WINDOWS,
     STALE_UPLOAD_AGE,
     TYPING_THROTTLE,
 )
@@ -32,6 +32,13 @@ class LiwanInboxConversation(models.Model):
     channel_id = fields.Many2one('liwan.inbox.channel', required=True, index=True, ondelete='restrict')
     contact_id = fields.Many2one('liwan.inbox.contact', required=True, index=True, ondelete='restrict')
     identity_id = fields.Many2one('liwan.inbox.contact.identity', required=True, index=True, ondelete='restrict')
+    # The conversation's own id at the provider (TikTok names it in every event); set by the first inbound message.
+    provider_conversation_id = fields.Char(index=True, copy=False)
+    # Whether the customer may be sent an image here (TikTok limits it to some country pairs).
+    image_send_capable = fields.Boolean(copy=False)
+    # The ad or short link the customer arrived from (D9); a referral says nothing else.
+    referral_source = fields.Selection([('ad', 'Ad'), ('short_link', 'Short link')], copy=False)
+    referral_ref = fields.Char(copy=False)
     department_id = fields.Many2one('liwan.inbox.department', index=True, ondelete='set null')
     assignee_id = fields.Many2one('res.users', index=True, ondelete='set null')
     state = fields.Selection(
@@ -101,13 +108,15 @@ class LiwanInboxConversation(models.Model):
             conversation.last_message_preview = ' '.join((last._liwan_caption() or '').split())[:PREVIEW_LENGTH] if last else False
             conversation.last_message_kind = last.kind if last else False
 
-    @api.depends('message_ids.direction', 'message_ids.date')
+    @api.depends('message_ids.direction', 'message_ids.date', 'channel_id.kind')
     def _compute_last_inbound(self):
         for conversation in self:
             inbound = conversation.message_ids.filtered(lambda message: message.direction == 'in')
             last = max(inbound.mapped('date'), default=False)
             conversation.last_inbound_at = last
-            conversation.reply_window_ends_at = last + REPLY_WINDOW if last else False
+            conversation.reply_window_ends_at = (
+                last + REPLY_WINDOWS[conversation.channel_id.kind] if last else False
+            )
 
     @api.depends('message_ids.direction', 'message_ids.date', 'message_ids.author_id', 'message_ids.selected_option_id')
     def _compute_waiting_since(self):

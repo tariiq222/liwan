@@ -11,13 +11,16 @@ CHANNEL_FEATURES = {'whatsapp': WHATSAPP_FEATURE, 'tiktok': TIKTOK_FEATURE}
 TIKTOK_STATE_TTL = timedelta(minutes=10)
 # An access token this close to its deadline is replaced before it is used.
 TIKTOK_TOKEN_MARGIN = timedelta(minutes=5)
+# A TikTok event this young waits one cron run: the outbox may not have stored its provider message id yet, so
+# its own send would look like a message from another client and be stored twice (D6).
+TIKTOK_ECHO_SETTLE = timedelta(seconds=30)
 TIKTOK_REQUIRED_SCOPES = frozenset({'user.info.basic', 'message.list.read', 'message.list.send'})
 AUTOMATION_FEATURE = 'inbox.automation'
 FLOWS_FEATURE = 'inbox.flows'
 DEFAULT_TIMEZONE = 'Asia/Riyadh'
 
-# WhatsApp customer-service window: free-form replies are accepted this long after the last inbound message.
-REPLY_WINDOW = timedelta(hours=24)
+# A customer-service window: free-form replies are accepted this long after the last inbound message, by kind.
+REPLY_WINDOWS = {'whatsapp': timedelta(hours=24), 'tiktok': timedelta(hours=48)}
 PREVIEW_LENGTH = 140
 MAX_ATTEMPTS = 5
 BACKOFF_MINUTES = (1, 2, 4, 8, 16)
