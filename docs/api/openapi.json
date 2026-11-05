@@ -99333,6 +99333,44 @@
         }
       }
     },
+    "/api/v1/ai/config/authorize": {
+      "post": {
+        "operationId": "liwan_ai.AiSettingsController.authorize_config_write.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Answers whether the caller may change the tenant's AI configuration in the AI service (its own key and the",
+        "tags": [
+          "liwan_ai"
+        ],
+        "x-liwan": {
+          "addon": "liwan_ai",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AiSettingsController",
+          "feature_keys": [],
+          "feature_operation": "write",
+          "handler": "authorize_config_write",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/ai/consent": {
       "post": {
         "operationId": "liwan_ai.AiSettingsController.sign_consent.post",

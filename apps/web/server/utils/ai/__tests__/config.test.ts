@@ -32,6 +32,15 @@ describe('tenantConfig', () => {
     const config = await tenantConfig({} as any, 'PUT', '/v1/tenant/config/key', body)
     expect(serviceFetch).toHaveBeenCalledWith({}, 'PUT', '/v1/tenant/config/key', { tenant: 't1', user: '42' }, body)
     expect(JSON.stringify(config)).not.toContain(TENANT_KEY)
+    expect(odooJson).toHaveBeenCalledWith({}, 'POST', '/api/v1/ai/config/authorize', { body: {} })
+  })
+
+  it('authorizes a read with the settings read only', async () => {
+    const { tenantConfig } = await import('../config')
+    odooJson.mockResolvedValue({ status: 200, body: {} })
+    serviceFetch.mockResolvedValue(new Response(JSON.stringify(CONFIG)))
+    await tenantConfig({} as any, 'GET', '/v1/tenant/config')
+    expect(odooJson).toHaveBeenCalledWith({}, 'GET', '/api/v1/ai/settings')
   })
 
   it('names a missing keyring and hides other service failures', async () => {

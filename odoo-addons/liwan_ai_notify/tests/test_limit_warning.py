@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import datetime, timezone
+
 from odoo.tests import new_test_user, tagged
 
 from odoo.addons.liwan_ai.tests.common import AiProbe
@@ -52,15 +54,25 @@ class TestAiLimitWarning(AiProbe, LiwanApiCase):
         self.assertEqual(self._bell(self.employee), [])
         self.assertEqual(len(self._bell(self.manager)), 1)
 
-    def test_platform_tokens_at_eighty_percent_warn_too(self):
-        self.env.cr.execute(
-            "INSERT INTO liwan_ai_usage (company_id, user_id, conversation_id, kind, billing, provider, model, outcome,"
-            " input_tokens, output_tokens, tokens_reported, called_at)"
-            " VALUES (%s, %s, 'r_warn', 'plan', 'platform', 'acme-ai', 'acme-1', 'ok', 80, 0, true, now() at time zone 'utc')",
-            [self.env.company.id, self.employee.id],
-        )
+    def test_platform_tokens_warn_when_the_crossing_usage_is_recorded(self):
         self._set_feature('ai.tokens.monthly', 100)
-        self.api('POST', '/api/v1/ai/audit', MESSAGE)
+        usage = {
+            'conversation_id': 'r_warn', 'kind': 'plan', 'billing': 'platform', 'provider': 'acme-ai', 'model': 'acme-1',
+            'outcome': 'ok', 'input_tokens': 90, 'output_tokens': 30, 'called_at': self._now(),
+        }
+        self.assertEqual(self.api('POST', '/api/v1/ai/usage', {'items': [usage]}).status_code, 200)
         items = self._bell(self.manager)
         self.assertEqual(len(items), 1)
         self.assertIn('tokens', items[0]['title'])
+
+    def test_tenant_key_usage_never_warns_about_platform_tokens(self):
+        self._set_feature('ai.tokens.monthly', 100)
+        usage = {
+            'conversation_id': 'r_warn', 'kind': 'plan', 'billing': 'tenant_key', 'provider': 'acme-ai', 'model': 'acme-1',
+            'outcome': 'ok', 'input_tokens': 90, 'output_tokens': 30, 'called_at': self._now(),
+        }
+        self.api('POST', '/api/v1/ai/usage', {'items': [usage]})
+        self.assertEqual(self._bell(self.manager), [])
+
+    def _now(self):
+        return datetime.now(timezone.utc).isoformat()

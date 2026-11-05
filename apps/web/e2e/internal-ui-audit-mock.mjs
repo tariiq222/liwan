@@ -473,7 +473,7 @@ async function handle(req, res) {
     let body = {}
     try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
     if (method === 'PATCH' && path === '/api/v1/ai/settings') {
-      if (body.revision !== AI_SETTINGS.revision) return json(res, 409, { code: 'stale', message: 'the AI settings changed since they were read' })
+      if (body.revision !== AI_SETTINGS.revision) return json(res, 409, { code: 'conflict', message: 'the AI settings changed since they were read' })
       Object.assign(AI_SETTINGS, { provider_mode: body.provider_mode, revision: AI_SETTINGS.revision + 1 })
     } else if (method === 'POST' && path === '/api/v1/ai/consent') {
       if (body.text_hash !== AI_SETTINGS.consent.text_hash) return json(res, 422, { code: 'invalid', message: 'stale text', field: 'text_hash' })

@@ -48,7 +48,7 @@ class AiSettingsController(http.Controller):
         provider_mode, revision = parse_settings_patch(payload)
         settings = request.env['liwan.ai.settings']._liwan_current()
         if settings.revision != revision:
-            raise ApiError(409, 'stale', 'the AI settings changed since they were read')
+            raise ApiError(409, 'conflict', 'the AI settings changed since they were read')
         settings.write({'provider_mode': provider_mode, 'revision': revision + 1})
         return dump_settings(request.env)
 
@@ -81,6 +81,16 @@ class AiSettingsController(http.Controller):
             raise ApiError(404, 'not_found', 'there is no consent to revoke')
         consent.write({'revoked_at': fields.Datetime.now(), 'revoked_by_id': request.env.uid})
         return dump_settings(request.env)
+
+    @http.route('/api/v1/ai/config/authorize', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature(AI_FEATURE, operation='write')
+    @requires_capability(AI_SETTINGS_MANAGE)
+    def authorize_config_write(self, **_):
+        """Answers whether the caller may change the tenant's AI configuration in the AI service (its own key and the
+        retention): the Nuxt server asks before it forwards such a change, so a read-only or expired tenant cannot make it."""
+        require_tenant_manager()
+        return {'ok': True}
 
     @http.route('/api/v1/ai/monitoring', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

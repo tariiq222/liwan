@@ -84,5 +84,5 @@ export function useSaveAiKey() {
 
 export function useRemoveAiKey() {
   const { $api } = useApi()
-  return useReplacing<void, AiTenantConfig>(aiSettingsKeys.config, () => $api('/api/ai/config/key', { method: 'DELETE', schema: AiTenantConfigSchema }))
+  return useReplacing<void, AiTenantConfig>(aiSettingsKeys.config, () => $api('/api/ai/config/key', { method: 'DELETE', body: {}, schema: AiTenantConfigSchema }))
 }

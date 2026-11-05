@@ -54,6 +54,7 @@ class TestAiSettings(AiProbe, LiwanApiCase):
             ('PATCH', '/api/v1/ai/settings', {'provider_mode': 'tenant_key', 'revision': 1}),
             ('POST', '/api/v1/ai/consent', SIGNATURE),
             ('GET', '/api/v1/ai/monitoring', None),
+            ('POST', '/api/v1/ai/config/authorize', None),
         ):
             with self.subTest(path=path, method=method):
                 response = self.api(method, path, body)
@@ -69,11 +70,23 @@ class TestAiSettings(AiProbe, LiwanApiCase):
             ('PATCH', '/api/v1/ai/settings', {'provider_mode': 'tenant_key', 'revision': 1}),
             ('POST', '/api/v1/ai/consent', SIGNATURE),
             ('POST', '/api/v1/ai/consent/revoke', None),
+            ('POST', '/api/v1/ai/config/authorize', None),
         ):
             with self.subTest(path=path, method=method):
                 response = self.api(method, path, body)
                 self.assertEqual(response.status_code, 403, response.text)
         self.assertFalse(self.env['liwan.ai.consent'].search([]))
+
+    def test_a_config_change_needs_the_write_level_of_the_feature(self):
+        self._as_manager()
+        self.assertEqual(self.api('POST', '/api/v1/ai/config/authorize').json(), {'ok': True})
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        profile.sudo().with_context(**{OPERATOR_CONTEXT: True}).write({
+            'features': {**(profile.features or {}), 'ai.enabled': False},
+            'retained_read_features': [*(profile.retained_read_features or []), 'ai.enabled'],
+        })
+        self.assertEqual(self.api('GET', '/api/v1/ai/settings').status_code, 200)
+        self.assertEqual(self.api('POST', '/api/v1/ai/config/authorize').status_code, 403)
 
     def test_a_revocation_revokes_every_live_row(self):
         Consent = self.env['liwan.ai.consent']
@@ -100,7 +113,7 @@ class TestAiSettings(AiProbe, LiwanApiCase):
         revision = body['revision']
         stale = self.api('PATCH', '/api/v1/ai/settings', {'provider_mode': 'tenant_key', 'revision': revision + 5})
         self.assertEqual(stale.status_code, 409)
-        self.assertEqual(stale.json()['code'], 'stale')
+        self.assertEqual(stale.json()['code'], 'conflict')
         changed = self.api('PATCH', '/api/v1/ai/settings', {'provider_mode': 'tenant_key', 'revision': revision}).json()
         self.assertEqual((changed['provider_mode'], changed['revision']), ('tenant_key', revision + 1))
         invalid = self.api('PATCH', '/api/v1/ai/settings', {'provider_mode': 'free', 'revision': revision + 1})

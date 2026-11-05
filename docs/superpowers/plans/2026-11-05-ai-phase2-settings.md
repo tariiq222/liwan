@@ -61,7 +61,7 @@ existing model changes), new `odoo-addons/liwan_ai_notify/**`, `tools/arch_layer
   create except the revoke fields; helper `_liwan_valid()` returns the non-revoked consent of `CONSENT_VERSION` or empty.
 - `liwan.ai.usage`: new selection `billing` `platform|tenant_key`, required, wire key `billing`.
 - Routes (all `json2`, `auth='user'`, `api_handler`, `requires_feature('ai.enabled')`):
-  - `GET /api/v1/ai/settings` and `PATCH /api/v1/ai/settings` (`{provider_mode, revision}` → 409 `stale` on a wrong
+  - `GET /api/v1/ai/settings` and `PATCH /api/v1/ai/settings` (`{provider_mode, revision}` → 409 `conflict` on a wrong
     revision) — `ai.settings.manage`. Shape:
     `{provider_mode, revision, consent: {required_version, text_ar, text_en, text_hash, signed: null|{user:{id,name}, signed_at, text_version}}, usage: {month, messages_used, messages_limit, tokens_used, tokens_limit, output_tokens_per_run}}`.
   - `POST /api/v1/ai/consent` `{text_version, text_hash}` — `ai.settings.manage`; 422 `invalid` when either differs

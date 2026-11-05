@@ -163,7 +163,7 @@
           "label": "Run on",
           "platform": "The LiwanOS provider",
           "tenant_key": "Your organization's own key",
-          "platformHint": "LiwanOS runs it within your package limits.",
+          "platformHint": "LiwanOS runs it within your plan limits.",
           "tenant_keyHint": "It runs on your organization's account with the provider, which pays the cost. Message limits still apply."
         }
       },

@@ -68,20 +68,26 @@ class LiwanAiLimitAudit(models.Model):
     def create(self, vals_list):
         rows = super().create(vals_list)
         if any(row.kind == 'message' for row in rows):
-            self._liwan_warn_near_limits()
+            self._liwan_warn_near_limits(('messages',))
         return rows
 
     @api.model
-    def _liwan_warn_near_limits(self):
+    def _liwan_warn_near_limits(self, names):
+        """Warn for each of ``names`` (``messages``, ``tokens``) whose monthly use reached 80% of its limit.
+
+        Messages are judged when a message is counted, tokens when platform usage is recorded: the run that crosses the
+        token threshold has already been let through, and the next message would be refused before it is counted.
+        """
         entitlement = self.env['liwan.entitlement.service']
+        checks = {
+            'messages': (self._liwan_ai_count_messages, 'ai.messages.monthly'),
+            'tokens': (self.env['liwan.ai.usage']._liwan_platform_tokens_used, 'ai.tokens.monthly'),
+        }
         reached = []
-        used = {'messages': self._liwan_ai_count_messages()}
-        limits = {'messages': entitlement._liwan_limit_value('ai.messages.monthly')}
-        if self.env[SETTINGS_MODEL]._liwan_current().provider_mode == 'platform':
-            used['tokens'] = self.env['liwan.ai.usage']._liwan_platform_tokens_used()
-            limits['tokens'] = entitlement._liwan_limit_value('ai.tokens.monthly')
-        for name, limit in limits.items():
-            if limit and used[name] >= WARNING_RATIO * limit:
+        for name in names:
+            count, key = checks[name]
+            limit = entitlement._liwan_limit_value(key)
+            if limit and count() >= WARNING_RATIO * limit:
                 reached.append(name)
         if reached:
             self._liwan_deliver_warnings(reached)
@@ -101,3 +107,14 @@ class LiwanAiLimitAudit(models.Model):
                     SETTINGS_MODEL, settings.id, KIND, user.partner_id, BODIES[name],
                     key=f'{KIND}:{name}:{month}:{user.id}',
                 )
+
+
+class LiwanAiLimitUsage(models.Model):
+    _inherit = 'liwan.ai.usage'
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        rows = super().create(vals_list)
+        if any(row.billing == 'platform' for row in rows):
+            self.env['liwan.ai.audit']._liwan_warn_near_limits(('tokens',))
+        return rows
