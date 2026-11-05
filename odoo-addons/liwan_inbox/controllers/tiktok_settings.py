@@ -22,8 +22,7 @@ from odoo.addons.liwan_inbox.controllers.reply_parsing import parse_string
 from odoo.addons.liwan_inbox.models.access_service import MANAGE_CHANNELS
 from odoo.addons.liwan_inbox.models.constants import TIKTOK_FEATURE
 from odoo.addons.liwan_inbox.models.tiktok_shortcut import LIMITS
-from odoo.addons.liwan_inbox.serializers.settings import dump_tiktok_shortcut
-from odoo.addons.liwan_inbox.serializers.tiktok import dump_sync
+from odoo.addons.liwan_inbox.serializers.tiktok import dump_shortcut, dump_sync
 
 SHORTCUTS_PATH = '/api/v1/inbox/channels/<int:channel_id>/tiktok/shortcuts'
 SYNC_PATH = '/api/v1/inbox/channels/<int:channel_id>/tiktok/sync'
@@ -93,7 +92,7 @@ class TikTokSettingsController(http.Controller):
     @requires_capability(MANAGE_CHANNELS)
     def list_shortcuts(self, channel_id, **_):
         shortcuts = tiktok_channel(channel_id).tiktok_shortcut_ids
-        return {'items': [dump_tiktok_shortcut(shortcut) for shortcut in shortcuts], 'total': len(shortcuts)}
+        return {'items': [dump_shortcut(shortcut) for shortcut in shortcuts], 'total': len(shortcuts)}
 
     @http.route(SHORTCUTS_PATH, type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -105,7 +104,7 @@ class TikTokSettingsController(http.Controller):
         check_limit(channel, values['kind'])
         shortcut = request.env['liwan.inbox.tiktok.shortcut'].create({'channel_id': channel.id, **values})
         shortcut._liwan_push()
-        return request.make_json_response(dump_tiktok_shortcut(shortcut), status=201)
+        return request.make_json_response(dump_shortcut(shortcut), status=201)
 
     @http.route(f'{SHORTCUTS_PATH}/<int:shortcut_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
@@ -115,7 +114,7 @@ class TikTokSettingsController(http.Controller):
         shortcut = find_shortcut(tiktok_channel(channel_id), shortcut_id)
         shortcut.write(parse_shortcut(payload, shortcut.kind, creating=False))
         shortcut._liwan_push()
-        return dump_tiktok_shortcut(shortcut)
+        return dump_shortcut(shortcut)
 
     @http.route(f'{SHORTCUTS_PATH}/<int:shortcut_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
     @api_handler
@@ -140,7 +139,7 @@ class TikTokSettingsController(http.Controller):
         shortcuts = channel.tiktok_shortcut_ids
         return {
             'kind': payload['kind'], 'enabled': payload['enabled'],
-            'items': [dump_tiktok_shortcut(shortcut) for shortcut in shortcuts], 'total': len(shortcuts),
+            'items': [dump_shortcut(shortcut) for shortcut in shortcuts], 'total': len(shortcuts),
         }
 
     # history import (D11)

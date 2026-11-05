@@ -4,6 +4,7 @@ import { InboxCommerceContentSchema, InboxMessageCommerceSchema } from './catalo
 
 export * from './flows'
 export * from './catalog'
+export * from './tiktok'
 
 // Wire shapes of /api/v1/inbox and /api/v1/settings/inbox. Every schema mirrors one
 // serializer in odoo-addons/liwan_inbox/serializers exactly (strict objects).
@@ -19,7 +20,7 @@ export const InboxRefSchema = z.object({ id: Id, name: z.string() }).strict()
 // A plain list of references: channels an automation manager may target, assignee pickers.
 export const InboxRefListSchema = list(InboxRefSchema)
 
-export const InboxChannelKindSchema = z.enum(['whatsapp'])
+export const InboxChannelKindSchema = z.enum(['whatsapp', 'tiktok'])
 export const InboxChannelStateSchema = z.enum(['draft', 'connected', 'error', 'disabled'])
 export const InboxConversationStateSchema = z.enum(['open', 'pending', 'resolved', 'closed'])
 export const InboxPrioritySchema = z.enum(['low', 'normal', 'high', 'urgent'])
@@ -509,19 +510,32 @@ export const InboxChannelSchema = z.object({
   kind: InboxChannelKindSchema,
   state: InboxChannelStateSchema,
   department: InboxRefSchema.nullable(),
-  phone_number_id: z.string(),
-  business_account_id: z.string(),
-  // Secrets are write-only: the API reports only whether one is stored.
+  // WhatsApp's phone number id and business account id; null on a TikTok channel, which is keyed by its business
+  // account open id instead.
+  phone_number_id: z.string().nullable(),
+  business_account_id: z.string().nullable(),
+  // Secrets are write-only: the API reports only whether one is stored. A TikTok channel has no Meta app secret.
   has_access_token: z.boolean(),
-  has_app_secret: z.boolean(),
-  // The Meta app id: needed only to upload the sample file of a media-header template.
+  has_app_secret: z.boolean().nullable(),
+  // The Meta app id: needed only to upload the sample file of a media-header template, null on a TikTok channel.
   app_id: z.string().nullable(),
   // The handshake token is a secret: the API reports only whether one is stored (rotate it to get a new one).
-  has_verify_token: z.boolean(),
+  // Null on a TikTok channel, whose webhook is signed with the app secret instead.
+  has_verify_token: z.boolean().nullable(),
+  // The channel's own webhook endpoint: /hooks/whatsapp or /hooks/tiktok.
   callback_url: z.string(),
   last_error: z.string().nullable(),
   last_event_at: UtcDateTime.nullable(),
+  // Meta's number health for WhatsApp; "unknown" until read, and never checked on a TikTok channel.
   health: InboxChannelHealthSchema,
+  // The TikTok account and its automation state; null/false on a WhatsApp channel.
+  tiktok_username: z.string().nullable().default(null),
+  token_expires_at: UtcDateTime.nullable().default(null),
+  // The refresh token is no longer valid: the administrator must reconnect the account.
+  needs_reconnect: z.boolean().default(false),
+  tiktok_welcome_audit: z.enum(['reviewing', 'approved', 'rejected']).nullable().default(null),
+  tiktok_questions_enabled: z.boolean().default(false),
+  tiktok_prompts_enabled: z.boolean().default(false),
 }).strict()
 export const InboxChannelListSchema = list(InboxChannelSchema)
 export const InboxVerifyTokenSchema = z.object({ verify_token: z.string() }).strict()
@@ -530,7 +544,8 @@ const AppId = z.string().regex(/^\d{5,32}$/)
 
 export const InboxChannelCreateSchema = z.object({
   name: z.string().min(1).max(128),
-  kind: InboxChannelKindSchema,
+  // A channel created by hand is WhatsApp's; TikTok connects through the OAuth route.
+  kind: z.literal('whatsapp'),
   department_id: Id.nullable().optional(),
   phone_number_id: z.string().regex(/^\d{5,32}$/),
   business_account_id: z.string().regex(/^\d{5,32}$/),

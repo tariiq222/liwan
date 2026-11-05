@@ -5,15 +5,11 @@ import requests
 
 from odoo.tests import tagged
 
-from .common import ACCESS_TOKEN, APP_SECRET, LiwanInboxCase
+from .common import ACCESS_TOKEN, APP_SECRET, CHANNEL_KEYS, LiwanInboxCase
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_inbox.adapters import errors, whatsapp
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
-CHANNEL_KEYS = {
-    'id', 'name', 'kind', 'state', 'department', 'phone_number_id', 'business_account_id', 'has_access_token',
-    'has_app_secret', 'app_id', 'has_verify_token', 'callback_url', 'last_error', 'last_event_at', 'health',
-}
 NEW_CHANNEL = {
     'name': 'Branch line', 'kind': 'whatsapp', 'phone_number_id': '300000000001',
     'business_account_id': '400000000001', 'access_token': 'x' * 20, 'app_secret': 'y' * 20,
