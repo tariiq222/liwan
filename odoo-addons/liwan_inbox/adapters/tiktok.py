@@ -1,9 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""TikTok Business Messaging API: pure functions over `requests`, no Odoo environment.
-
-The event and request shapes and the signature check are ported from Chatwoot (MIT),
-Copyright (c) 2017-2026 Chatwoot Inc.
-"""
+# Logic ported from Chatwoot (MIT), Copyright (c) 2017-2026 Chatwoot Inc.
+"""TikTok Business Messaging API: pure functions over `requests`, no Odoo environment."""
 import hashlib
 import hmac
 import json
@@ -355,6 +352,109 @@ def send_action(credentials, conversation_id, action):
     }))
 
 
+def list_conversations(credentials, conversation_type, cursor):
+    """One page of conversations and its next cursor, or None on the last page."""
+    data = _answer(_call('GET', _api('business/message/conversation/list/'), credentials.access_token, params={
+        'business_id': credentials.business_id,
+        'conversation_type': conversation_type,
+        'limit': CONVERSATION_PAGE,
+        'cursor': cursor,
+    }))
+    return _dicts(data.get('conversations')), _next_cursor(data)
+
+
+def list_messages(credentials, conversation_id):
+    """A conversation's participants and its newest `HISTORY_MESSAGES` messages, parsed.
+
+    TikTok refuses an unencoded `+` in `conversation_id`, so the query is built with `quote`.
+    """
+    query = urlencode({'business_id': credentials.business_id, 'conversation_id': conversation_id}, quote_via=quote)
+    data = _answer(_call('GET', f"{_api('business/message/content/list/')}?{query}", credentials.access_token))
+    participants = _dicts(data.get('participants'))
+    names = {item.get('id'): _text(item.get('display_name')) for item in participants if isinstance(item.get('id'), str)}
+    return participants, [_rest_message(item, names) for item in _dicts(data.get('messages'))]
+
+
+def get_auto_messages(credentials, auto_type):
+    """The account-wide operation status of one automatic message type and its stored items."""
+    data = _answer(_call('GET', _api('business/message/auto_message/get/'), credentials.access_token, params={
+        'business_id': credentials.business_id,
+        'auto_message_type': auto_type,
+    }))
+    return _text(data.get('operation_status')), _dicts(data.get('auto_messages'))
+
+
+def create_auto_message(credentials, auto_type, content):
+    """Create one welcome message, suggested question or chat prompt; returns TikTok's id for it."""
+    data = _answer(_call('POST', _api('business/message/auto_message/create/'), credentials.access_token, json={
+        'business_id': credentials.business_id,
+        'auto_message_type': auto_type,
+        **content,
+    }))
+    return _require_text(_dict(data.get('auto_message')), 'auto_message_id')
+
+
+def update_auto_message(credentials, auto_type, auto_id, content):
+    """Replace one automatic message's content; TikTok refuses this while its audit is reviewing."""
+    _answer(_call('POST', _api('business/message/auto_message/update/'), credentials.access_token, json={
+        'business_id': credentials.business_id,
+        'auto_message_type': auto_type,
+        'auto_message_id': auto_id,
+        **content,
+    }))
+
+
+def delete_auto_message(credentials, auto_type, auto_id):
+    """Delete one automatic message."""
+    _answer(_call('POST', _api('business/message/auto_message/delete/'), credentials.access_token, json={
+        'business_id': credentials.business_id,
+        'auto_message_type': auto_type,
+        'auto_message_id': auto_id,
+    }))
+
+
+def set_auto_message_status(credentials, auto_type, enabled):
+    """Enable or disable one automatic message type for the whole account.
+
+    Enabling suggested questions or chat prompts disables every existing item of that type.
+    """
+    _answer(_call('POST', _api('business/message/auto_message/status/update/'), credentials.access_token, json={
+        'business_id': credentials.business_id,
+        'auto_message_type': auto_type,
+        'operation_status': 'ENABLE' if enabled else 'DISABLE',
+    }))
+
+
+def webhook_show(config):
+    """The callback URL subscribed for direct messages, or None when the app has no subscription."""
+    data = _answer(_call('GET', _api('business/webhook/list/'), params={
+        'app_id': config.client_key,
+        'secret': config.client_secret,
+        'event_type': WEBHOOK_EVENT,
+    }))
+    url = data.get('callback_url')
+    return url if isinstance(url, str) and url else None
+
+
+def webhook_register(config, callback_url):
+    """Subscribe the app's single direct-message webhook to `callback_url`."""
+    _answer(_call('POST', _api('business/webhook/update/'), json={
+        'app_id': config.client_key,
+        'secret': config.client_secret,
+        'event_type': WEBHOOK_EVENT,
+        'callback_url': callback_url,
+    }))
+
+
+def webhook_delete(config):
+    """Delete the app's direct-message subscription."""
+    _answer(_call('POST', _api('business/webhook/delete/'), json={
+        'app_id': config.client_key,
+        'secret': config.client_secret,
+        'event_type': WEBHOOK_EVENT,
+    }))
+
+
 def _api(path):
     return f'{API_BASE}/{path}'
 
@@ -442,6 +542,11 @@ def _message_id(data):
     return _require_text(_dict(data.get('message')), 'message_id')
 
 
+def _next_cursor(data):
+    cursor = data.get('cursor')
+    return cursor if data.get('has_more') and isinstance(cursor, int) and not isinstance(cursor, bool) else None
+
+
 def _validate_card(title, buttons):
     if not 1 <= len(buttons) <= MAX_BUTTONS:
         raise ValueError(f'a TikTok button card has 1 to {MAX_BUTTONS} buttons')
@@ -527,6 +632,28 @@ def _webhook_message(content):
         conversation_id=_text(content.get('conversation_id')),
         sender_id=_text(_party(content, 'from_user').get('id')),
         sender_name=_text(content.get('from')),
+        sent_at=_timestamp(content.get('timestamp')),
+        kind=kind,
+        body=body,
+        media_id=media_id,
+        media_type=media_type or MEDIA_TYPES.get(kind),
+        context_id=_text(_dict(content.get('referenced_message_info')).get('referenced_message_id')) or None,
+        option_id=_text(_dict(content.get('reply_source_payload')).get('reply_source_unique_id')) or None,
+        echo=_role(content, 'from_user') == 'business_account',
+        auto=bool(content.get('auto_message_type')),
+    )
+
+
+def _rest_message(content, names):
+    type_name = _text(content.get('message_type'))
+    kind = MESSAGE_KINDS.get(type_name.lower(), 'unsupported')
+    body, media_id, media_type = _message_fields(type_name, content)
+    sender_id = _text(_party(content, 'from_user').get('id'))
+    return InboundMessage(
+        provider_id=_text(content.get('message_id')),
+        conversation_id=_text(content.get('conversation_id')),
+        sender_id=sender_id,
+        sender_name=names.get(sender_id) or _text(content.get('sender')),
         sent_at=_timestamp(content.get('timestamp')),
         kind=kind,
         body=body,
