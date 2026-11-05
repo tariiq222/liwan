@@ -1,12 +1,12 @@
 // LiwanOS's own identity: lavender primary, sand borders, ink titles and brown secondary text on a warm
 // cream canvas (owner-approved 2026-10-30). Tenant colours replace the primary only.
 // LIWAN_PRIMARY is the default company colour and the text-bearing primary
-// (white text 8.29:1); dark mode paints the same role with DARK_PRIMARY_FILL.
-export const LIWAN_PRIMARY = '#5b3f8c'
+// (white text 6.15:1); dark mode paints the same role with DARK_PRIMARY_FILL.
+export const LIWAN_PRIMARY = '#7843c6'
 
-/** Text-bearing primary fill in dark mode (white label 5.02:1) and the lavender accent for icons, rings and text. */
-export const DARK_PRIMARY_FILL = '#7c5cc4'
-export const DARK_PRIMARY_ACCENT = '#c9bbee'
+/** Text-bearing primary fill in dark mode (white label 6.15:1) and the lavender accent for icons, rings and text. */
+export const DARK_PRIMARY_FILL = '#7843c6'
+export const DARK_PRIMARY_ACCENT = '#c2aae5'
 
 /** Ink (titles, numbers), brown (secondary text on white, canvas and sand) and sand (borders, table heads). */
 export const LIGHT_INK = '#14102a'

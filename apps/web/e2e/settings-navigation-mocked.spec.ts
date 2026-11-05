@@ -35,7 +35,7 @@ const ME = {
   },
   terminology: { ar: {}, en: {} },
 }
-const BRANDING = { name: 'ليوان', logo_url: '/web/binary/company_logo?company=1', primary_color: '#5b3f8c', font: 'IBM_Plex_Sans_Arabic' }
+const BRANDING = { name: 'ليوان', logo_url: '/web/binary/company_logo?company=1', primary_color: '#7843c6', font: 'IBM_Plex_Sans_Arabic' }
 const PROJECT_SETTINGS = {
   project_creators: 'managers',
   default_stages: [{ name: 'جديد', fold: false }, { name: 'جارٍ', fold: false }],
