@@ -267,7 +267,10 @@
       "send": "Send",
       "saveNote": "Save note",
       "windowClosed": "The free-form reply window has closed",
-      "windowClosedDescription": "WhatsApp accepts a free-form reply within 24 hours of the customer's last message. After that only an approved template may be sent.",
+      "windowClosedByKind": {
+        "whatsapp": "WhatsApp accepts a free-form reply within 24 hours of the customer's last message. After that only an approved template may be sent.",
+        "tiktok": "TikTok accepts a reply within 48 hours of the customer's last message and carries no templates: once the window closes nothing can be sent."
+      },
       "noWindow": "The customer has not sent a message yet, so only an approved template can be sent.",
       "template": "Template",
       "pickTemplate": "Pick an approved template",
@@ -287,7 +290,7 @@
       "cancelReplyTo": "Cancel replying to the message",
       "upload": {
         "empty": "The file {name} is empty.",
-        "unsupported": "The file type of {name} is not supported by WhatsApp.",
+        "unsupported": "The file {name} is not a supported type.",
         "tooLarge": "The file {name} is larger than the {limit} MB limit. Choose a smaller file.",
         "tooLargeServer": "The file is larger than the allowed limit. Choose a smaller file.",
         "failed": "The file could not be uploaded. Try again."
@@ -337,7 +340,7 @@
         "cardTitle": "Card title"
       },
       "captionTooLong": "A file caption is at most {max} characters. Shorten it to send the file.",
-      "audioNoCaption": "WhatsApp does not allow a caption on an audio file.",
+      "noCaption": "This file carries no caption: it is sent on its own.",
       "headerParam": "Header value",
       "headerMedia": "Header file ({kind})",
       "code": "Code",
@@ -2178,7 +2181,7 @@
         "rejected": "Rejected"
       },
       "shortcuts": {
-        "enabled": "Enabled",
+        "enabled": "Enable",
         "enabledOn": "The kind was enabled and TikTok recreated its items",
         "enabledOff": "The kind was switched off at TikTok",
         "saved": "Item saved",

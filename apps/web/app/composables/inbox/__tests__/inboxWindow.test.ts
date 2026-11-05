@@ -1,5 +1,6 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { cannedSuggestions, renderTemplateBody, replyWindowOpen } from '../inboxWindow'
+import { REPLY_WINDOW_HOURS, cannedSuggestions, renderTemplateBody, replyWindowOpen, windowClosedDescriptionKey } from '../inboxWindow'
 
 const NOW = Date.parse('2026-10-28T12:00:00Z')
 
@@ -45,5 +46,21 @@ describe('cannedSuggestions', () => {
 
   it('lists every reply for a bare slash, capped', () => {
     expect(cannedSuggestions('/', replies, 2)).toHaveLength(2)
+  })
+})
+
+describe('the reply window of each kind', () => {
+  it('is 24 hours on WhatsApp and 48 on TikTok (D4)', () => {
+    expect(REPLY_WINDOW_HOURS).toEqual({ whatsapp: 24, tiktok: 48 })
+    expect(windowClosedDescriptionKey('whatsapp')).toBe('inbox.composer.windowClosedByKind.whatsapp')
+    expect(windowClosedDescriptionKey('tiktok')).toBe('inbox.composer.windowClosedByKind.tiktok')
+  })
+
+  it('says 48 hours in both catalogues for a TikTok conversation', () => {
+    for (const locale of ['ar', 'en']) {
+      const catalogue = JSON.parse(readFileSync(new URL(`../../../../i18n/locales/${locale}/inbox.json`, import.meta.url), 'utf8'))
+      expect(catalogue.inbox.composer.windowClosedByKind.tiktok).toContain('48')
+      expect(catalogue.inbox.composer.windowClosedByKind.whatsapp).toContain('24')
+    }
   })
 })
