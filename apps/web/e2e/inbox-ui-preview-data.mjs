@@ -11,7 +11,7 @@ export const INBOX_CAPABILITIES = [
   'inbox.channels.manage', 'inbox.settings.manage', 'inbox.templates.manage', 'inbox.automation.manage', 'inbox.flows.manage', 'inbox.reports.read',
   'inbox.catalog.manage', 'inbox.orders.manage', 'inbox.campaigns.manage',
 ]
-export const INBOX_FEATURES = ['inbox.enabled', 'inbox.whatsapp', 'inbox.templates', 'inbox.automation', 'inbox.flows', 'inbox.reports', 'inbox.catalog', 'inbox.campaigns']
+export const INBOX_FEATURES = ['inbox.enabled', 'inbox.whatsapp', 'inbox.tiktok', 'inbox.templates', 'inbox.automation', 'inbox.flows', 'inbox.reports', 'inbox.catalog', 'inbox.campaigns']
 
 const ME = { id: 2, name: 'Admin' }
 const AGENTS = [{ id: 5, name: 'نورة الحربي' }, { id: 6, name: 'سارة محمد' }]
@@ -30,12 +30,22 @@ function seed() {
     phone_number_id: '109876543210987', business_account_id: '203456789012345', has_access_token: true, has_app_secret: true, app_id: '1234567890123',
     has_verify_token: true, callback_url: 'https://app.example.test/api/v1/inbox/hooks/whatsapp',
     last_error: null, last_event_at: ago(0.2), health: seedHealth(ago),
+    tiktok_username: null, token_expires_at: null, needs_reconnect: false, tiktok_welcome_audit: null, tiktok_questions_enabled: false, tiktok_prompts_enabled: false,
+  }, {
+    // A connected TikTok account: no phone number, no Meta secret, no handshake token and no number health.
+    id: 2, name: 'تيك توك العيادة', kind: 'tiktok', state: 'connected', department: { id: 2, name: 'المبيعات' },
+    phone_number_id: null, business_account_id: null, has_access_token: true, has_app_secret: null, app_id: null, has_verify_token: null,
+    callback_url: 'https://app.example.test/api/v1/inbox/hooks/tiktok',
+    last_error: null, last_event_at: ago(1.1), health: seedHealth(ago),
+    tiktok_username: 'al_amal_clinic', token_expires_at: iso(Date.now() + 6 * HOUR), needs_reconnect: false,
+    tiktok_welcome_audit: 'approved', tiktok_questions_enabled: true, tiktok_prompts_enabled: true,
   }]
   const contacts = [
     { id: 1, name: 'ليلى القحطاني', phone: '+966500000001', email: null },
     { id: 2, name: 'فهد الدوسري', phone: '+966500000002', email: 'fahad@example.test' },
     { id: 3, name: 'منى العتيبي', phone: '+966500000003', email: null },
     { id: 4, name: 'خالد الشمري', phone: '+966500000004', email: null },
+    { id: 5, name: 'ريم العنزي', phone: null, email: null },
   ]
   const conversation = (id, contact, rest) => ({
     id, contact, channel: { id: 1, name: channels[0].name, kind: 'whatsapp' }, department: null, assignee: null, state: 'open', priority: 'normal', tags: [], revision: 1,
@@ -46,6 +56,10 @@ function seed() {
     conversation(2, contacts[1], { state: 'pending', priority: 'high', department: { id: 2, name: 'المبيعات' }, reply_window_ends_at: ago(30) }),
     conversation(3, contacts[2], { csat: { score: 'good', at: ago(4.8) }, state: 'resolved', assignee: AGENTS[0], department: { id: 1, name: 'الاستقبال' }, tags: [tags[2]], reply_window_ends_at: iso(Date.now() + 2 * HOUR) }),
     conversation(4, contacts[3], { priority: 'urgent', tags: [tags[0]], reply_window_ends_at: iso(Date.now() + 6 * HOUR) }),
+    // A TikTok conversation: its own brand icon in the list and the header, a 48-hour window and no phone number.
+    conversation(5, contacts[4], { channel: { id: 2, name: channels[1].name, kind: 'tiktok' }, department: { id: 2, name: 'المبيعات' }, assignee: AGENTS[1], tags: [tags[2]], reply_window_ends_at: iso(Date.now() + 40 * HOUR) }),
+    // A TikTok conversation whose 48-hour window already closed: the composer explains it and offers no template.
+    conversation(6, contacts[2], { channel: { id: 2, name: channels[1].name, kind: 'tiktok' }, state: 'pending', reply_window_ends_at: ago(12) }),
   ]
   const attachment = { id: 1, name: 'نتيجة-الفحص.pdf', mimetype: 'application/pdf', size: 20480 }
   const media = {
@@ -169,6 +183,18 @@ function seed() {
     ],
     3: [message('in', 'شكرًا لكم على الخدمة.', 5), message('out', 'العفو، سعداء بخدمتك.', 4.9, { delivery_state: 'delivered' })],
     4: [message('in', 'أحتاج مساعدة عاجلة في طلبي رقم 4521.', 1)],
+    6: [
+      message('in', 'هل لديكم عروض هذا الشهر؟', 60),
+      message('out', 'أهلًا منى، لدينا عرض على جلسات التنظيف هذا الشهر.', 59, { delivery_state: 'read', author: ME }),
+    ],
+    5: [
+      message('in', 'مرحبًا، شاهدت إعلانكم وأريد الاستفسار عن الأسعار.', 1.6),
+      message('out', 'أهلًا ريم، يسعدنا خدمتك. هل ترغبين بمعرفة أسعار الجلسات؟', 1.4, { delivery_state: 'read', author: ME }),
+      message('out', 'اختاري ما يناسبك:', 1.2, {
+        kind: 'interactive', delivery_state: 'read', author: ME,
+        interactive: { type: 'buttons', body: 'اختاري ما يناسبك', header: null, footer: null, buttons: [{ id: 'btn_1', title: 'الأسعار' }, { id: 'btn_2', title: 'المواعيد' }] },
+      }),
+    ],
   }
   const catalog = seedCatalog()
   const built = { catalog, channels, conversations }
@@ -233,7 +259,17 @@ function seed() {
     departments, tags, channels, contacts, conversations, messages, templates, canned, flows, submissions, catalog,
     // Number-health timeline and business profile per channel (inbox-reports-preview-data.mjs).
     health: seedChannelExtras(channels.map(item => item.id), ago),
-    ids: { department: 3, tag: 4, canned: 3, channel: 2, template: 9, rule: 3, flow: 4, submission: 2, field: nextFieldId, upload: 100, message: () => nextMessageId++ },
+    ids: { department: 3, tag: 4, canned: 3, channel: 3, template: 9, rule: 3, flow: 4, submission: 2, field: nextFieldId, upload: 100, shortcut: 6, message: () => nextMessageId++ },
+    // The TikTok channel's suggested questions and chat prompts, with the audit status TikTok reports.
+    tiktokShortcuts: [
+      { id: 1, kind: 'question', sequence: 0, question: 'ما مواعيد العمل؟', answer: 'من الأحد إلى الخميس، من 9 صباحًا حتى 5 مساءً.', title: null, content: null, provider_id: 'q_1', audit: 'approved', sync_error: null },
+      { id: 2, kind: 'question', sequence: 1, question: 'هل تقدمون خدمة تقويم الأسنان؟', answer: 'نعم، التقويم متاح بموعد مسبق.', title: null, content: null, provider_id: 'q_2', audit: 'reviewing', sync_error: null },
+      { id: 3, kind: 'question', sequence: 2, question: 'أين تقع العيادة؟', answer: 'الرياض، حي الملقا.', title: null, content: null, provider_id: null, audit: 'rejected', sync_error: 'TikTok rejected the question: the answer is longer than 200 characters.' },
+      { id: 4, kind: 'prompt', sequence: 0, question: null, answer: null, title: 'الأسعار', content: 'أرسل قائمة الأسعار الحالية.', provider_id: 'p_1', audit: 'approved', sync_error: null },
+      { id: 5, kind: 'prompt', sequence: 1, question: null, answer: null, title: 'المواعيد', content: 'اسأل عن اليوم المناسب ثم افتح الموعد.', provider_id: 'p_2', audit: 'draft', sync_error: null },
+    ],
+    // The latest history import of the TikTok channel.
+    tiktokSync: { id: 1, state: 'done', phase: 'messages', conversations_count: 12, messages_count: 240, error: null, started_at: ago(30), finished_at: ago(29), created_at: ago(30) },
     statuses: new Map(),
     // Files uploaded to a conversation and not yet sent: attachment id -> { conversationId, attachment }.
     uploads: new Map(),
@@ -502,10 +538,14 @@ function crud(collection, method, id, body, make) {
 }
 
 function channelRoute(method, parts, body, url) {
+  // The connect route names the kind instead of a channel id: the browser then leaves for the account page.
+  if (method === 'POST' && parts[4] === 'tiktok' && parts[5] === 'connect') return ok({ authorize_url: 'https://auth.example.test/tiktok/authorize?state=mock' })
   const id = parts[4] ? Number(parts[4]) : undefined
   const action = parts[5] === 'templates' && parts[6] ? parts[6] : parts[5]
   const channel = state.channels.find(item => item.id === id)
   if (id !== undefined && !channel) return fail(404, 'not_found', 'not found')
+  if (action === 'tiktok' && parts[6] === 'shortcuts') return tiktokShortcutsRoute(method, channel, parts[7], body)
+  if (action === 'tiktok' && parts[6] === 'sync') return tiktokSyncRoute(method)
   if (action === 'sending') return campaignsRoute(mockContext(), method, parts, url, body)
   if (method === 'GET' && action === 'ref') return ok({ id: channel.id, name: channel.name })
   if (action === 'flows' || (parts[5] === 'flows' && parts[6] === 'sync')) return channelFlows(channel, method, parts[6], body, url)
@@ -534,6 +574,57 @@ function channelRoute(method, parts, body, url) {
     has_verify_token: true, callback_url: 'https://app.example.test/api/v1/inbox/hooks/whatsapp',
     last_error: current?.last_error ?? null, last_event_at: current?.last_event_at ?? null, health: current?.health ?? emptyHealth(),
   }))
+}
+
+// ---------------------------------------------------------------- TikTok (suggested questions, chat prompts, import)
+
+const refuse = reason => ({ status: 422, body: { code: 'invalid', message: reason, details: { reason } } })
+
+function tiktokShortcutsRoute(method, channel, tail, body) {
+  if (tail === 'enable' && method === 'POST') {
+    if (body.kind === 'question') channel.tiktok_questions_enabled = body.enabled
+    else channel.tiktok_prompts_enabled = body.enabled
+    const items = state.tiktokShortcuts.filter(item => item.kind === body.kind)
+    return ok({ kind: body.kind, enabled: body.enabled, items, total: items.length })
+  }
+  if (tail === undefined && method === 'GET') return ok(list(state.tiktokShortcuts))
+  if (tail === undefined && method === 'POST') {
+    if (body.kind !== 'question' && body.kind !== 'prompt') return fail(422, 'invalid', 'kind must be question or prompt', 'kind')
+    const ofKind = state.tiktokShortcuts.filter(item => item.kind === body.kind)
+    if (ofKind.length >= (body.kind === 'question' ? 3 : 6)) return refuse('inbox_tiktok_auto_message_limit')
+    const id = state.ids.shortcut++
+    const created = {
+      id, kind: body.kind, sequence: body.sequence ?? ofKind.length,
+      question: body.kind === 'question' ? body.question : null, answer: body.kind === 'question' ? body.answer : null,
+      title: body.kind === 'prompt' ? body.title : null, content: body.kind === 'prompt' ? body.content : null,
+      provider_id: `mock_${id}`, audit: 'reviewing', sync_error: null,
+    }
+    state.tiktokShortcuts.push(created)
+    return ok(created)
+  }
+  const id = Number(tail)
+  const current = state.tiktokShortcuts.find(item => item.id === id)
+  if (!current) return fail(404, 'not_found', 'not found')
+  if (method === 'PATCH') {
+    if (current.audit === 'reviewing') return refuse('inbox_tiktok_auto_message_reviewing')
+    Object.assign(current, body, { audit: 'reviewing', provider_id: `mock_${id}`, sync_error: null })
+    return ok(current)
+  }
+  if (method === 'DELETE') {
+    state.tiktokShortcuts = state.tiktokShortcuts.filter(item => item.id !== id)
+    return { status: 204, body: undefined }
+  }
+  return fail(404, 'not_found', 'not found')
+}
+
+function tiktokSyncRoute(method) {
+  if (method === 'GET') return ok({ job: state.tiktokSync })
+  if (state.tiktokSync && (state.tiktokSync.state === 'queued' || state.tiktokSync.state === 'running')) return refuse('inbox_tiktok_sync_running')
+  state.tiktokSync = {
+    id: (state.tiktokSync?.id ?? 0) + 1, state: 'queued', phase: 'single', conversations_count: 0, messages_count: 0,
+    error: null, started_at: null, finished_at: null, created_at: iso(Date.now()),
+  }
+  return { status: 201, body: state.tiktokSync }
 }
 
 // ---------------------------------------------------------------- automation (working hours, automatic messages, rules)
