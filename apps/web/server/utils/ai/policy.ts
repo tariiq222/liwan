@@ -5,12 +5,18 @@ import type { RunSession } from './session'
 import { serviceFetch } from './upstream'
 
 /** What the AI service enforces on one request: whose provider runs it, whether data may leave the Kingdom, the output cap. */
-export type ServicePolicy = { provider_mode: 'platform' | 'tenant_key'; outside_allowed: boolean; max_output_tokens: number | null }
+export type ServicePolicy = { provider_mode: 'platform' | 'tenant_key' | 'setup'; outside_allowed: boolean; max_output_tokens: number | null }
+
+/** Whose provider runs the request: a setup conversation always runs on the platform provider, paid by the setup budget. */
+function providerMode(session: RunSession): ServicePolicy['provider_mode'] {
+  return session.mode === 'setup' ? 'setup' : session.policy.provider_mode
+}
 
 export function runPolicy(session: RunSession): ServicePolicy {
-  const { provider_mode, outside_allowed, output_tokens_per_run } = session.policy
+  const { outside_allowed, output_tokens_per_run } = session.policy
+  const provider_mode = providerMode(session)
   // The output cap protects the platform's provider account; a tenant on its own key pays its own provider.
-  return { provider_mode, outside_allowed, max_output_tokens: provider_mode === 'platform' ? output_tokens_per_run : null }
+  return { provider_mode, outside_allowed, max_output_tokens: provider_mode === 'tenant_key' ? null : output_tokens_per_run }
 }
 
 /**
@@ -19,7 +25,8 @@ export function runPolicy(session: RunSession): ServicePolicy {
  * The service checks both again; this only keeps a refused request from spending the user's quota or running a tool.
  */
 export async function assertRunnable(event: H3Event, session: RunSession): Promise<void> {
-  const { provider_mode, outside_allowed } = session.policy
+  const { outside_allowed } = session.policy
+  const provider_mode = providerMode(session) === 'tenant_key' ? 'tenant_key' : 'platform'
   if (provider_mode === 'platform' && outside_allowed) return
   const response = await serviceFetch(event, 'GET', '/v1/tenant/config', session.owner)
   if (!response.ok) throw createError({ statusCode: 502, data: { code: 'ai_upstream', message: `AI service status ${response.status}` } })

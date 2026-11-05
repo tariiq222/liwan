@@ -6,7 +6,8 @@ import { toolCallBudget } from './executor'
 import { forwardUpstream, odooJson, type Owner } from './upstream'
 
 export type RunLimits = { max_steps: number; max_tool_calls: number; timeout_seconds: number }
-export type RunSession = { owner: Owner; company: string; tools: AiTool[]; agents: AiAgent[]; byName: Map<string, AiTool>; limits: RunLimits; policy: AiPolicy }
+export type RunMode = 'assistant' | 'setup'
+export type RunSession = { mode: RunMode; owner: Owner; company: string; tools: AiTool[]; agents: AiAgent[]; byName: Map<string, AiTool>; limits: RunLimits; policy: AiPolicy }
 
 const MAX_STEPS = 12
 const TIMEOUT_SECONDS = 120
@@ -37,13 +38,22 @@ export async function ownerFor(event: H3Event): Promise<Owner> {
   return (await callerFor(event)).owner
 }
 
+/** The mode a conversation of the caller started in (from its first message's audit row), or null for a new one. */
+export async function conversationMode(event: H3Event, runId: string): Promise<RunMode | null> {
+  const answer = await odooJson(event, 'GET', `/api/v1/ai/conversations/${encodeURIComponent(runId)}/mode`)
+  if (answer.status !== 200) forwardUpstream(answer)
+  return (answer.body as { mode: RunMode | null }).mode
+}
+
 /** The caller's identity, tool catalog, agents and AI policy for this request only. Any upstream denial is forwarded as is. */
-export async function runSession(event: H3Event): Promise<RunSession> {
+export async function runSession(event: H3Event, mode: RunMode = 'assistant'): Promise<RunSession> {
   const { owner, company } = await callerFor(event)
-  const tools = await odooJson(event, 'GET', '/api/v1/ai/tools')
+  // A setup conversation gets the setup agent's catalog only; an ordinary one never gets it (Odoo decides both).
+  const tools = await odooJson(event, 'GET', '/api/v1/ai/tools', mode === 'setup' ? { query: { mode } } : undefined)
   if (tools.status !== 200) forwardUpstream(tools)
   const parsed = AiToolsResponseSchema.parse(tools.body)
   return {
+    mode,
     owner,
     company,
     tools: parsed.items,

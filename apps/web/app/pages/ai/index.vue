@@ -43,6 +43,8 @@ const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
 
 // `?context=project:12` comes from the page the user opened the assistant from.
 const context = computed(() => parseAiContext(route.query.context))
+// Opened from the AI settings (`?mode=setup`): a conversation with the setup agent only.
+const setupMode = computed(() => route.query.mode === 'setup')
 const streaming = computed(() => status.value === 'streaming')
 // A pending card is answered before another message: the service holds one pending call per run.
 const composerDisabled = computed(() => !hydrated.value || isBlockingLimit(limit.value) || status.value === 'waiting_user')
@@ -130,7 +132,7 @@ function openDraft(item: { callId: string; tool: string; payload: Record<string,
 }
 
 async function onSend(text: string) {
-  await send(text, context.value)
+  await send(text, context.value, setupMode.value ? 'setup' : undefined)
 }
 
 // The address follows the conversation as soon as the service names it, so a new-conversation click always changes the route.
@@ -169,6 +171,10 @@ watch(status, (now, before) => {
     <SharedListCard fill class="max-md:h-[75svh]">
       <SharedEmptyState v-if="showUnavailable" :title="t('ai.errors.unavailable')" data-testid="ai-unavailable" />
       <template v-else>
+        <p v-if="setupMode" class="flex shrink-0 items-center gap-2 border-b border-default px-4 py-2 text-sm text-muted" data-testid="ai-setup-banner">
+          <UIcon name="i-lucide-wand-sparkles" aria-hidden="true" class="size-4 shrink-0" />
+          <span>{{ t('ai.setup.banner') }}</span>
+        </p>
         <header v-if="conversation" class="flex shrink-0 items-center gap-3 border-b border-default px-4 py-3" data-testid="ai-topbar">
           <h2 dir="auto" class="min-w-0 truncate text-sm font-semibold text-highlighted">{{ runTitle }}</h2>
           <AiContextChip v-if="context" :page="context.page" />
