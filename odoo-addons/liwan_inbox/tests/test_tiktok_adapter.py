@@ -330,3 +330,108 @@ class TestTikTokAdapter(BaseCase):
         }))
         with patch.object(requests, 'request', return_value=refused):
             self.assertFalse(tiktok.image_send_capable(CREDENTIALS, tt.CONVERSATION_ID))
+
+    def test_list_conversations_paginates(self):
+        first = response(tt.answer({
+            'conversations': [tt.conversation_item()], 'has_more': True, 'cursor': 120,
+        }))
+        last = response(tt.answer({
+            'conversations': [tt.conversation_item('conv-2')], 'has_more': False, 'cursor': 0,
+        }))
+        with patch.object(requests, 'request', side_effect=[first, last]) as request:
+            conversations, cursor = tiktok.list_conversations(CREDENTIALS, 'SINGLE', 0)
+            self.assertEqual([item['conversation_id'] for item in conversations], [tt.CONVERSATION_ID])
+            self.assertEqual(cursor, 120)
+            self.assertEqual(request.call_args.kwargs['params'], {
+                'business_id': tt.BUSINESS_ID, 'conversation_type': 'SINGLE', 'limit': 100, 'cursor': 0,
+            })
+            conversations, cursor = tiktok.list_conversations(CREDENTIALS, 'SINGLE', cursor)
+            self.assertEqual([item['conversation_id'] for item in conversations], ['conv-2'])
+            self.assertIsNone(cursor)
+            self.assertEqual(request.call_args.kwargs['params']['cursor'], 120)
+
+    def test_list_messages_encodes_plus(self):
+        answer = response(tt.answer({
+            'participants': [tt.participant(), tt.participant('BUSINESS_ACCOUNT', tt.BUSINESS_ID, 'liwan')],
+            'messages': [
+                tt.rest_message('TEXT', {'body': 'Hi'}),
+                tt.rest_message('IMAGE', {'media_id': 'media-image-1'}, message_id='msg-2'),
+            ],
+        }))
+        with patch.object(requests, 'request', return_value=answer) as request:
+            participants, messages = tiktok.list_messages(CREDENTIALS, tt.CONVERSATION_ID)
+        url = request.call_args.args[1]
+        self.assertTrue(url.startswith(tiktok.API_BASE + '/business/message/content/list/?'))
+        self.assertIn('conversation_id=conv%2B1', url)
+        self.assertNotIn('conv+1', url)
+        self.assertEqual(len(participants), 2)
+        self.assertEqual([message.kind for message in messages], ['text', 'image'])
+        self.assertEqual(messages[0].body, 'Hi')
+        self.assertEqual(messages[0].sender_name, tt.SENDER_NAME)
+        self.assertEqual(messages[1].media_id, 'media-image-1')
+
+    def test_auto_message_crud_payloads(self):
+        listing = response(tt.answer({
+            'business_id': tt.BUSINESS_ID,
+            'operation_status': 'ENABLE',
+            'auto_messages': [tt.auto_message_item()],
+        }))
+        created = response(tt.answer({'auto_message': {'auto_message_id': 'am-2'}}))
+        empty = response(tt.answer({}))
+        question = {'suggested_question': {'question': 'Do you deliver?', 'answer': 'Yes.'}}
+        prompt = {'chat_prompt': {'title': 'Order', 'content': 'I want to order'}}
+        with patch.object(requests, 'request', side_effect=[listing, created, empty, empty, empty, empty]) as request:
+            status, items = tiktok.get_auto_messages(CREDENTIALS, 'SUGGESTED_QUESTION')
+            self.assertEqual((status, items[0]['auto_message_id']), ('ENABLE', 'am-1'))
+            created_id = tiktok.create_auto_message(CREDENTIALS, 'SUGGESTED_QUESTION', question)
+            self.assertEqual(created_id, 'am-2')
+            tiktok.update_auto_message(CREDENTIALS, 'CHAT_PROMPT', 'am-3', prompt)
+            tiktok.delete_auto_message(CREDENTIALS, 'CHAT_PROMPT', 'am-3')
+            tiktok.set_auto_message_status(CREDENTIALS, 'SUGGESTED_QUESTION', True)
+            tiktok.set_auto_message_status(CREDENTIALS, 'CHAT_PROMPT', False)
+        calls = request.call_args_list
+        self.assertEqual(calls[0].args[:2], ('GET', tiktok.API_BASE + '/business/message/auto_message/get/'))
+        self.assertEqual(calls[0].kwargs['params'], {
+            'business_id': tt.BUSINESS_ID, 'auto_message_type': 'SUGGESTED_QUESTION',
+        })
+        self.assertEqual(calls[1].args[1], tiktok.API_BASE + '/business/message/auto_message/create/')
+        self.assertEqual(calls[1].kwargs['json'], {
+            'business_id': tt.BUSINESS_ID, 'auto_message_type': 'SUGGESTED_QUESTION', **question,
+        })
+        self.assertEqual(calls[2].args[1], tiktok.API_BASE + '/business/message/auto_message/update/')
+        self.assertEqual(calls[2].kwargs['json'], {
+            'business_id': tt.BUSINESS_ID, 'auto_message_type': 'CHAT_PROMPT', 'auto_message_id': 'am-3', **prompt,
+        })
+        self.assertEqual(calls[3].args[1], tiktok.API_BASE + '/business/message/auto_message/delete/')
+        self.assertEqual(calls[3].kwargs['json'], {
+            'business_id': tt.BUSINESS_ID, 'auto_message_type': 'CHAT_PROMPT', 'auto_message_id': 'am-3',
+        })
+        self.assertEqual(calls[4].args[1], tiktok.API_BASE + '/business/message/auto_message/status/update/')
+        self.assertEqual(calls[4].kwargs['json']['operation_status'], 'ENABLE')
+        self.assertEqual(calls[5].kwargs['json']['operation_status'], 'DISABLE')
+
+    def test_webhook_admin_calls(self):
+        found = response(tt.answer({'callback_url': 'https://liwan.test/api/v1/inbox/hooks/tiktok'}))
+        missing = response(tt.answer({}))
+        empty = response(tt.answer({}))
+        callback = 'https://liwan.test/api/v1/inbox/hooks/tiktok'
+        with patch.object(requests, 'request', side_effect=[found, missing, empty, empty]) as request:
+            self.assertEqual(tiktok.webhook_show(CONFIG), callback)
+            self.assertIsNone(tiktok.webhook_show(CONFIG))
+            tiktok.webhook_register(CONFIG, callback)
+            tiktok.webhook_delete(CONFIG)
+        calls = request.call_args_list
+        self.assertEqual(calls[0].args[:2], ('GET', tiktok.API_BASE + '/business/webhook/list/'))
+        self.assertEqual(calls[0].kwargs['params'], {
+            'app_id': tt.CLIENT_KEY, 'secret': tt.CLIENT_SECRET, 'event_type': 'DIRECT_MESSAGE',
+        })
+        self.assertNotIn('Access-Token', calls[0].kwargs['headers'])
+        self.assertEqual(calls[2].args[1], tiktok.API_BASE + '/business/webhook/update/')
+        self.assertEqual(calls[2].kwargs['json'], {
+            'app_id': tt.CLIENT_KEY, 'secret': tt.CLIENT_SECRET, 'event_type': 'DIRECT_MESSAGE',
+            'callback_url': callback,
+        })
+        self.assertEqual(calls[3].args[1], tiktok.API_BASE + '/business/webhook/delete/')
+        self.assertEqual(calls[3].kwargs['json'], {
+            'app_id': tt.CLIENT_KEY, 'secret': tt.CLIENT_SECRET, 'event_type': 'DIRECT_MESSAGE',
+        })
