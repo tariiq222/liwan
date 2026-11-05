@@ -61,6 +61,16 @@ class EnsureSecretsTest(unittest.TestCase):
         self.assertRegex(lines[2], r'^AI_DB_PASSWORD=[0-9a-f]{64}$')
         self.assertEqual(lines[3], 'LAST=kept')
 
+    def test_tenant_keys_get_a_versioned_encryption_secret_that_is_never_rotated(self):
+        self.env_file.write_text('COMPOSE_PROFILES=ai\n')
+        output = self.run_script()
+        [pair] = self.values('AI_KEY_ENCRYPTION_KEYS')
+        self.assertRegex(pair, r'^k1:[0-9a-f]{64}$')
+        self.assertEqual(self.values('AI_KEY_ENCRYPTION_KEY_ID'), ['k1'])
+        self.assertNotIn(pair.split(':')[1], output)
+        self.run_script()
+        self.assertEqual(self.values('AI_KEY_ENCRYPTION_KEYS'), [pair])
+
 
 if __name__ == '__main__':
     unittest.main()

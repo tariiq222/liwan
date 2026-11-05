@@ -40,7 +40,7 @@ async def main():
         "AI_SERVICE_TOKEN":"t"*30, "AI_GENERATION_ID":sys.argv[2], "LIWAN_TENANCY_MODE":"shared",
         "LIWAN_TENANT_REGISTRY_PATH":os.environ["LIWAN_TENANT_REGISTRY_PATH"]})
     model = DelayedScript(responses, title_responses=[ai_text("title"), ai_text("active title")])
-    states, control = await open_runtime_state(model, settings)
+    states, control = await open_runtime_state(settings)
     app = create_app(model, states, control, settings)
     try:
         await uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=int(sys.argv[1]), log_level="error", access_log=False)).serve()

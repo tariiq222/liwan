@@ -6,7 +6,7 @@ import httpx
 from langchain_core.messages import AIMessage, ToolMessage
 
 from liwan_ai_service.store import MemoryRunStore
-from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call, make_memory_app, new_id
+from tests.fakes import PLATFORM_POLICY, ScriptedChatModel, ai_text, ai_tool_call, make_memory_app, new_id
 from tests.test_recovery import age
 from tests.test_service import BODY, HEADERS, RESUME_C1, SETTINGS, fresh, parse_sse
 
@@ -114,7 +114,7 @@ async def test_a_rejected_resume_cannot_answer_an_executing_call_but_the_claimer
     async with make_client([ai_tool_call(DRAFT, {"name": "بوابة"}, "c_1"), ai_text("تم")], store) as client:
         run_id = await start(client)
         assert (await claim(client, run_id)).status_code == 200
-        rejected = {"call_id": "c_1", "result": {"ok": False, "decision": "rejected"}}
+        rejected = {"call_id": "c_1", "policy": PLATFORM_POLICY, "result": {"ok": False, "decision": "rejected"}}
         assert (await client.post(f"/v1/runs/{run_id}/resume", json=rejected, headers=HEADERS)).status_code == 409
         assert store.records[run_id].status == "executing"
         events = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json=RESUME_C1, headers=HEADERS)).text)
@@ -124,7 +124,7 @@ async def test_a_rejected_resume_cannot_answer_an_executing_call_but_the_claimer
 async def test_a_rejected_resume_still_answers_a_waiting_user_call():
     async with make_client([ai_tool_call(DRAFT, {"name": "بوابة"}, "c_1"), ai_text("تم")]) as client:
         run_id = await start(client)
-        rejected = {"call_id": "c_1", "result": {"ok": False, "decision": "rejected"}}
+        rejected = {"call_id": "c_1", "policy": PLATFORM_POLICY, "result": {"ok": False, "decision": "rejected"}}
         events = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json=rejected, headers=HEADERS)).text)
         assert events[-1][1] == {"status": "done"}
 

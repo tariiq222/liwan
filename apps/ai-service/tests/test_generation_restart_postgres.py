@@ -43,7 +43,7 @@ async def main():
         'AI_DATABASE_URL':os.environ['AI_TEST_DATABASE_URL'], 'AI_SERVICE_TOKEN':token, 'AI_GENERATION_ID':sys.argv[2],
         'LIWAN_TENANCY_MODE':'shared', 'LIWAN_TENANT_REGISTRY_PATH':os.environ['LIWAN_TENANT_REGISTRY_PATH']})
     model = ScriptedChatModel([ai_text('done')], title_responses=[ai_text('title')])
-    states, control = await open_runtime_state(model, settings)
+    states, control = await open_runtime_state(settings)
     app = create_app(model, states, control, settings)
     try:
         if sys.argv[1] == 'serve':

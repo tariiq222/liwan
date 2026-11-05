@@ -10,7 +10,6 @@ import json
 from typing import Annotated, Any, Literal, TypedDict
 
 import jsonschema
-from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.config import get_stream_writer
@@ -20,7 +19,7 @@ from langgraph.types import interrupt
 
 from liwan_ai_service.contracts import RunContext, RunRequest, ToolResult, ToolSpec, encode_tool_name
 from liwan_ai_service.prompts import system_prompt, tool_summary
-from liwan_ai_service.usage import ModelIdentity, invoke_planned
+from liwan_ai_service.usage import RunModel, invoke_planned, tokens_of
 
 
 class AgentState(TypedDict):
@@ -33,6 +32,9 @@ class AgentState(TypedDict):
     steps: int
     results: list[tuple[str, dict[str, Any]]]
     outcome: str | None
+    output_tokens: int  # what the provider reported for this request's plan calls
+    max_output_tokens: int | None  # the policy's per-run cap (platform runs); None means no cap
+    limit: str | None  # which limit stopped the run, when the graph itself decided it
 
 
 def request_state(request: RunRequest) -> dict[str, Any]:
@@ -46,6 +48,9 @@ def request_state(request: RunRequest) -> dict[str, Any]:
         "steps": 0,
         "results": [],
         "outcome": None,
+        "output_tokens": 0,
+        "max_output_tokens": request.policy.max_output_tokens,
+        "limit": None,
     }
 
 
@@ -54,16 +59,20 @@ def initial_state(request: RunRequest) -> dict[str, Any]:
 
 
 DEADLINE_KEY = "__deadline_at"  # a dunder key stays out of the checkpoint metadata
+RUN_MODEL_KEY = "__run_model"  # the request's model, chosen from the tenant's policy; never checkpointed
 
 
-def run_config(run_id: str, max_steps: int, deadline_at: float | None = None) -> dict[str, Any]:
+def run_config(run_id: str, max_steps: int, deadline_at: float | None = None, run_model: RunModel | None = None) -> dict[str, Any]:
     """Graph config; the recursion limit leaves room for error-only loops to reach ``max_steps`` first.
 
-    ``deadline_at`` is the run deadline on the event loop clock: model retries do not wait past it.
+    ``deadline_at`` is the run deadline on the event loop clock: model retries do not wait past it. ``run_model`` is
+    required to stream the graph and absent for reading its state.
     """
     configurable: dict[str, Any] = {"thread_id": run_id}
     if deadline_at is not None:
         configurable[DEADLINE_KEY] = deadline_at
+    if run_model is not None:
+        configurable[RUN_MODEL_KEY] = run_model
     return {"configurable": configurable, "recursion_limit": 3 * max_steps + 10}
 
 
@@ -122,19 +131,25 @@ def invalid_arguments(args: Any, schema: dict[str, Any]) -> str | None:
     return None
 
 
-def build_graph(model: BaseChatModel, checkpointer, identity: ModelIdentity):
-    bound = model.bind_tools  # resolved per call so tests may swap tools per run
+def build_graph(checkpointer):
+    """One compiled graph per tenant state; each request brings its own model through ``RUN_MODEL_KEY``."""
 
     async def plan(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
         if state["steps"] >= state["limits"]["max_steps"]:
             return {"outcome": "limit_reached"}
+        cap = state.get("max_output_tokens")
+        if cap is not None and state.get("output_tokens", 0) >= cap:
+            return {"outcome": "limit_reached", "limit": "output_tokens"}
+        run_model: RunModel = config["configurable"][RUN_MODEL_KEY]
         specs = [ToolSpec.model_validate(tool) for tool in state["tools"]]
         context = RunContext.model_validate(state["context"]) if state["context"] else None
         prompt = SystemMessage(system_prompt(state["locale"], specs, context))
         history = [message for message in state["messages"] if not isinstance(message, SystemMessage)]
         deadline_at = config["configurable"].get(DEADLINE_KEY)
-        response = await invoke_planned(bound(_openai_tools(state["tools"])), [prompt, *history], identity, get_stream_writer(), deadline_at)
-        return {"messages": [response], "steps": state["steps"] + 1}
+        tools = run_model.model.bind_tools(_openai_tools(state["tools"]))
+        response = await invoke_planned(tools, [prompt, *history], run_model.identity, get_stream_writer(), deadline_at)
+        spent = tokens_of([response])[1] or 0
+        return {"messages": [response], "steps": state["steps"] + 1, "output_tokens": state.get("output_tokens", 0) + spent}
 
     def route_after_plan(state: AgentState) -> Literal["request_tool", "answer", "__end__"]:
         if state["outcome"] == "limit_reached":

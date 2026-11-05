@@ -11,8 +11,18 @@ from langgraph.checkpoint.memory import InMemorySaver
 from liwan_ai_service import service, usage
 from liwan_ai_service.contracts import ModelCallEvent, ModelUsageEvent, RunRequest
 from liwan_ai_service.errors import is_transient_provider_error
-from liwan_ai_service.graph import build_graph, initial_state, run_config
-from tests.fakes import IDENTITY, FlakyChatModel, ScriptedChatModel, SlowChatModel, SlowTitleChatModel, ai_text, ai_usage, make_memory_app, new_id
+from liwan_ai_service.graph import initial_state, run_config
+from tests.fakes import (
+    BoundGraph,
+    FlakyChatModel,
+    ScriptedChatModel,
+    SlowChatModel,
+    SlowTitleChatModel,
+    ai_text,
+    ai_usage,
+    make_memory_app,
+    new_id,
+)
 from tests.test_service import BODY, HEADERS, SETTINGS, fresh, parse_sse
 
 REQUEST = httpx.Request("POST", "http://provider/v1/chat/completions")
@@ -33,7 +43,7 @@ def no_backoff(monkeypatch):
 
 async def plan_events(model, *, timeout=None, deadline_in=None):
     """The ``(event, data)`` pairs the plan node writes for one run of the graph, and the error that ended it (or None)."""
-    graph = build_graph(model, InMemorySaver(), IDENTITY)
+    graph = BoundGraph(model, InMemorySaver())
     request = RunRequest.model_validate({**fresh(), "tools": []})
     deadline_at = None if deadline_in is None else asyncio.get_running_loop().time() + deadline_in
     events, error = [], None

@@ -80,6 +80,17 @@ class Limits(Strict):
     timeout_seconds: int = Field(ge=5, le=600)
 
 
+Billing = Literal["platform", "tenant_key"]
+
+
+class Policy(Strict):
+    """The tenant's AI policy as Odoo states it for this request (spec 2026-11-04 §6.8); the service enforces it."""
+
+    provider_mode: Billing  # whose provider account runs the request: the platform's or the tenant's own key
+    outside_allowed: bool  # a valid residency consent exists, so a provider outside the Kingdom may receive the data
+    max_output_tokens: int | None = Field(ge=1, le=1_000_000)  # platform runs only; null means no per-run cap
+
+
 class RunContext(Strict):
     page: str = Field(pattern=PAGE_NAME)
     id: int | None = None
@@ -93,6 +104,7 @@ class RunRequest(Strict):
     context: RunContext | None = None
     tools: list[ToolSpec] = Field(max_length=MAX_TOOLS)
     limits: Limits
+    policy: Policy
     run_id: str | None = Field(default=None, min_length=1)  # continues this run
     new_run_id: str | None = Field(default=None, pattern=NEW_RUN_ID)  # starts a run under the caller's id
 
@@ -143,6 +155,7 @@ class ToolResult(Strict):
 class ResumeRequest(Strict):
     call_id: str = Field(min_length=1, max_length=40)
     result: ToolResult
+    policy: Policy  # the policy now: a consent revoked while the run waited stops it here
 
 
 class ClaimRequest(Strict):
@@ -215,6 +228,7 @@ class ModelCallEvent(Strict):
 
     call_id: str = Field(pattern=CALL_ID)
     kind: ModelCallKind
+    billing: Billing
     provider: str = Field(pattern=PROVIDER_NAME)
     model: str = Field(pattern=MODEL_NAME)
     called_at: AwareDatetime
@@ -234,3 +248,42 @@ class ModelUsageEvent(Strict):
             msg = "input_tokens and output_tokens are both set or both null"
             raise ValueError(msg)
         return self
+
+
+class RetentionPut(Strict):
+    retention_days: int = Field(ge=1, le=365)
+
+
+class KeyPut(Strict):
+    provider: str = Field(pattern=PROVIDER_NAME)
+    model: str = Field(pattern=MODEL_NAME)
+    api_key: str = Field(min_length=1, max_length=512)
+
+
+class KeyView(Strict):
+    configured: bool
+    provider: str | None
+    model: str | None
+    last4: str | None
+    updated_at: AwareDatetime | None
+
+
+class ProviderView(Strict):
+    name: str
+    location: Literal["inside", "outside"]
+    needs_api_key: bool
+
+
+class PlatformView(Strict):
+    provider: str
+    model: str
+    location: Literal["inside", "outside"]
+
+
+class TenantConfigView(Strict):
+    """``GET /v1/tenant/config``: never the key itself, only whether one is set and its last four characters."""
+
+    retention_days: int
+    key: KeyView
+    platform: PlatformView
+    providers: list[ProviderView]

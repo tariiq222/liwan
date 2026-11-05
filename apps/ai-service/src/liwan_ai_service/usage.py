@@ -15,10 +15,11 @@ from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from typing import Any
 
+from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.runnables import Runnable
 
-from liwan_ai_service.contracts import ModelCallEvent, ModelCallKind, ModelCallOutcome, ModelUsageEvent
+from liwan_ai_service.contracts import Billing, ModelCallEvent, ModelCallKind, ModelCallOutcome, ModelUsageEvent
 from liwan_ai_service.errors import is_transient_provider_error
 
 log = logging.getLogger("liwan_ai_service")
@@ -34,6 +35,15 @@ Emit = Callable[[dict[str, Any]], None]  # takes ``{"event": name, "data": paylo
 class ModelIdentity:
     provider: str
     model: str
+    billing: Billing  # whose account pays: the platform's or the tenant's own key
+
+
+@dataclass(frozen=True)
+class RunModel:
+    """The model a run uses and how its calls are reported; chosen per request from the tenant's policy."""
+
+    model: BaseChatModel
+    identity: ModelIdentity
 
 
 def new_call_id() -> str:
@@ -41,7 +51,9 @@ def new_call_id() -> str:
 
 
 def call_event(call_id: str, kind: ModelCallKind, identity: ModelIdentity) -> dict[str, Any]:
-    event = ModelCallEvent(call_id=call_id, kind=kind, provider=identity.provider, model=identity.model, called_at=datetime.now(UTC))
+    event = ModelCallEvent(
+        call_id=call_id, kind=kind, billing=identity.billing, provider=identity.provider, model=identity.model, called_at=datetime.now(UTC),
+    )
     return {"event": "model_call", "data": event.model_dump(mode="json")}
 
 

@@ -14,20 +14,20 @@ from psycopg_pool import AsyncConnectionPool
 
 from liwan_ai_service.contracts import RunRequest, ToolResult
 from liwan_ai_service.control import open_control
-from liwan_ai_service.graph import build_graph, initial_state, run_config
+from liwan_ai_service.graph import initial_state, run_config
 from liwan_ai_service.store import PostgresRunStore, StateCompatibilityError, initialize_tenant, validate_tenant
-from tests.fakes import IDENTITY, ScriptedChatModel, ai_text, ai_tool_call, new_id
+from tests.fakes import PLATFORM_POLICY, BoundGraph, ScriptedChatModel, ai_text, ai_tool_call, new_id
 from tests.test_contracts import READ_TOOL
 
 pytestmark = pytest.mark.skipif(not os.environ.get("AI_TEST_DATABASE_URL"), reason="needs AI_TEST_DATABASE_URL")
 
 REQUEST = {
     "tenant": "t1", "user_ref": "42", "locale": "ar", "message": "؟", "context": None,
-    "tools": [READ_TOOL], "limits": {"max_steps": 6, "max_tool_calls": 2, "timeout_seconds": 60},
+    "tools": [READ_TOOL], "limits": {"max_steps": 6, "max_tool_calls": 2, "timeout_seconds": 60}, "policy": PLATFORM_POLICY,
     "new_run_id": "r_" + "ab" * 12,
 }
 CHECKPOINT_TABLES = ("checkpoints", "checkpoint_blobs", "checkpoint_writes")
-TENANT_TABLES = ("ai_runs", *CHECKPOINT_TABLES, "checkpoint_migrations", "ai_tenant_schema")
+TENANT_TABLES = ("ai_runs", *CHECKPOINT_TABLES, "checkpoint_migrations", "ai_tenant_config", "ai_tenant_schema")
 
 
 def base_url():
@@ -191,12 +191,12 @@ async def test_validate_tenant_rejects_missing_schema():
 async def test_interrupted_run_resumes_through_a_fresh_checkpointer(tenant):
     request = RunRequest.model_validate(REQUEST)
     record = await create(tenant, "42")
-    graph = build_graph(ScriptedChatModel([ai_tool_call("pmo__list_my_tasks", {}, "c_1")]), tenant.checkpointer, IDENTITY)
+    graph = BoundGraph(ScriptedChatModel([ai_tool_call("pmo__list_my_tasks", {}, "c_1")]), tenant.checkpointer)
     await graph.ainvoke(initial_state(request), run_config(record.run_id, 6))
 
     store2, checkpointer2, pool2 = await open_tenant(tenant.conninfo)
     try:
-        graph2 = build_graph(ScriptedChatModel([ai_text("تم")]), checkpointer2, IDENTITY)
+        graph2 = BoundGraph(ScriptedChatModel([ai_text("تم")]), checkpointer2)
         resume = Command(resume=ToolResult(ok=True, data={"items": [], "total": 0}).model_dump())
         final = await graph2.ainvoke(resume, run_config(record.run_id, 6))
         assert final["outcome"] == "answer"
@@ -228,7 +228,7 @@ async def test_retention_deletes_stale_runs_with_their_checkpoints_and_keeps_rec
     waiting = await create(tenant, "42")
     finished = await create(tenant, "42")
     for record in (stale, waiting):
-        graph = build_graph(ScriptedChatModel([ai_tool_call("pmo__list_my_tasks", {}, "c_1")]), tenant.checkpointer, IDENTITY)
+        graph = BoundGraph(ScriptedChatModel([ai_tool_call("pmo__list_my_tasks", {}, "c_1")]), tenant.checkpointer)
         await graph.ainvoke(initial_state(request), run_config(record.run_id, 6))
         await store.finish(record.run_id, "waiting_tool", record.lease)
     await store.finish(finished.run_id, "done", finished.lease)

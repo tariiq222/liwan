@@ -12,7 +12,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
 
-from liwan_ai_service.service import create_app, graph_factory
+from liwan_ai_service.service import create_app
 from liwan_ai_service.store import StateCompatibilityError, initialize_tenant
 from tests.fakes import ScriptedChatModel, SeededStates, ai_text, ai_tool_call, open_test_state
 from tests.test_release_continuity import ADMIN, OWNER, TOKEN
@@ -80,9 +80,9 @@ async def test_two_processes_share_one_claim_and_two_compatible_apps_preserve_ch
     settings = replace(SETTINGS, service_token=TOKEN, generation_id="old-ai")
     old_model = ScriptedChatModel([ai_tool_call("pmo__draft_project", {"name": "x"}, "c_1")])
     new_model = ScriptedChatModel([ai_text("تم")], title_responses=[ai_text("عنوان")])
-    old = create_app(old_model, SeededStates(graph_factory(old_model, settings), store=store, checkpointer=checkpoints), control, settings)
+    old = create_app(old_model, SeededStates(store=store, checkpointer=checkpoints), control, settings)
     new = create_app(
-        new_model, SeededStates(graph_factory(new_model, settings), store=store, checkpointer=checkpoints), control,
+        new_model, SeededStates(store=store, checkpointer=checkpoints), control,
         replace(settings, generation_id="new-ai"),
     )
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=old), base_url="http://old") as a, \

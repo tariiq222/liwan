@@ -11,13 +11,14 @@ import logging
 import time
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from psycopg.conninfo import make_conninfo
 
 from liwan_ai_service.control import StateCompatibilityError
 from liwan_ai_service.store import MemoryRunStore, PostgresRunStore, RunStore, validate_tenant
 from liwan_ai_service.tenancy import TenantDirectory
+from liwan_ai_service.tenant_config import MemoryTenantConfig, PostgresTenantConfig, TenantConfigStore
 
 log = logging.getLogger(__name__)
 UNINITIALIZED = "ai_state_uninitialized"  # the one StateCompatibilityError a sweep may skip
@@ -33,6 +34,7 @@ class TenantState:
     database: str
     store: RunStore
     graph: object
+    config: TenantConfigStore = field(default_factory=MemoryTenantConfig)
 
 
 class TenantStates:
@@ -167,13 +169,13 @@ class TenantStates:
     def _memory_state(self, database: str) -> TenantState:
         from langgraph.checkpoint.memory import InMemorySaver
 
-        return TenantState(database, MemoryRunStore(), self.graph_factory(InMemorySaver()))
+        return TenantState(database, MemoryRunStore(), self.graph_factory(InMemorySaver()), MemoryTenantConfig())
 
     async def _postgres_state(self, database: str) -> tuple[TenantState, object]:
         conninfo = make_conninfo(self.base_conninfo, dbname=database, options="-c search_path=liwan_ai")
         pool, checkpointer = await self._open_pool(conninfo)
         try:
-            return TenantState(database, PostgresRunStore(pool), self.graph_factory(checkpointer)), pool
+            return TenantState(database, PostgresRunStore(pool), self.graph_factory(checkpointer), PostgresTenantConfig(pool)), pool
         except BaseException:
             await pool.close()
             raise

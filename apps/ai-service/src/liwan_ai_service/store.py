@@ -14,6 +14,7 @@ from typing import Protocol
 
 from liwan_ai_service.contracts import AI_STATE_VERSION
 from liwan_ai_service.control import StateCompatibilityError
+from liwan_ai_service.tenant_config import DEFAULT_RETENTION_DAYS
 
 ACTIVE = ("running", "executing")  # a process holds the run: only its lease settles it
 EXECUTING = "executing"  # a claimed write: it may already have run, so a stale one is never re-entered by claim or resume
@@ -182,6 +183,13 @@ CREATE TABLE IF NOT EXISTS ai_runs (
     "CREATE INDEX IF NOT EXISTS ai_runs_owner_updated_at ON ai_runs (user_ref, updated_at DESC)",
 )
 CREATE_TENANT_SCHEMA = (
+    # The tenant's own AI configuration (tenant_config.py): the run retention window, and its provider key encrypted
+    # with pgcrypto. The key columns are all set or all empty.
+    "CREATE TABLE IF NOT EXISTS ai_tenant_config (singleton BOOLEAN PRIMARY KEY DEFAULT true CHECK (singleton),"
+    " retention_days INTEGER NOT NULL CHECK (retention_days BETWEEN 1 AND 365),"
+    " key_provider TEXT, key_model TEXT, key_ciphertext BYTEA, key_id TEXT, key_last4 TEXT, key_updated_at TIMESTAMPTZ,"
+    " CHECK (num_nulls(key_provider, key_model, key_ciphertext, key_id, key_last4, key_updated_at) IN (0, 6)))",
+    "INSERT INTO ai_tenant_config (retention_days) VALUES (%(retention_days)s) ON CONFLICT (singleton) DO NOTHING",
     "CREATE TABLE ai_tenant_schema (singleton BOOLEAN PRIMARY KEY DEFAULT true CHECK (singleton),"
     " state_version TEXT NOT NULL, checkpoint_version INTEGER NOT NULL)",
 )
@@ -292,14 +300,15 @@ class PostgresRunStore:
 async def _tenant_tables(conn):
     return await (await conn.execute(
         "SELECT to_regclass('ai_runs'), to_regclass('checkpoints'), to_regclass('checkpoint_blobs'),"
-        " to_regclass('checkpoint_writes'), to_regclass('checkpoint_migrations'), to_regclass('ai_tenant_schema')",
+        " to_regclass('checkpoint_writes'), to_regclass('checkpoint_migrations'), to_regclass('ai_tenant_config'),"
+        " to_regclass('ai_tenant_schema')",
     )).fetchone()
 
 
 async def validate_tenant(conn, checkpoint_version: int) -> None:
     """Refuse a tenant schema that the operator bootstrap never created, or one this runtime cannot use."""
     tables = await _tenant_tables(conn)
-    if not tables or len(tables) != 6 or not any(tables):
+    if not tables or len(tables) != 7 or not any(tables):
         raise StateCompatibilityError("ai_state_uninitialized")  # no AI state at all: a sweep may skip it
     if not all(tables):
         raise StateCompatibilityError("ai_state_incompatible")  # partial state (an incomplete restore) is never skipped
@@ -309,8 +318,11 @@ async def validate_tenant(conn, checkpoint_version: int) -> None:
         raise StateCompatibilityError("ai_state_incompatible")
 
 
-async def initialize_tenant(conninfo: str) -> None:
-    """Operator bootstrap of one tenant database's ``liwan_ai`` schema; ``conninfo`` already sets ``search_path``."""
+async def initialize_tenant(conninfo: str, retention_days: int = DEFAULT_RETENTION_DAYS) -> None:
+    """Operator bootstrap of one tenant database's ``liwan_ai`` schema; ``conninfo`` already sets ``search_path``.
+
+    ``retention_days`` is the run retention window the tenant starts with (``AI_RUN_RETENTION_DAYS`` from the CLI).
+    """
     from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
     from psycopg_pool import AsyncConnectionPool
 
@@ -331,7 +343,7 @@ async def initialize_tenant(conninfo: str) -> None:
                 await PostgresRunStore(pool).setup()
                 async with conn.transaction():
                     for statement in CREATE_TENANT_SCHEMA:
-                        await conn.execute(statement)
+                        await conn.execute(statement, {"retention_days": retention_days} if "%(" in statement else None)
                     await conn.execute(INSERT_TENANT_SCHEMA, (AI_STATE_VERSION, checkpoint_version))
             finally:
                 await conn.execute(f"SELECT pg_advisory_unlock({TENANT_LOCK[0]}, {TENANT_LOCK[1]})")
@@ -352,9 +364,14 @@ async def _initialize_tenant_from_env(database: str) -> None:
     if not DATABASE_NAME.fullmatch(database):
         msg = "the tenant database must match ^[a-z][a-z0-9_]{0,62}$"
         raise ValueError(msg)
+    import os
+
     from psycopg.conninfo import make_conninfo
 
-    await initialize_tenant(make_conninfo(_database_url(), dbname=database, options="-c search_path=liwan_ai"))
+    from liwan_ai_service.settings import bootstrap_retention_days
+
+    conninfo = make_conninfo(_database_url(), dbname=database, options="-c search_path=liwan_ai")
+    await initialize_tenant(conninfo, bootstrap_retention_days(os.environ))
 
 
 def _database_url() -> str:

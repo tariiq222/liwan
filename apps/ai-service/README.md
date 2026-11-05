@@ -97,6 +97,20 @@ call itself, up to 3 attempts, only for a 408/409/429/5xx answer or a connection
 or the provider's `Retry-After` when longer, plus 0 to 25 % jitter; a wait that would not end before the run deadline is not started and the failure is
 final. Titles are never retried.
 
+## Tenant policy, own key and residency
+
+Every run and resume carries the tenant's `policy` from Odoo (`provider_mode`, `outside_allowed`, `max_output_tokens`).
+The service picks the run's model from it: the deployment's platform model, or the tenant's own key from
+`ai_tenant_config` (encrypted with `pgcrypto`; `AI_KEY_ENCRYPTION_KEYS`, `AI_KEY_ENCRYPTION_KEY_ID`). A tenant-key policy
+without a key is refused with 409 `ai_tenant_key_missing`; there is no fallback to the platform key. Each provider in the
+registry states where it processes data (`location`); an `outside` provider without a valid consent is refused with 403
+`ai_consent_required` before any provider call. `max_output_tokens` stops a platform run with `limit_reached`
+(`output_tokens`) once its plan calls reached the cap. Every `model_call` event names its `billing`. The routes
+`GET /v1/tenant/config`, `PUT /v1/tenant/config/retention`, `PUT|DELETE /v1/tenant/config/key` never return the key, only
+`configured` and its last four characters. Pre-release, the tenant schema changed in place with `AI_STATE_VERSION` still
+`1`: a development database bootstrapped before `ai_tenant_config` existed is re-created (drop schema `liwan_ai`, run the
+bootstrap again).
+
 ## Service token
 
 Every route except `GET /healthz` requires the header `X-Liwan-Service-Token` to equal `AI_SERVICE_TOKEN`
