@@ -7,8 +7,7 @@ import { renderShared } from '../../../../../test/helpers/renderShared'
 const stubs = {
   SharedPageContainer: defineComponent({
     inheritAttrs: false,
-    props: { width: String },
-    setup(props, { attrs, slots }) { return () => h('div', { ...attrs, 'data-layout-width': props.width }, slots.default?.()) },
+    setup(_props, { attrs, slots }) { return () => h('div', attrs, slots.default?.()) },
   }),
   SharedPageHeader: defineComponent({
     props: { title: String, hideTitle: Boolean },
@@ -63,13 +62,14 @@ describe('SharedChartPanel', () => {
 })
 
 describe('SharedChartPanel span and size', () => {
-  it('is half width at 300px by default, and full spans both columns', async () => {
+  it('is one card at 300px by default, and full spans the row', async () => {
     const half = await renderShared('ChartPanel', { title: 'A' }, { default: chart })
     expect(half).toContain('data-span="half"')
     expect(half).toContain('data-size="md"')
     expect(half).not.toContain('col-span-2')
     const full = await renderShared('ChartPanel', { title: 'A', span: 'full' }, { default: chart })
-    expect(full).toContain('@min-[768px]:col-span-2')
+    expect(full).toContain('data-span="full"')
+    expect(full).not.toContain('col-span-2')
   })
 
   it('sizes the empty and loading bodies, and hands the chart its height', async () => {
@@ -98,7 +98,7 @@ describe('SharedDashboardPage', () => {
       default: () => h('section', { 'data-chart-panel': '' }),
     }, withKpis(true))
     expect(html).toContain('data-template="dashboard-page"')
-    expect(html).toContain('data-layout-width="list"')
+    expect(html).not.toContain('data-layout-width')
     expect(html).toContain('<h1>Projects dashboard</h1>')
     // Slot content renders inside SSR fragment markers (<!--[-->…<!--]-->).
     expect(html).toMatch(/<div data-actions(?:="")?>(?:<!--\[-->)?<button>Export<\/button>/)
@@ -107,7 +107,7 @@ describe('SharedDashboardPage', () => {
     const positions = order.map(marker => html.indexOf(marker))
     expect(positions.every(position => position >= 0)).toBe(true)
     expect([...positions].sort((a, b) => a - b)).toEqual(positions)
-    expect(html).toContain('@min-[768px]:grid-cols-2')
+    expect(html).toContain('liwan-card-grid')
     expect(html).toContain('gap-(--liwan-gap-card)')
     expect(html).not.toMatch(/\bgap-[356]\b/)
   })

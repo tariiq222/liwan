@@ -48,7 +48,7 @@ function clear() {
 
 <template>
   <SharedForbiddenState v-if="!enabled" />
-  <SharedPageContainer v-else width="list">
+  <SharedPageContainer v-else>
     <!-- Not sticky: the inbox shell's content area has no floating-header slot, so a sticky header would cover the filters. -->
     <SharedPageHeader :title="t('inbox.orders.title')" back-to="/inbox" :back-label="t('inbox.title')" :sticky="false" />
     <SharedListCard data-testid="inbox-orders-list">

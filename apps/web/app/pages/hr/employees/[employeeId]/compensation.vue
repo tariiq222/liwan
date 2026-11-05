@@ -17,7 +17,7 @@ function retry() { void employee.refetch(); void compensation.refetch() }
 function saved() { void navigateTo(backTo.value) }
 </script>
 <template>
-  <SharedPageContainer width="form">
+  <SharedPageContainer>
     <SharedPageHeader :title="t('hrPayroll.compensation.editTitle')" :back-to="backTo" />
     <SharedForbiddenState v-if="!canManage" :description="t('hrPayroll.compensation.forbidden')" />
     <SharedPageState v-else :loading="loading" :error="error" :empty="!employee.data.value || compensation.data.value === undefined" @retry="retry">

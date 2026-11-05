@@ -25,7 +25,7 @@ watch(candidates.data, (data) => {
 }, { immediate: true })
 </script>
 <template>
-  <SharedPageContainer width="form">
+  <SharedPageContainer>
     <SharedPageHeader :title="t('hr.employee.access')" :back-to="backTo" />
     <SharedPageState :loading="candidates.isLoading.value" :error="candidates.error.value" :empty="!candidates.data.value?.items.length" @retry="candidates.refetch" />
   </SharedPageContainer>

@@ -69,7 +69,7 @@ async function submit() {
         <UFormField :label="t('financeAssets.form.profile')" name="finance-asset-profile" required :help="profile ? assetMethodSummary(profile, t) : undefined" :error="shown.profile ? t('financeAssets.form.profileRequired') : undefined">
           <USelect id="finance-asset-profile" :model-value="draft.profileId ?? undefined" class="w-full" :items="profileItems" :loading="profiles.isPending.value" :placeholder="t('financeAssets.form.profilePlaceholder')" :color="shown.profile ? 'error' : undefined" :disabled="!hydrated || pending" @update:model-value="draft.profileId = $event" />
         </UFormField>
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="liwan-auto-grid gap-4">
           <UFormField :label="t('financeAssets.form.name')" name="finance-asset-name" required :error="shown.name ? t('financeAssets.form.nameRequired') : undefined">
             <UInput id="finance-asset-name" v-model="draft.name" class="w-full" maxlength="255" :disabled="!hydrated || pending" />
           </UFormField>
@@ -90,7 +90,7 @@ async function submit() {
     </SharedFormSection>
 
     <SharedFormSection panel :title="t('financeAssets.form.values')">
-      <div class="grid gap-4 sm:grid-cols-2">
+      <div class="liwan-auto-grid gap-4">
         <UFormField :label="t('financeAssets.form.purchaseValue')" name="finance-asset-purchase" required :error="shown.purchaseValue ? t('financeAssets.form.purchaseInvalid') : undefined">
           <UInput id="finance-asset-purchase" v-model="draft.purchaseValue" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" />
         </UFormField>

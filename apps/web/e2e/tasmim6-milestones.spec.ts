@@ -74,17 +74,12 @@ test.describe('Plan 6a: milestones', () => {
       await expect(page.getByRole('menuitem', { name: /حذف \(مرتبط بـ 3 مهام\)/ })).toBeDisabled()
     })
 
-    test('the edit form stays within 58rem at all three root font sizes', async ({ page }) => {
+    test('the edit form fills the workspace at all three root font sizes', async ({ page }) => {
       await open(page, '/projects/2/milestones/13/edit')
       for (const fontSize of [14, 16, 18]) {
         await page.evaluate(value => { document.documentElement.style.fontSize = `${value}px` }, fontSize)
-        const metrics = await page.locator('.liwan-page-width-form').last().evaluate(el => ({
-          width: el.getBoundingClientRect().width,
-          font: parseFloat(getComputedStyle(document.documentElement).fontSize),
-          maxWidth: parseFloat(getComputedStyle(el).maxWidth),
-        }))
-        expect(metrics.maxWidth).toBeCloseTo(metrics.font * 58, 1)
-        expect(metrics.width).toBeLessThanOrEqual(metrics.font * 58 + 1)
+        const maxWidth = await page.locator('[data-slot="page-container"]').last().evaluate(el => getComputedStyle(el).maxWidth)
+        expect(maxWidth).toBe('none')
       }
     })
 

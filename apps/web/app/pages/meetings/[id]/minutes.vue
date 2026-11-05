@@ -114,10 +114,10 @@ function createRecommendation(topicKey?: string) {
 </script>
 
 <template>
-  <SharedPageContainer width="form">
+  <SharedPageContainer>
     <SharedPageHeader :title="t(editableMinutes ? 'meetingsUx.minutesEditorTitle' : 'meetingsUx.minutesLabel')" :back-to="backTo" />
     <SharedPageState :loading="query.isLoading.value" :error="pageError" :empty="!query.isLoading.value && !pageError && !query.data.value" @retry="query.refetch">
-      <form novalidate v-if="query.data.value" class="grid gap-(--liwan-gap-card)" @submit.prevent="save(false)">
+      <form novalidate v-if="query.data.value" class="liwan-form" @submit.prevent="save(false)">
         <SharedUnsavedChanges :dirty="dirty" />
         <UAlert v-if="editableMinutes" color="neutral" variant="subtle" icon="i-lucide-info" :title="t('meetingsUx.minutesEditorContext', { name: query.data.value.name })" />
         <UAlert v-if="recommendationReturn" :color="recommendationReturn === 'unavailable' ? 'warning' : 'info'" variant="subtle" :title="t(`meetingsUx.recommendationReturn.${recommendationReturn}`)" />

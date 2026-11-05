@@ -134,8 +134,8 @@ async function confirmStep() {
     </SharedIdentityCard>
 
     <SharedRecordSection v-if="enrollment" variant="panel" :title="t('hrInsurance.detail.cover')">
-      <form v-if="editing" class="grid gap-4" data-testid="hr-insurance-edit-form" @submit.prevent="saveEdit">
-        <div class="grid gap-4 sm:grid-cols-2">
+      <form v-if="editing" class="liwan-form" data-testid="hr-insurance-edit-form" @submit.prevent="saveEdit">
+        <div class="liwan-auto-grid gap-4">
           <UFormField :label="t('hrInsurance.form.employeeShare')" name="hr-insurance-edit-employee-share"><UInputNumber v-model="employeeShare" class="w-full" :min="0" :disabled="patch.isPending.value" /></UFormField>
           <UFormField :label="t('hrInsurance.form.companyShare')" name="hr-insurance-edit-company-share"><UInputNumber v-model="companyShare" class="w-full" :min="0" :disabled="patch.isPending.value" /></UFormField>
         </div>
@@ -145,7 +145,7 @@ async function confirmStep() {
           <UButton type="submit" color="primary" :loading="patch.isPending.value" :disabled="!hydrated" :label="t('app.saveChanges')" data-testid="hr-insurance-edit-save" />
         </div>
       </form>
-      <dl v-else class="grid gap-x-6 sm:grid-cols-2">
+      <dl v-else class="liwan-auto-grid gap-x-6">
         <SharedPropertyRow :label="t('hrInsurance.detail.coverage')" :value="`${formatDate(enrollment.date_from)} – ${formatDate(enrollment.date_end)}`" />
         <SharedPropertyRow :label="t('hrInsurance.detail.memberNumber')">
           <bdi v-if="enrollment.member_number" dir="ltr" data-testid="hr-insurance-member-number">{{ enrollment.member_number }}</bdi>

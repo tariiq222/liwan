@@ -83,7 +83,7 @@ watch(() => props.confirming, (now, was) => { if (was && !now) asking.value = fa
     <UAlert v-if="props.error" role="alert" color="error" variant="subtle" :title="props.error" data-testid="hr-eos-failure" />
     <UAlert v-if="mismatch" role="status" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('hrPayroll.eos.mismatch', { date: settlement?.departure_date ? formatDate(settlement.departure_date) : '' })" data-testid="hr-eos-mismatch" />
     <UAlert v-if="stale" role="status" color="info" variant="subtle" icon="i-lucide-info" :title="t('hrPayroll.eos.stale')" data-testid="hr-eos-stale" />
-    <div v-if="editable" class="liwan-form-grid">
+    <div v-if="editable" class="liwan-auto-grid">
       <UFormField :label="t('hrPayroll.eos.case')" name="hr-eos-case" required>
         <USelect id="hr-eos-case" :model-value="chosenCase ?? undefined" class="w-full" :items="caseItems" :placeholder="t('hrPayroll.eos.casePlaceholder')" :disabled="busy" data-testid="hr-eos-case" @update:model-value="pickCase" />
       </UFormField>

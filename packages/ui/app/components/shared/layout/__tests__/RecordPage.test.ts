@@ -108,11 +108,11 @@ describe('SharedPropertiesPanel and SharedPropertyRow', () => {
 })
 
 describe('SharedRecordPage width', () => {
-  it('is the detail band by default and `full` lifts the cap', async () => {
-    expect(await renderShared('RecordPage', { title: 'Alpha' }, record, options)).toContain('liwan-page-width-detail')
-    const full = await renderShared('RecordPage', { title: 'Alpha', width: 'full' }, record, options)
-    expect(full).toContain('liwan-page-width-full')
-    expect(full).not.toContain('max-w-none')
+  it('fills the workspace width with no band cap', async () => {
+    const html = await renderShared('RecordPage', { title: 'Alpha' }, record, options)
+    expect(html).toContain('liwan-page-stack')
+    expect(html).not.toContain('liwan-page-width')
+    expect(html).not.toContain('data-layout-width')
   })
 })
 

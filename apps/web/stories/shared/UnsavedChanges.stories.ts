@@ -35,7 +35,7 @@ export const GuardsLeavingDirtyForm: Story = {
       onMounted(() => router.push('/__story/unsaved-form'))
       return { t, leave: () => router.push('/__story/elsewhere') }
     },
-    template: `<main class="liwan-shell-main"><SettingsPage width="form"><RouterView /><div><UButton color="neutral" variant="outline" data-testid="leave" @click="leave">{{ t('app.back') }}</UButton></div></SettingsPage></main>`,
+    template: `<main class="liwan-shell-main"><SettingsPage><RouterView /><div><UButton color="neutral" variant="outline" data-testid="leave" @click="leave">{{ t('app.back') }}</UButton></div></SettingsPage></main>`,
   }),
   play: async ({ canvasElement, args }) => {
     const leave = await within(canvasElement).findByTestId('leave')

@@ -34,7 +34,7 @@ const textareaId = computed(() => props.fieldId ?? `comment-${generatedId}`)
 </script>
 
 <template>
-  <form class="grid gap-2" @submit.prevent="emit('submit')">
+  <form class="liwan-form" @submit.prevent="emit('submit')">
     <UFormField v-if="label" :label="label" :name="textareaId" :help="help" class="text-xs font-medium">
       <div>
         <UTextarea

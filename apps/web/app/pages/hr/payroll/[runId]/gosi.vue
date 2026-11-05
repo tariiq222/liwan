@@ -29,7 +29,7 @@ function printPage() {
 </script>
 
 <template>
-  <SharedRecordPage width="full" :keep-content="!!statement || notApproved" :title="title" :back-to="backTo" :loading="query.isLoading.value" :error="pageError" @retry="query.refetch">
+  <SharedRecordPage :keep-content="!!statement || notApproved" :title="title" :back-to="backTo" :loading="query.isLoading.value" :error="pageError" @retry="query.refetch">
     <template v-if="statement" #actions>
       <UButton class="liwan-print-hide" color="neutral" variant="outline" icon="i-lucide-printer" :disabled="!hydrated" :label="t('hrPayroll.gosiStatement.print')" data-testid="hr-payroll-gosi-print" @click="printPage" />
     </template>

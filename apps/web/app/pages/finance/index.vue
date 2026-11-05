@@ -38,7 +38,7 @@ const progress = computed(() => setup.data.value ? financeSetupProgress(setup.da
   <SharedListPage :title="t('finance.overview.title')" kpi-toggle>
     <div class="liwan-page-stack">
       <SharedKpiStrip :tiles="tiles" :loading="loadingTiles" :label="t('finance.kpi.label')" data-testid="finance-kpi-strip" />
-      <div class="grid gap-(--liwan-gap-card) lg:grid-cols-2">
+      <div class="liwan-card-grid">
         <SharedRecordSection
           v-if="canSetup"
           variant="panel"

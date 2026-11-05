@@ -40,7 +40,7 @@ const show = computed(() => mode.value !== 'empty' || props.summary.charter_esti
       </div>
     </SharedRecordSection>
 
-    <section v-else-if="mode === 'dashboard'" class="grid gap-(--liwan-gap-card) sm:grid-cols-3">
+    <section v-else-if="mode === 'dashboard'" class="liwan-card-grid">
       <SharedMetricTile
         density="compact"
         icon="i-lucide-wallet"

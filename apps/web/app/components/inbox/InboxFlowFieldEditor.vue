@@ -65,14 +65,14 @@ function moveOption(position: number, step: -1 | 1) {
         <template #hint><span class="text-xs text-muted">{{ counter(field.helperText, FLOW_LIMITS.helperText) }}</span></template>
       </UFormField>
 
-      <div v-if="field.kind === 'text_input'" class="grid gap-3 sm:grid-cols-2">
+      <div v-if="field.kind === 'text_input'" class="liwan-auto-grid gap-3">
         <UFormField :label="t('inbox.flows.field.minChars')"><UInput v-model="field.minChars" type="number" inputmode="numeric" min="1" :max="FLOW_LIMITS.maxChars" class="w-full" :disabled="off" /></UFormField>
         <UFormField :label="t('inbox.flows.field.maxChars')" :description="t('inbox.flows.field.maxCharsHint')"><UInput v-model="field.maxChars" type="number" inputmode="numeric" min="1" :max="FLOW_LIMITS.maxChars" class="w-full" :disabled="off" /></UFormField>
       </div>
       <UFormField v-if="field.kind === 'text_area'" :label="t('inbox.flows.field.maxLength')" :description="t('inbox.flows.field.maxLengthHint', { max: FLOW_LIMITS.maxLength })">
         <UInput v-model="field.maxLength" type="number" inputmode="numeric" min="1" :max="FLOW_LIMITS.maxLength" class="w-full" :disabled="off" />
       </UFormField>
-      <div v-if="field.kind === 'date'" class="grid gap-3 sm:grid-cols-2">
+      <div v-if="field.kind === 'date'" class="liwan-auto-grid gap-3">
         <UFormField :label="t('inbox.flows.field.minDate')"><SharedDateField v-model="field.minDate" :disabled="off" :aria-label="t('inbox.flows.field.minDate')" /></UFormField>
         <UFormField :label="t('inbox.flows.field.maxDate')"><SharedDateField v-model="field.maxDate" :disabled="off" :aria-label="t('inbox.flows.field.maxDate')" /></UFormField>
       </div>
@@ -103,7 +103,7 @@ function moveOption(position: number, step: -1 | 1) {
         </ol>
         <UButton type="button" class="self-start" color="neutral" variant="outline" size="sm" icon="i-lucide-plus" :label="t('inbox.flows.field.addOption')" :disabled="off || field.options.length >= optionMax" :data-testid="`inbox-flow-field-${props.index}-add-option`" @click="addOption" />
       </div>
-      <div v-if="field.kind === 'checkbox'" class="grid gap-3 sm:grid-cols-2">
+      <div v-if="field.kind === 'checkbox'" class="liwan-auto-grid gap-3">
         <UFormField :label="t('inbox.flows.field.minSelected')"><UInput v-model="field.minSelected" type="number" inputmode="numeric" min="1" :max="FLOW_LIMITS.selected" class="w-full" :disabled="off" /></UFormField>
         <UFormField :label="t('inbox.flows.field.maxSelected')"><UInput v-model="field.maxSelected" type="number" inputmode="numeric" min="1" :max="FLOW_LIMITS.selected" class="w-full" :disabled="off" /></UFormField>
       </div>

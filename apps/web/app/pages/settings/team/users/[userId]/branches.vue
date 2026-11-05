@@ -23,7 +23,7 @@ async function reloadAccess() {
 </script>
 
 <template>
-  <SharedSettingsPage width="form">
+  <SharedSettingsPage>
     <SharedPageHeader :title="t('access.branches.delegation')" :back-to="`/settings/team/users/${id}/access`" />
     <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
     <SharedPageState v-else :loading="query.isLoading.value" :error="pageError" @retry="query.refetch">

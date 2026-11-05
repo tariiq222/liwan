@@ -50,7 +50,7 @@ function saveNotice() {
           <USwitch :model-value="commerce.data.value.paid_notice_enabled" class="mt-0.5" :disabled="off" :aria-label="t('inbox.catalog.channelBlock.paidNotice')" data-testid="inbox-channel-paid-notice" @update:model-value="toggle({ paid_notice_enabled: $event })" />
           <span><span class="block font-medium text-highlighted">{{ t('inbox.catalog.channelBlock.paidNotice') }}</span><span class="block text-xs text-muted">{{ t('inbox.catalog.channelBlock.paidNoticeHint') }}</span></span>
         </label>
-        <form class="flex flex-col gap-2" @submit.prevent="saveNotice">
+        <form class="liwan-form" @submit.prevent="saveNotice">
           <UFormField :label="t('inbox.catalog.channelBlock.paidNoticeText')" :description="t('inbox.catalog.channelBlock.paidNoticeTextHint')" :hint="`${noticeText.length}/${INBOX_COMMERCE_LIMITS.body}`">
             <UTextarea v-model="noticeText" class="w-full" :rows="2" autoresize :maxrows="6" :maxlength="INBOX_COMMERCE_LIMITS.body" :disabled="off" data-testid="inbox-channel-paid-notice-text" />
           </UFormField>

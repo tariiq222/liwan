@@ -15,7 +15,7 @@ const meta = {
   render: args => ({
     components: { DescriptionEditor, FormSection, PageContainer, ClientOnly },
     setup: () => ({ args, t: useI18n().t }),
-    template: `<main class="liwan-shell-main"><PageContainer width="form"><form class="space-y-8"><FormSection :title="t('meetingsUi.agenda')"><ClientOnly><DescriptionEditor v-bind="args" :aria-label="t('meetingsUx.agendaLabel')" /></ClientOnly></FormSection></form></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer><form class="space-y-8"><FormSection :title="t('meetingsUi.agenda')"><ClientOnly><DescriptionEditor v-bind="args" :aria-label="t('meetingsUx.agendaLabel')" /></ClientOnly></FormSection></form></PageContainer></main>`,
   }),
 } satisfies Meta<typeof DescriptionEditor>
 export default meta

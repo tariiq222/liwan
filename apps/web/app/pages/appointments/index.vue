@@ -12,7 +12,7 @@ const items = computed(() => types.data.value?.items ?? [])
 </script>
 
 <template>
-  <SharedPageContainer width="list">
+  <SharedPageContainer>
     <SharedPageHeader :title="t('appointments.title')" />
     <SharedPageState
       :loading="types.isPending.value"

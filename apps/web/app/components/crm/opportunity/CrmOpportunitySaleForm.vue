@@ -30,7 +30,7 @@ function setPrice(value: number | null | undefined) {
     <UFormField :label="packageLabel" name="sale-package" required :error="showErrors && !modelValue.package_id ? t('crm.opportunities.sale.packageRequired', { term: packageLabel }) : undefined">
       <USelect id="sale-package" class="w-full" :model-value="modelValue.package_id ?? undefined" :items="items" :placeholder="t('crm.opportunities.sale.packagePlaceholder')" :disabled="disabled" @update:model-value="choose" />
     </UFormField>
-    <div class="grid gap-4 sm:grid-cols-3">
+    <div class="liwan-auto-grid gap-4">
       <UFormField :label="t('crm.opportunities.sale.listPrice', { term: packageLabel })" name="sale-list-price">
         <UInput id="sale-list-price" class="w-full" :model-value="selected ? String(selected.price) : ''" readonly disabled />
       </UFormField>

@@ -15,7 +15,7 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   parameters: storyContext('apps/web/app/pages/hr/onboarding/plans/index.vue:2'),
-  render: args => ({ components: { PlanTable, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer width="list"><PlanTable v-bind="args" /></PageContainer></main>' }),
+  render: args => ({ components: { PlanTable, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer><PlanTable v-bind="args" /></PageContainer></main>' }),
 }
 
 export const ReadOnly: Story = { name: 'للقراءة فقط', args: { canManage: false } }

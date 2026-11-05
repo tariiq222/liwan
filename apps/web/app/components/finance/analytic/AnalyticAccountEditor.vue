@@ -37,7 +37,7 @@ async function submit() {
 <template>
   <UForm :state="{ name, code }" class="liwan-form" method="post" :loading-auto="false" novalidate data-testid="finance-analytic-account-form" @submit="submit">
     <UAlert v-if="failure" role="alert" color="error" variant="subtle" :title="t('financeAnalytic.saveError')" :description="saveErrorMessage(failure, t('errors.generic'), t('errors.saveUncertain'))" />
-    <div class="liwan-form-grid">
+    <div class="liwan-auto-grid">
       <UFormField :label="t('financeAnalytic.accounts.form.name')" name="finance-analytic-account-name" required>
         <UInput id="finance-analytic-account-name" v-model="name" class="w-full" :disabled="!hydrated" required />
       </UFormField>

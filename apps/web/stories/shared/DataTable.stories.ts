@@ -36,7 +36,7 @@ const table = (state: { rows?: Row[]; loading?: boolean; error?: unknown; select
     ])
     return { t, columns, selected, sort, rows: state.rows ?? rows, loading: state.loading ?? false, error: state.error, selectable: state.selectable ?? false, density: state.density ?? 'dense', rowTo: (row: Row) => `/projects/${row.id}` }
   },
-  template: `<main class="liwan-shell-main"><PageContainer width="list">
+  template: `<main class="liwan-shell-main"><PageContainer>
     <DataTable v-model:selected="selected" :rows="rows" :columns="columns" row-key="id" :row-to="rowTo" :caption="t('projects.title')"
       :loading="loading" :error="error" :selectable="selectable" :density="density" :page="1" :pages="3" :empty-text="t('projects.empty')" v-model:sort="sort" :sort-keys="{ name: 'name' }">
       <template #filters>
@@ -67,7 +67,7 @@ const inCard = (empty = false) => ({
     ])
     return { t, columns, rows: empty ? [] : rows, rowTo: (row: Row) => `/projects/${row.id}` }
   },
-  template: `<main class="liwan-shell-main"><PageContainer width="list"><ListCard>
+  template: `<main class="liwan-shell-main"><PageContainer><ListCard>
     <template #filters><FilterBar embedded><template #search><UInput icon="i-lucide-search" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" /></template></FilterBar></template>
     <DataTable bare :rows="rows" :columns="columns" row-key="id" :row-to="rowTo" :caption="t('projects.title')" :empty-text="t('projects.empty')">
       <template #footer><span class="tabular-nums">{{ rows.length }} / 128</span><UButton color="neutral" variant="outline" size="sm">{{ t('app.loadMore') }}</UButton></template>

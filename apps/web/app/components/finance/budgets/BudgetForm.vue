@@ -56,7 +56,7 @@ async function submit() {
         <UFormField :label="t('financeBudgets.form.description')" name="finance-budget-description">
           <UTextarea id="finance-budget-description" v-model="draft.description" class="w-full" :rows="3" maxlength="255" :disabled="!hydrated || pending" />
         </UFormField>
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="liwan-auto-grid gap-4">
           <UFormField :label="t('financeBudgets.form.dateFrom')" name="finance-budget-from" required :error="shown?.dateFrom ? t('financeBudgets.form.dateRequired') : undefined">
             <SharedDateField id="finance-budget-from" v-model="draft.dateFrom" :max-value="draft.dateTo" :disabled="!hydrated || pending" />
           </UFormField>

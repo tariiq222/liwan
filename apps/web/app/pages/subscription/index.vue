@@ -49,7 +49,7 @@ async function setAutoRenew(enabled: boolean) {
 definePageMeta({ middleware: 'customer-commercial' })
 </script>
 <template>
-  <SharedSettingsPage width="detail">
+  <SharedSettingsPage>
     <SharedPageHeader :title="t('subscription.title')">
       <template #actions><UButton v-if="can('subscription.manage')" to="/subscription/change" icon="i-lucide-repeat" :disabled="!hydrated">{{ t('subscription.summary.change') }}</UButton></template>
     </SharedPageHeader>

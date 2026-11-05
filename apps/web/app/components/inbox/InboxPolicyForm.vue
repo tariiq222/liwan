@@ -53,12 +53,12 @@ function submit() {
   <SharedFormSection id="policy" panel class="liwan-settings-anchor" :title="t('inbox.settings.policy.title')" :description="t('inbox.settings.policy.hint')">
     <SharedLoadingSkeleton v-if="isLoading" />
     <SharedPageState v-else-if="error" :error="error" @retry="refetch()" />
-    <form v-else class="flex flex-col gap-5" novalidate @submit.prevent="submit">
+    <form v-else class="liwan-form" novalidate @submit.prevent="submit">
       <SharedUnsavedChanges :dirty="dirty" />
       <UFormField :label="t('inbox.settings.policy.visibilityLabel')" :description="t('inbox.settings.policy.visibilityDescription')">
         <URadioGroup v-model="visibility" :items="policyItems" :disabled="!hydrated || isPending" data-testid="inbox-visibility" />
       </UFormField>
-      <div class="grid gap-4 sm:grid-cols-2">
+      <div class="liwan-auto-grid gap-4">
         <UFormField :label="t('inbox.settings.policy.autoClose')" :description="t('inbox.settings.policy.autoCloseHint')">
           <UInputNumber v-model="autoClose" class="w-full" :min="0" :max="720" :disabled="!hydrated || isPending" data-testid="inbox-auto-close" />
         </UFormField>

@@ -136,13 +136,13 @@ async function submit() {
     <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" data-testid="finance-bank-import-error" />
 
     <SharedFormSection panel :title="t('financeBank.import.fileSection')">
-      <div class="grid gap-4 sm:grid-cols-2">
-        <UFormField :label="t('financeBank.form.journal')" name="finance-bank-import-journal" required class="sm:col-span-2">
+      <div class="liwan-auto-grid gap-4">
+        <UFormField :label="t('financeBank.form.journal')" name="finance-bank-import-journal" required class="liwan-span-full">
           <SharedPageState :loading="journals.isLoading.value" :error="journals.error.value" :empty="!journals.isLoading.value && !journalItems.length" :empty-text="t('financeBank.form.noJournals')" @retry="journals.refetch">
             <USelect id="finance-bank-import-journal" :model-value="draft.journalId ?? undefined" :items="journalItems" class="w-full" :disabled="!hydrated || pending" @update:model-value="value => { draft.journalId = Number(value); reset() }" />
           </SharedPageState>
         </UFormField>
-        <UFormField :label="t('financeBank.import.file')" name="finance-bank-import-file" required :hint="t('financeBank.import.fileHint')" class="sm:col-span-2">
+        <UFormField :label="t('financeBank.import.file')" name="finance-bank-import-file" required :hint="t('financeBank.import.fileHint')" class="liwan-span-full">
           <input id="finance-bank-import-file" type="file" accept=".csv,.txt,.ofx,.qfx,.xml,.camt,text/csv" class="block w-full text-sm" :disabled="!hydrated || pending" data-testid="finance-bank-import-file" @change="chooseFile">
         </UFormField>
         <template v-if="!statementFile">
@@ -159,7 +159,7 @@ async function submit() {
             <UCheckbox v-model="draft.hasHeader" :label="t('financeBank.import.hasHeader')" :disabled="!hydrated || pending" @update:model-value="reset" />
           </UFormField>
         </template>
-        <div class="sm:col-span-2">
+        <div class="liwan-span-full">
           <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated || !draft.content || !draft.journalId" :loading="readCall.isPending.value" :label="t('financeBank.import.readFile')" data-testid="finance-bank-import-read" @click="readFile" />
           <p v-if="draft.format" class="mt-2 text-sm text-muted" data-testid="finance-bank-import-format">{{ t('financeBank.import.detected', { format: t(`financeBank.import.formats.${draft.format}`) }) }}</p>
         </div>
@@ -167,13 +167,13 @@ async function submit() {
     </SharedFormSection>
 
     <SharedFormSection v-if="columns" panel :title="t('financeBank.import.mappingSection')">
-      <div class="grid gap-4 sm:grid-cols-2">
-        <p class="text-sm text-muted sm:col-span-2">{{ t('financeBank.import.rowCount', { count: columns.row_count }, columns.row_count) }}</p>
+      <div class="liwan-auto-grid gap-4">
+        <p class="text-sm text-muted liwan-span-full">{{ t('financeBank.import.rowCount', { count: columns.row_count }, columns.row_count) }}</p>
         <UFormField v-for="field in IMPORT_MAPPING_FIELDS" :key="field" :label="t(`financeBank.import.fields.${field}`)" :name="`finance-bank-import-map-${field}`" :required="field === 'date' || field === 'payment_ref'">
           <USelect :id="`finance-bank-import-map-${field}`" v-model="draft.mapping[field]" :items="columnItems" class="w-full" :disabled="!hydrated || pending" @update:model-value="preview = null" />
         </UFormField>
-        <p v-if="!mappingReady" class="text-sm text-muted sm:col-span-2">{{ t('financeBank.import.mappingHint') }}</p>
-        <div class="sm:col-span-2">
+        <p v-if="!mappingReady" class="text-sm text-muted liwan-span-full">{{ t('financeBank.import.mappingHint') }}</p>
+        <div class="liwan-span-full">
           <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated || !mappingReady" :loading="previewCall.isPending.value" :label="t('financeBank.import.previewAction')" data-testid="finance-bank-import-preview" @click="runPreview" />
         </div>
       </div>
@@ -212,11 +212,11 @@ async function submit() {
     </SharedFormSection>
 
     <SharedFormSection v-if="preview" panel :title="t('financeBank.form.balances')">
-      <div class="grid gap-4 sm:grid-cols-2">
-        <UFormField :label="t('financeBank.form.name')" name="finance-bank-import-name" class="sm:col-span-2"><UInput id="finance-bank-import-name" v-model="draft.name" class="w-full" maxlength="120" :disabled="!hydrated || pending" /></UFormField>
+      <div class="liwan-auto-grid gap-4">
+        <UFormField :label="t('financeBank.form.name')" name="finance-bank-import-name" class="liwan-span-full"><UInput id="finance-bank-import-name" v-model="draft.name" class="w-full" maxlength="120" :disabled="!hydrated || pending" /></UFormField>
         <UFormField :label="t('financeBank.form.balanceStart')" name="finance-bank-import-start" required><UInput id="finance-bank-import-start" v-model="draft.balanceStart" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" /></UFormField>
         <UFormField :label="t('financeBank.form.balanceEndReal')" name="finance-bank-import-end" required><UInput id="finance-bank-import-end" v-model="draft.balanceEnd" inputmode="decimal" class="w-full tabular-nums" :disabled="!hydrated || pending" /></UFormField>
-        <p v-if="expected !== null && draft.balanceEnd.trim() !== '' && !matches" class="text-sm text-warning sm:col-span-2" role="alert" data-testid="finance-bank-import-mismatch">
+        <p v-if="expected !== null && draft.balanceEnd.trim() !== '' && !matches" class="text-sm text-warning liwan-span-full" role="alert" data-testid="finance-bank-import-mismatch">
           {{ t('financeBank.import.mismatch', { expected: formatAmount(expected) }) }}
         </p>
       </div>

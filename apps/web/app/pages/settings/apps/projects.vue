@@ -19,7 +19,7 @@ const catalogs = computed(() => [
 </script>
 
 <template>
-  <SharedSettingsPage v-if="isBaseRoute" width="form">
+  <SharedSettingsPage v-if="isBaseRoute">
     <SharedPageHeader :title="t('nav.projects')" />
     <SharedForbiddenState v-if="!parts.length" :description="t('settings.forbidden')" />
     <template v-else>

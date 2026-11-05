@@ -127,7 +127,7 @@ async function submit() {
           <UFormField :label="t('hr.leave.allocation.days')" name="hr-allocation-days" required :error="daysError">
             <UInputNumber id="hr-allocation-days" v-model="days" class="w-full" :min="0.5" :step="0.5" :disabled="!hydrated || isPending" data-testid="hr-allocation-days" />
           </UFormField>
-          <div class="grid gap-4 sm:grid-cols-2">
+          <div class="liwan-auto-grid gap-4">
             <UFormField :label="t('hr.leave.allocation.validFrom')" name="hr-allocation-from" required :error="fromError">
               <SharedDateField id="hr-allocation-from" v-model="dateFrom" :disabled="!hydrated || isPending" />
             </UFormField>

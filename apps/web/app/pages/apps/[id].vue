@@ -12,7 +12,7 @@ const { rows: attention } = useAttention(() => (start.value.kind === 'ready' ? i
 </script>
 
 <template>
-  <SharedPageContainer width="list" data-testid="app-start-page">
+  <SharedPageContainer data-testid="app-start-page">
     <template v-if="start.kind === 'ready'">
       <SharedPageHeader :title="t(start.labelKey)" :icon="start.icon" back-to="/apps" :back-label="t('nav.apps')">
         <template #actions><UButton :to="start.openTo" color="primary" class="rounded-full" :label="t('appStart.open')" data-testid="app-start-open" /></template>

@@ -289,8 +289,8 @@ function setHistoryPage(page: number) {
       <form v-if="addingOccurrence && canAddOccurrence" ref="occurrenceForm" novalidate data-testid="meeting-occurrence-form" @submit.prevent="submitOccurrence">
         <SharedUnsavedChanges :dirty="occurrenceDirty" />
         <SharedFormSection panel :title="t('meetingsUx.occurrence.title')" :description="t('meetingsUx.occurrence.hint')">
-          <div class="liwan-form-grid">
-            <UFormField class="sm:col-span-2" :label="t('meetingsUx.occurrence.name')" name="name" :error="occurrenceServerErrors.name">
+          <div class="liwan-auto-grid">
+            <UFormField class="liwan-span-full" :label="t('meetingsUx.occurrence.name')" name="name" :error="occurrenceServerErrors.name">
               <UInput id="occurrence-name" v-model="occurrenceName" class="w-full" :disabled="!hydrated || addOccurrence.isPending.value" />
             </UFormField>
             <UFormField :label="t('meetingsUi.date')" name="date" :error="occurrenceVisibleErrors.date ? t(`meetingsUx.errors.${occurrenceVisibleErrors.date}`) : undefined">
@@ -400,7 +400,7 @@ function setHistoryPage(page: number) {
 
       <section v-else class="grid gap-(--liwan-gap-card)" data-testid="meeting-series-details">
         <SharedRecordSection variant="panel" :title="t('meetingsUi.series')">
-          <dl class="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+          <dl class="liwan-auto-grid gap-x-6 gap-y-4">
             <div class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUi.organizer') }}</dt><dd class="text-highlighted">{{ query.data.value.organizer?.name || '—' }}</dd></div>
             <div class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUi.recurrenceLabel') }}</dt><dd class="text-highlighted">{{ t(`meetingsUi.recurrence.${query.data.value.recurrence}`) }}</dd></div>
             <div v-if="query.data.value.meeting_url" class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUi.url') }}</dt><dd><UButton color="primary" variant="link" class="p-0 break-all whitespace-normal text-start" :to="query.data.value.meeting_url" external target="_blank" rel="noopener" dir="ltr">{{ query.data.value.meeting_url }}</UButton></dd></div>

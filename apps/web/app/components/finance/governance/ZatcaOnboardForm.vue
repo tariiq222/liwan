@@ -34,7 +34,7 @@ async function submitOnboarding() {
 </script>
 
 <template>
-  <form class="grid gap-3 pb-3" :data-testid="`finance-zatca-form-${journal.id}`" @submit.prevent="review">
+  <form class="liwan-form pb-3" :data-testid="`finance-zatca-form-${journal.id}`" @submit.prevent="review">
     <UFormField :label="t('financeGovernance.zatca.otp.label')" :help="t('financeGovernance.zatca.otp.help')" :name="fieldId">
       <UInput :id="fieldId" :model-value="otp" class="w-full md:w-56" dir="ltr" inputmode="numeric" autocomplete="off" :maxlength="OTP_LENGTH" :placeholder="'0'.repeat(OTP_LENGTH)" :disabled="!hydrated || isPending || confirming" @update:model-value="otp = otpDigits(String($event))" />
     </UFormField>

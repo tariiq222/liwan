@@ -34,7 +34,7 @@ const meta = {
   render: args => ({
     components: { CompensationForm, PageContainer },
     setup: () => ({ args }),
-    template: '<PageContainer width="form"><CompensationForm v-bind="args" /></PageContainer>',
+    template: '<PageContainer><CompensationForm v-bind="args" /></PageContainer>',
   }),
 } satisfies Meta<typeof CompensationForm>
 

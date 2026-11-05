@@ -121,7 +121,7 @@ watch(() => props.task.can_write, (canWrite) => {
       </div>
     </div>
 
-    <form v-else class="grid gap-3" data-testid="task-description-editor" @submit.prevent="save">
+    <form v-else class="liwan-form" data-testid="task-description-editor" @submit.prevent="save">
       <DescriptionEditor
         :model-value="editorInitialHtml"
         :task-id="editTaskId!"

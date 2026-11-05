@@ -29,7 +29,7 @@ async function reloadSettings() {
 </script>
 
 <template>
-  <SharedSettingsPage width="form">
+  <SharedSettingsPage>
     <SharedPageHeader :title="t('nav.crm')" />
     <SharedForbiddenState v-if="!parts.length" :description="t('errors.forbidden')" />
     <template v-else>

@@ -76,7 +76,7 @@ async function submit() {
             data-testid="hr-asset-name"
           />
         </UFormField>
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="liwan-auto-grid gap-4">
           <UFormField :label="t('hrAssets.columns.category')" name="hr-asset-category">
             <USelect
               id="hr-asset-category"
@@ -93,7 +93,7 @@ async function submit() {
             <UInput id="hr-asset-serial" v-model="serialNo" class="w-full" :disabled="!hydrated || isPending" data-testid="hr-asset-serial" />
           </UFormField>
         </div>
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="liwan-auto-grid gap-4">
           <UFormField :label="t('hrAssets.form.model')" name="hr-asset-model">
             <UInput id="hr-asset-model" v-model="model" class="w-full" :disabled="!hydrated || isPending" data-testid="hr-asset-model" />
           </UFormField>

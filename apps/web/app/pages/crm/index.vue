@@ -20,7 +20,7 @@ const managerTiles = computed(() => (dashboard.data.value?.manager ? managerKpiT
 </script>
 
 <template>
-  <SharedPageContainer width="list">
+  <SharedPageContainer>
     <SharedPageHeader :title="t('crm.nav.dashboard')" kpi-toggle />
     <SharedForbiddenState v-if="!can('crm.leads.read')" />
     <SharedPageState v-else :loading="dashboard.isLoading.value" :error="dashboard.data.value ? null : dashboard.error.value" :empty="!dashboard.data.value" @retry="dashboard.refetch()">

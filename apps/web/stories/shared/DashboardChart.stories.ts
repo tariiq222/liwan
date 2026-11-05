@@ -27,7 +27,7 @@ export const FinanceComparison: Story = {
       const { t } = useI18n()
       return { chart: computed(() => dashboardCharts(t).finance), t }
     },
-    template: `<main class="liwan-shell-main"><PageContainer width="list"><div class="min-w-0" style="container-type: inline-size"><div class="min-w-0" style="display: grid; gap: 1.25rem; grid-template-columns: repeat(2, minmax(0, 1fr))"><UCard class="min-w-0 overflow-hidden" style="grid-column: span 2"><template #header><h2 class="text-lg font-semibold leading-6 text-highlighted">{{ t('projects.dashboard.charts.financeTitle') }}</h2></template><div class="min-w-0"><DashboardChart :chart="chart" :accessible-label="t('projects.dashboard.charts.financeTitle')" height="360px" /></div></UCard></div></div></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer><div class="min-w-0" style="container-type: inline-size"><div class="min-w-0" style="display: grid; gap: 1.25rem; grid-template-columns: repeat(2, minmax(0, 1fr))"><UCard class="min-w-0 overflow-hidden" style="grid-column: span 2"><template #header><h2 class="text-lg font-semibold leading-6 text-highlighted">{{ t('projects.dashboard.charts.financeTitle') }}</h2></template><div class="min-w-0"><DashboardChart :chart="chart" :accessible-label="t('projects.dashboard.charts.financeTitle')" height="360px" /></div></UCard></div></div></PageContainer></main>`,
   }),
 }
 
@@ -48,7 +48,7 @@ export const LineWithMarkers: Story = {
   parameters: storyContext('apps/web/app/pages/projects/[id]/evm.vue:48', 'منحنى القيمة المخططة من خط الأساس على محور زمني، مع نقطتين لليوم هما القيمة المكتسبة والتكلفة الفعلية. صندوق الرسم LTR دائمًا والمفتاح تحته يتبع اتجاه الصفحة.'),
   render: () => ({
     components: { DashboardChart, PageContainer },
-    template: `<main class="liwan-shell-main"><PageContainer width="list"><UCard class="min-w-0 overflow-hidden"><DashboardChart :chart="chart" accessible-label="مخطط القيمة المخططة" height="300px" /></UCard></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer><UCard class="min-w-0 overflow-hidden"><DashboardChart :chart="chart" accessible-label="مخطط القيمة المخططة" height="300px" /></UCard></PageContainer></main>`,
     setup: () => ({ chart: plannedCurve }),
   }),
 }

@@ -12,7 +12,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 export const Default: Story = {
   parameters: storyContext('apps/web/app/pages/documents.vue:241'),
-  render: args => ({ components: { DocumentList, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer width="form"><DocumentList v-bind="args" /></PageContainer></main>' }),
+  render: args => ({ components: { DocumentList, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer><DocumentList v-bind="args" /></PageContainer></main>' }),
 }
 
 export const Personal: Story = { ...Default, args: { recordBase: '/account/documents', returnTo: '/account/documents?offset=25' }, parameters: storyContext('apps/web/app/pages/documents/self/index.vue:42') }

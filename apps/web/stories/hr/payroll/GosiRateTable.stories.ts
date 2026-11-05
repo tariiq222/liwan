@@ -22,7 +22,7 @@ const meta = {
   render: args => ({
     components: { GosiRateTable, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="liwan-shell-main"><PageContainer width="list"><GosiRateTable v-bind="args" /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer><GosiRateTable v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof GosiRateTable>
 

@@ -121,7 +121,7 @@ async function submit() {
             @update:model-value="pickSchedule"
           />
         </UFormField>
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="liwan-auto-grid gap-4">
           <UFormField :label="t('hrShifts.form.dateStart')" name="hr-shift-assignment-start" :error="fieldError('date_start')" :help="t(props.assignment ? 'hrShifts.form.openStartHint' : 'hrShifts.form.startHint')">
             <SharedDateField
               id="hr-shift-assignment-start"

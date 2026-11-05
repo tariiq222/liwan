@@ -45,11 +45,11 @@ async function submit() {
 </script>
 
 <template>
-  <UForm novalidate :state="draft" class="grid gap-4 border-t border-default p-(--liwan-card-pad)" method="post" data-testid="finance-budget-distribute-form" @submit="submit">
+  <UForm novalidate :state="draft" class="liwan-form border-t border-default p-(--liwan-card-pad)" method="post" data-testid="finance-budget-distribute-form" @submit="submit">
     <h3 class="text-sm font-semibold text-highlighted">{{ t('financeBudgets.distribute.title') }}</h3>
     <p class="text-sm text-muted">{{ t('financeBudgets.distribute.hint') }}</p>
     <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" data-testid="finance-budget-distribute-error" />
-    <div class="grid gap-4 sm:grid-cols-2">
+    <div class="liwan-auto-grid gap-4">
       <UFormField :label="t('financeBudgets.lines.account')" name="finance-budget-distribute-account" required :error="shown?.account ? t('financeBudgets.lines.accountRequired') : undefined">
         <AccountPicker v-model="draft.accountId" :disabled="pending" :invalid="!!shown?.account" :aria-label="t('financeBudgets.lines.account')" />
       </UFormField>
@@ -62,7 +62,7 @@ async function submit() {
       <UFormField :label="t('financeBudgets.form.dateTo')" name="finance-budget-distribute-to" :error="shown?.order ? t('financeBudgets.form.periodOrder') : undefined">
         <SharedDateField id="finance-budget-distribute-to" v-model="draft.dateTo" :min-value="draft.dateFrom ?? budget.date_from" :max-value="budget.date_to" :disabled="!hydrated || pending" />
       </UFormField>
-      <UFormField :label="t('financeBudgets.lines.label')" name="finance-budget-distribute-label" class="sm:col-span-2">
+      <UFormField :label="t('financeBudgets.lines.label')" name="finance-budget-distribute-label" class="liwan-span-full">
         <UInput id="finance-budget-distribute-label" v-model="draft.label" class="w-full" maxlength="255" :disabled="!hydrated || pending" />
       </UFormField>
     </div>

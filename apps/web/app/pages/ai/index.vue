@@ -163,7 +163,7 @@ watch(status, (now, before) => {
 </script>
 
 <template>
-  <SharedPageContainer width="full" data-template="ai-conversation">
+  <SharedPageContainer data-template="ai-conversation">
     <h1 class="sr-only">{{ t('ai.title') }}</h1>
     <AiRunList v-if="!showUnavailable && !isDesktop" disclosure />
     <SharedListCard fill class="max-md:h-[75svh]">
@@ -188,7 +188,7 @@ watch(status, (now, before) => {
             <AiComposer :disabled="composerDisabled" :pending="streaming" @send="onSend" />
             <section v-if="attentionRows.length" :aria-label="t('ai.glance.title')" class="flex flex-col gap-3" data-testid="ai-glance">
               <h3 class="text-sm font-semibold text-highlighted">{{ t('ai.glance.title') }}</h3>
-              <ul class="grid gap-3 sm:grid-cols-3">
+              <ul class="liwan-auto-grid gap-3">
                 <li v-for="row in attentionRows" :key="row.id">
                   <NuxtLink :to="row.to" class="flex h-full flex-col gap-1 rounded-control bg-default p-3 ring ring-default hover:bg-elevated focus-visible:ring-2 focus-visible:ring-primary" data-testid="ai-glance-tile">
                     <span class="flex items-center gap-2 text-sm font-medium text-highlighted">

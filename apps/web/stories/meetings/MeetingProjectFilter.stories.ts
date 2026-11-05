@@ -21,7 +21,7 @@ export const InFormField: Story = {
   render: args => ({
     components: { FormSection, MeetingProjectFilter, PageContainer },
     setup: () => ({ args, t: useI18n().t, projectId: ref(args.modelValue) }),
-    template: `<main class="liwan-shell-main"><PageContainer width="form"><FormSection><div class="liwan-form-grid"><UFormField class="sm:col-span-2" :label="t('meetingMinutesForm.project')" name="project"><MeetingProjectFilter id="res-project" hide-label v-model="projectId" :disabled="args.disabled" /></UFormField></div></FormSection></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer><FormSection><div class="liwan-auto-grid"><UFormField class="sm:col-span-2" :label="t('meetingMinutesForm.project')" name="project"><MeetingProjectFilter id="res-project" hide-label v-model="projectId" :disabled="args.disabled" /></UFormField></div></FormSection></PageContainer></main>`,
   }),
 }
 
@@ -32,6 +32,6 @@ export const WithLabel: Story = {
   render: args => ({
     components: { MeetingProjectFilter, PageContainer },
     setup: () => ({ args, t: useI18n().t, projectId: ref(args.modelValue) }),
-    template: `<main class="liwan-shell-main"><PageContainer width="list"><div><MeetingProjectFilter id="meeting-series-project" :label="t('meetingsFilters.project')" v-model="projectId" /></div></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer><div><MeetingProjectFilter id="meeting-series-project" :label="t('meetingsFilters.project')" v-model="projectId" /></div></PageContainer></main>`,
   }),
 }

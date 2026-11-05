@@ -13,7 +13,7 @@ const signedMoney = (value: number) => isolateLtr(`${value > 0 ? '+' : '−'}${m
 </script>
 
 <template>
-  <div v-if="variance.baseline && schedule && cost" class="grid gap-(--liwan-gap-card) md:grid-cols-2" data-testid="baseline-variance-summary">
+  <div v-if="variance.baseline && schedule && cost" class="liwan-card-grid" data-testid="baseline-variance-summary">
     <SharedRecordSection variant="panel" :title="t('projects.baselines.variance.scheduleTitle', { number: variance.baseline.number })">
       <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('projects.baselines.variance.endDate')">

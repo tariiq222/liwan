@@ -49,7 +49,7 @@ function submitPayment() {
     @cancel="emit('cancel')"
   >
     <p v-if="props.journals.length === 0" class="mt-2 text-sm" data-testid="hr-payroll-payment-no-journals">{{ t('hrPayroll.finance.payment.noJournals') }}</p>
-    <div v-else class="liwan-form-grid mt-3">
+    <div v-else class="liwan-auto-grid mt-3">
       <UFormField :label="t('hrPayroll.finance.payment.journal')" name="hr-payroll-payment-journal" required :error="fieldError('journal_id')">
         <USelect id="hr-payroll-payment-journal" v-model="journal" class="w-full" :items="items" :placeholder="t('hrPayroll.finance.payment.journalPlaceholder')" :disabled="props.pending" data-testid="hr-payroll-payment-journal" />
       </UFormField>

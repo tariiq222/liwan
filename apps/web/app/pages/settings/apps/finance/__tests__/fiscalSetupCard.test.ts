@@ -16,7 +16,7 @@ const RULES = 'app/composables/finance/financeFiscalSetup.ts'
 describe('the fiscal card is an inline card in the existing page', () => {
   it('keeps the settings page, its section anchor and the card', () => {
     const page = read(PAGE)
-    for (const needle of ['<SharedSettingsPage width="form"', '<SharedPageHeader', 'id="setup"', '<FiscalSetupCard']) {
+    for (const needle of ['<SharedSettingsPage', '<SharedPageHeader', 'id="setup"', '<FiscalSetupCard']) {
       expect(page, needle).toContain(needle)
     }
     const card = read(CARD)

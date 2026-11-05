@@ -108,10 +108,10 @@ const legs = computed(() => result.value
     </UAlert>
     <SharedFormSection panel :title="t('financeDocuments.payments.transfer.accounts')" :description="t('financeDocuments.payments.transfer.accountsHint')">
       <SharedPageState :loading="journals.isLoading.value" :error="journals.error.value" :empty="tooFewJournals" :empty-text="t('financeDocuments.payments.transfer.fewJournals')" @retry="journals.refetch">
-        <div class="grid gap-4 sm:grid-cols-2">
-          <UFormField :label="t('financeDocuments.payments.transfer.from')" name="finance-transfer-from" required :error="shown.fromJournalId ? t('financeDocuments.payments.form.journalRequired') : undefined">
-            <USelect id="finance-transfer-from" :model-value="draft.fromJournalId ?? undefined" :items="journalItems" class="w-full" :placeholder="t('financeDocuments.payments.transfer.choose')" :disabled="locked" @update:model-value="value => { draft.fromJournalId = Number(value) }" />
-          </UFormField>
+      <div class="liwan-auto-grid gap-4">
+        <UFormField :label="t('financeDocuments.payments.transfer.from')" name="finance-transfer-from" required :error="shown.fromJournalId ? t('financeDocuments.payments.form.journalRequired') : undefined">
+          <USelect id="finance-transfer-from" :model-value="draft.fromJournalId ?? undefined" :items="journalItems" class="w-full" :placeholder="t('financeDocuments.payments.transfer.choose')" :disabled="locked" @update:model-value="value => { draft.fromJournalId = Number(value) }" />
+        </UFormField>
           <UFormField :label="t('financeDocuments.payments.transfer.to')" name="finance-transfer-to" required :error="shown.toJournalId ? t(shown.toJournalId === 'same' ? 'financeDocuments.payments.transfer.sameJournal' : 'financeDocuments.payments.form.journalRequired') : undefined">
             <USelect id="finance-transfer-to" :model-value="draft.toJournalId ?? undefined" :items="journalItems" class="w-full" :placeholder="t('financeDocuments.payments.transfer.choose')" :disabled="locked" @update:model-value="value => { draft.toJournalId = Number(value) }" />
           </UFormField>
@@ -121,7 +121,7 @@ const legs = computed(() => result.value
 
     <SharedFormSection panel :title="t('financeDocuments.payments.transfer.details')">
       <div class="grid gap-4">
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="liwan-auto-grid gap-4">
           <UFormField :label="t('financeDocuments.payments.amount')" name="finance-transfer-amount" required :error="shown.amount ? t('financeDocuments.payments.form.amountRequired') : undefined">
             <UInput id="finance-transfer-amount" v-model="draft.amount" inputmode="decimal" class="w-full tabular-nums" :disabled="locked" />
           </UFormField>

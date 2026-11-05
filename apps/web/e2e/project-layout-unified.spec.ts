@@ -44,7 +44,7 @@ for (const width of [1440, 1024]) {
       await ready(page)
       // The workspace frame (title row + tabs) and every container under it share one column.
       const frame = page.getByTestId('project-workspace-frame')
-      await expect(frame).toHaveAttribute('data-layout-width', 'list')
+      await expect(frame).toBeVisible()
       const frameBox = (await frame.boundingBox())!
       baseline ??= frameBox
       expect(Math.abs(frameBox.x - baseline.x), name).toBeLessThanOrEqual(1)

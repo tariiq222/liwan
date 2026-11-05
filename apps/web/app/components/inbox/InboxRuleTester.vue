@@ -31,8 +31,8 @@ function submit() {
 
 <template>
   <SharedRecordSection variant="panel" :title="t('inbox.automation.test.title')" :description="t('inbox.automation.test.hint')">
-    <form class="flex flex-col gap-3" novalidate data-testid="inbox-rule-test" @submit.prevent="submit">
-      <div class="grid gap-3 sm:grid-cols-2">
+    <form class="liwan-form" novalidate data-testid="inbox-rule-test" @submit.prevent="submit">
+      <div class="liwan-auto-grid gap-3">
         <UFormField :label="t('inbox.automation.test.channel')">
           <USelect :model-value="selected === null ? undefined : String(selected)" :items="channelItems" class="w-full" :disabled="!hydrated" @update:model-value="channelId = Number($event); flowId = null" />
         </UFormField>

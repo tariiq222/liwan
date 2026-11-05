@@ -58,7 +58,7 @@ function submit() {
 
 <template>
   <SharedRecordSection variant="panel" :title="t('crm.opportunities.call.title')">
-    <UForm novalidate :state="{}" class="grid gap-4" data-testid="crm-call-form" @submit="submit">
+    <UForm novalidate :state="{}" class="liwan-form" data-testid="crm-call-form" @submit="submit">
       <UFormField :label="t('crm.opportunities.call.outcome')" name="call-outcome" required :error="attempted && !outcome ? t('crm.opportunities.call.outcomeRequired') : undefined">
         <USelect id="call-outcome" v-model="outcomeId" class="w-full" :items="outcomes.map(item => ({ value: item.id, label: item.name }))" :placeholder="t('crm.opportunities.call.outcomePlaceholder')" :disabled="locked" />
       </UFormField>

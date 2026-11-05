@@ -195,7 +195,7 @@ const allocationsTo = { path: '/hr/leave/allocations' }
         <!-- Hiding the figures hides the tiles only: a failed balance load still shows its error and retry. -->
         <SharedPageState :loading="kpisShown && balances.isLoading.value" :error="balances.error.value" @retry="balances.refetch">
           <template v-if="kpisShown">
-            <div v-if="balanceItems.length" class="grid gap-(--liwan-gap-card) sm:grid-cols-2 xl:grid-cols-3">
+            <div v-if="balanceItems.length" class="liwan-card-grid">
               <SharedMetricTile
                 v-for="balance in balanceItems"
                 :key="balance.leave_type.id"

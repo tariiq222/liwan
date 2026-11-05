@@ -73,14 +73,14 @@ async function submit() {
   <UForm novalidate :state="draft" class="liwan-form" method="post" data-testid="finance-standalone-payment-form" @submit="submit">
     <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" data-testid="finance-standalone-payment-error" />
     <SharedFormSection panel :title="t('financeDocuments.payments.standalone.party')">
-      <div class="grid gap-4 sm:grid-cols-2">
+      <div class="liwan-auto-grid gap-4">
         <UFormField :label="t('financeDocuments.payments.type')" name="finance-standalone-type" required>
           <USelect id="finance-standalone-type" class="w-full" :model-value="draft.paymentType" :items="typeItems" :disabled="!hydrated || pending" @update:model-value="chooseType" />
         </UFormField>
         <UFormField :label="t('financeDocuments.payments.standalone.partnerType')" name="finance-standalone-partner-type" required>
           <USelect id="finance-standalone-partner-type" class="w-full" :model-value="draft.partnerType" :items="partnerTypeItems" :disabled="!hydrated || pending" @update:model-value="chooseParty" />
         </UFormField>
-        <UFormField class="sm:col-span-2" :label="t('financeDocuments.payments.partner')" name="finance-standalone-partner" required :error="shown.partnerId ? t('financeDocuments.payments.standalone.partnerRequired') : undefined">
+        <UFormField class="liwan-span-full" :label="t('financeDocuments.payments.partner')" name="finance-standalone-partner" required :error="shown.partnerId ? t('financeDocuments.payments.standalone.partnerRequired') : undefined">
           <PartnerPicker id="finance-standalone-partner" :model-value="draft.partnerId" :kind="draft.partnerType === 'customer' ? 'customer' : 'vendor'" :disabled="!hydrated || pending" :invalid="!!shown.partnerId" @update:model-value="value => { draft.partnerId = value }" />
         </UFormField>
       </div>
@@ -88,7 +88,7 @@ async function submit() {
 
     <SharedFormSection panel :title="t('financeDocuments.payments.form.payment')">
       <div class="grid gap-4">
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="liwan-auto-grid gap-4">
           <UFormField :label="t('financeDocuments.payments.amount')" name="finance-standalone-amount" required :error="shown.amount ? t('financeDocuments.payments.form.amountRequired') : undefined">
             <UInput id="finance-standalone-amount" inputmode="decimal" class="w-full tabular-nums" v-model="draft.amount" :disabled="!hydrated || pending" />
           </UFormField>

@@ -28,7 +28,7 @@ export const WithActions: Story = {
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
-    template: `<main class="liwan-shell-main"><PageContainer width="list"><PageHeader :title="t('tasks.title')"><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton><UButton color="neutral" variant="outline">{{ t('taskLifecycle.archivedTasks') }}</UButton></template></PageHeader></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer><PageHeader :title="t('tasks.title')"><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton><UButton color="neutral" variant="outline">{{ t('taskLifecycle.archivedTasks') }}</UButton></template></PageHeader></PageContainer></main>`,
   }),
 }
 
@@ -38,7 +38,7 @@ export const WithKpiToggle: Story = {
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
-    template: `<main class="liwan-shell-main"><PageContainer width="list"><PageHeader :title="t('tasks.title')" kpi-toggle><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton></template></PageHeader></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer><PageHeader :title="t('tasks.title')" kpi-toggle><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton></template></PageHeader></PageContainer></main>`,
   }),
 }
 
@@ -46,21 +46,21 @@ export const WithKpiToggle: Story = {
 // page passes nothing; a title alone is the smallest header.
 export const TitleOnly: Story = {
   name: 'عنوان فقط',
-  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:38', 'أصغر ترويسة: بطاقة مدمجة بأيقونة التطبيق من الغلاف وعنوان واحد، بلا وصف ولا وسوم ولا إجراءات.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:40', 'أصغر ترويسة: بطاقة مدمجة بأيقونة التطبيق من الغلاف وعنوان واحد، بلا وصف ولا وسوم ولا إجراءات.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => {
       providePageApp({ icon: 'i-lucide-folder-kanban' })
       return { t: useI18n().t }
     },
-    template: `<main class="liwan-shell-main"><PageContainer width="list"><PageHeader :title="t('projects.title')" /></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer><PageHeader :title="t('projects.title')" /></PageContainer></main>`,
   }),
 }
 
 // Tags are short facts about the page's subject (state, count, owner) drawn inline after the title; a tag with `to` is a link.
 export const WithTags: Story = {
   name: 'وسوم بعد العنوان',
-  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:38', 'الوسوم: حالة السجل وعدد القائمة وصاحبه تظهر بعد العنوان في السطر نفسه كشارات ناعمة، والوسم الذي له `to` رابط.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:40', 'الوسوم: حالة السجل وعدد القائمة وصاحبه تظهر بعد العنوان في السطر نفسه كشارات ناعمة، والوسم الذي له `to` رابط.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => {
@@ -72,7 +72,7 @@ export const WithTags: Story = {
       ]
       return { t, tags }
     },
-    template: `<main class="liwan-shell-main"><PageContainer width="list"><PageHeader :title="t('tasks.title')" :tags="tags"><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton><UButton color="neutral" variant="outline">{{ t('taskLifecycle.archivedTasks') }}</UButton></template></PageHeader></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer><PageHeader :title="t('tasks.title')" :tags="tags"><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton><UButton color="neutral" variant="outline">{{ t('taskLifecycle.archivedTasks') }}</UButton></template></PageHeader></PageContainer></main>`,
   }),
 }
 
@@ -80,11 +80,11 @@ export const WithTags: Story = {
 // shell's published ancestors come before it. A step that only links back to this same page is dropped.
 export const WithBack: Story = {
   name: 'مسار تحت العنوان',
-  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:38'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:40'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
-    template: `<main class="liwan-shell-main"><PageContainer width="form"><PageHeader :title="t('app.search')" back-to="/tasks" /></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer><PageHeader :title="t('app.search')" back-to="/tasks" /></PageContainer></main>`,
   }),
 }
 
@@ -104,7 +104,7 @@ export const TrailUnderTitle: Story = {
       ])
       return { t }
     },
-    template: `<main class="liwan-shell-main"><PageContainer width="list"><PageHeader :title="t('nav.reports')"><template #actions><UButton icon="i-lucide-plus">{{ t('projects.new') }}</UButton></template></PageHeader><div class="rounded-card bg-default p-6 text-sm text-muted ring ring-default">{{ t('app.noResults') }}</div></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer><PageHeader :title="t('nav.reports')"><template #actions><UButton icon="i-lucide-plus">{{ t('projects.new') }}</UButton></template></PageHeader><div class="rounded-card bg-default p-6 text-sm text-muted ring ring-default">{{ t('app.noResults') }}</div></PageContainer></main>`,
   }),
 }
 
@@ -114,7 +114,7 @@ export const TitleAndDescription: Story = {
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
-    template: `<main class="liwan-shell-main"><PageContainer width="form"><PageHeader :title="t('account.title')" /></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer><PageHeader :title="t('account.title')" /></PageContainer></main>`,
   }),
 }
 
@@ -149,7 +149,7 @@ export const UnifiedHeaderWithFilters: Story = {
     },
     template: `
       <main class="liwan-shell-main">
-        <PageContainer width="list">
+        <PageContainer>
           <!-- 1. ترويسة الصفحة وإجراءاتها (PageHeader & Actions) -->
           <PageHeader
             :title="t('projects.title')"
@@ -228,16 +228,16 @@ export const StickyHeading: Story = {
   render: () => ({
     components: { PageContainer, PageHeader, RecordSection },
     setup: () => ({ t: useI18n().t, rows: [1, 2, 3, 4, 5, 6, 7, 8] }),
-    template: `<div class="liwan-shell" style="height: 30rem; overflow-y: auto"><main class="liwan-shell-main"><PageContainer width="list"><PageHeader :title="t('projects.title')"><template #actions><UButton icon="i-lucide-plus">{{ t('projects.new') }}</UButton></template></PageHeader><div class="grid gap-(--liwan-gap-card)"><RecordSection v-for="row in rows" :key="row" variant="panel" :title="t('projects.title') + ' ' + row"><p class="text-sm text-muted">{{ t('projects.description') }}</p></RecordSection></div></PageContainer></main></div>`,
+    template: `<div class="liwan-shell" style="height: 30rem; overflow-y: auto"><main class="liwan-shell-main"><PageContainer><PageHeader :title="t('projects.title')"><template #actions><UButton icon="i-lucide-plus">{{ t('projects.new') }}</UButton></template></PageHeader><div class="grid gap-(--liwan-gap-card)"><RecordSection v-for="row in rows" :key="row" variant="panel" :title="t('projects.title') + ' ' + row"><p class="text-sm text-muted">{{ t('projects.description') }}</p></RecordSection></div></PageContainer></main></div>`,
   }),
 }
 
 export const HiddenTitle: Story = {
   name: 'عنوان يملكه الإطار',
-  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:38', 'داخل إطار مشروع يملك العنوان: `hideTitle` يرسم الإجراءات وحدها ويبقى اسم الصفحة مسجلًا للغلاف.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:40', 'داخل إطار مشروع يملك العنوان: `hideTitle` يرسم الإجراءات وحدها ويبقى اسم الصفحة مسجلًا للغلاف.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
-    template: `<main class="liwan-shell-main"><PageContainer width="list"><h1 class="text-xl font-semibold text-highlighted">{{ t('projects.title') }}</h1><PageHeader :title="t('tasks.title')" hide-title><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton></template></PageHeader></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer><h1 class="text-xl font-semibold text-highlighted">{{ t('projects.title') }}</h1><PageHeader :title="t('tasks.title')" hide-title><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton></template></PageHeader></PageContainer></main>`,
   }),
 }

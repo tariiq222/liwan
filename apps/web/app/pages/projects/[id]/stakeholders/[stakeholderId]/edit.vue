@@ -16,7 +16,7 @@ const access = useProject(projectId)
 </script>
 
 <template>
-  <SharedPageContainer width="form">
+  <SharedPageContainer>
     <SharedPageHeader :title="t('projects.governance.stakeholder.editTitle')" :back-to="backTo" :back-label="t('projects.governance.stakeholder.title')" />
     <SharedPageState
       :loading="item.isLoading.value || access.isLoading.value"

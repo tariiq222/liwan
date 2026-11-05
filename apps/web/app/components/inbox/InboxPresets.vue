@@ -26,7 +26,7 @@ function applyAsked() {
 
 <template>
   <SharedRecordSection id="presets" variant="panel" class="liwan-settings-anchor" :title="t('inbox.settings.presets.title')" :description="t('inbox.settings.presets.hint')">
-    <ul class="grid gap-3 sm:grid-cols-3">
+    <ul class="liwan-card-grid gap-3">
       <SharedSubCard v-for="key in PRESETS" :key="key" as="li" class="flex flex-col gap-2" :data-testid="`inbox-preset-${key}`">
         <span class="flex size-9 items-center justify-center rounded-full bg-primary/10 text-primary"><UIcon :name="ICONS[key]" class="size-5" aria-hidden="true" /></span>
         <h3 class="text-sm font-semibold text-highlighted">{{ t(`inbox.settings.presets.${key}.name`) }}</h3>

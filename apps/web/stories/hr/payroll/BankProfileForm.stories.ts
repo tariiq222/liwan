@@ -24,7 +24,7 @@ const meta = {
   render: args => ({
     components: { BankProfileForm, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="liwan-shell-main"><PageContainer width="list"><BankProfileForm v-bind="args" /></PageContainer></main>',
+    template: '<main class="liwan-shell-main"><PageContainer><BankProfileForm v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof BankProfileForm>
 

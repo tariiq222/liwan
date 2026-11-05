@@ -45,7 +45,7 @@ type Story = StoryObj<typeof meta>
 const render: Story['render'] = args => ({
   components: { MeetingMinutesForm, PageContainer },
   setup: () => ({ args, value: ref(args.modelValue) }),
-  template: '<main class="liwan-shell-main"><PageContainer width="form"><MeetingMinutesForm v-model="value" :meeting="args.meeting" :recommendations="args.recommendations" :legacy-agenda="args.legacyAgenda" :readonly="args.readonly" :pending="args.pending" /></PageContainer></main>',
+  template: '<main class="liwan-shell-main"><PageContainer><MeetingMinutesForm v-model="value" :meeting="args.meeting" :recommendations="args.recommendations" :legacy-agenda="args.legacyAgenda" :readonly="args.readonly" :pending="args.pending" /></PageContainer></main>',
 })
 
 export const Populated: Story = {

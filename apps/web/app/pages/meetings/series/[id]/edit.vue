@@ -95,10 +95,10 @@ async function save() {
 </script>
 
 <template>
-  <SharedPageContainer width="form">
+  <SharedPageContainer>
     <SharedPageHeader :title="t('meetingsUx.seriesSettingsTitle')" :back-to="backTo" />
     <SharedPageState :loading="query.isLoading.value" :error="pageError" :empty="!query.isLoading.value && !pageError && !query.data.value" @retry="query.refetch">
-      <form ref="formElement" novalidate v-if="query.data.value" class="grid gap-(--liwan-gap-card)" @submit.prevent="save">
+      <form ref="formElement" novalidate v-if="query.data.value" class="liwan-form" @submit.prevent="save">
         <SharedUnsavedChanges :dirty="dirty" />
       <UAlert v-if="attemptedSubmit && Object.values(formErrors).filter(Boolean).length > 1" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.values(formErrors).filter(Boolean).length })" />
         <UAlert v-if="!canEdit" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.seriesSettingsForbidden')" />
@@ -119,7 +119,7 @@ async function save() {
           <MeetingPeopleFields v-model:attendee-ids="attendeeIds" v-model:secretary-id="secretaryId" :known="known" :disabled="!hydrated || isPending || !canEdit" />
         </SharedFormSection>
         <SharedFormSection panel :title="t('meetingsUx.scheduleSummaryTitle')" :description="t('meetingsUx.seriesSettingsScope')" aria-readonly="true">
-          <dl class="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+          <dl class="liwan-auto-grid gap-x-6 gap-y-3 text-sm">
             <div><dt class="text-xs text-muted">{{ t('meetingsUi.recurrenceLabel') }}</dt><dd class="text-highlighted">{{ t(`meetingsUi.recurrence.${query.data.value.recurrence}`) }}</dd></div>
             <div><dt class="text-xs text-muted">{{ t('meetingsUi.untilMode') }}</dt><dd class="text-highlighted">{{ termination }}</dd></div>
           </dl>

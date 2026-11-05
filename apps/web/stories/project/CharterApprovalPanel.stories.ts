@@ -21,7 +21,7 @@ const meta = {
   render: args => ({
     components: { CharterApprovalPanel, PageContainer },
     setup: () => ({ args }),
-    template: `<main class="liwan-shell-main"><PageContainer width="list"><CharterApprovalPanel v-bind="args" /></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer><CharterApprovalPanel v-bind="args" /></PageContainer></main>`,
   }),
 } satisfies Meta<typeof CharterApprovalPanel>
 export default meta

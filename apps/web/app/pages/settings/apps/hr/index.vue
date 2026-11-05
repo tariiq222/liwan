@@ -158,7 +158,7 @@ function retry() {
 </script>
 
 <template>
-  <SharedSettingsPage width="list">
+  <SharedSettingsPage>
     <SharedPageHeader :title="t('nav.hr')" />
     <SharedForbiddenState v-if="!parts.length" :description="t('errors.forbidden')" />
     <template v-else>

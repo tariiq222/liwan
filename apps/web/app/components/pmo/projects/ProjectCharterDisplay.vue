@@ -79,14 +79,14 @@ function budgetAmount(): string {
             />
             <slot name="actions" />
           </template>
-          <dl class="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+          <dl class="liwan-auto-grid gap-x-8 gap-y-4">
             <div data-testid="charter-display-name"><dt class="text-xs text-muted">{{ t('projects.charter.fields.name') }}</dt><dd class="mt-1 text-sm text-default">{{ draft.name }}</dd></div>
             <div v-if="draft.code" data-testid="charter-display-code"><dt class="text-xs text-muted">{{ t('projects.charter.fields.code') }}</dt><dd class="mt-1 text-sm text-default"><bdi dir="ltr" class="font-mono">{{ draft.code }}</bdi></dd></div>
             <div v-if="draft.typeName?.trim()" data-testid="charter-display-type"><dt class="text-xs text-muted">{{ t('projects.charter.fields.type') }}</dt><dd class="mt-1 text-sm text-default">{{ draft.typeName }}</dd></div>
             <div v-if="draft.managerName?.trim()"><dt class="text-xs text-muted">{{ t('projects.charter.fields.manager') }}</dt><dd class="mt-1 text-sm text-default">{{ draft.managerName }}</dd></div>
             <div v-if="draft.dateStart"><dt class="text-xs text-muted">{{ t('projects.charter.fields.date_start') }}</dt><dd class="mt-1 text-sm text-default">{{ date(draft.dateStart) }}</dd></div>
             <div v-if="draft.dateEnd"><dt class="text-xs text-muted">{{ t('projects.charter.fields.date_end') }}</dt><dd class="mt-1 text-sm text-default">{{ date(draft.dateEnd) }}</dd></div>
-            <div v-if="draft.description.trim()" class="sm:col-span-2"><dt class="text-xs text-muted">{{ t('projects.charter.fields.description') }}</dt><dd v-if="/<\/?[a-z][\s\S]*>/i.test(draft.description)" class="mt-1"><SharedRichText size="sm" :html="draft.description" /></dd><dd v-else class="mt-1 whitespace-pre-wrap text-sm text-default">{{ draft.description }}</dd></div>
+            <div v-if="draft.description.trim()" class="liwan-span-full"><dt class="text-xs text-muted">{{ t('projects.charter.fields.description') }}</dt><dd v-if="/<\/?[a-z][\s\S]*>/i.test(draft.description)" class="mt-1"><SharedRichText size="sm" :html="draft.description" /></dd><dd v-else class="mt-1 whitespace-pre-wrap text-sm text-default">{{ draft.description }}</dd></div>
           </dl>
         </SharedRecordSection>
 
@@ -95,7 +95,7 @@ function budgetAmount(): string {
         </SharedRecordSection>
 
         <SharedRecordSection v-if="visibleObjectives.length" variant="panel" id="project-charter-objectives" :title="t('projects.charter.fields.objectives')">
-          <ul class="grid gap-(--liwan-gap-card) sm:grid-cols-2">
+          <ul class="liwan-card-grid">
             <SharedSubCard v-for="row in visibleObjectives" :key="row.key" as="li" tone="tinted">
               <dl class="grid gap-2 text-sm">
                 <div v-if="row.goal.trim()"><dt class="text-muted">{{ t('projects.charter.fields.objectiveGoal') }}</dt><dd>{{ row.goal }}</dd></div>
@@ -107,7 +107,7 @@ function budgetAmount(): string {
         </SharedRecordSection>
 
         <SharedRecordSection v-if="draft.scope.trim() || draft.exclusions.trim()" variant="panel" id="project-charter-scope" :title="t('projects.charter.sections.scope')">
-          <dl class="grid gap-4 sm:grid-cols-2">
+          <dl class="liwan-auto-grid gap-4">
             <div v-if="draft.scope.trim()"><dt class="text-xs text-muted">{{ t('projects.charter.fields.scope') }}</dt><dd class="mt-1 whitespace-pre-wrap text-sm">{{ draft.scope }}</dd></div>
             <div v-if="draft.exclusions.trim()"><dt class="text-xs text-muted">{{ t('projects.charter.fields.exclusions') }}</dt><dd class="mt-1 whitespace-pre-wrap text-sm">{{ draft.exclusions }}</dd></div>
           </dl>
@@ -137,7 +137,7 @@ function budgetAmount(): string {
           />
           <template #content>
           <div class="grid gap-(--liwan-gap-card) p-(--liwan-card-pad) pt-0">
-            <dl class="grid gap-4 sm:grid-cols-2">
+            <dl class="liwan-auto-grid gap-4">
               <div v-if="draft.owningUnitName?.trim()"><dt class="text-sm text-muted">{{ t('projects.charter.fields.owning_unit') }}</dt><dd class="mt-1 text-sm">{{ draft.owningUnitName }}</dd></div>
               <div v-if="draft.sponsorName?.trim()"><dt class="text-sm text-muted">{{ t('projects.charter.fields.sponsor') }}</dt><dd class="mt-1 text-sm">{{ draft.sponsorName }}</dd></div>
               <div v-if="draft.authority.trim()"><dt class="text-sm text-muted">{{ t('projects.charter.fields.authority') }}</dt><dd class="mt-1 whitespace-pre-wrap text-sm">{{ draft.authority }}</dd></div>

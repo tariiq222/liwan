@@ -37,7 +37,7 @@ definePageMeta({ middleware: 'customer-commercial' })
   <SharedCreatePanel :title="t('subscription.branches.newTitle')" :description="t('subscription.branches.newDescription')" back-to="/subscription/branches">
     <SharedForbiddenState v-if="!allowed" :description="t('subscription.branches.readOnly')" />
     <SharedPageState v-else :loading="pending" :error="error" @retry="refresh">
-      <form class="space-y-4" @submit.prevent="review">
+      <form class="liwan-form" @submit.prevent="review">
         <div v-for="(_, i) in names" :key="i" class="flex items-end gap-2">
           <UFormField :label="t('subscription.branches.name')" class="flex-1"><UInput v-model="names[i]" maxlength="200" :disabled="!hydrated" /></UFormField>
           <UButton v-if="names.length > 1" color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('subscription.branches.remove')" @click="names.splice(i, 1)" />

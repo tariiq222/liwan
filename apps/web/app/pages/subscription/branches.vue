@@ -52,7 +52,7 @@ async function archiveBranch() {
 }
 </script>
 <template>
-  <SharedSettingsPage width="list">
+  <SharedSettingsPage>
     <SharedPageHeader :title="t('subscription.branches.title')" back-to="/subscription">
       <template #actions><UButton v-if="can('branches.manage')" to="/subscription/branches/new" icon="i-lucide-plus" :disabled="!hydrated">{{ t('subscription.branches.add') }}</UButton></template>
     </SharedPageHeader>

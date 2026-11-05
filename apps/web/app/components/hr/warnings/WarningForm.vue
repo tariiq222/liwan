@@ -86,7 +86,7 @@ async function submit() {
           />
         </UFormField>
         <WarningStandingNote v-if="employeeId" :standing="standing.data.value" />
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="liwan-auto-grid gap-4">
           <UFormField :label="t('hrWarnings.form.type')" name="hr-warning-type" required :error="typeError" :hint="typeOptions.length ? undefined : t('hrWarnings.form.noTypes')">
             <USelect
               id="hr-warning-type"

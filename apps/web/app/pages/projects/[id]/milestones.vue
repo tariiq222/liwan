@@ -27,7 +27,7 @@ const createTo = computed(() => ({ path: `/projects/${projectId.value}/milestone
 
 <template>
   <template v-if="isListRoute">
-    <SharedPageContainer v-if="notFound || error" width="list">
+    <SharedPageContainer v-if="notFound || error">
       <ProjectNotFoundState v-if="notFound" embedded :back-to="projectReturnTo" />
       <SharedPageState v-else :error="error" @retry="refetch" />
     </SharedPageContainer>

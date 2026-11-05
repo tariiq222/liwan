@@ -168,7 +168,7 @@ const rateLabel = (rate: HrGosiRate) => `${t(`hrPayroll.gosi.branch.${rate.branc
     <UForm v-if="editing" novalidate :state="{ branch, nationalityClass, dateFrom, ...numbers }" class="liwan-form" method="post" data-testid="hr-gosi-form" @submit="submit">
       <UAlert v-if="formAlert" role="alert" color="error" variant="subtle" :title="t('hrPayroll.gosi.saveError')" :description="formAlert" />
       <SharedFormSection :title="editing === 'new' ? t('hrPayroll.gosi.new') : t('hrPayroll.gosi.edit')">
-        <div class="liwan-form-grid">
+        <div class="liwan-auto-grid">
           <UFormField :label="t('hrPayroll.gosi.columns.branch')" name="hr-gosi-branch" :error="fieldError('branch')">
             <USelect id="hr-gosi-branch" v-model="branch" class="w-full" :items="branchOptions" :disabled="!hydrated || saving || reloading" data-testid="hr-gosi-branch" />
           </UFormField>

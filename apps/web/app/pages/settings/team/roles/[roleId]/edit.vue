@@ -24,7 +24,7 @@ async function reloadRole() {
 </script>
 
 <template>
-  <SharedSettingsPage width="form">
+  <SharedSettingsPage>
     <SharedPageHeader :title="t('access.roles.editTitle')" :back-to="backTo" />
     <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
     <SharedPageState v-else :loading="role.isLoading.value" :error="role.error.value" :empty="!role.data.value" :empty-text="t('access.notFound')" @retry="role.refetch">

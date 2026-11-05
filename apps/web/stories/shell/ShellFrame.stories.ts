@@ -31,7 +31,7 @@ const frame = (sidebar: 'open' | 'closed' = 'open') => ({
   template: `<ShellFrame>
     <template #header><ShellHeader /></template>
     <template #sidebar><AppSidebar /></template>
-    <main class="liwan-shell-main" data-testid="shell-main"><div class="liwan-page-stack liwan-page-width-list"><h1 class="text-xl font-semibold">{{ t('nav.tasks') }}</h1></div></main>
+    <main class="liwan-shell-main" data-testid="shell-main"><div class="liwan-page-stack"><h1 class="text-xl font-semibold">{{ t('nav.tasks') }}</h1></div></main>
   </ShellFrame>`,
 })
 

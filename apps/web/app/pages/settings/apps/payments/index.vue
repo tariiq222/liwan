@@ -28,7 +28,7 @@ async function reloadOrderSettings() {
 </script>
 
 <template>
-  <SharedSettingsPage width="form">
+  <SharedSettingsPage>
     <SharedPageHeader :title="t('payments.title')" />
     <SharedForbiddenState v-if="!parts.length" :description="t('errors.forbidden')" />
     <template v-else>

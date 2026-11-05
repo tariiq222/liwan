@@ -30,7 +30,7 @@ const frame = (open: boolean) => () => ({
     <template #header><ShellHeader /></template>
     <template #sidebar><AppSidebar /></template>
     <template #sheet><AssistantSheet v-if="assistant.surface.value" :surface="assistant.surface.value" /></template>
-    <main class="liwan-shell-main" data-testid="shell-main"><div class="liwan-page-stack liwan-page-width-list"><h1 class="text-xl font-semibold">المهام</h1></div></main>
+    <main class="liwan-shell-main" data-testid="shell-main"><div class="liwan-page-stack"><h1 class="text-xl font-semibold">المهام</h1></div></main>
   </ShellFrame>`,
 })
 
