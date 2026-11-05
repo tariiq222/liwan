@@ -9,7 +9,8 @@ from odoo import fields
 from odoo.tests import tagged
 
 from . import tiktok_payloads as tt
-from .common import LiwanInboxCase
+from .common import CHANNEL_KEYS, LiwanInboxCase
+from odoo.addons.liwan_api.serializers.common import iso
 from odoo.addons.liwan_inbox.adapters import errors, tiktok, whatsapp
 
 ACCESS_TOKEN = 'tiktok-access-token-api'
@@ -37,7 +38,7 @@ class TestTikTokChannelApi(LiwanInboxCase):
             open_id=tt.BUSINESS_ID, scopes=frozenset(tiktok.SCOPES),
             access_token=ACCESS_TOKEN, refresh_token=REFRESH_TOKEN,
             expires_at=now + timedelta(days=1), refresh_expires_at=now + timedelta(days=365),
-        ))
+        ), tiktok.Profile('liwan_shop', 'Liwan Shop'))
         cls.template = cls.make_template(channel=cls.tiktok)
         cls.flow = cls.env['liwan.inbox.flow'].create({
             'channel_id': cls.tiktok.id, 'name': 'Signup', 'provider_flow_id': 'flow-1',
@@ -105,6 +106,30 @@ class TestTikTokChannelApi(LiwanInboxCase):
                 self.assertEqual(result.json().get('code'), 'invalid', f'{method} {path}: {result.text}')
                 self.assertEqual(result.json().get('details'), {'reason': REASON}, f'{method} {path}: {result.text}')
         self.assertEqual(outbound.call_count, 0, 'a WhatsApp-only route reached the provider for a TikTok channel')
+
+    def test_the_channel_dump_carries_the_tiktok_fields(self):
+        result = self.get(f'{API}/channels/{self.tiktok.id}')
+        self.assertEqual(result.status_code, 200, result.text)
+        body = result.json()
+        self.assertEqual(set(body), CHANNEL_KEYS)
+        self.assertEqual(
+            (body['kind'], body['phone_number_id'], body['business_account_id'], body['has_app_secret'], body['app_id'],
+             body['has_verify_token']),
+            ('tiktok', None, None, None, None, None),
+        )
+        self.assertTrue(body['callback_url'].endswith('/api/v1/inbox/hooks/tiktok'), body['callback_url'])
+        self.assertEqual(body['health']['quality_rating'], 'unknown')
+        self.assertEqual(
+            (body['tiktok_username'], body['token_expires_at'], body['needs_reconnect'], body['tiktok_welcome_audit'],
+             body['tiktok_questions_enabled'], body['tiktok_prompts_enabled']),
+            ('liwan_shop', iso(self.tiktok.token_expires_at), False, None, False, False),
+        )
+        self.tiktok.write({'state': 'error', 'tiktok_welcome_audit': 'approved', 'tiktok_prompts_enabled': True})
+        body = self.get(f'{API}/channels/{self.tiktok.id}').json()
+        self.assertEqual(
+            (body['needs_reconnect'], body['tiktok_welcome_audit'], body['tiktok_prompts_enabled']),
+            (True, 'approved', True),
+        )
 
     def test_the_connection_test_reads_the_tiktok_profile(self):
         profile = tiktok.Profile('liwan_shop', 'Liwan Shop')
