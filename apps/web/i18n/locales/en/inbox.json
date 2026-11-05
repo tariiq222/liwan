@@ -38,6 +38,10 @@
       "error": "Error",
       "disabled": "Disabled"
     },
+    "channelKinds": {
+      "whatsapp": "WhatsApp",
+      "tiktok": "TikTok"
+    },
     "list": {
       "label": "Conversations",
       "search": "Search conversations",
@@ -297,11 +301,13 @@
       },
       "channels": {
         "title": "Channels",
-        "hint": "The WhatsApp numbers connected to the inbox.",
-        "connect": "Connect a channel",
+        "hint": "The WhatsApp and TikTok channels connected to the inbox.",
+        "connect": "Connect WhatsApp",
         "connectHint": "Connect a WhatsApp Business number through the Cloud API.",
-        "empty": "No channel is connected yet.",
-        "whatsapp": "WhatsApp",
+        "tiktokNotice": "TikTok processes the message data outside the Kingdom of Saudi Arabia; connecting is optional and can be disconnected at any time.",
+        "tiktokConnect": "Connect TikTok",
+        "tiktokContinue": "Continue to TikTok",
+        "tiktokErrorTitle": "The TikTok account was not connected",
         "create": "Connect channel",
         "department": "Default department",
         "departmentHint": "Conversations of this channel reach this department.",
@@ -369,7 +375,8 @@
         "deleteTitle": "Delete the channel \"{name}\"?",
         "deleteDescription": "This cannot be undone. Deleting is refused while the channel has conversations; disable it instead.",
         "appId": "Meta app id",
-        "appIdHint": "Optional. Needed only to upload the sample file of a template header with an image, video or document."
+        "appIdHint": "Optional. Needed only to upload the sample file of a template header with an image, video or document.",
+        "empty": "No channel is connected yet."
       }
     },
     "kinds": {
@@ -2126,6 +2133,18 @@
       "recipient": "The number is not a valid WhatsApp recipient.",
       "unknown": "Meta: {message}",
       "uncertain": "Meta did not confirm the send. Check whether it arrived before sending it again."
+    },
+    "tiktokErrors": {
+      "inbox_tiktok_unsupported_kind": "TikTok does not carry this kind of message. Send a text, one image or a button card.",
+      "inbox_tiktok_reply_limit": "You reached TikTok's limit of 10 messages in a row. Wait for the customer to answer.",
+      "inbox_window_closed": "The TikTok reply window is closed: 48 hours after the customer's last message.",
+      "inbox_tiktok_auto_message_reviewing": "TikTok is still reviewing this item; it cannot be edited until the review ends.",
+      "inbox_tiktok_auto_message_limit": "The limit is reached: 3 suggested questions and 6 chat prompts.",
+      "inbox_tiktok_sync_running": "An import is already running for this channel. Wait for it to finish.",
+      "inbox_tiktok_not_configured": "The TikTok app is not configured on this system. Ask the system administrator.",
+      "inbox_channel_kind_unsupported": "This feature exists for WhatsApp channels only.",
+      "inbox_tiktok_scopes_missing": "TikTok did not grant every required permission. Reconnect and accept all of them.",
+      "inbox_tiktok_account_taken": "This TikTok account is connected to another channel. Disconnect that one first."
     }
   },
   "errors": {
