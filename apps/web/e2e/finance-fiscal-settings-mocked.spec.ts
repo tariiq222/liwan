@@ -182,7 +182,8 @@ async function openFiscal(page: Page, cookies: Array<{ name: string; value: stri
 }
 
 const fiscalCard = (page: Page) => page.getByTestId('finance-setup-fiscal')
-const saveButton = (page: Page) => fiscalCard(page).getByRole('button', { name: 'حفظ التغييرات', exact: true })
+const saveBar = (page: Page) => page.getByTestId('settings-save-bar')
+const saveButton = (page: Page) => page.getByTestId('settings-save-bar-save')
 
 test('a manager edits inline and the write states the identity the screen was read for', async ({ page }) => {
   await openFiscal(page)
@@ -200,7 +201,7 @@ test('a manager edits inline and the write states the identity the screen was re
   expect(patch?.body).not.toHaveProperty('company_id')
   expect(patch?.headers['x-liwan-expected-user-id']).toBe('2')
   expect(patch?.headers['x-liwan-expected-company-id']).toBe('1')
-  await expect(saveButton(page)).toBeDisabled()
+  await expect(saveBar(page)).toBeHidden()
   await expect(day).toHaveValue('30')
 })
 
@@ -232,14 +233,14 @@ test('the server-rendered card hydrates in place without waiting for a browser r
   }
 })
 
-test('a reader sees the same fields disabled, a view-only badge and no footer', async ({ page }) => {
+test('a reader sees the same fields disabled, a view-only badge and no save bar', async ({ page }) => {
   mode = 'reader'
   await openFiscal(page)
   await expect(fiscalCard(page).getByText('عرض فقط', { exact: true })).toBeVisible()
   await expect(page.locator('#finance-fiscal-fiscalyear_last_day')).toHaveValue('31')
   await expect(page.locator('#finance-fiscal-fiscalyear_last_day')).toBeDisabled()
   await expect(page.locator('#finance-fiscal-fiscalyear_lock_date')).toBeDisabled()
-  await expect(fiscalCard(page).getByRole('button', { name: 'حفظ التغييرات', exact: true })).toHaveCount(0)
+  await expect(saveBar(page)).toBeHidden()
   expect(fiscalPatches).toHaveLength(0)
 })
 
@@ -295,16 +296,16 @@ test('a changed company refuses the write, drops the draft and says why', async 
   expect(fiscalPatches).toHaveLength(1)
   // The draft is dropped, not saved: the field shows the values read again and nothing can be saved.
   await expect(page.locator('#finance-fiscal-fiscalyear_last_day')).toHaveValue('31')
-  await expect(saveButton(page)).toBeDisabled()
+  await expect(saveBar(page)).toBeHidden()
 })
 
 test('reverting sends nothing, and a hash change keeps the draft', async ({ page }) => {
   await openFiscal(page)
   const day = page.locator('#finance-fiscal-fiscalyear_last_day')
   await day.fill('30')
-  await fiscalCard(page).getByRole('button', { name: 'تراجع', exact: true }).click()
+  await page.getByTestId('settings-save-bar-revert').click()
   await expect(day).toHaveValue('31')
-  await expect(saveButton(page)).toBeDisabled()
+  await expect(saveBar(page)).toBeHidden()
   await day.fill('30')
   await page.getByTestId('settings-context-sub-list').locator('a[href$="#setup"]').click()
   await expect(page.getByTestId('unsaved-changes-dialog')).toHaveCount(0)
@@ -332,8 +333,8 @@ for (const { locale, dir, i18n } of [{ locale: 'ar', dir: 'rtl', i18n: 'ar' }, {
         await day.fill('30')
         await page.screenshot({ path: testInfo.outputPath(`fiscal.editing.${locale}.${appearance}.${width}.png`), fullPage: true })
         rejectNextPatch = { status: 422, code: 'fiscal_year_has_posted_entries', message: 'server text' }
-        // The label follows the locale, so the submit button is found by its type.
-        await fiscalCard(page).locator('button[type="submit"]').click()
+        // The page's one save bar is locale-independent, unlike the label of the card's button it replaced.
+        await page.getByTestId('settings-save-bar-save').click()
         await expect(fiscalCard(page).getByRole('alert')).toBeVisible()
         await page.screenshot({ path: testInfo.outputPath(`fiscal.rejected.${locale}.${appearance}.${width}.png`), fullPage: true })
       }

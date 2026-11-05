@@ -84,7 +84,7 @@ for (const status of [403, 409, 500]) {
   })
 }
 
-test('a settings card saves its draft with one button and keeps the draft locked while the save is pending', async ({ page }) => {
+test('a settings card saves its draft from the page save bar and keeps the draft locked while the save is pending', async ({ page }) => {
   let release!: () => void
   const gate = new Promise<void>(resolve => { release = resolve })
   await page.route('**/api/v1/settings/projects', async route => {
@@ -95,10 +95,11 @@ test('a settings card saves its draft with one button and keeps the draft locked
   await enterFoundation(page, '/settings/apps/projects')
   const card = page.locator('#project-creation')
   const control = card.getByRole('switch', { name: 'يشترط مدير المشروع', exact: true })
-  // The footer sits after the card section inside the card's form.
-  const save = page.locator('form', { has: card }).getByRole('button', { name: 'حفظ التغييرات', exact: true })
+  // The page's one save bar appears while a card has edits and saves every edited card at once.
+  const saveBar = page.getByTestId('settings-save-bar')
+  const save = page.getByTestId('settings-save-bar-save')
   await expect(control).toBeEnabled()
-  await expect(save).toBeDisabled()
+  await expect(saveBar).toBeHidden()
   await control.click()
   await expect(save).toBeEnabled()
   await save.click()
@@ -106,7 +107,7 @@ test('a settings card saves its draft with one button and keeps the draft locked
     await expect(control).toBeDisabled()
   } finally { release() }
   await expect(control).toBeEnabled()
-  await expect(save).toBeDisabled()
+  await expect(saveBar).toBeHidden()
 })
 
 test('a stage save failure retains its stage draft and retries only on request', async ({ page }) => {

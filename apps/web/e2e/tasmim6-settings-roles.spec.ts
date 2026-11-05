@@ -54,7 +54,8 @@ test.describe('Plan 6d: the roles list and forms', () => {
       await openClientSide(page, '/settings/team/roles/3/edit')
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('تعديل الدور')
       await expect(page.locator('main').getByRole('heading', { level: 2 })).toHaveCount(1)
-      await expect(page.getByRole('button', { name: 'حفظ التغييرات', exact: true })).toBeVisible()
+      // The card has no save button of its own: the page's save bar appears only once something is edited.
+      await expect(page.getByTestId('settings-save-bar')).toBeHidden()
     })
   })
 
