@@ -9,6 +9,8 @@ TIKTOK_FEATURE = 'inbox.tiktok'
 CHANNEL_FEATURES = {'whatsapp': WHATSAPP_FEATURE, 'tiktok': TIKTOK_FEATURE}
 # TikTok: the OAuth state lives ten minutes, and these scopes are the ones a channel cannot work without.
 TIKTOK_STATE_TTL = timedelta(minutes=10)
+# An access token this close to its deadline is replaced before it is used.
+TIKTOK_TOKEN_MARGIN = timedelta(minutes=5)
 TIKTOK_REQUIRED_SCOPES = frozenset({'user.info.basic', 'message.list.read', 'message.list.send'})
 AUTOMATION_FEATURE = 'inbox.automation'
 FLOWS_FEATURE = 'inbox.flows'
