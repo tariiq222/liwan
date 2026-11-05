@@ -14,7 +14,7 @@ function session(policy: Record<string, unknown>) {
 function serviceConfig(platform: string, key: object = NO_KEY) {
   const location = PROVIDERS.find(item => item.name === platform)!.location
   // A body is read once: each call gets its own response.
-  serviceFetch.mockImplementation(async () => new Response(JSON.stringify({ retention_days: 30, key, platform: { provider: platform, model: 'm', location }, providers: PROVIDERS })))
+  serviceFetch.mockImplementation(async () => new Response(JSON.stringify({ retention_days: 30, leaver_retention_days: 30, key, platform: { provider: platform, model: 'm', location }, providers: PROVIDERS })))
 }
 
 beforeEach(() => {

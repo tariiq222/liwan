@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AiAgentCard from '@/components/ai/settings/AiAgentCard.vue'
+import AiCompanyMemoryCard from '@/components/ai/settings/AiCompanyMemoryCard.vue'
 import AiKeyCard from '@/components/ai/settings/AiKeyCard.vue'
 import AiPolicyCard from '@/components/ai/settings/AiPolicyCard.vue'
 import AiProviderCard from '@/components/ai/settings/AiProviderCard.vue'
@@ -63,6 +64,7 @@ async function reloadConfig() {
         </template>
         <SharedPageState v-else :loading="agents.isLoading.value" :error="agents.error.value" :empty="true" @retry="agents.refetch()" />
       </template>
+      <AiCompanyMemoryCard v-if="shows('memory')" />
       <AiUsageCard v-if="shows('usage')" :settings="settings.data.value" :monitoring="monitoring.data.value" :agents="agents.data.value" />
     </template>
   </SharedSettingsPage>

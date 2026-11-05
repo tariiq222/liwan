@@ -206,7 +206,9 @@
         "hint": "Conversations older than this are deleted at the next nightly cleanup.",
         "label": "Days",
         "bounds": "From {min} to {max} days.",
-        "invalid": "Enter a number from {min} to {max}."
+        "invalid": "Enter a number from {min} to {max}.",
+        "leaverLabel": "A leaver's conversations (days)",
+        "leaverHint": "Their memory is deleted at once, their conversations after this period. {min} to {max}; zero means at once."
       },
       "usage": {
         "title": "This month's use",
@@ -257,9 +259,37 @@
           "read": "Read",
           "write_light": "Change after approval",
           "draft": "Draft the employee reviews"
-        }
+        },
+        "memory": "Memory",
+        "memoryHint": "The agent saves short notes about the employee's style and proposes notes about the company's identity."
+      },
+      "companyMemory": {
+        "title": "Company identity",
+        "hint": "Notes about the company's style and terminology that the assistant proposes and uses only after you approve them.",
+        "proposed": "Waiting for approval",
+        "noProposals": "No new proposals.",
+        "approve": "Approve",
+        "reject": "Reject",
+        "inUse": "Approved",
+        "empty": "No approved notes yet.",
+        "remove": "Delete note",
+        "removeTitle": "Delete this approved note?",
+        "approved": "The note was approved.",
+        "removed": "The note was deleted.",
+        "full": "The company already has the most approved notes (20). Delete one before approving another."
       }
     },
-    "handoff": "{agent} took over the request"
+    "handoff": "{agent} took over the request",
+    "memory": {
+      "title": "My memory",
+      "description": "Notes the assistant keeps about how you work and what you prefer, to serve you better. Only you see them, and they hold no copies of records.",
+      "notes": "Saved notes ({count})",
+      "empty": "The assistant has not saved any note about you yet.",
+      "delete": "Delete note",
+      "deleteTitle": "Delete this note?",
+      "deleteAll": "Delete all notes",
+      "deleteAllTitle": "Delete everything the assistant remembers about you?",
+      "deleted": "The note was deleted."
+    }
   }
 }

@@ -30,6 +30,8 @@ export const AiAgentSchema = z.object({
   description: AiTextSchema,
   instructions: AiTextSchema,
   pages: z.array(z.string().regex(/^[a-z][a-z_-]{0,39}$/)),
+  /** The administrator's switch: the agent may save and read employee and company notes. */
+  memory: z.boolean(),
 }).strict()
 export type AiAgent = z.infer<typeof AiAgentSchema>
 export const AI_CORE_AGENT = 'core'
@@ -279,9 +281,12 @@ export type AiMonitoring = z.infer<typeof AiMonitoringSchema>
 const AiLocationSchema = z.enum(['inside', 'outside'])
 export const AI_RETENTION_DAYS_MIN = 1
 export const AI_RETENTION_DAYS_MAX = 365
+export const AI_LEAVER_RETENTION_DAYS_MAX = 365
 /** `GET /api/ai/config` (the AI service's tenant configuration): never the key itself, only whether one is set. */
 export const AiTenantConfigSchema = z.object({
   retention_days: z.number().int().min(AI_RETENTION_DAYS_MIN).max(AI_RETENTION_DAYS_MAX),
+  /** Days a leaver's conversations are kept after their account is switched off; their notes go at once. */
+  leaver_retention_days: z.number().int().min(0).max(AI_LEAVER_RETENTION_DAYS_MAX),
   key: z.object({
     configured: z.boolean(),
     provider: AiProviderNameSchema.nullable(),
@@ -293,6 +298,8 @@ export const AiTenantConfigSchema = z.object({
   providers: z.array(z.object({ name: AiProviderNameSchema, location: AiLocationSchema, needs_api_key: z.boolean() }).strict()),
 }).strict()
 export type AiTenantConfig = z.infer<typeof AiTenantConfigSchema>
+export const AiLeaverRetentionPutSchema = z.object({ leaver_retention_days: z.number().int().min(0).max(AI_LEAVER_RETENTION_DAYS_MAX) }).strict()
+export type AiLeaverRetentionPut = z.infer<typeof AiLeaverRetentionPutSchema>
 export const AiRetentionPutSchema = z.object({ retention_days: z.number().int().min(AI_RETENTION_DAYS_MIN).max(AI_RETENTION_DAYS_MAX) }).strict()
 export type AiRetentionPut = z.infer<typeof AiRetentionPutSchema>
 export const AiKeyPutSchema = z.object({ provider: AiProviderNameSchema, model: AiModelNameSchema, api_key: z.string().min(1).max(512) }).strict()
@@ -308,6 +315,7 @@ export const AiAgentSettingSchema = z.object({
   description: AiTextSchema,
   enabled: z.boolean(),
   read_only: z.boolean(),
+  memory: z.boolean(),
   role_ids: z.array(z.number().int().positive()),
   /** Bumped by every change of the agent or its tools; a save sends the revision it read and a stale one answers 409. */
   revision: z.number().int().nonnegative(),
@@ -323,7 +331,26 @@ export const AiAgentPatchSchema = z.object({
   revision: z.number().int().nonnegative(),
   enabled: z.boolean().optional(),
   read_only: z.boolean().optional(),
+  memory: z.boolean().optional(),
   role_ids: z.array(z.number().int().positive()).optional(),
   tools: z.record(z.string(), AiToolModeSchema).optional(),
 }).strict().refine(value => Object.keys(value).length > 1, 'nothing to change')
 export type AiAgentPatch = z.infer<typeof AiAgentPatchSchema>
+
+export const AI_NOTE_MAX_CHARS = 300
+/** `GET /api/ai/memory`: the caller's own notes about their way of working; only they see or delete them. */
+export const AiNoteSchema = z.object({ id: z.number().int().positive(), content: z.string().min(1).max(AI_NOTE_MAX_CHARS), created_at: z.iso.datetime({ offset: true }) }).strict()
+export type AiNote = z.infer<typeof AiNoteSchema>
+export const AiNoteListSchema = z.object({ items: z.array(AiNoteSchema), total: z.number().int().nonnegative() }).strict()
+export type AiNoteList = z.infer<typeof AiNoteListSchema>
+/** `GET /api/ai/company-memory`: the current company's notes, proposed by agents and used only once approved. */
+export const AiCompanyNoteSchema = z.object({
+  id: z.number().int().positive(),
+  content: z.string().min(1).max(AI_NOTE_MAX_CHARS),
+  status: z.enum(['proposed', 'approved']),
+  proposed_by: z.string().nullable(),
+  created_at: z.iso.datetime({ offset: true }),
+}).strict()
+export type AiCompanyNote = z.infer<typeof AiCompanyNoteSchema>
+export const AiCompanyNoteListSchema = z.object({ items: z.array(AiCompanyNoteSchema), total: z.number().int().nonnegative() }).strict()
+export type AiCompanyNoteList = z.infer<typeof AiCompanyNoteListSchema>
