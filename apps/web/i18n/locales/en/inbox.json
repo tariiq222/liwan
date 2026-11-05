@@ -1,7 +1,7 @@
 {
   "inbox": {
-    "title": "Customer WhatsApp",
-    "railLabel": "WhatsApp",
+    "title": "Customer Messages",
+    "railLabel": "Messages",
     "unassigned": "Unassigned",
     "unavailable": "This conversation is not available to you.",
     "select": "Select a conversation",
@@ -1046,7 +1046,7 @@
       "channelHealth": "WhatsApp number health"
     },
     "reports": {
-      "title": "WhatsApp reports",
+      "title": "Customer message reports",
       "navLabel": "Report sections",
       "backToInbox": "Conversations",
       "tabs": {
