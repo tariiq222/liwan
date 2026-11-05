@@ -50,7 +50,8 @@
     "composer": {
       "placeholder": "Type your question or request…",
       "send": "Send",
-      "sending": "Sending…"
+      "sending": "Sending…",
+      "notice": "Do not type health data, identity numbers or bank accounts into the conversation."
     },
     "thread": {
       "you": "You",
@@ -89,7 +90,7 @@
       "used": "{used} of {limit} messages this month",
       "tokensMonthly": "Your organization reached this month's AI usage (tokens) limit.",
       "outputTokens": "This request stopped: it reached the answer length allowed for one request.",
-      "consentRequired": "The assistant is off until a system administrator signs the acknowledgement for processing data outside the Kingdom.",
+      "consentRequired": "The assistant is off until a system administrator signs the AI use acknowledgement.",
       "tenantKeyMissing": "Your organization chose to run the assistant on its own key, and no key has been added yet.",
       "openSettings": "Open the AI settings",
       "perUser": "You used the monthly assistant messages your administrator set.",
@@ -156,7 +157,7 @@
     },
     "settings": {
       "title": "AI",
-      "description": "The AI provider, the data residency consent, how long conversations are kept, and this month's use.",
+      "description": "The AI provider, its use acknowledgement, how long conversations are kept, and this month's use.",
       "saved": "Settings saved",
       "provider": {
         "title": "Provider",
@@ -186,21 +187,20 @@
         "removeTitle": "Remove the organization's key?",
         "removeHint": "If the assistant runs on your organization's key, it stops until a new key is added."
       },
-      "residency": {
-        "title": "Data residency",
-        "hint": "AI data stays inside the Kingdom unless an authorized user signs this acknowledgement.",
-        "insideOnly": "Inside the Kingdom only",
-        "outsideAllowed": "Allowed outside the Kingdom",
-        "blocked": "The current provider processes data outside the Kingdom",
-        "blockedHint": "The assistant is off for your organization until this acknowledgement is signed.",
+      "consent": {
+        "title": "Use acknowledgement",
+        "hint": "The assistant does not run for your organization until an authorized user signs this acknowledgement, whatever the provider.",
+        "active": "Signed",
+        "required": "Awaiting signature",
+        "requiredHint": "The assistant is off for your organization until this acknowledgement is signed.",
         "signedBy": "Signed by {name} on {date}.",
         "accept": "I have read this acknowledgement and accept it on behalf of the organization",
         "sign": "Sign the acknowledgement",
         "signed": "Acknowledgement signed",
-        "revoke": "Revoke consent",
-        "revoked": "Consent revoked",
-        "revokeTitle": "Revoke consent to processing outside the Kingdom?",
-        "revokeHint": "Every provider that processes data outside the Kingdom stops at once."
+        "revoke": "Revoke the acknowledgement",
+        "revoked": "Acknowledgement revoked",
+        "revokeTitle": "Revoke the AI use acknowledgement?",
+        "revokeHint": "The assistant stops at once for every user of the organization until the acknowledgement is signed again."
       },
       "retention": {
         "title": "Conversation retention",

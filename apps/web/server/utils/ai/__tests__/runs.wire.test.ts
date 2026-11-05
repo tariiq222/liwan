@@ -33,6 +33,7 @@ let usageBatches: { items: Record<string, unknown>[] }[] = []
 let usageInvalid: string[] = []
 let companyAuthorizeStatus = 200
 let conversationModes: Record<string, string> = {}
+let taskName = 'تقرير'
 
 const TOOLS = {
   items: [
@@ -42,13 +43,13 @@ const TOOLS = {
   ],
   total: 3,
   agents: [],
-  limits: { tool_calls_per_run: 8, messages_monthly: 100, messages_used: 1, setup_monthly: null, setup_used: 0, policy: { provider_mode: 'platform', outside_allowed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: 8000 } },
+  limits: { tool_calls_per_run: 8, messages_monthly: 100, messages_used: 1, setup_monthly: null, setup_used: 0, policy: { provider_mode: 'platform', consent_signed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: 8000 } }, blocked_fields: [],
 }
 const ME = { id: 42, name: 'سارة', company: { id: 1, name: 'ليوان' } }
 
 const CALL_A = '00000000000000a1', CALL_B = '00000000000000b2', CALL_C = '00000000000000c3', CALL_D = '00000000000000d4'
 // The policy every resume sends: the tools response's, with the platform output cap.
-const POLICY = { provider_mode: 'platform', outside_allowed: true, max_output_tokens: 8000 }
+const POLICY = { provider_mode: 'platform', consent_signed: true, max_output_tokens: 8000 }
 const modelCall = (id: string, kind = 'plan'): [string, unknown] => ['model_call', { call_id: id, kind, billing: 'platform', provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5', called_at: '2026-10-27T10:00:00Z' }]
 const modelUsage = (id: string, outcome: string, input: number | null, output: number | null): [string, unknown] => ['model_usage', { call_id: id, outcome, input_tokens: input, output_tokens: output }]
 const MODEL_PLAN_RETRIED = [modelCall(CALL_A), modelUsage(CALL_A, 'retried', null, null)]
@@ -98,7 +99,7 @@ beforeAll(async () => {
     }
     if (req.url?.startsWith('/api/v1/tasks')) {
       if (req.headers.cookie !== 'session_id=s1') { res.statusCode = 403; return res.end(JSON.stringify({ code: 'forbidden', message: 'no' })) }
-      return res.end(JSON.stringify({ items: [{ id: 5, name: 'تقرير', secret: 'x' }], total: 1 }))
+      return res.end(JSON.stringify({ items: [{ id: 5, name: taskName, secret: 'x' }], total: 1 }))
     }
     res.statusCode = 404; res.end('{}')
   })
@@ -237,7 +238,7 @@ beforeAll(async () => {
 afterAll(() => { odoo.close(); service.close(); deadService.close(); app.close() })
 const DRAFT_PENDING = { call_id: 'c_2', tool: 'pmo.draft_project', kind: 'draft', agent: 'pmo', requires_approval: true, input: { name: 'بوابة' } }
 const WRITE_PENDING = { call_id: 'c_3', tool: 'pmo.update_task_state', kind: 'write_light', agent: 'pmo', requires_approval: true, input: { task_id: 7, state: 'done' } }
-beforeEach(() => { odooCalls = []; serviceCalls = []; scenario = 'read'; serviceDown = false; odooToolsStatus = 200; pending = DRAFT_PENDING; serviceToken = ''; claimMode = 'atomic'; claimed = false; doneSentAt = 0; odooMode = 'normal'; auditFailKind = null; runStatus = 'waiting_user'; resumeMode = 'ok'; resumeStreamFinished = false; resumeStreamCancelled = false; runList = RUN_LIST; patchStatus = 200; runId = 'r_1'; usageStatus = 200; usageDelayMs = 0; usageAnsweredAt = 0; usageBatches = []; usageInvalid = []; companyAuthorizeStatus = 200; conversationModes = {} })
+beforeEach(() => { odooCalls = []; serviceCalls = []; scenario = 'read'; serviceDown = false; odooToolsStatus = 200; pending = DRAFT_PENDING; serviceToken = ''; claimMode = 'atomic'; claimed = false; doneSentAt = 0; odooMode = 'normal'; auditFailKind = null; runStatus = 'waiting_user'; resumeMode = 'ok'; resumeStreamFinished = false; resumeStreamCancelled = false; runList = RUN_LIST; patchStatus = 200; runId = 'r_1'; usageStatus = 200; usageDelayMs = 0; usageAnsweredAt = 0; usageBatches = []; usageInvalid = []; companyAuthorizeStatus = 200; conversationModes = {}; taskName = 'تقرير' })
 
 const post = (path: string, body: unknown, cookie = 'session_id=s1') => fetch(`${url}${path}`, {
   method: 'POST', headers: { 'content-type': 'application/json', cookie, origin: url, 'sec-fetch-site': 'same-origin' }, body: JSON.stringify(body),
@@ -306,6 +307,22 @@ describe('POST /api/ai/runs', () => {
     const started = JSON.parse(serviceCalls.find(c => c.url === '/v1/runs')!.body)
     expect(started.tools.map((t: any) => t.name)).toEqual(['pmo.list_my_tasks', 'pmo.update_task_state', 'pmo.draft_project'])
     expect(started.limits).toEqual({ max_steps: 12, max_tool_calls: 8, timeout_seconds: 120 })
+  })
+
+  it('withholds identity and contact values from the message and the tool result before the service sees them', async () => {
+    taskName = 'اتصل بأحمد على 0551234567'
+    await events(await post('/api/ai/runs', { message: 'هويتي 1000000008 وبريدي a@b.sa، ما مهام أحمد؟' }))
+    const started = JSON.parse(serviceCalls.find(c => c.url === '/v1/runs')!.body)
+    expect(started.message).toBe('هويتي [national_id withheld] وبريدي [email withheld]، ما مهام أحمد؟')
+    const resumed = JSON.parse(serviceCalls.find(c => c.url === '/v1/runs/r_1/resume')!.body)
+    expect(resumed.result.data.items).toEqual([{ id: 5, name: 'اتصل بأحمد على [phone withheld]' }])
+  })
+
+  it('refuses a message that grows past the service limit once withheld, before the quota is spent', async () => {
+    const response = await post('/api/ai/runs', { message: 'a@b.sa '.repeat(1000).trim() })
+    expect(response.status).toBe(422)
+    expect(odooCalls.some(c => c.url === '/api/v1/ai/audit')).toBe(false)
+    expect(serviceCalls.some(c => c.url === '/v1/runs')).toBe(false)
   })
 
   it('reports a denied read as a failed tool result and keeps streaming', async () => {
@@ -535,6 +552,10 @@ describe('resume and status', () => {
     const list = await events(await post('/api/ai/runs/r_1/resume', { call_id: 'c_2', decision: 'approved', data: { id: 77, name: 'بوابة' } }))
     expect(list.map(([n]) => n)).toEqual(['run', 'token', 'answer', 'done'])
     expect(JSON.parse(serviceCalls.at(-1)!.body)).toEqual({ call_id: 'c_2', policy: POLICY, result: { ok: true, decision: 'approved', data: { id: 77, name: 'بوابة' } } })
+  })
+  it('withholds identity and bank values from a submitted draft before the service sees them', async () => {
+    await events(await post('/api/ai/runs/r_1/resume', { call_id: 'c_2', decision: 'approved', data: { id: 77, name: 'بوابة', note: 'آيبان SA0380000000608010167519' } }))
+    expect(JSON.parse(serviceCalls.at(-1)!.body).result.data).toEqual({ id: 77, name: 'بوابة', note: 'آيبان [iban withheld]' })
   })
   it('executes an approved write_light with the caller cookie, audits it, and passes the real result', async () => {
     pending = WRITE_PENDING

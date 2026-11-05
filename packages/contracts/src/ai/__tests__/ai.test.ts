@@ -9,14 +9,14 @@ const PMO_AGENT = { key: 'pmo', name: { ar: 'وكيل المشاريع', en: 'Pr
 
 describe('LiwanOS AI contracts', () => {
   it('parses the tools response with limits', () => {
-    const parsed = AiToolsResponseSchema.parse({ items: [READ], total: 1, agents: [PMO_AGENT], limits: { tool_calls_per_run: 8, messages_monthly: null, messages_used: 2, setup_monthly: null, setup_used: 0, policy: { provider_mode: 'platform', outside_allowed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } } })
+    const parsed = AiToolsResponseSchema.parse({ items: [READ], total: 1, agents: [PMO_AGENT], limits: { tool_calls_per_run: 8, messages_monthly: null, messages_used: 2, setup_monthly: null, setup_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } }, blocked_fields: ['wage'] })
     expect(parsed.items[0]!.route?.method).toBe('GET')
     expect(parsed.limits.messages_monthly).toBeNull()
   })
 
   it('rejects a draft tool with a route and an unknown kind', () => {
-    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'draft' }], total: 1, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, setup_monthly: null, setup_used: 0, policy: { provider_mode: 'platform', outside_allowed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } } })).toThrow()
-    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'delete' }], total: 1, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, setup_monthly: null, setup_used: 0, policy: { provider_mode: 'platform', outside_allowed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } } })).toThrow()
+    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'draft' }], total: 1, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, setup_monthly: null, setup_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } }, blocked_fields: ['wage'] })).toThrow()
+    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'delete' }], total: 1, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, setup_monthly: null, setup_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } }, blocked_fields: ['wage'] })).toThrow()
   })
 
   it('types every SSE event by name', () => {
@@ -133,7 +133,7 @@ describe('LiwanOS AI usage contracts', () => {
   it('keeps the tenant key write-only and the retention bounded', () => {
     const config = {
       retention_days: 30, leaver_retention_days: 30, key: { configured: true, provider: 'anthropic', model: 'claude-test', last4: 'abcd', updated_at: '2026-11-05T10:00:00Z' },
-      platform: { provider: 'ollama', model: 'm', location: 'inside' }, providers: [{ name: 'anthropic', location: 'outside', needs_api_key: true }],
+      platform: { provider: 'ollama', model: 'm' }, providers: [{ name: 'anthropic', needs_api_key: true }],
     }
     expect(AiTenantConfigSchema.parse(config).key.last4).toBe('abcd')
     expect(() => AiTenantConfigSchema.parse({ ...config, key: { ...config.key, api_key: 'sk' } })).toThrow()

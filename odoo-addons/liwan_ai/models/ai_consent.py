@@ -8,14 +8,13 @@ REVOCATION_FIELDS = frozenset({'revoked_at', 'revoked_by_id'})
 
 
 class LiwanAiConsent(models.Model):
-    """One signed data residency acknowledgement: who signed which text, when, and whether it was revoked.
+    """One signed AI acknowledgement: who signed which text, when, and whether it was revoked.
 
-    The tenant's AI data may leave the Kingdom exactly while a non-revoked consent of the current text version
-    exists (spec 2026-11-04 §6.8); there is no separate residency switch to drift from it. A signed row is a
-    record: only its revocation can be written afterwards.
+    The tenant's AI runs, on any provider and any key, exactly while a non-revoked consent of the current text version
+    exists (spec 2026-11-04 §6.8). A signed row is a record: only its revocation can be written afterwards.
     """
     _name = 'liwan.ai.consent'
-    _description = 'LiwanOS AI data residency consent'
+    _description = 'LiwanOS AI acknowledgement'
     # Every run of every employee reads it (the run policy), whichever company they work in.
     _liwan_scope = 'tenant'
     _order = 'signed_at desc, id desc'

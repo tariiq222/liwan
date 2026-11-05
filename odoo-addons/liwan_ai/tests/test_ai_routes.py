@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import tagged
 
+from odoo.addons.liwan_ai.models.tool_registry import SENSITIVE_FIELDS
 from odoo.addons.liwan_ai.tests.common import CREATE_CAP, READ_CAP, WRITE_CAP, AiProbe
 from odoo.addons.liwan_api.tests.common import LiwanApiCase, set_probe_feature
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
@@ -44,7 +45,14 @@ class TestAiToolsRoute(AiProbe, LiwanApiCase):
 
     def test_no_capability_means_an_empty_catalog_not_an_error(self):
         body = self.api('GET', '/api/v1/ai/tools').json()
-        self.assertEqual(body, {'items': [], 'total': 0, 'agents': [], 'limits': body['limits']})
+        self.assertEqual(body, {'items': [], 'total': 0, 'agents': [], 'limits': body['limits'], 'blocked_fields': body['blocked_fields']})
+
+    def test_the_catalog_names_every_blocked_field_for_the_executor(self):
+        # The executor strips these at any depth (spec 2026-11-04 §6.12): the platform constant and each agent's own fields.
+        blocked = self.api('GET', '/api/v1/ai/tools').json()['blocked_fields']
+        self.assertEqual(blocked, sorted(blocked))
+        self.assertTrue(set(blocked) >= SENSITIVE_FIELDS)
+        self.assertIn('secret_note', blocked)
 
     def test_limits_block_reports_configured_values(self):
         self.granted = {READ_CAP, WRITE_CAP}
@@ -53,7 +61,7 @@ class TestAiToolsRoute(AiProbe, LiwanApiCase):
         self.assertEqual(body['limits'], {
             'tool_calls_per_run': 5, 'messages_monthly': None, 'messages_used': 0, 'setup_monthly': None, 'setup_used': 0,
             'policy': {
-                'provider_mode': 'platform', 'outside_allowed': False,
+                'provider_mode': 'platform', 'consent_signed': False,
                 'tokens_monthly': None, 'tokens_used': 0, 'output_tokens_per_run': None,
             },
         })

@@ -46,7 +46,7 @@ export async function executeTool(event: H3Event, session: RunSession, runId: st
   try {
     const upstream = await odooJson(event, built.method, built.path, { query: built.query, body: built.body, signal: options.signal })
     status = upstream.status
-    result = toolResultFromUpstream(upstream.status, upstream.body, tool)
+    result = toolResultFromUpstream(upstream.status, upstream.body, tool, session.blockedFields)
   } catch (error) {
     logFailure('odoo call failed', error)
     result = upstreamUnavailable()

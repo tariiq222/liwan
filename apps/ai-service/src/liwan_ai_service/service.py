@@ -264,9 +264,12 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
     async def run_model_for(tenant: TenantState, policy: Policy) -> RunModel:
         """The model this request runs on, from the tenant's policy; refused before any provider sees the tenant's data.
 
-        A provider processing outside the Kingdom needs a valid residency consent, whoever's key it is. A tenant-key
-        policy never falls back to the platform key: without a key the request is refused.
+        No provider receives a request before the tenant signed the current AI acknowledgement, whoever's key it is
+        (spec 2026-11-04 §6.8). A tenant-key policy never falls back to the platform key: without a key the request is
+        refused.
         """
+        if not policy.consent_signed:
+            raise HTTPException(403, "ai_consent_required")
         if policy.provider_mode == "platform":
             chosen = platform
         elif policy.provider_mode == "setup":
@@ -284,8 +287,6 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
                 cached = (key.updated_at, RunModel(built, ModelIdentity(key.provider, key.model, "tenant_key")), key.api_key)
                 tenant_models[tenant.database] = cached
             chosen = cached[1]
-        if REGISTRY[chosen.identity.provider].location == "outside" and not policy.outside_allowed:
-            raise HTTPException(403, "ai_consent_required")
         return chosen
 
     def stale_executing(record: RunRecord) -> bool:
@@ -552,8 +553,8 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
             retention_days=config.retention_days,
             leaver_retention_days=config.leaver_retention_days,
             key=KeyView(configured=key.configured, provider=key.provider, model=key.model, last4=key.last4, updated_at=key.updated_at),
-            platform=PlatformView(provider=settings.provider, model=settings.model, location=REGISTRY[settings.provider].location),
-            providers=[ProviderView(name=spec.name, location=spec.location, needs_api_key=spec.needs_api_key) for spec in REGISTRY.values()],
+            platform=PlatformView(provider=settings.provider, model=settings.model),
+            providers=[ProviderView(name=spec.name, needs_api_key=spec.needs_api_key) for spec in REGISTRY.values()],
         )
 
     @api.get("/v1/tenant/config")

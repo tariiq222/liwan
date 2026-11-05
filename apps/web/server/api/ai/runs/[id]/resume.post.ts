@@ -3,6 +3,7 @@ import { AI_SETUP_AGENT, AiRunStatusSchema, aiToolAgent } from '@liwan/contracts
 import { auditFailedEvent, doneEvent, executeTool, needsApproval, relay, resumeFailedEvent, settle, tryAudit } from '../../../../utils/ai/pump'
 import { logFailure, serviceFetch } from '../../../../utils/ai/upstream'
 import { assertRunnable, runPolicy } from '../../../../utils/ai/policy'
+import { withholdValue } from '../../../../utils/ai/outbound'
 import { ownerFor, runSession } from '../../../../utils/ai/session'
 import type { ToolResult } from '../../../../utils/ai/executor'
 
@@ -72,7 +73,8 @@ export default defineEventHandler(async (event) => {
   }
   let response: Response
   try {
-    response = await serviceFetch(event, 'POST', `${path}/resume`, session.owner, { call_id: body.call_id, result, policy: runPolicy(session) }, shield)
+    // A submitted draft leaves under the outbound data policy (spec 2026-11-04 §6.12); tool results were withheld when built.
+    response = await serviceFetch(event, 'POST', `${path}/resume`, session.owner, { call_id: body.call_id, result: withholdValue(result), policy: runPolicy(session) }, shield)
     if (wroteAlready && !response.ok) throw new Error('the service refused the resume')
   } catch (error) {
     // The write already happened: the browser is told so (a 200 stream), not left to think nothing was done.

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// Enter sends, Shift+Enter inserts a newline; the full page has two rows, the sheet (`compact`) one.
+// Enter sends, Shift+Enter inserts a newline; the full page has two rows, the sheet (`compact`) one. The line under the
+// field reminds users not to type sensitive data: free text cannot be fully scanned (spec 2026-11-04 §6.12).
 const props = defineProps<{
   disabled: boolean
   pending: boolean
@@ -8,6 +9,7 @@ const props = defineProps<{
 const emit = defineEmits<{ send: [text: string] }>()
 const { t } = useI18n()
 const text = ref('')
+const noticeId = useId()
 const blocked = computed(() => props.disabled || props.pending)
 const canSend = computed(() => !blocked.value && text.value.trim().length > 0)
 
@@ -26,30 +28,34 @@ function onKeydown(event: KeyboardEvent) {
 </script>
 
 <template>
-  <form class="flex items-end gap-2 rounded-card bg-default p-3 ring ring-accented focus-within:ring-2 focus-within:ring-primary" @submit.prevent="submit">
-    <UTextarea
-      v-model="text"
-      class="min-w-0 flex-1"
-      variant="none"
-      :rows="props.compact ? 1 : 2"
-      autoresize
-      :maxrows="8"
-      :disabled="blocked"
-      :placeholder="t('ai.composer.placeholder')"
-      :aria-label="t('ai.composer.placeholder')"
-      :ui="{ base: 'w-full resize-none px-1 py-1' }"
-      data-testid="ai-composer"
-      @keydown="onKeydown"
-    />
-    <UButton
-      type="submit"
-      class="liwan-touch-target shrink-0 rounded-full"
-      icon="i-lucide-arrow-up"
-      size="lg"
-      :disabled="!canSend"
-      :loading="props.pending"
-      :aria-label="t(props.pending ? 'ai.composer.sending' : 'ai.composer.send')"
-      data-testid="ai-send"
-    />
-  </form>
+  <div class="grid gap-1.5">
+    <form class="flex items-end gap-2 rounded-card bg-default p-3 ring ring-accented focus-within:ring-2 focus-within:ring-primary" @submit.prevent="submit">
+      <UTextarea
+        v-model="text"
+        class="min-w-0 flex-1"
+        variant="none"
+        :rows="props.compact ? 1 : 2"
+        autoresize
+        :maxrows="8"
+        :disabled="blocked"
+        :placeholder="t('ai.composer.placeholder')"
+        :aria-label="t('ai.composer.placeholder')"
+        :aria-describedby="noticeId"
+        :ui="{ base: 'w-full resize-none px-1 py-1' }"
+        data-testid="ai-composer"
+        @keydown="onKeydown"
+      />
+      <UButton
+        type="submit"
+        class="liwan-touch-target shrink-0 rounded-full"
+        icon="i-lucide-arrow-up"
+        size="lg"
+        :disabled="!canSend"
+        :loading="props.pending"
+        :aria-label="t(props.pending ? 'ai.composer.sending' : 'ai.composer.send')"
+        data-testid="ai-send"
+      />
+    </form>
+    <p :id="noticeId" class="px-1 text-xs text-muted" data-testid="ai-composer-notice">{{ t('ai.composer.notice') }}</p>
+  </div>
 </template>

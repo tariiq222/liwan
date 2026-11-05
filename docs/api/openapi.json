@@ -2708,6 +2708,9 @@
           "policy": {
             "additionalProperties": false,
             "properties": {
+              "consent_signed": {
+                "type": "boolean"
+              },
               "output_tokens_per_run": {
                 "anyOf": [
                   {
@@ -2719,9 +2722,6 @@
                     "type": "null"
                   }
                 ]
-              },
-              "outside_allowed": {
-                "type": "boolean"
               },
               "provider_mode": {
                 "enum": [
@@ -2750,7 +2750,7 @@
             },
             "required": [
               "provider_mode",
-              "outside_allowed",
+              "consent_signed",
               "tokens_monthly",
               "tokens_used",
               "output_tokens_per_run"
@@ -3175,6 +3175,9 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "consent_signed": {
+            "type": "boolean"
+          },
           "output_tokens_per_run": {
             "anyOf": [
               {
@@ -3186,9 +3189,6 @@
                 "type": "null"
               }
             ]
-          },
-          "outside_allowed": {
-            "type": "boolean"
           },
           "provider_mode": {
             "enum": [
@@ -3217,7 +3217,7 @@
         },
         "required": [
           "provider_mode",
-          "outside_allowed",
+          "consent_signed",
           "tokens_monthly",
           "tokens_used",
           "output_tokens_per_run"
@@ -3896,13 +3896,6 @@
           "platform": {
             "additionalProperties": false,
             "properties": {
-              "location": {
-                "enum": [
-                  "inside",
-                  "outside"
-                ],
-                "type": "string"
-              },
               "model": {
                 "maxLength": 128,
                 "minLength": 1,
@@ -3915,8 +3908,7 @@
             },
             "required": [
               "provider",
-              "model",
-              "location"
+              "model"
             ],
             "type": "object"
           },
@@ -3924,13 +3916,6 @@
             "items": {
               "additionalProperties": false,
               "properties": {
-                "location": {
-                  "enum": [
-                    "inside",
-                    "outside"
-                  ],
-                  "type": "string"
-                },
                 "name": {
                   "pattern": "^[a-z][a-z0-9_-]{0,31}$",
                   "type": "string"
@@ -3941,7 +3926,6 @@
               },
               "required": [
                 "name",
-                "location",
                 "needs_api_key"
               ],
               "type": "object"
@@ -4245,6 +4229,13 @@
             },
             "type": "array"
           },
+          "blocked_fields": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
           "items": {
             "items": {
               "additionalProperties": false,
@@ -4394,6 +4385,9 @@
               "policy": {
                 "additionalProperties": false,
                 "properties": {
+                  "consent_signed": {
+                    "type": "boolean"
+                  },
                   "output_tokens_per_run": {
                     "anyOf": [
                       {
@@ -4405,9 +4399,6 @@
                         "type": "null"
                       }
                     ]
-                  },
-                  "outside_allowed": {
-                    "type": "boolean"
                   },
                   "provider_mode": {
                     "enum": [
@@ -4436,7 +4427,7 @@
                 },
                 "required": [
                   "provider_mode",
-                  "outside_allowed",
+                  "consent_signed",
                   "tokens_monthly",
                   "tokens_used",
                   "output_tokens_per_run"
@@ -4493,7 +4484,8 @@
           "items",
           "total",
           "agents",
-          "limits"
+          "limits",
+          "blocked_fields"
         ],
         "type": "object"
       },

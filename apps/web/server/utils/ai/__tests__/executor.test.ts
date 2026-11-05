@@ -44,40 +44,56 @@ describe('buildToolRequest path safety', () => {
   })
 })
 
+const NONE: ReadonlySet<string> = new Set()
+
 describe('summarizeResult', () => {
+  it('strips blocked fields at any depth, even under a path that ends on a whole object', () => {
+    const data = { items: [{ id: 1, employee: { name: 'أحمد', wage: 9000, contact: { mobile: '0551234567', city: 'جدة' } } }], total: 1 }
+    expect(summarizeResult(data, ['items[].id', 'items[].employee'], new Set(['wage', 'mobile']))).toEqual({
+      items: [{ id: 1, employee: { name: 'أحمد', contact: { city: 'جدة' } } }],
+    })
+  })
+
   it('keeps only whitelisted paths, including nested arrays', () => {
     const data = { items: [{ id: 1, name: 'أ', secret: 'x', project: { id: 9, name: 'ب', budget: 3 } }], total: 1, extra: true }
-    expect(summarizeResult(data, list.result_summary)).toEqual({ items: [{ id: 1, name: 'أ', project: { name: 'ب' } }], total: 1 })
+    expect(summarizeResult(data, list.result_summary, NONE)).toEqual({ items: [{ id: 1, name: 'أ', project: { name: 'ب' } }], total: 1 })
   })
   it('returns an empty object when nothing matches', () => {
-    expect(summarizeResult({ a: 1 }, ['b'])).toEqual({})
+    expect(summarizeResult({ a: 1 }, ['b'], NONE)).toEqual({})
   })
 })
 
 describe('toolResultFromUpstream', () => {
+  it('withholds sensitive values before the size check', () => {
+    expect(toolResultFromUpstream(200, { items: [{ id: 1, name: 'جوال 0551234567' }], total: 1 }, list, NONE)).toEqual({ ok: true, data: { items: [{ id: 1, name: 'جوال [phone withheld]' }], total: 1 } })
+    // Many short emails grow past the bound once each becomes a marker: the result is refused, never sent oversized.
+    const emails = Array.from({ length: 14_000 }, (_, index) => `a${index}@b.sa`).join(' ')
+    expect(toolResultFromUpstream(200, { items: [{ id: 1, name: emails }], total: 1 }, list, NONE)).toMatchObject({ ok: false, error: { code: 'result_too_large' } })
+  })
+
   it('wraps 2xx as ok with the summarized data', () => {
-    expect(toolResultFromUpstream(200, { items: [{ id: 1, name: 'أ', secret: 1 }], total: 1 }, list)).toEqual({ ok: true, data: { items: [{ id: 1, name: 'أ' }], total: 1 } })
+    expect(toolResultFromUpstream(200, { items: [{ id: 1, name: 'أ', secret: 1 }], total: 1 }, list, NONE)).toEqual({ ok: true, data: { items: [{ id: 1, name: 'أ' }], total: 1 } })
   })
   it('wraps a flat Odoo error body as a tool error', () => {
-    expect(toolResultFromUpstream(403, { code: 'forbidden', message: 'no' }, list)).toEqual({ ok: false, error: { code: 'forbidden', message: 'no' } })
+    expect(toolResultFromUpstream(403, { code: 'forbidden', message: 'no' }, list, NONE)).toEqual({ ok: false, error: { code: 'forbidden', message: 'no' } })
   })
   it('still reads a nested error body as a fallback', () => {
-    expect(toolResultFromUpstream(403, { error: { code: 'forbidden', message: 'no' } }, list)).toEqual({ ok: false, error: { code: 'forbidden', message: 'no' } })
+    expect(toolResultFromUpstream(403, { error: { code: 'forbidden', message: 'no' } }, list, NONE)).toEqual({ ok: false, error: { code: 'forbidden', message: 'no' } })
   })
   it('wraps an unknown failure as http_error', () => {
-    expect(toolResultFromUpstream(502, 'bad gateway', list)).toEqual({ ok: false, error: { code: 'http_error', message: 'upstream status 502' } })
+    expect(toolResultFromUpstream(502, 'bad gateway', list, NONE)).toEqual({ ok: false, error: { code: 'http_error', message: 'upstream status 502' } })
   })
   it('refuses a summarized result over 200 000 bytes with a fixed error', () => {
     const big = { items: Array.from({ length: 5000 }, (_, id) => ({ id, name: 'م'.repeat(30) })), total: 5000 }
-    const result = toolResultFromUpstream(200, big, list)
+    const result = toolResultFromUpstream(200, big, list, NONE)
     expect(result).toEqual({ ok: false, error: { code: 'result_too_large', message: expect.any(String) } })
     expect(JSON.stringify(result)).not.toContain('مممم')
   })
   it('keeps a result just under the cap', () => {
-    expect(toolResultFromUpstream(200, { items: [{ id: 1, name: 'x'.repeat(190_000) }], total: 1 }, list).ok).toBe(true)
+    expect(toolResultFromUpstream(200, { items: [{ id: 1, name: 'x'.repeat(190_000) }], total: 1 }, list, NONE).ok).toBe(true)
   })
   it('truncates an upstream error code to 60 and its message to 2000 characters', () => {
-    const result = toolResultFromUpstream(422, { code: 'c'.repeat(200), message: 'm'.repeat(5000) }, list)
+    const result = toolResultFromUpstream(422, { code: 'c'.repeat(200), message: 'm'.repeat(5000) }, list, NONE)
     expect(result).toEqual({ ok: false, error: { code: 'c'.repeat(60), message: 'm'.repeat(2000) } })
   })
 })

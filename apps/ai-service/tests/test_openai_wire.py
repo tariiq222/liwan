@@ -15,9 +15,7 @@ from tests.fakes import PLATFORM_POLICY, make_memory_app, new_id
 from tests.test_service import BODY as PLATFORM_BODY
 from tests.test_service import HEADERS, parse_sse
 
-# openai and openrouter process outside the Kingdom: these runs carry a signed residency consent.
-CONSENTED = {**PLATFORM_POLICY, "outside_allowed": True}
-BODY = {**PLATFORM_BODY, "policy": CONSENTED}
+BODY = {**PLATFORM_BODY, "policy": PLATFORM_POLICY}
 
 
 def fresh(body=BODY):
@@ -77,7 +75,7 @@ async def test_resume_streams_tokens_and_the_answer_string_and_sends_a_valid_fol
     fake, base_url = serve_fake([tool_turn("pmo__list_my_tasks", {"limit": 5}, "call_a1"), text_turn("عندك مهمة واحدة: تقرير")])
     async with service_client(base_url) as client:
         run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
-        events = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"policy": CONSENTED, "call_id": "call_a1", "result": TASKS}, headers=HEADERS)).text)
+        events = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"policy": PLATFORM_POLICY, "call_id": "call_a1", "result": TASKS}, headers=HEADERS)).text)
         assert [item["title"] for item in (await client.get("/v1/runs", headers=HEADERS)).json()["items"]] == [FAKE_TITLE]
     tokens = [data["text"] for name, data in events if name == "token"]
     assert len(tokens) > 1 and "".join(tokens) == "عندك مهمة واحدة: تقرير"
@@ -95,7 +93,7 @@ async def test_a_continuation_after_the_tool_limit_passes_the_providers_message_
     async with service_client(base_url) as client:
         run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         for call in ("call_1", "call_2"):
-            events = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"policy": CONSENTED, "call_id": call, "result": {"ok": True, "data": {}}}, headers=HEADERS)).text)
+            events = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"policy": PLATFORM_POLICY, "call_id": call, "result": {"ok": True, "data": {}}}, headers=HEADERS)).text)
         assert events[-1][1] == {"status": "limit_reached"}
         events = parse_sse((await client.post("/v1/runs", json={**BODY, "run_id": run_id, "message": "كمّل"}, headers=HEADERS)).text)
     assert events[-1][1] == {"status": "done"} and dict(events)["answer"]["text"] == "من جديد"

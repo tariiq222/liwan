@@ -45,8 +45,8 @@ export type AiProviderMode = z.infer<typeof AiProviderModeSchema>
 /** What a run needs from the tenant's AI policy (Odoo `liwan_ai`); the Nuxt server passes it to the AI service. */
 export const AiPolicySchema = z.object({
   provider_mode: AiProviderModeSchema,
-  /** A valid residency consent exists: a provider outside the Kingdom may receive the data. */
-  outside_allowed: z.boolean(),
+  /** The tenant signed the current AI acknowledgement: no provider runs a request without it (spec 2026-11-04 §6.8). */
+  consent_signed: z.boolean(),
   tokens_monthly: AiLimitValueSchema,
   tokens_used: z.number().int().nonnegative(),
   output_tokens_per_run: AiLimitValueSchema,
@@ -65,6 +65,8 @@ export const AiLimitsSchema = z.object({
 
 export const AiToolsResponseSchema = z.object({
   items: z.array(AiToolSchema), total: z.number().int().nonnegative(), agents: z.array(AiAgentSchema), limits: AiLimitsSchema,
+  /** Field names no tool result may carry at any depth (the outbound data policy, spec 2026-11-04 §6.12); the Nuxt executor strips them. */
+  blocked_fields: z.array(z.string().min(1)),
 }).strict()
 export type AiToolsResponse = z.infer<typeof AiToolsResponseSchema>
 
@@ -188,9 +190,12 @@ export const AiRunPatchSchema = z.object({
 }).strict().refine(value => value.title !== undefined || value.archived !== undefined, 'send a title, archived, or both')
 export type AiRunPatch = z.infer<typeof AiRunPatchSchema>
 
+/** The longest message the AI service accepts (apps/ai-service contracts.RunRequest), after the outbound scan too. */
+export const AI_MESSAGE_MAX = 8000
+
 /** `POST /api/ai/runs`: `context` is the page the assistant was opened from, `run_id` continues an existing run. */
 export const AiStartRequestSchema = z.object({
-  message: z.string().trim().min(1).max(8000),
+  message: z.string().trim().min(1).max(AI_MESSAGE_MAX),
   run_id: z.string().min(1).max(64).nullish(),
   /** `setup`: a conversation with the setup agent only, on the platform provider, against the setup budget. */
   mode: z.enum(['setup']).nullish(),
@@ -223,7 +228,7 @@ export type AiDraftHandoff = z.infer<typeof AiDraftHandoffSchema>
 
 const AiPersonSchema = z.object({ id: z.number().int().positive(), name: z.string() }).strict()
 
-/** `GET|PATCH /api/v1/ai/settings` (capability `ai.settings.manage`): provider mode, residency consent and this month's usage. */
+/** `GET|PATCH /api/v1/ai/settings` (capability `ai.settings.manage`): provider mode, AI acknowledgement and this month's usage. */
 /** How the assistant may reach an outside party: prepare a draft the employee sends, or send after approval. */
 export const AiExternalSendSchema = z.enum(['draft_only', 'approve'])
 export const AI_MESSAGES_PER_USER_MAX = 100_000
@@ -286,7 +291,6 @@ export const AiMonitoringSchema = z.object({
 }).strict()
 export type AiMonitoring = z.infer<typeof AiMonitoringSchema>
 
-const AiLocationSchema = z.enum(['inside', 'outside'])
 export const AI_RETENTION_DAYS_MIN = 1
 export const AI_RETENTION_DAYS_MAX = 365
 export const AI_LEAVER_RETENTION_DAYS_MAX = 365
@@ -302,8 +306,8 @@ export const AiTenantConfigSchema = z.object({
     last4: z.string().max(4).nullable(),
     updated_at: z.iso.datetime({ offset: true }).nullable(),
   }).strict(),
-  platform: z.object({ provider: AiProviderNameSchema, model: AiModelNameSchema, location: AiLocationSchema }).strict(),
-  providers: z.array(z.object({ name: AiProviderNameSchema, location: AiLocationSchema, needs_api_key: z.boolean() }).strict()),
+  platform: z.object({ provider: AiProviderNameSchema, model: AiModelNameSchema }).strict(),
+  providers: z.array(z.object({ name: AiProviderNameSchema, needs_api_key: z.boolean() }).strict()),
 }).strict()
 export type AiTenantConfig = z.infer<typeof AiTenantConfigSchema>
 export const AiLeaverRetentionPutSchema = z.object({ leaver_retention_days: z.number().int().min(0).max(AI_LEAVER_RETENTION_DAYS_MAX) }).strict()

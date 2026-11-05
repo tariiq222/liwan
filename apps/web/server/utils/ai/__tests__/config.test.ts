@@ -8,7 +8,7 @@ vi.mock('../session', () => ({ ownerFor: async () => ({ tenant: 't1', user: '42'
 const TENANT_KEY = 'sk-tenant-0123456789abcd'
 const CONFIG = {
   retention_days: 30, leaver_retention_days: 30, key: { configured: true, provider: 'anthropic', model: 'claude-test', last4: 'abcd', updated_at: '2026-11-05T10:00:00Z' },
-  platform: { provider: 'ollama', model: 'm', location: 'inside' }, providers: [],
+  platform: { provider: 'ollama', model: 'm' }, providers: [],
 }
 
 beforeEach(() => {

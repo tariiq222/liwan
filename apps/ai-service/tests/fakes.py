@@ -21,8 +21,8 @@ from liwan_ai_service.titles import TITLE_RULES
 from liwan_ai_service.usage import ModelIdentity, RunModel
 
 IDENTITY = ModelIdentity("ollama", "m", "platform")  # what the Settings of the service tests name
-# The policy of a platform run without a residency consent; the tests' provider (ollama) processes inside the Kingdom.
-PLATFORM_POLICY = {"provider_mode": "platform", "outside_allowed": False, "max_output_tokens": None}
+# The policy of a platform run of a tenant that signed the AI acknowledgement; without it no provider runs (§6.8).
+PLATFORM_POLICY = {"provider_mode": "platform", "consent_signed": True, "max_output_tokens": None}
 
 
 TEST_TENANT = "t1"  # the tenant the service tests' requests name; its database has the same name in memory mode
