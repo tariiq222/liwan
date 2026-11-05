@@ -2,19 +2,23 @@
 import type { InboxAttachment, InboxConversationDetail, InboxReplyCreate } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useInboxCannedReplies, useInboxTemplates, useInboxTyping, useSendInboxNote, useSendInboxReply, useUploadInboxFile } from '@/composables/inbox/useInbox'
-import { INBOX_CAPTION_MAX, INBOX_UPLOAD_ACCEPT, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem } from '@/composables/inbox/inboxAttachments'
+import { INBOX_CAPTION_MAX, inboxAcceptsCaption, inboxFileSize, inboxUploadAccept, inboxUploadProblem } from '@/composables/inbox/inboxAttachments'
+import { channelCarriesTemplates, inboxComposerActions } from '@/composables/inbox/inboxComposerKind'
+import { inboxTikTokErrorKey } from '@/composables/inbox/inboxTikTok'
 import { emptyInboxDraft, inboxDrafts } from '@/composables/inbox/inboxDrafts'
 import { buildCommerceContent, emptyCommerceDraft } from '@/composables/inbox/inboxCommerce'
 import { buildInteractive, emptyInteractiveDraft } from '@/composables/inbox/inboxInteractive'
 import { buildLocation, emptyLocationDraft } from '@/composables/inbox/inboxLocation'
 import { TEMPLATE_CATEGORY_TONE, templatePreview } from '@/composables/inbox/inboxTemplate'
 import { HEADER_MEDIA_ACCEPT, buildTemplateReply, dynamicButtons, headerInput, templateReplyReady } from '@/composables/inbox/inboxTemplateSend'
-import { cannedSuggestions, replyWindowOpen } from '@/composables/inbox/inboxWindow'
+import { cannedSuggestions, replyWindowOpen, windowClosedDescriptionKey } from '@/composables/inbox/inboxWindow'
 
-// Three ways to write: a reply (inside the 24-hour customer-service window) that is text, a file with a caption, a
-// location or an interactive message and may quote one message, an approved template with its parameters (the only
-// reply after the window), and an internal note the customer never sees. Typing "/" at the start of a reply suggests
-// canned replies; typing tells the customer's phone the agent is writing.
+// Three ways to write: a reply (inside the customer-service window) that is text, a file with a caption, a location or
+// an interactive message and may quote one message, an approved template with its parameters (WhatsApp's only reply
+// after the window), and an internal note the customer never sees. Typing "/" at the start of a reply suggests canned
+// replies; typing tells the customer's phone the agent is writing.
+// The kind decides what a reply may carry (D3): TikTok takes a text, one image of up to 3 MB without a caption and a
+// button card, and has no template, location, product, list or link, so those controls are not offered there.
 // `commerceReady`: the conversation's channel has a catalog, so products can be sent from it.
 const props = defineProps<{ conversation: InboxConversationDetail; replyTo?: { id: number; preview: string } | null; commerceReady?: boolean }>()
 const emit = defineEmits<{ 'update:replyTo': [target: { id: number; preview: string } | null] }>()
@@ -22,6 +26,9 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
 const { me } = useMe()
+const kind = computed(() => props.conversation.channel.kind)
+const tiktok = computed(() => kind.value === 'tiktok')
+const actions = computed(() => inboxComposerActions(kind.value, { commerceReady: !!props.commerceReady }))
 const mode = ref<'reply' | 'note'>('reply')
 // Reply and note keep their own text, so switching the mode never loses what was typed.
 const texts = reactive({ reply: '', note: '' })
@@ -61,7 +68,10 @@ function scheduleExpiry(endsAt: string | null) {
 watch(() => props.conversation.reply_window_ends_at, scheduleExpiry, { immediate: true })
 onBeforeUnmount(() => clearTimeout(expiry))
 const windowOpen = computed(() => replyWindowOpen(props.conversation, now.value))
-const templateMode = computed(() => mode.value === 'reply' && !windowOpen.value)
+// A closed window means a template on WhatsApp and nothing at all on TikTok, which carries none (D4).
+const templateMode = computed(() => mode.value === 'reply' && !windowOpen.value && channelCarriesTemplates(kind.value))
+const blockedWindow = computed(() => mode.value === 'reply' && !windowOpen.value && tiktok.value)
+const closedWindow = computed(() => mode.value === 'reply' && !windowOpen.value)
 const conversationId = computed(() => props.conversation.id)
 const { mutateAsync: sendReply, isPending: replying } = useSendInboxReply(conversationId)
 const { mutateAsync: sendNote, isPending: noting } = useSendInboxNote(conversationId)
@@ -94,13 +104,13 @@ const previewParts = computed(() => selectedTemplate.value
   : null)
 const textareaLabel = computed(() => mode.value === 'note' ? t('inbox.composer.notePlaceholder') : upload.value ? t('inbox.composer.captionPlaceholder') : t('inbox.composer.placeholder'))
 const uploading = computed(() => !!upload.value && !upload.value.attachment)
-const captionAllowed = computed(() => !upload.value?.attachment || inboxAcceptsCaption(upload.value.attachment.mimetype))
+const captionAllowed = computed(() => !upload.value?.attachment || inboxAcceptsCaption(upload.value.attachment.mimetype, kind.value))
 const captionTooLong = computed(() => mode.value === 'reply' && !!upload.value && captionAllowed.value && draft.value.trim().length > INBOX_CAPTION_MAX)
 const quoted = computed(() => (mode.value === 'reply' && !templateMode.value ? props.replyTo ?? null : null))
 const composing = computed(() => mode.value === 'reply' && !templateMode.value)
 const replyReady = computed(() => {
   if (panel.value === 'location') return !!buildLocation(location.value)
-  if (panel.value === 'interactive') return !!buildInteractive(interactive.value)
+  if (panel.value === 'interactive') return !!buildInteractive(interactive.value, kind.value)
   if (panel.value === 'products') return !!buildCommerceContent(commerce.value)
   return !uploading.value && !captionTooLong.value && (!!upload.value || !!draft.value.trim())
 })
@@ -185,7 +195,7 @@ async function onFilePicked(event: Event) {
   fileField.value?.reset()
   if (!file) return
   discardUpload()
-  const problem = inboxUploadProblem(file)
+  const problem = inboxUploadProblem(file, kind.value)
   if (problem) {
     uploadError.value = t(`inbox.composer.upload.${problem.reason}`, { name: file.name, limit: problem.reason === 'tooLarge' ? problem.limitMb : 0 })
     return
@@ -209,7 +219,7 @@ async function onHeaderPicked(event: Event) {
   input.value = ''
   if (!file || headerNeeds.value?.kind !== 'media') return
   discardHeaderUpload()
-  const problem = inboxUploadProblem(file)
+  const problem = inboxUploadProblem(file, kind.value)
   if (problem) {
     headerError.value = t(`inbox.composer.upload.${problem.reason}`, { name: file.name, limit: problem.reason === 'tooLarge' ? problem.limitMb : 0 })
     return
@@ -267,12 +277,12 @@ type FreeFormReply = Exclude<InboxReplyCreate, { template_id: number }>
 /** The reply payload and whether it carries the typed text (a location, an interactive message or an audio file does not). */
 function replyContent(): { content: FreeFormReply, usesText: boolean } {
   if (panel.value === 'location') return { content: { location: buildLocation(location.value)! }, usesText: false }
-  if (panel.value === 'interactive') return { content: { interactive: buildInteractive(interactive.value)! }, usesText: false }
+  if (panel.value === 'interactive') return { content: { interactive: buildInteractive(interactive.value, kind.value)! }, usesText: false }
   if (panel.value === 'products') return { content: { commerce: buildCommerceContent(commerce.value)! }, usesText: false }
   const caption = draft.value.trim()
   const attachment = upload.value?.attachment
   if (!attachment) return { content: { body: caption }, usesText: true }
-  const withCaption = !!caption && inboxAcceptsCaption(attachment.mimetype)
+  const withCaption = !!caption && inboxAcceptsCaption(attachment.mimetype, kind.value)
   return { content: { attachment_id: attachment.id, ...(withCaption ? { caption } : {}) }, usesText: withCaption }
 }
 
@@ -296,8 +306,9 @@ async function submit() {
       emit('update:replyTo', null)
     }
   } catch (e) {
-    // The draft stays so nothing typed is lost; the server's reason (for example a closed window) is shown.
-    toast.add({ title: e instanceof Error ? e.message : t('errors.generic'), color: 'error' })
+    // The draft stays so nothing typed is lost; the server's reason (for example a closed window) is shown translated.
+    const key = inboxTikTokErrorKey(e)
+    toast.add({ title: key ? t(key) : e instanceof Error ? e.message : t('errors.generic'), color: 'error' })
   }
 }
 </script>
@@ -306,13 +317,13 @@ async function submit() {
   <form class="flex flex-col gap-2 border-t border-default bg-default px-3 pt-2 pb-3" data-testid="inbox-composer" @submit.prevent="submit">
     <SharedSegmentedControl v-model="mode" class="self-start" :items="modeItems" :label="t('inbox.composer.mode')" />
     <UAlert
-      v-if="templateMode"
+      v-if="closedWindow"
       color="info"
       variant="subtle"
       icon="i-lucide-clock"
       data-testid="inbox-window-closed"
       :title="t('inbox.composer.windowClosed')"
-      :description="props.conversation.reply_window_ends_at ? t('inbox.composer.windowClosedDescription') : t('inbox.composer.noWindow')"
+      :description="props.conversation.reply_window_ends_at ? t(windowClosedDescriptionKey(kind)) : t('inbox.composer.noWindow')"
     />
     <template v-if="templateMode">
       <SharedLoadingSkeleton v-if="templatesLoading" />
@@ -356,17 +367,17 @@ async function submit() {
         </div>
       </template>
     </template>
-    <template v-else>
+    <template v-else-if="!blockedWindow">
       <div v-if="quoted" class="flex items-center gap-2 rounded-control border-s-2 border-primary bg-elevated/50 py-1.5 ps-3 pe-1 text-sm" data-testid="inbox-reply-chip">
         <UIcon name="i-lucide-reply" class="size-4 shrink-0 text-muted" aria-hidden="true" />
         <p class="min-w-0 flex-1 truncate"><span class="font-medium">{{ t('inbox.composer.replyingTo') }}</span> <span class="text-muted">{{ quoted.preview || t('inbox.composer.quotedMedia') }}</span></p>
         <UButton type="button" color="neutral" variant="ghost" size="sm" icon="i-lucide-x" :aria-label="t('inbox.composer.cancelReplyTo')" @click="emit('update:replyTo', null)" />
       </div>
       <div v-if="mode === 'reply'" class="flex flex-wrap items-center gap-2" role="toolbar" :aria-label="t('inbox.composer.attachments')">
-        <SharedFileField ref="fileField" :accept="INBOX_UPLOAD_ACCEPT" :label="t('inbox.composer.attach')" :show-file-name="false" :disabled="!hydrated || sending || uploading" data-testid="inbox-attach" @change="onFilePicked" />
-        <UButton type="button" color="neutral" variant="outline" icon="i-lucide-map-pin" :label="t('inbox.composer.location.title')" :aria-pressed="panel === 'location'" :disabled="!hydrated || sending" data-testid="inbox-location-toggle" @click="togglePanel('location')" />
-        <UButton type="button" color="neutral" variant="outline" icon="i-lucide-list-checks" :label="t('inbox.composer.interactive.title')" :aria-pressed="panel === 'interactive'" :disabled="!hydrated || sending" data-testid="inbox-interactive-toggle" @click="togglePanel('interactive')" />
-        <UButton v-if="props.commerceReady" type="button" color="neutral" variant="outline" icon="i-lucide-shopping-bag" :label="t('inbox.catalog.picker.title')" :aria-pressed="panel === 'products'" :disabled="!hydrated || sending" data-testid="inbox-products-toggle" @click="togglePanel('products')" />
+        <SharedFileField v-if="actions.includes('attach')" ref="fileField" :accept="inboxUploadAccept(kind)" :label="t('inbox.composer.attach')" :show-file-name="false" :disabled="!hydrated || sending || uploading" data-testid="inbox-attach" @change="onFilePicked" />
+        <UButton v-if="actions.includes('location')" type="button" color="neutral" variant="outline" icon="i-lucide-map-pin" :label="t('inbox.composer.location.title')" :aria-pressed="panel === 'location'" :disabled="!hydrated || sending" data-testid="inbox-location-toggle" @click="togglePanel('location')" />
+        <UButton v-if="actions.includes('interactive')" type="button" color="neutral" variant="outline" icon="i-lucide-list-checks" :label="t('inbox.composer.interactive.title')" :aria-pressed="panel === 'interactive'" :disabled="!hydrated || sending" data-testid="inbox-interactive-toggle" @click="togglePanel('interactive')" />
+        <UButton v-if="actions.includes('products')" type="button" color="neutral" variant="outline" icon="i-lucide-shopping-bag" :label="t('inbox.catalog.picker.title')" :aria-pressed="panel === 'products'" :disabled="!hydrated || sending" data-testid="inbox-products-toggle" @click="togglePanel('products')" />
       </div>
       <p v-if="uploadError" class="text-sm text-error" role="alert" data-testid="inbox-upload-error">{{ uploadError }}</p>
       <div v-if="upload" class="flex items-center gap-2 rounded-control bg-elevated/50 px-3 py-1.5 text-sm" data-testid="inbox-upload">
@@ -377,10 +388,10 @@ async function submit() {
         <UButton type="button" color="neutral" variant="ghost" size="sm" icon="i-lucide-x" :aria-label="t('inbox.composer.removeFile')" @click="discardUpload" />
       </div>
       <InboxLocationForm v-if="panel === 'location'" v-model="location" />
-      <InboxInteractiveBuilder v-else-if="panel === 'interactive'" v-model="interactive" :channel-id="props.conversation.channel.id" />
+      <InboxInteractiveBuilder v-else-if="panel === 'interactive'" v-model="interactive" :channel-id="props.conversation.channel.id" :kind="kind" />
       <InboxCommerceContentEditor v-else-if="panel === 'products'" v-model="commerce" :source="{ conversationId: props.conversation.id }" />
       <p v-if="captionTooLong" class="text-xs text-error" role="alert" data-testid="inbox-caption-too-long">{{ t('inbox.composer.captionTooLong', { max: INBOX_CAPTION_MAX }) }}</p>
-      <p v-else-if="!captionAllowed" class="text-xs text-muted" data-testid="inbox-audio-no-caption">{{ t('inbox.composer.audioNoCaption') }}</p>
+      <p v-else-if="!captionAllowed" class="text-xs text-muted" data-testid="inbox-no-caption">{{ t('inbox.composer.noCaption') }}</p>
       <ul v-if="suggestions.length" id="inbox-canned-list" role="listbox" :aria-label="t('inbox.composer.canned')" class="overflow-hidden rounded-control bg-default text-sm ring ring-default">
         <li
           v-for="(reply, index) in suggestions"
@@ -415,7 +426,7 @@ async function submit() {
         @keydown="onKeydown"
       />
     </template>
-    <div v-if="!templateMode || selectedTemplate" class="flex items-center justify-between gap-2">
+    <div v-if="(!templateMode || selectedTemplate) && !blockedWindow" class="flex items-center justify-between gap-2">
       <p v-if="mode === 'reply' && !templateMode && !panel" class="text-xs text-muted">{{ t('inbox.composer.cannedHint') }}</p>
       <p v-else-if="mode === 'note'" class="text-xs text-muted">{{ t('inbox.composer.noteHint') }}</p>
       <span v-else />

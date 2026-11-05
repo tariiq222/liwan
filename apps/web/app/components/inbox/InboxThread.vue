@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useInboxProviderError } from '@/composables/inbox/inboxProviderError'
-import type { InboxMessage } from '@liwan/contracts'
+import type { InboxChannelKind, InboxMessage } from '@liwan/contracts'
 import { useInboxMessages, useReactToInboxMessage, useRetryInboxMessage } from '@/composables/inbox/useInbox'
 import { DELIVERY_ICON, inboxDayKey } from '@/composables/inbox/inboxPresentation'
 import { INBOX_REACTION_EMOJIS } from '@/composables/inbox/inboxReactions'
@@ -8,7 +8,7 @@ import { INBOX_REACTION_EMOJIS } from '@/composables/inbox/inboxReactions'
 // The message thread of one conversation, oldest first. Inbound messages sit at the start of the line, replies at the
 // end, internal notes are a full-width tinted block that is never sent to the customer. Inside the reply window an agent
 // can quote a message (the `reply` event) and react to it with an emoji; the customer's reaction shows beside it.
-const props = defineProps<{ conversationId: number; channelId?: number; canReply: boolean; windowOpen: boolean }>()
+const props = defineProps<{ conversationId: number; channelId?: number; channelKind?: InboxChannelKind; canReply: boolean; windowOpen: boolean }>()
 const emit = defineEmits<{ reply: [target: { id: number; preview: string }] }>()
 const { t, locale } = useI18n()
 const { providerText } = useInboxProviderError()
@@ -153,7 +153,7 @@ const deliveryLabel = (item: InboxMessage) => t(`inbox.delivery.${item.delivery_
             </ul>
             <div v-if="canAct(row.item)" class="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
               <UButton type="button" size="xs" color="neutral" variant="ghost" icon="i-lucide-reply" :label="t('inbox.thread.reply')" :disabled="!hydrated" data-testid="inbox-reply-action" @click="quote(row.item)" />
-              <UPopover>
+              <UPopover v-if="props.channelKind !== 'tiktok'">
                 <UButton type="button" size="xs" color="neutral" variant="ghost" icon="i-lucide-smile-plus" :label="t('inbox.thread.react')" :disabled="!hydrated" data-testid="inbox-react-action" />
                 <template #content>
                   <div class="flex gap-0.5 p-1" role="group" :aria-label="t('inbox.thread.react')">
