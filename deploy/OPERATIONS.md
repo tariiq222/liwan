@@ -146,7 +146,8 @@ docker compose run --rm -T ai python -m liwan_ai_service.store --initialize-tena
 
 (`docker compose exec` forwards the host shell's `AI_DB_PASSWORD` through the `-v` argument, so export it first; the value never appears in SQL text.)
 
-- Retention cleanup of old runs: `docker compose exec ai python -m liwan_ai_service.cleanup`, scheduled by the host cron; it visits every tenant database in the directory.
+- Retention cleanup of old runs: `docker compose exec ai python -m liwan_ai_service.cleanup`, scheduled by the host cron; it visits every tenant database in the directory. The same sweep applies the offboarding events and deletes a leaver's conversations once the tenant's leaver retention (default 30 days) has passed.
+- Memory and offboarding: employee and company notes live in `liwan_ai.ai_memory`. Odoo reports a user's deactivation and reactivation through `liwan_ai.ai_outbox`, the only table of the AI schema its database role may write (`INSERT`), granted by `--initialize-tenant`; the service drains it before every run, so a leaver's notes are gone before any later request. After upgrading the AI service, run `--initialize-tenant` again for every tenant: it is idempotent and adds the tables a newer release needs; until then the service refuses that tenant with `ai_state_incompatible`.
 - Stopping `ai`, or never enabling the profile, changes nothing else: `web`, `odoo` and `proxy` do not depend on it (works in `saas` and `non_saas`).
 - Threat model: the service holds no LiwanOS credential (no Odoo session or token, no `odoo` database password), only its own database role and the shared service token; all LiwanOS data reaches it per request through `web`, under the caller's own permissions.
 
