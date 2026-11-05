@@ -53,5 +53,6 @@ from . import (
     template,
     template_day,
     tiktok_shortcut,
+    tiktok_sync,
     working_hours,
 )

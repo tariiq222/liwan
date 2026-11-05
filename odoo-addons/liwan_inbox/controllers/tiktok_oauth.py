@@ -159,8 +159,13 @@ class TikTokOAuthController(http.Controller):
             raise ApiError(422, 'invalid', PROFILE_FAILED) from None
         if channel:
             channel._liwan_tiktok_store(grant, profile)
-            return _channel_redirect(channel)
-        return self._create_channel(values, company, grant, profile)
+        else:
+            channel = self._create_channel(values, company, grant, profile)
+            if not channel:
+                return _settings_redirect('inbox_tiktok_account_taken')
+        # A connected account imports its history: the first connect, or a reconnect of one that never imported (D11).
+        channel._liwan_tiktok_queue_first_sync()
+        return _channel_redirect(channel)
 
     def _reconnect_target(self, channel_id, company):
         channel = request.env['liwan.inbox.channel'].search([('id', '=', channel_id)], limit=1)
@@ -169,6 +174,7 @@ class TikTokOAuthController(http.Controller):
         return channel
 
     def _create_channel(self, values, company, grant, profile):
+        """The new channel, or nothing when another callback took the account first."""
         try:
             with request.env.cr.savepoint():
                 channel = request.env['liwan.inbox.channel'].create({
@@ -182,5 +188,5 @@ class TikTokOAuthController(http.Controller):
                 request.env.flush_all()
         except UniqueViolation:
             # Two callbacks raced for the same business account: the second one reports it as taken.
-            return _settings_redirect('inbox_tiktok_account_taken')
-        return _channel_redirect(channel)
+            return request.env['liwan.inbox.channel']
+        return channel

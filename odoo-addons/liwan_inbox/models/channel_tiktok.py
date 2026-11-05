@@ -15,6 +15,7 @@ from . import secret_box
 from .channel import INVALID, SECRET_GROUPS
 from .constants import TIKTOK_TOKEN_MARGIN
 from .tiktok_shortcut import AUDIT_STATUSES, AUTO_TYPES, ENABLED_FIELDS
+from .tiktok_sync import ACTIVE_STATES
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_inbox.adapters import errors, tiktok
 
@@ -115,6 +116,40 @@ class LiwanInboxChannel(models.Model):
         message = self.env._('Reconnect the TikTok account: its authorization is no longer valid.')
         self.write({'state': 'error', 'last_error': message})
         raise UserError(message)
+
+    # history import (D11)
+
+    def _liwan_tiktok_active_sync(self):
+        """The channel's unfinished history import, if any: one runs at a time."""
+        self.ensure_one()
+        return self.env['liwan.inbox.tiktok.sync'].search([
+            ('channel_id', '=', self.id), ('state', 'in', ACTIVE_STATES),
+        ], limit=1)
+
+    def _liwan_tiktok_queue_sync(self):
+        """Queue one history import; a second request while one runs is 422 `inbox_tiktok_sync_running`."""
+        self.ensure_one()
+        # The row lock makes the "none is active" answer and the create one step under two concurrent requests.
+        self._liwan_tiktok_lock()
+        if self._liwan_tiktok_active_sync():
+            raise LiwanAccessRule(
+                INVALID, self.env._('A history import of this TikTok account is already running.'),
+                details={'reason': 'inbox_tiktok_sync_running'},
+            )
+        return self.env['liwan.inbox.tiktok.sync'].create({
+            'channel_id': self.id, 'owner_company_id': self.owner_company_id.id,
+        })
+
+    def _liwan_tiktok_queue_first_sync(self):
+        """Queue the account's history import after a connect; an account that already imported one adds nothing.
+
+        A job that failed did not import, so reconnecting the account starts the import again.
+        """
+        self.ensure_one()
+        sync = self.env['liwan.inbox.tiktok.sync']
+        if sync.search_count([('channel_id', '=', self.id), ('state', '!=', 'failed')]):
+            return sync
+        return self._liwan_tiktok_queue_sync()
 
     # automation
 
