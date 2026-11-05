@@ -16,6 +16,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from . import journal
 from .cli import SCHEMA_VERSION
@@ -357,6 +358,21 @@ def _psql(runner, entry, database, sql):
     return [line.split('\x1f') for line in out.splitlines() if line.strip()]
 
 
+def _same_server(database_url, entry):
+    """True when the AI URL names exactly the inventory's PostgreSQL host and port.
+
+    The bootstrap only swaps the database name, so a URL for another server would create the tables of a
+    same-named database there and leave this tenant's AI state missing.
+    """
+    try:
+        parts = urlsplit(database_url)
+        port = parts.port or 5432
+    except ValueError:
+        return False
+    return (parts.scheme in ('postgresql', 'postgres') and parts.hostname == entry['pg_host']
+            and port == entry['pg_port'])
+
+
 def _bootstrap_ai_state(entry, runner, database):
     """Give the AI role its schema in this database, then bootstrap its tables; True when both succeeded.
 
@@ -368,7 +384,7 @@ def _bootstrap_ai_state(entry, runner, database):
     code, _ = _run(runner, _psql_argv(entry, 'postgres', '-v', 'tenant_db=' + database,
                                       '-f', str(schema_script)), entry)
     ai_database_url = os.environ.get('AI_DATABASE_URL')
-    if code != 0 or not ai_database_url:
+    if code != 0 or not ai_database_url or not _same_server(ai_database_url, entry):
         return False
     argv = [entry[AI_KEY], '-m', 'liwan_ai_service.store', '--initialize-tenant', database]
     code, _ = _run(runner, argv, entry, AI_DATABASE_URL=ai_database_url)

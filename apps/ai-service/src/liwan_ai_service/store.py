@@ -299,8 +299,10 @@ async def _tenant_tables(conn):
 async def validate_tenant(conn, checkpoint_version: int) -> None:
     """Refuse a tenant schema that the operator bootstrap never created, or one this runtime cannot use."""
     tables = await _tenant_tables(conn)
-    if not tables or len(tables) != 6 or not all(tables):
-        raise StateCompatibilityError("ai_state_uninitialized")
+    if not tables or len(tables) != 6 or not any(tables):
+        raise StateCompatibilityError("ai_state_uninitialized")  # no AI state at all: a sweep may skip it
+    if not all(tables):
+        raise StateCompatibilityError("ai_state_incompatible")  # partial state (an incomplete restore) is never skipped
     version = await (await conn.execute("SELECT state_version, checkpoint_version FROM ai_tenant_schema WHERE singleton")).fetchone()
     migration = await (await conn.execute("SELECT max(v) FROM checkpoint_migrations")).fetchone()
     if (not version or len(version) != 2 or version != (AI_STATE_VERSION, checkpoint_version) or migration != (checkpoint_version,)):

@@ -339,3 +339,17 @@ async def test_create_uses_the_given_id_and_refuses_a_taken_one(tenant):
     tenant.run_ids.append(run_id)
     assert await tenant.store.create(run_id, "7", "second") is None
     assert (await tenant.store.get(run_id)).title == "first"
+
+
+async def test_partial_tenant_state_is_incompatible_not_uninitialized():
+    schema = f"tenant_{uuid4().hex[:12]}"
+    await create_schema(schema)
+    conninfo = schema_conninfo(schema)
+    try:
+        await initialize_tenant(conninfo)
+        async with await psycopg.AsyncConnection.connect(conninfo, autocommit=True) as conn:
+            await conn.execute("DROP TABLE checkpoint_blobs")  # an incomplete restore
+            with pytest.raises(StateCompatibilityError, match="ai_state_incompatible"):
+                await validate_tenant(conn, len(AsyncPostgresSaver.MIGRATIONS) - 1)
+    finally:
+        await drop_schema(schema)

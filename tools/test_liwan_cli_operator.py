@@ -594,7 +594,7 @@ class OperatorCase(unittest.TestCase):
 
     def test_create_with_ai_python_grants_the_tenant_schema_then_bootstraps_ai_state(self):
         calls = []
-        os.environ['AI_DATABASE_URL'] = 'postgresql://liwan_ai:secret@db/liwan_ai'
+        os.environ['AI_DATABASE_URL'] = 'postgresql://liwan_ai:secret@127.0.0.1:5432/liwan_ai'
         code, payload = self.create_with_ai(calls, ai_python=self.tools['ai-python'])
         self.assertEqual(code, 0, payload)
         self.assertEqual(payload['stage'], 'health_verified')
@@ -612,7 +612,7 @@ class OperatorCase(unittest.TestCase):
                          [self.tools['ai-python'], '-m', 'liwan_ai_service.store',
                           '--initialize-tenant', 'liwan_scratch_demo'])
         self.assertEqual(calls[bootstrap_index][1]['AI_DATABASE_URL'],
-                         'postgresql://liwan_ai:secret@db/liwan_ai')
+                         'postgresql://liwan_ai:secret@127.0.0.1:5432/liwan_ai')
         self.assertNotIn('postgresql://', ' '.join(calls[bootstrap_index][0]))
         self.assertNotIn('postgresql://', json.dumps(payload))
 
@@ -629,7 +629,7 @@ class OperatorCase(unittest.TestCase):
         self.assertEqual([call for call in calls if call[0][0] == self.tools['ai-python']], [])
 
     def test_create_with_ai_python_needs_intervention_when_a_step_fails(self):
-        os.environ['AI_DATABASE_URL'] = 'postgresql://liwan_ai:secret@db/liwan_ai'
+        os.environ['AI_DATABASE_URL'] = 'postgresql://liwan_ai:secret@127.0.0.1:5432/liwan_ai'
         for fail, expects_bootstrap, request_id in (('schema', False, 'create_schema_failed'),
                                                     ('bootstrap', True, 'create_bootstrap_failed')):
             with self.subTest(fail=fail):
@@ -643,8 +643,21 @@ class OperatorCase(unittest.TestCase):
                 bootstrapped = [call for call in calls if call[0][0] == self.tools['ai-python']]
                 self.assertEqual(len(bootstrapped), 1 if expects_bootstrap else 0)
 
+    def test_create_with_ai_python_refuses_a_connection_url_for_another_server(self):
+        for url, request_id in (('postgresql://liwan_ai:secret@elsewhere:5432/liwan_ai', 'create_other_host'),
+                                ('postgresql://liwan_ai:secret@127.0.0.1:6543/liwan_ai', 'create_other_port')):
+            with self.subTest(url=url):
+                os.environ['AI_DATABASE_URL'] = url
+                calls = []
+                code, payload = self.create_with_ai(calls, ai_python=self.tools['ai-python'], request_id=request_id)
+                self.assertEqual(code, 6, payload)
+                self.assertEqual(payload['stage'], 'ai_bootstrap')
+                self.assertNotIn('postgresql://', json.dumps(payload))
+                # The bootstrap would have created a same-named database's tables on the other server.
+                self.assertEqual([call for call in calls if call[0][0] == self.tools['ai-python']], [])
+
     def test_create_without_ai_python_never_bootstraps_ai_state(self):
-        os.environ['AI_DATABASE_URL'] = 'postgresql://liwan_ai:secret@db/liwan_ai'
+        os.environ['AI_DATABASE_URL'] = 'postgresql://liwan_ai:secret@127.0.0.1:5432/liwan_ai'
         calls = []
         code, payload = self.create_with_ai(calls, request_id='create_plain')
         self.assertEqual(code, 0, payload)

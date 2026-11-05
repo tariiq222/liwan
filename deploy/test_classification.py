@@ -81,6 +81,9 @@ class TestClassification(unittest.TestCase):
         config = self.root / 'odoo-addons/liwan_platform'
         config.mkdir(parents=True)
         shutil.copy(classification.PARSER, config / 'commercial_config.py')
+        (deploy / 'ai').mkdir()
+        for name in ('tenant_schema.sql', 'ensure_secrets.sh', 'egress_hosts.sh'):
+            shutil.copy(ROOT / 'deploy' / 'ai' / name, deploy / 'ai' / name)
         (deploy / 'odoo').mkdir()
         (deploy / 'odoo/ODOO_COMMIT').write_text('test-pin')
         (deploy / 'odoo.conf').write_text('[options]\n')
@@ -146,10 +149,11 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         record = records[revokes[0]]
         self.assertIn(f'tenant_db={self.data["database"]}', record['args'])
         self.assertIn('ON_ERROR_STOP=1', record['args'])
-        sql = record['stdin']
+        sql = record['stdin']  # deploy/ai/tenant_schema.sql, the one place that grants the AI role its schema
+        self.assertEqual(sql, (ROOT / 'deploy' / 'ai' / 'tenant_schema.sql').read_text())
         self.assertIn("rolname = 'liwan_ai'", sql)
         self.assertIn('FROM PUBLIC', sql)
-        self.assertIn('FROM liwan_ai', sql)
+        self.assertIn('REVOKE ALL ON SCHEMA public FROM liwan_ai', sql)
         self.assertNotIn(self.data['database'], sql)
 
     def origin_records(self):
