@@ -7,6 +7,9 @@ WHATSAPP_FEATURE = 'inbox.whatsapp'
 TIKTOK_FEATURE = 'inbox.tiktok'
 # The sub-feature that gates one channel kind, checked on the channel create and on its routes.
 CHANNEL_FEATURES = {'whatsapp': WHATSAPP_FEATURE, 'tiktok': TIKTOK_FEATURE}
+# TikTok: the OAuth state lives ten minutes, and these scopes are the ones a channel cannot work without.
+TIKTOK_STATE_TTL = timedelta(minutes=10)
+TIKTOK_REQUIRED_SCOPES = frozenset({'user.info.basic', 'message.list.read', 'message.list.send'})
 AUTOMATION_FEATURE = 'inbox.automation'
 FLOWS_FEATURE = 'inbox.flows'
 DEFAULT_TIMEZONE = 'Asia/Riyadh'

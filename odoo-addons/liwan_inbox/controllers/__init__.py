@@ -15,4 +15,5 @@ from . import (
     sending,
     settings,
     templates,
+    tiktok_oauth,
 )
