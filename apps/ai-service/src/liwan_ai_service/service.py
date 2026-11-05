@@ -17,6 +17,7 @@ from langgraph.types import Command
 
 from liwan_ai_service.contracts import (
     AI_STATE_VERSION,
+    CORE_AGENT,
     ClaimRequest,
     KeyPut,
     KeyView,
@@ -36,7 +37,7 @@ from liwan_ai_service.contracts import (
 )
 from liwan_ai_service.control import ControlState, StateCompatibilityError, open_control
 from liwan_ai_service.errors import client_error, redact
-from liwan_ai_service.graph import build_graph, initial_state, interrupted_replies, request_state, resume_value, run_config, text_of
+from liwan_ai_service.graph import build_graph, continued_state, initial_state, interrupted_replies, resume_value, run_config, text_of
 from liwan_ai_service.provider_registry import REGISTRY
 from liwan_ai_service.providers import build_chat_model, build_tenant_model
 from liwan_ai_service.records import records_from_results
@@ -64,8 +65,9 @@ def _pair(event: dict[str, Any]) -> tuple[str, Any]:
     return event["event"], event["data"]
 
 
-def waiting_status(kind: str) -> str:
-    return "waiting_tool" if kind == "read" else "waiting_user"
+def waiting_status(request: dict[str, Any]) -> str:
+    """A tool request waits for the server (a plain read) or for the user (a write, a draft, or a read set to approval)."""
+    return "waiting_user" if request.get("requires_approval") or request["kind"] != "read" else "waiting_tool"
 
 
 class ClosingStreamingResponse(StreamingResponse):
@@ -230,7 +232,10 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
         for task in state.tasks:
             for item in task.interrupts:
                 value = item.value
-                return PendingCall(call_id=value["call_id"], tool=value["tool"], kind=value["kind"], input=value["input"])
+                return PendingCall(
+                    call_id=value["call_id"], tool=value["tool"], kind=value["kind"], input=value["input"],
+                    agent=value.get("agent", CORE_AGENT), requires_approval=value.get("requires_approval", value["kind"] != "read"),
+                )
         return None
 
     def secrets() -> tuple[str | None, ...]:
@@ -276,7 +281,7 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
             return "failed", None
         pending = pending_of(state)
         if pending is not None:
-            return waiting_status(pending.kind), pending.call_id
+            return waiting_status(pending.model_dump()), pending.call_id
         return {"limit_reached": "limit_reached", "answer": "done"}.get(state.values.get("outcome"), "failed"), None
 
     async def settle(tenant: TenantState, run_id: str, lease: str | None, decided: tuple[str, str | None] | None) -> str:
@@ -357,7 +362,7 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
                         yield format_event(*_pair(payload))
                     elif mode == "updates" and "__interrupt__" in payload:
                         value = payload["__interrupt__"][0].value
-                        decided = (waiting_status(value["kind"]), value["call_id"])
+                        decided = (waiting_status(value), value["call_id"])
                         yield format_event("tool_request", value)
             if decided is None:
                 values = (await tenant.graph.aget_state(config)).values
@@ -435,7 +440,7 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
                 if lease is None:
                     raise HTTPException(409, "run is not finished; resume it or wait for it")
                 replies = interrupted_replies(state.values.get("messages", []))
-                graph_input: Any = {"messages": [*replies, HumanMessage(request.message)], **request_state(request)}
+                graph_input: Any = {"messages": [*replies, HumanMessage(request.message)], **continued_state(request, state.values)}
             else:
                 record = await tenant.store.create(request.new_run_id, who.user_ref, title_from(request.message))
                 if record is None:

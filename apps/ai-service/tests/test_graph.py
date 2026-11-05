@@ -8,7 +8,7 @@ from langgraph.types import Command
 from liwan_ai_service.contracts import RunRequest, ToolResult
 from liwan_ai_service.graph import initial_state, run_config, text_of
 from tests.fakes import PLATFORM_POLICY, BoundGraph, ScriptedChatModel, ai_text, ai_tool_call, new_id
-from tests.test_contracts import DRAFT_TOOL, READ_TOOL
+from tests.test_contracts import DRAFT_TOOL, PMO_AGENT, READ_TOOL
 
 
 def make(responses):
@@ -16,7 +16,7 @@ def make(responses):
     graph = BoundGraph(model, InMemorySaver())
     request = RunRequest.model_validate({"new_run_id": new_id(),
         "tenant": "t1", "user_ref": "42", "locale": "ar", "message": "وش مهامي؟", "context": None,
-        "tools": [READ_TOOL, DRAFT_TOOL], "limits": {"max_steps": 6, "max_tool_calls": 2, "timeout_seconds": 60}, "policy": PLATFORM_POLICY,
+        "tools": [READ_TOOL, DRAFT_TOOL], "agents": [PMO_AGENT], "limits": {"max_steps": 6, "max_tool_calls": 2, "timeout_seconds": 60}, "policy": PLATFORM_POLICY,
     })
     return model, graph, request
 
@@ -35,8 +35,8 @@ async def test_read_tool_interrupts_with_the_request_payload_and_resumes_to_an_a
     await graph.ainvoke(initial_state(request), config("r1"))
     [pending] = await interrupts(graph, "r1")
     assert pending == {
-        "call_id": "c_1", "tool": "pmo.list_my_tasks", "kind": "read", "input": {"limit": 5},
-        "summary_ar": pending["summary_ar"], "summary_en": pending["summary_en"],
+        "call_id": "c_1", "tool": "pmo.list_my_tasks", "kind": "read", "agent": "pmo", "requires_approval": False,
+        "input": {"limit": 5}, "summary_ar": pending["summary_ar"], "summary_en": pending["summary_en"],
     }
     assert pending["summary_ar"].startswith("سأقرأ")
     result = ToolResult(ok=True, data={"items": [{"id": 5, "name": "تقرير"}], "total": 1})
@@ -147,7 +147,7 @@ async def test_error_only_loops_stop_at_max_steps_not_at_the_graph_recursion_lim
     model = ScriptedChatModel(responses)
     graph = BoundGraph(model, InMemorySaver())
     request = RunRequest.model_validate({"new_run_id": new_id(),
-        "tenant": "t1", "user_ref": "42", "locale": "ar", "message": "؟", "context": None, "tools": [READ_TOOL],
+        "tenant": "t1", "user_ref": "42", "locale": "ar", "message": "؟", "context": None, "tools": [READ_TOOL], "agents": [PMO_AGENT],
         "limits": {"max_steps": 30, "max_tool_calls": 2, "timeout_seconds": 60}, "policy": PLATFORM_POLICY,
     })
     final = await graph.ainvoke(initial_state(request), run_config("r11", 30))

@@ -29,12 +29,12 @@ from tests.fakes import (
     make_memory_app,
     new_id,
 )
-from tests.test_contracts import DRAFT_TOOL, READ_TOOL
+from tests.test_contracts import DRAFT_TOOL, PMO_AGENT, READ_TOOL
 
 HEADERS = {"X-Liwan-Tenant": "t1", "X-Liwan-User": "42"}
 BODY = {
     "tenant": "t1", "user_ref": "42", "locale": "ar", "message": "وش مهامي؟", "context": {"page": "project", "id": 1},
-    "tools": [READ_TOOL, DRAFT_TOOL], "limits": {"max_steps": 6, "max_tool_calls": 2, "timeout_seconds": 60}, "policy": PLATFORM_POLICY,
+    "tools": [READ_TOOL, DRAFT_TOOL], "agents": [PMO_AGENT], "limits": {"max_steps": 6, "max_tool_calls": 2, "timeout_seconds": 60}, "policy": PLATFORM_POLICY,
 }
 
 
