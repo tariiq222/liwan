@@ -93,13 +93,13 @@ class LiwanInboxMessageOutbox(models.Model):
         try:
             sent = self._liwan_provider_send()
         except whatsapp.ProviderError as error:
-            self._liwan_record_failure(str(error), error.retryable, error.code)
+            self._liwan_record_failure(str(error), error.retryable, error.code, unconfirmed=error.unconfirmed)
         except UserError as error:
             self._liwan_record_failure(str(error), retryable=False)
         else:
             self.write({
                 'delivery_state': 'sent', 'provider_message_id': sent.provider_id, 'held_for_quality': sent.held,
-                'attempts': self.attempts + 1, 'error': False, 'error_code': False,
+                'attempts': self.attempts + 1, 'error': False, 'error_code': False, 'unconfirmed': False,
             })
 
     def _liwan_provider_send(self):
@@ -172,9 +172,9 @@ class LiwanInboxMessageOutbox(models.Model):
             for button in buttons if button.value
         ] + [{'index': button.position, 'sub_type': 'flow', 'value': self.flow_token} for button in buttons if button.kind == 'flow']
 
-    def _liwan_record_failure(self, error, retryable, code=None):
+    def _liwan_record_failure(self, error, retryable, code=None, unconfirmed=False):
         attempts = self.attempts + 1
-        values = {'attempts': attempts, 'error': error, 'error_code': code or False}
+        values = {'attempts': attempts, 'error': error, 'error_code': code or False, 'unconfirmed': unconfirmed}
         if retryable and attempts < MAX_ATTEMPTS:
             values['next_attempt_at'] = fields.Datetime.now() + relativedelta(minutes=BACKOFF_MINUTES[attempts - 1])
         else:

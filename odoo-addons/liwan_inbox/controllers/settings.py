@@ -34,6 +34,7 @@ from odoo.addons.liwan_inbox.models.settings import (
     MAX_ALERT_MINUTES,
     MAX_AUTO_CLOSE_HOURS,
     MAX_RETENTION_MONTHS,
+    MIN_REPORT_RETENTION_MONTHS,
     VISIBILITY_POLICIES,
 )
 from odoo.addons.liwan_inbox.serializers.settings import (
@@ -45,6 +46,7 @@ from odoo.addons.liwan_inbox.serializers.settings import (
 
 SETTINGS_FIELDS = {
     'visibility_policy', 'auto_close_hours', 'retention_months', 'assignment_policy', 'first_response_alert_minutes',
+    'report_retention_months',
 }
 
 
@@ -64,7 +66,7 @@ def parse_settings(payload):
         reject(f'assignment_policy must be one of {[key for key, _ in ASSIGNMENT_POLICIES]}', 'assignment_policy')
     for key, low, high in (
         ('auto_close_hours', 0, MAX_AUTO_CLOSE_HOURS), ('retention_months', 1, MAX_RETENTION_MONTHS),
-        ('first_response_alert_minutes', 0, MAX_ALERT_MINUTES),
+        ('first_response_alert_minutes', 0, MAX_ALERT_MINUTES), ('report_retention_months', MIN_REPORT_RETENTION_MONTHS, MAX_RETENTION_MONTHS),
     ):
         if key in values and not (
             isinstance(values[key], int) and not isinstance(values[key], bool) and low <= values[key] <= high

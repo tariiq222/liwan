@@ -27,7 +27,10 @@ const money = (amount: number | null) => (amount === null ? '—' : formatInboxM
     </ul>
     <p class="flex items-center justify-between gap-3 text-sm font-semibold text-highlighted" data-testid="inbox-order-total">
       <span>{{ t('inbox.orders.total') }}</span>
-      <span class="tabular-nums">{{ money(total.total) }}<template v-if="!total.complete"> +</template></span>
+      <span class="tabular-nums">{{ money(total.total) }}</span>
+    </p>
+    <p v-if="!total.complete" class="text-xs text-muted" data-testid="inbox-order-total-incomplete">
+      {{ t('inbox.orders.totalIncomplete') }}
     </p>
   </div>
 </template>

@@ -80,7 +80,7 @@ function clear() {
             <UIcon name="i-lucide-chevron-right" class="size-4 text-muted rtl:rotate-180" aria-hidden="true" />
           </span>
         </span>
-        <span v-if="flow.version_warning" class="ps-12 text-xs text-warning"><bdi>{{ flow.version_warning }}</bdi></span>
+        <span v-if="flow.version_warning" class="ps-12 text-xs text-status-warning-foreground"><bdi>{{ flow.version_warning }}</bdi></span>
       </NuxtLink>
     </template>
   </SharedRecordSection>

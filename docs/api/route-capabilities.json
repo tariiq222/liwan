@@ -9693,6 +9693,18 @@
       "handler": "set_pin",
       "no_capability_reason": null
     },
+    "POST /api/v1/inbox/channels/{channel_id}/verify-token": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "rotate_verify_token",
+      "no_capability_reason": null
+    },
     "POST /api/v1/inbox/contacts/import": {
       "addon": "liwan_inbox",
       "auth": "user",

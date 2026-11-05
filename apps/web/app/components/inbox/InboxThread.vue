@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useInboxProviderError } from '@/composables/inbox/inboxProviderError'
 import type { InboxMessage } from '@liwan/contracts'
 import { useInboxMessages, useReactToInboxMessage, useRetryInboxMessage } from '@/composables/inbox/useInbox'
 import { DELIVERY_ICON, inboxDayKey } from '@/composables/inbox/inboxPresentation'
@@ -10,6 +11,7 @@ import { INBOX_REACTION_EMOJIS } from '@/composables/inbox/inboxReactions'
 const props = defineProps<{ conversationId: number; channelId?: number; canReply: boolean; windowOpen: boolean }>()
 const emit = defineEmits<{ reply: [target: { id: number; preview: string }] }>()
 const { t, locale } = useI18n()
+const { providerText } = useInboxProviderError()
 const hydrated = useHydrated()
 const toast = useToast()
 const { items, isLoading, isError, error, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } = useInboxMessages(() => props.conversationId)
@@ -112,7 +114,7 @@ const deliveryLabel = (item: InboxMessage) => t(`inbox.delivery.${item.delivery_
               <p v-if="row.item.direction === 'note' && !row.item.author" class="mb-0.5 flex items-center gap-1 text-xs font-medium text-muted" data-testid="inbox-system-note">
                 <UIcon name="i-lucide-bot" class="size-3.5" aria-hidden="true" />{{ t('inbox.thread.system') }}
               </p>
-              <p v-else-if="row.item.direction === 'note'" class="mb-0.5 flex items-center gap-1 text-xs font-medium text-warning">
+              <p v-else-if="row.item.direction === 'note'" class="mb-0.5 flex items-center gap-1 text-xs font-medium text-status-warning-foreground">
                 <UIcon name="i-lucide-lock" class="size-3.5" aria-hidden="true" />{{ t('inbox.thread.note') }}
               </p>
               <p v-if="row.item.automated" class="mb-0.5 flex items-center gap-1 text-xs text-muted" data-testid="inbox-automated">
@@ -175,7 +177,7 @@ const deliveryLabel = (item: InboxMessage) => t(`inbox.delivery.${item.delivery_
             </div>
             <p v-if="row.item.direction === 'in' && row.item.error" class="text-xs text-error" role="alert" data-testid="inbox-inbound-error">{{ t('inbox.thread.mediaFailed') }}</p>
             <div v-if="row.item.direction === 'out' && row.item.delivery_state === 'failed'" class="flex flex-wrap items-center gap-2 text-xs text-error" role="alert">
-              <span>{{ row.item.error || t('inbox.thread.failed') }}</span>
+              <span>{{ row.item.unconfirmed ? t('inbox.providerError.uncertain') : row.item.error ? providerText(row.item.error, row.item.error_code) : t('inbox.thread.failed') }}</span>
               <UButton
                 v-if="props.canReply"
                 type="button"

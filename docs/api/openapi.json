@@ -55087,6 +55087,9 @@
                 "has_app_secret": {
                   "type": "boolean"
                 },
+                "has_verify_token": {
+                  "type": "boolean"
+                },
                 "health": {
                   "additionalProperties": false,
                   "properties": {
@@ -55290,9 +55293,6 @@
                     "disabled"
                   ],
                   "type": "string"
-                },
-                "verify_token": {
-                  "type": "string"
                 }
               },
               "required": [
@@ -55306,7 +55306,7 @@
                 "has_access_token",
                 "has_app_secret",
                 "app_id",
-                "verify_token",
+                "has_verify_token",
                 "callback_url",
                 "last_error",
                 "last_event_at",
@@ -55422,6 +55422,9 @@
             "type": "boolean"
           },
           "has_app_secret": {
+            "type": "boolean"
+          },
+          "has_verify_token": {
             "type": "boolean"
           },
           "health": {
@@ -55627,9 +55630,6 @@
               "disabled"
             ],
             "type": "string"
-          },
-          "verify_token": {
-            "type": "string"
           }
         },
         "required": [
@@ -55643,7 +55643,7 @@
           "has_access_token",
           "has_app_secret",
           "app_id",
-          "verify_token",
+          "has_verify_token",
           "callback_url",
           "last_error",
           "last_event_at",
@@ -64672,6 +64672,18 @@
                     "null"
                   ]
                 },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "flow_response": {
                   "anyOf": [
                     {
@@ -65412,6 +65424,9 @@
                       "type": "null"
                     }
                   ]
+                },
+                "unconfirmed": {
+                  "type": "boolean"
                 }
               },
               "required": [
@@ -65423,6 +65438,8 @@
                 "template",
                 "delivery_state",
                 "error",
+                "error_code",
+                "unconfirmed",
                 "attachments",
                 "reply_to",
                 "reactions",
@@ -66094,6 +66111,18 @@
             "type": [
               "string",
               "null"
+            ]
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "flow_response": {
@@ -66836,6 +66865,9 @@
                 "type": "null"
               }
             ]
+          },
+          "unconfirmed": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -66847,6 +66879,8 @@
           "template",
           "delivery_state",
           "error",
+          "error_code",
+          "unconfirmed",
           "attachments",
           "reply_to",
           "reactions",
@@ -72968,6 +73002,11 @@
             "minimum": 0,
             "type": "integer"
           },
+          "report_retention_months": {
+            "maximum": 120,
+            "minimum": 12,
+            "type": "integer"
+          },
           "retention_months": {
             "maximum": 120,
             "minimum": 1,
@@ -73006,6 +73045,11 @@
             "minimum": 0,
             "type": "integer"
           },
+          "report_retention_months": {
+            "maximum": 120,
+            "minimum": 12,
+            "type": "integer"
+          },
           "retention_months": {
             "maximum": 120,
             "minimum": 1,
@@ -73025,7 +73069,8 @@
           "auto_close_hours",
           "retention_months",
           "assignment_policy",
-          "first_response_alert_minutes"
+          "first_response_alert_minutes",
+          "report_retention_months"
         ],
         "type": "object"
       },
@@ -75262,6 +75307,19 @@
           "name",
           "mimetype",
           "data"
+        ],
+        "type": "object"
+      },
+      "InboxVerifyTokenSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "verify_token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "verify_token"
         ],
         "type": "object"
       },
@@ -97478,7 +97536,7 @@
   "info": {
     "description": "Generated surface of every /api/v1 route across the liwan Odoo addons, with contract schemas harvested from @liwan/contracts. Regenerate with `python3 tools/api_surface.py`; never edit by hand.",
     "title": "liwan /api/v1",
-    "version": "19.0.1.1.1"
+    "version": "19.0.1.1.2"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -124529,6 +124587,59 @@
           ],
           "feature_operation": "write",
           "handler": "set_pin",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/inbox/channels/{channel_id}/verify-token": {
+      "post": {
+        "operationId": "liwan_inbox.ChannelController.rotate_verify_token.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "A fresh handshake token for the Meta app; the only response that carries it, and only once.",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "ChannelController",
+          "feature_keys": [
+            "inbox.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "rotate_verify_token",
           "readonly": false,
           "route_type": "json2"
         }

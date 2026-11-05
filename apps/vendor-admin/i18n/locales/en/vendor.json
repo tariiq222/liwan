@@ -493,7 +493,7 @@
       },
       "tiers": {
         "core": "Platform foundation",
-        "projects": "Projects and meetings",
+        "projects": "Projects",
         "people": "Human resources",
         "messaging": "Private messaging"
       },
@@ -501,7 +501,7 @@
         "core": "Identity and permissions",
         "platform": "Company workspace",
         "api": "Shared platform services",
-        "projects": "Projects and meetings",
+        "projects": "Projects",
         "people": "Human resources",
         "messaging": "Private messaging",
         "meetings": "Meetings and decisions"

@@ -7,7 +7,7 @@ export const grinder: InboxCommerceProduct = { catalog_item_id: 4, name: 'مطح
 export const CATALOG_ID = '9988776655443'
 
 export const message = (overrides: Partial<InboxMessage>): InboxMessage => ({
-  id: 1, direction: 'out', kind: 'product', body: '', author: { id: 5, name: 'نورة الحربي' }, template: null, delivery_state: 'delivered', error: null, attachments: [], reply_to: null,
+  id: 1, direction: 'out', kind: 'product', body: '', author: { id: 5, name: 'نورة الحربي' }, template: null, delivery_state: 'delivered', error: null, error_code: null, unconfirmed: false, attachments: [], reply_to: null,
   reactions: { customer: null, agent: null }, location: null, interactive: null, selected_option: null, automated: false, commerce: null, created_at: '2026-10-29T08:00:00Z', ...overrides,
 })
 

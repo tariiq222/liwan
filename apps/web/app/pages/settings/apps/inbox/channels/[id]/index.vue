@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useInboxProviderError } from '@/composables/inbox/inboxProviderError'
 import { useClipboard } from '@vueuse/core'
 import { InboxChannelPatchSchema } from '@liwan/contracts'
 import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
@@ -6,13 +7,14 @@ import InboxChannelTabs from '@/components/inbox/InboxChannelTabs.vue'
 import { useInboxCatalogEnabled } from '@/composables/inbox/useInboxCatalog'
 import { CHANNEL_STATE_TONE } from '@/composables/inbox/inboxPresentation'
 import {
-  useDeleteInboxChannel, useInboxChannel, useInboxDepartments, usePatchInboxChannel, useSyncInboxTemplates, useTestInboxChannel,
+  useDeleteInboxChannel, useInboxChannel, useInboxDepartments, usePatchInboxChannel, useRotateInboxVerifyToken, useSyncInboxTemplates, useTestInboxChannel,
 } from '@/composables/inbox/useInboxSettings'
 
 // One channel: its status and tests, the webhook details to paste into the Meta app, the editable name and department,
 // replaceable secrets (write-only) and the inline-confirmed delete.
 const route = useRoute()
 const { t, locale } = useI18n()
+const { providerText } = useInboxProviderError()
 const hydrated = useHydrated()
 const toast = useToast()
 const { can } = useAccess()
@@ -28,10 +30,12 @@ const { mutate: patch, isPending: patching } = usePatchInboxChannel(() => id.val
 const { mutate: test, isPending: testing } = useTestInboxChannel(() => id.value ?? 0)
 const { mutate: sync, isPending: syncing } = useSyncInboxTemplates(() => id.value ?? 0)
 const { mutate: remove, isPending: removing } = useDeleteInboxChannel()
+const { mutate: rotate, isPending: rotating } = useRotateInboxVerifyToken(() => id.value ?? 0)
+const rotatedToken = ref<string | null>(null)
 const manage = computed(() => can('inbox.channels.manage'))
 const catalogOn = useInboxCatalogEnabled()
 const manageTemplates = computed(() => can('inbox.templates.manage'))
-const busy = computed(() => !hydrated.value || patching.value || testing.value || syncing.value || removing.value)
+const busy = computed(() => !hydrated.value || patching.value || testing.value || syncing.value || removing.value || rotating.value)
 
 const NONE = 'none'
 const name = ref('')
@@ -109,6 +113,13 @@ function confirmDelete() {
 
 const clipboard = useClipboard({ copiedDuring: 2000 })
 const copied = ref<'callback' | 'token' | null>(null)
+function rotateToken() {
+  rotate(undefined, {
+    onSuccess: (data) => { rotatedToken.value = data.verify_token },
+    onError: (error) => toast.add({ title: error instanceof Error ? error.message : t('errors.generic'), color: 'error' }),
+  })
+}
+
 async function copy(kind: 'callback' | 'token', value: string) {
   await clipboard.copy(value)
   copied.value = kind
@@ -136,7 +147,7 @@ async function copy(kind: 'callback' | 'token', value: string) {
 
     <template v-if="channel">
       <InboxChannelTabs v-if="manage" :channel-id="channel.id" />
-      <UAlert v-if="channel.last_error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('inbox.settings.channels.lastError')" :description="channel.last_error" data-testid="inbox-channel-error" />
+      <UAlert v-if="channel.last_error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('inbox.settings.channels.lastError')" :description="providerText(channel.last_error)" data-testid="inbox-channel-error" />
 
       <SharedRecordSection id="webhook" variant="panel" :title="t('inbox.settings.channels.webhook.title')" :description="t('inbox.settings.channels.webhook.hint')">
         <div class="flex flex-col gap-4">
@@ -146,10 +157,17 @@ async function copy(kind: 'callback' | 'token', value: string) {
               <UButton type="button" color="neutral" variant="outline" :icon="copied === 'callback' ? 'i-lucide-check' : 'i-lucide-copy'" :label="copied === 'callback' ? t('inbox.settings.channels.webhook.copied') : t('inbox.settings.channels.webhook.copy')" @click="copy('callback', channel.callback_url)" />
             </div>
           </UFormField>
-          <UFormField :label="t('inbox.settings.channels.webhook.verifyToken')">
-            <div class="flex gap-2">
-              <UInput :model-value="channel.verify_token" readonly class="min-w-0 flex-1" dir="ltr" data-testid="inbox-channel-verify-token" />
-              <UButton type="button" color="neutral" variant="outline" :icon="copied === 'token' ? 'i-lucide-check' : 'i-lucide-copy'" :label="copied === 'token' ? t('inbox.settings.channels.webhook.copied') : t('inbox.settings.channels.webhook.copy')" @click="copy('token', channel.verify_token)" />
+          <UFormField :label="t('inbox.settings.channels.webhook.verifyToken')" :description="t('inbox.settings.channels.webhook.verifyTokenHint')">
+            <div v-if="rotatedToken" class="flex flex-col gap-2">
+              <UAlert color="warning" variant="subtle" icon="i-lucide-key-round" :title="t('inbox.settings.channels.webhook.verifyTokenOnce')" />
+              <div class="flex gap-2">
+                <UInput :model-value="rotatedToken" readonly class="min-w-0 flex-1" dir="ltr" data-testid="inbox-channel-verify-token" />
+                <UButton type="button" color="neutral" variant="outline" :icon="copied === 'token' ? 'i-lucide-check' : 'i-lucide-copy'" :label="copied === 'token' ? t('inbox.settings.channels.webhook.copied') : t('inbox.settings.channels.webhook.copy')" @click="copy('token', rotatedToken)" />
+              </div>
+            </div>
+            <div v-else class="flex flex-wrap items-center gap-2">
+              <UBadge :label="channel.has_verify_token ? t('inbox.settings.channels.webhook.verifyTokenSet') : t('inbox.settings.channels.webhook.verifyTokenMissing')" :color="channel.has_verify_token ? 'success' : 'warning'" variant="subtle" />
+              <UButton v-if="manage" type="button" color="neutral" variant="outline" icon="i-lucide-refresh-cw" :loading="rotating" :disabled="busy" :label="channel.has_verify_token ? t('inbox.settings.channels.webhook.verifyTokenRotate') : t('inbox.settings.channels.webhook.verifyTokenGenerate')" data-testid="inbox-channel-rotate-token" @click="rotateToken" />
             </div>
           </UFormField>
         </div>

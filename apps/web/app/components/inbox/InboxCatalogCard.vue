@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useInboxProviderError } from '@/composables/inbox/inboxProviderError'
 import type { InboxCatalog } from '@liwan/contracts'
 import { CATALOG_STATE_TONE } from '@/composables/inbox/inboxCommerce'
 import { usePatchInboxChannelCommerce, useSyncInboxCatalog } from '@/composables/inbox/useInboxCatalog'
@@ -8,6 +9,7 @@ import { usePatchInboxChannelCommerce, useSyncInboxCatalog } from '@/composables
 // shows on the business profile). A switch changes Meta first, so a refusal leaves it where it was.
 const props = defineProps<{ catalog: InboxCatalog; manage: boolean }>()
 const { t, locale } = useI18n()
+const { providerText } = useInboxProviderError()
 const hydrated = useHydrated()
 const toast = useToast()
 const { mutate: sync, isPending: syncing } = useSyncInboxCatalog()
@@ -32,7 +34,7 @@ function toggle(channelId: number, body: { cart_enabled: boolean } | { catalog_v
       <UButton :to="`/settings/apps/inbox/catalog/${props.catalog.id}`" color="neutral" variant="outline" icon="i-lucide-package" :label="t('inbox.catalog.open')" :disabled="!hydrated" data-testid="inbox-catalog-open" />
     </template>
     <div class="flex flex-col gap-4">
-      <UAlert v-if="props.catalog.last_error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('inbox.catalog.lastError')" :description="props.catalog.last_error" data-testid="inbox-catalog-error" />
+      <UAlert v-if="props.catalog.last_error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('inbox.catalog.lastError')" :description="providerText(props.catalog.last_error)" data-testid="inbox-catalog-error" />
       <dl class="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <div v-for="count in counts" :key="count.key" class="flex flex-col">
           <dt class="text-xs text-muted">{{ t(`inbox.catalog.counts.${count.key}`) }}</dt>

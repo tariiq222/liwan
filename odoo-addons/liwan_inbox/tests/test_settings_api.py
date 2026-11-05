@@ -14,10 +14,11 @@ class TestSettingsApi(LiwanInboxCase):
         body = self.get('/api/v1/settings/inbox').json()
         self.assertEqual(set(body), {
             'visibility_policy', 'auto_close_hours', 'retention_months', 'assignment_policy', 'first_response_alert_minutes',
+            'report_retention_months',
         })
         self.assertEqual(body, {
             'visibility_policy': 'department', 'auto_close_hours': 72, 'retention_months': 24,
-            'assignment_policy': 'manual', 'first_response_alert_minutes': 0,
+            'assignment_policy': 'manual', 'first_response_alert_minutes': 0, 'report_retention_months': 36,
         })
         patched = self.api('PATCH', '/api/v1/settings/inbox', {'visibility_policy': 'all', 'auto_close_hours': 0})
         self.assertEqual((patched.status_code, patched.json()['visibility_policy'], patched.json()['auto_close_hours']), (200, 'all', 0))
@@ -26,9 +27,12 @@ class TestSettingsApi(LiwanInboxCase):
         for bad in (
             {'visibility_policy': 'nobody'}, {'auto_close_hours': 721}, {'retention_months': 0}, {'retention_months': True}, {'x': 1}, {},
             {'assignment_policy': 'random'}, {'first_response_alert_minutes': 1441}, {'first_response_alert_minutes': -1},
-            {'first_response_alert_minutes': True},
+            {'first_response_alert_minutes': True}, {'report_retention_months': 11}, {'report_retention_months': 121},
+            {'report_retention_months': True},
         ):
             self.assertError(self.api('PATCH', '/api/v1/settings/inbox', bad), 422, 'invalid')
+        written = self.api('PATCH', '/api/v1/settings/inbox', {'report_retention_months': 48})
+        self.assertEqual((written.status_code, written.json()['report_retention_months']), (200, 48))
 
     def test_settings_need_the_settings_capability(self):
         for user in (self.agent, self.supervisor, self.outsider):
@@ -60,7 +64,7 @@ class TestSettingsApi(LiwanInboxCase):
         self.assertEqual(counts[0], counts[1])
         self.assertEqual(result.json(), {
             'visibility_policy': 'assigned_only', 'auto_close_hours': 72, 'retention_months': 60,
-            'assignment_policy': 'manual', 'first_response_alert_minutes': 0,
+            'assignment_policy': 'manual', 'first_response_alert_minutes': 0, 'report_retention_months': 36,
         })
         names = set(self.env['liwan.inbox.department'].search([]).mapped('name'))
         self.assertTrue(set(PRESETS['public_service']['departments']) <= names)

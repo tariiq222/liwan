@@ -19,8 +19,9 @@ ACCESS_TOKEN = 'EAAB-access-token-0123456789'
 APP_SECRET = 'app-secret-0123456789abcdef'
 # Every key of InboxMessageSchema (packages/contracts/src/inbox/index.ts).
 MESSAGE_KEYS = {
-    'id', 'direction', 'kind', 'body', 'author', 'template', 'delivery_state', 'error', 'attachments', 'reply_to',
-    'reactions', 'location', 'interactive', 'commerce', 'selected_option', 'flow_response', 'automated', 'campaign', 'created_at',
+    'id', 'direction', 'kind', 'body', 'author', 'template', 'delivery_state', 'error', 'error_code', 'unconfirmed',
+    'attachments', 'reply_to', 'reactions', 'location', 'interactive', 'commerce', 'selected_option', 'flow_response',
+    'automated', 'campaign', 'created_at',
 }
 
 
@@ -87,11 +88,13 @@ class LiwanInboxCase(LiwanApiCase):
     @classmethod
     def make_channel(cls, phone_id=PHONE_ID, **values):
         Channel = cls.env['liwan.inbox.channel']
-        return Channel.create({
+        channel = Channel.create({
             'name': 'Main WhatsApp', 'phone_number_id': phone_id, 'business_account_id': BUSINESS_ACCOUNT_ID,
             'state': 'connected',
             **Channel._liwan_secret_values(access_token=ACCESS_TOKEN, app_secret=APP_SECRET), **values,
         })
+        channel._liwan_rotate_verify_token()
+        return channel
 
     @classmethod
     def make_template(cls, channel=None, **values):

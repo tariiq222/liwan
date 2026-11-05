@@ -44,7 +44,7 @@ const reasonText = (reason: string) => te(`inbox.health.nameReasons.${reason}`) 
     <p v-else-if="!items.length" class="px-(--liwan-card-pad) py-4 text-sm text-muted" data-testid="inbox-health-alerts-empty">{{ t('inbox.health.alerts.empty') }}</p>
     <ol v-else :aria-label="t('inbox.health.alerts.caption')" class="divide-y divide-default">
       <li v-for="alert in items" :key="alert.id" class="flex items-start gap-3 px-(--liwan-card-pad) py-3" :data-testid="`inbox-health-alert-${alert.id}`" :data-severity="alert.severity">
-        <UIcon :name="SEVERITY_ICON[alert.severity]" class="mt-0.5 size-5 shrink-0" :class="{ 'text-info': alert.severity === 'info', 'text-warning': alert.severity === 'warning', 'text-error': alert.severity === 'danger' }" aria-hidden="true" />
+        <UIcon :name="SEVERITY_ICON[alert.severity]" class="mt-0.5 size-5 shrink-0" :class="{ 'text-info': alert.severity === 'info', 'text-status-warning-foreground': alert.severity === 'warning', 'text-error': alert.severity === 'danger' }" aria-hidden="true" />
         <div class="flex min-w-0 flex-1 flex-col gap-1">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <span class="text-sm font-medium text-highlighted">{{ text(alert) }}</span>
