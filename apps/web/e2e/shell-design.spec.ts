@@ -40,7 +40,7 @@ test.describe('unified application navigation', () => {
     await expect(rail).toBeVisible()
   })
 
-  test('child presets navigate, refresh reopens the route owner and dots replace rings', async ({ page }) => {
+  test('child presets navigate, refresh reopens the route owner and the active chip is the brand fill, without a ring or dot', async ({ page }) => {
     const menu = page.getByTestId('application-navigation')
     await menu.getByRole('link', { name: 'مكتمل', exact: true }).click()
     await expect(page).toHaveURL(/\/meetings\?state=done$/)
@@ -48,7 +48,8 @@ test.describe('unified application navigation', () => {
     await expect(page.getByTestId('navigation-submenu-meetings')).toBeVisible()
     const chip = menu.getByRole('link', { name: 'مكتمل', exact: true }).locator('.liwan-quick-chip')
     await expect(chip).toHaveCSS('box-shadow', 'none')
-    expect(await chip.evaluate(el => getComputedStyle(el, '::before').width)).toBe('8px')
+    await expect(chip).toHaveCSS('background-color', 'rgb(120, 67, 198)')
+    expect(await chip.evaluate(el => getComputedStyle(el, '::before').content)).toBe('none')
     expect(await fitsWidth(page)).toBe(true)
   })
 
