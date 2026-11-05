@@ -143,6 +143,16 @@ const AI_AUDIT = []
 const AI_USAGE = []
 // The web gate for /ai checks this alias capability literally (apps/web/app/modules/ai/manifest.ts).
 const AI_USE = 'ai.use'
+const AI_SETTINGS = {
+  provider_mode: 'platform', revision: 1,
+  consent: {
+    required_version: '2026-11-05-draft',
+    text_ar: 'مسودة بانتظار المراجعة القانونية.\n\nبالتوقيع على هذا الإقرار، تفوّض المنشأة إرسال محتوى محادثات الذكاء الاصطناعي إلى مزوّد يعالجها خارج المملكة العربية السعودية.',
+    text_en: 'Draft pending legal review.\n\nBy signing this acknowledgement, the organization authorizes sending AI conversation content to a provider that processes it outside the Kingdom of Saudi Arabia.',
+    text_hash: 'a'.repeat(64), signed: null,
+  },
+  usage: { month: '2026-11', messages_used: 0, messages_limit: 500, tokens_used: 1620000, tokens_limit: 2000000, output_tokens_per_run: 8000 },
+}
 
 // Charter approval fixtures. Their charters live in CHARTER_STATE (project id -> charter + write token) so the
 // transition routes can mutate them; POST /api/v1/__mock/reset-charters restores the seeds between spec runs.
@@ -458,6 +468,28 @@ async function handle(req, res) {
     ]
     return json(res, 200, { items, total: items.length, limits: { tool_calls_per_run: 8, messages_monthly: 500, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length, policy: { provider_mode: 'platform', outside_allowed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } } })
   }
+  // The AI settings of the tenant (ai.settings.manage): provider mode, the residency consent and this month's use.
+  if (path === '/api/v1/ai/settings' || path === '/api/v1/ai/consent' || path === '/api/v1/ai/consent/revoke') {
+    let body = {}
+    try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+    if (method === 'PATCH' && path === '/api/v1/ai/settings') {
+      if (body.revision !== AI_SETTINGS.revision) return json(res, 409, { code: 'stale', message: 'the AI settings changed since they were read' })
+      Object.assign(AI_SETTINGS, { provider_mode: body.provider_mode, revision: AI_SETTINGS.revision + 1 })
+    } else if (method === 'POST' && path === '/api/v1/ai/consent') {
+      if (body.text_hash !== AI_SETTINGS.consent.text_hash) return json(res, 422, { code: 'invalid', message: 'stale text', field: 'text_hash' })
+      AI_SETTINGS.consent.signed = { user: { id: 2, name: 'مدير النظام' }, signed_at: new Date().toISOString(), text_version: AI_SETTINGS.consent.required_version }
+    } else if (method === 'POST' && path === '/api/v1/ai/consent/revoke') {
+      AI_SETTINGS.consent.signed = null
+    } else if (method !== 'GET') return json(res, 405, { code: 'invalid', message: 'method' })
+    return json(res, 200, { ...AI_SETTINGS, usage: { ...AI_SETTINGS.usage, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length } })
+  }
+  if (method === 'GET' && path === '/api/v1/ai/monitoring') {
+    return json(res, 200, {
+      month: AI_SETTINGS.usage.month, totals: { messages: 41, input_tokens: 182000, output_tokens: 61000, tool_calls: 27 },
+      users: { items: [{ user: { id: 2, name: 'مدير النظام' }, messages: 26, tokens: 160000, tool_calls: 18 }, { user: { id: 5, name: 'هدى العتيبي' }, messages: 15, tokens: 83000, tool_calls: 9 }], total: 2 },
+      tools: { items: [{ tool_name: 'pmo.list_my_tasks', calls: 19 }, { tool_name: 'pmo.draft_project', calls: 8 }], total: 2 },
+    })
+  }
   if (method === 'POST' && path === '/api/v1/ai/audit') {
     let entry = {}
     try { entry = JSON.parse(await readBody(req) || '{}') } catch { entry = {} }
@@ -526,7 +558,7 @@ async function handle(req, res) {
       const base = { ...ME }
       if (noPolicy) delete base.platform
       const platform = readOnlyPayroll ? { ...ME.platform, writable_features: ME.platform.writable_features.filter(key => key !== 'hr.payroll') } : ME.platform
-      return json(res, 200, { ...base, ...(noPolicy ? {} : { platform }), appearance, capabilities: [...capabilitiesForRequest(req.headers.cookie, [...moduleUiCapabilities, PAYMENTS_MANAGE, PAYMENTS_LINKS_MANAGE, PAYMENTS_SETTINGS_MANAGE, ...INBOX_CAPABILITIES]), AI_USE] })
+      return json(res, 200, { ...base, ...(noPolicy ? {} : { platform }), appearance, capabilities: [...capabilitiesForRequest(req.headers.cookie, [...moduleUiCapabilities, PAYMENTS_MANAGE, PAYMENTS_LINKS_MANAGE, PAYMENTS_SETTINGS_MANAGE, ...INBOX_CAPABILITIES]), AI_USE, 'ai.settings.manage'] })
     }
     const preview = moduleUiPreviewData(path, url)
     if (preview?.refusal) return json(res, preview.refusal.status, preview.refusal.body)

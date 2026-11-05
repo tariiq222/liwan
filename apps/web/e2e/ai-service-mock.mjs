@@ -70,6 +70,13 @@ function resume(run, id, result) {
   return [['run', { run_id: id }], ...finish(run, `عندك ${result.data.total} مهمة، منها «${result.data.items[0]?.name ?? '—'}».`, records)]
 }
 
+// The tenant's own AI configuration: never the key, only whether one is set and its last four characters.
+const TENANT = {
+  retention_days: 30, key: { configured: false, provider: null, model: null, last4: null, updated_at: null },
+  platform: { provider: 'mock', model: 'mock-model', location: 'outside' },
+  providers: [{ name: 'anthropic', location: 'outside', needs_api_key: true }, { name: 'openai', location: 'outside', needs_api_key: true }, { name: 'ollama', location: 'inside', needs_api_key: false }],
+}
+
 http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://127.0.0.1:${PORT}`)
   const body = JSON.parse((await readBody(req)) || '{}')
@@ -109,6 +116,12 @@ http.createServer(async (req, res) => {
     const run = runs.get(get[1])
     if (!run || run.owner !== owner(req)) return reply(res, 404, {})
     return reply(res, 200, { run_id: get[1], status: run.status, messages: run.messages, pending: run.pending })
+  }
+  if (url.pathname === '/v1/tenant/config' || url.pathname.startsWith('/v1/tenant/config/')) {
+    if (req.method === 'PUT' && url.pathname === '/v1/tenant/config/retention') TENANT.retention_days = body.retention_days
+    if (req.method === 'PUT' && url.pathname === '/v1/tenant/config/key') TENANT.key = { configured: true, provider: body.provider, model: body.model, last4: String(body.api_key).slice(-4), updated_at: new Date().toISOString() }
+    if (req.method === 'DELETE' && url.pathname === '/v1/tenant/config/key') TENANT.key = { configured: false, provider: null, model: null, last4: null, updated_at: null }
+    return reply(res, 200, TENANT)
   }
   if (url.pathname === '/healthz') return reply(res, 200, { ok: true })
   reply(res, 404, {})
