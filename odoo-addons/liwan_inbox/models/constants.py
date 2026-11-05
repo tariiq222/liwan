@@ -4,6 +4,9 @@ from datetime import timedelta
 CHANNELS_LIMIT = 'inbox.channels'
 MESSAGES_OUT_LIMIT = 'inbox.messages_out'
 WHATSAPP_FEATURE = 'inbox.whatsapp'
+TIKTOK_FEATURE = 'inbox.tiktok'
+# The sub-feature that gates one channel kind, checked on the channel create and on its routes.
+CHANNEL_FEATURES = {'whatsapp': WHATSAPP_FEATURE, 'tiktok': TIKTOK_FEATURE}
 AUTOMATION_FEATURE = 'inbox.automation'
 FLOWS_FEATURE = 'inbox.flows'
 DEFAULT_TIMEZONE = 'Asia/Riyadh'

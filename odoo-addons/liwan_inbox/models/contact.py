@@ -32,7 +32,7 @@ class LiwanInboxContactIdentity(models.Model):
     company_id = fields.Many2one('res.company', required=True, index=True, ondelete='cascade',
                                  default=lambda self: self.env.company)
     contact_id = fields.Many2one('liwan.inbox.contact', required=True, index=True, ondelete='cascade')
-    channel_kind = fields.Selection([('whatsapp', 'WhatsApp')], required=True)
+    channel_kind = fields.Selection([('whatsapp', 'WhatsApp'), ('tiktok', 'TikTok')], required=True)
     address = fields.Char(required=True)
 
     _address_unique = models.Constraint(
