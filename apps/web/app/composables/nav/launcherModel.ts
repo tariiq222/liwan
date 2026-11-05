@@ -14,9 +14,13 @@ export interface LauncherEntry {
   pinnable: boolean
 }
 
+/**
+ * The applications the user may open, in rail order. The home page and settings are foundation pages rather than
+ * applications, and a `utility` module is part of the base system and always in the rail (the assistant), so neither
+ * is a launcher card.
+ */
 export function reachableApplications(modules: readonly ShellModuleDefinition[]): ShellModuleDefinition[] {
-  const applications = modules.filter(module => module.id !== 'home' && module.id !== 'settings')
-  return [...applications.filter(module => !module.utility), ...applications.filter(module => module.utility)]
+  return modules.filter(module => !module.utility && module.id !== 'home' && module.id !== 'settings')
 }
 
 /** Existing application actions, filtered by feature and route permissions, never executed by the launcher. */

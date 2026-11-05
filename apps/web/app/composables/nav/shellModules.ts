@@ -102,8 +102,8 @@ export interface ShellModuleDefinition {
   utility?: boolean
 }
 
-/** The launcher page; it is not a manifest module, so no navigation item or capability belongs to it. */
-export const LAUNCHER_MODULE: ShellModuleDefinition = { id: LAUNCHER_MODULE_ID, labelKey: 'nav.apps', icon: 'i-lucide-layout-grid', to: '/apps' }
+/** The start page of an application (`/apps/<id>`); it is not a manifest module, so no navigation item or capability belongs to it. */
+export const LAUNCHER_MODULE: ShellModuleDefinition = { id: LAUNCHER_MODULE_ID, labelKey: 'nav.apps', icon: 'i-lucide-layout-grid', to: '/' }
 
 /** The label key naming the open area in the drawer and sidebar heading: its module, «التطبيقات» on the launcher, else the product name. */
 export function areaLabelKey(definition: Pick<ShellModuleDefinition, 'labelKey'> | null | undefined, activeModule: ShellModule | null): string {
