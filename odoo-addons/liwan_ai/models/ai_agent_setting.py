@@ -16,6 +16,8 @@ class LiwanAiAgentSetting(models.Model):
     agent_key = fields.Char(required=True)
     enabled = fields.Boolean(required=True, default=True)
     read_only = fields.Boolean(required=True, default=False)
+    # Whether the agent may save and read the employee's and the company's notes (spec 2026-11-04 §6.7).
+    memory = fields.Boolean(required=True, default=True)
     role_ids = fields.Many2many('liwan.access.role', 'liwan_ai_agent_setting_role_rel', 'setting_id', 'role_id')
     # Bumped by every change of the agent or of its tools' modes; a save based on an older read answers 409.
     revision = fields.Integer(required=True, default=0)
@@ -24,7 +26,7 @@ class LiwanAiAgentSetting(models.Model):
 
     @api.model
     def _liwan_ai_effective(self, user):
-        """``{agent_key: {'read_only': bool}}`` for the registered agents ``user`` may use in the current company.
+        """``{agent_key: {'read_only': bool, 'memory': bool}}`` for the registered agents ``user`` may use in the current company.
 
         The role lists and the user's assignments are read in SQL, as ``liwan.access.service`` reads them: an
         employee holds no ACL on roles or assignments, and the restriction must hold for them all the same.
@@ -40,7 +42,7 @@ class LiwanAiAgentSetting(models.Model):
             roles = restricted.get(row.id) if row else None
             if roles and not roles & held:
                 continue
-            agents[key] = {'read_only': bool(row and row.read_only)}
+            agents[key] = {'read_only': bool(row and row.read_only), 'memory': not row or row.memory}
         return agents
 
     @api.model

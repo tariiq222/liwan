@@ -106,7 +106,7 @@ class TestAiAgentSettings(AiProbe, LiwanApiCase):
         self.assertEqual(body['agents'], [{
             'key': 'probe', 'name': {'ar': 'وكيل التجربة', 'en': 'Probe agent'},
             'description': {'ar': 'يجيب عن الأشياء', 'en': 'Answers about things'},
-            'instructions': {'ar': 'أجب عن الأشياء فقط.', 'en': 'Answer about things only.'}, 'pages': ['things'],
+            'instructions': {'ar': 'أجب عن الأشياء فقط.', 'en': 'Answer about things only.'}, 'pages': ['things'], 'memory': True,
         }])
         self.env['liwan.ai.settings']._liwan_current().external_send = 'approve'
         self.assertIn('probe.send_thing', [item['name'] for item in self._catalog()['items']])

@@ -30,4 +30,5 @@ def dump_agent(item):
         'description': _text(item, 'description'),
         'instructions': _text(item, 'instructions'),
         'pages': list(item.get('pages', ())),
+        'memory': item['memory'],
     }

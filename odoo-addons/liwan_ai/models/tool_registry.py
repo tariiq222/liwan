@@ -177,10 +177,14 @@ class LiwanAiToolRegistry(models.AbstractModel):
         return items
 
     @api.model
-    def _liwan_ai_agents_for_user(self, tools):
-        """The registered agents that own at least one of ``tools``, in registration order."""
+    def _liwan_ai_agents_for_user(self, tools, user=None):
+        """The registered agents that own at least one of ``tools``, in registration order, each with its ``memory`` switch."""
         owners = {self._liwan_ai_agent_key(item) for item in tools}
-        return [agent for key, agent in self.env['liwan.ai.agent.registry']._liwan_ai_agent_map().items() if key in owners]
+        effective = self.env['liwan.ai.agent.setting']._liwan_ai_effective(user or self.env.user)
+        return [
+            {**agent, 'memory': effective[key]['memory']}
+            for key, agent in self.env['liwan.ai.agent.registry']._liwan_ai_agent_map().items() if key in owners
+        ]
 
     @api.model
     def _liwan_ai_limits(self):
