@@ -299,7 +299,7 @@ test('a changed company refuses the write, drops the draft and says why', async 
   await expect(saveBar(page)).toBeHidden()
 })
 
-test('reverting sends nothing, and a hash change keeps the draft', async ({ page }) => {
+test('reverting sends nothing, and switching tabs keeps the draft', async ({ page }) => {
   await openFiscal(page)
   const day = page.locator('#finance-fiscal-fiscalyear_last_day')
   await day.fill('30')
@@ -307,7 +307,9 @@ test('reverting sends nothing, and a hash change keeps the draft', async ({ page
   await expect(day).toHaveValue('31')
   await expect(saveBar(page)).toBeHidden()
   await day.fill('30')
-  await page.getByTestId('settings-context-sub-list').locator('a[href$="#setup"]').click()
+  await page.getByTestId('settings-tab-accounting').click()
+  await expect(page).toHaveURL(/tab=accounting/)
+  await page.getByTestId('settings-tab-setup').click()
   await expect(page.getByTestId('unsaved-changes-dialog')).toHaveCount(0)
   await expect(day).toHaveValue('30')
   expect(fiscalPatches).toHaveLength(0)
