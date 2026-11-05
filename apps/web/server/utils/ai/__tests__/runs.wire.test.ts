@@ -34,11 +34,12 @@ let usageInvalid: string[] = []
 
 const TOOLS = {
   items: [
-    { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'م', en: 'm' }, input_schema: { type: 'object' }, route: { method: 'GET', path: '/api/v1/tasks' }, input_map: { query: { filter: 'mine' } }, result_summary: ['items[].id', 'items[].name', 'total'], draft_target: null },
-    { name: 'pmo.update_task_state', kind: 'write_light', description: { ar: 'م', en: 'm' }, input_schema: { type: 'object' }, route: { method: 'POST', path: '/api/v1/tasks/{task_id}/transition' }, input_map: { path: { task_id: '$task_id' }, body: { state: '$state' } }, result_summary: ['id', 'state'], draft_target: null },
-    { name: 'pmo.draft_project', kind: 'draft', description: { ar: 'م', en: 'm' }, input_schema: { type: 'object' }, route: null, input_map: {}, result_summary: [], draft_target: '/projects/new' },
+    { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'م', en: 'm' }, input_schema: { type: 'object' }, route: { method: 'GET', path: '/api/v1/tasks' }, input_map: { query: { filter: 'mine' } }, result_summary: ['items[].id', 'items[].name', 'total'], draft_target: null, requires_approval: false },
+    { name: 'pmo.update_task_state', kind: 'write_light', description: { ar: 'م', en: 'm' }, input_schema: { type: 'object' }, route: { method: 'POST', path: '/api/v1/tasks/{task_id}/transition' }, input_map: { path: { task_id: '$task_id' }, body: { state: '$state' } }, result_summary: ['id', 'state'], draft_target: null, requires_approval: true },
+    { name: 'pmo.draft_project', kind: 'draft', description: { ar: 'م', en: 'm' }, input_schema: { type: 'object' }, route: null, input_map: {}, result_summary: [], draft_target: '/projects/new', requires_approval: true },
   ],
   total: 3,
+  agents: [],
   limits: { tool_calls_per_run: 8, messages_monthly: 100, messages_used: 1, policy: { provider_mode: 'platform', outside_allowed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: 8000 } },
 }
 const ME = { id: 42, name: 'سارة', company: { id: 1, name: 'ليوان' } }
@@ -149,7 +150,7 @@ beforeAll(async () => {
       }
       if (scenario === 'usage') {
         return sse(res, [['run', { run_id: runId }], ...MODEL_PLAN_RETRIED, ...MODEL_PLAN_OK,
-          ['tool_request', { call_id: 'c_1', tool: 'pmo.list_my_tasks', kind: 'read', input: {}, summary_ar: 'سأقرأ', summary_en: 'read' }], ['done', { status: 'waiting_tool' }]])
+          ['tool_request', { call_id: 'c_1', tool: 'pmo.list_my_tasks', kind: 'read', agent: 'pmo', requires_approval: false, input: {}, summary_ar: 'سأقرأ', summary_en: 'read' }], ['done', { status: 'waiting_tool' }]])
       }
       if (scenario === 'usage_cut') return sse(res, [['run', { run_id: runId }], modelCall(CALL_A)]) // the stream ends with no usage and no done
       if (scenario === 'usage_gone') {
@@ -164,12 +165,12 @@ beforeAll(async () => {
       if (scenario === 'wrong_run') return sse(res, [['run', { run_id: 'r_other' }], ['done', { status: 'done' }]])
       if (scenario === 'malformed_usage') return sse(res, [['run', { run_id: runId }], ['model_call', { call_id: 'nope' }], ['done', { status: 'done' }]])
       if (scenario === 'error_only') return sse(res, [['run', { run_id: runId }], ['error', { code: 'model_failed', message: 'boom' }]])
-      if (scenario === 'read') return sse(res, [['run', { run_id: runId }], ['tool_request', { call_id: 'c_1', tool: 'pmo.list_my_tasks', kind: 'read', input: {}, summary_ar: 'سأقرأ', summary_en: 'read' }], ['done', { status: 'waiting_tool' }]])
-      if (scenario === 'draft_as_read') return sse(res, [['run', { run_id: runId }], ['tool_request', { call_id: 'c_4', tool: 'pmo.draft_project', kind: 'read', input: { name: 'x' }, summary_ar: 'س', summary_en: 's' }], ['done', { status: 'waiting_tool' }]])
-      if (scenario === 'bogus_draft') return sse(res, [['run', { run_id: runId }], ['tool_request', { call_id: 'c_7', tool: 'pmo.draft_nothing', kind: 'draft', input: { name: 'x' }, summary_ar: 'س', summary_en: 's' }], ['done', { status: 'waiting_user' }]])
-      if (scenario === 'draft_wrong_kind') return sse(res, [['run', { run_id: runId }], ['tool_request', { call_id: 'c_8', tool: 'pmo.list_my_tasks', kind: 'write_light', input: {}, summary_ar: 'س', summary_en: 's' }], ['done', { status: 'waiting_user' }]])
-      if (scenario === 'unknown') return sse(res, [['run', { run_id: runId }], ['tool_request', { call_id: 'c_9', tool: 'pmo.delete_all', kind: 'read', input: {}, summary_ar: 'س', summary_en: 's' }], ['done', { status: 'waiting_tool' }]])
-      return sse(res, [['run', { run_id: runId }], ['tool_request', { call_id: 'c_2', tool: 'pmo.draft_project', kind: 'draft', input: { name: 'بوابة' }, summary_ar: 'س', summary_en: 's' }], ['done', { status: 'waiting_user' }]])
+      if (scenario === 'read') return sse(res, [['run', { run_id: runId }], ['tool_request', { call_id: 'c_1', tool: 'pmo.list_my_tasks', kind: 'read', agent: 'pmo', requires_approval: false, input: {}, summary_ar: 'سأقرأ', summary_en: 'read' }], ['done', { status: 'waiting_tool' }]])
+      if (scenario === 'draft_as_read') return sse(res, [['run', { run_id: runId }], ['tool_request', { call_id: 'c_4', tool: 'pmo.draft_project', kind: 'read', agent: 'pmo', requires_approval: false, input: { name: 'x' }, summary_ar: 'س', summary_en: 's' }], ['done', { status: 'waiting_tool' }]])
+      if (scenario === 'bogus_draft') return sse(res, [['run', { run_id: runId }], ['tool_request', { call_id: 'c_7', tool: 'pmo.draft_nothing', kind: 'draft', agent: 'pmo', requires_approval: true, input: { name: 'x' }, summary_ar: 'س', summary_en: 's' }], ['done', { status: 'waiting_user' }]])
+      if (scenario === 'draft_wrong_kind') return sse(res, [['run', { run_id: runId }], ['tool_request', { call_id: 'c_8', tool: 'pmo.list_my_tasks', kind: 'write_light', agent: 'pmo', requires_approval: true, input: {}, summary_ar: 'س', summary_en: 's' }], ['done', { status: 'waiting_user' }]])
+      if (scenario === 'unknown') return sse(res, [['run', { run_id: runId }], ['tool_request', { call_id: 'c_9', tool: 'pmo.delete_all', kind: 'read', agent: 'pmo', requires_approval: false, input: {}, summary_ar: 'س', summary_en: 's' }], ['done', { status: 'waiting_tool' }]])
+      return sse(res, [['run', { run_id: runId }], ['tool_request', { call_id: 'c_2', tool: 'pmo.draft_project', kind: 'draft', agent: 'pmo', requires_approval: true, input: { name: 'بوابة' }, summary_ar: 'س', summary_en: 's' }], ['done', { status: 'waiting_user' }]])
     }
     const resumeUsage = scenario === 'usage' ? [...MODEL_PLAN_OK_2] : []
     return sse(res, [['run', { run_id: runId }], ['token', { text: 'عندك' }], ...resumeUsage, ['answer', { text: 'عندك مهمة', records: [{ type: 'task', id: 5, label: 'تقرير' }] }], ...(scenario === 'usage' ? MODEL_TITLE : []), ['done', { status: 'done' }]])
@@ -202,8 +203,8 @@ beforeAll(async () => {
   url = `http://127.0.0.1:${(app.address() as any).port}`
 })
 afterAll(() => { odoo.close(); service.close(); deadService.close(); app.close() })
-const DRAFT_PENDING = { call_id: 'c_2', tool: 'pmo.draft_project', kind: 'draft', input: { name: 'بوابة' } }
-const WRITE_PENDING = { call_id: 'c_3', tool: 'pmo.update_task_state', kind: 'write_light', input: { task_id: 7, state: 'done' } }
+const DRAFT_PENDING = { call_id: 'c_2', tool: 'pmo.draft_project', kind: 'draft', agent: 'pmo', requires_approval: true, input: { name: 'بوابة' } }
+const WRITE_PENDING = { call_id: 'c_3', tool: 'pmo.update_task_state', kind: 'write_light', agent: 'pmo', requires_approval: true, input: { task_id: 7, state: 'done' } }
 beforeEach(() => { odooCalls = []; serviceCalls = []; scenario = 'read'; serviceDown = false; odooToolsStatus = 200; pending = DRAFT_PENDING; serviceToken = ''; claimMode = 'atomic'; claimed = false; doneSentAt = 0; odooMode = 'normal'; auditFailKind = null; runStatus = 'waiting_user'; resumeMode = 'ok'; resumeStreamFinished = false; resumeStreamCancelled = false; runList = RUN_LIST; patchStatus = 200; runId = 'r_1'; usageStatus = 200; usageDelayMs = 0; usageAnsweredAt = 0; usageBatches = []; usageInvalid = [] })
 
 const post = (path: string, body: unknown, cookie = 'session_id=s1') => fetch(`${url}${path}`, {
@@ -215,6 +216,27 @@ const events = async (response: Response) => (await response.text()).trim().spli
 })
 
 describe('POST /api/ai/runs', () => {
+  it('hands a read the administrator set to approval to the browser and runs nothing', async () => {
+    const tool = TOOLS.items[0]!
+    tool.requires_approval = true
+    try {
+      const list = await events(await post('/api/ai/runs', { message: 'هلا' }))
+      expect(list.map(([n]) => n)).toEqual(['run', 'tool_request', 'done'])
+      // The service's tool list predates the setting; the browser still gets a card to approve.
+      expect(list[1]![1]).toMatchObject({ kind: 'read', requires_approval: true })
+      expect(list[2]![1]).toEqual({ status: 'waiting_user' })
+      expect(odooCalls.some(c => c.url.startsWith('/api/v1/tasks'))).toBe(false)
+      expect(serviceCalls.some(c => c.url.endsWith('/resume'))).toBe(false)
+    } finally {
+      tool.requires_approval = false
+    }
+  })
+
+  it('passes the agents with the tools to the service', async () => {
+    await events(await post('/api/ai/runs', { message: 'هلا' }))
+    expect(JSON.parse(serviceCalls.find(c => c.url === '/v1/runs')!.body).agents).toEqual(TOOLS.agents)
+  })
+
   it('executes a read tool with the caller cookie, audits it, and resumes in one stream', async () => {
     const list = await events(await post('/api/ai/runs', { message: 'هلا' }))
     const names = list.map(([n]) => n)
@@ -229,6 +251,7 @@ describe('POST /api/ai/runs', () => {
     expect(JSON.parse(resumeCall.body)).toEqual({ call_id: 'c_1', policy: POLICY, result: { ok: true, data: { items: [{ id: 5, name: 'تقرير' }], total: 1 } } })
     const audits = odooCalls.filter(c => c.url === '/api/v1/ai/audit').map(c => JSON.parse(c.body!))
     expect(audits.map(a => [a.kind, a.result])).toEqual([['message', 'ok'], ['read', 'ok']])
+    expect(audits[1].agent).toBe('pmo')
     const started = JSON.parse(serviceCalls.find(c => c.url === '/v1/runs')!.body)
     expect(started.tools.map((t: any) => t.name)).toEqual(['pmo.list_my_tasks', 'pmo.update_task_state', 'pmo.draft_project'])
     expect(started.limits).toEqual({ max_steps: 12, max_tool_calls: 8, timeout_seconds: 120 })
@@ -265,7 +288,7 @@ describe('POST /api/ai/runs', () => {
     await events(await post('/api/ai/runs', { message: 'سوّ مشروع' }))
     expect(odooCalls.filter(c => !['/api/v1/me', '/api/v1/ai/tools', '/api/v1/ai/audit'].includes(c.url))).toEqual([])
     expect(odooCalls.filter(c => c.url === '/api/v1/ai/audit').map(c => JSON.parse(c.body!).kind)).toEqual(['message'])
-    expect(JSON.parse(serviceCalls.find(c => c.url === '/v1/runs/r_1/resume')!.body).result).toEqual({ ok: false, error: { code: 'not_executable', message: 'pmo.draft_project cannot be executed as read' } })
+    expect(JSON.parse(serviceCalls.find(c => c.url === '/v1/runs/r_1/resume')!.body).result).toEqual({ ok: false, error: { code: 'unknown_tool', message: 'pmo.draft_project is not a read tool of the catalog' } })
   })
 
   it('answers a draft request for a tool missing from the catalog with unknown_tool and finishes the run', async () => {
@@ -507,7 +530,7 @@ describe('resume and status', () => {
   })
 
   describe('a stalled read call', () => {
-    const READ_PENDING = { call_id: 'c_1', tool: 'pmo.list_my_tasks', kind: 'read', input: {} }
+    const READ_PENDING = { call_id: 'c_1', tool: 'pmo.list_my_tasks', kind: 'read', agent: 'pmo', requires_approval: false, input: {} }
     it('is executed again by the server on "approved", audited, announced and resumed', async () => {
       pending = READ_PENDING
       runStatus = 'waiting_tool'
@@ -528,6 +551,22 @@ describe('resume and status', () => {
     })
   })
 
+  describe('a read the administrator set to approval', () => {
+    const GATED = { call_id: 'c_1', tool: 'pmo.list_my_tasks', kind: 'read', agent: 'pmo', requires_approval: true, input: {} }
+    it('runs the read only after the user approves it', async () => {
+      pending = GATED
+      const list = await events(await post('/api/ai/runs/r_1/resume', { call_id: 'c_1', decision: 'approved' }))
+      expect(list[0]![0]).toBe('tool_result')
+      expect(odooCalls.some(c => c.url.startsWith('/api/v1/tasks'))).toBe(true)
+    })
+    it('answers a refusal with the decision and reads nothing', async () => {
+      pending = GATED
+      await events(await post('/api/ai/runs/r_1/resume', { call_id: 'c_1', decision: 'rejected' }))
+      expect(odooCalls.some(c => c.url.startsWith('/api/v1/tasks'))).toBe(false)
+      expect(lastResume()).toEqual({ call_id: 'c_1', policy: POLICY, result: { ok: false, decision: 'rejected' } })
+    })
+  })
+
   it.each([
     ['approved a write_light', WRITE_PENDING, 'approved'],
     ['rejected a write_light', WRITE_PENDING, 'rejected'],
@@ -545,6 +584,17 @@ describe('resume and status', () => {
     const response = await fetch(`${url}/api/ai/runs/r_1/resume`, { method: 'POST', headers: { 'content-type': 'application/json', cookie: 'session_id=s1', origin: 'https://evil.example', 'sec-fetch-site': 'cross-site' }, body: '{"call_id":"c_2","decision":"approved"}' })
     expect(response.status).toBe(403)
     expect(serviceCalls).toEqual([])
+  })
+
+  it('shows a pending read as a card to approve once the administrator set it to approval', async () => {
+    pending = { call_id: 'c_1', tool: 'pmo.list_my_tasks', kind: 'read', agent: 'pmo', requires_approval: false, input: {} }
+    TOOLS.items[0]!.requires_approval = true
+    try {
+      const response = await fetch(`${url}/api/ai/runs/r_1`, { headers: { cookie: 'session_id=s1' } })
+      expect((await response.json()).pending.requires_approval).toBe(true)
+    } finally {
+      TOOLS.items[0]!.requires_approval = false
+    }
   })
 
   it('returns the run status with its pending call', async () => {
@@ -787,7 +837,7 @@ describe('draft rejection audit', () => {
   it('audits a rejected draft before resuming', async () => {
     await events(await rejectDraft())
     const rejected = odooCalls.filter(c => c.url === '/api/v1/ai/audit').map(c => JSON.parse(c.body!)).at(-1)
-    expect(rejected).toEqual({ conversation_id: 'r_1', kind: 'draft', tool_name: 'pmo.draft_project', input: { name: 'بوابة' }, result: 'rejected', http_status: null, draft: { name: 'بوابة' }, approved: null, attested: false })
+    expect(rejected).toEqual({ conversation_id: 'r_1', kind: 'draft', agent: 'pmo', tool_name: 'pmo.draft_project', input: { name: 'بوابة' }, result: 'rejected', http_status: null, draft: { name: 'بوابة' }, approved: null, attested: false })
     expect(lastResume()).toEqual({ call_id: 'c_2', policy: POLICY, result: { ok: false, decision: 'rejected' } })
   })
   it('resumes even when that audit fails', async () => {

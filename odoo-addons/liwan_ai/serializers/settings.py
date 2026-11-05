@@ -1,10 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.addons.liwan_ai.models import consent_text
-from odoo.addons.liwan_ai.models.ai_settings import PROVIDER_MODES
+from odoo.addons.liwan_ai.models.ai_settings import EXTERNAL_SEND_MODES, PROVIDER_MODES
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.serializers.common import iso
 
-PATCH_KEYS = frozenset({'provider_mode', 'revision'})
+SETTING_KEYS = frozenset({'provider_mode', 'messages_per_user_monthly', 'external_send'})
+MAX_MESSAGES_PER_USER = 100_000
 CONSENT_KEYS = frozenset({'text_version', 'text_hash'})
 
 
@@ -25,6 +26,8 @@ def dump_settings(env):
     audit = env['liwan.ai.audit']
     return {
         'provider_mode': settings.provider_mode,
+        'messages_per_user_monthly': settings.messages_per_user_monthly,
+        'external_send': settings.external_send,
         'revision': settings.revision,
         'consent': {
             'required_version': consent_text.CONSENT_VERSION,
@@ -54,14 +57,25 @@ def _require_exact_keys(payload, keys):
 
 
 def parse_settings_patch(payload):
-    """``(provider_mode, revision)`` of a settings write, or a 422 naming the bad field."""
-    _require_exact_keys(payload, PATCH_KEYS)
-    provider_mode, revision = payload['provider_mode'], payload['revision']
-    if provider_mode not in PROVIDER_MODES:
-        raise ApiError(422, 'invalid', f'provider_mode must be one of {PROVIDER_MODES}', field='provider_mode')
+    """``(values, revision)`` of a settings write: any of the settings plus the revision read, or a 422 naming the bad field."""
+    unknown = sorted(set(payload) - SETTING_KEYS - {'revision'})
+    if unknown:
+        raise ApiError(422, 'unknown_field', f'field {unknown[0]!r} is not accepted', field=unknown[0])
+    revision = payload.get('revision')
     if not isinstance(revision, int) or isinstance(revision, bool) or revision < 1:
         raise ApiError(422, 'invalid', 'revision must be a positive integer', field='revision')
-    return provider_mode, revision
+    values = {key: payload[key] for key in SETTING_KEYS if key in payload}
+    if not values:
+        raise ApiError(422, 'invalid', 'nothing to change')
+    if 'provider_mode' in values and values['provider_mode'] not in PROVIDER_MODES:
+        raise ApiError(422, 'invalid', f'provider_mode must be one of {PROVIDER_MODES}', field='provider_mode')
+    if 'external_send' in values and values['external_send'] not in EXTERNAL_SEND_MODES:
+        raise ApiError(422, 'invalid', f'external_send must be one of {EXTERNAL_SEND_MODES}', field='external_send')
+    if 'messages_per_user_monthly' in values:
+        cap = values['messages_per_user_monthly']
+        if not isinstance(cap, int) or isinstance(cap, bool) or not 0 <= cap <= MAX_MESSAGES_PER_USER:
+            raise ApiError(422, 'invalid', f'messages_per_user_monthly must be 0 to {MAX_MESSAGES_PER_USER}', field='messages_per_user_monthly')
+    return values, revision
 
 
 def parse_consent(payload):

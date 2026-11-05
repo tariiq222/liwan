@@ -8,17 +8,20 @@ export type AiThreadItem =
   | { kind: 'tool'; callId: string; summaryAr: string; summaryEn: string; state: 'running' | 'ok' | 'denied' | 'failed' | 'stalled' }
   | { kind: 'confirm'; callId: string; tool: string; input: Record<string, unknown>; summaryAr: string; summaryEn: string; state: 'pending' | 'approved' | 'rejected'; busy?: boolean }
   | { kind: 'draft'; callId: string; tool: string; payload: Record<string, unknown>; summaryAr: string; summaryEn: string; state: 'pending' | 'approved' | 'rejected' }
+  | { kind: 'agent'; agent: string; nameAr: string; nameEn: string }
 
-export type AiLimit = 'max_tool_calls' | 'max_steps' | 'timeout' | 'messages_monthly' | 'output_tokens' | 'tokens_monthly' | 'consent_required' | 'tenant_key_missing'
+export type AiLimit = 'max_tool_calls' | 'max_steps' | 'timeout' | 'messages_monthly' | 'messages_per_user' | 'output_tokens' | 'tokens_monthly' | 'consent_required' | 'tenant_key_missing'
 /** The limits that stop every new message until something changes (a new month, a signature, a key), not just this run. */
-const BLOCKING_LIMITS: ReadonlySet<AiLimit> = new Set(['messages_monthly', 'tokens_monthly', 'consent_required', 'tenant_key_missing'])
+const BLOCKING_LIMITS: ReadonlySet<AiLimit> = new Set(['messages_monthly', 'messages_per_user', 'tokens_monthly', 'consent_required', 'tenant_key_missing'])
 export const isBlockingLimit = (limit: AiLimit | null) => limit !== null && BLOCKING_LIMITS.has(limit)
 export type AiRunState = 'idle' | 'streaming' | 'waiting_user' | 'done' | 'failed' | 'limit_reached'
 type LocalEvent = AiEvent | { event: 'decided'; data: { call_id: string; decision: 'approved' | 'rejected' | 'pending' } }
 type DecidableItem = Extract<AiThreadItem, { kind: 'confirm' | 'draft' }>
 
 // The package limit a 403 names, as the limit the assistant shows.
-const MONTHLY_LIMITS: Record<string, AiLimit> = { 'ai.messages.monthly': 'messages_monthly', 'ai.tokens.monthly': 'tokens_monthly' }
+const MONTHLY_LIMITS: Record<string, AiLimit> = {
+  'ai.messages.monthly': 'messages_monthly', 'ai.messages.per_user_monthly': 'messages_per_user', 'ai.tokens.monthly': 'tokens_monthly',
+}
 // The tenant policy refusals the Nuxt server answers before a message is counted.
 const POLICY_REFUSALS: Record<string, AiLimit> = { ai_consent_required: 'consent_required', ai_tenant_key_missing: 'tenant_key_missing' }
 const ERROR_MESSAGES: Record<string, string> = {
@@ -60,9 +63,15 @@ export function applyEvent(items: AiThreadItem[], event: LocalEvent): AiThreadIt
       // Text streamed before a tool call is final: close it so it does not stay "thinking".
       if (last?.kind === 'assistant' && last.streaming) next[next.length - 1] = { ...last, streaming: false }
       const base = { callId: event.data.call_id, summaryAr: event.data.summary_ar, summaryEn: event.data.summary_en }
-      if (event.data.kind === 'read') next.push({ kind: 'tool', ...base, state: 'running' })
+      // A read the administrator set to approval waits for the user like a write.
+      if (event.data.kind === 'read' && !event.data.requires_approval) next.push({ kind: 'tool', ...base, state: 'running' })
       else if (event.data.kind === 'draft') next.push({ kind: 'draft', ...base, tool: event.data.tool, payload: event.data.input, state: 'pending' })
       else next.push({ kind: 'confirm', ...base, tool: event.data.tool, input: event.data.input, state: 'pending' })
+      return next
+    }
+    case 'agent': {
+      if (last?.kind === 'assistant' && last.streaming) next[next.length - 1] = { ...last, streaming: false }
+      next.push({ kind: 'agent', agent: event.data.agent, nameAr: event.data.name.ar, nameEn: event.data.name.en })
       return next
     }
     case 'tool_result': {

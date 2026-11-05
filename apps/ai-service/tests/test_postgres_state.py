@@ -17,13 +17,13 @@ from liwan_ai_service.control import open_control
 from liwan_ai_service.graph import initial_state, run_config
 from liwan_ai_service.store import PostgresRunStore, StateCompatibilityError, initialize_tenant, validate_tenant
 from tests.fakes import PLATFORM_POLICY, BoundGraph, ScriptedChatModel, ai_text, ai_tool_call, new_id
-from tests.test_contracts import READ_TOOL
+from tests.test_contracts import PMO_AGENT, READ_TOOL
 
 pytestmark = pytest.mark.skipif(not os.environ.get("AI_TEST_DATABASE_URL"), reason="needs AI_TEST_DATABASE_URL")
 
 REQUEST = {
     "tenant": "t1", "user_ref": "42", "locale": "ar", "message": "؟", "context": None,
-    "tools": [READ_TOOL], "limits": {"max_steps": 6, "max_tool_calls": 2, "timeout_seconds": 60}, "policy": PLATFORM_POLICY,
+    "tools": [READ_TOOL], "agents": [PMO_AGENT], "limits": {"max_steps": 6, "max_tool_calls": 2, "timeout_seconds": 60}, "policy": PLATFORM_POLICY,
     "new_run_id": "r_" + "ab" * 12,
 }
 CHECKPOINT_TABLES = ("checkpoints", "checkpoint_blobs", "checkpoint_writes")

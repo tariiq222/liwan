@@ -1388,6 +1388,410 @@
         ],
         "type": "object"
       },
+      "AiAgentPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "read_only": {
+            "type": "boolean"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "role_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "tools": {
+            "additionalProperties": {
+              "enum": [
+                "on",
+                "approval",
+                "off"
+              ],
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "type": "object"
+      },
+      "AiAgentSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "additionalProperties": false,
+            "properties": {
+              "ar": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "en": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "ar",
+              "en"
+            ],
+            "type": "object"
+          },
+          "instructions": {
+            "additionalProperties": false,
+            "properties": {
+              "ar": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "en": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "ar",
+              "en"
+            ],
+            "type": "object"
+          },
+          "key": {
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "name": {
+            "additionalProperties": false,
+            "properties": {
+              "ar": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "en": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "ar",
+              "en"
+            ],
+            "type": "object"
+          },
+          "pages": {
+            "items": {
+              "pattern": "^[a-z][a-z_-]{0,39}$",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "description",
+          "instructions",
+          "pages"
+        ],
+        "type": "object"
+      },
+      "AiAgentSettingSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "additionalProperties": false,
+            "properties": {
+              "ar": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "en": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "ar",
+              "en"
+            ],
+            "type": "object"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "key": {
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "name": {
+            "additionalProperties": false,
+            "properties": {
+              "ar": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "en": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "ar",
+              "en"
+            ],
+            "type": "object"
+          },
+          "read_only": {
+            "type": "boolean"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "role_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "tools": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "description": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "ar": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "en": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ar",
+                    "en"
+                  ],
+                  "type": "object"
+                },
+                "external": {
+                  "type": "boolean"
+                },
+                "kind": {
+                  "enum": [
+                    "read",
+                    "write_light",
+                    "draft"
+                  ],
+                  "type": "string"
+                },
+                "mode": {
+                  "enum": [
+                    "on",
+                    "approval",
+                    "off"
+                  ],
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "kind",
+                "description",
+                "external",
+                "mode"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "description",
+          "enabled",
+          "read_only",
+          "role_ids",
+          "revision",
+          "tools"
+        ],
+        "type": "object"
+      },
+      "AiAgentSettingsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "description": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "ar": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "en": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ar",
+                    "en"
+                  ],
+                  "type": "object"
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "key": {
+                  "pattern": "^[a-z][a-z0-9_]*$",
+                  "type": "string"
+                },
+                "name": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "ar": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "en": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ar",
+                    "en"
+                  ],
+                  "type": "object"
+                },
+                "read_only": {
+                  "type": "boolean"
+                },
+                "revision": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "role_ids": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                "tools": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "description": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "ar": {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "en": {
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "ar",
+                          "en"
+                        ],
+                        "type": "object"
+                      },
+                      "external": {
+                        "type": "boolean"
+                      },
+                      "kind": {
+                        "enum": [
+                          "read",
+                          "write_light",
+                          "draft"
+                        ],
+                        "type": "string"
+                      },
+                      "mode": {
+                        "enum": [
+                          "on",
+                          "approval",
+                          "off"
+                        ],
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "kind",
+                      "description",
+                      "external",
+                      "mode"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "key",
+                "name",
+                "description",
+                "enabled",
+                "read_only",
+                "role_ids",
+                "revision",
+                "tools"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
       "AiAuditKindSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
@@ -1436,6 +1840,10 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "agent": {
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
           "approved": {
             "anyOf": [
               {
@@ -1801,6 +2209,56 @@
               "data": {
                 "additionalProperties": false,
                 "properties": {
+                  "agent": {
+                    "pattern": "^[a-z][a-z0-9_]*$",
+                    "type": "string"
+                  },
+                  "name": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "ar": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "en": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "ar",
+                      "en"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "agent",
+                  "name"
+                ],
+                "type": "object"
+              },
+              "event": {
+                "const": "agent",
+                "type": "string"
+              }
+            },
+            "required": [
+              "event",
+              "data"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "data": {
+                "additionalProperties": false,
+                "properties": {
+                  "agent": {
+                    "pattern": "^[a-z][a-z0-9_]*$",
+                    "type": "string"
+                  },
                   "call_id": {
                     "type": "string"
                   },
@@ -1819,6 +2277,9 @@
                     ],
                     "type": "string"
                   },
+                  "requires_approval": {
+                    "type": "boolean"
+                  },
                   "summary_ar": {
                     "type": "string"
                   },
@@ -1833,6 +2294,8 @@
                   "call_id",
                   "tool",
                   "kind",
+                  "agent",
+                  "requires_approval",
                   "input",
                   "summary_ar",
                   "summary_en"
@@ -2051,6 +2514,14 @@
             "type": "object"
           }
         ]
+      },
+      "AiExternalSendSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "draft_only",
+          "approve"
+        ],
+        "type": "string"
       },
       "AiKeyPutSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -2291,6 +2762,43 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "agents": {
+            "additionalProperties": false,
+            "properties": {
+              "items": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "agent": {
+                      "pattern": "^[a-z][a-z0-9_]*$",
+                      "type": "string"
+                    },
+                    "calls": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "agent",
+                    "calls"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "total": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "items",
+              "total"
+            ],
+            "type": "object"
+          },
           "month": {
             "pattern": "^\\d{4}-\\d{2}$",
             "type": "string"
@@ -2431,7 +2939,8 @@
           "month",
           "totals",
           "users",
-          "tools"
+          "tools",
+          "agents"
         ],
         "type": "object"
       },
@@ -2680,6 +3189,10 @@
               {
                 "additionalProperties": false,
                 "properties": {
+                  "agent": {
+                    "pattern": "^[a-z][a-z0-9_]*$",
+                    "type": "string"
+                  },
                   "call_id": {
                     "type": "string"
                   },
@@ -2698,6 +3211,9 @@
                     ],
                     "type": "string"
                   },
+                  "requires_approval": {
+                    "type": "boolean"
+                  },
                   "tool": {
                     "type": "string"
                   }
@@ -2706,7 +3222,9 @@
                   "call_id",
                   "tool",
                   "kind",
-                  "input"
+                  "input",
+                  "agent",
+                  "requires_approval"
                 ],
                 "type": "object"
               },
@@ -2799,6 +3317,18 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "external_send": {
+            "enum": [
+              "draft_only",
+              "approve"
+            ],
+            "type": "string"
+          },
+          "messages_per_user_monthly": {
+            "maximum": 100000,
+            "minimum": 0,
+            "type": "integer"
+          },
           "provider_mode": {
             "enum": [
               "platform",
@@ -2813,7 +3343,6 @@
           }
         },
         "required": [
-          "provider_mode",
           "revision"
         ],
         "type": "object"
@@ -2895,6 +3424,18 @@
             ],
             "type": "object"
           },
+          "external_send": {
+            "enum": [
+              "draft_only",
+              "approve"
+            ],
+            "type": "string"
+          },
+          "messages_per_user_monthly": {
+            "maximum": 100000,
+            "minimum": 0,
+            "type": "integer"
+          },
           "provider_mode": {
             "enum": [
               "platform",
@@ -2974,6 +3515,8 @@
         },
         "required": [
           "provider_mode",
+          "messages_per_user_monthly",
+          "external_send",
           "revision",
           "consent",
           "usage"
@@ -3183,10 +3726,23 @@
         ],
         "type": "string"
       },
+      "AiToolModeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "on",
+          "approval",
+          "off"
+        ],
+        "type": "string"
+      },
       "AiToolRequestSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "agent": {
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
           "call_id": {
             "type": "string"
           },
@@ -3205,6 +3761,9 @@
             ],
             "type": "string"
           },
+          "requires_approval": {
+            "type": "boolean"
+          },
           "summary_ar": {
             "type": "string"
           },
@@ -3219,6 +3778,8 @@
           "call_id",
           "tool",
           "kind",
+          "agent",
+          "requires_approval",
           "input",
           "summary_ar",
           "summary_en"
@@ -3296,6 +3857,9 @@
             "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
             "type": "string"
           },
+          "requires_approval": {
+            "type": "boolean"
+          },
           "result_summary": {
             "items": {
               "type": "string"
@@ -3341,7 +3905,8 @@
           "route",
           "input_map",
           "result_summary",
-          "draft_target"
+          "draft_target",
+          "requires_approval"
         ],
         "type": "object"
       },
@@ -3349,6 +3914,87 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "agents": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "description": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "ar": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "en": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ar",
+                    "en"
+                  ],
+                  "type": "object"
+                },
+                "instructions": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "ar": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "en": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ar",
+                    "en"
+                  ],
+                  "type": "object"
+                },
+                "key": {
+                  "pattern": "^[a-z][a-z0-9_]*$",
+                  "type": "string"
+                },
+                "name": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "ar": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "en": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ar",
+                    "en"
+                  ],
+                  "type": "object"
+                },
+                "pages": {
+                  "items": {
+                    "pattern": "^[a-z][a-z_-]{0,39}$",
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "key",
+                "name",
+                "description",
+                "instructions",
+                "pages"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
           "items": {
             "items": {
               "additionalProperties": false,
@@ -3420,6 +4066,9 @@
                   "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
                   "type": "string"
                 },
+                "requires_approval": {
+                  "type": "boolean"
+                },
                 "result_summary": {
                   "items": {
                     "type": "string"
@@ -3465,7 +4114,8 @@
                 "route",
                 "input_map",
                 "result_summary",
-                "draft_target"
+                "draft_target",
+                "requires_approval"
               ],
               "type": "object"
             },
@@ -3573,6 +4223,7 @@
         "required": [
           "items",
           "total",
+          "agents",
           "limits"
         ],
         "type": "object"
@@ -99346,6 +99997,95 @@
           "feature_keys": [],
           "feature_operation": null,
           "handler": "reactivate",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/ai/agents": {
+      "get": {
+        "operationId": "liwan_ai.AiAgentsController.list_agents.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_agents",
+        "tags": [
+          "liwan_ai"
+        ],
+        "x-liwan": {
+          "addon": "liwan_ai",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AiAgentsController",
+          "feature_keys": [],
+          "feature_operation": "read",
+          "handler": "list_agents",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/ai/agents/{key}": {
+      "patch": {
+        "operationId": "liwan_ai.AiAgentsController.update_agent.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "update_agent",
+        "tags": [
+          "liwan_ai"
+        ],
+        "x-liwan": {
+          "addon": "liwan_ai",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AiAgentsController",
+          "feature_keys": [],
+          "feature_operation": "write",
+          "handler": "update_agent",
           "readonly": false,
           "route_type": "json2"
         }

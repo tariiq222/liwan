@@ -7,15 +7,18 @@ from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 
 from odoo.addons.liwan_ai.models.access_service import AI_USE
+from odoo.addons.liwan_ai.models.agent_registry import CORE_AGENT
 from odoo.addons.liwan_ai.models.tool_registry import TOOL_KINDS
+from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 AUDIT_KINDS = ('message', *TOOL_KINDS)
 MONTHLY_MESSAGES = 'ai.messages.monthly'
 MONTHLY_TOKENS = 'ai.tokens.monthly'
+PER_USER_MESSAGES = 'ai.messages.per_user_monthly'
 AUDIT_RESULTS = ('ok', 'denied', 'failed', 'proposed', 'approved', 'rejected')
 DRAFT_RESULTS = ('proposed', 'approved', 'rejected')
 WIRE_KEYS = frozenset({
-    'conversation_id', 'kind', 'tool_name', 'input', 'result', 'http_status', 'draft', 'approved', 'attested',
+    'conversation_id', 'kind', 'agent', 'tool_name', 'input', 'result', 'http_status', 'draft', 'approved', 'attested',
 })
 SECRET_FRAGMENTS = ('password', 'passwd', 'token', 'secret', 'apikey', 'authorization', 'credential')
 NUL = '\x00'
@@ -95,6 +98,8 @@ class LiwanAiAudit(models.Model):
                               default=lambda self: self.env.user)
     conversation_id = fields.Char(required=True, index=True)
     kind = fields.Selection([(kind, kind) for kind in AUDIT_KINDS], required=True, index=True)
+    # The agent that was active when the tool ran (spec 2026-11-04 §6.9 monitoring); none on a message row.
+    agent_key = fields.Char(index=True)
     tool_name = fields.Char(index=True)
     input = fields.Json()
     result = fields.Selection([(result, result) for result in AUDIT_RESULTS], required=True, index=True)
@@ -154,8 +159,9 @@ class LiwanAiAudit(models.Model):
         if http_status is not None and (not isinstance(http_status, int) or isinstance(http_status, bool) or not 100 <= http_status <= 599):
             invalid('http_status', 'http_status must be an HTTP status code')
         tool = None
+        agent = values.get('agent')
         if kind == 'message':
-            for field in ('tool_name', 'input', 'draft', 'approved', 'http_status'):
+            for field in ('agent', 'tool_name', 'input', 'draft', 'approved', 'http_status'):
                 if values.get(field) is not None:
                     invalid(field, f'a message audit has no {field}')
             if attested:
@@ -170,6 +176,9 @@ class LiwanAiAudit(models.Model):
                 invalid('tool_name', f'unknown tool {tool_name!r}')
             if tool['kind'] != kind:
                 invalid('kind', f'tool {tool_name} is of kind {tool["kind"]}')
+            agents = self.env['liwan.ai.agent.registry']._liwan_ai_agent_map()
+            if agent != CORE_AGENT and agent not in agents:
+                invalid('agent', 'agent must be a registered agent or core')
         if kind == 'draft' and result not in DRAFT_RESULTS:
             invalid('result', f'a draft result must be one of {DRAFT_RESULTS}')
         if kind != 'draft' and result in DRAFT_RESULTS:
@@ -189,6 +198,7 @@ class LiwanAiAudit(models.Model):
             'user_id': self.env.user.id,
             'conversation_id': conversation_id,
             'kind': kind,
+            'agent_key': agent if kind != 'message' else False,
             'tool_name': tool_name,
             'result': result,
             'http_status': http_status,
@@ -205,8 +215,9 @@ class LiwanAiAudit(models.Model):
         messages = sum(row['kind'] == 'message' for row in rows)
         if messages:
             entitlement = self.env['liwan.entitlement.service']
-            platform_run = self.env['liwan.ai.settings']._liwan_current().provider_mode == 'platform'
-            capped = entitlement._liwan_limit_value(MONTHLY_MESSAGES) is not None or (
+            settings = self.env['liwan.ai.settings']._liwan_current()
+            platform_run = settings.provider_mode == 'platform'
+            capped = bool(settings.messages_per_user_monthly) or entitlement._liwan_limit_value(MONTHLY_MESSAGES) is not None or (
                 platform_run and entitlement._liwan_limit_value(MONTHLY_TOKENS) is not None
             )
             if capped:
@@ -218,6 +229,14 @@ class LiwanAiAudit(models.Model):
                 # (or ones racing other quota claims) can still end in a server error; each transaction is short.
                 entitlement._liwan_profile()._liwan_bump_quota_revision()
             entitlement.require_within_limit(MONTHLY_MESSAGES, self._liwan_ai_count_messages() + messages)
+            per_user = settings.messages_per_user_monthly
+            if per_user and self._liwan_ai_count_messages(self.env.user) + messages > per_user:
+                # The administrator's narrowing of the package limit (spec 2026-11-04 §6.7), refused like that limit.
+                code = 'feature_not_included'
+                raise LiwanAccessRule(
+                    code, 'your monthly assistant messages are used up', status=403,
+                    details={'reason': 'limit', 'limit_key': PER_USER_MESSAGES},
+                )
             if platform_run:
                 # A run starts only while the month's platform tokens are below the limit, so a tenant passes it by
                 # at most the one run that crossed it (spec 2026-11-04 §6.8). A tenant key pays its own provider.
@@ -230,7 +249,7 @@ class LiwanAiAudit(models.Model):
         return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
 
     @api.model
-    def _liwan_ai_count_messages(self):
+    def _liwan_ai_count_messages(self, user=None):
         """Message rows of the whole tenant since the start of this UTC month.
 
         The monthly limit belongs to the one tenant profile, so the count spans every company and
@@ -238,8 +257,10 @@ class LiwanAiAudit(models.Model):
         ``limits.messages_used`` and the limit check only, never ``_liwan_count_usage``: a rolling
         monthly flow must not block a plan change as stock usage would.
         """
-        self.env.cr.execute(
-            "SELECT count(*) FROM liwan_ai_audit WHERE kind = 'message' AND create_date >= %s",
-            [self._liwan_ai_month_start()],
-        )
+        query = "SELECT count(*) FROM liwan_ai_audit WHERE kind = 'message' AND create_date >= %s"
+        params = [self._liwan_ai_month_start()]
+        if user is not None:
+            query += ' AND user_id = %s'
+            params.append(user.id)
+        self.env.cr.execute(query, params)
         return self.env.cr.fetchone()[0]

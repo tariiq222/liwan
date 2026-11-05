@@ -1,8 +1,12 @@
-"""The one agent graph: plan → request one tool (interrupt) → plan … → answer.
+"""The one conversation graph: plan → request one tool (interrupt) → plan … → answer.
 
 The graph executes nothing. A tool request is an ``interrupt`` whose value is the
 request payload; the caller resumes with a ``ToolResult``. Limits come from the
 run request and stop the graph with ``outcome = 'limit_reached'``.
+
+One agent is active at a time (spec 2026-11-04 §6.5): the coordinator ``core`` or a specialist. A specialist sees its
+own tools of every kind and the read tools of the other agents; the coordinator sees only read tools. Either hands the
+request over with the in-graph ``liwan_handoff`` tool, which runs here, is never audited and spends no tool call.
 """
 from __future__ import annotations
 
@@ -18,7 +22,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.types import interrupt
 
-from liwan_ai_service.contracts import RunContext, RunRequest, ToolResult, ToolSpec, encode_tool_name
+from liwan_ai_service.contracts import CORE_AGENT, AgentSpec, RunContext, RunRequest, ToolResult, ToolSpec, encode_tool_name
 from liwan_ai_service.prompts import system_prompt, tool_summary
 from liwan_ai_service.usage import RunModel, invoke_planned, tokens_of
 
@@ -36,6 +40,58 @@ class AgentState(TypedDict):
     output_tokens: int  # what the provider reported for this request's plan calls
     max_output_tokens: int | None  # the policy's per-run cap (platform runs); None means no cap
     limit: str | None  # which limit stopped the run, when the graph itself decided it
+    agents: list[dict[str, Any]]  # the specialists Odoo declared for this user and request
+    agent: str  # the active agent: a specialist's key or ``core``
+    handoffs: int  # hand-overs made for this request
+
+
+HANDOFF = "liwan_handoff"  # no dot: it can never collide with a registered tool name
+MAX_HANDOFFS = 3
+
+
+def start_agent(request: RunRequest) -> str:
+    """The specialist whose pages include the current page, else the only specialist the user has, else the coordinator.
+
+    The page is a hint, never a limit: any agent can hand over to any other.
+    """
+    page = request.context.page if request.context else None
+    by_page = next((agent.key for agent in request.agents if page in agent.pages), None)
+    if by_page:
+        return by_page
+    return request.agents[0].key if len(request.agents) == 1 else CORE_AGENT
+
+
+def visible_tools(tools: list[dict[str, Any]], agent: str) -> list[dict[str, Any]]:
+    """The tools the active agent may request: every read tool, plus a specialist's own write and draft tools.
+
+    The coordinator owns no tool, so a change or a draft always happens after a hand-over to the application's agent.
+    """
+    return [tool for tool in tools if tool["kind"] == "read" or tool["name"].split(".", 1)[0] == agent]
+
+
+def handoff_tool(targets: list[str]) -> dict[str, Any]:
+    return {
+        "type": "function",
+        "function": {
+            "name": HANDOFF,
+            "description": "Hand the request over to the agent that owns it; the user does not choose agents.",
+            "parameters": {
+                "type": "object",
+                "properties": {"agent": {"type": "string", "enum": targets}, "reason": {"type": "string", "maxLength": 200}},
+                "required": ["agent"],
+                "additionalProperties": False,
+            },
+        },
+    }
+
+
+def handoff_targets(state: AgentState) -> list[str]:
+    """The specialists the active agent may hand over to. Never back to the coordinator: a specialist already sees every
+    read tool the coordinator has, so that hand-over could only lose tools."""
+    if state.get("handoffs", 0) >= MAX_HANDOFFS:
+        return []
+    current = state.get("agent", CORE_AGENT)
+    return [agent["key"] for agent in state.get("agents", []) if agent["key"] != current]
 
 
 def request_state(request: RunRequest) -> dict[str, Any]:
@@ -52,11 +108,21 @@ def request_state(request: RunRequest) -> dict[str, Any]:
         "output_tokens": 0,
         "max_output_tokens": request.policy.max_output_tokens,
         "limit": None,
+        "agents": [agent.model_dump() for agent in request.agents],
+        "handoffs": 0,
     }
 
 
 def initial_state(request: RunRequest) -> dict[str, Any]:
-    return {"messages": [HumanMessage(request.message)], **request_state(request)}
+    return {"messages": [HumanMessage(request.message)], **request_state(request), "agent": start_agent(request)}
+
+
+def continued_state(request: RunRequest, previous: dict[str, Any]) -> dict[str, Any]:
+    """A new message in an existing run keeps the agent it was talking to, while that agent is still offered."""
+    agent = previous.get("agent", CORE_AGENT)
+    if agent != CORE_AGENT and agent not in {spec.key for spec in request.agents}:
+        agent = start_agent(request)
+    return {**request_state(request), "agent": agent}
 
 
 DEADLINE_KEY = "__deadline_at"  # a dunder key stays out of the checkpoint metadata
@@ -144,12 +210,16 @@ def build_graph(checkpointer):
         if cap is not None and state.get("output_tokens", 0) >= cap:
             return {"outcome": "limit_reached", "limit": "output_tokens"}
         run_model: RunModel = config["configurable"][RUN_MODEL_KEY]
-        specs = [ToolSpec.model_validate(tool) for tool in state["tools"]]
+        current = state.get("agent", CORE_AGENT)
+        visible = visible_tools(state["tools"], current)
+        specs = [ToolSpec.model_validate(tool) for tool in visible]
+        agents = {agent["key"]: AgentSpec.model_validate(agent) for agent in state.get("agents", [])}
+        targets = handoff_targets(state)
         context = RunContext.model_validate(state["context"]) if state["context"] else None
-        prompt = SystemMessage(system_prompt(state["locale"], specs, context))
+        prompt = SystemMessage(system_prompt(state["locale"], specs, context, agents.get(current), [agents[key] for key in targets if key in agents]))
         history = [message for message in state["messages"] if not isinstance(message, SystemMessage)]
         deadline_at = config["configurable"].get(DEADLINE_KEY)
-        tools = run_model.model.bind_tools(_openai_tools(state["tools"]))
+        tools = run_model.model.bind_tools([*_openai_tools(visible), *([handoff_tool(targets)] if targets else [])])
         response = await invoke_planned(tools, [prompt, *history], run_model.identity, get_stream_writer(), deadline_at)
         spent = tokens_of([response])[1]
         if spent is None and cap is not None:
@@ -166,11 +236,25 @@ def build_graph(checkpointer):
             return "request_tool"
         return "answer"
 
+    def hand_over(state: AgentState, call: dict[str, Any], extra: list[ToolMessage]) -> dict[str, Any]:
+        targets = handoff_targets(state)
+        target = call["args"].get("agent") if isinstance(call["args"], dict) else None
+        if target not in targets:
+            return {"messages": [_error(call["id"], "invalid_arguments", "agent must be one of the offered agents"), *extra]}
+        spec = next(agent for agent in state["agents"] if agent["key"] == target)
+        get_stream_writer()({"event": "agent", "data": {"agent": target, "name": spec["name"]}})
+        reply = ToolMessage(content=json.dumps({"ok": True, "agent": target}), tool_call_id=call["id"])
+        return {"messages": [reply, *extra], "agent": target, "handoffs": state.get("handoffs", 0) + 1}
+
     def request_tool(state: AgentState) -> dict[str, Any]:
         last: AIMessage = state["messages"][-1]
         first, *rest = last.tool_calls
         extra = [_error(call["id"], "one_tool_per_step", "call one tool per step; this call was not run") for call in rest]
-        tools = {encode_tool_name(tool["name"]): tool for tool in state["tools"]}  # the provider names tools by their encoded form
+        if first["name"] == HANDOFF:
+            return hand_over(state, first, extra)
+        current = state.get("agent", CORE_AGENT)
+        # The provider names tools by their encoded form; only the active agent's visible tools can be requested.
+        tools = {encode_tool_name(tool["name"]): tool for tool in visible_tools(state["tools"], current)}
         spec = tools.get(first["name"])
         if spec is None:
             return {"messages": [_error(first["id"], "unknown_tool", f"{first['name']} is not available"), *extra]}
@@ -186,6 +270,8 @@ def build_graph(checkpointer):
             "call_id": first["id"],
             "tool": tool.name,
             "kind": tool.kind,
+            "agent": current,
+            "requires_approval": tool.requires_approval or tool.kind != "read",
             "input": first["args"],
             "summary_ar": tool_summary(tool, first["args"], "ar"),
             "summary_en": tool_summary(tool, first["args"], "en"),

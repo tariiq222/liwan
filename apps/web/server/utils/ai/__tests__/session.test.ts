@@ -5,7 +5,7 @@ const odooJson = vi.fn()
 vi.mock('../../tenantRequest', () => ({ tenantRequest, tenantUpstreamHeaders: () => ({}) }))
 vi.mock('../upstream', () => ({ odooJson, forwardUpstream: (u: any) => { throw Object.assign(new Error('forwarded'), { statusCode: u.status }) } }))
 
-const TOOLS = { items: [], total: 0, limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, policy: { provider_mode: 'platform', outside_allowed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: 8000 } } }
+const TOOLS = { items: [], total: 0, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, policy: { provider_mode: 'platform', outside_allowed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: 8000 } } }
 let config: Record<string, unknown>
 
 beforeEach(() => {

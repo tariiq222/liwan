@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
   const locale = runLocale(getCookie(event, 'liwan-locale'))
   const response = await serviceFetch(event, 'POST', '/v1/runs', session.owner, {
     tenant: session.owner.tenant, user_ref: session.owner.user, locale, message,
-    context: context ?? null, tools: session.tools, limits: session.limits, policy: runPolicy(session), ...(continued ? { run_id: continued } : { new_run_id: runId }),
+    context: context ?? null, tools: session.tools, agents: session.agents, limits: session.limits, policy: runPolicy(session), ...(continued ? { run_id: continued } : { new_run_id: runId }),
   })
   return relay(event, session, createEventStream(event), response, { runId })
 })

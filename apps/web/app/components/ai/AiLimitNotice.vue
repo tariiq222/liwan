@@ -10,6 +10,7 @@ const { t } = useI18n()
 const { can } = useAccess()
 const TEXT: Record<AiLimit, string> = {
   messages_monthly: 'ai.limits.monthly',
+  messages_per_user: 'ai.limits.perUser',
   tokens_monthly: 'ai.limits.tokensMonthly',
   output_tokens: 'ai.limits.outputTokens',
   consent_required: 'ai.limits.consentRequired',

@@ -122,6 +122,39 @@ PMO_AI_TOOLS = (
 )
 
 
+PMO_AGENT = {
+    'key': 'pmo',
+    'owner': 'liwan_pmo',
+    'feature_key': 'pmo.enabled',
+    'name_ar': 'وكيل المشاريع',
+    'name_en': 'Projects agent',
+    'description_ar': 'المشاريع ومواثيقها ومهامها وحالتها ومواعيدها وميزانياتها',
+    'description_en': 'Projects, their charters, tasks, status, deadlines and budgets',
+    'instructions_ar': (
+        'أنت وكيل المشاريع. قبل تجهيز مسودة مشروع ناقش المستخدم: اسأل سؤالين أو ثلاثة فقط (الغرض، الأهداف، المدة)، '
+        'ثم اقترح أنت القيم المناسبة لباقي الحقول واملأ الميثاق كاملًا (المبررات والأهداف والنطاق والاستثناءات والنجاح '
+        'والافتراضات والقيود)، ولا تطلب من المستخدم كتابة كل الحقول بنفسه. استدعِ أداة المسودة بعد أن تتضح الصورة. '
+        'عند الحديث عن الميزانية اعرض أرقام النظام كما هي.'
+    ),
+    'instructions_en': (
+        'You are the projects agent. Before preparing a project draft, talk it through with the user: ask only two or '
+        'three questions (purpose, objectives, timeline), then propose sensible values yourself and fill the whole '
+        'charter (rationale, objectives, scope, exclusions, success, assumptions, constraints); never ask the user to '
+        'write every field. Call the draft tool once the picture is clear. Show budget figures exactly as the system '
+        'returns them.'
+    ),
+    'pages': ['pmo', 'project'],
+}
+
+
+class LiwanPmoAiAgent(models.AbstractModel):
+    _inherit = 'liwan.ai.agent.registry'
+
+    @api.model
+    def _liwan_ai_agent_definitions(self):
+        return (*super()._liwan_ai_agent_definitions(), PMO_AGENT)
+
+
 class LiwanPmoAiTools(models.AbstractModel):
     _inherit = 'liwan.ai.tool.registry'
 

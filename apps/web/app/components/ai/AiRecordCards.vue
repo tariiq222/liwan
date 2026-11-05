@@ -9,6 +9,7 @@ const { t } = useI18n()
 function recordPath(record: AiRecordRef): string | null {
   if (record.type === 'project') return `/projects/${record.id}`
   if (record.type === 'task') return `/tasks/${record.id}`
+  if (record.type === 'personal_task') return `/my-tasks/${record.id}`
   return null
 }
 

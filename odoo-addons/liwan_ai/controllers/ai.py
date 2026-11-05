@@ -5,7 +5,7 @@ from odoo.http import request
 
 from odoo.addons.liwan_ai.models.access_service import AI_USE
 from odoo.addons.liwan_ai.serializers.audit import dump_audit_receipt
-from odoo.addons.liwan_ai.serializers.tool import dump_tool
+from odoo.addons.liwan_ai.serializers.tool import dump_agent, dump_tool
 from odoo.addons.liwan_ai.serializers.usage import dump_usage
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
@@ -39,9 +39,11 @@ class AiController(http.Controller):
     def list_tools(self, **_):
         request.env['liwan.access.service']._liwan_require_capability(AI_USE)
         registry = request.env['liwan.ai.tool.registry']
-        items = [dump_tool(item) for item in registry._liwan_ai_tools_for_user()]
+        tools = registry._liwan_ai_tools_for_user()
+        items = [dump_tool(item) for item in tools]
+        agents = [dump_agent(item) for item in registry._liwan_ai_agents_for_user(tools)]
         # tool_calls_per_run is enforced by the AI service/executor from this limits block, not by Odoo.
-        return {'items': items, 'total': len(items), 'limits': registry._liwan_ai_limits()}
+        return {'items': items, 'total': len(items), 'agents': agents, 'limits': registry._liwan_ai_limits()}
 
     @http.route('/api/v1/ai/audit', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

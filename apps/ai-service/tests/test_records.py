@@ -76,3 +76,9 @@ def test_unknown_tool_family_yields_generic_type():
     assert records_from_results([("hr.list_people", {"items": [{"id": 1, "name": "سارة"}]})], "سارة") == [
         {"type": "record", "id": 1, "label": "سارة"},
     ]
+
+
+def test_a_personal_task_opens_its_own_page_and_a_project_task_its_project_page():
+    data = {"items": [{"id": 3, "name": "Call the bank", "source": "personal"}, {"id": 9, "name": "Gate review", "source": "project"}]}
+    records = records_from_results([("tasks.list_my_tasks", data)], "Call the bank and Gate review")
+    assert [(r["type"], r["id"]) for r in records] == [("personal_task", 3), ("task", 9)]

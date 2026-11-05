@@ -38,6 +38,11 @@ def dump_monitoring(env):
         for user in users
     ]
     tool_items = [{'tool_name': name, 'calls': count} for name, count in tools]
+    agents = audit._read_group(
+        [('kind', 'in', TOOL_KINDS), ('create_date', '>=', month_start), ('agent_key', '!=', False)],
+        ['agent_key'], ['__count'], order='__count desc, agent_key',
+    )
+    agent_items = [{'agent': key, 'calls': count} for key, count in agents]
     return {
         'month': month_start.strftime('%Y-%m'),
         'totals': {
@@ -48,4 +53,5 @@ def dump_monitoring(env):
         },
         'users': {'items': user_items, 'total': len(user_items)},
         'tools': {'items': tool_items, 'total': len(tool_items)},
+        'agents': {'items': agent_items, 'total': len(agent_items)},
     }

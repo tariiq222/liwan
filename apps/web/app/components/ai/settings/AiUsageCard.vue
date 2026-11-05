@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import type { AiMonitoring, AiSettings } from '@liwan/contracts'
+import { AI_CORE_AGENT, type AiAgentSettings, type AiMonitoring, type AiSettings } from '@liwan/contracts'
 
 // This month's AI use against the package limits, and who used it for what: counts of messages, tokens and tool actions
 // only. Administrators never see conversation text; employees are told so on the assistant page.
-const props = defineProps<{ settings: AiSettings; monitoring: AiMonitoring | undefined }>()
-const { t, n } = useI18n()
+const props = defineProps<{ settings: AiSettings; monitoring: AiMonitoring | undefined; agents?: AiAgentSettings }>()
+const { t, n, locale } = useI18n()
+// An agent is named as its settings name it; the coordinator, and an agent of an application since switched off, by key.
+const agentLabel = (key: string) => {
+  if (key === AI_CORE_AGENT) return t('ai.settings.usage.coordinator')
+  const agent = props.agents?.items.find(item => item.key === key)
+  return agent ? (locale.value === 'en' ? agent.name.en : agent.name.ar) : key
+}
 
 const usage = computed(() => props.settings.usage)
 const percent = (used: number, limit: number | null) => (limit ? (used / limit) * 100 : null)
@@ -35,6 +41,14 @@ const rows = computed(() => (props.monitoring?.users.items ?? []).map(item => ({
       <p v-if="usage.output_tokens_per_run !== null" class="text-sm text-muted">{{ t('ai.settings.usage.perRun', { limit: n(usage.output_tokens_per_run) }) }}</p>
       <UTable v-if="rows.length" :data="rows" :columns="columns" class="w-full" data-testid="ai-usage-users" />
       <p v-else class="text-sm text-muted">{{ t('ai.settings.usage.empty') }}</p>
+      <div v-if="monitoring?.agents.items.length" class="grid gap-2" data-testid="ai-usage-agents">
+        <h3 class="text-sm font-medium">{{ t('ai.settings.usage.byAgent') }}</h3>
+        <ul class="grid gap-1 text-sm">
+          <li v-for="agent in monitoring.agents.items" :key="agent.agent" class="flex justify-between gap-4">
+            <span>{{ agentLabel(agent.agent) }}</span><span class="tabular-nums">{{ n(agent.calls) }}</span>
+          </li>
+        </ul>
+      </div>
       <div v-if="monitoring?.tools.items.length" class="grid gap-2" data-testid="ai-usage-tools">
         <h3 class="text-sm font-medium">{{ t('ai.settings.usage.topTools') }}</h3>
         <ul class="grid gap-1 text-sm">
