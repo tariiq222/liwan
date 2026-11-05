@@ -7,6 +7,7 @@ import hmac
 import logging
 import os
 from collections.abc import AsyncIterator, Awaitable, Callable
+from dataclasses import replace
 from typing import Annotated, Any
 
 import anyio
@@ -268,6 +269,8 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
         """
         if policy.provider_mode == "platform":
             chosen = platform
+        elif policy.provider_mode == "setup":
+            chosen = RunModel(platform.model, replace(platform.identity, billing="setup"))
         else:
             try:
                 key = await tenant.config.load_key(settings.keyring)

@@ -35,6 +35,8 @@ export const AiAgentSchema = z.object({
 }).strict()
 export type AiAgent = z.infer<typeof AiAgentSchema>
 export const AI_CORE_AGENT = 'core'
+/** The setup agent of liwan_ai: its tools exist only in a setup conversation. */
+export const AI_SETUP_AGENT = 'ai'
 
 const AiLimitValueSchema = z.number().int().nonnegative().nullable() // null means unlimited
 export const AiProviderModeSchema = z.enum(['platform', 'tenant_key'])
@@ -55,6 +57,9 @@ export const AiLimitsSchema = z.object({
   tool_calls_per_run: AiLimitValueSchema,
   messages_monthly: AiLimitValueSchema,
   messages_used: z.number().int().nonnegative(),
+  /** The free setup agent's monthly budget (vendor-set) and this month's setup messages. */
+  setup_monthly: AiLimitValueSchema,
+  setup_used: z.number().int().nonnegative(),
   policy: AiPolicySchema,
 }).strict()
 
@@ -63,7 +68,8 @@ export const AiToolsResponseSchema = z.object({
 }).strict()
 export type AiToolsResponse = z.infer<typeof AiToolsResponseSchema>
 
-export const AiAuditKindSchema = z.enum(['message', 'read', 'write_light', 'draft'])
+/** `setup`: a user message of a setup conversation, counted against the setup budget instead of the package. */
+export const AiAuditKindSchema = z.enum(['message', 'setup', 'read', 'write_light', 'draft'])
 export const AiAuditResultSchema = z.enum(['ok', 'denied', 'failed', 'proposed', 'approved', 'rejected'])
 export const AiAuditRequestSchema = z.object({
   conversation_id: z.string().min(1).max(64),
@@ -114,8 +120,8 @@ export type AiEvent = z.infer<typeof AiEventSchema>
  */
 export const AI_USAGE_BATCH_MAX = 64
 export const AiModelCallKindSchema = z.enum(['plan', 'title'])
-/** Whose provider account paid a call: the platform's (counted against the monthly token limit) or the tenant's own key. */
-export const AiBillingSchema = AiProviderModeSchema
+/** Whose account paid a call: the platform's, the tenant's own key, or the vendor's setup budget (the free setup agent). */
+export const AiBillingSchema = z.enum([...AiProviderModeSchema.options, 'setup'])
 export const AiModelCallOutcomeSchema = z.enum(['ok', 'failed', 'retried', 'aborted'])
 const AiCallIdSchema = z.string().regex(/^[0-9a-f]{16}$/)
 const AiProviderNameSchema = z.string().regex(/^[a-z][a-z0-9_-]{0,31}$/)
@@ -186,6 +192,8 @@ export type AiRunPatch = z.infer<typeof AiRunPatchSchema>
 export const AiStartRequestSchema = z.object({
   message: z.string().trim().min(1).max(8000),
   run_id: z.string().min(1).max(64).nullish(),
+  /** `setup`: a conversation with the setup agent only, on the platform provider, against the setup budget. */
+  mode: z.enum(['setup']).nullish(),
   context: z.object({ page: z.string().regex(/^[a-z][a-z0-9_-]{0,63}$/), id: z.number().int().nullish() }).strict().nullish(),
 }).strict()
 export type AiStartRequest = z.infer<typeof AiStartRequestSchema>

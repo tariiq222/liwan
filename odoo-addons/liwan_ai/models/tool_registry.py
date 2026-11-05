@@ -5,6 +5,7 @@ from odoo import api, models
 from odoo.exceptions import ValidationError
 
 TOOL_KINDS = ('read', 'write_light', 'draft')
+SETUP_AGENT_KEY = 'ai'  # the setup agent of liwan_ai (models/setup_agent.py)
 ROUTE_METHODS = ('GET', 'POST', 'PATCH')
 MAP_SECTIONS = ('path', 'query', 'body')
 TOOL_NAME = re.compile(r'^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$')
@@ -147,8 +148,10 @@ class LiwanAiToolRegistry(models.AbstractModel):
         return item['owner'].removeprefix('liwan_')
 
     @api.model
-    def _liwan_ai_tools_for_user(self, user=None):
+    def _liwan_ai_tools_for_user(self, user=None, setup=False):
         """The tools ``user`` may give the assistant, in registration order, each with its effective ``mode``.
+
+        A setup conversation (``setup``) offers the setup agent's tools only; an ordinary one never offers them.
 
         A tool appears only when its feature reads, the user holds its capability, its agent is enabled for one of
         the user's roles, and the administrator has not turned it off; an agent set to read only keeps its read
@@ -163,6 +166,8 @@ class LiwanAiToolRegistry(models.AbstractModel):
         external_send = self.env['liwan.ai.settings']._liwan_current().external_send
         items = []
         for item in self._liwan_ai_tool_map().values():
+            if (self._liwan_ai_agent_key(item) == SETUP_AGENT_KEY) != setup:
+                continue
             agent = agents.get(self._liwan_ai_agent_key(item))
             mode = modes.get(item['name'], 'on')
             if agent is None or mode == 'off':
@@ -193,6 +198,8 @@ class LiwanAiToolRegistry(models.AbstractModel):
             'tool_calls_per_run': entitlement._liwan_limit_value('ai.tool_calls.per_run'),
             'messages_monthly': entitlement._liwan_limit_value('ai.messages.monthly'),
             'messages_used': self.env['liwan.ai.audit']._liwan_ai_count_messages(),
+            'setup_monthly': entitlement._liwan_limit_value('ai.setup.monthly'),
+            'setup_used': self.env['liwan.ai.audit']._liwan_ai_count_messages(kind='setup'),
             'policy': self._liwan_ai_policy(),
         }
 

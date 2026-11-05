@@ -33,7 +33,9 @@ limits describe implementation stages, not permanent product exclusions.
   application.
 - `odoo-addons/liwan_ai` (shared service, rank 3) owns the LiwanOS AI tool and agent registries
   (`liwan.ai.tool.registry` and `liwan.ai.agent.registry`, composed through `super()` by each application), the
-  administrator's agent and tool settings that only narrow the catalog, the
+  administrator's agent and tool settings that only narrow the catalog, the setting registry
+  (`liwan.ai.setting.registry`: the fields of each application's settings model the free setup agent may propose and,
+  after approval, change; declared in the application's AI bridge), the
   per-user audit log `liwan.ai.audit`, the `ai.*` features and limits, the `ai.use` capability (granted to the employee role; its ACL and own-rows rule follow that capability group, and the monthly message limit counts tenant-wide), and the two
   routes `GET /api/v1/ai/tools` and `POST /api/v1/ai/audit`. It knows no application and
   holds no language-model code. Each application's agent and tools are declared by its bridge

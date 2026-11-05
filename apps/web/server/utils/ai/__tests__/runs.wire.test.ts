@@ -32,6 +32,7 @@ let usageAnsweredAt = 0
 let usageBatches: { items: Record<string, unknown>[] }[] = []
 let usageInvalid: string[] = []
 let companyAuthorizeStatus = 200
+let conversationModes: Record<string, string> = {}
 
 const TOOLS = {
   items: [
@@ -41,7 +42,7 @@ const TOOLS = {
   ],
   total: 3,
   agents: [],
-  limits: { tool_calls_per_run: 8, messages_monthly: 100, messages_used: 1, policy: { provider_mode: 'platform', outside_allowed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: 8000 } },
+  limits: { tool_calls_per_run: 8, messages_monthly: 100, messages_used: 1, setup_monthly: null, setup_used: 0, policy: { provider_mode: 'platform', outside_allowed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: 8000 } },
 }
 const ME = { id: 42, name: 'سارة', company: { id: 1, name: 'ليوان' } }
 
@@ -73,7 +74,9 @@ beforeAll(async () => {
       res.statusCode = companyAuthorizeStatus
       return res.end(JSON.stringify(companyAuthorizeStatus === 200 ? { company_id: 1 } : { code: 'forbidden', message: 'no' }))
     }
-    if (req.url === '/api/v1/ai/tools') { res.statusCode = odooToolsStatus; return res.end(JSON.stringify(odooToolsStatus === 200 ? TOOLS : { code: 'feature_not_included', message: 'limit', details: { reason: 'limit', limit_key: 'ai.messages.monthly' } })) }
+    const modeMatch = req.url?.match(/^\/api\/v1\/ai\/conversations\/([^/]+)\/mode$/)
+    if (modeMatch) return res.end(JSON.stringify({ mode: conversationModes[decodeURIComponent(modeMatch[1]!)] ?? null }))
+    if (req.url?.split('?')[0] === '/api/v1/ai/tools') { res.statusCode = odooToolsStatus; return res.end(JSON.stringify(odooToolsStatus === 200 ? TOOLS : { code: 'feature_not_included', message: 'limit', details: { reason: 'limit', limit_key: 'ai.messages.monthly' } })) }
     if (req.url === '/api/v1/ai/audit') {
       if (auditFailKind && JSON.parse(body).kind === auditFailKind) { res.statusCode = 500; return res.end(JSON.stringify({ code: 'boom', message: 'secret detail from odoo' })) }
       odooToolsStatus === 200 ? res.end(JSON.stringify({ id: 1, messages_used: 2, messages_limit: 100 })) : (res.statusCode = 403, res.end(JSON.stringify({ code: 'feature_not_included', message: 'limit', details: { reason: 'limit', limit_key: 'ai.messages.monthly' } }))); return }
@@ -234,7 +237,7 @@ beforeAll(async () => {
 afterAll(() => { odoo.close(); service.close(); deadService.close(); app.close() })
 const DRAFT_PENDING = { call_id: 'c_2', tool: 'pmo.draft_project', kind: 'draft', agent: 'pmo', requires_approval: true, input: { name: 'بوابة' } }
 const WRITE_PENDING = { call_id: 'c_3', tool: 'pmo.update_task_state', kind: 'write_light', agent: 'pmo', requires_approval: true, input: { task_id: 7, state: 'done' } }
-beforeEach(() => { odooCalls = []; serviceCalls = []; scenario = 'read'; serviceDown = false; odooToolsStatus = 200; pending = DRAFT_PENDING; serviceToken = ''; claimMode = 'atomic'; claimed = false; doneSentAt = 0; odooMode = 'normal'; auditFailKind = null; runStatus = 'waiting_user'; resumeMode = 'ok'; resumeStreamFinished = false; resumeStreamCancelled = false; runList = RUN_LIST; patchStatus = 200; runId = 'r_1'; usageStatus = 200; usageDelayMs = 0; usageAnsweredAt = 0; usageBatches = []; usageInvalid = []; companyAuthorizeStatus = 200 })
+beforeEach(() => { odooCalls = []; serviceCalls = []; scenario = 'read'; serviceDown = false; odooToolsStatus = 200; pending = DRAFT_PENDING; serviceToken = ''; claimMode = 'atomic'; claimed = false; doneSentAt = 0; odooMode = 'normal'; auditFailKind = null; runStatus = 'waiting_user'; resumeMode = 'ok'; resumeStreamFinished = false; resumeStreamCancelled = false; runList = RUN_LIST; patchStatus = 200; runId = 'r_1'; usageStatus = 200; usageDelayMs = 0; usageAnsweredAt = 0; usageBatches = []; usageInvalid = []; companyAuthorizeStatus = 200; conversationModes = {} })
 
 const post = (path: string, body: unknown, cookie = 'session_id=s1') => fetch(`${url}${path}`, {
   method: 'POST', headers: { 'content-type': 'application/json', cookie, origin: url, 'sec-fetch-site': 'same-origin' }, body: JSON.stringify(body),
@@ -259,6 +262,24 @@ describe('POST /api/ai/runs', () => {
     } finally {
       tool.requires_approval = false
     }
+  })
+
+  it('runs a setup conversation on the setup catalog, the setup budget and the platform provider', async () => {
+    await events(await post('/api/ai/runs', { message: 'ساعدني أضبط النظام', mode: 'setup' }))
+    expect(odooCalls.some(c => c.url === '/api/v1/ai/tools?mode=setup')).toBe(true)
+    expect(odooCalls.filter(c => c.url === '/api/v1/ai/audit').map(c => JSON.parse(c.body!).kind)[0]).toBe('setup')
+    expect(JSON.parse(serviceCalls.find(c => c.url === '/v1/runs')!.body).policy.provider_mode).toBe('setup')
+  })
+
+  it('keeps a continued conversation in the mode it started in, whatever the browser sends', async () => {
+    conversationModes = { r_setup: 'setup' }
+    await events(await post('/api/ai/runs', { message: 'وبعد؟', run_id: 'r_setup' }))
+    expect(odooCalls.some(c => c.url === '/api/v1/ai/tools?mode=setup')).toBe(true)
+    odooCalls = []
+    conversationModes = { r_plain: 'assistant' }
+    await events(await post('/api/ai/runs', { message: 'وبعد؟', run_id: 'r_plain', mode: 'setup' }))
+    expect(odooCalls.some(c => c.url === '/api/v1/ai/tools?mode=setup')).toBe(false)
+    expect(odooCalls.filter(c => c.url === '/api/v1/ai/audit').map(c => JSON.parse(c.body!).kind)[0]).toBe('message')
   })
 
   it('passes the agents with the tools and the current company to the service', async () => {
@@ -579,6 +600,13 @@ describe('resume and status', () => {
       expect(odooCalls.some(c => c.url.startsWith('/api/v1/tasks'))).toBe(false)
       expect(serviceCalls.some(c => c.url.endsWith('/resume'))).toBe(false)
     })
+  })
+
+  it('resumes a setup conversation on the setup catalog and the setup provider', async () => {
+    pending = { call_id: 'c_9', tool: 'ai.apply_setting', kind: 'write_light', agent: 'ai', requires_approval: true, input: { key: 'crm.visibility', value: 'all' } }
+    await events(await post('/api/ai/runs/r_1/resume', { call_id: 'c_9', decision: 'rejected' }))
+    expect(odooCalls.some(c => c.url === '/api/v1/ai/tools?mode=setup')).toBe(true)
+    expect(lastResume().policy.provider_mode).toBe('setup')
   })
 
   describe('a read the administrator set to approval', () => {

@@ -10,9 +10,9 @@ export type AiThreadItem =
   | { kind: 'draft'; callId: string; tool: string; payload: Record<string, unknown>; summaryAr: string; summaryEn: string; state: 'pending' | 'approved' | 'rejected' }
   | { kind: 'agent'; agent: string; nameAr: string; nameEn: string }
 
-export type AiLimit = 'max_tool_calls' | 'max_steps' | 'timeout' | 'messages_monthly' | 'messages_per_user' | 'output_tokens' | 'tokens_monthly' | 'consent_required' | 'tenant_key_missing'
+export type AiLimit = 'max_tool_calls' | 'max_steps' | 'timeout' | 'messages_monthly' | 'messages_per_user' | 'setup_monthly' | 'output_tokens' | 'tokens_monthly' | 'consent_required' | 'tenant_key_missing'
 /** The limits that stop every new message until something changes (a new month, a signature, a key), not just this run. */
-const BLOCKING_LIMITS: ReadonlySet<AiLimit> = new Set(['messages_monthly', 'messages_per_user', 'tokens_monthly', 'consent_required', 'tenant_key_missing'])
+const BLOCKING_LIMITS: ReadonlySet<AiLimit> = new Set(['messages_monthly', 'messages_per_user', 'setup_monthly', 'tokens_monthly', 'consent_required', 'tenant_key_missing'])
 export const isBlockingLimit = (limit: AiLimit | null) => limit !== null && BLOCKING_LIMITS.has(limit)
 export type AiRunState = 'idle' | 'streaming' | 'waiting_user' | 'done' | 'failed' | 'limit_reached'
 type LocalEvent = AiEvent | { event: 'decided'; data: { call_id: string; decision: 'approved' | 'rejected' | 'pending' } }
@@ -20,7 +20,7 @@ type DecidableItem = Extract<AiThreadItem, { kind: 'confirm' | 'draft' }>
 
 // The package limit a 403 names, as the limit the assistant shows.
 const MONTHLY_LIMITS: Record<string, AiLimit> = {
-  'ai.messages.monthly': 'messages_monthly', 'ai.messages.per_user_monthly': 'messages_per_user', 'ai.tokens.monthly': 'tokens_monthly',
+  'ai.messages.monthly': 'messages_monthly', 'ai.messages.per_user_monthly': 'messages_per_user', 'ai.setup.monthly': 'setup_monthly', 'ai.tokens.monthly': 'tokens_monthly',
 }
 // The tenant policy refusals the Nuxt server answers before a message is counted.
 const POLICY_REFUSALS: Record<string, AiLimit> = { ai_consent_required: 'consent_required', ai_tenant_key_missing: 'tenant_key_missing' }
@@ -226,12 +226,13 @@ export function useAiRun(options: { enabled?: () => boolean } = {}) {
     }
   }
 
-  async function send(message: string, context?: { page: string; id?: number | null } | null) {
+  /** `setup`: a conversation with the setup agent only, opened from the AI settings (spec 2026-11-04 §6.5). */
+  async function send(message: string, context?: { page: string; id?: number | null } | null, mode?: 'setup') {
     if (busy) return
     error.value = null
     limit.value = null
     items.value = [...items.value, { kind: 'user', text: message }]
-    await post('/api/ai/runs', { message, context: context ?? null, run_id: runId.value ?? undefined })
+    await post('/api/ai/runs', { message, context: context ?? null, run_id: runId.value ?? undefined, ...(mode ? { mode } : {}) })
   }
 
   /**

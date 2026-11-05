@@ -43,6 +43,8 @@ const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
 
 // `?context=project:12` comes from the page the user opened the assistant from.
 const context = computed(() => parseAiContext(route.query.context))
+// Opened from the AI settings (`?mode=setup`): a conversation with the setup agent only.
+const setupMode = computed(() => route.query.mode === 'setup')
 const streaming = computed(() => status.value === 'streaming')
 // A pending card is answered before another message: the service holds one pending call per run.
 const composerDisabled = computed(() => !hydrated.value || isBlockingLimit(limit.value) || status.value === 'waiting_user')
@@ -87,7 +89,9 @@ watch([identity, currentRunId], ([owner, id], [beforeOwner]) => {
 // Reopen a run by link/refresh; a `resume` query means the create page finished (or left) a draft.
 onMounted(async () => {
   if (disabledByConfig.value) return
-  // Without `?run=` the conversation the sheet has open continues here.
+  // Without `?run=` the conversation the sheet has open continues here, except that the setup assistant always starts
+  // a conversation of its own (an ordinary one would keep its mode and never offer the setup tools).
+  if (setupMode.value && typeof route.query.run !== 'string') currentRunId.value = null
   const id = typeof route.query.run === 'string' ? route.query.run : currentRunId.value
   if (!id) return
   const owner = identity.value
@@ -130,7 +134,7 @@ function openDraft(item: { callId: string; tool: string; payload: Record<string,
 }
 
 async function onSend(text: string) {
-  await send(text, context.value)
+  await send(text, context.value, setupMode.value ? 'setup' : undefined)
 }
 
 // The address follows the conversation as soon as the service names it, so a new-conversation click always changes the route.
@@ -140,6 +144,11 @@ watch(runId, async (id) => {
   if (id) currentRunId.value = id
   if (id && route.query.run !== id) await router.replace({ path: '/ai', query: { ...route.query, run: id } })
 }, { flush: 'sync' })
+
+// Opening the setup assistant while this page is already shown starts a fresh setup conversation.
+watch(setupMode, (setup) => {
+  if (setup && typeof route.query.run !== 'string') currentRunId.value = null
+})
 
 // The history list opens another conversation or starts a new one by changing `?run=` (back/forward do the same).
 watch(() => route.query.run, async (value) => {
@@ -169,6 +178,10 @@ watch(status, (now, before) => {
     <SharedListCard fill class="max-md:h-[75svh]">
       <SharedEmptyState v-if="showUnavailable" :title="t('ai.errors.unavailable')" data-testid="ai-unavailable" />
       <template v-else>
+        <p v-if="setupMode" class="flex shrink-0 items-center gap-2 border-b border-default px-4 py-2 text-sm text-muted" data-testid="ai-setup-banner">
+          <UIcon name="i-lucide-wand-sparkles" aria-hidden="true" class="size-4 shrink-0" />
+          <span>{{ t('ai.setup.banner') }}</span>
+        </p>
         <header v-if="conversation" class="flex shrink-0 items-center gap-3 border-b border-default px-4 py-3" data-testid="ai-topbar">
           <h2 dir="auto" class="min-w-0 truncate text-sm font-semibold text-highlighted">{{ runTitle }}</h2>
           <AiContextChip v-if="context" :page="context.page" />

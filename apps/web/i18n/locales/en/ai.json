@@ -92,7 +92,8 @@
       "consentRequired": "The assistant is off until a system administrator signs the acknowledgement for processing data outside the Kingdom.",
       "tenantKeyMissing": "Your organization chose to run the assistant on its own key, and no key has been added yet.",
       "openSettings": "Open the AI settings",
-      "perUser": "You used the monthly assistant messages your administrator set."
+      "perUser": "You used the monthly assistant messages your administrator set.",
+      "setupMonthly": "Your company reached this month's setup assistant limit."
     },
     "errors": {
       "unavailable": "LiwanOS AI is unavailable right now. Try again later.",
@@ -290,6 +291,10 @@
       "deleteAll": "Delete all notes",
       "deleteAllTitle": "Delete everything the assistant remembers about you?",
       "deleted": "The note was deleted."
+    },
+    "setup": {
+      "open": "Setup assistant",
+      "banner": "Setup assistant: it proposes your applications' settings for your line of business and applies nothing without your approval."
     }
   }
 }
