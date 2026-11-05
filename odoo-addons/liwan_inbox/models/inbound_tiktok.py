@@ -15,6 +15,12 @@ from odoo.addons.liwan_inbox.adapters import errors, tiktok
 
 _logger = logging.getLogger(__name__)
 
+# A TikTok auto message (the welcome) is sent by TikTok itself; its echo is an outbound message with no author and
+# this note, so an agent can tell it apart from a reply written by a colleague.
+NOTE_TIKTOK_AUTO_WELCOME = 'رد تلقائي أرسلته TikTok: رسالة الترحيب'
+# A read receipt names the moment the customer read up to; an outbound message has no state past `read`.
+READ_STATES = ('sent', 'delivered')
+
 
 class LiwanInboxInbound(models.AbstractModel):
     """Turns the parsed items of one TikTok delivery into customer messages and reactions."""
@@ -26,9 +32,20 @@ class LiwanInboxInbound(models.AbstractModel):
         changed = self.env['liwan.inbox.conversation']
         for item in items:
             if isinstance(item, tiktok.InboundMessage):
-                changed |= self._liwan_ingest_tiktok_message(channel, item, historical)
+                if item.echo:
+                    changed |= self._liwan_ingest_tiktok_echo(channel, item)
+                else:
+                    changed |= self._liwan_ingest_tiktok_message(channel, item, historical)
             elif isinstance(item, tiktok.Reaction):
                 changed |= self._liwan_ingest_reaction(channel, item)
+            elif isinstance(item, tiktok.ReadUpTo):
+                changed |= self._liwan_ingest_tiktok_read(channel, item)
+            elif isinstance(item, tiktok.Referral):
+                changed |= self._liwan_ingest_tiktok_referral(channel, item)
+            elif isinstance(item, tiktok.EuNotice):
+                # TikTok sends no content for a sender in the EEA, Switzerland or the UK (D8); the history import
+                # fetches it, so this notice is only a dispatch point today (E6.2).
+                continue
         return changed
 
     @api.model
@@ -122,6 +139,56 @@ class LiwanInboxInbound(models.AbstractModel):
                 })
         except (errors.ProviderError, UserError) as error:
             message.error = str(error)[:ERROR_TEXT_LENGTH]
+
+    @api.model
+    def _liwan_ingest_tiktok_echo(self, channel, item):
+        """Store a message the business account sent elsewhere; one that LiwanOS already stored is the same send.
+
+        The outbox stores its own message before TikTok echoes it, so a matching provider id is dropped (D6);
+        an echo that matches nothing was sent from the TikTok app or by a TikTok auto message and is stored as an
+        outbound message without an author.
+        """
+        Message = self.env['liwan.inbox.message']
+        if Message.search_count([('provider_message_id', '=', item.provider_id)]):
+            return self.env['liwan.inbox.conversation']
+        conversation = self._liwan_tiktok_conversation(channel, item.conversation_id)
+        if not conversation:
+            return self.env['liwan.inbox.conversation']
+        Message.create({
+            'conversation_id': conversation.id, 'company_id': channel.owner_company_id.id, 'direction': 'out',
+            'kind': item.kind, 'body': item.body or f'[{item.kind}]', 'date': item.sent_at,
+            'delivery_state': 'sent', 'provider_message_id': item.provider_id,
+        })
+        if item.auto:
+            Message._liwan_post_system_note(conversation, NOTE_TIKTOK_AUTO_WELCOME)
+        return conversation
+
+    @api.model
+    def _liwan_ingest_tiktok_read(self, channel, item):
+        """Mark every outbound message the customer has read up to as read (D7)."""
+        conversation = self._liwan_tiktok_conversation(channel, item.conversation_id)
+        conversation.message_ids.filtered(
+            lambda message: message.direction == 'out' and message.date <= item.read_at
+            and message.delivery_state in READ_STATES,
+        ).write({'delivery_state': 'read'})
+        return conversation
+
+    @api.model
+    def _liwan_ingest_tiktok_referral(self, channel, item):
+        """Store the ad or short link the customer arrived from; a referral is not a message (D9)."""
+        conversation = self._liwan_tiktok_conversation(channel, item.conversation_id)
+        if conversation and item.source in ('ad', 'short_link'):
+            conversation.write({'referral_source': item.source, 'referral_ref': item.ref or False})
+        return conversation
+
+    @api.model
+    def _liwan_tiktok_conversation(self, channel, provider_conversation_id):
+        """The conversation a TikTok event names; the open one wins over a closed thread of the same customer."""
+        Conversation = self.env['liwan.inbox.conversation']
+        if not provider_conversation_id:
+            return Conversation
+        domain = [('channel_id', '=', channel.id), ('provider_conversation_id', '=', provider_conversation_id)]
+        return Conversation.search([*domain, ('state', '!=', 'closed')], limit=1) or Conversation.search(domain, limit=1)
 
     @api.model
     def _liwan_tiktok_image_send_capable(self, conversation, provider_conversation_id):

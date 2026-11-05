@@ -17,6 +17,7 @@ from odoo.addons.liwan_inbox.models.constants import (
     TIKTOK_ECHO_SETTLE,
     TIKTOK_FEATURE,
 )
+from odoo.addons.liwan_inbox.models.inbound_tiktok import NOTE_TIKTOK_AUTO_WELCOME
 
 ACCESS_TOKEN = 'tiktok-access-token-1'
 REFRESH_TOKEN = 'tiktok-refresh-token-1'
@@ -44,12 +45,14 @@ class TestTikTokInbound(LiwanInboxCase):
         self.addCleanup(capability.stop)
 
     def deliver(self, payload):
-        """Deliver one webhook payload as an event old enough to be processed now."""
+        """Deliver one webhook payload and process it on the next cron run, after the echo settle time."""
         event = self.env['liwan.inbox.event'].create({
             'channel_id': self.tiktok.id, 'owner_company_id': self.tiktok.owner_company_id.id,
-            'payload': json.dumps(payload), 'create_date': fields.Datetime.now() - TIKTOK_ECHO_SETTLE - timedelta(seconds=1),
+            'payload': json.dumps(payload),
         })
-        self.env['liwan.inbox.event']._liwan_run_events()
+        later = fields.Datetime.now() + TIKTOK_ECHO_SETTLE + timedelta(seconds=1)
+        with patch('odoo.fields.Datetime.now', return_value=later):
+            self.env['liwan.inbox.event']._liwan_run_events()
         return event
 
     def message(self, provider_id):
@@ -159,3 +162,86 @@ class TestTikTokInbound(LiwanInboxCase):
         self.assertFalse(conversation.unread)
         self.deliver(tt.receive_reaction(operation='REMOVE'))
         self.assertFalse(target.customer_reaction)
+
+    # echoes, reads and referrals
+
+    def test_an_echo_of_a_liwan_reply_is_not_duplicated(self):
+        self.deliver(tt.receive_text())
+        conversation = self.message('msg-text-1').conversation_id
+        sent = self.env['liwan.inbox.message'].create({
+            'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'direction': 'out',
+            'body': 'Replied from LiwanOS', 'delivery_state': 'sent', 'provider_message_id': 'msg-echo-1',
+        })
+        self.deliver(tt.send_echo())
+        self.assertEqual(len(self.message('msg-echo-1')), 1)
+        self.assertEqual(sent.delivery_state, 'sent')
+        self.assertEqual(
+            self.env['liwan.inbox.message'].search_count([
+                ('conversation_id', '=', conversation.id), ('direction', '=', 'out'),
+            ]), 1,
+        )
+
+    def test_an_echo_from_the_tiktok_app_is_stored_without_an_author(self):
+        self.deliver(tt.receive_text())
+        conversation = self.message('msg-text-1').conversation_id
+        self.deliver(tt.send_echo(body='Sent from the TikTok app', message_id='msg-echo-2'))
+        message = self.message('msg-echo-2')
+        self.assertEqual(
+            (message.direction, message.body, message.delivery_state), ('out', 'Sent from the TikTok app', 'sent'),
+        )
+        self.assertFalse(message.author_id)
+        self.assertFalse(message.automated)
+        self.assertTrue(conversation.unread)
+
+    def test_a_tiktok_auto_welcome_echo_is_stored_with_a_note(self):
+        self.deliver(tt.receive_text())
+        conversation = self.message('msg-text-1').conversation_id
+        self.deliver(tt.send_auto_welcome())
+        message = self.message('msg-welcome-1')
+        notes = conversation.message_ids.filtered(lambda message: message.direction == 'note')
+        self.assertEqual((message.direction, message.body), ('out', 'Welcome to the shop'))
+        self.assertFalse(message.author_id)
+        self.assertEqual((len(notes), notes.body), (1, NOTE_TIKTOK_AUTO_WELCOME))
+        self.assertFalse(notes.author_id)
+
+    def test_young_events_wait(self):
+        self.deliver(tt.receive_text())
+        event = self.env['liwan.inbox.event'].create({
+            'channel_id': self.tiktok.id, 'owner_company_id': self.tiktok.owner_company_id.id,
+            'payload': json.dumps(tt.send_echo(message_id='msg-echo-young')),
+        })
+        self.env['liwan.inbox.event']._liwan_run_events()
+        self.assertEqual((event.state, len(self.message('msg-echo-young'))), ('pending', 0))
+        with patch('odoo.fields.Datetime.now', return_value=fields.Datetime.now() + TIKTOK_ECHO_SETTLE):
+            self.env['liwan.inbox.event']._liwan_run_events()
+        self.assertEqual((event.state, len(self.message('msg-echo-young'))), ('done', 1))
+
+    def test_a_customer_read_marks_earlier_outbound_read(self):
+        self.deliver(tt.receive_text())
+        conversation = self.message('msg-text-1').conversation_id
+        inbound_at = conversation.last_inbound_at
+        Message = self.env['liwan.inbox.message']
+        older = Message.create({
+            'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'direction': 'out',
+            'body': 'Earlier', 'delivery_state': 'delivered', 'provider_message_id': 'msg-out-old',
+            'date': inbound_at - timedelta(minutes=1),
+        })
+        newer = Message.create({
+            'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'direction': 'out',
+            'body': 'Later', 'delivery_state': 'sent', 'provider_message_id': 'msg-out-new',
+            'date': inbound_at + timedelta(minutes=1),
+        })
+        self.deliver(tt.mark_read())
+        self.assertEqual((older.delivery_state, newer.delivery_state), ('read', 'sent'))
+        self.deliver(tt.mark_read(last_read_timestamp=tt.SENT_AT + 120_000))
+        self.assertEqual(newer.delivery_state, 'read')
+
+    def test_referral_is_stored_on_the_conversation(self):
+        self.deliver(tt.receive_text())
+        conversation = self.message('msg-text-1').conversation_id
+        count = self.env['liwan.inbox.message'].search_count([('conversation_id', '=', conversation.id)])
+        self.deliver(tt.referral('ad'))
+        self.assertEqual((conversation.referral_source, conversation.referral_ref), ('ad', 'ad-1'))
+        self.deliver(tt.referral('short_link', ref='campaign_1'))
+        self.assertEqual((conversation.referral_source, conversation.referral_ref), ('short_link', 'campaign_1'))
+        self.assertEqual(self.env['liwan.inbox.message'].search_count([('conversation_id', '=', conversation.id)]), count)
