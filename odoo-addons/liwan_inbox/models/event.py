@@ -8,7 +8,7 @@ from odoo.exceptions import UserError
 
 from .batch import process_each
 from .constants import EVENT_BATCH, MAX_ATTEMPTS, PROCESSED_EVENT_DAYS
-from odoo.addons.liwan_inbox.adapters import whatsapp
+from odoo.addons.liwan_inbox.adapters import tiktok, whatsapp
 
 ERROR_TEXT_LENGTH = 200
 
@@ -49,8 +49,13 @@ class LiwanInboxEvent(models.Model):
     def _liwan_process(self):
         self.ensure_one()
         channel = self.channel_id
-        items = whatsapp.parse_events(json.loads(self.payload), channel.phone_number_id, channel.business_account_id, channel.display_phone_number)
-        changed = self.env['liwan.inbox.inbound']._liwan_ingest(channel, items)
+        payload = json.loads(self.payload)
+        if channel.kind == 'tiktok':
+            items = tiktok.parse_event(payload, channel.tiktok_business_id)
+            changed = self.env['liwan.inbox.inbound']._liwan_ingest_tiktok(channel, items)
+        else:
+            items = whatsapp.parse_events(payload, channel.phone_number_id, channel.business_account_id, channel.display_phone_number)
+            changed = self.env['liwan.inbox.inbound']._liwan_ingest(channel, items)
         channel.last_event_at = self.create_date
         self.write({'state': 'done', 'processed_at': fields.Datetime.now(), 'error': False})
         changed._liwan_notify_bus()
