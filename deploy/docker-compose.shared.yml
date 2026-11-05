@@ -6,6 +6,9 @@ services:
     ports: !override
       - "${LIWAN_EDGE_BIND:-0.0.0.0}:${LIWAN_EDGE_HTTPS_PORT:-443}:443"
       - "${LIWAN_EDGE_BIND:-0.0.0.0}:${LIWAN_EDGE_HTTP_PORT:-80}:80"
+    environment:
+      # The platform's TikTok delivery host; the relay routes live under /tiktok/* only.
+      LIWAN_TIKTOK_RELAY_HOST: ${LIWAN_TIKTOK_RELAY_HOST:?set LIWAN_TIKTOK_RELAY_HOST}
     volumes:
       - ./shared/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -74,8 +77,15 @@ services:
     command: []
     environment:
       LIWAN_TENANCY_MODE: shared
+      # A shared tenant registers its connected TikTok account with the relay (D13) and exchanges
+      # codes with the platform app; a deployment without these keeps its own direct webhook.
+      LIWAN_TIKTOK_RELAY_URL: http://tiktok-relay:8090
+      LIWAN_SHARED_PROXY_TOKEN: ${LIWAN_SHARED_PROXY_TOKEN:?set LIWAN_SHARED_PROXY_TOKEN}
+      LIWAN_TIKTOK_CLIENT_KEY: ${LIWAN_TIKTOK_CLIENT_KEY:?set LIWAN_TIKTOK_CLIENT_KEY}
+      LIWAN_TIKTOK_CLIENT_SECRET: ${LIWAN_TIKTOK_CLIENT_SECRET:?set LIWAN_TIKTOK_CLIENT_SECRET}
+      LIWAN_TIKTOK_REDIRECT_URI: https://${LIWAN_TIKTOK_RELAY_HOST:?set LIWAN_TIKTOK_RELAY_HOST}/tiktok/oauth/callback
     ports: !reset []
-    networks: [guard_odoo, database]
+    networks: [guard_odoo, database, relay_odoo]
     # TCP listener check: shared mode dbfilter=^%h$ / list_db=False means localhost selects no DB,
     # so /web/health cannot pass. The venv python exists in the image (deploy/odoo/Dockerfile).
     healthcheck:
@@ -107,9 +117,46 @@ services:
     # `!override`: the base file declares [default, ai_internal], and adding `database` must not keep `default`.
     networks: !override [database]
 
+  # The platform TikTok app has one webhook and one OAuth redirect for every tenant (D13/D14).
+  # The relay verifies them and reaches the tenant through its public origin; only the edge
+  # reaches the relay's public routes, and only Odoo reaches its internal binding routes.
+  tiktok-relay:
+    image: liwan-guard:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG}
+    build:
+      context: ..
+      dockerfile: deploy/shared/Dockerfile
+    restart: unless-stopped
+    command: ["node", "deploy/shared/tiktok-relay.mjs"]
+    environment:
+      LIWAN_TENANCY_MODE: shared
+      LIWAN_TENANT_REGISTRY_PATH: /etc/liwan/registry.json
+      LIWAN_TIKTOK_BINDINGS_PATH: /var/lib/liwan/tiktok-bindings.json
+      LIWAN_TIKTOK_CLIENT_SECRET: ${LIWAN_TIKTOK_CLIENT_SECRET:?set LIWAN_TIKTOK_CLIENT_SECRET}
+      LIWAN_SHARED_PROXY_TOKEN: ${LIWAN_SHARED_PROXY_TOKEN:?set LIWAN_SHARED_PROXY_TOKEN}
+      LIWAN_TIKTOK_RELAY_PORT: "8090"
+    volumes:
+      - ${LIWAN_TENANT_REGISTRY_DIR:?set LIWAN_TENANT_REGISTRY_DIR}:/etc/liwan:ro
+      - tiktok_bindings:/var/lib/liwan
+    expose: ["8090"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    networks: [edge, relay_odoo]
+    healthcheck:
+      test: ["CMD", "node", "-e", "const s=require('node:net').connect(8090,'127.0.0.1',()=>{s.end();process.exit(0)});s.setTimeout(2000,()=>process.exit(1));s.on('error',()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
 networks:
   edge: {}
   guard_web: { internal: true }
   guard_odoo: { internal: true }
   database: { internal: true }
   ai_internal: { internal: true }
+  # Odoo registers each connected TikTok account with the relay over this internal network.
+  relay_odoo: { internal: true }
+
+volumes:
+  tiktok_bindings: {}

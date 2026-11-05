@@ -180,3 +180,74 @@ regression, Caddy syntax/rate-limit integration, image/layout checks, network-ne
 proof, real Odoo multi-DB/no-DB selection and MFA/logout/download behavior, independent
 security review. No live Odoo, DB, deployment, DNS, commit, merge or push was performed.
 Until these gates pass this is NOT an accepted isolation deployment or launch-ready.
+
+## TikTok relay (shared hosting only)
+
+TikTok registers one webhook and one OAuth redirect for the platform app, so a shared
+deployment needs one endpoint in front of every tenant database. `tiktok-relay.mjs` is
+that endpoint: it verifies what TikTok sent, finds the tenant that owns the account, and
+forwards to that tenant's public origin. A dedicated (non-SaaS) deployment has no relay
+and no binding: the customer's own app points straight at its server.
+
+Public routes (on `LIWAN_TIKTOK_RELAY_HOST`, `/tiktok/*` only):
+
+- `POST /tiktok/webhook`: verifies `Tiktok-Signature` (`t=<unix s>,s=<hex>`, HMAC-SHA256
+  over `"{t}.{raw body}"`) and refuses a delivery older than five seconds. It reads the
+  envelope's `user_openid`, and forwards the unchanged body and signature to
+  `https://<tenant host>/api/v1/inbox/hooks/tiktok`. An unknown account, or one whose
+  tenant is disabled or left the registry, answers 200 and forwards nothing (TikTok must
+  not retry forever); a tenant 5xx or timeout answers 502 so it does retry. The tenant
+  hop presents the signature only: the shared edge refuses any inbound
+  `X-Liwan-Proxy-Token`, and the guard strips the internal headers on the public hop.
+- `GET /tiktok/oauth/callback`: verifies the signed OAuth state with the same client
+  secret and bounces the unchanged query to the tenant's callback. The state's host is
+  matched against the active registry targets: the public host, or the tenant database
+  identifier, because the guard rewrites the Odoo hop's `Host` to that database. Anything
+  else answers a fixed 400 page that never echoes the request.
+
+Internal route (reached only from the `relay_odoo` network, never through the edge):
+
+- `PUT /internal/tiktok/bindings/<open_id>` `{"tenant_id": "..."}` and `DELETE`, with
+  `X-Liwan-Proxy-Token` compared in constant time. `tenant_id` must resolve to an active
+  registry target (its `tenantId` or its `database`); an account already bound to another
+  active tenant answers 409, so a moved account is refused rather than misrouted. The
+  bindings file is `{"schemaVersion":1,"bindings":{"<user_openid>":"<tenant id>"}}`,
+  written atomically (temporary sibling, fsync, rename) and read on every request.
+
+Configuration (all operator-owned, never in Git):
+
+- `LIWAN_TIKTOK_RELAY_HOST`: the platform's TikTok delivery host; its DNS name and TLS
+  certificate belong to the edge, and Caddy serves `/tiktok/*` there only.
+- `LIWAN_TIKTOK_CLIENT_KEY`, `LIWAN_TIKTOK_CLIENT_SECRET`, `LIWAN_TIKTOK_REDIRECT_URI`:
+  the platform TikTok app (D1). Odoo and the operator script read them; in shared hosting
+  the redirect URI is `https://$LIWAN_TIKTOK_RELAY_HOST/tiktok/oauth/callback`.
+- `LIWAN_SHARED_PROXY_TOKEN`: the shared internal token, already required by guard and
+  Nuxt; the relay's binding route and Odoo's registration call use it.
+- `LIWAN_TIKTOK_BINDINGS_PATH` (default shown in Compose:
+  `/var/lib/liwan/tiktok-bindings.json`), on the `tiktok_bindings` named volume. The image
+  creates `/var/lib/liwan` owned by `node`, so the unprivileged relay can write the volume.
+- `LIWAN_TIKTOK_RELAY_PORT` (default `8090`), `LIWAN_TENANT_REGISTRY_PATH` (read-only
+  registry directory mount, as for guard).
+
+Odoo registers a connected account only when `LIWAN_TIKTOK_RELAY_URL` is set (operator
+configuration, not a customer-type condition: R6): the connect callback binds the account,
+deleting the channel unbinds it, and the `liwan inbox: register TikTok accounts with the
+shared relay` cron retries a channel the relay refused. A relay that cannot be reached
+never fails a connect or a delete.
+
+Operator steps:
+
+```sh
+# one per platform app, after the app policy is in place
+python3 deploy/tiktok_webhook.py register   # LIWAN_TIKTOK_* in the environment
+python3 deploy/tiktok_webhook.py show
+python3 deploy/tiktok_webhook.py delete
+```
+
+The script derives the webhook URL from the redirect URI (shared relay host, or the
+tenant's own `/api/v1/inbox/hooks/tiktok` in a direct deployment), takes no secret on the
+command line and prints no secret. `node --test deploy/shared` covers the relay offline;
+`python3 -B -m unittest deploy/test_tiktok_webhook.py` covers the script. Neither is a
+deployment: the relay's tenant hop, Caddy routing and volume permissions are only proven
+by a real shared deployment.
+
