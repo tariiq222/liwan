@@ -124,6 +124,7 @@ class ScriptedChatModel(BaseChatModel):
     responses: list[AIMessage]
     title_responses: list[AIMessage] = []
     bound_tools: list[Any] = []
+    bound_history: list[list[str]] = []  # the tool names bound for each plan call, in order
     calls: list[list[BaseMessage]] = []
     title_calls: list[list[BaseMessage]] = []
 
@@ -136,6 +137,7 @@ class ScriptedChatModel(BaseChatModel):
 
     def bind_tools(self, tools: Sequence[Any], **kwargs: Any) -> ScriptedChatModel:  # type: ignore[override]
         self.bound_tools = list(tools)
+        self.bound_history.append([tool["function"]["name"] for tool in tools])
         return self
 
     def _next(self, messages: list[BaseMessage]) -> AIMessage:

@@ -42,7 +42,7 @@ suite('default bundles for a catalog release', () => {
     const seeded = await api('POST', `/catalog/releases/${platform.id}/default-bundles`, { reason })
     expect(seeded.status, JSON.stringify(seeded.body)).toBe(200)
     const plan = (await pool.query('SELECT platform_limits FROM plan_revisions WHERE id=$1', [seeded.body.plan_revision_id])).rows[0]
-    expect(plan.platform_limits).toEqual({ 'ai.messages.monthly': null, 'ai.tool_calls.per_run': null, 'ai.tokens.monthly': null, 'ai.output_tokens.per_run': null })
+    expect(plan.platform_limits).toEqual({ 'ai.messages.monthly': null, 'ai.tool_calls.per_run': null, 'ai.tokens.monthly': null, 'ai.setup.monthly': null, 'ai.output_tokens.per_run': null })
   })
   it('needs both catalog and pricing rights and a reason, and answers 404 for an unknown release', async () => {
     const catalogOnly = client(pool, ['vendor.read', 'vendor.catalog.manage'])

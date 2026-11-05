@@ -14,6 +14,7 @@ from typing import Protocol
 
 from liwan_ai_service.contracts import AI_STATE_VERSION
 from liwan_ai_service.control import StateCompatibilityError
+from liwan_ai_service.memory import CREATE_MEMORY, MEMORY_TABLES, grant_outbox
 from liwan_ai_service.tenant_config import DEFAULT_RETENTION_DAYS
 
 ACTIVE = ("running", "executing")  # a process holds the run: only its lease settles it
@@ -78,6 +79,9 @@ class RunStore(Protocol):
         ...
     async def finish(self, run_id: str, status: str, lease: str | None, pending_call_id: str | None = None) -> None:
         """Record the settled status (and the pending call of a waiting run); only the lease holder of a 'running' or 'executing' run changes it."""
+        ...
+    async def delete_runs_of(self, user_ref: str) -> list[str]:
+        """Every run of one user, with its checkpoints: a leaver's conversations once their retention has passed."""
         ...
     async def delete_older_than(self, days: int) -> list[str]:
         """Delete runs (and checkpoints) not updated for ``days`` days (at least 1); returns their ids."""
@@ -155,6 +159,12 @@ class MemoryRunStore:
             if record is not None and record.status in ACTIVE and record.lease == lease:
                 record.status, record.pending_call_id, record.updated_at = status, pending_call_id, datetime.now(UTC)
 
+    async def delete_runs_of(self, user_ref: str) -> list[str]:
+        gone = [run_id for run_id, record in self.records.items() if record.user_ref == user_ref]
+        for run_id in gone:
+            del self.records[run_id]
+        return gone
+
     async def delete_older_than(self, days: int) -> list[str]:
         _require_window(days)
         cutoff = datetime.now(UTC) - timedelta(days=days)
@@ -188,6 +198,7 @@ CREATE_TENANT_SCHEMA = (
     "CREATE TABLE IF NOT EXISTS ai_tenant_config (singleton BOOLEAN PRIMARY KEY DEFAULT true CHECK (singleton),"
     " retention_days INTEGER NOT NULL CHECK (retention_days BETWEEN 1 AND 365),"
     " key_provider TEXT, key_model TEXT, key_ciphertext BYTEA, key_id TEXT, key_last4 TEXT, key_updated_at TIMESTAMPTZ,"
+    " leaver_retention_days INTEGER NOT NULL DEFAULT 30 CHECK (leaver_retention_days BETWEEN 0 AND 365),"
     " CHECK (num_nulls(key_provider, key_model, key_ciphertext, key_id, key_last4, key_updated_at) IN (0, 6)))",
     "INSERT INTO ai_tenant_config (retention_days) VALUES (%(retention_days)s) ON CONFLICT (singleton) DO NOTHING",
     "CREATE TABLE ai_tenant_schema (singleton BOOLEAN PRIMARY KEY DEFAULT true CHECK (singleton),"
@@ -196,6 +207,11 @@ CREATE_TENANT_SCHEMA = (
 INSERT_TENANT_SCHEMA = "INSERT INTO ai_tenant_schema (state_version, checkpoint_version) VALUES (%s, %s)"
 RUN_COLUMNS = "run_id, user_ref, status, created_at, updated_at, lease, pending_call_id, title, title_locked, archived_at"
 _OLD_RUN_IDS = "SELECT run_id FROM ai_runs WHERE updated_at < now() - make_interval(days => %s) FOR UPDATE"
+DELETE_USER_CHECKPOINTS = (
+    "DELETE FROM checkpoint_writes WHERE thread_id IN (SELECT run_id FROM ai_runs WHERE user_ref = %s FOR UPDATE)",
+    "DELETE FROM checkpoint_blobs WHERE thread_id IN (SELECT run_id FROM ai_runs WHERE user_ref = %s FOR UPDATE)",
+    "DELETE FROM checkpoints WHERE thread_id IN (SELECT run_id FROM ai_runs WHERE user_ref = %s FOR UPDATE)",
+)
 DELETE_OLD_CHECKPOINTS = (
     "DELETE FROM checkpoint_writes WHERE thread_id IN (" + _OLD_RUN_IDS + ")",
     "DELETE FROM checkpoint_blobs WHERE thread_id IN (" + _OLD_RUN_IDS + ")",
@@ -285,6 +301,13 @@ class PostgresRunStore:
                 (status, pending_call_id, run_id, list(ACTIVE), lease),
             )
 
+    async def delete_runs_of(self, user_ref: str) -> list[str]:
+        async with self.pool.connection() as conn, conn.transaction():
+            for statement in DELETE_USER_CHECKPOINTS:
+                await conn.execute(statement, (user_ref,))
+            rows = await (await conn.execute("DELETE FROM ai_runs WHERE user_ref = %s RETURNING run_id", (user_ref,))).fetchall()
+        return [row[0] for row in rows]
+
     async def delete_older_than(self, days: int) -> list[str]:
         _require_window(days)
         async with self.pool.connection() as conn, conn.transaction():
@@ -297,18 +320,40 @@ class PostgresRunStore:
         return [row[0] for row in rows]
 
 
+TENANT_TABLES = (
+    "ai_runs", "checkpoints", "checkpoint_blobs", "checkpoint_writes", "checkpoint_migrations", "ai_tenant_config",
+    *MEMORY_TABLES, "ai_tenant_schema",
+)  # the version marker last: it is written last
+
+
+# DEFAULT_LEAVER_RETENTION_DAYS and MAX_LEAVER_RETENTION_DAYS, written out: statements stay literal.
+ADD_LEAVER_RETENTION = (
+    "ALTER TABLE ai_tenant_config ADD COLUMN IF NOT EXISTS leaver_retention_days INTEGER NOT NULL DEFAULT 30"
+    " CHECK (leaver_retention_days BETWEEN 0 AND 365)"
+)
+TENANT_TABLES_QUERY = (
+    "SELECT to_regclass('ai_runs'), to_regclass('checkpoints'), to_regclass('checkpoint_blobs'), to_regclass('checkpoint_writes'),"
+    " to_regclass('checkpoint_migrations'), to_regclass('ai_tenant_config'), to_regclass('ai_memory'), to_regclass('ai_outbox'),"
+    " to_regclass('ai_leavers'), to_regclass('ai_tenant_schema')"
+)  # the tables of TENANT_TABLES, in its order
+
+
 async def _tenant_tables(conn):
-    return await (await conn.execute(
-        "SELECT to_regclass('ai_runs'), to_regclass('checkpoints'), to_regclass('checkpoint_blobs'),"
-        " to_regclass('checkpoint_writes'), to_regclass('checkpoint_migrations'), to_regclass('ai_tenant_config'),"
-        " to_regclass('ai_tenant_schema')",
-    )).fetchone()
+    return await (await conn.execute(TENANT_TABLES_QUERY)).fetchone()
+
+
+async def upgrade_tenant(conn) -> None:
+    """Bring a schema bootstrapped by an earlier release up to this one: every statement is idempotent."""
+    await conn.execute(ADD_LEAVER_RETENTION)
+    for statement in CREATE_MEMORY:
+        await conn.execute(statement)
+    await grant_outbox(conn)
 
 
 async def validate_tenant(conn, checkpoint_version: int) -> None:
     """Refuse a tenant schema that the operator bootstrap never created, or one this runtime cannot use."""
     tables = await _tenant_tables(conn)
-    if not tables or len(tables) != 7 or not any(tables):
+    if not tables or len(tables) != len(TENANT_TABLES) or not any(tables):
         raise StateCompatibilityError("ai_state_uninitialized")  # no AI state at all: a sweep may skip it
     if not all(tables):
         raise StateCompatibilityError("ai_state_incompatible")  # partial state (an incomplete restore) is never skipped
@@ -336,6 +381,8 @@ async def initialize_tenant(conninfo: str, retention_days: int = DEFAULT_RETENTI
             try:
                 tables = await _tenant_tables(conn)
                 if tables[-1]:  # the version marker is written last, so its presence means a finished bootstrap
+                    async with conn.transaction():
+                        await upgrade_tenant(conn)
                     await validate_tenant(conn, checkpoint_version)
                     return
                 # Both setups are idempotent, so a bootstrap interrupted before the marker simply completes here.
@@ -344,6 +391,7 @@ async def initialize_tenant(conninfo: str, retention_days: int = DEFAULT_RETENTI
                 async with conn.transaction():
                     for statement in CREATE_TENANT_SCHEMA:
                         await conn.execute(statement, {"retention_days": retention_days} if "%(" in statement else None)
+                    await upgrade_tenant(conn)
                     await conn.execute(INSERT_TENANT_SCHEMA, (AI_STATE_VERSION, checkpoint_version))
             finally:
                 await conn.execute(f"SELECT pg_advisory_unlock({TENANT_LOCK[0]}, {TENANT_LOCK[1]})")

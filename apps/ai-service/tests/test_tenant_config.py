@@ -160,3 +160,13 @@ async def test_a_zero_cap_answers_nothing_and_calls_no_provider():
     async with client_for(make_memory_app(model, SETTINGS)) as client:
         events = parse_sse((await client.post("/v1/runs", json=run_body({**PLATFORM_POLICY, "max_output_tokens": 0}), headers=HEADERS)).text)
     assert ("limit_reached", {"limit": "output_tokens"}) in events and model.calls == []
+
+
+async def test_a_setup_run_uses_the_platform_provider_and_bills_the_setup_budget():
+    platform = ScriptedChatModel([ai_text("ok")])
+    async with client_for(make_memory_app(platform, replace(SETTINGS, keyring=KEYRING))) as client:
+        await client.put("/v1/tenant/config/key", json=KEY_BODY, headers=HEADERS)  # a tenant key never runs a setup conversation
+        events = parse_sse((await client.post("/v1/runs", json=run_body({**PLATFORM_POLICY, "provider_mode": "setup"}), headers=HEADERS)).text)
+    calls = [data for name, data in events if name == "model_call"]
+    assert calls and all(call["billing"] == "setup" and call["provider"] == "ollama" for call in calls)
+    assert platform.calls and events[-1][1] == {"status": "done"}

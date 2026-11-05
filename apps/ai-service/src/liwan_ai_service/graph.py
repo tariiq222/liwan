@@ -1,13 +1,18 @@
-"""The one agent graph: plan → request one tool (interrupt) → plan … → answer.
+"""The one conversation graph: plan → request one tool (interrupt) → plan … → answer.
 
 The graph executes nothing. A tool request is an ``interrupt`` whose value is the
 request payload; the caller resumes with a ``ToolResult``. Limits come from the
 run request and stop the graph with ``outcome = 'limit_reached'``.
+
+One agent is active at a time (spec 2026-11-04 §6.5): the coordinator ``core`` or a specialist. A specialist sees its
+own tools of every kind and the read tools of the other agents; the coordinator sees only read tools. Either hands the
+request over with the in-graph ``liwan_handoff`` tool, which runs here, is never audited and spends no tool call.
 """
 from __future__ import annotations
 
 import json
 import logging
+from dataclasses import dataclass, field
 from typing import Annotated, Any, Literal, TypedDict
 
 import jsonschema
@@ -18,7 +23,8 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.types import interrupt
 
-from liwan_ai_service.contracts import RunContext, RunRequest, ToolResult, ToolSpec, encode_tool_name
+from liwan_ai_service.contracts import CORE_AGENT, AgentSpec, RunContext, RunRequest, ToolResult, ToolSpec, encode_tool_name
+from liwan_ai_service.memory import MemoryFull, MemoryStore
 from liwan_ai_service.prompts import system_prompt, tool_summary
 from liwan_ai_service.usage import RunModel, invoke_planned, tokens_of
 
@@ -36,6 +42,117 @@ class AgentState(TypedDict):
     output_tokens: int  # what the provider reported for this request's plan calls
     max_output_tokens: int | None  # the policy's per-run cap (platform runs); None means no cap
     limit: str | None  # which limit stopped the run, when the graph itself decided it
+    agents: list[dict[str, Any]]  # the specialists Odoo declared for this user and request
+    agent: str  # the active agent: a specialist's key or ``core``
+    handoffs: int  # hand-overs made for this request
+    company: str | None  # the user's current company: whose approved notes the prompt carries
+
+
+REMEMBER = "liwan_remember"
+PROPOSE_COMPANY_NOTE = "liwan_propose_company_note"
+NOTE_SCHEMA = {"type": "object", "properties": {"note": {"type": "string", "minLength": 1, "maxLength": 300}},
+               "required": ["note"], "additionalProperties": False}
+
+
+@dataclass(frozen=True)
+class RunMemory:
+    """This request's memory: where the note tools write, and the notes its prompt carries.
+
+    The notes are read by the service for every request (a new message and a resume alike) and never enter the
+    checkpoint, so a note the employee deleted, or a company note a manager discarded, is gone from the next request.
+    """
+
+    store: MemoryStore
+    user_ref: str
+    company: str | None
+    user_notes: list[str] = field(default_factory=list)
+    company_notes: list[str] = field(default_factory=list)
+
+
+HANDOFF = "liwan_handoff"  # no dot: it can never collide with a registered tool name
+MAX_HANDOFFS = 3
+
+
+def start_agent(request: RunRequest) -> str:
+    """The specialist whose pages include the current page, else the only specialist the user has, else the coordinator.
+
+    The page is a hint, never a limit: any agent can hand over to any other.
+    """
+    page = request.context.page if request.context else None
+    by_page = next((agent.key for agent in request.agents if page in agent.pages), None)
+    if by_page:
+        return by_page
+    return request.agents[0].key if len(request.agents) == 1 else CORE_AGENT
+
+
+def visible_tools(tools: list[dict[str, Any]], agent: str) -> list[dict[str, Any]]:
+    """The tools the active agent may request: every read tool, plus a specialist's own write and draft tools.
+
+    The coordinator owns no tool, so a change or a draft always happens after a hand-over to the application's agent.
+    """
+    return [tool for tool in tools if tool["kind"] == "read" or tool["name"].split(".", 1)[0] == agent]
+
+
+def handoff_tool(targets: list[str]) -> dict[str, Any]:
+    return {
+        "type": "function",
+        "function": {
+            "name": HANDOFF,
+            "description": "Hand the request over to the agent that owns it; the user does not choose agents.",
+            "parameters": {
+                "type": "object",
+                "properties": {"agent": {"type": "string", "enum": targets}, "reason": {"type": "string", "maxLength": 200}},
+                "required": ["agent"],
+                "additionalProperties": False,
+            },
+        },
+    }
+
+
+def memory_on(state: AgentState) -> bool:
+    """A specialist remembers while its agent setting allows it; the coordinator while any of the user's agents does, so a
+    tenant that switches memory off for every agent has no memory at all."""
+    current = state.get("agent", CORE_AGENT)
+    agents = state.get("agents", [])
+    if current == CORE_AGENT:
+        return any(agent.get("memory", True) for agent in agents)
+    return next((agent.get("memory", True) for agent in agents if agent["key"] == current), False)
+
+
+IN_GRAPH_TOOLS = frozenset({HANDOFF, REMEMBER, PROPOSE_COMPANY_NOTE})
+
+
+def has_read_data(messages: list) -> bool:
+    """Whether the conversation's history holds a data tool's call, whose result stays in the model's context."""
+    return any(call["name"] not in IN_GRAPH_TOOLS for m in messages if isinstance(m, AIMessage) for call in m.tool_calls)
+
+
+def memory_tools(state: AgentState, config: RunnableConfig) -> list[dict[str, Any]]:
+    """The note tools of this request: none when memory is off for the active agent or no store backs the request, and
+    none once the conversation holds data a tool returned (in this request or an earlier one: the history stays in the
+    context). A note is learned from what the user says, never from a record, a customer message or any other tool
+    result, which could otherwise plant an instruction that outlives the run; a new conversation offers them again."""
+    if not memory_on(state) or config["configurable"].get(RUN_MEMORY_KEY) is None or has_read_data(state["messages"]):
+        return []
+    tools = [_function(REMEMBER, "Save one short note about how this user likes to work (style, preferences, recurring needs); "
+                       "never a copy of a record.", NOTE_SCHEMA)]
+    if state.get("company"):
+        tools.append(_function(PROPOSE_COMPANY_NOTE, "Propose one short note about the company's identity, tone or terminology; "
+                               "an administrator approves it before it is used.", NOTE_SCHEMA))
+    return tools
+
+
+def _function(name: str, description: str, parameters: dict[str, Any]) -> dict[str, Any]:
+    return {"type": "function", "function": {"name": name, "description": description, "parameters": parameters}}
+
+
+def handoff_targets(state: AgentState) -> list[str]:
+    """The specialists the active agent may hand over to. Never back to the coordinator: a specialist already sees every
+    read tool the coordinator has, so that hand-over could only lose tools."""
+    if state.get("handoffs", 0) >= MAX_HANDOFFS:
+        return []
+    current = state.get("agent", CORE_AGENT)
+    return [agent["key"] for agent in state.get("agents", []) if agent["key"] != current]
 
 
 def request_state(request: RunRequest) -> dict[str, Any]:
@@ -52,18 +169,31 @@ def request_state(request: RunRequest) -> dict[str, Any]:
         "output_tokens": 0,
         "max_output_tokens": request.policy.max_output_tokens,
         "limit": None,
+        "agents": [agent.model_dump() for agent in request.agents],
+        "handoffs": 0,
+        "company": request.company,
     }
 
 
 def initial_state(request: RunRequest) -> dict[str, Any]:
-    return {"messages": [HumanMessage(request.message)], **request_state(request)}
+    return {"messages": [HumanMessage(request.message)], **request_state(request), "agent": start_agent(request)}
+
+
+def continued_state(request: RunRequest, previous: dict[str, Any]) -> dict[str, Any]:
+    """A new message in an existing run keeps the agent it was talking to, while that agent is still offered."""
+    agent = previous.get("agent", CORE_AGENT)
+    if agent != CORE_AGENT and agent not in {spec.key for spec in request.agents}:
+        agent = start_agent(request)
+    return {**request_state(request), "agent": agent}
 
 
 DEADLINE_KEY = "__deadline_at"  # a dunder key stays out of the checkpoint metadata
 RUN_MODEL_KEY = "__run_model"  # the request's model, chosen from the tenant's policy; never checkpointed
+RUN_MEMORY_KEY = "__run_memory"  # where the request's memory tools write; never checkpointed
 
 
-def run_config(run_id: str, max_steps: int, deadline_at: float | None = None, run_model: RunModel | None = None) -> dict[str, Any]:
+def run_config(run_id: str, max_steps: int, deadline_at: float | None = None, run_model: RunModel | None = None,
+               run_memory: RunMemory | None = None) -> dict[str, Any]:
     """Graph config; the recursion limit leaves room for error-only loops to reach ``max_steps`` first.
 
     ``deadline_at`` is the run deadline on the event loop clock: model retries do not wait past it. ``run_model`` is
@@ -74,6 +204,8 @@ def run_config(run_id: str, max_steps: int, deadline_at: float | None = None, ru
         configurable[DEADLINE_KEY] = deadline_at
     if run_model is not None:
         configurable[RUN_MODEL_KEY] = run_model
+    if run_memory is not None:
+        configurable[RUN_MEMORY_KEY] = run_memory
     return {"configurable": configurable, "recursion_limit": 3 * max_steps + 10}
 
 log = logging.getLogger("liwan_ai_service")
@@ -144,12 +276,20 @@ def build_graph(checkpointer):
         if cap is not None and state.get("output_tokens", 0) >= cap:
             return {"outcome": "limit_reached", "limit": "output_tokens"}
         run_model: RunModel = config["configurable"][RUN_MODEL_KEY]
-        specs = [ToolSpec.model_validate(tool) for tool in state["tools"]]
+        current = state.get("agent", CORE_AGENT)
+        visible = visible_tools(state["tools"], current)
+        specs = [ToolSpec.model_validate(tool) for tool in visible]
+        agents = {agent["key"]: AgentSpec.model_validate(agent) for agent in state.get("agents", [])}
+        targets = handoff_targets(state)
         context = RunContext.model_validate(state["context"]) if state["context"] else None
-        prompt = SystemMessage(system_prompt(state["locale"], specs, context))
+        run_memory: RunMemory | None = config["configurable"].get(RUN_MEMORY_KEY)
+        notes = {"user": run_memory.user_notes, "company": run_memory.company_notes} if run_memory and memory_on(state) else None
+        prompt = SystemMessage(system_prompt(
+            state["locale"], specs, context, agents.get(current), [agents[key] for key in targets if key in agents], notes,
+        ))
         history = [message for message in state["messages"] if not isinstance(message, SystemMessage)]
         deadline_at = config["configurable"].get(DEADLINE_KEY)
-        tools = run_model.model.bind_tools(_openai_tools(state["tools"]))
+        tools = run_model.model.bind_tools([*_openai_tools(visible), *([handoff_tool(targets)] if targets else []), *memory_tools(state, config)])
         response = await invoke_planned(tools, [prompt, *history], run_model.identity, get_stream_writer(), deadline_at)
         spent = tokens_of([response])[1]
         if spent is None and cap is not None:
@@ -166,11 +306,49 @@ def build_graph(checkpointer):
             return "request_tool"
         return "answer"
 
-    def request_tool(state: AgentState) -> dict[str, Any]:
+    def hand_over(state: AgentState, call: dict[str, Any], extra: list[ToolMessage]) -> dict[str, Any]:
+        targets = handoff_targets(state)
+        target = call["args"].get("agent") if isinstance(call["args"], dict) else None
+        if target not in targets:
+            return {"messages": [_error(call["id"], "invalid_arguments", "agent must be one of the offered agents"), *extra]}
+        spec = next(agent for agent in state["agents"] if agent["key"] == target)
+        get_stream_writer()({"event": "agent", "data": {"agent": target, "name": spec["name"]}})
+        reply = ToolMessage(content=json.dumps({"ok": True, "agent": target}), tool_call_id=call["id"])
+        return {"messages": [reply, *extra], "agent": target, "handoffs": state.get("handoffs", 0) + 1}
+
+    async def save_note(state: AgentState, call: dict[str, Any], extra: list[ToolMessage], config: RunnableConfig) -> dict[str, Any]:
+        offered = {tool["function"]["name"] for tool in memory_tools(state, config)}
+        run_memory: RunMemory | None = config["configurable"].get(RUN_MEMORY_KEY)
+        if call["name"] not in offered or run_memory is None:
+            return {"messages": [_error(call["id"], "unknown_tool", f"{call['name']} is not available"), *extra]}
+        invalid = invalid_arguments(call["args"], NOTE_SCHEMA)
+        if invalid is not None:
+            return {"messages": [_error(call["id"], "invalid_arguments", invalid), *extra]}
+        try:
+            if call["name"] == REMEMBER:
+                note = await run_memory.store.remember(run_memory.user_ref, call["args"]["note"])
+                run_memory.user_notes.append(note.content)
+            else:
+                await run_memory.store.propose(state["company"], call["args"]["note"], run_memory.user_ref)
+        except MemoryFull as full:
+            return {"messages": [_error(call["id"], "memory_full", str(full)), *extra]}
+        except ValueError as error:
+            return {"messages": [_error(call["id"], "invalid_arguments", str(error)), *extra]}
+        status = "saved" if call["name"] == REMEMBER else "proposed for the administrator's approval"
+        reply = ToolMessage(content=json.dumps({"ok": True, "status": status}), tool_call_id=call["id"])
+        return {"messages": [reply, *extra]}
+
+    async def request_tool(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
         last: AIMessage = state["messages"][-1]
         first, *rest = last.tool_calls
         extra = [_error(call["id"], "one_tool_per_step", "call one tool per step; this call was not run") for call in rest]
-        tools = {encode_tool_name(tool["name"]): tool for tool in state["tools"]}  # the provider names tools by their encoded form
+        if first["name"] == HANDOFF:
+            return hand_over(state, first, extra)
+        if first["name"] in (REMEMBER, PROPOSE_COMPANY_NOTE):
+            return await save_note(state, first, extra, config)
+        current = state.get("agent", CORE_AGENT)
+        # The provider names tools by their encoded form; only the active agent's visible tools can be requested.
+        tools = {encode_tool_name(tool["name"]): tool for tool in visible_tools(state["tools"], current)}
         spec = tools.get(first["name"])
         if spec is None:
             return {"messages": [_error(first["id"], "unknown_tool", f"{first['name']} is not available"), *extra]}
@@ -186,6 +364,8 @@ def build_graph(checkpointer):
             "call_id": first["id"],
             "tool": tool.name,
             "kind": tool.kind,
+            "agent": current,
+            "requires_approval": tool.requires_approval or tool.kind != "read",
             "input": first["args"],
             "summary_ar": tool_summary(tool, first["args"], "ar"),
             "summary_en": tool_summary(tool, first["args"], "en"),

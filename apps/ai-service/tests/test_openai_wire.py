@@ -67,7 +67,7 @@ async def test_dotted_tool_name_goes_out_legal_and_comes_back_dotted_with_parsed
     async with service_client(base_url) as client:
         events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
     assert fake.state.rejected == []
-    assert tool_names(fake.state.requests[0]) == ["pmo__list_my_tasks", "pmo__draft_project"]
+    assert tool_names(fake.state.requests[0]) == ["pmo__list_my_tasks", "pmo__draft_project", "liwan_remember"]
     request = dict(events)["tool_request"]
     assert request["tool"] == "pmo.list_my_tasks" and request["call_id"] == "call_a1" and request["input"] == {"limit": 5}
     assert events[-1][1] == {"status": "waiting_tool"}
@@ -109,7 +109,7 @@ async def test_openrouter_sends_the_bearer_legal_tool_names_and_attribution_head
     async with service_client(base_url, "openrouter", AI_OPENROUTER_REFERER="https://liwan.example", AI_OPENROUTER_TITLE="LiwanOS") as client:
         events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
     assert fake.state.rejected == [] and events[-1][1] == {"status": "waiting_tool"}
-    assert tool_names(fake.state.requests[0]) == ["pmo__list_my_tasks", "pmo__draft_project"]
+    assert tool_names(fake.state.requests[0]) == ["pmo__list_my_tasks", "pmo__draft_project", "liwan_remember"]
     headers = fake.state.headers[0]
     assert headers["authorization"] == "Bearer sk-test"
     assert headers["http-referer"] == "https://liwan.example" and headers["x-title"] == "LiwanOS"

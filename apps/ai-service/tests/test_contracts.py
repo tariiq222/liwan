@@ -4,6 +4,13 @@ from pydantic import ValidationError
 from liwan_ai_service.contracts import ModelCallEvent, ModelUsageEvent, ResumeRequest, RunRequest, ToolSpec
 from tests.fakes import PLATFORM_POLICY
 
+PMO_AGENT = {
+    "key": "pmo",
+    "name": {"ar": "وكيل المشاريع", "en": "Projects agent"},
+    "description": {"ar": "المشاريع والمهام", "en": "Projects and tasks"},
+    "instructions": {"ar": "أنت وكيل المشاريع.", "en": "You are the projects agent."},
+    "pages": ["pmo", "project"],
+}
 READ_TOOL = {
     "name": "pmo.list_my_tasks",
     "kind": "read",
@@ -29,7 +36,7 @@ DRAFT_TOOL = {
 def run_request(**overrides):
     body = {
         "tenant": "t1", "user_ref": "42", "locale": "ar", "message": "وش مهامي؟",
-        "context": None, "tools": [READ_TOOL, DRAFT_TOOL],
+        "context": None, "tools": [READ_TOOL, DRAFT_TOOL], "agents": [PMO_AGENT],
         "limits": {"max_steps": 12, "max_tool_calls": 8, "timeout_seconds": 120}, "policy": PLATFORM_POLICY, "new_run_id": "r_" + "ab" * 12,
     }
     body.update(overrides)

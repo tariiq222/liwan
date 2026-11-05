@@ -4,7 +4,7 @@ import re
 
 from odoo.addons.liwan_api.controllers.common import ApiError
 
-DEFAULT_PRIMARY_COLOR = '#5b3f8c'
+DEFAULT_PRIMARY_COLOR = '#7843c6'
 
 
 def parse_branding_vals(payload):

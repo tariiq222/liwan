@@ -35,7 +35,7 @@ Emit = Callable[[dict[str, Any]], None]  # takes ``{"event": name, "data": paylo
 class ModelIdentity:
     provider: str
     model: str
-    billing: Billing  # whose account pays: the platform's or the tenant's own key
+    billing: Billing  # whose account pays: the platform's, the tenant's own key, or the vendor's setup budget
 
 
 @dataclass(frozen=True)

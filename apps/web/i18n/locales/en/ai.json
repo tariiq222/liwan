@@ -91,7 +91,9 @@
       "outputTokens": "This request stopped: it reached the answer length allowed for one request.",
       "consentRequired": "The assistant is off until a system administrator signs the acknowledgement for processing data outside the Kingdom.",
       "tenantKeyMissing": "Your organization chose to run the assistant on its own key, and no key has been added yet.",
-      "openSettings": "Open the AI settings"
+      "openSettings": "Open the AI settings",
+      "perUser": "You used the monthly assistant messages your administrator set.",
+      "setupMonthly": "Your company reached this month's setup assistant limit."
     },
     "errors": {
       "unavailable": "LiwanOS AI is unavailable right now. Try again later.",
@@ -205,7 +207,9 @@
         "hint": "Conversations older than this are deleted at the next nightly cleanup.",
         "label": "Days",
         "bounds": "From {min} to {max} days.",
-        "invalid": "Enter a number from {min} to {max}."
+        "invalid": "Enter a number from {min} to {max}.",
+        "leaverLabel": "A leaver's conversations (days)",
+        "leaverHint": "Their memory is deleted at once, their conversations after this period. {min} to {max}; zero means at once."
       },
       "usage": {
         "title": "This month's use",
@@ -218,8 +222,79 @@
         "unlimited": "no limit",
         "perRun": "Longest answer allowed per request: {limit}.",
         "topTools": "Most used tools",
-        "empty": "No use this month."
+        "empty": "No use this month.",
+        "byAgent": "Use by agent",
+        "coordinator": "Coordinator"
+      },
+      "policy": {
+        "title": "Assistant policy",
+        "hint": "Limits for every employee, within your plan limits.",
+        "perUser": {
+          "label": "Messages per employee each month",
+          "hint": "Zero means only your plan limit applies."
+        },
+        "external": {
+          "label": "Contact with outside parties",
+          "draft_only": "Draft only",
+          "approve": "Send after the employee approves",
+          "draft_onlyHint": "The assistant prepares the message on the channel page; the employee sends it.",
+          "approveHint": "The assistant sends the message after the employee approves it in the conversation."
+        }
+      },
+      "agents": {
+        "title": "Agents",
+        "empty": "No enabled application has an agent.",
+        "enabled": "Enabled",
+        "readOnly": "Read only",
+        "readOnlyHint": "The agent reads; it changes nothing and prepares no drafts.",
+        "roles": "Allowed roles",
+        "rolesHint": "Leave empty for everyone who holds the assistant permission.",
+        "allRoles": "All roles",
+        "tools": "Tools",
+        "mode": {
+          "on": "On",
+          "approval": "Needs approval",
+          "off": "Off"
+        },
+        "kind": {
+          "read": "Read",
+          "write_light": "Change after approval",
+          "draft": "Draft the employee reviews"
+        },
+        "memory": "Memory",
+        "memoryHint": "The agent saves short notes about the employee's style and proposes notes about the company's identity."
+      },
+      "companyMemory": {
+        "title": "Company identity",
+        "hint": "Notes about the company's style and terminology that the assistant proposes and uses only after you approve them.",
+        "proposed": "Waiting for approval",
+        "noProposals": "No new proposals.",
+        "approve": "Approve",
+        "reject": "Reject",
+        "inUse": "Approved",
+        "empty": "No approved notes yet.",
+        "remove": "Delete note",
+        "removeTitle": "Delete this approved note?",
+        "approved": "The note was approved.",
+        "removed": "The note was deleted.",
+        "full": "The company already has the most approved notes (20). Delete one before approving another."
       }
+    },
+    "handoff": "{agent} took over the request",
+    "memory": {
+      "title": "My memory",
+      "description": "Notes the assistant keeps about how you work and what you prefer, to serve you better. Only you see them, and they hold no copies of records.",
+      "notes": "Saved notes ({count})",
+      "empty": "The assistant has not saved any note about you yet.",
+      "delete": "Delete note",
+      "deleteTitle": "Delete this note?",
+      "deleteAll": "Delete all notes",
+      "deleteAllTitle": "Delete everything the assistant remembers about you?",
+      "deleted": "The note was deleted."
+    },
+    "setup": {
+      "open": "Setup assistant",
+      "banner": "Setup assistant: it proposes your applications' settings for your line of business and applies nothing without your approval."
     }
   }
 }

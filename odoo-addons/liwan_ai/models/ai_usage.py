@@ -14,8 +14,9 @@ from odoo.addons.liwan_ai.models.ai_audit import (
 
 USAGE_KINDS = ('plan', 'title')
 USAGE_OUTCOMES = ('ok', 'failed', 'retried', 'aborted')
-# Whose provider account paid the call: the platform's (counted against ai.tokens.monthly) or the tenant's own key.
-USAGE_BILLINGS = ('platform', 'tenant_key')
+# Who paid a provider call: the platform within the package (counted against ai.tokens.monthly), the tenant's own key,
+# or the vendor's setup budget (the free setup agent runs on the platform provider outside the package, spec §6.5).
+USAGE_BILLINGS = ('platform', 'tenant_key', 'setup')
 WIRE_KEYS = frozenset({
     'conversation_id', 'kind', 'billing', 'provider', 'model', 'outcome', 'input_tokens', 'output_tokens', 'called_at',
 })

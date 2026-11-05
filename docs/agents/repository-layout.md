@@ -31,12 +31,17 @@ limits describe implementation stages, not permanent product exclusions.
   where applications register their notification kinds, delivery
   (`liwan.notify.service._liwan_deliver`) and `/api/v1/notifications`. It names no
   application.
-- `odoo-addons/liwan_ai` (shared service, rank 3) owns the LiwanOS AI tool registry
-  (`liwan.ai.tool.registry`, composed through `super()` by each application), the
+- `odoo-addons/liwan_ai` (shared service, rank 3) owns the LiwanOS AI tool and agent registries
+  (`liwan.ai.tool.registry` and `liwan.ai.agent.registry`, composed through `super()` by each application), the
+  administrator's agent and tool settings that only narrow the catalog, the setting registry
+  (`liwan.ai.setting.registry`: the fields of each application's settings model the free setup agent may propose and,
+  after approval, change; declared in the application's AI bridge), the
   per-user audit log `liwan.ai.audit`, the `ai.*` features and limits, the `ai.use` capability (granted to the employee role; its ACL and own-rows rule follow that capability group, and the monthly message limit counts tenant-wide), and the two
   routes `GET /api/v1/ai/tools` and `POST /api/v1/ai/audit`. It knows no application and
-  holds no language-model code. PMO's tools are declared by the bridge `liwan_pmo_ai`
-  (rank 5, `auto_install`), not by `liwan_pmo`, which does not depend on `liwan_ai`. The AI service and the Nuxt executor live
+  holds no language-model code. Each application's agent and tools are declared by its bridge
+  `liwan_<app>_ai` (rank 5, `auto_install`: `liwan_pmo_ai`, `liwan_hr_ai`, `liwan_crm_ai`, `liwan_meetings_ai`,
+  `liwan_tasks_ai`, `liwan_operations_ai`, `liwan_finance_ai`), never by the application, which does not depend on
+  `liwan_ai`; `tools/new_app.py` generates that bridge with every new application. The AI service and the Nuxt executor live
   outside Odoo (`docs/superpowers/specs/2026-10-15-liwan-ai-design.md`).
 - `odoo-addons/liwan_directory` (shared service, rank 3) owns `/api/v1/people`
   (the user-id picker, whose ids are `res.users` ids) and its population of

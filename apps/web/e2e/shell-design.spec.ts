@@ -40,7 +40,7 @@ test.describe('unified application navigation', () => {
     await expect(rail).toBeVisible()
   })
 
-  test('child presets navigate, refresh reopens the route owner and dots replace rings', async ({ page }) => {
+  test('child presets navigate, refresh reopens the route owner and the active child icon takes the brand ink, without a ring or dot', async ({ page }) => {
     const menu = page.getByTestId('application-navigation')
     await menu.getByRole('link', { name: 'مكتمل', exact: true }).click()
     await expect(page).toHaveURL(/\/meetings\?state=done$/)
@@ -48,7 +48,17 @@ test.describe('unified application navigation', () => {
     await expect(page.getByTestId('navigation-submenu-meetings')).toBeVisible()
     const chip = menu.getByRole('link', { name: 'مكتمل', exact: true }).locator('.liwan-quick-chip')
     await expect(chip).toHaveCSS('box-shadow', 'none')
-    expect(await chip.evaluate(el => getComputedStyle(el, '::before').width)).toBe('8px')
+    await expect(chip).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+    // The brand ink of whichever mode the page is in, resolved through a probe that reads the token.
+    const [ink, token] = await chip.evaluate(el => {
+      const probe = el.appendChild(document.createElement('span'))
+      probe.style.color = 'var(--liwan-rail-active-ink)'
+      const resolved = getComputedStyle(probe).color
+      probe.remove()
+      return [getComputedStyle(el).color, resolved]
+    })
+    expect(ink).toBe(token)
+    expect(await chip.evaluate(el => getComputedStyle(el, '::before').content)).toBe('none')
     expect(await fitsWidth(page)).toBe(true)
   })
 

@@ -18,6 +18,13 @@ def _record_type(tool_name: str) -> str:
     return "record"
 
 
+def _row_type(tool_name: str, record_type: str, row: dict[str, Any]) -> str:
+    """A task of the personal task list (agent ``tasks``) opens on its own page unless it is a project task."""
+    if record_type == "task" and tool_name.startswith("tasks.") and row.get("source") != "project":
+        return "personal_task"
+    return record_type
+
+
 def _rows(data: dict[str, Any]) -> list[dict[str, Any]]:
     if isinstance(data.get("items"), list):
         return [row for row in data["items"] if isinstance(row, dict)]
@@ -50,12 +57,13 @@ def records_from_results(results: list[tuple[str, dict[str, Any]]], answer_text:
             row_id, label = row.get("id"), row.get("name")
             if not isinstance(row_id, int) or not isinstance(label, str):
                 continue
-            if (record_type, row_id) in seen:
+            row_type = _row_type(tool_name, record_type, row)
+            if (row_type, row_id) in seen:
                 continue
             if not _is_mentioned(answer_text, normalized_answer, row_id, label):
                 continue
-            seen.add((record_type, row_id))
-            out.append({"type": record_type, "id": row_id, "label": label})
+            seen.add((row_type, row_id))
+            out.append({"type": row_type, "id": row_id, "label": label})
             if len(out) == MAX_RECORDS:
                 return out
     return out

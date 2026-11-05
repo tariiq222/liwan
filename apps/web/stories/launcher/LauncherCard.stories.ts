@@ -3,7 +3,7 @@ import LauncherCard from '../../app/components/launcher/LauncherCard.vue'
 import { storyContext } from '../support/context'
 const meta = {
   title: 'Launcher/LauncherCard', component: LauncherCard,
-  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/apps/index.vue:26') },
+  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/components/home/HomeApps.vue:20') },
   args: {
     entry: { id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', to: '/projects', actions: [
       { id: 'new-project', labelKey: 'nav.newProject', icon: 'i-lucide-plus', to: '/projects/new' },

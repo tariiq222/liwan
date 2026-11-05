@@ -45,11 +45,11 @@ class AiSettingsController(http.Controller):
     @requires_capability(AI_SETTINGS_MANAGE)
     def write_settings(self, **payload):
         require_tenant_manager()
-        provider_mode, revision = parse_settings_patch(payload)
+        values, revision = parse_settings_patch(payload)
         settings = request.env['liwan.ai.settings']._liwan_current()
         if settings.revision != revision:
             raise ApiError(409, 'conflict', 'the AI settings changed since they were read')
-        settings.write({'provider_mode': provider_mode, 'revision': revision + 1})
+        settings.write({**values, 'revision': revision + 1})
         return dump_settings(request.env)
 
     @http.route('/api/v1/ai/consent', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -91,6 +91,15 @@ class AiSettingsController(http.Controller):
         retention): the Nuxt server asks before it forwards such a change, so a read-only or expired tenant cannot make it."""
         require_tenant_manager()
         return {'ok': True}
+
+    @http.route('/api/v1/ai/company-memory/authorize', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature(AI_FEATURE, operation='write')
+    @requires_capability(AI_SETTINGS_MANAGE)
+    def authorize_company_memory(self, **_):
+        """Names the company whose notes the caller may review: the current one, where they manage AI settings. The Nuxt
+        server asks before it reads, approves or deletes company notes in the AI service, and uses only this answer."""
+        return {'company_id': request.env.company.id}
 
     @http.route('/api/v1/ai/monitoring', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

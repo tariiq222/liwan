@@ -5,7 +5,7 @@ import { manifestForPath } from '../../modules/manifests'
 import type { AppManifest } from '../../modules/types'
 import { normalizedPath } from '../../utils/routePath'
 
-/** Rail id of the launcher page (`/apps`), which no manifest owns. */
+/** Rail id of an application's start page (`/apps/<id>`), which no manifest owns. */
 export const LAUNCHER_MODULE_ID = 'apps'
 
 /** The rail module of a path an application owns: its most specific nav item, else the application's default rail. */
@@ -25,7 +25,7 @@ export function activeShellModule(path: string): ShellModule | null {
   // Personal pages may be owned by an application without selecting its administration rail.
   if (foundation === '/account' || foundation.startsWith('/account/')) return null
   if (foundation === '/') return 'home'
-  if (foundation === '/apps' || foundation.startsWith('/apps/')) return LAUNCHER_MODULE_ID
+  if (foundation.startsWith('/apps/')) return LAUNCHER_MODULE_ID
   const owner = manifestForPath(path)
   if (owner) return moduleWithinApp(owner, path)
   if (path === '/settings' || path.startsWith('/settings/')) return 'settings'

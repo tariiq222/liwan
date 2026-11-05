@@ -44,14 +44,14 @@ class TestAiToolsRoute(AiProbe, LiwanApiCase):
 
     def test_no_capability_means_an_empty_catalog_not_an_error(self):
         body = self.api('GET', '/api/v1/ai/tools').json()
-        self.assertEqual(body, {'items': [], 'total': 0, 'limits': body['limits']})
+        self.assertEqual(body, {'items': [], 'total': 0, 'agents': [], 'limits': body['limits']})
 
     def test_limits_block_reports_configured_values(self):
         self.granted = {READ_CAP, WRITE_CAP}
         self._set_limit('ai.tool_calls.per_run', 5)
         body = self.api('GET', '/api/v1/ai/tools').json()
         self.assertEqual(body['limits'], {
-            'tool_calls_per_run': 5, 'messages_monthly': None, 'messages_used': 0,
+            'tool_calls_per_run': 5, 'messages_monthly': None, 'messages_used': 0, 'setup_monthly': None, 'setup_used': 0,
             'policy': {
                 'provider_mode': 'platform', 'outside_allowed': False,
                 'tokens_monthly': None, 'tokens_used': 0, 'output_tokens_per_run': None,

@@ -11,8 +11,13 @@ const manifest: AppManifest = {
     { id: 'work.secret', labelKey: 'work.secret', icon: 'i-lucide-plus', to: '/work/secret', capability: 'work.secret.manage' },
   ],
 }
-const me = (caps: string[]) => ({ capabilities: caps, platform: { readable_features: ['work.enabled'], writable_features: ['work.enabled'] } })
-const entries = (caps: string[], query = '') => withManifests([manifest], () => launcherEntries(me(caps), query, () => 'العمل'))
+const assistant: AppManifest = {
+  id: 'ai', feature: 'ai.enabled', routePrefixes: ['/ai'],
+  rail: [{ id: 'ai', labelKey: 'nav.ai', icon: 'i-lucide-sparkles', to: '/ai', order: 2, utility: true }],
+  nav: [{ to: '/ai', labelKey: 'nav.ai', icon: 'i-lucide-sparkles', shortcut: '', capability: 'ai.use' }],
+}
+const me = (caps: string[]) => ({ capabilities: caps, platform: { readable_features: ['work.enabled', 'ai.enabled'], writable_features: ['work.enabled', 'ai.enabled'] } })
+const entries = (caps: string[], query = '') => withManifests([manifest, assistant], () => launcherEntries(me(caps), query, () => 'العمل'))
 
 describe('practical launcher', () => {
   it('lists reachable applications and the existing permitted actions', () => {
@@ -24,6 +29,10 @@ describe('practical launcher', () => {
   it('keeps a read-only application usable without creation controls', () => {
     expect(entries(['work.items.read'])[0]?.actions).toEqual([])
     expect(entries([])).toEqual([])
+  })
+  it('never makes a utility module (the assistant) a launcher entry, even for a user who may use it', () => {
+    expect(entries(['work.items.read', 'ai.use']).map(item => item.id)).toEqual(['work'])
+    expect(entries(['ai.use'])).toEqual([])
   })
   it('filters names and returns no matches for an unknown name', () => {
     expect(entries(['work.items.read'], '  عم  ')).toHaveLength(1)

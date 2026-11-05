@@ -1,9 +1,9 @@
 import { createEventStream, getRouterParam } from 'h3'
-import { AiRunStatusSchema } from '@liwan/contracts'
-import { auditFailedEvent, doneEvent, executeTool, relay, resumeFailedEvent, settle, tryAudit } from '../../../../utils/ai/pump'
+import { AI_SETUP_AGENT, AiRunStatusSchema, aiToolAgent } from '@liwan/contracts'
+import { auditFailedEvent, doneEvent, executeTool, needsApproval, relay, resumeFailedEvent, settle, tryAudit } from '../../../../utils/ai/pump'
 import { logFailure, serviceFetch } from '../../../../utils/ai/upstream'
 import { assertRunnable, runPolicy } from '../../../../utils/ai/policy'
-import { runSession } from '../../../../utils/ai/session'
+import { ownerFor, runSession } from '../../../../utils/ai/session'
 import type { ToolResult } from '../../../../utils/ai/executor'
 
 type ResumeBody = { call_id?: string; decision?: 'approved' | 'rejected'; data?: Record<string, unknown> }
@@ -16,11 +16,8 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<ResumeBody>(event)
   if (!id || !body?.call_id || (body.decision !== 'approved' && body.decision !== 'rejected')) throw createError({ statusCode: 422, data: { code: 'invalid', message: 'call_id and decision are required' } })
   if (body.data !== undefined && (body.data === null || typeof body.data !== 'object' || Array.isArray(body.data))) throw createError({ statusCode: 422, data: { code: 'invalid', message: 'data must be an object', field: 'data' } })
-  const session = await runSession(event)
-  // Before any tool runs: a write must not happen for a run the service will refuse to continue.
-  await assertRunnable(event, session)
   const path = `/v1/runs/${encodeURIComponent(id)}`
-  const statusResponse = await serviceFetch(event, 'GET', path, session.owner)
+  const statusResponse = await serviceFetch(event, 'GET', path, await ownerFor(event))
   if (statusResponse.status === 404) throw createError({ statusCode: 404, data: { code: 'not_found', message: 'run not found' } })
   if (!statusResponse.ok) throw createError({ statusCode: 502, data: { code: 'ai_upstream', message: `AI service status ${statusResponse.status}` } })
   const { status, pending } = AiRunStatusSchema.parse(await statusResponse.json())
@@ -28,6 +25,10 @@ export default defineEventHandler(async (event) => {
   if (status === 'executing') throw conflict('this run is executing a claimed call')
   // The pending call comes from the service, never from the browser: the browser only decides.
   if (!pending || pending.call_id !== body.call_id) throw conflict('no pending call with this call_id')
+  // The pending call names the conversation's mode: only a setup conversation holds the setup agent's tools.
+  const session = await runSession(event, aiToolAgent(pending.tool) === AI_SETUP_AGENT ? 'setup' : 'assistant')
+  // Before any tool runs: a write must not happen for a run the service will refuse to continue.
+  await assertRunnable(event, session)
 
   let result: Record<string, unknown>
   let auditFailed = false
@@ -35,9 +36,12 @@ export default defineEventHandler(async (event) => {
   let shield: null | undefined
   let wroteAlready = false
   let toolResultEvent: { event: string; data: string } | null = null
-  if (pending.kind === 'read') {
-    // A read that stalled is safe to run again; only "approved" means retry.
-    if (body.decision !== 'approved') throw conflict('a read tool can only be retried')
+  if (pending.kind === 'read' && body.decision === 'rejected') {
+    // Only a read the administrator set to approval waits for the user; a stalled plain read can only be retried.
+    if (!needsApproval(session, pending)) throw conflict('a read tool can only be retried')
+    result = { ok: false, decision: 'rejected' }
+  } else if (pending.kind === 'read') {
+    // An approved read (its card, shown whenever the current catalog asks for approval), or a stalled one retried by the user.
     const executed = await executeTool(event, session, id, 'read', pending, { onAuditFailed: () => { auditFailed = true } })
     toolResultEvent = { event: 'tool_result', data: JSON.stringify({ call_id: pending.call_id, tool: pending.tool, kind: 'read', ok: executed.ok, summary_ar: pending.tool, summary_en: pending.tool }) }
     result = executed
@@ -45,7 +49,7 @@ export default defineEventHandler(async (event) => {
     result = { ok: false, decision: 'rejected' }
     // Odoo accepts `rejected` for drafts only; a rejected write_light was never proposed to the audit.
     if (pending.kind === 'draft') {
-      auditFailed = !await tryAudit(event, { conversation_id: id, kind: 'draft', tool_name: pending.tool, input: pending.input, result: 'rejected', http_status: null, draft: pending.input, approved: null, attested: false })
+      auditFailed = !await tryAudit(event, { conversation_id: id, kind: 'draft', agent: pending.agent, tool_name: pending.tool, input: pending.input, result: 'rejected', http_status: null, draft: pending.input, approved: null, attested: false })
     }
   } else if (pending.kind === 'write_light') {
     shield = null

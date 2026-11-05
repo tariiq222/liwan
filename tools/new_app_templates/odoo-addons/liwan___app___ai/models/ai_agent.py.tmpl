@@ -1,0 +1,51 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+"""The {{name_en}} agent of the LiwanOS AI and its tools: read tools over existing liwan_{{app}} routes, each with the
+capability its route already checks. A field that is sensitive is listed in ``sensitive_fields`` and never appears in a
+result summary."""
+from odoo import api, models
+
+from odoo.addons.liwan_ai.models.tool_registry import PAGE_SCHEMA, read_tool
+
+OWNER = 'liwan_{{app}}'
+FEATURE = '{{app}}.enabled'
+
+{{APP}}_AGENT = {
+    'key': '{{app}}',
+    'owner': OWNER,
+    'feature_key': FEATURE,
+    'name_ar': 'وكيل {{name_ar}}',
+    'name_en': '{{name_en}} agent',
+    'description_ar': 'سجلات {{name_ar}}',
+    'description_en': 'The {{name_en}} records',
+    'instructions_ar': 'أنت وكيل {{name_ar}}. اقرأ السجلات بالأدوات واعرضها كما أعادها النظام.',
+    'instructions_en': 'You are the {{name_en}} agent. Read the records with your tools and show them as the system returned them.',
+    'pages': ['{{app}}'],
+    'sensitive_fields': [],
+}
+
+{{APP}}_AI_TOOLS = (
+    read_tool(
+        OWNER, FEATURE, '{{app}}.list_records', '{{app}}.records.read',
+        ('يعرض سجلات {{name_ar}}', 'List the {{name_en}} records'),
+        '/api/v1/{{app}}/records',
+        {'limit': PAGE_SCHEMA},
+        {'limit': '$limit'},
+        ['items[].id', 'items[].name', 'total'],
+    ),
+)
+
+
+class Liwan{{App}}AiAgent(models.AbstractModel):
+    _inherit = 'liwan.ai.agent.registry'
+
+    @api.model
+    def _liwan_ai_agent_definitions(self):
+        return (*super()._liwan_ai_agent_definitions(), {{APP}}_AGENT)
+
+
+class Liwan{{App}}AiTools(models.AbstractModel):
+    _inherit = 'liwan.ai.tool.registry'
+
+    @api.model
+    def _liwan_ai_tool_definitions(self):
+        return super()._liwan_ai_tool_definitions() + {{APP}}_AI_TOOLS

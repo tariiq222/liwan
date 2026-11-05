@@ -52,8 +52,7 @@
   "home": {
     "empty": "No workspaces are currently available for your account.",
     "nothingToday": "Nothing for you today. Browse the applications to get started.",
-    "openApps": "Applications",
-    "allApps": "All applications",
+    "apps": "Your apps",
     "greeting": "Hello {name}",
     "indicators": "My indicators",
     "indicator": {
@@ -287,15 +286,10 @@
     "open": "Open the app"
   },
   "launcher": {
-    "title": "Applications",
-    "description": "Your applications and everyday actions in one place",
-    "search": "Search applications",
     "open": "Open application",
     "pin": "Pin to the rail",
     "unpin": "Remove from the rail",
     "pinLimit": "You can pin up to 6 applications",
-    "noResults": "No application has that name.",
-    "empty": "No applications are available for your account yet.",
     "apps": {
       "projects": {
         "description": "One workspace for project status, progress, and the next step."
@@ -323,6 +317,9 @@
       },
       "ai": {
         "description": "Ask about your tasks and projects, and request what you want prepared."
+      },
+      "crm": {
+        "description": "Track prospects and sales deals through to close."
       }
     },
     "actions": "Quick actions"

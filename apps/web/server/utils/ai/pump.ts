@@ -7,7 +7,7 @@ import type { RunSession } from './session'
 import { runPolicy } from './policy'
 
 export type ExecutableKind = 'read' | 'write_light'
-export type ToolCall = { call_id: string; tool: string; input: Record<string, unknown> }
+export type ToolCall = { call_id: string; tool: string; agent: string; input: Record<string, unknown> }
 
 /** Record one audit row as the caller. Odoo's refusal (limit reached, unknown tool, no capability) is forwarded. */
 export async function audit(event: H3Event, body: AiAuditRequest, signal?: SignalOption): Promise<void> {
@@ -52,16 +52,24 @@ export async function executeTool(event: H3Event, session: RunSession, runId: st
     result = upstreamUnavailable()
   }
   const recorded = await tryAudit(event, {
-    conversation_id: runId, kind, tool_name: tool.name, input: call.input,
+    conversation_id: runId, kind, agent: call.agent, tool_name: tool.name, input: call.input,
     result: result.ok ? 'ok' : status === 403 ? 'denied' : 'failed', http_status: status, draft: null, approved: null, attested: false,
   }, options.signal)
   if (!recorded) options.onAuditFailed?.()
   return result
 }
 
-/** A write_light or draft tool_request the browser will act on must name a catalog tool of the same kind. */
-function inCatalogAs(session: RunSession, call: ToolCall, kind: 'write_light' | 'draft'): boolean {
+/** A tool_request the server or the browser acts on must name a catalog tool of the same kind. */
+function inCatalogAs(session: RunSession, call: ToolCall, kind: ToolRequestEvent['kind']): boolean {
   return session.byName.get(call.tool)?.kind === kind
+}
+
+/**
+ * Whether a read waits for the user: the administrator's setting in this request's catalog decides, never the service's
+ * word alone, so a read set to approval can never run before the user says so.
+ */
+export function needsApproval(session: RunSession, call: { tool: string; requires_approval: boolean }): boolean {
+  return call.requires_approval || session.byName.get(call.tool)?.requires_approval === true
 }
 
 /** Only an error this server built with `createError` may speak: anything else is a fixed text and its class name, never its message. */
@@ -78,7 +86,8 @@ export const doneEvent = (status: 'failed') => ({ event: 'done', data: JSON.stri
 const push = (stream: EventStream, name: string, data: unknown) => stream.push({ event: name, data: JSON.stringify(data) })
 
 type EventStream = ReturnType<typeof createEventStream>
-type Action = { kind: 'read'; call: ToolCall & { summary_ar: string; summary_en: string } } | { kind: 'unknown'; call: ToolCall; message: string }
+type ToolRequestEvent = ToolCall & { kind: 'read' | 'write_light' | 'draft'; requires_approval: boolean; summary_ar: string; summary_en: string }
+type Action = { kind: 'read'; call: ToolRequestEvent } | { kind: 'unknown'; call: ToolCall; message: string }
 /** `runId`: the run this stream belongs to (named by this server for a new run, taken from the route for a resume); the service must echo it.
  * `shielded`: a claimed write was executed, so the service stream is read to its end even when the browser is gone (silently).
  * `preface`: one event the stream opens with (the result of a read the server ran again). */
@@ -109,6 +118,9 @@ export async function pumpRun(event: H3Event, session: RunSession, stream: Event
   let auditFailed = options.auditFailed ?? false
   let announced = false
   let finalDone: unknown = { status: 'failed' }
+  // A read this server turned into a card (its catalog asks for approval, the run's tool list did not): the run now waits
+  // for the user, whatever status the service reported.
+  let upgraded = false
   let next: Response | null = response
   while (next) {
     const current: Response = next
@@ -127,18 +139,22 @@ export async function pumpRun(event: H3Event, session: RunSession, stream: Event
       }
       if (name === 'done') {
         // The done of a stream that is about to be resumed is not the end of the run.
-        if (!action) finalDone = data
+        if (!action) finalDone = upgraded && data.status === 'waiting_tool' ? { ...data, status: 'waiting_user' } : data
         break
       }
       if (name === 'tool_request' && action) continue
-      if (name === 'tool_request' && data.kind === 'read') {
+      if (name === 'tool_request' && data.kind === 'read' && !needsApproval(session, data)) {
         action = { kind: 'read', call: data }
-      } else if (name === 'tool_request' && (data.kind === 'write_light' || data.kind === 'draft') && !inCatalogAs(session, data, data.kind)) {
+      } else if (name === 'tool_request' && !inCatalogAs(session, data, data.kind)) {
         // The browser never hears of it and nothing is audited; the service run is told and ends cleanly.
         action = { kind: 'unknown', call: data, message: `${data.tool} is not a ${data.kind} tool of the catalog` }
         continue
+      } else if (name === 'tool_request' && data.kind === 'read') {
+        // The catalog asks for approval although the run's tool list did not (it changed since): the browser shows a card.
+        data.requires_approval = true
+        upgraded = true
       } else if (name === 'tool_request' && data.kind === 'draft') {
-        const recorded = await tryAudit(event, { conversation_id: runId, kind: 'draft', tool_name: data.tool, input: data.input, result: 'proposed', http_status: null, draft: data.input, approved: null, attested: false })
+        const recorded = await tryAudit(event, { conversation_id: runId, kind: 'draft', agent: data.agent, tool_name: data.tool, input: data.input, result: 'proposed', http_status: null, draft: data.input, approved: null, attested: false })
         auditFailed ||= !recorded
       }
       await push(stream, name, data)

@@ -15,6 +15,9 @@ AI_STATE_VERSION = "1"
 TOOL_NAME = re.compile(r"^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$")
 PAGE_NAME = r"^[a-z][a-z_-]{0,39}$"
 MAX_TOOLS = 100
+MAX_AGENTS = 50
+AGENT_KEY = r"^[a-z][a-z0-9_]*$"
+CORE_AGENT = "core"  # the platform coordinator; its instructions are platform constants (prompts.py)
 MAX_RESULT_BYTES = 200 * 1024
 RUN_TITLE_MAX_CHARS = 80
 NEW_RUN_ID = r"^r_[0-9a-f]{24}$"
@@ -53,6 +56,12 @@ class ToolSpec(Strict):
     input_map: dict[str, dict[str, Any]] = Field(default_factory=dict)
     result_summary: list[str] = Field(default_factory=list)
     draft_target: str | None = None
+    requires_approval: bool = False  # the administrator made this read wait for the user; a write always waits
+
+    @property
+    def agent(self) -> str:
+        """The agent that owns the tool: the application id its name starts with."""
+        return self.name.split(".", 1)[0]
 
     @model_validator(mode="after")
     def _shape_by_kind(self) -> ToolSpec:
@@ -74,19 +83,48 @@ class ToolSpec(Strict):
         return self
 
 
+class AgentSpec(Strict):
+    """One specialist agent as Odoo declares it for this user (spec 2026-11-04 §6.5)."""
+
+    key: str = Field(pattern=AGENT_KEY, max_length=40)
+    name: ToolDescription
+    description: ToolDescription
+    instructions: ToolDescription
+    pages: list[str] = Field(default_factory=list, max_length=20)
+    memory: bool = True  # the administrator's switch: the agent may save and read employee and company notes
+
+    @field_validator("key")
+    @classmethod
+    def _not_core(cls, key: str) -> str:
+        if key == CORE_AGENT:
+            msg = "core is the platform coordinator, not a registered agent"
+            raise ValueError(msg)
+        return key
+
+    @field_validator("pages")
+    @classmethod
+    def _page_names(cls, pages: list[str]) -> list[str]:
+        if not all(re.match(PAGE_NAME, page) for page in pages):
+            msg = "pages must be page names"
+            raise ValueError(msg)
+        return pages
+
+
 class Limits(Strict):
     max_steps: int = Field(ge=1, le=50)
     max_tool_calls: int = Field(ge=0, le=50)
     timeout_seconds: int = Field(ge=5, le=600)
 
 
-Billing = Literal["platform", "tenant_key"]
+# Whose account pays a request: the platform's within the package, the tenant's own key, or the vendor's setup budget
+# (the free setup agent runs on the platform provider, spec 2026-11-04 §6.5).
+Billing = Literal["platform", "tenant_key", "setup"]
 
 
 class Policy(Strict):
     """The tenant's AI policy as Odoo states it for this request (spec 2026-11-04 §6.8); the service enforces it."""
 
-    provider_mode: Billing  # whose provider account runs the request: the platform's or the tenant's own key
+    provider_mode: Billing  # whose account pays the request; "setup" runs on the platform provider
     outside_allowed: bool  # a valid residency consent exists, so a provider outside the Kingdom may receive the data
     max_output_tokens: int | None = Field(ge=0, le=1_000_000)  # platform runs only; null means no cap, 0 allows no answer
 
@@ -103,6 +141,8 @@ class RunRequest(Strict):
     message: str = Field(min_length=1, max_length=8000)
     context: RunContext | None = None
     tools: list[ToolSpec] = Field(max_length=MAX_TOOLS)
+    agents: list[AgentSpec] = Field(default_factory=list, max_length=MAX_AGENTS)
+    company: str | None = Field(default=None, pattern=r"^[1-9][0-9]{0,18}$")  # the user's current company, for company notes
     limits: Limits
     policy: Policy
     run_id: str | None = Field(default=None, min_length=1)  # continues this run
@@ -123,6 +163,18 @@ class RunRequest(Strict):
             raise ValueError(msg)
         if len({encode_tool_name(name) for name in names}) != len(names):
             msg = "two tool names collide once encoded for the provider"
+            raise ValueError(msg)
+        return self
+
+    @model_validator(mode="after")
+    def _agents_own_the_tools(self) -> RunRequest:
+        keys = [agent.key for agent in self.agents]
+        if len(set(keys)) != len(keys):
+            msg = "agent keys must be unique"
+            raise ValueError(msg)
+        orphan = next((tool.name for tool in self.tools if tool.agent not in keys), None)
+        if orphan is not None:
+            msg = f"tool {orphan} belongs to no agent of the request"
             raise ValueError(msg)
         return self
 
@@ -167,6 +219,8 @@ class PendingCall(Strict):
     tool: str
     kind: ToolKind
     input: dict[str, Any]
+    agent: str = CORE_AGENT  # the agent that asked for it
+    requires_approval: bool = False  # true for every write and draft, and for a read the administrator set to approval
 
 
 class RunMessage(Strict):
@@ -254,6 +308,34 @@ class RetentionPut(Strict):
     retention_days: int = Field(ge=1, le=365)
 
 
+class LeaverRetentionPut(Strict):
+    leaver_retention_days: int = Field(ge=0, le=365)
+
+
+class NoteView(Strict):
+    id: int
+    content: str
+    created_at: datetime
+
+
+class NoteList(Strict):
+    items: list[NoteView]
+    total: int
+
+
+class CompanyNoteView(Strict):
+    id: int
+    content: str
+    status: Literal["proposed", "approved"]
+    proposed_by: str | None
+    created_at: datetime
+
+
+class CompanyNoteList(Strict):
+    items: list[CompanyNoteView]
+    total: int
+
+
 class KeyPut(Strict):
     provider: str = Field(pattern=PROVIDER_NAME)
     model: str = Field(pattern=MODEL_NAME)
@@ -284,6 +366,7 @@ class TenantConfigView(Strict):
     """``GET /v1/tenant/config``: never the key itself, only whether one is set and its last four characters."""
 
     retention_days: int
+    leaver_retention_days: int
     key: KeyView
     platform: PlatformView
     providers: list[ProviderView]

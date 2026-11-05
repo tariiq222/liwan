@@ -61,8 +61,8 @@ const ME = {
 
 const BRANDING = {
   name: 'ليوان',
-  logo_url: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="6" fill="#5b3f8c"/></svg>'),
-  primary_color: process.env.PREVIEW_PRIMARY_COLOR || '#5b3f8c',
+  logo_url: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="6" fill="#7843c6"/></svg>'),
+  primary_color: process.env.PREVIEW_PRIMARY_COLOR || '#7843c6',
   font: 'IBM Plex Sans Arabic',
 }
 
@@ -143,8 +143,24 @@ const AI_AUDIT = []
 const AI_USAGE = []
 // The web gate for /ai checks this alias capability literally (apps/web/app/modules/ai/manifest.ts).
 const AI_USE = 'ai.use'
+const PMO_AGENT = {
+  key: 'pmo', name: { ar: 'وكيل المشاريع', en: 'Projects agent' }, description: { ar: 'المشاريع ومهامها وميزانياتها', en: 'Projects, their tasks and budgets' },
+  instructions: { ar: 'أنت وكيل المشاريع.', en: 'You are the projects agent.' }, pages: ['pmo', 'project'],
+}
+const AI_AGENT_SETTINGS = { pmo: { enabled: true, read_only: false, memory: true, role_ids: [], revision: 0, tools: { 'pmo.list_my_tasks': 'on', 'pmo.draft_project': 'on' } } }
+const AI_AGENT_TOOLS = [
+  { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'يعرض مهامي', en: 'List my tasks' }, external: false },
+  { name: 'pmo.draft_project', kind: 'draft', description: { ar: 'مسودة مشروع', en: 'Project draft' }, external: false },
+]
+function aiAgentSetting(key) {
+  const state = AI_AGENT_SETTINGS[key]
+  return {
+    key, name: PMO_AGENT.name, description: PMO_AGENT.description, enabled: state.enabled, read_only: state.read_only, memory: state.memory,
+    role_ids: state.role_ids, revision: state.revision, tools: AI_AGENT_TOOLS.map(tool => ({ ...tool, mode: state.tools[tool.name] })),
+  }
+}
 const AI_SETTINGS = {
-  provider_mode: 'platform', revision: 1,
+  provider_mode: 'platform', messages_per_user_monthly: 0, external_send: 'draft_only', revision: 1,
   consent: {
     required_version: '2026-11-05-draft',
     text_ar: 'مسودة بانتظار المراجعة القانونية.\n\nبالتوقيع على هذا الإقرار، تفوّض المنشأة إرسال محتوى محادثات الذكاء الاصطناعي إلى مزوّد يعالجها خارج المملكة العربية السعودية.',
@@ -463,10 +479,10 @@ async function handle(req, res) {
     const reader = /(?:^|;\s*)mock_caps=reader(?:;|$)/.test(req.headers.cookie ?? '')
     const canCreate = !reader && capabilitiesForRequest(req.headers.cookie, moduleUiCapabilities).includes('pmo.projects.create')
     const items = [
-      { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'يعرض مهامي', en: 'List my tasks' }, input_schema: { type: 'object', properties: { limit: { type: 'integer' } } }, route: { method: 'GET', path: '/api/v1/tasks' }, input_map: { query: { filter: 'mine', limit: '$limit' } }, result_summary: ['items[].id', 'items[].name', 'items[].state', 'total'], draft_target: null },
-      ...(canCreate ? [{ name: 'pmo.draft_project', kind: 'draft', description: { ar: 'مسودة مشروع', en: 'Project draft' }, input_schema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] }, route: null, input_map: {}, result_summary: [], draft_target: '/projects/new' }] : []),
+      { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'يعرض مهامي', en: 'List my tasks' }, input_schema: { type: 'object', properties: { limit: { type: 'integer' } } }, route: { method: 'GET', path: '/api/v1/tasks' }, input_map: { query: { filter: 'mine', limit: '$limit' } }, result_summary: ['items[].id', 'items[].name', 'items[].state', 'total'], draft_target: null, requires_approval: AI_AGENT_SETTINGS.pmo.tools['pmo.list_my_tasks'] === 'approval' },
+      ...(canCreate ? [{ name: 'pmo.draft_project', kind: 'draft', description: { ar: 'مسودة مشروع', en: 'Project draft' }, input_schema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] }, route: null, input_map: {}, result_summary: [], draft_target: '/projects/new', requires_approval: true }] : []),
     ]
-    return json(res, 200, { items, total: items.length, limits: { tool_calls_per_run: 8, messages_monthly: 500, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length, policy: { provider_mode: 'platform', outside_allowed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } } })
+    return json(res, 200, { items, total: items.length, agents: [{ ...PMO_AGENT, memory: AI_AGENT_SETTINGS.pmo.memory }], limits: { tool_calls_per_run: 8, messages_monthly: 500, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length, setup_monthly: null, setup_used: 0, policy: { provider_mode: 'platform', outside_allowed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } } })
   }
   // The AI settings of the tenant (ai.settings.manage): provider mode, the residency consent and this month's use.
   if (path === '/api/v1/ai/settings' || path === '/api/v1/ai/consent' || path === '/api/v1/ai/consent/revoke') {
@@ -474,7 +490,8 @@ async function handle(req, res) {
     try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
     if (method === 'PATCH' && path === '/api/v1/ai/settings') {
       if (body.revision !== AI_SETTINGS.revision) return json(res, 409, { code: 'conflict', message: 'the AI settings changed since they were read' })
-      Object.assign(AI_SETTINGS, { provider_mode: body.provider_mode, revision: AI_SETTINGS.revision + 1 })
+      const { revision: _read, ...changes } = body
+      Object.assign(AI_SETTINGS, { ...changes, revision: AI_SETTINGS.revision + 1 })
     } else if (method === 'POST' && path === '/api/v1/ai/consent') {
       if (body.text_hash !== AI_SETTINGS.consent.text_hash) return json(res, 422, { code: 'invalid', message: 'stale text', field: 'text_hash' })
       AI_SETTINGS.consent.signed = { user: { id: 2, name: 'مدير النظام' }, signed_at: new Date().toISOString(), text_version: AI_SETTINGS.consent.required_version }
@@ -488,7 +505,24 @@ async function handle(req, res) {
       month: AI_SETTINGS.usage.month, totals: { messages: 41, input_tokens: 182000, output_tokens: 61000, tool_calls: 27 },
       users: { items: [{ user: { id: 2, name: 'مدير النظام' }, messages: 26, tokens: 160000, tool_calls: 18 }, { user: { id: 5, name: 'هدى العتيبي' }, messages: 15, tokens: 83000, tool_calls: 9 }], total: 2 },
       tools: { items: [{ tool_name: 'pmo.list_my_tasks', calls: 19 }, { tool_name: 'pmo.draft_project', calls: 8 }], total: 2 },
+      agents: { items: [{ agent: 'pmo', calls: 21 }, { agent: 'core', calls: 6 }], total: 2 },
     })
+  }
+  // The company whose notes a settings manager reviews: the current one.
+  if (method === 'POST' && path === '/api/v1/ai/company-memory/authorize') return json(res, 200, { company_id: 1 })
+  // The agents of the enabled applications and how the administrator narrowed them (ai.settings.manage).
+  if (path === '/api/v1/ai/agents' || path.startsWith('/api/v1/ai/agents/')) {
+    if (method === 'PATCH') {
+      const key = decodeURIComponent(path.slice('/api/v1/ai/agents/'.length))
+      if (!AI_AGENT_SETTINGS[key]) return json(res, 404, { code: 'not_found', message: 'no such agent' })
+      let body = {}
+      try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+      const { tools, revision, ...rest } = body
+      if (revision !== AI_AGENT_SETTINGS[key].revision) return json(res, 409, { code: 'conflict', message: 'the agent settings changed since they were read' })
+      Object.assign(AI_AGENT_SETTINGS[key], rest, { revision: revision + 1 })
+      Object.assign(AI_AGENT_SETTINGS[key].tools, tools ?? {})
+    } else if (method !== 'GET' || path !== '/api/v1/ai/agents') return json(res, 405, { code: 'invalid', message: 'method' })
+    return json(res, 200, { items: [aiAgentSetting('pmo')], total: 1 })
   }
   if (method === 'POST' && path === '/api/v1/ai/audit') {
     let entry = {}

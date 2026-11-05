@@ -1,12 +1,13 @@
 import type { H3Event } from 'h3'
 import { createError } from 'h3'
-import { AiToolsResponseSchema, type AiPolicy, type AiTool } from '@liwan/contracts'
+import { AiToolsResponseSchema, type AiAgent, type AiPolicy, type AiTool } from '@liwan/contracts'
 import { tenantRequest } from '../tenantRequest'
 import { toolCallBudget } from './executor'
 import { forwardUpstream, odooJson, type Owner } from './upstream'
 
 export type RunLimits = { max_steps: number; max_tool_calls: number; timeout_seconds: number }
-export type RunSession = { owner: Owner; tools: AiTool[]; byName: Map<string, AiTool>; limits: RunLimits; policy: AiPolicy }
+export type RunMode = 'assistant' | 'setup'
+export type RunSession = { mode: RunMode; owner: Owner; company: string; tools: AiTool[]; agents: AiAgent[]; byName: Map<string, AiTool>; limits: RunLimits; policy: AiPolicy }
 
 const MAX_STEPS = 12
 const TIMEOUT_SECONDS = 120
@@ -24,23 +25,39 @@ function ownerTenant(event: H3Event, companyId: number): string {
   return `company:${companyId}`
 }
 
-/** The caller as the AI service knows them: the tenant and the user id. Any upstream denial is forwarded as is. */
-export async function ownerFor(event: H3Event): Promise<Owner> {
+/** The caller as the AI service knows them (the tenant and the user id), and their current company. Any upstream denial is forwarded as is. */
+async function callerFor(event: H3Event): Promise<{ owner: Owner; company: string }> {
   const me = await odooJson(event, 'GET', '/api/v1/me')
   if (me.status !== 200) forwardUpstream(me)
   const meBody = me.body as { id: number; company: { id: number } }
-  return { tenant: ownerTenant(event, meBody.company.id), user: String(meBody.id) }
+  return { owner: { tenant: ownerTenant(event, meBody.company.id), user: String(meBody.id) }, company: String(meBody.company.id) }
 }
 
-/** The caller's identity, tool catalog and AI policy for this request only. Any upstream denial is forwarded as is. */
-export async function runSession(event: H3Event): Promise<RunSession> {
-  const owner = await ownerFor(event)
-  const tools = await odooJson(event, 'GET', '/api/v1/ai/tools')
+/** The caller as the AI service knows them: the tenant and the user id. */
+export async function ownerFor(event: H3Event): Promise<Owner> {
+  return (await callerFor(event)).owner
+}
+
+/** The mode a conversation of the caller started in (from its first message's audit row), or null for a new one. */
+export async function conversationMode(event: H3Event, runId: string): Promise<RunMode | null> {
+  const answer = await odooJson(event, 'GET', `/api/v1/ai/conversations/${encodeURIComponent(runId)}/mode`)
+  if (answer.status !== 200) forwardUpstream(answer)
+  return (answer.body as { mode: RunMode | null }).mode
+}
+
+/** The caller's identity, tool catalog, agents and AI policy for this request only. Any upstream denial is forwarded as is. */
+export async function runSession(event: H3Event, mode: RunMode = 'assistant'): Promise<RunSession> {
+  const { owner, company } = await callerFor(event)
+  // A setup conversation gets the setup agent's catalog only; an ordinary one never gets it (Odoo decides both).
+  const tools = await odooJson(event, 'GET', '/api/v1/ai/tools', mode === 'setup' ? { query: { mode } } : undefined)
   if (tools.status !== 200) forwardUpstream(tools)
   const parsed = AiToolsResponseSchema.parse(tools.body)
   return {
+    mode,
     owner,
+    company,
     tools: parsed.items,
+    agents: parsed.agents,
     byName: new Map(parsed.items.map(tool => [tool.name, tool])),
     limits: { max_steps: MAX_STEPS, max_tool_calls: toolCallBudget(parsed.limits.tool_calls_per_run), timeout_seconds: TIMEOUT_SECONDS },
     policy: parsed.limits.policy,

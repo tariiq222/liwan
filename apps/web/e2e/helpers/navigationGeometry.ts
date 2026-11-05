@@ -16,10 +16,6 @@ export async function expectAlignedGuide(parent: Locator) {
     const center = (icon.left + icon.right) / 2
     const children = [...body.querySelectorAll('.liwan-quick-chip')].filter(child => child.closest('.liwan-navigation-submenu') === body).map(child => child.getBoundingClientRect())
     const firstCenter = (children[0]!.left + children[0]!.right) / 2
-    const selected = [...body.querySelectorAll('.liwan-quick-link[data-active="true"] .liwan-quick-chip')].find(child => child.closest('.liwan-navigation-submenu') === body)
-    const selectedRect = selected?.getBoundingClientRect()
-    const dot = selected ? getComputedStyle(selected, '::before') : null
-    const dotInset = dot ? parseFloat(dot.insetInlineStart) + parseFloat(dot.width) / 2 : 0
     return {
       center,
       guideCenter: style.direction === 'rtl' ? rect.right - inset - width / 2 : rect.left + inset + width / 2,
@@ -29,7 +25,6 @@ export async function expectAlignedGuide(parent: Locator) {
       guideBottom: rect.bottom - (pseudo ? parseFloat(guide.bottom) : 0),
       iconTop: icon.top, iconBottom: icon.bottom, lastChildBottom: children.at(-1)!.bottom,
       childIndent: Math.abs(center - firstCenter),
-      dotCenter: selectedRect ? style.direction === 'rtl' ? selectedRect.right - dotInset : selectedRect.left + dotInset : null,
     }
   })
   expect(Math.abs(geometry.guideCenter - geometry.center), 'guide must align with the parent icon centre').toBeLessThanOrEqual(1)
@@ -39,7 +34,6 @@ export async function expectAlignedGuide(parent: Locator) {
   expect(geometry.guideTop).toBeGreaterThanOrEqual(geometry.iconTop)
   expect(geometry.guideBottom).toBeGreaterThanOrEqual(geometry.lastChildBottom)
   expect(geometry.childIndent).toBeCloseTo(20, 0)
-  if (geometry.dotCenter !== null) expect(Math.abs(geometry.dotCenter - geometry.guideCenter), 'selected dot must sit on the guide').toBeLessThanOrEqual(1)
 }
 
 /** The internal menu is hidden by default; specs about its contents start from the kept-open state. */

@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import AiConfirmCard from '../../app/components/ai/AiConfirmCard.vue'
 import AiDraftCard from '../../app/components/ai/AiDraftCard.vue'
+import AiHandoffLine from '../../app/components/ai/AiHandoffLine.vue'
 import AiLimitNotice from '../../app/components/ai/AiLimitNotice.vue'
 import AiRecordCards from '../../app/components/ai/AiRecordCards.vue'
 import AiToolTrace from '../../app/components/ai/AiToolTrace.vue'
@@ -33,6 +34,11 @@ export const ConfirmRejected: Story = {
 export const ConfirmExecuting: Story = {
   name: 'تأكيد: يُنفَّذ من طلب سابق',
   render: wrap({ AiConfirmCard }, '<AiConfirmCard summary="سأغيّر حالة المهمة «تقرير الربع» إلى منجزة" state="pending" disabled note="بدأ تنفيذه من طلب سابق. حدّث الصفحة بعد قليل لتعرف نتيجته." />'),
+}
+
+export const Handoff: Story = {
+  name: 'تحويل إلى وكيل متخصص',
+  render: wrap({ AiHandoffLine }, '<AiHandoffLine name="وكيل الموارد البشرية" />'),
 }
 
 export const DraftPending: Story = {

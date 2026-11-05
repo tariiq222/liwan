@@ -146,7 +146,8 @@ docker compose run --rm -T ai python -m liwan_ai_service.store --initialize-tena
 
 (`docker compose exec` forwards the host shell's `AI_DB_PASSWORD` through the `-v` argument, so export it first; the value never appears in SQL text.)
 
-- Retention cleanup of old runs: `docker compose exec ai python -m liwan_ai_service.cleanup`, scheduled by the host cron; it visits every tenant database in the directory.
+- Retention cleanup of old runs: `docker compose exec ai python -m liwan_ai_service.cleanup`, scheduled by the host cron; it visits every tenant database in the directory. The same sweep applies the offboarding events and deletes a leaver's conversations once the tenant's leaver retention (default 30 days) has passed.
+- Memory and offboarding: employee and company notes live in `liwan_ai.ai_memory`. Odoo reports a user's deactivation and reactivation through `liwan_ai.ai_outbox`, the only table of the AI schema its database role may write (`INSERT`), granted by `--initialize-tenant`; the service drains it before every run, so a leaver's notes are gone before any later request. After upgrading the AI service, run `--initialize-tenant` again for every tenant: it is idempotent and adds the tables a newer release needs; until then the service refuses that tenant with `ai_state_incompatible`.
 - Stopping `ai`, or never enabling the profile, changes nothing else: `web`, `odoo` and `proxy` do not depend on it (works in `saas` and `non_saas`).
 - Threat model: the service holds no LiwanOS credential (no Odoo session or token, no `odoo` database password), only its own database role and the shared service token; all LiwanOS data reaches it per request through `web`, under the caller's own permissions.
 
@@ -167,8 +168,8 @@ python3 deploy/check_isolated.py odoo \
   --scratch-lifecycle CREATE_NEW_SCRATCH \
   --http-port 8169 \
   --with-oca \
-  --modules liwan_core,liwan_platform,liwan_api,liwan_ai,liwan_ai_notify,liwan_directory,liwan_documents,liwan_notify,liwan_meetings,liwan_operations,liwan_pmo,liwan_meetings_pmo,liwan_operations_pmo,liwan_pmo_ai,liwan_hr,liwan_access_hr,liwan_documents_hr,liwan_hr_operations,liwan_integrations_sa,liwan_finance,liwan_hr_finance,liwan_pmo_finance,liwan_payments,liwan_chat,liwan_tasks,liwan_tasks_pmo,liwan_crm,liwan_appointments,liwan_appointments_payments,liwan_inbox,liwan_inbox_payments \
-  --test-tags /liwan_core,/liwan_platform,/liwan_api,/liwan_ai,/liwan_ai_notify,/liwan_directory,/liwan_documents,/liwan_notify,/liwan_meetings,/liwan_operations,/liwan_pmo,/liwan_meetings_pmo,/liwan_operations_pmo,/liwan_pmo_ai,/liwan_hr,/liwan_access_hr,/liwan_documents_hr,/liwan_hr_operations,/liwan_integrations_sa,/liwan_finance,/liwan_hr_finance,/liwan_pmo_finance,/liwan_payments,/liwan_chat,/liwan_tasks,/liwan_tasks_pmo,/liwan_crm,/liwan_appointments,/liwan_appointments_payments,/liwan_inbox,/liwan_inbox_payments
+  --modules liwan_core,liwan_platform,liwan_api,liwan_ai,liwan_ai_notify,liwan_directory,liwan_documents,liwan_notify,liwan_meetings,liwan_operations,liwan_pmo,liwan_meetings_pmo,liwan_operations_pmo,liwan_pmo_ai,liwan_hr,liwan_access_hr,liwan_documents_hr,liwan_hr_operations,liwan_integrations_sa,liwan_finance,liwan_hr_finance,liwan_pmo_finance,liwan_payments,liwan_chat,liwan_tasks,liwan_tasks_pmo,liwan_crm,liwan_appointments,liwan_appointments_payments,liwan_inbox,liwan_inbox_payments,liwan_hr_ai,liwan_crm_ai,liwan_meetings_ai,liwan_tasks_ai,liwan_operations_ai,liwan_finance_ai \
+  --test-tags /liwan_core,/liwan_platform,/liwan_api,/liwan_ai,/liwan_ai_notify,/liwan_directory,/liwan_documents,/liwan_notify,/liwan_meetings,/liwan_operations,/liwan_pmo,/liwan_meetings_pmo,/liwan_operations_pmo,/liwan_pmo_ai,/liwan_hr,/liwan_access_hr,/liwan_documents_hr,/liwan_hr_operations,/liwan_integrations_sa,/liwan_finance,/liwan_hr_finance,/liwan_pmo_finance,/liwan_payments,/liwan_chat,/liwan_tasks,/liwan_tasks_pmo,/liwan_crm,/liwan_appointments,/liwan_appointments_payments,/liwan_inbox,/liwan_inbox_payments,/liwan_hr_ai,/liwan_crm_ai,/liwan_meetings_ai,/liwan_tasks_ai,/liwan_operations_ai,/liwan_finance_ai
 
 python3 deploy/check_isolated.py e2e \
   --worktree /absolute/worktree \
@@ -317,7 +318,7 @@ OCA_PATH=$(cd "$WORKTREE" && python3 -B tools/oca_addons.py path --check)
   --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
   -d liwan_drill_src_scratch --db-filter='^liwan_drill_src_scratch$' \
   --data-dir="$WORK/data" --without-demo=all \
-  -i liwan_core,liwan_platform,liwan_api,liwan_ai,liwan_ai_notify,liwan_directory,liwan_documents,liwan_notify,liwan_meetings,liwan_operations,liwan_pmo,liwan_meetings_pmo,liwan_operations_pmo,liwan_pmo_ai,liwan_hr,liwan_access_hr,liwan_documents_hr,liwan_hr_operations,liwan_integrations_sa,liwan_finance,liwan_hr_finance,liwan_pmo_finance,liwan_payments,liwan_chat,liwan_tasks,liwan_tasks_pmo,liwan_crm,liwan_appointments,liwan_appointments_payments,liwan_inbox,liwan_inbox_payments \
+  -i liwan_core,liwan_platform,liwan_api,liwan_ai,liwan_ai_notify,liwan_directory,liwan_documents,liwan_notify,liwan_meetings,liwan_operations,liwan_pmo,liwan_meetings_pmo,liwan_operations_pmo,liwan_pmo_ai,liwan_hr,liwan_access_hr,liwan_documents_hr,liwan_hr_operations,liwan_integrations_sa,liwan_finance,liwan_hr_finance,liwan_pmo_finance,liwan_payments,liwan_chat,liwan_tasks,liwan_tasks_pmo,liwan_crm,liwan_appointments,liwan_appointments_payments,liwan_inbox,liwan_inbox_payments,liwan_hr_ai,liwan_crm_ai,liwan_meetings_ai,liwan_tasks_ai,liwan_operations_ai,liwan_finance_ai \
   --http-port=8169 --http-interface=127.0.0.1 --workers=0 --max-cron-threads=0 --stop-after-init
 python3 deploy/backup.py --opt-in MANUAL_BACKUP_OPT_IN --acknowledge-unverified CANDIDATE_BACKUP_UNVERIFIED \
   --db-name liwan_drill_src_scratch --filestore "$WORK/data/filestore/liwan_drill_src_scratch" \

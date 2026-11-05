@@ -14,15 +14,15 @@ const { rows: attention } = useAttention(() => (start.value.kind === 'ready' ? i
 <template>
   <SharedPageContainer data-testid="app-start-page">
     <template v-if="start.kind === 'ready'">
-      <SharedPageHeader :title="t(start.labelKey)" :icon="start.icon" back-to="/apps" :back-label="t('nav.apps')">
+      <SharedPageHeader :title="t(start.labelKey)" :icon="start.icon" back-to="/" :back-label="t('nav.apps')">
         <template #actions><UButton :to="start.openTo" color="primary" class="rounded-full" :label="t('appStart.open')" data-testid="app-start-open" /></template>
       </SharedPageHeader>
       <AppsStartContent :attention="attention" :cards="start.cards" :creates="start.creates" />
     </template>
     <template v-else>
-      <SharedPageHeader :title="t('nav.apps')" back-to="/apps" />
+      <SharedPageHeader :title="t('nav.apps')" back-to="/" />
       <SharedForbiddenState v-if="start.kind === 'forbidden'" />
-      <SharedNotFoundState v-else back-to="/apps" :back-label="t('nav.apps')" />
+      <SharedNotFoundState v-else back-to="/" :back-label="t('nav.apps')" />
     </template>
   </SharedPageContainer>
 </template>

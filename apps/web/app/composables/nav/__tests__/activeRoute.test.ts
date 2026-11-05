@@ -20,13 +20,13 @@ describe('shell route classification', () => {
     expect(activeShellModule('/notification-digests/12')).toBeNull()
   })
 
-  it('lights the launcher on /apps and its start pages, and today on the root, with no context sidebar for either', () => {
-    expect(activeShellModule('/apps')).toBe('apps')
+  it('lights the start area on an application start page, and today on the root, with no context sidebar for either', () => {
     expect(activeShellModule('/apps/finance')).toBe('apps')
     expect(activeShellModule('/')).toBe('home')
-    expect(activeShellModule('/Apps')).toBe('apps')
-    expect(activeShellModule('/apps/')).toBe('apps')
-    expect(activeShellModule('/apps?q=a')).toBe('apps')
+    expect(activeShellModule('/Apps/finance')).toBe('apps')
+    expect(activeShellModule('/apps/finance/')).toBe('apps')
+    expect(activeShellModule('/apps/finance?q=a')).toBe('apps')
+    expect(activeShellModule('/apps')).toBeNull()
     expect(activeShellModule('/applications')).toBeNull()
     expect(contextModuleFor('apps')).toBeNull()
   })

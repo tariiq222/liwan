@@ -5,7 +5,7 @@ from odoo.http import request
 
 from odoo.addons.liwan_ai.models.access_service import AI_USE
 from odoo.addons.liwan_ai.serializers.audit import dump_audit_receipt
-from odoo.addons.liwan_ai.serializers.tool import dump_tool
+from odoo.addons.liwan_ai.serializers.tool import dump_agent, dump_tool
 from odoo.addons.liwan_ai.serializers.usage import dump_usage
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
@@ -38,10 +38,23 @@ class AiController(http.Controller):
     @requires_feature(AI_FEATURE, operation='read')
     def list_tools(self, **_):
         request.env['liwan.access.service']._liwan_require_capability(AI_USE)
+        mode = request.httprequest.args.get('mode')
+        if mode not in (None, 'setup'):
+            raise ApiError(422, 'invalid', 'mode must be setup or absent', field='mode')
         registry = request.env['liwan.ai.tool.registry']
-        items = [dump_tool(item) for item in registry._liwan_ai_tools_for_user()]
+        tools = registry._liwan_ai_tools_for_user(setup=mode == 'setup')
+        items = [dump_tool(item) for item in tools]
+        agents = [dump_agent(item) for item in registry._liwan_ai_agents_for_user(tools)]
         # tool_calls_per_run is enforced by the AI service/executor from this limits block, not by Odoo.
-        return {'items': items, 'total': len(items), 'limits': registry._liwan_ai_limits()}
+        return {'items': items, 'total': len(items), 'agents': agents, 'limits': registry._liwan_ai_limits()}
+
+    @http.route('/api/v1/ai/conversations/<string:conversation_id>/mode', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature(AI_FEATURE, operation='read')
+    def conversation_mode(self, conversation_id, **_):
+        """The mode a conversation of the caller started in, so a continued message keeps it whatever the browser says."""
+        request.env['liwan.access.service']._liwan_require_capability(AI_USE)
+        return {'mode': request.env['liwan.ai.audit']._liwan_ai_conversation_mode(conversation_id)}
 
     @http.route('/api/v1/ai/audit', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

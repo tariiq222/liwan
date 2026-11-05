@@ -1388,10 +1388,430 @@
         ],
         "type": "object"
       },
+      "AiAgentPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "memory": {
+            "type": "boolean"
+          },
+          "read_only": {
+            "type": "boolean"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "role_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "tools": {
+            "additionalProperties": {
+              "enum": [
+                "on",
+                "approval",
+                "off"
+              ],
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "type": "object"
+      },
+      "AiAgentSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "additionalProperties": false,
+            "properties": {
+              "ar": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "en": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "ar",
+              "en"
+            ],
+            "type": "object"
+          },
+          "instructions": {
+            "additionalProperties": false,
+            "properties": {
+              "ar": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "en": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "ar",
+              "en"
+            ],
+            "type": "object"
+          },
+          "key": {
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "memory": {
+            "type": "boolean"
+          },
+          "name": {
+            "additionalProperties": false,
+            "properties": {
+              "ar": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "en": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "ar",
+              "en"
+            ],
+            "type": "object"
+          },
+          "pages": {
+            "items": {
+              "pattern": "^[a-z][a-z_-]{0,39}$",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "description",
+          "instructions",
+          "pages",
+          "memory"
+        ],
+        "type": "object"
+      },
+      "AiAgentSettingSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "additionalProperties": false,
+            "properties": {
+              "ar": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "en": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "ar",
+              "en"
+            ],
+            "type": "object"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "key": {
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "memory": {
+            "type": "boolean"
+          },
+          "name": {
+            "additionalProperties": false,
+            "properties": {
+              "ar": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "en": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "ar",
+              "en"
+            ],
+            "type": "object"
+          },
+          "read_only": {
+            "type": "boolean"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "role_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "tools": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "description": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "ar": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "en": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ar",
+                    "en"
+                  ],
+                  "type": "object"
+                },
+                "external": {
+                  "type": "boolean"
+                },
+                "kind": {
+                  "enum": [
+                    "read",
+                    "write_light",
+                    "draft"
+                  ],
+                  "type": "string"
+                },
+                "mode": {
+                  "enum": [
+                    "on",
+                    "approval",
+                    "off"
+                  ],
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "kind",
+                "description",
+                "external",
+                "mode"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "description",
+          "enabled",
+          "read_only",
+          "memory",
+          "role_ids",
+          "revision",
+          "tools"
+        ],
+        "type": "object"
+      },
+      "AiAgentSettingsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "description": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "ar": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "en": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ar",
+                    "en"
+                  ],
+                  "type": "object"
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "key": {
+                  "pattern": "^[a-z][a-z0-9_]*$",
+                  "type": "string"
+                },
+                "memory": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "ar": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "en": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ar",
+                    "en"
+                  ],
+                  "type": "object"
+                },
+                "read_only": {
+                  "type": "boolean"
+                },
+                "revision": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "role_ids": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                "tools": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "description": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "ar": {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "en": {
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "ar",
+                          "en"
+                        ],
+                        "type": "object"
+                      },
+                      "external": {
+                        "type": "boolean"
+                      },
+                      "kind": {
+                        "enum": [
+                          "read",
+                          "write_light",
+                          "draft"
+                        ],
+                        "type": "string"
+                      },
+                      "mode": {
+                        "enum": [
+                          "on",
+                          "approval",
+                          "off"
+                        ],
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "kind",
+                      "description",
+                      "external",
+                      "mode"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "key",
+                "name",
+                "description",
+                "enabled",
+                "read_only",
+                "memory",
+                "role_ids",
+                "revision",
+                "tools"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
       "AiAuditKindSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
           "message",
+          "setup",
           "read",
           "write_light",
           "draft"
@@ -1436,6 +1856,10 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "agent": {
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
           "approved": {
             "anyOf": [
               {
@@ -1501,6 +1925,7 @@
           "kind": {
             "enum": [
               "message",
+              "setup",
               "read",
               "write_light",
               "draft"
@@ -1554,9 +1979,112 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
           "platform",
-          "tenant_key"
+          "tenant_key",
+          "setup"
         ],
         "type": "string"
+      },
+      "AiCompanyNoteListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "content": {
+                  "maxLength": 300,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "created_at": {
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "proposed_by": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "status": {
+                  "enum": [
+                    "proposed",
+                    "approved"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "content",
+                "status",
+                "proposed_by",
+                "created_at"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "AiCompanyNoteSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "proposed_by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "proposed",
+              "approved"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "content",
+          "status",
+          "proposed_by",
+          "created_at"
+        ],
+        "type": "object"
       },
       "AiConsentSignSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1801,6 +2329,56 @@
               "data": {
                 "additionalProperties": false,
                 "properties": {
+                  "agent": {
+                    "pattern": "^[a-z][a-z0-9_]*$",
+                    "type": "string"
+                  },
+                  "name": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "ar": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "en": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "ar",
+                      "en"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "agent",
+                  "name"
+                ],
+                "type": "object"
+              },
+              "event": {
+                "const": "agent",
+                "type": "string"
+              }
+            },
+            "required": [
+              "event",
+              "data"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "data": {
+                "additionalProperties": false,
+                "properties": {
+                  "agent": {
+                    "pattern": "^[a-z][a-z0-9_]*$",
+                    "type": "string"
+                  },
                   "call_id": {
                     "type": "string"
                   },
@@ -1819,6 +2397,9 @@
                     ],
                     "type": "string"
                   },
+                  "requires_approval": {
+                    "type": "boolean"
+                  },
                   "summary_ar": {
                     "type": "string"
                   },
@@ -1833,6 +2414,8 @@
                   "call_id",
                   "tool",
                   "kind",
+                  "agent",
+                  "requires_approval",
                   "input",
                   "summary_ar",
                   "summary_en"
@@ -2052,6 +2635,14 @@
           }
         ]
       },
+      "AiExternalSendSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "draft_only",
+          "approve"
+        ],
+        "type": "string"
+      },
       "AiKeyPutSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -2075,6 +2666,21 @@
           "provider",
           "model",
           "api_key"
+        ],
+        "type": "object"
+      },
+      "AiLeaverRetentionPutSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "leaver_retention_days": {
+            "maximum": 365,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "leaver_retention_days"
         ],
         "type": "object"
       },
@@ -2151,6 +2757,23 @@
             ],
             "type": "object"
           },
+          "setup_monthly": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "setup_used": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
           "tool_calls_per_run": {
             "anyOf": [
               {
@@ -2168,6 +2791,8 @@
           "tool_calls_per_run",
           "messages_monthly",
           "messages_used",
+          "setup_monthly",
+          "setup_used",
           "policy"
         ],
         "type": "object"
@@ -2179,7 +2804,8 @@
           "billing": {
             "enum": [
               "platform",
-              "tenant_key"
+              "tenant_key",
+              "setup"
             ],
             "type": "string"
           },
@@ -2291,6 +2917,43 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "agents": {
+            "additionalProperties": false,
+            "properties": {
+              "items": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "agent": {
+                      "pattern": "^[a-z][a-z0-9_]*$",
+                      "type": "string"
+                    },
+                    "calls": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "agent",
+                    "calls"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "total": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "items",
+              "total"
+            ],
+            "type": "object"
+          },
           "month": {
             "pattern": "^\\d{4}-\\d{2}$",
             "type": "string"
@@ -2431,7 +3094,80 @@
           "month",
           "totals",
           "users",
-          "tools"
+          "tools",
+          "agents"
+        ],
+        "type": "object"
+      },
+      "AiNoteListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "content": {
+                  "maxLength": 300,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "created_at": {
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "content",
+                "created_at"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "AiNoteSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "content",
+          "created_at"
         ],
         "type": "object"
       },
@@ -2680,6 +3416,10 @@
               {
                 "additionalProperties": false,
                 "properties": {
+                  "agent": {
+                    "pattern": "^[a-z][a-z0-9_]*$",
+                    "type": "string"
+                  },
                   "call_id": {
                     "type": "string"
                   },
@@ -2698,6 +3438,9 @@
                     ],
                     "type": "string"
                   },
+                  "requires_approval": {
+                    "type": "boolean"
+                  },
                   "tool": {
                     "type": "string"
                   }
@@ -2706,7 +3449,9 @@
                   "call_id",
                   "tool",
                   "kind",
-                  "input"
+                  "input",
+                  "agent",
+                  "requires_approval"
                 ],
                 "type": "object"
               },
@@ -2799,6 +3544,18 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "external_send": {
+            "enum": [
+              "draft_only",
+              "approve"
+            ],
+            "type": "string"
+          },
+          "messages_per_user_monthly": {
+            "maximum": 100000,
+            "minimum": 0,
+            "type": "integer"
+          },
           "provider_mode": {
             "enum": [
               "platform",
@@ -2813,7 +3570,6 @@
           }
         },
         "required": [
-          "provider_mode",
           "revision"
         ],
         "type": "object"
@@ -2895,6 +3651,18 @@
             ],
             "type": "object"
           },
+          "external_send": {
+            "enum": [
+              "draft_only",
+              "approve"
+            ],
+            "type": "string"
+          },
+          "messages_per_user_monthly": {
+            "maximum": 100000,
+            "minimum": 0,
+            "type": "integer"
+          },
           "provider_mode": {
             "enum": [
               "platform",
@@ -2974,6 +3742,8 @@
         },
         "required": [
           "provider_mode",
+          "messages_per_user_monthly",
+          "external_send",
           "revision",
           "consent",
           "usage"
@@ -3020,6 +3790,19 @@
             "maxLength": 8000,
             "minLength": 1,
             "type": "string"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "setup"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "run_id": {
             "anyOf": [
@@ -3105,6 +3888,11 @@
             ],
             "type": "object"
           },
+          "leaver_retention_days": {
+            "maximum": 365,
+            "minimum": 0,
+            "type": "integer"
+          },
           "platform": {
             "additionalProperties": false,
             "properties": {
@@ -3168,6 +3956,7 @@
         },
         "required": [
           "retention_days",
+          "leaver_retention_days",
           "key",
           "platform",
           "providers"
@@ -3183,10 +3972,23 @@
         ],
         "type": "string"
       },
+      "AiToolModeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "on",
+          "approval",
+          "off"
+        ],
+        "type": "string"
+      },
       "AiToolRequestSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "agent": {
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
           "call_id": {
             "type": "string"
           },
@@ -3205,6 +4007,9 @@
             ],
             "type": "string"
           },
+          "requires_approval": {
+            "type": "boolean"
+          },
           "summary_ar": {
             "type": "string"
           },
@@ -3219,6 +4024,8 @@
           "call_id",
           "tool",
           "kind",
+          "agent",
+          "requires_approval",
           "input",
           "summary_ar",
           "summary_en"
@@ -3296,6 +4103,9 @@
             "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
             "type": "string"
           },
+          "requires_approval": {
+            "type": "boolean"
+          },
           "result_summary": {
             "items": {
               "type": "string"
@@ -3341,7 +4151,8 @@
           "route",
           "input_map",
           "result_summary",
-          "draft_target"
+          "draft_target",
+          "requires_approval"
         ],
         "type": "object"
       },
@@ -3349,6 +4160,91 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "agents": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "description": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "ar": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "en": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ar",
+                    "en"
+                  ],
+                  "type": "object"
+                },
+                "instructions": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "ar": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "en": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ar",
+                    "en"
+                  ],
+                  "type": "object"
+                },
+                "key": {
+                  "pattern": "^[a-z][a-z0-9_]*$",
+                  "type": "string"
+                },
+                "memory": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "ar": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "en": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ar",
+                    "en"
+                  ],
+                  "type": "object"
+                },
+                "pages": {
+                  "items": {
+                    "pattern": "^[a-z][a-z_-]{0,39}$",
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "key",
+                "name",
+                "description",
+                "instructions",
+                "pages",
+                "memory"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
           "items": {
             "items": {
               "additionalProperties": false,
@@ -3420,6 +4316,9 @@
                   "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
                   "type": "string"
                 },
+                "requires_approval": {
+                  "type": "boolean"
+                },
                 "result_summary": {
                   "items": {
                     "type": "string"
@@ -3465,7 +4364,8 @@
                 "route",
                 "input_map",
                 "result_summary",
-                "draft_target"
+                "draft_target",
+                "requires_approval"
               ],
               "type": "object"
             },
@@ -3543,6 +4443,23 @@
                 ],
                 "type": "object"
               },
+              "setup_monthly": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "setup_used": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
               "tool_calls_per_run": {
                 "anyOf": [
                   {
@@ -3560,6 +4477,8 @@
               "tool_calls_per_run",
               "messages_monthly",
               "messages_used",
+              "setup_monthly",
+              "setup_used",
               "policy"
             ],
             "type": "object"
@@ -3573,6 +4492,7 @@
         "required": [
           "items",
           "total",
+          "agents",
           "limits"
         ],
         "type": "object"
@@ -3588,7 +4508,8 @@
                 "billing": {
                   "enum": [
                     "platform",
-                    "tenant_key"
+                    "tenant_key",
+                    "setup"
                   ],
                   "type": "string"
                 },
@@ -3696,7 +4617,8 @@
                 "billing": {
                   "enum": [
                     "platform",
-                    "tenant_key"
+                    "tenant_key",
+                    "setup"
                   ],
                   "type": "string"
                 },
@@ -3790,7 +4712,8 @@
           "billing": {
             "enum": [
               "platform",
-              "tenant_key"
+              "tenant_key",
+              "setup"
             ],
             "type": "string"
           },
@@ -3874,7 +4797,8 @@
           "billing": {
             "enum": [
               "platform",
-              "tenant_key"
+              "tenant_key",
+              "setup"
             ],
             "type": "string"
           },
@@ -99351,6 +100275,95 @@
         }
       }
     },
+    "/api/v1/ai/agents": {
+      "get": {
+        "operationId": "liwan_ai.AiAgentsController.list_agents.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_agents",
+        "tags": [
+          "liwan_ai"
+        ],
+        "x-liwan": {
+          "addon": "liwan_ai",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AiAgentsController",
+          "feature_keys": [],
+          "feature_operation": "read",
+          "handler": "list_agents",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/ai/agents/{key}": {
+      "patch": {
+        "operationId": "liwan_ai.AiAgentsController.update_agent.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "update_agent",
+        "tags": [
+          "liwan_ai"
+        ],
+        "x-liwan": {
+          "addon": "liwan_ai",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AiAgentsController",
+          "feature_keys": [],
+          "feature_operation": "write",
+          "handler": "update_agent",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/ai/audit": {
       "post": {
         "operationId": "liwan_ai.AiController.record_audit.post",
@@ -99384,6 +100397,44 @@
           "feature_keys": [],
           "feature_operation": "write",
           "handler": "record_audit",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/ai/company-memory/authorize": {
+      "post": {
+        "operationId": "liwan_ai.AiSettingsController.authorize_company_memory.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Names the company whose notes the caller may review: the current one, where they manage AI settings. The Nuxt",
+        "tags": [
+          "liwan_ai"
+        ],
+        "x-liwan": {
+          "addon": "liwan_ai",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AiSettingsController",
+          "feature_keys": [],
+          "feature_operation": "write",
+          "handler": "authorize_company_memory",
           "readonly": false,
           "route_type": "json2"
         }
@@ -99503,6 +100554,57 @@
         }
       }
     },
+    "/api/v1/ai/conversations/{conversation_id}/mode": {
+      "get": {
+        "operationId": "liwan_ai.AiController.conversation_mode.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The mode a conversation of the caller started in, so a continued message keeps it whatever the browser says.",
+        "tags": [
+          "liwan_ai"
+        ],
+        "x-liwan": {
+          "addon": "liwan_ai",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AiController",
+          "feature_keys": [],
+          "feature_operation": "read",
+          "handler": "conversation_mode",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/ai/monitoring": {
       "get": {
         "operationId": "liwan_ai.AiSettingsController.read_monitoring.get",
@@ -99610,6 +100712,95 @@
           "feature_keys": [],
           "feature_operation": "write",
           "handler": "write_settings",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/ai/setup/settings": {
+      "get": {
+        "operationId": "liwan_ai.AiSetupController.list_settings.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_settings",
+        "tags": [
+          "liwan_ai"
+        ],
+        "x-liwan": {
+          "addon": "liwan_ai",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AiSetupController",
+          "feature_keys": [],
+          "feature_operation": "read",
+          "handler": "list_settings",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/ai/setup/settings/{key}": {
+      "post": {
+        "operationId": "liwan_ai.AiSetupController.apply_setting.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "apply_setting",
+        "tags": [
+          "liwan_ai"
+        ],
+        "x-liwan": {
+          "addon": "liwan_ai",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AiSetupController",
+          "feature_keys": [],
+          "feature_operation": "write",
+          "handler": "apply_setting",
           "readonly": false,
           "route_type": "json2"
         }

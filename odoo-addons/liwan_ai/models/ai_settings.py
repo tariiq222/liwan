@@ -2,6 +2,10 @@
 from odoo import api, fields, models
 
 PROVIDER_MODES = ('platform', 'tenant_key')
+# How the assistant may reach an outside party (a customer's WhatsApp, an email): prepare a draft the employee sends,
+# or send after the employee approves (spec 2026-11-04 §6.9).
+EXTERNAL_SEND_MODES = ('draft_only', 'approve')
+MAX_MESSAGES_PER_USER = 100_000
 
 
 class LiwanAiSettings(models.Model):
@@ -17,6 +21,9 @@ class LiwanAiSettings(models.Model):
     _liwan_scope = 'tenant'
 
     provider_mode = fields.Selection([(mode, mode) for mode in PROVIDER_MODES], required=True, default='platform')
+    # 0 means no cap per user beyond the package's monthly messages.
+    messages_per_user_monthly = fields.Integer(required=True, default=0)
+    external_send = fields.Selection([(mode, mode) for mode in EXTERNAL_SEND_MODES], required=True, default='draft_only')
     revision = fields.Integer(required=True, default=1)
 
     @api.model

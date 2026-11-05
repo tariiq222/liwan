@@ -13,8 +13,8 @@ export default defineAppConfig({
     tv: { twMergeConfig: { extend: { theme: { radius: ['card', 'control'] } } } },
 
     // The 32px control floor applies to the default (md) size only; xs/sm stay compact.
-    // The solid primary paints from --primary-solid (#5b3f8c light, #7c5cc4 dark, white label >= 4.5:1); the accent
-    // --primary (#c9bbee in dark mode) is for fills, icons and rings without text. text-primary and focus keep --brand-link.
+    // The solid primary paints from --primary-solid (#7843c6 in both modes, white label 6.15:1); the accent
+    // --primary (#c2aae5 in dark mode) is for fills, icons and rings without text. text-primary and focus keep --brand-link.
     button: { slots: { base: 'rounded-full transition-colors duration-150 motion-reduce:transition-none' }, variants: { size: { md: { base: 'min-h-(--liwan-control-h)' } } }, compoundVariants: [{ size: 'md', square: true, class: 'min-w-(--liwan-control-h)' }, { color: 'primary', variant: 'solid', class: 'bg-(--primary-solid) text-(--primary-solid-foreground) hover:bg-(--primary-solid-hover) hover:text-(--primary-solid-hover-foreground) active:bg-(--primary-solid-active) active:text-(--primary-solid-active-foreground) disabled:bg-(--primary-solid) aria-disabled:bg-(--primary-solid)' }] },
     input: { slots: { base: 'rounded-control bg-default' }, variants: { size: { md: { base: 'min-h-(--liwan-control-h)' } } } },
     inputNumber: { slots: { base: 'rounded-control bg-default' }, variants: { size: { md: { base: 'min-h-(--liwan-control-h)' } } } },
