@@ -9,9 +9,10 @@ from pathlib import Path
 import app_isolation
 
 RANKS = {'liwan_core': 0, 'liwan_platform': 1, 'liwan_api': 2, 'liwan_directory': 3, 'liwan_ai': 3,
-         'app_a': 4, 'app_b': 4, 'app_c': 4, 'a_b': 5, 'b_ai': 5, 'api_c': 5}
+         'app_a': 4, 'app_b': 4, 'app_c': 4, 'a_b': 5, 'b_ai': 5, 'api_c': 5, 'dir_ai': 5}
 DEPENDS = {'liwan_api': ['liwan_platform'], 'app_a': ['liwan_api', 'project'], 'app_b': ['liwan_api', 'liwan_directory'], 'app_c': ['liwan_api'],
-           'a_b': ['app_a', 'app_b'], 'b_ai': ['app_b', 'liwan_ai', 'mail'], 'api_c': ['liwan_api', 'app_c']}
+           'a_b': ['app_a', 'app_b'], 'b_ai': ['app_b', 'liwan_ai', 'mail'], 'api_c': ['liwan_api', 'app_c'],
+           'dir_ai': ['liwan_directory', 'liwan_ai']}
 
 
 class Fixture(unittest.TestCase):
@@ -95,7 +96,7 @@ class AffectedTest(Fixture):
 
     def test_no_filter_keeps_every_module(self):
         groups = app_isolation.matrix('bridges', self.layers, self.addons)
-        self.assertEqual(sorted(' '.join(groups).split()), ['a_b', 'api_c', 'b_ai'])
+        self.assertEqual(sorted(' '.join(groups).split()), ['a_b', 'api_c', 'b_ai', 'dir_ai'])
 
 
 class CheckTest(Fixture):
@@ -118,6 +119,12 @@ class CheckTest(Fixture):
     def test_the_target_must_be_installed(self):
         with self.assertRaisesRegex(app_isolation.IsolationError, 'did not install app_a'):
             self.check('app_a', ['liwan_core'])
+
+    def test_a_bridge_between_two_shared_services_of_the_run_belongs_to_it(self):
+        # app_b pulls liwan_directory in and b_ai adds liwan_ai: their bridge auto-installs with that run.
+        self.check('b_ai', ['liwan_core', 'liwan_directory', 'liwan_ai', 'app_b', 'b_ai', 'dir_ai'])
+        with self.assertRaisesRegex(app_isolation.IsolationError, 'dir_ai'):
+            self.check('app_a', ['liwan_core', 'liwan_directory', 'app_a', 'dir_ai'])
 
     def test_a_bridge_run_requires_the_bridge_and_both_sides(self):
         self.check('a_b', ['app_a', 'app_b', 'a_b'])
