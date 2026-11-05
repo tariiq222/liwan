@@ -167,6 +167,12 @@
       ]
     },
     {
+      "reason": "TikTok webhook (machine to machine): TikTok signs every POST with HMAC-SHA256 over the timestamp and raw body using the app secret; the route runs as the inactive inbox hook identity that may only read channels and create raw events.",
+      "routes": [
+        "liwan_inbox/controllers/tiktok_hooks.py:receive"
+      ]
+    },
+    {
       "reason": "Public catalog product image under /api/v1/public/ (auth='public', no session): authorized by the item's own random image token, compared in constant time; no user and no capability exist for Meta's fetcher.",
       "routes": [
         "liwan_inbox_payments/controllers/images.py:product_image"
