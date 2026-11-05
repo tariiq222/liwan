@@ -3,7 +3,7 @@
   "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
   "id": "platform_v4",
   "name": "liwan Platform",
-  "description": "Operations application release revision; earlier catalog revisions remain unchanged.",
+  "description": "Operations application release revision; meetings, documents, operations and the AI assistant join the always-included platform base. Earlier catalog revisions remain unchanged.",
   "industry": "none",
   "base_modules": [
     "liwan_core",
@@ -14,28 +14,37 @@
     {
       "id": "core",
       "name": "Core",
-      "description": "Base modules only: the platform, its capability catalog and the shared API.",
-      "modules": [],
+      "description": "Base modules and the always-included applications: the platform, its capability catalog, the shared API, meetings, documents, operations and the AI assistant.",
+      "modules": [
+        "liwan_ai",
+        "liwan_documents",
+        "liwan_meetings",
+        "liwan_operations"
+      ],
       "features": [
         "limit:users.limit",
         "limit:storage.limit_mb",
-        "limit:branches.extra_limit:0"
+        "limit:branches.extra_limit:0",
+        "boolean:meetings.enabled",
+        "boolean:documents.enabled",
+        "boolean:operations.enabled",
+        "boolean:ai.enabled",
+        "limit:ai.messages.monthly",
+        "limit:ai.tool_calls.per_run"
       ]
     },
     {
       "id": "projects",
       "name": "Projects",
-      "description": "The project and meeting applications.",
+      "description": "The project management application.",
       "modules": [
-        "liwan_pmo",
-        "liwan_meetings"
+        "liwan_pmo"
       ],
       "features": [
         "boolean:pmo.enabled",
         "boolean:pmo.change_control",
         "boolean:pmo.baselines",
         "boolean:pmo.evm",
-        "boolean:meetings.enabled",
         "limit:projects.max_projects"
       ]
     },
@@ -111,41 +120,6 @@
       ],
       "features": [
         "boolean:tasks.enabled"
-      ]
-    },
-    {
-      "id": "operations",
-      "name": "Operations",
-      "description": "The Operations application.",
-      "modules": [
-        "liwan_operations"
-      ],
-      "features": [
-        "boolean:operations.enabled"
-      ]
-    },
-    {
-      "id": "assistant",
-      "name": "LiwanOS AI",
-      "description": "The LiwanOS AI assistant: tool registry, audit log and message limits.",
-      "modules": [
-        "liwan_ai"
-      ],
-      "features": [
-        "boolean:ai.enabled",
-        "limit:ai.messages.monthly",
-        "limit:ai.tool_calls.per_run"
-      ]
-    },
-    {
-      "id": "documents",
-      "name": "Documents",
-      "description": "The Documents application.",
-      "modules": [
-        "liwan_documents"
-      ],
-      "features": [
-        "boolean:documents.enabled"
       ]
     },
     {

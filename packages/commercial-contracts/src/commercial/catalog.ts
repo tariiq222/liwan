@@ -8,7 +8,7 @@ type Solution = { schema_version?: unknown; descriptor_grammar?: unknown; base_m
 
 const NAMES: Record<string, [string, string]> = {
   core: ['المنصة', 'Platform'],
-  projects: ['المشاريع والاجتماعات', 'Projects & meetings'],
+  projects: ['المشاريع', 'Projects'],
   people: ['الموارد البشرية', 'People'],
   messaging: ['المحادثات', 'Messaging'],
 }
@@ -49,7 +49,7 @@ export function catalogApplicationsFromSolution(solution: Solution, _version: st
     ]
     return {
       id: tier.id, name_ar, name_en,
-      modules: core ? base : [...(tier.modules ?? [])].sort(),
+      modules: [...new Set([...(core ? base : []), ...(tier.modules ?? [])])].sort(),
       requires_apps: [], conflicts_with_apps: [], selectable: !core,
       features: specs.map(({ kind, key, ceiling }): CatalogFeature => ({
         key, kind, selectable: kind === 'boolean' && !core, requires: [], enforcement_refs: enforcementRefs(key),

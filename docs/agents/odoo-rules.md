@@ -49,6 +49,10 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   `_liwan_close_unlisted_features`, and `liwan.tenant.profile._register_hook`
   registers a newly installed application's keys closed. Usage is collected per
   limit key; removing an application is not a downgrade below usage.
+  Meetings, documents, operations and the AI assistant belong to the always-included
+  platform base (catalog tier `core`, owner decision 2026-11-05), not to a bundle; their
+  limits (`ai.messages.monthly`, `ai.tool_calls.per_run`) are platform limits every plan sets
+  explicitly (`null` is unlimited). The `projects` tier is PMO only.
 - Branding source of truth is `res.company`; `deploy/branding.json` seeds it.
   The public branding response is cached. The customer UI edits and sends only
   `primary_color`, and ignores stored secondary colour for rendering. The API

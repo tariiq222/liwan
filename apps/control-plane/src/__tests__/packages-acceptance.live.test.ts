@@ -65,7 +65,7 @@ suite('spec 3.6 acceptance: plans flip keys and limits on a tenant with every ap
     return published.body
   }
   const plan = (name: string, bundles: string[], users: number) => publish('plans', { name, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
-    prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: {}, included_bundle_revision_ids: bundles,
+    prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: { 'ai.messages.monthly': null, 'ai.tool_calls.per_run': null }, included_bundle_revision_ids: bundles,
     optional_bundle_revision_ids: [], included_extra_branches: 0, extra_branch_prices: [{ cadence: monthly, amount: money(5000) }], extra_branches_limit: 0, included_users: users, included_storage_mb: 1000, user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }],
     policy_revision_id: POLICY, trial_days: 0, grace_days: 0, auto_suspend: true, auto_renew_allowed: true })
   /** Real collector pass over the real Odoo observation (a downgrade or reopen quote needs a fresh sample). */
@@ -116,7 +116,7 @@ suite('spec 3.6 acceptance: plans flip keys and limits on a tenant with every ap
     state.release = release
     const bundle = (id: string, keys: string[], limits: Record<string, number> = {}) => publish('bundles', { name: `${id} ${randomUUID()}`, description: id, audience: { kind: 'public' },
       catalog_release_id: release.id, selections: [{ app_id: id, feature_keys: keys }], domain_limits: limits, prices: [{ cadence: monthly, amount: money(0) }] })
-    state.projects = await bundle('projects', ['pmo.enabled', 'meetings.enabled'], { 'projects.max_projects': 5 })
+    state.projects = await bundle('projects', ['pmo.enabled'], { 'projects.max_projects': 5 })
     state.people = await bundle('people', ['hr.enabled'])
     state.probe = await bundle('probe', ['probe.enabled'])
     console.log('ACCEPT_4 (keys + catalog tier, API level)', JSON.stringify({ app: probe.id, features: probe.features.map((f: any) => f.key), bundle: state.probe.id }))
