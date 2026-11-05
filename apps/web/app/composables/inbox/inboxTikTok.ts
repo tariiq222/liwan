@@ -118,7 +118,8 @@ export function useEnableInboxTikTokShortcuts(channelId: MaybeRefOrGetter<number
     mutationFn: (body: InboxTikTokShortcutEnable) => $api(`${shortcutsPath(id.value)}/enable`, {
       method: 'POST', body, schema: InboxTikTokShortcutEnableResultSchema,
     }),
-    onSuccess: (answer) => { qc.setQueryData(inboxTikTokKeys.shortcuts(id.value), answer) },
+    // The answer carries the switch state too; the list query keeps only its items.
+    onSuccess: answer => qc.setQueryData(inboxTikTokKeys.shortcuts(id.value), { items: answer.items, total: answer.total }),
   })
 }
 
