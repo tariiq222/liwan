@@ -35,11 +35,11 @@
   /* Official Nuxt UI radius token: 6px base (Apple-style soft corners), so rounded-md = 9px, rounded-lg = 12px and rounded-xl = 18px. */
   --ui-radius: 0.428571rem;
   /* Fixed LiwanOS primary family; nothing overwrites it at runtime. */
-  --primary: #5b3f8c;
+  --primary: #7843c6;
   --primary-foreground: #fff;
-  --primary-hover: #4a3374;
+  --primary-hover: #6639a8;
   --primary-hover-foreground: #fff;
-  --primary-active: #3e2b63;
+  --primary-active: #56308f;
   --primary-active-foreground: #fff;
   /* Text-bearing solid fills (white label) use the deeper --primary-solid family; --primary stays the accent. */
   --primary-fill: var(--primary-solid);
@@ -50,18 +50,18 @@
   --primary-fill-active-foreground: var(--primary-solid-active-foreground);
   --primary-soft: color-mix(in srgb, var(--primary) 12%, var(--ui-bg));
   --primary-soft-foreground: var(--ui-text);
-  /* Solid primary button: #5b3f8c under white text is 8.29:1 (hover 10.41:1, active 12.13:1); dark mode overrides the family. */
-  --primary-solid: #5b3f8c;
+  /* Solid primary button: #7843c6 under white text is 6.15:1 (hover 7.73:1, active 9.48:1); dark mode overrides the family. */
+  --primary-solid: #7843c6;
   --primary-solid-foreground: #fff;
-  --primary-solid-hover: #4a3374;
+  --primary-solid-hover: #6639a8;
   --primary-solid-hover-foreground: #fff;
-  --primary-solid-active: #3e2b63;
+  --primary-solid-active: #56308f;
   --primary-solid-active-foreground: #fff;
-  --brand-link: #5b3f8c;
+  --brand-link: #7843c6;
   --brand-soft: color-mix(in srgb, var(--primary) 8%, var(--ui-bg));
   --brand-border: color-mix(in srgb, var(--primary) 24%, var(--ui-border));
   /* Charts: a fixed categorical palette. */
-  --chart-1: #5b3f8c;
+  --chart-1: #7843c6;
   --chart-2: #0f766e;
   --chart-3: #a16207;
   --chart-4: #be185d;
@@ -115,7 +115,7 @@
   /* Round icon chips (rail circles on hover, context sidebar links). */
   --liwan-chip: #f5efe3;
   --liwan-chip-active: #ffffff;
-  --liwan-rail-active-ink: #5b3f8c;
+  --liwan-rail-active-ink: #7843c6;
   /* Floating shell cards (header, rail, context sidebar) lift off the canvas with these shadows; the active context link is tinted. */
   --liwan-shell-shadow: 0 12px 32px rgb(20 16 42 / 8%);
   --liwan-rail-shadow: 0 12px 32px rgb(20 16 42 / 10%);
@@ -216,32 +216,32 @@
   --liwan-canvas: #0e0b1f;
   --liwan-sand: #d2c3a3;
   --liwan-table-head: var(--ui-bg-muted);
-  /* Accent lavender #c9bbee for icons, rings and text; the text-bearing fill is #7c5cc4 under white (5.02:1). */
-  --primary: #c9bbee;
+  /* Accent lavender #c2aae5 for icons, rings and text; the text-bearing fill is #7843c6 under white (6.15:1). */
+  --primary: #c2aae5;
   --primary-foreground: #14102a;
-  --primary-hover: #b7a5e8;
+  --primary-hover: #b598e0;
   --primary-hover-foreground: #14102a;
-  --primary-active: #a592dc;
+  --primary-active: #a785da;
   --primary-active-foreground: #14102a;
-  --primary-solid: #7c5cc4;
-  --primary-solid-hover: #6a49b3;
-  --primary-solid-active: #5b3f8c;
+  --primary-solid: #7843c6;
+  --primary-solid-hover: #6639a8;
+  --primary-solid-active: #56308f;
   /* The rail stays a surface step clearly lighter than the page canvas, with an edge line (shell.css). */
   --liwan-rail-border: #352e5c;
   --liwan-rail-ink: #d2c3a3;
   --liwan-rail-active: #2e2852;
   --liwan-chip: #231e42;
   --liwan-chip-active: #14102a;
-  --liwan-rail-active-ink: #c9bbee;
+  --liwan-rail-active-ink: #c2aae5;
   --liwan-shell-shadow: 0 12px 32px rgb(0 0 0 / 35%);
   --liwan-rail-shadow: 0 12px 32px rgb(0 0 0 / 35%);
   --liwan-nav-active: #2a2350;
   --liwan-row-hover: #1e1938;
   /* Brand tone on dark surfaces: 4.5:1 on every surface, hue kept (fixed values). */
-  --brand-link: #c9bbee;
-  --ring: #c9bbee;
-  --sidebar-ring: #c9bbee;
-  --chart-1: #c9bbee;
+  --brand-link: #c2aae5;
+  --ring: #c2aae5;
+  --sidebar-ring: #c2aae5;
+  --chart-1: #c2aae5;
   --chart-2: #2dd4bf;
   --chart-3: #fbbf24;
   --chart-4: #f472b6;

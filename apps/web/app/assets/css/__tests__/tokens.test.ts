@@ -68,7 +68,7 @@ describe('solid primary', () => {
   it('tokens.css :root declares one text-bearing solid primary for both modes, deeper than the accent', () => {
     const found = declarations(ruleBodies(sheet('tokens.css'), ':root'))
     expect(found.get('--primary')?.toLowerCase()).toBe(LIWAN_PRIMARY)
-    const solid = { '--primary-solid': LIWAN_PRIMARY, '--primary-solid-hover': '#4a3374', '--primary-solid-active': '#3e2b63' }
+    const solid = { '--primary-solid': LIWAN_PRIMARY, '--primary-solid-hover': '#6639a8', '--primary-solid-active': '#56308f' }
     for (const [token, value] of Object.entries(solid)) {
       expect(found.get(token)?.toLowerCase(), token).toBe(value)
       expect(contrastRatio('#ffffff', value), `${token} under white text`).toBeGreaterThanOrEqual(4.5)
@@ -177,7 +177,7 @@ describe('approved lavender and sand palette', () => {
     for (const surface of ['#ffffff', LIGHT_CANVAS, LIGHT_SAND]) expect(contrastRatio(LIGHT_MUTED_TEXT, surface), surface).toBeGreaterThanOrEqual(4.5)
   })
 
-  it('declares the dark lavender accent and the 5.02:1 text-bearing fill', () => {
+  it('declares the dark lavender accent and the 6.15:1 text-bearing fill', () => {
     const found = dark()
     for (const token of ['--primary', '--brand-link', '--ring', '--sidebar-ring', '--liwan-rail-active-ink']) expect(hex(found.get(token)), token).toBe(DARK_PRIMARY_ACCENT)
     expect(hex(found.get('--primary-solid'))).toBe(DARK_PRIMARY_FILL)

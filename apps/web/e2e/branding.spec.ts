@@ -99,7 +99,7 @@ test('document colour draft cancels, resets, and saves explicitly without themin
   }
   page.on('request', onResetRequest)
   await page.getByTestId('branding-preset').first().click()
-  await expect(colour).toHaveValue('#5b3f8c')
+  await expect(colour).toHaveValue('#7843c6')
   page.off('request', onResetRequest)
   expect(resetPatchCount).toBe(0)
 
