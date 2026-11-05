@@ -4,7 +4,8 @@
 Odoo's own ``base/i18n/ar.po`` gives these countries their English name as the Arabic text, and their
 records are ``noupdate``: a translation file of ours can never replace an existing value there. The names
 are therefore written each time Arabic terms are loaded (module install, Arabic activation, translation
-update), after the stock loader has run.
+update), after the stock loader has run. A name only replaces Odoo's English placeholder, so an Arabic name the
+company has edited itself is kept.
 """
 from odoo import models
 
@@ -44,4 +45,6 @@ class LiwanApiResCountry(models.Model):
 
     def _liwan_write_arabic_names(self):
         for xmlid, name in ARABIC_COUNTRY_NAMES.items():
-            self.env.ref(xmlid).with_context(lang=ARABIC).name = name
+            country = self.env.ref(xmlid).with_context(lang=ARABIC)
+            if country.name == country.with_context(lang='en_US').name:
+                country.name = name

@@ -24,6 +24,9 @@ class TestCountryArabicNames(TransactionCase):
         self.env.invalidate_all()
         self.assertEqual(self.env.ref('base.tr').with_context(lang='ar_001').name, 'تركيا')
 
-    def test_names_missing_from_odoo_come_from_liwan(self):
-        self.assertEqual(self.env.ref('base.tr').with_context(lang='ar_001').name, 'تركيا')
-        self.assertEqual(self.env.ref('base.sz').with_context(lang='ar_001').name, 'إسواتيني')
+    def test_an_arabic_name_the_company_edited_is_kept(self):
+        country = self.env.ref('base.sz').with_context(lang='ar_001')
+        country.name = 'مملكة إسواتيني'
+        self.env['ir.module.module'].search([('name', '=', 'liwan_api')])._update_translations(['ar_001'])
+        self.env.invalidate_all()
+        self.assertEqual(country.name, 'مملكة إسواتيني')
