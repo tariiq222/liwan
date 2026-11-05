@@ -42,6 +42,8 @@ class LiwanInboxInbound(models.AbstractModel):
                 changed |= self._liwan_ingest_tiktok_read(channel, item)
             elif isinstance(item, tiktok.Referral):
                 changed |= self._liwan_ingest_tiktok_referral(channel, item)
+            elif isinstance(item, tiktok.AutoMessageChanged):
+                channel._liwan_tiktok_refresh_audit()
             elif isinstance(item, tiktok.EuNotice):
                 # TikTok sends no content for a sender in the EEA, Switzerland or the UK (D8); the history import
                 # fetches it, so this notice is only a dispatch point today (E6.2).

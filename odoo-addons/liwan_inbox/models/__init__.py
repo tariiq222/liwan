@@ -52,5 +52,6 @@ from . import (
     settings_campaign,
     template,
     template_day,
+    tiktok_shortcut,
     working_hours,
 )

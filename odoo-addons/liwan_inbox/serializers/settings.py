@@ -92,3 +92,19 @@ def dump_channel(channel, callback_url):
         'last_event_at': iso(channel.last_event_at),
         'health': dump_health(channel),
     }
+
+
+def dump_tiktok_shortcut(shortcut):
+    """One TikTok suggested question or chat prompt (the final contract is E7.2's)."""
+    return {
+        'id': shortcut.id,
+        'kind': shortcut.kind,
+        'sequence': shortcut.sequence,
+        'question': shortcut.question or None,
+        'answer': shortcut.answer or None,
+        'title': shortcut.title or None,
+        'content': shortcut.content or None,
+        'provider_id': shortcut.provider_id or None,
+        'audit': shortcut.audit,
+        'sync_error': shortcut.sync_error or None,
+    }

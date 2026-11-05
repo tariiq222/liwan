@@ -14,6 +14,7 @@ from odoo.exceptions import UserError, ValidationError
 from . import secret_box
 from .channel import INVALID, SECRET_GROUPS
 from .constants import TIKTOK_TOKEN_MARGIN
+from .tiktok_shortcut import AUDIT_STATUSES, AUTO_TYPES, ENABLED_FIELDS
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_inbox.adapters import errors, tiktok
 
@@ -34,6 +35,10 @@ class LiwanInboxChannel(models.Model):
     )
     # Whether the shared relay holds this account's binding (D13); only the shared SaaS topology has one.
     tiktok_bound = fields.Boolean(default=False, copy=False)
+    # Suggested questions and chat prompts (D10): LiwanOS holds the items and mirrors them to TikTok.
+    tiktok_questions_enabled = fields.Boolean(default=False, copy=False)
+    tiktok_prompts_enabled = fields.Boolean(default=False, copy=False)
+    tiktok_shortcut_ids = fields.One2many('liwan.inbox.tiktok.shortcut', 'channel_id')
 
     _tiktok_business_id_unique = models.Constraint(
         'UNIQUE(tiktok_business_id)', 'This TikTok business account is already connected.',
@@ -140,3 +145,48 @@ class LiwanInboxChannel(models.Model):
         except errors.ProviderError as error:
             raise UserError(str(error)) from error
         self.tiktok_welcome_audit = 'reviewing'
+
+    def _liwan_tiktok_set_enabled(self, kind, enabled):
+        """Switch one kind of automatic message on or off; enabling recreates every stored item.
+
+        TikTok disables every existing item of the kind when the kind is enabled, so the stored items are
+        created again (a new provider id) instead of being updated.
+        """
+        self.ensure_one()
+        credentials = self._liwan_credentials()
+        tiktok.set_auto_message_status(credentials, AUTO_TYPES[kind], enabled)
+        self.write({ENABLED_FIELDS[kind]: enabled})
+        if not enabled:
+            return
+        for shortcut in self.tiktok_shortcut_ids.filtered(lambda shortcut: shortcut.kind == kind):
+            shortcut.write({'provider_id': False, 'audit': 'draft', 'sync_error': False})
+            shortcut._liwan_push()
+
+    def _liwan_tiktok_refresh_audit(self):
+        """Read TikTok's audit answer and enabled status back for the welcome, the questions and the prompts."""
+        self.ensure_one()
+        credentials = self._liwan_credentials()
+        if self.tiktok_welcome_id:
+            _enabled, audits = self._liwan_tiktok_auto_messages(credentials, 'WELCOME_MESSAGE')
+            self.tiktok_welcome_audit = audits.get(self.tiktok_welcome_id) or self.tiktok_welcome_audit
+        for kind, auto_type in AUTO_TYPES.items():
+            shortcuts = self.tiktok_shortcut_ids.filtered(
+                lambda shortcut: shortcut.kind == kind and shortcut.provider_id,
+            )
+            if not shortcuts and not self[ENABLED_FIELDS[kind]]:
+                continue
+            enabled, audits = self._liwan_tiktok_auto_messages(credentials, auto_type)
+            self[ENABLED_FIELDS[kind]] = enabled
+            for shortcut in shortcuts:
+                audit = audits.get(shortcut.provider_id)
+                if audit:
+                    shortcut.audit = audit
+
+    def _liwan_tiktok_auto_messages(self, credentials, auto_type):
+        """(whether TikTok has this kind enabled, {auto message id: audit status})."""
+        status, items = tiktok.get_auto_messages(credentials, auto_type)
+        audits = {
+            item.get('auto_message_id'): AUDIT_STATUSES.get(str(item.get('audit_status') or '').upper())
+            for item in items
+        }
+        return status == 'ENABLE', audits
