@@ -2119,12 +2119,12 @@
     },
     "providerError": {
       "tokenInvalid": "Meta access token is invalid. Update the channel token.",
-      "rateLimited": "Meta is throttling sends (rate limit). It will retry.",
+      "rateLimited": "Meta temporarily refused the send: the messaging limit was exceeded.",
       "windowClosed": "The 24-hour reply window is closed. Send an approved template.",
-      "unreachable": "Meta is unreachable (network). It will retry.",
+      "unreachable": "Meta could not be reached because of a network problem.",
       "recipient": "The number is not a valid WhatsApp recipient.",
       "unknown": "Meta: {message}",
-      "uncertain": "Meta did not confirm the send. Check that it arrived before retrying."
+      "uncertain": "Meta did not confirm the send. Check whether it arrived before sending it again."
     }
   },
   "errors": {
