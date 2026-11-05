@@ -13,7 +13,7 @@ import AiLimitNotice from '@/components/ai/AiLimitNotice.vue'
 import AiMessage from '@/components/ai/AiMessage.vue'
 import AiRecordCards from '@/components/ai/AiRecordCards.vue'
 import AiToolTrace from '@/components/ai/AiToolTrace.vue'
-import { useAiRun } from '@/composables/useAiRun'
+import { isBlockingLimit, useAiRun } from '@/composables/useAiRun'
 import { useAttention } from '@/composables/useAttention'
 import { useAiConversation } from '@/composables/useAiConversation'
 import { aiRunKeys, useAiRuns } from '@/composables/useAiRuns'
@@ -45,7 +45,7 @@ const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
 const context = computed(() => parseAiContext(route.query.context))
 const streaming = computed(() => status.value === 'streaming')
 // A pending card is answered before another message: the service holds one pending call per run.
-const composerDisabled = computed(() => !hydrated.value || limit.value === 'messages_monthly' || status.value === 'waiting_user')
+const composerDisabled = computed(() => !hydrated.value || isBlockingLimit(limit.value) || status.value === 'waiting_user')
 // Only the newest pending confirm/draft card is the page's one `action` block (DESIGN.md); older pending ones are tinted.
 const latestPending = computed(() => latestPendingIndex(items.value))
 const conversation = computed(() => items.value.length > 0)

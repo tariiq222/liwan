@@ -11,12 +11,12 @@ from langchain_core.messages import AIMessage
 
 from liwan_ai_service import service
 from liwan_ai_service.control import StateCompatibilityError
-from liwan_ai_service.service import graph_factory
 from liwan_ai_service.settings import Settings
 from liwan_ai_service.store import EXECUTING, MemoryRunStore
 from liwan_ai_service.tenancy import UnknownTenant
 from liwan_ai_service.tenant_state import TenantStateUnavailable
 from tests.fakes import (
+    PLATFORM_POLICY,
     FailingChatModel,
     RenamingChatModel,
     ScriptedChatModel,
@@ -34,7 +34,7 @@ from tests.test_contracts import DRAFT_TOOL, READ_TOOL
 HEADERS = {"X-Liwan-Tenant": "t1", "X-Liwan-User": "42"}
 BODY = {
     "tenant": "t1", "user_ref": "42", "locale": "ar", "message": "وش مهامي؟", "context": {"page": "project", "id": 1},
-    "tools": [READ_TOOL, DRAFT_TOOL], "limits": {"max_steps": 6, "max_tool_calls": 2, "timeout_seconds": 60},
+    "tools": [READ_TOOL, DRAFT_TOOL], "limits": {"max_steps": 6, "max_tool_calls": 2, "timeout_seconds": 60}, "policy": PLATFORM_POLICY,
 }
 
 
@@ -81,7 +81,7 @@ async def test_run_streams_a_tool_request_then_resumes_to_an_answer(client_facto
         assert status["status"] == "waiting_tool" and status["pending"]["tool"] == "pmo.list_my_tasks"
         assert status["messages"][0] == {"role": "user", "content": "وش مهامي؟"}
 
-        resumed = await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "result": {"ok": True, "data": {"items": [{"id": 5, "name": "تقرير"}], "total": 1}}}, headers=HEADERS)
+        resumed = await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "policy": PLATFORM_POLICY, "result": {"ok": True, "data": {"items": [{"id": 5, "name": "تقرير"}], "total": 1}}}, headers=HEADERS)
         events = parse_sse(resumed.text)
         names = [name for name, _ in events]
         assert "token" in names and names[-4:] == ["answer", "model_call", "model_usage", "done"]
@@ -95,7 +95,7 @@ async def test_the_answer_lists_only_the_returned_records_it_names(client_factor
     rows = {"ok": True, "data": {"items": [{"id": 5, "name": "تقرير"}, {"id": 6, "name": "ميزانية"}], "total": 2}}
     async with client_factory([ai_tool_call("pmo__list_my_tasks", {"limit": 5}, "c_1"), ai_text("المتأخرة هي **تقرير** فقط")]) as client:
         run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
-        events = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "result": rows}, headers=HEADERS)).text)
+        events = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"policy": PLATFORM_POLICY, "call_id": "c_1", "result": rows}, headers=HEADERS)).text)
         assert dict(events)["answer"]["records"] == [{"type": "task", "id": 5, "label": "تقرير"}]
 
 
@@ -104,14 +104,14 @@ async def test_write_and_draft_requests_wait_for_the_user(client_factory):
         events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
         assert events[-1][1] == {"status": "waiting_user"}
         run_id = events[0][1]["run_id"]
-        resumed = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "result": {"ok": False, "decision": "rejected"}}, headers=HEADERS)).text)
+        resumed = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"policy": PLATFORM_POLICY, "call_id": "c_1", "result": {"ok": False, "decision": "rejected"}}, headers=HEADERS)).text)
         assert resumed[-1][1] == {"status": "done"}
 
 
 async def test_resume_with_a_wrong_call_id_is_409_and_changes_nothing(client_factory):
     async with client_factory([ai_tool_call("pmo__list_my_tasks", {}, "c_1"), ai_text("x")]) as client:
         run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
-        response = await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_other", "result": {"ok": True, "data": {}}}, headers=HEADERS)
+        response = await client.post(f"/v1/runs/{run_id}/resume", json={"policy": PLATFORM_POLICY, "call_id": "c_other", "result": {"ok": True, "data": {}}}, headers=HEADERS)
         assert response.status_code == 409
         assert (await client.get(f"/v1/runs/{run_id}", headers=HEADERS)).json()["pending"]["call_id"] == "c_1"
 
@@ -121,7 +121,7 @@ async def test_another_user_cannot_see_or_resume_the_run(client_factory):
     async with client_factory([ai_tool_call("pmo__list_my_tasks", {}, "c_1")]) as client:
         run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         assert (await client.get(f"/v1/runs/{run_id}", headers=other_user)).status_code == 404
-        assert (await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "result": {"ok": True, "data": {}}}, headers=other_user)).status_code == 404
+        assert (await client.post(f"/v1/runs/{run_id}/resume", json={"policy": PLATFORM_POLICY, "call_id": "c_1", "result": {"ok": True, "data": {}}}, headers=other_user)).status_code == 404
 
 
 async def start(client, message, headers=HEADERS):
@@ -171,7 +171,7 @@ async def test_limit_reached_is_an_event_and_a_status(client_factory):
     async with client_factory(responses) as client:
         run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         for call in ("c_1", "c_2"):
-            events = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": call, "result": {"ok": True, "data": {"items": [], "total": 0}}}, headers=HEADERS)).text)
+            events = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"policy": PLATFORM_POLICY, "call_id": call, "result": {"ok": True, "data": {"items": [], "total": 0}}}, headers=HEADERS)).text)
         assert ("limit_reached", {"limit": "max_tool_calls"}) in events
         assert events[-1][1] == {"status": "limit_reached"}
 
@@ -203,7 +203,7 @@ async def test_healthz(client_factory):
 
 SETTINGS = Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true"})
 LEAKY = "sk-secret postgresql://u:pw@h/db"
-RESUME_C1 = {"call_id": "c_1", "result": {"ok": True, "data": {"items": [], "total": 0}}}
+RESUME_C1 = {"call_id": "c_1", "policy": PLATFORM_POLICY, "result": {"ok": True, "data": {"items": [], "total": 0}}}
 
 
 def make_client(model, store=None, *, states=None):
@@ -284,7 +284,7 @@ async def test_a_run_continues_cleanly_after_the_tool_limit_stopped_it():
     async with make_client(model) as client:
         run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         for call in ("c_1", "c_2"):
-            events = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": call, "result": {"ok": True, "data": {}}}, headers=HEADERS)).text)
+            events = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"policy": PLATFORM_POLICY, "call_id": call, "result": {"ok": True, "data": {}}}, headers=HEADERS)).text)
         assert events[-1][1] == {"status": "limit_reached"}
         events = parse_sse((await client.post("/v1/runs", json={**BODY, "run_id": run_id, "message": "كمّل"}, headers=HEADERS)).text)
         assert events[-1][1] == {"status": "done"}
@@ -362,7 +362,7 @@ async def test_a_run_that_answers_after_a_tool_result_is_named_once_from_its_fir
     async with make_client(model) as client:
         run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         assert model.title_calls == [] and await listed_titles(client) == ["وش مهامي؟"]  # no answer yet: the provisional title stays
-        await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "result": {"ok": True, "data": {}}}, headers=HEADERS)
+        await client.post(f"/v1/runs/{run_id}/resume", json={"policy": PLATFORM_POLICY, "call_id": "c_1", "result": {"ok": True, "data": {}}}, headers=HEADERS)
         assert await listed_titles(client) == ["مهامي"] and len(model.title_calls) == 1
 
 
@@ -464,7 +464,7 @@ async def test_archiving_a_waiting_run_changes_neither_its_status_nor_its_lease_
         response = await client.patch(f"/v1/runs/{run_id}", json={"archived": True}, headers=HEADERS)
         assert response.status_code == 200 and response.json()["status"] == "waiting_user"
         assert (record.status, record.lease, record.updated_at, record.pending_call_id) == before
-        resumed = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "result": {"ok": False, "decision": "rejected"}}, headers=HEADERS)).text)
+        resumed = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"policy": PLATFORM_POLICY, "call_id": "c_1", "result": {"ok": False, "decision": "rejected"}}, headers=HEADERS)).text)
         assert resumed[-1][1] == {"status": "done"} and record.archived_at is not None
 
 
@@ -500,7 +500,7 @@ async def test_patch_does_not_shadow_the_other_run_routes(client_factory):
         run_id = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)[0][1]["run_id"]
         assert (await client.patch(f"/v1/runs/{run_id}", json={"title": "اسم"}, headers=HEADERS)).status_code == 200
         assert (await client.get(f"/v1/runs/{run_id}", headers=HEADERS)).json()["status"] == "waiting_tool"
-        resumed = await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "result": {"ok": True, "data": {}}}, headers=HEADERS)
+        resumed = await client.post(f"/v1/runs/{run_id}/resume", json={"policy": PLATFORM_POLICY, "call_id": "c_1", "result": {"ok": True, "data": {}}}, headers=HEADERS)
         assert parse_sse(resumed.text)[-1][1] == {"status": "done"}
         assert (await client.patch(f"/v1/runs/{run_id}/resume", json={"title": "x"}, headers=HEADERS)).status_code == 405
 
@@ -576,7 +576,7 @@ async def test_unreachable_tenant_database_is_503_without_its_address():
 
 async def test_release_readiness_counts_all_tenants():
     settings = replace(SETTINGS, service_token="t" * 30, generation_id="gen-1")
-    states = SeededStates(graph_factory(ScriptedChatModel([]), settings))
+    states = SeededStates()
     for tenant in ("a", "b"):
         async with states.use(tenant) as state:
             assert await state.store.create(new_id(), "1") is not None

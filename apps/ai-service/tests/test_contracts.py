@@ -2,6 +2,7 @@ import pytest
 from pydantic import ValidationError
 
 from liwan_ai_service.contracts import ModelCallEvent, ModelUsageEvent, ResumeRequest, RunRequest, ToolSpec
+from tests.fakes import PLATFORM_POLICY
 
 READ_TOOL = {
     "name": "pmo.list_my_tasks",
@@ -29,7 +30,7 @@ def run_request(**overrides):
     body = {
         "tenant": "t1", "user_ref": "42", "locale": "ar", "message": "وش مهامي؟",
         "context": None, "tools": [READ_TOOL, DRAFT_TOOL],
-        "limits": {"max_steps": 12, "max_tool_calls": 8, "timeout_seconds": 120}, "new_run_id": "r_" + "ab" * 12,
+        "limits": {"max_steps": 12, "max_tool_calls": 8, "timeout_seconds": 120}, "policy": PLATFORM_POLICY, "new_run_id": "r_" + "ab" * 12,
     }
     body.update(overrides)
     return RunRequest.model_validate(body)
@@ -67,14 +68,14 @@ def test_locale_is_ar_or_en_and_message_is_bounded():
 
 
 def test_resume_request_shapes():
-    ok = ResumeRequest.model_validate({"call_id": "c_1", "result": {"ok": True, "data": {"items": [], "total": 0}}})
+    ok = ResumeRequest.model_validate({"call_id": "c_1", "policy": PLATFORM_POLICY, "result": {"ok": True, "data": {"items": [], "total": 0}}})
     assert ok.result.ok is True and ok.result.data == {"items": [], "total": 0}
-    denied = ResumeRequest.model_validate({"call_id": "c_1", "result": {"ok": False, "error": {"code": "forbidden", "message": "no"}}})
+    denied = ResumeRequest.model_validate({"call_id": "c_1", "policy": PLATFORM_POLICY, "result": {"ok": False, "error": {"code": "forbidden", "message": "no"}}})
     assert denied.result.error.code == "forbidden"
-    rejected = ResumeRequest.model_validate({"call_id": "c_2", "result": {"ok": False, "decision": "rejected"}})
+    rejected = ResumeRequest.model_validate({"call_id": "c_2", "policy": PLATFORM_POLICY, "result": {"ok": False, "decision": "rejected"}})
     assert rejected.result.decision == "rejected"
     with pytest.raises(ValidationError):
-        ResumeRequest.model_validate({"call_id": "c_1", "result": {"ok": False}})
+        ResumeRequest.model_validate({"call_id": "c_1", "policy": PLATFORM_POLICY, "result": {"ok": False}})
 
 
 def test_tool_input_schema_must_be_a_valid_json_schema():
@@ -112,8 +113,8 @@ def test_context_page_accepts_slugs():
 
 def test_tool_result_data_is_capped_at_200_kb():
     with pytest.raises(ValidationError, match="exceeds"):
-        ResumeRequest.model_validate({"call_id": "c_1", "result": {"ok": True, "data": {"blob": "x" * (200 * 1024)}}})
-    ResumeRequest.model_validate({"call_id": "c_1", "result": {"ok": True, "data": {"blob": "x" * 1000}}})
+        ResumeRequest.model_validate({"call_id": "c_1", "policy": PLATFORM_POLICY, "result": {"ok": True, "data": {"blob": "x" * (200 * 1024)}}})
+    ResumeRequest.model_validate({"call_id": "c_1", "policy": PLATFORM_POLICY, "result": {"ok": True, "data": {"blob": "x" * 1000}}})
 
 
 def test_a_request_names_exactly_one_run():
@@ -130,9 +131,9 @@ def test_a_new_run_id_has_the_service_shape():
 
 
 def test_model_events_are_strict_and_pair_their_tokens():
-    call = {"call_id": "ab" * 8, "kind": "plan", "provider": "openrouter", "model": "anthropic/claude-sonnet-4.5", "called_at": "2026-10-27T10:00:00Z"}
+    call = {"call_id": "ab" * 8, "kind": "plan", "billing": "platform", "provider": "openrouter", "model": "anthropic/claude-sonnet-4.5", "called_at": "2026-10-27T10:00:00Z"}
     assert ModelCallEvent.model_validate(call).kind == "plan"
-    for bad in ({"kind": "other"}, {"provider": "Open AI"}, {"model": ""}, {"model": "a\nb"}, {"model": "a\x85b"}, {"model": "a\x9fb"}, {"model": "a\x7fb"}, {"call_id": "xyz"}, {"called_at": "2026-10-27T10:00:00"}, {"extra": 1}):
+    for bad in ({"kind": "other"}, {"billing": "free"}, {"provider": "Open AI"}, {"model": ""}, {"model": "a\nb"}, {"model": "a\x85b"}, {"model": "a\x9fb"}, {"model": "a\x7fb"}, {"call_id": "xyz"}, {"called_at": "2026-10-27T10:00:00"}, {"extra": 1}):
         with pytest.raises(ValidationError):
             ModelCallEvent.model_validate({**call, **bad})
     usage = {"call_id": "ab" * 8, "outcome": "ok", "input_tokens": 3, "output_tokens": 5}

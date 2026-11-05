@@ -26,7 +26,6 @@ class TestAiToolRegistry(AiProbe, TransactionCase):
     def test_probe_tools_validate_and_keep_registration_order(self):
         tools = self.env['liwan.ai.tool.registry']._liwan_ai_tool_map()
         self.assertEqual(list(tools), ['probe.list_things', 'probe.rename_thing', 'probe.draft_thing'])
-        self.assertEqual(self.env['liwan.ai.tool.registry']._liwan_ai_feature_keys(), ('test_probe.enabled',))
 
     def test_duplicate_name_is_rejected(self):
         self._assert_rejected((PROBE_TOOLS[0], PROBE_TOOLS[0]), 'duplicate tool probe.list_things')

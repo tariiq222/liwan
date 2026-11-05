@@ -39,12 +39,14 @@ const TOOLS = {
     { name: 'pmo.draft_project', kind: 'draft', description: { ar: 'م', en: 'm' }, input_schema: { type: 'object' }, route: null, input_map: {}, result_summary: [], draft_target: '/projects/new' },
   ],
   total: 3,
-  limits: { tool_calls_per_run: 8, messages_monthly: 100, messages_used: 1 },
+  limits: { tool_calls_per_run: 8, messages_monthly: 100, messages_used: 1, policy: { provider_mode: 'platform', outside_allowed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: 8000 } },
 }
 const ME = { id: 42, name: 'سارة', company: { id: 1, name: 'ليوان' } }
 
 const CALL_A = '00000000000000a1', CALL_B = '00000000000000b2', CALL_C = '00000000000000c3', CALL_D = '00000000000000d4'
-const modelCall = (id: string, kind = 'plan'): [string, unknown] => ['model_call', { call_id: id, kind, provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5', called_at: '2026-10-27T10:00:00Z' }]
+// The policy every resume sends: the tools response's, with the platform output cap.
+const POLICY = { provider_mode: 'platform', outside_allowed: true, max_output_tokens: 8000 }
+const modelCall = (id: string, kind = 'plan'): [string, unknown] => ['model_call', { call_id: id, kind, billing: 'platform', provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5', called_at: '2026-10-27T10:00:00Z' }]
 const modelUsage = (id: string, outcome: string, input: number | null, output: number | null): [string, unknown] => ['model_usage', { call_id: id, outcome, input_tokens: input, output_tokens: output }]
 const MODEL_PLAN_RETRIED = [modelCall(CALL_A), modelUsage(CALL_A, 'retried', null, null)]
 const MODEL_PLAN_OK = [modelCall(CALL_B), modelUsage(CALL_B, 'ok', 120, 7)]
@@ -224,7 +226,7 @@ describe('POST /api/ai/runs', () => {
     const resumeCall = serviceCalls.find(c => c.url === '/v1/runs/r_1/resume')!
     expect(resumeCall.headers['x-liwan-tenant']).toBe('x')
     expect(resumeCall.headers['x-liwan-user']).toBe('42')
-    expect(JSON.parse(resumeCall.body)).toEqual({ call_id: 'c_1', result: { ok: true, data: { items: [{ id: 5, name: 'تقرير' }], total: 1 } } })
+    expect(JSON.parse(resumeCall.body)).toEqual({ call_id: 'c_1', policy: POLICY, result: { ok: true, data: { items: [{ id: 5, name: 'تقرير' }], total: 1 } } })
     const audits = odooCalls.filter(c => c.url === '/api/v1/ai/audit').map(c => JSON.parse(c.body!))
     expect(audits.map(a => [a.kind, a.result])).toEqual([['message', 'ok'], ['read', 'ok']])
     const started = JSON.parse(serviceCalls.find(c => c.url === '/v1/runs')!.body)
@@ -270,7 +272,7 @@ describe('POST /api/ai/runs', () => {
     scenario = 'bogus_draft'
     const list = await events(await post('/api/ai/runs', { message: 'سوّ مشروع' }))
     expect(list.map(([n]) => n)).toEqual(['run', 'token', 'answer', 'done'])
-    expect(JSON.parse(serviceCalls.find(c => c.url === '/v1/runs/r_1/resume')!.body)).toEqual({ call_id: 'c_7', result: { ok: false, error: { code: 'unknown_tool', message: 'pmo.draft_nothing is not a draft tool of the catalog' } } })
+    expect(JSON.parse(serviceCalls.find(c => c.url === '/v1/runs/r_1/resume')!.body)).toEqual({ call_id: 'c_7', policy: POLICY, result: { ok: false, error: { code: 'unknown_tool', message: 'pmo.draft_nothing is not a draft tool of the catalog' } } })
     expect(odooCalls.filter(c => c.url !== '/api/v1/me' && c.url !== '/api/v1/ai/tools').map(c => c.url)).toEqual(['/api/v1/ai/audit'])
     expect(odooCalls.filter(c => c.url === '/api/v1/ai/audit').map(c => JSON.parse(c.body!).kind)).toEqual(['message'])
   })
@@ -458,7 +460,7 @@ describe('resume and status', () => {
   it('resumes with the user decision and relays the stream', async () => {
     const list = await events(await post('/api/ai/runs/r_1/resume', { call_id: 'c_2', decision: 'approved', data: { id: 77, name: 'بوابة' } }))
     expect(list.map(([n]) => n)).toEqual(['run', 'token', 'answer', 'done'])
-    expect(JSON.parse(serviceCalls.at(-1)!.body)).toEqual({ call_id: 'c_2', result: { ok: true, decision: 'approved', data: { id: 77, name: 'بوابة' } } })
+    expect(JSON.parse(serviceCalls.at(-1)!.body)).toEqual({ call_id: 'c_2', policy: POLICY, result: { ok: true, decision: 'approved', data: { id: 77, name: 'بوابة' } } })
   })
   it('executes an approved write_light with the caller cookie, audits it, and passes the real result', async () => {
     pending = WRITE_PENDING
@@ -470,7 +472,7 @@ describe('resume and status', () => {
     expect(JSON.parse(call.body!)).toEqual({ state: 'done' })
     const audit = odooCalls.filter(c => c.url === '/api/v1/ai/audit').map(c => JSON.parse(c.body!)).at(-1)
     expect([audit.kind, audit.result, audit.tool_name, audit.http_status]).toEqual(['write_light', 'ok', 'pmo.update_task_state', 200])
-    expect(JSON.parse(serviceCalls.at(-1)!.body)).toEqual({ call_id: 'c_3', result: { ok: true, data: { id: 7, state: 'done' }, decision: 'approved' } })
+    expect(JSON.parse(serviceCalls.at(-1)!.body)).toEqual({ call_id: 'c_3', policy: POLICY, result: { ok: true, data: { id: 7, state: 'done' }, decision: 'approved' } })
     expect(serviceCalls.filter(c => c.method === 'POST').map(c => c.url)).toEqual(['/v1/runs/r_1/claim', '/v1/runs/r_1/resume'])
     expect(JSON.parse(serviceCalls.find(c => c.url.endsWith('/claim'))!.body)).toEqual({ call_id: 'c_3' })
   })
@@ -487,7 +489,7 @@ describe('resume and status', () => {
     pending = WRITE_PENDING
     await events(await post('/api/ai/runs/r_1/resume', { call_id: 'c_3', decision: 'rejected' }))
     expect(odooCalls.some(c => c.url.includes('transition') || c.url === '/api/v1/ai/audit')).toBe(false)
-    expect(JSON.parse(serviceCalls.at(-1)!.body)).toEqual({ call_id: 'c_3', result: { ok: false, decision: 'rejected' } })
+    expect(JSON.parse(serviceCalls.at(-1)!.body)).toEqual({ call_id: 'c_3', policy: POLICY, result: { ok: false, decision: 'rejected' } })
   })
 
   it('answers 409 and executes nothing when the call_id does not match the pending call', async () => {
@@ -515,7 +517,7 @@ describe('resume and status', () => {
       const tasksCall = odooCalls.find(c => c.url.startsWith('/api/v1/tasks'))!
       expect([tasksCall.cookie, tasksCall.url]).toEqual(['session_id=s1', '/api/v1/tasks?filter=mine'])
       expect(odooCalls.filter(c => c.url === '/api/v1/ai/audit').map(c => JSON.parse(c.body!)).map(a => [a.kind, a.result])).toEqual([['read', 'ok']])
-      expect(lastResume()).toEqual({ call_id: 'c_1', result: { ok: true, data: { items: [{ id: 5, name: 'تقرير' }], total: 1 } } })
+      expect(lastResume()).toEqual({ call_id: 'c_1', policy: POLICY, result: { ok: true, data: { items: [{ id: 5, name: 'تقرير' }], total: 1 } } })
       expect(serviceCalls.some(c => c.url.endsWith('/claim'))).toBe(false)
     })
     it('answers 409 to a rejection and executes nothing', async () => {
@@ -690,7 +692,7 @@ describe('claim before executing a write_light', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const list = await events(await approve())
     expect(transitions()).toHaveLength(1)
-    expect(lastResume()).toEqual({ call_id: 'c_3', result: { ok: true, data: { id: 7, state: 'done' }, decision: 'approved' } })
+    expect(lastResume()).toEqual({ call_id: 'c_3', policy: POLICY, result: { ok: true, data: { id: 7, state: 'done' }, decision: 'approved' } })
     expect(list.map(([n]) => n)).toEqual(['run', 'token', 'answer', 'error', 'done'])
     expect(list.find(([n]) => n === 'error')![1]).toEqual({ code: 'audit_failed', message: expect.any(String) })
     expect(JSON.stringify(list)).not.toContain('secret detail')
@@ -713,7 +715,7 @@ describe('Odoo network failures never strand the run', () => {
     pending = WRITE_PENDING
     odooMode = 'destroy_writes'
     const list = await events(await approve())
-    expect(lastResume()).toEqual({ call_id: 'c_3', result: { ok: false, error: { code: 'upstream_unavailable', message: expect.any(String) }, decision: 'approved' } })
+    expect(lastResume()).toEqual({ call_id: 'c_3', policy: POLICY, result: { ok: false, error: { code: 'upstream_unavailable', message: expect.any(String) }, decision: 'approved' } })
     expect(JSON.stringify(lastResume())).not.toMatch(/ECONNRESET|fetch failed|socket/)
     expect(list.at(-1)![0]).toBe('done')
   })
@@ -732,7 +734,7 @@ describe('Odoo network failures never strand the run', () => {
   it('resumes a read with upstream_unavailable when the Odoo socket is destroyed', async () => {
     odooMode = 'destroy_reads'
     const list = await events(await post('/api/ai/runs', { message: 'هلا' }))
-    expect(lastResume()).toEqual({ call_id: 'c_1', result: { ok: false, error: { code: 'upstream_unavailable', message: expect.any(String) } } })
+    expect(lastResume()).toEqual({ call_id: 'c_1', policy: POLICY, result: { ok: false, error: { code: 'upstream_unavailable', message: expect.any(String) } } })
     expect(list.map(([n]) => n)).toContain('answer')
   })
 })
@@ -786,14 +788,14 @@ describe('draft rejection audit', () => {
     await events(await rejectDraft())
     const rejected = odooCalls.filter(c => c.url === '/api/v1/ai/audit').map(c => JSON.parse(c.body!)).at(-1)
     expect(rejected).toEqual({ conversation_id: 'r_1', kind: 'draft', tool_name: 'pmo.draft_project', input: { name: 'بوابة' }, result: 'rejected', http_status: null, draft: { name: 'بوابة' }, approved: null, attested: false })
-    expect(lastResume()).toEqual({ call_id: 'c_2', result: { ok: false, decision: 'rejected' } })
+    expect(lastResume()).toEqual({ call_id: 'c_2', policy: POLICY, result: { ok: false, decision: 'rejected' } })
   })
   it('resumes even when that audit fails', async () => {
     auditFailKind = 'draft'
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const list = await events(await rejectDraft())
     spy.mockRestore()
-    expect(lastResume()).toEqual({ call_id: 'c_2', result: { ok: false, decision: 'rejected' } })
+    expect(lastResume()).toEqual({ call_id: 'c_2', policy: POLICY, result: { ok: false, decision: 'rejected' } })
     expect(list.map(([n]) => n)).toContain('answer')
   })
 })

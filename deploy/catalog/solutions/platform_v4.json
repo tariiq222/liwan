@@ -30,7 +30,9 @@
         "boolean:operations.enabled",
         "boolean:ai.enabled",
         "limit:ai.messages.monthly",
-        "limit:ai.tool_calls.per_run"
+        "limit:ai.tool_calls.per_run",
+        "limit:ai.tokens.monthly",
+        "limit:ai.output_tokens.per_run"
       ]
     },
     {

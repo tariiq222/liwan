@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from liwan_ai_service.contracts import AI_STATE_VERSION, MODEL_NAME, PROVIDER_NAME
 from liwan_ai_service.provider_registry import REGISTRY
 from liwan_ai_service.tenancy import tenancy_from_env
+from liwan_ai_service.tenant_config import Keyring
 
 
 class SettingsError(ValueError):
@@ -17,14 +18,15 @@ class SettingsError(ValueError):
         self.variable = variable
 
 
-def _retention_days(environ: Mapping[str, str]) -> int:
+def bootstrap_retention_days(environ: Mapping[str, str]) -> int:
+    """``AI_RUN_RETENTION_DAYS``: the window a newly bootstrapped tenant starts with (its administrator may change it)."""
     raw = environ.get("AI_RUN_RETENTION_DAYS", "30")
     try:
         days = int(raw)
     except ValueError:
         days = 0
-    if days < 1:
-        msg = "AI_RUN_RETENTION_DAYS must be an integer >= 1"
+    if not 1 <= days <= 365:  # the bounds of ai_tenant_config.retention_days
+        msg = "AI_RUN_RETENTION_DAYS must be an integer from 1 to 365"
         raise SettingsError("AI_RUN_RETENTION_DAYS", msg)
     return days
 
@@ -61,10 +63,9 @@ def _service_token(environ: Mapping[str, str], *, dev_insecure: bool) -> str | N
 
 @dataclass(frozen=True)
 class CleanupSettings:
-    """What the retention job needs: the database and the window, no provider, model or key."""
+    """What the retention job needs: the database only; each tenant's window is in its own ``ai_tenant_config``."""
 
     database_url: str
-    retention_days: int
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str]) -> CleanupSettings:
@@ -72,7 +73,7 @@ class CleanupSettings:
         if not database_url:
             msg = "AI_DATABASE_URL is required"
             raise SettingsError("AI_DATABASE_URL", msg)
-        return cls(database_url=database_url, retention_days=_retention_days(environ))
+        return cls(database_url=database_url)
 
 
 @dataclass(frozen=True)
@@ -88,6 +89,7 @@ class Settings:
     openrouter_title: str | None = None
     state_version: str = AI_STATE_VERSION
     generation_id: str | None = None
+    keyring: Keyring | None = None  # encrypts tenant provider keys; None leaves the tenant-key mode unavailable
     tenancy_mode: str = "dedicated"
     tenant_database: str | None = None
     tenant_registry_path: str | None = None
@@ -137,4 +139,5 @@ class Settings:
             tenant_database=tenant_database,
             tenant_registry_path=tenant_registry_path,
             generation_id=generation_id,
+            keyring=Keyring.from_env(environ),
         )

@@ -97,7 +97,7 @@ export async function odooJson(event: H3Event, method: 'GET' | 'POST' | 'PATCH',
 }
 
 /** One call to the LiwanOS AI service. It gets no cookie and no bearer: the owner headers (plus the shared service token, when set) are all it sees. */
-export async function serviceFetch(event: H3Event, method: 'GET' | 'POST' | 'PATCH', path: string, owner: Owner, body?: unknown, signal?: SignalOption): Promise<Response> {
+export async function serviceFetch(event: H3Event, method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE', path: string, owner: Owner, body?: unknown, signal?: SignalOption): Promise<Response> {
   const config = useRuntimeConfig(event)
   const payload = body as { call_id?: string; result?: { decision?: string } } | undefined
   const claimPath = path.endsWith('/resume') ? path.slice(0, -7) + '/claim' : ''

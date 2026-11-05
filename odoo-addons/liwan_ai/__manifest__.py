@@ -1,8 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 {
     'name': 'liwan AI',
-    'summary': 'liwan platform: the LiwanOS AI tool registry, audit log, usage ledger and /api/v1/ai routes',
-    'version': '19.0.1.2.0',
+    'summary': 'liwan platform: the LiwanOS AI tool registry, audit log, usage ledger, settings, consent and /api/v1/ai routes',
+    'version': '19.0.1.3.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -15,6 +15,7 @@
         'data/ai_access_permissions.xml',
         'security/ir.model.access.csv',
         'security/liwan_ai_rules.xml',
+        'data/ai_settings.xml',
     ],
     'installable': True,
     'application': False,

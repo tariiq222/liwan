@@ -9,6 +9,7 @@ application installed.
 """
 from odoo.fields import Command
 
+from odoo.addons.liwan_ai.models.access_service import AI_SETTINGS_MANAGE
 from odoo.addons.liwan_api.tests.common import (
     PROBE_FEATURE,
     register_probe_feature,
@@ -85,14 +86,27 @@ class AiProbe:
         """Give ``user`` the capability group that the ACL and record rule of ``liwan.ai.audit`` follow."""
         user.write({'group_ids': [Command.link(self.env.ref('liwan_ai.group_cap_ai_use').id)]})
 
+    def _grant_ai_settings(self, user):
+        """Make ``user`` an AI settings manager: the ACL group, and the capability for that user alone."""
+        user.write({'group_ids': [Command.link(self.env.ref('liwan_ai.group_cap_ai_settings_manage').id)]})
+        self.settings_managers |= user
+
     def _install_probe(self, tools=PROBE_TOOLS):
         self.granted = set()
+        self.settings_managers = self.env['res.users']
+        self.branch_settings_managers = self.env['res.users']
         registry = type(self.env['liwan.ai.tool.registry'])
         self.patch(registry, '_liwan_ai_tool_definitions', lambda model: tools)
         access = type(self.env['liwan.access.service'])
         original = access._liwan_has_capability
 
         def has_capability(model, user, key, record=None, company=None):
+            if key == AI_SETTINGS_MANAGE:
+                # A branch manager holds the capability everywhere but in the tenant's root company.
+                root = self.env['liwan.entitlement.service']._liwan_profile().root_company_id
+                if user in self.branch_settings_managers:
+                    return company != root
+                return user in self.settings_managers
             if key in {READ_CAP, WRITE_CAP, CREATE_CAP}:
                 return key in self.granted
             return original(model, user, key, record=record, company=company)

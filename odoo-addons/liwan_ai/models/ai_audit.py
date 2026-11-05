@@ -11,6 +11,7 @@ from odoo.addons.liwan_ai.models.tool_registry import TOOL_KINDS
 
 AUDIT_KINDS = ('message', *TOOL_KINDS)
 MONTHLY_MESSAGES = 'ai.messages.monthly'
+MONTHLY_TOKENS = 'ai.tokens.monthly'
 AUDIT_RESULTS = ('ok', 'denied', 'failed', 'proposed', 'approved', 'rejected')
 DRAFT_RESULTS = ('proposed', 'approved', 'rejected')
 WIRE_KEYS = frozenset({
@@ -181,8 +182,8 @@ class LiwanAiAudit(models.Model):
         if tool is not None:
             if not self.env['liwan.access.service']._liwan_has_capability(self.env.user, tool['capability']):
                 raise AccessError(self.env._('You do not have access to the tool %(tool)s.', tool=tool_name))
-            if not self.env['liwan.entitlement.service']._liwan_feature_read(tool['feature_key']):
-                raise AccessError(self.env._('The feature of the tool %(tool)s is not available.', tool=tool_name))
+            # A tool of an application the tenant does not have is refused like that application's own routes.
+            self.env['liwan.entitlement.service'].require_read(tool['feature_key'])
         return {
             'company_id': self.env.company.id,
             'user_id': self.env.user.id,
@@ -204,7 +205,11 @@ class LiwanAiAudit(models.Model):
         messages = sum(row['kind'] == 'message' for row in rows)
         if messages:
             entitlement = self.env['liwan.entitlement.service']
-            if entitlement._liwan_limit_value(MONTHLY_MESSAGES) is not None:
+            platform_run = self.env['liwan.ai.settings']._liwan_current().provider_mode == 'platform'
+            capped = entitlement._liwan_limit_value(MONTHLY_MESSAGES) is not None or (
+                platform_run and entitlement._liwan_limit_value(MONTHLY_TOKENS) is not None
+            )
+            if capped:
                 # An exact cap. Odoo runs REPEATABLE READ, so a lock alone would let a sender that waited count
                 # from a snapshot older than the winner's commit. Writing the tenant's quota fence before the
                 # count makes such a sender fail serialization instead; Odoo then retries its whole request on
@@ -213,6 +218,10 @@ class LiwanAiAudit(models.Model):
                 # (or ones racing other quota claims) can still end in a server error; each transaction is short.
                 entitlement._liwan_profile()._liwan_bump_quota_revision()
             entitlement.require_within_limit(MONTHLY_MESSAGES, self._liwan_ai_count_messages() + messages)
+            if platform_run:
+                # A run starts only while the month's platform tokens are below the limit, so a tenant passes it by
+                # at most the one run that crossed it (spec 2026-11-04 §6.8). A tenant key pays its own provider.
+                entitlement.require_within_limit(MONTHLY_TOKENS, self.env['liwan.ai.usage']._liwan_platform_tokens_used() + 1)
         return super().create(rows)
 
     @api.model

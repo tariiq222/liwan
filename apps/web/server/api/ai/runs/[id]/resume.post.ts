@@ -2,6 +2,7 @@ import { createEventStream, getRouterParam } from 'h3'
 import { AiRunStatusSchema } from '@liwan/contracts'
 import { auditFailedEvent, doneEvent, executeTool, relay, resumeFailedEvent, settle, tryAudit } from '../../../../utils/ai/pump'
 import { logFailure, serviceFetch } from '../../../../utils/ai/upstream'
+import { assertRunnable, runPolicy } from '../../../../utils/ai/policy'
 import { runSession } from '../../../../utils/ai/session'
 import type { ToolResult } from '../../../../utils/ai/executor'
 
@@ -16,6 +17,8 @@ export default defineEventHandler(async (event) => {
   if (!id || !body?.call_id || (body.decision !== 'approved' && body.decision !== 'rejected')) throw createError({ statusCode: 422, data: { code: 'invalid', message: 'call_id and decision are required' } })
   if (body.data !== undefined && (body.data === null || typeof body.data !== 'object' || Array.isArray(body.data))) throw createError({ statusCode: 422, data: { code: 'invalid', message: 'data must be an object', field: 'data' } })
   const session = await runSession(event)
+  // Before any tool runs: a write must not happen for a run the service will refuse to continue.
+  await assertRunnable(event, session)
   const path = `/v1/runs/${encodeURIComponent(id)}`
   const statusResponse = await serviceFetch(event, 'GET', path, session.owner)
   if (statusResponse.status === 404) throw createError({ statusCode: 404, data: { code: 'not_found', message: 'run not found' } })
@@ -65,7 +68,7 @@ export default defineEventHandler(async (event) => {
   }
   let response: Response
   try {
-    response = await serviceFetch(event, 'POST', `${path}/resume`, session.owner, { call_id: body.call_id, result }, shield)
+    response = await serviceFetch(event, 'POST', `${path}/resume`, session.owner, { call_id: body.call_id, result, policy: runPolicy(session) }, shield)
     if (wroteAlready && !response.ok) throw new Error('the service refused the resume')
   } catch (error) {
     // The write already happened: the browser is told so (a 200 stream), not left to think nothing was done.

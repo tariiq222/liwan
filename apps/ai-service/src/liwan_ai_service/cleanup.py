@@ -1,4 +1,8 @@
-"""Delete runs (and their checkpoints) older than AI_RUN_RETENTION_DAYS in every tenant. Scheduled by the deployment."""
+"""Delete runs (and their checkpoints) older than each tenant's own retention window. Scheduled by the deployment.
+
+The window is the tenant's ``ai_tenant_config.retention_days``, set from the AI settings page; a smaller value
+deletes the older runs at the next sweep, never inside the request that changed it.
+"""
 from __future__ import annotations
 
 import asyncio
@@ -34,14 +38,15 @@ async def run() -> tuple[str, list[str]]:
         async with contextlib.aclosing(states.each(on_unavailable=unavailable)) as sweep:
             async for state in sweep:
                 try:
-                    deleted += len(await state.store.delete_older_than(settings.retention_days))
+                    retention_days = (await state.config.get()).retention_days
+                    deleted += len(await state.store.delete_older_than(retention_days))
                 except Exception as error:  # noqa: BLE001 - one tenant must not stop the others; the text may carry its connection string
                     failures.append(f"{state.database}: {type(error).__name__}")
                 else:
                     cleaned_tenants += 1
     finally:
         await states.aclose()
-    return f"deleted {deleted} runs older than {settings.retention_days} days in {cleaned_tenants} tenants", failures
+    return f"deleted {deleted} runs past their retention in {cleaned_tenants} tenants", failures
 
 
 async def main() -> int:

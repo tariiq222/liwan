@@ -738,15 +738,33 @@
       "handler": "user_branches",
       "no_capability_reason": null
     },
+    "GET /api/v1/ai/monitoring": {
+      "addon": "liwan_ai",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "read_monitoring",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/ai/settings": {
+      "addon": "liwan_ai",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "read_settings",
+      "no_capability_reason": null
+    },
     "GET /api/v1/ai/tools": {
       "addon": "liwan_ai",
       "auth": "user",
       "capability_keys": [],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "registry:liwan.ai.tool.registry"
-      ],
+      "feature_keys": [],
       "handler": "list_tools",
       "no_capability_reason": null
     },
@@ -5255,6 +5273,16 @@
       "handler": "update_user_branches",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/ai/settings": {
+      "addon": "liwan_ai",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "write_settings",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/appointments/bookings/{booking_id}": {
       "addon": "liwan_appointments",
       "auth": "user",
@@ -6830,10 +6858,38 @@
       "capability_keys": [],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "registry:liwan.ai.tool.registry"
-      ],
+      "feature_keys": [],
       "handler": "record_audit",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/ai/config/authorize": {
+      "addon": "liwan_ai",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "authorize_config_write",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/ai/consent": {
+      "addon": "liwan_ai",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "sign_consent",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/ai/consent/revoke": {
+      "addon": "liwan_ai",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "revoke_consent",
       "no_capability_reason": null
     },
     "POST /api/v1/ai/usage": {
@@ -6842,9 +6898,7 @@
       "capability_keys": [],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "registry:liwan.ai.tool.registry"
-      ],
+      "feature_keys": [],
       "handler": "record_usage",
       "no_capability_reason": null
     },
@@ -9637,6 +9691,18 @@
         "inbox.enabled"
       ],
       "handler": "set_pin",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/channels/{channel_id}/verify-token": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "rotate_verify_token",
       "no_capability_reason": null
     },
     "POST /api/v1/inbox/contacts/import": {

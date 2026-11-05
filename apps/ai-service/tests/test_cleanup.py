@@ -80,7 +80,7 @@ async def test_cleanup_covers_every_tenant(monkeypatch):
 
     report, failures = await cleanup.run()
 
-    assert report == f"deleted 2 runs older than {RETENTION_DAYS} days in 2 tenants"
+    assert report == "deleted 2 runs past their retention in 2 tenants"
     assert failures == []
     assert all(store.records == {} for store in states.stores.values())
 
@@ -94,7 +94,7 @@ async def test_cleanup_continues_after_one_tenant_fails(monkeypatch, capsys):
     assert await cleanup.main() == 1
 
     captured = capsys.readouterr()
-    assert captured.out.strip() == f"deleted 1 runs older than {RETENTION_DAYS} days in 1 tenants"
+    assert captured.out.strip() == "deleted 1 runs past their retention in 1 tenants"
     assert "cleanup failed for a: RuntimeError" in captured.err
     for secret in ("postgresql://", "u:pw"):
         assert secret not in captured.out + captured.err
@@ -119,7 +119,7 @@ async def test_cleanup_continues_past_a_database_it_cannot_open(monkeypatch, cap
     assert await cleanup.main() == 1
 
     captured = capsys.readouterr()
-    assert captured.out.strip() == f"deleted 1 runs older than {RETENTION_DAYS} days in 1 tenants"
+    assert captured.out.strip() == "deleted 1 runs past their retention in 1 tenants"
     assert "cleanup failed for a: ConnectionError" in captured.err
     assert "u:pw" not in captured.out + captured.err
     assert states.stores["b"].records == {}

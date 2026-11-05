@@ -12,14 +12,17 @@ from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, Syst
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 
 from liwan_ai_service.control import MemoryControlState
-from liwan_ai_service.service import create_app, graph_factory
+from liwan_ai_service.graph import RUN_MODEL_KEY, build_graph
+from liwan_ai_service.service import create_app
 from liwan_ai_service.store import MemoryRunStore
 from liwan_ai_service.tenancy import MemoryDirectory
 from liwan_ai_service.tenant_state import TenantState, TenantStates
 from liwan_ai_service.titles import TITLE_RULES
-from liwan_ai_service.usage import ModelIdentity
+from liwan_ai_service.usage import ModelIdentity, RunModel
 
-IDENTITY = ModelIdentity("ollama", "m")  # what the Settings of the service tests name
+IDENTITY = ModelIdentity("ollama", "m", "platform")  # what the Settings of the service tests name
+# The policy of a platform run without a residency consent; the tests' provider (ollama) processes inside the Kingdom.
+PLATFORM_POLICY = {"provider_mode": "platform", "outside_allowed": False, "max_output_tokens": None}
 
 
 TEST_TENANT = "t1"  # the tenant the service tests' requests name; its database has the same name in memory mode
@@ -28,8 +31,8 @@ TEST_TENANT = "t1"  # the tenant the service tests' requests name; its database 
 class SeededStates(TenantStates):
     """Memory tenant states in which the test's own store and checkpointer serve ``TEST_TENANT``'s database."""
 
-    def __init__(self, graph_factory, *, store=None, checkpointer=None) -> None:
-        super().__init__(MemoryDirectory(), None, graph_factory)
+    def __init__(self, *, store=None, checkpointer=None) -> None:
+        super().__init__(MemoryDirectory(), None, build_graph)
         self.seed = (store, checkpointer)
 
     def _memory_state(self, database: str) -> TenantState:
@@ -43,7 +46,7 @@ class SeededStates(TenantStates):
 
 def make_memory_app(model, settings, *, store=None, checkpointer=None, control=None, states=None):
     """A service app over memory state: the test keeps the store, the states and the control state it drives."""
-    states = states or SeededStates(graph_factory(model, settings), store=store, checkpointer=checkpointer)
+    states = states or SeededStates(store=store, checkpointer=checkpointer)
     return create_app(model, states, control or MemoryControlState(), settings)
 
 
@@ -64,6 +67,29 @@ async def open_test_state(database_url: str):
         await control.aclose()
 
     return PostgresRunStore(pool), AsyncPostgresSaver(pool), control, aclose
+
+
+class BoundGraph:
+    """A tenant graph driven directly by a test: every config it is given carries ``model`` as the request's model."""
+
+    def __init__(self, model, checkpointer, identity: ModelIdentity = IDENTITY) -> None:
+        self.graph = build_graph(checkpointer)
+        self.run_model = RunModel(model, identity)
+
+    def _config(self, config):
+        return {**config, "configurable": {**config["configurable"], RUN_MODEL_KEY: self.run_model}}
+
+    async def ainvoke(self, graph_input, config, **kwargs):
+        return await self.graph.ainvoke(graph_input, self._config(config), **kwargs)
+
+    def astream(self, graph_input, config, **kwargs):
+        return self.graph.astream(graph_input, self._config(config), **kwargs)
+
+    async def aget_state(self, config):
+        return await self.graph.aget_state(config)
+
+    async def aupdate_state(self, config, values, **kwargs):
+        return await self.graph.aupdate_state(config, values, **kwargs)
 
 
 def new_id() -> str:

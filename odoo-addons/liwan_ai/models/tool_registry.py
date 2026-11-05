@@ -99,15 +99,6 @@ class LiwanAiToolRegistry(models.AbstractModel):
         return tools
 
     @api.model
-    def _liwan_ai_feature_keys(self):
-        """Feature keys of the registered tools, in registration order, each once."""
-        keys = []
-        for item in self._liwan_ai_tool_map().values():
-            if item['feature_key'] not in keys:
-                keys.append(item['feature_key'])
-        return tuple(keys)
-
-    @api.model
     def _liwan_ai_tools_for_user(self, user=None):
         """The registered tools whose feature reads and whose capability ``user`` holds, in registration order."""
         user = user or self.env.user
@@ -126,4 +117,17 @@ class LiwanAiToolRegistry(models.AbstractModel):
             'tool_calls_per_run': entitlement._liwan_limit_value('ai.tool_calls.per_run'),
             'messages_monthly': entitlement._liwan_limit_value('ai.messages.monthly'),
             'messages_used': self.env['liwan.ai.audit']._liwan_ai_count_messages(),
+            'policy': self._liwan_ai_policy(),
+        }
+
+    @api.model
+    def _liwan_ai_policy(self):
+        """What the Nuxt server passes with every run: whose provider runs it, and what the run may spend."""
+        entitlement = self.env['liwan.entitlement.service']
+        return {
+            'provider_mode': self.env['liwan.ai.settings']._liwan_current().provider_mode,
+            'outside_allowed': bool(self.env['liwan.ai.consent']._liwan_valid()),
+            'tokens_monthly': entitlement._liwan_limit_value('ai.tokens.monthly'),
+            'tokens_used': self.env['liwan.ai.usage']._liwan_platform_tokens_used(),
+            'output_tokens_per_run': entitlement._liwan_limit_value('ai.output_tokens.per_run'),
         }

@@ -1,6 +1,6 @@
 import pytest
 
-from liwan_ai_service.settings import CleanupSettings, Settings, SettingsError
+from liwan_ai_service.settings import CleanupSettings, Settings, SettingsError, bootstrap_retention_days
 
 
 def test_settings_from_env_reads_the_provider_and_defaults():
@@ -26,10 +26,14 @@ def test_unknown_provider_is_rejected():
         Settings.from_env({"AI_PROVIDER": "gemini", "AI_MODEL": "x"})
 
 
-def test_cleanup_settings_need_only_the_database_and_the_window():
-    settings = CleanupSettings.from_env({"AI_DATABASE_URL": "postgresql://ai@db/ai"})
-    assert settings.database_url == "postgresql://ai@db/ai" and settings.retention_days == 30
-    assert CleanupSettings.from_env({"AI_DATABASE_URL": "postgresql://ai@db/ai", "AI_RUN_RETENTION_DAYS": "7"}).retention_days == 7
+def test_cleanup_settings_need_only_the_database():
+    settings = CleanupSettings.from_env({"AI_DATABASE_URL": "postgresql://ai@db/ai", "AI_RUN_RETENTION_DAYS": "7"})
+    assert settings == CleanupSettings(database_url="postgresql://ai@db/ai")  # each tenant's window is its own
+
+
+def test_a_new_tenant_starts_with_the_deployment_window():
+    assert bootstrap_retention_days({}) == 30
+    assert bootstrap_retention_days({"AI_RUN_RETENTION_DAYS": "7"}) == 7
 
 
 def test_cleanup_settings_require_the_database():
@@ -38,10 +42,10 @@ def test_cleanup_settings_require_the_database():
     assert error.value.variable == "AI_DATABASE_URL"
 
 
-@pytest.mark.parametrize("days", ["0", "-3", "soon", ""])
-def test_retention_must_be_at_least_one_day(days):
+@pytest.mark.parametrize("days", ["0", "-3", "366", "soon", ""])
+def test_retention_must_be_one_day_to_a_year(days):
     with pytest.raises(SettingsError) as error:
-        CleanupSettings.from_env({"AI_DATABASE_URL": "postgresql://ai@db/ai", "AI_RUN_RETENTION_DAYS": days})
+        bootstrap_retention_days({"AI_RUN_RETENTION_DAYS": days})
     assert error.value.variable == "AI_RUN_RETENTION_DAYS"
 
 

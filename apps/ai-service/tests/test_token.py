@@ -6,7 +6,7 @@ import httpx
 import pytest
 
 from liwan_ai_service.settings import Settings, SettingsError
-from tests.fakes import ScriptedChatModel, ai_text, make_memory_app
+from tests.fakes import PLATFORM_POLICY, ScriptedChatModel, ai_text, make_memory_app
 from tests.test_service import BODY, HEADERS, fresh, parse_sse
 
 TOKEN = "t" * 24 + "-service-token"
@@ -47,7 +47,7 @@ async def test_a_missing_or_wrong_token_is_401_with_a_fixed_body_on_every_route(
         for headers in (HEADERS, {**HEADERS, "X-Liwan-Service-Token": "wrong"}, {**HEADERS, "X-Liwan-Service-Token": TOKEN + "x"}):
             for method, path, kwargs in (
                 ("POST", "/v1/runs", {"json": BODY}),
-                ("POST", "/v1/runs/r_x/resume", {"json": {"call_id": "c", "result": {"ok": False, "decision": "rejected"}}}),
+                ("POST", "/v1/runs/r_x/resume", {"json": {"call_id": "c", "policy": PLATFORM_POLICY, "result": {"ok": False, "decision": "rejected"}}}),
                 ("POST", "/v1/runs/r_x/claim", {"json": {"call_id": "c"}}),
                 ("GET", "/v1/runs/r_x", {}),
             ):

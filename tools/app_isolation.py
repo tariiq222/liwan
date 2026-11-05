@@ -130,8 +130,10 @@ def unexpected(module: str, installed: set[str], layers: Path = LAYERS, addons: 
     allowed = asked | {module}
     # A bridge whose sides are all part of the run auto-installs legitimately. The foundation is part of
     # every run, so a bridge between the foundation and the application under test (liwan_access_hr for
-    # liwan_hr) belongs to that application's standalone install.
-    present = asked | set(foundation(layers))
+    # liwan_hr) belongs to that application's standalone install. So do the shared services the run pulled in
+    # as dependencies: a bridge between two of them (liwan_ai_notify for liwan_ai and liwan_notify) comes
+    # with any run that needs both.
+    present = asked | set(foundation(layers)) | (installed & set(modules_of_rank(SERVICE_RANK, layers)))
     for bridge in modules_of_rank(BRIDGE_RANK, layers):
         if set(sides(bridge, layers, addons)) <= present:
             allowed.add(bridge)

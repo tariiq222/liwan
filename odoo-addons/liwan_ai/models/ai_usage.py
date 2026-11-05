@@ -14,8 +14,10 @@ from odoo.addons.liwan_ai.models.ai_audit import (
 
 USAGE_KINDS = ('plan', 'title')
 USAGE_OUTCOMES = ('ok', 'failed', 'retried', 'aborted')
+# Whose provider account paid the call: the platform's (counted against ai.tokens.monthly) or the tenant's own key.
+USAGE_BILLINGS = ('platform', 'tenant_key')
 WIRE_KEYS = frozenset({
-    'conversation_id', 'kind', 'provider', 'model', 'outcome', 'input_tokens', 'output_tokens', 'called_at',
+    'conversation_id', 'kind', 'billing', 'provider', 'model', 'outcome', 'input_tokens', 'output_tokens', 'called_at',
 })
 PROVIDER_PATTERN = re.compile(r'[a-z][a-z0-9_-]{0,31}')
 CONTROL_CHARACTERS = re.compile(r'[\x00-\x1f\x7f-\x9f]')
@@ -70,6 +72,7 @@ class LiwanAiUsage(models.Model):
                               default=lambda self: self.env.user)
     conversation_id = fields.Char(required=True, index=True)
     kind = fields.Selection([(kind, kind) for kind in USAGE_KINDS], required=True)
+    billing = fields.Selection([(billing, billing) for billing in USAGE_BILLINGS], required=True)
     provider = fields.Char(required=True)
     model = fields.Char(required=True)
     outcome = fields.Selection([(outcome, outcome) for outcome in USAGE_OUTCOMES], required=True)
@@ -105,6 +108,9 @@ class LiwanAiUsage(models.Model):
         kind = values['kind']
         if not isinstance(kind, str) or kind not in USAGE_KINDS:
             invalid('kind', f'kind must be one of {USAGE_KINDS}')
+        billing = values['billing']
+        if not isinstance(billing, str) or billing not in USAGE_BILLINGS:
+            invalid('billing', f'billing must be one of {USAGE_BILLINGS}')
         provider = values['provider']
         if not isinstance(provider, str) or not PROVIDER_PATTERN.fullmatch(provider):
             invalid('provider', f'provider must match {PROVIDER_PATTERN.pattern}')
@@ -131,6 +137,7 @@ class LiwanAiUsage(models.Model):
             'user_id': self.env.user.id,
             'conversation_id': conversation_id,
             'kind': kind,
+            'billing': billing,
             'provider': provider,
             'model': model,
             'outcome': outcome,
@@ -139,6 +146,19 @@ class LiwanAiUsage(models.Model):
             'tokens_reported': all(reported),
             'called_at': called_at.replace(tzinfo=None),
         }
+
+    @api.model
+    def _liwan_platform_tokens_used(self):
+        """Input plus output tokens of the platform-billed calls of the whole tenant since the start of this UTC month.
+
+        Plain SQL like the monthly message count: the limit is the tenant's, so it spans every company and user.
+        """
+        self.env.cr.execute(
+            "SELECT COALESCE(SUM(input_tokens + output_tokens), 0) FROM liwan_ai_usage"
+            " WHERE billing = 'platform' AND called_at >= %s",
+            [self.env['liwan.ai.audit']._liwan_ai_month_start()],
+        )
+        return self.env.cr.fetchone()[0]
 
     @api.model_create_multi
     def create(self, vals_list):

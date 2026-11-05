@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- The tenant's one AI settings record; its defaults keep the platform provider. -->
+    <record id="ai_settings" model="liwan.ai.settings"/>
+</odoo>

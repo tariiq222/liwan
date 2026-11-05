@@ -4,7 +4,7 @@ import * as Vue from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_STUBS, loadShared } from '@liwan/ui/test/helpers/renderShared'
 import { createHostNode, hostRenderer, type HostNode } from '@liwan/ui/test/helpers/hostRenderer'
-import { useAiRun } from '../../composables/useAiRun'
+import { isBlockingLimit, useAiRun } from '../../composables/useAiRun'
 import * as aiConversation from '../../composables/useAiConversation'
 import * as aiContext from '../../utils/aiContext'
 import * as aiSuggestions from '../../utils/aiSuggestions'
@@ -36,7 +36,7 @@ function mountActualPage(fetch: typeof globalThis.fetch) {
   const modules: Record<string, unknown> = {
     '@vueuse/core': { useMediaQuery: () => Vue.ref(true) },
     '@tanstack/vue-query': { useQueryClient: () => ({ invalidateQueries: vi.fn() }) },
-    '@/composables/useAiRun': { useAiRun: () => { const run = useAiRun(); runs.push(run); return run } },
+    '@/composables/useAiRun': { isBlockingLimit, useAiRun: () => { const run = useAiRun(); runs.push(run); return run } },
     '@/composables/useAiConversation': aiConversation,
     '@/composables/useAttention': { useAttention: () => ({ rows: Vue.ref([]), pending: Vue.ref(false), failed: Vue.ref(false) }) },
     '@/composables/useAiRuns': { aiRunKeys: { all: ['ai-runs'] }, useAiRuns: () => ({ data: Vue.ref({ items: [] }) }) },

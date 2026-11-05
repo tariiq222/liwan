@@ -7,6 +7,7 @@ import * as aiMarkdownRender from '../../../utils/aiMarkdownRender'
 import * as aiSuggestions from '../../../utils/aiSuggestions'
 import * as aiThread from '../../../utils/aiThread'
 import * as aiContext from '../../../utils/aiContext'
+import { isBlockingLimit } from '../../../composables/useAiRun'
 
 const file = resolve(import.meta.dirname, '../AiSheet.vue')
 const marker = (tag: string, attrName: string) => Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => Vue.h(tag, { [attrName]: '', 'data-compact': attrs.compact === undefined ? undefined : 'true' }, slots.default?.()) })
@@ -57,7 +58,7 @@ async function render({ rows = [], pending = false, failed = false, hidden = fal
       '@/components/ai/AiToolTrace.vue': { __esModule: true, default: marker('div', 'data-trace') },
       '@/composables/useAiConversation': { followSharedConversation: follow },
       '@/composables/useAiNowSection': { useAiNowSection: () => ({ hidden: Vue.ref(hidden), toggle: () => undefined }) },
-      '@/composables/useAiRun': { useAiRun },
+      '@/composables/useAiRun': { useAiRun, isBlockingLimit },
       '@/composables/useAssistantSheet': { assistantContext: (_path: string, id: string | null) => id, useAssistantSheet: () => ({ shown: Vue.ref(shown) }) },
       '@/composables/useAttention': { useAttention },
       '@/composables/useShellModel': { useShellModel: () => ({ activeModule }) },

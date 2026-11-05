@@ -20,6 +20,10 @@ SELECT format('GRANT CONNECT ON DATABASE %I TO liwan_ai', :'tenant_db')
 
 SELECT 'CREATE SCHEMA IF NOT EXISTS liwan_ai AUTHORIZATION liwan_ai'
   WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'liwan_ai') \gexec
+-- pgcrypto encrypts the tenant's own provider key (AI service tenant_config.py); its functions live in the AI
+-- schema, so the AI role reaches them through its search_path and Odoo's schema gains nothing.
+SELECT 'CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA liwan_ai'
+  WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'liwan_ai') \gexec
 SELECT 'REVOKE ALL ON SCHEMA public FROM liwan_ai'
   WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'liwan_ai') \gexec
 SELECT 'REVOKE ALL ON ALL TABLES IN SCHEMA public FROM liwan_ai'

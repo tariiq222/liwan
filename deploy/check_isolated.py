@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
 LIWAN_ADDONS = (
-    'liwan_core', 'liwan_platform', 'liwan_api', 'liwan_ai', 'liwan_directory', 'liwan_documents',
+    'liwan_core', 'liwan_platform', 'liwan_api', 'liwan_ai', 'liwan_ai_notify', 'liwan_directory', 'liwan_documents',
     'liwan_notify', 'liwan_meetings', 'liwan_operations', 'liwan_pmo', 'liwan_meetings_pmo',
     'liwan_operations_pmo', 'liwan_pmo_ai', 'liwan_hr', 'liwan_access_hr', 'liwan_documents_hr',
     'liwan_hr_operations', 'liwan_integrations_sa', 'liwan_finance', 'liwan_hr_finance',

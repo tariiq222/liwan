@@ -6,7 +6,7 @@
     "greeting": "Hello {name}",
     "greetingAnonymous": "Hello",
     "prompt": "How can I help with your work today?",
-    "note": "It only suggests and explains. It never approves or sends anything for you.",
+    "note": "It only suggests and explains; it never approves or sends anything for you. Your system administrator sees what the assistant does, never the text of your conversations.",
     "glance": {
       "title": "Your morning at a glance",
       "urgent": "Urgent"
@@ -86,7 +86,12 @@
       "monthly": "Your company reached its LiwanOS AI message limit for this month.",
       "run": "This request stopped because it exceeded the allowed number of steps.",
       "timeout": "The request took longer than allowed.",
-      "used": "{used} of {limit} messages this month"
+      "used": "{used} of {limit} messages this month",
+      "tokensMonthly": "Your organization reached this month's AI usage (tokens) limit.",
+      "outputTokens": "This request stopped: it reached the answer length allowed for one request.",
+      "consentRequired": "The assistant is off until a system administrator signs the acknowledgement for processing data outside the Kingdom.",
+      "tenantKeyMissing": "Your organization chose to run the assistant on its own key, and no key has been added yet.",
+      "openSettings": "Open the AI settings"
     },
     "errors": {
       "unavailable": "LiwanOS AI is unavailable right now. Try again later.",
@@ -146,6 +151,75 @@
       "title": "Assistant suggestions today",
       "source": "Suggested from your work",
       "ask": "Ask the assistant"
+    },
+    "settings": {
+      "title": "AI",
+      "description": "The AI provider, the data residency consent, how long conversations are kept, and this month's use.",
+      "saved": "Settings saved",
+      "provider": {
+        "title": "Provider",
+        "hint": "Who runs the assistant for your organization.",
+        "mode": {
+          "label": "Run on",
+          "platform": "The LiwanOS provider",
+          "tenant_key": "Your organization's own key",
+          "platformHint": "LiwanOS runs it within your plan limits.",
+          "tenant_keyHint": "It runs on your organization's account with the provider, which pays the cost. Message limits still apply."
+        }
+      },
+      "key": {
+        "title": "Your organization's key",
+        "hint": "The key is never shown after it is saved; only its last four characters are.",
+        "configured": "Saved key ending in {last4}",
+        "missing": "No key",
+        "provider": "Provider",
+        "model": "Model",
+        "modelHint": "The model name as the provider writes it.",
+        "value": "Key",
+        "valueHint": "Type a new key to replace the saved one.",
+        "save": "Save key",
+        "saved": "Key saved",
+        "remove": "Remove key",
+        "removed": "Key removed",
+        "removeTitle": "Remove the organization's key?",
+        "removeHint": "If the assistant runs on your organization's key, it stops until a new key is added."
+      },
+      "residency": {
+        "title": "Data residency",
+        "hint": "AI data stays inside the Kingdom unless an authorized user signs this acknowledgement.",
+        "insideOnly": "Inside the Kingdom only",
+        "outsideAllowed": "Allowed outside the Kingdom",
+        "blocked": "The current provider processes data outside the Kingdom",
+        "blockedHint": "The assistant is off for your organization until this acknowledgement is signed.",
+        "signedBy": "Signed by {name} on {date}.",
+        "accept": "I have read this acknowledgement and accept it on behalf of the organization",
+        "sign": "Sign the acknowledgement",
+        "signed": "Acknowledgement signed",
+        "revoke": "Revoke consent",
+        "revoked": "Consent revoked",
+        "revokeTitle": "Revoke consent to processing outside the Kingdom?",
+        "revokeHint": "Every provider that processes data outside the Kingdom stops at once."
+      },
+      "retention": {
+        "title": "Conversation retention",
+        "hint": "Conversations older than this are deleted at the next nightly cleanup.",
+        "label": "Days",
+        "bounds": "From {min} to {max} days.",
+        "invalid": "Enter a number from {min} to {max}."
+      },
+      "usage": {
+        "title": "This month's use",
+        "hint": "{month}. Counts only; no conversation text is shown.",
+        "messages": "Messages",
+        "tokens": "Usage units (tokens)",
+        "toolCalls": "Actions",
+        "user": "User",
+        "ofLimit": "of {limit}",
+        "unlimited": "no limit",
+        "perRun": "Longest answer allowed per request: {limit}.",
+        "topTools": "Most used tools",
+        "empty": "No use this month."
+      }
     }
   }
 }
