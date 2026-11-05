@@ -1,6 +1,6 @@
 # LiwanOS AI agents: tenant-contained state, memory, knowledge and per-app agents
 
-Status: design approved in discussion with the owner on 2026-11-04; awaiting review of this document.
+Status: design approved in discussion with the owner on 2026-11-04; awaiting review of this document. Amended 2026-11-05 by the owner: provider freedom, one acknowledgement and the outbound data policy (§6.8, §6.11, §6.12).
 Builds on: [2026-10-15 LiwanOS AI design](2026-10-15-liwan-ai-design.md) (phase 1, merged). This document amends that spec where stated in §11; the amendments are applied to the 2026-10-15 file in the same change that implements them, so one reference stays authoritative.
 
 ## 1. Intent
@@ -38,7 +38,8 @@ A second driver is tenant isolation. Today the AI service keeps all tenants' con
 - An agent setting that can widen what a user may see or do.
 - A permission check that exists only in the model's instructions.
 - Copies of company record text accumulating in the AI schema.
-- A model provider outside Saudi Arabia receiving a tenant's data without that tenant's signed consent.
+- Any model provider receiving a tenant's data before that tenant signed the current AI acknowledgement (§6.8).
+- Any model provider receiving data that the outbound data policy blocks (§6.12), whoever's provider or key it is.
 
 ## 5. Current state (verified 2026-11-04)
 
@@ -102,15 +103,23 @@ A new application declares, in `liwan_<app>_ai`: its agent, its tools, its RAG s
 - the AI never executes code; if code execution is ever added, it runs only in a per-run isolated sandbox (gVisor or Firecracker class) with no network and no database access, destroyed after the run;
 - administrators see agent actions (tools called, approvals, changes), never conversation text; employees are told so in `/ai`.
 
-**Administrator settings (can only narrow), per agent:** enabled; which roles may use it; each tool: allowed, read only, needs approval, off; RAG sources; memory on/off; style instructions; monthly messages per user within the package; sensitivity switches (payroll aggregates for payroll-capable users, project finance visibility). General: provider, model, retention, data residency.
+**Administrator settings (can only narrow), per agent:** enabled; which roles may use it; each tool: allowed, read only, needs approval, off; RAG sources; memory on/off; style instructions; monthly messages per user within the package; sensitivity switches (payroll aggregates for payroll-capable users, project finance visibility). General: provider, model, retention.
 
 Enforced on the server: tools turned off are never sent to the model and are refused by the executor if requested. Managed by a new capability `ai.settings.manage`; every change is audited. Scope: enablement, provider, limits and privacy per tenant; style, identity and company memory per company.
 
-### 6.8 Provider, residency and cost
+### 6.8 Provider, acknowledgement and cost
 
 - Per tenant: platform provider (default) or the tenant's own key. The key is written encrypted into the tenant's `liwan_ai` schema with a deployment encryption key, write-only (only `configured` and the last 4 characters are returned), set through a Nuxt route that first checks `ai.settings.manage` in Odoo. A failing tenant key is reported; the service never falls back silently to the platform key.
-- **Platform provider and liability (owner decision 2026-11-04):** the platform provider is an international provider, so the AI, including the free setup agent, stays off for a tenant until an authorized user signs the residency acknowledgement and liability disclaimer below. Liwan's responsibility for data leaving the Kingdom is disclaimed by that signed consent. A provider inside Saudi Arabia (a model on Oracle Jeddah or a Saudi vendor) may be added later as a platform option that needs no consent. Sovereign deployments use their local model and need no consent. Which international provider is used is an operator choice.
-- Data residency per tenant, default "inside Saudi Arabia only". Each provider in `provider_registry.py` carries its processing location. Allowing a provider outside the Kingdom requires an acknowledgement and liability disclaimer signed digitally by an authorized user; the signer, time, text version and its hash are stored. A new text version voids the consent and returns the setting to "inside" until signed again.
+- **Any provider (owner decision 2026-11-05):** a tenant on its own key may use any provider, not only the ones the registry names today. Besides the named providers, the registry offers one generic OpenAI-compatible provider configured by a base URL and a key. Liwan does not review the tenant's provider or its terms; the tenant's choice and its contract with that provider are the tenant's responsibility. Which provider runs the platform option remains an operator choice.
+- **No residency setting (owner decision 2026-11-05, replaces the 2026-11-04 residency decision):** what protects the data is the outbound data policy (§6.12), applied the same way to every provider, so a provider's processing location no longer changes what a tenant may do. The "inside the Kingdom / outside" setting, the per-provider `location` and the location badges are removed from the code and the UI, not kept beside the new policy.
+- **One signed acknowledgement (owner decision 2026-11-05):** the AI, including the free setup agent, stays off for a tenant until an authorized user signs the current acknowledgement. It keeps the existing mechanism (`liwan.ai.consent`: signer, time, text version and its hash; revocable at any time, revoking stops every run at once; a new text version needs a new signature). One text covers the platform provider and the tenant's own key alike. It states, in legal form:
+  - the roles: the tenant is the data controller, Liwan a processor, the model provider a sub-processor chosen by the tenant (own key) or by the operator (platform);
+  - what is sent, for what purpose, and to which provider;
+  - what is never sent and what is replaced before sending (§6.12), enforced on the server and not as a promise;
+  - the other safeguards: database per tenant, egress allowlist, audit of every action, retention limits;
+  - the tenant's duties: a lawful basis for the processing, informing its employees and customers in its privacy notice, and keeping its users from typing sensitive data into the conversation;
+  - the liability disclaimer: Liwan is not liable for the provider's processing of what it receives, nor for data a user types into the conversation by hand. The disclaimer allocates liability between Liwan and the tenant; it does not remove Liwan's own duties as a processor under the PDPL, which the enforced policy is what fulfils.
+- Sovereign deployments that run only their local model still sign the same acknowledgement; its provider section names the local model.
 - Monthly token limit `ai.tokens.monthly` and a per-run output token cap, on the platform provider only; checked before a run starts (a tenant may exceed by at most one run). Tenants on their own key keep the message limit only.
 
 ### 6.9 Other decided policies
@@ -127,7 +136,7 @@ Enforced on the server: tools turned off are never sent to the model and are ref
 ### 6.10 Calls made by the design author (owner to check)
 
 - **Schema bootstrap:** a privileged provisioning step (`deploy/provision.sh` and the operator `tenant.create` in `tools/liwan_cli/operator.py`, never the control plane) creates schema `liwan_ai` and its grants (and later `pgvector`), then runs the service's explicit operator bootstrap for that database. The runtime keeps its existing rule: it validates state and never runs DDL. The retention job and release readiness iterate the tenant databases from the same tenant directory the service uses.
-- **Indexing identity:** Odoo builds index text with a dedicated technical user that holds read ACLs on the declared indexable models only; no `sudo()`. Only fields an application declares indexable are sent. Embedding calls obey the tenant's data residency setting like chat calls.
+- **Indexing identity:** Odoo builds index text with a dedicated technical user that holds read ACLs on the declared indexable models only; no `sudo()`. Only fields an application declares indexable are sent. Embedding calls obey the outbound data policy (§6.12) like chat calls, and no blocked field is ever declared indexable.
 - **Odoo to service events:** one durable outbox in the tenant database (`liwan_ai` schema), written by Odoo and drained by the service, carries both index changes and user deactivation; employee memory deletion uses it.
 - **Encryption key:** an operator secret per deployment, versioned; each ciphertext stores its key id; rotation re-encrypts; restoring a tenant needs the matching key version, documented in `deploy/OPERATIONS.md`.
 - **Setup agent budget:** a per-tenant monthly limit `ai.setup.monthly` in the feature registry, set by the vendor through the package and counted in the tenant database (no control-plane dependency, R5). In `non_saas` it runs on the local model with the same per-tenant limit.
@@ -136,7 +145,27 @@ Enforced on the server: tools turned off are never sent to the model and are ref
 
 - Finding: in the dedicated compose the `ai` container sits on the default network and can reach any internet host; in the shared compose it sits on internal networks only and cannot reach an external model provider at all.
 - Decision: the `ai` container is on internal networks only in every deployment. All outbound traffic goes through an open-source forward proxy (`ai-egress`) that allows HTTPS CONNECT only to an explicit host allowlist (the configured provider hosts) and denies everything else, with each denial logged by host. The AI service uses it through `HTTPS_PROXY`; a local model host (Ollama) is reached on the internal network and listed in `NO_PROXY`.
-- Security layers, broad to narrow: region (inside the Kingdom), server (restricted containers), network (egress allowlist), AI service (mandatory token), data (database per tenant, `liwan_ai` schema), tools (user session and approval), model (proposes only). Governance (agent settings, action audit, limits, kill switch) spans all layers.
+- A tenant's own provider host (§6.8) joins the allowlist only from its saved key settings and only when it is an `https` URL whose host resolves to public addresses; private, loopback, link-local and internal service addresses are refused, both when saved and when the proxy connects.
+- Security layers, broad to narrow: server (restricted containers), network (egress allowlist), AI service (mandatory token), data (database per tenant, `liwan_ai` schema), tools (user session and approval), model (proposes only). Governance (agent settings, action audit, limits, kill switch) spans all layers.
+
+### 6.12 Outbound data policy (owner decision 2026-11-05)
+
+What may reach a model provider, the same for every provider and every key. Enforced on the server; no setting, agent or role can loosen it.
+
+| Data | Treatment |
+|---|---|
+| PDPL sensitive data: health, biometric, genetic, credit, religion or belief, ethnic origin, security and criminal data, data revealing unknown parentage | Never sent |
+| National ID and iqama numbers | Never sent |
+| IBAN and bank account numbers | Never sent |
+| Per-person salary and compensation | Never sent |
+| Mobile numbers and email addresses | Replaced with tokens before sending |
+| Names | Sent |
+
+- **Tokens:** the Nuxt server replaces each value with a token such as `[phone_1]` and keeps the token-to-value map for that run on the server only; it never reaches the AI service or the provider. The server restores the real values in the reply shown to the user and in the inputs of any tool the model calls with a token.
+- **Layer 1, registration:** `liwan.ai.tool.registry` refuses to register a tool whose `result_summary` names a blocked field, and an application cannot declare a blocked field indexable. A tool exposing such a field cannot exist, whatever its route returns.
+- **Layer 2, content scan:** before a tool result or a user message leaves the Nuxt server, a scanner removes or tokenizes values with a fixed shape found anywhere in the text: Saudi national ID and iqama numbers (10 digits starting with 1 or 2 that pass the check digit), Saudi IBANs, Saudi mobile numbers and email addresses.
+- **Limit:** sensitive data written as free text (for example a medical condition in a task description) has no fixed shape and is not reliably detected. It is handled by blocking the fields that hold it (layer 1), by the tenant's duty in the acknowledgement, and by a short notice under the chat input asking users not to type health data or identity numbers.
+- **Delivery order:** the first PR delivers the acknowledgement, the removal of the residency setting, layer 1 and layer 2 (`apps/web/server/utils/ai/outbound.ts`, applied to the user message and to every tool result or submitted draft before it reaches the AI service), and the chat notice; until tokens land, layer 2 replaces mobile numbers and emails with a marker naming their kind, so they are withheld rather than restored. The token map with restoration, the generic OpenAI-compatible provider and the tenant host egress rule (§6.11) follow as one PR after phase 5, because they touch the same executor, contracts and service files as phase 5.
 
 ## 7. Constraints
 
@@ -157,7 +186,7 @@ Enforced on the server: tools turned off are never sent to the model and are ref
 
 Each phase is one PR, independently mergeable and releasable:
 1. **Isolation:** mandatory service token generated by provisioning; AI state moved to schema `liwan_ai` in each tenant database; the shared store removed; egress gateway.
-2. **Settings, provider and limits:** general AI settings, tenant key, residency with signed consent, token limit, monitoring dashboard.
+2. **Settings, provider and limits:** general AI settings, tenant key, residency with signed consent, token limit, monitoring dashboard. (Delivered; its residency part is replaced by the 2026-11-05 decisions in §6.8 and §6.12, delivered as their own PR after phase 4.)
 3. **Agents and tools:** agent registry, router, one file per application, `new_app.py` and CI check, agent settings page, tools for the enabled applications, external channel policy.
 4. **Memory and setup agent:** employee and company memory, settings registry, setup agent and its limit, employee offboarding.
 5. **Knowledge:** pgvector image change, indexing outbox, RAG resolve route, chat attachments (needs the platform malware scanner).
@@ -170,7 +199,7 @@ Recorded as separate problems in `.scratch/` because they are not AI-specific:
 
 ## 10. Open items
 
-- Legal text of the residency acknowledgement and disclaimer: to be drafted by a legal specialist.
+- Legal text of the acknowledgement and disclaimer (§6.8): to be drafted or reviewed by a legal specialist before release; the text in the code stays marked as a draft until then.
 - Default values proposed in discussion and not yet explicitly confirmed: setup agent applies with approval; company memory needs admin approval; employee memory saved automatically and deletable; payroll aggregates off by default; project finance visible to project manager and finance by default.
 
 ## 11. Amendments to the 2026-10-15 spec
