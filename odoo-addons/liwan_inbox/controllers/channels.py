@@ -134,5 +134,5 @@ class ChannelController(http.Controller):
     @requires_capability(MANAGE_CHANNELS)
     def test_channel(self, channel_id, **_):
         channel = get_channel(channel_id, MANAGE_CHANNELS)
-        channel._liwan_refresh_health()
+        channel._liwan_test_connection()
         return dump(channel)

@@ -111,6 +111,23 @@ class LiwanInboxChannel(models.Model):
         self._liwan_tiktok_store(grant)
         return tiktok.Credentials(self.tiktok_business_id, grant.access_token)
 
+    def _liwan_tiktok_test_connection(self):
+        """The connection test of a TikTok channel: read the business profile, then mark it connected or error.
+
+        A disabled channel that fails stays disabled, so a failed activation never resumes its traffic.
+        """
+        self.ensure_one()
+        try:
+            with self.env.cr.savepoint():
+                profile = tiktok.business_profile(self._liwan_tiktok_credentials())
+        except errors.ProviderError as error:
+            self.write({'state': 'disabled' if self.state == 'disabled' else 'error', 'last_error': str(error)})
+        else:
+            values = {'state': 'connected', 'last_error': False}
+            if profile.username:
+                values['tiktok_username'] = profile.username
+            self.write(values)
+
     def _liwan_tiktok_reconnect_required(self):
         """Mark the channel so the administrator sees it must reconnect it; the caller gets a clear error."""
         message = self.env._('Reconnect the TikTok account: its authorization is no longer valid.')

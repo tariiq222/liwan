@@ -24,6 +24,7 @@ from odoo.addons.liwan_inbox.controllers.helpers import (
     find_one,
     no_content,
     reject,
+    require_kind,
 )
 from odoo.addons.liwan_inbox.controllers.templates import parse_sample_upload
 from odoo.addons.liwan_inbox.models.access_service import CAMPAIGNS
@@ -47,7 +48,9 @@ def dump_one(campaign):
 
 
 def campaign_of(campaign_id):
-    return get_record('liwan.inbox.campaign', campaign_id)
+    campaign = get_record('liwan.inbox.campaign', campaign_id)
+    require_kind(campaign.channel_id, 'whatsapp')
+    return campaign
 
 
 def choice_filter(args, key, choices):
@@ -168,6 +171,7 @@ class CampaignController(http.Controller):
     @requires_capability(CAMPAIGNS)
     def preview(self, **payload):
         template, params, contact = parse_preview(payload)
+        require_kind(template.channel_id, 'whatsapp')
         return render_preview(template, params, contact)
 
     # lifecycle

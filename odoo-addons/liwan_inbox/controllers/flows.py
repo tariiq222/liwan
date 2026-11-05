@@ -23,6 +23,7 @@ from odoo.addons.liwan_inbox.controllers.helpers import (
     no_content,
     not_found,
     reject,
+    require_kind,
     unique_as_invalid,
     visible_conversation,
 )
@@ -55,6 +56,7 @@ def get_flow(flow_id, *capabilities):
     if not flow:
         raise not_found()
     get_channel(flow.channel_id.id, *capabilities)
+    require_kind(flow.channel_id, 'whatsapp')
     return flow
 
 
@@ -126,6 +128,7 @@ class FlowController(http.Controller):
     @requires_capability(*PICK, match='any')
     def list_flows(self, channel_id, **_):
         channel = get_channel(channel_id, *PICK)
+        require_kind(channel, 'whatsapp')
         domain = list_domain(channel, request.httprequest.args)
         limit, offset = parse_page(request.httprequest.args)
         Flow = request.env['liwan.inbox.flow']
@@ -140,6 +143,7 @@ class FlowController(http.Controller):
     @requires_capability(MANAGE_FLOWS)
     def create_flow(self, channel_id, **payload):
         channel = get_channel(channel_id, MANAGE_FLOWS)
+        require_kind(channel, 'whatsapp')
         parsed = parse_flow_write(channel, payload)
         try:
             with unique_as_invalid('name', 'a form with this name already exists on the channel', 'inbox_flow_name_taken'):
@@ -154,6 +158,7 @@ class FlowController(http.Controller):
     @requires_capability(MANAGE_FLOWS)
     def sync_flows(self, channel_id, **_):
         channel = get_channel(channel_id, MANAGE_FLOWS)
+        require_kind(channel, 'whatsapp')
         try:
             flows = request.env['liwan.inbox.flow']._liwan_sync(channel)
         except errors.ProviderError as error:
@@ -264,4 +269,5 @@ class FlowController(http.Controller):
     @requires_capability(READ)
     def list_conversation_submissions(self, conversation_id, **_):
         conversation = visible_conversation(conversation_id)
+        require_kind(conversation.channel_id, 'whatsapp')
         return submissions_page([('conversation_id', '=', conversation.id)])

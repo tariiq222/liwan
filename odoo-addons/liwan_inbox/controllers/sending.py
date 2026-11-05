@@ -17,6 +17,7 @@ from odoo.addons.liwan_inbox.controllers.helpers import (
     check_fields,
     get_channel,
     reject,
+    require_kind,
 )
 from odoo.addons.liwan_inbox.models.access_service import CAMPAIGNS, MANAGE_CHANNELS
 from odoo.addons.liwan_inbox.models.campaign_constants import MARKETING_APIS
@@ -37,7 +38,9 @@ class SendingController(http.Controller):
     @requires_feature('inbox.enabled', CAMPAIGNS_FEATURE, operation='read')
     @requires_capability(CAMPAIGNS, MANAGE_CHANNELS, match='any')
     def read_sending(self, channel_id, **_):
-        return dump_sending(get_channel(channel_id, CAMPAIGNS, MANAGE_CHANNELS))
+        channel = get_channel(channel_id, CAMPAIGNS, MANAGE_CHANNELS)
+        require_kind(channel, 'whatsapp')
+        return dump_sending(channel)
 
     @http.route('/api/v1/inbox/channels/<int:channel_id>/sending', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
@@ -45,6 +48,7 @@ class SendingController(http.Controller):
     @requires_capability(MANAGE_CHANNELS)
     def patch_sending(self, channel_id, **payload):
         channel = get_channel(channel_id, MANAGE_CHANNELS)
+        require_kind(channel, 'whatsapp')
         check_fields(payload, {'marketing_api'}, required=('marketing_api',))
         channel.marketing_api = parse_choice(payload, 'marketing_api', MARKETING_APIS)
         return dump_sending(channel)
@@ -55,6 +59,7 @@ class SendingController(http.Controller):
     @requires_capability(CAMPAIGNS, MANAGE_CHANNELS, match='any')
     def refresh_sending(self, channel_id, **payload):
         channel = get_channel(channel_id, CAMPAIGNS, MANAGE_CHANNELS)
+        require_kind(channel, 'whatsapp')
         if payload:
             reject('no fields are accepted')
         try:
