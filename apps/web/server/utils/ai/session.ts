@@ -1,12 +1,12 @@
 import type { H3Event } from 'h3'
 import { createError } from 'h3'
-import { AiToolsResponseSchema, type AiPolicy, type AiTool } from '@liwan/contracts'
+import { AiToolsResponseSchema, type AiAgent, type AiPolicy, type AiTool } from '@liwan/contracts'
 import { tenantRequest } from '../tenantRequest'
 import { toolCallBudget } from './executor'
 import { forwardUpstream, odooJson, type Owner } from './upstream'
 
 export type RunLimits = { max_steps: number; max_tool_calls: number; timeout_seconds: number }
-export type RunSession = { owner: Owner; tools: AiTool[]; byName: Map<string, AiTool>; limits: RunLimits; policy: AiPolicy }
+export type RunSession = { owner: Owner; tools: AiTool[]; agents: AiAgent[]; byName: Map<string, AiTool>; limits: RunLimits; policy: AiPolicy }
 
 const MAX_STEPS = 12
 const TIMEOUT_SECONDS = 120
@@ -32,7 +32,7 @@ export async function ownerFor(event: H3Event): Promise<Owner> {
   return { tenant: ownerTenant(event, meBody.company.id), user: String(meBody.id) }
 }
 
-/** The caller's identity, tool catalog and AI policy for this request only. Any upstream denial is forwarded as is. */
+/** The caller's identity, tool catalog, agents and AI policy for this request only. Any upstream denial is forwarded as is. */
 export async function runSession(event: H3Event): Promise<RunSession> {
   const owner = await ownerFor(event)
   const tools = await odooJson(event, 'GET', '/api/v1/ai/tools')
@@ -41,6 +41,7 @@ export async function runSession(event: H3Event): Promise<RunSession> {
   return {
     owner,
     tools: parsed.items,
+    agents: parsed.agents,
     byName: new Map(parsed.items.map(tool => [tool.name, tool])),
     limits: { max_steps: MAX_STEPS, max_tool_calls: toolCallBudget(parsed.limits.tool_calls_per_run), timeout_seconds: TIMEOUT_SECONDS },
     policy: parsed.limits.policy,

@@ -1,8 +1,8 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
-  AiMonitoringSchema, AiSettingsSchema, AiTenantConfigSchema,
-  type AiConsentSign, type AiKeyPut, type AiSettings, type AiSettingsPatch, type AiTenantConfig,
+  AiAgentSettingsSchema, AiMonitoringSchema, AiSettingsSchema, AiTenantConfigSchema,
+  type AiAgentPatch, type AiAgentSettings, type AiConsentSign, type AiKeyPut, type AiSettings, type AiSettingsPatch, type AiTenantConfig,
 } from '@liwan/contracts'
 
 // The tenant's AI policy lives in two places: Odoo holds the provider mode, the consent and the limits
@@ -12,6 +12,7 @@ export const aiSettingsKeys = {
   settings: ['ai', 'settings'] as const,
   config: ['ai', 'config'] as const,
   monitoring: ['ai', 'monitoring'] as const,
+  agents: ['ai', 'agents'] as const,
 }
 
 export function useAiSettings(enabled: MaybeRefOrGetter<boolean> = true) {
@@ -40,6 +41,17 @@ export function useAiMonitoring(enabled: MaybeRefOrGetter<boolean> = true) {
     queryKey: aiSettingsKeys.monitoring,
     enabled: computed(() => toValue(enabled)),
     queryFn: () => $api('/api/v1/ai/monitoring', { schema: AiMonitoringSchema }),
+    retry: false,
+  })
+}
+
+/** The agents of the tenant's enabled applications and how the administrator narrowed each one. */
+export function useAiAgentSettings(enabled: MaybeRefOrGetter<boolean> = true) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: aiSettingsKeys.agents,
+    enabled: computed(() => toValue(enabled)),
+    queryFn: () => $api('/api/v1/ai/agents', { schema: AiAgentSettingsSchema }),
     retry: false,
   })
 }
@@ -85,4 +97,12 @@ export function useSaveAiKey() {
 export function useRemoveAiKey() {
   const { $api } = useApi()
   return useReplacing<void, AiTenantConfig>(aiSettingsKeys.config, () => $api('/api/ai/config/key', { method: 'DELETE', body: {}, schema: AiTenantConfigSchema }))
+}
+
+export function useSaveAiAgent() {
+  const { $api } = useApi()
+  return useReplacing<{ key: string; patch: AiAgentPatch }, AiAgentSettings>(
+    aiSettingsKeys.agents,
+    ({ key, patch }) => $api(`/api/v1/ai/agents/${encodeURIComponent(key)}`, { method: 'PATCH', body: patch, schema: AiAgentSettingsSchema }),
+  )
 }

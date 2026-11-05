@@ -91,7 +91,8 @@
       "outputTokens": "This request stopped: it reached the answer length allowed for one request.",
       "consentRequired": "The assistant is off until a system administrator signs the acknowledgement for processing data outside the Kingdom.",
       "tenantKeyMissing": "Your organization chose to run the assistant on its own key, and no key has been added yet.",
-      "openSettings": "Open the AI settings"
+      "openSettings": "Open the AI settings",
+      "perUser": "You used the monthly assistant messages your administrator set."
     },
     "errors": {
       "unavailable": "LiwanOS AI is unavailable right now. Try again later.",
@@ -218,8 +219,47 @@
         "unlimited": "no limit",
         "perRun": "Longest answer allowed per request: {limit}.",
         "topTools": "Most used tools",
-        "empty": "No use this month."
+        "empty": "No use this month.",
+        "byAgent": "Use by agent",
+        "coordinator": "Coordinator"
+      },
+      "policy": {
+        "title": "Assistant policy",
+        "hint": "Limits for every employee, within your plan limits.",
+        "perUser": {
+          "label": "Messages per employee each month",
+          "hint": "Zero means only your plan limit applies."
+        },
+        "external": {
+          "label": "Contact with outside parties",
+          "draft_only": "Draft only",
+          "approve": "Send after the employee approves",
+          "draft_onlyHint": "The assistant prepares the message on the channel page; the employee sends it.",
+          "approveHint": "The assistant sends the message after the employee approves it in the conversation."
+        }
+      },
+      "agents": {
+        "title": "Agents",
+        "empty": "No enabled application has an agent.",
+        "enabled": "Enabled",
+        "readOnly": "Read only",
+        "readOnlyHint": "The agent reads; it changes nothing and prepares no drafts.",
+        "roles": "Allowed roles",
+        "rolesHint": "Leave empty for everyone who holds the assistant permission.",
+        "allRoles": "All roles",
+        "tools": "Tools",
+        "mode": {
+          "on": "On",
+          "approval": "Needs approval",
+          "off": "Off"
+        },
+        "kind": {
+          "read": "Read",
+          "write_light": "Change after approval",
+          "draft": "Draft the employee reviews"
+        }
       }
-    }
+    },
+    "handoff": "{agent} took over the request"
   }
 }

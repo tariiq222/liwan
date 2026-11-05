@@ -49,11 +49,11 @@ function start(run, id, message) {
   const hasDraftTool = run.tools.some(tool => tool.name === 'pmo.draft_project' && tool.kind === 'draft')
   if (/مشروع/.test(message)) {
     if (!hasDraftTool) return [['run', { run_id: id }], ...finish(run, 'لا أملك أداة لتجهيز مسودة مشروع لك، فصلاحياتك لا تسمح بإنشاء المشاريع.', [])]
-    run.pending = { call_id: `c_${run.messages.length}`, tool: 'pmo.draft_project', kind: 'draft', input: { name: 'بوابة إرادة', charter: { objectives: ['إطلاق البوابة'] } } }
+    run.pending = { call_id: `c_${run.messages.length}`, tool: 'pmo.draft_project', kind: 'draft', agent: 'pmo', requires_approval: true, input: { name: 'بوابة إرادة', charter: { objectives: ['إطلاق البوابة'] } } }
     run.status = 'waiting_user'
     return [['run', { run_id: id }], ...modelPair('plan', 90, 20), ['tool_request', { ...run.pending, summary_ar: 'سأجهّز مسودة مشروع', summary_en: 'I will prepare a project draft' }], ['done', { status: 'waiting_user' }]]
   }
-  run.pending = { call_id: `c_${run.messages.length}`, tool: 'pmo.list_my_tasks', kind: 'read', input: { limit: 10 } }
+  run.pending = { call_id: `c_${run.messages.length}`, tool: 'pmo.list_my_tasks', kind: 'read', agent: 'pmo', requires_approval: false, input: { limit: 10 } }
   run.status = 'waiting_tool'
   return [['run', { run_id: id }], ...modelPair('plan', 90, 20), ['tool_request', { ...run.pending, summary_ar: 'سأقرأ مهامك', summary_en: 'I will read your tasks' }], ['done', { status: 'waiting_tool' }]]
 }

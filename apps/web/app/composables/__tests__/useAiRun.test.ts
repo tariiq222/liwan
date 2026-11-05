@@ -23,20 +23,20 @@ describe('applyEvent', () => {
   it('closes the streaming text when a tool request follows it', () => {
     let items = start()
     items = applyEvent(items, { event: 'token', data: { text: 'سأفحص' } })
-    items = applyEvent(items, { event: 'tool_request', data: { call_id: 'c_1', tool: 'pmo.list_my_tasks', kind: 'read', input: {}, summary_ar: 'أ', summary_en: 'r' } })
+    items = applyEvent(items, { event: 'tool_request', data: { call_id: 'c_1', tool: 'pmo.list_my_tasks', kind: 'read', agent: 'pmo', requires_approval: false, input: {}, summary_ar: 'أ', summary_en: 'r' } })
     expect(items[1]).toMatchObject({ kind: 'assistant', text: 'سأفحص', streaming: false })
   })
   it('records read tools as traces and write/draft requests as pending cards', () => {
     let items = start()
-    items = applyEvent(items, { event: 'tool_request', data: { call_id: 'c_1', tool: 'pmo.list_my_tasks', kind: 'read', input: {}, summary_ar: 'سأقرأ مهامك', summary_en: 'read' } })
+    items = applyEvent(items, { event: 'tool_request', data: { call_id: 'c_1', tool: 'pmo.list_my_tasks', kind: 'read', agent: 'pmo', requires_approval: false, input: {}, summary_ar: 'سأقرأ مهامك', summary_en: 'read' } })
     items = applyEvent(items, { event: 'tool_result', data: { call_id: 'c_1', tool: 'pmo.list_my_tasks', kind: 'read', ok: false, summary_ar: 'سأقرأ مهامك', summary_en: 'read' } })
     expect(items.at(-1)).toEqual({ kind: 'tool', callId: 'c_1', summaryAr: 'سأقرأ مهامك', summaryEn: 'read', state: 'denied' })
-    items = applyEvent(items, { event: 'tool_request', data: { call_id: 'c_2', tool: 'pmo.draft_project', kind: 'draft', input: { name: 'بوابة' }, summary_ar: 'سأجهّز', summary_en: 'draft' } })
+    items = applyEvent(items, { event: 'tool_request', data: { call_id: 'c_2', tool: 'pmo.draft_project', kind: 'draft', agent: 'pmo', requires_approval: true, input: { name: 'بوابة' }, summary_ar: 'سأجهّز', summary_en: 'draft' } })
     expect(items.at(-1)).toMatchObject({ kind: 'draft', callId: 'c_2', tool: 'pmo.draft_project', payload: { name: 'بوابة' }, state: 'pending' })
   })
   it('marks a pending card decided', () => {
     let items = start()
-    items = applyEvent(items, { event: 'tool_request', data: { call_id: 'c_3', tool: 'pmo.update_task_state', kind: 'write_light', input: { task_id: 7, state: 'done' }, summary_ar: 'سأغيّر', summary_en: 'change' } })
+    items = applyEvent(items, { event: 'tool_request', data: { call_id: 'c_3', tool: 'pmo.update_task_state', kind: 'write_light', agent: 'pmo', requires_approval: true, input: { task_id: 7, state: 'done' }, summary_ar: 'سأغيّر', summary_en: 'change' } })
     items = applyEvent(items, { event: 'decided', data: { call_id: 'c_3', decision: 'approved' } })
     expect(items.at(-1)).toMatchObject({ kind: 'confirm', state: 'approved' })
   })
@@ -47,9 +47,19 @@ describe('applyEvent', () => {
     items = applyEvent(items, { event: 'decided', data: { call_id: 'c_5', decision: 'pending' } })
     expect(items[0]).toMatchObject({ kind: 'tool', state: 'stalled' })
   })
+  it('asks the user before a read the administrator set to approval', () => {
+    const items = applyEvent(start(), { event: 'tool_request', data: { call_id: 'c_6', tool: 'pmo.list_my_tasks', kind: 'read', agent: 'pmo', requires_approval: true, input: {}, summary_ar: 'سأقرأ', summary_en: 'read' } })
+    expect(items.at(-1)).toMatchObject({ kind: 'confirm', callId: 'c_6', state: 'pending' })
+  })
+  it('shows a hand-over to another agent and closes the text before it', () => {
+    let items = applyEvent(start(), { event: 'token', data: { text: 'لحظة' } })
+    items = applyEvent(items, { event: 'agent', data: { agent: 'hr', name: { ar: 'وكيل الموارد البشرية', en: 'HR agent' } } })
+    expect(items.at(-2)).toMatchObject({ kind: 'assistant', streaming: false })
+    expect(items.at(-1)).toEqual({ kind: 'agent', agent: 'hr', nameAr: 'وكيل الموارد البشرية', nameEn: 'HR agent' })
+  })
   it('marks a successful read as ok', () => {
     let items = start()
-    items = applyEvent(items, { event: 'tool_request', data: { call_id: 'c_4', tool: 'pmo.list_my_tasks', kind: 'read', input: {}, summary_ar: 'أ', summary_en: 'a' } })
+    items = applyEvent(items, { event: 'tool_request', data: { call_id: 'c_4', tool: 'pmo.list_my_tasks', kind: 'read', agent: 'pmo', requires_approval: false, input: {}, summary_ar: 'أ', summary_en: 'a' } })
     items = applyEvent(items, { event: 'tool_result', data: { call_id: 'c_4', tool: 'pmo.list_my_tasks', kind: 'read', ok: true, summary_ar: 'أ', summary_en: 'a' } })
     expect(items.at(-1)).toMatchObject({ kind: 'tool', state: 'ok' })
   })
@@ -185,7 +195,7 @@ describe('useAiRun', () => {
     fetchMock.mockResolvedValue(jsonResponse(200, {
       run_id: 'r_9', status: 'waiting_user',
       messages: [{ role: 'user', content: 'أنشئ مشروعًا' }, { role: 'assistant', content: 'جهزت' }],
-      pending: { call_id: 'c_7', tool: 'pmo.draft_project', kind: 'draft', input: { name: 'بوابة' } },
+      pending: { call_id: 'c_7', tool: 'pmo.draft_project', kind: 'draft', agent: 'pmo', requires_approval: true, input: { name: 'بوابة' } },
     }))
     const ai = useAiRun()
     await ai.load('r_9')
@@ -198,7 +208,7 @@ describe('useAiRun', () => {
   it('decide() marks the card and posts the decision with data once', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(200, {
       run_id: 'r_9', status: 'waiting_user', messages: [],
-      pending: { call_id: 'c_7', tool: 'pmo.draft_project', kind: 'draft', input: { name: 'بوابة' } },
+      pending: { call_id: 'c_7', tool: 'pmo.draft_project', kind: 'draft', agent: 'pmo', requires_approval: true, input: { name: 'بوابة' } },
     }))
     const ai = useAiRun()
     await ai.load('r_9')
@@ -283,7 +293,7 @@ describe('useAiRun', () => {
   describe('decide() failures', () => {
     const pendingRun = jsonResponse(200, {
       run_id: 'r_9', status: 'waiting_user', messages: [],
-      pending: { call_id: 'c_7', tool: 'pmo.draft_project', kind: 'draft', input: { name: 'بوابة' } },
+      pending: { call_id: 'c_7', tool: 'pmo.draft_project', kind: 'draft', agent: 'pmo', requires_approval: true, input: { name: 'بوابة' } },
     })
 
     it.each([409, 503])('reverts the card to pending on a %s and shows a fixed error', async (status) => {
@@ -321,8 +331,8 @@ describe('useAiRun', () => {
 
   describe('load() of a run that is not simply waiting for the user', () => {
     const run = (status: string, pending: unknown) => jsonResponse(200, { run_id: 'r_9', status, messages: [{ role: 'user', content: 'س' }], pending })
-    const read = { call_id: 'c_1', tool: 'pmo.list_my_tasks', kind: 'read', input: {} }
-    const write = { call_id: 'c_3', tool: 'pmo.update_task_state', kind: 'write_light', input: { task_id: 7, state: 'done' } }
+    const read = { call_id: 'c_1', tool: 'pmo.list_my_tasks', kind: 'read', agent: 'pmo', requires_approval: false, input: {} }
+    const write = { call_id: 'c_3', tool: 'pmo.update_task_state', kind: 'write_light', agent: 'pmo', requires_approval: true, input: { task_id: 7, state: 'done' } }
 
     it('offers a stalled read (waiting_tool) as a retry, not a spinner', async () => {
       fetchMock.mockResolvedValueOnce(run('waiting_tool', read))
@@ -395,7 +405,7 @@ describe('useAiRun', () => {
   describe('failures after the server accepted the decision', () => {
     const pendingWrite = () => jsonResponse(200, {
       run_id: 'r_9', status: 'waiting_user', messages: [],
-      pending: { call_id: 'c_3', tool: 'pmo.update_task_state', kind: 'write_light', input: { task_id: 7 } },
+      pending: { call_id: 'c_3', tool: 'pmo.update_task_state', kind: 'write_light', agent: 'pmo', requires_approval: true, input: { task_id: 7 } },
     })
     it('keeps the card approved and shows the resume_failed message when the write ran but the resume failed', async () => {
       fetchMock.mockResolvedValueOnce(pendingWrite())

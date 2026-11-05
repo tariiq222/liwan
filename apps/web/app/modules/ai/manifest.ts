@@ -14,13 +14,14 @@ const manifest: AppManifest = {
   assistant: { capability: 'ai.use', labelKey: 'nav.ai', to: '/ai', load: () => import('../../components/ai/AiSheet.vue') },
   landing: [{ path: '/ai', capability: 'ai.use', late: true }],
   returnToPaths: ['/ai'],
-  // The tenant administrator's AI settings (`ai.settings.manage`): provider, residency consent, retention and usage.
+  // The tenant administrator's AI settings (`ai.settings.manage`): provider, residency consent, retention, agents and usage.
   settings: {
     id: 'ai', labelKey: 'ai.settings.title', icon: 'i-lucide-sparkles', to: '/settings/apps/ai',
     parts: [
       { id: 'provider', labelKey: 'ai.settings.provider.title', icon: 'i-lucide-plug-zap', capability: 'ai.settings.manage' },
       { id: 'residency', labelKey: 'ai.settings.residency.title', icon: 'i-lucide-globe-lock', capability: 'ai.settings.manage' },
       { id: 'retention', labelKey: 'ai.settings.retention.title', icon: 'i-lucide-history', capability: 'ai.settings.manage' },
+      { id: 'agents', labelKey: 'ai.settings.agents.title', icon: 'i-lucide-bot', capability: 'ai.settings.manage' },
       { id: 'usage', labelKey: 'ai.settings.usage.title', icon: 'i-lucide-gauge', capability: 'ai.settings.manage' },
     ],
   },

@@ -5,7 +5,7 @@ import { buildToolRequest, summarizeResult, toolCallBudget, toolResultFromUpstre
 const list: AiTool = {
   name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'م', en: 'm' }, input_schema: { type: 'object' },
   route: { method: 'GET', path: '/api/v1/tasks' }, input_map: { query: { filter: 'mine', state: '$state', limit: '$limit' } },
-  result_summary: ['items[].id', 'items[].name', 'items[].project.name', 'total'], draft_target: null,
+  result_summary: ['items[].id', 'items[].name', 'items[].project.name', 'total'], draft_target: null, requires_approval: false,
 }
 const transition: AiTool = {
   ...list, name: 'pmo.update_task_state', kind: 'write_light', route: { method: 'POST', path: '/api/v1/tasks/{task_id}/transition' },

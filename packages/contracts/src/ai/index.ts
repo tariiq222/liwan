@@ -12,10 +12,27 @@ export const AiToolSchema = z.object({
   input_map: z.partialRecord(z.enum(['path', 'query', 'body']), z.record(z.string(), z.unknown())),
   result_summary: z.array(z.string()),
   draft_target: z.string().startsWith('/').nullable(),
+  /** Every write and draft waits for the user; a read waits only when the administrator set it to approval. */
+  requires_approval: z.boolean(),
 }).strict().refine(tool => (tool.kind === 'draft') === (tool.route === null && tool.draft_target !== null), {
   message: 'a draft tool has a draft_target and no route; other tools have a route',
 })
 export type AiTool = z.infer<typeof AiToolSchema>
+/** A tool's agent is the application id its name starts with. */
+export const aiToolAgent = (name: string): string => name.slice(0, name.indexOf('.'))
+
+const AiTextSchema = z.object({ ar: z.string().min(1), en: z.string().min(1) }).strict()
+const AiAgentKeySchema = z.string().regex(/^[a-z][a-z0-9_]*$/)
+/** One specialist agent of an enabled application (`liwan.ai.agent.registry`); `core` is the platform coordinator. */
+export const AiAgentSchema = z.object({
+  key: AiAgentKeySchema,
+  name: AiTextSchema,
+  description: AiTextSchema,
+  instructions: AiTextSchema,
+  pages: z.array(z.string().regex(/^[a-z][a-z_-]{0,39}$/)),
+}).strict()
+export type AiAgent = z.infer<typeof AiAgentSchema>
+export const AI_CORE_AGENT = 'core'
 
 const AiLimitValueSchema = z.number().int().nonnegative().nullable() // null means unlimited
 export const AiProviderModeSchema = z.enum(['platform', 'tenant_key'])
@@ -39,7 +56,9 @@ export const AiLimitsSchema = z.object({
   policy: AiPolicySchema,
 }).strict()
 
-export const AiToolsResponseSchema = z.object({ items: z.array(AiToolSchema), total: z.number().int().nonnegative(), limits: AiLimitsSchema }).strict()
+export const AiToolsResponseSchema = z.object({
+  items: z.array(AiToolSchema), total: z.number().int().nonnegative(), agents: z.array(AiAgentSchema), limits: AiLimitsSchema,
+}).strict()
 export type AiToolsResponse = z.infer<typeof AiToolsResponseSchema>
 
 export const AiAuditKindSchema = z.enum(['message', 'read', 'write_light', 'draft'])
@@ -47,6 +66,8 @@ export const AiAuditResultSchema = z.enum(['ok', 'denied', 'failed', 'proposed',
 export const AiAuditRequestSchema = z.object({
   conversation_id: z.string().min(1).max(64),
   kind: AiAuditKindSchema,
+  /** The agent that was active when a tool ran; absent on a message row. */
+  agent: AiAgentKeySchema.optional(),
   tool_name: z.string().nullable(),
   input: z.record(z.string(), z.unknown()).nullable(),
   result: AiAuditResultSchema,
@@ -62,8 +83,8 @@ export type AiAuditReceipt = z.infer<typeof AiAuditReceiptSchema>
 export const AiRecordRefSchema = z.object({ type: z.string(), id: z.number().int(), label: z.string() }).strict()
 export type AiRecordRef = z.infer<typeof AiRecordRefSchema>
 export const AiToolRequestSchema = z.object({
-  call_id: z.string(), tool: z.string(), kind: AiToolKindSchema, input: z.record(z.string(), z.unknown()),
-  summary_ar: z.string(), summary_en: z.string(),
+  call_id: z.string(), tool: z.string(), kind: AiToolKindSchema, agent: AiAgentKeySchema, requires_approval: z.boolean(),
+  input: z.record(z.string(), z.unknown()), summary_ar: z.string(), summary_en: z.string(),
 }).strict()
 export type AiToolRequest = z.infer<typeof AiToolRequestSchema>
 /** What a `done` event can say; the service never ends a stream while executing. */
@@ -74,6 +95,8 @@ export type AiRunStatusValue = z.infer<typeof AiRunStatusValueSchema>
 export const AiEventSchema = z.discriminatedUnion('event', [
   z.object({ event: z.literal('run'), data: z.object({ run_id: z.string() }).strict() }),
   z.object({ event: z.literal('token'), data: z.object({ text: z.string() }).strict() }),
+  /** The conversation was handed over to another specialist agent. */
+  z.object({ event: z.literal('agent'), data: z.object({ agent: AiAgentKeySchema, name: AiTextSchema }).strict() }),
   z.object({ event: z.literal('tool_request'), data: AiToolRequestSchema }),
   z.object({ event: z.literal('tool_result'), data: z.object({ call_id: z.string(), tool: z.string(), kind: AiToolKindSchema, ok: z.boolean(), summary_ar: z.string(), summary_en: z.string() }).strict() }),
   z.object({ event: z.literal('answer'), data: z.object({ text: z.string(), records: z.array(AiRecordRefSchema) }).strict() }),
@@ -127,7 +150,10 @@ export const AiRunStatusSchema = z.object({
   run_id: z.string(),
   status: AiRunStatusValueSchema,
   messages: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string() }).strict()),
-  pending: z.object({ call_id: z.string(), tool: z.string(), kind: AiToolKindSchema, input: z.record(z.string(), z.unknown()) }).strict().nullable(),
+  pending: z.object({
+    call_id: z.string(), tool: z.string(), kind: AiToolKindSchema, input: z.record(z.string(), z.unknown()),
+    agent: AiAgentKeySchema, requires_approval: z.boolean(),
+  }).strict().nullable(),
 }).strict()
 export type AiRunStatus = z.infer<typeof AiRunStatusSchema>
 
@@ -188,8 +214,15 @@ export type AiDraftHandoff = z.infer<typeof AiDraftHandoffSchema>
 const AiPersonSchema = z.object({ id: z.number().int().positive(), name: z.string() }).strict()
 
 /** `GET|PATCH /api/v1/ai/settings` (capability `ai.settings.manage`): provider mode, residency consent and this month's usage. */
+/** How the assistant may reach an outside party: prepare a draft the employee sends, or send after approval. */
+export const AiExternalSendSchema = z.enum(['draft_only', 'approve'])
+export const AI_MESSAGES_PER_USER_MAX = 100_000
+const AiMessagesPerUserSchema = z.number().int().min(0).max(AI_MESSAGES_PER_USER_MAX) // 0 means no cap per user
+
 export const AiSettingsSchema = z.object({
   provider_mode: AiProviderModeSchema,
+  messages_per_user_monthly: AiMessagesPerUserSchema,
+  external_send: AiExternalSendSchema,
   revision: z.number().int().positive(),
   consent: z.object({
     required_version: z.string().min(1),
@@ -208,7 +241,12 @@ export const AiSettingsSchema = z.object({
   }).strict(),
 }).strict()
 export type AiSettings = z.infer<typeof AiSettingsSchema>
-export const AiSettingsPatchSchema = z.object({ provider_mode: AiProviderModeSchema, revision: z.number().int().positive() }).strict()
+export const AiSettingsPatchSchema = z.object({
+  provider_mode: AiProviderModeSchema.optional(),
+  messages_per_user_monthly: AiMessagesPerUserSchema.optional(),
+  external_send: AiExternalSendSchema.optional(),
+  revision: z.number().int().positive(),
+}).strict()
 export type AiSettingsPatch = z.infer<typeof AiSettingsPatchSchema>
 /** `POST /api/v1/ai/consent`: the signer's client echoes the exact text it showed. */
 export const AiConsentSignSchema = z.object({ text_version: z.string().min(1), text_hash: z.string().regex(/^[0-9a-f]{64}$/) }).strict()
@@ -229,6 +267,10 @@ export const AiMonitoringSchema = z.object({
   }).strict(),
   tools: z.object({
     items: z.array(z.object({ tool_name: z.string(), calls: z.number().int().nonnegative() }).strict()),
+    total: z.number().int().nonnegative(),
+  }).strict(),
+  agents: z.object({
+    items: z.array(z.object({ agent: AiAgentKeySchema, calls: z.number().int().nonnegative() }).strict()),
     total: z.number().int().nonnegative(),
   }).strict(),
 }).strict()
@@ -255,3 +297,30 @@ export const AiRetentionPutSchema = z.object({ retention_days: z.number().int().
 export type AiRetentionPut = z.infer<typeof AiRetentionPutSchema>
 export const AiKeyPutSchema = z.object({ provider: AiProviderNameSchema, model: AiModelNameSchema, api_key: z.string().min(1).max(512) }).strict()
 export type AiKeyPut = z.infer<typeof AiKeyPutSchema>
+
+/** The administrator's mode for one tool: `approval` makes even a read wait for the user; `off` removes it. */
+export const AiToolModeSchema = z.enum(['on', 'approval', 'off'])
+export type AiToolMode = z.infer<typeof AiToolModeSchema>
+/** `GET /api/v1/ai/agents`: the agents of the tenant's enabled applications and how the administrator narrowed them. */
+export const AiAgentSettingSchema = z.object({
+  key: AiAgentKeySchema,
+  name: AiTextSchema,
+  description: AiTextSchema,
+  enabled: z.boolean(),
+  read_only: z.boolean(),
+  role_ids: z.array(z.number().int().positive()),
+  tools: z.array(z.object({
+    name: z.string(), kind: AiToolKindSchema, description: AiTextSchema, external: z.boolean(), mode: AiToolModeSchema,
+  }).strict()),
+}).strict()
+export type AiAgentSetting = z.infer<typeof AiAgentSettingSchema>
+export const AiAgentSettingsSchema = z.object({ items: z.array(AiAgentSettingSchema), total: z.number().int().nonnegative() }).strict()
+export type AiAgentSettings = z.infer<typeof AiAgentSettingsSchema>
+/** `PATCH /api/v1/ai/agents/{key}`: any of these; settings only narrow what the agent may do. */
+export const AiAgentPatchSchema = z.object({
+  enabled: z.boolean().optional(),
+  read_only: z.boolean().optional(),
+  role_ids: z.array(z.number().int().positive()).optional(),
+  tools: z.record(z.string(), AiToolModeSchema).optional(),
+}).strict().refine(value => Object.keys(value).length > 0, 'nothing to change')
+export type AiAgentPatch = z.infer<typeof AiAgentPatchSchema>

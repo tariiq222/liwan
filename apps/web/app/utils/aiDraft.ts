@@ -1,4 +1,4 @@
-import { AiDraftHandoffSchema, AiDraftPayloadSchema, type AiAuditRequest, type AiDraftHandoff, type AiDraftPayload } from '@liwan/contracts'
+import { AiDraftHandoffSchema, AiDraftPayloadSchema, aiToolAgent, type AiAuditRequest, type AiDraftHandoff, type AiDraftPayload } from '@liwan/contracts'
 import { emptyObjective, type CharterDraft } from './projectCharter'
 
 const DRAFT_PREFIX = 'liwan:ai-draft:'
@@ -102,6 +102,8 @@ export function aiApprovalAudit(handoff: AiDraftHandoff | null, createdId: numbe
   return {
     conversation_id: handoff.run_id,
     kind: 'draft',
+    // The draft is submitted on its application's page: the agent that owns its tool.
+    agent: aiToolAgent(handoff.tool),
     tool_name: handoff.tool,
     input: handoff.payload,
     result: 'approved',

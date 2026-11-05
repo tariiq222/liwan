@@ -1,6 +1,6 @@
 import { createEventStream, getRouterParam } from 'h3'
 import { AiRunStatusSchema } from '@liwan/contracts'
-import { auditFailedEvent, doneEvent, executeTool, relay, resumeFailedEvent, settle, tryAudit } from '../../../../utils/ai/pump'
+import { auditFailedEvent, doneEvent, executeTool, needsApproval, relay, resumeFailedEvent, settle, tryAudit } from '../../../../utils/ai/pump'
 import { logFailure, serviceFetch } from '../../../../utils/ai/upstream'
 import { assertRunnable, runPolicy } from '../../../../utils/ai/policy'
 import { runSession } from '../../../../utils/ai/session'
@@ -35,9 +35,12 @@ export default defineEventHandler(async (event) => {
   let shield: null | undefined
   let wroteAlready = false
   let toolResultEvent: { event: string; data: string } | null = null
-  if (pending.kind === 'read') {
-    // A read that stalled is safe to run again; only "approved" means retry.
-    if (body.decision !== 'approved') throw conflict('a read tool can only be retried')
+  if (pending.kind === 'read' && body.decision === 'rejected') {
+    // Only a read the administrator set to approval waits for the user; a stalled plain read can only be retried.
+    if (!needsApproval(session, pending)) throw conflict('a read tool can only be retried')
+    result = { ok: false, decision: 'rejected' }
+  } else if (pending.kind === 'read') {
+    // An approved read (its card, shown whenever the current catalog asks for approval), or a stalled one retried by the user.
     const executed = await executeTool(event, session, id, 'read', pending, { onAuditFailed: () => { auditFailed = true } })
     toolResultEvent = { event: 'tool_result', data: JSON.stringify({ call_id: pending.call_id, tool: pending.tool, kind: 'read', ok: executed.ok, summary_ar: pending.tool, summary_en: pending.tool }) }
     result = executed
@@ -45,7 +48,7 @@ export default defineEventHandler(async (event) => {
     result = { ok: false, decision: 'rejected' }
     // Odoo accepts `rejected` for drafts only; a rejected write_light was never proposed to the audit.
     if (pending.kind === 'draft') {
-      auditFailed = !await tryAudit(event, { conversation_id: id, kind: 'draft', tool_name: pending.tool, input: pending.input, result: 'rejected', http_status: null, draft: pending.input, approved: null, attested: false })
+      auditFailed = !await tryAudit(event, { conversation_id: id, kind: 'draft', agent: pending.agent, tool_name: pending.tool, input: pending.input, result: 'rejected', http_status: null, draft: pending.input, approved: null, attested: false })
     }
   } else if (pending.kind === 'write_light') {
     shield = null
