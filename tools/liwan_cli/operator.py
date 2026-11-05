@@ -48,13 +48,13 @@ PATH_KEYS = frozenset({
 })
 SYMLINK_PATH_KEYS = frozenset({'python', 'psql', 'pg_dump', 'pg_restore', 'createdb', AI_KEY})
 CREATE_MODULES = (
-    'liwan_core', 'liwan_platform', 'liwan_api', 'liwan_directory', 'liwan_notify',
-    'liwan_pmo', 'liwan_meetings', 'liwan_meetings_pmo', 'liwan_hr', 'liwan_access_hr',
-    'liwan_integrations_sa', 'liwan_finance', 'liwan_hr_finance', 'liwan_pmo_finance',
-    'liwan_payments', 'liwan_chat', 'liwan_tasks', 'liwan_tasks_pmo', 'liwan_operations',
-    'liwan_operations_pmo', 'liwan_hr_operations', 'liwan_ai', 'liwan_pmo_ai', 'liwan_documents',
-    'liwan_documents_hr', 'liwan_crm', 'liwan_appointments', 'liwan_appointments_payments',
-    'liwan_inbox', 'liwan_inbox_payments',
+    'liwan_core', 'liwan_platform', 'liwan_api', 'liwan_ai', 'liwan_directory', 'liwan_documents',
+    'liwan_notify', 'liwan_meetings', 'liwan_operations', 'liwan_pmo', 'liwan_meetings_pmo',
+    'liwan_operations_pmo', 'liwan_pmo_ai', 'liwan_hr', 'liwan_access_hr', 'liwan_documents_hr',
+    'liwan_hr_operations', 'liwan_integrations_sa', 'liwan_finance', 'liwan_hr_finance',
+    'liwan_pmo_finance', 'liwan_payments', 'liwan_chat', 'liwan_tasks', 'liwan_tasks_pmo',
+    'liwan_crm', 'liwan_appointments', 'liwan_appointments_payments', 'liwan_inbox',
+    'liwan_inbox_payments',
 )
 CATALOG_PATH = Path(__file__).resolve().parents[2] / 'deploy' / 'catalog' / 'solutions' / 'platform.json'
 PROFILE_SQL = (

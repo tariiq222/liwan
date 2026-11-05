@@ -1,7 +1,7 @@
 import type { Pool } from 'pg'
 import { createBundle, mutateBundle } from './bundles.js'
 import { getRelease } from './catalog-releases.js'
-import { mutatePlan } from './plans.js'
+import { DERIVED_LIMITS, mutatePlan } from './plans.js'
 import { CommercialHttpError, type CommercialActor } from './lifecycle.js'
 
 /** The seeded LiwanOS plan family (schema_025.sql): the one sellable platform plan whose applications are optional bundles. */
@@ -44,7 +44,13 @@ export async function seedDefaultBundles(pool: Pool, actor: CommercialActor, inp
   if (bundleIds.every(id => listed.has(id))) return { bundles: bundleIds, created, plan_revision_id: current.id as string, plan_created: false }
   const draft = await mutatePlan(pool, actor, current.id, 'revisions', { edit_revision: current.edit_revision, reason }) as unknown as Record<string, unknown> & { id: string; edit_revision: number }
   const body = Object.fromEntries(PLAN_FIELDS.map(k => [k, draft[k]]))
-  body.optional_bundle_revision_ids = [...new Set([...(draft.optional_bundle_revision_ids as string[]), ...bundleIds])]
+  // A plan revision compiles against one catalog release, so it lists only this release's bundles (validation refuses a mix).
+  body.optional_bundle_revision_ids = bundleIds
+  // A release can add core platform limits (the AI assistant's, owner decision 2026-11-05); compiling needs each one set, so a missing one is seeded as null (unlimited fair use, owner decision 2026-10-25) for the owner to tighten in the vendor console.
+  const platformLimits = { ...(draft.platform_limits as Record<string, number | null>) }
+  for (const app of release.applications.filter(a => !a.selectable))
+    for (const f of app.features) if (f.kind === 'limit' && !DERIVED_LIMITS.includes(f.key) && !Object.hasOwn(platformLimits, f.key)) platformLimits[f.key] = null
+  body.platform_limits = platformLimits
   const edited = await mutatePlan(pool, actor, draft.id, 'edit', { ...body, edit_revision: draft.edit_revision, reason }) as unknown as { edit_revision: number }
   const validated = await mutatePlan(pool, actor, draft.id, 'validate', { edit_revision: edited.edit_revision, reason }) as unknown as { edit_revision: number }
   await mutatePlan(pool, actor, draft.id, 'publish', { edit_revision: validated.edit_revision, reason })

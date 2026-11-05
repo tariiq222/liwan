@@ -24,4 +24,14 @@ describe('catalog enforcement references', () => {
     expect(sales?.features.find(feature => feature.key === 'sales.enabled')?.enforcement_refs)
       .toEqual(['liwan_api.requires_feature:sales.enabled'])
   })
+
+  it('lists the base modules plus the modules of the core tier on the core application', () => {
+    const v4Solution = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v4.json', import.meta.url), 'utf8'))
+    const apps = catalogApplicationsFromSolution(v4Solution, 'v1')
+    const core = apps.find(app => app.id === 'core')
+    expect(core?.modules).toEqual(['liwan_ai', 'liwan_api', 'liwan_core', 'liwan_documents', 'liwan_meetings', 'liwan_operations', 'liwan_platform'])
+    expect(core?.features.filter(feature => feature.kind === 'limit').map(feature => feature.key)).toContain('ai.messages.monthly')
+    expect(apps.map(app => app.id)).not.toContain('assistant')
+    expect(apps.find(app => app.id === 'projects')).toMatchObject({ name_en: 'Projects', modules: ['liwan_pmo'] })
+  })
 })
