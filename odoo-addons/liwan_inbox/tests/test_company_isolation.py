@@ -19,7 +19,7 @@ from odoo.addons.liwan_inbox.adapters import whatsapp
 from odoo.addons.liwan_inbox.models.secret_box import KEY_ENV
 from odoo.addons.liwan_inbox.tests.common import ACCESS_TOKEN, APP_SECRET
 
-EXPECTED_GET_RECORD_ROUTES = 27
+EXPECTED_GET_RECORD_ROUTES = 28
 PASSWORD = 'iso_inbox_nocap_pass_123'
 PROFILE = {'about': 'About', 'address': None, 'description': None, 'email': None, 'websites': [], 'vertical': None}
 PREVIEW = {'url': 'https://business.facebook.com/wa/manage/flows/preview/abc', 'expires_at': fields.Datetime.now()}
