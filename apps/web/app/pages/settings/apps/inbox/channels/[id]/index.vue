@@ -5,6 +5,7 @@ import { InboxChannelPatchSchema } from '@liwan/contracts'
 import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import InboxChannelTabs from '@/components/inbox/InboxChannelTabs.vue'
 import { useInboxCatalogEnabled } from '@/composables/inbox/useInboxCatalog'
+import { channelKindLabelKey } from '@/composables/inbox/inboxChannelKind'
 import { CHANNEL_STATE_TONE } from '@/composables/inbox/inboxPresentation'
 import {
   useDeleteInboxChannel, useInboxChannel, useInboxDepartments, usePatchInboxChannel, useRotateInboxVerifyToken, useSyncInboxTemplates, useTestInboxChannel,
@@ -235,7 +236,7 @@ async function copy(kind: 'callback' | 'token', value: string) {
 
     <template v-if="channel" #aside>
       <SharedPropertiesPanel :title="t('inbox.settings.channels.status')">
-        <SharedPropertyRow :label="t('inbox.settings.channels.kind')" :value="t('inbox.settings.channels.whatsapp')" />
+        <SharedPropertyRow :label="t('inbox.settings.channels.kind')" :value="t(channelKindLabelKey(channel.kind))" />
         <SharedPropertyRow :label="t('inbox.settings.channels.phoneNumberId')"><bdi dir="ltr">{{ channel.phone_number_id }}</bdi></SharedPropertyRow>
         <SharedPropertyRow :label="t('inbox.settings.channels.businessAccountId')"><bdi dir="ltr">{{ channel.business_account_id }}</bdi></SharedPropertyRow>
         <SharedPropertyRow :label="t('inbox.settings.channels.department')" :value="channel.department?.name ?? t('inbox.settings.channels.noDepartment')" />
