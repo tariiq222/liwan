@@ -15,5 +15,6 @@ from . import (
     sending,
     settings,
     templates,
+    tiktok_hooks,
     tiktok_oauth,
 )
