@@ -22,6 +22,8 @@ services:
   web:
     build: { context: .., dockerfile: apps/web/Dockerfile }
     restart: unless-stopped
+    # The AI service is reachable only on the internal ai_internal network (see `ai` and `ai-egress`).
+    networks: [default, ai_internal]
     environment:
       NUXT_ODOO_URL: http://odoo:8069
       NUXT_ODOO_DB: "${DB_NAME}"
@@ -73,6 +75,8 @@ services:
     profiles: [ai]
     build: { context: ../apps/ai-service }
     restart: unless-stopped
+    # No route off the host: the only way out is the ai-egress allowlist proxy below.
+    networks: [ai_internal]
     environment:
       AI_PROVIDER: "${AI_PROVIDER:-ollama}"
       AI_MODEL: "${AI_MODEL:-}"
@@ -86,6 +90,10 @@ services:
       # One tenant per deployment: this stack's tenant database also holds that tenant's AI state.
       LIWAN_TENANCY_MODE: dedicated
       AI_TENANT_DATABASE: "${DB_NAME}"
+      # Every provider, Ollama included, leaves through ai-egress: an external Ollama is not on ai_internal.
+      HTTPS_PROXY: http://ai-egress:3128
+      HTTP_PROXY: http://ai-egress:3128
+      NO_PROXY: db,web,localhost,127.0.0.1
     expose: ["8600"]
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
@@ -98,10 +106,30 @@ services:
       retries: 20
     depends_on:
       db: { condition: service_healthy }
+      ai-egress: { condition: service_started }
+
+  # The forward proxy that owns AI's outbound traffic: CONNECT to port 443 for the listed hosts, nothing else.
+  ai-egress:
+    profiles: [ai]
+    build: { context: ./ai-egress }
+    restart: unless-stopped
+    environment:
+      AI_EGRESS_HOSTS: "${AI_EGRESS_HOSTS:-}"
+    # Squid runs as Debian's unprivileged `proxy` user on port 3128, so it needs no capability.
+    user: proxy
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    # render.sh writes the configuration under /run; squid's pid, swap and log directories live there too.
+    tmpfs: ["/run:uid=13,gid=13,mode=0750", "/var/spool/squid:uid=13,gid=13,mode=0750", "/var/log/squid:uid=13,gid=13,mode=0750"]
+    expose: ["3128"]
+    networks: [default, ai_internal]
 
   db:
     image: postgres:16@sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c
     restart: unless-stopped
+    # AI state lives in the tenant database, so db joins ai_internal as well as the default network.
+    networks: [default, ai_internal]
     # The postgres user owns the data directory in the image, so the entrypoint never needs root.
     user: postgres
     cap_drop: [ALL]
@@ -121,5 +149,9 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+
+networks:
+  # The AI plane: `ai` sits only here, and `web`/`db` join it to reach it. No route off the host.
+  ai_internal: { internal: true }
 
 volumes: { caddy_data: {}, odoo_data: {}, db_data: {} }

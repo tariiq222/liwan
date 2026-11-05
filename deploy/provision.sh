@@ -16,6 +16,31 @@ cd "$(dirname "$0")"
 # AI_SERVICE_TOKEN and AI_DB_PASSWORD once. An existing value is never printed or rotated.
 if grep -Eq '^COMPOSE_PROFILES=([^#]*,)?ai(,|$|[[:space:]])' .env; then
   sh ai/ensure_secrets.sh .env
+  # `ai` has no internet route of its own: every outbound call goes through the ai-egress host allowlist.
+  # An operator-set AI_EGRESS_HOSTS is kept as it is; when it is empty or absent it is derived once from the
+  # provider (and AI_BASE_URL, when set) so a fresh deployment can reach its provider without another step.
+  if ! grep -Eq '^AI_EGRESS_HOSTS=.' .env; then
+    env_file_value() { awk -v key="$1" 'index($0, key "=") == 1 { print substr($0, length(key) + 2); exit }' .env; }
+    provider="$(env_file_value AI_PROVIDER)"
+    [ -n "$provider" ] || provider=ollama
+    egress_hosts="$(sh ai/egress_hosts.sh "$provider" "$(env_file_value AI_BASE_URL)")" \
+      || { echo "provision: could not derive AI_EGRESS_HOSTS from AI_PROVIDER/AI_BASE_URL in deploy/.env" >&2; exit 1; }
+    # Same write rule as ai/ensure_secrets.sh: replace one assignment in place, append otherwise, never echo a value.
+    # The temporary file holds every secret in .env, so it is created in a subshell whose umask is owner-only.
+    ( umask 077
+      AI_EGRESS_HOSTS="$egress_hosts" awk '
+        index($0, "AI_EGRESS_HOSTS=") == 1 {
+          if (!written) { print "AI_EGRESS_HOSTS=" ENVIRON["AI_EGRESS_HOSTS"]; written = 1 }
+          next
+        }
+        { print }
+        END { if (!written) print "AI_EGRESS_HOSTS=" ENVIRON["AI_EGRESS_HOSTS"] }
+      ' .env > .env.tmp
+      mv .env.tmp .env
+    )
+    chmod 600 .env
+    echo "provision: AI_EGRESS_HOSTS=$egress_hosts (edit deploy/.env to allow another provider host)"
+  fi
 fi
 [ -f branding.json ] || { echo "deploy/branding.json missing (copy branding.example.json)"; exit 1; }
 
