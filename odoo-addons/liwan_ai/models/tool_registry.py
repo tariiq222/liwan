@@ -126,4 +126,17 @@ class LiwanAiToolRegistry(models.AbstractModel):
             'tool_calls_per_run': entitlement._liwan_limit_value('ai.tool_calls.per_run'),
             'messages_monthly': entitlement._liwan_limit_value('ai.messages.monthly'),
             'messages_used': self.env['liwan.ai.audit']._liwan_ai_count_messages(),
+            'policy': self._liwan_ai_policy(),
+        }
+
+    @api.model
+    def _liwan_ai_policy(self):
+        """What the Nuxt server passes with every run: whose provider runs it, and what the run may spend."""
+        entitlement = self.env['liwan.entitlement.service']
+        return {
+            'provider_mode': self.env['liwan.ai.settings']._liwan_current().provider_mode,
+            'outside_allowed': bool(self.env['liwan.ai.consent']._liwan_valid()),
+            'tokens_monthly': entitlement._liwan_limit_value('ai.tokens.monthly'),
+            'tokens_used': self.env['liwan.ai.usage']._liwan_platform_tokens_used(),
+            'output_tokens_per_run': entitlement._liwan_limit_value('ai.output_tokens.per_run'),
         }

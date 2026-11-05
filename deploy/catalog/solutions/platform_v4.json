@@ -127,14 +127,16 @@
     {
       "id": "assistant",
       "name": "LiwanOS AI",
-      "description": "The LiwanOS AI assistant: tool registry, audit log and message limits.",
+      "description": "The LiwanOS AI assistant: tool registry, audit log, settings, and message and token limits.",
       "modules": [
         "liwan_ai"
       ],
       "features": [
         "boolean:ai.enabled",
         "limit:ai.messages.monthly",
-        "limit:ai.tool_calls.per_run"
+        "limit:ai.tool_calls.per_run",
+        "limit:ai.tokens.monthly",
+        "limit:ai.output_tokens.per_run"
       ]
     },
     {

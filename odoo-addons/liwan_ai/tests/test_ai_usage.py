@@ -10,7 +10,8 @@ from odoo.addons.liwan_api.tests.common import LiwanApiCase
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 ITEM = {
-    'conversation_id': 'r_test_01', 'kind': 'plan', 'provider': 'acme-ai', 'model': 'acme-large-1',
+    'conversation_id': 'r_test_01', 'kind': 'plan', 'billing': 'platform',
+    'provider': 'acme-ai', 'model': 'acme-large-1',
     'outcome': 'ok', 'input_tokens': 120, 'output_tokens': 45, 'called_at': '2026-10-27T09:30:00+03:00',
 }
 MESSAGE = {
@@ -86,6 +87,8 @@ class TestAiUsage(AiProbe, LiwanApiCase):
             ({'kind': 'message'}, 'kind', None),
             ({'kind': ['plan']}, 'kind', None),
             ({'outcome': 'maybe'}, 'outcome', None),
+            ({'billing': 'free'}, 'billing', None),
+            ({'billing': None}, 'billing', None),
             ({'provider': 'Acme'}, 'provider', None),
             ({'provider': ''}, 'provider', None),
             ({'provider': 'a' * 33}, 'provider', None),

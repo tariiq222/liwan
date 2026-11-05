@@ -7,6 +7,7 @@ def dump_usage(row):
         'id': row.id,
         'conversation_id': row.conversation_id,
         'kind': row.kind,
+        'billing': row.billing,
         'provider': row.provider,
         'model': row.model,
         'outcome': row.outcome,

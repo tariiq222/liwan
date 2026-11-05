@@ -2,6 +2,8 @@
 from . import (
     access_service,
     ai_audit,
+    ai_consent,
+    ai_settings,
     ai_usage,
     feature_registry,
     tool_registry,
