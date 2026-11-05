@@ -88,7 +88,7 @@ class Policy(Strict):
 
     provider_mode: Billing  # whose provider account runs the request: the platform's or the tenant's own key
     outside_allowed: bool  # a valid residency consent exists, so a provider outside the Kingdom may receive the data
-    max_output_tokens: int | None = Field(ge=1, le=1_000_000)  # platform runs only; null means no per-run cap
+    max_output_tokens: int | None = Field(ge=0, le=1_000_000)  # platform runs only; null means no cap, 0 allows no answer
 
 
 class RunContext(Strict):

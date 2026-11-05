@@ -51,3 +51,16 @@ class TestAiLimitWarning(AiProbe, LiwanApiCase):
         self.api('POST', '/api/v1/ai/audit', MESSAGE)
         self.assertEqual(self._bell(self.employee), [])
         self.assertEqual(len(self._bell(self.manager)), 1)
+
+    def test_platform_tokens_at_eighty_percent_warn_too(self):
+        self.env.cr.execute(
+            "INSERT INTO liwan_ai_usage (company_id, user_id, conversation_id, kind, billing, provider, model, outcome,"
+            " input_tokens, output_tokens, tokens_reported, called_at)"
+            " VALUES (%s, %s, 'r_warn', 'plan', 'platform', 'acme-ai', 'acme-1', 'ok', 80, 0, true, now() at time zone 'utc')",
+            [self.env.company.id, self.employee.id],
+        )
+        self._set_feature('ai.tokens.monthly', 100)
+        self.api('POST', '/api/v1/ai/audit', MESSAGE)
+        items = self._bell(self.manager)
+        self.assertEqual(len(items), 1)
+        self.assertIn('tokens', items[0]['title'])

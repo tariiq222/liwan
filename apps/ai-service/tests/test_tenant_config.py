@@ -153,3 +153,10 @@ def test_the_keyring_is_optional_and_names_its_current_secret():
     keyring = Keyring.from_env({"AI_KEY_ENCRYPTION_KEYS": f"k1:{SECRET},k2:{'t' * 40}", "AI_KEY_ENCRYPTION_KEY_ID": "k2"})
     assert keyring.current_id == "k2" and keyring.secret("k1") == SECRET
 
+
+
+async def test_a_zero_cap_answers_nothing_and_calls_no_provider():
+    model = ScriptedChatModel([ai_text("never")])
+    async with client_for(make_memory_app(model, SETTINGS)) as client:
+        events = parse_sse((await client.post("/v1/runs", json=run_body({**PLATFORM_POLICY, "max_output_tokens": 0}), headers=HEADERS)).text)
+    assert ("limit_reached", {"limit": "output_tokens"}) in events and model.calls == []

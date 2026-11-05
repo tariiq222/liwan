@@ -60,6 +60,37 @@ class TestAiSettings(AiProbe, LiwanApiCase):
                 self.assertEqual(response.status_code, 403, response.text)
                 self.assertEqual(response.json()['code'], 'forbidden')
 
+    def test_a_branch_manager_cannot_change_the_tenant_wide_settings(self):
+        self.settings_managers -= self.manager
+        self.branch_settings_managers |= self.manager
+        self._as_manager()
+        for method, path, body in (
+            ('GET', '/api/v1/ai/settings', None),
+            ('PATCH', '/api/v1/ai/settings', {'provider_mode': 'tenant_key', 'revision': 1}),
+            ('POST', '/api/v1/ai/consent', SIGNATURE),
+            ('POST', '/api/v1/ai/consent/revoke', None),
+        ):
+            with self.subTest(path=path, method=method):
+                response = self.api(method, path, body)
+                self.assertEqual(response.status_code, 403, response.text)
+        self.assertFalse(self.env['liwan.ai.consent'].search([]))
+
+    def test_a_revocation_revokes_every_live_row(self):
+        Consent = self.env['liwan.ai.consent']
+        Consent.create({'user_id': self.manager.id, 'signed_at': datetime.now(), 'text_version': 'older', 'text_hash': 'x'})
+        Consent.create({
+            'user_id': self.manager.id, 'signed_at': datetime.now(),
+            'text_version': consent_text.CONSENT_VERSION, 'text_hash': consent_text.CONSENT_TEXT_HASH,
+        })
+        with self.assertRaises(Exception), self.env.cr.savepoint():
+            Consent.create({
+                'user_id': self.manager.id, 'signed_at': datetime.now(),
+                'text_version': consent_text.CONSENT_VERSION, 'text_hash': consent_text.CONSENT_TEXT_HASH,
+            })
+        self._as_manager()
+        self.assertIsNone(self.api('POST', '/api/v1/ai/consent/revoke').json()['consent']['signed'])
+        self.assertFalse(Consent._liwan_valid_all())
+
     def test_defaults_and_the_revision_guard(self):
         self._as_manager()
         body = self.api('GET', '/api/v1/ai/settings').json()

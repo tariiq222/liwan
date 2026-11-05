@@ -108,8 +108,9 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
     if settings.generation_id is not None and not GENERATION_ID.fullmatch(settings.generation_id):
         raise SettingsError("AI_GENERATION_ID", "AI_GENERATION_ID is invalid")
     platform = RunModel(model, ModelIdentity(settings.provider, settings.model, "platform"))
-    tenant_models: dict[tuple[str, Any], RunModel] = {}  # (tenant database, key updated_at): a changed key builds a new model
-    tenant_secrets: set[str] = set()  # redacted from every log line, like the platform key
+    # A tenant's model on its own key, by tenant database, with the key's version and the key (redacted from every log
+    # line, like the platform key). A new or removed key replaces or drops the entry.
+    tenant_models: dict[str, tuple[Any, RunModel, str]] = {}
     app = FastAPI(title="LiwanOS AI service", docs_url=None, redoc_url=None)
 
     def require_service_token(x_liwan_service_token: Annotated[str, Header()] = "") -> None:
@@ -233,7 +234,7 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
         return None
 
     def secrets() -> tuple[str | None, ...]:
-        return (settings.api_key, settings.database_url, *tenant_secrets)
+        return (settings.api_key, settings.database_url, *(key for _version, _model, key in tenant_models.values()))
 
     def log_failure(run_id: str, error: Exception, what: str = "failed") -> None:
         log.error("run %s %s: %s: %s", run_id, what, type(error).__name__, redact(str(error), secrets()))
@@ -253,14 +254,12 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
                 raise HTTPException(503, "ai_key_unavailable") from None
             if key is None:
                 raise HTTPException(409, "ai_tenant_key_missing")
-            cache_key = (tenant.database, key.updated_at)
-            if cache_key not in tenant_models:
-                for stale in [k for k in tenant_models if k[0] == tenant.database]:
-                    del tenant_models[stale]
-                tenant_secrets.add(key.api_key)
+            cached = tenant_models.get(tenant.database)
+            if cached is None or cached[0] != key.updated_at:
                 built = build_tenant_model(settings, key.provider, key.model, key.api_key)
-                tenant_models[cache_key] = RunModel(built, ModelIdentity(key.provider, key.model, "tenant_key"))
-            chosen = tenant_models[cache_key]
+                cached = (key.updated_at, RunModel(built, ModelIdentity(key.provider, key.model, "tenant_key")), key.api_key)
+                tenant_models[tenant.database] = cached
+            chosen = cached[1]
         if REGISTRY[chosen.identity.provider].location == "outside" and not policy.outside_allowed:
             raise HTTPException(403, "ai_consent_required")
         return chosen
@@ -548,6 +547,7 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
     @api.delete("/v1/tenant/config/key")
     async def delete_tenant_key(who: Annotated[Owner, Depends(owner)]) -> TenantConfigView:
         async with tenant_state(who) as tenant:
+            tenant_models.pop(tenant.database, None)  # the removed key leaves the process at once
             return config_view(await tenant.config.clear_key())
 
     app.include_router(api)

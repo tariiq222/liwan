@@ -94,6 +94,7 @@ class AiProbe:
     def _install_probe(self, tools=PROBE_TOOLS):
         self.granted = set()
         self.settings_managers = self.env['res.users']
+        self.branch_settings_managers = self.env['res.users']
         registry = type(self.env['liwan.ai.tool.registry'])
         self.patch(registry, '_liwan_ai_tool_definitions', lambda model: tools)
         access = type(self.env['liwan.access.service'])
@@ -101,6 +102,10 @@ class AiProbe:
 
         def has_capability(model, user, key, record=None, company=None):
             if key == AI_SETTINGS_MANAGE:
+                # A branch manager holds the capability everywhere but in the tenant's root company.
+                root = self.env['liwan.entitlement.service']._liwan_profile().root_company_id
+                if user in self.branch_settings_managers:
+                    return company != root
                 return user in self.settings_managers
             if key in {READ_CAP, WRITE_CAP, CREATE_CAP}:
                 return key in self.granted

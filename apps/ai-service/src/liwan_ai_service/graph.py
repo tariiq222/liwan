@@ -7,6 +7,7 @@ run request and stop the graph with ``outcome = 'limit_reached'``.
 from __future__ import annotations
 
 import json
+import logging
 from typing import Annotated, Any, Literal, TypedDict
 
 import jsonschema
@@ -74,6 +75,8 @@ def run_config(run_id: str, max_steps: int, deadline_at: float | None = None, ru
     if run_model is not None:
         configurable[RUN_MODEL_KEY] = run_model
     return {"configurable": configurable, "recursion_limit": 3 * max_steps + 10}
+
+log = logging.getLogger("liwan_ai_service")
 
 
 def text_of(content: str | list[Any]) -> str:
@@ -148,8 +151,12 @@ def build_graph(checkpointer):
         deadline_at = config["configurable"].get(DEADLINE_KEY)
         tools = run_model.model.bind_tools(_openai_tools(state["tools"]))
         response = await invoke_planned(tools, [prompt, *history], run_model.identity, get_stream_writer(), deadline_at)
-        spent = tokens_of([response])[1] or 0
-        return {"messages": [response], "steps": state["steps"] + 1, "output_tokens": state.get("output_tokens", 0) + spent}
+        spent = tokens_of([response])[1]
+        if spent is None and cap is not None:
+            # The cap is checked between plan calls (a call that crosses it completes); a provider reporting no usage
+            # cannot be capped at all, and that is logged rather than hidden.
+            log.warning("a capped run's provider reported no output tokens; the per-run cap cannot count this call")
+        return {"messages": [response], "steps": state["steps"] + 1, "output_tokens": state.get("output_tokens", 0) + (spent or 0)}
 
     def route_after_plan(state: AgentState) -> Literal["request_tool", "answer", "__end__"]:
         if state["outcome"] == "limit_reached":

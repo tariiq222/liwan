@@ -179,18 +179,19 @@ class PostgresTenantConfig:
         return _config_of(row)
 
     async def load_key(self, keyring: Keyring | None) -> TenantKey | None:
+        """The key as one read: its id and ciphertext come from the same row version, so a rotation or a new key
+        written meanwhile cannot pair one key's ciphertext with another's secret."""
         async with self.pool.connection() as conn:
             row = await (await conn.execute(
-                "SELECT key_provider, key_model, key_id, key_updated_at FROM ai_tenant_config WHERE singleton AND key_ciphertext IS NOT NULL",
+                "SELECT key_provider, key_model, key_id, key_updated_at, key_ciphertext FROM ai_tenant_config"
+                " WHERE singleton AND key_ciphertext IS NOT NULL",
             )).fetchone()
             if row is None:
                 return None
-            provider, model, key_id, updated_at = row
+            provider, model, key_id, updated_at, ciphertext = row
             if keyring is None:
                 raise KeyUnavailable("ai_key_unavailable")
-            decrypted = await (await conn.execute(
-                "SELECT pgp_sym_decrypt(key_ciphertext, %s) FROM ai_tenant_config WHERE singleton", (keyring.secret(key_id),),
-            )).fetchone()
+            decrypted = await (await conn.execute("SELECT pgp_sym_decrypt(%s::bytea, %s)", (ciphertext, keyring.secret(key_id)))).fetchone()
         return TenantKey(provider, model, decrypted[0], updated_at)
 
     async def rotate(self, keyring: Keyring) -> bool:

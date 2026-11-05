@@ -25,6 +25,9 @@ class LiwanAiConsent(models.Model):
     revoked_at = fields.Datetime()
     revoked_by_id = fields.Many2one('res.users', ondelete='restrict')
 
+    # One live consent per text version: two concurrent signatures cannot leave a second row behind a revocation.
+    _one_live_consent = models.UniqueIndex('(text_version) WHERE revoked_at IS NULL')
+
     def write(self, vals):
         if set(vals) - REVOCATION_FIELDS:
             raise UserError(self.env._('A signed consent cannot be changed, only revoked.'))
@@ -33,4 +36,8 @@ class LiwanAiConsent(models.Model):
     @api.model
     def _liwan_valid(self):
         """The non-revoked consent of the current text version, or an empty recordset."""
-        return self.search([('text_version', '=', consent_text.CONSENT_VERSION), ('revoked_at', '=', False)], limit=1)
+        return self._liwan_valid_all()[:1]
+
+    @api.model
+    def _liwan_valid_all(self):
+        return self.search([('text_version', '=', consent_text.CONSENT_VERSION), ('revoked_at', '=', False)])
