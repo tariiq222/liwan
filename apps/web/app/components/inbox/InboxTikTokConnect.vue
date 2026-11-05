@@ -26,6 +26,8 @@ const payload = computed(() => ({
 const valid = computed(() => InboxTikTokConnectSchema.safeParse(payload.value).success)
 const off = computed(() => !hydrated.value || isPending.value)
 const nameError = computed(() => attempted.value && !form.name.trim() ? t('inbox.settings.channels.invalid.name') : undefined)
+// The form is a draft of its own: leaving the card with a half-typed name asks first.
+const dirty = computed(() => open.value && (!!form.name.trim() || form.department !== NONE))
 
 function toggle() {
   open.value = !open.value
@@ -64,6 +66,7 @@ async function submit() {
       />
     </div>
     <form v-if="open" class="flex flex-col gap-(--liwan-gap-card)" novalidate @submit.prevent="submit">
+      <SharedUnsavedChanges :dirty="dirty" />
       <UFormField name="name" :label="t('inbox.settings.name')" required :error="nameError">
         <UInput v-model="form.name" class="w-full" maxlength="128" :disabled="off" data-testid="inbox-tiktok-name" />
       </UFormField>
