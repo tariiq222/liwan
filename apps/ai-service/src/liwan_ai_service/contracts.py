@@ -116,13 +116,15 @@ class Limits(Strict):
     timeout_seconds: int = Field(ge=5, le=600)
 
 
-Billing = Literal["platform", "tenant_key"]
+# Whose account pays a request: the platform's within the package, the tenant's own key, or the vendor's setup budget
+# (the free setup agent runs on the platform provider, spec 2026-11-04 §6.5).
+Billing = Literal["platform", "tenant_key", "setup"]
 
 
 class Policy(Strict):
     """The tenant's AI policy as Odoo states it for this request (spec 2026-11-04 §6.8); the service enforces it."""
 
-    provider_mode: Billing  # whose provider account runs the request: the platform's or the tenant's own key
+    provider_mode: Billing  # whose account pays the request; "setup" runs on the platform provider
     outside_allowed: bool  # a valid residency consent exists, so a provider outside the Kingdom may receive the data
     max_output_tokens: int | None = Field(ge=0, le=1_000_000)  # platform runs only; null means no cap, 0 allows no answer
 
