@@ -201,3 +201,132 @@ class TestTikTokAdapter(BaseCase):
             'business_id': tt.BUSINESS_ID, 'fields': 'username,display_name,profile_image',
         })
         self.assertEqual(request.call_args.kwargs['headers']['Access-Token'], 'access-token-1')
+
+    def test_send_text_with_quote(self):
+        answer = response(tt.answer({'message': {'message_id': 'msg-out-1'}}))
+        with patch.object(requests, 'request', return_value=answer) as request:
+            provider_id = tiktok.send_text(CREDENTIALS, tt.CONVERSATION_ID, 'Hello', context_id='msg-1')
+        self.assertEqual(provider_id, 'msg-out-1')
+        self.assertEqual(request.call_args.args[:2], ('POST', tiktok.API_BASE + '/business/message/send/'))
+        self.assertEqual(request.call_args.kwargs['headers']['Access-Token'], 'access-token-1')
+        self.assertEqual(request.call_args.kwargs['json'], {
+            'business_id': tt.BUSINESS_ID,
+            'recipient_type': 'CONVERSATION',
+            'recipient': tt.CONVERSATION_ID,
+            'message_type': 'TEXT',
+            'text': {'body': 'Hello'},
+            'referenced_message_info': {'referenced_message_id': 'msg-1'},
+        })
+        with patch.object(requests, 'request', return_value=answer) as request:
+            tiktok.send_text(CREDENTIALS, tt.CONVERSATION_ID, 'Hello')
+        self.assertNotIn('referenced_message_info', request.call_args.kwargs['json'])
+
+    def test_send_buttons_validates_limits(self):
+        buttons = [tiktok.Button('opt_1', 'Yes')]
+        with patch.object(requests, 'request') as request:
+            with self.assertRaises(ValueError):
+                tiktok.send_buttons(CREDENTIALS, tt.CONVERSATION_ID, 'Pick one', buttons * 4)
+            with self.assertRaises(ValueError):
+                tiktok.send_buttons(CREDENTIALS, tt.CONVERSATION_ID, 'Pick one', [tiktok.Button('opt_1', 'a' * 21)])
+            with self.assertRaises(ValueError):
+                tiktok.send_buttons(CREDENTIALS, tt.CONVERSATION_ID, 'a' * 41, buttons)
+            with self.assertRaises(ValueError):
+                tiktok.send_buttons(CREDENTIALS, tt.CONVERSATION_ID, 'Pick one', [tiktok.Button('a' * 41, 'Yes')])
+        request.assert_not_called()
+        answer = response(tt.answer({'message': {'message_id': 'msg-card-1'}}))
+        card = [tiktok.Button('opt_1', 'Yes'), tiktok.Button('opt_2', 'No'), tiktok.Button('opt_3', 'Later')]
+        with patch.object(requests, 'request', return_value=answer) as request:
+            self.assertEqual(tiktok.send_buttons(CREDENTIALS, tt.CONVERSATION_ID, 'Pick one', card), 'msg-card-1')
+        self.assertEqual(request.call_args.kwargs['json'], {
+            'business_id': tt.BUSINESS_ID,
+            'recipient_type': 'CONVERSATION',
+            'recipient': tt.CONVERSATION_ID,
+            'message_type': 'TEMPLATE',
+            'template': {
+                'type': 'QA_BUTTON_CARD',
+                'title': 'Pick one',
+                'buttons': [
+                    {'type': 'REPLY', 'title': 'Yes', 'id': 'opt_1'},
+                    {'type': 'REPLY', 'title': 'No', 'id': 'opt_2'},
+                    {'type': 'REPLY', 'title': 'Later', 'id': 'opt_3'},
+                ],
+            },
+        })
+
+    def test_upload_then_send_image(self):
+        image = b'\x89PNG\r\n\x1a\n'
+        with patch.object(requests, 'request', return_value=response(tt.answer({'media_id': 'media-image-9'}))) as request:
+            media_id = tiktok.upload_image(CREDENTIALS, 'photo.png', 'image/png', image)
+        self.assertEqual(media_id, 'media-image-9')
+        self.assertEqual(request.call_args.args[1], tiktok.API_BASE + '/business/message/media/upload/')
+        self.assertEqual(request.call_args.kwargs['data'], {'business_id': tt.BUSINESS_ID, 'media_type': 'IMAGE'})
+        self.assertEqual(request.call_args.kwargs['files'], {'file': ('photo.png', image, 'image/png')})
+        with patch.object(requests, 'request', return_value=response(tt.answer({'message': {'message_id': 'msg-image-2'}}))) as request:
+            self.assertEqual(tiktok.send_image(CREDENTIALS, tt.CONVERSATION_ID, media_id), 'msg-image-2')
+        self.assertEqual(request.call_args.kwargs['json'], {
+            'business_id': tt.BUSINESS_ID,
+            'recipient_type': 'CONVERSATION',
+            'recipient': tt.CONVERSATION_ID,
+            'message_type': 'IMAGE',
+            'image': {'media_id': 'media-image-9'},
+        })
+        with patch.object(requests, 'request') as request:
+            with self.assertRaises(ValueError):
+                tiktok.upload_image(CREDENTIALS, 'doc.pdf', 'application/pdf', b'%PDF')
+            with self.assertRaises(ValueError):
+                tiktok.upload_image(CREDENTIALS, 'photo.png', 'image/png', b'x' * (tiktok.IMAGE_MAX_BYTES + 1))
+        request.assert_not_called()
+
+    def test_send_action(self):
+        answer = response(tt.answer({'message': {'message_id': ''}}))
+        with patch.object(requests, 'request', return_value=answer) as request:
+            self.assertIsNone(tiktok.send_action(CREDENTIALS, tt.CONVERSATION_ID, 'MARK_READ'))
+        self.assertEqual(request.call_args.kwargs['json'], {
+            'business_id': tt.BUSINESS_ID,
+            'recipient_type': 'CONVERSATION',
+            'recipient': tt.CONVERSATION_ID,
+            'message_type': 'SENDER_ACTION',
+            'sender_action': 'MARK_READ',
+        })
+        with patch.object(requests, 'request', return_value=answer) as request:
+            tiktok.send_action(CREDENTIALS, tt.CONVERSATION_ID, 'TYPING')
+        self.assertEqual(request.call_args.kwargs['json']['sender_action'], 'TYPING')
+        with self.assertRaises(ValueError):
+            tiktok.send_action(CREDENTIALS, tt.CONVERSATION_ID, 'DANCE')
+
+    def test_fetch_media_uses_x_user_header(self):
+        download = response(tt.answer({'download_url': 'https://cdn.tiktok.com/file/1'}))
+        content = response(status=200, content=b'image-bytes', headers={'Content-Type': 'image/jpeg; charset=binary'})
+        with patch.object(requests, 'request', side_effect=[download, content]) as request:
+            media = tiktok.fetch_media(CREDENTIALS, tt.CONVERSATION_ID, 'msg-image-1', 'media-image-1', 'IMAGE')
+        self.assertEqual(media, tiktok.Media(b'image-bytes', 'image/jpeg'))
+        first, second = request.call_args_list
+        self.assertEqual(first.args[:2], ('POST', tiktok.API_BASE + '/business/message/media/download/'))
+        self.assertEqual(first.kwargs['json'], {
+            'business_id': tt.BUSINESS_ID,
+            'conversation_id': tt.CONVERSATION_ID,
+            'message_id': 'msg-image-1',
+            'media_id': 'media-image-1',
+            'media_type': 'IMAGE',
+        })
+        self.assertEqual(second.args, ('GET', 'https://cdn.tiktok.com/file/1'))
+        self.assertEqual(second.kwargs['headers']['x-user'], 'access-token-1')
+
+    def test_image_send_capable(self):
+        capable = response(tt.answer({
+            'capability_infos': [{'capability_type': 'IMAGE_SEND', 'capability_result': True}],
+        }))
+        with patch.object(requests, 'request', return_value=capable) as request:
+            self.assertTrue(tiktok.image_send_capable(CREDENTIALS, tt.CONVERSATION_ID))
+        self.assertEqual(request.call_args.args[1], tiktok.API_BASE + '/business/message/capabilities/get/')
+        self.assertEqual(request.call_args.kwargs['params'], {
+            'business_id': tt.BUSINESS_ID,
+            'conversation_id': tt.CONVERSATION_ID,
+            'conversation_type': 'SINGLE',
+            'capability_types': '["IMAGE_SEND"]',
+        })
+        refused = response(tt.answer({
+            'capability_infos': [{'capability_type': 'IMAGE_SEND', 'capability_result': False}],
+        }))
+        with patch.object(requests, 'request', return_value=refused):
+            self.assertFalse(tiktok.image_send_capable(CREDENTIALS, tt.CONVERSATION_ID))

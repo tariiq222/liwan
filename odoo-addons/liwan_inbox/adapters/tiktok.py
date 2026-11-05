@@ -97,6 +97,19 @@ class Profile:
 
 
 @dataclass(frozen=True)
+class Media:
+    content: bytes
+    mimetype: str
+
+
+@dataclass(frozen=True)
+class Button:
+    """One reply button of a button card; `id` comes back as `reply_source_unique_id` when it is tapped."""
+    id: str
+    title: str
+
+
+@dataclass(frozen=True)
 class InboundMessage:
     provider_id: str
     conversation_id: str
@@ -243,6 +256,105 @@ def parse_event(payload, business_id):
     return []
 
 
+def image_send_capable(credentials, conversation_id):
+    """True when this conversation may receive an image (TikTok limits it to some country pairs)."""
+    data = _answer(_call('GET', _api('business/message/capabilities/get/'), credentials.access_token, params={
+        'business_id': credentials.business_id,
+        'conversation_id': conversation_id,
+        'conversation_type': 'SINGLE',
+        'capability_types': json.dumps(['IMAGE_SEND']),
+    }))
+    return _capability_result(data)
+
+
+def fetch_media(credentials, conversation_id, message_id, media_id, media_type):
+    """Download one message's media; TikTok gates the download URL itself behind the `x-user` header."""
+    data = _answer(_call('POST', _api('business/message/media/download/'), credentials.access_token, json={
+        'business_id': credentials.business_id,
+        'conversation_id': conversation_id,
+        'message_id': message_id,
+        'media_id': media_id,
+        'media_type': media_type,
+    }))
+    url = _require_text(data, 'download_url')
+    response = _call('GET', url, credentials.access_token, timeout=DOWNLOAD_TIMEOUT_SECONDS, headers={
+        'x-user': credentials.access_token,
+    })
+    mimetype = (response.headers.get('Content-Type') or '').split(';')[0].strip()
+    return Media(response.content, mimetype)
+
+
+def send_text(credentials, conversation_id, body, context_id=None):
+    """Send a text (up to `TEXT_MAX`), optionally quoting `context_id`; returns the provider message id."""
+    if not isinstance(body, str) or not 0 < len(body) <= TEXT_MAX:
+        raise ValueError(f'a TikTok text is 1 to {TEXT_MAX} characters')
+    content = {'message_type': 'TEXT', 'text': {'body': body}}
+    if context_id:
+        content['referenced_message_info'] = {'referenced_message_id': context_id}
+    return _message_id(_answer(_call('POST', _api('business/message/send/'), credentials.access_token, json={
+        'business_id': credentials.business_id,
+        'recipient_type': 'CONVERSATION',
+        'recipient': conversation_id,
+        **content,
+    })))
+
+
+def upload_image(credentials, filename, mimetype, data):
+    """Upload one JPEG or PNG (up to 3 MB) and return the media id a later `send_image` uses."""
+    if mimetype not in IMAGE_MIMETYPES:
+        message = 'a TikTok image is JPEG or PNG'
+        raise ValueError(message)
+    if not data or len(data) > IMAGE_MAX_BYTES:
+        raise ValueError(f'a TikTok image is at most {IMAGE_MAX_BYTES} bytes')
+    answer = _answer(_call(
+        'POST', _api('business/message/media/upload/'), credentials.access_token, timeout=UPLOAD_TIMEOUT_SECONDS,
+        data={'business_id': credentials.business_id, 'media_type': 'IMAGE'},
+        files={'file': (filename, data, mimetype)},
+    ))
+    return _require_text(answer, 'media_id')
+
+
+def send_image(credentials, conversation_id, media_id):
+    """Send an uploaded image as its own message; returns the provider message id."""
+    return _message_id(_answer(_call('POST', _api('business/message/send/'), credentials.access_token, json={
+        'business_id': credentials.business_id,
+        'recipient_type': 'CONVERSATION',
+        'recipient': conversation_id,
+        'message_type': 'IMAGE',
+        'image': {'media_id': media_id},
+    })))
+
+
+def send_buttons(credentials, conversation_id, title, buttons):
+    """Send a QA button card (a title and 1 to 3 reply buttons); returns the provider message id."""
+    _validate_card(title, buttons)
+    return _message_id(_answer(_call('POST', _api('business/message/send/'), credentials.access_token, json={
+        'business_id': credentials.business_id,
+        'recipient_type': 'CONVERSATION',
+        'recipient': conversation_id,
+        'message_type': 'TEMPLATE',
+        'template': {
+            'type': 'QA_BUTTON_CARD',
+            'title': title,
+            'buttons': [{'type': 'REPLY', 'title': button.title, 'id': button.id} for button in buttons],
+        },
+    })))
+
+
+def send_action(credentials, conversation_id, action):
+    """Send a sender action (`TYPING` or `MARK_READ`); nothing is stored as a message."""
+    if action not in ('TYPING', 'MARK_READ'):
+        message = 'a TikTok sender action is TYPING or MARK_READ'
+        raise ValueError(message)
+    _answer(_call('POST', _api('business/message/send/'), credentials.access_token, json={
+        'business_id': credentials.business_id,
+        'recipient_type': 'CONVERSATION',
+        'recipient': conversation_id,
+        'message_type': 'SENDER_ACTION',
+        'sender_action': action,
+    }))
+
+
 def _api(path):
     return f'{API_BASE}/{path}'
 
@@ -317,6 +429,29 @@ def _grant(data):
 
 def _seconds(value):
     return int(value) if isinstance(value, (int, str)) and str(value).isdigit() else 0
+
+
+def _capability_result(data):
+    for capability in _dicts(data.get('capability_infos')):
+        if capability.get('capability_type') == 'IMAGE_SEND':
+            return capability.get('capability_result') is True
+    return False
+
+
+def _message_id(data):
+    return _require_text(_dict(data.get('message')), 'message_id')
+
+
+def _validate_card(title, buttons):
+    if not 1 <= len(buttons) <= MAX_BUTTONS:
+        raise ValueError(f'a TikTok button card has 1 to {MAX_BUTTONS} buttons')
+    if not isinstance(title, str) or not 0 < len(title) <= CARD_TITLE_MAX:
+        raise ValueError(f'a TikTok button card title is 1 to {CARD_TITLE_MAX} characters')
+    for button in buttons:
+        if not 0 < len(button.id) <= BUTTON_ID_MAX:
+            raise ValueError(f'a TikTok button id is 1 to {BUTTON_ID_MAX} characters')
+        if not 0 < len(button.title) <= BUTTON_TITLE_MAX:
+            raise ValueError(f'a TikTok button title is 1 to {BUTTON_TITLE_MAX} characters')
 
 
 def _dict(value):
