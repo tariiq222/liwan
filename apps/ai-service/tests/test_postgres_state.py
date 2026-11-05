@@ -112,7 +112,7 @@ async def test_initialize_control_creates_only_control_tables():
     await create_schema(schema)
     control = await open_control(schema_conninfo(schema), initialize=True)
     try:
-        async with psycopg.AsyncConnection.connect(base_url(), autocommit=True) as conn:
+        async with await psycopg.AsyncConnection.connect(base_url(), autocommit=True) as conn:
             rows = await (await conn.execute(
                 "SELECT to_regclass(%s), to_regclass(%s), to_regclass(%s), to_regclass(%s)",
                 (f"{schema}.ai_state_schema", f"{schema}.ai_generations", f"{schema}.ai_runs", f"{schema}.checkpoints"),
@@ -130,7 +130,7 @@ async def test_initialize_tenant_creates_tables_in_liwan_ai_schema():
     await create_schema(schema)
     try:
         await initialize_tenant(schema_conninfo(schema))
-        async with psycopg.AsyncConnection.connect(base_url(), autocommit=True) as conn:
+        async with await psycopg.AsyncConnection.connect(base_url(), autocommit=True) as conn:
             rows = await (await conn.execute(
                 "SELECT " + ", ".join(["to_regclass(%s)"] * len(TENANT_TABLES)),
                 tuple(f"{schema}.{table}" for table in TENANT_TABLES),
@@ -153,7 +153,7 @@ async def test_initialize_tenant_is_idempotent():
     try:
         await initialize_tenant(conninfo)
         await initialize_tenant(conninfo)
-        async with psycopg.AsyncConnection.connect(conninfo, autocommit=True) as conn:
+        async with await psycopg.AsyncConnection.connect(conninfo, autocommit=True) as conn:
             rows = await (await conn.execute("SELECT state_version, checkpoint_version FROM ai_tenant_schema")).fetchall()
             migrations = await (await conn.execute("SELECT max(v) FROM checkpoint_migrations")).fetchone()
         assert rows == [("1", checkpoint_version)]
@@ -168,10 +168,10 @@ async def test_initialize_tenant_completes_a_bootstrap_interrupted_before_its_ma
     conninfo = schema_conninfo(schema)
     try:
         await initialize_tenant(conninfo)
-        async with psycopg.AsyncConnection.connect(conninfo, autocommit=True) as conn:
+        async with await psycopg.AsyncConnection.connect(conninfo, autocommit=True) as conn:
             await conn.execute("DROP TABLE ai_tenant_schema")
         await initialize_tenant(conninfo)
-        async with psycopg.AsyncConnection.connect(conninfo, autocommit=True) as conn:
+        async with await psycopg.AsyncConnection.connect(conninfo, autocommit=True) as conn:
             await validate_tenant(conn, len(AsyncPostgresSaver.MIGRATIONS) - 1)
     finally:
         await drop_schema(schema)
@@ -181,7 +181,7 @@ async def test_validate_tenant_rejects_missing_schema():
     schema = f"tenant_{uuid4().hex[:12]}"
     await create_schema(schema)
     try:
-        async with psycopg.AsyncConnection.connect(schema_conninfo(schema), autocommit=True) as conn:
+        async with await psycopg.AsyncConnection.connect(schema_conninfo(schema), autocommit=True) as conn:
             with pytest.raises(StateCompatibilityError, match="ai_state_uninitialized"):
                 await validate_tenant(conn, len(AsyncPostgresSaver.MIGRATIONS) - 1)
     finally:

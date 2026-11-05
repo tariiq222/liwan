@@ -11,7 +11,7 @@ from psycopg.conninfo import make_conninfo
 from liwan_ai_service.control import StateCompatibilityError
 from liwan_ai_service.store import initialize_tenant
 from liwan_ai_service.tenancy import DATABASE_NAME, TenantDirectory, UnknownTenant
-from liwan_ai_service.tenant_state import TenantState, TenantStates
+from liwan_ai_service.tenant_state import TenantState, TenantStates, TenantStateUnavailable
 
 requires_postgres = pytest.mark.skipif(not os.environ.get("AI_TEST_DATABASE_URL"), reason="needs AI_TEST_DATABASE_URL")
 
@@ -227,3 +227,16 @@ async def test_each_stops_at_an_unreachable_database_unless_told_to_skip_it():
     skipped = []
     served = [state.database async for state in states.each(on_unavailable=lambda database, error: skipped.append(database))]
     assert served == ["db_b"] and skipped == ["db_a"]
+
+
+@requires_postgres
+async def test_an_unreachable_tenant_database_fails_fast_without_its_address():
+    states = TenantStates(MappingDirectory({"a": "ai_missing_" + uuid4().hex[:12]}), database_url(), graph_factory)
+    started = asyncio.get_running_loop().time()
+    try:
+        with pytest.raises(TenantStateUnavailable) as raised:
+            await state_of(states, "a")
+        assert asyncio.get_running_loop().time() - started < 10  # not the pool's 30 second retry window
+        assert str(raised.value) == "ai_state_unavailable"
+    finally:
+        await states.aclose()

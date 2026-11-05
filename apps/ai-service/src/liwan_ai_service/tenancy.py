@@ -109,16 +109,21 @@ def tenancy_from_env(environ: Mapping[str, str]) -> tuple[str, str | None, str |
     raise _unknown_mode()
 
 
+def directory_for(database_url: str | None, mode: str, tenant_database: str | None,
+                  registry_path: str | None) -> TenantDirectory:
+    """The directory of already validated tenancy settings (``tenancy_from_env``): memory without real state."""
+    if not database_url:
+        return MemoryDirectory()
+    if mode == "dedicated" and tenant_database:
+        return DedicatedDirectory(tenant_database)
+    if mode == "shared" and registry_path:
+        return RegistryDirectory(registry_path)
+    raise _unknown_mode()
+
+
 def directory_from_env(environ: Mapping[str, str]) -> TenantDirectory:
     """Build the directory the deployment's own configuration describes."""
-    if not _real_state(environ):
-        return MemoryDirectory()
-    mode = _mode(environ)
-    if mode == "dedicated":
-        return DedicatedDirectory(_dedicated_database(environ))
-    if mode == "shared":
-        return RegistryDirectory(_registry_path(environ))
-    raise _unknown_mode()
+    return directory_for(environ.get("AI_DATABASE_URL", "").strip() or None, *tenancy_from_env(environ))
 
 
 def _real_state(environ: Mapping[str, str]) -> bool:

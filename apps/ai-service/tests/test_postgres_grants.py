@@ -31,7 +31,8 @@ def connect(database="postgres", **overrides):
 
 def admin(statement, params=None):
     with closing(connect()) as conn:
-        return conn.execute(statement, params).fetchall()
+        cursor = conn.execute(statement, params)
+        return cursor.fetchall() if cursor.description else []
 
 
 def role_exists():
@@ -97,7 +98,7 @@ def test_ai_role_cannot_read_public():
                 with pytest.raises(psycopg.errors.InsufficientPrivilege):
                     conn.execute("SELECT 1 FROM public.res_users")
                 conn.execute("CREATE TABLE liwan_ai.t()")
-                assert conn.execute("SELECT to_regclass('liwan_ai.t')").fetchone() == ("liwan_ai.t",)
+                assert conn.execute("SELECT to_regclass('liwan_ai.t') IS NOT NULL").fetchone() == (True,)
 
 
 def test_tenant_schema_is_noop_without_role():

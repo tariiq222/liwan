@@ -20,6 +20,11 @@ from liwan_ai_service.store import MemoryRunStore, PostgresRunStore, RunStore, v
 from liwan_ai_service.tenancy import TenantDirectory
 
 log = logging.getLogger(__name__)
+CONNECT_TIMEOUT_SECONDS = 5  # a tenant database that does not answer fails the request fast, not after the pool's retries
+
+
+class TenantStateUnavailable(RuntimeError):
+    """The tenant database could not be reached; the message never carries the connection string."""
 
 
 @dataclass(frozen=True)
@@ -166,20 +171,21 @@ class TenantStates:
             raise
 
     async def _open_pool(self, conninfo: str):
-        """A pool of one tenant database, opened and validated before any request uses it."""
+        """A pool of one tenant database, validated through one direct connection before any request uses it."""
+        import psycopg
         from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
         from psycopg_pool import AsyncConnectionPool
 
+        try:
+            probe = await psycopg.AsyncConnection.connect(conninfo, autocommit=True, connect_timeout=CONNECT_TIMEOUT_SECONDS)
+        except psycopg.OperationalError:
+            raise TenantStateUnavailable("ai_state_unavailable") from None
+        async with probe:
+            await validate_tenant(probe, len(AsyncPostgresSaver.MIGRATIONS) - 1)
         pool = AsyncConnectionPool(
             conninfo, min_size=0, max_size=self.pool_max_size, kwargs={"autocommit": True, "prepare_threshold": 0}, open=False,
         )
-        try:
-            await pool.open()
-            async with pool.connection() as conn:
-                await validate_tenant(conn, len(AsyncPostgresSaver.MIGRATIONS) - 1)
-        except BaseException:
-            await pool.close()
-            raise
+        await pool.open()
         return pool, AsyncPostgresSaver(pool)
 
     def _evict_oldest(self) -> list[object]:

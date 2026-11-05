@@ -15,6 +15,7 @@ from liwan_ai_service.service import graph_factory
 from liwan_ai_service.settings import Settings
 from liwan_ai_service.store import EXECUTING, MemoryRunStore
 from liwan_ai_service.tenancy import UnknownTenant
+from liwan_ai_service.tenant_state import TenantStateUnavailable
 from tests.fakes import (
     FailingChatModel,
     RenamingChatModel,
@@ -564,6 +565,13 @@ async def test_uninitialized_tenant_is_503():
     states = RefusingStates(StateCompatibilityError("ai_state_uninitialized"))
     async with make_client(ScriptedChatModel([]), states=states) as client:
         assert (await client.get("/v1/runs", headers=owner_of("a"))).status_code == 503
+
+
+async def test_unreachable_tenant_database_is_503_without_its_address():
+    states = RefusingStates(TenantStateUnavailable("ai_state_unavailable"))
+    async with make_client(ScriptedChatModel([]), states=states) as client:
+        response = await client.get("/v1/runs", headers=owner_of("a"))
+    assert response.status_code == 503 and response.json() == {"detail": "ai_state_unavailable"}
 
 
 async def test_release_readiness_counts_all_tenants():

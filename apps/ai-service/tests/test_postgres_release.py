@@ -47,8 +47,8 @@ async def tenant():
 
     database_url = os.environ["AI_TEST_DATABASE_URL"]
     schema = f"release_{uuid4().hex[:12]}"
-    conn = await psycopg.AsyncConnection.connect(database_url, autocommit=True)
-    await conn.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)))
+    admin = await psycopg.AsyncConnection.connect(database_url, autocommit=True)
+    await admin.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)))
     isolated = make_conninfo(database_url, options=f"-c search_path={schema}")
     await initialize_tenant(isolated)
     store, checkpoints, control, close = await open_test_state(isolated)
@@ -61,8 +61,8 @@ async def tenant():
                 await conn.execute(f"DELETE FROM {table} WHERE thread_id = ANY(%s)", (run_ids,))
             await conn.execute("DELETE FROM ai_runs WHERE run_id = ANY(%s)", (run_ids,))
         await close()
-        await conn.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(schema)))
-        await conn.close()
+        await admin.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(schema)))
+        await admin.close()
 
 
 async def claim_from_process(run_id, conninfo):
@@ -108,7 +108,7 @@ async def test_runtime_and_operator_refuse_mismatched_version_without_tenant_ddl
         await conn.execute("UPDATE ai_tenant_schema SET state_version = 'future'")
     try:
         with pytest.raises(StateCompatibilityError, match="ai_state_incompatible"):
-            async with psycopg.AsyncConnection.connect(isolated, autocommit=True) as conn:
+            async with await psycopg.AsyncConnection.connect(isolated, autocommit=True) as conn:
                 await validate_tenant(conn, len(AsyncPostgresSaver.MIGRATIONS) - 1)
         with pytest.raises(StateCompatibilityError, match="ai_state_incompatible"):
             await initialize_tenant(isolated)  # the operator bootstrap validates an existing schema, it never repairs it

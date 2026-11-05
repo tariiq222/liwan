@@ -35,8 +35,8 @@ from liwan_ai_service.records import records_from_results
 from liwan_ai_service.settings import GENERATION_ID, Settings, SettingsError
 from liwan_ai_service.sse import format_event
 from liwan_ai_service.store import ACTIVE, EXECUTING, RunRecord, is_stale
-from liwan_ai_service.tenancy import UnknownTenant, directory_from_env
-from liwan_ai_service.tenant_state import TenantState, TenantStates
+from liwan_ai_service.tenancy import UnknownTenant, directory_for
+from liwan_ai_service.tenant_state import TenantState, TenantStates, TenantStateUnavailable
 from liwan_ai_service.titles import TITLE_TIMEOUT_SECONDS, generate_title, title_from
 from liwan_ai_service.usage import ModelIdentity, call_event, new_call_id, usage_event
 
@@ -205,6 +205,8 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
             raise HTTPException(403, "tenant not served") from None
         except StateCompatibilityError:
             raise HTTPException(503, "ai_state_uninitialized") from None
+        except TenantStateUnavailable:
+            raise HTTPException(503, "ai_state_unavailable") from None
 
     async def owned_run(state: TenantState, run_id: str, who: Owner) -> RunRecord:
         # The database is the tenant: ownership is the user alone.
@@ -481,7 +483,8 @@ IDLE_SWEEP_SECONDS = 60
 async def open_runtime_state(model, settings: Settings) -> tuple[TenantStates, ControlState]:
     """Open the release control state; tenant states open lazily, one pool per tenant database."""
     control = await open_control(settings.database_url)
-    states = TenantStates(directory_from_env(os.environ), settings.database_url, graph_factory(model, settings))
+    directory = directory_for(settings.database_url, settings.tenancy_mode, settings.tenant_database, settings.tenant_registry_path)
+    states = TenantStates(directory, settings.database_url, graph_factory(model, settings))
     return states, control
 
 

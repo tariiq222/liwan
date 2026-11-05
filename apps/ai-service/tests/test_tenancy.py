@@ -119,3 +119,11 @@ def test_settings_dedicated_requires_tenant_database():
     # Memory state (no AI_DATABASE_URL) needs no directory configuration at all.
     memory = Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true"})
     assert memory.tenant_database is None and memory.tenant_registry_path is None
+
+
+def test_directory_for_uses_validated_settings_not_the_process_environment(tmp_path):
+    from liwan_ai_service.tenancy import RegistryDirectory, directory_for
+
+    assert isinstance(directory_for(None, "shared", None, None), MemoryDirectory)
+    assert isinstance(directory_for("postgresql://ai@db/ai", "dedicated", "acme_db", None), DedicatedDirectory)
+    assert isinstance(directory_for("postgresql://ai@db/ai", "shared", None, str(tmp_path / "r.json")), RegistryDirectory)
