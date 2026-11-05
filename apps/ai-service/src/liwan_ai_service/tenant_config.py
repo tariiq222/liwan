@@ -20,6 +20,9 @@ from typing import Protocol
 KEY_ID = re.compile(r"[a-z0-9_-]{1,32}")
 MIN_SECRET_LENGTH = 32
 DEFAULT_RETENTION_DAYS = 30
+# A leaver's conversations are kept this many days after their account is switched off (spec 2026-11-04 §6.9); 0 = at once.
+DEFAULT_LEAVER_RETENTION_DAYS = 30
+MAX_LEAVER_RETENTION_DAYS = 365
 MIN_RETENTION_DAYS, MAX_RETENTION_DAYS = 1, 365
 LAST_CHARACTERS = 4
 
@@ -82,14 +85,23 @@ class TenantKey:
 class TenantConfig:
     retention_days: int
     key: KeyStatus
+    leaver_retention_days: int = DEFAULT_LEAVER_RETENTION_DAYS
 
 
 class TenantConfigStore(Protocol):
     async def get(self) -> TenantConfig: ...
     async def set_retention(self, days: int) -> TenantConfig: ...
+    async def set_leaver_retention(self, days: int) -> TenantConfig: ...
     async def set_key(self, provider: str, model: str, api_key: str, keyring: Keyring | None) -> TenantConfig: ...
     async def clear_key(self) -> TenantConfig: ...
     async def load_key(self, keyring: Keyring | None) -> TenantKey | None: ...
+
+
+def check_leaver_retention(days: int) -> int:
+    if not 0 <= days <= MAX_LEAVER_RETENTION_DAYS:
+        msg = f"leaver_retention_days must be 0 to {MAX_LEAVER_RETENTION_DAYS}"
+        raise ValueError(msg)
+    return days
 
 
 def check_retention(days: int) -> int:
@@ -104,13 +116,18 @@ class MemoryTenantConfig:
 
     def __init__(self, retention_days: int = DEFAULT_RETENTION_DAYS) -> None:
         self.retention_days = retention_days
+        self.leaver_retention_days = DEFAULT_LEAVER_RETENTION_DAYS
         self.key: TenantKey | None = None
 
     async def get(self) -> TenantConfig:
-        return TenantConfig(self.retention_days, _status(self.key))
+        return TenantConfig(self.retention_days, _status(self.key), self.leaver_retention_days)
 
     async def set_retention(self, days: int) -> TenantConfig:
         self.retention_days = check_retention(days)
+        return await self.get()
+
+    async def set_leaver_retention(self, days: int) -> TenantConfig:
+        self.leaver_retention_days = check_leaver_retention(days)
         return await self.get()
 
     async def set_key(self, provider: str, model: str, api_key: str, keyring: Keyring | None) -> TenantConfig:
@@ -144,7 +161,8 @@ class PostgresTenantConfig:
     async def get(self) -> TenantConfig:
         async with self.pool.connection() as conn:
             row = await (await conn.execute(
-                "SELECT retention_days, key_provider, key_model, key_last4, key_updated_at FROM ai_tenant_config WHERE singleton",
+                "SELECT retention_days, key_provider, key_model, key_last4, key_updated_at, leaver_retention_days"
+                " FROM ai_tenant_config WHERE singleton",
             )).fetchone()
         return _config_of(row)
 
@@ -152,7 +170,16 @@ class PostgresTenantConfig:
         async with self.pool.connection() as conn:
             row = await (await conn.execute(
                 "UPDATE ai_tenant_config SET retention_days = %s WHERE singleton"
-                " RETURNING retention_days, key_provider, key_model, key_last4, key_updated_at", (check_retention(days),),
+                " RETURNING retention_days, key_provider, key_model, key_last4, key_updated_at, leaver_retention_days", (check_retention(days),),
+            )).fetchone()
+        return _config_of(row)
+
+    async def set_leaver_retention(self, days: int) -> TenantConfig:
+        async with self.pool.connection() as conn:
+            row = await (await conn.execute(
+                "UPDATE ai_tenant_config SET leaver_retention_days = %s WHERE singleton"
+                " RETURNING retention_days, key_provider, key_model, key_last4, key_updated_at, leaver_retention_days",
+                (check_leaver_retention(days),),
             )).fetchone()
         return _config_of(row)
 
@@ -164,7 +191,7 @@ class PostgresTenantConfig:
                 "UPDATE ai_tenant_config SET key_provider = %s, key_model = %s,"
                 " key_ciphertext = pgp_sym_encrypt(%s, %s, 'cipher-algo=aes256'), key_id = %s, key_last4 = %s, key_updated_at = now()"
                 " WHERE singleton"
-                " RETURNING retention_days, key_provider, key_model, key_last4, key_updated_at",
+                " RETURNING retention_days, key_provider, key_model, key_last4, key_updated_at, leaver_retention_days",
                 (provider, model, api_key, keyring.secret(keyring.current_id), keyring.current_id, api_key[-LAST_CHARACTERS:]),
             )).fetchone()
         return _config_of(row)
@@ -174,7 +201,7 @@ class PostgresTenantConfig:
             row = await (await conn.execute(
                 "UPDATE ai_tenant_config SET key_provider = NULL, key_model = NULL, key_ciphertext = NULL, key_id = NULL,"
                 " key_last4 = NULL, key_updated_at = NULL WHERE singleton"
-                " RETURNING retention_days, key_provider, key_model, key_last4, key_updated_at",
+                " RETURNING retention_days, key_provider, key_model, key_last4, key_updated_at, leaver_retention_days",
             )).fetchone()
         return _config_of(row)
 
@@ -211,9 +238,9 @@ class PostgresTenantConfig:
 
 
 def _config_of(row) -> TenantConfig:
-    retention_days, provider, model, last4, updated_at = row
+    retention_days, provider, model, last4, updated_at, leaver_retention_days = row
     key = KeyStatus(True, provider, model, last4, updated_at) if provider is not None else KeyStatus(configured=False)
-    return TenantConfig(retention_days, key)
+    return TenantConfig(retention_days, key, leaver_retention_days)
 
 
 async def rotate_all() -> tuple[int, list[str]]:
