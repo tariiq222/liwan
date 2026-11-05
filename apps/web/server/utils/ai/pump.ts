@@ -5,7 +5,6 @@ import { clientSignal, forwardUpstream, logFailure, odooJson, readSse, serviceFe
 import { createUsageLedger, type UsageLedger } from './usage'
 import type { RunSession } from './session'
 import { runPolicy } from './policy'
-import { withholdValue } from './outbound'
 
 export type ExecutableKind = 'read' | 'write_light'
 export type ToolCall = { call_id: string; tool: string; agent: string; input: Record<string, unknown> }
@@ -171,7 +170,7 @@ export async function pumpRun(event: H3Event, session: RunSession, stream: Event
     } else {
       result = toolError('unknown_tool', action.message)
     }
-    next = await serviceFetch(event, 'POST', `/v1/runs/${encodeURIComponent(runId)}/resume`, session.owner, { call_id: call.call_id, result: withholdValue(result), policy: runPolicy(session) })
+    next = await serviceFetch(event, 'POST', `/v1/runs/${encodeURIComponent(runId)}/resume`, session.owner, { call_id: call.call_id, result, policy: runPolicy(session) })
   }
   if (auditFailed) await stream.push(auditFailedEvent())
   await stream.push({ event: 'done', data: JSON.stringify(finalDone) })

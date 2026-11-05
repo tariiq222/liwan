@@ -45,6 +45,13 @@ describe('outbound data policy content scan', () => {
     expect(withholdText('راسل ahmed@أحمد.السعودية')).toBe('راسل [email withheld]')
   })
 
+  it('scans a long run without a match in linear time', () => {
+    const started = performance.now()
+    withholdText('a'.repeat(200_000))
+    withholdText(`${'a.'.repeat(50_000)}@`)
+    expect(performance.now() - started).toBeLessThan(1000)
+  })
+
   it('keeps names and ordinary text', () => {
     expect(withholdText('مهام أحمد متأخرة منذ 3 أيام')).toBe('مهام أحمد متأخرة منذ 3 أيام')
   })

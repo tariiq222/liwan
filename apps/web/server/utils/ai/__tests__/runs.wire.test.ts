@@ -318,6 +318,13 @@ describe('POST /api/ai/runs', () => {
     expect(resumed.result.data.items).toEqual([{ id: 5, name: 'اتصل بأحمد على [phone withheld]' }])
   })
 
+  it('refuses a message that grows past the service limit once withheld, before the quota is spent', async () => {
+    const response = await post('/api/ai/runs', { message: 'a@b.sa '.repeat(1000).trim() })
+    expect(response.status).toBe(422)
+    expect(odooCalls.some(c => c.url === '/api/v1/ai/audit')).toBe(false)
+    expect(serviceCalls.some(c => c.url === '/v1/runs')).toBe(false)
+  })
+
   it('reports a denied read as a failed tool result and keeps streaming', async () => {
     const list = await events(await post('/api/ai/runs', { message: 'هلا' }, 'session_id=other'))
     expect(list.map(([n]) => n)).toContain('answer')

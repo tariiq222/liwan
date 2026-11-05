@@ -73,7 +73,7 @@ export default defineEventHandler(async (event) => {
   }
   let response: Response
   try {
-    // A tool result or a submitted draft leaves under the outbound data policy (spec 2026-11-04 §6.12).
+    // A submitted draft leaves under the outbound data policy (spec 2026-11-04 §6.12); tool results were withheld when built.
     response = await serviceFetch(event, 'POST', `${path}/resume`, session.owner, { call_id: body.call_id, result: withholdValue(result), policy: runPolicy(session) }, shield)
     if (wroteAlready && !response.ok) throw new Error('the service refused the resume')
   } catch (error) {

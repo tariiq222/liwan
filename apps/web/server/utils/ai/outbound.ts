@@ -24,7 +24,8 @@ const SEP = '[\\s.\\-]?'
 // Order matters: an IBAN contains digit runs and an email may contain one, so the longer shapes are withheld first. A
 // pattern errs towards withholding: a few extra characters withheld are better than a value sent.
 const PATTERNS: [WithheldKind, RegExp][] = [
-  ['email', /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)*\.\p{L}{2,}/gu],
+  // Every part is bounded (RFC 5321 sizes), so a long run without a match costs linear time, not quadratic.
+  ['email', /[\p{L}\p{N}._%+-]{1,64}@[\p{L}\p{N}-]{1,63}(?:\.[\p{L}\p{N}-]{1,63}){0,8}\.\p{L}{2,24}/gu],
   ['iban', new RegExp(`SA${SEP}\\d${SEP}\\d(?:${SEP}[0-9A-Z]){20}`, 'gi')],
   ['phone', new RegExp(`(?<![\\d+])(?:\\(?(?:\\+|00)?966\\)?${SEP}(?:\\(?0\\)?${SEP})?|0)5${SEP}\\d(?:${SEP}\\d){7}(?!\\d)`, 'g')],
   ['national_id', new RegExp(`(?<!\\d)[12](?:${SEP}\\d){9}(?!\\d)`, 'g')],
@@ -46,6 +47,7 @@ export function withholdText(text: string): string {
   let scanned = latinDigits(text)
   let output = text
   for (const [kind, pattern] of PATTERNS) {
+    if (kind === 'email' && !scanned.includes('@')) continue
     const spans: [number, number][] = []
     for (const match of scanned.matchAll(pattern)) {
       if (kind === 'national_id' && !isSaudiId(match[0].replace(/\D/g, ''))) continue

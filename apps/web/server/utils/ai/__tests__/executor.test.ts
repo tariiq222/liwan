@@ -64,6 +64,13 @@ describe('summarizeResult', () => {
 })
 
 describe('toolResultFromUpstream', () => {
+  it('withholds sensitive values before the size check', () => {
+    expect(toolResultFromUpstream(200, { items: [{ id: 1, name: 'جوال 0551234567' }], total: 1 }, list, NONE)).toEqual({ ok: true, data: { items: [{ id: 1, name: 'جوال [phone withheld]' }], total: 1 } })
+    // Many short emails grow past the bound once each becomes a marker: the result is refused, never sent oversized.
+    const emails = Array.from({ length: 14_000 }, (_, index) => `a${index}@b.sa`).join(' ')
+    expect(toolResultFromUpstream(200, { items: [{ id: 1, name: emails }], total: 1 }, list, NONE)).toMatchObject({ ok: false, error: { code: 'result_too_large' } })
+  })
+
   it('wraps 2xx as ok with the summarized data', () => {
     expect(toolResultFromUpstream(200, { items: [{ id: 1, name: 'أ', secret: 1 }], total: 1 }, list, NONE)).toEqual({ ok: true, data: { items: [{ id: 1, name: 'أ' }], total: 1 } })
   })

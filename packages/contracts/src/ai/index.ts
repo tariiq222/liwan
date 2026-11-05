@@ -190,9 +190,12 @@ export const AiRunPatchSchema = z.object({
 }).strict().refine(value => value.title !== undefined || value.archived !== undefined, 'send a title, archived, or both')
 export type AiRunPatch = z.infer<typeof AiRunPatchSchema>
 
+/** The longest message the AI service accepts (apps/ai-service contracts.RunRequest), after the outbound scan too. */
+export const AI_MESSAGE_MAX = 8000
+
 /** `POST /api/ai/runs`: `context` is the page the assistant was opened from, `run_id` continues an existing run. */
 export const AiStartRequestSchema = z.object({
-  message: z.string().trim().min(1).max(8000),
+  message: z.string().trim().min(1).max(AI_MESSAGE_MAX),
   run_id: z.string().min(1).max(64).nullish(),
   /** `setup`: a conversation with the setup agent only, on the platform provider, against the setup budget. */
   mode: z.enum(['setup']).nullish(),
