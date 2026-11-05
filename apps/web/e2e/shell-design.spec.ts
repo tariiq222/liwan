@@ -49,7 +49,15 @@ test.describe('unified application navigation', () => {
     const chip = menu.getByRole('link', { name: 'مكتمل', exact: true }).locator('.liwan-quick-chip')
     await expect(chip).toHaveCSS('box-shadow', 'none')
     await expect(chip).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
-    await expect(chip).toHaveCSS('color', 'rgb(120, 67, 198)')
+    // The brand ink of whichever mode the page is in, resolved through a probe that reads the token.
+    const [ink, token] = await chip.evaluate(el => {
+      const probe = el.appendChild(document.createElement('span'))
+      probe.style.color = 'var(--liwan-rail-active-ink)'
+      const resolved = getComputedStyle(probe).color
+      probe.remove()
+      return [getComputedStyle(el).color, resolved]
+    })
+    expect(ink).toBe(token)
     expect(await chip.evaluate(el => getComputedStyle(el, '::before').content)).toBe('none')
     expect(await fitsWidth(page)).toBe(true)
   })
