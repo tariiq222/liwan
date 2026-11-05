@@ -135,7 +135,10 @@ class LiwanInboxChannel(models.Model):
         return values
 
     def _liwan_credentials(self):
+        """The channel's provider credentials, by kind (a TikTok token is refreshed when it is near expiry)."""
         self.ensure_one()
+        if self.kind == 'tiktok':
+            return self._liwan_tiktok_credentials()
         if not self.access_token_enc:
             raise UserError(self.env._('The channel has no access token.'))
         return Credentials(

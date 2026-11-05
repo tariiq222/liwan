@@ -9,12 +9,13 @@ encrypted with `secret_box`.
 import os
 
 from odoo import api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 
 from . import secret_box
 from .channel import INVALID, SECRET_GROUPS
+from .constants import TIKTOK_TOKEN_MARGIN
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
-from odoo.addons.liwan_inbox.adapters import tiktok
+from odoo.addons.liwan_inbox.adapters import errors, tiktok
 
 
 class LiwanInboxChannel(models.Model):
@@ -66,3 +67,42 @@ class LiwanInboxChannel(models.Model):
             'state': 'connected',
             'last_error': False,
         })
+
+    def _liwan_tiktok_credentials(self):
+        """The account's credentials, refreshing the access token once when it is near its deadline.
+
+        The channel row is locked first, so two requests that find the same old deadline refresh once:
+        the second caller reads the token the first one stored.
+        """
+        self.ensure_one()
+        self._liwan_tiktok_lock()
+        self.invalidate_recordset([
+            'access_token_enc', 'refresh_token_enc', 'token_expires_at', 'refresh_expires_at', 'state', 'last_error',
+        ])
+        if not (self.access_token_enc and self.refresh_token_enc):
+            self._liwan_tiktok_reconnect_required()
+        if self.token_expires_at and self.token_expires_at - TIKTOK_TOKEN_MARGIN > fields.Datetime.now():
+            return tiktok.Credentials(self.tiktok_business_id, secret_box.decrypt(self.env, self.access_token_enc))
+        return self._liwan_tiktok_refresh()
+
+    def _liwan_tiktok_lock(self):
+        """Serialize token refreshes across requests on the channel row (a LiwanOS table)."""
+        self.ensure_one()
+        self.env.cr.execute('SELECT id FROM liwan_inbox_channel WHERE id = %s FOR UPDATE', [self.id])
+
+    def _liwan_tiktok_refresh(self):
+        if self.refresh_expires_at and self.refresh_expires_at <= fields.Datetime.now():
+            self._liwan_tiktok_reconnect_required()
+        config = self._liwan_tiktok_config()
+        try:
+            grant = tiktok.refresh_tokens(config, secret_box.decrypt(self.env, self.refresh_token_enc))
+        except errors.ProviderError:
+            self._liwan_tiktok_reconnect_required()
+        self._liwan_tiktok_store(grant)
+        return tiktok.Credentials(self.tiktok_business_id, grant.access_token)
+
+    def _liwan_tiktok_reconnect_required(self):
+        """Mark the channel so the administrator sees it must reconnect it; the caller gets a clear error."""
+        message = self.env._('Reconnect the TikTok account: its authorization is no longer valid.')
+        self.write({'state': 'error', 'last_error': message})
+        raise UserError(message)
