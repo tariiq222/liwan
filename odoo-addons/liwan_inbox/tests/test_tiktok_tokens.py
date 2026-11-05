@@ -123,6 +123,18 @@ class TestTikTokTokens(LiwanInboxCase):
         self.assertIn('reconnect', channel.last_error.lower())
         self.assertEqual(secret_box.decrypt(self.env, channel.refresh_token_enc), OLD_REFRESH)
 
+    def test_a_transient_refresh_failure_keeps_the_channel_connected(self):
+        channel = self.make_tiktok(access_expires_in=timedelta(minutes=1))
+        transient = errors.ProviderError('rate limited', retryable=True)
+        with patch.object(tiktok, 'refresh_tokens', side_effect=transient) as refresh:
+            raised = self.raised_by(channel)
+        self.assertEqual(refresh.call_count, 1)
+        self.assertIs(raised, transient)
+        self.assertEqual(channel.state, 'connected')
+        self.assertFalse(channel.last_error)
+        self.assertEqual(secret_box.decrypt(self.env, channel.refresh_token_enc), OLD_REFRESH)
+        self.assertEqual(secret_box.decrypt(self.env, channel.access_token_enc), OLD_ACCESS)
+
     def test_a_channel_without_tokens_asks_for_a_reconnect(self):
         channel = self.env['liwan.inbox.channel'].create({
             'name': 'TikTok shop', 'kind': 'tiktok', 'tiktok_business_id': 'business-open-id-empty',
@@ -130,6 +142,18 @@ class TestTikTokTokens(LiwanInboxCase):
         message = self.reconnect_error(channel)
         self.assertEqual(channel.state, 'error')
         self.assertIn('reconnect', message.lower())
+
+    def raised_by(self, channel):
+        """Call the credentials of `channel` and return the error it raised, without rolling the transaction back.
+
+        Odoo's assertRaises rolls the block back, which would hide the state the call wrote.
+        """
+        try:
+            channel._liwan_credentials()
+        except errors.ProviderError as error:
+            return error
+        message = 'the credentials did not raise a provider error'
+        raise AssertionError(message)
 
     def reconnect_error(self, channel):
         """Call the credentials of `channel` and return the UserError message asking for a reconnect."""
