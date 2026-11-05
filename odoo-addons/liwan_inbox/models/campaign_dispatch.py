@@ -19,7 +19,7 @@ from .campaign_constants import (
 )
 from .constants import CAMPAIGN_IN_FLIGHT, CAMPAIGNS_FEATURE, SNAPSHOT_CHUNK
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
-from odoo.addons.liwan_inbox.adapters import whatsapp
+from odoo.addons.liwan_inbox.adapters import errors, whatsapp
 
 _logger = logging.getLogger(__name__)
 ADDRESS = re.compile(r'^\d{%d,%d}$' % WHATSAPP_ADDRESS_DIGITS)
@@ -170,7 +170,7 @@ class LiwanInboxCampaignDispatch(models.Model):
             return None
         try:
             return selected, self._liwan_header_media()
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             if not error.retryable:
                 self._liwan_pause('template_unavailable', str(error))
             return None

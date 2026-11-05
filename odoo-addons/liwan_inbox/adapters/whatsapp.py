@@ -14,6 +14,8 @@ from datetime import date, datetime, timedelta, timezone
 import requests
 import urllib3
 
+from odoo.addons.liwan_inbox.adapters import errors
+
 GRAPH_API_VERSION = 'v26.0'
 GRAPH_BASE = 'https://graph.facebook.com'
 TIMEOUT_SECONDS = 10
@@ -348,18 +350,6 @@ class TemplateDayPoint:
 class Media:
     content: bytes
     mimetype: str
-
-
-class ProviderError(Exception):
-    """The provider refused or could not be reached; `retryable` says whether a later attempt may succeed."""
-
-    def __init__(self, message, retryable, code=None, unconfirmed=False):
-        super().__init__(message)
-        self.retryable = retryable
-        # Meta's numeric error code (for example 200: a missing permission), when the answer carried one.
-        self.code = code
-        # The request may have been carried out even though no answer arrived: never retried automatically.
-        self.unconfirmed = unconfirmed
 
 
 def verify_signature(app_secret, raw, header):
@@ -773,14 +763,14 @@ def _call(method, url, credentials, timeout=TIMEOUT_SECONDS, scheme='Bearer', he
         # The request reached Meta and the answer did not arrive: the send may well have happened, so a silent
         # retry could deliver the same message twice. The agent sees an unconfirmed send and retries by hand.
         message = 'provider did not confirm the send'
-        raise ProviderError(message, retryable=False, unconfirmed=True) from None
+        raise errors.ProviderError(message, retryable=False, unconfirmed=True) from None
     except requests.RequestException as error:
         # Connect/connection failures happen before anything reached Meta: a retry is safe.
-        raise ProviderError(f'provider unreachable: {type(error).__name__}', retryable=True) from None
+        raise errors.ProviderError(f'provider unreachable: {type(error).__name__}', retryable=True) from None
     if response.status_code >= 400:
         code = _error_code(response)
         retryable = response.status_code >= 500 or response.status_code == 429 or code in RETRYABLE_CODES
-        raise ProviderError(_error_text(response), retryable=retryable, code=code)
+        raise errors.ProviderError(_error_text(response), retryable=retryable, code=code)
     return response
 
 
@@ -792,7 +782,7 @@ def _json_dict(response):
         data = None
     if not isinstance(data, dict):
         message = 'malformed provider response'
-        raise ProviderError(message, retryable=False)
+        raise errors.ProviderError(message, retryable=False)
     return data
 
 
@@ -817,7 +807,7 @@ def _deliver(credentials, to, kind, content, context_id=None, path=CLOUD_PATH, e
     first = messages[0] if isinstance(messages, list) and messages and isinstance(messages[0], dict) else {}
     if not isinstance(first.get('id'), str):
         message = 'malformed provider response'
-        raise ProviderError(message, retryable=False)
+        raise errors.ProviderError(message, retryable=False)
     return SendResult(first['id'], first.get('message_status') == HELD_STATUS)
 
 
@@ -874,7 +864,7 @@ def upload_media(credentials, filename, mimetype, data):
     media_id = _json_dict(response).get('id')
     if not isinstance(media_id, str):
         message = 'malformed provider response'
-        raise ProviderError(message, retryable=False)
+        raise errors.ProviderError(message, retryable=False)
     return media_id
 
 
@@ -974,18 +964,18 @@ def fetch_media(credentials, media_id):
     meta = _json_dict(_call('GET', _graph(media_id), credentials))
     if not isinstance(meta.get('url'), str):
         message = 'malformed provider response'
-        raise ProviderError(message, retryable=False)
+        raise errors.ProviderError(message, retryable=False)
     response = _call('GET', meta['url'], credentials, stream=True)
     try:
         content = response.raw.read(MAX_MEDIA_BYTES + 1, decode_content=True)
     except (requests.RequestException, urllib3.exceptions.HTTPError, OSError) as error:
         message = f'media download failed: {type(error).__name__}'
-        raise ProviderError(message, retryable=True) from None
+        raise errors.ProviderError(message, retryable=True) from None
     finally:
         response.close()
     if len(content) > MAX_MEDIA_BYTES:
         message = 'media is too large'
-        raise ProviderError(message, retryable=False)
+        raise errors.ProviderError(message, retryable=False)
     return Media(content=content, mimetype=meta.get('mime_type') or 'application/octet-stream')
 
 
@@ -993,7 +983,7 @@ def _template(item):
     """One template of the provider listing with its required fields checked."""
     if not (isinstance(item.get('name'), str) and isinstance(item.get('language'), str)):
         message = 'malformed provider response'
-        raise ProviderError(message, retryable=False)
+        raise errors.ProviderError(message, retryable=False)
     return item
 
 
@@ -1022,7 +1012,7 @@ def create_template(credentials, payload):
     ))
     if not isinstance(data.get('id'), (str, int)):
         message = 'malformed provider response'
-        raise ProviderError(message, retryable=False)
+        raise errors.ProviderError(message, retryable=False)
     return {'id': str(data['id']), 'status': data.get('status'), 'category': data.get('category')}
 
 
@@ -1049,7 +1039,7 @@ def upload_resumable(credentials, app_id, filename, mimetype, data):
     upload_id = session.get('id')
     if not isinstance(upload_id, str):
         message = 'malformed provider response'
-        raise ProviderError(message, retryable=False)
+        raise errors.ProviderError(message, retryable=False)
     uploaded = _json_dict(_call(
         'POST', _graph(upload_id), credentials, timeout=UPLOAD_TIMEOUT_SECONDS, scheme='OAuth',
         headers={'file_offset': '0'}, data=data,
@@ -1057,7 +1047,7 @@ def upload_resumable(credentials, app_id, filename, mimetype, data):
     handle = uploaded.get('h')
     if not isinstance(handle, str):
         message = 'malformed provider response'
-        raise ProviderError(message, retryable=False)
+        raise errors.ProviderError(message, retryable=False)
     return handle
 
 
@@ -1081,7 +1071,7 @@ def _flow_id(data):
     flow_id = data.get('id')
     if not isinstance(flow_id, (str, int)) or isinstance(flow_id, bool):
         message = 'malformed provider response'
-        raise ProviderError(message, retryable=False)
+        raise errors.ProviderError(message, retryable=False)
     return str(flow_id)
 
 
@@ -1151,7 +1141,7 @@ def list_flows(credentials):
         for item in _dicts(data.get('data')):
             if not isinstance(item.get('name'), str) or not isinstance(item.get('status'), str):
                 message = 'malformed provider response'
-                raise ProviderError(message, retryable=False)
+                raise errors.ProviderError(message, retryable=False)
             flows.append({
                 'id': _flow_id(item), 'name': item['name'], 'status': item['status'],
                 'category': _first_category(item), 'validation_errors': _flow_errors(item),
@@ -1174,7 +1164,7 @@ def flow_preview(credentials, flow_id):
         expires_at = None
     if not (isinstance(url, str) and url.startswith('https://') and expires_at):
         message = 'malformed provider response'
-        raise ProviderError(message, retryable=False)
+        raise errors.ProviderError(message, retryable=False)
     return {'url': url, 'expires_at': expires_at}
 
 
@@ -1186,7 +1176,7 @@ def _enum(value, known):
 def _require_success(response):
     if _json_dict(response).get('success') is not True:
         message = 'the provider did not accept the request'
-        raise ProviderError(message, retryable=False)
+        raise errors.ProviderError(message, retryable=False)
 
 
 def _count(value):

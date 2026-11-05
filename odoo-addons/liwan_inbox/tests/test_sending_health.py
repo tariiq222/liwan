@@ -10,7 +10,7 @@ from . import whatsapp_payloads as wa
 from .campaign_common import BASE, CampaignCase
 from .common import ACCESS_TOKEN, PHONE_ID
 from .health_common import HEALTH_BODY, account_event, meta, meta_error, process
-from odoo.addons.liwan_inbox.adapters import whatsapp
+from odoo.addons.liwan_inbox.adapters import errors, whatsapp
 
 CREDENTIALS = whatsapp.Credentials(PHONE_ID, '200000000001', ACCESS_TOKEN)
 
@@ -23,7 +23,7 @@ def error_response(code, status=400, message='boom'):
 class TestProviderError(CampaignCase):
 
     def call(self, response):
-        with patch.object(requests, 'request', return_value=response), self.assertRaises(whatsapp.ProviderError) as raised:
+        with patch.object(requests, 'request', return_value=response), self.assertRaises(errors.ProviderError) as raised:
             whatsapp.send_text(CREDENTIALS, '966500000000', 'hi')
         return raised.exception
 

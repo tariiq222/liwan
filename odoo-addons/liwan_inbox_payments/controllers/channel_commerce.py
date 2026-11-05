@@ -9,7 +9,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
-from odoo.addons.liwan_inbox.adapters import whatsapp
+from odoo.addons.liwan_inbox.adapters import errors
 from odoo.addons.liwan_inbox.controllers.helpers import get_channel, holds
 from odoo.addons.liwan_inbox.models.access_service import REPLY
 from odoo.addons.liwan_inbox_payments.adapters import meta_catalog
@@ -36,7 +36,7 @@ class ChannelCommerceController(http.Controller):
         if channel._liwan_catalog() and holds(CATALOG_MANAGE, channel.owner_company_id):
             try:
                 channel._liwan_read_commerce()
-            except whatsapp.ProviderError as error:
+            except errors.ProviderError as error:
                 # The stored mirror is shown; the catalog sync records the provider error on the catalog.
                 _logger.warning('commerce settings of channel %s not refreshed: %s', channel.id, type(error).__name__)
         return dump_channel_commerce(channel)
@@ -57,7 +57,7 @@ class ChannelCommerceController(http.Controller):
                 if not channel.commerce_settings_read_at:
                     # A flag the body does not name must not be shown as off just because it was never read.
                     channel._liwan_read_commerce(force=True)
-            except whatsapp.ProviderError as error:
+            except errors.ProviderError as error:
                 provider_failure(error)
             notice.update({
                 'commerce_settings_read_at': fields.Datetime.now(),
