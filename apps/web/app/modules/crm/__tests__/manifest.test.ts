@@ -49,7 +49,7 @@ describe('crm manifest', () => {
   it('registers one settings page with the eleven cards, read by crm.settings.read', () => {
     expect(manifest.settings?.to).toBe('/settings/apps/crm')
     expect(manifest.settings?.parts.map(part => part.id)).toEqual([
-      'preset', 'terms', 'followup', 'distribution', 'privacy', 'pricing', 'packages', 'stages', 'outcomes', 'lostReasons', 'sources',
+      'preset', 'terms', 'customFields', 'followup', 'distribution', 'privacy', 'pricing', 'packages', 'stages', 'outcomes', 'lostReasons', 'sources',
     ])
     expect(new Set(manifest.settings?.parts.map(part => part.capability))).toEqual(new Set(['crm.settings.read']))
     expect(settingsPartForPath('/settings/apps/crm')?.part.capability).toBe('crm.settings.read')

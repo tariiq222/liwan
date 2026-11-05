@@ -2,7 +2,7 @@
 import { joinList } from '@/utils/listFormat'
 import type { TaskDetail } from '@liwan/contracts'
 import { CalendarDate, parseDate } from '@internationalized/date'
-import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
+import { formatLiwanDate, formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
 import { usePersonalStages } from '@/composables/usePersonalStages'
 import { useUpdateTask } from '@/composables/useTasks'
 import { useMilestones } from '@/composables/useMilestones'
@@ -32,23 +32,6 @@ function patch(body: Parameters<typeof updateTask>[0]['patch'], resolved?: Param
   if (props.task.can_write) updateTask({ id: props.task.id, patch: body, resolved })
 }
 
-// --- title -------------------------------------------------------------
-// The title is edited here, like every other property: commit on Enter or when the field loses
-// focus, Escape puts the saved name back. There is no separate edit mode on the heading.
-const nameDraft = ref(props.task.name)
-watch(() => props.task.name, (name) => { nameDraft.value = name })
-function saveName() {
-  if (!props.task.can_write) return
-  const name = nameDraft.value.trim()
-  if (!name || name === props.task.name) {
-    nameDraft.value = props.task.name
-    return
-  }
-  updateTask({ id: props.task.id, patch: { name } }, {
-    onError: () => { nameDraft.value = props.task.name },
-  })
-}
-
 // --- assignees -------------------------------------------------------
 function onAssigneesChange({ ids, resolved }: { ids: number[]; resolved: TaskDetail['assignees'] }) {
   patch({ user_ids: ids }, { assignees: resolved })
@@ -66,6 +49,10 @@ function onTagsChange({ ids, resolved }: { ids: number[]; resolved: TaskDetail['
 // explicitly so an Arabic locale still gets Gregorian dates (with
 // Arabic-Indic digits). Timeline.vue already follows this pattern.
 const dateFmt = computed(() => ({ format: (value: Date) => formatLiwanDate(value) }))
+
+// --- record facts --------------------------------------------------------
+const createdLabel = computed(() => formatLiwanDateTime(props.task.created_at))
+const updatedLabel = computed(() => formatLiwanDateTime(props.task.updated_at))
 
 // --- deadline ------------------------------------------------------------
 // Contract: a deadline is a UTC *instant* (the API stores/returns an ISO
@@ -189,28 +176,11 @@ function onPercentChange() {
 </script>
 
 <template>
-  <SharedPropertiesPanel data-testid="task-properties" :title="t('tasks.detail.primaryMetadata')">
-    <SharedPropertyRow v-if="task.can_write" :label="t('tasks.newTitle')">
-      <UInput
-        v-model="nameDraft"
-        data-testid="task-title-input"
-        size="sm"
-        class="w-full"
-        :disabled="!hydrated"
-        :aria-label="t('tasks.newTitle')"
-        @blur="saveName"
-        @keydown.enter.prevent="saveName"
-        @keydown.escape.stop.prevent="nameDraft = task.name"
-      />
-    </SharedPropertyRow>
+  <SharedPropertiesPanel data-testid="task-properties" :title="t('tasks.detail.properties')">
     <SharedPropertyRow :label="t('tasks.drawer.assignees')">
       <span id="task-assignees-label" class="sr-only">{{ t('tasks.drawer.assignees') }}</span>
       <span v-if="!task.can_write">{{ joinList(task.assignees.map(person => person.name), t) || t('tasks.drawer.unassigned') }}</span>
       <AssigneePicker v-else :model-value="task.assignees" labelledby="task-assignees-label" @update:model-value="onAssigneesChange" />
-    </SharedPropertyRow>
-    <SharedPropertyRow :label="t('tasks.drawer.priority')">
-      <span id="task-priority-label" class="sr-only">{{ t('tasks.drawer.priority') }}</span>
-      <PrioritySelect :task="task" labelledby="task-priority-label" variant="outline" />
     </SharedPropertyRow>
     <SharedPropertyRow :label="t('tasks.drawer.deadline')">
       <span v-if="!task.can_write">{{ deadlineButtonLabel }}</span>
@@ -231,10 +201,17 @@ function onPercentChange() {
       </SharedDateField>
       <p v-if="deadlineError" role="alert" class="mt-1 text-xs text-error">{{ deadlineError }}</p>
     </SharedPropertyRow>
+    <SharedPropertyRow :label="t('tasks.drawer.priority')">
+      <span id="task-priority-label" class="sr-only">{{ t('tasks.drawer.priority') }}</span>
+      <PrioritySelect :task="task" labelledby="task-priority-label" variant="outline" />
+    </SharedPropertyRow>
     <SharedPropertyRow :label="t('tasks.drawer.milestone')">
       <span id="task-milestone-label" class="sr-only">{{ t('tasks.drawer.milestone') }}</span>
       <MilestoneSelect v-if="task.project && task.can_write" :task="task" labelledby="task-milestone-label" />
       <span v-else>{{ task.milestone?.name || t('tasks.drawer.noMilestone') }}</span>
+    </SharedPropertyRow>
+    <SharedPropertyRow :label="t('tasks.detail.workflowStage')">
+      <span>{{ task.stage?.name ?? t('tasks.detail.stageUnset') }}</span>
     </SharedPropertyRow>
     <SharedPropertyRow :label="t('tasks.drawer.stage')">
       <span v-if="!task.can_write">{{ task.personal_stage?.name || t('tasks.drawer.unassigned') }}</span>
@@ -275,5 +252,23 @@ function onPercentChange() {
       <span v-if="!task.can_write">{{ joinList(task.tags.map(tag => tag.name), t) || '—' }}</span>
       <TagPicker v-else :model-value="task.tags" :can-create="task.can_approve" labelledby="task-tags-label" @update:model-value="onTagsChange" />
     </SharedPropertyRow>
+    <dl data-testid="task-record-facts" class="mt-1 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-default pt-3 text-xs text-muted">
+      <div class="min-w-0">
+        <dt>{{ t('tasks.drawer.created') }}</dt>
+        <dd class="mt-0.5 wrap-anywhere text-toned">{{ createdLabel }}</dd>
+      </div>
+      <div class="min-w-0">
+        <dt>{{ t('tasks.drawer.updated') }}</dt>
+        <dd class="mt-0.5 wrap-anywhere text-toned">{{ updatedLabel }}</dd>
+      </div>
+      <div class="min-w-0">
+        <dt>{{ t('tasks.drawer.age') }}</dt>
+        <dd class="mt-0.5 wrap-anywhere text-toned">{{ t('tasks.drawer.days', { n: task.age_days }, task.age_days) }}</dd>
+      </div>
+      <div v-if="task.cycle_days !== null" class="min-w-0">
+        <dt>{{ t('tasks.drawer.cycle') }}</dt>
+        <dd class="mt-0.5 wrap-anywhere text-toned">{{ t('tasks.drawer.days', { n: task.cycle_days }, task.cycle_days) }}</dd>
+      </div>
+    </dl>
   </SharedPropertiesPanel>
 </template>

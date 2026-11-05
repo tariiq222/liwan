@@ -22,6 +22,17 @@ export const crmSettings: CrmSettings = {
       opportunity: { ar: { singular: 'فرصة', plural: 'فرص' }, en: { singular: 'opportunity', plural: 'opportunities' }, gender: 'f' },
       package: { ar: { singular: 'باقة', plural: 'باقات' }, en: { singular: 'plan', plural: 'plans' }, gender: 'f' },
     },
+    lead_properties: [
+      { key: 'sector', label: 'القطاع', type: 'selection', options: [{ key: 'retail', label: 'تجزئة' }, { key: 'services', label: 'خدمات' }, { key: 'education', label: 'تعليم' }] },
+      { key: 'city', label: 'المدينة', type: 'char' },
+      { key: 'branch_count', label: 'عدد الفروع', type: 'integer' },
+      { key: 'expected_budget', label: 'الميزانية المتوقعة', type: 'float' },
+      { key: 'decision_maker', label: 'صاحب القرار', type: 'boolean' },
+      { key: 'follow_up_on', label: 'موعد المتابعة', type: 'date' },
+      { key: 'last_contact_at', label: 'آخر تواصل', type: 'datetime' },
+      { key: 'interests', label: 'الاهتمامات', type: 'tags', options: [{ key: 'pricing', label: 'الأسعار' }, { key: 'support', label: 'الدعم' }, { key: 'integration', label: 'التكامل' }] },
+      { key: 'notes', label: 'ملاحظات', type: 'text' },
+    ],
   },
   distribution_users: [{ id: 3, name: 'ليلى الحربي' }, { id: 4, name: 'خالد الشمري' }],
   options: {
@@ -36,5 +47,7 @@ export const crmSettings: CrmSettings = {
     recycle_after_days: { min: 1, max: 365 },
     recycle_cycles: { min: 0, max: 5 },
     discount_max_percent: { min: 0, max: 100 },
+    property_types: ['char', 'text', 'integer', 'float', 'boolean', 'date', 'datetime', 'selection', 'tags'],
+    property_limits: { max_properties: 50, max_options: 100, max_label: 64 },
   },
 }

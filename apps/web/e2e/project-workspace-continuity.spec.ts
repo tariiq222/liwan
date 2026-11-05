@@ -73,15 +73,27 @@ test('project sections are in-page tabs while the sidebar keeps the projects mod
 test('project task uses tabs instead of stacked cards', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/projects/1/tasks/101')
-  const tabs = page.getByTestId('task-detail-tabs')
-  await expect(tabs.getByRole('tab', { name: 'التفاصيل', exact: true })).toHaveAttribute('data-state', 'active')
-  await expect(page.getByTestId('task-activity-card')).toBeHidden()
-  await tabs.getByRole('tab', { name: 'المهام الفرعية', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'المهام الفرعية', exact: true })).toBeVisible()
-  await tabs.getByRole('tab', { name: 'التفاصيل', exact: true }).click()
+  // The description is its own card, always visible: no tab hides it.
   await expect(page.getByTestId('task-description')).toBeVisible()
+  const tabs = page.getByTestId('task-detail-tabs')
+  await expect(tabs.getByRole('tab', { name: 'المهام الفرعية', exact: true })).toHaveAttribute('data-state', 'active')
+  await expect(tabs.getByRole('tab', { name: 'المهام السابقة', exact: true })).toBeVisible()
+  await expect(tabs.getByRole('tab', { name: 'المرفقات', exact: true })).toBeVisible()
+  // The schedule is the project record's own extra work section.
+  await expect(tabs.getByRole('tab', { name: 'الجدول الزمني', exact: true })).toBeVisible()
+  // The subtasks tab shows its progress line and list, not a second heading.
+  await expect(tabs.getByText('0 من 0', { exact: true })).toBeVisible()
+  await expect(tabs.getByRole('heading', { name: 'المهام الفرعية', exact: true })).toHaveCount(0)
+  // Activity lives in its own tabs block, comments first.
+  const activity = page.getByTestId('task-activity-tabs')
+  await expect(activity.getByRole('tab', { name: 'التعليقات', exact: true })).toHaveAttribute('data-state', 'active')
+  await expect(activity.getByRole('tab', { name: 'السجل', exact: true })).toBeVisible()
+  // The log renders only when its tab is chosen.
+  await expect(page.getByTestId('task-activity-card')).toBeHidden()
   await page.screenshot({ path: testInfo.outputPath('project-task.png'), fullPage: true })
   await page.goto('/tasks/101')
   await expect(page.getByTestId('task-detail-tabs')).toBeVisible()
+  // The plain `/tasks` host has no schedule section.
+  await expect(page.getByTestId('task-detail-tabs').getByRole('tab', { name: 'الجدول الزمني', exact: true })).toHaveCount(0)
   await expect(page.locator('.task-optional-details')).toHaveCount(0)
 })

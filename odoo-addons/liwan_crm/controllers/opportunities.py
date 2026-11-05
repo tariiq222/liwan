@@ -11,6 +11,8 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
+from odoo.addons.liwan_api.serializers.properties import read_items
+from odoo.addons.liwan_crm.models.crm_lead import PROPERTIES_FIELD
 from odoo.addons.liwan_crm.models.distribution import agent_not_eligible
 from odoo.addons.liwan_crm.serializers.opportunity import (
     DUPLICATE_PHONE,
@@ -68,6 +70,7 @@ def filter_domain(filters, default_status='open'):
         text = filters['q']
         domain += ['|', '|', '|', ('contact_name', 'ilike', text), ('phone', 'ilike', text),
                    ('phone_sanitized', 'ilike', text), ('email_from', 'ilike', text)]
+    domain += filters.get('properties', [])
     return domain
 
 
@@ -141,6 +144,17 @@ def _vals(parsed):
     return vals
 
 
+def _merged_properties(lead, parsed):
+    """The value object of a partial ``properties`` patch: the current values with the given keys changed.
+
+    The engine writes one value object for the whole field, so the untouched properties are carried
+    over from the record in the engine's own value form.
+    """
+    values = {item['name']: item.get('value') for item in read_items(lead, PROPERTIES_FIELD)}
+    values.update(parsed)
+    return values
+
+
 class CrmOpportunitiesController(http.Controller):
 
     @http.route('/api/v1/crm/opportunities', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -149,7 +163,7 @@ class CrmOpportunitiesController(http.Controller):
     @requires_capability('crm.leads.read')
     def list_opportunities(self, **_):
         args = request.httprequest.args
-        filters = parse_list_filters(args)
+        filters = parse_list_filters(args, request.env['res.company']._liwan_lead_properties_definition())
         domain = [*visible_domain(), *filter_domain(filters)]
         limit, offset = parse_page(args)
         # Lost opportunities are archived, so they are searched with the archive filter off.
@@ -213,11 +227,16 @@ class CrmOpportunitiesController(http.Controller):
         lead = find_opportunity(lead_id)
         _visibility()._liwan_check_write(lead, request.env.user)
         lead._liwan_require_open()
-        parsed = parse_opportunity_body(payload, creating=False)
+        parsed = parse_opportunity_body(
+            payload, creating=False,
+            definition=request.env['res.company']._liwan_lead_properties_definition(lead.company_id),
+        )
         _check_source(parsed.get('source_id'))
         if 'stage_id' in parsed:
             _check_stage(parsed['stage_id'])
         vals = _vals(parsed)
+        if 'properties' in parsed:
+            vals[PROPERTIES_FIELD] = _merged_properties(lead, parsed['properties'])
         if 'phone' in parsed:
             vals['phone'] = _normalized_phone(parsed['phone'], lead)
         _saved(lambda: lead.write(vals))

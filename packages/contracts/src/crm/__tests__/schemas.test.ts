@@ -61,6 +61,10 @@ const settings = {
       opportunity: term(['فرصة', 'فرص'], ['opportunity', 'opportunities'], 'f'),
       package: term(['باقة', 'باقات'], ['plan', 'plans'], 'f'),
     },
+    lead_properties: [
+      { key: 'sector', label: 'القطاع', type: 'selection', options: [{ key: 'retail', label: 'تجزئة' }] },
+      { key: 'budget', label: 'الميزانية', type: 'float' },
+    ],
   },
   distribution_users: [{ id: 3, name: 'Agent' }],
   options: {
@@ -75,6 +79,8 @@ const settings = {
     recycle_after_days: { min: 1, max: 365 },
     recycle_cycles: { min: 0, max: 5 },
     discount_max_percent: { min: 0, max: 100 },
+    property_types: ['char', 'text', 'integer', 'float', 'boolean', 'date', 'datetime', 'selection', 'tags'],
+    property_limits: { max_properties: 50, max_options: 100, max_label: 64 },
   },
   revision: 0,
 }
@@ -100,6 +106,15 @@ describe('CrmSettingsSchema', () => {
     expect(() => CrmSettingsSchema.parse({ ...settings, options: { ...settings.options, extra: [] } })).toThrow()
     expect(() => CrmSettingsSchema.parse({ ...settings, values: { ...settings.values, terms: { ...settings.values.terms, extra: 1 } } })).toThrow()
   })
+
+  it('carries the custom-field definition of the company and the limits of its options', () => {
+    expect(CrmSettingsSchema.parse(settings).values.lead_properties).toHaveLength(2)
+    const bad = (lead_properties: unknown) => ({ ...settings, values: { ...settings.values, lead_properties } })
+    expect(() => CrmSettingsSchema.parse(bad([{ key: 'k', label: 'x', type: 'selection' }]))).toThrow()
+    expect(() => CrmSettingsSchema.parse(bad([{ label: 'x', type: 'char' }]))).toThrow()
+    expect(() => CrmSettingsSchema.parse({ ...settings, options: { ...settings.options, property_limits: { max_properties: 0, max_options: 100, max_label: 64 } } })).toThrow()
+    expect(() => CrmSettingsSchema.parse({ ...settings, options: { ...settings.options, property_types: ['money'] } })).toThrow()
+  })
 })
 
 describe('CrmSettingsPatchSchema', () => {
@@ -120,6 +135,25 @@ describe('CrmSettingsPatchSchema', () => {
     expect(() => CrmSettingsPatchSchema.parse({ revision: 0, values: {} })).toThrow()
     expect(() => CrmSettingsPatchSchema.parse({ revision: 0, values: { preset: 'general' } })).toThrow()
     expect(() => CrmSettingsPatchSchema.parse({ revision: 0, values: { followup_attempts: 11 } })).toThrow()
+  })
+
+  it('accepts a custom-field list whose new field and new option carry no key', () => {
+    const values = {
+      lead_properties: [
+        { key: 'sector', label: 'القطاع', type: 'selection', options: [{ key: 'retail', label: 'تجزئة' }, { label: 'تعليم' }] },
+        { label: 'المدينة', type: 'char' },
+      ],
+    }
+    expect(CrmSettingsPatchSchema.parse({ revision: 2, values })).toEqual({ revision: 2, values })
+  })
+
+  it('refuses a custom-field patch that breaks the options rule', () => {
+    for (const field of [
+      { label: 'القطاع', type: 'selection' },
+      { label: 'اسم', type: 'char', options: [{ label: 'أ' }] },
+    ]) {
+      expect(() => CrmSettingsPatchSchema.parse({ revision: 0, values: { lead_properties: [field] } })).toThrow()
+    }
   })
 })
 
@@ -147,6 +181,7 @@ describe('CRM opportunity probability', () => {
     needs_manager: false,
     active: true,
     created_at: '2026-10-28T09:00:00Z',
+    properties: [{ key: 'sector', label: 'القطاع', type: 'selection', options: [{ key: 'retail', label: 'تجزئة' }], value: 'retail' }],
   }
 
   it('carries the chance to win as a percentage from 0 to 100', () => {
