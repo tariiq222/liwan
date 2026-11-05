@@ -10,7 +10,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Annotated, Any
 
 import anyio
-from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException
+from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Path
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.types import Command
@@ -19,8 +19,13 @@ from liwan_ai_service.contracts import (
     AI_STATE_VERSION,
     CORE_AGENT,
     ClaimRequest,
+    CompanyNoteList,
+    CompanyNoteView,
     KeyPut,
     KeyView,
+    LeaverRetentionPut,
+    NoteList,
+    NoteView,
     PendingCall,
     PlatformView,
     Policy,
@@ -37,7 +42,17 @@ from liwan_ai_service.contracts import (
 )
 from liwan_ai_service.control import ControlState, StateCompatibilityError, open_control
 from liwan_ai_service.errors import client_error, redact
-from liwan_ai_service.graph import build_graph, continued_state, initial_state, interrupted_replies, resume_value, run_config, text_of
+from liwan_ai_service.graph import (
+    RunMemory,
+    build_graph,
+    continued_state,
+    initial_state,
+    interrupted_replies,
+    resume_value,
+    run_config,
+    text_of,
+)
+from liwan_ai_service.memory import MemoryFull, Note
 from liwan_ai_service.provider_registry import REGISTRY
 from liwan_ai_service.providers import build_chat_model, build_tenant_model
 from liwan_ai_service.records import records_from_results
@@ -56,6 +71,7 @@ FINISHED = ("done", "failed", "limit_reached")
 # The longest run timeout (Limits.timeout_seconds) plus a minute: a 'running' run older than this lost its process;
 # an 'executing' one is settled-unknown (its write may have run) and is never retried.
 STALE_AFTER_SECONDS = 600 + 60
+COMPANY_ID = r"^[1-9][0-9]{0,18}$"
 RUN_LIST_LIMIT = 50
 POOL_COUNTS = ("pool_size", "pool_available", "requests_waiting")  # the pool stats a release reads
 
@@ -342,12 +358,12 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
             log_title_failure(run_id, error)
 
     async def stream(tenant: TenantState, run_id: str, lease: str | None, graph_input: Any, limits: dict[str, int],
-                     run_model: RunModel, settling: list[asyncio.Task]) -> AsyncIterator[bytes]:
+                     run_model: RunModel, run_memory: RunMemory, settling: list[asyncio.Task]) -> AsyncIterator[bytes]:
         # ``decided`` is assigned BEFORE the event that announces it is yielded: a client that vanishes while that event is sent
         # closes the generator at the yield, and the run must already carry its outcome.
         decided: tuple[str, str | None] | None = None
         deadline = asyncio.timeout(limits["timeout_seconds"])
-        config = run_config(run_id, limits["max_steps"], deadline.when(), run_model)
+        config = run_config(run_id, limits["max_steps"], deadline.when(), run_model, run_memory)
         try:
             yield format_event("run", {"run_id": run_id})
             events_of = tenant.graph.astream(graph_input, config, stream_mode=["messages", "updates", "custom"])
@@ -397,7 +413,7 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
         yield format_event("done", {"status": status})
 
     def run_stream(held: contextlib.AsyncExitStack, tenant: TenantState, run_id: str, lease: str | None, graph_input: Any,
-                   limits: dict[str, int], run_model: RunModel) -> StreamingResponse:
+                   limits: dict[str, int], run_model: RunModel, run_memory: RunMemory) -> StreamingResponse:
         """Stream one run; the tenant state stays held until the stream is closed and its status is recorded."""
         settling: list[asyncio.Task] = []
 
@@ -406,7 +422,7 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
             await held.aclose()
 
         return ClosingStreamingResponse(
-            stream(tenant, run_id, lease, graph_input, limits, run_model, settling), release=release,
+            stream(tenant, run_id, lease, graph_input, limits, run_model, run_memory, settling), release=release,
             media_type="text/event-stream", headers={"cache-control": "no-store", "x-accel-buffering": "no"},
         )
 
@@ -431,6 +447,10 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
             raise HTTPException(422, "tenant/user headers must match the body")
         async with held_tenant_state(who) as (held, tenant):
             run_model = await run_model_for(tenant, request.policy)
+            # A leaver reported since the last request is forgotten before any prompt could carry their notes.
+            await tenant.memory.drain_outbox()
+            notes = await tenant.memory.for_prompt(who.user_ref, request.company)
+            run_memory = RunMemory(tenant.memory, who.user_ref, request.company, notes.user, notes.company)
             if request.run_id is not None:
                 record = await owned_run(tenant, request.run_id, who)
                 state = await tenant.graph.aget_state(run_config(record.run_id, 1))
@@ -446,7 +466,7 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
                 if record is None:
                     raise HTTPException(409, "a run with this new_run_id already exists")
                 lease, graph_input = record.lease, initial_state(request)
-            return run_stream(held.pop_all(), tenant, record.run_id, lease, graph_input, request.limits.model_dump(), run_model)
+            return run_stream(held.pop_all(), tenant, record.run_id, lease, graph_input, request.limits.model_dump(), run_model, run_memory)
 
     @api.post("/v1/runs/{run_id}/resume", dependencies=[Depends(admitted_work)])
     async def resume_run(run_id: str, body: ResumeRequest, who: Annotated[Owner, Depends(owner)]) -> StreamingResponse:
@@ -467,7 +487,11 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
                 raise HTTPException(409, "run is already being resumed")
             # The cap is the policy's now: a smaller cap set while the run waited applies to the rest of it.
             resume = Command(resume=resume_value(body.result), update={"max_output_tokens": body.policy.max_output_tokens})
-            return run_stream(held.pop_all(), tenant, record.run_id, lease, resume, state.values["limits"], run_model)
+            await tenant.memory.drain_outbox()
+            company = state.values.get("company")
+            notes = await tenant.memory.for_prompt(who.user_ref, company)
+            run_memory = RunMemory(tenant.memory, who.user_ref, company, notes.user, notes.company)
+            return run_stream(held.pop_all(), tenant, record.run_id, lease, resume, state.values["limits"], run_model, run_memory)
 
     @api.post("/v1/runs/{run_id}/claim", dependencies=[Depends(new_work)])
     async def claim_run(run_id: str, body: ClaimRequest, who: Annotated[Owner, Depends(owner)]) -> dict[str, bool]:
@@ -523,6 +547,7 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
         key = config.key
         return TenantConfigView(
             retention_days=config.retention_days,
+            leaver_retention_days=config.leaver_retention_days,
             key=KeyView(configured=key.configured, provider=key.provider, model=key.model, last4=key.last4, updated_at=key.updated_at),
             platform=PlatformView(provider=settings.provider, model=settings.model, location=REGISTRY[settings.provider].location),
             providers=[ProviderView(name=spec.name, location=spec.location, needs_api_key=spec.needs_api_key) for spec in REGISTRY.values()],
@@ -537,6 +562,66 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
     async def write_retention(body: RetentionPut, who: Annotated[Owner, Depends(owner)]) -> TenantConfigView:
         async with tenant_state(who) as tenant:
             return config_view(await tenant.config.set_retention(body.retention_days))
+
+    @api.put("/v1/tenant/config/leaver-retention")
+    async def write_leaver_retention(body: LeaverRetentionPut, who: Annotated[Owner, Depends(owner)]) -> TenantConfigView:
+        async with tenant_state(who) as tenant:
+            return config_view(await tenant.config.set_leaver_retention(body.leaver_retention_days))
+
+    def note_list(notes: list[Note]) -> NoteList:
+        return NoteList(items=[NoteView(id=n.id, content=n.content, created_at=n.created_at) for n in notes], total=len(notes))
+
+    @api.get("/v1/memory")
+    async def read_memory(who: Annotated[Owner, Depends(owner)]) -> NoteList:
+        """The caller's own notes: the owner comes from the service headers, never from the request."""
+        async with tenant_state(who) as tenant:
+            return note_list(await tenant.memory.user_notes(who.user_ref))
+
+    @api.delete("/v1/memory/{note_id}")
+    async def forget_note(note_id: int, who: Annotated[Owner, Depends(owner)]) -> NoteList:
+        async with tenant_state(who) as tenant:
+            if not await tenant.memory.forget(who.user_ref, note_id):
+                raise HTTPException(404, "not_found")
+            return note_list(await tenant.memory.user_notes(who.user_ref))
+
+    @api.delete("/v1/memory")
+    async def forget_all_notes(who: Annotated[Owner, Depends(owner)]) -> NoteList:
+        async with tenant_state(who) as tenant:
+            await tenant.memory.forget_all(who.user_ref)
+            return note_list([])
+
+    def company_list(notes: list[Note]) -> CompanyNoteList:
+        items = [
+            CompanyNoteView(id=n.id, content=n.content, status=n.status, proposed_by=n.proposed_by, created_at=n.created_at)
+            for n in notes
+        ]
+        return CompanyNoteList(items=items, total=len(items))
+
+    # The company is named by the Nuxt server after Odoo confirmed the caller manages AI settings in that company.
+    @api.get("/v1/company-memory/{company}")
+    async def read_company_memory(company: Annotated[str, Path(pattern=COMPANY_ID)], who: Annotated[Owner, Depends(owner)]) -> CompanyNoteList:
+        async with tenant_state(who) as tenant:
+            return company_list(await tenant.memory.company_notes(company))
+
+    @api.post("/v1/company-memory/{company}/{note_id}/approve")
+    async def approve_company_note(company: Annotated[str, Path(pattern=COMPANY_ID)], note_id: int,
+                                   who: Annotated[Owner, Depends(owner)]) -> CompanyNoteList:
+        async with tenant_state(who) as tenant:
+            try:
+                approved = await tenant.memory.approve(company, note_id)
+            except MemoryFull:
+                raise HTTPException(409, "company_memory_full") from None
+            if approved is None:
+                raise HTTPException(404, "not_found")
+            return company_list(await tenant.memory.company_notes(company))
+
+    @api.delete("/v1/company-memory/{company}/{note_id}")
+    async def discard_company_note(company: Annotated[str, Path(pattern=COMPANY_ID)], note_id: int,
+                                   who: Annotated[Owner, Depends(owner)]) -> CompanyNoteList:
+        async with tenant_state(who) as tenant:
+            if not await tenant.memory.discard(company, note_id):
+                raise HTTPException(404, "not_found")
+            return company_list(await tenant.memory.company_notes(company))
 
     @api.put("/v1/tenant/config/key")
     async def write_tenant_key(body: KeyPut, who: Annotated[Owner, Depends(owner)]) -> TenantConfigView:

@@ -10,5 +10,6 @@ from . import (
     ai_tool_setting,
     ai_usage,
     feature_registry,
+    res_users,
     tool_registry,
 )

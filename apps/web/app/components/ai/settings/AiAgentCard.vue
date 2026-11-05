@@ -13,9 +13,9 @@ const hydrated = useHydrated()
 const toast = useToast()
 const { mutateAsync: saveAgent } = useSaveAiAgent()
 
-type Draft = { enabled: boolean; read_only: boolean; role_ids: number[]; tools: Record<string, AiToolMode> }
+type Draft = { enabled: boolean; read_only: boolean; memory: boolean; role_ids: number[]; tools: Record<string, AiToolMode> }
 const read = (agent: AiAgentSetting): Draft => ({
-  enabled: agent.enabled, read_only: agent.read_only, role_ids: [...agent.role_ids],
+  enabled: agent.enabled, read_only: agent.read_only, memory: agent.memory, role_ids: [...agent.role_ids],
   tools: Object.fromEntries(agent.tools.map(tool => [tool.name, tool.mode])),
 })
 const current = (agents: AiAgentSettings) => agents.items.find(item => item.key === props.agent.key) ?? props.agent
@@ -49,6 +49,9 @@ const toolDisabled = (kind: string) => locked.value || !draft.value.enabled || (
     </UFormField>
     <UFormField orientation="horizontal" :label="t('ai.settings.agents.readOnly')" :name="`${agent.key}-read-only`" :description="t('ai.settings.agents.readOnlyHint')">
       <USwitch v-model="draft.read_only" :disabled="locked || !draft.enabled" :aria-label="t('ai.settings.agents.readOnly')" />
+    </UFormField>
+    <UFormField orientation="horizontal" :label="t('ai.settings.agents.memory')" :name="`${agent.key}-memory`" :description="t('ai.settings.agents.memoryHint')">
+      <USwitch v-model="draft.memory" :disabled="locked || !draft.enabled" :aria-label="t('ai.settings.agents.memory')" />
     </UFormField>
     <UFormField v-if="roles !== null" orientation="horizontal" :label="t('ai.settings.agents.roles')" :name="`${agent.key}-roles`" :description="t('ai.settings.agents.rolesHint')">
       <USelectMenu v-model="draft.role_ids" multiple value-key="value" class="w-full" :items="roleItems" :disabled="locked || !draft.enabled" :placeholder="t('ai.settings.agents.allRoles')" :aria-label="t('ai.settings.agents.roles')" />

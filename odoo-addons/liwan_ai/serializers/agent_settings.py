@@ -3,7 +3,8 @@
 from odoo.addons.liwan_ai.models.tool_registry import TOOL_MODES
 from odoo.addons.liwan_api.controllers.common import ApiError
 
-AGENT_PATCH_KEYS = frozenset({'enabled', 'read_only', 'role_ids', 'tools'})
+AGENT_FLAGS = ('enabled', 'read_only', 'memory')
+AGENT_PATCH_KEYS = frozenset({*AGENT_FLAGS, 'role_ids', 'tools'})
 
 
 def _text(item, field):
@@ -35,6 +36,7 @@ def dump_agent_settings(env):
             'description': _text(agent, 'description'),
             'enabled': row.enabled if row else True,
             'read_only': bool(row and row.read_only),
+            'memory': not row or row.memory,
             'role_ids': sorted(roles.get(row.id, ())) if row else [],
             'revision': row.revision if row else 0,
             'tools': [
@@ -59,7 +61,7 @@ def _bool(payload, key):
 
 
 def parse_agent_patch(payload, tools):
-    """``(changes, revision)`` of one agent's save: any of ``enabled``, ``read_only``, ``role_ids`` and ``tools``, and the
+    """``(changes, revision)`` of one agent's save: any of ``enabled``, ``read_only``, ``memory``, ``role_ids`` and ``tools``, and the
     revision the change was based on."""
     payload = dict(payload)
     revision = payload.pop('revision', None)
@@ -70,7 +72,7 @@ def parse_agent_patch(payload, tools):
         raise ApiError(422, 'unknown_field', f'field {unknown[0]!r} is not accepted', field=unknown[0])
     if not payload:
         raise ApiError(422, 'invalid', 'nothing to change')
-    changes = {key: _bool(payload, key) for key in ('enabled', 'read_only') if key in payload}
+    changes = {key: _bool(payload, key) for key in AGENT_FLAGS if key in payload}
     if 'role_ids' in payload:
         role_ids = payload['role_ids']
         if not isinstance(role_ids, list) or not all(isinstance(rid, int) and not isinstance(rid, bool) and rid > 0 for rid in role_ids):

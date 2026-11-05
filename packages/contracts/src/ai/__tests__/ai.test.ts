@@ -1,11 +1,11 @@
-import { AI_USAGE_BATCH_MAX, AiAgentPatchSchema, AiAgentSettingsSchema, aiToolAgent, AiAuditRequestSchema, AiKeyPutSchema, AiMonitoringSchema, AiRetentionPutSchema, AiSettingsPatchSchema, AiSettingsSchema, AiTenantConfigSchema, AiDraftPayloadSchema, AiEventSchema, AiModelCallEventSchema, AiModelUsageEventSchema, AiRunListQuerySchema, AiRunListSchema, AiRunPatchSchema, AiRunStatusSchema, AiStartRequestSchema, AiToolsResponseSchema, AiUsageBatchResponseSchema, AiUsageBatchSchema, AiUsageRecordSchema, AiUsageRowSchema } from '../index'
+import { AI_USAGE_BATCH_MAX, AiCompanyNoteListSchema, AiNoteListSchema, AiNoteSchema, AiAgentPatchSchema, AiAgentSettingsSchema, aiToolAgent, AiAuditRequestSchema, AiKeyPutSchema, AiMonitoringSchema, AiRetentionPutSchema, AiSettingsPatchSchema, AiSettingsSchema, AiTenantConfigSchema, AiDraftPayloadSchema, AiEventSchema, AiModelCallEventSchema, AiModelUsageEventSchema, AiRunListQuerySchema, AiRunListSchema, AiRunPatchSchema, AiRunStatusSchema, AiStartRequestSchema, AiToolsResponseSchema, AiUsageBatchResponseSchema, AiUsageBatchSchema, AiUsageRecordSchema, AiUsageRowSchema } from '../index'
 
 const READ = {
   name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'مهامي', en: 'My tasks' },
   input_schema: { type: 'object', properties: {} }, route: { method: 'GET', path: '/api/v1/tasks' },
   input_map: { query: { filter: 'mine' } }, result_summary: ['items[].id'], draft_target: null, requires_approval: false,
 }
-const PMO_AGENT = { key: 'pmo', name: { ar: 'وكيل المشاريع', en: 'Projects agent' }, description: { ar: 'المشاريع', en: 'Projects' }, instructions: { ar: 'أنت وكيل المشاريع', en: 'You are the projects agent' }, pages: ['pmo', 'project'] }
+const PMO_AGENT = { key: 'pmo', name: { ar: 'وكيل المشاريع', en: 'Projects agent' }, description: { ar: 'المشاريع', en: 'Projects' }, instructions: { ar: 'أنت وكيل المشاريع', en: 'You are the projects agent' }, pages: ['pmo', 'project'], memory: true }
 
 describe('LiwanOS AI contracts', () => {
   it('parses the tools response with limits', () => {
@@ -132,7 +132,7 @@ describe('LiwanOS AI usage contracts', () => {
 
   it('keeps the tenant key write-only and the retention bounded', () => {
     const config = {
-      retention_days: 30, key: { configured: true, provider: 'anthropic', model: 'claude-test', last4: 'abcd', updated_at: '2026-11-05T10:00:00Z' },
+      retention_days: 30, leaver_retention_days: 30, key: { configured: true, provider: 'anthropic', model: 'claude-test', last4: 'abcd', updated_at: '2026-11-05T10:00:00Z' },
       platform: { provider: 'ollama', model: 'm', location: 'inside' }, providers: [{ name: 'anthropic', location: 'outside', needs_api_key: true }],
     }
     expect(AiTenantConfigSchema.parse(config).key.last4).toBe('abcd')
@@ -152,12 +152,18 @@ describe('LiwanOS AI usage contracts', () => {
 
   it('parses the agent settings and refuses an empty or widening patch', () => {
     const tool = { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'مهامي', en: 'My tasks' }, external: false, mode: 'approval' }
-    const parsed = AiAgentSettingsSchema.parse({ items: [{ key: 'pmo', name: PMO_AGENT.name, description: PMO_AGENT.description, enabled: true, read_only: false, role_ids: [], revision: 0, tools: [tool] }], total: 1 })
+    const parsed = AiAgentSettingsSchema.parse({ items: [{ key: 'pmo', name: PMO_AGENT.name, description: PMO_AGENT.description, enabled: true, read_only: false, memory: true, role_ids: [], revision: 0, tools: [tool] }], total: 1 })
     expect(parsed.items[0]!.tools[0]!.mode).toBe('approval')
     expect(() => AiAgentPatchSchema.parse({ revision: 0 })).toThrow()
     expect(() => AiAgentPatchSchema.parse({ revision: 0, tools: { 'pmo.list_my_tasks': 'always' } })).toThrow()
     expect(() => AiAgentPatchSchema.parse({ read_only: true })).toThrow()
     expect(AiAgentPatchSchema.parse({ revision: 2, read_only: true }).read_only).toBe(true)
     expect(aiToolAgent('pmo.list_my_tasks')).toBe('pmo')
+  })
+
+  it('parses notes and refuses a note longer than the limit', () => {
+    expect(AiNoteListSchema.parse({ items: [{ id: 1, content: 'نقاط مختصرة', created_at: '2026-11-05T10:00:00Z' }], total: 1 }).total).toBe(1)
+    expect(() => AiNoteSchema.parse({ id: 1, content: 'x'.repeat(301), created_at: '2026-11-05T10:00:00Z' })).toThrow()
+    expect(AiCompanyNoteListSchema.parse({ items: [{ id: 2, content: 'أسلوب رسمي', status: 'proposed', proposed_by: '42', created_at: '2026-11-05T10:00:00Z' }], total: 1 }).items[0]!.status).toBe('proposed')
   })
 })

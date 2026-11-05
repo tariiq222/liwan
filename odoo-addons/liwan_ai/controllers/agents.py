@@ -6,6 +6,7 @@ from odoo.http import request
 from odoo.addons.liwan_ai.controllers.settings import AI_FEATURE, require_tenant_manager
 from odoo.addons.liwan_ai.models.access_service import AI_SETTINGS_MANAGE
 from odoo.addons.liwan_ai.serializers.agent_settings import (
+    AGENT_FLAGS,
     available_agents,
     dump_agent_settings,
     parse_agent_patch,
@@ -46,7 +47,7 @@ class AiAgentsController(http.Controller):
         setting = env['liwan.ai.agent.setting'].search([('agent_key', '=', key)]) or env['liwan.ai.agent.setting'].create({'agent_key': key})
         if setting.revision != revision:
             raise ApiError(409, 'conflict', 'the agent settings changed since they were read')
-        values = {field: changes[field] for field in ('enabled', 'read_only') if field in changes}
+        values = {field: changes[field] for field in AGENT_FLAGS if field in changes}
         values['revision'] = revision + 1
         if 'role_ids' in changes:
             # Naming roles needs the role catalog, as anywhere else in LiwanOS.
@@ -71,6 +72,6 @@ class AiAgentsController(http.Controller):
     def _snapshot(env, key):
         item = next(item for item in dump_agent_settings(env)['items'] if item['key'] == key)
         return {
-            'enabled': item['enabled'], 'read_only': item['read_only'], 'role_ids': item['role_ids'],
+            'enabled': item['enabled'], 'read_only': item['read_only'], 'memory': item['memory'], 'role_ids': item['role_ids'],
             'tools': {tool['name']: tool['mode'] for tool in item['tools']},
         }

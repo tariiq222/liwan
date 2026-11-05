@@ -91,6 +91,7 @@ class AgentSpec(Strict):
     description: ToolDescription
     instructions: ToolDescription
     pages: list[str] = Field(default_factory=list, max_length=20)
+    memory: bool = True  # the administrator's switch: the agent may save and read employee and company notes
 
     @field_validator("key")
     @classmethod
@@ -139,6 +140,7 @@ class RunRequest(Strict):
     context: RunContext | None = None
     tools: list[ToolSpec] = Field(max_length=MAX_TOOLS)
     agents: list[AgentSpec] = Field(default_factory=list, max_length=MAX_AGENTS)
+    company: str | None = Field(default=None, pattern=r"^[1-9][0-9]{0,18}$")  # the user's current company, for company notes
     limits: Limits
     policy: Policy
     run_id: str | None = Field(default=None, min_length=1)  # continues this run
@@ -304,6 +306,34 @@ class RetentionPut(Strict):
     retention_days: int = Field(ge=1, le=365)
 
 
+class LeaverRetentionPut(Strict):
+    leaver_retention_days: int = Field(ge=0, le=365)
+
+
+class NoteView(Strict):
+    id: int
+    content: str
+    created_at: datetime
+
+
+class NoteList(Strict):
+    items: list[NoteView]
+    total: int
+
+
+class CompanyNoteView(Strict):
+    id: int
+    content: str
+    status: Literal["proposed", "approved"]
+    proposed_by: str | None
+    created_at: datetime
+
+
+class CompanyNoteList(Strict):
+    items: list[CompanyNoteView]
+    total: int
+
+
 class KeyPut(Strict):
     provider: str = Field(pattern=PROVIDER_NAME)
     model: str = Field(pattern=MODEL_NAME)
@@ -334,6 +364,7 @@ class TenantConfigView(Strict):
     """``GET /v1/tenant/config``: never the key itself, only whether one is set and its last four characters."""
 
     retention_days: int
+    leaver_retention_days: int
     key: KeyView
     platform: PlatformView
     providers: list[ProviderView]

@@ -1395,6 +1395,9 @@
           "enabled": {
             "type": "boolean"
           },
+          "memory": {
+            "type": "boolean"
+          },
           "read_only": {
             "type": "boolean"
           },
@@ -1475,6 +1478,9 @@
             "pattern": "^[a-z][a-z0-9_]*$",
             "type": "string"
           },
+          "memory": {
+            "type": "boolean"
+          },
           "name": {
             "additionalProperties": false,
             "properties": {
@@ -1506,7 +1512,8 @@
           "name",
           "description",
           "instructions",
-          "pages"
+          "pages",
+          "memory"
         ],
         "type": "object"
       },
@@ -1538,6 +1545,9 @@
           "key": {
             "pattern": "^[a-z][a-z0-9_]*$",
             "type": "string"
+          },
+          "memory": {
+            "type": "boolean"
           },
           "name": {
             "additionalProperties": false,
@@ -1636,6 +1646,7 @@
           "description",
           "enabled",
           "read_only",
+          "memory",
           "role_ids",
           "revision",
           "tools"
@@ -1674,6 +1685,9 @@
                 "key": {
                   "pattern": "^[a-z][a-z0-9_]*$",
                   "type": "string"
+                },
+                "memory": {
+                  "type": "boolean"
                 },
                 "name": {
                   "additionalProperties": false,
@@ -1772,6 +1786,7 @@
                 "description",
                 "enabled",
                 "read_only",
+                "memory",
                 "role_ids",
                 "revision",
                 "tools"
@@ -1965,6 +1980,108 @@
           "tenant_key"
         ],
         "type": "string"
+      },
+      "AiCompanyNoteListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "content": {
+                  "maxLength": 300,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "created_at": {
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "proposed_by": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "status": {
+                  "enum": [
+                    "proposed",
+                    "approved"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "content",
+                "status",
+                "proposed_by",
+                "created_at"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "AiCompanyNoteSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "proposed_by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "proposed",
+              "approved"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "content",
+          "status",
+          "proposed_by",
+          "created_at"
+        ],
+        "type": "object"
       },
       "AiConsentSignSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -2549,6 +2666,21 @@
         ],
         "type": "object"
       },
+      "AiLeaverRetentionPutSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "leaver_retention_days": {
+            "maximum": 365,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "leaver_retention_days"
+        ],
+        "type": "object"
+      },
       "AiLimitsSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -2941,6 +3073,78 @@
           "users",
           "tools",
           "agents"
+        ],
+        "type": "object"
+      },
+      "AiNoteListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "content": {
+                  "maxLength": 300,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "created_at": {
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "content",
+                "created_at"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "AiNoteSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "content",
+          "created_at"
         ],
         "type": "object"
       },
@@ -3648,6 +3852,11 @@
             ],
             "type": "object"
           },
+          "leaver_retention_days": {
+            "maximum": 365,
+            "minimum": 0,
+            "type": "integer"
+          },
           "platform": {
             "additionalProperties": false,
             "properties": {
@@ -3711,6 +3920,7 @@
         },
         "required": [
           "retention_days",
+          "leaver_retention_days",
           "key",
           "platform",
           "providers"
@@ -3958,6 +4168,9 @@
                   "pattern": "^[a-z][a-z0-9_]*$",
                   "type": "string"
                 },
+                "memory": {
+                  "type": "boolean"
+                },
                 "name": {
                   "additionalProperties": false,
                   "properties": {
@@ -3989,7 +4202,8 @@
                 "name",
                 "description",
                 "instructions",
-                "pages"
+                "pages",
+                "memory"
               ],
               "type": "object"
             },
@@ -100124,6 +100338,44 @@
           "feature_keys": [],
           "feature_operation": "write",
           "handler": "record_audit",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/ai/company-memory/authorize": {
+      "post": {
+        "operationId": "liwan_ai.AiSettingsController.authorize_company_memory.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Names the company whose notes the caller may review: the current one, where they manage AI settings. The Nuxt",
+        "tags": [
+          "liwan_ai"
+        ],
+        "x-liwan": {
+          "addon": "liwan_ai",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AiSettingsController",
+          "feature_keys": [],
+          "feature_operation": "write",
+          "handler": "authorize_company_memory",
           "readonly": false,
           "route_type": "json2"
         }

@@ -147,7 +147,7 @@ const PMO_AGENT = {
   key: 'pmo', name: { ar: 'وكيل المشاريع', en: 'Projects agent' }, description: { ar: 'المشاريع ومهامها وميزانياتها', en: 'Projects, their tasks and budgets' },
   instructions: { ar: 'أنت وكيل المشاريع.', en: 'You are the projects agent.' }, pages: ['pmo', 'project'],
 }
-const AI_AGENT_SETTINGS = { pmo: { enabled: true, read_only: false, role_ids: [], revision: 0, tools: { 'pmo.list_my_tasks': 'on', 'pmo.draft_project': 'on' } } }
+const AI_AGENT_SETTINGS = { pmo: { enabled: true, read_only: false, memory: true, role_ids: [], revision: 0, tools: { 'pmo.list_my_tasks': 'on', 'pmo.draft_project': 'on' } } }
 const AI_AGENT_TOOLS = [
   { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'يعرض مهامي', en: 'List my tasks' }, external: false },
   { name: 'pmo.draft_project', kind: 'draft', description: { ar: 'مسودة مشروع', en: 'Project draft' }, external: false },
@@ -155,7 +155,7 @@ const AI_AGENT_TOOLS = [
 function aiAgentSetting(key) {
   const state = AI_AGENT_SETTINGS[key]
   return {
-    key, name: PMO_AGENT.name, description: PMO_AGENT.description, enabled: state.enabled, read_only: state.read_only,
+    key, name: PMO_AGENT.name, description: PMO_AGENT.description, enabled: state.enabled, read_only: state.read_only, memory: state.memory,
     role_ids: state.role_ids, revision: state.revision, tools: AI_AGENT_TOOLS.map(tool => ({ ...tool, mode: state.tools[tool.name] })),
   }
 }
@@ -482,7 +482,7 @@ async function handle(req, res) {
       { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'يعرض مهامي', en: 'List my tasks' }, input_schema: { type: 'object', properties: { limit: { type: 'integer' } } }, route: { method: 'GET', path: '/api/v1/tasks' }, input_map: { query: { filter: 'mine', limit: '$limit' } }, result_summary: ['items[].id', 'items[].name', 'items[].state', 'total'], draft_target: null, requires_approval: AI_AGENT_SETTINGS.pmo.tools['pmo.list_my_tasks'] === 'approval' },
       ...(canCreate ? [{ name: 'pmo.draft_project', kind: 'draft', description: { ar: 'مسودة مشروع', en: 'Project draft' }, input_schema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] }, route: null, input_map: {}, result_summary: [], draft_target: '/projects/new', requires_approval: true }] : []),
     ]
-    return json(res, 200, { items, total: items.length, agents: [PMO_AGENT], limits: { tool_calls_per_run: 8, messages_monthly: 500, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length, policy: { provider_mode: 'platform', outside_allowed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } } })
+    return json(res, 200, { items, total: items.length, agents: [{ ...PMO_AGENT, memory: AI_AGENT_SETTINGS.pmo.memory }], limits: { tool_calls_per_run: 8, messages_monthly: 500, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length, policy: { provider_mode: 'platform', outside_allowed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } } })
   }
   // The AI settings of the tenant (ai.settings.manage): provider mode, the residency consent and this month's use.
   if (path === '/api/v1/ai/settings' || path === '/api/v1/ai/consent' || path === '/api/v1/ai/consent/revoke') {
@@ -508,6 +508,8 @@ async function handle(req, res) {
       agents: { items: [{ agent: 'pmo', calls: 21 }, { agent: 'core', calls: 6 }], total: 2 },
     })
   }
+  // The company whose notes a settings manager reviews: the current one.
+  if (method === 'POST' && path === '/api/v1/ai/company-memory/authorize') return json(res, 200, { company_id: 1 })
   // The agents of the enabled applications and how the administrator narrowed them (ai.settings.manage).
   if (path === '/api/v1/ai/agents' || path.startsWith('/api/v1/ai/agents/')) {
     if (method === 'PATCH') {

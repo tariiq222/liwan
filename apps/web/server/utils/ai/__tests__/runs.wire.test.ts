@@ -31,6 +31,7 @@ let usageDelayMs = 0
 let usageAnsweredAt = 0
 let usageBatches: { items: Record<string, unknown>[] }[] = []
 let usageInvalid: string[] = []
+let companyAuthorizeStatus = 200
 
 const TOOLS = {
   items: [
@@ -68,6 +69,10 @@ beforeAll(async () => {
     odooCalls.push({ method: req.method!, url: req.url!, cookie: req.headers.cookie, body })
     res.setHeader('content-type', 'application/json')
     if (req.url === '/api/v1/me') return res.end(JSON.stringify(ME))
+    if (req.url === '/api/v1/ai/company-memory/authorize') {
+      res.statusCode = companyAuthorizeStatus
+      return res.end(JSON.stringify(companyAuthorizeStatus === 200 ? { company_id: 1 } : { code: 'forbidden', message: 'no' }))
+    }
     if (req.url === '/api/v1/ai/tools') { res.statusCode = odooToolsStatus; return res.end(JSON.stringify(odooToolsStatus === 200 ? TOOLS : { code: 'feature_not_included', message: 'limit', details: { reason: 'limit', limit_key: 'ai.messages.monthly' } })) }
     if (req.url === '/api/v1/ai/audit') {
       if (auditFailKind && JSON.parse(body).kind === auditFailKind) { res.statusCode = 500; return res.end(JSON.stringify({ code: 'boom', message: 'secret detail from odoo' })) }
@@ -104,6 +109,10 @@ beforeAll(async () => {
     // The tests name the run `r_1` whatever id the start request chose.
     req.url = req.url!.replace(`/v1/runs/${runId}`, '/v1/runs/r_1')
     serviceCalls.push({ method: req.method!, url: req.url!, headers: req.headers, body, at: Date.now() })
+    if (req.url?.startsWith('/v1/memory') || req.url?.startsWith('/v1/company-memory/')) {
+      res.setHeader('content-type', 'application/json')
+      return res.end(JSON.stringify({ items: [], total: 0 }))
+    }
     if (req.url === '/v1/runs/r_1/claim') {
       const ok = claimMode === 'atomic' && !claimed
       claimed ||= ok
@@ -198,6 +207,26 @@ beforeAll(async () => {
     event.context.params = { id: match[1]! }
     return match[2] ? resume(event) : event.method === 'PATCH' ? patch(event) : status(event)
   }))
+  const memory = {
+    list: (await import('../../../api/ai/memory/index.get')).default,
+    clear: (await import('../../../api/ai/memory/index.delete')).default,
+    forget: (await import('../../../api/ai/memory/[id].delete')).default,
+    company: (await import('../../../api/ai/company-memory/index.get')).default,
+    approve: (await import('../../../api/ai/company-memory/[id]/approve.post')).default,
+    discard: (await import('../../../api/ai/company-memory/[id]/index.delete')).default,
+  }
+  h3app.use('/api/ai/memory', defineEventHandler((event) => {
+    const id = event.path.match(/^\/([^/?]+)/)?.[1]
+    if (!id) return event.method === 'GET' ? memory.list(event) : memory.clear(event)
+    event.context.params = { id: decodeURIComponent(id) }
+    return memory.forget(event)
+  }))
+  h3app.use('/api/ai/company-memory', defineEventHandler((event) => {
+    const match = event.path.match(/^\/([^/?]+)(\/approve)?/)
+    if (!match) return memory.company(event)
+    event.context.params = { id: match[1]! }
+    return match[2] ? memory.approve(event) : memory.discard(event)
+  }))
   app = http.createServer(toNodeListener(h3app))
   await new Promise<void>(r => app.listen(0, '127.0.0.1', r))
   url = `http://127.0.0.1:${(app.address() as any).port}`
@@ -205,7 +234,7 @@ beforeAll(async () => {
 afterAll(() => { odoo.close(); service.close(); deadService.close(); app.close() })
 const DRAFT_PENDING = { call_id: 'c_2', tool: 'pmo.draft_project', kind: 'draft', agent: 'pmo', requires_approval: true, input: { name: 'بوابة' } }
 const WRITE_PENDING = { call_id: 'c_3', tool: 'pmo.update_task_state', kind: 'write_light', agent: 'pmo', requires_approval: true, input: { task_id: 7, state: 'done' } }
-beforeEach(() => { odooCalls = []; serviceCalls = []; scenario = 'read'; serviceDown = false; odooToolsStatus = 200; pending = DRAFT_PENDING; serviceToken = ''; claimMode = 'atomic'; claimed = false; doneSentAt = 0; odooMode = 'normal'; auditFailKind = null; runStatus = 'waiting_user'; resumeMode = 'ok'; resumeStreamFinished = false; resumeStreamCancelled = false; runList = RUN_LIST; patchStatus = 200; runId = 'r_1'; usageStatus = 200; usageDelayMs = 0; usageAnsweredAt = 0; usageBatches = []; usageInvalid = [] })
+beforeEach(() => { odooCalls = []; serviceCalls = []; scenario = 'read'; serviceDown = false; odooToolsStatus = 200; pending = DRAFT_PENDING; serviceToken = ''; claimMode = 'atomic'; claimed = false; doneSentAt = 0; odooMode = 'normal'; auditFailKind = null; runStatus = 'waiting_user'; resumeMode = 'ok'; resumeStreamFinished = false; resumeStreamCancelled = false; runList = RUN_LIST; patchStatus = 200; runId = 'r_1'; usageStatus = 200; usageDelayMs = 0; usageAnsweredAt = 0; usageBatches = []; usageInvalid = []; companyAuthorizeStatus = 200 })
 
 const post = (path: string, body: unknown, cookie = 'session_id=s1') => fetch(`${url}${path}`, {
   method: 'POST', headers: { 'content-type': 'application/json', cookie, origin: url, 'sec-fetch-site': 'same-origin' }, body: JSON.stringify(body),
@@ -232,9 +261,10 @@ describe('POST /api/ai/runs', () => {
     }
   })
 
-  it('passes the agents with the tools to the service', async () => {
+  it('passes the agents with the tools and the current company to the service', async () => {
     await events(await post('/api/ai/runs', { message: 'هلا' }))
-    expect(JSON.parse(serviceCalls.find(c => c.url === '/v1/runs')!.body).agents).toEqual(TOOLS.agents)
+    const started = JSON.parse(serviceCalls.find(c => c.url === '/v1/runs')!.body)
+    expect([started.agents, started.company]).toEqual([TOOLS.agents, '1'])
   })
 
   it('executes a read tool with the caller cookie, audits it, and resumes in one stream', async () => {
@@ -926,5 +956,26 @@ describe('a claimed write outlives the browser', () => {
     expect(transitions()).toHaveLength(1)
     expect(resumeStreamFinished).toBe(true)
     expect(resumeStreamCancelled).toBe(false)
+  })
+})
+
+describe('memory', () => {
+  const call = (method: string, path: string) => fetch(`${url}${path}`, { method, headers: { cookie: 'session_id=s1', 'content-type': 'application/json', origin: url, 'sec-fetch-site': 'same-origin' }, ...(method === 'GET' ? {} : { body: '{}' }) })
+
+  it('reads and deletes only the caller\'s own notes, named by the session', async () => {
+    expect((await call('GET', '/api/ai/memory')).status).toBe(200)
+    expect((await call('DELETE', '/api/ai/memory/5')).status).toBe(200)
+    const memoryCalls = serviceCalls.filter(c => c.url.startsWith('/v1/memory'))
+    expect(memoryCalls.map(c => [c.method, c.url, c.headers['x-liwan-user']])).toEqual([['GET', '/v1/memory', '42'], ['DELETE', '/v1/memory/5', '42']])
+    expect((await call('DELETE', '/api/ai/memory/..%2Fruns')).status).toBe(422)
+  })
+
+  it('reviews company notes only for the company Odoo authorized', async () => {
+    companyAuthorizeStatus = 403
+    expect((await call('GET', '/api/ai/company-memory')).status).toBe(403)
+    expect(serviceCalls.some(c => c.url.startsWith('/v1/company-memory'))).toBe(false)
+    companyAuthorizeStatus = 200
+    expect((await call('POST', '/api/ai/company-memory/7/approve')).status).toBe(200)
+    expect(serviceCalls.filter(c => c.url.startsWith('/v1/company-memory')).map(c => c.url)).toEqual(['/v1/company-memory/1/7/approve'])
   })
 })

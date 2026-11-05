@@ -304,7 +304,7 @@ async def test_a_continued_run_takes_the_new_tools_locale_and_context():
         assert len(system) == 1
         text = system[0].content
         assert "briefly in English" in text and "pmo__draft_project" in text and "pmo__list_my_tasks" not in text and "task 9" in text
-        assert [tool["function"]["name"] for tool in model.bound_tools] == ["pmo__draft_project"]
+        assert [tool["function"]["name"] for tool in model.bound_tools] == ["pmo__draft_project", "liwan_remember"]
 
 
 async def test_error_events_carry_a_fixed_message_and_the_class_never_the_exception_text(caplog):

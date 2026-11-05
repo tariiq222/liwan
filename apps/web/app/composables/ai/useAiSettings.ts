@@ -1,8 +1,8 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
-  AiAgentSettingsSchema, AiMonitoringSchema, AiSettingsSchema, AiTenantConfigSchema,
-  type AiAgentPatch, type AiAgentSettings, type AiConsentSign, type AiKeyPut, type AiSettings, type AiSettingsPatch, type AiTenantConfig,
+  AiAgentSettingsSchema, AiCompanyNoteListSchema, AiMonitoringSchema, AiSettingsSchema, AiTenantConfigSchema,
+  type AiAgentPatch, type AiAgentSettings, type AiCompanyNoteList, type AiConsentSign, type AiKeyPut, type AiSettings, type AiSettingsPatch, type AiTenantConfig,
 } from '@liwan/contracts'
 
 // The tenant's AI policy lives in two places: Odoo holds the provider mode, the consent and the limits
@@ -13,6 +13,7 @@ export const aiSettingsKeys = {
   config: ['ai', 'config'] as const,
   monitoring: ['ai', 'monitoring'] as const,
   agents: ['ai', 'agents'] as const,
+  companyMemory: ['ai', 'company-memory'] as const,
 }
 
 export function useAiSettings(enabled: MaybeRefOrGetter<boolean> = true) {
@@ -89,6 +90,11 @@ export function useSaveAiRetention() {
   return useReplacing<number, AiTenantConfig>(aiSettingsKeys.config, days => $api('/api/ai/config/retention', { method: 'PUT', body: { retention_days: days }, schema: AiTenantConfigSchema }))
 }
 
+export function useSaveAiLeaverRetention() {
+  const { $api } = useApi()
+  return useReplacing<number, AiTenantConfig>(aiSettingsKeys.config, days => $api('/api/ai/config/leaver-retention', { method: 'PUT', body: { leaver_retention_days: days }, schema: AiTenantConfigSchema }))
+}
+
 export function useSaveAiKey() {
   const { $api } = useApi()
   return useReplacing<AiKeyPut, AiTenantConfig>(aiSettingsKeys.config, body => $api('/api/ai/config/key', { method: 'PUT', body, schema: AiTenantConfigSchema }))
@@ -105,4 +111,22 @@ export function useSaveAiAgent() {
     aiSettingsKeys.agents,
     ({ key, patch }) => $api(`/api/v1/ai/agents/${encodeURIComponent(key)}`, { method: 'PATCH', body: patch, schema: AiAgentSettingsSchema }),
   )
+}
+
+/** The current company's notes (proposed and approved), for a settings manager of that company. */
+export function useAiCompanyMemory(enabled: MaybeRefOrGetter<boolean> = true) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: aiSettingsKeys.companyMemory,
+    enabled: computed(() => toValue(enabled)),
+    queryFn: () => $api('/api/ai/company-memory', { schema: AiCompanyNoteListSchema }),
+    retry: false,
+  })
+}
+
+export function useDecideAiCompanyNote() {
+  const { $api } = useApi()
+  return useReplacing<{ id: number; approve: boolean }, AiCompanyNoteList>(aiSettingsKeys.companyMemory, ({ id, approve }) => approve
+    ? $api(`/api/ai/company-memory/${id}/approve`, { method: 'POST', body: {}, schema: AiCompanyNoteListSchema })
+    : $api(`/api/ai/company-memory/${id}`, { method: 'DELETE', body: {}, schema: AiCompanyNoteListSchema }))
 }

@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from psycopg.conninfo import make_conninfo
 
 from liwan_ai_service.control import StateCompatibilityError
+from liwan_ai_service.memory import MemoryMemoryStore, MemoryStore, PostgresMemoryStore
 from liwan_ai_service.store import MemoryRunStore, PostgresRunStore, RunStore, validate_tenant
 from liwan_ai_service.tenancy import TenantDirectory
 from liwan_ai_service.tenant_config import MemoryTenantConfig, PostgresTenantConfig, TenantConfigStore
@@ -35,6 +36,7 @@ class TenantState:
     store: RunStore
     graph: object
     config: TenantConfigStore = field(default_factory=MemoryTenantConfig)
+    memory: MemoryStore = field(default_factory=MemoryMemoryStore)
 
 
 class TenantStates:
@@ -169,13 +171,16 @@ class TenantStates:
     def _memory_state(self, database: str) -> TenantState:
         from langgraph.checkpoint.memory import InMemorySaver
 
-        return TenantState(database, MemoryRunStore(), self.graph_factory(InMemorySaver()), MemoryTenantConfig())
+        return TenantState(database, MemoryRunStore(), self.graph_factory(InMemorySaver()), MemoryTenantConfig(), MemoryMemoryStore())
 
     async def _postgres_state(self, database: str) -> tuple[TenantState, object]:
         conninfo = make_conninfo(self.base_conninfo, dbname=database, options="-c search_path=liwan_ai")
         pool, checkpointer = await self._open_pool(conninfo)
         try:
-            return TenantState(database, PostgresRunStore(pool), self.graph_factory(checkpointer), PostgresTenantConfig(pool)), pool
+            state = TenantState(
+                database, PostgresRunStore(pool), self.graph_factory(checkpointer), PostgresTenantConfig(pool), PostgresMemoryStore(pool),
+            )
+            return state, pool
         except BaseException:
             await pool.close()
             raise

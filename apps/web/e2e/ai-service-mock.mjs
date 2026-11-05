@@ -71,8 +71,13 @@ function resume(run, id, result) {
 }
 
 // The tenant's own AI configuration: never the key, only whether one is set and its last four characters.
+const NOTES = [{ id: 1, owner: '2', content: 'يفضّل الإجابات في نقاط مختصرة', created_at: '2026-11-05T09:00:00Z' }]
+const COMPANY_NOTES = [
+  { id: 11, company: '1', content: 'نسمّي العملاء «شركاء»', status: 'proposed', proposed_by: '2', created_at: '2026-11-05T09:00:00Z' },
+  { id: 12, company: '1', content: 'نكتب بالعربية الفصحى المختصرة', status: 'approved', proposed_by: '2', created_at: '2026-11-04T09:00:00Z' },
+]
 const TENANT = {
-  retention_days: 30, key: { configured: false, provider: null, model: null, last4: null, updated_at: null },
+  retention_days: 30, leaver_retention_days: 30, key: { configured: false, provider: null, model: null, last4: null, updated_at: null },
   platform: { provider: 'mock', model: 'mock-model', location: 'outside' },
   providers: [{ name: 'anthropic', location: 'outside', needs_api_key: true }, { name: 'openai', location: 'outside', needs_api_key: true }, { name: 'ollama', location: 'inside', needs_api_key: false }],
 }
@@ -119,9 +124,28 @@ http.createServer(async (req, res) => {
   }
   if (url.pathname === '/v1/tenant/config' || url.pathname.startsWith('/v1/tenant/config/')) {
     if (req.method === 'PUT' && url.pathname === '/v1/tenant/config/retention') TENANT.retention_days = body.retention_days
+    if (req.method === 'PUT' && url.pathname === '/v1/tenant/config/leaver-retention') TENANT.leaver_retention_days = body.leaver_retention_days
     if (req.method === 'PUT' && url.pathname === '/v1/tenant/config/key') TENANT.key = { configured: true, provider: body.provider, model: body.model, last4: String(body.api_key).slice(-4), updated_at: new Date().toISOString() }
     if (req.method === 'DELETE' && url.pathname === '/v1/tenant/config/key') TENANT.key = { configured: false, provider: null, model: null, last4: null, updated_at: null }
     return reply(res, 200, TENANT)
+  }
+  // Memory: each employee's notes by the owner header, the company's notes by the company the Nuxt server names.
+  const mine = req.headers['x-liwan-user']
+  if (url.pathname === '/v1/memory' || url.pathname.startsWith('/v1/memory/')) {
+    const id = Number(url.pathname.split('/')[3])
+    if (req.method === 'DELETE') NOTES.splice(0, NOTES.length, ...NOTES.filter(n => n.owner !== mine || (id && n.id !== id)))
+    const items = NOTES.filter(n => n.owner === mine).map(({ id: noteId, content, created_at }) => ({ id: noteId, content, created_at }))
+    return reply(res, 200, { items, total: items.length })
+  }
+  const companyMatch = url.pathname.match(/^\/v1\/company-memory\/(\d+)(?:\/(\d+)(\/approve)?)?$/)
+  if (companyMatch) {
+    const [, company, noteId, approve] = companyMatch
+    const note = COMPANY_NOTES.find(n => n.company === company && n.id === Number(noteId))
+    if (noteId && !note) return reply(res, 404, { detail: 'not_found' })
+    if (approve) note.status = 'approved'
+    else if (req.method === 'DELETE') COMPANY_NOTES.splice(COMPANY_NOTES.indexOf(note), 1)
+    const items = COMPANY_NOTES.filter(n => n.company === company).map(({ company: _c, ...rest }) => rest)
+    return reply(res, 200, { items, total: items.length })
   }
   if (url.pathname === '/healthz') return reply(res, 200, { ok: true })
   reply(res, 404, {})

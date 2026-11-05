@@ -6882,6 +6882,16 @@
       "handler": "record_audit",
       "no_capability_reason": null
     },
+    "POST /api/v1/ai/company-memory/authorize": {
+      "addon": "liwan_ai",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "authorize_company_memory",
+      "no_capability_reason": null
+    },
     "POST /api/v1/ai/config/authorize": {
       "addon": "liwan_ai",
       "auth": "user",
