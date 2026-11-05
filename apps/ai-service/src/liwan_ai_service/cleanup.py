@@ -27,8 +27,8 @@ async def sweep_leavers(state: TenantState, leaver_retention_days: int) -> int:
     deleted = 0
     for user_ref in await state.memory.expired_leavers(leaver_retention_days):
         deleted += len(await state.store.delete_runs_of(user_ref))
-        await state.memory.forget_all(user_ref)  # a note a run still open at deactivation may have saved
-        await state.memory.forget_leaver(user_ref)
+        await state.memory.forget_all(user_ref)
+        await state.memory.mark_swept(user_ref)  # the leaver stays marked, so no later save can recreate their memory
     return deleted
 
 

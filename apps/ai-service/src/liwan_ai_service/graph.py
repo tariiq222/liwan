@@ -119,11 +119,20 @@ def memory_on(state: AgentState) -> bool:
     return next((agent.get("memory", True) for agent in agents if agent["key"] == current), False)
 
 
+IN_GRAPH_TOOLS = frozenset({HANDOFF, REMEMBER, PROPOSE_COMPANY_NOTE})
+
+
+def has_read_data(messages: list) -> bool:
+    """Whether the conversation's history holds a data tool's call, whose result stays in the model's context."""
+    return any(call["name"] not in IN_GRAPH_TOOLS for m in messages if isinstance(m, AIMessage) for call in m.tool_calls)
+
+
 def memory_tools(state: AgentState, config: RunnableConfig) -> list[dict[str, Any]]:
     """The note tools of this request: none when memory is off for the active agent or no store backs the request, and
-    none once this request has read data through a tool. A note is learned from what the user says, never from a record,
-    a customer message or any other tool result, which could otherwise plant an instruction that outlives the run."""
-    if not memory_on(state) or config["configurable"].get(RUN_MEMORY_KEY) is None or state["tool_calls_made"] > 0:
+    none once the conversation holds data a tool returned (in this request or an earlier one: the history stays in the
+    context). A note is learned from what the user says, never from a record, a customer message or any other tool
+    result, which could otherwise plant an instruction that outlives the run; a new conversation offers them again."""
+    if not memory_on(state) or config["configurable"].get(RUN_MEMORY_KEY) is None or has_read_data(state["messages"]):
         return []
     tools = [_function(REMEMBER, "Save one short note about how this user likes to work (style, preferences, recurring needs); "
                        "never a copy of a record.", NOTE_SCHEMA)]

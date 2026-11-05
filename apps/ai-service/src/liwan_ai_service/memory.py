@@ -78,7 +78,7 @@ class MemoryStore(Protocol):
     async def for_prompt(self, user_ref: str, company: str | None) -> PromptMemory: ...
     async def drain_outbox(self) -> int: ...
     async def expired_leavers(self, days: int) -> list[str]: ...
-    async def forget_leaver(self, user_ref: str) -> None: ...
+    async def mark_swept(self, user_ref: str) -> None: ...
 
 
 class MemoryMemoryStore:
@@ -88,6 +88,7 @@ class MemoryMemoryStore:
         self.notes: dict[int, Note] = {}
         self.outbox: list[tuple[str, str, datetime]] = []
         self.leavers: dict[str, datetime] = {}
+        self.swept: set[str] = set()
         self._next = 1
 
     def _add(self, scope: Scope, owner: str, content: str, status: Status, proposed_by: str | None = None) -> Note:
@@ -168,13 +169,16 @@ class MemoryMemoryStore:
             self.leavers.setdefault(user_ref, at)
         else:
             self.leavers.pop(user_ref, None)
+            self.swept.discard(user_ref)
 
     async def expired_leavers(self, days: int) -> list[str]:
         now = datetime.now(UTC)
-        return sorted(user for user, at in self.leavers.items() if (now - at).total_seconds() >= days * 86400)
+        return sorted(
+            user for user, at in self.leavers.items() if user not in self.swept and (now - at).total_seconds() >= days * 86400
+        )
 
-    async def forget_leaver(self, user_ref: str) -> None:
-        self.leavers.pop(user_ref, None)
+    async def mark_swept(self, user_ref: str) -> None:
+        self.swept.add(user_ref)
 
 
 CREATE_MEMORY = (
@@ -189,7 +193,9 @@ CREATE_MEMORY = (
     "CREATE TABLE IF NOT EXISTS ai_outbox (id BIGSERIAL PRIMARY KEY,"
     " kind TEXT NOT NULL CHECK (kind IN ('user_deactivated', 'user_reactivated')),"
     " user_ref TEXT NOT NULL CHECK (user_ref ~ '^[1-9][0-9]{0,18}$'), created_at TIMESTAMPTZ NOT NULL DEFAULT now())",
-    "CREATE TABLE IF NOT EXISTS ai_leavers (user_ref TEXT PRIMARY KEY, deactivated_at TIMESTAMPTZ NOT NULL)",
+    # A leaver stays marked until reactivated (no note is saved for them meanwhile); ``swept`` once their runs are gone.
+    "CREATE TABLE IF NOT EXISTS ai_leavers (user_ref TEXT PRIMARY KEY, deactivated_at TIMESTAMPTZ NOT NULL,"
+    " swept BOOLEAN NOT NULL DEFAULT false)",
 )
 # The database owner is Odoo's role: it may append offboarding events and nothing else in this schema. The role and the
 # schema (liwan_ai in a deployment) are read by the server itself, inside one literal statement.
@@ -322,6 +328,9 @@ class PostgresMemoryStore:
             await conn.execute("SELECT pg_advisory_xact_lock(hashtext('ai_outbox'))")
             events = await (await conn.execute("DELETE FROM ai_outbox RETURNING id, kind, user_ref, created_at")).fetchall()
             for _id, kind, user_ref, at in sorted(events):
+                # The employee's own lock, as ``remember`` takes it: a save already under way either lands before the
+                # deletion (and is deleted) or sees the leaver mark (and is refused); it can never slip in between.
+                await conn.execute("SELECT pg_advisory_xact_lock(hashtext('ai_memory:' || %s))", (user_ref,))
                 if kind == "user_deactivated":
                     await conn.execute("DELETE FROM ai_memory WHERE scope = 'user' AND owner = %s", (user_ref,))
                     await conn.execute(
@@ -334,10 +343,11 @@ class PostgresMemoryStore:
     async def expired_leavers(self, days: int) -> list[str]:
         async with self.pool.connection() as conn:
             rows = await (await conn.execute(
-                "SELECT user_ref FROM ai_leavers WHERE deactivated_at <= now() - make_interval(days => %s) ORDER BY user_ref", (days,),
+                "SELECT user_ref FROM ai_leavers WHERE NOT swept AND deactivated_at <= now() - make_interval(days => %s) ORDER BY user_ref",
+                (days,),
             )).fetchall()
         return [row[0] for row in rows]
 
-    async def forget_leaver(self, user_ref: str) -> None:
+    async def mark_swept(self, user_ref: str) -> None:
         async with self.pool.connection() as conn:
-            await conn.execute("DELETE FROM ai_leavers WHERE user_ref = %s", (user_ref,))
+            await conn.execute("UPDATE ai_leavers SET swept = true WHERE user_ref = %s", (user_ref,))

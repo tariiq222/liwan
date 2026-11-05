@@ -67,5 +67,7 @@ async def test_the_outbox_forgets_a_leaver_and_the_sweep_deletes_their_runs(pool
     await store.drain_outbox()
     assert "50" not in await store.expired_leavers(0)
     assert await runs.delete_runs_of("42") == ["r_leaver"]
-    await store.forget_leaver("42")
+    await store.mark_swept("42")
     assert await store.expired_leavers(0) == []
+    with pytest.raises(ValueError, match="left"):  # still marked until reactivated
+        await store.remember("42", "after the sweep")
