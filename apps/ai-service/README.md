@@ -7,11 +7,16 @@ stops at every tool with an `interrupt`; the Nuxt server executes tools and resu
 ## Run locally
 
     python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
-    # Operator bootstrap, once, against an empty AI database, before starting any runtime:
+    # Operator bootstraps, once each, against empty databases, before starting any runtime:
+    # 1. release control state in the service database
     AI_DATABASE_URL=postgresql://localhost/liwan_ai_dev \
-    .venv/bin/python -m liwan_ai_service.store --initialize
+    .venv/bin/python -m liwan_ai_service.store --initialize-control
+    # 2. tenant state in schema liwan_ai of each tenant database
+    AI_DATABASE_URL=postgresql://localhost/liwan_ai_dev \
+    .venv/bin/python -m liwan_ai_service.store --initialize-tenant dev_tenant
     AI_PROVIDER=ollama AI_MODEL=qwen2.5:7b AI_BASE_URL=http://localhost:11434 \
     AI_DATABASE_URL=postgresql://localhost/liwan_ai_dev \
+    LIWAN_TENANCY_MODE=dedicated AI_TENANT_DATABASE=dev_tenant \
     .venv/bin/uvicorn liwan_ai_service.service:app --port 8600
 
 `AI_DATABASE_URL` is required: without it the service refuses to start. For local development only, set
@@ -27,7 +32,10 @@ stops at every tool with an `interrupt`; the Nuxt server executes tools and resu
 | `AI_BASE_URL` | optional; overrides the provider's default base URL (Ollama host, OpenAI-compatible endpoint, OpenRouter) |
 | `AI_OPENROUTER_REFERER` | optional; sent as `HTTP-Referer` to OpenRouter for app attribution (openrouter only; never required, never logged) |
 | `AI_OPENROUTER_TITLE` | optional; sent as `X-Title` to OpenRouter (openrouter only; never required, never logged) |
-| `AI_DATABASE_URL` | Postgres for run state (checkpoints + runs); required unless `AI_ALLOW_MEMORY_STATE=true` |
+| `AI_DATABASE_URL` | Postgres for release control state (deployment `state_id`, generation draining); required unless `AI_ALLOW_MEMORY_STATE=true` |
+| `LIWAN_TENANCY_MODE` | `dedicated` (default) or `shared`; which tenant databases this deployment serves |
+| `AI_TENANT_DATABASE` | dedicated mode only: the one tenant database, also used as the tenant id; required with real state |
+| `LIWAN_TENANT_REGISTRY_PATH` | shared mode only: the read-only tenant registry JSON (`targets[].tenantId -> database`); required |
 | `AI_GENERATION_ID` | stable unique release generation id (`[a-z][a-z0-9_-]{0,62}`); required with a service token for release administration; reuse the same id on restart, never reuse a drained id for a replacement generation |
 | `AI_STATE_VERSION` | default `1`; run schema, graph/checkpoint payload and tool-result compatibility contract; another value refuses startup |
 | `AI_ALLOW_MEMORY_STATE` | `true` (exactly) lets the service start without a database, keeping state in memory (development only) |
@@ -86,37 +94,35 @@ Release administration always requires a configured token, including local memor
 
 ## State initialization and release continuity
 
-Runtime startup only reads the schema contract and generated `state_id` in `ai_state_schema`, verifies the durable `ai_generations` table exists, and checks the existing LangGraph
-`checkpoint_migrations` version. It never calls either schema setup routine. The expected checkpoint
-migration version comes from the runtime's installed checkpointer; a different package migration
-version refuses startup before any DDL. Compatible processes use the same `ai_runs`, leases, claims and
-checkpoints. There is no second deployment run-state store. Bootstrap generates an immutable `state_<uuidhex>` identity in the database; it is not an environment label. Runtime reports that stored value. Two independently initialized databases/schemas have different state identities even with the same version and generation label.
+AI state has two parts.
 
-The operator bootstrap command above takes a PostgreSQL advisory lock and initializes an empty database
-once. Repeating it on already compatible state is read-only. An unversioned existing schema, a partial
-bootstrap or an incompatible version is refused by both bootstrap and runtime; neither silently upgrades
-or stamps old data as compatible. Existing development data needs an explicit reviewed offline migration
-or a separately authorized fresh scratch database. The runtime role only needs the established tables,
-sequences and normal read/write privileges; keep schema ownership and bootstrap credentials with the
-operator. Runtime needs SELECT on `ai_state_schema`, and SELECT/INSERT/UPDATE on `ai_generations`, besides normal run/checkpoint privileges. Do not grant runtime UPDATE on the schema identity. Do not give bootstrap credentials to overlapping runtime generations.
+**Control state** in the service database `AI_DATABASE_URL`: `ai_state_schema` holds the schema contract and the immutable `state_<uuidhex>` `state_id`, and `ai_generations` holds the release generation draining flags. It holds no tenant content. Bootstrap generates the identity; it is not an environment label, and two independently initialized databases have different state identities even with the same version and generation label.
+
+**Tenant state** in each tenant's own database, in schema `liwan_ai`: `ai_runs`, the LangGraph checkpoint tables and `ai_tenant_schema`. The run table has no `tenant` column because the database is the tenant. `TenantStates` opens one Postgres pool per tenant database, with `search_path=liwan_ai` and a bounded size, keeps the most recently used pools (LRU) up to `max_open`, and closes a pool after its idle window; concurrent requests for one database share a single pool. The tenant is mapped to its database from deployment configuration only: `AI_TENANT_DATABASE` in dedicated mode, `LIWAN_TENANT_REGISTRY_PATH` in shared mode. A tenant the deployment does not serve answers 403 before any connection. A tenant database whose schema was never bootstrapped answers 503 `ai_state_uninitialized`; that failure affects only that tenant and no other.
+
+Operator bootstrap commands (the runtime only validates state and never runs DDL):
+
+    python -m liwan_ai_service.store --initialize-control
+    python -m liwan_ai_service.store --initialize-tenant <database>
+
+Each takes a PostgreSQL advisory lock and initializes empty state once. Repeating it on already compatible state is read-only. An unversioned existing schema, a partial bootstrap or an incompatible version is refused by both bootstrap and runtime; neither silently upgrades or stamps old data as compatible. Existing development data needs an explicit reviewed offline migration or a separately authorized fresh scratch database. Keep schema ownership and bootstrap credentials with the operator. Runtime needs SELECT on `ai_state_schema`, and SELECT/INSERT/UPDATE on `ai_generations`, besides normal run/checkpoint privileges in each tenant schema. Do not grant runtime UPDATE on the schema identity. Do not give bootstrap credentials to overlapping runtime generations.
 
 Changing graph payloads, tool-result semantics or `ai_runs` schema requires reviewing and advancing
-`contracts.AI_STATE_VERSION` and the matching BFF expected version. A change incompatible with the shared
-state requires AI-wide `service_maintenance` or blocks release. Odoo tenant isolation does not isolate
-this database. A matching version is a declared contract; local HTTP health alone does not prove semantic
+`contracts.AI_STATE_VERSION` and the matching BFF expected version. A change incompatible with the stored
+state requires AI-wide `service_maintenance` or blocks release. A matching version is a declared contract; local HTTP health alone does not prove semantic
 compatibility. Keep checkpointer dependency artifacts identical for compatible releases.
 
 The internal, service-token-protected endpoints are `POST /internal/release/drain` and
 `GET /internal/release/readiness`. Both require a configured service token and explicit `AI_GENERATION_ID`. Drain is persisted in `ai_generations` for that generation and remains closed after a process restart: it closes starts, claims and metadata changes, while an already claimed result and an automatic pending read can still settle. A replacement generation must have its own stable unique id. There is no timeout, reset endpoint or automatic reclamation of a drained generation. Pending
-user decisions resume on the accepting generation. Evidence includes shared `running`/`executing`/`waiting_tool` counts, local active requests,
-settlement tasks, PostgreSQL pool connection statistics, the actual stored `state_id` and the runtime `generation_id`. Local request admission is counted before awaiting the persisted gate, so a concurrent drain cannot miss that local admission. A stale claimed write or stalled automatic read remains a blocker;
+user decisions resume on the accepting generation. Readiness reports the control `state_id`, the runtime `generation_id`, local active requests,
+settlement tasks, PostgreSQL pool statistics per open tenant, and run activity summed across every tenant database (`activity_scope` is `tenant_states`). Local request admission is counted before awaiting the persisted gate, so a concurrent drain cannot miss that local admission. A stale claimed write or stalled automatic read remains a blocker;
 it is never replayed or aged out merely to make retirement green. Use the existing unknown-result
 recovery after investigating the effect. Memory-mode evidence is explicitly `memory_only` and cannot
 prove cross-process retirement.
 
-The coordinator must close admission and observe every old process, wait for durable tenant effect leases and shared active AI work, then retire the generation. Configure one directly observed HTTP process per generation id; do not hide several independently admitting workers behind one sampled readiness endpoint. Shared counts are deliberately conservative: activity in another generation can delay retirement. Its AI-only durable barrier is separate from Odoo tenant barriers.
+The coordinator must close admission and observe every old process, wait for durable tenant effect leases and active AI work in every tenant, then retire the generation. Configure one directly observed HTTP process per generation id; do not hide several independently admitting workers behind one sampled readiness endpoint. Counts are deliberately conservative: activity in another generation can delay retirement. Its AI-only durable barrier is separate from Odoo tenant barriers.
 
-In `AiMaintenanceCoordinator` operator configuration, `sharedStateId` must equal the actual `state_id` returned by the service; each `oldServices`/`newServices` entry's `id` must equal that runtime's `AI_GENERATION_ID`. The coordinator checks both on every observation and preflights all old/new endpoints before closing admission or invoking a migration adapter. A candidate attached to a different initialized database with the same state version is rejected. Read actual identity using the token-protected readiness endpoint and record only `state_id`/`generation_id` in the reviewed operator configuration, never connection credentials. Changing labels cannot substitute for an actual state identity.
+In `AiMaintenanceCoordinator` operator configuration, `sharedStateId` must equal the actual control `state_id` returned by the service; each `oldServices`/`newServices` entry's `id` must equal that runtime's `AI_GENERATION_ID`. The coordinator checks both on every observation and preflights all old/new endpoints before closing admission or invoking a migration adapter. A candidate attached to a different initialized control database with the same state version is rejected. Read actual identity using the token-protected readiness endpoint and record only `state_id`/`generation_id` in the reviewed operator configuration, never connection credentials. Changing labels cannot substitute for an actual state identity.
 
 This pre-release metadata schema has no compatibility branch for earlier unrecognized metadata or a missing generation table. Use a newly authorized empty scratch schema for development proof; existing development state requires a separately reviewed offline migration. Never stamp an old database with a guessed identity or silently initialize it during startup.
 
@@ -172,11 +178,12 @@ a `resume` carrying `decision: "rejected"` answers 409; only the claimer's own r
 
     .venv/bin/pytest -q
     # Dedicated empty scratch state only, never odoo19 or a shared development AI database:
-    AI_DATABASE_URL=postgresql://localhost/liwan_ai_test .venv/bin/python -m liwan_ai_service.store --initialize
+    AI_DATABASE_URL=postgresql://localhost/liwan_ai_test .venv/bin/python -m liwan_ai_service.store --initialize-control
+    AI_DATABASE_URL=postgresql://localhost/liwan_ai_test .venv/bin/python -m liwan_ai_service.store --initialize-tenant <scratch tenant database>
     AI_TEST_DATABASE_URL=postgresql://localhost/liwan_ai_test .venv/bin/pytest -q tests/test_postgres_release.py tests/test_postgres_state.py
 
 `test_postgres_release.py` starts two Python claim processes and two independent service/checkpointer
-pools, proves one claim and checkpoint continuation, reads shared drain evidence, and temporarily tests
+pools, proves one claim and checkpoint continuation, reads drain evidence, and temporarily tests
 an incompatible metadata version (restored in `finally`). Run it sequentially against its dedicated
 scratch database. All model calls use local scripted fakes; no paid provider is needed.
 

@@ -114,19 +114,18 @@ def test_tenant_schema_is_noop_without_role():
 
 
 def test_tenant_schema_is_idempotent():
-    with ai_role():
-        with scratch_database() as database:
-            first = run_script(database)
-            second = run_script(database)
-            assert first.returncode == 0, first.stderr
-            assert second.returncode == 0, second.stderr
-            with closing(connect(database)) as conn:
-                assert conn.execute("SELECT to_regnamespace('liwan_ai')").fetchone() == ("liwan_ai",)
-                assert conn.execute(
-                    "SELECT has_database_privilege('liwan_ai', current_database(), 'CONNECT')").fetchone() == (True,)
-                # The revocation survives the second run: PUBLIC keeps no CONNECT on the tenant database.
-                public_connect = conn.execute(
-                    "SELECT count(*) FROM aclexplode((SELECT datacl FROM pg_database"
-                    " WHERE datname = current_database())) acl"
-                    " WHERE acl.grantee = 0 AND acl.privilege_type = 'CONNECT'").fetchone()
-                assert public_connect == (0,)
+    with ai_role(), scratch_database() as database:
+        first = run_script(database)
+        second = run_script(database)
+        assert first.returncode == 0, first.stderr
+        assert second.returncode == 0, second.stderr
+        with closing(connect(database)) as conn:
+            assert conn.execute("SELECT to_regnamespace('liwan_ai')").fetchone() == ("liwan_ai",)
+            assert conn.execute(
+                "SELECT has_database_privilege('liwan_ai', current_database(), 'CONNECT')").fetchone() == (True,)
+            # The revocation survives the second run: PUBLIC keeps no CONNECT on the tenant database.
+            public_connect = conn.execute(
+                "SELECT count(*) FROM aclexplode((SELECT datacl FROM pg_database"
+                " WHERE datname = current_database())) acl"
+                " WHERE acl.grantee = 0 AND acl.privilege_type = 'CONNECT'").fetchone()
+            assert public_connect == (0,)

@@ -189,7 +189,10 @@ maintenance barrier. Configure `aiTokenFile` as a private canonical token file a
 `pools.<id>.aiRuntime` with the same service shape as `ai_maintenance`: `id` equals
 the process's stable `AI_GENERATION_ID`, `url` equals trusted `pools.json.aiUrl`,
 `sharedStateId` equals its actual stored `state_id`, and `aiStateVersion` equals
-the manifest and routed pool version. A matching version string alone is not
+the manifest and routed pool version. `state_id` comes from the AI service's control
+state (`ai_state_schema` in the service database), which holds no tenant content;
+release activity is summed across every tenant database that the service serves,
+and readiness reports it with `activity_scope` `tenant_states`. A matching version string alone is not
 state identity. The candidate must still accept new work. One directly observed
 process owns each generation id. Rendered pools derive stable generation ids from the immutable manifest digest and pool name, so a later release reusing the pool receives a new id;
 restart retains the id, replacement uses a new id. A persisted drained id cannot

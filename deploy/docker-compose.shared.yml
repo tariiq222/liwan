@@ -84,6 +84,13 @@ services:
 
   ai:
     ports: !reset []
+    # Shared mode: the tenant registry maps a tenant id to its database; no single tenant database here.
+    environment:
+      LIWAN_TENANCY_MODE: shared
+      LIWAN_TENANT_REGISTRY_PATH: /etc/liwan/registry.json
+      AI_TENANT_DATABASE: ""
+    volumes:
+      - ${LIWAN_TENANT_REGISTRY_DIR:?set LIWAN_TENANT_REGISTRY_DIR}:/etc/liwan:ro
     networks: [guard_web, database]
 
   db:

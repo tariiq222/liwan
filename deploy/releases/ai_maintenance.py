@@ -116,7 +116,7 @@ def _observe(service, method, token, timeout):
         result = json.loads(raw)
         if (not isinstance(result, dict) or result.get('state_version') != service['aiStateVersion']
                 or result.get('state_id') != service['sharedStateId'] or result.get('generation_id') != service['id']
-                or result.get('activity_scope') != 'shared_state' or type(result.get('accepting')) is not bool
+                or result.get('activity_scope') != 'tenant_states' or type(result.get('accepting')) is not bool
                 or type(result.get('drained')) is not bool or not isinstance(result.get('connections'), dict)
                 or any(type(result.get(key)) is not int or result[key] < 0 for key in COUNTS)
                 or result['active_runs'] != sum(result[key] for key in ('running', 'claimed_writes', 'pending_reads'))):

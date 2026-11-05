@@ -47,6 +47,7 @@ FINISHED = ("done", "failed", "limit_reached")
 # an 'executing' one is settled-unknown (its write may have run) and is never retried.
 STALE_AFTER_SECONDS = 600 + 60
 RUN_LIST_LIMIT = 50
+POOL_COUNTS = ("pool_size", "pool_available", "requests_waiting")  # the pool stats a release reads
 
 
 def _pair(event: dict[str, Any]) -> tuple[str, Any]:
@@ -148,16 +149,21 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
         if settings.generation_id is None:
             raise HTTPException(503, "release administration requires a generation identity")
 
-    async def tenant_activity() -> tuple[dict[str, int], dict[str, dict]]:
-        """Run activity summed over every served tenant, and each open tenant pool's connection stats."""
+    async def tenant_activity() -> tuple[dict[str, int], dict[str, int]]:
+        """Run activity and pool connection counts, each summed over every served tenant database.
+
+        The release coordinator reads one pool view: quiescent means every tenant pool has all its connections back.
+        """
         activity = {"running": 0, "executing": 0, "waiting_tool": 0}
-        connections: dict[str, dict] = {}
+        connections: dict[str, int] = {}
         async for state in states.each():
             for status, count in (await state.store.activity()).items():
                 activity[status] = activity.get(status, 0) + count
             pool = getattr(state.store, "pool", None)
             if pool is not None:
-                connections[state.database] = pool.get_stats()
+                stats = pool.get_stats()
+                for key in POOL_COUNTS:
+                    connections[key] = connections.get(key, 0) + stats.get(key, 0)
         return activity, connections
 
     async def release_evidence() -> dict[str, Any]:

@@ -167,4 +167,4 @@ async def test_real_http_processes_keep_one_claim_shared_checkpoint_and_active_s
         final = (await client.get("/internal/release/readiness", headers=ADMIN)).json()
         assert final["drained"] is True and final["active_runs"] == 0 and final["claimed_writes"] == 0
         # One pool per open tenant database, keyed by its name.
-        assert "pool_size" in final["connections"][tenant]
+        assert final["connections"]["pool_available"] == final["connections"]["pool_size"]

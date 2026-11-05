@@ -83,6 +83,9 @@ services:
       AI_DATABASE_URL: "${AI_DATABASE_URL:-}"
       AI_SERVICE_TOKEN: "${AI_SERVICE_TOKEN:?set AI_SERVICE_TOKEN (deploy/ai/ensure_secrets.sh generates it)}"
       AI_RUN_RETENTION_DAYS: "${AI_RUN_RETENTION_DAYS:-30}"
+      # One tenant per deployment: this stack's tenant database also holds that tenant's AI state.
+      LIWAN_TENANCY_MODE: dedicated
+      AI_TENANT_DATABASE: "${DB_NAME}"
     expose: ["8600"]
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
