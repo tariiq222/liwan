@@ -153,7 +153,7 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
     </div>
     <EmptyState v-if="empty && !filtered" class="m-4" :title="t('inbox.list.empty')" :description="t('inbox.list.emptyDescription')">
       <template #icon>
-        <UIcon name="i-liwan-whatsapp" class="size-8" />
+        <UIcon name="i-lucide-messages-square" class="size-8" />
       </template>
     </EmptyState>
     <SharedPageState
