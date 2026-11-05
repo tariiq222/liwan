@@ -6,7 +6,7 @@ from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 from . import secret_box
-from .constants import WHATSAPP_FEATURE
+from .constants import CHANNEL_FEATURES
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_inbox.adapters.whatsapp import Credentials
 
@@ -42,14 +42,16 @@ class LiwanInboxChannel(models.Model):
     owner_company_id = fields.Many2one('res.company', required=True, index=True, ondelete='cascade',
                                        default=lambda self: self.env.company)
     name = fields.Char(required=True)
-    kind = fields.Selection([('whatsapp', 'WhatsApp')], required=True, default='whatsapp')
+    kind = fields.Selection([('whatsapp', 'WhatsApp'), ('tiktok', 'TikTok')], required=True, default='whatsapp')
     state = fields.Selection(
         [('draft', 'Draft'), ('connected', 'Connected'), ('error', 'Error'), ('disabled', 'Disabled')],
         required=True, default='draft', index=True,
     )
     department_id = fields.Many2one('liwan.inbox.department', ondelete='set null')
-    phone_number_id = fields.Char(required=True)
-    business_account_id = fields.Char(required=True)
+    # The WhatsApp provider ids; a TikTok channel is identified by its own `tiktok_business_id` instead
+    # (models/channel_tiktok.py), so neither is required on every kind.
+    phone_number_id = fields.Char()
+    business_account_id = fields.Char()
     # The Meta app id: needed only to upload the sample file of a media-header template (not a secret).
     app_id = fields.Char()
     access_token_enc = fields.Char(groups=SECRET_GROUPS, copy=False)
@@ -95,16 +97,21 @@ class LiwanInboxChannel(models.Model):
             if not PROVIDER_ID.match(channel.app_id):
                 raise ValidationError(self.env._('The Meta app id must be 5 to 32 digits.'))
 
-    @api.constrains('phone_number_id', 'business_account_id')
+    @api.constrains('kind', 'phone_number_id', 'business_account_id')
     def _check_provider_ids(self):
-        for channel in self:
+        for channel in self.filtered(lambda channel: channel.kind == 'whatsapp'):
             if not (PROVIDER_ID.match(channel.phone_number_id or '') and PROVIDER_ID.match(channel.business_account_id or '')):
                 raise ValidationError(self.env._('Phone number id and business account id must be 5 to 32 digits.'))
 
     @api.model_create_multi
     def create(self, vals_list):
+        """Gate each new channel by its own kind's sub-feature, then by the tenant's channel limit."""
         entitlement = self.env['liwan.entitlement.service']
-        entitlement.require(WHATSAPP_FEATURE)
+        for feature in sorted({
+            CHANNEL_FEATURES[kind] for kind in (vals.get('kind') or 'whatsapp' for vals in vals_list)
+            if kind in CHANNEL_FEATURES
+        }):
+            entitlement.require(feature)
         entitlement._liwan_claim_channels(len(vals_list))
         return super().create(vals_list)
 

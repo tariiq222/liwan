@@ -16,6 +16,7 @@ from . import (
     channel_alert,
     channel_health,
     channel_sending,
+    channel_tiktok,
     consent,
     contact,
     contact_marketing,
