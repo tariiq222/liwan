@@ -323,6 +323,9 @@
       },
       "ai": {
         "description": "Ask about your tasks and projects, and request what you want prepared."
+      },
+      "crm": {
+        "description": "Track prospects and sales deals through to close."
       }
     },
     "actions": "Quick actions"
