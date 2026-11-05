@@ -18,7 +18,7 @@ function modelPair(kind, inputTokens, outputTokens) {
   const call_id = (++callSeq).toString(16).padStart(16, '0')
   const called_at = new Date(Date.UTC(2026, 9, 16, 8, 0, ++clock)).toISOString()
   return [
-    ['model_call', { call_id, kind, provider: 'mock', model: 'mock-model', called_at }],
+    ['model_call', { call_id, kind, billing: 'platform', provider: 'mock', model: 'mock-model', called_at }],
     ['model_usage', { call_id, outcome: 'ok', input_tokens: inputTokens, output_tokens: outputTokens }],
   ]
 }

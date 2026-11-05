@@ -9,12 +9,18 @@ export type AiThreadItem =
   | { kind: 'confirm'; callId: string; tool: string; input: Record<string, unknown>; summaryAr: string; summaryEn: string; state: 'pending' | 'approved' | 'rejected'; busy?: boolean }
   | { kind: 'draft'; callId: string; tool: string; payload: Record<string, unknown>; summaryAr: string; summaryEn: string; state: 'pending' | 'approved' | 'rejected' }
 
-export type AiLimit = 'max_tool_calls' | 'max_steps' | 'timeout' | 'messages_monthly'
+export type AiLimit = 'max_tool_calls' | 'max_steps' | 'timeout' | 'messages_monthly' | 'output_tokens' | 'tokens_monthly' | 'consent_required' | 'tenant_key_missing'
+/** The limits that stop every new message until something changes (a new month, a signature, a key), not just this run. */
+const BLOCKING_LIMITS: ReadonlySet<AiLimit> = new Set(['messages_monthly', 'tokens_monthly', 'consent_required', 'tenant_key_missing'])
+export const isBlockingLimit = (limit: AiLimit | null) => limit !== null && BLOCKING_LIMITS.has(limit)
 export type AiRunState = 'idle' | 'streaming' | 'waiting_user' | 'done' | 'failed' | 'limit_reached'
 type LocalEvent = AiEvent | { event: 'decided'; data: { call_id: string; decision: 'approved' | 'rejected' | 'pending' } }
 type DecidableItem = Extract<AiThreadItem, { kind: 'confirm' | 'draft' }>
 
-const MONTHLY_LIMIT_KEY = 'ai.messages.monthly'
+// The package limit a 403 names, as the limit the assistant shows.
+const MONTHLY_LIMITS: Record<string, AiLimit> = { 'ai.messages.monthly': 'messages_monthly', 'ai.tokens.monthly': 'tokens_monthly' }
+// The tenant policy refusals the Nuxt server answers before a message is counted.
+const POLICY_REFUSALS: Record<string, AiLimit> = { ai_consent_required: 'consent_required', ai_tenant_key_missing: 'tenant_key_missing' }
 const ERROR_MESSAGES: Record<string, string> = {
   provider_unavailable: 'ai.errors.provider',
   audit_failed: 'ai.errors.auditFailed',
@@ -144,8 +150,10 @@ export function useAiRun(options: { enabled?: () => boolean } = {}) {
   async function refuse(response: Response) {
     const body = await response.json().catch(() => null)
     const code: string | undefined = body?.data?.code ?? body?.code
-    if (response.status === 403 && code === 'feature_not_included' && (body?.data?.details ?? body?.details)?.limit_key === MONTHLY_LIMIT_KEY) {
-      limit.value = 'messages_monthly'
+    const limitKey: string | undefined = (body?.data?.details ?? body?.details)?.limit_key
+    const refused = response.status === 403 && code === 'feature_not_included' && limitKey ? MONTHLY_LIMITS[limitKey] : code ? POLICY_REFUSALS[code] : undefined
+    if (refused) {
+      limit.value = refused
       status.value = 'limit_reached'
     } else if (response.status === 503 && code === 'ai_unavailable') {
       unavailable.value = true

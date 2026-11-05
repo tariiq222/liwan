@@ -1,4 +1,4 @@
-import { AI_USAGE_BATCH_MAX, AiAuditRequestSchema, AiDraftPayloadSchema, AiEventSchema, AiModelCallEventSchema, AiModelUsageEventSchema, AiRunListQuerySchema, AiRunListSchema, AiRunPatchSchema, AiRunStatusSchema, AiStartRequestSchema, AiToolsResponseSchema, AiUsageBatchResponseSchema, AiUsageBatchSchema, AiUsageRecordSchema, AiUsageRowSchema } from '../index'
+import { AI_USAGE_BATCH_MAX, AiAuditRequestSchema, AiKeyPutSchema, AiMonitoringSchema, AiRetentionPutSchema, AiSettingsPatchSchema, AiSettingsSchema, AiTenantConfigSchema, AiDraftPayloadSchema, AiEventSchema, AiModelCallEventSchema, AiModelUsageEventSchema, AiRunListQuerySchema, AiRunListSchema, AiRunPatchSchema, AiRunStatusSchema, AiStartRequestSchema, AiToolsResponseSchema, AiUsageBatchResponseSchema, AiUsageBatchSchema, AiUsageRecordSchema, AiUsageRowSchema } from '../index'
 
 const READ = {
   name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'مهامي', en: 'My tasks' },
@@ -8,14 +8,14 @@ const READ = {
 
 describe('LiwanOS AI contracts', () => {
   it('parses the tools response with limits', () => {
-    const parsed = AiToolsResponseSchema.parse({ items: [READ], total: 1, limits: { tool_calls_per_run: 8, messages_monthly: null, messages_used: 2 } })
+    const parsed = AiToolsResponseSchema.parse({ items: [READ], total: 1, limits: { tool_calls_per_run: 8, messages_monthly: null, messages_used: 2, policy: { provider_mode: 'platform', outside_allowed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } } })
     expect(parsed.items[0]!.route?.method).toBe('GET')
     expect(parsed.limits.messages_monthly).toBeNull()
   })
 
   it('rejects a draft tool with a route and an unknown kind', () => {
-    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'draft' }], total: 1, limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0 } })).toThrow()
-    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'delete' }], total: 1, limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0 } })).toThrow()
+    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'draft' }], total: 1, limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, policy: { provider_mode: 'platform', outside_allowed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } } })).toThrow()
+    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'delete' }], total: 1, limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, policy: { provider_mode: 'platform', outside_allowed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } } })).toThrow()
   })
 
   it('types every SSE event by name', () => {
@@ -79,9 +79,9 @@ describe('LiwanOS AI contracts', () => {
 })
 
 describe('LiwanOS AI usage contracts', () => {
-  const call = { call_id: 'ab12cd34ef56ab78', kind: 'plan', provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5', called_at: '2026-10-27T10:00:00Z' }
+  const call = { call_id: 'ab12cd34ef56ab78', kind: 'plan', billing: 'platform', provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5', called_at: '2026-10-27T10:00:00Z' }
   const usage = { call_id: 'ab12cd34ef56ab78', outcome: 'ok', input_tokens: 120, output_tokens: 7 }
-  const record = { conversation_id: 'r_1', kind: 'plan', provider: 'openrouter', model: 'm', outcome: 'ok', input_tokens: 1, output_tokens: 2, called_at: '2026-10-27T10:00:00+03:00' }
+  const record = { conversation_id: 'r_1', kind: 'plan', billing: 'platform', provider: 'openrouter', model: 'm', outcome: 'ok', input_tokens: 1, output_tokens: 2, called_at: '2026-10-27T10:00:00+03:00' }
 
   it('parses a model_call and rejects loose ids, providers, models and offsets', () => {
     expect(AiModelCallEventSchema.parse(call).kind).toBe('plan')
@@ -114,5 +114,36 @@ describe('LiwanOS AI usage contracts', () => {
     expect(() => AiUsageRecordSchema.parse({ ...record, conversation_id: 'x'.repeat(65) })).toThrow()
     expect(AiUsageRowSchema.parse({ ...record, id: 5 }).id).toBe(5)
     expect(AiUsageBatchResponseSchema.parse({ items: [{ ...record, id: 5 }], total: 1 }).total).toBe(1)
+  })
+
+  it('parses the AI settings with the consent text and the month usage', () => {
+    const settings = {
+      provider_mode: 'platform', revision: 1,
+      consent: { required_version: '2026-11-05-draft', text_ar: 'نص', text_en: 'text', text_hash: 'a'.repeat(64), signed: null },
+      usage: { month: '2026-11', messages_used: 3, messages_limit: null, tokens_used: 120, tokens_limit: 2000000, output_tokens_per_run: 8000 },
+    }
+    expect(AiSettingsSchema.parse(settings).usage.tokens_limit).toBe(2000000)
+    expect(() => AiSettingsSchema.parse({ ...settings, provider_mode: 'free' })).toThrow()
+    expect(() => AiSettingsPatchSchema.parse({ provider_mode: 'tenant_key', revision: 0 })).toThrow()
+  })
+
+  it('keeps the tenant key write-only and the retention bounded', () => {
+    const config = {
+      retention_days: 30, key: { configured: true, provider: 'anthropic', model: 'claude-test', last4: 'abcd', updated_at: '2026-11-05T10:00:00Z' },
+      platform: { provider: 'ollama', model: 'm', location: 'inside' }, providers: [{ name: 'anthropic', location: 'outside', needs_api_key: true }],
+    }
+    expect(AiTenantConfigSchema.parse(config).key.last4).toBe('abcd')
+    expect(() => AiTenantConfigSchema.parse({ ...config, key: { ...config.key, api_key: 'sk' } })).toThrow()
+    expect(() => AiRetentionPutSchema.parse({ retention_days: 366 })).toThrow()
+    expect(() => AiKeyPutSchema.parse({ provider: 'anthropic', model: 'm', api_key: '' })).toThrow()
+  })
+
+  it('counts monitoring actions without any message text', () => {
+    const body = {
+      month: '2026-11', totals: { messages: 2, input_tokens: 30, output_tokens: 0, tool_calls: 0 },
+      users: { items: [{ user: { id: 7, name: 'هدى' }, messages: 2, tokens: 30, tool_calls: 0 }], total: 1 }, tools: { items: [], total: 0 },
+    }
+    expect(AiMonitoringSchema.parse(body).users.total).toBe(1)
+    expect(() => AiMonitoringSchema.parse({ ...body, users: { ...body.users, items: [{ ...body.users.items[0], text: 'سؤال' }] } })).toThrow()
   })
 })

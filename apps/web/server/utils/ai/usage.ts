@@ -51,7 +51,7 @@ export function createUsageLedger() {
   }
 
   const records = (conversationId: string): AiUsageRecord[] => [...attempts.values()].flatMap(({ call, usage }) => usage
-    ? [{ conversation_id: conversationId, kind: call.kind, provider: call.provider, model: call.model, outcome: usage.outcome, input_tokens: usage.input_tokens, output_tokens: usage.output_tokens, called_at: call.called_at }]
+    ? [{ conversation_id: conversationId, kind: call.kind, billing: call.billing, provider: call.provider, model: call.model, outcome: usage.outcome, input_tokens: usage.input_tokens, output_tokens: usage.output_tokens, called_at: call.called_at }]
     : [])
 
   /**

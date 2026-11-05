@@ -11,7 +11,7 @@ import AiSuggestionChips from '@/components/ai/AiSuggestionChips.vue'
 import AiToolTrace from '@/components/ai/AiToolTrace.vue'
 import { followSharedConversation } from '@/composables/useAiConversation'
 import { useAiNowSection } from '@/composables/useAiNowSection'
-import { useAiRun } from '@/composables/useAiRun'
+import { isBlockingLimit, useAiRun } from '@/composables/useAiRun'
 import { assistantContext, useAssistantSheet } from '@/composables/useAssistantSheet'
 import { useAttention } from '@/composables/useAttention'
 import { useShellModel } from '@/composables/useShellModel'
@@ -42,7 +42,7 @@ const { hidden, toggle: toggleSection } = useAiNowSection()
 
 const disabled = computed(() => !config.public.aiEnabled || unavailable.value)
 const streaming = computed(() => status.value === 'streaming')
-const composerDisabled = computed(() => !hydrated.value || limit.value === 'messages_monthly' || status.value === 'waiting_user')
+const composerDisabled = computed(() => !hydrated.value || isBlockingLimit(limit.value) || status.value === 'waiting_user')
 const latestPending = computed(() => latestPendingIndex(items.value))
 const conversation = computed(() => items.value.length > 0)
 const context = computed(() => parseAiContext(assistantContext(route.path, activeModule.value)))

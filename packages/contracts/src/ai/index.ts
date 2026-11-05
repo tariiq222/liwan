@@ -17,10 +17,26 @@ export const AiToolSchema = z.object({
 })
 export type AiTool = z.infer<typeof AiToolSchema>
 
+const AiLimitValueSchema = z.number().int().nonnegative().nullable() // null means unlimited
+export const AiProviderModeSchema = z.enum(['platform', 'tenant_key'])
+export type AiProviderMode = z.infer<typeof AiProviderModeSchema>
+
+/** What a run needs from the tenant's AI policy (Odoo `liwan_ai`); the Nuxt server passes it to the AI service. */
+export const AiPolicySchema = z.object({
+  provider_mode: AiProviderModeSchema,
+  /** A valid residency consent exists: a provider outside the Kingdom may receive the data. */
+  outside_allowed: z.boolean(),
+  tokens_monthly: AiLimitValueSchema,
+  tokens_used: z.number().int().nonnegative(),
+  output_tokens_per_run: AiLimitValueSchema,
+}).strict()
+export type AiPolicy = z.infer<typeof AiPolicySchema>
+
 export const AiLimitsSchema = z.object({
-  tool_calls_per_run: z.number().int().nonnegative().nullable(),
-  messages_monthly: z.number().int().nonnegative().nullable(),
+  tool_calls_per_run: AiLimitValueSchema,
+  messages_monthly: AiLimitValueSchema,
   messages_used: z.number().int().nonnegative(),
+  policy: AiPolicySchema,
 }).strict()
 
 export const AiToolsResponseSchema = z.object({ items: z.array(AiToolSchema), total: z.number().int().nonnegative(), limits: AiLimitsSchema }).strict()
@@ -61,7 +77,7 @@ export const AiEventSchema = z.discriminatedUnion('event', [
   z.object({ event: z.literal('tool_request'), data: AiToolRequestSchema }),
   z.object({ event: z.literal('tool_result'), data: z.object({ call_id: z.string(), tool: z.string(), kind: AiToolKindSchema, ok: z.boolean(), summary_ar: z.string(), summary_en: z.string() }).strict() }),
   z.object({ event: z.literal('answer'), data: z.object({ text: z.string(), records: z.array(AiRecordRefSchema) }).strict() }),
-  z.object({ event: z.literal('limit_reached'), data: z.object({ limit: z.enum(['max_tool_calls', 'max_steps', 'timeout', 'messages_monthly']) }).strict() }),
+  z.object({ event: z.literal('limit_reached'), data: z.object({ limit: z.enum(['max_tool_calls', 'max_steps', 'timeout', 'messages_monthly', 'output_tokens']) }).strict() }),
   z.object({ event: z.literal('error'), data: z.object({ code: z.string(), message: z.string() }).strict() }),
   z.object({ event: z.literal('done'), data: z.object({ status: AiDoneStatusSchema }).strict() }),
 ])
@@ -73,6 +89,8 @@ export type AiEvent = z.infer<typeof AiEventSchema>
  */
 export const AI_USAGE_BATCH_MAX = 64
 export const AiModelCallKindSchema = z.enum(['plan', 'title'])
+/** Whose provider account paid a call: the platform's (counted against the monthly token limit) or the tenant's own key. */
+export const AiBillingSchema = AiProviderModeSchema
 export const AiModelCallOutcomeSchema = z.enum(['ok', 'failed', 'retried', 'aborted'])
 const AiCallIdSchema = z.string().regex(/^[0-9a-f]{16}$/)
 const AiProviderNameSchema = z.string().regex(/^[a-z][a-z0-9_-]{0,31}$/)
@@ -82,7 +100,7 @@ const tokensComeInPairs = (value: { input_tokens: number | null, output_tokens: 
 const TOKENS_IN_PAIRS = { message: 'input_tokens and output_tokens are both set or both null', path: ['output_tokens'] }
 
 export const AiModelCallEventSchema = z.object({
-  call_id: AiCallIdSchema, kind: AiModelCallKindSchema, provider: AiProviderNameSchema, model: AiModelNameSchema,
+  call_id: AiCallIdSchema, kind: AiModelCallKindSchema, billing: AiBillingSchema, provider: AiProviderNameSchema, model: AiModelNameSchema,
   called_at: z.iso.datetime({ offset: true }),
 }).strict()
 export type AiModelCallEvent = z.infer<typeof AiModelCallEventSchema>
@@ -92,7 +110,7 @@ export const AiModelUsageEventSchema = z.object({
 export type AiModelUsageEvent = z.infer<typeof AiModelUsageEventSchema>
 
 const AiUsageFields = {
-  conversation_id: z.string().min(1).max(64), kind: AiModelCallKindSchema, provider: AiProviderNameSchema, model: AiModelNameSchema,
+  conversation_id: z.string().min(1).max(64), kind: AiModelCallKindSchema, billing: AiBillingSchema, provider: AiProviderNameSchema, model: AiModelNameSchema,
   outcome: AiModelCallOutcomeSchema, input_tokens: AiTokenCountSchema, output_tokens: AiTokenCountSchema, called_at: z.iso.datetime({ offset: true }),
 }
 /** One provider attempt as `POST /api/v1/ai/usage` records it. */
@@ -166,3 +184,74 @@ export const AiDraftHandoffSchema = z.object({
   run_id: z.string(), call_id: z.string(), tool: z.string(), payload: AiDraftPayloadSchema,
 }).strict()
 export type AiDraftHandoff = z.infer<typeof AiDraftHandoffSchema>
+
+const AiPersonSchema = z.object({ id: z.number().int().positive(), name: z.string() }).strict()
+
+/** `GET|PATCH /api/v1/ai/settings` (capability `ai.settings.manage`): provider mode, residency consent and this month's usage. */
+export const AiSettingsSchema = z.object({
+  provider_mode: AiProviderModeSchema,
+  revision: z.number().int().positive(),
+  consent: z.object({
+    required_version: z.string().min(1),
+    text_ar: z.string().min(1),
+    text_en: z.string().min(1),
+    text_hash: z.string().regex(/^[0-9a-f]{64}$/),
+    signed: z.object({ user: AiPersonSchema, signed_at: z.iso.datetime({ offset: true }), text_version: z.string() }).strict().nullable(),
+  }).strict(),
+  usage: z.object({
+    month: z.string().regex(/^\d{4}-\d{2}$/),
+    messages_used: z.number().int().nonnegative(),
+    messages_limit: AiLimitValueSchema,
+    tokens_used: z.number().int().nonnegative(),
+    tokens_limit: AiLimitValueSchema,
+    output_tokens_per_run: AiLimitValueSchema,
+  }).strict(),
+}).strict()
+export type AiSettings = z.infer<typeof AiSettingsSchema>
+export const AiSettingsPatchSchema = z.object({ provider_mode: AiProviderModeSchema, revision: z.number().int().positive() }).strict()
+export type AiSettingsPatch = z.infer<typeof AiSettingsPatchSchema>
+/** `POST /api/v1/ai/consent`: the signer's client echoes the exact text it showed. */
+export const AiConsentSignSchema = z.object({ text_version: z.string().min(1), text_hash: z.string().regex(/^[0-9a-f]{64}$/) }).strict()
+export type AiConsentSign = z.infer<typeof AiConsentSignSchema>
+
+/** `GET /api/v1/ai/monitoring`: this month's actions and counts, never conversation text. */
+export const AiMonitoringSchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/),
+  totals: z.object({
+    messages: z.number().int().nonnegative(), input_tokens: z.number().int().nonnegative(),
+    output_tokens: z.number().int().nonnegative(), tool_calls: z.number().int().nonnegative(),
+  }).strict(),
+  users: z.object({
+    items: z.array(z.object({
+      user: AiPersonSchema, messages: z.number().int().nonnegative(), tokens: z.number().int().nonnegative(), tool_calls: z.number().int().nonnegative(),
+    }).strict()),
+    total: z.number().int().nonnegative(),
+  }).strict(),
+  tools: z.object({
+    items: z.array(z.object({ tool_name: z.string(), calls: z.number().int().nonnegative() }).strict()),
+    total: z.number().int().nonnegative(),
+  }).strict(),
+}).strict()
+export type AiMonitoring = z.infer<typeof AiMonitoringSchema>
+
+const AiLocationSchema = z.enum(['inside', 'outside'])
+export const AI_RETENTION_DAYS_MIN = 1
+export const AI_RETENTION_DAYS_MAX = 365
+/** `GET /api/ai/config` (the AI service's tenant configuration): never the key itself, only whether one is set. */
+export const AiTenantConfigSchema = z.object({
+  retention_days: z.number().int().min(AI_RETENTION_DAYS_MIN).max(AI_RETENTION_DAYS_MAX),
+  key: z.object({
+    configured: z.boolean(),
+    provider: AiProviderNameSchema.nullable(),
+    model: AiModelNameSchema.nullable(),
+    last4: z.string().max(4).nullable(),
+    updated_at: z.iso.datetime({ offset: true }).nullable(),
+  }).strict(),
+  platform: z.object({ provider: AiProviderNameSchema, model: AiModelNameSchema, location: AiLocationSchema }).strict(),
+  providers: z.array(z.object({ name: AiProviderNameSchema, location: AiLocationSchema, needs_api_key: z.boolean() }).strict()),
+}).strict()
+export type AiTenantConfig = z.infer<typeof AiTenantConfigSchema>
+export const AiRetentionPutSchema = z.object({ retention_days: z.number().int().min(AI_RETENTION_DAYS_MIN).max(AI_RETENTION_DAYS_MAX) }).strict()
+export type AiRetentionPut = z.infer<typeof AiRetentionPutSchema>
+export const AiKeyPutSchema = z.object({ provider: AiProviderNameSchema, model: AiModelNameSchema, api_key: z.string().min(1).max(512) }).strict()
+export type AiKeyPut = z.infer<typeof AiKeyPutSchema>

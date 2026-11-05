@@ -456,7 +456,7 @@ async function handle(req, res) {
       { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'يعرض مهامي', en: 'List my tasks' }, input_schema: { type: 'object', properties: { limit: { type: 'integer' } } }, route: { method: 'GET', path: '/api/v1/tasks' }, input_map: { query: { filter: 'mine', limit: '$limit' } }, result_summary: ['items[].id', 'items[].name', 'items[].state', 'total'], draft_target: null },
       ...(canCreate ? [{ name: 'pmo.draft_project', kind: 'draft', description: { ar: 'مسودة مشروع', en: 'Project draft' }, input_schema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] }, route: null, input_map: {}, result_summary: [], draft_target: '/projects/new' }] : []),
     ]
-    return json(res, 200, { items, total: items.length, limits: { tool_calls_per_run: 8, messages_monthly: 500, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length } })
+    return json(res, 200, { items, total: items.length, limits: { tool_calls_per_run: 8, messages_monthly: 500, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length, policy: { provider_mode: 'platform', outside_allowed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } } })
   }
   if (method === 'POST' && path === '/api/v1/ai/audit') {
     let entry = {}
