@@ -20,6 +20,7 @@ from liwan_ai_service.store import MemoryRunStore, PostgresRunStore, RunStore, v
 from liwan_ai_service.tenancy import TenantDirectory
 
 log = logging.getLogger(__name__)
+UNINITIALIZED = "ai_state_uninitialized"  # the one StateCompatibilityError a sweep may skip
 CONNECT_TIMEOUT_SECONDS = 5  # a tenant database that does not answer fails the request fast, not after the pool's retries
 
 
@@ -81,8 +82,10 @@ class TenantStates:
     async def each(self, on_unavailable: Callable[[str, Exception], None] | None = None) -> AsyncIterator[TenantState]:
         """Every served tenant's state in directory order, skipping a database whose state was never initialized.
 
-        A database that cannot be opened stops the iteration, so a release check never counts it as idle, unless
-        ``on_unavailable`` is given: then it receives the database and the error, and the iteration goes on.
+        A database that cannot be opened, or whose state this runtime cannot use, stops the iteration, so a release
+        check never counts it as idle, unless ``on_unavailable`` is given: then it receives the database and the
+        error, and the iteration goes on. Callers close it with ``contextlib.aclosing`` so a failure mid-sweep
+        releases its states at once.
         The Postgres states this iteration itself opened are closed afterwards, unless a request used them
         meanwhile; a memory state lives for the process.
         """
@@ -91,8 +94,13 @@ class TenantStates:
             for database in self.directory.databases():
                 try:
                     state = await self._state_for(database, opened)
-                except StateCompatibilityError:
-                    log.warning("database %s has no initialized AI state; skipped", database)
+                except StateCompatibilityError as error:
+                    if str(error) == UNINITIALIZED:  # no AI state yet: nothing to count or clean there
+                        log.warning("database %s has no initialized AI state; skipped", database)
+                        continue
+                    if on_unavailable is None:
+                        raise  # an incompatible state is never counted as idle or silently left uncleaned
+                    on_unavailable(database, error)
                     continue
                 except Exception as error:
                     if on_unavailable is None:

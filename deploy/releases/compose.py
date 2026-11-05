@@ -151,16 +151,22 @@ def render_pool(manifest, operator_config):
                 raise ValueError()
             services[f'{pool_id}-web']['environment']['NUXT_AI_SERVICE_URL'] = upstreams['ai']
             if ai['mode'] == 'pool':
-                if set(ai) != {'mode', 'stateStore', 'config'} or 'ai' not in manifest['images']:
+                # Shared pools resolve each tenant's AI database through the tenant registry; dedicated pools serve one.
+                shared = config['tenancyMode'] == 'shared'
+                expected = {'mode', 'stateStore', 'config', *(('registryDir',) if shared else ())}
+                if set(ai) != expected or 'ai' not in manifest['images']:
                     raise ValueError()
                 if urlsplit(upstreams['ai']).hostname != f'{pool_id}-ai':
                     raise ValueError()
                 volumes[_name(ai['stateStore'])] = {'external': True}
                 services[f'{pool_id}-ai'] = {'image': manifest['images']['ai'], 'labels': dict(labels),
                     'restart': 'unless-stopped', 'networks': [f'{pool_id}-internal',config['databaseNetwork']],
-                    'environment':{'AI_GENERATION_ID':'generation_'+hashlib.sha256((pool_id+':'+manifest_digest(manifest)).encode()).hexdigest()[:40],'AI_STATE_VERSION':manifest['aiStateVersion']},
+                    'environment':{'AI_GENERATION_ID':'generation_'+hashlib.sha256((pool_id+':'+manifest_digest(manifest)).encode()).hexdigest()[:40],'AI_STATE_VERSION':manifest['aiStateVersion'],
+                        'LIWAN_TENANCY_MODE': config['tenancyMode'],
+                        **({'LIWAN_TENANT_REGISTRY_PATH': '/etc/liwan/registry.json'} if shared else {'AI_TENANT_DATABASE': config['database']})},
                     'env_file': [_path(ai['config'])],
-                    'volumes': [mount(ai['stateStore'], '/var/lib/liwan-ai')]}
+                    'volumes': [mount(ai['stateStore'], '/var/lib/liwan-ai'),
+                                *([mount(_path(ai['registryDir']), '/etc/liwan', True, 'bind')] if shared else [])]}
             elif set(ai) != {'mode', 'url'} or _endpoint(ai['url'], allowed) != upstreams['ai']:
                 raise ValueError()
         metadata = {'poolId': pool_id, 'releaseId': manifest['releaseId'], 'images': dict(manifest['images']),

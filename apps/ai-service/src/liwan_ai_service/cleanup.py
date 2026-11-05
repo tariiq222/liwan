@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
 import sys
 
@@ -26,13 +27,18 @@ async def run() -> tuple[str, list[str]]:
         def unavailable(database: str, error: Exception) -> None:
             failures.append(f"{database}: {type(error).__name__}")
 
-        async for state in states.each(on_unavailable=unavailable):
-            try:
-                deleted += len(await state.store.delete_older_than(settings.retention_days))
-            except Exception as error:  # noqa: BLE001 - one tenant must not stop the others; the text may carry its connection string
-                failures.append(f"{state.database}: {type(error).__name__}")
-            else:
-                cleaned_tenants += 1
+        if not states.directory.databases():
+            # A real deployment always serves a tenant: an empty directory is a missing or pending registry,
+            # and a job that cleaned nothing must not report success.
+            failures.append("directory: no tenant database served")
+        async with contextlib.aclosing(states.each(on_unavailable=unavailable)) as sweep:
+            async for state in sweep:
+                try:
+                    deleted += len(await state.store.delete_older_than(settings.retention_days))
+                except Exception as error:  # noqa: BLE001 - one tenant must not stop the others; the text may carry its connection string
+                    failures.append(f"{state.database}: {type(error).__name__}")
+                else:
+                    cleaned_tenants += 1
     finally:
         await states.aclose()
     return f"deleted {deleted} runs older than {settings.retention_days} days in {cleaned_tenants} tenants", failures

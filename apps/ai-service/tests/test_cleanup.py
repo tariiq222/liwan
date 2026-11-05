@@ -2,6 +2,7 @@
 from datetime import timedelta
 
 from liwan_ai_service import cleanup
+from liwan_ai_service.control import StateCompatibilityError
 from liwan_ai_service.store import MemoryRunStore
 from liwan_ai_service.tenancy import TenantDirectory, UnknownTenant
 from liwan_ai_service.tenant_state import TenantState, TenantStates
@@ -121,4 +122,33 @@ async def test_cleanup_continues_past_a_database_it_cannot_open(monkeypatch, cap
     assert captured.out.strip() == f"deleted 1 runs older than {RETENTION_DAYS} days in 1 tenants"
     assert "cleanup failed for a: ConnectionError" in captured.err
     assert "u:pw" not in captured.out + captured.err
+    assert states.stores["b"].records == {}
+
+
+async def test_an_empty_directory_is_a_failure_not_a_clean_run(monkeypatch, capsys):
+    states = SeedStates(MappingDirectory({}))  # a missing or pending registry serves no tenant
+    monkeypatch.setattr(cleanup, "open_tenant_states", lambda _url: states)
+    set_cleanup_env(monkeypatch)
+
+    assert await cleanup.main() == 1
+    assert "cleanup failed for directory: no tenant database served" in capsys.readouterr().err
+
+
+class IncompatibleStates(SeedStates):
+    """Tenant ``a`` holds AI state from another version; ``b``'s is current."""
+
+    def _memory_state(self, database: str) -> TenantState:
+        if database == "a":
+            raise StateCompatibilityError("ai_state_incompatible")
+        return super()._memory_state(database)
+
+
+async def test_an_incompatible_tenant_is_reported_not_skipped(monkeypatch, capsys):
+    states = IncompatibleStates(MappingDirectory({"a": "a", "b": "b"}))
+    await open_store(states, "b")
+    monkeypatch.setattr(cleanup, "open_tenant_states", lambda _url: states)
+    set_cleanup_env(monkeypatch)
+
+    assert await cleanup.main() == 1
+    assert "cleanup failed for a: StateCompatibilityError" in capsys.readouterr().err
     assert states.stores["b"].records == {}

@@ -156,15 +156,20 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
         """
         activity = {"running": 0, "executing": 0, "waiting_tool": 0}
         connections: dict[str, int] = {}
-        async for state in states.each():
-            for status, count in (await state.store.activity()).items():
-                activity[status] = activity.get(status, 0) + count
-            pool = getattr(state.store, "pool", None)
-            if pool is not None:
-                stats = pool.get_stats()
-                for key in POOL_COUNTS:
-                    connections[key] = connections.get(key, 0) + stats.get(key, 0)
+        async with contextlib.aclosing(states.each()) as sweep:
+            async for state in sweep:
+                await add_activity(state, activity, connections)
         return activity, connections
+
+    async def add_activity(state: TenantState, activity: dict[str, int], connections: dict[str, int]) -> None:
+        """Add one tenant's run activity and pool counts to the running totals."""
+        for status, count in (await state.store.activity()).items():
+            activity[status] = activity.get(status, 0) + count
+        pool = getattr(state.store, "pool", None)
+        if pool is not None:
+            stats = pool.get_stats()
+            for key in POOL_COUNTS:
+                connections[key] = connections.get(key, 0) + stats.get(key, 0)
 
     async def release_evidence() -> dict[str, Any]:
         activity, connections = await tenant_activity()

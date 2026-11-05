@@ -240,3 +240,22 @@ async def test_an_unreachable_tenant_database_fails_fast_without_its_address():
         assert str(raised.value) == "ai_state_unavailable"
     finally:
         await states.aclose()
+
+
+async def test_each_skips_only_uninitialized_state_never_an_incompatible_one():
+    from liwan_ai_service.control import StateCompatibilityError
+
+    class Mixed(TenantStates):
+        def _memory_state(self, database):
+            errors = {"db_a": "ai_state_uninitialized", "db_b": "ai_state_incompatible"}
+            if database in errors:
+                raise StateCompatibilityError(errors[database])
+            return super()._memory_state(database)
+
+    directory = MappingDirectory({"a": "db_a", "b": "db_b", "c": "db_c"})
+    with pytest.raises(StateCompatibilityError, match="ai_state_incompatible"):
+        [state async for state in Mixed(directory, None, graph_factory).each()]
+    reported = []
+    served = [state.database async for state in Mixed(directory, None, graph_factory).each(
+        on_unavailable=lambda database, error: reported.append(database))]
+    assert served == ["db_c"] and reported == ["db_b"]  # db_a has nothing yet, so it is skipped silently
