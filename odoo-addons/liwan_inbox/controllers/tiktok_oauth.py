@@ -163,6 +163,9 @@ class TikTokOAuthController(http.Controller):
             channel = self._create_channel(values, company, grant, profile)
             if not channel:
                 return _settings_redirect('inbox_tiktok_account_taken')
+        # A shared-SaaS tenant registers the account with the relay so deliveries reach it (D13); the
+        # cron retries an unreachable relay, and a direct-webhook tenant makes no relay call at all.
+        channel._liwan_tiktok_bind()
         # A connected account imports its history: the first connect, or a reconnect of one that never imported (D11).
         channel._liwan_tiktok_queue_first_sync()
         return _channel_redirect(channel)

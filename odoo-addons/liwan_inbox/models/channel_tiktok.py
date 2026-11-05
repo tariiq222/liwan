@@ -6,7 +6,11 @@ webhook delivery names as `user_openid`. The TikTok app key, app secret and redi
 operator configuration (`adapters/tiktok.py: app_config`); a channel stores only its own tokens,
 encrypted with `secret_box`.
 """
+import logging
 import os
+from urllib.parse import quote
+
+import requests
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
@@ -18,6 +22,58 @@ from .tiktok_shortcut import AUDIT_STATUSES, AUTO_TYPES, ENABLED_FIELDS
 from .tiktok_sync import ACTIVE_STATES
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_inbox.adapters import errors, tiktok
+
+_logger = logging.getLogger(__name__)
+
+RELAY_TIMEOUT_SECONDS = 5
+RELAY_TOKEN_HEADER = 'X-Liwan-Proxy-Token'
+
+
+def _liwan_tiktok_relay_config():
+    """The shared relay's base URL and proxy token from the operator environment, or None (D13).
+
+    The URL is operator configuration: without it the tenant keeps its own direct webhook (the
+    `non_saas` topology) and no relay call is made. It is never a condition on the customer type (R6).
+    """
+    url = (os.environ.get('LIWAN_TIKTOK_RELAY_URL') or '').strip().rstrip('/')
+    if not url:
+        return None
+    token = (os.environ.get('LIWAN_SHARED_PROXY_TOKEN') or '').strip()
+    if not token:
+        _logger.warning('LIWAN_TIKTOK_RELAY_URL is set without LIWAN_SHARED_PROXY_TOKEN; the relay stays unused')
+        return None
+    return url, token
+
+
+def _liwan_tiktok_relay_answer(dbname, channel_id, method, open_id):
+    """The shared relay's answer to one binding call, or None when this deployment runs no relay.
+
+    A binding never makes a connect or a delete fail: the failure is logged without the token,
+    and the cron retries an unbound channel.
+    """
+    config = _liwan_tiktok_relay_config()
+    if config is None:
+        return None
+    url, token = config
+    try:
+        return requests.request(
+            method,
+            f'{url}/internal/tiktok/bindings/{quote(open_id, safe="")}',
+            # The shared registry knows this tenant by the database identifier, its only identity here.
+            json={'tenant_id': dbname} if method == 'PUT' else None,
+            headers={RELAY_TOKEN_HEADER: token},
+            timeout=RELAY_TIMEOUT_SECONDS,
+        )
+    except requests.RequestException as error:
+        _logger.warning('tiktok relay %s failed for channel %s: %s', method, channel_id, type(error).__name__)
+        return None
+
+
+def _liwan_tiktok_relay_delete(dbname, channel_id, open_id):
+    """Remove one account's relay binding; a failure leaves a stale binding that routes no event."""
+    answer = _liwan_tiktok_relay_answer(dbname, channel_id, 'DELETE', open_id)
+    if answer is not None and not answer.ok:
+        _logger.warning('tiktok relay refused the unbinding of channel %s: HTTP %s', channel_id, answer.status_code)
 
 
 class LiwanInboxChannel(models.Model):
@@ -63,6 +119,8 @@ class LiwanInboxChannel(models.Model):
     def _liwan_tiktok_store(self, grant, profile=None):
         """Store one OAuth answer on the channel (tokens encrypted) and mark it connected."""
         self.ensure_one()
+        previous = self.tiktok_business_id
+        switched = bool(previous and previous != grant.open_id)
         self.write({
             'tiktok_business_id': grant.open_id,
             'tiktok_username': profile.username if profile else self.tiktok_username,
@@ -72,7 +130,11 @@ class LiwanInboxChannel(models.Model):
             'refresh_expires_at': grant.refresh_expires_at,
             'state': 'connected',
             'last_error': False,
+            **({'tiktok_bound': False} if switched else {}),
         })
+        if switched:
+            # The channel now serves another account: the old account's routing must leave this tenant.
+            self._liwan_tiktok_unbind(previous)
 
     def _liwan_tiktok_credentials(self):
         """The account's credentials, refreshing the access token once when it is near its deadline.
@@ -133,6 +195,53 @@ class LiwanInboxChannel(models.Model):
         message = self.env._('Reconnect the TikTok account: its authorization is no longer valid.')
         self.write({'state': 'error', 'last_error': message})
         raise UserError(message)
+
+    # relay binding (D13)
+
+    def _liwan_tiktok_bind(self):
+        """Register the account with the shared relay; `tiktok_bound` records whether it succeeded."""
+        self.ensure_one()
+        if not self.tiktok_business_id:
+            return False
+        answer = _liwan_tiktok_relay_answer(self.env.cr.dbname, self.id, 'PUT', self.tiktok_business_id)
+        if answer is None:
+            return False
+        if not answer.ok:
+            _logger.warning('tiktok relay refused the binding of channel %s: HTTP %s', self.id, answer.status_code)
+            return False
+        self.tiktok_bound = True
+        return True
+
+    def _liwan_tiktok_unbind(self, open_id=None):
+        """Remove one account's relay binding, by default this channel's own."""
+        self.ensure_one()
+        open_id = open_id or self.tiktok_business_id
+        if not open_id:
+            return
+        _liwan_tiktok_relay_delete(self.env.cr.dbname, self.id, open_id)
+        if open_id == self.tiktok_business_id:
+            self.tiktok_bound = False
+
+    def unlink(self):
+        """Deleting a channel removes its relay routing with it; a refused deletion keeps the binding."""
+        bindings = [
+            (channel.id, channel.tiktok_business_id)
+            for channel in self.filtered(lambda channel: channel.kind == 'tiktok' and channel.tiktok_business_id)
+        ]
+        result = super().unlink()
+        for channel_id, open_id in bindings:
+            _liwan_tiktok_relay_delete(self.env.cr.dbname, channel_id, open_id)
+        return result
+
+    @api.model
+    def _liwan_retry_tiktok_bindings(self):
+        """The cron step: register every active TikTok account the shared relay does not hold yet."""
+        channels = self.search([
+            ('kind', '=', 'tiktok'), ('state', 'in', ('connected', 'error')),
+            ('tiktok_business_id', '!=', False), ('tiktok_bound', '=', False),
+        ])
+        for channel in channels:
+            channel._liwan_tiktok_bind()
 
     # history import (D11)
 

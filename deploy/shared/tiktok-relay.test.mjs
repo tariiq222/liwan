@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
 import { createHmac } from 'node:crypto'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createTiktokRelay } from './tiktok-relay.mjs'
@@ -17,8 +17,13 @@ const targets = [
 ]
 const bindings = { schemaVersion: 1, bindings: { openid_acme: 'acme', openid_beta: 'beta', openid_gone: 'gone' } }
 
-const listen = server => new Promise(resolve => server.listen(0, '127.0.0.1', () => resolve(server.address().port)))
-const close = server => new Promise(resolve => server.close(resolve))
+const listen = server => new Promise(resolve => {
+  server.listen(0, '127.0.0.1', () => resolve(server.address().port))
+})
+const close = server => new Promise(resolve => {
+  server.close(resolve)
+  server.closeAllConnections?.()
+})
 
 function registryFile(dir, snapshot = { schemaVersion: 1, snapshotRevision: 1, targets }) {
   const path = join(dir, 'registry.json')
@@ -71,12 +76,13 @@ async function startTenant() {
   }
 }
 
-async function startRelay({ tenant, dir, ...options }) {
+async function startRelay({ tenant, dir, registry, bindings: seed = bindings, ...options }) {
   const server = createTiktokRelay({
     clientSecret: SECRET,
     proxyToken: PROXY_TOKEN,
-    registryPath: registryFile(dir),
-    bindingsPath: bindingsFile(dir),
+    registryPath: registryFile(dir, registry),
+    // `false` starts on the file an earlier relay instance already wrote, as a container restart does.
+    bindingsPath: seed === false ? join(dir, 'bindings.json') : bindingsFile(dir, seed),
     tenantOrigin: tenant.origin,
     now: () => NOW,
     ...options,
@@ -91,6 +97,20 @@ function post(port, raw, signature) {
     body: raw,
   })
 }
+
+/** One internal binding call, with the shared proxy token unless the test omits or replaces it. */
+async function bind(port, openId, { method = 'PUT', tenantId, token = PROXY_TOKEN, body } = {}) {
+  const headers = { 'content-type': 'application/json' }
+  if (token !== null) headers['x-liwan-proxy-token'] = token
+  const response = await fetch(`http://127.0.0.1:${port}/internal/tiktok/bindings/${openId}`, {
+    method,
+    headers,
+    body: method === 'DELETE' ? undefined : body ?? JSON.stringify({ tenant_id: tenantId }),
+  })
+  return { status: response.status, body: await response.text() }
+}
+
+const storedBindings = dir => JSON.parse(readFileSync(join(dir, 'bindings.json'), 'utf8'))
 
 async function fixture(options = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'tiktok-relay-'))
@@ -256,5 +276,124 @@ test('a tampered state or an unknown host answers 400 without echoing the input'
       assert.ok(!body.includes('acme.example.test'))
       assert.ok(!body.includes('code_123'))
     }
+  } finally { await f.close() }
+})
+
+// The internal binding API is how a tenant's Odoo registers
+
+test('a binding registers the account and routes its events to that tenant', async () => {
+  const f = await fixture({ bindings: { schemaVersion: 1, bindings: {} } })
+  try {
+    assert.equal((await bind(f.port, 'openid_new', { tenantId: 'acme' })).status, 200)
+    assert.deepEqual(storedBindings(f.dir), { schemaVersion: 1, bindings: { openid_new: 'acme' } })
+    const { raw, signature } = delivery('openid_new')
+    assert.equal((await post(f.port, raw, signature)).status, 200)
+    assert.equal(f.tenant.requests.length, 1)
+    assert.equal(f.tenant.requests[0].url, '/api/v1/inbox/hooks/tiktok')
+  } finally { await f.close() }
+})
+
+test('a binding survives a relay restart', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'tiktok-relay-'))
+  const tenant = await startTenant()
+  try {
+    const first = await startRelay({ tenant, dir, bindings: { schemaVersion: 1, bindings: {} } })
+    assert.equal((await bind(first.port, 'openid_new', { tenantId: 'acme' })).status, 200)
+    // The file is replaced atomically: no temporary sibling stays behind and the file is the contract.
+    assert.deepEqual(readdirSync(dir).filter(name => name.endsWith('.tmp')), [])
+    assert.deepEqual(storedBindings(dir), { schemaVersion: 1, bindings: { openid_new: 'acme' } })
+    await close(first.server)
+    const second = await startRelay({ tenant, dir, bindings: false })
+    try {
+      const { raw, signature } = delivery('openid_new')
+      assert.equal((await post(second.port, raw, signature)).status, 200)
+      assert.equal(tenant.requests.length, 1)
+    } finally { await close(second.server) }
+  } finally { await tenant.close(); rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('a tenant resends its own binding idempotently', async () => {
+  const f = await fixture({ bindings: { schemaVersion: 1, bindings: {} } })
+  try {
+    assert.equal((await bind(f.port, 'openid_new', { tenantId: 'acme' })).status, 200)
+    assert.equal((await bind(f.port, 'openid_new', { tenantId: 'acme' })).status, 200)
+    assert.deepEqual(storedBindings(f.dir), { schemaVersion: 1, bindings: { openid_new: 'acme' } })
+  } finally { await f.close() }
+})
+
+test('an account bound to another active tenant answers 409 and keeps its routing', async () => {
+  const f = await fixture()
+  try {
+    assert.equal((await bind(f.port, 'openid_acme', { tenantId: 'beta' })).status, 409)
+    assert.deepEqual(storedBindings(f.dir), bindings)
+  } finally { await f.close() }
+})
+
+test('a binding whose tenant left the registry is replaced, and its events now reach the new tenant', async () => {
+  const f = await fixture()
+  try {
+    assert.equal((await bind(f.port, 'openid_gone', { tenantId: 'acme' })).status, 200)
+    assert.equal(storedBindings(f.dir).bindings.openid_gone, 'acme')
+    const { raw, signature } = delivery('openid_gone')
+    assert.equal((await post(f.port, raw, signature)).status, 200)
+    assert.equal(f.tenant.requests.length, 1)
+  } finally { await f.close() }
+})
+
+test('the tenant database identifier binds the registry target it belongs to', async () => {
+  // Shared hosting hands Odoo its database, not the registry tenant id.
+  const f = await fixture({ bindings: { schemaVersion: 1, bindings: {} } })
+  try {
+    assert.equal((await bind(f.port, 'openid_new', { tenantId: 'liwan_scratch_beta' })).status, 200)
+    assert.deepEqual(storedBindings(f.dir), { schemaVersion: 1, bindings: { openid_new: 'beta' } })
+    const { raw, signature } = delivery('openid_new')
+    assert.equal((await post(f.port, raw, signature)).status, 200)
+    assert.equal(f.tenant.requests.length, 1)
+  } finally { await f.close() }
+})
+
+test('a wrong, missing or truncated proxy token is refused before anything changes', async () => {
+  const f = await fixture()
+  try {
+    for (const token of [null, 'wrong-token-wrong-token-wrong-token!', `${PROXY_TOKEN}x`]) {
+      assert.equal((await bind(f.port, 'openid_new', { tenantId: 'acme', token })).status, 403)
+      assert.equal((await bind(f.port, 'openid_acme', { method: 'DELETE', token })).status, 403)
+    }
+    assert.deepEqual(storedBindings(f.dir), bindings)
+  } finally { await f.close() }
+})
+
+test('a binding names an active registry target and nothing else', async () => {
+  const f = await fixture()
+  try {
+    const disabled = { schemaVersion: 1, snapshotRevision: 2, targets: [{ ...targets[0], enabled: false }, targets[1]] }
+    registryFile(f.dir, disabled)
+    assert.equal((await bind(f.port, 'openid_new', { tenantId: 'acme' })).status, 422)
+    assert.equal((await bind(f.port, 'openid_new', { tenantId: 'nobody' })).status, 422)
+    assert.equal((await bind(f.port, 'openid_new', { tenantId: 'liwan_scratch_acme' })).status, 422)
+    assert.deepEqual(storedBindings(f.dir), bindings)
+  } finally { await f.close() }
+})
+
+test('a malformed binding request is refused and the file keeps its contract', async () => {
+  const f = await fixture()
+  try {
+    assert.equal((await bind(f.port, 'openid_new', { body: '{' })).status, 400)
+    assert.equal((await bind(f.port, 'openid_new', { body: '{}' })).status, 400)
+    assert.equal((await bind(f.port, 'openid_new', { body: '{"tenant_id": 7}' })).status, 400)
+    assert.equal((await bind(f.port, 'not/a/single/segment', { tenantId: 'acme' })).status, 400)
+    assert.deepEqual(storedBindings(f.dir), bindings)
+  } finally { await f.close() }
+})
+
+test('deleting a binding is idempotent and stops its events', async () => {
+  const f = await fixture()
+  try {
+    assert.equal((await bind(f.port, 'openid_acme', { method: 'DELETE' })).status, 200)
+    assert.deepEqual(storedBindings(f.dir), { schemaVersion: 1, bindings: { openid_beta: 'beta', openid_gone: 'gone' } })
+    assert.equal((await bind(f.port, 'openid_acme', { method: 'DELETE' })).status, 200)
+    const { raw, signature } = delivery('openid_acme')
+    assert.equal((await post(f.port, raw, signature)).status, 200)
+    assert.equal(f.tenant.requests.length, 0)
   } finally { await f.close() }
 })
