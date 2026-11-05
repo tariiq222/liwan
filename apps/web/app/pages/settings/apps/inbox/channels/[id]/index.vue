@@ -167,7 +167,7 @@ async function copy(kind: 'callback' | 'token', value: string) {
             </div>
             <div v-else class="flex flex-wrap items-center gap-2">
               <UBadge :label="channel.has_verify_token ? t('inbox.settings.channels.webhook.verifyTokenSet') : t('inbox.settings.channels.webhook.verifyTokenMissing')" :color="channel.has_verify_token ? 'success' : 'warning'" variant="subtle" />
-              <UButton v-if="manage" type="button" color="neutral" variant="outline" icon="i-lucide-refresh-cw" :loading="rotating" :label="t('inbox.settings.channels.webhook.verifyTokenRotate')" data-testid="inbox-channel-rotate-token" @click="rotateToken" />
+              <UButton v-if="manage" type="button" color="neutral" variant="outline" icon="i-lucide-refresh-cw" :loading="rotating" :label="channel.has_verify_token ? t('inbox.settings.channels.webhook.verifyTokenRotate') : t('inbox.settings.channels.webhook.verifyTokenGenerate')" data-testid="inbox-channel-rotate-token" @click="rotateToken" />
             </div>
           </UFormField>
         </div>

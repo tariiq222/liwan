@@ -344,9 +344,10 @@
           "verifyToken": "Verify token",
           "copy": "Copy",
           "copied": "Copied",
-          "verifyTokenHint": "Used for the subscription handshake in the Meta app. It is not shown after it is generated.",
+          "verifyTokenHint": "Paste it into the webhook settings of the Meta app. It is shown once, when generated.",
           "verifyTokenSet": "Handshake token is set",
           "verifyTokenMissing": "No handshake token",
+          "verifyTokenGenerate": "Generate token",
           "verifyTokenRotate": "Generate a new token",
           "verifyTokenOnce": "Copy it now: it will not be shown again."
         },

@@ -50,7 +50,7 @@ class TestChannelsApi(LiwanInboxCase):
         self.assertEqual(set(body), CHANNEL_KEYS)
         self.assertEqual((body['state'], body['has_access_token'], body['has_app_secret']), ('draft', True, True))
         self.assertTrue(body['callback_url'].startswith('https://') and body['callback_url'].endswith('/api/v1/inbox/hooks/whatsapp'))
-        self.assertTrue(body['has_verify_token'])
+        self.assertFalse(body['has_verify_token'])
         self.assertNotIn('x' * 20, result.text)
         self.env.cr.execute('SELECT access_token_enc, app_secret_enc FROM liwan_inbox_channel WHERE id = %s', [body['id']])
         stored = self.env.cr.fetchone()

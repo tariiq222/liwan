@@ -88,11 +88,13 @@ class LiwanInboxCase(LiwanApiCase):
     @classmethod
     def make_channel(cls, phone_id=PHONE_ID, **values):
         Channel = cls.env['liwan.inbox.channel']
-        return Channel.create({
+        channel = Channel.create({
             'name': 'Main WhatsApp', 'phone_number_id': phone_id, 'business_account_id': BUSINESS_ACCOUNT_ID,
             'state': 'connected',
             **Channel._liwan_secret_values(access_token=ACCESS_TOKEN, app_secret=APP_SECRET), **values,
         })
+        channel._liwan_rotate_verify_token()
+        return channel
 
     @classmethod
     def make_template(cls, channel=None, **values):

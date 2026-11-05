@@ -343,9 +343,10 @@
           "verifyToken": "رمز التحقق",
           "copy": "نسخ",
           "copied": "تم النسخ",
-          "verifyTokenHint": "يُستخدم في مصافحة اشتراك الاشتراك داخل تطبيق Meta. لا يُعرض بعد توليده.",
+          "verifyTokenHint": "يُلصق في إعدادات webhook داخل تطبيق Meta، ويظهر مرة واحدة عند توليده.",
           "verifyTokenSet": "رمز المصافحة مضبوط",
           "verifyTokenMissing": "لا يوجد رمز مصافحة",
+          "verifyTokenGenerate": "توليد رمز",
           "verifyTokenRotate": "توليد رمز جديد",
           "verifyTokenOnce": "انسخ الرمز الآن: لن يُعرض مرة أخرى."
         },

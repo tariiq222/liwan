@@ -106,8 +106,6 @@ class LiwanInboxChannel(models.Model):
         entitlement = self.env['liwan.entitlement.service']
         entitlement.require(WHATSAPP_FEATURE)
         entitlement._liwan_claim_channels(len(vals_list))
-        for values in vals_list:
-            values.setdefault('verify_token_enc', secret_box.encrypt(self.env, _new_verify_token()))
         return super().create(vals_list)
 
     def unlink(self):
