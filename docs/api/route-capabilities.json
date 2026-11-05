@@ -764,9 +764,7 @@
       "capability_keys": [],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "registry:liwan.ai.tool.registry"
-      ],
+      "feature_keys": [],
       "handler": "list_tools",
       "no_capability_reason": null
     },
@@ -6860,9 +6858,7 @@
       "capability_keys": [],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "registry:liwan.ai.tool.registry"
-      ],
+      "feature_keys": [],
       "handler": "record_audit",
       "no_capability_reason": null
     },
@@ -6902,9 +6898,7 @@
       "capability_keys": [],
       "capability_match": "all",
       "capability_source": "body",
-      "feature_keys": [
-        "registry:liwan.ai.tool.registry"
-      ],
+      "feature_keys": [],
       "handler": "record_usage",
       "no_capability_reason": null
     },

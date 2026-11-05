@@ -99,15 +99,6 @@ class LiwanAiToolRegistry(models.AbstractModel):
         return tools
 
     @api.model
-    def _liwan_ai_feature_keys(self):
-        """Feature keys of the registered tools, in registration order, each once."""
-        keys = []
-        for item in self._liwan_ai_tool_map().values():
-            if item['feature_key'] not in keys:
-                keys.append(item['feature_key'])
-        return tuple(keys)
-
-    @api.model
     def _liwan_ai_tools_for_user(self, user=None):
         """The registered tools whose feature reads and whose capability ``user`` holds, in registration order."""
         user = user or self.env.user

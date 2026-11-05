@@ -13,6 +13,8 @@ class LiwanAiSettings(models.Model):
     """
     _name = 'liwan.ai.settings'
     _description = 'LiwanOS AI settings'
+    # Every run of every employee reads it (the run policy), whichever company they work in.
+    _liwan_scope = 'tenant'
 
     provider_mode = fields.Selection([(mode, mode) for mode in PROVIDER_MODES], required=True, default='platform')
     revision = fields.Integer(required=True, default=1)

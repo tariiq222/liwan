@@ -16,6 +16,8 @@ class LiwanAiConsent(models.Model):
     """
     _name = 'liwan.ai.consent'
     _description = 'LiwanOS AI data residency consent'
+    # Every run of every employee reads it (the run policy), whichever company they work in.
+    _liwan_scope = 'tenant'
     _order = 'signed_at desc, id desc'
 
     user_id = fields.Many2one('res.users', required=True, ondelete='restrict')

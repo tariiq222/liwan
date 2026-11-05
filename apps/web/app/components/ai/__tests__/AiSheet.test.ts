@@ -7,7 +7,7 @@ import * as aiMarkdownRender from '../../../utils/aiMarkdownRender'
 import * as aiSuggestions from '../../../utils/aiSuggestions'
 import * as aiThread from '../../../utils/aiThread'
 import * as aiContext from '../../../utils/aiContext'
-import { isBlockingLimit } from '@/composables/useAiRun'
+import { isBlockingLimit } from '../../../composables/useAiRun'
 
 const file = resolve(import.meta.dirname, '../AiSheet.vue')
 const marker = (tag: string, attrName: string) => Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => Vue.h(tag, { [attrName]: '', 'data-compact': attrs.compact === undefined ? undefined : 'true' }, slots.default?.()) })

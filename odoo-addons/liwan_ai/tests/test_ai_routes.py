@@ -62,9 +62,9 @@ class TestAiToolsRoute(AiProbe, LiwanApiCase):
         self.granted = {READ_CAP}
         set_probe_feature(self, enabled=False)
         response = self.api('GET', '/api/v1/ai/tools')
-        # The only registered feature is off, so the registry gate answers 403.
-        self.assertEqual(response.status_code, 403)
-        self.assertEqual(response.json()['code'], 'feature_not_included')
+        # The assistant itself stays on (ai.enabled): it answers with no tool rather than refusing.
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['items'], [])
 
     def test_ai_disabled_answers_feature_not_included(self):
         self.granted = {READ_CAP}

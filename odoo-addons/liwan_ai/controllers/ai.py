@@ -10,7 +10,7 @@ from odoo.addons.liwan_ai.serializers.usage import dump_usage
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
-    requires_registered_feature,
+    requires_feature,
 )
 
 AI_FEATURE = 'ai.enabled'
@@ -35,12 +35,8 @@ class AiController(http.Controller):
 
     @http.route('/api/v1/ai/tools', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_registered_feature(
-        'liwan.ai.tool.registry', '_liwan_ai_feature_keys',
-        keys=('registry:liwan.ai.tool.registry',), operation='read', match='any',
-    )
+    @requires_feature(AI_FEATURE, operation='read')
     def list_tools(self, **_):
-        request.env['liwan.entitlement.service'].require_read(AI_FEATURE)
         request.env['liwan.access.service']._liwan_require_capability(AI_USE)
         registry = request.env['liwan.ai.tool.registry']
         items = [dump_tool(item) for item in registry._liwan_ai_tools_for_user()]
@@ -49,12 +45,8 @@ class AiController(http.Controller):
 
     @http.route('/api/v1/ai/audit', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    @requires_registered_feature(
-        'liwan.ai.tool.registry', '_liwan_ai_feature_keys',
-        keys=('registry:liwan.ai.tool.registry',), operation='write', match='any',
-    )
+    @requires_feature(AI_FEATURE, operation='write')
     def record_audit(self, **payload):
-        request.env['liwan.entitlement.service'].require(AI_FEATURE)
         request.env['liwan.access.service']._liwan_require_capability(AI_USE)
         Audit = request.env['liwan.ai.audit']
         try:
@@ -66,12 +58,8 @@ class AiController(http.Controller):
 
     @http.route('/api/v1/ai/usage', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    @requires_registered_feature(
-        'liwan.ai.tool.registry', '_liwan_ai_feature_keys',
-        keys=('registry:liwan.ai.tool.registry',), operation='write', match='any',
-    )
+    @requires_feature(AI_FEATURE, operation='write')
     def record_usage(self, **payload):
-        request.env['liwan.entitlement.service'].require(AI_FEATURE)
         request.env['liwan.access.service']._liwan_require_capability(AI_USE)
         unknown = sorted(set(payload) - {'items'})
         if unknown:

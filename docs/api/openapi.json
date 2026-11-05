@@ -99323,9 +99323,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiController",
-          "feature_keys": [
-            "registry:liwan.ai.tool.registry"
-          ],
+          "feature_keys": [],
           "feature_operation": "write",
           "handler": "record_audit",
           "readonly": false,
@@ -99589,9 +99587,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiController",
-          "feature_keys": [
-            "registry:liwan.ai.tool.registry"
-          ],
+          "feature_keys": [],
           "feature_operation": "read",
           "handler": "list_tools",
           "readonly": true,
@@ -99629,9 +99625,7 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiController",
-          "feature_keys": [
-            "registry:liwan.ai.tool.registry"
-          ],
+          "feature_keys": [],
           "feature_operation": "write",
           "handler": "record_usage",
           "readonly": false,
