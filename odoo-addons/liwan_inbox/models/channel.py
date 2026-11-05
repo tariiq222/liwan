@@ -147,6 +147,14 @@ class LiwanInboxChannel(models.Model):
             access_token=secret_box.decrypt(self.env, self.access_token_enc),
         )
 
+    def _liwan_test_connection(self):
+        """Test the provider connection: Meta's health for WhatsApp, the business profile for TikTok."""
+        self.ensure_one()
+        if self.kind == 'tiktok':
+            self._liwan_tiktok_test_connection()
+        else:
+            self._liwan_refresh_health()
+
     def _liwan_app_secret(self):
         self.ensure_one()
         return secret_box.decrypt(self.env, self.app_secret_enc) if self.app_secret_enc else None
