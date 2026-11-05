@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { CustomFieldValues } from '@liwan/contracts'
 import { formatDate, formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import { statusTag, type PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import CrmOpportunityCallForm, { type CrmCallDraft } from '@/components/crm/opportunity/CrmOpportunityCallForm.vue'
@@ -64,10 +65,14 @@ const callFormKey = ref(0)
 const probability = ref<number>(0)
 watch(() => record.value?.probability, value => { probability.value = value ?? 0 }, { immediate: true })
 const probabilityDirty = computed(() => Boolean(record.value) && probability.value !== record.value?.probability)
+// The company's custom fields: the rows report which values changed, and one save sends just those.
+const customChanged = ref<CustomFieldValues>({})
+const customDirty = ref(false)
+const customErrors = ref<Record<string, string>>({})
 const callDirty = ref(false)
 const lostDirty = ref(false)
 const saleDirty = computed(() => panel.value === 'sale' && (Boolean(saleDraft.value.package_id) || saleDraft.value.final_price !== null))
-const unsent = computed(() => callDirty.value || lostDirty.value || saleDirty.value || probabilityDirty.value)
+const unsent = computed(() => callDirty.value || lostDirty.value || saleDirty.value || probabilityDirty.value || customDirty.value)
 // A refusal belongs to the form that sent it and shows there only; one from a page action, or whose form went away
 // (a 409 refreshed the record and the form with it), shows at the top of the page.
 type Origin = 'page' | 'call' | 'sale' | 'lost'
@@ -153,6 +158,24 @@ async function saveProbability() {
   if (done) toast.add({ title: t('crm.opportunities.record.probabilitySaved'), color: 'success' })
 }
 
+const PROPERTY_FIELD_PREFIX = 'properties.'
+
+function changeCustomFields(values: CustomFieldValues) {
+  customChanged.value = values
+  customErrors.value = {}
+}
+
+// A refusal of one custom field's value shows under that field; any other refusal stays at the top of the page.
+async function saveCustomFields() {
+  customErrors.value = {}
+  const done = await run('page', () => actions.patch.mutateAsync({ id: id.value, body: { properties: customChanged.value } }))
+  if (done) return void toast.add({ title: t('crm.opportunities.record.customFieldsSaved'), color: 'success' })
+  const field = (failure.value?.error as { status?: number; field?: string } | undefined)?.field
+  if (!field?.startsWith(PROPERTY_FIELD_PREFIX)) return
+  customErrors.value = { [field.slice(PROPERTY_FIELD_PREFIX.length)]: failureText.value }
+  failure.value = null
+}
+
 const assignee = ref<number | null>(null)
 async function assign() {
   if (!assignee.value) return
@@ -231,6 +254,12 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
         <SharedPropertyRow v-if="record.cycle" :label="t('crm.opportunities.record.cycle')" :value="record.cycle" />
         <SharedPropertyRow v-if="record.recycle_at" :label="t('crm.opportunities.record.recycleAt')" :value="formatDate(record.recycle_at)" />
         <SharedPropertyRow :label="t('crm.opportunities.record.created')" :value="formatDate(record.created_at)" />
+        <template v-if="record.properties.length">
+          <SharedCustomFieldRows v-model:dirty="customDirty" :fields="record.properties" :editable="canWork" :disabled="busy" :errors="customErrors" @change="changeCustomFields" />
+          <div v-if="canWork" class="flex justify-end pt-2">
+            <UButton size="xs" variant="outline" :label="t('crm.opportunities.record.customFieldsSave')" :disabled="busy || !customDirty" :loading="actions.patch.isPending.value" data-testid="crm-custom-fields-save" @click="saveCustomFields" />
+          </div>
+        </template>
       </SharedPropertiesPanel>
       <SharedRecordSection v-if="canAssign && pending" variant="panel" :title="t('crm.opportunities.record.assign')">
         <div class="grid gap-3">

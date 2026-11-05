@@ -3,7 +3,16 @@ from odoo.tools import email_normalize
 
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.serializers.common import iso
-from odoo.addons.liwan_crm.models.crm_lead import EMAIL_MAX, NAME_MAX
+from odoo.addons.liwan_api.serializers.properties import (
+    dump_record_properties,
+)
+from odoo.addons.liwan_api.serializers.properties import (
+    filter_domain as property_domain,
+)
+from odoo.addons.liwan_api.serializers.properties import (
+    parse_values as parse_property_values,
+)
+from odoo.addons.liwan_crm.models.crm_lead import EMAIL_MAX, NAME_MAX, PROPERTIES_FIELD
 
 DUPLICATE_PHONE = 'duplicate phone'
 # Stable machine codes in `details.reason` of the 422 on `phone` and `email`; the UI translates them.
@@ -11,11 +20,13 @@ INVALID_PHONE_REASON = 'invalid_phone'
 DUPLICATE_PHONE_REASON = 'duplicate_phone'
 INVALID_EMAIL_REASON = 'invalid_email'
 CREATE_FIELDS = ('contact_name', 'phone', 'email', 'source_id', 'user_id')
-PATCH_FIELDS = ('contact_name', 'phone', 'email', 'source_id', 'stage_id', 'probability')
+PATCH_FIELDS = ('contact_name', 'phone', 'email', 'source_id', 'stage_id', 'probability', 'properties')
 REQUIRED_ON_CREATE = ('contact_name', 'phone')
 BOOLEAN_FILTERS = ('due', 'unassigned', 'needs_manager')
 ID_FILTERS = ('stage_id', 'user_id', 'source_id')
 STATUS_FILTERS = ('open', 'won', 'lost', 'all')
+# A query argument `property.<key>=<raw>` filters the opportunity's custom fields.
+PROPERTY_PREFIX = 'property.'
 
 
 def ref(record):
@@ -46,6 +57,7 @@ def dump_opportunity(lead):
         'needs_manager': lead.liwan_needs_manager,
         'active': lead.active,
         'created_at': iso(lead.create_date),
+        'properties': dump_record_properties(lead, PROPERTIES_FIELD),
     }
 
 
@@ -91,10 +103,11 @@ def _email(value, field):
     return text
 
 
-def parse_opportunity_body(payload, creating):
+def parse_opportunity_body(payload, creating, definition=None):
     """Whitelisted, typed values of a create or patch body (field names as on the wire).
 
     ``phone`` is returned raw: the controller normalises it in the company's country.
+    ``properties`` is validated against the company's lead properties ``definition``.
     """
     allowed = CREATE_FIELDS if creating else PATCH_FIELDS
     unknown = sorted(set(payload) - set(allowed))
@@ -116,13 +129,16 @@ def parse_opportunity_body(payload, creating):
             parsed[name] = parse_id(value, name)
         elif name == 'probability':
             parsed[name] = parse_probability(value, name)
+        elif name == 'properties':
+            parsed[name] = parse_property_values(value, definition)
         else:
             parsed[name] = parse_id_or_null(value, name)
     return parsed
 
 
-def parse_list_filters(args):
-    """Typed list filters from the query string: ids, booleans, ``status`` and the search text ``q``."""
+def parse_list_filters(args, definition):
+    """Typed list filters from the query string: ids, booleans, ``status``, the search text ``q``
+    and the custom-field filters ``property.<key>``."""
     filters = {}
     for name in ID_FILTERS:
         if name in args:
@@ -141,4 +157,10 @@ def parse_list_filters(args):
         filters['status'] = args['status']
     if args.get('q'):
         filters['q'] = args['q'].strip()[:NAME_MAX]
+    properties = [
+        property_domain(PROPERTIES_FIELD, definition, name[len(PROPERTY_PREFIX):], args[name])
+        for name in args if name.startswith(PROPERTY_PREFIX)
+    ]
+    if properties:
+        filters['properties'] = properties
     return filters

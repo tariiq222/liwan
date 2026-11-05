@@ -1,5 +1,12 @@
 import { z } from 'zod'
 
+import {
+  CustomFieldDefinitionPatchItemSchema,
+  CustomFieldDefinitionSchema,
+  CustomFieldLimitsSchema,
+  CustomFieldTypeSchema,
+} from '../common/customFields'
+
 export const CrmTermLanguageSchema = z.strictObject({
   singular: z.string().min(1).max(60),
   plural: z.string().min(1).max(60),
@@ -47,6 +54,8 @@ export const CrmSettingsValuesSchema = z.strictObject({
   discount_max_percent: z.number().int().min(0).max(100),
   price_above_list: CrmPriceAboveListSchema,
   terms: CrmSettingsTermsSchema,
+  // The company's custom fields, in display order; every opportunity of the company carries their values.
+  lead_properties: z.array(CustomFieldDefinitionSchema),
 })
 
 export const CrmSettingsOptionsSchema = z.strictObject({
@@ -61,6 +70,8 @@ export const CrmSettingsOptionsSchema = z.strictObject({
   recycle_after_days: RangeSchema,
   recycle_cycles: RangeSchema,
   discount_max_percent: RangeSchema,
+  property_types: z.array(CustomFieldTypeSchema),
+  property_limits: CustomFieldLimitsSchema,
 })
 
 export const CrmDistributionUserSchema = z.strictObject({ id: z.number().int(), name: z.string() })
@@ -87,6 +98,8 @@ export const CrmSettingsValuesPatchSchema = CrmSettingsValuesSchema.omit({ prese
       opportunity: CrmTermPatchSchema.optional(),
       package: CrmTermPatchSchema.optional(),
     }),
+    // The whole ordered list; a new field, and a new option, arrives without its server key.
+    lead_properties: z.array(CustomFieldDefinitionPatchItemSchema),
   })
   .partial()
   .refine((values) => Object.keys(values).length > 0, 'values must not be empty')

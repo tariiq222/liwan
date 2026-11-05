@@ -172,6 +172,10 @@
       "count": 1,
       "reason": "liwan_crm stage occupancy check: `self.env['crm.lead'].sudo().with_context(active_test=False).search_count([('stage_id','in',self.ids)], limit=1)` in `_liwan_has_opportunities`; blocked by the CRM global visibility rule odoo-addons/liwan_crm/security/crm_rules.xml `rule_crm_lead_visibility_read` and the company fences, which hide other companies' and other agents' deals while stages are shared tenant-wide, plus `active_test` hiding archived ones. It guards the won-flag move and the stage archive, so the method returns only a boolean, never a record, id or agent."
     },
+    "odoo-addons/liwan_crm/models/res_company.py": {
+      "count": 1,
+      "reason": "liwan_crm lead properties definition: `self.env.company.sudo().write({'liwan_lead_properties_definition': definition})` in `_liwan_set_lead_properties_definition`, called only by the CRM settings PATCH after the `crm.settings.manage` capability check. Blocked by the base `res.company` ACL rows: `access_res_company_employee` grants read only and only `access_res_company_group_erp_manager` grants write, so a CRM settings manager who is not an ERP manager cannot write it. Scope is the current company and that one field, already validated by `liwan_api.serializers.properties.parse_definition`."
+    },
     "odoo-addons/liwan_payments/models/payment_provider.py": {
       "count": 1,
       "reason": "liwan_payments switches one gateway's mode: `self.sudo().write({'state': ..., 'is_published': ...})` in `_liwan_payments_set_state`, after the `payments.providers.manage` capability and the current-company checks in the same method; stock `payment.provider.write` then archives `payment.token` rows, toggles `payment.method.active` and the payment post-processing `ir.cron`, each blocked by the system-only `payment_token_system`, `payment_method_system` and `ir.cron` ACL rows."
