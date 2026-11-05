@@ -49,6 +49,8 @@ describe('outbound data policy content scan', () => {
     const started = performance.now()
     withholdText('a'.repeat(200_000))
     withholdText(`${'a.'.repeat(50_000)}@`)
+    // Thousands of matches are replaced in one pass, not one copy of the text per match.
+    withholdText(Array.from({ length: 14_000 }, (_, index) => `a${index}@b.sa`).join(' '))
     expect(performance.now() - started).toBeLessThan(1000)
   })
 

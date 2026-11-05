@@ -42,6 +42,18 @@ export function isSaudiId(digits: string): boolean {
   return sum % 10 === 0
 }
 
+/** `text` with each span (ascending, non-overlapping) replaced by `marker`, built in one pass whatever the number of spans. */
+function replaceSpans(text: string, spans: [number, number][], marker: string): string {
+  const parts: string[] = []
+  let cursor = 0
+  for (const [start, end] of spans) {
+    parts.push(text.slice(cursor, start), marker)
+    cursor = end
+  }
+  parts.push(text.slice(cursor))
+  return parts.join('')
+}
+
 /** One text with every withheld value replaced by its marker. */
 export function withholdText(text: string): string {
   let scanned = latinDigits(text)
@@ -53,11 +65,10 @@ export function withholdText(text: string): string {
       if (kind === 'national_id' && !isSaudiId(match[0].replace(/\D/g, ''))) continue
       spans.push([match.index, match.index + match[0].length])
     }
-    // Replaced from the end so earlier spans keep their indices; both strings change together, so later patterns see markers.
-    for (const [start, end] of spans.reverse()) {
-      output = output.slice(0, start) + MARKERS[kind] + output.slice(end)
-      scanned = scanned.slice(0, start) + MARKERS[kind] + scanned.slice(end)
-    }
+    if (spans.length === 0) continue
+    // Both strings change together (same spans, same marker), so their indices stay aligned for the next pattern.
+    output = replaceSpans(output, spans, MARKERS[kind])
+    scanned = replaceSpans(scanned, spans, MARKERS[kind])
   }
   return output
 }
