@@ -5,18 +5,26 @@ import asyncio
 import os
 import sys
 
-from liwan_ai_service.service import open_runtime_state
 from liwan_ai_service.settings import CleanupSettings
+from liwan_ai_service.tenancy import directory_from_env
+from liwan_ai_service.tenant_state import TenantStates
+
+
+def open_tenant_states(database_url: str | None) -> TenantStates:
+    """Every served tenant's state; retention deletes rows only, so no graph is built."""
+    return TenantStates(directory_from_env(os.environ), database_url, lambda _checkpointer: None)
 
 
 async def run() -> str:
     settings = CleanupSettings.from_env(os.environ)
-    store, _checkpointer, _control, aclose = await open_runtime_state(settings.database_url)
+    states = open_tenant_states(settings.database_url)
+    deleted = 0
     try:
-        gone = await store.delete_older_than(settings.retention_days)
+        async for state in states.each():
+            deleted += len(await state.store.delete_older_than(settings.retention_days))
     finally:
-        await aclose()
-    return f"deleted {len(gone)} runs older than {settings.retention_days} days"
+        await states.aclose()
+    return f"deleted {deleted} runs older than {settings.retention_days} days"
 
 
 async def main() -> int:

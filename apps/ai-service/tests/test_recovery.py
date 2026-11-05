@@ -252,8 +252,11 @@ async def test_the_response_closes_its_generator_when_the_send_is_cancelled_even
     async def receive():
         await asyncio.Event().wait()
 
+    async def release():
+        return None
+
     scope = {"type": "http", "asgi": {"spec_version": "2.4"}}
-    call = asyncio.create_task(ClosingStreamingResponse(generator, media_type="text/event-stream")(scope, receive, send))
+    call = asyncio.create_task(ClosingStreamingResponse(generator, release=release, media_type="text/event-stream")(scope, receive, send))
     await asyncio.wait_for(blocked.wait(), 5)
     call.cancel()
     with contextlib.suppress(asyncio.CancelledError):

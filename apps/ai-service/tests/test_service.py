@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import json
 import logging
+from dataclasses import replace
 from datetime import timedelta
 
 import httpx
@@ -9,12 +10,16 @@ import pytest
 from langchain_core.messages import AIMessage
 
 from liwan_ai_service import service
+from liwan_ai_service.control import StateCompatibilityError
+from liwan_ai_service.service import graph_factory
 from liwan_ai_service.settings import Settings
 from liwan_ai_service.store import EXECUTING, MemoryRunStore
+from liwan_ai_service.tenancy import UnknownTenant
 from tests.fakes import (
     FailingChatModel,
     RenamingChatModel,
     ScriptedChatModel,
+    SeededStates,
     SlowChatModel,
     SlowTitleChatModel,
     ai_blocks,
@@ -200,8 +205,8 @@ LEAKY = "sk-secret postgresql://u:pw@h/db"
 RESUME_C1 = {"call_id": "c_1", "result": {"ok": True, "data": {"items": [], "total": 0}}}
 
 
-def make_client(model, store=None):
-    app = make_memory_app(model, SETTINGS, store=store)
+def make_client(model, store=None, *, states=None):
+    app = make_memory_app(model, SETTINGS, store=store, states=states)
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai")
 
 
@@ -504,3 +509,75 @@ async def test_patch_needs_the_service_token_when_one_is_set():
     app = make_memory_app(ScriptedChatModel([]), settings)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai") as client:
         assert (await client.patch("/v1/runs/r_x", json={"title": "x"}, headers=HEADERS)).status_code == 401
+
+
+def owner_of(tenant, user_ref="1"):
+    return {"X-Liwan-Tenant": tenant, "X-Liwan-User": user_ref}
+
+
+def run_of(tenant, user_ref="1", message=BODY["message"]):
+    """Start a new run as ``tenant``/``user_ref``: the headers and the body must name the same owner."""
+    return fresh({**BODY, "tenant": tenant, "user_ref": user_ref, "message": message})
+
+
+async def test_run_of_other_tenant_is_not_found():
+    async with make_client(ScriptedChatModel([ai_text("تم")])) as client:
+        started = await client.post("/v1/runs", json=run_of("a"), headers=owner_of("a"))
+        run_id = parse_sse(started.text)[0][1]["run_id"]
+        assert (await client.get(f"/v1/runs/{run_id}", headers=owner_of("a"))).status_code == 200
+        # Another tenant is another database: the run is simply absent there, not forbidden.
+        assert (await client.get(f"/v1/runs/{run_id}", headers=owner_of("b"))).status_code == 404
+        assert (await client.patch(f"/v1/runs/{run_id}", json={"title": "x"}, headers=owner_of("b"))).status_code == 404
+
+
+async def test_list_runs_is_per_tenant():
+    async with make_client(ScriptedChatModel([ai_text("تم")])) as client:
+        await client.post("/v1/runs", json=run_of("a"), headers=owner_of("a"))
+        mine = (await client.get("/v1/runs", headers=owner_of("a"))).json()
+        other = (await client.get("/v1/runs", headers=owner_of("b"))).json()
+        assert mine["total"] == 1 and other["total"] == 0 and other["items"] == []
+
+
+class RefusingStates:
+    """A tenant pool that refuses every tenant and serves none to the release sweep."""
+
+    def __init__(self, error):
+        self.error = error
+
+    @contextlib.asynccontextmanager
+    async def use(self, tenant):
+        raise self.error
+        yield  # unreachable: the error above refuses the tenant before any state opens
+
+    async def each(self):
+        for state in ():
+            yield state
+
+
+async def test_unknown_tenant_is_403():
+    states = RefusingStates(UnknownTenant("tenant not served"))
+    async with make_client(ScriptedChatModel([]), states=states) as client:
+        assert (await client.get("/v1/runs", headers=owner_of("zzz"))).status_code == 403
+
+
+async def test_uninitialized_tenant_is_503():
+    states = RefusingStates(StateCompatibilityError("ai_state_uninitialized"))
+    async with make_client(ScriptedChatModel([]), states=states) as client:
+        assert (await client.get("/v1/runs", headers=owner_of("a"))).status_code == 503
+
+
+async def test_release_readiness_counts_all_tenants():
+    settings = replace(SETTINGS, service_token="t" * 30, generation_id="gen-1")
+    states = SeededStates(graph_factory(ScriptedChatModel([]), settings))
+    for tenant in ("a", "b"):
+        async with states.use(tenant) as state:
+            assert await state.store.create(new_id(), "1") is not None
+    try:
+        app = make_memory_app(ScriptedChatModel([]), settings, states=states)
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai") as client:
+            evidence = (await client.get("/internal/release/readiness", headers={"x-liwan-service-token": "t" * 30})).json()
+    finally:
+        await states.aclose()
+    assert evidence["active_runs"] == 2 and evidence["running"] == 2
+    assert evidence["activity_scope"] == "tenant_states"
+    assert evidence["connections"] == {}  # memory states hold no pool

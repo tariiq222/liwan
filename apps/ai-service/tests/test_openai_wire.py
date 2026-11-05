@@ -6,14 +6,12 @@ import time
 import httpx
 import pytest
 import uvicorn
-from langgraph.checkpoint.memory import InMemorySaver
 
 from liwan_ai_service import graph, usage
 from liwan_ai_service.providers import build_chat_model
-from liwan_ai_service.service import create_app
 from liwan_ai_service.settings import Settings
-from liwan_ai_service.store import MemoryRunStore
 from tests.fake_openai import FAKE_TITLE, LEGAL_NAME, create_fake_openai, failure_turn, text_turn, tool_turn
+from tests.fakes import make_memory_app
 from tests.test_service import BODY, HEADERS, fresh, parse_sse
 
 TASKS = {"ok": True, "data": {"items": [{"id": 5, "name": "تقرير"}], "total": 1}}
@@ -47,7 +45,7 @@ def serve_fake():
 
 def service_client(base_url, provider="openai", **extra):
     settings = Settings.from_env({"AI_PROVIDER": provider, "AI_MODEL": "gpt-test", "AI_API_KEY": "sk-test", "AI_BASE_URL": base_url, "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true", **extra})
-    app = create_app(build_chat_model(settings), MemoryRunStore(), InMemorySaver(), settings)
+    app = make_memory_app(build_chat_model(settings), settings)
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai")
 
 

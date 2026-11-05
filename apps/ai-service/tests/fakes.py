@@ -12,21 +12,39 @@ from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, Syst
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 
 from liwan_ai_service.control import MemoryControlState
-from liwan_ai_service.service import create_app
+from liwan_ai_service.service import create_app, graph_factory
 from liwan_ai_service.store import MemoryRunStore
+from liwan_ai_service.tenancy import MemoryDirectory
+from liwan_ai_service.tenant_state import TenantState, TenantStates
 from liwan_ai_service.titles import TITLE_RULES
 from liwan_ai_service.usage import ModelIdentity
 
 IDENTITY = ModelIdentity("ollama", "m")  # what the Settings of the service tests name
 
 
-def make_memory_app(model, settings, *, store=None, checkpointer=None, control=None):
-    """A service app over memory state: the test keeps the store and the control state it drives."""
-    from langgraph.checkpoint.memory import InMemorySaver
+TEST_TENANT = "t1"  # the tenant the service tests' requests name; its database has the same name in memory mode
 
-    return create_app(
-        model, store or MemoryRunStore(), checkpointer or InMemorySaver(), settings, control or MemoryControlState(),
-    )
+
+class SeededStates(TenantStates):
+    """Memory tenant states in which the test's own store and checkpointer serve ``TEST_TENANT``'s database."""
+
+    def __init__(self, graph_factory, *, store=None, checkpointer=None) -> None:
+        super().__init__(MemoryDirectory(), None, graph_factory)
+        self.seed = (store, checkpointer)
+
+    def _memory_state(self, database: str) -> TenantState:
+        store, checkpointer = self.seed
+        if database != TEST_TENANT or (store is None and checkpointer is None):
+            return super()._memory_state(database)
+        from langgraph.checkpoint.memory import InMemorySaver
+
+        return TenantState(database, store or MemoryRunStore(), self.graph_factory(checkpointer or InMemorySaver()))
+
+
+def make_memory_app(model, settings, *, store=None, checkpointer=None, control=None, states=None):
+    """A service app over memory state: the test keeps the store, the states and the control state it drives."""
+    states = states or SeededStates(graph_factory(model, settings), store=store, checkpointer=checkpointer)
+    return create_app(model, states, control or MemoryControlState(), settings)
 
 
 async def open_test_state(database_url: str):

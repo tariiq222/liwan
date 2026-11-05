@@ -5,7 +5,6 @@ import httpx
 from langgraph.checkpoint.memory import InMemorySaver
 
 from liwan_ai_service.control import MemoryControlState
-from liwan_ai_service.service import create_app
 from liwan_ai_service.store import MemoryRunStore
 from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call, make_memory_app
 from tests.test_service import HEADERS, RESUME_C1, SETTINGS, fresh, parse_sse
@@ -29,8 +28,14 @@ async def test_internal_drain_requires_a_configured_service_token():
 async def test_drain_blocks_new_work_but_allows_claimed_effect_to_settle_across_compatible_apps():
     store, checkpoints, control = MemoryRunStore(), InMemorySaver(), MemoryControlState()
     settings = replace(SETTINGS, service_token=TOKEN, generation_id="old-ai")
-    old = create_app(ScriptedChatModel([ai_tool_call("pmo__draft_project", {"name": "x"}, "c_1")]), store, checkpoints, settings, control)
-    new = create_app(ScriptedChatModel([ai_text("تم")]), store, checkpoints, replace(settings, generation_id="new-ai"), control)
+    old = make_memory_app(
+        ScriptedChatModel([ai_tool_call("pmo__draft_project", {"name": "x"}, "c_1")]),
+        settings, store=store, checkpointer=checkpoints, control=control,
+    )
+    new = make_memory_app(
+        ScriptedChatModel([ai_text("تم")]),
+        replace(settings, generation_id="new-ai"), store=store, checkpointer=checkpoints, control=control,
+    )
     async with client(old) as a, client(new) as b:
         run_id = parse_sse((await a.post("/v1/runs", json=fresh(), headers=OWNER)).text)[0][1]["run_id"]
         path = f"/v1/runs/{run_id}"

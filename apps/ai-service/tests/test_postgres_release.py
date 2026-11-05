@@ -12,9 +12,9 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
 
-from liwan_ai_service.service import create_app
+from liwan_ai_service.service import create_app, graph_factory
 from liwan_ai_service.store import StateCompatibilityError, initialize_tenant
-from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call, open_test_state
+from tests.fakes import ScriptedChatModel, SeededStates, ai_text, ai_tool_call, open_test_state
 from tests.test_release_continuity import ADMIN, OWNER, TOKEN
 from tests.test_service import RESUME_C1, SETTINGS, fresh, parse_sse
 
@@ -78,8 +78,13 @@ async def claim_from_process(run_id, conninfo):
 async def test_two_processes_share_one_claim_and_two_compatible_apps_preserve_checkpoint_while_draining(tenant):
     store, checkpoints, control, run_ids, isolated = tenant
     settings = replace(SETTINGS, service_token=TOKEN, generation_id="old-ai")
-    old = create_app(ScriptedChatModel([ai_tool_call("pmo__draft_project", {"name": "x"}, "c_1")]), store, checkpoints, settings, control)
-    new = create_app(ScriptedChatModel([ai_text("تم")], title_responses=[ai_text("عنوان")]), store, checkpoints, replace(settings, generation_id="new-ai"), control)
+    old_model = ScriptedChatModel([ai_tool_call("pmo__draft_project", {"name": "x"}, "c_1")])
+    new_model = ScriptedChatModel([ai_text("تم")], title_responses=[ai_text("عنوان")])
+    old = create_app(old_model, SeededStates(graph_factory(old_model, settings), store=store, checkpointer=checkpoints), control, settings)
+    new = create_app(
+        new_model, SeededStates(graph_factory(new_model, settings), store=store, checkpointer=checkpoints), control,
+        replace(settings, generation_id="new-ai"),
+    )
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=old), base_url="http://old") as a, \
             httpx.AsyncClient(transport=httpx.ASGITransport(app=new), base_url="http://new") as b:
         run_id = parse_sse((await a.post("/v1/runs", json=fresh(), headers=OWNER)).text)[0][1]["run_id"]
@@ -87,7 +92,7 @@ async def test_two_processes_share_one_claim_and_two_compatible_apps_preserve_ch
         assert sorted(await asyncio.gather(claim_from_process(run_id, isolated), claim_from_process(run_id, isolated))) == [False, True]
         evidence = (await a.post("/internal/release/drain", headers=ADMIN)).json()
         assert evidence["drained"] is False and evidence["claimed_writes"] >= 1
-        assert evidence["activity_scope"] == "shared_state"
+        assert evidence["activity_scope"] == "tenant_states"
         assert (await b.post(f"/v1/runs/{run_id}/claim", json={"call_id": "c_1"}, headers=OWNER)).status_code == 409
         response = await b.post(f"/v1/runs/{run_id}/resume", json=RESUME_C1, headers=OWNER)
         assert response.status_code == 200 and parse_sse(response.text)[-1][1] == {"status": "done"}

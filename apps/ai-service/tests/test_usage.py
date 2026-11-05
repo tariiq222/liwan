@@ -252,4 +252,3 @@ async def test_a_backoff_longer_than_the_time_left_gives_up_but_a_shorter_one_re
     assert isinstance(error, openai.APIStatusError) and sleeps == []
     _, error = await plan_events(FlakyChatModel([ai_text("تم")], failures=[status_error(500)]), deadline_in=60)
     assert error is None and len(sleeps) == 1
-

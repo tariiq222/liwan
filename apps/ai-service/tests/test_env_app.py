@@ -6,6 +6,7 @@ import httpx
 from liwan_ai_service import service
 from liwan_ai_service.control import MemoryControlState
 from liwan_ai_service.service import EnvApp
+from liwan_ai_service.tenant_state import TenantStates
 
 
 async def test_env_app_runs_its_lifespan_and_serves(monkeypatch):
@@ -53,17 +54,18 @@ async def run_startup(monkeypatch, *, build_error):
     monkeypatch.setenv("AI_DEV_INSECURE", "true")
     closed = []
 
-    async def aclose():
-        closed.append(True)
+    class Control(MemoryControlState):
+        async def aclose(self):
+            closed.append(True)
 
-    async def fake_open_runtime_state(_url):
-        return object(), object(), MemoryControlState(), aclose
+    async def fake_open_control(_url):
+        return Control()
 
-    def failing_build(_settings):
+    def failing_create_app(*_args):
         raise build_error
 
-    monkeypatch.setattr(service, "open_runtime_state", fake_open_runtime_state)
-    monkeypatch.setattr(service, "build_chat_model", failing_build)
+    monkeypatch.setattr(service, "open_control", fake_open_control)
+    monkeypatch.setattr(service, "create_app", failing_create_app)
     sent = []
 
     async def receive():
@@ -85,11 +87,11 @@ async def test_startup_failure_names_only_the_error_class_and_closes_the_state(m
 async def test_cleanup_failure_prints_only_the_error_class(monkeypatch, capsys):
     from liwan_ai_service import cleanup
 
-    async def failing_open_runtime_state(_url):
+    def failing_open_tenant_states(_url):
         raise RuntimeError("could not connect postgresql://u:pw@h/db sk-secret")
 
     monkeypatch.setenv("AI_DATABASE_URL", "postgresql://u:pw@h/db")
-    monkeypatch.setattr(cleanup, "open_runtime_state", failing_open_runtime_state)
+    monkeypatch.setattr(cleanup, "open_tenant_states", failing_open_tenant_states)
     assert await cleanup.main() == 1
     captured = capsys.readouterr()
     assert "RuntimeError" in captured.err
@@ -98,9 +100,6 @@ async def test_cleanup_failure_prints_only_the_error_class(monkeypatch, capsys):
 
 
 async def test_shutdown_waits_for_the_persist_tasks_before_closing_the_state(monkeypatch):
-    from langgraph.checkpoint.memory import InMemorySaver
-
-    from liwan_ai_service.store import MemoryRunStore
     from tests.fakes import ScriptedChatModel
 
     monkeypatch.setenv("AI_PROVIDER", "ollama")
@@ -109,13 +108,14 @@ async def test_shutdown_waits_for_the_persist_tasks_before_closing_the_state(mon
     monkeypatch.setenv("AI_DEV_INSECURE", "true")
     order = []
 
-    async def aclose():
-        order.append("state closed")
+    class Control(MemoryControlState):
+        async def aclose(self):
+            order.append("state closed")
 
-    async def fake_open_runtime_state(_url):
-        return MemoryRunStore(), InMemorySaver(), MemoryControlState(), aclose
+    async def fake_open_control(_url):
+        return Control()
 
-    monkeypatch.setattr(service, "open_runtime_state", fake_open_runtime_state)
+    monkeypatch.setattr(service, "open_control", fake_open_control)
     monkeypatch.setattr(service, "build_chat_model", lambda _settings: ScriptedChatModel([]))
     app = EnvApp()
     queue = [{"type": "lifespan.startup"}, {"type": "lifespan.shutdown"}]
@@ -171,23 +171,30 @@ async def test_memory_boot_warns_once_about_state_and_about_the_missing_token_wi
     assert sum("memory" in text for text in texts) == 1 and sum("AI_DEV_INSECURE" in text for text in texts) == 1
 
 
-async def test_a_database_boot_refuses_until_per_tenant_state_is_wired(monkeypatch, caplog):
+async def test_a_database_boot_opens_only_the_control_state(monkeypatch, caplog):
     caplog.set_level(logging.WARNING, logger="liwan_ai_service")
     monkeypatch.setenv("AI_PROVIDER", "ollama")
     monkeypatch.setenv("AI_MODEL", "m")
     monkeypatch.setenv("AI_DATABASE_URL", "postgresql://u:pw@h/db")
     monkeypatch.setenv("AI_TENANT_DATABASE", "acme_db")
     monkeypatch.setenv("AI_SERVICE_TOKEN", "t" * 30)
-    closed = []
+    closed, calls, pools = [], [], []
 
     class Control(MemoryControlState):
         async def aclose(self):
             closed.append(True)
 
-    async def fake_open_control(_url, *, initialize=False):
-        assert initialize is False
+    async def fake_open_control(url, *, initialize=False):
+        calls.append((url, initialize))
         return Control()
 
+    async def record_pool_open(self, conninfo):
+        pools.append(conninfo)  # a tenant pool opened at boot would block here
+        raise AssertionError("a tenant pool must open lazily on its first request")
+
     monkeypatch.setattr(service, "open_control", fake_open_control)
-    assert await start_env_app() == [{"type": "lifespan.startup.failed", "message": "StateCompatibilityError"}]
+    monkeypatch.setattr(TenantStates, "_open_pool", record_pool_open)
+    # The tenant states connect to a database that does not exist here: boot must not touch it.
+    assert await start_env_app() == [{"type": "lifespan.startup.complete"}, {"type": "lifespan.shutdown.complete"}]
+    assert calls == [("postgresql://u:pw@h/db", False)] and pools == []
     assert closed == [True] and caplog.records == []

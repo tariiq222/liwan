@@ -7,9 +7,8 @@ import httpx
 from langgraph.checkpoint.memory import InMemorySaver
 
 from liwan_ai_service.control import MemoryControlState
-from liwan_ai_service.service import create_app
 from liwan_ai_service.store import MemoryRunStore
-from tests.fakes import ScriptedChatModel, ai_text
+from tests.fakes import ScriptedChatModel, ai_text, make_memory_app
 from tests.test_service import HEADERS, SETTINGS, fresh
 
 TOKEN = "synthetic-release-token-" * 2
@@ -19,7 +18,10 @@ OWNER = {**HEADERS, **ADMIN}
 
 def client(store, checkpoints, control, generation):
     settings = replace(SETTINGS, service_token=TOKEN, generation_id=generation)
-    app = create_app(ScriptedChatModel([ai_text("done")], title_responses=[ai_text("title")]), store, checkpoints, settings, control)
+    app = make_memory_app(
+        ScriptedChatModel([ai_text("done")], title_responses=[ai_text("title")]),
+        settings, store=store, checkpointer=checkpoints, control=control,
+    )
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai")
 
 
@@ -40,8 +42,8 @@ async def test_drained_generation_stays_closed_after_restart_and_another_generat
 
 
 async def test_release_administration_requires_generation_identity_even_with_valid_token():
-    app = create_app(
-        ScriptedChatModel([]), MemoryRunStore(), InMemorySaver(), replace(SETTINGS, service_token=TOKEN), MemoryControlState(),
+    app = make_memory_app(
+        ScriptedChatModel([]), replace(SETTINGS, service_token=TOKEN), control=MemoryControlState(),
     )
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai") as http:
         for method, path in (("GET", "/internal/release/readiness"), ("POST", "/internal/release/drain")):

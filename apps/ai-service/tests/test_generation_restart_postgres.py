@@ -32,19 +32,19 @@ for name in ('settings', 'control', 'store', 'service'):
     setattr(liwan_ai_service, name, module)
     spec.loader.exec_module(module)
 import httpx
-from liwan_ai_service.control import open_control
-from liwan_ai_service.service import create_app
+from liwan_ai_service.service import close_runtime_state, create_app, open_runtime_state
 from liwan_ai_service.settings import Settings
-from tests.fakes import ScriptedChatModel, ai_text, open_test_state
-from tests.test_service import BODY, HEADERS, fresh
+from tests.fakes import ScriptedChatModel, ai_text
+from tests.test_service import HEADERS, fresh
 async def main():
     token = 'synthetic-durable-test-token-' * 2
     admin = {'x-liwan-service-token':token}
-    store, checkpoints, control, close = await open_test_state(os.environ['AI_TEST_DATABASE_URL'])
     settings = Settings.from_env({'AI_PROVIDER':'ollama', 'AI_MODEL':'scripted',
-        'AI_DATABASE_URL':os.environ['AI_TEST_DATABASE_URL'], 'AI_TENANT_DATABASE':os.environ['AI_TENANT_DATABASE'], 'AI_SERVICE_TOKEN':token,
-        'AI_GENERATION_ID':sys.argv[2]})
-    app = create_app(ScriptedChatModel([ai_text('done')], title_responses=[ai_text('title')]), store, checkpoints, settings, control)
+        'AI_DATABASE_URL':os.environ['AI_TEST_DATABASE_URL'], 'AI_SERVICE_TOKEN':token, 'AI_GENERATION_ID':sys.argv[2],
+        'LIWAN_TENANCY_MODE':'shared', 'LIWAN_TENANT_REGISTRY_PATH':os.environ['LIWAN_TENANT_REGISTRY_PATH']})
+    model = ScriptedChatModel([ai_text('done')], title_responses=[ai_text('title')])
+    states, control = await open_runtime_state(model, settings)
+    app = create_app(model, states, control, settings)
     try:
         if sys.argv[1] == 'serve':
             import uvicorn
@@ -65,13 +65,13 @@ async def main():
                 print(json.dumps({'evidence':ready, 'start_status':result.status_code}))
     finally:
         await app.state.drain()
-        await close()
+        await close_runtime_state(states, control)
 asyncio.run(main())
 """
 
 
 @pytest.fixture
-async def scratch_states():
+async def scratch_states(tmp_path):
     database_url = os.environ["AI_TEST_DATABASE_URL"]
     config = conninfo_to_dict(database_url)
     if not config.get("dbname", "").startswith("liwan_scratch_") or config.get("host") not in ("127.0.0.1", "localhost", "::1"):
@@ -81,12 +81,19 @@ async def scratch_states():
     schemas = [f"release_durable_1016_{suffix}_{name}" for name in ("a", "b")]
     states = []
     try:
+        # Both runtimes of this proof serve one tenant database: the runtime resolves t1 through the registry.
+        await conn.execute("CREATE SCHEMA IF NOT EXISTS liwan_ai")
+        await initialize_tenant(make_conninfo(database_url, options="-c search_path=liwan_ai"))
+        registry = tmp_path / "tenants.json"
+        registry.write_text(
+            json.dumps({"schemaVersion": 1, "snapshotRevision": 1, "targets": [{"tenantId": "t1", "database": config["dbname"], "enabled": True}]}),
+            encoding="utf-8",
+        )
         for schema in schemas:
             await conn.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)))
             scoped = make_conninfo(database_url, options=f"-c search_path={schema}")
-            await initialize_tenant(scoped)
             control = await open_control(scoped, initialize=True)
-            states.append({"url": scoped, "state_id": control.state_id, "schema": schema, "database": config["dbname"]})
+            states.append({"url": scoped, "state_id": control.state_id, "schema": schema, "registry": str(registry)})
             await control.aclose()
         assert states[0]["state_id"] != states[1]["state_id"]
         yield states
@@ -102,7 +109,8 @@ def child_env(state):
     return {
         **os.environ,
         "AI_TEST_DATABASE_URL": state["url"],
-        "AI_TENANT_DATABASE": state["database"],
+        "LIWAN_TENANCY_MODE": "shared",
+        "LIWAN_TENANT_REGISTRY_PATH": state["registry"],
         "AI_TEST_SOURCE_DIR": str(Path(__file__).resolve().parents[1] / "src/liwan_ai_service"),
         "PYTHONPATH": os.pathsep.join((str(Path(liwan_ai_service.__file__).parent.parent), str(Path(tests.__file__).parent.parent))),
     }
