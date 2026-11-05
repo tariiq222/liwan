@@ -64,7 +64,7 @@ function runRefresh() {
     </template>
 
     <template v-if="channel && id">
-      <InboxChannelTabs :channel-id="id" />
+      <InboxChannelTabs :channel-id="id" :kind="channel.kind" />
       <p class="text-sm text-muted" data-testid="inbox-health-checked">{{ checked }}</p>
       <UAlert v-if="channel.last_error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('inbox.settings.channels.lastError')" :description="providerText(channel.last_error)" data-testid="inbox-channel-error" />
       <InboxChannelHealthCard :health="channel.health" />

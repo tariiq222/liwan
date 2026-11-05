@@ -1,5 +1,17 @@
-import { useMutation } from '@tanstack/vue-query'
-import { InboxTikTokConnectResponseSchema, type InboxTikTokConnect } from '@liwan/contracts'
+import type { MaybeRefOrGetter } from 'vue'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import {
+  InboxTikTokConnectResponseSchema,
+  InboxTikTokShortcutEnableResultSchema,
+  InboxTikTokShortcutListSchema,
+  InboxTikTokShortcutSchema,
+  InboxTikTokSyncAnswerSchema,
+  InboxTikTokSyncSchema,
+  type InboxTikTokConnect,
+  type InboxTikTokShortcutCreate,
+  type InboxTikTokShortcutEnable,
+  type InboxTikTokShortcutPatch,
+} from '@liwan/contracts'
 import { hasFeature } from '../../modules/registry'
 
 // The TikTok channel's own surface: the OAuth connect, and the refusal reasons its routes answer with. Every
@@ -50,5 +62,84 @@ export function useConnectInboxTikTok() {
     mutationFn: (body: InboxTikTokConnect) => $api('/api/v1/inbox/channels/tiktok/connect', {
       method: 'POST', body, schema: InboxTikTokConnectResponseSchema,
     }),
+  })
+}
+
+// ---------------------------------------------------------------- suggested questions, chat prompts and import
+
+// Same 'inbox' root as the staff keys, so the bus invalidation of ['inbox'] refreshes the channel page too.
+export const inboxTikTokKeys = {
+  shortcuts: (channelId: number) => ['inbox', 'tiktok-shortcuts', channelId] as const,
+  sync: (channelId: number) => ['inbox', 'tiktok-sync', channelId] as const,
+}
+
+const shortcutsPath = (channelId: number) => `/api/v1/inbox/channels/${channelId}/tiktok/shortcuts`
+const syncPath = (channelId: number) => `/api/v1/inbox/channels/${channelId}/tiktok/sync`
+
+/** One channel's suggested questions and chat prompts, with TikTok's audit status for each. */
+export function useInboxTikTokShortcuts(channelId: MaybeRefOrGetter<number | null>) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => inboxTikTokKeys.shortcuts(toValue(channelId) ?? 0)),
+    enabled: computed(() => !!toValue(channelId)),
+    retry: false,
+    queryFn: () => $api(shortcutsPath(toValue(channelId) ?? 0), { schema: InboxTikTokShortcutListSchema }),
+  })
+}
+
+/** Creates an item, or patches one when `id` is given; every change reloads the list. */
+export function useSaveInboxTikTokShortcut(channelId: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  const id = computed(() => toValue(channelId))
+  return useMutation({
+    mutationFn: ({ id: shortcutId, body }: { id?: number; body: InboxTikTokShortcutCreate | InboxTikTokShortcutPatch }) => shortcutId
+      ? $api(`${shortcutsPath(id.value)}/${shortcutId}`, { method: 'PATCH', body, schema: InboxTikTokShortcutSchema })
+      : $api(shortcutsPath(id.value), { method: 'POST', body, schema: InboxTikTokShortcutSchema }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: inboxTikTokKeys.shortcuts(id.value) }),
+  })
+}
+
+export function useDeleteInboxTikTokShortcut(channelId: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (shortcutId: number) => $api(`${shortcutsPath(toValue(channelId))}/${shortcutId}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: inboxTikTokKeys.shortcuts(toValue(channelId)) }),
+  })
+}
+
+/** Switching a kind on or off; enabling makes TikTok recreate every stored item, so the answer replaces the list. */
+export function useEnableInboxTikTokShortcuts(channelId: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  const id = computed(() => toValue(channelId))
+  return useMutation({
+    mutationFn: (body: InboxTikTokShortcutEnable) => $api(`${shortcutsPath(id.value)}/enable`, {
+      method: 'POST', body, schema: InboxTikTokShortcutEnableResultSchema,
+    }),
+    onSuccess: (answer) => { qc.setQueryData(inboxTikTokKeys.shortcuts(id.value), answer) },
+  })
+}
+
+/** The channel's latest history import, null before the first one. */
+export function useInboxTikTokSync(channelId: MaybeRefOrGetter<number | null>) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => inboxTikTokKeys.sync(toValue(channelId) ?? 0)),
+    enabled: computed(() => !!toValue(channelId)),
+    retry: false,
+    queryFn: () => $api(syncPath(toValue(channelId) ?? 0), { schema: InboxTikTokSyncAnswerSchema }),
+  })
+}
+
+/** Queues an import of the last 90 days; a second one while it runs is refused with `inbox_tiktok_sync_running`. */
+export function useStartInboxTikTokSync(channelId: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  const id = computed(() => toValue(channelId))
+  return useMutation({
+    mutationFn: () => $api(syncPath(id.value), { method: 'POST', schema: InboxTikTokSyncSchema }),
+    onSuccess: job => qc.setQueryData(inboxTikTokKeys.sync(id.value), { job }),
   })
 }

@@ -59,12 +59,47 @@ describe('automatic message content', () => {
     expect(buildAutoContent(draft)).toEqual({ interactive: BUTTONS })
   })
 
+  it('keeps a TikTok automatic message to a text or a button card', () => {
+    expect(buildAutoContent({ ...emptyAutoContentDraft(), body: 'أهلًا' }, 'tiktok')).toEqual({ body: 'أهلًا' })
+    const card = { ...emptyInteractiveDraft(), body: 'عنوان البطاقة', buttons: ['حجز', 'استفسار'] }
+    expect(buildAutoContent({ ...emptyAutoContentDraft(), mode: 'interactive', interactive: card }, 'tiktok')).toEqual({
+      interactive: { type: 'buttons', body: 'عنوان البطاقة', header: null, footer: null, buttons: [{ id: 'btn_1', title: 'حجز' }, { id: 'btn_2', title: 'استفسار' }] },
+    })
+    expect(buildAutoContent({ ...emptyAutoContentDraft(), mode: 'interactive', interactive: { ...emptyInteractiveDraft(), body: 'س'.repeat(41), buttons: ['حجز'] } }, 'tiktok')).toBeNull()
+  })
+
   it('reads a list and a link back into drafts the builder accepts', () => {
     const list: InboxInteractive = { type: 'list', body: 'الفروع', header: null, footer: null, button: 'الفروع', sections: [{ title: null, rows: [{ id: 'row_1', title: 'الملقا', description: 'صباحًا' }] }] }
     expect(buildInteractive(interactiveToDraft(list))).toEqual(list)
     const link: InboxInteractive = { type: 'cta_url', body: 'التعليمات', header: null, footer: null, display_text: 'افتح', url: 'https://example.test/a' }
     expect(buildInteractive(interactiveToDraft(link))).toEqual(link)
     expect(buildAutoContent({ ...emptyAutoContentDraft(), mode: 'interactive', interactive: emptyInteractiveDraft() })).toBeNull()
+  })
+})
+
+describe('TikTok automatic messages', () => {
+  const stored = {
+    welcome: { enabled: true, idle_days: 0, content: { body: 'أهلًا بك' } },
+    away: { enabled: false, repeat_hours: 12, content: null },
+    csat: { enabled: false, question: 'كيف كانت تجربتك معنا؟', good: 'ممتاز', neutral: 'مقبول', bad: 'سيئ' },
+  }
+  const draft = () => automationToDraft(stored)
+
+  it('keeps the welcome a text of up to 250 characters', () => {
+    expect(automationWrite(draft(), 'tiktok')).toMatchObject({ welcome: { content: { body: 'أهلًا بك' } } })
+    const tooLong = draft()
+    tooLong.welcome.content = { ...emptyAutoContentDraft(), body: 'س'.repeat(251) }
+    expect(automationWrite(tooLong, 'tiktok')).toBeNull()
+    const interactive = draft()
+    interactive.welcome.content = { ...emptyAutoContentDraft(), mode: 'interactive', interactive: { ...emptyInteractiveDraft(), body: 'اختر', buttons: ['حجز'] } }
+    expect(automationWrite(interactive, 'tiktok')).toBeNull()
+  })
+
+  it('sends the away message as a button card', () => {
+    const away = draft()
+    away.away.enabled = true
+    away.away.content = { ...emptyAutoContentDraft(), mode: 'interactive', interactive: { ...emptyInteractiveDraft(), body: 'خارج الدوام', buttons: ['حجز'] } }
+    expect(automationWrite(away, 'tiktok')).toMatchObject({ away: { content: { interactive: { type: 'buttons', body: 'خارج الدوام' } } } })
   })
 })
 
