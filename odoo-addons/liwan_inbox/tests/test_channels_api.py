@@ -7,7 +7,7 @@ from odoo.tests import tagged
 
 from .common import ACCESS_TOKEN, APP_SECRET, LiwanInboxCase
 from odoo.addons.liwan_api.tests.common import set_probe_feature
-from odoo.addons.liwan_inbox.adapters import whatsapp
+from odoo.addons.liwan_inbox.adapters import errors, whatsapp
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 CHANNEL_KEYS = {
@@ -168,7 +168,7 @@ class TestChannelsApi(LiwanInboxCase):
         items = result.json()['items']
         self.assertEqual([(t['name'], t['param_count'], t['body']) for t in items], [('order_ready', 2, 'Hi {{1}}, order {{2}} / {{1}}')])
         self.assertFalse(stale.exists())
-        with patch.object(whatsapp, 'list_templates', side_effect=whatsapp.ProviderError('rate limited', retryable=True)):
+        with patch.object(whatsapp, 'list_templates', side_effect=errors.ProviderError('rate limited', retryable=True)):
             self.assertError(self.api('POST', f'/api/v1/inbox/channels/{self.channel.id}/templates/sync'), 422, 'invalid')
 
     def test_the_whatsapp_sub_feature_gates_channel_creation(self):

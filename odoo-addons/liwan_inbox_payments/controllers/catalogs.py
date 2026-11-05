@@ -11,7 +11,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
-from odoo.addons.liwan_inbox.adapters import whatsapp
+from odoo.addons.liwan_inbox.adapters import errors
 from odoo.addons.liwan_inbox.controllers.helpers import (
     get_channel,
     holds,
@@ -48,7 +48,7 @@ def check_with_meta(credentials, meta_catalog_id, connect):
             meta_catalog.connect_catalog(credentials, meta_catalog_id)
         elif meta_catalog_id not in meta_catalog.list_waba_catalogs(credentials):
             reject('the catalog is not connected to the WhatsApp account; connect it or switch on connect', 'meta_catalog_id')
-    except whatsapp.ProviderError as error:
+    except errors.ProviderError as error:
         provider_failure(error)
     return found['name']
 

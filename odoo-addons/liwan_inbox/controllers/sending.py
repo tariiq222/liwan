@@ -8,7 +8,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
-from odoo.addons.liwan_inbox.adapters import whatsapp
+from odoo.addons.liwan_inbox.adapters import errors
 from odoo.addons.liwan_inbox.controllers.campaign_parsing import (
     parse_campaign_settings,
     parse_choice,
@@ -59,7 +59,7 @@ class SendingController(http.Controller):
             reject('no fields are accepted')
         try:
             channel._liwan_refresh_sending()
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             reject(str(error))
         return dump_sending(channel)
 

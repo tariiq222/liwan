@@ -9,7 +9,7 @@ from odoo.exceptions import UserError
 from .abstract_interactive import COMMERCE_TYPES
 from .batch import process_each
 from .constants import BACKOFF_MINUTES, MAX_ATTEMPTS, OUTBOX_BATCH, TYPING_MAX_AGE
-from odoo.addons.liwan_inbox.adapters import whatsapp
+from odoo.addons.liwan_inbox.adapters import errors, whatsapp
 
 _logger = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ class LiwanInboxMessageOutbox(models.Model):
             return
         try:
             whatsapp.mark_read(conversation.channel_id._liwan_credentials(), inbound.provider_message_id, typing=True)
-        except (whatsapp.ProviderError, UserError) as error:
+        except (errors.ProviderError, UserError) as error:
             _logger.warning('typing indicator of conversation %s failed: %s', conversation.id, type(error).__name__)
         else:
             inbound.write({'read_receipt': 'sent', 'receipt_attempts': 0})
@@ -92,7 +92,7 @@ class LiwanInboxMessageOutbox(models.Model):
             return
         try:
             sent = self._liwan_provider_send()
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             self._liwan_record_failure(str(error), error.retryable, error.code, unconfirmed=error.unconfirmed)
         except UserError as error:
             self._liwan_record_failure(str(error), retryable=False)
@@ -192,7 +192,7 @@ class LiwanInboxMessageOutbox(models.Model):
             whatsapp.send_reaction(
                 credentials, self.conversation_id.identity_id.address, self.provider_message_id, self.agent_reaction or '',
             )
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             self._liwan_reaction_failed(error.retryable)
         except UserError:
             self._liwan_reaction_failed(retryable=False)
@@ -211,7 +211,7 @@ class LiwanInboxMessageOutbox(models.Model):
         try:
             credentials = self.conversation_id.channel_id._liwan_credentials()
             whatsapp.mark_read(credentials, self.provider_message_id)
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             self._liwan_receipt_failed(error.retryable)
         except UserError:
             self._liwan_receipt_failed(retryable=False)

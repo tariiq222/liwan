@@ -6,7 +6,7 @@ from odoo.tests import tagged
 
 from . import whatsapp_payloads as wa
 from .common import LiwanInboxCase
-from odoo.addons.liwan_inbox.adapters import whatsapp
+from odoo.addons.liwan_inbox.adapters import errors, whatsapp
 from odoo.addons.liwan_inbox.models.constants import REPLY_WINDOW
 
 
@@ -84,7 +84,7 @@ class TestEventProcessing(LiwanInboxCase):
         self.assertEqual((attachment.raw, attachment.mimetype), (b'jpeg-bytes', 'image/jpeg'))
 
     def test_a_media_failure_keeps_the_message_and_records_the_error(self):
-        with patch.object(whatsapp, 'fetch_media', side_effect=whatsapp.ProviderError('gone', retryable=False)):
+        with patch.object(whatsapp, 'fetch_media', side_effect=errors.ProviderError('gone', retryable=False)):
             event = self.deliver(wa.inbound_media(kind='audio'))
         message = self.message('wamid.IMG1')
         self.assertEqual((event.state, message.body, message.error), ('done', '[audio]', 'gone'))

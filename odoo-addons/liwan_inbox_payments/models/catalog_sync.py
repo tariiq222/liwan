@@ -4,7 +4,7 @@ from odoo import api, fields, models
 
 from .catalog_item import ERROR_TEXT_LENGTH
 from .constants import REVIEW_REFRESH, SYNC_TIMEOUT
-from odoo.addons.liwan_inbox.adapters.whatsapp import ProviderError
+from odoo.addons.liwan_inbox.adapters.errors import ProviderError
 from odoo.addons.liwan_inbox.models.batch import process_each
 from odoo.addons.liwan_inbox_payments.adapters import meta_catalog
 

@@ -8,7 +8,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
-from odoo.addons.liwan_inbox.adapters import media_rules, whatsapp
+from odoo.addons.liwan_inbox.adapters import errors, media_rules
 from odoo.addons.liwan_inbox.controllers.conversation_files import parse_upload
 from odoo.addons.liwan_inbox.controllers.helpers import (
     get_channel,
@@ -113,7 +113,7 @@ class TemplateController(http.Controller):
         channel = get_channel(channel_id, MANAGE_TEMPLATES)
         try:
             templates = request.env['liwan.inbox.template']._liwan_sync(channel)
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             reject(str(error))
         return {'items': [dump_template(t) for t in templates], 'total': len(templates)}
 
@@ -132,7 +132,7 @@ class TemplateController(http.Controller):
         try:
             with unique_as_invalid('name', 'a template with this name and language already exists on the channel', 'inbox_template_name_taken'):
                 template = Template._liwan_create_remote(channel, parsed.values, parsed.allow_category_change)
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             reject(str(error))
         return request.make_json_response(dump_template(template), status=201)
 
@@ -145,7 +145,7 @@ class TemplateController(http.Controller):
         parsed = parse_template_write(template.channel_id, payload, template)
         try:
             template._liwan_edit_remote(parsed.values)
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             reject(str(error))
         return dump_template(template)
 
@@ -157,7 +157,7 @@ class TemplateController(http.Controller):
         template = get_template(template_id, MANAGE_TEMPLATES)
         try:
             template._liwan_delete_remote()
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             reject(str(error))
         return no_content()
 

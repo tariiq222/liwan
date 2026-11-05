@@ -13,7 +13,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
-from odoo.addons.liwan_inbox.adapters import whatsapp
+from odoo.addons.liwan_inbox.adapters import errors
 from odoo.addons.liwan_inbox.controllers.flow_parsing import (
     parse_copy,
     parse_flow_write,
@@ -144,7 +144,7 @@ class FlowController(http.Controller):
         try:
             with unique_as_invalid('name', 'a form with this name already exists on the channel', 'inbox_flow_name_taken'):
                 flow = request.env['liwan.inbox.flow']._liwan_create_remote(channel, parsed.values, parsed.screens)
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             provider_failure(error)
         return request.make_json_response(dump_flow(flow), status=201)
 
@@ -156,7 +156,7 @@ class FlowController(http.Controller):
         channel = get_channel(channel_id, MANAGE_FLOWS)
         try:
             flows = request.env['liwan.inbox.flow']._liwan_sync(channel)
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             provider_failure(error)
         return {'items': [dump_flow_summary(flow) for flow in flows], 'total': len(flows)}
 
@@ -178,7 +178,7 @@ class FlowController(http.Controller):
         try:
             with unique_as_invalid('name', 'a form with this name already exists on the channel', 'inbox_flow_name_taken'):
                 flow._liwan_update_remote(parsed.values, parsed.screens)
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             provider_failure(error)
         return dump_flow(flow)
 
@@ -190,7 +190,7 @@ class FlowController(http.Controller):
         flow = get_flow(flow_id, MANAGE_FLOWS)
         try:
             flow._liwan_delete_remote()
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             provider_failure(error)
         return no_content()
 
@@ -205,7 +205,7 @@ class FlowController(http.Controller):
             reject(f'approved templates still open the form this copy replaces: {", ".join(blockers.mapped("name"))}', 'replace')
         try:
             flow._liwan_publish_remote()
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             provider_failure(error)
         return dump_flow(flow)
 
@@ -217,7 +217,7 @@ class FlowController(http.Controller):
         flow = get_flow(flow_id, MANAGE_FLOWS)
         try:
             flow._liwan_deprecate_remote()
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             provider_failure(error)
         return dump_flow(flow)
 
@@ -231,7 +231,7 @@ class FlowController(http.Controller):
         try:
             with unique_as_invalid('name', 'a form with this name already exists on the channel', 'inbox_flow_name_taken'):
                 copy = flow._liwan_copy(name, replace)
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             provider_failure(error)
         return request.make_json_response(dump_flow(copy), status=201)
 
@@ -243,7 +243,7 @@ class FlowController(http.Controller):
         flow = get_flow(flow_id, MANAGE_FLOWS)
         try:
             return dump_preview(flow._liwan_preview())
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             provider_failure(error)
 
     @http.route('/api/v1/inbox/flows/<int:flow_id>/submissions', type='json2', auth='user', methods=['GET'], readonly=True)

@@ -12,7 +12,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
-from odoo.addons.liwan_inbox.adapters import whatsapp
+from odoo.addons.liwan_inbox.adapters import errors, whatsapp
 from odoo.addons.liwan_inbox.controllers.channels import dump
 from odoo.addons.liwan_inbox.controllers.conversation_files import parse_upload
 from odoo.addons.liwan_inbox.controllers.helpers import (
@@ -89,7 +89,7 @@ def provider_call(call, *args, **kwargs):
     """Run an adapter call; a provider refusal answers 422 with Meta's text (never the request, so never a PIN)."""
     try:
         return call(*args, **kwargs)
-    except whatsapp.ProviderError as error:
+    except errors.ProviderError as error:
         reject(str(error))
 
 

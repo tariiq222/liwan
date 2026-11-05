@@ -12,7 +12,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
-from odoo.addons.liwan_inbox.adapters import whatsapp
+from odoo.addons.liwan_inbox.adapters import errors
 from odoo.addons.liwan_inbox.controllers.audiences import search_term
 from odoo.addons.liwan_inbox.controllers.campaign_parsing import (
     in_company,
@@ -217,7 +217,7 @@ class CampaignController(http.Controller):
         contact = in_company(find_one('liwan.inbox.contact', payload['contact_id'], 'contact_id'), 'contact_id')
         try:
             message = campaign._liwan_send_test(contact)
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             reject(str(error))
         return {'conversation_id': message.conversation_id.id, 'message_id': message.id}
 
