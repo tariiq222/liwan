@@ -59,9 +59,14 @@ function submit() {
 <template>
   <SharedRecordSection variant="panel" :title="t('crm.opportunities.call.title')">
     <UForm novalidate :state="{}" class="liwan-form" data-testid="crm-call-form" @submit="submit">
-      <UFormField :label="t('crm.opportunities.call.outcome')" name="call-outcome" required :error="attempted && !outcome ? t('crm.opportunities.call.outcomeRequired') : undefined">
-        <USelect id="call-outcome" v-model="outcomeId" class="w-full" :items="outcomes.map(item => ({ value: item.id, label: item.name }))" :placeholder="t('crm.opportunities.call.outcomePlaceholder')" :disabled="locked" />
-      </UFormField>
+      <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_12rem]">
+        <UFormField :label="t('crm.opportunities.call.outcome')" name="call-outcome" required :error="attempted && !outcome ? t('crm.opportunities.call.outcomeRequired') : undefined">
+          <USelect id="call-outcome" v-model="outcomeId" class="w-full" :items="outcomes.map(item => ({ value: item.id, label: item.name }))" :placeholder="t('crm.opportunities.call.outcomePlaceholder')" :disabled="locked" />
+        </UFormField>
+        <UFormField :label="t('crm.opportunities.call.duration')" name="call-duration">
+          <UInputNumber id="call-duration" v-model="duration" class="w-full" :min="0" :max="1440" :disabled="locked" />
+        </UFormField>
+      </div>
       <UAlert v-if="!outcomes.length" color="neutral" variant="subtle" :description="t('crm.opportunities.call.noOutcomes')" data-testid="crm-no-outcomes" />
       <CrmOpportunitySaleForm v-if="selling" v-model="sale" :packages="packages" :disabled="locked" :show-errors="attempted" />
       <template v-if="askReason">
@@ -70,16 +75,11 @@ function submit() {
           <USelect id="call-lost-reason" v-model="lostReasonId" class="w-full" :items="lostReasons.map(reason => ({ value: reason.id, label: reason.name }))" :placeholder="t('crm.opportunities.lost.reasonPlaceholder')" :disabled="locked" />
         </UFormField>
       </template>
-      <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_12rem]">
-        <UFormField :label="t('crm.opportunities.call.note')" name="call-note">
-          <UTextarea id="call-note" v-model="note" class="w-full" :rows="2" :maxlength="2000" :disabled="locked" />
-        </UFormField>
-        <UFormField :label="t('crm.opportunities.call.duration')" name="call-duration">
-          <UInputNumber id="call-duration" v-model="duration" class="w-full" :min="0" :max="1440" :disabled="locked" />
-        </UFormField>
-      </div>
       <UAlert v-if="error" role="alert" color="error" variant="subtle" :description="error" />
-      <div class="flex justify-end">
+      <div class="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+        <UFormField :label="t('crm.opportunities.call.note')" name="call-note">
+          <UTextarea id="call-note" v-model="note" class="w-full" :rows="1" autoresize :maxlength="2000" :disabled="locked" />
+        </UFormField>
         <UButton type="submit" :loading="pending" :disabled="locked" :label="askReason ? t('crm.opportunities.call.lostSubmit') : selling ? t('crm.opportunities.sale.submit') : t('crm.opportunities.call.submit')" data-testid="crm-call-submit" />
       </div>
     </UForm>
