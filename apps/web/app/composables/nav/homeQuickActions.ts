@@ -1,6 +1,6 @@
 import type { AppCommand } from '../../modules/types'
 
-/** Quick-access pills on home, including the standing services link. The rest stay in the palette and `/apps`. */
+/** Quick-access pills on home, including the standing services link. The rest stay in the palette and the applications section. */
 export const HOME_QUICK_LIMIT = 5
 
 /** The application a command belongs to: its id is `<manifest id>.<name>`. */

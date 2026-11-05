@@ -14,13 +14,12 @@ const section = (tag: string) => Vue.defineComponent({ inheritAttrs: false, setu
 const SharedPageHeader = Vue.defineComponent({ props: { title: { type: String, default: '' } }, setup: (props) => () => Vue.h('h1', props.title) })
 const SharedEmptyState = Vue.defineComponent({ inheritAttrs: false, props: { title: { type: String, default: '' } }, setup: (props, { attrs, slots }) => () => Vue.h('div', attrs, [props.title, slots.action?.()]) })
 const Marker = (testid: string) => Vue.defineComponent({ setup: () => () => Vue.h('div', { 'data-testid': testid }) })
-const messages = { 'nav.home': 'يومي', 'home.greeting': 'أهلًا {name}', 'home.quick': 'الوصول السريع', 'home.allApps': 'كل التطبيقات', 'home.empty': 'لا توجد مساحات عمل', 'home.openApps': 'التطبيقات', 'home.nothingToday': 'لا شيء لك اليوم', 'nav.account': 'الخدمة الذاتية', 'nav.newTask': 'مهمة جديدة', 'services.title': 'خدماتي' }
+const messages = { 'nav.home': 'يومي', 'home.greeting': 'أهلًا {name}', 'home.quick': 'الوصول السريع', 'home.empty': 'لا توجد مساحات عمل', 'home.nothingToday': 'لا شيء لك اليوم', 'nav.account': 'الخدمة الذاتية', 'nav.newTask': 'مهمة جديدة', 'services.title': 'خدماتي' }
 
 async function render({ apps = true, services = false, work = true, commands = [] as Array<{ id: string; to: string; labelKey: string }>, name = 'سارة العتيبي' } = {}) {
   return renderShared(file, {}, {}, {
     messages,
     stubs: {
-      HomeTabs: { template: '<nav />' },
       ...DEFAULT_STUBS, UButton, SharedPageContainer: section('main'), SharedPageHeader, SharedEmptyState,
       HomeAssistantSuggestions: Marker('suggestions'),
     },
@@ -31,6 +30,7 @@ async function render({ apps = true, services = false, work = true, commands = [
     modules: {
       '@/components/home/HomeFocus.vue': { __esModule: true, default: Marker('focus') },
       '@/components/home/HomeIndicators.vue': { __esModule: true, default: Marker('indicators') },
+      '@/components/home/HomeApps.vue': { __esModule: true, default: Marker('home-apps') },
       '@/composables/nav/shellModules': { visibleShellModules: () => [{ id: 'home' }, ...(apps ? [{ id: 'tasks' }] : []), { id: 'settings' }] },
       '@/composables/nav/launcherModel': { reachableApplications: (modules: Array<{ id: string }>) => modules.filter(module => module.id !== 'home' && module.id !== 'settings') },
       '@/composables/nav/homeQuickActions': { HOME_QUICK_LIMIT, homeQuickActions },
@@ -43,13 +43,14 @@ async function render({ apps = true, services = false, work = true, commands = [
 }
 
 describe('home page', () => {
-  it('is «يومي» with the greeting, the indicators, the focus card and the assistant suggestions, and no grid of destinations', async () => {
+  it('is «يومي» with the greeting, the indicators, the focus card, the assistant suggestions and the applications section, and no tabs', async () => {
     const html = await render({ commands: [{ id: 'task', to: '/my-tasks/new', labelKey: 'nav.newTask' }] })
     expect(html).toContain('data-testid="foundation-home"')
     expect(html).toContain('<h1>يومي</h1>')
     expect(html).toContain('أهلًا سارة')
     expect(html).not.toContain('العتيبي')
-    for (const part of ['indicators', 'focus', 'suggestions']) expect(html).toContain(`data-testid="${part}"`)
+    for (const part of ['indicators', 'focus', 'suggestions', 'home-apps']) expect(html).toContain(`data-testid="${part}"`)
+    expect(html).not.toContain('home-tabs')
     expect(html).not.toContain('link-card')
     expect(html).not.toContain('home-empty-')
     expect(html).not.toContain('لا شيء لك اليوم')
@@ -63,21 +64,22 @@ describe('home page', () => {
     expect(html).toContain('مهمة جديدة')
   })
 
-  it('puts the indicators and the focus before the quick actions, and the suggestions after them', async () => {
+  it('puts the indicators and the focus before the quick actions, and the suggestions and the applications after them', async () => {
     const html = await render({ commands: [{ id: 'pmo.task', to: '/tasks/new', labelKey: 'nav.newTask' }] })
     const at = (testid: string) => html.indexOf(`data-testid="${testid}"`)
     expect(at('home-greeting')).toBeLessThan(at('indicators'))
     expect(at('indicators')).toBeLessThan(at('focus'))
     expect(at('focus')).toBeLessThan(at('home-quick-actions'))
     expect(at('home-quick-actions')).toBeLessThan(at('suggestions'))
+    expect(at('suggestions')).toBeLessThan(at('home-apps'))
   })
 
-  it('shows five actions at most, the services link included, and one quiet link to every application', async () => {
+  it('shows five actions at most, the services link included, and no link to a separate applications page', async () => {
     const commands = Array.from({ length: 12 }, (_, index) => ({ id: `app${index}.new`, to: `/app${index}/new`, labelKey: `app${index}` }))
     const html = await render({ commands, services: true })
     expect((html.match(/returnTo=\//g) ?? [])).toHaveLength(4)
     expect(html).toContain('data-testid="home-services"')
-    expect(html).toMatch(/href="\/apps"[^>]*data-testid="home-all-apps"|data-testid="home-all-apps"[^>]*href="\/apps"/)
+    expect(html).not.toContain('home-all-apps')
     expect((await render({ commands, services: false }).then(page => page.match(/returnTo=\//g) ?? []))).toHaveLength(5)
   })
 
@@ -90,10 +92,10 @@ describe('home page', () => {
     expect(await render({ commands: [] })).not.toContain('home-quick-actions')
   })
 
-  it('with reachable applications but nothing to show, says there is nothing for today and links to the applications page', async () => {
+  it('with reachable applications but nothing to show, says there is nothing for today and links nowhere else', async () => {
     const html = await render({ work: false })
     expect(html).toMatch(/data-testid="home-empty-today"[^>]*>لا شيء لك اليوم/)
-    expect(html).toMatch(/href="\/apps"[^>]*>التطبيقات</)
+    expect(html).not.toContain('href="/apps"')
     expect(html).not.toContain('لا توجد مساحات عمل')
   })
 

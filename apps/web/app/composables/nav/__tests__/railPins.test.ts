@@ -10,8 +10,9 @@ const rail = (): ShellRailModel => {
 }
 
 describe('rail pins', () => {
-  it('starts someone who never pinned with the first four permitted applications', () => {
-    expect(resolveRailPins(apps, null)).toEqual(['tasks', 'projects', 'meetings', 'chat'])
+  it('starts someone who never pinned with every permitted application up to the pin limit', () => {
+    expect(resolveRailPins(apps.slice(0, 3), null)).toEqual(['tasks', 'projects', 'meetings'])
+    expect(resolveRailPins(apps, null)).toEqual(apps.slice(0, MAX_RAIL_PINS))
   })
   it('keeps a saved empty choice, drops lost permissions and duplicates, and caps the list', () => {
     expect(resolveRailPins(apps, [])).toEqual([])
