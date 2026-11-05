@@ -5,8 +5,9 @@
 // the platform app, and this service forwards each request to the tenant that owns the
 // account. It never stores tokens and never inspects message content.
 import http from 'node:http'
-import { createHmac, timingSafeEqual } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
+import { accessSync, closeSync, constants, fsyncSync, openSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { dirname } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { readBodyBytes } from '../../apps/web/server/utils/bufferAdmission.mjs'
 import { readTenantRegistry } from '../../apps/web/server/utils/tenantRegistry.ts'
@@ -15,17 +16,23 @@ export const SIGNATURE_HEADER = 'tiktok-signature'
 /** TikTok signs `{timestamp}.{raw body}`; a delivery older than five seconds is a replay. */
 export const SIGNATURE_MAX_AGE_SECONDS = 5
 export const BINDINGS_SCHEMA_VERSION = 1
+export const BINDINGS_HEADER = 'x-liwan-proxy-token'
 
 const WEBHOOK_ROUTE = '/tiktok/webhook'
 const OAUTH_ROUTE = '/tiktok/oauth/callback'
+const BINDINGS_ROUTE = '/internal/tiktok/bindings/'
 const TENANT_WEBHOOK_PATH = '/api/v1/inbox/hooks/tiktok'
 const TENANT_CALLBACK_PATH = '/api/v1/inbox/tiktok/callback'
 const MAX_WEBHOOK_BYTES = 1024 * 1024
+/** One binding document names one account; a larger body is not a binding request. */
+const MAX_BINDING_BYTES = 4096
 const MAX_STATE_LENGTH = 2048
 const FORWARD_TIMEOUT_MS = 10_000
 const SIGNATURE_PATTERN = /^t=(\d{1,12}),s=([0-9a-f]{64})$/
 const HEX_DIGEST_PATTERN = /^[0-9a-f]{64}$/
 const STATE_PAYLOAD_PATTERN = /^[A-Za-z0-9_-]+$/
+const OPEN_ID_PATTERN = /^[A-Za-z0-9._-]{1,256}$/
+const JSON_TYPE = 'application/json; charset=utf-8'
 /** The tenant callback owns the translated error page; this one never echoes the request. */
 const REJECTED_PAGE = '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>TikTok connection</title></head><body><p>This link is invalid or has expired. Return to the app and try connecting again.</p></body></html>'
 
@@ -90,6 +97,21 @@ export function readBindings(path) {
   return bindings
 }
 
+/** Replace the bindings file atomically: a unique temporary sibling is flushed and renamed over
+ * the contract file, so a reader in another process never observes a partial document. */
+export function writeBindings(path, bindings) {
+  const document = JSON.stringify({ schemaVersion: BINDINGS_SCHEMA_VERSION, bindings })
+  const temporary = `${path}.${randomUUID()}.tmp`
+  const descriptor = openSync(temporary, 'w', 0o600)
+  try {
+    writeFileSync(descriptor, document)
+    fsyncSync(descriptor)
+  } finally {
+    closeSync(descriptor)
+  }
+  renameSync(temporary, path)
+}
+
 function readOpenId(raw) {
   let payload
   try { payload = JSON.parse(raw.toString('utf8')) } catch { throw Error('invalid_payload') }
@@ -114,6 +136,50 @@ export function createTiktokRelay({ clientSecret, registryPath, bindingsPath, pr
 
   const currentRegistry = () => readTenantRegistry(registryPath)
   const activeByTenantId = (registry, tenantId) => registry.targets.find(target => target.tenantId === tenantId && target.enabled) ?? null
+  const holdsProxyToken = value => equal(Buffer.from(proxyToken), Buffer.from(typeof value === 'string' ? value : ''))
+
+  /** PUT/DELETE /internal/tiktok/bindings/<open_id>: the tenant's Odoo registers or removes the
+   * account it owns. The shared proxy token is the only caller identity; the registry decides
+   * which identifiers exist, and an account already held by another active tenant is a conflict. */
+  async function bindingsRoute(req, res, openIdPath) {
+    if (!holdsProxyToken(req.headers[BINDINGS_HEADER])) return send(res, 403, 'invalid_proxy_token')
+    if (req.method !== 'PUT' && req.method !== 'DELETE') return send(res, 405, 'method_not_allowed')
+    let openId
+    try { openId = decodeURIComponent(openIdPath) } catch { return send(res, 400, 'invalid_open_id') }
+    if (!OPEN_ID_PATTERN.test(openId)) return send(res, 400, 'invalid_open_id')
+    let stored
+    try { stored = readBindings(bindingsPath) } catch { return send(res, 500, 'bindings_unavailable') }
+    if (req.method === 'DELETE') {
+      if (!Object.hasOwn(stored, openId)) return send(res, 200, JSON.stringify({ open_id: openId, removed: false }), JSON_TYPE)
+      delete stored[openId]
+      try { writeBindings(bindingsPath, stored) } catch { return send(res, 500, 'bindings_unavailable') }
+      return send(res, 200, JSON.stringify({ open_id: openId, removed: true }), JSON_TYPE)
+    }
+    let raw
+    try { raw = await readBodyBytes(req, res, MAX_BINDING_BYTES) } catch (error) {
+      return send(res, error.statusCode === 413 ? 413 : 502, error.statusCode === 413 ? 'payload_too_large' : 'body_unavailable')
+    }
+    let payload
+    try { payload = JSON.parse(raw.toString('utf8')) } catch { return send(res, 400, 'invalid_payload') }
+    if (!payload || typeof payload !== 'object' || typeof payload.tenant_id !== 'string' || !payload.tenant_id) return send(res, 400, 'invalid_payload')
+    let target
+    try {
+      // Shared hosting hands Odoo its database identifier, not the registry tenant id.
+      target = currentRegistry().targets.find(candidate => candidate.enabled && (candidate.tenantId === payload.tenant_id || candidate.database === payload.tenant_id)) ?? null
+    } catch { return send(res, 500, 'registry_unavailable') }
+    if (!target) return send(res, 422, 'unknown_tenant')
+    const existing = Object.hasOwn(stored, openId) ? stored[openId] : null
+    if (existing && existing !== target.tenantId) {
+      let previous
+      try { previous = activeByTenantId(currentRegistry(), existing) } catch { return send(res, 500, 'registry_unavailable') }
+      if (previous) return send(res, 409, 'tenant_conflict')
+    }
+    if (existing !== target.tenantId) {
+      stored[openId] = target.tenantId
+      try { writeBindings(bindingsPath, stored) } catch { return send(res, 500, 'bindings_unavailable') }
+    }
+    send(res, 200, JSON.stringify({ open_id: openId, tenant_id: target.tenantId }), JSON_TYPE)
+  }
 
   async function webhook(req, res) {
     if (req.method !== 'POST') return send(res, 405, 'method_not_allowed')
@@ -173,7 +239,10 @@ export function createTiktokRelay({ clientSecret, registryPath, bindingsPath, pr
   return http.createServer((req, res) => {
     let path
     try { path = new URL(req.url, 'http://relay.invalid').pathname } catch { return send(res, 400, 'invalid_path') }
-    const route = path === WEBHOOK_ROUTE ? webhook : path === OAUTH_ROUTE ? oauth : null
+    let route = null
+    if (path === WEBHOOK_ROUTE) route = webhook
+    else if (path === OAUTH_ROUTE) route = oauth
+    else if (path.startsWith(BINDINGS_ROUTE)) route = (request, response) => bindingsRoute(request, response, path.slice(BINDINGS_ROUTE.length))
     if (!route) return send(res, 404, 'not_found')
     route(req, res).catch(error => {
       console.error(`tiktok_relay_request_failed: ${error.message}`)
@@ -184,18 +253,22 @@ export function createTiktokRelay({ clientSecret, registryPath, bindingsPath, pr
 }
 
 function start() {
+  if (process.env.LIWAN_TENANCY_MODE !== 'shared') throw Error('shared_mode_required')
   const port = Number(process.env.LIWAN_TIKTOK_RELAY_PORT ?? 8090)
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw Error('invalid_relay_port')
   if (Buffer.byteLength(process.env.LIWAN_SHARED_PROXY_TOKEN ?? '') < 32) throw Error('invalid_proxy_token')
+  const bindingsPath = process.env.LIWAN_TIKTOK_BINDINGS_PATH
   const server = createTiktokRelay({
     clientSecret: process.env.LIWAN_TIKTOK_CLIENT_SECRET,
     registryPath: process.env.LIWAN_TENANT_REGISTRY_PATH,
-    bindingsPath: process.env.LIWAN_TIKTOK_BINDINGS_PATH,
+    bindingsPath,
     proxyToken: process.env.LIWAN_SHARED_PROXY_TOKEN,
   })
   // Fail at start, not on the first delivery: an unreadable registry or bindings file is misconfiguration.
   readTenantRegistry(process.env.LIWAN_TENANT_REGISTRY_PATH)
-  readBindings(process.env.LIWAN_TIKTOK_BINDINGS_PATH)
+  readBindings(bindingsPath)
+  // The bindings directory must accept the atomic write now, not on the first tenant connect.
+  accessSync(dirname(bindingsPath), constants.W_OK)
   server.listen(port, '0.0.0.0')
   process.once('SIGTERM', () => { server.close() })
   process.once('SIGINT', () => { server.close() })
