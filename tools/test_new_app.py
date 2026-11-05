@@ -21,6 +21,9 @@ REPO = Path(__file__).resolve().parents[1]
 REGISTRATION = (new_app.ARCH_LAYERS, new_app.PLATFORM_SOLUTION, new_app.CONTRACTS_INDEX)
 EXPECTED = (
     'odoo-addons/liwan_zzprobe/__init__.py',
+    'odoo-addons/liwan_zzprobe_ai/__manifest__.py',
+    'odoo-addons/liwan_zzprobe_ai/models/ai_agent.py',
+    'odoo-addons/liwan_zzprobe_ai/tests/test_ai_agent.py',
     'odoo-addons/liwan_zzprobe/__manifest__.py',
     'odoo-addons/liwan_zzprobe/models/feature_registry.py',
     'odoo-addons/liwan_zzprobe/models/access_service.py',
@@ -98,6 +101,10 @@ class TestNewApp(unittest.TestCase):
         self.assertEqual(code, 0, err)
         for relative in EXPECTED:
             self.assertTrue((self.root / relative).is_file(), relative)
+        agent = (self.root / 'odoo-addons/liwan_zzprobe_ai/models/ai_agent.py').read_text(encoding='utf-8')
+        self.assertIn("'key': 'zzprobe'", agent)
+        self.assertIn("'zzprobe.list_records', 'zzprobe.records.read'", agent)
+        self.assertIn("'auto_install': True", (self.root / 'odoo-addons/liwan_zzprobe_ai/__manifest__.py').read_text(encoding='utf-8'))
         for path in (self.root / 'odoo-addons/liwan_zzprobe').rglob('*.json'):
             json.loads(path.read_text(encoding='utf-8'))
         for relative in EXPECTED:
@@ -144,13 +151,16 @@ class TestNewApp(unittest.TestCase):
         run(self.root, *ARGS)
         after = {r: (self.root / r).read_text(encoding='utf-8') for r in REGISTRATION}
         removed, added = changed_lines(self.before[new_app.ARCH_LAYERS], after[new_app.ARCH_LAYERS])
-        self.assertEqual([line.strip() for line in added if 'liwan_zzprobe' in line], ['"liwan_zzprobe": 4,'])
+        self.assertEqual([line.strip().rstrip(',') for line in added if 'liwan_zzprobe' in line], ['"liwan_zzprobe": 4', '"liwan_zzprobe_ai": 5'])
         ranks = json.loads(self.before[new_app.ARCH_LAYERS])['ranks']
         anchor = [key for key, rank in ranks.items() if rank == new_app.APPLICATION_RANK][-1]
         keys = list(json.loads(after[new_app.ARCH_LAYERS])['ranks'])
         self.assertEqual(keys[keys.index(anchor) + 1], 'liwan_zzprobe')
-        # The anchor line only gains a comma when it was the last entry of the object.
-        self.assertTrue(all(line.strip() == f'"{anchor}": 4' for line in removed), removed)
+        # The AI bridge closes the bridge block, right after the last bridge.
+        bridge_anchor = [key for key, rank in ranks.items() if rank == new_app.BRIDGE_RANK][-1]
+        self.assertEqual(keys[keys.index(bridge_anchor) + 1], 'liwan_zzprobe_ai')
+        # An anchor line only gains a comma when it was the last entry of the object.
+        self.assertTrue(all(line.strip() in (f'"{anchor}": 4', f'"{bridge_anchor}": 5') for line in removed), removed)
         self.assertTrue(any('"zzprobe": {' in line for line in added))
         self.assertEqual(json.loads(after[new_app.ARCH_LAYERS])['web_apps']['zzprobe'], {'components': ['zzprobe'], 'pages': ['zzprobe']})
         removed, added = changed_lines(self.before[new_app.PLATFORM_SOLUTION], after[new_app.PLATFORM_SOLUTION])
