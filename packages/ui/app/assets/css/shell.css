@@ -54,15 +54,21 @@ html[dir="rtl"] .schedule-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in
 .schedule-gantt-legend li { display: inline-flex; align-items: center; gap: 8px; }
 .schedule-gantt-swatch { width: 8px; height: 8px; flex: none; border-radius: 999px; }
 
-/* Keep compact desktop geometry while preserving touch target sizes. */
+/* Keep compact desktop geometry while preserving touch target sizes. A switch keeps its own track size: its whole
+   row (the track and its label) is the 44px target instead, so the track never grows into a circle. */
 @media (pointer: coarse) {
   :is([data-liwan-shell], .liwan-mobile-menu, .liwan-create-panel, .liwan-search-dialog, [data-testid="unsaved-changes-dialog"]) :is(
-    button[data-slot="base"], a[data-slot="base"], [data-testid="notification-bell"],
+    button[data-slot="base"]:not([role="switch"]), a[data-slot="base"], [data-testid="notification-bell"],
     [data-slot="select-trigger"], .header-account, .liwan-search-trigger,
     .liwan-context-toggle, .liwan-context-link
   ) {
     min-height: 44px;
     min-width: 44px;
+  }
+  :is([data-liwan-shell], .liwan-mobile-menu, .liwan-create-panel, .liwan-search-dialog, [data-testid="unsaved-changes-dialog"])
+    [data-slot="root"]:has(> [data-slot="container"] > button[role="switch"]) {
+    min-height: 44px;
+    align-items: center;
   }
 }
 
