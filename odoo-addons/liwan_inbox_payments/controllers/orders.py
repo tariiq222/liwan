@@ -14,9 +14,9 @@ from odoo.addons.liwan_inbox.controllers.helpers import (
     find_one,
     not_found,
     reject,
-    visible_conversation,
 )
 from odoo.addons.liwan_inbox.models.access_service import READ
+from odoo.addons.liwan_inbox_payments.controllers.helpers import whatsapp_conversation
 from odoo.addons.liwan_inbox_payments.controllers.parsing import (
     parse_checkout,
     parse_order_create,
@@ -50,7 +50,7 @@ def get_order(order_id):
     order = request.env['liwan.inbox.order'].search([('id', '=', order_id)], limit=1)
     if not order:
         raise not_found()
-    visible_conversation(order.conversation_id.id)
+    whatsapp_conversation(order.conversation_id.id)
     return order
 
 
@@ -127,7 +127,7 @@ class OrderController(http.Controller):
     @requires_feature('inbox.enabled', CATALOG_FEATURE, operation='read')
     @requires_capability(READ)
     def list_conversation_orders(self, conversation_id, **_):
-        conversation = visible_conversation(conversation_id)
+        conversation = whatsapp_conversation(conversation_id)
         orders = request.env['liwan.inbox.order'].search([('conversation_id', '=', conversation.id)])
         return {'items': [dump_order(order) for order in orders], 'total': len(orders)}
 
@@ -145,7 +145,7 @@ class OrderController(http.Controller):
     @requires_feature('inbox.enabled', CATALOG_FEATURE, operation='write')
     @requires_capability(ORDERS_MANAGE)
     def create_order(self, conversation_id, **payload):
-        conversation = visible_conversation(conversation_id)
+        conversation = whatsapp_conversation(conversation_id)
         entries = parse_order_create(payload)
         try:
             order = request.env['liwan.inbox.order']._liwan_create_for(conversation, entries)
