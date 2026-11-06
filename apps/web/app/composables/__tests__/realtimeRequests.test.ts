@@ -1,11 +1,17 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { QueryClient, QueryObserver } from '@tanstack/vue-query'
 import { setBusQueryClient, useBus, chatTypingEvent } from '../useBus'
+import { scheduleKeys } from '../useProjectSchedule'
+import { governanceKeys } from '../projectGovernanceKeys'
+import { baselineKeys } from '../projectBaselineKeys'
+import { changeKeys } from '../projectChangeKeys'
+import { projectKeys } from '../projectKeys'
+import { projectsAtRiskAttention } from '../../modules/pmo/attention'
 
 let socket: { onopen?: () => void; onmessage?: (e: { data: string }) => void }
 const clients: QueryClient[] = []
 afterEach(() => { useBus().disconnect(); clients.forEach(c => c.clear()); vi.unstubAllGlobals() })
-async function setup(keys: unknown[][], firstRead?: () => Promise<object>) {
+async function setup(keys: readonly (readonly unknown[])[], firstRead?: () => Promise<object>) {
   vi.stubGlobal('useRuntimeConfig', () => ({ public: { wsUrl: '' } }))
   vi.stubGlobal('location', { protocol: 'https:', host: 'liwan.test' })
   vi.stubGlobal('$fetch', vi.fn(async () => ({ result: { websocket_worker_version: '19.0-2' } })))
@@ -136,7 +142,7 @@ it('coalesces a burst during a slow read and reconciles once after that snapshot
 it('task events refresh project aggregates without unrelated followers, settings or updates', async () => {
   const { starts, send, stops } = await setup([['tasks', 'detail', 1], ['projects', 'detail', 5], ['projects', 'detail', 5, 'stages'], ['projects', 'detail', 5, 'followers'], ['projects', 'detail', 5, 'updates'], ['projects', 'settings'], ['projects', 'summary', {}], ['projects', 'detail', 8]])
   clients.at(-1)!.setQueryData(['tasks', 'detail', 1], { id: 1, project: { id: 5 } })
-  send('liwan/task', { id: 1, event: 'updated' })
+  send('liwan/task', { id: 1, event: 'updated', source: 'write', changed_fields: ['priority'] })
   await vi.waitFor(() => expect(starts.map(fn => fn.mock.calls.length)).toEqual([1, 1, 1, 0, 0, 0, 1, 0]))
   stops.forEach(stop => stop())
 })
@@ -151,7 +157,51 @@ it.each([true, false])('task events refresh live EVM and variance without baseli
   const { qc, starts, send, stops } = await setup(keys)
   if (known) qc.setQueryData(['tasks', 'detail', 1], { id: 1, project: { id: 5 } })
   try {
-    send('liwan/task', { id: 1, event: 'updated' })
+    send('liwan/task', { id: 1, event: 'updated', source: 'write', changed_fields: ['priority'] })
     await vi.waitFor(() => expect(starts.map(fn => fn.mock.calls.length)).toEqual([1, 1, 0, 0, 0, 0, 0, known ? 0 : 1, known ? 0 : 1]))
+  } finally { stops.forEach(stop => stop()) }
+})
+
+it.each([true, false])('task events refresh schedule and live governance tasks only (known project=%s)', async known => {
+  const keys = [
+    scheduleKeys.detail(5), [...governanceKeys.all(5), 'task-page', { closed: false, offset: 0 }],
+    governanceKeys.raci(5), governanceKeys.register(5, {}), governanceKeys.registerItem(5, 1),
+    governanceKeys.stakeholders(5, {}), governanceKeys.stakeholder(5, 1), changeKeys.list(5, {}),
+    baselineKeys.list(5, {}), baselineKeys.item(5, 1), projectKeys.followers(5), projectKeys.updates(5), projectKeys.minimal,
+    scheduleKeys.detail(8), [...governanceKeys.all(8), 'task-page', { closed: false, offset: 0 }],
+  ]
+  const { qc, starts, send, stops } = await setup(keys)
+  if (known) qc.setQueryData(['tasks', 'detail', 1], { id: 1, project: { id: 5 } })
+  try {
+    send('liwan/task', { id: 1, event: 'updated', source: 'write', changed_fields: ['priority'] })
+    await vi.waitFor(() => expect(starts.map(read => read.mock.calls.length)).toEqual([1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, known ? 0 : 1, known ? 0 : 1]))
+  } finally { stops.forEach(stop => stop()) }
+})
+
+it('a task event refreshes canonical analytics and the project-status attention reader', async () => {
+  const keys = [projectKeys.analytics({ q: 'Company', status: 'at_risk' }), projectsAtRiskAttention.queryKey, projectKeys.minimal]
+  const { qc, starts, send, stops } = await setup(keys)
+  qc.setQueryData(['tasks', 'detail', 1], { id: 1, project: { id: 5 } })
+  try {
+    send('liwan/task', { id: 1, event: 'updated', source: 'write', changed_fields: ['priority'] })
+    await vi.waitFor(() => expect(starts.map(read => read.mock.calls.length)).toEqual([1, 1, 0]))
+  } finally { stops.forEach(stop => stop()) }
+})
+
+it.each([
+  { reason: 'project move', metadata: { source: 'write', changed_fields: ['project_id'] } },
+  { reason: 'parent move', metadata: { source: 'write', changed_fields: ['parent_id'] } },
+  { reason: 'mixed or unknown origin', metadata: {} },
+  { reason: 'missing changed fields', metadata: { source: 'write' } },
+])('refreshes old and possible new project task views after a $reason', async ({ metadata }) => {
+  const keys = [scheduleKeys.detail(5), scheduleKeys.detail(8),
+    [...governanceKeys.all(5), 'task-page', { closed: false, offset: 0 }],
+    [...governanceKeys.all(8), 'task-page', { closed: false, offset: 0 }],
+    projectKeys.followers(5), projectKeys.followers(8), projectKeys.updates(8), governanceKeys.stakeholders(8, {}), baselineKeys.item(8, 1)]
+  const { qc, starts, send, stops } = await setup(keys)
+  qc.setQueryData(['tasks', 'detail', 1], { id: 1, project: { id: 5 } })
+  try {
+    send('liwan/task', { id: 1, event: 'updated', ...metadata })
+    await vi.waitFor(() => expect(starts.map(read => read.mock.calls.length)).toEqual([1, 1, 1, 1, 0, 0, 0, 0, 0]))
   } finally { stops.forEach(stop => stop()) }
 })

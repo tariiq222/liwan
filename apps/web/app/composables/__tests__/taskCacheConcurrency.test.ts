@@ -1,13 +1,20 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { computed, ref } from 'vue'
 import { QueryClient, QueryObserver } from '@tanstack/vue-query'
-import { reconcileTaskWriteEvent, useTasks, useUpdateTask } from '../useTasks'
+import { reconcileTaskWriteEvent, useTasks, useUpdateTask, useCreateTask, useTransitionTask, useRequestTaskCompletion, useAcceptTaskCompletion, useReturnTaskCompletion, useWithdrawTaskCompletion, useArchiveTask, taskKeys, type TaskListParams } from '../useTasks'
+import { useProjectDashboardAnalytics } from '../useProjectDashboardAnalytics'
 import { ApiError } from '../useApi'
+import { scheduleKeys, useUpdateProjectScheduleTask } from '../useProjectSchedule'
+import { governanceKeys } from '../projectGovernanceKeys'
+import { baselineKeys } from '../projectBaselineKeys'
+import { changeKeys } from '../projectChangeKeys'
+import { projectKeys } from '../projectKeys'
+import { openTasksAttention } from '../../modules/pmo/attention'
 
 type CachedTaskPages = { pages: Array<{ items: Array<{ id: number; name: string; priority: string }>; total: number }>; pageParams: number[] }
 
 const state = vi.hoisted(() => ({ qc: null as any, options: {} as any, me: null as any, query: null as any }))
-vi.mock('@tanstack/vue-query', async importOriginal => ({ ...await importOriginal<any>(), useQueryClient: () => state.qc, useInfiniteQuery: (options: any) => { state.query = options; return options }, useMutation: (options: any) => { state.options = options; return options } }))
+vi.mock('@tanstack/vue-query', async importOriginal => ({ ...await importOriginal<any>(), useQueryClient: () => state.qc, useQuery: (options: any) => { state.query = options; return options }, useInfiniteQuery: (options: any) => { state.query = options; return options }, useMutation: (options: any) => { state.options = options; return options } }))
 beforeEach(() => {
   vi.stubGlobal('computed', computed)
   state.me = ref({ id: 1, company: { id: 2 } })
@@ -297,4 +304,168 @@ it.each([403, 422])('does not replay a settled cold %s refusal after an unrelate
     expect(observer.getCurrentResult().status).toBe('error')
     expect(api).toHaveBeenCalledTimes(1)
   } finally { stop(); qc.clear() }
+})
+
+const projectTaskPatchCases = [
+  { field: 'name', patch: { name: 'Renamed' }, schedule: 1, taskPage: 1, taskRef: 1 },
+  { field: 'description', patch: { description: 'Note' }, schedule: 0, taskPage: 1, taskRef: 0 },
+  { field: 'date_deadline', patch: { date_deadline: '2026-12-01' }, schedule: 1, taskPage: 1, taskRef: 0 },
+  { field: 'priority', patch: { priority: '2' }, schedule: 0, taskPage: 1, taskRef: 0 },
+  { field: 'user_ids', patch: { user_ids: [2] }, schedule: 1, taskPage: 1, taskRef: 1 },
+  { field: 'tag_ids', patch: { tag_ids: [3] }, schedule: 0, taskPage: 1, taskRef: 0 },
+  { field: 'personal_stage_type_id', patch: { personal_stage_type_id: 4 }, schedule: 0, taskPage: 1, taskRef: 0 },
+  { field: 'allocated_hours', patch: { allocated_hours: 8 }, schedule: 0, taskPage: 0, taskRef: 0 },
+  { field: 'stage_id', patch: { stage_id: 4 }, schedule: 1, taskPage: 1, taskRef: 0 },
+  { field: 'milestone_id', patch: { milestone_id: 4 }, schedule: 1, taskPage: 0, taskRef: 0 },
+  { field: 'deliverables', patch: { deliverables: [{ name: 'Deliver', done: true }] }, schedule: 0, taskPage: 0, taskRef: 0 },
+  { field: 'percent_complete', patch: { percent_complete: 50 }, schedule: 0, taskPage: 0, taskRef: 0 },
+]
+it.each(projectTaskPatchCases.flatMap(test => [true, false].map(known => ({ ...test, known }))))('a $field edit refreshes its live project task fields only (known=$known)', async ({ patch, schedule, taskPage, taskRef, known }) => {
+  const qc = state.qc as QueryClient
+  const keys = [
+    scheduleKeys.detail(5), [...governanceKeys.all(5), 'task-page', { closed: false, offset: 0 }],
+    governanceKeys.raci(5), governanceKeys.register(5, {}), governanceKeys.registerItem(5, 1),
+    governanceKeys.stakeholders(5, {}), governanceKeys.stakeholder(5, 1), changeKeys.list(5, {}),
+    baselineKeys.list(5, {}), baselineKeys.item(5, 1), projectKeys.followers(5), projectKeys.updates(5), projectKeys.minimal,
+    scheduleKeys.detail(8), [...governanceKeys.all(8), 'task-page', { closed: false, offset: 0 }],
+  ]
+  const reads = keys.map(() => vi.fn(async () => ({ revision: 'current' })))
+  keys.forEach(key => qc.setQueryData(key, { revision: 'before' }))
+  const stops = keys.map((queryKey, index) => new QueryObserver(qc, { queryKey, staleTime: Infinity, queryFn: reads[index] }).subscribe(() => {}))
+  try {
+    useUpdateTask(); const mutation = state.options, variables = { id: 1, patch }
+    const ctx = await mutation.onMutate(variables)
+    const detail = { id: 1, ...patch, project: known ? { id: 5 } : null }
+    mutation.onSuccess(detail, variables, ctx); mutation.onSettled(detail, null, variables, ctx)
+    await vi.waitFor(() => expect(reads.map(read => read.mock.calls.length)).toEqual([schedule, taskPage, taskRef, taskRef, taskRef, 0, 0, 0, 0, 0, 0, 0, 0, known ? 0 : schedule, known ? 0 : taskPage]))
+  } finally { stops.forEach(stop => stop()); qc.clear() }
+})
+it.each([
+  { patch: { name: 'Renamed' }, field: 'name' },
+  { patch: { date_deadline: '2026-12-01' }, field: 'date_deadline' },
+])('waits for the scheduled $field response before consuming the local write event', async ({ patch, field }) => {
+  const qc = state.qc as QueryClient, key = scheduleKeys.detail(5)
+  qc.setQueryData(key, { revision: 'before' })
+  let release!: (value: object) => void
+  const read = vi.fn(() => new Promise<object>(resolve => { release = resolve }))
+  const stop = new QueryObserver(qc, { queryKey: key, staleTime: Infinity, queryFn: read }).subscribe(() => {})
+  try {
+    useUpdateTask(); const mutation = state.options, variables = { id: 1, patch }
+    const ctx = await mutation.onMutate(variables)
+    const detail = { id: 1, ...patch, project: { id: 5 }, updated_at: '2026-11-07T01:00:00.123456Z' }
+    mutation.onSuccess(detail, variables, ctx); mutation.onSettled(detail, null, variables, ctx)
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(1))
+    let acknowledged = false
+    const pending = reconcileTaskWriteEvent(qc, { id: 1, event: 'updated', source: 'write', updated_at: detail.updated_at, changed_fields: [field] }).then(result => { acknowledged = result; return result })
+    await Promise.resolve(); await Promise.resolve()
+    expect(acknowledged).toBe(false)
+    release({ revision: 'current' })
+    await expect(pending).resolves.toBe(true)
+    expect(qc.getQueryData(key)).toEqual({ revision: 'current' })
+  } finally { stop(); qc.clear() }
+})
+
+it.each([
+  ['create', useCreateTask], ['transition', useTransitionTask], ['request completion', useRequestTaskCompletion],
+  ['accept completion', useAcceptTaskCompletion], ['return completion', useReturnTaskCompletion],
+  ['withdraw completion', useWithdrawTaskCompletion], ['archive', useArchiveTask],
+] as const)('the canonical analytics cache refreshes after a task %s', async (_action, useMutation) => {
+  const qc = state.qc as QueryClient
+  useProjectDashboardAnalytics(ref({ q: 'Company', status: 'at_risk' as const }))
+  const key = state.query.queryKey.value
+  expect(key).toEqual(['projects', 'analytics', { q: 'Company', status: 'at_risk' }])
+  qc.setQueryData(key, { revision: 'before' })
+  const read = vi.fn(async () => ({ revision: 'current' }))
+  const stop = new QueryObserver(qc, { queryKey: key, staleTime: Infinity, queryFn: read }).subscribe(() => {})
+  try {
+    useMutation(); state.options.onSuccess({ id: 1 }, { id: 1 })
+    await vi.waitFor(() => expect(qc.getQueryData(key)).toEqual({ revision: 'current' }))
+    expect(read).toHaveBeenCalledTimes(1)
+  } finally { stop(); qc.clear() }
+})
+
+it('a schedule edit refreshes scoped live derivations and canonical analytics without waiting for the bus', async () => {
+  const qc = state.qc as QueryClient
+  useProjectDashboardAnalytics(ref({}))
+  const analyticsKey = state.query.queryKey.value
+  const keys = [scheduleKeys.detail(5), baselineKeys.variance(5), analyticsKey,
+    [...governanceKeys.all(5), 'task-page', { closed: false, offset: 0 }],
+    scheduleKeys.detail(8), baselineKeys.variance(8), projectKeys.followers(5),
+    governanceKeys.stakeholders(5, {}), changeKeys.list(5, {}), baselineKeys.list(5, {})]
+  const reads = keys.map(() => vi.fn(async () => ({ revision: 'current' })))
+  keys.forEach(key => qc.setQueryData(key, { revision: 'before' }))
+  const stops = keys.map((queryKey, index) => new QueryObserver(qc, { queryKey, staleTime: Infinity, queryFn: reads[index] }).subscribe(() => {}))
+  try {
+    useUpdateProjectScheduleTask()
+    await state.options.onSuccess({ id: 1 }, { projectId: 5, taskId: 1, patch: { start: '2026-12-01', end: '2026-12-10' } })
+    expect(reads.map(read => read.mock.calls.length)).toEqual([1, 1, 1, 1, 0, 0, 0, 0, 0, 0])
+  } finally { stops.forEach(stop => stop()); qc.clear() }
+})
+
+it.each(['date_deadline', 'user_ids'] as const)('a local $field edit refreshes canonical analytics with its current filters', async field => {
+  const qc = state.qc as QueryClient
+  useProjectDashboardAnalytics(ref({ q: 'Company', status: 'at_risk' as const }))
+  const key = state.query.queryKey.value
+  qc.setQueryData(key, { revision: 'before' })
+  const read = vi.fn(async () => ({ revision: 'current' }))
+  const stop = new QueryObserver(qc, { queryKey: key, staleTime: Infinity, queryFn: read }).subscribe(() => {})
+  try {
+    const patch = field === 'date_deadline' ? { date_deadline: '2026-12-01' } : { user_ids: [2] }
+    useUpdateTask(); const mutation = state.options, variables = { id: 1, patch }, ctx = await mutation.onMutate(variables)
+    const detail = { id: 1, ...patch, project: { id: 5 } }
+    mutation.onSuccess(detail, variables, ctx); mutation.onSettled(detail, null, variables, ctx)
+    await vi.waitFor(() => expect(qc.getQueryData(key)).toEqual({ revision: 'current' }))
+    expect(read).toHaveBeenCalledTimes(1)
+  } finally { stop(); qc.clear() }
+})
+
+// Stock project.task._compute_state (385-400) depends on stage_id; Liwan keeps
+// that compute for planning-enabled projects (task_schedule.py:78-85).
+it.each([
+  { before: 'approved', after: 'in_progress' },
+  { before: 'changes_requested', after: 'waiting' },
+] as const)('reconciles stage-derived $before to $after membership, counts and schedule state', async ({ before, after }) => {
+  const qc = state.qc as QueryClient
+  const params: TaskListParams = { closed: false, state: [before] }
+  const filteredKey = taskKeys.list(params), defaultKey = taskKeys.list({ closed: false }), summaryKey = taskKeys.summary(params)
+  const scheduleKey = scheduleKeys.detail(5), attentionKey = openTasksAttention.queryKey
+  const original = { id: 1, name: 'A', priority: '0', state: before, stage: { id: 3, name: 'Old' }, project: { id: 5 } }
+  const detail = { ...original, state: after, stage: { id: 4, name: 'Next' } }
+  const oldPages = { pages: [{ items: [original], total: 1 }], pageParams: [0] }
+  qc.setQueryData(filteredKey, oldPages); qc.setQueryData(defaultKey, oldPages)
+  qc.setQueryData(summaryKey, { total: 1, open: 1, overdue: 0, done: 0 })
+  qc.setQueryData(scheduleKey, { tasks: [{ id: 1, state: before }] })
+  qc.setQueryData(attentionKey, { items: [original], total: 1 })
+  const filteredRead = vi.fn(async () => ({ pages: [{ items: [], total: 0 }], pageParams: [0] }))
+  const summaryRead = vi.fn(async () => ({ total: 0, open: 0, overdue: 0, done: 0 }))
+  const scheduleRead = vi.fn(async () => ({ tasks: [{ id: 1, state: after }] }))
+  const attentionRead = vi.fn(async () => ({ items: [detail], total: 1 }))
+  const defaultRead = vi.fn(async () => { throw new Error('Default id-order list needs no replay') })
+  const stops = [
+    new QueryObserver(qc, { queryKey: filteredKey, staleTime: Infinity, queryFn: filteredRead }).subscribe(() => {}),
+    new QueryObserver(qc, { queryKey: defaultKey, staleTime: Infinity, queryFn: defaultRead }).subscribe(() => {}),
+    new QueryObserver(qc, { queryKey: summaryKey, staleTime: Infinity, queryFn: summaryRead }).subscribe(() => {}),
+    new QueryObserver(qc, { queryKey: scheduleKey, staleTime: Infinity, queryFn: scheduleRead }).subscribe(() => {}),
+    new QueryObserver(qc, { queryKey: attentionKey, staleTime: Infinity, queryFn: attentionRead }).subscribe(() => {}),
+  ]
+  const unrelatedKeys = [projectKeys.followers(5), projectKeys.updates(5), governanceKeys.stakeholders(5, {}), changeKeys.list(5, {}), baselineKeys.item(5, 1), scheduleKeys.detail(8)]
+  const unrelatedReads = unrelatedKeys.map(() => vi.fn(async () => ({ revision: 'changed' })))
+  unrelatedKeys.forEach((key, index) => {
+    qc.setQueryData(key, { revision: 'before' })
+    stops.push(new QueryObserver(qc, { queryKey: key, staleTime: Infinity, queryFn: unrelatedReads[index] }).subscribe(() => {}))
+  })
+  try {
+    useUpdateTask(); const mutation = state.options, variables = { id: 1, patch: { stage_id: 4 } }, ctx = await mutation.onMutate(variables)
+    mutation.onSuccess(detail, variables, ctx); mutation.onSettled(detail, null, variables, ctx)
+    await vi.waitFor(() => {
+      expect(qc.getQueryData<{ pages: Array<{ items: unknown[]; total: number }> }>(filteredKey)?.pages[0]?.items).toEqual([])
+      expect(qc.getQueryData(summaryKey)).toEqual({ total: 0, open: 0, overdue: 0, done: 0 })
+      expect(qc.getQueryData(scheduleKey)).toEqual({ tasks: [{ id: 1, state: after }] })
+      expect(qc.getQueryData(attentionKey)).toEqual({ items: [detail], total: 1 })
+    })
+    expect([filteredRead, summaryRead, scheduleRead, attentionRead].map(read => read.mock.calls.length)).toEqual([1, 1, 1, 1])
+    expect(qc.getQueryData<{ pages: Array<{ items: Array<{ state: string }> }> }>(defaultKey)?.pages[0]?.items[0]?.state).toBe(after)
+    expect(defaultRead).not.toHaveBeenCalled()
+    expect(unrelatedReads.map(read => read.mock.calls.length)).toEqual([0, 0, 0, 0, 0, 0])
+  } finally { stops.forEach(stop => stop()); qc.clear() }
 })

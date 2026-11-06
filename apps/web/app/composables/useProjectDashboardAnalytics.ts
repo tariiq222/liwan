@@ -5,6 +5,7 @@ import {
   type ProjectDashboardAnalytics,
 } from '@liwan/contracts'
 import { type ProjectReportStatusFilter } from '../utils/projectFinance'
+import { projectKeys } from './projectKeys'
 
 export type { ProjectDashboardAnalytics }
 
@@ -20,15 +21,10 @@ function projectDashboardAnalyticsQuery(filters: ProjectDashboardAnalyticsFilter
   }
 }
 
-const projectDashboardAnalyticsKeys = {
-  all: ['project-dashboard-analytics'] as const,
-  detail: (query: ReturnType<typeof projectDashboardAnalyticsQuery>) => ['project-dashboard-analytics', query] as const,
-}
-
 export function useProjectDashboardAnalytics(filters: MaybeRefOrGetter<ProjectDashboardAnalyticsFilters> = {}) {
   const { $api } = useApi()
   return useQuery({
-    queryKey: computed(() => projectDashboardAnalyticsKeys.detail(projectDashboardAnalyticsQuery(toValue(filters)))),
+    queryKey: computed(() => projectKeys.analytics(projectDashboardAnalyticsQuery(toValue(filters)))),
     queryFn: () => $api('/api/v1/reports/projects/analytics', {
       query: projectDashboardAnalyticsQuery(toValue(filters)),
       schema: ProjectDashboardAnalyticsSchema,

@@ -196,7 +196,7 @@ async function resolveWorkerVersion(crossOrigin: boolean): Promise<string> {
   return FALLBACK_WEBSOCKET_WORKER_VERSION
 }
 
-function invalidateTaskIds(client: ReturnType<typeof useQueryClient>, ids: number[]) {
+function invalidateTaskIds(client: ReturnType<typeof useQueryClient>, ids: number[], associationUnknown: boolean) {
   for (const id of ids) {
     client.invalidateQueries({ queryKey: taskKeys.detail(id) })
   }
@@ -204,7 +204,7 @@ function invalidateTaskIds(client: ReturnType<typeof useQueryClient>, ids: numbe
   client.invalidateQueries({ queryKey: ['tasks', 'summary'] })
   client.invalidateQueries({ queryKey: ['tasks', 'attention'] })
   const projectIds = new Set<number>()
-  let unknownProject = false
+  let unknownProject = associationUnknown
   for (const id of ids) {
     const task = client.getQueryData<Task>(taskKeys.detail(id))
       ?? client.getQueriesData<{ pages: { items: Task[] }[] }>({ queryKey: ['tasks', 'list'] }).flatMap(([, data]) => data?.pages.flatMap(p => p.items) ?? []).find(t => t.id === id)
@@ -222,6 +222,12 @@ async function invalidateTaskEvents(client: ReturnType<typeof useQueryClient>, n
   for (const id of collectTaskIds(taskEvents)) void client.invalidateQueries({ queryKey: taskKeys.timeline(id) })
   // Duplicate identical notifications in one frame consume a local acknowledgement once.
   const unique = [...new Map(taskEvents.map(n => [JSON.stringify(n.message.payload), n])).values()]
+  // An operator can move tasks or their parent between projects. Mixed/unknown
+  // origins lose that metadata, so a cached old project cannot safely scope them.
+  const unknownAssociations = new Set(taskEvents.filter(({ message: { payload } }) => payload.source !== 'write'
+    || !Array.isArray(payload.changed_fields) || !payload.changed_fields.length
+    || payload.changed_fields.some((field: unknown) => typeof field !== 'string' || field === 'project_id' || field === 'parent_id'))
+    .map(notification => notification.message.payload.id))
   const readyIds = new Set<number>()
   let queued = false
   const refresh = (id: number) => {
@@ -232,7 +238,7 @@ async function invalidateTaskEvents(client: ReturnType<typeof useQueryClient>, n
       queued = false
       const ids = [...readyIds]
       readyIds.clear()
-      if (ownGeneration === generation && client === queryClient) invalidateTaskIds(client, ids)
+      if (ownGeneration === generation && client === queryClient) invalidateTaskIds(client, ids, ids.some(id => unknownAssociations.has(id)))
     })
   }
   // A waiting local operation must not delay unrelated task events from the same frame.

@@ -1,5 +1,5 @@
 import { taskKeys } from './useTasks'
-import { projectKeys } from './projectKeys'
+import { isTaskDependentProjectKey, projectKeys } from './projectKeys'
 import type { Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ProjectScheduleSchema, ScheduleTaskSchema, type ProjectSchedule, type ScheduleTaskPatch } from '@liwan/contracts'
@@ -24,8 +24,10 @@ export function useUpdateProjectScheduleTask() {
     mutationFn: ({ projectId, taskId, patch }: { projectId: number; taskId: number; patch: ScheduleTaskPatch }) =>
       $api(`/api/v1/projects/${projectId}/schedule/tasks/${taskId}`, { method: 'PATCH', body: patch, schema: ScheduleTaskSchema }),
     onSuccess: async (_task, { projectId }) => {
+      const projectIds = new Set([projectId])
+      const changedFields = new Set(['liwan_planned_start', 'date_deadline'])
       await Promise.all([
-        qc.invalidateQueries({ queryKey: scheduleKeys.detail(projectId) }),
+        qc.invalidateQueries({ queryKey: projectKeys.all, predicate: query => isTaskDependentProjectKey(query.queryKey, projectIds, changedFields) }),
         qc.invalidateQueries({ queryKey: taskKeys.all }),
       ])
     },

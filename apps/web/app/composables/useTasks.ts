@@ -254,6 +254,7 @@ function taskPatchAffectsList(p: TaskListParams, patch: TaskPatch): boolean {
     || (patch.name !== undefined && (!!p.q || p.sort?.includes('name') === true))
     || (patch.priority !== undefined && (!!p.priority?.length || p.sort?.includes('priority') === true))
     || (patch.date_deadline !== undefined && (!!p.deadline || p.sort?.includes('deadline') === true))
+    || (patch.stage_id !== undefined && !!p.state?.length)
     || patch.user_ids !== undefined
 }
 
@@ -350,21 +351,14 @@ export function useUpdateTask({ notifyErrors = true }: { notifyErrors?: boolean 
       for (const [key] of qc.getQueriesData({ queryKey: ['tasks', 'list'] })) {
         if (taskPatchAffectsList(key[2] as TaskListParams, patch)) refresh({ queryKey: key, exact: true })
       }
-      if (patch.name !== undefined || patch.priority !== undefined || patch.date_deadline !== undefined || patch.user_ids !== undefined) {
+      if (patch.name !== undefined || patch.priority !== undefined || patch.date_deadline !== undefined || patch.user_ids !== undefined || patch.stage_id !== undefined) {
         refresh({ queryKey: ['tasks', 'summary'] })
         refresh({ queryKey: ['tasks', 'attention'] })
       }
       refresh({ queryKey: taskKeys.timeline(id) })
-      if (patch.date_deadline !== undefined || patch.percent_complete !== undefined || patch.allocated_hours !== undefined || patch.stage_id !== undefined || patch.milestone_id !== undefined) {
-        const projectIds = detail?.project?.id ? new Set([detail.project.id]) : undefined
-        refresh({ queryKey: projectKeys.all, predicate: query => isTaskDependentProjectKey(query.queryKey, projectIds)
-          && (patch.stage_id !== undefined || query.queryKey[3] !== 'stages') })
-      } else if (patch.name !== undefined) {
-        const projectIds = detail?.project?.id ? new Set([detail.project.id]) : undefined
-        // Variance names live tasks added after the baseline; snapshots keep their captured names.
-        refresh({ queryKey: projectKeys.all, predicate: query => isTaskDependentProjectKey(query.queryKey, projectIds)
-          && (query.queryKey[3] === 'evm' || query.queryKey[3] === 'baselines') })
-      }
+      const projectIds = detail?.project?.id ? new Set([detail.project.id]) : undefined
+      const changedFields = new Set(Object.keys(patch).filter(key => patch[key as keyof TaskPatch] !== undefined))
+      refresh({ queryKey: projectKeys.all, predicate: query => isTaskDependentProjectKey(query.queryKey, projectIds, changedFields) })
       // Mark eligibility only after all required reads/invalidation work has settled successfully.
       // The form itself still follows its committed write response.
       void Promise.allSettled(effects).then(results => complete(results.every(result => result.status === 'fulfilled')))
