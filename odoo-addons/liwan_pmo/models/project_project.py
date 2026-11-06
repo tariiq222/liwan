@@ -22,6 +22,7 @@ from .project_constants import (
     VISIBILITY_VALUES,
     _validate_charter_rows,
 )
+from .project_objective import _objective_command_scope
 from .project_tools import (
     CHILD_PROJECT_QUERY_MARKER,
     tool_domain_fields,
@@ -466,6 +467,9 @@ class ProjectProject(models.Model):
         self._liwan_check_manage()
         self._liwan_check_tool_preference_vals(vals)
         self._liwan_check_tool_content_vals(vals)
+        if 'liwan_objective_ids' in vals:
+            with _objective_command_scope(self, vals['liwan_objective_ids']):
+                return self._liwan_write_sudo(vals)
         return self._liwan_write_sudo(vals)
 
     def _liwan_write_charter_approval(self, vals):

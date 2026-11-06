@@ -8,6 +8,7 @@ STATUS_VALUES = {'on_track', 'at_risk', 'off_track', 'on_hold', 'done'}
 VISIBILITY_VALUES = ('employees', 'followers')
 ACCESS_USER_CREATE_MARKER = 'liwan_core.access_user_create_depth'
 POLICY_CREATE_MARKER = 'liwan_pmo.policy_create'
+OBJECTIVE_COMMAND_MARKER = 'liwan_pmo.objective_commands'
 DELIVERABLE_KEYS = ('name', 'description', 'acceptance')
 BUDGET_STATES = ('unknown', 'estimate')
 PRIORITY_VALUES = ('low', 'normal', 'high', 'critical')
