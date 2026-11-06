@@ -1,6 +1,6 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   HrDepartureListSchema,
   HrDepartureReasonListSchema,
@@ -88,6 +88,7 @@ export function useHrDepartures(params: MaybeRefOrGetter<HrDepartureListParams>,
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => hrDepartureKeys.departures(toValue(params))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => toValue(enabled)),
     queryFn: () => $api('/api/v1/hr/offboarding/departures', {
       query: hrDepartureListQuery(toValue(params)),

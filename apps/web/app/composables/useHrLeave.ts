@@ -2,7 +2,7 @@ import { ApiError } from './useApi'
 import { useHrOwnIdentity } from './useHrOwnIdentity'
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
 import {
   HrLeaveAllocationListSchema,
   HrLeaveApprovalProcessSchema,
@@ -97,6 +97,7 @@ export function useHrLeaveRequests(params: MaybeRefOrGetter<HrLeaveListParams>, 
   const identity = useHrOwnIdentity()
   return useQuery({
     queryKey: computed(() => toValue(params).scope === 'mine' ? [...hrLeaveKeys.requests(toValue(params)), identity.scope.value] : hrLeaveKeys.requests(toValue(params))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => toValue(enabled) && (toValue(params).scope !== 'mine' || identity.ready.value)),
     queryFn: () => $api('/api/v1/hr/leave/requests', {
       query: hrLeaveRequestQuery(toValue(params)),
@@ -210,6 +211,7 @@ export function useHrLeaveAllocations(params: MaybeRefOrGetter<HrLeaveAllocation
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => hrLeaveKeys.allocations(toValue(params))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => toValue(enabled)),
     queryFn: () => $api('/api/v1/hr/leave/allocations', { query: { ...toValue(params) }, schema: HrLeaveAllocationListSchema }),
   })

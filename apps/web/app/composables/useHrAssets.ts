@@ -1,7 +1,7 @@
 import { useHrOwnIdentity } from './useHrOwnIdentity'
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
 import {
   HrAssetCategoryListSchema,
   HrEquipmentListSchema,
@@ -145,6 +145,7 @@ export function useHrEquipmentList(input: MaybeRefOrGetter<HrEquipmentInput>, en
   const { can } = useAccess()
   return useQuery({
     queryKey: computed(() => hrAssetKeys.equipmentList(hrEquipmentQuery(toValue(input)))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => can('hr.assets.read') && toValue(enabled)),
     queryFn: () => $api('/api/v1/hr/assets/equipment', {
       query: { ...hrEquipmentQuery(toValue(input)) },

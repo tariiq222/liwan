@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import { useQuery } from '@tanstack/vue-query'
+import { keepPreviousData, useQuery } from '@tanstack/vue-query'
 import { PersonRefSchema } from '@liwan/contracts'
 
 const PersonListSchema = PersonRefSchema.array()
@@ -16,6 +16,7 @@ export function usePeople(q: Ref<string>, enabled: Ref<boolean> = ref(true), end
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => peopleSearch(endpoint.value, q.value).key),
+    placeholderData: keepPreviousData,
     // No minimum-length gate: an empty query still returns a usable "everyone"
     // list. Callers that pick from a fixed list pass `enabled: false`.
     enabled,
