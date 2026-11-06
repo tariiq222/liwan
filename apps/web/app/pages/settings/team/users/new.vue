@@ -2,7 +2,7 @@
 import { owningListBack } from '@/utils/recordListOrigin'
 import { accessErrorMessage } from '@/utils/accessErrors'
 import EmployeeAccountPicker from '@/components/access/users/EmployeeAccountPicker.vue'
-import { useAdminUser, useGrantAdminAccount, useReactivateAdminUser, useUpdateAdminUserAccess } from '@/composables/useAdminUsers'
+import { useAdminUser, useAdminUserSeats, useGrantAdminAccount, useReactivateAdminUser, useUpdateAdminUserAccess } from '@/composables/useAdminUsers'
 import { useEmployeeAccountBridge, useGrantEmployeeAccount } from '@/composables/useEmployeeAccounts'
 import type { EmployeeAccountCandidate } from '@liwan/contracts'
 import { useAdminPermissionCatalog, useAdminRoleDetails, useAdminRoles } from '@/composables/useAdminRoles'
@@ -35,11 +35,11 @@ const selectedCandidate = ref<EmployeeAccountCandidate>()
 const name = ref('')
 const login = ref('')
 const selectedRoleIds = ref<number[]>([])
-const password = ref('')
-const passwordConfirmation = ref('')
 const errorKey = ref('')
 const saved = ref(false)
-const dirty = computed(() => !saved.value && (name.value !== '' || login.value !== '' || (mode.value === 'employee' && employeeId.value !== undefined) || selectedRoleIds.value.length > 0 || password.value.length > 0 || passwordConfirmation.value.length > 0))
+// What the last send was for, once it went out: the confirmation names this address.
+const sent = ref<{ id: number; email: string; reactivated: boolean } | null>(null)
+const dirty = computed(() => !saved.value && (name.value !== '' || login.value !== '' || (mode.value === 'employee' && employeeId.value !== undefined) || selectedRoleIds.value.length > 0))
 const availableRoles = computed(() => (roles.data.value?.items ?? []).filter((role) => role.active && role.assignable))
 const stoppedUserId = computed<number | null>(() => mode.value === 'employee' && selectedCandidate.value?.user_id != null && selectedCandidate.value.access_active === false ? selectedCandidate.value.user_id : null)
 const existingUser = useAdminUser(stoppedUserId, computed(() => !forbidden.value && stoppedUserId.value !== null))
@@ -50,8 +50,19 @@ const selectedCapabilities = computed(() => [...new Set((roleDetails.data.value 
 const isReactivation = computed(() => stoppedUserId.value !== null)
 const employeeBlocked = computed(() => !selectedCandidate.value || (selectedCandidate.value.user_id !== null && selectedCandidate.value.access_active !== false))
 const loginInvalid = computed(() => login.value.trim() !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(login.value.trim()))
-const identityMissing = computed(() => mode.value === 'employee' ? employeeBlocked.value : name.value.trim() === '' || login.value.trim() === '' || loginInvalid.value)
+const loginMissing = computed(() => login.value.trim() === '' || loginInvalid.value)
+// A stopped account keeps its own login, so only a new account needs an address here.
+const identityMissing = computed(() => mode.value === 'employee' ? employeeBlocked.value || (!isReactivation.value && loginMissing.value) : name.value.trim() === '' || loginMissing.value)
+// A pending invitation holds a seat, and so does a reactivated account: the form shows which seat this one is and stops at the limit.
+const seats = useAdminUserSeats(computed(() => !forbidden.value))
+const seatLimit = computed(() => seats.data.value?.limit ?? null)
+const seatNumber = computed(() => (seats.data.value?.used ?? 0) + 1)
+const atSeatLimit = computed(() => seatLimit.value !== null && (seats.data.value?.used ?? 0) >= seatLimit.value)
 const busy = computed(() => grant.isPending.value || grantFromEmployee.isPending.value || reactivate.isPending.value || updateAccess.isPending.value)
+// The employee's work email is the suggested login; the administrator may change it before sending.
+watch(selectedCandidate, (candidate, previous) => {
+  if (mode.value === 'employee' && (login.value === '' || login.value === (previous?.work_email ?? ''))) login.value = candidate?.work_email ?? ''
+})
 watch(existingUser.data, (user) => {
   if (selectedRoleIds.value.length) return
   selectedRoleIds.value = user?.assignments.map((assignment) => assignment.role.id).filter((id): id is number => id !== null) ?? []
@@ -67,40 +78,60 @@ async function submit() {
   errorKey.value = ''
   const selectedEmployeeId = employeeId.value
   const selectedRoleIdsSnapshot = selectedRoleIds.value.slice()
+  const reactivating = isReactivation.value
   const companyId = me.value?.company.id
-  if (identityMissing.value || selectedRoleIdsSnapshot.length === 0 || !companyId || !hydrated.value || password.value !== passwordConfirmation.value) return
+  if (identityMissing.value || selectedRoleIdsSnapshot.length === 0 || !companyId || !hydrated.value || atSeatLimit.value) return
   const assignments = selectedRoleIdsSnapshot.map((role_id) => ({ role_id, scope: { kind: 'company' as const, id: companyId } }))
   try {
     let user: Awaited<ReturnType<typeof grant.mutateAsync>>
     if (mode.value === 'account') {
-      user = await grant.mutateAsync({ name: name.value, login: login.value, password: password.value, assignments })
-    } else if (isReactivation.value) {
+      user = await grant.mutateAsync({ name: name.value, login: login.value.trim(), assignments })
+    } else if (reactivating) {
       if (!existingUser.data.value) { errorKey.value = t('access.users.loadingAccount'); return }
       user = await updateAccess.mutateAsync({ id: existingUser.data.value.id, body: { expected_version: existingUser.data.value.version, assignments } })
-      user = await reactivate.mutateAsync({ id: user.id, body: { expected_version: user.version, password: password.value } })
+      user = await reactivate.mutateAsync({ id: user.id, body: { expected_version: user.version } })
     } else if (selectedEmployeeId) {
-      user = await grantFromEmployee.mutateAsync({ employee_id: selectedEmployeeId, password: password.value, assignments })
+      user = await grantFromEmployee.mutateAsync({ employee_id: selectedEmployeeId, login: login.value.trim(), assignments })
     } else return
-    password.value = ''
-    passwordConfirmation.value = ''
     saved.value = true
-    await navigateTo({ path: `/settings/team/users/${user.id}`, query: { returnTo: backTo.value } }, { replace: true })
+    sent.value = { id: user.id, email: user.login, reactivated: reactivating }
   } catch (error) {
-    password.value = ''
-    passwordConfirmation.value = ''
     errorKey.value = accessErrorMessage(error, t)
   }
+}
+function inviteAnother() {
+  name.value = ''
+  login.value = ''
+  employeeId.value = undefined
+  selectedCandidate.value = undefined
+  selectedRoleIds.value = []
+  saved.value = false
+  sent.value = null
 }
 </script>
 
 <template>
   <SharedCreatePanel :title="t('access.users.grantTitle')" :back-to="backTo">
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
-    <UForm v-else :state="{ name, login, employeeId, selectedRoleIds, password, passwordConfirmation }" class="liwan-form" method="post" @submit="submit">
+    <div v-else-if="sent" class="liwan-form">
+      <UAlert role="status" color="success" variant="subtle" icon="i-lucide-mail-check" :title="t(sent.reactivated ? 'access.users.resetLinkSentTitle' : 'access.users.invitationSentTitle', { email: sent.email })" :description="sent.reactivated ? undefined : t('access.users.invitationSentBody')" />
+      <SharedFormActions>
+        <div class="ms-auto flex flex-wrap items-center gap-2">
+          <UButton color="neutral" variant="outline" :label="t('access.users.inviteAnother')" @click="inviteAnother" />
+          <UButton :to="{ path: `/settings/team/users/${sent.id}`, query: { returnTo: backTo } }" color="primary" :label="t('access.users.viewUser')" />
+        </div>
+      </SharedFormActions>
+    </div>
+    <UForm v-else :state="{ name, login, employeeId, selectedRoleIds }" class="liwan-form" method="post" @submit="submit">
       <SharedUnsavedChanges :dirty="dirty" />
       <SharedSegmentedControl v-if="bridge.available.value" :label="t('access.users.mode')" :items="modeItems" :model-value="mode" @update:model-value="chosenMode = $event as Mode" />
       <SharedFormSection v-if="mode === 'employee'" panel :title="t('access.users.employee')">
-        <EmployeeAccountPicker v-model="employeeId" v-model:candidate="selectedCandidate" :requested-employee-id="hasRequestedEmployee ? requestedEmployeeId : undefined" />
+        <div class="grid gap-4">
+          <EmployeeAccountPicker v-model="employeeId" v-model:candidate="selectedCandidate" :requested-employee-id="hasRequestedEmployee ? requestedEmployeeId : undefined" />
+          <UFormField v-if="selectedCandidate && !isReactivation && !employeeBlocked" :label="t('access.users.loginEmail')" name="login" :help="t('access.users.employeeLoginHint')" :error="loginInvalid ? t('access.users.loginInvalid') : undefined">
+            <UInput id="login" v-model="login" type="email" autocomplete="off" dir="ltr" class="w-full" :disabled="!hydrated" />
+          </UFormField>
+        </div>
       </SharedFormSection>
       <SharedFormSection v-else panel :title="t('access.users.accountDetails')">
         <div class="grid gap-4">
@@ -130,16 +161,8 @@ async function submit() {
       </SharedFormSection>
       <p v-if="existingUser.isLoading.value" class="text-sm text-muted">{{ t('access.users.loadingAccount') }}</p>
       <UAlert v-else-if="existingUser.error.value" color="error" variant="subtle" :title="t('errors.generic')" />
-      <SharedFormSection panel :title="t('access.users.password')">
-        <div class="grid gap-4">
-          <UFormField :label="t('access.users.password')" name="password">
-            <UInput id="password" v-model="password" type="password" autocomplete="new-password" dir="ltr" class="w-full" :disabled="!hydrated" />
-          </UFormField>
-          <UFormField :label="t('access.users.passwordConfirmation')" name="password-confirmation" :error="passwordConfirmation && password !== passwordConfirmation ? t('access.users.passwordMismatch') : undefined">
-            <UInput id="password-confirmation" v-model="passwordConfirmation" type="password" autocomplete="new-password" dir="ltr" class="w-full" :disabled="!hydrated" />
-          </UFormField>
-        </div>
-      </SharedFormSection>
+      <UAlert v-if="atSeatLimit" role="alert" color="warning" variant="subtle" icon="i-lucide-users" :title="t('access.users.seatLimitReached', { limit: seatLimit })" />
+      <p v-else-if="seatLimit !== null" class="text-sm text-muted" data-testid="seat-line">{{ t('access.users.seatLine', { number: seatNumber, limit: seatLimit }) }}</p>
       <SharedFormSection v-if="selectedCapabilities.length" panel :title="t('access.users.resultingCapabilities')">
         <ul class="flex flex-wrap gap-2">
           <li v-for="(capability, index) in selectedCapabilities" :key="index"><SharedStatusBadge tone="neutral" size="sm" :label="capability" /></li>
@@ -152,8 +175,8 @@ async function submit() {
           <UButton
             type="submit"
             color="primary"
-            :label="isReactivation ? t('access.users.reactivateAccount') : t('access.users.grantAccount')"
-            :disabled="!hydrated || busy || roles.isLoading.value || existingUser.isLoading.value || identityMissing || selectedRoleIds.length === 0 || password.length < 8 || password !== passwordConfirmation"
+            :label="isReactivation ? t('access.users.reactivateAccount') : t('access.users.sendInvitation')"
+            :disabled="!hydrated || busy || roles.isLoading.value || existingUser.isLoading.value || identityMissing || selectedRoleIds.length === 0 || atSeatLimit"
           />
         </div>
       </SharedFormActions>

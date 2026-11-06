@@ -55,6 +55,11 @@ async function logout() {
     <SharedPageHeader :title="t('account.settings')" icon="i-lucide-settings-2" back-to="/account" :back-label="t('nav.account')" />
     <SharedPropertiesPanel v-if="me" :title="t('account.identity')">
       <SharedPropertyRow :label="t('auth.username')"><bdi dir="ltr">{{ me.login }}</bdi></SharedPropertyRow>
+      <SharedPropertyRow :label="t('account.mobile')">
+        <bdi v-if="me.mobile" dir="ltr">{{ me.mobile }}</bdi>
+        <span v-else class="text-muted">{{ t('account.noMobile') }}</span>
+        <UButton to="/account/mobile" color="neutral" variant="link" size="sm" :label="t('account.changeMobile')" />
+      </SharedPropertyRow>
       <SharedPropertyRow :label="t('account.company')" :value="me.company.name" />
     </SharedPropertiesPanel>
     <SharedFormSection panel :title="t('account.preferences')">

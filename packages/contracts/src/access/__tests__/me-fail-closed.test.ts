@@ -20,6 +20,13 @@ describe('Me access extensions fail closed', () => {
     expect(parsed.access_policy_version).toBe(0)
   })
 
+  it('carries the holder\'s own mobile number and the mobile gate, and never blocks on a server that omits them', () => {
+    expect(MeSchema.parse({ ...BASE_ME, mobile: '+966500000001', mobile_required: false })).toMatchObject({ mobile: '+966500000001', mobile_required: false })
+    expect(MeSchema.parse({ ...BASE_ME, mobile: null, mobile_required: true })).toMatchObject({ mobile: null, mobile_required: true })
+    expect(MeSchema.parse(BASE_ME)).toMatchObject({ mobile: null, mobile_required: false })
+    expect(() => MeSchema.parse({ ...BASE_ME, mobile: '0500000001' })).toThrow()
+  })
+
   it('rejects malformed capability keys instead of treating them as authority', () => {
     for (const key of ['access.users read', 'ACCESS.users.read', 'access', 'access..read']) {
       expect(() => MeSchema.parse({ ...BASE_ME, capabilities: ['access.users.read', key] })).toThrow()

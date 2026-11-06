@@ -25,7 +25,7 @@ const roleLabel = (role: { name: { ar: string; en: string | null } }) => role.na
 const rolesOf = (user: AdminUserSummary) => joinList(user.assignments.map(assignment => roleLabel(assignment.role)), t) || t('access.users.noRoles')
 const userTo = (user: AdminUserSummary): RouteLocationRaw => props.toFor?.(user) ?? `/settings/team/users/${user.id}`
 const { can } = useAccess()
-const badge = (user: AdminUserSummary) => accessBadge({ active: user.active, protected: user.protected })
+const badge = (user: AdminUserSummary) => accessBadge({ active: user.active, protected: user.protected, invitation: user.invitation })
 const actionsFor = (user: AdminUserSummary): RowAction[] => [
   { label: t('access.view'), icon: 'i-lucide-eye', to: userTo(user) },
   ...(can('access.users.assign_roles') ? [{ label: t('access.users.editAccess'), icon: 'i-lucide-user-cog', to: `/settings/team/users/${user.id}/access` } satisfies RowAction] : []),

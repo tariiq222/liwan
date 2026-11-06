@@ -3,6 +3,12 @@ import type { AccessAuditSummary } from '@liwan/contracts'
 /** The locale key of each access-log action. */
 export const AUDIT_ACTION_LABELS: Record<AccessAuditSummary['action'], string> = {
   'user.granted': 'access.audit.actions.userGranted',
+  'user.invited': 'access.audit.actions.userInvited',
+  'user.invitation_resent': 'access.audit.actions.userInvitationResent',
+  'user.invitation_login_changed': 'access.audit.actions.userInvitationLoginChanged',
+  'user.invitation_cancelled': 'access.audit.actions.userInvitationCancelled',
+  'user.reset_link_sent': 'access.audit.actions.userResetLinkSent',
+  'user.password_set': 'access.audit.actions.userPasswordSet',
   'user.employee_linked': 'access.audit.actions.userEmployeeLinked',
   'user.branch_roles_changed': 'access.audit.actions.userBranchRolesChanged',
   'branch.policy_changed': 'access.audit.actions.branchPolicyChanged',

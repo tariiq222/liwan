@@ -246,10 +246,26 @@ export type CapabilitySource = z.infer<typeof CapabilitySourceSchema>
 export const EffectiveCapabilitySchema = z.object({ key: CapabilitySchema, sources: z.array(CapabilitySourceSchema) }).strict()
 export type EffectiveCapability = z.infer<typeof EffectiveCapabilitySchema>
 
+/** E.164 with the leading plus: the form the server stores. The UI defaults the country code to +966. */
+export const MOBILE_PATTERN = /^\+[1-9]\d{7,14}$/
+export const MobileSchema = z.string().regex(MOBILE_PATTERN)
+
+/** The pending-invitation block of an account: `null` once the holder has set a password. */
+export const AdminUserInvitationSchema = z.object({
+  state: z.enum(['pending', 'expired']).nullable(),
+  delivery: z.enum(['pending', 'sent', 'failed']).nullable(),
+  sent_at: z.string().nullable(),
+  expires_at: z.string().nullable(),
+}).strict()
+export type AdminUserInvitation = z.infer<typeof AdminUserInvitationSchema>
+
 export const AdminUserSummarySchema = z.object({
   id: z.number().int().positive(),
   name: z.string(),
   login: z.string(),
+  /** Visible to user administrators only; the holder sets it themselves. */
+  mobile: MobileSchema.nullable(),
+  invitation: AdminUserInvitationSchema.nullable(),
   /** Present only when the employee-account bridge is installed. */
   employee: EmployeeRefSchema.nullable().optional(),
   active: z.boolean(),
@@ -260,14 +276,15 @@ export const AdminUserSummarySchema = z.object({
 export type AdminUserSummary = z.infer<typeof AdminUserSummarySchema>
 export const AdminUserDetailSchema = AdminUserSummarySchema.extend({
   capabilities: z.array(EffectiveCapabilitySchema),
-  allowed_actions: z.array(z.enum(['read', 'assign_roles', 'reset_password', 'disable', 'reactivate'])),
+  allowed_actions: z.array(z.enum(['read', 'assign_roles', 'send_reset_link', 'disable', 'reactivate', 'resend_invitation', 'edit_invitation', 'cancel_invitation'])),
 }).strict()
 export type AdminUserDetail = z.infer<typeof AdminUserDetailSchema>
 export const AdminUserListSchema = z.object({ items: z.array(AdminUserSummarySchema), total: z.number().int().nonnegative() }).strict()
 export type AdminUserList = z.infer<typeof AdminUserListSchema>
 
+export const MIN_ACCOUNT_PASSWORD_LENGTH = 12
 /** The length counts the trimmed value, but the server keeps the exact text, whitespace included. */
-export const PasswordInputSchema = z.string().refine((value) => value.trim().length >= 8, { message: 'password must have at least 8 characters' })
+export const PasswordInputSchema = z.string().refine((value) => value.trim().length >= MIN_ACCOUNT_PASSWORD_LENGTH, { message: `password must have at least ${MIN_ACCOUNT_PASSWORD_LENGTH} characters` })
 const NonEmptyVersionSchema = z.string().trim().min(1)
 const uniqueAssignments = (assignments: RoleAssignmentInput[]) => {
   const keys = assignments.map((assignment) => `${assignment.role_id}:${assignment.scope.kind}:${assignment.scope.id}`)
@@ -275,22 +292,30 @@ const uniqueAssignments = (assignments: RoleAssignmentInput[]) => {
 }
 export const AssignmentListSchema = z.array(RoleAssignmentInputSchema).min(1).refine(uniqueAssignments, { message: 'assignments must be unique' })
 
+/** Adding an account sends an invitation: no password is accepted or shown by any administrator screen. */
 export const GrantAccountInputSchema = z.object({
   name: z.string().trim().min(1),
   login: z.string().trim().email(),
-  password: PasswordInputSchema,
   assignments: AssignmentListSchema,
 }).strict()
 export type GrantAccountInput = z.infer<typeof GrantAccountInputSchema>
 export const UpdateUserAccessInputSchema = z.object({ assignments: AssignmentListSchema, expected_version: NonEmptyVersionSchema }).strict()
 export type UpdateUserAccessInput = z.infer<typeof UpdateUserAccessInputSchema>
-export const ResetPasswordInputSchema = z.object({ password: PasswordInputSchema, expected_version: NonEmptyVersionSchema }).strict()
-export type ResetPasswordInput = z.infer<typeof ResetPasswordInputSchema>
-export const ChangeUserStateInputSchema = z.object({ expected_version: NonEmptyVersionSchema, password: PasswordInputSchema.optional() }).strict()
-export type ChangeUserStateInput = z.infer<typeof ChangeUserStateInputSchema>
+export const InvitationLoginInputSchema = z.object({ login: z.string().trim().email(), expected_version: NonEmptyVersionSchema }).strict()
+export type InvitationLoginInput = z.infer<typeof InvitationLoginInputSchema>
+/** Resend, cancel, send a reset link, disable and reactivate carry nothing but the version they act on. */
+export const VersionOnlyInputSchema = z.object({ expected_version: NonEmptyVersionSchema }).strict()
+export type VersionOnlyInput = z.infer<typeof VersionOnlyInputSchema>
+export const SeatUsageSchema = z.object({
+  used: z.number().int().nonnegative(),
+  /** `null` when the subscription has no user limit. */
+  limit: z.number().int().nonnegative().nullable(),
+}).strict()
+export type SeatUsage = z.infer<typeof SeatUsageSchema>
 
 export const AuditActionSchema = z.enum([
-  'user.granted', 'user.employee_linked', 'user.roles_changed', 'user.disabled', 'user.reactivated',
+  'user.granted', 'user.invited', 'user.invitation_resent', 'user.invitation_login_changed', 'user.invitation_cancelled',
+  'user.reset_link_sent', 'user.password_set', 'user.employee_linked', 'user.roles_changed', 'user.disabled', 'user.reactivated',
   'user.password_reset', 'user.branch_roles_changed', 'branch.policy_changed',
   'employee.archived_access_disabled', 'role.created',
   'role.updated', 'role.disabled', 'role.enabled', 'role.deleted',
