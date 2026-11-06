@@ -45,6 +45,7 @@ def resolving(monkeypatch):
     "ftp://llm.example.com/",
     "llm.example.com",
     "https://",
+    "https://[api.example.com/v1",  # an unclosed IPv6 bracket makes the parser itself refuse
 ])
 def test_a_base_url_of_the_wrong_shape_is_invalid(url):
     with pytest.raises(BaseUrlRefusedError) as refused:

@@ -58,8 +58,8 @@ def base_url_host(base_url: str) -> str:
     """
     if not PRINTABLE_ASCII.fullmatch(base_url):  # also keeps the parser from silently dropping tabs and newlines
         raise BaseUrlRefusedError(INVALID)
-    parts = urlsplit(base_url)
-    try:
+    try:  # a malformed URL (an unclosed IPv6 bracket, a bad port) is a shape refusal, never a server error
+        parts = urlsplit(base_url)
         port = parts.port
     except ValueError:
         raise BaseUrlRefusedError(INVALID) from None
