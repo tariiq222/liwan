@@ -10,7 +10,14 @@ export function isPossibleSessionExpiry(error: unknown): boolean {
   return error instanceof ApiError && error.status === 401
 }
 
-/** A signed-in user replaced by another one in the same tab: the first user's cached data must not be shown to the second. */
-export function isDifferentUser(before: { id: number } | null | undefined, after: { id: number } | null | undefined): boolean {
-  return Boolean(before && after && before.id !== after.id)
+type SessionIdentity = { id: number, company: { id: number } }
+
+/** One mounted private view belongs to one user and active company. */
+export function sessionIdentityKey(identity: SessionIdentity | null | undefined): string {
+  return identity ? `${identity.id}:${identity.company.id}` : 'anonymous'
+}
+
+/** Public and guest forms do not follow changes to an unrelated private session. */
+export function sessionViewKey(identityKey: string, access: unknown): string {
+  return access === 'public' || access === 'guest' ? 'public' : `private:${identityKey}`
 }
