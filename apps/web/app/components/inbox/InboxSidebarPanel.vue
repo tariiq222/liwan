@@ -25,7 +25,7 @@ const sections = computed<ShellSubListSection[]>(() => [{
   id: 'reports',
   title: t('inbox.reports.title'),
   items: [
-    ...(can('inbox.conversations.read') ? [{ id: 'conversations', label: t('inbox.reports.backToInbox'), icon: 'i-liwan-whatsapp', to: '/inbox', active: false, testId: 'inbox-reports-nav-conversations' }] : []),
+    ...(can('inbox.conversations.read') ? [{ id: 'conversations', label: t('inbox.reports.backToInbox'), icon: 'i-lucide-messages-square', to: '/inbox', active: false, testId: 'inbox-reports-nav-conversations' }] : []),
     ...reportTabs(route.path, {}).map(tab => ({
       id: tab.id, label: t(`inbox.reports.tabs.${tab.id}`), icon: TAB_ICON[tab.id], to: tab.to, active: tab.id === activeReportTab(route.path), testId: `inbox-reports-nav-${tab.id}`,
     })),
@@ -39,7 +39,7 @@ const campaignSections = computed<ShellSubListSection[]>(() => [{
   id: 'campaigns',
   title: t('inbox.campaigns.title'),
   items: [
-    ...(can('inbox.conversations.read') ? [{ id: 'conversations', label: t('inbox.reports.backToInbox'), icon: 'i-liwan-whatsapp', to: '/inbox', active: false, testId: 'inbox-campaigns-nav-conversations' }] : []),
+    ...(can('inbox.conversations.read') ? [{ id: 'conversations', label: t('inbox.reports.backToInbox'), icon: 'i-lucide-messages-square', to: '/inbox', active: false, testId: 'inbox-campaigns-nav-conversations' }] : []),
     { id: 'list', label: t('inbox.campaigns.title'), icon: 'i-lucide-megaphone', to: '/inbox/campaigns', active: !audiences.value, testId: 'inbox-campaigns-nav-list' },
     { id: 'audiences', label: t('inbox.campaigns.audiences.title'), icon: 'i-lucide-users-round', to: '/inbox/campaigns/audiences', active: audiences.value, testId: 'inbox-campaigns-nav-audiences' },
   ],

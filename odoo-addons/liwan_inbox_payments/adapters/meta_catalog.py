@@ -2,7 +2,8 @@
 """Meta commerce catalog calls: pure functions over the inbox adapter's Graph API entry point (no Odoo environment)."""
 import json
 
-from odoo.addons.liwan_inbox.adapters.whatsapp import ProviderError, graph_request
+from odoo.addons.liwan_inbox.adapters.errors import ProviderError
+from odoo.addons.liwan_inbox.adapters.whatsapp import graph_request
 
 # Meta's error codes of a token that lacks a permission or an asset (permission, no access, invalid token).
 PERMISSION_CODES = frozenset({10, 190, 200})

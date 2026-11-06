@@ -10,6 +10,7 @@ import {
   InboxTagListSchema, InboxTemplateListSchema, InboxTemplateSchema, InboxCatalogItemListSchema, InboxCatalogItemSchema, InboxCatalogListSchema,
   InboxCatalogPickItemListSchema, InboxCatalogSchema, InboxChannelCommerceSchema, InboxCatalogProductOptionListSchema,
   InboxOrderCheckoutResultSchema, InboxOrderListSchema, InboxOrderSchema,
+  InboxTikTokConnectResponseSchema, InboxTikTokShortcutEnableResultSchema, InboxTikTokShortcutListSchema, InboxTikTokSyncAnswerSchema,
 } from '@liwan/contracts'
 import { inboxPreviewData, resetInboxPreview } from '../../../../e2e/inbox-ui-preview-data.mjs'
 
@@ -23,7 +24,7 @@ describe('inbox audit mock', () => {
   beforeEach(() => resetInboxPreview())
 
   it('serves contract-valid lists and details', () => {
-    expect(InboxConversationListSchema.parse(call('GET', '/api/v1/inbox/conversations').body).total).toBe(4)
+    expect(InboxConversationListSchema.parse(call('GET', '/api/v1/inbox/conversations').body).total).toBe(6)
     expect(InboxConversationDetailSchema.parse(call('GET', '/api/v1/inbox/conversations/1').body).can_reply).toBe(true)
     expect(InboxMessageListSchema.parse(call('GET', '/api/v1/inbox/conversations/1/messages').body).items.length).toBeGreaterThan(0)
     expect(InboxCannedReplyListSchema.parse(call('GET', '/api/v1/inbox/canned-replies').body).total).toBe(2)
@@ -31,8 +32,19 @@ describe('inbox audit mock', () => {
     expect(InboxTagListSchema.parse(call('GET', '/api/v1/inbox/tags').body).total).toBe(3)
     expect(InboxDepartmentListSchema.parse(call('GET', '/api/v1/inbox/departments').body).total).toBe(2)
     expect(InboxSettingsSchema.parse(call('GET', '/api/v1/settings/inbox').body).visibility_policy).toBe('department')
-    expect(InboxChannelListSchema.parse(call('GET', '/api/v1/inbox/channels').body).total).toBe(1)
+    expect(InboxChannelListSchema.parse(call('GET', '/api/v1/inbox/channels').body).total).toBe(2)
     expect(InboxRefSchema.parse(call('GET', '/api/v1/inbox/channels/1/ref').body).id).toBe(1)
+  })
+
+  it('serves a TikTok channel with its shortcuts and its import job', () => {
+    const channels = InboxChannelListSchema.parse(call('GET', '/api/v1/inbox/channels').body).items
+    const tiktok = channels.find(channel => channel.kind === 'tiktok')
+    expect(tiktok).toMatchObject({ phone_number_id: null, business_account_id: null, has_app_secret: null, has_verify_token: null, tiktok_username: 'al_amal_clinic' })
+    expect(InboxTikTokShortcutListSchema.parse(call('GET', '/api/v1/inbox/channels/2/tiktok/shortcuts').body).total).toBe(5)
+    const enabled = InboxTikTokShortcutEnableResultSchema.parse(call('POST', '/api/v1/inbox/channels/2/tiktok/shortcuts/enable', { kind: 'prompt', enabled: true }).body)
+    expect(enabled.items.every(item => item.kind === 'prompt')).toBe(true)
+    expect(InboxTikTokSyncAnswerSchema.parse(call('GET', '/api/v1/inbox/channels/2/tiktok/sync').body).job?.state).toBe('done')
+    expect(InboxTikTokConnectResponseSchema.parse(call('POST', '/api/v1/inbox/channels/tiktok/connect', { name: 'تيك توك' }).body).authorize_url).toContain('https://')
   })
 
   it('filters the list like the server', () => {
@@ -218,7 +230,7 @@ describe('inbox audit mock', () => {
       expect(InboxWorkingHoursSchema.parse(call('GET', '/api/v1/inbox/working-hours').body).days.length).toBeGreaterThan(0)
       expect(InboxDepartmentWorkingHoursSchema.parse(call('GET', '/api/v1/inbox/departments/1/working-hours').body).working_hours).toBeNull()
       expect(InboxChannelAutomationSchema.parse(call('GET', '/api/v1/inbox/channels/1/automation').body).welcome.enabled).toBe(true)
-      expect(call('GET', '/api/v1/inbox/automation/channels').body).toEqual({ items: [{ id: 1, name: 'واتساب الاستقبال' }], total: 1 })
+      expect(call('GET', '/api/v1/inbox/automation/channels').body).toEqual({ items: [{ id: 1, name: 'واتساب الاستقبال' }, { id: 2, name: 'تيك توك العيادة' }], total: 2 })
       expect(call('POST', '/api/v1/inbox/rules/test', { channel_id: 1, text: 'x' }).status).toBe(422)
       expect(InboxRuleListSchema.parse(call('GET', '/api/v1/inbox/rules').body).total).toBe(2)
       const messages = InboxMessageListSchema.parse(call('GET', '/api/v1/inbox/conversations/1/messages?limit=100').body).items
@@ -450,7 +462,7 @@ describe('inbox audit mock', () => {
       expect(rows('agent').some(row => row.subject === null)).toBe(true)
       expect(rows('agent').map(row => row.metrics.conversations_resolved)).toEqual([...rows('agent').map(row => row.metrics.conversations_resolved)].sort((a, b) => b - a))
       expect(rows('department').map(row => row.subject?.name)).toEqual(expect.arrayContaining(['الاستقبال', 'المبيعات']))
-      expect(rows('channel')).toHaveLength(1)
+      expect(rows('channel').map(row => row.subject?.name)).toEqual(expect.arrayContaining(['واتساب الاستقبال', 'تيك توك العيادة']))
       expect(call('GET', `/api/v1/inbox/reports/breakdown?by=agent&agent_id=5&${RANGE}`).status).toBe(422)
       expect(call('GET', `/api/v1/inbox/reports/breakdown?by=color&${RANGE}`).status).toBe(422)
     })
@@ -467,7 +479,7 @@ describe('inbox audit mock', () => {
       expect(report.currency).toBe('USD')
       expect(report.totals.volume).toBe(report.totals.paid_volume + report.totals.free_volume)
       expect(report.series).toHaveLength(30)
-      expect(report.channels).toHaveLength(1)
+      expect(report.channels.map(row => row.channel.name)).toEqual(expect.arrayContaining(['واتساب الاستقبال', 'تيك توك العيادة']))
       expect(call('GET', '/api/v1/inbox/reports/costs?from=2026-10-01&to=2026-10-01&channel_id=99').status).toBe(404)
     })
 

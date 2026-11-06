@@ -23,7 +23,7 @@ from odoo.addons.liwan_inbox.controllers.helpers import (
 from odoo.addons.liwan_inbox.models.access_service import MANAGE_CHANNELS
 from odoo.addons.liwan_inbox.serializers.settings import dump_channel
 
-HOOK_PATH = '/api/v1/inbox/hooks/whatsapp'
+HOOK_PATHS = {'whatsapp': '/api/v1/inbox/hooks/whatsapp', 'tiktok': '/api/v1/inbox/hooks/tiktok'}
 CREATE_FIELDS = {
     'name', 'kind', 'department_id', 'phone_number_id', 'business_account_id', 'access_token', 'app_secret', 'app_id',
 }
@@ -33,7 +33,7 @@ SECRET_LIMITS = {'access_token': (16, 1024), 'app_secret': (16, 256)}
 
 def dump(channel):
     base = request.httprequest.url_root.replace('http://', 'https://', 1).rstrip('/')
-    return dump_channel(channel, base + HOOK_PATH)
+    return dump_channel(channel, base + HOOK_PATHS[channel.kind])
 
 
 def parse_channel(payload, creating):
@@ -134,5 +134,5 @@ class ChannelController(http.Controller):
     @requires_capability(MANAGE_CHANNELS)
     def test_channel(self, channel_id, **_):
         channel = get_channel(channel_id, MANAGE_CHANNELS)
-        channel._liwan_refresh_health()
+        channel._liwan_test_connection()
         return dump(channel)

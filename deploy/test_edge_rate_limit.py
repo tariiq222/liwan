@@ -24,7 +24,8 @@ DOCKERFILE = ROOT / 'deploy' / 'proxy' / 'Dockerfile'
 COMPOSE = ROOT / 'deploy' / 'docker-compose.yml'
 
 DEDICATED_ZONES = ('liwan_auth', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo', 'liwan_web')
-ZONES = ('liwan_auth', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo_image', 'liwan_odoo', 'liwan_web')
+ZONES = ('liwan_auth', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo_image', 'liwan_odoo', 'liwan_web',
+         'liwan_tiktok')
 SHARED_CADDYFILE = ROOT / 'deploy' / 'shared' / 'Caddyfile'
 CADDY_IMAGE_REPOSITORY = 'liwan-caddy-test'
 DOCKER_UNAVAILABLE = ('cannot connect to the docker daemon', 'is the docker daemon running',
@@ -104,7 +105,7 @@ def _caddy_container(script: str) -> subprocess.CompletedProcess:
 
 def _adapt_shared_caddyfile(text: str) -> dict:
     result = _caddy_container(
-        "set -eu\nexport DOMAIN=a.example.test\n"
+        "set -eu\nexport DOMAIN=a.example.test\nexport LIWAN_TIKTOK_RELAY_HOST=hooks.example.test\n"
         "cat > /tmp/source.Caddyfile <<'LIWAN_CADDY_SOURCE'\n"
         + text + "\nLIWAN_CADDY_SOURCE\n"
         + 'caddy adapt --config /tmp/source.Caddyfile --adapter caddyfile\n'
@@ -112,12 +113,35 @@ def _adapt_shared_caddyfile(text: str) -> dict:
     return json.loads(result.stdout)
 
 
+def _tenant_rate_limits(adapted: dict) -> dict:
+    """The rate-limit handler of the tenant site (the hooks host has its own handler)."""
+    handlers = [handler for handler in _find_handlers(adapted, 'rate_limit') if 'liwan_auth' in handler['rate_limits']]
+    if len(handlers) != 1:
+        raise AssertionError(f'expected one tenant rate_limit handler, got {len(handlers)}')
+    return handlers[0]['rate_limits']
+
+
+def _proxy_handlers(obj: object, dial: str, inherited: tuple[str, ...] = ()) -> list[dict]:
+    """Every reverse_proxy handler for `dial`, with the path matchers enclosing it."""
+    found: list[dict] = []
+    if isinstance(obj, dict):
+        paths = list(inherited)
+        for match in obj.get('match', []):
+            paths.extend(match.get('path', []))
+        if obj.get('handler') == 'reverse_proxy' and any(
+                upstream.get('dial') == dial for upstream in obj.get('upstreams', [])):
+            found.append({'paths': set(paths), 'handler': obj})
+        for value in obj.values():
+            found.extend(_proxy_handlers(value, dial, tuple(paths)))
+    elif isinstance(obj, list):
+        for item in obj:
+            found.extend(_proxy_handlers(item, dial, inherited))
+    return found
+
+
 def _probe_shared_zones(text: str, paths: list[str]) -> list[set[str]]:
     adapted = _adapt_shared_caddyfile(text)
-    handlers = _find_handlers(adapted, 'rate_limit')
-    if len(handlers) != 1:
-        raise AssertionError(f'expected one shared rate_limit handler, got {len(handlers)}')
-    zones = handlers[0]['rate_limits']
+    zones = _tenant_rate_limits(adapted)
     # Each adapted matcher set (including OR and NOT) is transplanted unchanged
     # into a nonterminal marker route. Do not hand-copy or reimplement path rules.
     routes = [
@@ -200,6 +224,8 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
             sorted((p['host_ip'], str(p['published']), p['target']) for p in proxy),
             [('0.0.0.0', '443', 443), ('0.0.0.0', '80', 80)],
         )
+        # The relay belongs to the `tiktok` profile, so a stack without the app renders no relay.
+        self.assertNotIn('tiktok-relay', rendered['services'])
         for name in ('guard', 'odoo', 'db', 'web'):
             with self.subTest(service=name):
                 self.assertFalse(rendered['services'][name].get('ports'))
@@ -233,9 +259,7 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
         """Behavioral: caddy adapt in built image verifies static asset exemptions in liwan_web."""
         adapted = _adapt_shared_caddyfile(SHARED_CADDYFILE.read_text(encoding='utf-8'))
 
-        rl_handlers = _find_handlers(adapted, 'rate_limit')
-        self.assertEqual(len(rl_handlers), 1)
-        zones = rl_handlers[0]['rate_limits']
+        zones = _tenant_rate_limits(adapted)
 
         self.assertEqual(zones['liwan_auth']['max_events'], 20)
         self.assertEqual(zones['liwan_auth']['match'][0]['path'], ['/api/auth/*', '/api/v1/auth/*', '/web/session/*', '/web/login'])
@@ -314,12 +338,15 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
         with self.assertRaises(AssertionError):
             self.assertEqual(actual, [expected for _, expected in SHARED_ZONE_CASES])
 
-    def _render_shared(self, extra: dict) -> dict:
+    def _render_shared(self, extra: dict, profiles: tuple = ()) -> dict:
         if not shutil.which('docker') or subprocess.run(
                 ['docker', 'compose', 'version'], capture_output=True, timeout=60).returncode:
             self.skipTest('docker compose unavailable')
         env = {
             'LIWAN_IMAGE_TAG': 'test', 'ODOO_COMMIT': 'dummy', 'LIWAN_SESSION_KEYS': 'dummy',
+            'LIWAN_TIKTOK_RELAY_HOST': 'hooks.example.test',
+            'LIWAN_TIKTOK_CLIENT_KEY': 'test-only-client-key',
+            'LIWAN_TIKTOK_CLIENT_SECRET': 'test-only-client-secret',
             'LIWAN_SESSION_ACTIVE_KID': 'k1', 'LIWAN_SHARED_PROXY_TOKEN': 'dummy',
             'LIWAN_SHARED_ODOO_CONFIG': '/tmp/dummy-odoo.conf', 'LIWAN_TENANT_REGISTRY_DIR': '/tmp',
             'POSTGRES_PASSWORD': 'dummy', 'LIWAN_DOMAIN': 'example.test', **extra,
@@ -329,6 +356,7 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
             envfile.write_text(''.join(f'{k}={v}\n' for k, v in env.items()), encoding='utf-8')
             res = subprocess.run(
                 ['docker', 'compose', '--env-file', str(envfile),
+                 *[arg for profile in profiles for arg in ('--profile', profile)],
                  '-f', str(COMPOSE), '-f', str(ROOT / 'deploy' / 'docker-compose.shared.yml'),
                  'config', '--format', 'json'],
                 capture_output=True, text=True, timeout=60, cwd=ROOT, env={k: v for k, v in os.environ.items() if not k.startswith(('LIWAN_', 'ODOO_', 'POSTGRES_'))},
@@ -355,6 +383,41 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
             )
         self.assertEqual(res.returncode, 0, res.stderr)
         return json.loads(res.stdout)
+
+
+    def test_shared_overlay_runs_the_tiktok_relay_isolated(self) -> None:
+        """Behavioral: the relay service owns its registry mount, bindings volume and networks."""
+        rendered = self._render_shared({}, profiles=('tiktok',))
+        relay = rendered['services']['tiktok-relay']
+        self.assertEqual(relay['command'], ['node', 'deploy/shared/tiktok-relay.mjs'])
+        self.assertEqual(relay['read_only'], True)
+        self.assertEqual(relay.get('cap_drop'), ['ALL'])
+        mounts = {mount['target']: mount for mount in relay['volumes']}
+        self.assertTrue(mounts['/etc/liwan'].get('read_only'))
+        self.assertIn('tiktok_bindings', mounts['/var/lib/liwan']['source'])
+        self.assertIn('relay_odoo', relay['networks'])
+        self.assertIn('relay_odoo', rendered['services']['odoo']['networks'])
+        self.assertEqual(relay['environment']['LIWAN_TIKTOK_RELAY_PORT'], '8090')
+        self.assertEqual(relay['environment']['LIWAN_TIKTOK_BINDINGS_PATH'], '/var/lib/liwan/tiktok-bindings.json')
+        self.assertTrue(relay['environment']['LIWAN_SHARED_PROXY_TOKEN'])
+
+    def test_hooks_host_forwards_only_tiktok_to_the_relay(self) -> None:
+        """Behavioral: the hooks site proxies /tiktok/* to the relay with its own bounded budget."""
+        adapted = _adapt_shared_caddyfile(SHARED_CADDYFILE.read_text(encoding='utf-8'))
+        hooks = [handler for handler in _find_handlers(adapted, 'rate_limit') if 'liwan_tiktok' in handler['rate_limits']]
+        self.assertEqual(len(hooks), 1)
+        zone = hooks[0]['rate_limits']['liwan_tiktok']
+        self.assertEqual(zone['max_events'], 120)
+        self.assertEqual(zone['match'][0]['path'], ['/tiktok/*'])
+        forwarded = _proxy_handlers(adapted, 'tiktok-relay:8090')
+        self.assertEqual([handler['paths'] for handler in forwarded], [{'/tiktok/*'}])
+        self.assertIn('X-Liwan-Proxy-Token', forwarded[0]['handler']['headers']['request']['delete'])
+        dials = {
+            upstream['dial']
+            for handler in _find_handlers(adapted, 'reverse_proxy')
+            for upstream in handler.get('upstreams', [])
+        }
+        self.assertEqual(dials, {'guard:8080', 'tiktok-relay:8090'})
 
     def test_auth_zone_is_tighter_than_the_api_zone(self) -> None:
         text = CADDYFILE.read_text(encoding='utf-8')

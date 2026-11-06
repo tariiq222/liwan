@@ -25,6 +25,14 @@ MESSAGE_KEYS = {
 }
 
 
+# Every key of InboxChannelSchema (packages/contracts/src/inbox/index.ts).
+CHANNEL_KEYS = {
+    'id', 'name', 'kind', 'state', 'department', 'phone_number_id', 'business_account_id', 'has_access_token',
+    'has_app_secret', 'app_id', 'has_verify_token', 'callback_url', 'last_error', 'last_event_at', 'health',
+    'tiktok_username', 'token_expires_at', 'needs_reconnect', 'tiktok_welcome_audit', 'tiktok_questions_enabled',
+    'tiktok_prompts_enabled',
+}
+
 # Every key of InboxTemplateSchema.
 TEMPLATE_KEYS = {
     'id', 'name', 'language', 'category', 'status', 'status_reason', 'quality', 'header', 'body', 'body_examples', 'footer',

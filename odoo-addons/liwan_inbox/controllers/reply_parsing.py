@@ -8,7 +8,7 @@ from odoo.exceptions import ValidationError
 from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.common import parse_positive_int
-from odoo.addons.liwan_inbox.adapters import media_rules
+from odoo.addons.liwan_inbox.adapters import media_rules, tiktok
 from odoo.addons.liwan_inbox.controllers.helpers import (
     check_fields,
     find_one,
@@ -193,10 +193,34 @@ def parse_flow(value, channel):
 PARSE_INTERACTIVE = {'buttons': parse_buttons, 'list': parse_list_rows, 'cta_url': parse_cta_url}
 
 
+def check_tiktok_interactive(value):
+    """422 unless this content is the button card TikTok accepts (1 to 3 buttons; title 40, button title 20, id 40)."""
+    if value.get('type') != 'buttons':
+        reject('TikTok accepts a button card only', 'interactive', 'inbox_tiktok_unsupported_kind')
+    buttons, body = value.get('buttons'), value.get('body')
+    if (
+        not isinstance(buttons, list) or not 1 <= len(buttons) <= tiktok.MAX_BUTTONS
+        or not isinstance(body, str) or not 0 < len(body.strip()) <= tiktok.CARD_TITLE_MAX
+        or any(
+            not isinstance(button, dict)
+            or not isinstance(button.get('title'), str) or not 0 < len(button['title'].strip()) <= tiktok.BUTTON_TITLE_MAX
+            or not isinstance(button.get('id'), str) or not 0 < len(button['id']) <= tiktok.BUTTON_ID_MAX
+            for button in buttons
+        )
+    ):
+        reject(
+            'a TikTok button card holds 1 to 3 buttons, a title of at most 40 characters, '
+            'a button title of at most 20 and a button id of at most 40',
+            'interactive', 'inbox_tiktok_unsupported_kind',
+        )
+
+
 def parse_interactive(value, channel=None):
     """Interactive content as model values; `channel` is where a form message will be sent (None: not known yet)."""
     if not isinstance(value, dict) or value.get('type') not in INTERACTIVE_TYPES:
         reject(f'interactive.type must be one of {INTERACTIVE_TYPES}', 'interactive')
+    if channel is not None and channel.kind == 'tiktok':
+        check_tiktok_interactive(value)
     specific = parse_flow(value, channel) if value['type'] == 'flow' else PARSE_INTERACTIVE[value['type']](value)
     options = specific.pop('options', [])
     return {

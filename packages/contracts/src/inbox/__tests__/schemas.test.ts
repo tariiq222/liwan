@@ -31,6 +31,8 @@ const CONVERSATION = {
   unread: true,
   reply_window_ends_at: '2026-10-29T09:00:00Z',
   csat: null,
+  referral_source: null,
+  referral_ref: null,
 }
 
 describe('InboxConversationListSchema', () => {

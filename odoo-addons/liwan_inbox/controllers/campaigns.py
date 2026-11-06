@@ -12,7 +12,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
-from odoo.addons.liwan_inbox.adapters import whatsapp
+from odoo.addons.liwan_inbox.adapters import errors
 from odoo.addons.liwan_inbox.controllers.audiences import search_term
 from odoo.addons.liwan_inbox.controllers.campaign_parsing import (
     in_company,
@@ -24,6 +24,7 @@ from odoo.addons.liwan_inbox.controllers.helpers import (
     find_one,
     no_content,
     reject,
+    require_kind,
 )
 from odoo.addons.liwan_inbox.controllers.templates import parse_sample_upload
 from odoo.addons.liwan_inbox.models.access_service import CAMPAIGNS
@@ -47,7 +48,9 @@ def dump_one(campaign):
 
 
 def campaign_of(campaign_id):
-    return get_record('liwan.inbox.campaign', campaign_id)
+    campaign = get_record('liwan.inbox.campaign', campaign_id)
+    require_kind(campaign.channel_id, 'whatsapp')
+    return campaign
 
 
 def choice_filter(args, key, choices):
@@ -168,6 +171,7 @@ class CampaignController(http.Controller):
     @requires_capability(CAMPAIGNS)
     def preview(self, **payload):
         template, params, contact = parse_preview(payload)
+        require_kind(template.channel_id, 'whatsapp')
         return render_preview(template, params, contact)
 
     # lifecycle
@@ -217,7 +221,7 @@ class CampaignController(http.Controller):
         contact = in_company(find_one('liwan.inbox.contact', payload['contact_id'], 'contact_id'), 'contact_id')
         try:
             message = campaign._liwan_send_test(contact)
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             reject(str(error))
         return {'conversation_id': message.conversation_id.id, 'message_id': message.id}
 
