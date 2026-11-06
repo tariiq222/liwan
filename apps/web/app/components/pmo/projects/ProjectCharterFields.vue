@@ -304,8 +304,6 @@ const descriptionLooksHtml = computed(() => /<\/?[a-z][\s\S]*>/i.test(draft.valu
       v-model="draft"
       :readonly="readonly"
       :disabled="controlsDisabled"
-      :show-objectives="false"
-      :show-deliverables="show('deliverables')"
     />
 
     <UFormField v-if="show('benefits')" :label="t('projects.charter.fields.benefits')" data-testid="charter-field-benefits">

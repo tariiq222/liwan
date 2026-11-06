@@ -100,41 +100,30 @@ async function renderFields(fields: readonly CharterFieldKey[] = CHARTER_FIELD_K
     'UInput', 'UTextarea', 'ProjectFieldHelp', 'UButton', 'USelectMenu', 'USelect', 'SharedDateField', 'NuxtLink',
     'UFormField', 'SharedPersonPicker', 'SharedRichText', 'SharedSubCard',
   ]) app.component(name, Passthrough)
-  app.component('ProjectCharterRows', defineComponent({
-    props: { showObjectives: Boolean, showDeliverables: Boolean },
-    setup(props) {
-      return () => h('div', [
-        props.showObjectives ? h('div', { 'data-testid': 'charter-field-objectives' }) : null,
-        props.showDeliverables ? h('div', { 'data-testid': 'charter-field-deliverables' }) : null,
-      ])
-    },
-  }))
+  app.component('ProjectCharterRows', defineComponent({ setup: () => () => h('div', { 'data-testid': 'charter-field-deliverables' }) }))
   return renderToString(app)
 }
 
-async function renderRows(sections: { showObjectives: boolean; showDeliverables: boolean }) {
+async function renderRows() {
   const render = compileSfcTemplate(rowsFilename)
   const component = defineComponent({
     setup: () => ({
       draft: {
-        objectives: [{ key: 'o1', goal: 'Launch', metric: '', target: '', persisted: true }],
         deliverables: [{ key: 'd1', name: 'Legacy output', description: '', acceptance: 'Signed off', persisted: true }],
       },
       readonly: false,
       disabled: false,
-      ...sections,
       pendingRemove: null,
       t: (key: string) => key,
       helpLabel: (key: string) => key,
       requestRemove: () => {},
-      addObjective: () => {},
       addDeliverable: () => {},
       removeRow: () => {},
     }),
     render,
   })
   const app = createSSRApp({ render: () => h(component) })
-  for (const name of ['UInput', 'UTextarea', 'ProjectFieldHelp', 'UButton']) app.component(name, Passthrough)
+  for (const name of ['UInput', 'UTextarea', 'ProjectFieldHelp', 'UButton', 'UFormField', 'SharedSubCard', 'SharedInlineConfirm']) app.component(name, Passthrough)
   return renderToString(app)
 }
 
@@ -296,14 +285,8 @@ describe('project charter document', () => {
 })
 
 describe('charter rows', () => {
-  it('renders only the objectives section on the justification step', async () => {
-    const html = await renderRows({ showObjectives: true, showDeliverables: false })
-    expect(html).toContain('data-testid="charter-field-objectives"')
-    expect(html).not.toContain('data-testid="charter-field-deliverables"')
-  })
-
   it('renders only the deliverables section on the scope step', async () => {
-    const html = await renderRows({ showObjectives: false, showDeliverables: true })
+    const html = await renderRows()
     expect(html).not.toContain('data-testid="charter-field-objectives"')
     expect(html).toContain('data-testid="charter-field-deliverables"')
     expect(html).toContain('data-testid="charter-field-acceptance"')

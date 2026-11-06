@@ -38,6 +38,7 @@ const ME = {
 const BRANDING = { name: 'ليوان', logo_url: '/web/binary/company_logo?company=1', primary_color: '#7843c6', font: 'IBM_Plex_Sans_Arabic' }
 const PROJECT_SETTINGS = {
   project_creators: 'managers',
+  planning_tool_policy: 'optional', governance_tool_policy: 'optional', finance_tool_policy: 'optional',
   default_stages: [{ name: 'جديد', fold: false }, { name: 'جارٍ', fold: false }],
   require_manager_on_create: false,
   require_end_date_on_create: false,
@@ -201,7 +202,7 @@ test('project settings open as a real page under Settings > Apps', async ({ page
   await expect(settingsProjects).toHaveAttribute('aria-expanded', 'true')
   await expect(page.getByTestId('application-navigation').locator('a[href="/settings/apps/projects"]')).toBeVisible()
   await expect(page.getByRole('region', { name: 'سياسة إنشاء المشاريع', exact: true }).getByRole('radiogroup')).toBeVisible()
-  await expect(page.locator('.liwan-settings-content [data-slot="record-section"]')).toHaveCount(6)
+  await expect(page.locator('.liwan-settings-content [data-slot="record-section"][data-variant="panel"], .liwan-settings-content [data-slot="record-section"][data-variant="list"]')).toHaveCount(6)
   expect(new URL(page.url()).pathname).toBe('/settings/apps/projects')
   await page.screenshot({ path: testInfo.outputPath('submenu-projects-desktop-rtl.png'), fullPage: true })
 })

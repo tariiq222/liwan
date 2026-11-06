@@ -55,11 +55,20 @@ test('charter help opens on hover and closes when the pointer leaves', async ({ 
   await expect(page.getByRole('tooltip')).toHaveCount(0)
 })
 
-test('charter help opens on focus, toggles with Enter, and closes with Escape', async ({ page }) => {
+test('charter help opens after offscreen keyboard focus, toggles with Enter, and closes with Escape', async ({ page }) => {
+  await page.setViewportSize({width:1280,height:400})
   await login(page)
   const help = await openCharter(page)
   await page.mouse.move(0, 0)
-  await help.focus()
+  await page.getByTestId('project-create-name').focus()
+  await page.evaluate(()=>window.scrollTo(0,0))
+  await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(0)
+  expect((await help.boundingBox())!.y).toBeGreaterThanOrEqual(400)
+  await page.keyboard.press('Shift+Tab')
+  await expect(help).toBeFocused()
+  await expect.poll(()=>page.evaluate(()=>scrollY)).toBeGreaterThan(0)
+  // Settle the browser's focus-induced scroll notifications, without a timed sleep.
+  await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))))
   await expect(help).toHaveAttribute('aria-expanded','true')
   await expect(page.getByRole('tooltip')).toBeVisible()
   await help.press('Enter')
