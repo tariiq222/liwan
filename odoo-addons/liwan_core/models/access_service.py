@@ -727,7 +727,7 @@ class LiwanAccessService(models.AbstractModel):
         self._liwan_require_capability('access.users.grant')
         existing = self.env['res.users'].with_context(active_test=False).search([('login', '=', login)], limit=1)
         if existing:
-            user = self._liwan_reinvite(existing, name)
+            user = self._liwan_reinvite(existing, name, partner_id)
         else:
             user = self._liwan_create_invitee(name, login, partner_id)
         self._liwan_replace_assignments(user, assignments)
@@ -772,10 +772,17 @@ class LiwanAccessService(models.AbstractModel):
             raise LiwanAccessRule(msg, field='login', status=409) from None
 
     @api.model
-    def _liwan_reinvite(self, existing, name):
-        """Reactivate the archived row of a cancelled invitation; any other existing login is a conflict."""
+    def _liwan_reinvite(self, existing, name, partner_id=False):
+        """Reactivate the archived row of a cancelled invitation; any other existing login is a conflict.
+
+        A contact the caller names must be the one the archived user already has: the login stays reserved
+        for the person it was first invited as.
+        """
         self._liwan_assert_user_scope(existing)
-        if existing.active or existing.id not in self._liwan_awaiting_users(existing):
+        if (
+            existing.active or existing.id not in self._liwan_awaiting_users(existing)
+            or (partner_id and partner_id != existing.partner_id.id)
+        ):
             msg = 'account_exists'
             raise LiwanAccessRule(msg, field='login', status=409)
         with marked(self.env, {PARTNER_GRANT_MARKER: [existing.partner_id.id]}):
