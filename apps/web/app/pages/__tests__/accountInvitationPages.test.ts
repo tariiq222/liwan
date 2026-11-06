@@ -47,6 +47,15 @@ describe('the emailed-link pages', () => {
     }
   })
 
+  it('the access error texts cover the refusals the account service answers, and nothing unused', () => {
+    for (const lang of ['ar', 'en']) {
+      const { errors } = locale(lang, 'access').access
+      expect(errors.invitation_pending).toBeTruthy()
+      expect(errors.user_inactive).toBeTruthy()
+      expect(errors).not.toHaveProperty('work_email_required')
+    }
+  })
+
   it('reset sends only the token and the new password, for the reset purpose', () => {
     expect(reset).toContain("resetPassword({ token: token.value, password: password.value })")
     expect(reset).toContain("checkToken(token.value, 'reset')")
