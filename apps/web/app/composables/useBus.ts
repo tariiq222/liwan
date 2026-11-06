@@ -276,9 +276,12 @@ function invalidateForFrame(notifications: BusNotification[]) {
   }
   // An event can land after an ongoing read took its snapshot. Share that read,
   // then reconcile once instead of cancelling/restarting it for every frame.
-  const inFlight = filters.refetchType === 'active' ? client.getQueryCache().findAll(filters).filter(q => q.state.fetchStatus === 'fetching' && !trailingReconciliations.has(q.queryHash)) : []
+  // A hidden invalidation resolves immediately; wait for the snapshot itself so
+  // its success cannot clear the staleness needed when the tab becomes visible.
+  const inFlight = client.getQueryCache().findAll(filters).filter(q => q.state.fetchStatus === 'fetching' && !trailingReconciliations.has(q.queryHash))
+  const pendingReads = inFlight.map(query => query.promise)
   inFlight.forEach(q => trailingReconciliations.add(q.queryHash))
-  void client.invalidateQueries(filters, { cancelRefetch: false }).then(() => {
+  void Promise.allSettled([client.invalidateQueries(filters, { cancelRefetch: false }), ...pendingReads]).then(() => {
     for (const query of inFlight) {
       trailingReconciliations.delete(query.queryHash)
       if (ownGeneration !== generation || client !== queryClient) continue
