@@ -48,8 +48,10 @@ def _liwan_tiktok_relay_config():
 def _liwan_tiktok_relay_answer(dbname, channel_id, method, open_id):
     """The shared relay's answer to one binding call, or None when this deployment runs no relay.
 
-    A binding never makes a connect or a delete fail: the failure is logged without the token,
-    and the cron retries an unbound channel.
+    Both the bind and the unbind name this tenant, because the shared proxy token alone proves no
+    tenant: the relay removes a binding only for the tenant that owns it. A binding never makes a
+    connect or a delete fail: the failure is logged without the token, and the cron retries an
+    unbound channel.
     """
     config = _liwan_tiktok_relay_config()
     if config is None:
@@ -60,7 +62,7 @@ def _liwan_tiktok_relay_answer(dbname, channel_id, method, open_id):
             method,
             f'{url}/internal/tiktok/bindings/{quote(open_id, safe="")}',
             # The shared registry knows this tenant by the database identifier, its only identity here.
-            json={'tenant_id': dbname} if method == 'PUT' else None,
+            json={'tenant_id': dbname},
             headers={RELAY_TOKEN_HEADER: token},
             timeout=RELAY_TIMEOUT_SECONDS,
         )
@@ -70,7 +72,7 @@ def _liwan_tiktok_relay_answer(dbname, channel_id, method, open_id):
 
 
 def _liwan_tiktok_relay_delete(dbname, channel_id, open_id):
-    """Remove one account's relay binding; a failure leaves a stale binding that routes no event."""
+    """Remove one account's relay binding for this tenant; a failure leaves a stale binding that routes no event."""
     answer = _liwan_tiktok_relay_answer(dbname, channel_id, 'DELETE', open_id)
     if answer is not None and not answer.ok:
         _logger.warning('tiktok relay refused the unbinding of channel %s: HTTP %s', channel_id, answer.status_code)

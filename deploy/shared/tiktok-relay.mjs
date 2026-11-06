@@ -44,13 +44,13 @@ const hmac = (secret, ...parts) => {
 const equal = (expected, actual) => expected.length === actual.length && timingSafeEqual(expected, actual)
 
 /** `Tiktok-Signature: t=<unix s>,s=<hex>`, where `s == HMAC_SHA256(client_secret, f"{t}.{raw}")`.
- * The window is the plan's contract and mirrors the tenant: refuse when `now - t > 5`.
- * A future timestamp is not a replay risk because `t` is covered by the signature. */
+ * The window mirrors the tenant and is symmetric: refuse when `|now - t| > 5`, because a
+ * timestamp dated in the future would otherwise escape the replay window as the clock advances. */
 export function verifySignature(clientSecret, raw, header, now) {
   if (typeof header !== 'string') return false
   const match = SIGNATURE_PATTERN.exec(header)
   if (!match) return false
-  if (now - Number(match[1]) > SIGNATURE_MAX_AGE_SECONDS) return false
+  if (Math.abs(now - Number(match[1])) > SIGNATURE_MAX_AGE_SECONDS) return false
   return equal(hmac(clientSecret, `${match[1]}.`, raw), Buffer.from(match[2], 'hex'))
 }
 
@@ -139,22 +139,18 @@ export function createTiktokRelay({ clientSecret, registryPath, bindingsPath, pr
   const holdsProxyToken = value => equal(Buffer.from(proxyToken), Buffer.from(typeof value === 'string' ? value : ''))
 
   /** PUT/DELETE /internal/tiktok/bindings/<open_id>: the tenant's Odoo registers or removes the
-   * account it owns. The shared proxy token is the only caller identity; the registry decides
-   * which identifiers exist, and an account already held by another active tenant is a conflict. */
+   * account it owns. The shared proxy token is the only caller identity; it proves no tenant, so
+   * both methods carry the caller's tenant and resolve it in the active registry.
+   *
+   * A DELETE removes a binding only when it belongs to the caller's tenant. One held by another
+   * active tenant answers 409 and stays routable; one whose tenant is no longer active routes
+   * nothing (Review Focus 5), so an active tenant may drop that stale record. */
   async function bindingsRoute(req, res, openIdPath) {
     if (!holdsProxyToken(req.headers[BINDINGS_HEADER])) return send(res, 403, 'invalid_proxy_token')
     if (req.method !== 'PUT' && req.method !== 'DELETE') return send(res, 405, 'method_not_allowed')
     let openId
     try { openId = decodeURIComponent(openIdPath) } catch { return send(res, 400, 'invalid_open_id') }
     if (!OPEN_ID_PATTERN.test(openId)) return send(res, 400, 'invalid_open_id')
-    let stored
-    try { stored = readBindings(bindingsPath) } catch { return send(res, 500, 'bindings_unavailable') }
-    if (req.method === 'DELETE') {
-      if (!Object.hasOwn(stored, openId)) return send(res, 200, JSON.stringify({ open_id: openId, removed: false }), JSON_TYPE)
-      delete stored[openId]
-      try { writeBindings(bindingsPath, stored) } catch { return send(res, 500, 'bindings_unavailable') }
-      return send(res, 200, JSON.stringify({ open_id: openId, removed: true }), JSON_TYPE)
-    }
     let raw
     try { raw = await readBodyBytes(req, res, MAX_BINDING_BYTES) } catch (error) {
       return send(res, error.statusCode === 413 ? 413 : 502, error.statusCode === 413 ? 'payload_too_large' : 'body_unavailable')
@@ -162,17 +158,22 @@ export function createTiktokRelay({ clientSecret, registryPath, bindingsPath, pr
     let payload
     try { payload = JSON.parse(raw.toString('utf8')) } catch { return send(res, 400, 'invalid_payload') }
     if (!payload || typeof payload !== 'object' || typeof payload.tenant_id !== 'string' || !payload.tenant_id) return send(res, 400, 'invalid_payload')
-    let target
-    try {
-      // Shared hosting hands Odoo its database identifier, not the registry tenant id.
-      target = currentRegistry().targets.find(candidate => candidate.enabled && (candidate.tenantId === payload.tenant_id || candidate.database === payload.tenant_id)) ?? null
-    } catch { return send(res, 500, 'registry_unavailable') }
+    let registry
+    try { registry = currentRegistry() } catch { return send(res, 500, 'registry_unavailable') }
+    // Shared hosting hands Odoo its database identifier, not the registry tenant id.
+    const target = registry.targets.find(candidate => candidate.enabled && (candidate.tenantId === payload.tenant_id || candidate.database === payload.tenant_id)) ?? null
     if (!target) return send(res, 422, 'unknown_tenant')
+    let stored
+    try { stored = readBindings(bindingsPath) } catch { return send(res, 500, 'bindings_unavailable') }
     const existing = Object.hasOwn(stored, openId) ? stored[openId] : null
-    if (existing && existing !== target.tenantId) {
-      let previous
-      try { previous = activeByTenantId(currentRegistry(), existing) } catch { return send(res, 500, 'registry_unavailable') }
-      if (previous) return send(res, 409, 'tenant_conflict')
+    // Another active tenant owns the account: registering it elsewhere or removing it is a conflict.
+    const heldByAnotherActiveTenant = existing && existing !== target.tenantId && activeByTenantId(registry, existing) !== null
+    if (heldByAnotherActiveTenant) return send(res, 409, 'tenant_conflict')
+    if (req.method === 'DELETE') {
+      if (!existing) return send(res, 200, JSON.stringify({ open_id: openId, removed: false }), JSON_TYPE)
+      delete stored[openId]
+      try { writeBindings(bindingsPath, stored) } catch { return send(res, 500, 'bindings_unavailable') }
+      return send(res, 200, JSON.stringify({ open_id: openId, removed: true }), JSON_TYPE)
     }
     if (existing !== target.tenantId) {
       stored[openId] = target.tenantId
