@@ -35,6 +35,18 @@ describe('the emailed-link pages', () => {
     expect(join.match(/<UFormField/g)?.length).toBe(3)
   })
 
+  it('join explains an expired or used invitation in its own words, and reset keeps the generic link text', () => {
+    expect(join).toContain("t('accountLink.join.invalidTitle')")
+    expect(join).not.toContain("t('accountLink.invalidTitle')")
+    expect(reset).toContain("t('accountLink.invalidTitle')")
+    for (const lang of ['ar', 'en']) {
+      const { accountLink } = locale(lang, 'invite')
+      expect(accountLink.join.invalidTitle).toBeTruthy()
+      expect(accountLink.join.invalidBody).toBeTruthy()
+      expect(accountLink.join.invalidTitle).not.toBe(accountLink.invalidTitle)
+    }
+  })
+
   it('reset sends only the token and the new password, for the reset purpose', () => {
     expect(reset).toContain("resetPassword({ token: token.value, password: password.value })")
     expect(reset).toContain("checkToken(token.value, 'reset')")

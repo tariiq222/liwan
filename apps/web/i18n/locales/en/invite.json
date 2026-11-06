@@ -46,6 +46,8 @@
     "mobileInvalid": "Enter a valid international mobile number, such as +966500000001.",
     "mobileTaken": "This mobile number belongs to another account.",
     "join": {
+      "invalidTitle": "The invitation has expired or was already used",
+      "invalidBody": "Ask your company administrator to send it again.",
       "title": "Accept invitation",
       "subtitle": "Enter your mobile number and choose your password to activate your account.",
       "submit": "Activate account",

@@ -90,7 +90,7 @@ async function submit() {
       <UAlert v-if="formError" role="alert" :color="formError === 'unavailable' ? 'warning' : 'error'" variant="subtle" :icon="formError === 'unavailable' ? 'i-lucide-cloud-off' : 'i-lucide-circle-alert'" :title="t(`accountLink.${formError}Title`)" :description="t(`accountLink.${formError}Body`)" />
       <UButton type="submit" size="lg" class="w-full justify-center" :disabled="!canSubmit" :loading="pending" :label="formError === 'unavailable' ? t('accountLink.retry') : t('accountLink.join.submit')" />
     </form>
-    <UAlert v-else-if="state === 'invalid'" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('accountLink.invalidTitle')" :description="t('accountLink.invalidBody')" />
+    <UAlert v-else-if="state === 'invalid'" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('accountLink.join.invalidTitle')" :description="t('accountLink.join.invalidBody')" />
     <div v-else class="grid gap-4">
       <UAlert role="status" color="success" variant="subtle" icon="i-lucide-circle-check" :title="t('accountLink.join.successTitle')" :description="login ? t('accountLink.join.successLogin', { login }) : t('accountLink.join.successBody')" />
       <UButton :to="loginHref" size="lg" class="w-full justify-center" :label="t('accountLink.signIn')" />
