@@ -18,7 +18,7 @@ Reduce unnecessary requests and serial waiting while preserving authorization, t
 Behavioral regression tests with RED/GREEN evidence for loops, request counts, cancellation, concurrent mutations, hidden SSR dependencies, retry classes, identity isolation, tenant publication and bounded chunked bodies. Focused worker checks only; coordinator combined npm test, typechecks of both consumers when UI changes, static policies, production build and isolated browser request-count/interaction journeys. Inspect live rules/current-head ci-result, protected PR merge, postmerge CI. No timing/percent claim without comparable measurements.
 
 ## Audit evidence
-Source audit and findings: /Users/tariq/Documents/Codex/2026-11-06/webvue-frontend-audit/AUDIT.ar.md with underlying five reports and independent-review.md. Every finding must be fixed, profiled and resolved, or explicitly reported blocked; do not silently drop a candidate or claim all complete.
+Source audit and findings: AUDIT.ar.md, the underlying five reports and independent-review.md, retained in the external task evidence directory. Every finding must be fixed, profiled and resolved, or explicitly reported blocked; do not silently drop a candidate or claim all complete.
 
 ## Evidence-driven implementation decisions
 - Task writes reuse the existing updated_at fact at microsecond precision; write-source notification metadata unions changed field names without values. Comments/mixed events stay conservative. Local acknowledgements are bounded/consumed and identity-bound; no timestamp-only cache-hit suppression.
