@@ -229,6 +229,43 @@ class TestTikTokSync(LiwanInboxCase):
                 'the contact is named after the conversation participants, not after the open id',
             )
 
+    def test_a_leading_outbound_message_of_a_first_import_is_kept(self):
+        """The window's oldest message may be the echo of a reply the business sent before it: kept, not dropped."""
+        job = self.queue()
+        job.write({'phase': 'messages', PENDING: json.dumps(['conv-out'])})
+        # TikTok lists the newest first; the import reads them oldest first, so the echo is ingested before
+        # any message of the conversation exists.
+        newest = tt.rest_message(
+            'TEXT', {'body': 'Hi'}, message_id='msg-in-late', conversation_id='conv-out',
+            from_id='sender-conv-out', timestamp=tt.SENT_AT,
+        )
+        oldest = tt.rest_message(
+            'TEXT', {'body': 'Replied from the TikTok app'}, message_id='msg-out-open', conversation_id='conv-out',
+            from_role='BUSINESS_ACCOUNT', from_id=tt.BUSINESS_ID, timestamp=tt.SENT_AT - 60_000,
+            to_user={'role': 'PERSONAL_ACCOUNT', 'id': 'sender-conv-out'},
+        )
+        answers = [response(tt.content_list(
+            [newest, oldest],
+            [tt.participant('PERSONAL_ACCOUNT', 'sender-conv-out', 'sara-conv-out'),
+             tt.participant('BUSINESS_ACCOUNT', tt.BUSINESS_ID, 'liwan')],
+        ))]
+        self.run_steps(job, answers, 1)
+        conversation = self.env['liwan.inbox.conversation'].search([('provider_conversation_id', '=', 'conv-out')])
+        self.assertEqual(len(conversation), 1)
+        self.assertEqual((conversation.contact_id.name, conversation.unread), ('sara-conv-out', False))
+        kept = self.env['liwan.inbox.message'].search([
+            ('conversation_id', '=', conversation.id), ('direction', '=', 'out'),
+        ])
+        self.assertEqual(len(kept), 1)
+        self.assertEqual(
+            (kept.provider_message_id, kept.body, kept.delivery_state),
+            ('msg-out-open', 'Replied from the TikTok app', 'sent'),
+        )
+        self.assertFalse(kept.author_id)
+        inbound = self.env['liwan.inbox.message'].search([('provider_message_id', '=', 'msg-in-late')])
+        self.assertEqual((len(inbound), inbound.direction), (1, 'in'))
+        self.assertEqual((self.reload_job(job, 'messages_count', 'state').messages_count, job.state), (2, 'done'))
+
     def test_the_import_window_reads_both_timestamp_units(self):
         """TikTok answers the conversation update in milliseconds; a seconds value is read as one too."""
         job = self.queue()

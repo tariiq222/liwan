@@ -30,10 +30,11 @@ class LiwanInboxInbound(models.AbstractModel):
     def _liwan_ingest_tiktok(self, channel, items, historical=False):
         """Apply `items`; returns the conversations that changed."""
         changed = self.env['liwan.inbox.conversation']
+        echoes = []
         for item in items:
             if isinstance(item, tiktok.InboundMessage):
                 if item.echo:
-                    changed |= self._liwan_ingest_tiktok_echo(channel, item)
+                    echoes.append(item)
                 else:
                     changed |= self._liwan_ingest_tiktok_message(channel, item, historical)
             elif isinstance(item, tiktok.Reaction):
@@ -46,6 +47,12 @@ class LiwanInboxInbound(models.AbstractModel):
                 channel._liwan_tiktok_refresh_audit()
             elif isinstance(item, tiktok.EuNotice):
                 self._liwan_ingest_tiktok_eu(channel)
+        # An echo names no customer, so it never opens a conversation: an import window may open with one
+        # (the oldest message is a reply the business sent first), and the batch's first customer message
+        # is the one that creates the conversation the echo belongs to. Storing every echo last keeps none
+        # of them lost.
+        while echoes:
+            changed |= self._liwan_ingest_tiktok_echo(channel, echoes.pop(0))
         return changed
 
     @api.model
