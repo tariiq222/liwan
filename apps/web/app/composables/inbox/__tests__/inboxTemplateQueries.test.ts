@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // The hooks are run with the framework's auto-imports stubbed and vue-query replaced by a recorder of the options each
 // hook passes, so what is asserted is the request each one makes and the cache each one refreshes.
-type Options = { queryKey?: unknown; enabled?: unknown; queryFn?: () => unknown; mutationFn?: (input: never) => unknown; onSuccess?: (data: unknown, input: unknown) => unknown }
+type Options = { queryKey?: unknown; enabled?: unknown; queryFn?: (context?: { queryKey: readonly unknown[]; signal: AbortSignal }) => unknown; mutationFn?: (input: never) => unknown; onSuccess?: (data: unknown, input: unknown) => unknown }
 const seen: Options[] = []
 const queryClient = { invalidateQueries: vi.fn(async () => {}), setQueryData: vi.fn(), removeQueries: vi.fn() }
 vi.mock('@tanstack/vue-query', () => ({
@@ -65,8 +65,11 @@ describe('template queries', () => {
 
   it('asks the composer for approved templates only, in one page', async () => {
     useInboxTemplates(4, true)
-    await last().queryFn!()
-    expect($api).toHaveBeenCalledWith('/api/v1/inbox/channels/4/templates', expect.objectContaining({ query: APPROVED_TEMPLATES_QUERY }))
+    const queryKey = Vue.toValue(last().queryKey as Vue.MaybeRefOrGetter<readonly unknown[]>)
+    const signal = new AbortController().signal
+    expect(queryKey).toEqual(inboxKeys.templateList(4, APPROVED_TEMPLATES_QUERY))
+    await last().queryFn!({ queryKey, signal })
+    expect($api).toHaveBeenCalledWith('/api/v1/inbox/channels/4/templates', expect.objectContaining({ query: APPROVED_TEMPLATES_QUERY, signal }))
     expect(APPROVED_TEMPLATES_QUERY).toEqual({ status: 'approved', limit: 200 })
   })
 })
