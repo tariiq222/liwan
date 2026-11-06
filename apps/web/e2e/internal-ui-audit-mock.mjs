@@ -525,6 +525,12 @@ async function handle(req, res) {
     } else if (method !== 'GET' || path !== '/api/v1/ai/agents') return json(res, 405, { code: 'invalid', message: 'method' })
     return json(res, 200, { items: [aiAgentSetting('pmo')], total: 1 })
   }
+  // The mode a conversation started in, from its first audit row (setup and help rows name theirs; a message row is an ordinary one).
+  const modeMatch = method === 'GET' && path.match(/^\/api\/v1\/ai\/conversations\/([^/]+)\/mode$/)
+  if (modeMatch) {
+    const first = AI_AUDIT.find(row => row.conversation_id === decodeURIComponent(modeMatch[1]))
+    return json(res, 200, { mode: first ? (first.kind === 'message' ? 'assistant' : first.kind) : null })
+  }
   if (method === 'POST' && path === '/api/v1/ai/audit') {
     let entry = {}
     try { entry = JSON.parse(await readBody(req) || '{}') } catch { entry = {} }
