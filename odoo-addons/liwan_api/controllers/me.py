@@ -11,7 +11,6 @@ from odoo.addons.liwan_api.controllers.common import (
 )
 from odoo.addons.liwan_api.models.res_users import APPEARANCE_MODES, FONT_SIZES
 from odoo.addons.liwan_api.serializers.user import dump_me
-from odoo.addons.liwan_core.models.access_service import MIN_PASSWORD_LENGTH
 
 
 class MeController(http.Controller):
@@ -29,13 +28,7 @@ class MeController(http.Controller):
             raise ApiError(422, 'invalid', f"field {field!r} is not accepted", field=field)
         if not isinstance(current, str) or not current:
             raise ApiError(422, 'wrong_password', 'current password is required', field='current')
-        if not isinstance(new, str) or len(new.strip()) < MIN_PASSWORD_LENGTH:
-            raise ApiError(
-                422,
-                'weak_password',
-                f'new password must be at least {MIN_PASSWORD_LENGTH} characters',
-                field='new',
-            )
+        request.env['liwan.access.service']._liwan_check_password(new, field='new')
 
         try:
             request.env.user.change_password(current, new)
