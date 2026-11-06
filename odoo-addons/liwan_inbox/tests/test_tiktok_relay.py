@@ -136,8 +136,11 @@ class TestTikTokRelay(LiwanInboxCase):
         with self.relay(), patch.object(channel_tiktok.requests, 'request', return_value=Answer()) as request:
             channel.unlink()
         self.assertFalse(self.channels())
-        args, _kwargs = request.call_args
+        args, kwargs = request.call_args
         self.assertEqual(args, ('DELETE', f'{RELAY_URL}/internal/tiktok/bindings/{tt.BUSINESS_ID}'))
+        # The shared proxy token proves no tenant, so the unbind names this one, as the bind does.
+        self.assertEqual(kwargs['json'], {'tenant_id': self.env.cr.dbname})
+        self.assertNotIn(PROXY_TOKEN, str(kwargs['json']))
 
     def test_a_bound_channel_is_not_registered_again(self):
         self.make_tiktok(bound=True)
@@ -176,8 +179,9 @@ class TestTikTokRelay(LiwanInboxCase):
             channel._liwan_tiktok_store(self.grant(open_id=OTHER_BUSINESS_ID))
         self.assertEqual(channel.tiktok_business_id, OTHER_BUSINESS_ID)
         self.assertFalse(channel.tiktok_bound)
-        args, _kwargs = request.call_args
+        args, kwargs = request.call_args
         self.assertEqual(args, ('DELETE', f'{RELAY_URL}/internal/tiktok/bindings/{tt.BUSINESS_ID}'))
+        self.assertEqual(kwargs['json'], {'tenant_id': self.env.cr.dbname})
 
     def test_a_refused_deletion_keeps_the_relay_binding(self):
         """A channel with conversations cannot be deleted, so its binding must not be removed."""

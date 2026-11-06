@@ -192,7 +192,8 @@ and no binding: the customer's own app points straight at its server.
 Public routes (on `LIWAN_TIKTOK_RELAY_HOST`, `/tiktok/*` only):
 
 - `POST /tiktok/webhook`: verifies `Tiktok-Signature` (`t=<unix s>,s=<hex>`, HMAC-SHA256
-  over `"{t}.{raw body}"`) and refuses a delivery older than five seconds. It reads the
+  over `"{t}.{raw body}"`) and refuses a delivery more than five seconds away from now in
+  either direction, so a timestamp dated in the future is refused like a stale one. It reads the
   envelope's `user_openid`, and forwards the unchanged body and signature to
   `https://<tenant host>/api/v1/inbox/hooks/tiktok`. An unknown account, or one whose
   tenant is disabled or left the registry, answers 200 and forwards nothing (TikTok must
@@ -207,12 +208,18 @@ Public routes (on `LIWAN_TIKTOK_RELAY_HOST`, `/tiktok/*` only):
 
 Internal route (reached only from the `relay_odoo` network, never through the edge):
 
-- `PUT /internal/tiktok/bindings/<open_id>` `{"tenant_id": "..."}` and `DELETE`, with
-  `X-Liwan-Proxy-Token` compared in constant time. `tenant_id` must resolve to an active
-  registry target (its `tenantId` or its `database`); an account already bound to another
-  active tenant answers 409, so a moved account is refused rather than misrouted. The
-  bindings file is `{"schemaVersion":1,"bindings":{"<user_openid>":"<tenant id>"}}`,
-  written atomically (temporary sibling, fsync, rename) and read on every request.
+- `PUT /internal/tiktok/bindings/<open_id>` `{"tenant_id": "..."}` and `DELETE …` with the
+  same body, with `X-Liwan-Proxy-Token` compared in constant time. Both methods name the
+  caller's tenant: `tenant_id` must resolve to an active registry target (its `tenantId` or its
+  `database`), a missing or invalid body answers 400 and an unknown or disabled tenant 422. The
+  proxy token is shared, so it proves no tenant by itself: `DELETE` removes the binding only when
+  it belongs to the caller's tenant, an account held by another active tenant answers 409 and
+  keeps its routing, and a missing binding answers 200 `{"removed": false}`. A binding whose own
+  tenant is no longer active routes nothing (Review Focus 5), so an active tenant's `DELETE`
+  drops that stale record. On `PUT`, an account already bound to another active tenant answers
+  409, so a moved account is refused rather than misrouted. The bindings file is
+  `{"schemaVersion":1,"bindings":{"<user_openid>":"<tenant id>"}}`, written atomically
+  (temporary sibling, fsync, rename) and read on every request.
 
 Configuration (all operator-owned, never in Git):
 

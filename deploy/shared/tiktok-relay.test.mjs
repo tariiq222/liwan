@@ -98,15 +98,12 @@ function post(port, raw, signature) {
   })
 }
 
-/** One internal binding call, with the shared proxy token unless the test omits or replaces it. */
-async function bind(port, openId, { method = 'PUT', tenantId, token = PROXY_TOKEN, body } = {}) {
+/** One internal binding call, with the shared proxy token unless the test omits or replaces it.
+ * Both methods name the caller's tenant; `body: null` sends no body at all. */
+async function bind(port, openId, { method = 'PUT', tenantId, token = PROXY_TOKEN, body = JSON.stringify({ tenant_id: tenantId }) } = {}) {
   const headers = { 'content-type': 'application/json' }
   if (token !== null) headers['x-liwan-proxy-token'] = token
-  const response = await fetch(`http://127.0.0.1:${port}/internal/tiktok/bindings/${openId}`, {
-    method,
-    headers,
-    body: method === 'DELETE' ? undefined : body ?? JSON.stringify({ tenant_id: tenantId }),
-  })
+  const response = await fetch(`http://127.0.0.1:${port}/internal/tiktok/bindings/${openId}`, { method, headers, body })
   return { status: response.status, body: await response.text() }
 }
 
@@ -159,6 +156,19 @@ test('the signature age window is five seconds', async () => {
     assert.equal(f.tenant.requests.length, 0)
     const fresh = delivery('openid_acme', NOW - 4)
     assert.equal((await post(f.port, fresh.raw, fresh.signature)).status, 200)
+    assert.equal(f.tenant.requests.length, 1)
+  } finally { await f.close() }
+})
+
+test('a signature dated in the future is refused like a stale one', async () => {
+  // A future timestamp escapes the replay window as the clock advances, so the window is symmetric.
+  const f = await fixture()
+  try {
+    const ahead = delivery('openid_acme', NOW + 6)
+    assert.equal((await post(f.port, ahead.raw, ahead.signature)).status, 403)
+    assert.equal(f.tenant.requests.length, 0)
+    const near = delivery('openid_acme', NOW + 5)
+    assert.equal((await post(f.port, near.raw, near.signature)).status, 200)
     assert.equal(f.tenant.requests.length, 1)
   } finally { await f.close() }
 })
@@ -386,14 +396,71 @@ test('a malformed binding request is refused and the file keeps its contract', a
   } finally { await f.close() }
 })
 
-test('deleting a binding is idempotent and stops its events', async () => {
+test('the owning tenant removes its binding idempotently and its events stop', async () => {
   const f = await fixture()
   try {
-    assert.equal((await bind(f.port, 'openid_acme', { method: 'DELETE' })).status, 200)
+    const removed = await bind(f.port, 'openid_acme', { method: 'DELETE', tenantId: 'acme' })
+    assert.equal(removed.status, 200)
+    assert.deepEqual(JSON.parse(removed.body), { open_id: 'openid_acme', removed: true })
     assert.deepEqual(storedBindings(f.dir), { schemaVersion: 1, bindings: { openid_beta: 'beta', openid_gone: 'gone' } })
-    assert.equal((await bind(f.port, 'openid_acme', { method: 'DELETE' })).status, 200)
+    const again = await bind(f.port, 'openid_acme', { method: 'DELETE', tenantId: 'acme' })
+    assert.equal(again.status, 200)
+    assert.deepEqual(JSON.parse(again.body), { open_id: 'openid_acme', removed: false })
     const { raw, signature } = delivery('openid_acme')
     assert.equal((await post(f.port, raw, signature)).status, 200)
     assert.equal(f.tenant.requests.length, 0)
+  } finally { await f.close() }
+})
+
+test('the tenant database identifier removes the binding it owns', async () => {
+  // Shared hosting hands Odoo its database, so the delete names the same identifier the put does.
+  const f = await fixture()
+  try {
+    assert.equal((await bind(f.port, 'openid_acme', { method: 'DELETE', tenantId: 'liwan_scratch_acme' })).status, 200)
+    assert.deepEqual(storedBindings(f.dir), { schemaVersion: 1, bindings: { openid_beta: 'beta', openid_gone: 'gone' } })
+  } finally { await f.close() }
+})
+
+test('another active tenant cannot remove a binding, which keeps routing', async () => {
+  const f = await fixture()
+  try {
+    assert.equal((await bind(f.port, 'openid_acme', { method: 'DELETE', tenantId: 'beta' })).status, 409)
+    assert.equal((await bind(f.port, 'openid_acme', { method: 'DELETE', tenantId: 'liwan_scratch_beta' })).status, 409)
+    assert.deepEqual(storedBindings(f.dir), bindings)
+    const { raw, signature } = delivery('openid_acme')
+    assert.equal((await post(f.port, raw, signature)).status, 200)
+    assert.equal(f.tenant.requests.length, 1)
+  } finally { await f.close() }
+})
+
+test('a deletion names an active registry target', async () => {
+  const f = await fixture()
+  try {
+    assert.equal((await bind(f.port, 'openid_acme', { method: 'DELETE', tenantId: 'nobody' })).status, 422)
+    registryFile(f.dir, { schemaVersion: 1, snapshotRevision: 2, targets: [{ ...targets[0], enabled: false }, targets[1]] })
+    assert.equal((await bind(f.port, 'openid_acme', { method: 'DELETE', tenantId: 'acme' })).status, 422)
+    assert.equal((await bind(f.port, 'openid_acme', { method: 'DELETE', tenantId: 'liwan_scratch_acme' })).status, 422)
+    assert.deepEqual(storedBindings(f.dir), bindings)
+  } finally { await f.close() }
+})
+
+test('a deletion without a tenant body is refused and keeps the file', async () => {
+  const f = await fixture()
+  try {
+    assert.equal((await bind(f.port, 'openid_acme', { method: 'DELETE', body: null })).status, 400)
+    assert.equal((await bind(f.port, 'openid_acme', { method: 'DELETE', body: '{' })).status, 400)
+    assert.equal((await bind(f.port, 'openid_acme', { method: 'DELETE', body: '{}' })).status, 400)
+    assert.equal((await bind(f.port, 'openid_acme', { method: 'DELETE', body: '{"tenant_id": 7}' })).status, 400)
+    assert.deepEqual(storedBindings(f.dir), bindings)
+  } finally { await f.close() }
+})
+
+test('an active tenant drops a binding whose own tenant is no longer active', async () => {
+  // A binding of a tenant that left the registry routes nothing (Review Focus 5): any active
+  // tenant's removal may drop that stale record instead of answering a conflict.
+  const f = await fixture()
+  try {
+    assert.equal((await bind(f.port, 'openid_gone', { method: 'DELETE', tenantId: 'acme' })).status, 200)
+    assert.deepEqual(storedBindings(f.dir), { schemaVersion: 1, bindings: { openid_acme: 'acme', openid_beta: 'beta' } })
   } finally { await f.close() }
 })
