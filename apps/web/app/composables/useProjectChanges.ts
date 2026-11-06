@@ -1,5 +1,5 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   ChangeCategoryListSchema, ChangeCategorySchema, ProjectChangeListSchema, ProjectChangeSchema,
   type ChangeCategoryWrite, type ProjectChange, type ProjectChangeWrite,
@@ -16,6 +16,7 @@ export function useProjectChanges(projectId: MaybeRefOrGetter<number | null>, pa
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => changeKeys.list(toValue(projectId) ?? 0, toValue(params))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => !!toValue(projectId)),
     queryFn: () => $api(`/api/v1/projects/${toValue(projectId)}/changes`, { query: toValue(params), schema: ProjectChangeListSchema }),
   })

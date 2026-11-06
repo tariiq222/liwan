@@ -1,6 +1,6 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
 import {
   HrApplicantHireResultSchema,
   HrApplicantListSchema,
@@ -193,6 +193,7 @@ export function useHrRecruitmentJobList(input: MaybeRefOrGetter<HrRecruitmentJob
   const { can } = useAccess()
   return useQuery({
     queryKey: computed(() => hrRecruitmentKeys.jobs(hrJobQuery(toValue(input)))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => can('hr.recruitment.read')),
     queryFn: () => $api('/api/v1/hr/recruitment/jobs', {
       query: { ...hrJobQuery(toValue(input)) },
@@ -239,6 +240,7 @@ export function useHrRecruitmentApplicants(input: MaybeRefOrGetter<HrApplicantIn
   const { can } = useAccess()
   return useQuery({
     queryKey: computed(() => hrRecruitmentKeys.applicants(hrApplicantQuery(toValue(input)))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => can('hr.recruitment.read')),
     queryFn: () => $api('/api/v1/hr/recruitment/applicants', {
       query: { ...hrApplicantQuery(toValue(input)) },

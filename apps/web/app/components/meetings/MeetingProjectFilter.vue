@@ -24,7 +24,11 @@ const options = computed(() => {
   if (!props.modelValue || available.some(project => project.id === props.modelValue)) return available
   return selectedProject.value ? [selectedProject.value, ...available] : [{ id: props.modelValue, name: selectedLabel.value }, ...available]
 })
-const items = computed(() => [{ label: t('meetingsFilters.allProjects'), value: 'all' }, ...options.value.map(project => ({ label: project.name, value: String(project.id) }))])
+// "All projects" is not a match for a typed search, so a search nothing matches leaves the menu empty and says so.
+const items = computed(() => [
+  ...(projectSearch.value.trim() ? [] : [{ label: t('meetingsFilters.allProjects'), value: 'all' }]),
+  ...options.value.map(project => ({ label: project.name, value: String(project.id) })),
+])
 
 watch(selectedLabel, value => emit('resolved-name', value), { immediate: true })
 
@@ -50,12 +54,14 @@ function selectProject(value: unknown) {
       :search-input="{ placeholder: t('meetingsFilters.projectSearch') }"
       :aria-label="t('meetingsFilters.project')"
       @update:model-value="selectProject"
-    />
+    >
+      <!-- No project (or none matching the search) answers inside the open menu, never as a line under the filter. -->
+      <template #empty>{{ t('meetingsFilters.noProjects') }}</template>
+    </USelectMenu>
     <p v-if="projectQuery.isLoading.value" class="text-xs text-muted" role="status">{{ t('meetingsFilters.projectsLoading') }}</p>
     <div v-else-if="projectQuery.error.value" class="flex items-center gap-2 text-xs text-error" role="alert">
       <span>{{ t('meetingsFilters.projectsError') }}</span>
       <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated || disabled" :label="t('meetingsFilters.retry')" @click="projectQuery.refetch()" />
     </div>
-    <p v-else-if="!options.length" class="text-xs text-muted">{{ t('meetingsFilters.noProjects') }}</p>
   </div>
 </template>

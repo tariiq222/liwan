@@ -14,6 +14,7 @@ const invalidateQueries = vi.fn(async () => undefined)
 const removeQueries = vi.fn()
 
 vi.mock('@tanstack/vue-query', () => ({
+  keepPreviousData: (previous: unknown) => previous,
   useMutation: (options: Record<string, unknown>) => options,
   useQuery: (options: Record<string, unknown>) => {
     const query = { ...options, suspense: vi.fn(async () => undefined) }

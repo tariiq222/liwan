@@ -1,6 +1,6 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   HrActivityPlanCreateSchema,
   HrActivityPlanListSchema,
@@ -81,6 +81,7 @@ export function useHrActivityPlans(
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => hrLifecycleKeys.plans(area, toValue(params))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => toValue(enabled)),
     queryFn: () => $api(`/api/v1/hr/${area}/plans`, {
       query: hrPlanListQuery(toValue(params)),
@@ -184,6 +185,7 @@ export function useHrOnboardingRuns(params: MaybeRefOrGetter<HrRunListParams>, e
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => hrLifecycleKeys.runs(HR_ONBOARDING, toValue(params))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => toValue(enabled)),
     queryFn: () => $api(`/api/v1/hr/${HR_ONBOARDING}/runs`, {
       query: hrRunListQuery(toValue(params)),

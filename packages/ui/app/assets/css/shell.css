@@ -54,15 +54,21 @@ html[dir="rtl"] .schedule-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in
 .schedule-gantt-legend li { display: inline-flex; align-items: center; gap: 8px; }
 .schedule-gantt-swatch { width: 8px; height: 8px; flex: none; border-radius: 999px; }
 
-/* Keep compact desktop geometry while preserving touch target sizes. */
+/* Keep compact desktop geometry while preserving touch target sizes. A switch keeps its own track size: its whole
+   row (the track and its label) is the 44px target instead, so the track never grows into a circle. */
 @media (pointer: coarse) {
   :is([data-liwan-shell], .liwan-mobile-menu, .liwan-create-panel, .liwan-search-dialog, [data-testid="unsaved-changes-dialog"]) :is(
-    button[data-slot="base"], a[data-slot="base"], [data-testid="notification-bell"],
+    button[data-slot="base"]:not([role="switch"]), a[data-slot="base"], [data-testid="notification-bell"],
     [data-slot="select-trigger"], .header-account, .liwan-search-trigger,
     .liwan-context-toggle, .liwan-context-link
   ) {
     min-height: 44px;
     min-width: 44px;
+  }
+  :is([data-liwan-shell], .liwan-mobile-menu, .liwan-create-panel, .liwan-search-dialog, [data-testid="unsaved-changes-dialog"])
+    [data-slot="root"]:has(> [data-slot="container"] > button[role="switch"]) {
+    min-height: 44px;
+    align-items: center;
   }
 }
 
@@ -235,6 +241,8 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .liwan-module-rail-link[data-active="true"] .liwan-module-rail-icon { background: var(--liwan-chip-active); color: var(--liwan-chip-active-ink); }
 .liwan-module-rail-link:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; border-radius: 14px; }
 .liwan-module-rail-link [data-slot="label"] { max-width: 100%; overflow: hidden; font-size: 12px; font-weight: inherit; line-height: 18px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+/* An accent entry (the assistant) wears its own sand circle; once open it looks like every other active entry. */
+.liwan-module-rail-link[data-accent]:not([data-active="true"]) .liwan-module-rail-icon { background: var(--liwan-ai-bg); color: var(--liwan-ai-ink); }
 @media (forced-colors: active) {
   .liwan-module-rail-link[data-active="true"] .liwan-module-rail-icon { outline: 2px solid Highlight; }
 }

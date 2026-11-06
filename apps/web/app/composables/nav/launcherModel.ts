@@ -16,11 +16,10 @@ export interface LauncherEntry {
 
 /**
  * The applications the user may open, in rail order. The home page and settings are foundation pages rather than
- * applications, and a `utility` module is part of the base system and always in the rail (the assistant), so neither
- * is a launcher card.
+ * applications, and the assistant sits beside «يومي» at the head of the rail, so none of them is a launcher card.
  */
 export function reachableApplications(modules: readonly ShellModuleDefinition[]): ShellModuleDefinition[] {
-  return modules.filter(module => !module.utility && module.id !== 'home' && module.id !== 'settings')
+  return modules.filter(module => module.fixed !== 'top' && module.id !== 'home' && module.id !== 'settings')
 }
 
 /** Existing application actions, filtered by feature and route permissions, never executed by the launcher. */
@@ -38,6 +37,6 @@ export function launcherEntries(identity: AccessIdentity, query: string, transla
         seen.add(action.to)
         return true
       }).slice(0, 3)
-      return { id: module.id, labelKey: module.labelKey, icon: module.icon, to: module.to, actions, pinnable: !module.utility }
+      return { id: module.id, labelKey: module.labelKey, icon: module.icon, to: module.to, actions, pinnable: !module.fixed }
     })
 }
