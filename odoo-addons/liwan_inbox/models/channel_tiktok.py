@@ -292,10 +292,22 @@ class LiwanInboxChannel(models.Model):
 
     # automation
 
+    def write(self, vals):
+        """Switch the account's own welcome off at TikTok when the welcome is disabled here (D10)."""
+        result = super().write(vals)
+        if 'welcome_enabled' in vals and not vals['welcome_enabled']:
+            for channel in self.filtered(lambda channel: channel.kind == 'tiktok'):
+                channel._liwan_tiktok_push_welcome()
+        return result
+
     def _liwan_set_auto_message(self, purpose, content):
-        """Store the welcome record and mirror it to TikTok; the away and rule replies stay LiwanOS's own."""
+        """Store the welcome record and mirror it to TikTok; the away and rule replies stay LiwanOS's own.
+
+        A disabled welcome keeps the stored content but reaches TikTok only when it is enabled again: the
+        account's own item stays disabled (or does not exist yet), so there is nothing to create or update.
+        """
         super()._liwan_set_auto_message(purpose, content)
-        if self.kind == 'tiktok' and purpose == 'welcome':
+        if self.kind == 'tiktok' and purpose == 'welcome' and self.welcome_enabled:
             self._liwan_tiktok_push_welcome()
 
     def _liwan_tiktok_push_welcome(self):
@@ -304,8 +316,12 @@ class LiwanInboxChannel(models.Model):
         if not self.access_token_enc:
             return
         credentials = self._liwan_credentials()
-        welcome = self._liwan_auto_message('welcome')
         try:
+            if not self.welcome_enabled:
+                if self.tiktok_welcome_id:
+                    tiktok.set_auto_message_status(credentials, 'WELCOME_MESSAGE', False)
+                return
+            welcome = self._liwan_auto_message('welcome')
             if not welcome:
                 if self.tiktok_welcome_id:
                     tiktok.delete_auto_message(credentials, 'WELCOME_MESSAGE', self.tiktok_welcome_id)
@@ -317,7 +333,10 @@ class LiwanInboxChannel(models.Model):
             else:
                 self.tiktok_welcome_id = tiktok.create_auto_message(credentials, 'WELCOME_MESSAGE', content)
         except errors.ProviderError as error:
-            raise UserError(str(error)) from error
+            raise LiwanAccessRule(
+                INVALID, self.env._('TikTok refused the change: %(error)s', error=str(error)),
+                details={'reason': 'inbox_tiktok_auto_message_refused'},
+            ) from error
         self.tiktok_welcome_audit = 'reviewing'
 
     def _liwan_tiktok_set_enabled(self, kind, enabled):
