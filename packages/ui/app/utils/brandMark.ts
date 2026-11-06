@@ -1,0 +1,12 @@
+// The LiwanOS mark on its 64-unit grid, shared by the logo and the Sadu loader: the courtyard of four pointed arches
+// (a stroked path), one solid Sadu triangle in each corner pointing in (top-left, top-right, bottom-right, bottom-left)
+// and the stepped Sadu diamond at the centre, outlined for large sizes and solid below 24px.
+export const MARK_ARCHES = 'M22.00 25.20Q25.50 25.50 25.20 22.00C24.60 16.00 24.20 13.20 26.50 10.50Q29.00 7.50 32.00 3.50Q35.00 7.50 37.50 10.50C39.80 13.20 39.40 16.00 38.80 22.00Q38.50 25.50 42.00 25.20C48.00 24.60 50.80 24.20 53.50 26.50Q56.50 29.00 60.50 32.00Q56.50 35.00 53.50 37.50C50.80 39.80 48.00 39.40 42.00 38.80Q38.50 38.50 38.80 42.00C39.40 48.00 39.80 50.80 37.50 53.50Q35.00 56.50 32.00 60.50Q29.00 56.50 26.50 53.50C24.20 50.80 24.60 48.00 25.20 42.00Q25.50 38.50 22.00 38.80C16.00 39.40 13.20 39.80 10.50 37.50Q7.50 35.00 3.50 32.00Q7.50 29.00 10.50 26.50C13.20 24.20 16.00 24.60 22.00 25.20Z'
+export const MARK_TRIANGLES = [
+  'M15.74 8.67 18.92 18.92 8.67 15.74Z',
+  'M55.33 15.74 45.08 18.92 48.26 8.67Z',
+  'M48.26 55.33 45.08 45.08 55.33 48.26Z',
+  'M8.67 48.26 18.92 45.08 15.74 55.33Z',
+] as const
+export const MARK_DIAMOND_OUTLINE = 'M30.5 24.5h3v3h-3ZM27.5 27.5h3v3h-3ZM33.5 27.5h3v3h-3ZM24.5 30.5h3v3h-3ZM30.5 30.5h3v3h-3ZM36.5 30.5h3v3h-3ZM27.5 33.5h3v3h-3ZM33.5 33.5h3v3h-3ZM30.5 36.5h3v3h-3Z'
+export const MARK_DIAMOND_SOLID = 'M30.4 24h3.2v3.2h-3.2ZM27.2 27.2h3.2v3.2h-3.2ZM30.4 27.2h3.2v3.2h-3.2ZM33.6 27.2h3.2v3.2h-3.2ZM24 30.4h3.2v3.2h-3.2ZM27.2 30.4h3.2v3.2h-3.2ZM30.4 30.4h3.2v3.2h-3.2ZM33.6 30.4h3.2v3.2h-3.2ZM36.8 30.4h3.2v3.2h-3.2ZM27.2 33.6h3.2v3.2h-3.2ZM30.4 33.6h3.2v3.2h-3.2ZM33.6 33.6h3.2v3.2h-3.2ZM30.4 36.8h3.2v3.2h-3.2Z'

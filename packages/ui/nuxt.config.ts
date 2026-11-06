@@ -15,6 +15,11 @@ export default defineNuxtConfig({
     { path: join(here, 'app/components/shell'), pathPrefix: false, ignore: ['**/__tests__/**'] },
   ],
   ui: { fonts: false, colorMode: false },
+  // The layer's own icons: `i-sadu-loader` is the busy icon of every Nuxt UI control (app.config `icons.loading`).
+  icon: {
+    customCollections: [{ prefix: 'sadu', dir: join(here, 'app/assets/icons') }],
+    clientBundle: { icons: ['sadu:loader'] },
+  },
   // Only the layer's own messages: @nuxtjs/i18n merges these files into the app's locales
   // (names, direction and the default locale belong to the app).
   i18n: {

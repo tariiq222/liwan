@@ -568,7 +568,7 @@ ALLOWED_RECIPE_KEYS = frozenset((
     'colors', 'button', 'input', 'inputNumber', 'textarea', 'select', 'selectMenu', 'card', 'table', 'badge',
     'tabs', 'progress', 'avatar', 'dropdownMenu', 'popover', 'tooltip', 'slideover', 'modal', 'checkbox',
     'switch', 'formField', 'tv', 'contextMenu', 'toast', 'alert', 'pageCard', 'listbox', 'fileUpload', 'inputMenu',
-    'inputTags', 'inputDate', 'inputTime',
+    'inputTags', 'inputDate', 'inputTime', 'icons',
 ))
 BRAND_COLORS = re.compile(r"colors:\s*\{\s*primary:\s*'brand',\s*neutral:\s*'stone'\s*\}")
 REQUIRED_TOKENS = ('--color-brand-500', 'IBM Plex Sans Arabic', '--liwan-sand', '.dark')

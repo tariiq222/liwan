@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import SaduLoader from '../feedback/SaduLoader.vue'
+
 // One chart on a dashboard (Tasmim Plan 4): a titled card whose body is the chart in
-// the default slot, a loading placeholder, or one empty line. `emptyText` is that line
+// the default slot, the Sadu loader while loading, or one empty line. `emptyText` is that line
 // when the chart has its own words ("no budget set yet"); without it the generic
 // states.chartEmpty shows. It draws no chart itself, so SharedDashboardChart or any
 // other figure goes in the slot; `actions` sits at the header's inline end (a currency
@@ -41,8 +43,8 @@ const height = computed(() => CHART_HEIGHT[props.size])
         </div>
       </div>
     </template>
-    <div v-if="props.loading" role="status" :aria-label="t('app.loading')" class="grid place-items-center" :style="{ minHeight: height }">
-      <USkeleton class="size-full" />
+    <div v-if="props.loading" class="grid place-items-center" :style="{ minHeight: height }">
+      <SaduLoader />
     </div>
     <p v-else-if="props.empty" class="flex items-center justify-center text-center text-sm text-muted" :style="{ minHeight: height }">{{ emptyLine }}</p>
     <div v-else class="min-w-0">

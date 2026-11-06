@@ -91,7 +91,7 @@ async function submitTotp() {
 <template>
   <SharedStandalonePage surface="brand">
     <template #brand>
-      <SharedBrandWordmark size="xl" inverted data-testid="login-brand" />
+      <SharedBrandWordmark size="xl" inverted animated data-testid="login-brand" />
     </template>
     <template #header>
       <div class="flex flex-col items-center text-center">

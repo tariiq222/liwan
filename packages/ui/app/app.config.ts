@@ -1,5 +1,7 @@
 export default defineAppConfig({
   ui: {
+    // The busy icon of buttons and other controls is the Sadu triangles and diamond of the LiwanOS mark, turning.
+    icons: { loading: 'i-sadu-loader' },
     // Tasmim recipes (DESIGN.md «وصفات الثيم المعتمدة»). Colours: the fixed
     // LiwanOS primary (the company colour is for documents only), stone (warm) neutral, LiwanOS lavender/sand/ink in
     // tokens.css. Sizes come from tokens: --liwan-control-h, --liwan-row-h, --liwan-card-pad and the

@@ -188,7 +188,7 @@ const approverItems = computed(() => {
         <div id="project-settings-tags" aria-labelledby="project-settings-tags-label"><TagPicker :model-value="pendingTags ?? project.tags" :can-create="project.can_manage" labelledby="project-settings-tags-label" @update:model-value="onTagsChange" /></div>
       </UFormField>
 
-      <USeparator />
+      <SharedSaduDivider />
     </fieldset>
   </div>
 </template>

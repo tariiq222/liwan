@@ -5,6 +5,7 @@ import { compileScript, parse } from '@vue/compiler-sfc'
 import { renderToString } from '@vue/server-renderer'
 import ts from 'typescript'
 import * as Vue from 'vue'
+import * as brandMark from '../../app/utils/brandMark'
 
 const sharedRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../app/components/shared')
 /** The shared component groups (components/shared/<group>/<name>.vue). */
@@ -93,6 +94,8 @@ export function loadShared(name: string, options: SharedRenderOptions = {}): Vue
   const require = (specifier: string): unknown => {
     if (specifier === 'vue') return Vue
     if (options.modules && specifier in options.modules) return options.modules[specifier]
+    // The mark geometry is plain data, shared by the logo and the Sadu loader.
+    if (specifier === '../../../utils/brandMark') return brandMark
     const sibling = specifier.match(/^(?:\.\/|\.\.\/\w+\/|@\/components\/shared\/(?:\w+\/)?)([\w.]+)\.vue$/)
     if (sibling) return { __esModule: true, default: loadShared(sibling[1]!, options) }
     throw new Error(`${name}.vue imports ${specifier}; pass it in options.modules`)
