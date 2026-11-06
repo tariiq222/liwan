@@ -6,6 +6,8 @@ from . import (
     access_permission,
     access_role,
     access_service,
+    account_mail,
+    account_token,
     ir_attachment,
     ir_rule,
     liwan_model,

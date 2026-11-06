@@ -8,7 +8,7 @@ PARTNER_GRANT_MARKER = 'liwan_core.access_grant_partner_ids'
 PARTNER_GRANT_FIELDS = {
     'active', 'company_id', 'email', 'image_1920', 'name', 'properties',
 }
-# liwan.access.service._liwan_create_account marks the caller's uid for the one contact it creates; the
+# liwan.access.service._liwan_create_invitee marks the caller's uid for the one contact it creates; the
 # access-grant capability holds no general res.partner create right.
 PARTNER_CREATE_MARKER = 'liwan_core.access_grant_partner_create'
 PARTNER_BRANDING_MARKER = 'liwan_core.branding_partner_ids'
