@@ -316,7 +316,8 @@ export type SeatUsage = z.infer<typeof SeatUsageSchema>
 export const AuditActionSchema = z.enum([
   'user.granted', 'user.invited', 'user.invitation_resent', 'user.invitation_login_changed', 'user.invitation_cancelled',
   'user.reset_link_sent', 'user.password_set', 'user.employee_linked', 'user.roles_changed', 'user.disabled', 'user.reactivated',
-  'user.password_reset', 'user.branch_roles_changed', 'branch.policy_changed',
+  'user.password_reset', 'user.mobile_set', 'user.reset_link_requested', 'user.branch_roles_changed', 'branch.policy_changed',
+  'company.profile_changed', 'company.branding_changed',
   'employee.archived_access_disabled', 'role.created',
   'role.updated', 'role.disabled', 'role.enabled', 'role.deleted',
   'migration.legacy_admin_preserved',
