@@ -2142,23 +2142,11 @@
                     "maxLength": 4000,
                     "type": "string"
                   },
-                  "objectives": {
-                    "items": {
-                      "maxLength": 500,
-                      "type": "string"
-                    },
-                    "maxItems": 10,
-                    "type": "array"
-                  },
                   "rationale": {
                     "maxLength": 4000,
                     "type": "string"
                   },
                   "scope": {
-                    "maxLength": 4000,
-                    "type": "string"
-                  },
-                  "success": {
                     "maxLength": 4000,
                     "type": "string"
                   }
@@ -2180,6 +2168,32 @@
               "name": {
                 "maxLength": 255,
                 "minLength": 1,
+                "type": "string"
+              },
+              "objectives": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "goal": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "metric": {
+                      "type": "string"
+                    },
+                    "target": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "goal"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "success_criteria": {
+                "maxLength": 4000,
                 "type": "string"
               }
             },
@@ -2222,23 +2236,11 @@
                 "maxLength": 4000,
                 "type": "string"
               },
-              "objectives": {
-                "items": {
-                  "maxLength": 500,
-                  "type": "string"
-                },
-                "maxItems": 10,
-                "type": "array"
-              },
               "rationale": {
                 "maxLength": 4000,
                 "type": "string"
               },
               "scope": {
-                "maxLength": 4000,
-                "type": "string"
-              },
-              "success": {
                 "maxLength": 4000,
                 "type": "string"
               }
@@ -2260,6 +2262,32 @@
           "name": {
             "maxLength": 255,
             "minLength": 1,
+            "type": "string"
+          },
+          "objectives": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "goal": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "metric": {
+                  "type": "string"
+                },
+                "target": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "goal"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "success_criteria": {
+            "maxLength": 4000,
             "type": "string"
           }
         },
@@ -88123,7 +88151,10 @@
         "additionalProperties": false,
         "properties": {
           "budget_total": {
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "change": {
             "anyOf": [
@@ -88297,9 +88328,16 @@
                   ]
                 },
                 "planned_value_share": {
-                  "maximum": 1,
-                  "minimum": 0,
-                  "type": "number"
+                  "anyOf": [
+                    {
+                      "maximum": 1,
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "task_id": {
                   "anyOf": [
@@ -88387,7 +88425,10 @@
               "additionalProperties": false,
               "properties": {
                 "budget_total": {
-                  "type": "number"
+                  "type": [
+                    "number",
+                    "null"
+                  ]
                 },
                 "change": {
                   "anyOf": [
@@ -88560,7 +88601,10 @@
         "additionalProperties": false,
         "properties": {
           "budget_total": {
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "change": {
             "anyOf": [
@@ -88746,9 +88790,16 @@
             ]
           },
           "planned_value_share": {
-            "maximum": 1,
-            "minimum": 0,
-            "type": "number"
+            "anyOf": [
+              {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "task_id": {
             "anyOf": [
@@ -89804,11 +89855,18 @@
             "type": "string"
           },
           "budget_state": {
-            "enum": [
-              "unknown",
-              "estimate"
-            ],
-            "type": "string"
+            "anyOf": [
+              {
+                "enum": [
+                  "unknown",
+                  "estimate"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "can_review": {
             "type": "boolean"
@@ -89888,29 +89946,6 @@
           },
           "high_level_requirements": {
             "type": "string"
-          },
-          "objectives": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "goal": {
-                  "type": "string"
-                },
-                "metric": {
-                  "type": "string"
-                },
-                "target": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "goal",
-                "metric",
-                "target"
-              ],
-              "type": "object"
-            },
-            "type": "array"
           },
           "owning_unit": {
             "anyOf": [
@@ -90026,9 +90061,6 @@
               }
             ]
           },
-          "success": {
-            "type": "string"
-          },
           "type": {
             "anyOf": [
               {
@@ -90076,13 +90108,11 @@
           "sponsor",
           "authority",
           "rationale",
-          "objectives",
           "benefits",
           "scope",
           "exclusions",
           "high_level_requirements",
           "deliverables",
-          "success",
           "budget_state",
           "amount",
           "currency",
@@ -90195,29 +90225,6 @@
           "high_level_requirements": {
             "type": "string"
           },
-          "objectives": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "goal": {
-                  "type": "string"
-                },
-                "metric": {
-                  "type": "string"
-                },
-                "target": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "goal",
-                "metric",
-                "target"
-              ],
-              "type": "object"
-            },
-            "type": "array"
-          },
           "owning_unit_id": {
             "anyOf": [
               {
@@ -90263,9 +90270,6 @@
                 "type": "null"
               }
             ]
-          },
-          "success": {
-            "type": "string"
           },
           "type_id": {
             "anyOf": [
@@ -90405,29 +90409,6 @@
               "high_level_requirements": {
                 "type": "string"
               },
-              "objectives": {
-                "items": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "goal": {
-                      "type": "string"
-                    },
-                    "metric": {
-                      "type": "string"
-                    },
-                    "target": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "goal",
-                    "metric",
-                    "target"
-                  ],
-                  "type": "object"
-                },
-                "type": "array"
-              },
               "owning_unit_id": {
                 "anyOf": [
                   {
@@ -90474,9 +90455,6 @@
                   }
                 ]
               },
-              "success": {
-                "type": "string"
-              },
               "type_id": {
                 "anyOf": [
                   {
@@ -90517,11 +90495,36 @@
             "minLength": 1,
             "type": "string"
           },
+          "objectives": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "goal": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "metric": {
+                  "type": "string"
+                },
+                "target": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "goal"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
           "privacy_visibility": {
             "enum": [
               "employees",
               "followers"
             ],
+            "type": "string"
+          },
+          "success_criteria": {
             "type": "string"
           },
           "tag_ids": {
@@ -90579,21 +90582,81 @@
                   ]
                 },
                 "finance": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "actual": {
-                      "type": "number"
-                    },
-                    "actual_account": {
-                      "anyOf": [
-                        {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "actual": {
+                          "type": "number"
+                        },
+                        "actual_account": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "code": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "id": {
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "type": "integer"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "code"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "actual_source": {
+                          "enum": [
+                            "manual",
+                            "external"
+                          ],
+                          "type": "string"
+                        },
+                        "budget_count": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "can_choose_actual_account": {
+                          "type": "boolean"
+                        },
+                        "can_read_actual_lines": {
+                          "type": "boolean"
+                        },
+                        "charter_estimate": {
+                          "anyOf": [
+                            {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "currency": {
                           "additionalProperties": false,
                           "properties": {
-                            "code": {
-                              "type": [
-                                "string",
-                                "null"
-                              ]
+                            "decimal_places": {
+                              "maximum": 9007199254740991,
+                              "minimum": -9007199254740991,
+                              "type": "integer"
                             },
                             "id": {
                               "exclusiveMinimum": 0,
@@ -90602,131 +90665,78 @@
                             },
                             "name": {
                               "type": "string"
+                            },
+                            "symbol": {
+                              "type": "string"
                             }
                           },
                           "required": [
                             "id",
                             "name",
-                            "code"
+                            "symbol",
+                            "decimal_places"
                           ],
                           "type": "object"
                         },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "actual_source": {
-                      "enum": [
-                        "manual",
-                        "external"
-                      ],
-                      "type": "string"
-                    },
-                    "budget_count": {
-                      "maximum": 9007199254740991,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    "can_choose_actual_account": {
-                      "type": "boolean"
-                    },
-                    "can_read_actual_lines": {
-                      "type": "boolean"
-                    },
-                    "charter_estimate": {
-                      "anyOf": [
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "currency": {
-                      "additionalProperties": false,
-                      "properties": {
-                        "decimal_places": {
+                        "expense_count": {
                           "maximum": 9007199254740991,
-                          "minimum": -9007199254740991,
+                          "minimum": 0,
                           "type": "integer"
                         },
-                        "id": {
+                        "over_budget": {
+                          "type": "boolean"
+                        },
+                        "planned": {
+                          "anyOf": [
+                            {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "project_id": {
                           "exclusiveMinimum": 0,
                           "maximum": 9007199254740991,
                           "type": "integer"
                         },
-                        "name": {
-                          "type": "string"
+                        "remaining": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
                         },
-                        "symbol": {
-                          "type": "string"
+                        "utilization_percent": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
                         }
                       },
                       "required": [
-                        "id",
-                        "name",
-                        "symbol",
-                        "decimal_places"
+                        "project_id",
+                        "currency",
+                        "charter_estimate",
+                        "planned",
+                        "actual",
+                        "remaining",
+                        "utilization_percent",
+                        "over_budget",
+                        "budget_count",
+                        "expense_count",
+                        "actual_source",
+                        "actual_account",
+                        "can_read_actual_lines",
+                        "can_choose_actual_account"
                       ],
                       "type": "object"
                     },
-                    "expense_count": {
-                      "maximum": 9007199254740991,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    "over_budget": {
-                      "type": "boolean"
-                    },
-                    "planned": {
-                      "anyOf": [
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "project_id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "remaining": {
-                      "type": [
-                        "number",
-                        "null"
-                      ]
-                    },
-                    "utilization_percent": {
-                      "type": [
-                        "number",
-                        "null"
-                      ]
+                    {
+                      "type": "null"
                     }
-                  },
-                  "required": [
-                    "project_id",
-                    "currency",
-                    "charter_estimate",
-                    "planned",
-                    "actual",
-                    "remaining",
-                    "utilization_percent",
-                    "over_budget",
-                    "budget_count",
-                    "expense_count",
-                    "actual_source",
-                    "actual_account",
-                    "can_read_actual_lines",
-                    "can_choose_actual_account"
-                  ],
-                  "type": "object"
+                  ]
                 },
                 "overdue_task_count": {
                   "anyOf": [
@@ -90852,21 +90862,81 @@
                   ]
                 },
                 "finance": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "actual": {
-                      "type": "number"
-                    },
-                    "actual_account": {
-                      "anyOf": [
-                        {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "actual": {
+                          "type": "number"
+                        },
+                        "actual_account": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "code": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "id": {
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "type": "integer"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "code"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "actual_source": {
+                          "enum": [
+                            "manual",
+                            "external"
+                          ],
+                          "type": "string"
+                        },
+                        "budget_count": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "can_choose_actual_account": {
+                          "type": "boolean"
+                        },
+                        "can_read_actual_lines": {
+                          "type": "boolean"
+                        },
+                        "charter_estimate": {
+                          "anyOf": [
+                            {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "currency": {
                           "additionalProperties": false,
                           "properties": {
-                            "code": {
-                              "type": [
-                                "string",
-                                "null"
-                              ]
+                            "decimal_places": {
+                              "maximum": 9007199254740991,
+                              "minimum": -9007199254740991,
+                              "type": "integer"
                             },
                             "id": {
                               "exclusiveMinimum": 0,
@@ -90875,131 +90945,78 @@
                             },
                             "name": {
                               "type": "string"
+                            },
+                            "symbol": {
+                              "type": "string"
                             }
                           },
                           "required": [
                             "id",
                             "name",
-                            "code"
+                            "symbol",
+                            "decimal_places"
                           ],
                           "type": "object"
                         },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "actual_source": {
-                      "enum": [
-                        "manual",
-                        "external"
-                      ],
-                      "type": "string"
-                    },
-                    "budget_count": {
-                      "maximum": 9007199254740991,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    "can_choose_actual_account": {
-                      "type": "boolean"
-                    },
-                    "can_read_actual_lines": {
-                      "type": "boolean"
-                    },
-                    "charter_estimate": {
-                      "anyOf": [
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "currency": {
-                      "additionalProperties": false,
-                      "properties": {
-                        "decimal_places": {
+                        "expense_count": {
                           "maximum": 9007199254740991,
-                          "minimum": -9007199254740991,
+                          "minimum": 0,
                           "type": "integer"
                         },
-                        "id": {
+                        "over_budget": {
+                          "type": "boolean"
+                        },
+                        "planned": {
+                          "anyOf": [
+                            {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "project_id": {
                           "exclusiveMinimum": 0,
                           "maximum": 9007199254740991,
                           "type": "integer"
                         },
-                        "name": {
-                          "type": "string"
+                        "remaining": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
                         },
-                        "symbol": {
-                          "type": "string"
+                        "utilization_percent": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
                         }
                       },
                       "required": [
-                        "id",
-                        "name",
-                        "symbol",
-                        "decimal_places"
+                        "project_id",
+                        "currency",
+                        "charter_estimate",
+                        "planned",
+                        "actual",
+                        "remaining",
+                        "utilization_percent",
+                        "over_budget",
+                        "budget_count",
+                        "expense_count",
+                        "actual_source",
+                        "actual_account",
+                        "can_read_actual_lines",
+                        "can_choose_actual_account"
                       ],
                       "type": "object"
                     },
-                    "expense_count": {
-                      "maximum": 9007199254740991,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    "over_budget": {
-                      "type": "boolean"
-                    },
-                    "planned": {
-                      "anyOf": [
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "project_id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "remaining": {
-                      "type": [
-                        "number",
-                        "null"
-                      ]
-                    },
-                    "utilization_percent": {
-                      "type": [
-                        "number",
-                        "null"
-                      ]
+                    {
+                      "type": "null"
                     }
-                  },
-                  "required": [
-                    "project_id",
-                    "currency",
-                    "charter_estimate",
-                    "planned",
-                    "actual",
-                    "remaining",
-                    "utilization_percent",
-                    "over_budget",
-                    "budget_count",
-                    "expense_count",
-                    "actual_source",
-                    "actual_account",
-                    "can_read_actual_lines",
-                    "can_choose_actual_account"
-                  ],
-                  "type": "object"
+                  ]
                 },
                 "overdue_task_count": {
                   "anyOf": [
@@ -91103,21 +91120,81 @@
                   ]
                 },
                 "finance": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "actual": {
-                      "type": "number"
-                    },
-                    "actual_account": {
-                      "anyOf": [
-                        {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "actual": {
+                          "type": "number"
+                        },
+                        "actual_account": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "code": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "id": {
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "type": "integer"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "code"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "actual_source": {
+                          "enum": [
+                            "manual",
+                            "external"
+                          ],
+                          "type": "string"
+                        },
+                        "budget_count": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "can_choose_actual_account": {
+                          "type": "boolean"
+                        },
+                        "can_read_actual_lines": {
+                          "type": "boolean"
+                        },
+                        "charter_estimate": {
+                          "anyOf": [
+                            {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "currency": {
                           "additionalProperties": false,
                           "properties": {
-                            "code": {
-                              "type": [
-                                "string",
-                                "null"
-                              ]
+                            "decimal_places": {
+                              "maximum": 9007199254740991,
+                              "minimum": -9007199254740991,
+                              "type": "integer"
                             },
                             "id": {
                               "exclusiveMinimum": 0,
@@ -91126,131 +91203,78 @@
                             },
                             "name": {
                               "type": "string"
+                            },
+                            "symbol": {
+                              "type": "string"
                             }
                           },
                           "required": [
                             "id",
                             "name",
-                            "code"
+                            "symbol",
+                            "decimal_places"
                           ],
                           "type": "object"
                         },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "actual_source": {
-                      "enum": [
-                        "manual",
-                        "external"
-                      ],
-                      "type": "string"
-                    },
-                    "budget_count": {
-                      "maximum": 9007199254740991,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    "can_choose_actual_account": {
-                      "type": "boolean"
-                    },
-                    "can_read_actual_lines": {
-                      "type": "boolean"
-                    },
-                    "charter_estimate": {
-                      "anyOf": [
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "currency": {
-                      "additionalProperties": false,
-                      "properties": {
-                        "decimal_places": {
+                        "expense_count": {
                           "maximum": 9007199254740991,
-                          "minimum": -9007199254740991,
+                          "minimum": 0,
                           "type": "integer"
                         },
-                        "id": {
+                        "over_budget": {
+                          "type": "boolean"
+                        },
+                        "planned": {
+                          "anyOf": [
+                            {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "project_id": {
                           "exclusiveMinimum": 0,
                           "maximum": 9007199254740991,
                           "type": "integer"
                         },
-                        "name": {
-                          "type": "string"
+                        "remaining": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
                         },
-                        "symbol": {
-                          "type": "string"
+                        "utilization_percent": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
                         }
                       },
                       "required": [
-                        "id",
-                        "name",
-                        "symbol",
-                        "decimal_places"
+                        "project_id",
+                        "currency",
+                        "charter_estimate",
+                        "planned",
+                        "actual",
+                        "remaining",
+                        "utilization_percent",
+                        "over_budget",
+                        "budget_count",
+                        "expense_count",
+                        "actual_source",
+                        "actual_account",
+                        "can_read_actual_lines",
+                        "can_choose_actual_account"
                       ],
                       "type": "object"
                     },
-                    "expense_count": {
-                      "maximum": 9007199254740991,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    "over_budget": {
-                      "type": "boolean"
-                    },
-                    "planned": {
-                      "anyOf": [
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "project_id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "remaining": {
-                      "type": [
-                        "number",
-                        "null"
-                      ]
-                    },
-                    "utilization_percent": {
-                      "type": [
-                        "number",
-                        "null"
-                      ]
+                    {
+                      "type": "null"
                     }
-                  },
-                  "required": [
-                    "project_id",
-                    "currency",
-                    "charter_estimate",
-                    "planned",
-                    "actual",
-                    "remaining",
-                    "utilization_percent",
-                    "over_budget",
-                    "budget_count",
-                    "expense_count",
-                    "actual_source",
-                    "actual_account",
-                    "can_read_actual_lines",
-                    "can_choose_actual_account"
-                  ],
-                  "type": "object"
+                  ]
                 },
                 "overdue_task_count": {
                   "anyOf": [
@@ -91524,21 +91548,81 @@
                   ]
                 },
                 "finance": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "actual": {
-                      "type": "number"
-                    },
-                    "actual_account": {
-                      "anyOf": [
-                        {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "actual": {
+                          "type": "number"
+                        },
+                        "actual_account": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "code": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "id": {
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "type": "integer"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "code"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "actual_source": {
+                          "enum": [
+                            "manual",
+                            "external"
+                          ],
+                          "type": "string"
+                        },
+                        "budget_count": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "can_choose_actual_account": {
+                          "type": "boolean"
+                        },
+                        "can_read_actual_lines": {
+                          "type": "boolean"
+                        },
+                        "charter_estimate": {
+                          "anyOf": [
+                            {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "currency": {
                           "additionalProperties": false,
                           "properties": {
-                            "code": {
-                              "type": [
-                                "string",
-                                "null"
-                              ]
+                            "decimal_places": {
+                              "maximum": 9007199254740991,
+                              "minimum": -9007199254740991,
+                              "type": "integer"
                             },
                             "id": {
                               "exclusiveMinimum": 0,
@@ -91547,131 +91631,78 @@
                             },
                             "name": {
                               "type": "string"
+                            },
+                            "symbol": {
+                              "type": "string"
                             }
                           },
                           "required": [
                             "id",
                             "name",
-                            "code"
+                            "symbol",
+                            "decimal_places"
                           ],
                           "type": "object"
                         },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "actual_source": {
-                      "enum": [
-                        "manual",
-                        "external"
-                      ],
-                      "type": "string"
-                    },
-                    "budget_count": {
-                      "maximum": 9007199254740991,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    "can_choose_actual_account": {
-                      "type": "boolean"
-                    },
-                    "can_read_actual_lines": {
-                      "type": "boolean"
-                    },
-                    "charter_estimate": {
-                      "anyOf": [
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "currency": {
-                      "additionalProperties": false,
-                      "properties": {
-                        "decimal_places": {
+                        "expense_count": {
                           "maximum": 9007199254740991,
-                          "minimum": -9007199254740991,
+                          "minimum": 0,
                           "type": "integer"
                         },
-                        "id": {
+                        "over_budget": {
+                          "type": "boolean"
+                        },
+                        "planned": {
+                          "anyOf": [
+                            {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "project_id": {
                           "exclusiveMinimum": 0,
                           "maximum": 9007199254740991,
                           "type": "integer"
                         },
-                        "name": {
-                          "type": "string"
+                        "remaining": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
                         },
-                        "symbol": {
-                          "type": "string"
+                        "utilization_percent": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
                         }
                       },
                       "required": [
-                        "id",
-                        "name",
-                        "symbol",
-                        "decimal_places"
+                        "project_id",
+                        "currency",
+                        "charter_estimate",
+                        "planned",
+                        "actual",
+                        "remaining",
+                        "utilization_percent",
+                        "over_budget",
+                        "budget_count",
+                        "expense_count",
+                        "actual_source",
+                        "actual_account",
+                        "can_read_actual_lines",
+                        "can_choose_actual_account"
                       ],
                       "type": "object"
                     },
-                    "expense_count": {
-                      "maximum": 9007199254740991,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    "over_budget": {
-                      "type": "boolean"
-                    },
-                    "planned": {
-                      "anyOf": [
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "project_id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "remaining": {
-                      "type": [
-                        "number",
-                        "null"
-                      ]
-                    },
-                    "utilization_percent": {
-                      "type": [
-                        "number",
-                        "null"
-                      ]
+                    {
+                      "type": "null"
                     }
-                  },
-                  "required": [
-                    "project_id",
-                    "currency",
-                    "charter_estimate",
-                    "planned",
-                    "actual",
-                    "remaining",
-                    "utilization_percent",
-                    "over_budget",
-                    "budget_count",
-                    "expense_count",
-                    "actual_source",
-                    "actual_account",
-                    "can_read_actual_lines",
-                    "can_choose_actual_account"
-                  ],
-                  "type": "object"
+                  ]
                 },
                 "overdue_task_count": {
                   "anyOf": [
@@ -91953,242 +91984,344 @@
             "type": "string"
           },
           "charter": {
-            "additionalProperties": false,
-            "properties": {
-              "amount": {
-                "type": [
-                  "number",
-                  "null"
-                ]
-              },
-              "approval_required": {
-                "type": "boolean"
-              },
-              "approved_at": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "approved_by": {
-                "anyOf": [
-                  {
-                    "additionalProperties": false,
-                    "properties": {
-                      "id": {
-                        "exclusiveMinimum": 0,
-                        "maximum": 9007199254740991,
-                        "type": "integer"
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "amount": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "approval_required": {
+                    "type": "boolean"
+                  },
+                  "approved_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "approved_by": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "type": "object"
                       },
-                      "name": {
-                        "type": "string"
+                      {
+                        "type": "null"
                       }
-                    },
-                    "required": [
-                      "id",
-                      "name"
-                    ],
-                    "type": "object"
+                    ]
                   },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "assumptions": {
-                "type": "string"
-              },
-              "authority": {
-                "type": "string"
-              },
-              "benefits": {
-                "type": "string"
-              },
-              "budget_state": {
-                "enum": [
-                  "unknown",
-                  "estimate"
-                ],
-                "type": "string"
-              },
-              "can_review": {
-                "type": "boolean"
-              },
-              "closure": {
-                "type": "string"
-              },
-              "code": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "constraints": {
-                "type": "string"
-              },
-              "currency": {
-                "anyOf": [
-                  {
-                    "additionalProperties": false,
-                    "properties": {
-                      "decimal_places": {
-                        "maximum": 9007199254740991,
-                        "minimum": -9007199254740991,
-                        "type": "integer"
-                      },
-                      "id": {
-                        "exclusiveMinimum": 0,
-                        "maximum": 9007199254740991,
-                        "type": "integer"
-                      },
-                      "name": {
+                  "assumptions": {
+                    "type": "string"
+                  },
+                  "authority": {
+                    "type": "string"
+                  },
+                  "benefits": {
+                    "type": "string"
+                  },
+                  "budget_state": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "unknown",
+                          "estimate"
+                        ],
                         "type": "string"
                       },
-                      "symbol": {
-                        "type": "string"
+                      {
+                        "type": "null"
                       }
-                    },
-                    "required": [
-                      "id",
-                      "name",
-                      "symbol",
-                      "decimal_places"
-                    ],
-                    "type": "object"
+                    ]
                   },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "deliverables": {
-                "items": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "acceptance": {
-                      "type": "string"
-                    },
-                    "description": {
-                      "type": "string"
-                    },
-                    "name": {
-                      "type": "string"
-                    }
+                  "can_review": {
+                    "type": "boolean"
                   },
-                  "required": [
-                    "name",
-                    "description",
-                    "acceptance"
-                  ],
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              "exclusions": {
-                "type": "string"
-              },
-              "high_level_requirements": {
-                "type": "string"
-              },
-              "objectives": {
-                "items": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "goal": {
-                      "type": "string"
-                    },
-                    "metric": {
-                      "type": "string"
-                    },
-                    "target": {
-                      "type": "string"
-                    }
+                  "closure": {
+                    "type": "string"
                   },
-                  "required": [
-                    "goal",
-                    "metric",
-                    "target"
-                  ],
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              "owning_unit": {
-                "anyOf": [
-                  {
-                    "additionalProperties": false,
-                    "properties": {
-                      "id": {
-                        "exclusiveMinimum": 0,
-                        "maximum": 9007199254740991,
-                        "type": "integer"
+                  "code": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "constraints": {
+                    "type": "string"
+                  },
+                  "currency": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "decimal_places": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer"
+                          },
+                          "id": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "symbol": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "symbol",
+                          "decimal_places"
+                        ],
+                        "type": "object"
                       },
-                      "name": {
-                        "type": "string"
+                      {
+                        "type": "null"
                       }
-                    },
-                    "required": [
-                      "id",
-                      "name"
-                    ],
-                    "type": "object"
+                    ]
                   },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "priority": {
-                "anyOf": [
-                  {
+                  "deliverables": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "acceptance": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "description",
+                        "acceptance"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "exclusions": {
+                    "type": "string"
+                  },
+                  "high_level_requirements": {
+                    "type": "string"
+                  },
+                  "owning_unit": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "priority": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "low",
+                          "normal",
+                          "high",
+                          "critical"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "rationale": {
+                    "type": "string"
+                  },
+                  "return_note": {
+                    "type": "string"
+                  },
+                  "scope": {
+                    "type": "string"
+                  },
+                  "sponsor": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "state": {
                     "enum": [
-                      "low",
-                      "normal",
-                      "high",
-                      "critical"
+                      "draft",
+                      "submitted",
+                      "approved"
                     ],
                     "type": "string"
                   },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "rationale": {
-                "type": "string"
-              },
-              "return_note": {
-                "type": "string"
-              },
-              "scope": {
-                "type": "string"
-              },
-              "sponsor": {
-                "anyOf": [
-                  {
-                    "additionalProperties": false,
-                    "properties": {
-                      "id": {
-                        "exclusiveMinimum": 0,
-                        "maximum": 9007199254740991,
-                        "type": "integer"
-                      },
-                      "name": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "name"
-                    ],
-                    "type": "object"
+                  "submitted_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
                   },
-                  {
-                    "type": "null"
+                  "submitted_by": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "type": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "charter_steps": {
+                            "items": {
+                              "enum": [
+                                "justification",
+                                "scope",
+                                "schedule",
+                                "budget",
+                                "risks"
+                              ],
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          "id": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "charter_steps"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
-                ]
+                },
+                "required": [
+                  "code",
+                  "type",
+                  "owning_unit",
+                  "sponsor",
+                  "authority",
+                  "rationale",
+                  "benefits",
+                  "scope",
+                  "exclusions",
+                  "high_level_requirements",
+                  "deliverables",
+                  "budget_state",
+                  "amount",
+                  "currency",
+                  "priority",
+                  "assumptions",
+                  "constraints",
+                  "closure",
+                  "state",
+                  "approval_required",
+                  "can_review",
+                  "submitted_by",
+                  "submitted_at",
+                  "approved_by",
+                  "approved_at",
+                  "return_note"
+                ],
+                "type": "object"
               },
-              "state": {
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "charter_state": {
+            "anyOf": [
+              {
                 "enum": [
                   "draft",
                   "submitted",
@@ -92196,119 +92329,10 @@
                 ],
                 "type": "string"
               },
-              "submitted_at": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "submitted_by": {
-                "anyOf": [
-                  {
-                    "additionalProperties": false,
-                    "properties": {
-                      "id": {
-                        "exclusiveMinimum": 0,
-                        "maximum": 9007199254740991,
-                        "type": "integer"
-                      },
-                      "name": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "name"
-                    ],
-                    "type": "object"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "success": {
-                "type": "string"
-              },
-              "type": {
-                "anyOf": [
-                  {
-                    "additionalProperties": false,
-                    "properties": {
-                      "charter_steps": {
-                        "items": {
-                          "enum": [
-                            "justification",
-                            "scope",
-                            "schedule",
-                            "budget",
-                            "risks"
-                          ],
-                          "type": "string"
-                        },
-                        "type": "array"
-                      },
-                      "id": {
-                        "exclusiveMinimum": 0,
-                        "maximum": 9007199254740991,
-                        "type": "integer"
-                      },
-                      "name": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "name",
-                      "charter_steps"
-                    ],
-                    "type": "object"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
+              {
+                "type": "null"
               }
-            },
-            "required": [
-              "code",
-              "type",
-              "owning_unit",
-              "sponsor",
-              "authority",
-              "rationale",
-              "objectives",
-              "benefits",
-              "scope",
-              "exclusions",
-              "high_level_requirements",
-              "deliverables",
-              "success",
-              "budget_state",
-              "amount",
-              "currency",
-              "priority",
-              "assumptions",
-              "constraints",
-              "closure",
-              "state",
-              "approval_required",
-              "can_review",
-              "submitted_by",
-              "submitted_at",
-              "approved_by",
-              "approved_at",
-              "return_note"
-            ],
-            "type": "object"
-          },
-          "charter_state": {
-            "enum": [
-              "draft",
-              "submitted",
-              "approved"
-            ],
-            "type": "string"
+            ]
           },
           "closed_task_count": {
             "maximum": 9007199254740991,
@@ -92399,27 +92423,53 @@
             ]
           },
           "milestone_count": {
-            "maximum": 9007199254740991,
-            "minimum": -9007199254740991,
-            "type": "integer"
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "name": {
             "type": "string"
           },
-          "phase": {
-            "enum": [
-              "initiating",
-              "planning",
-              "executing",
-              "closing",
-              "closed"
-            ],
-            "type": "string"
+          "objectives": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "goal": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "metric": {
+                  "type": "string"
+                },
+                "target": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "goal",
+                "metric",
+                "target"
+              ],
+              "type": "object"
+            },
+            "type": "array"
           },
-          "phase_state": {
-            "additionalProperties": false,
-            "properties": {
-              "current": {
+          "phase": {
+            "anyOf": [
+              {
                 "enum": [
                   "initiating",
                   "planning",
@@ -92429,70 +92479,95 @@
                 ],
                 "type": "string"
               },
-              "next": {
-                "anyOf": [
-                  {
-                    "enum": [
-                      "initiating",
-                      "planning",
-                      "executing",
-                      "closing",
-                      "closed"
-                    ],
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "next_checks": {
-                "items": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "key": {
-                      "type": "string"
-                    },
-                    "ok": {
-                      "type": "boolean"
-                    },
-                    "warning": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "key",
-                    "ok"
-                  ],
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              "previous": {
-                "anyOf": [
-                  {
-                    "enum": [
-                      "initiating",
-                      "planning",
-                      "executing",
-                      "closing",
-                      "closed"
-                    ],
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
+              {
+                "type": "null"
               }
-            },
-            "required": [
-              "current",
-              "next",
-              "previous",
-              "next_checks"
-            ],
-            "type": "object"
+            ]
+          },
+          "phase_state": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "current": {
+                    "enum": [
+                      "initiating",
+                      "planning",
+                      "executing",
+                      "closing",
+                      "closed"
+                    ],
+                    "type": "string"
+                  },
+                  "next": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "initiating",
+                          "planning",
+                          "executing",
+                          "closing",
+                          "closed"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "next_checks": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "ok": {
+                          "type": "boolean"
+                        },
+                        "warning": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "ok"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "previous": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "initiating",
+                          "planning",
+                          "executing",
+                          "closing",
+                          "closed"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "current",
+                  "next",
+                  "previous",
+                  "next_checks"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "privacy_visibility": {
             "enum": [
@@ -92560,6 +92635,9 @@
               }
             ]
           },
+          "success_criteria": {
+            "type": "string"
+          },
           "tags": {
             "items": {
               "additionalProperties": false,
@@ -92592,6 +92670,92 @@
             "minimum": -9007199254740991,
             "type": "integer"
           },
+          "tools": {
+            "additionalProperties": false,
+            "properties": {
+              "finance": {
+                "additionalProperties": false,
+                "properties": {
+                  "can_toggle": {
+                    "type": "boolean"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "policy": {
+                    "enum": [
+                      "enabled",
+                      "optional",
+                      "disabled"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "policy",
+                  "enabled",
+                  "can_toggle"
+                ],
+                "type": "object"
+              },
+              "governance": {
+                "additionalProperties": false,
+                "properties": {
+                  "can_toggle": {
+                    "type": "boolean"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "policy": {
+                    "enum": [
+                      "enabled",
+                      "optional",
+                      "disabled"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "policy",
+                  "enabled",
+                  "can_toggle"
+                ],
+                "type": "object"
+              },
+              "planning": {
+                "additionalProperties": false,
+                "properties": {
+                  "can_toggle": {
+                    "type": "boolean"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "policy": {
+                    "enum": [
+                      "enabled",
+                      "optional",
+                      "disabled"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "policy",
+                  "enabled",
+                  "can_toggle"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "planning",
+              "governance",
+              "finance"
+            ],
+            "type": "object"
+          },
           "updated_at": {
             "pattern": "^v\\d+$",
             "type": "string"
@@ -92622,6 +92786,9 @@
           "completion_approval",
           "completion_approver",
           "updated_at",
+          "tools",
+          "objectives",
+          "success_criteria",
           "charter",
           "phase_state",
           "change_control_mode"
@@ -92846,12 +93013,19 @@
                   "type": "boolean"
                 },
                 "charter_state": {
-                  "enum": [
-                    "draft",
-                    "submitted",
-                    "approved"
-                  ],
-                  "type": "string"
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "draft",
+                        "submitted",
+                        "approved"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "closed_task_count": {
                   "maximum": 9007199254740991,
@@ -92898,14 +93072,21 @@
                   "type": "string"
                 },
                 "phase": {
-                  "enum": [
-                    "initiating",
-                    "planning",
-                    "executing",
-                    "closing",
-                    "closed"
-                  ],
-                  "type": "string"
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "initiating",
+                        "planning",
+                        "executing",
+                        "closing",
+                        "closed"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "progress": {
                   "maximum": 100,
@@ -92980,6 +93161,35 @@
         "additionalProperties": false,
         "properties": {
           "goal": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "metric": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "goal",
+          "metric",
+          "target"
+        ],
+        "type": "object"
+      },
+      "ProjectObjectiveWriteSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "goal": {
+            "minLength": 1,
             "type": "string"
           },
           "metric": {
@@ -92990,9 +93200,7 @@
           }
         },
         "required": [
-          "goal",
-          "metric",
-          "target"
+          "goal"
         ],
         "type": "object"
       },
@@ -93063,29 +93271,6 @@
               "high_level_requirements": {
                 "type": "string"
               },
-              "objectives": {
-                "items": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "goal": {
-                      "type": "string"
-                    },
-                    "metric": {
-                      "type": "string"
-                    },
-                    "target": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "goal",
-                    "metric",
-                    "target"
-                  ],
-                  "type": "object"
-                },
-                "type": "array"
-              },
               "owning_unit_id": {
                 "anyOf": [
                   {
@@ -93131,9 +93316,6 @@
                     "type": "null"
                   }
                 ]
-              },
-              "success": {
-                "type": "string"
               },
               "type_id": {
                 "anyOf": [
@@ -93199,11 +93381,36 @@
             "minLength": 1,
             "type": "string"
           },
+          "objectives": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "goal": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "metric": {
+                  "type": "string"
+                },
+                "target": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "goal"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
           "privacy_visibility": {
             "enum": [
               "employees",
               "followers"
             ],
+            "type": "string"
+          },
+          "success_criteria": {
             "type": "string"
           },
           "tag_ids": {
@@ -93213,6 +93420,21 @@
               "type": "integer"
             },
             "type": "array"
+          },
+          "tool_preferences": {
+            "additionalProperties": false,
+            "properties": {
+              "finance": {
+                "type": "boolean"
+              },
+              "governance": {
+                "type": "boolean"
+              },
+              "planning": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
           },
           "user_id": {
             "anyOf": [
@@ -94049,21 +94271,81 @@
             ]
           },
           "finance": {
-            "additionalProperties": false,
-            "properties": {
-              "actual": {
-                "type": "number"
-              },
-              "actual_account": {
-                "anyOf": [
-                  {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "actual": {
+                    "type": "number"
+                  },
+                  "actual_account": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "code": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "id": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "code"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "actual_source": {
+                    "enum": [
+                      "manual",
+                      "external"
+                    ],
+                    "type": "string"
+                  },
+                  "budget_count": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "can_choose_actual_account": {
+                    "type": "boolean"
+                  },
+                  "can_read_actual_lines": {
+                    "type": "boolean"
+                  },
+                  "charter_estimate": {
+                    "anyOf": [
+                      {
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "currency": {
                     "additionalProperties": false,
                     "properties": {
-                      "code": {
-                        "type": [
-                          "string",
-                          "null"
-                        ]
+                      "decimal_places": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
                       },
                       "id": {
                         "exclusiveMinimum": 0,
@@ -94072,131 +94354,78 @@
                       },
                       "name": {
                         "type": "string"
+                      },
+                      "symbol": {
+                        "type": "string"
                       }
                     },
                     "required": [
                       "id",
                       "name",
-                      "code"
+                      "symbol",
+                      "decimal_places"
                     ],
                     "type": "object"
                   },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "actual_source": {
-                "enum": [
-                  "manual",
-                  "external"
-                ],
-                "type": "string"
-              },
-              "budget_count": {
-                "maximum": 9007199254740991,
-                "minimum": 0,
-                "type": "integer"
-              },
-              "can_choose_actual_account": {
-                "type": "boolean"
-              },
-              "can_read_actual_lines": {
-                "type": "boolean"
-              },
-              "charter_estimate": {
-                "anyOf": [
-                  {
-                    "minimum": 0,
-                    "type": "number"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "currency": {
-                "additionalProperties": false,
-                "properties": {
-                  "decimal_places": {
+                  "expense_count": {
                     "maximum": 9007199254740991,
-                    "minimum": -9007199254740991,
+                    "minimum": 0,
                     "type": "integer"
                   },
-                  "id": {
+                  "over_budget": {
+                    "type": "boolean"
+                  },
+                  "planned": {
+                    "anyOf": [
+                      {
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "project_id": {
                     "exclusiveMinimum": 0,
                     "maximum": 9007199254740991,
                     "type": "integer"
                   },
-                  "name": {
-                    "type": "string"
+                  "remaining": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
                   },
-                  "symbol": {
-                    "type": "string"
+                  "utilization_percent": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
                   }
                 },
                 "required": [
-                  "id",
-                  "name",
-                  "symbol",
-                  "decimal_places"
+                  "project_id",
+                  "currency",
+                  "charter_estimate",
+                  "planned",
+                  "actual",
+                  "remaining",
+                  "utilization_percent",
+                  "over_budget",
+                  "budget_count",
+                  "expense_count",
+                  "actual_source",
+                  "actual_account",
+                  "can_read_actual_lines",
+                  "can_choose_actual_account"
                 ],
                 "type": "object"
               },
-              "expense_count": {
-                "maximum": 9007199254740991,
-                "minimum": 0,
-                "type": "integer"
-              },
-              "over_budget": {
-                "type": "boolean"
-              },
-              "planned": {
-                "anyOf": [
-                  {
-                    "minimum": 0,
-                    "type": "number"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "project_id": {
-                "exclusiveMinimum": 0,
-                "maximum": 9007199254740991,
-                "type": "integer"
-              },
-              "remaining": {
-                "type": [
-                  "number",
-                  "null"
-                ]
-              },
-              "utilization_percent": {
-                "type": [
-                  "number",
-                  "null"
-                ]
+              {
+                "type": "null"
               }
-            },
-            "required": [
-              "project_id",
-              "currency",
-              "charter_estimate",
-              "planned",
-              "actual",
-              "remaining",
-              "utilization_percent",
-              "over_budget",
-              "budget_count",
-              "expense_count",
-              "actual_source",
-              "actual_account",
-              "can_read_actual_lines",
-              "can_choose_actual_account"
-            ],
-            "type": "object"
+            ]
           },
           "overdue_task_count": {
             "anyOf": [
@@ -94529,12 +94758,19 @@
             "type": "boolean"
           },
           "charter_state": {
-            "enum": [
-              "draft",
-              "submitted",
-              "approved"
-            ],
-            "type": "string"
+            "anyOf": [
+              {
+                "enum": [
+                  "draft",
+                  "submitted",
+                  "approved"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "closed_task_count": {
             "maximum": 9007199254740991,
@@ -94581,14 +94817,21 @@
             "type": "string"
           },
           "phase": {
-            "enum": [
-              "initiating",
-              "planning",
-              "executing",
-              "closing",
-              "closed"
-            ],
-            "type": "string"
+            "anyOf": [
+              {
+                "enum": [
+                  "initiating",
+                  "planning",
+                  "executing",
+                  "closing",
+                  "closed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "progress": {
             "maximum": 100,
@@ -94800,8 +95043,32 @@
             ],
             "type": "string"
           },
+          "finance_tool_policy": {
+            "enum": [
+              "enabled",
+              "optional",
+              "disabled"
+            ],
+            "type": "string"
+          },
+          "governance_tool_policy": {
+            "enum": [
+              "enabled",
+              "optional",
+              "disabled"
+            ],
+            "type": "string"
+          },
           "overdue_digest_enabled": {
             "type": "boolean"
+          },
+          "planning_tool_policy": {
+            "enum": [
+              "enabled",
+              "optional",
+              "disabled"
+            ],
+            "type": "string"
           },
           "project_creators": {
             "enum": [
@@ -94998,8 +95265,32 @@
             },
             "type": "array"
           },
+          "finance_tool_policy": {
+            "enum": [
+              "enabled",
+              "optional",
+              "disabled"
+            ],
+            "type": "string"
+          },
+          "governance_tool_policy": {
+            "enum": [
+              "enabled",
+              "optional",
+              "disabled"
+            ],
+            "type": "string"
+          },
           "overdue_digest_enabled": {
             "type": "boolean"
+          },
+          "planning_tool_policy": {
+            "enum": [
+              "enabled",
+              "optional",
+              "disabled"
+            ],
+            "type": "string"
           },
           "project_creators": {
             "enum": [
@@ -95027,6 +95318,9 @@
         },
         "required": [
           "project_creators",
+          "planning_tool_policy",
+          "governance_tool_policy",
+          "finance_tool_policy",
           "default_stages",
           "require_manager_on_create",
           "require_end_date_on_create",
@@ -95287,6 +95581,189 @@
           "done"
         ],
         "type": "string"
+      },
+      "ProjectToolKeySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "planning",
+          "governance",
+          "finance"
+        ],
+        "type": "string"
+      },
+      "ProjectToolPoliciesSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "finance": {
+            "enum": [
+              "enabled",
+              "optional",
+              "disabled"
+            ],
+            "type": "string"
+          },
+          "governance": {
+            "enum": [
+              "enabled",
+              "optional",
+              "disabled"
+            ],
+            "type": "string"
+          },
+          "planning": {
+            "enum": [
+              "enabled",
+              "optional",
+              "disabled"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "planning",
+          "governance",
+          "finance"
+        ],
+        "type": "object"
+      },
+      "ProjectToolPolicySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "enabled",
+          "optional",
+          "disabled"
+        ],
+        "type": "string"
+      },
+      "ProjectToolPreferencesPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "finance": {
+            "type": "boolean"
+          },
+          "governance": {
+            "type": "boolean"
+          },
+          "planning": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "ProjectToolStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "can_toggle": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "policy": {
+            "enum": [
+              "enabled",
+              "optional",
+              "disabled"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "policy",
+          "enabled",
+          "can_toggle"
+        ],
+        "type": "object"
+      },
+      "ProjectToolsStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "finance": {
+            "additionalProperties": false,
+            "properties": {
+              "can_toggle": {
+                "type": "boolean"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "policy": {
+                "enum": [
+                  "enabled",
+                  "optional",
+                  "disabled"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "policy",
+              "enabled",
+              "can_toggle"
+            ],
+            "type": "object"
+          },
+          "governance": {
+            "additionalProperties": false,
+            "properties": {
+              "can_toggle": {
+                "type": "boolean"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "policy": {
+                "enum": [
+                  "enabled",
+                  "optional",
+                  "disabled"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "policy",
+              "enabled",
+              "can_toggle"
+            ],
+            "type": "object"
+          },
+          "planning": {
+            "additionalProperties": false,
+            "properties": {
+              "can_toggle": {
+                "type": "boolean"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "policy": {
+                "enum": [
+                  "enabled",
+                  "optional",
+                  "disabled"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "policy",
+              "enabled",
+              "can_toggle"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "planning",
+          "governance",
+          "finance"
+        ],
+        "type": "object"
       },
       "ProjectTypeRefSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -96967,9 +97444,16 @@
             "type": "string"
           },
           "percent_complete": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
+            "anyOf": [
+              {
+                "maximum": 100,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "personal_stage": {
             "anyOf": [
@@ -97008,6 +97492,9 @@
             ],
             "default": null
           },
+          "planning_enabled": {
+            "type": "boolean"
+          },
           "priority": {
             "enum": [
               "0",
@@ -97018,11 +97505,18 @@
             "type": "string"
           },
           "progress_method": {
-            "enum": [
-              "binary",
-              "manual"
-            ],
-            "type": "string"
+            "anyOf": [
+              {
+                "enum": [
+                  "binary",
+                  "manual"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "project": {
             "anyOf": [
@@ -97401,6 +97895,7 @@
           "subtasks",
           "depends_on",
           "attachments",
+          "planning_enabled",
           "can_manage_dependencies",
           "milestone",
           "created_at",
