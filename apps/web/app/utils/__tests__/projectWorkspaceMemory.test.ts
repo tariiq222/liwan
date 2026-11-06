@@ -39,9 +39,15 @@ describe('project workspace memory', () => {
 })
 
 describe('tool-aware workspace restoration',()=>{
- it('refuses a stored advanced section when metadata is unknown or the tool is disabled',()=>{
+ it.each(['register','milestones','charter','finance','schedule'])('keeps the sanitized %s destination while metadata is unresolved',section=>{
+  const saved=savedProjectLocation(`/projects/7/${section}`,{q:'review'})
+  expect(projectEntryLocation(7,'/projects?mine=1',saved)).toEqual({path:`/projects/7/${section}`,query:{q:'review',returnTo:'/projects?mine=1',projectListReturnTo:'/projects?mine=1'}})
+ })
+ it('falls back to summary when the owning tool is confirmed disabled',()=>{
   const saved=savedProjectLocation('/projects/7/register',{q:'risk'})
-  expect(projectEntryLocation(7,'/projects',saved).path).toBe('/projects/7')
   expect(projectEntryLocation(7,'/projects',saved,{...tools,governance:{...enabled,enabled:false}}).path).toBe('/projects/7')
+ })
+ it.each(['/projects/8/register','https://evil.test','//evil.test','/projects/7/register/new','/projects/7/tasks/9','/projects/7/settings'])('does not allow unsafe, cross-project or form route %s with unknown metadata',path=>{
+  expect(projectEntryLocation(7,'/projects',{path,query:{q:'risk'}}).path).toBe('/projects/7')
  })
 })

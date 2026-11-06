@@ -48,7 +48,8 @@ export function projectEntryLocation(id: number, origin: string, value: unknown,
   const candidate = value && typeof value === 'object' ? value as Partial<ProjectLocation> : null
   const saved = candidate && typeof candidate.path === 'string' && candidate.query && typeof candidate.query === 'object'
     ? savedProjectLocation(candidate.path, candidate.query) : null
-  const location = saved && projectSectionAvailable(saved.path.split('/')[3] ?? 'summary', tools) && (saved.path === base || saved.path.startsWith(`${base}/`)) ? saved : { path: base, query: {} }
+  // Entry still verifies access; only resolved metadata can rule out a remembered URL here.
+  const location = saved && (tools === undefined || projectSectionAvailable(saved.path.split('/')[3] ?? 'summary', tools)) && (saved.path === base || saved.path.startsWith(`${base}/`)) ? saved : { path: base, query: {} }
   const list = projectListReturnTo({ returnTo: origin })
   return { path: location.path, query: { ...location.query, returnTo: list, projectListReturnTo: list } }
 }

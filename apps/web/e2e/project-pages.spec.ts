@@ -31,7 +31,7 @@ test('project settings opens as an ordinary page and keeps sidebar navigation', 
   await expect(page.getByRole('heading', { name: 'إعدادات المشروع', level: 2 })).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.getByTestId('project-workspace-settings')).toHaveAttribute('aria-current', 'page')
-  await expect(page.getByTestId('project-workspace-tabs').locator('[aria-current="page"]')).toHaveCount(0)
+  await expect(page.getByRole('navigation',{name:'أقسام المشروع',exact:true}).locator('[aria-current="page"]')).toHaveCount(0)
   await page.getByTestId('project-tab-tasks').click()
   await expect(page.getByTestId('project-tab-tasks')).toHaveAttribute('aria-current', 'page')
   expect(new URL(page.url()).searchParams.get('q')).toBe('تصميم')
@@ -42,8 +42,8 @@ for (const [path, title, inProject] of [
   ['/projects', 'كل المشاريع', false],
   ['/projects?mine=1', 'مشاريعي', false],
   ['/projects/dashboard', 'نظرة عامة', false],
-  ['/projects/1?tab=summary', 'مشروع ألفا', true],
-  ['/projects/1?tab=milestones', 'مشروع ألفا', true],
+  ['/projects/1', 'مشروع ألفا', true],
+  ['/projects/1/milestones', 'مشروع ألفا', true],
   ['/projects/1/schedule', 'مشروع ألفا', true],
   ['/projects/1/raci', 'مشروع ألفا', true],
   ['/projects/1/updates', 'مشروع ألفا', true],
@@ -62,7 +62,7 @@ for (const [path, title, inProject] of [
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(title)
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
     await expect(page.getByTestId('context-project-menu-back')).toHaveCount(0)
-    await expect(page.getByTestId('project-workspace-tabs')).toHaveCount(inProject ? 1 : 0)
+    await expect(page.getByRole('navigation',{name:'أقسام المشروع',exact:true})).toHaveCount(inProject ? 1 : 0)
     // The first line under the name is the way back: «المشاريع», or the list the project was opened from.
     const back = page.locator('[data-testid="project-workspace-trail"], [data-testid="project-workspace-back"]')
     await expect(back).toHaveCount(inProject ? 1 : 0)
@@ -111,7 +111,7 @@ test('desktop project workspace has one identity and one toolbar after a direct 
   expect(create.y).toBeGreaterThanOrEqual(header.y)
   expect(create.y + create.height).toBeLessThanOrEqual(header.y + header.height + 1)
   const title = (await page.getByRole('heading', { level: 1 }).boundingBox())!
-  const tabs = (await page.getByTestId('project-workspace-tabs').boundingBox())!
+  const tabs = (await page.getByRole('navigation',{name:'أقسام المشروع',exact:true}).boundingBox())!
   expect(title.y + title.height).toBeLessThanOrEqual(tabs.y + 1)
   expect(search.y).toBeGreaterThan(tabs.y + tabs.height)
   await page.screenshot({ path: testInfo.outputPath('desktop-project-layout.png'), fullPage: true })

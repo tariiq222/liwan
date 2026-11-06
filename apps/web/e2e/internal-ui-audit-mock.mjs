@@ -102,8 +102,8 @@ function patchCompany(patch) {
 
 const CHARTER = {
   code: 'P-1', state: 'approved', type: { id: 1, name: 'داخلي', charter_steps: [] }, owning_unit: { id: 1, name: 'مكتب المشاريع' },
-  sponsor: { id: 2, name: 'Admin' }, authority: '', rationale: '', objectives: [], benefits: '',
-  scope: '', exclusions: '', high_level_requirements: '', deliverables: [], success: '',
+  sponsor: { id: 2, name: 'Admin' }, authority: '', rationale: '', benefits: '',
+  scope: '', exclusions: '', high_level_requirements: '', deliverables: [],
   budget_state: 'unknown', amount: null, currency: null, priority: 'normal',
   assumptions: '', constraints: '', closure: '',
   approval_required: false, can_review: false, submitted_by: null, submitted_at: null,
@@ -204,40 +204,54 @@ function seedReviewCharters() {
   })
 }
 seedReviewCharters()
+const PROJECT_CORE = new Map()
+const PROJECT_PREFERENCES = new Map([1, 2, 3, 8001, 8002].map(id => [id, { planning: true, governance: true, finance: true }]))
+const TOOL_KEYS = ['planning', 'governance', 'finance']
+function toolsOf(p) {
+  return Object.fromEntries(TOOL_KEYS.map(key => {
+    const policy = SETTINGS[`${key}_tool_policy`]
+    return [key, { policy, enabled: policy === 'enabled' || policy === 'optional' && (PROJECT_PREFERENCES.get(p.id)?.[key] ?? false), can_toggle: policy === 'optional' && p.active && p.can_manage }]
+  }))
+}
 const allProjects = () => [...PROJECTS, ...COPIES, ...REVIEW_PROJECTS]
-const stateOf = p => CHARTER_STATE.get(p.id) ?? { charter: CHARTER, updated_at: 'v1' }
+const stateOf = p => { const state = CHARTER_STATE.get(p.id) ?? { charter: CHARTER, updated_at: 'v1' }; return {...state,charter:{...state.charter,approval_required:SETTINGS.require_charter_approval}} }
 // Lifecycle phases (project id -> phase). The seeded workspace projects are already planning; review and
 // created projects start at initiating like the server column default. The reset restores them.
 const PHASES = ['initiating', 'planning', 'executing', 'closing', 'closed']
 const PHASE_OF = new Map()
 const phaseOf = p => PHASE_OF.get(p.id) ?? (PROJECTS.includes(p) ? 'planning' : 'initiating')
-const listItem = p => ({ ...p, charter_state: stateOf(p).charter.state, phase: phaseOf(p) })
+const listItem = p => ({ ...p, charter_state: toolsOf(p).governance.enabled ? stateOf(p).charter.state : null, phase: toolsOf(p).governance.enabled ? phaseOf(p) : null })
 
 // Mirrors Project._liwan_phase_state: the gate into planning asks for the charter, the gate into executing for a baseline (warning).
 function phaseState(p) {
   const index = PHASES.indexOf(phaseOf(p))
   const next = PHASES[index + 1] ?? null
-  const nextChecks = next === 'planning' ? [{ key: 'charter_approved', ok: stateOf(p).charter.state === 'approved' }] : next === 'executing' ? [baselineGateCheck(p.id)] : []
+  const nextChecks = next === 'planning' && SETTINGS.require_charter_approval ? [{ key: 'charter_approved', ok: stateOf(p).charter.state === 'approved' }] : next === 'executing' ? [baselineGateCheck(p.id)] : []
   return { current: PHASES[index], next, previous: PHASES[index - 1] ?? null, next_checks: nextChecks }
 }
 
 function projectDetail(p) {
+  const tools = toolsOf(p)
+  const core = PROJECT_CORE.get(p.id) ?? {}
+  const charter = {...stateOf(p).charter}
+  if (!tools.finance.enabled) Object.assign(charter,{budget_state:null,amount:null,currency:null})
   return {
     ...listItem(p),
     stages: STAGES,
-    description_html: '<p>وصف</p>',
-    privacy_visibility: 'employees',
-    date_start: '2026-01-01',
+    description_html: core.description ?? '<p>وصف</p>',
+    objectives: core.objectives ?? [], success_criteria: core.success_criteria ?? '', tools,
+    privacy_visibility: core.privacy_visibility ?? 'employees',
+    date_start: core.date_start !== undefined ? core.date_start : (PROJECTS.includes(p) ? '2026-01-01' : null),
     date_end: p.date_end,
     tags: [],
     followers_count: 1,
-    milestone_count: 0,
+    milestone_count: tools.planning.enabled ? 0 : null,
     allow_task_dependencies: false,
     completion_approval: 'none',
     completion_approver: null,
     updated_at: stateOf(p).updated_at,
-    charter: stateOf(p).charter,
-    phase_state: phaseState(p),
+    charter: tools.governance.enabled ? charter : null,
+    phase_state: tools.governance.enabled ? phaseState(p) : null,
     change_control_mode: SETTINGS.change_control_mode,
   }
 }
@@ -325,6 +339,7 @@ function reportRow(p) {
 
 const SETTINGS = {
   project_creators: 'managers',
+  planning_tool_policy:'optional', governance_tool_policy:'optional', finance_tool_policy:'optional',
   default_stages: [{ name: 'جديد', fold: false }, { name: 'جارٍ', fold: false }],
   require_manager_on_create: false,
   require_end_date_on_create: false,
@@ -714,6 +729,9 @@ async function handle(req, res) {
     const sponsorId = body.charter?.sponsor_id ?? null
     const id = 9000 + COPIES.length
     const created = { ...REVIEW_BASE, id, name, status: null, manager: { id: body.user_id ?? 2, name: PERSON_NAMES[body.user_id ?? 2] ?? 'Admin' } }
+    created.date_end = body.date_end ?? body.date ?? null
+    PROJECT_CORE.set(id,{description:body.description ?? '',objectives:(body.objectives ?? []).map((row,index)=>({id:index+1,goal:row.goal,metric:row.metric ?? '',target:row.target ?? ''})),success_criteria:body.success_criteria ?? '',date_start:body.date_start ?? null})
+    PROJECT_PREFERENCES.set(id,{planning:false,governance:false,finance:false})
     COPIES.push(created)
     CHARTER_STATE.set(id, {
       updated_at: 'v1',
@@ -733,6 +751,7 @@ async function handle(req, res) {
     try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
     const entry = stateOf(p)
     if (body.expected_updated_at !== entry.updated_at) return fail(res, 409, 'stale_write', 'the project changed since it was loaded')
+    if (!toolsOf(p).governance.enabled) return fail(res,403,'forbidden','governance is unavailable')
     const charter = { ...entry.charter }
     const wrongState = () => fail(res, 409, 'charter_state', 'the charter is not in a state that allows this action')
     switch (transition.action) {
@@ -789,28 +808,54 @@ async function handle(req, res) {
     PHASE_OF.clear()
     COPIES.length = 0
     SETTINGS.require_charter_approval = false
+    for (const key of TOOL_KEYS) SETTINGS[`${key}_tool_policy`] = 'optional'
+    PROJECT_CORE.clear()
+    PROJECT_PREFERENCES.clear()
+    for (const id of [1,2,3,8001,8002]) PROJECT_PREFERENCES.set(id,{planning:true,governance:true,finance:true})
     return json(res, 200, { ok: true })
   }
   if (method === 'PATCH' && path === '/api/v1/settings/projects') {
     let body = {}
     try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+    const next={...SETTINGS,...body}
+    if ((next.require_charter_approval || next.change_control_mode === 'required' || next.baseline_gate === 'required') && next.governance_tool_policy !== 'enabled') return fail(res,422,'invalid','mandatory governance requires company-enabled governance')
+    if (next.baseline_gate === 'required' && next.planning_tool_policy !== 'enabled') return fail(res,422,'invalid','mandatory baseline requires company-enabled planning')
     Object.assign(SETTINGS, body)
     return json(res, 200, SETTINGS)
   }
   const project = match(path, '/api/v1/projects/:id')
+  if (method === 'PATCH' && project) {
+    const p = allProjects().find(item => String(item.id) === project.id)
+    if (!p) return fail(res,404,'not_found','project not found')
+    if (!p.can_manage) return fail(res,403,'forbidden','not allowed')
+    const body=JSON.parse(await readBody(req) || '{}');const entry=stateOf(p)
+    if (body.expected_updated_at && body.expected_updated_at !== entry.updated_at) return fail(res,409,'stale_write','project changed')
+    if (body.charter && !toolsOf(p).governance.enabled) return fail(res,403,'forbidden','governance is unavailable')
+    if (body.tool_preferences && Object.keys(body.tool_preferences).some(key=>!TOOL_KEYS.includes(key) || SETTINGS[`${key}_tool_policy`] !== 'optional')) return fail(res,403,'forbidden','tool policy changed')
+    const core={...(PROJECT_CORE.get(p.id) ?? {})}
+    for(const key of ['description','success_criteria','date_start','privacy_visibility']) if(key in body)core[key]=body[key]
+    if(body.objectives)core.objectives=body.objectives.map((row,index)=>({id:index+1,goal:row.goal,metric:row.metric ?? '',target:row.target ?? ''}))
+    PROJECT_CORE.set(p.id,core)
+    for(const key of ['name','allow_task_dependencies'])if(key in body)p[key]=body[key]
+    if('date_end' in body || 'date' in body)p.date_end=body.date_end ?? body.date ?? null
+    if(body.tool_preferences)PROJECT_PREFERENCES.set(p.id,{...(PROJECT_PREFERENCES.get(p.id) ?? {}),...body.tool_preferences})
+    const write={...body.charter}
+    for (const [field, target] of [['type_id','type'],['owning_unit_id','owning_unit'],['sponsor_id','sponsor']]) {
+      if (field in write) {
+        const id=write[field]
+        write[target]=id ? {id,name:target==='sponsor' ? PERSON_NAMES[id] ?? 'Admin' : target==='type' ? 'داخلي' : 'مكتب المشاريع',...(target==='type'?{charter_steps:[]}:{} )} : null
+        delete write[field]
+      }
+    }
+    const charter={...entry.charter,...write}
+    if(body.charter && entry.charter.state === 'approved' && SETTINGS.require_charter_approval)charter.state='draft'
+    CHARTER_STATE.set(p.id,{charter,updated_at:`v${Number(entry.updated_at.slice(1))+1}`})
+    return json(res,200,projectDetail(p))
+  }
   if (method === 'GET' && project) {
     const p = allProjects().find(item => String(item.id) === project.id)
     if (!p) return fail(res, 404, 'not_found', 'project not found')
     return json(res, 200, projectDetail(p))
-  }
-  if (method === 'POST' && path === '/api/v1/projects') {
-    let body = {}
-    try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
-    const name = typeof body.name === 'string' ? body.name.trim() : ''
-    if (!name) return fail(res, 422, 'invalid', 'name is required')
-    const created = { ...PROJECTS[0], id: 900 + COPIES.length, name, status: null, progress: 0, closed_task_count: 0, active: true }
-    COPIES.push(created)
-    return json(res, 201, projectDetail(created))
   }
   const copy = match(path, '/api/v1/projects/:id/copy')
   if (method === 'POST' && copy) {
@@ -822,6 +867,8 @@ async function handle(req, res) {
     if (!name || !/^\d{4}-\d{2}-\d{2}$/.test(String(body.start_date))) return fail(res, 422, 'invalid', 'name and start_date are required')
     // Copies live outside PROJECTS so list-based specs keep their three rows; only direct links reach them.
     const created = { ...source, id: 900 + COPIES.length, name, status: null, progress: 0, closed_task_count: 0, active: true }
+    PROJECT_PREFERENCES.set(created.id,{...(PROJECT_PREFERENCES.get(source.id) ?? {})})
+    PROJECT_CORE.set(created.id,{...(PROJECT_CORE.get(source.id) ?? {}),date_start:body.start_date})
     COPIES.push(created)
     return json(res, 201, { ...projectDetail(created), date_start: body.start_date })
   }
@@ -838,7 +885,7 @@ async function handle(req, res) {
   if (method === 'GET' && path === '/api/v1/tags') return json(res, 200, [])
   if (method === 'GET' && path === '/api/v1/settings/projects') return json(res, 200, SETTINGS)
   if (method === 'GET' && path === '/api/v1/settings/projects/create-defaults') {
-    return json(res, 200, { require_manager_on_create: false, require_end_date_on_create: false, default_manager_id: 2 })
+    return json(res, 200, { require_manager_on_create: SETTINGS.require_manager_on_create, require_end_date_on_create: SETTINGS.require_end_date_on_create, default_manager_id: 2 })
   }
   if (method === 'GET' && path === '/api/v1/project-charter/defaults') return json(res, 200, { currency: null })
   if (method === 'GET' && path === '/api/v1/project-charter/catalogs/types') {

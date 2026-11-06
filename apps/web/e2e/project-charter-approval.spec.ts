@@ -11,6 +11,7 @@ test.beforeEach(async ({ page }) => {
   await login(page)
   const reset = await page.request.post('/api/v1/__mock/reset-charters')
   expect(reset.status()).toBe(200)
+  expect((await page.request.patch('/api/v1/settings/projects',{data:{governance_tool_policy:'enabled',require_charter_approval:true}})).status()).toBe(200)
 })
 
 // The reset also turns the approval policy off, so later specs see the default mock.
@@ -63,30 +64,31 @@ test('a returned draft shows the sponsor note to the manager', async ({ page }) 
   await expect(page.getByText('أضف مؤشرات قياس واضحة للأهداف.')).toBeVisible()
 })
 
-test('finishing the wizard sends the charter to the sponsor when approval is required', async ({ page }) => {
-  const enable = await page.request.patch('/api/v1/settings/projects', { data: { require_charter_approval: true } })
+test('creating stays simple and explicit charter editing submits to the sponsor when required', async ({ page }) => {
+  const enable = await page.request.patch('/api/v1/settings/projects', { data: { require_charter_approval: true, governance_tool_policy:'enabled' } })
   expect(enable.status()).toBe(200)
   try {
     await page.goto('/projects/new')
     await expect(page.getByRole('dialog')).toBeVisible()
     const name = `E2E approval ${Date.now()}`
     await page.getByTestId('project-create-name').fill(name)
+    await page.getByTestId('project-create-submit').click()
+    await expect(page.getByRole('heading',{name,exact:true})).toBeVisible()
+    const projectId=Number(new URL(page.url()).pathname.split('/')[2])
+    await open(page,`/projects/${projectId}/charter?edit=1`)
     // A sponsor other than the signed-in user, so finishing submits instead of self-approving.
     const me = await (await page.request.get('/api/v1/me')).json()
     const people = await (await page.request.get('/api/v1/people')).json() as { id: number; name: string }[]
     const sponsor = people.find(person => person.id !== me.id)
     expect(sponsor).toBeTruthy()
     await chooseOption(page, 'charter-field-sponsor', 'غير محدد', sponsor!.name)
-    // Without a classification the wizard walks every step: basics + 5 middle steps, then review.
-    for (const step of ['justification', 'scope', 'schedule', 'budget', 'risks']) {
-      await page.getByTestId('charter-step-next').click()
-      await expect(page).toHaveURL(new RegExp(`step=${step}`))
-    }
     await page.getByTestId('charter-step-next').click()
     await expect(page.getByTestId('charter-review-step')).toBeVisible()
+    const submitted=page.waitForResponse(response=>/\/charter\/submit$/.test(new URL(response.url()).pathname) && response.request().method()==='POST')
     await page.getByTestId('project-create-submit').click()
+    expect((await submitted).status()).toBe(200)
+    await expect(page.getByTestId('charter-state-badge')).toHaveText('بانتظار الاعتماد')
     await expect(page.getByRole('heading', { name })).toBeVisible()
-    const projectId = Number(new URL(page.url()).pathname.split('/')[2])
     await open(page, `/projects/${projectId}/charter`)
     await expect(page.getByTestId('charter-state-badge')).toHaveText('بانتظار الاعتماد')
     const detail = await (await page.request.get(`/api/v1/projects/${projectId}`)).json()
