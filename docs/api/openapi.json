@@ -1812,6 +1812,7 @@
         "enum": [
           "message",
           "setup",
+          "help",
           "read",
           "write_light",
           "draft"
@@ -1926,6 +1927,7 @@
             "enum": [
               "message",
               "setup",
+              "help",
               "read",
               "write_light",
               "draft"
@@ -2104,6 +2106,14 @@
           "text_hash"
         ],
         "type": "object"
+      },
+      "AiConversationModeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "setup",
+          "help"
+        ],
+        "type": "string"
       },
       "AiDoneStatusSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -2707,6 +2717,23 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "assist_monthly": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "assist_used": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
           "messages_monthly": {
             "anyOf": [
               {
@@ -2776,23 +2803,6 @@
             ],
             "type": "object"
           },
-          "setup_monthly": {
-            "anyOf": [
-              {
-                "maximum": 9007199254740991,
-                "minimum": 0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "setup_used": {
-            "maximum": 9007199254740991,
-            "minimum": 0,
-            "type": "integer"
-          },
           "tool_calls_per_run": {
             "anyOf": [
               {
@@ -2810,8 +2820,8 @@
           "tool_calls_per_run",
           "messages_monthly",
           "messages_used",
-          "setup_monthly",
-          "setup_used",
+          "assist_monthly",
+          "assist_used",
           "policy"
         ],
         "type": "object"
@@ -3313,6 +3323,115 @@
         ],
         "type": "object"
       },
+      "AiRunDetailSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "messages": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "content": {
+                  "type": "string"
+                },
+                "role": {
+                  "enum": [
+                    "user",
+                    "assistant"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "role",
+                "content"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "mode": {
+            "enum": [
+              "assistant",
+              "setup",
+              "help"
+            ],
+            "type": "string"
+          },
+          "pending": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "agent": {
+                    "pattern": "^[a-z][a-z0-9_]*$",
+                    "type": "string"
+                  },
+                  "call_id": {
+                    "type": "string"
+                  },
+                  "input": {
+                    "additionalProperties": {},
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "kind": {
+                    "enum": [
+                      "read",
+                      "write_light",
+                      "draft"
+                    ],
+                    "type": "string"
+                  },
+                  "requires_approval": {
+                    "type": "boolean"
+                  },
+                  "tool": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "call_id",
+                  "tool",
+                  "kind",
+                  "input",
+                  "agent",
+                  "requires_approval"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "run_id": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "running",
+              "waiting_tool",
+              "waiting_user",
+              "done",
+              "failed",
+              "limit_reached",
+              "executing"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "status",
+          "messages",
+          "pending",
+          "mode"
+        ],
+        "type": "object"
+      },
       "AiRunListQuerySchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -3387,6 +3506,15 @@
           "total"
         ],
         "type": "object"
+      },
+      "AiRunModeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "assistant",
+          "setup",
+          "help"
+        ],
+        "type": "string"
       },
       "AiRunPatchSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -3703,6 +3831,23 @@
           "usage": {
             "additionalProperties": false,
             "properties": {
+              "assist_limit": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "assist_used": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
               "messages_limit": {
                 "anyOf": [
                   {
@@ -3758,6 +3903,8 @@
               "month",
               "messages_used",
               "messages_limit",
+              "assist_used",
+              "assist_limit",
               "tokens_used",
               "tokens_limit",
               "output_tokens_per_run"
@@ -3821,7 +3968,8 @@
             "anyOf": [
               {
                 "enum": [
-                  "setup"
+                  "setup",
+                  "help"
                 ],
                 "type": "string"
               },
@@ -4415,6 +4563,23 @@
           "limits": {
             "additionalProperties": false,
             "properties": {
+              "assist_monthly": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "assist_used": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
               "messages_monthly": {
                 "anyOf": [
                   {
@@ -4484,23 +4649,6 @@
                 ],
                 "type": "object"
               },
-              "setup_monthly": {
-                "anyOf": [
-                  {
-                    "maximum": 9007199254740991,
-                    "minimum": 0,
-                    "type": "integer"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "setup_used": {
-                "maximum": 9007199254740991,
-                "minimum": 0,
-                "type": "integer"
-              },
               "tool_calls_per_run": {
                 "anyOf": [
                   {
@@ -4518,8 +4666,8 @@
               "tool_calls_per_run",
               "messages_monthly",
               "messages_used",
-              "setup_monthly",
-              "setup_used",
+              "assist_monthly",
+              "assist_used",
               "policy"
             ],
             "type": "object"
@@ -100647,6 +100795,44 @@
         }
       }
     },
+    "/api/v1/ai/help": {
+      "get": {
+        "operationId": "liwan_ai.AiHelpController.search_help.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "search_help",
+        "tags": [
+          "liwan_ai"
+        ],
+        "x-liwan": {
+          "addon": "liwan_ai",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AiHelpController",
+          "feature_keys": [],
+          "feature_operation": "read",
+          "handler": "search_help",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/ai/knowledge/rebuild": {
       "post": {
         "operationId": "liwan_ai.AiKnowledgeController.rebuild.post",
@@ -100831,6 +101017,44 @@
           "feature_operation": "write",
           "handler": "write_settings",
           "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/ai/setup/readiness": {
+      "get": {
+        "operationId": "liwan_ai.AiSetupController.readiness.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "readiness",
+        "tags": [
+          "liwan_ai"
+        ],
+        "x-liwan": {
+          "addon": "liwan_ai",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AiSetupController",
+          "feature_keys": [],
+          "feature_operation": "read",
+          "handler": "readiness",
+          "readonly": true,
           "route_type": "json2"
         }
       }

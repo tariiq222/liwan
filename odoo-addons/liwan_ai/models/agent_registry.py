@@ -18,7 +18,8 @@ class LiwanAiAgentRegistry(models.AbstractModel):
 
     Each application declares one agent in its ``liwan_<app>_ai`` bridge. The agent's key is the application id
     (its owner addon without ``liwan_``), the same prefix its tools carry, so an agent's tools are exactly the
-    tools of its owner and no second list can drift from them (spec 2026-11-04 §6.5).
+    tools of its owner and no second list can drift from them (spec 2026-11-04 §6.5). An application that needs
+    a second agent (``liwan_ai``: setup and help) keys it ``<app>_<agent>``, and that agent's tools carry the same prefix.
     """
     _name = 'liwan.ai.agent.registry'
     _description = 'LiwanOS AI agent registry'
@@ -40,7 +41,8 @@ class LiwanAiAgentRegistry(models.AbstractModel):
         for field in AGENT_TEXT:
             if not item.get(field) or not isinstance(item[field], str):
                 self._liwan_ai_error(key, f'missing {field}')
-        if item['owner'] != f'liwan_{key}':
+        app = item['owner'].removeprefix('liwan_')
+        if key != app and not key.startswith(f'{app}_'):
             self._liwan_ai_error(key, f"key must match owner {item['owner']}")
         pages = item.get('pages', ())
         if not isinstance(pages, (list, tuple)) or not all(isinstance(page, str) and PAGE.match(page) for page in pages):

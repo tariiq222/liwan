@@ -88,14 +88,14 @@ class TestAiSetupAgent(AiProbe, LiwanApiCase):
         ordinary = self.api('GET', '/api/v1/ai/tools').json()
         self.assertFalse([item for item in ordinary['items'] if item['name'].startswith('ai.')])
         setup = self.url_open('/api/v1/ai/tools?mode=setup').json()
-        self.assertEqual({item['name'] for item in setup['items']}, {'ai.list_settings', 'ai.apply_setting'})
+        self.assertEqual({item['name'] for item in setup['items']}, {'ai.readiness', 'ai.list_settings', 'ai.apply_setting'})
         self.assertEqual([agent['key'] for agent in setup['agents']], ['ai'])
         self.assertEqual(self.url_open('/api/v1/ai/tools?mode=shout').status_code, 422)
 
-    def test_setup_messages_spend_the_setup_budget_never_the_package(self):
+    def test_setup_messages_spend_the_assistance_budget_never_the_package(self):
         profile = self.env.ref('liwan_platform.tenant_profile')
         profile.sudo().with_context(**{OPERATOR_CONTEXT: True}).write({
-            'features': {**(profile.features or {}), 'ai.setup.monthly': 1, 'ai.messages.monthly': 0},
+            'features': {**(profile.features or {}), 'ai.assist.monthly': 1, 'ai.messages.monthly': 0},
         })
         self._grant_ai_use(self.manager)
         with self.assertRaises(AccessError):  # the setup assistant serves those who may change a setting
@@ -104,9 +104,9 @@ class TestAiSetupAgent(AiProbe, LiwanApiCase):
         Audit.create(MESSAGE)  # a package with no message left still runs the setup agent
         with self.assertRaises(LiwanAccessRule) as caught:
             Audit.create(MESSAGE)
-        self.assertEqual(caught.exception.details['limit_key'], 'ai.setup.monthly')
+        self.assertEqual(caught.exception.details['limit_key'], 'ai.assist.monthly')
         self.assertEqual(Audit._liwan_ai_count_messages(), 0)
-        self.assertEqual(Audit._liwan_ai_count_messages(kind='setup'), 1)
+        self.assertEqual(Audit._liwan_ai_count_messages(kinds=('setup',)), 1)
 
     def test_a_conversation_keeps_the_mode_it_started_in(self):
         self._grant_ai_use(self.manager)
@@ -119,3 +119,62 @@ class TestAiSetupAgent(AiProbe, LiwanApiCase):
         self.assertIsNone(Audit._liwan_ai_conversation_mode('r_unknown'))
         self._as('ai_setup_admin')
         self.assertEqual(self.api('GET', '/api/v1/ai/conversations/r_setup_01/mode').json(), {'mode': 'setup'})
+
+    def _no_record_checks(self):
+        self.patch(type(self.env['liwan.ai.readiness']), '_liwan_ai_record_checks', lambda model: ())
+
+    def test_the_readiness_check_lists_only_what_the_caller_may_see_and_changes_nothing(self):
+        self._no_record_checks()
+        self._as('api_emp')
+        self.assertEqual(self.api('GET', '/api/v1/ai/setup/readiness').json(), {'items': [], 'total': 0})
+        self.patch(type(self.env['liwan.ai.settings']), '_liwan_current', lambda model: model.browse())
+        self.assertEqual(self.api('GET', '/api/v1/ai/setup/readiness').json(), {'items': [], 'total': 0})
+        self._as('ai_setup_admin')
+        items = self.api('GET', '/api/v1/ai/setup/readiness').json()['items']
+        self.assertEqual([item['key'] for item in items], ['settings.ai'])
+        # An unsigned acknowledgement is never listed: no run, and so no readiness check, happens without one.
+        self.assertNotIn('ai.consent', [item['key'] for item in items])
+
+    def test_unsaved_settings_are_grouped_by_application_and_point_to_the_settings_home(self):
+        self._no_record_checks()
+        self.patch(type(self.env['liwan.ai.settings']), '_liwan_current', lambda model: model.browse())
+        self._as('ai_setup_admin')
+        unsaved = {item['key']: item for item in self.api('GET', '/api/v1/ai/setup/readiness').json()['items']}['settings.ai']
+        self.assertEqual((unsaved['page'], unsaved['severity']), ('/settings', 'recommended'))
+        self.assertIn('رسائل كل موظف شهريًا', unsaved['label']['ar'])
+        self.assertIn('Messages per employee each month', unsaved['label']['en'])
+
+    def test_users_without_a_role_are_counted_only_for_a_reader_of_users(self):
+        self._no_record_checks()
+        new_test_user(self.env, login='ai_roleless', password='ai_roleless_pass_123', name='Roleless', groups='base.group_user')
+        reader_role = self.env['liwan.access.role'].create({
+            'name_ar': 'قارئ المستخدمين', 'company_id': self.env.company.id,
+            'permission_ids': [(6, 0, self.env['liwan.access.permission'].search([('key', 'in', ('access.users.read', 'access.roles.read', 'ai.use'))]).ids)],
+        })
+        reader = new_test_user(self.env, login='ai_users_reader', password='ai_users_reader_pass_123', name='Reader', groups='base.group_user,liwan_ai.group_cap_ai_use')
+        self.env['liwan.access.assignment'].create({'user_id': reader.id, 'role_id': reader_role.id, 'company_id': self.env.company.id})
+        entry = self.env['liwan.ai.readiness'].with_user(reader)._liwan_ai_user_items()
+        self.assertEqual([item['key'] for item in entry], ['access.users_without_role'])
+        self.assertEqual(entry[0]['page'], '/settings/team/users')
+        self.assertEqual(self.env['liwan.ai.readiness'].with_user(self.employee)._liwan_ai_user_items(), [])
+        self._as('ai_users_reader')
+        self.assertEqual([item['key'] for item in self.api('GET', '/api/v1/ai/setup/readiness').json()['items']], ['access.users_without_role'])
+
+    def test_an_application_declares_what_it_expects_to_hold_once_in_use(self):
+        check = {
+            'key': 'ai.consents', 'owner': 'liwan_ai', 'feature_key': 'ai.enabled', 'model': 'liwan.ai.consent',
+            'capability': 'ai.use', 'label_ar': 'لا إقرارات بعد', 'label_en': 'No acknowledgements yet', 'page': '/settings/apps/ai',
+        }
+        registry = type(self.env['liwan.ai.readiness'])
+        self.patch(registry, '_liwan_ai_record_checks', lambda model: (check,))
+        readiness = self.env['liwan.ai.readiness'].with_user(self.env.ref('base.user_admin'))
+        self.assertEqual([entry['key'] for entry in readiness._liwan_ai_record_items()], ['records.ai.consents'])
+        self.assertEqual(readiness._liwan_ai_record_items()[0]['severity'], 'optional')
+        # A domain narrows which records count: none matches, so the application still looks unused.
+        self.patch(registry, '_liwan_ai_record_checks', lambda model: ({**check, 'domain': [('id', '=', 0)]},))
+        self.assertEqual(len(readiness._liwan_ai_record_items()), 1)
+        for broken, fragment in (({**check, 'page': 'settings'}, 'page'), ({**check, 'key': 'crm.consents'}, 'prefix'), ({**check, 'model': 'no.such'}, 'page'), ({**check, 'domain': 'x'}, 'domain')):
+            self.patch(registry, '_liwan_ai_record_checks', lambda model, broken=broken: (broken,))
+            with self.assertRaises(ValidationError) as caught:
+                self.env['liwan.ai.readiness']._liwan_ai_check_map()
+            self.assertIn(fragment, str(caught.exception))

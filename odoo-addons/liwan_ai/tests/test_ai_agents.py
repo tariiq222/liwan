@@ -47,6 +47,28 @@ class TestAiAgentRegistry(AiProbe, LiwanApiCase):
         self._rejected(({**PROBE_AGENT, 'instructions_en': ''},), (), 'instructions_en')
         self._rejected((PROBE_AGENT, PROBE_AGENT), (), 'duplicate agent')
 
+    def test_a_second_agent_of_an_application_carries_the_application_prefix(self):
+        second = {**PROBE_AGENT, 'key': 'probe_extra'}
+        tool = {**PROBE_TOOLS[0], 'name': 'probe_extra.list_things'}
+        self.patch(type(self.env['liwan.ai.agent.registry']), '_liwan_ai_agent_definitions', lambda model: (PROBE_AGENT, second))
+        self.patch(type(self.env['liwan.ai.tool.registry']), '_liwan_ai_tool_definitions', lambda model: (tool,))
+        registry = self.env['liwan.ai.tool.registry']
+        self.assertEqual(list(registry._liwan_ai_tool_map()), ['probe_extra.list_things'])
+        self.assertEqual(registry._liwan_ai_agent_key(tool), 'probe_extra')
+        self._rejected((PROBE_AGENT,), (tool,), 'registers no agent')
+        self._rejected((PROBE_AGENT, {**PROBE_AGENT, 'key': 'probes'}), (), 'key must match owner')
+
+    def test_a_tool_cannot_join_the_agent_of_another_addon(self):
+        # Addon liwan_probe_x names its tool by its own application id (probe_x), which is also the key of liwan_probe's
+        # second agent: the prefix rules pass both, so only the owner comparison keeps the tool out of that agent.
+        agent = {**PROBE_AGENT, 'key': 'probe_x'}
+        tool = {**PROBE_TOOLS[0], 'name': 'probe_x.list_things', 'owner': 'liwan_probe_x'}
+        self._rejected((PROBE_AGENT, agent), (tool,), 'agent probe_x belongs to liwan_probe, not to liwan_probe_x')
+        own = {**tool, 'owner': 'liwan_probe'}
+        self.patch(type(self.env['liwan.ai.agent.registry']), '_liwan_ai_agent_definitions', lambda model: (PROBE_AGENT, agent))
+        self.patch(type(self.env['liwan.ai.tool.registry']), '_liwan_ai_tool_definitions', lambda model: (own,))
+        self.assertIn('probe_x.list_things', self.env['liwan.ai.tool.registry']._liwan_ai_tool_map())
+
     def test_a_tool_without_its_agent_is_refused(self):
         self._rejected((), PROBE_TOOLS, 'registers no agent')
 

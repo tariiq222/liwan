@@ -12,14 +12,23 @@ def _text(item, field):
 
 
 def available_agents(env):
-    """``{key: (agent, [tools])}`` for the registered agents whose application the tenant has enabled."""
+    """``{key: (agent, [tools])}`` for the registered agents whose application the tenant has enabled.
+
+    An agent's tools are those whose name carries its key; a platform tool (no agent) is listed with its owner's main
+    agent, the one keyed by the application id, so the administrator can still set its mode.
+    """
     entitlement = env['liwan.entitlement.service']
-    tools = env['liwan.ai.tool.registry']._liwan_ai_tool_map().values()
+    registry = env['liwan.ai.tool.registry']
+    tools = registry._liwan_ai_tool_map().values()
     agents = {}
     for key, agent in env['liwan.ai.agent.registry']._liwan_ai_agent_map().items():
         if not entitlement._liwan_feature_read(agent['feature_key']):
             continue
-        agents[key] = (agent, [tool for tool in tools if tool['owner'] == agent['owner']])
+        main = key == agent['owner'].removeprefix('liwan_')
+        agents[key] = (agent, [
+            tool for tool in tools
+            if registry._liwan_ai_agent_key(tool) == key or (main and tool.get('platform') and tool['owner'] == agent['owner'])
+        ])
     return agents
 
 

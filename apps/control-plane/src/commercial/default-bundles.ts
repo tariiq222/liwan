@@ -46,10 +46,10 @@ export async function seedDefaultBundles(pool: Pool, actor: CommercialActor, inp
   const body = Object.fromEntries(PLAN_FIELDS.map(k => [k, draft[k]]))
   // A plan revision compiles against one catalog release, so it lists only this release's bundles (validation refuses a mix).
   body.optional_bundle_revision_ids = bundleIds
-  // A release can add core platform limits (the AI assistant's, owner decision 2026-11-05); compiling needs each one set, so a missing one is seeded as null (unlimited fair use, owner decision 2026-10-25) for the owner to tighten in the vendor console.
+  // A release can add core platform limits (the AI assistant's, owner decision 2026-11-05); compiling needs each one set, so a missing one is seeded with the catalog's default for it (the free assistants' budget, 300 a month) and otherwise as null (unlimited fair use, owner decision 2026-10-25), for the owner to tighten in the vendor console.
   const platformLimits = { ...(draft.platform_limits as Record<string, number | null>) }
   for (const app of release.applications.filter(a => !a.selectable))
-    for (const f of app.features) if (f.kind === 'limit' && !DERIVED_LIMITS.includes(f.key) && !Object.hasOwn(platformLimits, f.key)) platformLimits[f.key] = null
+    for (const f of app.features) if (f.kind === 'limit' && !DERIVED_LIMITS.includes(f.key) && !Object.hasOwn(platformLimits, f.key)) platformLimits[f.key] = f.ceiling ?? null
   body.platform_limits = platformLimits
   const edited = await mutatePlan(pool, actor, draft.id, 'edit', { ...body, edit_revision: draft.edit_revision, reason }) as unknown as { edit_revision: number }
   const validated = await mutatePlan(pool, actor, draft.id, 'validate', { edit_revision: edited.edit_revision, reason }) as unknown as { edit_revision: number }

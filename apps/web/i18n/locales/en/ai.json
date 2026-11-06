@@ -94,7 +94,7 @@
       "tenantKeyMissing": "Your organization chose to run the assistant on its own key, and no key has been added yet.",
       "openSettings": "Open the AI settings",
       "perUser": "You used the monthly assistant messages your administrator set.",
-      "setupMonthly": "Your company reached this month's setup assistant limit."
+      "assistMonthly": "Your company reached this month's limit for the setup and help assistants."
     },
     "errors": {
       "unavailable": "Liwan AI is unavailable right now. Try again later.",
@@ -232,6 +232,7 @@
         "title": "This month's use",
         "hint": "{month}. Counts only; no conversation text is shown.",
         "messages": "Messages",
+        "assist": "Help and setup messages",
         "tokens": "Usage units (tokens)",
         "toolCalls": "Actions",
         "user": "User",
@@ -312,6 +313,16 @@
     "setup": {
       "open": "Setup assistant",
       "banner": "Setup assistant: it proposes your applications' settings for your line of business and applies nothing without your approval."
+    },
+    "help": {
+      "open": "Ask how to use LiwanOS",
+      "askPage": "Ask about this page",
+      "banner": "Help assistant: answers \"how do I...?\" questions from the LiwanOS guide. It does not read your company's data and changes nothing."
+    },
+    "helpStarters": {
+      "employee": "How do I add a new employee?",
+      "project": "How do I create a new project?",
+      "role": "How do I give a user a role?"
     }
   }
 }

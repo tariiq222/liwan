@@ -39,6 +39,11 @@ export type AiAgent = z.infer<typeof AiAgentSchema>
 export const AI_CORE_AGENT = 'core'
 /** The setup agent of liwan_ai: its tools exist only in a setup conversation. */
 export const AI_SETUP_AGENT = 'ai'
+/** The help agent of liwan_ai: its tools exist only in a help conversation. */
+export const AI_HELP_AGENT = 'ai_help'
+/** The modes of the free agents: a conversation with the setup agent only, or with the help agent only. */
+export const AiConversationModeSchema = z.enum(['setup', 'help'])
+export type AiConversationMode = z.infer<typeof AiConversationModeSchema>
 
 const AiLimitValueSchema = z.number().int().nonnegative().nullable() // null means unlimited
 export const AiProviderModeSchema = z.enum(['platform', 'tenant_key'])
@@ -59,9 +64,9 @@ export const AiLimitsSchema = z.object({
   tool_calls_per_run: AiLimitValueSchema,
   messages_monthly: AiLimitValueSchema,
   messages_used: z.number().int().nonnegative(),
-  /** The free setup agent's monthly budget (vendor-set) and this month's setup messages. */
-  setup_monthly: AiLimitValueSchema,
-  setup_used: z.number().int().nonnegative(),
+  /** The free agents' (setup and help) one monthly budget (vendor-set) and this month's messages against it. */
+  assist_monthly: AiLimitValueSchema,
+  assist_used: z.number().int().nonnegative(),
   policy: AiPolicySchema,
 }).strict()
 
@@ -72,8 +77,8 @@ export const AiToolsResponseSchema = z.object({
 }).strict()
 export type AiToolsResponse = z.infer<typeof AiToolsResponseSchema>
 
-/** `setup`: a user message of a setup conversation, counted against the setup budget instead of the package. */
-export const AiAuditKindSchema = z.enum(['message', 'setup', 'read', 'write_light', 'draft'])
+/** `setup` and `help`: a user message of a free agent's conversation, counted against the assistance budget instead of the package. */
+export const AiAuditKindSchema = z.enum(['message', 'setup', 'help', 'read', 'write_light', 'draft'])
 export const AiAuditResultSchema = z.enum(['ok', 'denied', 'failed', 'proposed', 'approved', 'rejected'])
 export const AiAuditRequestSchema = z.object({
   conversation_id: z.string().min(1).max(64),
@@ -168,6 +173,12 @@ export const AiRunStatusSchema = z.object({
   }).strict().nullable(),
 }).strict()
 export type AiRunStatus = z.infer<typeof AiRunStatusSchema>
+/** The mode of a conversation: `assistant` is the ordinary one. */
+export const AiRunModeSchema = z.enum(['assistant', ...AiConversationModeSchema.options])
+export type AiRunMode = z.infer<typeof AiRunModeSchema>
+/** `GET /api/ai/runs/{id}`: the service's run status plus the mode the conversation started in (decided by Odoo, never by the URL). */
+export const AiRunDetailSchema = AiRunStatusSchema.extend({ mode: AiRunModeSchema })
+export type AiRunDetail = z.infer<typeof AiRunDetailSchema>
 
 /** One row of the caller's own conversation history (`GET /api/ai/runs`); `title` is null for a run started before titles existed. */
 export const AiRunSummarySchema = z.object({
@@ -199,8 +210,8 @@ export const AI_MESSAGE_MAX = 8000
 export const AiStartRequestSchema = z.object({
   message: z.string().trim().min(1).max(AI_MESSAGE_MAX),
   run_id: z.string().min(1).max(64).nullish(),
-  /** `setup`: a conversation with the setup agent only, on the platform provider, against the setup budget. */
-  mode: z.enum(['setup']).nullish(),
+  /** `setup` or `help`: a conversation with that free agent only, on the platform provider, against the assistance budget. */
+  mode: AiConversationModeSchema.nullish(),
   context: z.object({ page: z.string().regex(/^[a-z][a-z0-9_-]{0,63}$/), id: z.number().int().nullish() }).strict().nullish(),
 }).strict()
 export type AiStartRequest = z.infer<typeof AiStartRequestSchema>
@@ -254,6 +265,9 @@ export const AiSettingsSchema = z.object({
     month: z.string().regex(/^\d{4}-\d{2}$/),
     messages_used: z.number().int().nonnegative(),
     messages_limit: AiLimitValueSchema,
+    /** The free agents' (setup and help) messages against their one monthly budget. */
+    assist_used: z.number().int().nonnegative(),
+    assist_limit: AiLimitValueSchema,
     tokens_used: z.number().int().nonnegative(),
     tokens_limit: AiLimitValueSchema,
     output_tokens_per_run: AiLimitValueSchema,

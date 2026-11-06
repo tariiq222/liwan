@@ -7,9 +7,9 @@ import { serviceFetch } from './upstream'
 /** What the AI service enforces on one request: whose provider runs it, whether the tenant signed the AI acknowledgement, the output cap. */
 export type ServicePolicy = { provider_mode: 'platform' | 'tenant_key' | 'setup'; consent_signed: boolean; max_output_tokens: number | null }
 
-/** Whose provider runs the request: a setup conversation always runs on the platform provider, paid by the setup budget. */
+/** Whose provider runs the request: a setup or help conversation always runs on the platform provider, paid by the assistance budget. */
 function providerMode(session: RunSession): ServicePolicy['provider_mode'] {
-  return session.mode === 'setup' ? 'setup' : session.policy.provider_mode
+  return session.mode === 'assistant' ? session.policy.provider_mode : 'setup'
 }
 
 export function runPolicy(session: RunSession): ServicePolicy {

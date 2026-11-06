@@ -165,6 +165,15 @@ class TestAiSettings(AiProbe, LiwanApiCase):
         self.env['liwan.ai.settings']._liwan_current().provider_mode = 'tenant_key'
         self.assertEqual(self.api('POST', '/api/v1/ai/audit', MESSAGE).status_code, 200)
 
+    def test_the_usage_block_shows_the_free_agents_budget_apart_from_the_package_messages(self):
+        self._set_feature('ai.assist.monthly', 300)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.api('POST', '/api/v1/ai/audit', MESSAGE)
+        self.api('POST', '/api/v1/ai/audit', {**MESSAGE, 'conversation_id': 'r_help_usage', 'kind': 'help'})
+        self._as_manager()
+        usage = self.api('GET', '/api/v1/ai/settings').json()['usage']
+        self.assertEqual((usage['messages_used'], usage['assist_used'], usage['assist_limit']), (1, 1, 300))
+
     def test_monitoring_counts_actions_per_user_without_text(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         self.api('POST', '/api/v1/ai/audit', MESSAGE)

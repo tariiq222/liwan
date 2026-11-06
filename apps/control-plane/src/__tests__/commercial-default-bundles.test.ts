@@ -34,7 +34,7 @@ suite('default bundles for a catalog release', () => {
     expect(again.body).toMatchObject({ created: [], plan_created: false, plan_revision_id: first.body.plan_revision_id })
     expect([...again.body.bundles].sort()).toEqual([...first.body.bundles].sort())
   })
-  it('starts every platform limit the release adds (the AI limits) unlimited on the new plan revision', async () => {
+  it('starts every platform limit the release adds (the AI limits) unlimited, except the free assistant budget at its 300 default, on the new plan revision', async () => {
     const raw = await readFile(new URL('../../../../deploy/catalog/solutions/platform_v4.json', import.meta.url))
     const version = `commercial-${randomUUID()}`
     await pool.query("INSERT INTO catalog_entries(id,version,status,solution,source_sha256) VALUES($1,$2,'published',$3,$4)", [randomUUID(), version, JSON.parse(raw.toString()), createHash('sha256').update(raw).digest('hex')])
@@ -42,7 +42,7 @@ suite('default bundles for a catalog release', () => {
     const seeded = await api('POST', `/catalog/releases/${platform.id}/default-bundles`, { reason })
     expect(seeded.status, JSON.stringify(seeded.body)).toBe(200)
     const plan = (await pool.query('SELECT platform_limits FROM plan_revisions WHERE id=$1', [seeded.body.plan_revision_id])).rows[0]
-    expect(plan.platform_limits).toEqual({ 'ai.messages.monthly': null, 'ai.tool_calls.per_run': null, 'ai.tokens.monthly': null, 'ai.setup.monthly': null, 'ai.output_tokens.per_run': null })
+    expect(plan.platform_limits).toEqual({ 'ai.messages.monthly': null, 'ai.tool_calls.per_run': null, 'ai.tokens.monthly': null, 'ai.assist.monthly': 300, 'ai.output_tokens.per_run': null })
   })
   it('needs both catalog and pricing rights and a reason, and answers 404 for an unknown release', async () => {
     const catalogOnly = client(pool, ['vendor.read', 'vendor.catalog.manage'])

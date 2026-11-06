@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
   const { message, run_id: continued, context, mode } = parsed.data
   // A continued conversation keeps the mode it started in, whatever the browser sends (Odoo refuses a mismatch anyway).
   const started = continued ? await conversationMode(event, continued) : null
-  const session = await runSession(event, started ?? (mode === 'setup' ? 'setup' : 'assistant'))
+  const session = await runSession(event, started ?? mode ?? 'assistant')
   await assertRunnable(event, session)
   // The outbound data policy (spec 2026-11-04 §6.12): identity numbers and IBANs leave withheld, mobile numbers and emails
   // as tokens. Both can be longer than the value they replace, so the message is measured again before anything is counted.
@@ -23,8 +23,8 @@ export default defineEventHandler(async (event) => {
   if (outbound.length > AI_MESSAGE_MAX) throw createError({ statusCode: 422, data: { code: 'invalid', message: 'the message is too long once sensitive values are protected', field: 'message' } })
   // This server names a new run, so its first `message` audit already carries the run id and the message is still counted before the service is reached.
   const runId = continued ?? `r_${randomBytes(12).toString('hex')}`
-  // A setup message spends the vendor's setup budget, never the package's messages.
-  await audit(event, { conversation_id: runId, kind: session.mode === 'setup' ? 'setup' : 'message', tool_name: null, input: null, result: 'ok', http_status: null, draft: null, approved: null, attested: false })
+  // A setup or help message spends the vendor's assistance budget, never the package's messages; its audit kind is its mode.
+  await audit(event, { conversation_id: runId, kind: session.mode === 'assistant' ? 'message' : session.mode, tool_name: null, input: null, result: 'ok', http_status: null, draft: null, approved: null, attested: false })
   const locale = runLocale(getCookie(event, 'liwan-locale'))
   const response = await serviceFetch(event, 'POST', '/v1/runs', session.owner, {
     tenant: session.owner.tenant, user_ref: session.owner.user, locale, message: outbound,

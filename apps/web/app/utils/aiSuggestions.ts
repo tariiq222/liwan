@@ -1,6 +1,9 @@
 /** Starter questions of an empty conversation; each key is under `ai.starters.*`. Only questions the registered assistant tools can answer (projects and tasks) belong here. */
 export const AI_STARTER_KEYS = ['overdue', 'projects', 'week'] as const
 
+/** Starter questions of an empty help conversation; each key is under `ai.helpStarters.*` and is answered by a section of the user guide. */
+export const AI_HELP_STARTER_KEYS = ['employee', 'project', 'role'] as const
+
 const GENERIC_FOLLOW_UPS = ['summary', 'next', 'risks'] as const
 const FOLLOW_UPS_BY_PAGE: Record<string, readonly string[]> = {
   project: ['projectRisks', 'projectTasks', 'projectNext'],

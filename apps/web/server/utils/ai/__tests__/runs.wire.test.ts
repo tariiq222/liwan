@@ -43,7 +43,7 @@ const TOOLS = {
   ],
   total: 3,
   agents: [],
-  limits: { tool_calls_per_run: 8, messages_monthly: 100, messages_used: 1, setup_monthly: null, setup_used: 0, policy: { provider_mode: 'platform', consent_signed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: 8000 } }, blocked_fields: [],
+  limits: { tool_calls_per_run: 8, messages_monthly: 100, messages_used: 1, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: 8000 } }, blocked_fields: [],
 }
 const ME = { id: 42, name: 'سارة', company: { id: 1, name: 'ليوان' } }
 
@@ -278,7 +278,19 @@ describe('POST /api/ai/runs', () => {
     expect(JSON.parse(serviceCalls.find(c => c.url === '/v1/runs')!.body).policy.provider_mode).toBe('setup')
   })
 
+  it('runs a help conversation on the help catalog, the assistance budget and the platform provider', async () => {
+    await events(await post('/api/ai/runs', { message: 'كيف أضيف موظفًا؟', mode: 'help' }))
+    expect(odooCalls.some(c => c.url === '/api/v1/ai/tools?mode=help')).toBe(true)
+    expect(odooCalls.filter(c => c.url === '/api/v1/ai/audit').map(c => JSON.parse(c.body!).kind)[0]).toBe('help')
+    expect(JSON.parse(serviceCalls.find(c => c.url === '/v1/runs')!.body).policy.provider_mode).toBe('setup')
+  })
+
   it('keeps a continued conversation in the mode it started in, whatever the browser sends', async () => {
+    conversationModes = { r_help: 'help' }
+    await events(await post('/api/ai/runs', { message: 'وبعد؟', run_id: 'r_help', mode: 'setup' }))
+    expect(odooCalls.some(c => c.url === '/api/v1/ai/tools?mode=help')).toBe(true)
+    expect(odooCalls.filter(c => c.url === '/api/v1/ai/audit').map(c => JSON.parse(c.body!).kind)[0]).toBe('help')
+    odooCalls = []
     conversationModes = { r_setup: 'setup' }
     await events(await post('/api/ai/runs', { message: 'وبعد؟', run_id: 'r_setup' }))
     expect(odooCalls.some(c => c.url === '/api/v1/ai/tools?mode=setup')).toBe(true)
@@ -562,6 +574,14 @@ describe('provider usage', () => {
 })
 
 describe('resume and status', () => {
+  it('reports the mode the conversation started in, from Odoo and never from the browser', async () => {
+    conversationModes = { r_1: 'help' }
+    const help = await (await fetch(`${url}/api/ai/runs/r_1`, { headers: { cookie: 'session_id=s1' } })).json()
+    expect(help.mode).toBe('help')
+    expect(odooCalls.some(c => c.url === '/api/v1/ai/tools?mode=help')).toBe(true)
+    conversationModes = {}
+    expect((await (await fetch(`${url}/api/ai/runs/r_1`, { headers: { cookie: 'session_id=s1' } })).json()).mode).toBe('assistant')
+  })
   it('resumes with the user decision and relays the stream', async () => {
     const list = await events(await post('/api/ai/runs/r_1/resume', { call_id: 'c_2', decision: 'approved', data: { id: 77, name: 'بوابة' } }))
     expect(list.map(([n]) => n)).toEqual(['run', 'token', 'answer', 'done'])
@@ -650,6 +670,13 @@ describe('resume and status', () => {
     pending = { call_id: 'c_9', tool: 'ai.apply_setting', kind: 'write_light', agent: 'ai', requires_approval: true, input: { key: 'crm.visibility', value: 'all' } }
     await events(await post('/api/ai/runs/r_1/resume', { call_id: 'c_9', decision: 'rejected' }))
     expect(odooCalls.some(c => c.url === '/api/v1/ai/tools?mode=setup')).toBe(true)
+    expect(lastResume().policy.provider_mode).toBe('setup')
+  })
+
+  it('resumes a help conversation on the help catalog and the platform provider', async () => {
+    pending = { call_id: 'c_8', tool: 'ai_help.search_guide', kind: 'read', agent: 'ai_help', requires_approval: true, input: { query: 'x' } }
+    await events(await post('/api/ai/runs/r_1/resume', { call_id: 'c_8', decision: 'rejected' }))
+    expect(odooCalls.some(c => c.url === '/api/v1/ai/tools?mode=help')).toBe(true)
     expect(lastResume().policy.provider_mode).toBe('setup')
   })
 
