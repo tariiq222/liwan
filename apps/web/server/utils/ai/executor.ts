@@ -1,5 +1,5 @@
 import type { AiTool } from '@liwan/contracts'
-import { withholdValue } from './outbound'
+import { protectValue, type TokenKey } from './outbound'
 
 export type ToolRequest = { method: 'GET' | 'POST' | 'PATCH'; path: string; query: Record<string, unknown>; body: Record<string, unknown> | undefined }
 export type ToolError = { code: string; message: string }
@@ -101,10 +101,10 @@ export function upstreamError(body: unknown): { code: string; message: string; d
   return { code: source.code, message: typeof source.message === 'string' ? source.message : '', ...(details !== undefined ? { details } : {}) }
 }
 
-export function toolResultFromUpstream(status: number, body: unknown, tool: AiTool, blocked: ReadonlySet<string>): ToolResult {
+export function toolResultFromUpstream(status: number, body: unknown, tool: AiTool, blocked: ReadonlySet<string>, key: TokenKey): ToolResult {
   if (status >= 200 && status < 300) {
-    // Withheld here, before the size check, so the bound covers the markers too (spec 2026-11-04 §6.12).
-    const data = withholdValue(summarizeResult(body, tool.result_summary, blocked))
+    // Protected here, before the size check, so the bound covers the markers and tokens too (spec 2026-11-04 §6.12).
+    const data = protectValue(summarizeResult(body, tool.result_summary, blocked), key)
     if (Buffer.byteLength(JSON.stringify(data)) > MAX_RESULT_BYTES) return toolError('result_too_large', 'The result is too large to hand to the assistant')
     return { ok: true, data }
   }

@@ -4,8 +4,6 @@ import re
 from odoo import api, models
 from odoo.exceptions import ValidationError
 
-from odoo.addons.liwan_ai.models.tool_registry import SENSITIVE_FIELDS
-
 KNOWLEDGE_FIELD_TYPES = ('char', 'text', 'html', 'selection', 'many2one')
 KNOWLEDGE_TEXT = ('model', 'owner', 'feature_key', 'title_field', 'label_ar', 'label_en')
 INDEXER_USER = 'liwan_ai.user_ai_indexer'
@@ -50,8 +48,8 @@ class LiwanAiKnowledgeRegistry(models.AbstractModel):
         if (not isinstance(capabilities, (list, tuple)) or not capabilities
                 or not all(isinstance(key, str) and CAPABILITY_KEY.match(key) for key in capabilities)):
             self._liwan_ai_error(model_name, 'indexer_capabilities must be a list of capability keys')
-        agent = self.env['liwan.ai.agent.registry']._liwan_ai_agent_map().get(item['owner'].removeprefix('liwan_'), {})
-        sensitive = SENSITIVE_FIELDS | set(agent.get('sensitive_fields', ()))
+        # The one list of blocked fields (spec 2026-11-04 §6.12): no source may index what no tool result may carry.
+        sensitive = set(self.env['liwan.ai.tool.registry']._liwan_ai_blocked_fields())
         for name in (item['title_field'], *item['fields']):
             field = model._fields.get(name)
             if field is None or field.type not in KNOWLEDGE_FIELD_TYPES:

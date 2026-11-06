@@ -5,6 +5,7 @@ import { clientSignal, forwardUpstream, logFailure, odooJson, readSse, serviceFe
 import { createUsageLedger, type UsageLedger } from './usage'
 import type { RunSession } from './session'
 import { runPolicy } from './policy'
+import { restoreValue, streamRestorer } from './outbound'
 
 export type ExecutableKind = 'read' | 'write_light'
 export type ToolCall = { call_id: string; tool: string; agent: string; input: Record<string, unknown> }
@@ -37,8 +38,10 @@ export async function executeTool(event: H3Event, session: RunSession, runId: st
   if ((tool.kind !== 'read' && tool.kind !== 'write_light') || tool.kind !== kind) {
     return toolError('not_executable', `${call.tool} cannot be executed as ${kind}`)
   }
+  // The model names a mobile number or an email by the token it was given; the tool and its audit get the value again.
+  const input = restoreValue(call.input, session.tokenKey)
   let built
-  try { built = buildToolRequest(tool, call.input) } catch (error) {
+  try { built = buildToolRequest(tool, input) } catch (error) {
     return toolError('invalid_arguments', (error as Error).message)
   }
   let result: ToolResult
@@ -46,13 +49,13 @@ export async function executeTool(event: H3Event, session: RunSession, runId: st
   try {
     const upstream = await odooJson(event, built.method, built.path, { query: built.query, body: built.body, signal: options.signal })
     status = upstream.status
-    result = toolResultFromUpstream(upstream.status, upstream.body, tool, session.blockedFields)
+    result = toolResultFromUpstream(upstream.status, upstream.body, tool, session.blockedFields, session.tokenKey)
   } catch (error) {
     logFailure('odoo call failed', error)
     result = upstreamUnavailable()
   }
   const recorded = await tryAudit(event, {
-    conversation_id: runId, kind, agent: call.agent, tool_name: tool.name, input: call.input,
+    conversation_id: runId, kind, agent: call.agent, tool_name: tool.name, input,
     result: result.ok ? 'ok' : status === 403 ? 'denied' : 'failed', http_status: status, draft: null, approved: null, attested: false,
   }, options.signal)
   if (!recorded) options.onAuditFailed?.()
@@ -121,6 +124,18 @@ export async function pumpRun(event: H3Event, session: RunSession, stream: Event
   // A read this server turned into a card (its catalog asks for approval, the run's tool list did not): the run now waits
   // for the user, whatever status the service reported.
   let upgraded = false
+  // Everything the browser hears carries the real values again: whole events at once, the streamed text piece by piece.
+  const restorer = streamRestorer(session.tokenKey)
+  const show = async (name: string, data: unknown) => {
+    if (name === 'token') {
+      const text = restorer.push((data as { text: string }).text)
+      if (text) await push(stream, 'token', { text })
+      return
+    }
+    const rest = restorer.flush()
+    if (rest) await push(stream, 'token', { text: rest })
+    await push(stream, name, restoreValue(data, session.tokenKey))
+  }
   let next: Response | null = response
   while (next) {
     const current: Response = next
@@ -154,10 +169,11 @@ export async function pumpRun(event: H3Event, session: RunSession, stream: Event
         data.requires_approval = true
         upgraded = true
       } else if (name === 'tool_request' && data.kind === 'draft') {
-        const recorded = await tryAudit(event, { conversation_id: runId, kind: 'draft', agent: data.agent, tool_name: data.tool, input: data.input, result: 'proposed', http_status: null, draft: data.input, approved: null, attested: false })
+        const draft = restoreValue(data.input, session.tokenKey)
+        const recorded = await tryAudit(event, { conversation_id: runId, kind: 'draft', agent: data.agent, tool_name: data.tool, input: draft, result: 'proposed', http_status: null, draft, approved: null, attested: false })
         auditFailed ||= !recorded
       }
-      await push(stream, name, data)
+      await show(name, data)
     }
     if (gone.aborted) return
     if (!action) break
@@ -166,12 +182,14 @@ export async function pumpRun(event: H3Event, session: RunSession, stream: Event
     if (action.kind === 'read') {
       result = await executeTool(event, session, runId, 'read', call, { onAuditFailed: () => { auditFailed = true } })
       if (gone.aborted) return
-      await push(stream, 'tool_result', { call_id: call.call_id, tool: call.tool, kind: 'read', ok: result.ok, summary_ar: action.call.summary_ar, summary_en: action.call.summary_en })
+      await show('tool_result', { call_id: call.call_id, tool: call.tool, kind: 'read', ok: result.ok, summary_ar: action.call.summary_ar, summary_en: action.call.summary_en })
     } else {
       result = toolError('unknown_tool', action.message)
     }
     next = await serviceFetch(event, 'POST', `/v1/runs/${encodeURIComponent(runId)}/resume`, session.owner, { call_id: call.call_id, result, policy: runPolicy(session) })
   }
+  const rest = restorer.flush()
+  if (rest) await push(stream, 'token', { text: rest })
   if (auditFailed) await stream.push(auditFailedEvent())
   await stream.push({ event: 'done', data: JSON.stringify(finalDone) })
 }

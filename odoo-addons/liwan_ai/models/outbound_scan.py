@@ -1,7 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """The outbound data policy's content scan (spec 2026-11-04 §6.12, layer 2) for text that Odoo itself sends toward a
-provider: a faithful port of ``apps/web/server/utils/ai/outbound.ts`` (``withholdText``), so the knowledge chunks that
-leave in the indexing queue are withheld exactly as a tool result is. Keep the two in step.
+provider: a port of the patterns of ``apps/web/server/utils/ai/outbound.ts``, so the knowledge chunks that leave in the
+indexing queue are scanned exactly as a tool result is. Keep the patterns of the two in step. Odoo holds no token key, so
+here every kind is withheld with its marker; the Nuxt server turns mobile numbers and emails of a live run into tokens it
+restores, which indexed text never needs.
 
 Every value with a fixed shape that the policy withholds is replaced by a marker naming its kind. A pattern errs towards
 withholding: a few extra characters withheld are better than a value sent.
