@@ -108,6 +108,21 @@ describe('normalizeMobileInput', () => {
     expect(normalizeMobileInput('+201001234567')).toBe('+201001234567')
   })
 
+  it('reads Arabic-Indic and Persian digits as ASCII digits', () => {
+    expect(normalizeMobileInput('٠٥٠٠٠٠٠٠٠١')).toBe('+966500000001')
+    expect(normalizeMobileInput('۰۵۰۰۰۰۰۰۰۱')).toBe('+966500000001')
+    expect(normalizeMobileInput('+٩٦٦ ٥٠ ٠٠٠ ٠٠٠١')).toBe('+966500000001')
+    expect(normalizeMobileInput('۹۶۶۵۰۰۰۰۰۰۰۱')).toBe('+966500000001')
+  })
+
+  it('drops the trunk 0 typed after the country code', () => {
+    expect(normalizeMobileInput('+966 05 0000 0001')).toBe('+966500000001')
+    expect(normalizeMobileInput('00966 0500000001')).toBe('+966500000001')
+    expect(normalizeMobileInput('966 0500000001')).toBe('+966500000001')
+    expect(normalizeMobileInput('+٩٦٦ ٠٥٠٠٠٠٠٠٠١')).toBe('+966500000001')
+    expect(normalizeMobileInput('+201001234567')).toBe('+201001234567')
+  })
+
   it('returns anything else cleaned but unchanged, for the contract to refuse', () => {
     expect(normalizeMobileInput('')).toBe('')
     expect(normalizeMobileInput('abc')).toBe('abc')

@@ -69,17 +69,28 @@ export function mobileStepRedirect(
   return to.fullPath === '/' ? { path: MOBILE_STEP_PATH } : { path: MOBILE_STEP_PATH, query: { next: to.fullPath } }
 }
 
+/** Arabic-Indic (٠-٩) and Persian (۰-۹) digits as ASCII digits: keyboards in Arabic locales type them. */
+function toAsciiDigits(value: string): string {
+  return value
+    .replace(/[٠-٩]/g, digit => String(digit.charCodeAt(0) - 0x0660))
+    .replace(/[۰-۹]/g, digit => String(digit.charCodeAt(0) - 0x06F0))
+}
+
 /**
- * What a person typed as E.164: the default country is +966, so a local number (05xxxxxxxx or 5xxxxxxxx) gets it.
+ * What a person typed as E.164: the default country is +966, so a local number (05xxxxxxxx or 5xxxxxxxx) gets it,
+ * and the trunk 0 people keep after the country code (+966 05…) is dropped.
  * Anything else is returned cleaned but otherwise as typed, for the contract to accept or refuse.
  */
 export function normalizeMobileInput(raw: string): string {
-  const typed = raw.replace(/[\s\-().]/g, '')
-  if (typed.startsWith('+')) return typed
-  if (typed.startsWith('00')) return `+${typed.slice(2)}`
-  if (typed.startsWith('966')) return `+${typed}`
-  if (typed.startsWith('0')) return `+966${typed.slice(1)}`
-  return /^5\d{8}$/.test(typed) ? `+966${typed}` : typed
+  const typed = toAsciiDigits(raw).replace(/[\s\-().]/g, '')
+  const international = (() => {
+    if (typed.startsWith('+')) return typed
+    if (typed.startsWith('00')) return `+${typed.slice(2)}`
+    if (typed.startsWith('966')) return `+${typed}`
+    if (typed.startsWith('0')) return `+966${typed.slice(1)}`
+    return /^5\d{8}$/.test(typed) ? `+966${typed}` : typed
+  })()
+  return international.replace(/^\+9660/, '+966')
 }
 
 /** Saves the signed-in user's own mobile number (the server checks the format and that no one else holds it), then reloads `me`. */
