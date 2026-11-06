@@ -5,8 +5,6 @@ from odoo.addons.liwan_ai.tests.common import AiProbe
 from odoo.addons.liwan_api.tests.common import LiwanApiCase
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
-PASSWORD = 'Str0ng-indexer-pass-123'
-
 
 @tagged('post_install', '-at_install', 'liwan')
 class TestAiIndexerAccount(AiProbe, LiwanApiCase):
@@ -44,7 +42,7 @@ class TestAiIndexerAccount(AiProbe, LiwanApiCase):
 
     def test_an_access_administrator_cannot_reactivate_the_indexer(self):
         response = self.api('POST', f'/api/v1/admin/users/{self.indexer.id}/reactivate', {
-            'expected_version': self.indexer.liwan_access_version, 'password': PASSWORD,
+            'expected_version': self.indexer.liwan_access_version,
         })
         self.assertIn(response.status_code, (403, 404), response.text)
         self.assertFalse(self.indexer.active)
@@ -54,9 +52,9 @@ class TestAiIndexerAccount(AiProbe, LiwanApiCase):
             self.env['liwan.access.service']._liwan_assert_account_reactivation(self.indexer)
         self.assertEqual(caught.exception.status, 403)
 
-    def test_an_access_administrator_cannot_reset_its_password_or_change_it(self):
-        response = self.api('POST', f'/api/v1/admin/users/{self.indexer.id}/password', {
-            'expected_version': self.indexer.liwan_access_version, 'password': PASSWORD,
+    def test_an_access_administrator_cannot_send_it_a_reset_link_or_change_it(self):
+        response = self.api('POST', f'/api/v1/admin/users/{self.indexer.id}/reset-link', {
+            'expected_version': self.indexer.liwan_access_version,
         })
         self.assertEqual(response.status_code, 404, response.text)
         self.assertFalse(self.indexer.password)
