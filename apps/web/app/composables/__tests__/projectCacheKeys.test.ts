@@ -1,5 +1,6 @@
 import { QueryClient } from '@tanstack/query-core'
 import { describe, expect, it } from 'vitest'
+import { invalidateProjectSettingsCaches } from '../useProjectSettings'
 import { invalidateProjectCaches, projectKeys } from '../projectKeys'
 import { scheduleKeys } from '../useProjectSchedule'
 import { governanceKeys } from '../projectGovernanceKeys'
@@ -64,4 +65,16 @@ describe('invalidateProjectCaches', () => {
     }
     qc.clear()
   })
+})
+
+describe('company tool policy invalidation',()=>{
+ it('invalidates project detail, tools, finance and report caches together',()=>{
+  const qc=seeded(7)
+  qc.setQueryData(['tasks','detail',9],{})
+  qc.setQueryData(['project-finance','list',7],{})
+  qc.setQueryData(['project-reports'],{})
+  invalidateProjectSettingsCaches(qc,{} as never)
+  for(const key of [...projectViews(7),['tasks','detail',9],['project-finance','list',7],['project-reports']]) expect(qc.getQueryState(key)?.isInvalidated).toBe(true)
+  qc.clear()
+ })
 })

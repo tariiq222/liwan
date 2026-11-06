@@ -94,9 +94,6 @@
     "createForbidden": "You may not create projects",
     "create": {
       "defaultsHint": "A manager defaults to you. Choose an end date when it is required. Required fields apply only at creation.",
-      "defaultManagerSelf": "You are the default manager.",
-      "defaultManagerOther": "The default manager comes from project settings and you can change it.",
-      "defaultsHintBase": "Enter project details, then complete the steps required by its classification.",
       "managerRequired": "Choose a project manager",
       "endDateRequired": "Choose an end date",
       "chooseEndDate": "Choose an end date",
@@ -104,7 +101,6 @@
       "defaultsError": "Could not load create requirements",
       "retry": "Retry",
       "createFinal": "Create project",
-      "drafted": "Project created with its charter saved as a draft",
       "aiBadge": "Draft from Liwan AI",
       "aiAttest": "I have read all of the content, I approve it and I take responsibility for it",
       "aiAttestRequired": "Confirm you read and approve the draft before submitting",
@@ -131,7 +127,9 @@
       "sortLabel": "Sort by"
     },
     "requiredHint": "Fields marked with an asterisk are required.",
-    "footer": { "results": "{shown} of 1 result | {shown} of {total} results" },
+    "footer": {
+      "results": "{shown} of 1 result | {shown} of {total} results"
+    },
     "archivedEmpty": "No archived projects",
     "archivedEmptyHint": "Archived projects appear here and can be restored when needed.",
     "menu": {
@@ -239,9 +237,8 @@
       "reload": "Load latest version",
       "checklistTitle": "Milestone deliverables",
       "checklistHint": "Deliverable completion, milestone achievement and task completion are independent. Deliverable changes save automatically.",
-      "noDeliverables": "No deliverables are defined for this milestone.",
+      "noDeliverables": "No deliverables yet",
       "projectTasks": "View project tasks",
-
       "new": "New milestone",
       "edit": "Edit milestone",
       "name": "Name",
@@ -270,7 +267,6 @@
       "removeDeliverable": "Remove deliverable",
       "deliverableName": "Deliverable name",
       "deliverableDone": "Deliverable complete",
-      "noDeliverables": "No deliverables yet",
       "checklistOf": "Checklist: {done} of {total}",
       "taskProgress": "Task progress: {percent}%",
       "openProjectFile": "Set project dates in the charter",
@@ -517,7 +513,6 @@
       "discard": "Discard changes",
       "taskSectionHint": "Task start and end dates within the project and milestone bounds.",
       "unavailable": "Scheduling is unavailable for this task.",
-
       "title": "Schedule",
       "editTitle": "Edit task schedule",
       "scale": "Timeline scale",
@@ -930,7 +925,7 @@
       "settings": {
         "individualDescription": "Operational settings for this project only. Its name, description, manager, and dates belong to the project file.",
         "individualScope": "These options apply to this project only. They do not change company wide project creation policies or shared settings.",
-        "openCharter": "Open project file",
+        "openCharter": "Open charter",
         "operation": {
           "title": "Operation, visibility, and approval",
           "description": "These options save automatically and apply to this project."
@@ -1077,7 +1072,9 @@
         "changeRequired": "A new baseline of an executing project needs an approved change request.",
         "busy": "Another baseline is being taken on this project. Try again."
       },
-      "toast": { "taken": "Baseline {number} taken" },
+      "toast": {
+        "taken": "Baseline {number} taken"
+      },
       "fields": {
         "task": "Task",
         "baselineDates": "Baseline dates",
@@ -1131,7 +1128,11 @@
         "cpi": "Cost index (CPI)",
         "cpiHint": "Earned to actual"
       },
-      "bands": { "success": "On plan", "warning": "Needs attention", "danger": "Behind" },
+      "bands": {
+        "success": "On plan",
+        "warning": "Needs attention",
+        "danger": "Behind"
+      },
       "figures": {
         "bac": "Budget at completion (BAC)",
         "pv": "Planned value (PV)",
@@ -1149,7 +1150,11 @@
       "curveLabel": "Planned value chart. On {date}: planned value {pv}, earned value {ev}, actual cost {ac}.",
       "noCurve": "There is no curve to draw: no baseline task has dates, or some are hidden from you.",
       "notes": "Money is rounded to the currency decimals and indices to two decimals (half up). A cancelled, deleted or moved task keeps its baseline share and earns nothing, so earned value cannot reach the full budget until a new baseline is taken. The percent complete of a done or cancelled task is fixed: 100% and 0%.",
-      "series": { "pv": "Planned", "ev": "Earned", "ac": "Actual" }
+      "series": {
+        "pv": "Planned",
+        "ev": "Earned",
+        "ac": "Actual"
+      }
     },
     "clarity": {
       "addRegister": "Add risk or issue",
@@ -1189,6 +1194,29 @@
       "error": "Could not copy the project. Try again.",
       "sourceUnavailable": "The source project is unavailable or you may not copy it.",
       "loadError": "Could not load the source project."
+    },
+    "basics": {
+      "title": "Project definition",
+      "createHint": "Start with a name and goal. Add details later.",
+      "objectives": "Project objectives",
+      "goal": "Goal",
+      "metric": "Measurement (optional)",
+      "target": "Target (optional)",
+      "addGoal": "Add objective",
+      "removeGoal": "Remove objective",
+      "successCriteria": "Success criteria",
+      "successHint": "Describe the expected result. Task completion measures work progress only.",
+      "details": "Show details",
+      "addMeasurement": "Add measurement"
+    },
+    "tools": {
+      "title": "Project tools",
+      "hint": "Choose optional tools for this project.",
+      "planning": "Planning",
+      "governance": "Governance",
+      "finance": "Finance",
+      "policyChanged": "Company policy or your access changed. Your draft is retained; review the settings before retrying.",
+      "unavailable": "This tool is unavailable for this project"
     }
   }
 }

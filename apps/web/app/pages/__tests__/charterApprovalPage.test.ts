@@ -17,23 +17,24 @@ import { ApiError } from '../../composables/useApi'
 // asserted on the real script and template without a browser.
 const app = resolve(import.meta.dirname, '../..')
 
-const EMPTY_CHARTER: ProjectDetail['charter'] = {
+const EMPTY_CHARTER: NonNullable<ProjectDetail['charter']> = {
   code: null, type: null, owning_unit: null, sponsor: null, authority: '', rationale: '',
-  objectives: [], benefits: '', scope: '', exclusions: '', high_level_requirements: '',
-  deliverables: [], success: '', budget_state: 'unknown', amount: null,
+  benefits: '', scope: '', exclusions: '', high_level_requirements: '',
+  deliverables: [], budget_state: 'unknown', amount: null,
   currency: { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 },
   priority: null, assumptions: '', constraints: '', closure: '', state: 'draft',
   approval_required: false, can_review: false, submitted_by: null, submitted_at: null,
   approved_by: null, approved_at: null, return_note: '',
 }
 
-function project(charter: Partial<ProjectDetail['charter']> = {}): ProjectDetail {
+function project(charter: Partial<NonNullable<ProjectDetail['charter']>> = {}): ProjectDetail {
   return {
     id: 3, name: 'Portal', status: null, progress: 0, task_count: 0, closed_task_count: 0,
     active: true, can_manage: true, allowed_actions: ['read', 'write', 'archive'], stages: [],
     charter_state: charter.state ?? 'draft', phase: 'initiating', phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] }, change_control_mode: 'optional', description_html: '', manager: null, privacy_visibility: 'employees',
     date_start: '2030-01-01', date_end: null, tags: [], followers_count: 0, milestone_count: 0,
     allow_task_dependencies: false, completion_approval: 'none', completion_approver: null,
+    objectives:[],success_criteria:'',tools:{planning:{policy:'optional',enabled:true,can_toggle:true},governance:{policy:'optional',enabled:true,can_toggle:true},finance:{policy:'optional',enabled:true,can_toggle:true}},
     updated_at: 'v4', charter: { ...EMPTY_CHARTER, ...charter },
   }
 }
@@ -99,6 +100,7 @@ async function renderPage(detail: ProjectDetail, query: Record<string, string>) 
     '@/composables/useMilestones': { useMilestones: () => ({ data: Vue.ref([]), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: () => {} }) },
     '@/components/pmo/projects/ProjectCharterForm.vue': { __esModule: true, default: FormStub },
     '@/components/pmo/projects/ProjectNotFoundState.vue': { __esModule: true, default: Stub('ProjectNotFoundState') },
+    '@/components/pmo/projects/ProjectPhaseGate.vue': {__esModule:true,default:Stub('ProjectPhaseGate')},
     '@/components/pmo/projects/CharterApprovalPanel.vue': { __esModule: true, default: Stub('CharterApprovalPanel') },
   }, route(query))
   return renderToString(Vue.createSSRApp(page))
@@ -118,12 +120,10 @@ async function renderForm(detail: ProjectDetail) {
     '@/composables/useProjectCharterCatalogs': { useCharterDefaults: () => ({ data: Vue.ref(null) }) },
     '@/utils/projectCharter': projectCharter,
     '@/utils/charterSteps': charterSteps,
-    // The AI draft helpers are not exercised by the save-hint tests: an edit form has neither a draft nor an attestation.
-    '@/utils/aiDraft': { charterDraftFromAi: (_payload: unknown, base: unknown) => base, mayFinalizeCreate: () => true },
     '@/components/pmo/projects/ProjectCharterFields.vue': { __esModule: true, default: Stub('ProjectCharterFields') },
     '@/components/pmo/projects/ProjectCharterDisplay.vue': { __esModule: true, default: Stub('ProjectCharterDisplay') },
   }, { ...route(), useMe: () => ({ me: Vue.ref({ id: 1 }) }) })
-  return renderToString(Vue.createSSRApp(form, { mode: 'edit', project: detail }))
+  return renderToString(Vue.createSSRApp(form, { project: detail }))
 }
 
 describe('the charter page under approval', () => {

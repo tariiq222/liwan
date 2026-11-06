@@ -35,6 +35,7 @@ def _run(project_id, action, payload):
         raise ApiError(422, 'unknown_field', f"field {field!r} is not writable", field=field)
     token = parse_write_token(payload.get('expected_updated_at'))
     project = get_visible_record('project.project', project_id)
+    project._liwan_check_tool('governance')
     try:
         project._liwan_lock_for_write(token, require_manage=manage)
     except LiwanStaleWrite as e:

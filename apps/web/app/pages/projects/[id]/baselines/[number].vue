@@ -16,7 +16,7 @@ const backTo = computed(() => owningListBack(route.query, listPaths.value, route
 // Variance is measured against the latest baseline only; an earlier snapshot is a record of what was planned then.
 const isLatest = computed(() => variance.data.value?.baseline?.number === number.value)
 const taskRows = computed(() => variance.data.value?.schedule?.tasks ?? [])
-const share = (value: number) => `${Math.round(value * 1000) / 10}%`
+const share = (value: number | null) => value === null ? '—' : `${Math.round(value * 1000) / 10}%`
 const dates = (start: string | null, end: string | null) => start || end ? `${start ?? '—'} → ${end ?? '—'}` : t('projects.baselines.undated')
 </script>
 
@@ -45,7 +45,7 @@ const dates = (start: string | null, end: string | null) => start || end ? `${st
             <span class="min-w-0 font-medium text-highlighted">{{ line.name }}</span>
             <span class="flex items-center gap-3 text-muted">
               <span dir="ltr" class="tabular-nums">{{ dates(line.planned_start, line.planned_end) }}</span>
-              <span dir="ltr" class="tabular-nums">{{ share(line.planned_value_share) }}</span>
+              <span v-if="line.planned_value_share !== null" dir="ltr" class="tabular-nums">{{ share(line.planned_value_share) }}</span>
             </span>
           </li>
         </ul>
@@ -58,7 +58,7 @@ const dates = (start: string | null, end: string | null) => start || end ? `${st
           <span class="inline-flex items-center gap-2"><SharedPersonAvatar :people="[item.data.value.taken_by]" />{{ item.data.value.taken_by.name }}</span>
         </SharedPropertyRow>
         <SharedPropertyRow :label="t('projects.baselines.fields.plannedDates')"><span dir="ltr" class="tabular-nums">{{ dates(item.data.value.planned_start, item.data.value.planned_end) }}</span></SharedPropertyRow>
-        <SharedPropertyRow :label="t('projects.baselines.fields.budget')">
+        <SharedPropertyRow v-if="item.data.value.budget_total !== null" :label="t('projects.baselines.fields.budget')">
           <span dir="ltr" class="tabular-nums">{{ item.data.value.currency ? formatMoney(item.data.value.budget_total, item.data.value.currency) : item.data.value.budget_total }}</span>
         </SharedPropertyRow>
         <SharedPropertyRow :label="t('projects.baselines.fields.tasks')" :value="String(item.data.value.task_count)" />

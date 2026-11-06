@@ -31,7 +31,7 @@ describe('TaskDetailSchema', () => {
       subtasks: [], depends_on: [], attachments: [], can_approve: false,
       created_at: '2026-08-01T09:00:00Z', updated_at: '2026-08-01T09:00:00Z',
       milestone: null, completion_pending: false, completion_revision: 0, completion_return_note: null,
-      completion_policy: 'none', completion_approver: null, completion_blocked_reason: null, progress_method: 'binary', percent_complete: 0,
+      completion_policy: 'none', completion_approver: null, completion_blocked_reason: null, planning_enabled: true, progress_method: 'binary', percent_complete: 0,
     })
     expect(parsed.cycle_days).toBeNull()
   })
@@ -92,8 +92,8 @@ describe('PersonalStageSchema', () => {
 
 const EMPTY_CHARTER = {
   code: null, type: null, owning_unit: null, sponsor: null, authority: '', rationale: '',
-  objectives: [], benefits: '', scope: '', exclusions: '', high_level_requirements: '',
-  deliverables: [], success: '', budget_state: 'unknown', amount: null,
+  benefits: '', scope: '', exclusions: '', high_level_requirements: '',
+  deliverables: [], budget_state: 'unknown', amount: null,
   currency: { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 },
   priority: null, assumptions: '', constraints: '', closure: '', state: 'draft',
   approval_required: false, can_review: false, submitted_by: null, submitted_at: null,
@@ -125,7 +125,7 @@ describe('ProjectDetailSchema', () => {
       ...PROJECT_JSON, status: 'at_risk', can_manage: true,
       stages: [{ id: 1, name: 'A', sequence: 10, fold: true, task_count: 0 }],
       description_html: '', manager: null, privacy_visibility: 'employees',
-      date_start: null, date_end: null, tags: [], followers_count: 0, milestone_count: 0,
+      date_start: null, date_end: null, tags: [], followers_count: 0, milestone_count: 0, objectives: [], success_criteria: '', tools: { planning: { policy: 'enabled', enabled: true, can_toggle: false }, governance: { policy: 'enabled', enabled: true, can_toggle: false }, finance: { policy: 'enabled', enabled: true, can_toggle: false } },
       completion_approval: 'none', completion_approver: null,
       updated_at: 'v1', charter: EMPTY_CHARTER, phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] }, change_control_mode: 'optional',
     })
@@ -136,7 +136,7 @@ describe('ProjectDetailSchema', () => {
       ...PROJECT_JSON, status: 'at_risk', can_manage: true,
       stages: [{ id: 1, name: 'A', sequence: 10, fold: true, task_count: 0 }],
       description_html: '', manager: null, privacy_visibility: 'employees',
-      date_start: null, date_end: null, tags: [], followers_count: 0, milestone_count: 0,
+      date_start: null, date_end: null, tags: [], followers_count: 0, milestone_count: 0, objectives: [], success_criteria: '', tools: { planning: { policy: 'enabled', enabled: true, can_toggle: false }, governance: { policy: 'enabled', enabled: true, can_toggle: false }, finance: { policy: 'enabled', enabled: true, can_toggle: false } },
       updated_at: 'v1', charter: EMPTY_CHARTER, phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] }, change_control_mode: 'optional',
     }
     expect(() => ProjectDetailSchema.parse(base)).toThrow()
@@ -176,7 +176,7 @@ describe('ProjectDetailSchema (3a)', () => {
   it('carries settings fields', () => {
     const d = ProjectDetailSchema.parse({
       ...PROJECT, stages: [STAGE], description_html: '', manager: { id: 2, name: 'M' }, privacy_visibility: 'followers',
-      date_start: '2030-01-01', date_end: null, tags: [], followers_count: 1, milestone_count: 0,
+      date_start: '2030-01-01', date_end: null, tags: [], followers_count: 1, milestone_count: 0, objectives: [], success_criteria: '', tools: { planning: { policy: 'enabled', enabled: true, can_toggle: false }, governance: { policy: 'enabled', enabled: true, can_toggle: false }, finance: { policy: 'enabled', enabled: true, can_toggle: false } },
       completion_approval: 'none', completion_approver: null,
       updated_at: 'v2', charter: EMPTY_CHARTER, phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] }, change_control_mode: 'optional',
     })
@@ -210,7 +210,7 @@ describe('Milestone / ProjectUpdate / Settings', () => {
     MilestoneSchema.parse({ id: 1, name: 'M', deadline: null, is_reached: false, reached_date: null, task_count: 0, done_task_count: 0 })
     ProjectUpdateSchema.parse({ id: 1, name: 'W1', status: 'on_track', description_html: '<p>x</p>', date: '2030-01-01', author: { id: 2, name: 'M' } })
     expect(ProjectSettingsSchema.parse({
-      project_creators: 'managers', default_stages: [{ name: 'A', fold: true }],
+      project_creators: 'managers', planning_tool_policy: 'optional', governance_tool_policy: 'optional', finance_tool_policy: 'optional', default_stages: [{ name: 'A', fold: true }],
       require_manager_on_create: true, require_end_date_on_create: true,
       default_completion_approval: 'none', deadline_reminders_enabled: true,
       deadline_reminders_days_before: 1, overdue_digest_enabled: true,
@@ -258,7 +258,7 @@ describe('Task milestone', () => {
       age_days: 0, cycle_days: null, subtasks: [], depends_on: [], attachments: [],
       can_approve: false, created_at: '2026-08-01T09:00:00Z', updated_at: '2026-08-01T09:00:00Z',
       milestone: null, completion_pending: false, completion_revision: 0, completion_return_note: null,
-      completion_policy: 'none', completion_approver: null, completion_blocked_reason: null, progress_method: 'binary', percent_complete: 0,
+      completion_policy: 'none', completion_approver: null, completion_blocked_reason: null, planning_enabled: true, progress_method: 'binary', percent_complete: 0,
     }).planned_start).toBe('2026-10-05')
   })
 })

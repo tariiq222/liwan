@@ -26,6 +26,21 @@ describe('baseline contracts', () => {
     expect(ProjectBaselineSchema.safeParse({ ...baseline, change: null, planned_start: null, currency: null }).success).toBe(true)
   })
 
+  it('redacts baseline financial values while retaining its planning snapshot', () => {
+    const parsed = ProjectBaselineDetailSchema.parse({
+      ...baseline, budget_total: null, currency: null, hidden_count: 0,
+      tasks: [{ ...line, planned_value_share: null }],
+    })
+    expect(parsed.budget_total).toBeNull()
+    expect(parsed.tasks[0]?.planned_value_share).toBeNull()
+    expect(parsed.planned_start).toBe('2026-03-01')
+    expect(parsed.tasks[0]?.name).toBe('Design')
+    expect(ProjectBaselineSchema.safeParse({ ...baseline, budget_total: undefined }).success).toBe(false)
+    expect(ProjectBaselineDetailSchema.safeParse({
+      ...baseline, hidden_count: 0, tasks: [{ ...line, planned_value_share: undefined }],
+    }).success).toBe(false)
+  })
+
   it('keeps the detail strict, with task lines of a deleted task', () => {
     expect(ProjectBaselineDetailSchema.safeParse({ ...baseline, hidden_count: 1, tasks: [line, { ...line, id: 2, task_id: null, planned_end: null }] }).success).toBe(true)
     expect(ProjectBaselineDetailSchema.safeParse({ ...baseline, hidden_count: 0, tasks: [{ ...line, planned_value_share: 1.5 }] }).success).toBe(false)

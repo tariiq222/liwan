@@ -2,6 +2,7 @@ import { toValue, type MaybeRefOrGetter, type Ref } from 'vue'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { PROJECT_STATUSES, ProjectDashboardSummarySchema, ProjectDetailSchema, ProjectListSchema, type ProjectCharterAction, type ProjectCopyInput, type ProjectCreate, type ProjectDetail, type ProjectPatch, type ProjectPhase, type ProjectStatus } from '@liwan/contracts'
 import { ApiError } from './useApi'
+import { taskKeys } from './useTasks'
 import { invalidateProjectCaches, projectKeys } from './projectKeys'
 import { parseOffset } from '../utils/routeQuery'
 import { projectPicker } from '../modules/pmo/recordPicker'
@@ -221,9 +222,14 @@ export function useUpdateProject() {
     onError: (_e, { id }, ctx) => {
       if (ctx?.prev) qc.setQueryData(projectKeys.detail(id), ctx.prev)
     },
-    onSuccess: (detail, { id }) => {
+    onSuccess: (detail, { id, patch }) => {
       qc.setQueryData(projectKeys.detail(id), detail)
       invalidateProjectCaches(qc)
+      if (patch.tool_preferences) {
+        qc.invalidateQueries({queryKey:taskKeys.all})
+        qc.invalidateQueries({queryKey:['project-finance']})
+        qc.invalidateQueries({queryKey:['project-reports']})
+      }
     },
   })
 }

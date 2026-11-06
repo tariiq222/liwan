@@ -106,7 +106,9 @@ class TestProjectCharterCatalogApi(LiwanPmoCase):
         project = self.api('POST', '/api/v1/projects', {
             'name': 'Has unit',
             'date_end': '2035-12-31',
-            'charter': {'owning_unit_id': unit['id']},
+        }).json()
+        project = self.api('PATCH', f"/api/v1/projects/{project['id']}", {
+            'expected_updated_at': project['updated_at'], 'charter': {'owning_unit_id': unit['id']},
         }).json()
         self.api('POST', f"/api/v1/projects/{project['id']}/archive")
         res = self.api('DELETE', f"/api/v1/project-charter/catalogs/owning-units/{unit['id']}")

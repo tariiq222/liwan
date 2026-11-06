@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { BaselineGateSchema } from './baseline'
 import { ChangeControlModeSchema } from './change'
 import { EvmProgressMethodSchema } from './evm'
+import { ProjectToolPolicySchema } from './project-tools'
 
 export const ProjectCreatorsSchema = z.enum(['managers', 'employees'])
 export const PROJECT_CREATORS = ProjectCreatorsSchema.options
@@ -32,6 +33,9 @@ export const ProjectSettingsExtensionSchema = z.discriminatedUnion('kind', [
 
 export const ProjectSettingsSchema = z.object({
   project_creators: ProjectCreatorsSchema,
+  planning_tool_policy: ProjectToolPolicySchema,
+  governance_tool_policy: ProjectToolPolicySchema,
+  finance_tool_policy: ProjectToolPolicySchema,
   default_stages: z.array(DefaultStageSchema).min(1).max(20),
   require_manager_on_create: z.boolean(),
   require_end_date_on_create: z.boolean(),

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ProjectObjectiveWriteSchema } from '../pmo/project'
 
 export const AiToolKindSchema = z.enum(['read', 'write_light', 'draft'])
 export const AiRouteSchema = z.object({ method: z.enum(['GET', 'POST', 'PATCH']), path: z.string().startsWith('/api/v1/') }).strict()
@@ -211,12 +212,13 @@ const Day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 export const AiDraftPayloadSchema = z.object({
   name: z.string().trim().min(1).max(255),
   description: Text.optional(),
+  objectives: z.array(ProjectObjectiveWriteSchema).optional(),
+  success_criteria: Text.optional(),
   date_start: Day.optional(),
   date_end: Day.optional(),
   charter: z.object({
     rationale: Text.optional(),
-    objectives: z.array(z.string().max(500)).max(10).optional(),
-    scope: Text.optional(), exclusions: Text.optional(), success: Text.optional(),
+    scope: Text.optional(), exclusions: Text.optional(),
     assumptions: Text.optional(), constraints: Text.optional(),
   }).optional(),
 })

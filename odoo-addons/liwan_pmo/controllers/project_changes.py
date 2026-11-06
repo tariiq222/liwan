@@ -41,6 +41,7 @@ DECISION_BODY = {
 def _project(project_id):
     # Like the other governance registers, change requests stay out of reach of an archived project.
     project = get_visible_record('project.project', project_id)
+    project._liwan_check_tool('governance')
     if not project.active:
         raise MissingError(request.env._("Record does not exist"))
     return project

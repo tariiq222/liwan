@@ -44,7 +44,7 @@ const columns = computed(() => [
 const items = computed(() => list.data.value?.items ?? [])
 const total = computed(() => list.data.value?.total ?? 0)
 const dates = (item: { planned_start: string | null; planned_end: string | null }) => item.planned_start || item.planned_end ? `${item.planned_start ?? '—'} → ${item.planned_end ?? '—'}` : '—'
-const money = (item: { budget_total: number; currency: Parameters<typeof formatMoney>[1] | null }) => item.currency ? formatMoney(item.budget_total, item.currency) : String(item.budget_total)
+const money = (item: { budget_total: number | null; currency: Parameters<typeof formatMoney>[1] | null }) => item.budget_total === null ? '—' : item.currency ? formatMoney(item.budget_total, item.currency) : String(item.budget_total)
 const empty = computed(() => Boolean(list.data.value) && !items.value.length && !offset.value)
 </script>
 

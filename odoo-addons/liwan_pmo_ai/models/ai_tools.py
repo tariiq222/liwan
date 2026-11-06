@@ -67,7 +67,7 @@ PMO_AI_TOOLS = (
         input_map={'path': {'project_id': '$project_id'}},
         result_summary=['id', 'name', 'status', 'progress', 'date_start', 'date_end', 'manager.name',
                         'task_count', 'closed_task_count', 'milestone_count', 'charter.code',
-                        'charter.rationale', 'charter.objectives[]', 'charter.scope', 'charter.success'],
+                        'objectives[]', 'success_criteria', 'tools', 'charter.rationale', 'charter.scope'],
     ),
     _tool(
         'pmo.get_project_finance_summary', 'read', 'pmo.projects.read',
@@ -105,14 +105,15 @@ PMO_AI_TOOLS = (
                 'description': TEXT,
                 'date_start': DATE,
                 'date_end': DATE,
-                'charter': {
-                    'type': 'object',
-                    'properties': {
-                        'rationale': TEXT,
-                        'objectives': {'type': 'array', 'items': {'type': 'string', 'maxLength': 500}, 'maxItems': 10},
-                        'scope': TEXT, 'exclusions': TEXT, 'success': TEXT, 'assumptions': TEXT, 'constraints': TEXT,
+                'success_criteria': TEXT,
+                'objectives': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'object',
+                        'properties': {'goal': {'type': 'string', 'minLength': 1}, 'metric': TEXT, 'target': TEXT},
+                        'required': ['goal'],
+                        'additionalProperties': False,
                     },
-                    'additionalProperties': False,
                 },
             },
             'required': ['name'],
@@ -132,14 +133,14 @@ PMO_AGENT = {
     'description_en': 'Projects, their charters, tasks, status, deadlines and budgets',
     'instructions_ar': (
         'أنت وكيل المشاريع. قبل تجهيز مسودة مشروع ناقش المستخدم: اسأل سؤالين أو ثلاثة فقط (الغرض، الأهداف، المدة)، '
-        'ثم اقترح أنت القيم المناسبة لباقي الحقول واملأ الميثاق كاملًا (المبررات والأهداف والنطاق والاستثناءات والنجاح '
-        'والافتراضات والقيود)، ولا تطلب من المستخدم كتابة كل الحقول بنفسه. استدعِ أداة المسودة بعد أن تتضح الصورة. '
+        'ثم اقترح أهدافًا منظمة ومعيار نجاح واضحًا في بيانات المشروع الأساسية '
+        'ولا تطلب من المستخدم كتابة كل الحقول بنفسه. استدعِ أداة المسودة بعد أن تتضح الصورة. '
         'عند الحديث عن الميزانية اعرض أرقام النظام كما هي.'
     ),
     'instructions_en': (
         'You are the projects agent. Before preparing a project draft, talk it through with the user: ask only two or '
-        'three questions (purpose, objectives, timeline), then propose sensible values yourself and fill the whole '
-        'charter (rationale, objectives, scope, exclusions, success, assumptions, constraints); never ask the user to '
+        'three questions (purpose, objectives, timeline), then propose structured objectives and success_criteria '
+        'in the core project payload; never ask the user to '
         'write every field. Call the draft tool once the picture is clear. Show budget figures exactly as the system '
         'returns them.'
     ),

@@ -1,3 +1,5 @@
+import type { ProjectToolsState } from '@liwan/contracts'
+import { projectSectionAvailable } from './projectTools'
 import { projectListReturnTo } from './projectNavigation'
 
 export interface ProjectLocation { path: string; query: Record<string, string> }
@@ -41,12 +43,12 @@ export function savedProjectLocation(path: string, query: Record<string, unknown
   return { path, query: clean }
 }
 
-export function projectEntryLocation(id: number, origin: string, value: unknown): ProjectLocation {
+export function projectEntryLocation(id: number, origin: string, value: unknown, tools?: ProjectToolsState): ProjectLocation {
   const base = `/projects/${id}`
   const candidate = value && typeof value === 'object' ? value as Partial<ProjectLocation> : null
   const saved = candidate && typeof candidate.path === 'string' && candidate.query && typeof candidate.query === 'object'
     ? savedProjectLocation(candidate.path, candidate.query) : null
-  const location = saved && (saved.path === base || saved.path.startsWith(`${base}/`)) ? saved : { path: base, query: {} }
+  const location = saved && projectSectionAvailable(saved.path.split('/')[3] ?? 'summary', tools) && (saved.path === base || saved.path.startsWith(`${base}/`)) ? saved : { path: base, query: {} }
   const list = projectListReturnTo({ returnTo: origin })
   return { path: location.path, query: { ...location.query, returnTo: list, projectListReturnTo: list } }
 }

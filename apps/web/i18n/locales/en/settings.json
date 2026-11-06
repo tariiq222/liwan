@@ -213,6 +213,15 @@
       "defaults": {
         "title": "Project defaults",
         "hint": "Stages and task completion approval are copied into a project when it is created. Changing them does not update existing projects."
+      },
+      "tools": {
+        "title": "Project tool policy",
+        "hint": "Applies to all existing and new projects in this company. Required gates need company-enabled tools.",
+        "enabled": "Enabled by company",
+        "optional": "Optional per project",
+        "disabled": "Unavailable",
+        "governanceConflict": "Enable governance by company or remove required charter, change and baseline gates in the same save.",
+        "planningConflict": "Enable planning by company or remove the required baseline gate in the same save."
       }
     },
     "appearance": {

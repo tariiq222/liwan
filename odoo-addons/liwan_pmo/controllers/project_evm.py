@@ -25,6 +25,8 @@ class ProjectEvmController(http.Controller):
         require_capabilities('pmo.projects.read')
         declare_read_capability_scope('pmo.projects.read')
         project = active_project(project_id)
+        project._liwan_check_tool('planning')
+        project._liwan_check_tool('finance')
         baseline = request.env['liwan.project.baseline'].search([('project_id', '=', project.id)], order='number desc', limit=1)
         if not baseline:
             raise ApiError(409, 'no_baseline', "take a baseline before reading earned value")

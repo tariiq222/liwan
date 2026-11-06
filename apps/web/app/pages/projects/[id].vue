@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { projectSectionAvailable } from '@/utils/projectTools'
 import type { ProjectStatus } from '@liwan/contracts'
 import { statusTag, type PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import { projectStatusBadge } from '@/composables/projectStatus'
@@ -70,9 +71,12 @@ useEscapeBack(backTo)
 // Governance is the one section with sub-sections; they get a second strip
 // under the main one on every governance page, records included. An archived
 // project has no governance tab, so it gets no sub-strip either.
-const showPlanningTabs = computed(() => activeProjectSection(route.path) === 'planning')
-const showGovernanceTabs = computed(() => Boolean(project.value?.active) && activeGovernanceSection(route.path) !== null)
-const phaseLabel = computed(() => project.value ? t(`projects.phase.steps.${project.value.phase_state.current}`) : '')
+const showPlanningTabs = computed(() => project.value?.tools.planning.enabled && activeProjectSection(route.path) === 'planning')
+const showGovernanceTabs = computed(() => Boolean(project.value?.active && project.value.tools.governance.enabled) && activeGovernanceSection(route.path) !== null)
+const phaseLabel = computed(() => project.value?.phase_state ? t(`projects.phase.steps.${project.value.phase_state.current}`) : '')
+const routeAllowed = computed(() => projectSectionAvailable(route.path.split('/')[3] ?? 'summary', projectData.value?.tools))
+const activatedPaths = reactive(new Set<string>())
+watch([() => route.path, routeAllowed], ([path, allowed]) => { if (allowed) activatedPaths.add(path) }, {immediate:true})
 // The same tag pills as SharedPageHeader: state, phase, manager, schedule.
 const tags = computed<PageHeaderTag[]>(() => {
   const value = project.value
@@ -80,7 +84,7 @@ const tags = computed<PageHeaderTag[]>(() => {
   const dates = [value.date_start, value.date_end].filter((date): date is string => Boolean(date)).map(formatDate).join(' – ')
   return [
     statusTag(projectBadge(value.status), 'project-status'),
-    { label: phaseLabel.value, tone: 'info', testId: 'project-workspace-phase' },
+    ...(activeProjectSection(route.path) === 'governance' && phaseLabel.value ? [{ label: phaseLabel.value, tone: 'info' as const, testId: 'project-workspace-phase' }] : []),
     ...archivedTags(value, t),
     ...(value.manager ? [{ label: value.manager.name, kind: 'person' as const, icon: 'i-lucide-user' }] : []),
     ...(dates ? [{ label: dates, kind: 'schedule' as const, icon: 'i-lucide-calendar-range', testId: 'project-workspace-dates' }] : []),
@@ -127,16 +131,22 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
         <!-- Tabs follow the hydrated project like the title row, so a first click is a client-side navigation. -->
         <ProjectWorkspaceTabs v-if="project" :project-id="projectId!" :active="project.active" />
         <USkeleton v-else-if="isLoading || !hydrated" class="h-(--liwan-control-h) w-full max-w-lg rounded-full" />
+        <UButton v-if="project && me?.capabilities.includes('meetings.read')" color="neutral" variant="link" :to="`/projects/${project.id}/meetings`" :label="t('projects.tabs.meetings')" />
+        <ProjectWorkspaceTabs v-if="project?.tools.finance.enabled && activeProjectSection(route.path) === 'finance'" level="finance" :project-id="project.id" />
         <!-- Governance and planning sub-sections: a second pill strip inside the same card. -->
         <ProjectWorkspaceTabs v-if="showGovernanceTabs" level="governance" :project-id="projectId!" />
         <ProjectWorkspaceTabs v-if="showPlanningTabs && projectId" :project-id="projectId" :active="project?.active" level="planning" />
       </header>
     </SharedPageContainer>
-    <SharedPageContainer v-if="showFrame && project" class="liwan-print-hide" data-testid="project-phase-card">
+    <SharedPageContainer v-if="showFrame && project?.phase_state && activeProjectSection(route.path) === 'governance' && routeAllowed" class="liwan-print-hide" data-testid="project-phase-card">
       <div class="rounded-card bg-default px-4 py-3 ring ring-default">
         <ProjectPhaseStepper :current="project.phase_state.current" />
       </div>
     </SharedPageContainer>
-    <NuxtPage />
+    <SharedPageContainer v-if="project && !routeAllowed">
+      <UAlert color="neutral" variant="subtle" :title="t('projects.tools.unavailable')" :description="t('projects.tools.policyChanged')" />
+      <UButton color="neutral" variant="outline" :to="`/projects/${project.id}`" :label="t('nav.projectSummary')" />
+    </SharedPageContainer>
+    <NuxtPage v-if="routeAllowed || activatedPaths.has(route.path)" v-show="routeAllowed" />
   </div>
 </template>

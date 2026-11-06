@@ -1,5 +1,5 @@
 import { AiDraftHandoffSchema, AiDraftPayloadSchema, aiToolAgent, type AiAuditRequest, type AiDraftHandoff, type AiDraftPayload } from '@liwan/contracts'
-import { emptyObjective, type CharterDraft } from './projectCharter'
+import type { ProjectBasicsDraft } from './projectBasics'
 
 const DRAFT_PREFIX = 'liwan:ai-draft:'
 const CREATED_PREFIX = 'liwan:ai-created:'
@@ -71,26 +71,11 @@ export function clearAiSessionState(): void {
   catch { /* Storage is unavailable, so there is nothing to clear. */ }
 }
 
-/** Prefills only the charter fields the AI draft knows; everything else keeps the form's own values. */
-export function charterDraftFromAi(payload: AiDraftPayload, base: CharterDraft): CharterDraft {
-  const charter = payload.charter ?? {}
-  const objectives = charter.objectives?.length
-    ? charter.objectives.map(goal => ({ ...emptyObjective(false), goal }))
-    : base.objectives
-  return {
-    ...base,
-    name: payload.name,
-    description: payload.description ?? base.description,
-    dateStart: payload.date_start ?? base.dateStart,
-    dateEnd: payload.date_end ?? base.dateEnd,
-    rationale: charter.rationale ?? base.rationale,
-    objectives,
-    scope: charter.scope ?? base.scope,
-    exclusions: charter.exclusions ?? base.exclusions,
-    success: charter.success ?? base.success,
-    assumptions: charter.assumptions ?? base.assumptions,
-    constraints: charter.constraints ?? base.constraints,
-  }
+/** AI and manual creation share the core project draft. */
+export function projectBasicsFromAi(payload: AiDraftPayload, base: ProjectBasicsDraft): ProjectBasicsDraft {
+  return { ...base, name: payload.name, description: payload.description ?? base.description,
+    objectives: payload.objectives?.map(row => ({goal:row.goal,metric:row.metric ?? '',target:row.target ?? ''})) ?? base.objectives,
+    success_criteria: payload.success_criteria ?? base.success_criteria, date_start: payload.date_start ?? base.date_start, date_end: payload.date_end ?? base.date_end }
 }
 
 /**

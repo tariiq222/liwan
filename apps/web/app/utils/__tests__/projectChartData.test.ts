@@ -62,13 +62,13 @@ describe('project dashboard chart data', () => {
   })
 
   it('orders unique currencies and never includes another currency in the comparison', () => {
-    const rows = [row(1, { finance: { ...row(1).finance, currency: USD } }), row(2), row(3, { finance: { ...row(3).finance, currency: USD } })]
+    const rows = [row(1, { finance: { ...row(1).finance!, currency: USD } }), row(2), row(3, { finance: { ...row(3).finance!, currency: USD } })]
     expect(projectDashboardCurrencies(rows).map(currency => currency.id)).toEqual([1, 2])
     expect(projectFinanceComparisonData(rows, USD.id).map(item => item.projectId)).toEqual([1, 3])
   })
 
   it('keeps null plans as unknown and still counts their actual spend', () => {
-    const budget = projectBudgetHealthData([row(1, { finance: { ...row(1).finance, planned: null } }), row(2)], labels)
+    const budget = projectBudgetHealthData([row(1, { finance: { ...row(1).finance!, planned: null } }), row(2)], labels)
     expect(budget.find(item => item.name === 'Unknown')?.value).toBe(1)
     expect(budget.find(item => item.name === 'Within')?.value).toBe(1)
   })
@@ -118,4 +118,13 @@ describe('project status bars', () => {
     expect(chart.valueFormat).toBe('number')
     expect(chart.data.map(item => [item.name, item.tone, item.values.count])).toEqual([['On track', 'success', 1], ['At risk', 'warning', 1]])
   })
+})
+
+describe('unavailable finance',()=>{
+ it('excludes hidden finance from budget charts and currency comparisons',()=>{
+  const hidden=row(9,{finance:null})
+  expect(projectDashboardCurrencies([hidden])).toEqual([])
+  expect(projectBudgetHealthData([hidden],labels).every(item=>item.value===0)).toBe(true)
+  expect(projectFinanceComparisonData([hidden],SAR.id)).toEqual([])
+ })
 })
