@@ -15,6 +15,7 @@ const security = read('app/components/access/users/UserSecurityForm.vue')
 const securityPage = read('app/pages/settings/team/users/[userId]/security.vue')
 const detail = read('app/pages/settings/team/users/[userId]/index.vue')
 const login = read('app/pages/login.vue')
+const settings = read('app/pages/account/settings.vue')
 const middleware = read('app/middleware/mobile-required.global.ts')
 
 describe('the emailed-link pages', () => {
@@ -88,8 +89,14 @@ describe('the mobile step', () => {
     expect(mobile).toContain('saveOwnMobile(mobileValue.value)')
     expect(mobile).toContain('postLoginPath(me.value, route.query.next)')
     expect(mobile).toContain("'/account/settings'")
-    expect(mobile).toContain('/api/auth/logout')
+    expect(mobile).toContain('useSignOut()')
+    expect(mobile).not.toContain('/api/auth/logout')
     expect(mobile).toContain("error.code === 'mobile_taken'")
+  })
+
+  it('signs out through the same composable as the account settings page', () => {
+    expect(settings).toContain('useSignOut()')
+    expect(settings).not.toContain('/api/auth/logout')
   })
 
   it('redirects through a global middleware that runs after the auth guard', () => {

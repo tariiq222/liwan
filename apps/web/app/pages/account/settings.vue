@@ -1,16 +1,12 @@
 <script setup lang="ts">
 import PasswordForm from '@/components/account/PasswordForm.vue'
 
-import { useQueryClient } from '@tanstack/vue-query'
 import type { AppearanceMode, FontSize } from '@/utils/appearance'
-import { clearAiSessionState } from '@/utils/aiDraft'
-import { clearChatDrafts } from '@/utils/chatDrafts'
-import { useAiConversation } from '@/composables/useAiConversation'
+import { useSignOut } from '@/composables/useSignOut'
 
 // Personal preferences keep their existing persistence and session cleanup.
 // Mode and size are saved per user on the server (useAppearance); the language is a cookie.
-const queryClient = useQueryClient()
-const { clear: clearAiConversation } = useAiConversation()
+const signOut = useSignOut()
 const { t, locale, setLocale } = useI18n()
 const toast = useToast()
 const { mode, fontSize, setMode, setFontSize } = useAppearance()
@@ -23,8 +19,6 @@ const sizeGlyphClass: Record<FontSize, string> = { small: 'text-xs', medium: 'te
 const { me } = useMe()
 const hydrated = useHydrated()
 
-const navPreferenceKey = computed(() => `liwan-nav:${me.value?.id ?? 'anonymous'}`)
-
 function chooseLanguage(code: (typeof languages)[number]['code']) {
   if (locale.value === code) return
   localeCookie.value = code
@@ -32,20 +26,7 @@ function chooseLanguage(code: (typeof languages)[number]['code']) {
 }
 
 async function logout() {
-  try {
-    await $fetch('/api/auth/logout', { method: 'POST', body: {} })
-    sessionStorage.removeItem(navPreferenceKey.value)
-    clearAiSessionState()
-    clearChatDrafts()
-    clearAiConversation()
-    await queryClient.cancelQueries()
-    queryClient.clear()
-    await refreshNuxtData('me')
-    await navigateTo('/login')
-  } catch {
-    toast.add({ title: t('account.logoutFailed'), color: 'error' })
-    await refreshNuxtData('me')
-  }
+  if (!(await signOut())) toast.add({ title: t('account.logoutFailed'), color: 'error' })
 }
 
 </script>

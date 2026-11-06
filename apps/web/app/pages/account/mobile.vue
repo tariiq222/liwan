@@ -2,6 +2,7 @@
 import { MobileSchema } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { normalizeMobileInput, useSaveOwnMobile } from '@/composables/useMe'
+import { useSignOut } from '@/composables/useSignOut'
 import { postLoginPath } from '~/utils/accessPolicy'
 
 // The mobile step: every account needs a number. While the server says one is required this is the only page
@@ -13,6 +14,7 @@ const route = useRoute()
 const toast = useToast()
 const { me } = useMe()
 const saveOwnMobile = useSaveOwnMobile()
+const signOutOfSession = useSignOut()
 const required = computed(() => me.value?.mobile_required === true)
 const mobile = ref(me.value?.mobile ?? '')
 const pending = ref(false)
@@ -48,13 +50,7 @@ async function submit() {
 // Sign-out stays reachable here: it is one of the few routes that answers while the number is missing.
 async function signOut() {
   signOutFailed.value = false
-  try {
-    await $fetch('/api/auth/logout', { method: 'POST', body: {} })
-    await refreshNuxtData('me')
-    await navigateTo('/login')
-  } catch {
-    signOutFailed.value = true
-  }
+  signOutFailed.value = !(await signOutOfSession())
 }
 </script>
 
