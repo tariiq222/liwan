@@ -34,13 +34,17 @@
     "reloadFailed": "Could not load the current values",
     "retry": "Try again",
     "revert": "Revert",
+    "saveBar": "Save the page changes",
     "saveChanges": "Save changes",
     "saveFailed": "Could not save",
+    "saveSomeFailed": "Some changes could not be saved. Check the card that shows the error.",
     "selectDate": "Choose date",
     "showKpis": "Show key figures",
     "stay": "Stay on this page",
+    "unsaved": "Unsaved",
     "unsavedChanges": "If you leave now, your changes will not be saved.",
     "unsavedChangesTitle": "Unsaved changes",
+    "unsavedCount": "Unsaved changes: {n}",
     "viewOnly": "View only"
   },
   "brand": {

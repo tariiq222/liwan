@@ -47,6 +47,7 @@ LAYER_COMPONENTS = frozenset(
     + ['shared/layout/' + name + '.vue' for name in (
         'BrandWordmark', 'ConversationLayout', 'CreatePanel', 'DashboardPage', 'FormSection', 'KpiStrip', 'KpiToggle', 'ListPage', 'PageContainer',
         'PageHeader', 'ListCard', 'PropertiesPanel', 'PropertyRow', 'RecordPage', 'RecordSection', 'RouteTabs', 'SettingsCard', 'SettingsList', 'SettingsListRow', 'SettingsPage',
+        'SettingsSaveBar',
         'StandalonePage', 'SubCard', 'TimelineFrame', 'LinkCard', 'IdentityCard', 'HeaderTags')]
     + ['shared/data/' + name + '.vue' for name in (
         'ChartPanel', 'DataTable', 'FilterBar', 'FilterChip', 'FilterChoice', 'FilterField', 'MetricTile', 'Pagination',
@@ -129,7 +130,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'shared/layout/TimelineFrame.vue', 'shared/layout/ConversationLayout.vue',
     'shared/data/InvoiceLines.vue', 'shared/data/PersonAvatar.vue', 'pmo/tasks/TaskKpiStrip.vue', 'pmo/projects/ProjectKpiStrip.vue',
     'settings/SettingsPreviewCard.vue', 'settings/SettingsPreviewList.vue', 'settings/SettingsPreviewRow.vue', 'settings/IntegrationConnections.vue', 'finance/governance/AuditPreview.vue',
-    'shared/layout/SettingsCard.vue', 'shared/layout/SettingsList.vue', 'shared/layout/SettingsListRow.vue',
+    'shared/layout/SettingsCard.vue', 'shared/layout/SettingsList.vue', 'shared/layout/SettingsListRow.vue', 'shared/layout/SettingsSaveBar.vue',
     'shared/layout/SubCard.vue', 'shared/layout/KpiStrip.vue', 'shared/data/Progress.vue', 'shared/layout/LinkCard.vue', 'shared/layout/IdentityCard.vue', 'shared/layout/HeaderTags.vue',
 ))
 STORY_CONTEXT = re.compile(r'''\bstoryContext\(\s*(['"])([^'"]+)\1''')
@@ -844,7 +845,7 @@ FILTER_CARD_FILES = tuple(root + 'shared/FilterCard.vue' for root in COMPONENT_R
 FILTER_CARD_TAG = re.compile(r'<(?:Lazy)?(?:Shared)?FilterCard\b|<(?:lazy-)?(?:shared-)?filter-card\b')
 CONTRACT_TEMPLATES: tuple[str, ...] = tuple(component_file('shared/' + name + '.vue') for name in (
     'feedback/LoadingSkeleton', 'feedback/ErrorState', 'feedback/ForbiddenState', 'feedback/NotFoundState', 'feedback/EmptyState', 'feedback/PageState',
-    'data/StatusBadge', 'data/FilterBar', 'data/InvoiceLines', 'layout/RouteTabs', 'layout/SettingsPage',
+    'data/StatusBadge', 'data/FilterBar', 'data/InvoiceLines', 'layout/RouteTabs', 'layout/SettingsPage', 'layout/SettingsSaveBar',
     'data/DataTable', 'data/ViewSwitch', 'layout/ListPage', 'layout/RecordPage', 'layout/PropertiesPanel', 'layout/PropertyRow', 'layout/RecordSection',
     'layout/CreatePanel', 'layout/FormSection', 'form/UnsavedChanges',
     'layout/DashboardPage', 'data/ChartPanel', 'layout/TimelineFrame', 'layout/ConversationLayout', 'layout/StandalonePage',

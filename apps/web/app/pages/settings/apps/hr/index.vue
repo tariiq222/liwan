@@ -25,7 +25,7 @@ import { isPayrollConflict } from '@/utils/payrollErrors'
 // guess about installed addons. Changing it needs `finance.setup.manage`, and the cost centers `finance.analytic.manage`.
 const { t } = useI18n()
 const { can } = useAccess()
-const { parts, shows } = useSettingsPage('hr')
+const { parts, shows, tabItems, inTab } = useSettingsPage('hr')
 const leaveSettings = useHrLeaveSettings(() => shows('leave'))
 async function reloadLeaveSettings() {
   const response = await leaveSettings.refetch({ throwOnError: true })
@@ -93,6 +93,11 @@ const leaveTypes = useHrLeaveTypes(() => shows('payroll') && can('hr.leave.read'
 const leaveTypeRefs = computed(() => (leaveTypes.data.value?.items ?? []).map(type => ({ id: type.id, name: type.name })))
 const finance = useHrPayrollFinanceSettings()
 const financeSettings = computed(() => finance.data.value)
+async function reloadFinanceSettings() {
+  const response = await finance.refetch({ throwOnError: true })
+  if (!response.data) throw new Error(t('errors.generic'))
+  return response.data
+}
 // A refusal (403) or a missing bridge (404) hides the finance part; any other failure is shown with a retry.
 const financeError = computed(() => {
   const failure = finance.error.value
@@ -162,7 +167,8 @@ function retry() {
     <SharedPageHeader :title="t('nav.hr')" />
     <SharedForbiddenState v-if="!parts.length" :description="t('errors.forbidden')" />
     <template v-else>
-    <section v-if="shows('payroll')" id="payroll" class="liwan-settings-anchor grid gap-(--liwan-gap-card)">
+    <SharedRouteTabs :items="tabItems" :ariaLabel="t('hr.settingsGroups.label')" />
+    <section v-if="shows('payroll')" v-show="inTab('payroll')" id="payroll" class="liwan-settings-anchor grid gap-(--liwan-gap-card)">
     <SharedPageState :loading="settings.isLoading.value || rates.isLoading.value || bankProfiles.isLoading.value || eosCases.isLoading.value" :error="error" :empty="!settings.data.value" @retry="retry">
       <PayrollGeneralSettingsForm v-if="settings.data.value" :settings="settings.data.value" :leave-types="leaveTypeRefs" :structures="structures.data.value?.items ?? []" :can-edit="canConfig" :reload-settings="reloadPayrollSettings" />
       <BranchStrictCard scope="payroll" path="/api/v1/hr/payroll/branch-strictness" :can-read="can('hr.payroll.read')" :can-edit="canConfig" />
@@ -183,6 +189,7 @@ function retry() {
         :journals="lookups.journals.data.value?.items ?? null"
         :accounts="lookups.accounts.data.value?.items ?? null"
         :analytic-accounts="lookups.analyticAccounts.data.value?.items ?? null"
+        :reload-settings="reloadFinanceSettings"
       />
       <SharedFormSection v-if="financeSettings && centers.data.value" panel :title="t('hrPayroll.costCenters.title')" :description="t('hrPayroll.costCenters.hint')">
         <UAlert v-if="centerFailureMessage" role="alert" color="error" variant="subtle" :title="t('hrPayroll.costCenters.saveError')" :description="centerFailureMessage" />
@@ -197,22 +204,22 @@ function retry() {
       </SharedFormSection>
     </SharedPageState>
     </section>
-    <section v-if="shows('branch-access')" id="branch-access" class="liwan-settings-anchor">
+    <section v-if="shows('branch-access')" v-show="inTab('branch-access')" id="branch-access" class="liwan-settings-anchor">
       <BranchStrictCard scope="hr" path="/api/v1/hr/branch-strictness" :can-read="can('hr.employees.manage')" :can-edit="can('hr.employees.manage')" />
     </section>
-    <section v-if="shows('leave')" id="leave" class="liwan-settings-anchor">
+    <section v-if="shows('leave')" v-show="inTab('leave')" id="leave" class="liwan-settings-anchor">
       <SharedPageState :loading="leaveSettings.isLoading.value" :error="leaveSettings.error.value" :empty="!leaveSettings.data.value" :keep-content="!!leaveSettings.data.value" @retry="leaveSettings.refetch">
         <LeaveSettingsForm v-if="leaveSettings.data.value" :settings="leaveSettings.data.value" :can-edit="canConfigLeave" :reload-settings="reloadLeaveSettings" />
       </SharedPageState>
       <SharedPageState v-if="leaveApprovalError" :error="leaveApprovalError" @retry="leaveApproval.refetch" />
       <LeaveApprovalCard v-if="leaveApproval.data.value" :approval="leaveApproval.data.value" />
     </section>
-    <section v-if="shows('shifts')" id="shifts" class="liwan-settings-anchor">
+    <section v-if="shows('shifts')" v-show="inTab('shifts')" id="shifts" class="liwan-settings-anchor">
       <SharedPageState :loading="shiftSettings.isLoading.value" :error="shiftSettings.data.value ? null : shiftSettings.error.value" :empty="!shiftSettings.data.value" @retry="shiftSettings.refetch">
         <ShiftSettingsForm v-if="shiftSettings.data.value" :settings="shiftSettings.data.value" :can-edit="canManageShifts" :reload-settings="reloadShiftSettings" />
       </SharedPageState>
     </section>
-    <section v-if="shows('warnings')" id="warnings" class="liwan-settings-anchor grid gap-(--liwan-gap-card)">
+    <section v-if="shows('warnings')" v-show="inTab('warnings')" id="warnings" class="liwan-settings-anchor grid gap-(--liwan-gap-card)">
       <SharedPageState :loading="warningSettings.isLoading.value" :error="warningSettings.data.value ? null : warningSettings.error.value" :empty="!warningSettings.data.value" @retry="warningSettings.refetch">
         <WarningSettingsForm v-if="warningSettings.data.value" :settings="warningSettings.data.value" :can-edit="canManageWarnings" :reload-settings="reloadWarningSettings" />
       </SharedPageState>
@@ -220,7 +227,7 @@ function retry() {
         <WarningTypesCard v-if="warningTypes.data.value" :types="warningTypes.data.value.items" :can-edit="canManageWarnings" :reload-types="reloadWarningTypes" />
       </SharedPageState>
     </section>
-    <section v-if="shows('insurance')" id="insurance" class="liwan-settings-anchor grid gap-(--liwan-gap-card)">
+    <section v-if="shows('insurance')" v-show="inTab('insurance')" id="insurance" class="liwan-settings-anchor grid gap-(--liwan-gap-card)">
       <SharedPageState :loading="insuranceSettings.isLoading.value" :error="insuranceSettings.data.value ? null : insuranceSettings.error.value" :empty="!insuranceSettings.data.value" @retry="insuranceSettings.refetch">
         <InsuranceSettingsForm v-if="insuranceSettings.data.value" :settings="insuranceSettings.data.value" :can-edit="canManageInsurance" :reload-settings="reloadInsuranceSettings" />
       </SharedPageState>

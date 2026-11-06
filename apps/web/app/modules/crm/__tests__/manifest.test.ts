@@ -46,13 +46,23 @@ describe('crm manifest', () => {
     ])
   })
 
-  it('registers one settings page with the eleven cards, read by crm.settings.read', () => {
+  it('registers one settings page with the twelve cards, read by crm.settings.read', () => {
     expect(manifest.settings?.to).toBe('/settings/apps/crm')
     expect(manifest.settings?.parts.map(part => part.id)).toEqual([
       'preset', 'terms', 'customFields', 'followup', 'distribution', 'privacy', 'pricing', 'packages', 'stages', 'outcomes', 'lostReasons', 'sources',
     ])
     expect(new Set(manifest.settings?.parts.map(part => part.capability))).toEqual(new Set(['crm.settings.read']))
     expect(settingsPartForPath('/settings/apps/crm')?.part.capability).toBe('crm.settings.read')
+  })
+
+  it('groups the cards into tabs, every part but the preset in exactly one group', () => {
+    const parts = manifest.settings!.parts.map(part => part.id)
+    const groups = manifest.settings!.groups!
+    expect(groups.map(group => group.id)).toEqual(['basics', 'workflow', 'sales', 'privacy'])
+    const grouped = groups.flatMap(group => group.parts)
+    for (const id of grouped) expect(parts, id).toContain(id)
+    expect(new Set(grouped).size).toBe(grouped.length)
+    expect(new Set(grouped)).toEqual(new Set(parts.filter(id => id !== 'preset')))
   })
 
   it('has no bell target when the row carries no opportunity id', () => {

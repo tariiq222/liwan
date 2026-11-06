@@ -473,6 +473,12 @@
     "employeePicker": {
       "search": "Search employees by name",
       "more": "Showing the first matches. Type to narrow the list."
+    },
+    "settingsGroups": {
+      "leave": "Leave and shifts",
+      "payroll": "Payroll and insurance",
+      "conduct": "Conduct and branches",
+      "label": "HR settings sections"
     }
   }
 }

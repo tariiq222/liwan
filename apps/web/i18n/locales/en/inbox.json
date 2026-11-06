@@ -370,6 +370,12 @@
         "deleteDescription": "This cannot be undone. Deleting is refused while the channel has conversations; disable it instead.",
         "appId": "Meta app id",
         "appIdHint": "Optional. Needed only to upload the sample file of a template header with an image, video or document."
+      },
+      "groups": {
+        "basics": "Basics",
+        "replies": "Replies and campaigns",
+        "channels": "Channels",
+        "label": "Inbox settings sections"
       }
     },
     "kinds": {

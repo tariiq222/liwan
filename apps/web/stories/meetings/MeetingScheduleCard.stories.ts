@@ -15,7 +15,7 @@ const settings: MeetingSettings = {
   },
   revision: 3,
 }
-const changedElsewhere: MeetingSettings = { ...settings, values: { schedule_policy: 'all_employees' }, revision: 4 }
+const changedElsewhere: MeetingSettings = { ...settings, values: { ...settings.values, schedule_policy: 'all_employees' }, revision: 4 }
 const manage = http.get('/api/v1/me', () => HttpResponse.json({ ...me, capabilities: ['meetings.settings.manage'] }))
 const save = http.patch('/api/v1/meetings/settings', async ({ request }) => {
   const body = await request.json() as { values: MeetingSettings['values'] }
@@ -28,15 +28,16 @@ const meta = {
   component: MeetingScheduleCard,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/settings/apps/meetings/index.vue:25', 'من يجدول الاجتماعات في الشركة: كل الموظفين أو أصحاب دور منظّم الاجتماعات فقط، يُحفظ مع رقم المراجعة ويُعاد التحميل عند التعارض.'),
+    ...storyContext('apps/web/app/pages/settings/apps/meetings/index.vue:26', 'من يجدول الاجتماعات في الشركة: كل الموظفين أو أصحاب دور منظّم الاجتماعات فقط، يُحفظ مع رقم المراجعة ويُعاد التحميل عند التعارض.'),
     msw: { handlers: { api: [manage, save] } },
   },
-  args: { settings, reloadSettings: async () => changedElsewhere },
+  args: { settings, canEdit: true, reloadSettings: async () => changedElsewhere },
 } satisfies Meta<typeof MeetingScheduleCard>
 export default meta
 type Story = StoryObj<typeof meta>
 
 export const OrganizersOnly: Story = {}
+export const ViewOnly: Story = { args: { canEdit: false } }
 export const AllEmployees: Story = { args: { settings: changedElsewhere } }
 export const Saving: Story = { parameters: { msw: { handlers: { api: [manage, http.patch('/api/v1/meetings/settings', async () => { await delay(10_000); return HttpResponse.json({ ...settings, revision: 4 }) })] } } } }
 export const SaveError: Story = refuse(503, { code: 'unavailable', message: 'تعذّر حفظ الإعدادات الآن' })

@@ -166,9 +166,21 @@ export function visibleSettingsPages(identity?: AccessIdentity): { page: Setting
 }
 
 /**
+ * The sub-list links of an open settings page under its own heading. A card scrolls to itself on its page, a part
+ * with its own page opens it.
+ */
+function partLinks({ page, parts }: { page: SettingsPage; parts: AppSettingsPart[] }): ShellContextLink[] {
+  return parts.map((part): ShellContextLink => ({
+    id: part.id, labelKey: part.labelKey, icon: part.icon, to: settingsPartTarget(page, part), capability: part.capability,
+    section: page.labelKey,
+    ...(part.within ? { within: part.within } : {}), ...(partIsExact(part, parts) ? { exact: true } : {}),
+  }))
+}
+
+/**
  * The settings sidebar: the overview and one link per page on top, always (the applications' pages under their own
- * heading); below them the parts of the open page under its heading. A card scrolls to itself on its page, a part with
- * its own page opens it. Each page link opens the first part the identity may use.
+ * heading); below them the parts of the open page under its heading. Each page link opens the first part the identity
+ * may use. A page with tabs lists only its parts that open a page of their own: the tab strip holds its cards.
  */
 function settingsContextLinks(path: string | undefined, identity?: AccessIdentity): ShellContextLink[] {
   const visible = visibleSettingsPages(identity)
@@ -181,11 +193,8 @@ function settingsContextLinks(path: string | undefined, identity?: AccessIdentit
     })),
   ]
   const open = path ? visible.find(({ page }) => page.id === settingsPageForPath(path)?.id) : undefined
-  const parts = open?.parts.map((part): ShellContextLink => ({
-    id: part.id, labelKey: part.labelKey, icon: part.icon, to: settingsPartTarget(open.page, part), capability: part.capability,
-    section: open.page.labelKey,
-    ...(part.within ? { within: part.within } : {}), ...(partIsExact(part, open.parts) ? { exact: true } : {}),
-  })) ?? []
+  // A page with tabs shows its cards in the tab strip, so the sub-list keeps only the parts with a page of their own.
+  const parts = !open ? [] : open.page.groups?.length ? partLinks({ page: open.page, parts: open.parts.filter(part => part.to) }) : partLinks(open)
   return [...top, ...parts]
 }
 

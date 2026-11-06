@@ -5,6 +5,7 @@ import { useChatSettings } from '@/composables/useChatSettings'
 // The chat application's settings, one page of cards under Settings > Applications. Reading and changing them
 // needs `chat.settings.manage`; a holder of it sees every part.
 const { t } = useI18n()
+const { can } = useAccess()
 const { parts, shows } = useSettingsPage('chat')
 const settings = useChatSettings(() => shows('messages'))
 async function reloadSettings() {
@@ -22,7 +23,7 @@ async function reloadSettings() {
     <template v-else>
       <section v-if="shows('messages')" id="messages" class="liwan-settings-anchor">
         <SharedPageState :loading="settings.isLoading.value" :error="settings.data.value ? null : settings.error.value" :empty="!settings.data.value" @retry="settings.refetch()">
-          <ChatSettingsCard v-if="settings.data.value" :settings="settings.data.value" :reload-settings="reloadSettings" />
+          <ChatSettingsCard v-if="settings.data.value" :settings="settings.data.value" :can-edit="can('chat.settings.manage')" :reload-settings="reloadSettings" />
         </SharedPageState>
       </section>
     </template>

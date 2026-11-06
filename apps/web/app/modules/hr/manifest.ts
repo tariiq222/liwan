@@ -96,6 +96,12 @@ const manifest: AppManifest = {
       { id: 'insurance', labelKey: 'hrInsurance.settings.title', icon: 'i-lucide-heart-pulse', capability: 'hr.insurance.manage' },
       { id: 'branch-access', labelKey: 'access.branches.strict.hr.title', icon: 'i-lucide-git-branch', capability: 'hr.employees.manage' },
     ],
+    // The page's tabs; the payroll audit log has a page of its own and stays in the sidebar.
+    groups: [
+      { id: 'leave', labelKey: 'hr.settingsGroups.leave', parts: ['leave', 'shifts'] },
+      { id: 'payroll', labelKey: 'hr.settingsGroups.payroll', parts: ['payroll', 'insurance'] },
+      { id: 'conduct', labelKey: 'hr.settingsGroups.conduct', parts: ['warnings', 'branch-access'] },
+    ],
   },
   // The pinned create follows the open area. The four section links stay on screen in every page of the application;
   // the open section's pages follow in the sub-list card under its own heading.

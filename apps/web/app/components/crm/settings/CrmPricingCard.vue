@@ -29,7 +29,7 @@ const locked = computed(() => !hydrated.value || !props.canEdit || state.value.s
       <UInputNumber id="discount-max" v-model="draft.discount_max_percent" class="w-full" :min="range.min" :max="range.max" :disabled="locked" />
     </UFormField>
     <UFormField orientation="horizontal" :label="t('crm.settings.pricing.aboveList')" name="price-above-list" :description="t('crm.settings.pricing.aboveListHint')">
-      <USelect id="price-above-list" v-model="draft.price_above_list" class="w-full" :items="aboveListItems" :disabled="locked" />
+      <USelect id="price-above-list" v-model="draft.price_above_list" class="w-full min-w-44" :items="aboveListItems" :disabled="locked" />
     </UFormField>
   </SharedSettingsCard>
 </template>

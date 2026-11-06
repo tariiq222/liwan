@@ -15,6 +15,13 @@
       "imports": "Imports"
     },
     "settings": {
+      "groups": {
+        "basics": "Basics",
+        "workflow": "Workflow",
+        "sales": "Sales",
+        "privacy": "Privacy",
+        "label": "CRM settings sections"
+      },
       "preset": {
         "title": "Preset",
         "hint": "A starting point that sets several options together. You can change any value afterwards.",

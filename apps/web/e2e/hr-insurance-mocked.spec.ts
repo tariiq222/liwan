@@ -98,8 +98,8 @@ test.describe('plans and the settings', () => {
     await expect(page.getByTestId('hr-insurance-providers')).toBeVisible()
     await page.getByTestId('hr-insurance-alert-days').fill('90')
     await page.getByTestId('hr-insurance-alert-days').press('Tab')
-    await page.getByTestId('hr-insurance-settings-save').click()
-    await expect(page.getByTestId('hr-insurance-settings-save')).toBeDisabled()
+    await page.getByTestId('settings-save-bar-save').click()
+    await expect(page.getByTestId('settings-save-bar')).toBeHidden()
   })
 })
 

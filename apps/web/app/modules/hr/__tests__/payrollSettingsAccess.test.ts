@@ -15,14 +15,14 @@ describe('payroll settings entry points', () => {
     expect(hrParts(reader)).toEqual(['payroll'])
     expect(canReachPath(reader, '/settings/apps/hr')).toBe(true)
     expect(canReachPath(reader, '/settings/apps/hr#payroll')).toBe(true)
-    expect(navTargets(reader)).toContain('/settings/apps/hr#payroll')
+    expect(navTargets(reader)).toContain('/settings/apps/hr?tab=payroll#payroll')
   })
 
   it('stay closed without payroll read, even for an HR employee reader', () => {
     const other = identity(['hr.employees.read'])
     expect(hrParts(other)).toEqual([])
     expect(canReachPath(other, '/settings/apps/hr')).toBe(false)
-    expect(navTargets(other)).not.toContain('/settings/apps/hr#payroll')
+    expect(navTargets(other)).not.toContain('/settings/apps/hr?tab=payroll#payroll')
   })
 
   it('stay closed when the hr.payroll sub-feature is off', () => {

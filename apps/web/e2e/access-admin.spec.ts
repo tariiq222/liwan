@@ -308,7 +308,7 @@ test('custom role save refreshes the actor Nuxt me request without focus', async
     await expect(actorPage.getByRole('heading', { name: 'تعديل الدور', exact: true })).toBeVisible()
     await expect(actorPage.getByRole('navigation').getByRole('link', { name: 'الموظفون', exact: true })).toHaveCount(0)
     await actorPage.getByRole('checkbox', { name: new RegExp(`^${directoryPermission.label.ar} `) }).check()
-    await expect(actorPage.getByRole('button', { name: 'حفظ التغييرات', exact: true })).toBeEnabled()
+    await expect(actorPage.getByTestId('settings-save-bar-save')).toBeEnabled()
     const savedRole = actorPage.waitForResponse((response) => (
       response.url().includes(`/api/v1/admin/roles/${extraRole.id}`) && response.request().method() === 'PATCH'
     ))
@@ -316,7 +316,7 @@ test('custom role save refreshes the actor Nuxt me request without focus', async
       if (request.method() !== 'GET') return false
       return new URL(request.url()).pathname.replace(/\/$/, '') === '/api/v1/me'
     })
-    await actorPage.getByRole('button', { name: 'حفظ التغييرات', exact: true }).click()
+    await actorPage.getByTestId('settings-save-bar-save').click()
     expect((await savedRole).status()).toBe(200)
     await actorMe
     await expect(actorPage.getByRole('navigation').getByRole('link', { name: 'الموظفون', exact: true })).toBeVisible()

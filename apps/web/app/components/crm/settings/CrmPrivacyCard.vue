@@ -25,7 +25,7 @@ const visibilityHint = computed(() => ({
 <template>
   <SharedSettingsCard id="privacy" v-bind="state" :title="t('crm.settings.privacy.title')" :description="t('crm.settings.privacy.hint')" :can-edit="canEdit" @save="save" @revert="revert" @reload="reload">
     <UFormField orientation="horizontal" :label="t('crm.settings.privacy.visibility')" name="visibility" :description="visibilityHint">
-      <USelect id="visibility" v-model="draft.visibility" class="w-full" :items="visibilityItems" :disabled="locked" />
+      <USelect id="visibility" v-model="draft.visibility" class="w-full min-w-44" :items="visibilityItems" :disabled="locked" />
     </UFormField>
     <UFormField orientation="horizontal" :label="t('crm.settings.privacy.viewLog')" :description="t('crm.settings.privacy.viewLogHint')">
       <USwitch v-model="draft.view_log_enabled" :disabled="locked" :aria-label="t('crm.settings.privacy.viewLog')" />

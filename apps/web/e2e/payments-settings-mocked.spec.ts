@@ -25,7 +25,7 @@ test.afterEach(() => {
 
 const credential = (page: Page, field: (typeof FIELDS)[number]) => page.getByTestId(`payments-credential-${field}`)
 const providerCard = (page: Page) => page.getByTestId('payments-provider-paymob')
-const saveKeys = (page: Page) => providerCard(page).getByRole('button', { name: 'حفظ التغييرات' })
+const saveKeys = (page: Page) => page.getByTestId('settings-save-bar-save')
 const present = (page: Page) => Promise.all(FIELDS.map(field => page.getByTestId(`payments-present-${field}`).innerText()))
 
 async function saveAllKeys(page: Page, secret = 'sk_test_1') {
@@ -91,7 +91,7 @@ test.describe('payments settings', () => {
     await page.getByRole('option', { name: 'مصر' }).click()
     await expect(page.getByTestId('payments-country')).toContainText('مصر')
     await saveKeys(page).click()
-    await expect(saveKeys(page)).toBeDisabled()
+    await expect(page.getByTestId('settings-save-bar')).toBeHidden()
     await page.reload()
     await expect(page.getByTestId('payments-country')).toContainText('مصر')
   })
@@ -178,7 +178,8 @@ test.describe('payments orders settings', () => {
   const expiry = (page: Page) => page.locator('#payments-order-expiry')
   const invoiceWhenPaid = (page: Page) => page.locator('#payments-order-invoice-when-paid')
   const orders = (page: Page) => page.getByTestId('payments-orders')
-  const save = (page: Page) => orders(page).getByRole('button', { name: 'حفظ التغييرات' })
+  const save = (page: Page) => page.getByTestId('settings-save-bar-save')
+  const saveBar = (page: Page) => page.getByTestId('settings-save-bar')
   const patchBodies = (page: Page) => {
     const bodies: unknown[] = []
     page.on('request', request => { if (request.method() === 'PATCH' && request.url().endsWith('/api/v1/payments/settings')) bodies.push(request.postDataJSON()) })
@@ -193,7 +194,7 @@ test.describe('payments orders settings', () => {
     await expect(invoiceWhenPaid(page)).toBeChecked()
     await expect(page.getByTestId('payments-orders')).toContainText('تسري على الشركة الحالية')
     await expect(page.getByTestId('payments-orders')).toContainText('يسري هذا الخيار على الحساب كله')
-    await expect(save(page)).toBeDisabled()
+    await expect(saveBar(page)).toBeHidden()
     expect(await readSettings(page)).toEqual({
       unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', system_admin_links: false, revision: 0,
     })
@@ -212,7 +213,7 @@ test.describe('payments orders settings', () => {
     await expiry(page).blur()
     await expect(save(page)).toBeEnabled()
     await save(page).click()
-    await expect(save(page)).toBeDisabled()
+    await expect(saveBar(page)).toBeHidden()
     expect(bodies).toEqual([{ revision: 0, unpaid_order_expiry_minutes: 90 }])
     await page.reload()
     await expect(expiry(page)).toHaveValue('90')
@@ -226,7 +227,7 @@ test.describe('payments orders settings', () => {
     await invoiceWhenPaid(page).click()
     await expect(invoiceWhenPaid(page)).not.toBeChecked()
     await save(page).click()
-    await expect(save(page)).toBeDisabled()
+    await expect(saveBar(page)).toBeHidden()
     expect(bodies).toEqual([{ revision: 0, invoice_when_paid: false }])
     await page.reload()
     await expect(invoiceWhenPaid(page)).not.toBeChecked()
@@ -273,11 +274,11 @@ test.describe('payments orders settings', () => {
     await expiry(page).blur()
     await save(page).click()
     await expect(orders(page).getByRole('alert')).toContainText('غيّر شخص آخر هذه الإعدادات')
-    await expect(save(page)).toBeDisabled()
+    await expect(saveBar(page)).toBeVisible()
     await orders(page).getByRole('button', { name: 'تحميل القيم الحالية' }).click()
     await expect(expiry(page)).toHaveValue('120')
     await expect(invoiceWhenPaid(page)).not.toBeChecked()
-    await expect(save(page)).toBeDisabled()
+    await expect(saveBar(page)).toBeHidden()
     expect(bodies).toEqual([{ revision: 0, unpaid_order_expiry_minutes: 30 }])
     expect(await readSettings(page)).toEqual({
       unpaid_order_expiry_minutes: 120, invoice_when_paid: false, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', system_admin_links: false, revision: 1,
@@ -288,7 +289,7 @@ test.describe('payments orders settings', () => {
     await expiry(page).fill('30')
     await expiry(page).blur()
     await save(page).click()
-    await expect(save(page)).toBeDisabled()
+    await expect(saveBar(page)).toBeHidden()
     await expect(orders(page).getByRole('alert')).toHaveCount(0)
     expect(bodies.at(-1)).toEqual({ revision: 1, unpaid_order_expiry_minutes: 30 })
     expect(await readSettings(page)).toEqual({

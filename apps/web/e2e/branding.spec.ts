@@ -81,7 +81,7 @@ test('document colour draft cancels, resets, and saves explicitly without themin
   await colour.fill('#fff')
   await expect(colour).toHaveAttribute('aria-invalid', 'true')
   // The field explains itself once the reader submits; a draft that is not valid never reaches the server.
-  await page.getByTestId('branding-form').getByRole('button', { name: 'حفظ التغييرات', exact: true }).click()
+  await page.getByTestId('settings-save-bar-save').click()
   await expect(page.getByTestId('branding-form').getByRole('alert').filter({ hasText: 'ست خانات' }).first()).toBeVisible()
   await expect(page.getByTestId('branding-form').getByRole('alert').filter({ hasText: 'تعذّر الحفظ' })).toBeVisible()
   page.off('request', onInvalidRequest)
@@ -90,7 +90,7 @@ test('document colour draft cancels, resets, and saves explicitly without themin
 
   // Another preset than the default, which is also the mock's saved color: undo needs a draft that differs from it.
   await page.getByTestId('branding-preset').nth(1).click()
-  await page.getByTestId('branding-form').getByRole('button', { name: 'تراجع', exact: true }).click()
+  await page.getByTestId('settings-save-bar-revert').click()
   await expect(colour).toHaveValue(savedColour)
 
   let resetPatchCount = 0
@@ -107,7 +107,7 @@ test('document colour draft cancels, resets, and saves explicitly without themin
   const saved = page.waitForResponse((response) => (
     response.url().includes('/api/v1/admin/branding') && response.request().method() === 'PATCH'
   ))
-  await page.getByTestId('branding-form').getByRole('button', { name: 'حفظ التغييرات', exact: true }).click()
+  await page.getByTestId('settings-save-bar-save').click()
   const savedResponse = await saved
   expect(savedResponse.status()).toBe(200)
   expect(savedResponse.request().postDataJSON()).toEqual({ primary_color: '#123456' })
@@ -134,7 +134,7 @@ test('document colour draft cancels, resets, and saves explicitly without themin
   const restored = page.waitForResponse((response) => (
     response.url().includes('/api/v1/admin/branding') && response.request().method() === 'PATCH'
   ))
-  await page.getByTestId('branding-form').getByRole('button', { name: 'حفظ التغييرات', exact: true }).click()
+  await page.getByTestId('settings-save-bar-save').click()
   expect((await restored).status()).toBe(200)
   } finally {
     const restore = await page.request.patch('/api/v1/admin/branding', { data: { primary_color: savedColour } })
@@ -193,7 +193,7 @@ test('a failed branding save keeps the primary draft visible', async ({ page, ba
   const failed = page.waitForResponse((response) => (
     response.url().includes('/api/v1/admin/branding') && response.request().method() === 'PATCH'
   ))
-  await page.getByTestId('branding-form').getByRole('button', { name: 'حفظ التغييرات', exact: true }).click()
+  await page.getByTestId('settings-save-bar-save').click()
   expect((await failed).status()).toBe(503)
   await expect(page.getByTestId('branding-color')).toHaveValue('#123456')
 })
