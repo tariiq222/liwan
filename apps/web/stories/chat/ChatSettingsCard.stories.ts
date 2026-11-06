@@ -24,15 +24,16 @@ const meta = {
   component: ChatSettingsCard,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/settings/apps/chat/index.vue:25', 'ماذا يحدث عند حذف رسالة: تبقى عبارة «حُذفت هذه الرسالة» أو حذف نهائي، يُحفظ مع رقم المراجعة ويُعاد التحميل عند التعارض.'),
+    ...storyContext('apps/web/app/pages/settings/apps/chat/index.vue:26', 'ماذا يحدث عند حذف رسالة: تبقى عبارة «حُذفت هذه الرسالة» أو حذف نهائي، يُحفظ مع رقم المراجعة ويُعاد التحميل عند التعارض.'),
     msw: { handlers: { api: [manage, save] } },
   },
-  args: { settings, reloadSettings: async () => changedElsewhere },
+  args: { settings, canEdit: true, reloadSettings: async () => changedElsewhere },
 } satisfies Meta<typeof ChatSettingsCard>
 export default meta
 type Story = StoryObj<typeof meta>
 
 export const KeepsADeletedRow: Story = {}
+export const ViewOnly: Story = { args: { canEdit: false } }
 export const DeletesForGood: Story = { args: { settings: changedElsewhere } }
 export const Saving: Story = { parameters: { msw: { handlers: { api: [manage, http.patch('/api/v1/chat/settings', async () => { await delay(10_000); return HttpResponse.json({ ...settings, revision: 4 }) })] } } } }
 export const SaveError: Story = refuse(503, { code: 'unavailable', message: 'تعذّر حفظ الإعدادات الآن' })

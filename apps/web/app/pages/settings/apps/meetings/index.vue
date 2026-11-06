@@ -5,6 +5,7 @@ import { useMeetingSettings } from '@/composables/useMeetingSettings'
 // The meetings application's settings, one page of cards under Settings > Applications. Reading and changing them
 // needs `meetings.settings.manage`; a holder of it sees every part.
 const { t } = useI18n()
+const { can } = useAccess()
 const { parts, shows } = useSettingsPage('meetings')
 const settings = useMeetingSettings(() => shows('schedule'))
 async function reloadSettings() {
@@ -20,9 +21,9 @@ async function reloadSettings() {
     <SharedPageHeader :title="t('nav.meetings')" />
     <SharedForbiddenState v-if="!parts.length" :description="t('errors.forbidden')" />
     <template v-else>
-      <section v-if="shows('schedule')" id="schedule" class="liwan-settings-anchor">
+      <section v-if="shows('schedule')" id="schedule" class="liwan-settings-anchor grid gap-(--liwan-gap-card)">
         <SharedPageState :loading="settings.isLoading.value" :error="settings.data.value ? null : settings.error.value" :empty="!settings.data.value" @retry="settings.refetch()">
-          <MeetingScheduleCard v-if="settings.data.value" :settings="settings.data.value" :reload-settings="reloadSettings" />
+          <MeetingScheduleCard v-if="settings.data.value" :settings="settings.data.value" :can-edit="can('meetings.settings.manage')" :reload-settings="reloadSettings" />
         </SharedPageState>
       </section>
     </template>
