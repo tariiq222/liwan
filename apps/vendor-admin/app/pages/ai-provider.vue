@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import type { AiProviderTestResult } from '@liwan/commercial-contracts'
-import { aiProviderErrorKey, draftComplete, probeFields, storedKeyApplies, testSignature, type ProviderDraft } from '@/utils/aiProvider'
+import { aiProviderErrorKey, draftComplete, modelsFields, probeFields, storedKeyApplies, testSignature, type ProviderDraft } from '@/utils/aiProvider'
 import { useAiProvider } from '@/composables/useAiProvider'
 
 definePageMeta({ capability: 'vendor.ai.manage' })
@@ -71,7 +71,7 @@ async function run<T>(what: 'models' | 'test' | 'save', action: () => Promise<T>
 }
 
 async function loadModels() {
-  const loaded = await run('models', () => api.models(probeFields(draft, preset.value)))
+  const loaded = await run('models', () => api.models(modelsFields(draft, preset.value)))
   if (loaded) models.value = loaded.items.map(item => item.id)
 }
 

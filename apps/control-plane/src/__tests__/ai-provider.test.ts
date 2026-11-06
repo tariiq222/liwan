@@ -9,7 +9,7 @@ import type { VendorCapability } from '@liwan/commercial-contracts'
 import { migrate } from '../db.js'
 import type { Config } from '../config.js'
 import { aiProviderHttp } from '../ai-provider/http.js'
-import { listModels, ProviderCallError, testCompletion, type Fetcher, type ProbeTarget } from '../ai-provider/client.js'
+import { listModels, MODELS_BUDGET_MS, ProviderCallError, TEST_BUDGET_MS, testCompletion, type Fetcher, type ProbeTarget } from '../ai-provider/client.js'
 import { addressClass, cleanEndpoint, checkEndpoint, EndpointError, type Resolver } from '../ai-provider/endpoint.js'
 import { guardedFetcher } from '../ai-provider/guarded-fetch.js'
 import { findPreset, PRESETS } from '../ai-provider/presets.js'
@@ -89,6 +89,15 @@ describe('endpoints', () => {
     for (const url of ['http://169.254.169.254', 'http://[::ffff:169.254.169.254]', 'http://[fe80::1]', 'http://0.0.0.0', 'http://[::]', 'http://224.0.0.1', 'http://[fd00:ec2::254]', 'http://100.100.100.200', 'http://metadata.google.internal', 'http://[64:ff9b::a9fe:a9fe]']) {
       expect(() => cleanEndpoint(url, PRIVATE_OK), url).toThrow(EndpointError)
     }
+  })
+  it('refuses a public endpoint on any port but 443, because ai-egress opens only 443 for a published host, and says so with its own code', () => {
+    for (const url of ['https://provider.example:8443/v1', 'https://provider.example:444/v1', 'https://93.184.216.34:8443/v1']) {
+      expect(() => cleanEndpoint(url, PUBLIC), url).toThrow(expect.objectContaining({ code: 'base_url_port' }))
+    }
+    expect(cleanEndpoint('https://provider.example:443/v1', PUBLIC)).toBe('https://provider.example/v1')
+    expect(() => cleanEndpoint('https://10.0.0.1:8443/v1', PUBLIC)).toThrow(expect.objectContaining({ code: 'base_url' }))  // a forbidden address is reported as such first
+    expect(cleanEndpoint('http://ollama:11434', PRIVATE_OK)).toBe('http://ollama:11434')  // the Ollama preset keeps its own port rule
+    expect(cleanEndpoint('https://ollama.example:8443/v1', PRIVATE_OK)).toBe('https://ollama.example:8443/v1')
   })
   it('classifies addresses, judging IPv4 carried in IPv6 as that IPv4 address', () => {
     expect(addressClass('93.184.216.34')).toBe('public')
@@ -177,6 +186,12 @@ describe('the guarded connection', () => {
     const fetcher = guardedFetcher(PUBLIC, { resolve: nameResolver({ 'llm.example.com': ['10.0.0.8'] }) })
     await expect(listModels(fetcher, target('custom', KEY, 'http://llm.example.com'))).rejects.toMatchObject({ code: 'endpoint_refused' })
     await expect(testCompletion(fetcher, target('custom', KEY, 'http://llm.example.com'), 'm')).rejects.toMatchObject({ code: 'endpoint_refused' })
+  })
+})
+
+describe('probe budgets', () => {
+  it('stays at 15 s for the models list and two 20 s asks for a test, which the vendor-admin BFF timeouts must exceed', () => {
+    expect([MODELS_BUDGET_MS, TEST_BUDGET_MS]).toEqual([15_000, 40_000])
   })
 })
 
@@ -304,7 +319,7 @@ suite('live PostgreSQL platform provider routes', () => {
     dir = await mkdtemp(join(tmpdir(), 'ai-provider-'))
     config = { admin: { secretKey: SECRET, rpId: 'localhost', origin: 'http://localhost', rpName: 'LiwanOS' }, aiPlatformProviderPath: providerFile() } as unknown as Config
     await pool.query('TRUNCATE ai_platform_provider')
-    await pool.query("DELETE FROM audit_events WHERE action='ai.platform_provider.saved'")
+    await pool.query("DELETE FROM audit_events WHERE action LIKE 'ai.platform_provider.%'")
   })
 
   it('answers nothing outside its resource, needs the operations capability for every route and refuses unknown methods', async () => {
@@ -469,6 +484,45 @@ suite('live PostgreSQL platform provider routes', () => {
     expect((await call('POST', '/models', { preset: 'ollama', base_url: 'http://10.0.0.5:11434' }, { fetch: ok.fetcher, resolve })).body.items).toEqual([{ id: 'qwen' }])
     expect((await call('POST', '/models', { preset: 'ollama', base_url: 'http://169.254.169.254' }, { fetch: ok.fetcher, resolve })).body.code).toBe('invalid_base_url')
     expect((await call('PATCH', '', { preset: 'ollama', model: 'qwen', base_url: 'http://10.0.0.5:11434', reason: 'Internal Ollama' }, { resolve })).status).toBe(200)
+  })
+
+  it('refuses a custom endpoint on a non-443 port in models, test and save with the stable code invalid_base_url_port, but not Ollama on its port', async () => {
+    const resolve: Resolver = async () => ['93.184.216.34']
+    const custom = { preset: 'custom', base_url: 'https://provider.example:8443/v1', api_key: KEY }
+    expect((await call('POST', '/models', custom, { resolve })).body.code).toBe('invalid_base_url_port')
+    expect((await call('POST', '/test', { ...custom, model: 'm' }, { resolve })).body.code).toBe('invalid_base_url_port')
+    expect((await call('PATCH', '', { ...custom, model: 'm', reason: 'Odd port' }, { resolve })).body.code).toBe('invalid_base_url_port')
+    expect((await call('GET', '')).body).toEqual({ setting: null })
+    expect((await call('PATCH', '', { ...custom, base_url: 'https://provider.example:443/v1', model: 'm', reason: 'Default port' }, { resolve })).body.setting.base_url).toBe('https://provider.example/v1')
+    expect((await call('PATCH', '', { preset: 'ollama', model: 'qwen', base_url: 'http://10.0.0.5:11434', reason: 'Internal Ollama' }, { resolve })).status).toBe(200)
+  })
+
+  it('holds the save lock until a failed save has restored the file, so a waiting save is not overwritten by the late restore', async () => {
+    await call('PATCH', '', { preset: 'groq', model: 'first', api_key: KEY, reason: 'First choice' })
+    const first = await readFile(providerFile(), 'utf8')
+    let reachedCommit!: () => void
+    const atCommit = new Promise<void>((resolve) => { reachedCommit = resolve })
+    let failCommit!: () => void
+    const gate = new Promise<void>((resolve) => { failCommit = resolve })
+    const failing: Pool = { query: pool.query.bind(pool), connect: async () => withQueryHook(await pool.connect(), async (sql, run) => {
+      if (sql === 'COMMIT') { reachedCommit(); await gate; throw new Error('commit failed') }
+      if (sql === 'ROLLBACK') { const done = await run(); await new Promise(resolve => setTimeout(resolve, 400)); return done }  // widen the window between the rollback and the restore
+      return run()
+    }) } as unknown as Pool
+    const loser = call('PATCH', '', { preset: 'groq', model: 'loser', reason: 'Fails at COMMIT' }, { pool: failing })
+    const loserOutcome = loser.then(() => 'saved', (error: Error) => error.message)
+    await atCommit
+    expect(await readFile(providerFile(), 'utf8')).not.toBe(first)  // the losing save's file is in place, its COMMIT pending
+    let winnerDone = false
+    const winner = call('PATCH', '', { preset: 'groq', model: 'winner', reason: 'Waits for the lock' }).then((result) => { winnerDone = true; return result })
+    await new Promise(resolve => setTimeout(resolve, 300))
+    expect(winnerDone).toBe(false)  // the winner waits: the lock is not the transaction's, it outlives the rollback
+    failCommit()
+    expect(await loserOutcome).toBe('commit failed')
+    const won = await winner
+    expect(won.body.setting).toMatchObject({ model: 'winner', revision: 2 })
+    expect(JSON.parse(await readFile(providerFile(), 'utf8'))).toMatchObject({ model: 'winner', revision: 2 })  // not the loser's restored content
+    expect((await call('GET', '')).body.setting).toMatchObject({ model: 'winner', revision: 2, delivery: 'delivered' })
   })
 
   it('needs the control plane secret to take a key', async () => {

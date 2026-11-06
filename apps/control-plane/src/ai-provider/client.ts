@@ -13,6 +13,9 @@ export class ProviderCallError extends Error {
 
 const MODELS_TIMEOUT_MS = 15_000
 const TEST_TIMEOUT_MS = 20_000
+/** The longest a models or test request can take end to end (a test may ask twice, see testCompletion). The vendor-admin BFF's per-route upstream timeouts (server/utils/control.ts) must stay above these. */
+export const MODELS_BUDGET_MS = MODELS_TIMEOUT_MS
+export const TEST_BUDGET_MS = 2 * TEST_TIMEOUT_MS
 const MAX_MODELS = 500
 const MAX_ERROR_BYTES = 4096
 const ANTHROPIC_VERSION = '2023-06-01'

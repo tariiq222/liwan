@@ -2,20 +2,27 @@
 import type { AiProviderCurrent, AiProviderPreset } from '@liwan/commercial-contracts'
 import { StepUpCancelled } from '../composables/useStepUp'
 
-export interface ProbeFields { preset: string, base_url?: string, api_key?: string, stream_usage?: boolean }
+/** The fields of a models call: the preset, its endpoint and a typed key. The models request is strict and has no token-count option. */
+export interface ModelsFields { preset: string, base_url?: string, api_key?: string }
+/** The fields of a test call; `stream_usage` is what the test asks the provider's stream for. */
+export interface ProbeFields extends ModelsFields { stream_usage?: boolean }
 export interface SaveFields extends ProbeFields { model: string, reason: string }
 export interface ProviderDraft { preset: string, base_url: string, api_key: string, model: string, stream_usage: boolean }
 
 const filled = (value: string): string | undefined => (value.trim() ? value.trim() : undefined)
 
-/** The fields of a models, test or save call: the endpoint only for a preset that takes one, the key only when typed (the stored key is used otherwise), the token-count option only where the vendor may choose it. */
-export function probeFields(draft: ProviderDraft, preset: AiProviderPreset | undefined): ProbeFields {
+/** The fields of a models call, without the options only a test or a save takes (the control plane's models request is strict and refuses them). */
+export function modelsFields(draft: ProviderDraft, preset: AiProviderPreset | undefined): ModelsFields {
   return {
     preset: draft.preset,
     ...(preset?.needs_base_url && filled(draft.base_url) ? { base_url: filled(draft.base_url) } : {}),
     ...(preset?.needs_api_key && filled(draft.api_key) ? { api_key: filled(draft.api_key) } : {}),
-    ...(preset?.stream_usage_editable ? { stream_usage: draft.stream_usage } : {}),
   }
+}
+
+/** The fields of a test or save call: the models fields plus the token-count option, only where the vendor may choose it. */
+export function probeFields(draft: ProviderDraft, preset: AiProviderPreset | undefined): ProbeFields {
+  return { ...modelsFields(draft, preset), ...(preset?.stream_usage_editable ? { stream_usage: draft.stream_usage } : {}) }
 }
 
 /** Whether the server already holds a key that applies to what the form chose: same preset, and the same endpoint when the endpoint is the vendor's. */
@@ -35,7 +42,7 @@ export function draftComplete(draft: ProviderDraft, preset: AiProviderPreset | u
 export const testSignature = (draft: ProviderDraft): string => JSON.stringify([draft.preset, draft.base_url.trim(), draft.api_key, draft.model.trim(), draft.stream_usage])
 
 const CODES = new Set([
-  'invalid', 'invalid_preset', 'invalid_base_url', 'invalid_stream_usage', 'api_key_required', 'api_key_not_allowed', 'secret_key_unavailable', 'provider_file_unavailable',
+  'invalid', 'invalid_preset', 'invalid_base_url', 'invalid_base_url_port', 'invalid_stream_usage', 'api_key_required', 'api_key_not_allowed', 'secret_key_unavailable', 'provider_file_unavailable',
   'provider_unauthorized', 'provider_endpoint_refused', 'provider_unreachable', 'provider_timeout', 'provider_rate_limited', 'provider_error', 'provider_invalid_response', 'forbidden', 'step_up_required',
 ])
 

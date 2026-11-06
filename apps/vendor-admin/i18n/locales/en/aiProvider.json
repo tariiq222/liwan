@@ -51,7 +51,7 @@
       "noUsageTitle": "This provider returned no token counts",
       "noUsageDescription": "Token limits and the output cap cannot be enforced, and cost cannot be reported, for calls on this provider. Save only if that is acceptable.",
       "baseUrlHintPrivate": "The address of your server, for example http://ollama:11434. This is the only provider that may use a private or internal address. Internal addresses also need an entry in the AI egress list.",
-      "baseUrlHintPublic": "The public https address of the endpoint. Private, loopback and link-local addresses are refused."
+      "baseUrlHintPublic": "The public https address of the endpoint, on port 443 (the default). Private, loopback and link-local addresses and other ports are refused."
     },
     "test": {
       "key_missing": "No key to try: write one, or choose the saved provider again.",
@@ -86,7 +86,8 @@
       "provider_error": "The provider reported an error.",
       "provider_invalid_response": "The provider answered in a form this page does not understand.",
       "invalid_stream_usage": "The token-count option cannot be changed for this provider.",
-      "provider_endpoint_refused": "This address is not allowed: it is, or resolves to, a private or internal address."
+      "provider_endpoint_refused": "This address is not allowed: it is, or resolves to, a private or internal address.",
+      "invalid_base_url_port": "A public endpoint must use port 443 (the default, no port in the address): the AI egress proxy opens no other port."
     }
   }
 }

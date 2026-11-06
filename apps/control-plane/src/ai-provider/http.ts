@@ -46,7 +46,7 @@ async function endpointFor(preset: Preset | undefined, given: string | undefined
     if (given === undefined) throw fail(422, 'invalid_base_url')
     return { preset, baseUrl: await checkEndpoint(given, policy, resolve) }
   } catch (error) {
-    if (error instanceof EndpointError) throw fail(422, 'invalid_base_url')
+    if (error instanceof EndpointError) throw fail(422, error.code === 'base_url_port' ? 'invalid_base_url_port' : 'invalid_base_url')
     throw error
   }
 }
@@ -150,7 +150,7 @@ export async function aiProviderHttp(pool: Pool, config: Config, input: Input, d
 }
 
 /**
- * The save: row, audit entry and file change in one transaction under the save lock. The audit entry is written before the
+ * The save: row, audit entry and file change in one transaction under the session-level save lock. The audit entry is written before the
  * file, and the file is the last step before COMMIT; if the commit (or anything after the rename) fails, the previous file
  * content is put back, so a failed save leaves the row, the audit trail and the file as they were.
  */
@@ -160,11 +160,16 @@ async function save(pool: Pool, config: Config, input: Input, deps: AiProviderDe
   const { preset, baseUrl } = await endpointFor(findPreset(request.preset), request.base_url, fail, deps.resolve)
   const secret = request.api_key !== undefined ? needSecret(config, fail) : config.admin?.secretKey
   const client: PoolClient = await pool.connect()
+  let broken = false
+  let locked = false
   const file: { restore: (() => Promise<void>) | null } = { restore: null }
   let saved: Omit<StoredProvider, 'updatedAt'>
   try {
+    // A session-level lock, taken before the transaction and released only after the file is restored: a transaction-level one would be
+    // released by ROLLBACK while the restore is still to come, and a waiting save could commit and then be overwritten by the late restore.
+    await client.query('SELECT pg_advisory_lock($1)', [AI_PROVIDER_SAVE_LOCK])
+    locked = true
     await client.query('BEGIN')
-    await client.query('SELECT pg_advisory_xact_lock($1)', [AI_PROVIDER_SAVE_LOCK])
     const stored = await readProvider(client, true)
     const apiKey = keyFor(preset, baseUrl, request.api_key, stored, secret, fail)
     if (preset.needs_api_key && !apiKey) throw fail(422, 'api_key_required')
@@ -192,6 +197,9 @@ async function save(pool: Pool, config: Config, input: Input, deps: AiProviderDe
     try { await client.query('ROLLBACK') } catch { /* the connection is gone; the server rolls the transaction back */ }
     if (file.restore) await file.restore().catch(() => undefined)
     throw error
-  } finally { client.release() }
+  } finally {
+    if (locked) { try { await client.query('SELECT pg_advisory_unlock($1)', [AI_PROVIDER_SAVE_LOCK]) } catch { broken = true } }  // a connection that cannot unlock is discarded: ending the session frees the lock
+    client.release(broken)
+  }
   return aiProviderCurrentSchema.parse({ setting: aiProviderSettingSchema.parse(await settingOf({ ...saved, updatedAt: new Date() }, config.aiPlatformProviderPath)) })
 }

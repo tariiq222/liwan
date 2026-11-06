@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { AiProviderCurrent, AiProviderPreset } from '@liwan/commercial-contracts'
 import { StepUpCancelled } from '../../composables/useStepUp'
-import { aiProviderErrorKey, draftComplete, probeFields, storedKeyApplies, testSignature } from '../aiProvider'
+import { aiProviderModelsRequestSchema, aiProviderSaveSchema, aiProviderTestRequestSchema } from '@liwan/commercial-contracts'
+import { aiProviderErrorKey, draftComplete, modelsFields, probeFields, storedKeyApplies, testSignature } from '../aiProvider'
 
 const fixed: AiProviderPreset = { id: 'deepseek', label: 'DeepSeek', provider: 'openai_compatible', base_url: 'https://llm.example.com/v1', needs_base_url: false, needs_api_key: true, stream_usage: true, stream_usage_editable: false }
 const ollama: AiProviderPreset = { id: 'ollama', label: 'Ollama', provider: 'ollama', base_url: null, needs_base_url: true, needs_api_key: false, stream_usage: false, stream_usage_editable: false }
@@ -21,6 +22,24 @@ describe('probe fields', () => {
   it('sends the token-count option only where the vendor may choose it', () => {
     expect(probeFields(draft({ stream_usage: false }), fixed)).not.toHaveProperty('stream_usage')
     expect(probeFields(draft({ preset: 'custom', base_url: 'https://x.example/v1', stream_usage: false }), custom)).toMatchObject({ stream_usage: false })
+  })
+})
+
+describe('models fields', () => {
+  it('leave out the token-count option, which the strict models request refuses, even for the custom preset where it is sent to test and save', () => {
+    const ticked = draft({ preset: 'custom', base_url: 'https://llm.example.com/v1', api_key: 'sk-12345678', model: 'm', stream_usage: true })
+    expect(modelsFields(ticked, custom)).toEqual({ preset: 'custom', base_url: 'https://llm.example.com/v1', api_key: 'sk-12345678' })
+    expect(probeFields(ticked, custom)).toHaveProperty('stream_usage', true)
+  })
+  it('are accepted by the control plane schemas the calls are checked against (models strict, test and save with their own extras)', () => {
+    const ticked = draft({ preset: 'custom', base_url: 'https://llm.example.com/v1', api_key: 'sk-12345678', model: 'm', stream_usage: true })
+    expect(aiProviderModelsRequestSchema.safeParse(modelsFields(ticked, custom)).success).toBe(true)
+    expect(aiProviderModelsRequestSchema.safeParse(probeFields(ticked, custom)).success).toBe(false)  // the reason models must not get them
+    expect(aiProviderTestRequestSchema.safeParse({ ...probeFields(ticked, custom), model: 'm' }).success).toBe(true)
+    expect(aiProviderSaveSchema.safeParse({ ...probeFields(ticked, custom), model: 'm', reason: 'Custom endpoint' }).success).toBe(true)
+    for (const [preset, fields] of [[fixed, draft({ model: 'm', api_key: 'sk-12345678' })], [ollama, draft({ preset: 'ollama', base_url: 'http://o:1', model: 'm' })]] as const) {
+      expect(aiProviderModelsRequestSchema.safeParse(modelsFields(fields, preset)).success).toBe(true)
+    }
   })
 })
 
@@ -53,6 +72,7 @@ describe('error messages', () => {
   const failed = (data: object, statusCode = 422) => ({ statusCode, data })
   it('maps the control plane codes to their message and anything else to a generic one', () => {
     expect(aiProviderErrorKey(failed({ code: 'api_key_required' }))).toBe('aiProvider.errors.api_key_required')
+    expect(aiProviderErrorKey(failed({ code: 'invalid_base_url_port' }))).toBe('aiProvider.errors.invalid_base_url_port')
     expect(aiProviderErrorKey(failed({ code: 'invalid_stream_usage' }))).toBe('aiProvider.errors.invalid_stream_usage')
     expect(aiProviderErrorKey(failed({ code: 'provider_unauthorized' }))).toBe('aiProvider.errors.provider_unauthorized')
     expect(aiProviderErrorKey(failed({ code: 'provider_file_unavailable' }, 503))).toBe('aiProvider.errors.provider_file_unavailable')

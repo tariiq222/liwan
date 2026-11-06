@@ -1,5 +1,5 @@
 import type { AiProviderCurrent, AiProviderModels, AiProviderPresetList, AiProviderTestResult } from '@liwan/commercial-contracts'
-import type { ProbeFields, SaveFields } from '../utils/aiProvider'
+import type { ModelsFields, ProbeFields, SaveFields } from '../utils/aiProvider'
 
 type Request = <T>(path: string, options?: { method?: string, body?: unknown }) => Promise<T>
 
@@ -11,7 +11,7 @@ export function createAiProvider(request: Request) {
   return {
     current: () => request<AiProviderCurrent>(ROOT),
     presets: () => request<AiProviderPresetList>(`${ROOT}/presets`),
-    models: (fields: ProbeFields) => send<AiProviderModels>('/models', 'POST', fields),
+    models: (fields: ModelsFields) => send<AiProviderModels>('/models', 'POST', fields),
     test: (fields: ProbeFields & { model: string }) => send<AiProviderTestResult>('/test', 'POST', fields),
     save: (fields: SaveFields) => send<AiProviderCurrent>('', 'PATCH', fields),
   }

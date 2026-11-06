@@ -2,7 +2,10 @@ import { BlockList, isIP } from 'node:net'
 import { lookup } from 'node:dns/promises'
 
 /** The endpoint cannot be sent a provider key: wrong shape, or an address the control plane must never connect to. */
-export class EndpointError extends Error {}
+export class EndpointError extends Error {
+  /** `base_url`: the endpoint is malformed or forbidden; `base_url_port`: a public endpoint on a port other than 443, which ai-egress would not open. */
+  constructor(public code: 'base_url' | 'base_url_port' = 'base_url') { super(code) }
+}
 
 export type Resolver = (host: string) => Promise<string[]>
 export const systemResolver: Resolver = async host => (await lookup(host, { all: true, verbatim: true })).map(entry => entry.address)
@@ -90,6 +93,7 @@ export function cleanEndpoint(value: string, policy: EndpointPolicy): string {
   if (!schemeOk || url.username || url.password || url.search || url.hash || !host) throw new EndpointError('base_url')
   if (isIP(host)) { if (!addressAllowed(host, policy)) throw new EndpointError('base_url') }
   else if (METADATA_NAMES.has(host) || (!policy.allowPrivate && isPrivateName(host))) throw new EndpointError('base_url')
+  if (!policy.allowPrivate && url.port !== '') throw new EndpointError('base_url_port')  // the default port 443 is the only one the egress proxy opens for a public host
   return url.toString().replace(/\/+$/, '')
 }
 

@@ -23,6 +23,11 @@ describe('AI provider page', () => {
     expect(page).toContain("preset.provider === 'ollama' ? 'aiProvider.form.baseUrlHintPrivate' : 'aiProvider.form.baseUrlHintPublic'")
   })
 
+  it('lists models with the models fields and never the test and save options', () => {
+    expect(page).toContain('api.models(modelsFields(draft, preset.value))')
+    expect(page).not.toContain('api.models(probeFields')
+  })
+
   it('cannot save before a passing test of the current values', () => {
     expect(page).toContain(':disabled="!hydrated || Boolean(busy) || !tested"')
     expect(page).toContain('testSignature(draft)')
