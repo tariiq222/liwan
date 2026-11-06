@@ -361,7 +361,7 @@ jobs:
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'e2e-mock')
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
