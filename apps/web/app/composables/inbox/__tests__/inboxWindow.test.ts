@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { REPLY_WINDOW_HOURS, cannedSuggestions, renderTemplateBody, replyWindowOpen, windowClosedDescriptionKey, windowClosedErrorKey } from '../inboxWindow'
+import * as windowModule from '../inboxWindow'
+import { cannedSuggestions, renderTemplateBody, replyWindowOpen, windowClosedDescriptionKey, windowClosedErrorKey } from '../inboxWindow'
 
 const NOW = Date.parse('2026-10-28T12:00:00Z')
 
@@ -50,8 +51,8 @@ describe('cannedSuggestions', () => {
 })
 
 describe('the reply window of each kind', () => {
-  it('is 24 hours on WhatsApp and 48 on TikTok (D4)', () => {
-    expect(REPLY_WINDOW_HOURS).toEqual({ whatsapp: 24, tiktok: 48 })
+  it('carries no UI copy of the server window hours: the server owns the rule (D4)', () => {
+    expect((windowModule as Record<string, unknown>).REPLY_WINDOW_HOURS).toBeUndefined()
     expect(windowClosedDescriptionKey('whatsapp')).toBe('inbox.composer.windowClosedByKind.whatsapp')
     expect(windowClosedDescriptionKey('tiktok')).toBe('inbox.composer.windowClosedByKind.tiktok')
   })
