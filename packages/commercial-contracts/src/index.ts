@@ -68,6 +68,7 @@ export type OperationRequest = z.infer<typeof operationRequestSchema>
 export * from './shared/provisioning.js'
 export * from './admin.js'
 export * from './audit.js'
+export * from './ai-provider.js'
 
 export const sharedOnboardingRequestSchema = z.strictObject({
   request_id: z.uuid(), name: z.string().trim().min(1).max(200),

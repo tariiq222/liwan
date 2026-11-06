@@ -12,6 +12,7 @@ from liwan_ai_service.tenancy import (
     UnknownTenant,
     directory_from_env,
 )
+from tests.platform_file import platform_env
 
 TENANT = {"host": "t1.example.sa", "tenantId": "t_1", "database": "acme_db", "filestore": "acme_db", "enabled": True, "registryRevision": 1}
 
@@ -93,7 +94,7 @@ def test_memory_directory_maps_a_well_formed_tenant_to_itself():
 
 
 def test_settings_shared_requires_registry_path():
-    env = {"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_DATABASE_URL": "postgresql://ai@db/liwan_ai", "AI_SERVICE_TOKEN": "t" * 30}
+    env = {**platform_env(), "AI_DATABASE_URL": "postgresql://ai@db/liwan_ai", "AI_SERVICE_TOKEN": "t" * 30}
     with pytest.raises(SettingsError) as error:
         Settings.from_env({**env, "LIWAN_TENANCY_MODE": "shared"})
     assert error.value.variable == "LIWAN_TENANT_REGISTRY_PATH"
@@ -105,7 +106,7 @@ def test_settings_shared_requires_registry_path():
 
 
 def test_settings_dedicated_requires_tenant_database():
-    env = {"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_DATABASE_URL": "postgresql://ai@db/liwan_ai", "AI_SERVICE_TOKEN": "t" * 30}
+    env = {**platform_env(), "AI_DATABASE_URL": "postgresql://ai@db/liwan_ai", "AI_SERVICE_TOKEN": "t" * 30}
     with pytest.raises(SettingsError) as error:
         Settings.from_env(env)
     assert error.value.variable == "AI_TENANT_DATABASE"
@@ -117,7 +118,7 @@ def test_settings_dedicated_requires_tenant_database():
     assert (settings.tenancy_mode, settings.tenant_database) == ("dedicated", "acme_db")
     assert isinstance(directory_from_env({**env, "AI_TENANT_DATABASE": "acme_db"}), DedicatedDirectory)
     # Memory state (no AI_DATABASE_URL) needs no directory configuration at all.
-    memory = Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true"})
+    memory = Settings.from_env({**platform_env(), "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true"})
     assert memory.tenant_database is None and memory.tenant_registry_path is None
 
 

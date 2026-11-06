@@ -7,7 +7,7 @@ import { CATALOG_TABS } from '../vendorCatalog'
 // the app must not import the control plane, so a role change there needs this table updated by hand.
 const READ = ['read']
 const ROLES: Record<string, string[]> = {
-  owner: ['read', 'tenants.manage', 'subscriptions.manage', 'billing.manage', 'catalog.manage', 'pricing.manage', 'operations.run', 'audit.read', 'accounts.manage'],
+  owner: ['read', 'tenants.manage', 'subscriptions.manage', 'billing.manage', 'catalog.manage', 'pricing.manage', 'operations.run', 'audit.read', 'accounts.manage', 'ai.manage'],
   customer_success: [...READ, 'tenants.manage', 'subscriptions.manage'],
   finance: [...READ, 'billing.manage'],
   product: [...READ, 'catalog.manage', 'pricing.manage'],
@@ -22,7 +22,7 @@ const BEFORE_INVOICES = ['overview', 'analytics', 'customers', 'catalog']
 
 describe('adminNav', () => {
   it('shows the owner every section in the fixed order', () => {
-    expect(ids(caps('owner'))).toEqual([...BEFORE_INVOICES, 'invoices', 'operations', 'audit', 'team'])
+    expect(ids(caps('owner'))).toEqual([...BEFORE_INVOICES, 'invoices', 'operations', 'audit', 'ai-provider', 'team'])
   })
 
   it.each([
@@ -40,12 +40,12 @@ describe('adminNav', () => {
   })
 
   it('leaks no section when its own capability is missing', () => {
-    const gated: Record<string, string> = { invoices: 'vendor.billing.manage', analytics: 'vendor.billing.manage', audit: 'vendor.audit.read', team: 'vendor.accounts.manage' }
+    const gated: Record<string, string> = { invoices: 'vendor.billing.manage', analytics: 'vendor.billing.manage', audit: 'vendor.audit.read', 'ai-provider': 'vendor.ai.manage', team: 'vendor.accounts.manage' }
     for (const [section, capability] of Object.entries(gated)) {
       const withoutIt = caps('owner').filter(name => name !== capability)
       expect(ids(withoutIt)).not.toContain(section)
     }
-    expect(ids(caps('owner').filter(name => name !== 'vendor.read'))).toEqual(['analytics', 'invoices', 'audit', 'team'])
+    expect(ids(caps('owner').filter(name => name !== 'vendor.read'))).toEqual(['analytics', 'invoices', 'audit', 'ai-provider', 'team'])
   })
 
   it('points every item at a root path without the old /vendor prefix', () => {
@@ -103,10 +103,10 @@ describe('activeNavId', () => {
 })
 
 describe('splitRail', () => {
-  it('keeps every item once and puts audit and team in the administration group', () => {
+  it('keeps every item once and puts audit, the AI provider and team in the administration group', () => {
     const items = adminNav(caps('owner'))
     const { top, applications, utility } = splitRail(items)
-    expect(utility.map(item => item.id)).toEqual(['audit', 'team'])
+    expect(utility.map(item => item.id)).toEqual(['audit', 'ai-provider', 'team'])
     expect(top).toEqual([])
     expect(applications.map(item => item.id)).toEqual([...BEFORE_INVOICES, 'invoices', 'operations'])
     expect([...applications, ...utility]).toHaveLength(items.length)

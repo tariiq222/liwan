@@ -51,5 +51,6 @@ describe('anonymous service requests', () => {
   })
   it('knows the accounts capability', () => {
     expect(vendorCapabilitySchema.parse('vendor.accounts.manage')).toBe('vendor.accounts.manage')
+    expect(vendorCapabilitySchema.parse('vendor.ai.manage')).toBe('vendor.ai.manage')
   })
 })

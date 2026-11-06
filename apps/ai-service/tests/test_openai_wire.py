@@ -8,10 +8,12 @@ import pytest
 import uvicorn
 
 from liwan_ai_service import graph, usage
-from liwan_ai_service.providers import build_chat_model
+from liwan_ai_service.platform_provider import PlatformProvider
+from liwan_ai_service.providers import build_platform_model
 from liwan_ai_service.settings import Settings
 from tests.fake_openai import FAKE_TITLE, LEGAL_NAME, create_fake_openai, failure_turn, text_turn, tool_turn
 from tests.fakes import PLATFORM_POLICY, make_memory_app, new_id
+from tests.platform_file import platform_env
 from tests.test_service import BODY as PLATFORM_BODY
 from tests.test_service import HEADERS, parse_sse
 
@@ -50,9 +52,10 @@ def serve_fake():
         thread.join(timeout=10)
 
 
-def service_client(base_url, provider="openai", **extra):
-    settings = Settings.from_env({"AI_PROVIDER": provider, "AI_MODEL": "gpt-test", "AI_API_KEY": "sk-test", "AI_BASE_URL": base_url, "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true", **extra})
-    app = make_memory_app(build_chat_model(settings), settings)
+def service_client(base_url, provider="openai", stream_usage=None, **extra):
+    settings = Settings.from_env({**platform_env(provider, "gpt-test", api_key="sk-test", base_url=base_url), "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true", **extra})
+    model = build_platform_model(settings, PlatformProvider(provider, "gpt-test", base_url, "sk-test", 1, stream_usage))
+    app = make_memory_app(model, settings)
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai")
 
 
@@ -190,3 +193,13 @@ async def test_a_custom_openai_base_url_is_not_sent_stream_options_so_its_tokens
     usages = [data for name, data in events if name == "model_usage"]
     assert fake.state.rejected == [] and [item["outcome"] for item in usages] == ["ok", "ok"]
     assert all(item["input_tokens"] is None and item["output_tokens"] is None for item in usages)
+
+
+async def test_a_custom_endpoint_the_platform_file_marks_as_reporting_usage_is_sent_stream_options_and_its_tokens_are_counted(serve_fake):
+    fake, base_url = serve_fake([text_turn("تمام")])
+    async with service_client(base_url, "openai_compatible", stream_usage=True) as client:
+        events = parse_sse((await client.post("/v1/runs", json=fresh(), headers=HEADERS)).text)
+    usages = [data for name, data in events if name == "model_usage"]
+    assert fake.state.rejected == [] and [item["outcome"] for item in usages] == ["ok", "ok"]
+    assert all(item["input_tokens"] is not None and item["output_tokens"] is not None for item in usages)
+    assert all(request.get("stream_options", {}).get("include_usage") for request in fake.state.requests)
