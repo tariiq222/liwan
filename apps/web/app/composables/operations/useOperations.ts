@@ -27,14 +27,9 @@ export function useOperationRequests(params: MaybeRefOrGetter<{ scope: Operation
 export function useOperationProcesses(params: MaybeRefOrGetter<{ published?: number; requestable?: number; purpose?: 'work' | 'employee'; q?: string; limit?: number; offset?: number }> = {}, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   const query = useQuery({
-<<<<<<< HEAD
     queryKey: computed(() => ['operations', 'processes', 'list', toValue(params)] as const), enabled: computed(() => toValue(enabled)),
-    queryFn: ({ queryKey, signal }) => $api('/api/v1/operations/processes', { query: queryKey[3], signal, schema: OperationProcessListSchema }),
-=======
-    queryKey: computed(() => ['operations', 'processes', 'list', toValue(params)]), enabled: computed(() => toValue(enabled)),
     placeholderData: keepPreviousData,
-    queryFn: () => $api('/api/v1/operations/processes', { query: toValue(params), schema: OperationProcessListSchema }),
->>>>>>> origin/main
+    queryFn: ({ queryKey, signal }) => $api('/api/v1/operations/processes', { query: queryKey[3], signal, schema: OperationProcessListSchema }),
   })
   prefetch(query, enabled)
   return query

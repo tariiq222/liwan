@@ -132,12 +132,8 @@ export function useProjectList(archived: Ref<boolean>, filters: MaybeRefOrGetter
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => [...projectKeys.list, projectListQuery(archived.value, toValue(filters))] as const),
-<<<<<<< HEAD
-    queryFn: ({ queryKey, signal }) => $api('/api/v1/projects', { query: queryKey[2], signal, schema: ProjectListSchema }),
-=======
     placeholderData: keepPreviousData,
-    queryFn: () => $api('/api/v1/projects', { query: projectListQuery(archived.value, toValue(filters)), schema: ProjectListSchema }),
->>>>>>> origin/main
+    queryFn: ({ queryKey, signal }) => $api('/api/v1/projects', { query: queryKey[2], signal, schema: ProjectListSchema }),
   })
 }
 
