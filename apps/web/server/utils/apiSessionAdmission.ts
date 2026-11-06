@@ -76,7 +76,10 @@ function readSuspension(response: http.IncomingMessage): Promise<boolean> {
   })
 }
 
-export async function requireApiSession(event: H3Event, upstream: string, binding: Record<string, string>): Promise<void> {
+/** Only the request that owns a cold probe may consume its identity response. Coalesced
+ * callers share admission, never application data; the TTL stores no identity or capabilities. */
+export async function requireApiSession(event: H3Event, upstream: string, binding: Record<string, string>, identityHeaders?: Record<string, string>): Promise<Response | undefined> {
+  let identity: Response | undefined
   const session = getCookie(event, 'session_id')?.trim()
   if (!session || session.length > 1024) throw required()
   const identityBinding = Object.fromEntries(Object.entries(binding).filter(([name]) => name !== 'x-liwan-release-admission'))
@@ -112,7 +115,7 @@ export async function requireApiSession(event: H3Event, upstream: string, bindin
         }
         const request = (target.protocol === 'https:' ? https : http).request(target, {
           method: 'GET', agent: false,
-          headers: { ...binding, cookie: `session_id=${encodeURIComponent(session)}`, accept: 'application/json' },
+          headers: { ...identityHeaders, ...binding, cookie: identityHeaders?.cookie ?? `session_id=${encodeURIComponent(session)}`, accept: 'application/json', 'accept-encoding': 'identity', connection: 'close' },
         }, response => {
           if (response.statusCode === 403) { readSuspension(response).then(isSuspended => finish(isSuspended ? 'suspended' : false)); return }
           if (response.statusCode !== 200) { response.destroy(); finish(response.statusCode === 401 ? false : 'unavailable'); return }
@@ -126,7 +129,17 @@ export async function requireApiSession(event: H3Event, upstream: string, bindin
           response.on('end', () => {
             try {
               const me = JSON.parse(Buffer.concat(chunks).toString())
-              finish(Number.isSafeInteger(me?.id) && me.id > 0 && Number.isSafeInteger(me?.company?.id) && me.company.id > 0)
+              const valid = Number.isSafeInteger(me?.id) && me.id > 0 && Number.isSafeInteger(me?.company?.id) && me.company.id > 0
+              if (valid && identityHeaders) {
+                const headers = new Headers()
+                const hop = new Set(['connection', 'keep-alive', 'transfer-encoding', 'upgrade', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', ...(response.headers.connection ?? '').toLowerCase().split(',').map(name => name.trim())])
+                for (const [name, value] of Object.entries(response.headers)) {
+                  if (hop.has(name) || value === undefined) continue
+                  for (const item of Array.isArray(value) ? value : [value]) headers.append(name, item)
+                }
+                identity = new Response(Buffer.concat(chunks), { status: 200, headers })
+              }
+              finish(valid)
             } catch { finish('unavailable') }
           })
         })
@@ -149,5 +162,5 @@ export async function requireApiSession(event: H3Event, upstream: string, bindin
   })()
   const entry = { check, consumers: 1 }
   pending.set(key, entry)
-  try { await check } finally { pending.delete(key) }
+  try { await check; return identity } finally { pending.delete(key) }
 }

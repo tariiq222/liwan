@@ -1,23 +1,18 @@
 <script setup lang="ts">
-import { useFinanceBudgetList } from '@/composables/finance/useFinanceBudgets'
-import { budgetKpiParams, budgetKpiTiles, type BudgetKpiCounts, type BudgetListFilters } from './budgetListParams'
+import { useFinanceBudgetSummary } from '@/composables/finance/useFinanceKpis'
+import { budgetSummaryParams, budgetKpiTiles, type BudgetKpiCounts, type BudgetListFilters } from './budgetListParams'
 
-// The counts above the budgets list: every figure is the total the server reports for the list's own filters
-// (the state filter excepted: each tile picks its state), asked for with one row, never counted from the loaded page.
 const props = defineProps<{ filters: BudgetListFilters }>()
 const { t } = useI18n()
-const total = useFinanceBudgetList(() => budgetKpiParams(props.filters, null))
-const draft = useFinanceBudgetList(() => budgetKpiParams(props.filters, 'draft'))
-const confirmed = useFinanceBudgetList(() => budgetKpiParams(props.filters, 'confirmed'))
-const cancelled = useFinanceBudgetList(() => budgetKpiParams(props.filters, 'cancelled'))
+const summary = useFinanceBudgetSummary(() => budgetSummaryParams(props.filters))
 const counts = computed<BudgetKpiCounts>(() => ({
-  total: total.data.value?.total,
-  draft: draft.data.value?.total,
-  confirmed: confirmed.data.value?.total,
-  cancelled: cancelled.data.value?.total,
+  total: summary.data.value?.total,
+  draft: summary.data.value?.draft,
+  confirmed: summary.data.value?.confirmed,
+  cancelled: summary.data.value?.cancelled,
 }))
 const tiles = computed(() => budgetKpiTiles(counts.value, id => t(`financeBudgets.kpi.${id}`)))
-const loading = computed(() => Object.values(counts.value).some(count => count === undefined))
+const loading = computed(() => summary.data.value === undefined)
 </script>
 
 <template>

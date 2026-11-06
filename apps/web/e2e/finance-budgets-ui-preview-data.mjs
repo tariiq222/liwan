@@ -1,3 +1,5 @@
+import { financeSummaryPreview } from './finance-summary-preview.mjs'
+
 // Finance budgets for the isolated mock (MODULE_UI_PREVIEW=1): budgets in every state with their lines (accounts of the
 // accounting mock's chart) and the budget-versus-actual comparison of each. Reads only: the mock has no finance write
 // routes. The list honours the filters the Odoo controller supports (q, state, limit, offset), and `total` is the
@@ -155,6 +157,7 @@ function filterBudgets(url) {
 
 export function financeBudgetsPreviewData(path, url) {
   const route = String(path || '/').replace(/\/+$/, '') || '/'
+  if (route === '/api/v1/finance/budgets/summary') return financeSummaryPreview(filterBudgets, url, ['draft', 'confirmed', 'cancelled'])
   if (route === '/api/v1/finance/budgets') return page(filterBudgets(url).map(summary), url)
   if (route === '/api/v1/finance/reports/budget-vs-actual') {
     const source = sources.find(item => item.id === Number(url.searchParams.get('budget_id')))

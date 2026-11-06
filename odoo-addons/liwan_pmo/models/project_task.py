@@ -1,9 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, fields, models
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import AccessError, MissingError, ValidationError
 from odoo.fields import Domain
 
 from .project_constants import TASK_CANCELED_STATE
+from odoo.addons.liwan_api.serializers.common import iso
 from odoo.addons.project.models.project_task import CLOSED_STATES
 
 MANAGER_STATES = {'03_approved', '02_changes_requested'}
@@ -256,7 +257,7 @@ class ProjectTask(models.Model):
         self.write({'active': False})
         return self
 
-    def _liwan_notify(self, event, extra_partners=None):
+    def _liwan_notify(self, event, extra_partners=None, *, changed_fields=None):
         # A single user action can re-enter write() (e.g. project.task's own
         # write() override does a plain `task.date_last_stage_update = now`
         # assignment when 'state' changes, which for a stored field triggers
@@ -266,34 +267,60 @@ class ProjectTask(models.Model):
         # user action. Rather than emit immediately, accumulate
         # (partner_id, task_id, event) triples on the cursor's precommit
         # data and drain them once, right before commit, deduplicated by
-        # set membership — the same idiom bus.bus._sendone()/_ensure_hooks()
+        # triple — the same idiom bus.bus._sendone()/_ensure_hooks()
         # itself uses (see addons/bus/models/bus.py) to batch its own
         # notifications until precommit time.
         precommit = self.env.cr.precommit
         key = 'liwan_pmo.task_notifications'
         if key not in precommit.data:
-            precommit.data[key] = set()
+            precommit.data[key] = {}
 
             @precommit.add
             def _flush_liwan_notifications():
-                pending = precommit.data.pop(key, ())
+                pending = precommit.data.pop(key, {})
                 if not pending:
                     return
                 bus = self.env['bus.bus']
-                for partner_id, task_id, evt in pending:
+                for (partner_id, task_id, evt), metadata in pending.items():
+                    payload = {'id': task_id, 'event': evt}
+                    if metadata is not None:
+                        payload.update(
+                            source='write', updated_at=metadata['updated_at'],
+                            changed_fields=sorted(metadata['changed_fields']),
+                        )
                     bus._sendone(
                         self.env['res.partner'].browse(partner_id),
                         'liwan/task',
-                        {'id': task_id, 'event': evt},
+                        payload,
                     )
 
         pending = precommit.data[key]
         for task in self:
+            # Capture the already-written revision now, never reread a task in
+            # precommit. A comment/unknown origin must dominate a merged write:
+            # its timeline can change without changing the task's write_date.
+            updated_at = None
+            if event == 'updated' and changed_fields is not None:
+                try:
+                    updated_at = iso(task.write_date, timespec='microseconds')
+                except (AccessError, MissingError):
+                    # Metadata is optional: a revision unavailable to this
+                    # caller must force the consumer's normal refresh path.
+                    updated_at = None
             partners = task.user_ids.partner_id | self.env.user.partner_id
             if extra_partners:
                 partners |= extra_partners.get(task.id, partners.browse())
             for partner in partners:
-                pending.add((partner.id, task.id, event))
+                triple = (partner.id, task.id, event)
+                if not updated_at:
+                    pending[triple] = None
+                elif triple not in pending:
+                    pending[triple] = {
+                        'updated_at': updated_at, 'changed_fields': set(changed_fields),
+                    }
+                elif pending[triple] is not None:
+                    pending[triple]['updated_at'] = updated_at
+                    pending[triple]['changed_fields'].update(changed_fields)
 
     def _liwan_vals_with_defaults(self, vals):
         merged = dict(vals)
@@ -532,7 +559,7 @@ class ProjectTask(models.Model):
                     requester = task.liwan_completion_requested_by
                     if requester and requester not in task.user_ids:
                         task._liwan_clear_completion_request(invalidate=True)
-        self._liwan_notify('updated', extra_partners=before)
+        self._liwan_notify('updated', extra_partners=before, changed_fields=vals)
         if status_projects is not None:
             (status_projects | self.project_id)._liwan_sync_completion_status()
         return res

@@ -4,7 +4,7 @@ import type { H3Event } from 'h3'
 import { MeSchema } from '@liwan/contracts'
 import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import { tenantRequest } from './tenantRequest'
-import { tenantTransport } from './tenantTransport'
+import { boundedTenantBody, tenantTransport, withTenantBody } from './tenantTransport'
 import { isProspectRequest, PROSPECT_TENANT } from './prospectHost'
 import { deriveCustomerCapabilities, type CustomerCommercialCapability } from '../../app/utils/customerCapabilities'
 
@@ -202,10 +202,15 @@ export async function customerPrincipal(event: H3Event, config: CustomerConfig):
   try {
     if (tenant || process.env.LIWAN_RELEASE_ROUTES_DIR) {
       const response = await tenantTransport(event, config.odooUrl ?? '', '/api/v1/me')
-      if (!response.ok) throw new Error('actor_unavailable')
+      if (!response.ok) throw Object.assign(new Error('actor_unavailable'), { statusCode: response.status })
       me = await response.json()
     } else me = await $fetch(`${config.odooUrl}/api/v1/me`, { headers: { cookie }, redirect: 'error', signal: AbortSignal.timeout(5000) })
-  } catch { fail(401, 'unauthorized', 'The company session is not valid') }
+  } catch (cause: unknown) {
+    const error = cause as { statusCode?: number; response?: { status?: number } }
+    const status = Number(error?.statusCode ?? error?.response?.status)
+    if (status === 401 || status === 403) fail(401, 'unauthorized', 'The company session is not valid')
+    fail(503, 'commercial_unavailable', 'The company session could not be verified temporarily')
+  }
   const parsed = MeSchema.safeParse(me)
   if (!parsed.success) fail(401, 'unauthorized', 'The company session is not valid')
   return { actor_id: String(parsed.data.id), kind: 'customer', tenant_id: String(tenantId), capabilities: deriveCustomerCapabilities(parsed.data.capabilities) }
@@ -230,8 +235,7 @@ export async function forwardCustomerRequest(event: H3Event): Promise<unknown> {
 
   let rawBody: string | undefined
   if (isMutation) {
-    if (Number(getHeader(event, 'content-length') ?? 0) > 64 * 1024) fail(413, 'payload_too_large', 'Request body is too large')
-    rawBody = await readRawBody(event, 'utf8')
+    rawBody = (await withTenantBody(event, 'session', () => boundedTenantBody(event, 64 * 1024)))?.toString('utf8')
     if (!rawBody || Buffer.byteLength(rawBody) > 64 * 1024) fail(rawBody ? 413 : 400, rawBody ? 'payload_too_large' : 'invalid_json', rawBody ? 'Request body is too large' : 'A JSON object body is required')
     let body: unknown
     try { body = JSON.parse(rawBody) } catch { fail(400, 'invalid_json', 'A valid JSON object body is required') }

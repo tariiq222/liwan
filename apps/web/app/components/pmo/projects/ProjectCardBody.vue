@@ -14,6 +14,7 @@ type ProjectListItem = Project & { manager?: { id: number; name: string } | null
 const props = defineProps<{ project: ProjectListItem; toFor: (project: ProjectListItem) => RouteLocationRaw }>()
 const { t } = useI18n()
 const archive = useProjectArchive()
+const hydrated = useHydrated()
 const endTag = computed(() => projectEndTagView(props.project, t))
 const statusPill = computed(() => projectStatusPill(props.project.status, t))
 // A charter waiting for approval is the one charter state worth marking on the list; draft and approved stay silent.
@@ -35,13 +36,13 @@ const taskLabel = computed(() => t('projects.progressOf', { closed: props.projec
     </h2>
     <div class="flex min-w-0 items-center gap-2">
       <span class="shrink-0 text-sm font-semibold tabular-nums text-highlighted" data-testid="project-progress" dir="ltr">{{ project.progress }}%</span>
-      <SharedProgress class="min-w-0 flex-1" :value="project.progress" :tone="projectProgressTone(project)" :label="t('projects.columns.progress')" />
+      <SharedProgress class="min-w-0 flex-1" :value="project.progress" :tone="projectProgressTone(hydrated ? project : { ...project, date_end: null })" :label="t('projects.columns.progress')" />
       <span class="shrink-0 text-xs tabular-nums text-muted" dir="ltr" :title="taskLabel" :aria-label="taskLabel">{{ project.closed_task_count }}/{{ project.task_count }}</span>
     </div>
     <div class="mt-auto flex min-w-0 items-center gap-2 text-xs text-muted">
       <SharedPersonAvatar v-if="project.manager" :people="[project.manager]" />
       <span class="min-w-0 truncate"><span class="sr-only">{{ t('projects.columns.manager') }}: </span>{{ project.manager?.name ?? '—' }}</span>
-      <SharedStatusBadge v-if="endTag" v-bind="endTag" size="sm" class="ms-auto shrink-0" data-testid="project-end-date" :aria-label="`${t('projects.columns.dateEnd')}: ${endTag.label} ${endTag.title}`" />
+      <SharedStatusBadge v-if="hydrated && endTag" v-bind="endTag" size="sm" class="ms-auto shrink-0" data-testid="project-end-date" :aria-label="`${t('projects.columns.dateEnd')}: ${endTag.label} ${endTag.title}`" />
       <span v-else class="ms-auto shrink-0" :aria-label="t('projects.noEndDate')">—</span>
     </div>
     <SharedInlineConfirm

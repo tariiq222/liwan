@@ -66,10 +66,10 @@ export function invoiceListParams(moveType: FinanceMoveType, filters: InvoiceLis
   }
 }
 
-/** One KPI count: the list's own filters with the tile's state, and one row asked for because only `total` is read. */
-export function invoiceKpiParams(moveType: FinanceMoveType, filters: InvoiceListFilters, state: InvoiceStateFilter | null): InvoiceListParams {
-  const { state: _selected, page: _page, ...rest } = filters
-  return { ...invoiceListParams(moveType, { ...rest, state, page: 1 }), limit: 1, offset: 0 }
+/** The summary has the list filters, without its selected state or page window. */
+export function invoiceSummaryParams(moveType: FinanceMoveType, filters: InvoiceListFilters) {
+  const { state: _state, limit: _limit, offset: _offset, ...params } = invoiceListParams(moveType, filters)
+  return params
 }
 
 export type InvoiceKpiCounts = Record<'total' | InvoiceStateFilter, number | undefined>

@@ -10,7 +10,9 @@ export function isPossibleSessionExpiry(error: unknown): boolean {
   return error instanceof ApiError && error.status === 401
 }
 
-/** A signed-in user replaced by another one in the same tab: the first user's cached data must not be shown to the second. */
-export function isDifferentUser(before: { id: number } | null | undefined, after: { id: number } | null | undefined): boolean {
-  return Boolean(before && after && before.id !== after.id)
+type SessionIdentity = { id: number, company: { id: number } }
+
+/** A signed-in user or active company changed: cached data must not cross that boundary. */
+export function isDifferentUser(before: SessionIdentity | null | undefined, after: SessionIdentity | null | undefined): boolean {
+  return Boolean(before && after && (before.id !== after.id || before.company.id !== after.company.id))
 }

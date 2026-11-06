@@ -18,6 +18,8 @@ const BOARD_LIMIT = 200
 const route = useRoute()
 const { t, locale } = useI18n()
 const { can } = useAccess()
+const { me } = useMe()
+const timeZone = computed(() => me.value?.tz || 'UTC')
 const { hydrated, filterQuery, page, search, update } = useRouteListFilters({ background: () => props.background, fallbackPath: () => CRM_LIST_PATH, safeReturnTo: safeCrmReturnTo })
 
 const board = computed(() => props.view === 'board')
@@ -31,7 +33,8 @@ const total = computed(() => query.data.value?.total ?? 0)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 const count = computed(() => activeFilterCount(filterQuery.value))
 const canAssign = computed(() => can('crm.leads.assign'))
-const now = ref(Date.now())
+const now = useState('crm-opportunity-list-now', () => Date.now())
+onMounted(() => { now.value = Date.now() })
 const backTo = computed(() => opportunityListLocation(filterQuery.value, route.hash))
 const recordTo = (item: CrmOpportunity) => ({ path: `${CRM_LIST_PATH}/${item.id}`, query: { returnTo: backTo.value } })
 
@@ -70,7 +73,7 @@ const statusTone = (item: CrmOpportunity) => (item.status === 'won' ? 'success' 
 
 <template>
   <SharedForbiddenState v-if="!can('crm.leads.read')" />
-  <SharedListCard v-else-if="hydrated" :fill="board">
+  <SharedListCard v-else :fill="board">
     <template #filters>
       <SharedFilterBar embedded class="w-full" :active-count="count" :default-open="count > 0" :disabled="!hydrated" @clear="clearFilters">
         <template #search>
@@ -105,7 +108,7 @@ const statusTone = (item: CrmOpportunity) => (item.status === 'won' ? 'success' 
         <template #agent-cell="{ row }"><span class="text-sm" :class="{ 'text-muted': !row.original.user }">{{ row.original.user?.name ?? t('crm.opportunities.tag.pool') }}</span></template>
         <template #next_call-cell="{ row }">
           <span v-if="row.original.next_call_at" class="text-sm" :class="{ 'text-warning': isCallDue(row.original, now) }">
-            <time :datetime="row.original.next_call_at" :title="formatDateTime(row.original.next_call_at)">{{ relativeTime(row.original.next_call_at, now, locale) }}</time>
+            <time :datetime="row.original.next_call_at" :title="formatDateTime(row.original.next_call_at, timeZone)">{{ relativeTime(row.original.next_call_at, now, locale) }}</time>
           </span>
           <span v-else class="text-sm text-muted" aria-hidden="true">—</span>
         </template>

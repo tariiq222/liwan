@@ -19,10 +19,22 @@ describe('isPossibleSessionExpiry', () => {
 })
 
 describe('isDifferentUser', () => {
-  it('flags only a switch from one signed-in user to another', () => {
-    expect(isDifferentUser({ id: 1 }, { id: 2 })).toBe(true)
-    expect(isDifferentUser({ id: 1 }, { id: 1 })).toBe(false)
-    expect(isDifferentUser(null, { id: 2 })).toBe(false)
-    expect(isDifferentUser({ id: 1 }, null)).toBe(false)
+  it('flags a switch from one signed-in user to another', () => {
+    expect(isDifferentUser({ id: 1, company: { id: 1 } }, { id: 2, company: { id: 1 } })).toBe(true)
+  })
+
+  it('flags a company switch for the same signed-in user', () => {
+    expect(isDifferentUser({ id: 1, company: { id: 1 } }, { id: 1, company: { id: 2 } })).toBe(true)
+  })
+
+  it('keeps the cache for the same user and company in a refreshed identity', () => {
+    expect(isDifferentUser({ id: 1, company: { id: 1 } }, { id: 1, company: { id: 1 } })).toBe(false)
+  })
+
+  it.each([null, undefined])('does not flag transitions through an absent identity (%s)', absent => {
+    const me = { id: 1, company: { id: 1 } }
+    expect(isDifferentUser(absent, me)).toBe(false)
+    expect(isDifferentUser(me, absent)).toBe(false)
+    expect(isDifferentUser(absent, absent)).toBe(false)
   })
 })

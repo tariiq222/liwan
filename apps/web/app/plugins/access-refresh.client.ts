@@ -7,7 +7,7 @@ export default defineNuxtPlugin({
   name: 'access-refresh',
   dependsOn: ['vue-query'],
   setup() {
-    const { me, refresh } = useMe()
+    const { me, refresh } = useMe({ immediate: false })
     const qc = useQueryClient()
     const state: AccessRefreshInFlightState = { inFlight: null }
 

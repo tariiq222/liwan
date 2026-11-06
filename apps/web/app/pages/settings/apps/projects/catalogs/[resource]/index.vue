@@ -160,8 +160,7 @@ async function confirmAction() {
     <p v-if="!resource" class="text-muted">{{ t('settings.projects.catalogs.notFound') }}</p>
     <p v-else-if="forbidden" class="text-muted">{{ t('settings.forbidden') }}</p>
     <template v-else>
-      <!-- The filter bar and the rows carry client-generated ids: mount the card once this page has hydrated, as the other lists do. -->
-      <SharedListCard v-if="hydrated">
+      <SharedListCard>
         <template #filters>
           <div class="w-full min-w-0" data-testid="catalog-toolbar">
             <FilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
@@ -210,10 +209,9 @@ async function confirmAction() {
           </template>
         </SharedDataTable>
         <template v-if="query.data.value?.items.length" #footer>
-          <SharedListFooter :count-label="t('projects.footer.results', { shown: query.data.value.items.length, total: query.data.value.total }, query.data.value.total)" count-test-id="catalog-result-count" :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
+          <SharedListFooter :count-label="t('projects.footer.results', { shown: query.data.value.items.length, total: query.data.value.total }, query.data.value.total)" count-test-id="catalog-result-count" :page="page" :pages="pages" :disabled="!hydrated || query.isFetching.value" @update:page="setPage" />
         </template>
       </SharedListCard>
-      <SharedLoadingSkeleton v-else variant="rows" />
       <SharedInlineConfirm
         v-if="pendingItem && pendingAction"
         :color="pendingAction === 'enable' ? 'primary' : 'error'"

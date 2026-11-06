@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ChatMessageListSchema, type ChatMessage } from '@liwan/contracts'
+import { createReadPosition } from './readPosition'
 import ChatAttachment from '@/components/chat/ChatAttachment.vue'
 import { ApiError } from '@/composables/useApi'
 import { chatDeletedEvent } from '@/composables/useBus'
@@ -9,7 +10,6 @@ import {
   applyDeleteResult,
   dropMessage,
   CHAT_PAGE_SIZE,
-  CHAT_POLL_MS,
   CHAT_REACTIONS,
   isFatalChatStatus,
   mergeMessages,
@@ -34,13 +34,23 @@ const { me } = useMe()
 const hydrated = useHydrated()
 const toast = useToast()
 const { $api } = useApi()
-const { connected } = useBus()
 // Another participant removed a message for good: the refetch cannot say so, the event does.
 watch(chatDeletedEvent, (event) => {
   if (event && event.conversationId === props.conversationId) items.value = dropMessage(items.value, event.messageId)
 })
-const { data, isFetching, isError, error, refetch } = useChatMessages(() => props.conversationId, {}, () => props.q || '')
+const { data, dataUpdatedAt, isFetching, isError, error, refetch } = useChatMessages(() => props.conversationId, {}, () => props.q || '')
 const { mutateAsync: markRead } = useMarkChatRead(() => props.conversationId)
+let historyGeneration = 0
+const readContext = () => `${props.conversationId}:${me.value?.company.id}:${me.value?.id}`
+function newReadPosition() {
+  const generation = historyGeneration
+  const context = readContext()
+  return createReadPosition(markRead, Date.now, () => generation === historyGeneration && context === readContext())
+}
+let acknowledgeRead = newReadPosition()
+let historyRequest: AbortController | null = null
+let olderRequest: AbortController | null = null
+let polling = false
 const { mutateAsync: patchMessage } = usePatchChatMessage(() => props.conversationId)
 const { mutateAsync: removeMessage } = useDeleteChatMessage(() => props.conversationId)
 const { mutateAsync: reactMessage } = useReactChatMessage(() => props.conversationId)
@@ -56,7 +66,6 @@ const stickToEnd = ref(true)
 const loadingOlder = ref(false)
 const jumpCount = ref(0)
 const sealed = ref(false)
-let pollTimer: ReturnType<typeof setInterval> | undefined
 
 const timeFmt = { format: (value: Date) => formatTime(value) }
 
@@ -74,29 +83,43 @@ const rows = computed(() => {
   return out
 })
 
-watch(() => [props.conversationId, props.q], () => {
+watch(() => [props.conversationId, props.q, me.value?.id, me.value?.company.id], () => {
+  acknowledgeRead.dispose()
+  historyGeneration++
+  historyRequest?.abort()
+  olderRequest?.abort()
+  historyRequest = null
+  polling = false
+  loadingOlder.value = false
+  acknowledgeRead = newReadPosition()
   items.value = []
   stickToEnd.value = true
   jumpCount.value = 0
   sealed.value = false
   editingId.value = null
   confirmingDelete.value = null
-})
+}, { flush: 'sync' })
 
-watch(() => data.value?.items, async (incoming) => {
+watch([() => data.value?.items, dataUpdatedAt], async ([incoming]) => {
   if (!incoming || sealed.value) return
+  const ownGeneration = historyGeneration
+  const lastKnown = items.value.at(-1)?.id
+  // A latest page can skip more than a page of messages after a disconnect.
+  // Fill that gap before merging it; the query owns the only periodic timer.
+  if (lastKnown && incoming.length >= CHAT_PAGE_SIZE && incoming[0]!.id > lastKnown && !await pollNewer()) return
+  if (ownGeneration !== historyGeneration || sealed.value) return
   const mode = items.value.length ? 'newer' : 'replace'
   const previousHeight = scroller.value?.scrollHeight ?? 0
   const previousTop = scroller.value?.scrollTop ?? 0
   items.value = mergeMessages(items.value, incoming, mode)
   await nextTick()
-  if (!scroller.value) return
+  if (ownGeneration !== historyGeneration || !scroller.value) return
   if (mode === 'replace' || stickToEnd.value) {
     scroller.value.scrollTop = scroller.value.scrollHeight
   } else {
     scroller.value.scrollTop = previousTop + (scroller.value.scrollHeight - previousHeight)
   }
-  if (mode === 'replace') void maybeMarkRead()
+  void maybeMarkRead()
 })
 
 watch(error, (value) => {
@@ -104,10 +127,12 @@ watch(error, (value) => {
 })
 
 function seal() {
+  acknowledgeRead.dispose()
   sealed.value = true
+  historyRequest?.abort()
+  olderRequest?.abort()
   items.value = []
   jumpCount.value = 0
-  stopPoll()
   emit('denied')
 }
 
@@ -129,34 +154,47 @@ async function loadOlder() {
   const oldest = items.value[0]
   if (!oldest || loadingOlder.value || sealed.value) return
   loadingOlder.value = true
+  const ownGeneration = historyGeneration
+  const conversationId = props.conversationId
   const previousHeight = scroller.value?.scrollHeight ?? 0
+  const controller = new AbortController()
+  olderRequest = controller
   try {
-    const page = await $api(`/api/v1/chat/conversations/${props.conversationId}/messages`, {
+    const page = await $api(`/api/v1/chat/conversations/${conversationId}/messages`, {
+      signal: controller.signal,
       query: { limit: CHAT_PAGE_SIZE, before: oldest.id, q: props.q || undefined },
       schema: ChatMessageListSchema,
     })
+    if (ownGeneration !== historyGeneration || sealed.value) return
     items.value = mergeMessages(items.value, page.items, 'older')
     await nextTick()
     if (scroller.value) scroller.value.scrollTop = scroller.value.scrollHeight - previousHeight
   } catch (value) {
-    if (value instanceof ApiError && isFatalChatStatus(value.status)) seal()
+    if (ownGeneration === historyGeneration && value instanceof ApiError && isFatalChatStatus(value.status)) seal()
   } finally {
-    loadingOlder.value = false
+    if (ownGeneration === historyGeneration) { loadingOlder.value = false; olderRequest = null }
   }
 }
 
-async function pollNewer() {
-  if (sealed.value || props.denied || document.visibilityState !== 'visible') return
+async function pollNewer(): Promise<boolean> {
+  if (polling || sealed.value || props.denied || document.visibilityState !== 'visible') return false
   const last = items.value.at(-1)?.id
-  if (!last) return
+  if (!last) return true
+  polling = true
+  const ownGeneration = historyGeneration
+  const conversationId = props.conversationId
+  const controller = new AbortController()
+  historyRequest = controller
   try {
     let after = last
     const beforeCount = items.value.length
     for (;;) {
-      const page = await $api(`/api/v1/chat/conversations/${props.conversationId}/messages`, {
-          query: { limit: CHAT_PAGE_SIZE, after, q: props.q || undefined },
+      const page = await $api(`/api/v1/chat/conversations/${conversationId}/messages`, {
+        signal: controller.signal,
+        query: { limit: CHAT_PAGE_SIZE, after, q: props.q || undefined },
         schema: ChatMessageListSchema,
       })
+      if (controller.signal.aborted || ownGeneration !== historyGeneration || sealed.value) return false
       items.value = mergeMessages(items.value, page.items, 'newer')
       if (!needsMessageCatchUp(after, page.items)) break
       const next = page.items.at(-1)?.id
@@ -167,8 +205,12 @@ async function pollNewer() {
     if (added && !stickToEnd.value) jumpCount.value += added
     else if (stickToEnd.value) await restoreScroll('bottom')
     if (added) void maybeMarkRead()
+    return true
   } catch (value) {
-    if (value instanceof ApiError && isFatalChatStatus(value.status)) seal()
+    if (ownGeneration === historyGeneration && value instanceof ApiError && isFatalChatStatus(value.status)) seal()
+    return false
+  } finally {
+    if (ownGeneration === historyGeneration) { polling = false; historyRequest = null }
   }
 }
 
@@ -187,8 +229,11 @@ function visibleIds(): number[] {
 }
 
 async function maybeMarkRead() {
-  if (sealed.value || !props.writable || !import.meta.client) return
+  if (sealed.value || !props.writable || typeof document === 'undefined') return
+  const ownGeneration = historyGeneration
+  const acknowledge = acknowledgeRead
   await nextTick()
+  if (ownGeneration !== historyGeneration || sealed.value || !props.writable) return
   const target = visibleReadMessageId({
     tabVisible: typeof document !== 'undefined' && document.visibilityState === 'visible',
     pageVisible: typeof document !== 'undefined' && document.hasFocus(),
@@ -196,9 +241,9 @@ async function maybeMarkRead() {
   })
   if (!target) return
   try {
-    await markRead(target)
+    await acknowledge(target)
   } catch (value) {
-    if (value instanceof ApiError && isFatalChatStatus(value.status)) seal()
+    if (ownGeneration === historyGeneration && value instanceof ApiError && isFatalChatStatus(value.status)) seal()
   }
 }
 
@@ -208,17 +253,6 @@ function jumpToLatest() {
   void restoreScroll('bottom')
   void maybeMarkRead()
 }
-
-function startPoll() {
-  stopPoll()
-  if (connected.value) return
-  pollTimer = setInterval(() => { void pollNewer() }, CHAT_POLL_MS)
-}
-
-watch(connected, () => {
-  if (connected.value) stopPoll()
-  else startPoll()
-})
 
 async function applyMessage(next: ChatMessage) {
   items.value = items.value.map(item => item.id === next.id ? next : item)
@@ -261,23 +295,22 @@ async function deleteMessage(item: ChatMessage) {
   }
 }
 
-function stopPoll() {
-  if (pollTimer) clearInterval(pollTimer)
-  pollTimer = undefined
-}
-
 function onVisibility() {
   if (document.visibilityState === 'hidden') return
   void maybeMarkRead()
 }
 
 onMounted(() => {
-  startPoll()
   document.addEventListener('visibilitychange', onVisibility)
   window.addEventListener('focus', onVisibility)
 })
+onBeforeUnmount(() => {
+  acknowledgeRead.dispose()
+  historyGeneration++
+  historyRequest?.abort()
+  olderRequest?.abort()
+})
 onUnmounted(() => {
-  stopPoll()
   document.removeEventListener('visibilitychange', onVisibility)
   window.removeEventListener('focus', onVisibility)
 })

@@ -24,7 +24,7 @@ export default defineNuxtPlugin({
   setup() {
     const { connect, disconnect } = useBus()
     setBusQueryClient(useQueryClient())
-    const { loggedIn } = useMe()
+    const { loggedIn } = useMe({ immediate: false })
 
     watch(
       loggedIn,

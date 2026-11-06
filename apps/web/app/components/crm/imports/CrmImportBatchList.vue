@@ -14,6 +14,8 @@ const router = useRouter()
 const { t } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
+const { me } = useMe()
+const timeZone = computed(() => me.value?.tz || 'UTC')
 const page = computed(() => (props.background ? 1 : listPageNumber(route.query.page)))
 const query = useCrmImportBatches(() => ({ limit: PAGE_SIZE, offset: (page.value - 1) * PAGE_SIZE }))
 const items = computed(() => query.data.value?.items ?? [])
@@ -36,13 +38,13 @@ const columns = computed<TableColumn<CrmImportBatch>[]>(() => [
 
 <template>
   <SharedForbiddenState v-if="!can('crm.leads.import')" />
-  <SharedListCard v-else-if="hydrated" data-testid="crm-import-batches">
+  <SharedListCard v-else data-testid="crm-import-batches">
     <SharedPageState v-if="query.error.value" :error="query.error.value" @retry="query.refetch()" />
     <SharedEmptyState v-else-if="!query.isPending.value && !items.length" class="m-(--liwan-card-pad-dense)" :title="t('crm.imports.empty')" />
     <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,900px)] [&_table]:table-fixed">
       <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :loading="query.isPending.value" :caption="t('crm.nav.imports')">
         <template #file-cell="{ row }"><span class="block truncate font-semibold text-highlighted" :title="row.original.file_name"><bdi>{{ row.original.file_name }}</bdi></span></template>
-        <template #date-cell="{ row }"><time class="text-sm" :datetime="row.original.created_at">{{ formatDateTime(row.original.created_at) }}</time></template>
+        <template #date-cell="{ row }"><time class="text-sm" :datetime="row.original.created_at">{{ formatDateTime(row.original.created_at, timeZone) }}</time></template>
         <template #by-cell="{ row }"><span class="text-sm">{{ row.original.user?.name }}</span></template>
         <template #source-cell="{ row }"><span class="text-sm">{{ row.original.source?.name }}</span></template>
         <template #created-cell="{ row }"><span class="text-sm">{{ row.original.created }}</span></template>
@@ -52,7 +54,7 @@ const columns = computed<TableColumn<CrmImportBatch>[]>(() => [
         <template #mobile-row="{ row }">
           <div class="flex min-w-0 flex-col gap-1">
             <span class="truncate font-semibold text-highlighted"><bdi>{{ row.file_name }}</bdi></span>
-            <time class="text-sm text-muted" :datetime="row.created_at">{{ formatDateTime(row.created_at) }}</time>
+            <time class="text-sm text-muted" :datetime="row.created_at">{{ formatDateTime(row.created_at, timeZone) }}</time>
             <span class="text-sm text-muted">{{ t('crm.imports.cols.created') }} {{ row.created }} · {{ t('crm.imports.cols.duplicate') }} {{ row.duplicate }} · {{ t('crm.imports.cols.invalid') }} {{ row.invalid }}</span>
           </div>
         </template>

@@ -7,7 +7,7 @@ import { pageArea } from '@/utils/workspacePresentation'
 providePageArea(pageArea)
 const { locale } = useI18n()
 const { mode, fontSize, syncFromUser } = useAppearance()
-const { me } = useMe()
+const { me } = useMe({ immediate: false })
 // Each signed-in user gets their own saved appearance; the cookie only
 // carries the last applied one for the first server paint.
 watch(me, syncFromUser, { immediate: true })

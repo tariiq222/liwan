@@ -22,7 +22,7 @@ import { fileToBase64 } from '../../utils/attachmentFile'
 import { createTypingNotifier } from './inboxTyping'
 import { ApiError } from '../useApi'
 
-// Every key starts with 'inbox', so the bus handler's invalidation of ['inbox'] (type 'liwan/inbox') refreshes them all.
+// Conversation events refresh lists and the affected thread; template events have their own keys.
 export const inboxKeys = {
   all: ['inbox'] as const,
   list: (route: InboxListRoute) => ['inbox', 'conversations', inboxListQuery(route)] as const,
@@ -42,7 +42,7 @@ export function useInboxConversations(route: MaybeRefOrGetter<InboxListRoute>) {
     queryKey: computed(() => inboxKeys.list(toValue(route))),
     placeholderData: keepPreviousData,
     retry: false,
-    queryFn: () => $api('/api/v1/inbox/conversations', { query: inboxListQuery(toValue(route)), schema: InboxConversationListSchema }),
+    queryFn: ({ queryKey, signal }) => $api('/api/v1/inbox/conversations', { query: queryKey[2], signal, schema: InboxConversationListSchema }),
   })
 }
 
@@ -52,7 +52,7 @@ export function useInboxConversation(id: MaybeRefOrGetter<number | undefined>) {
     queryKey: computed(() => inboxKeys.detail(toValue(id) ?? 0)),
     enabled: computed(() => !!toValue(id)),
     retry: false,
-    queryFn: () => $api(`/api/v1/inbox/conversations/${toValue(id)}`, { schema: InboxConversationDetailSchema }),
+    queryFn: ({ queryKey, signal }) => $api(`/api/v1/inbox/conversations/${queryKey[2]}`, { signal, schema: InboxConversationDetailSchema }),
   })
 }
 
@@ -101,7 +101,7 @@ export function useInboxMessages(id: MaybeRefOrGetter<number | undefined>) {
     enabled: computed(() => !!toValue(id)),
     retry: false,
     initialPageParam: 0,
-    queryFn: ({ pageParam }) => $api(`/api/v1/inbox/conversations/${toValue(id)}/messages`, { query: { limit: INBOX_MESSAGE_PAGE, offset: pageParam }, schema: InboxMessageListSchema }),
+    queryFn: ({ pageParam, queryKey, signal }) => $api(`/api/v1/inbox/conversations/${queryKey[2]}/messages`, { signal, query: { limit: INBOX_MESSAGE_PAGE, offset: pageParam }, schema: InboxMessageListSchema }),
     getNextPageParam: (_last, pages) => nextOlderOffset(pages),
   })
   const items = computed(() => mergeMessagePages(query.data.value?.pages ?? []))
@@ -112,7 +112,7 @@ export function useInboxCannedReplies() {
   const { $api } = useApi()
   return useQuery({
     queryKey: inboxKeys.canned,
-    queryFn: () => $api('/api/v1/inbox/canned-replies', { schema: InboxCannedReplyListSchema }),
+    queryFn: ({ signal }) => $api('/api/v1/inbox/canned-replies', { signal, schema: InboxCannedReplyListSchema }),
   })
 }
 
@@ -125,7 +125,7 @@ export function useInboxTemplates(channelId: MaybeRefOrGetter<number | undefined
   return useQuery({
     queryKey: computed(() => inboxKeys.templateList(toValue(channelId) ?? 0, APPROVED_TEMPLATES_QUERY)),
     enabled: computed(() => !!toValue(channelId) && toValue(enabled)),
-    queryFn: () => $api(`/api/v1/inbox/channels/${toValue(channelId)}/templates`, { query: APPROVED_TEMPLATES_QUERY, schema: InboxTemplateListSchema }),
+    queryFn: ({ queryKey, signal }) => $api(`/api/v1/inbox/channels/${queryKey[2]}/templates`, { signal, query: APPROVED_TEMPLATES_QUERY, schema: InboxTemplateListSchema }),
   })
 }
 
@@ -135,7 +135,7 @@ export function useInboxAgents(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   return useQuery({
     queryKey: inboxKeys.agents,
-    queryFn: () => $api('/api/v1/inbox/agents', { query: { limit: 200 }, schema: InboxAgentListSchema }),
+    queryFn: ({ signal }) => $api('/api/v1/inbox/agents', { signal, query: { limit: 200 }, schema: InboxAgentListSchema }),
     enabled: () => toValue(enabled),
   })
 }
@@ -144,7 +144,7 @@ export function useInboxTags() {
   const { $api } = useApi()
   return useQuery({
     queryKey: inboxKeys.tags,
-    queryFn: () => $api('/api/v1/inbox/tags', { schema: InboxTagListSchema }),
+    queryFn: ({ signal }) => $api('/api/v1/inbox/tags', { signal, schema: InboxTagListSchema }),
   })
 }
 

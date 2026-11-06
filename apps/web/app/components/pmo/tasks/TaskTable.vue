@@ -133,7 +133,7 @@ const stageName = (task: Task) => (props.variant === 'project' ? task.stage?.nam
       <template #stage-cell="{ row }"><span :title="stageName(row.original)">{{ stageName(row.original) }}</span></template>
       <template #state-cell="{ row }"><StateMenu :task="row.original" /></template>
       <template #deadline-cell="{ row }">
-        <SharedStatusBadge v-if="deadlineTagView(row.original, t)" v-bind="deadlineTagView(row.original, t)!" data-testid="deadline-badge" size="sm" :aria-label="`${deadlineTagView(row.original, t)!.label} ${deadlineTagView(row.original, t)!.title ?? ''}`.trim()" />
+        <SharedStatusBadge v-if="hydrated && deadlineTagView(row.original, t)" v-bind="deadlineTagView(row.original, t)!" data-testid="deadline-badge" size="sm" :aria-label="`${deadlineTagView(row.original, t)!.label} ${deadlineTagView(row.original, t)!.title ?? ''}`.trim()" />
         <span v-else data-testid="deadline-badge" class="text-muted">—</span>
       </template>
       <template #priority-cell="{ row }"><PrioritySelect :task="row.original" variant="badge" /></template>
@@ -147,7 +147,7 @@ const stageName = (task: Task) => (props.variant === 'project' ? task.stage?.nam
                 <TaskDescriptionHint :excerpt="task.description_excerpt" />
               </div>
             </div>
-            <SharedStatusBadge v-if="deadlineTagView(task, t)" v-bind="deadlineTagView(task, t)!" class="shrink-0" data-testid="deadline-badge" size="sm" :aria-label="`${deadlineTagView(task, t)!.label} ${deadlineTagView(task, t)!.title ?? ''}`.trim()" />
+            <SharedStatusBadge v-if="hydrated && deadlineTagView(task, t)" v-bind="deadlineTagView(task, t)!" class="shrink-0" data-testid="deadline-badge" size="sm" :aria-label="`${deadlineTagView(task, t)!.label} ${deadlineTagView(task, t)!.title ?? ''}`.trim()" />
             <span v-else class="shrink-0 text-muted" data-testid="deadline-badge">—</span>
           </div>
           <p class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">

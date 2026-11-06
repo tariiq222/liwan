@@ -83,7 +83,7 @@ export function useApi() {
       const data = await $fetch<unknown>(path, {
         method: (opts.method ?? 'GET') as any,
         body: opts.body as any,
-        ...(writing ? { retry: 0 } : {}),
+        retry: 0,
         query: opts.query,
         signal: opts.signal,
         // Never forward a cookie or private hop identity to an absolute URL,
@@ -102,6 +102,8 @@ export function useApi() {
   async function toError(e: any, writing: boolean): Promise<Error> {
     // A ZodError is a contract bug, not a user-facing API error: let it
     // propagate unchanged rather than wrapping it as an ApiError.
+    if (e?.name === 'AbortError') return e
+    if (e?.cause?.name === 'AbortError') return e.cause
     if (e?.name === 'ZodError' || e?.cause?.name === 'ZodError') return e
     const status: number = e?.statusCode ?? e?.response?.status ?? 0
     const parsed = structuredError(await errorBody(e?.data))
@@ -154,7 +156,7 @@ export function useApi() {
         responseType: 'blob',
         method: (opts.method ?? 'GET') as any,
         body: opts.body as any,
-        ...(opts.method && opts.method !== 'GET' ? { retry: 0 } : {}),
+        retry: 0,
         headers: /^\/api\/v1\/[a-zA-Z0-9_/-]+$/.test(path.split('?')[0] ?? '') && !path.includes('..') ? { ...headers, ...trustedHeaders } : {},
       })
       return { blob: response._data as Blob, filename: contentDispositionFilename(response.headers.get('content-disposition')) }

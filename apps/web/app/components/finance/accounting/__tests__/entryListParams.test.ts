@@ -3,7 +3,7 @@ import {
   ENTRY_PAGE_SIZE,
   entryActiveFilterCount,
   entryFiltersFromQuery,
-  entryKpiParams,
+  entrySummaryParams,
   entryKpiTiles,
   entryListParams,
 } from '../entryListParams'
@@ -36,12 +36,12 @@ describe('entry list params', () => {
 describe('KPI params and tiles', () => {
   const filters = entryFiltersFromQuery({ state: 'posted', journal_id: '9', date_from: '2026-03-01', page: '4', q: 'abc' })
 
-  it('keeps the list filters, forces the tile state and asks for one row', () => {
-    expect(entryKpiParams(filters, 'draft')).toEqual({ state: 'draft', journal_id: 9, date_from: '2026-03-01', q: 'abc', limit: 1, offset: 0 })
-  })
-
-  it('the total tile drops the state filter', () => {
-    expect(entryKpiParams(filters, null)).not.toHaveProperty('state')
+  it('keeps meaningful filters while excluding selected state and pagination', () => {
+    const params = entrySummaryParams(filters)
+    expect(params).not.toHaveProperty('state')
+    expect(params).not.toHaveProperty('limit')
+    expect(params).not.toHaveProperty('offset')
+    expect(params).toEqual({ journal_id: 9, date_from: '2026-03-01', q: 'abc' })
   })
 
   it('draws one tile per count, empty until the server answers', () => {

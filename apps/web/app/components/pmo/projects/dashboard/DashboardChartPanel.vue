@@ -23,7 +23,7 @@ withDefaults(defineProps<{
 </script>
 
 <template>
-  <ChartPanel :data-testid="testId" :title="title" :description="description" :loading="loading" :empty="!hasData" :empty-text="emptyText" :span="span" :size="size">
+  <ChartPanel defer :data-testid="testId" :title="title" :description="description" :loading="loading" :empty="!hasData" :empty-text="emptyText" :span="span" :size="size">
     <template #default="{ height }">
       <DashboardChart :chart="chart" :variant="variant" :accessible-label="accessibleLabel" :height="height" />
     </template>

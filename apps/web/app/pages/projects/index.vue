@@ -274,12 +274,9 @@ async function openProject(id: number) {
     :kpi-toggle="!archived"
   >
     <template #default="{ view }">
-      <!-- The list's controls and rows carry client-generated ids, and the query data can land before hydration starts. Mount the
-           card (filters inside it) only once this page has hydrated, so server and client never disagree about its tree and no
-           control's first click is lost; the toolbar's controls stay disabled until then. One card and one filter row serve both
-           views: switching only swaps what is under the row. -->
+      <!-- Query data is settled before SSR; the shared controls remain disabled until hydration. -->
       <ProjectKpiStrip v-if="hydrated && kpisShown && !archived" :filters="summaryFilters" />
-      <SharedListCard v-if="hydrated">
+      <SharedListCard>
         <template #filters>
           <div class="w-full min-w-0" data-testid="projects-toolbar">
             <FilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
@@ -344,10 +341,9 @@ async function openProject(id: number) {
           <ProjectCards v-else :items="displayedItems" :is-loading="isLoading" :to-for="projectTo" @open="openProject" />
         </SharedPageState>
         <template v-if="projectList.data.value && !showEmpty" #footer>
-          <SharedListFooter :count-label="t('projects.footer.results', { shown: displayedItems.length, total }, total)" count-test-id="projects-result-count" :page="page" :pages="pages" :disabled="projectList.isFetching.value" @update:page="setPage" />
+          <SharedListFooter :count-label="t('projects.footer.results', { shown: displayedItems.length, total }, total)" count-test-id="projects-result-count" :page="page" :pages="pages" :disabled="!hydrated || projectList.isFetching.value" @update:page="setPage" />
         </template>
       </SharedListCard>
-      <SharedLoadingSkeleton v-else variant="rows" />
     </template>
   </SharedListPage>
 </template>

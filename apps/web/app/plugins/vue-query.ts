@@ -3,7 +3,7 @@ import { VueQueryPlugin, QueryCache, QueryClient, MutationCache, hydrate, dehydr
 import { clearChatDrafts } from '@/utils/chatDrafts'
 import { isDifferentUser, isPossibleSessionExpiry } from '@/utils/sessionExpiry'
 import { clearTenantSuspension, dropToastsWhileSuspended, isTenantSuspended, onTenantSuspension, SUSPENDED_LOGIN } from '@/utils/tenantSuspension'
-import { restoreDehydratedErrors, serializeDehydratedErrors, settleServerQueries, type SerializedDehydratedState } from '@/lib/vueQuerySsr'
+import { restoreDehydratedErrors, serializeDehydratedErrors, settleServerQueries, retryQuery, isTransientQueryError, type SerializedDehydratedState } from '@/lib/vueQuerySsr'
 
 // Named so bus.client.ts can declare `dependsOn: ['vue-query']` - it calls
 // useQueryClient() and must not run before this plugin has registered
@@ -16,15 +16,15 @@ export default defineNuxtPlugin({
 
     // A session that expires while a tab is open used to be invisible to the
     // router: auth.global.ts only runs on navigation, so every background
-    // query just 403'd and toasted "forbidden" forever. Re-check `me` once
-    // (deduped below) on any 403 that isn't a known domain-level one, and if
+    // query kept reporting session failures. Re-check `me` once
+    // (deduped below) on an actual 401 session refusal, and if
     // the session really is gone, route to /login with a `next` back here.
     // `me` is null when its last request failed; useNuxtData('me') would still
     // read the last signed-in user out of the payload and hide the expiry.
-    const identity = import.meta.client ? useMe() : undefined
+    const identity = import.meta.client ? useMe({ immediate: false }) : undefined
     let recovering = false
     function onMaybeExpiredSession(error: unknown) {
-      if (!identity || recovering || !isPossibleSessionExpiry(error)) return
+      if (!identity || recovering || router.currentRoute.value.meta.access || !isPossibleSessionExpiry(error)) return
       recovering = true
       // runWithContext: these callbacks fire from vue-query's cache, outside
       // any component setup, so the Nuxt composables below need the app
@@ -45,7 +45,7 @@ export default defineNuxtPlugin({
     }
 
     const queryClient = new QueryClient({
-      defaultOptions: { queries: { staleTime: 5_000, retry: 1, refetchOnWindowFocus: true, retryOnMount: import.meta.server || !nuxt.isHydrating } },
+      defaultOptions: { queries: { staleTime: 5_000, retry: retryQuery, refetchOnWindowFocus: true, retryOnMount: import.meta.server || !nuxt.isHydrating } },
       queryCache: new QueryCache({ onError: onMaybeExpiredSession }),
       mutationCache: new MutationCache({ onError: onMaybeExpiredSession }),
     })
@@ -66,6 +66,7 @@ export default defineNuxtPlugin({
         await queryClient.refetchQueries({
           type: 'active',
           predicate: query => query.state.status === 'error'
+            && isTransientQueryError(query.state.error)
             && query.state.fetchStatus === 'idle'
             && query.observers.some(({ options }) => options.retryOnMount !== false
               && (typeof options.enabled === 'function' ? options.enabled(query) : options.enabled) !== false),

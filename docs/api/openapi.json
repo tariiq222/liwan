@@ -22148,6 +22148,39 @@
         ],
         "type": "string"
       },
+      "FinanceAssetSummarySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "close": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "draft": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "open": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "draft",
+          "open",
+          "close"
+        ],
+        "type": "object"
+      },
       "FinanceAssetUpdateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -24859,6 +24892,39 @@
         ],
         "type": "string"
       },
+      "FinanceBudgetSummarySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "cancelled": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "confirmed": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "draft": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "draft",
+          "confirmed",
+          "cancelled"
+        ],
+        "type": "object"
+      },
       "FinanceBudgetVsActualLineSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -26344,6 +26410,39 @@
           "notes",
           "budget_entry_id",
           "updated_at"
+        ],
+        "type": "object"
+      },
+      "FinanceEntrySummarySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "cancel": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "draft": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "posted": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "draft",
+          "posted",
+          "cancel"
         ],
         "type": "object"
       },
@@ -28143,6 +28242,39 @@
           "amount_tax",
           "amount_total",
           "amount_residual"
+        ],
+        "type": "object"
+      },
+      "FinanceInvoiceSummarySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "cancel": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "draft": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "posted": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "draft",
+          "posted",
+          "cancel"
         ],
         "type": "object"
       },
@@ -108275,6 +108407,46 @@
         }
       }
     },
+    "/api/v1/finance/assets/summary": {
+      "get": {
+        "operationId": "liwan_finance.FinanceAssetController.summary_assets.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "All tile counts for the list filters, independently of its selected state and page.",
+        "tags": [
+          "liwan_finance"
+        ],
+        "x-liwan": {
+          "addon": "liwan_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceAssetController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "summary_assets",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/finance/assets/{asset_id}": {
       "delete": {
         "operationId": "liwan_finance.FinanceAssetController.delete_asset.delete",
@@ -109257,6 +109429,46 @@
         }
       }
     },
+    "/api/v1/finance/budgets/summary": {
+      "get": {
+        "operationId": "liwan_finance.FinanceBudgetController.summary_budgets.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "All tile counts for the list filters, independently of its selected state and page.",
+        "tags": [
+          "liwan_finance"
+        ],
+        "x-liwan": {
+          "addon": "liwan_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceBudgetController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "summary_budgets",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/finance/budgets/{budget_id}": {
       "get": {
         "operationId": "liwan_finance.FinanceBudgetController.get_budget.get",
@@ -109917,6 +110129,46 @@
         }
       }
     },
+    "/api/v1/finance/entries/summary": {
+      "get": {
+        "operationId": "liwan_finance.FinanceEntryController.summary_entries.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "All tile counts for the list filters, independently of its selected state and page.",
+        "tags": [
+          "liwan_finance"
+        ],
+        "x-liwan": {
+          "addon": "liwan_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceEntryController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "summary_entries",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/finance/entries/{entry_id}": {
       "delete": {
         "operationId": "liwan_finance.FinanceEntryController.delete_entry.delete",
@@ -110451,6 +110703,46 @@
           "feature_operation": "write",
           "handler": "create_invoice",
           "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/invoices/summary": {
+      "get": {
+        "operationId": "liwan_finance.FinanceInvoiceController.summary_invoices.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "All tile counts for the list filters, independently of its selected state and page.",
+        "tags": [
+          "liwan_finance"
+        ],
+        "x-liwan": {
+          "addon": "liwan_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceInvoiceController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "summary_invoices",
+          "readonly": true,
           "route_type": "json2"
         }
       }
