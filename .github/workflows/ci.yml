@@ -123,7 +123,7 @@ jobs:
       ODOO_PYTHON: python
     services:
       postgres:
-        image: postgres:16
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: odoo
           POSTGRES_PASSWORD: odoo
