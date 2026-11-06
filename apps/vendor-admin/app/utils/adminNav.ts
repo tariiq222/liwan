@@ -13,6 +13,7 @@ const ENTRIES: readonly AdminNavEntry[] = [
   { id: 'invoices', icon: 'i-lucide-receipt', capability: 'vendor.billing.manage' },
   { id: 'operations', icon: 'i-lucide-wrench', capability: 'vendor.read' },
   { id: 'audit', icon: 'i-lucide-history', capability: 'vendor.audit.read' },
+  { id: 'ai-provider', icon: 'i-lucide-bot', capability: 'vendor.ai.manage' },
   { id: 'team', icon: 'i-lucide-user-cog', capability: 'vendor.accounts.manage' },
 ]
 
@@ -33,7 +34,7 @@ export function activeNavId(items: readonly ShellRailItem[], path: string): stri
   return items.find(item => within(item.to) || EXTRA_PREFIXES[item.id]?.some(within))?.id ?? null
 }
 
-const UTILITY_IDS: readonly string[] = ['audit', 'team']
+const UTILITY_IDS: readonly string[] = ['audit', 'ai-provider', 'team']
 
 /** The rail's two groups: the commercial sections, then the administration of the console itself. */
 export function splitRail(items: readonly ShellRailItem[]): ShellRailGroups {

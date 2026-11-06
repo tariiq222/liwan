@@ -1,6 +1,6 @@
 import { getMethod, getRequestURL, type H3Event } from 'h3'
 import { PROXY_INVALID, readJsonObject } from './body'
-import { controlCall } from './control'
+import { controlCall, UPSTREAM_TIMEOUT_MS } from './control'
 import { bffFail, respond } from './errors'
 import { assertSameOrigin } from './origin'
 import { clearSession, readSession } from './session-cookie'
@@ -25,9 +25,24 @@ const ALLOWED = [
   new RegExp(`^/v1/commercial/customers/${SEGMENT}/(trial|invitations)$`),
   new RegExp(`^/v1/commercial/trials/${SEGMENT}/(extend|end)$`),
   new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}(/(branches|usage))?$`),
+  /^\/v1\/platform\/ai-provider(\/(presets|models|test))?$/,
   /^\/v1\/admin\/(me|accounts)$/,
   /^\/v1\/admin\/accounts\/[1-9][0-9]{0,15}\/(roles|disable|reset)$/,
 ]
+// The AI provider probes call a third party, and the control plane allows them 15 s (models) and two 20 s asks (test), apps/control-plane
+// ai-provider/client.ts. The BFF must wait longer than that or it gives up with a 503 on a probe that is still running; the margin covers
+// name resolution and the audit write. The other routes keep the default.
+const SLOW_UPSTREAM = [
+  { pattern: /^\/v1\/platform\/ai-provider\/models$/, timeoutMs: 30_000 },
+  { pattern: /^\/v1\/platform\/ai-provider\/test$/, timeoutMs: 55_000 },
+] as const
+
+/** The upstream timeout for a control-plane path (query ignored). */
+export function upstreamTimeoutMs(path: string): number {
+  const pathname = path.split('?', 1)[0]!
+  return SLOW_UPSTREAM.find(route => route.pattern.test(pathname))?.timeoutMs ?? UPSTREAM_TIMEOUT_MS
+}
+
 // Package revisions are read-only history (the control plane answers 410 to any write).
 const READ_ONLY = [new RegExp(`^/v1/packages(/${SEGMENT})?$`)]
 
@@ -51,7 +66,7 @@ export async function proxyVendorRequest(event: H3Event): Promise<unknown> {
   if (!session) return bffFail(401, 'unauthorized')
   const path = upstreamPath(event, method)
   const body = method === 'GET' ? undefined : (await readJsonObject(event, PROXY_INVALID)).raw
-  const result = await controlCall(event, { path, method, body, session })
+  const result = await controlCall(event, { path, method, body, session, timeoutMs: upstreamTimeoutMs(path) })
   if (result.status === 401) clearSession(event)
   return respond(event, result.status, result.data)
 }

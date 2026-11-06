@@ -395,6 +395,7 @@ class ComposeNetworksCase(unittest.TestCase):
             files.append(str(SHARED))
             values.update({
                 'LIWAN_TENANT_REGISTRY_DIR': tempfile.gettempdir(),
+                'LIWAN_AI_PLATFORM_DIR': tempfile.gettempdir(),
                 'LIWAN_SHARED_PROXY_TOKEN': 'synthetic-not-a-real-token',
                 'LIWAN_SESSION_KEYS': '{}', 'LIWAN_SESSION_ACTIVE_KID': 'test',
                 'LIWAN_SHARED_ODOO_CONFIG': '/synthetic/odoo.conf',
@@ -459,6 +460,19 @@ class ComposeNetworksCase(unittest.TestCase):
                 for name in ('ai', 'ai-egress'):
                     self.assertEqual(mounts[name]['/egress']['source'], 'ai_tenant_hosts')
                     self.assertEqual(model['services'][name]['environment']['AI_TENANT_EGRESS_DIR'], '/egress')
+
+    def test_the_platform_provider_is_read_from_a_read_only_directory_and_never_from_the_environment(self):
+        for shared in (False, True):
+            with self.subTest(shared=shared):
+                service = self.render(shared=shared)['services']['ai']
+                mounts = {v['target']: v for v in service['volumes']}
+                self.assertTrue(mounts['/etc/liwan-ai']['read_only'])
+                self.assertEqual(mounts['/etc/liwan-ai']['type'], 'bind')
+                if shared:  # the operator points it at the directory the control plane writes
+                    self.assertEqual(mounts['/etc/liwan-ai']['source'], tempfile.gettempdir())
+                self.assertEqual(service['environment']['AI_PLATFORM_PROVIDER_FILE'], '/etc/liwan-ai/platform-provider.json')
+                for name in ('AI_PROVIDER', 'AI_MODEL', 'AI_API_KEY', 'AI_BASE_URL'):
+                    self.assertNotIn(name, service['environment'])
 
 
 if __name__ == '__main__':

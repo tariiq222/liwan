@@ -25,7 +25,8 @@ import uvicorn
 from langchain_core.messages import HumanMessage
 from liwan_ai_service.service import close_runtime_state, create_app, open_runtime_state
 from liwan_ai_service.settings import Settings
-from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call
+from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call, platform_of
+from tests.platform_file import platform_env
 class DelayedScript(ScriptedChatModel):
     async def _astream(self, messages, stop=None, run_manager=None, **kwargs):
         human = next((m for m in reversed(messages) if isinstance(m, HumanMessage)), None)
@@ -36,12 +37,12 @@ class DelayedScript(ScriptedChatModel):
 async def main():
     responses = ([ai_tool_call("pmo__draft_project", {"name":"x"}, "c_1")] if sys.argv[2] == "old" else
                  [ai_text("claim completed"), ai_text("active finished")])
-    settings = Settings.from_env({"AI_PROVIDER":"ollama", "AI_MODEL":"scripted-fake", "AI_DATABASE_URL":os.environ["AI_DATABASE_URL"],
+    settings = Settings.from_env({**platform_env("ollama", "scripted-fake"), "AI_DATABASE_URL":os.environ["AI_DATABASE_URL"],
         "AI_SERVICE_TOKEN":"t"*30, "AI_GENERATION_ID":sys.argv[2], "LIWAN_TENANCY_MODE":"shared",
         "LIWAN_TENANT_REGISTRY_PATH":os.environ["LIWAN_TENANT_REGISTRY_PATH"]})
     model = DelayedScript(responses, title_responses=[ai_text("title"), ai_text("active title")])
     states, control = await open_runtime_state(settings)
-    app = create_app(model, states, control, settings)
+    app = create_app(platform_of(model, "ollama", "scripted-fake"), states, control, settings)
     try:
         await uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=int(sys.argv[1]), log_level="error", access_log=False)).serve()
     finally:

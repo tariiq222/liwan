@@ -85,10 +85,9 @@ services:
     # No route off the host: the only way out is the ai-egress allowlist proxy below.
     networks: [ai_internal]
     environment:
-      AI_PROVIDER: "${AI_PROVIDER:-ollama}"
-      AI_MODEL: "${AI_MODEL:-}"
-      AI_API_KEY: "${AI_API_KEY:-}"
-      AI_BASE_URL: "${AI_BASE_URL:-}"
+      # The platform provider (provider, model, key, endpoint) is read only from this file, never from the environment.
+      # deploy/provision.sh writes it from deploy/.env; in shared SaaS the control plane does (docker-compose.shared.yml).
+      AI_PLATFORM_PROVIDER_FILE: /etc/liwan-ai/platform-provider.json
       AI_OPENROUTER_REFERER: "${AI_OPENROUTER_REFERER:-}"
       AI_OPENROUTER_TITLE: "${AI_OPENROUTER_TITLE:-}"
       AI_DATABASE_URL: "${AI_DATABASE_URL:-}"
@@ -116,6 +115,8 @@ services:
       AI_TENANT_EGRESS_DIR: /egress
     volumes:
       - ai_tenant_hosts:/egress
+      # The directory, not the file: a bind-mounted file keeps its old inode when the writer replaces it atomically.
+      - ${LIWAN_AI_PLATFORM_DIR:-./data/ai}:/etc/liwan-ai:ro
     expose: ["8600"]
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]

@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import proxy from '../../api/vendor/v1/[...path]'
+import { upstreamTimeoutMs } from '../proxy'
+import { UPSTREAM_TIMEOUT_MS } from '../control'
 import { at, SESSION, cookieHeader, json, send, stubConfig, stubUpstream } from './harness'
 
 const get = (path: string, headers: Record<string, string> = cookieHeader()) => send(proxy, `/api/vendor/v1${path}`, { method: 'GET', headers })
@@ -118,12 +120,28 @@ describe('vendor API proxy', () => {
 
   it('forwards only the vendor surface the console uses', async () => {
     const calls = stubUpstream(() => json(200, {}))
-    const allowed = ['/context', '/overview', '/targets', '/tenants', '/tenants/00000000-0000-4000-8000-000000000001/operations-grant', '/operations', '/catalog', '/audit', '/packages', '/packages/00000000-0000-4000-8000-000000000001', '/commercial/customers', '/commercial/customers/c-1', '/commercial/customers/c-1/trial', '/commercial/customers/c-1/invitations', '/commercial/attention', '/commercial/clients', '/commercial/orders', '/commercial/catalog/releases/r-1/default-bundles', '/commercial/orders/ab-1/cancel', '/commercial/orders/ab-1/payment-attempts', '/commercial/invoice-adjustments/a-1/refund', '/commercial/trials/s-1/extend', '/commercial/trials/s-1/end', '/commercial/subscriptions/s-1', '/commercial/subscriptions/s-1/usage', '/commercial/invoices/i-1', '/commercial/quotes', '/commercial/quotes/q-1', '/commercial/customer-terms', '/commercial/customer-quotes', '/commercial/catalog/releases', '/commercial/policies', '/commercial/plans/p-1/publish', '/commercial/bundles/b-1/revisions', '/shared/tenants/00000000-0000-4000-8000-000000000001/provisioning', '/admin/me', '/admin/accounts', '/admin/accounts/12/roles']
+    const allowed = ['/context', '/overview', '/targets', '/tenants', '/tenants/00000000-0000-4000-8000-000000000001/operations-grant', '/operations', '/catalog', '/audit', '/packages', '/packages/00000000-0000-4000-8000-000000000001', '/commercial/customers', '/commercial/customers/c-1', '/commercial/customers/c-1/trial', '/commercial/customers/c-1/invitations', '/commercial/attention', '/commercial/clients', '/commercial/orders', '/commercial/catalog/releases/r-1/default-bundles', '/commercial/orders/ab-1/cancel', '/commercial/orders/ab-1/payment-attempts', '/commercial/invoice-adjustments/a-1/refund', '/commercial/trials/s-1/extend', '/commercial/trials/s-1/end', '/commercial/subscriptions/s-1', '/commercial/subscriptions/s-1/usage', '/commercial/invoices/i-1', '/commercial/quotes', '/commercial/quotes/q-1', '/commercial/customer-terms', '/commercial/customer-quotes', '/commercial/catalog/releases', '/commercial/policies', '/commercial/plans/p-1/publish', '/commercial/bundles/b-1/revisions', '/shared/tenants/00000000-0000-4000-8000-000000000001/provisioning', '/platform/ai-provider', '/platform/ai-provider/presets', '/platform/ai-provider/models', '/platform/ai-provider/test', '/admin/me', '/admin/accounts', '/admin/accounts/12/roles']
     for (const path of allowed) expect((await get(path)).status, path).toBe(200)
     expect(calls).toHaveLength(allowed.length)
-    const denied = ['/', '/registry/mutations', '/invitations/accept', '/admin', '/admin/accounts/x/roles', '/admin/accounts/12/other', '/admin/secret', '/internal/anything', '/tenantsx', '/contexts', '/packagesx', '/commercial', '/commercial/payment-events/moyasar', '/commercial/payment-simulator/a-1/settle', '/commercial/renewals/run', '/commercial/branch-quotes', '/commercial/customers/c-1/trial/x', '/commercial/attention/x', '/commercial/clients/c-1', '/commercial/orders/ab-1/other', '/commercial/invoice-adjustments/a-1', '/commercial/trials/s-1', '/commercial/trials/s-1/other', '/commercial/trials', '/commercial/invoice-adjustments/a-1/other', '/commercial/invoice-adjustments', '/commercial/plans/p-1/other', '/commercial/subscriptions/s-1/other', '/commercial/catalog', '/customer/orders', '/customer/invoices/i-1', '/invitations/accept']
+    const denied = ['/', '/registry/mutations', '/invitations/accept', '/admin', '/admin/accounts/x/roles', '/admin/accounts/12/other', '/admin/secret', '/internal/anything', '/tenantsx', '/contexts', '/packagesx', '/commercial', '/commercial/payment-events/moyasar', '/commercial/payment-simulator/a-1/settle', '/commercial/renewals/run', '/commercial/branch-quotes', '/commercial/customers/c-1/trial/x', '/commercial/attention/x', '/platform', '/platform/ai-provider/other', '/platform/ai-provider/models/x', '/platform/other', '/commercial/clients/c-1', '/commercial/orders/ab-1/other', '/commercial/invoice-adjustments/a-1', '/commercial/trials/s-1', '/commercial/trials/s-1/other', '/commercial/trials', '/commercial/invoice-adjustments/a-1/other', '/commercial/invoice-adjustments', '/commercial/plans/p-1/other', '/commercial/subscriptions/s-1/other', '/commercial/catalog', '/customer/orders', '/customer/invoices/i-1', '/invitations/accept']
     for (const path of denied) expect((await get(path)).status, path).toBe(404)
     expect(calls).toHaveLength(allowed.length)
+  })
+
+  it('waits long enough for the AI provider probes (15 s models, two 20 s asks for a test) and keeps 10 s everywhere else', async () => {
+    expect(upstreamTimeoutMs('/v1/platform/ai-provider/models')).toBeGreaterThan(15_000)
+    expect(upstreamTimeoutMs('/v1/platform/ai-provider/test')).toBeGreaterThan(40_000)
+    for (const path of ['/v1/platform/ai-provider', '/v1/platform/ai-provider/presets', '/v1/commercial/plans', '/v1/platform/ai-provider/models/x']) expect(upstreamTimeoutMs(path), path).toBe(UPSTREAM_TIMEOUT_MS)
+    const timeouts: number[] = []
+    const spy = vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms: number) => { timeouts.push(ms); return new AbortController().signal })
+    try {
+      stubUpstream(() => json(200, { ok: true }))
+      await post('/platform/ai-provider/models', { body: { preset: 'openai' } })
+      await post('/platform/ai-provider/test', { body: { preset: 'openai', model: 'm' } })
+      await get('/platform/ai-provider/presets')
+      await get('/context')
+    } finally { spy.mockRestore() }
+    expect(timeouts).toEqual([30_000, 55_000, 10_000, 10_000])
   })
 
   it('allows only GET on packages', async () => {

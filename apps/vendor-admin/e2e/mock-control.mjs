@@ -24,7 +24,7 @@ const ROLES = ['owner', 'customer_success', 'finance', 'product', 'operations', 
 const STEP_UP_WINDOW = 5 * 60e3
 // Mirrors ROLE_CAPABILITIES of apps/control-plane/src/admin-auth/roles.ts.
 const ROLE_CAPABILITIES = {
-  owner: ['vendor.read', 'vendor.audit.read', 'vendor.tenants.manage', 'vendor.subscriptions.manage', 'vendor.catalog.manage', 'vendor.pricing.manage', 'vendor.billing.manage', 'vendor.operations.run', 'vendor.accounts.manage'],
+  owner: ['vendor.read', 'vendor.audit.read', 'vendor.tenants.manage', 'vendor.subscriptions.manage', 'vendor.catalog.manage', 'vendor.pricing.manage', 'vendor.billing.manage', 'vendor.operations.run', 'vendor.accounts.manage', 'vendor.ai.manage'],
   customer_success: ['vendor.read', 'vendor.tenants.manage', 'vendor.subscriptions.manage'],
   finance: ['vendor.read', 'vendor.billing.manage'],
   product: ['vendor.read', 'vendor.catalog.manage', 'vendor.pricing.manage'],
