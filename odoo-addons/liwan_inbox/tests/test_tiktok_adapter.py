@@ -32,6 +32,17 @@ def response(body=None, status=200, content=b'', headers=None):
     return answer
 
 
+def streamed(content):
+    """A download answer read through `response.raw`, as a streamed request delivers it."""
+    answer = MagicMock()
+    answer.status_code = 200
+    answer.headers = {'Content-Type': 'image/jpeg'}
+    answer.raw.read.return_value = content
+    answer.closed = False
+    answer.close.side_effect = lambda: setattr(answer, 'closed', True)
+    return answer
+
+
 @tagged('post_install', '-at_install', 'liwan')
 class TestTikTokAdapter(BaseCase):
 
@@ -54,6 +65,16 @@ class TestTikTokAdapter(BaseCase):
                 tiktok.verify_signature(tt.CLIENT_SECRET, raw, incomplete, tt.CREATE_TIME),
                 'accepted the incomplete header %r' % incomplete,
             )
+
+    def test_non_ascii_header_is_refused_not_raised(self):
+        # WSGI decodes request headers as latin-1, so a byte of 0x80 or above arrives as a non-ASCII
+        # str; comparing it with the ASCII digest raises TypeError and the webhook answers 500 instead
+        # of refusing the delivery.
+        raw = tt.raw(tt.receive_text())
+        digest = tt.signed(raw).split('s=')[1]
+        for hostile in ('t=%d,s=%%C3%%A9%02X' % (tt.CREATE_TIME, 0xFF), 't=%d,s=\u00e9%s' % (tt.CREATE_TIME, digest)):
+            with self.subTest(header=hostile):
+                self.assertFalse(tiktok.verify_signature(tt.CLIENT_SECRET, raw, hostile, tt.CREATE_TIME))
 
     def test_parse_every_event(self):
         share_url = 'https://www.tiktok.com/player/v1/7234567890123456789'
@@ -299,7 +320,8 @@ class TestTikTokAdapter(BaseCase):
 
     def test_fetch_media_uses_x_user_header(self):
         download = response(tt.answer({'download_url': 'https://cdn.tiktok.com/file/1'}))
-        content = response(status=200, content=b'image-bytes', headers={'Content-Type': 'image/jpeg; charset=binary'})
+        content = streamed(b'image-bytes')
+        content.headers = {'Content-Type': 'image/jpeg; charset=binary'}
         with patch.object(requests, 'request', side_effect=[download, content]) as request:
             media = tiktok.fetch_media(CREDENTIALS, tt.CONVERSATION_ID, 'msg-image-1', 'media-image-1', 'IMAGE')
         self.assertEqual(media, tiktok.Media(b'image-bytes', 'image/jpeg'))
@@ -314,6 +336,17 @@ class TestTikTokAdapter(BaseCase):
         })
         self.assertEqual(second.args, ('GET', 'https://cdn.tiktok.com/file/1'))
         self.assertEqual(second.kwargs['headers']['x-user'], 'access-token-1')
+
+    def test_fetch_media_refuses_a_body_over_the_cap(self):
+        # The download URL is the provider's, so its body is read with a cap instead of being buffered whole.
+        download = response(tt.answer({'download_url': 'https://cdn.tiktok.com/file/2'}))
+        oversized = streamed(b'x' * (tiktok.MAX_MEDIA_BYTES + 1))
+        with patch.object(requests, 'request', side_effect=[download, oversized]) as request:
+            with self.assertRaises(errors.ProviderError) as refused:
+                tiktok.fetch_media(CREDENTIALS, tt.CONVERSATION_ID, 'msg-image-2', 'media-image-2', 'IMAGE')
+        self.assertFalse(refused.exception.retryable)
+        self.assertTrue(request.call_args_list[1].kwargs['stream'], 'the body is streamed, never buffered whole')
+        self.assertTrue(oversized.closed, 'the download response is closed even when the body is refused')
 
     def test_image_send_capable(self):
         capable = response(tt.answer({

@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import quote, urlencode
 
 import requests
+import urllib3
 
 from odoo.addons.liwan_inbox.adapters import errors
 
@@ -45,6 +46,7 @@ HISTORY_MESSAGES = 20
 TIMEOUT_SECONDS = 10
 UPLOAD_TIMEOUT_SECONDS = 60
 DOWNLOAD_TIMEOUT_SECONDS = 60
+MAX_MEDIA_BYTES = 16 * 1024 * 1024
 CONVERSATION_PAGE = 100
 ERROR_TEXT_LENGTH = 200
 WEBHOOK_EVENT = 'DIRECT_MESSAGE'
@@ -183,6 +185,10 @@ def verify_signature(secret, raw, header, now):
     signature = parts.get('s', '')
     if not secret or not signature:
         return False
+    # The header is decoded as latin-1, so it may carry bytes above 0x7F; a hex digest is ASCII, and
+    # comparing a non-ASCII str with `compare_digest` raises instead of answering False.
+    if not signature.isascii():
+        return False
     digest = hmac.new(secret.encode(), b'%d.' % timestamp + raw, hashlib.sha256).hexdigest()
     if not hmac.compare_digest(digest, signature):
         return False
@@ -278,11 +284,21 @@ def fetch_media(credentials, conversation_id, message_id, media_id, media_type):
         'media_type': media_type,
     }))
     url = _require_text(data, 'download_url')
-    response = _call('GET', url, credentials.access_token, timeout=DOWNLOAD_TIMEOUT_SECONDS, headers={
+    response = _call('GET', url, credentials.access_token, timeout=DOWNLOAD_TIMEOUT_SECONDS, stream=True, headers={
         'x-user': credentials.access_token,
     })
+    try:
+        content = response.raw.read(MAX_MEDIA_BYTES + 1, decode_content=True)
+    except (requests.RequestException, urllib3.exceptions.HTTPError, OSError) as error:
+        message = f'media download failed: {type(error).__name__}'
+        raise errors.ProviderError(message, retryable=True) from None
+    finally:
+        response.close()
+    if len(content) > MAX_MEDIA_BYTES:
+        message = 'media is too large'
+        raise errors.ProviderError(message, retryable=False)
     mimetype = (response.headers.get('Content-Type') or '').split(';')[0].strip()
-    return Media(response.content, mimetype)
+    return Media(content, mimetype)
 
 
 def send_text(credentials, conversation_id, body, context_id=None):
