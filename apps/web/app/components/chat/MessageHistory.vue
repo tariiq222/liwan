@@ -83,7 +83,7 @@ const rows = computed(() => {
   return out
 })
 
-watch(() => [props.conversationId, props.q, me.value?.id, me.value?.company.id], () => {
+watch([() => props.conversationId, () => props.q, () => me.value?.id, () => me.value?.company.id], () => {
   acknowledgeRead.dispose()
   historyGeneration++
   historyRequest?.abort()

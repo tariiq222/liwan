@@ -35,7 +35,7 @@ const renderer = Vue.createRenderer<Node, Node>({
 })
 const messages = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => ({ id: from + i, body: `message ${from + i}`, author: { id: 1, name: 'Sender' }, created_at: '2026-11-06T10:00:00Z', attachments: [], reactions: [], pinned: false, deleted: false, reply_to: null }))
 async function mount(api: ReturnType<typeof vi.fn>, options: { read?: (conversation: number, message: number) => Promise<unknown>; writable?: boolean; focused?: boolean } = {}) {
-  const data = Vue.ref<any>(), updatedAt = Vue.ref(0), conversation = Vue.ref(1), me = Vue.ref({ id: 2, company: { id: 1 } })
+  const data = Vue.ref<any>(), updatedAt = Vue.ref(0), conversation = Vue.ref(1), q = Vue.ref(''), me = Vue.ref({ id: 2, company: { id: 1 } })
   for (const name of ['ref', 'computed', 'watch', 'nextTick', 'onMounted', 'onUnmounted', 'onBeforeUnmount'] as const) vi.stubGlobal(name, Vue[name])
   vi.stubGlobal('useI18n', () => ({ t: (s: string) => s, locale: Vue.ref('en') }))
   vi.stubGlobal('useMe', () => ({ me }))
@@ -47,7 +47,7 @@ async function mount(api: ReturnType<typeof vi.fn>, options: { read?: (conversat
   vi.stubGlobal('document', { visibilityState: 'visible', hasFocus: () => options.focused ?? false, addEventListener() {}, removeEventListener() {} })
   vi.stubGlobal('window', { addEventListener() {}, removeEventListener() {} })
   const root = node()
-  const app = renderer.createApp({ render: () => Vue.h(MessageHistory, { conversationId: conversation.value, writable: options.writable ?? false }) })
+  const app = renderer.createApp({ render: () => Vue.h(MessageHistory, { conversationId: conversation.value, q: q.value, writable: options.writable ?? false }) })
   app.provide(Vue.ssrContextKey!, { modules: new Set() })
   app.config.warnHandler = () => {}
   app.mount(root)
@@ -57,7 +57,7 @@ async function mount(api: ReturnType<typeof vi.fn>, options: { read?: (conversat
   const setup = (app._instance!.subTree.component! as HistoryInstance).setupState
   async function page(items: any[]) { data.value = { items, total: items.length }; updatedAt.value++; await Vue.nextTick(); await Vue.nextTick() }
   const ids = () => setup.items.map((item: any) => item.id)
-  return { page, ids, conversation, me, unmount, read: (id: number) => setup.acknowledgeRead(id), setup }
+  return { page, ids, conversation, q, me, unmount, read: (id: number) => setup.acknowledgeRead(id), setup }
 }
 it('fills a missed-event gap from the last known cursor before merging the latest query page', async () => {
   const api = vi.fn(async (_path, options) => ({ items: options.query.after === 50 ? messages(51, 100) : options.query.after === 100 ? messages(101, 150) : [], total: 150 }))
@@ -156,4 +156,60 @@ it('counts a full gap recovery once and adds a later ordinary page without recou
   expect(history.setup.jumpCount).toBe(101)
   history.conversation.value = 2; await Vue.nextTick()
   expect(history.setup.jumpCount).toBe(0)
+})
+
+it('retains history, scroll state and queued read ownership on a same-identity object refresh', async () => {
+  let release!: () => void
+  const write = vi.fn().mockImplementationOnce(() => new Promise<void>(resolve => { release = resolve })).mockResolvedValue(undefined)
+  const history = await mount(vi.fn(), { read: write })
+  await history.page(messages(1, 50))
+  const scroller = { scrollHeight: 1000, clientHeight: 100, scrollTop: 80, getBoundingClientRect: () => ({ top: 0, bottom: 100 }), querySelectorAll: () => [] }
+  history.setup.scroller = scroller
+  const ownedScroller = history.setup.scroller
+  history.setup.onScroll()
+  await history.page(messages(49, 51))
+  expect(history.setup.jumpCount).toBe(1)
+  const first = history.read(10); void history.read(12)
+  history.me.value = { id: 2, company: { id: 1 } }
+  await Vue.nextTick(); await Vue.nextTick()
+  expect(history.ids()).toEqual(Array.from({ length: 51 }, (_, i) => i + 1))
+  expect(history.setup.jumpCount).toBe(1)
+  expect(history.setup.stickToEnd).toBe(false)
+  expect(history.setup.scroller).toBe(ownedScroller)
+  expect(scroller.scrollTop).toBe(80)
+  release(); await first
+  await vi.waitFor(() => expect(write.mock.calls).toEqual([[1, 10], [1, 12]]))
+})
+it('keeps an in-flight history catchup alive through a same-identity object refresh', async () => {
+  let release!: (result: object) => void
+  const api = vi.fn().mockImplementationOnce(() => new Promise<object>(resolve => { release = resolve }))
+    .mockImplementation(async (_path, options) => ({ items: options.query.after === 100 ? messages(101, 150) : [], total: 150 }))
+  const history = await mount(api)
+  await history.page(messages(1, 50)); await history.page(messages(101, 150))
+  expect(api).toHaveBeenCalledTimes(1)
+  const signal = api.mock.calls[0]![1].signal
+  history.me.value = { id: 2, company: { id: 1 } }
+  await Vue.nextTick()
+  expect(signal.aborted).toBe(false)
+  release({ items: messages(51, 100), total: 150 })
+  await vi.waitFor(() => expect(history.ids()).toHaveLength(150))
+})
+
+it.each(['conversation', 'query', 'user', 'company'])('still resets history and disposes queued read ownership on a genuine %s boundary', async boundary => {
+  let release!: () => void
+  const write = vi.fn().mockImplementationOnce(() => new Promise<void>(resolve => { release = resolve })).mockResolvedValue(undefined)
+  const history = await mount(vi.fn(), { read: write })
+  await history.page(messages(1, 50))
+  const first = history.read(10); void history.read(12)
+  if (boundary === 'conversation') history.conversation.value = 2
+  else if (boundary === 'query') history.q.value = 'search'
+  else if (boundary === 'user') history.me.value = { id: 3, company: { id: 1 } }
+  else history.me.value = { id: 2, company: { id: 2 } }
+  await Vue.nextTick(); await Vue.nextTick()
+  expect(history.ids()).toEqual([])
+  expect(history.setup.jumpCount).toBe(0)
+  expect(history.setup.stickToEnd).toBe(true)
+  release(); await first
+  await Promise.resolve(); await Promise.resolve()
+  expect(write.mock.calls).toEqual([[1, 10]])
 })
