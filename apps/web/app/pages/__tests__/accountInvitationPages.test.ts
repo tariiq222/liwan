@@ -31,7 +31,7 @@ describe('the emailed-link pages', () => {
     expect(join).toContain("checkToken(token.value, 'invite')")
     expect(join).toContain('route.query.token')
     expect(join).toMatch(/catch \{\s*state\.value = 'form'/)
-    expect(join).toContain('MIN_ACCOUNT_PASSWORD_LENGTH')
+    expect(join).toContain('MIN_PASSWORD_LENGTH')
     expect(join.match(/<UFormField/g)?.length).toBe(3)
   })
 

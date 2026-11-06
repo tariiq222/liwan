@@ -229,7 +229,7 @@ describe('Phase 3b HR input and compatibility schemas', () => {
   it('rejects top-level employee arrays, extra keys, and vendor write roles', () => {
     expect(() => HrEmployeeListSchema.parse([EMPLOYEE])).toThrow()
     expect(() => HrEmployeeSchema.parse({ ...EMPLOYEE, extra: true })).toThrow()
-    expect(() => HrAccessGrantSchema.parse({ password: '12345678', role: 'vendor' })).toThrow()
+    expect(() => HrAccessGrantSchema.parse({ password: '123456789012', role: 'vendor' })).toThrow()
     expect(() => HrAccessPatchSchema.parse({})).toThrow()
   })
 
@@ -250,8 +250,8 @@ describe('Phase 3b HR input and compatibility schemas', () => {
   it('accepts strict employee and department writes with nullable relations', () => {
     expect(HrEmployeeCreateSchema.parse({ name: '  Sara  ', department_id: null, parent_id: null }).name).toBe('Sara')
     expect(HrEmployeePatchSchema.parse({ department_id: null, parent_id: null })).toEqual({ department_id: null, parent_id: null })
-    expect(HrAccessGrantSchema.parse({ password: '12345678', role: 'employee' }).role).toBe('employee')
-    expect(HrAccessPatchSchema.parse({ password: '12345678' }).password).toBe('12345678')
+    expect(HrAccessGrantSchema.parse({ password: '123456789012', role: 'employee' }).role).toBe('employee')
+    expect(HrAccessPatchSchema.parse({ password: '123456789012' }).password).toBe('123456789012')
     expect(HrDepartmentCreateSchema.parse({ name: '  Finance ', parent_id: null, manager_id: 9 }).name).toBe('Finance')
     expect(HrDepartmentCreateSchema.parse({ name: 'Finance', manager_id: null }).manager_id).toBeNull()
     expect(HrDepartmentPatchSchema.parse({ parent_id: null, manager_id: 9 })).toEqual({ parent_id: null, manager_id: 9 })

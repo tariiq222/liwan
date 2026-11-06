@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MIN_ACCOUNT_PASSWORD_LENGTH, MobileSchema } from '@liwan/contracts'
+import { MIN_PASSWORD_LENGTH, MobileSchema } from '@liwan/contracts'
 import { accountLinkFailure, useAccountPublic } from '@/composables/useAccountPublic'
 import { normalizeMobileInput } from '@/composables/useMe'
 
@@ -24,7 +24,7 @@ const hydrated = useHydrated()
 const mobileValue = computed(() => normalizeMobileInput(mobile.value))
 const mobileOk = computed(() => MobileSchema.safeParse(mobileValue.value).success)
 const mobileError = computed(() => mobileRefusal.value ?? (mobile.value.trim() && !mobileOk.value ? 'mobileInvalid' : null))
-const lengthOk = computed(() => password.value.trim().length >= MIN_ACCOUNT_PASSWORD_LENGTH)
+const lengthOk = computed(() => password.value.trim().length >= MIN_PASSWORD_LENGTH)
 const matchOk = computed(() => !!confirm.value && password.value === confirm.value)
 const canSubmit = computed(() => mobileOk.value && lengthOk.value && matchOk.value && !pending.value && hydrated.value)
 const loginHref = computed(() => (login.value ? { path: '/login', query: { login: login.value } } : '/login'))

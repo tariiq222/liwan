@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MIN_PASSWORD_LENGTH } from '../common/password'
 
 export const LocalizedLabelSchema = z.object({ ar: z.string(), en: z.string().nullable() }).strict()
 
@@ -282,9 +283,8 @@ export type AdminUserDetail = z.infer<typeof AdminUserDetailSchema>
 export const AdminUserListSchema = z.object({ items: z.array(AdminUserSummarySchema), total: z.number().int().nonnegative() }).strict()
 export type AdminUserList = z.infer<typeof AdminUserListSchema>
 
-export const MIN_ACCOUNT_PASSWORD_LENGTH = 12
 /** The length counts the trimmed value, but the server keeps the exact text, whitespace included. */
-export const PasswordInputSchema = z.string().refine((value) => value.trim().length >= MIN_ACCOUNT_PASSWORD_LENGTH, { message: `password must have at least ${MIN_ACCOUNT_PASSWORD_LENGTH} characters` })
+export const PasswordInputSchema = z.string().refine((value) => value.trim().length >= MIN_PASSWORD_LENGTH, { message: `password must have at least ${MIN_PASSWORD_LENGTH} characters` })
 const NonEmptyVersionSchema = z.string().trim().min(1)
 const uniqueAssignments = (assignments: RoleAssignmentInput[]) => {
   const keys = assignments.map((assignment) => `${assignment.role_id}:${assignment.scope.kind}:${assignment.scope.id}`)

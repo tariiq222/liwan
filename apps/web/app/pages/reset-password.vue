@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MIN_ACCOUNT_PASSWORD_LENGTH } from '@liwan/contracts'
+import { MIN_PASSWORD_LENGTH } from '@liwan/contracts'
 import { accountLinkFailure, useAccountPublic } from '@/composables/useAccountPublic'
 
 // The emailed reset link: the account holder chooses a new password. The token alone authorizes it.
@@ -18,7 +18,7 @@ const formError = ref<'passwordRejected' | 'unavailable' | null>(null)
 const login = ref<string | null>(null)
 const hydrated = useHydrated()
 
-const lengthOk = computed(() => password.value.trim().length >= MIN_ACCOUNT_PASSWORD_LENGTH)
+const lengthOk = computed(() => password.value.trim().length >= MIN_PASSWORD_LENGTH)
 const matchOk = computed(() => !!confirm.value && password.value === confirm.value)
 const canSubmit = computed(() => lengthOk.value && matchOk.value && !pending.value && hydrated.value)
 const loginHref = computed(() => (login.value ? { path: '/login', query: { login: login.value } } : '/login'))
