@@ -47,9 +47,14 @@ class TestAiKnowledgeRegistry(AiProbe, TransactionCase):
         self._assert_rejected({**PROBE_SOURCE, 'fields': []}, 'fields must be')
 
     def test_the_indexer_capabilities_must_be_registered_ones(self):
-        for value in (None, [], ['no.such.capability']):
+        for value in (None, [], ['Not A Key'], [3]):
             with self.subTest(value=value):
                 self._assert_rejected({**PROBE_SOURCE, 'indexer_capabilities': value}, 'indexer_capabilities')
+
+    def test_a_capability_that_is_not_registered_is_declared_but_not_held(self):
+        self._declare({**PROBE_SOURCE, 'indexer_capabilities': ['ai.use', 'not_installed.things.read']})
+        self.assertEqual(list(self.registry._liwan_ai_knowledge_map()), ['res.partner'])
+        self.assertEqual(self.registry._liwan_ai_indexer_capabilities(), {'ai.use'})
 
     def test_a_missing_declaration_text_is_refused(self):
         for name in ('owner', 'feature_key', 'title_field', 'label_ar', 'label_en'):

@@ -1,6 +1,4 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from datetime import timedelta
-
 from odoo.tests import TransactionCase, tagged
 
 from odoo.addons.liwan_ai.models import knowledge_indexer
@@ -19,24 +17,28 @@ class TestAiKnowledgeIndex(AiProbe, TransactionCase):
         super().setUp()
         self._install_probe()
         self._install_knowledge()
-        self.patch(knowledge_indexer, 'SETTLE_SECONDS', 0)
         self.indexer = self.env['liwan.ai.knowledge.indexer']
         self.cursors = self.env['liwan.ai.knowledge.cursor']
         # Everything the database already holds is read once, so a test sees only its own records afterwards.
         self._tick()
         self._clear_queue()
 
+    def _state(self):
+        self.env.cr.execute('SELECT count(*) FROM liwan_ai.ai_knowledge_queue')
+        return (self.env.cr.fetchone()[0], self.cursors.search([('model', '=', MODEL)]).mapped('last_id'),
+                self.env['liwan.ai.knowledge.pending'].search_count([]))
+
     def _tick(self):
-        for _ in range(20):
-            before = self.cursors.search([('model', '=', MODEL)]).read(['write_date_cursor', 'last_id'])
+        """Run the cron until it has nothing more to queue."""
+        for _ in range(30):
+            before = self._state()
             self.indexer._liwan_cron_tick()
-            if before == self.cursors.search([('model', '=', MODEL)]).read(['write_date_cursor', 'last_id']):
+            if before == self._state():
                 return
 
-    def _touch(self, record):
-        """Make ``record`` look written after the cursor: a test shares the one transaction time, so its writes never move write_date."""
-        for cursor in self.cursors.search([('model', '=', record._name)]):
-            cursor.write_date_cursor -= timedelta(seconds=1)
+    def _mark(self, record, vals=None):
+        """What the bridge of the source does after a write of ``vals`` (every field when none are given)."""
+        self.env['liwan.ai.knowledge.registry']._liwan_ai_knowledge_changed(record, vals)
 
     def _clear_queue(self):
         self.env.cr.execute('DELETE FROM liwan_ai.ai_knowledge_queue')
@@ -44,49 +46,104 @@ class TestAiKnowledgeIndex(AiProbe, TransactionCase):
     def _partner(self, **values):
         return self.env['res.partner'].create({'name': 'Indexed', 'company_id': self.env.company.id, **values})
 
-    def test_a_new_record_is_queued_with_its_chunks_and_company(self):
+    def _upserts(self):
+        return {row[2]: row for row in self._queue(MODEL) if row[0] == 'upsert'}
+
+    def test_a_new_record_is_found_by_the_scan_with_its_chunks_and_company(self):
         partner = self._partner(name='Alpha', function='Engineer')
         self._tick()
         self.assertEqual(self._queue(MODEL), [('upsert', MODEL, partner.id, self.env.company.id, record_chunks(partner, PROBE_SOURCE))])
         self.assertIn('Alpha', self._queue(MODEL)[0][4][0])
 
-    def test_a_record_is_queued_again_only_when_it_changes(self):
+    def test_a_marked_record_is_queued_again_and_an_unmarked_change_is_not(self):
         partner = self._partner()
         self._tick()
         self._clear_queue()
+        partner.function = 'Manager'
         self._tick()
         self.assertEqual(self._queue(MODEL), [])
-        partner.function = 'Manager'
-        self._touch(partner)
+        self._mark(partner, {'function': 'Manager'})
         self._tick()
         self.assertEqual([(row[0], row[2]) for row in self._queue(MODEL)], [('upsert', partner.id)])
+        self.assertFalse(self.env['liwan.ai.knowledge.pending'].search([]))
 
-    def test_an_archived_record_is_queued_for_deletion(self):
+    def test_a_record_written_in_a_late_transaction_is_still_indexed(self):
+        partner = self._partner()
+        self._tick()
+        self._clear_queue()
+        # Its transaction began long before the scan passed it and commits only now: older write_date, row marked now.
+        partner.function = 'Late'
+        self.env.flush_all()
+        self.env.cr.execute("UPDATE res_partner SET write_date = write_date - interval '1 day' WHERE id = %s", [partner.id])
+        partner.invalidate_recordset()
+        self._mark(partner)
+        self._tick()
+        self.assertIn('Late', ' '.join(self._upserts()[partner.id][4]))
+
+    def test_the_bootstrap_scan_covers_the_records_that_exist_when_the_index_is_rebuilt(self):
+        partners = self._partner() | self._partner() | self._partner()
+        self._tick()
+        self._clear_queue()
+        self.assertTrue(self.indexer._liwan_rebuild())
+        self._tick()
+        self.assertTrue(set(partners.ids) <= set(self._upserts()))
+        self.assertEqual(len([row for row in self._queue() if row[0] == 'reset']), 1)
+
+    def test_an_archived_marked_record_is_queued_for_deletion(self):
         partner = self._partner()
         self._tick()
         self._clear_queue()
         partner.active = False
-        self._touch(partner)
+        self._mark(partner, {'active': False})
         self._tick()
         self.assertEqual(self._queue(MODEL), [('delete', MODEL, partner.id, None, None)])
+
+    def test_a_marked_record_that_no_longer_exists_is_queued_for_deletion(self):
+        partner = self._partner()
+        self._tick()
+        self._clear_queue()
+        self._mark(partner)
+        partner_id = partner.id
+        partner.unlink()
+        self._tick()
+        self.assertEqual(self._queue(MODEL), [('delete', MODEL, partner_id, None, None)])
 
     def test_a_record_with_no_text_is_queued_for_deletion(self):
         partner = self._partner()
         self._tick()
         self._clear_queue()
         self.patch(knowledge_indexer, 'record_chunks', lambda record, source: [])
-        partner.function = 'changed'
-        self._touch(partner)
+        self._mark(partner)
         self._tick()
         self.assertEqual(self._queue(MODEL), [('delete', MODEL, partner.id, None, None)])
 
-    def test_a_batch_stops_at_its_size_and_the_cursor_resumes(self):
+    def test_marking_follows_the_declared_fields_only(self):
+        partner = self._partner()
+        pending = self.env['liwan.ai.knowledge.pending']
+        self._mark(partner, {'ref': 'x', 'color': 3})
+        self.assertFalse(pending.search([]))
+        for vals in ({'function': 'x'}, {'name': 'y'}, {'comment': 'z'}, {'active': False}, {'company_id': False}):
+            with self.subTest(vals=vals):
+                pending.search([]).unlink()
+                self._mark(partner, vals)
+                self.assertEqual(pending.search([]).mapped('res_id'), [partner.id])
+        self._mark(partner)  # marking twice leaves one row
+        self.assertEqual(pending.search_count([]), 1)
+
+    def test_nothing_is_marked_while_the_setting_is_off(self):
+        self.env['liwan.ai.settings']._liwan_current().knowledge_enabled = False
+        self._mark(self._partner())
+        self.assertFalse(self.env['liwan.ai.knowledge.pending'].search([]))
+
+    def test_a_batch_stops_at_its_size_and_the_next_run_resumes(self):
         self.patch(knowledge_indexer, 'BATCH_SIZE', 2)
         partners = self._partner() | self._partner() | self._partner()
         self.indexer._liwan_cron_tick()
         self.assertEqual(len(self._queue(MODEL)), 2)
+        for partner in partners:
+            self._mark(partner)
         self._tick()
-        self.assertEqual({row[2] for row in self._queue(MODEL)}, set(partners.ids))
+        self.assertEqual(set(self._upserts()), set(partners.ids))
 
     def test_nothing_is_queued_without_an_acknowledgement(self):
         self.env['liwan.ai.consent']._liwan_valid_all().write({'revoked_at': '2026-01-01 00:00:00', 'revoked_by_id': self.env.uid})
@@ -119,11 +176,11 @@ class TestAiKnowledgeIndex(AiProbe, TransactionCase):
 
     def test_nothing_happens_and_nothing_fails_without_the_queue_table(self):
         self.env.cr.execute('DROP SCHEMA liwan_ai CASCADE')
-        cursor = self.cursors.search([('model', '=', MODEL)]).read(['write_date_cursor', 'last_id'])
+        cursor = self.cursors.search([('model', '=', MODEL)]).read(['last_id'])
         self._partner()
         self.indexer._liwan_cron_tick()
         self.assertFalse(self.indexer._liwan_queue_insertable())
-        self.assertEqual(self.cursors.search([('model', '=', MODEL)]).read(['write_date_cursor', 'last_id']), cursor)
+        self.assertEqual(self.cursors.search([('model', '=', MODEL)]).read(['last_id']), cursor)
         self.assertFalse(self.indexer._liwan_rebuild())
 
     def test_forgetting_records_queues_their_deletion(self):
@@ -151,9 +208,11 @@ class TestAiKnowledgeIndex(AiProbe, TransactionCase):
         self._tick()
         self.assertGreater(len([row for row in self._queue(MODEL) if row[0] == 'upsert']), 0)
 
-    def test_a_record_that_cannot_be_chunked_is_skipped_and_the_cursor_moves_past_it(self):
+    def test_a_record_that_cannot_be_chunked_is_skipped_and_not_retried(self):
         poison = self._partner(name='Poison text')
         good = self._partner(name='Good')
+        self._mark(poison)
+        self._mark(good)
         original = knowledge_indexer.record_chunks
 
         def chunks(record, source):
@@ -170,7 +229,7 @@ class TestAiKnowledgeIndex(AiProbe, TransactionCase):
         self.assertIn(f'{MODEL},{poison.id}', message)
         self.assertNotIn('Poison text', message)
         self.assertNotIn('boom', message)
-        # The cursor is past both records: the poison one is not retried on the next run.
+        self.assertFalse(self.env['liwan.ai.knowledge.pending'].search([]))
         self._clear_queue()
         self._tick()
         self.assertEqual(self._queue(MODEL), [])
@@ -195,9 +254,11 @@ class TestAiKnowledgeIndex(AiProbe, TransactionCase):
         self._tick()
         self._clear_queue()
         settings = self.env['liwan.ai.settings']._liwan_current()
+        self._mark(self._partner())
         settings.knowledge_enabled = False
         self.assertEqual(self._queue(), [('reset', None, None, None, None)])
         self.assertFalse(self.cursors.search([]))
+        self.assertFalse(self.env['liwan.ai.knowledge.pending'].search([]))
         settings.knowledge_enabled = False  # no change, no second reset
         settings.write({'messages_per_user_monthly': 5})
         self.assertEqual(len(self._queue()), 1)

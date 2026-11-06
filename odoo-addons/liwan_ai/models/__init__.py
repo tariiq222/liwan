@@ -12,6 +12,7 @@ from . import (
     feature_registry,
     knowledge_cursor,
     knowledge_indexer,
+    knowledge_pending,
     knowledge_registry,
     knowledge_tool,
     res_company,

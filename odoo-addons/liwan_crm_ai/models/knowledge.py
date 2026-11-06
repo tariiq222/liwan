@@ -27,6 +27,17 @@ class LiwanCrmAiKnowledge(models.AbstractModel):
 class CrmLead(models.Model):
     _inherit = 'crm.lead'
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        self.env['liwan.ai.knowledge.registry']._liwan_ai_knowledge_changed(records)
+        return records
+
+    def write(self, vals):
+        result = super().write(vals)
+        self.env['liwan.ai.knowledge.registry']._liwan_ai_knowledge_changed(self, vals)
+        return result
+
     def unlink(self):
         self.env['liwan.ai.knowledge.registry']._liwan_ai_knowledge_forget(self)
         return super().unlink()

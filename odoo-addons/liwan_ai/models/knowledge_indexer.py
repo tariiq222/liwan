@@ -5,10 +5,13 @@ Odoo cannot reach the AI service, so the indexer appends events to ``liwan_ai.ai
 schema (not an Odoo table, so R9's direct-SQL rule does not apply) that the service owns and drains: the database role
 of Odoo may only insert into it. A record's text is chunked and withheld here (``knowledge_chunker``) and travels in
 the queue until the service has embedded it; the index itself keeps vectors and references only.
+
+What to index comes from two places. The bridge of a source marks a record in ``liwan.ai.knowledge.pending`` in the
+transaction that changes it, and the cron claims those rows; and a bootstrap scan, in id order with a cursor per source
+and company, reads the records that exist when the knowledge is turned on or the index rebuilt.
 """
 import json
 import logging
-from datetime import timedelta
 
 from odoo import Command, api, models
 
@@ -18,9 +21,6 @@ _logger = logging.getLogger(__name__)
 QUEUE = 'liwan_ai.ai_knowledge_queue'
 KNOWLEDGE_FEATURE = 'ai.knowledge'
 BATCH_SIZE = 200
-# A record written in a transaction that commits late carries an older write_date than the cursor may have passed: the
-# indexer reads only records that have settled for this long.
-SETTLE_SECONDS = 60
 INSERT = f'INSERT INTO {QUEUE} (kind, model, res_id, company_id, chunks)'
 
 
@@ -66,10 +66,11 @@ class LiwanAiKnowledgeIndexer(models.AbstractModel):
 
     @api.model
     def _liwan_rebuild(self):
-        """Drop the whole index and read every source again: clear the cursors and queue one reset."""
+        """Drop the whole index and read every source again: clear the cursors and the pending rows, and queue one reset."""
         if not self._liwan_queue_insertable():
             return False
         self.env['liwan.ai.knowledge.cursor'].search([]).unlink()
+        self.env['liwan.ai.knowledge.pending'].search([]).unlink()
         self._liwan_queue_reset()
         return True
 
@@ -91,9 +92,56 @@ class LiwanAiKnowledgeIndexer(models.AbstractModel):
         entitlement = self.env['liwan.entitlement.service']
         for source in self.env['liwan.ai.knowledge.registry']._liwan_ai_knowledge_map().values():
             if entitlement._liwan_feature_read(source['feature_key']):
-                # One company at a time: the access fences of the applications decide per current company.
-                for company in self.env.user.company_ids:
-                    self._liwan_index_source(source, company)
+                self._liwan_scan_source(source, handled=self._liwan_index_pending(source))
+
+    @api.model
+    def _liwan_index_pending(self, source):
+        """Claim up to one batch of the records of ``source`` that changed and queue their current state.
+
+        The rows are deleted before the records are read, in this transaction: a writer that commits after the read
+        finds no row and inserts a new one, so no change is lost; a failed run rolls the claim back.
+        """
+        model = source['model']
+        rows = self.env['liwan.ai.knowledge.pending'].search([('model', '=', model)], limit=BATCH_SIZE)
+        by_company = {}
+        for row in rows:
+            by_company.setdefault(row.source_company_id, []).append(row.res_id)
+        rows.unlink()
+        handled = {(model, res_id) for ids in by_company.values() for res_id in ids}
+        companies = self.env.user.company_ids
+        for company, ids in by_company.items():
+            if company in companies:
+                Model = self.env[model].with_company(company).with_context(active_test=False)
+                self._liwan_index_records(source, Model.search([('id', 'in', ids)]), ids)
+            else:
+                # A record of no company (or of one the indexer is not in) is never readable in a company.
+                self._liwan_queue_delete(model, ids)
+        return handled
+
+    @api.model
+    def _liwan_scan_source(self, source, handled=frozenset()):
+        """The bootstrap: queue up to one batch of the existing records of ``source``, per company, in id order.
+
+        ``handled`` are the records this run already queued from their pending rows; the scan passes over them."""
+        model = source['model']
+        cursors = self.env['liwan.ai.knowledge.cursor']
+        for company in self.env.user.company_ids:
+            Model = self.env[model].with_company(company).with_context(active_test=False)
+            records = Model.search([('id', '>', cursors._liwan_last_id(model, company))], order='id', limit=BATCH_SIZE)
+            if records:
+                fresh = records.filtered(lambda record: (model, record.id) not in handled)
+                self._liwan_index_records(source, fresh, fresh.ids)
+                cursors._liwan_advance(model, company, records[-1].id)
+
+    @api.model
+    def _liwan_index_records(self, source, records, ids):
+        """Queue the current state of the records ``ids`` of ``source``, ``records`` being those of them the indexer reads
+        in the company: an upsert for each active one, a deletion for every other (archived, deleted, or hidden)."""
+        model = source['model']
+        archived = records.filtered(lambda record: 'active' in record._fields and not record.active)
+        self._liwan_queue_delete(model, sorted((set(ids) - set(records.ids)) | set(archived.ids)))
+        for record in records - archived:
+            self._liwan_queue_record(model, record, source)
 
     @api.model
     def _liwan_queue_record(self, model, record, source):
@@ -106,21 +154,5 @@ class LiwanAiKnowledgeIndexer(models.AbstractModel):
                     self._liwan_queue_upsert(model, record.id, record.company_id.id, chunks)
                 else:
                     self._liwan_queue_delete(model, record.ids)
-        except Exception as error:  # noqa: BLE001 - one poison record must not stop the batch; the cursor moves past it
+        except Exception as error:  # noqa: BLE001 - one poison record must not stop the batch; the batch moves past it
             _logger.warning('liwan_ai: knowledge record %s,%s skipped (%s)', model, record.id, type(error).__name__)
-
-    @api.model
-    def _liwan_index_source(self, source, company):
-        """Queue up to one batch of the records of ``source`` in ``company`` past its cursor, in ``(write_date, id)`` order."""
-        model = source['model']
-        Model = self.env[model].with_company(company).with_context(active_test=False)
-        cursors = self.env['liwan.ai.knowledge.cursor']
-        settled = self.env.cr.now() - timedelta(seconds=SETTLE_SECONDS)
-        domain = [*cursors._liwan_domain_after(model, company), ('write_date', '<=', settled)]
-        records = Model.search(domain, order='write_date, id', limit=BATCH_SIZE)
-        archived = records.filtered(lambda record: 'active' in record._fields and not record.active)
-        self._liwan_queue_delete(model, archived.ids)
-        for record in records - archived:
-            self._liwan_queue_record(model, record, source)
-        if records:
-            cursors._liwan_advance(model, company, records[-1])

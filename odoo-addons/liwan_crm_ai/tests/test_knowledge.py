@@ -3,7 +3,6 @@ from odoo import api
 from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
-from odoo.addons.liwan_ai.models import knowledge_indexer
 from odoo.addons.liwan_ai.models.access_service import AI_USE
 from odoo.addons.liwan_ai.tests.common import AiProbe
 from odoo.addons.liwan_crm.tests.common import LiwanCrmCase
@@ -18,7 +17,6 @@ class TestCrmAiKnowledge(AiProbe, LiwanCrmCase):
         super().setUp()
         self._install_probe()
         self._install_knowledge(sources=None)
-        self.patch(knowledge_indexer, 'SETTLE_SECONDS', 0)
         self.indexer_user = self.env.ref('liwan_ai.user_ai_indexer')
         self.env.cr.execute('DELETE FROM liwan_ai.ai_knowledge_queue')
         access = type(self.env['liwan.access.service'])
@@ -64,6 +62,15 @@ class TestCrmAiKnowledge(AiProbe, LiwanCrmCase):
         self.as_user(self.agent2)
         self.assertEqual(self.api('POST', '/api/v1/ai/knowledge/resolve', refs).json()['total'], 0)
 
+    def _cold_cache(self):
+        """Forget what the test's own (superuser) work loaded: the cron starts cold and must read everything as itself."""
+        self.env.flush_all()
+        self.env.invalidate_all()
+
+    def _indexer_tick(self):
+        self._cold_cache()
+        self.env['liwan.ai.knowledge.indexer'].with_user(self.indexer_user)._liwan_cron_tick()
+
     def _upserts(self):
         return {(row[2], row[3]) for row in self._queue(MODEL) if row[0] == 'upsert'}
 
@@ -72,7 +79,7 @@ class TestCrmAiKnowledge(AiProbe, LiwanCrmCase):
         mine = self.make_lead(self.agent, description='<p>Owned by an agent</p>')
         unassigned = self.make_lead(None)
         foreign = self.make_lead(None, company=self.other_company)
-        self.env['liwan.ai.knowledge.indexer'].with_user(self.indexer_user)._liwan_cron_tick()
+        self._indexer_tick()
         self.assertTrue({
             (mine.id, self.company.id), (unassigned.id, self.company.id), (foreign.id, self.other_company.id),
         } <= self._upserts())
@@ -82,15 +89,32 @@ class TestCrmAiKnowledge(AiProbe, LiwanCrmCase):
     def test_the_real_cron_path_runs_as_the_inactive_technical_user(self):
         lead = self.make_lead(self.agent)
         cron = self.env.ref('liwan_ai.ir_cron_ai_knowledge')
-        self.env.flush_all()
-        self.patch(self.env.cr, 'commit', lambda: None)  # the cron commits its own transaction; a test must not
+        self._cold_cache()
+        # The cron commits (and on failure rolls back) its own transaction; a test must do neither.
+        self.patch(self.env.cr, 'commit', lambda: None)
+        self.patch(self.env.cr, 'rollback', lambda: None)
         env = api.Environment(self.env.cr, cron.user_id.id, {})
         env['ir.cron'].browse(cron.id)._callback(cron.cron_name, cron.ir_actions_server_id.id)
         self.assertIn((lead.id, self.company.id), self._upserts())
 
     def test_the_technical_user_reads_only_what_a_source_declares(self):
         as_indexer = self.env(user=self.indexer_user)
-        with self.assertRaises(AccessError):
-            as_indexer['hr.employee'].search([])
+        # Models no source declares, whichever of them this database has (HR is not installed beside every bridge).
+        for model in ('hr.employee', 'mail.mail', 'res.partner'):
+            if model in self.env:
+                with self.subTest(model=model), self.assertRaises(AccessError):
+                    as_indexer[model].search([])
         with self.assertRaises(AccessError):
             as_indexer['crm.lead'].check_access('write')
+
+    def _pending(self):
+        return {(row.res_id, row.source_company_id) for row in self.env['liwan.ai.knowledge.pending'].search([('model', '=', MODEL)])}
+
+    def test_creating_and_writing_an_opportunity_marks_it_and_an_undeclared_write_does_not(self):
+        lead = self.make_lead(self.agent)
+        self.assertEqual(self._pending(), {(lead.id, self.company)})
+        self.env['liwan.ai.knowledge.pending'].search([]).unlink()
+        lead.write({'expected_revenue': 5, 'probability': 30})
+        self.assertEqual(self._pending(), set())
+        lead.write({'description': '<p>New</p>'})
+        self.assertEqual(self._pending(), {(lead.id, self.company)})

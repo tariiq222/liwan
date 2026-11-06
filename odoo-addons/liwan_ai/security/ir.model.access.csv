@@ -21,6 +21,10 @@ access_ai_tool_setting_use,ai.tool.setting use,model_liwan_ai_tool_setting,group
 access_ai_tool_setting_manage,ai.tool.setting manager,model_liwan_ai_tool_setting,group_cap_ai_settings_manage,1,1,1,0
 access_ai_settings_indexer,ai.settings indexer,model_liwan_ai_settings,group_ai_indexer,1,0,0,0
 access_ai_consent_indexer,ai.consent indexer,model_liwan_ai_consent,group_ai_indexer,1,0,0,0
-access_ai_knowledge_cursor_indexer,ai.knowledge.cursor indexer,model_liwan_ai_knowledge_cursor,group_ai_indexer,1,1,1,1
+access_ai_knowledge_cursor_indexer,ai.knowledge.cursor indexer,model_liwan_ai_knowledge_cursor,group_ai_indexer,1,1,1,0
 access_ai_knowledge_cursor_manage,ai.knowledge.cursor settings manager,model_liwan_ai_knowledge_cursor,group_cap_ai_settings_manage,1,0,0,1
 access_ai_knowledge_cursor_system,ai.knowledge.cursor system,model_liwan_ai_knowledge_cursor,base.group_system,1,1,1,1
+access_ai_knowledge_pending_indexer,ai.knowledge.pending indexer,model_liwan_ai_knowledge_pending,group_ai_indexer,1,0,0,1
+access_ai_knowledge_pending_manage,ai.knowledge.pending settings manager,model_liwan_ai_knowledge_pending,group_cap_ai_settings_manage,1,0,0,1
+access_ai_knowledge_pending_system,ai.knowledge.pending system,model_liwan_ai_knowledge_pending,base.group_system,1,1,1,1
+access_res_company_ai_indexer,res.company ai indexer,base.model_res_company,group_ai_indexer,1,0,0,0

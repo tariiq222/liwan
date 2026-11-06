@@ -58,7 +58,13 @@ def readable_records(env, refs, sources):
             ids_by_model.setdefault(ref['model'], set()).add(ref['res_id'])
     found = {}
     for model, ids in ids_by_model.items():
-        for record in env[model].search([('id', 'in', sorted(ids))]):
+        try:
+            records = env[model].search([('id', 'in', sorted(ids))])
+        except AccessError:
+            # The caller may not read this source at all (no ACL, no capability): its references drop, the others stay.
+            _logger.info('liwan_ai: the caller cannot read the knowledge source %s', model)
+            continue
+        for record in records:
             if record.company_id == env.company:
                 found[model, record.id] = record
     return found

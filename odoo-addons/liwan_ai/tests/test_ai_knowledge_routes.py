@@ -2,7 +2,6 @@
 from odoo.tests import new_test_user, tagged
 
 from odoo.addons.liwan_ai.controllers.knowledge import MAX_REFS
-from odoo.addons.liwan_ai.models import knowledge_indexer
 from odoo.addons.liwan_ai.models.knowledge_chunker import record_chunks
 from odoo.addons.liwan_ai.models.knowledge_indexer import KNOWLEDGE_FEATURE
 from odoo.addons.liwan_ai.models.knowledge_tool import KNOWLEDGE_TOOL
@@ -85,6 +84,20 @@ class TestAiKnowledgeResolve(AiProbe, LiwanApiCase):
                 self._ref(self.partner, model='no.such.model'), self._ref(self.partner)]
         self.assertEqual([item['res_id'] for item in self._resolve(refs).json()['items']], [self.partner.id])
 
+    def test_a_source_the_caller_cannot_read_drops_its_references_and_keeps_the_others(self):
+        # The audit log is readable only with the audit capability, which an ordinary employee lacks.
+        audit = self.env['liwan.access.audit'].create({
+            'company_id': self.env.company.id, 'action': 'probe', 'target_type': 'user', 'target_id': 1, 'target_name': 'Hidden target',
+        })
+        self.patch(
+            type(self.env['liwan.ai.knowledge.registry']), '_liwan_ai_knowledge_sources',
+            lambda model: [PROBE_SOURCE, {**PROBE_SOURCE, 'model': 'liwan.access.audit', 'title_field': 'target_name', 'fields': ['action']}],
+        )
+        refs = [self._ref(audit, model='liwan.access.audit'), self._ref(self.partner)]
+        response = self._resolve(refs)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual([item['res_id'] for item in response.json()['items']], [self.partner.id])
+
     def test_a_source_whose_application_is_off_is_dropped(self):
         self.patch(
             type(self.env['liwan.ai.knowledge.registry']), '_liwan_ai_knowledge_sources',
@@ -135,6 +148,7 @@ class TestAiKnowledgeResolve(AiProbe, LiwanApiCase):
         self.assertEqual(tool['result_summary'], ['items[]'])
         self.assertEqual(tool['input_schema']['properties'], {'query': {'type': 'string', 'minLength': 1, 'maxLength': 500}})
         self.assertFalse(tool['requires_approval'])
+        self.assertIs(tool['platform'], True)
         self.assertNotIn('ai', [agent['key'] for agent in catalog['agents']])
 
 
@@ -145,7 +159,6 @@ class TestAiKnowledgeRebuild(AiProbe, LiwanApiCase):
         super().setUp()
         self._install_probe()
         self._install_knowledge()
-        self.patch(knowledge_indexer, 'SETTLE_SECONDS', 0)
         self.manager = new_test_user(
             self.env, login='ai_kb_admin', password='ai_kb_admin_pass_123', name='Mona',
             groups='liwan_core.group_employee,liwan_ai.group_cap_ai_use',

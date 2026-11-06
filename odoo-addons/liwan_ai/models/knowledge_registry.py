@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import re
+
 from odoo import api, models
 from odoo.exceptions import ValidationError
 
@@ -7,6 +9,7 @@ from odoo.addons.liwan_ai.models.tool_registry import SENSITIVE_FIELDS
 KNOWLEDGE_FIELD_TYPES = ('char', 'text', 'html', 'selection', 'many2one')
 KNOWLEDGE_TEXT = ('model', 'owner', 'feature_key', 'title_field', 'label_ar', 'label_en')
 INDEXER_USER = 'liwan_ai.user_ai_indexer'
+CAPABILITY_KEY = re.compile(r'^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$')
 
 
 class LiwanAiKnowledgeRegistry(models.AbstractModel):
@@ -42,9 +45,11 @@ class LiwanAiKnowledgeRegistry(models.AbstractModel):
         if not isinstance(item.get('fields'), (list, tuple)) or not item['fields']:
             self._liwan_ai_error(model_name, 'fields must be a non-empty list')
         capabilities = item.get('indexer_capabilities')
-        known = self.env['liwan.access.service']._liwan_capability_map()
-        if not isinstance(capabilities, (list, tuple)) or not capabilities or not all(key in known for key in capabilities):
-            self._liwan_ai_error(model_name, 'indexer_capabilities must name registered capabilities')
+        # Only well-formed here: a source names what its application asks of a reader, and a capability of an application
+        # that is not installed (a bridge installed without liwan_pmo) is simply not registered and not held.
+        if (not isinstance(capabilities, (list, tuple)) or not capabilities
+                or not all(isinstance(key, str) and CAPABILITY_KEY.match(key) for key in capabilities)):
+            self._liwan_ai_error(model_name, 'indexer_capabilities must be a list of capability keys')
         agent = self.env['liwan.ai.agent.registry']._liwan_ai_agent_map().get(item['owner'].removeprefix('liwan_'), {})
         sensitive = SENSITIVE_FIELDS | set(agent.get('sensitive_fields', ()))
         for name in (item['title_field'], *item['fields']):
@@ -69,9 +74,21 @@ class LiwanAiKnowledgeRegistry(models.AbstractModel):
 
     @api.model
     def _liwan_ai_indexer_capabilities(self):
-        """The capabilities the technical indexer user holds in every company: those the declared sources ask of a reader."""
+        """The capabilities the technical indexer user holds in every company: those the declared sources ask of a reader
+        and that are registered in this database."""
         known = self.env['liwan.access.service']._liwan_capability_map()
         return {key for item in self._liwan_ai_knowledge_sources() for key in item.get('indexer_capabilities', ()) if key in known}
+
+    @api.model
+    def _liwan_ai_knowledge_changed(self, records, vals=None):
+        """Mark ``records`` as changed for the indexer (a bridge calls it after it creates or writes them).
+
+        A write (``vals``) that touches none of the source's text fields, nor ``active`` or ``company_id``, changes
+        nothing the index holds and marks nothing.
+        """
+        source = next((item for item in self._liwan_ai_knowledge_sources() if item['model'] == records._name), None)
+        if source and (vals is None or {*source['fields'], source['title_field'], 'active', 'company_id'} & set(vals)):
+            self.env['liwan.ai.knowledge.pending']._liwan_mark(records)
 
     @api.model
     def _liwan_ai_knowledge_forget(self, records):

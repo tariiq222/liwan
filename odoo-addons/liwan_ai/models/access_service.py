@@ -50,6 +50,14 @@ class LiwanAiAccessService(models.AbstractModel):
         return keys
 
     @api.model
+    def _liwan_membership_company_ids(self, user=None):
+        """The indexer's own companies come from its session record: it holds no read access to users or companies."""
+        acting = self.env.user
+        if (user or acting) == acting and acting.id == self._liwan_indexer_id():
+            return acting.company_ids.filtered('active').ids
+        return super()._liwan_membership_company_ids(user)
+
+    @api.model
     def _liwan_assert_user_scope(self, user):
         """The indexer is out of every access administrator's reach: a request about it answers like a missing user."""
         if user and user.id == self._liwan_indexer_id():
