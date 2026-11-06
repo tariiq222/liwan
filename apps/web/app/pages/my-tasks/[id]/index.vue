@@ -90,6 +90,8 @@ function focusCancel() { document.querySelector<HTMLElement>('[data-testid="inli
 const menuContent = { align: 'end' as const, onCloseAutoFocus(event: Event) {
   if (confirmingCancel.value) { event.preventDefault(); nextTick(focusCancel) }
   else if (convertOpen.value) { event.preventDefault(); nextTick(() => document.querySelector<HTMLElement>('[data-testid="my-task-convert"] button[aria-haspopup="listbox"]')?.focus()) }
+  // A completed transition already handed focus to its replacement primary control.
+  else if (document.activeElement?.matches('button[data-primary-action], a[data-primary-action]')) event.preventDefault()
 } }
 const actionError = ref('')
 
