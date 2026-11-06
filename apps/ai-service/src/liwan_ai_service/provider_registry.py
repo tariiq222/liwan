@@ -1,7 +1,8 @@
 """The provider registry: the one list of supported providers, read by settings (valid names, key rule) and providers (build).
 
 Adding a provider is one dependency line in pyproject.toml, one ``ProviderSpec`` below with its build function, one test and
-one README row. SDK imports stay inside each build function so importing the registry stays light and cycle-free.
+one README row. ``openai_compatible`` is the one generic provider: any OpenAI-compatible endpoint, named by a base URL.
+SDK imports stay inside each build function so importing the registry stays light and cycle-free.
 """
 from __future__ import annotations
 
@@ -14,7 +15,10 @@ from langchain_core.language_models import BaseChatModel
 if TYPE_CHECKING:
     from liwan_ai_service.settings import Settings
 
-OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+ANTHROPIC_HOST = "api.anthropic.com"
+OPENAI_HOST = "api.openai.com"
+OPENROUTER_HOST = "openrouter.ai"
+OPENROUTER_BASE_URL = f"https://{OPENROUTER_HOST}/api/v1"
 OLLAMA_BASE_URL = "http://localhost:11434"
 
 
@@ -24,6 +28,8 @@ class ProviderSpec:
     needs_api_key: bool
     default_base_url: str | None
     build: Callable[[Settings, str | None], BaseChatModel]  # (settings, base_url resolved from AI_BASE_URL or the default)
+    host: str | None = None  # the public host of the provider's own endpoint, which a tenant key on it reaches through ai-egress
+    needs_base_url: bool = False  # the endpoint is always given (AI_BASE_URL, or a tenant's base URL), never defaulted
 
 
 def _anthropic(settings: Settings, base_url: str | None) -> BaseChatModel:
@@ -58,9 +64,10 @@ def _openrouter(settings: Settings, base_url: str | None) -> BaseChatModel:
 
 
 _SPECS = (
-    ProviderSpec("anthropic", needs_api_key=True, default_base_url=None, build=_anthropic),
-    ProviderSpec("openai", needs_api_key=True, default_base_url=None, build=_openai),
+    ProviderSpec("anthropic", needs_api_key=True, default_base_url=None, build=_anthropic, host=ANTHROPIC_HOST),
+    ProviderSpec("openai", needs_api_key=True, default_base_url=None, build=_openai, host=OPENAI_HOST),
     ProviderSpec("ollama", needs_api_key=False, default_base_url=OLLAMA_BASE_URL, build=_ollama),
-    ProviderSpec("openrouter", needs_api_key=True, default_base_url=OPENROUTER_BASE_URL, build=_openrouter),
+    ProviderSpec("openrouter", needs_api_key=True, default_base_url=OPENROUTER_BASE_URL, build=_openrouter, host=OPENROUTER_HOST),
+    ProviderSpec("openai_compatible", needs_api_key=True, default_base_url=None, build=_openai, needs_base_url=True),
 )
 REGISTRY: dict[str, ProviderSpec] = {spec.name: spec for spec in _SPECS}

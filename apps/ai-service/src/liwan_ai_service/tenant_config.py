@@ -3,7 +3,8 @@
 The key is encrypted inside PostgreSQL with ``pgcrypto`` (``pgp_sym_encrypt``, AES-256) under a deployment secret
 named by a key id; each ciphertext stores the id of the secret that encrypted it, so the secret can rotate
 (``python -m liwan_ai_service.tenant_config --rotate``). The key is write-only: only ``configured``, the provider,
-the model and its last four characters ever leave this module (spec 2026-11-04 §6.8).
+the model, the base URL (a generic provider's endpoint, not a secret) and its last four characters ever leave this module
+(spec 2026-11-04 §6.8).
 """
 from __future__ import annotations
 
@@ -71,6 +72,7 @@ class KeyStatus:
     model: str | None = None
     last4: str | None = None
     updated_at: datetime | None = None
+    base_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -79,6 +81,7 @@ class TenantKey:
     model: str
     api_key: str
     updated_at: datetime
+    base_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -92,7 +95,7 @@ class TenantConfigStore(Protocol):
     async def get(self) -> TenantConfig: ...
     async def set_retention(self, days: int) -> TenantConfig: ...
     async def set_leaver_retention(self, days: int) -> TenantConfig: ...
-    async def set_key(self, provider: str, model: str, api_key: str, keyring: Keyring | None) -> TenantConfig: ...
+    async def set_key(self, provider: str, model: str, api_key: str, keyring: Keyring | None, base_url: str | None = None) -> TenantConfig: ...
     async def clear_key(self) -> TenantConfig: ...
     async def load_key(self, keyring: Keyring | None) -> TenantKey | None: ...
 
@@ -130,10 +133,10 @@ class MemoryTenantConfig:
         self.leaver_retention_days = check_leaver_retention(days)
         return await self.get()
 
-    async def set_key(self, provider: str, model: str, api_key: str, keyring: Keyring | None) -> TenantConfig:
+    async def set_key(self, provider: str, model: str, api_key: str, keyring: Keyring | None, base_url: str | None = None) -> TenantConfig:
         if keyring is None:
             raise KeyUnavailable("ai_key_unavailable")
-        self.key = TenantKey(provider, model, api_key, datetime.now(UTC))
+        self.key = TenantKey(provider, model, api_key, datetime.now(UTC), base_url)
         return await self.get()
 
     async def clear_key(self) -> TenantConfig:
@@ -147,9 +150,11 @@ class MemoryTenantConfig:
 def _status(key: TenantKey | None) -> KeyStatus:
     if key is None:
         return KeyStatus(configured=False)
-    return KeyStatus(True, key.provider, key.model, key.api_key[-LAST_CHARACTERS:], key.updated_at)
+    return KeyStatus(True, key.provider, key.model, key.api_key[-LAST_CHARACTERS:], key.updated_at, key.base_url)
 
 
+# The row every read and update of the configuration returns, in the order ``_config_of`` unpacks it.
+CONFIG_COLUMNS = "retention_days, key_provider, key_model, key_last4, key_updated_at, leaver_retention_days, key_base_url"
 
 
 class PostgresTenantConfig:
@@ -160,39 +165,33 @@ class PostgresTenantConfig:
 
     async def get(self) -> TenantConfig:
         async with self.pool.connection() as conn:
-            row = await (await conn.execute(
-                "SELECT retention_days, key_provider, key_model, key_last4, key_updated_at, leaver_retention_days"
-                " FROM ai_tenant_config WHERE singleton",
-            )).fetchone()
+            row = await (await conn.execute(f"SELECT {CONFIG_COLUMNS} FROM ai_tenant_config WHERE singleton")).fetchone()
         return _config_of(row)
 
     async def set_retention(self, days: int) -> TenantConfig:
         async with self.pool.connection() as conn:
             row = await (await conn.execute(
-                "UPDATE ai_tenant_config SET retention_days = %s WHERE singleton"
-                " RETURNING retention_days, key_provider, key_model, key_last4, key_updated_at, leaver_retention_days", (check_retention(days),),
+                f"UPDATE ai_tenant_config SET retention_days = %s WHERE singleton RETURNING {CONFIG_COLUMNS}", (check_retention(days),),
             )).fetchone()
         return _config_of(row)
 
     async def set_leaver_retention(self, days: int) -> TenantConfig:
         async with self.pool.connection() as conn:
             row = await (await conn.execute(
-                "UPDATE ai_tenant_config SET leaver_retention_days = %s WHERE singleton"
-                " RETURNING retention_days, key_provider, key_model, key_last4, key_updated_at, leaver_retention_days",
+                f"UPDATE ai_tenant_config SET leaver_retention_days = %s WHERE singleton RETURNING {CONFIG_COLUMNS}",
                 (check_leaver_retention(days),),
             )).fetchone()
         return _config_of(row)
 
-    async def set_key(self, provider: str, model: str, api_key: str, keyring: Keyring | None) -> TenantConfig:
+    async def set_key(self, provider: str, model: str, api_key: str, keyring: Keyring | None, base_url: str | None = None) -> TenantConfig:
         if keyring is None:
             raise KeyUnavailable("ai_key_unavailable")
         async with self.pool.connection() as conn:
             row = await (await conn.execute(
                 "UPDATE ai_tenant_config SET key_provider = %s, key_model = %s,"
-                " key_ciphertext = pgp_sym_encrypt(%s, %s, 'cipher-algo=aes256'), key_id = %s, key_last4 = %s, key_updated_at = now()"
-                " WHERE singleton"
-                " RETURNING retention_days, key_provider, key_model, key_last4, key_updated_at, leaver_retention_days",
-                (provider, model, api_key, keyring.secret(keyring.current_id), keyring.current_id, api_key[-LAST_CHARACTERS:]),
+                " key_ciphertext = pgp_sym_encrypt(%s, %s, 'cipher-algo=aes256'), key_id = %s, key_last4 = %s, key_updated_at = now(),"
+                f" key_base_url = %s WHERE singleton RETURNING {CONFIG_COLUMNS}",
+                (provider, model, api_key, keyring.secret(keyring.current_id), keyring.current_id, api_key[-LAST_CHARACTERS:], base_url),
             )).fetchone()
         return _config_of(row)
 
@@ -200,8 +199,7 @@ class PostgresTenantConfig:
         async with self.pool.connection() as conn:
             row = await (await conn.execute(
                 "UPDATE ai_tenant_config SET key_provider = NULL, key_model = NULL, key_ciphertext = NULL, key_id = NULL,"
-                " key_last4 = NULL, key_updated_at = NULL WHERE singleton"
-                " RETURNING retention_days, key_provider, key_model, key_last4, key_updated_at, leaver_retention_days",
+                f" key_last4 = NULL, key_updated_at = NULL, key_base_url = NULL WHERE singleton RETURNING {CONFIG_COLUMNS}",
             )).fetchone()
         return _config_of(row)
 
@@ -210,16 +208,16 @@ class PostgresTenantConfig:
         written meanwhile cannot pair one key's ciphertext with another's secret."""
         async with self.pool.connection() as conn:
             row = await (await conn.execute(
-                "SELECT key_provider, key_model, key_id, key_updated_at, key_ciphertext FROM ai_tenant_config"
+                "SELECT key_provider, key_model, key_id, key_updated_at, key_ciphertext, key_base_url FROM ai_tenant_config"
                 " WHERE singleton AND key_ciphertext IS NOT NULL",
             )).fetchone()
             if row is None:
                 return None
-            provider, model, key_id, updated_at, ciphertext = row
+            provider, model, key_id, updated_at, ciphertext, base_url = row
             if keyring is None:
                 raise KeyUnavailable("ai_key_unavailable")
             decrypted = await (await conn.execute("SELECT pgp_sym_decrypt(%s::bytea, %s)", (ciphertext, keyring.secret(key_id)))).fetchone()
-        return TenantKey(provider, model, decrypted[0], updated_at)
+        return TenantKey(provider, model, decrypted[0], updated_at, base_url)
 
     async def rotate(self, keyring: Keyring) -> bool:
         """Re-encrypt the key under the current secret; False when there is none or it already uses it."""
@@ -238,8 +236,8 @@ class PostgresTenantConfig:
 
 
 def _config_of(row) -> TenantConfig:
-    retention_days, provider, model, last4, updated_at, leaver_retention_days = row
-    key = KeyStatus(True, provider, model, last4, updated_at) if provider is not None else KeyStatus(configured=False)
+    retention_days, provider, model, last4, updated_at, leaver_retention_days, base_url = row
+    key = KeyStatus(True, provider, model, last4, updated_at, base_url) if provider is not None else KeyStatus(configured=False)
     return TenantConfig(retention_days, key, leaver_retention_days)
 
 
