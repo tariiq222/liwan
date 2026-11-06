@@ -424,7 +424,7 @@ jobs:
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'rtl-stories')
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
