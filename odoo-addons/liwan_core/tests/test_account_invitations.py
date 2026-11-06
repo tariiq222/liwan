@@ -394,6 +394,16 @@ class TestAccountInvitations(TransactionCase):
         self.assertEqual(self.sent[-1][0].purpose, 'reset')
         self.assertTrue(accepted.active)
 
+    def test_reactivation_does_not_revive_the_old_password(self):
+        user = self._invite()
+        self.public._liwan_accept_invitation(self.sent[-1][1], MOBILE, PASSWORD)
+        self.assertTrue(self._can_sign_in(user, PASSWORD))
+        self.service._liwan_disable_user(user, self._version(user))
+        self.service._liwan_reactivate_user(user, self._version(user))
+        self.assertFalse(self._can_sign_in(user, PASSWORD))
+        self.public._liwan_reset_password_with_token(self.sent[-1][1], 'another-twelve-chars')
+        self.assertTrue(self._can_sign_in(user, 'another-twelve-chars'))
+
     def test_admin_actions_need_the_right_capability_and_a_pending_user(self):
         accepted = self._invite()
         self.public._liwan_accept_invitation(self.sent[0][1], MOBILE, PASSWORD)

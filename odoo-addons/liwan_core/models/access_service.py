@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import json
 import re
+import secrets
 from contextlib import contextmanager
 
 from psycopg2 import IntegrityError, errorcodes
@@ -948,8 +949,13 @@ class LiwanAccessService(models.AbstractModel):
             raise LiwanAccessRule(msg, status=409)
         self._liwan_assert_account_reactivation(user)
         purpose = 'invite' if user.id in self._liwan_awaiting_users(user) else 'reset'
+        vals = {'active': True}
+        if purpose == 'reset':
+            # Only the emailed link may sign the user in again: the old password is replaced by a secret nobody
+            # knows (it also ends every session, as the session token follows the password hash).
+            vals['password'] = secrets.token_urlsafe(32)
         with self._liwan_mobile_guard():
-            user._liwan_access_write({'active': True}, 'access.users.disable')
+            user._liwan_access_write(vals, 'access.users.disable')
         self._liwan_send_link(user, purpose)
         self.env['liwan.access.audit']._liwan_log(
             'user.reactivated', user, before={'active': False}, after={'active': True},

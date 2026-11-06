@@ -61,6 +61,26 @@ class TestEmployeeAccountInvite(LiwanApiCase):
         self.assertEqual(self.employee_record.work_contact_id.email, 'invite.target@example.com')
         self.assertEqual(self.sent[-1][1], 'second.choice@example.com')
 
+    def test_cancelled_invitation_login_cannot_be_taken_by_another_employee(self):
+        first = self._grant()
+        self.assertEqual(first.status_code, 201, first.text)
+        created = first.json()
+        cancelled = self.api('POST', f"/api/v1/admin/users/{created['id']}/invitation/cancel", {
+            'expected_version': created['version'],
+        })
+        self.assertEqual(cancelled.status_code, 200, cancelled.text)
+        other = self.env['hr.employee'].create({
+            'name': 'Other Employee', 'work_email': 'other.employee@example.com',
+            'company_id': self.env.company.id,
+        })
+        sent = len(self.sent)
+        response = self._grant(employee_id=other.id)
+        self.assertEqual((response.status_code, response.json()['code']), (409, 'account_exists'), response.text)
+        self.assertEqual(response.json()['field'], 'login')
+        self.assertEqual(len(self.sent), sent)
+        other.invalidate_recordset(['user_id'])
+        self.assertFalse(other.user_id)
+
     def test_employee_grant_rejects_password_key(self):
         response = self._grant(password='twelve-chars-ok')
         self.assertEqual((response.status_code, response.json()['code']), (422, 'invalid'))
