@@ -64,6 +64,11 @@ class LiwanAccessHrService(models.AbstractModel):
         return extra
 
     @api.model
+    def _liwan_account_email_follows_login(self, user):
+        # The contact of a granted employee is the HR work contact: its email is the work email.
+        return super()._liwan_account_email_follows_login(user) and not self._liwan_linked_employees([user.id]).get(user.id)
+
+    @api.model
     def _liwan_assert_account_reactivation(self, user):
         super()._liwan_assert_account_reactivation(user)
         employee = self._liwan_linked_employees([user.id]).get(user.id)
@@ -184,29 +189,23 @@ class LiwanAccessHrService(models.AbstractModel):
         }
 
     @api.model
-    def _liwan_grant_employee_account(self, employee_id, password, assignments):
+    def _liwan_grant_employee_account(self, employee_id, login, assignments):
         self._liwan_require_capability('access.users.grant')
         row = self._liwan_employee_row(employee_id)
         if not row:
             msg = 'not_found'
             raise LiwanAccessRule(msg, 'employee is not available', status=404)
-        _id, name, work_email, partner_id, user_id, active = row
+        _id, name, _work_email, partner_id, user_id, active = row
         if not active:
             msg = 'employee_archived'
             raise LiwanAccessRule(msg, field='employee_id')
         if user_id:
             msg = 'account_exists'
             raise LiwanAccessRule(msg, field='employee_id', status=409)
-        login = email_normalize((work_email or '').strip())
-        if not login:
-            msg = 'work_email_required'
-            raise LiwanAccessRule(msg, field='employee_id')
         if not partner_id:
             msg = 'employee_contact_required'
             raise LiwanAccessRule(msg, field='employee_id')
-        user = self._liwan_create_account(
-            name, login, password, assignments, partner_id=partner_id,
-        )
+        user = self._liwan_invite_account(name, login, assignments, partner_id=partner_id)
         self._liwan_link_employee(employee_id, user.id)
         self.env['liwan.access.audit']._liwan_log(
             'user.employee_linked', user, before=None, after={'employee_id': employee_id},

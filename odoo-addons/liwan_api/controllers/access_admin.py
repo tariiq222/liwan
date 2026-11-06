@@ -7,7 +7,6 @@ from odoo.http import request
 from odoo.tools import email_normalize
 
 from odoo.addons.liwan_api.controllers.common import (
-    MIN_PASSWORD_LENGTH,
     ApiError,
     api_handler,
     clear_security_caches_after_commit,
@@ -47,12 +46,6 @@ def require_exact(payload, allowed, required=()):
     if missing:
         field = sorted(missing)[0]
         raise ApiError(422, 'invalid', 'field is required', field=field)
-
-
-def parse_password(value, field='password'):
-    if not isinstance(value, str) or len(value.strip()) < MIN_PASSWORD_LENGTH:
-        raise ApiError(422, 'weak_password', 'password must be at least 8 characters', field=field)
-    return value
 
 
 def parse_assignments(value):
@@ -99,7 +92,7 @@ def _name(value):
     return value.strip()
 
 
-def _login(value):
+def parse_login(value):
     login = email_normalize(value.strip()) if isinstance(value, str) else False
     if not login:
         raise ApiError(422, 'invalid', 'login must be an email address', field='login')
@@ -142,15 +135,21 @@ class AccessAdminUsersController(http.Controller):
         target = _target_user(user_id)
         return _dump(target, _extra(target))
 
+    @http.route('/api/v1/admin/users/seats', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    def seats(self):
+        request.env['liwan.access.service']._liwan_require_capability('access.users.grant')
+        entitlement = request.env['liwan.entitlement.service']
+        return {'used': entitlement._liwan_count_users(), 'limit': entitlement._liwan_limit_value('users.limit')}
+
     @http.route('/api/v1/admin/users', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     def create(self, **payload):
-        require_exact(payload, {'name', 'login', 'password', 'assignments'}, {'name', 'login', 'password', 'assignments'})
+        require_exact(payload, {'name', 'login', 'assignments'}, {'name', 'login', 'assignments'})
         service = request.env['liwan.access.service']
         service._liwan_require_capability('access.users.grant')
-        user = service._liwan_create_account(
-            _name(payload['name']), _login(payload['login']),
-            parse_password(payload['password']), parse_assignments(payload['assignments']),
+        user = service._liwan_invite_account(
+            _name(payload['name']), parse_login(payload['login']), parse_assignments(payload['assignments']),
         )
         clear_security_caches_after_commit(request.env)
         return request.make_json_response(_dump(user, _extra(user)), status=201)
@@ -167,16 +166,45 @@ class AccessAdminUsersController(http.Controller):
         clear_security_caches_after_commit(request.env)
         return _dump(target, _extra(target))
 
-    @http.route('/api/v1/admin/users/<int:user_id>/password', type='json2', auth='user', methods=['POST'], readonly=False)
+    @http.route('/api/v1/admin/users/<int:user_id>/invitation/resend', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    def reset_password(self, user_id, **payload):
-        require_exact(payload, {'password', 'expected_version'}, {'password', 'expected_version'})
+    def resend_invitation(self, user_id, **payload):
+        require_exact(payload, {'expected_version'}, {'expected_version'})
+        service = request.env['liwan.access.service']
+        service._liwan_require_capability('access.users.grant')
+        target = _target_user(user_id)
+        service._liwan_resend_invitation(target, payload['expected_version'])
+        return _dump(target, _extra(target))
+
+    @http.route('/api/v1/admin/users/<int:user_id>/invitation', type='json2', auth='user', methods=['PATCH'], readonly=False)
+    @api_handler
+    def edit_invitation(self, user_id, **payload):
+        require_exact(payload, {'login', 'expected_version'}, {'login', 'expected_version'})
+        service = request.env['liwan.access.service']
+        service._liwan_require_capability('access.users.grant')
+        target = _target_user(user_id)
+        service._liwan_change_invitation_login(target, parse_login(payload['login']), payload['expected_version'])
+        clear_security_caches_after_commit(request.env)
+        return _dump(target, _extra(target))
+
+    @http.route('/api/v1/admin/users/<int:user_id>/invitation/cancel', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    def cancel_invitation(self, user_id, **payload):
+        require_exact(payload, {'expected_version'}, {'expected_version'})
+        service = request.env['liwan.access.service']
+        service._liwan_require_capability('access.users.grant')
+        target = _target_user(user_id)
+        service._liwan_cancel_invitation(target, payload['expected_version'])
+        return _dump(target, _extra(target))
+
+    @http.route('/api/v1/admin/users/<int:user_id>/reset-link', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    def send_reset_link(self, user_id, **payload):
+        require_exact(payload, {'expected_version'}, {'expected_version'})
         service = request.env['liwan.access.service']
         service._liwan_require_capability('access.users.reset_password')
         target = _target_user(user_id)
-        service._liwan_reset_password(
-            target, parse_password(payload['password']), payload['expected_version'],
-        )
+        service._liwan_send_reset_link(target, payload['expected_version'])
         return _dump(target, _extra(target))
 
     @http.route('/api/v1/admin/users/<int:user_id>/disable', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -190,13 +218,11 @@ class AccessAdminUsersController(http.Controller):
     @http.route('/api/v1/admin/users/<int:user_id>/reactivate', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     def reactivate(self, user_id, **payload):
-        require_exact(payload, {'expected_version', 'password'}, {'expected_version', 'password'})
+        require_exact(payload, {'expected_version'}, {'expected_version'})
         service = request.env['liwan.access.service']
         service._liwan_require_capability('access.users.disable')
         target = _target_user(user_id)
-        service._liwan_reactivate_user(
-            target, parse_password(payload['password']), payload['expected_version'],
-        )
+        service._liwan_reactivate_user(target, payload['expected_version'])
         return _dump(target, _extra(target))
 
 

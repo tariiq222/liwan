@@ -4,7 +4,6 @@ from odoo.exceptions import AccessDenied
 from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.common import (
-    MIN_PASSWORD_LENGTH,
     ApiError,
     api_handler,
     clear_security_caches_after_commit,
@@ -12,6 +11,7 @@ from odoo.addons.liwan_api.controllers.common import (
 )
 from odoo.addons.liwan_api.models.res_users import APPEARANCE_MODES, FONT_SIZES
 from odoo.addons.liwan_api.serializers.user import dump_me
+from odoo.addons.liwan_core.models.access_service import MIN_PASSWORD_LENGTH
 
 
 class MeController(http.Controller):
@@ -45,6 +45,15 @@ class MeController(http.Controller):
         request.env.user.flush_recordset(['password'])
         request.session.session_token = fresh_session_token(request.env.user, request.session.sid)
         clear_security_caches_after_commit(request.env)
+        return dump_me(request.env.user)
+
+    @http.route('/api/v1/me/mobile', type='json2', auth='user', methods=['PATCH'], readonly=False)
+    @api_handler
+    def patch_mobile(self, mobile=None, **extra):
+        if extra:
+            field = next(iter(extra))
+            raise ApiError(422, 'invalid', f"field {field!r} is not accepted", field=field)
+        request.env['liwan.access.service']._liwan_set_own_mobile(mobile)
         return dump_me(request.env.user)
 
     @http.route('/api/v1/me/appearance', type='json2', auth='user', methods=['PATCH'], readonly=False)

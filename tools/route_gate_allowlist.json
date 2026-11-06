@@ -21,7 +21,8 @@
         "liwan_api/controllers/auth.py:totp",
         "liwan_api/controllers/me.py:change_password",
         "liwan_api/controllers/me.py:me",
-        "liwan_api/controllers/me.py:patch_appearance"
+        "liwan_api/controllers/me.py:patch_appearance",
+        "liwan_api/controllers/me.py:patch_mobile"
       ]
     },
     {
@@ -170,6 +171,15 @@
       "reason": "Public catalog product image under /api/v1/public/ (auth='public', no session): authorized by the item's own random image token, compared in constant time; no user and no capability exist for Meta's fetcher.",
       "routes": [
         "liwan_inbox_payments/controllers/images.py:product_image"
+      ]
+    },
+    {
+      "reason": "Anonymous holder of one emailed account link (invitation or password reset) under /api/v1/public/ (auth='public', save_session=False, no session): the single-use hashed token, checked in constant time by liwan.access.service, is the authorization, and forgot-password answers 202 for any email; no capability applies.",
+      "routes": [
+        "liwan_api/controllers/account_public.py:accept_invitation",
+        "liwan_api/controllers/account_public.py:check_token",
+        "liwan_api/controllers/account_public.py:forgot_password",
+        "liwan_api/controllers/account_public.py:reset_password"
       ]
     }
   ],

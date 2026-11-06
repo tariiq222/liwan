@@ -1,0 +1,1 @@
+New table liwan_account_token and new column res_users.liwan_mobile (nullable, unique among active users). Nothing to migrate: existing users keep a NULL mobile number and are asked for it after their next sign-in.

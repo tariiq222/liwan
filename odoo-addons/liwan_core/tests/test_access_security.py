@@ -192,7 +192,7 @@ class TestLiwanAccessSecurity(TransactionCase):
             legacy, 'access.users.assign_roles', company=self.company,
         ))
 
-    def test_password_reset_does_not_read_foreign_notification_sender(self):
+    def test_credential_changes_do_not_read_foreign_notification_sender(self):
         company_b = self.env['res.company'].create({
             'name': 'Password reset company B',
         })
@@ -210,6 +210,11 @@ class TestLiwanAccessSecurity(TransactionCase):
             'role_id': self.env.ref('liwan_core.role_system_admin').id,
             'company_id': company_b.id,
         }])
+        sent = []
+        self.patch(
+            type(self.env['liwan.account.mail']), '_liwan_send',
+            lambda model, token, raw: sent.append(raw),
+        )
 
         actor_env = self.env(
             user=actor,
@@ -217,10 +222,9 @@ class TestLiwanAccessSecurity(TransactionCase):
         )
         service = actor_env['liwan.access.service']
         target = actor_env['res.users'].browse(target.id)
-        service._liwan_reset_password(
-            target, 'legacy_password_reset_123',
-            service._liwan_user_version(target),
-        )
+        service._liwan_send_reset_link(target, service._liwan_user_version(target))
+        service._liwan_reset_password_with_token(sent[-1], 'legacy_password_reset_123')
+        target.invalidate_recordset()
 
         audit = actor_env['liwan.access.audit'].search([
             ('action', '=', 'user.password_reset'),
