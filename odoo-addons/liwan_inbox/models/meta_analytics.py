@@ -14,7 +14,7 @@ from .health_constants import (
     PRICING_REFRESH_DAYS,
     TEMPLATE_REFRESH_DAYS,
 )
-from odoo.addons.liwan_inbox.adapters import whatsapp
+from odoo.addons.liwan_inbox.adapters import errors, whatsapp
 
 _logger = logging.getLogger(__name__)
 ERROR_TEXT_LENGTH = 200
@@ -53,7 +53,7 @@ class LiwanInboxMetaAnalytics(models.AbstractModel):
                 self._liwan_sync_pricing(channel, credentials, now)
                 if channel.template_insights_enabled:
                     self._liwan_sync_templates(channel, credentials, now)
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             channel.analytics_error = str(error)[:ERROR_TEXT_LENGTH]
         else:
             channel.write({'analytics_synced_at': now, 'analytics_error': False})
@@ -61,13 +61,13 @@ class LiwanInboxMetaAnalytics(models.AbstractModel):
     @api.model
     def _liwan_unknown_number(self):
         message = 'the phone number is not known yet'
-        raise whatsapp.ProviderError(message, retryable=False)
+        raise errors.ProviderError(message, retryable=False)
 
     @api.model
     def _liwan_read_currency(self, channel, credentials):
         try:
             channel.currency_code = whatsapp.fetch_currency(credentials) or False
-        except whatsapp.ProviderError:
+        except errors.ProviderError:
             channel.currency_code = False  # Meta does not offer the field on every account: amounts then show without a currency
 
     @api.model

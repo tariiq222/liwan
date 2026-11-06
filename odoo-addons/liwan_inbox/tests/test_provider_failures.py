@@ -6,7 +6,7 @@ import requests
 
 from odoo.tests import BaseCase, tagged
 
-from odoo.addons.liwan_inbox.adapters import whatsapp
+from odoo.addons.liwan_inbox.adapters import errors, whatsapp
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -15,7 +15,7 @@ class TestProviderFailures(BaseCase):
     def call(self, error):
         credentials = whatsapp.Credentials(phone_number_id='12345', business_account_id='67890', access_token='token')
         with patch.object(requests, 'request', side_effect=error):
-            with self.assertRaises(whatsapp.ProviderError) as caught:
+            with self.assertRaises(errors.ProviderError) as caught:
                 whatsapp._call('POST', whatsapp._graph('messages'), credentials)
         return caught.exception
 

@@ -10,7 +10,7 @@ from . import flow_json
 from .access_service import READ
 from .constants import FLOW_JSON_VERSION
 from .flow_starters import FLOW_STARTERS
-from odoo.addons.liwan_inbox.adapters import whatsapp
+from odoo.addons.liwan_inbox.adapters import errors, whatsapp
 
 _logger = logging.getLogger(__name__)
 
@@ -249,7 +249,7 @@ class LiwanInboxFlow(models.Model):
             self._liwan_refresh(credentials)
             if self.replaces_id:
                 self._liwan_take_over(credentials)
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             _logger.warning('form %s: finishing the publish failed: %s', self.id, error)
             self.last_error = str(error)[:200]
         else:

@@ -12,7 +12,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
-from odoo.addons.liwan_inbox.adapters import whatsapp
+from odoo.addons.liwan_inbox.adapters import errors, whatsapp
 from odoo.addons.liwan_inbox.controllers.channels import dump
 from odoo.addons.liwan_inbox.controllers.conversation_files import parse_upload
 from odoo.addons.liwan_inbox.controllers.helpers import (
@@ -21,6 +21,7 @@ from odoo.addons.liwan_inbox.controllers.helpers import (
     no_content,
     parse_text,
     reject,
+    require_kind,
 )
 from odoo.addons.liwan_inbox.models.access_service import MANAGE_CHANNELS
 from odoo.addons.liwan_inbox.models.constants import WHATSAPP_FEATURE
@@ -89,11 +90,12 @@ def provider_call(call, *args, **kwargs):
     """Run an adapter call; a provider refusal answers 422 with Meta's text (never the request, so never a PIN)."""
     try:
         return call(*args, **kwargs)
-    except whatsapp.ProviderError as error:
+    except errors.ProviderError as error:
         reject(str(error))
 
 
 def profile_of(channel):
+    require_kind(channel, 'whatsapp')
     return provider_call(whatsapp.get_business_profile, channel._liwan_credentials())
 
 
@@ -105,6 +107,7 @@ class ChannelHealthController(http.Controller):
     @requires_capability(MANAGE_CHANNELS)
     def list_alerts(self, channel_id, **_):
         channel = get_channel(channel_id, MANAGE_CHANNELS)
+        require_kind(channel, 'whatsapp')
         limit, offset = parse_page(request.httprequest.args)
         Alert = request.env['liwan.inbox.channel.alert']
         domain = [('channel_id', '=', channel.id)]
@@ -126,6 +129,7 @@ class ChannelHealthController(http.Controller):
     @requires_capability(MANAGE_CHANNELS)
     def update_profile(self, channel_id, **payload):
         channel = get_channel(channel_id, MANAGE_CHANNELS)
+        require_kind(channel, 'whatsapp')
         values = parse_profile(payload)
         provider_call(whatsapp.update_business_profile, channel._liwan_credentials(), values)
         return profile_of(channel)
@@ -137,6 +141,7 @@ class ChannelHealthController(http.Controller):
     def upload_picture(self, channel_id, **payload):
         """Send the profile picture to Meta; LiwanOS keeps no copy of the bytes."""
         channel = get_channel(channel_id, MANAGE_CHANNELS)
+        require_kind(channel, 'whatsapp')
         name, raw, mimetype = parse_upload(payload)
         if mimetype not in PICTURE_MIMETYPES:
             reject('the profile picture must be a JPEG or PNG image', 'data')
@@ -153,6 +158,7 @@ class ChannelHealthController(http.Controller):
     @requires_capability(MANAGE_CHANNELS)
     def request_display_name(self, channel_id, **payload):
         channel = get_channel(channel_id, MANAGE_CHANNELS)
+        require_kind(channel, 'whatsapp')
         check_fields(payload, {'name'}, required=('name',))
         name = parse_text(payload, 'name', 128, minimum=3)
         provider_call(whatsapp.request_display_name, channel._liwan_credentials(), name)
@@ -166,6 +172,7 @@ class ChannelHealthController(http.Controller):
     @requires_capability(MANAGE_CHANNELS)
     def set_pin(self, channel_id, **payload):
         channel = get_channel(channel_id, MANAGE_CHANNELS)
+        require_kind(channel, 'whatsapp')
         pin = parse_pin(payload)
         claim_action(channel, 'pin_attempted_at')
         provider_call(whatsapp.set_two_step_pin, channel._liwan_credentials(), pin)
@@ -177,6 +184,7 @@ class ChannelHealthController(http.Controller):
     @requires_capability(MANAGE_CHANNELS)
     def register_number(self, channel_id, **payload):
         channel = get_channel(channel_id, MANAGE_CHANNELS)
+        require_kind(channel, 'whatsapp')
         pin = parse_pin(payload)
         claim_action(channel, 'register_attempted_at')
         provider_call(whatsapp.register, channel._liwan_credentials(), pin)
@@ -191,6 +199,7 @@ class ChannelHealthController(http.Controller):
     @requires_capability(MANAGE_CHANNELS)
     def enable_template_insights(self, channel_id, **payload):
         channel = get_channel(channel_id, MANAGE_CHANNELS)
+        require_kind(channel, 'whatsapp')
         if payload:
             reject('no fields are accepted')
         provider_call(request.env['liwan.inbox.meta.analytics']._liwan_enable_template_insights, channel)
@@ -204,6 +213,7 @@ class ChannelHealthController(http.Controller):
     @requires_capability(MANAGE_CHANNELS)
     def sync_analytics(self, channel_id, **payload):
         channel = get_channel(channel_id, MANAGE_CHANNELS)
+        require_kind(channel, 'whatsapp')
         if payload:
             reject('no fields are accepted')
         if not request.env['liwan.inbox.meta.analytics']._liwan_request(channel):

@@ -1,12 +1,19 @@
 import {
   InboxAutoContentSchema, InboxChannelAutomationSchema, InboxRuleWriteSchema, InboxWorkingHoursSchema,
-  type InboxAutoContent, type InboxChannelAutomation, type InboxPriority, type InboxRule, type InboxRuleMatchKind, type InboxRuleWrite, type InboxWorkingHours,
+  type InboxAutoContent, type InboxChannelAutomation, type InboxChannelKind, type InboxPriority, type InboxRule, type InboxRuleMatchKind, type InboxRuleWrite, type InboxWorkingHours,
 } from '@liwan/contracts'
 import { buildCommerceContent, commerceToDraft, emptyCommerceDraft, type CommerceDraft } from './inboxCommerce'
-import { buildInteractive, emptyInteractiveDraft, interactiveToDraft, type InteractiveDraft } from './inboxInteractive'
+import { TIKTOK_INTERACTIVE_LIMITS, buildInteractive, emptyInteractiveDraft, interactiveToDraft, type InteractiveDraft } from './inboxInteractive'
 
 // Pure helpers of the inbox automation screens: the weekly hours grid, the text-or-interactive content of an
 // automatic message, and a rule form. Each editor works on a draft; the contract schemas decide what may be saved.
+// A TikTok channel narrows the content to what TikTok carries (D3, D10): its welcome is a text of up to 250 characters
+// it pushes itself, and every other automatic message is a text or a button card.
+
+/** The longest TikTok welcome text: TikTok's own WELCOME_MESSAGE limit, which LiwanOS pushes rather than sends. */
+export const TIKTOK_WELCOME_MAX = 250
+/** TikTok's survey goes out as a button card, so its question is that card's title (40 characters). */
+export const TIKTOK_SURVEY_QUESTION_MAX = TIKTOK_INTERACTIVE_LIMITS.body
 
 // ---------------------------------------------------------------- working hours
 
@@ -78,10 +85,25 @@ export function autoContentToDraft(content: InboxAutoContent | null): AutoConten
 }
 
 /** The content the server stores, or null while the draft is empty or breaks a limit. */
-export function buildAutoContent(draft: AutoContentDraft): InboxAutoContent | null {
-  const candidate = draft.mode === 'text' ? { body: draft.body.trim() } : draft.mode === 'interactive' ? { interactive: buildInteractive(draft.interactive) } : { commerce: buildCommerceContent(draft.commerce) }
+export function buildAutoContent(draft: AutoContentDraft, kind: InboxChannelKind = 'whatsapp'): InboxAutoContent | null {
+  const candidate = draft.mode === 'text'
+    ? { body: draft.body.trim() }
+    : draft.mode === 'interactive' ? { interactive: buildInteractive(draft.interactive, kind) } : { commerce: buildCommerceContent(draft.commerce) }
   const parsed = InboxAutoContentSchema.safeParse(candidate)
   return parsed.success ? parsed.data : null
+}
+
+/** One automatic message's content: TikTok's welcome is its plain text only and TikTok carries no products in an
+ * automatic message (its away message is a text or a button card); every other message follows the channel. */
+function autoMessageContent(content: AutoContentDraft, kind: InboxChannelKind, welcome: boolean): InboxAutoContent | null {
+  if (kind === 'tiktok') {
+    if (welcome) {
+      const body = content.mode === 'text' ? content.body.trim() : ''
+      return body && body.length <= TIKTOK_WELCOME_MAX ? { body } : null
+    }
+    if (content.mode === 'commerce') return null
+  }
+  return buildAutoContent(content, kind)
 }
 
 // ---------------------------------------------------------------- rules
@@ -185,15 +207,15 @@ export function automationToDraft(automation: InboxChannelAutomation): ChannelAu
 }
 
 /** The body the server stores; a disabled message with an unfinished draft is saved without content. */
-export function automationCandidate(draft: ChannelAutomationDraft) {
+export function automationCandidate(draft: ChannelAutomationDraft, kind: InboxChannelKind = 'whatsapp') {
   return {
-    welcome: { enabled: draft.welcome.enabled, idle_days: draft.welcome.idleDays, content: buildAutoContent(draft.welcome.content) },
-    away: { enabled: draft.away.enabled, repeat_hours: draft.away.repeatHours, content: buildAutoContent(draft.away.content) },
+    welcome: { enabled: draft.welcome.enabled, idle_days: draft.welcome.idleDays, content: autoMessageContent(draft.welcome.content, kind, true) },
+    away: { enabled: draft.away.enabled, repeat_hours: draft.away.repeatHours, content: autoMessageContent(draft.away.content, kind, false) },
     csat: { enabled: draft.csat.enabled, question: draft.csat.question.trim(), good: draft.csat.good.trim(), neutral: draft.csat.neutral.trim(), bad: draft.csat.bad.trim() },
   }
 }
 
-export function automationWrite(draft: ChannelAutomationDraft): InboxChannelAutomation | null {
-  const parsed = InboxChannelAutomationSchema.safeParse(automationCandidate(draft))
+export function automationWrite(draft: ChannelAutomationDraft, kind: InboxChannelKind = 'whatsapp'): InboxChannelAutomation | null {
+  const parsed = InboxChannelAutomationSchema.safeParse(automationCandidate(draft, kind))
   return parsed.success ? parsed.data : null
 }

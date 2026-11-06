@@ -97,6 +97,12 @@ def visible_conversation(conversation_id):
     return conversation
 
 
+def require_kind(channel, kind):
+    """422 `inbox_channel_kind_unsupported` when a route serves one provider and `channel` is another."""
+    if channel.kind != kind:
+        reject(f'this route serves {kind} channels only', reason='inbox_channel_kind_unsupported')
+
+
 def get_channel(channel_id, *capabilities):
     """A channel of a company where the caller holds one of `capabilities`; any other channel is a plain 404.
 

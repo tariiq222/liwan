@@ -16,6 +16,7 @@ from . import (
     channel_alert,
     channel_health,
     channel_sending,
+    channel_tiktok,
     consent,
     contact,
     contact_marketing,
@@ -29,6 +30,7 @@ from . import (
     flow,
     flow_submission,
     inbound_service,
+    inbound_tiktok,
     ir_http,
     lists,
     mail_message,
@@ -50,5 +52,7 @@ from . import (
     settings_campaign,
     template,
     template_day,
+    tiktok_shortcut,
+    tiktok_sync,
     working_hours,
 )

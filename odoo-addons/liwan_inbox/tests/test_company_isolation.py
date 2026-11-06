@@ -3,23 +3,28 @@
 import base64
 import csv
 import io
+import json
 import os
+import time
 from datetime import timedelta
 from unittest.mock import patch
 
 from odoo import fields
 from odoo.tests import new_test_user, tagged
 
+from . import tiktok_payloads as tt
 from odoo.addons.liwan_api.tests.common import (
     CompanyIsolationCase,
     assert_isolation_discovery,
     cover_isolation_routes,
+    set_probe_feature,
 )
 from odoo.addons.liwan_inbox.adapters import whatsapp
+from odoo.addons.liwan_inbox.models.constants import TIKTOK_FEATURE
 from odoo.addons.liwan_inbox.models.secret_box import KEY_ENV
 from odoo.addons.liwan_inbox.tests.common import ACCESS_TOKEN, APP_SECRET
 
-EXPECTED_GET_RECORD_ROUTES = 27
+EXPECTED_GET_RECORD_ROUTES = 29
 PASSWORD = 'iso_inbox_nocap_pass_123'
 PROFILE = {'about': 'About', 'address': None, 'description': None, 'email': None, 'websites': [], 'vertical': None}
 PREVIEW = {'url': 'https://business.facebook.com/wa/manage/flows/preview/abc', 'expires_at': fields.Datetime.now()}
@@ -255,6 +260,234 @@ class TestInboxCompanyIsolation(CompanyIsolationCase):
 
     def test_discovery_covers_every_get_record_route(self):
         assert_isolation_discovery(self, 'liwan_inbox', EXPECTED_GET_RECORD_ROUTES)
+
+
+# The TikTok app configuration read by the webhook and the connect route; its secret also signs the deliveries.
+TIKTOK_APP_ENV = {
+    'LIWAN_TIKTOK_CLIENT_KEY': tt.CLIENT_KEY,
+    'LIWAN_TIKTOK_CLIENT_SECRET': tt.CLIENT_SECRET,
+    'LIWAN_TIKTOK_REDIRECT_URI': 'https://liwan.test/api/v1/inbox/tiktok/callback',
+}
+TIKTOK_HOOK = '/api/v1/inbox/hooks/tiktok'
+# Company B's account is the fixture business account itself, so `tiktok_payloads` signs its deliveries as they are.
+BUSINESS_A = 'business-open-id-iso-a'
+BUSINESS_B = tt.BUSINESS_ID
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestTikTokCompanyIsolation(CompanyIsolationCase):
+    """Company B's TikTok records never reach company A's channel manager.
+
+    The manager role is granted per company: A's manager holds it in A alone, and the per-request company pin
+    is exercised separately by a manager who holds it in both companies. The control is B's own manager reading
+    the very records the A searches miss, so the hiding is the company fence and not a missing fixture.
+    """
+
+    RECORD_MODELS = {
+        'channel': 'liwan.inbox.channel',
+        'conversation': 'liwan.inbox.conversation',
+        'message': 'liwan.inbox.message',
+        'shortcut': 'liwan.inbox.tiktok.shortcut',
+        'sync': 'liwan.inbox.tiktok.sync',
+        'event': 'liwan.inbox.event',
+    }
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        env_patch = patch.dict(os.environ, TIKTOK_APP_ENV)
+        env_patch.start()
+        cls.addClassCleanup(env_patch.stop)
+        set_probe_feature(cls, key=TIKTOK_FEATURE, enabled=True)
+        cls.manager_a = cls._company_manager('iso_tiktok_manager_a', cls.company_p)
+        cls.manager_b = cls._company_manager('iso_tiktok_manager_b', cls.company_c)
+        # iso_user manages both companies: an A request made by it must still hide B, so the pin is what keeps
+        # B out, not a missing assignment.
+        Assignment = cls.env['liwan.access.assignment'].sudo()
+        manager = cls.env.ref('liwan_inbox.role_inbox_manager')
+        for company in (cls.company_p, cls.company_c):
+            Assignment.create({'user_id': cls.iso_user.id, 'role_id': manager.id, 'company_id': company.id})
+        cls.records = {
+            'a': cls._tiktok_records(cls.company_p, BUSINESS_A),
+            'b': cls._tiktok_records(cls.company_c, BUSINESS_B),
+        }
+
+    @classmethod
+    def _company_manager(cls, login, company):
+        """An inbox manager of `company` alone."""
+        user = new_test_user(
+            cls.env, login=login, password=PASSWORD, name=login,
+            groups='liwan_core.group_employee', company_id=company.id,
+        )
+        cls.env['liwan.access.assignment'].sudo().create({
+            'user_id': user.id, 'role_id': cls.env.ref('liwan_inbox.role_inbox_manager').id,
+            'company_id': company.id,
+        })
+        return user
+
+    @classmethod
+    def _tiktok_records(cls, company, business_id):
+        """One connected TikTok account of `company` with the records the isolation covers."""
+        env = cls.env
+        channel = env['liwan.inbox.channel'].create({
+            'name': f'TikTok {company.name}', 'kind': 'tiktok', 'tiktok_business_id': business_id,
+            'state': 'connected', 'owner_company_id': company.id,
+        })
+        contact = env['liwan.inbox.contact'].create({'name': f'Customer {company.name}', 'company_id': company.id})
+        identity = env['liwan.inbox.contact.identity'].create({
+            'contact_id': contact.id, 'channel_kind': 'tiktok', 'address': f'sender-{business_id}',
+            'company_id': company.id,
+        })
+        conversation = env['liwan.inbox.conversation'].create({
+            'channel_id': channel.id, 'contact_id': contact.id, 'identity_id': identity.id,
+            'company_id': company.id, 'provider_conversation_id': f'conversation-{business_id}',
+        })
+        message = env['liwan.inbox.message'].create({
+            'conversation_id': conversation.id, 'company_id': company.id, 'direction': 'in', 'kind': 'text',
+            'body': f'Hello from {company.name}', 'delivery_state': 'received',
+            'provider_message_id': f'message-{business_id}',
+        })
+        shortcut = env['liwan.inbox.tiktok.shortcut'].create({
+            'channel_id': channel.id, 'kind': 'question',
+            'question': 'Do you deliver?', 'answer': 'Yes, city-wide.',
+        })
+        return {
+            'channel': channel, 'conversation': conversation, 'message': message, 'shortcut': shortcut,
+            'sync': channel._liwan_tiktok_queue_sync(),
+            'event': env['liwan.inbox.event'].create({
+                'channel_id': channel.id, 'owner_company_id': company.id,
+                'payload': json.dumps(tt.receive_text(message_id=f'msg-iso-{business_id}')),
+            }),
+        }
+
+    def test_tiktok_records_isolated(self):
+        """B's TikTok channel, conversation, messages, shortcuts, sync job and raw event stay in B.
+
+        The records are proved through the ORM search of each company's own manager; the routes that serve
+        them answer the other company's manager with the not-found; and the raw event has no API route of its
+        own, so it is proved through the ORM and through the webhook that creates it for B alone.
+        """
+        self.assert_orm_hidden()
+        self.assert_routes_hidden()
+        self.assert_webhook_lands_on_b_only()
+
+    def assert_orm_hidden(self):
+        """A's own manager reads A's record of every kind and never B's, which B's own manager does read."""
+        records_a, records_b = self.records['a'], self.records['b']
+        company_a = self.env(user=self.manager_a)
+        company_b = self.env(user=self.manager_b)
+        for key, model in self.RECORD_MODELS.items():
+            with self.subTest(record=key):
+                self.assertFalse(
+                    company_a[model].search([('id', '=', records_b[key].id)]),
+                    f'{model} {records_b[key].id} of company B is visible to company A\'s manager',
+                )
+                self.assertEqual(
+                    company_a[model].search_count([('id', 'in', (records_a[key].id, records_b[key].id))]), 1,
+                    f'{model}: the A manager must read exactly its own record',
+                )
+                # Control: the same record is readable by B's own manager, so the A search missed it because of
+                # the company fence, not because it does not exist.
+                self.assertEqual(
+                    company_b[model].search([('id', '=', records_b[key].id)]), records_b[key],
+                    f'{model} {records_b[key].id} of company B is not readable by company B\'s manager',
+                )
+        self.assertEqual(company_a['liwan.inbox.channel'].search([]).owner_company_id, self.company_p)
+        self.assertEqual(company_b['liwan.inbox.channel'].search([]).owner_company_id, self.company_c)
+
+    def assert_routes_hidden(self):
+        """Every route serving a B TikTok record answers A's manager with the not-found; A's own answers 200, and
+        B's own answers 200 to the very same manager with B as its current company."""
+        self.env_in(self.company_p)
+        hidden, own = self.records['b'], self.records['a']
+        for name, path in self._get_paths(hidden).items():
+            with self.subTest(route=name, channel='B'):
+                self.assertHiddenEveryWay('GET', path, hidden['channel'].id)
+        for name, path in self._get_paths(own).items():
+            with self.subTest(route=name, channel='A'):
+                self.assertVisible(path)
+        for method, path, body in self._hidden_writes(hidden):
+            with self.subTest(method=method, route=path):
+                response = self.api(method, path, body)
+                self.assertEqual(response.status_code, 404, response.text[:300])
+                self.assertEqual(response.json().get('code'), 'not_found', response.text[:300])
+        self.assertEqual(
+            self.api('POST', '/api/v1/inbox/channels/tiktok/connect', {'channel_id': own['channel'].id}).status_code,
+            200, "the A manager must still be able to (re)connect its own TikTok channel",
+        )
+        # Control: the same manager reads B's records on the same routes once B is its current company, so the
+        # 404s above are the request pin and not a missing capability or an absent record.
+        self.iso_user.company_id = self.company_c.id
+        self.authenticate('iso_emp', 'iso_emp_pass_123')
+        for name, path in self._get_paths(hidden).items():
+            with self.subTest(route=name, channel='B current'):
+                self.assertVisible(path)
+        self.assertEqual(
+            self.api('POST', '/api/v1/inbox/channels/tiktok/connect', {'channel_id': hidden['channel'].id}).status_code,
+            200, "the manager must be able to reconnect B's channel when B is its current company",
+        )
+
+    def _get_paths(self, record):
+        """The GET routes that serve one TikTok account's channel, conversation and settings."""
+        channel, conversation = record['channel'].id, record['conversation'].id
+        return {
+            'channel': f'/api/v1/inbox/channels/{channel}',
+            'conversation': f'/api/v1/inbox/conversations/{conversation}',
+            'messages': f'/api/v1/inbox/conversations/{conversation}/messages',
+            'shortcuts': f'/api/v1/inbox/channels/{channel}/tiktok/shortcuts',
+            'sync': f'/api/v1/inbox/channels/{channel}/tiktok/sync',
+        }
+
+    def _hidden_writes(self, record):
+        """The writes that would reach or change another company's TikTok account."""
+        base = f'/api/v1/inbox/channels/{record["channel"].id}/tiktok'
+        shortcut = f'{base}/shortcuts/{record["shortcut"].id}'
+        return (
+            ('POST', f'{base}/shortcuts', {'kind': 'question', 'question': 'Stolen?', 'answer': 'Yes'}),
+            ('PATCH', shortcut, {'question': 'Stolen?'}),
+            ('DELETE', shortcut, None),
+            ('POST', f'{base}/shortcuts/enable', {'kind': 'question', 'enabled': True}),
+            ('POST', f'{base}/sync', None),
+            ('POST', '/api/v1/inbox/channels/tiktok/connect', {'channel_id': record['channel'].id, 'name': 'Stolen'}),
+        )
+
+    def assert_webhook_lands_on_b_only(self):
+        """A signed delivery for B's business account creates its event on B's channel and company only."""
+        marker = 'msg-iso-event-b'
+        response = self.deliver(json.dumps(tt.receive_text(body='Isolation delivery for B', message_id=marker)).encode())
+        self.assertEqual((response.status_code, response.text), (200, 'ok'))
+        event = self.env['liwan.inbox.event'].search([('payload', 'like', marker)])
+        self.assertEqual(len(event), 1)
+        self.assertEqual((event.channel_id, event.owner_company_id), (self.records['b']['channel'], self.company_c))
+        self.assertFalse(self.env['liwan.inbox.event'].search([
+            ('owner_company_id', '=', self.company_p.id), ('payload', 'like', marker),
+        ]))
+        self.assertFalse(
+            self.env(user=self.manager_a)['liwan.inbox.event'].search([('payload', 'like', marker)]),
+            "company A's manager reads the event of a delivery for company B",
+        )
+        # A delivery for an account no channel owns is refused exactly like a bad signature and stores nothing.
+        unknown = 'msg-iso-unknown-account'
+        refused = self.deliver(json.dumps(tt.envelope(
+            'im_receive_msg',
+            tt.message('text', {'body': 'Unknown account'}, message_id=unknown),
+            business_id='unknown-business-open-id',
+        )).encode())
+        bad_signature = self.deliver(
+            json.dumps(tt.receive_text(message_id='msg-iso-bad-signature')).encode(), secret='another-secret',
+        )
+        for answer in (refused, bad_signature):
+            self.assertEqual(answer.status_code, 403, answer.text)
+            self.assertEqual(answer.json().get('code'), 'forbidden')
+        self.assertEqual(refused.content, bad_signature.content)
+        self.assertFalse(self.env['liwan.inbox.event'].search([('payload', 'like', unknown)]))
+
+    def deliver(self, raw, secret=tt.CLIENT_SECRET, now=None):
+        """One signed TikTok webhook POST, as TikTok delivers it."""
+        return self.url_open(TIKTOK_HOOK, data=raw, headers={
+            'Content-Type': 'application/json',
+            'Tiktok-Signature': tt.signed(raw, secret, int(time.time()) if now is None else now),
+        }, method='POST')
 
 
 cover_isolation_routes((

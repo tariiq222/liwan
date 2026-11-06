@@ -8,6 +8,7 @@ import InboxConversationList from '@/components/inbox/InboxConversationList.vue'
 import InboxThread from '@/components/inbox/InboxThread.vue'
 import { ApiError } from '@/composables/useApi'
 import { parseInboxListRoute, serializeInboxListRoute, type InboxListRoute } from '@/composables/inbox/inboxListRoute'
+import { CHANNEL_KIND_ICON } from '@/composables/inbox/inboxChannelKind'
 import { CONVERSATION_STATE_TONE, CSAT_TONE } from '@/composables/inbox/inboxPresentation'
 import { replyWindowOpen } from '@/composables/inbox/inboxWindow'
 import { useInboxCatalogEnabled, useInboxChannelCommerce } from '@/composables/inbox/useInboxCatalog'
@@ -67,9 +68,16 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
         <UAvatar v-bind="avatarProps(data?.contact.name, data?.contact.id)" size="lg" class="shrink-0" />
         <div class="min-w-0 flex-1 text-start">
           <h1 class="truncate text-lg font-semibold text-highlighted">{{ data?.contact.name || t('inbox.title') }}</h1>
-          <p class="truncate text-xs text-muted"><bdi dir="ltr">{{ data?.contact.phone ?? '' }}</bdi></p>
+          <p v-if="data" class="flex min-w-0 items-center gap-1 text-xs text-muted">
+            <UIcon :name="CHANNEL_KIND_ICON[data.channel.kind]" class="size-3.5 shrink-0" aria-hidden="true" />
+            <span class="truncate">{{ data.channel.name }}</span>
+            <template v-if="data.contact.phone">· <bdi dir="ltr" class="truncate">{{ data.contact.phone }}</bdi></template>
+          </p>
         </div>
         <SharedStatusBadge v-if="data?.csat" :tone="CSAT_TONE[data.csat.score]" icon="i-lucide-star" :label="t('inbox.csat.badge', { score: t(`inbox.csat.${data.csat.score}`) })" data-testid="inbox-csat-badge" />
+        <UTooltip v-if="data?.referral_source" :text="data.referral_ref ? t('inbox.referral.ref', { ref: data.referral_ref }) : t('inbox.referral.badge', { source: t(`inbox.referral.${data.referral_source}`) })">
+          <SharedStatusBadge tone="info" icon="i-lucide-megaphone" :label="t('inbox.referral.badge', { source: t(`inbox.referral.${data.referral_source}`) })" data-testid="inbox-referral-badge" />
+        </UTooltip>
         <SharedStatusBadge v-if="data" :tone="CONVERSATION_STATE_TONE[data.state]" :label="t(`inbox.states.${data.state}`)" />
         <UTooltip v-if="catalogOn" :text="t('inbox.orders.title')">
           <UButton color="neutral" :variant="ordersOpen ? 'soft' : 'ghost'" square :to="ordersOpen ? threadTo : ordersTo" :aria-pressed="ordersOpen" :aria-label="t('inbox.orders.title')" data-testid="inbox-orders-toggle">
@@ -95,7 +103,7 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
     <template #thread>
       <div class="flex min-h-0 flex-1 flex-col" data-testid="inbox-thread">
         <template v-if="props.conversationId && !error">
-          <InboxThread :conversation-id="props.conversationId" :channel-id="data?.channel.id" :can-reply="data?.can_reply ?? false" :window-open="!!data && replyWindowOpen(data)" @reply="replyTo = $event" />
+          <InboxThread :conversation-id="props.conversationId" :channel-id="data?.channel.id" :channel-kind="data?.channel.kind" :can-reply="data?.can_reply ?? false" :window-open="!!data && replyWindowOpen(data)" @reply="replyTo = $event" />
         </template>
         <template v-else>
           <!-- The one page heading when no thread header is shown. -->
@@ -137,7 +145,7 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
           :description="hasConversations ? t('inbox.selectDescription') : t('inbox.list.emptyDescription')"
         >
           <template #icon>
-            <UIcon name="i-liwan-whatsapp" class="size-8" />
+            <UIcon name="i-lucide-messages-square" class="size-8" />
           </template>
         </EmptyState>
       </div>

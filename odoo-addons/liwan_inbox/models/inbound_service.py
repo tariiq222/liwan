@@ -2,7 +2,7 @@
 from odoo import api, models
 from odoo.exceptions import UserError
 
-from odoo.addons.liwan_inbox.adapters import whatsapp
+from odoo.addons.liwan_inbox.adapters import errors, whatsapp
 
 ERROR_TEXT_LENGTH = 200
 REOPENED_STATES = ('pending', 'resolved')
@@ -143,5 +143,5 @@ class LiwanInboxInbound(models.AbstractModel):
                     'name': item.filename or item.kind, 'raw': media.content, 'mimetype': media.mimetype,
                     'type': 'binary', 'res_model': message._name, 'res_id': message.id,
                 })
-        except (whatsapp.ProviderError, UserError) as error:
+        except (errors.ProviderError, UserError) as error:
             message.error = str(error)[:ERROR_TEXT_LENGTH]

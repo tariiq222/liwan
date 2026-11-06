@@ -1,15 +1,44 @@
-import { InboxInteractiveSchema, type InboxInteractive } from '@liwan/contracts'
+import { InboxInteractiveSchema, type InboxChannelKind, type InboxInteractive } from '@liwan/contracts'
 
-// The WhatsApp interactive message an agent builds in the composer: reply buttons, a list, a call-to-action URL, or a form.
-// The limits are Meta's, mirrored by InboxInteractiveSchema; the builder shows them as live counters.
+// The interactive message an agent builds in the composer: reply buttons, a list, a call-to-action URL, or a form.
+// The limits are Meta's, mirrored by InboxInteractiveSchema; the builder shows them as live counters. TikTok carries
+// one kind only, its button card: a title of up to 40 characters and one to three buttons of up to 20 (D3).
 
 export type InteractiveType = InboxInteractive['type']
 export const INTERACTIVE_TYPES: readonly InteractiveType[] = ['buttons', 'list', 'cta_url', 'flow']
 
-export const INTERACTIVE_LIMITS = {
+export interface InteractiveLimitValues {
+  body: number
+  header: number
+  footer: number
+  buttons: number
+  buttonTitle: number
+  listButton: number
+  displayText: number
+  sections: number
+  sectionTitle: number
+  rows: number
+  rowTitle: number
+  rowDescription: number
+  flowCta: number
+}
+
+export const INTERACTIVE_LIMITS: InteractiveLimitValues = {
   body: 1024, header: 60, footer: 60, buttons: 3, buttonTitle: 20, listButton: 20, displayText: 20,
   sections: 10, sectionTitle: 24, rows: 10, rowTitle: 24, rowDescription: 72, flowCta: 30,
-} as const
+}
+
+/** TikTok's button card: the card title is the message body, and it has no header, footer, list or link. */
+export const TIKTOK_INTERACTIVE_LIMITS = { body: 40, header: 0, footer: 0, buttons: 3, buttonTitle: 20 }
+
+/** The interactive kinds a channel carries, and the counters of the ones it does. */
+export function interactiveTypes(kind: InboxChannelKind): readonly InteractiveType[] {
+  return kind === 'tiktok' ? ['buttons'] : INTERACTIVE_TYPES
+}
+
+export function interactiveLimits(kind: InboxChannelKind): InteractiveLimitValues {
+  return kind === 'tiktok' ? { ...INTERACTIVE_LIMITS, ...TIKTOK_INTERACTIVE_LIMITS } : INTERACTIVE_LIMITS
+}
 
 export interface InteractiveRowDraft { title: string; description: string }
 export interface InteractiveSectionDraft { title: string; rows: InteractiveRowDraft[] }
@@ -39,7 +68,8 @@ const orNull = (value: string) => value.trim() || null
  * The wire message, or null while the draft breaks a limit. Button and row ids are generated from their position, so a
  * customer's choice can be matched back to it. Several sections need a title each (WhatsApp rejects an untitled one).
  */
-export function buildInteractive(draft: InteractiveDraft): InboxInteractive | null {
+export function buildInteractive(draft: InteractiveDraft, kind: InboxChannelKind = 'whatsapp'): InboxInteractive | null {
+  if (kind === 'tiktok') return buildTikTokCard(draft)
   const common = { body: draft.body.trim(), header: orNull(draft.header), footer: orNull(draft.footer) }
   let candidate: unknown
   if (draft.type === 'buttons') {
@@ -61,6 +91,14 @@ export function buildInteractive(draft: InteractiveDraft): InboxInteractive | nu
   }
   const parsed = InboxInteractiveSchema.safeParse(candidate)
   return parsed.success ? parsed.data : null
+}
+
+/** TikTok's button card only: any other kind, a header or a footer, or a title over 40 characters is refused. */
+function buildTikTokCard(draft: InteractiveDraft): InboxInteractive | null {
+  if (draft.type !== 'buttons' || draft.header.trim() || draft.footer.trim()) return null
+  const candidate = { type: 'buttons', body: draft.body.trim(), header: null, footer: null, buttons: draft.buttons.map((title, index) => ({ id: `btn_${index + 1}`, title: title.trim() })) }
+  const parsed = InboxInteractiveSchema.safeParse(candidate)
+  return parsed.success && parsed.data.body.length <= TIKTOK_INTERACTIVE_LIMITS.body ? parsed.data : null
 }
 
 const strings = (value: unknown) => (Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [])

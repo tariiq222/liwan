@@ -1,17 +1,22 @@
 <script setup lang="ts">
 import InboxFlowBubble from '@/components/inbox/InboxFlowBubble.vue'
+import type { InboxChannelKind } from '@liwan/contracts'
 import { useInboxSendableFlows } from '@/composables/inbox/useInboxFlows'
-import { INTERACTIVE_LIMITS, INTERACTIVE_TYPES, interactiveRowCount, type InteractiveDraft } from '@/composables/inbox/inboxInteractive'
+import { interactiveLimits, interactiveRowCount, interactiveTypes, type InteractiveDraft } from '@/composables/inbox/inboxInteractive'
 
 // Builds the interactive message an agent sends: up to three reply buttons, a list of up to ten rows in sections, or
-// one call-to-action link. Every field shows its Meta limit as a live counter; the composer sends only a valid draft.
+// one call-to-action link. Every field shows its limit as a live counter; the composer sends only a valid draft.
+// A TikTok channel carries one kind only, its button card: a title and up to three buttons, no header or footer.
 const draft = defineModel<InteractiveDraft>({ required: true })
 // A form message opens a published form of one channel, so the type needs the channel the message is sent on.
-const props = defineProps<{ channelId?: number | null }>()
+const props = withDefaults(defineProps<{ channelId?: number | null; kind?: InboxChannelKind }>(), { kind: 'whatsapp' })
 const { t } = useI18n()
 const hydrated = useHydrated()
-const limits = INTERACTIVE_LIMITS
-const typeItems = computed(() => INTERACTIVE_TYPES.map(value => ({ value, label: t(`inbox.composer.interactive.types.${value}`) })))
+const tiktok = computed(() => props.kind === 'tiktok')
+const limits = computed(() => interactiveLimits(props.kind))
+const typeItems = computed(() => interactiveTypes(props.kind).map(value => ({ value, label: t(`inbox.composer.interactive.types.${value}`) })))
+// A stored draft of another kind cannot remain selected on a channel that does not carry it.
+watch(() => props.kind, (kind) => { if (!interactiveTypes(kind).includes(draft.value.type)) draft.value.type = 'buttons' }, { immediate: true })
 const rows = computed(() => interactiveRowCount(draft.value))
 const counter = (value: string, max: number) => `${value.length}/${max}`
 const flows = useInboxSendableFlows(() => props.channelId, () => draft.value.type === 'flow')
@@ -20,13 +25,13 @@ const chosenFlow = computed(() => flows.data.value?.items.find(flow => flow.id =
 watch(() => props.channelId, (next, previous) => { if (next !== previous) draft.value.flowId = null })
 
 function addButton() {
-  if (draft.value.buttons.length < limits.buttons) draft.value.buttons.push('')
+  if (draft.value.buttons.length < limits.value.buttons) draft.value.buttons.push('')
 }
 function addSection() {
-  if (draft.value.sections.length < limits.sections) draft.value.sections.push({ title: '', rows: [{ title: '', description: '' }] })
+  if (draft.value.sections.length < limits.value.sections) draft.value.sections.push({ title: '', rows: [{ title: '', description: '' }] })
 }
 function addRow(section: number) {
-  if (rows.value < limits.rows) draft.value.sections[section]!.rows.push({ title: '', description: '' })
+  if (rows.value < limits.value.rows) draft.value.sections[section]!.rows.push({ title: '', description: '' })
 }
 function removeSection(section: number) {
   draft.value.sections.splice(section, 1)
@@ -40,14 +45,14 @@ function removeRow(section: number, row: number) {
 
 <template>
   <SharedSubCard tone="tinted" class="flex flex-col gap-2" data-testid="inbox-interactive-builder">
-    <SharedSegmentedControl v-model="draft.type" class="self-start" :items="typeItems" :label="t('inbox.composer.interactive.type')" />
-    <UFormField :label="t('inbox.composer.interactive.header')" :hint="counter(draft.header, limits.header)">
+    <SharedSegmentedControl v-if="typeItems.length > 1" v-model="draft.type" class="self-start" :items="typeItems" :label="t('inbox.composer.interactive.type')" />
+    <UFormField v-if="!tiktok" :label="t('inbox.composer.interactive.header')" :hint="counter(draft.header, limits.header)">
       <UInput v-model="draft.header" class="w-full" :maxlength="limits.header" :disabled="!hydrated" />
     </UFormField>
-    <UFormField :label="t('inbox.composer.interactive.body')" :hint="counter(draft.body, limits.body)" required>
-      <UTextarea v-model="draft.body" class="w-full" :rows="2" autoresize :maxrows="6" :maxlength="limits.body" :disabled="!hydrated" />
+    <UFormField :label="tiktok ? t('inbox.composer.interactive.cardTitle') : t('inbox.composer.interactive.body')" :hint="counter(draft.body, limits.body)" required>
+      <UTextarea v-model="draft.body" class="w-full" :rows="2" autoresize :maxrows="6" :maxlength="limits.body" :disabled="!hydrated" :data-testid="tiktok ? 'inbox-interactive-card-title' : undefined" />
     </UFormField>
-    <UFormField :label="t('inbox.composer.interactive.footer')" :hint="counter(draft.footer, limits.footer)">
+    <UFormField v-if="!tiktok" :label="t('inbox.composer.interactive.footer')" :hint="counter(draft.footer, limits.footer)">
       <UInput v-model="draft.footer" class="w-full" :maxlength="limits.footer" :disabled="!hydrated" />
     </UFormField>
 

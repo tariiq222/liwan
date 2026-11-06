@@ -22,7 +22,7 @@ from .health_constants import (
     SCALING_DEDUPE,
     THROUGHPUT_LEVELS,
 )
-from odoo.addons.liwan_inbox.adapters import whatsapp
+from odoo.addons.liwan_inbox.adapters import errors, whatsapp
 
 _logger = logging.getLogger(__name__)
 CHECKED_STATES = ('connected', 'error')
@@ -129,7 +129,7 @@ class LiwanInboxChannelHealth(models.Model):
         try:
             with self.env.cr.savepoint():
                 self._liwan_fetch_health()
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             was_failing = self.state in ('error', 'disabled')
             self.write({'state': 'disabled' if self.state == 'disabled' else 'error', 'last_error': str(error)})
             if not was_failing:
@@ -227,7 +227,7 @@ class LiwanInboxChannelHealth(models.Model):
         if item.event != 'THROUGHPUT_UPGRADE':
             try:
                 self._liwan_fetch_health()  # Meta's word names the event, not the rating: read the rating
-            except whatsapp.ProviderError as error:
+            except errors.ProviderError as error:
                 # The event's other changes stand; the 6-hourly refresh reads the rating.
                 _logger.warning('health read after a quality event of channel %s failed: %s', self.id, type(error).__name__)
         elif self.throughput_level != 'high':

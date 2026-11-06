@@ -8,13 +8,14 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
-from odoo.addons.liwan_inbox.adapters import media_rules, whatsapp
+from odoo.addons.liwan_inbox.adapters import errors, media_rules
 from odoo.addons.liwan_inbox.controllers.conversation_files import parse_upload
 from odoo.addons.liwan_inbox.controllers.helpers import (
     get_channel,
     no_content,
     not_found,
     reject,
+    require_kind,
     unique_as_invalid,
 )
 from odoo.addons.liwan_inbox.controllers.template_parsing import parse_template_write
@@ -41,6 +42,7 @@ def get_template(template_id, *capabilities):
     if not template:
         raise not_found()
     get_channel(template.channel_id.id, *capabilities)
+    require_kind(template.channel_id, 'whatsapp')
     return template
 
 
@@ -82,7 +84,9 @@ class TemplateController(http.Controller):
     @requires_capability(MANAGE_TEMPLATES, MANAGE_CHANNELS, CAMPAIGNS, match='any')
     def read_channel_ref(self, channel_id, **_):
         """The id and name of a channel, for the pages of a user who manages its templates or campaigns but not the channel itself."""
-        return dump_ref(get_channel(channel_id, MANAGE_TEMPLATES, MANAGE_CHANNELS, CAMPAIGNS))
+        channel = get_channel(channel_id, MANAGE_TEMPLATES, MANAGE_CHANNELS, CAMPAIGNS)
+        require_kind(channel, 'whatsapp')
+        return dump_ref(channel)
 
     @http.route('/api/v1/inbox/channels/<int:channel_id>/templates', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
@@ -90,6 +94,7 @@ class TemplateController(http.Controller):
     @requires_capability(*READ_CAPABILITIES, match='any')
     def list_templates(self, channel_id, **_):
         channel = get_channel(channel_id, *READ_CAPABILITIES)
+        require_kind(channel, 'whatsapp')
         domain = list_domain(channel, request.httprequest.args)
         limit, offset = parse_page(request.httprequest.args)
         Template = request.env['liwan.inbox.template']
@@ -111,9 +116,10 @@ class TemplateController(http.Controller):
     @requires_capability(MANAGE_TEMPLATES)
     def sync_templates(self, channel_id, **_):
         channel = get_channel(channel_id, MANAGE_TEMPLATES)
+        require_kind(channel, 'whatsapp')
         try:
             templates = request.env['liwan.inbox.template']._liwan_sync(channel)
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             reject(str(error))
         return {'items': [dump_template(t) for t in templates], 'total': len(templates)}
 
@@ -123,6 +129,7 @@ class TemplateController(http.Controller):
     @requires_capability(MANAGE_TEMPLATES)
     def create_template(self, channel_id, **payload):
         channel = get_channel(channel_id, MANAGE_TEMPLATES)
+        require_kind(channel, 'whatsapp')
         parsed = parse_template_write(channel, payload)
         Template = request.env['liwan.inbox.template']
         if Template.search_count([
@@ -132,7 +139,7 @@ class TemplateController(http.Controller):
         try:
             with unique_as_invalid('name', 'a template with this name and language already exists on the channel', 'inbox_template_name_taken'):
                 template = Template._liwan_create_remote(channel, parsed.values, parsed.allow_category_change)
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             reject(str(error))
         return request.make_json_response(dump_template(template), status=201)
 
@@ -145,7 +152,7 @@ class TemplateController(http.Controller):
         parsed = parse_template_write(template.channel_id, payload, template)
         try:
             template._liwan_edit_remote(parsed.values)
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             reject(str(error))
         return dump_template(template)
 
@@ -157,7 +164,7 @@ class TemplateController(http.Controller):
         template = get_template(template_id, MANAGE_TEMPLATES)
         try:
             template._liwan_delete_remote()
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             reject(str(error))
         return no_content()
 
@@ -169,7 +176,7 @@ class TemplateController(http.Controller):
     @requires_capability(MANAGE_TEMPLATES)
     def upload_sample(self, channel_id, **payload):
         """Store the sample file of a media header; it is the uploader's own until a template uses it or a day passes."""
-        get_channel(channel_id, MANAGE_TEMPLATES)
+        require_kind(get_channel(channel_id, MANAGE_TEMPLATES), 'whatsapp')
         name, raw, mimetype = parse_sample_upload(payload)
         attachment = request.env['ir.attachment'].create({
             'name': name, 'raw': raw, 'mimetype': mimetype, 'type': 'binary',

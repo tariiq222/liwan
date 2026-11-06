@@ -161,6 +161,7 @@
       "features": [
         "boolean:inbox.enabled",
         "boolean:inbox.whatsapp",
+        "boolean:inbox.tiktok",
         "boolean:inbox.templates",
         "boolean:inbox.automation",
         "boolean:inbox.flows",
