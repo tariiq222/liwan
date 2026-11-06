@@ -34782,46 +34782,6 @@
         ],
         "type": "object"
       },
-      "HrAccessGrantSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "password": {
-            "minLength": 12,
-            "type": "string"
-          },
-          "role": {
-            "enum": [
-              "employee",
-              "admin"
-            ],
-            "type": "string"
-          }
-        },
-        "required": [
-          "password",
-          "role"
-        ],
-        "type": "object"
-      },
-      "HrAccessPatchSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "password": {
-            "minLength": 12,
-            "type": "string"
-          },
-          "role": {
-            "enum": [
-              "employee",
-              "admin"
-            ],
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
       "HrAccessRoleSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
@@ -49841,14 +49801,6 @@
           "reason"
         ],
         "type": "object"
-      },
-      "HrWritableRoleSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "enum": [
-          "employee",
-          "admin"
-        ],
-        "type": "string"
       },
       "InboxAccountStateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
