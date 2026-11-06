@@ -2151,6 +2151,7 @@
       "inbox_tiktok_reply_limit": "بلغت حد الرسائل المتتالية في TikTok (10 رسائل). انتظر رد العميل ثم أرسل.",
       "inbox_tiktok_auto_message_reviewing": "هذا العنصر قيد مراجعة TikTok ولا يمكن تعديله حتى تنتهي المراجعة.",
       "inbox_tiktok_auto_message_limit": "بلغت الحد الأقصى لعدد العناصر: 3 أسئلة مقترحة و6 رسائل محادثة.",
+      "inbox_tiktok_auto_message_refused": "رفض TikTok هذا التغيير. حاول مرة أخرى، وإن تكرر الرفض أعد ربط الحساب.",
       "inbox_tiktok_sync_running": "يوجد استيراد قيد التنفيذ لهذه القناة. انتظر انتهاءه.",
       "inbox_tiktok_not_configured": "لم يُضبط تطبيق TikTok على هذا النظام. تواصل مع مسؤول النظام.",
       "inbox_channel_kind_unsupported": "هذه الميزة لقنوات واتساب فقط.",
