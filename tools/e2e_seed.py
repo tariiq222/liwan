@@ -95,6 +95,10 @@ def mobile_of(login):
     return mobiles.setdefault(login, f'+9665000{len(mobiles) + 1:05d}')
 
 
+# The stock `admin` login the real-Odoo specs sign in with is not one of the accounts below; it keeps a fixed number.
+env.ref('base.user_admin').write({'liwan_mobile': '+966500000000'})  # noqa: F821
+
+
 for login, name, groups, password_var, default_password in ACCOUNTS:
     password = os.environ.get(password_var) or default_password
     group_ids = [env.ref(xmlid).id for xmlid in groups]  # noqa: F821
