@@ -76,7 +76,12 @@ useEscapeBack(backTo)
 const showPlanningTabs = computed(() => project.value?.tools.planning.enabled && activeProjectSection(route.path) === 'planning')
 const showGovernanceTabs = computed(() => Boolean(project.value?.active && project.value.tools.governance.enabled) && activeGovernanceSection(route.path) !== null)
 const phaseLabel = computed(() => project.value?.phase_state ? t(`projects.phase.steps.${project.value.phase_state.current}`) : '')
-const routeAllowed = computed(() => !!projectData.value && !notFound.value && projectSectionAvailable(route.path.split('/')[3] ?? 'summary', projectData.value.tools))
+// A task record owns its read permission; its parent project may be unreadable.
+const isIndependentTaskRecord = computed(() => {
+  const match = route.path.match(/^\/projects\/\d+\/tasks\/(\d+)\/?$/)
+  return projectId.value !== null && !!match && Number.isInteger(Number(match[1])) && Number(match[1]) > 0
+})
+const routeAllowed = computed(() => isIndependentTaskRecord.value || (!!projectData.value && !notFound.value && projectSectionAvailable(route.path.split('/')[3] ?? 'summary', projectData.value.tools)))
 const activatedPaths = reactive(new Set<string>())
 watch([() => route.path, routeAllowed], ([path, allowed]) => { if (allowed) activatedPaths.add(path) }, {immediate:true})
 // The same tag pills as SharedPageHeader: state, phase, manager, schedule.
@@ -145,8 +150,8 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
         <ProjectPhaseStepper :current="project.phase_state.current" />
       </div>
     </SharedPageContainer>
-    <ProjectNotFoundState v-if="notFound" />
-    <SharedPageContainer v-else-if="!projectData">
+    <ProjectNotFoundState v-if="notFound && !isIndependentTaskRecord" />
+    <SharedPageContainer v-else-if="!projectData && !isIndependentTaskRecord">
       <SharedPageState :loading="!error && (isLoading || !hydrated)" :error="error" @retry="refetch()" />
     </SharedPageContainer>
     <SharedPageContainer v-else-if="project && !routeAllowed">
