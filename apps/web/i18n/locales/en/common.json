@@ -171,7 +171,8 @@
     "totpRequired": "Enter the verification code",
     "totpTitle": "Verification code",
     "totpHint": "Enter the 6-digit code from your authenticator app",
-    "totpInvalid": "Invalid verification code"
+    "totpInvalid": "Invalid verification code",
+    "forgotPassword": "Forgot password?"
   },
   "errors": {
     "saveUncertain": "We could not confirm whether the save completed. Check the record before trying again.",
@@ -245,7 +246,10 @@
     "finishCustomize": "Done arranging",
     "moveUp": "Move {name} earlier",
     "moveDown": "Move {name} later",
-    "preferenceError": "The card order could not be saved. Your current order will apply to this session only."
+    "preferenceError": "The card order could not be saved. Your current order will apply to this session only.",
+    "mobile": "Mobile number",
+    "changeMobile": "Change number",
+    "noMobile": "Not added yet"
   },
   "bus": {
     "connected": "Connected",

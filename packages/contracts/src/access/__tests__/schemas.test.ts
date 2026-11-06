@@ -9,16 +9,18 @@ import {
   AdminUserSummarySchema,
   AuditActionSchema,
   CapabilitySchema,
-  ChangeUserStateInputSchema,
   EffectiveCapabilitySchema,
   GrantAccountInputSchema,
+  InvitationLoginInputSchema,
+  MobileSchema,
+  SeatUsageSchema,
+  VersionOnlyInputSchema,
   KNOWN_CAPABILITIES,
   KNOWN_PERMISSION_DOMAINS,
   type KnownCapability,
   MeRoleSchema,
   PermissionCatalogSchema,
   PermissionDefinitionSchema,
-  ResetPasswordInputSchema,
   RoleAssignmentInputSchema,
   RoleAssignmentSchema,
   RoleCreateInputSchema,
@@ -108,6 +110,8 @@ const USER_SUMMARY = {
   id: 18,
   name: 'سارة محمد',
   login: 'sara@example.com',
+  mobile: '+966500000001',
+  invitation: null,
   employee: EMPLOYEE,
   active: true,
   protected: false,
@@ -125,7 +129,7 @@ const USER_DETAIL = {
       source: 'assignment' as const,
     }],
   }],
-  allowed_actions: ['read', 'assign_roles', 'reset_password', 'disable'] as const,
+  allowed_actions: ['read', 'assign_roles', 'send_reset_link', 'disable'] as const,
 }
 const AUDIT_SUMMARY = {
   id: 107,
@@ -307,40 +311,62 @@ describe('role and permission schemas', () => {
 })
 
 describe('admin input schemas and fail-closed security fields', () => {
-  it('keeps the exact grant/reset passwords and requires expected versions where specified', () => {
-    expect(GrantAccountInputSchema.parse({
-      name: ' سارة محمد ',
-      login: 'sara@example.com',
-      password: '  12345678  ',
-      assignments: [{ role_id: 1, scope: { kind: 'company', id: 1 } }],
-    })).toMatchObject({ name: 'سارة محمد', password: '  12345678  ' })
-    expect(EmployeeAccountInputSchema.parse({
-      employee_id: 31,
-      password: '  12345678  ',
-      assignments: [{ role_id: 1, scope: { kind: 'company', id: 1 } }],
-    }).password).toBe('  12345678  ')
-    expect(UpdateUserAccessInputSchema.parse({
-      assignments: [{ role_id: 4, scope: { kind: 'company', id: 1 } }],
-      expected_version: 'u18-a3-v7',
-    }).expected_version).toBe('u18-a3-v7')
-    expect(ResetPasswordInputSchema.parse({ password: '  12345678 ', expected_version: 'u18-a3-v7' }).password).toBe('  12345678 ')
-    expect(() => GrantAccountInputSchema.parse({ name: 'سارة', login: 'sara@example.com', password: 'short', assignments: [] })).toThrow()
-    expect(() => GrantAccountInputSchema.parse({ name: 'سارة', login: 'not-an-email', password: '12345678', assignments: [{ role_id: 1, scope: { kind: 'company', id: 1 } }] })).toThrow()
-    expect(() => GrantAccountInputSchema.parse({ employee_id: 31, password: '12345678', assignments: [{ role_id: 1, scope: { kind: 'company', id: 1 } }] })).toThrow()
-    expect(() => EmployeeAccountInputSchema.parse({ employee_id: 31, password: 'short', assignments: [] })).toThrow()
+  it('invites with name, login and roles only, and never accepts a password key', () => {
+    const assignments = [{ role_id: 1, scope: { kind: 'company' as const, id: 1 } }]
+    expect(GrantAccountInputSchema.parse({ name: ' سارة محمد ', login: 'sara@example.com', assignments })).toEqual({ name: 'سارة محمد', login: 'sara@example.com', assignments })
+    expect(() => GrantAccountInputSchema.parse({ name: 'سارة', login: 'sara@example.com', password: '123456789012', assignments })).toThrow()
+    expect(() => GrantAccountInputSchema.parse({ name: 'سارة', login: 'not-an-email', assignments })).toThrow()
+    expect(() => GrantAccountInputSchema.parse({ name: 'سارة', login: 'sara@example.com', assignments: [] })).toThrow()
+    expect(() => GrantAccountInputSchema.parse({ employee_id: 31, assignments })).toThrow()
+    expect(EmployeeAccountInputSchema.parse({ employee_id: 31, login: 'sara@example.com', assignments })).toEqual({ employee_id: 31, login: 'sara@example.com', assignments })
+    expect(() => EmployeeAccountInputSchema.parse({ employee_id: 31, login: 'sara@example.com', password: '123456789012', assignments })).toThrow()
+    expect(() => EmployeeAccountInputSchema.parse({ employee_id: 31, assignments })).toThrow()
+    expect(UpdateUserAccessInputSchema.parse({ assignments, expected_version: 'u18-a3-v7' }).expected_version).toBe('u18-a3-v7')
     expect(() => UpdateUserAccessInputSchema.parse({ assignments: [], expected_version: 'v1' })).toThrow()
-    expect(() => ResetPasswordInputSchema.parse({ password: '12345678' })).toThrow()
   })
 
-  it('accepts an optional exact password for reactivation and validates state bodies strictly', () => {
-    expect(ChangeUserStateInputSchema.parse({ expected_version: 'u18-a3-v7' })).toEqual({ expected_version: 'u18-a3-v7' })
-    expect(ChangeUserStateInputSchema.parse({ expected_version: 'u18-a3-v7', password: '  secret-password  ' }).password).toBe('  secret-password  ')
-    expect(() => ChangeUserStateInputSchema.parse({ expected_version: 'u18-a3-v7', session_id: 'session' })).toThrow()
+  it('validates the invitation actions by version, never by password', () => {
+    expect(VersionOnlyInputSchema.parse({ expected_version: 'u18-a3-v7' })).toEqual({ expected_version: 'u18-a3-v7' })
+    expect(() => VersionOnlyInputSchema.parse({ expected_version: 'u18-a3-v7', password: '  secret-password  ' })).toThrow()
+    expect(() => VersionOnlyInputSchema.parse({ expected_version: 'u18-a3-v7', session_id: 'session' })).toThrow()
+    expect(() => VersionOnlyInputSchema.parse({})).toThrow()
+    expect(InvitationLoginInputSchema.parse({ login: ' new@example.com ', expected_version: 'v1' })).toEqual({ login: 'new@example.com', expected_version: 'v1' })
+    expect(() => InvitationLoginInputSchema.parse({ login: 'new@example.com' })).toThrow()
+    expect(() => InvitationLoginInputSchema.parse({ login: 'not-an-email', expected_version: 'v1' })).toThrow()
+  })
+
+  it('accepts E.164 mobile numbers only', () => {
+    expect(MobileSchema.parse('+966500000001')).toBe('+966500000001')
+    for (const value of ['0500000001', '966500000001', '+0500000001', '+96650', '+9665000000010000', '+966 500000001', '']) {
+      expect(() => MobileSchema.parse(value)).toThrow()
+    }
+  })
+
+  it('reports seat usage with a nullable limit', () => {
+    expect(SeatUsageSchema.parse({ used: 7, limit: 10 })).toEqual({ used: 7, limit: 10 })
+    expect(SeatUsageSchema.parse({ used: 7, limit: null }).limit).toBeNull()
+    expect(() => SeatUsageSchema.parse({ used: 7 })).toThrow()
+  })
+
+  it('shapes a pending invitation on the admin user and keeps the mobile number nullable', () => {
+    const invitation = { state: 'expired' as const, delivery: 'failed' as const, sent_at: '2026-11-06T10:00:00', expires_at: '2026-11-09T10:00:00' }
+    expect(AdminUserSummarySchema.parse({ ...USER_SUMMARY, mobile: null, invitation }).invitation).toEqual(invitation)
+    expect(() => AdminUserSummarySchema.parse({ ...USER_SUMMARY, invitation: { ...invitation, state: 'accepted' } })).toThrow()
+    expect(() => AdminUserSummarySchema.parse({ ...USER_SUMMARY, invitation: { ...invitation, token: 'x' } })).toThrow()
+    expect(() => AdminUserSummarySchema.parse({ ...USER_SUMMARY, mobile: '0500000001' })).toThrow()
+    expect(AdminUserDetailSchema.parse({ ...USER_DETAIL, allowed_actions: ['resend_invitation', 'edit_invitation', 'cancel_invitation'] }).allowed_actions).toHaveLength(3)
+    expect(() => AdminUserDetailSchema.parse({ ...USER_DETAIL, allowed_actions: ['reset_password'] })).toThrow()
   })
 
   it('rejects sensitive keys in audit values and never accepts password output fields', () => {
     expect(AuditActionSchema.options).toEqual([
       'user.granted',
+      'user.invited',
+      'user.invitation_resent',
+      'user.invitation_login_changed',
+      'user.invitation_cancelled',
+      'user.reset_link_sent',
+      'user.password_set',
       'user.employee_linked',
       'user.roles_changed',
       'user.disabled',
