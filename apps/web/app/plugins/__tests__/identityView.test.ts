@@ -78,7 +78,7 @@ function fixture(options: { access?: string; server?: boolean; hydrating?: boole
     modules: { '@nuxt/ui/locale': { ar: {}, en: {} }, '@/utils/appearance': { htmlAttrsFor: () => ({}) }, '@/utils/workspacePresentation': { pageArea: () => 'plain' }, '@/utils/sessionExpiry': sessionExpiry, '@/lib/sessionQueryScope': sessionQueries, '@/components/shell/SessionQueryProvider': { __esModule: true, default: SessionQueryProvider } },
     globals: { providePageArea: () => {}, useI18n: () => ({ locale }), useAppearance: () => ({ mode: Vue.ref('light'), fontSize: Vue.ref('small'), syncFromUser: () => {} }), useMe, useRoute: () => route, useLocaleHead: () => Vue.ref({ htmlAttrs: {} }), useHead: () => {} },
   })
-  const app = options.server ? Vue.createSSRApp(Root) : hostRenderer.createApp(Root)
+  const app: Vue.App<HostNode | Element> = options.server ? Vue.createSSRApp(Root) : hostRenderer.createApp(Root)
   for (const [name, component] of Object.entries({ ...DEFAULT_STUBS, UApp: Pass, NuxtLayout: Layout, NuxtPage: Page })) app.component(name, component)
   const nuxt = { isHydrating: !!options.hydrating, vueApp: app, runWithContext: (fn: () => unknown) => app.runWithContext(fn), hook: (name: string, fn: () => unknown) => hooks.set(name, fn), hooks: { hook: (name: string, fn: () => unknown) => hooks.set(name, fn) } }
   const bindings = { ...Vue, ...Query, ...ssr, ...sessionExpiry, ...sessionQueries, defineNuxtPlugin: (value: unknown) => value, useState: () => state, useRouter: () => ({ currentRoute: Vue.ref(route) }), useMe, onTenantSuspension: () => {}, dropToastsWhileSuspended: () => {}, useToast: () => ({ toasts: Vue.ref([]) }), clearTenantSuspension: () => {}, beginAccessRefreshInFlight, drainAccessRefreshInFlight, useEventListener: () => {}, window: {}, navigateTo, clearChatDrafts: () => {}, isTenantSuspended: () => false, useBus: () => ({ connect: () => {}, disconnect: () => {} }), setBusQueryClient: (client: Query.QueryClient) => { busClients.push(client) } }
@@ -93,7 +93,7 @@ function fixture(options: { access?: string; server?: boolean; hydrating?: boole
   })
   const queryScope = app.runWithContext(sessionQueries.useSessionQueryScope)
   const root = createHostNode()
-  if (!options.server) (app as Vue.App<HostNode>).mount(root)
+  if (!options.server) app.mount(root)
   active.push(() => { if (!options.server) app.unmount(); scope.stop(); queryScope.current.value.client.clear() })
   return { me, route, locale, app, get client() { return queryScope.current.value.client }, queryScope, root, reads, mutate, mutationClients, busClients, mutationCallbacks, privateDrafts, layoutKeys, state, hooks, wait: () => access!.provide.waitForAccessRefresh(), counts: () => ({ layouts, privateMounts, publicMounts, identityRequests }), publicReads: () => publicReads, recoveryRefreshes: () => recoveryRefreshes, navigateTo }
 }

@@ -1,4 +1,5 @@
 import * as Vue from 'vue'
+import { writeFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
 import { DEFAULT_STUBS, loadShared, renderShared } from './helpers/renderShared'
 import { hostRenderer, createHostNode, findNodes } from './helpers/hostRenderer'
@@ -20,17 +21,21 @@ function options(hydrated: Vue.Ref<boolean>, wide: Vue.Ref<boolean>) {
     stubs: { UTable: Table, UCheckbox: Pass },
   }
 }
-it('SSR constructs 20 desktop rows without a second hidden 20-row mobile tree', async () => {
+it('SSR keeps both responsive trees for correct first paint, then allows client pruning', async () => {
   let mobileSlots = 0
-  const html = await renderShared('DataTable', { rows, columns: [], rowKey: 'id', caption: 'Requests' }, {
-    'mobile-row': () => { mobileSlots++; return Vue.h('span', 'Mobile row') },
+  const html = await renderShared('DataTable', { rows, columns: [], rowKey: 'id', caption: 'Requests', selectable: true, selected: [0] }, {
+    'mobile-row': () => { mobileSlots++; return Vue.h('span', { 'data-mobile-row': '' }, 'Mobile row') },
+    bulk: () => Vue.h('span', 'Selected'),
   }, options(Vue.ref(false), Vue.ref(false)))
   expect((html.match(/<tr>/g) ?? []).length).toBe(20)
-  expect(mobileSlots).toBe(0)
-  expect(html).not.toContain('hidden md:block')
+  expect(mobileSlots).toBe(20)
+  expect(html).toContain('hidden md:block')
+  expect(html).toContain('md:hidden')
+  expect(html).toContain('disabled')
+  if (process.env.LIWAN_DATA_TABLE_SSR_HTML) writeFileSync(process.env.LIWAN_DATA_TABLE_SSR_HTML, html)
 })
 it('constructs only the selected layout after mount and responds to viewport resize', async () => {
-  const hydrated = Vue.ref(true)
+  const hydrated = Vue.ref(false)
   const wide = Vue.ref(false)
   const component = loadShared('DataTable', options(hydrated, wide))
   let mobileSlots = 0
@@ -41,9 +46,13 @@ it('constructs only the selected layout after mount and responds to viewport res
   for (const [name, stub] of Object.entries({ ...DEFAULT_STUBS, UTable: Table, UCheckbox: Pass })) app.component(name, stub)
   app.mount(root)
   await Vue.nextTick()
-  expect(findNodes(root, node => node.type === 'table')).toHaveLength(0)
+  expect(findNodes(root, node => node.type === 'table')).toHaveLength(1)
   expect(findNodes(root, node => node.type === 'li')).toHaveLength(20)
   expect(mobileSlots).toBe(20)
+  hydrated.value = true
+  await Vue.nextTick(); await Vue.nextTick()
+  expect(findNodes(root, node => node.type === 'table')).toHaveLength(0)
+  expect(findNodes(root, node => node.type === 'li')).toHaveLength(20)
   wide.value = true
   await Vue.nextTick(); await Vue.nextTick()
   expect(findNodes(root, node => node.type === 'table')).toHaveLength(1)

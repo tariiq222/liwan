@@ -55,9 +55,8 @@ const emit = defineEmits<{ 'update:page': [page: number]; 'update:selected': [ke
 const slots = useSlots()
 const { t } = useI18n()
 const hydrated = useHydrated()
-// Render the same semantic table on the server and the first client pass.
-// After hydration only the active representation exists; CSS hiding created
-// both sets of slots, links and controls on every viewport.
+// CSS selects the first-paint layout while both SSR trees hydrate identically.
+// Afterwards retain only the active representation, including after resize.
 const wide = useMediaQuery('(min-width: 768px)')
 const mobile = computed(() => !!slots['mobile-row'] && hydrated.value && !wide.value)
 const body = ref<HTMLElement | null>(null)
@@ -134,13 +133,13 @@ function onClick(event: MouseEvent) {
 }
 
 watch(() => props.sort, markRows)
-// The focused row must remain reachable when resizing replaces its layout.
-watch(mobile, async () => {
+// Restore focus only when hydration or resize removes the focused representation.
+watch([mobile, hydrated], async ([nextMobile]) => {
   if (typeof document === 'undefined') return
   const active = document.activeElement
   const index = active && body.value?.contains(active)
     ? active.closest('[data-row-index]')?.getAttribute('data-row-index') : null
-  if (index == null) return
+  if (index == null || nextMobile !== !!tableHost.value?.contains(active)) return
   await nextTick()
   markRows()
   await nextTick()
@@ -170,7 +169,7 @@ function clear() {
       <template v-if="$slots.emptyAction" #emptyAction><slot name="emptyAction" /></template>
       <div ref="body" data-slot="data-table-body" class="min-w-0" @click="onClick">
         <div :class="[props.bare ? '' : surfaceClass, densityClass]" :data-density="props.density">
-          <div v-if="!mobile" ref="tableHost" class="overflow-x-auto">
+          <div v-if="!mobile" ref="tableHost" class="overflow-x-auto" :class="{ 'hidden md:block': $slots['mobile-row'] && !hydrated }">
             <UTable
               v-model:row-selection="rowSelection"
               :data="props.rows"
@@ -225,8 +224,9 @@ function clear() {
             </UTable>
           </div>
           <ul
-            v-else
+            v-if="$slots['mobile-row'] && (!hydrated || mobile)"
             class="divide-y divide-default"
+            :class="{ 'md:hidden': !hydrated }"
             :aria-label="props.caption"
           >
             <li
