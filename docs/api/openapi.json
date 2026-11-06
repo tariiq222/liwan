@@ -55836,9 +55836,7 @@
             ]
           },
           "kind": {
-            "enum": [
-              "whatsapp"
-            ],
+            "const": "whatsapp",
             "type": "string"
           },
           "name": {
@@ -56026,7 +56024,8 @@
       "InboxChannelKindSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
-          "whatsapp"
+          "whatsapp",
+          "tiktok"
         ],
         "type": "string"
       },
@@ -56045,7 +56044,10 @@
                   ]
                 },
                 "business_account_id": {
-                  "type": "string"
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "callback_url": {
                   "type": "string"
@@ -56079,10 +56081,16 @@
                   "type": "boolean"
                 },
                 "has_app_secret": {
-                  "type": "boolean"
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "has_verify_token": {
-                  "type": "boolean"
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "health": {
                   "additionalProperties": false,
@@ -56252,7 +56260,8 @@
                 },
                 "kind": {
                   "enum": [
-                    "whatsapp"
+                    "whatsapp",
+                    "tiktok"
                   ],
                   "type": "string"
                 },
@@ -56276,8 +56285,15 @@
                 "name": {
                   "type": "string"
                 },
+                "needs_reconnect": {
+                  "default": false,
+                  "type": "boolean"
+                },
                 "phone_number_id": {
-                  "type": "string"
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "state": {
                   "enum": [
@@ -56287,6 +56303,49 @@
                     "disabled"
                   ],
                   "type": "string"
+                },
+                "tiktok_prompts_enabled": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "tiktok_questions_enabled": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "tiktok_username": {
+                  "default": null,
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "tiktok_welcome_audit": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "reviewing",
+                        "approved",
+                        "rejected"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "token_expires_at": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
                 }
               },
               "required": [
@@ -56304,7 +56363,13 @@
                 "callback_url",
                 "last_error",
                 "last_event_at",
-                "health"
+                "health",
+                "tiktok_username",
+                "token_expires_at",
+                "needs_reconnect",
+                "tiktok_welcome_audit",
+                "tiktok_questions_enabled",
+                "tiktok_prompts_enabled"
               ],
               "type": "object"
             },
@@ -56382,7 +56447,10 @@
             ]
           },
           "business_account_id": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "callback_url": {
             "type": "string"
@@ -56416,10 +56484,16 @@
             "type": "boolean"
           },
           "has_app_secret": {
-            "type": "boolean"
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "has_verify_token": {
-            "type": "boolean"
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "health": {
             "additionalProperties": false,
@@ -56589,7 +56663,8 @@
           },
           "kind": {
             "enum": [
-              "whatsapp"
+              "whatsapp",
+              "tiktok"
             ],
             "type": "string"
           },
@@ -56613,8 +56688,15 @@
           "name": {
             "type": "string"
           },
+          "needs_reconnect": {
+            "default": false,
+            "type": "boolean"
+          },
           "phone_number_id": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "state": {
             "enum": [
@@ -56624,6 +56706,49 @@
               "disabled"
             ],
             "type": "string"
+          },
+          "tiktok_prompts_enabled": {
+            "default": false,
+            "type": "boolean"
+          },
+          "tiktok_questions_enabled": {
+            "default": false,
+            "type": "boolean"
+          },
+          "tiktok_username": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tiktok_welcome_audit": {
+            "anyOf": [
+              {
+                "enum": [
+                  "reviewing",
+                  "approved",
+                  "rejected"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "token_expires_at": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           }
         },
         "required": [
@@ -56641,7 +56766,13 @@
           "callback_url",
           "last_error",
           "last_event_at",
-          "health"
+          "health",
+          "tiktok_username",
+          "token_expires_at",
+          "needs_reconnect",
+          "tiktok_welcome_audit",
+          "tiktok_questions_enabled",
+          "tiktok_prompts_enabled"
         ],
         "type": "object"
       },
@@ -57470,7 +57601,8 @@
               },
               "kind": {
                 "enum": [
-                  "whatsapp"
+                  "whatsapp",
+                  "tiktok"
                 ],
                 "type": "string"
               },
@@ -57630,6 +57762,26 @@
             ],
             "type": "string"
           },
+          "referral_ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "referral_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ad",
+                  "short_link"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reply_window_ends_at": {
             "anyOf": [
               {
@@ -57696,6 +57848,8 @@
           "unread",
           "reply_window_ends_at",
           "csat",
+          "referral_source",
+          "referral_ref",
           "can_reply",
           "can_assign"
         ],
@@ -57744,7 +57898,8 @@
                     },
                     "kind": {
                       "enum": [
-                        "whatsapp"
+                        "whatsapp",
+                        "tiktok"
                       ],
                       "type": "string"
                     },
@@ -57904,6 +58059,26 @@
                   ],
                   "type": "string"
                 },
+                "referral_ref": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "referral_source": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "ad",
+                        "short_link"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "reply_window_ends_at": {
                   "anyOf": [
                     {
@@ -57969,7 +58144,9 @@
                 "last_message_kind",
                 "unread",
                 "reply_window_ends_at",
-                "csat"
+                "csat",
+                "referral_source",
+                "referral_ref"
               ],
               "type": "object"
             },
@@ -58091,7 +58268,8 @@
               },
               "kind": {
                 "enum": [
-                  "whatsapp"
+                  "whatsapp",
+                  "tiktok"
                 ],
                 "type": "string"
               },
@@ -58251,6 +58429,26 @@
             ],
             "type": "string"
           },
+          "referral_ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "referral_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ad",
+                  "short_link"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reply_window_ends_at": {
             "anyOf": [
               {
@@ -58316,7 +58514,9 @@
           "last_message_kind",
           "unread",
           "reply_window_ends_at",
-          "csat"
+          "csat",
+          "referral_source",
+          "referral_ref"
         ],
         "type": "object"
       },
@@ -76275,6 +76475,676 @@
           "high",
           "not_applicable",
           "unknown"
+        ],
+        "type": "string"
+      },
+      "InboxTikTokAuditSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "draft",
+          "reviewing",
+          "approved",
+          "rejected"
+        ],
+        "type": "string"
+      },
+      "InboxTikTokConnectResponseSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "authorize_url": {
+            "format": "uri",
+            "maxLength": 4000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "authorize_url"
+        ],
+        "type": "object"
+      },
+      "InboxTikTokConnectSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "department_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "InboxTikTokShortcutCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "answer": {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              "kind": {
+                "const": "question",
+                "type": "string"
+              },
+              "question": {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              "sequence": {
+                "maximum": 1000,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "question",
+              "answer"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "content": {
+                "maxLength": 150,
+                "minLength": 1,
+                "type": "string"
+              },
+              "kind": {
+                "const": "prompt",
+                "type": "string"
+              },
+              "sequence": {
+                "maximum": 1000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "title": {
+                "maxLength": 18,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "title",
+              "content"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "InboxTikTokShortcutEnableResultSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "answer": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "audit": {
+                  "enum": [
+                    "draft",
+                    "reviewing",
+                    "approved",
+                    "rejected"
+                  ],
+                  "type": "string"
+                },
+                "content": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "kind": {
+                  "enum": [
+                    "question",
+                    "prompt"
+                  ],
+                  "type": "string"
+                },
+                "provider_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "question": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "sequence": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                "sync_error": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "title": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "kind",
+                "sequence",
+                "question",
+                "answer",
+                "title",
+                "content",
+                "provider_id",
+                "audit",
+                "sync_error"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "question",
+              "prompt"
+            ],
+            "type": "string"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "enabled",
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "InboxTikTokShortcutEnableSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "question",
+              "prompt"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "InboxTikTokShortcutKindSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "question",
+          "prompt"
+        ],
+        "type": "string"
+      },
+      "InboxTikTokShortcutListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "answer": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "audit": {
+                  "enum": [
+                    "draft",
+                    "reviewing",
+                    "approved",
+                    "rejected"
+                  ],
+                  "type": "string"
+                },
+                "content": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "kind": {
+                  "enum": [
+                    "question",
+                    "prompt"
+                  ],
+                  "type": "string"
+                },
+                "provider_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "question": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "sequence": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                "sync_error": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "title": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "kind",
+                "sequence",
+                "question",
+                "answer",
+                "title",
+                "content",
+                "provider_id",
+                "audit",
+                "sync_error"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "InboxTikTokShortcutPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "content": {
+            "maxLength": 150,
+            "minLength": 1,
+            "type": "string"
+          },
+          "question": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "sequence": {
+            "maximum": 1000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": {
+            "maxLength": 18,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "InboxTikTokShortcutSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "audit": {
+            "enum": [
+              "draft",
+              "reviewing",
+              "approved",
+              "rejected"
+            ],
+            "type": "string"
+          },
+          "content": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "question",
+              "prompt"
+            ],
+            "type": "string"
+          },
+          "provider_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "question": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sequence": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          },
+          "sync_error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "sequence",
+          "question",
+          "answer",
+          "title",
+          "content",
+          "provider_id",
+          "audit",
+          "sync_error"
+        ],
+        "type": "object"
+      },
+      "InboxTikTokSyncAnswerSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "job": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "conversations_count": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "created_at": {
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                    "type": "string"
+                  },
+                  "error": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "finished_at": {
+                    "anyOf": [
+                      {
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "messages_count": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "phase": {
+                    "enum": [
+                      "single",
+                      "stranger",
+                      "messages"
+                    ],
+                    "type": "string"
+                  },
+                  "started_at": {
+                    "anyOf": [
+                      {
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "state": {
+                    "enum": [
+                      "queued",
+                      "running",
+                      "done",
+                      "failed"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "state",
+                  "phase",
+                  "conversations_count",
+                  "messages_count",
+                  "error",
+                  "started_at",
+                  "finished_at",
+                  "created_at"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "job"
+        ],
+        "type": "object"
+      },
+      "InboxTikTokSyncPhaseSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "single",
+          "stranger",
+          "messages"
+        ],
+        "type": "string"
+      },
+      "InboxTikTokSyncSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "conversations_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "created_at": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+            "type": "string"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "messages_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "phase": {
+            "enum": [
+              "single",
+              "stranger",
+              "messages"
+            ],
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "failed"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "state",
+          "phase",
+          "conversations_count",
+          "messages_count",
+          "error",
+          "started_at",
+          "finished_at",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "InboxTikTokSyncStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "queued",
+          "running",
+          "done",
+          "failed"
         ],
         "type": "string"
       },
@@ -124807,6 +125677,44 @@
         }
       }
     },
+    "/api/v1/inbox/channels/tiktok/connect": {
+      "post": {
+        "operationId": "liwan_inbox.TikTokOAuthController.connect.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The signed TikTok authorization URL of a new channel or of a channel being reconnected.",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "TikTokOAuthController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "connect",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/inbox/channels/{channel_id}": {
       "delete": {
         "operationId": "liwan_inbox.ChannelController.delete_channel.delete",
@@ -126217,6 +127125,373 @@
           ],
           "feature_operation": "write",
           "handler": "test_channel",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/inbox/channels/{channel_id}/tiktok/shortcuts": {
+      "get": {
+        "operationId": "liwan_inbox.TikTokSettingsController.list_shortcuts.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_shortcuts",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "TikTokSettingsController",
+          "feature_keys": [],
+          "feature_operation": "read",
+          "handler": "list_shortcuts",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_inbox.TikTokSettingsController.create_shortcut.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_shortcut",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "TikTokSettingsController",
+          "feature_keys": [],
+          "feature_operation": "write",
+          "handler": "create_shortcut",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/inbox/channels/{channel_id}/tiktok/shortcuts/enable": {
+      "post": {
+        "operationId": "liwan_inbox.TikTokSettingsController.enable_shortcuts.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "enable_shortcuts",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "TikTokSettingsController",
+          "feature_keys": [],
+          "feature_operation": "write",
+          "handler": "enable_shortcuts",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/inbox/channels/{channel_id}/tiktok/shortcuts/{shortcut_id}": {
+      "delete": {
+        "operationId": "liwan_inbox.TikTokSettingsController.delete_shortcut.delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "shortcut_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "delete_shortcut",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "TikTokSettingsController",
+          "feature_keys": [],
+          "feature_operation": "write",
+          "handler": "delete_shortcut",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "liwan_inbox.TikTokSettingsController.patch_shortcut.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "shortcut_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_shortcut",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "TikTokSettingsController",
+          "feature_keys": [],
+          "feature_operation": "write",
+          "handler": "patch_shortcut",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/inbox/channels/{channel_id}/tiktok/sync": {
+      "get": {
+        "operationId": "liwan_inbox.TikTokSettingsController.latest_sync.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The channel's latest history import, or null before the first one.",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "TikTokSettingsController",
+          "feature_keys": [],
+          "feature_operation": "read",
+          "handler": "latest_sync",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_inbox.TikTokSettingsController.start_sync.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Queue a history import on demand; a second one while it runs is 422 `inbox_tiktok_sync_running`.",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "TikTokSettingsController",
+          "feature_keys": [],
+          "feature_operation": "write",
+          "handler": "start_sync",
           "readonly": false,
           "route_type": "json2"
         }
@@ -127991,6 +129266,43 @@
         }
       }
     },
+    "/api/v1/inbox/hooks/tiktok": {
+      "post": {
+        "operationId": "liwan_inbox.TikTokHookController.receive.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "receive",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "inbox_hook",
+          "contract_namespace": "inbox",
+          "controller": "TikTokHookController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "receive",
+          "readonly": null,
+          "route_type": "http"
+        }
+      }
+    },
     "/api/v1/inbox/hooks/whatsapp": {
       "get": {
         "operationId": "liwan_inbox.WhatsAppHookController.verify.get",
@@ -129378,6 +130690,43 @@
           "handler": "edit_template",
           "readonly": false,
           "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/inbox/tiktok/callback": {
+      "get": {
+        "operationId": "liwan_inbox.TikTokOAuthController.callback.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Exchange the authorization code and connect (or reconnect) the channel of the state.",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "contract_namespace": "inbox",
+          "controller": "TikTokOAuthController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "callback",
+          "readonly": null,
+          "route_type": "http"
         }
       }
     },
