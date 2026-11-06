@@ -71,8 +71,8 @@ class LiwanAccountMail(models.AbstractModel):
                         'delivery': 'sent', 'sent_at': fields.Datetime.now(),
                     })
             except SEND_ERRORS as error:
-                # The message and the link are never logged: only the token row id and the error.
-                _logger.warning('account link mail failed for token %s: %r', token_id, error)
+                # The message and the link are never logged: only the row id and the error class.
+                _logger.warning('account link mail row %s not delivered: %s', token_id, type(error).__name__)
                 self._liwan_mark_failed(registry, token_id)
 
         self.env.cr.postcommit.add(send)
