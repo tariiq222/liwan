@@ -5,6 +5,7 @@ import {
   hoursToDraft, hoursValid, moveRuleId, overlappingWeekdays, ruleActionKeys, ruleToDraft, ruleWrite, ruleWriteCandidate, timezoneChoices,
 } from '../inboxAutomation'
 import { buildInteractive, emptyInteractiveDraft, interactiveToDraft } from '../inboxInteractive'
+import { emptyCommerceDraft } from '../inboxCommerce'
 
 const BUTTONS: InboxInteractive = { type: 'buttons', body: 'اختر', header: null, footer: 'عيادة', buttons: [{ id: 'btn_1', title: 'حجز' }, { id: 'btn_2', title: 'استفسار' }] }
 
@@ -100,6 +101,18 @@ describe('TikTok automatic messages', () => {
     away.away.enabled = true
     away.away.content = { ...emptyAutoContentDraft(), mode: 'interactive', interactive: { ...emptyInteractiveDraft(), body: 'خارج الدوام', buttons: ['حجز'] } }
     expect(automationWrite(away, 'tiktok')).toMatchObject({ away: { content: { interactive: { type: 'buttons', body: 'خارج الدوام' } } } })
+  })
+
+  it('carries no products in the away message: TikTok sends a text or a button card only', () => {
+    const away = draft()
+    away.away.enabled = true
+    away.away.content = {
+      ...emptyAutoContentDraft(), mode: 'commerce',
+      commerce: { ...emptyCommerceDraft(), header: 'عروضنا', body: 'اختر ما يناسبك', sections: [{ title: 'منتجات', ids: ['wv-1', 'wv-2'] }] },
+    }
+    expect(automationWrite(away, 'tiktok')).toBeNull()
+    // The same draft stays valid on WhatsApp, which carries the catalog.
+    expect(automationWrite(away, 'whatsapp')).not.toBeNull()
   })
 })
 

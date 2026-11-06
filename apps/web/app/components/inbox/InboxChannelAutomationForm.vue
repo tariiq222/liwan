@@ -31,6 +31,8 @@ const csatQuestionMax = computed(() => (tiktok.value ? TIKTOK_SURVEY_QUESTION_MA
 // card title (the contract still accepts it) would be saved and then refused on every send, so it blocks the save.
 const csatTooLong = computed(() => tiktok.value && draft.value.csat.question.trim().length > TIKTOK_SURVEY_QUESTION_MAX)
 const WELCOME_TEXT_ONLY: readonly ('text' | 'interactive' | 'commerce')[] = ['text']
+// TikTok's away message is a text or a button card; the catalog's products are WhatsApp's alone (D3, D10).
+const AWAY_TEXT_OR_CARD: readonly ('text' | 'interactive' | 'commerce')[] = ['text', 'interactive']
 const attempted = ref(false)
 const off = computed(() => !hydrated.value || isPending.value)
 // An enabled message needs content: the same rule the contract states, shown next to the editor.
@@ -86,7 +88,13 @@ function submit() {
           <UFormField :label="t('inbox.automation.away.repeatHours')" :description="t('inbox.automation.away.repeatHoursHint')">
             <UInputNumber v-model="draft.away.repeatHours" class="w-40" :min="1" :max="168" :disabled="off" />
           </UFormField>
-          <InboxAutoContentEditor v-model="draft.away.content" :label="t('inbox.automation.away.title')" :channel-id="props.channelId" :kind="props.kind" />
+          <InboxAutoContentEditor
+            v-model="draft.away.content"
+            :label="t('inbox.automation.away.title')"
+            :channel-id="props.channelId"
+            :kind="props.kind"
+            :allowed="tiktok ? AWAY_TEXT_OR_CARD : undefined"
+          />
           <p v-if="missing('away')" class="text-sm text-error" role="alert">{{ t('inbox.automation.contentRequired') }}</p>
         </template>
       </div>
