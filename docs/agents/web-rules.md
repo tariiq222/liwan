@@ -51,6 +51,7 @@ and contracts are in `AGENTS.md`.
   throws `ApiError {status, code, message, field}`. Plain edits may be
   optimistic; transitions and approvals remain pending until the server
   confirms them. Replace cache entries with the server response.
+- In the customer app, a QueryClient belongs to one mounted session/view lifetime. Components use the client injected by `apps/web/app/components/shell/SessionQueryProvider.ts`; app-level plugins read the active client from `$sessionQueryScope` rather than retaining the startup client. User/company and public/private realm boundaries create a fresh private client, while an active public token view survives private identity changes. Retired callbacks may only affect their retired cache; API ownership guards must not report stale suspension/session failures against the current owner. This is client lifecycle isolation, never a replacement for server authorization.
 - The topology is same-origin behind a reverse proxy: Nuxt `/`, Odoo
   `/api/v1` (attachments download from `.../attachments/<id>/download`) and `/websocket`. Session cookies are used; no CORS or bearer tokens for browser flows.
 

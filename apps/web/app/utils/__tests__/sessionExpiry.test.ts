@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../composables/useApi'
-import { isDifferentUser, isPossibleSessionExpiry } from '../sessionExpiry'
+import { sessionIdentityKey, sessionViewKey, isPossibleSessionExpiry } from '../sessionExpiry'
 
 describe('isPossibleSessionExpiry', () => {
   it.each(['forbidden', 'tenant_read_only', 'feature_not_included', 'transition_forbidden', 'status_forbidden', 'tenant_suspended'])(
@@ -18,23 +18,18 @@ describe('isPossibleSessionExpiry', () => {
   })
 })
 
-describe('isDifferentUser', () => {
-  it('flags a switch from one signed-in user to another', () => {
-    expect(isDifferentUser({ id: 1, company: { id: 1 } }, { id: 2, company: { id: 1 } })).toBe(true)
+describe('session view identity', () => {
+  it('names user and company separately and keeps equal identities stable', () => {
+    const first = { id: 1, company: { id: 2 } }
+    expect(sessionIdentityKey(first)).toBe(sessionIdentityKey({ ...first }))
+    expect(sessionIdentityKey(first)).not.toBe(sessionIdentityKey({ id: 2, company: { id: 2 } }))
+    expect(sessionIdentityKey(first)).not.toBe(sessionIdentityKey({ id: 1, company: { id: 3 } }))
   })
-
-  it('flags a company switch for the same signed-in user', () => {
-    expect(isDifferentUser({ id: 1, company: { id: 1 } }, { id: 1, company: { id: 2 } })).toBe(true)
+  it.each([null, undefined])('names an absent identity consistently (%s)', absent => {
+    expect(sessionIdentityKey(absent)).toBe('anonymous')
   })
-
-  it('keeps the cache for the same user and company in a refreshed identity', () => {
-    expect(isDifferentUser({ id: 1, company: { id: 1 } }, { id: 1, company: { id: 1 } })).toBe(false)
-  })
-
-  it.each([null, undefined])('does not flag transitions through an absent identity (%s)', absent => {
-    const me = { id: 1, company: { id: 1 } }
-    expect(isDifferentUser(absent, me)).toBe(false)
-    expect(isDifferentUser(me, absent)).toBe(false)
-    expect(isDifferentUser(absent, absent)).toBe(false)
+  it.each(['public', 'guest'])('keeps the %s view independent of private identity', access => {
+    expect(sessionViewKey({ id: 1, company: { id: 1 } }, access)).toBe(sessionViewKey({ id: 2, company: { id: 2 } }, access))
+    expect(sessionViewKey(null, access)).toBe('public')
   })
 })

@@ -12,7 +12,12 @@ export function isPossibleSessionExpiry(error: unknown): boolean {
 
 type SessionIdentity = { id: number, company: { id: number } }
 
-/** A signed-in user or active company changed: cached data must not cross that boundary. */
-export function isDifferentUser(before: SessionIdentity | null | undefined, after: SessionIdentity | null | undefined): boolean {
-  return Boolean(before && after && (before.id !== after.id || before.company.id !== after.company.id))
+/** One mounted private view belongs to one user and active company. */
+export function sessionIdentityKey(identity: SessionIdentity | null | undefined): string {
+  return identity ? `${identity.id}:${identity.company.id}` : 'anonymous'
+}
+
+/** Public and guest forms do not follow changes to an unrelated private session. */
+export function sessionViewKey(identity: SessionIdentity | null | undefined, access: unknown): string {
+  return access === 'public' || access === 'guest' ? 'public' : `private:${sessionIdentityKey(identity)}`
 }

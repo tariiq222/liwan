@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/vue-query'
+import { useSessionQueryScope } from '../lib/sessionQueryScope'
 import { setBusQueryClient } from '../composables/useBus'
 
 // Client-only: opens exactly one bus WebSocket per tab once a user is
@@ -8,22 +8,15 @@ import { setBusQueryClient } from '../composables/useBus'
 // plugin reacts to the same login state everything else does rather than
 // fetching its own copy.
 //
-// dependsOn the named 'vue-query' plugin: this plugin calls useQueryClient()
-// on setup, which throws if VueQueryPlugin hasn't been installed on the Vue
-// app yet - plugin file order alone ("bus.client.ts" < "vue-query.ts") would
-// run this one first, so the dependency is declared explicitly.
-//
-// The query client is captured here, not inside useBus() itself, because
-// this file's .client.ts suffix guarantees it never runs during SSR -
-// useBus() is also called from shell/AppSidebar.vue, which does render during SSR,
-// and capturing there would latch the first SSR request's query client for
-// the lifetime of the Node process. See setBusQueryClient() in useBus.ts.
+// The active owner changes without opening a second socket. Pending bus work
+// already fences its captured client before publishing invalidations.
 export default defineNuxtPlugin({
   name: 'bus',
   dependsOn: ['vue-query'],
   setup() {
     const { connect, disconnect } = useBus()
-    setBusQueryClient(useQueryClient())
+    const queryScope = useSessionQueryScope()
+    watch(() => queryScope.current.value.client, setBusQueryClient, { immediate: true, flush: 'sync' })
     const { loggedIn } = useMe({ immediate: false })
 
     watch(

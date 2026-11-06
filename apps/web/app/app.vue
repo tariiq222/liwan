@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ar, en } from '@nuxt/ui/locale'
 import { htmlAttrsFor } from '@/utils/appearance'
+import SessionQueryProvider from '@/components/shell/SessionQueryProvider'
+import { useSessionQueryScope } from '@/lib/sessionQueryScope'
+import { sessionIdentityKey, sessionViewKey } from '@/utils/sessionExpiry'
 import { pageArea } from '@/utils/workspacePresentation'
 
 // The layer frames pages by the classification the app gives each path (plain, project area, record).
@@ -8,6 +11,11 @@ providePageArea(pageArea)
 const { locale } = useI18n()
 const { mode, fontSize, syncFromUser } = useAppearance()
 const { me } = useMe({ immediate: false })
+const route = useRoute()
+const viewKey = computed(() => sessionViewKey(me.value, route.meta.access))
+const queryScope = useSessionQueryScope()
+queryScope.prepare(sessionIdentityKey(me.value), viewKey.value === 'public')
+const queryOwner = queryScope.current
 // Each signed-in user gets their own saved appearance; the cookie only
 // carries the last applied one for the first server paint.
 watch(me, syncFromUser, { immediate: true })
@@ -27,8 +35,10 @@ useHead(() => ({
 
 <template>
   <UApp :locale="locale === 'ar' ? ar : en">
-    <NuxtLayout>
-      <NuxtPage />
-    </NuxtLayout>
+    <SessionQueryProvider :key="queryOwner.generation" :owner="queryOwner">
+      <NuxtLayout :key="viewKey">
+        <NuxtPage />
+      </NuxtLayout>
+    </SessionQueryProvider>
   </UApp>
 </template>

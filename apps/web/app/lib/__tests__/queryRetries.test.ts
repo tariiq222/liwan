@@ -6,6 +6,8 @@ import * as Vue from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useApi, ApiError } from '../../composables/useApi'
 import * as ssr from '../vueQuerySsr'
+import * as sessionExpiry from '../../utils/sessionExpiry'
+import * as sessionQueries from '../sessionQueryScope'
 
 function plugin(hydrating = false, publicRoute = false) {
   const hooks = new Map<string, (...args: any[]) => any>()
@@ -14,10 +16,10 @@ function plugin(hydrating = false, publicRoute = false) {
   const nuxt = {
     isHydrating: hydrating, hook: (name: string, fn: (...args: any[]) => any) => hooks.set(name, fn),
     hooks: { hook: () => {} }, runWithContext: (fn: () => any) => fn(),
-    vueApp: { use: (_plugin: unknown, options: { queryClient: Query.QueryClient }) => { client = options.queryClient }, mixin: () => {} },
+    vueApp: { provide: (_key: unknown, scope: sessionQueries.SessionQueryScope) => { client = scope.current.value.client }, onUnmount: () => {}, mixin: () => {} },
   }
   const bindings = {
-    ...Query, ...ssr, ...Vue, defineNuxtPlugin: (value: any) => value,
+    ...Query, ...ssr, ...Vue, ...sessionExpiry, ...sessionQueries, defineNuxtPlugin: (value: any) => value,
     useState: () => Vue.ref(null), useRouter: () => ({ currentRoute: Vue.ref({ meta: { access: publicRoute ? 'public' : undefined }, fullPath: '/pay/invoice/1' }) }),
     isPossibleSessionExpiry: (error: unknown) => error instanceof ApiError && error.status === 401,
     useMe: () => ({ me: Vue.ref(null), refresh: async () => { identityRefreshes++ } }), onTenantSuspension: () => {},
