@@ -32,7 +32,7 @@ export const WaitingForDefaults: Story = {
   parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCreateForm.vue:68', 'النموذج معطّل حتى تصل متطلبات الإنشاء.'),
 }
 export const AiDraft: Story = {
-  name: 'مسودة من LiwanOS AI',
+  name: 'مسودة من Liwan AI',
   args: {
     initialDraft: {
       name: 'بوابة خدمات العملاء',
@@ -43,5 +43,5 @@ export const AiDraft: Story = {
     },
     attestRequired: true,
   },
-  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCreateForm.vue:68', 'مسودة جهّزها LiwanOS AI تفتح في نموذج الإنشاء نفسه. تظهر الشارة، ويشترط زر الإنشاء في الخطوة الأخيرة إقرار المستخدم.'),
+  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCreateForm.vue:68', 'مسودة جهّزها Liwan AI تفتح في نموذج الإنشاء نفسه. تظهر الشارة، ويشترط زر الإنشاء في الخطوة الأخيرة إقرار المستخدم.'),
 }

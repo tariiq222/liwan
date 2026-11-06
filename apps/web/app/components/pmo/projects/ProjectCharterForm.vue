@@ -41,9 +41,9 @@ const props = defineProps<{
   milestones?: readonly CharterMilestone[]
   milestonesLoading?: boolean
   milestonesError?: unknown
-  /** A LiwanOS AI draft: applied once, after the create defaults, before the baseline snapshot. */
+  /** A Liwan AI draft: applied once, after the create defaults, before the baseline snapshot. */
   initialDraft?: AiDraftPayload | null
-  /** The final create needs the user's attestation (a draft prepared by LiwanOS AI). */
+  /** The final create needs the user's attestation (a draft prepared by Liwan AI). */
   attestRequired?: boolean
 }>()
 

@@ -8,17 +8,21 @@ const link = (id: string, extra: Partial<ShellContextLink> = {}): ShellContextLi
 describe('rail model', () => {
   const module = (id: string, extra: Partial<ShellModuleDefinition> = {}): ShellModuleDefinition => ({ id, labelKey: `nav.${id}`, icon: 'i-lucide-circle', to: `/${id}`, ...extra })
   const modules = [
-    module('home', { to: '/' }), module('tasks'), module('projects'), module('chat'),
-    module('settings', { utility: true }), module('assistant', { utility: true }),
+    module('home', { to: '/' }), module('tasks'), module('meetings', { fixed: 'first' }), module('projects'), module('documents', { fixed: 'last' }),
+    module('chat'), module('assistant', { fixed: 'top', accent: true }), module('settings'),
   ]
 
-  it('shows every reachable app in manifest order with fixed entries and utilities', () => {
+  it('puts the assistant and home on top, meetings first, the applications, documents last, then settings', () => {
     const rail = railModel(modules)
-    expect(rail.top.map(item => item.id)).toEqual(['home'])
+    expect(rail.top.map(item => item.id)).toEqual(['assistant', 'home'])
+    expect(rail.first.map(item => item.id)).toEqual(['meetings'])
     expect(rail.applications.map(item => item.id)).toEqual(['tasks', 'projects', 'chat'])
-    expect(rail.utility.map(item => item.id)).toEqual(['assistant', 'settings'])
-    expect(rail.drawer.map(item => item.id)).toEqual(['home', 'tasks', 'projects', 'chat', 'assistant', 'settings'])
+    expect(rail.last.map(item => item.id)).toEqual(['documents'])
+    expect(rail.utility.map(item => item.id)).toEqual(['settings'])
+    expect(rail.drawer.map(item => item.id)).toEqual(['assistant', 'home', 'meetings', 'tasks', 'projects', 'chat', 'documents', 'settings'])
     expect(rail.all).toEqual(rail.drawer)
+    expect(rail.top[0]?.accent).toBe(true)
+    expect(rail.top[1]?.accent).toBeUndefined()
   })
 
   it('never inserts an application not supplied by the permission-filtered model', () => {
@@ -32,7 +36,7 @@ describe('rail model', () => {
     for (const id of ['tasks', 'projects', 'chat', 'home', 'settings']) expect(railActiveId(rail, id)).toBe(id)
     expect(railActiveId(rail, 'apps')).toBe('home')
     expect(railActiveId(rail, null)).toBeNull()
-    expect(railModel(modules.filter(item => item.id !== 'home')).top.map(item => item.id)).toEqual(['apps'])
+    expect(railModel(modules.filter(item => item.id !== 'home')).top.map(item => item.id)).toEqual(['assistant', 'apps'])
   })
 })
 

@@ -22,7 +22,7 @@ const label = computed(() => (sheet.surface.value ? t(sheet.surface.value.labelK
     :data-open="sheet.shown.value ? 'true' : undefined"
     @click="sheet.toggle($event.currentTarget as HTMLElement)"
   >
-    <span class="liwan-assistant-button-mark" aria-hidden="true"><UIcon name="i-lucide-sparkles" class="size-4" /></span>
+    <span class="liwan-assistant-button-mark" aria-hidden="true"><UIcon name="i-liwan-ai" class="size-4" /></span>
     <span class="liwan-assistant-button-label">{{ label }}</span>
   </button>
 </template>
