@@ -44,6 +44,9 @@ class TestAccountInvitations(TransactionCase):
     def _version(self, user):
         return self.service._liwan_user_version(user)
 
+    def _invitation(self, user):
+        return self.service._liwan_invitation_states(user)[user.id]
+
     def _seats(self):
         return self.env['res.users'].search_count([('share', '=', False), ('id', '!=', self.env.ref('base.user_root').id)])
 
@@ -95,7 +98,7 @@ class TestAccountInvitations(TransactionCase):
         self.assertEqual(len(self.sent), 1)
         self.assertEqual(self.sent[0][0], token)
         self.assertEqual(token.token_hash, hash_token(self.sent[0][1]))
-        self.assertEqual(self.service._liwan_invitation_state(user)['state'], 'pending')
+        self.assertEqual(self._invitation(user)['state'], 'pending')
 
     def test_accept_sets_password_and_mobile_once(self):
         user = self._invite()
@@ -106,7 +109,7 @@ class TestAccountInvitations(TransactionCase):
         self.assertTrue(self._can_sign_in(user, PASSWORD))
         self.assertTrue(self.env['liwan.account.token'].sudo().search([('user_id', '=', user.id)]).consumed_at)
         self._assert_invalid_token(self.public._liwan_accept_invitation, raw, MOBILE, PASSWORD)
-        self.assertIsNone(self.service._liwan_invitation_state(user)['state'])
+        self.assertIsNone(self._invitation(user))
 
     def test_resend_and_login_change_revoke_previous_link(self):
         user = self._invite()
@@ -176,12 +179,11 @@ class TestAccountInvitations(TransactionCase):
         user = self._invite()
         token = self.env['liwan.account.token'].sudo().search([('user_id', '=', user.id)])
         token.expires_at = fields.Datetime.now() - timedelta(minutes=1)
-        state = self.service._liwan_invitation_state(user)
-        self.assertEqual(state['state'], 'expired')
+        self.assertEqual(self._invitation(user)['state'], 'expired')
         self.assertEqual(self._seats(), seats + 1)
         self._assert_invalid_token(self.public._liwan_accept_invitation, self.sent[0][1], MOBILE, PASSWORD)
         self.service._liwan_resend_invitation(user, self._version(user))
-        self.assertEqual(self.service._liwan_invitation_state(user)['state'], 'pending')
+        self.assertEqual(self._invitation(user)['state'], 'pending')
 
     def test_reset_token_rejected_on_accept_and_invite_token_rejected_on_reset(self):
         accepted = self._invite()
@@ -314,7 +316,7 @@ class TestAccountInvitations(TransactionCase):
         self._run_postcommit()
         token.invalidate_recordset()
         self.assertEqual(token.delivery, 'failed')
-        self.assertEqual(self.service._liwan_invitation_state(user)['delivery'], 'failed')
+        self.assertEqual(self._invitation(user)['delivery'], 'failed')
         self.service._liwan_resend_invitation(user, self._version(user))
 
     def test_postcommit_hands_the_send_to_a_daemon_thread(self):

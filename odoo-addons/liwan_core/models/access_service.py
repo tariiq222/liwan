@@ -599,10 +599,10 @@ class LiwanAccessService(models.AbstractModel):
         return cleaned
 
     @api.model
-    def _liwan_check_password(self, password):
+    def _liwan_check_password(self, password, field='password'):
         if not isinstance(password, str) or len(password.strip()) < MIN_PASSWORD_LENGTH:
             msg = 'weak_password'
-            raise LiwanAccessRule(msg, field='password')
+            raise LiwanAccessRule(msg, field=field)
         return password
 
     @api.model
@@ -670,11 +670,6 @@ class LiwanAccessService(models.AbstractModel):
                 'expires_at': self._liwan_iso(token.expires_at),
             }
         return states
-
-    @api.model
-    def _liwan_invitation_state(self, user):
-        empty = {'state': None, 'delivery': None, 'sent_at': None, 'expires_at': None}
-        return self._liwan_invitation_states(user).get(user.id) or empty
 
     @api.model
     def _liwan_iso(self, value):
