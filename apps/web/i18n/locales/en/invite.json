@@ -33,6 +33,8 @@
     "rulesTitle": "Password rules",
     "ruleLength": "At least 12 characters",
     "ruleMatch": "Both passwords match",
+    "ruleMet": "Met",
+    "ruleUnmet": "Not met yet",
     "checking": "Checking the link...",
     "retry": "Try again",
     "signIn": "Go to sign in",

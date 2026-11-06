@@ -128,18 +128,18 @@ function inviteAnother() {
       <SharedFormSection v-if="mode === 'employee'" panel :title="t('access.users.employee')">
         <div class="grid gap-4">
           <EmployeeAccountPicker v-model="employeeId" v-model:candidate="selectedCandidate" :requested-employee-id="hasRequestedEmployee ? requestedEmployeeId : undefined" />
-          <UFormField v-if="selectedCandidate && !isReactivation && !employeeBlocked" :label="t('access.users.loginEmail')" name="login" :help="t('access.users.employeeLoginHint')" :error="loginInvalid ? t('access.users.loginInvalid') : undefined">
-            <UInput id="login" v-model="login" type="email" autocomplete="off" dir="ltr" class="w-full" :disabled="!hydrated" />
+          <UFormField v-if="selectedCandidate && !isReactivation && !employeeBlocked" :label="t('access.users.loginEmail')" name="login" :help="t('access.users.employeeLoginHint')" :error="loginInvalid ? t('access.users.loginInvalid') : undefined" required>
+            <UInput id="login" v-model="login" type="email" autocomplete="off" dir="ltr" class="w-full" required :disabled="!hydrated" />
           </UFormField>
         </div>
       </SharedFormSection>
       <SharedFormSection v-else panel :title="t('access.users.accountDetails')">
         <div class="grid gap-4">
-          <UFormField :label="t('access.users.name')" name="name">
-            <UInput id="name" v-model="name" autocomplete="off" class="w-full" :disabled="!hydrated" />
+          <UFormField :label="t('access.users.name')" name="name" required>
+            <UInput id="name" v-model="name" autocomplete="off" class="w-full" required :disabled="!hydrated" />
           </UFormField>
-          <UFormField :label="t('access.users.loginEmail')" name="login" :error="loginInvalid ? t('access.users.loginInvalid') : undefined">
-            <UInput id="login" v-model="login" type="email" autocomplete="off" dir="ltr" class="w-full" :disabled="!hydrated" />
+          <UFormField :label="t('access.users.loginEmail')" name="login" :error="loginInvalid ? t('access.users.loginInvalid') : undefined" required>
+            <UInput id="login" v-model="login" type="email" autocomplete="off" dir="ltr" class="w-full" required :disabled="!hydrated" />
           </UFormField>
         </div>
       </SharedFormSection>

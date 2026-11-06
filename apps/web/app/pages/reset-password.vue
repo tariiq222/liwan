@@ -20,6 +20,11 @@ const hydrated = useHydrated()
 
 const lengthOk = computed(() => password.value.trim().length >= MIN_PASSWORD_LENGTH)
 const matchOk = computed(() => !!confirm.value && password.value === confirm.value)
+// Each rule shows an icon and a state text for assistive technology, never the colour alone.
+const passwordRules = computed(() => [
+  { label: t('accountLink.ruleLength'), met: lengthOk.value },
+  { label: t('accountLink.ruleMatch'), met: matchOk.value },
+])
 const canSubmit = computed(() => lengthOk.value && matchOk.value && !pending.value && hydrated.value)
 const loginHref = computed(() => (login.value ? { path: '/login', query: { login: login.value } } : '/login'))
 
@@ -71,8 +76,11 @@ async function submit() {
       <div class="text-sm text-muted">
         <p class="font-medium">{{ t('accountLink.rulesTitle') }}</p>
         <ul class="mt-1 grid gap-1">
-          <li :class="lengthOk ? 'text-success' : ''">{{ t('accountLink.ruleLength') }}</li>
-          <li :class="matchOk ? 'text-success' : ''">{{ t('accountLink.ruleMatch') }}</li>
+          <li v-for="rule in passwordRules" :key="rule.label" class="flex items-center gap-2" :class="rule.met ? 'text-success' : ''">
+            <UIcon :name="rule.met ? 'i-lucide-check' : 'i-lucide-x'" class="size-4 shrink-0" aria-hidden="true" />
+            <span>{{ rule.label }}</span>
+            <span class="sr-only">{{ rule.met ? t('accountLink.ruleMet') : t('accountLink.ruleUnmet') }}</span>
+          </li>
         </ul>
       </div>
       <UAlert v-if="formError" role="alert" :color="formError === 'unavailable' ? 'warning' : 'error'" variant="subtle" :icon="formError === 'unavailable' ? 'i-lucide-cloud-off' : 'i-lucide-circle-alert'" :title="t(`accountLink.${formError}Title`)" :description="t(`accountLink.${formError}Body`)" />

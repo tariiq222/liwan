@@ -57,6 +57,18 @@ describe('the emailed-link pages', () => {
     }
   })
 
+  it('join and reset show each password rule with an icon and a state text, not by colour alone', () => {
+    for (const page of [join, reset]) {
+      expect(page).toContain("rule.met ? 'i-lucide-check' : 'i-lucide-x'")
+      expect(page).toContain("t('accountLink.ruleMet')")
+      expect(page).toContain("t('accountLink.ruleUnmet')")
+    }
+    for (const lang of ['ar', 'en']) {
+      expect(locale(lang, 'invite').accountLink.ruleMet).toBeTruthy()
+      expect(locale(lang, 'invite').accountLink.ruleUnmet).toBeTruthy()
+    }
+  })
+
   it('reset sends only the token and the new password, for the reset purpose', () => {
     expect(reset).toContain("resetPassword({ token: token.value, password: password.value })")
     expect(reset).toContain("checkToken(token.value, 'reset')")
@@ -81,6 +93,15 @@ describe('the emailed-link pages', () => {
   it('the sign-in page links to forgot-password', () => {
     expect(login).toContain('to="/forgot-password"')
     expect(login).toContain("$t('auth.forgotPassword')")
+  })
+})
+
+describe('the add-user form', () => {
+  it('marks the name and email fields as required, on the field and on the input', () => {
+    expect(newUser.match(/<UFormField[^>]*name="login"[^>]*\brequired>/g)?.length).toBe(2)
+    expect(newUser).toMatch(/<UFormField[^>]*name="name" required>/)
+    expect(newUser).toMatch(/<UInput id="name"[^>]* required /)
+    expect(newUser.match(/<UInput id="login"[^>]* required /g)?.length).toBe(2)
   })
 })
 
