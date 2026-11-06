@@ -213,9 +213,9 @@ TAGS="/${MODULES//,/,/}"
 ## Account contact create (R9 exception)
 
 The access-grant capability (`group_cap_access_users_grant`) holds no `res.partner` create ACL.
-`liwan.access.service._liwan_create_account` creates the one contact of a new account inside
-`protected_write.marked` with `PARTNER_CREATE_MARKER` set to the caller's uid, after its own
-`access.users.grant` check, and the `odoo-addons/liwan_core/models/res_partner.py` override of the public
+`liwan.access.service._liwan_create_invitee` (called by `_liwan_invite_account`, which holds the
+`access.users.grant` check; the account has no password until its holder accepts the emailed invitation) creates the one
+contact of a new account inside `protected_write.marked` with `PARTNER_CREATE_MARKER` set to the caller's uid, and the `odoo-addons/liwan_core/models/res_partner.py` override of the public
 `check_access` passes only the `create` operation while that marker holds the current uid; every other
 operation and every other caller keeps Odoo's ACLs and record rules. No Odoo method body is copied.
 Regression evidence: `test_grant_capability_creates_a_contact_only_inside_the_account_create` in
