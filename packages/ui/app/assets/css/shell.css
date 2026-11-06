@@ -235,6 +235,8 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .liwan-module-rail-link[data-active="true"] .liwan-module-rail-icon { background: var(--liwan-chip-active); color: var(--liwan-chip-active-ink); }
 .liwan-module-rail-link:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; border-radius: 14px; }
 .liwan-module-rail-link [data-slot="label"] { max-width: 100%; overflow: hidden; font-size: 12px; font-weight: inherit; line-height: 18px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+/* An accent entry (the assistant) wears its own sand circle; once open it looks like every other active entry. */
+.liwan-module-rail-link[data-accent]:not([data-active="true"]) .liwan-module-rail-icon { background: var(--liwan-ai-bg); color: var(--liwan-ai-ink); }
 @media (forced-colors: active) {
   .liwan-module-rail-link[data-active="true"] .liwan-module-rail-icon { outline: 2px solid Highlight; }
 }

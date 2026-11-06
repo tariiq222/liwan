@@ -6,8 +6,8 @@ import type { ZodType } from 'zod'
  * Data only: manifests import no components, except the lazy `sidebarPanel.load`
  * (a dynamic import of the application's own panel). Icons are Iconify strings.
  */
-/** Local Lucide icons and the approved customer WhatsApp brand icon. */
-export type AppIcon = `i-lucide-${string}` | 'i-liwan-whatsapp'
+/** Local Lucide icons, the approved customer WhatsApp brand icon and the Liwan AI sparkle. */
+export type AppIcon = `i-lucide-${string}` | 'i-liwan-whatsapp' | 'i-liwan-ai'
 /**
  * `feature` on a nav item, context link or route rule: an extra sub-feature key (e.g. 'hr.assets') the
  * entry needs on top of its capability and the feature derived from it, at the same read/write level.
@@ -81,9 +81,12 @@ export interface AppSettingsPage {
 }
 /**
  * `shortLabelKey` names the entry under its rail icon when the full label (still the tooltip) needs two lines.
- * `utility` places the entry in the rail's bottom slot above settings (the assistant), in `order` among the utility entries.
+ * `fixed` keeps a base-system entry in the rail whatever the user pins: `top` beside «يومي» at the head of the rail
+ * (the assistant), `first` before the pinned applications, `last` after them, above settings.
+ * `accent` gives the entry its own colour in the rail.
  */
-export interface AppRailEntry { id: string; labelKey: string; shortLabelKey?: string; icon: AppIcon; to: string; order: number; utility?: boolean }
+export type AppRailSlot = 'top' | 'first' | 'last'
+export interface AppRailEntry { id: string; labelKey: string; shortLabelKey?: string; icon: AppIcon; to: string; order: number; fixed?: AppRailSlot; accent?: boolean }
 /** The fetcher a search provider receives: `useApi().$api`, so requests keep its cookies, errors and zod parsing. */
 export type AppSearchApi = <T>(
   url: string,

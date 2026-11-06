@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// A scripted LiwanOS AI service for the mock stack: no model, deterministic runs.
+// A scripted Liwan AI service for the mock stack: no model, deterministic runs.
 // A message containing «مشروع» asks for a project draft (a plain answer when the request's catalog has no draft tool);
 // any other message reads the caller's tasks once and answers from the result.
 import http from 'node:http'

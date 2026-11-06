@@ -1,8 +1,8 @@
 {
   "ai": {
-    "title": "LiwanOS AI",
-    "description": "Ask about your tasks and projects, and request what you want prepared. LiwanOS AI prepares, you approve.",
-    "name": "Assistant",
+    "title": "Liwan AI",
+    "description": "Ask about your tasks and projects, and request what you want prepared. Liwan AI prepares, you approve.",
+    "name": "Liwan AI",
     "greeting": "Hello {name}",
     "greetingAnonymous": "Hello",
     "prompt": "How can I help with your work today?",
@@ -55,7 +55,7 @@
     },
     "thread": {
       "you": "You",
-      "assistant": "LiwanOS AI",
+      "assistant": "Liwan AI",
       "thinking": "Thinking…",
       "records": "Sources",
       "copy": "Copy",
@@ -84,7 +84,7 @@
       "discard": "Discard the draft"
     },
     "limits": {
-      "monthly": "Your company reached its LiwanOS AI message limit for this month.",
+      "monthly": "Your company reached its Liwan AI message limit for this month.",
       "run": "This request stopped because it exceeded the allowed number of steps.",
       "timeout": "The request took longer than allowed.",
       "used": "{used} of {limit} messages this month",
@@ -97,7 +97,7 @@
       "setupMonthly": "Your company reached this month's setup assistant limit."
     },
     "errors": {
-      "unavailable": "LiwanOS AI is unavailable right now. Try again later.",
+      "unavailable": "Liwan AI is unavailable right now. Try again later.",
       "provider": "Could not reach the AI model. Try again later.",
       "decide": "Could not save your decision. Try again.",
       "auditFailed": "The action was done but logging it failed.",

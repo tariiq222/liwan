@@ -2,22 +2,22 @@ import { describe, expect, it } from 'vitest'
 import { MAX_RAIL_PINS, pinnedRail, railPinsOwner, resolveRailPins, savedRailPins, toggleRailPin } from '../railPins'
 import type { ShellRailModel } from '../sidebarModel'
 
-const apps = ['tasks', 'projects', 'meetings', 'chat', 'hr', 'finance', 'documents', 'inbox']
+const apps = ['tasks', 'projects', 'crm', 'chat', 'hr', 'finance', 'operations', 'inbox']
 const item = (id: string) => ({ id, labelKey: id, icon: 'i-lucide-box', to: `/${id}` })
 const rail = (): ShellRailModel => {
   const applications = apps.map(item)
-  return { top: [item('apps')], applications, utility: [item('settings')], all: applications, drawer: applications }
+  return { top: [item('apps')], first: [item('meetings')], applications, last: [item('documents')], utility: [item('settings')], all: applications, drawer: applications }
 }
 
 describe('rail pins', () => {
   it('starts someone who never pinned with every permitted application up to the pin limit', () => {
-    expect(resolveRailPins(apps.slice(0, 3), null)).toEqual(['tasks', 'projects', 'meetings'])
+    expect(resolveRailPins(apps.slice(0, 3), null)).toEqual(['tasks', 'projects', 'crm'])
     expect(resolveRailPins(apps, null)).toEqual(apps.slice(0, MAX_RAIL_PINS))
   })
   it('keeps a saved empty choice, drops lost permissions and duplicates, and caps the list', () => {
     expect(resolveRailPins(apps, [])).toEqual([])
     expect(resolveRailPins(['tasks'], ['finance', 'tasks', 'tasks'])).toEqual(['tasks'])
-    expect(resolveRailPins([...apps, 'crm'], [...apps, 'crm'])).toHaveLength(MAX_RAIL_PINS)
+    expect(resolveRailPins([...apps, 'appointments'], [...apps, 'appointments'])).toHaveLength(MAX_RAIL_PINS)
   })
   it('ignores pins saved by another person or company', () => {
     const cookie = { owner: railPinsOwner(1, 2)!, ids: ['hr'] }
@@ -31,10 +31,11 @@ describe('rail pins', () => {
     expect(toggleRailPin(['tasks', 'hr'], 'tasks')).toEqual(['hr'])
     expect(toggleRailPin(apps.slice(0, MAX_RAIL_PINS), 'inbox')).toEqual(apps.slice(0, MAX_RAIL_PINS))
   })
-  it('shows pins in manifest order plus the open application and the tools, and leaves the drawer and breadcrumb sources whole', () => {
+  it('shows the fixed entries around the pins and the open application, then settings, and leaves the drawer and breadcrumb sources whole', () => {
     const model = pinnedRail(rail(), ['hr', 'tasks'], 'inbox')
-    expect(model.applications.map(entry => entry.id)).toEqual(['tasks', 'hr', 'inbox', 'settings'])
-    expect(model.utility).toEqual([])
+    expect(model.applications.map(entry => entry.id)).toEqual(['meetings', 'tasks', 'hr', 'inbox', 'documents', 'settings'])
+    expect(model.top.map(entry => entry.id)).toEqual(['apps'])
+    expect([model.first, model.last, model.utility]).toEqual([[], [], []])
     expect(model.drawer).toHaveLength(apps.length)
     expect(model.all).toHaveLength(apps.length)
   })

@@ -11,15 +11,15 @@ import type { AppManifest } from '../../../modules/types'
 const file = resolve(import.meta.dirname, '../HomeApps.vue')
 const cardFile = resolve(import.meta.dirname, '../../launcher/LauncherCard.vue')
 
-const app = (id: string, order: number, capability: string, utility = false): AppManifest => ({
+const app = (id: string, order: number, capability: string, top = false): AppManifest => ({
   id, feature: `${id}.enabled`, routePrefixes: [`/${id}`],
-  rail: [{ id, labelKey: `nav.${id}`, icon: 'i-lucide-circle', to: `/${id}`, order, ...(utility ? { utility } : {}) }],
+  rail: [{ id, labelKey: `nav.${id}`, icon: 'i-lucide-circle', to: `/${id}`, order, ...(top ? { fixed: 'top' as const } : {}) }],
   nav: [{ to: `/${id}`, labelKey: `nav.${id}`, icon: 'i-lucide-circle', shortcut: '', capability }],
 })
 const manifests = [app('tasks', 10, 'tasks.read'), app('finance', 20, 'finance.read'), app('chat', 30, 'chat.read'), app('ai', 40, 'ai.use', true)]
 const capabilities = ['tasks.read', 'finance.read', 'chat.read', 'ai.use']
 const messages = {
-  'home.apps': 'تطبيقاتك', 'nav.tasks': 'المهام', 'nav.finance': 'المالية', 'nav.chat': 'المحادثات', 'nav.ai': 'المساعد',
+  'home.apps': 'تطبيقاتك', 'nav.tasks': 'المهام', 'nav.finance': 'المالية', 'nav.chat': 'المحادثات', 'nav.ai': 'Liwan AI',
   'launcher.apps.tasks.description': 'مهامك الشخصية',
   'launcher.open': 'فتح التطبيق', 'launcher.pin': 'تثبيت', 'launcher.unpin': 'إزالة', 'launcher.pinLimit': 'الحد', 'launcher.actions': 'إجراءات سريعة',
 }
@@ -78,7 +78,7 @@ describe('HomeApps', () => {
     expect(html).toContain('مهامك الشخصية')
   })
 
-  it('never makes a utility module a card, even when the user may use it', async () => {
+  it('never makes the assistant (fixed at the top of the rail) a card, even when the user may use it', async () => {
     expect(capabilities).toContain('ai.use')
     expect(cards(await render())).not.toContain('ai')
   })
