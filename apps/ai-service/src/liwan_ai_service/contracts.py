@@ -57,10 +57,13 @@ class ToolSpec(Strict):
     result_summary: list[str] = Field(default_factory=list)
     draft_target: str | None = None
     requires_approval: bool = False  # the administrator made this read wait for the user; a write always waits
+    platform: bool = False  # a read tool of the platform itself (the knowledge search): no owning agent, offered to every agent
 
     @property
-    def agent(self) -> str:
-        """The agent that owns the tool: the application id its name starts with."""
+    def agent(self) -> str | None:
+        """The agent that owns the tool: the application id its name starts with; none for a platform tool."""
+        if self.platform:
+            return None
         return self.name.split(".", 1)[0]
 
     @model_validator(mode="after")
@@ -79,6 +82,9 @@ class ToolSpec(Strict):
                 raise ValueError(msg)
         elif self.route is None or self.draft_target is not None:
             msg = "a read/write_light tool has a route and no draft_target"
+            raise ValueError(msg)
+        if self.platform and self.kind != "read":
+            msg = "only a read tool is a platform tool"
             raise ValueError(msg)
         return self
 
@@ -172,7 +178,7 @@ class RunRequest(Strict):
         if len(set(keys)) != len(keys):
             msg = "agent keys must be unique"
             raise ValueError(msg)
-        orphan = next((tool.name for tool in self.tools if tool.agent not in keys), None)
+        orphan = next((tool.name for tool in self.tools if not tool.platform and tool.agent not in keys), None)
         if orphan is not None:
             msg = f"tool {orphan} belongs to no agent of the request"
             raise ValueError(msg)

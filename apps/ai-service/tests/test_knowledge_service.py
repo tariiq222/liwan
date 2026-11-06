@@ -7,7 +7,7 @@ from liwan_ai_service.control import MemoryControlState
 from liwan_ai_service.knowledge import QUEUE_MAX_AGE_HOURS, Drained
 from liwan_ai_service.tenant_state import TenantState
 from tests.fakes import ScriptedChatModel, SeededStates, ai_text, ai_tool_call, make_memory_app
-from tests.test_knowledge_graph import AI_AGENT, REFS, SEARCH_TOOL, FakeEmbedder, FakeStore
+from tests.test_knowledge_graph import REFS, SEARCH_TOOL, FakeEmbedder, FakeStore
 from tests.test_service import BODY, HEADERS, SETTINGS, fresh, parse_sse
 
 
@@ -46,7 +46,7 @@ class CountingStore(FakeStore):
 def knowledge_body():
     from tests.test_contracts import PMO_AGENT
 
-    return {**BODY, "tools": [SEARCH_TOOL], "agents": [PMO_AGENT, AI_AGENT], "company": "9"}
+    return {**BODY, "tools": [SEARCH_TOOL], "agents": [PMO_AGENT], "company": "9"}
 
 
 def app_for(store, embedder, settings=SETTINGS, control=None):

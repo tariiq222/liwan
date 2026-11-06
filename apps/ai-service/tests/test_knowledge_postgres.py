@@ -336,11 +336,12 @@ async def test_a_record_the_provider_refuses_is_dropped_and_the_rest_of_the_batc
 async def test_a_single_refused_row_is_dropped_even_when_it_is_the_whole_batch(pool):
     store = PostgresKnowledgeStore(pool)
     await upsert(pool, 1, ["bad"])
-    drained = await store.drain(FakeEmbedder(poison={"bad"}, poison_error=RejectedInputError(500)))
+    drained = await store.drain(FakeEmbedder(poison={"bad"}, poison_error=RejectedInputError(413)))
     assert (drained.applied, drained.dropped) == (1, 1) and await count(pool, "ai_knowledge_queue") == 0
 
 
-@pytest.mark.parametrize("error", [ConnectionError("down"), TimeoutError(), RejectedInputError(401), RejectedInputError(403), RejectedInputError(404), RejectedInputError(429)])
+@pytest.mark.parametrize("error", [ConnectionError("down"), TimeoutError(), RejectedInputError(401), RejectedInputError(403), RejectedInputError(404), RejectedInputError(408),
+                                   RejectedInputError(429), RejectedInputError(500), RejectedInputError(502), RejectedInputError(503), RejectedInputError(504)])
 async def test_a_failure_that_says_nothing_about_a_row_leaves_the_whole_batch_queued(pool, error):
     store = PostgresKnowledgeStore(pool)
     await upsert(pool, 1, ["alpha"])
@@ -374,3 +375,40 @@ async def test_a_provider_going_down_during_the_row_by_row_retry_leaves_the_batc
     with pytest.raises(ConnectionError):
         await store.drain(DownOnRetry(poison={"bad"}))
     assert await count(pool, "ai_knowledge_queue") == 2
+
+
+@pytest.mark.parametrize("status", [400, 413, 422])
+async def test_only_the_input_statuses_start_the_row_by_row_retry(pool, status):
+    store = PostgresKnowledgeStore(pool)
+    await upsert(pool, 1, ["alpha"])
+    await upsert(pool, 2, ["bad"])
+    drained = await store.drain(FakeEmbedder(poison={"bad"}, poison_error=RejectedInputError(status)))
+    assert (drained.applied, drained.dropped) == (2, 1) and len(await indexed(pool)) == 1
+
+
+async def test_a_reset_voids_everything_before_it_without_any_text_reaching_the_provider(pool):
+    store = PostgresKnowledgeStore(pool)
+    await upsert(pool, 999, ["alpha"])
+    await store.drain(FakeEmbedder())  # an index to wipe
+    assert len(await indexed(pool)) == 1
+    for res_id in range(DRAIN_BATCH + 50):  # more than one batch precedes the reset
+        await upsert(pool, res_id, ["alpha"])
+    await queue(pool, "reset")
+    embedder = FakeEmbedder(fail=True)  # and the provider is down: it must not even be asked
+    drained = await store.drain(embedder)
+    assert embedder.calls == 0 and embedder.texts == []
+    assert drained.applied == DRAIN_BATCH + 51
+    assert await count(pool, "ai_knowledge_queue") == 0 and await indexed(pool) == []
+
+
+async def test_rows_queued_after_the_newest_reset_are_still_indexed(pool):
+    store = PostgresKnowledgeStore(pool)
+    await upsert(pool, 1, ["alpha"])
+    await queue(pool, "reset")
+    await upsert(pool, 2, ["beta"])
+    await queue(pool, "reset")
+    await upsert(pool, 3, ["gamma"])
+    embedder = FakeEmbedder()
+    drained = await store.drain(embedder)
+    assert embedder.texts == ["gamma"] and drained.applied == 5  # the first reset and what it voided never reach the provider
+    assert [row[1] for row in await indexed(pool)] == [3] and await count(pool, "ai_knowledge_queue") == 0

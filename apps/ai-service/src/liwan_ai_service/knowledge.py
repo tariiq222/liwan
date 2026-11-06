@@ -23,9 +23,9 @@ from liwan_ai_service.embeddings import Embedder
 QUEUE_KINDS = ("upsert", "delete", "reset")
 DRAIN_BATCH = 100
 QUEUE_MAX_AGE_HOURS = 24  # the longest a row of chunk text may wait in the queue
-# A provider answering with one of these cannot say anything about a single row (bad key, unknown model, throttled, timed
-# out); any other HTTP status is the provider rejecting that input.
-PROVIDER_WIDE_STATUS = frozenset({401, 403, 404, 408, 429})
+# The only HTTP statuses that say "this text is the problem" (malformed, too large, unprocessable). Everything else (a
+# connection error, a timeout, a bad key, an unknown model, a throttle, any 5xx) is about the provider, not the row.
+INPUT_STATUS = frozenset({400, 413, 422})
 log = logging.getLogger("liwan_ai_service")
 SEARCH_LIMIT = 40  # candidates a search returns: Odoo resolves at most 8 readable ones from them
 
@@ -91,14 +91,13 @@ async def grant_knowledge_queue(conn) -> None:
 
 
 def rejects_the_input(error: Exception) -> bool:
-    """Whether the provider refused this text itself, as opposed to being unreachable or refusing every request.
+    """Whether the provider refused this text itself, as opposed to being unreachable, overloaded or refusing every request.
 
-    Only an HTTP status answers that (the OpenAI and Ollama clients both carry ``status_code``): a connection error, a
-    timeout or an error of unknown origin has none, and a bad key, an unknown model or a throttle is not about one row.
-    Those must never cost a record, so the batch stays queued and the next tick retries.
+    Only a 400, 413 or 422 (the OpenAI and Ollama clients both carry ``status_code``) says that. A connection error, a
+    timeout, an error of unknown origin, a bad key, an unknown model, a throttle and every 5xx are provider-wide: they
+    must never cost a record, so the batch stays queued and the next tick retries.
     """
-    status = getattr(error, "status_code", None)
-    return status is not None and status not in PROVIDER_WIDE_STATUS
+    return getattr(error, "status_code", None) in INPUT_STATUS
 
 
 async def embed_all(embedder: Embedder, texts: list[str]) -> list[list[float]]:
@@ -134,7 +133,7 @@ def current_upserts(rows: list[QueueRow]) -> list[int]:
 
 @dataclass(frozen=True)
 class Drained:
-    applied: int = 0  # queue rows taken off the queue
+    applied: int = 0  # queue rows taken off the queue (those a reset voided included)
     dropped: int = 0  # of those, upserts the provider refused and that were deleted without being indexed
 
 
@@ -168,19 +167,20 @@ class PostgresKnowledgeStore:
         return len(rows)
 
     async def drain(self, embedder: Embedder) -> Drained:
-        """Index the oldest ``DRAIN_BATCH`` queue rows, in the order Odoo wrote them.
+        """Index the oldest ``DRAIN_BATCH`` queue rows, in the order Odoo wrote them, after any pending reset.
 
         The text is embedded with no transaction open. The rows are then deleted and the index changed in one
         transaction under the queue's advisory lock, so a failure leaves the queue untouched and the next tick retries.
         A concurrent drain (another generation) that already took some of the rows makes this one apply nothing.
         """
+        flushed = await self._flush_resets()
         async with self.pool.connection() as conn:
             fetched = await (await conn.execute(
                 "SELECT id, kind, model, res_id, company_id, chunks FROM ai_knowledge_queue ORDER BY id LIMIT %s", (DRAIN_BATCH,),
             )).fetchall()
         rows = [QueueRow(*row) for row in fetched]
         if not rows:
-            return Drained()
+            return Drained(flushed)
         embedded, dropped = await self._embed(embedder, rows, current_upserts(rows))
         async with self.pool.connection() as conn, conn.transaction():
             await conn.execute("SELECT pg_advisory_xact_lock(hashtext('ai_knowledge_queue'))")
@@ -190,8 +190,24 @@ class PostgresKnowledgeStore:
                 raise Rollback  # another drain applied part of this batch meanwhile: the rest is read again next tick
             for index, row in enumerate(rows):
                 await self._apply(conn, row, embedded.get(index), embedder.model_id)
-            return Drained(len(rows), dropped)
-        return Drained()
+            return Drained(flushed + len(rows), dropped)
+        return Drained(flushed)
+
+    async def _flush_resets(self) -> int:
+        """Apply the newest pending ``reset`` first: it wipes the index and voids every row queued before it.
+
+        The newest reset of the whole queue, not just of the next batch, so no text it supersedes ever reaches the provider,
+        however many rows precede it and whether or not the provider is working. One transaction under the queue's lock.
+        Returns how many queue rows it removed.
+        """
+        async with self.pool.connection() as conn, conn.transaction():
+            await conn.execute("SELECT pg_advisory_xact_lock(hashtext('ai_knowledge_queue'))")
+            (newest,) = await (await conn.execute("SELECT max(id) FROM ai_knowledge_queue WHERE kind = 'reset'")).fetchone()
+            if newest is None:
+                return 0
+            gone = await (await conn.execute("DELETE FROM ai_knowledge_queue WHERE id <= %s RETURNING id", (newest,))).fetchall()
+            await conn.execute("DELETE FROM ai_knowledge_chunk")
+            return len(gone)
 
     @staticmethod
     async def _embed(embedder: Embedder, rows: list[QueueRow], current: list[int]) -> tuple[dict[int, list[str]], int]:

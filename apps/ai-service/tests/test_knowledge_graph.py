@@ -1,6 +1,7 @@
 """The knowledge search tool inside the graph: candidates are found before the request leaves, unavailability never spends a call."""
 import json
 
+import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
 
@@ -20,8 +21,8 @@ SEARCH_TOOL = {
     "input_map": {"body": {"refs": "$refs"}},
     "result_summary": ["items[]"],
     "draft_target": None,
+    "platform": True,  # what Odoo's catalog says of a tool that belongs to no agent
 }
-AI_AGENT = {**PMO_AGENT, "key": "ai", "pages": ["ai"]}  # a tool belongs to the agent its name starts with
 REFS = [{"model": "project.task", "res_id": 7, "chunk_no": 0}, {"model": "crm.lead", "res_id": 3, "chunk_no": 1}]
 
 
@@ -63,7 +64,7 @@ def make(responses, tools=(SEARCH_TOOL, READ_TOOL)):
     graph = BoundGraph(model, InMemorySaver())
     request = RunRequest.model_validate({
         "new_run_id": new_id(), "tenant": "t1", "user_ref": "42", "locale": "en", "message": "what is the Acme deal?", "context": None,
-        "tools": list(tools), "agents": [PMO_AGENT, AI_AGENT], "company": "9",
+        "tools": list(tools), "agents": [PMO_AGENT], "company": "9",
         "limits": {"max_steps": 6, "max_tool_calls": 2, "timeout_seconds": 60}, "policy": PLATFORM_POLICY,
     })
     return model, graph, request
@@ -152,3 +153,22 @@ async def test_a_resume_never_searches_again_and_keeps_the_result_the_caller_alr
     assert last_tool_reply(model) == items and final["outcome"] == "answer" and final["tool_calls_made"] == 1
     assert embedder.queries == ["Acme deal"] and len(store.searches) == 1  # searched exactly once
     assert final["results"] == [("ai.search_knowledge", items)]
+
+
+def test_a_platform_tool_needs_no_owning_agent_but_an_ordinary_one_does():
+    from pydantic import ValidationError
+
+    base = {"tenant": "t1", "user_ref": "42", "locale": "en", "message": "hi", "context": None, "agents": [PMO_AGENT], "new_run_id": new_id(),
+            "limits": {"max_steps": 6, "max_tool_calls": 2, "timeout_seconds": 60}, "policy": PLATFORM_POLICY}
+    request = RunRequest.model_validate({**base, "tools": [READ_TOOL, SEARCH_TOOL]})  # an ordinary catalog: no "ai" agent in it
+    assert [tool.platform for tool in request.tools] == [False, True] and request.tools[1].agent is None
+    with pytest.raises(ValidationError, match="belongs to no agent"):
+        RunRequest.model_validate({**base, "tools": [{**SEARCH_TOOL, "platform": False}]})
+    with pytest.raises(ValidationError, match="only a read tool"):
+        RunRequest.model_validate({**base, "tools": [{**SEARCH_TOOL, "kind": "write_light", "route": SEARCH_TOOL["route"]}]})
+
+
+async def test_every_agent_is_offered_the_platform_tool():
+    model, graph, request = make([ai_text("x")])
+    await graph.ainvoke(initial_state(request), config("k8", None))
+    assert "ai__search_knowledge" in model.bound_history[0]
