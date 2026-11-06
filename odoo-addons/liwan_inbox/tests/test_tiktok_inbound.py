@@ -18,6 +18,7 @@ from odoo.addons.liwan_inbox.models.constants import (
     TIKTOK_FEATURE,
 )
 from odoo.addons.liwan_inbox.models.inbound_tiktok import NOTE_TIKTOK_AUTO_WELCOME
+from odoo.addons.liwan_inbox.serializers import conversation as conversation_dump
 
 ACCESS_TOKEN = 'tiktok-access-token-1'
 REFRESH_TOKEN = 'tiktok-refresh-token-1'
@@ -245,6 +246,17 @@ class TestTikTokInbound(LiwanInboxCase):
         self.deliver(tt.referral('short_link', ref='campaign_1'))
         self.assertEqual((conversation.referral_source, conversation.referral_ref), ('short_link', 'campaign_1'))
         self.assertEqual(self.env['liwan.inbox.message'].search_count([('conversation_id', '=', conversation.id)]), count)
+
+    def test_a_stored_referral_is_dumped_on_the_conversation(self):
+        """The conversation dump carries the referral, so the workspace can show where the customer came from (D9)."""
+        self.deliver(tt.receive_text())
+        conversation = self.message('msg-text-1').conversation_id
+        dump = conversation_dump.dump_conversation(conversation)
+        self.assertIsNone(dump['referral_source'])
+        self.assertIsNone(dump['referral_ref'])
+        self.deliver(tt.referral('short_link', ref='campaign_1'))
+        dump = conversation_dump.dump_conversation(conversation)
+        self.assertEqual((dump['referral_source'], dump['referral_ref']), ('short_link', 'campaign_1'))
 
     def test_an_eu_notice_queues_a_history_import(self):
         """TikTok sends no content for an EEA, Swiss or UK sender: the notice imports that history instead (D8)."""
