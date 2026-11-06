@@ -10,9 +10,10 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_feature,
 )
 from odoo.addons.liwan_inbox.adapters import errors
-from odoo.addons.liwan_inbox.controllers.helpers import get_channel, holds
+from odoo.addons.liwan_inbox.controllers.helpers import holds
 from odoo.addons.liwan_inbox.models.access_service import REPLY
 from odoo.addons.liwan_inbox_payments.adapters import meta_catalog
+from odoo.addons.liwan_inbox_payments.controllers.helpers import whatsapp_channel
 from odoo.addons.liwan_inbox_payments.controllers.parsing import (
     parse_commerce_patch,
     provider_failure,
@@ -32,7 +33,7 @@ class ChannelCommerceController(http.Controller):
     @requires_capability(REPLY)
     def read_commerce(self, channel_id, **_):
         """The channel's catalog and Meta's cart and catalog button settings (refreshed by a catalog manager when stale)."""
-        channel = get_channel(channel_id, REPLY)
+        channel = whatsapp_channel(channel_id, REPLY)
         if channel._liwan_catalog() and holds(CATALOG_MANAGE, channel.owner_company_id):
             try:
                 channel._liwan_read_commerce()
@@ -47,7 +48,7 @@ class ChannelCommerceController(http.Controller):
     @requires_capability(CATALOG_MANAGE)
     def patch_commerce(self, channel_id, **payload):
         """Switch the cart and the catalog button at Meta first; nothing is kept when Meta refuses."""
-        channel = get_channel(channel_id, CATALOG_MANAGE)
+        channel = whatsapp_channel(channel_id, CATALOG_MANAGE)
         flags, notice = parse_commerce_patch(payload)
         if flags:
             if not channel._liwan_catalog():

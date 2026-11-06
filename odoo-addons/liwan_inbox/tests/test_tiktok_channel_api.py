@@ -17,6 +17,12 @@ ACCESS_TOKEN = 'tiktok-access-token-api'
 REFRESH_TOKEN = 'tiktok-refresh-token-api'
 REASON = 'inbox_channel_kind_unsupported'
 API = '/api/v1/inbox'
+# The catalog bridge's fixtures: a TikTok channel that a catalog and an order point at.
+CATALOG_BUSINESS_ACCOUNT_ID = '600000000001'
+CATALOG_ID = '300000000001'
+CATALOG_CREATE = {
+    'meta_catalog_id': CATALOG_ID, 'connect': False, 'brand': 'Acme', 'default_link': None, 'prices_include_tax': True,
+}
 # What a create needs so the body passes the field check and the channel kind is what refuses it.
 CAMPAIGN_CREATE = {
     'name': 'Spring', 'params': [], 'header_attachment_id': None, 'scheduled_at': None, 'send_within_hours': False, 'daily_cap': 0,
@@ -59,18 +65,40 @@ class TestTikTokChannelApi(LiwanInboxCase):
             'channel_id': cls.tiktok.id, 'contact_id': contact.id, 'identity_id': identity.id,
             'company_id': cls.tiktok.owner_company_id.id,
         })
+        # The catalog bridge routes (liwan_inbox_payments). The models are absent when this application
+        # is tested alone, so the inventory adds those routes only when the bridge is installed. The
+        # catalog hangs off a second TikTok channel's WhatsApp account id, the shape the guard defends.
+        cls.catalog = cls.item = cls.order = None
+        if 'liwan.inbox.catalog' in cls.env:
+            catalog_channel = cls.env['liwan.inbox.channel'].create({
+                'name': 'TikTok catalog', 'kind': 'tiktok', 'tiktok_business_id': '700000000017',
+                'business_account_id': CATALOG_BUSINESS_ACCOUNT_ID, 'state': 'connected',
+            })
+            cls.catalog = cls.env['liwan.inbox.catalog'].create({
+                'company_id': catalog_channel.owner_company_id.id,
+                'business_account_id': CATALOG_BUSINESS_ACCOUNT_ID,
+                'meta_catalog_id': CATALOG_ID, 'name': 'Shop', 'brand': 'Acme',
+            })
+            product = cls.env['product.product'].create({'name': 'TikTok product', 'type': 'consu'})
+            cls.item = cls.env['liwan.inbox.catalog.item'].create({
+                'catalog_id': cls.catalog.id, 'product_id': product.id, 'retailer_id': 'TIKTOK-1',
+            })
+            cls.order = cls.env['liwan.inbox.order'].create({
+                'company_id': cls.tiktok.owner_company_id.id, 'conversation_id': cls.conversation.id,
+                'catalog_id': cls.catalog.id,
+            })
 
     def setUp(self):
         super().setUp()
         self.login(self.manager)
 
     def whatsapp_routes(self):
-        """Every WhatsApp-only route of liwan_inbox, with the body that reaches its guard."""
+        """Every WhatsApp-only route of liwan_inbox and its catalog bridge, with the body that reaches its guard."""
         channel = f'{API}/channels/{self.tiktok.id}'
         template = f'{API}/templates/{self.template.id}'
         flow = f'{API}/flows/{self.flow.id}'
         campaign = f'{API}/campaigns/{self.campaign.id}'
-        return [
+        routes = [
             ('GET', f'{channel}/ref'),
             ('GET', f'{channel}/templates'), ('POST', f'{channel}/templates'),
             ('POST', f'{channel}/templates/sync'), ('POST', f'{channel}/templates/uploads'),
@@ -92,20 +120,53 @@ class TestTikTokChannelApi(LiwanInboxCase):
             ('POST', f'{channel}/template-insights'), ('POST', f'{channel}/analytics/sync'),
             ('GET', f'{channel}/sending'), ('PATCH', f'{channel}/sending'), ('POST', f'{channel}/sending/refresh'),
         ]
+        if self.catalog:
+            catalog = f'{API}/catalogs/{self.catalog.id}'
+            item = f'{API}/catalog-items/{self.item.id}'
+            order = f'{API}/orders/{self.order.id}'
+            conversation = f'{API}/conversations/{self.conversation.id}'
+            routes += [
+                ('POST', f'{API}/catalogs'),
+                ('GET', catalog), ('PATCH', catalog), ('DELETE', catalog), ('POST', f'{catalog}/sync'),
+                ('GET', f'{catalog}/items'), ('POST', f'{catalog}/items'), ('GET', f'{catalog}/products'),
+                ('GET', item), ('PATCH', item), ('DELETE', item),
+                ('GET', f'{conversation}/catalog-items'),
+                ('GET', f'{channel}/commerce'), ('PATCH', f'{channel}/commerce'),
+                ('GET', f'{conversation}/orders'), ('POST', f'{conversation}/orders'),
+                ('GET', order), ('PATCH', order), ('POST', f'{order}/checkout'), ('POST', f'{order}/cancel'),
+            ]
+        return routes
 
     def test_whatsapp_only_routes_refuse_tiktok(self):
-        with patch.object(requests, 'request') as outbound:
+        with patch.object(requests, 'request') as outbound, patch.object(requests, 'Session') as session:
             for method, path in self.whatsapp_routes():
                 body = None
                 if path == f'{API}/campaigns':
                     body = {**CAMPAIGN_CREATE, 'channel_id': self.tiktok.id, 'template_id': self.template.id, 'audience_id': self.audience.id}
                 elif path == f'{API}/campaigns/preview':
                     body = {'template_id': self.template.id, 'params': []}
-                result = self.api(method, path, json=body)
+                elif path == f'{API}/catalogs':
+                    body = {**CATALOG_CREATE, 'channel_id': self.tiktok.id}
+                try:
+                    result = self.api(method, path, json=body)
+                except requests.exceptions.RequestException as error:
+                    self.fail(f'{method} {path}: {error!r}')
                 self.assertEqual(result.status_code, 422, f'{method} {path}: {result.text}')
                 self.assertEqual(result.json().get('code'), 'invalid', f'{method} {path}: {result.text}')
                 self.assertEqual(result.json().get('details'), {'reason': REASON}, f'{method} {path}: {result.text}')
         self.assertEqual(outbound.call_count, 0, 'a WhatsApp-only route reached the provider for a TikTok channel')
+        self.assertEqual(session.call_count, 0, 'a WhatsApp-only route opened a provider session for a TikTok channel')
+
+    def test_a_whatsapp_catalog_still_answers_after_the_kind_guard(self):
+        if 'liwan.inbox.catalog' not in self.env:
+            self.skipTest('the catalog bridge is not installed')
+        catalog = self.env['liwan.inbox.catalog'].create({
+            'business_account_id': self.channel.business_account_id,
+            'meta_catalog_id': '300000000002', 'name': 'WhatsApp shop', 'brand': 'Acme',
+        })
+        result = self.get(f'{API}/catalogs/{catalog.id}')
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual(result.json()['id'], catalog.id)
 
     def test_the_channel_dump_carries_the_tiktok_fields(self):
         result = self.get(f'{API}/channels/{self.tiktok.id}')
