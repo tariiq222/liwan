@@ -30,6 +30,8 @@ services:
       NUXT_AUTH_PROXY_CLIENT_IP_HEADER: x-liwan-client-ip
       NUXT_AI_SERVICE_URL: "${NUXT_AI_SERVICE_URL:-}"
       NUXT_AI_SERVICE_TOKEN: "${AI_SERVICE_TOKEN:-}"
+      # web only: the ai service must never hold the key that opens the tokens it is given.
+      NUXT_AI_TOKEN_KEY: "${AI_TOKEN_KEY:-}"
     expose: ["3000"]
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]

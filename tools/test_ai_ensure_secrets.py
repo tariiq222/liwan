@@ -44,6 +44,12 @@ class EnsureSecretsTest(unittest.TestCase):
         self.assertEqual(stat.S_IMODE(os.stat(self.env_file).st_mode), 0o600)
         self.assertNotIn(token[0], output)
         self.assertNotIn(password[0], output)
+        # The web server's token key: generated like the others, distinct from the service token, never printed.
+        token_key = self.values('AI_TOKEN_KEY')
+        self.assertEqual(len(token_key), 1)
+        self.assertRegex(token_key[0], HEX_64)
+        self.assertNotEqual(token_key[0], token[0])
+        self.assertNotIn(token_key[0], output)
 
     def test_provision_keeps_existing_token(self):
         self.env_file.write_text(f'COMPOSE_PROFILES=ai\nAI_SERVICE_TOKEN={TOKEN}\n')
