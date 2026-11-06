@@ -1,8 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import threading
 from datetime import timedelta
 
 from odoo import fields
-from odoo.exceptions import AccessDenied, ValidationError
+from odoo.exceptions import AccessDenied, UserError, ValidationError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
 from odoo.addons.liwan_core.models.account_token import hash_token
@@ -56,6 +57,26 @@ class TestAccountInvitations(TransactionCase):
         except AccessDenied:
             return False
         return True
+
+    def _run_postcommit(self):
+        """Run the postcommit hooks, then the delivery threads they started (captured, not spawned)."""
+        started = []
+
+        class CapturedThread:
+            def __init__(thread, target=None, args=(), name=None, daemon=None):
+                thread.target, thread.args, thread.daemon = target, args, daemon
+                thread.name = name
+
+            def start(thread):
+                started.append(thread)
+
+        self.patch(threading, 'Thread', CapturedThread)
+        self.env.flush_all()
+        with self.enter_registry_test_mode():
+            self.env.cr.postcommit.run()
+            for thread in started:
+                thread.target(*thread.args)
+        return started
 
     def _assert_invalid_token(self, call, *args):
         with self.assertRaises(ValidationError) as caught:
@@ -271,13 +292,59 @@ class TestAccountInvitations(TransactionCase):
         user = self._invite()
         token = self.env['liwan.account.token'].sudo().search([('user_id', '=', user.id)])
         self.assertTrue(user.active)
-        self.env.flush_all()
-        with self.enter_registry_test_mode():
-            self.env.cr.postcommit.run()
+        self._run_postcommit()
         token.invalidate_recordset()
         self.assertEqual(token.delivery, 'failed')
         self.assertEqual(self.service._liwan_invitation_state(user)['delivery'], 'failed')
         self.service._liwan_resend_invitation(user, self._version(user))
+
+    def test_postcommit_hands_the_send_to_a_daemon_thread(self):
+        self.patch(type(self.env['liwan.account.mail']), '_liwan_send', self.real_send)
+        self.env['ir.config_parameter'].set_param('web.base.url', 'https://tenant.example.com')
+        self.env['ir.config_parameter'].set_param('mail.default.from', 'LiwanOS <no-reply@liwanos.com>')
+        calls = []
+        self.patch(
+            type(self.env['ir.mail_server']), 'send_email',
+            lambda server, message, *args, **kwargs: calls.append(message),
+        )
+        user = self._invite()
+        token = self.env['liwan.account.token'].sudo().search([('user_id', '=', user.id)])
+        started = []
+
+        class CapturedThread:
+            def __init__(thread, target=None, args=(), name=None, daemon=None):
+                thread.daemon = daemon
+                started.append(thread)
+
+            def start(thread):
+                thread.started = True
+
+        self.patch(threading, 'Thread', CapturedThread)
+        self.env.flush_all()
+        with self.enter_registry_test_mode():
+            self.env.cr.postcommit.run()
+        self.assertEqual(len(started), 1)
+        self.assertTrue(started[0].started)
+        self.assertTrue(started[0].daemon)
+        self.assertEqual(calls, [])
+        token.invalidate_recordset()
+        self.assertEqual(token.delivery, 'pending')
+
+    def test_mail_server_user_error_marks_delivery_failed(self):
+        self.patch(type(self.env['liwan.account.mail']), '_liwan_send', self.real_send)
+        self.env['ir.config_parameter'].set_param('web.base.url', 'https://tenant.example.com')
+        self.env['ir.config_parameter'].set_param('mail.default.from', 'LiwanOS <no-reply@liwanos.com>')
+
+        def refusing(server, message, *args, **kwargs):
+            msg = 'the mail server refused the message'
+            raise UserError(msg)
+
+        self.patch(type(self.env['ir.mail_server']), 'send_email', refusing)
+        user = self._invite()
+        token = self.env['liwan.account.token'].sudo().search([('user_id', '=', user.id)])
+        self._run_postcommit()
+        token.invalidate_recordset()
+        self.assertEqual(token.delivery, 'failed')
 
     def test_sent_mail_carries_link_in_both_languages_and_marks_sent(self):
         self.patch(type(self.env['liwan.account.mail']), '_liwan_send', self.real_send)
@@ -289,9 +356,7 @@ class TestAccountInvitations(TransactionCase):
             lambda server, message, *args, **kwargs: captured.append(message),
         )
         user = self._invite(name='Layla')
-        self.env.flush_all()
-        with self.enter_registry_test_mode():
-            self.env.cr.postcommit.run()
+        self._run_postcommit()
         token = self.env['liwan.account.token'].sudo().search([('user_id', '=', user.id)])
         self.assertEqual((token.delivery, bool(token.sent_at)), ('sent', True))
         message = captured[0]
