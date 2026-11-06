@@ -203,6 +203,7 @@ def _shell_cmd_for(ctx: dict, database: str, worktree_addons: str) -> list[str]:
     )
 
 
+ADMIN_MOBILE = '+966500000010'
 KW_RUNNER = (
     'import json, os\n'
     'from odoo.service.model import call_kw\n'
@@ -233,7 +234,10 @@ class ShellModels:
 
 def _shell_models(ctx: dict, database: str):
     models = ShellModels(ctx, database)
-    return models.call('res.users', 'search', [[['login', '=', 'admin']]], {'limit': 1})[0], models
+    admin_id = models.call('res.users', 'search', [[['login', '=', 'admin']]], {'limit': 1})[0]
+    # The API refuses an account without a mobile number, and the scratch admin has none.
+    models.call('res.users', 'write', [[admin_id], {'liwan_mobile': ADMIN_MOBILE}])
+    return admin_id, models
 
 
 def _kw(models, model, method, args, kwargs=None):
@@ -618,17 +622,21 @@ def _e2e_fixtures(ctx: dict, database: str, port: int, run_dir: Path) -> int:
         return _fail(f'employee create failed {mgr_emp} {emp_emp}')
     company_id = me['company']['id']
     mgr_user = api.call('POST', '/api/v1/admin/employee-accounts', {
-        'employee_id': mgr_emp[1]['id'], 'password': password,
+        'employee_id': mgr_emp[1]['id'], 'login': mgr_login,
         'assignments': [{'role_id': role['id'], 'scope': {'kind': 'company', 'id': company_id}}],
     })
     emp_user = api.call('POST', '/api/v1/admin/employee-accounts', {
-        'employee_id': emp_emp[1]['id'], 'password': password,
+        'employee_id': emp_emp[1]['id'], 'login': emp_login,
         'assignments': [{'role_id': emp_role['id'], 'scope': {'kind': 'company', 'id': company_id}}],
     })
     if mgr_user[0] >= 400 or emp_user[0] >= 400:
         return _fail(f'user grant failed {mgr_user} {emp_user}')
     mgr_id = mgr_user[1]['id']
     emp_id = emp_user[1]['id']
+    # An invited account sets its own password and mobile number from the emailed link. These fixture accounts
+    # sign in later, so the scratch database gets both through the operator shell, never through a customer route.
+    for account_id, mobile in ((mgr_id, '+966500000011'), (emp_id, '+966500000012')):
+        _kw(models, 'res.users', 'write', [[account_id], {'password': password, 'liwan_mobile': mobile}])
     project_a = _kw(models, 'project.project', 'create', [{
         'name': f'PSC digest A {stamp}', 'user_id': mgr_id, 'privacy_visibility': 'employees',
         'date': '2035-12-31', 'company_id': me['company']['id'],

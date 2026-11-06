@@ -87,11 +87,20 @@ registry = env['liwan.feature.registry']  # noqa: F821
 env['liwan.tenant.profile']._liwan_initialize_legacy_policy(registry._liwan_installed_module_ids())  # noqa: F821
 
 users = env['res.users'].with_context(no_reset_password=True)  # noqa: F821
+# The API refuses an account without a mobile number, so every seeded login holds one (E.164, unique per login).
+mobiles = {}
+
+
+def mobile_of(login):
+    return mobiles.setdefault(login, f'+9665000{len(mobiles) + 1:05d}')
+
+
 for login, name, groups, password_var, default_password in ACCOUNTS:
     password = os.environ.get(password_var) or default_password
     group_ids = [env.ref(xmlid).id for xmlid in groups]  # noqa: F821
     user = users.search([('login', '=', login)], limit=1)
-    values = {'name': name, 'email': f'{login}@example.test', 'group_ids': [(6, 0, group_ids)], 'password': password}
+    values = {'name': name, 'email': f'{login}@example.test', 'group_ids': [(6, 0, group_ids)], 'password': password,
+              'liwan_mobile': mobile_of(login)}
     if user:
         user.write(values)
     else:
@@ -141,7 +150,7 @@ def ensure_persona(key, name, job_title, home, role_keys, department=False, mana
     login = f'e2e_{key}'
     password = os.environ.get(f'E2E_USER_{key.upper()}_PASSWORD') or f'liwan-e2e-{key}-2026'
     values = {
-        'name': name, 'email': f'{key}@{EMAIL_DOMAIN}', 'password': password,
+        'name': name, 'email': f'{key}@{EMAIL_DOMAIN}', 'password': password, 'liwan_mobile': mobile_of(login),
         'company_id': home.id, 'company_ids': [(6, 0, home.ids)],
         'group_ids': [(6, 0, env.ref('base.group_user').ids)],  # noqa: F821
     }
