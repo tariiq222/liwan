@@ -73,6 +73,33 @@ function subject(server: boolean) {
 }
 
 describe('useMe with installed Nuxt SSR async-data behavior', () => {
+  it.each([true, false])('keeps unverified failures unknown through actual data/error/status ordering (server=%s)', async server => {
+    let failure = false
+    const app = runtime(server, () => {
+      if (failure) throw createError({ statusCode: 500 })
+      return identity()
+    })
+    const api = subject(server)
+    const current = api.inApp(app, () => api.useMe())
+    await current.ready
+    const seen: Array<number | null | undefined> = []
+    const stop = Vue.watch(current.ownershipIdentity, (value: ReturnType<typeof identity> | null | undefined) => seen.push(value === null || value === undefined ? value : value.id), { flush: 'sync' })
+    try {
+      failure = true
+      const pending = current.refresh()
+      expect(current.ownershipIdentity.value).toBeUndefined()
+      await pending
+      expect(current.me.value).toBeNull()
+      expect(current.error.value.statusCode).toBe(500)
+      expect(current.ownershipIdentity.value).toBeUndefined()
+      expect(seen).toEqual([undefined])
+      failure = false
+      await current.refresh()
+      expect(seen).toEqual([undefined, 5])
+      expect(current.me.value.id).toBe(5)
+    } finally { stop() }
+  })
+
   it('global passive observers never start private identity before a route requests it', async () => {
     let requests = 0
     const app = runtime(true, () => { requests++; return identity() })

@@ -8,26 +8,35 @@ export default defineNuxtPlugin({
   name: 'access-refresh',
   dependsOn: ['vue-query'],
   setup() {
-    const { me, refresh } = useMe({ immediate: false })
+    const { me, ownershipIdentity, refresh } = useMe({ immediate: false })
     const queryScope = useSessionQueryScope()
     const state: AccessRefreshInFlightState = { inFlight: null }
 
+    const snapshot = () => {
+      const identity = ownershipIdentity.value
+      if (identity === undefined) return undefined
+      return {
+        identity: sessionIdentityKey(identity),
+        policy: JSON.stringify([identity?.access_policy_version, identity?.capabilities ?? []]),
+      }
+    }
+    let previous = snapshot()
     watch(
-      () => ({
-        identity: sessionIdentityKey(me.value),
-        policy: JSON.stringify([me.value?.access_policy_version, me.value?.capabilities ?? []]),
-      }),
-      (current, previous) => {
-        if (!previous || (current.identity === previous.identity && current.policy === previous.policy)) return
-        const identityChanged = current.identity !== previous.identity
+      snapshot,
+      current => {
+        if (!current) return
+        const before = previous
+        previous = current
+        if (!before || (current.identity === before.identity && current.policy === before.policy)) return
+        const identityChanged = current.identity !== before.identity
         const owner = queryScope.current.value
         beginAccessRefreshInFlight(state, async () => {
           await nextTick()
           // Identity changes dispose the old private tree and create fresh observers.
           // Cancelling/resetting now would interrupt that new view's first request.
-          if (identityChanged || queryScope.current.value !== owner || sessionIdentityKey(me.value) !== current.identity) return
+          if (identityChanged || queryScope.current.value !== owner || snapshot()?.identity !== current.identity) return
           await owner.client.cancelQueries()
-          if (queryScope.current.value !== owner || sessionIdentityKey(me.value) !== current.identity) return
+          if (queryScope.current.value !== owner || snapshot()?.identity !== current.identity) return
           await owner.client.resetQueries()
         })
       },

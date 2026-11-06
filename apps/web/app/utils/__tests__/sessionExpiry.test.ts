@@ -29,7 +29,7 @@ describe('session view identity', () => {
     expect(sessionIdentityKey(absent)).toBe('anonymous')
   })
   it.each(['public', 'guest'])('keeps the %s view independent of private identity', access => {
-    expect(sessionViewKey({ id: 1, company: { id: 1 } }, access)).toBe(sessionViewKey({ id: 2, company: { id: 2 } }, access))
-    expect(sessionViewKey(null, access)).toBe('public')
+    expect(sessionViewKey('1:1', access)).toBe(sessionViewKey('2:2', access))
+    expect(sessionViewKey('anonymous', access)).toBe('public')
   })
 })

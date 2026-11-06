@@ -51,6 +51,14 @@ export function useMe(options: { immediate?: boolean } = {}) {
   })
   const { data, refresh, error } = request
   const me = computed(() => (error.value ? null : data.value ?? null))
+  // Ownership is cache/view provenance only, never a source of authorization.
+  // Nuxt settles data/error before status, so pending and unverified failures
+  // must not look like a confirmed anonymous session to lifecycle consumers.
+  const ownershipIdentity = computed(() => {
+    if (request.status.value === 'success') return me.value
+    if (request.status.value === 'error' && isLoggedOutError(error.value)) return null
+    return undefined
+  })
   const loggedIn = computed(() => me.value !== null)
-  return { me, refresh, loggedIn, error, ready: request }
+  return { me, ownershipIdentity, refresh, loggedIn, error, ready: request }
 }

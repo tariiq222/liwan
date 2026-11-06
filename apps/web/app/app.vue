@@ -10,12 +10,12 @@ import { pageArea } from '@/utils/workspacePresentation'
 providePageArea(pageArea)
 const { locale } = useI18n()
 const { mode, fontSize, syncFromUser } = useAppearance()
-const { me } = useMe({ immediate: false })
+const { me, ownershipIdentity } = useMe({ immediate: false })
 const route = useRoute()
-const viewKey = computed(() => sessionViewKey(me.value, route.meta.access))
 const queryScope = useSessionQueryScope()
-queryScope.prepare(sessionIdentityKey(me.value), viewKey.value === 'public')
+queryScope.prepare(ownershipIdentity.value === undefined ? undefined : sessionIdentityKey(ownershipIdentity.value), route.meta.access === 'public' || route.meta.access === 'guest')
 const queryOwner = queryScope.current
+const viewKey = computed(() => sessionViewKey(queryOwner.value.identity, route.meta.access))
 // Each signed-in user gets their own saved appearance; the cookie only
 // carries the last applied one for the first server paint.
 watch(me, syncFromUser, { immediate: true })

@@ -18,6 +18,6 @@ export function sessionIdentityKey(identity: SessionIdentity | null | undefined)
 }
 
 /** Public and guest forms do not follow changes to an unrelated private session. */
-export function sessionViewKey(identity: SessionIdentity | null | undefined, access: unknown): string {
-  return access === 'public' || access === 'guest' ? 'public' : `private:${sessionIdentityKey(identity)}`
+export function sessionViewKey(identityKey: string, access: unknown): string {
+  return access === 'public' || access === 'guest' ? 'public' : `private:${identityKey}`
 }

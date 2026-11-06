@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import * as Query from '@tanstack/vue-query'
+import { MeSchema } from '@liwan/contracts'
 import { renderToString } from '@vue/server-renderer'
 import { afterEach, expect, it, vi } from 'vitest'
 import { loadShared, DEFAULT_STUBS } from '@liwan/ui/test/helpers/renderShared'
@@ -26,8 +27,10 @@ function plugin(filename: string, bindings: Record<string, unknown>, server = fa
   const valid = Object.fromEntries(Object.entries(bindings).filter(([name]) => /^[A-Za-z_$][\w$]*$/.test(name) && name !== 'default'))
   return new Function(...Object.keys(valid), code)(...Object.values(valid)) as { setup: (nuxt: unknown) => unknown }
 }
-function fixture(options: { access?: string; server?: boolean; hydrating?: boolean; payload?: ssr.SerializedDehydratedState; read?: (company: number, signal: AbortSignal) => Promise<string>; mutate?: (company: number) => Promise<string>; expireOnRefresh?: boolean } = {}) {
+function fixture(options: { access?: string; server?: boolean; hydrating?: boolean; payload?: ssr.SerializedDehydratedState; read?: (company: number, signal: AbortSignal) => Promise<string>; mutate?: (company: number) => Promise<string>; expireOnRefresh?: boolean; identityRefreshError?: { statusCode: number } } = {}) {
   const me = Vue.ref<Identity | null>(identity(1))
+  const identityError = Vue.ref<unknown>()
+  const identityStatus = Vue.ref<'idle' | 'pending' | 'success' | 'error'>('success')
   const route = Vue.reactive({ path: '/private-records', fullPath: '/private-records', meta: { access: options.access } })
   const locale = Vue.ref('en')
   const state = Vue.ref(options.payload ?? null)
@@ -46,7 +49,19 @@ function fixture(options: { access?: string; server?: boolean; hydrating?: boole
   let privateMounts = 0
   let publicMounts = 0
   let identityRequests = 0
-  const useMe = (settings?: { immediate?: boolean }) => { if (settings?.immediate !== false) identityRequests++; return { me, loggedIn: Vue.computed(() => me.value !== null), refresh: async () => { recoveryRefreshes++; if (options.expireOnRefresh) me.value = null } } }
+  const identityRequest = { data: me, error: identityError, status: identityStatus, refresh: async () => {
+    recoveryRefreshes++
+    if (options.identityRefreshError) {
+      identityStatus.value = 'pending'
+      identityError.value = options.identityRefreshError
+      me.value = null
+      identityStatus.value = 'error'
+    } else if (options.expireOnRefresh) me.value = null
+  } }
+  const identitySource = readFileSync(resolve(import.meta.dirname, '../../composables/useMe.ts'), 'utf8').replace(/^import[^\n]*\n/gm, '').replace(/^export /gm, '').replaceAll('import.meta.server', String(!!options.server))
+  const identityCode = ts.transpileModule(identitySource, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
+  const productionUseMe = new Function('computed', 'MeSchema', 'useRequestHeaders', 'useNuxtApp', 'useNuxtData', 'useFetch', `${identityCode}\nreturn useMe`)(Vue.computed, MeSchema, () => ({}), () => ({ isHydrating: options.hydrating }), () => ({ data: me }), () => identityRequest)
+  const useMe = (settings?: { immediate?: boolean }) => { if (settings?.immediate !== false) identityRequests++; return productionUseMe(settings) }
   const Pass = Vue.defineComponent({ setup: (_, { slots }) => () => Vue.h('div', slots.default?.()) })
   const Layout = Vue.defineComponent({ setup(_, { slots }) { layouts++; layoutKeys.push(Vue.getCurrentInstance()!.vnode.key); return () => Vue.h('section', slots.default?.()) } })
   const Private = Vue.defineComponent({ setup() {
@@ -95,7 +110,7 @@ function fixture(options: { access?: string; server?: boolean; hydrating?: boole
   const root = createHostNode()
   if (!options.server) app.mount(root)
   active.push(() => { if (!options.server) app.unmount(); scope.stop(); queryScope.current.value.client.clear() })
-  return { me, route, locale, app, get client() { return queryScope.current.value.client }, queryScope, root, reads, mutate, mutationClients, busClients, mutationCallbacks, privateDrafts, layoutKeys, state, hooks, wait: () => access!.provide.waitForAccessRefresh(), counts: () => ({ layouts, privateMounts, publicMounts, identityRequests }), publicReads: () => publicReads, recoveryRefreshes: () => recoveryRefreshes, navigateTo }
+  return { me, route, locale, app, get client() { return queryScope.current.value.client }, queryScope, root, reads, identityError, identityStatus, mutate, mutationClients, busClients, mutationCallbacks, privateDrafts, layoutKeys, state, hooks, wait: () => access!.provide.waitForAccessRefresh(), counts: () => ({ layouts, privateMounts, publicMounts, identityRequests }), publicReads: () => publicReads, recoveryRefreshes: () => recoveryRefreshes, navigateTo }
 }
 
 it('replaces mounted private observers on a same-user company boundary with exactly one new read', async () => {
@@ -303,4 +318,69 @@ it('unmounts a retired client with its provider and mounts the fresh owner clien
   await view.wait(); await settle()
   expect(mounted).toHaveBeenCalledTimes(2)
   expect(unmounted).toHaveBeenCalledTimes(1)
+})
+
+
+
+it.each([
+  { statusCode: 500 },
+  { statusCode: 0 },
+  { statusCode: 500, cause: { name: 'ZodError' } },
+])('retains the committed private view and draft after an unverified identity failure ($statusCode)', async failure => {
+  const view = fixture()
+  await settle()
+  const client = view.client
+  const observer = client.getQueryCache().find({ queryKey: ['private-records'] })!.observers[0]
+  view.privateDrafts[0]!.value = 'unsaved local draft'
+  // Installed Nuxt updates pending first, then error/data before final error status.
+  view.identityStatus.value = 'pending'
+  view.identityError.value = failure
+  view.me.value = null
+  view.identityStatus.value = 'error'
+  await view.wait(); await settle()
+  expect(view.counts().layouts).toBe(1)
+  expect(view.client).toBe(client)
+  expect(view.privateDrafts).toHaveLength(1)
+  expect(view.privateDrafts[0]!.value).toBe('unsaved local draft')
+  expect(client.getQueryCache().find({ queryKey: ['private-records'] })!.observers[0]).toBe(observer)
+  // Recovery data/error also precede success; they must not imply a logout in between.
+  view.identityStatus.value = 'pending'
+  view.me.value = identity(1)
+  view.identityError.value = undefined
+  view.identityStatus.value = 'success'
+  await view.wait(); await settle()
+  expect(view.counts().layouts).toBe(1)
+  expect(view.client).toBe(client)
+  expect(view.reads).toEqual([1])
+  expect(view.privateDrafts[0]!.value).toBe('unsaved local draft')
+})
+
+
+it.each([401, 403, null])('retires the private owner only after a confirmed session end (%s)', async statusCode => {
+  const view = fixture()
+  await settle()
+  const client = view.client
+  view.identityStatus.value = 'pending'
+  view.identityError.value = statusCode === null ? undefined : { statusCode }
+  view.me.value = null
+  expect(view.client).toBe(client)
+  view.identityStatus.value = statusCode === null ? 'success' : 'error'
+  await view.wait(); await settle()
+  expect(view.client).not.toBe(client)
+  expect(view.queryScope.current.value.identity).toBe('anonymous')
+  expect(view.counts().layouts).toBe(2)
+})
+
+it('does not turn a current request 401 into logout when its identity recheck is unverified', async () => {
+  const view = fixture({ identityRefreshError: { statusCode: 500 }, mutate: async () => { throw new (await import('../../composables/useApi')).ApiError(401, 'session_required', 'recheck session') } })
+  await settle()
+  const client = view.client
+  view.privateDrafts[0]!.value = 'pending draft'
+  await view.mutate[0]!().catch(() => {})
+  await settle()
+  expect(view.recoveryRefreshes()).toBe(1)
+  expect(view.navigateTo).not.toHaveBeenCalled()
+  expect(view.client).toBe(client)
+  expect(view.counts().layouts).toBe(1)
+  expect(view.privateDrafts[0]!.value).toBe('pending draft')
 })

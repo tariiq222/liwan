@@ -1,7 +1,7 @@
 import { QueryCache, QueryClient, MutationCache, hydrate, dehydrate } from '@tanstack/vue-query'
 import { createSessionQueryScope, sessionQueryScopeKey, type SessionQueryOwner } from '@/lib/sessionQueryScope'
 import { clearChatDrafts } from '@/utils/chatDrafts'
-import { sessionIdentityKey, sessionViewKey, isPossibleSessionExpiry } from '@/utils/sessionExpiry'
+import { sessionIdentityKey, isPossibleSessionExpiry } from '@/utils/sessionExpiry'
 import { clearTenantSuspension, dropToastsWhileSuspended, isTenantSuspended, onTenantSuspension, SUSPENDED_LOGIN } from '@/utils/tenantSuspension'
 import { restoreDehydratedErrors, serializeDehydratedErrors, settleServerQueries, retryQuery, isTransientQueryError, type SerializedDehydratedState } from '@/lib/vueQuerySsr'
 
@@ -35,7 +35,7 @@ export default defineNuxtPlugin({
       // context restored explicitly.
       Promise.resolve(nuxt.runWithContext(async () => {
         await identity.refresh()
-        if (identity.me.value || !mayFinishSignOut(owner)) return // still signed in, or another owner replaced it
+        if (identity.ownershipIdentity.value !== null || !mayFinishSignOut(owner)) return // still signed in, or another owner replaced it
         clearChatDrafts()
         // The next sign-in may be another user: nothing cached for this one survives the session.
         queryScope.current.value.client.clear()
@@ -52,7 +52,7 @@ export default defineNuxtPlugin({
       defaultOptions: { queries: { staleTime: 5_000, retry: retryQuery, refetchOnWindowFocus: true, retryOnMount: import.meta.server || !nuxt.isHydrating } },
       queryCache: new QueryCache({ onError: error => onMaybeExpiredSession(generation, error) }),
       mutationCache: new MutationCache({ onError: error => onMaybeExpiredSession(generation, error) }),
-    }), sessionIdentityKey(identity?.me.value), router.currentRoute.value.meta.access === 'public' || router.currentRoute.value.meta.access === 'guest')
+    }), sessionIdentityKey(identity?.ownershipIdentity.value), router.currentRoute.value.meta.access === 'public' || router.currentRoute.value.meta.access === 'guest')
     nuxt.vueApp.provide(sessionQueryScopeKey, queryScope)
     const initialClient = queryScope.current.value.client
     nuxt.vueApp.onUnmount(() => { queryScope.current.value.client.clear() })
@@ -102,11 +102,11 @@ export default defineNuxtPlugin({
       dropToastsWhileSuspended(useToast().toasts)
       // Signing in again starts a session the old suspension no longer describes. Only a signed-out to
       // signed-in change clears it: a late success of a request sent before the suspension does not.
-      watch(identity.me, (me, before) => { if (me && !before) clearTenantSuspension() })
+      watch(identity.ownershipIdentity, (me, before) => { if (me && before === null) clearTenantSuspension() })
       watch(
         () => ({
-          identity: sessionIdentityKey(identity.me.value),
-          publicView: sessionViewKey(identity.me.value, router.currentRoute.value.meta.access) === 'public',
+          identity: identity.ownershipIdentity.value === undefined ? undefined : sessionIdentityKey(identity.ownershipIdentity.value),
+          publicView: router.currentRoute.value.meta.access === 'public' || router.currentRoute.value.meta.access === 'guest',
         }),
         current => queryScope.prepare(current.identity, current.publicView),
         { flush: 'sync' },

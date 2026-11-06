@@ -11,7 +11,7 @@ type SessionQueryActor = Readonly<{ identity: string; generation: number }>
 export type SessionQueryScope = {
   current: Readonly<ShallowRef<SessionQueryOwner>>
   actor: Readonly<ShallowRef<SessionQueryActor>>
-  prepare: (identity: string, publicView: boolean) => void
+  prepare: (identity: string | undefined, publicView: boolean) => void
   bind: () => void
 }
 export const sessionQueryScopeKey: InjectionKey<SessionQueryScope> = Symbol('session-query-scope')
@@ -30,7 +30,9 @@ export function createSessionQueryScope(
     current: shallowReadonly(current),
     actor: shallowReadonly(actor),
     bind: () => { bound = true },
-    prepare(nextIdentity, nextPublicView) {
+    prepare(identity, nextPublicView) {
+      // Unknown identity preserves provenance without granting access to it.
+      const nextIdentity = identity ?? actor.value.identity
       if (actor.value.identity !== nextIdentity) actor.value = { identity: nextIdentity, generation: actor.value.generation + 1 }
       const previous = current.value
       // Initial route/identity resolution precedes the first provider. Keep its
