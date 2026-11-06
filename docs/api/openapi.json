@@ -33,6 +33,29 @@
       }
     },
     "schemas": {
+      "AcceptInvitationInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "mobile": {
+            "pattern": "^\\+[1-9]\\d{7,14}$",
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "token": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "mobile",
+          "password"
+        ],
+        "type": "object"
+      },
       "AccessAuditDetailSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -40,13 +63,23 @@
           "action": {
             "enum": [
               "user.granted",
+              "user.invited",
+              "user.invitation_resent",
+              "user.invitation_login_changed",
+              "user.invitation_cancelled",
+              "user.reset_link_sent",
+              "user.password_set",
               "user.employee_linked",
               "user.roles_changed",
               "user.disabled",
               "user.reactivated",
               "user.password_reset",
+              "user.mobile_set",
+              "user.reset_link_requested",
               "user.branch_roles_changed",
               "branch.policy_changed",
+              "company.profile_changed",
+              "company.branding_changed",
               "employee.archived_access_disabled",
               "role.created",
               "role.updated",
@@ -186,13 +219,23 @@
                 "action": {
                   "enum": [
                     "user.granted",
+                    "user.invited",
+                    "user.invitation_resent",
+                    "user.invitation_login_changed",
+                    "user.invitation_cancelled",
+                    "user.reset_link_sent",
+                    "user.password_set",
                     "user.employee_linked",
                     "user.roles_changed",
                     "user.disabled",
                     "user.reactivated",
                     "user.password_reset",
+                    "user.mobile_set",
+                    "user.reset_link_requested",
                     "user.branch_roles_changed",
                     "branch.policy_changed",
+                    "company.profile_changed",
+                    "company.branding_changed",
                     "employee.archived_access_disabled",
                     "role.created",
                     "role.updated",
@@ -305,13 +348,23 @@
           "action": {
             "enum": [
               "user.granted",
+              "user.invited",
+              "user.invitation_resent",
+              "user.invitation_login_changed",
+              "user.invitation_cancelled",
+              "user.reset_link_sent",
+              "user.password_set",
               "user.employee_linked",
               "user.roles_changed",
               "user.disabled",
               "user.reactivated",
               "user.password_reset",
+              "user.mobile_set",
+              "user.reset_link_requested",
               "user.branch_roles_changed",
               "branch.policy_changed",
+              "company.profile_changed",
+              "company.branding_changed",
               "employee.archived_access_disabled",
               "role.created",
               "role.updated",
@@ -402,6 +455,62 @@
           "result"
         ],
         "type": "object"
+      },
+      "AccountLoginSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "login": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "login"
+        ],
+        "type": "object"
+      },
+      "AccountTokenCheckInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "purpose": {
+            "enum": [
+              "invite",
+              "reset"
+            ],
+            "type": "string"
+          },
+          "token": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "purpose"
+        ],
+        "type": "object"
+      },
+      "AccountTokenCheckSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "usable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "usable"
+        ],
+        "type": "object"
+      },
+      "AccountTokenPurposeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "invite",
+          "reset"
+        ],
+        "type": "string"
       },
       "ActualAccountPatchSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -667,9 +776,12 @@
               "enum": [
                 "read",
                 "assign_roles",
-                "reset_password",
+                "send_reset_link",
                 "disable",
-                "reactivate"
+                "reactivate",
+                "resend_invitation",
+                "edit_invitation",
+                "cancel_invitation"
               ],
               "type": "string"
             },
@@ -965,8 +1077,62 @@
             "maximum": 9007199254740991,
             "type": "integer"
           },
+          "invitation": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "delivery": {
+                    "enum": [
+                      "pending",
+                      "sent",
+                      "failed"
+                    ],
+                    "type": "string"
+                  },
+                  "expires_at": {
+                    "type": "string"
+                  },
+                  "sent_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "state": {
+                    "enum": [
+                      "pending",
+                      "expired"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "state",
+                  "delivery",
+                  "sent_at",
+                  "expires_at"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "login": {
             "type": "string"
+          },
+          "mobile": {
+            "anyOf": [
+              {
+                "pattern": "^\\+[1-9]\\d{7,14}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "name": {
             "type": "string"
@@ -983,12 +1149,51 @@
           "id",
           "name",
           "login",
+          "mobile",
+          "invitation",
           "active",
           "protected",
           "assignments",
           "version",
           "capabilities",
           "allowed_actions"
+        ],
+        "type": "object"
+      },
+      "AdminUserInvitationSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "delivery": {
+            "enum": [
+              "pending",
+              "sent",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string"
+          },
+          "sent_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "expired"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "delivery",
+          "sent_at",
+          "expires_at"
         ],
         "type": "object"
       },
@@ -1160,8 +1365,62 @@
                   "maximum": 9007199254740991,
                   "type": "integer"
                 },
+                "invitation": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "delivery": {
+                          "enum": [
+                            "pending",
+                            "sent",
+                            "failed"
+                          ],
+                          "type": "string"
+                        },
+                        "expires_at": {
+                          "type": "string"
+                        },
+                        "sent_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "state": {
+                          "enum": [
+                            "pending",
+                            "expired"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "delivery",
+                        "sent_at",
+                        "expires_at"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "login": {
                   "type": "string"
+                },
+                "mobile": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\+[1-9]\\d{7,14}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "name": {
                   "type": "string"
@@ -1178,6 +1437,8 @@
                 "id",
                 "name",
                 "login",
+                "mobile",
+                "invitation",
                 "active",
                 "protected",
                 "assignments",
@@ -1363,8 +1624,62 @@
             "maximum": 9007199254740991,
             "type": "integer"
           },
+          "invitation": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "delivery": {
+                    "enum": [
+                      "pending",
+                      "sent",
+                      "failed"
+                    ],
+                    "type": "string"
+                  },
+                  "expires_at": {
+                    "type": "string"
+                  },
+                  "sent_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "state": {
+                    "enum": [
+                      "pending",
+                      "expired"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "state",
+                  "delivery",
+                  "sent_at",
+                  "expires_at"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "login": {
             "type": "string"
+          },
+          "mobile": {
+            "anyOf": [
+              {
+                "pattern": "^\\+[1-9]\\d{7,14}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "name": {
             "type": "string"
@@ -1381,6 +1696,8 @@
           "id",
           "name",
           "login",
+          "mobile",
+          "invitation",
           "active",
           "protected",
           "assignments",
@@ -7463,13 +7780,23 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
           "user.granted",
+          "user.invited",
+          "user.invitation_resent",
+          "user.invitation_login_changed",
+          "user.invitation_cancelled",
+          "user.reset_link_sent",
+          "user.password_set",
           "user.employee_linked",
           "user.roles_changed",
           "user.disabled",
           "user.reactivated",
           "user.password_reset",
+          "user.mobile_set",
+          "user.reset_link_requested",
           "user.branch_roles_changed",
           "branch.policy_changed",
+          "company.profile_changed",
+          "company.branding_changed",
           "employee.archived_access_disabled",
           "role.created",
           "role.updated",
@@ -9188,23 +9515,6 @@
           "required"
         ],
         "type": "string"
-      },
-      "ChangeUserStateInputSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "expected_version": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "password": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "expected_version"
-        ],
-        "type": "object"
       },
       "ChatAttachmentListSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -19286,13 +19596,15 @@
             "maximum": 9007199254740991,
             "type": "integer"
           },
-          "password": {
+          "login": {
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
             "type": "string"
           }
         },
         "required": [
           "employee_id",
-          "password",
+          "login",
           "assignments"
         ],
         "type": "object"
@@ -34308,6 +34620,21 @@
         ],
         "type": "string"
       },
+      "ForgotPasswordInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "type": "object"
+      },
       "GovernanceStakeholderRefSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -34415,57 +34742,13 @@
           "name": {
             "minLength": 1,
             "type": "string"
-          },
-          "password": {
-            "type": "string"
           }
         },
         "required": [
           "name",
           "login",
-          "password",
           "assignments"
         ],
-        "type": "object"
-      },
-      "HrAccessGrantSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "password": {
-            "minLength": 8,
-            "type": "string"
-          },
-          "role": {
-            "enum": [
-              "employee",
-              "admin"
-            ],
-            "type": "string"
-          }
-        },
-        "required": [
-          "password",
-          "role"
-        ],
-        "type": "object"
-      },
-      "HrAccessPatchSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "password": {
-            "minLength": 8,
-            "type": "string"
-          },
-          "role": {
-            "enum": [
-              "employee",
-              "admin"
-            ],
-            "type": "string"
-          }
-        },
         "type": "object"
       },
       "HrAccessRoleSchema": {
@@ -49487,14 +49770,6 @@
           "reason"
         ],
         "type": "object"
-      },
-      "HrWritableRoleSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "enum": [
-          "employee",
-          "admin"
-        ],
-        "type": "string"
       },
       "InboxAccountStateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -76505,6 +76780,26 @@
         ],
         "type": "string"
       },
+      "InvitationLoginInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "login": {
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "login",
+          "expected_version"
+        ],
+        "type": "object"
+      },
       "JournalEntryActionSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
@@ -78174,6 +78469,22 @@
           "login": {
             "type": "string"
           },
+          "mobile": {
+            "anyOf": [
+              {
+                "pattern": "^\\+[1-9]\\d{7,14}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "mobile_required": {
+            "default": false,
+            "type": "boolean"
+          },
           "modules": {
             "default": [],
             "items": {
@@ -78358,6 +78669,8 @@
           "name",
           "login",
           "email",
+          "mobile",
+          "mobile_required",
           "lang",
           "tz",
           "role",
@@ -83363,6 +83676,25 @@
         ],
         "type": "object"
       },
+      "MobileInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "mobile": {
+            "pattern": "^\\+[1-9]\\d{7,14}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mobile"
+        ],
+        "type": "object"
+      },
+      "MobileSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "pattern": "^\\+[1-9]\\d{7,14}$",
+        "type": "string"
+      },
       "MyTaskListItemSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -86148,7 +86480,7 @@
             "type": "string"
           },
           "new": {
-            "minLength": 8,
+            "minLength": 12,
             "type": "string"
           }
         },
@@ -95552,24 +95884,6 @@
         ],
         "type": "string"
       },
-      "ResetPasswordInputSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "expected_version": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "password": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "password",
-          "expected_version"
-        ],
-        "type": "object"
-      },
       "RoleAssignmentInputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -96388,6 +96702,34 @@
           "kind",
           "id",
           "name"
+        ],
+        "type": "object"
+      },
+      "SeatUsageSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "used": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "used",
+          "limit"
         ],
         "type": "object"
       },
@@ -98223,6 +98565,24 @@
         ],
         "type": "object"
       },
+      "TokenPasswordResetInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "password": {
+            "type": "string"
+          },
+          "token": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "password"
+        ],
+        "type": "object"
+      },
       "UnknownNotificationSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": {},
@@ -98481,6 +98841,20 @@
         ],
         "type": "object"
       },
+      "VersionOnlyInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_version"
+        ],
+        "type": "object"
+      },
       "VisibilitySchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
@@ -98502,7 +98876,7 @@
   "info": {
     "description": "Generated surface of every /api/v1 route across the liwan Odoo addons, with contract schemas harvested from @liwan/contracts. Regenerate with `python3 tools/api_surface.py`; never edit by hand.",
     "title": "liwan /api/v1",
-    "version": "19.0.1.1.2"
+    "version": "19.0.1.1.3"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -99962,6 +100336,44 @@
         }
       }
     },
+    "/api/v1/admin/users/seats": {
+      "get": {
+        "operationId": "liwan_api.AccessAdminUsersController.seats.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "seats",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "AccessAdminUsersController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "seats",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/admin/users/{user_id}": {
       "get": {
         "operationId": "liwan_api.AccessAdminUsersController.user.get",
@@ -100215,9 +100627,9 @@
         }
       }
     },
-    "/api/v1/admin/users/{user_id}/password": {
-      "post": {
-        "operationId": "liwan_api.AccessAdminUsersController.reset_password.post",
+    "/api/v1/admin/users/{user_id}/invitation": {
+      "patch": {
+        "operationId": "liwan_api.AccessAdminUsersController.edit_invitation.patch",
         "parameters": [
           {
             "in": "path",
@@ -100247,7 +100659,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "reset_password",
+        "summary": "edit_invitation",
         "tags": [
           "liwan_api"
         ],
@@ -100260,7 +100672,109 @@
           "controller": "AccessAdminUsersController",
           "feature_keys": [],
           "feature_operation": null,
-          "handler": "reset_password",
+          "handler": "edit_invitation",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/admin/users/{user_id}/invitation/cancel": {
+      "post": {
+        "operationId": "liwan_api.AccessAdminUsersController.cancel_invitation.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "cancel_invitation",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "AccessAdminUsersController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "cancel_invitation",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/admin/users/{user_id}/invitation/resend": {
+      "post": {
+        "operationId": "liwan_api.AccessAdminUsersController.resend_invitation.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "resend_invitation",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "AccessAdminUsersController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "resend_invitation",
           "readonly": false,
           "route_type": "json2"
         }
@@ -100312,6 +100826,57 @@
           "feature_keys": [],
           "feature_operation": null,
           "handler": "reactivate",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/admin/users/{user_id}/reset-link": {
+      "post": {
+        "operationId": "liwan_api.AccessAdminUsersController.send_reset_link.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "send_reset_link",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "AccessAdminUsersController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "send_reset_link",
           "readonly": false,
           "route_type": "json2"
         }
@@ -129201,6 +129766,44 @@
         }
       }
     },
+    "/api/v1/me/mobile": {
+      "patch": {
+        "operationId": "liwan_api.MeController.patch_mobile.patch",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_mobile",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "MeController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "patch_mobile",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/me/password": {
       "post": {
         "operationId": "liwan_api.MeController.change_password.post",
@@ -137236,6 +137839,118 @@
           "feature_operation": "write",
           "handler": "create_update",
           "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/public/account/invitation/accept": {
+      "post": {
+        "operationId": "liwan_api.AccountPublicController.accept_invitation.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          }
+        },
+        "security": [],
+        "summary": "accept_invitation",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "public",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AccountPublicController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "accept_invitation",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/public/account/password/forgot": {
+      "post": {
+        "operationId": "liwan_api.AccountPublicController.forgot_password.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          }
+        },
+        "security": [],
+        "summary": "forgot_password",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "public",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AccountPublicController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "forgot_password",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/public/account/password/reset": {
+      "post": {
+        "operationId": "liwan_api.AccountPublicController.reset_password.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          }
+        },
+        "security": [],
+        "summary": "reset_password",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "public",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AccountPublicController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "reset_password",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/public/account/token": {
+      "post": {
+        "operationId": "liwan_api.AccountPublicController.check_token.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          }
+        },
+        "security": [],
+        "summary": "check_token",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "public",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AccountPublicController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "check_token",
+          "readonly": true,
           "route_type": "json2"
         }
       }

@@ -24,5 +24,66 @@
     "successBody": "You can now sign in.",
     "successLogin": "Login: {login}",
     "signIn": "Go to sign in"
+  },
+  "accountLink": {
+    "passwordLabel": "Password",
+    "confirmLabel": "Confirm password",
+    "mobileLabel": "Mobile number",
+    "mobileHint": "Enter it in international form, or start with 05 and we add +966.",
+    "rulesTitle": "Password rules",
+    "ruleLength": "At least 12 characters",
+    "ruleMatch": "Both passwords match",
+    "ruleMet": "Met",
+    "ruleUnmet": "Not met yet",
+    "checking": "Checking the link...",
+    "retry": "Try again",
+    "signIn": "Go to sign in",
+    "backToSignIn": "Back to sign in",
+    "invalidTitle": "The link is invalid or has expired",
+    "invalidBody": "Ask your company administrator for a new link, or use \"Forgot password?\" on the sign-in page.",
+    "unavailableTitle": "The service is unavailable right now",
+    "unavailableBody": "Try again in a moment. What you typed is still on the page.",
+    "passwordRejectedTitle": "Password rejected",
+    "passwordRejectedBody": "Choose a password of at least 12 characters and try again.",
+    "mobileInvalid": "Enter a valid international mobile number, such as +966500000001.",
+    "mobileTaken": "This mobile number belongs to another account.",
+    "join": {
+      "invalidTitle": "The invitation has expired or was already used",
+      "invalidBody": "Ask your company administrator to send it again.",
+      "title": "Accept invitation",
+      "subtitle": "Enter your mobile number and choose your password to activate your account.",
+      "submit": "Activate account",
+      "successTitle": "Your account is active",
+      "successBody": "Sign in with the password you chose.",
+      "successLogin": "Username: {login}"
+    },
+    "forgot": {
+      "title": "Forgot password?",
+      "subtitle": "Enter your email and we send you a link to reset your password.",
+      "email": "Email",
+      "submit": "Send link",
+      "emailInvalid": "Enter a valid email address.",
+      "sentTitle": "Check your email",
+      "sentBody": "If this email has an active account, a reset link arrives within minutes. The link works once and for 60 minutes."
+    },
+    "reset": {
+      "title": "New password",
+      "subtitle": "Choose a new password for your account.",
+      "submit": "Save password",
+      "successTitle": "Your password is changed",
+      "successBody": "Sign in with the new password. Your other sessions were ended.",
+      "successLogin": "Username: {login}"
+    },
+    "mobileStep": {
+      "title": "Add your mobile number",
+      "titleChange": "Mobile number",
+      "subtitle": "Every account needs a mobile number. Your colleagues cannot see it; only user administrators can.",
+      "submit": "Save and continue",
+      "save": "Save",
+      "back": "Back",
+      "signOut": "Sign out",
+      "signOutFailed": "Could not end the session. Try again.",
+      "saved": "Mobile number saved."
+    }
   }
 }

@@ -64,11 +64,11 @@ class TestAccessFixes(LiwanApiCase):
         self.assertEqual((again.status_code, again.json()['code']), (409, 'user_already_disabled'))
         self.assertEqual(len(self._events('user.disabled')), 1)
         back = self.api('POST', f'/api/v1/admin/users/{target.id}/reactivate', {
-            'expected_version': first.json()['version'], 'password': 'access_fix_pass_123',
+            'expected_version': first.json()['version'],
         })
         self.assertEqual(back.status_code, 200, back.text)
         twice = self.api('POST', f'/api/v1/admin/users/{target.id}/reactivate', {
-            'expected_version': back.json()['version'], 'password': 'access_fix_pass_123',
+            'expected_version': back.json()['version'],
         })
         self.assertEqual((twice.status_code, twice.json()['code']), (409, 'user_already_active'))
         self.assertEqual(len(self._events('user.reactivated')), 1)

@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { MIN_PASSWORD_LENGTH } from '../common/password'
 import { PersonRefSchema } from '../common/person'
 import { HrRefSchema } from './ref'
 
@@ -18,7 +17,6 @@ export * from './shifts'
 export * from './warnings'
 
 export const HrAccessRoleSchema = z.enum(['employee', 'admin', 'vendor'])
-export const HrWritableRoleSchema = z.enum(['employee', 'admin'])
 
 export const HrEmployeeAccessSchema = z.object({
   user_id: z.number().int().positive(),
@@ -99,18 +97,6 @@ export const HrEmployeePatchSchema = z.object({
   parent_id: relationId,
   nationality_id: relationId,
   contract: HrEmployeeContractPatchSchema.optional(),
-}).strict().refine(requirePatchField, { message: 'At least one field is required' })
-
-const password = z.string().trim().min(MIN_PASSWORD_LENGTH)
-
-export const HrAccessGrantSchema = z.object({
-  password,
-  role: HrWritableRoleSchema,
-}).strict()
-
-export const HrAccessPatchSchema = z.object({
-  password: password.optional(),
-  role: HrWritableRoleSchema.optional(),
 }).strict().refine(requirePatchField, { message: 'At least one field is required' })
 
 export const HrDepartmentCreateSchema = z.object({
@@ -305,8 +291,6 @@ export const HrLeaveApprovalProcessSchema = z.object({
 export type HrEmployeeAccess = z.infer<typeof HrEmployeeAccessSchema>
 export type HrEmployeeCreate = z.infer<typeof HrEmployeeCreateSchema>
 export type HrEmployeePatch = z.infer<typeof HrEmployeePatchSchema>
-export type HrAccessGrant = z.infer<typeof HrAccessGrantSchema>
-export type HrAccessPatch = z.infer<typeof HrAccessPatchSchema>
 export type HrDepartmentCreate = z.infer<typeof HrDepartmentCreateSchema>
 export type HrDepartmentPatch = z.infer<typeof HrDepartmentPatchSchema>
 export type HrDepartmentList = z.infer<typeof HrDepartmentListSchema>

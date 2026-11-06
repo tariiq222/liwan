@@ -1,4 +1,5 @@
 import { test, expect, type Page, type APIRequestContext } from '@playwright/test'
+import { acceptInvitation, MAIL_OUTBOX, NEEDS_MAIL } from './support/mailOutbox'
 
 // Needs a real Odoo: it logs in as admin and writes data, which the mock answers with 404. It is in no CI list until it has run on a
 // scratch Odoo (see docs/testing.md, section 3).
@@ -32,7 +33,8 @@ async function grantRole(request: APIRequestContext, role: { id: number }, suffi
   const me = await json(request, 'get', '/api/v1/me')
   const login = `access-${suffix}-${Date.now()}@example.test`
   const employee = await json(request, 'post', '/api/v1/hr/employees', { name: `اختبار ${suffix}`, work_email: login })
-  const user = await json(request, 'post', '/api/v1/admin/employee-accounts', { employee_id: employee.id, password: TEST_PASSWORD, assignments: [{ role_id: role.id, scope: { kind: 'company', id: me.company.id } }] })
+  const user = await json(request, 'post', '/api/v1/admin/employee-accounts', { employee_id: employee.id, login, assignments: [{ role_id: role.id, scope: { kind: 'company', id: me.company.id } }] })
+  if (MAIL_OUTBOX) await acceptInvitation(request, login, TEST_PASSWORD)
   return { user, employee, login }
 }
 async function grantFixture(request: APIRequestContext, roleKey: string, suffix: string) {
@@ -40,6 +42,7 @@ async function grantFixture(request: APIRequestContext, roleKey: string, suffix:
 }
 
 test('system administrator and HR have separate real API and page access', async ({ page, browser }) => {
+  test.skip(!MAIL_OUTBOX, NEEDS_MAIL)
   await login(page)
   const admin = await grantFixture(page.request, 'system_admin', 'admin')
   const hr = await grantFixture(page.request, 'hr_manager', 'hr')
@@ -61,7 +64,7 @@ test('system administrator and HR have separate real API and page access', async
     await login(hrPage, hr.login, TEST_PASSWORD)
     await expect(hrPage).toHaveURL(/\/hr$/)
     expect((await hrPage.request.get('/api/v1/admin/users')).status()).toBe(403)
-    expect((await hrPage.request.post(`/api/v1/hr/employees/${hr.employee.id}/access`, { data: { role: 'admin', password: TEST_PASSWORD } })).status()).toBeGreaterThanOrEqual(400)
+    expect((await hrPage.request.post(`/api/v1/hr/employees/${hr.employee.id}/access`, { data: { role: 'admin' } })).status()).toBeGreaterThanOrEqual(400)
     await hrPage.goto('/settings/team/users')
     await expect(hrPage.getByRole('heading', { name: 'المستخدمون', exact: true })).toHaveCount(0)
   } finally { await adminContext.close(); await hrContext.close() }
@@ -101,19 +104,24 @@ test('custom role is created through the Arabic editor and audited', async ({ pa
   await expect(page.getByRole('heading', { name: 'سجل تغييرات الوصول', exact: true })).toBeVisible()
 })
 
-test('employee preselection grants an account through the complete routed form', async ({ page, browser }) => {
+test('employee preselection invites an account through the complete routed form', async ({ page, browser }) => {
   await login(page)
   const loginName = `access-form-${Date.now()}@example.test`
   const employee = await json(page.request, 'post', '/api/v1/hr/employees', { name: 'موظف تجربة منح الحساب', work_email: loginName })
   const employeeRole = await builtinRole(page.request, 'employee')
   await page.goto(`/settings/team/users/new?employee_id=${employee.id}`)
   await expect(page.locator('select#employee')).toHaveValue(String(employee.id))
+  await expect(page.locator('#login')).toHaveValue(loginName)
+  await expect(page.locator('input[type="password"]')).toHaveCount(0)
   await page.locator(`input[type="checkbox"][value="${employeeRole.id}"]`).check()
-  await page.locator('#password').fill(TEST_PASSWORD)
-  await page.locator('#password-confirmation').fill(TEST_PASSWORD)
-  await page.getByRole('button', { name: 'إنشاء حساب', exact: true }).click()
-  await expect(page).toHaveURL(/\/settings\/team\/users\/\d+$/)
+  await page.getByRole('button', { name: 'إرسال الدعوة', exact: true }).click()
+  await expect(page.getByRole('status').filter({ hasText: `أرسلنا دعوة إلى ${loginName}` })).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByRole('link', { name: 'عرض المستخدم', exact: true }).click()
+  await expect(page).toHaveURL(/\/settings\/team\/users\/\d+/)
+  await expect(page.getByText('بانتظار القبول').first()).toBeVisible()
+  if (!MAIL_OUTBOX) return
+  await acceptInvitation(page.request, loginName, TEST_PASSWORD)
   const context = await browser.newContext()
   try {
     const employeePage = await context.newPage()
@@ -123,27 +131,35 @@ test('employee preselection grants an account through the complete routed form',
   } finally { await context.close() }
 })
 
-test('a new account is created from name, login, password and roles without an employee', async ({ page, browser }) => {
+test('a new account is invited from name, login and roles without an employee, and cannot sign in until it accepts', async ({ page, browser }) => {
   await login(page)
   const loginName = `access-plain-${Date.now()}@example.test`
   const employeeRole = await builtinRole(page.request, 'employee')
   await page.goto('/settings/team/users/new')
+  await expect(page.locator('input[type="password"]')).toHaveCount(0)
   await page.locator('#name').fill('حساب بلا موظف')
   await page.locator('#login').fill(loginName)
   await page.locator(`input[type="checkbox"][value="${employeeRole.id}"]`).check()
-  await page.locator('#password').fill(TEST_PASSWORD)
-  await page.locator('#password-confirmation').fill(TEST_PASSWORD)
-  await page.getByRole('button', { name: 'إنشاء حساب', exact: true }).click()
-  await expect(page).toHaveURL(/\/settings\/team\/users\/\d+$/)
+  await page.getByRole('button', { name: 'إرسال الدعوة', exact: true }).click()
+  await expect(page.getByRole('status').filter({ hasText: `أرسلنا دعوة إلى ${loginName}` })).toBeVisible()
   const context = await browser.newContext()
   try {
-    const accountPage = await context.newPage()
-    await login(accountPage, loginName, TEST_PASSWORD)
-    expect((await json(accountPage.request, 'get', '/api/v1/me')).capabilities).toContain('pmo.tasks.read')
+    const stranger = await context.newPage()
+    await stranger.goto('/login')
+    await stranger.getByLabel('اسم المستخدم').fill(loginName)
+    await stranger.getByLabel('كلمة المرور', { exact: true }).fill(TEST_PASSWORD)
+    await stranger.getByRole('button', { name: 'دخول', exact: true }).click()
+    await expect(stranger.getByRole('alert')).toBeVisible()
+    await expect(stranger).toHaveURL(/\/login/)
+    if (!MAIL_OUTBOX) return
+    await acceptInvitation(page.request, loginName, TEST_PASSWORD)
+    await login(stranger, loginName, TEST_PASSWORD)
+    expect((await json(stranger.request, 'get', '/api/v1/me')).capabilities).toContain('pmo.tasks.read')
   } finally { await context.close() }
 })
 
 test('account disable invalidates an existing session and leaves employee intact', async ({ page, browser }) => {
+  test.skip(!MAIL_OUTBOX, NEEDS_MAIL)
   await login(page)
   const fixture = await grantFixture(page.request, 'employee', 'member')
   const context = await browser.newContext()
@@ -181,64 +197,52 @@ test('navigation supports mobile inline expansion and role page reload', async (
 test.describe('account security race', () => {
   test.describe.configure({ retries: 0 })
 
-test('security page resets a password and reactivates the same account', async ({ page, browser }) => {
+test('security page sends a reset link and reactivates the same account without any password', async ({ page }) => {
   await login(page)
   const fixture = await grantFixture(page.request, 'employee', 'security')
-  const memberContext = await browser.newContext()
-  const replacement = 'LiwanAccess-Changed-456!'
-  try {
-    const member = await memberContext.newPage()
-    await login(member, fixture.login, TEST_PASSWORD)
-    await page.goto(`/settings/team/users/${fixture.user.id}/security`)
-    await page.locator('#admin-password').fill(replacement)
-    await page.locator('#admin-password-confirmation').fill(replacement)
-    await page.getByRole('button', { name: 'إعادة تعيين كلمة المرور', exact: true }).click()
-    await page.getByRole('button', { name: 'تأكيد', exact: true }).click()
-    await expect(page.getByRole('status').filter({ hasText: 'تمت إعادة تعيين كلمة المرور' })).toBeVisible()
-    expect((await member.request.get('/api/v1/me')).status()).toBe(403)
-    await expect(page.locator('#admin-password')).toHaveValue('')
-    await login(member, fixture.login, replacement)
-    let holdMe = false
-    let releaseMe: (() => void) | undefined
-    let meHold: Promise<void> | undefined
-    await page.route('**/api/v1/me', async (route) => {
-      if (holdMe && route.request().method() === 'GET') {
-        meHold ??= new Promise<void>((resolve) => { releaseMe = resolve })
-        await meHold
-      }
-      await route.continue()
-    })
-    holdMe = true
-    meHold = new Promise<void>((resolve) => { releaseMe = resolve })
-    await page.getByRole('button', { name: 'إيقاف الدخول', exact: true }).click()
-    await page.getByRole('button', { name: 'تأكيد', exact: true }).click()
-    await expect(page.getByRole('button', { name: 'إيقاف الدخول', exact: true })).toBeDisabled()
-    await expect(page.getByRole('status').filter({ hasText: 'تم إيقاف الوصول' })).toHaveCount(0)
-    holdMe = false
-    releaseMe?.()
-    await expect(page.getByRole('status').filter({ hasText: 'تم إيقاف الوصول' })).toBeVisible()
-    await expect(page.getByRole('alert')).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'إيقاف الدخول', exact: true })).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'إعادة تفعيل الدخول', exact: true })).toBeVisible()
-    await page.locator('#admin-password').fill(TEST_PASSWORD)
-    await page.locator('#admin-password-confirmation').fill(TEST_PASSWORD)
-    await expect(page.getByRole('button', { name: 'إعادة تفعيل الدخول', exact: true })).toBeEnabled()
-    await page.getByRole('button', { name: 'إعادة تفعيل الدخول', exact: true }).click()
-    await page.getByRole('button', { name: 'تأكيد', exact: true }).click()
-    await expect(page.getByRole('status').filter({ hasText: 'تمت إعادة تفعيل الوصول' })).toBeVisible()
-    const account = await json(page.request, 'get', `/api/v1/admin/users/${fixture.user.id}`)
-    expect(account.id).toBe(fixture.user.id)
-    expect(account.active).toBe(true)
-    await login(member, fixture.login, TEST_PASSWORD)
-    await page.goto(`/settings/team/users/${fixture.user.id}`)
-    await page.goto(`/settings/team/users/${fixture.user.id}/security`)
-    await expect(page.getByRole('heading', { level: 1, name: 'أمان الحساب', exact: true })).toBeVisible()
-    await expect(page.getByRole('status').filter({ hasText: 'تمت إعادة تفعيل الوصول' })).toHaveCount(0)
-  } finally { await memberContext.close() }
+  await page.goto(`/settings/team/users/${fixture.user.id}/security`)
+  await expect(page.locator('input[type="password"]')).toHaveCount(0)
+  await page.getByRole('button', { name: 'إرسال رابط إعادة تعيين', exact: true }).click()
+  await page.getByRole('button', { name: 'تأكيد', exact: true }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'أرسلنا رابط إعادة التعيين' })).toBeVisible()
+  let holdMe = false
+  let releaseMe: (() => void) | undefined
+  let meHold: Promise<void> | undefined
+  await page.route('**/api/v1/me', async (route) => {
+    if (holdMe && route.request().method() === 'GET') {
+      meHold ??= new Promise<void>((resolve) => { releaseMe = resolve })
+      await meHold
+    }
+    await route.continue()
+  })
+  holdMe = true
+  meHold = new Promise<void>((resolve) => { releaseMe = resolve })
+  await page.getByRole('button', { name: 'إيقاف الدخول', exact: true }).click()
+  await page.getByRole('button', { name: 'تأكيد', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'إيقاف الدخول', exact: true })).toBeDisabled()
+  await expect(page.getByRole('status').filter({ hasText: 'تم إيقاف الوصول' })).toHaveCount(0)
+  holdMe = false
+  releaseMe?.()
+  await expect(page.getByRole('status').filter({ hasText: 'تم إيقاف الوصول' })).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'إيقاف الدخول', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'إعادة تفعيل الدخول', exact: true })).toBeEnabled()
+  await expect(page.locator('input[type="password"]')).toHaveCount(0)
+  await page.getByRole('button', { name: 'إعادة تفعيل الدخول', exact: true }).click()
+  await page.getByRole('button', { name: 'تأكيد', exact: true }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'تمت إعادة تفعيل الوصول' })).toBeVisible()
+  const account = await json(page.request, 'get', `/api/v1/admin/users/${fixture.user.id}`)
+  expect(account.id).toBe(fixture.user.id)
+  expect(account.active).toBe(true)
+  await page.goto(`/settings/team/users/${fixture.user.id}`)
+  await page.goto(`/settings/team/users/${fixture.user.id}/security`)
+  await expect(page.getByRole('heading', { level: 1, name: 'أمان الحساب', exact: true })).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: 'تمت إعادة تفعيل الوصول' })).toHaveCount(0)
 })
 })
 
 test('custom read-only task access is enforced in the page and direct ORM', async ({ page, browser }) => {
+  test.skip(!MAIL_OUTBOX, NEEDS_MAIL)
   await login(page)
   const role = await json(page.request, 'post', '/api/v1/admin/roles', {
     name: { ar: `قراءة المهام ${Date.now()}`, en: null }, description: '',
@@ -282,6 +286,7 @@ test('custom read-only task access is enforced in the page and direct ORM', asyn
 })
 
 test('custom role save refreshes the actor Nuxt me request without focus', async ({ page, browser }) => {
+  test.skip(!MAIL_OUTBOX, NEEDS_MAIL)
   await login(page)
   const catalog = await json(page.request, 'get', '/api/v1/admin/permissions')
   const directoryPermission = catalog.items.find((item: { key: string }) => item.key === 'hr.employees.read')

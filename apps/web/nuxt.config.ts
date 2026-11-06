@@ -132,6 +132,9 @@ export default defineNuxtConfig({
     '/pay/**': { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } },
     // The booking page carries a booking's access token in its address: the same rule.
     '/book/**': { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } },
+    // The invitation and password-reset pages carry a one-time token in their address: the same rule.
+    '/join': { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } },
+    '/reset-password': { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } },
     // Keep future security/cache rules outside this proxy-only spread.
     ...(shared ? {} : {
     // The only stock routes left (ir.http guard in liwan_platform): session, assets and images.

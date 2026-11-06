@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { AssignmentListSchema, PasswordInputSchema } from './access'
+import { AssignmentListSchema } from './access'
 
 // The employee-account bridge (liwan_access_hr): present only when the HR application is installed.
 export const EmployeeAccountCandidateSchema = z.object({
@@ -17,7 +17,8 @@ export type EmployeeAccountCandidateList = z.infer<typeof EmployeeAccountCandida
 
 export const EmployeeAccountInputSchema = z.object({
   employee_id: z.number().int().positive(),
-  password: PasswordInputSchema,
+  /** Prefilled by the form from the work email; the HR work email itself is never rewritten. */
+  login: z.string().trim().email(),
   assignments: AssignmentListSchema,
 }).strict()
 export type EmployeeAccountInput = z.infer<typeof EmployeeAccountInputSchema>

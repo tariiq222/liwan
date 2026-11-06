@@ -109,6 +109,7 @@ async function submitTotp() {
       </UFormField>
       <UAlert v-if="errorMessage" role="alert" color="error" variant="subtle" :title="errorMessage" />
       <UButton type="submit" size="lg" class="w-full justify-center" :disabled="!hydrated" :loading="pending" :label="$t('auth.signIn')" />
+      <UButton to="/forgot-password" color="neutral" variant="link" class="justify-center" :label="$t('auth.forgotPassword')" />
     </UForm>
     <UForm v-else novalidate :state="totpState" :validate="validateTotp" class="liwan-form" @submit="submitTotp">
       <UFormField :label="$t('auth.totpTitle')" name="totp" required>

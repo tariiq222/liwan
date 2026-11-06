@@ -9,7 +9,8 @@ from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_platform.models.base import MIRROR_CONTEXT
 
 _logger = logging.getLogger(__name__)
-MIN_PASSWORD_LENGTH = 8
+# Paths a signed-in user without a mobile number may still call: read the profile, save the number, change the password.
+MOBILE_EXEMPT_PATHS = frozenset({'/api/v1/me', '/api/v1/me/mobile', '/api/v1/me/password'})
 
 
 def _raised_by_liwan(error):
@@ -281,6 +282,17 @@ def _mirror_sent_texts(payload):
         request.update_context(**{MIRROR_CONTEXT: texts})
 
 
+def _require_mobile_number():
+    """403 ``mobile_required`` until the signed-in internal user has saved a mobile number."""
+    service = request.env['liwan.access.service']
+    if (
+        request.httprequest.path not in MOBILE_EXEMPT_PATHS
+        and service._liwan_mobile_gate_enabled()
+        and service._liwan_mobile_required(request.env.user)
+    ):
+        raise ApiError(403, 'mobile_required', 'a mobile number is required before continuing')
+
+
 def api_handler(func):
     """Map exceptions raised by an /api/v1 controller to the contract error shape."""
     @functools.wraps(func)
@@ -296,6 +308,7 @@ def api_handler(func):
                 _mirror_sent_texts(kwargs)
                 _reject_foreign_company_payload(kwargs)
                 request.env['liwan.entitlement.service']._liwan_guard_api()
+                _require_mobile_number()
                 return func(*args, **kwargs)
         except ApiError as e:
             return error_response(e.status, e.code, e.message, e.field, e.details)

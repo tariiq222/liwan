@@ -24,6 +24,7 @@ class TestApiHandlerNeutralErrors(TransactionCase):
             mock.patch.object(common, 'request', request),
             mock.patch.object(common, '_pin_current_company'),
             mock.patch.object(common, '_reject_foreign_company_payload'),
+            mock.patch.object(common, '_require_mobile_number'),
         ):
             return handler()
 

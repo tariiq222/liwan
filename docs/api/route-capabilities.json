@@ -713,6 +713,18 @@
       "handler": "users",
       "no_capability_reason": null
     },
+    "GET /api/v1/admin/users/seats": {
+      "addon": "liwan_api",
+      "auth": "user",
+      "capability_keys": [
+        "access.users.grant"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "seats",
+      "no_capability_reason": null
+    },
     "GET /api/v1/admin/users/{user_id}": {
       "addon": "liwan_api",
       "auth": "user",
@@ -5303,6 +5315,18 @@
       "handler": "update_user_branches",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/admin/users/{user_id}/invitation": {
+      "addon": "liwan_api",
+      "auth": "user",
+      "capability_keys": [
+        "access.users.grant"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "edit_invitation",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/ai/agents/{key}": {
       "addon": "liwan_ai",
       "auth": "user",
@@ -6446,6 +6470,16 @@
       "handler": "patch_appearance",
       "no_capability_reason": "Finishes the login of the caller's own pre-authenticated session (auth/totp) or acts only on the caller's own account or profile (/me); no capability applies."
     },
+    "PATCH /api/v1/me/mobile": {
+      "addon": "liwan_api",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": null,
+      "capability_source": "none",
+      "feature_keys": [],
+      "handler": "patch_mobile",
+      "no_capability_reason": "Finishes the login of the caller's own pre-authenticated session (auth/totp) or acts only on the caller's own account or profile (/me); no capability applies."
+    },
     "PATCH /api/v1/meeting-series/{series_id}": {
       "addon": "liwan_meetings",
       "auth": "user",
@@ -6868,16 +6902,28 @@
       "handler": "disable",
       "no_capability_reason": null
     },
-    "POST /api/v1/admin/users/{user_id}/password": {
+    "POST /api/v1/admin/users/{user_id}/invitation/cancel": {
       "addon": "liwan_api",
       "auth": "user",
       "capability_keys": [
-        "access.users.reset_password"
+        "access.users.grant"
       ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [],
-      "handler": "reset_password",
+      "handler": "cancel_invitation",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/admin/users/{user_id}/invitation/resend": {
+      "addon": "liwan_api",
+      "auth": "user",
+      "capability_keys": [
+        "access.users.grant"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "resend_invitation",
       "no_capability_reason": null
     },
     "POST /api/v1/admin/users/{user_id}/reactivate": {
@@ -6890,6 +6936,18 @@
       "capability_source": "body",
       "feature_keys": [],
       "handler": "reactivate",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/admin/users/{user_id}/reset-link": {
+      "addon": "liwan_api",
+      "auth": "user",
+      "capability_keys": [
+        "access.users.reset_password"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "send_reset_link",
       "no_capability_reason": null
     },
     "POST /api/v1/ai/audit": {
@@ -10768,6 +10826,46 @@
       ],
       "handler": "create_update",
       "no_capability_reason": null
+    },
+    "POST /api/v1/public/account/invitation/accept": {
+      "addon": "liwan_api",
+      "auth": "public",
+      "capability_keys": [],
+      "capability_match": null,
+      "capability_source": "none",
+      "feature_keys": [],
+      "handler": "accept_invitation",
+      "no_capability_reason": "Anonymous holder of one emailed account link (invitation or password reset) under /api/v1/public/ (auth='public', save_session=False, no session): the single-use hashed token, checked in constant time by liwan.access.service, is the authorization, and forgot-password answers 202 for any email; no capability applies."
+    },
+    "POST /api/v1/public/account/password/forgot": {
+      "addon": "liwan_api",
+      "auth": "public",
+      "capability_keys": [],
+      "capability_match": null,
+      "capability_source": "none",
+      "feature_keys": [],
+      "handler": "forgot_password",
+      "no_capability_reason": "Anonymous holder of one emailed account link (invitation or password reset) under /api/v1/public/ (auth='public', save_session=False, no session): the single-use hashed token, checked in constant time by liwan.access.service, is the authorization, and forgot-password answers 202 for any email; no capability applies."
+    },
+    "POST /api/v1/public/account/password/reset": {
+      "addon": "liwan_api",
+      "auth": "public",
+      "capability_keys": [],
+      "capability_match": null,
+      "capability_source": "none",
+      "feature_keys": [],
+      "handler": "reset_password",
+      "no_capability_reason": "Anonymous holder of one emailed account link (invitation or password reset) under /api/v1/public/ (auth='public', save_session=False, no session): the single-use hashed token, checked in constant time by liwan.access.service, is the authorization, and forgot-password answers 202 for any email; no capability applies."
+    },
+    "POST /api/v1/public/account/token": {
+      "addon": "liwan_api",
+      "auth": "public",
+      "capability_keys": [],
+      "capability_match": null,
+      "capability_source": "none",
+      "feature_keys": [],
+      "handler": "check_token",
+      "no_capability_reason": "Anonymous holder of one emailed account link (invitation or password reset) under /api/v1/public/ (auth='public', save_session=False, no session): the single-use hashed token, checked in constant time by liwan.access.service, is the authorization, and forgot-password answers 202 for any email; no capability applies."
     },
     "POST /api/v1/public/appointments/bookings/{booking_id}/cancel": {
       "addon": "liwan_appointments",
