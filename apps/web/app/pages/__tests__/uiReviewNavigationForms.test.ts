@@ -157,11 +157,12 @@ describe('reviewed page navigation and form feedback', () => {
     page.stop()
   })
 
-  it('keeps the empty-error frame hidden', async () => {
+  it('keeps the empty-error identity frame hidden while its retry state remains visible', async () => {
     const page = await loadPage('projects/[id].vue', '/projects/7', {
       useProject: () => ({ data: Vue.ref(undefined), error: Vue.ref(new Error('offline')), isLoading: Vue.ref(false) }),
     })
-    expect(await propsFor(page, 'SharedPageContainer')).toBeUndefined()
+    expect(await propsFor(page, 'SharedPageContainer', props=>props['data-testid']==='project-workspace-frame')).toBeUndefined()
+    expect((await propsFor(page,'SharedPageState'))?.error).toBeInstanceOf(Error)
     expect(Vue.toValue(page.escapeTargets[0] as Vue.ComputedRef<string>)).toBeUndefined()
     page.stop()
   })
