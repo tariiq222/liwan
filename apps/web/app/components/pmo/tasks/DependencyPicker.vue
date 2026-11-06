@@ -12,9 +12,10 @@ const stateBadge = (state: TaskState) => { const entry = taskStateBadge(state); 
 const hydrated = useHydrated()
 const toast = useToast()
 const q = ref('')
-const taskId = computed(() => props.task.id)
+const taskId = computed(() => props.task.planning_enabled ? props.task.id : null)
+const candidateTaskId = computed(() => props.task.planning_enabled && props.task.can_manage_dependencies ? props.task.id : null)
 const { data: dependencyState } = useTaskDependencies(taskId)
-const { data: candidates, hasNextPage, fetchNextPage, isFetchingNextPage } = useTaskDependencyCandidates(taskId, q)
+const { data: candidates, hasNextPage, fetchNextPage, isFetchingNextPage } = useTaskDependencyCandidates(candidateTaskId, q)
 const { mutate: update, isPending } = useUpdateTaskDependencies()
 
 const dependencies = computed(() => dependencyState.value?.items ?? props.task.depends_on)
@@ -24,6 +25,7 @@ const available = computed(() => (candidates.value?.pages ?? []).flatMap((page) 
 const availableItems = computed(() => available.value.map((candidate) => ({ label: candidate.name, value: candidate.id })))
 
 function commit(ids: number[]) {
+  if (!props.task.planning_enabled || !props.task.can_manage_dependencies || !hydrated.value || isPending.value) return
   update({ id: props.task.id, ids }, { onError: (error) => toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' }) })
 }
 function remove(id: number) {
@@ -33,7 +35,7 @@ function remove(id: number) {
 </script>
 
 <template>
-  <section class="space-y-3" data-testid="dependency-picker">
+  <section v-if="task.planning_enabled" class="space-y-3" data-testid="dependency-picker">
     <header class="flex flex-wrap items-center justify-between gap-3">
       <h2 class="text-lg font-semibold text-highlighted">{{ t('taskLifecycle.dependencies') }} <span class="text-xs font-normal text-muted">{{ dependencies.length }}</span></h2>
       <USelectMenu

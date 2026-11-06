@@ -39,8 +39,8 @@ export function gateCheckRows(projectId: number, checks: readonly ProjectPhaseGa
 }
 
 /** The move button is live only for a manager, with a next phase and every blocking check met; a `warning` check never blocks. */
-export const canMoveForward = (state: ProjectPhaseState, canManage: boolean): boolean =>
-  canManage && state.next !== null && state.next_checks.every(check => check.ok || check.warning)
+export const canMoveForward = (state: ProjectPhaseState | null, canManage: boolean): boolean =>
+  !!state && canManage && state.next !== null && state.next_checks.every(check => check.ok || check.warning)
 
 /** The unmet checks that only warn: the manager must confirm them before the move. */
 export const unmetWarnings = (checks: readonly ProjectPhaseGateCheck[]): ProjectPhaseGateCheck[] =>
@@ -55,12 +55,12 @@ export function isWarningGate(error: unknown): boolean {
 }
 
 /** The gate card shows for a manager, a closed project or any check; a reader would otherwise see a bare heading. An archived project is read-only, so it has no gate at all. */
-export const isGateCardVisible = (state: ProjectPhaseState, canManage: boolean, active = true): boolean =>
-  active && (canManage || state.current === 'closed' || state.next_checks.length > 0)
+export const isGateCardVisible = (state: ProjectPhaseState | null, canManage: boolean, active = true): boolean =>
+  !!state && active && (canManage || state.current === 'closed' || state.next_checks.length > 0)
 
 /** The gate card is the page's one call to action while it is shown on an open project; a closed project's gate is a quiet note. */
-export const isGateAction = (state: ProjectPhaseState, canManage: boolean, active = true): boolean =>
-  state.current !== 'closed' && isGateCardVisible(state, canManage, active)
+export const isGateAction = (state: ProjectPhaseState | null, canManage: boolean, active = true): boolean =>
+  !!state && state.current !== 'closed' && isGateCardVisible(state, canManage, active)
 
 /** What a failed phase move tells the user: a locale key and toast colour; server text is never shown. */
 export function phaseFailure(error: unknown): { key: string; color: 'warning' | 'error' } {

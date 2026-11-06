@@ -4,7 +4,6 @@ import type {
   ProjectCharterState,
   ProjectCharterStep,
   ProjectCharterWrite,
-  ProjectCreate,
   ProjectDetail,
   ProjectPatch,
   ProjectPriority,
@@ -20,14 +19,12 @@ export const CHARTER_FIELD_KEYS = [
   'manager',
   'authority',
   'rationale',
-  'objectives',
   'benefits',
   'scope',
   'exclusions',
   'high_level_requirements',
   'deliverables',
   'acceptance',
-  'success',
   'date_start',
   'date_end',
   'budget_state',
@@ -167,14 +164,15 @@ export function emptyCharterDraft(currencyLabel: string | null = null): CharterD
   }
 }
 
-function formatCurrencyLabel(currency: ProjectDetail['charter']['currency']): string | null {
+function formatCurrencyLabel(currency: NonNullable<ProjectDetail['charter']>['currency']): string | null {
   if (!currency) return null
   return currency.symbol ? `${currency.name} (${currency.symbol})` : currency.name
 }
 
 export function draftFromProject(project: ProjectDetail): CharterDraft {
   const charter = project.charter
-  const objectives = charter.objectives.map((row, index) => ({
+  if (!charter) throw new Error('Project governance is unavailable')
+  const objectives = project.objectives.map((row, index) => ({
     key: charterRowKey('objective', index),
     goal: row.goal,
     metric: row.metric,
@@ -210,8 +208,8 @@ export function draftFromProject(project: ProjectDetail): CharterDraft {
     exclusions: charter.exclusions,
     highLevelRequirements: charter.high_level_requirements,
     deliverables: deliverables.length ? deliverables : [emptyDeliverable(false, charterRowKey('deliverable', 0))],
-    success: charter.success,
-    budgetState: charter.budget_state,
+    success: project.success_criteria,
+    budgetState: charter.budget_state ?? 'unknown',
     amountInput: charter.budget_state === 'estimate' && charter.amount != null ? String(charter.amount) : '',
     currencyLabel: formatCurrencyLabel(charter.currency),
     code: charter.code,
@@ -281,7 +279,6 @@ export type NativeDateSnapshot = {
 }
 
 type CharterValidateContext = {
-  mode: 'create' | 'edit'
   originalDates?: NativeDateSnapshot
 }
 
@@ -307,14 +304,14 @@ function datesChangedFromOriginal(draft: CharterDraft, originalDates: NativeDate
 
 export function validateCharterDraft(
   draft: CharterDraft,
-  context: CharterValidateContext = { mode: 'create' },
+  context: CharterValidateContext = {},
 ): CharterFieldError[] {
   const errors: CharterFieldError[] = []
   if (!draft.name.trim()) errors.push({ field: 'name', code: 'required' })
   if (!isIsoDate(draft.dateStart)) errors.push({ field: 'date_start', code: 'iso' })
   if (!isIsoDate(draft.dateEnd)) errors.push({ field: 'date_end', code: 'iso' })
   const currentDates = draftDateSnapshot(draft)
-  const datesAreBeingWritten = context.mode === 'create' || !context.originalDates || datesChangedFromOriginal(draft, context.originalDates)
+  const datesAreBeingWritten = !context.originalDates || datesChangedFromOriginal(draft, context.originalDates)
   if (datesAreBeingWritten && !isSupportedDateWrite(currentDates)) {
     errors.push({ field: 'date_start', code: 'pair' })
     errors.push({ field: 'date_end', code: 'pair' })
@@ -362,7 +359,6 @@ function comparableCharterDraft(draft: CharterDraft): string {
     exclusions: draft.exclusions,
     highLevelRequirements: draft.highLevelRequirements,
     deliverables: stripBlankDeliverables(draft.deliverables).map(({ name, description, acceptance }) => ({ name, description, acceptance })),
-    success: draft.success,
     budgetState: draft.budgetState,
     amountInput: draft.amountInput.trim(),
     priority: draft.priority,
@@ -372,12 +368,7 @@ function comparableCharterDraft(draft: CharterDraft): string {
   })
 }
 
-function compactText(value: string): string | undefined {
-  return value.trim() ? value : undefined
-}
-
-export function charterWriteFromDraft(draft: CharterDraft, mode: 'create' | 'patch'): ProjectCharterWrite {
-  const objectives = stripBlankObjectives(draft.objectives).map(({ goal, metric, target }) => ({ goal, metric, target }))
+export function charterWriteFromDraft(draft: CharterDraft): ProjectCharterWrite {
   const deliverables = stripBlankDeliverables(draft.deliverables).map(({ name, description, acceptance }) => ({
     name,
     description,
@@ -386,57 +377,17 @@ export function charterWriteFromDraft(draft: CharterDraft, mode: 'create' | 'pat
   const amount = parseAmountInput(draft.amountInput)
   const amountValue = amount.ok ? amount.value : null
 
-  if (mode === 'create') {
-    const write: ProjectCharterWrite = {}
-    if (draft.typeId) write.type_id = draft.typeId
-    if (draft.owningUnitId) write.owning_unit_id = draft.owningUnitId
-    if (draft.sponsorId) write.sponsor_id = draft.sponsorId
-    const authority = compactText(draft.authority)
-    if (authority) write.authority = authority
-    const rationale = compactText(draft.rationale)
-    if (rationale) write.rationale = rationale
-    if (objectives.length) write.objectives = objectives
-    const benefits = compactText(draft.benefits)
-    if (benefits) write.benefits = benefits
-    const scope = compactText(draft.scope)
-    if (scope) write.scope = scope
-    const exclusions = compactText(draft.exclusions)
-    if (exclusions) write.exclusions = exclusions
-    const requirements = compactText(draft.highLevelRequirements)
-    if (requirements) write.high_level_requirements = requirements
-    if (deliverables.length) write.deliverables = deliverables
-    const success = compactText(draft.success)
-    if (success) write.success = success
-    if (draft.budgetState === 'estimate') {
-      write.budget_state = 'estimate'
-      write.amount = amountValue ?? 0
-    }
-    else if (draft.budgetState === 'unknown' && amountValue != null) {
-      write.budget_state = 'unknown'
-    }
-    if (draft.priority) write.priority = draft.priority
-    const assumptions = compactText(draft.assumptions)
-    if (assumptions) write.assumptions = assumptions
-    const constraints = compactText(draft.constraints)
-    if (constraints) write.constraints = constraints
-    const closure = compactText(draft.closure)
-    if (closure) write.closure = closure
-    return write
-  }
-
   const write: ProjectCharterWrite = {
     type_id: draft.typeId,
     owning_unit_id: draft.owningUnitId,
     sponsor_id: draft.sponsorId,
     authority: draft.authority,
     rationale: draft.rationale,
-    objectives,
     benefits: draft.benefits,
     scope: draft.scope,
     exclusions: draft.exclusions,
     high_level_requirements: draft.highLevelRequirements,
     deliverables,
-    success: draft.success,
     budget_state: draft.budgetState,
     priority: draft.priority,
     assumptions: draft.assumptions,
@@ -448,42 +399,11 @@ export function charterWriteFromDraft(draft: CharterDraft, mode: 'create' | 'pat
   return write
 }
 
-export function hasCharterWriteContent(write: ProjectCharterWrite): boolean {
-  return Object.keys(write).length > 0
-}
-
 export function createdProjectLocation(id: number, returnTo: string): {
   path: string
   query: { returnTo: string; projectListReturnTo: string }
 } {
-  return { path: `/projects/${id}/milestones`, query: { returnTo, projectListReturnTo: returnTo } }
-}
-
-export function draftedProjectLocation(id: number, step: string, returnTo: string): {
-  path: string
-  query: { returnTo: string; edit: '1'; step: string }
-} {
-  return { path: `/projects/${id}/charter`, query: { returnTo, edit: '1', step } }
-}
-
-export function charterCreateBody(
-  draft: CharterDraft,
-  options: { includeNullManager?: boolean } = {},
-): ProjectCreate {
-  const body: ProjectCreate = { name: draft.name.trim() }
-  if (draft.description.trim()) body.description = draft.description
-  if (draft.userId || options.includeNullManager) body.user_id = draft.userId
-  const dates = draftDateSnapshot(draft)
-  if (dates.dateStart && dates.dateEnd) {
-    body.date_start = dates.dateStart
-    body.date = dates.dateEnd
-  }
-  else if (dates.dateEnd) {
-    body.date_end = dates.dateEnd
-  }
-  const charter = charterWriteFromDraft(draft, 'create')
-  if (hasCharterWriteContent(charter)) body.charter = charter
-  return body
+  return { path: `/projects/${id}`, query: { returnTo, projectListReturnTo: returnTo } }
 }
 
 export function charterPatchBody(
@@ -495,7 +415,7 @@ export function charterPatchBody(
     name: draft.name.trim(),
     description: draft.description,
     user_id: draft.userId,
-    charter: charterWriteFromDraft(draft, 'patch'),
+    charter: charterWriteFromDraft(draft),
     expected_updated_at: expectedUpdatedAt,
   }
   if (datesChangedFromOriginal(draft, originalDates)) {

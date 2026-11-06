@@ -11,7 +11,7 @@ import { projectSectionLocation } from '@/utils/projectWorkspaceMemory'
 const props = withDefaults(defineProps<{
   projectId: number
   active?: boolean
-  level?: 'sections' | 'governance' | 'planning'
+  level?: 'sections' | 'governance' | 'planning' | 'finance'
 }>(), { level: 'sections' })
 
 const route = useRoute()
@@ -25,26 +25,28 @@ const projectData = computed(() => hydrated.value ? projectQuery.data.value : un
 const activeProject = computed(() => props.active ?? projectData.value?.active ?? true)
 const sectionItems = computed(() => {
   const current = activeProjectSection(route.path)
-  return projectSections(props.projectId, me.value, { active: activeProject.value }).map(section => ({
+  return projectSections(props.projectId, me.value, { active: activeProject.value, tools: projectData.value?.tools }).map(section => ({
     key: `project-tab-${section.id}`, label: t(section.labelKey), to: projectSectionLocation(section.to, route.path, route.query), active: current === section.id, icon: section.icon,
   }))
 })
 const governanceItems = computed(() => {
   const current = activeGovernanceSection(route.path)
-  return governanceSections(props.projectId, { changeControl: (projectData.value?.change_control_mode ?? 'off') !== 'off', baselines: hasFeature(me.value, 'pmo.baselines'), evm: hasFeature(me.value, 'pmo.evm') }).map(section => ({
+  return governanceSections(props.projectId, { changeControl: (projectData.value?.change_control_mode ?? 'off') !== 'off' && hasFeature(me.value, 'pmo.change_control') }).map(section => ({
     key: `governance-tab-${section.id}`, label: t(section.labelKey), to: projectSectionLocation(section.to, route.path, route.query), active: current === section.id, icon: section.icon,
   }))
 })
-const planningItems = computed(() => planningSections(props.projectId, { active: activeProject.value }).map(section => ({
+const planningItems = computed(() => planningSections(props.projectId, { active: activeProject.value, baselines: hasFeature(me.value, 'pmo.baselines') }).map(section => ({
   key: `planning-tab-${section.id}`, label: t(section.labelKey), to: projectSectionLocation(section.to, route.path, route.query), active: activePlanningSection(route.path) === section.id, icon: section.icon,
 })))
+
+const financeItems = computed(() => [{key:'finance-tab-overview',label:t('nav.projectFinance'),to:`/projects/${props.projectId}/finance`,active:route.path === `/projects/${props.projectId}/finance`}, ...(projectData.value?.tools.planning.enabled && hasFeature(me.value,'pmo.evm') ? [{key:'finance-tab-evm',label:t('nav.projectEvm'),to:`/projects/${props.projectId}/evm`,active:route.path.includes('/evm')}] : [])])
 const sublevel = computed(() => props.level !== 'sections')
 const governance = computed(() => props.level === 'governance')
 </script>
 
 <template>
   <SharedRouteTabs
-    :items="governance ? governanceItems : props.level === 'planning' ? planningItems : sectionItems"
+    :items="governance ? governanceItems : props.level === 'planning' ? planningItems : props.level === 'finance' ? financeItems : sectionItems"
     variant="pill"
     :ariaLabel="t(sublevel ? 'projects.workspace.subtabsLabel' : 'projects.workspace.tabsLabel')"
     :data-testid="governance ? 'project-governance-tabs' : props.level === 'planning' ? 'project-planning-tabs' : 'project-workspace-tabs'"

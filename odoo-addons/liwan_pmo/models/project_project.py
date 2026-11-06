@@ -14,7 +14,6 @@ from .project_constants import (
     COMPLETION_APPROVAL_VALUES,
     DELIVERABLE_KEYS,
     MANAGER_WRITABLE,
-    OBJECTIVE_KEYS,
     POLICY_CREATE_MARKER,
     PRIORITY_VALUES,
     PROJECT_CREATE_FIELDS,
@@ -22,6 +21,11 @@ from .project_constants import (
     STATUS_VALUES,
     VISIBILITY_VALUES,
     _validate_charter_rows,
+)
+from .project_tools import (
+    CHILD_PROJECT_QUERY_MARKER,
+    tool_domain_fields,
+    tool_group_domain,
 )
 from odoo.addons.project.models.project_project import (
     ProjectProject as StockProjectProject,
@@ -32,7 +36,6 @@ __all__ = [
     'DELIVERABLE_KEYS',
     'MAX_COPY_MILESTONES',
     'MAX_COPY_TASKS',
-    'OBJECTIVE_KEYS',
     'PRIORITY_VALUES',
     'PROJECT_CREATORS',
     'STATUS_VALUES',
@@ -84,7 +87,7 @@ class ProjectProject(models.Model):
     liwan_sponsor_id = fields.Many2one('res.users', ondelete='set null', index=True)
     liwan_authority = fields.Text(default='')
     liwan_rationale = fields.Text(default='')
-    liwan_objectives = fields.Json(default=list)
+    liwan_objective_ids = fields.One2many('liwan.project.objective', 'project_id', copy=True)
     liwan_benefits = fields.Text(default='')
     liwan_scope = fields.Text(default='')
     liwan_exclusions = fields.Text(default='')
@@ -147,6 +150,9 @@ class ProjectProject(models.Model):
             self.env['liwan.access.service']._liwan_require_capability(
                 'pmo.projects.read',
             )
+        if not bypass_access and self.env.cr.precommit.data.get(CHILD_PROJECT_QUERY_MARKER) != self.env.uid:
+            names = tool_domain_fields(domain) + [order or '']
+            domain = tool_group_domain(self, domain, names)
         return super()._search(
             domain, offset=offset, limit=limit, order=order,
             active_test=active_test, bypass_access=bypass_access,
@@ -264,6 +270,8 @@ class ProjectProject(models.Model):
                 vals.pop('liwan_code', None)
             if 'liwan_revision' in vals:
                 raise AccessError(self.env._("Project revision cannot be set."))
+            if not self.env.su:
+                self._liwan_check_tool_create_vals(vals)
             self._liwan_prepare_charter_vals(vals)
             if not bootstrap:
                 vals = self._liwan_resolved_create_vals(vals)
@@ -313,6 +321,8 @@ class ProjectProject(models.Model):
                 raise AccessError(self.env._("Project fields are not allowed."))
             if any(not project._liwan_can_manage() for project in self):
                 raise AccessError(self.env._("Only the project manager can change this project."))
+        self._liwan_check_tool_preference_vals(vals)
+        self._liwan_check_tool_content_vals(vals)
         policy_changed = 'liwan_completion_approval' in vals or 'liwan_completion_approver_id' in vals
         manager_changed = 'user_id' in vals
         archived = vals.get('active') is False
@@ -454,6 +464,8 @@ class ProjectProject(models.Model):
         this check.
         """
         self._liwan_check_manage()
+        self._liwan_check_tool_preference_vals(vals)
+        self._liwan_check_tool_content_vals(vals)
         return self._liwan_write_sudo(vals)
 
     def _liwan_write_charter_approval(self, vals):
@@ -511,7 +523,6 @@ class ProjectProject(models.Model):
 
     def _liwan_prepare_json_vals(self, vals):
         for field, keys, label in (
-            ('liwan_objectives', OBJECTIVE_KEYS, 'objectives'),
             ('liwan_deliverables', DELIVERABLE_KEYS, 'deliverables'),
         ):
             if field not in vals:
@@ -570,11 +581,6 @@ class ProjectProject(models.Model):
                     raise ValidationError(self.env._("Catalog references must belong to the project company."))
             if not records and record.company_id != self.env.company:
                 raise ValidationError(self.env._("Catalog references must belong to the project company."))
-
-    @api.constrains('liwan_objectives')
-    def _check_liwan_objectives(self):
-        for project in self:
-            _validate_charter_rows(project.liwan_objectives, OBJECTIVE_KEYS, 'objectives')
 
     @api.constrains('liwan_deliverables')
     def _check_liwan_deliverables(self):

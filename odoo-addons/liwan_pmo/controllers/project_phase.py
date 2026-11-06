@@ -43,6 +43,7 @@ class ProjectPhaseController(http.Controller):
             raise ApiError(422, 'invalid', "acknowledge_warnings must be a boolean", field='acknowledge_warnings')
         token = parse_write_token(payload.get('expected_updated_at'))
         project = get_visible_record('project.project', project_id)
+        project._liwan_check_tool('governance')
         try:
             project._liwan_lock_for_write(token)
             project._liwan_move_phase(target, acknowledge_warnings=acknowledge)

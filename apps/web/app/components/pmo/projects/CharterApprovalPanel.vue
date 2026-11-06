@@ -17,12 +17,13 @@ const qc = useQueryClient()
 const { mutateAsync: transition, isPending } = useCharterTransition()
 
 const charter = computed(() => props.project.charter)
-const state = computed(() => charter.value.state)
-const canReview = computed(() => state.value === 'submitted' && charter.value.can_review)
-const canWithdraw = computed(() => state.value === 'submitted' && props.project.can_manage && !charter.value.can_review)
-const sponsorName = computed(() => charter.value.sponsor?.name ?? '')
+const state = computed(() => charter.value?.state)
+const canReview = computed(() => state.value === 'submitted' && charter.value?.can_review)
+const canWithdraw = computed(() => state.value === 'submitted' && props.project.can_manage && !charter.value?.can_review)
+const sponsorName = computed(() => charter.value?.sponsor?.name ?? '')
 const approvedLabel = computed(() => {
-  const { approved_by: by, approved_at: at } = charter.value
+  const by = charter.value?.approved_by
+  const at = charter.value?.approved_at ?? null
   return by ? t('projects.charter.approvedBy', { name: by.name, date: formatLiwanDate(at) }) : t('projects.charter.state.approved')
 })
 
@@ -59,7 +60,7 @@ async function run(action: keyof typeof CHARTER_ACTION_TOAST, body?: string) {
 </script>
 
 <template>
-  <div class="liwan-print-hide" data-testid="charter-approval-panel">
+  <div v-if="charter" class="liwan-print-hide" data-testid="charter-approval-panel">
     <UAlert v-if="state === 'draft' && charter.return_note" color="warning" variant="subtle" icon="i-lucide-undo-2" data-testid="charter-returned" :title="t('projects.charter.returned')" :description="charter.return_note" />
     <UAlert v-else-if="state === 'draft'" color="warning" variant="subtle" icon="i-lucide-pencil-line" data-testid="charter-draft-banner" :title="t('projects.charter.draftBanner')" />
 

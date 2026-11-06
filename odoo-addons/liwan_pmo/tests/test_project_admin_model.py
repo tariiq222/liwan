@@ -2,11 +2,13 @@
 import json
 
 from odoo.exceptions import AccessError, UserError
-from odoo.tests import TransactionCase, new_test_user, tagged
+from odoo.tests import new_test_user, tagged
+
+from .common import LiwanPmoCase
 
 
-@tagged('liwan')
-class TestProjectAdminModel(TransactionCase):
+@tagged('post_install', '-at_install', 'liwan')
+class TestProjectAdminModel(LiwanPmoCase):
 
     @classmethod
     def setUpClass(cls):
@@ -91,7 +93,8 @@ class TestProjectAdminModel(TransactionCase):
                 'project_creators': 'employees',
                 'default_stages': [{'name': 'A', 'fold': True}],
                 'require_manager_on_create': True,
-                'require_end_date_on_create': True,
+                'require_end_date_on_create': False,
+                'planning_tool_policy': 'enabled', 'governance_tool_policy': 'enabled', 'finance_tool_policy': 'enabled',
                 'default_completion_approval': 'none',
                 'deadline_reminders_enabled': True,
                 'deadline_reminders_days_before': 1,

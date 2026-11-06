@@ -8,6 +8,8 @@ class ProjectPhaseBaseline(models.Model):
 
     def _liwan_gate_checks(self, target):
         checks = super()._liwan_gate_checks(target)
+        if not self._liwan_tool_enabled('planning'):
+            return checks
         if target != 'executing':
             return checks
         mode = self.env['liwan.pmo.settings'].baseline_gate()

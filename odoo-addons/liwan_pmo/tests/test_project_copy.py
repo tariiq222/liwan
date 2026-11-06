@@ -257,6 +257,7 @@ class TestProjectCopy(LiwanPmoCase):
         self.assertFalse(tasks.filtered(lambda task: task.state == '1_done'))
 
     def test_end_date_is_required_when_the_source_has_none(self):
+        self.env['liwan.pmo.settings'].set_values({'require_end_date_on_create': True})
         bare = self.env['project.project'].create({
             'name': 'No end', 'user_id': self.manager.id, 'company_id': self.env.company.id,
             'privacy_visibility': 'employees', 'date': False,
@@ -432,3 +433,14 @@ class TestProjectCopy(LiwanPmoCase):
         self.assertEqual(response.json()['code'], 'feature_not_included')
         self.assertEqual(service._liwan_count_projects(), project_count)
         self.assertEqual(before, self._counts())
+
+    def test_planning_off_copy_keeps_deadline_without_advanced_structure(self):
+        self.env['liwan.pmo.settings'].set_values({'planning_tool_policy': 'disabled'})
+        copied = self._copy(name='Basic deadline copy')
+        tasks = self.env['project.task'].search([('project_id', '=', copied.id)])
+        first = tasks.filtered(lambda task: task.name == 'First')
+        self.assertTrue(first.date_deadline)
+        self.assertFalse(first.liwan_planned_start)
+        self.assertFalse(first.milestone_id)
+        self.assertFalse(tasks.depend_on_ids)
+        self.assertFalse(copied.milestone_ids)

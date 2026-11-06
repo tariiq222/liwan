@@ -16,13 +16,11 @@ const CHARTER = {
   sponsor: { id: 2, name: 'Sara' },
   authority: 'Board',
   rationale: 'Need',
-  objectives: [{ goal: 'Ship', metric: '', target: '' }],
   benefits: 'Faster',
   scope: 'In',
   exclusions: 'Out',
   high_level_requirements: 'Req',
   deliverables: [{ name: 'Doc', description: '', acceptance: 'Signed' }],
-  success: 'Done',
   budget_state: 'estimate',
   amount: 0,
   currency: { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 },
@@ -49,7 +47,6 @@ describe('ProjectCharterSchema', () => {
       type: null,
       owning_unit: null,
       sponsor: null,
-      objectives: [],
       deliverables: [],
       budget_state: 'unknown',
       amount: null,
@@ -57,6 +54,11 @@ describe('ProjectCharterSchema', () => {
       priority: null,
     }).budget_state).toBe('unknown')
   })
+  it('accepts redacted financial fields when finance is unavailable', () => {
+    const parsed = ProjectCharterSchema.parse({ ...CHARTER, budget_state: null, amount: null, currency: null })
+    expect(parsed.budget_state).toBeNull()
+  })
+
   it('rejects extra keys and inverted budget vocabulary', () => {
     expect(() => ProjectCharterSchema.parse({ ...CHARTER, extra: 1 })).toThrow()
     expect(() => BudgetStateSchema.parse('approved')).toThrow()

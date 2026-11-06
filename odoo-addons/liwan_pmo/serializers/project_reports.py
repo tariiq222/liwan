@@ -77,14 +77,16 @@ def dump_report_row(project, can_read_tasks, task_values, finance_summary):
 
 def finance_summaries_by_project(projects):
     """Build one finance summary per project from a single readable search."""
+    enabled_projects = projects.filtered(lambda project: project._liwan_tool_enabled('finance'))
     Finance = projects.env['liwan.project.finance.entry']
     entry_ids_by_project = {project.id: [] for project in projects}
-    if projects:
-        for entry in Finance.search([('project_id', 'in', projects.ids)]):
+    if enabled_projects:
+        for entry in Finance.search([('project_id', 'in', enabled_projects.ids)]):
             entry_ids_by_project[entry.project_id.id].append(entry.id)
-    externals = projects.env['liwan.project.actual.source']._liwan_actual_totals(projects)
+    externals = projects.env['liwan.project.actual.source']._liwan_actual_totals(enabled_projects) if enabled_projects else {}
     return {
-        project.id: build_finance_summary(project, Finance.browse(entry_ids_by_project[project.id]), externals)
+        project.id: (build_finance_summary(project, Finance.browse(entry_ids_by_project[project.id]), externals)
+                     if project in enabled_projects else None)
         for project in projects
     }
 
@@ -108,7 +110,7 @@ def build_dashboard_summary(projects, today, can_read_tasks, task_counts=None, f
         if can_read_tasks:
             overdue_total += overdue
         finance = finance_summaries[project.id]
-        if status in _ATTENTION_STATUSES or finance['over_budget'] or overdue > 0:
+        if status in _ATTENTION_STATUSES or (finance and finance['over_budget']) or overdue > 0:
             attention.append((overdue, project.name, project.id, project, task_values))
 
     attention.sort(key=lambda item: (-item[0], item[1], item[2]))
@@ -185,6 +187,8 @@ def build_report_totals(projects, finance_summaries):
     buckets = {}
     order = []
     for project in projects:
+        if finance_summaries[project.id] is None:
+            continue
         currency = project.currency_id
         key = currency.id if currency else None
         if key not in buckets:

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AiAuditRequestSchema } from '@liwan/contracts'
-import { aiApprovalAudit, charterDraftFromAi, clearAiDraft, clearAiSessionState, forgetCreatedId, mayFinalizeCreate, parseCreatedId, prepareDraftHandoff, readAiDraft, readCreatedId, rememberCreatedId, withCreatedProject, withoutCreated } from '../aiDraft'
-import { emptyCharterDraft } from '../projectCharter'
+import { aiApprovalAudit, projectBasicsFromAi, clearAiDraft, clearAiSessionState, forgetCreatedId, mayFinalizeCreate, parseCreatedId, prepareDraftHandoff, readAiDraft, readCreatedId, rememberCreatedId, withCreatedProject, withoutCreated } from '../aiDraft'
+const emptyBasics = () => ({name:'',description:'',objectives:[{goal:'',metric:'',target:''}],success_criteria:'',user_id:9,date_start:null,date_end:null})
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 
 const handoff = { run_id: 'r_1', call_id: 'c_2', tool: 'projects.draft_project', payload: { name: 'بوابة' } }
@@ -18,26 +18,16 @@ function stubStorage(initial: Record<string, string> = {}) {
   return store
 }
 
-describe('charterDraftFromAi', () => {
-  it('fills known fields and turns objectives into rows', () => {
-    const draft = charterDraftFromAi({ name: 'بوابة', description: 'وصف', date_start: '2026-11-01', date_end: '2027-03-31', charter: { rationale: 'لماذا', objectives: ['أ', 'ب'], scope: 'نطاق' } }, emptyCharterDraft())
-    expect(draft.name).toBe('بوابة')
-    expect(draft.description).toBe('وصف')
-    expect([draft.dateStart, draft.dateEnd]).toEqual(['2026-11-01', '2027-03-31'])
-    expect(draft.rationale).toBe('لماذا')
-    expect(draft.scope).toBe('نطاق')
-    expect(draft.objectives.map(o => o.goal)).toEqual(['أ', 'ب'])
-    expect(draft.objectives.every(o => !o.persisted)).toBe(true)
+describe('projectBasicsFromAi', () => {
+  it('maps every structured objective and success criteria into the core draft', () => {
+    const draft = projectBasicsFromAi({name:'Portal',objectives:[{goal:'A',metric:'count',target:'20'},{goal:'B'}],success_criteria:'20 in one month'},emptyBasics())
+    expect(draft.objectives).toEqual([{goal:'A',metric:'count',target:'20'},{goal:'B',metric:'',target:''}])
+    expect(draft.success_criteria).toBe('20 in one month')
+    expect(draft.user_id).toBe(9)
   })
-
-  it('leaves untouched fields at their base values', () => {
-    const base = emptyCharterDraft()
-    base.userId = 9
-    const draft = charterDraftFromAi({ name: 'x' }, base)
-    expect(draft.userId).toBe(9)
-    expect(draft.objectives).toHaveLength(1)
-    expect(draft.typeId).toBeNull()
-    expect(draft.budgetState).toBe('unknown')
+  it('retains the advertised start date',()=>{expect(projectBasicsFromAi({name:'AI',date_start:'2030-02-01',date_end:'2030-03-01'},emptyBasics())).toMatchObject({date_start:'2030-02-01',date_end:'2030-03-01'})})
+  it('preserves fields not provided by the draft', () => {
+    expect(projectBasicsFromAi({name:'Portal'},emptyBasics())).toEqual({...emptyBasics(),name:'Portal'})
   })
 })
 

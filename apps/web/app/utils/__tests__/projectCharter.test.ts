@@ -6,16 +6,13 @@ import {
   formatCharterAmount,
   canOverwriteWithLatest,
   charterWriteFromDraft,
-  charterCreateBody,
   charterErrorsForFields,
   createdProjectLocation,
   draftFromProject,
-  draftedProjectLocation,
   charterAfterSave,
   submitFailureReason,
   sponsorMissingForSubmit,
   emptyCharterDraft,
-  hasCharterWriteContent,
   isCharterDraftDirty,
   isIsoDate,
   nativeDateSnapshot,
@@ -29,8 +26,8 @@ import {
 
 const EMPTY_CHARTER = {
   code: null, type: null, owning_unit: null, sponsor: null, authority: '', rationale: '',
-  objectives: [], benefits: '', scope: '', exclusions: '', high_level_requirements: '',
-  deliverables: [], success: '', budget_state: 'unknown' as const, amount: null,
+  benefits: '', scope: '', exclusions: '', high_level_requirements: '',
+  deliverables: [], budget_state: 'unknown' as const, amount: null,
   currency: { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 },
   priority: null, assumptions: '', constraints: '', closure: '', state: 'draft' as const,
     approval_required: false, can_review: false, submitted_by: null, submitted_at: null,
@@ -63,6 +60,7 @@ function project(overrides: Partial<ProjectDetail> = {}): ProjectDetail {
     allow_task_dependencies: false,
     completion_approval: 'none',
     completion_approver: null,
+    objectives:[],success_criteria:'',tools:{planning:{policy:'optional',enabled:true,can_toggle:true},governance:{policy:'optional',enabled:true,can_toggle:true},finance:{policy:'optional',enabled:true,can_toggle:true}},
     updated_at: 'v4',
     charter: EMPTY_CHARTER,
     ...overrides,
@@ -70,12 +68,12 @@ function project(overrides: Partial<ProjectDetail> = {}): ProjectDetail {
 }
 
 describe('CHARTER_FIELD_KEYS', () => {
-  it('names all 26 commercial fields including requirements, benefits, success and acceptance', () => {
-    expect(CHARTER_FIELD_KEYS).toHaveLength(26)
+  it('names the governance fields without core objectives and success criteria', () => {
+    expect(CHARTER_FIELD_KEYS).toHaveLength(24)
     expect(CHARTER_FIELD_KEYS).toEqual(expect.arrayContaining([
       'name', 'code', 'description', 'type', 'owning_unit', 'sponsor', 'manager',
-      'authority', 'rationale', 'objectives', 'benefits', 'scope', 'exclusions',
-      'high_level_requirements', 'deliverables', 'acceptance', 'success',
+      'authority', 'rationale', 'benefits', 'scope', 'exclusions',
+      'high_level_requirements', 'deliverables', 'acceptance',
       'date_start', 'date_end', 'budget_state', 'amount', 'currency', 'priority',
       'assumptions', 'constraints', 'closure',
     ]))
@@ -123,60 +121,6 @@ describe('row stripping', () => {
   })
 })
 
-describe('charterCreateBody', () => {
-  it('allows a name-only create and omits empty charter, code, and currency', () => {
-    const draft = emptyCharterDraft('SAR (ر.س)')
-    draft.name = '  New portal  '
-    expect(charterCreateBody(draft)).toEqual({ name: 'New portal' })
-  })
-
-  it('can preserve an explicit optional no-manager selection from the create form', () => {
-    const draft = emptyCharterDraft()
-    draft.name = 'No manager'
-    expect(charterCreateBody(draft, { includeNullManager: true }).user_id).toBeNull()
-  })
-
-  it('puts native fields outside charter and catalog ids inside charter', () => {
-    const draft = emptyCharterDraft()
-    draft.name = 'Portal'
-    draft.description = 'Summary'
-    draft.userId = 9
-    draft.dateStart = '2030-01-01'
-    draft.dateEnd = '2030-06-01'
-    draft.typeId = 4
-    draft.sponsorId = 2
-    draft.authority = 'Board'
-    draft.budgetState = 'estimate'
-    draft.amountInput = '0'
-    const body = charterCreateBody(draft)
-    expect(body).toMatchObject({
-      name: 'Portal',
-      description: 'Summary',
-      user_id: 9,
-      date_start: '2030-01-01',
-      date: '2030-06-01',
-    })
-    expect(body.charter).toEqual({
-      type_id: 4,
-      sponsor_id: 2,
-      authority: 'Board',
-      budget_state: 'estimate',
-      amount: 0,
-    })
-    expect(body.charter).not.toHaveProperty('code')
-    expect(body.charter).not.toHaveProperty('currency')
-  })
-
-  it('preserves a supported end-only create date and rejects silent start-only loss', () => {
-    const draft = emptyCharterDraft()
-    draft.name = 'Portal'
-    draft.dateEnd = '2030-06-01'
-    expect(charterCreateBody(draft)).toMatchObject({ date_end: '2030-06-01' })
-    draft.dateStart = '2030-01-01'
-    draft.dateEnd = null
-    expect(validateCharterDraft(draft, { mode: 'create' }).some((error) => error.code === 'pair')).toBe(true)
-  })
-})
 
 describe('charterPatchBody dates', () => {
   it('omits unchanged native dates so a legacy one-sided range is not cleared', () => {
@@ -264,16 +208,16 @@ describe('validateCharterDraft', () => {
     const created = emptyCharterDraft()
     created.name = 'X'
     created.dateEnd = '2030-06-01'
-    expect(validateCharterDraft(created, { mode: 'create' })).toEqual([])
+    expect(validateCharterDraft(created, {})).toEqual([])
     created.dateStart = '2030-01-01'
     created.dateEnd = null
-    expect(validateCharterDraft(created, { mode: 'create' }).some((error) => error.code === 'pair')).toBe(true)
+    expect(validateCharterDraft(created, {}).some((error) => error.code === 'pair')).toBe(true)
     const original = project()
     const draft = draftFromProject(original)
-    expect(validateCharterDraft(draft, { mode: 'edit', originalDates: nativeDateSnapshot(original) })).toEqual([])
+    expect(validateCharterDraft(draft, { originalDates: nativeDateSnapshot(original) })).toEqual([])
     draft.dateEnd = '2030-06-01'
     draft.dateStart = null
-    expect(validateCharterDraft(draft, { mode: 'edit', originalDates: nativeDateSnapshot(original) })).toEqual([])
+    expect(validateCharterDraft(draft, { originalDates: nativeDateSnapshot(original) })).toEqual([])
   })
 })
 
@@ -292,16 +236,11 @@ describe('stale write review helpers', () => {
   })
 })
 
-describe('charterWriteFromDraft', () => {
-  it('does not treat an empty create write as content', () => {
-    expect(hasCharterWriteContent(charterWriteFromDraft(emptyCharterDraft(), 'create'))).toBe(false)
-  })
-})
 
 describe('charter document helpers', () => {
-  it('routes a created project to milestones while carrying the originating list URL', () => {
+  it('routes a created project to its summary while carrying the originating list URL', () => {
     expect(createdProjectLocation(42, '/projects?status=active')).toEqual({
-      path: '/projects/42/milestones',
+      path: '/projects/42',
       query: { returnTo: '/projects?status=active', projectListReturnTo: '/projects?status=active' },
     })
   })
@@ -322,16 +261,13 @@ describe('charter state on the wire', () => {
     const draft = emptyCharterDraft()
     draft.name = 'P'
     draft.charterState = 'approved'
-    expect(charterCreateBody(draft)).not.toHaveProperty('state')
     expect(charterPatchBody(draft, 'v3', { dateStart: null, dateEnd: null }).charter).not.toHaveProperty('state')
   })
 
   it('never sends the state; the server owns it', () => {
     const draft = emptyCharterDraft()
     draft.name = 'Portal'
-    expect(charterCreateBody(draft)).not.toHaveProperty('charter')
     draft.charterState = 'approved'
-    expect(charterCreateBody(draft)).not.toHaveProperty('charter')
     expect(charterPatchBody(draft, 'v1', { dateStart: null, dateEnd: null }).charter).not.toHaveProperty('state')
   })
 
@@ -357,10 +293,7 @@ describe('charter state on the wire', () => {
   it('filters step errors and routes a drafted project back into its charter step', () => {
     const errors = [{ field: 'name' as const, code: 'required' }, { field: 'amount' as const, code: 'invalid' }]
     expect(charterErrorsForFields(errors, ['name', 'description'])).toEqual([{ field: 'name', code: 'required' }])
-    expect(draftedProjectLocation(9, 'scope', '/projects?q=x')).toEqual({
-      path: '/projects/9/charter',
-      query: { returnTo: '/projects?q=x', edit: '1', step: 'scope' },
-    })
+
   })
 })
 
@@ -398,5 +331,11 @@ describe('formatCharterAmount', () => {
   it('shows an empty or unreadable value as typed', () => {
     expect(formatCharterAmount('  ', 'SAR')).toBe('')
     expect(formatCharterAmount('12a', 'SAR')).toBe('12a SAR')
+  })
+})
+
+describe('simple creation destination', () => {
+  it('starts with the project summary', () => {
+    expect(createdProjectLocation(4, '/projects?q=hello')).toEqual({ path: '/projects/4', query: {returnTo:'/projects?q=hello',projectListReturnTo:'/projects?q=hello'} })
   })
 })

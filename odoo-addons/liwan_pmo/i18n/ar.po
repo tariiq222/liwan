@@ -1581,8 +1581,8 @@ msgid "Liwan High Level Requirements"
 msgstr "المتطلبات عالية المستوى"
 
 #. module: liwan_pmo
-#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_objectives
-msgid "Liwan Objectives"
+#: model:ir.model.fields,field_description:liwan_pmo.field_project_project__liwan_objective_ids
+msgid "Liwan Objective"
 msgstr "الأهداف"
 
 #. module: liwan_pmo
@@ -1886,3 +1886,73 @@ msgstr "بوابة هذه المرحلة فيها تحذيرات تحتاج إل
 #: code:addons/liwan_pmo/models/project_copy.py:0
 msgid "The copy's end date must be on or after its start date."
 msgstr "يجب أن يكون تاريخ انتهاء النسخة في تاريخ بدئها أو بعده."
+
+#. module: liwan_pmo
+#: code:addons/liwan_pmo/models/project_tools.py:0
+msgid "This project tool is not enabled."
+msgstr "هذه الأداة غير مفعلة في المشروع."
+
+#. module: liwan_pmo
+#: code:addons/liwan_pmo/models/project_tools.py:0
+msgid "Only optional tools may be changed on an active project."
+msgstr "يمكن تغيير الأدوات الاختيارية فقط في مشروع نشط."
+
+#. module: liwan_pmo
+#: code:addons/liwan_pmo/models/project_tools.py:0
+msgid "Archived projects are read-only."
+msgstr "المشاريع المؤرشفة للقراءة فقط."
+
+#. module: liwan_pmo
+#: code:addons/liwan_pmo/models/project_tools.py:0
+msgid "Only optional project tool preferences are writable."
+msgstr "يمكن تعديل تفضيلات أدوات المشروع الاختيارية فقط."
+
+#. module: liwan_pmo
+#: code:addons/liwan_pmo/models/project_tools.py:0
+msgid "Earned value is not available."
+msgstr "القيمة المكتسبة غير متاحة."
+
+#. module: liwan_pmo
+#: code:addons/liwan_pmo/models/project_tools.py:0
+msgid "Project is outside the allowed companies."
+msgstr "المشروع خارج نطاق الشركات المسموح بها."
+
+#. module: liwan_pmo
+#: code:addons/liwan_pmo/models/project_tools.py:0
+msgid "Unknown project tool."
+msgstr "أداة مشروع غير معروفة."
+
+#. module: liwan_pmo
+#: code:addons/liwan_pmo/models/project_tools.py:0
+msgid "Tool preferences must be booleans."
+msgstr "يجب أن تكون تفضيلات الأدوات قيما منطقية."
+
+#. module: liwan_pmo
+#: code:addons/liwan_pmo/models/project_tools.py:0
+msgid "Objective field is not writable."
+msgstr "لا يمكن تعديل هذا الحقل من حقول الهدف."
+
+#. module: liwan_pmo
+#: code:addons/liwan_pmo/models/project_tools.py:0
+msgid "Objective values must be strings."
+msgstr "يجب أن تكون قيم الهدف نصوصا."
+
+#. module: liwan_pmo
+#: code:addons/liwan_pmo/models/project_tools.py:0
+msgid "An objective needs a non-blank goal."
+msgstr "يجب كتابة نص غير فارغ للهدف."
+
+#. module: liwan_pmo
+#: code:addons/liwan_pmo/models/project_tools.py:0
+msgid "A project is required."
+msgstr "يجب تحديد المشروع."
+
+#. module: liwan_pmo
+#: code:addons/liwan_pmo/models/project_tools.py:0
+msgid "Objective project cannot be changed."
+msgstr "لا يمكن تغيير مشروع الهدف."
+
+#. module: liwan_pmo
+#: code:addons/liwan_pmo/models/project_tools.py:0
+msgid "Project records require readable projects and tasks in the allowed companies."
+msgstr "تتطلب هذه السجلات صلاحية قراءة المشاريع والمهام المرتبطة بها."

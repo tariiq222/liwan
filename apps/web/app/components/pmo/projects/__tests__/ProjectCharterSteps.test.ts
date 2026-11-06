@@ -98,7 +98,7 @@ async function renderFields(fields: readonly CharterFieldKey[] = CHARTER_FIELD_K
   const app = createSSRApp({ render: () => h(component) })
   for (const name of [
     'UInput', 'UTextarea', 'ProjectFieldHelp', 'UButton', 'USelectMenu', 'USelect', 'SharedDateField', 'NuxtLink',
-    'UFormField', 'SharedPersonPicker', 'SharedRichText',
+    'UFormField', 'SharedPersonPicker', 'SharedRichText', 'SharedSubCard',
   ]) app.component(name, Passthrough)
   app.component('ProjectCharterRows', defineComponent({
     props: { showObjectives: Boolean, showDeliverables: Boolean },
@@ -154,6 +154,7 @@ async function renderDisplay(options: { legacy?: boolean; loading?: boolean; err
       const hasLegacyDetails = Boolean(options.legacy || legacyDeliverables.length)
       return {
         draft,
+        tools:{planning:{enabled:true},finance:{enabled:true}},
         visibleObjectives,
         legacyDeliverables,
         hasLegacyDetails,
@@ -186,6 +187,9 @@ async function renderDisplay(options: { legacy?: boolean; loading?: boolean; err
       return () => h('section', attrs, [slots.actions?.(), slots.default?.()])
     },
   }))
+  app.component('UAlert', Passthrough)
+  app.component('SharedRichText', Passthrough)
+  app.component('SharedSubCard', Passthrough)
   app.component('UButton', Passthrough)
   app.component('UCheckbox', Passthrough)
   // The real collapsible mounts its content only when opened; the stub renders both so the test can read the closed content.
@@ -214,7 +218,7 @@ describe('charter wizard steps', () => {
     const justification = await renderFields(CHARTER_STEP_FIELDS.justification)
     expect(justification).toContain('data-testid="charter-field-authority"')
     expect(justification).toContain('data-testid="charter-field-rationale"')
-    expect(justification).toContain('data-testid="charter-field-objectives"')
+    expect(justification).not.toContain('data-testid="charter-field-objectives"')
     expect(justification).toContain('data-testid="charter-field-benefits"')
     expect(justification).not.toContain('data-testid="charter-field-deliverables"')
     expect(justification).not.toContain('data-testid="charter-field-name"')
@@ -223,7 +227,7 @@ describe('charter wizard steps', () => {
     expect(scope).toContain('data-testid="charter-field-exclusions"')
     expect(scope).toContain('data-testid="charter-field-high_level_requirements"')
     expect(scope).toContain('data-testid="charter-field-deliverables"')
-    expect(scope).toContain('data-testid="charter-field-success"')
+    expect(scope).not.toContain('data-testid="charter-field-success"')
     expect(scope).not.toContain('data-testid="charter-field-objectives"')
   })
 

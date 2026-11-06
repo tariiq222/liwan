@@ -14,8 +14,6 @@ const props = defineProps<{
   readonly?: boolean
   disabled?: boolean
   fieldErrors?: Partial<Record<CharterFieldKey, string>>
-  requireManager?: boolean
-  requireEndDate?: boolean
   // The charter wizard renders one step at a time: only these fields show.
   // Absent, every field renders (the full single-surface form).
   fields?: readonly CharterFieldKey[]
@@ -229,7 +227,7 @@ const descriptionLooksHtml = computed(() => /<\/?[a-z][\s\S]*>/i.test(draft.valu
     </div>
 
     <div v-if="show('manager') || show('sponsor')" class="liwan-auto-grid gap-(--liwan-gap-card)">
-      <UFormField v-if="show('manager')" :required="requireManager" :error="fieldErrors?.manager" data-testid="charter-field-manager">
+      <UFormField v-if="show('manager')" :error="fieldErrors?.manager" data-testid="charter-field-manager">
         <template #label><span id="charter-manager-label">{{ t('projects.charter.fields.manager') }}</span></template>
         <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.manager'))" :text="t('projects.charter.help.manager')" /></template>
         <template #error="{ error }"><span role="alert">{{ error }}</span></template>
@@ -243,12 +241,12 @@ const descriptionLooksHtml = computed(() => /<\/?[a-z][\s\S]*>/i.test(draft.valu
             :placeholder="t('projects.settings.noManager')"
             :disabled="controlsDisabled"
             aria-labelledby="charter-manager-label charter-manager"
-            :aria-required="requireManager"
+
             data-testid="project-create-manager"
             @resolve="onManagerResolve"
           />
           <UButton
-            v-if="!requireManager && draft.userId != null"
+            v-if="draft.userId != null"
             type="button"
             color="neutral"
             variant="ghost"
@@ -302,11 +300,11 @@ const descriptionLooksHtml = computed(() => /<\/?[a-z][\s\S]*>/i.test(draft.valu
     </UFormField>
 
     <ProjectCharterRows
-      v-if="show('objectives') || show('deliverables')"
+      v-if="show('deliverables')"
       v-model="draft"
       :readonly="readonly"
       :disabled="controlsDisabled"
-      :show-objectives="show('objectives')"
+      :show-objectives="false"
       :show-deliverables="show('deliverables')"
     />
 
@@ -330,11 +328,6 @@ const descriptionLooksHtml = computed(() => /<\/?[a-z][\s\S]*>/i.test(draft.valu
       <UTextarea id="charter-requirements" v-model="draft.highLevelRequirements" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
     </UFormField>
 
-    <UFormField v-if="show('success')" :label="t('projects.charter.fields.success')" data-testid="charter-field-success">
-      <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.success'))" :text="t('projects.charter.help.success')" /></template>
-      <UTextarea id="charter-success" v-model="draft.success" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
-    </UFormField>
-
     <div v-if="show('date_start') || show('date_end')" class="liwan-auto-grid gap-(--liwan-gap-card)">
       <UFormField v-if="show('date_start')" :label="t('projects.charter.fields.date_start')" :error="fieldErrors?.date_start" data-testid="charter-field-date_start">
         <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.date_start'))" :text="t('projects.charter.help.date_start')" /></template>
@@ -348,7 +341,7 @@ const descriptionLooksHtml = computed(() => /<\/?[a-z][\s\S]*>/i.test(draft.valu
           :aria-label="t('projects.charter.fields.date_start')"
         />
       </UFormField>
-      <UFormField v-if="show('date_end')" :label="t('projects.charter.fields.date_end')" :required="requireEndDate" :error="fieldErrors?.date_end" data-testid="charter-field-date_end">
+      <UFormField v-if="show('date_end')" :label="t('projects.charter.fields.date_end')" :error="fieldErrors?.date_end" data-testid="charter-field-date_end">
         <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.date_end'))" :text="t('projects.charter.help.date_end')" /></template>
         <template #error="{ error }"><span role="alert">{{ error }}</span></template>
         <p v-if="readonly" class="text-sm">{{ endLabel }}</p>
@@ -357,7 +350,7 @@ const descriptionLooksHtml = computed(() => /<\/?[a-z][\s\S]*>/i.test(draft.valu
           id="charter-date-end"
           v-model="draft.dateEnd"
           data-testid="project-create-end-date"
-          :aria-required="requireEndDate"
+
           :disabled="controlsDisabled"
           :aria-label="t('projects.charter.fields.date_end')"
         />

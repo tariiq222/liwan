@@ -17,7 +17,7 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const { mutate: updateTask } = useUpdateTask()
 const { data: stages } = usePersonalStages()
-const projectId = computed(() => props.task.project?.id ?? null)
+const projectId = computed(() => props.task.planning_enabled ? props.task.project?.id ?? null : null)
 const { data: milestones } = useMilestones(projectId)
 const { data: project } = useProject(projectId)
 const deadlineError = ref<string | null>(null)
@@ -25,8 +25,8 @@ const selectedMilestone = computed(() => {
   const milestoneId = props.task.milestone?.id
   return milestones.value?.find(item => item.id === milestoneId)
 })
-const milestoneStart = computed(() => selectedMilestone.value?.start_date ?? project.value?.date_start ?? null)
-const milestoneDeadline = computed(() => selectedMilestone.value?.deadline ?? project.value?.date_end ?? null)
+const milestoneStart = computed(() => props.task.planning_enabled ? selectedMilestone.value?.start_date ?? project.value?.date_start ?? null : null)
+const milestoneDeadline = computed(() => props.task.planning_enabled ? selectedMilestone.value?.deadline ?? project.value?.date_end ?? null : null)
 
 function patch(body: Parameters<typeof updateTask>[0]['patch'], resolved?: Parameters<typeof updateTask>[0]['resolved']) {
   if (props.task.can_write) updateTask({ id: props.task.id, patch: body, resolved })
@@ -101,12 +101,12 @@ function setDeadline(date: CalendarDate | undefined, time: string) {
   )
   // Second precision: toISOString() emits milliseconds, and the API's contract shape (serializers/common.py::iso) has none.
   const dateDeadline = `${local.toISOString().slice(0, 19)}Z`
-  const boundsError = validateTaskDates({
+  const boundsError = props.task.planning_enabled ? validateTaskDates({
     milestoneStart: milestoneStart.value,
     milestoneDeadline: milestoneDeadline.value,
     plannedStart: props.task.planned_start,
     dateDeadline,
-  })
+  }) : null
   if (boundsError) {
     deadlineError.value = t(`tasks.schedule.${boundsError.split('.').pop()}`)
     return
@@ -205,7 +205,7 @@ function onPercentChange() {
       <span id="task-priority-label" class="sr-only">{{ t('tasks.drawer.priority') }}</span>
       <PrioritySelect :task="task" labelledby="task-priority-label" variant="outline" />
     </SharedPropertyRow>
-    <SharedPropertyRow :label="t('tasks.drawer.milestone')">
+    <SharedPropertyRow v-if="task.planning_enabled" :label="t('tasks.drawer.milestone')">
       <span id="task-milestone-label" class="sr-only">{{ t('tasks.drawer.milestone') }}</span>
       <MilestoneSelect v-if="task.project && task.can_write" :task="task" labelledby="task-milestone-label" />
       <span v-else>{{ task.milestone?.name || t('tasks.drawer.noMilestone') }}</span>

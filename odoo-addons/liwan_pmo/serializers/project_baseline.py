@@ -33,9 +33,9 @@ def dump_baseline(baseline):
         'taken_by': dump_user_ref(baseline.taken_by_id),
         'taken_at': iso(baseline.taken_at),
         'note': baseline.note or '',
-        'change': {'id': change.id, 'number': change.number, 'title': change.title} if change else None,
-        'budget_total': baseline.budget_total,
-        'currency': dump_currency(baseline.currency_id),
+        'change': {'id': change.id, 'number': change.number, 'title': change.title} if change and baseline.project_id._liwan_tool_enabled('governance') else None,
+        'budget_total': baseline.budget_total if baseline.project_id._liwan_tool_enabled('finance') else None,
+        'currency': dump_currency(baseline.currency_id) if baseline.project_id._liwan_tool_enabled('finance') else None,
         'planned_start': _date(baseline.planned_start),
         'planned_end': _date(baseline.planned_end),
         'task_count': baseline.task_count,
@@ -69,7 +69,7 @@ def dump_baseline_detail(baseline):
             'name': line.task_name,
             'planned_start': _date(line.planned_start),
             'planned_end': _date(line.planned_end),
-            'planned_value_share': line.planned_value_share,
+            'planned_value_share': line.planned_value_share if baseline.project_id._liwan_tool_enabled('finance') else None,
         } for line in readable_lines(baseline)],
     }
 
@@ -131,7 +131,8 @@ def build_variance(project):
     } for task in added]
     tracked = [row for row in tasks if row['status'] == 'tracked']
     currency = baseline.currency_id
-    summary = build_finance_summary(project)
+    finance = project._liwan_tool_enabled('finance')
+    summary = build_finance_summary(project) if finance else None
     current_budget = env['liwan.project.baseline']._liwan_current_budget(project)
     return {
         'project_id': project.id,
@@ -154,7 +155,7 @@ def build_variance(project):
             'actual': summary['actual'],
             'remaining_against_baseline': currency.round(baseline.budget_total - summary['actual']),
             'over_baseline': summary['actual'] > baseline.budget_total,
-        },
+        } if finance else None,
     }
 
 

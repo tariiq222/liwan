@@ -15,7 +15,7 @@ const hydrated = useHydrated()
 const { mutate, isPending } = useUpdateTask()
 const validationError = ref<string | null>(null)
 
-const projectId = computed(() => props.task.project?.id ?? null)
+const projectId = computed(() => props.task.planning_enabled ? props.task.project?.id ?? null : null)
 const { data: milestones } = useMilestones(projectId)
 
 const NONE = 'none'
@@ -26,6 +26,7 @@ const items = computed(() => [
 ])
 
 function onChange(value: unknown) {
+  if (!props.task.planning_enabled || !props.task.can_write || !hydrated.value || isPending.value) return
   validationError.value = null
   if (value === NONE) {
     mutate({ id: props.task.id, patch: { milestone_id: null }, resolved: { milestone: null } })
@@ -50,6 +51,7 @@ function onChange(value: unknown) {
 
 <template>
   <USelect
+    v-if="task.planning_enabled"
     size="sm"
     class="w-full"
     data-testid="milestone-select"

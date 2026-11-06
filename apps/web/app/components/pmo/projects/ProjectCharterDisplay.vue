@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import type { ProjectToolsState } from '@liwan/contracts'
 import type { CharterDraft, CharterMilestone } from '@/utils/projectCharter'
 import { aggregateMilestoneOutputs, formatCharterAmount } from '@/utils/projectCharter'
 import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 
 const props = defineProps<{
+  tools?: ProjectToolsState
   draft: CharterDraft
   milestones?: readonly CharterMilestone[]
   milestonesLoading?: boolean
@@ -113,7 +115,7 @@ function budgetAmount(): string {
           </dl>
         </SharedRecordSection>
 
-        <SharedRecordSection v-if="milestoneOutputs.length" variant="panel" data-testid="charter-milestone-outputs" id="charter-milestone-outputs" :title="t('projects.charter.milestoneOutputs')">
+        <SharedRecordSection v-if="tools?.planning.enabled && milestoneOutputs.length" variant="panel" data-testid="charter-milestone-outputs" id="charter-milestone-outputs" :title="t('projects.charter.milestoneOutputs')">
           <SharedSubCard as="ul" tone="tinted" class="grid gap-2">
             <li v-for="(output, index) in milestoneOutputs" :key="`${output.milestoneId}-${index}`" class="flex flex-wrap items-center gap-2 text-sm">
               <label class="flex min-w-0 items-center gap-2">
@@ -167,7 +169,7 @@ function budgetAmount(): string {
       </div>
 
       <div class="grid min-w-0 gap-(--liwan-gap-card)">
-        <SharedRecordSection variant="panel" id="project-charter-budget" :title="t('projects.charter.sections.planning')">
+        <SharedRecordSection v-if="tools?.finance.enabled" variant="panel" id="project-charter-budget" :title="t('projects.charter.sections.planning')">
           <dl class="grid gap-4">
             <div><dt class="text-xs text-muted">{{ t('projects.charter.fields.budget_state') }}</dt><dd class="mt-1 text-sm text-default">{{ t(`projects.charter.budget.${draft.budgetState}`) }}</dd></div>
             <div v-if="budgetAmount()"><dt class="text-xs text-muted">{{ t('projects.charter.fields.amount') }}</dt><dd class="mt-1 text-sm text-default"><bdi dir="ltr" class="tabular-nums">{{ budgetAmount() }}</bdi></dd></div>

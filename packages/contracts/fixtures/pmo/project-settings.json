@@ -43,7 +43,10 @@
       "value": "manual"
     }
   ],
+  "finance_tool_policy": "optional",
+  "governance_tool_policy": "optional",
   "overdue_digest_enabled": true,
+  "planning_tool_policy": "optional",
   "project_creators": "managers",
   "register_status_transitions": "sequence",
   "require_charter_approval": false,

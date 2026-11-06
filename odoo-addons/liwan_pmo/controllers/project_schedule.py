@@ -46,6 +46,7 @@ class ProjectScheduleController(http.Controller):
         # get_record answers the uniform not-found for a foreign-company
         # project and lets the pinned record rules decide the rest.
         project = get_visible_record('project.project', project_id)
+        project._liwan_check_tool('planning')
         if not project.active:
             raise ApiError(404, 'not_found', 'Project does not exist.')
         tasks = _project_tasks(project)
@@ -68,6 +69,7 @@ class ProjectScheduleController(http.Controller):
         # get_record answers the uniform not-found for a foreign-company
         # project and lets the pinned record rules decide the rest.
         project = get_visible_record('project.project', project_id)
+        project._liwan_check_tool('planning')
         if not project.active:
             raise ApiError(404, 'not_found', 'Project does not exist.')
         unknown = set(payload) - {'start', 'end'}

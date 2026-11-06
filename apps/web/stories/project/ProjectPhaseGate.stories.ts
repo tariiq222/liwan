@@ -4,9 +4,9 @@ import ProjectPhaseGate from '../../app/components/pmo/projects/ProjectPhaseGate
 import { projectDetail } from '../fixtures/pmo'
 import { storyContext } from '../support/context'
 
-// The gate into the next phase on the project summary: the checks with a fix link, then the move
+// The gate into the next phase in the governance charter section: the checks with a fix link, then the move
 // and step-back actions for managers.
-const ctx = (note?: string) => storyContext('apps/web/app/pages/projects/[id]/index.vue:50', note)
+const ctx = (note?: string) => storyContext('apps/web/app/pages/projects/[id]/charter.vue:61', note)
 const withPhase = (phase_state: ProjectDetail['phase_state'], rest: Partial<ProjectDetail> = {}): ProjectDetail =>
   ({ ...projectDetail, can_manage: true, ...rest, phase_state })
 

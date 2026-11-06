@@ -43,10 +43,12 @@ const submitted = ref(false)
 const requiredAttempted = ref(false)
 const baseline = ref(JSON.stringify(['', '', [], props.projectId, props.milestoneId ?? undefined, '', '']))
 
-const milestoneProjectId = computed(() => selectedProjectId.value ?? null)
+const projectDetailId = computed(() => selectedProjectId.value ?? null)
+const { data: selectedProject, isLoading: projectLoading, error: projectError, refetch: refetchProject } = useProject(projectDetailId)
+const planningEnabled = computed(() => selectedProject.value?.tools.planning.enabled === true)
+const milestoneProjectId = computed(() => planningEnabled.value ? projectDetailId.value : null)
 const { data: milestones, isLoading: milestonesLoading, error: milestonesError } = useMilestones(milestoneProjectId)
-const { data: selectedProject, isLoading: projectLoading, error: projectError } = useProject(milestoneProjectId)
-const milestoneOptions = computed(() => milestones.value ?? [])
+const milestoneOptions = computed(() => planningEnabled.value ? milestones.value ?? [] : [])
 const selectedMilestone = computed(() => milestoneOptions.value.find(item => item.id === selectedMilestoneId.value))
 const projectStart = computed(() => props.projectStart ?? selectedProject.value?.date_start ?? null)
 const projectEnd = computed(() => props.projectEnd ?? selectedProject.value?.date_end ?? null)
@@ -58,8 +60,8 @@ const policyError = computed(() => validateTaskCreatePolicy({
   canManage: canManageDates.value,
   projectReady: !!selectedProject.value && !projectError.value,
   projectLoading: projectLoading.value,
-  milestonesLoading: milestonesLoading.value,
-  milestonesFailed: !!milestonesError.value,
+  milestonesLoading: planningEnabled.value && milestonesLoading.value,
+  milestonesFailed: planningEnabled.value && !!milestonesError.value,
   hasDatedMilestones: hasDatedMilestones.value,
   selectedMilestone: !!selectedMilestone.value,
   plannedStart: plannedStart.value || null,
@@ -69,7 +71,7 @@ const projectQuick = computed(() => props.mode === 'project')
 // Non-quick hosts never collapse; quick-create starts folded.
 const optionalOpen = ref(props.mode !== 'project')
 // Guided creation in a project with dated milestones requires a milestone and both dates.
-const scheduleRequired = computed(() => guided.value && hasDatedMilestones.value)
+const scheduleRequired = computed(() => planningEnabled.value && guided.value && hasDatedMilestones.value)
 
 function state() {
   return JSON.stringify([name.value, description.value, deliverables.value, selectedProjectId.value, selectedMilestoneId.value, plannedStart.value, dateDeadline.value])
@@ -102,11 +104,11 @@ watch(
 
 watch([() => props.milestoneId, milestoneOptions, selectedProjectId], () => {
   if (props.milestoneId && props.projectId && selectedProjectId.value === props.projectId) selectedMilestoneId.value = props.milestoneId
-  if (selectedMilestoneId.value && !selectedMilestone.value) selectedMilestoneId.value = undefined
+  if (planningEnabled.value && selectedMilestoneId.value && !selectedMilestone.value) selectedMilestoneId.value = undefined
 })
 
 const lockedProjectName = computed(() => projects.value?.find((p) => p.id === props.projectId)?.name ?? '')
-const dateError = computed(() => validateTaskDates({
+const dateError = computed(() => !planningEnabled.value ? null : validateTaskDates({
   milestoneStart: selectedMilestone.value?.start_date ?? projectStart.value,
   milestoneDeadline: selectedMilestone.value?.deadline ?? projectEnd.value,
   plannedStart: plannedStart.value || null,
@@ -132,8 +134,9 @@ function selectProject(value: unknown) {
 
 const visibleErrorFields = computed(() => {
   const fields = ['name', 'project_id']
-  if (canManageDates.value) fields.push('planned_start', 'date_deadline')
-  if (selectedProjectId.value && canManageDates.value) fields.push('milestone_id')
+  if (canManageDates.value) fields.push('date_deadline')
+  if (canManageDates.value && planningEnabled.value) fields.push('planned_start')
+  if (planningEnabled.value && selectedProjectId.value && canManageDates.value) fields.push('milestone_id')
   return fields
 })
 const generalError = computed(() => errorField.value && visibleErrorFields.value.includes(errorField.value) ? null : error.value)
@@ -200,8 +203,8 @@ async function submit() {
     const created = await mutateAsync(buildTaskCreatePayload({
       name: trimmed,
       projectId: selectedProjectId.value,
-      milestoneId: selectedMilestoneId.value,
-      plannedStart: plannedStart.value || undefined,
+      milestoneId: planningEnabled.value ? selectedMilestoneId.value : undefined,
+      plannedStart: planningEnabled.value ? plannedStart.value || undefined : undefined,
       dateDeadline: dateDeadline.value ? `${dateDeadline.value}T23:59:00Z` : undefined,
       description: descriptionText ? plainTextToTaskHtml(descriptionText) : undefined,
       deliverables: deliverables.value,
@@ -210,6 +213,11 @@ async function submit() {
     await applyPreset(created.id)
     emit('created', created.id)
   } catch (e) {
+    if (e instanceof ApiError && e.status === 403) {
+      await refetchProject()
+      error.value = t('projects.tools.policyChanged')
+      return
+    }
     error.value = e instanceof ApiError ? e.message : t('errors.generic')
     errorField.value = e instanceof ApiError ? e.field ?? null : null
     focusError()
@@ -224,7 +232,7 @@ async function submit() {
     <UFormField :label="t('tasks.newTitle')" name="name" required :error="fieldError('name')">
       <UInput id="new-task-name" v-model="name" required class="w-full" :disabled="!hydrated || isPending" />
     </UFormField>
-    <UFormField v-if="selectedProjectId && canManageDates" :label="t('tasks.drawer.milestone')" name="milestone_id" :required="scheduleRequired" :error="fieldError('milestone_id')">
+    <UFormField v-if="planningEnabled && selectedProjectId && canManageDates" :label="t('tasks.drawer.milestone')" name="milestone_id" :required="scheduleRequired" :error="fieldError('milestone_id')">
       <USelect
         id="new-task-milestone"
         class="w-full"
@@ -234,11 +242,11 @@ async function submit() {
         @update:model-value="(v) => (selectedMilestoneId = v && v !== 'none' ? Number(v) : undefined)"
       />
     </UFormField>
-    <UFormField v-if="canManageDates" :label="t('tasks.schedule.plannedStart')" name="planned_start" :required="scheduleRequired" :error="fieldError('planned_start')">
-      <SharedDateField id="new-task-planned-start" :aria-label="t('tasks.schedule.plannedStart')" v-model="plannedStart" :disabled="!hydrated || isPending" :min-value="selectedMilestone?.start_date ?? projectStart ?? undefined" :max-value="selectedMilestone?.deadline ?? projectEnd ?? undefined" />
+    <UFormField v-if="planningEnabled && canManageDates" :label="t('tasks.schedule.plannedStart')" name="planned_start" :required="scheduleRequired" :error="fieldError('planned_start')">
+      <SharedDateField id="new-task-planned-start" :aria-label="t('tasks.schedule.plannedStart')" v-model="plannedStart" :disabled="!hydrated || isPending" :min-value="planningEnabled ? selectedMilestone?.start_date ?? projectStart ?? undefined : undefined" :max-value="planningEnabled ? selectedMilestone?.deadline ?? projectEnd ?? undefined : undefined" />
     </UFormField>
     <UFormField v-if="canManageDates" :label="t('tasks.drawer.deadline')" name="date_deadline" :required="scheduleRequired" :error="fieldError('date_deadline')">
-      <SharedDateField id="new-task-deadline" :aria-label="t('tasks.drawer.deadline')" v-model="dateDeadline" :disabled="!hydrated || isPending" :min-value="selectedMilestone?.start_date ?? projectStart ?? undefined" :max-value="selectedMilestone?.deadline ?? projectEnd ?? undefined" />
+      <SharedDateField id="new-task-deadline" :aria-label="t('tasks.drawer.deadline')" v-model="dateDeadline" :disabled="!hydrated || isPending" :min-value="planningEnabled ? selectedMilestone?.start_date ?? projectStart ?? undefined : undefined" :max-value="planningEnabled ? selectedMilestone?.deadline ?? projectEnd ?? undefined : undefined" />
     </UFormField>
     <UFormField :label="t('tasks.project')" name="project_id" required :error="fieldError('project_id')">
       <p v-if="props.projectId" id="new-task-project" class="text-sm">{{ lockedProjectName }}</p>

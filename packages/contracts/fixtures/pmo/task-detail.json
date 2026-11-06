@@ -61,6 +61,7 @@
     "name": "Inbox"
   },
   "planned_start": null,
+  "planning_enabled": true,
   "priority": "0",
   "progress_method": "binary",
   "project": {

@@ -9,7 +9,6 @@ from odoo.addons.liwan_pmo.models.project_project import VISIBILITY_VALUES
 from odoo.addons.liwan_pmo.serializers.dates import parse_date
 from odoo.addons.liwan_pmo.serializers.project_charter import (
     dump_charter,
-    parse_charter_vals,
 )
 
 STATUS_TO_API = {'on_track': 'on_track', 'at_risk': 'at_risk', 'off_track': 'off_track', 'on_hold': 'on_hold', 'done': 'done', 'to_define': None}
@@ -18,13 +17,13 @@ VISIBILITY_TO_API = {'followers': 'followers', 'employees': 'employees', 'portal
 PROJECT_FIELDS = {
     'name', 'description', 'user_id', 'privacy_visibility', 'date_start', 'date', 'date_end', 'tag_ids',
     'allow_task_dependencies', 'liwan_completion_approval', 'liwan_completion_approver_id',
+    'objectives', 'success_criteria', 'tool_preferences',
 }
 CREATE_FIELDS = {
     'name', 'description', 'user_id', 'privacy_visibility', 'date_start', 'date',
-    'date_end', 'tag_ids', 'allow_task_dependencies', 'charter',
+    'date_end', 'tag_ids', 'allow_task_dependencies', 'objectives', 'success_criteria',
 }
 COMPLETION_APPROVAL_VALUES = ('none', 'project_manager', 'specific_user')
-_ABSENT = object()
 
 
 def _user_ref(user):
@@ -64,8 +63,8 @@ def dump_project(project):
         'status': STATUS_TO_API.get(project.last_update_status),
         **dump_project_task_summary(project),
         'active': project.active,
-        'charter_state': project.liwan_charter_state or 'draft',
-        'phase': project.liwan_phase,
+        'charter_state': (project.liwan_charter_state or 'draft') if project._liwan_tool_enabled('governance') else None,
+        'phase': project.liwan_phase if project._liwan_tool_enabled('governance') else None,
         'can_manage': can_manage,
         'allowed_actions': ['read', *(['write', 'archive'] if can_manage else [])],
     }
@@ -80,14 +79,18 @@ def dump_project_detail(project):
         'date_start': fields.Date.to_string(project.date_start) if project.date_start else None,
         'tags': [{'id': t.id, 'name': t.name, 'color': t.color} for t in project.tag_ids],
         'followers_count': len(project._liwan_followers()),
-        'milestone_count': len(project.milestone_ids),
-        'allow_task_dependencies': bool(project.allow_task_dependencies),
+        'tools': project._liwan_tool_state(),
+        'objectives': [{'id': row.id, 'goal': row.goal, 'metric': row.metric or '', 'target': row.target or ''}
+                       for row in project.liwan_objective_ids],
+        'success_criteria': project.liwan_success or '',
+        'milestone_count': len(project.milestone_ids) if project._liwan_tool_enabled('planning') else None,
+        'allow_task_dependencies': bool(project.allow_task_dependencies and project._liwan_tool_enabled('planning')),
         'completion_approval': project.liwan_completion_approval or 'none',
         'completion_approver': _user_ref(project.liwan_completion_approver_id),
         'updated_at': project._liwan_updated_at(),
-        'charter': dump_charter(project),
-        'phase_state': project._liwan_phase_state(),
-        'change_control_mode': project.env['liwan.pmo.settings'].change_control_mode(),
+        'charter': dump_charter(project) if project._liwan_tool_enabled('governance') else None,
+        'phase_state': project._liwan_phase_state() if project._liwan_tool_enabled('governance') else None,
+        'change_control_mode': project.env['liwan.pmo.settings'].change_control_mode() if project._liwan_tool_enabled('governance') else 'off',
     })
     return data
 
@@ -100,7 +103,22 @@ def parse_project_vals(payload, project=None):
     for key, value in payload.items():
         if key not in PROJECT_FIELDS:
             raise ApiError(422, 'unknown_field', f"field {key!r} is not writable", field=key)
-        if key == 'name':
+        if key == 'objectives':
+            rows = parse_objectives(value)
+            vals['liwan_objective_ids'] = ([(5, 0, 0)] if project is not None else []) + [
+                (0, 0, {**row, 'sequence': (index + 1) * 10}) for index, row in enumerate(rows)
+            ]
+        elif key == 'success_criteria':
+            if not isinstance(value, str):
+                raise ApiError(422, 'invalid', 'success_criteria must be a string', field=key)
+            vals['liwan_success'] = value
+        elif key == 'tool_preferences':
+            if not isinstance(value, dict) or set(value) - {'planning', 'governance', 'finance'}:
+                raise ApiError(422, 'invalid', 'Unknown project tool preference', field=key)
+            if any(not isinstance(enabled, bool) for enabled in value.values()):
+                raise ApiError(422, 'invalid', 'Tool preferences must be booleans', field=key)
+            vals.update({f'liwan_{tool}_enabled': enabled for tool, enabled in value.items()})
+        elif key == 'name':
             if not isinstance(value, str) or not value.strip():
                 raise ApiError(422, 'invalid', "name must not be empty", field=key)
             vals[key] = value.strip()
@@ -170,10 +188,7 @@ def parse_project_create(payload):
     name = payload.pop('name', None)
     if not isinstance(name, str) or not name.strip():
         raise ApiError(422, 'invalid', "name must not be empty", field='name')
-    charter = payload.pop('charter', _ABSENT)
     vals = parse_project_vals(payload) if payload else {}
-    if charter is not _ABSENT:
-        vals.update(parse_charter_vals(charter))
     settings = request.env['liwan.pmo.settings'].get()
     manager_id = vals.get('user_id', request.env.uid)
     if settings['require_manager_on_create'] and not manager_id:
@@ -211,3 +226,18 @@ def parse_project_copy(payload):
     if end_date and end_date < start_date:
         raise ApiError(422, 'invalid', "end_date must be on or after start_date", field='end_date')
     return name.strip(), start_date, end_date
+
+
+def parse_objectives(value):
+    if not isinstance(value, list):
+        raise ApiError(422, 'invalid', 'objectives must be a list', field='objectives')
+    rows = []
+    for row in value:
+        if not isinstance(row, dict) or set(row) - {'goal', 'metric', 'target'}:
+            raise ApiError(422, 'invalid', 'Invalid objective row', field='objectives')
+        if not isinstance(row.get('goal'), str) or not row['goal'].strip():
+            raise ApiError(422, 'invalid', 'An objective needs a non-blank goal', field='objectives')
+        if any(not isinstance(row.get(key, ''), str) for key in ('metric', 'target')):
+            raise ApiError(422, 'invalid', 'Objective values must be strings', field='objectives')
+        rows.append({key: row.get(key, '').strip() for key in ('goal', 'metric', 'target')})
+    return rows
