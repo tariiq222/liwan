@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from psycopg.conninfo import make_conninfo
 
 from liwan_ai_service.control import StateCompatibilityError
+from liwan_ai_service.knowledge import KnowledgeStore, PostgresKnowledgeStore
 from liwan_ai_service.memory import MemoryMemoryStore, MemoryStore, PostgresMemoryStore
 from liwan_ai_service.store import MemoryRunStore, PostgresRunStore, RunStore, validate_tenant
 from liwan_ai_service.tenancy import TenantDirectory
@@ -37,6 +38,7 @@ class TenantState:
     graph: object
     config: TenantConfigStore = field(default_factory=MemoryTenantConfig)
     memory: MemoryStore = field(default_factory=MemoryMemoryStore)
+    knowledge: KnowledgeStore | None = None  # the vector index lives in Postgres only: memory state has no knowledge search
 
 
 class TenantStates:
@@ -179,6 +181,7 @@ class TenantStates:
         try:
             state = TenantState(
                 database, PostgresRunStore(pool), self.graph_factory(checkpointer), PostgresTenantConfig(pool), PostgresMemoryStore(pool),
+                PostgresKnowledgeStore(pool),
             )
             return state, pool
         except BaseException:

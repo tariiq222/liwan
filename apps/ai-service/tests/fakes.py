@@ -44,10 +44,10 @@ class SeededStates(TenantStates):
         return TenantState(database, store or MemoryRunStore(), self.graph_factory(checkpointer or InMemorySaver()))
 
 
-def make_memory_app(model, settings, *, store=None, checkpointer=None, control=None, states=None):
+def make_memory_app(model, settings, *, store=None, checkpointer=None, control=None, states=None, embedder=None):
     """A service app over memory state: the test keeps the store, the states and the control state it drives."""
     states = states or SeededStates(store=store, checkpointer=checkpointer)
-    return create_app(model, states, control or MemoryControlState(), settings)
+    return create_app(model, states, control or MemoryControlState(), settings, embedder)
 
 
 async def open_test_state(database_url: str):

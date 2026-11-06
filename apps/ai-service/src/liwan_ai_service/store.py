@@ -14,6 +14,7 @@ from typing import Protocol
 
 from liwan_ai_service.contracts import AI_STATE_VERSION
 from liwan_ai_service.control import StateCompatibilityError
+from liwan_ai_service.knowledge import CREATE_KNOWLEDGE, KNOWLEDGE_TABLES, grant_knowledge_queue, require_vector
 from liwan_ai_service.memory import CREATE_MEMORY, MEMORY_TABLES, grant_outbox
 from liwan_ai_service.tenant_config import DEFAULT_RETENTION_DAYS
 
@@ -322,7 +323,7 @@ class PostgresRunStore:
 
 TENANT_TABLES = (
     "ai_runs", "checkpoints", "checkpoint_blobs", "checkpoint_writes", "checkpoint_migrations", "ai_tenant_config",
-    *MEMORY_TABLES, "ai_tenant_schema",
+    *MEMORY_TABLES, *KNOWLEDGE_TABLES, "ai_tenant_schema",
 )  # the version marker last: it is written last
 
 
@@ -334,7 +335,7 @@ ADD_LEAVER_RETENTION = (
 TENANT_TABLES_QUERY = (
     "SELECT to_regclass('ai_runs'), to_regclass('checkpoints'), to_regclass('checkpoint_blobs'), to_regclass('checkpoint_writes'),"
     " to_regclass('checkpoint_migrations'), to_regclass('ai_tenant_config'), to_regclass('ai_memory'), to_regclass('ai_outbox'),"
-    " to_regclass('ai_leavers'), to_regclass('ai_tenant_schema')"
+    " to_regclass('ai_leavers'), to_regclass('ai_knowledge_queue'), to_regclass('ai_knowledge_chunk'), to_regclass('ai_tenant_schema')"
 )  # the tables of TENANT_TABLES, in its order
 
 
@@ -348,6 +349,9 @@ async def upgrade_tenant(conn) -> None:
     for statement in CREATE_MEMORY:
         await conn.execute(statement)
     await grant_outbox(conn)
+    for statement in CREATE_KNOWLEDGE:
+        await conn.execute(statement)
+    await grant_knowledge_queue(conn)
 
 
 async def validate_tenant(conn, checkpoint_version: int) -> None:
@@ -357,6 +361,7 @@ async def validate_tenant(conn, checkpoint_version: int) -> None:
         raise StateCompatibilityError("ai_state_uninitialized")  # no AI state at all: a sweep may skip it
     if not all(tables):
         raise StateCompatibilityError("ai_state_incompatible")  # partial state (an incomplete restore) is never skipped
+    await require_vector(conn)
     version = await (await conn.execute("SELECT state_version, checkpoint_version FROM ai_tenant_schema WHERE singleton")).fetchone()
     migration = await (await conn.execute("SELECT max(v) FROM checkpoint_migrations")).fetchone()
     if (not version or len(version) != 2 or version != (AI_STATE_VERSION, checkpoint_version) or migration != (checkpoint_version,)):
@@ -379,6 +384,7 @@ async def initialize_tenant(conninfo: str, retention_days: int = DEFAULT_RETENTI
         async with pool.connection() as conn:
             await conn.execute(f"SELECT pg_advisory_lock({TENANT_LOCK[0]}, {TENANT_LOCK[1]})")
             try:
+                await require_vector(conn)  # before any DDL: a schema without pgvector is not half-bootstrapped
                 tables = await _tenant_tables(conn)
                 if tables[-1]:  # the version marker is written last, so its presence means a finished bootstrap
                     async with conn.transaction():

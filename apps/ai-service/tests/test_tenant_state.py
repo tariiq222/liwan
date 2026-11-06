@@ -117,6 +117,7 @@ class ScratchDatabase:
         assert DATABASE_NAME.fullmatch(self.name)
         await execute(None, sql.SQL("CREATE DATABASE {}").format(sql.Identifier(self.name)))
         await execute(self.name, "CREATE SCHEMA liwan_ai")
+        await execute(self.name, "CREATE EXTENSION vector WITH SCHEMA liwan_ai")  # the operator script's superuser step
         return tenant_conninfo(self.name)
 
     async def drop(self) -> None:

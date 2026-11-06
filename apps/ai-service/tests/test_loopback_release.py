@@ -88,6 +88,7 @@ async def runtimes(tmp_path):
     tenant_conninfo = make_conninfo(database_url, dbname=tenant)
     async with await psycopg.AsyncConnection.connect(tenant_conninfo, autocommit=True) as tenant_conn:
         await tenant_conn.execute("CREATE SCHEMA liwan_ai")  # provisioned by the operator script, never by the runtime
+        await tenant_conn.execute("CREATE EXTENSION vector WITH SCHEMA liwan_ai")  # the operator script's superuser step
     await initialize_tenant(make_conninfo(tenant_conninfo, options="-c search_path=liwan_ai"))
     registry = tmp_path / "tenants.json"
     registry.write_text(
