@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // `bordered` draws the empty state as a card (the shared card recipe: 18px radius, hairline ring, white fill) for a page
-// whose whole body is empty; the default is the dashed placeholder inside a block that already has a card.
+// whose whole body is empty; the default is the dashed placeholder inside a block that already has a card. Without an
+// `icon` slot a full-size empty state shows the Sadu tree in sand (decorative); `compact` shows no art.
 const props = defineProps<{
   title: string
   description?: string
@@ -20,6 +21,7 @@ const props = defineProps<{
     <div v-if="$slots.icon" class="text-muted" aria-hidden="true">
       <slot name="icon" />
     </div>
+    <span v-else-if="!props.compact" data-slot="empty-art" class="liwan-sadu-tree" aria-hidden="true" />
     <p class="font-medium text-highlighted">{{ props.title }}</p>
     <p v-if="props.description" class="max-w-prose text-sm text-muted">{{ props.description }}</p>
     <div v-if="$slots.action" class="flex items-center gap-2">

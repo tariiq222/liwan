@@ -1,3 +1,4 @@
+import { h } from 'vue'
 import { describe, expect, it } from 'vitest'
 import * as errorState from '../../../../utils/errorState'
 import { renderShared } from '../../../../../test/helpers/renderShared'
@@ -18,6 +19,23 @@ describe('LoadingSkeleton', () => {
     const html = await renderShared('LoadingSkeleton', { variant, count: 4 })
     expect(html).toContain(`data-variant="${variant}"`)
     expect(html.match(/role="status"/g)).toHaveLength(1)
+  })
+})
+
+describe('SaduLoader', () => {
+  it('is one status with the courtyard and its four lighting triangles by default', async () => {
+    const html = await renderShared('SaduLoader')
+    expect(html.match(/role="status"/g)).toHaveLength(1)
+    expect(html).toContain('aria-label="app.loading"')
+    expect(html).toContain('data-variant="mark"')
+    expect(html.match(/class="liwan-sadu-lit"/g)).toHaveLength(4)
+    expect(html).toContain('animation-delay:1200ms')
+  })
+
+  it('shows five Sadu dots inline, under its own label', async () => {
+    const html = await renderShared('SaduLoader', { variant: 'dots', label: 'Thinking' })
+    expect(html).toContain('aria-label="Thinking"')
+    expect(html.match(/class="liwan-sadu-pulse"/g)).toHaveLength(5)
   })
 })
 
@@ -60,6 +78,15 @@ describe('ForbiddenState and NotFoundState', () => {
     expect(bare).not.toContain('<a')
     const linked = await renderShared('NotFoundState', { backTo: '/projects', backLabel: 'Projects' })
     expect(linked).toMatch(/<a[^>]*href="\/projects"[^>]*>.*Projects/s)
+  })
+})
+
+describe('EmptyState art', () => {
+  it('shows the Sadu tree without an icon, the icon instead of it, and no art when compact', async () => {
+    expect(await renderShared('EmptyState', { title: 'Nothing here' })).toMatch(/data-slot="empty-art" class="liwan-sadu-tree" aria-hidden="true"/)
+    const withIcon = await renderShared('EmptyState', { title: 'Nothing here' }, { icon: () => h('span', 'icon') })
+    expect(withIcon).not.toContain('empty-art')
+    expect(await renderShared('EmptyState', { title: 'Nothing here', compact: true })).not.toContain('empty-art')
   })
 })
 

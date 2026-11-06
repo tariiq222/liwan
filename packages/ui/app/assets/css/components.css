@@ -367,6 +367,9 @@ html { caret-color: var(--brand-link); }
 .rich-text-content :where(p, ul, ol, blockquote, pre) { margin-block: 0 0.75em; }
 .rich-text-content :where(p, ul, ol, blockquote, pre):last-child { margin-block-end: 0; }
 .rich-text-content ul { list-style: disc; padding-inline-start: 1.5em; }
+/* Bullets of the Sadu identity: a small diamond (Sadu dot) in the brand colour for every disc list. */
+:is(.rich-text-content, [data-editor="description"] .tiptap, [data-editor="document"] .tiptap) ul > li::marker,
+ul.list-disc > li::marker { content: "◆  "; color: var(--primary); font-size: 0.7em; }
 .rich-text-content ol { list-style: decimal; padding-inline-start: 1.5em; }
 .rich-text-content li + li { margin-block-start: 0.25em; }
 .rich-text-content :where(h1, h2, h3, h4, h5, h6) { margin-block: 0.75em 0.35em; font-weight: 600; line-height: 1.5; color: var(--ui-text-highlighted); }
@@ -460,3 +463,26 @@ html { caret-color: var(--brand-link); }
 
 /* A table whose fixed-width columns decide its floor: it fills its card and never shrinks under their sum (528px). */
 .liwan-fixed-table table { width: 100%; min-width: max(100%, 528px); table-layout: fixed; }
+
+/* LiwanOS Sadu symbols. SharedSaduLoader: the mark's triangles light in turn (`mark`) and the dots in sequence (`dots`).
+   SharedBrandWordmark `animated` (the login splash): the courtyard draws itself once, then the triangles and diamond show.
+   SharedEmptyState: the Sadu tree in sand. All stand still under reduced motion. */
+.liwan-sadu-lit { opacity: 0.2; animation: liwan-sadu-lit 1.6s ease-in-out infinite; }
+.liwan-sadu-pulse { opacity: 0.25; animation: liwan-sadu-pulse 1.2s ease-in-out infinite; }
+@keyframes liwan-sadu-lit { 0%, 100% { opacity: 0.2; } 12%, 30% { opacity: 1; } }
+@keyframes liwan-sadu-pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+.liwan-mark-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: liwan-mark-draw 1.1s ease-in-out 0.1s forwards; }
+.liwan-mark-reveal { opacity: 0; animation: liwan-mark-reveal 0.35s ease-out 1.15s forwards; }
+@keyframes liwan-mark-draw { to { stroke-dashoffset: 0; } }
+@keyframes liwan-mark-reveal { to { opacity: 1; } }
+.liwan-sadu-tree {
+  display: block;
+  width: 3.5rem;
+  aspect-ratio: 99 / 102;
+  background: var(--liwan-sand);
+  mask: url("../brand/sadu/sadu-tree.svg") center / contain no-repeat;
+  -webkit-mask: url("../brand/sadu/sadu-tree.svg") center / contain no-repeat;
+}
+@media (prefers-reduced-motion: reduce) {
+  .liwan-sadu-lit, .liwan-sadu-pulse, .liwan-mark-draw, .liwan-mark-reveal { animation: none; opacity: 1; stroke-dashoffset: 0; }
+}

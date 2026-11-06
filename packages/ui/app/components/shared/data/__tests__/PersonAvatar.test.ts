@@ -32,6 +32,12 @@ describe('SharedPersonAvatar', () => {
     expect(await render(people(7))).toMatch(/avatar-more[^>]*>\+4</)
   })
 
+  it('rings every avatar in the surface colour and overlaps the +N chip at the same size', async () => {
+    const html = await render(people(5))
+    expect(html.match(/ring-2 ring-\(--ui-bg\)/g)).toHaveLength(4)
+    expect(html).toMatch(/class="[^"]*-ms-\[0\.571rem\][^"]*size-8[^"]*"[^>]*data-slot="avatar-more"/)
+  })
+
   it('lists every name once for the whole group and renders a photo when given', async () => {
     const html = await render([{ id: 1, name: 'Sara', src: 'data:image/png;base64,x' }, { id: 2, name: 'Omar' }])
     expect(html).toContain('title="Sara، Omar"')

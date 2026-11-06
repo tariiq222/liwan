@@ -6,6 +6,7 @@ import { renderToString } from '@vue/server-renderer'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { describe, expect, it } from 'vitest'
+import * as brandMark from '../../../../utils/brandMark'
 
 const filename = resolve(dirname(fileURLToPath(import.meta.url)), '../BrandWordmark.vue')
 
@@ -17,6 +18,7 @@ function loadWordmark(): Vue.Component {
   const exports: { default?: Vue.Component } = {}
   const require = (path: string) => {
     if (path === 'vue') return Vue
+    if (path === '../../../utils/brandMark') return brandMark
     throw new Error(`Unhandled component dependency ${path}`)
   }
   const useI18n = () => ({ t: (key: string) => ({ 'brand.name': 'نظام ليوان' }[key] ?? key) })
@@ -89,6 +91,16 @@ describe('BrandWordmark', () => {
     const html = await render({ size })
     expect(html.match(/<span class="([^"]*)"/)?.[1]).toContain(text)
     expect(html.match(/<svg[^>]*class="([^"]*)"/)?.[1]).toContain(mark)
+  })
+
+  it('draws the courtyard once and then shows its triangles and diamond when animated (the login splash)', async () => {
+    const still = await render()
+    expect(still).not.toContain('liwan-mark-draw')
+    expect(still).not.toContain('data-animated')
+    const animated = await render({ animated: true, size: 'xl', inverted: true })
+    expect(animated).toContain('data-animated="true"')
+    expect(animated).toMatch(/<path[^>]*pathLength="1"[^>]*class="liwan-mark-draw"/)
+    expect(animated).toContain('<g class="liwan-mark-reveal">')
   })
 
   it('renders the mark alone when markOnly is set', async () => {

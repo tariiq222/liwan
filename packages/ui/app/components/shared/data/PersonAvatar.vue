@@ -3,7 +3,7 @@ import { avatarProps } from '../../../utils/avatarTone'
 
 // People in a table cell or a row, avatars only. One person: a round avatar. Several: an overlapping stack of at most
 // `max` avatars (the first on top, each overlapping the previous by a logical negative margin, so RTL and LTR both
-// work, with a ring in the surface colour) and one round `+N` chip for the rest. A person's `src` is shown as a photo;
+// work, with a ring in the surface colour) closed by one round `+N` chip of the same size that overlaps the stack too. A person's `src` is shown as a photo;
 // without it the initials avatar takes a deterministic soft tint. The whole group is one tooltip and accessible name.
 const props = withDefaults(defineProps<{ people: { id: number; name: string; src?: string }[]; max?: number }>(), { max: 3 })
 const visible = computed(() => props.people.slice(0, props.max))
@@ -21,14 +21,14 @@ const names = computed(() => props.people.map(person => person.name).join('، ')
         v-bind="avatarProps(person.name, person.id)"
         :src="person.src"
         size="md"
-        class="relative shrink-0"
+        class="relative shrink-0 ring-2 ring-(--ui-bg)"
         :class="{ '-ms-[0.571rem]': index > 0 }"
         :style="{ ...avatarProps(person.name, person.id).style, zIndex: visible.length - index }"
       />
     </span>
     <span
       v-if="rest > 0"
-      class="ms-1.5 inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-elevated text-xs font-semibold text-toned tabular-nums"
+      class="relative -ms-[0.571rem] inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-elevated text-xs font-semibold text-toned tabular-nums ring-2 ring-(--ui-bg)"
       data-slot="avatar-more"
       aria-hidden="true"
     >+{{ rest }}</span>
