@@ -29,6 +29,7 @@
         "boolean:documents.enabled",
         "boolean:operations.enabled",
         "boolean:ai.enabled",
+        "boolean:ai.knowledge",
         "limit:ai.messages.monthly",
         "limit:ai.tool_calls.per_run",
         "limit:ai.tokens.monthly",

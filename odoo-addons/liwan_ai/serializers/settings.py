@@ -8,7 +8,7 @@ from odoo.addons.liwan_ai.models.ai_settings import (
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.serializers.common import iso
 
-SETTING_KEYS = frozenset({'provider_mode', 'messages_per_user_monthly', 'external_send'})
+SETTING_KEYS = frozenset({'provider_mode', 'messages_per_user_monthly', 'external_send', 'knowledge_enabled'})
 CONSENT_KEYS = frozenset({'text_version', 'text_hash'})
 
 
@@ -31,6 +31,7 @@ def dump_settings(env):
         'provider_mode': settings.provider_mode,
         'messages_per_user_monthly': settings.messages_per_user_monthly,
         'external_send': settings.external_send,
+        'knowledge_enabled': settings.knowledge_enabled,
         'revision': settings.revision,
         'consent': {
             'required_version': consent_text.CONSENT_VERSION,
@@ -74,6 +75,8 @@ def parse_settings_patch(payload):
         raise ApiError(422, 'invalid', f'provider_mode must be one of {PROVIDER_MODES}', field='provider_mode')
     if 'external_send' in values and values['external_send'] not in EXTERNAL_SEND_MODES:
         raise ApiError(422, 'invalid', f'external_send must be one of {EXTERNAL_SEND_MODES}', field='external_send')
+    if 'knowledge_enabled' in values and not isinstance(values['knowledge_enabled'], bool):
+        raise ApiError(422, 'invalid', 'knowledge_enabled must be true or false', field='knowledge_enabled')
     if 'messages_per_user_monthly' in values:
         cap = values['messages_per_user_monthly']
         if not isinstance(cap, int) or isinstance(cap, bool) or not 0 <= cap <= MAX_MESSAGES_PER_USER:

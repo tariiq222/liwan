@@ -2,7 +2,7 @@
 {
     'name': 'liwan AI',
     'summary': 'liwan platform: the LiwanOS AI tool registry, audit log, usage ledger, settings, consent and /api/v1/ai routes',
-    'version': '19.0.1.6.0',
+    'version': '19.0.1.7.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -16,6 +16,7 @@
         'security/ir.model.access.csv',
         'security/liwan_ai_rules.xml',
         'data/ai_settings.xml',
+        'data/ai_indexer.xml',
     ],
     'installable': True,
     'application': False,

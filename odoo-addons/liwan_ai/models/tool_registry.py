@@ -97,9 +97,21 @@ class LiwanAiToolRegistry(models.AbstractModel):
         schema = item.get('input_schema')
         if not isinstance(schema, dict) or schema.get('type') != 'object' or not isinstance(schema.get('properties'), dict):
             self._liwan_ai_error(name, 'input_schema must be a JSON Schema object with properties')
-        properties = set(schema['properties'])
+        # Inputs the AI service adds itself (the knowledge candidates): mapped like an input, never offered to the model.
+        service_inputs = item.get('service_inputs', ())
+        if not isinstance(service_inputs, (list, tuple)) or not all(isinstance(key, str) for key in service_inputs):
+            self._liwan_ai_error(name, 'service_inputs must be a list of input names')
+        properties = set(schema['properties']) | set(service_inputs)
         if not isinstance(item.get('external', False), bool):
             self._liwan_ai_error(name, 'external must be a boolean')
+        if not isinstance(item.get('platform', False), bool) or (item.get('platform') and kind != 'read'):
+            self._liwan_ai_error(name, 'platform must be a boolean and only a read tool is a platform tool')
+        setting = item.get('setting')
+        if setting is not None and (
+            not isinstance(setting, str) or self.env['liwan.ai.settings']._fields.get(setting) is None
+            or self.env['liwan.ai.settings']._fields[setting].type != 'boolean'
+        ):
+            self._liwan_ai_error(name, 'setting must be a boolean field of the AI settings')
         if item.get('external') and kind not in EXTERNAL_KINDS:
             self._liwan_ai_error(name, 'a tool that reaches an outside party is a write_light or draft tool')
         if kind == 'draft':
@@ -116,8 +128,10 @@ class LiwanAiToolRegistry(models.AbstractModel):
         route = item.get('route')
         if not isinstance(route, dict) or route.get('method') not in ROUTE_METHODS or not str(route.get('path', '')).startswith('/api/v1/'):
             self._liwan_ai_error(name, 'route must be {method, path} under /api/v1/')
-        if kind == 'read' and route['method'] != 'GET':
-            self._liwan_ai_error(name, 'a read tool must use GET')
+        if kind == 'read' and route['method'] == 'PATCH':
+            self._liwan_ai_error(name, 'a read tool must use GET, or POST with a body')
+        if kind == 'read' and route['method'] == 'POST' and 'body' not in (item.get('input_map') or {}):
+            self._liwan_ai_error(name, 'a read tool that uses POST maps its inputs to the body')
         if kind == 'write_light' and route['method'] == 'GET':
             self._liwan_ai_error(name, 'a write_light tool must not use GET')
         input_map = item.get('input_map') or {}
@@ -163,7 +177,8 @@ class LiwanAiToolRegistry(models.AbstractModel):
         tools = {}
         for item in self._liwan_ai_tool_definitions():
             self._liwan_ai_validate(item)
-            agent = agents.get(item['owner'].removeprefix('liwan_'))
+            # A platform tool belongs to no agent: every conversation offers it (the knowledge search).
+            agent = {} if item.get('platform') else agents.get(item['owner'].removeprefix('liwan_'))
             if agent is None:
                 self._liwan_ai_error(item['name'], f"owner {item['owner']} registers no agent")
             self._liwan_ai_check_sensitive(item, agent)
@@ -174,13 +189,16 @@ class LiwanAiToolRegistry(models.AbstractModel):
 
     @staticmethod
     def _liwan_ai_agent_key(item):
-        return item['owner'].removeprefix('liwan_')
+        """The agent that owns the tool, or ``None`` for a platform tool."""
+        return None if item.get('platform') else item['owner'].removeprefix('liwan_')
 
     @api.model
     def _liwan_ai_tools_for_user(self, user=None, setup=False):
         """The tools ``user`` may give the assistant, in registration order, each with its effective ``mode``.
 
-        A setup conversation (``setup``) offers the setup agent's tools only; an ordinary one never offers them.
+        A setup conversation (``setup``) offers the setup agent's tools only; an ordinary one never offers them. A platform
+        tool (no agent) is offered in an ordinary conversation, and a tool that declares a ``setting`` only while that
+        boolean AI setting is on.
 
         A tool appears only when its feature reads, the user holds its capability, its agent is enabled for one of
         the user's roles, and the administrator has not turned it off; an agent set to read only keeps its read
@@ -192,16 +210,20 @@ class LiwanAiToolRegistry(models.AbstractModel):
         entitlement = self.env['liwan.entitlement.service']
         agents = self.env['liwan.ai.agent.setting']._liwan_ai_effective(user)
         modes = self.env['liwan.ai.tool.setting']._liwan_ai_modes()
-        external_send = self.env['liwan.ai.settings']._liwan_current().external_send
+        ai_settings = self.env['liwan.ai.settings']._liwan_current()
+        external_send = ai_settings.external_send
         items = []
         for item in self._liwan_ai_tool_map().values():
-            if (self._liwan_ai_agent_key(item) == SETUP_AGENT_KEY) != setup:
+            agent_key = self._liwan_ai_agent_key(item)
+            if (agent_key == SETUP_AGENT_KEY) != setup:
                 continue
-            agent = agents.get(self._liwan_ai_agent_key(item))
+            agent = agents.get(agent_key)
             mode = modes.get(item['name'], 'on')
-            if agent is None or mode == 'off':
+            if mode == 'off' or (agent_key and agent is None):
                 continue
-            if agent['read_only'] and item['kind'] != 'read':
+            if item.get('setting') and not ai_settings[item['setting']]:
+                continue
+            if agent and agent['read_only'] and item['kind'] != 'read':
                 continue
             if item.get('external') and item['kind'] == 'write_light' and external_send != 'approve':
                 continue
@@ -213,7 +235,7 @@ class LiwanAiToolRegistry(models.AbstractModel):
     @api.model
     def _liwan_ai_agents_for_user(self, tools, user=None):
         """The registered agents that own at least one of ``tools``, in registration order, each with its ``memory`` switch."""
-        owners = {self._liwan_ai_agent_key(item) for item in tools}
+        owners = {self._liwan_ai_agent_key(item) for item in tools} - {None}
         effective = self.env['liwan.ai.agent.setting']._liwan_ai_effective(user or self.env.user)
         return [
             {**agent, 'memory': effective[key]['memory']}

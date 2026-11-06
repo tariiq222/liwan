@@ -32,7 +32,11 @@ class LiwanAiConsent(models.Model):
     def write(self, vals):
         if set(vals) - REVOCATION_FIELDS:
             raise UserError(self.env._('A signed consent cannot be changed, only revoked.'))
-        return super().write(vals)
+        result = super().write(vals)
+        if vals.get('revoked_at'):
+            # Revoked: no text may stay queued for a provider, and the index is dropped until the next signature.
+            self.env['liwan.ai.knowledge.indexer']._liwan_rebuild()
+        return result
 
     @api.model
     def _liwan_valid(self):

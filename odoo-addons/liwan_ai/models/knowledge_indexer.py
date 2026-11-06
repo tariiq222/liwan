@@ -1,0 +1,126 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+"""The indexing side of the knowledge retrieval (spec 2026-11-04 §6.3).
+
+Odoo cannot reach the AI service, so the indexer appends events to ``liwan_ai.ai_knowledge_queue``, a table of the AI
+schema (not an Odoo table, so R9's direct-SQL rule does not apply) that the service owns and drains: the database role
+of Odoo may only insert into it. A record's text is chunked and withheld here (``knowledge_chunker``) and travels in
+the queue until the service has embedded it; the index itself keeps vectors and references only.
+"""
+import json
+import logging
+from datetime import timedelta
+
+from odoo import Command, api, models
+
+from odoo.addons.liwan_ai.models.knowledge_chunker import record_chunks
+
+_logger = logging.getLogger(__name__)
+QUEUE = 'liwan_ai.ai_knowledge_queue'
+KNOWLEDGE_FEATURE = 'ai.knowledge'
+BATCH_SIZE = 200
+# A record written in a transaction that commits late carries an older write_date than the cursor may have passed: the
+# indexer reads only records that have settled for this long.
+SETTLE_SECONDS = 60
+INSERT = f'INSERT INTO {QUEUE} (kind, model, res_id, company_id, chunks)'
+
+
+class LiwanAiKnowledgeIndexer(models.AbstractModel):
+    _name = 'liwan.ai.knowledge.indexer'
+    _description = 'LiwanOS AI knowledge indexer'
+    _liwan_scope = 'global'
+
+    @api.model
+    def _liwan_sync_companies(self):
+        """Make the indexer user a member of every company (archived ones included), so it reads each company's records."""
+        indexer = self.env.ref('liwan_ai.user_ai_indexer', raise_if_not_found=False)
+        if indexer:
+            companies = self.env['res.company'].with_context(active_test=False).search([])
+            indexer.write({'company_ids': [Command.link(company_id) for company_id in companies.ids]})
+
+    @api.model
+    def _liwan_queue_insertable(self):
+        """Whether the queue exists and this database role may insert into it (no AI service or no grant: nothing is queued)."""
+        self.env.cr.execute(
+            # CASE, not AND: the privilege check of a missing table would raise instead of answering false.
+            "SELECT to_regclass(%s) IS NOT NULL, CASE WHEN to_regclass(%s) IS NULL THEN false"
+            " ELSE has_table_privilege(%s, 'INSERT') END", [QUEUE, QUEUE, QUEUE],
+        )
+        exists, allowed = self.env.cr.fetchone()
+        if exists and not allowed:
+            _logger.warning('liwan_ai: cannot queue knowledge events: no INSERT on %s for this role', QUEUE)
+        return allowed
+
+    @api.model
+    def _liwan_queue_upsert(self, model, record_id, company_id, chunks):
+        self.env.cr.execute(f'{INSERT} VALUES (%s, %s, %s, %s, %s::jsonb)', ['upsert', model, record_id, company_id, json.dumps(chunks)])
+
+    @api.model
+    def _liwan_queue_delete(self, model, record_ids):
+        """Queue the removal of ``record_ids`` of ``model``; used by the indexer and by a bridge before it deletes records."""
+        if record_ids and self._liwan_queue_insertable():
+            self.env.cr.execute(f"{INSERT} SELECT 'delete', %s, id, NULL, NULL FROM unnest(%s::bigint[]) AS id", [model, list(record_ids)])
+
+    @api.model
+    def _liwan_queue_reset(self):
+        self.env.cr.execute(f"{INSERT} VALUES ('reset', NULL, NULL, NULL, NULL)")
+
+    @api.model
+    def _liwan_rebuild(self):
+        """Drop the whole index and read every source again: clear the cursors and queue one reset."""
+        if not self._liwan_queue_insertable():
+            return False
+        self.env['liwan.ai.knowledge.cursor'].search([]).unlink()
+        self._liwan_queue_reset()
+        return True
+
+    @api.model
+    def _liwan_indexing_enabled(self):
+        """The queue takes events, the tenant signed the AI acknowledgement and turned knowledge on, and its package includes it."""
+        return bool(
+            self._liwan_queue_insertable()
+            and self.env['liwan.ai.consent']._liwan_valid()
+            and self.env['liwan.ai.settings']._liwan_current().knowledge_enabled
+            and self.env['liwan.entitlement.service']._liwan_feature_read(KNOWLEDGE_FEATURE),
+        )
+
+    @api.model
+    def _liwan_cron_tick(self):
+        """Queue the next batch of every enabled source (cron, as the technical user ``liwan_ai.user_ai_indexer``)."""
+        if not self._liwan_indexing_enabled():
+            return
+        entitlement = self.env['liwan.entitlement.service']
+        for source in self.env['liwan.ai.knowledge.registry']._liwan_ai_knowledge_map().values():
+            if entitlement._liwan_feature_read(source['feature_key']):
+                # One company at a time: the access fences of the applications decide per current company.
+                for company in self.env.user.company_ids:
+                    self._liwan_index_source(source, company)
+
+    @api.model
+    def _liwan_queue_record(self, model, record, source):
+        """Queue one record's chunks; a record that cannot be chunked or queued is logged by model and id, never by text, and skipped."""
+        try:
+            with self.env.cr.savepoint():
+                chunks = record_chunks(record, source)
+                # A record of no company is never readable in a company, so it is not indexed.
+                if chunks and record.company_id:
+                    self._liwan_queue_upsert(model, record.id, record.company_id.id, chunks)
+                else:
+                    self._liwan_queue_delete(model, record.ids)
+        except Exception as error:  # noqa: BLE001 - one poison record must not stop the batch; the cursor moves past it
+            _logger.warning('liwan_ai: knowledge record %s,%s skipped (%s)', model, record.id, type(error).__name__)
+
+    @api.model
+    def _liwan_index_source(self, source, company):
+        """Queue up to one batch of the records of ``source`` in ``company`` past its cursor, in ``(write_date, id)`` order."""
+        model = source['model']
+        Model = self.env[model].with_company(company).with_context(active_test=False)
+        cursors = self.env['liwan.ai.knowledge.cursor']
+        settled = self.env.cr.now() - timedelta(seconds=SETTLE_SECONDS)
+        domain = [*cursors._liwan_domain_after(model, company), ('write_date', '<=', settled)]
+        records = Model.search(domain, order='write_date, id', limit=BATCH_SIZE)
+        archived = records.filtered(lambda record: 'active' in record._fields and not record.active)
+        self._liwan_queue_delete(model, archived.ids)
+        for record in records - archived:
+            self._liwan_queue_record(model, record, source)
+        if records:
+            cursors._liwan_advance(model, company, records[-1])
