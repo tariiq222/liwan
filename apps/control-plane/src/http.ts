@@ -24,6 +24,7 @@ import { resolveSession } from './admin-auth/sessions.js'
 import { STEP_UP_CAPABILITIES } from './admin-auth/roles.js'
 import { adminAuthHttp } from './admin-auth/routes.js'
 import { accountsHttp } from './admin-auth/accounts-http.js'
+import { aiProviderHttp } from './ai-provider/http.js'
 import { defaultWebAuthn, type WebAuthnLib } from './admin-auth/webauthn.js'
 import { enqueueSharedJob } from './shared/job-store.js'
 import { createHash, randomUUID } from 'node:crypto'
@@ -381,6 +382,8 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         res.writeHead(accountsResponse.status, { 'cache-control': 'no-store' })
         return res.end()
       }
+      const aiProviderResponse = await aiProviderHttp(pool, config, { method, pathname, raw, auth, requireCapability, fail: (status, code) => new ApiError(status, code, code) })
+      if (aiProviderResponse) return respond(res, aiProviderResponse.status, aiProviderResponse.data)
       const packageResponse = await packageHttp(pool,{method,pathname,raw,actor:auth.actor,capabilities:auth.capabilities,stepUpFresh:auth.stepUpFresh,repositoryRoot:config.repositoryRoot})
       if(packageResponse)return respond(res,packageResponse.status,packageResponse.data)
       const commercialInput={method,pathname,search:url.search,raw,issuer:vendorActorIssuer(config.installationId),actor:auth.actor,capabilities:auth.capabilities,stepUpFresh:auth.stepUpFresh}

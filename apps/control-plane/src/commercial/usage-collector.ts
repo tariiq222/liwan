@@ -12,8 +12,9 @@ export const PER_TENANT_MS = 30_000
 const DEFAULT_LIMIT = 50
 /** Fallback per-run budget: 80% of the default 300 s scheduler interval (the scheduler passes 80% of the real interval). */
 export const BUDGET_MS = 240_000
-// Two-int advisory lock: a different key space from every single-bigint lock in the control plane
-// (1397969233 migrate, REGISTRY_ADVISORY_LOCK 1397969234, hashtext(...) worker locks), so it can never collide with them.
+// Two-int advisory lock (class, object). Postgres keeps the two-int and the single-bigint key spaces apart, and the values are distinct
+// anyway: 1397969233 migrate, REGISTRY_ADVISORY_LOCK 1397969234, this class 1397969235, AI_PROVIDER_SAVE_LOCK 1397969236 (the rest of the
+// control plane takes hashtext(...) locks). Take the next free value when adding one.
 export const USAGE_LOCK_CLASS = 1397969235
 export const USAGE_LOCK_OBJECT = 1
 // Same set as the Python validate_observation: a sample without these is partial.

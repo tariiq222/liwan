@@ -10,7 +10,8 @@
       "vendor.pricing.manage",
       "vendor.subscriptions.manage",
       "vendor.billing.manage",
-      "vendor.accounts.manage"
+      "vendor.accounts.manage",
+      "vendor.ai.manage"
     ],
     "shared_onboarding_enabled": true
   },

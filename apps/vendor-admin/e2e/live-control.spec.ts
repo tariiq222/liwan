@@ -15,7 +15,7 @@ const DATABASE_URL = process.env.LIVE_DATABASE_URL ?? ''
 const SHOTS = process.env.LIVE_SHOTS_DIR ?? '../../.superpowers/wave4-live-shots'
 const OWNER_EMAIL = 'owner@example.test'
 const FINANCE_EMAIL = 'finance@example.test'
-const OWNER_CAPABILITIES = ['vendor.accounts.manage', 'vendor.audit.read', 'vendor.billing.manage', 'vendor.catalog.manage', 'vendor.operations.run', 'vendor.pricing.manage', 'vendor.read', 'vendor.subscriptions.manage', 'vendor.tenants.manage']
+const OWNER_CAPABILITIES = ['vendor.accounts.manage', 'vendor.ai.manage', 'vendor.audit.read', 'vendor.billing.manage', 'vendor.catalog.manage', 'vendor.operations.run', 'vendor.pricing.manage', 'vendor.read', 'vendor.subscriptions.manage', 'vendor.tenants.manage']
 const FAILED = 'تعذّر تسجيل الدخول'
 const LOCKED = 'محاولات كثيرة'
 // Throwaway passwords for the scratch database, different on every run.

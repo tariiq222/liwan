@@ -83,7 +83,13 @@ smoke_started vendor-admin
 # The service requires its service token outside development. AI_DEV_INSECURE=true is the only token-free mode, accepted
 # only with AI_ALLOW_MEMORY_STATE=true and no AI_DATABASE_URL, which is exactly this smoke run.
 PROBE=(python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8600/healthz', timeout=2)")
-smoke_started ai-service -e AI_PROVIDER=ollama -e AI_MODEL=ci-smoke -e AI_ALLOW_MEMORY_STATE=true -e AI_DEV_INSECURE=true
+# The platform provider is read from a file (AI_PLATFORM_PROVIDER_FILE), in a directory mounted read-only like the deployment does.
+mkdir -p "$IMAGE_ROOT/ai"
+printf '%s\n' '{"provider": "ollama", "model": "ci-smoke", "revision": 1}' > "$IMAGE_ROOT/ai/platform-provider.json"
+chmod 755 "$IMAGE_ROOT/ai"
+chmod 644 "$IMAGE_ROOT/ai/platform-provider.json"
+smoke_started ai-service -v "$IMAGE_ROOT/ai:/etc/liwan-ai:ro" -e AI_PLATFORM_PROVIDER_FILE=/etc/liwan-ai/platform-provider.json \
+  -e AI_ALLOW_MEMORY_STATE=true -e AI_DEV_INSECURE=true
 
 # ai-egress: squid itself accepts the configuration rendered with tenant hosts (tools/test_ai_egress.py, SquidParseCase).
 LIWAN_AI_EGRESS_IMAGE_TEST=1 python3 -B -m unittest tools.test_ai_egress.SquidParseCase

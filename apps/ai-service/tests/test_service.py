@@ -29,6 +29,7 @@ from tests.fakes import (
     make_memory_app,
     new_id,
 )
+from tests.platform_file import platform_env
 from tests.test_contracts import DRAFT_TOOL, PMO_AGENT, READ_TOOL
 
 HEADERS = {"X-Liwan-Tenant": "t1", "X-Liwan-User": "42"}
@@ -59,7 +60,7 @@ def parse_sse(text: str):
 @pytest.fixture
 def client_factory():
     def make(responses):
-        settings = Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true"})
+        settings = Settings.from_env({**platform_env(), "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true"})
         app = make_memory_app(ScriptedChatModel(responses), settings)
         return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai")
     return make
@@ -184,7 +185,7 @@ async def test_provider_failure_streams_an_error_and_the_run_can_be_reused(clien
                 raise ConnectionError("provider down")
             return super()._next(messages)
 
-    settings = Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true"})
+    settings = Settings.from_env({**platform_env(), "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true"})
     model = Exploding(responses=[ai_text("boom"), ai_text("رجعت")])
     app = make_memory_app(model, settings)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai") as client:
@@ -201,7 +202,7 @@ async def test_healthz(client_factory):
         assert (await client.get("/healthz")).json() == {"ok": True}
 
 
-SETTINGS = Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true"})
+SETTINGS = Settings.from_env({**platform_env(), "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true"})
 LEAKY = "sk-secret postgresql://u:pw@h/db"
 RESUME_C1 = {"call_id": "c_1", "policy": PLATFORM_POLICY, "result": {"ok": True, "data": {"items": [], "total": 0}}}
 
@@ -506,7 +507,7 @@ async def test_patch_does_not_shadow_the_other_run_routes(client_factory):
 
 
 async def test_patch_needs_the_service_token_when_one_is_set():
-    settings = Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true", "AI_SERVICE_TOKEN": "s" * 32})
+    settings = Settings.from_env({**platform_env(), "AI_ALLOW_MEMORY_STATE": "true", "AI_SERVICE_TOKEN": "s" * 32})
     app = make_memory_app(ScriptedChatModel([]), settings)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai") as client:
         assert (await client.patch("/v1/runs/r_x", json={"title": "x"}, headers=HEADERS)).status_code == 401

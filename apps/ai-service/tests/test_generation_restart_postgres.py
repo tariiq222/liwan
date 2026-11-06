@@ -34,17 +34,19 @@ for name in ('settings', 'control', 'store', 'service'):
 import httpx
 from liwan_ai_service.service import close_runtime_state, create_app, open_runtime_state
 from liwan_ai_service.settings import Settings
-from tests.fakes import ScriptedChatModel, ai_text
+from tests.fakes import ScriptedChatModel, ai_text, platform_of
 from tests.test_service import HEADERS, fresh
+from tests.platform_file import platform_env
+
 async def main():
     token = 'synthetic-durable-test-token-' * 2
     admin = {'x-liwan-service-token':token}
-    settings = Settings.from_env({'AI_PROVIDER':'ollama', 'AI_MODEL':'scripted',
+    settings = Settings.from_env({**platform_env("ollama", "scripted"),
         'AI_DATABASE_URL':os.environ['AI_TEST_DATABASE_URL'], 'AI_SERVICE_TOKEN':token, 'AI_GENERATION_ID':sys.argv[2],
         'LIWAN_TENANCY_MODE':'shared', 'LIWAN_TENANT_REGISTRY_PATH':os.environ['LIWAN_TENANT_REGISTRY_PATH']})
     model = ScriptedChatModel([ai_text('done')], title_responses=[ai_text('title')])
     states, control = await open_runtime_state(settings)
-    app = create_app(model, states, control, settings)
+    app = create_app(platform_of(model, "ollama", "scripted"), states, control, settings)
     try:
         if sys.argv[1] == 'serve':
             import uvicorn

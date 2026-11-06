@@ -5,7 +5,8 @@ The ``ai`` container has no route of its own: every provider call leaves through
 
 * ``check_base_url`` refuses a base URL that could never be a public provider endpoint, when the key is saved;
 * ``TenantEgress`` writes the host a tenant's key needs into a directory shared with ``ai-egress`` (one file per tenant
-  database, ``<database>.hosts``, one hostname per line), whenever a key is saved or removed and once at startup.
+  database, ``<database>.hosts``, one hostname per line), whenever a key is saved or removed and once at startup. The
+  platform provider's public host goes there too, as ``platform.hosts`` (spec 2026-11-04 §6.13).
 
 ``ai-egress`` allows CONNECT to port 443 for those hosts only while they resolve to public addresses, so the proxy stays
 the authority at connect time (DNS rebinding included); the check here is the early, readable refusal. Inside an
@@ -38,6 +39,7 @@ HTTPS_PORT = 443
 RESOLVE_TIMEOUT_SECONDS = 5
 # Globally routable by the IANA registry, yet they embed or tunnel an IPv4 address of any kind: 6to4 and both NAT64 prefixes.
 EMBEDDING = tuple(ipaddress.ip_network(prefix) for prefix in ("2002::/16", "64:ff9b::/96", "64:ff9b:1::/48"))
+PLATFORM_HOSTS = "platform"  # the name of the platform provider's host file; a tenant database cannot use it
 INVALID = "invalid"
 NOT_PUBLIC = "ai_base_url_not_public"
 
@@ -103,6 +105,16 @@ def key_host(provider: str, base_url: str | None) -> str | None:
     return base_url_host(base_url) if spec.needs_base_url and base_url else spec.host
 
 
+def platform_host(provider: str, base_url: str | None) -> str | None:
+    """The public host the platform provider reaches, or None for an internal endpoint (an explicit ``AI_EGRESS_HOSTS`` entry)."""
+    if base_url:
+        try:
+            return base_url_host(base_url)
+        except BaseUrlRefusedError:
+            return None
+    return REGISTRY[provider].host
+
+
 class TenantEgress:
     """The hosts tenants' keys need, published for ``ai-egress`` (read-only there) as one file per tenant database.
 
@@ -120,8 +132,17 @@ class TenantEgress:
 
     async def publish(self, database: str, host: str | None) -> None:
         """Make ``host`` the one host ``database``'s key needs; None withdraws it (the key was removed)."""
+        if database == PLATFORM_HOSTS:
+            raise ValueError(f"{PLATFORM_HOSTS!r} is reserved for the platform provider")
+        await self._publish(database, host)
+
+    async def publish_platform(self, host: str | None) -> None:
+        """Make ``host`` the one host the platform provider needs; None withdraws it (an internal endpoint)."""
+        await self._publish(PLATFORM_HOSTS, host)
+
+    async def _publish(self, name: str, host: str | None) -> None:
         if self.directory is not None:
-            await asyncio.to_thread(self._write, database, host)
+            await asyncio.to_thread(self._write, name, host)
 
     def _write(self, database: str, host: str | None) -> None:
         target = self.directory / f"{database}.hosts"
@@ -141,7 +162,7 @@ class TenantEgress:
 
     def _remove_orphans(self, served: set[str]) -> None:
         for path in self.directory.glob("*.hosts"):
-            if path.name.removesuffix(".hosts") not in served:
+            if path.name.removesuffix(".hosts") not in served | {PLATFORM_HOSTS}:
                 path.unlink(missing_ok=True)
 
     async def sync(self, states: TenantStates) -> None:

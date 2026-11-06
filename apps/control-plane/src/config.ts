@@ -16,6 +16,8 @@ export type Config = {
   inventoryPath: string
   managedInventoryPath?: string
   tenantRegistryPath?: string
+  /** Where the platform AI provider file for the shared AI service is written (spec 2026-11-04 §6.13); unset: the choice is stored but not delivered. */
+  aiPlatformProviderPath?: string
   stateDir: string
   repositoryRoot: string
   python: string
@@ -37,16 +39,17 @@ export function getConfig(): Config & { databaseUrl: string; host: string; port:
   const managedInventoryPath = process.env.LIWAN_MANAGED_INVENTORY
   const sharedRuntimeConfigPath = process.env.LIWAN_SHARED_RUNTIME_CONFIG
   const tenantRegistryPath = process.env.LIWAN_TENANT_REGISTRY_PATH
+  const aiPlatformProviderPath = process.env.LIWAN_AI_PLATFORM_PROVIDER_PATH
   const stateDir = required('LIWAN_CLI_STATE_DIR')
   const repositoryRoot = required('LIWAN_REPOSITORY_ROOT')
-  for (const path of [inventoryPath, managedInventoryPath, tenantRegistryPath, sharedRuntimeConfigPath, stateDir, repositoryRoot]) if (path && !isAbsolute(path)) throw new Error('operator paths must be absolute')
+  for (const path of [inventoryPath, managedInventoryPath, tenantRegistryPath, aiPlatformProviderPath, sharedRuntimeConfigPath, stateDir, repositoryRoot]) if (path && !isAbsolute(path)) throw new Error('operator paths must be absolute')
   const host = process.env.CONTROL_HOST ?? '127.0.0.1'
   const port = Number(process.env.CONTROL_PORT ?? '4179')
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('invalid CONTROL_PORT')
   const tlsKey = process.env.CONTROL_TLS_KEY
   const tlsCert = process.env.CONTROL_TLS_CERT
   if (!isLoopbackHost(host) && (!tlsKey || !tlsCert)) throw new Error('HTTPS is required outside loopback')
-  return { installationId, key, customerCommercialIssuer, customerCommercialServiceKey, ...(sharedRuntimeConfigPath ? { sharedRuntimeConfigPath } : {}), ...(internalEffect ? { internalEffect } : {}), ...(admin ? { admin } : {}), inventoryPath, managedInventoryPath, ...(tenantRegistryPath ? { tenantRegistryPath } : {}), stateDir, repositoryRoot, python: process.env.LIWAN_CLI_PYTHON ?? 'python3', databaseUrl: required('CONTROL_DATABASE_URL'), host, port,
+  return { installationId, key, customerCommercialIssuer, customerCommercialServiceKey, ...(sharedRuntimeConfigPath ? { sharedRuntimeConfigPath } : {}), ...(internalEffect ? { internalEffect } : {}), ...(admin ? { admin } : {}), inventoryPath, managedInventoryPath, ...(tenantRegistryPath ? { tenantRegistryPath } : {}), ...(aiPlatformProviderPath ? { aiPlatformProviderPath } : {}), stateDir, repositoryRoot, python: process.env.LIWAN_CLI_PYTHON ?? 'python3', databaseUrl: required('CONTROL_DATABASE_URL'), host, port,
     tls: tlsKey && tlsCert ? { key: readFileSync(tlsKey), cert: readFileSync(tlsCert) } : undefined }
 }
 

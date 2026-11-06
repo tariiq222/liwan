@@ -5,12 +5,13 @@ import logging
 import httpx
 import pytest
 
-from liwan_ai_service.settings import Settings, SettingsError
+from liwan_ai_service.settings import PLATFORM_PROVIDER_FILE, Settings, SettingsError
 from tests.fakes import PLATFORM_POLICY, ScriptedChatModel, ai_text, make_memory_app
+from tests.platform_file import platform_env
 from tests.test_service import BODY, HEADERS, fresh, parse_sse
 
 TOKEN = "t" * 24 + "-service-token"
-ENV = {"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true"}
+ENV = {**platform_env(), "AI_ALLOW_MEMORY_STATE": "true"}
 DEV_INSECURE = {**ENV, "AI_DEV_INSECURE": "true"}
 WITH_TOKEN = {**HEADERS, "X-Liwan-Service-Token": TOKEN}
 
@@ -93,8 +94,7 @@ async def test_the_token_is_compared_in_constant_time(monkeypatch):
 async def test_env_app_passes_the_token_through(monkeypatch):
     from liwan_ai_service import service
 
-    monkeypatch.setenv("AI_PROVIDER", "ollama")
-    monkeypatch.setenv("AI_MODEL", "m")
+    monkeypatch.setenv(PLATFORM_PROVIDER_FILE, platform_env()[PLATFORM_PROVIDER_FILE])
     monkeypatch.setenv("AI_ALLOW_MEMORY_STATE", "true")
     monkeypatch.setenv("AI_SERVICE_TOKEN", TOKEN)
     monkeypatch.delenv("AI_DATABASE_URL", raising=False)
@@ -118,8 +118,7 @@ async def test_env_app_passes_the_token_through(monkeypatch):
 async def test_a_too_short_token_stops_the_server_from_starting(monkeypatch):
     from liwan_ai_service import service
 
-    monkeypatch.setenv("AI_PROVIDER", "ollama")
-    monkeypatch.setenv("AI_MODEL", "m")
+    monkeypatch.setenv(PLATFORM_PROVIDER_FILE, platform_env()[PLATFORM_PROVIDER_FILE])
     monkeypatch.setenv("AI_ALLOW_MEMORY_STATE", "true")
     monkeypatch.setenv("AI_SERVICE_TOKEN", "short")
     sent = []

@@ -6,12 +6,13 @@ import httpx
 from liwan_ai_service import service
 from liwan_ai_service.control import MemoryControlState
 from liwan_ai_service.service import EnvApp
+from liwan_ai_service.settings import PLATFORM_PROVIDER_FILE
 from liwan_ai_service.tenant_state import TenantStates
+from tests.platform_file import platform_env
 
 
 async def test_env_app_runs_its_lifespan_and_serves(monkeypatch):
-    monkeypatch.setenv("AI_PROVIDER", "ollama")
-    monkeypatch.setenv("AI_MODEL", "m")
+    monkeypatch.setenv(PLATFORM_PROVIDER_FILE, platform_env()[PLATFORM_PROVIDER_FILE])
     monkeypatch.setenv("AI_ALLOW_MEMORY_STATE", "true")
     monkeypatch.setenv("AI_DEV_INSECURE", "true")
     monkeypatch.delenv("AI_DATABASE_URL", raising=False)
@@ -33,7 +34,7 @@ async def test_env_app_runs_its_lifespan_and_serves(monkeypatch):
 
 
 async def test_startup_failure_is_reported_not_swallowed(monkeypatch):
-    monkeypatch.delenv("AI_PROVIDER", raising=False)
+    monkeypatch.delenv(PLATFORM_PROVIDER_FILE, raising=False)
     app = EnvApp()
     sent = []
 
@@ -44,12 +45,11 @@ async def test_startup_failure_is_reported_not_swallowed(monkeypatch):
         sent.append(message)
 
     await app({"type": "lifespan"}, receive, send)
-    assert sent[0] == {"type": "lifespan.startup.failed", "message": "SettingsError: AI_PROVIDER"}
+    assert sent[0] == {"type": "lifespan.startup.failed", "message": f"SettingsError: {PLATFORM_PROVIDER_FILE}"}
 
 
 async def run_startup(monkeypatch, *, build_error):
-    monkeypatch.setenv("AI_PROVIDER", "ollama")
-    monkeypatch.setenv("AI_MODEL", "m")
+    monkeypatch.setenv(PLATFORM_PROVIDER_FILE, platform_env()[PLATFORM_PROVIDER_FILE])
     monkeypatch.setenv("AI_ALLOW_MEMORY_STATE", "true")
     monkeypatch.setenv("AI_DEV_INSECURE", "true")
     closed = []
@@ -100,10 +100,8 @@ async def test_cleanup_failure_prints_only_the_error_class(monkeypatch, capsys):
 
 
 async def test_shutdown_waits_for_the_persist_tasks_before_closing_the_state(monkeypatch):
-    from tests.fakes import ScriptedChatModel
 
-    monkeypatch.setenv("AI_PROVIDER", "ollama")
-    monkeypatch.setenv("AI_MODEL", "m")
+    monkeypatch.setenv(PLATFORM_PROVIDER_FILE, platform_env()[PLATFORM_PROVIDER_FILE])
     monkeypatch.setenv("AI_ALLOW_MEMORY_STATE", "true")
     monkeypatch.setenv("AI_DEV_INSECURE", "true")
     order = []
@@ -116,7 +114,6 @@ async def test_shutdown_waits_for_the_persist_tasks_before_closing_the_state(mon
         return Control()
 
     monkeypatch.setattr(service, "open_control", fake_open_control)
-    monkeypatch.setattr(service, "build_chat_model", lambda _settings: ScriptedChatModel([]))
     app = EnvApp()
     queue = [{"type": "lifespan.startup"}, {"type": "lifespan.shutdown"}]
 
@@ -151,8 +148,7 @@ async def start_env_app():
 
 
 async def test_boot_without_a_database_fails_unless_memory_state_is_allowed(monkeypatch):
-    monkeypatch.setenv("AI_PROVIDER", "ollama")
-    monkeypatch.setenv("AI_MODEL", "m")
+    monkeypatch.setenv(PLATFORM_PROVIDER_FILE, platform_env()[PLATFORM_PROVIDER_FILE])
     monkeypatch.delenv("AI_DATABASE_URL", raising=False)
     monkeypatch.delenv("AI_ALLOW_MEMORY_STATE", raising=False)
     assert await start_env_app() == [{"type": "lifespan.startup.failed", "message": "SettingsError: AI_DATABASE_URL"}]
@@ -160,8 +156,7 @@ async def test_boot_without_a_database_fails_unless_memory_state_is_allowed(monk
 
 async def test_memory_boot_warns_once_about_state_and_about_the_missing_token_without_secrets(monkeypatch, caplog):
     caplog.set_level(logging.WARNING, logger="liwan_ai_service")
-    monkeypatch.setenv("AI_PROVIDER", "ollama")
-    monkeypatch.setenv("AI_MODEL", "m")
+    monkeypatch.setenv(PLATFORM_PROVIDER_FILE, platform_env()[PLATFORM_PROVIDER_FILE])
     monkeypatch.setenv("AI_ALLOW_MEMORY_STATE", "true")
     monkeypatch.setenv("AI_DEV_INSECURE", "true")
     monkeypatch.delenv("AI_DATABASE_URL", raising=False)
@@ -173,8 +168,7 @@ async def test_memory_boot_warns_once_about_state_and_about_the_missing_token_wi
 
 async def test_a_database_boot_opens_only_the_control_state(monkeypatch, caplog):
     caplog.set_level(logging.WARNING, logger="liwan_ai_service")
-    monkeypatch.setenv("AI_PROVIDER", "ollama")
-    monkeypatch.setenv("AI_MODEL", "m")
+    monkeypatch.setenv(PLATFORM_PROVIDER_FILE, platform_env()[PLATFORM_PROVIDER_FILE])
     monkeypatch.setenv("AI_DATABASE_URL", "postgresql://u:pw@h/db")
     monkeypatch.setenv("AI_TENANT_DATABASE", "acme_db")
     monkeypatch.setenv("AI_SERVICE_TOKEN", "t" * 30)
@@ -198,3 +192,24 @@ async def test_a_database_boot_opens_only_the_control_state(monkeypatch, caplog)
     assert await start_env_app() == [{"type": "lifespan.startup.complete"}, {"type": "lifespan.shutdown.complete"}]
     assert calls == [("postgresql://u:pw@h/db", False)] and pools == []
     assert closed == [True] and caplog.records == []
+
+
+async def test_a_missing_platform_file_stops_the_start_naming_the_variable_and_the_compose_directory(monkeypatch, tmp_path):
+    monkeypatch.setenv(PLATFORM_PROVIDER_FILE, str(tmp_path / "absent.json"))
+    monkeypatch.setenv("AI_ALLOW_MEMORY_STATE", "true")
+    monkeypatch.setenv("AI_DEV_INSECURE", "true")
+    monkeypatch.delenv("AI_DATABASE_URL", raising=False)
+    (failed,) = await start_env_app()
+    assert failed["type"] == "lifespan.startup.failed"
+    assert PLATFORM_PROVIDER_FILE in failed["message"] and "unreadable" in failed["message"] and "LIWAN_AI_PLATFORM_DIR" in failed["message"]
+
+
+async def test_an_invalid_platform_file_names_the_field_and_never_a_value(monkeypatch, tmp_path):
+    path = tmp_path / "p.json"
+    path.write_text('{"provider": "openai", "model": "m", "api_key": "sk-secret-value", "revision": 0}')
+    monkeypatch.setenv(PLATFORM_PROVIDER_FILE, str(path))
+    monkeypatch.setenv("AI_ALLOW_MEMORY_STATE", "true")
+    monkeypatch.setenv("AI_DEV_INSECURE", "true")
+    monkeypatch.delenv("AI_DATABASE_URL", raising=False)
+    (failed,) = await start_env_app()
+    assert "revision" in failed["message"] and "sk-secret-value" not in failed["message"]

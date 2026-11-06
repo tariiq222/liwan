@@ -5,7 +5,7 @@ import { bffFail } from './errors'
 import { clientIp } from './client-ip'
 import type { AdminSession } from './session-cookie'
 
-const UPSTREAM_TIMEOUT_MS = 10_000
+export const UPSTREAM_TIMEOUT_MS = 10_000
 
 export type ControlRequest = {
   /** Control-plane path including any query, starting with /v1/. */
@@ -16,6 +16,8 @@ export type ControlRequest = {
   session?: AdminSession
   /** Pre-session routes are signed as the anonymous actor; the session header may still ride along. */
   anonymous?: boolean
+  /** How long the control plane may take, when a route is slower than the default (the AI provider probes, see proxy.ts). */
+  timeoutMs?: number
 }
 
 export type ControlResult = { status: number; data: unknown }
@@ -59,7 +61,7 @@ export async function controlCall(event: H3Event, request: ControlRequest): Prom
   }
   let response: Response
   try {
-    response = await fetch(target, { method, body: rawBody, headers, redirect: 'error', signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) })
+    response = await fetch(target, { method, body: rawBody, headers, redirect: 'error', signal: AbortSignal.timeout(request.timeoutMs ?? UPSTREAM_TIMEOUT_MS) })
   } catch {
     return unavailable()
   }
