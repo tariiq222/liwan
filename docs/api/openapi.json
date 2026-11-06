@@ -4108,6 +4108,9 @@
             "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
             "type": "string"
           },
+          "platform": {
+            "type": "boolean"
+          },
           "requires_approval": {
             "type": "boolean"
           },
@@ -4157,7 +4160,8 @@
           "input_map",
           "result_summary",
           "draft_target",
-          "requires_approval"
+          "requires_approval",
+          "platform"
         ],
         "type": "object"
       },
@@ -4328,6 +4332,9 @@
                   "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
                   "type": "string"
                 },
+                "platform": {
+                  "type": "boolean"
+                },
                 "requires_approval": {
                   "type": "boolean"
                 },
@@ -4377,7 +4384,8 @@
                 "input_map",
                 "result_summary",
                 "draft_target",
-                "requires_approval"
+                "requires_approval",
+                "platform"
               ],
               "type": "object"
             },

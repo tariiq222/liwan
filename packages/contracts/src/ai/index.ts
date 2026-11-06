@@ -14,9 +14,11 @@ export const AiToolSchema = z.object({
   draft_target: z.string().startsWith('/').nullable(),
   /** Every write and draft waits for the user; a read waits only when the administrator set it to approval. */
   requires_approval: z.boolean(),
+  /** A platform tool (such as `ai.search_knowledge`) belongs to no agent: it is read-only and offered to every agent. */
+  platform: z.boolean(),
 }).strict().refine(tool => (tool.kind === 'draft') === (tool.route === null && tool.draft_target !== null), {
   message: 'a draft tool has a draft_target and no route; other tools have a route',
-})
+}).refine(tool => !tool.platform || tool.kind === 'read', { message: 'a platform tool is a read tool' })
 export type AiTool = z.infer<typeof AiToolSchema>
 /** A tool's agent is the application id its name starts with. */
 export const aiToolAgent = (name: string): string => name.slice(0, name.indexOf('.'))
