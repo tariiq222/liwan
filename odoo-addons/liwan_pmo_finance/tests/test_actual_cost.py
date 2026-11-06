@@ -173,3 +173,16 @@ class TestActualCost(PmoFinanceCase):
             'kind': 'expense', 'title': 'Taxi', 'amount': 10, 'expense_date': '2026-10-20',
         })
         self.assertEqual(created.status_code, 201, created.text)
+
+    def test_disabled_project_finance_tool_refuses_external_cost_access(self):
+        self.assertTrue(self.env['liwan.entitlement.service']._liwan_feature_read('finance.enabled'))
+        self._set_project_finance_tool_policy(self.company, 'disabled')
+        self.login_as(self.owner)
+        response = self.api('GET', self.summary_url())
+        self.assertEqual((response.status_code, response.json()['code']), (403, 'forbidden'), response.text)
+        self.assertFalse(self.project._liwan_tool_enabled('finance'))
+        self.assertTrue(self.env['liwan.entitlement.service']._liwan_feature_read('finance.enabled'))
+        self.assertEqual(self.alpha.liwan_project_id, self.project)
+        rows = self.get_ok('/api/v1/reports/projects/analytics')['projects']
+        project_row = next(row for row in rows if row['project']['id'] == self.project.id)
+        self.assertIsNone(project_row['finance'])
