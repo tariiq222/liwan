@@ -45,7 +45,9 @@ def dump_agent_settings(env):
             'description': _text(agent, 'description'),
             'enabled': row.enabled if row else True,
             'read_only': bool(row and row.read_only),
-            'memory': not row or row.memory,
+            'memory': agent.get('memory', True) and (not row or row.memory),
+            # The administrator cannot switch memory on for an agent that declares it off.
+            'memory_fixed': agent.get('memory', True) is False,
             'role_ids': sorted(roles.get(row.id, ())) if row else [],
             'revision': row.revision if row else 0,
             'tools': [
@@ -69,7 +71,7 @@ def _bool(payload, key):
     return value
 
 
-def parse_agent_patch(payload, tools):
+def parse_agent_patch(payload, tools, memory_fixed=False):
     """``(changes, revision)`` of one agent's save: any of ``enabled``, ``read_only``, ``memory``, ``role_ids`` and ``tools``, and the
     revision the change was based on."""
     payload = dict(payload)
@@ -81,6 +83,8 @@ def parse_agent_patch(payload, tools):
         raise ApiError(422, 'unknown_field', f'field {unknown[0]!r} is not accepted', field=unknown[0])
     if not payload:
         raise ApiError(422, 'invalid', 'nothing to change')
+    if 'memory' in payload and memory_fixed:
+        raise ApiError(422, 'invalid', 'this agent never remembers', field='memory')
     changes = {key: _bool(payload, key) for key in AGENT_FLAGS if key in payload}
     if 'role_ids' in payload:
         role_ids = payload['role_ids']

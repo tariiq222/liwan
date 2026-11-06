@@ -155,7 +155,7 @@ const AI_AGENT_TOOLS = [
 function aiAgentSetting(key) {
   const state = AI_AGENT_SETTINGS[key]
   return {
-    key, name: PMO_AGENT.name, description: PMO_AGENT.description, enabled: state.enabled, read_only: state.read_only, memory: state.memory,
+    key, name: PMO_AGENT.name, description: PMO_AGENT.description, enabled: state.enabled, read_only: state.read_only, memory: state.memory, memory_fixed: false,
     role_ids: state.role_ids, revision: state.revision, tools: AI_AGENT_TOOLS.map(tool => ({ ...tool, mode: state.tools[tool.name] })),
   }
 }

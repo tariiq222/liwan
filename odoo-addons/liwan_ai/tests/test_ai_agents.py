@@ -46,6 +46,7 @@ class TestAiAgentRegistry(AiProbe, LiwanApiCase):
         self._rejected(({**PROBE_AGENT, 'key': 'core', 'owner': 'liwan_core'},), (), 'application id')
         self._rejected(({**PROBE_AGENT, 'instructions_en': ''},), (), 'instructions_en')
         self._rejected((PROBE_AGENT, PROBE_AGENT), (), 'duplicate agent')
+        self._rejected(({**PROBE_AGENT, 'memory': True},), (), 'memory may only be declared False')
 
     def test_a_second_agent_of_an_application_carries_the_application_prefix(self):
         second = {**PROBE_AGENT, 'key': 'probe_extra'}

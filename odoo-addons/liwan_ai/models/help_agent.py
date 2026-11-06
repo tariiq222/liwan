@@ -33,6 +33,8 @@ HELP_AGENT = {
         'point the user to the page that does the task.'
     ),
     'pages': [],
+    # Guide only, nothing remembered: the help agent never gets the user's or the company's notes nor the note tools.
+    'memory': False,
 }
 
 HELP_TOOLS = (

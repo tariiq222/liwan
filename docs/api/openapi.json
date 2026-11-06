@@ -1549,6 +1549,9 @@
           "memory": {
             "type": "boolean"
           },
+          "memory_fixed": {
+            "type": "boolean"
+          },
           "name": {
             "additionalProperties": false,
             "properties": {
@@ -1647,6 +1650,7 @@
           "enabled",
           "read_only",
           "memory",
+          "memory_fixed",
           "role_ids",
           "revision",
           "tools"
@@ -1687,6 +1691,9 @@
                   "type": "string"
                 },
                 "memory": {
+                  "type": "boolean"
+                },
+                "memory_fixed": {
                   "type": "boolean"
                 },
                 "name": {
@@ -1787,6 +1794,7 @@
                 "enabled",
                 "read_only",
                 "memory",
+                "memory_fixed",
                 "role_ids",
                 "revision",
                 "tools"

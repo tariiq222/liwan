@@ -47,6 +47,9 @@ class LiwanAiAgentRegistry(models.AbstractModel):
         pages = item.get('pages', ())
         if not isinstance(pages, (list, tuple)) or not all(isinstance(page, str) and PAGE.match(page) for page in pages):
             self._liwan_ai_error(key, 'pages must be page names')
+        # ``memory: False`` fixes the agent's notes off whatever the administrator stored (the help agent reads the guide only).
+        if 'memory' in item and item['memory'] is not False:
+            self._liwan_ai_error(key, 'memory may only be declared False')
         sensitive = item.get('sensitive_fields', ())
         if not isinstance(sensitive, (list, tuple)) or not all(isinstance(name, str) and FIELD_NAME.match(name) for name in sensitive):
             self._liwan_ai_error(key, 'sensitive_fields must be field names')

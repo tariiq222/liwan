@@ -359,6 +359,8 @@ export const AiAgentSettingSchema = z.object({
   enabled: z.boolean(),
   read_only: z.boolean(),
   memory: z.boolean(),
+  /** The agent never remembers (the help agent): `memory` is false and cannot be switched on. */
+  memory_fixed: z.boolean(),
   role_ids: z.array(z.number().int().positive()),
   /** Bumped by every change of the agent or its tools; a save sends the revision it read and a stale one answers 409. */
   revision: z.number().int().nonnegative(),

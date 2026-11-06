@@ -18,7 +18,12 @@ from odoo.addons.liwan_ai.models.help_guide import (
     stem,
     stems,
 )
+from odoo.addons.liwan_ai.serializers.agent_settings import (
+    dump_agent_settings,
+    parse_agent_patch,
+)
 from odoo.addons.liwan_ai.tests.common import AiProbe
+from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.tests.common import LiwanApiCase
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
@@ -220,3 +225,17 @@ class TestHelpAgent(AiProbe, LiwanApiCase):
         outsider = new_test_user(self.env, login='ai_help_outsider2', password='ai_help_outsider2_pass_123', groups='liwan_core.group_employee')
         with self.assertRaises(AccessError):
             self.env['liwan.ai.audit'].with_user(outsider).create(MESSAGE)
+
+    def test_the_help_agent_never_remembers_whatever_is_stored(self):
+        self.env['liwan.ai.agent.setting'].create({'agent_key': 'ai_help', 'memory': True})
+        self.assertFalse(self.env['liwan.ai.agent.setting']._liwan_ai_effective(self.employee)['ai_help']['memory'])
+        catalog = self.url_open('/api/v1/ai/tools?mode=help').json()
+        self.assertEqual([(agent['key'], agent['memory']) for agent in catalog['agents']], [('ai_help', False)])
+        shown = next(item for item in dump_agent_settings(self.env)['items'] if item['key'] == 'ai_help')
+        self.assertEqual((shown['memory'], shown['memory_fixed']), (False, True))
+        setup = next(item for item in dump_agent_settings(self.env)['items'] if item['key'] == 'ai')
+        self.assertEqual((setup['memory'], setup['memory_fixed']), (True, False))
+        with self.assertRaises(ApiError) as caught:
+            parse_agent_patch({'revision': 0, 'memory': True}, [], memory_fixed=True)
+        self.assertEqual((caught.exception.status, caught.exception.field), (422, 'memory'))
+        self.assertEqual(parse_agent_patch({'revision': 0, 'enabled': False}, [], memory_fixed=True)[0], {'enabled': False})

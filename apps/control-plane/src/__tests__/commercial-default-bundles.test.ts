@@ -44,6 +44,28 @@ suite('default bundles for a catalog release', () => {
     const plan = (await pool.query('SELECT platform_limits FROM plan_revisions WHERE id=$1', [seeded.body.plan_revision_id])).rows[0]
     expect(plan.platform_limits).toEqual({ 'ai.messages.monthly': null, 'ai.tool_calls.per_run': null, 'ai.tokens.monthly': null, 'ai.assist.monthly': 300, 'ai.output_tokens.per_run': null })
   })
+  it('drops the limits a newer release no longer declares when it seeds after a plan seeded from the previous release', async () => {
+    const publish = async (text: string) => {
+      const version = `commercial-${randomUUID()}`
+      await pool.query("INSERT INTO catalog_entries(id,version,status,solution,source_sha256) VALUES($1,$2,'published',$3,$4)", [randomUUID(), version, JSON.parse(text), createHash('sha256').update(text).digest('hex')])
+      return (await api('POST', '/catalog/releases', { catalog_version: version, reason })).body
+    }
+    const raw = (await readFile(new URL('../../../../deploy/catalog/solutions/platform_v4.json', import.meta.url))).toString()
+    // The preceding release still names the budget `ai.setup.monthly`.
+    const before = await publish(raw.replace('limit:ai.assist.monthly:300', 'limit:ai.setup.monthly'))
+    const first = await api('POST', `/catalog/releases/${before.id}/default-bundles`, { reason })
+    expect(first.status, JSON.stringify(first.body)).toBe(200)
+    const limitsOf = async (id: string) => (await pool.query('SELECT platform_limits FROM plan_revisions WHERE id=$1', [id])).rows[0].platform_limits
+    expect(Object.keys(await limitsOf(first.body.plan_revision_id))).toContain('ai.setup.monthly')
+    const after = await publish(raw)
+    const second = await api('POST', `/catalog/releases/${after.id}/default-bundles`, { reason })
+    expect(second.status, JSON.stringify(second.body)).toBe(200)
+    const limits = await limitsOf(second.body.plan_revision_id)
+    expect(limits).not.toHaveProperty('ai.setup.monthly')
+    expect(limits['ai.assist.monthly']).toBe(300)
+    // A limit the plan already set is kept as the owner left it.
+    expect(limits).toHaveProperty('ai.messages.monthly')
+  })
   it('needs both catalog and pricing rights and a reason, and answers 404 for an unknown release', async () => {
     const catalogOnly = client(pool, ['vendor.read', 'vendor.catalog.manage'])
     expect((await catalogOnly('POST', `/catalog/releases/${release.id}/default-bundles`, { reason })).status).toBe(403)
