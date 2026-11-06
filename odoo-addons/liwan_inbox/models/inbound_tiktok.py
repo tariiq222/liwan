@@ -122,15 +122,22 @@ class LiwanInboxInbound(models.AbstractModel):
     def _liwan_tiktok_reply_values(self, conversation, item):
         """The message this one answers and the reply button the customer tapped."""
         values = {}
+        target = self.env['liwan.inbox.message']
         if item.context_id:
             target = self.env['liwan.inbox.message'].search([
                 ('provider_message_id', '=', item.context_id), ('conversation_id', '=', conversation.id),
             ], limit=1)
             values['reply_to_id'] = target.id
         if item.option_id:
-            option = self.env['liwan.inbox.message.option'].search([
-                ('option_id', '=', item.option_id), ('message_id.conversation_id', '=', conversation.id),
-            ], limit=1)
+            # Every card numbers its buttons btn_1, btn_2, …, so the source message alone tells the tapped button
+            # apart; a click without it falls back to the conversation.
+            domain = (
+                [('message_id', '=', target.id)] if target
+                else [('message_id.conversation_id', '=', conversation.id)]
+            )
+            option = self.env['liwan.inbox.message.option'].search(
+                [('option_id', '=', item.option_id), *domain], limit=1,
+            )
             values.update({'selected_option_id': item.option_id, 'selected_option_title': option.title})
         return values
 

@@ -151,6 +151,20 @@ class TestTikTokInbound(LiwanInboxCase):
         self.assertEqual((message.selected_option_id, message.selected_option_title), ('csat_good', 'Good'))
         self.assertEqual((conversation.csat_score, conversation.csat_at), ('good', message.date))
 
+    def test_a_click_resolves_the_button_of_its_own_card(self):
+        self.deliver(tt.receive_text())
+        conversation = self.message('msg-text-1').conversation_id
+        for provider_id, title in (('msg-card-1', 'Yes'), ('msg-card-2', 'Delivery')):
+            self.env['liwan.inbox.message'].create({
+                'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'direction': 'out',
+                'kind': 'interactive', 'interactive_type': 'buttons', 'body': 'Which one?',
+                'automated': True, 'delivery_state': 'sent', 'provider_message_id': provider_id,
+                'option_ids': [(0, 0, {'sequence': 0, 'option_id': 'btn_1', 'title': title})],
+            })
+        self.deliver(tt.receive_button_click(option_id='btn_1', source_message_id='msg-card-2'))
+        message = self.message('msg-click-1')
+        self.assertEqual(message.selected_option_title, 'Delivery')
+
     def test_reaction_add_and_remove(self):
         self.deliver(tt.receive_text())
         target = self.message('msg-text-1')
