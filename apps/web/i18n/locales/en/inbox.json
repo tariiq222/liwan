@@ -790,6 +790,7 @@
         "title": "Satisfaction survey",
         "hint": "After an agent resolves the conversation the customer gets a question with three buttons, and the choice is saved on the conversation.",
         "question": "Question text",
+        "tooLong": "The question is longer than TikTok's {max}-character card title, so TikTok could not send it. Shorten the question.",
         "options": {
           "good": "Satisfied button",
           "neutral": "Neutral button",

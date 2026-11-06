@@ -27,6 +27,9 @@ const dirty = computed(() => JSON.stringify(draft.value) !== initial.value)
 const write = computed(() => automationWrite(draft.value, props.kind))
 const tiktok = computed(() => props.kind === 'tiktok')
 const csatQuestionMax = computed(() => (tiktok.value ? TIKTOK_SURVEY_QUESTION_MAX : 1024))
+// TikTok sends the survey as a button card, so its question is that card's title: a stored question longer than the
+// card title (the contract still accepts it) would be saved and then refused on every send, so it blocks the save.
+const csatTooLong = computed(() => tiktok.value && draft.value.csat.question.trim().length > TIKTOK_SURVEY_QUESTION_MAX)
 const WELCOME_TEXT_ONLY: readonly ('text' | 'interactive' | 'commerce')[] = ['text']
 const attempted = ref(false)
 const off = computed(() => !hydrated.value || isPending.value)
@@ -36,7 +39,7 @@ const CSAT_SCORES = ['good', 'neutral', 'bad'] as const
 
 function submit() {
   attempted.value = true
-  if (off.value || !dirty.value || !write.value) return
+  if (off.value || !dirty.value || !write.value || csatTooLong.value) return
   save(write.value, {
     onSuccess: () => {
       attempted.value = false
@@ -103,6 +106,7 @@ function submit() {
               <UInput v-model="draft.csat[score]" class="w-full" :maxlength="20" :disabled="off" :data-testid="`inbox-csat-${score}`" />
             </UFormField>
           </div>
+          <p v-if="csatTooLong" class="text-sm text-error" role="alert" data-testid="inbox-csat-too-long">{{ t('inbox.automation.csat.tooLong', { max: TIKTOK_SURVEY_QUESTION_MAX }) }}</p>
         </template>
       </div>
     </SharedRecordSection>
