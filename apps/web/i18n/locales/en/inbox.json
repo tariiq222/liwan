@@ -2155,7 +2155,6 @@
     "tiktokErrors": {
       "inbox_tiktok_unsupported_kind": "TikTok does not carry this kind of message. Send a text, one image or a button card.",
       "inbox_tiktok_reply_limit": "You reached TikTok's limit of 10 messages in a row. Wait for the customer to answer.",
-      "inbox_window_closed": "The TikTok reply window is closed: 48 hours after the customer's last message.",
       "inbox_tiktok_auto_message_reviewing": "TikTok is still reviewing this item; it cannot be edited until the review ends.",
       "inbox_tiktok_auto_message_limit": "The limit is reached: 3 suggested questions and 6 chat prompts.",
       "inbox_tiktok_sync_running": "An import is already running for this channel. Wait for it to finish.",
@@ -2163,6 +2162,10 @@
       "inbox_channel_kind_unsupported": "This feature exists for WhatsApp channels only.",
       "inbox_tiktok_scopes_missing": "TikTok did not grant every required permission. Reconnect and accept all of them.",
       "inbox_tiktok_account_taken": "This TikTok account is connected to another channel. Disconnect that one first."
+    },
+    "inbox_window_closed": {
+      "whatsapp": "The 24-hour reply window is closed. Send an approved template.",
+      "tiktok": "The TikTok reply window is closed: 48 hours after the customer's last message. Wait for the customer to write again."
     },
     "tiktok": {
       "details": "TikTok account",

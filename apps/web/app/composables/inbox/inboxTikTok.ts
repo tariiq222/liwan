@@ -19,11 +19,12 @@ import { hasFeature } from '../../modules/registry'
 // server's English text; a reason this build does not know keeps the message the server sent.
 export const INBOX_TIKTOK_FEATURE = 'inbox.tiktok'
 
-/** The `details.reason` values of the TikTok routes: D3/D4 sends, E2 connect, E5 automation, E6 import, E7 guards. */
+/** The `details.reason` values of the TikTok routes: D3 sends, E2 connect, E5 automation, E6 import, E7 guards.
+ * The closed reply window (`inbox_window_closed`) is the two kinds' shared reason, so it is not listed here:
+ * the channel kind picks its line (inboxWindow). */
 export const INBOX_TIKTOK_REASONS = [
   'inbox_tiktok_unsupported_kind',
   'inbox_tiktok_reply_limit',
-  'inbox_window_closed',
   'inbox_tiktok_auto_message_reviewing',
   'inbox_tiktok_auto_message_limit',
   'inbox_tiktok_sync_running',

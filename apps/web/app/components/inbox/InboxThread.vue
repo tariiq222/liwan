@@ -4,6 +4,7 @@ import type { InboxChannelKind, InboxMessage } from '@liwan/contracts'
 import { useInboxMessages, useReactToInboxMessage, useRetryInboxMessage } from '@/composables/inbox/useInbox'
 import { DELIVERY_ICON, inboxDayKey } from '@/composables/inbox/inboxPresentation'
 import { INBOX_REACTION_EMOJIS } from '@/composables/inbox/inboxReactions'
+import { windowClosedErrorKey } from '@/composables/inbox/inboxWindow'
 
 // The message thread of one conversation, oldest first. Inbound messages sit at the start of the line, replies at the
 // end, internal notes are a full-width tinted block that is never sent to the customer. Inside the reply window an agent
@@ -47,8 +48,11 @@ watch(newestId, async () => {
 function loadOlder() {
   void fetchNextPage()
 }
+/** The title of a refused retry: the closed-window line of the conversation's kind when it names that reason
+ * (the kinds share the reason but not the sentence), else the message the refusal carried. */
+const retryErrorTitle = (e: unknown) => windowClosedErrorKey(e, props.channelKind) ?? (e instanceof Error ? e.message : t('errors.generic'))
 function retryMessage(id: number) {
-  retry(id, { onError: e => toast.add({ title: e instanceof Error ? e.message : t('errors.generic'), color: 'error' }) })
+  retry(id, { onError: e => toast.add({ title: retryErrorTitle(e), color: 'error' }) })
 }
 const loadedIds = computed(() => new Set(items.value.map(item => item.id)))
 // Only a message WhatsApp knows can be quoted or reacted to: every inbound one, and an outbound one once sent.

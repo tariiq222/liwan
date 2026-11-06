@@ -11,7 +11,7 @@ import { buildInteractive, emptyInteractiveDraft } from '../../../composables/in
 import { buildLocation, emptyLocationDraft } from '../../../composables/inbox/inboxLocation'
 import { TEMPLATE_CATEGORY_TONE, templatePreview } from '../../../composables/inbox/inboxTemplate'
 import { HEADER_MEDIA_ACCEPT, buildTemplateReply, dynamicButtons, headerInput, templateReplyReady } from '../../../composables/inbox/inboxTemplateSend'
-import { cannedSuggestions, replyWindowOpen, windowClosedDescriptionKey } from '../../../composables/inbox/inboxWindow'
+import { cannedSuggestions, replyWindowOpen, windowClosedDescriptionKey, windowClosedErrorKey } from '../../../composables/inbox/inboxWindow'
 import { inboxTikTokErrorKey } from '../../../composables/inbox/inboxTikTok'
 
 const filename = new URL('../InboxComposer.vue', import.meta.url).pathname
@@ -44,7 +44,7 @@ function mountComposer(endsAt: string | null, store = new Map<string, string>(),
     onMounted: (fn: () => void) => mounted.push(fn), onBeforeUnmount: (fn: () => void) => unmounting.push(fn),
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useToast: () => ({ add: toast }), useMe: () => ({ me: Vue.ref({ id: 3 }) }),
     ApiError, useInboxTyping: () => notifyTyping, useUploadInboxFile: () => ({ mutateAsync: uploadInboxFile }), INBOX_CAPTION_MAX, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem,
-    inboxUploadAccept, channelCarriesTemplates, inboxComposerActions, windowClosedDescriptionKey, inboxTikTokErrorKey, emptyInboxDraft,
+    inboxUploadAccept, channelCarriesTemplates, inboxComposerActions, windowClosedDescriptionKey, windowClosedErrorKey, inboxTikTokErrorKey, emptyInboxDraft,
     buildCommerceContent, emptyCommerceDraft, buildInteractive, emptyInteractiveDraft, buildLocation, emptyLocationDraft,
     inboxDrafts, cannedSuggestions, replyWindowOpen, templatePreview, TEMPLATE_CATEGORY_TONE, HEADER_MEDIA_ACCEPT, buildTemplateReply, dynamicButtons, headerInput, templateReplyReady,
     useSendInboxReply: () => ({ mutateAsync: sendReply, isPending: Vue.ref(false) }), useSendInboxNote: () => ({ mutateAsync: sendNote, isPending: Vue.ref(false) }),
@@ -130,6 +130,20 @@ describe('InboxComposer', () => {
     sendReply.mockRejectedValueOnce(Object.assign(new Error('refused'), { status: 422, details: { reason: 'inbox_tiktok_reply_limit' } }))
     await state.submit()
     expect(toast).toHaveBeenLastCalledWith({ title: 'inbox.tiktokErrors.inbox_tiktok_reply_limit', color: 'error' })
+  })
+
+  it('shows the closed-window line of the conversation kind when a send is refused for the window', async () => {
+    const refused = Object.assign(new Error('refused'), { status: 422, details: { reason: 'inbox_window_closed' } })
+    const tiktok = mountComposer('2026-10-28T20:00:00Z', new Map(), TEMPLATE, 'tiktok')
+    tiktok.state.draft.value = 'رد'
+    tiktok.sendReply.mockRejectedValueOnce(refused)
+    await tiktok.state.submit()
+    expect(tiktok.toast).toHaveBeenLastCalledWith({ title: 'inbox.inbox_window_closed.tiktok', color: 'error' })
+    const whatsapp = mountComposer('2026-10-28T20:00:00Z')
+    whatsapp.state.draft.value = 'رد'
+    whatsapp.sendReply.mockRejectedValueOnce(refused)
+    await whatsapp.state.submit()
+    expect(whatsapp.toast).toHaveBeenLastCalledWith({ title: 'inbox.inbox_window_closed.whatsapp', color: 'error' })
   })
 
   it('stores reply and note drafts per conversation and restores them on the next mount', async () => {

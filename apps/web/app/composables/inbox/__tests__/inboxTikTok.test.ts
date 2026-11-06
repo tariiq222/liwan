@@ -41,7 +41,6 @@ describe('TikTok refusal reasons', () => {
   it.each([
     'inbox_tiktok_unsupported_kind',
     'inbox_tiktok_reply_limit',
-    'inbox_window_closed',
     'inbox_tiktok_auto_message_reviewing',
     'inbox_tiktok_auto_message_limit',
     'inbox_tiktok_sync_running',
@@ -51,6 +50,10 @@ describe('TikTok refusal reasons', () => {
     'inbox_tiktok_account_taken',
   ])('translates the reason %s', (reason) => {
     expect(tiktok.inboxTikTokReasonKey(reason)).toBe(`inbox.tiktokErrors.${reason}`)
+  })
+
+  it('leaves the shared closed-window reason to the channel kind, not to TikTok', () => {
+    expect(tiktok.inboxTikTokReasonKey('inbox_window_closed')).toBeNull()
   })
 
   it('translates nothing else, so an unknown refusal keeps the server text', () => {

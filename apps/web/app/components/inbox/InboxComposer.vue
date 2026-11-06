@@ -11,7 +11,7 @@ import { buildInteractive, emptyInteractiveDraft } from '@/composables/inbox/inb
 import { buildLocation, emptyLocationDraft } from '@/composables/inbox/inboxLocation'
 import { TEMPLATE_CATEGORY_TONE, templatePreview } from '@/composables/inbox/inboxTemplate'
 import { HEADER_MEDIA_ACCEPT, buildTemplateReply, dynamicButtons, headerInput, templateReplyReady } from '@/composables/inbox/inboxTemplateSend'
-import { cannedSuggestions, replyWindowOpen, windowClosedDescriptionKey } from '@/composables/inbox/inboxWindow'
+import { cannedSuggestions, replyWindowOpen, windowClosedDescriptionKey, windowClosedErrorKey } from '@/composables/inbox/inboxWindow'
 
 // Three ways to write: a reply (inside the customer-service window) that is text, a file with a caption, a location or
 // an interactive message and may quote one message, an approved template with its parameters (WhatsApp's only reply
@@ -306,8 +306,9 @@ async function submit() {
       emit('update:replyTo', null)
     }
   } catch (e) {
-    // The draft stays so nothing typed is lost; the server's reason (for example a closed window) is shown translated.
-    const key = inboxTikTokErrorKey(e)
+    // The draft stays so nothing typed is lost; the server's reason (for example a closed window) is shown translated,
+    // and the closed window says the line of this conversation's kind, not one shared sentence for both kinds.
+    const key = windowClosedErrorKey(e, kind.value) ?? inboxTikTokErrorKey(e)
     toast.add({ title: key ? t(key) : e instanceof Error ? e.message : t('errors.generic'), color: 'error' })
   }
 }
