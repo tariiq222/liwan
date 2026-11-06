@@ -6,7 +6,7 @@ from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTE
 
 PROJECT_KEYS = {'id', 'name', 'status', 'progress', 'task_count', 'closed_task_count', 'active', 'can_manage', 'allowed_actions', 'manager', 'date_end', 'charter_state', 'phase'}
 DETAIL_KEYS = PROJECT_KEYS | {
-    'stages', 'description_html', 'privacy_visibility', 'date_start', 'tags',
+    'tools', 'objectives', 'success_criteria', 'stages', 'description_html', 'privacy_visibility', 'date_start', 'tags',
     'followers_count', 'milestone_count', 'allow_task_dependencies',
     'completion_approval', 'completion_approver', 'updated_at', 'charter', 'phase_state', 'change_control_mode',
 }
@@ -155,7 +155,7 @@ class TestProjects(LiwanPmoCase):
         self.assertEqual((res.status_code, res.json()['code']), (403, 'create_forbidden'))
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         self.assertTrue(self.api('GET', '/api/v1/projects').json()['can_create'])
-        self.assertEqual(self.api('POST', '/api/v1/projects', {'name': 'Fresh'}).status_code, 422)
+        self.assertEqual(self.api('POST', '/api/v1/projects', {'name': 'Fresh'}).status_code, 201)
         res = self.api('POST', '/api/v1/projects', {'name': 'Fresh', 'date_end': '2030-12-31'})
         self.assertEqual(res.status_code, 201)
         body = res.json()

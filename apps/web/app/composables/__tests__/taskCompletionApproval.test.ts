@@ -5,7 +5,7 @@ const base = {
   id: 1, name: 'Task', description_excerpt: '', subtask_count: 0, subtask_done_count: 0, attachment_count: 0, project: { id: 4, name: 'Project' }, state: 'in_progress' as const, priority: '0' as const,
   date_deadline: null, days_remaining: null, is_overdue: false, is_closed: false, personal_stage: null,
   stage: null, assignees: [], tags: [], description_html: '', allocated_hours: 0, age_days: 0,
-  cycle_days: null, subtasks: [], depends_on: [], attachments: [], can_write: true, can_approve: false,
+  planning_enabled: true, cycle_days: null, subtasks: [], depends_on: [], attachments: [], can_write: true, can_approve: false,
   created_at: '2030-01-01T00:00:00Z', updated_at: '2030-01-01T00:00:00Z', milestone: null,
 }
 

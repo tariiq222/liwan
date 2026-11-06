@@ -30,7 +30,7 @@ async function load(file: string, locale = 'ar', props: Record<string, unknown> 
   const update = vi.fn(async (_body: any) => ({ id: 9 }))
   const pending = Vue.ref(false), hydrated = Vue.ref(true), mutationError = Vue.ref<unknown>(null)
   const projectList = Vue.ref([{ id: 7, name: 'Project' }])
-  const projectData = Vue.ref({ id: 7, date_start: '2030-01-01', date_end: '2030-12-31', can_manage: true })
+  const projectData = Vue.ref({ id: 7, date_start: '2030-01-01', date_end: '2030-12-31', can_manage: true, tools:{planning:{enabled:true}} })
   const milestoneData = Vue.ref<any[]>([])
   const projectLoading = Vue.ref(false)
   const mutation = { mutateAsync: mutate, isPending: pending, error: mutationError }

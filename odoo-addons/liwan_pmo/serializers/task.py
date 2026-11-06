@@ -75,7 +75,7 @@ def _ref(record):
     return {'id': record.id, 'name': record.display_name}
 
 
-def _project_ref(project):
+def _project_ref(project, *, include_tools=False):
     """{'id', 'name'} for a task's project, with the name resolved in sudo.
 
     The task itself was already access-checked before dump_task runs; an assignee
@@ -87,7 +87,15 @@ def _project_ref(project):
     names in sudo — this is not an access dodge on project data in general, just on
     the name of a project whose task the caller can already read.
     """
-    return {'id': project.id, 'name': project.sudo().display_name}
+    # The already-authorized task also needs internal scalar tool decisions to
+    # redact its own DTO when its private project is not independently readable.
+    # Reuse this one documented lookup: no company, charter or finance data is
+    # returned. The caller checks the task's current company before serialization.
+    project_sudo = project.sudo()
+    result = {'id': project.id, 'name': project_sudo.display_name}
+    if include_tools:
+        result['tools'] = {key: project_sudo._liwan_tool_enabled(key) for key in ('planning', 'finance')}
+    return result
 
 
 def _milestone_ref(milestone):
@@ -191,11 +199,14 @@ def dump_task_detail(task, today=None):
     today = _today(task, today)
     counts = task_counts(task | task.child_ids)
     data = dump_task(task, today, counts)
-    method = task.env['liwan.pmo.settings'].evm_progress_method()
+    tool_flags = _project_ref(task.project_id, include_tools=True)['tools'] if task.project_id else {}
+    planning = tool_flags.get('planning', False)
+    evm = bool(planning and tool_flags.get('finance', False) and task.env['liwan.entitlement.service']._liwan_feature_read('pmo.evm'))
+    method = task.env['liwan.pmo.settings'].evm_progress_method() if evm else None
     start = task.date_assign or task.create_date
     cycle = (task.date_end - start).days if task.is_closed and task.date_end and start else None
     dependencies = task.env['project.task'].search([
-        ('id', 'in', task.depend_on_ids.ids),
+        ('id', 'in', task.depend_on_ids.ids if planning else []),
         ('company_id', 'in', task.env.companies.ids),
         ('project_id', '=', task.project_id.id),
         ('project_id.active', '=', True),
@@ -220,11 +231,12 @@ def dump_task_detail(task, today=None):
             *(['withdraw_completion'] if task._liwan_can_withdraw_completion() else []),
             *(['write_percent'] if _can_write_percent(task, method) else []),
         ],
-        'can_manage_dependencies': bool(task._liwan_can_manage_dependencies()),
+        'planning_enabled': planning,
+        'can_manage_dependencies': bool(planning and task._liwan_can_manage_dependencies()),
         'created_at': iso(task.create_date),
         'updated_at': iso(task.write_date),
-        'planned_start': fields.Date.to_string(task.liwan_planned_start) if task.liwan_planned_start else None,
-        'milestone': _milestone_ref(task.milestone_id) if task.milestone_id else None,
+        'planned_start': fields.Date.to_string(task.liwan_planned_start) if planning and task.liwan_planned_start else None,
+        'milestone': _milestone_ref(task.milestone_id) if planning and task.milestone_id else None,
         'completion_pending': bool(task.liwan_completion_pending),
         'completion_revision': task.liwan_completion_revision or 0,
         'completion_return_note': task.liwan_completion_return_note or None,
@@ -232,7 +244,7 @@ def dump_task_detail(task, today=None):
         'completion_approver': _ref(task._liwan_completion_reviewer()) if task._liwan_completion_reviewer() else None,
         'completion_blocked_reason': task._liwan_completion_blocked_reason(),
         'progress_method': method,
-        'percent_complete': task._liwan_percent(method),
+        'percent_complete': task._liwan_percent(method) if evm else None,
     })
     return data
 
@@ -306,6 +318,8 @@ def _parse_stage(task, value, key):
 
 
 def _parse_milestone(task, value, key):
+    if task.project_id:
+        task.project_id._liwan_check_tool('planning')
     """Coerce + authorise a milestone id: it must belong to the task's own project.
 
     Browsed in sudo: a milestone belonging to another,
@@ -330,6 +344,7 @@ def _parse_milestone(task, value, key):
 
 def _parse_percent_complete(value, key, task):
     """A whole percent 0..100 of an open task, accepted only while the company counts progress `manual` and the feature is writable."""
+    task._liwan_check_percent_tools()
     if request.env['liwan.pmo.settings'].evm_progress_method() != 'manual' or not request.env['liwan.entitlement.service']._liwan_feature_write('pmo.evm'):
         raise ApiError(422, 'invalid', "percent_complete is only editable when the company's progress method is manual", field=key)
     if task.is_closed:

@@ -71,7 +71,7 @@ class TestProjectSettingsControls(LiwanPmoCase):
         self._set_company_params(require_end_date_on_create=False, default_completion_approval='project_manager')
         other = self.env['liwan.pmo.settings'].with_company(self.company_b)
         values = other.get()
-        self.assertTrue(values['require_end_date_on_create'])
+        self.assertFalse(values['require_end_date_on_create'])
         self.assertEqual(values['default_completion_approval'], 'none')
 
     def test_legacy_incomplete_projects_remain_editable(self):

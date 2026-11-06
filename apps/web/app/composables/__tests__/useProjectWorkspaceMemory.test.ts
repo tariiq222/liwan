@@ -6,14 +6,14 @@ import { projectEntryLocation, savedProjectLocation } from '../../utils/projectW
 
 // Execute the real auto-imported composable with browser storage and identity supplied at its edges.
 const source = readFileSync(new URL('../useProjectWorkspaceMemory.ts', import.meta.url), 'utf8')
-  .replace(/^import .*\n/, '').replaceAll('import.meta.client', 'true')
+  .replace(/^import .*\n/gm, '').replaceAll('import.meta.client', 'true')
 const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
 function memory(capabilities: string[], savedPath: string) {
   const stored = JSON.stringify({ path: savedPath, query: { view: 'board', q: 'review' } })
   const exports: Record<string, any> = {}
-  new Function('exports', 'useMe', 'useHydrated', 'localStorage', 'projectEntryLocation', 'savedProjectLocation', js)(
+  new Function('exports', 'useMe', 'useHydrated', 'localStorage', 'projectEntryLocation', 'savedProjectLocation', 'useQueryClient', 'projectKeys', js)(
     exports, () => ({ me: ref({ id: 2, company: { id: 1 }, capabilities }) }), () => ref(true),
-    { getItem: () => stored, setItem: () => {} }, projectEntryLocation, savedProjectLocation,
+    { getItem: () => stored, setItem: () => {} }, projectEntryLocation, savedProjectLocation, () => ({getQueryData:()=>undefined}), {detail:(id:number)=>['projects','detail',id]},
   )
   return exports.useProjectWorkspaceMemory()
 }

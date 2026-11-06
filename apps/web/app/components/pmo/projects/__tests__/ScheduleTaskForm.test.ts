@@ -123,11 +123,11 @@ function harness(section = false, routing = false) {
   const routeComponent = Vue.defineComponent({
     setup() {
       const route = VueRouter.useRoute()
-      return () => Vue.h(component, { projectId: Number(route.params.id), taskId: Number(route.params.taskId) })
+      return () => Vue.h(component, { planningEnabled: true, projectId: Number(route.params.id), taskId: Number(route.params.taskId) })
     },
   })
   const router = VueRouter.createRouter({ history: VueRouter.createMemoryHistory(), routes: [{ path: '/projects/:id/tasks/:taskId', component: routeComponent }] })
-  const app = renderer.createApp({ render: () => routing ? Vue.h(VueRouter.RouterView) : Vue.h(component, section ? { projectId: props.projectId, taskId: props.taskId } : { projectId: props.projectId, task: props.task, canWrite: props.canWrite, onSaved: saved, onCancel: cancel }) })
+  const app = renderer.createApp({ render: () => routing ? Vue.h(VueRouter.RouterView) : Vue.h(component, section ? { planningEnabled: true, projectId: props.projectId, taskId: props.taskId } : { projectId: props.projectId, task: props.task, canWrite: props.canWrite, onSaved: saved, onCancel: cancel }) })
   if (routing) app.use(router)
   for (const [name, stub] of Object.entries({
     ...DEFAULT_STUBS,

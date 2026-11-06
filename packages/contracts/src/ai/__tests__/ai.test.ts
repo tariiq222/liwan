@@ -35,9 +35,16 @@ describe('LiwanOS AI contracts', () => {
 
   it('keeps only known draft keys and needs a name', () => {
     expect(() => AiDraftPayloadSchema.parse({ name: '' })).toThrow()
-    const parsed = AiDraftPayloadSchema.parse({ name: 'بوابة', charter: { objectives: ['أ'], bogus: 1 }, bogus: 2 })
-    expect(parsed).toEqual({ name: 'بوابة', charter: { objectives: ['أ'] } })
+    const parsed = AiDraftPayloadSchema.parse({ name: 'بوابة', objectives: [{ goal: 'أ', metric: 'طلبات', target: '20' }], success_criteria: '20 طلبًا', charter: { rationale: 'حاجة', bogus: 1 }, bogus: 2 })
+    expect(parsed).toEqual({ name: 'بوابة', objectives: [{ goal: 'أ', metric: 'طلبات', target: '20' }], success_criteria: '20 طلبًا', charter: { rationale: 'حاجة' } })
   })
+  it('uses the core structured objective validation for AI drafts', () => {
+    expect(AiDraftPayloadSchema.safeParse({ name: 'Portal', objectives: [{ goal: '   ' }] }).success).toBe(false)
+    expect(AiDraftPayloadSchema.safeParse({ name: 'Portal', objectives: ['Ship'] }).success).toBe(false)
+    expect(AiDraftPayloadSchema.parse({ name: 'Portal', objectives: [{ goal: 'Ship' }] }).objectives).toEqual([{ goal: 'Ship' }])
+    expect(AiDraftPayloadSchema.parse({ name: 'Portal', charter: { objectives: ['Old'], success: 'Old', scope: 'Portal' } }).charter).toEqual({ scope: 'Portal' })
+  })
+
   it('accepts the executing run status but keeps the done event statuses unchanged', () => {
     expect(AiRunStatusSchema.parse({ run_id: 'r_1', status: 'executing', messages: [], pending: null }).status).toBe('executing')
     expect(() => AiEventSchema.parse({ event: 'done', data: { status: 'executing' } })).toThrow()

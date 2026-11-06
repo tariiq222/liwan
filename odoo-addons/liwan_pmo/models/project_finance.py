@@ -5,6 +5,7 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, MissingError, ValidationError
+from odoo.fields import Domain
 
 IMMUTABLE_FIELDS = {'project_id', 'kind', 'company_id', 'currency_id', 'liwan_revision'}
 MUTABLE_FIELDS = {'title', 'amount', 'expense_date', 'reference', 'notes', 'budget_entry_id'}
@@ -195,8 +196,10 @@ class LiwanProjectFinanceEntry(models.Model):
         if not project.active or project.company_id != self.env.company:
             raise AccessError(self.env._("The project is outside the active current company."))
         project._liwan_check_visible_current()
+        project._liwan_check_tool('finance')
         if manage:
             project._liwan_check_manage()
+            project._liwan_check_tool_write('finance')
         return project
 
     def _liwan_visible_project_query(self):
@@ -218,9 +221,8 @@ class LiwanProjectFinanceEntry(models.Model):
         model. `_check_access` (a non-raising contract) checks the capability
         itself before ever calling this, so it never hits that raise.
         """
-        return self.env['project.project'].with_context(active_test=True)._search([
-            ('active', '=', True), ('company_id', 'in', self.env.companies.ids),
-        ])
+        Project = self.env['project.project'].with_context(active_test=True)
+        return Project._search(Domain([('active', '=', True), ('company_id', 'in', self.env.companies.ids)]) & Project._liwan_tool_domain('finance'))
 
     @api.model
     def _search(

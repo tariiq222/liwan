@@ -14,8 +14,8 @@ import {
 // part a screenshot cannot show.
 const EMPTY_CHARTER = {
   code: null, type: null, owning_unit: null, sponsor: null, authority: '', rationale: '',
-  objectives: [], benefits: '', scope: '', exclusions: '', high_level_requirements: '',
-  deliverables: [], success: '', budget_state: 'unknown' as const, amount: null,
+  benefits: '', scope: '', exclusions: '', high_level_requirements: '',
+  deliverables: [], budget_state: 'unknown' as const, amount: null,
   currency: { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 },
   priority: null, assumptions: '', constraints: '', closure: '', state: 'draft' as const,
     approval_required: false, can_review: false, submitted_by: null, submitted_at: null,
@@ -29,6 +29,7 @@ function project(overrides: Partial<ProjectDetail> = {}): ProjectDetail {
     description_html: '', manager: null, privacy_visibility: 'employees',
     date_start: '2030-01-01', date_end: null, tags: [], followers_count: 0, milestone_count: 0,
     allow_task_dependencies: false, completion_approval: 'none', completion_approver: null,
+    objectives:[],success_criteria:'',tools:{planning:{policy:'optional',enabled:true,can_toggle:true},governance:{policy:'optional',enabled:true,can_toggle:true},finance:{policy:'optional',enabled:true,can_toggle:true}},
     updated_at: 'v4', charter: EMPTY_CHARTER, phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] }, change_control_mode: 'optional', ...overrides,
   }
 }
@@ -58,7 +59,7 @@ describe('charter conflict resolution', () => {
 
 describe('charter field surface', () => {
   it('names every commercial field exactly once', () => {
-    expect(CHARTER_FIELD_KEYS).toHaveLength(26)
+    expect(CHARTER_FIELD_KEYS).toHaveLength(24)
     expect(new Set(CHARTER_FIELD_KEYS).size).toBe(CHARTER_FIELD_KEYS.length)
   })
 })

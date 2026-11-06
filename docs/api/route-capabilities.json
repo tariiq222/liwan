@@ -345,6 +345,16 @@
       "handler": "delete_channel",
       "no_capability_reason": null
     },
+    "DELETE /api/v1/inbox/channels/{channel_id}/tiktok/shortcuts/{shortcut_id}": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "delete_shortcut",
+      "no_capability_reason": null
+    },
     "DELETE /api/v1/inbox/departments/{department_id}": {
       "addon": "liwan_inbox",
       "auth": "user",
@@ -3752,6 +3762,26 @@
       "handler": "list_templates",
       "no_capability_reason": null
     },
+    "GET /api/v1/inbox/channels/{channel_id}/tiktok/shortcuts": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "list_shortcuts",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/channels/{channel_id}/tiktok/sync": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "latest_sync",
+      "no_capability_reason": null
+    },
     "GET /api/v1/inbox/contacts/{contact_id}": {
       "addon": "liwan_inbox",
       "auth": "user",
@@ -4084,6 +4114,16 @@
         "inbox.enabled"
       ],
       "handler": "read_template",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/tiktok/callback": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "callback",
       "no_capability_reason": null
     },
     "GET /api/v1/inbox/working-hours": {
@@ -6370,6 +6410,16 @@
         "inbox.enabled"
       ],
       "handler": "patch_sending",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/inbox/channels/{channel_id}/tiktok/shortcuts/{shortcut_id}": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "patch_shortcut",
       "no_capability_reason": null
     },
     "PATCH /api/v1/inbox/contacts/{contact_id}": {
@@ -9707,6 +9757,16 @@
       "handler": "create_channel",
       "no_capability_reason": null
     },
+    "POST /api/v1/inbox/channels/tiktok/connect": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "connect",
+      "no_capability_reason": null
+    },
     "POST /api/v1/inbox/channels/{channel_id}/analytics/sync": {
       "addon": "liwan_inbox",
       "auth": "user",
@@ -9837,6 +9897,36 @@
         "inbox.enabled"
       ],
       "handler": "test_channel",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/channels/{channel_id}/tiktok/shortcuts": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "create_shortcut",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/channels/{channel_id}/tiktok/shortcuts/enable": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "enable_shortcuts",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/channels/{channel_id}/tiktok/sync": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "start_sync",
       "no_capability_reason": null
     },
     "POST /api/v1/inbox/channels/{channel_id}/two-step-pin": {
@@ -9994,6 +10084,16 @@
       ],
       "handler": "publish_flow",
       "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/hooks/tiktok": {
+      "addon": "liwan_inbox",
+      "auth": "inbox_hook",
+      "capability_keys": [],
+      "capability_match": null,
+      "capability_source": "none",
+      "feature_keys": [],
+      "handler": "receive",
+      "no_capability_reason": "TikTok webhook (machine to machine): TikTok signs every POST with HMAC-SHA256 over the timestamp and raw body using the app secret; the route runs as the inactive inbox hook identity that may only read channels and create raw events."
     },
     "POST /api/v1/inbox/hooks/whatsapp": {
       "addon": "liwan_inbox",

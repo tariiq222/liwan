@@ -31,7 +31,7 @@ export function isSchemaError(error: unknown): boolean {
   return false
 }
 
-export function useMe() {
+export function useMe(options: { immediate?: boolean } = {}) {
   const headers = useRequestHeaders(['cookie'])
   // Nuxt's default SSR initial cache reads static data, so later consumers can
   // fetch again after middleware resolved this request's identity. Reuse that
@@ -43,15 +43,23 @@ export function useMe() {
   const request = useFetch<Me | null>('/api/v1/me', {
     key: 'me',
     headers,
-    immediate: initialMe === undefined,
+    immediate: options.immediate !== false && initialMe === undefined,
     dedupe: import.meta.server ? 'defer' : 'cancel',
     // 401 = not logged in: the request still errors, and `me` resolves to null below.
     transform: (raw) => (raw ? MeSchema.parse(raw) : null),
   })
   const { data, refresh, error } = request
   const me = computed(() => (error.value ? null : data.value ?? null))
+  // Ownership is cache/view provenance only, never a source of authorization.
+  // Nuxt settles data/error before status, so pending and unverified failures
+  // must not look like a confirmed anonymous session to lifecycle consumers.
+  const ownershipIdentity = computed(() => {
+    if (request.status.value === 'success') return me.value
+    if (request.status.value === 'error' && isLoggedOutError(error.value)) return null
+    return undefined
+  })
   const loggedIn = computed(() => me.value !== null)
-  return { me, refresh, loggedIn, error, ready: request }
+  return { me, ownershipIdentity, refresh, loggedIn, error, ready: request }
 }
 
 /** Where a signed-in user who has no mobile number yet is sent, and the only page besides sign-out that answers meanwhile. */

@@ -138,7 +138,7 @@ const approverItems = computed(() => {
           />
       </UFormField>
 
-      <UFormField as="section" orientation="horizontal" :label="t('taskLifecycle.enableDependencies')" :description="t('taskLifecycle.enableDependenciesHint')">
+      <UFormField v-if="project.tools.planning.enabled" as="section" orientation="horizontal" :label="t('taskLifecycle.enableDependencies')" :description="t('taskLifecycle.enableDependenciesHint')">
         <USwitch
           :model-value="pendingPatch?.allow_task_dependencies ?? project.allow_task_dependencies"
           :disabled="controlsLocked || !project.can_manage"

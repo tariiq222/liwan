@@ -1,3 +1,5 @@
+import { taskKeys } from './useTasks'
+import { invalidateProjectCaches } from './projectKeys'
 import type { QueryClient } from '@tanstack/vue-query'
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
@@ -31,6 +33,10 @@ export function useProjectCreateDefaults() {
 export function invalidateProjectSettingsCaches(qc: QueryClient, settings: ProjectSettings) {
   qc.setQueryData(projectSettingsKeys.all, settings)
   qc.invalidateQueries({ queryKey: projectSettingsKeys.createDefaults })
+  invalidateProjectCaches(qc)
+  qc.invalidateQueries({queryKey:taskKeys.all})
+  // Tool-derived namespaces live outside the detail cache too.
+  for (const root of ['project-finance', 'project-reports']) qc.invalidateQueries({queryKey:[root]})
 }
 
 export function useUpdateProjectSettings() {

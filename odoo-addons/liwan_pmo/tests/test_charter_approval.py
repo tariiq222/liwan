@@ -125,11 +125,10 @@ class TestCharterApproval(LiwanPmoCase):
 
     def test_unchanged_save_keeps_approval(self):
         self._policy(True)
-        self.project.write({'liwan_sponsor_id': self.manager.id, 'liwan_scope': 'Same', 'liwan_objectives': [{'goal': 'G', 'metric': '', 'target': ''}]})
+        self.project.write({'liwan_sponsor_id': self.manager.id, 'liwan_scope': 'Same'})
         self._as(self.manager)._liwan_charter_submit()
         self._as(self.manager)._liwan_write_as_manager({
             'liwan_scope': 'Same',
-            'liwan_objectives': [{'goal': 'G', 'metric': '', 'target': ''}],
             'liwan_sponsor_id': self.manager.id,
             'name': self.project.name,
         })
@@ -303,9 +302,9 @@ class TestCharterApprovalApi(LiwanPmoCase):
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         project = self.project
         charter = {
-            'sponsor_id': self.sponsor.id, 'authority': '', 'rationale': '', 'objectives': [],
+            'sponsor_id': self.sponsor.id, 'authority': '', 'rationale': '',
             'benefits': '', 'scope': '', 'exclusions': '', 'high_level_requirements': '',
-            'deliverables': [], 'success': '', 'budget_state': 'unknown', 'amount': None,
+            'deliverables': [], 'budget_state': 'unknown', 'amount': None,
             'priority': None, 'assumptions': '', 'constraints': '', 'closure': '',
         }
 

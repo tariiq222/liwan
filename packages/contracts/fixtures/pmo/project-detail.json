@@ -30,7 +30,6 @@
     "deliverables": [],
     "exclusions": "",
     "high_level_requirements": "",
-    "objectives": [],
     "owning_unit": {
       "id": 8,
       "name": "PMO Office"
@@ -43,7 +42,6 @@
     "state": "draft",
     "submitted_at": null,
     "submitted_by": null,
-    "success": "",
     "type": {
       "charter_steps": [
         "justification",
@@ -71,6 +69,7 @@
   },
   "milestone_count": 0,
   "name": "Refs",
+  "objectives": [],
   "phase": "initiating",
   "phase_state": {
     "current": "initiating",
@@ -116,7 +115,25 @@
     }
   ],
   "status": null,
+  "success_criteria": "",
   "tags": [],
   "task_count": 0,
+  "tools": {
+    "finance": {
+      "can_toggle": false,
+      "enabled": true,
+      "policy": "enabled"
+    },
+    "governance": {
+      "can_toggle": false,
+      "enabled": true,
+      "policy": "enabled"
+    },
+    "planning": {
+      "can_toggle": false,
+      "enabled": true,
+      "policy": "enabled"
+    }
+  },
   "updated_at": "v2"
 }

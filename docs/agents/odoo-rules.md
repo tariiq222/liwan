@@ -72,12 +72,14 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   ACL and record-rule environment, which tasks or meetings are still readable.
   Meeting-only access must not reveal task/digest notifications. Do not add an
   undocumented bypass.
-- The project charter is written as a stepper: basics, then the optional
-  steps the project type configures (`charter_steps` on `liwan.project.type`,
-  exposed on the types catalog and on `charter.type`), then review. The
-  charter carries `state` (`draft | final`); a new charter is a draft and the
-  review step finalizes it. `/projects/new` uses the route-backed create panel
-  (`SharedCreatePanel`), like other `/new` routes.
+- Project creation uses the existing route-backed `SharedCreatePanel` and one
+  create request; core objectives and success criteria are independent of the
+  charter. The charter editor remains a governance-only stepper, with the
+  project type's optional steps and `draft | submitted | approved` states.
+  Live company tool policies (`enabled | optional | disabled`) govern all
+  current/new projects; only optional preferences are project-writable.
+  DESIGN.md owns presentation. Enabling a tool does not implicitly require
+  approval, and tool policies never bypass capabilities or entitlements.
 - Task comments are one conversation per task family: `/tasks/{id}/timeline`
   returns the comments of the topmost readable ancestor and every readable
   descendant (each carries `task`), while tracking entries stay per task. A

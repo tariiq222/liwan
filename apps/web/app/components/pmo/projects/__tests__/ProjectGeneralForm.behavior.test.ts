@@ -66,6 +66,7 @@ function loadComponent(path: string, bindings: Record<string, unknown>): Vue.Com
 }
 const filename = resolve(dirname(fileURLToPath(import.meta.url)), '../ProjectGeneralForm.vue')
 const initial = {
+  tools:{planning:{policy:'optional',enabled:true,can_toggle:true},governance:{policy:'optional',enabled:true,can_toggle:true},finance:{policy:'optional',enabled:true,can_toggle:true}},
   id: 4, name: 'Portal', privacy_visibility: 'employees', allow_task_dependencies: false,
   can_manage: true, tags: [], completion_approval: 'none', completion_approver: null,
 } as unknown as ProjectDetail

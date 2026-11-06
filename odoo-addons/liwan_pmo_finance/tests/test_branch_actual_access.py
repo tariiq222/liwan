@@ -16,6 +16,7 @@ class TestBranchActualAccess(PmoFinanceCase):
         cls.branch = cls.env['res.company'].create({
             'name': 'Project Finance Branch', 'parent_id': cls.company.id,
         })
+        cls._set_project_finance_tool_policy(cls.branch, 'enabled')
         cls.branch_project = cls.env['project.project'].with_company(cls.branch).create({
             'name': 'Branch Project', 'company_id': cls.branch.id,
         })

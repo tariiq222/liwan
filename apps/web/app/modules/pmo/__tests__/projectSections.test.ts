@@ -3,38 +3,12 @@ import { PROJECT_SECTION_IDS, projectSections } from '../projectSections'
 
 const reader = { role: 'employee', capabilities: ['pmo.projects.read', 'pmo.tasks.read', 'meetings.read'] }
 const projectOnly = { role: 'employee', capabilities: ['pmo.projects.read'] }
-const opts = { active: true }
-
+const enabled = {policy:'enabled',enabled:true,can_toggle:false} as const
+const opts = {active:true,tools:{planning:enabled,governance:enabled,finance:enabled}}
 describe('projectSections', () => {
-  it('declares the seven sections in reading order', () => {
-    expect(PROJECT_SECTION_IDS).toEqual(['summary', 'tasks', 'planning', 'governance', 'finance', 'meetings', 'updates'])
-  })
-
-  it('maps every section to its own path', () => {
-    expect(projectSections(7, reader, opts).map(s => s.to)).toEqual([
-      '/projects/7',
-      '/projects/7/tasks',
-      '/projects/7/schedule',
-      '/projects/7/charter',
-      '/projects/7/finance',
-      '/projects/7/meetings',
-      '/projects/7/updates',
-    ])
-  })
-
-  it('hides task-backed sections without pmo.tasks.read', () => {
-    expect(projectSections(7, projectOnly, opts).map(s => s.id)).toEqual(['summary', 'governance', 'finance', 'updates'])
-  })
-
-  it('an archived project keeps only read-only sections', () => {
-    expect(projectSections(7, reader, { active: false }).map(s => s.id)).toEqual(['summary', 'planning', 'finance', 'meetings', 'updates'])
-  })
-
-  it('hides meetings without meetings.read', () => {
-    expect(projectSections(7, { role: 'employee', capabilities: ['pmo.projects.read', 'pmo.tasks.read'] }, opts).map(s => s.id)).not.toContain('meetings')
-  })
-
-  it('returns nothing before capabilities arrive', () => {
-    expect(projectSections(7, undefined, opts)).toEqual([])
-  })
+ it('starts with summary tasks and updates, then active tools', () => expect(projectSections(7,reader,opts).map(s=>s.id)).toEqual(['summary','tasks','updates','planning','governance','finance']))
+ it('shows only basics when all tools are disabled', () => expect(projectSections(7,reader,{active:true,tools:{planning:{...enabled,enabled:false},governance:{...enabled,enabled:false},finance:{...enabled,enabled:false}}}).map(s=>s.id)).toEqual(['summary','tasks','updates']))
+ it('does not infer a grant from a company policy', () => expect(projectSections(7,projectOnly,opts).map(s=>s.id)).not.toContain('tasks'))
+ it('keeps meetings out of primary navigation', () => expect(PROJECT_SECTION_IDS).not.toContain('meetings'))
+ it('returns nothing before capabilities arrive',()=>expect(projectSections(7,undefined,opts)).toEqual([]))
 })

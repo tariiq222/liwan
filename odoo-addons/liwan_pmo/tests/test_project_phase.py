@@ -44,6 +44,7 @@ class TestProjectPhase(LiwanPmoCase):
         self.assertEqual(self.project.liwan_phase, 'planning')
 
     def test_forward_blocked_until_charter_approved(self):
+        self.env['liwan.pmo.settings'].set_values({'require_charter_approval': True})
         with self.assertRaises(LiwanPhaseGate) as ctx:
             self._as_manager()._liwan_move_phase('planning')
         self.assertEqual(ctx.exception.liwan_checks, [{'key': 'charter_approved', 'ok': False}])
@@ -81,7 +82,7 @@ class TestProjectPhase(LiwanPmoCase):
         first = self._as_manager()._liwan_phase_state()
         self.assertEqual(set(first), PHASE_KEYS)
         self.assertEqual((first['previous'], first['next']), (None, 'planning'))
-        self.assertEqual(first['next_checks'], [{'key': 'charter_approved', 'ok': False}])
+        self.assertEqual(first['next_checks'], [])
         self.project.liwan_phase = 'closed'
         last = self._as_manager()._liwan_phase_state()
         self.assertEqual((last['previous'], last['next'], last['next_checks']), ('closing', None, []))
@@ -112,6 +113,7 @@ class TestProjectPhase(LiwanPmoCase):
         self.assertEqual(body['phase_state']['next'], 'executing')
 
     def test_route_gate_error_carries_checks(self):
+        self.env['liwan.pmo.settings'].set_values({'require_charter_approval': True})
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         res = self._move('planning')
         self.assertEqual(res.status_code, 409)
@@ -155,6 +157,7 @@ class TestProjectPhase(LiwanPmoCase):
         self.assertEqual(self.project.liwan_phase, 'initiating')
 
     def test_gate_checks_extend_through_super(self):
+        self.env['liwan.pmo.settings'].set_values({'require_charter_approval': True})
         project_class = type(self.env['project.project'])
         extra = {'key': 'budget_baselined', 'ok': False}
 
@@ -162,6 +165,7 @@ class TestProjectPhase(LiwanPmoCase):
             checks = super(project_class, record)._liwan_gate_checks(target)
             return [*checks, extra] if target == 'planning' else checks
 
+        self.project.liwan_sponsor_id = self.manager
         self._approve_charter()
         with patch.object(project_class, '_liwan_gate_checks', extended):
             self.assertEqual(self._as_manager()._liwan_phase_state()['next_checks'], [{'key': 'charter_approved', 'ok': True}, extra])

@@ -34,7 +34,7 @@ export function taskDetail(overrides: Record<string, unknown> = {}) {
   return TaskDetailSchema.parse({
     ...makeTask(),
     description_html: '', allocated_hours: 0, age_days: 3, cycle_days: null, subtasks: [], depends_on: [], attachments: [],
-    can_manage_dependencies: false, milestone: null, created_at: '2026-09-01 08:00:00', updated_at: '2026-09-10 08:00:00',
+    planning_enabled: true, can_manage_dependencies: false, milestone: null, created_at: '2026-09-01 08:00:00', updated_at: '2026-09-10 08:00:00',
     planned_start: null, deliverables: [], allowed_actions: ['read', 'write'],
     completion_pending: false, completion_revision: 0, completion_return_note: null, completion_policy: 'none',
     completion_approver: null, completion_blocked_reason: null, progress_method: 'binary', percent_complete: 0,
@@ -49,6 +49,7 @@ export const project = ProjectSchema.parse({
 })
 
 export const projectDetail = ProjectDetailSchema.parse({
+  tools: {planning:{policy:'optional',enabled:true,can_toggle:true},governance:{policy:'optional',enabled:true,can_toggle:true},finance:{policy:'optional',enabled:true,can_toggle:true}}, objectives:[{id:1,goal:'إطلاق الخدمة',metric:'',target:''}], success_criteria:'إطلاق الخدمة خلال شهر',
   ...project, stages: [], description_html: '', privacy_visibility: 'employees', date_start: '2026-01-01',
   tags: [], followers_count: 0, milestone_count: 1, allow_task_dependencies: false,
   completion_approval: 'none', completion_approver: null, updated_at: 'v1',
@@ -56,8 +57,8 @@ export const projectDetail = ProjectDetailSchema.parse({
   change_control_mode: 'optional',
   charter: {
     code: 'P-1', type: null, owning_unit: null, sponsor: null,
-    authority: '', rationale: '', objectives: [], benefits: '', scope: '', exclusions: '',
-    high_level_requirements: '', deliverables: [], success: '', budget_state: 'unknown',
+    authority: '', rationale: '', benefits: '', scope: '', exclusions: '',
+    high_level_requirements: '', deliverables: [], budget_state: 'unknown',
     amount: null, currency: { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 },
     priority: null, assumptions: '', constraints: '', closure: '', state: 'draft',
     approval_required: false, can_review: false, submitted_by: null, submitted_at: null,

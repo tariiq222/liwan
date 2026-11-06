@@ -1,13 +1,11 @@
-import type { VueQueryPluginOptions } from '@tanstack/vue-query'
-import { VueQueryPlugin, QueryCache, QueryClient, MutationCache, hydrate, dehydrate } from '@tanstack/vue-query'
+import { QueryCache, QueryClient, MutationCache, hydrate, dehydrate } from '@tanstack/vue-query'
+import { createSessionQueryScope, sessionQueryScopeKey, type SessionQueryOwner } from '@/lib/sessionQueryScope'
 import { clearChatDrafts } from '@/utils/chatDrafts'
-import { isDifferentUser, isPossibleSessionExpiry } from '@/utils/sessionExpiry'
+import { sessionIdentityKey, isPossibleSessionExpiry } from '@/utils/sessionExpiry'
 import { clearTenantSuspension, dropToastsWhileSuspended, isTenantSuspended, onTenantSuspension, SUSPENDED_LOGIN } from '@/utils/tenantSuspension'
 import { restoreDehydratedErrors, serializeDehydratedErrors, settleServerQueries, type SerializedDehydratedState } from '@/lib/vueQuerySsr'
 
-// Named so bus.client.ts can declare `dependsOn: ['vue-query']` - it calls
-// useQueryClient() and must not run before this plugin has registered
-// VueQueryPlugin on the Vue app.
+// Bus and access refresh depend on this app-local owner scope.
 export default defineNuxtPlugin({
   name: 'vue-query',
   setup(nuxt) {
@@ -16,25 +14,31 @@ export default defineNuxtPlugin({
 
     // A session that expires while a tab is open used to be invisible to the
     // router: auth.global.ts only runs on navigation, so every background
-    // query just 403'd and toasted "forbidden" forever. Re-check `me` once
-    // (deduped below) on any 403 that isn't a known domain-level one, and if
+    // query kept reporting session failures. Re-check `me` once
+    // (deduped below) on an actual 401 session refusal, and if
     // the session really is gone, route to /login with a `next` back here.
     // `me` is null when its last request failed; useNuxtData('me') would still
     // read the last signed-in user out of the payload and hide the expiry.
-    const identity = import.meta.client ? useMe() : undefined
+    const identity = import.meta.client ? useMe({ immediate: false }) : undefined
     let recovering = false
-    function onMaybeExpiredSession(error: unknown) {
-      if (!identity || recovering || !isPossibleSessionExpiry(error)) return
+    function mayFinishSignOut(owner: SessionQueryOwner): boolean {
+      const current = queryScope.current.value
+      return current.generation === owner.generation
+        || (current.generation === owner.generation + 1 && current.identity === 'anonymous' && !current.publicView)
+    }
+    function onMaybeExpiredSession(generation: number, error: unknown) {
+      if (!identity || recovering || queryScope.current.value.generation !== generation || router.currentRoute.value.meta.access || !isPossibleSessionExpiry(error)) return
+      const owner = queryScope.current.value
       recovering = true
       // runWithContext: these callbacks fire from vue-query's cache, outside
       // any component setup, so the Nuxt composables below need the app
       // context restored explicitly.
       Promise.resolve(nuxt.runWithContext(async () => {
         await identity.refresh()
-        if (identity.me.value) return // still signed in: a genuine permission error
+        if (identity.ownershipIdentity.value !== null || !mayFinishSignOut(owner)) return // still signed in, or another owner replaced it
         clearChatDrafts()
         // The next sign-in may be another user: nothing cached for this one survives the session.
-        queryClient.clear()
+        queryScope.current.value.client.clear()
         const current = router.currentRoute.value
         // Login (guest) and the public pages (pay page, invitation) have no session to lose.
         if (current.meta.access) return
@@ -44,18 +48,23 @@ export default defineNuxtPlugin({
       })).finally(() => { recovering = false })
     }
 
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { staleTime: 5_000, retry: 1, refetchOnWindowFocus: true, retryOnMount: import.meta.server || !nuxt.isHydrating } },
-      queryCache: new QueryCache({ onError: onMaybeExpiredSession }),
-      mutationCache: new MutationCache({ onError: onMaybeExpiredSession }),
-    })
+    const queryScope = createSessionQueryScope(generation => new QueryClient({
+      defaultOptions: { queries: { staleTime: 5_000, retry: (failureCount, error) => error?.name !== 'AbortError' && failureCount < 1, refetchOnWindowFocus: true, retryOnMount: import.meta.server || !nuxt.isHydrating } },
+      queryCache: new QueryCache({ onError: error => onMaybeExpiredSession(generation, error) }),
+      mutationCache: new MutationCache({ onError: error => onMaybeExpiredSession(generation, error) }),
+    }), sessionIdentityKey(identity?.ownershipIdentity.value), router.currentRoute.value.meta.access === 'public' || router.currentRoute.value.meta.access === 'guest')
+    nuxt.vueApp.provide(sessionQueryScopeKey, queryScope)
+    const initialClient = queryScope.current.value.client
+    nuxt.vueApp.onUnmount(() => { queryScope.current.value.client.clear() })
     // Restoring keeps Vue Query from replacing an SSR error with a fresh
     // pending result while Vue is attaching to that error's markup. Resume
     // normal observer subscriptions/refetching after all async pages hydrate.
     if (import.meta.client && nuxt.isHydrating) {
-      const restoring = queryClient.isRestoring
+      const restoring = initialClient.isRestoring
       if (restoring) restoring.value = true
       nuxt.hook('app:suspense:resolve', async () => {
+        if (queryScope.current.value.client !== initialClient) return
+        const queryClient = initialClient
         const defaults = queryClient.getDefaultOptions()
         queryClient.setDefaultOptions({ ...defaults, queries: { ...defaults.queries, retryOnMount: true } })
         if (restoring) restoring.value = false
@@ -77,10 +86,12 @@ export default defineNuxtPlugin({
     // suspended state on the login page (the session has ended), without the toasts the failures raised.
     if (identity) {
       onTenantSuspension(() => {
+        const owner = queryScope.current.value
         void nuxt.runWithContext(async () => {
           clearChatDrafts()
-          await queryClient.cancelQueries()
-          queryClient.clear()
+          await owner.client.cancelQueries()
+          if (!mayFinishSignOut(owner)) return
+          queryScope.current.value.client.clear()
           await navigateTo(SUSPENDED_LOGIN, { replace: true })
           useToast().clear()
         })
@@ -90,12 +101,22 @@ export default defineNuxtPlugin({
       dropToastsWhileSuspended(useToast().toasts)
       // Signing in again starts a session the old suspension no longer describes. Only a signed-out to
       // signed-in change clears it: a late success of a request sent before the suspension does not.
-      watch(identity.me, (me, before) => { if (me && !before) clearTenantSuspension() })
-      watch(identity.me, (me, before) => { if (isDifferentUser(before, me)) queryClient.clear() })
+      let lastResolvedOwner = identity.ownershipIdentity.value === undefined ? undefined : sessionIdentityKey(identity.ownershipIdentity.value)
+      watch(identity.ownershipIdentity, me => {
+        if (me === undefined) return
+        const before = lastResolvedOwner
+        lastResolvedOwner = sessionIdentityKey(me)
+        if (me && (before === undefined || before === 'anonymous')) clearTenantSuspension()
+      }, { flush: 'sync' })
+      watch(
+        () => ({
+          identity: identity.ownershipIdentity.value === undefined ? undefined : sessionIdentityKey(identity.ownershipIdentity.value),
+          publicView: router.currentRoute.value.meta.access === 'public' || router.currentRoute.value.meta.access === 'guest',
+        }),
+        current => queryScope.prepare(current.identity, current.publicView),
+        { flush: 'sync' },
+      )
     }
-
-    const options: VueQueryPluginOptions = { queryClient }
-    nuxt.vueApp.use(VueQueryPlugin, options)
 
     // useQuery does not automatically register serverPrefetch. Let every
     // component settle the active cache entries it created before its SSR
@@ -104,11 +125,11 @@ export default defineNuxtPlugin({
     // Register on both sides: Vue uses serverPrefetch boundaries in useId.
     // The lifecycle callback itself only executes during server rendering.
     nuxt.vueApp.mixin({
-      serverPrefetch: () => settleServerQueries(queryClient),
+      serverPrefetch: () => settleServerQueries(queryScope.current.value.client),
     })
     if (import.meta.server) {
       nuxt.hooks.hook('app:rendered', () => {
-        vueQueryState.value = serializeDehydratedErrors(dehydrate(queryClient, {
+        vueQueryState.value = serializeDehydratedErrors(dehydrate(queryScope.current.value.client, {
           // An SSR error is part of the rendered tree just like successful
           // data. Carry it to the first client result so error/empty branches
           // do not switch during hydration; Vue Query will still refetch it
@@ -118,7 +139,7 @@ export default defineNuxtPlugin({
       })
     }
     if (import.meta.client && vueQueryState.value) {
-      hydrate(queryClient, restoreDehydratedErrors(vueQueryState.value))
+      hydrate(initialClient, restoreDehydratedErrors(vueQueryState.value))
     }
   },
 })

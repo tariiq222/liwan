@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
+from odoo.fields import Domain
 
 PMO_PERMISSIONS = frozenset({
     'pmo.projects.read', 'pmo.projects.create', 'pmo.projects.manage',
@@ -76,9 +77,24 @@ class LiwanPmoAccessService(models.AbstractModel):
     @api.model
     def _liwan_contextual_capability(self, user, key, record):
         if key in PROJECT_CONTEXTUAL_PERMISSIONS:
-            project = record if record._name == 'project.project' else record.project_id
-            if project and project.user_id == user:
-                return True
+            if record._name == 'project.task':
+                task = record.with_user(user)
+                if task.has_access('read'):
+                    # A readable task does not imply its private project is
+                    # readable. Inspect only whether this actor is the manager,
+                    # scoped to that task and its permitted owning company.
+                    manager_domain = Domain([
+                        ('user_id', '=', user.id), ('company_id', '=', task.company_id.id),
+                    ])
+                    if task.search_count(
+                        Domain([('id', '=', task.id), ('company_id', 'in', task.env.companies.ids)])
+                        & Domain('project_id', 'any!', manager_domain),
+                    ):
+                        return True
+            else:
+                project = record if record._name == 'project.project' else record.project_id
+                if project and project.user_id == user:
+                    return True
         return super()._liwan_contextual_capability(user, key, record)
 
     @api.model

@@ -29,6 +29,7 @@ export const TaskDetailSchema = TaskSchema.extend({
   subtasks: z.array(TaskSchema),
   depends_on: z.array(z.object({ id: z.number().int().positive(), name: z.string(), state: TaskStateSchema }).strict()),
   attachments: z.array(z.object({ id: z.number().int().positive(), name: z.string(), mimetype: z.string(), url: z.string(), size: z.number().int().nonnegative() }).strict()),
+  planning_enabled: z.boolean(),
   can_manage_dependencies: z.boolean().default(false), milestone: RefSchema.nullable(), created_at: z.string(), updated_at: z.string(),
   planned_start: CalendarDateSchema.nullable().default(null), deliverables: z.array(TaskDeliverableSchema).default([]),
   allowed_actions: z.array(z.enum([
@@ -42,8 +43,8 @@ export const TaskDetailSchema = TaskSchema.extend({
   completion_approver: RefSchema.nullable(),
   completion_blocked_reason: z.enum(['no_reviewer', 'reviewer_ineligible']).nullable(),
   // The company's earned value progress method and the task's percent complete under it (a done task is 100).
-  progress_method: EvmProgressMethodSchema,
-  percent_complete: z.number().int().min(0).max(100),
+  progress_method: EvmProgressMethodSchema.nullable(),
+  percent_complete: z.number().int().min(0).max(100).nullable(),
 }).strict()
 
 export const DependencySchema = z.object({ id: z.number().int().positive(), name: z.string(), state: TaskStateSchema }).strict()

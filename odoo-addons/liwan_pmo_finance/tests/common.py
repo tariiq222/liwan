@@ -24,6 +24,7 @@ class PmoFinanceCase(AnalyticCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        cls._set_project_finance_tool_policy(cls.company, 'enabled')
         Project = cls.env['project.project']
         cls.project = Project.create({'name': 'Gulf Tower', 'company_id': cls.company.id})
         cls.other_project = Project.create({'name': 'Harbor Mall', 'company_id': cls.company.id})
@@ -50,6 +51,13 @@ class PmoFinanceCase(AnalyticCase):
             company_id=cls.company.id, company_ids=[Command.set(cls.company.ids)],
         )
         cls._post_documents()
+
+    @classmethod
+    def _set_project_finance_tool_policy(cls, company, policy):
+        # This bridge fixture exercises PMO's finance tool, including newly created
+        # projects. Its company policy is separate from finance.enabled below.
+        settings = cls.env['liwan.pmo.settings'].with_company(company)
+        settings._params().set_param(settings._company_key('liwan_pmo.finance_tool_policy'), policy)
 
     @classmethod
     def _company_employee(cls, login):

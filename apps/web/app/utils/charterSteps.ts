@@ -14,8 +14,8 @@ const OPTIONAL_CHARTER_STEPS: readonly ProjectCharterStep[] = PROJECT_CHARTER_ST
 
 export const CHARTER_STEP_FIELDS: Record<CharterWizardStep, readonly CharterFieldKey[]> = {
   basics: ['name', 'code', 'description', 'type', 'owning_unit', 'manager', 'sponsor'],
-  justification: ['authority', 'rationale', 'objectives', 'benefits'],
-  scope: ['scope', 'exclusions', 'high_level_requirements', 'deliverables', 'acceptance', 'success'],
+  justification: ['authority', 'rationale', 'benefits'],
+  scope: ['scope', 'exclusions', 'high_level_requirements', 'deliverables', 'acceptance'],
   schedule: ['date_start', 'date_end', 'priority'],
   budget: ['budget_state', 'amount', 'currency'],
   risks: ['assumptions', 'constraints', 'closure'],

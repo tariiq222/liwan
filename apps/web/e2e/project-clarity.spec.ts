@@ -13,8 +13,8 @@ test.beforeEach(async ({ page, context, baseURL }) => {
 // Outside a project the page title is the h1. Inside one, the project name is the only h1 and the active tab names the section.
 for (const [path, title, inProject] of [
   ['/projects', 'كل المشاريع', false], ['/projects?mine=1', 'مشاريعي', false],
-  ['/projects/1', 'الملخص', true], ['/projects/1?tab=summary', 'الملخص', true],
-  ['/projects/1?tab=milestones', 'المعالم', true], ['/projects/1/register', 'المخاطر والمشكلات', true],
+  ['/projects/1', 'الملخص', true], ['/projects/1/', 'الملخص', true],
+  ['/projects/1/milestones', 'المعالم', true], ['/projects/1/register', 'المخاطر والمشكلات', true],
   ['/projects/1/stakeholders', 'أصحاب المصلحة', true], ['/projects/1/raci', 'المسؤوليات RACI', true],
 ] as const) {
   test(`clear section heading ${path}`, async ({ page }, testInfo) => {

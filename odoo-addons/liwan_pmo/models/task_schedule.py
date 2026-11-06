@@ -1,10 +1,16 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import date, datetime
 
-from odoo import fields, models
+from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 
 from .project_task import DEPENDENCY_WRITE_MARKER, SCHEDULE_WRITE_MARKER
+from .project_tools import (
+    check_tool_fields,
+    tool_domain_fields,
+    tool_group_domain,
+    tool_read_fields,
+)
 
 
 def _raise_on_dependency_cycle(task, ids):
@@ -38,12 +44,53 @@ def _raise_on_dependency_cycle(task, ids):
 class ProjectTaskSchedule(models.Model):
     _inherit = 'project.task'
 
+    _liwan_tool_field_map = {
+        'planning': {'milestone_id', 'depend_on_ids', 'dependent_ids', 'liwan_planned_start', 'allow_task_dependencies', 'liwan_percent_complete'},
+        'finance': {'liwan_percent_complete'},
+    }
+
+    def read(self, fields=None, load='_classic_read'):
+        return super().read(tool_read_fields(self, fields), load=load)
+
+    def export_data(self, fields_to_export):
+        check_tool_fields(self, fields_to_export)
+        return super().export_data(fields_to_export)
+
+    @api.model
+    @api.readonly
+    def read_group(self, domain, fields, groupby, offset=0, limit=None, orderby=False, lazy=True):
+        domain = tool_group_domain(self, domain, [*fields, *(groupby if isinstance(groupby, list) else [groupby]), orderby or ''])
+        return super().read_group(domain, fields, groupby, offset=offset, limit=limit, orderby=orderby, lazy=lazy)
+
+    @api.model
+    @api.readonly
+    def formatted_read_group(self, domain, groupby=(), aggregates=(), having=(), offset=0, limit=None, order=None):
+        domain = tool_group_domain(self, domain, [*groupby, *aggregates, *tool_domain_fields(having), order or ''])
+        return super().formatted_read_group(domain, groupby, aggregates, having, offset, limit, order)
+
+    allow_task_dependencies = fields.Boolean(compute='_compute_liwan_allow_task_dependencies', related=None, store=False)
+
+    @api.depends('project_id.allow_task_dependencies', 'project_id.liwan_planning_enabled')
+    def _compute_liwan_allow_task_dependencies(self):
+        for task in self:
+            task.allow_task_dependencies = bool(task.project_id and task.project_id.allow_task_dependencies and task.project_id._liwan_tool_enabled('planning'))
+
+    @api.depends('stage_id', 'depend_on_ids.state')
+    def _compute_state(self):
+        enabled = self.filtered(lambda task: not task.project_id or task.project_id._liwan_tool_enabled('planning'))
+        if enabled:
+            super(ProjectTaskSchedule, enabled)._compute_state()
+        for task in self - enabled:
+            task.state = task.state or '01_in_progress'
+
     def _liwan_can_manage_dependencies(self):
         self.ensure_one()
         project = self.project_id
         return bool(
             project
+            and project.has_access('read')
             and project.active
+            and project._liwan_tool_enabled('planning')
             and project.company_id == self.env.company
             and project._liwan_can_manage(),
         )
@@ -53,7 +100,9 @@ class ProjectTaskSchedule(models.Model):
         project = self.project_id
         return bool(
             project
+            and project.has_access('read')
             and project.active
+            and project._liwan_tool_enabled('planning')
             and project.company_id == self.env.company
             and project._liwan_can_manage(),
         )
@@ -71,6 +120,7 @@ class ProjectTaskSchedule(models.Model):
         if not project or not project.active or project.company_id != self.env.company:
             raise AccessError(self.env._("Scheduling requires an active current-company project."))
         project._liwan_check_visible_current()
+        project._liwan_check_tool('planning')
         if not self._liwan_can_manage_schedule():
             raise AccessError(self.env._("Only the project manager can change task scheduling."))
         for value, label in ((start, 'start'), (end, 'end')):
@@ -151,6 +201,8 @@ class ProjectTaskSchedule(models.Model):
 
     def _liwan_validate_schedule_invariant(self):
         for task in self:
+            if task.project_id and not task.project_id._liwan_tool_enabled('planning'):
+                continue
             start = task.liwan_planned_start
             end = fields.Date.to_date(task.date_deadline) if task.date_deadline else False
             if start and (not end or start > end):

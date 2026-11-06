@@ -155,8 +155,8 @@ class ProjectController(http.Controller):
         if not payload and charter is _ABSENT:
             raise ApiError(422, 'invalid', "no fields to update")
         project = get_visible_record('project.project', project_id)
-        if charter is not _ABSENT and expected is _ABSENT:
-            raise ApiError(422, 'invalid', "expected_updated_at is required when charter is present", field='expected_updated_at')
+        if (charter is not _ABSENT or {'tool_preferences', 'objectives', 'success_criteria'}.intersection(payload)) and expected is _ABSENT:
+            raise ApiError(422, 'invalid', "expected_updated_at is required for tools, objectives, success criteria or charter", field='expected_updated_at')
         if expected is not _ABSENT:
             parse_write_token(expected)
             try:

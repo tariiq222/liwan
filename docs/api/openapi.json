@@ -2477,23 +2477,11 @@
                     "maxLength": 4000,
                     "type": "string"
                   },
-                  "objectives": {
-                    "items": {
-                      "maxLength": 500,
-                      "type": "string"
-                    },
-                    "maxItems": 10,
-                    "type": "array"
-                  },
                   "rationale": {
                     "maxLength": 4000,
                     "type": "string"
                   },
                   "scope": {
-                    "maxLength": 4000,
-                    "type": "string"
-                  },
-                  "success": {
                     "maxLength": 4000,
                     "type": "string"
                   }
@@ -2515,6 +2503,32 @@
               "name": {
                 "maxLength": 255,
                 "minLength": 1,
+                "type": "string"
+              },
+              "objectives": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "goal": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "metric": {
+                      "type": "string"
+                    },
+                    "target": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "goal"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "success_criteria": {
+                "maxLength": 4000,
                 "type": "string"
               }
             },
@@ -2557,23 +2571,11 @@
                 "maxLength": 4000,
                 "type": "string"
               },
-              "objectives": {
-                "items": {
-                  "maxLength": 500,
-                  "type": "string"
-                },
-                "maxItems": 10,
-                "type": "array"
-              },
               "rationale": {
                 "maxLength": 4000,
                 "type": "string"
               },
               "scope": {
-                "maxLength": 4000,
-                "type": "string"
-              },
-              "success": {
                 "maxLength": 4000,
                 "type": "string"
               }
@@ -2595,6 +2597,32 @@
           "name": {
             "maxLength": 255,
             "minLength": 1,
+            "type": "string"
+          },
+          "objectives": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "goal": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "metric": {
+                  "type": "string"
+                },
+                "target": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "goal"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "success_criteria": {
+            "maxLength": 4000,
             "type": "string"
           }
         },
@@ -56239,9 +56267,7 @@
             ]
           },
           "kind": {
-            "enum": [
-              "whatsapp"
-            ],
+            "const": "whatsapp",
             "type": "string"
           },
           "name": {
@@ -56429,7 +56455,8 @@
       "InboxChannelKindSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
-          "whatsapp"
+          "whatsapp",
+          "tiktok"
         ],
         "type": "string"
       },
@@ -56448,7 +56475,10 @@
                   ]
                 },
                 "business_account_id": {
-                  "type": "string"
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "callback_url": {
                   "type": "string"
@@ -56482,10 +56512,16 @@
                   "type": "boolean"
                 },
                 "has_app_secret": {
-                  "type": "boolean"
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "has_verify_token": {
-                  "type": "boolean"
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
                 },
                 "health": {
                   "additionalProperties": false,
@@ -56655,7 +56691,8 @@
                 },
                 "kind": {
                   "enum": [
-                    "whatsapp"
+                    "whatsapp",
+                    "tiktok"
                   ],
                   "type": "string"
                 },
@@ -56679,8 +56716,15 @@
                 "name": {
                   "type": "string"
                 },
+                "needs_reconnect": {
+                  "default": false,
+                  "type": "boolean"
+                },
                 "phone_number_id": {
-                  "type": "string"
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "state": {
                   "enum": [
@@ -56690,6 +56734,49 @@
                     "disabled"
                   ],
                   "type": "string"
+                },
+                "tiktok_prompts_enabled": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "tiktok_questions_enabled": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "tiktok_username": {
+                  "default": null,
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "tiktok_welcome_audit": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "reviewing",
+                        "approved",
+                        "rejected"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "token_expires_at": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
                 }
               },
               "required": [
@@ -56707,7 +56794,13 @@
                 "callback_url",
                 "last_error",
                 "last_event_at",
-                "health"
+                "health",
+                "tiktok_username",
+                "token_expires_at",
+                "needs_reconnect",
+                "tiktok_welcome_audit",
+                "tiktok_questions_enabled",
+                "tiktok_prompts_enabled"
               ],
               "type": "object"
             },
@@ -56785,7 +56878,10 @@
             ]
           },
           "business_account_id": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "callback_url": {
             "type": "string"
@@ -56819,10 +56915,16 @@
             "type": "boolean"
           },
           "has_app_secret": {
-            "type": "boolean"
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "has_verify_token": {
-            "type": "boolean"
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "health": {
             "additionalProperties": false,
@@ -56992,7 +57094,8 @@
           },
           "kind": {
             "enum": [
-              "whatsapp"
+              "whatsapp",
+              "tiktok"
             ],
             "type": "string"
           },
@@ -57016,8 +57119,15 @@
           "name": {
             "type": "string"
           },
+          "needs_reconnect": {
+            "default": false,
+            "type": "boolean"
+          },
           "phone_number_id": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "state": {
             "enum": [
@@ -57027,6 +57137,49 @@
               "disabled"
             ],
             "type": "string"
+          },
+          "tiktok_prompts_enabled": {
+            "default": false,
+            "type": "boolean"
+          },
+          "tiktok_questions_enabled": {
+            "default": false,
+            "type": "boolean"
+          },
+          "tiktok_username": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tiktok_welcome_audit": {
+            "anyOf": [
+              {
+                "enum": [
+                  "reviewing",
+                  "approved",
+                  "rejected"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "token_expires_at": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           }
         },
         "required": [
@@ -57044,7 +57197,13 @@
           "callback_url",
           "last_error",
           "last_event_at",
-          "health"
+          "health",
+          "tiktok_username",
+          "token_expires_at",
+          "needs_reconnect",
+          "tiktok_welcome_audit",
+          "tiktok_questions_enabled",
+          "tiktok_prompts_enabled"
         ],
         "type": "object"
       },
@@ -57873,7 +58032,8 @@
               },
               "kind": {
                 "enum": [
-                  "whatsapp"
+                  "whatsapp",
+                  "tiktok"
                 ],
                 "type": "string"
               },
@@ -58033,6 +58193,26 @@
             ],
             "type": "string"
           },
+          "referral_ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "referral_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ad",
+                  "short_link"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reply_window_ends_at": {
             "anyOf": [
               {
@@ -58099,6 +58279,8 @@
           "unread",
           "reply_window_ends_at",
           "csat",
+          "referral_source",
+          "referral_ref",
           "can_reply",
           "can_assign"
         ],
@@ -58147,7 +58329,8 @@
                     },
                     "kind": {
                       "enum": [
-                        "whatsapp"
+                        "whatsapp",
+                        "tiktok"
                       ],
                       "type": "string"
                     },
@@ -58307,6 +58490,26 @@
                   ],
                   "type": "string"
                 },
+                "referral_ref": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "referral_source": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "ad",
+                        "short_link"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "reply_window_ends_at": {
                   "anyOf": [
                     {
@@ -58372,7 +58575,9 @@
                 "last_message_kind",
                 "unread",
                 "reply_window_ends_at",
-                "csat"
+                "csat",
+                "referral_source",
+                "referral_ref"
               ],
               "type": "object"
             },
@@ -58494,7 +58699,8 @@
               },
               "kind": {
                 "enum": [
-                  "whatsapp"
+                  "whatsapp",
+                  "tiktok"
                 ],
                 "type": "string"
               },
@@ -58654,6 +58860,26 @@
             ],
             "type": "string"
           },
+          "referral_ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "referral_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ad",
+                  "short_link"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reply_window_ends_at": {
             "anyOf": [
               {
@@ -58719,7 +58945,9 @@
           "last_message_kind",
           "unread",
           "reply_window_ends_at",
-          "csat"
+          "csat",
+          "referral_source",
+          "referral_ref"
         ],
         "type": "object"
       },
@@ -76681,6 +76909,676 @@
         ],
         "type": "string"
       },
+      "InboxTikTokAuditSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "draft",
+          "reviewing",
+          "approved",
+          "rejected"
+        ],
+        "type": "string"
+      },
+      "InboxTikTokConnectResponseSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "authorize_url": {
+            "format": "uri",
+            "maxLength": 4000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "authorize_url"
+        ],
+        "type": "object"
+      },
+      "InboxTikTokConnectSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "department_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "InboxTikTokShortcutCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "answer": {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              "kind": {
+                "const": "question",
+                "type": "string"
+              },
+              "question": {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              "sequence": {
+                "maximum": 1000,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "question",
+              "answer"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "content": {
+                "maxLength": 150,
+                "minLength": 1,
+                "type": "string"
+              },
+              "kind": {
+                "const": "prompt",
+                "type": "string"
+              },
+              "sequence": {
+                "maximum": 1000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "title": {
+                "maxLength": 18,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "title",
+              "content"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "InboxTikTokShortcutEnableResultSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "answer": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "audit": {
+                  "enum": [
+                    "draft",
+                    "reviewing",
+                    "approved",
+                    "rejected"
+                  ],
+                  "type": "string"
+                },
+                "content": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "kind": {
+                  "enum": [
+                    "question",
+                    "prompt"
+                  ],
+                  "type": "string"
+                },
+                "provider_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "question": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "sequence": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                "sync_error": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "title": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "kind",
+                "sequence",
+                "question",
+                "answer",
+                "title",
+                "content",
+                "provider_id",
+                "audit",
+                "sync_error"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "question",
+              "prompt"
+            ],
+            "type": "string"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "enabled",
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "InboxTikTokShortcutEnableSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "question",
+              "prompt"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "InboxTikTokShortcutKindSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "question",
+          "prompt"
+        ],
+        "type": "string"
+      },
+      "InboxTikTokShortcutListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "answer": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "audit": {
+                  "enum": [
+                    "draft",
+                    "reviewing",
+                    "approved",
+                    "rejected"
+                  ],
+                  "type": "string"
+                },
+                "content": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "kind": {
+                  "enum": [
+                    "question",
+                    "prompt"
+                  ],
+                  "type": "string"
+                },
+                "provider_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "question": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "sequence": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                "sync_error": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "title": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "kind",
+                "sequence",
+                "question",
+                "answer",
+                "title",
+                "content",
+                "provider_id",
+                "audit",
+                "sync_error"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "InboxTikTokShortcutPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "content": {
+            "maxLength": 150,
+            "minLength": 1,
+            "type": "string"
+          },
+          "question": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "sequence": {
+            "maximum": 1000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": {
+            "maxLength": 18,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "InboxTikTokShortcutSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "audit": {
+            "enum": [
+              "draft",
+              "reviewing",
+              "approved",
+              "rejected"
+            ],
+            "type": "string"
+          },
+          "content": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "question",
+              "prompt"
+            ],
+            "type": "string"
+          },
+          "provider_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "question": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sequence": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          },
+          "sync_error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "sequence",
+          "question",
+          "answer",
+          "title",
+          "content",
+          "provider_id",
+          "audit",
+          "sync_error"
+        ],
+        "type": "object"
+      },
+      "InboxTikTokSyncAnswerSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "job": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "conversations_count": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "created_at": {
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                    "type": "string"
+                  },
+                  "error": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "finished_at": {
+                    "anyOf": [
+                      {
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "messages_count": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "phase": {
+                    "enum": [
+                      "single",
+                      "stranger",
+                      "messages"
+                    ],
+                    "type": "string"
+                  },
+                  "started_at": {
+                    "anyOf": [
+                      {
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "state": {
+                    "enum": [
+                      "queued",
+                      "running",
+                      "done",
+                      "failed"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "state",
+                  "phase",
+                  "conversations_count",
+                  "messages_count",
+                  "error",
+                  "started_at",
+                  "finished_at",
+                  "created_at"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "job"
+        ],
+        "type": "object"
+      },
+      "InboxTikTokSyncPhaseSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "single",
+          "stranger",
+          "messages"
+        ],
+        "type": "string"
+      },
+      "InboxTikTokSyncSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "conversations_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "created_at": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+            "type": "string"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "messages_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "phase": {
+            "enum": [
+              "single",
+              "stranger",
+              "messages"
+            ],
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "failed"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "state",
+          "phase",
+          "conversations_count",
+          "messages_count",
+          "error",
+          "started_at",
+          "finished_at",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "InboxTikTokSyncStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "queued",
+          "running",
+          "done",
+          "failed"
+        ],
+        "type": "string"
+      },
       "InboxUploadCreateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -88611,7 +89509,10 @@
         "additionalProperties": false,
         "properties": {
           "budget_total": {
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "change": {
             "anyOf": [
@@ -88785,9 +89686,16 @@
                   ]
                 },
                 "planned_value_share": {
-                  "maximum": 1,
-                  "minimum": 0,
-                  "type": "number"
+                  "anyOf": [
+                    {
+                      "maximum": 1,
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "task_id": {
                   "anyOf": [
@@ -88875,7 +89783,10 @@
               "additionalProperties": false,
               "properties": {
                 "budget_total": {
-                  "type": "number"
+                  "type": [
+                    "number",
+                    "null"
+                  ]
                 },
                 "change": {
                   "anyOf": [
@@ -89048,7 +89959,10 @@
         "additionalProperties": false,
         "properties": {
           "budget_total": {
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "change": {
             "anyOf": [
@@ -89234,9 +90148,16 @@
             ]
           },
           "planned_value_share": {
-            "maximum": 1,
-            "minimum": 0,
-            "type": "number"
+            "anyOf": [
+              {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "task_id": {
             "anyOf": [
@@ -90292,11 +91213,18 @@
             "type": "string"
           },
           "budget_state": {
-            "enum": [
-              "unknown",
-              "estimate"
-            ],
-            "type": "string"
+            "anyOf": [
+              {
+                "enum": [
+                  "unknown",
+                  "estimate"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "can_review": {
             "type": "boolean"
@@ -90376,29 +91304,6 @@
           },
           "high_level_requirements": {
             "type": "string"
-          },
-          "objectives": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "goal": {
-                  "type": "string"
-                },
-                "metric": {
-                  "type": "string"
-                },
-                "target": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "goal",
-                "metric",
-                "target"
-              ],
-              "type": "object"
-            },
-            "type": "array"
           },
           "owning_unit": {
             "anyOf": [
@@ -90514,9 +91419,6 @@
               }
             ]
           },
-          "success": {
-            "type": "string"
-          },
           "type": {
             "anyOf": [
               {
@@ -90564,13 +91466,11 @@
           "sponsor",
           "authority",
           "rationale",
-          "objectives",
           "benefits",
           "scope",
           "exclusions",
           "high_level_requirements",
           "deliverables",
-          "success",
           "budget_state",
           "amount",
           "currency",
@@ -90683,29 +91583,6 @@
           "high_level_requirements": {
             "type": "string"
           },
-          "objectives": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "goal": {
-                  "type": "string"
-                },
-                "metric": {
-                  "type": "string"
-                },
-                "target": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "goal",
-                "metric",
-                "target"
-              ],
-              "type": "object"
-            },
-            "type": "array"
-          },
           "owning_unit_id": {
             "anyOf": [
               {
@@ -90751,9 +91628,6 @@
                 "type": "null"
               }
             ]
-          },
-          "success": {
-            "type": "string"
           },
           "type_id": {
             "anyOf": [
@@ -90833,153 +91707,6 @@
           "allow_task_dependencies": {
             "type": "boolean"
           },
-          "charter": {
-            "additionalProperties": false,
-            "properties": {
-              "amount": {
-                "type": [
-                  "number",
-                  "null"
-                ]
-              },
-              "assumptions": {
-                "type": "string"
-              },
-              "authority": {
-                "type": "string"
-              },
-              "benefits": {
-                "type": "string"
-              },
-              "budget_state": {
-                "enum": [
-                  "unknown",
-                  "estimate"
-                ],
-                "type": "string"
-              },
-              "closure": {
-                "type": "string"
-              },
-              "constraints": {
-                "type": "string"
-              },
-              "deliverables": {
-                "items": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "acceptance": {
-                      "type": "string"
-                    },
-                    "description": {
-                      "type": "string"
-                    },
-                    "name": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "name",
-                    "description",
-                    "acceptance"
-                  ],
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              "exclusions": {
-                "type": "string"
-              },
-              "high_level_requirements": {
-                "type": "string"
-              },
-              "objectives": {
-                "items": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "goal": {
-                      "type": "string"
-                    },
-                    "metric": {
-                      "type": "string"
-                    },
-                    "target": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "goal",
-                    "metric",
-                    "target"
-                  ],
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              "owning_unit_id": {
-                "anyOf": [
-                  {
-                    "exclusiveMinimum": 0,
-                    "maximum": 9007199254740991,
-                    "type": "integer"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "priority": {
-                "anyOf": [
-                  {
-                    "enum": [
-                      "low",
-                      "normal",
-                      "high",
-                      "critical"
-                    ],
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "rationale": {
-                "type": "string"
-              },
-              "scope": {
-                "type": "string"
-              },
-              "sponsor_id": {
-                "anyOf": [
-                  {
-                    "exclusiveMinimum": 0,
-                    "maximum": 9007199254740991,
-                    "type": "integer"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "success": {
-                "type": "string"
-              },
-              "type_id": {
-                "anyOf": [
-                  {
-                    "exclusiveMinimum": 0,
-                    "maximum": 9007199254740991,
-                    "type": "integer"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              }
-            },
-            "type": "object"
-          },
           "date": {
             "type": [
               "string",
@@ -91005,11 +91732,36 @@
             "minLength": 1,
             "type": "string"
           },
+          "objectives": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "goal": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "metric": {
+                  "type": "string"
+                },
+                "target": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "goal"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
           "privacy_visibility": {
             "enum": [
               "employees",
               "followers"
             ],
+            "type": "string"
+          },
+          "success_criteria": {
             "type": "string"
           },
           "tag_ids": {
@@ -91067,21 +91819,81 @@
                   ]
                 },
                 "finance": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "actual": {
-                      "type": "number"
-                    },
-                    "actual_account": {
-                      "anyOf": [
-                        {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "actual": {
+                          "type": "number"
+                        },
+                        "actual_account": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "code": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "id": {
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "type": "integer"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "code"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "actual_source": {
+                          "enum": [
+                            "manual",
+                            "external"
+                          ],
+                          "type": "string"
+                        },
+                        "budget_count": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "can_choose_actual_account": {
+                          "type": "boolean"
+                        },
+                        "can_read_actual_lines": {
+                          "type": "boolean"
+                        },
+                        "charter_estimate": {
+                          "anyOf": [
+                            {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "currency": {
                           "additionalProperties": false,
                           "properties": {
-                            "code": {
-                              "type": [
-                                "string",
-                                "null"
-                              ]
+                            "decimal_places": {
+                              "maximum": 9007199254740991,
+                              "minimum": -9007199254740991,
+                              "type": "integer"
                             },
                             "id": {
                               "exclusiveMinimum": 0,
@@ -91090,131 +91902,78 @@
                             },
                             "name": {
                               "type": "string"
+                            },
+                            "symbol": {
+                              "type": "string"
                             }
                           },
                           "required": [
                             "id",
                             "name",
-                            "code"
+                            "symbol",
+                            "decimal_places"
                           ],
                           "type": "object"
                         },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "actual_source": {
-                      "enum": [
-                        "manual",
-                        "external"
-                      ],
-                      "type": "string"
-                    },
-                    "budget_count": {
-                      "maximum": 9007199254740991,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    "can_choose_actual_account": {
-                      "type": "boolean"
-                    },
-                    "can_read_actual_lines": {
-                      "type": "boolean"
-                    },
-                    "charter_estimate": {
-                      "anyOf": [
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "currency": {
-                      "additionalProperties": false,
-                      "properties": {
-                        "decimal_places": {
+                        "expense_count": {
                           "maximum": 9007199254740991,
-                          "minimum": -9007199254740991,
+                          "minimum": 0,
                           "type": "integer"
                         },
-                        "id": {
+                        "over_budget": {
+                          "type": "boolean"
+                        },
+                        "planned": {
+                          "anyOf": [
+                            {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "project_id": {
                           "exclusiveMinimum": 0,
                           "maximum": 9007199254740991,
                           "type": "integer"
                         },
-                        "name": {
-                          "type": "string"
+                        "remaining": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
                         },
-                        "symbol": {
-                          "type": "string"
+                        "utilization_percent": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
                         }
                       },
                       "required": [
-                        "id",
-                        "name",
-                        "symbol",
-                        "decimal_places"
+                        "project_id",
+                        "currency",
+                        "charter_estimate",
+                        "planned",
+                        "actual",
+                        "remaining",
+                        "utilization_percent",
+                        "over_budget",
+                        "budget_count",
+                        "expense_count",
+                        "actual_source",
+                        "actual_account",
+                        "can_read_actual_lines",
+                        "can_choose_actual_account"
                       ],
                       "type": "object"
                     },
-                    "expense_count": {
-                      "maximum": 9007199254740991,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    "over_budget": {
-                      "type": "boolean"
-                    },
-                    "planned": {
-                      "anyOf": [
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "project_id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "remaining": {
-                      "type": [
-                        "number",
-                        "null"
-                      ]
-                    },
-                    "utilization_percent": {
-                      "type": [
-                        "number",
-                        "null"
-                      ]
+                    {
+                      "type": "null"
                     }
-                  },
-                  "required": [
-                    "project_id",
-                    "currency",
-                    "charter_estimate",
-                    "planned",
-                    "actual",
-                    "remaining",
-                    "utilization_percent",
-                    "over_budget",
-                    "budget_count",
-                    "expense_count",
-                    "actual_source",
-                    "actual_account",
-                    "can_read_actual_lines",
-                    "can_choose_actual_account"
-                  ],
-                  "type": "object"
+                  ]
                 },
                 "overdue_task_count": {
                   "anyOf": [
@@ -91340,21 +92099,81 @@
                   ]
                 },
                 "finance": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "actual": {
-                      "type": "number"
-                    },
-                    "actual_account": {
-                      "anyOf": [
-                        {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "actual": {
+                          "type": "number"
+                        },
+                        "actual_account": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "code": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "id": {
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "type": "integer"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "code"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "actual_source": {
+                          "enum": [
+                            "manual",
+                            "external"
+                          ],
+                          "type": "string"
+                        },
+                        "budget_count": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "can_choose_actual_account": {
+                          "type": "boolean"
+                        },
+                        "can_read_actual_lines": {
+                          "type": "boolean"
+                        },
+                        "charter_estimate": {
+                          "anyOf": [
+                            {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "currency": {
                           "additionalProperties": false,
                           "properties": {
-                            "code": {
-                              "type": [
-                                "string",
-                                "null"
-                              ]
+                            "decimal_places": {
+                              "maximum": 9007199254740991,
+                              "minimum": -9007199254740991,
+                              "type": "integer"
                             },
                             "id": {
                               "exclusiveMinimum": 0,
@@ -91363,131 +92182,78 @@
                             },
                             "name": {
                               "type": "string"
+                            },
+                            "symbol": {
+                              "type": "string"
                             }
                           },
                           "required": [
                             "id",
                             "name",
-                            "code"
+                            "symbol",
+                            "decimal_places"
                           ],
                           "type": "object"
                         },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "actual_source": {
-                      "enum": [
-                        "manual",
-                        "external"
-                      ],
-                      "type": "string"
-                    },
-                    "budget_count": {
-                      "maximum": 9007199254740991,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    "can_choose_actual_account": {
-                      "type": "boolean"
-                    },
-                    "can_read_actual_lines": {
-                      "type": "boolean"
-                    },
-                    "charter_estimate": {
-                      "anyOf": [
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "currency": {
-                      "additionalProperties": false,
-                      "properties": {
-                        "decimal_places": {
+                        "expense_count": {
                           "maximum": 9007199254740991,
-                          "minimum": -9007199254740991,
+                          "minimum": 0,
                           "type": "integer"
                         },
-                        "id": {
+                        "over_budget": {
+                          "type": "boolean"
+                        },
+                        "planned": {
+                          "anyOf": [
+                            {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "project_id": {
                           "exclusiveMinimum": 0,
                           "maximum": 9007199254740991,
                           "type": "integer"
                         },
-                        "name": {
-                          "type": "string"
+                        "remaining": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
                         },
-                        "symbol": {
-                          "type": "string"
+                        "utilization_percent": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
                         }
                       },
                       "required": [
-                        "id",
-                        "name",
-                        "symbol",
-                        "decimal_places"
+                        "project_id",
+                        "currency",
+                        "charter_estimate",
+                        "planned",
+                        "actual",
+                        "remaining",
+                        "utilization_percent",
+                        "over_budget",
+                        "budget_count",
+                        "expense_count",
+                        "actual_source",
+                        "actual_account",
+                        "can_read_actual_lines",
+                        "can_choose_actual_account"
                       ],
                       "type": "object"
                     },
-                    "expense_count": {
-                      "maximum": 9007199254740991,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    "over_budget": {
-                      "type": "boolean"
-                    },
-                    "planned": {
-                      "anyOf": [
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "project_id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "remaining": {
-                      "type": [
-                        "number",
-                        "null"
-                      ]
-                    },
-                    "utilization_percent": {
-                      "type": [
-                        "number",
-                        "null"
-                      ]
+                    {
+                      "type": "null"
                     }
-                  },
-                  "required": [
-                    "project_id",
-                    "currency",
-                    "charter_estimate",
-                    "planned",
-                    "actual",
-                    "remaining",
-                    "utilization_percent",
-                    "over_budget",
-                    "budget_count",
-                    "expense_count",
-                    "actual_source",
-                    "actual_account",
-                    "can_read_actual_lines",
-                    "can_choose_actual_account"
-                  ],
-                  "type": "object"
+                  ]
                 },
                 "overdue_task_count": {
                   "anyOf": [
@@ -91591,21 +92357,81 @@
                   ]
                 },
                 "finance": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "actual": {
-                      "type": "number"
-                    },
-                    "actual_account": {
-                      "anyOf": [
-                        {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "actual": {
+                          "type": "number"
+                        },
+                        "actual_account": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "code": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "id": {
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "type": "integer"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "code"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "actual_source": {
+                          "enum": [
+                            "manual",
+                            "external"
+                          ],
+                          "type": "string"
+                        },
+                        "budget_count": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "can_choose_actual_account": {
+                          "type": "boolean"
+                        },
+                        "can_read_actual_lines": {
+                          "type": "boolean"
+                        },
+                        "charter_estimate": {
+                          "anyOf": [
+                            {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "currency": {
                           "additionalProperties": false,
                           "properties": {
-                            "code": {
-                              "type": [
-                                "string",
-                                "null"
-                              ]
+                            "decimal_places": {
+                              "maximum": 9007199254740991,
+                              "minimum": -9007199254740991,
+                              "type": "integer"
                             },
                             "id": {
                               "exclusiveMinimum": 0,
@@ -91614,131 +92440,78 @@
                             },
                             "name": {
                               "type": "string"
+                            },
+                            "symbol": {
+                              "type": "string"
                             }
                           },
                           "required": [
                             "id",
                             "name",
-                            "code"
+                            "symbol",
+                            "decimal_places"
                           ],
                           "type": "object"
                         },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "actual_source": {
-                      "enum": [
-                        "manual",
-                        "external"
-                      ],
-                      "type": "string"
-                    },
-                    "budget_count": {
-                      "maximum": 9007199254740991,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    "can_choose_actual_account": {
-                      "type": "boolean"
-                    },
-                    "can_read_actual_lines": {
-                      "type": "boolean"
-                    },
-                    "charter_estimate": {
-                      "anyOf": [
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "currency": {
-                      "additionalProperties": false,
-                      "properties": {
-                        "decimal_places": {
+                        "expense_count": {
                           "maximum": 9007199254740991,
-                          "minimum": -9007199254740991,
+                          "minimum": 0,
                           "type": "integer"
                         },
-                        "id": {
+                        "over_budget": {
+                          "type": "boolean"
+                        },
+                        "planned": {
+                          "anyOf": [
+                            {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "project_id": {
                           "exclusiveMinimum": 0,
                           "maximum": 9007199254740991,
                           "type": "integer"
                         },
-                        "name": {
-                          "type": "string"
+                        "remaining": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
                         },
-                        "symbol": {
-                          "type": "string"
+                        "utilization_percent": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
                         }
                       },
                       "required": [
-                        "id",
-                        "name",
-                        "symbol",
-                        "decimal_places"
+                        "project_id",
+                        "currency",
+                        "charter_estimate",
+                        "planned",
+                        "actual",
+                        "remaining",
+                        "utilization_percent",
+                        "over_budget",
+                        "budget_count",
+                        "expense_count",
+                        "actual_source",
+                        "actual_account",
+                        "can_read_actual_lines",
+                        "can_choose_actual_account"
                       ],
                       "type": "object"
                     },
-                    "expense_count": {
-                      "maximum": 9007199254740991,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    "over_budget": {
-                      "type": "boolean"
-                    },
-                    "planned": {
-                      "anyOf": [
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "project_id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "remaining": {
-                      "type": [
-                        "number",
-                        "null"
-                      ]
-                    },
-                    "utilization_percent": {
-                      "type": [
-                        "number",
-                        "null"
-                      ]
+                    {
+                      "type": "null"
                     }
-                  },
-                  "required": [
-                    "project_id",
-                    "currency",
-                    "charter_estimate",
-                    "planned",
-                    "actual",
-                    "remaining",
-                    "utilization_percent",
-                    "over_budget",
-                    "budget_count",
-                    "expense_count",
-                    "actual_source",
-                    "actual_account",
-                    "can_read_actual_lines",
-                    "can_choose_actual_account"
-                  ],
-                  "type": "object"
+                  ]
                 },
                 "overdue_task_count": {
                   "anyOf": [
@@ -92012,21 +92785,81 @@
                   ]
                 },
                 "finance": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "actual": {
-                      "type": "number"
-                    },
-                    "actual_account": {
-                      "anyOf": [
-                        {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "actual": {
+                          "type": "number"
+                        },
+                        "actual_account": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "code": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "id": {
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "type": "integer"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "code"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "actual_source": {
+                          "enum": [
+                            "manual",
+                            "external"
+                          ],
+                          "type": "string"
+                        },
+                        "budget_count": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "can_choose_actual_account": {
+                          "type": "boolean"
+                        },
+                        "can_read_actual_lines": {
+                          "type": "boolean"
+                        },
+                        "charter_estimate": {
+                          "anyOf": [
+                            {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "currency": {
                           "additionalProperties": false,
                           "properties": {
-                            "code": {
-                              "type": [
-                                "string",
-                                "null"
-                              ]
+                            "decimal_places": {
+                              "maximum": 9007199254740991,
+                              "minimum": -9007199254740991,
+                              "type": "integer"
                             },
                             "id": {
                               "exclusiveMinimum": 0,
@@ -92035,131 +92868,78 @@
                             },
                             "name": {
                               "type": "string"
+                            },
+                            "symbol": {
+                              "type": "string"
                             }
                           },
                           "required": [
                             "id",
                             "name",
-                            "code"
+                            "symbol",
+                            "decimal_places"
                           ],
                           "type": "object"
                         },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "actual_source": {
-                      "enum": [
-                        "manual",
-                        "external"
-                      ],
-                      "type": "string"
-                    },
-                    "budget_count": {
-                      "maximum": 9007199254740991,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    "can_choose_actual_account": {
-                      "type": "boolean"
-                    },
-                    "can_read_actual_lines": {
-                      "type": "boolean"
-                    },
-                    "charter_estimate": {
-                      "anyOf": [
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "currency": {
-                      "additionalProperties": false,
-                      "properties": {
-                        "decimal_places": {
+                        "expense_count": {
                           "maximum": 9007199254740991,
-                          "minimum": -9007199254740991,
+                          "minimum": 0,
                           "type": "integer"
                         },
-                        "id": {
+                        "over_budget": {
+                          "type": "boolean"
+                        },
+                        "planned": {
+                          "anyOf": [
+                            {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "project_id": {
                           "exclusiveMinimum": 0,
                           "maximum": 9007199254740991,
                           "type": "integer"
                         },
-                        "name": {
-                          "type": "string"
+                        "remaining": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
                         },
-                        "symbol": {
-                          "type": "string"
+                        "utilization_percent": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
                         }
                       },
                       "required": [
-                        "id",
-                        "name",
-                        "symbol",
-                        "decimal_places"
+                        "project_id",
+                        "currency",
+                        "charter_estimate",
+                        "planned",
+                        "actual",
+                        "remaining",
+                        "utilization_percent",
+                        "over_budget",
+                        "budget_count",
+                        "expense_count",
+                        "actual_source",
+                        "actual_account",
+                        "can_read_actual_lines",
+                        "can_choose_actual_account"
                       ],
                       "type": "object"
                     },
-                    "expense_count": {
-                      "maximum": 9007199254740991,
-                      "minimum": 0,
-                      "type": "integer"
-                    },
-                    "over_budget": {
-                      "type": "boolean"
-                    },
-                    "planned": {
-                      "anyOf": [
-                        {
-                          "minimum": 0,
-                          "type": "number"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "project_id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "remaining": {
-                      "type": [
-                        "number",
-                        "null"
-                      ]
-                    },
-                    "utilization_percent": {
-                      "type": [
-                        "number",
-                        "null"
-                      ]
+                    {
+                      "type": "null"
                     }
-                  },
-                  "required": [
-                    "project_id",
-                    "currency",
-                    "charter_estimate",
-                    "planned",
-                    "actual",
-                    "remaining",
-                    "utilization_percent",
-                    "over_budget",
-                    "budget_count",
-                    "expense_count",
-                    "actual_source",
-                    "actual_account",
-                    "can_read_actual_lines",
-                    "can_choose_actual_account"
-                  ],
-                  "type": "object"
+                  ]
                 },
                 "overdue_task_count": {
                   "anyOf": [
@@ -92441,242 +93221,344 @@
             "type": "string"
           },
           "charter": {
-            "additionalProperties": false,
-            "properties": {
-              "amount": {
-                "type": [
-                  "number",
-                  "null"
-                ]
-              },
-              "approval_required": {
-                "type": "boolean"
-              },
-              "approved_at": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "approved_by": {
-                "anyOf": [
-                  {
-                    "additionalProperties": false,
-                    "properties": {
-                      "id": {
-                        "exclusiveMinimum": 0,
-                        "maximum": 9007199254740991,
-                        "type": "integer"
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "amount": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "approval_required": {
+                    "type": "boolean"
+                  },
+                  "approved_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "approved_by": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "type": "object"
                       },
-                      "name": {
-                        "type": "string"
+                      {
+                        "type": "null"
                       }
-                    },
-                    "required": [
-                      "id",
-                      "name"
-                    ],
-                    "type": "object"
+                    ]
                   },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "assumptions": {
-                "type": "string"
-              },
-              "authority": {
-                "type": "string"
-              },
-              "benefits": {
-                "type": "string"
-              },
-              "budget_state": {
-                "enum": [
-                  "unknown",
-                  "estimate"
-                ],
-                "type": "string"
-              },
-              "can_review": {
-                "type": "boolean"
-              },
-              "closure": {
-                "type": "string"
-              },
-              "code": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "constraints": {
-                "type": "string"
-              },
-              "currency": {
-                "anyOf": [
-                  {
-                    "additionalProperties": false,
-                    "properties": {
-                      "decimal_places": {
-                        "maximum": 9007199254740991,
-                        "minimum": -9007199254740991,
-                        "type": "integer"
-                      },
-                      "id": {
-                        "exclusiveMinimum": 0,
-                        "maximum": 9007199254740991,
-                        "type": "integer"
-                      },
-                      "name": {
+                  "assumptions": {
+                    "type": "string"
+                  },
+                  "authority": {
+                    "type": "string"
+                  },
+                  "benefits": {
+                    "type": "string"
+                  },
+                  "budget_state": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "unknown",
+                          "estimate"
+                        ],
                         "type": "string"
                       },
-                      "symbol": {
-                        "type": "string"
+                      {
+                        "type": "null"
                       }
-                    },
-                    "required": [
-                      "id",
-                      "name",
-                      "symbol",
-                      "decimal_places"
-                    ],
-                    "type": "object"
+                    ]
                   },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "deliverables": {
-                "items": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "acceptance": {
-                      "type": "string"
-                    },
-                    "description": {
-                      "type": "string"
-                    },
-                    "name": {
-                      "type": "string"
-                    }
+                  "can_review": {
+                    "type": "boolean"
                   },
-                  "required": [
-                    "name",
-                    "description",
-                    "acceptance"
-                  ],
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              "exclusions": {
-                "type": "string"
-              },
-              "high_level_requirements": {
-                "type": "string"
-              },
-              "objectives": {
-                "items": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "goal": {
-                      "type": "string"
-                    },
-                    "metric": {
-                      "type": "string"
-                    },
-                    "target": {
-                      "type": "string"
-                    }
+                  "closure": {
+                    "type": "string"
                   },
-                  "required": [
-                    "goal",
-                    "metric",
-                    "target"
-                  ],
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              "owning_unit": {
-                "anyOf": [
-                  {
-                    "additionalProperties": false,
-                    "properties": {
-                      "id": {
-                        "exclusiveMinimum": 0,
-                        "maximum": 9007199254740991,
-                        "type": "integer"
+                  "code": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "constraints": {
+                    "type": "string"
+                  },
+                  "currency": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "decimal_places": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer"
+                          },
+                          "id": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "symbol": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "symbol",
+                          "decimal_places"
+                        ],
+                        "type": "object"
                       },
-                      "name": {
-                        "type": "string"
+                      {
+                        "type": "null"
                       }
-                    },
-                    "required": [
-                      "id",
-                      "name"
-                    ],
-                    "type": "object"
+                    ]
                   },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "priority": {
-                "anyOf": [
-                  {
+                  "deliverables": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "acceptance": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "description",
+                        "acceptance"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "exclusions": {
+                    "type": "string"
+                  },
+                  "high_level_requirements": {
+                    "type": "string"
+                  },
+                  "owning_unit": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "priority": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "low",
+                          "normal",
+                          "high",
+                          "critical"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "rationale": {
+                    "type": "string"
+                  },
+                  "return_note": {
+                    "type": "string"
+                  },
+                  "scope": {
+                    "type": "string"
+                  },
+                  "sponsor": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "state": {
                     "enum": [
-                      "low",
-                      "normal",
-                      "high",
-                      "critical"
+                      "draft",
+                      "submitted",
+                      "approved"
                     ],
                     "type": "string"
                   },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "rationale": {
-                "type": "string"
-              },
-              "return_note": {
-                "type": "string"
-              },
-              "scope": {
-                "type": "string"
-              },
-              "sponsor": {
-                "anyOf": [
-                  {
-                    "additionalProperties": false,
-                    "properties": {
-                      "id": {
-                        "exclusiveMinimum": 0,
-                        "maximum": 9007199254740991,
-                        "type": "integer"
-                      },
-                      "name": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "name"
-                    ],
-                    "type": "object"
+                  "submitted_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
                   },
-                  {
-                    "type": "null"
+                  "submitted_by": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "type": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "charter_steps": {
+                            "items": {
+                              "enum": [
+                                "justification",
+                                "scope",
+                                "schedule",
+                                "budget",
+                                "risks"
+                              ],
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          "id": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "charter_steps"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
-                ]
+                },
+                "required": [
+                  "code",
+                  "type",
+                  "owning_unit",
+                  "sponsor",
+                  "authority",
+                  "rationale",
+                  "benefits",
+                  "scope",
+                  "exclusions",
+                  "high_level_requirements",
+                  "deliverables",
+                  "budget_state",
+                  "amount",
+                  "currency",
+                  "priority",
+                  "assumptions",
+                  "constraints",
+                  "closure",
+                  "state",
+                  "approval_required",
+                  "can_review",
+                  "submitted_by",
+                  "submitted_at",
+                  "approved_by",
+                  "approved_at",
+                  "return_note"
+                ],
+                "type": "object"
               },
-              "state": {
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "charter_state": {
+            "anyOf": [
+              {
                 "enum": [
                   "draft",
                   "submitted",
@@ -92684,119 +93566,10 @@
                 ],
                 "type": "string"
               },
-              "submitted_at": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "submitted_by": {
-                "anyOf": [
-                  {
-                    "additionalProperties": false,
-                    "properties": {
-                      "id": {
-                        "exclusiveMinimum": 0,
-                        "maximum": 9007199254740991,
-                        "type": "integer"
-                      },
-                      "name": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "name"
-                    ],
-                    "type": "object"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "success": {
-                "type": "string"
-              },
-              "type": {
-                "anyOf": [
-                  {
-                    "additionalProperties": false,
-                    "properties": {
-                      "charter_steps": {
-                        "items": {
-                          "enum": [
-                            "justification",
-                            "scope",
-                            "schedule",
-                            "budget",
-                            "risks"
-                          ],
-                          "type": "string"
-                        },
-                        "type": "array"
-                      },
-                      "id": {
-                        "exclusiveMinimum": 0,
-                        "maximum": 9007199254740991,
-                        "type": "integer"
-                      },
-                      "name": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "name",
-                      "charter_steps"
-                    ],
-                    "type": "object"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
+              {
+                "type": "null"
               }
-            },
-            "required": [
-              "code",
-              "type",
-              "owning_unit",
-              "sponsor",
-              "authority",
-              "rationale",
-              "objectives",
-              "benefits",
-              "scope",
-              "exclusions",
-              "high_level_requirements",
-              "deliverables",
-              "success",
-              "budget_state",
-              "amount",
-              "currency",
-              "priority",
-              "assumptions",
-              "constraints",
-              "closure",
-              "state",
-              "approval_required",
-              "can_review",
-              "submitted_by",
-              "submitted_at",
-              "approved_by",
-              "approved_at",
-              "return_note"
-            ],
-            "type": "object"
-          },
-          "charter_state": {
-            "enum": [
-              "draft",
-              "submitted",
-              "approved"
-            ],
-            "type": "string"
+            ]
           },
           "closed_task_count": {
             "maximum": 9007199254740991,
@@ -92887,27 +93660,53 @@
             ]
           },
           "milestone_count": {
-            "maximum": 9007199254740991,
-            "minimum": -9007199254740991,
-            "type": "integer"
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "name": {
             "type": "string"
           },
-          "phase": {
-            "enum": [
-              "initiating",
-              "planning",
-              "executing",
-              "closing",
-              "closed"
-            ],
-            "type": "string"
+          "objectives": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "goal": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "metric": {
+                  "type": "string"
+                },
+                "target": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "goal",
+                "metric",
+                "target"
+              ],
+              "type": "object"
+            },
+            "type": "array"
           },
-          "phase_state": {
-            "additionalProperties": false,
-            "properties": {
-              "current": {
+          "phase": {
+            "anyOf": [
+              {
                 "enum": [
                   "initiating",
                   "planning",
@@ -92917,70 +93716,95 @@
                 ],
                 "type": "string"
               },
-              "next": {
-                "anyOf": [
-                  {
-                    "enum": [
-                      "initiating",
-                      "planning",
-                      "executing",
-                      "closing",
-                      "closed"
-                    ],
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "next_checks": {
-                "items": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "key": {
-                      "type": "string"
-                    },
-                    "ok": {
-                      "type": "boolean"
-                    },
-                    "warning": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "key",
-                    "ok"
-                  ],
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              "previous": {
-                "anyOf": [
-                  {
-                    "enum": [
-                      "initiating",
-                      "planning",
-                      "executing",
-                      "closing",
-                      "closed"
-                    ],
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
+              {
+                "type": "null"
               }
-            },
-            "required": [
-              "current",
-              "next",
-              "previous",
-              "next_checks"
-            ],
-            "type": "object"
+            ]
+          },
+          "phase_state": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "current": {
+                    "enum": [
+                      "initiating",
+                      "planning",
+                      "executing",
+                      "closing",
+                      "closed"
+                    ],
+                    "type": "string"
+                  },
+                  "next": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "initiating",
+                          "planning",
+                          "executing",
+                          "closing",
+                          "closed"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "next_checks": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "ok": {
+                          "type": "boolean"
+                        },
+                        "warning": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "ok"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "previous": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "initiating",
+                          "planning",
+                          "executing",
+                          "closing",
+                          "closed"
+                        ],
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "current",
+                  "next",
+                  "previous",
+                  "next_checks"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "privacy_visibility": {
             "enum": [
@@ -93048,6 +93872,9 @@
               }
             ]
           },
+          "success_criteria": {
+            "type": "string"
+          },
           "tags": {
             "items": {
               "additionalProperties": false,
@@ -93080,6 +93907,92 @@
             "minimum": -9007199254740991,
             "type": "integer"
           },
+          "tools": {
+            "additionalProperties": false,
+            "properties": {
+              "finance": {
+                "additionalProperties": false,
+                "properties": {
+                  "can_toggle": {
+                    "type": "boolean"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "policy": {
+                    "enum": [
+                      "enabled",
+                      "optional",
+                      "disabled"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "policy",
+                  "enabled",
+                  "can_toggle"
+                ],
+                "type": "object"
+              },
+              "governance": {
+                "additionalProperties": false,
+                "properties": {
+                  "can_toggle": {
+                    "type": "boolean"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "policy": {
+                    "enum": [
+                      "enabled",
+                      "optional",
+                      "disabled"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "policy",
+                  "enabled",
+                  "can_toggle"
+                ],
+                "type": "object"
+              },
+              "planning": {
+                "additionalProperties": false,
+                "properties": {
+                  "can_toggle": {
+                    "type": "boolean"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "policy": {
+                    "enum": [
+                      "enabled",
+                      "optional",
+                      "disabled"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "policy",
+                  "enabled",
+                  "can_toggle"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "planning",
+              "governance",
+              "finance"
+            ],
+            "type": "object"
+          },
           "updated_at": {
             "pattern": "^v\\d+$",
             "type": "string"
@@ -93110,6 +94023,9 @@
           "completion_approval",
           "completion_approver",
           "updated_at",
+          "tools",
+          "objectives",
+          "success_criteria",
           "charter",
           "phase_state",
           "change_control_mode"
@@ -93334,12 +94250,19 @@
                   "type": "boolean"
                 },
                 "charter_state": {
-                  "enum": [
-                    "draft",
-                    "submitted",
-                    "approved"
-                  ],
-                  "type": "string"
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "draft",
+                        "submitted",
+                        "approved"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "closed_task_count": {
                   "maximum": 9007199254740991,
@@ -93386,14 +94309,21 @@
                   "type": "string"
                 },
                 "phase": {
-                  "enum": [
-                    "initiating",
-                    "planning",
-                    "executing",
-                    "closing",
-                    "closed"
-                  ],
-                  "type": "string"
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "initiating",
+                        "planning",
+                        "executing",
+                        "closing",
+                        "closed"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "progress": {
                   "maximum": 100,
@@ -93468,6 +94398,35 @@
         "additionalProperties": false,
         "properties": {
           "goal": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "metric": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "goal",
+          "metric",
+          "target"
+        ],
+        "type": "object"
+      },
+      "ProjectObjectiveWriteSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "goal": {
+            "minLength": 1,
             "type": "string"
           },
           "metric": {
@@ -93478,9 +94437,7 @@
           }
         },
         "required": [
-          "goal",
-          "metric",
-          "target"
+          "goal"
         ],
         "type": "object"
       },
@@ -93551,29 +94508,6 @@
               "high_level_requirements": {
                 "type": "string"
               },
-              "objectives": {
-                "items": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "goal": {
-                      "type": "string"
-                    },
-                    "metric": {
-                      "type": "string"
-                    },
-                    "target": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "goal",
-                    "metric",
-                    "target"
-                  ],
-                  "type": "object"
-                },
-                "type": "array"
-              },
               "owning_unit_id": {
                 "anyOf": [
                   {
@@ -93619,9 +94553,6 @@
                     "type": "null"
                   }
                 ]
-              },
-              "success": {
-                "type": "string"
               },
               "type_id": {
                 "anyOf": [
@@ -93687,11 +94618,36 @@
             "minLength": 1,
             "type": "string"
           },
+          "objectives": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "goal": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "metric": {
+                  "type": "string"
+                },
+                "target": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "goal"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
           "privacy_visibility": {
             "enum": [
               "employees",
               "followers"
             ],
+            "type": "string"
+          },
+          "success_criteria": {
             "type": "string"
           },
           "tag_ids": {
@@ -93701,6 +94657,21 @@
               "type": "integer"
             },
             "type": "array"
+          },
+          "tool_preferences": {
+            "additionalProperties": false,
+            "properties": {
+              "finance": {
+                "type": "boolean"
+              },
+              "governance": {
+                "type": "boolean"
+              },
+              "planning": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
           },
           "user_id": {
             "anyOf": [
@@ -94537,21 +95508,81 @@
             ]
           },
           "finance": {
-            "additionalProperties": false,
-            "properties": {
-              "actual": {
-                "type": "number"
-              },
-              "actual_account": {
-                "anyOf": [
-                  {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "actual": {
+                    "type": "number"
+                  },
+                  "actual_account": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "code": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "id": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "code"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "actual_source": {
+                    "enum": [
+                      "manual",
+                      "external"
+                    ],
+                    "type": "string"
+                  },
+                  "budget_count": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "can_choose_actual_account": {
+                    "type": "boolean"
+                  },
+                  "can_read_actual_lines": {
+                    "type": "boolean"
+                  },
+                  "charter_estimate": {
+                    "anyOf": [
+                      {
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "currency": {
                     "additionalProperties": false,
                     "properties": {
-                      "code": {
-                        "type": [
-                          "string",
-                          "null"
-                        ]
+                      "decimal_places": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
                       },
                       "id": {
                         "exclusiveMinimum": 0,
@@ -94560,131 +95591,78 @@
                       },
                       "name": {
                         "type": "string"
+                      },
+                      "symbol": {
+                        "type": "string"
                       }
                     },
                     "required": [
                       "id",
                       "name",
-                      "code"
+                      "symbol",
+                      "decimal_places"
                     ],
                     "type": "object"
                   },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "actual_source": {
-                "enum": [
-                  "manual",
-                  "external"
-                ],
-                "type": "string"
-              },
-              "budget_count": {
-                "maximum": 9007199254740991,
-                "minimum": 0,
-                "type": "integer"
-              },
-              "can_choose_actual_account": {
-                "type": "boolean"
-              },
-              "can_read_actual_lines": {
-                "type": "boolean"
-              },
-              "charter_estimate": {
-                "anyOf": [
-                  {
-                    "minimum": 0,
-                    "type": "number"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "currency": {
-                "additionalProperties": false,
-                "properties": {
-                  "decimal_places": {
+                  "expense_count": {
                     "maximum": 9007199254740991,
-                    "minimum": -9007199254740991,
+                    "minimum": 0,
                     "type": "integer"
                   },
-                  "id": {
+                  "over_budget": {
+                    "type": "boolean"
+                  },
+                  "planned": {
+                    "anyOf": [
+                      {
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "project_id": {
                     "exclusiveMinimum": 0,
                     "maximum": 9007199254740991,
                     "type": "integer"
                   },
-                  "name": {
-                    "type": "string"
+                  "remaining": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
                   },
-                  "symbol": {
-                    "type": "string"
+                  "utilization_percent": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
                   }
                 },
                 "required": [
-                  "id",
-                  "name",
-                  "symbol",
-                  "decimal_places"
+                  "project_id",
+                  "currency",
+                  "charter_estimate",
+                  "planned",
+                  "actual",
+                  "remaining",
+                  "utilization_percent",
+                  "over_budget",
+                  "budget_count",
+                  "expense_count",
+                  "actual_source",
+                  "actual_account",
+                  "can_read_actual_lines",
+                  "can_choose_actual_account"
                 ],
                 "type": "object"
               },
-              "expense_count": {
-                "maximum": 9007199254740991,
-                "minimum": 0,
-                "type": "integer"
-              },
-              "over_budget": {
-                "type": "boolean"
-              },
-              "planned": {
-                "anyOf": [
-                  {
-                    "minimum": 0,
-                    "type": "number"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "project_id": {
-                "exclusiveMinimum": 0,
-                "maximum": 9007199254740991,
-                "type": "integer"
-              },
-              "remaining": {
-                "type": [
-                  "number",
-                  "null"
-                ]
-              },
-              "utilization_percent": {
-                "type": [
-                  "number",
-                  "null"
-                ]
+              {
+                "type": "null"
               }
-            },
-            "required": [
-              "project_id",
-              "currency",
-              "charter_estimate",
-              "planned",
-              "actual",
-              "remaining",
-              "utilization_percent",
-              "over_budget",
-              "budget_count",
-              "expense_count",
-              "actual_source",
-              "actual_account",
-              "can_read_actual_lines",
-              "can_choose_actual_account"
-            ],
-            "type": "object"
+            ]
           },
           "overdue_task_count": {
             "anyOf": [
@@ -95017,12 +95995,19 @@
             "type": "boolean"
           },
           "charter_state": {
-            "enum": [
-              "draft",
-              "submitted",
-              "approved"
-            ],
-            "type": "string"
+            "anyOf": [
+              {
+                "enum": [
+                  "draft",
+                  "submitted",
+                  "approved"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "closed_task_count": {
             "maximum": 9007199254740991,
@@ -95069,14 +96054,21 @@
             "type": "string"
           },
           "phase": {
-            "enum": [
-              "initiating",
-              "planning",
-              "executing",
-              "closing",
-              "closed"
-            ],
-            "type": "string"
+            "anyOf": [
+              {
+                "enum": [
+                  "initiating",
+                  "planning",
+                  "executing",
+                  "closing",
+                  "closed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "progress": {
             "maximum": 100,
@@ -95288,8 +96280,32 @@
             ],
             "type": "string"
           },
+          "finance_tool_policy": {
+            "enum": [
+              "enabled",
+              "optional",
+              "disabled"
+            ],
+            "type": "string"
+          },
+          "governance_tool_policy": {
+            "enum": [
+              "enabled",
+              "optional",
+              "disabled"
+            ],
+            "type": "string"
+          },
           "overdue_digest_enabled": {
             "type": "boolean"
+          },
+          "planning_tool_policy": {
+            "enum": [
+              "enabled",
+              "optional",
+              "disabled"
+            ],
+            "type": "string"
           },
           "project_creators": {
             "enum": [
@@ -95486,8 +96502,32 @@
             },
             "type": "array"
           },
+          "finance_tool_policy": {
+            "enum": [
+              "enabled",
+              "optional",
+              "disabled"
+            ],
+            "type": "string"
+          },
+          "governance_tool_policy": {
+            "enum": [
+              "enabled",
+              "optional",
+              "disabled"
+            ],
+            "type": "string"
+          },
           "overdue_digest_enabled": {
             "type": "boolean"
+          },
+          "planning_tool_policy": {
+            "enum": [
+              "enabled",
+              "optional",
+              "disabled"
+            ],
+            "type": "string"
           },
           "project_creators": {
             "enum": [
@@ -95515,6 +96555,9 @@
         },
         "required": [
           "project_creators",
+          "planning_tool_policy",
+          "governance_tool_policy",
+          "finance_tool_policy",
           "default_stages",
           "require_manager_on_create",
           "require_end_date_on_create",
@@ -95775,6 +96818,189 @@
           "done"
         ],
         "type": "string"
+      },
+      "ProjectToolKeySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "planning",
+          "governance",
+          "finance"
+        ],
+        "type": "string"
+      },
+      "ProjectToolPoliciesSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "finance": {
+            "enum": [
+              "enabled",
+              "optional",
+              "disabled"
+            ],
+            "type": "string"
+          },
+          "governance": {
+            "enum": [
+              "enabled",
+              "optional",
+              "disabled"
+            ],
+            "type": "string"
+          },
+          "planning": {
+            "enum": [
+              "enabled",
+              "optional",
+              "disabled"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "planning",
+          "governance",
+          "finance"
+        ],
+        "type": "object"
+      },
+      "ProjectToolPolicySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "enabled",
+          "optional",
+          "disabled"
+        ],
+        "type": "string"
+      },
+      "ProjectToolPreferencesPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "finance": {
+            "type": "boolean"
+          },
+          "governance": {
+            "type": "boolean"
+          },
+          "planning": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "ProjectToolStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "can_toggle": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "policy": {
+            "enum": [
+              "enabled",
+              "optional",
+              "disabled"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "policy",
+          "enabled",
+          "can_toggle"
+        ],
+        "type": "object"
+      },
+      "ProjectToolsStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "finance": {
+            "additionalProperties": false,
+            "properties": {
+              "can_toggle": {
+                "type": "boolean"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "policy": {
+                "enum": [
+                  "enabled",
+                  "optional",
+                  "disabled"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "policy",
+              "enabled",
+              "can_toggle"
+            ],
+            "type": "object"
+          },
+          "governance": {
+            "additionalProperties": false,
+            "properties": {
+              "can_toggle": {
+                "type": "boolean"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "policy": {
+                "enum": [
+                  "enabled",
+                  "optional",
+                  "disabled"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "policy",
+              "enabled",
+              "can_toggle"
+            ],
+            "type": "object"
+          },
+          "planning": {
+            "additionalProperties": false,
+            "properties": {
+              "can_toggle": {
+                "type": "boolean"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "policy": {
+                "enum": [
+                  "enabled",
+                  "optional",
+                  "disabled"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "policy",
+              "enabled",
+              "can_toggle"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "planning",
+          "governance",
+          "finance"
+        ],
+        "type": "object"
       },
       "ProjectTypeRefSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -97465,9 +98691,16 @@
             "type": "string"
           },
           "percent_complete": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
+            "anyOf": [
+              {
+                "maximum": 100,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "personal_stage": {
             "anyOf": [
@@ -97506,6 +98739,9 @@
             ],
             "default": null
           },
+          "planning_enabled": {
+            "type": "boolean"
+          },
           "priority": {
             "enum": [
               "0",
@@ -97516,11 +98752,18 @@
             "type": "string"
           },
           "progress_method": {
-            "enum": [
-              "binary",
-              "manual"
-            ],
-            "type": "string"
+            "anyOf": [
+              {
+                "enum": [
+                  "binary",
+                  "manual"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "project": {
             "anyOf": [
@@ -97899,6 +99142,7 @@
           "subtasks",
           "depends_on",
           "attachments",
+          "planning_enabled",
           "can_manage_dependencies",
           "milestone",
           "created_at",
@@ -125230,6 +126474,44 @@
         }
       }
     },
+    "/api/v1/inbox/channels/tiktok/connect": {
+      "post": {
+        "operationId": "liwan_inbox.TikTokOAuthController.connect.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The signed TikTok authorization URL of a new channel or of a channel being reconnected.",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "TikTokOAuthController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "connect",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/inbox/channels/{channel_id}": {
       "delete": {
         "operationId": "liwan_inbox.ChannelController.delete_channel.delete",
@@ -126640,6 +127922,373 @@
           ],
           "feature_operation": "write",
           "handler": "test_channel",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/inbox/channels/{channel_id}/tiktok/shortcuts": {
+      "get": {
+        "operationId": "liwan_inbox.TikTokSettingsController.list_shortcuts.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_shortcuts",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "TikTokSettingsController",
+          "feature_keys": [],
+          "feature_operation": "read",
+          "handler": "list_shortcuts",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_inbox.TikTokSettingsController.create_shortcut.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_shortcut",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "TikTokSettingsController",
+          "feature_keys": [],
+          "feature_operation": "write",
+          "handler": "create_shortcut",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/inbox/channels/{channel_id}/tiktok/shortcuts/enable": {
+      "post": {
+        "operationId": "liwan_inbox.TikTokSettingsController.enable_shortcuts.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "enable_shortcuts",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "TikTokSettingsController",
+          "feature_keys": [],
+          "feature_operation": "write",
+          "handler": "enable_shortcuts",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/inbox/channels/{channel_id}/tiktok/shortcuts/{shortcut_id}": {
+      "delete": {
+        "operationId": "liwan_inbox.TikTokSettingsController.delete_shortcut.delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "shortcut_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "delete_shortcut",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "TikTokSettingsController",
+          "feature_keys": [],
+          "feature_operation": "write",
+          "handler": "delete_shortcut",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "liwan_inbox.TikTokSettingsController.patch_shortcut.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "shortcut_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_shortcut",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "TikTokSettingsController",
+          "feature_keys": [],
+          "feature_operation": "write",
+          "handler": "patch_shortcut",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/inbox/channels/{channel_id}/tiktok/sync": {
+      "get": {
+        "operationId": "liwan_inbox.TikTokSettingsController.latest_sync.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The channel's latest history import, or null before the first one.",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "TikTokSettingsController",
+          "feature_keys": [],
+          "feature_operation": "read",
+          "handler": "latest_sync",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_inbox.TikTokSettingsController.start_sync.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Queue a history import on demand; a second one while it runs is 422 `inbox_tiktok_sync_running`.",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "TikTokSettingsController",
+          "feature_keys": [],
+          "feature_operation": "write",
+          "handler": "start_sync",
           "readonly": false,
           "route_type": "json2"
         }
@@ -128414,6 +130063,43 @@
         }
       }
     },
+    "/api/v1/inbox/hooks/tiktok": {
+      "post": {
+        "operationId": "liwan_inbox.TikTokHookController.receive.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "receive",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "inbox_hook",
+          "contract_namespace": "inbox",
+          "controller": "TikTokHookController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "receive",
+          "readonly": null,
+          "route_type": "http"
+        }
+      }
+    },
     "/api/v1/inbox/hooks/whatsapp": {
       "get": {
         "operationId": "liwan_inbox.WhatsAppHookController.verify.get",
@@ -129801,6 +131487,43 @@
           "handler": "edit_template",
           "readonly": false,
           "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/inbox/tiktok/callback": {
+      "get": {
+        "operationId": "liwan_inbox.TikTokOAuthController.callback.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Exchange the authorization code and connect (or reconnect) the channel of the state.",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "contract_namespace": "inbox",
+          "controller": "TikTokOAuthController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "callback",
+          "readonly": null,
+          "route_type": "http"
         }
       }
     },

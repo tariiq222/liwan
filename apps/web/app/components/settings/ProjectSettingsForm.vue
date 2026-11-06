@@ -42,9 +42,20 @@ function useCard<Draft extends Fields>(read: (settings: ProjectSettings) => Draf
 const creation = useCard(({ project_creators, require_manager_on_create, require_end_date_on_create }) => (
   { project_creators, require_manager_on_create, require_end_date_on_create }
 ))
-const approval = useCard(({ default_completion_approval, require_charter_approval, close_with_open_tasks, register_status_transitions, change_control_mode, baseline_gate, evm_progress_method }) => (
-  { default_completion_approval, require_charter_approval, close_with_open_tasks, register_status_transitions, change_control_mode, baseline_gate, evm_progress_method }
-))
+const approval = useCard(({ default_completion_approval, require_charter_approval, close_with_open_tasks, register_status_transitions, change_control_mode, baseline_gate, evm_progress_method, planning_tool_policy, governance_tool_policy, finance_tool_policy }) => (
+  { default_completion_approval, require_charter_approval, close_with_open_tasks, register_status_transitions, change_control_mode, baseline_gate, evm_progress_method, planning_tool_policy, governance_tool_policy, finance_tool_policy }
+), draft => {
+  const governanceRequired = draft.require_charter_approval || draft.change_control_mode === 'required' || draft.baseline_gate === 'required'
+  if (governanceRequired && draft.governance_tool_policy !== 'enabled') throw new ApiError(422, 'invalid', t('settings.projects.tools.governanceConflict'), 'governance_tool_policy')
+  if (draft.baseline_gate === 'required' && draft.planning_tool_policy !== 'enabled') throw new ApiError(422, 'invalid', t('settings.projects.tools.planningConflict'), 'planning_tool_policy')
+})
+const toolConflicts = computed(() => {
+  const draft = approval.draft.value
+  const errors: string[] = []
+  if ((draft.require_charter_approval || draft.change_control_mode === 'required' || draft.baseline_gate === 'required') && draft.governance_tool_policy !== 'enabled') errors.push(t('settings.projects.tools.governanceConflict'))
+  if (draft.baseline_gate === 'required' && draft.planning_tool_policy !== 'enabled') errors.push(t('settings.projects.tools.planningConflict'))
+  return errors
+})
 const daysError = ref('')
 const reminders = useCard(({ deadline_reminders_enabled, deadline_reminders_days_before, overdue_digest_enabled }) => (
   { deadline_reminders_enabled, deadline_reminders_days_before, overdue_digest_enabled }
@@ -153,6 +164,12 @@ function onDeleteStage(id: number | string) {
   </SharedRecordSection>
 
   <SharedSettingsCard id="project-approval" v-bind="approval.state.value" :title="t('settings.projects.approval.label')" :description="t('settings.projects.approval.hint')" :can-edit="canEdit" @save="approval.save" @revert="approval.revert" @reload="approval.reload">
+    <SharedFormSection :title="t('settings.projects.tools.title')" :description="t('settings.projects.tools.hint')">
+      <UFormField v-for="key in ['planning', 'governance', 'finance'] as const" :key="key" orientation="horizontal" :label="t(`projects.tools.${key}`)">
+        <USelect v-model="approval.draft.value[`${key}_tool_policy`]" class="w-full" :disabled="approvalLocked" :aria-label="t(`projects.tools.${key}`)" :data-testid="`settings-project-tool-${key}`" :items="[{value:'enabled',label:t('settings.projects.tools.enabled')},{value:'optional',label:t('settings.projects.tools.optional')},{value:'disabled',label:t('settings.projects.tools.disabled')}]" />
+      </UFormField>
+      <UAlert v-for="conflict in toolConflicts" :key="conflict" color="warning" variant="subtle" :title="conflict" />
+    </SharedFormSection>
     <UFormField id="project-approval-default" orientation="horizontal" :label="t('settings.projects.approval.label')">
       <URadioGroup
         v-model="approval.draft.value.default_completion_approval"

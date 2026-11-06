@@ -39,7 +39,7 @@ class ProjectPhase(models.Model):
     def _liwan_gate_checks(self, target):
         """Checks a project must pass to enter ``target``; extended per phase with super()."""
         self.ensure_one()
-        if target == 'planning':
+        if target == 'planning' and self._liwan_charter_approval_required():
             return [{'key': 'charter_approved', 'ok': self.liwan_charter_state == 'approved'}]
         if target == 'closed':
             return [self._liwan_open_tasks_check()]
@@ -67,6 +67,7 @@ class ProjectPhase(models.Model):
     def _liwan_move_phase(self, target, acknowledge_warnings=False):
         self.ensure_one()
         self._liwan_check_manage()
+        self._liwan_check_tool_write('governance')
         previous, following = self._liwan_phase_neighbours()
         if target not in (previous, following):
             raise LiwanPhaseStep(self.env._("A project moves one phase at a time."))

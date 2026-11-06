@@ -13,8 +13,8 @@ const signedMoney = (value: number) => isolateLtr(`${value > 0 ? '+' : '−'}${m
 </script>
 
 <template>
-  <div v-if="variance.baseline && schedule && cost" class="liwan-card-grid" data-testid="baseline-variance-summary">
-    <SharedRecordSection variant="panel" :title="t('projects.baselines.variance.scheduleTitle', { number: variance.baseline.number })">
+  <div v-if="variance.baseline && (schedule || cost)" class="liwan-card-grid" data-testid="baseline-variance-summary">
+    <SharedRecordSection v-if="schedule" variant="panel" :title="t('projects.baselines.variance.scheduleTitle', { number: variance.baseline.number })">
       <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('projects.baselines.variance.endDate')">
           <span class="inline-flex flex-wrap items-center gap-2">
@@ -30,7 +30,7 @@ const signedMoney = (value: number) => isolateLtr(`${value > 0 ? '+' : '−'}${m
         <SharedPropertyRow v-if="schedule.hidden_count" :label="t('projects.baselines.variance.hidden')" :value="String(schedule.hidden_count)" />
       </SharedPropertiesPanel>
     </SharedRecordSection>
-    <SharedRecordSection variant="panel" :title="t('projects.baselines.variance.costTitle')">
+    <SharedRecordSection v-if="cost" variant="panel" :title="t('projects.baselines.variance.costTitle')">
       <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('projects.baselines.variance.baselineBudget')"><span dir="ltr" class="tabular-nums">{{ money(cost.baseline_budget) }}</span></SharedPropertyRow>
         <SharedPropertyRow :label="t('projects.baselines.variance.currentBudget')">
