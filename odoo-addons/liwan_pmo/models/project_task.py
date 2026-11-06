@@ -238,6 +238,28 @@ class ProjectTask(models.Model):
             self.env.user, 'pmo.tasks.write', record=self,
         )
 
+    def _liwan_check_percent_tools(self):
+        """Gate task-owned progress without granting read access to its private project."""
+        self.ensure_one()
+        self._liwan_check_visible_current()
+        if not self.active or not self._liwan_can_write():
+            raise AccessError(self.env._("You are not allowed to change this task."))
+        Project = self.env['project.project']
+        project_domain = Domain([('company_id', '=', self.env.company.id), ('active', '=', True)])
+        for key in ('planning', 'finance'):
+            project_domain &= Project._liwan_tool_domain(key)
+        # Odoo's internal any! omits only the comodel read rules. The caller
+        # already proved task read/write, and this query is restricted to that
+        # task id and exact current company on both sides. It returns only a
+        # boolean; _liwan_tool_domain remains the sole live policy decision.
+        allowed = self.search_count(
+            Domain([('id', '=', self.id), ('company_id', '=', self.env.company.id), ('active', '=', True)])
+            & Domain('project_id', 'any!', project_domain),
+        )
+        if not allowed:
+            raise AccessError(self.env._("This project tool is not enabled."))
+        return True
+
     def _liwan_can_archive(self):
         self.ensure_one()
         return self._liwan_can_write() and (
@@ -446,13 +468,15 @@ class ProjectTask(models.Model):
         return True
 
     def write(self, vals):
-        if not self.env.su and {'milestone_id', 'liwan_planned_start', 'depend_on_ids', 'liwan_percent_complete'}.intersection(vals):
+        if not self.env.su and {'milestone_id', 'liwan_planned_start', 'depend_on_ids'}.intersection(vals):
             for task in self:
                 if task.project_id:
                     task.project_id._liwan_check_tool('planning')
-                    if 'liwan_percent_complete' in vals:
-                        task.project_id._liwan_check_tool('finance')
-                        task.env['liwan.entitlement.service'].require('pmo.evm')
+        if not self.env.su and 'liwan_percent_complete' in vals:
+            for task in self:
+                task._liwan_check_percent_tools()
+            self.env['liwan.entitlement.service'].require('pmo.enabled')
+            self.env['liwan.entitlement.service'].require('pmo.evm')
         dependency_write = (
             self.env.cr.precommit.data.get(DEPENDENCY_WRITE_MARKER)
             and set(vals) <= {'depend_on_ids'}

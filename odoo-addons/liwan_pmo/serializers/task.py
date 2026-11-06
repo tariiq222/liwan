@@ -343,10 +343,8 @@ def _parse_milestone(task, value, key):
 
 
 def _parse_percent_complete(value, key, task):
-    if task.project_id:
-        task.project_id._liwan_check_tool('planning')
-        task.project_id._liwan_check_tool('finance')
     """A whole percent 0..100 of an open task, accepted only while the company counts progress `manual` and the feature is writable."""
+    task._liwan_check_percent_tools()
     if request.env['liwan.pmo.settings'].evm_progress_method() != 'manual' or not request.env['liwan.entitlement.service']._liwan_feature_write('pmo.evm'):
         raise ApiError(422, 'invalid', "percent_complete is only editable when the company's progress method is manual", field=key)
     if task.is_closed:
