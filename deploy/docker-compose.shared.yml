@@ -88,7 +88,12 @@ services:
       LIWAN_TIKTOK_CLIENT_SECRET: ${LIWAN_TIKTOK_CLIENT_SECRET:-}
       LIWAN_TIKTOK_REDIRECT_URI: ${LIWAN_TIKTOK_RELAY_HOST:+https://${LIWAN_TIKTOK_RELAY_HOST}/tiktok/oauth/callback}
     ports: !reset []
-    networks: [guard_odoo, database, relay_odoo]
+    # `relay_odoo` carries the TikTok relay's binding calls (D13). It is internal and reaches only the
+    # relay, so Odoo keeps it whether or not this deployment runs the app.
+    networks: !override
+      - guard_odoo
+      - database
+      - relay_odoo
     # TCP listener check: shared mode dbfilter=^%h$ / list_db=False means localhost selects no DB,
     # so /web/health cannot pass. The venv python exists in the image (deploy/odoo/Dockerfile).
     healthcheck:
@@ -123,7 +128,11 @@ services:
   # The platform TikTok app has one webhook and one OAuth redirect for every tenant (D13/D14).
   # The relay verifies them and reaches the tenant through its public origin; only the edge
   # reaches the relay's public routes, and only Odoo reaches its internal binding routes.
+  # It needs the app secret, so it belongs to a deployment that runs the app: start it with
+  # `--profile tiktok` (the app is off otherwise and every TikTok route answers
+  # `inbox_tiktok_not_configured`). The relay refuses to start without a secret by design.
   tiktok-relay:
+    profiles: [tiktok]
     image: liwan-guard:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG}
     build:
       context: ..
@@ -134,7 +143,9 @@ services:
       LIWAN_TENANCY_MODE: shared
       LIWAN_TENANT_REGISTRY_PATH: /etc/liwan/registry.json
       LIWAN_TIKTOK_BINDINGS_PATH: /var/lib/liwan/tiktok-bindings.json
-      # An app that is not configured answers `inbox_tiktok_not_configured`; the relay still starts.
+      # The relay belongs to the `tiktok` profile. An app that is not configured leaves the secret
+      # empty and the relay exits cleanly at start: `createTiktokRelay` refuses an empty secret by
+      # design, so `start()` treats that one refusal as "this deployment runs no TikTok app".
       LIWAN_TIKTOK_CLIENT_SECRET: ${LIWAN_TIKTOK_CLIENT_SECRET:-}
       LIWAN_SHARED_PROXY_TOKEN: ${LIWAN_SHARED_PROXY_TOKEN:?set LIWAN_SHARED_PROXY_TOKEN}
       LIWAN_TIKTOK_RELAY_PORT: "8090"

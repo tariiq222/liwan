@@ -11,18 +11,32 @@ const root = resolve(import.meta.dirname, '../../../..')
 const hasDocker = (() => {
   try { execFileSync('docker', ['compose', 'version'], { stdio: 'ignore' }); return true } catch { return false }
 })()
-function rendered(shared: boolean) {
+function rendered(shared: boolean, extra: readonly string[] = [], env: Readonly<Record<string, string>> = {}) {
   const args = ['compose', '--env-file', '/dev/null', '-f', 'deploy/docker-compose.yml']
   if (shared) args.push('-f', 'deploy/docker-compose.shared.yml')
-  args.push('config', '--format', 'json')
+  args.push(...extra, 'config', '--format', 'json')
   return JSON.parse(execFileSync('docker', args, { cwd: root, encoding: 'utf8', env: {
     PATH: process.env.PATH, HOME: process.env.HOME, DOCKER_CONFIG: process.env.DOCKER_CONFIG,
     LIWAN_IMAGE_TAG: 'synthetic', DOMAIN: 'tenant.invalid',
     ODOO_COMMIT: 'synthetic', DB_NAME: 'synthetic', DB_PASSWORD: 'synthetic-not-secret',
     LIWAN_SHARED_PROXY_TOKEN: 'synthetic-not-a-real-token', LIWAN_SESSION_KEYS: '{}', LIWAN_SESSION_ACTIVE_KID: 'test',
     LIWAN_TENANT_REGISTRY_DIR: '/synthetic/registry', LIWAN_SHARED_ODOO_CONFIG: '/synthetic/odoo.conf',
+    ...env,
   } }))
 }
+it.skipIf(!hasDocker)('renders the TikTok relay on its own internal network when the profile is on', () => {
+  const model = rendered(true, ['--profile', 'tiktok'], {
+    LIWAN_TIKTOK_CLIENT_SECRET: 'synthetic-not-a-real-secret', LIWAN_TIKTOK_RELAY_HOST: 'tiktok.invalid',
+  })
+  const relay = model.services['tiktok-relay']
+  expect(relay).toBeDefined()
+  expect(Object.keys(relay.networks).sort()).toEqual(['edge', 'relay_odoo'])
+  // The relay never joins Odoo's own networks: it reaches a tenant through its public origin.
+  expect(Object.keys(relay.networks)).not.toContain('guard_odoo')
+  expect(Object.keys(relay.networks)).not.toContain('database')
+  expect(model.networks.relay_odoo.internal).toBe(true)
+  expect(Object.keys(model.services.odoo.networks).sort()).toEqual(['database', 'guard_odoo', 'relay_odoo'])
+})
 it.skipIf(!hasDocker)('renders dedicated defaults without shared services or build mode', () => {
   const s = rendered(false).services
   expect(s.guard).toBeUndefined()
@@ -39,11 +53,12 @@ it.skipIf(!hasDocker)('renders shared network boundaries, commands, directory mo
   expect(s.odoo.environment.LIWAN_TENANCY_MODE).toBe('shared')
   expect(Object.keys(s.proxy.networks)).toEqual(['edge'])
   expect(Object.keys(s.web.networks)).toEqual(['guard_web'])
-  // `relay_odoo` carries the TikTok relay's binding calls (D13): it is internal, reaches only the relay,
-  // and keeps the relay off `guard_odoo` and `database`.
+  // `relay_odoo` carries the TikTok relay's binding calls (D13). A stack without the `tiktok` profile
+  // runs no relay, so the network stays unused; with the profile the relay joins it and reaches
+  // neither `guard_odoo` nor `database`.
   expect(Object.keys(s.odoo.networks).sort()).toEqual(['database', 'guard_odoo', 'relay_odoo'])
-  expect(Object.keys(s['tiktok-relay'].networks).sort()).toEqual(['edge', 'relay_odoo'])
   expect(model.networks.relay_odoo.internal).toBe(true)
+  expect(s['tiktok-relay']).toBeUndefined()
   expect(s.web.build.args.LIWAN_TENANCY_MODE).toBe('shared')
   expect(s.web.environment.NUXT_ODOO_URL).toBe('http://guard:8080')
   for (const name of ['web', 'guard']) expect(s[name].volumes).toContainEqual(expect.objectContaining({ source: '/synthetic/registry', target: '/etc/liwan', read_only: true }))

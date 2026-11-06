@@ -255,6 +255,12 @@ export function createTiktokRelay({ clientSecret, registryPath, bindingsPath, pr
 
 function start() {
   if (process.env.LIWAN_TENANCY_MODE !== 'shared') throw Error('shared_mode_required')
+  // A shared deployment without a TikTok app starts no relay: the compose file leaves the secret
+  // empty, and every TikTok route answers `inbox_tiktok_not_configured` without it.
+  if (!process.env.LIWAN_TIKTOK_CLIENT_SECRET) {
+    console.log('tiktok relay: no app secret configured, the TikTok channel stays unconfigured')
+    return
+  }
   const port = Number(process.env.LIWAN_TIKTOK_RELAY_PORT ?? 8090)
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw Error('invalid_relay_port')
   if (Buffer.byteLength(process.env.LIWAN_SHARED_PROXY_TOKEN ?? '') < 32) throw Error('invalid_proxy_token')
