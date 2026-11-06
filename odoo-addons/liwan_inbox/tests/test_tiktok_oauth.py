@@ -191,6 +191,17 @@ class TestTikTokOAuth(LiwanInboxCase):
         self.redirects_to_error(response, 'inbox_tiktok_scopes_missing')
         self.assertFalse(self.channels())
 
+    def test_a_grant_missing_one_required_scope_is_refused_even_with_extra_scopes(self):
+        # The grant covers optional scopes but not a required one, so it is neither a subset nor a
+        # superset of the required set: the connection must still be refused, not accepted.
+        self.login(self.manager)
+        scopes = {scope for scope in tiktok.SCOPES if scope != 'message.list.send'}
+        exchange, profile = self.answer(self.grant(scopes=scopes))
+        with exchange, profile:
+            response = self.callback(self.state())
+        self.redirects_to_error(response, 'inbox_tiktok_scopes_missing')
+        self.assertFalse(self.channels())
+
     def test_the_same_account_twice_redirects_as_taken(self):
         existing = self.env['liwan.inbox.channel'].create({
             'name': 'TikTok shop', 'kind': 'tiktok', 'tiktok_business_id': tt.BUSINESS_ID, 'state': 'connected',

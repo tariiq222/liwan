@@ -330,12 +330,16 @@ class LiwanInboxMessage(models.Model):
 
     @api.model
     def _liwan_tiktok_replies_in_a_row(self, conversation):
-        """The messages sent since the customer's last message (TikTok stops the sender after TIKTOK_MAX_REPLIES)."""
+        """The messages sent since the customer's last message (TikTok stops the sender after TIKTOK_MAX_REPLIES).
+
+        A send that definitively failed never reached TikTok, so it does not use up the allowance: a
+        replacement reply or a retry must still be possible without the customer writing again.
+        """
         if not conversation.last_inbound_at:
             return 0
         return self.search_count([
             ('conversation_id', '=', conversation.id), ('direction', '=', 'out'),
-            ('date', '>', conversation.last_inbound_at),
+            ('date', '>', conversation.last_inbound_at), ('delivery_state', '!=', 'failed'),
         ])
 
     @api.model

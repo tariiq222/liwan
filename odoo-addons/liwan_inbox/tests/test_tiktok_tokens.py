@@ -81,6 +81,19 @@ class TestTikTokTokens(LiwanInboxCase):
         self.assertEqual(channel.refresh_expires_at, grant.refresh_expires_at)
         self.assertEqual((channel.state, channel.last_error), ('connected', False))
 
+    def test_a_refresh_keeps_a_disabled_channel_disabled(self):
+        # The import cron refreshes the token of a channel an administrator disabled meanwhile; storing
+        # the refreshed grant must not silently reconnect it and resume its traffic.
+        channel = self.make_tiktok(access_expires_in=timedelta(minutes=1))
+        channel.write({'state': 'disabled'})
+        grant = self.refreshed()
+        with patch.object(tiktok, 'refresh_tokens', return_value=grant):
+            credentials = channel._liwan_credentials()
+        self.assertEqual(credentials.access_token, NEW_ACCESS)
+        self.assertEqual(secret_box.decrypt(self.env, channel.access_token_enc), NEW_ACCESS)
+        channel.invalidate_recordset(['state'])
+        self.assertEqual(channel.state, 'disabled')
+
     def test_two_callers_refresh_once(self):
         channel = self.make_tiktok(access_expires_in=timedelta(minutes=1))
         self.assertTrue(channel.token_expires_at)  # a caller that read the channel caches the old deadline

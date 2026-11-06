@@ -172,6 +172,15 @@ class TestTikTokSend(TikTokCase):
         self.assertError(response, 422, 'invalid')
         self.assertEqual(response.json()['details']['reason'], 'inbox_tiktok_reply_limit')
 
+    def test_a_failed_send_does_not_use_up_the_next_replies(self):
+        # A reply that never reached TikTok (a refused send, not a delivered one) must not hold the
+        # conversation at the limit: the customer should not have to write again to unblock it.
+        for number in range(9):
+            self.assertEqual(self.reply({'body': f'Reply {number}'}).status_code, 200)
+        tenth = self.reply({'body': 'Reply nine'}).json()['id']
+        self.env['liwan.inbox.message'].browse(tenth).write({'delivery_state': 'failed'})
+        self.assertEqual(self.reply({'body': 'A replacement'}).status_code, 200)
+
     # what leaves the outbox
 
     def test_the_text_goes_to_the_conversation_id_with_the_quote(self):

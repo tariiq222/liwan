@@ -150,7 +150,9 @@ class TikTokOAuthController(http.Controller):
             grant = tiktok.exchange_code(config, code or '')
         except errors.ProviderError:
             raise ApiError(422, 'invalid', EXCHANGE_FAILED) from None
-        if grant.scopes < TIKTOK_REQUIRED_SCOPES:
+        # Every required scope must arrive: a grant of optional scopes that omits one required scope is
+        # not a subset of the required set, so it would slip past a proper-subset test.
+        if not grant.scopes >= TIKTOK_REQUIRED_SCOPES:
             return _settings_redirect('inbox_tiktok_scopes_missing')
         bound = request.env['liwan.inbox.channel'].search([('tiktok_business_id', '=', grant.open_id)], limit=1)
         if bound and bound != channel:

@@ -126,10 +126,7 @@ class LiwanInboxChannel(models.Model):
         self.write({
             'tiktok_business_id': grant.open_id,
             'tiktok_username': profile.username if profile else self.tiktok_username,
-            'access_token_enc': secret_box.encrypt(self.env, grant.access_token),
-            'refresh_token_enc': secret_box.encrypt(self.env, grant.refresh_token),
-            'token_expires_at': grant.expires_at,
-            'refresh_expires_at': grant.refresh_expires_at,
+            **self._liwan_tiktok_token_values(grant),
             'state': 'connected',
             'last_error': False,
             **({'tiktok_bound': False} if switched else {}),
@@ -137,6 +134,20 @@ class LiwanInboxChannel(models.Model):
         if switched:
             # The channel now serves another account: the old account's routing must leave this tenant.
             self._liwan_tiktok_unbind(previous)
+
+    def _liwan_tiktok_token_values(self, grant):
+        """The encrypted fields of one grant, without the account identity or the channel state."""
+        return {
+            'access_token_enc': secret_box.encrypt(self.env, grant.access_token),
+            'refresh_token_enc': secret_box.encrypt(self.env, grant.refresh_token),
+            'token_expires_at': grant.expires_at,
+            'refresh_expires_at': grant.refresh_expires_at,
+        }
+
+    def _liwan_tiktok_store_refreshed(self, grant):
+        """Store a refreshed grant without touching the state: a disabled channel stays disabled."""
+        self.ensure_one()
+        self.write(self._liwan_tiktok_token_values(grant))
 
     def _liwan_tiktok_credentials(self):
         """The account's credentials, refreshing the access token once when it is near its deadline.
@@ -172,7 +183,7 @@ class LiwanInboxChannel(models.Model):
             if error.retryable:
                 raise
             self._liwan_tiktok_reconnect_required()
-        self._liwan_tiktok_store(grant)
+        self._liwan_tiktok_store_refreshed(grant)
         return tiktok.Credentials(self.tiktok_business_id, grant.access_token)
 
     def _liwan_tiktok_test_connection(self):
