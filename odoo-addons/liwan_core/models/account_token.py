@@ -43,7 +43,12 @@ class LiwanAccountToken(models.Model):
 
     @api.model
     def _liwan_issue(self, user, purpose):
-        """Revoke the unused links of PURPOSE for USER, then issue a new one: ``(record, raw token)``."""
+        """Revoke the unused links of PURPOSE for USER, then issue a new one: ``(record, raw token)``.
+
+        The account row is locked first, so two overlapping requests for one account run one after the
+        other and only the later link stays usable.
+        """
+        user.lock_for_update(allow_referencing=True)
         self._liwan_revoke(user, purpose)
         raw = secrets.token_urlsafe(32)
         record = self.create({

@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from psycopg2 import IntegrityError, errorcodes
 
 from odoo import api, fields, models
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import AccessError, LockError, ValidationError
 from odoo.fields import Command
 from odoo.modules import module
 from odoo.tools import email_normalize
@@ -639,7 +639,9 @@ class LiwanAccessService(models.AbstractModel):
     @api.model
     def _liwan_set_own_mobile(self, mobile):
         value = self._liwan_normalize_mobile(mobile)
-        user = self.env.user
+        # The caller's own record without env.user's implicit elevation: the stock self-write path
+        # (SELF_WRITEABLE_FIELDS) is what authorizes this one field.
+        user = self.env['res.users'].browse(self.env.uid)
         with self._liwan_mobile_guard():
             user.write({'liwan_mobile': value})
         self.env['liwan.access.audit']._liwan_log(
@@ -860,6 +862,13 @@ class LiwanAccessService(models.AbstractModel):
         protected, not yet accepted, or already over the hourly limit."""
         login = email_normalize(email) if isinstance(email, str) else False
         user = login and self._liwan_account_users().search([('login', '=', login)], limit=1)
+        if user:
+            # Serializes overlapping requests for one account, so the hourly count below is exact. A request
+            # that finds the row already locked is a duplicate in flight and is dropped like any other.
+            try:
+                user.lock_for_update(allow_referencing=True)
+            except LockError:
+                return
         if (
             not user or not user.active or user.share or user._is_superuser()
             or user.has_group('liwan_core.group_vendor_support')

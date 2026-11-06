@@ -3,7 +3,7 @@ import threading
 from datetime import timedelta
 
 from odoo import fields
-from odoo.exceptions import AccessDenied, UserError, ValidationError
+from odoo.exceptions import AccessDenied, LockError, UserError, ValidationError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
 from odoo.addons.liwan_core.models.account_token import hash_token
@@ -212,6 +212,33 @@ class TestAccountInvitations(TransactionCase):
         self.assertEqual(len(self.sent), 3)
         self.assertEqual({token.user_id for token, _raw in self.sent}, {user})
 
+    def test_forgot_password_drops_a_request_whose_account_row_is_locked(self):
+        user = self._invite()
+        self.public._liwan_accept_invitation(self.sent[0][1], MOBILE, PASSWORD)
+        self.sent.clear()
+
+        def locked(records, **kwargs):
+            msg = 'locked by a concurrent request'
+            raise LockError(msg)
+
+        self.patch(type(user), 'lock_for_update', locked)
+        self.assertIsNone(self.public._liwan_request_password_reset(user.login))
+        self.assertEqual(self.sent, [])
+
+    def test_issuing_a_link_locks_the_account_row(self):
+        user = self._invite()
+        self.public._liwan_accept_invitation(self.sent[0][1], MOBILE, PASSWORD)
+        calls = []
+        real_lock = type(user).lock_for_update
+
+        def spy(records, **kwargs):
+            calls.append((records.ids, kwargs))
+            return real_lock(records, **kwargs)
+
+        self.patch(type(user), 'lock_for_update', spy)
+        self.env['liwan.account.token']._liwan_issue(user, 'reset')
+        self.assertIn(([user.id], {'allow_referencing': True}), calls)
+
     def test_forgot_password_audit_row_has_no_actor(self):
         user = self._invite()
         self.public._liwan_accept_invitation(self.sent[0][1], MOBILE, PASSWORD)
@@ -283,10 +310,13 @@ class TestAccountInvitations(TransactionCase):
         self.public._liwan_accept_invitation(self.sent[0][1], MOBILE, PASSWORD)
         self.env['liwan.access.service'].with_user(user)._liwan_set_own_mobile('+966500000002')
         self.assertEqual(user.liwan_mobile, '+966500000002')
+        # The stock self-write path authorizes the field on the holder's own, unelevated record.
+        user.with_user(user).write({'liwan_mobile': '+966500000004'})
+        self.assertEqual(user.liwan_mobile, '+966500000004')
         other = self._invite('other@example.com')
         self.public._liwan_accept_invitation(self.sent[-1][1], '+966500000003', PASSWORD)
         with self.assertRaises(ValidationError) as caught:
-            self.env['liwan.access.service'].with_user(other)._liwan_set_own_mobile('+966500000002')
+            self.env['liwan.access.service'].with_user(other)._liwan_set_own_mobile('+966500000004')
         self.assertEqual(caught.exception.code, 'mobile_taken')
 
     def test_mobile_required_rules(self):

@@ -31,6 +31,15 @@ class LiwanResUsers(models.Model):
         'This mobile number is already used by another user.',
     )
 
+    @property
+    def SELF_READABLE_FIELDS(self):
+        return super().SELF_READABLE_FIELDS + ['liwan_mobile']
+
+    @property
+    def SELF_WRITEABLE_FIELDS(self):
+        # The account holder saves their own number; the account service normalizes it first.
+        return super().SELF_WRITEABLE_FIELDS + ['liwan_mobile']
+
     @api.constrains('liwan_mobile')
     def _check_liwan_mobile_format(self):
         for user in self.filtered('liwan_mobile'):
