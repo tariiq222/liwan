@@ -1,31 +1,11 @@
-import { readFileSync } from 'node:fs'
 import { test, expect, type Page, type APIRequestContext } from '@playwright/test'
+import { acceptInvitation, MAIL_OUTBOX, NEEDS_MAIL } from './support/mailOutbox'
 
 // Needs a real Odoo: it logs in as admin and writes data, which the mock answers with 404. It is in no CI list until it has run on a
 // scratch Odoo (see docs/testing.md, section 3).
 test.skip(process.env.E2E_REAL_ODOO !== '1', 'Explicit isolated real Odoo acceptance only')
 
 const TEST_PASSWORD = 'LiwanAccess-Test-123!'
-// An invited account has no password until its holder opens the emailed link, so the journeys that sign an invited user in
-// read that link from a capture of the outgoing mail: a JSON-lines file (`{"to": "...", "text": "..."}`) the isolated runner
-// points Odoo's outgoing mail at. Without it those journeys skip; the invitation journeys themselves need no mail.
-const MAIL_OUTBOX = process.env.E2E_MAIL_OUTBOX
-const NEEDS_MAIL = 'Needs E2E_MAIL_OUTBOX: the emailed invitation link sets the password'
-let nextMobile = 0
-function linkToken(login: string): string {
-  const mails = readFileSync(MAIL_OUTBOX!, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line) as { to: string; text: string })
-  const mail = mails.reverse().find((item) => item.to.includes(login))
-  const token = mail && /token=([\w-]+)/.exec(mail.text)?.[1]
-  expect(token, `no emailed link for ${login} in ${MAIL_OUTBOX}`).toBeTruthy()
-  return token!
-}
-/** The invitee's side of the link: sets a number and TEST_PASSWORD through the public accept route. */
-async function acceptInvitation(request: APIRequestContext, login: string) {
-  nextMobile += 1
-  const mobile = `+9665${String((Date.now() + nextMobile) % 100_000_000).padStart(8, '0')}`
-  const response = await request.post('/api/v1/public/account/invitation/accept', { data: { token: linkToken(login), mobile, password: TEST_PASSWORD } })
-  expect(response.ok(), `accept ${login}: ${response.status()} ${await response.text()}`).toBeTruthy()
-}
 async function login(page: Page, login = 'admin', password = 'admin') {
   await page.goto('/login')
   await page.getByLabel('اسم المستخدم').fill(login)
@@ -54,7 +34,7 @@ async function grantRole(request: APIRequestContext, role: { id: number }, suffi
   const login = `access-${suffix}-${Date.now()}@example.test`
   const employee = await json(request, 'post', '/api/v1/hr/employees', { name: `اختبار ${suffix}`, work_email: login })
   const user = await json(request, 'post', '/api/v1/admin/employee-accounts', { employee_id: employee.id, login, assignments: [{ role_id: role.id, scope: { kind: 'company', id: me.company.id } }] })
-  if (MAIL_OUTBOX) await acceptInvitation(request, login)
+  if (MAIL_OUTBOX) await acceptInvitation(request, login, TEST_PASSWORD)
   return { user, employee, login }
 }
 async function grantFixture(request: APIRequestContext, roleKey: string, suffix: string) {
@@ -141,7 +121,7 @@ test('employee preselection invites an account through the complete routed form'
   await expect(page).toHaveURL(/\/settings\/team\/users\/\d+/)
   await expect(page.getByText('بانتظار القبول').first()).toBeVisible()
   if (!MAIL_OUTBOX) return
-  await acceptInvitation(page.request, loginName)
+  await acceptInvitation(page.request, loginName, TEST_PASSWORD)
   const context = await browser.newContext()
   try {
     const employeePage = await context.newPage()
@@ -172,7 +152,7 @@ test('a new account is invited from name, login and roles without an employee, a
     await expect(stranger.getByRole('alert')).toBeVisible()
     await expect(stranger).toHaveURL(/\/login/)
     if (!MAIL_OUTBOX) return
-    await acceptInvitation(page.request, loginName)
+    await acceptInvitation(page.request, loginName, TEST_PASSWORD)
     await login(stranger, loginName, TEST_PASSWORD)
     expect((await json(stranger.request, 'get', '/api/v1/me')).capabilities).toContain('pmo.tasks.read')
   } finally { await context.close() }
