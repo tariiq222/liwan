@@ -43,6 +43,9 @@ class TestTikTokAdapter(BaseCase):
         header = tt.signed(raw)
         self.assertTrue(tiktok.verify_signature(tt.CLIENT_SECRET, raw, header, tt.CREATE_TIME + 5))
         self.assertFalse(tiktok.verify_signature(tt.CLIENT_SECRET, raw, header, tt.CREATE_TIME + 6))
+        # The window is symmetric: a delivery dated in the future is refused like a stale one.
+        self.assertTrue(tiktok.verify_signature(tt.CLIENT_SECRET, raw, header, tt.CREATE_TIME - 5))
+        self.assertFalse(tiktok.verify_signature(tt.CLIENT_SECRET, raw, header, tt.CREATE_TIME - 6))
         self.assertFalse(tiktok.verify_signature(tt.CLIENT_SECRET, raw + b' ', header, tt.CREATE_TIME))
         self.assertFalse(tiktok.verify_signature('another-secret', raw, header, tt.CREATE_TIME))
         digest = header.split('s=')[1]

@@ -166,7 +166,11 @@ def app_config(environ):
 
 
 def verify_signature(secret, raw, header, now):
-    """True when `header` ("t=<unix s>,s=<hex>") signs `raw` and is at most `SIGNATURE_MAX_AGE` seconds old."""
+    """True when `header` ("t=<unix s>,s=<hex>") signs `raw` and is within `SIGNATURE_MAX_AGE` seconds of `now`.
+
+    The window is symmetric: a timestamp dated in the future is refused like a stale one, because
+    it would otherwise escape the replay window as the clock advances.
+    """
     parts = {}
     for part in (header or '').split(','):
         key, _, value = part.partition('=')
@@ -182,7 +186,7 @@ def verify_signature(secret, raw, header, now):
     digest = hmac.new(secret.encode(), b'%d.' % timestamp + raw, hashlib.sha256).hexdigest()
     if not hmac.compare_digest(digest, signature):
         return False
-    return now - timestamp <= SIGNATURE_MAX_AGE
+    return abs(now - timestamp) <= SIGNATURE_MAX_AGE
 
 
 def authorize_url(config, state):
