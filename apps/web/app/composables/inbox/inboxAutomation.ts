@@ -93,11 +93,15 @@ export function buildAutoContent(draft: AutoContentDraft, kind: InboxChannelKind
   return parsed.success ? parsed.data : null
 }
 
-/** One automatic message's content: TikTok's welcome is its plain text only, every other message follows the channel. */
+/** One automatic message's content: TikTok's welcome is its plain text only and TikTok carries no products in an
+ * automatic message (its away message is a text or a button card); every other message follows the channel. */
 function autoMessageContent(content: AutoContentDraft, kind: InboxChannelKind, welcome: boolean): InboxAutoContent | null {
-  if (kind === 'tiktok' && welcome) {
-    const body = content.mode === 'text' ? content.body.trim() : ''
-    return body && body.length <= TIKTOK_WELCOME_MAX ? { body } : null
+  if (kind === 'tiktok') {
+    if (welcome) {
+      const body = content.mode === 'text' ? content.body.trim() : ''
+      return body && body.length <= TIKTOK_WELCOME_MAX ? { body } : null
+    }
+    if (content.mode === 'commerce') return null
   }
   return buildAutoContent(content, kind)
 }
