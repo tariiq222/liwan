@@ -66,7 +66,9 @@ def _is_count(value, minimum):
 def decode_state(config, state, now):
     """The values of a state this app signed and that has not expired; 403 otherwise."""
     payload, _, signature = (state or '').partition('.')
-    if not payload or not signature or not hmac.compare_digest(
+    # A query string decodes to latin-1, so the signature may carry bytes above 0x7F; comparing it
+    # with the ASCII digest raises instead of refusing the state.
+    if not payload or not signature or not signature.isascii() or not hmac.compare_digest(
         _state_signature(config.client_secret, payload), signature,
     ):
         raise ApiError(403, 'forbidden', STATE_INVALID)
