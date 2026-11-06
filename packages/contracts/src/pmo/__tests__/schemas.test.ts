@@ -199,9 +199,17 @@ describe('ProjectPatchSchema', () => {
 })
 
 describe('ProjectCreateSchema', () => {
-  it('still accepts name only and optional charter', () => {
+  it('accepts name-only creation', () => {
     expect(ProjectCreateSchema.parse({ name: 'N' })).toEqual({ name: 'N' })
-    expect(ProjectCreateSchema.parse({ name: 'N', charter: { budget_state: 'estimate', amount: 0 } }).charter?.amount).toBe(0)
+  })
+
+  it.each([{}, { budget_state: 'estimate', amount: 0 }, { rationale: 'Needed' }])('rejects the obsolete charter creation field: %j', charter => {
+    expect(ProjectCreateSchema.safeParse({ name: 'N', charter }).success).toBe(false)
+  })
+
+  it('retains charter edits on the versioned project PATCH', () => {
+    const patch = { charter: { rationale: 'Needed' }, expected_updated_at: 'v3' }
+    expect(ProjectPatchSchema.parse(patch)).toEqual(patch)
   })
 })
 

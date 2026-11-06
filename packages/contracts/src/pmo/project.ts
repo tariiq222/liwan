@@ -89,7 +89,6 @@ export const ProjectCreateSchema = z.object({
   date: z.string().nullable().optional(),
   date_end: z.string().nullable().optional(),
   tag_ids: z.array(z.number().int()).optional(),
-  charter: ProjectCharterWriteSchema.optional(),
 }).strict().superRefine((value, ctx) => {
   if (value.date !== undefined && value.date_end !== undefined) {
     ctx.addIssue({
