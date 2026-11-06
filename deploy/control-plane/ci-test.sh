@@ -4,8 +4,9 @@
 # Some live suites pin their own database name, so one shared database cannot run
 # them all: the payment suites require liwan_control_scratch_payfinal, and the
 # commercial restore suite connects to liwan_control_scratch_restorec, and the
-# analytics suite requires liwan_control_scratch_analytics. This script
-# creates four scratch databases, runs the suites serially in three groups, and
+# analytics suite requires liwan_control_scratch_analytics, and the AI provider suite
+# requires liwan_control_scratch_aiprovider. This script creates five scratch
+# databases, runs the suites serially in four groups, and
 # drops the databases on exit. It refuses a non-loopback host.
 #
 # Environment: PGHOST (127.0.0.1), PGPORT (5432), PGUSER (liwan_test), PGPASSWORD (required).
@@ -24,7 +25,8 @@ MAIN_DB=liwan_control_scratch_ci
 PAYMENT_DB=liwan_control_scratch_payfinal
 RESTORE_DB=liwan_control_scratch_restorec
 ANALYTICS_DB=liwan_control_scratch_analytics
-DBS=("$MAIN_DB" "$PAYMENT_DB" "$RESTORE_DB" "$ANALYTICS_DB")
+AI_PROVIDER_DB=liwan_control_scratch_aiprovider
+DBS=("$MAIN_DB" "$PAYMENT_DB" "$RESTORE_DB" "$ANALYTICS_DB" "$AI_PROVIDER_DB")
 
 drop_all() { for db in "${DBS[@]}"; do dropdb -h "$HOST" -p "$PORT" -U "$USER_NAME" --if-exists "$db" 2>/dev/null || true; done; }
 trap drop_all EXIT
@@ -42,7 +44,7 @@ npm -w packages/commercial-contracts run test
 PAYMENT_SUITES=(commercial-payment-events commercial-payment-simulator-settle commercial-renewals)
 
 # Group 1: every other suite. The restore suite swaps the database name itself.
-EXCLUDES=(--exclude '**/commercial-analytics.test.ts')
+EXCLUDES=(--exclude '**/commercial-analytics.test.ts' --exclude '**/ai-provider.test.ts')
 for s in "${PAYMENT_SUITES[@]}"; do EXCLUDES+=(--exclude "**/$s.test.ts"); done
 CONTROL_TEST_DATABASE_URL="$(url "$MAIN_DB")" npm -w apps/control-plane test -- "${EXCLUDES[@]}"
 
@@ -51,6 +53,9 @@ CONTROL_TEST_DATABASE_URL="$(url "$PAYMENT_DB")" npm -w apps/control-plane test 
 
 # Group 3: analytics owns its database independently of the payment and main fixtures.
 CONTROL_TEST_DATABASE_URL="$(url "$ANALYTICS_DB")" npm -w apps/control-plane test -- commercial-analytics
+
+# Group 4: the AI provider suite pins its own database (it writes the provider file and its audit rows).
+CONTROL_TEST_DATABASE_URL="$(url "$AI_PROVIDER_DB")" npm -w apps/control-plane test -- ai-provider.test
 
 npm -w packages/commercial-contracts run build
 npm -w apps/control-plane run build
