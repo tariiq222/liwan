@@ -8,7 +8,7 @@ import os
 import time
 from datetime import timedelta
 from unittest.mock import patch
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 from odoo import fields
 from odoo.tests import tagged
@@ -172,6 +172,16 @@ class TestTikTokOAuth(LiwanInboxCase):
             for state in (tampered, expired, foreign, 'not-a-state'):
                 self.assertError(self.callback(state), 403, 'forbidden')
         self.assertFalse(self.channels())
+
+    def test_a_non_ascii_state_is_refused_not_raised(self):
+        # A query string decodes to latin-1, so a `%FF` reaches the callback as a non-ASCII str; comparing
+        # it with the ASCII signature raises TypeError and the callback would answer 500 instead of 403.
+        self.login(self.manager)
+        payload, _, signature = self.state().partition('.')
+        exchange, profile = self.answer()
+        with exchange, profile:
+            for state in (f'{payload}.%FF{signature}', f'{payload}.\u00e9{signature}'):
+                self.assertError(self.callback(quote(state, safe='%.')), 403, 'forbidden')
 
     def test_a_missing_scope_redirects_to_the_error_page(self):
         self.login(self.manager)
