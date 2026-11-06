@@ -75,6 +75,9 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
           </p>
         </div>
         <SharedStatusBadge v-if="data?.csat" :tone="CSAT_TONE[data.csat.score]" icon="i-lucide-star" :label="t('inbox.csat.badge', { score: t(`inbox.csat.${data.csat.score}`) })" data-testid="inbox-csat-badge" />
+        <UTooltip v-if="data?.referral_source" :text="data.referral_ref ? t('inbox.referral.ref', { ref: data.referral_ref }) : t('inbox.referral.badge', { source: t(`inbox.referral.${data.referral_source}`) })">
+          <SharedStatusBadge tone="info" icon="i-lucide-megaphone" :label="t('inbox.referral.badge', { source: t(`inbox.referral.${data.referral_source}`) })" data-testid="inbox-referral-badge" />
+        </UTooltip>
         <SharedStatusBadge v-if="data" :tone="CONVERSATION_STATE_TONE[data.state]" :label="t(`inbox.states.${data.state}`)" />
         <UTooltip v-if="catalogOn" :text="t('inbox.orders.title')">
           <UButton color="neutral" :variant="ordersOpen ? 'soft' : 'ghost'" square :to="ordersOpen ? threadTo : ordersTo" :aria-pressed="ordersOpen" :aria-label="t('inbox.orders.title')" data-testid="inbox-orders-toggle">

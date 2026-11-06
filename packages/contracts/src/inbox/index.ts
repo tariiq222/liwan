@@ -65,6 +65,9 @@ export const InboxConversationSchema = z.object({
   reply_window_ends_at: UtcDateTime.nullable(),
   // The customer's answer to the satisfaction survey, null until answered.
   csat: z.object({ score: z.enum(['good', 'neutral', 'bad']), at: UtcDateTime }).strict().nullable(),
+  // The ad or short link a TikTok customer arrived from (D9); null on every other channel.
+  referral_source: z.enum(['ad', 'short_link']).nullable(),
+  referral_ref: z.string().nullable(),
 }).strict()
 
 export const InboxConversationListSchema = list(InboxConversationSchema)

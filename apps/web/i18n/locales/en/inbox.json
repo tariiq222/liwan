@@ -737,6 +737,12 @@
       "bad": "Dissatisfied",
       "badge": "Customer satisfaction: {score}"
     },
+    "referral": {
+      "badge": "Came from {source}",
+      "ad": "an ad",
+      "short_link": "a short link",
+      "ref": "Reference: {ref}"
+    },
     "automation": {
       "enable": "Enabled",
       "contentRequired": "Write the message text or complete the interactive message.",

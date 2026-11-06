@@ -737,6 +737,12 @@
       "bad": "غير راضٍ",
       "badge": "رضا العميل: {score}"
     },
+    "referral": {
+      "badge": "وصل من {source}",
+      "ad": "إعلان",
+      "short_link": "رابط مختصر",
+      "ref": "المعرّف: {ref}"
+    },
     "automation": {
       "enable": "تفعيل",
       "contentRequired": "اكتب نص الرسالة أو أكمل الرسالة التفاعلية.",
