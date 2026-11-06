@@ -253,10 +253,11 @@ export const MobileSchema = z.string().regex(MOBILE_PATTERN)
 
 /** The pending-invitation block of an account: `null` once the holder has set a password. */
 export const AdminUserInvitationSchema = z.object({
-  state: z.enum(['pending', 'expired']).nullable(),
-  delivery: z.enum(['pending', 'sent', 'failed']).nullable(),
+  state: z.enum(['pending', 'expired']),
+  delivery: z.enum(['pending', 'sent', 'failed']),
+  /** `null` until the mail server has accepted the message. */
   sent_at: z.string().nullable(),
-  expires_at: z.string().nullable(),
+  expires_at: z.string(),
 }).strict()
 export type AdminUserInvitation = z.infer<typeof AdminUserInvitationSchema>
 

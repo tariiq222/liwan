@@ -24,7 +24,6 @@ describe('accessBadge for invitations', () => {
   })
   it('falls back to the account state once there is no invitation, and for archived or protected accounts', () => {
     expect(accessBadge({ active: true, invitation: null })).toMatchObject({ labelKey: 'access.active' })
-    expect(accessBadge({ active: true, invitation: { state: null, delivery: null, sent_at: null, expires_at: null } })).toMatchObject({ labelKey: 'access.active' })
     expect(accessBadge({ active: false, invitation: invitation('pending', 'sent') })).toMatchObject({ labelKey: 'access.disabled' })
     expect(accessBadge({ active: true, protected: true, invitation: invitation('pending', 'sent') })).toMatchObject({ labelKey: 'access.protected', icon: 'i-lucide-lock' })
   })

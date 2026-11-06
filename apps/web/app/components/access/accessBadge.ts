@@ -10,7 +10,7 @@ export type InvitationStatus = 'pending' | 'expired' | 'failed'
 
 /** What a pending invitation shows: a mail that never went out outranks the clock, and an expired link outranks waiting. */
 export function invitationStatus(invitation: AdminUserInvitation | null | undefined): InvitationStatus | null {
-  if (!invitation?.state) return null
+  if (!invitation) return null
   if (invitation.delivery === 'failed') return 'failed'
   return invitation.state
 }

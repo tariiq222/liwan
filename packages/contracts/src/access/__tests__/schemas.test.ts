@@ -353,6 +353,12 @@ describe('admin input schemas and fail-closed security fields', () => {
     expect(AdminUserSummarySchema.parse({ ...USER_SUMMARY, mobile: null, invitation }).invitation).toEqual(invitation)
     expect(() => AdminUserSummarySchema.parse({ ...USER_SUMMARY, invitation: { ...invitation, state: 'accepted' } })).toThrow()
     expect(() => AdminUserSummarySchema.parse({ ...USER_SUMMARY, invitation: { ...invitation, token: 'x' } })).toThrow()
+    expect(AdminUserSummarySchema.parse({ ...USER_SUMMARY, invitation: { ...invitation, sent_at: null } }).invitation?.sent_at).toBeNull()
+    for (const field of ['state', 'delivery', 'expires_at'] as const) {
+      expect(() => AdminUserSummarySchema.parse({ ...USER_SUMMARY, invitation: { ...invitation, [field]: null } })).toThrow()
+    }
+    expect(() => AdminUserSummarySchema.parse({ ...USER_SUMMARY, invitation: { ...invitation, delivery: 'queued' } })).toThrow()
+    expect(AdminUserSummarySchema.parse({ ...USER_SUMMARY, invitation: null }).invitation).toBeNull()
     expect(() => AdminUserSummarySchema.parse({ ...USER_SUMMARY, mobile: '0500000001' })).toThrow()
     expect(AdminUserDetailSchema.parse({ ...USER_DETAIL, allowed_actions: ['resend_invitation', 'edit_invitation', 'cancel_invitation'] }).allowed_actions).toHaveLength(3)
     expect(() => AdminUserDetailSchema.parse({ ...USER_DETAIL, allowed_actions: ['reset_password'] })).toThrow()
