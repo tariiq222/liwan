@@ -2149,7 +2149,6 @@
     "tiktokErrors": {
       "inbox_tiktok_unsupported_kind": "لا يدعم TikTok هذا النوع من الرسائل. أرسل نصًا أو صورة واحدة أو بطاقة أزرار.",
       "inbox_tiktok_reply_limit": "بلغت حد الرسائل المتتالية في TikTok (10 رسائل). انتظر رد العميل ثم أرسل.",
-      "inbox_window_closed": "انتهت نافذة الرد في TikTok: 48 ساعة من آخر رسالة للعميل.",
       "inbox_tiktok_auto_message_reviewing": "هذا العنصر قيد مراجعة TikTok ولا يمكن تعديله حتى تنتهي المراجعة.",
       "inbox_tiktok_auto_message_limit": "بلغت الحد الأقصى لعدد العناصر: 3 أسئلة مقترحة و6 رسائل محادثة.",
       "inbox_tiktok_sync_running": "يوجد استيراد قيد التنفيذ لهذه القناة. انتظر انتهاءه.",
@@ -2157,6 +2156,10 @@
       "inbox_channel_kind_unsupported": "هذه الميزة لقنوات واتساب فقط.",
       "inbox_tiktok_scopes_missing": "لم تُمنح كل أذونات TikTok المطلوبة. أعد الربط ووافق على جميع الأذونات.",
       "inbox_tiktok_account_taken": "حساب TikTok هذا مرتبط بقناة أخرى. افصل القناة السابقة أولًا."
+    },
+    "inbox_window_closed": {
+      "whatsapp": "انتهت نافذة الرد (24 ساعة). أرسل قالبًا معتمدًا.",
+      "tiktok": "انتهت نافذة الرد في TikTok: 48 ساعة من آخر رسالة للعميل. انتظر رسالة العميل مرة أخرى."
     },
     "tiktok": {
       "details": "بيانات حساب TikTok",
