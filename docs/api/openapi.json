@@ -74,8 +74,12 @@
               "user.disabled",
               "user.reactivated",
               "user.password_reset",
+              "user.mobile_set",
+              "user.reset_link_requested",
               "user.branch_roles_changed",
               "branch.policy_changed",
+              "company.profile_changed",
+              "company.branding_changed",
               "employee.archived_access_disabled",
               "role.created",
               "role.updated",
@@ -226,8 +230,12 @@
                     "user.disabled",
                     "user.reactivated",
                     "user.password_reset",
+                    "user.mobile_set",
+                    "user.reset_link_requested",
                     "user.branch_roles_changed",
                     "branch.policy_changed",
+                    "company.profile_changed",
+                    "company.branding_changed",
                     "employee.archived_access_disabled",
                     "role.created",
                     "role.updated",
@@ -351,8 +359,12 @@
               "user.disabled",
               "user.reactivated",
               "user.password_reset",
+              "user.mobile_set",
+              "user.reset_link_requested",
               "user.branch_roles_changed",
               "branch.policy_changed",
+              "company.profile_changed",
+              "company.branding_changed",
               "employee.archived_access_disabled",
               "role.created",
               "role.updated",
@@ -1071,25 +1083,15 @@
                 "additionalProperties": false,
                 "properties": {
                   "delivery": {
-                    "anyOf": [
-                      {
-                        "enum": [
-                          "pending",
-                          "sent",
-                          "failed"
-                        ],
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "enum": [
+                      "pending",
+                      "sent",
+                      "failed"
+                    ],
+                    "type": "string"
                   },
                   "expires_at": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
+                    "type": "string"
                   },
                   "sent_at": {
                     "type": [
@@ -1098,18 +1100,11 @@
                     ]
                   },
                   "state": {
-                    "anyOf": [
-                      {
-                        "enum": [
-                          "pending",
-                          "expired"
-                        ],
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "enum": [
+                      "pending",
+                      "expired"
+                    ],
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -1170,25 +1165,15 @@
         "additionalProperties": false,
         "properties": {
           "delivery": {
-            "anyOf": [
-              {
-                "enum": [
-                  "pending",
-                  "sent",
-                  "failed"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "enum": [
+              "pending",
+              "sent",
+              "failed"
+            ],
+            "type": "string"
           },
           "expires_at": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           },
           "sent_at": {
             "type": [
@@ -1197,18 +1182,11 @@
             ]
           },
           "state": {
-            "anyOf": [
-              {
-                "enum": [
-                  "pending",
-                  "expired"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "enum": [
+              "pending",
+              "expired"
+            ],
+            "type": "string"
           }
         },
         "required": [
@@ -1393,25 +1371,15 @@
                       "additionalProperties": false,
                       "properties": {
                         "delivery": {
-                          "anyOf": [
-                            {
-                              "enum": [
-                                "pending",
-                                "sent",
-                                "failed"
-                              ],
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ]
+                          "enum": [
+                            "pending",
+                            "sent",
+                            "failed"
+                          ],
+                          "type": "string"
                         },
                         "expires_at": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
+                          "type": "string"
                         },
                         "sent_at": {
                           "type": [
@@ -1420,18 +1388,11 @@
                           ]
                         },
                         "state": {
-                          "anyOf": [
-                            {
-                              "enum": [
-                                "pending",
-                                "expired"
-                              ],
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ]
+                          "enum": [
+                            "pending",
+                            "expired"
+                          ],
+                          "type": "string"
                         }
                       },
                       "required": [
@@ -1669,25 +1630,15 @@
                 "additionalProperties": false,
                 "properties": {
                   "delivery": {
-                    "anyOf": [
-                      {
-                        "enum": [
-                          "pending",
-                          "sent",
-                          "failed"
-                        ],
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "enum": [
+                      "pending",
+                      "sent",
+                      "failed"
+                    ],
+                    "type": "string"
                   },
                   "expires_at": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
+                    "type": "string"
                   },
                   "sent_at": {
                     "type": [
@@ -1696,18 +1647,11 @@
                     ]
                   },
                   "state": {
-                    "anyOf": [
-                      {
-                        "enum": [
-                          "pending",
-                          "expired"
-                        ],
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
+                    "enum": [
+                      "pending",
+                      "expired"
+                    ],
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -7826,8 +7770,12 @@
           "user.disabled",
           "user.reactivated",
           "user.password_reset",
+          "user.mobile_set",
+          "user.reset_link_requested",
           "user.branch_roles_changed",
           "branch.policy_changed",
+          "company.profile_changed",
+          "company.branding_changed",
           "employee.archived_access_disabled",
           "role.created",
           "role.updated",
