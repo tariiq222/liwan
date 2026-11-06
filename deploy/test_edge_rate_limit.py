@@ -224,7 +224,9 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
             sorted((p['host_ip'], str(p['published']), p['target']) for p in proxy),
             [('0.0.0.0', '443', 443), ('0.0.0.0', '80', 80)],
         )
-        for name in ('guard', 'odoo', 'db', 'web', 'tiktok-relay'):
+        # The relay belongs to the `tiktok` profile, so a stack without the app renders no relay.
+        self.assertNotIn('tiktok-relay', rendered['services'])
+        for name in ('guard', 'odoo', 'db', 'web'):
             with self.subTest(service=name):
                 self.assertFalse(rendered['services'][name].get('ports'))
 
@@ -336,7 +338,7 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
         with self.assertRaises(AssertionError):
             self.assertEqual(actual, [expected for _, expected in SHARED_ZONE_CASES])
 
-    def _render_shared(self, extra: dict) -> dict:
+    def _render_shared(self, extra: dict, profiles: tuple = ()) -> dict:
         if not shutil.which('docker') or subprocess.run(
                 ['docker', 'compose', 'version'], capture_output=True, timeout=60).returncode:
             self.skipTest('docker compose unavailable')
@@ -354,6 +356,7 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
             envfile.write_text(''.join(f'{k}={v}\n' for k, v in env.items()), encoding='utf-8')
             res = subprocess.run(
                 ['docker', 'compose', '--env-file', str(envfile),
+                 *[arg for profile in profiles for arg in ('--profile', profile)],
                  '-f', str(COMPOSE), '-f', str(ROOT / 'deploy' / 'docker-compose.shared.yml'),
                  'config', '--format', 'json'],
                 capture_output=True, text=True, timeout=60, cwd=ROOT, env={k: v for k, v in os.environ.items() if not k.startswith(('LIWAN_', 'ODOO_', 'POSTGRES_'))},
@@ -384,7 +387,7 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
 
     def test_shared_overlay_runs_the_tiktok_relay_isolated(self) -> None:
         """Behavioral: the relay service owns its registry mount, bindings volume and networks."""
-        rendered = self._render_shared({})
+        rendered = self._render_shared({}, profiles=('tiktok',))
         relay = rendered['services']['tiktok-relay']
         self.assertEqual(relay['command'], ['node', 'deploy/shared/tiktok-relay.mjs'])
         self.assertEqual(relay['read_only'], True)

@@ -40,7 +40,7 @@ class TestEntitlements(TransactionCase):
             'hr.enabled', 'hr.recruitment', 'hr.shifts', 'hr.onboarding', 'hr.offboarding', 'hr.assets', 'hr.warnings', 'hr.insurance', 'hr.payroll',
         },
         'liwan_chat': {'chat.enabled'},
-        'liwan_inbox': {'inbox.enabled', 'inbox.whatsapp', 'inbox.templates', 'inbox.automation', 'inbox.flows', 'inbox.reports', 'inbox.campaigns'},
+        'liwan_inbox': {'inbox.enabled', 'inbox.whatsapp', 'inbox.tiktok', 'inbox.templates', 'inbox.automation', 'inbox.flows', 'inbox.reports', 'inbox.campaigns'},
     }
 
     def _release_boolean_keys(self):
@@ -232,6 +232,8 @@ class TestEntitlements(TransactionCase):
         limits = {'users.limit', 'storage.limit_mb', 'branches.extra_limit'}
         if 'liwan_pmo' in apps:
             limits.add('projects.max_projects')
+        if 'liwan_inbox' in apps:
+            limits |= {'inbox.channels', 'inbox.messages_out', 'inbox.campaign_recipients'}
         actual_limits = set(self.features._liwan_limit_keys())
         self.assertLessEqual(limits, actual_limits)
         if module_map <= release:
