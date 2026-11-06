@@ -1,12 +1,10 @@
 import type { InboxChannelKind, InboxConversation } from '@liwan/contracts'
 
-/** The customer-service window by kind: WhatsApp closes it 24 hours after the customer's last message, TikTok 48 (D4). */
-export const REPLY_WINDOW_HOURS: Record<InboxChannelKind, number> = { whatsapp: 24, tiktok: 48 }
-
 /**
- * Whether a free-form reply is still accepted: the window closes `REPLY_WINDOW_HOURS` after the customer's
- * last message. Past it, or with no inbound message at all, WhatsApp may still send an approved template and
- * TikTok may send nothing at all. The server enforces the same rule (422 `invalid`).
+ * Whether a free-form reply is still accepted: the window closes 24 hours after the customer's last message on
+ * WhatsApp and 48 on TikTok (D4) — the server's `REPLY_WINDOWS` owns those hours. Past it, or with no inbound
+ * message at all, WhatsApp may still send an approved template and TikTok may send nothing at all. The server
+ * enforces the same rule (422 `invalid`).
  */
 export function replyWindowOpen(conversation: Pick<InboxConversation, 'reply_window_ends_at'>, now: number = Date.now()): boolean {
   if (!conversation.reply_window_ends_at) return false
