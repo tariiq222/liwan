@@ -92,6 +92,10 @@ describe('toolResultFromUpstream', () => {
     const refused = toolResultFromUpstream(422, { code: 'invalid', message: 'الجوال 0551234567 مستخدم' }, list, NONE, KEY)
     expect(JSON.stringify(refused)).not.toContain('0551234567')
     expect(restoreValue(refused, KEY)).toEqual({ ok: false, error: { code: 'invalid', message: 'الجوال 0551234567 مستخدم' } })
+    // A message near the limit stays within it once its value becomes a token, and no token is cut.
+    const long = toolResultFromUpstream(422, { code: 'invalid', message: `${'x'.repeat(1989)} 0551234567` }, list, NONE, KEY)
+    expect(long.ok ? '' : long.error.message.length).toBeLessThanOrEqual(2000)
+    expect(JSON.stringify(long)).not.toContain('0551234567')
     // Many short emails grow past the bound once each becomes a marker: the result is refused, never sent oversized.
     const emails = Array.from({ length: 14_000 }, (_, index) => `a${index}@b.sa`).join(' ')
     expect(toolResultFromUpstream(200, { items: [{ id: 1, name: emails }], total: 1 }, list, NONE, KEY)).toMatchObject({ ok: false, error: { code: 'result_too_large' } })

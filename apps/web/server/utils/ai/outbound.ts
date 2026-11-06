@@ -65,9 +65,14 @@ function masked(text: string, spans: { start: number; end: number }[]): string {
   return parts.join('')
 }
 
-/** Every covered value of `text`, ascending and non-overlapping. A token already in the text is left as it is. */
-function findSpans(text: string): Span[] {
-  const issued = [...text.matchAll(TOKEN)].map(match => ({ start: match.index, end: match.index + match[0].length }))
+/**
+ * Every covered value of `text`, ascending and non-overlapping. A token this server issued is left as it is; anything that
+ * only looks like one (a forged `[phone:…]` around an ID number) is scanned like any other text.
+ */
+function findSpans(text: string, key: TokenKey): Span[] {
+  const issued = [...text.matchAll(TOKEN)]
+    .filter(([, kind, payload]) => valueOf(key, kind as TokenKind, payload!) !== null)
+    .map(match => ({ start: match.index, end: match.index + match[0].length }))
   let scanned = masked(latinDigits(text), issued)
   const spans: Span[] = []
   for (const [kind, pattern] of PATTERNS) {
@@ -153,7 +158,7 @@ function valueOf(key: TokenKey, kind: TokenKind, payload: string): string | null
 
 /** One text as it may leave: identity numbers and IBANs withheld for good, mobile numbers and emails as tokens. */
 export function protectText(text: string, key: TokenKey): string {
-  const spans = findSpans(text)
+  const spans = findSpans(text, key)
   if (spans.length === 0) return text
   const parts: string[] = []
   let cursor = 0
@@ -183,6 +188,14 @@ function mapStrings<T>(value: T, transform: (text: string) => string): T {
 }
 
 export const protectValue = <T>(value: T, key: TokenKey): T => mapStrings(value, text => protectText(text, key))
+
+/** A protected text cut to `max` characters without cutting through a token or a marker (both open with `[`). */
+export function boundProtected(text: string, max: number): string {
+  if (text.length <= max) return text
+  const cut = text.slice(0, max)
+  const open = cut.lastIndexOf('[')
+  return open > cut.lastIndexOf(']') ? cut.slice(0, open) : cut
+}
 export const restoreValue = <T>(value: T, key: TokenKey): T => mapStrings(value, text => restoreText(text, key))
 
 // A streamed answer arrives in pieces, so a token can be split across two of them. At most this many characters after an

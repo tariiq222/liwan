@@ -775,10 +775,11 @@ describe('PATCH /api/ai/runs/{id}', () => {
     expect(JSON.parse(call.body)).toEqual({ title: 'مشروع البوابة', archived: true })
   })
 
-  it('protects a phone in a typed title and shows it back as written', async () => {
-    const response = await patch({ title: 'اتصال 0551234567' })
-    expect(JSON.parse(serviceCalls.at(-1)!.body).title).toMatch(/^اتصال \[phone:[A-Za-z0-9_-]+\]$/)
-    expect((await response.json()).title).toBe('اتصال 0551234567')
+  it('sends a typed title as typed: the service stores it and its 80-character contract holds', async () => {
+    const title = `${'م'.repeat(40)} someone.with.long.address@example.com`
+    const response = await patch({ title })
+    expect(response.status).toBe(200)
+    expect(JSON.parse(serviceCalls.at(-1)!.body).title).toBe(title)
   })
 
   it('sends the service only the fields of the contract', async () => {

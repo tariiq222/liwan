@@ -1,5 +1,5 @@
 import type { AiTool } from '@liwan/contracts'
-import { protectValue, type TokenKey } from './outbound'
+import { boundProtected, protectText, protectValue, type TokenKey } from './outbound'
 
 export type ToolRequest = { method: 'GET' | 'POST' | 'PATCH'; path: string; query: Record<string, unknown>; body: Record<string, unknown> | undefined }
 export type ToolError = { code: string; message: string }
@@ -112,7 +112,8 @@ export function toolResultFromUpstream(status: number, body: unknown, tool: AiTo
     return { ok: true, data }
   }
   const error = upstreamError(body)
-  if (error) return protectValue(toolError(error.code, error.message), key)
+  // Protected first, then bounded: a token is longer than its value, and the service accepts MAX_ERROR_MESSAGE at most.
+  if (error) return toolError(error.code, boundProtected(protectText(error.message, key), MAX_ERROR_MESSAGE))
   return toolError('http_error', `upstream status ${status}`)
 }
 

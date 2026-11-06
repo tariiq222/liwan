@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isSaudiId, protectText, protectValue, restoreText, restoreValue, streamRestorer, tokenKeyFrom } from '../outbound'
+import { boundProtected, isSaudiId, protectText, protectValue, restoreText, restoreValue, streamRestorer, tokenKeyFrom } from '../outbound'
 
 const SECRET = 'test-secret-of-at-least-32-characters'
 const KEY = tokenKeyFrom(SECRET, { tenant: 'acme', user: '42' })
@@ -131,5 +131,19 @@ describe('outbound data policy content scan', () => {
   it('restores the longest email the scan takes', () => {
     const email = `${'ب'.repeat(64)}@${Array.from({ length: 9 }, () => 'ج'.repeat(25)).join('.')}.السعودية`
     expect(restoreText(protectText(email, KEY), KEY)).toBe(email)
+  })
+
+  it('scans a forged token-shaped value like any other text', () => {
+    expect(masked(`[email:AAAA${CITIZEN_ID}AAAA]`)).toBe('[email:AAAA[national_id withheld]AAAA]')
+    expect(masked('[phone:AAAA0551234567AAAA]')).toBe('[phone:AAAA[phone token]AAAA]')
+    expect(protectText('[phone:xxSA0380000000608010167519]', KEY)).toBe('[phone:xx[iban withheld]]')
+  })
+
+  it('bounds a protected text without cutting through a token', () => {
+    const text = `${'x'.repeat(1990)} ${protectText('0551234567', KEY)}`
+    const bounded = boundProtected(text, 2000)
+    expect(bounded.length).toBeLessThanOrEqual(2000)
+    expect(bounded).not.toContain('[phone')
+    expect(boundProtected('short', 2000)).toBe('short')
   })
 })
