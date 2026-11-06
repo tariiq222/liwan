@@ -876,7 +876,7 @@ class LiwanAccessService(models.AbstractModel):
             return
         self._liwan_send_link(user, 'reset')
         self.env['liwan.access.audit']._liwan_log(
-            'user.reset_link_requested', user, before=None, after={'link_sent': True}, actor=user,
+            'user.reset_link_requested', user, before=None, after={'link_sent': True},
         )
 
     @api.model

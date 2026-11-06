@@ -210,6 +210,16 @@ class TestAccountInvitations(TransactionCase):
         self.assertEqual(len(self.sent), 3)
         self.assertEqual({token.user_id for token, _raw in self.sent}, {user})
 
+    def test_forgot_password_audit_row_has_no_actor(self):
+        user = self._invite()
+        self.public._liwan_accept_invitation(self.sent[0][1], MOBILE, PASSWORD)
+        self.public._liwan_request_password_reset(user.login)
+        entry = self.env['liwan.access.audit'].search([
+            ('action', '=', 'user.reset_link_requested'), ('target_id', '=', user.id),
+        ])
+        self.assertEqual(len(entry), 1)
+        self.assertFalse(entry.actor_id)
+
     def test_forgot_password_ignores_pending_archived_and_protected_users(self):
         self._invite('pending@example.com')
         archived = self._invite('archived@example.com')
