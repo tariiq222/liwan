@@ -267,6 +267,15 @@ class TestAccountInvitations(TransactionCase):
         self.public._liwan_accept_invitation(self.sent[-1][1], MOBILE, PASSWORD)
         self.assertEqual(second.liwan_mobile, MOBILE)
 
+    def test_model_refuses_a_malformed_mobile_on_any_path(self):
+        user = self._invite()
+        for value in ('0500000001', '966500000001', '+0500000001', '+96650', '+9665000000010000', '+966 500000001', 'abc'):
+            with self.subTest(value=value), self.assertRaises(ValidationError):
+                with self.env.cr.savepoint():
+                    user.sudo().write({'liwan_mobile': value})
+        user.sudo().write({'liwan_mobile': MOBILE})
+        self.assertEqual(user.liwan_mobile, MOBILE)
+
     def test_set_own_mobile(self):
         user = self._invite()
         self.public._liwan_accept_invitation(self.sent[0][1], MOBILE, PASSWORD)

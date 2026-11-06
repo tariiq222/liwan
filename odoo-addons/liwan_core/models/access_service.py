@@ -1,6 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import json
-import re
 import secrets
 from contextlib import contextmanager
 
@@ -16,10 +15,9 @@ from .access_permission import IDENTIFIER
 from .account_token import RESET_LINKS_PER_HOUR
 from .protected_write import marked
 from .res_partner import PARTNER_CREATE_MARKER, PARTNER_GRANT_MARKER
+from .res_users import MOBILE_PATTERN
 
 MIN_PASSWORD_LENGTH = 12
-# E.164: a plus sign, a country code that does not start with 0, at most 15 digits in all.
-MOBILE_PATTERN = re.compile(r'\+[1-9][0-9]{7,14}')
 MOBILE_SEPARATORS = str.maketrans('', '', ' -()')
 MOBILE_INDEX = 'res_users_liwan_mobile_unique'
 

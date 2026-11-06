@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import re
+
 from odoo import api, fields, models
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, ValidationError
 
 from .res_partner import PARTNER_GRANT_MARKER
 
@@ -8,6 +10,8 @@ USER_CREATE_MARKER = 'liwan_core.access_user_create_depth'
 USER_WRITE_MARKER = 'liwan_core.access_user_write'
 # Credential fields whose stock security alert the protected account operations replace with the audit log.
 SECURITY_NOTIFIED_FIELDS = frozenset({'password', 'login', 'email'})
+# E.164: a plus sign, a country code that does not start with 0, 8 to 15 digits in all.
+MOBILE_PATTERN = re.compile(r'\+[1-9][0-9]{7,14}')
 
 
 class LiwanResUsers(models.Model):
@@ -26,6 +30,13 @@ class LiwanResUsers(models.Model):
         '(liwan_mobile) WHERE active AND liwan_mobile IS NOT NULL',
         'This mobile number is already used by another user.',
     )
+
+    @api.constrains('liwan_mobile')
+    def _check_liwan_mobile_format(self):
+        for user in self.filtered('liwan_mobile'):
+            if not MOBILE_PATTERN.fullmatch(user.liwan_mobile):
+                msg = 'liwan_mobile must be an E.164 number such as +966500000001'
+                raise ValidationError(msg)
 
     def _liwan_mark_access_managed(self):
         self.env['liwan.access.service']._liwan_clear_branch_cache()
