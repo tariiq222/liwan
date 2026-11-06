@@ -24,7 +24,8 @@ export function useSettingsPage(pageId: string) {
     return !group || group.id === activeTab.value
   }
   useSettingsScrollSpy(() => parts.value.filter(part => inTab(part.id)).map(part => part.id))
-  const tabItems = computed(() => groups.value.map(group => ({
+  // One visible group needs no strip: the reader sees its cards without a tab to choose.
+  const tabItems = computed(() => groups.value.length < 2 ? [] : groups.value.map(group => ({
     key: `settings-tab-${group.id}`,
     label: t(group.labelKey),
     // The hash names a card of another tab, so a tab link clears it and the query alone decides the tab.

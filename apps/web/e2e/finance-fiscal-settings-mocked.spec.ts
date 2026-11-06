@@ -299,19 +299,15 @@ test('a changed company refuses the write, drops the draft and says why', async 
   await expect(saveBar(page)).toBeHidden()
 })
 
-test('reverting sends nothing, and switching tabs keeps the draft', async ({ page }) => {
+test('reverting sends nothing and drops the draft', async ({ page }) => {
   await openFiscal(page)
   const day = page.locator('#finance-fiscal-fiscalyear_last_day')
   await day.fill('30')
   await page.getByTestId('settings-save-bar-revert').click()
   await expect(day).toHaveValue('31')
   await expect(saveBar(page)).toBeHidden()
-  await day.fill('30')
-  await page.getByTestId('settings-tab-accounting').click()
-  await expect(page).toHaveURL(/tab=accounting/)
-  await page.getByTestId('settings-tab-setup').click()
-  await expect(page.getByTestId('unsaved-changes-dialog')).toHaveCount(0)
-  await expect(day).toHaveValue('30')
+  // This reader may open the setup part only, so the page shows no tab strip.
+  await expect(page.locator('[data-testid^="settings-tab-"]')).toHaveCount(0)
   expect(fiscalPatches).toHaveLength(0)
 })
 

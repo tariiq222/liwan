@@ -93,6 +93,11 @@ const leaveTypes = useHrLeaveTypes(() => shows('payroll') && can('hr.leave.read'
 const leaveTypeRefs = computed(() => (leaveTypes.data.value?.items ?? []).map(type => ({ id: type.id, name: type.name })))
 const finance = useHrPayrollFinanceSettings()
 const financeSettings = computed(() => finance.data.value)
+async function reloadFinanceSettings() {
+  const response = await finance.refetch({ throwOnError: true })
+  if (!response.data) throw new Error(t('errors.generic'))
+  return response.data
+}
 // A refusal (403) or a missing bridge (404) hides the finance part; any other failure is shown with a retry.
 const financeError = computed(() => {
   const failure = finance.error.value
@@ -184,6 +189,7 @@ function retry() {
         :journals="lookups.journals.data.value?.items ?? null"
         :accounts="lookups.accounts.data.value?.items ?? null"
         :analytic-accounts="lookups.analyticAccounts.data.value?.items ?? null"
+        :reload-settings="reloadFinanceSettings"
       />
       <SharedFormSection v-if="financeSettings && centers.data.value" panel :title="t('hrPayroll.costCenters.title')" :description="t('hrPayroll.costCenters.hint')">
         <UAlert v-if="centerFailureMessage" role="alert" color="error" variant="subtle" :title="t('hrPayroll.costCenters.saveError')" :description="centerFailureMessage" />
