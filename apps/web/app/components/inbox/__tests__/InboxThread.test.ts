@@ -12,6 +12,7 @@ function mount(kind: 'tiktok' | 'whatsapp' | undefined) {
   let onError: ((e: unknown) => void) | undefined
   const refused = Object.assign(new Error('refused'), { status: 422, details: { reason: 'inbox_window_closed' } })
   const { state } = mountScript(filename, {
+    useMediaQuery: () => Vue.ref(false),
     DELIVERY_ICON: {},
     INBOX_REACTION_EMOJIS: [],
     inboxDayKey: (date: string) => date.slice(0, 10),

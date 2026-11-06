@@ -8,6 +8,7 @@ const state = vi.hoisted(() => ({ pages: [] as any[] }))
 vi.mock('@/composables/inbox/inboxProviderError', () => ({ useInboxProviderError: () => ({ providerText: () => '' }) }))
 vi.mock('@/composables/inbox/inboxPresentation', () => ({ DELIVERY_ICON: {}, inboxDayKey: (s: string) => s.slice(0, 10) }))
 vi.mock('@/composables/inbox/inboxReactions', () => ({ INBOX_REACTION_EMOJIS: [] }))
+vi.mock('@/composables/inbox/inboxWindow', () => import('../../../composables/inbox/inboxWindow'))
 vi.mock('@/composables/inbox/useInbox', async () => {
   const Vue = await import('vue')
   const { mergeMessagePages } = await import('../../../composables/inbox/useInbox')
