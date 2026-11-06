@@ -259,7 +259,9 @@ export function useHrShiftRoster(weekStart: MaybeRefOrGetter<string>, offset: Ma
   const { can } = useAccess()
   return useQuery({
     queryKey: computed(() => hrShiftKeys.roster(toValue(weekStart), toValue(offset))),
-    placeholderData: keepPreviousData,
+    // Another page of the same week keeps its rows; another week never shows the old one, whose selectors would write
+    // to the newly chosen week.
+    placeholderData: (previous, previousQuery) => previousQuery?.queryKey[3] === toValue(weekStart) ? previous : undefined,
     enabled: computed(() => !!toValue(weekStart) && can('hr.shifts.read')),
     queryFn: () => $api('/api/v1/hr/shifts/roster', {
       query: { week_start: toValue(weekStart), limit: HR_SHIFTS_PAGE_SIZE, offset: toValue(offset) },
