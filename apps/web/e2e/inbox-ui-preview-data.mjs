@@ -49,7 +49,7 @@ function seed() {
   ]
   const conversation = (id, contact, rest) => ({
     id, contact, channel: { id: 1, name: channels[0].name, kind: 'whatsapp' }, department: null, assignee: null, state: 'open', priority: 'normal', tags: [], revision: 1,
-    last_message_at: null, last_message_preview: null, last_message_kind: null, unread: false, reply_window_ends_at: null, csat: null, ...rest,
+    last_message_at: null, last_message_preview: null, last_message_kind: null, unread: false, reply_window_ends_at: null, csat: null, referral_source: null, referral_ref: null, ...rest,
   })
   const conversations = [
     conversation(1, contacts[0], { assignee: ME, department: { id: 1, name: 'الاستقبال' }, tags: [tags[1]], unread: true, reply_window_ends_at: iso(Date.now() + 20 * HOUR) }),
@@ -57,7 +57,7 @@ function seed() {
     conversation(3, contacts[2], { csat: { score: 'good', at: ago(4.8) }, state: 'resolved', assignee: AGENTS[0], department: { id: 1, name: 'الاستقبال' }, tags: [tags[2]], reply_window_ends_at: iso(Date.now() + 2 * HOUR) }),
     conversation(4, contacts[3], { priority: 'urgent', tags: [tags[0]], reply_window_ends_at: iso(Date.now() + 6 * HOUR) }),
     // A TikTok conversation: its own brand icon in the list and the header, a 48-hour window and no phone number.
-    conversation(5, contacts[4], { channel: { id: 2, name: channels[1].name, kind: 'tiktok' }, department: { id: 2, name: 'المبيعات' }, assignee: AGENTS[1], tags: [tags[2]], reply_window_ends_at: iso(Date.now() + 40 * HOUR) }),
+    conversation(5, contacts[4], { channel: { id: 2, name: channels[1].name, kind: 'tiktok' }, department: { id: 2, name: 'المبيعات' }, assignee: AGENTS[1], tags: [tags[2]], reply_window_ends_at: iso(Date.now() + 40 * HOUR), referral_source: 'short_link', referral_ref: 'campaign_1' }),
     // A TikTok conversation whose 48-hour window already closed: the composer explains it and offers no template.
     conversation(6, contacts[2], { channel: { id: 2, name: channels[1].name, kind: 'tiktok' }, state: 'pending', reply_window_ends_at: ago(12) }),
   ]
