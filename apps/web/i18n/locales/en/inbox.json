@@ -2157,6 +2157,7 @@
       "inbox_tiktok_reply_limit": "You reached TikTok's limit of 10 messages in a row. Wait for the customer to answer.",
       "inbox_tiktok_auto_message_reviewing": "TikTok is still reviewing this item; it cannot be edited until the review ends.",
       "inbox_tiktok_auto_message_limit": "The limit is reached: 3 suggested questions and 6 chat prompts.",
+      "inbox_tiktok_auto_message_refused": "TikTok refused the change. Try again, and reconnect the account if it keeps refusing.",
       "inbox_tiktok_sync_running": "An import is already running for this channel. Wait for it to finish.",
       "inbox_tiktok_not_configured": "The TikTok app is not configured on this system. Ask the system administrator.",
       "inbox_channel_kind_unsupported": "This feature exists for WhatsApp channels only.",

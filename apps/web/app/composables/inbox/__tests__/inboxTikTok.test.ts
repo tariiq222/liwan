@@ -43,6 +43,7 @@ describe('TikTok refusal reasons', () => {
     'inbox_tiktok_reply_limit',
     'inbox_tiktok_auto_message_reviewing',
     'inbox_tiktok_auto_message_limit',
+    'inbox_tiktok_auto_message_refused',
     'inbox_tiktok_sync_running',
     'inbox_tiktok_not_configured',
     'inbox_channel_kind_unsupported',

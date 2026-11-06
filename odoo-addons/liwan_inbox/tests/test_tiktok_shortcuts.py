@@ -11,13 +11,14 @@ from odoo.tests import tagged
 from . import tiktok_payloads as tt
 from .common import LiwanInboxCase
 from odoo.addons.liwan_api.tests.common import cover_isolation_routes, set_probe_feature
-from odoo.addons.liwan_inbox.adapters import tiktok
+from odoo.addons.liwan_inbox.adapters import errors, tiktok
 from odoo.addons.liwan_inbox.models.constants import TIKTOK_ECHO_SETTLE, TIKTOK_FEATURE
 
 ACCESS_TOKEN = 'tiktok-access-token-shortcuts'
 REFRESH_TOKEN = 'tiktok-refresh-token-shortcuts'
 REASON_REVIEWING = 'inbox_tiktok_auto_message_reviewing'
 REASON_LIMIT = 'inbox_tiktok_auto_message_limit'
+REASON_REFUSED = 'inbox_tiktok_auto_message_refused'
 QUESTION = {'kind': 'question', 'question': 'Do you deliver?', 'answer': 'Yes, city-wide.'}
 PROMPT = {'kind': 'prompt', 'title': 'Order', 'content': 'I want to order'}
 cover_isolation_routes((
@@ -143,6 +144,16 @@ class TestTikTokShortcuts(LiwanInboxCase):
         self.assertEqual(set(shortcuts.mapped('audit')), {'reviewing'})
         self.tiktok.invalidate_recordset(['tiktok_questions_enabled'])
         self.assertTrue(self.tiktok.tiktok_questions_enabled)
+
+    def test_a_refusal_to_switch_the_kind_is_422_not_500(self):
+        with patch.object(tiktok, 'set_auto_message_status', side_effect=errors.ProviderError(
+            'auto message refused', retryable=False, code=40001,
+        )):
+            response = self.api('POST', self.path('/enable'), {'kind': 'question', 'enabled': True})
+        self.assertEqual(response.status_code, 422, response.text)
+        self.assertEqual(response.json()['details']['reason'], REASON_REFUSED)
+        self.tiktok.invalidate_recordset(['tiktok_questions_enabled'])
+        self.assertFalse(self.tiktok.tiktok_questions_enabled, 'a refused switch must not be stored as enabled')
 
     def test_disabling_keeps_the_stored_items(self):
         with patch.object(tiktok, 'create_auto_message', return_value='am-1'):

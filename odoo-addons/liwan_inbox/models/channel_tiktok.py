@@ -317,7 +317,13 @@ class LiwanInboxChannel(models.Model):
         """
         self.ensure_one()
         credentials = self._liwan_credentials()
-        tiktok.set_auto_message_status(credentials, AUTO_TYPES[kind], enabled)
+        try:
+            tiktok.set_auto_message_status(credentials, AUTO_TYPES[kind], enabled)
+        except errors.ProviderError as error:
+            raise LiwanAccessRule(
+                INVALID, self.env._('TikTok refused the change: %(error)s', error=str(error)),
+                details={'reason': 'inbox_tiktok_auto_message_refused'},
+            ) from error
         self.write({ENABLED_FIELDS[kind]: enabled})
         if not enabled:
             return
