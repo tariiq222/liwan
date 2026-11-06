@@ -42,7 +42,7 @@ class AiAgentsController(http.Controller):
         agent = available_agents(env).get(key)
         if agent is None:
             raise ApiError(404, 'not_found', 'no such agent')
-        changes, revision = parse_agent_patch(payload, agent[1])
+        changes, revision = parse_agent_patch(payload, agent[1], memory_fixed=agent[0].get('memory', True) is False)
         before = self._snapshot(env, key)
         setting = env['liwan.ai.agent.setting'].search([('agent_key', '=', key)]) or env['liwan.ai.agent.setting'].create({'agent_key': key})
         if setting.revision != revision:

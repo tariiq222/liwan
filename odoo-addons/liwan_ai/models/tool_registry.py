@@ -6,6 +6,11 @@ from odoo.exceptions import ValidationError
 
 TOOL_KINDS = ('read', 'write_light', 'draft')
 SETUP_AGENT_KEY = 'ai'  # the setup agent of liwan_ai (models/setup_agent.py)
+HELP_AGENT_KEY = 'ai_help'  # the help agent of liwan_ai (models/help_agent.py)
+# The conversation modes of the free agents and the one agent each offers; an ordinary conversation offers neither.
+MODE_AGENTS = {'setup': SETUP_AGENT_KEY, 'help': HELP_AGENT_KEY}
+# The audit kinds of a free agent's user message (equal to its mode); they are counted against one budget, ai.assist.monthly.
+ASSIST_KINDS = tuple(MODE_AGENTS)
 ROUTE_METHODS = ('GET', 'POST', 'PATCH')
 MAP_SECTIONS = ('path', 'query', 'body')
 TOOL_NAME = re.compile(r'^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$')
@@ -89,7 +94,11 @@ class LiwanAiToolRegistry(models.AbstractModel):
         for field in REQUIRED_TEXT:
             if not item.get(field) or not isinstance(item[field], str):
                 self._liwan_ai_error(name, f'missing {field}')
-        if name.split('.')[0] != item['owner'].removeprefix('liwan_'):
+        # The prefix is the key of the tool's agent (the AI service routes by it): the application id, or one of the
+        # application's own agents (``<app>_<agent>``).
+        app = item['owner'].removeprefix('liwan_')
+        prefix = name.split('.')[0]
+        if prefix != app and not prefix.startswith(f'{app}_'):
             self._liwan_ai_error(name, f"name prefix must match owner {item['owner']}")
         kind = item.get('kind')
         if kind not in TOOL_KINDS:
@@ -178,9 +187,12 @@ class LiwanAiToolRegistry(models.AbstractModel):
         for item in self._liwan_ai_tool_definitions():
             self._liwan_ai_validate(item)
             # A platform tool belongs to no agent: every conversation offers it (the knowledge search).
-            agent = {} if item.get('platform') else agents.get(item['owner'].removeprefix('liwan_'))
+            agent = {} if item.get('platform') else agents.get(self._liwan_ai_agent_key(item))
             if agent is None:
                 self._liwan_ai_error(item['name'], f"owner {item['owner']} registers no agent")
+            if agent and agent['owner'] != item['owner']:
+                # ``<app>_<agent>`` keying must not let a tool join another addon's agent.
+                self._liwan_ai_error(item['name'], f"agent {agent['key']} belongs to {agent['owner']}, not to {item['owner']}")
             self._liwan_ai_check_sensitive(item, agent)
             if item['name'] in tools:
                 self._liwan_ai_error(item['name'], f"duplicate tool {item['name']}")
@@ -189,16 +201,16 @@ class LiwanAiToolRegistry(models.AbstractModel):
 
     @staticmethod
     def _liwan_ai_agent_key(item):
-        """The agent that owns the tool, or ``None`` for a platform tool."""
-        return None if item.get('platform') else item['owner'].removeprefix('liwan_')
+        """The agent that owns the tool (the prefix of its name), or ``None`` for a platform tool."""
+        return None if item.get('platform') else item['name'].split('.')[0]
 
     @api.model
-    def _liwan_ai_tools_for_user(self, user=None, setup=False):
+    def _liwan_ai_tools_for_user(self, user=None, mode=None):
         """The tools ``user`` may give the assistant, in registration order, each with its effective ``mode``.
 
-        A setup conversation (``setup``) offers the setup agent's tools only; an ordinary one never offers them. A platform
-        tool (no agent) is offered in an ordinary conversation, and a tool that declares a ``setting`` only while that
-        boolean AI setting is on.
+        A setup or help conversation (``mode``) offers that free agent's tools only; an ordinary one (``mode`` ``None``)
+        never offers them. A platform tool (no agent) is offered in an ordinary conversation, and a tool that declares a
+        ``setting`` only while that boolean AI setting is on.
 
         A tool appears only when its feature reads, the user holds its capability, its agent is enabled for one of
         the user's roles, and the administrator has not turned it off; an agent set to read only keeps its read
@@ -212,14 +224,16 @@ class LiwanAiToolRegistry(models.AbstractModel):
         modes = self.env['liwan.ai.tool.setting']._liwan_ai_modes()
         ai_settings = self.env['liwan.ai.settings']._liwan_current()
         external_send = ai_settings.external_send
+        mode_agent = MODE_AGENTS.get(mode)
         items = []
         for item in self._liwan_ai_tool_map().values():
             agent_key = self._liwan_ai_agent_key(item)
-            if (agent_key == SETUP_AGENT_KEY) != setup:
+            offered = agent_key == mode_agent if mode_agent else agent_key not in MODE_AGENTS.values()
+            if not offered:
                 continue
             agent = agents.get(agent_key)
-            mode = modes.get(item['name'], 'on')
-            if mode == 'off' or (agent_key and agent is None):
+            tool_mode = modes.get(item['name'], 'on')
+            if tool_mode == 'off' or (agent_key and agent is None):
                 continue
             if item.get('setting') and not ai_settings[item['setting']]:
                 continue
@@ -229,7 +243,7 @@ class LiwanAiToolRegistry(models.AbstractModel):
                 continue
             if not entitlement._liwan_feature_read(item['feature_key']) or not access._liwan_has_capability(user, item['capability']):
                 continue
-            items.append({**item, 'mode': mode})
+            items.append({**item, 'mode': tool_mode})
         return items
 
     @api.model
@@ -249,8 +263,8 @@ class LiwanAiToolRegistry(models.AbstractModel):
             'tool_calls_per_run': entitlement._liwan_limit_value('ai.tool_calls.per_run'),
             'messages_monthly': entitlement._liwan_limit_value('ai.messages.monthly'),
             'messages_used': self.env['liwan.ai.audit']._liwan_ai_count_messages(),
-            'setup_monthly': entitlement._liwan_limit_value('ai.setup.monthly'),
-            'setup_used': self.env['liwan.ai.audit']._liwan_ai_count_messages(kind='setup'),
+            'assist_monthly': entitlement._liwan_limit_value('ai.assist.monthly'),
+            'assist_used': self.env['liwan.ai.audit']._liwan_ai_count_messages(kinds=ASSIST_KINDS),
             'policy': self._liwan_ai_policy(),
         }
 

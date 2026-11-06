@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { AI_STARTER_KEYS, followUpKeys } from '../aiSuggestions'
+import { AI_HELP_STARTER_KEYS, AI_STARTER_KEYS, followUpKeys } from '../aiSuggestions'
 
 const locale = (code: 'ar' | 'en') => JSON.parse(readFileSync(resolve(import.meta.dirname, `../../../i18n/locales/${code}/ai.json`), 'utf8')).ai
 
@@ -38,6 +38,15 @@ describe('starter questions', () => {
     for (const code of ['ar', 'en'] as const) {
       for (const key of AI_STARTER_KEYS) expect(locale(code).starters[key]).toEqual(expect.any(String))
       expect(Object.keys(locale(code).starters).filter(key => key !== 'label').sort()).toEqual([...AI_STARTER_KEYS].sort())
+    }
+  })
+})
+
+describe('help starter questions', () => {
+  it('are translated in both locales, with nothing else under helpStarters', () => {
+    for (const code of ['ar', 'en'] as const) {
+      for (const key of AI_HELP_STARTER_KEYS) expect(locale(code).helpStarters[key]).toEqual(expect.any(String))
+      expect(Object.keys(locale(code).helpStarters).sort()).toEqual([...AI_HELP_STARTER_KEYS].sort())
     }
   })
 })

@@ -35,14 +35,15 @@ class LiwanAiAgentSetting(models.Model):
         restricted = self._liwan_ai_role_ids(settings.values())
         held = self._liwan_ai_user_role_ids(user) if restricted else set()
         agents = {}
-        for key in self.env['liwan.ai.agent.registry']._liwan_ai_agent_map():
+        for key, agent in self.env['liwan.ai.agent.registry']._liwan_ai_agent_map().items():
             row = settings.get(key)
             if row and not row.enabled:
                 continue
             roles = restricted.get(row.id) if row else None
             if roles and not roles & held:
                 continue
-            agents[key] = {'read_only': bool(row and row.read_only), 'memory': not row or row.memory}
+            # An agent that declares ``memory: False`` never remembers, whatever a stored row says.
+            agents[key] = {'read_only': bool(row and row.read_only), 'memory': agent.get('memory', True) and (not row or row.memory)}
         return agents
 
     @api.model

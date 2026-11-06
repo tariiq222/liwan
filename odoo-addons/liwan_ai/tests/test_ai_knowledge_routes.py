@@ -136,7 +136,7 @@ class TestAiKnowledgeResolve(AiProbe, LiwanApiCase):
         tools = self.env['liwan.ai.tool.registry']
         names = lambda: [item['name'] for item in tools._liwan_ai_tools_for_user(self.employee)]  # noqa: E731
         self.assertIn('ai.search_knowledge', names())
-        self.assertNotIn('ai.search_knowledge', [item['name'] for item in tools._liwan_ai_tools_for_user(self.employee, setup=True)])
+        self.assertNotIn('ai.search_knowledge', [item['name'] for item in tools._liwan_ai_tools_for_user(self.employee, mode='setup')])
         self.env['liwan.ai.settings']._liwan_current().knowledge_enabled = False
         self.assertNotIn('ai.search_knowledge', names())
 

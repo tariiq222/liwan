@@ -48,6 +48,18 @@ class TestAiLimitWarning(AiProbe, LiwanApiCase):
         self.api('POST', '/api/v1/ai/audit', {**MESSAGE, 'conversation_id': 'r_warn_5'})
         self.assertEqual(len(self._bell(self.manager)), 1)
 
+    def test_the_free_agents_budget_warns_on_its_own(self):
+        self._set_feature('ai.assist.monthly', 5)
+        self._set_feature('ai.messages.monthly', 1000)
+        Audit = self.env['liwan.ai.audit'].with_user(self.employee)
+        for index in range(3):
+            Audit.create({**MESSAGE, 'kind': 'help', 'conversation_id': f'r_assist_{index}'})
+        self.assertEqual(self._bell(self.manager), [])
+        Audit.create({**MESSAGE, 'kind': 'help', 'conversation_id': 'r_assist_4'})
+        items = self._bell(self.manager)
+        self.assertEqual([item['kind'] for item in items], ['ai.limit_warning'])
+        self.assertIn('مساعدَي', items[0]['title'])
+
     def test_an_ordinary_user_never_sees_the_warning(self):
         self._set_feature('ai.messages.monthly', 1)
         self.api('POST', '/api/v1/ai/audit', MESSAGE)

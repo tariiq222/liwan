@@ -155,7 +155,7 @@ const AI_AGENT_TOOLS = [
 function aiAgentSetting(key) {
   const state = AI_AGENT_SETTINGS[key]
   return {
-    key, name: PMO_AGENT.name, description: PMO_AGENT.description, enabled: state.enabled, read_only: state.read_only, memory: state.memory,
+    key, name: PMO_AGENT.name, description: PMO_AGENT.description, enabled: state.enabled, read_only: state.read_only, memory: state.memory, memory_fixed: false,
     role_ids: state.role_ids, revision: state.revision, tools: AI_AGENT_TOOLS.map(tool => ({ ...tool, mode: state.tools[tool.name] })),
   }
 }
@@ -167,7 +167,7 @@ const AI_SETTINGS = {
     text_en: 'Draft pending legal review.\n\nAI use acknowledgement and liability disclaimer.',
     text_hash: 'a'.repeat(64), signed: null,
   },
-  usage: { month: '2026-11', messages_used: 0, messages_limit: 500, tokens_used: 1620000, tokens_limit: 2000000, output_tokens_per_run: 8000 },
+  usage: { month: '2026-11', messages_used: 0, messages_limit: 500, assist_used: 0, assist_limit: 300, tokens_used: 1620000, tokens_limit: 2000000, output_tokens_per_run: 8000 },
 }
 
 // Charter approval fixtures. Their charters live in CHARTER_STATE (project id -> charter + write token) so the
@@ -482,7 +482,7 @@ async function handle(req, res) {
       { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'يعرض مهامي', en: 'List my tasks' }, input_schema: { type: 'object', properties: { limit: { type: 'integer' } } }, route: { method: 'GET', path: '/api/v1/tasks' }, input_map: { query: { filter: 'mine', limit: '$limit' } }, result_summary: ['items[].id', 'items[].name', 'items[].state', 'total'], draft_target: null, requires_approval: AI_AGENT_SETTINGS.pmo.tools['pmo.list_my_tasks'] === 'approval', platform: false },
       ...(canCreate ? [{ name: 'pmo.draft_project', kind: 'draft', description: { ar: 'مسودة مشروع', en: 'Project draft' }, input_schema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] }, route: null, input_map: {}, result_summary: [], draft_target: '/projects/new', requires_approval: true, platform: false }] : []),
     ]
-    return json(res, 200, { items, total: items.length, agents: [{ ...PMO_AGENT, memory: AI_AGENT_SETTINGS.pmo.memory }], limits: { tool_calls_per_run: 8, messages_monthly: 500, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length, setup_monthly: null, setup_used: 0, policy: { provider_mode: 'platform', consent_signed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } }, blocked_fields: [] })
+    return json(res, 200, { items, total: items.length, agents: [{ ...PMO_AGENT, memory: AI_AGENT_SETTINGS.pmo.memory }], limits: { tool_calls_per_run: 8, messages_monthly: 500, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } }, blocked_fields: [] })
   }
   // The AI settings of the tenant (ai.settings.manage): provider mode, the AI acknowledgement and this month's use.
   if (path === '/api/v1/ai/settings' || path === '/api/v1/ai/consent' || path === '/api/v1/ai/consent/revoke') {
@@ -524,6 +524,12 @@ async function handle(req, res) {
       Object.assign(AI_AGENT_SETTINGS[key].tools, tools ?? {})
     } else if (method !== 'GET' || path !== '/api/v1/ai/agents') return json(res, 405, { code: 'invalid', message: 'method' })
     return json(res, 200, { items: [aiAgentSetting('pmo')], total: 1 })
+  }
+  // The mode a conversation started in, from its first audit row (setup and help rows name theirs; a message row is an ordinary one).
+  const modeMatch = method === 'GET' && path.match(/^\/api\/v1\/ai\/conversations\/([^/]+)\/mode$/)
+  if (modeMatch) {
+    const first = AI_AUDIT.find(row => row.conversation_id === decodeURIComponent(modeMatch[1]))
+    return json(res, 200, { mode: first ? (first.kind === 'message' ? 'assistant' : first.kind) : null })
   }
   if (method === 'POST' && path === '/api/v1/ai/audit') {
     let entry = {}

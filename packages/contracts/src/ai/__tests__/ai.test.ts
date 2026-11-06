@@ -9,14 +9,14 @@ const PMO_AGENT = { key: 'pmo', name: { ar: 'وكيل المشاريع', en: 'Pr
 
 describe('LiwanOS AI contracts', () => {
   it('parses the tools response with limits', () => {
-    const parsed = AiToolsResponseSchema.parse({ items: [READ], total: 1, agents: [PMO_AGENT], limits: { tool_calls_per_run: 8, messages_monthly: null, messages_used: 2, setup_monthly: null, setup_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } }, blocked_fields: ['wage'] })
+    const parsed = AiToolsResponseSchema.parse({ items: [READ], total: 1, agents: [PMO_AGENT], limits: { tool_calls_per_run: 8, messages_monthly: null, messages_used: 2, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } }, blocked_fields: ['wage'] })
     expect(parsed.items[0]!.route?.method).toBe('GET')
     expect(parsed.limits.messages_monthly).toBeNull()
   })
 
   it('rejects a draft tool with a route and an unknown kind', () => {
-    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'draft' }], total: 1, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, setup_monthly: null, setup_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } }, blocked_fields: ['wage'] })).toThrow()
-    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'delete' }], total: 1, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, setup_monthly: null, setup_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } }, blocked_fields: ['wage'] })).toThrow()
+    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'draft' }], total: 1, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } }, blocked_fields: ['wage'] })).toThrow()
+    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'delete' }], total: 1, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } }, blocked_fields: ['wage'] })).toThrow()
   })
 
   it('types every SSE event by name', () => {
@@ -72,8 +72,11 @@ describe('LiwanOS AI contracts', () => {
     expect(AiStartRequestSchema.parse({ message: 'x', run_id: 'r_1', context: { page: 'project', id: 12 } }).context).toEqual({ page: 'project', id: 12 })
     expect(AiStartRequestSchema.parse({ message: 'x', context: { page: 'home' } }).context).toEqual({ page: 'home' })
     expect(AiStartRequestSchema.parse({ message: 'x', context: null, run_id: null }).context).toBeNull()
+    for (const mode of ['setup', 'help']) expect(AiStartRequestSchema.parse({ message: 'x', mode }).mode).toBe(mode)
+    expect(AiAuditRequestSchema.parse({ conversation_id: 'r_1', kind: 'help', tool_name: null, input: null, result: 'ok', http_status: null, draft: null, approved: null, attested: false }).kind).toBe('help')
+    expect(aiToolAgent('ai_help.search_guide')).toBe('ai_help')
     for (const bad of [
-      { message: 5 }, { message: '  ' }, { message: 'x'.repeat(8001) }, { message: 'x', run_id: 7 }, { message: 'x', run_id: '' },
+      { message: 'x', mode: 'chat' }, { message: 5 }, { message: '  ' }, { message: 'x'.repeat(8001) }, { message: 'x', run_id: 7 }, { message: 'x', run_id: '' },
       { message: 'x', context: 'project' }, { message: 'x', context: { page: 3 } }, { message: 'x', context: { page: 'a/b' } },
       { message: 'x', context: { page: 'project', id: '12' } }, { message: 'x', context: { page: 'project', id: 1.5 } }, { message: 'x', context: { page: 'p', extra: 1 } },
       'text', null, [],
@@ -123,9 +126,10 @@ describe('LiwanOS AI usage contracts', () => {
     const settings = {
       provider_mode: 'platform', messages_per_user_monthly: 0, external_send: 'draft_only', knowledge_enabled: false, revision: 1,
       consent: { required_version: '2026-11-05-draft', text_ar: 'نص', text_en: 'text', text_hash: 'a'.repeat(64), signed: null },
-      usage: { month: '2026-11', messages_used: 3, messages_limit: null, tokens_used: 120, tokens_limit: 2000000, output_tokens_per_run: 8000 },
+      usage: { month: '2026-11', messages_used: 3, messages_limit: null, assist_used: 4, assist_limit: 300, tokens_used: 120, tokens_limit: 2000000, output_tokens_per_run: 8000 },
     }
     expect(AiSettingsSchema.parse(settings).usage.tokens_limit).toBe(2000000)
+    expect(AiSettingsSchema.parse(settings).usage.assist_limit).toBe(300)
     expect(() => AiSettingsSchema.parse({ ...settings, provider_mode: 'free' })).toThrow()
     expect(() => AiSettingsPatchSchema.parse({ provider_mode: 'tenant_key', revision: 0 })).toThrow()
     expect(() => AiSettingsSchema.parse({ ...settings, knowledge_enabled: undefined })).toThrow()
@@ -168,7 +172,7 @@ describe('LiwanOS AI usage contracts', () => {
 
   it('parses the agent settings and refuses an empty or widening patch', () => {
     const tool = { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'مهامي', en: 'My tasks' }, external: false, mode: 'approval' }
-    const parsed = AiAgentSettingsSchema.parse({ items: [{ key: 'pmo', name: PMO_AGENT.name, description: PMO_AGENT.description, enabled: true, read_only: false, memory: true, role_ids: [], revision: 0, tools: [tool] }], total: 1 })
+    const parsed = AiAgentSettingsSchema.parse({ items: [{ key: 'pmo', name: PMO_AGENT.name, description: PMO_AGENT.description, enabled: true, read_only: false, memory: true, memory_fixed: false, role_ids: [], revision: 0, tools: [tool] }], total: 1 })
     expect(parsed.items[0]!.tools[0]!.mode).toBe('approval')
     expect(() => AiAgentPatchSchema.parse({ revision: 0 })).toThrow()
     expect(() => AiAgentPatchSchema.parse({ revision: 0, tools: { 'pmo.list_my_tasks': 'always' } })).toThrow()

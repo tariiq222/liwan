@@ -1,10 +1,10 @@
 import { createEventStream, getRouterParam } from 'h3'
-import { AI_SETUP_AGENT, AiRunStatusSchema } from '@liwan/contracts'
+import { AiRunStatusSchema } from '@liwan/contracts'
 import { auditFailedEvent, doneEvent, executeTool, needsApproval, relay, resumeFailedEvent, settle, tryAudit } from '../../../../utils/ai/pump'
 import { logFailure, serviceFetch } from '../../../../utils/ai/upstream'
 import { assertRunnable, runPolicy } from '../../../../utils/ai/policy'
 import { protectValue, restoreValue } from '../../../../utils/ai/outbound'
-import { ownerFor, runSession } from '../../../../utils/ai/session'
+import { modeForAgent, ownerFor, runSession } from '../../../../utils/ai/session'
 import type { ToolResult } from '../../../../utils/ai/executor'
 
 type ResumeBody = { call_id?: string; decision?: 'approved' | 'rejected'; data?: Record<string, unknown> }
@@ -26,9 +26,8 @@ export default defineEventHandler(async (event) => {
   if (status === 'executing') throw conflict('this run is executing a claimed call')
   // The pending call comes from the service, never from the browser: the browser only decides.
   if (!pending || pending.call_id !== body.call_id) throw conflict('no pending call with this call_id')
-  // The pending call's agent names the conversation's mode: only a setup conversation runs the setup agent. A platform
-  // tool (`ai.search_knowledge`) shares the `ai.` prefix but belongs to no agent, so the prefix cannot decide it.
-  const session = await runSession(event, pending.agent === AI_SETUP_AGENT ? 'setup' : 'assistant')
+  // The pending call's agent names the conversation's mode.
+  const session = await runSession(event, modeForAgent(pending.agent))
   // Before any tool runs: a write must not happen for a run the service will refuse to continue.
   await assertRunnable(event, session)
 
