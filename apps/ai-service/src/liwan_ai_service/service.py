@@ -65,6 +65,7 @@ from liwan_ai_service.sse import format_event
 from liwan_ai_service.store import ACTIVE, EXECUTING, RunRecord, is_stale
 from liwan_ai_service.tenancy import UnknownTenant, directory_for
 from liwan_ai_service.tenant_config import KeyUnavailable, TenantConfig
+from liwan_ai_service.tenant_egress import INVALID, BaseUrlRefusedError, TenantEgress, check_base_url
 from liwan_ai_service.tenant_state import TenantState, TenantStates, TenantStateUnavailable
 from liwan_ai_service.titles import TITLE_TIMEOUT_SECONDS, generate_title, title_from
 from liwan_ai_service.usage import ModelIdentity, RunModel, call_event, new_call_id, usage_event
@@ -136,6 +137,7 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
     # A tenant's model on its own key, by tenant database, with the key's version and the key (redacted from every log
     # line, like the platform key). A new or removed key replaces or drops the entry.
     tenant_models: dict[str, tuple[Any, RunModel, str]] = {}
+    egress = TenantEgress(settings.tenant_egress_dir)
     app = FastAPI(title="LiwanOS AI service", docs_url=None, redoc_url=None)
 
     def require_service_token(x_liwan_service_token: Annotated[str, Header()] = "") -> None:
@@ -290,7 +292,7 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
                 raise HTTPException(409, "ai_tenant_key_missing")
             cached = tenant_models.get(tenant.database)
             if cached is None or cached[0] != key.updated_at:
-                built = build_tenant_model(settings, key.provider, key.model, key.api_key)
+                built = build_tenant_model(settings, key.provider, key.model, key.api_key, key.base_url)
                 cached = (key.updated_at, RunModel(built, ModelIdentity(key.provider, key.model, "tenant_key")), key.api_key)
                 tenant_models[tenant.database] = cached
             chosen = cached[1]
@@ -614,9 +616,14 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
         return TenantConfigView(
             retention_days=config.retention_days,
             leaver_retention_days=config.leaver_retention_days,
-            key=KeyView(configured=key.configured, provider=key.provider, model=key.model, last4=key.last4, updated_at=key.updated_at),
+            key=KeyView(
+                configured=key.configured, provider=key.provider, model=key.model, last4=key.last4, updated_at=key.updated_at,
+                base_url=key.base_url,
+            ),
             platform=PlatformView(provider=settings.provider, model=settings.model),
-            providers=[ProviderView(name=spec.name, needs_api_key=spec.needs_api_key) for spec in REGISTRY.values()],
+            providers=[
+                ProviderView(name=spec.name, needs_api_key=spec.needs_api_key, needs_base_url=spec.needs_base_url) for spec in REGISTRY.values()
+            ],
         )
 
     @api.get("/v1/tenant/config")
@@ -694,18 +701,38 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
         spec = REGISTRY.get(body.provider)
         if spec is None or not spec.needs_api_key:  # a keyless provider (a local model) is the deployment's, not a tenant's
             raise HTTPException(422, "provider must be a registered provider that takes an API key")
-        async with tenant_state(who) as tenant:
+        if spec.needs_base_url != (body.base_url is not None):  # the generic provider needs its endpoint, the named ones keep their own
+            raise HTTPException(422, {"code": INVALID, "field": "base_url"})
+        host = spec.host
+        if body.base_url is not None:
             try:
-                return config_view(await tenant.config.set_key(body.provider, body.model, body.api_key, settings.keyring))
+                host = await check_base_url(body.base_url)
+            except BaseUrlRefusedError as refused:
+                raise HTTPException(422, {"code": refused.code, "field": "base_url"}) from None
+        async with tenant_state(who) as tenant, egress.serialized(tenant.database):
+            try:
+                saved = await tenant.config.set_key(body.provider, body.model, body.api_key, settings.keyring, body.base_url)
             except KeyUnavailable:
                 raise HTTPException(503, "ai_key_unavailable") from None
+            try:
+                await egress.publish(tenant.database, host)
+            except OSError as error:  # the key is saved; the proxy cannot learn its host, so the save is reported and may be repeated
+                log.warning("tenant egress host of %s not published: %s", tenant.database, type(error).__name__)
+                raise HTTPException(503, "ai_egress_unavailable") from None
+            return config_view(saved)
 
     @api.delete("/v1/tenant/config/key")
     async def delete_tenant_key(who: Annotated[Owner, Depends(owner)]) -> TenantConfigView:
-        async with tenant_state(who) as tenant:
+        async with tenant_state(who) as tenant, egress.serialized(tenant.database):
             tenant_models.pop(tenant.database, None)  # the removed key leaves the process at once
-            return config_view(await tenant.config.clear_key())
+            cleared = await tenant.config.clear_key()
+            try:
+                await egress.publish(tenant.database, None)
+            except OSError as error:  # the key is gone; a leftover host stays allowed only until the next save or restart
+                log.warning("tenant egress host of %s not withdrawn: %s", tenant.database, type(error).__name__)
+            return config_view(cleared)
 
+    app.state.sync_egress = lambda: egress.sync(states)
     app.include_router(api)
     return app
 
@@ -772,7 +799,7 @@ class EnvApp:
         if scope["type"] != "lifespan":
             await self.inner(scope, receive, send)
             return
-        states = control = sweeper = indexer = None
+        states = control = sweeper = indexer = egress_sync = None
         while True:
             message = await receive()
             if message["type"] == "lifespan.startup":
@@ -789,9 +816,10 @@ class EnvApp:
                     return
                 sweeper = asyncio.create_task(close_idle_states(states))
                 indexer = asyncio.create_task(drain_knowledge_forever(self.inner.state.drain_knowledge))
+                egress_sync = asyncio.create_task(self.inner.state.sync_egress())  # slow tenant databases must not delay the health check
                 await send({"type": "lifespan.startup.complete"})
             elif message["type"] == "lifespan.shutdown":
-                for background in (sweeper, indexer):
+                for background in (sweeper, indexer, egress_sync):
                     if background is not None:
                         background.cancel()
                         await asyncio.gather(background, return_exceptions=True)

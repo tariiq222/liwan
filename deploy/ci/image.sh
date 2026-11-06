@@ -84,6 +84,9 @@ smoke_started vendor-admin
 # only with AI_ALLOW_MEMORY_STATE=true and no AI_DATABASE_URL, which is exactly this smoke run.
 PROBE=(python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8600/healthz', timeout=2)")
 smoke_started ai-service -e AI_PROVIDER=ollama -e AI_MODEL=ci-smoke -e AI_ALLOW_MEMORY_STATE=true -e AI_DEV_INSECURE=true
+
+# ai-egress: squid itself accepts the configuration rendered with tenant hosts (tools/test_ai_egress.py, SquidParseCase).
+LIWAN_AI_EGRESS_IMAGE_TEST=1 python3 -B -m unittest tools.test_ai_egress.SquidParseCase
 # guard: starts in shared mode with a deny-all bootstrap registry, and its own healthcheck answers.
 printf '%s\n' '{"schemaVersion":1,"snapshotRevision":0,"targets":[]}' > "$IMAGE_ROOT/registry.json"
 chmod 644 "$IMAGE_ROOT/registry.json"

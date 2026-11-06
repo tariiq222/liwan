@@ -32,11 +32,12 @@ async def test_the_key_is_write_only_and_retention_is_bounded():
         initial = (await client.get("/v1/tenant/config", headers=HEADERS)).json()
         assert initial["retention_days"] == 30 and initial["key"]["configured"] is False
         assert initial["platform"] == {"provider": "ollama", "model": "m"}
-        assert {"name": "anthropic", "needs_api_key": True} in initial["providers"]
+        assert {"name": "anthropic", "needs_api_key": True, "needs_base_url": False} in initial["providers"]
+        assert {"name": "openai_compatible", "needs_api_key": True, "needs_base_url": True} in initial["providers"]
         written = await client.put("/v1/tenant/config/key", json=KEY_BODY, headers=HEADERS)
         assert written.status_code == 200 and TENANT_KEY not in written.text
         assert written.json()["key"] | {"updated_at": None} == {
-            "configured": True, "provider": "anthropic", "model": "claude-test", "last4": "abcd", "updated_at": None,
+            "configured": True, "provider": "anthropic", "model": "claude-test", "last4": "abcd", "updated_at": None, "base_url": None,
         }
         assert TENANT_KEY not in (await client.get("/v1/tenant/config", headers=HEADERS)).text
         keyless = await client.put("/v1/tenant/config/key", json={**KEY_BODY, "provider": "ollama"}, headers=HEADERS)
@@ -67,7 +68,7 @@ async def test_a_tenant_key_run_uses_the_tenants_model_and_is_billed_to_the_tena
     tenant_model = ScriptedChatModel([ai_text("تم")])
     built = []
 
-    def build(settings, provider, model, api_key):
+    def build(settings, provider, model, api_key, base_url):
         built.append((provider, model, api_key))
         return tenant_model
 

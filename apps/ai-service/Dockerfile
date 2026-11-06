@@ -7,7 +7,9 @@ RUN pip install --no-cache-dir .
 FROM python:3.12-slim@sha256:aa943ce411423c7582288f18707ff66eddcbaeb510502d747a72aeb34f30d159
 WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
-RUN useradd --create-home --uid 10001 ai
+RUN useradd --create-home --uid 10001 ai \
+    # The compose file mounts the tenant host volume here (read-only in ai-egress, which creates it with the same owner).
+    && mkdir /egress && chown ai:ai /egress
 COPY --from=build /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=build /usr/local/bin/uvicorn /usr/local/bin/uvicorn
 USER ai

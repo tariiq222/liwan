@@ -302,6 +302,7 @@ export type AiMonitoring = z.infer<typeof AiMonitoringSchema>
 export const AI_RETENTION_DAYS_MIN = 1
 export const AI_RETENTION_DAYS_MAX = 365
 export const AI_LEAVER_RETENTION_DAYS_MAX = 365
+export const AI_BASE_URL_MAX_LENGTH = 512
 /** `GET /api/ai/config` (the AI service's tenant configuration): never the key itself, only whether one is set. */
 export const AiTenantConfigSchema = z.object({
   retention_days: z.number().int().min(AI_RETENTION_DAYS_MIN).max(AI_RETENTION_DAYS_MAX),
@@ -313,16 +314,24 @@ export const AiTenantConfigSchema = z.object({
     model: AiModelNameSchema.nullable(),
     last4: z.string().max(4).nullable(),
     updated_at: z.iso.datetime({ offset: true }).nullable(),
+    /** The endpoint of a provider that takes one (`needs_base_url`); not a secret. */
+    base_url: z.string().max(AI_BASE_URL_MAX_LENGTH).nullable(),
   }).strict(),
   platform: z.object({ provider: AiProviderNameSchema, model: AiModelNameSchema }).strict(),
-  providers: z.array(z.object({ name: AiProviderNameSchema, needs_api_key: z.boolean() }).strict()),
+  providers: z.array(z.object({ name: AiProviderNameSchema, needs_api_key: z.boolean(), needs_base_url: z.boolean() }).strict()),
 }).strict()
 export type AiTenantConfig = z.infer<typeof AiTenantConfigSchema>
 export const AiLeaverRetentionPutSchema = z.object({ leaver_retention_days: z.number().int().min(0).max(AI_LEAVER_RETENTION_DAYS_MAX) }).strict()
 export type AiLeaverRetentionPut = z.infer<typeof AiLeaverRetentionPutSchema>
 export const AiRetentionPutSchema = z.object({ retention_days: z.number().int().min(AI_RETENTION_DAYS_MIN).max(AI_RETENTION_DAYS_MAX) }).strict()
 export type AiRetentionPut = z.infer<typeof AiRetentionPutSchema>
-export const AiKeyPutSchema = z.object({ provider: AiProviderNameSchema, model: AiModelNameSchema, api_key: z.string().min(1).max(512) }).strict()
+/** `base_url` is sent for a provider that needs one and omitted for the rest; the AI service checks the rest of its shape and that it is public. */
+export const AiKeyPutSchema = z.object({
+  provider: AiProviderNameSchema,
+  model: AiModelNameSchema,
+  api_key: z.string().min(1).max(512),
+  base_url: z.string().max(AI_BASE_URL_MAX_LENGTH).regex(/^https:\/\//i).optional(),
+}).strict()
 export type AiKeyPut = z.infer<typeof AiKeyPutSchema>
 
 /** The administrator's mode for one tool: `approval` makes even a read wait for the user; `off` removes it. */

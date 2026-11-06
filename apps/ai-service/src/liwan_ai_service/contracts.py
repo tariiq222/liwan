@@ -23,6 +23,7 @@ RUN_TITLE_MAX_CHARS = 80
 NEW_RUN_ID = r"^r_[0-9a-f]{24}$"
 CALL_ID = r"^[0-9a-f]{16}$"
 PROVIDER_NAME = r"^[a-z][a-z0-9_-]{0,31}$"
+BASE_URL_MAX_LENGTH = 512
 MODEL_NAME = r"^[^\x00-\x1f\x7f-\x9f]{1,128}$"  # the same rule as the Odoo usage ledger and the zod contract
 RUN_STATUSES = ("running", "executing", "waiting_tool", "waiting_user", "done", "failed", "limit_reached")
 RunStatusValue = Literal["running", "executing", "waiting_tool", "waiting_user", "done", "failed", "limit_reached"]
@@ -346,6 +347,7 @@ class KeyPut(Strict):
     provider: str = Field(pattern=PROVIDER_NAME)
     model: str = Field(pattern=MODEL_NAME)
     api_key: str = Field(min_length=1, max_length=512)
+    base_url: str | None = Field(default=None, max_length=BASE_URL_MAX_LENGTH)  # required for a provider that needs one, refused for the rest
 
 
 class KeyView(Strict):
@@ -354,11 +356,13 @@ class KeyView(Strict):
     model: str | None
     last4: str | None
     updated_at: AwareDatetime | None
+    base_url: str | None
 
 
 class ProviderView(Strict):
     name: str
     needs_api_key: bool
+    needs_base_url: bool
 
 
 class PlatformView(Strict):

@@ -37,10 +37,10 @@ must stay unset outside local development.
 
 | Variable | Meaning |
 |---|---|
-| `AI_PROVIDER` | `anthropic`, `openai`, `ollama` or `openrouter` (see Providers) |
+| `AI_PROVIDER` | `anthropic`, `openai`, `ollama`, `openrouter` or `openai_compatible` (see Providers) |
 | `AI_MODEL` | provider model id |
 | `AI_API_KEY` | required for anthropic, openai and openrouter |
-| `AI_BASE_URL` | optional; overrides the provider's default base URL (Ollama host, OpenAI-compatible endpoint, OpenRouter) |
+| `AI_BASE_URL` | optional; overrides the provider's default base URL (Ollama host, OpenAI-compatible endpoint, OpenRouter); required for `openai_compatible` |
 | `AI_OPENROUTER_REFERER` | optional; sent as `HTTP-Referer` to OpenRouter for app attribution (openrouter only; never required, never logged) |
 | `AI_OPENROUTER_TITLE` | optional; sent as `X-Title` to OpenRouter (openrouter only; never required, never logged) |
 | `AI_EMBEDDING_PROVIDER` | optional; `openai` (any OpenAI-compatible endpoint, through `AI_EMBEDDING_BASE_URL`) or `ollama`. Unset leaves knowledge search unavailable (the tool answers `knowledge_unavailable`). Setting any other `AI_EMBEDDING_*` variable without it refuses startup |
@@ -57,6 +57,7 @@ must stay unset outside local development.
 | `AI_DEV_INSECURE` | `true` (exactly) removes the service token requirement; accepted only with `AI_ALLOW_MEMORY_STATE=true` and no `AI_DATABASE_URL`, so development only, and it must stay unset in deployments |
 | `AI_RUN_RETENTION_DAYS` | default 30; `python -m liwan_ai_service.cleanup` deletes older runs |
 | `AI_DEFAULT_TIMEOUT_SECONDS` | default 120 |
+| `AI_TENANT_EGRESS_DIR` | optional; the directory shared with the `ai-egress` proxy (compose mounts it at `/egress`). Whenever a tenant key is saved or removed, and once at startup for every served tenant, the service writes `<tenant database>.hosts` there with the host that key needs (see Tenant policy). Unset: nothing is published and startup opens no tenant state |
 | `AI_SERVICE_TOKEN` | required: at least 24 characters (a shorter one refuses startup, and a missing one refuses it too), the only exception being `AI_DEV_INSECURE=true` above |
 
 ## Providers
@@ -70,6 +71,7 @@ The registry in `src/liwan_ai_service/provider_registry.py` is the single list o
 | `openai` | required | the OpenAI API (any OpenAI-compatible endpoint through `AI_BASE_URL`) | `gpt-4o` |
 | `ollama` | not needed | `http://localhost:11434` | `qwen2.5:7b` |
 | `openrouter` | required | `https://openrouter.ai/api/v1` | `anthropic/claude-sonnet-4.5` |
+| `openai_compatible` | required | none: `AI_BASE_URL` (or the tenant's base URL) is required | the endpoint's model id |
 
 For `openrouter`, `AI_MODEL` is the OpenRouter model id (`vendor/model`).
 
@@ -81,7 +83,8 @@ and Anthropic always report tokens. `AI_MODEL` must be 1 to 128 characters witho
 ## Adding a provider
 
 - An OpenAI-compatible endpoint (vLLM, LM Studio, LiteLLM, Together, Groq, Mistral's compatible API) needs no code:
-  set `AI_PROVIDER=openai` and `AI_BASE_URL` to the endpoint, with its key in `AI_API_KEY`.
+  set `AI_PROVIDER=openai_compatible` (or `openai`) and `AI_BASE_URL` to the endpoint, with its key in `AI_API_KEY`. A tenant on its own key
+  uses `openai_compatible` the same way, with its base URL saved beside the key.
 - A provider with its own LangChain package (for example `langchain-google-genai` or `langchain-mistralai`) needs, in this order:
   1. one dependency line in `pyproject.toml`;
   2. one build function and one `ProviderSpec(name, needs_api_key, default_base_url, build)` entry in `provider_registry.py`,
@@ -112,9 +115,19 @@ whatever the provider (spec 2026-11-04 §6.8); what may reach a provider is limi
 policy (§6.12), never by a provider's location. `max_output_tokens` stops a platform run with `limit_reached`
 (`output_tokens`) once its plan calls reached the cap. Every `model_call` event names its `billing`. The routes
 `GET /v1/tenant/config`, `PUT /v1/tenant/config/retention`, `PUT|DELETE /v1/tenant/config/key` never return the key, only
-`configured` and its last four characters. Pre-release, the tenant schema changed in place with `AI_STATE_VERSION` still
-`1`: a development database bootstrapped before `ai_tenant_config` existed is re-created (drop schema `liwan_ai`, run the
-bootstrap again).
+`configured`, the provider, the model, the base URL and its last four characters.
+
+A tenant key's provider is any provider that takes an API key. `openai_compatible` is the generic one and takes the tenant's `base_url`
+beside the key (required for it, refused for every other provider, which keep their own endpoints); the URL is stored in
+`ai_tenant_config.key_base_url`, is not secret and is returned. At save the service answers 422 `{"detail": {"code", "field": "base_url"}}`
+without echoing the key: `invalid` for a URL that is not `https` on port 443 without credentials, query or fragment, or whose host is a raw
+IP address, a single-label name or not lowercase ASCII; `ai_base_url_not_public` when any address the host resolves to is not globally
+routable unicast (private, loopback, link-local, CGNAT, multicast, reserved, IPv6 ULA). The `ai` container sits on internal networks, where
+a public name does not resolve, so a host this process cannot resolve is accepted and left to `ai-egress`, which refuses a private
+destination every time it connects (`deploy/ai-egress/render.sh`). The host files (`tenant_egress.py`) are one hostname per line, written
+atomically; a failed write answers 503 `ai_egress_unavailable` after the key was saved, and the same save may be repeated.
+
+A tenant schema bootstrapped by an earlier release is upgraded in place: re-running `--initialize-tenant <db>` adds `key_base_url` and its constraint (idempotent), like the other columns added since.
 
 ## Service token
 

@@ -105,6 +105,10 @@ services:
       HTTPS_PROXY: http://ai-egress:3128
       HTTP_PROXY: http://ai-egress:3128
       NO_PROXY: db,web,localhost,127.0.0.1
+      # The provider host of each tenant's own key is written here for ai-egress (read-only there).
+      AI_TENANT_EGRESS_DIR: /egress
+    volumes:
+      - ai_tenant_hosts:/egress
     expose: ["8600"]
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
@@ -126,6 +130,10 @@ services:
     restart: unless-stopped
     environment:
       AI_EGRESS_HOSTS: "${AI_EGRESS_HOSTS:-}"
+      # Tenants' own provider hosts (written by `ai`) join the allowlist: CONNECT to port 443, never to a private address.
+      AI_TENANT_EGRESS_DIR: /egress
+    volumes:
+      - ai_tenant_hosts:/egress:ro
     # Squid runs as Debian's unprivileged `proxy` user on port 3128, so it needs no capability.
     user: proxy
     cap_drop: [ALL]
@@ -166,4 +174,4 @@ networks:
   # The AI plane: `ai` sits only here, and `web`/`db` join it to reach it. No route off the host.
   ai_internal: { internal: true }
 
-volumes: { caddy_data: {}, odoo_data: {}, db_data: {} }
+volumes: { caddy_data: {}, odoo_data: {}, db_data: {}, ai_tenant_hosts: {} }

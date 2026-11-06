@@ -176,6 +176,13 @@
         "configured": "Saved key ending in {last4}",
         "missing": "No key",
         "provider": "Provider",
+        "providers": {
+          "openai_compatible": "Other (OpenAI-compatible)"
+        },
+        "baseUrl": "Provider address",
+        "baseUrlHint": "The https address of an OpenAI-compatible service, for example https://api.example.com/v1.",
+        "baseUrlInvalid": "The address must start with https:// and name a public website, without a port, login or query.",
+        "baseUrlNotPublic": "This address points to a private or internal server. Use the provider's public address.",
         "model": "Model",
         "modelHint": "The model name as the provider writes it.",
         "value": "Key",

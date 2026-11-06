@@ -2652,6 +2652,11 @@
             "minLength": 1,
             "type": "string"
           },
+          "base_url": {
+            "maxLength": 512,
+            "pattern": "^https:\\/\\/",
+            "type": "string"
+          },
           "model": {
             "maxLength": 128,
             "minLength": 1,
@@ -3850,6 +3855,17 @@
           "key": {
             "additionalProperties": false,
             "properties": {
+              "base_url": {
+                "anyOf": [
+                  {
+                    "maxLength": 512,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "configured": {
                 "type": "boolean"
               },
@@ -3905,7 +3921,8 @@
               "provider",
               "model",
               "last4",
-              "updated_at"
+              "updated_at",
+              "base_url"
             ],
             "type": "object"
           },
@@ -3943,11 +3960,15 @@
                 },
                 "needs_api_key": {
                   "type": "boolean"
+                },
+                "needs_base_url": {
+                  "type": "boolean"
                 }
               },
               "required": [
                 "name",
-                "needs_api_key"
+                "needs_api_key",
+                "needs_base_url"
               ],
               "type": "object"
             },
