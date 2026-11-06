@@ -111,7 +111,11 @@ watch([() => data.value?.items, dataUpdatedAt], async ([incoming]) => {
   const mode = items.value.length ? 'newer' : 'replace'
   const previousHeight = scroller.value?.scrollHeight ?? 0
   const previousTop = scroller.value?.scrollTop ?? 0
+  const knownIds = new Set(items.value.map(item => item.id))
   items.value = mergeMessages(items.value, incoming, mode)
+  if (mode === 'newer' && !stickToEnd.value) {
+    jumpCount.value += new Set(incoming.filter(item => !knownIds.has(item.id)).map(item => item.id)).size
+  }
   await nextTick()
   if (ownGeneration !== historyGeneration || !scroller.value) return
   if (mode === 'replace' || stickToEnd.value) {

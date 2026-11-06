@@ -140,3 +140,18 @@ it('task events refresh project aggregates without unrelated followers, settings
   await vi.waitFor(() => expect(starts.map(fn => fn.mock.calls.length)).toEqual([1, 1, 1, 0, 0, 0, 1, 0]))
   stops.forEach(stop => stop())
 })
+
+it.each([true, false])('task events refresh live EVM and variance without baseline snapshots (known project=%s)', async known => {
+  const keys = [
+    ['projects', 'detail', 5, 'evm'], ['projects', 'detail', 5, 'baselines', 'variance'],
+    ['projects', 'detail', 5, 'baselines', 'list', {}], ['projects', 'detail', 5, 'baselines', 'item', 1],
+    ['projects', 'detail', 5, 'followers'], ['projects', 'detail', 5, 'updates'], ['projects', 'settings'],
+    ['projects', 'detail', 8, 'evm'], ['projects', 'detail', 8, 'baselines', 'variance'],
+  ]
+  const { qc, starts, send, stops } = await setup(keys)
+  if (known) qc.setQueryData(['tasks', 'detail', 1], { id: 1, project: { id: 5 } })
+  try {
+    send('liwan/task', { id: 1, event: 'updated' })
+    await vi.waitFor(() => expect(starts.map(fn => fn.mock.calls.length)).toEqual([1, 1, 0, 0, 0, 0, 0, known ? 0 : 1, known ? 0 : 1]))
+  } finally { stops.forEach(stop => stop()) }
+})

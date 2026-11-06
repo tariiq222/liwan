@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/vue-query'
 import { CHAT_TYPING_MS } from '../utils/chatState'
 import { clearTaskWriteAcknowledgements, reconcileTaskWriteEvent, taskKeys } from './useTasks'
 import type { Task } from '@liwan/contracts'
+import { isTaskDependentProjectKey } from './projectKeys'
 
 export interface BusNotification {
   id: number
@@ -212,12 +213,7 @@ function invalidateTaskIds(client: ReturnType<typeof useQueryClient>, ids: numbe
   }
   // A task event cannot change followers, project settings, or project updates.
   // Unknown/new tasks still refresh all aggregates so counts remain accurate.
-  client.invalidateQueries({ queryKey: ['projects'], predicate: q => {
-    const key = q.queryKey
-    if (key[1] === 'list' || key[1] === 'summary') return true
-    if (key[1] !== 'detail' || (!unknownProject && !projectIds.has(key[2] as number))) return false
-    return key.length === 3 || key[3] === 'stages' || key[3] === 'milestones'
-  } })
+  client.invalidateQueries({ queryKey: ['projects'], predicate: q => isTaskDependentProjectKey(q.queryKey, unknownProject ? undefined : projectIds) })
 }
 
 async function invalidateTaskEvents(client: ReturnType<typeof useQueryClient>, notifications: BusNotification[], ownGeneration: number) {

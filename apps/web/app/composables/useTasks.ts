@@ -12,7 +12,7 @@ import {
 } from '@liwan/contracts'
 import { daysRemaining } from './taskState'
 import { ApiError } from './useApi'
-import { invalidateProjectCaches, projectKeys } from './projectKeys'
+import { invalidateProjectCaches, isTaskDependentProjectKey, projectKeys } from './projectKeys'
 import { taskAttributeQuery, type TaskAssignee, type TaskDeadline, type TaskPriority } from './taskFilterParams'
 
 export interface TaskListParams {
@@ -266,6 +266,8 @@ export function useUpdateTask({ notifyErrors = true }: { notifyErrors?: boolean 
   const toast = useToast()
   const { me } = useMe()
   const identity = () => taskIdentity(me.value)
+  const coldLists = () => new Map(qc.getQueriesData<TaskPages>({ queryKey: ['tasks', 'list'] })
+    .filter(([key, data]) => data === undefined && qc.getQueryState(key)?.fetchStatus !== 'idle').map(([key]) => [hashKey(key), key] as const))
   return useMutation({
     mutationFn: ({ id, patch }: { id: number; patch: TaskPatch; resolved?: Resolved }) => {
       const writes = taskWrites.get(qc) ?? new Map<string, Promise<unknown>>()
@@ -283,6 +285,7 @@ export function useUpdateTask({ notifyErrors = true }: { notifyErrors?: boolean 
     },
     onMutate: async ({ id, patch, resolved }) => {
       const owner = identity()
+      const cancelledColdLists = coldLists()
       await Promise.all([qc.cancelQueries({ queryKey: taskKeys.detail(id) }), qc.cancelQueries({ queryKey: ['tasks', 'list'] })])
       if (identity() !== owner) throw new ApiError(409, 'identity_changed', t('errors.generic'))
       const edits = taskEdits.get(qc) ?? new Map<number, TaskEdit>()
@@ -304,7 +307,7 @@ export function useUpdateTask({ notifyErrors = true }: { notifyErrors?: boolean 
       const layer: TaskLayer = { patch, resolved, done, finish, acknowledgements }
       edit.layers.push(layer)
       renderTaskEdit(qc, id, edit)
-      return { edit, layer, owner }
+      return { edit, layer, owner, cancelledColdLists }
     },
     onError: (error, { id }, ctx) => {
       if (ctx && ctx.owner !== identity()) return
@@ -314,6 +317,7 @@ export function useUpdateTask({ notifyErrors = true }: { notifyErrors?: boolean 
     onSuccess: (detail, { id }, ctx) => {
       if (ctx && ctx.owner !== identity()) return
       if (ctx) {
+        for (const [hash, key] of coldLists()) ctx.cancelledColdLists.set(hash, key)
         void qc.cancelQueries({ queryKey: ['tasks', 'list'] })
         void qc.cancelQueries({ queryKey: taskKeys.detail(id) })
         if (!ctx.edit.detail) ctx.edit.detail = detail
@@ -336,9 +340,13 @@ export function useUpdateTask({ notifyErrors = true }: { notifyErrors?: boolean 
         ctx.layer.finish()
         if (taskEdits.get(qc)?.get(id) === ctx.edit && ctx.edit.layers.every(layer => layer.complete)) taskEdits.get(qc)?.delete(id)
       }
-      if (error || (ctx && ctx.owner !== identity())) { complete(false); return }
+      if (ctx && ctx.owner !== identity()) { complete(false); return }
       const effects: Array<Promise<unknown>> = []
       const refresh = (filters: Parameters<typeof qc.invalidateQueries>[0]) => { effects.push(qc.invalidateQueries(filters, { throwOnError: true })) }
+      // A cancelled initial list has no row for renderTaskEdit to reconcile.
+      // Resume its active observer after either outcome, before acknowledging a write.
+      for (const key of ctx?.cancelledColdLists.values() ?? []) refresh({ queryKey: key, exact: true })
+      if (error) { void Promise.allSettled(effects).then(() => complete(false)); return }
       for (const [key] of qc.getQueriesData({ queryKey: ['tasks', 'list'] })) {
         if (taskPatchAffectsList(key[2] as TaskListParams, patch)) refresh({ queryKey: key, exact: true })
       }
@@ -348,13 +356,14 @@ export function useUpdateTask({ notifyErrors = true }: { notifyErrors?: boolean 
       }
       refresh({ queryKey: taskKeys.timeline(id) })
       if (patch.date_deadline !== undefined || patch.percent_complete !== undefined || patch.allocated_hours !== undefined || patch.stage_id !== undefined || patch.milestone_id !== undefined) {
-        refresh({ queryKey: projectKeys.list })
-        refresh({ queryKey: ['projects', 'summary'] })
-        if (detail?.project?.id) {
-          refresh({ queryKey: projectKeys.detail(detail.project.id), exact: true })
-          refresh({ queryKey: projectKeys.milestones(detail.project.id) })
-          if (patch.stage_id !== undefined) refresh({ queryKey: projectKeys.stages(detail.project.id) })
-        }
+        const projectIds = detail?.project?.id ? new Set([detail.project.id]) : undefined
+        refresh({ queryKey: projectKeys.all, predicate: query => isTaskDependentProjectKey(query.queryKey, projectIds)
+          && (patch.stage_id !== undefined || query.queryKey[3] !== 'stages') })
+      } else if (patch.name !== undefined) {
+        const projectIds = detail?.project?.id ? new Set([detail.project.id]) : undefined
+        // Variance names live tasks added after the baseline; snapshots keep their captured names.
+        refresh({ queryKey: projectKeys.all, predicate: query => isTaskDependentProjectKey(query.queryKey, projectIds)
+          && (query.queryKey[3] === 'evm' || query.queryKey[3] === 'baselines') })
       }
       // Mark eligibility only after all required reads/invalidation work has settled successfully.
       // The form itself still follows its committed write response.

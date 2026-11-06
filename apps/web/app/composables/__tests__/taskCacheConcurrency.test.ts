@@ -1,7 +1,8 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { computed, ref } from 'vue'
-import { QueryClient } from '@tanstack/vue-query'
-import { useTasks, useUpdateTask } from '../useTasks'
+import { QueryClient, QueryObserver } from '@tanstack/vue-query'
+import { reconcileTaskWriteEvent, useTasks, useUpdateTask } from '../useTasks'
+import { ApiError } from '../useApi'
 
 type CachedTaskPages = { pages: Array<{ items: Array<{ id: number; name: string; priority: string }>; total: number }>; pageParams: number[] }
 
@@ -143,4 +144,157 @@ it('rolls back an optimistic row in a newly fetched query key after its write fa
   mutation.onSettled(undefined, new Error('refused'), variables, context)
   expect(qc.getQueryData<CachedTaskPages>(newKey)?.pages[0]?.items).toEqual([original])
   qc.clear()
+})
+
+it.each([true, false])('a local deadline edit refreshes live project derivations only (known project=%s)', async known => {
+  const qc = state.qc as QueryClient
+  const keys = [
+    ['projects', 'detail', 5, 'evm'], ['projects', 'detail', 5, 'baselines', 'variance'],
+    ['projects', 'detail', 5, 'baselines', 'list', {}], ['projects', 'detail', 5, 'baselines', 'item', 1],
+    ['projects', 'detail', 5, 'followers'], ['projects', 'detail', 5, 'updates'], ['projects', 'settings'],
+    ['projects', 'detail', 8, 'evm'], ['projects', 'detail', 8, 'baselines', 'variance'],
+  ]
+  const reads = keys.map(() => vi.fn(async () => ({ revision: 'after' })))
+  keys.forEach(key => qc.setQueryData(key, { revision: 'before' }))
+  const stops = keys.map((queryKey, index) => new QueryObserver(qc, { queryKey, staleTime: Infinity, queryFn: reads[index] }).subscribe(() => {}))
+  try {
+    useUpdateTask(); const mutation = state.options, variables = { id: 1, patch: { date_deadline: '2026-12-01' } }
+    const ctx = await mutation.onMutate(variables)
+    const detail = { id: 1, project: known ? { id: 5 } : null, date_deadline: '2026-12-01' }
+    mutation.onSuccess(detail, variables, ctx); mutation.onSettled(detail, null, variables, ctx)
+    await vi.waitFor(() => expect(reads.map(read => read.mock.calls.length)).toEqual([1, 1, 0, 0, 0, 0, 0, known ? 0 : 1, known ? 0 : 1]))
+    expect(qc.getQueryData(keys[0]!)).toEqual({ revision: 'after' })
+    expect(qc.getQueryData(keys[1]!)).toEqual({ revision: 'after' })
+  } finally { stops.forEach(stop => stop()); qc.clear() }
+})
+
+it.each([
+  { started: 'before mutation', outcome: 'success' },
+  { started: 'during PATCH', outcome: 'success' },
+  { started: 'before mutation', outcome: 'failure' },
+  { started: 'during PATCH', outcome: 'failure' },
+])('completes a cold filtered list started $started after PATCH $outcome', async ({ started, outcome }) => {
+  const qc = state.qc as QueryClient
+  const original = { id: 1, name: 'A', priority: '0' }
+  const firstKey = ['tasks', 'list', { closed: false }]
+  qc.setQueryData(firstKey, { pages: [{ items: [original], total: 1 }], pageParams: [0] })
+  let release!: (value: object) => void
+  const oldRead = new Promise<object>(resolve => { release = resolve })
+  let serverPriority = '0'
+  const api = vi.fn().mockImplementationOnce(() => oldRead).mockImplementation(async () => ({ items: [{ ...original, priority: serverPriority }], total: 1 }))
+  vi.stubGlobal('useApi', () => ({ $api: api }))
+  const params = { closed: false, q: 'A' }, key = ['tasks', 'list', params]
+  useTasks(ref(params)); const query = state.query
+  const observer = new QueryObserver(qc, { queryKey: key, retry: false, staleTime: Infinity, queryFn: async context => ({ pages: [await query.queryFn({ ...context, pageParam: 0 })], pageParams: [0] }) })
+  let stop = () => {}
+  useUpdateTask(); const mutation = state.options, variables = { id: 1, patch: { priority: '2' } }
+  try {
+    if (started === 'before mutation') {
+      stop = observer.subscribe(() => {})
+      await vi.waitFor(() => expect(api).toHaveBeenCalledTimes(1))
+    }
+    const ctx = await mutation.onMutate(variables)
+    if (started === 'during PATCH') {
+      stop = observer.subscribe(() => {})
+      await vi.waitFor(() => expect(api).toHaveBeenCalledTimes(1))
+    }
+    if (outcome === 'success') {
+      serverPriority = '2'
+      const detail = { ...original, priority: serverPriority }
+      mutation.onSuccess(detail, variables, ctx); mutation.onSettled(detail, null, variables, ctx)
+    } else {
+      const error = new Error('refused')
+      mutation.onError(error, variables, ctx); mutation.onSettled(undefined, error, variables, ctx)
+    }
+    if (outcome === 'success' || started === 'before mutation') {
+      await vi.waitFor(() => expect(qc.getQueryData<CachedTaskPages>(key)?.pages[0]?.items[0]?.priority).toBe(serverPriority))
+      expect(api).toHaveBeenCalledTimes(2)
+    }
+    // Deliver the obsolete snapshot after the authoritative replacement read.
+    release({ items: [original], total: 1 })
+    await vi.waitFor(() => expect(qc.getQueryData<CachedTaskPages>(key)?.pages[0]?.items[0]?.priority).toBe(serverPriority))
+    await Promise.resolve(); await Promise.resolve()
+    expect(qc.getQueryData<CachedTaskPages>(key)?.pages[0]?.items[0]?.priority).toBe(serverPriority)
+    expect(observer.getCurrentResult().isSuccess).toBe(true)
+    expect(observer.getCurrentResult().fetchStatus).toBe('idle')
+    expect(qc.getQueryData<CachedTaskPages>(firstKey)?.pages[0]?.items[0]?.priority).toBe(serverPriority)
+  } finally { stop(); qc.clear() }
+})
+
+it('does not restart or replace a cold list owned by a different company after old mutation callbacks', async () => {
+  const qc = state.qc as QueryClient, params = { closed: false, q: 'A' }, key = ['tasks', 'list', params]
+  const releases: Array<(value: object) => void> = []
+  const api = vi.fn(() => new Promise<object>(resolve => { releases.push(resolve) }))
+  vi.stubGlobal('useApi', () => ({ $api: api }))
+  useTasks(ref(params)); const query = state.query
+  const observe = () => new QueryObserver(qc, { queryKey: key, retry: false, queryFn: async context => ({ pages: [await query.queryFn({ ...context, pageParam: 0 })], pageParams: [0] }) }).subscribe(() => {})
+  const oldStop = observe()
+  useUpdateTask(); const mutation = state.options, variables = { id: 1, patch: { priority: '2' } }
+  const ctx = await mutation.onMutate(variables)
+  oldStop(); qc.clear()
+  state.me.value = { id: 1, company: { id: 3 } }
+  const stop = observe()
+  try {
+    await vi.waitFor(() => expect(api).toHaveBeenCalledTimes(2))
+    mutation.onSuccess({ id: 1, priority: '2' }, variables, ctx)
+    mutation.onSettled({ id: 1, priority: '2' }, null, variables, ctx)
+    releases[1]!({ items: [{ id: 1, name: 'A', priority: '3' }], total: 1 })
+    await vi.waitFor(() => expect(qc.getQueryData<CachedTaskPages>(key)?.pages[0]?.items[0]?.priority).toBe('3'))
+    releases[0]!({ items: [{ id: 1, name: 'A', priority: '0' }], total: 1 })
+    await Promise.resolve(); await Promise.resolve()
+    expect(api).toHaveBeenCalledTimes(2)
+    expect(qc.getQueryData<CachedTaskPages>(key)?.pages[0]?.items[0]?.priority).toBe('3')
+    expect(qc.getQueryData(['tasks', 'detail', 1])).toBeUndefined()
+  } finally { stop(); qc.clear() }
+})
+
+it('refreshes live readings for a task rename before acknowledging it without replaying project governance', async () => {
+  const qc = state.qc as QueryClient
+  const keys = [
+    ['projects', 'list'], ['projects', 'detail', 5], ['projects', 'detail', 5, 'stages'], ['projects', 'detail', 5, 'milestones'],
+    ['projects', 'detail', 5, 'evm'], ['projects', 'detail', 5, 'baselines', 'variance'],
+    ['projects', 'detail', 5, 'followers'], ['projects', 'detail', 5, 'baselines', 'item', 1],
+  ]
+  const releases: Array<(value: object) => void> = []
+  const reads = keys.map(() => vi.fn(() => new Promise<object>(resolve => { releases.push(resolve) })))
+  keys.forEach(key => qc.setQueryData(key, { revision: 'before' }))
+  const stops = keys.map((queryKey, index) => new QueryObserver(qc, { queryKey, staleTime: Infinity, queryFn: reads[index] }).subscribe(() => {}))
+  try {
+    useUpdateTask(); const mutation = state.options, variables = { id: 1, patch: { name: 'Renamed' } }
+    const ctx = await mutation.onMutate(variables)
+    const detail = { id: 1, name: 'Renamed', project: { id: 5 }, updated_at: '2026-11-07T00:00:00.123456Z' }
+    mutation.onSuccess(detail, variables, ctx); mutation.onSettled(detail, null, variables, ctx)
+    await vi.waitFor(() => expect(reads.map(read => read.mock.calls.length)).toEqual([0, 0, 0, 0, 1, 1, 0, 0]))
+    let acknowledged = false
+    const acknowledgement = reconcileTaskWriteEvent(qc, { id: 1, event: 'updated', source: 'write', updated_at: detail.updated_at, changed_fields: ['name'] }).then(result => { acknowledged = result; return result })
+    await Promise.resolve(); await Promise.resolve()
+    expect(acknowledged).toBe(false)
+    releases.forEach(release => release({ revision: 'after' }))
+    await expect(acknowledgement).resolves.toBe(true)
+    expect(qc.getQueryData(keys[5]!)).toEqual({ revision: 'after' })
+    expect(qc.getQueryData(keys[7]!)).toEqual({ revision: 'before' })
+  } finally { stops.forEach(stop => stop()); qc.clear() }
+})
+
+it.each([403, 422])('does not replay a settled cold %s refusal after an unrelated priority save', async status => {
+  const qc = state.qc as QueryClient, params = { closed: false, q: 'Restricted' }, key = ['tasks', 'list', params]
+  const refusal = new ApiError(status, status === 403 ? 'forbidden' : 'invalid', 'Refused')
+  const api = vi.fn().mockRejectedValue(refusal)
+  vi.stubGlobal('useApi', () => ({ $api: api }))
+  useTasks(ref(params)); const query = state.query
+  const observer = new QueryObserver(qc, { queryKey: key, retry: false, queryFn: async context => ({ pages: [await query.queryFn({ ...context, pageParam: 0 })], pageParams: [0] }) })
+  const stop = observer.subscribe(() => {})
+  try {
+    await vi.waitFor(() => expect(observer.getCurrentResult().status).toBe('error'))
+    expect(observer.getCurrentResult().fetchStatus).toBe('idle')
+    expect(api).toHaveBeenCalledTimes(1)
+    useUpdateTask(); const mutation = state.options, variables = { id: 2, patch: { priority: '2' } }
+    const ctx = await mutation.onMutate(variables)
+    const detail = { id: 2, name: 'Unrelated', priority: '2' }
+    mutation.onSuccess(detail, variables, ctx); mutation.onSettled(detail, null, variables, ctx)
+    await vi.waitFor(() => expect(observer.getCurrentResult().fetchStatus).toBe('idle'))
+    expect(observer.getCurrentResult().error).toBe(refusal)
+    expect(observer.getCurrentResult().status).toBe('error')
+    expect(api).toHaveBeenCalledTimes(1)
+  } finally { stop(); qc.clear() }
 })

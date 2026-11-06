@@ -11,6 +11,9 @@ afterEach(() => { apps.splice(0).forEach(stop => stop()); vi.unstubAllGlobals() 
 type HistorySetup = {
   items: Array<{ id: number }>
   acknowledgeRead: (id: number) => Promise<void>
+  onScroll: () => void
+  jumpCount: number
+  stickToEnd: boolean
   scroller: null | {
     scrollHeight: number; clientHeight: number; scrollTop: number
     getBoundingClientRect: () => { top: number; bottom: number }
@@ -118,4 +121,39 @@ it.each(['hidden', 'unfocused'])('does not acknowledge a merged message while %s
   history.setup.scroller = { scrollHeight: 100, clientHeight: 100, scrollTop: 0, getBoundingClientRect: () => ({ top: 0, bottom: 100 }), querySelectorAll: () => [{ dataset: { messageId: '12' }, getBoundingClientRect: () => ({ top: 0, bottom: 20 }) }] }
   await history.page(messages(10, 10)); await history.page(messages(10, 12)); await Vue.nextTick()
   expect(write).not.toHaveBeenCalled()
+})
+
+it.each([1, 2])('counts %s new messages from an ordinary query page while reading above the bottom', async count => {
+  const history = await mount(vi.fn())
+  await history.page(messages(1, 50))
+  history.setup.scroller = { scrollHeight: 1000, clientHeight: 100, scrollTop: 200, getBoundingClientRect: () => ({ top: 0, bottom: 100 }), querySelectorAll: () => [] }
+  history.setup.onScroll()
+  await history.page(messages(49, 50 + count))
+  expect(history.setup.stickToEnd).toBe(false)
+  expect(history.setup.jumpCount).toBe(count)
+  // Query polling/reactions may replace the same rows without adding new ids.
+  await history.page(messages(49, 50 + count).map(item => ({ ...item, body: 'updated', reactions: [{ content: '👍', count: 1, me: false }] })))
+  expect(history.setup.jumpCount).toBe(count)
+  // Replayed latest-page ids are still the same new messages, counted once.
+  await history.page(messages(50, 50 + count))
+  expect(history.setup.jumpCount).toBe(count)
+  history.setup.scroller.scrollTop = 1000
+  history.setup.onScroll(); await Vue.nextTick()
+  expect(history.setup.jumpCount).toBe(0)
+})
+it('counts a full gap recovery once and adds a later ordinary page without recounting the gap', async () => {
+  const api = vi.fn(async (_path, options) => ({ items: options.query.after === 50 ? messages(51, 100) : options.query.after === 100 ? messages(101, 150) : [], total: 150 }))
+  const history = await mount(api)
+  await history.page(messages(1, 50))
+  history.setup.scroller = { scrollHeight: 1000, clientHeight: 100, scrollTop: 200, getBoundingClientRect: () => ({ top: 0, bottom: 100 }), querySelectorAll: () => [] }
+  history.setup.onScroll()
+  await history.page(messages(101, 150))
+  await vi.waitFor(() => expect(history.setup.jumpCount).toBe(100))
+  expect(history.setup.jumpCount).toBe(100)
+  await history.page(messages(101, 150))
+  expect(history.setup.jumpCount).toBe(100)
+  await history.page(messages(149, 151))
+  expect(history.setup.jumpCount).toBe(101)
+  history.conversation.value = 2; await Vue.nextTick()
+  expect(history.setup.jumpCount).toBe(0)
 })
