@@ -50,7 +50,7 @@ const { draft, state, save, revert, reload } = useSettingsForm<HrPayrollSettings
   },
   reload: () => props.reloadSettings(),
 })
-const locked = computed(() => !hydrated.value || !props.canEdit || state.value.saving || state.value.reloading)
+const locked = computed(() => !hydrated.value || !props.canEdit || state.value.saving || state.value.reloading || state.value.conflict)
 
 const divisorOptions = DAY_DIVISORS.map(value => ({ value: String(value), label: String(value) }))
 // The structure on record is always an option, so the picker shows it even when the list has not loaded.

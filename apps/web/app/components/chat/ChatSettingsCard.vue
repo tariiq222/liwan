@@ -17,7 +17,7 @@ const { draft, state, save, revert, reload } = useSettingsForm<ChatSettings, Dra
   save: (values, latest) => saveSettings({ revision: latest.revision, values: { message_delete_mode: values.message_delete_mode } }),
   reload: () => props.reloadSettings(),
 })
-const locked = computed(() => !hydrated.value || !props.canEdit || state.value.saving || state.value.reloading)
+const locked = computed(() => !hydrated.value || !props.canEdit || state.value.saving || state.value.reloading || state.value.conflict)
 const items = computed(() => props.settings.options.message_delete_mode.map(value => ({
   value,
   label: t(`chatSettings.delete.${value}`),

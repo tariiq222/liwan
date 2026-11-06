@@ -25,7 +25,7 @@ const { draft, state, save, revert, reload } = useSettingsForm<HrShiftSettings, 
   },
   reload: () => props.reloadSettings(),
 })
-const locked = computed(() => !hydrated.value || !props.canEdit || state.value.saving || state.value.reloading)
+const locked = computed(() => !hydrated.value || !props.canEdit || state.value.saving || state.value.reloading || state.value.conflict)
 const items = computed(() => [
   { value: 'company', label: t('hr.shiftSettings.company') },
   { value: 'user', label: t('hr.shiftSettings.user') },

@@ -28,7 +28,7 @@ const { draft, state, save, revert, reload } = useSettingsForm<HrWarningSettings
   }),
   reload: () => props.reloadSettings(),
 })
-const locked = computed(() => !hydrated.value || !props.canEdit || state.value.saving || state.value.reloading)
+const locked = computed(() => !hydrated.value || !props.canEdit || state.value.saving || state.value.reloading || state.value.conflict)
 const issuedByItems = computed(() => (['hr_only', 'manager_and_hr'] as const).map(value => ({ value, label: t(`hrWarnings.settings.issuedByOption.${value}`) })))
 const acknowledgementItems = computed(() => (['required', 'optional', 'off'] as const).map(value => ({ value, label: t(`hrWarnings.settings.acknowledgementOption.${value}`) })))
 const validWindow = computed(() => {

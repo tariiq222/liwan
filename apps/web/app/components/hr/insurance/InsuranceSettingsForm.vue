@@ -29,7 +29,7 @@ const { draft, state, save, revert, reload } = useSettingsForm<HrInsuranceSettin
   }),
   reload: () => props.reloadSettings(),
 })
-const locked = computed(() => !hydrated.value || !props.canEdit || state.value.saving || state.value.reloading)
+const locked = computed(() => !hydrated.value || !props.canEdit || state.value.saving || state.value.reloading || state.value.conflict)
 const visibilityItems = computed(() => (['own_enrollment_and_dependents', 'own_enrollment_only'] as const).map(value => ({ value, label: t(`hrInsurance.settings.visibilityOption.${value}`) })))
 const validDays = computed(() => {
   const days = draft.value.insurance_expiry_alert_days

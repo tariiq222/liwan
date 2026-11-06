@@ -16,7 +16,7 @@ const { draft, state, save, revert, reload } = useSettingsForm<HrLeaveSettings, 
   save: (values, latest) => saveSettings({ cancellation_policy: values.cancellation_policy, revision: latest.revision }),
   reload: () => props.reloadSettings(),
 })
-const locked = computed(() => !hydrated.value || !props.canEdit || state.value.saving || state.value.reloading)
+const locked = computed(() => !hydrated.value || !props.canEdit || state.value.saving || state.value.reloading || state.value.conflict)
 const items = computed(() => [
   { value: 'manager_approval', label: t('hr.leaveSettings.managerApproval') },
   { value: 'direct_employee', label: t('hr.leaveSettings.directEmployee') },

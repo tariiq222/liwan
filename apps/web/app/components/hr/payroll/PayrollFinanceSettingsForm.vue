@@ -45,7 +45,7 @@ const { draft, state, save, revert, reload } = useSettingsForm<HrPayrollFinanceS
   },
   reload: () => props.reloadSettings(),
 })
-const disabled = computed(() => !hydrated.value || !props.canEdit || state.value.saving || state.value.reloading)
+const disabled = computed(() => !hydrated.value || !props.canEdit || state.value.saving || state.value.reloading || state.value.conflict)
 
 const none = { value: NO_RECORD, label: t('hrPayroll.financeSettings.none') }
 const items = (choices: FinanceChoice[], current: { id: number; name: string } | null) => [none, ...withCurrent(choices, current).map(choice => ({ value: String(choice.id), label: choice.code ? `${choice.code} ${choice.name}` : choice.name }))]

@@ -26,8 +26,8 @@ const reminders = useSettingsForm<MeetingSettings, RemindersDraft>({
   save: (values, latest) => saveSettings({ revision: latest.revision, values: { reminder_hours: values.reminder_hours!, reference_prefix: values.reference_prefix } }),
   reload: () => props.reloadSettings(),
 })
-const locked = (form: { state: { value: { saving: boolean; reloading: boolean } } }) =>
-  !hydrated.value || !props.canEdit || form.state.value.saving || form.state.value.reloading
+const locked = (form: { state: { value: { saving: boolean; reloading: boolean; conflict: boolean } } }) =>
+  !hydrated.value || !props.canEdit || form.state.value.saving || form.state.value.reloading || form.state.value.conflict
 const items = computed(() => props.settings.options.schedule_policy.map(value => ({
   value,
   label: t(`meetingsSettings.schedule.${value}`),
