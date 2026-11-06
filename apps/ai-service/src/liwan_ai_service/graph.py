@@ -24,6 +24,8 @@ from langgraph.graph.message import add_messages
 from langgraph.types import interrupt
 
 from liwan_ai_service.contracts import CORE_AGENT, AgentSpec, RunContext, RunRequest, ToolResult, ToolSpec, encode_tool_name
+from liwan_ai_service.embeddings import Embedder
+from liwan_ai_service.knowledge import KnowledgeStore
 from liwan_ai_service.memory import MemoryFull, MemoryStore
 from liwan_ai_service.prompts import system_prompt, tool_summary
 from liwan_ai_service.usage import RunModel, invoke_planned, tokens_of
@@ -46,6 +48,7 @@ class AgentState(TypedDict):
     agent: str  # the active agent: a specialist's key or ``core``
     handoffs: int  # hand-overs made for this request
     company: str | None  # the user's current company: whose approved notes the prompt carries
+    knowledge: dict[str, list[dict[str, Any]]]  # the references found for the pending knowledge search: {call_id: refs}, never text
 
 
 REMEMBER = "liwan_remember"
@@ -67,6 +70,21 @@ class RunMemory:
     company: str | None
     user_notes: list[str] = field(default_factory=list)
     company_notes: list[str] = field(default_factory=list)
+
+
+KNOWLEDGE_TOOL = "ai.search_knowledge"  # registered by liwan_ai; its candidates are found here, before the request leaves the graph
+
+
+@dataclass(frozen=True)
+class RunKnowledge:
+    """This request's knowledge search: the tenant's index, the embedder that tagged it and the company it may search.
+
+    Like ``RunMemory`` it is built by the service for every request and never enters the checkpoint.
+    """
+
+    store: KnowledgeStore
+    embedder: Embedder
+    company: str | None
 
 
 HANDOFF = "liwan_handoff"  # no dot: it can never collide with a registered tool name
@@ -172,6 +190,7 @@ def request_state(request: RunRequest) -> dict[str, Any]:
         "agents": [agent.model_dump() for agent in request.agents],
         "handoffs": 0,
         "company": request.company,
+        "knowledge": {},
     }
 
 
@@ -190,10 +209,11 @@ def continued_state(request: RunRequest, previous: dict[str, Any]) -> dict[str, 
 DEADLINE_KEY = "__deadline_at"  # a dunder key stays out of the checkpoint metadata
 RUN_MODEL_KEY = "__run_model"  # the request's model, chosen from the tenant's policy; never checkpointed
 RUN_MEMORY_KEY = "__run_memory"  # where the request's memory tools write; never checkpointed
+RUN_KNOWLEDGE_KEY = "__run_knowledge"  # the request's knowledge search; never checkpointed
 
 
 def run_config(run_id: str, max_steps: int, deadline_at: float | None = None, run_model: RunModel | None = None,
-               run_memory: RunMemory | None = None) -> dict[str, Any]:
+               run_memory: RunMemory | None = None, run_knowledge: RunKnowledge | None = None) -> dict[str, Any]:
     """Graph config; the recursion limit leaves room for error-only loops to reach ``max_steps`` first.
 
     ``deadline_at`` is the run deadline on the event loop clock: model retries do not wait past it. ``run_model`` is
@@ -206,6 +226,8 @@ def run_config(run_id: str, max_steps: int, deadline_at: float | None = None, ru
         configurable[RUN_MODEL_KEY] = run_model
     if run_memory is not None:
         configurable[RUN_MEMORY_KEY] = run_memory
+    if run_knowledge is not None:
+        configurable[RUN_KNOWLEDGE_KEY] = run_knowledge
     return {"configurable": configurable, "recursion_limit": 3 * max_steps + 10}
 
 log = logging.getLogger("liwan_ai_service")
@@ -266,6 +288,22 @@ def invalid_arguments(args: Any, schema: dict[str, Any]) -> str | None:
     return None
 
 
+async def knowledge_candidates(query: str, run_knowledge: RunKnowledge | None) -> list[dict[str, Any]] | None:
+    """The references nearest to ``query`` in the request's company, or None when the search is unavailable.
+
+    The query is embedded before the search opens its connection, so no transaction waits on the provider. A provider
+    or database failure is unavailability too (logged by class only: the text may carry a key or a connection string).
+    """
+    if run_knowledge is None or run_knowledge.company is None:
+        return None
+    try:
+        vector = await run_knowledge.embedder.query(query)
+        return await run_knowledge.store.search(int(run_knowledge.company), vector, run_knowledge.embedder.model_id)
+    except Exception as error:  # noqa: BLE001 - the run goes on without the search; the cause is logged, not shown
+        log.warning("knowledge search failed: %s", type(error).__name__)
+        return None
+
+
 def build_graph(checkpointer):
     """One compiled graph per tenant state; each request brings its own model through ``RUN_MODEL_KEY``."""
 
@@ -298,12 +336,12 @@ def build_graph(checkpointer):
             log.warning("a capped run's provider reported no output tokens; the per-run cap cannot count this call")
         return {"messages": [response], "steps": state["steps"] + 1, "output_tokens": state.get("output_tokens", 0) + (spent or 0)}
 
-    def route_after_plan(state: AgentState) -> Literal["request_tool", "answer", "__end__"]:
+    def route_after_plan(state: AgentState) -> Literal["retrieve", "answer", "__end__"]:
         if state["outcome"] == "limit_reached":
             return END
         last = state["messages"][-1]
         if isinstance(last, AIMessage) and last.tool_calls:
-            return "request_tool"
+            return "retrieve"
         return "answer"
 
     def hand_over(state: AgentState, call: dict[str, Any], extra: list[ToolMessage]) -> dict[str, Any]:
@@ -338,6 +376,44 @@ def build_graph(checkpointer):
         reply = ToolMessage(content=json.dumps({"ok": True, "status": status}), tool_call_id=call["id"])
         return {"messages": [reply, *extra]}
 
+    def checked_tool(state: AgentState, call: dict[str, Any]) -> tuple[dict[str, Any] | None, ToolMessage | None]:
+        """The offered tool a call names, or the error reply that refuses it (None for both: a call handled in the graph)."""
+        # The provider names tools by their encoded form; only the active agent's visible tools can be requested.
+        tools = {encode_tool_name(tool["name"]): tool for tool in visible_tools(state["tools"], state.get("agent", CORE_AGENT))}
+        spec = tools.get(call["name"])
+        if spec is None:
+            return None, _error(call["id"], "unknown_tool", f"{call['name']} is not available")
+        invalid = invalid_arguments(call["args"], spec["input_schema"])
+        if invalid is None and spec["name"] == KNOWLEDGE_TOOL and not isinstance(call["args"].get("query"), str):
+            invalid = "query must be a string"
+        if invalid is not None:
+            return spec, _error(call["id"], "invalid_arguments", invalid)
+        return spec, None
+
+    async def retrieve(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
+        """Find the references of a knowledge search once, before its request is made.
+
+        A resume re-enters ``request_tool`` from the top, so searching there would embed again, and a failure by then
+        would discard the result the caller already executed. No candidate, or no search, is answered here and spends no
+        tool call; otherwise the references are kept in the state for ``request_tool`` to send.
+        """
+        first, *rest = state["messages"][-1].tool_calls
+        spec, refused = checked_tool(state, first)
+        if spec is None or spec["name"] != KNOWLEDGE_TOOL or refused is not None:
+            return {}  # not a knowledge search, or a call ``request_tool`` refuses
+        if state["tool_calls_made"] >= state["limits"]["max_tool_calls"]:
+            return {}
+        extra = [_error(call["id"], "one_tool_per_step", "call one tool per step; this call was not run") for call in rest]
+        refs = await knowledge_candidates(first["args"]["query"], config["configurable"].get(RUN_KNOWLEDGE_KEY))
+        if refs is None:
+            return {"messages": [_error(first["id"], "knowledge_unavailable", "knowledge search is not available"), *extra]}
+        if not refs:
+            return {"messages": [ToolMessage(content=json.dumps({"items": []}), tool_call_id=first["id"]), *extra]}
+        return {"knowledge": {first["id"]: refs}}
+
+    def route_after_retrieve(state: AgentState) -> Literal["request_tool", "plan"]:
+        return "plan" if isinstance(state["messages"][-1], ToolMessage) else "request_tool"
+
     async def request_tool(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
         last: AIMessage = state["messages"][-1]
         first, *rest = last.tool_calls
@@ -347,26 +423,25 @@ def build_graph(checkpointer):
         if first["name"] in (REMEMBER, PROPOSE_COMPANY_NOTE):
             return await save_note(state, first, extra, config)
         current = state.get("agent", CORE_AGENT)
-        # The provider names tools by their encoded form; only the active agent's visible tools can be requested.
-        tools = {encode_tool_name(tool["name"]): tool for tool in visible_tools(state["tools"], current)}
-        spec = tools.get(first["name"])
-        if spec is None:
-            return {"messages": [_error(first["id"], "unknown_tool", f"{first['name']} is not available"), *extra]}
-        invalid = invalid_arguments(first["args"], spec["input_schema"])
-        if invalid is not None:
-            return {"messages": [_error(first["id"], "invalid_arguments", invalid), *extra]}
+        spec, refused = checked_tool(state, first)
+        if refused is not None:
+            return {"messages": [refused, *extra]}
         if state["tool_calls_made"] >= state["limits"]["max_tool_calls"]:
             # Every tool call of the message gets an answer, or the provider rejects any follow-up turn.
             refused = [_error(call["id"], "limit_reached", "tool call limit reached; not run") for call in last.tool_calls]
             return {"outcome": "limit_reached", "messages": refused}
         tool = ToolSpec.model_validate(spec)
+        tool_input = first["args"]
+        if tool.name == KNOWLEDGE_TOOL:
+            # The references were found once, by ``retrieve``, and are in the checkpoint: a resume never searches again.
+            tool_input = {"query": first["args"]["query"], "refs": state.get("knowledge", {}).get(first["id"], [])}
         payload = {
             "call_id": first["id"],
             "tool": tool.name,
             "kind": tool.kind,
             "agent": current,
             "requires_approval": tool.requires_approval or tool.kind != "read",
-            "input": first["args"],
+            "input": tool_input,
             "summary_ar": tool_summary(tool, first["args"], "ar"),
             "summary_en": tool_summary(tool, first["args"], "en"),
         }
@@ -387,10 +462,12 @@ def build_graph(checkpointer):
 
     builder = StateGraph(AgentState)
     builder.add_node("plan", plan)
+    builder.add_node("retrieve", retrieve)
     builder.add_node("request_tool", request_tool)
     builder.add_node("answer", answer)
     builder.add_edge(START, "plan")
-    builder.add_conditional_edges("plan", route_after_plan, {"request_tool": "request_tool", "answer": "answer", END: END})
+    builder.add_conditional_edges("plan", route_after_plan, {"retrieve": "retrieve", "answer": "answer", END: END})
+    builder.add_conditional_edges("retrieve", route_after_retrieve, {"request_tool": "request_tool", "plan": "plan"})
     builder.add_conditional_edges("request_tool", route_after_tool, {"plan": "plan", END: END})
     builder.add_edge("answer", END)
     return builder.compile(checkpointer=checkpointer)

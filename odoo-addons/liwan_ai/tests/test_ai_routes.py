@@ -33,6 +33,7 @@ class TestAiToolsRoute(AiProbe, LiwanApiCase):
         self.assertEqual(tool['input_map'], {'query': {'limit': '$limit', 'filter': 'mine'}})
         self.assertEqual(tool['description'], {'ar': 'يعرض الأشياء', 'en': 'List things'})
         self.assertIsNone(tool['draft_target'])
+        self.assertIs(tool['platform'], False)
         self.assertNotIn('capability', tool)
         self.assertNotIn('owner', tool)
 

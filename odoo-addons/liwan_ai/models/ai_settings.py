@@ -24,7 +24,17 @@ class LiwanAiSettings(models.Model):
     # 0 means no cap per user beyond the package's monthly messages.
     messages_per_user_monthly = fields.Integer(required=True, default=0)
     external_send = fields.Selection([(mode, mode) for mode in EXTERNAL_SEND_MODES], required=True, default='draft_only')
+    # Knowledge retrieval (spec 2026-11-04 §6.3): the indexer reads the declared sources only while this is on.
+    knowledge_enabled = fields.Boolean(required=True, default=False)
     revision = fields.Integer(required=True, default=1)
+
+    def write(self, vals):
+        switching_off = vals.get('knowledge_enabled') is False and any(self.mapped('knowledge_enabled'))
+        result = super().write(vals)
+        if switching_off:
+            # Turned off: the index and the text still waiting in the queue are dropped, and a later switch-on reads again.
+            self.env['liwan.ai.knowledge.indexer']._liwan_rebuild()
+        return result
 
     @api.model
     def _liwan_current(self):

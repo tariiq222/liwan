@@ -37,9 +37,9 @@ let taskName = 'تقرير'
 
 const TOOLS = {
   items: [
-    { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'م', en: 'm' }, input_schema: { type: 'object' }, route: { method: 'GET', path: '/api/v1/tasks' }, input_map: { query: { filter: 'mine' } }, result_summary: ['items[].id', 'items[].name', 'total'], draft_target: null, requires_approval: false },
-    { name: 'pmo.update_task_state', kind: 'write_light', description: { ar: 'م', en: 'm' }, input_schema: { type: 'object' }, route: { method: 'POST', path: '/api/v1/tasks/{task_id}/transition' }, input_map: { path: { task_id: '$task_id' }, body: { state: '$state' } }, result_summary: ['id', 'state'], draft_target: null, requires_approval: true },
-    { name: 'pmo.draft_project', kind: 'draft', description: { ar: 'م', en: 'm' }, input_schema: { type: 'object' }, route: null, input_map: {}, result_summary: [], draft_target: '/projects/new', requires_approval: true },
+    { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'م', en: 'm' }, input_schema: { type: 'object' }, route: { method: 'GET', path: '/api/v1/tasks' }, input_map: { query: { filter: 'mine' } }, result_summary: ['items[].id', 'items[].name', 'total'], draft_target: null, requires_approval: false, platform: false },
+    { name: 'pmo.update_task_state', kind: 'write_light', description: { ar: 'م', en: 'm' }, input_schema: { type: 'object' }, route: { method: 'POST', path: '/api/v1/tasks/{task_id}/transition' }, input_map: { path: { task_id: '$task_id' }, body: { state: '$state' } }, result_summary: ['id', 'state'], draft_target: null, requires_approval: true, platform: false },
+    { name: 'pmo.draft_project', kind: 'draft', description: { ar: 'م', en: 'm' }, input_schema: { type: 'object' }, route: null, input_map: {}, result_summary: [], draft_target: '/projects/new', requires_approval: true, platform: false },
   ],
   total: 3,
   agents: [],
@@ -628,6 +628,13 @@ describe('resume and status', () => {
     await events(await post('/api/ai/runs/r_1/resume', { call_id: 'c_9', decision: 'rejected' }))
     expect(odooCalls.some(c => c.url === '/api/v1/ai/tools?mode=setup')).toBe(true)
     expect(lastResume().policy.provider_mode).toBe('setup')
+  })
+
+  it('resumes a platform tool of an ordinary conversation on the assistant catalog, whatever its name prefix', async () => {
+    pending = { call_id: 'c_5', tool: 'ai.search_knowledge', kind: 'read', agent: 'pmo', requires_approval: false, input: { query: 'x', refs: [] } }
+    await events(await post('/api/ai/runs/r_1/resume', { call_id: 'c_5', decision: 'approved' }))
+    expect(odooCalls.some(c => c.url === '/api/v1/ai/tools?mode=setup')).toBe(false)
+    expect(lastResume().policy.provider_mode).not.toBe('setup')
   })
 
   describe('a read the administrator set to approval', () => {

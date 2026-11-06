@@ -5,7 +5,7 @@ import { buildToolRequest, summarizeResult, toolCallBudget, toolResultFromUpstre
 const list: AiTool = {
   name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'م', en: 'm' }, input_schema: { type: 'object' },
   route: { method: 'GET', path: '/api/v1/tasks' }, input_map: { query: { filter: 'mine', state: '$state', limit: '$limit' } },
-  result_summary: ['items[].id', 'items[].name', 'items[].project.name', 'total'], draft_target: null, requires_approval: false,
+  result_summary: ['items[].id', 'items[].name', 'items[].project.name', 'total'], draft_target: null, requires_approval: false, platform: false,
 }
 const transition: AiTool = {
   ...list, name: 'pmo.update_task_state', kind: 'write_light', route: { method: 'POST', path: '/api/v1/tasks/{task_id}/transition' },
@@ -24,6 +24,24 @@ describe('buildToolRequest', () => {
   })
   it('refuses path values that could escape the segment', () => {
     expect(() => buildToolRequest(transition, { task_id: '7/../8', state: 'done' })).toThrow(/invalid path value/)
+  })
+})
+
+const search: AiTool = {
+  ...list, name: 'ai.search_knowledge', route: { method: 'POST', path: '/api/v1/ai/knowledge/resolve' },
+  input_schema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'], additionalProperties: false },
+  input_map: { body: { refs: '$refs' } }, result_summary: ['items[]'],
+}
+
+describe('knowledge search tool', () => {
+  const refs = [{ model: 'crm.lead', res_id: 4, chunk_no: 0 }, { model: 'project.task', res_id: 9, chunk_no: 2 }]
+  it('posts the refs the service added to the input', () => {
+    expect(buildToolRequest(search, { query: 'عقد', refs })).toEqual({ method: 'POST', path: '/api/v1/ai/knowledge/resolve', query: {}, body: { refs } })
+  })
+  it('withholds a phone number inside an item text', () => {
+    const body = { items: [{ model: 'crm.lead', res_id: 4, chunk_no: 0, title: 'عميل', source: 'CRM', text: 'اتصل على 0551234567 غدًا' }], total: 1 }
+    const result = toolResultFromUpstream(200, body, search, NONE)
+    expect(result).toMatchObject({ ok: true, data: { items: [{ title: 'عميل', text: 'اتصل على [phone withheld] غدًا' }] } })
   })
 })
 

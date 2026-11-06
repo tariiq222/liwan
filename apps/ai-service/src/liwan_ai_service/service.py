@@ -42,8 +42,10 @@ from liwan_ai_service.contracts import (
     TenantConfigView,
 )
 from liwan_ai_service.control import ControlState, StateCompatibilityError, open_control
+from liwan_ai_service.embeddings import Embedder, build_embedder
 from liwan_ai_service.errors import client_error, redact
 from liwan_ai_service.graph import (
+    RunKnowledge,
     RunMemory,
     build_graph,
     continued_state,
@@ -53,6 +55,7 @@ from liwan_ai_service.graph import (
     run_config,
     text_of,
 )
+from liwan_ai_service.knowledge import QUEUE_MAX_AGE_HOURS, KnowledgeStore
 from liwan_ai_service.memory import MemoryFull, Note
 from liwan_ai_service.provider_registry import REGISTRY
 from liwan_ai_service.providers import build_chat_model, build_tenant_model
@@ -119,11 +122,14 @@ def owner(x_liwan_tenant: str = Header(...), x_liwan_user: str = Header(...)) ->
     return Owner(x_liwan_tenant, x_liwan_user)
 
 
-def create_app(model, states: TenantStates, control: ControlState, settings: Settings) -> FastAPI:
+def create_app(model, states: TenantStates, control: ControlState, settings: Settings, embedder: Embedder | None = None) -> FastAPI:
     """The service over every served tenant's own state; ``control`` holds the release identity and the generation drain.
 
     Each request resolves its tenant once and uses that tenant's store and graph only: the database is the tenant.
+    ``embedder`` defaults to the one ``settings`` configures; without one, knowledge search is unavailable and the
+    background tick only purges the knowledge queues.
     """
+    embedder = embedder or build_embedder(settings.embedding)
     if settings.generation_id is not None and not GENERATION_ID.fullmatch(settings.generation_id):
         raise SettingsError("AI_GENERATION_ID", "AI_GENERATION_ID is invalid")
     platform = RunModel(model, ModelIdentity(settings.provider, settings.model, "platform"))
@@ -256,7 +262,8 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
         return None
 
     def secrets() -> tuple[str | None, ...]:
-        return (settings.api_key, settings.database_url, *(key for _version, _model, key in tenant_models.values()))
+        embedding_key = settings.embedding.api_key if settings.embedding else None
+        return (settings.api_key, settings.database_url, embedding_key, *(key for _version, _model, key in tenant_models.values()))
 
     def log_failure(run_id: str, error: Exception, what: str = "failed") -> None:
         log.error("run %s %s: %s: %s", run_id, what, type(error).__name__, redact(str(error), secrets()))
@@ -361,13 +368,65 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
         except Exception as error:  # noqa: BLE001 - same: the title is best effort
             log_title_failure(run_id, error)
 
+    def knowledge_for(tenant: TenantState, company: str | None) -> RunKnowledge | None:
+        """This request's knowledge search, or None while no embedder is configured or the tenant's state has no index."""
+        if embedder is None or tenant.knowledge is None:
+            return None
+        return RunKnowledge(tenant.knowledge, embedder, company)
+
+    async def drain_knowledge() -> int:
+        """One tick over every served tenant database: index what Odoo queued, then delete queue rows past their age limit.
+
+        The purge runs whether or not an embedder is configured (without one the tick only purges), so chunk text never
+        rests in a queue longer than ``QUEUE_MAX_AGE_HOURS``. One tenant's failure never stops the others. The tick is
+        counted as local work from its first instruction, so a release drain waits for it, and skipped once this
+        generation is draining: the accepting one runs it. Returns how many queue rows were indexed.
+        """
+        nonlocal admitted
+        admitted += 1
+        try:
+            if await is_draining():
+                return 0
+            indexed = 0
+
+            def unavailable(database: str, error: Exception) -> None:
+                log.warning("knowledge queue of %s not drained: %s", database, type(error).__name__)
+
+            async with contextlib.aclosing(states.each(on_unavailable=unavailable)) as sweep:
+                async for state in sweep:
+                    if state.knowledge is not None:
+                        indexed += await drain_tenant_knowledge(state, state.knowledge)
+            return indexed
+        finally:
+            admitted -= 1
+
+    async def drain_tenant_knowledge(state: TenantState, knowledge: KnowledgeStore) -> int:
+        indexed = 0
+        try:
+            if embedder is not None:
+                drained = await knowledge.drain(embedder)
+                indexed = drained.applied
+                if drained.dropped:
+                    log.warning("knowledge queue of %s: %d records refused by the embedder were dropped", state.database, drained.dropped)
+        except Exception as error:  # noqa: BLE001 - the batch stays queued and the next tick retries; the text may carry a key
+            log.warning("knowledge queue of %s not drained: %s", state.database, type(error).__name__)
+        try:
+            if purged := await knowledge.purge_expired():
+                log.warning("knowledge queue of %s: %d rows older than %d hours were deleted", state.database, purged, QUEUE_MAX_AGE_HOURS)
+        except Exception as error:  # noqa: BLE001 - the next tick purges again
+            log.warning("knowledge queue of %s not purged: %s", state.database, type(error).__name__)
+        return indexed
+
+    app.state.drain_knowledge = drain_knowledge
+
     async def stream(tenant: TenantState, run_id: str, lease: str | None, graph_input: Any, limits: dict[str, int],
-                     run_model: RunModel, run_memory: RunMemory, settling: list[asyncio.Task]) -> AsyncIterator[bytes]:
+                     run_model: RunModel, run_memory: RunMemory, run_knowledge: RunKnowledge | None,
+                     settling: list[asyncio.Task]) -> AsyncIterator[bytes]:
         # ``decided`` is assigned BEFORE the event that announces it is yielded: a client that vanishes while that event is sent
         # closes the generator at the yield, and the run must already carry its outcome.
         decided: tuple[str, str | None] | None = None
         deadline = asyncio.timeout(limits["timeout_seconds"])
-        config = run_config(run_id, limits["max_steps"], deadline.when(), run_model, run_memory)
+        config = run_config(run_id, limits["max_steps"], deadline.when(), run_model, run_memory, run_knowledge)
         try:
             yield format_event("run", {"run_id": run_id})
             events_of = tenant.graph.astream(graph_input, config, stream_mode=["messages", "updates", "custom"])
@@ -417,7 +476,8 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
         yield format_event("done", {"status": status})
 
     def run_stream(held: contextlib.AsyncExitStack, tenant: TenantState, run_id: str, lease: str | None, graph_input: Any,
-                   limits: dict[str, int], run_model: RunModel, run_memory: RunMemory) -> StreamingResponse:
+                   limits: dict[str, int], run_model: RunModel, run_memory: RunMemory,
+                   run_knowledge: RunKnowledge | None) -> StreamingResponse:
         """Stream one run; the tenant state stays held until the stream is closed and its status is recorded."""
         settling: list[asyncio.Task] = []
 
@@ -426,7 +486,7 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
             await held.aclose()
 
         return ClosingStreamingResponse(
-            stream(tenant, run_id, lease, graph_input, limits, run_model, run_memory, settling), release=release,
+            stream(tenant, run_id, lease, graph_input, limits, run_model, run_memory, run_knowledge, settling), release=release,
             media_type="text/event-stream", headers={"cache-control": "no-store", "x-accel-buffering": "no"},
         )
 
@@ -470,7 +530,8 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
                 if record is None:
                     raise HTTPException(409, "a run with this new_run_id already exists")
                 lease, graph_input = record.lease, initial_state(request)
-            return run_stream(held.pop_all(), tenant, record.run_id, lease, graph_input, request.limits.model_dump(), run_model, run_memory)
+            return run_stream(held.pop_all(), tenant, record.run_id, lease, graph_input, request.limits.model_dump(), run_model, run_memory,
+                              knowledge_for(tenant, request.company))
 
     @api.post("/v1/runs/{run_id}/resume", dependencies=[Depends(admitted_work)])
     async def resume_run(run_id: str, body: ResumeRequest, who: Annotated[Owner, Depends(owner)]) -> StreamingResponse:
@@ -495,7 +556,8 @@ def create_app(model, states: TenantStates, control: ControlState, settings: Set
             company = state.values.get("company")
             notes = await tenant.memory.for_prompt(who.user_ref, company)
             run_memory = RunMemory(tenant.memory, who.user_ref, company, notes.user, notes.company)
-            return run_stream(held.pop_all(), tenant, record.run_id, lease, resume, state.values["limits"], run_model, run_memory)
+            return run_stream(held.pop_all(), tenant, record.run_id, lease, resume, state.values["limits"], run_model, run_memory,
+                              knowledge_for(tenant, company))
 
     @api.post("/v1/runs/{run_id}/claim", dependencies=[Depends(new_work)])
     async def claim_run(run_id: str, body: ClaimRequest, who: Annotated[Owner, Depends(owner)]) -> dict[str, bool]:
@@ -676,6 +738,19 @@ async def close_idle_states(states: TenantStates) -> None:
             log.warning("closing idle AI tenant pools failed: %s", type(error).__name__)
 
 
+KNOWLEDGE_DRAIN_SECONDS = 30
+
+
+async def drain_knowledge_forever(drain_once: Callable[[], Awaitable[int]]) -> None:
+    """Index and purge the knowledge queues every ``KNOWLEDGE_DRAIN_SECONDS``, forever; cancelled at shutdown (an unfinished batch stays queued)."""
+    while True:
+        await asyncio.sleep(KNOWLEDGE_DRAIN_SECONDS)
+        try:
+            await drain_once()
+        except Exception as error:  # noqa: BLE001 - one failed tick must not stop later ones; the next tick retries
+            log.warning("draining the knowledge queues failed: %s", type(error).__name__)
+
+
 async def close_runtime_state(states: TenantStates | None, control: ControlState | None) -> None:
     if states is not None:
         await states.aclose()
@@ -697,7 +772,7 @@ class EnvApp:
         if scope["type"] != "lifespan":
             await self.inner(scope, receive, send)
             return
-        states = control = sweeper = None
+        states = control = sweeper = indexer = None
         while True:
             message = await receive()
             if message["type"] == "lifespan.startup":
@@ -713,11 +788,13 @@ class EnvApp:
                     await send({"type": "lifespan.startup.failed", "message": f"{type(error).__name__}{detail}"})
                     return
                 sweeper = asyncio.create_task(close_idle_states(states))
+                indexer = asyncio.create_task(drain_knowledge_forever(self.inner.state.drain_knowledge))
                 await send({"type": "lifespan.startup.complete"})
             elif message["type"] == "lifespan.shutdown":
-                if sweeper is not None:
-                    sweeper.cancel()
-                    await asyncio.gather(sweeper, return_exceptions=True)
+                for background in (sweeper, indexer):
+                    if background is not None:
+                        background.cancel()
+                        await asyncio.gather(background, return_exceptions=True)
                 if self.inner is not None:
                     await self.inner.state.drain()  # shielded persist tasks use the pools: let them finish first
                 await close_runtime_state(states, control)

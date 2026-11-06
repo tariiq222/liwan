@@ -14,9 +14,11 @@ export const AiToolSchema = z.object({
   draft_target: z.string().startsWith('/').nullable(),
   /** Every write and draft waits for the user; a read waits only when the administrator set it to approval. */
   requires_approval: z.boolean(),
+  /** A platform tool (such as `ai.search_knowledge`) belongs to no agent: it is read-only and offered to every agent. */
+  platform: z.boolean(),
 }).strict().refine(tool => (tool.kind === 'draft') === (tool.route === null && tool.draft_target !== null), {
   message: 'a draft tool has a draft_target and no route; other tools have a route',
-})
+}).refine(tool => !tool.platform || tool.kind === 'read', { message: 'a platform tool is a read tool' })
 export type AiTool = z.infer<typeof AiToolSchema>
 /** A tool's agent is the application id its name starts with. */
 export const aiToolAgent = (name: string): string => name.slice(0, name.indexOf('.'))
@@ -238,6 +240,8 @@ export const AiSettingsSchema = z.object({
   provider_mode: AiProviderModeSchema,
   messages_per_user_monthly: AiMessagesPerUserSchema,
   external_send: AiExternalSendSchema,
+  /** Whether the assistant may search company records (knowledge retrieval); applies only while the consent is valid. */
+  knowledge_enabled: z.boolean(),
   revision: z.number().int().positive(),
   consent: z.object({
     required_version: z.string().min(1),
@@ -260,9 +264,13 @@ export const AiSettingsPatchSchema = z.object({
   provider_mode: AiProviderModeSchema.optional(),
   messages_per_user_monthly: AiMessagesPerUserSchema.optional(),
   external_send: AiExternalSendSchema.optional(),
+  knowledge_enabled: z.boolean().optional(),
   revision: z.number().int().positive(),
 }).strict()
 export type AiSettingsPatch = z.infer<typeof AiSettingsPatchSchema>
+/** `POST /api/v1/ai/knowledge/rebuild` (capability `ai.settings.manage`): clears the index cursors and queues a full rebuild. */
+export const AiKnowledgeRebuildSchema = z.object({ queued: z.literal(true) }).strict()
+export type AiKnowledgeRebuild = z.infer<typeof AiKnowledgeRebuildSchema>
 /** `POST /api/v1/ai/consent`: the signer's client echoes the exact text it showed. */
 export const AiConsentSignSchema = z.object({ text_version: z.string().min(1), text_hash: z.string().regex(/^[0-9a-f]{64}$/) }).strict()
 export type AiConsentSign = z.infer<typeof AiConsentSignSchema>

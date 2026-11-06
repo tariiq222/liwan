@@ -22,6 +22,7 @@ const manifest: AppManifest = {
       { id: 'consent', labelKey: 'ai.settings.consent.title', icon: 'i-lucide-file-signature', capability: 'ai.settings.manage' },
       { id: 'retention', labelKey: 'ai.settings.retention.title', icon: 'i-lucide-history', capability: 'ai.settings.manage' },
       { id: 'agents', labelKey: 'ai.settings.agents.title', icon: 'i-lucide-bot', capability: 'ai.settings.manage' },
+      { id: 'knowledge', labelKey: 'ai.settings.knowledge.title', icon: 'i-lucide-library', capability: 'ai.settings.manage' },
       { id: 'memory', labelKey: 'ai.settings.companyMemory.title', icon: 'i-lucide-brain', capability: 'ai.settings.manage' },
       { id: 'usage', labelKey: 'ai.settings.usage.title', icon: 'i-lucide-gauge', capability: 'ai.settings.manage' },
     ],

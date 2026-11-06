@@ -31,6 +31,43 @@ def bootstrap_retention_days(environ: Mapping[str, str]) -> int:
     return days
 
 
+EMBEDDING_PROVIDERS = ("openai", "ollama")  # openai covers any OpenAI-compatible endpoint (AI_EMBEDDING_BASE_URL)
+EMBEDDING_VARIABLES = ("AI_EMBEDDING_MODEL", "AI_EMBEDDING_BASE_URL", "AI_EMBEDDING_API_KEY")
+
+
+@dataclass(frozen=True)
+class EmbeddingSettings:
+    """The operator's embedding endpoint for knowledge retrieval; without it the knowledge search is unavailable."""
+
+    provider: str
+    model: str
+    base_url: str | None = None
+    api_key: str | None = None
+
+    @classmethod
+    def from_env(cls, environ: Mapping[str, str]) -> EmbeddingSettings | None:
+        provider = environ.get("AI_EMBEDDING_PROVIDER", "").strip()
+        if not provider:
+            stray = next((name for name in EMBEDDING_VARIABLES if environ.get(name, "").strip()), None)
+            if stray is not None:  # a half-written configuration must stop the boot, not silently disable the search
+                msg = f"AI_EMBEDDING_PROVIDER is required when {stray} is set"
+                raise SettingsError("AI_EMBEDDING_PROVIDER", msg)
+            return None
+        if provider not in EMBEDDING_PROVIDERS:
+            msg = f"AI_EMBEDDING_PROVIDER must be one of {', '.join(EMBEDDING_PROVIDERS)}, got {provider!r}"
+            raise SettingsError("AI_EMBEDDING_PROVIDER", msg)
+        model = environ.get("AI_EMBEDDING_MODEL", "").strip()
+        if not re.fullmatch(MODEL_NAME, model):
+            raise SettingsError("AI_EMBEDDING_MODEL", "AI_EMBEDDING_MODEL is required: 1 to 128 characters without control characters")
+        base_url = environ.get("AI_EMBEDDING_BASE_URL", "").strip() or None
+        if base_url is not None and not base_url.startswith(("http://", "https://")):
+            raise SettingsError("AI_EMBEDDING_BASE_URL", "AI_EMBEDDING_BASE_URL must be an http(s) URL")
+        api_key = environ.get("AI_EMBEDDING_API_KEY") or None
+        if provider == "openai" and not api_key:
+            raise SettingsError("AI_EMBEDDING_API_KEY", "AI_EMBEDDING_API_KEY is required for provider openai")
+        return cls(provider=provider, model=model, base_url=base_url, api_key=api_key)
+
+
 MIN_SERVICE_TOKEN_LENGTH = 24
 GENERATION_ID = re.compile(r"^[a-z][a-z0-9_-]{0,62}$")
 
@@ -93,6 +130,7 @@ class Settings:
     tenancy_mode: str = "dedicated"
     tenant_database: str | None = None
     tenant_registry_path: str | None = None
+    embedding: EmbeddingSettings | None = None  # knowledge retrieval (spec 2026-11-04 §6.3); None leaves it unavailable
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str]) -> Settings:
@@ -140,4 +178,5 @@ class Settings:
             tenant_registry_path=tenant_registry_path,
             generation_id=generation_id,
             keyring=Keyring.from_env(environ),
+            embedding=EmbeddingSettings.from_env(environ),
         )

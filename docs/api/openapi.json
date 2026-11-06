@@ -2669,6 +2669,20 @@
         ],
         "type": "object"
       },
+      "AiKnowledgeRebuildSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "queued": {
+            "const": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "queued"
+        ],
+        "type": "object"
+      },
       "AiLeaverRetentionPutSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -3551,6 +3565,9 @@
             ],
             "type": "string"
           },
+          "knowledge_enabled": {
+            "type": "boolean"
+          },
           "messages_per_user_monthly": {
             "maximum": 100000,
             "minimum": 0,
@@ -3658,6 +3675,9 @@
             ],
             "type": "string"
           },
+          "knowledge_enabled": {
+            "type": "boolean"
+          },
           "messages_per_user_monthly": {
             "maximum": 100000,
             "minimum": 0,
@@ -3744,6 +3764,7 @@
           "provider_mode",
           "messages_per_user_monthly",
           "external_send",
+          "knowledge_enabled",
           "revision",
           "consent",
           "usage"
@@ -4087,6 +4108,9 @@
             "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
             "type": "string"
           },
+          "platform": {
+            "type": "boolean"
+          },
           "requires_approval": {
             "type": "boolean"
           },
@@ -4136,7 +4160,8 @@
           "input_map",
           "result_summary",
           "draft_target",
-          "requires_approval"
+          "requires_approval",
+          "platform"
         ],
         "type": "object"
       },
@@ -4307,6 +4332,9 @@
                   "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
                   "type": "string"
                 },
+                "platform": {
+                  "type": "boolean"
+                },
                 "requires_approval": {
                   "type": "boolean"
                 },
@@ -4356,7 +4384,8 @@
                 "input_map",
                 "result_summary",
                 "draft_target",
-                "requires_approval"
+                "requires_approval",
+                "platform"
               ],
               "type": "object"
             },
@@ -100592,6 +100621,82 @@
           "feature_keys": [],
           "feature_operation": "read",
           "handler": "conversation_mode",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/ai/knowledge/rebuild": {
+      "post": {
+        "operationId": "liwan_ai.AiKnowledgeController.rebuild.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Drop the whole knowledge index and read every source again (the indexer's next runs refill it).",
+        "tags": [
+          "liwan_ai"
+        ],
+        "x-liwan": {
+          "addon": "liwan_ai",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AiKnowledgeController",
+          "feature_keys": [],
+          "feature_operation": "write",
+          "handler": "rebuild",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/ai/knowledge/resolve": {
+      "post": {
+        "operationId": "liwan_ai.AiKnowledgeController.resolve.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The text of the candidate chunks the caller may read, in the candidates' order (at most ``MAX_ITEMS``).",
+        "tags": [
+          "liwan_ai"
+        ],
+        "x-liwan": {
+          "addon": "liwan_ai",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AiKnowledgeController",
+          "feature_keys": [],
+          "feature_operation": "read",
+          "handler": "resolve",
           "readonly": true,
           "route_type": "json2"
         }

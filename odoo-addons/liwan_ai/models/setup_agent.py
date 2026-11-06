@@ -67,10 +67,10 @@ SETUP_TOOLS = (
 )
 
 
-def _setting(field, kind, label, impact, **allowed):
+def _setting(field, kind, label, impact, feature_key='ai.enabled', **allowed):
     """One tenant-wide AI policy; changed by a holder of ai.settings.manage in the tenant's root company."""
     return {
-        'key': f'ai.{field}', 'owner': OWNER, 'feature_key': 'ai.enabled', 'model': 'liwan.ai.settings', 'field': field,
+        'key': f'ai.{field}', 'owner': OWNER, 'feature_key': feature_key, 'model': 'liwan.ai.settings', 'field': field,
         'scope': 'tenant', 'type': kind, 'capability': AI_SETTINGS_MANAGE,
         'label_ar': label[0], 'label_en': label[1], 'impact_ar': impact[0], 'impact_en': impact[1], **allowed,
     }
@@ -88,6 +88,13 @@ AI_SETTINGS = (
         ('«draft_only» يجعل المساعد يجهّز الرسالة والموظف يرسلها، و«approve» يسمح له بالإرسال بعد موافقة الموظف.',
          '"draft_only" has the assistant prepare the message for the employee to send; "approve" lets it send after approval.'),
         options=list(EXTERNAL_SEND_MODES),
+    ),
+    _setting(
+        'knowledge_enabled', 'boolean', ('البحث في سجلات الشركة', "Search the company's records"),
+        ('يفهرس المساعد نصوص سجلات التطبيقات المفعّلة (كالمهام والفرص) ليجيب منها؛ لا يرى المستخدم إلا ما يحق له قراءته.',
+         ("Lets the assistant index the text of the enabled applications' records (such as tasks and opportunities) to answer "
+          'from them; each user still sees only what they may read.')),
+        feature_key='ai.knowledge',
     ),
 )
 

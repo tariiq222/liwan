@@ -160,7 +160,7 @@ function aiAgentSetting(key) {
   }
 }
 const AI_SETTINGS = {
-  provider_mode: 'platform', messages_per_user_monthly: 0, external_send: 'draft_only', revision: 1,
+  provider_mode: 'platform', messages_per_user_monthly: 0, external_send: 'draft_only', knowledge_enabled: false, revision: 1,
   consent: {
     required_version: '2026-11-05-draft-2',
     text_ar: 'مسودة بانتظار المراجعة القانونية.\n\nإقرار استخدام الذكاء الاصطناعي وإخلاء المسؤولية.',
@@ -479,8 +479,8 @@ async function handle(req, res) {
     const reader = /(?:^|;\s*)mock_caps=reader(?:;|$)/.test(req.headers.cookie ?? '')
     const canCreate = !reader && capabilitiesForRequest(req.headers.cookie, moduleUiCapabilities).includes('pmo.projects.create')
     const items = [
-      { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'يعرض مهامي', en: 'List my tasks' }, input_schema: { type: 'object', properties: { limit: { type: 'integer' } } }, route: { method: 'GET', path: '/api/v1/tasks' }, input_map: { query: { filter: 'mine', limit: '$limit' } }, result_summary: ['items[].id', 'items[].name', 'items[].state', 'total'], draft_target: null, requires_approval: AI_AGENT_SETTINGS.pmo.tools['pmo.list_my_tasks'] === 'approval' },
-      ...(canCreate ? [{ name: 'pmo.draft_project', kind: 'draft', description: { ar: 'مسودة مشروع', en: 'Project draft' }, input_schema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] }, route: null, input_map: {}, result_summary: [], draft_target: '/projects/new', requires_approval: true }] : []),
+      { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'يعرض مهامي', en: 'List my tasks' }, input_schema: { type: 'object', properties: { limit: { type: 'integer' } } }, route: { method: 'GET', path: '/api/v1/tasks' }, input_map: { query: { filter: 'mine', limit: '$limit' } }, result_summary: ['items[].id', 'items[].name', 'items[].state', 'total'], draft_target: null, requires_approval: AI_AGENT_SETTINGS.pmo.tools['pmo.list_my_tasks'] === 'approval', platform: false },
+      ...(canCreate ? [{ name: 'pmo.draft_project', kind: 'draft', description: { ar: 'مسودة مشروع', en: 'Project draft' }, input_schema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] }, route: null, input_map: {}, result_summary: [], draft_target: '/projects/new', requires_approval: true, platform: false }] : []),
     ]
     return json(res, 200, { items, total: items.length, agents: [{ ...PMO_AGENT, memory: AI_AGENT_SETTINGS.pmo.memory }], limits: { tool_calls_per_run: 8, messages_monthly: 500, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length, setup_monthly: null, setup_used: 0, policy: { provider_mode: 'platform', consent_signed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } }, blocked_fields: [] })
   }
@@ -500,6 +500,7 @@ async function handle(req, res) {
     } else if (method !== 'GET') return json(res, 405, { code: 'invalid', message: 'method' })
     return json(res, 200, { ...AI_SETTINGS, usage: { ...AI_SETTINGS.usage, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length } })
   }
+  if (method === 'POST' && path === '/api/v1/ai/knowledge/rebuild') return json(res, 200, { queued: true })
   if (method === 'GET' && path === '/api/v1/ai/monitoring') {
     return json(res, 200, {
       month: AI_SETTINGS.usage.month, totals: { messages: 41, input_tokens: 182000, output_tokens: 61000, tool_calls: 27 },

@@ -1,6 +1,7 @@
 import pytest
 
-from liwan_ai_service.settings import CleanupSettings, Settings, SettingsError, bootstrap_retention_days
+from liwan_ai_service.embeddings import build_embedder
+from liwan_ai_service.settings import CleanupSettings, EmbeddingSettings, Settings, SettingsError, bootstrap_retention_days
 
 
 def test_settings_from_env_reads_the_provider_and_defaults():
@@ -122,3 +123,41 @@ def test_every_registered_provider_name_fits_the_usage_ledger_rule():
     from liwan_ai_service.provider_registry import REGISTRY
 
     assert all(re.fullmatch(PROVIDER_NAME, name) for name in REGISTRY)
+
+
+EMBEDDING = {"AI_EMBEDDING_PROVIDER": "openai", "AI_EMBEDDING_MODEL": "text-embedding-3-small", "AI_EMBEDDING_API_KEY": "k"}
+
+
+def test_embeddings_are_off_unless_a_provider_is_set():
+    assert EmbeddingSettings.from_env({}) is None
+    assert Settings.from_env({**ENV, "AI_ALLOW_MEMORY_STATE": "true"}).embedding is None
+
+
+def test_an_embedding_provider_is_read_with_its_model_endpoint_and_key():
+    settings = EmbeddingSettings.from_env({**EMBEDDING, "AI_EMBEDDING_BASE_URL": "http://vllm:8000/v1"})
+    assert settings == EmbeddingSettings("openai", "text-embedding-3-small", "http://vllm:8000/v1", "k")
+    local = EmbeddingSettings.from_env({"AI_EMBEDDING_PROVIDER": "ollama", "AI_EMBEDDING_MODEL": "bge-m3"})
+    assert local == EmbeddingSettings("ollama", "bge-m3", None, None)  # a local model needs no key
+    assert Settings.from_env({**ENV, "AI_ALLOW_MEMORY_STATE": "true", **EMBEDDING}).embedding.model == "text-embedding-3-small"
+
+
+@pytest.mark.parametrize(("environ", "variable"), [
+    ({"AI_EMBEDDING_PROVIDER": "gemini", "AI_EMBEDDING_MODEL": "m"}, "AI_EMBEDDING_PROVIDER"),
+    ({"AI_EMBEDDING_MODEL": "m"}, "AI_EMBEDDING_PROVIDER"),  # a half-written configuration stops the boot
+    ({"AI_EMBEDDING_API_KEY": "k"}, "AI_EMBEDDING_PROVIDER"),
+    ({"AI_EMBEDDING_PROVIDER": "openai", "AI_EMBEDDING_API_KEY": "k"}, "AI_EMBEDDING_MODEL"),
+    ({"AI_EMBEDDING_PROVIDER": "openai", "AI_EMBEDDING_MODEL": "m"}, "AI_EMBEDDING_API_KEY"),
+    ({**EMBEDDING, "AI_EMBEDDING_BASE_URL": "vllm:8000"}, "AI_EMBEDDING_BASE_URL"),
+])
+def test_a_bad_embedding_configuration_names_its_variable(environ, variable):
+    with pytest.raises(SettingsError) as error:
+        EmbeddingSettings.from_env(environ)
+    assert error.value.variable == variable
+
+
+def test_the_embedder_is_built_from_the_settings_without_a_network_call():
+    assert build_embedder(None) is None
+    openai = build_embedder(EmbeddingSettings.from_env({**EMBEDDING, "AI_EMBEDDING_BASE_URL": "http://vllm:8000/v1"}))
+    assert openai.model_id == "openai:text-embedding-3-small" and openai.embeddings.check_embedding_ctx_length is False
+    ollama = build_embedder(EmbeddingSettings.from_env({"AI_EMBEDDING_PROVIDER": "ollama", "AI_EMBEDDING_MODEL": "bge-m3"}))
+    assert ollama.model_id == "ollama:bge-m3"

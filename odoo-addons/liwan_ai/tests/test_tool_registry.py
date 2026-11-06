@@ -37,8 +37,26 @@ class TestAiToolRegistry(AiProbe, TransactionCase):
     def test_unknown_kind_is_rejected(self):
         self._assert_rejected(self._with(kind='delete'), 'kind')
 
-    def test_read_tool_must_use_get(self):
-        self._assert_rejected(self._with(route={'method': 'POST', 'path': '/api/v1/probe/things'}), 'GET')
+    def test_read_tool_must_use_get_or_post_with_a_body(self):
+        self._assert_rejected(self._with(route={'method': 'PATCH', 'path': '/api/v1/probe/things'}), 'GET, or POST')
+        self._assert_rejected(self._with(route={'method': 'POST', 'path': '/api/v1/probe/things'}), 'maps its inputs to the body')
+        post = self._with(route={'method': 'POST', 'path': '/api/v1/probe/things'}, input_map={'body': {'limit': '$limit'}})
+        self.patch(type(self.env['liwan.ai.tool.registry']), '_liwan_ai_tool_definitions', lambda model: post)
+        self.assertIn('probe.list_things', self.env['liwan.ai.tool.registry']._liwan_ai_tool_map())
+
+    def test_service_inputs_are_mapped_but_never_offered(self):
+        tool = self._with(input_map={'query': {'limit': '$limit', 'refs': '$refs'}})
+        self._assert_rejected(tool, 'unknown input refs')
+        tool = self._with(input_map={'query': {'refs': '$refs'}}, service_inputs=['refs'])
+        self.patch(type(self.env['liwan.ai.tool.registry']), '_liwan_ai_tool_definitions', lambda model: tool)
+        self.assertIn('probe.list_things', self.env['liwan.ai.tool.registry']._liwan_ai_tool_map())
+        self._assert_rejected(self._with(service_inputs='refs'), 'service_inputs')
+
+    def test_a_platform_tool_is_a_read_tool_and_a_setting_is_a_boolean_ai_setting(self):
+        self._assert_rejected(self._with(platform='yes'), 'platform must be a boolean')
+        self._assert_rejected(self._with(kind='write_light', platform=True, route={'method': 'POST', 'path': '/api/v1/probe/things'}), 'platform')
+        self._assert_rejected(self._with(setting='messages_per_user_monthly'), 'setting must be a boolean field')
+        self._assert_rejected(self._with(setting='no_such_field'), 'setting must be a boolean field')
 
     def test_route_must_be_under_api_v1(self):
         self._assert_rejected(self._with(route={'method': 'GET', 'path': '/web/things'}), '/api/v1/')

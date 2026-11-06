@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Inactive on purpose: nobody can sign in as it and it is not a seat (the user quota counts active internal users
+         only). The cron below runs as it. Its companies are kept in step with the tenant's by res.company.create and by
+         the function call after the record. -->
+    <data noupdate="1">
+        <record id="user_ai_indexer" model="res.users">
+            <field name="name">LiwanOS AI knowledge indexer</field>
+            <field name="login">liwan_ai_indexer</field>
+            <field name="active" eval="False"/>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="company_ids" eval="[Command.set([ref('base.main_company')])]"/>
+            <field name="group_ids" eval="[Command.set([ref('group_ai_indexer')])]"/>
+        </record>
+    </data>
+    <function model="liwan.ai.knowledge.indexer" name="_liwan_sync_companies"/>
+
+    <record id="ir_cron_ai_knowledge" model="ir.cron">
+        <field name="name">liwan AI: queue the changed records of the knowledge sources</field>
+        <field name="model_id" ref="model_liwan_ai_knowledge_indexer"/>
+        <field name="state">code</field>
+        <field name="code">model._liwan_cron_tick()</field>
+        <field name="user_id" ref="user_ai_indexer"/>
+        <field name="group_ids" eval="[Command.set([ref('group_ai_indexer')])]"/>
+        <field name="interval_number">5</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>
