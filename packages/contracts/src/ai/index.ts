@@ -238,6 +238,8 @@ export const AiSettingsSchema = z.object({
   provider_mode: AiProviderModeSchema,
   messages_per_user_monthly: AiMessagesPerUserSchema,
   external_send: AiExternalSendSchema,
+  /** Whether the assistant may search company records (knowledge retrieval); applies only while the consent is valid. */
+  knowledge_enabled: z.boolean(),
   revision: z.number().int().positive(),
   consent: z.object({
     required_version: z.string().min(1),
@@ -260,9 +262,13 @@ export const AiSettingsPatchSchema = z.object({
   provider_mode: AiProviderModeSchema.optional(),
   messages_per_user_monthly: AiMessagesPerUserSchema.optional(),
   external_send: AiExternalSendSchema.optional(),
+  knowledge_enabled: z.boolean().optional(),
   revision: z.number().int().positive(),
 }).strict()
 export type AiSettingsPatch = z.infer<typeof AiSettingsPatchSchema>
+/** `POST /api/v1/ai/knowledge/rebuild` (capability `ai.settings.manage`): clears the index cursors and queues a full rebuild. */
+export const AiKnowledgeRebuildSchema = z.object({ queued: z.literal(true) }).strict()
+export type AiKnowledgeRebuild = z.infer<typeof AiKnowledgeRebuildSchema>
 /** `POST /api/v1/ai/consent`: the signer's client echoes the exact text it showed. */
 export const AiConsentSignSchema = z.object({ text_version: z.string().min(1), text_hash: z.string().regex(/^[0-9a-f]{64}$/) }).strict()
 export type AiConsentSign = z.infer<typeof AiConsentSignSchema>

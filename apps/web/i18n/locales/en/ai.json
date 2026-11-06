@@ -211,6 +211,16 @@
         "leaverLabel": "A leaver's conversations (days)",
         "leaverHint": "Their memory is deleted at once, their conversations after this period. {min} to {max}; zero means at once."
       },
+      "knowledge": {
+        "title": "Knowledge",
+        "hint": "Lets the assistant search company records and answer from them.",
+        "enabled": "Search company records",
+        "enabledHint": "The assistant searches company records and shows each employee only what they can already read.",
+        "rebuild": "Rebuild the index",
+        "rebuildTitle": "Rebuild the knowledge index?",
+        "rebuildHint": "Every record is indexed again from scratch in the background; complete results may take a little while to return.",
+        "rebuilt": "Index rebuild started"
+      },
       "usage": {
         "title": "This month's use",
         "hint": "{month}. Counts only; no conversation text is shown.",

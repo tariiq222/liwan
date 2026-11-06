@@ -27,6 +27,24 @@ describe('buildToolRequest', () => {
   })
 })
 
+const search: AiTool = {
+  ...list, name: 'ai.search_knowledge', route: { method: 'POST', path: '/api/v1/ai/knowledge/resolve' },
+  input_schema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'], additionalProperties: false },
+  input_map: { body: { refs: '$refs' } }, result_summary: ['items[]'],
+}
+
+describe('knowledge search tool', () => {
+  const refs = [{ model: 'crm.lead', res_id: 4, chunk_no: 0 }, { model: 'project.task', res_id: 9, chunk_no: 2 }]
+  it('posts the refs the service added to the input', () => {
+    expect(buildToolRequest(search, { query: 'عقد', refs })).toEqual({ method: 'POST', path: '/api/v1/ai/knowledge/resolve', query: {}, body: { refs } })
+  })
+  it('withholds a phone number inside an item text', () => {
+    const body = { items: [{ model: 'crm.lead', res_id: 4, chunk_no: 0, title: 'عميل', source: 'CRM', text: 'اتصل على 0551234567 غدًا' }], total: 1 }
+    const result = toolResultFromUpstream(200, body, search, NONE)
+    expect(result).toMatchObject({ ok: true, data: { items: [{ title: 'عميل', text: 'اتصل على [phone withheld] غدًا' }] } })
+  })
+})
+
 describe('buildToolRequest path safety', () => {
   it.each([[''], ['.'], ['..'], ['a\0b']])('refuses the path value %j', (value) => {
     expect(() => buildToolRequest(transition, { task_id: value, state: 'done' })).toThrow(/invalid path value/)

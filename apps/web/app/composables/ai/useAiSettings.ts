@@ -1,7 +1,7 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
-  AiAgentSettingsSchema, AiCompanyNoteListSchema, AiMonitoringSchema, AiSettingsSchema, AiTenantConfigSchema,
+  AiAgentSettingsSchema, AiCompanyNoteListSchema, AiKnowledgeRebuildSchema, AiMonitoringSchema, AiSettingsSchema, AiTenantConfigSchema,
   type AiAgentPatch, type AiAgentSettings, type AiCompanyNoteList, type AiConsentSign, type AiKeyPut, type AiSettings, type AiSettingsPatch, type AiTenantConfig,
 } from '@liwan/contracts'
 
@@ -73,6 +73,12 @@ function useReplacing<Body, Result>(key: readonly unknown[], send: (body: Body) 
 export function useSaveAiSettings() {
   const { $api } = useApi()
   return useReplacing<AiSettingsPatch, AiSettings>(aiSettingsKeys.settings, body => $api('/api/v1/ai/settings', { method: 'PATCH', body, schema: AiSettingsSchema }))
+}
+
+/** Clears the knowledge index cursors and queues a full rebuild; the index refills in the background. */
+export function useRebuildAiKnowledge() {
+  const { $api } = useApi()
+  return useMutation({ mutationFn: () => $api('/api/v1/ai/knowledge/rebuild', { method: 'POST', body: {}, schema: AiKnowledgeRebuildSchema }) })
 }
 
 export function useSignAiConsent() {

@@ -160,7 +160,7 @@ function aiAgentSetting(key) {
   }
 }
 const AI_SETTINGS = {
-  provider_mode: 'platform', messages_per_user_monthly: 0, external_send: 'draft_only', revision: 1,
+  provider_mode: 'platform', messages_per_user_monthly: 0, external_send: 'draft_only', knowledge_enabled: false, revision: 1,
   consent: {
     required_version: '2026-11-05-draft-2',
     text_ar: 'مسودة بانتظار المراجعة القانونية.\n\nإقرار استخدام الذكاء الاصطناعي وإخلاء المسؤولية.',
@@ -500,6 +500,7 @@ async function handle(req, res) {
     } else if (method !== 'GET') return json(res, 405, { code: 'invalid', message: 'method' })
     return json(res, 200, { ...AI_SETTINGS, usage: { ...AI_SETTINGS.usage, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length } })
   }
+  if (method === 'POST' && path === '/api/v1/ai/knowledge/rebuild') return json(res, 200, { queued: true })
   if (method === 'GET' && path === '/api/v1/ai/monitoring') {
     return json(res, 200, {
       month: AI_SETTINGS.usage.month, totals: { messages: 41, input_tokens: 182000, output_tokens: 61000, tool_calls: 27 },

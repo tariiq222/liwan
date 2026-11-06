@@ -1,4 +1,4 @@
-import { AI_USAGE_BATCH_MAX, AiCompanyNoteListSchema, AiNoteListSchema, AiNoteSchema, AiAgentPatchSchema, AiAgentSettingsSchema, aiToolAgent, AiAuditRequestSchema, AiKeyPutSchema, AiMonitoringSchema, AiRetentionPutSchema, AiSettingsPatchSchema, AiSettingsSchema, AiTenantConfigSchema, AiDraftPayloadSchema, AiEventSchema, AiModelCallEventSchema, AiModelUsageEventSchema, AiRunListQuerySchema, AiRunListSchema, AiRunPatchSchema, AiRunStatusSchema, AiStartRequestSchema, AiToolsResponseSchema, AiUsageBatchResponseSchema, AiUsageBatchSchema, AiUsageRecordSchema, AiUsageRowSchema } from '../index'
+import { AI_USAGE_BATCH_MAX, AiCompanyNoteListSchema, AiNoteListSchema, AiNoteSchema, AiAgentPatchSchema, AiAgentSettingsSchema, aiToolAgent, AiAuditRequestSchema, AiKeyPutSchema, AiKnowledgeRebuildSchema, AiMonitoringSchema, AiRetentionPutSchema, AiSettingsPatchSchema, AiSettingsSchema, AiTenantConfigSchema, AiDraftPayloadSchema, AiEventSchema, AiModelCallEventSchema, AiModelUsageEventSchema, AiRunListQuerySchema, AiRunListSchema, AiRunPatchSchema, AiRunStatusSchema, AiStartRequestSchema, AiToolsResponseSchema, AiUsageBatchResponseSchema, AiUsageBatchSchema, AiUsageRecordSchema, AiUsageRowSchema } from '../index'
 
 const READ = {
   name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'مهامي', en: 'My tasks' },
@@ -121,13 +121,18 @@ describe('LiwanOS AI usage contracts', () => {
 
   it('parses the AI settings with the consent text and the month usage', () => {
     const settings = {
-      provider_mode: 'platform', messages_per_user_monthly: 0, external_send: 'draft_only', revision: 1,
+      provider_mode: 'platform', messages_per_user_monthly: 0, external_send: 'draft_only', knowledge_enabled: false, revision: 1,
       consent: { required_version: '2026-11-05-draft', text_ar: 'نص', text_en: 'text', text_hash: 'a'.repeat(64), signed: null },
       usage: { month: '2026-11', messages_used: 3, messages_limit: null, tokens_used: 120, tokens_limit: 2000000, output_tokens_per_run: 8000 },
     }
     expect(AiSettingsSchema.parse(settings).usage.tokens_limit).toBe(2000000)
     expect(() => AiSettingsSchema.parse({ ...settings, provider_mode: 'free' })).toThrow()
     expect(() => AiSettingsPatchSchema.parse({ provider_mode: 'tenant_key', revision: 0 })).toThrow()
+    expect(() => AiSettingsSchema.parse({ ...settings, knowledge_enabled: undefined })).toThrow()
+    expect(AiSettingsPatchSchema.parse({ knowledge_enabled: true, revision: 1 }).knowledge_enabled).toBe(true)
+    expect(() => AiSettingsPatchSchema.parse({ knowledge_enabled: 'yes', revision: 1 })).toThrow()
+    expect(AiKnowledgeRebuildSchema.parse({ queued: true }).queued).toBe(true)
+    expect(() => AiKnowledgeRebuildSchema.parse({ queued: false })).toThrow()
   })
 
   it('keeps the tenant key write-only and the retention bounded', () => {
