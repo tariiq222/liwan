@@ -4,6 +4,8 @@ import ts from 'typescript'
 import * as Vue from 'vue'
 import * as Query from '@tanstack/vue-query'
 import { MeSchema } from '@liwan/contracts'
+import * as tenantSuspension from '../../utils/tenantSuspension'
+import { ApiError, useApi } from '../../composables/useApi'
 import { renderToString } from '@vue/server-renderer'
 import { afterEach, expect, it, vi } from 'vitest'
 import { loadShared, DEFAULT_STUBS } from '@liwan/ui/test/helpers/renderShared'
@@ -15,7 +17,7 @@ import SessionQueryProvider from '../../components/shell/SessionQueryProvider'
 import { beginAccessRefreshInFlight, drainAccessRefreshInFlight } from '../../composables/useAdminUsers'
 
 const active: Array<() => void> = []
-afterEach(() => { active.splice(0).forEach(stop => stop()); vi.restoreAllMocks() })
+afterEach(() => { active.splice(0).forEach(stop => stop()); vi.restoreAllMocks(); vi.unstubAllGlobals(); tenantSuspension.clearTenantSuspension(); tenantSuspension.onTenantSuspension(() => {}) })
 const text = (node: HostNode): string => (node.type === 'comment' ? '' : node.text ?? '') + node.children.map(text).join('')
 const settle = async () => { for (let index = 0; index < 4; index++) { await Promise.resolve(); await Vue.nextTick() } }
 type Identity = { id: number; company: { id: number }; capabilities: string[]; access_policy_version: number; name: string }
@@ -27,10 +29,10 @@ function plugin(filename: string, bindings: Record<string, unknown>, server = fa
   const valid = Object.fromEntries(Object.entries(bindings).filter(([name]) => /^[A-Za-z_$][\w$]*$/.test(name) && name !== 'default'))
   return new Function(...Object.keys(valid), code)(...Object.values(valid)) as { setup: (nuxt: unknown) => unknown }
 }
-function fixture(options: { access?: string; server?: boolean; hydrating?: boolean; payload?: ssr.SerializedDehydratedState; read?: (company: number, signal: AbortSignal) => Promise<string>; mutate?: (company: number) => Promise<string>; expireOnRefresh?: boolean; identityRefreshError?: { statusCode: number } } = {}) {
-  const me = Vue.ref<Identity | null>(identity(1))
+function fixture(options: { access?: string; server?: boolean; hydrating?: boolean; payload?: ssr.SerializedDehydratedState; read?: (company: number, signal: AbortSignal) => Promise<string>; mutate?: (company: number) => Promise<string>; expireOnRefresh?: boolean; identityRefreshError?: { statusCode: number }; initialIdentity?: Identity | null; initialStatus?: 'success' | 'idle'; identityRefresh?: () => Promise<Identity | null> } = {}) {
+  const me = Vue.ref<Identity | null>(options.initialIdentity === undefined ? identity(1) : options.initialIdentity)
   const identityError = Vue.ref<unknown>()
-  const identityStatus = Vue.ref<'idle' | 'pending' | 'success' | 'error'>('success')
+  const identityStatus = Vue.ref<'idle' | 'pending' | 'success' | 'error'>(options.initialStatus ?? 'success')
   const route = Vue.reactive({ path: '/private-records', fullPath: '/private-records', meta: { access: options.access } })
   const locale = Vue.ref('en')
   const state = Vue.ref(options.payload ?? null)
@@ -41,6 +43,9 @@ function fixture(options: { access?: string; server?: boolean; hydrating?: boole
   const mutationCallbacks: string[] = []
   const busClients: Query.QueryClient[] = []
   const navigateTo = vi.fn()
+  const focusListeners: Array<() => void> = []
+  const toasts = Vue.ref<unknown[]>([])
+  let suspensionClears = 0
   let recoveryRefreshes = 0
   const privateDrafts: Vue.Ref<string>[] = []
   let publicReads = 0
@@ -51,7 +56,18 @@ function fixture(options: { access?: string; server?: boolean; hydrating?: boole
   let identityRequests = 0
   const identityRequest = { data: me, error: identityError, status: identityStatus, refresh: async () => {
     recoveryRefreshes++
-    if (options.identityRefreshError) {
+    if (options.identityRefresh) {
+      identityStatus.value = 'pending'
+      try {
+        me.value = await options.identityRefresh()
+        identityError.value = undefined
+        identityStatus.value = 'success'
+      } catch (error) {
+        identityError.value = error
+        me.value = null
+        identityStatus.value = 'error'
+      }
+    } else if (options.identityRefreshError) {
       identityStatus.value = 'pending'
       identityError.value = options.identityRefreshError
       me.value = null
@@ -96,7 +112,7 @@ function fixture(options: { access?: string; server?: boolean; hydrating?: boole
   const app: Vue.App<HostNode | Element> = options.server ? Vue.createSSRApp(Root) : hostRenderer.createApp(Root)
   for (const [name, component] of Object.entries({ ...DEFAULT_STUBS, UApp: Pass, NuxtLayout: Layout, NuxtPage: Page })) app.component(name, component)
   const nuxt = { isHydrating: !!options.hydrating, vueApp: app, runWithContext: (fn: () => unknown) => app.runWithContext(fn), hook: (name: string, fn: () => unknown) => hooks.set(name, fn), hooks: { hook: (name: string, fn: () => unknown) => hooks.set(name, fn) } }
-  const bindings = { ...Vue, ...Query, ...ssr, ...sessionExpiry, ...sessionQueries, defineNuxtPlugin: (value: unknown) => value, useState: () => state, useRouter: () => ({ currentRoute: Vue.ref(route) }), useMe, onTenantSuspension: () => {}, dropToastsWhileSuspended: () => {}, useToast: () => ({ toasts: Vue.ref([]) }), clearTenantSuspension: () => {}, beginAccessRefreshInFlight, drainAccessRefreshInFlight, useEventListener: () => {}, window: {}, navigateTo, clearChatDrafts: () => {}, isTenantSuspended: () => false, useBus: () => ({ connect: () => {}, disconnect: () => {} }), setBusQueryClient: (client: Query.QueryClient) => { busClients.push(client) } }
+  const bindings = { ...Vue, ...Query, ...ssr, ...sessionExpiry, ...sessionQueries, defineNuxtPlugin: (value: unknown) => value, useState: () => state, useRouter: () => ({ currentRoute: Vue.ref(route) }), useMe, onTenantSuspension: tenantSuspension.onTenantSuspension, dropToastsWhileSuspended: tenantSuspension.dropToastsWhileSuspended, useToast: () => ({ toasts, clear: () => { toasts.value = [] } }), clearTenantSuspension: () => { suspensionClears++; tenantSuspension.clearTenantSuspension() }, beginAccessRefreshInFlight, drainAccessRefreshInFlight, useEventListener: (_target: unknown, event: string, listener: () => void) => { if (event === 'focus') focusListeners.push(listener) }, window: {}, navigateTo, clearChatDrafts: () => {}, isTenantSuspended: tenantSuspension.isTenantSuspended, useBus: () => ({ connect: () => {}, disconnect: () => {} }), setBusQueryClient: (client: Query.QueryClient) => { busClients.push(client) } }
   const scope = Vue.effectScope()
   let access: { provide: { waitForAccessRefresh: () => Promise<void> } } | undefined
   scope.run(() => {
@@ -110,7 +126,7 @@ function fixture(options: { access?: string; server?: boolean; hydrating?: boole
   const root = createHostNode()
   if (!options.server) app.mount(root)
   active.push(() => { if (!options.server) app.unmount(); scope.stop(); queryScope.current.value.client.clear() })
-  return { me, route, locale, app, get client() { return queryScope.current.value.client }, queryScope, root, reads, identityError, identityStatus, mutate, mutationClients, busClients, mutationCallbacks, privateDrafts, layoutKeys, state, hooks, wait: () => access!.provide.waitForAccessRefresh(), counts: () => ({ layouts, privateMounts, publicMounts, identityRequests }), publicReads: () => publicReads, recoveryRefreshes: () => recoveryRefreshes, navigateTo }
+  return { me, route, locale, app, get client() { return queryScope.current.value.client }, queryScope, root, reads, identityError, identityStatus, refreshIdentity: identityRequest.refresh, toasts, suspensionClears: () => suspensionClears, focus: () => focusListeners.forEach(listener => listener()), mutate, mutationClients, busClients, mutationCallbacks, privateDrafts, layoutKeys, state, hooks, wait: () => access!.provide.waitForAccessRefresh(), counts: () => ({ layouts, privateMounts, publicMounts, identityRequests }), publicReads: () => publicReads, recoveryRefreshes: () => recoveryRefreshes, navigateTo }
 }
 
 it('replaces mounted private observers on a same-user company boundary with exactly one new read', async () => {
@@ -321,6 +337,27 @@ it('unmounts a retired client with its provider and mounts the fresh owner clien
 })
 
 
+it.each([
+  { kind: 'owner cancellation', error: new DOMException('retired owner', 'AbortError'), attempts: 1 },
+  { kind: 'deterministic error', error: new Error('ordinary failure'), attempts: 1 },
+  { kind: 'permission refusal', error: new ApiError(403, 'forbidden', 'Permission denied'), attempts: 1 },
+  { kind: 'transient API failure', error: new ApiError(503, 'unavailable', 'Temporarily unavailable'), attempts: 2 },
+])('applies the classified retry budget to $kind', async ({ error, attempts }) => {
+  const view = fixture()
+  let calls = 0
+  const observer = new Query.QueryObserver(view.client, {
+    queryKey: ['owner-cancellation-retry'],
+    retryDelay: 0,
+    queryFn: async () => { calls++; throw error },
+  })
+  const stop = observer.subscribe(() => {})
+  try {
+    await observer.getCurrentQuery().promise?.catch(() => {})
+    expect(calls).toBe(attempts)
+    expect(observer.getCurrentResult().error).toBe(error)
+  } finally { stop() }
+})
+
 
 it.each([
   { statusCode: 500 },
@@ -383,4 +420,91 @@ it('does not turn a current request 401 into logout when its identity recheck is
   expect(view.client).toBe(client)
   expect(view.counts().layouts).toBe(1)
   expect(view.privateDrafts[0]!.value).toBe('pending draft')
+})
+
+
+it.each(['success', 'idle'] as const)('clears a latched suspension once after anonymous %s to pending to signed-in', async initialStatus => {
+  vi.stubGlobal('window', {})
+  tenantSuspension.reportTenantSuspension()
+  const held = deferred<Identity | null>()
+  const view = fixture({ access: 'guest', initialIdentity: null, initialStatus, identityRefresh: () => held.promise })
+  await settle()
+  expect(tenantSuspension.isTenantSuspended()).toBe(true)
+  view.toasts.value = ['old failure']
+  await settle()
+  expect(view.toasts.value).toEqual([])
+  const login = view.refreshIdentity()
+  await settle()
+  expect(view.identityStatus.value).toBe('pending')
+  expect(tenantSuspension.isTenantSuspended()).toBe(true)
+  held.resolve(identity(1))
+  await login; await settle()
+  expect(view.suspensionClears()).toBe(1)
+  expect(tenantSuspension.isTenantSuspended()).toBe(false)
+  view.toasts.value = ['new notification']
+  await settle()
+  expect(view.toasts.value).toEqual(['new notification'])
+  vi.stubGlobal('useI18n', () => ({ t: (key: string) => key, te: () => false, locale: { value: 'en' } }))
+  vi.stubGlobal('$fetch', async () => { throw { statusCode: 403, data: { code: 'forbidden', message: 'Permission denied' } } })
+  await expect(view.app.runWithContext(useApi).$api('/api/v1/projects')).rejects.toMatchObject({ status: 403, code: 'forbidden' })
+  // A later unverified failure and same-actor recovery must not clear a real latch.
+  tenantSuspension.onTenantSuspension(() => {})
+  tenantSuspension.reportTenantSuspension()
+  view.identityStatus.value = 'pending'
+  view.identityError.value = { statusCode: 500 }
+  view.me.value = null
+  view.identityStatus.value = 'error'
+  await settle()
+  view.identityStatus.value = 'pending'
+  view.me.value = identity(1)
+  view.identityError.value = undefined
+  view.identityStatus.value = 'success'
+  await settle()
+  expect(view.suspensionClears()).toBe(1)
+  expect(tenantSuspension.isTenantSuspended()).toBe(true)
+})
+
+it('revalidates on focus after an identity500 without replacing the committed private draft or client', async () => {
+  let restored = false
+  const view = fixture({ identityRefresh: async () => {
+    if (!restored) throw { statusCode: 500 }
+    return identity(1)
+  } })
+  await settle()
+  const client = view.client
+  const observer = client.getQueryCache().find({ queryKey: ['private-records'] })!.observers[0]
+  view.privateDrafts[0]!.value = 'focus recovery draft'
+  view.focus()
+  await view.wait(); await settle()
+  expect(view.recoveryRefreshes()).toBe(1)
+  expect(view.me.value).toBeNull()
+  expect(view.client).toBe(client)
+  restored = true
+  view.focus()
+  await view.wait(); await settle()
+  expect(view.recoveryRefreshes()).toBe(2)
+  expect(view.me.value?.company.id).toBe(1)
+  expect(view.counts().layouts).toBe(1)
+  expect(view.client).toBe(client)
+  expect(client.getQueryCache().find({ queryKey: ['private-records'] })!.observers[0]).toBe(observer)
+  expect(view.privateDrafts[0]!.value).toBe('focus recovery draft')
+  expect(view.reads).toEqual([1])
+})
+
+it.each(['initial-anonymous', 'guest', 'signed-in-guest', 'logout'])('does not bootstrap private identity on focus for %s', async state => {
+  const view = fixture({
+    access: state.includes('guest') ? 'guest' : undefined,
+    initialIdentity: state === 'logout' || state === 'signed-in-guest' ? identity(1) : null,
+    identityRefresh: async () => identity(1),
+  })
+  await settle()
+  if (state === 'logout') {
+    view.identityStatus.value = 'pending'
+    view.me.value = null
+    view.identityStatus.value = 'success'
+    await view.wait(); await settle()
+  }
+  view.focus()
+  await settle()
+  expect(view.recoveryRefreshes()).toBe(0)
 })

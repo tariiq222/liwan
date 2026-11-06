@@ -9,6 +9,7 @@ from .common import LiwanPmoCase
 
 @tagged('post_install', '-at_install', 'liwan')
 class TestSettings(LiwanPmoCase):
+    project_tool_policies = {'planning': 'optional', 'governance': 'optional', 'finance': 'optional'}
 
     @classmethod
     def setUpClass(cls):
@@ -50,7 +51,7 @@ class TestSettings(LiwanPmoCase):
         self.authenticate('api_admin', 'api_admin_pass_123')
         body = self.api('GET', '/api/v1/settings/projects').json()
         self.assertIs(body['require_charter_approval'], False)
-        res = self.api('PATCH', '/api/v1/settings/projects', {'require_charter_approval': True})
+        res = self.api('PATCH', '/api/v1/settings/projects', {'require_charter_approval': True, 'governance_tool_policy': 'enabled'})
         self.assertEqual(res.status_code, 200, res.text)
         self.assertIs(res.json()['require_charter_approval'], True)
         bad = self.api('PATCH', '/api/v1/settings/projects', {'require_charter_approval': 'yes'})
@@ -63,7 +64,7 @@ class TestSettings(LiwanPmoCase):
         self.assertEqual(body['project_creators'], 'managers')
         self.assertEqual(len(body['default_stages']), 4)
         self.assertTrue(body['require_manager_on_create'])
-        self.assertTrue(body['require_end_date_on_create'])
+        self.assertFalse(body['require_end_date_on_create'])
         self.assertEqual(body['default_completion_approval'], 'none')
         res = self.api('PATCH', '/api/v1/settings/projects', {'project_creators': 'employees', 'default_stages': [{'name': 'Only', 'fold': False}]})
         self.assertEqual(res.status_code, 200)
@@ -120,7 +121,8 @@ class TestSettings(LiwanPmoCase):
                 'project_creators': 'employees',
                 'default_stages': [{'name': 'Legacy', 'fold': True}],
                 'require_manager_on_create': True,
-                'require_end_date_on_create': True,
+                'require_end_date_on_create': False,
+                'planning_tool_policy': 'optional', 'governance_tool_policy': 'optional', 'finance_tool_policy': 'optional',
                 'default_completion_approval': 'none',
                 'deadline_reminders_enabled': True,
                 'deadline_reminders_days_before': 1,

@@ -15,7 +15,7 @@ test.describe('Plan 6a: stakeholders', () => {
       const create = page.getByTestId('stakeholders-create')
       await expect(create).toHaveAttribute('data-shortcut-create', '')
       await expect(create).toContainText('صاحب مصلحة جديد')
-      await expect(page.getByTestId('project-workspace-tabs')).toBeVisible()
+      await expect(page.getByRole('navigation',{name:'أقسام المشروع',exact:true})).toBeVisible()
     })
     test('J, K and Enter open the focused stakeholder', async ({ page }) => {
       await open(page, '/projects/2/stakeholders')

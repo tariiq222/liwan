@@ -11,8 +11,8 @@ import {
 
 const EMPTY_CHARTER = {
   code: null, type: null, owning_unit: null, sponsor: null, authority: '', rationale: '',
-  objectives: [], benefits: '', scope: '', exclusions: '', high_level_requirements: '',
-  deliverables: [], success: '', budget_state: 'unknown', amount: null, currency: null,
+  benefits: '', scope: '', exclusions: '', high_level_requirements: '',
+  deliverables: [], budget_state: 'unknown', amount: null, currency: null,
   priority: null, assumptions: '', constraints: '', closure: '', state: 'draft',
   approval_required: false, can_review: false, submitted_by: null, submitted_at: null,
   approved_by: null, approved_at: null, return_note: '',
@@ -21,7 +21,7 @@ const EMPTY_CHARTER = {
 describe('project settings controls contracts', () => {
   it('parses company settings including create and reminder toggles', () => {
     const parsed = ProjectSettingsSchema.parse({
-      project_creators: 'managers',
+      project_creators: 'managers', planning_tool_policy: 'optional', governance_tool_policy: 'optional', finance_tool_policy: 'optional',
       default_stages: [{ name: 'A', fold: false }],
       require_manager_on_create: false,
       require_end_date_on_create: true,
@@ -35,7 +35,7 @@ describe('project settings controls contracts', () => {
     expect(parsed.require_end_date_on_create).toBe(true)
     expect(parsed.deadline_reminders_days_before).toBe(3)
     expect(() => ProjectSettingsSchema.parse({
-      project_creators: 'managers',
+      project_creators: 'managers', planning_tool_policy: 'optional', governance_tool_policy: 'optional', finance_tool_policy: 'optional',
       default_stages: [{ name: 'A', fold: false }],
       deadline_reminders_days_before: 31,
     })).toThrow()
@@ -43,7 +43,7 @@ describe('project settings controls contracts', () => {
 
   it('requires the charter approval policy flag', () => {
     const full = {
-      project_creators: 'managers',
+      project_creators: 'managers', planning_tool_policy: 'optional', governance_tool_policy: 'optional', finance_tool_policy: 'optional',
       default_stages: [{ name: 'A', fold: false }],
       require_manager_on_create: true,
       require_end_date_on_create: true,
@@ -61,7 +61,7 @@ describe('project settings controls contracts', () => {
 
   it('reads the settings other applications add, selection with options and boolean', () => {
     const base = {
-      project_creators: 'managers', default_stages: [{ name: 'A', fold: false }], require_manager_on_create: true,
+      project_creators: 'managers', planning_tool_policy: 'optional', governance_tool_policy: 'optional', finance_tool_policy: 'optional', default_stages: [{ name: 'A', fold: false }], require_manager_on_create: true,
       require_end_date_on_create: true, default_completion_approval: 'none', deadline_reminders_enabled: true,
       deadline_reminders_days_before: 1, overdue_digest_enabled: true, require_charter_approval: false, close_with_open_tasks: 'block', register_status_transitions: 'sequence', change_control_mode: 'optional', baseline_gate: 'warning', evm_progress_method: 'binary',
     }
@@ -88,7 +88,7 @@ describe('project settings controls contracts', () => {
       id: 4, name: 'Project', status: null, progress: 0, task_count: 0, closed_task_count: 0, charter_state: 'draft', phase: 'initiating',
       active: true, can_manage: true, stages: [], description_html: '', manager: null,
       privacy_visibility: 'employees', date_start: null, date_end: null, tags: [], followers_count: 0,
-      milestone_count: 0, updated_at: 'v1', charter: EMPTY_CHARTER, phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] }, change_control_mode: 'optional',
+      milestone_count: 0, objectives: [], success_criteria: '', tools: { planning: { policy: 'enabled', enabled: true, can_toggle: false }, governance: { policy: 'enabled', enabled: true, can_toggle: false }, finance: { policy: 'enabled', enabled: true, can_toggle: false } }, updated_at: 'v1', charter: EMPTY_CHARTER, phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] }, change_control_mode: 'optional',
     }
     expect(() => ProjectDetailSchema.parse(project)).toThrow()
     expect(ProjectDetailSchema.parse({
@@ -107,7 +107,7 @@ describe('project settings controls contracts', () => {
       ...task,
       completion_pending: true, completion_revision: 1, completion_return_note: null,
       completion_policy: 'project_manager', completion_approver: { id: 2, name: 'Mgr' },
-      completion_blocked_reason: 'reviewer_ineligible', progress_method: 'binary', percent_complete: 0,
+      completion_blocked_reason: 'reviewer_ineligible', planning_enabled: true, progress_method: 'binary', percent_complete: 0,
       allowed_actions: ['read', 'write', 'withdraw_completion'],
     }).allowed_actions).toContain('withdraw_completion')
   })

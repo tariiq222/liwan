@@ -1,15 +1,13 @@
 <script setup lang="ts">
-import type { AiDraftPayload, ProjectCreateDefaults, ProjectDetail } from '@liwan/contracts'
+import type { ProjectDetail } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
-import { isStaleProjectWrite, useCharterTransition, useCreateProject, useProject, useUpdateProject } from '@/composables/useProjects'
-import { useCharterDefaults } from '@/composables/useProjectCharterCatalogs'
+import { isStaleProjectWrite, useCharterTransition, useProject, useUpdateProject } from '@/composables/useProjects'
 import type { CharterDraft, CharterFieldError, CharterFieldKey, CharterMilestone, NativeDateSnapshot } from '@/utils/projectCharter'
 import {
   canOverwriteWithLatest,
   charterAfterSave,
   submitFailureReason,
   sponsorMissingForSubmit,
-  charterCreateBody,
   charterErrorsForFields,
   draftFromProject,
   emptyCharterDraft,
@@ -27,31 +25,19 @@ import {
   stepForField,
   type CharterWizardStep,
 } from '@/utils/charterSteps'
-import { charterDraftFromAi, mayFinalizeCreate } from '@/utils/aiDraft'
 import ProjectCharterFields from '@/components/pmo/projects/ProjectCharterFields.vue'
 import ProjectCharterDisplay from '@/components/pmo/projects/ProjectCharterDisplay.vue'
 
 const props = defineProps<{
-  mode: 'create' | 'edit'
-  project?: ProjectDetail
+  project: ProjectDetail
   readonly?: boolean
-  createDefaults?: ProjectCreateDefaults
-  defaultManagerName?: string | null
   disabled?: boolean
   milestones?: readonly CharterMilestone[]
   milestonesLoading?: boolean
   milestonesError?: unknown
-  /** A Liwan AI draft: applied once, after the create defaults, before the baseline snapshot. */
-  initialDraft?: AiDraftPayload | null
-  /** The final create needs the user's attestation (a draft prepared by Liwan AI). */
-  attestRequired?: boolean
 }>()
 
 const emit = defineEmits<{
-  created: [id: number]
-  // A create-mode draft save: the project now exists, and the caller moves
-  // the walker to its charter page at the same step.
-  drafted: [id: number, step: CharterWizardStep, reason?: string]
   draftSaved: []
   // What the save did: kept the charter as is, approved it, or sent it to the sponsor.
   saved: [outcome: 'saved' | 'approved' | 'submitted' | 'reopened']
@@ -62,11 +48,9 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const hydrated = useHydrated()
-const { mutateAsync: createProject, isPending: creating } = useCreateProject()
 const { mutateAsync: updateProject, isPending: updating } = useUpdateProject()
 const { mutateAsync: transition, isPending: transitioning } = useCharterTransition()
 const { me } = useMe()
-const { data: defaults } = useCharterDefaults(computed(() => props.mode === 'create'))
 const projectId = computed(() => props.project?.id ?? null)
 const projectQuery = useProject(projectId)
 
@@ -80,11 +64,8 @@ const stale = ref(false)
 const confirmDiscard = ref(false)
 const fieldErrors = ref<Partial<Record<CharterFieldKey, string>>>({})
 const loadedProjectId = ref<number | null>(null)
-const createDefaultsApplied = ref(false)
 const submitted = ref(false)
 const stepNotice = ref<string | null>(null)
-const aiDraftApplied = ref(false)
-const attested = ref(false)
 
 function snapshotDraft(value: CharterDraft): CharterDraft {
   return {
@@ -98,7 +79,7 @@ function snapshotDraft(value: CharterDraft): CharterDraft {
 // --- steps -----------------------------------------------------------------
 // The chosen classification (project type) decides which optional steps the
 // charter walks; basics and review always frame them.
-const steps = computed(() => charterStepsForType(draft.value.typeSteps))
+const steps = computed(() => charterStepsForType(draft.value.typeSteps).filter(key => key !== 'budget' || props.project.tools.finance.enabled).filter(key => key !== 'schedule' || props.project.tools.planning.enabled))
 const step = ref<CharterWizardStep>(parseCharterStepQuery(route.query.step, steps.value))
 // Steps the walker has validated past may be revisited from the stepper;
 // later ones stay closed until "next" validates the way there.
@@ -106,7 +87,7 @@ const reached = ref<number>(steps.value.indexOf(step.value))
 const stepIndex = computed(() => steps.value.indexOf(step.value))
 const isFirstStep = computed(() => stepIndex.value <= 0)
 const isLastStep = computed(() => stepIndex.value === steps.value.length - 1)
-const currentFields = computed(() => fieldsForStep(step.value))
+const currentFields = computed(() => fieldsForStep(step.value).filter(field => !['objectives', 'success'].includes(field)))
 const stepperItems = computed(() => steps.value.map((key, index) => ({
   value: key,
   title: t(`projects.charter.steps.${key}`),
@@ -146,70 +127,27 @@ function onStepperSelect(value: string | number | undefined) {
 }
 
 // --- state -----------------------------------------------------------------
-const pending = computed(() => !!props.disabled || creating.value || updating.value || transitioning.value || projectQuery.isFetching.value)
+const pending = computed(() => !!props.disabled || updating.value || transitioning.value || projectQuery.isFetching.value)
 const readonly = computed(() => !!props.readonly)
 const canSubmit = computed(() => hydrated.value && !pending.value && !props.readonly && !!draft.value.name.trim())
-const canFinalize = computed(() => canSubmit.value && (!props.attestRequired || attested.value))
+const canFinalize = computed(() => canSubmit.value)
 const canOverwrite = computed(() => canOverwriteWithLatest(writeToken.value, serverVersion.value))
 const dirty = computed(() => !submitted.value && isCharterDraftDirty(draft.value, baseline.value))
-const persistedDraft = computed(() => props.project ? draftFromProject(props.project) : draft.value)
+const persistedDraft = computed(() => props.project.charter ? draftFromProject(props.project) : draft.value)
 // An approved charter stays approved on save; a draft offers "save as draft"
 // until the review step finalizes it or sends it to the sponsor.
-const baselineApproved = computed(() => props.mode === 'edit' && baseline.value.charterState === 'approved')
+const baselineApproved = computed(() => baseline.value.charterState === 'approved')
 // When approval is required and the manager is not the sponsor, finishing sends the charter for approval.
-const submitsForApproval = computed(() => !!props.project?.charter.approval_required && draft.value.sponsorId !== me.value?.id)
+const submitsForApproval = computed(() => !!props.project?.charter?.approval_required && draft.value.sponsorId !== me.value?.id)
 const finalLabel = computed(() => {
-  if (props.mode === 'create') return t('projects.create.createFinal')
   if (baselineApproved.value) return t('app.save')
   return t(submitsForApproval.value ? 'projects.charter.submitForApproval' : 'projects.charter.finalize')
 })
 
 watch(
-  [() => props.createDefaults, () => props.defaultManagerName],
-  ([value, managerName]) => {
-    if (props.mode !== 'create' || !value) return
-    if (!createDefaultsApplied.value) {
-      createDefaultsApplied.value = true
-      draft.value.userId = value.default_manager_id
-      applyAiDraft()
-      // Defaults arrive asynchronously and define the initial form state.
-      baseline.value = snapshotDraft(draft.value)
-    }
-    if (draft.value.userId === value.default_manager_id && !draft.value.managerName && managerName) {
-      draft.value.managerName = managerName
-    }
-  },
-  { immediate: true, flush: 'sync' },
-)
-
-// The AI draft comes from sessionStorage, so it can land after the defaults
-// (it is read once the page hydrates). It then replaces the still-pristine
-// form and becomes the new baseline; a form the user already edited keeps
-// their work.
-watch(
-  () => props.initialDraft,
-  () => {
-    if (props.mode !== 'create' || !createDefaultsApplied.value || aiDraftApplied.value) return
-    if (isCharterDraftDirty(draft.value, baseline.value)) return
-    if (applyAiDraft()) baseline.value = snapshotDraft(draft.value)
-  },
-  { flush: 'sync' },
-)
-
-watch(
-  () => defaults.value?.currency,
-  (currency) => {
-    if (props.mode !== 'create' || loadedProjectId.value) return
-    if (!currency) return
-    draft.value.currencyLabel = currency.symbol ? `${currency.name} (${currency.symbol})` : currency.name
-  },
-  { immediate: true, flush: 'sync' },
-)
-
-watch(
   () => props.project?.id,
   (id) => {
-    if (!props.project || props.mode !== 'edit' || !id) return
+    if (!props.project?.charter || !id) return
     if (loadedProjectId.value === id) return
     applyLoadedProject(props.project)
     loadedProjectId.value = id
@@ -223,16 +161,9 @@ watch(
 )
 
 watch(readonly, (value) => {
-  if (!value || props.mode !== 'edit' || !props.project) return
+  if (!value || !props.project?.charter) return
   applyLoadedProject(props.project)
 })
-
-function applyAiDraft(): boolean {
-  if (!props.initialDraft || aiDraftApplied.value) return false
-  aiDraftApplied.value = true
-  draft.value = charterDraftFromAi(props.initialDraft, draft.value)
-  return true
-}
 
 function applyLoadedProject(project: ProjectDetail) {
   const next = draftFromProject(project)
@@ -250,21 +181,12 @@ function errorMessage(code: string): string {
 
 function collectErrors(): CharterFieldError[] {
   const errors = validateCharterDraft(draft.value, {
-    mode: props.mode,
-    originalDates: props.mode === 'edit' ? originalDates.value : undefined,
+    originalDates: originalDates.value,
   })
-  if (props.mode === 'create' && props.createDefaults?.require_manager_on_create && !draft.value.userId) {
-    errors.push({ field: 'manager', code: 'manager_required' })
-  }
-  if (props.mode === 'create' && props.createDefaults?.require_end_date_on_create && !draft.value.dateEnd) {
-    errors.push({ field: 'date_end', code: 'end_date_required' })
-  }
   return errors
 }
 
 function messageFor(item: CharterFieldError): string {
-  if (item.code === 'manager_required') return t('projects.create.managerRequired')
-  if (item.code === 'end_date_required') return t('projects.create.endDateRequired')
   return errorMessage(item.code)
 }
 
@@ -313,7 +235,6 @@ async function saveDraft() {
 }
 
 async function finalize() {
-  if (!mayFinalizeCreate(props.attestRequired, attested.value)) return
   await submit(writeToken.value, 'submit')
 }
 
@@ -323,7 +244,7 @@ const lastIntent = ref<'draft' | 'submit'>('submit')
 async function submit(token = writeToken.value, intent: 'draft' | 'submit' = 'submit') {
   error.value = null
   if (!applyValidation()) return
-  if (intent === 'submit' && props.mode === 'edit' && sponsorMissingForSubmit(!!props.project?.charter.approval_required, baselineApproved.value, draft.value.sponsorId)) {
+  if (intent === 'submit' && sponsorMissingForSubmit(!!props.project?.charter?.approval_required, baselineApproved.value, draft.value.sponsorId)) {
     goTo('basics')
     error.value = t('projects.charter.sponsorRequired')
     return
@@ -331,29 +252,13 @@ async function submit(token = writeToken.value, intent: 'draft' | 'submit' = 'su
   const preserved = draft.value
   lastIntent.value = intent
   try {
-    if (props.mode === 'create') {
-      const created = await createProject(charterCreateBody(preserved, { includeNullManager: true }))
-      submitted.value = true
-      if (intent === 'draft') {
-        emit('drafted', created.id, step.value)
-        return
-      }
-      try {
-        await transition({ id: created.id, action: 'submit', expected: created.updated_at })
-      }
-      catch (e) {
-        // The project exists as a draft: continue on its charter page and say why it was not submitted.
-        emit('drafted', created.id, step.value, submitFailureReason(e, t))
-        return
-      }
-      emit('created', created.id)
-      return
-    }
     if (!props.project || !token) return
     const wasApproved = baselineApproved.value
+    const patch = charterPatchBody(preserved, token, originalDates.value)
+    if (!props.project.tools.finance.enabled && patch.charter) { delete patch.charter.budget_state; delete patch.charter.amount }
     const detail = await updateProject({
       id: props.project.id,
-      patch: charterPatchBody(preserved, token, originalDates.value),
+      patch,
     })
     applyLoadedProject(detail)
     stale.value = false
@@ -362,7 +267,7 @@ async function submit(token = writeToken.value, intent: 'draft' | 'submit' = 'su
       emit('draftSaved')
       return
     }
-    const afterSave = charterAfterSave(wasApproved, detail.charter.state)
+    const afterSave = charterAfterSave(wasApproved, detail.charter!.state)
     if (afterSave !== 'submit') {
       emit('saved', afterSave)
       return
@@ -370,7 +275,7 @@ async function submit(token = writeToken.value, intent: 'draft' | 'submit' = 'su
     try {
       const result = await transition({ id: detail.id, action: 'submit', expected: detail.updated_at })
       applyLoadedProject(result)
-      emit('saved', result.charter.state === 'submitted' ? 'submitted' : 'approved')
+      emit('saved', result.charter!.state === 'submitted' ? 'submitted' : 'approved')
     }
     catch (e) {
       // The content save already succeeded; only the submit step failed.
@@ -383,6 +288,11 @@ async function submit(token = writeToken.value, intent: 'draft' | 'submit' = 'su
       stale.value = true
       error.value = null
       await loadServerVersion()
+      return
+    }
+    if (e instanceof ApiError && e.status === 403) {
+      await loadServerVersion()
+      error.value = t('projects.tools.policyChanged')
       return
     }
     error.value = e instanceof ApiError && e.code === 'create_forbidden'
@@ -423,9 +333,10 @@ function discardToServer() {
 </script>
 
 <template>
-  <div :data-testid="mode === 'create' ? 'project-create-form' : 'project-charter-form'" class="grid gap-(--liwan-card-pad)">
-    <SharedUnsavedChanges v-if="!readonly || dirty" :dirty="dirty" :guard-route-updates="mode === 'edit'" :ignore-query-keys="['step']" />
+  <div data-testid="project-charter-form" class="grid gap-(--liwan-card-pad)">
+    <SharedUnsavedChanges v-if="!readonly || dirty" :dirty="dirty" guard-route-updates :ignore-query-keys="['step']" />
     <ProjectCharterDisplay
+      :tools="project.tools"
       v-if="readonly"
       :draft="persistedDraft"
       :milestones="milestones"
@@ -437,9 +348,6 @@ function discardToServer() {
       <template #actions><slot name="actions" /></template>
     </ProjectCharterDisplay>
     <form v-else class="liwan-form" data-testid="project-charter-wizard" @submit.prevent="isLastStep ? finalize() : next()">
-      <div v-if="attestRequired">
-        <UBadge color="primary" variant="subtle" data-testid="project-create-ai-badge">{{ t('projects.create.aiBadge') }}</UBadge>
-      </div>
       <div class="grid gap-3">
         <UStepper
           :model-value="step"
@@ -462,7 +370,7 @@ function discardToServer() {
 
       <div v-if="isLastStep" class="grid gap-(--liwan-gap-card)" data-testid="charter-review-step">
         <p class="text-sm text-muted">{{ t('projects.charter.reviewHint') }}</p>
-        <ProjectCharterDisplay :draft="draft" :milestones="milestones ?? []" />
+        <ProjectCharterDisplay :tools="project.tools" :draft="draft" :milestones="milestones ?? []" />
       </div>
       <ProjectCharterFields
         v-else
@@ -471,8 +379,6 @@ function discardToServer() {
         :fields="currentFields"
         :disabled="pending"
         :field-errors="fieldErrors"
-        :require-manager="mode === 'create' && !!createDefaults?.require_manager_on_create"
-        :require-end-date="mode === 'create' && !!createDefaults?.require_end_date_on_create"
       />
 
       <div v-if="stale" role="alert" data-testid="charter-stale-write" class="grid gap-3">
@@ -500,12 +406,7 @@ function discardToServer() {
       </div>
       <p v-else-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
 
-      <SharedSubCard v-if="attestRequired && isLastStep" class="grid gap-1" data-testid="project-create-attest">
-        <UCheckbox v-model="attested" :label="t('projects.create.aiAttest')" :disabled="pending" required />
-        <p v-if="!attested" class="text-xs text-muted">{{ t('projects.create.aiAttestRequired') }}</p>
-      </SharedSubCard>
-
-      <p v-if="project?.charter.approval_required && baselineApproved" class="text-sm text-muted" data-testid="charter-save-reopens-hint">{{ t('projects.charter.saveReopensHint') }}</p>
+      <p v-if="project?.charter?.approval_required && baselineApproved" class="text-sm text-muted" data-testid="charter-save-reopens-hint">{{ t('projects.charter.saveReopensHint') }}</p>
       <SharedFormActions class="flex flex-wrap items-center gap-2" data-testid="charter-wizard-actions">
         <UButton type="button" color="neutral" :disabled="pending" :label="t('app.cancel')" @click="emit('cancel')" variant="outline" />
         <div class="ms-auto flex flex-wrap gap-2">

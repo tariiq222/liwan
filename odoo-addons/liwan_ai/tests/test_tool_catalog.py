@@ -33,3 +33,11 @@ class TestAiToolCatalog(TransactionCase):
         features = self.env['liwan.feature.registry']._liwan_feature_map()
         for key, agent in self.env['liwan.ai.agent.registry']._liwan_ai_agent_map().items():
             self.assertIn(agent['feature_key'], features, key)
+
+    def test_every_readiness_check_is_backed_by_a_capability_a_feature_and_a_model(self):
+        capabilities = set(self.env['liwan.access.service']._liwan_capability_map())
+        features = self.env['liwan.feature.registry']._liwan_feature_map()
+        for key, check in self.env['liwan.ai.readiness']._liwan_ai_check_map().items():
+            self.assertIn(check['capability'], capabilities, f'{key}: unregistered capability')
+            self.assertIn(check['feature_key'], features, f'{key}: unregistered feature')
+            self.assertIn(check['model'], self.env, f'{key}: no such model')

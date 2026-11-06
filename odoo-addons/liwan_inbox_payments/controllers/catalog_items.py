@@ -15,10 +15,10 @@ from odoo.addons.liwan_inbox.controllers.helpers import (
     no_content,
     not_found,
     reject,
-    visible_conversation,
 )
 from odoo.addons.liwan_inbox.models.access_service import REPLY
 from odoo.addons.liwan_inbox_payments.controllers.catalogs import get_catalog
+from odoo.addons.liwan_inbox_payments.controllers.helpers import whatsapp_conversation
 from odoo.addons.liwan_inbox_payments.controllers.parsing import (
     ITEM_FIELDS,
     parse_item_fields,
@@ -188,7 +188,7 @@ class CatalogItemController(http.Controller):
     @requires_capability(REPLY)
     def pick_items(self, conversation_id, **_):
         """What the composer's product picker lists: the listed, synced, not rejected items of the conversation's catalog."""
-        conversation = visible_conversation(conversation_id)
+        conversation = whatsapp_conversation(conversation_id)
         catalog = conversation.channel_id._liwan_catalog()
         if not catalog:
             raise ApiError(409, 'no_catalog', 'no catalog is connected to this conversation channel')

@@ -262,6 +262,7 @@ class TestProjectFinance(LiwanPmoCase):
 
     def test_cross_company_project_is_hidden(self):
         company_b = self.env['res.company'].create({'name': 'Finance company B'})
+        self.env['liwan.pmo.settings'].with_company(company_b).set_values({'finance_tool_policy': 'enabled'})
         foreign = self.env['project.project'].create({'name': 'Foreign', 'company_id': company_b.id})
         self.env['liwan.project.finance.entry'].with_company(company_b).create({
             'project_id': foreign.id, 'kind': 'budget', 'title': 'Foreign budget', 'amount': 1,

@@ -41,7 +41,7 @@ export const ROLE_REFS = {
 }
 
 const user = (id: number, name: string, login: string, roles: typeof ROLE_REFS[keyof typeof ROLE_REFS][], active = true) => ({
-  id, name, login, active, protected: false, version: `u${id}`,
+  id, name, login, mobile: null, invitation: null, active, protected: false, version: `u${id}`,
   employee: id === 13 ? null : { id: id - 6, name, department: null },
   assignments: roles.map((role, index) => ({ id: id * 10 + index + 1, role, scope: COMPANY })),
 })
@@ -52,7 +52,7 @@ export const USERS = AdminUserListSchema.parse({
 export const USER_DETAIL = AdminUserDetailSchema.parse({
   ...USERS.items[0],
   capabilities: [{ key: 'pmo.projects.read', sources: [{ role_assignment_id: 111, role: ROLE_REFS.pmo, scope: COMPANY, source: 'assignment' }] }],
-  allowed_actions: ['read', 'assign_roles', 'reset_password', 'disable'],
+  allowed_actions: ['read', 'assign_roles', 'send_reset_link', 'disable'],
 })
 
 const role = (ref: typeof ROLE_REFS[keyof typeof ROLE_REFS], description: string, userCount: number) => ({
@@ -82,7 +82,7 @@ const event = (id: number, action: string, targetType: 'user' | 'role', targetId
   actor: { id: 2, name: 'Admin', login: 'admin' }, target: { type: targetType, id: targetId, name: targetName },
 })
 export const AUDIT = AccessAuditListSchema.parse({
-  items: [event(31, 'user.granted', 'user', 11, 'سارة محمد'), event(32, 'role.created', 'role', 3, 'مراجع'), event(33, 'user.disabled', 'user', 13, 'خالد العتيبي')],
+  items: [event(31, 'user.invited', 'user', 11, 'سارة محمد'), event(32, 'role.created', 'role', 3, 'مراجع'), event(33, 'user.disabled', 'user', 13, 'خالد العتيبي')],
   total: 3,
 })
 export const AUDIT_DETAIL = AccessAuditDetailSchema.parse({ ...AUDIT.items[0], before: null, after: { active: true }, reason: null })

@@ -19,7 +19,7 @@ type Story = StoryObj<typeof meta>
 
 export const GuardsLeavingDirtyForm: Story = {
   name: 'داخل نموذج عند مغادرة الصفحة',
-  parameters: storyContext('apps/web/app/pages/settings/team/users/new.vue:109'),
+  parameters: storyContext('apps/web/app/pages/settings/team/users/new.vue:126'),
   render: args => ({
     components: { SettingsPage },
     setup() {

@@ -4,6 +4,7 @@ from odoo.exceptions import AccessError, MissingError, ValidationError
 from odoo.fields import Domain
 
 from .project_constants import TASK_CANCELED_STATE
+from .project_tools import tool_domain_fields, tool_group_domain
 from odoo.addons.liwan_api.serializers.common import iso
 from odoo.addons.project.models.project_task import CLOSED_STATES
 
@@ -172,6 +173,9 @@ class ProjectTask(models.Model):
                     # Constrain every search/fetch/count, including an empty or
                     # hostile OR domain. Stock ACLs and record rules still run.
                     domain = Domain(domain) & boundary
+        if not bypass_access:
+            names = tool_domain_fields(domain) + [order or '']
+            domain = tool_group_domain(self, domain, names)
         return super()._search(
             domain, offset=offset, limit=limit, order=order,
             active_test=active_test, bypass_access=bypass_access,
@@ -234,6 +238,28 @@ class ProjectTask(models.Model):
         return self.env['liwan.access.service']._liwan_has_capability(
             self.env.user, 'pmo.tasks.write', record=self,
         )
+
+    def _liwan_check_percent_tools(self):
+        """Gate task-owned progress without granting read access to its private project."""
+        self.ensure_one()
+        self._liwan_check_visible_current()
+        if not self.active or not self._liwan_can_write():
+            raise AccessError(self.env._("You are not allowed to change this task."))
+        Project = self.env['project.project']
+        project_domain = Domain([('company_id', '=', self.env.company.id), ('active', '=', True)])
+        for key in ('planning', 'finance'):
+            project_domain &= Project._liwan_tool_domain(key)
+        # Odoo's internal any! omits only the comodel read rules. The caller
+        # already proved task read/write, and this query is restricted to that
+        # task id and exact current company on both sides. It returns only a
+        # boolean; _liwan_tool_domain remains the sole live policy decision.
+        allowed = self.search_count(
+            Domain([('id', '=', self.id), ('company_id', '=', self.env.company.id), ('active', '=', True)])
+            & Domain('project_id', 'any!', project_domain),
+        )
+        if not allowed:
+            raise AccessError(self.env._("This project tool is not enabled."))
+        return True
 
     def _liwan_can_archive(self):
         self.ensure_one()
@@ -396,6 +422,8 @@ class ProjectTask(models.Model):
                         continue
                     raise AccessError(self.env._("A visible current-company project is required."))
                 project._liwan_check_visible_current()
+                if vals.get('milestone_id') or vals.get('liwan_planned_start') or vals.get('depend_on_ids'):
+                    project._liwan_check_tool('planning')
                 if parent and parent.project_id != project:
                     raise AccessError(self.env._("Parent task must belong to the same project."))
                 # Minted only inside a checked copy into a freshly created
@@ -450,6 +478,8 @@ class ProjectTask(models.Model):
         # internal scalar validation must not turn that legitimate write into
         # an access error or expose the milestone's private content.
         for task in self:
+            if task.project_id and not task.project_id._liwan_tool_enabled('planning'):
+                continue
             milestone = task.milestone_id
             if not milestone:
                 continue
@@ -465,6 +495,15 @@ class ProjectTask(models.Model):
         return True
 
     def write(self, vals):
+        if not self.env.su and {'milestone_id', 'liwan_planned_start', 'depend_on_ids'}.intersection(vals):
+            for task in self:
+                if task.project_id:
+                    task.project_id._liwan_check_tool('planning')
+        if not self.env.su and 'liwan_percent_complete' in vals:
+            for task in self:
+                task._liwan_check_percent_tools()
+            self.env['liwan.entitlement.service'].require('pmo.enabled')
+            self.env['liwan.entitlement.service'].require('pmo.evm')
         dependency_write = (
             self.env.cr.precommit.data.get(DEPENDENCY_WRITE_MARKER)
             and set(vals) <= {'depend_on_ids'}
@@ -519,7 +558,7 @@ class ProjectTask(models.Model):
             if 'date_deadline' in vals:
                 deadline = fields.Date.to_date(vals['date_deadline']) if vals['date_deadline'] else False
                 if any(
-                    task.liwan_planned_start and (
+                    (not task.project_id or task.project_id._liwan_tool_enabled('planning')) and task.liwan_planned_start and (
                         not deadline or task.liwan_planned_start > deadline
                     )
                     for task in self

@@ -19,15 +19,17 @@ export function activeProjectSection(path: string): ProjectSectionId | null {
   const rest = normalizedPath(path).replace(`/projects/${id}`, '').replace(/^\//, '')
   if (!rest) return 'summary'
   const head = rest.split('/', 1)[0]!
-  if (head === 'schedule' || head === 'milestones') return 'planning'
+  if (head === 'evm') return 'finance'
+  if (head === 'schedule' || head === 'milestones' || head === 'baselines') return 'planning'
   if (GOVERNANCE_SEGMENTS.has(head)) return 'governance'
   return SECTION_SEGMENTS.has(head as ProjectSectionId) ? head as ProjectSectionId : null
 }
 
 /** Both planning views retain their own route, including records and forms. */
-export function activePlanningSection(path: string): 'schedule' | 'milestones' | null {
+export function activePlanningSection(path: string): 'schedule' | 'milestones' | 'baselines' | null {
   if (activeProjectSection(path) !== 'planning') return null
-  return normalizedPath(path).split('/')[3] === 'milestones' ? 'milestones' : 'schedule'
+  const segment = normalizedPath(path).split('/')[3]
+  return segment === 'milestones' || segment === 'baselines' ? segment : 'schedule'
 }
 
 /** The governance sub-tab that owns a path, including its record and form pages. */

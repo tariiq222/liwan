@@ -3,9 +3,9 @@ import { ref, defineComponent, h } from 'vue'
 import { describe, expect, it } from 'vitest'
 import { renderShared } from '@liwan/ui/test/helpers/renderShared'
 
-async function overview(state: { data?: unknown[]; loading?: boolean; error?: Error; canReadTasks?: boolean; active?: boolean }) {
+async function overview(state: { data?: unknown[]; loading?: boolean; error?: Error; canReadTasks?: boolean; active?: boolean; planning?: boolean }) {
   const canReadTasks = state.canReadTasks ?? true
-  return renderShared(resolve(import.meta.dirname, '../ProjectOverview.vue'), { project: { id: 7, active: state.active ?? true, progress: 40, task_count: 3, closed_task_count: 1, milestone_count: 1 } }, {}, {
+  return renderShared(resolve(import.meta.dirname, '../ProjectOverview.vue'), { project: { tools:{planning:{enabled:state.planning ?? true}}, objectives:[{id:1,goal:'Primary goal',metric:'count',target:'20'},{id:2,goal:'Second goal',metric:'',target:''}], success_criteria:'20 in one month', phase_state:null, id: 7, active: state.active ?? true, progress: 40, task_count: 3, closed_task_count: 1, milestone_count: 1 } }, {}, {
     globals: { useRoute: () => ({ fullPath: '/projects/7' }), useAccess: () => ({ can: (capability: string) => capability !== 'pmo.tasks.read' || canReadTasks }) },
     modules: {
       '@/composables/useMilestones': { useMilestones: () => ({ data: ref(state.data), isLoading: ref(!!state.loading), error: ref(state.error), refetch: () => {} }) },
@@ -55,4 +55,11 @@ describe('project overview tasks section', () => {
     const html = await overview({ data: [], active: false })
     expect(html).not.toContain('data-testid="attention"')
   })
+})
+
+describe('simple overview', () => {
+ it('shows every core objective and success criteria with planning disabled', async () => {
+ const html = await overview({planning:false,data:[]})
+ expect(html).toContain('Primary goal');expect(html).toContain('Second goal');expect(html).toContain('20 in one month');expect(html).not.toContain('projects.overview.milestones')
+ })
 })

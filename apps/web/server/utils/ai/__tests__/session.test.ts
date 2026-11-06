@@ -5,7 +5,7 @@ const odooJson = vi.fn()
 vi.mock('../../tenantRequest', () => ({ tenantRequest, tenantUpstreamHeaders: () => ({}) }))
 vi.mock('../upstream', () => ({ odooJson, forwardUpstream: (u: any) => { throw Object.assign(new Error('forwarded'), { statusCode: u.status }) } }))
 
-const TOOLS = { items: [], total: 0, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, setup_monthly: null, setup_used: 0, policy: { provider_mode: 'platform', consent_signed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: 8000 } }, blocked_fields: [] }
+const TOOLS = { items: [], total: 0, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: 8000 } }, blocked_fields: [] }
 let config: Record<string, unknown>
 
 beforeEach(() => {
@@ -47,5 +47,12 @@ describe('runSession tenant identity', () => {
     process.env.LIWAN_TENANCY_MODE = 'shared'
     tenantRequest.mockImplementation(() => { throw Object.assign(new Error('tenant_boundary_rejected'), { statusCode: 403 }) })
     await expect(owner()).rejects.toMatchObject({ statusCode: 403 })
+  })
+})
+
+describe('modeForAgent', () => {
+  it('names the free agents and leaves every other agent, including a platform tool\'s, to the ordinary conversation', async () => {
+    const { modeForAgent } = await import('../session')
+    expect([modeForAgent('ai'), modeForAgent('ai_help'), modeForAgent('pmo'), modeForAgent('core')]).toEqual(['setup', 'help', 'assistant', 'assistant'])
   })
 })

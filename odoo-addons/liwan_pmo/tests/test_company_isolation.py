@@ -78,6 +78,9 @@ class LiwanPmoIsolationCase(CompanyIsolationCase):
             # Every fixture is written in its own company: the governance create
             # checks compare the parent project with the active company.
             env = cls.env(context=dict(cls.env.context, allowed_company_ids=[company.id]))
+            settings = env['liwan.pmo.settings']
+            for key in ('planning', 'governance', 'finance'):
+                settings._params().set_param(settings._company_key(f'liwan_pmo.{key}_tool_policy'), 'enabled')
             project = env['project.project'].sudo().create({
                 'name': f'Isolation {company.name}', 'company_id': company.id, 'user_id': cls.iso_user.id,
             })

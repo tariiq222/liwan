@@ -2,7 +2,6 @@
 import type { ProjectDetail, ProjectStatus } from '@liwan/contracts'
 import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import { projectStatusBadge } from '@/composables/projectStatus'
-import { isGateAction } from '@/composables/projectPhase'
 import { useMilestones } from '@/composables/useMilestones'
 import { useProjectUpdates } from '@/composables/useProjectUpdates'
 import { badgeLabel } from '@liwan/ui/app/utils/statusBadge'
@@ -20,7 +19,7 @@ const { can } = useAccess()
 const canReadTasks = computed(() => can('pmo.tasks.read'))
 const showTasks = computed(() => canReadTasks.value && props.project.active)
 const projectId = computed(() => props.project.id)
-const milestones = useMilestones(projectId)
+const milestones = useMilestones(computed(() => props.project.tools.planning.enabled ? projectId.value : null))
 const updates = useProjectUpdates(projectId)
 
 const nearestMilestone = computed(() => {
@@ -38,7 +37,20 @@ function dateLabel(value: string | null) {
 
 <template>
   <div data-testid="project-overview" class="@container flex min-w-0 flex-col gap-(--liwan-gap-card)">
-    <ProjectOverviewTasks v-if="showTasks" :project-id="project.id" :return-to="route.fullPath" :gate-action="isGateAction(project.phase_state, project.can_manage, project.active)" />
+    <SharedRecordSection variant="panel" :title="t('projects.basics.title')" data-testid="project-overview-basics">
+      <SharedRichText v-if="project.description_html" :html="project.description_html" />
+      <ul v-if="project.objectives.length" class="grid gap-(--liwan-gap-card)">
+        <li v-for="objective in project.objectives" :key="objective.id">
+          <p class="text-sm font-medium">{{ objective.goal }}</p>
+          <p v-if="objective.metric || objective.target" class="text-sm text-muted">{{ [objective.metric, objective.target].filter(Boolean).join(' · ') }}</p>
+        </li>
+      </ul>
+      <div v-if="project.success_criteria">
+        <h2 class="text-sm font-semibold">{{ t('projects.basics.successCriteria') }}</h2>
+        <p class="whitespace-pre-wrap text-sm">{{ project.success_criteria }}</p>
+      </div>
+    </SharedRecordSection>
+    <ProjectOverviewTasks v-if="showTasks" :project-id="project.id" :return-to="route.fullPath" />
 
     <!-- One tile grid: two columns on phones, three from a roomy container; the headline figure spans two cells. -->
     <section class="grid grid-cols-2 gap-(--liwan-gap-card) @2xl:grid-cols-3">
@@ -65,13 +77,13 @@ function dateLabel(value: string | null) {
         :value="openTaskCount"
         :to="project.active ? `/projects/${project.id}/tasks` : undefined"
       />
-      <SharedRecordSection v-if="milestones.error.value" variant="panel" data-testid="project-overview-milestone-error" :title="t('projects.overview.nextMilestone')">
+      <SharedRecordSection v-if="project.tools.planning.enabled && milestones.error.value" variant="panel" data-testid="project-overview-milestone-error" :title="t('projects.overview.nextMilestone')">
         <SharedPageState :error="milestones.error.value" @retry="milestones.refetch()" />
       </SharedRecordSection>
-      <SharedLoadingSkeleton v-else-if="milestones.isLoading.value" :count="1" />
+      <SharedLoadingSkeleton v-else-if="project.tools.planning.enabled && milestones.isLoading.value" :count="1" />
       <!-- Localized Arabic dates contain bidi marks; preserve the locale direction. -->
       <SharedMetricTile
-        v-else
+        v-else-if="project.tools.planning.enabled"
         density="compact"
         icon="i-lucide-flag"
         :label="t('projects.overview.nextMilestone')"
@@ -80,6 +92,7 @@ function dateLabel(value: string | null) {
         :to="`/projects/${project.id}/milestones`"
       />
       <SharedMetricTile
+        v-if="project.tools.planning.enabled"
         density="compact"
         icon="i-lucide-milestone"
         :label="t('projects.overview.milestones')"

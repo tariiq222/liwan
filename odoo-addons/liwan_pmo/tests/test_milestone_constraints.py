@@ -71,6 +71,7 @@ class TestMilestoneDateConstraints(LiwanPmoCase):
             "the member can read the archived task once archived records are included",
         )
 
+        project.user_id = self.employee
         milestone.with_user(self.employee).write({
             'liwan_start_date': date(2030, 1, 10),
             'deadline': date(2030, 6, 20),

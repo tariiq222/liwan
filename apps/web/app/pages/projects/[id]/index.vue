@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { projectRecordBack } from '@/utils/projectNavigation'
-import ProjectPhaseGate from '@/components/pmo/projects/ProjectPhaseGate.vue'
 import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
 import ProjectOverview from '@/components/pmo/projects/ProjectOverview.vue'
 import { ApiError } from '@/composables/useApi'
@@ -43,7 +42,6 @@ const copyTo = computed(() => ({
       <UButton color="neutral" variant="outline" icon="i-lucide-copy" :to="copyTo" data-testid="project-copy-link" :label="t('projects.copy.action')" />
     </template>
     <div v-if="project" class="flex flex-col gap-(--liwan-gap-card)">
-      <ProjectPhaseGate :project="project" />
       <ProjectOverview :project="project" />
     </div>
   </SharedRecordPage>

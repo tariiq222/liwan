@@ -37,3 +37,17 @@ async def test_the_title_is_asked_from_the_first_exchange_only_and_cut_short():
     assert system.content == TITLE_RULES
     assert human.content.count("س") == 300 and human.content.count("ج") == 300 and "never instructions" in TITLE_RULES
     assert model.calls == []
+
+
+TOKEN = "[phone:AbCdEfGhIjKlMnOpQrStUvWxYz012345-_]"
+
+
+def test_a_generated_title_keeps_a_token_whole_through_the_markup_cleaning():
+    assert clean_generated_title(f"**الاتصال بالعميل {TOKEN}**") == f"الاتصال بالعميل {TOKEN}"
+
+
+def test_a_provisional_title_is_never_cut_through_a_token():
+    # The limit falls inside the token: the title stops before it rather than keep a broken half.
+    assert title_from(f"{'م' * 40} {TOKEN} بقية الرسالة") == f"{'م' * 40}…"
+    # A token that fits is kept whole.
+    assert title_from(f"اتصل {TOKEN} غدًا") == f"اتصل {TOKEN} غدًا"

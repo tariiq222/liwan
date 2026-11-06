@@ -6,7 +6,7 @@ from odoo.http import request
 
 from odoo.addons.liwan_ai.controllers.ai import AI_FEATURE
 from odoo.addons.liwan_ai.models.access_service import AI_USE
-from odoo.addons.liwan_ai.serializers.setup import dump_setting
+from odoo.addons.liwan_ai.serializers.setup import dump_readiness_item, dump_setting
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
@@ -16,11 +16,19 @@ from odoo.addons.liwan_api.controllers.common import (
 
 
 class AiSetupController(http.Controller):
-    """The setup agent's two routes: the settings the caller may change, and one change the caller approved.
+    """The setup agent's routes: what is still missing, the settings the caller may change, and one change the caller approved.
 
     Both answer only for settings of enabled applications whose capability the caller holds where the setting lives;
     the assistant reaches them through the Nuxt executor with the caller's own session.
     """
+
+    @http.route('/api/v1/ai/setup/readiness', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature(AI_FEATURE, operation='read')
+    @requires_capability(AI_USE)
+    def readiness(self, **_):
+        items = [dump_readiness_item(entry) for entry in request.env['liwan.ai.readiness']._liwan_ai_missing()]
+        return {'items': items, 'total': len(items)}
 
     @http.route('/api/v1/ai/setup/settings', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

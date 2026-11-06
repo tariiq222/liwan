@@ -4,7 +4,7 @@ from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.access_admin import (
     parse_assignments,
-    parse_password,
+    parse_login,
     parse_query,
     require_exact,
 )
@@ -45,13 +45,13 @@ class EmployeeAccountsController(http.Controller):
     def grant(self, **payload):
         require_exact(
             payload,
-            {'employee_id', 'password', 'assignments'},
-            {'employee_id', 'password', 'assignments'},
+            {'employee_id', 'login', 'assignments'},
+            {'employee_id', 'login', 'assignments'},
         )
         service = request.env['liwan.access.service']
         user = service._liwan_grant_employee_account(
             parse_positive_int(payload['employee_id'], 'employee_id'),
-            parse_password(payload['password']),
+            parse_login(payload['login']),
             parse_assignments(payload['assignments']),
         )
         clear_security_caches_after_commit(request.env)

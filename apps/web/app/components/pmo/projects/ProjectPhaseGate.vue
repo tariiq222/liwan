@@ -13,17 +13,17 @@ const toast = useToast()
 const { mutateAsync: move, isPending } = useMoveProjectPhase()
 
 const state = computed(() => props.project.phase_state)
-const rows = computed(() => gateCheckRows(props.project.id, state.value.next_checks))
+const rows = computed(() => gateCheckRows(props.project.id, state.value?.next_checks ?? []))
 const canManage = computed(() => props.project.can_manage)
 const canAdvance = computed(() => canMoveForward(state.value, canManage.value))
-const isClosed = computed(() => state.value.current === 'closed')
+const isClosed = computed(() => state.value?.current === 'closed')
 const isVisible = computed(() => isGateCardVisible(state.value, canManage.value, props.project.active))
 const isAction = computed(() => isGateAction(state.value, canManage.value, props.project.active))
 const phaseLabel = (phase: ProjectPhase) => t(PHASE_LABEL_KEY[phase])
 const stepBack = ref(false)
 // Moving on with an unmet warning check (closing with open tasks) asks the manager to confirm first.
 const confirmWarning = ref(false)
-const warnings = computed(() => unmetWarnings(state.value.next_checks))
+const warnings = computed(() => unmetWarnings(state.value?.next_checks ?? []))
 
 function onMoveForward(phase: ProjectPhase) {
   if (warnings.value.length) confirmWarning.value = true
@@ -50,7 +50,7 @@ async function run(phase: ProjectPhase, acknowledgeWarnings = false) {
 
 <template>
   <SharedRecordSection
-    v-if="isVisible"
+    v-if="isVisible && state"
     :variant="isAction ? 'action' : 'tinted'"
     :title="!isClosed && state.next ? t('projects.phase.gateTitle', { phase: phaseLabel(state.next) }) : undefined"
     class="liwan-print-hide"

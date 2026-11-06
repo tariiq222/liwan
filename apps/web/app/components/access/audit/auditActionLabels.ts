@@ -3,6 +3,12 @@ import type { AccessAuditSummary } from '@liwan/contracts'
 /** The locale key of each access-log action. */
 export const AUDIT_ACTION_LABELS: Record<AccessAuditSummary['action'], string> = {
   'user.granted': 'access.audit.actions.userGranted',
+  'user.invited': 'access.audit.actions.userInvited',
+  'user.invitation_resent': 'access.audit.actions.userInvitationResent',
+  'user.invitation_login_changed': 'access.audit.actions.userInvitationLoginChanged',
+  'user.invitation_cancelled': 'access.audit.actions.userInvitationCancelled',
+  'user.reset_link_sent': 'access.audit.actions.userResetLinkSent',
+  'user.password_set': 'access.audit.actions.userPasswordSet',
   'user.employee_linked': 'access.audit.actions.userEmployeeLinked',
   'user.branch_roles_changed': 'access.audit.actions.userBranchRolesChanged',
   'branch.policy_changed': 'access.audit.actions.branchPolicyChanged',
@@ -10,6 +16,10 @@ export const AUDIT_ACTION_LABELS: Record<AccessAuditSummary['action'], string> =
   'user.disabled': 'access.audit.actions.userDisabled',
   'user.reactivated': 'access.audit.actions.userReactivated',
   'user.password_reset': 'access.audit.actions.userPasswordReset',
+  'user.mobile_set': 'access.audit.actions.userMobileSet',
+  'user.reset_link_requested': 'access.audit.actions.userResetLinkRequested',
+  'company.profile_changed': 'access.audit.actions.companyProfileChanged',
+  'company.branding_changed': 'access.audit.actions.companyBrandingChanged',
   'employee.archived_access_disabled': 'access.audit.actions.employeeArchived',
   'role.created': 'access.audit.actions.roleCreated',
   'role.updated': 'access.audit.actions.roleUpdated',

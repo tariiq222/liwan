@@ -51,6 +51,7 @@ async function reloadConfig() {
     <SharedPageHeader :title="t('ai.settings.title')" :description="t('ai.settings.description')">
       <template #actions>
         <UButton v-if="allowed" :to="{ path: '/ai', query: { mode: 'setup' } }" icon="i-lucide-wand-sparkles" :label="t('ai.setup.open')" data-testid="ai-setup-open" />
+        <UButton v-if="allowed" :to="{ path: '/ai', query: { mode: 'help' } }" color="neutral" variant="outline" icon="i-lucide-circle-help" :label="t('ai.help.open')" data-testid="ai-help-open" />
       </template>
     </SharedPageHeader>
     <SharedForbiddenState v-if="!allowed" :description="t('errors.forbidden')" />

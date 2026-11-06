@@ -34,6 +34,7 @@ LIST_QUERY = {'limit', 'offset'}
 def active_project(project_id):
     # Like the other governance registers, baselines stay out of reach of an archived project.
     project = get_visible_record('project.project', project_id)
+    project._liwan_check_tool('planning')
     if not project.active:
         raise MissingError(request.env._("Record does not exist"))
     return project
@@ -53,7 +54,7 @@ def _coverable_changes(project):
 
     A request that already covers a baseline is left out: the server answers 409 ``change_already_used`` for it.
     """
-    if not project._liwan_can_manage():
+    if not project._liwan_can_manage() or not project._liwan_tool_enabled('governance'):
         return []
     used = request.env['liwan.project.baseline'].search([('project_id', '=', project.id), ('change_id', '!=', False)]).change_id
     changes = request.env['liwan.project.change'].search([

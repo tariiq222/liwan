@@ -4,6 +4,7 @@ from odoo.exceptions import ValidationError
 from odoo.http import request
 
 from odoo.addons.liwan_ai.models.access_service import AI_USE
+from odoo.addons.liwan_ai.models.tool_registry import MODE_AGENTS
 from odoo.addons.liwan_ai.serializers.audit import dump_audit_receipt
 from odoo.addons.liwan_ai.serializers.tool import dump_agent, dump_tool
 from odoo.addons.liwan_ai.serializers.usage import dump_usage
@@ -39,10 +40,10 @@ class AiController(http.Controller):
     def list_tools(self, **_):
         request.env['liwan.access.service']._liwan_require_capability(AI_USE)
         mode = request.httprequest.args.get('mode')
-        if mode not in (None, 'setup'):
-            raise ApiError(422, 'invalid', 'mode must be setup or absent', field='mode')
+        if mode is not None and mode not in MODE_AGENTS:
+            raise ApiError(422, 'invalid', f"mode must be one of {', '.join(MODE_AGENTS)} or absent", field='mode')
         registry = request.env['liwan.ai.tool.registry']
-        tools = registry._liwan_ai_tools_for_user(setup=mode == 'setup')
+        tools = registry._liwan_ai_tools_for_user(mode=mode)
         items = [dump_tool(item) for item in tools]
         agents = [dump_agent(item) for item in registry._liwan_ai_agents_for_user(tools)]
         # tool_calls_per_run is enforced by the AI service/executor from this limits block, not by Odoo.

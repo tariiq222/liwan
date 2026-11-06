@@ -19,3 +19,8 @@ def dump_setting(item, value):
         'value': value,
         **allowed,
     }
+
+
+def dump_readiness_item(entry):
+    """One thing still missing: what it is, the page that fixes it, and how much it matters."""
+    return {'key': entry['key'], 'label': dict(entry['label']), 'page': entry['page'], 'severity': entry['severity']}

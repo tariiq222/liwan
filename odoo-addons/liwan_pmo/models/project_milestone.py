@@ -24,7 +24,37 @@ def _validate_deliverables(value, env=None):
 
 
 class ProjectMilestone(models.Model):
-    _inherit = 'project.milestone'
+    _name = 'project.milestone'
+    _inherit = ['project.milestone', 'liwan.project.child.visibility']
+    _liwan_tool_key = 'planning'
+
+    def _liwan_check_visible(self):
+        for milestone in self:
+            milestone.project_id._liwan_check_tool('planning')
+        return self
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if not self.env.su:
+                project = self.env['project.project'].browse(vals.get('project_id')).exists()
+                project._liwan_check_tool_write('planning')
+                project._liwan_check_manage()
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if not self.env.su:
+            self._liwan_check_manage()
+            if 'project_id' in vals:
+                project = self.env['project.project'].browse(vals['project_id']).exists()
+                project._liwan_check_tool_write('planning')
+                project._liwan_check_manage()
+        return super().write(vals)
+
+    def unlink(self):
+        if not self.env.su:
+            self._liwan_check_manage()
+        return super().unlink()
 
     liwan_start_date = fields.Date(copy=False, index=True)
     liwan_deliverables = fields.Json(default=lambda self: [], copy=True)
@@ -51,6 +81,8 @@ class ProjectMilestone(models.Model):
             start = fields.Date.to_date(milestone.liwan_start_date) if milestone.liwan_start_date else False
             deadline = fields.Date.to_date(milestone.deadline) if milestone.deadline else False
             project = milestone.project_id
+            if project and not project._liwan_tool_enabled('planning'):
+                continue
             if start and deadline and start > deadline:
                 raise ValidationError(self.env._("Milestone start date must be on or before its deadline."))
             if project:
@@ -86,6 +118,8 @@ class ProjectMilestone(models.Model):
     def _liwan_validate_task_bounds(self, task):
         """Validate one changed task without rescanning sibling task records."""
         self.ensure_one()
+        if not self.project_id._liwan_tool_enabled('planning'):
+            return task
         _validate_deliverables(self.liwan_deliverables, self.env)
         start = fields.Date.to_date(self.liwan_start_date) if self.liwan_start_date else False
         deadline = fields.Date.to_date(self.deadline) if self.deadline else False

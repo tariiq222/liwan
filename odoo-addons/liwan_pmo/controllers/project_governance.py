@@ -71,6 +71,7 @@ def _project(project_id):
     # and lets the pinned record rules decide the rest; no duplicate company
     # check here. Governance stays out of scope for archived projects.
     project = get_visible_record('project.project', project_id)
+    project._liwan_check_tool('governance')
     if not project.active:
         raise ApiError(404, 'not_found', 'project not found')
     return project

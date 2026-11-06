@@ -5,7 +5,7 @@ import { ProjectStatusSchema } from './project'
 const count = z.number().int().nonnegative()
 export const ProjectReportRowSchema = z.object({
   project: z.object({ id: z.number().int().positive(), name: z.string(), status: ProjectStatusSchema.nullable() }).strict(),
-  finance: FinanceSummarySchema,
+  finance: FinanceSummarySchema.nullable(),
   task_count: count.nullable(), closed_task_count: count.nullable(), overdue_task_count: count.nullable(), progress: z.number().finite().min(0).max(100).nullable(),
 }).strict()
 export const ProjectReportTotalsSchema = z.object({

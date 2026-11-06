@@ -4,16 +4,17 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import {
   AdminUserDetailSchema,
   AdminUserListSchema,
-  ChangeUserStateInputSchema,
   GrantAccountInputSchema,
-  ResetPasswordInputSchema,
+  InvitationLoginInputSchema,
+  SeatUsageSchema,
   UpdateUserAccessInputSchema,
+  VersionOnlyInputSchema,
   type AdminUserDetail,
   type AdminUserList,
-  type ChangeUserStateInput,
   type GrantAccountInput,
-  type ResetPasswordInput,
+  type InvitationLoginInput,
   type UpdateUserAccessInput,
+  type VersionOnlyInput,
 } from '@liwan/contracts'
 
 export type AdminUserListParams = {
@@ -32,6 +33,7 @@ export const adminUserKeys = {
   all: ['access', 'users'] as const,
   list: (params: AdminUserListParams) => ['access', 'users', 'list', params] as const,
   detail: (id: number) => ['access', 'user', id] as const,
+  seats: ['access', 'users', 'seats'] as const,
 }
 
 export function adminUserListQuery(params: AdminUserListParams = {}) {
@@ -64,6 +66,16 @@ export function useAdminUser(id: MaybeRefOrGetter<number | null>, enabled: Maybe
     queryKey: computed(() => adminUserKeys.detail(toValue(id) ?? 0)),
     enabled: computed(() => !!toValue(id) && toValue(enabled)),
     queryFn: () => $api(`/api/v1/admin/users/${toValue(id)}`, { schema: AdminUserDetailSchema }),
+  })
+}
+
+/** How many seats the subscription has used, and its limit (`null` without one). A pending invitation holds a seat. */
+export function useAdminUserSeats(enabled: MaybeRefOrGetter<boolean> = true) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: adminUserKeys.seats,
+    enabled: computed(() => toValue(enabled)),
+    queryFn: () => $api('/api/v1/admin/users/seats', { schema: SeatUsageSchema }),
   })
 }
 
@@ -192,25 +204,29 @@ export function useUpdateAdminUserAccess() {
   })
 }
 
-export function useResetAdminUserPassword() {
+/** A change that acts on one account at the version the administrator saw: it carries nothing else. */
+function useVersionedUserAction(action: string) {
   const { $api } = useApi()
-  return useSecureAdminUserMutation<{ id: number; body: ResetPasswordInput }>(({ id, body }) => {
-    const input = ResetPasswordInputSchema.parse(body)
-    return $api(`/api/v1/admin/users/${id}/password`, { method: 'POST', body: input, schema: AdminUserDetailSchema })
-  })
-}
-
-function useChangeAdminUserState(action: 'disable' | 'reactivate') {
-  const { $api } = useApi()
-  return useSecureAdminUserMutation<{ id: number; body: ChangeUserStateInput }>(({ id, body }) => {
-    const input = ChangeUserStateInputSchema.parse(body)
-    if (action === 'disable' && input.password !== undefined) throw new Error('disable_password_forbidden')
-    if (action === 'reactivate' && input.password === undefined) throw new Error('reactivate_password_required')
+  return useSecureAdminUserMutation<{ id: number; body: VersionOnlyInput }>(({ id, body }) => {
+    const input = VersionOnlyInputSchema.parse(body)
     return $api(`/api/v1/admin/users/${id}/${action}`, { method: 'POST', body: input, schema: AdminUserDetailSchema })
   })
 }
 
-export function useDisableAdminUser() { return useChangeAdminUserState('disable') }
-export function useReactivateAdminUser() { return useChangeAdminUserState('reactivate') }
+export function useDisableAdminUser() { return useVersionedUserAction('disable') }
+/** Reactivating emails the account holder a reset link; the administrator sets no password. */
+export function useReactivateAdminUser() { return useVersionedUserAction('reactivate') }
+export function useSendAdminUserResetLink() { return useVersionedUserAction('reset-link') }
+export function useResendAdminUserInvitation() { return useVersionedUserAction('invitation/resend') }
+export function useCancelAdminUserInvitation() { return useVersionedUserAction('invitation/cancel') }
+
+/** Correcting a wrong email: the old link stops working at once and a new invitation goes to the new address. */
+export function useChangeAdminUserInvitationLogin() {
+  const { $api } = useApi()
+  return useSecureAdminUserMutation<{ id: number; body: InvitationLoginInput }>(({ id, body }) => {
+    const input = InvitationLoginInputSchema.parse(body)
+    return $api(`/api/v1/admin/users/${id}/invitation`, { method: 'PATCH', body: input, schema: AdminUserDetailSchema })
+  })
+}
 
 export type { AdminUserDetail, AdminUserList }

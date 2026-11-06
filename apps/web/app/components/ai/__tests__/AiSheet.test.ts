@@ -21,6 +21,7 @@ const messages = {
   'ai.sheet.now.title': 'في هذه الصفحة الآن', 'ai.sheet.now.hide': 'إخفاء', 'ai.sheet.now.show': 'إظهار', 'ai.sheet.now.empty': 'لا شيء يحتاج انتباهك في هذه الصفحة.',
   'ai.sheet.conversation': 'المحادثة', 'ai.suggestionLabel': 'اقتراح', 'ai.glance.urgent': 'عاجل', 'ai.errors.unavailable': 'غير متاح',
   'ai.history.new': 'محادثة جديدة', 'ai.note': 'يقترح ويوضّح فقط، ولا يعتمد أو يرسل أي شيء عنك.', 'ai.prompt': 'كيف أساعدك؟',
+  'ai.help.askPage': 'اسأل عن هذه الصفحة', 'ai.help.open': 'اسأل عن استخدام ليوان',
   'ai.starters.label': 'أسئلة', 'ai.starters.overdue': 'ما المتأخر؟', 'ai.followUps.label': 'متابعة', 'ai.followUps.summary': 'لخّص',
 }
 
@@ -206,5 +207,16 @@ describe('AiSheet conversation', () => {
     expect(off.html).not.toContain('ai-sheet-now')
     const down = await render({ unavailable: true })
     expect(down.html).toContain('ai-sheet-unavailable')
+  })
+})
+
+describe('AiSheet help entry', () => {
+  it('offers "ask about this page" on a page the assistant knows, and the general help entry elsewhere', async () => {
+    const onPage = await render({ module: 'tasks' })
+    expect(onPage.html).toContain('data-testid="ai-sheet-help"')
+    expect(onPage.html).toContain('اسأل عن هذه الصفحة')
+    const home = await render({ module: null })
+    expect(home.html).toContain('اسأل عن استخدام ليوان')
+    expect(home.html).not.toContain('اسأل عن هذه الصفحة')
   })
 })

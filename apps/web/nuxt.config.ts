@@ -101,6 +101,9 @@ export default defineNuxtConfig({
     aiServiceUrl: process.env.NUXT_AI_SERVICE_URL ?? '',
     // Shared secret the AI service requires in X-Liwan-Service-Token (empty = none sent).
     aiServiceToken: process.env.NUXT_AI_SERVICE_TOKEN ?? '',
+    // Secret of the AI tokens that carry mobile numbers and emails past the provider (server/utils/ai/outbound.ts); never
+    // shared with the AI service. Empty in development: a random key lives as long as the server process.
+    aiTokenKey: process.env.NUXT_AI_TOKEN_KEY ?? '',
     public: {
       customerCommercialEnabled: false,
       // Filled at server start from the runtime `aiServiceUrl` (server/plugins/ai-enabled.ts), never from the build environment.
@@ -129,6 +132,9 @@ export default defineNuxtConfig({
     '/pay/**': { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } },
     // The booking page carries a booking's access token in its address: the same rule.
     '/book/**': { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } },
+    // The invitation and password-reset pages carry a one-time token in their address: the same rule.
+    '/join': { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } },
+    '/reset-password': { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } },
     // Keep future security/cache rules outside this proxy-only spread.
     ...(shared ? {} : {
     // The only stock routes left (ir.http guard in liwan_platform): session, assets and images.

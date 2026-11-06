@@ -1,13 +1,15 @@
 import type { H3Event } from 'h3'
 import { createError } from 'h3'
-import { AiToolsResponseSchema, type AiAgent, type AiPolicy, type AiTool } from '@liwan/contracts'
+import { AI_HELP_AGENT, AI_SETUP_AGENT, AiToolsResponseSchema, type AiAgent, type AiConversationMode, type AiPolicy, type AiTool } from '@liwan/contracts'
 import { tenantRequest } from '../tenantRequest'
 import { toolCallBudget } from './executor'
+import { aiTokenKey, type TokenKey } from './outbound'
 import { forwardUpstream, odooJson, type Owner } from './upstream'
 
 export type RunLimits = { max_steps: number; max_tool_calls: number; timeout_seconds: number }
-export type RunMode = 'assistant' | 'setup'
-export type RunSession = { mode: RunMode; owner: Owner; company: string; tools: AiTool[]; agents: AiAgent[]; byName: Map<string, AiTool>; blockedFields: ReadonlySet<string>; limits: RunLimits; policy: AiPolicy }
+/** `assistant` is the ordinary conversation; `setup` and `help` are the free agents' own conversations. */
+export type RunMode = 'assistant' | AiConversationMode
+export type RunSession = { mode: RunMode; owner: Owner; company: string; tools: AiTool[]; agents: AiAgent[]; byName: Map<string, AiTool>; blockedFields: ReadonlySet<string>; tokenKey: TokenKey; limits: RunLimits; policy: AiPolicy }
 
 const MAX_STEPS = 12
 const TIMEOUT_SECONDS = 120
@@ -38,6 +40,15 @@ export async function ownerFor(event: H3Event): Promise<Owner> {
   return (await callerFor(event)).owner
 }
 
+/**
+ * The mode a pending call's agent names: only a setup or help conversation runs its free agent. A platform tool
+ * (`ai.search_knowledge`) shares the `ai.` prefix but belongs to no agent, so the prefix cannot decide it.
+ */
+export function modeForAgent(agent: string): RunMode {
+  if (agent === AI_SETUP_AGENT) return 'setup'
+  return agent === AI_HELP_AGENT ? 'help' : 'assistant'
+}
+
 /** The mode a conversation of the caller started in (from its first message's audit row), or null for a new one. */
 export async function conversationMode(event: H3Event, runId: string): Promise<RunMode | null> {
   const answer = await odooJson(event, 'GET', `/api/v1/ai/conversations/${encodeURIComponent(runId)}/mode`)
@@ -48,8 +59,8 @@ export async function conversationMode(event: H3Event, runId: string): Promise<R
 /** The caller's identity, tool catalog, agents and AI policy for this request only. Any upstream denial is forwarded as is. */
 export async function runSession(event: H3Event, mode: RunMode = 'assistant'): Promise<RunSession> {
   const { owner, company } = await callerFor(event)
-  // A setup conversation gets the setup agent's catalog only; an ordinary one never gets it (Odoo decides both).
-  const tools = await odooJson(event, 'GET', '/api/v1/ai/tools', mode === 'setup' ? { query: { mode } } : undefined)
+  // A setup or help conversation gets that free agent's catalog only; an ordinary one never gets it (Odoo decides both).
+  const tools = await odooJson(event, 'GET', '/api/v1/ai/tools', mode === 'assistant' ? undefined : { query: { mode } })
   if (tools.status !== 200) forwardUpstream(tools)
   const parsed = AiToolsResponseSchema.parse(tools.body)
   return {
@@ -60,6 +71,7 @@ export async function runSession(event: H3Event, mode: RunMode = 'assistant'): P
     agents: parsed.agents,
     byName: new Map(parsed.items.map(tool => [tool.name, tool])),
     blockedFields: new Set(parsed.blocked_fields),
+    tokenKey: aiTokenKey(event, owner),
     limits: { max_steps: MAX_STEPS, max_tool_calls: toolCallBudget(parsed.limits.tool_calls_per_run), timeout_seconds: TIMEOUT_SECONDS },
     policy: parsed.limits.policy,
   }

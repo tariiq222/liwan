@@ -18,7 +18,7 @@ export const ProjectBaselineSchema = z.object({
   taken_at: z.string(),
   note: z.string(),
   change: z.object({ id: z.number().int().positive(), number: z.number().int().positive(), title: z.string() }).strict().nullable(),
-  budget_total: z.number(),
+  budget_total: z.number().nullable(),
   currency: CurrencyRefSchema.nullable(),
   planned_start: CalendarDateSchema.nullable(),
   planned_end: CalendarDateSchema.nullable(),
@@ -31,7 +31,7 @@ export const ProjectBaselineTaskSchema = z.object({
   name: z.string(),
   planned_start: CalendarDateSchema.nullable(),
   planned_end: CalendarDateSchema.nullable(),
-  planned_value_share: z.number().min(0).max(1),
+  planned_value_share: z.number().min(0).max(1).nullable(),
 }).strict()
 
 // `task_count` is the size of the snapshot; `hidden_count` the lines the caller may not read (no names are sent for them).

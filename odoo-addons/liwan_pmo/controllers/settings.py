@@ -10,6 +10,7 @@ from odoo.addons.liwan_api.controllers.common import (
 )
 
 ALLOWED = {
+    'planning_tool_policy', 'governance_tool_policy', 'finance_tool_policy',
     'project_creators',
     'default_stages',
     'require_manager_on_create',

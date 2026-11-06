@@ -8,14 +8,14 @@ from odoo.exceptions import AccessError, ValidationError
 
 from odoo.addons.liwan_ai.models.access_service import AI_USE
 from odoo.addons.liwan_ai.models.agent_registry import CORE_AGENT
-from odoo.addons.liwan_ai.models.tool_registry import TOOL_KINDS
+from odoo.addons.liwan_ai.models.tool_registry import ASSIST_KINDS, TOOL_KINDS
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
-# A user message of an ordinary conversation, or of a setup conversation (counted against the vendor's setup budget).
-MESSAGE_KINDS = ('message', 'setup')
+# A user message of an ordinary conversation, or of a setup or help conversation (counted against the vendor's assistance budget).
+MESSAGE_KINDS = ('message', *ASSIST_KINDS)
 AUDIT_KINDS = (*MESSAGE_KINDS, *TOOL_KINDS)
 MONTHLY_MESSAGES = 'ai.messages.monthly'
-SETUP_MONTHLY = 'ai.setup.monthly'
+ASSIST_MONTHLY = 'ai.assist.monthly'
 MONTHLY_TOKENS = 'ai.tokens.monthly'
 PER_USER_MESSAGES = 'ai.messages.per_user_monthly'
 AUDIT_RESULTS = ('ok', 'denied', 'failed', 'proposed', 'approved', 'rejected')
@@ -217,16 +217,17 @@ class LiwanAiAudit(models.Model):
         rows = [self._liwan_ai_prepare(values) for values in vals_list]
         messages = sum(row['kind'] == 'message' for row in rows)
         setup = sum(row['kind'] == 'setup' for row in rows)
+        assist = setup + sum(row['kind'] == 'help' for row in rows)
         self._liwan_ai_check_mode(rows)
-        if setup:
-            if not self.env['liwan.ai.setting.registry']._liwan_ai_manageable():
-                # The free setup agent serves those who may change a setting; it is no general chat for everyone.
-                raise AccessError(self.env._('You may not change any setting, so the setup assistant has nothing to do for you.'))
-            # The free setup agent runs outside the package's message and token limits, against the vendor's budget.
+        if setup and not self.env['liwan.ai.setting.registry']._liwan_ai_manageable():
+            # The free setup agent serves those who may change a setting; it is no general chat for everyone.
+            raise AccessError(self.env._('You may not change any setting, so the setup assistant has nothing to do for you.'))
+        if assist:
+            # The free agents run outside the package's message and token limits, against the vendor's one assistance budget.
             entitlement = self.env['liwan.entitlement.service']
-            if entitlement._liwan_limit_value(SETUP_MONTHLY) is not None:
+            if entitlement._liwan_limit_value(ASSIST_MONTHLY) is not None:
                 entitlement._liwan_profile()._liwan_bump_quota_revision()
-            entitlement.require_within_limit(SETUP_MONTHLY, self._liwan_ai_count_messages(kind='setup') + setup)
+            entitlement.require_within_limit(ASSIST_MONTHLY, self._liwan_ai_count_messages(kinds=ASSIST_KINDS) + assist)
         if messages:
             entitlement = self.env['liwan.entitlement.service']
             settings = self.env['liwan.ai.settings']._liwan_current()
@@ -259,23 +260,23 @@ class LiwanAiAudit(models.Model):
 
     @api.model
     def _liwan_ai_check_mode(self, rows):
-        """A conversation keeps the mode it started in: a setup conversation never takes an ordinary message, nor an
-        ordinary one a setup message, so neither budget can pay for the other's conversation."""
+        """A conversation keeps the mode it started in: a setup or help conversation never takes a message of another
+        mode, nor an ordinary one theirs, so no budget can pay for another mode's conversation."""
         for row in rows:
             if row['kind'] not in MESSAGE_KINDS:
                 continue
-            other = 'message' if row['kind'] == 'setup' else 'setup'
+            others = [kind for kind in MESSAGE_KINDS if kind != row['kind']]
             self.env.cr.execute(
-                'SELECT 1 FROM liwan_ai_audit WHERE conversation_id = %s AND kind = %s LIMIT 1', [row['conversation_id'], other],
+                'SELECT 1 FROM liwan_ai_audit WHERE conversation_id = %s AND kind = ANY(%s) LIMIT 1', [row['conversation_id'], others],
             )
             if self.env.cr.fetchone():
                 raise_invalid(self.env, 'kind', 'this conversation belongs to the other mode', code='mode_mismatch')
 
     @api.model
     def _liwan_ai_conversation_mode(self, conversation_id):
-        """``setup``, ``assistant`` or None for a conversation of the caller, from their own message rows."""
+        """``setup``, ``help``, ``assistant`` or None for a conversation of the caller, from their own message rows."""
         rows = self.search([('conversation_id', '=', conversation_id), ('user_id', '=', self.env.uid), ('kind', 'in', MESSAGE_KINDS)], limit=1)
-        return None if not rows else ('setup' if rows.kind == 'setup' else 'assistant')
+        return None if not rows else (rows.kind if rows.kind in ASSIST_KINDS else 'assistant')
 
     @api.model
     def _liwan_ai_month_start(self):
@@ -283,17 +284,17 @@ class LiwanAiAudit(models.Model):
         return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
 
     @api.model
-    def _liwan_ai_count_messages(self, user=None, kind='message'):
-        """Message rows (``kind`` ``message``, or ``setup`` for setup conversations) of the whole tenant since the start of
-        this UTC month.
+    def _liwan_ai_count_messages(self, user=None, kinds=('message',)):
+        """Message rows (``message``, or ``kinds`` such as the free agents' ``setup`` and ``help``) of the whole tenant
+        since the start of this UTC month.
 
         The monthly limit belongs to the one tenant profile, so the count spans every company and
         user. It is plain SQL on this table (no ORM read access to other users' rows). It feeds
         ``limits.messages_used`` and the limit check only, never ``_liwan_count_usage``: a rolling
         monthly flow must not block a plan change as stock usage would.
         """
-        query = 'SELECT count(*) FROM liwan_ai_audit WHERE kind = %s AND create_date >= %s'
-        params = [kind, self._liwan_ai_month_start()]
+        query = 'SELECT count(*) FROM liwan_ai_audit WHERE kind = ANY(%s) AND create_date >= %s'
+        params = [list(kinds), self._liwan_ai_month_start()]
         if user is not None:
             query += ' AND user_id = %s'
             params.append(user.id)

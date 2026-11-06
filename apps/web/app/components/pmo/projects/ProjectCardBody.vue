@@ -26,7 +26,7 @@ const taskLabel = computed(() => t('projects.progressOf', { closed: props.projec
   <div class="flex h-full min-w-0 flex-col gap-2">
     <div class="flex min-w-0 items-center gap-2">
       <SharedStatusBadge v-bind="statusPill" size="sm" data-testid="project-status" class="shrink-0" />
-      <span class="min-w-0 truncate text-xs text-muted" :title="`${t('projects.phase.title')}: ${t(PHASE_LABEL_KEY[project.phase])}`">{{ t(PHASE_LABEL_KEY[project.phase]) }}</span>
+      <span v-if="project.phase" class="min-w-0 truncate text-xs text-muted" :title="`${t('projects.phase.title')}: ${t(PHASE_LABEL_KEY[project.phase])}`">{{ t(PHASE_LABEL_KEY[project.phase]) }}</span>
       <SharedStatusBadge v-if="awaitingCharter" tone="info" size="sm" icon="i-lucide-file-clock" :label="t('projects.charter.state.submitted')" class="shrink-0" />
       <RecordNumber :value="project.id" class="ms-auto shrink-0" />
       <ProjectMenu v-if="project.can_manage" :project="project" class="-me-1 -my-1 shrink-0" @archive="archive.request(project)" />

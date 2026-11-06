@@ -22,7 +22,7 @@ test.describe('Plan 6d: the admin fixtures', () => {
     }, path)
     expect((await get('/api/v1/admin/users')).body.total).toBe(3)
     expect((await get('/api/v1/admin/users?q=sara')).body.items.map((user: { id: number }) => user.id)).toEqual([11])
-    expect((await get('/api/v1/admin/users/11')).body.allowed_actions).toContain('reset_password')
+    expect((await get('/api/v1/admin/users/11')).body.allowed_actions).toContain('send_reset_link')
     expect((await get('/api/v1/admin/users/999')).status).toBe(404)
     expect((await get('/api/v1/admin/roles/3')).body.allowed_actions).toContain('delete')
     expect((await get('/api/v1/admin/access-log?limit=25')).body.total).toBe(3)

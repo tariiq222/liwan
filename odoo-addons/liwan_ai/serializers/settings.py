@@ -5,6 +5,7 @@ from odoo.addons.liwan_ai.models.ai_settings import (
     MAX_MESSAGES_PER_USER,
     PROVIDER_MODES,
 )
+from odoo.addons.liwan_ai.models.tool_registry import ASSIST_KINDS
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.serializers.common import iso
 
@@ -44,6 +45,8 @@ def dump_settings(env):
             'month': audit._liwan_ai_month_start().strftime('%Y-%m'),
             'messages_used': audit._liwan_ai_count_messages(),
             'messages_limit': entitlement._liwan_limit_value('ai.messages.monthly'),
+            'assist_used': audit._liwan_ai_count_messages(kinds=ASSIST_KINDS),
+            'assist_limit': entitlement._liwan_limit_value('ai.assist.monthly'),
             'tokens_used': env['liwan.ai.usage']._liwan_platform_tokens_used(),
             'tokens_limit': entitlement._liwan_limit_value('ai.tokens.monthly'),
             'output_tokens_per_run': entitlement._liwan_limit_value('ai.output_tokens.per_run'),

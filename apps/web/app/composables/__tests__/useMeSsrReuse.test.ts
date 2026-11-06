@@ -113,6 +113,19 @@ describe('useMe with installed Nuxt SSR async-data behavior', () => {
     expect(passive.me.value.id).toBe(5)
   })
 
+  it.each([true, false])('passive identity observation does not fetch until explicit refresh (server=%s)', async server => {
+    let requests = 0
+    const app = runtime(server, () => { requests++; return identity() })
+    const api = subject(server)
+    const observer = api.inApp(app, () => api.useMe({ immediate: false }))
+    await observer.ready
+    expect(requests).toBe(0)
+    expect(observer.me.value).toBeNull()
+    await observer.refresh()
+    expect(requests).toBe(1)
+    expect(observer.me.value.id).toBe(5)
+  })
+
   it('reuses resolved identity for later SSR identity and access consumers', async () => {
     let requests = 0
     const app = runtime(true, () => { requests++; return identity() })

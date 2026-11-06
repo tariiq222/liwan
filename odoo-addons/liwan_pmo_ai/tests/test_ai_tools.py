@@ -63,3 +63,11 @@ class TestPmoAiTools(LiwanPmoCase):
             self.assertFalse({item['name'] for item in response.json()['items']} & set(PMO_TOOLS))
         else:
             self.assertEqual(response.status_code, 403)
+
+    def test_draft_uses_core_objectives_and_success_contract(self):
+        tool = self.env['liwan.ai.tool.registry']._liwan_ai_tool_map()['pmo.draft_project']
+        properties = tool['input_schema']['properties']
+        self.assertNotIn('charter', properties)
+        self.assertIn('success_criteria', properties)
+        self.assertEqual(properties['objectives']['items']['required'], ['goal'])
+        self.assertEqual(set(properties['objectives']['items']['properties']), {'goal', 'metric', 'target'})

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
+import { clearRenderedQueryCache } from './helpers/queryClient'
 
 // The product owner's acceptance gate for the navigation refactor. A passing
 // unit-test count proves none of this: every assertion here drives the running
@@ -55,16 +56,14 @@ test.describe('a list returns to where the reader left it', () => {
       await new Promise(resolve => setTimeout(resolve, 1500))
       await route.continue()
     })
-    const cleared = await page.evaluate(() => {
-      const client = (document.querySelector('#__nuxt') as any)?.__vue_app__?._context?.provides?.VUE_QUERY_CLIENT
-      if (!client) return false
-      client.clear()
-      return true
-    })
-    expect(cleared, 'the query cache must actually be emptied for this to be a cold test').toBe(true)
+    const cleared = await clearRenderedQueryCache(page)
+    expect(cleared.before, 'the rendered provider must own cached queries before clearing').toBeGreaterThan(0)
+    expect(cleared.after, 'the query cache must actually be emptied for this to be a cold test').toBe(0)
+    const listRequest = page.waitForRequest(request => new URL(request.url()).pathname === '/api/v1/tasks')
 
     await page.getByRole('link', { name: 'العودة إلى المهام' }).click()
     await page.waitForURL(/\/tasks(\?|$)/)
+    await listRequest
     // Proof the list really was empty when the router asked where to scroll.
     expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThan(LEAVE_AT)
     await expect.poll(() => page.evaluate(() => Math.round(window.scrollY)), { timeout: 15_000 }).toBe(LEAVE_AT)

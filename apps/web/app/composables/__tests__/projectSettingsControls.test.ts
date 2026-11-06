@@ -22,6 +22,7 @@ describe('project settings controls client contracts', () => {
     expect(ProjectCreateSchema.parse({ name: 'P', date_end: '2030-01-01' }).name).toBe('P')
     expect(projectSettingsKeys.createDefaults).toEqual(['project-settings', 'create-defaults'])
     expect(ProjectSettingsSchema.parse({
+      planning_tool_policy:'optional',governance_tool_policy:'optional',finance_tool_policy:'optional',
       project_creators: 'managers',
       default_stages: [{ name: 'A', fold: false }],
       require_manager_on_create: true,

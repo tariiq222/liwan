@@ -11,15 +11,18 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
-from odoo.addons.liwan_inbox.adapters import whatsapp
+from odoo.addons.liwan_inbox.adapters import errors
 from odoo.addons.liwan_inbox.controllers.helpers import (
-    get_channel,
     holds,
     no_content,
     not_found,
     reject,
 )
 from odoo.addons.liwan_inbox_payments.adapters import meta_catalog
+from odoo.addons.liwan_inbox_payments.controllers.helpers import (
+    require_whatsapp_catalog,
+    whatsapp_channel,
+)
 from odoo.addons.liwan_inbox_payments.controllers.parsing import (
     parse_catalog_create,
     parse_catalog_patch,
@@ -35,7 +38,7 @@ def get_catalog(catalog_id):
     catalog = request.env['liwan.inbox.catalog'].search([('id', '=', catalog_id)], limit=1)
     if not catalog or not holds(CATALOG_MANAGE, catalog.company_id):
         raise not_found()
-    return catalog
+    return require_whatsapp_catalog(catalog)
 
 
 def check_with_meta(credentials, meta_catalog_id, connect):
@@ -48,7 +51,7 @@ def check_with_meta(credentials, meta_catalog_id, connect):
             meta_catalog.connect_catalog(credentials, meta_catalog_id)
         elif meta_catalog_id not in meta_catalog.list_waba_catalogs(credentials):
             reject('the catalog is not connected to the WhatsApp account; connect it or switch on connect', 'meta_catalog_id')
-    except whatsapp.ProviderError as error:
+    except errors.ProviderError as error:
         provider_failure(error)
     return found['name']
 
@@ -73,7 +76,7 @@ class CatalogController(http.Controller):
     @requires_capability(CATALOG_MANAGE)
     def create_catalog(self, **payload):
         channel_id, meta_catalog_id, connect, values = parse_catalog_create(payload)
-        channel = get_channel(channel_id, CATALOG_MANAGE)
+        channel = whatsapp_channel(channel_id, CATALOG_MANAGE)
         if channel.owner_company_id != request.env.company:
             raise not_found()
         Catalog = request.env['liwan.inbox.catalog']

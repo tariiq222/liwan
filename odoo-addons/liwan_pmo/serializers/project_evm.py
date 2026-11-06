@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import fields
+from odoo.exceptions import AccessError
 
 from odoo.addons.liwan_api.serializers.common import iso
 from odoo.addons.liwan_pmo.models.project_evm_math import EvmLine, compute_evm
@@ -26,6 +27,10 @@ def build_evm(project, baseline, today=None):
     figures are null and ``hidden_count`` says how many lines are missing. The actual cost is the
     finance summary's, the same figure ``GET /projects/{id}/finance`` shows.
     """
+    project._liwan_check_tool('planning')
+    project._liwan_check_tool('finance')
+    if not project.env['liwan.entitlement.service']._liwan_feature_read('pmo.evm'):
+        raise AccessError(project.env._('Earned value is not available.'))
     method = project.env['liwan.pmo.settings'].evm_progress_method()
     currency = baseline.currency_id
     lines = [

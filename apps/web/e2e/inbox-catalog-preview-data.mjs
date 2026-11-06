@@ -60,7 +60,8 @@ const itemOut = (state, item) => {
 }
 const catalogOut = (state, catalog) => {
   const items = state.catalog.items.filter(item => item.catalog_id === catalog.id)
-  const channels = state.channels.map(({ id, name }) => {
+  // A catalog belongs to the WhatsApp channels: TikTok carries no catalog (D3).
+  const channels = state.channels.filter(channel => channel.kind === 'whatsapp').map(({ id, name }) => {
     const settings = state.catalog.commerce.get(id)
     return { id, name, cart_enabled: settings?.cart_enabled ?? null, catalog_visible: settings?.catalog_visible ?? null }
   })

@@ -20,14 +20,14 @@ const hydrated = useHydrated()
 const slots = useSlots()
 const route = useRoute()
 // A link to `#schedule` (the project timeline) opens the record on its schedule tab.
-const hashTab = () => (slots.schedule && route.hash === '#schedule' ? 'schedule' : 'subtasks')
+const hashTab = () => (props.task.planning_enabled && slots.schedule && route.hash === '#schedule' ? 'schedule' : 'subtasks')
 const workTab = ref(hashTab())
-watch(() => route.hash, () => { workTab.value = hashTab() })
+watch([() => route.hash, () => props.task.planning_enabled], () => { workTab.value = hashTab() })
 const workTabs = computed(() => [
   { label: t('tasks.drawer.subtasks'), value: 'subtasks', slot: 'subtasks', disabled: !hydrated.value },
-  { label: t('taskLifecycle.dependencies'), value: 'dependencies', slot: 'dependencies', disabled: !hydrated.value },
+  ...(props.task.planning_enabled ? [{ label: t('taskLifecycle.dependencies'), value: 'dependencies', slot: 'dependencies', disabled: !hydrated.value }] : []),
   { label: t('tasks.drawer.attachments'), value: 'attachments', slot: 'attachments', disabled: !hydrated.value },
-  ...(slots.schedule ? [{ label: t('projects.schedule.title'), value: 'schedule', slot: 'schedule', disabled: !hydrated.value }] : []),
+  ...(props.task.planning_enabled && slots.schedule ? [{ label: t('projects.schedule.title'), value: 'schedule', slot: 'schedule', disabled: !hydrated.value }] : []),
 ])
 const activityTabs = computed(() => [
   { label: t('tasks.detail.commentsTitle'), value: 'comments', slot: 'comments', disabled: !hydrated.value },
@@ -61,14 +61,14 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
       </template>
 
       <template #dependencies>
-        <DependencyPicker :task="task" />
+        <DependencyPicker v-if="task.planning_enabled" :task="task" />
       </template>
 
       <template #attachments>
         <TaskAttachments :key="task.id" :task-id="task.id" :can-write="task.can_write" />
       </template>
 
-      <template v-if="$slots.schedule" #schedule>
+      <template v-if="task.planning_enabled && $slots.schedule" #schedule>
         <slot name="schedule" :task="task" />
       </template>
     </UTabs>

@@ -148,6 +148,29 @@ describe('useAiRun', () => {
     expect(ai.error.value).toBeNull()
   })
 
+  it('takes the mode of a new conversation from its first message and of a reopened run from the server', async () => {
+    fetchMock.mockResolvedValueOnce(streamResponse(sse(['run', { run_id: 'r_1' }], ['done', { status: 'done' }])))
+    const ai = useAiRun()
+    await ai.send('كيف؟', null, 'help')
+    expect(ai.mode.value).toBe('help')
+    await ai.send('وبعد؟', null, 'setup')
+    expect(ai.mode.value).toBe('help')
+    ai.reset()
+    expect(ai.mode.value).toBeNull()
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { run_id: 'r_9', mode: 'setup', status: 'done', messages: [], pending: null }))
+    await ai.load('r_9')
+    expect(ai.mode.value).toBe('setup')
+  })
+
+  it('shows the shared assistance budget as the limit of a setup or help conversation', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(403, { data: { code: 'feature_not_included', details: { limit_key: 'ai.assist.monthly' } } }))
+    const ai = useAiRun()
+    await ai.send('كيف؟', { page: 'hr', id: null }, 'help')
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toMatchObject({ message: 'كيف؟', mode: 'help', context: { page: 'hr', id: null } })
+    expect(ai.limit.value).toBe('assist_monthly')
+    expect(ai.status.value).toBe('limit_reached')
+  })
+
   it('treats 503 ai_unavailable as the unavailable state', async () => {
     fetchMock.mockResolvedValue(jsonResponse(503, { data: { code: 'ai_unavailable' } }))
     const ai = useAiRun()
@@ -193,7 +216,7 @@ describe('useAiRun', () => {
 
   it('load() rebuilds messages and a pending card whose summary falls back to the tool name', async () => {
     fetchMock.mockResolvedValue(jsonResponse(200, {
-      run_id: 'r_9', status: 'waiting_user',
+      mode: 'assistant', run_id: 'r_9', status: 'waiting_user',
       messages: [{ role: 'user', content: 'أنشئ مشروعًا' }, { role: 'assistant', content: 'جهزت' }],
       pending: { call_id: 'c_7', tool: 'pmo.draft_project', kind: 'draft', agent: 'pmo', requires_approval: true, input: { name: 'بوابة' } },
     }))
@@ -207,7 +230,7 @@ describe('useAiRun', () => {
 
   it('decide() marks the card and posts the decision with data once', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(200, {
-      run_id: 'r_9', status: 'waiting_user', messages: [],
+      mode: 'assistant', run_id: 'r_9', status: 'waiting_user', messages: [],
       pending: { call_id: 'c_7', tool: 'pmo.draft_project', kind: 'draft', agent: 'pmo', requires_approval: true, input: { name: 'بوابة' } },
     }))
     const ai = useAiRun()
@@ -292,7 +315,7 @@ describe('useAiRun', () => {
 
   describe('decide() failures', () => {
     const pendingRun = jsonResponse(200, {
-      run_id: 'r_9', status: 'waiting_user', messages: [],
+      mode: 'assistant', run_id: 'r_9', status: 'waiting_user', messages: [],
       pending: { call_id: 'c_7', tool: 'pmo.draft_project', kind: 'draft', agent: 'pmo', requires_approval: true, input: { name: 'بوابة' } },
     })
 
@@ -330,7 +353,7 @@ describe('useAiRun', () => {
   })
 
   describe('load() of a run that is not simply waiting for the user', () => {
-    const run = (status: string, pending: unknown) => jsonResponse(200, { run_id: 'r_9', status, messages: [{ role: 'user', content: 'س' }], pending })
+    const run = (status: string, pending: unknown) => jsonResponse(200, { mode: 'assistant', run_id: 'r_9', status, messages: [{ role: 'user', content: 'س' }], pending })
     const read = { call_id: 'c_1', tool: 'pmo.list_my_tasks', kind: 'read', agent: 'pmo', requires_approval: false, input: {} }
     const write = { call_id: 'c_3', tool: 'pmo.update_task_state', kind: 'write_light', agent: 'pmo', requires_approval: true, input: { task_id: 7, state: 'done' } }
 
@@ -404,7 +427,7 @@ describe('useAiRun', () => {
 
   describe('failures after the server accepted the decision', () => {
     const pendingWrite = () => jsonResponse(200, {
-      run_id: 'r_9', status: 'waiting_user', messages: [],
+      mode: 'assistant', run_id: 'r_9', status: 'waiting_user', messages: [],
       pending: { call_id: 'c_3', tool: 'pmo.update_task_state', kind: 'write_light', agent: 'pmo', requires_approval: true, input: { task_id: 7 } },
     })
     it('keeps the card approved and shows the resume_failed message when the write ran but the resume failed', async () => {
@@ -439,8 +462,8 @@ describe('useAiRun', () => {
   })
 
   describe('a run another surface is streaming', () => {
-    const running = { run_id: 'r_1', status: 'running', messages: [{ role: 'user', content: 'سؤال' }], pending: null }
-    const settled = { run_id: 'r_1', status: 'done', messages: [{ role: 'user', content: 'سؤال' }, { role: 'assistant', content: 'جواب' }], pending: null }
+    const running = { mode: 'assistant', run_id: 'r_1', status: 'running', messages: [{ role: 'user', content: 'سؤال' }], pending: null }
+    const settled = { mode: 'assistant', run_id: 'r_1', status: 'done', messages: [{ role: 'user', content: 'سؤال' }, { role: 'assistant', content: 'جواب' }], pending: null }
     const loads = () => fetchMock.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method !== 'POST').length
 
     /** One surface is mid-answer on `r_1`; another surface opens the same run, as the page does from the shared id. */

@@ -9,8 +9,6 @@ import {
   HrLeaveCancellationDecisionSchema,
   HrLeaveCancellationRefusalSchema,
   HrLeaveTypeListSchema,
-  HrAccessGrantSchema,
-  HrAccessPatchSchema,
   HrAccessRoleSchema,
   HrDepartmentSchema,
   HrDepartmentCreateSchema,
@@ -26,7 +24,6 @@ import {
   HrEmployeeSchema,
   HrEmployeeListSchema,
   HrRefSchema,
-  HrWritableRoleSchema,
 } from '..'
 
 const DEPARTMENT = {
@@ -219,7 +216,6 @@ describe('Phase 3b HR input and compatibility schemas', () => {
   it('accepts the complete compatibility block and preserves the employee list envelope', () => {
     expect(HrRefSchema.parse({ id: 4, name: 'الهندسة' })).toEqual({ id: 4, name: 'الهندسة' })
     expect(HrAccessRoleSchema.parse('vendor')).toBe('vendor')
-    expect(HrWritableRoleSchema.parse('admin')).toBe('admin')
     expect(HrEmployeeAccessSchema.parse(EMPLOYEE.access)).toEqual(EMPLOYEE.access)
     expect(HrEmployeeSchema.parse(EMPLOYEE).access?.login).toBe('sara')
     expect(HrEmployeeListSchema.parse({ items: [EMPLOYEE], total: 1 }).items[0]?.work_phone).toBe('+9665')
@@ -229,8 +225,6 @@ describe('Phase 3b HR input and compatibility schemas', () => {
   it('rejects top-level employee arrays, extra keys, and vendor write roles', () => {
     expect(() => HrEmployeeListSchema.parse([EMPLOYEE])).toThrow()
     expect(() => HrEmployeeSchema.parse({ ...EMPLOYEE, extra: true })).toThrow()
-    expect(() => HrAccessGrantSchema.parse({ password: '12345678', role: 'vendor' })).toThrow()
-    expect(() => HrAccessPatchSchema.parse({})).toThrow()
   })
 
   it('keeps every HR list envelope server-counted and rejects invalid totals', () => {
@@ -250,19 +244,15 @@ describe('Phase 3b HR input and compatibility schemas', () => {
   it('accepts strict employee and department writes with nullable relations', () => {
     expect(HrEmployeeCreateSchema.parse({ name: '  Sara  ', department_id: null, parent_id: null }).name).toBe('Sara')
     expect(HrEmployeePatchSchema.parse({ department_id: null, parent_id: null })).toEqual({ department_id: null, parent_id: null })
-    expect(HrAccessGrantSchema.parse({ password: '12345678', role: 'employee' }).role).toBe('employee')
-    expect(HrAccessPatchSchema.parse({ password: '12345678' }).password).toBe('12345678')
     expect(HrDepartmentCreateSchema.parse({ name: '  Finance ', parent_id: null, manager_id: 9 }).name).toBe('Finance')
     expect(HrDepartmentCreateSchema.parse({ name: 'Finance', manager_id: null }).manager_id).toBeNull()
     expect(HrDepartmentPatchSchema.parse({ parent_id: null, manager_id: 9 })).toEqual({ parent_id: null, manager_id: 9 })
     expect(HrDepartmentPatchSchema.parse({ manager_id: null })).toEqual({ manager_id: null })
   })
 
-  it('rejects blank names, short effective passwords, and extra write keys', () => {
+  it('rejects blank names and extra write keys', () => {
     expect(() => HrEmployeeCreateSchema.parse({ name: '   ' })).toThrow()
     expect(() => HrDepartmentCreateSchema.parse({ name: '' })).toThrow()
-    expect(() => HrAccessGrantSchema.parse({ password: '  1234567  ', role: 'employee' })).toThrow()
-    expect(() => HrAccessPatchSchema.parse({ role: 'admin', extra: true })).toThrow()
     expect(() => HrEmployeePatchSchema.parse({ extra: true })).toThrow()
     expect(() => HrDepartmentCreateSchema.parse({ name: 'Finance', manager_id: 0 })).toThrow()
     expect(() => HrDepartmentPatchSchema.parse({ manager_id: '9' })).toThrow()

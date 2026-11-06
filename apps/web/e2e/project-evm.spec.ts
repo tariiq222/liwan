@@ -14,7 +14,7 @@ test.beforeEach(async ({ page }) => {
 
 test('the earned value tab shows the indices, the method note and the planned value curve', async ({ page }) => {
   await open(page, '/projects/2/evm')
-  await expect(page.getByTestId('governance-tab-evm')).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByTestId('finance-tab-evm')).toHaveAttribute('aria-current', 'page')
   await expect(page.getByTestId('evm-spi')).toHaveAttribute('data-band', 'danger')
   await expect(page.getByTestId('evm-cpi')).toHaveAttribute('data-band', 'danger')
   await expect(page.getByTestId('evm-spi')).toContainText('0.70')

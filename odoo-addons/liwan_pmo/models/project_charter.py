@@ -53,10 +53,11 @@ class ProjectProject(models.Model):
 
     def _liwan_charter_guard(self, vals):
         """Lock submitted charters; return approved ones a change must reopen."""
+        governed = self.filtered(lambda project: project._liwan_tool_enabled('governance'))
         names = set(vals) & CHARTER_CONTENT_FIELDS
         if not names:
             return self.browse()
-        changed = self.filtered(lambda project: project._liwan_charter_differs(vals, names))
+        changed = governed.filtered(lambda project: project._liwan_charter_differs(vals, names))
         if any(project.liwan_charter_state == 'submitted' for project in changed):
             raise LiwanCharterState(self.env._("The charter is waiting for approval; withdraw it to edit."))
         # Change control only retires the reopening of an approved charter where a change request covers the edit:
@@ -113,6 +114,7 @@ class ProjectProject(models.Model):
             raise LiwanCharterState(self.env._("The charter is not in the expected state."))
 
     def _liwan_charter_submit(self):
+        self._liwan_check_tool_write('governance')
         self.ensure_one()
         self._liwan_check_manage()
         self._liwan_check_charter_state('draft')
@@ -144,6 +146,7 @@ class ProjectProject(models.Model):
         return self
 
     def _liwan_charter_approve(self):
+        self._liwan_check_tool_write('governance')
         self.ensure_one()
         self._liwan_check_charter_reviewer()
         self._liwan_check_charter_state('submitted')
@@ -155,6 +158,7 @@ class ProjectProject(models.Model):
         return self
 
     def _liwan_charter_return(self, note):
+        self._liwan_check_tool_write('governance')
         self.ensure_one()
         self._liwan_check_charter_reviewer()
         self._liwan_check_charter_state('submitted')
@@ -165,6 +169,7 @@ class ProjectProject(models.Model):
         return self
 
     def _liwan_charter_withdraw(self):
+        self._liwan_check_tool_write('governance')
         self.ensure_one()
         self._liwan_check_manage()
         self._liwan_check_charter_state('submitted')

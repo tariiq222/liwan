@@ -345,6 +345,16 @@
       "handler": "delete_channel",
       "no_capability_reason": null
     },
+    "DELETE /api/v1/inbox/channels/{channel_id}/tiktok/shortcuts/{shortcut_id}": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "delete_shortcut",
+      "no_capability_reason": null
+    },
     "DELETE /api/v1/inbox/departments/{department_id}": {
       "addon": "liwan_inbox",
       "auth": "user",
@@ -713,6 +723,18 @@
       "handler": "users",
       "no_capability_reason": null
     },
+    "GET /api/v1/admin/users/seats": {
+      "addon": "liwan_api",
+      "auth": "user",
+      "capability_keys": [
+        "access.users.grant"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "seats",
+      "no_capability_reason": null
+    },
     "GET /api/v1/admin/users/{user_id}": {
       "addon": "liwan_api",
       "auth": "user",
@@ -758,6 +780,16 @@
       "handler": "conversation_mode",
       "no_capability_reason": null
     },
+    "GET /api/v1/ai/help": {
+      "addon": "liwan_ai",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "search_help",
+      "no_capability_reason": null
+    },
     "GET /api/v1/ai/monitoring": {
       "addon": "liwan_ai",
       "auth": "user",
@@ -776,6 +808,16 @@
       "capability_source": "decorator",
       "feature_keys": [],
       "handler": "read_settings",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/ai/setup/readiness": {
+      "addon": "liwan_ai",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "readiness",
       "no_capability_reason": null
     },
     "GET /api/v1/ai/setup/settings": {
@@ -3776,6 +3818,26 @@
       "handler": "list_templates",
       "no_capability_reason": null
     },
+    "GET /api/v1/inbox/channels/{channel_id}/tiktok/shortcuts": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "list_shortcuts",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/channels/{channel_id}/tiktok/sync": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "latest_sync",
+      "no_capability_reason": null
+    },
     "GET /api/v1/inbox/contacts/{contact_id}": {
       "addon": "liwan_inbox",
       "auth": "user",
@@ -4108,6 +4170,16 @@
         "inbox.enabled"
       ],
       "handler": "read_template",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/tiktok/callback": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "callback",
       "no_capability_reason": null
     },
     "GET /api/v1/inbox/working-hours": {
@@ -5359,6 +5431,18 @@
       "handler": "update_user_branches",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/admin/users/{user_id}/invitation": {
+      "addon": "liwan_api",
+      "auth": "user",
+      "capability_keys": [
+        "access.users.grant"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "edit_invitation",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/ai/agents/{key}": {
       "addon": "liwan_ai",
       "auth": "user",
@@ -6384,6 +6468,16 @@
       "handler": "patch_sending",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/inbox/channels/{channel_id}/tiktok/shortcuts/{shortcut_id}": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "patch_shortcut",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/inbox/contacts/{contact_id}": {
       "addon": "liwan_inbox",
       "auth": "user",
@@ -6500,6 +6594,16 @@
       "capability_source": "none",
       "feature_keys": [],
       "handler": "patch_appearance",
+      "no_capability_reason": "Finishes the login of the caller's own pre-authenticated session (auth/totp) or acts only on the caller's own account or profile (/me); no capability applies."
+    },
+    "PATCH /api/v1/me/mobile": {
+      "addon": "liwan_api",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": null,
+      "capability_source": "none",
+      "feature_keys": [],
+      "handler": "patch_mobile",
       "no_capability_reason": "Finishes the login of the caller's own pre-authenticated session (auth/totp) or acts only on the caller's own account or profile (/me); no capability applies."
     },
     "PATCH /api/v1/meeting-series/{series_id}": {
@@ -6924,16 +7028,28 @@
       "handler": "disable",
       "no_capability_reason": null
     },
-    "POST /api/v1/admin/users/{user_id}/password": {
+    "POST /api/v1/admin/users/{user_id}/invitation/cancel": {
       "addon": "liwan_api",
       "auth": "user",
       "capability_keys": [
-        "access.users.reset_password"
+        "access.users.grant"
       ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [],
-      "handler": "reset_password",
+      "handler": "cancel_invitation",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/admin/users/{user_id}/invitation/resend": {
+      "addon": "liwan_api",
+      "auth": "user",
+      "capability_keys": [
+        "access.users.grant"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "resend_invitation",
       "no_capability_reason": null
     },
     "POST /api/v1/admin/users/{user_id}/reactivate": {
@@ -6946,6 +7062,18 @@
       "capability_source": "body",
       "feature_keys": [],
       "handler": "reactivate",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/admin/users/{user_id}/reset-link": {
+      "addon": "liwan_api",
+      "auth": "user",
+      "capability_keys": [
+        "access.users.reset_password"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "send_reset_link",
       "no_capability_reason": null
     },
     "POST /api/v1/ai/audit": {
@@ -9685,6 +9813,16 @@
       "handler": "create_channel",
       "no_capability_reason": null
     },
+    "POST /api/v1/inbox/channels/tiktok/connect": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "connect",
+      "no_capability_reason": null
+    },
     "POST /api/v1/inbox/channels/{channel_id}/analytics/sync": {
       "addon": "liwan_inbox",
       "auth": "user",
@@ -9815,6 +9953,36 @@
         "inbox.enabled"
       ],
       "handler": "test_channel",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/channels/{channel_id}/tiktok/shortcuts": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "create_shortcut",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/channels/{channel_id}/tiktok/shortcuts/enable": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "enable_shortcuts",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/channels/{channel_id}/tiktok/sync": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "start_sync",
       "no_capability_reason": null
     },
     "POST /api/v1/inbox/channels/{channel_id}/two-step-pin": {
@@ -9972,6 +10140,16 @@
       ],
       "handler": "publish_flow",
       "no_capability_reason": null
+    },
+    "POST /api/v1/inbox/hooks/tiktok": {
+      "addon": "liwan_inbox",
+      "auth": "inbox_hook",
+      "capability_keys": [],
+      "capability_match": null,
+      "capability_source": "none",
+      "feature_keys": [],
+      "handler": "receive",
+      "no_capability_reason": "TikTok webhook (machine to machine): TikTok signs every POST with HMAC-SHA256 over the timestamp and raw body using the app secret; the route runs as the inactive inbox hook identity that may only read channels and create raw events."
     },
     "POST /api/v1/inbox/hooks/whatsapp": {
       "addon": "liwan_inbox",
@@ -10824,6 +11002,46 @@
       ],
       "handler": "create_update",
       "no_capability_reason": null
+    },
+    "POST /api/v1/public/account/invitation/accept": {
+      "addon": "liwan_api",
+      "auth": "public",
+      "capability_keys": [],
+      "capability_match": null,
+      "capability_source": "none",
+      "feature_keys": [],
+      "handler": "accept_invitation",
+      "no_capability_reason": "Anonymous holder of one emailed account link (invitation or password reset) under /api/v1/public/ (auth='public', save_session=False, no session): the single-use hashed token, checked in constant time by liwan.access.service, is the authorization, and forgot-password answers 202 for any email; no capability applies."
+    },
+    "POST /api/v1/public/account/password/forgot": {
+      "addon": "liwan_api",
+      "auth": "public",
+      "capability_keys": [],
+      "capability_match": null,
+      "capability_source": "none",
+      "feature_keys": [],
+      "handler": "forgot_password",
+      "no_capability_reason": "Anonymous holder of one emailed account link (invitation or password reset) under /api/v1/public/ (auth='public', save_session=False, no session): the single-use hashed token, checked in constant time by liwan.access.service, is the authorization, and forgot-password answers 202 for any email; no capability applies."
+    },
+    "POST /api/v1/public/account/password/reset": {
+      "addon": "liwan_api",
+      "auth": "public",
+      "capability_keys": [],
+      "capability_match": null,
+      "capability_source": "none",
+      "feature_keys": [],
+      "handler": "reset_password",
+      "no_capability_reason": "Anonymous holder of one emailed account link (invitation or password reset) under /api/v1/public/ (auth='public', save_session=False, no session): the single-use hashed token, checked in constant time by liwan.access.service, is the authorization, and forgot-password answers 202 for any email; no capability applies."
+    },
+    "POST /api/v1/public/account/token": {
+      "addon": "liwan_api",
+      "auth": "public",
+      "capability_keys": [],
+      "capability_match": null,
+      "capability_source": "none",
+      "feature_keys": [],
+      "handler": "check_token",
+      "no_capability_reason": "Anonymous holder of one emailed account link (invitation or password reset) under /api/v1/public/ (auth='public', save_session=False, no session): the single-use hashed token, checked in constant time by liwan.access.service, is the authorization, and forgot-password answers 202 for any email; no capability applies."
     },
     "POST /api/v1/public/appointments/bookings/{booking_id}/cancel": {
       "addon": "liwan_appointments",

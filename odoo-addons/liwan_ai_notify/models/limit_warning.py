@@ -8,6 +8,7 @@ from odoo import api, fields, models
 from odoo.tools import html2plaintext
 
 from odoo.addons.liwan_ai.models.access_service import AI_SETTINGS_MANAGE
+from odoo.addons.liwan_ai.models.tool_registry import ASSIST_KINDS
 from odoo.addons.liwan_api.serializers.common import iso
 
 KIND = 'ai.limit_warning'
@@ -16,6 +17,7 @@ WARNING_RATIO = 0.8
 BODIES = {
     'messages': 'وصل استخدام رسائل الذكاء الاصطناعي هذا الشهر إلى 80% من الحد.',
     'tokens': 'وصل استخدام وحدات (tokens) الذكاء الاصطناعي هذا الشهر إلى 80% من الحد.',
+    'assist': 'وصل استخدام مساعدَي الإعداد والمساعدة هذا الشهر إلى 80% من الحد.',
 }
 
 
@@ -69,11 +71,13 @@ class LiwanAiLimitAudit(models.Model):
         rows = super().create(vals_list)
         if any(row.kind == 'message' for row in rows):
             self._liwan_warn_near_limits(('messages',))
+        if any(row.kind in ASSIST_KINDS for row in rows):
+            self._liwan_warn_near_limits(('assist',))
         return rows
 
     @api.model
     def _liwan_warn_near_limits(self, names):
-        """Warn for each of ``names`` (``messages``, ``tokens``) whose monthly use reached 80% of its limit.
+        """Warn for each of ``names`` (``messages``, ``tokens``, ``assist`` for the free agents' budget) whose monthly use reached 80% of its limit.
 
         Messages are judged when a message is counted, tokens when platform usage is recorded: the run that crosses the
         token threshold has already been let through, and the next message would be refused before it is counted.
@@ -82,6 +86,7 @@ class LiwanAiLimitAudit(models.Model):
         checks = {
             'messages': (self._liwan_ai_count_messages, 'ai.messages.monthly'),
             'tokens': (self.env['liwan.ai.usage']._liwan_platform_tokens_used, 'ai.tokens.monthly'),
+            'assist': (lambda: self._liwan_ai_count_messages(kinds=ASSIST_KINDS), 'ai.assist.monthly'),
         }
         reached = []
         for name in names:

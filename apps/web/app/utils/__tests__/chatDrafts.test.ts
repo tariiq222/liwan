@@ -48,7 +48,7 @@ describe('chatDrafts', () => {
     expect(() => createChatDrafts(() => { throw new Error('blocked') }).clear()).not.toThrow()
   })
   it('is cleared at logout and when the session expires', () => {
-    for (const file of ['../../pages/account/settings.vue', '../../plugins/vue-query.ts']) {
+    for (const file of ['../../composables/useSignOut.ts', '../../plugins/vue-query.ts']) {
       expect(readFileSync(new URL(file, import.meta.url), 'utf8'), file).toContain('clearChatDrafts()')
     }
   })

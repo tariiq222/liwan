@@ -38,11 +38,12 @@ const guard = Vue.defineComponent({ props: ['dirty'], setup: props => () => Vue.
 const stubs = {
   ...DEFAULT_STUBS,
   SharedUnsavedChanges: guard,
-  ...Object.fromEntries(['UFormField', 'URadioGroup', 'USwitch', 'UInputNumber', 'SharedRecordSection', 'StageListEditor', 'ChangeCategoriesPanel'].map(name => [name, passthrough])),
+  ...Object.fromEntries(['UFormField', 'USelect', 'URadioGroup', 'USwitch', 'UInputNumber', 'SharedRecordSection', 'StageListEditor', 'ChangeCategoriesPanel'].map(name => [name, passthrough])),
   SharedSettingsCard: card,
 }
 
 const settings = (extensions: unknown[] = []) => ({
+  planning_tool_policy:'optional',governance_tool_policy:'optional',finance_tool_policy:'optional',
   project_creators: 'managers', default_stages: [{ name: 'A', fold: false }], require_manager_on_create: true,
   require_end_date_on_create: true, default_completion_approval: 'none', deadline_reminders_enabled: true,
   deadline_reminders_days_before: 1, overdue_digest_enabled: true, require_charter_approval: false, close_with_open_tasks: 'block', register_status_transitions: 'sequence', change_control_mode: 'optional', baseline_gate: 'warning', evm_progress_method: 'binary', extensions,
@@ -163,6 +164,17 @@ describe('ProjectSettingsForm production template', () => {
     expect(h.find(el => el.props.error === 'settings.projects.reminders.daysInvalid')).toBeUndefined()
     h.save('project-reminders'); await settle()
     expect(h.updateSettings).toHaveBeenCalledWith({ deadline_reminders_days_before: 5 })
+    h.app.unmount()
+  })
+
+  it('rejects required governance gates until the policy is enabled in the same save', async () => {
+    const h = mount()
+    h.byId('settings-require-charter-approval').props['onUpdate:modelValue'](true)
+    await Vue.nextTick(); h.save('project-approval'); await settle()
+    expect(h.updateSettings).not.toHaveBeenCalled()
+    h.find(el => el.props['data-testid'] === 'settings-project-tool-governance')!.props['onUpdate:modelValue']('enabled')
+    await Vue.nextTick(); h.save('project-approval'); await settle()
+    expect(h.updateSettings).toHaveBeenCalledExactlyOnceWith({require_charter_approval:true,governance_tool_policy:'enabled'})
     h.app.unmount()
   })
 

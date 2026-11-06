@@ -70,6 +70,7 @@ class LiwanProjectChangeCategory(models.Model):
 class LiwanProjectChange(models.Model):
     _name = 'liwan.project.change'
     _inherit = 'liwan.governance.visibility'
+    _liwan_required_features = ('pmo.change_control',)
     _description = 'Project change request'
     _liwan_scope = 'company'
     _order = 'number desc, id desc'

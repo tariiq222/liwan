@@ -28,7 +28,7 @@ const backTo = '/settings/apps/inbox#channels'
     @retry="hydrated && channelQuery.refetch()"
   >
     <template v-if="channel && id">
-      <InboxChannelTabs :channel-id="id" />
+      <InboxChannelTabs :channel-id="id" :kind="channel.kind" />
       <SharedLoadingSkeleton v-if="!hydrated || profile.isPending.value" />
       <SharedErrorState v-else-if="profile.error.value" :error="profile.error.value" :title="profile.error.value instanceof Error && profile.error.value.message ? profile.error.value.message : t('inbox.profile.loadError')" data-testid="inbox-profile-error" @retry="profile.refetch()" />
       <InboxBusinessProfileForm v-else-if="profile.data.value" :channel-id="id" :channel-name="channel.name" :app-id="channel.app_id" :profile="profile.data.value" />

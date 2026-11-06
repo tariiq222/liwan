@@ -2,7 +2,7 @@
 {
     'name': 'liwan Access and HR',
     'summary': 'Link user accounts to HR employees: grant from an employee, department filter, archive disables the account',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.0.1',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

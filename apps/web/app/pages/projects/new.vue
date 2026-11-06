@@ -4,10 +4,9 @@ import { useApi } from '@/composables/useApi'
 import { aiApprovalAudit, clearAiDraft, readAiDraft, withCreatedProject, withoutCreated } from '@/utils/aiDraft'
 import { owningListBack, recordEntryOrigin } from '@/utils/recordListOrigin'
 import { useProjectList } from '@/composables/useProjects'
-import { createdProjectLocation, draftedProjectLocation } from '@/utils/projectCharter'
+import { createdProjectLocation } from '@/utils/projectCharter'
 import { parsePositiveId } from '@/utils/routeParams'
 import { errorStateKind } from '@liwan/ui/app/utils/errorState'
-import type { CharterWizardStep } from '@/utils/charterSteps'
 
 const route = useRoute()
 const router = useRouter()
@@ -61,13 +60,6 @@ function onCopied(id: number) {
   router.replace({ path: `/projects/${id}`, query: { returnTo: returnTo.value } })
 }
 
-// The project now exists; the walker continues on its charter page at the
-// same step, so a draft saved half-way is picked up where it was left.
-function onDrafted(id: number, step: CharterWizardStep, reason?: string) {
-  if (aiDraftId.value) clearAiDraft(aiDraftId.value)
-  toast.add({ title: t('projects.create.drafted'), description: reason, color: reason ? 'warning' : 'success' })
-  router.replace(draftedProjectLocation(id, step, returnTo.value))
-}
 </script>
 
 <template>
@@ -81,7 +73,7 @@ function onDrafted(id: number, step: CharterWizardStep, reason?: string) {
       <template #emptyAction>
         <UButton to="/projects" color="neutral" variant="outline">{{ t('projects.backToProjects') }}</UButton>
       </template>
-      <ProjectCreateForm @created="onCreated" @copied="onCopied" @drafted="onDrafted" @cancel="onCancel" />
+      <ProjectCreateForm @created="onCreated" @copied="onCopied" @cancel="onCancel" />
     </SharedPageState>
     <p v-if="!hydrated" class="sr-only">{{ t('app.loading') }}</p>
   </SharedCreatePanel>

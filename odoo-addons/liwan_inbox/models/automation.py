@@ -16,7 +16,7 @@ from .constants import (
     AUTOMATION_FEATURE,
     CSAT_SCORES,
     MAX_AUTOMATED_PER_HOUR,
-    REPLY_WINDOW,
+    REPLY_WINDOWS,
 )
 from .rule import TEXT_KINDS
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
@@ -72,7 +72,7 @@ class LiwanInboxAutomation(models.AbstractModel):
         message.automation_done = True
         if not self.env['liwan.entitlement.service']._liwan_feature_write(AUTOMATION_FEATURE):
             return
-        if fields.Datetime.now() - message.date > REPLY_WINDOW:
+        if fields.Datetime.now() - message.date > REPLY_WINDOWS[conversation.channel_id.kind]:
             return  # an old message (a late delivery) is never answered
         settings = self.env['liwan.inbox.settings']._get_for_company(conversation.company_id)
         inside = settings._liwan_is_open(message.date, conversation.department_id)
@@ -101,6 +101,8 @@ class LiwanInboxAutomation(models.AbstractModel):
     @api.model
     def _liwan_greeting(self, channel, inside, away_due, welcome_due):
         """'away', 'welcome' or None: the automatic message the channel sends before the rules (away suppresses welcome)."""
+        if channel.kind == 'tiktok':
+            welcome_due = False  # TikTok sends its own WELCOME_MESSAGE there (D10)
         if not inside and channel.away_enabled and channel._liwan_auto_message('away'):
             return 'away' if away_due else None
         if channel.welcome_enabled and channel._liwan_auto_message('welcome') and welcome_due:

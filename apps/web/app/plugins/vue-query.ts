@@ -102,7 +102,13 @@ export default defineNuxtPlugin({
       dropToastsWhileSuspended(useToast().toasts)
       // Signing in again starts a session the old suspension no longer describes. Only a signed-out to
       // signed-in change clears it: a late success of a request sent before the suspension does not.
-      watch(identity.ownershipIdentity, (me, before) => { if (me && before === null) clearTenantSuspension() })
+      let lastResolvedOwner = identity.ownershipIdentity.value === undefined ? undefined : sessionIdentityKey(identity.ownershipIdentity.value)
+      watch(identity.ownershipIdentity, me => {
+        if (me === undefined) return
+        const before = lastResolvedOwner
+        lastResolvedOwner = sessionIdentityKey(me)
+        if (me && (before === undefined || before === 'anonymous')) clearTenantSuspension()
+      }, { flush: 'sync' })
       watch(
         () => ({
           identity: identity.ownershipIdentity.value === undefined ? undefined : sessionIdentityKey(identity.ownershipIdentity.value),

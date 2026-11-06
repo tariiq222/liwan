@@ -1,7 +1,7 @@
 import { MeSchema } from '@liwan/contracts'
 import { createError } from 'h3'
 import { describe, expect, it } from 'vitest'
-import { isLoggedOutError, isSchemaError, isTenantSuspendedError } from '../useMe'
+import { isLoggedOutError, isSchemaError, isTenantSuspendedError, MOBILE_STEP_PATH, mobileStepRedirect, normalizeMobileInput } from '../useMe'
 
 // A real ZodError, produced the same way `transform` in useMe.ts produces one:
 // parsing a `/api/v1/me` payload that fails schema validation (lang: null).
@@ -71,5 +71,61 @@ describe('isSchemaError', () => {
   it('does not flag null/undefined', () => {
     expect(isSchemaError(null)).toBe(false)
     expect(isSchemaError(undefined)).toBe(false)
+  })
+})
+
+describe('mobileStepRedirect', () => {
+  const needs = { mobile_required: true }
+  const route = (path: string, fullPath = path, access?: string) => ({ path, fullPath, meta: access ? { access } : {} })
+
+  it('sends a user who needs a number to the mobile step and remembers where they were going', () => {
+    expect(mobileStepRedirect(needs, route('/projects', '/projects?status=active'))).toEqual({ path: MOBILE_STEP_PATH, query: { next: '/projects?status=active' } })
+  })
+
+  it('sends the home page there without a return path', () => {
+    expect(mobileStepRedirect(needs, route('/'))).toEqual({ path: MOBILE_STEP_PATH })
+  })
+
+  it('leaves the step itself, public pages, a signed-out visitor and a user with a number alone', () => {
+    expect(mobileStepRedirect(needs, route(MOBILE_STEP_PATH))).toBeNull()
+    expect(mobileStepRedirect(needs, route('/join', '/join?token=x', 'public'))).toBeNull()
+    expect(mobileStepRedirect(null, route('/projects'))).toBeNull()
+    expect(mobileStepRedirect({ mobile_required: false }, route('/projects'))).toBeNull()
+  })
+})
+
+describe('normalizeMobileInput', () => {
+  it('adds the default country to a local Saudi number', () => {
+    expect(normalizeMobileInput('0500000001')).toBe('+966500000001')
+    expect(normalizeMobileInput('500000001')).toBe('+966500000001')
+    expect(normalizeMobileInput('05 0000-0001')).toBe('+966500000001')
+  })
+
+  it('keeps an international number, whichever way it was typed', () => {
+    expect(normalizeMobileInput('+966 50 000 0001')).toBe('+966500000001')
+    expect(normalizeMobileInput('00966500000001')).toBe('+966500000001')
+    expect(normalizeMobileInput('966500000001')).toBe('+966500000001')
+    expect(normalizeMobileInput('+201001234567')).toBe('+201001234567')
+  })
+
+  it('reads Arabic-Indic and Persian digits as ASCII digits', () => {
+    expect(normalizeMobileInput('٠٥٠٠٠٠٠٠٠١')).toBe('+966500000001')
+    expect(normalizeMobileInput('۰۵۰۰۰۰۰۰۰۱')).toBe('+966500000001')
+    expect(normalizeMobileInput('+٩٦٦ ٥٠ ٠٠٠ ٠٠٠١')).toBe('+966500000001')
+    expect(normalizeMobileInput('۹۶۶۵۰۰۰۰۰۰۰۱')).toBe('+966500000001')
+  })
+
+  it('drops the trunk 0 typed after the country code', () => {
+    expect(normalizeMobileInput('+966 05 0000 0001')).toBe('+966500000001')
+    expect(normalizeMobileInput('00966 0500000001')).toBe('+966500000001')
+    expect(normalizeMobileInput('966 0500000001')).toBe('+966500000001')
+    expect(normalizeMobileInput('+٩٦٦ ٠٥٠٠٠٠٠٠٠١')).toBe('+966500000001')
+    expect(normalizeMobileInput('+201001234567')).toBe('+201001234567')
+  })
+
+  it('returns anything else cleaned but unchanged, for the contract to refuse', () => {
+    expect(normalizeMobileInput('')).toBe('')
+    expect(normalizeMobileInput('abc')).toBe('abc')
+    expect(normalizeMobileInput('12345')).toBe('12345')
   })
 })

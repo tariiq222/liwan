@@ -35,7 +35,12 @@ limits describe implementation stages, not permanent product exclusions.
   (`liwan.ai.tool.registry` and `liwan.ai.agent.registry`, composed through `super()` by each application), the
   administrator's agent and tool settings that only narrow the catalog, the setting registry
   (`liwan.ai.setting.registry`: the fields of each application's settings model the free setup agent may propose and,
-  after approval, change; declared in the application's AI bridge), the
+  after approval, change; declared in the application's AI bridge), the free help agent (key `ai_help`, tool
+  `ai_help.search_guide` over `GET /api/v1/ai/help`: it answers how-to questions from the user guide shipped in
+  `data/help/<lang>/<app>.md`, a draft until the owner reviews it, and reads no tenant record), the readiness check of the
+  setup agent (`liwan.ai.readiness`: users without a role, unsaved settings, and the applications' main records declared by their
+  AI bridges through `_liwan_ai_record_checks`), the single `ai.assist.monthly` budget the setup and help conversations
+  share (they never count against the package's messages), the
   per-user audit log `liwan.ai.audit`, the `ai.*` features and limits, the `ai.use` capability (granted to the employee role; its ACL and own-rows rule follow that capability group, and the monthly message limit counts tenant-wide), and the two
   routes `GET /api/v1/ai/tools` and `POST /api/v1/ai/audit`. It knows no application and
   holds no language-model code. Each application's agent and tools are declared by its bridge

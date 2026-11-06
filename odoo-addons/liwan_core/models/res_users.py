@@ -1,11 +1,17 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import re
+
 from odoo import api, fields, models
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, ValidationError
 
 from .res_partner import PARTNER_GRANT_MARKER
 
 USER_CREATE_MARKER = 'liwan_core.access_user_create_depth'
 USER_WRITE_MARKER = 'liwan_core.access_user_write'
+# Credential fields whose stock security alert the protected account operations replace with the audit log.
+SECURITY_NOTIFIED_FIELDS = frozenset({'password', 'login', 'email'})
+# E.164: a plus sign, a country code that does not start with 0, 8 to 15 digits in all.
+MOBILE_PATTERN = re.compile(r'\+[1-9][0-9]{7,14}')
 
 
 class LiwanResUsers(models.Model):
@@ -16,6 +22,30 @@ class LiwanResUsers(models.Model):
     )
     liwan_access_version = fields.Integer(default=0, required=True, readonly=True)
     liwan_access_managed = fields.Boolean(default=False, required=True, readonly=True)
+    # E.164, entered by the account holder; only the account service writes it and only administrator
+    # shapes and /api/v1/me read it.
+    liwan_mobile = fields.Char(copy=False)
+
+    _liwan_mobile_unique = models.UniqueIndex(
+        '(liwan_mobile) WHERE active AND liwan_mobile IS NOT NULL',
+        'This mobile number is already used by another user.',
+    )
+
+    @property
+    def SELF_READABLE_FIELDS(self):
+        return super().SELF_READABLE_FIELDS + ['liwan_mobile']
+
+    @property
+    def SELF_WRITEABLE_FIELDS(self):
+        # The account holder saves their own number; the account service normalizes it first.
+        return super().SELF_WRITEABLE_FIELDS + ['liwan_mobile']
+
+    @api.constrains('liwan_mobile')
+    def _check_liwan_mobile_format(self):
+        for user in self.filtered('liwan_mobile'):
+            if not MOBILE_PATTERN.fullmatch(user.liwan_mobile):
+                msg = 'liwan_mobile must be an E.164 number such as +966500000001'
+                raise ValidationError(msg)
 
     def _liwan_mark_access_managed(self):
         self.env['liwan.access.service']._liwan_clear_branch_cache()
@@ -137,15 +167,16 @@ class LiwanResUsers(models.Model):
 
     def _notify_security_setting_update(self, subject, content, mail_values=None, **kwargs):
         marker = self.env.cr.precommit.data.get(USER_WRITE_MARKER, {})
-        protected_password_change = self.ids and all(
-            'password' in marker.get(user_id, set()) for user_id in self.ids
+        protected_credential_change = self.ids and all(
+            SECURITY_NOTIFIED_FIELDS & marker.get(user_id, set()) for user_id in self.ids
         )
-        if protected_password_change:
+        if protected_credential_change:
             # Stock mail falls back to reading base.user_root when neither the
             # company nor the acting administrator has a sender address. That
-            # cross-company read must stay denied. LiwanOS administrator resets
-            # are instead recorded in the immutable access audit and revoke
-            # existing sessions; self-service changes retain the stock alert.
+            # cross-company read must stay denied. LiwanOS password, login and
+            # email changes are instead recorded in the immutable access audit
+            # and revoke existing sessions; the "email changed" alert would also
+            # go to the address an administrator just corrected.
             return self.env['mail.mail']
         return super()._notify_security_setting_update(
             subject, content, mail_values=mail_values, **kwargs,

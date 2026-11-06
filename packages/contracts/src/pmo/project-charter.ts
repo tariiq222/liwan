@@ -29,12 +29,6 @@ export const ProjectTypeRefSchema = CatalogRefSchema.extend({
   charter_steps: z.array(ProjectCharterStepSchema),
 }).strict()
 
-export const ProjectObjectiveSchema = z.object({
-  goal: z.string(),
-  metric: z.string(),
-  target: z.string(),
-}).strict()
-
 export const ProjectDeliverableSchema = z.object({
   name: z.string(),
   description: z.string(),
@@ -51,14 +45,12 @@ export const ProjectCharterSchema = z.object({
   sponsor: CharterUserRefSchema.nullable(),
   authority: z.string(),
   rationale: z.string(),
-  objectives: z.array(ProjectObjectiveSchema),
   benefits: z.string(),
   scope: z.string(),
   exclusions: z.string(),
   high_level_requirements: z.string(),
   deliverables: z.array(ProjectDeliverableSchema),
-  success: z.string(),
-  budget_state: BudgetStateSchema,
+  budget_state: BudgetStateSchema.nullable(),
   amount: z.number().nullable(),
   currency: CurrencyRefSchema.nullable(),
   priority: ProjectPrioritySchema.nullable(),
@@ -81,13 +73,11 @@ export const ProjectCharterWriteSchema = z.object({
   sponsor_id: z.number().int().positive().nullable().optional(),
   authority: z.string().optional(),
   rationale: z.string().optional(),
-  objectives: z.array(ProjectObjectiveSchema).optional(),
   benefits: z.string().optional(),
   scope: z.string().optional(),
   exclusions: z.string().optional(),
   high_level_requirements: z.string().optional(),
   deliverables: z.array(ProjectDeliverableSchema).optional(),
-  success: z.string().optional(),
   budget_state: BudgetStateSchema.optional(),
   amount: z.number().nullable().optional(),
   priority: ProjectPrioritySchema.nullable().optional(),
@@ -112,7 +102,6 @@ export type CatalogRef = z.infer<typeof CatalogRefSchema>
 export type ProjectTypeRef = z.infer<typeof ProjectTypeRefSchema>
 export type ProjectCharterStep = z.infer<typeof ProjectCharterStepSchema>
 export type ProjectCharterState = z.infer<typeof ProjectCharterStateSchema>
-export type ProjectObjective = z.infer<typeof ProjectObjectiveSchema>
 export type ProjectDeliverable = z.infer<typeof ProjectDeliverableSchema>
 export type BudgetState = z.infer<typeof BudgetStateSchema>
 export type ProjectPriority = z.infer<typeof ProjectPrioritySchema>

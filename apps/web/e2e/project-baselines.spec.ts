@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
 
 test('the baselines tab lists the snapshots and the variance against the latest one', async ({ page }) => {
   await open(page, '/projects/2/baselines')
-  await expect(page.getByTestId('governance-tab-baselines')).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByTestId('planning-tab-baselines')).toHaveAttribute('aria-current', 'page')
   await expect(page.getByTestId('baseline-variance-summary')).toBeVisible()
   await expect(page.getByTestId('baseline-variance-table')).toBeVisible()
   await expect(page.getByTestId('baseline-result-count')).toBeVisible()

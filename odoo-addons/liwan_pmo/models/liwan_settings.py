@@ -25,7 +25,10 @@ CHANGE_CONTROL_MODES = ('off', 'optional', 'required')
 BASELINE_GATES = ('off', 'warning', 'required')
 EVM_PROGRESS_METHODS = ('binary', 'manual')
 # Choice settings kept as company-suffixed parameters: API key -> (parameter, allowed values, default).
+TOOL_POLICIES = ('enabled', 'optional', 'disabled')
 PSC_CHOICES = {
+    **{f'{key}_tool_policy': (f'liwan_pmo.{key}_tool_policy', TOOL_POLICIES, 'optional')
+       for key in ('planning', 'governance', 'finance')},
     'close_with_open_tasks': (PARAM_CLOSE_WITH_OPEN_TASKS, CLOSE_WITH_OPEN_TASKS, 'block'),
     'register_status_transitions': (PARAM_REGISTER_TRANSITIONS, REGISTER_TRANSITIONS, 'sequence'),
     'change_control_mode': (PARAM_CHANGE_CONTROL_MODE, CHANGE_CONTROL_MODES, 'optional'),
@@ -50,8 +53,9 @@ PMO_SETTINGS_COMPANY_FIELDS = {
 # The res.company field types a settings extension may declare, by the kind the API reports.
 EXTENSION_KINDS = {'selection': 'selection', 'boolean': 'boolean'}
 PSC_DEFAULTS = {
+    'planning_tool_policy': 'optional', 'governance_tool_policy': 'optional', 'finance_tool_policy': 'optional',
     'require_manager_on_create': True,
-    'require_end_date_on_create': True,
+    'require_end_date_on_create': False,
     'default_completion_approval': 'none',
     'deadline_reminders_enabled': True,
     'deadline_reminders_days_before': 1,
@@ -200,7 +204,7 @@ class LiwanPmoSettings(models.AbstractModel):
         approval = self._params().get_param(self._company_key(PARAM_DEFAULT_APPROVAL), 'none')
         return {
             'require_manager_on_create': self._get_bool(PARAM_REQUIRE_MANAGER, True),
-            'require_end_date_on_create': self._get_bool(PARAM_REQUIRE_END_DATE, True),
+            'require_end_date_on_create': self._get_bool(PARAM_REQUIRE_END_DATE, False),
             'default_completion_approval': (
                 approval if approval in APPROVAL_DEFAULTS else 'none'
             ),
@@ -384,6 +388,10 @@ class LiwanPmoSettings(models.AbstractModel):
     def set_values(self, vals):
         if not self._can_edit():
             raise AccessError(self.env._("Only a customer administrator can change project policies."))
+        allowed = {'project_creators', 'default_stages', *PSC_DEFAULTS, *PSC_CHOICES} | self._liwan_settings_extension_fields()
+        if set(vals) - allowed:
+            field = sorted(set(vals) - allowed)[0]
+            raise _invalid(field, f'{field} is not a project setting')
         before = self.get()
         effective = {
             'project_creators': before['project_creators'],
@@ -397,6 +405,15 @@ class LiwanPmoSettings(models.AbstractModel):
         if 'default_stages' in vals:
             effective['default_stages'] = self._clean_stages(vals['default_stages'])
         psc_writes = self._validate_psc_payload(vals)
+        combined = {**before, **vals}
+        if combined['require_charter_approval'] or combined['change_control_mode'] == 'required':
+            if combined['governance_tool_policy'] != 'enabled':
+                msg_0 = 'governance_tool_policy'
+                raise _invalid(msg_0, 'Mandatory governance requires governance_tool_policy=enabled')
+        if combined['baseline_gate'] == 'required':
+            if combined['planning_tool_policy'] != 'enabled' or combined['governance_tool_policy'] != 'enabled':
+                msg_0 = 'baseline_gate'
+                raise _invalid(msg_0, 'A required baseline needs planning and governance enabled')
         extension_writes = self._validate_extension_payload(vals)
         company = self.env.company
         snapshot = not company.liwan_pmo_settings_initialized
@@ -425,6 +442,7 @@ class LiwanPmoSettings(models.AbstractModel):
         if extension_writes:
             company._liwan_write_pmo_settings(extension_writes)
         if psc_writes:
+            self.env['project.task'].invalidate_model(['allow_task_dependencies'])
             params = self._params()
             for key, value in psc_writes:
                 params.set_param(key, value)

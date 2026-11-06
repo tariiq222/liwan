@@ -4,15 +4,14 @@ import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
 // "Needs your attention": the overdue open tasks of the project (first five). It is the page's call to action
-// only while there is something to act on and the phase gate (the page's one `action` block) is not shown;
-// otherwise it is a quiet tinted note.
-const props = defineProps<{ projectId: number; returnTo: string; gateAction?: boolean }>()
+// while there is overdue work to act on; otherwise it is a quiet tinted note.
+const props = defineProps<{ projectId: number; returnTo: string }>()
 const taskParams = computed<TaskListParams>(() => ({ mine: false, project_id: props.projectId, closed: false }))
 const { data, isLoading, isError, error, refetch } = useTasks(taskParams)
 const tasks = computed(() => data.value?.pages.flatMap(page => page.items) ?? [])
 const attention = computed(() => tasks.value.filter(task => task.is_overdue).slice(0, 5))
 const { t } = useI18n()
-const variant = computed(() => attention.value.length && !props.gateAction ? 'action' : 'tinted')
+const variant = computed(() => attention.value.length ? 'action' : 'tinted')
 
 function taskQuery() {
   return returnToQuery(props.returnTo)

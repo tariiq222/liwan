@@ -1,11 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo.tests import TransactionCase, new_test_user, tagged
+from odoo.tests import new_test_user, tagged
 
+from .common import LiwanPmoCase
 from odoo.addons.liwan_pmo.serializers.project_charter import dump_charter
 
 
 @tagged('post_install', '-at_install', 'liwan')
-class TestInactiveProjectType(TransactionCase):
+class TestInactiveProjectType(LiwanPmoCase):
     """A disabled project type stays shown on the charters that use it (#242)."""
 
     @classmethod

@@ -75,6 +75,16 @@
         <field name="model_id" ref="model_liwan_inbox_auto_option"/>
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="liwan_inbox_tiktok_shortcut_company_rule" model="ir.rule">
+        <field name="name">liwan.inbox.tiktok.shortcut: multi-company</field>
+        <field name="model_id" ref="model_liwan_inbox_tiktok_shortcut"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="liwan_inbox_tiktok_sync_company_rule" model="ir.rule">
+        <field name="name">liwan.inbox.tiktok.sync: multi-company</field>
+        <field name="model_id" ref="model_liwan_inbox_tiktok_sync"/>
+        <field name="domain_force">[('owner_company_id', 'in', company_ids)]</field>
+    </record>
     <record id="liwan_inbox_applied_preset_company_rule" model="ir.rule">
         <field name="name">liwan.inbox.applied.preset: multi-company</field>
         <field name="model_id" ref="model_liwan_inbox_applied_preset"/>

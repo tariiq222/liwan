@@ -123,6 +123,8 @@ def dump_admin_user(user, extra=None, detail=False, actor=None):
         'login': user.login,
         'active': bool(user.active),
         'protected': protected,
+        'mobile': user.liwan_mobile or None,
+        'invitation': None,
         'assignments': [assignment_ref(item) for item in assignments],
         'version': service._liwan_user_version(user),
         **(extra or {}),
@@ -131,10 +133,13 @@ def dump_admin_user(user, extra=None, detail=False, actor=None):
         actor = actor or user.env.user
         actions = ['read']
         if not protected:
+            pending = bool(result['invitation'])
             if service._liwan_has_capability(actor, 'access.users.assign_roles'):
                 actions.append('assign_roles')
-            if service._liwan_has_capability(actor, 'access.users.reset_password'):
-                actions.append('reset_password')
+            if service._liwan_has_capability(actor, 'access.users.reset_password') and user.active and not pending:
+                actions.append('send_reset_link')
+            if service._liwan_has_capability(actor, 'access.users.grant') and pending:
+                actions.extend(['resend_invitation', 'edit_invitation', 'cancel_invitation'])
             if service._liwan_has_capability(actor, 'access.users.disable') and user != actor:
                 actions.append('disable' if user.active else 'reactivate')
         result.update({

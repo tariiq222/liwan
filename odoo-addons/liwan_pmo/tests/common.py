@@ -29,6 +29,8 @@ class LiwanPmoCase(LiwanApiCase):
     The tests exercise plain PMO, so the hooks of a bridge that may be installed (the actual cost source and
     the project settings extensions) answer as if none were; tests of those extension points patch them again."""
 
+    project_tool_policies = {'planning': 'enabled', 'governance': 'enabled', 'finance': 'enabled'}
+
     def setUp(self):
         super().setUp()
         source = type(self.env['liwan.project.actual.source'])
@@ -41,6 +43,9 @@ class LiwanPmoCase(LiwanApiCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        settings = cls.env['liwan.pmo.settings']
+        for key, value in cls.project_tool_policies.items():
+            settings._params().set_param(settings._company_key(f'liwan_pmo.{key}_tool_policy'), value)
         cls.manager = new_test_user(cls.env, login='api_mgr', password='api_mgr_pass_123',
                                     name='Mona', groups='liwan_core.group_employee,project.group_project_manager')
         cls.project = cls.env['project.project'].create({

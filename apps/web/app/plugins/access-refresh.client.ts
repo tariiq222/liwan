@@ -8,7 +8,7 @@ export default defineNuxtPlugin({
   name: 'access-refresh',
   dependsOn: ['vue-query'],
   setup() {
-    const { me, ownershipIdentity, refresh } = useMe({ immediate: false })
+    const { ownershipIdentity, refresh } = useMe({ immediate: false })
     const queryScope = useSessionQueryScope()
     const state: AccessRefreshInFlightState = { inFlight: null }
 
@@ -47,7 +47,10 @@ export default defineNuxtPlugin({
       await drainAccessRefreshInFlight(() => state.inFlight)
     }
 
-    useEventListener(window, 'focus', () => { if (me.value) void refresh() })
+    useEventListener(window, 'focus', () => {
+      const owner = queryScope.current.value
+      if (!owner.publicView && owner.identity !== 'anonymous') void refresh()
+    })
 
     return {
       provide: {

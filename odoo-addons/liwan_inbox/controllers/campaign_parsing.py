@@ -15,6 +15,7 @@ from odoo.addons.liwan_inbox.controllers.helpers import (
     parse_ids,
     parse_text,
     reject,
+    require_kind,
 )
 from odoo.addons.liwan_inbox.models.access_service import CAMPAIGNS
 from odoo.addons.liwan_inbox.models.campaign_constants import (
@@ -139,6 +140,7 @@ def find_channel(channel_id):
     channel = request.env['liwan.inbox.channel'].search([('id', '=', parse_positive_int(channel_id, 'channel_id'))], limit=1)
     if not channel or channel.owner_company_id != request.env.company or not holds(CAMPAIGNS, channel.owner_company_id):
         reject('channel_id names a record that does not exist', 'channel_id')
+    require_kind(channel, 'whatsapp')
     return channel
 
 

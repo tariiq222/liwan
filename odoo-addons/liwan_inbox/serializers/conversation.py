@@ -34,6 +34,9 @@ def dump_conversation(conversation):
         'unread': conversation.unread,
         'reply_window_ends_at': iso(conversation.reply_window_ends_at),
         'csat': {'score': conversation.csat_score, 'at': iso(conversation.csat_at)} if conversation.csat_score else None,
+        # The ad or short link a TikTok customer arrived from (D9); null on every other channel.
+        'referral_source': conversation.referral_source or None,
+        'referral_ref': conversation.referral_ref or None,
     }
 
 

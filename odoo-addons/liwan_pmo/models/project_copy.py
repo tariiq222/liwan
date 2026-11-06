@@ -35,6 +35,7 @@ class ProjectProject(models.Model):
         vals = self._liwan_create_vals(name, user_id=user_id, date_end=date_end)
         if extra:
             vals.update(extra)
+        self._liwan_check_tool_create_vals(vals)
         env = self.sudo().env
         marker = self.env.cr.precommit.data
         previous = marker.get(POLICY_CREATE_MARKER)
@@ -148,22 +149,24 @@ class ProjectProject(models.Model):
         task_domain = [('project_id', '=', source.id), ('parent_id', '=', False), ('active', '=', True)]
         if Task.search_count(task_domain) > project_project.MAX_COPY_TASKS:
             raise ValidationError(env._("A project with more than %(max)s tasks cannot be copied.", max=project_project.MAX_COPY_TASKS))
-        if len(source.milestone_ids) > project_project.MAX_COPY_MILESTONES:
+        planning = source._liwan_tool_enabled('planning')
+        if planning and len(source.milestone_ids) > project_project.MAX_COPY_MILESTONES:
             raise ValidationError(env._(
                 "A project with more than %(max)s milestones cannot be copied.", max=project_project.MAX_COPY_MILESTONES,
             ))
         tasks = Task.search(task_domain, order='sequence, id')
-        milestones = source.milestone_ids.sorted(lambda milestone: (milestone.deadline or date.max, milestone.id))
+        milestones = source.milestone_ids.sorted(lambda milestone: (milestone.deadline or date.max, milestone.id)) if planning else env['project.milestone']
         stages = source.type_ids.sorted(lambda stage: (stage.sequence, stage.id))
         return tasks, milestones, stages
 
     def _liwan_copy_delta(self, source, tasks, milestones, start):
         anchor = source.date_start
         if not anchor:
-            candidates = [task.liwan_planned_start for task in tasks if task.liwan_planned_start]
+            planning = source._liwan_tool_enabled('planning')
+            candidates = [task.liwan_planned_start for task in tasks if planning and task.liwan_planned_start]
             candidates += [
                 task.date_deadline.date() for task in tasks
-                if task.date_deadline and not task.liwan_planned_start
+                if task.date_deadline and (not planning or not task.liwan_planned_start)
             ]
             candidates += [milestone.deadline for milestone in milestones if milestone.deadline]
             anchor = min(candidates) if candidates else None
@@ -180,10 +183,17 @@ class ProjectProject(models.Model):
     def _liwan_copy_extra(self, source, start, end, stages):
         extra = {
             'date_start': start,
-            'allow_task_dependencies': bool(source.allow_task_dependencies),
-            'liwan_type_id': source.liwan_type_id.id or False,
-            'liwan_owning_unit_id': source.liwan_owning_unit_id.id or False,
+            'liwan_success': source.liwan_success,
+            'liwan_objective_ids': [(0, 0, {'goal': row.goal, 'metric': row.metric or '', 'target': row.target or '', 'sequence': row.sequence})
+                                    for row in source.liwan_objective_ids],
+            **{f'liwan_{key}_enabled': bool(source[f'liwan_{key}_enabled'])
+               for key, policy in source._liwan_tool_policies().items() if policy == 'optional'},
         }
+        if source._liwan_tool_enabled('planning'):
+            extra['allow_task_dependencies'] = bool(source.allow_task_dependencies)
+        if source._liwan_tool_enabled('governance'):
+            extra['liwan_type_id'] = source.liwan_type_id.id or False
+            extra['liwan_owning_unit_id'] = source.liwan_owning_unit_id.id or False
         if end:
             extra['date'] = end
         if stages:
@@ -240,12 +250,12 @@ class ProjectProject(models.Model):
                 'user_ids': [(6, 0, [])],
                 'parent_id': False,
             }
-            if task.date_deadline and not task.liwan_planned_start and delta is not None:
+            if task.date_deadline and (not project._liwan_tool_enabled('planning') or not task.liwan_planned_start) and delta is not None:
                 # Deadline-only task: no schedule pair, so the deadline
                 # is an ordinary whitelisted create field.
                 values['date_deadline'] = self._liwan_copy_shift(task.date_deadline, delta, env)
             new_task = env['project.task']._liwan_create_for_copy(project, values)
-            if task.liwan_planned_start and task.date_deadline and delta is not None:
+            if project._liwan_tool_enabled('planning') and task.liwan_planned_start and task.date_deadline and delta is not None:
                 new_task._liwan_set_schedule(
                     self._liwan_copy_shift(task.liwan_planned_start, delta, env),
                     self._liwan_copy_shift(task.date_deadline.date(), delta, env),
@@ -255,7 +265,7 @@ class ProjectProject(models.Model):
 
     def _liwan_copy_dependencies(self, source, tasks, task_map):
         # Stock keeps links when the toggle is turned off; do not copy them.
-        for task in (tasks if source.allow_task_dependencies else tasks.browse()):
+        for task in (tasks if source.allow_task_dependencies and source._liwan_tool_enabled('planning') else tasks.browse()):
             dependencies = [
                 task_map[dependency.id].id for dependency in task.depend_on_ids
                 if dependency.id in task_map

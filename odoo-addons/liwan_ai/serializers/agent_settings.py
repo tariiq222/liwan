@@ -12,14 +12,23 @@ def _text(item, field):
 
 
 def available_agents(env):
-    """``{key: (agent, [tools])}`` for the registered agents whose application the tenant has enabled."""
+    """``{key: (agent, [tools])}`` for the registered agents whose application the tenant has enabled.
+
+    An agent's tools are those whose name carries its key; a platform tool (no agent) is listed with its owner's main
+    agent, the one keyed by the application id, so the administrator can still set its mode.
+    """
     entitlement = env['liwan.entitlement.service']
-    tools = env['liwan.ai.tool.registry']._liwan_ai_tool_map().values()
+    registry = env['liwan.ai.tool.registry']
+    tools = registry._liwan_ai_tool_map().values()
     agents = {}
     for key, agent in env['liwan.ai.agent.registry']._liwan_ai_agent_map().items():
         if not entitlement._liwan_feature_read(agent['feature_key']):
             continue
-        agents[key] = (agent, [tool for tool in tools if tool['owner'] == agent['owner']])
+        main = key == agent['owner'].removeprefix('liwan_')
+        agents[key] = (agent, [
+            tool for tool in tools
+            if registry._liwan_ai_agent_key(tool) == key or (main and tool.get('platform') and tool['owner'] == agent['owner'])
+        ])
     return agents
 
 
@@ -36,7 +45,9 @@ def dump_agent_settings(env):
             'description': _text(agent, 'description'),
             'enabled': row.enabled if row else True,
             'read_only': bool(row and row.read_only),
-            'memory': not row or row.memory,
+            'memory': agent.get('memory', True) and (not row or row.memory),
+            # The administrator cannot switch memory on for an agent that declares it off.
+            'memory_fixed': agent.get('memory', True) is False,
             'role_ids': sorted(roles.get(row.id, ())) if row else [],
             'revision': row.revision if row else 0,
             'tools': [
@@ -60,7 +71,7 @@ def _bool(payload, key):
     return value
 
 
-def parse_agent_patch(payload, tools):
+def parse_agent_patch(payload, tools, memory_fixed=False):
     """``(changes, revision)`` of one agent's save: any of ``enabled``, ``read_only``, ``memory``, ``role_ids`` and ``tools``, and the
     revision the change was based on."""
     payload = dict(payload)
@@ -72,6 +83,8 @@ def parse_agent_patch(payload, tools):
         raise ApiError(422, 'unknown_field', f'field {unknown[0]!r} is not accepted', field=unknown[0])
     if not payload:
         raise ApiError(422, 'invalid', 'nothing to change')
+    if 'memory' in payload and memory_fixed:
+        raise ApiError(422, 'invalid', 'this agent never remembers', field='memory')
     changes = {key: _bool(payload, key) for key in AGENT_FLAGS if key in payload}
     if 'role_ids' in payload:
         role_ids = payload['role_ids']

@@ -17,6 +17,7 @@ const percent = (used: number, limit: number | null) => (limit ? (used / limit) 
 const tone = (value: number | null) => (value !== null && value >= 80 ? 'warning' : 'primary')
 const meters = computed(() => [
   { id: 'messages', label: t('ai.settings.usage.messages'), used: usage.value.messages_used, limit: usage.value.messages_limit },
+  { id: 'assist', label: t('ai.settings.usage.assist'), used: usage.value.assist_used, limit: usage.value.assist_limit },
   { id: 'tokens', label: t('ai.settings.usage.tokens'), used: usage.value.tokens_used, limit: usage.value.tokens_limit },
 ].map(meter => ({ ...meter, percent: percent(meter.used, meter.limit) })))
 const limitText = (limit: number | null) => (limit === null ? t('ai.settings.usage.unlimited') : n(limit))
@@ -32,7 +33,7 @@ const rows = computed(() => (props.monitoring?.users.items ?? []).map(item => ({
 <template>
   <SharedRecordSection id="usage" variant="panel" class="liwan-settings-anchor" :title="t('ai.settings.usage.title')" :description="t('ai.settings.usage.hint', { month: usage.month })" data-testid="ai-settings-usage">
     <div class="grid gap-(--liwan-gap-card)">
-      <div class="grid gap-(--liwan-gap-card) sm:grid-cols-2">
+      <div class="grid gap-(--liwan-gap-card) sm:grid-cols-3">
         <div v-for="meter in meters" :key="meter.id" class="grid gap-2" :data-testid="`ai-usage-${meter.id}`">
           <SharedMetricTile :label="meter.label" :value="n(meter.used)" value-dir="ltr" :hint="t('ai.settings.usage.ofLimit', { limit: limitText(meter.limit) })" />
           <SharedProgress v-if="meter.percent !== null" :value="meter.percent" :tone="tone(meter.percent)" :label="meter.label" />
