@@ -594,6 +594,15 @@ describe('resume and status', () => {
     expect(JSON.parse(serviceCalls.at(-1)!.body).result).toEqual({ ok: false, error: { code: 'forbidden', message: 'no' }, decision: 'approved' })
   })
 
+  it('audits a rejected draft with the real values the model only knew as tokens', async () => {
+    const { protectText, tokenKeyFrom } = await import('../outbound')
+    const token = protectText('0551234567', tokenKeyFrom('test-secret-of-at-least-32-characters', { tenant: 'x', user: '42' }))
+    pending = { ...DRAFT_PENDING, input: { name: `بوابة ${token}` } }
+    await events(await post('/api/ai/runs/r_1/resume', { call_id: 'c_2', decision: 'rejected' }))
+    const audit = odooCalls.filter(c => c.url === '/api/v1/ai/audit').map(c => JSON.parse(c.body!)).at(-1)
+    expect([audit.result, audit.input, audit.draft]).toEqual(['rejected', { name: 'بوابة 0551234567' }, { name: 'بوابة 0551234567' }])
+  })
+
   it('executes nothing for a rejected write_light', async () => {
     pending = WRITE_PENDING
     await events(await post('/api/ai/runs/r_1/resume', { call_id: 'c_3', decision: 'rejected' }))
@@ -764,6 +773,12 @@ describe('PATCH /api/ai/runs/{id}', () => {
     const call = serviceCalls.at(-1)!
     expect([call.method, call.url, call.headers['x-liwan-tenant'], call.headers['x-liwan-user'], call.headers.cookie]).toEqual(['PATCH', '/v1/runs/r_1', 'x', '42', undefined])
     expect(JSON.parse(call.body)).toEqual({ title: 'مشروع البوابة', archived: true })
+  })
+
+  it('protects a phone in a typed title and shows it back as written', async () => {
+    const response = await patch({ title: 'اتصال 0551234567' })
+    expect(JSON.parse(serviceCalls.at(-1)!.body).title).toMatch(/^اتصال \[phone:[A-Za-z0-9_-]+\]$/)
+    expect((await response.json()).title).toBe('اتصال 0551234567')
   })
 
   it('sends the service only the fields of the contract', async () => {

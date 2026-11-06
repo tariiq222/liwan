@@ -34,7 +34,7 @@ it('keeps a successful claimed effect when a later drain refuses its audit, with
     route: { method: 'POST', path: '/api/v1/tasks/{task_id}/transition' },
     input_map: { path: { task_id: '$task_id' }, body: { state: '$state' } }, result_summary: ['id', 'state'], draft_target: null, requires_approval: false, platform: false,
   }
-  const session = { byName: new Map([[tool.name, tool]]), blockedFields: new Set<string>(), tokenKey: tokenKeyFrom('test-secret-of-at-least-32-characters') } as Partial<RunSession> as RunSession
+  const session = { byName: new Map([[tool.name, tool]]), blockedFields: new Set<string>(), tokenKey: tokenKeyFrom('test-secret-of-at-least-32-characters', { tenant: 't', user: '1' }) } as Partial<RunSession> as RunSession
   let auditFailed = false
   const result = await executeTool(event as never, session, 'r_1', 'write_light', { call_id: 'c_1', tool: tool.name, agent: 'pmo', input: { task_id: 7, state: 'done' } }, {
     signal: null, onAuditFailed: () => { auditFailed = true },

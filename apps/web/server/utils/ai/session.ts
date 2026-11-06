@@ -61,7 +61,7 @@ export async function runSession(event: H3Event, mode: RunMode = 'assistant'): P
     agents: parsed.agents,
     byName: new Map(parsed.items.map(tool => [tool.name, tool])),
     blockedFields: new Set(parsed.blocked_fields),
-    tokenKey: aiTokenKey(event),
+    tokenKey: aiTokenKey(event, owner),
     limits: { max_steps: MAX_STEPS, max_tool_calls: toolCallBudget(parsed.limits.tool_calls_per_run), timeout_seconds: TIMEOUT_SECONDS },
     policy: parsed.limits.policy,
   }

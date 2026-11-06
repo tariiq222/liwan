@@ -101,15 +101,18 @@ export function upstreamError(body: unknown): { code: string; message: string; d
   return { code: source.code, message: typeof source.message === 'string' ? source.message : '', ...(details !== undefined ? { details } : {}) }
 }
 
+/**
+ * The result the model gets, protected whole (spec 2026-11-04 §6.12): the tool ran with the real values, so an error text
+ * that echoes one is protected like data. Data is protected before the size check, so the bound covers markers and tokens.
+ */
 export function toolResultFromUpstream(status: number, body: unknown, tool: AiTool, blocked: ReadonlySet<string>, key: TokenKey): ToolResult {
   if (status >= 200 && status < 300) {
-    // Protected here, before the size check, so the bound covers the markers and tokens too (spec 2026-11-04 §6.12).
     const data = protectValue(summarizeResult(body, tool.result_summary, blocked), key)
     if (Buffer.byteLength(JSON.stringify(data)) > MAX_RESULT_BYTES) return toolError('result_too_large', 'The result is too large to hand to the assistant')
     return { ok: true, data }
   }
   const error = upstreamError(body)
-  if (error) return toolError(error.code, error.message)
+  if (error) return protectValue(toolError(error.code, error.message), key)
   return toolError('http_error', `upstream status ${status}`)
 }
 

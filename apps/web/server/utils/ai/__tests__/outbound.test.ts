@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { isSaudiId, protectText, protectValue, restoreText, restoreValue, streamRestorer, tokenKeyFrom } from '../outbound'
 
-const KEY = tokenKeyFrom('test-secret-of-at-least-32-characters')
-const OTHER_KEY = tokenKeyFrom('another-secret-of-at-least-32-chars')
+const SECRET = 'test-secret-of-at-least-32-characters'
+const KEY = tokenKeyFrom(SECRET, { tenant: 'acme', user: '42' })
+const OTHER_KEY = tokenKeyFrom('another-secret-of-at-least-32-chars', { tenant: 'acme', user: '42' })
+const OTHER_USER = tokenKeyFrom(SECRET, { tenant: 'acme', user: '43' })
+const OTHER_TENANT = tokenKeyFrom(SECRET, { tenant: 'beta', user: '42' })
 // What the provider sees, with each token's payload hidden, so the expectations read as text.
 const masked = (text: string) => protectText(text, KEY).replace(/\[(phone|email):[A-Za-z0-9_-]+\]/g, '[$1 token]')
 const withholdText = masked
@@ -111,5 +114,22 @@ describe('outbound data policy content scan', () => {
       shown += restorer.flush()
       expect(shown).toBe('اتصل على 0551234567 الآن [ملاحظة]')
     }
+  })
+
+  it('restores a token only for the tenant and user it was issued to', () => {
+    const token = protectText('0551234567', KEY)
+    expect(restoreText(token, OTHER_USER)).toBe(token)
+    expect(restoreText(token, OTHER_TENANT)).toBe(token)
+    expect(protectText('0551234567', OTHER_TENANT)).not.toBe(token)
+  })
+
+  it('leaves tokens already in a text untouched when it is protected again', () => {
+    const once = protectText(`اتصل على 0551234567 وهويته ${CITIZEN_ID}`, KEY)
+    expect(protectText(once, KEY)).toBe(once)
+  })
+
+  it('restores the longest email the scan takes', () => {
+    const email = `${'ب'.repeat(64)}@${Array.from({ length: 9 }, () => 'ج'.repeat(25)).join('.')}.السعودية`
+    expect(restoreText(protectText(email, KEY), KEY)).toBe(email)
   })
 })

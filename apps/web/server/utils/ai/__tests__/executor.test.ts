@@ -64,7 +64,7 @@ describe('buildToolRequest path safety', () => {
 })
 
 const NONE: ReadonlySet<string> = new Set()
-const KEY = tokenKeyFrom('test-secret-of-at-least-32-characters')
+const KEY = tokenKeyFrom('test-secret-of-at-least-32-characters', { tenant: 't', user: '1' })
 
 describe('summarizeResult', () => {
   it('strips blocked fields at any depth, even under a path that ends on a whole object', () => {
@@ -88,6 +88,10 @@ describe('toolResultFromUpstream', () => {
     const protectedResult = toolResultFromUpstream(200, { items: [{ id: 1, name: 'جوال 0551234567' }], total: 1 }, list, NONE, KEY)
     expect(JSON.stringify(protectedResult)).not.toContain('0551234567')
     expect(restoreValue(protectedResult, KEY)).toEqual({ ok: true, data: { items: [{ id: 1, name: 'جوال 0551234567' }], total: 1 } })
+    // The tool ran with the real value, so an error that echoes it is protected like data.
+    const refused = toolResultFromUpstream(422, { code: 'invalid', message: 'الجوال 0551234567 مستخدم' }, list, NONE, KEY)
+    expect(JSON.stringify(refused)).not.toContain('0551234567')
+    expect(restoreValue(refused, KEY)).toEqual({ ok: false, error: { code: 'invalid', message: 'الجوال 0551234567 مستخدم' } })
     // Many short emails grow past the bound once each becomes a marker: the result is refused, never sent oversized.
     const emails = Array.from({ length: 14_000 }, (_, index) => `a${index}@b.sa`).join(' ')
     expect(toolResultFromUpstream(200, { items: [{ id: 1, name: emails }], total: 1 }, list, NONE, KEY)).toMatchObject({ ok: false, error: { code: 'result_too_large' } })

@@ -3,7 +3,7 @@ import { AI_SETUP_AGENT, AiRunStatusSchema } from '@liwan/contracts'
 import { auditFailedEvent, doneEvent, executeTool, needsApproval, relay, resumeFailedEvent, settle, tryAudit } from '../../../../utils/ai/pump'
 import { logFailure, serviceFetch } from '../../../../utils/ai/upstream'
 import { assertRunnable, runPolicy } from '../../../../utils/ai/policy'
-import { protectValue } from '../../../../utils/ai/outbound'
+import { protectValue, restoreValue } from '../../../../utils/ai/outbound'
 import { ownerFor, runSession } from '../../../../utils/ai/session'
 import type { ToolResult } from '../../../../utils/ai/executor'
 
@@ -51,7 +51,8 @@ export default defineEventHandler(async (event) => {
     result = { ok: false, decision: 'rejected' }
     // Odoo accepts `rejected` for drafts only; a rejected write_light was never proposed to the audit.
     if (pending.kind === 'draft') {
-      auditFailed = !await tryAudit(event, { conversation_id: id, kind: 'draft', agent: pending.agent, tool_name: pending.tool, input: pending.input, result: 'rejected', http_status: null, draft: pending.input, approved: null, attested: false })
+      const draft = restoreValue(pending.input, session.tokenKey)
+      auditFailed = !await tryAudit(event, { conversation_id: id, kind: 'draft', agent: pending.agent, tool_name: pending.tool, input: draft, result: 'rejected', http_status: null, draft, approved: null, attested: false })
     }
   } else if (pending.kind === 'write_light') {
     shield = null

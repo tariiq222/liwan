@@ -12,6 +12,7 @@
  */
 import { createCipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import type { H3Event } from 'h3'
+import type { Owner } from './upstream'
 
 export type ScannedKind = 'national_id' | 'iban' | 'phone' | 'email'
 type TokenKind = Extract<ScannedKind, 'phone' | 'email'>
@@ -52,9 +53,22 @@ export function isSaudiId(digits: string): boolean {
 
 type Span = { start: number; end: number; kind: ScannedKind }
 
-/** Every covered value of `text`, ascending and non-overlapping. */
+/** `text` with each span replaced by a filler of the same length (no digit, letter or @), built in one pass. */
+function masked(text: string, spans: { start: number; end: number }[]): string {
+  const parts: string[] = []
+  let cursor = 0
+  for (const span of spans) {
+    parts.push(text.slice(cursor, span.start), '\u0000'.repeat(span.end - span.start))
+    cursor = span.end
+  }
+  parts.push(text.slice(cursor))
+  return parts.join('')
+}
+
+/** Every covered value of `text`, ascending and non-overlapping. A token already in the text is left as it is. */
 function findSpans(text: string): Span[] {
-  let scanned = latinDigits(text)
+  const issued = [...text.matchAll(TOKEN)].map(match => ({ start: match.index, end: match.index + match[0].length }))
+  let scanned = masked(latinDigits(text), issued)
   const spans: Span[] = []
   for (const [kind, pattern] of PATTERNS) {
     if (kind === 'email' && !scanned.includes('@')) continue
@@ -64,16 +78,8 @@ function findSpans(text: string): Span[] {
       found.push({ start: match.index, end: match.index + match[0].length, kind })
     }
     if (found.length === 0) continue
-    // A taken span is masked with a filler of the same length (no digit, letter or @), so indices stay aligned and no
-    // later pattern matches inside it. Built in one pass, whatever the number of spans.
-    const parts: string[] = []
-    let cursor = 0
-    for (const span of found) {
-      parts.push(scanned.slice(cursor, span.start), '\u0000'.repeat(span.end - span.start))
-      cursor = span.end
-    }
-    parts.push(scanned.slice(cursor))
-    scanned = parts.join('')
+    // A taken span is masked, so indices stay aligned and no later pattern matches inside it.
+    scanned = masked(scanned, found)
     spans.push(...found)
   }
   return spans.sort((left, right) => left.start - right.start)
@@ -81,34 +87,39 @@ function findSpans(text: string): Span[] {
 
 // --- Tokens -------------------------------------------------------------------------------------------------------------
 
-const TOKEN = /\[(phone|email):([A-Za-z0-9_-]{16,400})\]/g
+// Long enough for the longest email the scan takes (64 + 1 + 255 characters, up to 4 bytes each, plus the IV).
+const TOKEN = /\[(phone|email):([A-Za-z0-9_-]{16,1800})\]/g
 const SIV_BYTES = 12
 
 /** The two keys a token needs, derived from the server's secret: one encrypts, one authenticates and fixes the IV. */
 export type TokenKey = { encryption: Buffer; authentication: Buffer }
 
-export function tokenKeyFrom(secret: string): TokenKey {
-  const root = createHash('sha256').update(secret).digest()
+/**
+ * The keys of one owner: a token restores only for the tenant and user it was issued to, so a token copied into another
+ * person's conversation (or a shared company note) stays a token, and one value gets different tokens for different owners.
+ */
+export function tokenKeyFrom(secret: string, owner: Owner): TokenKey {
+  const root = createHmac('sha256', createHash('sha256').update(secret).digest()).update(`${owner.tenant}\u0000${owner.user}`).digest()
   return {
     encryption: createHmac('sha256', root).update('liwan-ai-token-encryption').digest(),
     authentication: createHmac('sha256', root).update('liwan-ai-token-authentication').digest(),
   }
 }
 
-let processKey: TokenKey | null = null
+let processSecret: string | null = null
 
 /**
- * The token key of this deployment, from `NUXT_AI_TOKEN_KEY`. Without one (development), a random key lives as long as this
- * process: tokens then restore until the server restarts, and a warning says so once.
+ * The token keys of one owner, from the deployment's `NUXT_AI_TOKEN_KEY`. Without one (development), a random secret lives
+ * as long as this process: tokens then restore until the server restarts, and a warning says so once.
  */
-export function aiTokenKey(event: H3Event): TokenKey {
-  const secret = useRuntimeConfig(event).aiTokenKey
-  if (secret) return tokenKeyFrom(secret)
-  if (!processKey) {
+export function aiTokenKey(event: H3Event, owner: Owner): TokenKey {
+  const configured = useRuntimeConfig(event).aiTokenKey
+  if (configured) return tokenKeyFrom(configured, owner)
+  if (!processSecret) {
     console.warn('NUXT_AI_TOKEN_KEY is not set: AI tokens restore only until this server restarts')
-    processKey = tokenKeyFrom(randomBytes(32).toString('hex'))
+    processSecret = randomBytes(32).toString('hex')
   }
-  return processKey
+  return tokenKeyFrom(processSecret, owner)
 }
 
 /** The synthetic IV of a value: a keyed hash of its kind and value, so one value always gets the same token. */
@@ -176,7 +187,7 @@ export const restoreValue = <T>(value: T, key: TokenKey): T => mapStrings(value,
 
 // A streamed answer arrives in pieces, so a token can be split across two of them. At most this many characters after an
 // open `[` are held back while they could still be the start of a token.
-const HELD_MAX = 420
+const HELD_MAX = 1820
 const TOKEN_PREFIX = /^\[(?:p(?:h(?:o(?:n(?:e(?::[A-Za-z0-9_-]*)?)?)?)?)?|e(?:m(?:a(?:i(?:l(?::[A-Za-z0-9_-]*)?)?)?)?)?)?$/
 
 /** Restores the tokens of a streamed text: `push` returns what may be shown now, `flush` the rest at the end. */
