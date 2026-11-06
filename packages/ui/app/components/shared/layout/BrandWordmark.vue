@@ -1,12 +1,17 @@
 <script setup lang="ts">
-// LiwanOS logo: the approved mark (a stroked four-point star around a diamond) followed by the product
-// name in the interface font; `markOnly` keeps the mark alone. Below 24px the mark takes the heavier
-// stroke of liwan-mark-small.svg so it stays legible; the name is the `brand.name` key of the active locale.
+// LiwanOS logo: the approved mark (a stroked courtyard of four pointed arches, one solid Sadu triangle in
+// each corner pointing in, a stepped Sadu diamond at the centre) followed by the product name in the
+// interface font; `markOnly` keeps the mark alone. Below 24px the mark takes a heavier stroke and a solid
+// diamond so it stays legible; the name is the `brand.name` key of the active locale.
 const props = withDefaults(defineProps<{ size?: 'sm' | 'md' | 'lg' | 'xl', inverted?: boolean, markOnly?: boolean }>(), { size: 'md', inverted: false, markOnly: false })
 const { t } = useI18n()
 const text = { sm: 'text-sm', md: 'text-base', lg: 'text-xl', xl: 'text-3xl' } as const
 const mark = { sm: 'size-4', md: 'size-5', lg: 'size-7', xl: 'size-10' } as const
 const heavy = computed(() => props.size === 'sm' || props.size === 'md')
+// Sadu parts from packages/ui/app/assets/brand/sadu, laid on the mark's 64-unit grid.
+const triangles = 'M15.74 8.67 18.92 18.92 8.67 15.74ZM55.33 15.74 45.08 18.92 48.26 8.67ZM48.26 55.33 45.08 45.08 55.33 48.26ZM8.67 48.26 18.92 45.08 15.74 55.33Z'
+const diamondOutline = 'M30.5 24.5h3v3h-3ZM27.5 27.5h3v3h-3ZM33.5 27.5h3v3h-3ZM24.5 30.5h3v3h-3ZM30.5 30.5h3v3h-3ZM36.5 30.5h3v3h-3ZM27.5 33.5h3v3h-3ZM33.5 33.5h3v3h-3ZM30.5 36.5h3v3h-3Z'
+const diamondSolid = 'M30.4 24h3.2v3.2h-3.2ZM27.2 27.2h3.2v3.2h-3.2ZM30.4 27.2h3.2v3.2h-3.2ZM33.6 27.2h3.2v3.2h-3.2ZM24 30.4h3.2v3.2h-3.2ZM27.2 30.4h3.2v3.2h-3.2ZM30.4 30.4h3.2v3.2h-3.2ZM33.6 30.4h3.2v3.2h-3.2ZM36.8 30.4h3.2v3.2h-3.2ZM27.2 33.6h3.2v3.2h-3.2ZM30.4 33.6h3.2v3.2h-3.2ZM33.6 33.6h3.2v3.2h-3.2ZM30.4 36.8h3.2v3.2h-3.2Z'
 </script>
 
 <template>
@@ -27,15 +32,8 @@ const heavy = computed(() => props.size === 'sm' || props.size === 'md')
         stroke-linejoin="round"
         stroke-linecap="round"
       />
-      <rect
-        :x="heavy ? 27.2 : 28.4"
-        :y="heavy ? 27.2 : 28.4"
-        :width="heavy ? 9.6 : 7.2"
-        :height="heavy ? 9.6 : 7.2"
-        rx=".8"
-        transform="rotate(45 32 32)"
-        fill="currentColor"
-      />
+      <path :d="triangles" fill="currentColor" />
+      <path :d="heavy ? diamondSolid : diamondOutline" fill="currentColor" />
     </svg>
     <template v-if="!props.markOnly">{{ t('brand.name') }}</template>
   </span>
