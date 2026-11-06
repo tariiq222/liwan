@@ -10,6 +10,7 @@ from odoo.exceptions import LockError
 TOKEN_TTL = {'invite': timedelta(hours=72), 'reset': timedelta(minutes=60)}
 RESET_LINKS_PER_HOUR = 3
 MAX_TOKEN_LENGTH = 128
+PURGE_AFTER = timedelta(days=30)
 
 
 def hash_token(raw):
@@ -113,3 +114,19 @@ class LiwanAccountToken(models.Model):
             ('user_id', '=', user.id), ('purpose', '=', purpose),
             ('create_date', '>=', fields.Datetime.now() - window),
         ])
+
+    @api.model
+    def _liwan_purge(self):
+        """Cron: delete links consumed or revoked, and reset links expired, more than 30 days ago.
+
+        The newest invitation of a user who never accepted stays whatever its state: it is what tells a
+        cancelled or expired invitee from an ordinary user (a reinvite, a reactivation).
+        """
+        cutoff = fields.Datetime.now() - PURGE_AFTER
+        stale = self.search([
+            '|', '|', ('consumed_at', '<', cutoff), ('revoked_at', '<', cutoff),
+            '&', ('purpose', '=', 'reset'), ('expires_at', '<', cutoff),
+        ])
+        kept = self._liwan_latest_invitations(stale.user_id.ids).values()
+        stale -= self.browse([record.id for record in kept])
+        stale.unlink()

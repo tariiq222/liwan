@@ -23,6 +23,7 @@
         'data/access_migration_post.xml',
         'data/res_company_data.xml',
         'data/res_users_data.xml',
+        'data/account_token_cron.xml',
     ],
     'installable': True,
     'application': False,

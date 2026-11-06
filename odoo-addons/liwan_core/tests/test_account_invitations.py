@@ -425,6 +425,37 @@ class TestAccountInvitations(TransactionCase):
         self.public._liwan_reset_password_with_token(self.sent[-1][1], 'another-twelve-chars')
         self.assertTrue(self._can_sign_in(user, 'another-twelve-chars'))
 
+    def test_purge_deletes_old_links_but_keeps_the_invitation_of_a_user_who_never_accepted(self):
+        old = fields.Datetime.now() - timedelta(days=31)
+        recent = fields.Datetime.now() - timedelta(days=5)
+        Token = self.env['liwan.account.token'].sudo()
+        accepted = self._invite('accepted@example.com')
+        self.public._liwan_accept_invitation(self.sent[-1][1], '+966500000011', PASSWORD)
+        self.service._liwan_send_reset_link(accepted, self._version(accepted))
+        self.service._liwan_send_reset_link(accepted, self._version(accepted))
+        invite, revoked_reset, live_reset = Token.search([('user_id', '=', accepted.id)], order='id')
+        invite.consumed_at = old
+        revoked_reset.revoked_at = old
+        live_reset.expires_at = recent
+        cancelled = self._invite('cancelled@example.com')
+        self.service._liwan_cancel_invitation(cancelled, self._version(cancelled))
+        Token.search([('user_id', '=', cancelled.id)]).revoked_at = old
+        pending = self._invite('pending@example.com')
+        self.service._liwan_resend_invitation(pending, self._version(pending))
+        first_pending, latest_pending = Token.search([('user_id', '=', pending.id)], order='id')
+        first_pending.revoked_at = old
+        expired_reset = Token.create({
+            'user_id': accepted.id, 'purpose': 'reset', 'token_hash': 'e' * 64, 'expires_at': old,
+        })
+        Token._liwan_purge()
+        remaining = Token.search([]).ids
+        for gone in (invite, revoked_reset, first_pending, expired_reset):
+            self.assertNotIn(gone.id, remaining)
+        for kept in (live_reset, latest_pending, Token.search([('user_id', '=', cancelled.id)])):
+            self.assertTrue(set(kept.ids) <= set(remaining))
+        self.service._liwan_invite_account('Cancelled', 'cancelled@example.com', self.assignments)
+        self.assertTrue(cancelled.active)
+
     def test_admin_actions_need_the_right_capability_and_a_pending_user(self):
         accepted = self._invite()
         self.public._liwan_accept_invitation(self.sent[0][1], MOBILE, PASSWORD)
