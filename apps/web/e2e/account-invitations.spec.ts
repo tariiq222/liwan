@@ -90,10 +90,10 @@ test.describe('the anonymous account-link pages', () => {
   test('join: a used, revoked or missing link says so and shows no form', async ({ page }) => {
     await page.route('**/api/v1/public/account/token', route => route.fulfill(ok({ usable: false })))
     await page.goto('/join?token=tok-old')
-    await expect(page.getByRole('alert').filter({ hasText: 'الرابط غير صالح أو انتهت صلاحيته' })).toBeVisible()
+    await expect(page.getByRole('alert').filter({ hasText: 'انتهت صلاحية الدعوة أو استُخدمت' })).toBeVisible()
     await expect(fieldFor(page, 'password')).toHaveCount(0)
     await page.goto('/join')
-    await expect(page.getByRole('alert').filter({ hasText: 'الرابط غير صالح أو انتهت صلاحيته' })).toBeVisible()
+    await expect(page.getByRole('alert').filter({ hasText: 'انتهت صلاحية الدعوة أو استُخدمت' })).toBeVisible()
   })
 
   test('join: an unavailable service keeps what was typed and the same button retries; a taken number names itself', async ({ page }) => {
