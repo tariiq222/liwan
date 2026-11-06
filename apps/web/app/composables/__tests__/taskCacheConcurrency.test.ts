@@ -469,3 +469,78 @@ it.each([
     expect(unrelatedReads.map(read => read.mock.calls.length)).toEqual([0, 0, 0, 0, 0, 0])
   } finally { stops.forEach(stop => stop()); qc.clear() }
 })
+
+it.each([
+  { cancellation: 'onMutate', outcome: 'success' },
+  { cancellation: 'onMutate', outcome: 'failure' },
+  { cancellation: 'onSuccess', outcome: 'success' },
+  { cancellation: 'onSuccess', outcome: 'failure' },
+])('finishes a renamed task membership read across another priority edit ($cancellation/$outcome)', async ({ cancellation, outcome }) => {
+  const qc = state.qc as QueryClient
+  const a = { id: 1, name: 'A', priority: '0' }, b = { id: 2, name: 'B', priority: '0' }
+  const defaultKey = taskKeys.list({ closed: false }), filteredKey = taskKeys.list({ closed: false, q: 'B' })
+  qc.setQueryData(defaultKey, { pages: [{ items: [a, b], total: 2 }], pageParams: [0] })
+  qc.setQueryData(filteredKey, { pages: [{ items: [b], total: 1 }], pageParams: [0] })
+  const current = { pages: [{ items: [], total: 0 }], pageParams: [0] }
+  let releaseOld!: (value: object) => void
+  const oldRead = new Promise<object>(resolve => { releaseOld = resolve })
+  const read = vi.fn().mockImplementationOnce(() => oldRead).mockResolvedValue(current)
+  const stop = new QueryObserver(qc, { queryKey: filteredKey, staleTime: Infinity, queryFn: read }).subscribe(() => {})
+  try {
+    useUpdateTask(); const mutation = state.options
+    const av = { id: 1, patch: { priority: '2' } }, bv = { id: 2, patch: { name: 'C' } }
+    let actx: any
+    if (cancellation === 'onSuccess') actx = await mutation.onMutate(av)
+    const bctx = await mutation.onMutate(bv), renamed = { ...b, name: 'C' }
+    mutation.onSuccess(renamed, bv, bctx); mutation.onSettled(renamed, null, bv, bctx)
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(1))
+    if (cancellation === 'onMutate') actx = await mutation.onMutate(av)
+    if (outcome === 'success') {
+      const detail = { ...a, priority: '2' }
+      mutation.onSuccess(detail, av, actx); mutation.onSettled(detail, null, av, actx)
+    } else {
+      const error = new Error('priority refused')
+      mutation.onError(error, av, actx); mutation.onSettled(undefined, error, av, actx)
+    }
+    const actuallyCancelled = cancellation === 'onMutate' || outcome === 'success'
+    if (actuallyCancelled) await vi.waitFor(() => expect(qc.getQueryData(filteredKey)).toEqual(current))
+    // The original transport may settle even after cancellation; it must not undo recovery.
+    releaseOld(current)
+    await vi.waitFor(() => expect(qc.getQueryData(filteredKey)).toEqual(current))
+    await Promise.resolve(); await Promise.resolve()
+    expect(qc.getQueryData(filteredKey)).toEqual(current)
+    expect(read).toHaveBeenCalledTimes(actuallyCancelled ? 2 : 1)
+    expect(qc.getQueryData<CachedTaskPages>(defaultKey)?.pages[0]?.items).toEqual([{ ...a, priority: outcome === 'success' ? '2' : '0' }, renamed])
+  } finally { stop(); qc.clear() }
+})
+it('deduplicates a warm read cancelled at both mutation callbacks and required by patch ordering', async () => {
+  const qc = state.qc as QueryClient, key = taskKeys.list({ closed: false, q: 'A', sort: 'priority desc' })
+  const old = { pages: [{ items: [{ id: 1, name: 'A', priority: '0' }], total: 1 }], pageParams: [0] }
+  const detail = { id: 1, name: 'A', priority: '2', updated_at: '2026-11-07T02:00:00.123456Z' }
+  const current = { pages: [{ items: [{ id: 1, name: 'A', priority: '2' }], total: 1 }], pageParams: [0] }
+  qc.setQueryData(key, old)
+  const releases: Array<(value: object) => void> = []
+  const read = vi.fn(() => new Promise<object>(resolve => { releases.push(resolve) }))
+  const stop = new QueryObserver(qc, { queryKey: key, staleTime: Infinity, queryFn: read }).subscribe(() => {})
+  try {
+    void qc.refetchQueries({ queryKey: key, exact: true })
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(1))
+    useUpdateTask(); const mutation = state.options, variables = { id: 1, patch: { priority: '2' } }, ctx = await mutation.onMutate(variables)
+    void qc.refetchQueries({ queryKey: key, exact: true })
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(2))
+    mutation.onSuccess(detail, variables, ctx); mutation.onSettled(detail, null, variables, ctx)
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(3))
+    await Promise.resolve(); await Promise.resolve()
+    expect(read).toHaveBeenCalledTimes(3)
+    let acknowledged = false
+    const ack = reconcileTaskWriteEvent(qc, { id: 1, event: 'updated', source: 'write', updated_at: detail.updated_at, changed_fields: ['priority'] }).then(result => { acknowledged = result; return result })
+    await Promise.resolve(); await Promise.resolve()
+    expect(acknowledged).toBe(false)
+    releases[2]!(current)
+    await expect(ack).resolves.toBe(true)
+    releases[0]!(old); releases[1]!(old)
+    await Promise.resolve(); await Promise.resolve()
+    expect(qc.getQueryData(key)).toEqual(current)
+    expect(read).toHaveBeenCalledTimes(3)
+  } finally { stop(); qc.clear() }
+})

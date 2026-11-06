@@ -267,8 +267,14 @@ export function useUpdateTask({ notifyErrors = true }: { notifyErrors?: boolean 
   const toast = useToast()
   const { me } = useMe()
   const identity = () => taskIdentity(me.value)
-  const coldLists = () => new Map(qc.getQueriesData<TaskPages>({ queryKey: ['tasks', 'list'] })
-    .filter(([key, data]) => data === undefined && qc.getQueryState(key)?.fetchStatus !== 'idle').map(([key]) => [hashKey(key), key] as const))
+  const cancelListReads = (recovery: Map<string, readonly unknown[]>) => qc.cancelQueries({
+    queryKey: ['tasks', 'list'],
+    predicate: query => {
+      if (query.state.fetchStatus === 'idle') return false
+      recovery.set(hashKey(query.queryKey), query.queryKey)
+      return true
+    },
+  })
   return useMutation({
     mutationFn: ({ id, patch }: { id: number; patch: TaskPatch; resolved?: Resolved }) => {
       const writes = taskWrites.get(qc) ?? new Map<string, Promise<unknown>>()
@@ -286,8 +292,8 @@ export function useUpdateTask({ notifyErrors = true }: { notifyErrors?: boolean 
     },
     onMutate: async ({ id, patch, resolved }) => {
       const owner = identity()
-      const cancelledColdLists = coldLists()
-      await Promise.all([qc.cancelQueries({ queryKey: taskKeys.detail(id) }), qc.cancelQueries({ queryKey: ['tasks', 'list'] })])
+      const cancelledLists = new Map<string, readonly unknown[]>()
+      await Promise.all([qc.cancelQueries({ queryKey: taskKeys.detail(id) }), cancelListReads(cancelledLists)])
       if (identity() !== owner) throw new ApiError(409, 'identity_changed', t('errors.generic'))
       const edits = taskEdits.get(qc) ?? new Map<number, TaskEdit>()
       taskEdits.set(qc, edits)
@@ -308,7 +314,7 @@ export function useUpdateTask({ notifyErrors = true }: { notifyErrors?: boolean 
       const layer: TaskLayer = { patch, resolved, done, finish, acknowledgements }
       edit.layers.push(layer)
       renderTaskEdit(qc, id, edit)
-      return { edit, layer, owner, cancelledColdLists }
+      return { edit, layer, owner, cancelledLists }
     },
     onError: (error, { id }, ctx) => {
       if (ctx && ctx.owner !== identity()) return
@@ -318,8 +324,7 @@ export function useUpdateTask({ notifyErrors = true }: { notifyErrors?: boolean 
     onSuccess: (detail, { id }, ctx) => {
       if (ctx && ctx.owner !== identity()) return
       if (ctx) {
-        for (const [hash, key] of coldLists()) ctx.cancelledColdLists.set(hash, key)
-        void qc.cancelQueries({ queryKey: ['tasks', 'list'] })
+        void cancelListReads(ctx.cancelledLists)
         void qc.cancelQueries({ queryKey: taskKeys.detail(id) })
         if (!ctx.edit.detail) ctx.edit.detail = detail
         ctx.layer.result = detail
@@ -344,13 +349,16 @@ export function useUpdateTask({ notifyErrors = true }: { notifyErrors?: boolean 
       if (ctx && ctx.owner !== identity()) { complete(false); return }
       const effects: Array<Promise<unknown>> = []
       const refresh = (filters: Parameters<typeof qc.invalidateQueries>[0]) => { effects.push(qc.invalidateQueries(filters, { throwOnError: true })) }
-      // A cancelled initial list has no row for renderTaskEdit to reconcile.
-      // Resume its active observer after either outcome, before acknowledging a write.
-      for (const key of ctx?.cancelledColdLists.values() ?? []) refresh({ queryKey: key, exact: true })
-      if (error) { void Promise.allSettled(effects).then(() => complete(false)); return }
-      for (const [key] of qc.getQueriesData({ queryKey: ['tasks', 'list'] })) {
-        if (taskPatchAffectsList(key[2] as TaskListParams, patch)) refresh({ queryKey: key, exact: true })
+      // An interrupted warm read may reconcile another task's membership or total.
+      // Merge recovery and this patch's required reads so neither cancels its own restart.
+      const lists = new Map<string, readonly unknown[]>(ctx?.cancelledLists)
+      if (!error) {
+        for (const [key] of qc.getQueriesData({ queryKey: ['tasks', 'list'] })) {
+          if (taskPatchAffectsList(key[2] as TaskListParams, patch)) lists.set(hashKey(key), key)
+        }
       }
+      for (const key of lists.values()) refresh({ queryKey: key, exact: true })
+      if (error) { void Promise.allSettled(effects).then(() => complete(false)); return }
       if (patch.name !== undefined || patch.priority !== undefined || patch.date_deadline !== undefined || patch.user_ids !== undefined || patch.stage_id !== undefined) {
         refresh({ queryKey: ['tasks', 'summary'] })
         refresh({ queryKey: ['tasks', 'attention'] })
