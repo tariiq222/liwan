@@ -20,13 +20,16 @@ def role_of(user):
 
 
 def dump_me(user):
-    identity = user.env['liwan.access.service']._liwan_identity(user)
+    service = user.env['liwan.access.service']
+    identity = service._liwan_identity(user)
     platform = dump_platform(user)
     return {
         'id': user.id,
         'name': user.name,
         'login': user.login,
         'email': user.email or '',
+        'mobile': user.liwan_mobile or None,
+        'mobile_required': service._liwan_mobile_required(user),
         # res.users.lang is False for a user whose partner has no language set;
         # the contract requires a string, and a null here 502s the whole app.
         'lang': user.lang or DEFAULT_LANG,
