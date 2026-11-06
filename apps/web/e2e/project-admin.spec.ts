@@ -20,8 +20,9 @@ const DEFAULT_STAGES = [
 
 const ADMIN_LOGIN = process.env.E2E_ADMIN_LOGIN ?? 'admin'
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'admin'
-const EMPLOYEE_LOGIN = 'e2e_emp@example.com'
-const EMPLOYEE_PASSWORD = 'e2e_emp_pass_123'
+// The employee-role account tools/e2e_seed.py creates: an administrator can no longer give an account a password.
+const EMPLOYEE_LOGIN = 'e2e_employee'
+const EMPLOYEE_PASSWORD = process.env.E2E_USER_EMPLOYEE_PASSWORD ?? process.env.E2E_EMPLOYEE_PASSWORD ?? 'liwan-e2e-employee-2026'
 
 test.beforeAll(async ({ request }) => {
   const login = await request.post('/api/auth/login', { data: { login: ADMIN_LOGIN, password: ADMIN_PASSWORD } })
@@ -44,44 +45,6 @@ async function loginAs(page, username: string, password: string) {
 
 async function login(page) {
   await loginAs(page, ADMIN_LOGIN, ADMIN_PASSWORD)
-}
-
-// Idempotent production-flow fixture: create an HR employee, then grant access.
-// This keeps the test inside the company-scoped HR security boundary instead
-// of relying on low-level res.users RPC to auto-create an unscoped contact.
-async function ensureEmployeeUser(page): Promise<number> {
-  const listRes = await page.request.get('/api/v1/hr/employees?q=E2E%20Employee&limit=200')
-  expect(listRes.status()).toBe(200)
-  const list = await listRes.json()
-  let employee = list.items.find((item) => item.work_email === EMPLOYEE_LOGIN)
-  if (!employee) {
-    const createRes = await page.request.post('/api/v1/hr/employees', {
-      data: { name: 'E2E Employee', work_email: EMPLOYEE_LOGIN },
-    })
-    expect(createRes.status()).toBe(201)
-    employee = await createRes.json()
-  }
-  if (!employee.access?.active) {
-    const me = await (await page.request.get('/api/v1/me')).json()
-    const roles = await (await page.request.get('/api/v1/admin/roles')).json()
-    const role = roles.items.find((item) => item.key === 'employee')
-    expect(role).toBeTruthy()
-    if (employee.user_id) {
-      const account = await (await page.request.get(`/api/v1/admin/users/${employee.user_id}`)).json()
-      const restored = await page.request.post(`/api/v1/admin/users/${account.id}/reactivate`, {
-        data: { password: EMPLOYEE_PASSWORD, expected_version: account.version },
-      })
-      expect(restored.status()).toBe(200)
-    } else {
-      const grantRes = await page.request.post('/api/v1/admin/employee-accounts', {
-        data: { employee_id: employee.id, password: EMPLOYEE_PASSWORD, assignments: [{ role_id: role.id, scope: { kind: 'company', id: me.company.id } }] },
-      })
-      expect(grantRes.status()).toBe(201)
-      employee.user_id = (await grantRes.json()).id
-    }
-  }
-  expect(employee.user_id).toBeTruthy()
-  return employee.user_id as number
 }
 
 async function createProject(page, name: string): Promise<number> {
@@ -131,7 +94,6 @@ test('creating a project from the table lands on its page with the default stage
 
 test('project settings: visibility, followers, and the full stage lifecycle', async ({ page }) => {
   await login(page)
-  await ensureEmployeeUser(page)
   const name = `E2E settings ${Date.now()}`
   const id = await createProject(page, name)
   // Puts one task in the first default stage ("To Do") so that stage is
@@ -338,7 +300,6 @@ test('changing the default stages in settings applies to the next created projec
 
 test('an employee sees no project-create button and no settings nav entry', async ({ page }) => {
   await login(page)
-  await ensureEmployeeUser(page)
   const guardedProject = await createProject(page, `E2E guarded project ${Date.now()}`)
   await page.context().clearCookies()
 

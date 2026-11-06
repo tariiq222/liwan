@@ -56,7 +56,7 @@ const USERS = {
   items: [{
     id: 18, name: 'سارة محمد', login: 'sara@example.com',
     employee: { id: 31, name: 'سارة محمد', department: { id: 3, name: 'الموارد البشرية' } },
-    active: true, protected: false,
+    mobile: null, invitation: null, active: true, protected: false,
     assignments: [{ id: 44, role: { id: 4, key: 'hr_manager', name: { ar: 'مسؤول موارد بشرية', en: 'HR manager' }, type: 'built_in', protected: true }, scope: { kind: 'company', id: 1, name: 'ليوان' } }],
     version: 'u18-a3-v7',
   }],

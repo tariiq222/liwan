@@ -331,6 +331,8 @@ const adminUser = {
   employee: employeeRef,
   active: true,
   protected: true,
+  mobile: null,
+  invitation: null,
   assignments: [assignment],
   version: 'user-1-v1',
 }
@@ -341,7 +343,7 @@ const capabilitySources = moduleUiCapabilities.map((key) => ({
 const adminUserDetail = {
   ...adminUser,
   capabilities: capabilitySources,
-  allowed_actions: ['read', 'assign_roles', 'reset_password', 'disable', 'reactivate'],
+  allowed_actions: ['read', 'assign_roles', 'send_reset_link', 'disable', 'reactivate'],
 }
 const role = {
   id: 1,
