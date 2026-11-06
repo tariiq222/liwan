@@ -5,8 +5,8 @@ import { mountScript } from './scriptHarness'
 
 const filename = new URL('../InboxTikTokConnect.vue', import.meta.url)
 
-function mount(options: { connect?: (body: unknown) => Promise<unknown> } = {}) {
-  const assign = vi.fn()
+function mount(options: { connect?: (body: unknown) => Promise<unknown>; assign?: () => void } = {}) {
+  const assign = vi.fn(options.assign ?? (() => {}))
   vi.stubGlobal('window', { location: { assign } })
   const connect = vi.fn(options.connect ?? (async () => ({ authorize_url: 'https://auth.example.test/authorize?state=s' })))
   const { state, props } = mountScript(filename, {
@@ -39,6 +39,19 @@ describe('InboxTikTokConnect', () => {
     await state.submit()
     expect(connect).toHaveBeenCalledWith({ name: 'تيك توك المتجر', department_id: 3 })
     expect(assign).toHaveBeenCalledWith('https://auth.example.test/authorize?state=s')
+  })
+
+  it('declares no unsaved changes while the browser is handed to TikTok', async () => {
+    // The half-typed name is a draft of the connect form, but the handover to TikTok's account page is the form's
+    // own success: a beforeunload prompt over the OAuth redirect would read as a broken connection.
+    const atAssign: { dirty?: boolean } = {}
+    const { state, assign } = mount({ assign: () => { atAssign.dirty = state.dirty } })
+    state.open = true
+    state.form.name = 'تيك توك'
+    expect(state.dirty).toBe(true)
+    await state.submit()
+    expect(assign).toHaveBeenCalled()
+    expect(atAssign.dirty).toBe(false)
   })
 
   it('sends no department when none was chosen', async () => {

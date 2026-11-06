@@ -26,8 +26,10 @@ const payload = computed(() => ({
 const valid = computed(() => InboxTikTokConnectSchema.safeParse(payload.value).success)
 const off = computed(() => !hydrated.value || isPending.value)
 const nameError = computed(() => attempted.value && !form.name.trim() ? t('inbox.settings.channels.invalid.name') : undefined)
-// The form is a draft of its own: leaving the card with a half-typed name asks first.
-const dirty = computed(() => open.value && (!!form.name.trim() || form.department !== NONE))
+// The form is a draft of its own: leaving the card with a half-typed name asks first. Handing the browser to TikTok's
+// account page is the form's own success, not a departure, so the draft is not declared unsaved during the handover.
+const leaving = ref(false)
+const dirty = computed(() => open.value && !leaving.value && (!!form.name.trim() || form.department !== NONE))
 
 function toggle() {
   open.value = !open.value
@@ -41,6 +43,7 @@ async function submit() {
   if (off.value || !valid.value) return
   try {
     const { authorize_url } = await connect(payload.value)
+    leaving.value = true
     window.location.assign(authorize_url)
   } catch (e) {
     const key = inboxTikTokErrorKey(e)
