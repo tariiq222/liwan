@@ -7,8 +7,10 @@ services:
       - "${LIWAN_EDGE_BIND:-0.0.0.0}:${LIWAN_EDGE_HTTPS_PORT:-443}:443"
       - "${LIWAN_EDGE_BIND:-0.0.0.0}:${LIWAN_EDGE_HTTP_PORT:-80}:80"
     environment:
-      # The platform's TikTok delivery host; the relay routes live under /tiktok/* only.
-      LIWAN_TIKTOK_RELAY_HOST: ${LIWAN_TIKTOK_RELAY_HOST:?set LIWAN_TIKTOK_RELAY_HOST}
+      # The platform's TikTok delivery host; the relay routes live under /tiktok/* only. Unset is a
+      # deployment that runs no TikTok app: Caddy then has no /tiktok/* host and the channel stays
+      # `inbox_tiktok_not_configured`, exactly like a dedicated tenant without the three app variables.
+      LIWAN_TIKTOK_RELAY_HOST: ${LIWAN_TIKTOK_RELAY_HOST:-}
     volumes:
       - ./shared/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -78,12 +80,13 @@ services:
     environment:
       LIWAN_TENANCY_MODE: shared
       # A shared tenant registers its connected TikTok account with the relay (D13) and exchanges
-      # codes with the platform app; a deployment without these keeps its own direct webhook.
-      LIWAN_TIKTOK_RELAY_URL: http://tiktok-relay:8090
+      # codes with the platform app; a deployment without these keeps its own direct webhook, so an
+      # empty value must render instead of stopping the stack.
+      LIWAN_TIKTOK_RELAY_URL: ${LIWAN_TIKTOK_RELAY_URL:-http://tiktok-relay:8090}
       LIWAN_SHARED_PROXY_TOKEN: ${LIWAN_SHARED_PROXY_TOKEN:?set LIWAN_SHARED_PROXY_TOKEN}
-      LIWAN_TIKTOK_CLIENT_KEY: ${LIWAN_TIKTOK_CLIENT_KEY:?set LIWAN_TIKTOK_CLIENT_KEY}
-      LIWAN_TIKTOK_CLIENT_SECRET: ${LIWAN_TIKTOK_CLIENT_SECRET:?set LIWAN_TIKTOK_CLIENT_SECRET}
-      LIWAN_TIKTOK_REDIRECT_URI: https://${LIWAN_TIKTOK_RELAY_HOST:?set LIWAN_TIKTOK_RELAY_HOST}/tiktok/oauth/callback
+      LIWAN_TIKTOK_CLIENT_KEY: ${LIWAN_TIKTOK_CLIENT_KEY:-}
+      LIWAN_TIKTOK_CLIENT_SECRET: ${LIWAN_TIKTOK_CLIENT_SECRET:-}
+      LIWAN_TIKTOK_REDIRECT_URI: ${LIWAN_TIKTOK_RELAY_HOST:+https://${LIWAN_TIKTOK_RELAY_HOST}/tiktok/oauth/callback}
     ports: !reset []
     networks: [guard_odoo, database, relay_odoo]
     # TCP listener check: shared mode dbfilter=^%h$ / list_db=False means localhost selects no DB,
@@ -131,7 +134,8 @@ services:
       LIWAN_TENANCY_MODE: shared
       LIWAN_TENANT_REGISTRY_PATH: /etc/liwan/registry.json
       LIWAN_TIKTOK_BINDINGS_PATH: /var/lib/liwan/tiktok-bindings.json
-      LIWAN_TIKTOK_CLIENT_SECRET: ${LIWAN_TIKTOK_CLIENT_SECRET:?set LIWAN_TIKTOK_CLIENT_SECRET}
+      # An app that is not configured answers `inbox_tiktok_not_configured`; the relay still starts.
+      LIWAN_TIKTOK_CLIENT_SECRET: ${LIWAN_TIKTOK_CLIENT_SECRET:-}
       LIWAN_SHARED_PROXY_TOKEN: ${LIWAN_SHARED_PROXY_TOKEN:?set LIWAN_SHARED_PROXY_TOKEN}
       LIWAN_TIKTOK_RELAY_PORT: "8090"
     volumes:

@@ -30,7 +30,8 @@ it.skipIf(!hasDocker)('renders dedicated defaults without shared services or bui
   expect(s.web.environment.NUXT_ODOO_URL).toBe('http://odoo:8069')
 })
 it.skipIf(!hasDocker)('renders shared network boundaries, commands, directory mounts and compiled mode', () => {
-  const s = rendered(true).services
+  const model = rendered(true)
+  const s = model.services
   for (const name of ['web', 'odoo', 'guard', 'db']) expect(s[name].ports ?? []).toEqual([])
   expect(s.proxy.ports.map((p: { published: string }) => p.published).sort()).toEqual(['443', '80'])
   expect(s.odoo.command ?? []).toEqual([])
@@ -38,7 +39,11 @@ it.skipIf(!hasDocker)('renders shared network boundaries, commands, directory mo
   expect(s.odoo.environment.LIWAN_TENANCY_MODE).toBe('shared')
   expect(Object.keys(s.proxy.networks)).toEqual(['edge'])
   expect(Object.keys(s.web.networks)).toEqual(['guard_web'])
-  expect(Object.keys(s.odoo.networks).sort()).toEqual(['database', 'guard_odoo'])
+  // `relay_odoo` carries the TikTok relay's binding calls (D13): it is internal, reaches only the relay,
+  // and keeps the relay off `guard_odoo` and `database`.
+  expect(Object.keys(s.odoo.networks).sort()).toEqual(['database', 'guard_odoo', 'relay_odoo'])
+  expect(Object.keys(s['tiktok-relay'].networks).sort()).toEqual(['edge', 'relay_odoo'])
+  expect(model.networks.relay_odoo.internal).toBe(true)
   expect(s.web.build.args.LIWAN_TENANCY_MODE).toBe('shared')
   expect(s.web.environment.NUXT_ODOO_URL).toBe('http://guard:8080')
   for (const name of ['web', 'guard']) expect(s[name].volumes).toContainEqual(expect.objectContaining({ source: '/synthetic/registry', target: '/etc/liwan', read_only: true }))
