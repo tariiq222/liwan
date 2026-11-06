@@ -1,6 +1,6 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, nextTick, toValue } from 'vue'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   AdminUserDetailSchema,
   AdminUserListSchema,
@@ -49,6 +49,7 @@ export function useAdminUsers(params: MaybeRefOrGetter<AdminUserListParams> = {}
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => adminUserKeys.list(toValue(params))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => toValue(enabled)),
     queryFn: () => $api('/api/v1/admin/users', {
       query: adminUserListQuery(toValue(params)),

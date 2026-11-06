@@ -1,6 +1,6 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   PermissionCatalogSchema,
   RoleCreateInputSchema,
@@ -47,6 +47,7 @@ export function useAdminRoles(params: MaybeRefOrGetter<AdminRoleListParams> = {}
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => adminRoleKeys.list(toValue(params))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => toValue(enabled)),
     queryFn: () => $api('/api/v1/admin/roles', {
       query: adminRoleListQuery(toValue(params)),

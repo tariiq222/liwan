@@ -1,5 +1,5 @@
 import { toValue, type MaybeRefOrGetter, type Ref } from 'vue'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { PROJECT_STATUSES, ProjectDashboardSummarySchema, ProjectDetailSchema, ProjectListSchema, type ProjectCharterAction, type ProjectCopyInput, type ProjectCreate, type ProjectDetail, type ProjectPatch, type ProjectPhase, type ProjectStatus } from '@liwan/contracts'
 import { ApiError } from './useApi'
 import { invalidateProjectCaches, projectKeys } from './projectKeys'
@@ -132,6 +132,7 @@ export function useProjectList(archived: Ref<boolean>, filters: MaybeRefOrGetter
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => [...projectKeys.list, projectListQuery(archived.value, toValue(filters))] as const),
+    placeholderData: keepPreviousData,
     queryFn: () => $api('/api/v1/projects', { query: projectListQuery(archived.value, toValue(filters)), schema: ProjectListSchema }),
   })
 }

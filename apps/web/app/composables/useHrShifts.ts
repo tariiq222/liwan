@@ -1,7 +1,7 @@
 import { useHrOwnIdentity } from './useHrOwnIdentity'
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
 import {
   HrShiftAssignmentListSchema,
   HrShiftAssignmentSchema,
@@ -95,6 +95,7 @@ export function useHrShiftSchedules(params: MaybeRefOrGetter<HrShiftScheduleList
   const { can } = useAccess()
   return useQuery({
     queryKey: computed(() => hrShiftKeys.schedules(toValue(params))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => can('hr.shifts.read')),
     queryFn: () => $api('/api/v1/hr/shifts/schedules', {
       query: hrShiftScheduleQuery(toValue(params)),
@@ -117,6 +118,7 @@ export function useHrShiftAssignments(params: MaybeRefOrGetter<HrShiftAssignment
   const { can } = useAccess()
   return useQuery({
     queryKey: computed(() => hrShiftKeys.assignments(toValue(params))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => can('hr.shifts.read')),
     queryFn: () => $api('/api/v1/hr/shifts/assignments', {
       query: hrShiftAssignmentQuery(toValue(params)),
@@ -257,6 +259,9 @@ export function useHrShiftRoster(weekStart: MaybeRefOrGetter<string>, offset: Ma
   const { can } = useAccess()
   return useQuery({
     queryKey: computed(() => hrShiftKeys.roster(toValue(weekStart), toValue(offset))),
+    // Another page of the same week keeps its rows; another week never shows the old one, whose selectors would write
+    // to the newly chosen week.
+    placeholderData: (previous, previousQuery) => previousQuery?.queryKey[3] === toValue(weekStart) ? previous : undefined,
     enabled: computed(() => !!toValue(weekStart) && can('hr.shifts.read')),
     queryFn: () => $api('/api/v1/hr/shifts/roster', {
       query: { week_start: toValue(weekStart), limit: HR_SHIFTS_PAGE_SIZE, offset: toValue(offset) },

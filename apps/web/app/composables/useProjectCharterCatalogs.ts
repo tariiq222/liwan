@@ -1,6 +1,6 @@
 import type { MaybeRefOrGetter, Ref } from 'vue'
 import { computed, onMounted, ref, toValue, watch } from 'vue'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { refDebounced } from '@vueuse/core'
 import {
   ProjectCharterCatalogResourceSchema,
@@ -62,6 +62,7 @@ export function useCharterCatalogList(
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => charterCatalogKeys.list(toValue(resource), toValue(params))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => toValue(enabled) && isCharterCatalogResource(toValue(resource))),
     queryFn: () => {
       const query = toValue(params)
