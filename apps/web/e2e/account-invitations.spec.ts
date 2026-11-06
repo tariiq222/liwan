@@ -1,14 +1,14 @@
-import { expect, test, type Page, type Route } from '@playwright/test'
+import { expect, type Page, type Route } from '@playwright/test'
 import { AdminUserDetailSchema, PermissionCatalogSchema, RoleDetailSchema, RoleListSchema, SeatUsageSchema } from '@liwan/contracts'
 import { collectBrowserErrors, heading, MOCK_STACK_ONLY, trackRefusedRequests } from './support/mock-pages'
 import { fitsWidth, login, open } from './support/tasmim6'
+import { setSsrFixture, test } from './ssr-fixture'
 
 test.skip(process.env.E2E_PROJECT_POPUPS !== '1', MOCK_STACK_ONLY)
 
-// The invitation journeys against the audit mock. The public pages and the administrator screens answer from `page.route`,
-// because the mock knows neither the new account routes nor an invited account: this spec states the Task 2 shapes itself and
-// parses them with the contracts. The session comes from the mock's own login; the administrator's list, user and role
-// fixtures are this file's, not the shared ones.
+// Invitation journeys parse their own fixtures with the contracts. Administrator reads
+// reach both SSR and browser requests through a session-scoped mock fixture; browser
+// routes retain the per-test mutation recording and public-page error scenarios.
 const PASSWORD = 'twelve-chars!'
 const COMPANY = { kind: 'company', id: 1, name: 'شركة المثال' } as const
 const ROLE = { id: 3, key: 'employee', name: { ar: 'موظف', en: 'Employee' }, type: 'built_in', protected: false } as const
@@ -23,7 +23,9 @@ test.beforeEach(({ page }) => {
   tolerate = trackRefusedRequests(page, '/api/v1/')
 })
 
-test.afterEach(() => {
+test.afterEach(async ({ page }) => {
+  // Finish background /me route.fetch callbacks before Playwright disposes their responses.
+  await page.unrouteAll({ behavior: 'wait' })
   expect(tolerate(errors), 'no page error and no console error').toEqual([])
 })
 
@@ -42,17 +44,21 @@ function pendingUser(overrides: Record<string, unknown> = {}) {
 async function mockAdmin(page: Page, options: { seats?: unknown; user?: ReturnType<typeof pendingUser> } = {}) {
   const calls: { method: string; path: string; body: unknown }[] = []
   const user = options.user ?? pendingUser()
+  const reads: Record<string, unknown> = {
+    '/users/seats': SeatUsageSchema.parse(options.seats ?? { used: 6, limit: 10 }),
+    '/roles': RoleListSchema.parse({ items: [{ ...ROLE, description: '', active: true, assignable: true, user_count: 2, version: 'r3' }], total: 1 }),
+    '/roles/3': RoleDetailSchema.parse({ ...ROLE, description: '', active: true, assignable: true, user_count: 2, version: 'r3', permissions: [], allowed_actions: ['read'] }),
+    '/permissions': PermissionCatalogSchema.parse({ items: [], total: 0, version: 'p1' }),
+    [`/users/${user.id}`]: user,
+  }
+  await setSsrFixture(page, { reads: Object.fromEntries(Object.entries(reads).map(([path, body]) => [`/api/v1/admin${path}`, body])) })
   await page.route('**/api/v1/admin/**', async (route: Route) => {
     const request = route.request()
     const path = new URL(request.url()).pathname.replace('/api/v1/admin', '')
     const method = request.method()
     if (method !== 'GET') calls.push({ method, path, body: request.postDataJSON() })
     if (method === 'GET') {
-      if (path === '/users/seats') return route.fulfill(ok(SeatUsageSchema.parse(options.seats ?? { used: 6, limit: 10 })))
-      if (path === '/roles') return route.fulfill(ok(RoleListSchema.parse({ items: [{ ...ROLE, description: '', active: true, assignable: true, user_count: 2, version: 'r3' }], total: 1 })))
-      if (path === '/roles/3') return route.fulfill(ok(RoleDetailSchema.parse({ ...ROLE, description: '', active: true, assignable: true, user_count: 2, version: 'r3', permissions: [], allowed_actions: ['read'] })))
-      if (path === '/permissions') return route.fulfill(ok(PermissionCatalogSchema.parse({ items: [], total: 0, version: 'p1' })))
-      if (path === `/users/${user.id}`) return route.fulfill(ok(user))
+      if (Object.hasOwn(reads, path)) return route.fulfill(ok(reads[path]))
       return route.fulfill(refusal(404, 'not_found'))
     }
     if (method === 'POST' && path === '/users') return route.fulfill(ok(pendingUser({ id: 30, name: 'خالد', login: 'khalid@example.com' }), 201))
