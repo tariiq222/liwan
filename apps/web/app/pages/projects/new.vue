@@ -16,7 +16,7 @@ const hydrated = useHydrated()
 const toast = useToast()
 const { $api } = useApi()
 const aiDraftId = computed(() => (typeof route.query.aiDraft === 'string' ? route.query.aiDraft : null))
-// `/ai` is a valid way back only while a LiwanOS AI draft is being approved on this page.
+// `/ai` is a valid way back only while a Liwan AI draft is being approved on this page.
 const sourcePaths = useRecordListPaths(() => ['/projects', '/projects/dashboard', ...(aiDraftId.value ? ['/ai'] : [])])
 const returnTo = computed(() => {
   const copyId = parsePositiveId(route.query.copyFrom)

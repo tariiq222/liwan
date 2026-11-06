@@ -1,6 +1,6 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   HrEmployeeListSchema,
   HrEmployeeSchema,
@@ -73,6 +73,7 @@ export function useHrEmployees(params: MaybeRefOrGetter<HrEmployeeListParams> = 
   return useQuery({
     enabled: computed(() => toValue(enabled)),
     queryKey: computed(() => hrEmployeeKeys.list(toValue(params))),
+    placeholderData: keepPreviousData,
     queryFn: () => $api('/api/v1/hr/employees', { query: hrEmployeeListQuery(toValue(params)), schema: HrEmployeeListSchema }),
   })
 }

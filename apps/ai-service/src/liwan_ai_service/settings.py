@@ -131,6 +131,7 @@ class Settings:
     tenant_database: str | None = None
     tenant_registry_path: str | None = None
     embedding: EmbeddingSettings | None = None  # knowledge retrieval (spec 2026-11-04 §6.3); None leaves it unavailable
+    tenant_egress_dir: str | None = None  # where each tenant key's host is published for ai-egress (tenant_egress.py); None: no proxy
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str]) -> Settings:
@@ -156,6 +157,9 @@ class Settings:
         if REGISTRY[provider].needs_api_key and not api_key:
             msg = f"AI_API_KEY is required for provider {provider}"
             raise SettingsError("AI_API_KEY", msg)
+        if REGISTRY[provider].needs_base_url and not environ.get("AI_BASE_URL"):
+            msg = f"AI_BASE_URL is required for provider {provider}"
+            raise SettingsError("AI_BASE_URL", msg)
         dev_insecure = _dev_insecure(environ)
         database_url = environ.get("AI_DATABASE_URL", "").strip() or None
         if database_url is None and environ.get("AI_ALLOW_MEMORY_STATE") != "true":
@@ -179,4 +183,5 @@ class Settings:
             generation_id=generation_id,
             keyring=Keyring.from_env(environ),
             embedding=EmbeddingSettings.from_env(environ),
+            tenant_egress_dir=environ.get("AI_TENANT_EGRESS_DIR", "").strip() or None,
         )

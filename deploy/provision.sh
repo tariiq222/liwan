@@ -18,13 +18,14 @@ if grep -Eq '^COMPOSE_PROFILES=([^#]*,)?ai(,|$|[[:space:]])' .env; then
   sh ai/ensure_secrets.sh .env
   # `ai` has no internet route of its own: every outbound call goes through the ai-egress host allowlist.
   # An operator-set AI_EGRESS_HOSTS is kept as it is; when it is empty or absent it is derived once from the
-  # provider (and AI_BASE_URL, when set) so a fresh deployment can reach its provider without another step.
+  # provider (and AI_BASE_URL, when set) and the embedding endpoint, so a fresh deployment can reach them without another
+  # step. Tenants' own provider keys need no entry here: the ai service publishes their hosts to ai-egress itself.
   if ! grep -Eq '^AI_EGRESS_HOSTS=.' .env; then
     env_file_value() { awk -v key="$1" 'index($0, key "=") == 1 { print substr($0, length(key) + 2); exit }' .env; }
     provider="$(env_file_value AI_PROVIDER)"
     [ -n "$provider" ] || provider=ollama
-    egress_hosts="$(sh ai/egress_hosts.sh "$provider" "$(env_file_value AI_BASE_URL)")" \
-      || { echo "provision: could not derive AI_EGRESS_HOSTS from AI_PROVIDER/AI_BASE_URL in deploy/.env" >&2; exit 1; }
+    egress_hosts="$(sh ai/egress_hosts.sh "$provider" "$(env_file_value AI_BASE_URL)" "$(env_file_value AI_EMBEDDING_PROVIDER)" "$(env_file_value AI_EMBEDDING_BASE_URL)")" \
+      || { echo "provision: could not derive AI_EGRESS_HOSTS from AI_PROVIDER/AI_BASE_URL/AI_EMBEDDING_* in deploy/.env" >&2; exit 1; }
     # Same write rule as ai/ensure_secrets.sh: replace one assignment in place, append otherwise, never echo a value.
     # The temporary file holds every secret in .env, so it is created in a subshell whose umask is owner-only.
     ( umask 077

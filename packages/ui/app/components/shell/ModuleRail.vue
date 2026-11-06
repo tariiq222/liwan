@@ -44,6 +44,7 @@ function capture(group: string, target: 'container' | 'content', element: unknow
             :to="item.to"
             class="liwan-module-rail-link"
             :data-active="item.id === props.activeId"
+            :data-accent="item.accent || undefined"
             :aria-current="item.id === props.activeId ? 'page' : undefined"
             :title="t(item.labelKey)"
             @pointerenter="fromMouse($event) && peekFrom($event, item.id)"

@@ -7,7 +7,7 @@ let odoo: http.Server, service: http.Server, deadService: http.Server, app: http
 let odooUrl: string, serviceUrl: string, url: string
 let odooCalls: { method: string; url: string; cookie?: string; body?: string }[] = []
 let serviceCalls: { method: string; url: string; headers: http.IncomingHttpHeaders; body: string; at: number }[] = []
-let scenario: 'read' | 'draft' | 'limit' | 'unknown' | 'draft_as_read' | 'write_light' | 'bogus_draft' | 'draft_wrong_kind' | 'abort' | 'read_slow_done' | 'error_only' | 'usage' | 'usage_cut' | 'usage_gone' | 'wrong_run' | 'malformed_usage' = 'read'
+let scenario: 'read' | 'draft' | 'limit' | 'unknown' | 'draft_as_read' | 'write_light' | 'bogus_draft' | 'draft_wrong_kind' | 'abort' | 'read_slow_done' | 'error_only' | 'usage' | 'usage_cut' | 'usage_gone' | 'wrong_run' | 'malformed_usage' | 'echo' = 'read'
 let pending: Record<string, unknown> | null = null
 let odooToolsStatus = 200
 let deadServiceUrl = ''
@@ -175,6 +175,12 @@ beforeAll(async () => {
         }, 300)
         return
       }
+      if (scenario === 'echo') {
+        // The model repeats the message it was given (its tokens included), streamed in two pieces that split a token.
+        const message = (JSON.parse(body) as { message: string }).message
+        const cut = message.indexOf('[') + 5
+        return sse(res, [['run', { run_id: runId }], ['token', { text: message.slice(0, cut) }], ['token', { text: message.slice(cut) }], ['answer', { text: message, records: [] }], ['done', { status: 'done' }]])
+      }
       if (scenario === 'wrong_run') return sse(res, [['run', { run_id: 'r_other' }], ['done', { status: 'done' }]])
       if (scenario === 'malformed_usage') return sse(res, [['run', { run_id: runId }], ['model_call', { call_id: 'nope' }], ['done', { status: 'done' }]])
       if (scenario === 'error_only') return sse(res, [['run', { run_id: runId }], ['error', { code: 'model_failed', message: 'boom' }]])
@@ -196,7 +202,7 @@ beforeAll(async () => {
   deadService = http.createServer(req => req.socket.destroy())
   await new Promise<void>(r => deadService.listen(0, '127.0.0.1', r))
   deadServiceUrl = `http://127.0.0.1:${(deadService.address() as any).port}`
-  vi.stubGlobal('useRuntimeConfig', () => ({ odooUrl, aiServiceUrl: serviceDown ? deadServiceUrl : serviceUrl, aiServiceToken: serviceToken, odooDb: 'x', authProxyClientIpHeader: '' }))
+  vi.stubGlobal('useRuntimeConfig', () => ({ odooUrl, aiServiceUrl: serviceDown ? deadServiceUrl : serviceUrl, aiServiceToken: serviceToken, aiTokenKey: 'test-secret-of-at-least-32-characters', odooDb: 'x', authProxyClientIpHeader: '' }))
   const { assertSameSiteJson } = await import('../../same-site')
   vi.stubGlobal('assertSameSiteJson', assertSameSiteJson)
   const start = (await import('../../../api/ai/runs/index.post')).default
@@ -309,16 +315,24 @@ describe('POST /api/ai/runs', () => {
     expect(started.limits).toEqual({ max_steps: 12, max_tool_calls: 8, timeout_seconds: 120 })
   })
 
-  it('withholds identity and contact values from the message and the tool result before the service sees them', async () => {
+  it('protects identity and contact values in the message and the tool result before the service sees them', async () => {
     taskName = 'اتصل بأحمد على 0551234567'
     await events(await post('/api/ai/runs', { message: 'هويتي 1000000008 وبريدي a@b.sa، ما مهام أحمد؟' }))
     const started = JSON.parse(serviceCalls.find(c => c.url === '/v1/runs')!.body)
-    expect(started.message).toBe('هويتي [national_id withheld] وبريدي [email withheld]، ما مهام أحمد؟')
+    expect(started.message).toMatch(/^هويتي \[national_id withheld\] وبريدي \[email:[A-Za-z0-9_-]+\]، ما مهام أحمد؟$/)
     const resumed = JSON.parse(serviceCalls.find(c => c.url === '/v1/runs/r_1/resume')!.body)
-    expect(resumed.result.data.items).toEqual([{ id: 5, name: 'اتصل بأحمد على [phone withheld]' }])
+    expect(resumed.result.data.items[0].name).toMatch(/^اتصل بأحمد على \[phone:[A-Za-z0-9_-]+\]$/)
   })
 
-  it('refuses a message that grows past the service limit once withheld, before the quota is spent', async () => {
+  it('shows the browser the real values the model only knew as tokens, even split across streamed pieces', async () => {
+    scenario = 'echo'
+    const list = await events(await post('/api/ai/runs', { message: 'راسل a@b.sa أو اتصل 0551234567' }))
+    const streamed = list.filter(([name]) => name === 'token').map(([, data]) => data.text).join('')
+    expect(streamed).toBe('راسل a@b.sa أو اتصل 0551234567')
+    expect(list.find(([name]) => name === 'answer')![1].text).toBe('راسل a@b.sa أو اتصل 0551234567')
+  })
+
+  it('refuses a message that grows past the service limit once protected, before the quota is spent', async () => {
     const response = await post('/api/ai/runs', { message: 'a@b.sa '.repeat(1000).trim() })
     expect(response.status).toBe(422)
     expect(odooCalls.some(c => c.url === '/api/v1/ai/audit')).toBe(false)
@@ -580,6 +594,15 @@ describe('resume and status', () => {
     expect(JSON.parse(serviceCalls.at(-1)!.body).result).toEqual({ ok: false, error: { code: 'forbidden', message: 'no' }, decision: 'approved' })
   })
 
+  it('audits a rejected draft with the real values the model only knew as tokens', async () => {
+    const { protectText, tokenKeyFrom } = await import('../outbound')
+    const token = protectText('0551234567', tokenKeyFrom('test-secret-of-at-least-32-characters', { tenant: 'x', user: '42' }))
+    pending = { ...DRAFT_PENDING, input: { name: `بوابة ${token}` } }
+    await events(await post('/api/ai/runs/r_1/resume', { call_id: 'c_2', decision: 'rejected' }))
+    const audit = odooCalls.filter(c => c.url === '/api/v1/ai/audit').map(c => JSON.parse(c.body!)).at(-1)
+    expect([audit.result, audit.input, audit.draft]).toEqual(['rejected', { name: 'بوابة 0551234567' }, { name: 'بوابة 0551234567' }])
+  })
+
   it('executes nothing for a rejected write_light', async () => {
     pending = WRITE_PENDING
     await events(await post('/api/ai/runs/r_1/resume', { call_id: 'c_3', decision: 'rejected' }))
@@ -750,6 +773,13 @@ describe('PATCH /api/ai/runs/{id}', () => {
     const call = serviceCalls.at(-1)!
     expect([call.method, call.url, call.headers['x-liwan-tenant'], call.headers['x-liwan-user'], call.headers.cookie]).toEqual(['PATCH', '/v1/runs/r_1', 'x', '42', undefined])
     expect(JSON.parse(call.body)).toEqual({ title: 'مشروع البوابة', archived: true })
+  })
+
+  it('sends a typed title as typed: the service stores it and its 80-character contract holds', async () => {
+    const title = `${'م'.repeat(40)} someone.with.long.address@example.com`
+    const response = await patch({ title })
+    expect(response.status).toBe(200)
+    expect(JSON.parse(serviceCalls.at(-1)!.body).title).toBe(title)
   })
 
   it('sends the service only the fields of the contract', async () => {

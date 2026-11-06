@@ -1,7 +1,7 @@
 import { expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 vi.mock('vue', async () => ({ ...(await vi.importActual<typeof import('vue')>('vue')), onServerPrefetch: vi.fn() }))
-vi.mock('@tanstack/vue-query', () => ({ useQuery: (options: unknown) => options }))
+vi.mock('@tanstack/vue-query', () => ({ keepPreviousData: (previous: unknown) => previous, useQuery: (options: unknown) => options }))
 it('uses every followup filter for cache identity and the bounded server request', async () => {
   const api = vi.fn()
   Object.assign(globalThis, { useApi: () => ({ $api: api }) })

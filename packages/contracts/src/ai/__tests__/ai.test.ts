@@ -137,13 +137,24 @@ describe('LiwanOS AI usage contracts', () => {
 
   it('keeps the tenant key write-only and the retention bounded', () => {
     const config = {
-      retention_days: 30, leaver_retention_days: 30, key: { configured: true, provider: 'anthropic', model: 'claude-test', last4: 'abcd', updated_at: '2026-11-05T10:00:00Z' },
-      platform: { provider: 'ollama', model: 'm' }, providers: [{ name: 'anthropic', needs_api_key: true }],
+      retention_days: 30, leaver_retention_days: 30, key: { configured: true, provider: 'anthropic', model: 'claude-test', last4: 'abcd', updated_at: '2026-11-05T10:00:00Z', base_url: null },
+      platform: { provider: 'ollama', model: 'm' }, providers: [{ name: 'anthropic', needs_api_key: true, needs_base_url: false }, { name: 'openai_compatible', needs_api_key: true, needs_base_url: true }],
     }
     expect(AiTenantConfigSchema.parse(config).key.last4).toBe('abcd')
     expect(() => AiTenantConfigSchema.parse({ ...config, key: { ...config.key, api_key: 'sk' } })).toThrow()
     expect(() => AiRetentionPutSchema.parse({ retention_days: 366 })).toThrow()
     expect(() => AiKeyPutSchema.parse({ provider: 'anthropic', model: 'm', api_key: '' })).toThrow()
+    expect(() => AiTenantConfigSchema.parse({ ...config, providers: [{ name: 'anthropic', needs_api_key: true }] })).toThrow()
+    expect(AiTenantConfigSchema.parse({ ...config, key: { ...config.key, provider: 'openai_compatible', base_url: 'https://llm.example.com/v1' } }).key.base_url).toBe('https://llm.example.com/v1')
+  })
+
+  it('takes a tenant base URL over https only, and only as an optional field', () => {
+    const key = { provider: 'openai_compatible', model: 'llama-3', api_key: 'sk-x' }
+    expect(AiKeyPutSchema.parse(key).base_url).toBeUndefined()
+    expect(AiKeyPutSchema.parse({ ...key, base_url: 'https://llm.example.com/v1' }).base_url).toBe('https://llm.example.com/v1')
+    for (const base_url of ['http://llm.example.com/v1', 'llm.example.com', '', `https://${'a'.repeat(600)}.example.com`]) {
+      expect(() => AiKeyPutSchema.parse({ ...key, base_url })).toThrow()
+    }
   })
 
   it('counts monitoring actions without any message text', () => {

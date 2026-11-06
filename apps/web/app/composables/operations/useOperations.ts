@@ -1,5 +1,5 @@
 import { computed, onServerPrefetch, toValue, type MaybeRefOrGetter } from 'vue'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { OperationExecutionKindsSchema, OperationReviewerResolversSchema, OperationTargetsSchema, OperationProcessListSchema, OperationProcessSchema, OperationRequestListSchema, OperationRequestSchema, type OperationPurpose } from '@liwan/contracts'
 import { useApi } from '../useApi'
 import { operationProcessMutationOptions, operationRequestMutationOptions, type OperationApi } from './mutations'
@@ -28,6 +28,7 @@ export function useOperationProcesses(params: MaybeRefOrGetter<{ published?: num
   const { $api } = useApi()
   const query = useQuery({
     queryKey: computed(() => ['operations', 'processes', 'list', toValue(params)]), enabled: computed(() => toValue(enabled)),
+    placeholderData: keepPreviousData,
     queryFn: () => $api('/api/v1/operations/processes', { query: toValue(params), schema: OperationProcessListSchema }),
   })
   prefetch(query, enabled)

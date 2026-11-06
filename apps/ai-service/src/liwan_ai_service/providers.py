@@ -14,7 +14,9 @@ def build_chat_model(settings: Settings) -> BaseChatModel:
     return spec.build(settings, settings.base_url or spec.default_base_url)
 
 
-def build_tenant_model(settings: Settings, provider: str, model: str, api_key: str) -> BaseChatModel:
-    """A model on the tenant's own key. ``AI_BASE_URL`` is the deployment's endpoint, so a tenant key always uses the provider's own."""
+def build_tenant_model(settings: Settings, provider: str, model: str, api_key: str, base_url: str | None = None) -> BaseChatModel:
+    """A model on the tenant's own key. ``AI_BASE_URL`` is the deployment's endpoint, so a tenant key uses the provider's own,
+    except the generic provider, whose endpoint is the tenant's ``base_url``."""
     spec = REGISTRY[provider]
-    return spec.build(replace(settings, provider=provider, model=model, api_key=api_key, base_url=None), spec.default_base_url)
+    endpoint = base_url if spec.needs_base_url else spec.default_base_url
+    return spec.build(replace(settings, provider=provider, model=model, api_key=api_key, base_url=None), endpoint)

@@ -9,7 +9,7 @@ import { LAUNCHER_MODULE_ID } from './activeRoute'
 import { partIsExact, settingsPageForPath, settingsPartPath, settingsPartTarget, settingsPages, type SettingsPage } from './settingsSections'
 import type { AppSettingsPart } from '../../modules/types'
 import { CUSTOMER_COMMERCIAL_CAPABILITIES, deriveCustomerCapabilities } from '../../utils/customerCapabilities'
-import type { AppIcon } from '../../modules/types'
+import type { AppIcon, AppRailSlot } from '../../modules/types'
 
 // UIcon resolves these names from the local Lucide Iconify collection. Keep
 // the names in this shared model so every shell consumer renders the same icon
@@ -98,8 +98,10 @@ export interface ShellModuleDefinition {
   shortLabelKey?: string
   icon: AppIcon
   to: string
-  /** Placed in the rail's bottom utility slot above settings. */
-  utility?: boolean
+  /** A base-system entry the rail always shows in this slot, whatever the user pins. */
+  fixed?: AppRailSlot
+  /** Drawn in its own colour in the rail. */
+  accent?: boolean
 }
 
 /** The start page of an application (`/apps/<id>`); it is not a manifest module, so no navigation item or capability belongs to it. */
@@ -111,14 +113,14 @@ export function areaLabelKey(definition: Pick<ShellModuleDefinition, 'labelKey'>
   return activeModule === LAUNCHER_MODULE_ID ? LAUNCHER_MODULE.labelKey : 'app.productName'
 }
 
-/** Rail order (user decision 2026-09-11): applications by manifest `order`, then the settings utility slot. */
+/** Every rail module: home, the applications by manifest `order`, then settings (the rail places each by `fixed`). */
 export function shellModuleList(): ShellModuleDefinition[] {
   const applications = activeManifests().flatMap(manifest => manifest.rail).sort((a, b) => a.order - b.order)
   return [
     { id: 'home', labelKey: 'nav.home', icon: House, to: '/' },
-    ...applications.map(({ id, labelKey, shortLabelKey, icon, to, utility }) => ({ id, labelKey, shortLabelKey, icon, to, ...(utility ? { utility } : {}) })),
+    ...applications.map(({ id, labelKey, shortLabelKey, icon, to, fixed, accent }) => ({ id, labelKey, shortLabelKey, icon, to, ...(fixed ? { fixed } : {}), ...(accent ? { accent } : {}) })),
     // Settings is administration only: account and appearance live in the header.
-    { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: SETTINGS_OVERVIEW_PATH, utility: true },
+    { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: SETTINGS_OVERVIEW_PATH },
   ]
 }
 /** The rail of the discovered manifests, for consumers that only look up a heading or icon. */

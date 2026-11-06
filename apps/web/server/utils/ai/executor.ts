@@ -1,5 +1,5 @@
 import type { AiTool } from '@liwan/contracts'
-import { withholdValue } from './outbound'
+import { boundProtected, protectText, protectValue, type TokenKey } from './outbound'
 
 export type ToolRequest = { method: 'GET' | 'POST' | 'PATCH'; path: string; query: Record<string, unknown>; body: Record<string, unknown> | undefined }
 export type ToolError = { code: string; message: string }
@@ -101,15 +101,19 @@ export function upstreamError(body: unknown): { code: string; message: string; d
   return { code: source.code, message: typeof source.message === 'string' ? source.message : '', ...(details !== undefined ? { details } : {}) }
 }
 
-export function toolResultFromUpstream(status: number, body: unknown, tool: AiTool, blocked: ReadonlySet<string>): ToolResult {
+/**
+ * The result the model gets, protected whole (spec 2026-11-04 §6.12): the tool ran with the real values, so an error text
+ * that echoes one is protected like data. Data is protected before the size check, so the bound covers markers and tokens.
+ */
+export function toolResultFromUpstream(status: number, body: unknown, tool: AiTool, blocked: ReadonlySet<string>, key: TokenKey): ToolResult {
   if (status >= 200 && status < 300) {
-    // Withheld here, before the size check, so the bound covers the markers too (spec 2026-11-04 §6.12).
-    const data = withholdValue(summarizeResult(body, tool.result_summary, blocked))
+    const data = protectValue(summarizeResult(body, tool.result_summary, blocked), key)
     if (Buffer.byteLength(JSON.stringify(data)) > MAX_RESULT_BYTES) return toolError('result_too_large', 'The result is too large to hand to the assistant')
     return { ok: true, data }
   }
   const error = upstreamError(body)
-  if (error) return toolError(error.code, error.message)
+  // Protected first, then bounded: a token is longer than its value, and the service accepts MAX_ERROR_MESSAGE at most.
+  if (error) return toolError(error.code, boundProtected(protectText(error.message, key), MAX_ERROR_MESSAGE))
   return toolError('http_error', `upstream status ${status}`)
 }
 

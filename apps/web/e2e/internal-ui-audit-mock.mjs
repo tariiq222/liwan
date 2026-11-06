@@ -137,7 +137,7 @@ const PROJECTS = [
 ]
 
 const COPIES = []
-// Rows the LiwanOS AI audit endpoint received; GET /__mock/ai-audit exposes them to specs.
+// Rows the Liwan AI audit endpoint received; GET /__mock/ai-audit exposes them to specs.
 const AI_AUDIT = []
 // Provider usage rows (POST /api/v1/ai/usage); GET /__mock/ai-usage exposes them to specs.
 const AI_USAGE = []

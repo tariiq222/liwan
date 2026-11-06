@@ -2,7 +2,7 @@ import { useHrOwnIdentity } from './useHrOwnIdentity'
 import { ApiError } from './useApi'
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
 import {
   HrInsuranceDependentSchema,
   HrInsuranceEnrollmentDetailSchema,
@@ -133,6 +133,7 @@ export function useHrInsuranceEnrollments(input: MaybeRefOrGetter<HrInsuranceEnr
   const { can } = useAccess()
   return useQuery({
     queryKey: computed(() => hrInsuranceKeys.enrollments(hrInsuranceEnrollmentQuery(toValue(input)))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => can('hr.insurance.read') && toValue(enabled)),
     queryFn: () => $api(`${BASE}/enrollments`, { query: { ...hrInsuranceEnrollmentQuery(toValue(input)) }, schema: HrInsuranceEnrollmentListSchema }),
   })
@@ -153,6 +154,7 @@ export function useHrInsurancePlans(input: MaybeRefOrGetter<HrInsurancePlanInput
   const { can } = useAccess()
   return useQuery({
     queryKey: computed(() => hrInsuranceKeys.plans(hrInsurancePlanQuery(toValue(input)))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => can('hr.insurance.read') && toValue(enabled)),
     queryFn: () => $api(`${BASE}/plans`, { query: { ...hrInsurancePlanQuery(toValue(input)) }, schema: HrInsurancePlanListSchema }),
   })

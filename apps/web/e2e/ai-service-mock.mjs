@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// A scripted LiwanOS AI service for the mock stack: no model, deterministic runs.
+// A scripted Liwan AI service for the mock stack: no model, deterministic runs.
 // A message containing «مشروع» asks for a project draft (a plain answer when the request's catalog has no draft tool);
 // any other message reads the caller's tasks once and answers from the result.
 import http from 'node:http'
@@ -77,9 +77,12 @@ const COMPANY_NOTES = [
   { id: 12, company: '1', content: 'نكتب بالعربية الفصحى المختصرة', status: 'approved', proposed_by: '2', created_at: '2026-11-04T09:00:00Z' },
 ]
 const TENANT = {
-  retention_days: 30, leaver_retention_days: 30, key: { configured: false, provider: null, model: null, last4: null, updated_at: null },
+  retention_days: 30, leaver_retention_days: 30, key: { configured: false, provider: null, model: null, last4: null, updated_at: null, base_url: null },
   platform: { provider: 'mock', model: 'mock-model' },
-  providers: [{ name: 'anthropic', needs_api_key: true }, { name: 'openai', needs_api_key: true }, { name: 'ollama', needs_api_key: false }],
+  providers: [
+    { name: 'anthropic', needs_api_key: true, needs_base_url: false }, { name: 'openai', needs_api_key: true, needs_base_url: false },
+    { name: 'openai_compatible', needs_api_key: true, needs_base_url: true }, { name: 'ollama', needs_api_key: false, needs_base_url: false },
+  ],
 }
 
 http.createServer(async (req, res) => {
@@ -125,8 +128,8 @@ http.createServer(async (req, res) => {
   if (url.pathname === '/v1/tenant/config' || url.pathname.startsWith('/v1/tenant/config/')) {
     if (req.method === 'PUT' && url.pathname === '/v1/tenant/config/retention') TENANT.retention_days = body.retention_days
     if (req.method === 'PUT' && url.pathname === '/v1/tenant/config/leaver-retention') TENANT.leaver_retention_days = body.leaver_retention_days
-    if (req.method === 'PUT' && url.pathname === '/v1/tenant/config/key') TENANT.key = { configured: true, provider: body.provider, model: body.model, last4: String(body.api_key).slice(-4), updated_at: new Date().toISOString() }
-    if (req.method === 'DELETE' && url.pathname === '/v1/tenant/config/key') TENANT.key = { configured: false, provider: null, model: null, last4: null, updated_at: null }
+    if (req.method === 'PUT' && url.pathname === '/v1/tenant/config/key') TENANT.key = { configured: true, provider: body.provider, model: body.model, last4: String(body.api_key).slice(-4), updated_at: new Date().toISOString(), base_url: body.base_url ?? null }
+    if (req.method === 'DELETE' && url.pathname === '/v1/tenant/config/key') TENANT.key = { configured: false, provider: null, model: null, last4: null, updated_at: null, base_url: null }
     return reply(res, 200, TENANT)
   }
   // Memory: each employee's notes by the owner header, the company's notes by the company the Nuxt server names.

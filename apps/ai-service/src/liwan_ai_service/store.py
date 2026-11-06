@@ -195,12 +195,13 @@ CREATE TABLE IF NOT EXISTS ai_runs (
 )
 CREATE_TENANT_SCHEMA = (
     # The tenant's own AI configuration (tenant_config.py): the run retention window, and its provider key encrypted
-    # with pgcrypto. The key columns are all set or all empty.
+    # with pgcrypto. The key columns are all set or all empty; ``key_base_url`` is the generic provider's endpoint, set only with a key.
     "CREATE TABLE IF NOT EXISTS ai_tenant_config (singleton BOOLEAN PRIMARY KEY DEFAULT true CHECK (singleton),"
     " retention_days INTEGER NOT NULL CHECK (retention_days BETWEEN 1 AND 365),"
-    " key_provider TEXT, key_model TEXT, key_ciphertext BYTEA, key_id TEXT, key_last4 TEXT, key_updated_at TIMESTAMPTZ,"
+    " key_provider TEXT, key_model TEXT, key_ciphertext BYTEA, key_id TEXT, key_last4 TEXT, key_updated_at TIMESTAMPTZ, key_base_url TEXT,"
     " leaver_retention_days INTEGER NOT NULL DEFAULT 30 CHECK (leaver_retention_days BETWEEN 0 AND 365),"
-    " CHECK (num_nulls(key_provider, key_model, key_ciphertext, key_id, key_last4, key_updated_at) IN (0, 6)))",
+    " CHECK (num_nulls(key_provider, key_model, key_ciphertext, key_id, key_last4, key_updated_at) IN (0, 6)),"
+    " CONSTRAINT ai_tenant_config_key_base_url_check CHECK (key_base_url IS NULL OR key_provider IS NOT NULL))",
     "INSERT INTO ai_tenant_config (retention_days) VALUES (%(retention_days)s) ON CONFLICT (singleton) DO NOTHING",
     "CREATE TABLE ai_tenant_schema (singleton BOOLEAN PRIMARY KEY DEFAULT true CHECK (singleton),"
     " state_version TEXT NOT NULL, checkpoint_version INTEGER NOT NULL)",
@@ -332,6 +333,12 @@ ADD_LEAVER_RETENTION = (
     "ALTER TABLE ai_tenant_config ADD COLUMN IF NOT EXISTS leaver_retention_days INTEGER NOT NULL DEFAULT 30"
     " CHECK (leaver_retention_days BETWEEN 0 AND 365)"
 )
+# The generic provider's endpoint beside the key: the column, and its constraint under the name CREATE_TENANT_SCHEMA gives it.
+ADD_KEY_BASE_URL = (
+    "ALTER TABLE ai_tenant_config ADD COLUMN IF NOT EXISTS key_base_url TEXT",
+    "ALTER TABLE ai_tenant_config DROP CONSTRAINT IF EXISTS ai_tenant_config_key_base_url_check",
+    "ALTER TABLE ai_tenant_config ADD CONSTRAINT ai_tenant_config_key_base_url_check CHECK (key_base_url IS NULL OR key_provider IS NOT NULL)",
+)
 TENANT_TABLES_QUERY = (
     "SELECT to_regclass('ai_runs'), to_regclass('checkpoints'), to_regclass('checkpoint_blobs'), to_regclass('checkpoint_writes'),"
     " to_regclass('checkpoint_migrations'), to_regclass('ai_tenant_config'), to_regclass('ai_memory'), to_regclass('ai_outbox'),"
@@ -346,6 +353,8 @@ async def _tenant_tables(conn):
 async def upgrade_tenant(conn) -> None:
     """Bring a schema bootstrapped by an earlier release up to this one: every statement is idempotent."""
     await conn.execute(ADD_LEAVER_RETENTION)
+    for statement in ADD_KEY_BASE_URL:
+        await conn.execute(statement)
     for statement in CREATE_MEMORY:
         await conn.execute(statement)
     await grant_outbox(conn)

@@ -3,11 +3,12 @@ import { createError } from 'h3'
 import { AiToolsResponseSchema, type AiAgent, type AiPolicy, type AiTool } from '@liwan/contracts'
 import { tenantRequest } from '../tenantRequest'
 import { toolCallBudget } from './executor'
+import { aiTokenKey, type TokenKey } from './outbound'
 import { forwardUpstream, odooJson, type Owner } from './upstream'
 
 export type RunLimits = { max_steps: number; max_tool_calls: number; timeout_seconds: number }
 export type RunMode = 'assistant' | 'setup'
-export type RunSession = { mode: RunMode; owner: Owner; company: string; tools: AiTool[]; agents: AiAgent[]; byName: Map<string, AiTool>; blockedFields: ReadonlySet<string>; limits: RunLimits; policy: AiPolicy }
+export type RunSession = { mode: RunMode; owner: Owner; company: string; tools: AiTool[]; agents: AiAgent[]; byName: Map<string, AiTool>; blockedFields: ReadonlySet<string>; tokenKey: TokenKey; limits: RunLimits; policy: AiPolicy }
 
 const MAX_STEPS = 12
 const TIMEOUT_SECONDS = 120
@@ -60,6 +61,7 @@ export async function runSession(event: H3Event, mode: RunMode = 'assistant'): P
     agents: parsed.agents,
     byName: new Map(parsed.items.map(tool => [tool.name, tool])),
     blockedFields: new Set(parsed.blocked_fields),
+    tokenKey: aiTokenKey(event, owner),
     limits: { max_steps: MAX_STEPS, max_tool_calls: toolCallBudget(parsed.limits.tool_calls_per_run), timeout_seconds: TIMEOUT_SECONDS },
     policy: parsed.limits.policy,
   }

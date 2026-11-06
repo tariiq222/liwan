@@ -2,6 +2,7 @@ import type { H3Event } from 'h3'
 import { createError } from 'h3'
 import { AiCompanyNoteListSchema, AiNoteListSchema, type AiCompanyNoteList, type AiNoteList } from '@liwan/contracts'
 import { ownerFor } from './session'
+import { aiTokenKey, restoreValue } from './outbound'
 import { forwardUpstream, odooJson, serviceFetch } from './upstream'
 
 async function answered(response: Response): Promise<unknown> {
@@ -19,7 +20,9 @@ async function answered(response: Response): Promise<unknown> {
 export async function ownNotes(event: H3Event, method: 'GET' | 'DELETE', path = '/v1/memory'): Promise<AiNoteList> {
   const allowed = await odooJson(event, 'GET', '/api/v1/ai/tools')
   if (allowed.status !== 200) forwardUpstream(allowed)
-  return AiNoteListSchema.parse(await answered(await serviceFetch(event, method, path, await ownerFor(event))))
+  const owner = await ownerFor(event)
+  // A note the assistant wrote from a conversation can carry that owner's tokens: their own page shows the real values.
+  return restoreValue(AiNoteListSchema.parse(await answered(await serviceFetch(event, method, path, owner))), aiTokenKey(event, owner))
 }
 
 /**

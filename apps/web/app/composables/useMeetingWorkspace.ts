@@ -1,5 +1,5 @@
 import { computed, onServerPrefetch, toValue, type MaybeRefOrGetter } from 'vue'
-import { useQuery } from '@tanstack/vue-query'
+import { keepPreviousData, useQuery } from '@tanstack/vue-query'
 import { MeetingFollowupListSchema, MeetingEventListSchema, MeetingVersionListSchema, MeetingVersionSchema, MeetingSeriesResolutionListSchema } from '@liwan/contracts'
 import { meetingKeys, meetingSeriesKeys } from './meetingKeys'
 
@@ -66,6 +66,7 @@ export function useMeetingFollowup(params: MaybeRefOrGetter<MeetingFollowupParam
   const { $api } = useApi()
   const query = useQuery({
     queryKey: computed(() => meetingKeys.followup(paramsOf(params))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => toValue(enabled)),
     queryFn: () => $api('/api/v1/meetings/resolutions', { query: paramsOf(params), schema: MeetingFollowupListSchema }),
   })

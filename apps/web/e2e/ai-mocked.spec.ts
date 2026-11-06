@@ -27,7 +27,7 @@ async function ask(page: Page, text: string) {
   await page.getByTestId('ai-send').click()
 }
 
-test.describe('LiwanOS AI on the mock stack', () => {
+test.describe('Liwan AI on the mock stack', () => {
   test.beforeEach(async ({ page }) => { await login(page) })
 
   test('answers a read question with record cards and audits the message and the read', async ({ page }) => {
@@ -228,7 +228,7 @@ test.describe('LiwanOS AI on the mock stack', () => {
   test('shows the unavailable state when the server answers 503 ai_unavailable', async ({ page }) => {
     await page.route('**/api/ai/runs', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ data: { code: 'ai_unavailable', message: 'down' } }) }))
     await ask(page, 'وش مهامي؟')
-    await expect(page.getByTestId('ai-unavailable')).toContainText('LiwanOS AI غير متاح الآن')
+    await expect(page.getByTestId('ai-unavailable')).toContainText('Liwan AI غير متاح الآن')
     await expect(page.getByTestId('ai-composer')).toHaveCount(0)
   })
 })

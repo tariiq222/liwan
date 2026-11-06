@@ -14,28 +14,38 @@ const SETTINGS_MODULE_ID = 'settings'
 
 const HOME_MODULE_ID = 'home'
 const toRailItem = (module: ShellModuleDefinition): ShellRailItem =>
-  ({ id: module.id, labelKey: module.labelKey, shortLabelKey: module.shortLabelKey, icon: module.icon, to: module.to, ...(module.utility ? { utility: true } : {}) })
+  ({ id: module.id, labelKey: module.labelKey, shortLabelKey: module.shortLabelKey, icon: module.icon, to: module.to, ...(module.accent ? { accent: true } : {}) })
 
+/** `first` and `last` are the fixed base-system entries around the pinnable `applications`. */
 export interface ShellRailModel extends ShellRailGroups {
+  first: ShellRailItem[]
+  last: ShellRailItem[]
   all: ShellRailItem[]
   drawer: ShellRailItem[]
 }
 
-/** Every reachable application stays in manifest order; the same destinations appear in the mobile drawer. */
+/**
+ * Rail order (owner decision 2026-11-06): the assistant and «يومي» fixed at the top, then the `first` fixed entries
+ * (meetings), the pinnable applications in manifest order, the `last` fixed entries (documents), then settings.
+ * The mobile drawer shows the same destinations.
+ */
 export function railModel(modules: readonly ShellModuleDefinition[]): ShellRailModel {
   const home = modules.find(module => module.id === HOME_MODULE_ID)
-  // One entry opens the page that holds both «يومي» and «التطبيقات» as tabs.
-  const top = [toRailItem(home ?? LAUNCHER_MODULE)]
-  const applications = modules.filter(module => !module.utility && module.id !== HOME_MODULE_ID && module.id !== SETTINGS_MODULE_ID).map(toRailItem)
-  const utilities = modules.filter(module => module.utility).map(toRailItem)
-  const utility = [...utilities.filter(item => item.id !== SETTINGS_MODULE_ID), ...utilities.filter(item => item.id === SETTINGS_MODULE_ID)]
-  const all = [...top, ...applications, ...utility]
-  return { top, applications, utility, all, drawer: all }
+  const slot = (fixed: ShellModuleDefinition['fixed']) => modules.filter(module => module.fixed === fixed).map(toRailItem)
+  // «يومي» opens the page that holds the day and the applications.
+  const top = [...slot('top'), toRailItem(home ?? LAUNCHER_MODULE)]
+  const first = slot('first')
+  const applications = modules.filter(module => !module.fixed && module.id !== HOME_MODULE_ID && module.id !== SETTINGS_MODULE_ID).map(toRailItem)
+  const last = slot('last')
+  const utility = modules.filter(module => module.id === SETTINGS_MODULE_ID).map(toRailItem)
+  const all = [...top, ...first, ...applications, ...last, ...utility]
+  return { top, first, applications, last, utility, all, drawer: all }
 }
 
 export function railActiveId(rail: Pick<ShellRailModel, 'top' | 'applications' | 'utility'>, activeId: string | null): string | null {
   if (activeId === null) return null
-  return [...rail.top, ...rail.applications, ...rail.utility].some(item => item.id === activeId) ? activeId : rail.top[0]?.id ?? null
+  // An area outside the rail lights «يومي», the last top entry (the fixed top entries come before it).
+  return [...rail.top, ...rail.applications, ...rail.utility].some(item => item.id === activeId) ? activeId : rail.top.at(-1)?.id ?? null
 }
 
 /** Consecutive links that share a heading key (`section` by default) form one section, in manifest order. */

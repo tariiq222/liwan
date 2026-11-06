@@ -1,5 +1,5 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   TaskListSchema, ProjectRaciListSchema, ProjectRaciSchema, ProjectRegisterListSchema, ProjectRegisterSchema,
   ProjectStakeholderListSchema, ProjectStakeholderSchema,
@@ -17,6 +17,7 @@ export function useProjectStakeholders(projectId: MaybeRefOrGetter<number | null
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => projectGovernanceKeys.stakeholders(toValue(projectId) ?? 0, toValue(params))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => !!toValue(projectId)),
     queryFn: () => $api(`/api/v1/projects/${toValue(projectId)}/stakeholders`, { query: toValue(params), schema: ProjectStakeholderListSchema }),
   })
@@ -55,6 +56,7 @@ export function useProjectRegister(projectId: MaybeRefOrGetter<number | null>, p
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => projectGovernanceKeys.register(toValue(projectId) ?? 0, toValue(params))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => !!toValue(projectId)),
     queryFn: () => $api(`/api/v1/projects/${toValue(projectId)}/register`, { query: toValue(params), schema: ProjectRegisterListSchema }),
   })
@@ -137,6 +139,7 @@ export function useGovernanceTaskPage(projectId: MaybeRefOrGetter<number | null>
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => [...projectGovernanceKeys.all(toValue(projectId) ?? 0), 'task-page', toValue(params)]),
+    placeholderData: keepPreviousData,
     enabled: computed(() => !!toValue(projectId)),
     queryFn: () => $api('/api/v1/tasks', { query: { project_id: toValue(projectId), q: toValue(params).q || undefined, closed: toValue(params).closed ? 1 : 0, limit: 50, offset: toValue(params).offset }, schema: TaskListSchema }),
   })

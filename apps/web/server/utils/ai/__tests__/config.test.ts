@@ -7,7 +7,7 @@ vi.mock('../session', () => ({ ownerFor: async () => ({ tenant: 't1', user: '42'
 
 const TENANT_KEY = 'sk-tenant-0123456789abcd'
 const CONFIG = {
-  retention_days: 30, leaver_retention_days: 30, key: { configured: true, provider: 'anthropic', model: 'claude-test', last4: 'abcd', updated_at: '2026-11-05T10:00:00Z' },
+  retention_days: 30, leaver_retention_days: 30, key: { configured: true, provider: 'anthropic', model: 'claude-test', last4: 'abcd', updated_at: '2026-11-05T10:00:00Z', base_url: null },
   platform: { provider: 'ollama', model: 'm' }, providers: [],
 }
 
@@ -33,6 +33,21 @@ describe('tenantConfig', () => {
     expect(serviceFetch).toHaveBeenCalledWith({}, 'PUT', '/v1/tenant/config/key', { tenant: 't1', user: '42' }, body)
     expect(JSON.stringify(config)).not.toContain(TENANT_KEY)
     expect(odooJson).toHaveBeenCalledWith({}, 'POST', '/api/v1/ai/config/authorize', { body: {} })
+  })
+
+  it('tells a refused base URL from any other refused value, and never relays the service text', async () => {
+    const { tenantConfig } = await import('../config')
+    odooJson.mockResolvedValue({ status: 200, body: {} })
+    const refuse = (detail: unknown) => serviceFetch.mockResolvedValue(new Response(JSON.stringify({ detail }), { status: 422 }))
+    refuse({ code: 'ai_base_url_not_public', field: 'base_url' })
+    await expect(tenantConfig({} as any, 'PUT', '/v1/tenant/config/key', {})).rejects.toMatchObject({ statusCode: 422, data: { code: 'ai_base_url_not_public', field: 'base_url' } })
+    refuse({ code: 'invalid', field: 'base_url' })
+    await expect(tenantConfig({} as any, 'PUT', '/v1/tenant/config/key', {})).rejects.toMatchObject({ statusCode: 422, data: { code: 'invalid', field: 'base_url' } })
+    refuse([{ type: 'string_too_short', loc: ['body', 'api_key'], input: TENANT_KEY }])
+    const other = await tenantConfig({} as any, 'PUT', '/v1/tenant/config/key', {}).catch((error: any) => error)
+    expect(other).toMatchObject({ statusCode: 422, data: { code: 'invalid' } })
+    expect(other.data.field).toBeUndefined()
+    expect(JSON.stringify(other)).not.toContain(TENANT_KEY)
   })
 
   it('authorizes a read with the settings read only', async () => {

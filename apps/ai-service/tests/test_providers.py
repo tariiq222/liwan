@@ -3,13 +3,14 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 
 from liwan_ai_service.provider_registry import REGISTRY
-from liwan_ai_service.providers import build_chat_model
+from liwan_ai_service.providers import build_chat_model, build_tenant_model
 from liwan_ai_service.settings import Settings, SettingsError
 from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call
 
 
 def settings(provider, **extra):
-    env = {"AI_PROVIDER": provider, "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true", **extra}
+    endpoint = {"AI_BASE_URL": "https://llm.example.com/v1"} if provider in REGISTRY and REGISTRY[provider].needs_base_url else {}
+    env = {"AI_PROVIDER": provider, "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true", **endpoint, **extra}
     return Settings.from_env(env)
 
 
@@ -23,7 +24,7 @@ def test_each_provider_builds_its_client_without_network():
 
 
 def test_the_registry_is_the_single_source_of_provider_names():
-    assert set(REGISTRY) == {"anthropic", "openai", "ollama", "openrouter"}
+    assert set(REGISTRY) == {"anthropic", "openai", "ollama", "openrouter", "openai_compatible"}
     assert all(name == spec.name for name, spec in REGISTRY.items())
 
 
@@ -90,3 +91,21 @@ def test_stream_usage_is_asked_only_of_endpoints_known_to_accept_it():
     assert build_chat_model(settings("openai", AI_API_KEY="k")).stream_usage is True
     assert build_chat_model(settings("openai", AI_API_KEY="k", AI_BASE_URL="http://proxy/v1")).stream_usage is False  # a compatible server may refuse stream_options
     assert build_chat_model(settings("openrouter", AI_API_KEY="k")).stream_usage is True
+
+
+def test_the_generic_provider_needs_its_endpoint_and_reports_no_tokens_it_may_not_support():
+    with pytest.raises(SettingsError) as error:
+        settings("openai_compatible", AI_API_KEY="k", AI_BASE_URL="")
+    assert error.value.variable == "AI_BASE_URL"
+    model = build_chat_model(settings("openai_compatible", AI_API_KEY="k"))
+    assert type(model).__name__ == "ChatOpenAI" and model.openai_api_base == "https://llm.example.com/v1"
+    assert model.stream_usage is False  # a compatible server may refuse stream_options
+
+
+def test_a_tenant_model_uses_the_tenants_base_url_only_for_the_generic_provider():
+    base = settings("ollama", AI_BASE_URL="http://deployment-endpoint:11434")
+    generic = build_tenant_model(base, "openai_compatible", "m", "k", "https://llm.tenant.example/v1")
+    assert generic.openai_api_base == "https://llm.tenant.example/v1"
+    named = build_tenant_model(base, "openrouter", "m", "k", "https://ignored.example/v1")
+    assert named.openai_api_base == "https://openrouter.ai/api/v1"
+    assert build_tenant_model(base, "openai", "m", "k").openai_api_base is None

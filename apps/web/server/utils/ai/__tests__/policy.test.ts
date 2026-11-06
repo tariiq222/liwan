@@ -4,9 +4,9 @@ const serviceFetch = vi.fn()
 vi.mock('../upstream', () => ({ serviceFetch }))
 
 const OWNER = { tenant: 't1', user: '42' }
-const PROVIDERS = [{ name: 'ollama', needs_api_key: false }, { name: 'anthropic', needs_api_key: true }]
-const NO_KEY = { configured: false, provider: null, model: null, last4: null, updated_at: null }
-const KEY = { configured: true, provider: 'anthropic', model: 'claude-test', last4: 'abcd', updated_at: '2026-11-05T10:00:00Z' }
+const PROVIDERS = [{ name: 'ollama', needs_api_key: false, needs_base_url: false }, { name: 'anthropic', needs_api_key: true, needs_base_url: false }]
+const NO_KEY = { configured: false, provider: null, model: null, last4: null, updated_at: null, base_url: null }
+const KEY = { configured: true, provider: 'anthropic', model: 'claude-test', last4: 'abcd', updated_at: '2026-11-05T10:00:00Z', base_url: null }
 
 function session(policy: Record<string, unknown>, mode: 'assistant' | 'setup' = 'assistant') {
   return { owner: OWNER, mode, policy: { provider_mode: 'platform', consent_signed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: 8000, ...policy } } as any

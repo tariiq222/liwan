@@ -1,6 +1,6 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, onServerPrefetch, toValue } from 'vue'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { z } from 'zod'
 import {
   MeetingCreateSchema,
@@ -49,6 +49,7 @@ export function useMeetings(params: MaybeRefOrGetter<{
   const { $api } = useApi()
   const query = useQuery({
     queryKey: computed(() => meetingKeys.list(toValue(params))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => toValue(options.enabled) ?? true),
     queryFn: () => {
       const p = toValue(params)
@@ -237,6 +238,7 @@ export function useMeetingSeriesList(params: MaybeRefOrGetter<{ q?: string; proj
   const { $api } = useApi()
   const query = useQuery({
     queryKey: computed(() => meetingSeriesKeys.list(toValue(params))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => toValue(enabled)),
     queryFn: () => $api('/api/v1/meeting-series', {
       query: toValue(params),

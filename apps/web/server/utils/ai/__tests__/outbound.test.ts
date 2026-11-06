@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { isSaudiId, withholdText, withholdValue } from '../outbound'
+import { boundProtected, isSaudiId, protectText, protectValue, restoreText, restoreValue, streamRestorer, tokenKeyFrom } from '../outbound'
+
+const SECRET = 'test-secret-of-at-least-32-characters'
+const KEY = tokenKeyFrom(SECRET, { tenant: 'acme', user: '42' })
+const OTHER_KEY = tokenKeyFrom('another-secret-of-at-least-32-chars', { tenant: 'acme', user: '42' })
+const OTHER_USER = tokenKeyFrom(SECRET, { tenant: 'acme', user: '43' })
+const OTHER_TENANT = tokenKeyFrom(SECRET, { tenant: 'beta', user: '42' })
+// What the provider sees, with each token's payload hidden, so the expectations read as text.
+const masked = (text: string) => protectText(text, KEY).replace(/\[(phone|email):[A-Za-z0-9_-]+\]/g, '[$1 token]')
+const withholdText = masked
 
 // Valid check digits (the Luhn rule on ten digits): a citizen ID and an iqama number.
 const CITIZEN_ID = '1000000008'
@@ -20,7 +29,7 @@ describe('outbound data policy content scan', () => {
 
   it('reads Arabic-Indic digits like Latin ones', () => {
     expect(withholdText('رقم الهوية ١٠٠٠٠٠٠٠٠٨')).toBe('رقم الهوية [national_id withheld]')
-    expect(withholdText('جوال ٠٥٥١٢٣٤٥٦٧')).toBe('جوال [phone withheld]')
+    expect(withholdText('جوال ٠٥٥١٢٣٤٥٦٧')).toBe('جوال [phone token]')
   })
 
   it('withholds Saudi IBANs, with or without spaces', () => {
@@ -32,17 +41,17 @@ describe('outbound data policy content scan', () => {
 
   it('withholds Saudi mobile numbers in their usual forms', () => {
     for (const phone of ['0551234567', '055 123 4567', '+966551234567', '00966551234567', '966 55 123 4567']) {
-      expect(withholdText(`اتصل على ${phone}`)).toBe('اتصل على [phone withheld]')
+      expect(withholdText(`اتصل على ${phone}`)).toBe('اتصل على [phone token]')
     }
     for (const phone of ['+9660551234567', '(+966) 55 123 4567', '+966 (0) 55 123 4567', '055.123.4567', '055-123-4567']) {
-      expect(withholdText(`اتصل على ${phone}`)).toBe('اتصل على [phone withheld]')
+      expect(withholdText(`اتصل على ${phone}`)).toBe('اتصل على [phone token]')
     }
     expect(withholdText('الكمية 551234567')).toBe('الكمية 551234567')
   })
 
   it('withholds email addresses', () => {
-    expect(withholdText('راسل ahmed.ali+hr@example.com.sa')).toBe('راسل [email withheld]')
-    expect(withholdText('راسل ahmed@أحمد.السعودية')).toBe('راسل [email withheld]')
+    expect(withholdText('راسل ahmed.ali+hr@example.com.sa')).toBe('راسل [email token]')
+    expect(withholdText('راسل ahmed@أحمد.السعودية')).toBe('راسل [email token]')
   })
 
   it('scans a long run without a match in linear time', () => {
@@ -60,9 +69,81 @@ describe('outbound data policy content scan', () => {
 
   it('walks a tool result, leaving keys and non-string values alone', () => {
     const result = { ok: true, data: { items: [{ id: 7, name: 'أحمد', description: `جواله 0551234567 وهويته ${CITIZEN_ID}` }], total: 1 } }
-    expect(withholdValue(result)).toEqual({
+    const sent = protectValue(result, KEY)
+    expect(JSON.parse(JSON.stringify(sent).replace(/\[(phone|email):[A-Za-z0-9_-]+\]/g, '[$1 token]'))).toEqual({
       ok: true,
-      data: { items: [{ id: 7, name: 'أحمد', description: 'جواله [phone withheld] وهويته [national_id withheld]' }], total: 1 },
+      data: { items: [{ id: 7, name: 'أحمد', description: 'جواله [phone token] وهويته [national_id withheld]' }], total: 1 },
     })
+  })
+
+  it('gives one value one token, and restores it to the exact text the user wrote', () => {
+    const text = 'اتصل على 055 123 4567 أو راسل ahmed@example.sa'
+    const sent = protectText(text, KEY)
+    expect(sent).not.toContain('4567')
+    expect(sent).not.toContain('ahmed')
+    expect(protectText(text, KEY)).toBe(sent)
+    expect(restoreText(sent, KEY)).toBe(text)
+  })
+
+  it('never restores identity numbers or IBANs: they leave for good', () => {
+    const sent = protectText(`هوية ${CITIZEN_ID} وآيبان SA0380000000608010167519`, KEY)
+    expect(restoreText(sent, KEY)).toBe('هوية [national_id withheld] وآيبان [iban withheld]')
+  })
+
+  it('leaves a token it did not issue, or one the model altered, as it is', () => {
+    const token = protectText('0551234567', KEY)
+    expect(restoreText(token, OTHER_KEY)).toBe(token)
+    // A middle character: the last one of a base64url payload can carry only padding bits.
+    const middle = Math.floor(token.length / 2)
+    const altered = token.slice(0, middle) + (token[middle] === 'A' ? 'B' : 'A') + token.slice(middle + 1)
+    expect(restoreText(altered, KEY)).toBe(altered)
+    expect(restoreText('[email:not-a-real-token-at-all]', KEY)).toBe('[email:not-a-real-token-at-all]')
+  })
+
+  it('restores the tokens of a value, keys untouched', () => {
+    const input = { to: protectText('0551234567', KEY), body: `مرحبًا ${protectText('a@b.sa', KEY)}` }
+    expect(restoreValue(input, KEY)).toEqual({ to: '0551234567', body: 'مرحبًا a@b.sa' })
+  })
+
+  it('restores a token split across streamed pieces', () => {
+    const text = `اتصل على ${protectText('0551234567', KEY)} الآن [ملاحظة]`
+    for (const size of [1, 3, 7, 50]) {
+      const restorer = streamRestorer(KEY)
+      let shown = ''
+      for (let index = 0; index < text.length; index += size) shown += restorer.push(text.slice(index, index + size))
+      shown += restorer.flush()
+      expect(shown).toBe('اتصل على 0551234567 الآن [ملاحظة]')
+    }
+  })
+
+  it('restores a token only for the tenant and user it was issued to', () => {
+    const token = protectText('0551234567', KEY)
+    expect(restoreText(token, OTHER_USER)).toBe(token)
+    expect(restoreText(token, OTHER_TENANT)).toBe(token)
+    expect(protectText('0551234567', OTHER_TENANT)).not.toBe(token)
+  })
+
+  it('leaves tokens already in a text untouched when it is protected again', () => {
+    const once = protectText(`اتصل على 0551234567 وهويته ${CITIZEN_ID}`, KEY)
+    expect(protectText(once, KEY)).toBe(once)
+  })
+
+  it('restores the longest email the scan takes', () => {
+    const email = `${'ب'.repeat(64)}@${Array.from({ length: 9 }, () => 'ج'.repeat(25)).join('.')}.السعودية`
+    expect(restoreText(protectText(email, KEY), KEY)).toBe(email)
+  })
+
+  it('scans a forged token-shaped value like any other text', () => {
+    expect(masked(`[email:AAAA${CITIZEN_ID}AAAA]`)).toBe('[email:AAAA[national_id withheld]AAAA]')
+    expect(masked('[phone:AAAA0551234567AAAA]')).toBe('[phone:AAAA[phone token]AAAA]')
+    expect(protectText('[phone:xxSA0380000000608010167519]', KEY)).toBe('[phone:xx[iban withheld]]')
+  })
+
+  it('bounds a protected text without cutting through a token', () => {
+    const text = `${'x'.repeat(1990)} ${protectText('0551234567', KEY)}`
+    const bounded = boundProtected(text, 2000)
+    expect(bounded.length).toBeLessThanOrEqual(2000)
+    expect(bounded).not.toContain('[phone')
+    expect(boundProtected('short', 2000)).toBe('short')
   })
 })

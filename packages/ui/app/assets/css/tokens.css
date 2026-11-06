@@ -100,6 +100,9 @@
   --accent-blue-fg: #1d4ed8;
   --accent-violet-bg: #fae8ff;
   --accent-violet-fg: #a21caf;
+  /* The assistant's own colour, from the Liwan palette only: a sand circle with an earth-brown mark. */
+  --liwan-ai-bg: var(--liwan-sand);
+  --liwan-ai-ink: #6b4f2a;
   --accent-sky-bg: #e0f2fe;
   --accent-sky-fg: #0369a1;
   --accent-amber-bg: #fef3c7;

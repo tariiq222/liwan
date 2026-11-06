@@ -2,7 +2,7 @@ import { useHrOwnIdentity } from './useHrOwnIdentity'
 import { ApiError } from './useApi'
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
 import {
   HrWarningCandidateListSchema,
   HrWarningListSchema,
@@ -133,6 +133,7 @@ export function useHrWarningList(input: MaybeRefOrGetter<HrWarningInput>, enable
   const { can } = useAccess()
   return useQuery({
     queryKey: computed(() => hrWarningKeys.list(hrWarningQuery(toValue(input)))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => can('hr.warnings.read') && toValue(enabled)),
     queryFn: () => $api('/api/v1/hr/warnings', { query: { ...hrWarningQuery(toValue(input)) }, schema: HrWarningListSchema }),
   })
