@@ -4,14 +4,7 @@ import { chatgpt } from 'e2e/oauth/chatgpt';
 import { jevJudge } from './e2e/jev-judge.ts';
 import { jevUltrafast } from './e2e/jev-ultrafast.ts';
 import { models } from './e2e/models.ts';
-
-const PERSONA_KEYS = [
-  'ceo', 'it_admin', 'hr_manager', 'payroll', 'cfo', 'accountant',
-  'auditor', 'pm', 'ops_manager', 'staff1', 'staff2', 'crm_manager', 'crm_agent', 'crm_agent2',
-  'inbox_manager', 'inbox_supervisor', 'inbox_agent',
-  'users_reader', 'ops_monitor', 'docs_editor', 'fin_reader', 'no_ai', 'payroll_finance', 'no_roles',
-  'jeddah_staff', 'dammam_manager',
-] as const;
+import { PERSONA_KEYS } from './e2e/personas.ts';
 
 // Jev (TypeSafe System One) gives the assert/waitFor verdicts from the text
 // observation; extract and screenshot-only judgments fall back to

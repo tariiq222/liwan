@@ -50,8 +50,12 @@ jobs:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
     outputs:
-      stages: ${{ steps.select.outputs.stages }}
+      stages: ${{ steps.cache.outputs.stages }}
+      cached: ${{ steps.cache.outputs.cached }}
       base: ${{ steps.select.outputs.base }}
       odoo-modules: ${{ steps.select.outputs.odoo-modules }}
       odoo-shards: ${{ steps.select.outputs.odoo-shards }}
@@ -94,6 +98,29 @@ jobs:
           echo "apps=$(python3 -B tools/app_isolation.py matrix apps ${modules:+--modules "$modules"})" >> "$GITHUB_OUTPUT"
           echo "bridges=$(python3 -B tools/app_isolation.py matrix bridges ${modules:+--modules "$modules"})" >> "$GITHUB_OUTPUT"
           echo "Base $base, stages $stages"
+      # On a pull request or a merge-queue entry, a stage whose every job already passed on exactly these inputs
+      # (tools/ci_stage_cache.py) is left out of the stages to run, so ci-result does not expect it. static is
+      # never left out; every other event (push to main, nightly, dispatch) runs all the selected stages.
+      - name: Skip the stages that already passed
+        id: cache
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          SELECTED: ${{ steps.select.outputs.stages }}
+          ODOO_MODULES: ${{ steps.select.outputs.odoo-modules }}
+          ODOO_SHARDS: ${{ steps.select.outputs.odoo-shards }}
+          APPS: ${{ steps.select.outputs.apps }}
+          BRIDGES: ${{ steps.select.outputs.bridges }}
+        run: |
+          set -euo pipefail
+          cached='[]'
+          if [ "$EVENT_NAME" = pull_request ] || [ "$EVENT_NAME" = merge_group ]; then
+            cached="$(python3 -B tools/ci_stage_cache.py cached --stages "$SELECTED" \
+              --odoo-shards "$ODOO_SHARDS" --apps "$APPS" --bridges "$BRIDGES" --odoo-modules "$ODOO_MODULES")"
+          fi
+          echo "stages=$(jq -c --argjson cached "$cached" '. - $cached' <<< "$SELECTED")" >> "$GITHUB_OUTPUT"
+          echo "cached=$cached" >> "$GITHUB_OUTPUT"
+          echo "Cached (passed with these inputs): $cached"
 
   static:
     needs: scope
@@ -141,6 +168,10 @@ jobs:
           node: 'false'
           python: 'true'
       - run: deploy/ci/ai-service.sh
+      - uses: ./.github/actions/stage-pass
+        if: success()
+        with:
+          stage: ai-service
 
   control-plane:
     needs: scope
@@ -164,6 +195,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
       - run: deploy/ci/control-plane.sh
+      - uses: ./.github/actions/stage-pass
+        if: success()
+        with:
+          stage: control-plane
 
   vendor-admin:
     needs: scope
@@ -176,6 +211,10 @@ jobs:
         with:
           npm-ci: 'false'
       - run: deploy/ci/vendor-admin.sh
+      - uses: ./.github/actions/stage-pass
+        if: success()
+        with:
+          stage: vendor-admin
 
   # One job per shard (tools/odoo_shards.py): each installs every release module on its own Postgres
   # service and runs the tests of its share of them. fail-fast is off so a red run reports every failing shard.
@@ -211,6 +250,11 @@ jobs:
       - run: deploy/ci/odoo.sh --shard ${{ matrix.shard }}/${{ strategy.job-total }}
         env:
           ODOO_TEST_MODULES: ${{ needs.scope.outputs.odoo-modules }}
+      - uses: ./.github/actions/stage-pass
+        if: success()
+        with:
+          stage: odoo
+          extra: ${{ matrix.shard }}/${{ strategy.job-total }}|${{ needs.scope.outputs.odoo-modules }}
 
   # The rank-4 applications and rank-5 bridges of tools/arch_layers.json, packed into a few jobs by
   # tools/app_isolation.py matrix: each run installs only its part of the product on a fresh scratch database.
@@ -246,6 +290,11 @@ jobs:
           node: 'false'
           odoo: 'true'
       - run: deploy/ci/lib/isolation-group.sh deploy/ci/odoo-app-standalone.sh ${{ matrix.group }}
+      - uses: ./.github/actions/stage-pass
+        if: success()
+        with:
+          stage: odoo-app-standalone
+          extra: ${{ matrix.group }}|${{ needs.scope.outputs.odoo-modules }}
 
   odoo-bridge:
     name: odoo-bridge (${{ matrix.group }})
@@ -277,6 +326,11 @@ jobs:
           node: 'false'
           odoo: 'true'
       - run: deploy/ci/lib/isolation-group.sh deploy/ci/odoo-bridge.sh ${{ matrix.group }}
+      - uses: ./.github/actions/stage-pass
+        if: success()
+        with:
+          stage: odoo-bridge
+          extra: ${{ matrix.group }}|${{ needs.scope.outputs.odoo-modules }}
 
   upgrade:
     needs: scope
@@ -305,6 +359,10 @@ jobs:
           node: 'false'
           odoo: 'true'
       - run: deploy/ci/upgrade.sh
+      - uses: ./.github/actions/stage-pass
+        if: success()
+        with:
+          stage: upgrade
 
   restore-drill:
     needs: scope
@@ -333,6 +391,10 @@ jobs:
       - run: deploy/ci/restore-drill.sh
         env:
           PG_BIN_DIR: /usr/lib/postgresql/16/bin
+      - uses: ./.github/actions/stage-pass
+        if: success()
+        with:
+          stage: restore-drill
 
   image:
     needs: scope
@@ -356,6 +418,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: deploy/ci/image.sh
+      - uses: ./.github/actions/stage-pass
+        if: success()
+        with:
+          stage: image
 
   e2e-mock:
     needs: scope
@@ -381,6 +447,10 @@ jobs:
             apps/web/nuxt.log
           if-no-files-found: ignore
           retention-days: 7
+      - uses: ./.github/actions/stage-pass
+        if: success()
+        with:
+          stage: e2e-mock
 
   # The real-Odoo Playwright specs on a scratch database seeded through Odoo (deploy/ci/e2e-odoo.sh). Slow, so a pull
   # request leaves it to the push to main, the nightly run and a full dispatch (tools/ci_scope.py DEFERRED_STAGES).
@@ -419,6 +489,10 @@ jobs:
             apps/web/playwright-report/
           if-no-files-found: ignore
           retention-days: 7
+      - uses: ./.github/actions/stage-pass
+        if: success()
+        with:
+          stage: e2e-odoo
 
   rtl-stories:
     needs: scope
@@ -431,6 +505,10 @@ jobs:
         with:
           playwright: 'true'
       - run: deploy/ci/rtl-stories.sh
+      - uses: ./.github/actions/stage-pass
+        if: success()
+        with:
+          stage: rtl-stories
 
   ci-result:
     # Runs for a draft too and fails there (scope did not run), so a skipped check never reads as a pass.

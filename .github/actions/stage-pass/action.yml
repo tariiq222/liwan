@@ -1,0 +1,30 @@
+name: Stage pass
+description: Record that this CI job passed on exactly its current inputs, so a later run with the same inputs can skip it (tools/ci_stage_cache.py). Run it as the last step of a stage job, on success only. It does nothing outside a pull request or a merge-queue entry, the only events that skip a stage.
+inputs:
+  stage:
+    description: The stage this job belongs to.
+    required: true
+  extra:
+    description: The matrix entry of the job, exactly as the scope job derives it (empty for a stage without a matrix).
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Compute the pass key
+      id: key
+      if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+      shell: bash
+      env:
+        STAGE: ${{ inputs.stage }}
+        EXTRA: ${{ inputs.extra }}
+      run: |
+        set -euo pipefail
+        echo "key=$(python3 -B tools/ci_stage_cache.py key --stage "$STAGE" --extra "$EXTRA")" >> "$GITHUB_OUTPUT"
+        mkdir -p "$RUNNER_TEMP/stage-pass"
+        echo "$STAGE" > "$RUNNER_TEMP/stage-pass/marker"
+    - name: Save the pass marker
+      if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: ${{ runner.temp }}/stage-pass
+        key: ${{ steps.key.outputs.key }}
