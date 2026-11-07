@@ -21,7 +21,6 @@ ROOT = Path(__file__).resolve().parent.parent
 LAYERS_FILE = Path(__file__).resolve().parent / 'arch_layers.json'
 BASELINE_FILE = Path(__file__).resolve().parent / 'arch_baseline.json'
 DOCUMENTED_SUDO_FILE = Path(__file__).resolve().parent / 'arch_documented_sudo.json'
-AGENTS_FILE = 'AGENTS.md'
 
 # Rank bands: 0-2 foundation (core, platform, api), 3 shared service, 4 app, 5 bridge, 6 customer overlay.
 APPROVAL_TRAILER = 'Architecture-approved-by'
@@ -640,8 +639,8 @@ def without_documented(current: Violations, documented: dict[str, int]) -> Viola
     return {**current, 'R7': {rel: n for rel, n in r7.items() if n > 0}}
 
 
-def documented_problems(documented: dict[str, int], current: Violations, root: Path) -> list[str]:
-    """Documented sudo cases must still exist in the code and be described in AGENTS.md."""
+def documented_problems(documented: dict[str, int], current: Violations) -> list[str]:
+    """Documented sudo cases must still exist in the code; the registry is their only description."""
     problems = []
     for rel, allowed in sorted(documented.items()):
         found = current.get('R7', {}).get(rel, 0)
@@ -649,21 +648,7 @@ def documented_problems(documented: dict[str, int], current: Violations, root: P
             problems.append(
                 f'R7: {rel}: {found} found, documented sudo case says {allowed}; lower or remove it in {DOCUMENTED_SUDO_FILE.name}',
             )
-    agents = root / AGENTS_FILE
-    paragraph = sudo_paragraph(_read(agents)) if agents.is_file() else ''
-    for rel in sorted(documented):
-        addon = rel.split('/')[1] if rel.startswith('odoo-addons/') else rel
-        if f'`{addon}`' not in paragraph:
-            problems.append(f'R7: {rel}: documented case not described in {AGENTS_FILE}')
     return problems
-
-
-def sudo_paragraph(agents_text: str) -> str:
-    """The AGENTS.md list item that lists the documented sudo cases."""
-    for item in re.split(r'\n(?=- )', agents_text):
-        if 'path.' in item and '`sudo()`' in item:
-            return item
-    return ''
 
 
 def _web_owners(web_apps: dict, kind: str) -> dict[str, str]:
@@ -919,14 +904,14 @@ def main(
         # The first write records today's debt; every later write may only keep or shrink each rule total, and a
         # documented sudo case that no longer matches the code or AGENTS.md blocks the write just like the check path.
         growth = totals_growth(totals, rule_totals(baseline), 'existing baseline') if exists else []
-        problems = hard + growth + ratchet + documented_problems(documented, found, root)
+        problems = hard + growth + ratchet + documented_problems(documented, found)
         if not problems:
             baseline_file.write_text(
                 json.dumps(current, indent=2, sort_keys=True, ensure_ascii=False) + '\n', encoding='utf-8',
             )
             print(f'wrote {baseline_file.name}')
     else:
-        problems = hard + compare(current, baseline) + documented_problems(documented, found, root) + ratchet
+        problems = hard + compare(current, baseline) + documented_problems(documented, found) + ratchet
     for problem in problems:
         print(problem, file=sys.stderr)
     return 1 if problems else 0

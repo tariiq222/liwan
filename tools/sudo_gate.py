@@ -1,17 +1,15 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """R7 gate: no sudo() without a recorded justification.
 
-AGENTS.md owns the rule: R7 forbids a new `sudo()` outside the documented cases, and the sudo
-paragraph of the product contracts says why each case exists and that adding one needs the owner's
-approval. `tools/arch_policy.py` only compares per-file counts against `tools/arch_baseline.json`
+AGENTS.md owns the rule: R7 forbids a new `sudo()` outside the documented cases. The cases and
+the reason for each live only in `tools/arch_documented_sudo.json`. `tools/arch_policy.py` only compares per-file counts against `tools/arch_baseline.json`
 and never reads a reason, so today a contributor can raise a documented count and the baseline
 together. This tool closes that hole and runs inside `npm test`:
 
 1. a `sudo()` site beyond its file's allowance (`arch_baseline.json` R7 plus the documented case
    count of `tools/arch_documented_sudo.json`) fails by `file:line`, so a call that nobody
    justified is reported where it is written;
-2. a documented case must still exist in the code and be named in the AGENTS.md sudo paragraph
-   (`arch_policy.documented_problems`);
+2. a documented case must still exist in the code (`arch_policy.documented_problems`);
 3. every documented reason must name the elevating call and the blocking ACL, record rule, group
    or capability, and no two cases may share one reason (`arch_policy.documented_weakenings`);
 4. a documented count that the code no longer reaches fails, and a documented count must not fall
@@ -180,7 +178,7 @@ def main(
     sites, problems = site_lines(root, found, hard)
     problems += undocumented_sites(sites, allowances(baseline, documented))
     problems += reason_problems(document.get('cases', {}))
-    problems += documented_problems(documented, found, root)
+    problems += documented_problems(documented, found)
     try:
         if args.base:
             problems += documented_growth(args.base, root, documented_file)
