@@ -13,13 +13,12 @@ updates:
       timezone: Asia/Riyadh
     open-pull-requests-limit: 1
     commit-message:
-      prefix: ci
+      prefix: 'ci(ci)'
     groups:
       actions:
         patterns: ['*']
 
-  # The image digests the Dockerfiles pin are bumped by hand (deploy/test_container_hardening.py requires a
-  # digest), so only the npm advisories are watched automatically; `audit.yml` reports them daily.
+  # Docker image digests are updated by hand. audit.yml reports npm advisories daily.
   - package-ecosystem: npm
     directory: /
     schedule:
@@ -27,9 +26,16 @@ updates:
       day: monday
       time: '05:20'
       timezone: Asia/Riyadh
-    open-pull-requests-limit: 1
+    open-pull-requests-limit: 3
     commit-message:
-      prefix: build
+      prefix: 'build(ci)'
     groups:
+      # The first matching group wins. Keep compiler and Nuxt UI changes
+      # independent of routine updates so their CI failures are attributable.
+      typescript:
+        patterns: ['typescript', 'vue-tsc']
+      nuxt-ui:
+        patterns: ['@nuxt/ui']
       npm:
         patterns: ['*']
+        update-types: ['minor', 'patch']
