@@ -454,8 +454,9 @@ the server chunks:
 | `/fonts/*` | yes | `.output/public/fonts/*.woff2` |
 | `/favicon.ico`, `/robots.txt` | yes | both files in `.output/public` |
 
-Routing check: `guard.mjs` routes to Odoo only `/api/v1/*`, `/web/content/*`,
+Routing check: `guard.mjs` routes to Odoo only `/api/v1/*`,
 `/websocket`, the two image shapes and internal `/web/session/{authenticate,destroy}`;
+`/web/content/*` is refused by the guard (403, no public binary content route);
 none of the exempted prefixes is routed to Odoo or an API (IMAGE-ROUTES.md covers only
 the two `/web/image` shapes). All exempted prefixes fall through to the Nuxt app.
 
