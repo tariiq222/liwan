@@ -354,6 +354,21 @@ if args[:1] == ['run'] and any(a.startswith('aquasec/trivy:') for a in args): pr
         self.assertIn('scan failed: unreadable trivy report', process.stderr)
 
 
+class TestE2EOdooStage(unittest.TestCase):
+    """The real-Odoo stage's own wiring: the browser's host decides which socket carries the session."""
+
+    def test_the_websocket_uses_the_host_the_specs_browse(self):
+        script = commands('e2e-odoo')
+        # An Odoo socket reaches the session cookie only on the host that set it; the specs browse localhost.
+        self.assertIn('E2E_BASE_URL="http://localhost:$WEB_PORT"', script)
+        self.assertIn('export NUXT_PUBLIC_WS_URL="ws://localhost:$ODOO_PORT/websocket"', script)
+        self.assertNotIn('NUXT_PUBLIC_WS_URL="ws://127.0.0.1', script)
+
+    def test_the_timeouts_cover_a_production_build_and_a_server_push(self):
+        # The stage waits on the Nuxt build, then on two servers; a short bound would fail a slow runner.
+        self.assertIn('timeout-minutes: 60', (ROOT / '.github/workflows/ci.yml').read_text())
+
+
 class TestVendorAdminStage(unittest.TestCase):
     def test_vendor_admin_stage_prepares_lints_tests_and_builds(self):
         script = commands('vendor-admin')

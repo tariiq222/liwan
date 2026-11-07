@@ -15,6 +15,14 @@ WEB_PORT=44300
 [ "$WEB_PORT" != 3000 ] || { echo "e2e-odoo: refusing web port 3000" >&2; exit 2; }
 SCRATCH_ROOT="$(mktemp -d)"
 mkdir -p "$SCRATCH_ROOT/data" "$SCRATCH_ROOT/logs"
+# A listener left on either port would take the traffic while our own server dies at start-up, and the stage
+# would report a failure from the previous run's process. Refuse it up front, naming the port.
+for port in "$ODOO_PORT" "$WEB_PORT"; do
+  if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+    echo "e2e-odoo: port $port is already in use; stop that process before running this stage" >&2
+    exit 2
+  fi
+done
 FIXTURE_DIR="$ROOT/.superpowers/real-odoo"
 mkdir -p "$FIXTURE_DIR"
 cleanup() {
@@ -70,7 +78,10 @@ npm -w apps/web run postinstall
 npx playwright install chromium
 cd apps/web
 export NUXT_ODOO_URL="http://127.0.0.1:$ODOO_PORT" NUXT_ODOO_DB="$SCRATCH_DB"
-export NUXT_PUBLIC_WS_URL="ws://127.0.0.1:$ODOO_PORT/websocket"
+# The websocket goes through the same host the specs browse (localhost): a browser session cookie is bound
+# to `localhost`, so a socket opened at `127.0.0.1` connects as the public user, delivers no push and leaves
+# the realtime journeys to the polling fallback. Odoo answers on the loopback interface for both names.
+export NUXT_PUBLIC_WS_URL="ws://localhost:$ODOO_PORT/websocket"
 npx nuxt build
 PORT="$WEB_PORT" node .output/server/index.mjs > "$SCRATCH_ROOT/logs/nuxt.log" 2>&1 &
 WEB_PID=$!
