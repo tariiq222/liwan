@@ -142,6 +142,20 @@ function cookiesForBrowser(cookies, codec, tenant) {
     return `session_id=${deletion ? '' : codec.seal(sid, tenant)}; Path=/; HttpOnly; Secure; SameSite=Lax${deletion ? '; Max-Age=0' : '; Max-Age=3600'}`
   }).filter(Boolean)
 }
+// One audit line per refused request: reason code, method, path and tenant host only.
+// Header values, cookies, tokens and the query string are never logged; a path segment is kept only as a short lowercase word or a numeric id, any other segment (a token) becomes `*`.
+const auditPath = url => String(url ?? '').split('?')[0].split('#')[0].slice(0, 200).split('/').map(s => /^(?:[a-z][a-z0-9_-]{0,31}|\d{1,12})?$/.test(s) ? s : '*').join('/')
+function auditRefusal(req, error) {
+  if (error.statusCode === 503) return // maintenance or release-unavailable is not a boundary refusal
+  const reason = /^[a-z_]{1,64}$/.test(error.message) ? error.message : 'unknown'
+  console.error(JSON.stringify({
+    event: 'tenant_boundary_rejected',
+    reason,
+    method: String(req.method ?? 'GET').slice(0, 16),
+    path: auditPath(req.url),
+    host: String(req.headers?.host ?? '').slice(0, 200)
+  }))
+}
 export function createGuard({ registryPath, proxyToken, prospectHost = '', keys, activeKid, odooUrl, webUrl, wsUrl = odooUrl, releaseRoutesDir, releaseAssetsDir }) {
   if (releaseAssetsDir !== undefined) {
     if (!releaseRoutesDir) throw Error('release_assets_require_routes')
@@ -173,7 +187,7 @@ export function createGuard({ registryPath, proxyToken, prospectHost = '', keys,
   }
   const server = http.createServer(async (req, res) => {
     let p
-    try { p = plan(req) } catch (error) { res.writeHead(error.statusCode === 503 ? 503 : 403); res.end(error.statusCode === 503 ? 'tenant_maintenance_or_release_unavailable' : 'tenant_boundary_rejected'); return }
+    try { p = plan(req) } catch (error) { auditRefusal(req, error); res.writeHead(error.statusCode === 503 ? 503 : 403); res.end(error.statusCode === 503 ? 'tenant_maintenance_or_release_unavailable' : 'tenant_boundary_rejected'); return }
     if (p.status) {
       try {
         const route = readReleaseRoute(releaseRoutesDir, p.tenant.tenantId, true)
@@ -247,7 +261,7 @@ export function createGuard({ registryPath, proxyToken, prospectHost = '', keys,
   })
   server.on('upgrade', (req, socket, head) => {
     let p
-    try { p = plan(req); if (!p.odoo || new URL(req.url, 'http://local').pathname !== '/websocket') throw Error() } catch (error) { p?.closeLease?.(); socket.end(`HTTP/1.1 ${error.statusCode === 503 ? '503 Service Unavailable' : '403 Forbidden'}\r\nConnection: close\r\n\r\n`); return }
+    try { p = plan(req); if (!p.odoo || new URL(req.url, 'http://local').pathname !== '/websocket') throw Error() } catch (error) { auditRefusal(req, error); p?.closeLease?.(); socket.end(`HTTP/1.1 ${error.statusCode === 503 ? '503 Service Unavailable' : '403 Forbidden'}\r\nConnection: close\r\n\r\n`); return }
     if (p.closeLease) socket.once('close', p.closeLease)
     const target = p.release ? new URL(p.release.wsUrl) : upstreams[2]
     const upstream = http.request({ hostname: target.hostname, port: target.port, path: p.path, headers: p.headers })
