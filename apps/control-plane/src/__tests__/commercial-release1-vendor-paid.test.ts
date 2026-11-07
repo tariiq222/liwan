@@ -41,7 +41,7 @@ suite('a vendor-added customer starts paid (W4)', () => {
     const draft = await api('POST', '/plans', { name: `Vendor paid ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
       prices: [{ cadence: monthly, amount: money(9900) }], platform_limits: AI_LIMITS, included_bundle_revision_ids: [], optional_bundle_revision_ids: crmBundle,
       included_extra_branches: 1, extra_branch_prices: [{ cadence: monthly, amount: money(0) }], extra_branches_limit: null,
-      included_users: 3, included_storage_mb: 5120, user_prices: [{ cadence: monthly, amount: money(2900) }], storage_prices: [{ cadence: monthly, amount: money(100) }],
+      included_users: 3, included_storage_mb: 20480, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [{ cadence: monthly, amount: money(2900) }], storage_prices: [{ cadence: monthly, amount: money(100) }],
       policy_revision_id: POLICY_NO_TAX, trial_days: 14, grace_days: 0, auto_suspend: true, auto_renew_allowed: true })
     expect(draft.status, JSON.stringify(draft.body)).toBe(201)
     const validated = await api('POST', `/plans/${draft.body.id}/validate`, { edit_revision: 1, reason: 'Vendor paid acceptance' })
@@ -83,7 +83,7 @@ suite('a vendor-added customer starts paid (W4)', () => {
     const customer = await createCustomer('Vendor customer', 'admin@example.test')
     const merge = bundles_param()
     const quote = await createQuoteForCustomer(pool, { customer_id: customer.id, request: { kind: 'new', plan_revision_id: plan.id,
-      bundle_revision_ids: merge, cadence: monthly, requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 5120 } })
+      bundle_revision_ids: merge, cadence: monthly, requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 20480 } })
     expect(quote.due_now.minor).toBeGreaterThan(0)
     const ordered = await placeOrder(customer.id, quote.id)
     expect(ordered, 'the paid first order must be accepted').toBeTruthy()
@@ -137,7 +137,7 @@ suite('a vendor-added customer starts paid (W4)', () => {
     vi.stubEnv('LIWAN_TENANCY_MODE', 'shared')
     const customer = await createCustomerWithoutManager('No manager')
     const quote = await createQuoteForCustomer(pool, { customer_id: customer.id, request: { kind: 'new', plan_revision_id: plan.id,
-      bundle_revision_ids: bundles_param(), cadence: monthly, requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 5120 } })
+      bundle_revision_ids: bundles_param(), cadence: monthly, requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 20480 } })
     expect(quote.due_now.minor).toBeGreaterThan(0)
     await expect(placeOrder(customer.id, quote.id)).rejects.toMatchObject({ status: 409, code: 'admin_login_required' })
     expect((await pool.query('SELECT count(*)::int AS n FROM orders WHERE customer_id=$1', [customer.id])).rows[0].n).toBe(0)
@@ -172,7 +172,7 @@ suite('a vendor-added customer starts paid (W4)', () => {
     const id = randomUUID()
     await pool.query('INSERT INTO customers(id,name) VALUES($1,$2)', [id, 'Customer principal'])
     const quote = await createQuoteForCustomer(pool, { customer_id: id, request: { kind: 'new', plan_revision_id: plan.id, bundle_revision_ids: bundles_param(),
-      cadence: monthly, requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 5120 } })
+      cadence: monthly, requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 20480 } })
     await expect(routesB(pool, { method: 'POST', pathname: '/v1/commercial/orders', raw: JSON.stringify({ quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: randomUUID() }),
       issuer: 'customer-test', actor: 1, capabilities: ['subscription.manage'] as any, stepUpFresh: true }, new URL('http://localhost/v1/commercial/orders')))
       .rejects.toMatchObject({ status: 403 })
@@ -182,7 +182,7 @@ suite('a vendor-added customer starts paid (W4)', () => {
     const customer = await createCustomer('Trial customer', 'trial@example.test')
     const trial = await routesB(pool, { method: 'POST', pathname: `/v1/commercial/customers/${customer.id}/trial`,
       raw: JSON.stringify({ kind: 'new', plan_revision_id: plan.id, bundle_revision_ids: bundles_param(), cadence: monthly,
-        requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 5120 }),
+        requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 20480 }),
       issuer: 'vendor-paid-test', actor: 1, capabilities: vendorCaps as any, stepUpFresh: true }, new URL('http://localhost/v1/commercial'))
     expect(trial!.status).toBe(201)
     expect((await pool.query('SELECT state FROM subscriptions WHERE customer_id=$1', [customer.id])).rows[0].state).toBe('trialing')

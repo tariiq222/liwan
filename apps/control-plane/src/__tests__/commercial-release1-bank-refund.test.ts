@@ -46,7 +46,7 @@ suite('bank transfer (W5)', () => {
     const draft = await api('POST', '/plans', { name: `Bank ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
       prices: [{ cadence: monthly, amount: money(9900) }], platform_limits: AI_LIMITS, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
       included_extra_branches: 0, extra_branch_prices: [{ cadence: monthly, amount: money(0) }], extra_branches_limit: null,
-      included_users: 3, included_storage_mb: 5120, user_prices: [{ cadence: monthly, amount: money(2900) }], storage_prices: [{ cadence: monthly, amount: money(100) }],
+      included_users: 3, included_storage_mb: 20480, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [{ cadence: monthly, amount: money(2900) }], storage_prices: [{ cadence: monthly, amount: money(100) }],
       policy_revision_id: POLICY_NO_TAX, trial_days: 0, grace_days: 0, auto_suspend: true, auto_renew_allowed: true })
     expect(draft.status, JSON.stringify(draft.body)).toBe(201)
     const validated = await api('POST', `/plans/${draft.body.id}/validate`, { edit_revision: 1, reason: 'Bank acceptance' })
@@ -67,7 +67,7 @@ suite('bank transfer (W5)', () => {
     await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Customer','saas','managed',$2,true)", [tenant, `c-${tenant}`])
     await pool.query('INSERT INTO customers(id,name,tenant_id,admin_name,admin_login) VALUES($1,$2,$3,$4,$5)', [id, 'Bank customer', tenant, 'Manager', 'bank@example.test'])
     const quote = await createQuoteForCustomer(pool, { customer_id: id, request: { kind: 'new', plan_revision_id: plan.id, bundle_revision_ids: [], cadence: monthly,
-      requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 5120 } })
+      requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 20480 } })
     const { order } = await acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: randomUUID() }, vendor)
     const invoice = (await pool.query("SELECT * FROM invoices WHERE order_id=$1 AND status='issued'", [order.id])).rows[0]
     return { customer_id: id, order, invoice }
@@ -233,7 +233,7 @@ suite('the 14-day refund window (W7)', () => {
     const draft = await api('POST', '/plans', { name: `Refund ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
       prices: [{ cadence: monthly, amount: money(9900) }], platform_limits: AI_LIMITS, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
       included_extra_branches: 0, extra_branch_prices: [{ cadence: monthly, amount: money(0) }], extra_branches_limit: null,
-      included_users: 3, included_storage_mb: 5120, user_prices: [{ cadence: monthly, amount: money(2900) }], storage_prices: [{ cadence: monthly, amount: money(100) }],
+      included_users: 3, included_storage_mb: 20480, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [{ cadence: monthly, amount: money(2900) }], storage_prices: [{ cadence: monthly, amount: money(100) }],
       policy_revision_id: POLICY_NO_TAX, trial_days: 0, grace_days: 0, auto_suspend: true, auto_renew_allowed: true })
     const validated = await api('POST', `/plans/${draft.body.id}/validate`, { edit_revision: 1, reason: 'Refund acceptance' })
     plan = (await api('POST', `/plans/${draft.body.id}/publish`, { edit_revision: validated.body.edit_revision, reason: 'Refund acceptance' })).body
@@ -251,7 +251,7 @@ suite('the 14-day refund window (W7)', () => {
     await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Customer','saas','managed',$2,true)", [tenant, `c-${tenant}`])
     await pool.query('INSERT INTO customers(id,name,tenant_id,admin_name,admin_login) VALUES($1,$2,$3,$4,$5)', [id, 'Refund customer', tenant, 'Manager', 'refund@example.test'])
     const quote = await createQuoteForCustomer(pool, { customer_id: id, request: { kind: 'new', plan_revision_id: plan.id, bundle_revision_ids: [], cadence: monthly,
-      requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 5120 } })
+      requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 20480 } })
     const { order } = await acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: randomUUID() }, vendor)
     const invoice = (await pool.query("SELECT * FROM invoices WHERE order_id=$1 AND status='issued'", [order.id])).rows[0]
     const attemptId = randomUUID()

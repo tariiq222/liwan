@@ -24,7 +24,7 @@ function plan(release: CatalogRelease, bundles: BundleRevision[]): PlanRevision 
   return { id: id(4), plan_id: id(5), version: 1, edit_revision: 1, name: 'LiwanOS', status: 'published', available: true,
     audience: { kind: 'public' }, term_months: 12, prices: [], platform_limits: AI_LIMITS, included_bundle_revision_ids: [],
     optional_bundle_revision_ids: bundles.map(b => b.id), included_extra_branches: 0, extra_branch_prices: [], extra_branches_limit: null,
-    included_users: 3, included_storage_mb: 5120, user_prices: [], storage_prices: [], policy_revision_id: id(6),
+    included_users: 3, included_storage_mb: 5120, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [], storage_prices: [], policy_revision_id: id(6),
     currency: 'SAR', trial_days: 14, grace_days: 7, auto_suspend: true, auto_renew_allowed: true }
 }
 
@@ -73,6 +73,21 @@ describe('release 1 entitlement boundaries', () => {
     expect(open['crm.enabled']).toBe(true)
     for (const key of ['inbox.enabled', ...LOCKED]) expect(open[key], key).toBe(false)
     for (const key of INCLUDED) expect(open[key], key).toBe(true)
+  })
+
+  it('keeps the payment gateway open in core, so a messages-only customer can check out', () => {
+    // Owner decision (A6): connecting the tenant's own gateway is free. `inbox_payments` routes need
+    // `payments.enabled`, so locking it would close the WhatsApp catalog checkout for the one app that sells.
+    const messagesOnly = features([bundle(releaseOf(), 3, 'inbox')])
+    expect(messagesOnly['payments.enabled']).toBe(true)
+    expect(messagesOnly['inbox.enabled']).toBe(true)
+    // It is free, not for sale: no tier sells it.
+    expect(releaseOf().applications.filter(app => app.sellable).map(app => app.id)).not.toContain('payments')
+  })
+
+  it('still keeps an empty or HR-only purchase away from the sold applications', () => {
+    expect(features([])['crm.enabled']).toBe(false)
+    expect(features([])['inbox.enabled']).toBe(false)
   })
 
   it('opens customer messages alone when only messages are bought', () => {

@@ -562,6 +562,8 @@ def check_catalog(root, catalog_dir=CATALOG_DIR):
         if data.get('id') != path.stem:
             errors.append(f'{where}: id {data.get("id")!r} must match the file name')
         if data.get('schema_version') == RELEASE_SCHEMA:
+            current = current_release(root, catalog_dir)
+            _check_release._current_name = current[0] if current else None
             _check_release(root, where, data, registry, errors)
 
         industry = data.get('industry')
@@ -611,7 +613,10 @@ def check_catalog(root, catalog_dir=CATALOG_DIR):
             if tier_id in tier_ids:
                 errors.append(f'{where}.tiers: duplicate tier id {tier_id!r}')
             tier_ids.append(tier_id)
-            # `sellable` marks what a customer may buy; a schema-3 tier without it is installed and locked.
+            # `sellable` marks what a customer may buy; a tier that omits it sells nothing, which is what the
+            # schema says. The CURRENT release must say it explicitly on every tier, so no tier is silently locked
+            # by an omission. Older files keep their bytes (and their digests) and are not held to the newer rule.
+            is_current = path.name == getattr(_check_release, '_current_name', None)
             if 'sellable' in tier:
                 if tier_id == 'core':
                     errors.append(f'{tier_where}: the core tier is always included and can never be sellable')
@@ -619,6 +624,9 @@ def check_catalog(root, catalog_dir=CATALOG_DIR):
                     errors.append(f'{tier_where}: sellable is a schema {RELEASE_SCHEMA} property')
                 if not isinstance(tier['sellable'], bool):
                     errors.append(f'{tier_where}: sellable must be true or false')
+            elif is_current and tier_id != 'core':
+                # The core tier is always included; every other tier of the current release must say whether it is sold.
+                errors.append(f'{tier_where}: the current release must state sellable on every non-core tier')
             tier_modules = list(tier.get('modules') or [])
             for module in tier_modules:
                 known_module(module, f'{tier_where}.modules')

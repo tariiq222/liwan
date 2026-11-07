@@ -3,12 +3,12 @@ type Application = { id: string; selectable: boolean; sellable?: boolean; featur
 type ReleaseLike<A extends Application = Application> = { applications: A[] }
 
 /**
- * The applications a release puts up for sale. A catalog published before the `sellable` flag sold every
- * selectable tier, so it falls back to `selectable`; the core tier is always included and never for sale.
+ * The applications a release puts up for sale: those that say so. There is no fallback to `selectable` — a tier that
+ * declares nothing sells nothing, which is the rule the entitlement compiler and the catalog checker apply too.
  */
 export function sellableApps<A extends Application>(release: ReleaseLike<A> | null | undefined): A[] {
   if (!release) return []
-  return release.applications.filter(app => app.id !== 'core' && (app.sellable ?? app.selectable))
+  return release.applications.filter(app => app.id !== 'core' && app.sellable === true)
 }
 
 /** Bundle-style selections of the release applications whose booleans the entitlement opens. */

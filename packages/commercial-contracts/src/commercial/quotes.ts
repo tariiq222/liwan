@@ -21,6 +21,14 @@ export type ComputeQuoteInput = {
   onboarding?: { amount: Money } | null
 }
 
+const MB_PER_GB = 1024
+/** A11: an extra storage amount is legal when it is a whole number of the step that applies to it. */
+export function fitsStorageSteps(extraMb: number, plan: { storage_step_mb: number; storage_step_threshold_mb: number; storage_large_step_mb: number }): boolean {
+  if (extraMb <= 0) return true
+  // Below the threshold the small step applies; once the extra reaches it, the large step applies instead.
+  const step = extraMb < plan.storage_step_threshold_mb ? plan.storage_step_mb : plan.storage_large_step_mb
+  return extraMb % step === 0
+}
 const same = (a: Cadence, b: Cadence) => a.unit === b.unit && a.count === b.count
 function pick(cadence: Cadence, currency: string, ...sources: (Price[] | Price | undefined)[]): Price | undefined {
   for (const s of sources) {
@@ -44,6 +52,8 @@ export function computeQuote(input: ComputeQuoteInput): Quote {
   const paid = paidExtraBranches(requested, included)
   const paidUsers = paidUnits(input.requested_users, plan.included_users)
   const paidStorage = paidStorageGb(input.requested_storage_mb, plan.included_storage_mb)
+  // A11: extra storage is bought in steps — small ones until the extra reaches the threshold, then large ones.
+  if (paidStorage * MB_PER_GB > 0 && !fitsStorageSteps(paidStorage * MB_PER_GB, plan)) throw new CommercialError('storage_step_invalid', 'requested_storage_mb')
   if (limit !== null && requested > limit) throw new CommercialError('branch_limit_exceeded', 'requested_extra_branches')
   // Release 1 stops selling at MAX_USERS; above it the customer is told to contact us.
   if (input.requested_users > MAX_USERS) throw new CommercialError('users_limit_exceeded', 'requested_users')

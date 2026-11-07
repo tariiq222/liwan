@@ -25,7 +25,7 @@ export const RELEASE1 = {
   storage_per_10gb_monthly: 1000,
   onboarding_onboarding: 49900,
   included_users: 3,
-  included_storage_mb: 5120,
+  included_storage_mb: 20480,
   included_branches: 1,
   max_users: 100,
 } as const
@@ -54,7 +54,9 @@ suite('release 1 pricing seeds', () => {
       { cadence: YEAR, amount: money(annualOf(RELEASE1.base_monthly)) },
     ])
     expect(plan.included_users).toBe(RELEASE1.included_users)
-    expect(plan.included_storage_mb).toBe(RELEASE1.included_storage_mb)
+    // A10 (owner decision 2026-11-07): the free base includes 20 GB, not the original 5 GB.
+    expect(plan.included_storage_mb).toBe(20480)
+    expect(plan.included_storage_mb / 1024).toBe(20)
     expect(plan.included_extra_branches).toBe(RELEASE1.included_branches)
   })
 
@@ -140,7 +142,7 @@ suite('the 100-user cap', () => {
     const draft = await api('POST', '/plans', { name: `Cap ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
       prices: [{ cadence: monthly, amount: money(0) }], platform_limits: AI_LIMITS, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
       included_extra_branches: 0, extra_branch_prices: [{ cadence: monthly, amount: money(0) }], extra_branches_limit: null,
-      included_users: 1, included_storage_mb: 0, user_prices: [{ cadence: monthly, amount: money(2900) }], storage_prices: [{ cadence: monthly, amount: money(0) }],
+      included_users: 1, included_storage_mb: 0, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [{ cadence: monthly, amount: money(2900) }], storage_prices: [{ cadence: monthly, amount: money(0) }],
       policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000001', trial_days: 0, grace_days: 0, auto_suspend: true, auto_renew_allowed: true })
     const validated = await api('POST', `/plans/${draft.body.id}/validate`, { edit_revision: 1, reason: 'Cap acceptance' })
     plan = (await api('POST', `/plans/${draft.body.id}/publish`, { edit_revision: validated.body.edit_revision, reason: 'Cap acceptance' })).body
@@ -185,7 +187,7 @@ suite('a plan whose total is zero', () => {
     const draft = await api('POST', '/plans', { name: `Free ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
       prices: [{ cadence: monthly, amount: money(0) }], platform_limits: AI_LIMITS, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
       included_extra_branches: 1, extra_branch_prices: [{ cadence: monthly, amount: money(0) }], extra_branches_limit: null,
-      included_users: 3, included_storage_mb: 5120, user_prices: [{ cadence: monthly, amount: money(2900) }], storage_prices: [{ cadence: monthly, amount: money(100) }],
+      included_users: 3, included_storage_mb: 20480, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [{ cadence: monthly, amount: money(2900) }], storage_prices: [{ cadence: monthly, amount: money(100) }],
       policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000001', trial_days: 14, grace_days: 7, auto_suspend: true, auto_renew_allowed: true })
     expect(draft.status, JSON.stringify(draft.body)).toBe(201)
     const validated = await api('POST', `/plans/${draft.body.id}/validate`, { edit_revision: 1, reason: 'Free acceptance' })

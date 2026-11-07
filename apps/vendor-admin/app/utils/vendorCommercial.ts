@@ -59,6 +59,10 @@ export const cadenceKey = (c: Cadence) => `${c.unit}:${c.count}`
 // ---- Limits (tri-state: explicit unlimited / none(0) / number; blank is never 0) ----
 export type LimitMode = '' | 'unlimited' | 'none' | 'number'
 export type LimitDraft = { mode: LimitMode; value: string }
+/** A11 seeds: 10 GiB steps below 100 GiB of extra storage, 100 GiB steps from there. Vendor-editable on the plan. */
+export const DEFAULT_STORAGE_STEP_MB = 10240
+export const DEFAULT_STORAGE_THRESHOLD_MB = 102400
+export const DEFAULT_STORAGE_LARGE_STEP_MB = 102400
 export const emptyLimit = (): LimitDraft => ({ mode: '', value: '' })
 export function limitFromDraft(draft: LimitDraft | undefined): number | null {
   if (!draft) throw new Error('invalid_limit')
@@ -215,7 +219,9 @@ export function planLimits(draft: PlanDraft): Record<string, number | null> {
 export function emptyPlanDraft(): PlanDraft {
   return {
     name: '', audience: { kind: 'public', customer_id: '' }, term_months: '', prices: [], included: [], optional: [],
-    included_users: '', included_storage_mb: '', user_prices: [], storage_prices: [],
+    included_users: '', included_storage_mb: '',
+    storage_step_mb: String(DEFAULT_STORAGE_STEP_MB), storage_step_threshold_mb: String(DEFAULT_STORAGE_THRESHOLD_MB), storage_large_step_mb: String(DEFAULT_STORAGE_LARGE_STEP_MB),
+    user_prices: [], storage_prices: [],
     included_extra_branches: '', extra_branch_prices: [],
     extra_branches_limit: emptyLimit(), ai_limits: emptyAiLimits(), trial_days: '', grace_days: '', auto_suspend: '', auto_renew_allowed: '', reason: '',
   }
@@ -226,6 +232,7 @@ export function planDraftFromView(v: PlanRevision): PlanDraft {
     name: v.name, audience: audienceToDraft(v.audience), term_months: String(v.term_months), prices: v.prices.map(priceToDraft),
     included: [...v.included_bundle_revision_ids], optional: [...v.optional_bundle_revision_ids],
     included_users: String(v.included_users), included_storage_mb: String(v.included_storage_mb),
+    storage_step_mb: String(v.storage_step_mb), storage_step_threshold_mb: String(v.storage_step_threshold_mb), storage_large_step_mb: String(v.storage_large_step_mb),
     user_prices: v.user_prices.map(priceToDraft), storage_prices: v.storage_prices.map(priceToDraft),
     included_extra_branches: String(v.included_extra_branches), extra_branch_prices: v.extra_branch_prices.map(priceToDraft),
     extra_branches_limit: limitToDraft(v.extra_branches_limit), ai_limits: aiLimitsDraftFromView(v.platform_limits),
@@ -248,6 +255,8 @@ export function planFields(draft: PlanDraft, policyId: string) {
     name: draft.name.trim(), audience: audienceFromDraft(draft.audience), term_months: requireCount(draft.term_months, 120), currency: CURRENCY,
     prices: pricesFromDrafts(draft.prices), platform_limits: planLimits(draft),
     included_users: includedUsers, included_storage_mb: includedStorage,
+    storage_step_mb: requireCount(draft.storage_step_mb), storage_step_threshold_mb: requireCount(draft.storage_step_threshold_mb),
+    storage_large_step_mb: requireCount(draft.storage_large_step_mb),
     user_prices: pricesFromDrafts(draft.user_prices), storage_prices: pricesFromDrafts(draft.storage_prices),
     included_bundle_revision_ids: [...draft.included], optional_bundle_revision_ids: draft.optional.filter(id => !draft.included.includes(id)),
     included_extra_branches: requireCount(draft.included_extra_branches), extra_branch_prices: pricesFromDrafts(draft.extra_branch_prices),

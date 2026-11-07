@@ -39,7 +39,7 @@ suite('the one-time onboarding fee (W6)', () => {
     const draft = await api('POST', '/plans', { name: `Onboarding ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
       prices: [{ cadence: monthly, amount: money(9900) }], platform_limits: AI_LIMITS, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
       included_extra_branches: 0, extra_branch_prices: [{ cadence: monthly, amount: money(0) }], extra_branches_limit: null,
-      included_users: 3, included_storage_mb: 5120, user_prices: [{ cadence: monthly, amount: money(2900) }], storage_prices: [{ cadence: monthly, amount: money(100) }],
+      included_users: 3, included_storage_mb: 20480, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [{ cadence: monthly, amount: money(2900) }], storage_prices: [{ cadence: monthly, amount: money(100) }],
       policy_revision_id: POLICY_NO_TAX, trial_days: 0, grace_days: 0, auto_suspend: true, auto_renew_allowed: true })
     expect(draft.status, JSON.stringify(draft.body)).toBe(201)
     const validated = await api('POST', `/plans/${draft.body.id}/validate`, { edit_revision: 1, reason: 'Onboarding acceptance' })
@@ -53,7 +53,7 @@ suite('the one-time onboarding fee (W6)', () => {
   afterAll(async () => { await pool.end() })
 
   const request = (onboarding: boolean) => ({ kind: 'new' as const, plan_revision_id: plan.id, bundle_revision_ids: [], cadence: monthly,
-    requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 5120, onboarding })
+    requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 20480, onboarding })
 
   async function newCustomer() {
     const id = randomUUID()

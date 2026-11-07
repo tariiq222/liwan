@@ -17,6 +17,7 @@ const plan: PlanRevision = { id: id(4), plan_id: id(5), version: 1, edit_revisio
   audience: { kind: 'public' }, term_months: 12, prices: [{ cadence: monthly, amount: sar(9900) }], platform_limits: {},
   included_bundle_revision_ids: [], optional_bundle_revision_ids: [], included_extra_branches: 0, extra_branch_prices: [],
   extra_branches_limit: null, included_users: 3, included_storage_mb: 5120,
+  storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400,
   user_prices: [{ cadence: monthly, amount: sar(2900) }], storage_prices: [{ cadence: monthly, amount: sar(100) }],
   policy_revision_id: id(6), currency: 'SAR', trial_days: 14, grace_days: 7, auto_suspend: true, auto_renew_allowed: true }
 

@@ -10,7 +10,8 @@ export const PLAN_KIND: Kind = { table: 'plan_revisions', parent: 'commercial_pl
 type Row = Record<string, any>
 type Issue = { code: string; field?: string }
 const FIELDS = 'r.*, (SELECT count(*)::int FROM revision_references x WHERE x.revision_id=r.id) AS customer_count'
-const PLAN_COLS = ['name', 'audience', 'term_months', 'currency', 'prices', 'platform_limits', 'included_bundle_revision_ids', 'optional_bundle_revision_ids', 'included_extra_branches', 'extra_branch_prices', 'extra_branches_limit', 'included_users', 'included_storage_mb', 'user_prices', 'storage_prices', 'policy_revision_id', 'trial_days', 'grace_days', 'auto_suspend', 'auto_renew_allowed'] as const
+const PLAN_COLS = ['name', 'audience', 'term_months', 'currency', 'prices', 'platform_limits', 'included_bundle_revision_ids', 'optional_bundle_revision_ids', 'included_extra_branches', 'extra_branch_prices', 'extra_branches_limit', 'included_users', 'included_storage_mb', 'storage_step_mb', 'storage_step_threshold_mb', 'storage_large_step_mb',
+  'user_prices', 'storage_prices', 'policy_revision_id', 'trial_days', 'grace_days', 'auto_suspend', 'auto_renew_allowed'] as const
 
 export function planContent(r: Row) {
   return { id: r.id, plan_id: r.plan_id, version: r.version, ...Object.fromEntries(PLAN_COLS.map(k => [k, r[k]])) }
@@ -21,7 +22,9 @@ export function planWire(row: Row, issues: Issue[] = []): PlanView {
     available: row.available, audience: row.audience, prices: row.prices, term_months: row.term_months, platform_limits: row.platform_limits,
     included_bundle_revision_ids: row.included_bundle_revision_ids, optional_bundle_revision_ids: row.optional_bundle_revision_ids,
     included_extra_branches: row.included_extra_branches, extra_branch_prices: row.extra_branch_prices, extra_branches_limit: row.extra_branches_limit,
-    included_users: row.included_users, included_storage_mb: row.included_storage_mb, user_prices: row.user_prices, storage_prices: row.storage_prices,
+    included_users: row.included_users, included_storage_mb: row.included_storage_mb,
+    storage_step_mb: row.storage_step_mb, storage_step_threshold_mb: row.storage_step_threshold_mb, storage_large_step_mb: row.storage_large_step_mb,
+    user_prices: row.user_prices, storage_prices: row.storage_prices,
     policy_revision_id: row.policy_revision_id, currency: row.currency, trial_days: row.trial_days, grace_days: row.grace_days,
     auto_suspend: row.auto_suspend, auto_renew_allowed: row.auto_renew_allowed,
     content_digest: row.content_digest, validated_digest: row.validated_digest, customer_count: row.customer_count ?? 0,
@@ -134,10 +137,12 @@ async function view(client: PoolClient, id: string) {
   return planWire(r.rows[0])
 }
 const j = JSON.stringify
-const insertSql = `INSERT INTO plan_revisions(id,plan_id,version,name,audience,audience_customer_id,term_months,currency,prices,platform_limits,included_bundle_revision_ids,optional_bundle_revision_ids,included_extra_branches,extra_branch_prices,extra_branches_limit,included_users,included_storage_mb,user_prices,storage_prices,policy_revision_id,trial_days,grace_days,auto_suspend,auto_renew_allowed,content_digest)
-  VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)`
+const insertSql = `INSERT INTO plan_revisions(id,plan_id,version,name,audience,audience_customer_id,term_months,currency,prices,platform_limits,included_bundle_revision_ids,optional_bundle_revision_ids,included_extra_branches,extra_branch_prices,extra_branches_limit,included_users,included_storage_mb,storage_step_mb,storage_step_threshold_mb,storage_large_step_mb,user_prices,storage_prices,policy_revision_id,trial_days,grace_days,auto_suspend,auto_renew_allowed,content_digest)
+  VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)`
 const insertArgs = (id: string, planId: string, version: number, r: Row) => [id, planId, version, r.name, j(r.audience), audienceCustomer(r.audience), r.term_months, r.currency, j(r.prices), j(r.platform_limits),
-  j(r.included_bundle_revision_ids), j(r.optional_bundle_revision_ids), r.included_extra_branches, j(r.extra_branch_prices), r.extra_branches_limit, r.included_users, r.included_storage_mb, j(r.user_prices), j(r.storage_prices), r.policy_revision_id, r.trial_days, r.grace_days, r.auto_suspend, r.auto_renew_allowed,
+  j(r.included_bundle_revision_ids), j(r.optional_bundle_revision_ids), r.included_extra_branches, j(r.extra_branch_prices), r.extra_branches_limit, r.included_users, r.included_storage_mb,
+  r.storage_step_mb, r.storage_step_threshold_mb, r.storage_large_step_mb,
+  j(r.user_prices), j(r.storage_prices), r.policy_revision_id, r.trial_days, r.grace_days, r.auto_suspend, r.auto_renew_allowed,
   digestOf(planContent({ ...r, id, plan_id: planId, version }))]
 
 async function requirePolicy(client: PoolClient, id: string) {
@@ -178,8 +183,8 @@ export async function mutatePlan(pool: Pool, actor: CommercialActor, id: string,
       requireStatus(row, ['draft', 'validated'])
       await requirePolicy(client, input.policy_revision_id)
       const next = { ...row, ...Object.fromEntries(PLAN_COLS.map(k => [k, input[k]])) }
-      await client.query(`UPDATE plan_revisions SET name=$2,audience=$3,audience_customer_id=$4,term_months=$5,currency=$6,prices=$7,platform_limits=$8,included_bundle_revision_ids=$9,optional_bundle_revision_ids=$10,included_extra_branches=$11,extra_branch_prices=$12,extra_branches_limit=$13,included_users=$14,included_storage_mb=$15,user_prices=$16,storage_prices=$17,policy_revision_id=$18,trial_days=$19,grace_days=$20,auto_suspend=$21,auto_renew_allowed=$22,content_digest=$23,validated_digest=NULL,status='draft',edit_revision=edit_revision+1 WHERE id=$1 AND edit_revision=$24`,
-        [id, next.name, j(next.audience), audienceCustomer(next.audience), next.term_months, next.currency, j(next.prices), j(next.platform_limits), j(next.included_bundle_revision_ids), j(next.optional_bundle_revision_ids), next.included_extra_branches, j(next.extra_branch_prices), next.extra_branches_limit, next.included_users, next.included_storage_mb, j(next.user_prices), j(next.storage_prices), next.policy_revision_id, next.trial_days, next.grace_days, next.auto_suspend, next.auto_renew_allowed, digestOf(planContent(next)), row.edit_revision]).then(r => { if (!r.rowCount) throw new CommercialHttpError('revision_conflict', 409) })
+      await client.query(`UPDATE plan_revisions SET name=$2,audience=$3,audience_customer_id=$4,term_months=$5,currency=$6,prices=$7,platform_limits=$8,included_bundle_revision_ids=$9,optional_bundle_revision_ids=$10,included_extra_branches=$11,extra_branch_prices=$12,extra_branches_limit=$13,included_users=$14,included_storage_mb=$15,storage_step_mb=$16,storage_step_threshold_mb=$17,storage_large_step_mb=$18,user_prices=$19,storage_prices=$20,policy_revision_id=$21,trial_days=$22,grace_days=$23,auto_suspend=$24,auto_renew_allowed=$25,content_digest=$26,validated_digest=NULL,status='draft',edit_revision=edit_revision+1 WHERE id=$1 AND edit_revision=$27`,
+        [id, next.name, j(next.audience), audienceCustomer(next.audience), next.term_months, next.currency, j(next.prices), j(next.platform_limits), j(next.included_bundle_revision_ids), j(next.optional_bundle_revision_ids), next.included_extra_branches, j(next.extra_branch_prices), next.extra_branches_limit, next.included_users, next.included_storage_mb, next.storage_step_mb, next.storage_step_threshold_mb, next.storage_large_step_mb, j(next.user_prices), j(next.storage_prices), next.policy_revision_id, next.trial_days, next.grace_days, next.auto_suspend, next.auto_renew_allowed, digestOf(planContent(next)), row.edit_revision]).then(r => { if (!r.rowCount) throw new CommercialHttpError('revision_conflict', 409) })
     } else if (action === 'validate' || action === 'publish') {
       requireStatus(row, [action === 'validate' ? 'draft' : 'validated'])
       if (action === 'publish' && row.validated_digest !== row.content_digest) throw new CommercialHttpError('review_required', 409)

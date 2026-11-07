@@ -46,7 +46,8 @@ export const catalogApplicationSchema = z.strictObject({
   modules: z.array(z.string()), requires_apps: z.array(z.string()), conflicts_with_apps: z.array(z.string()),
   /** A bundle may grant this application: the core tier is always included, every other tier may be selected. */
   selectable: z.boolean(),
-  /** A customer may buy this application. A schema-3 release always states it; an older one predates the flag. */
+  /** A customer may buy this application. Omitted means it is not for sale: a catalog that predates the flag, or a
+   * tier the release installs without selling. The current release states it on every non-core tier. */
   sellable: z.boolean().optional(), features: z.array(catalogFeatureSchema),
 })
 export const catalogReleaseSchema = z.strictObject({
@@ -70,6 +71,9 @@ export const planRevisionSchema = z.strictObject({
   optional_bundle_revision_ids: z.array(revisionIdSchema), included_extra_branches: z.number().int().min(0).max(MAX),
   extra_branch_prices: z.array(priceSchema), extra_branches_limit: z.number().int().min(0).max(MAX).nullable(),
   included_users: z.number().int().min(0).max(MAX), included_storage_mb: z.number().int().min(0).max(MAX),
+  // A11: how extra storage is bought. Small steps below the threshold, large steps above it.
+  storage_step_mb: z.number().int().min(1).max(MAX), storage_step_threshold_mb: z.number().int().min(1).max(MAX),
+  storage_large_step_mb: z.number().int().min(1).max(MAX),
   user_prices: z.array(priceSchema), storage_prices: z.array(priceSchema),
   policy_revision_id: revisionIdSchema, currency: z.string().regex(/^[A-Z]{3}$/),
   trial_days: z.number().int().min(0).max(3650), grace_days: z.number().int().min(0).max(3650),
@@ -130,6 +134,8 @@ const planFields = {
   included_extra_branches: z.number().int().min(0).max(MAX), extra_branch_prices: z.array(priceSchema),
   extra_branches_limit: z.number().int().min(0).max(MAX).nullable(),
   included_users: z.number().int().min(0).max(MAX), included_storage_mb: z.number().int().min(0).max(MAX),
+  storage_step_mb: z.number().int().min(1).max(MAX), storage_step_threshold_mb: z.number().int().min(1).max(MAX),
+  storage_large_step_mb: z.number().int().min(1).max(MAX),
   user_prices: z.array(priceSchema), storage_prices: z.array(priceSchema), policy_revision_id: revisionIdSchema,
   trial_days: z.number().int().min(0).max(3650), grace_days: z.number().int().min(0).max(3650),
   auto_suspend: z.boolean(), auto_renew_allowed: z.boolean(),

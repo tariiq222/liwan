@@ -14,13 +14,14 @@
     {
       "id": "core",
       "name": "Core",
-      "description": "Base modules and the always-included applications: the platform, its capability catalog, the shared API, tasks, chat, meetings, documents, operations and the AI assistant.",
+      "description": "Base modules and the always-included applications: the platform, its capability catalog, the shared API, tasks, chat, meetings, documents, operations, the AI assistant and the tenant's own payment gateway connection.",
       "modules": [
         "liwan_ai",
         "liwan_chat",
         "liwan_documents",
         "liwan_meetings",
         "liwan_operations",
+        "liwan_payments",
         "liwan_tasks"
       ],
       "features": [
@@ -38,7 +39,8 @@
         "limit:ai.tool_calls.per_run",
         "limit:ai.tokens.monthly",
         "limit:ai.assist.monthly:300",
-        "limit:ai.output_tokens.per_run"
+        "limit:ai.output_tokens.per_run",
+        "boolean:payments.enabled"
       ]
     },
     {
@@ -137,18 +139,6 @@
       ],
       "features": [
         "boolean:integrations.enabled"
-      ]
-    },
-    {
-      "id": "payments",
-      "name": "Online payments",
-      "description": "The tenant's own payment gateway account, connected from the payments settings page.",
-      "sellable": false,
-      "modules": [
-        "liwan_payments"
-      ],
-      "features": [
-        "boolean:payments.enabled"
       ]
     },
     {

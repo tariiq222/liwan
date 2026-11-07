@@ -17,13 +17,14 @@ describe('sellable applications of a release', () => {
     expect(apps.map(app => app.id)).toEqual(['crm', 'inbox'])
   })
 
-  it('treats a catalog published before the flag as selling every selectable tier', () => {
+  it('sells nothing when a catalog declares nothing: no fallback to selectable', () => {
+    // A6: a tier that omits the flag is locked. The control plane refuses to publish such a catalog at all.
     const apps = sellableApps(release([
       { id: 'core', selectable: false, features: [] },
       { id: 'projects', selectable: true, features: [] },
       { id: 'people', selectable: true, features: [] },
     ]))
-    expect(apps.map(app => app.id)).toEqual(['projects', 'people'])
+    expect(apps).toEqual([])
   })
 
   it('never lists the core tier, even if a catalog were to flag it', () => {

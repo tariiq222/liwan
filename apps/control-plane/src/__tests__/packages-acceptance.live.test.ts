@@ -66,7 +66,7 @@ suite('spec 3.6 acceptance: plans flip keys and limits on a tenant with every ap
   }
   const plan = (name: string, bundles: string[], users: number) => publish('plans', { name, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
     prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: { 'ai.messages.monthly': null, 'ai.tool_calls.per_run': null }, included_bundle_revision_ids: bundles,
-    optional_bundle_revision_ids: [], included_extra_branches: 0, extra_branch_prices: [{ cadence: monthly, amount: money(5000) }], extra_branches_limit: 0, included_users: users, included_storage_mb: 1000, user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }],
+    optional_bundle_revision_ids: [], included_extra_branches: 0, extra_branch_prices: [{ cadence: monthly, amount: money(5000) }], extra_branches_limit: 0, included_users: users, included_storage_mb: 1000, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }],
     policy_revision_id: POLICY, trial_days: 0, grace_days: 0, auto_suspend: true, auto_renew_allowed: true })
   /** Real collector pass over the real Odoo observation (a downgrade or reopen quote needs a fresh sample). */
   async function collect() {

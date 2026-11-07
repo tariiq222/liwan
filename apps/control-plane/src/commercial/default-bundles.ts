@@ -21,7 +21,8 @@ function seedPrices(appId: string) {
   ]
 }
 const PLAN_FIELDS = ['name', 'audience', 'term_months', 'currency', 'prices', 'platform_limits', 'included_bundle_revision_ids', 'optional_bundle_revision_ids',
-  'included_extra_branches', 'extra_branch_prices', 'extra_branches_limit', 'included_users', 'included_storage_mb', 'user_prices', 'storage_prices',
+  'included_extra_branches', 'extra_branch_prices', 'extra_branches_limit', 'included_users', 'included_storage_mb',
+  'storage_step_mb', 'storage_step_threshold_mb', 'storage_large_step_mb', 'user_prices', 'storage_prices',
   'policy_revision_id', 'trial_days', 'grace_days', 'auto_suspend', 'auto_renew_allowed'] as const
 
 /**

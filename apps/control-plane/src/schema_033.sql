@@ -31,6 +31,16 @@ ALTER TABLE payment_attempts ADD CONSTRAINT payment_attempts_provider_check
 -- value date is the day the money reached the account, which may precede the day the vendor recorded it.
 ALTER TABLE payment_attempts ADD COLUMN value_date date;
 
+-- A11 (owner decision 2026-11-07): extra storage is bought in steps. Above `included_storage_mb` a customer adds
+-- storage 10 GiB at a time until the extra reaches `storage_step_threshold_mb`, then 100 GiB at a time. All three are
+-- vendor-editable values on the plan, seeded here; the validation reads them and never hardcodes a step.
+ALTER TABLE plan_revisions
+  ADD COLUMN storage_step_mb integer NOT NULL DEFAULT 10240 CHECK (storage_step_mb > 0),
+  ADD COLUMN storage_step_threshold_mb integer NOT NULL DEFAULT 102400 CHECK (storage_step_threshold_mb > 0),
+  ADD COLUMN storage_large_step_mb integer NOT NULL DEFAULT 102400 CHECK (storage_large_step_mb > 0),
+  ADD CONSTRAINT plan_storage_steps_ordered CHECK (storage_large_step_mb >= storage_step_mb AND storage_step_threshold_mb >= storage_step_mb);
+-- The seeded LiwanOS plan takes the defaults above; nothing else is rewritten.
+
 -- A5: who a credit note came from. `vendor` is a refund the vendor records because the customer asked for it, and only
 -- those carry the first-payment/window rule; `system` notes (duplicate charge, payment after cancellation, fulfilment
 -- failure) keep the plain path. An explicit column, never inferred from the free-text created_by.
