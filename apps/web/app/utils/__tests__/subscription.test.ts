@@ -33,8 +33,12 @@ describe('subscriptionInvoiceView', () => {
     expect(view.lines.find(l => l.id === 'storage')!.description).toBe('t:subscription.invoices.storage')
   })
 
-  it('ends with subtotal, tax and total in that order', () => {
-    expect(subscriptionInvoiceView(invoice, t, 'ar').totals.map(row => row.label)).toEqual([
+  it('ends with subtotal and total when Liwan charged no tax, and names the tax row only when it did', () => {
+    // Liwan is not VAT-registered (owner decision 2026-11-06): its own invoices carry no tax row.
+    expect(subscriptionInvoiceView({ ...invoice, tax: money(0), total: money(250), tax_label: null }, t, 'ar').totals.map(row => row.label)).toEqual([
+      't:subscription.invoices.subtotal', 't:subscription.invoices.total',
+    ])
+    expect(subscriptionInvoiceView({ ...invoice, tax_label: 'VAT 15% exclusive' }, t, 'ar').totals.map(row => row.label)).toEqual([
       't:subscription.invoices.subtotal', 't:subscription.invoices.tax', 't:subscription.invoices.total',
     ])
   })

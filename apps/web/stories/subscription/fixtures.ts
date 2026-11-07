@@ -13,4 +13,4 @@ export const branches: BranchSummary = { total: 3, hq: 1, free_extra_used: 1, fr
 export const invoice: Invoice = { id: 'inv1', number: 'INV-1001', customer_id: 'c1', subscription_id: 's1', order_id: null, kind: 'renewal', status: 'issued', currency: 'SAR',
   lines: [{ key: 'base', kind: 'base', timing: 'now', description: 'الباقة الأساسية', quantity: 1, unit_amount: sar(20000), amount: sar(20000), period_start: '2026-10-02', period_end: '2026-11-02', source_revision_id: id(2) },
     { key: 'br', kind: 'branch', timing: 'now', description: 'فرع إضافي', quantity: 2, free_quantity: 1, unit_amount: sar(6000), amount: sar(6000), period_start: '2026-10-02', period_end: '2026-11-02', source_revision_id: id(2) }],
-  subtotal: sar(26000), tax: sar(3900), total: sar(29900), period_start: '2026-10-02', period_end: '2026-11-02', issued_at: '2026-10-02', due_at: null, paid_at: null, tax_label: 'VAT 15% exclusive', official_tax_invoice: false }
+  subtotal: sar(26000), tax: sar(0), total: sar(26000), period_start: '2026-10-02', period_end: '2026-11-02', issued_at: '2026-10-02', due_at: null, paid_at: null, tax_label: null, official_tax_invoice: false }

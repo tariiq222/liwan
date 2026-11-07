@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { adjustmentSchema, invoiceSchema, TAX_LABEL, type Adjustment, type Invoice, type Money, type Quote } from '@liwan/commercial-contracts'
+import { adjustmentSchema, invoiceSchema, TAX_LABELS, type Adjustment, type Invoice, type Money, type Quote } from '@liwan/commercial-contracts'
 
 export type InvoiceView = Invoice
 /** Vendor-console view: the customer-facing invoice plus the customer's name (never sent to customers). */
@@ -28,7 +28,8 @@ export function invoiceView(row: any, lines: any[]): InvoiceView {
     subtotal: money(row.subtotal_minor), tax: money(row.tax_minor), total: money(row.total_minor),
     period_start: d(row.period_start), period_end: d(row.period_end),
     issued_at: ts(row.issued_at), due_at: ts(row.due_at), paid_at: ts(row.paid_at),
-    tax_label: TAX_LABEL, official_tax_invoice: false,
+    // The invoice carries the label of the tax it actually charged: none when the policy that priced it charged none.
+    tax_label: num(row.tax_minor) === 0 ? null : TAX_LABELS.vat_exclusive, official_tax_invoice: false,
   })
 }
 

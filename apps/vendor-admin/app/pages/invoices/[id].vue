@@ -21,6 +21,16 @@ const { data: attempts, error: attemptsError, pending: attemptsPending, refresh:
 const attemptTime = (value: string) => formatLiwanDateTime(value)
 const unavailable = computed(() => isNotAvailable(error.value) && !data.value)
 const money = (m: NonNullable<typeof data.value>['total']) => formatCommercialMoney(m, locale.value)
+/** Subtotal, the tax line only when the invoice charged one, then the total: Liwan's own invoices carry no tax. */
+const totals = computed(() => {
+  const invoice = data.value
+  if (!invoice) return []
+  return [
+    { label: t('vendor.invoices.subtotal'), value: money(invoice.subtotal) },
+    ...(invoice.tax_label === null ? [] : [{ label: t('vendor.invoices.taxLine', { label: invoice.tax_label }), value: money(invoice.tax) }]),
+    { label: t('vendor.invoices.total'), value: money(invoice.total) },
+  ]
+})
 const date = (v: string | null) => (v ? formatLiwanDate(v) : null)
 const canRefund = computed(() => canBilling.value && !unavailable.value)
 const refundNoteId = ref<string | null>(null)
@@ -65,7 +75,7 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
 
   <div v-if="data && !unavailable" class="space-y-6">
     <UAlert color="neutral" variant="subtle" icon="i-lucide-info" :title="t('vendor.invoices.notOfficial')" :description="t('vendor.invoices.notOfficialHint')" data-testid="not-official" />
-    <SharedRecordSection :title="t('vendor.invoices.lines')"><SharedInvoiceLines :lines="vendorInvoiceLineViews(data.lines, t, locale)" :totals="[{label:t('vendor.invoices.subtotal'),value:money(data.subtotal)},{label:t('vendor.invoices.vat'),value:money(data.tax)},{label:t('vendor.invoices.total'),value:money(data.total)}]" /><p class="text-xs text-muted">{{ t('vendor.invoices.vatNote') }}</p></SharedRecordSection>
+    <SharedRecordSection :title="t('vendor.invoices.lines')"><SharedInvoiceLines :lines="vendorInvoiceLineViews(data.lines, t, locale)" :totals="totals" /></SharedRecordSection>
 
     <SharedRecordSection v-if="canBilling" :title="t('vendor.invoices.attempts')">
       <SharedPageState :loading="attemptsPending" :error="attemptsError" @retry="refreshAttempts">

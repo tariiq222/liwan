@@ -19,8 +19,12 @@ CREATE TABLE pricing_policy_revisions (
   approval_note text NOT NULL, created_at timestamptz NOT NULL DEFAULT now(),
   CHECK((tax_kind='vat_exclusive' AND tax_rate_bps=1500) OR (tax_kind='none' AND tax_rate_bps IS NULL))
 );
+-- Two approved policies. Liwan is not VAT-registered (owner decision 2026-11-06), so the seeded plan is pinned to
+-- `none` and every Liwan invoice is untaxed. The 15% policy stays approved for the day Liwan registers: it is the
+-- mechanism, not a default, and nothing is pinned to it until the owner switches the plan to it.
 INSERT INTO pricing_policy_revisions(id,timezone,rounding,tax_kind,tax_rate_bps,currency,approval_note)
-VALUES('6f1c3d8e-0000-4000-8000-000000000001','Asia/Riyadh','half_up_per_line','vat_exclusive',1500,'SAR','owner decision 2026-10-02');
+VALUES('6f1c3d8e-0000-4000-8000-000000000001','Asia/Riyadh','half_up_per_line','vat_exclusive',1500,'SAR','mechanism kept for a registered vendor; not active'),
+       ('6f1c3d8e-0000-4000-8000-000000000002','Asia/Riyadh','half_up_per_line','none',NULL,'SAR','owner decision 2026-11-06: Liwan is not VAT-registered');
 CREATE FUNCTION protect_pricing_policy() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN RAISE EXCEPTION 'pricing_policy_immutable'; END $$;
 CREATE TRIGGER pricing_policy_guard BEFORE UPDATE OR DELETE ON pricing_policy_revisions FOR EACH ROW EXECUTE FUNCTION protect_pricing_policy();

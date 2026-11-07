@@ -143,7 +143,8 @@ export function subscriptionInvoiceView(invoice: Invoice, t: (key: string) => st
     notice: t('subscription.invoices.notOfficial'),
     totals: [
       { label: t('subscription.invoices.subtotal'), value: money(invoice.subtotal) },
-      { label: t('subscription.invoices.tax'), value: money(invoice.tax) },
+      // Liwan is not VAT-registered (owner decision 2026-11-06): an untaxed invoice shows no tax row at all.
+      ...(invoice.tax_label === null ? [] : [{ label: t('subscription.invoices.tax'), value: money(invoice.tax) }]),
       { label: t('subscription.invoices.total'), value: money(invoice.total) },
     ],
   }
