@@ -142,7 +142,8 @@ class RealManifestClosureTest(unittest.TestCase):
     def test_projects_tier_closure_from_real_manifests_includes_the_bridge(self):
         projects = module_closure.install_closure([ADDONS], BASE + ['liwan_pmo', 'liwan_meetings'])
         self.assertIn('liwan_meetings_pmo', projects)
-        for tier_name in ('people', 'messaging', 'core'):
+        # Every tier of the current release that does not install liwan_pmo itself keeps the bridge out.
+        for tier_name in ('people', 'finance', 'appointments', 'crm', 'inbox', 'core'):
             with self.subTest(tier=tier_name):
                 self.assertNotIn(
                     'liwan_meetings_pmo', module_closure.install_closure([ADDONS], EXPECTED[tier_name][0]),
