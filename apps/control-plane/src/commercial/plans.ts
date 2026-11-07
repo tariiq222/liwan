@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { planViewSchema, planCreateSchema, planEditSchema, lifecycleActionSchema, type PlanView, type PlanRevision, type Price } from '@liwan/commercial-contracts'
+import { planViewSchema, planCreateSchema, planEditSchema, lifecycleActionSchema, storageStepsAligned, STORAGE_STEP_MISALIGNED, type PlanView, type PlanRevision, type Price } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { audit, CommercialHttpError, digestOf, iso, lockRevision, nextVersion, pageParams, referenceCount, requireStatus, statusSql, type CommercialActor, type Kind } from './lifecycle.js'
 import { priceIssues, bundleRevision, loadRelease } from './bundles.js'
@@ -10,7 +10,8 @@ export const PLAN_KIND: Kind = { table: 'plan_revisions', parent: 'commercial_pl
 type Row = Record<string, any>
 type Issue = { code: string; field?: string }
 const FIELDS = 'r.*, (SELECT count(*)::int FROM revision_references x WHERE x.revision_id=r.id) AS customer_count'
-const PLAN_COLS = ['name', 'audience', 'term_months', 'currency', 'prices', 'platform_limits', 'included_bundle_revision_ids', 'optional_bundle_revision_ids', 'included_extra_branches', 'extra_branch_prices', 'extra_branches_limit', 'included_users', 'included_storage_mb', 'user_prices', 'storage_prices', 'policy_revision_id', 'trial_days', 'grace_days', 'auto_suspend', 'auto_renew_allowed'] as const
+const PLAN_COLS = ['name', 'audience', 'term_months', 'currency', 'prices', 'platform_limits', 'included_bundle_revision_ids', 'optional_bundle_revision_ids', 'included_extra_branches', 'extra_branch_prices', 'extra_branches_limit', 'included_users', 'included_storage_mb', 'storage_step_mb', 'storage_step_threshold_mb', 'storage_large_step_mb',
+  'user_prices', 'storage_prices', 'policy_revision_id', 'trial_days', 'grace_days', 'auto_suspend', 'auto_renew_allowed'] as const
 
 export function planContent(r: Row) {
   return { id: r.id, plan_id: r.plan_id, version: r.version, ...Object.fromEntries(PLAN_COLS.map(k => [k, r[k]])) }
@@ -21,7 +22,9 @@ export function planWire(row: Row, issues: Issue[] = []): PlanView {
     available: row.available, audience: row.audience, prices: row.prices, term_months: row.term_months, platform_limits: row.platform_limits,
     included_bundle_revision_ids: row.included_bundle_revision_ids, optional_bundle_revision_ids: row.optional_bundle_revision_ids,
     included_extra_branches: row.included_extra_branches, extra_branch_prices: row.extra_branch_prices, extra_branches_limit: row.extra_branches_limit,
-    included_users: row.included_users, included_storage_mb: row.included_storage_mb, user_prices: row.user_prices, storage_prices: row.storage_prices,
+    included_users: row.included_users, included_storage_mb: row.included_storage_mb,
+    storage_step_mb: row.storage_step_mb, storage_step_threshold_mb: row.storage_step_threshold_mb, storage_large_step_mb: row.storage_large_step_mb,
+    user_prices: row.user_prices, storage_prices: row.storage_prices,
     policy_revision_id: row.policy_revision_id, currency: row.currency, trial_days: row.trial_days, grace_days: row.grace_days,
     auto_suspend: row.auto_suspend, auto_renew_allowed: row.auto_renew_allowed,
     content_digest: row.content_digest, validated_digest: row.validated_digest, customer_count: row.customer_count ?? 0,
@@ -37,10 +40,9 @@ const isoExponent = (c: string) => { try { return new Intl.NumberFormat('en', { 
 const key = (p: Price) => `${p.cadence.unit}:${p.cadence.count}`
 
 export const DERIVED_LIMITS = ['branches.extra_limit', 'users.limit', 'storage.limit_mb']
-// AI fair-use (owner decision 2026-10-25): `ai.messages.monthly: null` means unlimited, and that
-// is intentional. The AI assistant is part of the platform base (owner decision 2026-11-05) and
-// every plan carries its limits explicitly; the fair-use limit is a term of service, not a system
-// value, so no hidden plan key is invented for it in this phase.
+// The AI assistant is part of the platform base (owner decision 2026-11-05) and free with a monthly quota, so every
+// plan carries each AI limit the release declares as a vendor-editable value (owner decision 2026-11-06): the vendor
+// console's plan form sets them, the seeds carry the release amounts, and an explicit null means unlimited.
 async function entitlementIssues(client: Pool | PoolClient, row: Row, bundleRows: Row[], releaseId: string | null, inc: string[]): Promise<Issue[]> {
   const out: Issue[] = []
   for (const k of Object.keys(row.platform_limits ?? {})) if (DERIVED_LIMITS.includes(k)) out.push({ code: 'platform_limit_derived', field: 'platform_limits' })
@@ -65,6 +67,19 @@ export async function planIssues(client: Pool | PoolClient, row: Row): Promise<I
   const prices: Price[] = row.prices, branchPrices: Price[] = row.extra_branch_prices
   const userPrices: Price[] = row.user_prices ?? [], storagePrices: Price[] = row.storage_prices ?? []
   if (!prices.length) issues.push({ code: 'price_missing', field: 'prices' })
+  // A6: the storage steps must actually tile the range they govern, or the plan silently makes some quantities
+  // unbuyable (a 10 GiB step with a 15 GiB threshold refuses 20 GiB and then everything below the large step). The rule
+  // is `storageStepsAligned`, shared with the zod input schema and the database CHECK; the issue names the field to fix.
+  if (!storageStepsAligned({ storage_step_mb: row.storage_step_mb, storage_step_threshold_mb: row.storage_step_threshold_mb, storage_large_step_mb: row.storage_large_step_mb })) {
+    const field = row.storage_large_step_mb < row.storage_step_mb ? 'storage_large_step_mb'
+      : row.storage_step_threshold_mb < row.storage_step_mb || row.storage_step_threshold_mb % row.storage_step_mb !== 0 ? 'storage_step_threshold_mb'
+        : 'storage_large_step_mb'
+    issues.push({ code: STORAGE_STEP_MISALIGNED, field })
+  }
+  // A plan that costs nothing never carries a trial: its trial could only end in a past_due state whose expiry makes a
+  // free tenant read-only, and there is no payment for the customer to make. A free plan starts active outright.
+  if (row.trial_days > 0 && prices.length > 0 && prices.every(p => p.amount.minor === 0))
+    issues.push({ code: 'trial_on_free_plan', field: 'trial_days' })
   issues.push(...priceIssues(prices, 'prices'), ...priceIssues(branchPrices, 'extra_branch_prices'),
     ...priceIssues(userPrices, 'user_prices'), ...priceIssues(storagePrices, 'storage_prices'))
   // Storage is sold in whole gigabytes above the included minimum (the quote engine enforces the
@@ -135,17 +150,40 @@ async function view(client: PoolClient, id: string) {
   return planWire(r.rows[0])
 }
 const j = JSON.stringify
-const insertSql = `INSERT INTO plan_revisions(id,plan_id,version,name,audience,audience_customer_id,term_months,currency,prices,platform_limits,included_bundle_revision_ids,optional_bundle_revision_ids,included_extra_branches,extra_branch_prices,extra_branches_limit,included_users,included_storage_mb,user_prices,storage_prices,policy_revision_id,trial_days,grace_days,auto_suspend,auto_renew_allowed,content_digest)
-  VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)`
+const insertSql = `INSERT INTO plan_revisions(id,plan_id,version,name,audience,audience_customer_id,term_months,currency,prices,platform_limits,included_bundle_revision_ids,optional_bundle_revision_ids,included_extra_branches,extra_branch_prices,extra_branches_limit,included_users,included_storage_mb,storage_step_mb,storage_step_threshold_mb,storage_large_step_mb,user_prices,storage_prices,policy_revision_id,trial_days,grace_days,auto_suspend,auto_renew_allowed,content_digest)
+  VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)`
 const insertArgs = (id: string, planId: string, version: number, r: Row) => [id, planId, version, r.name, j(r.audience), audienceCustomer(r.audience), r.term_months, r.currency, j(r.prices), j(r.platform_limits),
-  j(r.included_bundle_revision_ids), j(r.optional_bundle_revision_ids), r.included_extra_branches, j(r.extra_branch_prices), r.extra_branches_limit, r.included_users, r.included_storage_mb, j(r.user_prices), j(r.storage_prices), r.policy_revision_id, r.trial_days, r.grace_days, r.auto_suspend, r.auto_renew_allowed,
+  j(r.included_bundle_revision_ids), j(r.optional_bundle_revision_ids), r.included_extra_branches, j(r.extra_branch_prices), r.extra_branches_limit, r.included_users, r.included_storage_mb,
+  r.storage_step_mb, r.storage_step_threshold_mb, r.storage_large_step_mb,
+  j(r.user_prices), j(r.storage_prices), r.policy_revision_id, r.trial_days, r.grace_days, r.auto_suspend, r.auto_renew_allowed,
   digestOf(planContent({ ...r, id, plan_id: planId, version }))]
 
 async function requirePolicy(client: PoolClient, id: string) {
   if (!(await client.query('SELECT 1 FROM pricing_policy_revisions WHERE id=$1', [id])).rowCount) throw new CommercialHttpError('invalid', 422, 'policy_revision_id', [{ code: 'policy_missing', field: 'policy_revision_id' }])
 }
+const STORAGE_STEP_FIELDS = ['storage_step_mb', 'storage_step_threshold_mb', 'storage_large_step_mb']
+type ZodLikeIssue = { path: PropertyKey[]; message: string; code?: string; params?: { code?: unknown } }
+/** The specific plan code a refused input carries: the code a refinement named, else the storage-step range error; `invalid` otherwise. */
+function planIssueCode(issue: ZodLikeIssue) {
+  if (issue.code === 'custom' && typeof issue.params?.code === 'string') return issue.params.code
+  return STORAGE_STEP_FIELDS.includes(String(issue.path[0])) ? 'storage_step_invalid' : 'invalid'
+}
+/**
+ * A6: a plan input the contract schemas refuse is a structured 422 with its own issue code, not a raw ZodError that the
+ * HTTP layer would flatten to `invalid`/body. The storage-step rules are the case that matters: they mirror the database
+ * CHECK, so without this they would have surfaced as a 500 (23514) instead of a message naming the field. The top-level
+ * code is the first issue's, so the console names the specific rule instead of "invalid".
+ */
+function parsePlanInput<T>(schema: { safeParse(value: unknown): { success: boolean; data?: T; error?: { issues: ZodLikeIssue[] } } }, value: unknown): T {
+  const parsed = schema.safeParse(value)
+  if (parsed.success) return parsed.data as T
+  const refused = parsed.error?.issues ?? []
+  const issues = refused.map(i => ({ code: planIssueCode(i), ...(i.path[0] !== undefined ? { field: String(i.path[0]) } : {}) }))
+  const first = refused[0]
+  throw new CommercialHttpError(first ? planIssueCode(first) : 'invalid', 422, first ? String(first.path[0] ?? 'body') : 'body', issues)
+}
 export async function createPlan(pool: Pool, actor: CommercialActor, value: unknown) {
-  const input = planCreateSchema.parse(value)
+  const input = parsePlanInput<Record<string, any>>(planCreateSchema, value)
   return transaction(pool, async client => {
     await requirePolicy(client, input.policy_revision_id)
     const planId = randomUUID(), id = randomUUID()
@@ -157,7 +195,7 @@ export async function createPlan(pool: Pool, actor: CommercialActor, value: unkn
 }
 type Action = 'edit' | 'delete' | 'validate' | 'publish' | 'withdraw' | 'restore' | 'revisions'
 export async function mutatePlan(pool: Pool, actor: CommercialActor, id: string, action: Action, value: unknown) {
-  const input: Record<string, any> = action === 'edit' ? planEditSchema.parse(value) : lifecycleActionSchema.parse(value)
+  const input: Record<string, any> = action === 'edit' ? parsePlanInput<Record<string, any>>(planEditSchema, value) : lifecycleActionSchema.parse(value)
   return transaction(pool, async client => {
     const row = await lockRevision(client, PLAN_KIND, id, input.edit_revision)
     const reason: string = input.reason
@@ -179,8 +217,8 @@ export async function mutatePlan(pool: Pool, actor: CommercialActor, id: string,
       requireStatus(row, ['draft', 'validated'])
       await requirePolicy(client, input.policy_revision_id)
       const next = { ...row, ...Object.fromEntries(PLAN_COLS.map(k => [k, input[k]])) }
-      await client.query(`UPDATE plan_revisions SET name=$2,audience=$3,audience_customer_id=$4,term_months=$5,currency=$6,prices=$7,platform_limits=$8,included_bundle_revision_ids=$9,optional_bundle_revision_ids=$10,included_extra_branches=$11,extra_branch_prices=$12,extra_branches_limit=$13,included_users=$14,included_storage_mb=$15,user_prices=$16,storage_prices=$17,policy_revision_id=$18,trial_days=$19,grace_days=$20,auto_suspend=$21,auto_renew_allowed=$22,content_digest=$23,validated_digest=NULL,status='draft',edit_revision=edit_revision+1 WHERE id=$1 AND edit_revision=$24`,
-        [id, next.name, j(next.audience), audienceCustomer(next.audience), next.term_months, next.currency, j(next.prices), j(next.platform_limits), j(next.included_bundle_revision_ids), j(next.optional_bundle_revision_ids), next.included_extra_branches, j(next.extra_branch_prices), next.extra_branches_limit, next.included_users, next.included_storage_mb, j(next.user_prices), j(next.storage_prices), next.policy_revision_id, next.trial_days, next.grace_days, next.auto_suspend, next.auto_renew_allowed, digestOf(planContent(next)), row.edit_revision]).then(r => { if (!r.rowCount) throw new CommercialHttpError('revision_conflict', 409) })
+      await client.query(`UPDATE plan_revisions SET name=$2,audience=$3,audience_customer_id=$4,term_months=$5,currency=$6,prices=$7,platform_limits=$8,included_bundle_revision_ids=$9,optional_bundle_revision_ids=$10,included_extra_branches=$11,extra_branch_prices=$12,extra_branches_limit=$13,included_users=$14,included_storage_mb=$15,storage_step_mb=$16,storage_step_threshold_mb=$17,storage_large_step_mb=$18,user_prices=$19,storage_prices=$20,policy_revision_id=$21,trial_days=$22,grace_days=$23,auto_suspend=$24,auto_renew_allowed=$25,content_digest=$26,validated_digest=NULL,status='draft',edit_revision=edit_revision+1 WHERE id=$1 AND edit_revision=$27`,
+        [id, next.name, j(next.audience), audienceCustomer(next.audience), next.term_months, next.currency, j(next.prices), j(next.platform_limits), j(next.included_bundle_revision_ids), j(next.optional_bundle_revision_ids), next.included_extra_branches, j(next.extra_branch_prices), next.extra_branches_limit, next.included_users, next.included_storage_mb, next.storage_step_mb, next.storage_step_threshold_mb, next.storage_large_step_mb, j(next.user_prices), j(next.storage_prices), next.policy_revision_id, next.trial_days, next.grace_days, next.auto_suspend, next.auto_renew_allowed, digestOf(planContent(next)), row.edit_revision]).then(r => { if (!r.rowCount) throw new CommercialHttpError('revision_conflict', 409) })
     } else if (action === 'validate' || action === 'publish') {
       requireStatus(row, [action === 'validate' ? 'draft' : 'validated'])
       if (action === 'publish' && row.validated_digest !== row.content_digest) throw new CommercialHttpError('review_required', 409)

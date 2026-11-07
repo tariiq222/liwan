@@ -37,7 +37,6 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
   { id: 'customer', header: t('vendor.invoices.customer') },
   { id: 'status', header: t('vendor.common.status') },
   { id: 'due', header: t('vendor.invoices.dueAt') },
-  { id: 'vat', header: t('vendor.invoices.vat') },
   { id: 'total', header: t('vendor.invoices.total') },
 ])
 </script>
@@ -64,7 +63,6 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
   <template #customer-cell="{ row: { original: i } }"><NuxtLink :to="customerTo(i.customer_id)" class="hover:underline">{{ i.customer_name }}</NuxtLink></template>
   <template #status-cell="{ row: { original: i } }"><SharedStatusBadge :tone="badge(i).tone" :label="t(badge(i).labelKey)" /></template>
   <template #due-cell="{ row: { original: i } }">{{ date(i.due_at) ?? t('app.notAvailable') }}</template>
-  <template #vat-cell="{ row: { original: i } }"><bdi dir="ltr">{{ formatCommercialMoney(i.tax, locale) }}</bdi></template>
   <template #total-cell="{ row: { original: i } }"><bdi dir="ltr" class="font-semibold tabular-nums">{{ formatCommercialMoney(i.total, locale) }}</bdi></template>
   <template #mobile-row="{ row: i }"><div class="flex flex-wrap items-start justify-between gap-4">
             <h2 class="text-lg font-semibold"><NuxtLink data-testid="invoice-row" :to="to(i.id)">{{ i.number ?? t('vendor.invoices.draftNumber') }}</NuxtLink></h2>

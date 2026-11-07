@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Quote } from '@liwan/commercial-contracts'
 import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
-import { QUOTE_IS_EXPIRED, refusalCode, refusalKey, safeIdemAction, safePaymentRedirect, sameQuoteEconomics } from '@/utils/subscription'
+import { fitStorageMb, QUOTE_IS_EXPIRED, refusalCode, refusalKey, safeIdemAction, safePaymentRedirect, sameQuoteEconomics, storageOptions, storageUnlisted, usersOverCap } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t, locale } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('subscription.manage'))
@@ -14,7 +14,7 @@ const { data, error, pending, refresh } = await useAsyncData('subscription:chang
 }, { immediate: allowed.value })
 const plans = computed<Array<Record<string, any>>>(() => data.value?.catalog.plans ?? [])
 const bundles = computed(() => data.value?.catalog.bundles ?? [])
-const planId = ref(''); const bundleIds = ref<string[]>([]); const cadenceKey = ref(''); const users = ref(1); const storageGb = ref(0); const extra = ref(0)
+const planId = ref(''); const bundleIds = ref<string[]>([]); const cadenceKey = ref(''); const users = ref(1); const storageMb = ref(0); const extra = ref(0)
 const quote = ref<Quote | null>(null); const previewPending = ref(false); const previewError = ref('')
 const notice = ref<'expired' | 'conflict' | 'changed' | 'failed' | 'start' | 'refused' | null>(null); const refusal = ref<string | null>(null); const busy = ref(false); const redirecting = ref(false)
 const plan = computed(() => plans.value.find((p: Record<string, any>) => p.id === planId.value) ?? null)
@@ -31,10 +31,23 @@ const cadenceOptions = computed(() => (plan.value?.prices ?? []).filter((p: { ca
 const priceFor = (rows: Array<{ cadence: { unit: string; count: number; }; amount: Quote['due_now'] }> | undefined, key = cadenceKey.value) => rows?.find(p => keyOf(p.cadence) === key)
 const money = (m: Quote['due_now']) => formatCommercialMoney(m, locale.value)
 const userUnit = computed(() => priceFor(plan.value?.user_prices))
-const storageUnit = computed(() => priceFor(plan.value?.storage_prices))
 const minUsers = computed(() => Math.max(1, plan.value?.included_users ?? 1))
-const minStorageGb = computed(() => Math.ceil((plan.value?.included_storage_mb ?? 0) / 1024))
+// Release 1 sells at most MAX_USERS users per company (the contract owns the number); the server refuses the quote
+// above it with users_limit_exceeded, and the page says «لأكثر من 100 مستخدم، تواصل معنا» instead.
+const overCap = computed(() => usersOverCap(users.value))
 const minBranches = computed(() => plan.value?.included_extra_branches ?? 0)
+// Storage is bought in the plan's steps (see storageOptions): the select offers the legal totals only, and each row
+// carries the price of the extra it adds, never a price this page invented.
+const storageChoices = computed(() => storageOptions(plan.value ?? {}, plan.value?.storage_prices, cadence.value))
+const storageChoice = computed(() => storageChoices.value.find(o => o.storageMb === storageMb.value) ?? null)
+// Every row is a plan total in GiB; the extra it adds is priced, and the included amount says so instead of "0.00".
+const storageLabel = (o: (typeof storageChoices.value)[number]) => `${o.totalGb} ${t('subscription.change.gib')} · ${!o.extraMb ? t('subscription.change.storageIncluded') : o.amount ? money(o.amount) : t('subscription.change.unavailable')}`
+
+// A quantity above the last option stays as it is (never shrunk); the select cannot show it, so the customer is told to contact us.
+const storageLocked = computed(() => storageUnlisted(storageChoices.value, storageMb.value))
+// The included row has no extra to price, so it says so; a missing price is what "unavailable" means.
+const storageHelp = computed(() => storageLocked.value ? t('subscription.change.storageUnlisted') : !storageChoice.value?.extraMb ? t('subscription.change.perStorageNone')
+  : storageChoice.value.amount ? t('subscription.change.perStorage', { price: money(storageChoice.value.amount) }) : t('subscription.change.unavailable'))
 const bundlePrice = (b: (typeof bundles.value)[number]) => priceFor(b.prices)
 const bundleSelectable = (b: (typeof bundles.value)[number]) => Boolean(bundlePrice(b))
 const bundleLabel = (b: (typeof bundles.value)[number]) => {
@@ -43,13 +56,17 @@ const bundleLabel = (b: (typeof bundles.value)[number]) => {
 }
 const planTrialDays = computed(() => Number(plan.value?.trial_days ?? 0))
 const trialAvailable = computed(() => Boolean(!data.value?.sub?.applied && planTrialDays.value > 0))
+// A9: the assisted onboarding is an optional one-time item on the customer's FIRST order only, never on a change.
+const onboarding = ref(false)
+const firstOrder = computed(() => !data.value?.sub?.applied)
 const body = computed(() => {
   const s = data.value?.sub; const p = plan.value
   if (!p || !cadenceKey.value) return null
   return {
     kind: s?.applied ? 'change' as const : 'new' as const, plan_revision_id: p.id, bundle_revision_ids: bundleIds.value,
     cadence: cadence.value, requested_extra_branches: extra.value, requested_users: users.value,
-    requested_storage_mb: storageGb.value * 1024, subscription_id: s?.id ?? null, expected_subscription_revision: s?.revision ?? 0,
+    requested_storage_mb: storageMb.value, subscription_id: s?.id ?? null, expected_subscription_revision: s?.revision ?? 0,
+    ...(firstOrder.value && onboarding.value ? { onboarding: true } : {}),
   }
 })
 const baseline = ref('')
@@ -62,7 +79,7 @@ watch(data, d => {
   if (applied) {
     cadenceKey.value = keyOf(applied.cadence)
     users.value = Number(applied.entitlement.features['users.limit'] ?? 1)
-    storageGb.value = Math.ceil(Number(applied.entitlement.features['storage.limit_mb'] ?? 0) / 1024)
+    storageMb.value = Number(applied.entitlement.features['storage.limit_mb'] ?? 0)
     extra.value = applied.extra_branch_count
     nextTick(() => { bundleIds.value = applied.bundle_revision_ids.filter(id => allowedBundleIds.value.has(id) && !includedIds.value.has(id)) })
   }
@@ -74,20 +91,32 @@ watch(planId, () => {
   // Only cadences with complete unit prices are offered; a missing one is unavailable, never zero.
   if (!cadenceOptions.value.some((o: { value: string }) => o.value === cadenceKey.value)) cadenceKey.value = cadenceOptions.value[0]?.value ?? ''
   users.value = Math.max(users.value, minUsers.value)
-  storageGb.value = Math.max(storageGb.value, minStorageGb.value)
+  storageMb.value = fitStorageMb(storageChoices.value, storageMb.value)
   extra.value = Math.max(extra.value, minBranches.value)
   bundleIds.value = bundleIds.value.filter(id => allowedBundleIds.value.has(id) && !includedIds.value.has(id))
+})
+// The storage options depend on the plan and the cadence: a different plan or cycle must not keep a quantity it does not sell.
+watch(storageChoices, (options) => {
+  if (!options.length) return
+  storageMb.value = fitStorageMb(options, storageMb.value)
 })
 // Live server quote: only ids and quantities are sent; every amount comes back from the control plane.
 let timer: ReturnType<typeof setTimeout> | undefined; let seq = 0
 async function runPreview() {
   const value = body.value
   if (!value || !hydrated.value) return
+  if (overCap.value) { quote.value = null; previewError.value = t('subscription.change.usersCapNote'); return }
   const { subscription_id: _subscription, ...previewBody } = value
   const mine = ++seq
   previewPending.value = true; previewError.value = ''
   try { const result = await api.preview(previewBody); if (mine === seq) quote.value = result }
-  catch { if (mine === seq) { quote.value = null; previewError.value = t('subscription.change.previewFailed') } }
+  catch (cause: unknown) {
+    if (mine !== seq) return
+    quote.value = null
+    // A refused storage quantity gets its own explanation; every other cause keeps the generic preview failure.
+    const key = refusalKey(refusalCode(cause))
+    previewError.value = key ? t(key) : t('subscription.change.previewFailed')
+  }
   finally { if (mine === seq) previewPending.value = false }
 }
 function schedule() {
@@ -96,12 +125,12 @@ function schedule() {
   timer = setTimeout(() => void runPreview(), 350)
 }
 watch(cadenceKey, () => { bundleIds.value = bundleIds.value.filter(id => { const b = bundles.value.find(x => x.id === id); return Boolean(b && bundlePrice(b)) }) })
-watch([planId, bundleIds, cadenceKey, users, storageGb, extra], schedule, { deep: true })
+watch([planId, bundleIds, cadenceKey, users, storageMb, extra, onboarding], schedule, { deep: true })
 onMounted(() => void runPreview()); onBeforeUnmount(() => { if (timer) clearTimeout(timer) })
 function retryPreview() { notice.value = null; void runPreview() }
 async function startTrial() {
   const value = body.value
-  if (!hydrated.value || busy.value || !value || !data.value) return
+  if (!hydrated.value || busy.value || !value || !data.value || overCap.value) return
   busy.value = true; notice.value = null
   try {
     const { subscription_id: _subscription, ...trialBody } = value
@@ -116,7 +145,7 @@ async function startTrial() {
 }
 async function accept() {
   const value = body.value; const sub = data.value?.sub
-  if (!hydrated.value || busy.value || !value) return
+  if (!hydrated.value || busy.value || !value || overCap.value) return
   if (quote.value && QUOTE_IS_EXPIRED(quote.value)) { notice.value = 'expired'; void runPreview(); return }
   busy.value = true; notice.value = null
   try {
@@ -137,7 +166,10 @@ async function accept() {
     await navigateTo({ path: '/subscription/status', query: { order: order.id } })
   } catch (cause: any) {
     redirecting.value = false
-    if (cause?.statusCode === 409) { notice.value = 'conflict'; void runPreview() } else notice.value = 'failed'
+    const key = refusalKey(refusalCode(cause))
+    if (key) { refusal.value = key; notice.value = 'refused' }
+    else if (cause?.statusCode === 409) { notice.value = 'conflict'; void runPreview() }
+    else notice.value = 'failed'
   } finally { busy.value = false }
 }
 const noticeKey = computed(() => notice.value === 'start' ? 'subscription.trial.startFailed' : notice.value === 'refused' ? (refusal.value ?? 'subscription.trial.startFailed') : notice.value ? `subscription.change.${notice.value}` : '')
@@ -165,28 +197,33 @@ definePageMeta({ middleware: 'customer-commercial' })
           <SharedFormSection panel :title="t('subscription.change.quantities')">
             <div class="liwan-auto-grid gap-5">
               <UFormField :label="t('subscription.change.users')" :help="`${t('subscription.change.included', { count: minUsers })} · ${t('subscription.change.perUser', { price: userUnit ? money(userUnit.amount) : '—' })}`">
-                <UInputNumber v-model="users" :min="minUsers" :disabled="!hydrated" class="w-full" />
+                <UInputNumber v-model="users" :min="minUsers" :max="100" :disabled="!hydrated" class="w-full" />
+                <p class="mt-1 text-sm" :class="overCap ? 'text-error' : 'text-muted'">{{ t('subscription.change.usersCapNote') }}</p>
               </UFormField>
-              <UFormField :label="t('subscription.change.storage')" :help="`${t('subscription.change.included', { count: minStorageGb })} · ${t('subscription.change.perStorage', { price: storageUnit ? money(storageUnit.amount) : '—' })}`">
-                <UInputNumber v-model="storageGb" :min="minStorageGb" :disabled="!hydrated" class="w-full" />
+              <UFormField :label="t('subscription.change.storage')" :help="storageHelp">
+                <USelect v-model="storageMb" :items="storageChoices.map(o => ({ value: o.storageMb, label: storageLabel(o) }))" :disabled="!hydrated || !storageChoices.length || storageLocked" class="w-full" />
               </UFormField>
               <UFormField :label="t('subscription.change.branches')" :help="t('subscription.change.includedBranches', { count: minBranches })">
                 <UInputNumber v-model="extra" :min="minBranches" :disabled="!hydrated" class="w-full" />
               </UFormField>
             </div>
           </SharedFormSection>
+          <!-- A9: offered on the customer's first order only; it never appears on a change or a renewal. -->
+          <SharedFormSection v-if="firstOrder" panel :title="t('subscription.change.onboarding')">
+            <UCheckbox v-model="onboarding" :label="t('subscription.change.onboardingChoice')" :description="t('subscription.change.onboardingHint')" :disabled="!hydrated" data-testid="onboarding-choice" />
+          </SharedFormSection>
         </div>
         <aside class="grid gap-4 self-start lg:sticky lg:top-6">
           <SharedRecordSection variant="panel" :title="t('subscription.change.liveTotal')" :description="t('subscription.change.liveHint')">
             <SharedCommercePriceBreakdown :quote="quote" :pending="previewPending" :error="previewError" @retry="retryPreview" />
           </SharedRecordSection>
-          <UAlert v-if="notice" role="alert" :color="notice === 'failed' ? 'error' : 'warning'" variant="subtle" :title="t(noticeKey)">
+          <UAlert v-if="notice" role="alert" :color="notice === 'failed' || notice === 'refused' ? 'error' : 'warning'" variant="subtle" :title="t(noticeKey)">
             <template v-if="notice !== 'failed'" #actions><UButton size="sm" color="neutral" variant="outline" :disabled="busy" @click="retryPreview">{{ t('subscription.change.requote') }}</UButton></template>
           </UAlert>
           <p v-if="redirecting" role="status" class="text-sm text-muted">{{ t('subscription.change.redirecting') }}</p>
           <SharedFormActions>
-            <UButton type="submit" :disabled="!hydrated || busy || redirecting || !quote || previewPending" :loading="busy">{{ t('subscription.change.continue') }}</UButton>
-            <UButton v-if="trialAvailable" type="button" color="neutral" variant="outline" :disabled="!hydrated || busy || redirecting || !quote || previewPending" @click="startTrial">{{ t('subscription.trial.start', { count: planTrialDays }) }}</UButton>
+            <UButton type="submit" :disabled="!hydrated || busy || redirecting || !quote || previewPending || overCap" :loading="busy">{{ t('subscription.change.continue') }}</UButton>
+            <UButton v-if="trialAvailable" type="button" color="neutral" variant="outline" :disabled="!hydrated || busy || redirecting || !quote || previewPending || overCap" @click="startTrial">{{ t('subscription.trial.start', { count: planTrialDays }) }}</UButton>
           </SharedFormActions>
         </aside>
       </form>

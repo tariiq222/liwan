@@ -69,7 +69,7 @@ describe.skipIf(!url)('commercial restore publication (live PG, fake physical re
     const receipt = { schemaVersion:1,operation:'restore',binding,businessKey:businessKey(restored),payloadDigest:payloadDigest(restored),attemptId:randomUUID(),sequence:3,status:'verified' }
     await pool.query("INSERT INTO shared_jobs(id,control_tenant_id,business_key,payload,payload_digest,issuer,actor_uid,reason,state,receipt) VALUES($1,$2,$3,$4,$5,$6,7,'Verified restore fixture','verified',$7)", [randomUUID(),tenant,businessKey(restored),restored,payloadDigest(restored),issuer,receipt])
     if (commercial) {
-      await pool.query("INSERT INTO customers(id,name,tenant_id) VALUES($1,'Paid fixture',$2)", [customer,tenant])
+      await pool.query("INSERT INTO customers(id,name,tenant_id,admin_name,admin_login) VALUES($1,'Paid fixture',$2,'Manager','restore@example.test')", [customer,tenant])
       await pool.query('INSERT INTO subscriptions(id,customer_id,tenant_id) VALUES($1,$2,$3)', [subscription,customer,tenant])
       await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,2,$3,$4)', [applied,subscription,{ entitlement: { modules:['liwan_platform'],features:{'users.limit':10},digest:'c'.repeat(64),compiler_version:'1' } },randomUUID()])
       await pool.query("UPDATE subscriptions SET applied_revision_id=$2,state='active',revision=revision+1 WHERE id=$1", [subscription,applied])

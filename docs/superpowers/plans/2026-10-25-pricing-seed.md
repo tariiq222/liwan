@@ -1,8 +1,8 @@
 # Pricing seed — operator runbook
 
-> The migration `apps/control-plane/src/schema_025.sql` seeds **development placeholders**.
-> Every amount in it is unapproved. Nothing in the product may sell a real tenant from these
-> numbers; the owner replaces them from the vendor console before the first paid customer.
+> The migration `apps/control-plane/src/schema_025.sql` seeds the **release 1 amounts**
+> (owner decision 2026-11-06). Every amount in it is a vendor-editable value the owner
+> replaces from the vendor console; nothing in the code carries a price.
 
 ## What the migration does
 
@@ -18,9 +18,20 @@
 3. Inserts one published plan named `LiwanOS` (the SQL seed writes a fixed placeholder
    `content_digest`; the application only recomputes it when a revision moves through
    validate/publish, and a seeded row is already published):
-   - base prices: monthly and yearly (placeholder);
-   - `included_users: 3`, `included_storage_mb: 5120`, `included_extra_branches: 0`;
-   - `user_prices`, `storage_prices` and `extra_branch_prices` for both cadences;
+   - base prices: 0 (the platform, its first 3 users, 5 GiB, the first branch and the AI
+     assistant are included; only the sold applications carry a price);
+   - `included_users: 3`, `included_storage_mb: 20480` (20 GiB, owner decision 2026-11-07), `included_extra_branches: 1` (the
+     first branch is included);
+   - `user_prices`: 29 a month; `storage_prices`: 1 per GiB a month (10 per 10 GiB);
+     `extra_branch_prices`: 50 a month;
+   - **annual is exactly ten monthly payments** for every one of them, and for every
+     application bundle: that ratio is stored, never derived, so the owner can change it;
+   - extra storage is bought in steps (owner decision 2026-11-07): 10 GiB at a time up to
+     100 GiB of extra storage, then 100 GiB at a time. Both steps and the switch point are
+     stored on the plan, not in the validation;
+   - `platform_limits`: the five AI limits the assistant runs under (messages, tokens,
+     free-agent messages, tool calls per run, output tokens per run), editable on the plan
+     form;
    - `included_bundle_revision_ids: []` — applications are optional and priced separately;
    - `optional_bundle_revision_ids`: every bundle that is published and available in the
      release of the newest published bundle (a plan must not mix catalog releases);
@@ -37,8 +48,9 @@ npm -w apps/control-plane run migrate
 ```
 
 Do not run it against `liwan_control_dev` while a console or worker is using that database.
-On a fresh database there are no bundles yet, so only step 3 runs; bundle prices are then
-entered from the console after the catalogs are published. On a database that already has
+On a fresh database there are no bundles yet, so only step 3 runs; the catalog release then
+publishes one bundle per **sellable** application at its own seed amount (CRM 99 a month,
+customer messages 250 a month), and the owner changes either from the console. On a database that already has
 applications from more than one catalog release, the plan is seeded against the newest
 release only; bundles from older releases stay out of its menu and the owner can add them
 from the console after moving them to the current release.

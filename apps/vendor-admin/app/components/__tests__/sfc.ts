@@ -30,5 +30,26 @@ export function loadSfc(path: string, bindings: Record<string, unknown>) {
     for (const name of new Set(stubs)) app.component(name, Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => Vue.h('div', { 'data-stub': name, 'data-to': typeof attrs.to === 'string' ? attrs.to : attrs.to ? JSON.stringify(attrs.to) : undefined }, [attrs.title as string, attrs.label as string, slots.default?.(), slots.actions?.()]) }))
     return renderToString(app)
   }
-  return { setup, html }
+  /** One rendered child component: its name and the attributes (props and listeners) the template passed to it. */
+  type Rendered = { name: string; attrs: Record<string, unknown> }
+  /**
+   * Mounts once: setup() runs a single time, so a listener captured from one render (a v-model update, a click) changes
+   * the state the next render shows, as the browser's would. Every stub it renders is recorded in order, a field's
+   * wrapper before its control.
+   */
+  function mount(props: Record<string, unknown>, emit: (...args: unknown[]) => void = () => {}) {
+    const state = setup(props, emit)
+    async function paint() {
+      const captured: Rendered[] = []
+      const wrapper: Vue.Component = { props: component.props, emits: component.emits, setup: () => ({ ...state }), render }
+      const app = Vue.createSSRApp(wrapper, props)
+      for (const name of new Set(stubs)) app.component(name, Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => {
+        captured.push({ name, attrs: { ...attrs } })
+        return Vue.h('div', { 'data-stub': name }, [attrs.title as string, attrs.label as string, attrs.help as string, attrs.error as string, slots.default?.(), slots.actions?.()])
+      } }))
+      return { html: await renderToString(app), captured }
+    }
+    return { state, render: paint }
+  }
+  return { setup, html, mount }
 }

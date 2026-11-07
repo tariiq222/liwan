@@ -448,7 +448,7 @@ class ReleaseCatalogCase(CatalogFixture, unittest.TestCase):
             'tiers': [
                 {'id': 'core', 'name': 'Core', 'modules': [],
                  'features': ['limit:users.limit', 'limit:storage.limit_mb', 'limit:branches.extra_limit:0']},
-                {'id': 'projects', 'name': 'Projects', 'modules': ['demo_pmo'],
+                {'id': 'projects', 'name': 'Projects', 'sellable': True, 'modules': ['demo_pmo'],
                  'features': ['boolean:pmo.enabled', 'limit:projects.max_projects']},
             ],
         }
@@ -469,6 +469,53 @@ class ReleaseCatalogCase(CatalogFixture, unittest.TestCase):
     def test_a_feature_in_two_tiers_is_rejected(self):
         self.data['tiers'].append({'id': 'twice', 'name': 'Twice', 'modules': [], 'features': ['boolean:pmo.enabled']})
         self.assert_rejected("feature 'pmo.enabled' is declared by more than one tier", self.data)
+
+    def test_a_release_module_without_a_manifest_is_an_error_not_a_crash(self):
+        # A broken closure must be reported like any other catalog error; it used to escape check_catalog as a traceback
+        # and leave main() with no exit code at all.
+        data = json.loads(json.dumps(self.data))
+        data['base_modules'] = ['demo_core', 'liwan_does_not_exist']
+        self.write('solutions/demo.json', data)
+        errors = self.errors()
+        self.assertTrue([e for e in errors if 'liwan_does_not_exist' in e], errors)
+        self.assertEqual(catalog_check.main(['--root', str(self.root)]), 1)
+
+    def test_the_current_release_rule_does_not_leak_between_checks(self):
+        # The rule is about the newest schema-3 solution of ONE catalog root, not about whichever name a previous
+        # check_catalog() left behind. Checking a catalog whose current release is demo.json (so its tiers must state
+        # `sellable`) and then a historical catalog whose only solution is also called demo.json must not hold the second
+        # one to that rule.
+        self.assertEqual(self.errors(), [])
+        with tempfile.TemporaryDirectory() as tmp:
+            other = Path(tmp) / 'other'
+            shutil.copytree(self.root, other)
+            historical = {'schema_version': 1, 'id': 'demo', 'name': 'Old', 'industry': 'none', 'base_modules': ['demo_core'],
+                          'tiers': [{'id': 'projects', 'name': 'Projects', 'modules': ['demo_pmo'],
+                                     'features': ['boolean:pmo.enabled', 'limit:projects.max_projects']}]}
+            (other / catalog_check.CATALOG_DIR / 'solutions' / 'demo.json').write_text(json.dumps(historical))
+            collected = catalog_check.check_catalog(other)
+        self.assertEqual([e for e in collected if 'sellable' in e], [], collected)
+
+    def test_a_current_release_tier_must_state_whether_it_is_sold(self):
+        # A6: an omitted `sellable` sells nothing, so the current release must say it on every non-core tier rather
+        # than lock one by accident. A historical catalog file is not held to the newer rule.
+        without = json.loads(json.dumps(self.data))
+        del without['tiers'][1]['sellable']
+        self.assert_rejected('the current release must state sellable on every non-core tier', without)
+
+    def test_a_historical_catalog_keeps_omitting_sellable(self):
+        # The OLDER file is demo.json; the newest (demo_v9.json, a higher numeric suffix) is the current release and
+        # must state sellable. The historical one is not held to the newer rule.
+        historical = json.loads(json.dumps(self.data))
+        for tier in historical['tiers'][1:]:
+            tier.pop('sellable', None)
+        self.write('solutions/demo.json', historical)
+        newest = json.loads(json.dumps(self.data))
+        newest['id'] = 'demo_v9'
+        self.write('solutions/demo_v9.json', newest)
+        errors = self.errors()
+        self.assertFalse([e for e in errors if 'demo.json' in e and 'sellable' in e], errors)
+        self.assertEqual([e for e in errors if 'demo_v9.json' in e], [])
 
     def test_a_tier_with_modules_and_no_features_is_rejected(self):
         self.data['tiers'][1]['features'] = []

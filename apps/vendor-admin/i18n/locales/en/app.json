@@ -15,6 +15,7 @@
       "catalog": "Catalog",
       "operations": "Operations",
       "invoices": "Invoices",
+      "billing-settings": "Billing settings",
       "audit": "Audit",
       "team": "Team",
       "ai-provider": "AI provider"

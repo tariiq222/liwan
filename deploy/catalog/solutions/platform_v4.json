@@ -3,7 +3,7 @@
   "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
   "id": "platform_v4",
   "name": "liwan Platform",
-  "description": "Operations application release revision; meetings, documents, operations and the AI assistant join the always-included platform base. Earlier catalog revisions remain unchanged.",
+  "description": "Release 1 composition: tasks, chat, meetings, documents, operations and the AI assistant join the always-included platform base; CRM and customer messages are the only applications sold. Every other application is installed in every tenant and locked by entitlement. Earlier catalog revisions remain unchanged.",
   "industry": "none",
   "base_modules": [
     "liwan_core",
@@ -14,17 +14,22 @@
     {
       "id": "core",
       "name": "Core",
-      "description": "Base modules and the always-included applications: the platform, its capability catalog, the shared API, meetings, documents, operations and the AI assistant.",
+      "description": "Base modules and the always-included applications: the platform, its capability catalog, the shared API, tasks, chat, meetings, documents, operations, the AI assistant and the tenant's own payment gateway connection.",
       "modules": [
         "liwan_ai",
+        "liwan_chat",
         "liwan_documents",
         "liwan_meetings",
-        "liwan_operations"
+        "liwan_operations",
+        "liwan_payments",
+        "liwan_tasks"
       ],
       "features": [
         "limit:users.limit",
         "limit:storage.limit_mb",
         "limit:branches.extra_limit:0",
+        "boolean:tasks.enabled",
+        "boolean:chat.enabled",
         "boolean:meetings.enabled",
         "boolean:documents.enabled",
         "boolean:operations.enabled",
@@ -33,14 +38,54 @@
         "limit:ai.messages.monthly",
         "limit:ai.tool_calls.per_run",
         "limit:ai.tokens.monthly",
-        "limit:ai.assist.monthly:300",
-        "limit:ai.output_tokens.per_run"
+        "limit:ai.assist.monthly:100",
+        "limit:ai.output_tokens.per_run",
+        "boolean:payments.enabled"
+      ]
+    },
+    {
+      "id": "crm",
+      "name": "CRM",
+      "description": "The CRM application.",
+      "sellable": true,
+      "modules": [
+        "liwan_crm"
+      ],
+      "features": [
+        "boolean:crm.enabled",
+        "boolean:crm.import",
+        "boolean:crm.export"
+      ]
+    },
+    {
+      "id": "inbox",
+      "name": "Customer Inbox",
+      "description": "The Customer Inbox application: WhatsApp and TikTok customer messages.",
+      "sellable": true,
+      "modules": [
+        "liwan_inbox",
+        "liwan_inbox_payments"
+      ],
+      "features": [
+        "boolean:inbox.enabled",
+        "boolean:inbox.whatsapp",
+        "boolean:inbox.tiktok",
+        "boolean:inbox.templates",
+        "boolean:inbox.automation",
+        "boolean:inbox.flows",
+        "boolean:inbox.reports",
+        "boolean:inbox.catalog",
+        "boolean:inbox.campaigns",
+        "limit:inbox.channels",
+        "limit:inbox.messages_out",
+        "limit:inbox.campaign_recipients"
       ]
     },
     {
       "id": "projects",
       "name": "Projects",
       "description": "The project management application.",
+      "sellable": false,
       "modules": [
         "liwan_pmo"
       ],
@@ -56,6 +101,7 @@
       "id": "people",
       "name": "People",
       "description": "The HR application.",
+      "sellable": false,
       "modules": [
         "liwan_hr"
       ],
@@ -75,6 +121,7 @@
       "id": "finance",
       "name": "Finance",
       "description": "The Finance application: Saudi accounting over Odoo accounting.",
+      "sellable": false,
       "modules": [
         "liwan_finance"
       ],
@@ -86,6 +133,7 @@
       "id": "integrations",
       "name": "Saudi integrations",
       "description": "Status of the live ZATCA and bank links on the dedicated settings page.",
+      "sellable": false,
       "modules": [
         "liwan_integrations_sa"
       ],
@@ -94,83 +142,15 @@
       ]
     },
     {
-      "id": "payments",
-      "name": "Online payments",
-      "description": "The tenant's own payment gateway account, connected from the payments settings page.",
-      "modules": [
-        "liwan_payments"
-      ],
-      "features": [
-        "boolean:payments.enabled"
-      ]
-    },
-    {
-      "id": "messaging",
-      "name": "Messaging",
-      "description": "The member-private chat application.",
-      "modules": [
-        "liwan_chat"
-      ],
-      "features": [
-        "boolean:chat.enabled"
-      ]
-    },
-    {
-      "id": "tasks",
-      "name": "Tasks",
-      "description": "Personal and team tasks that need no project.",
-      "modules": [
-        "liwan_tasks"
-      ],
-      "features": [
-        "boolean:tasks.enabled"
-      ]
-    },
-    {
-      "id": "crm",
-      "name": "CRM",
-      "description": "The CRM application.",
-      "modules": [
-        "liwan_crm"
-      ],
-      "features": [
-        "boolean:crm.enabled",
-        "boolean:crm.import",
-        "boolean:crm.export"
-      ]
-    },
-    {
       "id": "appointments",
       "name": "Appointments",
       "description": "The Appointments application.",
+      "sellable": false,
       "modules": [
         "liwan_appointments"
       ],
       "features": [
         "boolean:appointments.enabled"
-      ]
-    },
-    {
-      "id": "inbox",
-      "name": "Customer Inbox",
-      "description": "The Customer Inbox application.",
-      "modules": [
-        "liwan_inbox",
-        "liwan_inbox_payments"
-      ],
-      "features": [
-        "boolean:inbox.enabled",
-        "boolean:inbox.whatsapp",
-        "boolean:inbox.tiktok",
-        "boolean:inbox.templates",
-        "boolean:inbox.automation",
-        "boolean:inbox.flows",
-        "boolean:inbox.reports",
-        "boolean:inbox.catalog",
-        "boolean:inbox.campaigns",
-        "limit:inbox.channels",
-        "limit:inbox.messages_out",
-        "limit:inbox.campaign_recipients"
       ]
     }
   ]

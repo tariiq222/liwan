@@ -95,6 +95,14 @@ describe('forms: explicit values', () => {
     for (const k of ['auto_suspend', 'auto_renew_allowed', 'trial_days', 'grace_days']) expect(f).toContain(k)
     expect(f).toContain('vendor.pricing.plan.quantitiesHint'); expect(f).toContain('vendor.pricing.plan.userPricesHint'); expect(f).toContain('vendor.pricing.plan.storagePricesHint'); expect(f).toContain('vendor.pricing.plan.hq'); expect(f).toContain('policy?.timezone')
   })
+  it('plan form edits the AI limits the assistant runs under', () => {
+    const f = comp('PlanForm.vue')
+    // W8 (owner decision 2026-11-06): the assistant's monthly budget is a vendor-editable plan value.
+    expect(f).toContain('AI_LIMIT_KEYS')
+    expect(f).toContain('draft.ai_limits[key]')
+    expect(f).toContain('vendor.pricing.sections.ai')
+    expect(f).toContain('vendor.pricing.plan.aiUnlimitedHint')
+  })
   it('bundle form shows dependency hints and locked included features', () => {
     const f = comp('BundleForm.vue'); expect(f).toContain('dependencyHints'); expect(f).toContain('grantedFeatures'); expect(f).toContain('i-lucide-check'); expect(f).toContain('hints.missing'); expect(f).toContain('hints.conflicts')
   })

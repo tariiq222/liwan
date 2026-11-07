@@ -19,9 +19,11 @@ const { data: releases } = await useAsyncData('vendor:catalog-releases', () => s
 const noRelease = computed(() => sharedEnabled.value && releases.value !== null && releases.value !== undefined && releases.value.length === 0)
 const published = computed(() => catalog.value?.items.filter(item => item.status === 'published') ?? [])
 const selectedCatalog = computed(() => published.value.find(item => item.version === form.catalog_version))
-const form = reactive({ name: '', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: '', catalog_version: '', catalog_tier: '', reason: '', admin_name: '', admin_login: '', plan_revision_id: '', cadence: '' })
-// A paid plan without a trial cannot be a shared customer's first order (the server answers trial_required_first).
-const startablePlans = computed(() => (plans.value ?? []).filter(p => p.trial_days > 0 || p.prices.every(price => price.amount.minor === 0)))
+const form = reactive({ name: '', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: '', catalog_version: '', catalog_tier: '', reason: '', admin_name: '', admin_login: '', plan_revision_id: '', cadence: '', onboarding: false })
+// A vendor-added customer never starts a trial (release 1, owner decision 2026-11-06): the console places a paid first
+// order the vendor collects by bank transfer or a payment link, or a free order when the plan's total is zero. A plan
+// that offers a trial is therefore not offered here: its trial would be the only thing the vendor could start.
+const startablePlans = computed(() => (plans.value ?? []).filter(p => p.trial_days === 0))
 const selectedPlan = computed(() => startablePlans.value.find(p => p.id === form.plan_revision_id))
 const cadenceItems = computed(() => (selectedPlan.value?.prices ?? []).map(p => ({ label: cadenceLabel(p.cadence, t), value: cadenceKey(p.cadence) })))
 const selectedCadence = computed<Cadence | undefined>(() => selectedPlan.value?.prices.find(p => cadenceKey(p.cadence) === form.cadence)?.cadence)
@@ -50,13 +52,10 @@ async function submit() {
       // The server also deduplicates: one request id per submission returns the same customer on a lost response.
       creationRequestId.value ??= crypto.randomUUID()
       createdCustomer.value ??= (await subscriptions.createCustomer(planTenantCustomerBody(form, creationRequestId.value))).id
-      // A new shared customer starts on the plan's trial and pays later from its own workspace; only a free plan
-      // without a trial places its order directly.
-      if (selectedPlan.value.trial_days > 0) await subscriptions.startTrial(createdCustomer.value, planRequestBody(selectedPlan.value, selectedCadence.value))
-      else {
-        const quote = await subscriptions.changeQuote(planTenantQuoteBody(createdCustomer.value, selectedPlan.value, selectedCadence.value))
-        await subscriptions.placeOrder({ quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: crypto.randomUUID() })
-      }
+      // Always a real first order: free when the plan's total is zero, paid (collected by bank transfer or a payment
+      // link) otherwise. No trial path: a vendor-added customer starts on a package.
+      const quote = await subscriptions.changeQuote({ ...planTenantQuoteBody(createdCustomer.value, selectedPlan.value, selectedCadence.value), ...(form.onboarding ? { onboarding: true } : {}) })
+      await subscriptions.placeOrder({ quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: crypto.randomUUID() })
       submitted.value = true
       await navigateTo(`/customers/${encodeURIComponent(createdCustomer.value)}`)
       return
@@ -98,7 +97,8 @@ const backTo = computed(() => safeReturnTo(route.query.returnTo, '/customers', [
                 <UFormField :label="t('vendor.tenants.plan.cadence')" required><USelect v-model="form.cadence" :items="cadenceItems" :disabled="!hydrated || busy || !selectedPlan" class="w-full" /></UFormField>
               </div>
               <p v-if="selectedPrice" class="rounded-lg bg-elevated p-3 text-sm" data-testid="plan-price">{{ t('vendor.customers.newPage.price') }}: <bdi dir="ltr" class="font-semibold tabular-nums">{{ formatCommercialMoney(selectedPrice, locale) }}</bdi></p>
-              <p v-if="selectedPlan && selectedPlan.trial_days > 0" class="text-sm text-muted" data-testid="plan-trial">{{ t('vendor.customers.newPage.trial', { days: selectedPlan.trial_days }) }}</p>
+              <!-- A9: the assisted onboarding is an optional one-time line on this first invoice, never on a renewal. -->
+              <UCheckbox v-model="form.onboarding" :label="t('vendor.customers.newPage.onboarding')" :help="t('vendor.customers.newPage.onboardingHint')" :disabled="!hydrated || busy || !canSubscribe" data-testid="onboarding-choice" />
             </div>
           </SharedFormSection>
         </template>

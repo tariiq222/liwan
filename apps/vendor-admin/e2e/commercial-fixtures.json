@@ -338,7 +338,10 @@
               "minor": 5000
             }
           }
-        ]
+        ],
+        "storage_step_mb": 10240,
+        "storage_step_threshold_mb": 102400,
+        "storage_large_step_mb": 102400
       },
       {
         "id": "00000000-0000-4000-8000-000000000011",
@@ -422,7 +425,10 @@
               "minor": 500
             }
           }
-        ]
+        ],
+        "storage_step_mb": 10240,
+        "storage_step_threshold_mb": 102400,
+        "storage_large_step_mb": 102400
       }
     ],
     "total": 2
@@ -559,19 +565,19 @@
         "tax": {
           "currency": "SAR",
           "exponent": 2,
-          "minor": 4500
+          "minor": 0
         },
         "total": {
           "currency": "SAR",
           "exponent": 2,
-          "minor": 34500
+          "minor": 30000
         },
         "period_start": "2026-11-01",
         "period_end": "2026-12-01",
         "issued_at": "2026-10-01T08:00:00.000Z",
         "due_at": "2026-10-15T08:00:00.000Z",
         "paid_at": null,
-        "tax_label": "VAT 15% exclusive",
+        "tax_label": null,
         "official_tax_invoice": false
       },
       {
@@ -614,19 +620,19 @@
         "tax": {
           "currency": "SAR",
           "exponent": 2,
-          "minor": 4500
+          "minor": 0
         },
         "total": {
           "currency": "SAR",
           "exponent": 2,
-          "minor": 34500
+          "minor": 30000
         },
         "period_start": "2026-11-01",
         "period_end": "2026-12-01",
         "issued_at": "2026-10-01T08:00:00.000Z",
         "due_at": "2026-10-15T08:00:00.000Z",
         "paid_at": "2026-10-05T08:00:00.000Z",
-        "tax_label": "VAT 15% exclusive",
+        "tax_label": null,
         "official_tax_invoice": false
       },
       {
@@ -669,19 +675,19 @@
         "tax": {
           "currency": "SAR",
           "exponent": 2,
-          "minor": 4500
+          "minor": 0
         },
         "total": {
           "currency": "SAR",
           "exponent": 2,
-          "minor": 34500
+          "minor": 30000
         },
         "period_start": "2026-11-01",
         "period_end": "2026-12-01",
         "issued_at": null,
         "due_at": null,
         "paid_at": null,
-        "tax_label": "VAT 15% exclusive",
+        "tax_label": null,
         "official_tax_invoice": false
       }
     ],
@@ -1868,5 +1874,13 @@
     "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "requested_users": 1,
     "requested_storage_mb": 0
+  },
+  "noTaxPolicy": {
+    "id": "00000000-0000-4000-8000-000000000102",
+    "timezone": "Asia/Riyadh",
+    "rounding": "half_up_per_line",
+    "tax": {
+      "kind": "none"
+    }
   }
 }

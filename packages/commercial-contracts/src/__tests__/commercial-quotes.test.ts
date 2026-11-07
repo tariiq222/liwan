@@ -79,16 +79,18 @@ describe('computeQuote', () => {
 })
 
 describe('computeQuote metered lines', () => {
+  // Storage steps from the fixture plan: 10 GiB below 100 GiB of extra storage, 100 GiB at or above it (A11).
   const metered = plan({ included_users: 3, included_storage_mb: 5120, user_prices: [{ cadence: M, amount: sar(2500) }], storage_prices: [{ cadence: M, amount: sar(500) }] })
   it('adds one users line and one storage line to a new quote', () => {
-    const q = computeQuote(base({ plan: metered, requested_extra_branches: 1, requested_users: 10, requested_storage_mb: 20480 }))
+    // +20 GiB above the 5 GiB minimum: a whole number of the 10 GiB small step.
+    const q = computeQuote(base({ plan: metered, requested_extra_branches: 1, requested_users: 10, requested_storage_mb: 25600 }))
     expect(q.lines.filter(l => l.kind === 'users')).toHaveLength(1)
     expect(q.lines.find(l => l.kind === 'users')!.quantity).toBe(7)
     expect(q.lines.find(l => l.kind === 'users')!.amount.minor).toBe(7 * 2500)
-    expect(q.lines.find(l => l.kind === 'storage')!.quantity).toBe(15)
-    expect(q.lines.find(l => l.kind === 'storage')!.amount.minor).toBe(15 * 500)
-    expect(q.due_now.minor).toBe(Math.round((50000 + 17500 + 7500) * 1.15))
-    expect(q.requested_users).toBe(10); expect(q.requested_storage_mb).toBe(20480)
+    expect(q.lines.find(l => l.kind === 'storage')!.quantity).toBe(20)
+    expect(q.lines.find(l => l.kind === 'storage')!.amount.minor).toBe(20 * 500)
+    expect(q.due_now.minor).toBe(Math.round((50000 + 17500 + 10000) * 1.15))
+    expect(q.requested_users).toBe(10); expect(q.requested_storage_mb).toBe(25600)
   })
   it('omits the line entirely at the included minimum', () => {
     const q = computeQuote(base({ plan: metered, requested_extra_branches: 1, requested_users: 3, requested_storage_mb: 5120 }))
@@ -101,7 +103,7 @@ describe('computeQuote metered lines', () => {
   })
   it('refuses a paid quantity with no unit price', () => {
     expect(err(() => computeQuote(base({ plan: plan({ included_users: 3, user_prices: [] }), requested_users: 10 })))).toBe('price_missing')
-    expect(err(() => computeQuote(base({ plan: plan({ included_storage_mb: 1024, storage_prices: [] }), requested_storage_mb: 2048 })))).toBe('price_missing')
+    expect(err(() => computeQuote(base({ plan: plan({ included_storage_mb: 1024, storage_prices: [] }), requested_storage_mb: 11264 })))).toBe('price_missing')
   })
   it('refuses a storage increment that is not a whole gigabyte', () => {
     expect(err(() => computeQuote(base({ plan: metered, requested_extra_branches: 1, requested_storage_mb: 5632 })))).toBe('invalid_quantity')
@@ -109,9 +111,10 @@ describe('computeQuote metered lines', () => {
   it('prorates a mid-period increase in users and storage', () => {
     const current = { plan_revision_id: id(4), bundle_revision_ids: [], paid_extra_branches: 0, base_minor: 50000, bundle_minor: {}, branch_unit_minor: 50000,
       paid_users: 0, paid_storage_gb: 0, user_unit_minor: 2500, storage_unit_minor: 500 }
-    const q = computeQuote(base({ kind: 'change', plan: metered, requested_extra_branches: 1, requested_users: 10, requested_storage_mb: 20480, current, effective_date: '2027-10-17' }))
+    const q = computeQuote(base({ kind: 'change', plan: metered, requested_extra_branches: 1, requested_users: 10, requested_storage_mb: 25600, current, effective_date: '2027-10-17' }))
     expect(q.lines.find(l => l.kind === 'users' && l.timing === 'now')!.amount.minor).toBe(8468)
-    expect(q.lines.find(l => l.kind === 'storage' && l.timing === 'now')!.amount.minor).toBe(3629)
-    expect(q.next_renewal.minor).toBe(Math.round((50000 + 17500 + 7500) * 1.15))
+    // 20 GiB x 500 = 10 000 prorated over the 15 of 31 days left: round-half-up(10000*15/31) = 4839.
+    expect(q.lines.find(l => l.kind === 'storage' && l.timing === 'now')!.amount.minor).toBe(4839)
+    expect(q.next_renewal.minor).toBe(Math.round((50000 + 17500 + 10000) * 1.15))
   })
 })

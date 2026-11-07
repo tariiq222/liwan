@@ -8,7 +8,7 @@ const inv = { id: 'i', number: 'INV-1', customer_id: 'c', subscription_id: 's', 
   subtotal: sar(10000), tax: sar(1500), total: sar(11500), period_start: '2026-10-01', period_end: '2026-10-31', issued_at: 'x', due_at: null, paid_at: null,
   tax_label: 'VAT 15% exclusive', official_tax_invoice: false }
 
-const note = { id: 'a', invoice_id: 'i', customer_id: 'c', kind: 'credit_note', reason: 'late activation', amount: sar(500), created_at: 'x', created_by: 'v', refund_reference: null, refunded_at: null, refunded_by: null }
+const note = { id: 'a', invoice_id: 'i', customer_id: 'c', kind: 'credit_note', origin: 'system', reason: 'late activation', amount: sar(500), created_at: 'x', created_by: 'v', refund_reference: null, refunded_at: null, refunded_by: null }
 
 describe('invoice', () => {
   it('parses; never an official tax invoice', () => {
@@ -23,6 +23,12 @@ describe('invoice', () => {
   })
   it('adjustments are separate documents', () => {
     expect(adjustmentSchema.safeParse({ ...note, status: 'pending' }).success).toBe(true)
+  })
+  it('an adjustment says who raised it: the vendor or the system, nothing else', () => {
+    expect(adjustmentSchema.safeParse({ ...note, origin: 'vendor', status: 'pending' }).success).toBe(true)
+    expect(adjustmentSchema.safeParse({ ...note, origin: 'customer', status: 'pending' }).success).toBe(false)
+    const { origin: _origin, ...withoutOrigin } = note
+    expect(adjustmentSchema.safeParse({ ...withoutOrigin, status: 'pending' }).success).toBe(false)
   })
   it('refund details exist exactly when the note is refunded', () => {
     const refund = { refund_reference: 'MOY-REF-1', refunded_at: '2026-10-27T10:00:00.000Z', refunded_by: 'account:7' }

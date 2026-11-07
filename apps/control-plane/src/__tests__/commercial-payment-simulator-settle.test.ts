@@ -52,7 +52,7 @@ suite('vendor simulator settlement on live PostgreSQL', () => {
   async function fixture() {
     const customer_id=randomUUID(), subscription_id=randomUUID(),revision=randomUUID(),order_id=randomUUID(),invoice_id=randomUUID()
     await transaction(pool, async c => {
-      await c.query('INSERT INTO customers(id,name) VALUES($1,$2)',[customer_id,'Simulator settlement test'])
+      await c.query('INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,$2,$3,$4)',[customer_id,'Simulator settlement test','Manager','simulator@example.test'])
       await c.query('INSERT INTO subscriptions(id,customer_id) VALUES($1,$2)',[subscription_id,customer_id])
       await c.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,$3,$4)',[revision,subscription_id,'{}',randomUUID()])
       await c.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent)

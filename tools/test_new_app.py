@@ -168,6 +168,8 @@ class TestNewApp(unittest.TestCase):
         tier = json.loads(after[new_app.PLATFORM_SOLUTION])['tiers'][-1]
         self.assertEqual(tier['modules'], ['liwan_zzprobe'])
         self.assertEqual(tier['features'], ['boolean:zzprobe.enabled'])
+        # The current release must state `sellable` on every non-core tier; a new application starts for sale.
+        self.assertIs(tier['sellable'], True)
         removed, added = changed_lines(self.before[new_app.CONTRACTS_INDEX], after[new_app.CONTRACTS_INDEX])
         self.assertEqual((removed, added), ([], ["export * from './zzprobe'"]))
 

@@ -1,6 +1,6 @@
 import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
-import { subscriptionDisplayState, type Adjustment, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SubscriptionDisplayState, type SubscriptionView, type UsageMetric } from '@liwan/commercial-contracts'
-import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
+import { riyadhDate, subscriptionDisplayState, type Adjustment, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SubscriptionDisplayState, type SubscriptionView, type UsageMetric } from '@liwan/commercial-contracts'
+import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, minorToInput, normalizeDigits, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
 import { invoiceLineQuantities, type InvoiceLineView } from '@liwan/commercial-ui/app/utils/invoiceLines'
@@ -9,7 +9,9 @@ export { subscriptionDisplayState }
 export type VendorCustomer = { id: string; name: string; tenant_id: string | null; commercial_setup_required: boolean; subscription: SubscriptionView | null }
 export type VendorCustomerList = { items: VendorCustomer[]; total: number }
 /** Vendor invoice views carry the customer's name (joined server-side); the customer-facing invoice contract does not. */
-export type VendorInvoice = Invoice & { customer_name: string; adjustments: Adjustment[] }
+/** Whether the owner may still refund this invoice's payment: only the customer's first payment, inside the window. */
+export type VendorRefundability = { refundable: boolean; first_payment: boolean; until: string | null; window_days: number }
+export type VendorInvoice = Invoice & { customer_name: string; adjustments: Adjustment[]; refund: VendorRefundability }
 export type VendorInvoiceList = { items: VendorInvoice[]; total: number; summary: { outstanding: Money[] } }
 
 // ---- Filters (URL-backed) ----
@@ -118,12 +120,43 @@ export function vendorInvoiceLineViews(lines: Invoice['lines'], t: (key: string)
   })
 }
 
+/** A refund reason (recording a refund or requesting one) is bounded like the server's contract. */
+export const validRefundReason = (reason: string) => reason.trim().length >= 3 && reason.trim().length <= 1000
 /** Recording a refund: the reference and reason are required and bounded like the server's contract. */
 export const validRefundDraft = (d: { reference: string; reason: string }) =>
-  d.reference.trim().length >= 3 && d.reference.trim().length <= 200 && d.reason.trim().length >= 3 && d.reason.trim().length <= 1000
+  d.reference.trim().length >= 3 && d.reference.trim().length <= 200 && validRefundReason(d.reason)
+
+export type RefundRequestBlock = 'alreadyRequested' | 'windowClosed' | 'notFirstPayment'
+/**
+ * Why the vendor cannot ask for this paid invoice's refund now, or null when they can. The server judges the window and
+ * the customer's first payment (`refund`); a vendor credit note that is not void means the request was already made, or
+ * already recorded, and the server refuses a second one. A system note never blocks it.
+ */
+export function refundRequestBlock(invoice: Pick<VendorInvoice, 'refund' | 'adjustments'>): RefundRequestBlock | null {
+  if (invoice.adjustments.some(note => note.origin === 'vendor' && note.kind === 'credit_note' && note.status !== 'void')) return 'alreadyRequested'
+  if (invoice.refund.refundable) return null
+  return invoice.refund.first_payment ? 'windowClosed' : 'notFirstPayment'
+}
 export function refundErrorKey(cause: unknown): string {
   const code = commercialFailure(cause).code
-  return ['credit_note_not_pending', 'refund_reference_in_use'].includes(code) ? `vendor.invoices.refund.errors.${code}` : commercialErrorKey(cause)
+  // The release-1 window rules have their own words: the vendor needs to know which one stopped the refund.
+  return ['credit_note_not_pending', 'refund_reference_in_use', 'refund_window_closed', 'refund_not_first_payment'].includes(code)
+    ? `vendor.invoices.refund.errors.${code}` : commercialErrorKey(cause)
+}
+
+// ---- Bank transfer form ----
+/** The form opens on the invoice total and on today's date in Riyadh, the calendar of the bank statement, never the UTC day. */
+export function transferFormDefaults(total: Money, now: Date = new Date()): { amount: string; valueDate: string } {
+  return { amount: minorToInput(total.minor, total.exponent), valueDate: riyadhDate(now) }
+}
+export type TransferAmount = { minor: number } | { issue: 'invalid' | 'decimals' }
+/** The amount in riyals as typed (Arabic-Indic digits included) → minor units. More decimals than the currency has is refused, never rounded. */
+export function parseTransferAmount(text: string, exponent: number): TransferAmount {
+  const match = /^(\d+)(?:\.(\d*))?$/.exec(normalizeDigits(text))
+  if (!match) return { issue: 'invalid' }
+  if ((match[2] ?? '').length > exponent) return { issue: 'decimals' }
+  const minor = parseVendorMoneyInput(text, exponent)
+  return minor === null ? { issue: 'invalid' } : { minor }
 }
 
 // ---- Errors: routes may not exist yet ----
