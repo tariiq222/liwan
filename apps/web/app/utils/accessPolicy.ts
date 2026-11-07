@@ -1,5 +1,5 @@
 import { canUse, featureForPath, hasFeature, pathIsWrite } from '../modules/registry'
-import { activeManifests, manifestForPath, settingsPartForPath } from '../modules/manifests'
+import { activeManifests, bellSources, manifestForPath, settingsPartForPath } from '../modules/manifests'
 import { appSettingsPages, settingsPageForPath, settingsPages, type SettingsPage } from '../composables/nav/settingsSections'
 import { normalizedPath } from './routePath'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
@@ -24,7 +24,7 @@ export const NOTIFICATION_ACCESS = 'liwan.notifications'
 export function hasCapability(identity: AccessIdentity, capability: string): boolean {
   if (capability === INTERNAL_LIWAN_ACCESS) return Array.isArray(identity?.capabilities)
   if (capability === NOTIFICATION_ACCESS) {
-    return activeManifests().some(manifest => manifest.bell?.capabilities.some(key => identity?.capabilities?.includes(key)))
+    return bellSources().some(source => source.capabilities.some(key => identity?.capabilities?.includes(key)))
   }
   return identity?.capabilities?.includes(capability) ?? false
 }

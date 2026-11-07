@@ -31,6 +31,10 @@ describe('usage never shows unknown as 0', () => {
     expect(usageFigure({ ...(m as object), used: 0, reason: null } as never, 'fresh')).toMatchObject({ value: 0, known: true })
     expect(usageFigure({ ...(m as object), used: 3, reason: null } as never, 'stale')).toMatchObject({ value: 3, stale: true })
   })
+  it('panel tones its meter at 80% (warning) and 95% (danger), the thresholds of the storage bell notice', () => {
+    const c = read('app/components/subscription/UsagePanel.vue')
+    expect(c).toContain('WARN_AT = 80'); expect(c).toContain('DANGER_AT = 95')
+  })
   it('panel renders the unavailable label instead of a number', () => {
     const c = read('app/components/subscription/UsagePanel.vue')
     expect(c).toContain('f.known ?'); expect(c).toContain('subscription.usage.unavailable')
