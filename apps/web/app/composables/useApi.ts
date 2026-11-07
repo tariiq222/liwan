@@ -75,6 +75,9 @@ export function useApi() {
   // Cookie forwarding is only meaningful during SSR: on the client the browser
   // already attaches the session cookie to same-origin requests.
   const headers = import.meta.server ? useRequestHeaders(['cookie']) : {}
+  // Never forward a cookie or private hop identity to an absolute URL, protocol-relative URL,
+  // query-carrying, encoded or traversal path: parameters travel in `query`, never in the path.
+  const forwardsIdentity = (path: string) => /^\/api\/v1\/[a-zA-Z0-9_/-]+$/.test(path) && !path.includes('..')
   // Only middleware-validated server events may supply private hop identity.
   // This stays in the SSR closure, never in returned data or the client payload.
   const trustedHeaders = import.meta.server && (useRequestEvent()?.context.tenant || useRequestEvent()?.context.liwanRelease)
@@ -97,11 +100,7 @@ export function useApi() {
         retry: 0,
         query: opts.query,
         signal: opts.signal,
-        // Never forward a cookie or private hop identity to an absolute URL,
-        // protocol-relative URL, encoded path or normalized traversal target.
-        headers: /^\/api\/v1\/[a-zA-Z0-9_/-]+$/.test(path) && !path.includes('..')
-          ? { ...headers, ...trustedHeaders, ...opts.headers }
-          : {},
+        headers: forwardsIdentity(path) ? { ...headers, ...trustedHeaders, ...opts.headers } : {},
       })
       assertCurrentOwner(requestOwnerIsCurrent)
       return opts.schema ? opts.schema.parse(data) : (data as T)
@@ -165,7 +164,7 @@ export function useApi() {
 
   /** A file route: the raw body and the file name the server chose. A refusal is the same ApiError `$api` throws.
    * A file that is kept server-side is a JSON POST (`{ method: 'POST', body }`), never a GET. */
-  async function $download(path: string, opts: { method?: string; body?: unknown } = {}): Promise<{ blob: Blob; filename: string | null }> {
+  async function $download(path: string, opts: { method?: string; body?: unknown; query?: Record<string, unknown> } = {}): Promise<{ blob: Blob; filename: string | null }> {
     const requestOwnerIsCurrent = captureOwnerFor(path)
     try {
       assertCurrentOwner(requestOwnerIsCurrent)
@@ -174,7 +173,8 @@ export function useApi() {
         method: (opts.method ?? 'GET') as any,
         body: opts.body as any,
         retry: 0,
-        headers: /^\/api\/v1\/[a-zA-Z0-9_/-]+$/.test(path.split('?')[0] ?? '') && !path.includes('..') ? { ...headers, ...trustedHeaders } : {},
+        query: opts.query,
+        headers: forwardsIdentity(path) ? { ...headers, ...trustedHeaders } : {},
       })
       assertCurrentOwner(requestOwnerIsCurrent)
       return { blob: response._data as Blob, filename: contentDispositionFilename(response.headers.get('content-disposition')) }

@@ -8,14 +8,16 @@ const incoming = { cookie: 'session_id=synthetic', host: 'tenant.acceptance.test
 function replay(server, trusted) {
   const js = ts.transpileModule(source.replaceAll('import.meta.server', String(server)), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText
   const exports = {}, calls = []
-  new Function('exports', 'require', 'useRequestHeaders', 'useRequestEvent', '$fetch', js)(exports, () => ({ ApiErrorSchema: {} }), names => Object.fromEntries(names.map(n => [n, incoming[n]])), () => ({ context: { tenant: trusted ? {} : null } }), async (path, options) => { calls.push({ path, options }); return { ok: true } })
+  new Function('exports', 'require', 'useRequestHeaders', 'useRequestEvent', 'useI18n', '$fetch', js)(exports, () => ({ ApiErrorSchema: { safeParse: () => ({ success: false }) }, captureSessionQueryOwner: () => () => () => true, contentDispositionFilename: () => null }), names => Object.fromEntries(names.filter(n => n in incoming).map(n => [n, incoming[n]])), () => ({ context: { tenant: trusted ? {} : null } }), () => ({ t: key => key, te: () => false, locale: { value: 'ar' } }), Object.assign(async (path, options) => { calls.push({ path, options }); return { ok: true } }, { raw: async (path, options) => { calls.push({ path, options }); return { _data: null, headers: new Headers() } } }))
   return { api: exports.useApi(), calls }
 }
 test('source SSR replay trusted local paths only; no external/traversal/encoded token leakage', async () => {
   const { api, calls } = replay(true, true)
   for (const path of ['/api/v1/me', '/api/v1/tasks/1', '/api/v1/reports/projects/summary']) { await api.$api(path); assert.deepEqual(calls.at(-1).options.headers, incoming) }
   for (const path of ['https://evil.test/api/v1/me', '//evil.test/api/v1/me', '/api/v1/../auth/login', '/api/v1/%2e%2e/auth', '/api/v1/a%2fb', '/api/v1/a%5cb', '/api/v1/a\\b', '/api/v1/me?db=x', '/api/v1/me#fragment', '/other']) { await api.$api(path); assert.deepEqual(calls.at(-1).options.headers, {}) }
-  assert.deepEqual(Object.keys(api), ['$api']); assert.ok(!JSON.stringify(api).includes(secret))
+  for (const path of ['/api/v1/hr/payroll/runs/1/bank-file']) { await api.$download(path); assert.deepEqual(calls.at(-1).options.headers, incoming) }
+  for (const path of ['https://evil.test/api/v1/me', '/api/v1/../auth/login', '/api/v1/%2e%2e/auth', '/api/v1/me?db=x', '/api/v1/me#fragment']) { await api.$download(path); assert.deepEqual(calls.at(-1).options.headers, {}) }
+  assert.deepEqual(Object.keys(api), ['$api', '$download']); assert.ok(!JSON.stringify(api).includes(secret))
 })
 test('client replay never acquires identity; unvalidated server context never forwards private binding', async () => {
   const client = replay(false, true); await client.api.$api('/api/v1/me'); assert.deepEqual(client.calls[0].options.headers, {})
