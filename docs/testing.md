@@ -187,6 +187,15 @@ thirteen stages green, including every matrix job and aggregate on the exact mai
 commit. Publishing that immutable tag requires explicit owner authorization; no
 workflow creates it automatically.
 
+### Stage pass cache
+
+In a pull request or merge-queue entry, a stage that already passed on exactly the same inputs is not run again.
+Every stage job except `static` ends with `.github/actions/stage-pass`, which saves a key from
+`python3 -B tools/ci_stage_cache.py key`: a hash of the tracked files the stage reads (the `RULES` of
+`tools/ci_scope.py`) and its matrix entry. The `scope` job leaves out every stage whose jobs all saved a key on the
+same ref; a matrix stage is skipped only when every entry has one, and a failed lookup skips nothing. A push to
+`main`, the nightly run and `workflow_dispatch` run every selected stage.
+
 ### After the merge
 
 Removing the merged task's worktree, branch and scratch database is `python3 -B tools/wt.py gc`
