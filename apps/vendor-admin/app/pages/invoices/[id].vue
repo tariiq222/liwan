@@ -2,6 +2,7 @@
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
 import { adjustmentStatusBadge, paymentAttemptBadge } from '@/utils/vendorBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
+import { commercialErrorKey } from '@/utils/vendorCommercial'
 import { invoicesReturnTo, isNotAvailable, refundErrorKey, validRefundDraft, vendorInvoiceLineViews } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { formatLiwanDate, formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
@@ -39,6 +40,31 @@ const refundReason = ref('')
 const refundBusy = ref(false)
 const refundFailure = ref<string | undefined>()
 const refundValid = computed(() => validRefundDraft({ reference: refundReference.value, reason: refundReason.value }))
+const refundUntil = computed(() => (data.value?.refund?.until ? formatLiwanDate(data.value.refund.until) : ''))
+// A bank transfer the vendor saw arrive: reference, the exact amount and the day the money reached the account.
+const transferOpen = ref(false)
+const transferReference = ref('')
+const transferAmount = ref('')
+const transferDate = ref('')
+const transferBusy = ref(false)
+const transferFailure = ref<string | undefined>()
+const transferValid = computed(() => transferReference.value.trim().length >= 3 && /^\d+(\.\d+)?$/.test(transferAmount.value.trim()) && /^\d{4}-\d{2}-\d{2}$/.test(transferDate.value))
+function openTransfer() {
+  transferOpen.value = true; transferFailure.value = undefined
+  transferReference.value = ''; transferDate.value = new Date().toISOString().slice(0, 10)
+  // The invoice total is pre-filled: a transfer that does not match it is refused.
+  transferAmount.value = data.value ? String(data.value.total.minor / 10 ** data.value.total.exponent) : ''
+}
+function closeTransfer() { transferOpen.value = false; transferFailure.value = undefined }
+async function recordTransfer() {
+  if (!hydrated.value || transferBusy.value || !canBilling.value || !transferValid.value || !data.value) return
+  transferBusy.value = true; transferFailure.value = undefined
+  try {
+    await api.recordBankTransfer(data.value.id, { reference: transferReference.value, amount: Math.round(Number(transferAmount.value) * 10 ** data.value.total.exponent), value_date: transferDate.value })
+    closeTransfer()
+  } catch (cause) { transferFailure.value = t(commercialErrorKey(cause)) }
+  finally { try { await refresh() } finally { transferBusy.value = false } }
+}
 function openRefund(noteId: string) { refundNoteId.value = noteId; refundReference.value = ''; refundReason.value = ''; refundFailure.value = undefined }
 function closeRefund() { refundNoteId.value = null; refundReference.value = ''; refundReason.value = ''; refundFailure.value = undefined }
 async function recordRefund() {
@@ -76,6 +102,24 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
   <div v-if="data && !unavailable" class="space-y-6">
     <UAlert color="neutral" variant="subtle" icon="i-lucide-info" :title="t('vendor.invoices.notOfficial')" :description="t('vendor.invoices.notOfficialHint')" data-testid="not-official" />
     <SharedRecordSection :title="t('vendor.invoices.lines')"><SharedInvoiceLines :lines="vendorInvoiceLineViews(data.lines, t, locale)" :totals="totals" /></SharedRecordSection>
+
+    <UAlert v-if="data.refund?.first_payment && data.adjustments.length" color="neutral" variant="subtle" icon="i-lucide-info" data-testid="refund-window"
+      :title="data.refund.refundable ? t('vendor.invoices.refund.windowOpen', { date: refundUntil }) : t('vendor.invoices.refund.windowClosed', { days: data.refund.window_days })" />
+
+    <SharedRecordSection v-if="canBilling && data.status === 'issued' && data.tax_label !== undefined" :title="t('vendor.invoices.transfer.title')">
+      <p class="text-sm text-muted">{{ t('vendor.invoices.transfer.hint') }}</p>
+      <SharedInlineConfirm v-if="transferOpen" :title="t('vendor.invoices.transfer.title')" :description="t('vendor.invoices.transfer.confirmHint')"
+        :confirm-label="t('vendor.invoices.transfer.confirm')" :pending="transferBusy" :disabled="!hydrated || transferBusy || !transferValid"
+        @confirm="recordTransfer" @cancel="closeTransfer">
+        <div class="mt-3 grid gap-4 sm:grid-cols-3">
+          <UFormField :label="t('vendor.invoices.transfer.reference')" required><UInput v-model="transferReference" :maxlength="200" dir="ltr" :disabled="!hydrated || transferBusy" class="w-full" /></UFormField>
+          <UFormField :label="t('vendor.invoices.transfer.amount')" required><UInput v-model="transferAmount" inputmode="decimal" dir="ltr" :disabled="!hydrated || transferBusy" class="w-full" /></UFormField>
+          <UFormField :label="t('vendor.invoices.transfer.valueDate')" required><UInput v-model="transferDate" type="date" dir="ltr" :disabled="!hydrated || transferBusy" class="w-full" /></UFormField>
+        </div>
+      </SharedInlineConfirm>
+      <UButton v-else color="primary" variant="soft" size="sm" :disabled="!hydrated || transferBusy" data-testid="bank-transfer-action" @click="openTransfer">{{ t('vendor.invoices.transfer.action') }}</UButton>
+      <UAlert v-if="transferFailure" class="mt-3" color="error" variant="subtle" :title="transferFailure" data-testid="transfer-failure" />
+    </SharedRecordSection>
 
     <SharedRecordSection v-if="canBilling" :title="t('vendor.invoices.attempts')">
       <SharedPageState :loading="attemptsPending" :error="attemptsError" @retry="refreshAttempts">

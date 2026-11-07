@@ -138,6 +138,15 @@ suite('bank transfer (W5)', () => {
     expect(instructions.bank).toMatchObject({ account_name: 'مؤسسة ويب فيو', iban: 'SA4420000001234567891234' })
   })
 
+  it('shows only the customer\'s own invoice instructions, never another customer\'s', async () => {
+    await setBillingSettings(pool, { operator: 'vendor:7', reason: 'Release 1 billing settings', bank_account_name: 'مؤسسة ويب فيو',
+      bank_iban: 'SA4420000001234567891234', bank_instructions_ar: 'حوّل المبلغ.', bank_instructions_en: 'Transfer.' })
+    const { customer_id, invoice } = await unpaidOrder()
+    const other = randomUUID()
+    await expect(bankTransferInstructions(pool, { invoice_id: invoice.id, customer_id: customer_id })).resolves.toMatchObject({ invoice_id: invoice.id })
+    await expect(bankTransferInstructions(pool, { invoice_id: invoice.id, customer_id: other })).rejects.toMatchObject({ status: 404 })
+  })
+
   it('offers no transfer instructions until the vendor fills the account in', async () => {
     await setBillingSettings(pool, { operator: 'vendor:7', reason: 'Release 1 billing settings', bank_account_name: '', bank_account_number: '', bank_iban: '', bank_instructions_ar: '', bank_instructions_en: '' })
     const { invoice } = await unpaidOrder()

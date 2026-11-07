@@ -157,6 +157,7 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
   if(path==='/billing-settings'){
     need(input,'vendor.read')
     if(m==='GET')return {status:200,data:await billingSettings(pool)}
+    if(m!=='PATCH'&&m!=='POST')throw new CommercialHttpError('not_found',404)
     need(input,'vendor.billing.manage')
     if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
     return {status:200,data:await setBillingSettings(pool,{...parseBody(input.raw,billingSettingsInputSchema),operator:principal.actor_id})}

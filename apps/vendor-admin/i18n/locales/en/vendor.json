@@ -1093,6 +1093,31 @@
       },
       "pendingActivation": "Awaiting activation"
     },
+    "billingSettings": {
+      "title": "Billing settings",
+      "hint": "The values Liwan's own billing runs on. Change them here, never in code.",
+      "save": "Save settings",
+      "saved": "The billing settings were saved.",
+      "sections": {
+        "refund": "Refund window",
+        "bank": "Bank transfer account",
+        "bankHint": "Customers see this account on an unpaid invoice. Leave the IBAN empty to stop offering bank transfer."
+      },
+      "fields": {
+        "window": "Refund window (days)",
+        "windowHint": "A full refund is allowed only for the customer's first payment and only within these days of it.",
+        "accountName": "Account name",
+        "accountNumber": "Account number",
+        "iban": "IBAN",
+        "ibanHint": "A Saudi IBAN: SA followed by 22 digits.",
+        "instructionsAr": "Transfer instructions (Arabic)",
+        "instructionsEn": "Transfer instructions (English)"
+      },
+      "errors": {
+        "window": "Enter a whole number of days between 0 and 365.",
+        "iban": "Enter a Saudi IBAN (SA and 22 digits), or leave it empty."
+      }
+    },
     "invoices": {
       "title": "Invoices and collection",
       "notOfficial": "Liwan subscription invoice",
@@ -1134,6 +1159,16 @@
         "refunded": "Refunded",
         "void": "Void"
       },
+      "transfer": {
+        "title": "Bank transfer received",
+        "hint": "Record a transfer you received for this invoice. The order is then paid and activated as any other payment.",
+        "action": "Confirm transfer received",
+        "confirm": "Record the transfer",
+        "confirmHint": "The amount must match the invoice total, and the reference cannot be used twice.",
+        "reference": "Transfer reference",
+        "amount": "Amount received",
+        "valueDate": "Value date"
+      },
       "refund": {
         "action": "Record refund",
         "title": "Record that this credit note was refunded",
@@ -1144,9 +1179,13 @@
         "confirm": "Record refund",
         "at": "Recorded",
         "by": "Recorded by",
+        "windowOpen": "This payment is refundable until {date}.",
+        "windowClosed": "The {days}-day refund window has closed; this payment is no longer refundable.",
         "errors": {
           "credit_note_not_pending": "This credit note is no longer pending. The page shows its current state.",
-          "refund_reference_in_use": "This refund reference is already recorded on another credit note."
+          "refund_reference_in_use": "This refund reference is already recorded on another credit note.",
+          "refund_window_closed": "The refund window has closed, so this payment cannot be refunded.",
+          "refund_not_first_payment": "Only the customer's first payment can be refunded; renewals and later payments cannot."
         }
       },
       "immutable": "An issued invoice is never edited; corrections are separate documents.",

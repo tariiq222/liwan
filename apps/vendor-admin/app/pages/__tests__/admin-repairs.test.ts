@@ -22,7 +22,8 @@ const order = { id: 'order/1', kind: 'new', payment_state: 'awaiting_payment', f
 const subscription = { id: 'sub1', applied: null, target: null, pending_order: order, revision: 1 }
 const customer = { id: 'customer1', name: 'Customer', subscription, tenant_id: null }
 const money = { minor: 12345, exponent: 2, currency: 'SAR' }
-const invoice = { id: 'invoice1', order_id: 'order/1', customer_id: 'customer1', status: 'issued', kind: 'initial', total: money, subtotal: money, tax: money, period_start: '2026-10-01', period_end: '2026-11-01', lines: [], adjustments: [] }
+const invoice = { id: 'invoice1', order_id: 'order/1', customer_id: 'customer1', status: 'issued', kind: 'initial', total: money, subtotal: money, tax: money, period_start: '2026-10-01', period_end: '2026-11-01', lines: [], adjustments: [],
+  refund: { refundable: true, first_payment: true, until: '2026-11-20T23:59:59+03:00', window_days: 14 } }
 const creditNote = { id: 'note1', invoice_id: invoice.id, customer_id: 'customer1', kind: 'credit_note', reason: 'Provisioning failed after payment', amount: money, status: 'pending', created_at: '2026-10-04T12:34:00Z', created_by: 'system', refund_reference: null, refunded_at: null, refunded_by: null }
 const plan = { id: 'plan2', name: 'New plan', included_bundle_revision_ids: ['bundle2'], prices: [{ cadence: { unit: 'month', count: 1 }, amount: money }], included_users: 3, included_storage_mb: 5120 }
 const attempt = { id: 'attempt1', order_id: order.id, invoice_id: invoice.id, status: 'pending', amount: money, created_at: '2026-10-04T12:34:00Z', provider_ref: 'private-provider-reference', redirect_url: 'https://private.example/pay' }

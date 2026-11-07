@@ -1,12 +1,12 @@
 type FeatureMap = Record<string, boolean | number | null>
 type Application = { id: string; selectable: boolean; sellable?: boolean; features: Array<{ key: string; kind: string }> }
-type ReleaseLike = { applications: Application[] }
+type ReleaseLike<A extends Application = Application> = { applications: A[] }
 
 /**
  * The applications a release puts up for sale. A catalog published before the `sellable` flag sold every
  * selectable tier, so it falls back to `selectable`; the core tier is always included and never for sale.
  */
-export function sellableApps(release: ReleaseLike | null | undefined): Application[] {
+export function sellableApps<A extends Application>(release: ReleaseLike<A> | null | undefined): A[] {
   if (!release) return []
   return release.applications.filter(app => app.id !== 'core' && (app.sellable ?? app.selectable))
 }

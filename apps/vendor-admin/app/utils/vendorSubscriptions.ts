@@ -9,7 +9,9 @@ export { subscriptionDisplayState }
 export type VendorCustomer = { id: string; name: string; tenant_id: string | null; commercial_setup_required: boolean; subscription: SubscriptionView | null }
 export type VendorCustomerList = { items: VendorCustomer[]; total: number }
 /** Vendor invoice views carry the customer's name (joined server-side); the customer-facing invoice contract does not. */
-export type VendorInvoice = Invoice & { customer_name: string; adjustments: Adjustment[] }
+/** Whether the owner may still refund this invoice's payment: only the customer's first payment, inside the window. */
+export type VendorRefundability = { refundable: boolean; first_payment: boolean; until: string | null; window_days: number }
+export type VendorInvoice = Invoice & { customer_name: string; adjustments: Adjustment[]; refund: VendorRefundability }
 export type VendorInvoiceList = { items: VendorInvoice[]; total: number; summary: { outstanding: Money[] } }
 
 // ---- Filters (URL-backed) ----
@@ -123,7 +125,9 @@ export const validRefundDraft = (d: { reference: string; reason: string }) =>
   d.reference.trim().length >= 3 && d.reference.trim().length <= 200 && d.reason.trim().length >= 3 && d.reason.trim().length <= 1000
 export function refundErrorKey(cause: unknown): string {
   const code = commercialFailure(cause).code
-  return ['credit_note_not_pending', 'refund_reference_in_use'].includes(code) ? `vendor.invoices.refund.errors.${code}` : commercialErrorKey(cause)
+  // The release-1 window rules have their own words: the vendor needs to know which one stopped the refund.
+  return ['credit_note_not_pending', 'refund_reference_in_use', 'refund_window_closed', 'refund_not_first_payment'].includes(code)
+    ? `vendor.invoices.refund.errors.${code}` : commercialErrorKey(cause)
 }
 
 // ---- Errors: routes may not exist yet ----
