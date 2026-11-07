@@ -25,7 +25,7 @@ See [the hosting contract](docs/superpowers/specs/liwan-shared-saas-and-sovereig
 and [WORKSPACE.md](docs/WORKSPACE.md) for implementation and acceptance evidence;
 the product vision does not establish production readiness.
 
-Remote integration into `main` uses a protected GitHub pull request under the [integration policy](docs/agents/integration-rules.md). The required status-check policy is current-head `ci-result` only, alongside review of the actual diff, an up-to-date branch and resolved conversations. CI success does not authorize publication or merging; the owner's explicit authorization remains required. Review uses the selected available agent or a human. See the [testing guide](docs/testing.md#ci-workflow) for check scope. Release, production deployment and cleanup retain separate authorization requirements.
+Remote integration into `main` uses a protected GitHub pull request under the [integration policy](docs/agents/integration-rules.md). The required status-check policy is current-head `ci-result` only, alongside review of the actual diff and resolved conversations; the branch need not be up to date with `main` (owner decision 2026-10-27). CI success does not authorize publication or merging; the owner's explicit authorization remains required. Review uses the selected available agent or a human. See the [testing guide](docs/testing.md#ci-workflow) for check scope. Release, production deployment and cleanup retain separate authorization requirements.
 
 ## Current product
 
