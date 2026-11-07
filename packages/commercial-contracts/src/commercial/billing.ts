@@ -11,9 +11,7 @@ export const TAX_LABELS = { 'none': null, 'vat_exclusive': 'VAT 15% exclusive' }
 export type TaxLabel = (typeof TAX_LABELS)[keyof typeof TAX_LABELS]
 /** `null` for the policy that charges no tax, otherwise that policy's own label. */
 export const taxLabelSchema = z.union([z.null(), z.literal(TAX_LABELS.vat_exclusive)])
-export function taxLabelOf(tax: { kind: keyof typeof TAX_LABELS }): TaxLabel {
-  return TAX_LABELS[tax.kind] ?? null
-}
+
 
 export const invoiceKindSchema = z.enum(['initial', 'change', 'renewal', 'adjustment'])
 export const invoiceStatusSchema = z.enum(['draft', 'issued', 'paid', 'void', 'credit_pending'])

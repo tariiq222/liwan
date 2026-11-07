@@ -67,6 +67,10 @@ export async function planIssues(client: Pool | PoolClient, row: Row): Promise<I
   const prices: Price[] = row.prices, branchPrices: Price[] = row.extra_branch_prices
   const userPrices: Price[] = row.user_prices ?? [], storagePrices: Price[] = row.storage_prices ?? []
   if (!prices.length) issues.push({ code: 'price_missing', field: 'prices' })
+  // A plan that costs nothing never carries a trial: its trial could only end in a past_due state whose expiry makes a
+  // free tenant read-only, and there is no payment for the customer to make. A free plan starts active outright.
+  if (row.trial_days > 0 && prices.length > 0 && prices.every(p => p.amount.minor === 0))
+    issues.push({ code: 'trial_on_free_plan', field: 'trial_days' })
   issues.push(...priceIssues(prices, 'prices'), ...priceIssues(branchPrices, 'extra_branch_prices'),
     ...priceIssues(userPrices, 'user_prices'), ...priceIssues(storagePrices, 'storage_prices'))
   // Storage is sold in whole gigabytes above the included minimum (the quote engine enforces the

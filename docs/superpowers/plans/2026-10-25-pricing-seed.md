@@ -29,7 +29,7 @@
    - extra storage is bought in steps (owner decision 2026-11-07): 10 GiB at a time up to
      100 GiB of extra storage, then 100 GiB at a time. Both steps and the switch point are
      stored on the plan, not in the validation;
-   - `platform_limits`: the six AI limits the assistant runs under (messages, tokens,
+   - `platform_limits`: the five AI limits the assistant runs under (messages, tokens,
      free-agent messages, tool calls per run, output tokens per run), editable on the plan
      form;
    - `included_bundle_revision_ids: []` — applications are optional and priced separately;

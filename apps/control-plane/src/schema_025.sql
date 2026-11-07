@@ -68,7 +68,8 @@ VALUES(
   3, 20480,
   '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":2900}},{"cadence":{"unit":"year","count":1},"amount":{"currency":"SAR","exponent":2,"minor":29000}}]'::jsonb,
   '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":100}},{"cadence":{"unit":"year","count":1},"amount":{"currency":"SAR","exponent":2,"minor":1000}}]'::jsonb,
-  '6f1c3d8e-0000-4000-8000-000000000002', 14, 7, true, true,
+  -- A plan that costs nothing carries no trial (its trial could only end past_due); it starts active.
+  '6f1c3d8e-0000-4000-8000-000000000002', 0, 7, true, true,
   encode(sha256(convert_to('liwan-plan-seed-v1','UTF8')),'hex'),
   encode(sha256(convert_to('liwan-plan-seed-v1','UTF8')),'hex'),
   now()

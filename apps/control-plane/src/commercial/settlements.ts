@@ -129,6 +129,45 @@ export async function refundEligibility(client: Pick<Pool, 'query'>, customerId:
   return { refundable: days > 0 && elapsed <= days, first_payment: true, until: `${until}T23:59:59+03:00`, window_days: days }
 }
 
+/**
+ * The same eligibility for a whole page of invoices in one round trip (the vendor list shows 50 at a time; three
+ * queries per invoice would be 150). One query gives each invoice's paying attempt and whether it was the customer's
+ * first for that customer, and the window is computed here from the same rule below.
+ */
+export async function refundEligibilityForInvoices(client: Pick<Pool, 'query'>, invoiceIds: string[]): Promise<Map<string, Refundability>> {
+  const out = new Map<string, Refundability>()
+  if (!invoiceIds.length) return out
+  const { refund_window_days: days } = await billingSettings(client)
+  const rows = (await client.query(`
+    WITH paid AS (
+      SELECT i.id AS invoice_id, i.customer_id, a.succeeded_at,
+             row_number() OVER (PARTITION BY a.order_id ORDER BY a.succeeded_at, a.id) AS rn
+      FROM invoices i JOIN payment_attempts a ON a.invoice_id = i.id AND a.status = 'succeeded'
+      WHERE i.id = ANY($1::uuid[])
+    ), firsts AS (
+      SELECT DISTINCT ON (o.customer_id) o.customer_id, a.id AS attempt_id
+      FROM payment_attempts a JOIN orders o ON o.id = a.order_id
+      WHERE a.status = 'succeeded'
+      ORDER BY o.customer_id, a.succeeded_at, a.id
+    )
+    SELECT p.invoice_id, p.customer_id, p.succeeded_at,
+           (f.attempt_id = (SELECT a2.id FROM payment_attempts a2 WHERE a2.invoice_id = p.invoice_id AND a2.status='succeeded'
+                            ORDER BY a2.succeeded_at, a2.id LIMIT 1)) AS is_first
+    FROM paid p LEFT JOIN firsts f ON f.customer_id = p.customer_id
+    WHERE p.rn = 1`, [invoiceIds])).rows
+  const today = riyadhDate(new Date())
+  for (const row of rows) {
+    const paidOn = riyadhDate(new Date(row.succeeded_at))
+    const until = new Date(Date.parse(`${paidOn}T12:00:00+03:00`) + days * 86_400_000).toISOString().slice(0, 10)
+    const elapsed = daysBetween(paidOn, today)
+    out.set(row.invoice_id as string, {
+      refundable: Boolean(row.is_first) && days > 0 && elapsed <= days,
+      first_payment: Boolean(row.is_first), until: `${until}T23:59:59+03:00`, window_days: days,
+    })
+  }
+  return out
+}
+
 /** Two refusals, because the vendor needs to know which rule stopped them. */
 async function assertRefundable(client: Pick<Pool, 'query'>, customerId: string, invoiceId: string) {
   const eligibility = await refundEligibility(client, customerId, invoiceId)

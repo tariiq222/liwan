@@ -55,3 +55,51 @@ UPDATE payment_attempts SET succeeded_at = updated_at WHERE status = 'succeeded'
 CREATE INDEX payment_attempts_succeeded_at ON payment_attempts(order_id, succeeded_at) WHERE succeeded_at IS NOT NULL;
 ALTER TABLE payment_attempts ADD CONSTRAINT payment_attempts_value_date_only_transfer
   CHECK (value_date IS NULL OR provider = 'bank_transfer');
+
+-- The seed edits in schema_012.sql and schema_025.sql only reach a database that has not applied them yet: migrate()
+-- records a version and never re-reads an applied file. A development database migrated before release 1 therefore
+-- still prices the plan at 299, includes 5 GiB, may carry a stale ai.setup.monthly and is pinned to the 15% policy.
+--
+-- A published revision is immutable (protect_commercial_revision refuses anything but availability), so the correction
+-- is a NEW published revision that supersedes the old one — the same way the vendor console would make it — rather
+-- than an edit in place. On a database seeded after release 1 the newest revision already matches, and nothing is
+-- written: the WHERE clause below is false.
+CREATE TEMP TABLE liwan_release1_retro ON COMMIT DROP AS
+  SELECT p.* FROM plan_revisions p
+  WHERE p.plan_id = '00000000-0000-4000-8000-0000000000b1' AND p.status = 'published' AND p.available
+    AND (p.policy_revision_id <> '6f1c3d8e-0000-4000-8000-000000000002' OR p.included_storage_mb <> 20480
+         OR p.prices::text LIKE '%29900%' OR p.platform_limits ? 'ai.setup.monthly' OR p.platform_limits = '{}'::jsonb)
+  ORDER BY p.version DESC LIMIT 1;
+
+UPDATE plan_revisions SET available = false, edit_revision = edit_revision + 1
+WHERE id IN (SELECT id FROM liwan_release1_retro);
+
+INSERT INTO plan_revisions(
+  id, plan_id, version, name, audience, audience_customer_id, status, available, term_months, currency,
+  prices, platform_limits, included_bundle_revision_ids, optional_bundle_revision_ids,
+  included_extra_branches, extra_branch_prices, extra_branches_limit,
+  included_users, included_storage_mb, storage_step_mb, storage_step_threshold_mb, storage_large_step_mb,
+  user_prices, storage_prices, policy_revision_id, trial_days, grace_days, auto_suspend, auto_renew_allowed,
+  content_digest, validated_digest, published_at)
+SELECT gen_random_uuid(), r.plan_id,
+       (SELECT max(x.version) FROM plan_revisions x WHERE x.plan_id = r.plan_id) + 1, r.name, r.audience, r.audience_customer_id,
+       'published', true, r.term_months, r.currency,
+       '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":0}},{"cadence":{"unit":"year","count":1},"amount":{"currency":"SAR","exponent":2,"minor":0}}]'::jsonb,
+       (r.platform_limits - 'ai.setup.monthly') || '{"ai.messages.monthly":500,"ai.tokens.monthly":2500000,"ai.assist.monthly":100,"ai.tool_calls.per_run":8,"ai.output_tokens.per_run":2000}'::jsonb,
+       r.included_bundle_revision_ids, r.optional_bundle_revision_ids,
+       GREATEST(r.included_extra_branches, 1),
+       '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":5000}},{"cadence":{"unit":"year","count":1},"amount":{"currency":"SAR","exponent":2,"minor":50000}}]'::jsonb,
+       r.extra_branches_limit,
+       r.included_users, 20480, 10240, 102400, 102400,
+       '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":2900}},{"cadence":{"unit":"year","count":1},"amount":{"currency":"SAR","exponent":2,"minor":29000}}]'::jsonb,
+       '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":100}},{"cadence":{"unit":"year","count":1},"amount":{"currency":"SAR","exponent":2,"minor":1000}}]'::jsonb,
+       -- A free plan carries no trial (it would only end past_due), so the superseding revision drops it.
+       '6f1c3d8e-0000-4000-8000-000000000002', 0, r.grace_days, r.auto_suspend, r.auto_renew_allowed,
+       encode(sha256(convert_to('liwan-release1-retro:'||r.id::text,'UTF8')),'hex'),
+       encode(sha256(convert_to('liwan-release1-retro:'||r.id::text,'UTF8')),'hex'),
+       now()
+FROM liwan_release1_retro r;
+
+UPDATE commercial_plans c SET next_version = GREATEST(c.next_version,
+  (SELECT max(r.version)+1 FROM plan_revisions r WHERE r.plan_id = c.id))
+WHERE c.id = '00000000-0000-4000-8000-0000000000b1';

@@ -134,7 +134,10 @@ describe('commercial catalog and entitlement compiler', () => {
     const { id: _i, plan_id: _p, version: _v, edit_revision: _e, status: _s, available: _a, ...fields } = plan
     const planInput = (limit: number | null) => ({ ...fields, platform_limits: { 'users.limit': limit, 'storage.limit_mb': null } })
     expect(planCreateSchema.safeParse(planInput(1)).success).toBe(true)
-    expect(planCreateSchema.safeParse(planInput(null)).success).toBe(true)
+    // A6/A8: unlimited is above the release cap, so `users.limit: null` is no longer an accepted plan limit.
+    expect(planCreateSchema.safeParse(planInput(null)).success).toBe(false)
+    expect(planCreateSchema.safeParse(planInput(100)).success).toBe(true)
+    expect(planCreateSchema.safeParse(planInput(101)).success).toBe(false)
     const refused = planCreateSchema.safeParse(planInput(0))
     expect(refused.success).toBe(false)
     expect(refused.error?.issues[0]?.path).toEqual(['platform_limits', 'users.limit'])
