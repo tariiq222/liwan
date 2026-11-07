@@ -3,7 +3,7 @@ import { canonicalJson } from './calendar.js'
 import { parseCatalogTiers } from './feature-descriptor.js'
 import type { CatalogApplication, CatalogFeature, CatalogRelease } from './types.js'
 
-type SolutionTier = { id: string; name?: string; modules?: string[]; features?: string[] }
+type SolutionTier = { id: string; name?: string; modules?: string[]; features?: string[]; sellable?: boolean }
 type Solution = { schema_version?: unknown; descriptor_grammar?: unknown; base_modules?: string[]; tiers: SolutionTier[] }
 
 const NAMES: Record<string, [string, string]> = {
@@ -51,12 +51,15 @@ export function catalogApplicationsFromSolution(solution: Solution, _version: st
       id: tier.id, name_ar, name_en,
       modules: [...new Set([...(core ? base : []), ...(tier.modules ?? [])])].sort(),
       requires_apps: [], conflicts_with_apps: [], selectable: !core,
+      // Only a schema-3 release names what it sells; an older catalog predates the flag, and emitting it there
+      // would change the artifact digest a published release is pinned by.
+      ...(parsed.schemaVersion === 3 ? { sellable: !core && tier.sellable !== false } : {}),
       features: specs.map(({ kind, key, ceiling }): CatalogFeature => ({
         key, kind, selectable: kind === 'boolean' && !core, requires: [], enforcement_refs: enforcementRefs(key),
         // Emitted only when the descriptor carries a value; never defaulted.
         ...(ceiling !== undefined ? { ceiling } : {}),
       })),
-    }
+    } as CatalogApplication
   })
 }
 

@@ -611,6 +611,14 @@ def check_catalog(root, catalog_dir=CATALOG_DIR):
             if tier_id in tier_ids:
                 errors.append(f'{where}.tiers: duplicate tier id {tier_id!r}')
             tier_ids.append(tier_id)
+            # `sellable` marks what a customer may buy; a schema-3 tier without it is installed and locked.
+            if 'sellable' in tier:
+                if tier_id == 'core':
+                    errors.append(f'{tier_where}: the core tier is always included and can never be sellable')
+                if data.get('schema_version') != RELEASE_SCHEMA:
+                    errors.append(f'{tier_where}: sellable is a schema {RELEASE_SCHEMA} property')
+                if not isinstance(tier['sellable'], bool):
+                    errors.append(f'{tier_where}: sellable must be true or false')
             tier_modules = list(tier.get('modules') or [])
             for module in tier_modules:
                 known_module(module, f'{tier_where}.modules')

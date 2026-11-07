@@ -1,10 +1,19 @@
 type FeatureMap = Record<string, boolean | number | null>
-type ReleaseLike = { applications: Array<{ id: string; selectable: boolean; features: Array<{ key: string; kind: string }> }> }
+type Application = { id: string; selectable: boolean; sellable?: boolean; features: Array<{ key: string; kind: string }> }
+type ReleaseLike = { applications: Application[] }
+
+/**
+ * The applications a release puts up for sale. A catalog published before the `sellable` flag sold every
+ * selectable tier, so it falls back to `selectable`; the core tier is always included and never for sale.
+ */
+export function sellableApps(release: ReleaseLike | null | undefined): Application[] {
+  if (!release) return []
+  return release.applications.filter(app => app.id !== 'core' && (app.sellable ?? app.selectable))
+}
 
 /** Bundle-style selections of the release applications whose booleans the entitlement opens. */
 export function entitledSelections(release: ReleaseLike | null | undefined, features: FeatureMap | null | undefined): { app_id: string; feature_keys: string[] }[] {
-  if (!release) return []
-  return release.applications.filter(app => app.selectable).flatMap((app) => {
+  return sellableApps(release).flatMap((app) => {
     const keys = app.features.filter(f => f.kind === 'boolean' && features?.[f.key] === true).map(f => f.key)
     return keys.length ? [{ app_id: app.id, feature_keys: keys }] : []
   })

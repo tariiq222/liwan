@@ -9,6 +9,12 @@ export { CommercialError }
  * features carry every key of every release application (spec 3.6, rulings E2/E3/E6). */
 export const COMPILER_VERSION = 'commercial-compiler/3'
 
+/** Whether a customer may buy this application. A catalog published before `sellable` existed sold every
+ * selectable tier, so its applications fall back to `selectable`; the core tier is never for sale. */
+export function isSellable(app: Pick<CatalogApplication, 'selectable' | 'sellable'>): boolean {
+  return app.sellable ?? app.selectable
+}
+
 export function compileEntitlements(input: {
   release: CatalogRelease; plan: PlanRevision; bundles: BundleRevision[]; terms: CustomerTermsRevision | null
   quantities: { users: number; storage_mb: number }
@@ -31,7 +37,9 @@ export function compileEntitlements(input: {
   for (const b of bundles) for (const sel of b.selections) {
     const app = apps.get(sel.app_id)
     if (!app) throw new CommercialError('unknown_app', 'selections')
-    if (!app.selectable) throw new CommercialError('app_not_selectable', 'selections')
+    // A tier the release installs but does not sell is never granted, however a bundle names it. A catalog
+    // published before the flag existed sells whatever it can select.
+    if (!isSellable(app)) throw new CommercialError('app_not_selectable', 'selections')
     selectedApps.add(app.id)
     // The list is validated for shape so existing rows parse, but it is no longer the grant unit.
     for (const key of sel.feature_keys) {

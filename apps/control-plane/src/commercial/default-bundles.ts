@@ -1,4 +1,5 @@
 import type { Pool } from 'pg'
+import { isSellable } from '@liwan/commercial-contracts/server'
 import { createBundle, mutateBundle } from './bundles.js'
 import { getRelease } from './catalog-releases.js'
 import { DERIVED_LIMITS, mutatePlan } from './plans.js'
@@ -16,7 +17,7 @@ const PLAN_FIELDS = ['name', 'audience', 'term_months', 'currency', 'prices', 'p
   'policy_revision_id', 'trial_days', 'grace_days', 'auto_suspend', 'auto_renew_allowed'] as const
 
 /**
- * Publishes one default bundle per selectable application of a catalog release, then a new revision of the LiwanOS
+ * Publishes one default bundle per sellable application of a catalog release, then a new revision of the LiwanOS
  * plan that lists them as optional. Idempotent: an application that already has a published, available bundle in
  * the release is reused, and the plan only gets a new revision when it is missing one of them.
  */
@@ -26,7 +27,7 @@ export async function seedDefaultBundles(pool: Pool, actor: CommercialActor, inp
   const existing = (await pool.query("SELECT id,selections FROM bundle_revisions WHERE catalog_release_id=$1 AND status='published' AND available", [release_id])).rows
   const bundleIds: string[] = []
   const created: string[] = []
-  for (const app of release.applications.filter(a => a.selectable)) {
+  for (const app of release.applications.filter(isSellable)) {
     const reused = existing.find(b => b.selections.length === 1 && b.selections[0].app_id === app.id)
     if (reused) { bundleIds.push(reused.id); continue }
     const featureKeys = app.features.filter(f => f.kind === 'boolean' && f.selectable).map(f => f.key)

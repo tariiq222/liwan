@@ -38,7 +38,10 @@ export const catalogFeatureSchema = z.strictObject({
 export const catalogApplicationSchema = z.strictObject({
   id: z.string().regex(/^[a-z][a-z0-9_]*$/), name_ar: z.string().min(1), name_en: z.string().min(1),
   modules: z.array(z.string()), requires_apps: z.array(z.string()), conflicts_with_apps: z.array(z.string()),
-  selectable: z.boolean(), features: z.array(catalogFeatureSchema),
+  /** A bundle may grant this application: the core tier is always included, every other tier may be selected. */
+  selectable: z.boolean(),
+  /** A customer may buy this application. A schema-3 release always states it; an older one predates the flag. */
+  sellable: z.boolean().optional(), features: z.array(catalogFeatureSchema),
 })
 export const catalogReleaseSchema = z.strictObject({
   id: revisionIdSchema, version: z.string().min(1).max(100), source_digest: sha, artifact_digest: sha,
