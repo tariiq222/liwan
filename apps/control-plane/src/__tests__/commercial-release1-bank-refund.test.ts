@@ -128,18 +128,18 @@ suite('bank transfer (W5)', () => {
   })
 
   it('shows the customer the vendor-configured bank account while the invoice stays unpaid', async () => {
-    await setBillingSettings(pool, { operator: 'vendor:7', reason: 'Release 1 billing settings', bank_account_name: 'مؤسسة ويب فيو', bank_account_number: '1234567890',
+    await setBillingSettings(pool, { operator: 'vendor:7', reason: 'Release 1 billing settings', bank_account_name: 'شركة المثال', bank_account_number: '1234567890',
       bank_iban: 'SA4420000001234567891234', bank_instructions_ar: 'حوّل المبلغ ثم أرسل الإيصال.', bank_instructions_en: 'Transfer, then send the receipt.' })
     const settings = await billingSettings(pool)
-    expect(settings).toMatchObject({ bank_account_name: 'مؤسسة ويب فيو', bank_iban: 'SA4420000001234567891234', refund_window_days: 14 })
+    expect(settings).toMatchObject({ bank_account_name: 'شركة المثال', bank_iban: 'SA4420000001234567891234', refund_window_days: 14 })
     const { invoice } = await unpaidOrder()
     const instructions = await bankTransferInstructions(pool, { invoice_id: invoice.id })
     expect(instructions).toMatchObject({ invoice_id: invoice.id, status: 'issued', amount_minor: Number(invoice.total_minor) })
-    expect(instructions.bank).toMatchObject({ account_name: 'مؤسسة ويب فيو', iban: 'SA4420000001234567891234' })
+    expect(instructions.bank).toMatchObject({ account_name: 'شركة المثال', iban: 'SA4420000001234567891234' })
   })
 
   it('shows only the customer\'s own invoice instructions, never another customer\'s', async () => {
-    await setBillingSettings(pool, { operator: 'vendor:7', reason: 'Release 1 billing settings', bank_account_name: 'مؤسسة ويب فيو',
+    await setBillingSettings(pool, { operator: 'vendor:7', reason: 'Release 1 billing settings', bank_account_name: 'شركة المثال',
       bank_iban: 'SA4420000001234567891234', bank_instructions_ar: 'حوّل المبلغ.', bank_instructions_en: 'Transfer.' })
     const { customer_id, invoice } = await unpaidOrder()
     const other = randomUUID()
