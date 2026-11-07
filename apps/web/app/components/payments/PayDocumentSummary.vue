@@ -10,9 +10,10 @@ const { t, locale } = useI18n()
 // once the page is live in the browser (drawing it on the server too would differ and break hydration).
 const hydrated = useHydrated()
 const deadline = computed(() => (props.kind === 'order' && !hydrated.value ? null : payDeadline(props.payable, locale.value)))
-// A document that carries no tax (its company is not registered for VAT) has no tax line to explain: only the total
-// remains, and only when it differs from what is due now.
-const taxed = computed(() => props.payable.amount_tax !== 0)
+// The server says whether tax shows on this document: its company is registered for VAT, or the document already
+// carries tax. A registered zero-rated document shows its tax lines at zero. The total is shown whenever it differs
+// from what is due now (a part payment or a deposit), taxed or not.
+const taxed = computed(() => props.payable.tax_applies)
 </script>
 
 <template>
@@ -31,7 +32,7 @@ const taxed = computed(() => props.payable.amount_tax !== 0)
       <SharedPropertyRow v-if="taxed" :label="t('payments.pay.tax')" data-testid="pay-tax">
         <bdi dir="ltr" class="tabular-nums">{{ formatPayAmount(payable.amount_tax, payable.currency) }} {{ payable.currency }}</bdi>
       </SharedPropertyRow>
-      <SharedPropertyRow v-if="taxed && payable.amount_total !== payable.amount_due" :label="t(`payments.pay.${kind}.total`)" data-testid="pay-total">
+      <SharedPropertyRow v-if="payable.amount_total !== payable.amount_due" :label="t(`payments.pay.${kind}.total`)" data-testid="pay-total">
         <bdi dir="ltr" class="tabular-nums">{{ formatPayAmount(payable.amount_total, payable.currency) }} {{ payable.currency }}</bdi>
       </SharedPropertyRow>
     </dl>

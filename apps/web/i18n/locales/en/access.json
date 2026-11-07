@@ -36,15 +36,7 @@
           "hint": "When on, finance roles are not inherited into branches; each branch needs an explicit delegation."
         }
       },
-      "create": {
-        "purchaseDescription": "Branches are added through your subscription. The paid order creates the branch.",
-        "purchase": "Buy a branch",
-        "title": "Add a branch",
-        "description": "Creates a new branch under your company. The number of branches is limited by your plan.",
-        "name": "Branch name",
-        "action": "Add branch",
-        "done": "The branch was added."
-      },
+      "create": {"purchaseDescription": "Branches are added through your subscription. The paid order creates the branch.", "purchase": "Buy a branch", "title": "Add a branch", "description": "Creates a new branch under your company. The number of branches is limited by your plan.", "name": "Branch name", "action": "Add branch", "done": "The branch was added."},
       "title": "Branch access",
       "description": "Choose how parent-company permissions apply to branches. Membership alone never grants data access.",
       "configure": "Configure branch access",
@@ -71,9 +63,7 @@
     "disabled": "Disabled",
     "protected": "Protected",
     "readOnly": "Read only",
-    "footer": {
-      "results": "{shown} of 1 result | {shown} of {total} results"
-    },
+    "footer": { "results": "{shown} of 1 result | {shown} of {total} results" },
     "previousPage": "Previous",
     "pageOf": "Page {page} of {pages}",
     "nextPage": "Next",
@@ -127,23 +117,8 @@
       "noEmployee": "No linked employee",
       "noRoles": "No roles",
       "empty": "No matching accounts.",
-      "columns": {
-        "name": "Name",
-        "login": "Login name",
-        "loginName": "Username",
-        "employee": "Employee",
-        "roles": "Roles",
-        "status": "Status",
-        "actions": "Actions"
-      },
-      "filters": {
-        "search": "Search by name or email…",
-        "clearSearch": "Clear search",
-        "searchNameLogin": "Search by name or username…",
-        "allStatuses": "All statuses",
-        "allRoles": "All roles",
-        "allDepartments": "All departments"
-      },
+      "columns": { "name": "Name", "login": "Login name", "loginName": "Username", "employee": "Employee", "roles": "Roles", "status": "Status", "actions": "Actions" },
+      "filters": { "search": "Search by name or email…", "clearSearch": "Clear search", "searchNameLogin": "Search by name or username…", "allStatuses": "All statuses", "allRoles": "All roles", "allDepartments": "All departments" },
       "disable": "Disable access",
       "reactivate": "Reactivate access",
       "disableHint": "Existing sessions are revoked.",
@@ -168,16 +143,8 @@
       "invitation": "Invitation",
       "invitationSentAt": "Sent",
       "invitationExpiresAt": "Expires",
-      "invitationState": {
-        "pending": "Pending acceptance",
-        "expired": "Invitation expired",
-        "failed": "Invitation not delivered"
-      },
-      "invitationHint": {
-        "pending": "The user has not opened the link yet. The seat is held for them.",
-        "expired": "The link has expired. The seat stays held until you resend or cancel the invitation.",
-        "failed": "The email could not be sent. Resend the invitation after checking the address."
-      },
+      "invitationState": {"pending": "Pending acceptance", "expired": "Invitation expired", "failed": "Invitation not delivered"},
+      "invitationHint": {"pending": "The user has not opened the link yet. The seat is held for them.", "expired": "The link has expired. The seat stays held until you resend or cancel the invitation.", "failed": "The email could not be sent. Resend the invitation after checking the address."},
       "resendInvitation": "Resend invitation",
       "editInvitation": "Edit email",
       "saveInvitationLogin": "Save and send a new invitation",
@@ -224,48 +191,14 @@
       "noDependencies": "No dependent permissions",
       "companyScope": "Available for the company",
       "unknownPermission": "Unavailable permission",
-      "domains": {
-        "access": "Access administration",
-        "hr": "People and HR",
-        "pmo": "Projects",
-        "meetings": "Meetings",
-        "settings": "Settings"
-      },
-      "descriptions": {
-        "employee": "Basic access for signing in and using the platform.",
-        "system_admin": "Manages login accounts, role assignments, the access audit and branding settings.",
-        "vendor_support": "Vendor support access for operating the environment on request.",
-        "pmo_manager": "Manages projects, tasks, approvals and project settings.",
-        "hr_manager": "Manages the HR directory, departments and documents.",
-        "appointments_manager": "Manages appointment types, bookings and appointment settings.",
-        "finance_manager": "Manages accounting, invoices, payments, banking and finance settings.",
-        "finance_accountant": "Records entries, invoices and payments and performs daily accounting work.",
-        "finance_auditor": "Read-only view of financial records and the audit log.",
-        "documents_manager": "Manages documents, their folders and who can access them.",
-        "operations_manager": "Manages operations, approvals and operations settings.",
-        "operations_reviewer": "Reviews operations requests and approves or rejects them.",
-        "inbox_agent": "Replies to the customer conversations assigned to them.",
-        "inbox_supervisor": "Monitors customer conversations and distributes them to agents.",
-        "inbox_manager": "Manages customer messages, channels, templates and settings.",
-        "crm_agent": "Follows up the leads assigned to them and logs their activity.",
-        "crm_manager": "Manages leads: assignment, import, export and CRM settings.",
-        "payroll_manager": "Manages payroll, salary structures and approves payroll runs."
-      },
+      "domains": { "access": "Access administration", "hr": "People and HR", "pmo": "Projects", "meetings": "Meetings", "settings": "Settings" },
+      "descriptions": { "employee": "Basic access for signing in and using the platform.", "system_admin": "Manages login accounts, role assignments, the access audit and branding settings.", "vendor_support": "Vendor support access for operating the environment on request.", "pmo_manager": "Manages projects, tasks, approvals and project settings.", "hr_manager": "Manages the HR directory, departments and documents.", "appointments_manager": "Manages appointment types, bookings and appointment settings.", "finance_manager": "Manages accounting, invoices, payments, banking and finance settings.", "finance_accountant": "Records entries, invoices and payments and performs daily accounting work.", "finance_auditor": "Read-only view of financial records and the audit log.", "documents_manager": "Manages documents, their folders and who can access them.", "operations_manager": "Manages operations, approvals and operations settings.", "operations_reviewer": "Reviews operations requests and approves or rejects them.", "inbox_agent": "Replies to the customer conversations assigned to them.", "inbox_supervisor": "Monitors customer conversations and distributes them to agents.", "inbox_manager": "Manages customer messages, channels, templates and settings.", "crm_agent": "Follows up the leads assigned to them and logs their activity.", "crm_manager": "Manages leads: assignment, import, export and CRM settings.", "payroll_manager": "Manages payroll, salary structures and approves payroll runs." },
       "clone": "Clone",
       "rowActions": "Actions for role {name}",
       "confirm": {
-        "disable": {
-          "title": "Disable this role?",
-          "description": "Disabling a role blocks new assignments only; existing assignments and their permissions stay in effect until removed explicitly."
-        },
-        "enable": {
-          "title": "Enable this role?",
-          "description": "The role becomes available for new assignments."
-        },
-        "delete": {
-          "title": "Delete this role?",
-          "description": "Deletion cannot be undone."
-        }
+        "disable": { "title": "Disable this role?", "description": "Disabling a role blocks new assignments only; existing assignments and their permissions stay in effect until removed explicitly." },
+        "enable": { "title": "Enable this role?", "description": "The role becomes available for new assignments." },
+        "delete": { "title": "Delete this role?", "description": "Deletion cannot be undone." }
       },
       "builtIn": "Built-in",
       "custom": "Custom",
@@ -273,20 +206,8 @@
       "affectedUsers": "This change affects {count} user. | This change affects {count} users.",
       "conflict": "The role changed while you were editing. Reload the latest version.",
       "disabledExistingAssignments": "Disabling a role blocks new assignments only; existing assignments and their capabilities remain effective until explicitly removed.",
-      "columns": {
-        "name": "Role name",
-        "description": "Description",
-        "type": "Type",
-        "users": "Users",
-        "status": "Status",
-        "actions": "Actions"
-      },
-      "filters": {
-        "search": "Search by role name…",
-        "clearSearch": "Clear search",
-        "allTypes": "All types",
-        "allStatuses": "All statuses"
-      }
+      "columns": { "name": "Role name", "description": "Description", "type": "Type", "users": "Users", "status": "Status", "actions": "Actions" },
+      "filters": { "search": "Search by role name…", "clearSearch": "Clear search", "allTypes": "All types", "allStatuses": "All statuses" }
     },
     "audit": {
       "title": "Access change log",
@@ -298,23 +219,9 @@
       "before": "Before",
       "after": "After",
       "reason": "Reason",
-      "columns": {
-        "time": "Time",
-        "actor": "Actor",
-        "action": "Action",
-        "target": "Affected",
-        "result": "Result"
-      },
-      "filters": {
-        "from": "From",
-        "to": "To",
-        "allTargets": "All targets",
-        "chooseTarget": "Choose affected record",
-        "allActors": "All actors",
-        "allActions": "All action types",
-        "action": "Action type"
-      },
-      "actions": {
+      "columns": { "time": "Time", "actor": "Actor", "action": "Action", "target": "Affected", "result": "Result" },
+      "filters": { "from": "From", "to": "To", "allTargets": "All targets", "chooseTarget": "Choose affected record", "allActors": "All actors", "allActions": "All action types", "action": "Action type" }
+      ,"actions": {
         "userGranted": "Account granted",
         "userEmployeeLinked": "Account linked to employee",
         "userBranchRolesChanged": "Branch delegation changed",
@@ -343,34 +250,6 @@
         "companyVatRegistrationChanged": "VAT registration changed"
       }
     },
-    "errors": {
-      "weakPassword": "The password must have at least 12 characters.",
-      "conflict": "The data changed. Reload the latest version and try again.",
-      "custom_role_permission_forbidden": "Custom roles cannot grant access administration permissions.",
-      "forbidden": "You do not have permission to perform this action.",
-      "protected_user": "The support account is protected.",
-      "protected_role": "Built-in roles are protected.",
-      "last_access_admin": "The last access administrator cannot be removed.",
-      "employee_archived": "Access cannot be granted to an archived employee.",
-      "account_exists": "An account with this email already exists.",
-      "employee_contact_required": "The employee has no contact record. Add their details first.",
-      "unsupported_scope": "The selected scope is not supported.",
-      "missingDependencyNamed": "The permission \"{permission}\" requires \"{missing}\". Add it first.",
-      "missing_dependency": "Add the required dependent permissions first.",
-      "role_in_use": "A role assigned to users cannot be deleted.",
-      "self_access_change": "You cannot change or disable your own account access.",
-      "role_disabled": "This role is disabled and cannot be assigned.",
-      "duplicate_or_invalid_capability": "The selected permissions are duplicated or invalid.",
-      "record_company_unknown": "The company of this record could not be determined.",
-      "scope_kind_invalid": "The selected scope type is not valid.",
-      "scope_role_invalid": "This role cannot be used for this scope.",
-      "not_found": "The requested item does not exist.",
-      "invalid_mobile": "Enter a valid international mobile number, such as +966500000001.",
-      "mobile_taken": "This mobile number belongs to another account.",
-      "invitation_not_pending": "This invitation is no longer pending.",
-      "invitation_pending": "This account has not accepted its invitation yet. Resend the invitation instead.",
-      "user_inactive": "This account is disabled. Reactivate it first.",
-      "invalid_token": "The link is invalid or has expired."
-    }
+    "errors": { "weakPassword": "The password must have at least 12 characters.", "conflict": "The data changed. Reload the latest version and try again.", "custom_role_permission_forbidden": "Custom roles cannot grant access administration permissions.", "forbidden": "You do not have permission to perform this action.", "protected_user": "The support account is protected.", "protected_role": "Built-in roles are protected.", "last_access_admin": "The last access administrator cannot be removed.", "employee_archived": "Access cannot be granted to an archived employee.", "account_exists": "An account with this email already exists.", "employee_contact_required": "The employee has no contact record. Add their details first.", "unsupported_scope": "The selected scope is not supported.", "missingDependencyNamed": "The permission \"{permission}\" requires \"{missing}\". Add it first.", "missing_dependency": "Add the required dependent permissions first.", "role_in_use": "A role assigned to users cannot be deleted.", "self_access_change": "You cannot change or disable your own account access.", "role_disabled": "This role is disabled and cannot be assigned.", "duplicate_or_invalid_capability": "The selected permissions are duplicated or invalid.", "record_company_unknown": "The company of this record could not be determined.", "scope_kind_invalid": "The selected scope type is not valid.", "scope_role_invalid": "This role cannot be used for this scope.", "not_found": "The requested item does not exist.", "invalid_mobile": "Enter a valid international mobile number, such as +966500000001.", "mobile_taken": "This mobile number belongs to another account.", "invitation_not_pending": "This invitation is no longer pending.", "invitation_pending": "This account has not accepted its invitation yet. Resend the invitation instead.", "user_inactive": "This account is disabled. Reactivate it first.", "invalid_token": "The link is invalid or has expired." }
   }
 }

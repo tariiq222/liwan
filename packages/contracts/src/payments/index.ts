@@ -86,6 +86,8 @@ const PayableDocumentShape = {
   amount_untaxed: z.number(),
   amount_tax: z.number(),
   amount_total: z.number(),
+  /** Whether tax is shown on this document: the company is registered for VAT, or the document already carries tax. */
+  tax_applies: z.boolean(),
   /** Zero while the document cannot be paid (cancelled, expired). */
   amount_due: z.number(),
   status: PayableStatusSchema,

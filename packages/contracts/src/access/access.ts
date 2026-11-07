@@ -68,6 +68,7 @@ export const KNOWN_CAPABILITIES = [
   'settings.branding.manage',
   'settings.company.read',
   'settings.company.manage',
+  'settings.company.vat.manage',
   'meetings.read',
   'meetings.create',
   'meetings.manage',
@@ -165,6 +166,7 @@ const SYSTEM: readonly KnownCapability[] = [
   'settings.branding.manage',
   'settings.company.read',
   'settings.company.manage',
+  'settings.company.vat.manage',
 ]
 const SYSTEM_CAPABILITIES = new Set<Capability>(SYSTEM)
 const RoleNameSchema = z.object({ ar: z.string().trim().min(1), en: z.string().trim().min(1).nullable() }).strict()

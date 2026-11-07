@@ -131,6 +131,7 @@ const payerInvoice = (id, status, extra = {}) => ({
   amount_untaxed: 14700,
   amount_tax: 2205,
   amount_total: 16905,
+  tax_applies: true,
   amount_due: 16905,
   status,
   options: status === 'payable' ? PAYER_OPTIONS : [],
@@ -154,6 +155,7 @@ const payerOrder = (id, status, extra = {}) => ({
   amount_untaxed: 14700,
   amount_tax: 2205,
   amount_total: 16905,
+  tax_applies: true,
   amount_due: 16905,
   status,
   options: status === 'payable' ? PAYER_OPTIONS : [],
@@ -162,7 +164,7 @@ const payerOrder = (id, status, extra = {}) => ({
 const PAYER_ORDERS = new Map([
   [21, payerOrder(21, 'payable')],
   // A company that is not registered for VAT charges no tax at all: the order carries none and the page shows no tax row.
-  [27, payerOrder(27, 'payable', { amount_untaxed: 16905, amount_tax: 0, amount_total: 16905, amount_due: 16905 })],
+  [27, payerOrder(27, 'payable', { amount_untaxed: 16905, amount_tax: 0, amount_total: 16905, tax_applies: false, amount_due: 16905 })],
   [22, payerOrder(22, 'payable', { amount_due: 5000 })],
   [23, payerOrder(23, 'paid', { amount_due: 0 })],
   [24, payerOrder(24, 'processing')],

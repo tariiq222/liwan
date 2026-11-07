@@ -57,3 +57,13 @@ export function companyPatch(section: CompanySection, extensions: CompanyProfile
   }
   return patch
 }
+
+/**
+ * Whether this save registers the company for VAT, or clears the number of a registered one, without a number.
+ * A save that touches neither the switch nor the number is never held back by it. The server enforces the rule
+ * anyway: this only says it first, under the field.
+ */
+export function vatNumberMissing(patch: Readonly<Record<string, unknown>>, draft: CompanyForm): boolean {
+  const touched = 'vat_registered' in patch || 'vat' in patch
+  return touched && Boolean(draft.vat_registered) && !String(draft.vat ?? '').trim()
+}

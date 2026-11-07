@@ -204,6 +204,8 @@ export const InboxCatalogCreateSchema = z.object({
   meta_catalog_id: MetaId,
   connect: z.boolean(),
   ...CatalogFields,
+  // Left out while the company is not registered for VAT: the server then decides the default.
+  prices_include_tax: z.boolean().optional(),
 }).strict()
 
 export const InboxCatalogPatchSchema = z.object(CatalogFields).partial().strict()

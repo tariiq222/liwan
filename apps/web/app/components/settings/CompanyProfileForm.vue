@@ -9,7 +9,7 @@ import {
   useUploadCompanyLogo,
 } from '@/composables/useCompanyProfile'
 import { useSettingsForm } from '@/composables/settings/useSettingsForm'
-import { companyPatch, profileToForm, SECTION_FIELDS, sectionExtensions, type CompanyForm, type CompanySection } from '@/utils/companyProfile'
+import { companyPatch, profileToForm, SECTION_FIELDS, sectionExtensions, vatNumberMissing, type CompanyForm, type CompanySection } from '@/utils/companyProfile'
 import { saveErrorMessage } from '@/utils/formFeedback'
 
 // One card of the company page (the profile itself, the national address or the contact details). The three cards share
@@ -28,6 +28,8 @@ const update = useUpdateCompany()
 const uploadLogo = useUploadCompanyLogo()
 
 const editable = computed(() => can('settings.company.manage'))
+// The VAT registration and number are the system administrator's: other editors of the card see them read-only.
+const vatEditable = computed(() => can('settings.company.vat.manage'))
 const fieldErrors = ref<Record<string, string>>({})
 const logoError = ref('')
 const logoInput = ref<{ reset: () => void } | null>(null)
@@ -50,11 +52,12 @@ const { draft, state, save, revert, reload } = useSettingsForm<CompanyProfile, C
       if (props.section === 'profile' && !String(values.name ?? '').trim()) {
         throw new ApiError(422, 'invalid', t('settings.company.errors.nameRequired'), 'name')
       }
-      // Registering for VAT needs its number: the server refuses the body anyway, the field says so first.
-      if (props.section === 'profile' && values.vat_registered && !String(values.vat ?? '').trim()) {
+      const patch = companyPatch(props.section, sectionExtensions(latest, props.section), read(latest), values)
+      // Registering for VAT needs its number: the server refuses the body anyway, the field says so first. Only a save
+      // that changes the switch or the number is held to it.
+      if (props.section === 'profile' && vatNumberMissing(patch, values)) {
         throw new ApiError(422, 'invalid_vat', t('settings.company.errors.vatRequired'), 'vat')
       }
-      const patch = companyPatch(props.section, sectionExtensions(latest, props.section), read(latest), values)
       if (!Object.keys(patch).length) return latest
       const next = await update.mutateAsync(patch)
       toast.add({ title: t('settings.company.saved'), color: 'success' })
@@ -73,6 +76,7 @@ const { draft, state, save, revert, reload } = useSettingsForm<CompanyProfile, C
 })
 
 const locked = computed(() => !hydrated.value || !editable.value || state.value.saving || state.value.reloading)
+const vatLocked = computed(() => locked.value || !vatEditable.value)
 const heading = computed(() => ({
   profile: { title: t('settings.company.identity.title') },
   address: { title: t('settings.company.address.title'), description: t('settings.company.address.hint') },
@@ -156,11 +160,11 @@ async function onLogo(event: Event) {
       <UFormField orientation="horizontal" name="company_registry" :label="t('settings.company.registry')" :error="fieldErrors.company_registry">
         <UInput id="company-registry" v-model="fields.company_registry.value" class="w-full" dir="ltr" inputmode="numeric" data-testid="company-registry" :disabled="locked" />
       </UFormField>
-      <UFormField orientation="horizontal" name="vat_registered" :label="t('settings.company.vatRegistered')" :description="t('settings.company.vatRegisteredHint')">
-        <USwitch id="company-vat-registered" v-model="vatRegistered" :aria-label="t('settings.company.vatRegistered')" data-testid="company-vat-registered" :disabled="locked" />
+      <UFormField orientation="horizontal" name="vat_registered" :label="t('settings.company.vatRegistered')" :description="vatEditable ? t('settings.company.vatRegisteredHint') : t('settings.company.vatManageHint')">
+        <USwitch id="company-vat-registered" v-model="vatRegistered" :aria-label="t('settings.company.vatRegistered')" data-testid="company-vat-registered" :disabled="vatLocked" />
       </UFormField>
       <UFormField v-if="vatRegistered" orientation="horizontal" name="vat" :label="t('settings.company.vat')" :description="t('settings.company.vatHint')" required :error="fieldErrors.vat">
-        <UInput id="company-vat" v-model="fields.vat.value" class="w-full" dir="ltr" inputmode="numeric" data-testid="company-vat" :disabled="locked" />
+        <UInput id="company-vat" v-model="fields.vat.value" class="w-full" dir="ltr" inputmode="numeric" data-testid="company-vat" :disabled="vatLocked" />
       </UFormField>
     </template>
 

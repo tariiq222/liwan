@@ -46,6 +46,7 @@
       "registry": "Commercial registration number",
       "vatRegistered": "Registered for VAT",
       "vatRegisteredHint": "When on, the VAT number is required and the tax shows on orders, invoices and pay pages. Documents issued earlier keep what they were issued with.",
+      "vatManageHint": "Only the system administrator can change the VAT registration and number.",
       "vat": "VAT number",
       "vatHint": "A tax number in the format of the company's country.",
       "country": "Country",

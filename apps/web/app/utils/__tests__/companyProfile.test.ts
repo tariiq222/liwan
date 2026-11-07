@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CompanyProfile } from '@liwan/contracts'
-import { companyPatch, profileToForm, SECTION_FIELDS, sectionExtensions } from '../companyProfile'
+import { companyPatch, profileToForm, SECTION_FIELDS, sectionExtensions, vatNumberMissing } from '../companyProfile'
 import { canReachPath, requiredCapabilityForPath } from '../accessPolicy'
 
 const PROFILE: CompanyProfile = {
@@ -83,5 +83,15 @@ describe('company VAT registration', () => {
   it('does not send the switch when only the VAT number changed', () => {
     const saved = profileToForm(unregistered)
     expect(companyPatch('profile', profileExtensions('profile'), saved, { ...saved, vat: '300000000000003' })).toEqual({ vat: '300000000000003' })
+  })
+
+  it('holds a save to the VAT number only when it changes the switch or the number', () => {
+    const saved = profileToForm({ ...PROFILE, vat_registered: true, vat: null })
+    const blank = { ...saved, vat_registered: true, vat: null }
+    expect(vatNumberMissing({ name: 'x' }, blank)).toBe(false)
+    expect(vatNumberMissing({ vat_registered: true }, blank)).toBe(true)
+    expect(vatNumberMissing({ vat: null }, blank)).toBe(true)
+    expect(vatNumberMissing({ vat_registered: true, vat: '300000000000003' }, { ...blank, vat: '300000000000003' })).toBe(false)
+    expect(vatNumberMissing({ vat_registered: false }, { ...blank, vat_registered: false })).toBe(false)
   })
 })

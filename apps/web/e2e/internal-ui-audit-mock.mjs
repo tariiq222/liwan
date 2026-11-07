@@ -32,7 +32,7 @@ const CAPABILITIES = [
   'hr.departments.read', 'hr.departments.manage', 'documents.items.read', 'documents.items.manage',
   'pmo.projects.read', 'pmo.projects.create', 'pmo.projects.manage', 'pmo.settings.manage',
   'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write', 'pmo.tasks.approve',
-  'settings.branding.manage', 'settings.company.read', 'settings.company.manage', 'ai.use', PAYMENTS_MANAGE, PAYMENTS_LINKS_MANAGE, PAYMENTS_SETTINGS_MANAGE,
+  'settings.branding.manage', 'settings.company.read', 'settings.company.manage', 'settings.company.vat.manage', 'ai.use', PAYMENTS_MANAGE, PAYMENTS_LINKS_MANAGE, PAYMENTS_SETTINGS_MANAGE,
   ...INBOX_CAPABILITIES,
 ]
 

@@ -4,7 +4,8 @@ import { usePatchInboxCatalog } from '@/composables/inbox/useInboxCatalog'
 
 // The catalog-wide defaults: the brand name Meta shows, the product link used when an item has none (empty sends the
 // click-to-chat link of the item's number) and whether prices include VAT. A change pushes every item again. A company
-// that is not registered for VAT shows no tax at all, so the option is hidden there and never sent back as `true`.
+// that is not registered for VAT shows no tax at all, so the option is hidden there and left out of the save: the stored
+// preference stays as it was and returns when the registration is turned on again.
 const props = defineProps<{ catalog: InboxCatalog; manage: boolean }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -19,8 +20,12 @@ watch(() => props.catalog, (catalog) => {
   link.value = catalog.default_link ?? ''
   includeTax.value = catalog.prices_include_tax
 })
-const body = computed(() => ({ brand: brand.value.trim(), default_link: link.value.trim() || null, prices_include_tax: vatRegistered.value && includeTax.value }))
-const dirty = computed(() => body.value.brand !== props.catalog.brand || body.value.default_link !== props.catalog.default_link || body.value.prices_include_tax !== props.catalog.prices_include_tax)
+const body = computed(() => ({
+  brand: brand.value.trim(),
+  default_link: link.value.trim() || null,
+  ...(vatRegistered.value ? { prices_include_tax: includeTax.value } : {}),
+}))
+const dirty = computed(() => body.value.brand !== props.catalog.brand || body.value.default_link !== props.catalog.default_link || (vatRegistered.value && includeTax.value !== props.catalog.prices_include_tax))
 const valid = computed(() => InboxCatalogPatchSchema.safeParse(body.value).success)
 const off = computed(() => !hydrated.value || isPending.value || !props.manage)
 function save() {
