@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import * as Vue from 'vue'
 import * as selection from '../policySelection'
@@ -6,6 +5,7 @@ import * as selection from '../policySelection'
 const { approvedPolicies, defaultPolicyId, policyOptions } = selection
 import type { PricingPolicyView } from '../../../composables/useVendorCommercial'
 import * as commercial from '../../../utils/vendorCommercial'
+import { handleCommercial } from '../../../../e2e/commercial-mock-routes.mjs'
 import { loadSfc } from '../../__tests__/sfc'
 
 // schema_012.sql inserts both approved policies in ONE statement, so they share created_at and the policies endpoint orders
@@ -34,15 +34,17 @@ const useI18n = () => ({ t: (key: string, params?: Record<string, unknown>) => (
 const form = () => loadSfc('components/vendor/PlanForm.vue', { useI18n, useHydrated: () => Vue.ref(true), ...commercial, ...selection })
 
 /** Mounts the form's setup() and fills every required value except the policy under test, field by field as the vendor would. */
-function filledSetup(props: Record<string, unknown>, emit: (...args: unknown[]) => void = () => {}) {
-  const setup = form().setup(props, emit)
-  const draft = setup.draft
+function fillDraft(draft: any) {
   const row = (amount: string) => ({ unit: 'month', count: '1', amount })
   draft.name = 'P'; draft.term_months = '12'; draft.included = [BUNDLE_ID]
   draft.prices = [row('100')]; draft.user_prices = [row('25')]; draft.storage_prices = [row('5')]; draft.extra_branch_prices = [row('20')]
   draft.included_users = '3'; draft.included_storage_mb = '5120'; draft.included_extra_branches = '0'
   draft.extra_branches_limit.mode = 'unlimited'
   draft.trial_days = '0'; draft.grace_days = '7'; draft.auto_suspend = 'true'; draft.auto_renew_allowed = 'false'; draft.reason = 'سبب'
+}
+function filledSetup(props: Record<string, unknown>, emit: (...args: unknown[]) => void = () => {}) {
+  const setup = form().setup(props, emit)
+  fillDraft(setup.draft)
   return setup
 }
 
@@ -146,15 +148,34 @@ describe('plan form pricing policy selection', () => {
 })
 
 describe('the e2e mock reflects the production policy list', () => {
-  it('serves both approved policies with VAT first, so the default is genuinely exercised', async () => {
-    const fixtures = JSON.parse(readFileSync(new URL('../../../../e2e/commercial-fixtures.json', import.meta.url), 'utf8'))
-    const mock = readFileSync(new URL('../../../../e2e/commercial-mock-routes.mjs', import.meta.url), 'utf8')
-    expect(fixtures.policy.tax.kind).toBe('vat_exclusive')
-    expect(fixtures.noTaxPolicy.tax.kind).toBe('none')
-    // The mock must return both, in that order; one row could never exercise the default.
-    expect(mock).toContain('[fixtures.policy, fixtures.noTaxPolicy]')
-    // And the form's choice over that exact list is the no-tax policy, not the first row.
-    expect(defaultPolicyId([fixtures.policy, fixtures.noTaxPolicy])).toBe(fixtures.noTaxPolicy.id)
+  /** The stub control plane answers through its real handler, so the test reads what a page would be served. */
+  function policiesFromMock() {
+    let body: { items: PricingPolicyView[]; total: number } | undefined
+    const response = { writeHead: () => {}, end: (raw: string) => { body = JSON.parse(raw) } }
+    handleCommercial({ method: 'GET' }, response, new URL('/v1/commercial/policies', 'http://localhost'))
+    return body!
+  }
+
+  it('serves both approved policies with VAT first, so the default is genuinely exercised', () => {
+    const served = policiesFromMock()
+    // One row could never exercise the default: both are served, in the production order.
+    expect(served.total).toBe(2)
+    expect(served.items.map(p => p.tax.kind)).toEqual(['vat_exclusive', 'none'])
+  })
+
+  it('opens the plan form on the no-tax policy over the served list, not on its first row', () => {
+    const served = policiesFromMock()
+    const setup = form().setup({ bundles: [], policies: served.items })
+    expect(setup.draft.policy_revision_id).toBe(served.items[1]!.id)
+    expect(setup.taxText.value).toBe('vendor.pricing.plan.noTax')
+  })
+
+  it('lists the no-tax policy first in the selector', async () => {
+    const served = policiesFromMock()
+    const { render } = form().mount({ bundles: [], policies: served.items })
+    const { captured } = await render()
+    const selector = captured.find(c => c.name === 'USelect' && c.attrs['data-testid'] === 'plan-policy')
+    expect((selector?.attrs.items as { value: string }[]).map(item => item.value)).toEqual([served.items[1]!.id, served.items[0]!.id])
   })
 })
 
@@ -186,5 +207,81 @@ describe('the plan form states the storage steps and the users cap', () => {
     const setup = filledSetup({ bundles: [], policies: approvedVatFirst, policy: noTax })
     setup.draft.storage_step_mb = String(Number.MAX_SAFE_INTEGER)
     expect(setup.errors.value.storage_step_mb).toBe('vendor.pricing.plan.storageStepTooLarge')
+  })
+})
+
+describe('the three storage step inputs', () => {
+  const STEP = 'vendor.pricing.fields.storageStep', THRESHOLD = 'vendor.pricing.fields.storageStepThreshold', LARGE = 'vendor.pricing.fields.storageLargeStep'
+  type Rendered = { name: string; attrs: Record<string, any> }[]
+  /** A field's wrapper is rendered right before its control, so the control is the next input after the labelled wrapper. */
+  const field = (captured: Rendered, label: string) => {
+    const at = captured.findIndex(c => c.name === 'UFormField' && c.attrs.label === label)
+    return { wrapper: captured[at]!, input: captured.slice(at + 1).find(c => c.name === 'UInput')! }
+  }
+  const mounted = (props: Record<string, unknown> = {}, emit: (...args: unknown[]) => void = () => {}) => {
+    const m = form().mount({ bundles: [], policies: approvedVatFirst, ...props }, emit)
+    fillDraft(m.state.draft)
+    return m
+  }
+  /** What the vendor does: type into the control. The control's own update listener is what the template wired. */
+  const type = async (m: ReturnType<typeof mounted>, label: string, text: string) => {
+    ;(field((await m.render()).captured, label).input.attrs['onUpdate:modelValue'] as (v: string) => void)(text)
+  }
+
+  it('renders the step, threshold and large-step inputs as required numeric fields with their seeded values and hints', async () => {
+    const { captured } = await mounted().render()
+    for (const [label, value] of [[STEP, '10240'], [THRESHOLD, '102400'], [LARGE, '102400']] as const) {
+      const { wrapper, input } = field(captured, label)
+      expect(wrapper, label).toBeDefined(); expect(input, label).toBeDefined()
+      expect(wrapper.attrs.required, label).toBeDefined()
+      expect(wrapper.attrs.help, label).toBe(`${label}Hint`)
+      expect(input.attrs.modelValue, label).toBe(value)
+      expect(input.attrs.inputmode, label).toBe('numeric')
+      expect(input.attrs.dir, label).toBe('ltr')
+    }
+  })
+
+  it('accepts Arabic-Indic digits in all three inputs and saves, instead of reading them as NaN and calling them misaligned', async () => {
+    const emit = vi.fn()
+    const m = mounted({}, emit)
+    await type(m, STEP, '١٠٢٤٠'); await type(m, THRESHOLD, '١٠٢٤٠٠'); await type(m, LARGE, '١٠٢٤٠٠')
+    expect(m.state.errors.value.storage_step_mb).toBeUndefined()
+    expect(m.state.errors.value.storage_step_threshold_mb).toBeUndefined()
+    expect(m.state.errors.value.storage_large_step_mb).toBeUndefined()
+    m.state.submit()
+    expect(emit).toHaveBeenCalledWith('save', expect.objectContaining({ storage_step_mb: '١٠٢٤٠' }))
+    // The payload the page sends reads the same digits.
+    expect(commercial.planCreatePayload(emit.mock.calls[0]![1] as never, NO_TAX_ID).storage_step_mb).toBe(10240)
+  })
+
+  it('still reports a genuinely misaligned set written with Arabic-Indic digits, on the threshold field', async () => {
+    const m = mounted()
+    await type(m, STEP, '١٠٢٤٠'); await type(m, THRESHOLD, '١٥٣٦٠')
+    m.state.submit()
+    expect(field((await m.render()).captured, THRESHOLD).wrapper.attrs.error).toBe('vendor.pricing.plan.storageStepMisaligned')
+  })
+
+  it('calls a step of 0 required, not misaligned', async () => {
+    const m = mounted()
+    for (const [label, key] of [[STEP, 'storage_step_mb'], [THRESHOLD, 'storage_step_threshold_mb'], [LARGE, 'storage_large_step_mb']] as const) {
+      await type(m, label, '0')
+      expect(m.state.errors.value[key], key).toBe('vendor.pricing.required')
+      await type(m, label, '١٠٢٤٠')
+    }
+    m.state.submit()
+    const { captured } = await m.render()
+    expect(field(captured, STEP).wrapper.attrs.error).toBeUndefined()
+  })
+
+  it.each([
+    ['storage_step_misaligned', 'storage_step_threshold_mb', THRESHOLD],
+    ['storage_step_invalid', 'storage_step_mb', STEP],
+    ['storage_step_invalid', 'storage_large_step_mb', LARGE],
+  ])('shows the structured server error %s on the %s input', async (code, fieldName, label) => {
+    const m = mounted({ error: { statusCode: 422, data: { code, field: fieldName, message: 'refused' } } })
+    const { wrapper } = field((await m.render()).captured, label)
+    expect(wrapper.attrs.error).toBe(`vendor.pricing.errors.${code}`)
+    // Only the named input carries it.
+    for (const other of [STEP, THRESHOLD, LARGE].filter(l => l !== label)) expect(field((await m.render()).captured, other).wrapper.attrs.error, other).toBeUndefined()
   })
 })

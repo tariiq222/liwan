@@ -54,14 +54,17 @@ const errors = computed(() => {
   if (storage === null) e.includedStorage = req
   else if (storage % MB_PER_GB !== 0) e.includedStorage = t('vendor.pricing.plan.storageMinimumGb')
   // A6: the three storage steps are vendor-editable plan values, bounded where they are parsed and required to tile
-  // the range they govern (the same rule the contract and the database CHECK enforce).
+  // the range they govern (the same rule the contract and the database CHECK enforce). Alignment reads the parsed
+  // values: the typed text may use Arabic-Indic digits, which Number() cannot read.
+  const steps: Record<string, number> = {}
   for (const field of ['storage_step_mb', 'storage_step_threshold_mb', 'storage_large_step_mb'] as const) {
     const step = parseCount(draft[field])
-    if (step === null) e[field] = req
+    if (step === null || step === 0) e[field] = req
     else if (step > MAX_STORAGE_STEP_MB) e[field] = t('vendor.pricing.plan.storageStepTooLarge')
+    else steps[field] = step
   }
-  if (!e.storage_step_mb && !e.storage_step_threshold_mb && !e.storage_large_step_mb
-    && !storageStepsAligned({ storage_step_mb: Number(draft.storage_step_mb), storage_step_threshold_mb: Number(draft.storage_step_threshold_mb), storage_large_step_mb: Number(draft.storage_large_step_mb) }))
+  if (Object.keys(steps).length === 3
+    && !storageStepsAligned({ storage_step_mb: steps.storage_step_mb!, storage_step_threshold_mb: steps.storage_step_threshold_mb!, storage_large_step_mb: steps.storage_large_step_mb! }))
     e.storage_step_threshold_mb = t('vendor.pricing.plan.storageStepMisaligned')
   if (priceRowErrors(draft.user_prices).some(Boolean)) e.userPrices = t('vendor.pricing.prices.invalid')
   if (priceRowErrors(draft.storage_prices).some(Boolean)) e.storagePrices = t('vendor.pricing.prices.invalid')
@@ -133,8 +136,7 @@ const taxText = computed<string | null>(() => (policy.value ? policyTaxText(poli
     <SharedFormSection panel :title="t('vendor.pricing.sections.quantities')" :description="t('vendor.pricing.plan.quantitiesHint')">
       <div class="space-y-6">
         <div class="grid gap-4 sm:grid-cols-2">
-          <UFormField :label="t('vendor.pricing.fields.includedUsers')" required :error="show('includedUsers') ?? serverIssue('included_users')"><UInput v-model="draft.included_users" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
-          <p class="text-sm text-muted">{{ t('vendor.pricing.plan.usersCapNote') }}</p>
+          <UFormField :label="t('vendor.pricing.fields.includedUsers')" required :help="t('vendor.pricing.plan.usersCapNote')" :error="show('includedUsers') ?? serverIssue('included_users')"><UInput v-model="draft.included_users" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
           <UFormField :label="t('vendor.pricing.fields.includedStorage')" required :error="show('includedStorage') ?? serverIssue('included_storage_mb')"><UInput v-model="draft.included_storage_mb" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
           <UFormField :label="t('vendor.pricing.fields.storageStep')" required :help="t('vendor.pricing.fields.storageStepHint')" :error="show('storage_step_mb') ?? serverIssue('storage_step_mb')"><UInput v-model="draft.storage_step_mb" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
           <UFormField :label="t('vendor.pricing.fields.storageStepThreshold')" required :help="t('vendor.pricing.fields.storageStepThresholdHint')" :error="show('storage_step_threshold_mb') ?? serverIssue('storage_step_threshold_mb')"><UInput v-model="draft.storage_step_threshold_mb" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>

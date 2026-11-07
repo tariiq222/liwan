@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import type { Invoice, Order, SubscriptionView } from '@liwan/commercial-contracts'
+import type { Adjustment, Invoice, Order, SubscriptionView } from '@liwan/commercial-contracts'
 import {
-  customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews,
-  type VendorCustomer,
+  customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews, parseTransferAmount, refundRequestBlock, transferFormDefaults, validRefundDraft, validRefundReason,
+  type VendorCustomer, type VendorInvoice,
 } from '../vendorSubscriptions'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { sar } from '../vendorCommercial'
@@ -123,5 +123,47 @@ describe('customer glance helpers', () => {
     expect(isStalled(order({ created_at: '2026-10-14T00:00:00Z' }), now)).toBe(true)
     expect(isStalled(order({}), now)).toBe(false)
     expect(isStalled(null, now)).toBe(false)
+  })
+})
+
+describe('refund request', () => {
+  const refund = (o: Partial<VendorInvoice['refund']> = {}) => ({ refundable: true, first_payment: true, until: '2026-11-20T23:59:59+03:00', window_days: 14, ...o })
+  const note = (o: Partial<Adjustment> = {}) => ({ id: 'n', kind: 'credit_note', origin: 'vendor', status: 'pending', ...o }) as Adjustment
+  it('is open only for a refundable payment with no vendor note yet', () => {
+    expect(refundRequestBlock({ refund: refund(), adjustments: [] })).toBeNull()
+    expect(refundRequestBlock({ refund: refund(), adjustments: [note({ origin: 'system' })] })).toBeNull()
+    expect(refundRequestBlock({ refund: refund(), adjustments: [note({ status: 'void' })] })).toBeNull()
+    expect(refundRequestBlock({ refund: refund(), adjustments: [note({ kind: 'debit_note' })] })).toBeNull()
+  })
+  it('names the one reason it is closed: a vendor note, the window, or a later payment', () => {
+    expect(refundRequestBlock({ refund: refund(), adjustments: [note()] })).toBe('alreadyRequested')
+    expect(refundRequestBlock({ refund: refund(), adjustments: [note({ status: 'refunded' })] })).toBe('alreadyRequested')
+    // An existing request wins over the date: it is the more useful thing to tell the vendor.
+    expect(refundRequestBlock({ refund: refund({ refundable: false }), adjustments: [note()] })).toBe('alreadyRequested')
+    expect(refundRequestBlock({ refund: refund({ refundable: false }), adjustments: [] })).toBe('windowClosed')
+    expect(refundRequestBlock({ refund: refund({ refundable: false, first_payment: false, until: null }), adjustments: [] })).toBe('notFirstPayment')
+  })
+  it('bounds the reason like the server: 3 to 1000 characters after trimming', () => {
+    expect(validRefundReason('ab')).toBe(false); expect(validRefundReason('  ab  ')).toBe(false)
+    expect(validRefundReason('abc')).toBe(true); expect(validRefundReason('x'.repeat(1000))).toBe(true); expect(validRefundReason('x'.repeat(1001))).toBe(false)
+    expect(validRefundDraft({ reference: 'MOY-1', reason: 'done' })).toBe(true); expect(validRefundDraft({ reference: 'MO', reason: 'done' })).toBe(false)
+  })
+})
+
+describe('bank transfer form values', () => {
+  it('opens on the invoice total and on the Riyadh calendar day, not the UTC one', () => {
+    const total = sar(12345)
+    expect(transferFormDefaults(total, new Date('2026-11-07T20:59:59Z'))).toEqual({ amount: '123.45', valueDate: '2026-11-07' })
+    expect(transferFormDefaults(total, new Date('2026-11-07T21:00:00Z'))).toEqual({ amount: '123.45', valueDate: '2026-11-08' })
+    expect(transferFormDefaults(sar(10000), new Date('2026-11-07T12:00:00Z')).amount).toBe('100.00')
+  })
+  it('reads riyals exactly, with Arabic-Indic digits, and never rounds', () => {
+    expect(parseTransferAmount('123.45', 2)).toEqual({ minor: 12345 })
+    expect(parseTransferAmount('١٢٣٫٤٥', 2)).toEqual({ minor: 12345 })
+    expect(parseTransferAmount(' 100 ', 2)).toEqual({ minor: 10000 })
+    expect(parseTransferAmount('0.29', 2)).toEqual({ minor: 29 })
+    expect(parseTransferAmount('123.456', 2)).toEqual({ issue: 'decimals' })
+    expect(parseTransferAmount('١٢٣٫٤٥٦', 2)).toEqual({ issue: 'decimals' })
+    for (const text of ['', 'abc', '-5', '1e3', '12.3.4']) expect(parseTransferAmount(text, 2), text).toEqual({ issue: 'invalid' })
   })
 })

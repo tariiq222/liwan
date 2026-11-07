@@ -31,6 +31,15 @@ function page(collection, url, filter = () => true) {
 const q = (url, name) => url.searchParams.get(name) ?? ''
 const byId = (collection, id) => collection.items.find(item => item.id === id)
 
+/** The vendor invoice view: the contract invoice plus its adjustments and the server's refund verdict (a paid invoice is the customer's first payment, inside the 14 days). */
+const REFUND_WINDOW_DAYS = 14
+function vendorInvoice(invoice) {
+  if (!invoice) return invoice
+  const paid = invoice.status === 'paid' && invoice.paid_at
+  const until = paid ? `${new Date(Date.parse(invoice.paid_at) + REFUND_WINDOW_DAYS * 86_400_000).toISOString().slice(0, 10)}T23:59:59+03:00` : null
+  return { ...invoice, adjustments: [], refund: { refundable: Boolean(paid), first_payment: Boolean(paid), until, window_days: REFUND_WINDOW_DAYS } }
+}
+
 /** Workspace name and owning customer, resolved for display the way the control plane does. */
 function withTarget(operation) {
   const tenant = fixtures.tenants.items.find(t => t.id === operation.tenant_id)
@@ -121,8 +130,8 @@ export function handleCommercial(req, res, url, { capabilities } = {}) {
   else if ((m = /^\/v1\/commercial\/customers\/([^/]+)$/.exec(path))) send(byId(fixtures.customers, m[1]))
   else if ((m = /^\/v1\/commercial\/subscriptions\/([^/]+)$/.exec(path))) send(fixtures.subscriptions[m[1]])
   else if ((m = /^\/v1\/commercial\/subscriptions\/([^/]+)\/(branches|usage)$/.exec(path))) send(fixtures.subscriptionParts[`${m[1]}:${m[2]}`])
-  else if (path === '/v1/commercial/invoices') send({ ...page(fixtures.invoices, url, i => (!q(url, 'status') || i.status === q(url, 'status')) && (!q(url, 'customer_id') || i.customer_id === q(url, 'customer_id'))), summary: invoiceSummary(q(url, 'customer_id')) })
-  else if ((m = /^\/v1\/commercial\/invoices\/([^/]+)$/.exec(path))) send(byId(fixtures.invoices, m[1]))
+  else if (path === '/v1/commercial/invoices') { const listed = page(fixtures.invoices, url, i => (!q(url, 'status') || i.status === q(url, 'status')) && (!q(url, 'customer_id') || i.customer_id === q(url, 'customer_id'))); send({ ...listed, items: listed.items.map(vendorInvoice), summary: invoiceSummary(q(url, 'customer_id')) }) }
+  else if ((m = /^\/v1\/commercial\/invoices\/([^/]+)$/.exec(path))) send(vendorInvoice(byId(fixtures.invoices, m[1])))
   else if ((m = /^\/v1\/commercial\/orders\/([^/]+)\/payment-attempts$/.exec(path))) send(fixtures.paymentAttempts[decodeURIComponent(m[1])] ?? { items: [], total: 0 })
   else if (path === '/v1/commercial/plans') send(page(fixtures.plans, url, p => (!q(url, 'status') || p.status === q(url, 'status')) && (!q(url, 'q') || p.name.includes(q(url, 'q')))))
   else if ((m = /^\/v1\/commercial\/plans\/([^/]+)$/.exec(path))) send(byId(fixtures.plans, m[1]))

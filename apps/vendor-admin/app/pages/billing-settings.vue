@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { commercialErrorKey, minorToInput, parseVendorMoneyInput } from '@/utils/vendorCommercial'
+import { commercialErrorKey, minorToInput, parseCount, parseVendorMoneyInput } from '@/utils/vendorCommercial'
 definePageMeta({ capability: 'vendor.billing.manage' })
 const { t } = useI18n(); const hydrated = useHydrated(); const { request } = useVendorApi(); const { can } = useVendorContext()
 const canManage = computed(() => can('vendor.billing.manage'))
@@ -14,10 +14,13 @@ const serialized = () => JSON.stringify(draft)
 const dirty = computed(() => original.value !== '' && serialized() !== original.value)
 /** The fee and exponent as last loaded from the server, so an untouched field is never re-sent. */
 let loadedFee: { minor: number; exponent: number } | null = null
+/** The fee field as loaded: an unchanged value is never judged, so a stored fee with fractional riyals cannot block saving another setting. */
+let loadedFeeText = ''
 watch(data, (value) => {
   if (!value) return
+  loadedFeeText = value.onboarding_exponent === undefined ? '' : feeInput(value.onboarding_fee_minor, value.onboarding_exponent)
   Object.assign(draft, {
-    refund_window_days: String(value.refund_window_days), onboarding_fee: value.onboarding_exponent === undefined ? '' : feeInput(value.onboarding_fee_minor, value.onboarding_exponent),
+    refund_window_days: String(value.refund_window_days), onboarding_fee: loadedFeeText,
     bank_account_name: value.bank_account_name, bank_account_number: value.bank_account_number,
     bank_iban: value.bank_iban, bank_instructions_ar: value.bank_instructions_ar, bank_instructions_en: value.bank_instructions_en, reason: '',
   })
@@ -47,12 +50,11 @@ function onboardingFeeMinor(): number | null {
 }
 const errors = computed(() => {
   const e: Record<string, string> = {}
-  const days = draft.refund_window_days.trim()
-  if (!/^\d+$/.test(days) || Number(days) > 365) e.window = t('vendor.billingSettings.errors.window')
+  if (parseCount(draft.refund_window_days, 365) === null) e.window = t('vendor.billingSettings.errors.window')
   // The fee must be a whole major-unit amount when it is typed. Leaving the stored value untouched is valid: it is
   // simply omitted from the PATCH (see onboardingFeeChange), so it must not block saving an unrelated setting.
   const fee = draft.onboarding_fee.trim()
-  if (fee && (isWholeAmount(fee) === false || onboardingFeeMinor() === null)) e.onboardingFee = t('vendor.billingSettings.errors.onboardingFee')
+  if (fee && fee !== loadedFeeText && (isWholeAmount(fee) === false || onboardingFeeMinor() === null)) e.onboardingFee = t('vendor.billingSettings.errors.onboardingFee')
   const iban = draft.bank_iban.trim().toUpperCase()
   if (iban && !/^SA[0-9]{22}$/.test(iban)) e.iban = t('vendor.billingSettings.errors.iban')
   if (draft.reason.trim().length < 3) e.reason = t('vendor.pricing.reasonRequired')
@@ -73,13 +75,15 @@ async function submit() {
   busy.value = true; failure.value = null; saved.value = false
   try {
     await request('commercial/billing-settings', { method: 'PATCH', body: {
-      refund_window_days: Number(draft.refund_window_days.trim()), ...onboardingFeeChange(), bank_account_name: draft.bank_account_name.trim(),
+      refund_window_days: parseCount(draft.refund_window_days, 365), ...onboardingFeeChange(), bank_account_name: draft.bank_account_name.trim(),
       bank_account_number: draft.bank_account_number.trim(), bank_iban: draft.bank_iban.trim().toUpperCase(),
       bank_instructions_ar: draft.bank_instructions_ar.trim(), bank_instructions_en: draft.bank_instructions_en.trim(), reason: draft.reason.trim(),
     } })
-    saved.value = true
-    await refresh()
-  } catch (cause) { failure.value = cause } finally { busy.value = false }
+  } catch (cause) { failure.value = cause; busy.value = false; return }
+  saved.value = true
+  try { await refresh() } finally { busy.value = false }
+  // A failed reload is reported by the page state above, with its retry; it never sits next to «saved».
+  if (error.value) saved.value = false
 }
 </script>
 <template>

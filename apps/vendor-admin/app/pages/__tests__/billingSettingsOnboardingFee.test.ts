@@ -20,15 +20,17 @@ const settings = {
   bank_account_name: '', bank_account_number: '', bank_iban: '', bank_instructions_ar: '', bank_instructions_en: '',
 }
 
-type Options = { settings?: Partial<typeof settings>; hydrated?: boolean; grants?: string[] }
+type Options = { settings?: Partial<typeof settings>; hydrated?: boolean; grants?: string[]; reloadFails?: boolean }
 
 async function page(options: Options = {}) {
   const filename = resolve(import.meta.dirname, '../billing-settings.vue')
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const script = stripImports(compileScript(descriptor, { id: 'billing-settings-onboarding-fee' }).content).replaceAll('import.meta.client', 'false').replace('export default', 'return')
   let loaded = { ...settings, ...options.settings }
+  let saved = false
   const request = vi.fn(async (_path: string, init?: { method?: string; body?: Record<string, unknown> }) => {
-    if (init?.method === 'PATCH' && init.body) loaded = { ...loaded, ...init.body }
+    if (init?.method === 'PATCH' && init.body) { loaded = { ...loaded, ...init.body }; saved = true; return loaded }
+    if (saved && options.reloadFails) throw { statusCode: 503, data: { code: 'vendor_unavailable' } }
     return loaded
   })
   const bindings = {
@@ -141,10 +143,25 @@ describe('billing settings onboarding fee', () => {
     expect(p.patches()).toEqual([])
   })
 
-  it('refuses a stored fee with minor units the field cannot show, rather than rewriting it', async () => {
+  it('keeps a stored fee with fractional riyals as it is and lets the vendor save another setting', async () => {
     const p = await page({ settings: { onboarding_fee_minor: 49950 } }); p.ready()
     expect(p.state.draft.onboarding_fee).toBe('499.50')
-    expect(p.state.errors.value).toHaveProperty('onboardingFee')
+    // The untouched value is not judged: it would otherwise make the whole form unsaveable.
+    expect(p.state.errors.value).toEqual({})
+    p.state.draft.bank_account_name = 'Liwan'
+    await p.state.submit()
+    expect(p.sent()).toHaveProperty('bank_account_name', 'Liwan')
+    expect(p.sent()).not.toHaveProperty('onboarding_fee_minor')
+  })
+
+  it('refuses a fractional fee the vendor types, and an edit of the stored one that is not a whole amount', async () => {
+    const p = await page({ settings: { onboarding_fee_minor: 49950 } }); p.ready()
+    p.state.draft.onboarding_fee = '499.5'
+    expect(p.state.errors.value.onboardingFee).toBe('vendor.billingSettings.errors.onboardingFee')
+    p.state.draft.onboarding_fee = '500'
+    expect(p.state.errors.value).toEqual({})
+    await p.state.submit()
+    expect(p.sent()).toMatchObject({ onboarding_fee_minor: 50000 })
   })
 
   it('never sends the currency or the exponent the vendor did not change', async () => {
@@ -173,5 +190,49 @@ describe('billing settings onboarding fee', () => {
     p.state.draft.onboarding_fee = '750'
     await p.state.submit()
     expect(p.patches()).toEqual([])
+  })
+})
+
+describe('billing settings refund window and reload', () => {
+  it('accepts Arabic-Indic digits in the refund days, like the fee field', async () => {
+    const p = await page(); p.ready()
+    p.state.draft.refund_window_days = '٣٠'
+    expect(p.state.errors.value).toEqual({})
+    await p.state.submit()
+    expect(p.sent()).toMatchObject({ refund_window_days: 30 })
+  })
+
+  it.each(['٣٦٦', '-1', '1.5', '', 'abc'])('refuses %j as the refund days', async value => {
+    const p = await page(); p.ready()
+    p.state.draft.refund_window_days = value
+    expect(p.state.errors.value.window).toBe('vendor.billingSettings.errors.window')
+    await p.state.submit()
+    expect(p.patches()).toEqual([])
+  })
+
+  it('says «saved» alone after a successful save and reload', async () => {
+    const p = await page(); p.ready()
+    p.state.draft.bank_account_name = 'Liwan'
+    await p.state.submit()
+    expect(p.state.saved.value).toBe(true); expect(p.state.failure.value).toBeNull(); expect(p.state.error.value).toBeNull()
+  })
+
+  it('never shows «saved» next to a failed reload: the page state reports it with its retry', async () => {
+    const p = await page({ reloadFails: true }); p.ready()
+    p.state.draft.bank_account_name = 'Liwan'
+    await p.state.submit()
+    expect(p.patches()).toHaveLength(1)
+    expect(p.state.error.value).toBeTruthy()
+    expect(p.state.saved.value).toBe(false)
+    expect(p.state.failure.value).toBeNull()
+    expect(p.state.busy.value).toBe(false)
+  })
+
+  it('shows the refusal alone when the save itself fails', async () => {
+    const p = await page(); p.ready()
+    p.request.mockRejectedValueOnce({ statusCode: 422, data: { code: 'invalid' } })
+    p.state.draft.bank_account_name = 'Liwan'
+    await p.state.submit()
+    expect(p.state.failure.value).toBeTruthy(); expect(p.state.saved.value).toBe(false); expect(p.state.busy.value).toBe(false)
   })
 })

@@ -851,7 +851,7 @@
         "value_date_in_future": "A transfer cannot have arrived after today. Enter the value date from the bank statement, today or earlier.",
         "value_date_before_invoice": "The value date is before this invoice was issued, so the money cannot be for it. Check the invoice date and the statement line.",
         "invalid_transfer_reference": "Enter the transfer reference from the bank statement: at least 3 and at most 200 characters.",
-        "invalid_transfer_amount": "Enter the amount as a whole number of the invoice's minor units, with no sign and no fractions.",
+        "invalid_transfer_amount": "Enter the amount in riyals as a decimal number, such as 123.45, with no sign and at most two decimals.",
         "invalid_transfer_reason": "The reason must be between 3 and 1000 characters.",
         "invoice_not_paid": "Only a paid invoice can be refunded. This invoice is still issued or void, so there is no payment to return.",
         "refund_already_requested": "A refund note already exists for this invoice. Record its provider reference from the invoice's adjustments list instead of opening a second one.",
@@ -859,7 +859,7 @@
           "storage_step_misaligned": "The storage steps do not line up: the threshold must be a multiple of the small step, and the large step must not be smaller than it.",
           "trial_on_free_plan": "A plan that costs nothing cannot offer a trial: a free customer has no payment to make, and the trial would only end in a past-due state.",
         "onboarding_first_order_only": "The onboarding fee applies to a paid first order only. Take the change or renewal without it, and record it as a separate order if it is due.",
-        "onboarding_unavailable": "This plan has no onboarding fee configured. Add the fee and its price to the plan before quoting onboarding.",
+        "onboarding_unavailable": "No onboarding fee is set. Set it in Billing settings before quoting onboarding.",
         "catalog_source_not_publishable": "Only the current catalog source can be published. Rebuild the catalog from the release source, then validate and publish it again.",
         "tenant_required": "This subscription has no workspace linked yet, so the change cannot be reserved. Finish provisioning the workspace, then repeat the action."
       },
@@ -1200,6 +1200,10 @@
         "credit_note": "Credit note",
         "debit_note": "Debit note"
       },
+      "adjustmentOrigin": {
+        "vendor": "Requested from the console",
+        "system": "Raised by the system"
+      },
       "adjustmentStatus": {
         "pending": "Pending refund",
         "applied": "Applied",
@@ -1214,6 +1218,9 @@
         "confirmHint": "The amount must match the invoice total, and the reference cannot be used twice.",
         "reference": "Transfer reference",
         "amount": "Amount received",
+        "amountHint": "In riyals, with at most two decimals, such as 123.45.",
+        "amountInvalid": "Enter the amount as a number in riyals, such as 123.45, with no sign or letters.",
+        "amountDecimals": "A riyal amount has at most two decimals. Enter the exact amount received, without rounding.",
         "valueDate": "Value date"
       },
       "refund": {
@@ -1231,6 +1238,15 @@
         "eligibilityRefundable": "This payment is refundable until {date}.",
         "windowClosed": "The {days}-day refund window has closed; this payment is no longer refundable.",
         "notFirstPayment": "Only the customer's first payment is refundable; this is a later payment.",
+        "alreadyRequested": "A refund was already requested for this invoice. Its credit note is listed under adjustments.",
+        "request": {
+          "title": "Refund request",
+          "hint": "When the customer asks for their money back inside the refund window, request the refund here. It opens a credit note for the whole invoice; this step refunds nothing.",
+          "action": "Request refund",
+          "confirmTitle": "Request a full refund of this invoice",
+          "confirmHint": "This opens a pending credit note for the invoice total. Refund the customer in the payment provider's dashboard, then record the provider's reference on the note.",
+          "confirm": "Request refund"
+        },
         "errors": {
           "credit_note_not_pending": "This credit note is no longer pending. The page shows its current state.",
           "refund_reference_in_use": "This refund reference is already recorded on another credit note.",
