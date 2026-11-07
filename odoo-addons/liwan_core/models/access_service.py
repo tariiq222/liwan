@@ -841,6 +841,49 @@ class LiwanAccessService(models.AbstractModel):
         return user
 
     @api.model
+    def _liwan_reset_second_step(self, user, expected_version=None):
+        """Administrator reset: drop USER's sign-in codes and every remembered device, and audit it.
+
+        The user then signs in again with their password and a fresh code on a new device.
+        """
+        user = self._liwan_locked_target(user, expected_version, 'access.users.disable')
+        user.lock_for_update(allow_referencing=True)
+        self._liwan_codes()._liwan_revoke_user(user)
+        self._liwan_devices()._liwan_revoke_user(user)
+        self.env['liwan.access.audit']._liwan_log(
+            'user.second_step_reset', user, before=None, after={'devices_revoked': True},
+        )
+        user._liwan_bump_record_versions()
+        return user
+
+    @api.model
+    def _liwan_forget_devices(self, user, keep=None):
+        """The account holder (or an administrator of the user) revokes remembered devices, keeping one."""
+        if user != self.env.user:
+            self._liwan_require_capability('access.users.disable')
+            self._liwan_assert_user_scope(user)
+        self._liwan_devices()._liwan_revoke_user(user, keep=keep)
+        return user
+
+    @api.model
+    def _liwan_codes(self):
+        """The sign-in code table: system-only (``access_login_code_system``), reached only from here."""
+        return self.env['liwan.login.code'].sudo()
+
+    @api.model
+    def _liwan_devices(self):
+        """The remembered-device table: system-only (``access_login_device_system``), reached only from here."""
+        return self.env['liwan.login.device'].sudo()
+
+    @api.model
+    def _liwan_remembered_devices(self, user):
+        """The ids of USER's usable remembered devices, newest first."""
+        return self._liwan_devices().search([
+            ('user_id', '=', user.id), ('revoked_at', '=', False),
+            ('expires_at', '>', fields.Datetime.now()),
+        ]).ids
+
+    @api.model
     def _liwan_send_reset_link(self, user, expected_version):
         user = self._liwan_locked_target(user, expected_version, 'access.users.reset_password')
         if not user.active:

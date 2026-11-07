@@ -18,6 +18,7 @@ LINK_PATHS = {'invite': '/join', 'reset': '/reset-password'}
 SUBJECTS = {
     'invite': 'دعوة للانضمام إلى ليوان | Invitation to join LiwanOS',
     'reset': 'إعادة تعيين كلمة المرور | Reset your LiwanOS password',
+    'login_code': 'رمز الدخول إلى ليوان | Your LiwanOS sign-in code',
 }
 LINES = {
     'invite': (
@@ -78,6 +79,57 @@ class LiwanAccountMail(models.AbstractModel):
             # The message and the link are never logged: only the row id and the error class.
             _logger.warning('account link mail row %s not delivered: %s', token_id, type(error).__name__)
             self._liwan_mark_failed(registry, token_id)
+
+    @api.model
+    def _liwan_send_code(self, recipient, body):
+        """Queue one sign-in code message for RECIPIENT, on its own cursor after the commit.
+
+        Like an account link, the message body only lives in this thread's arguments: a code is
+        never stored, logged or returned by the issuing route.
+        """
+        deliver_args = (self.env.registry, recipient, body)
+
+        def start_delivery():
+            threading.Thread(
+                target=self._liwan_deliver_code, args=deliver_args, name='liwan-login-code', daemon=True,
+            ).start()
+
+        self.env.cr.postcommit.add(start_delivery)
+
+    @api.model
+    def _liwan_deliver_code(self, registry, recipient, body):
+        """Send one code message on its own cursor; a failure is logged without the code or the address."""
+        try:
+            with registry.cursor() as cr:
+                env = api.Environment(cr, SUPERUSER_ID, {})
+                env['ir.mail_server'].send_email(self._liwan_code_message(env, recipient, body))
+        except Exception as error:  # noqa: BLE001 - a thread must not die silently, whatever the cause
+            _logger.warning('login code mail not delivered: %s', type(error).__name__)
+
+    @api.model
+    def _liwan_code_message(self, env, recipient, body):
+        sender = env['ir.config_parameter'].get_param('mail.default.from') or config.get('email_from')
+        if not sender or '@' not in sender:
+            msg = 'no sender address is configured (mail.default.from)'
+            raise ValueError(msg)
+        ar, _, en = body.partition('\n')
+        text = f'{ar}\n{en}\n'
+        html = (
+            '<div dir="rtl" style="font-family:sans-serif"><p>'
+            f'{escape(ar)}</p></div>'
+            '<hr/>'
+            '<div dir="ltr" style="font-family:sans-serif"><p>'
+            f'{escape(en)}</p></div>'
+        )
+        message = EmailMessage(policy=email.policy.SMTP)
+        message['Message-Id'] = make_msgid()
+        message['Subject'] = SUBJECTS['login_code']
+        message['From'] = sender
+        message['To'] = recipient
+        message['Date'] = formatdate()
+        message.set_content(text, charset='utf-8')
+        message.add_alternative(html, subtype='html', charset='utf-8')
+        return message
 
     @api.model
     def _liwan_link(self, base_url, purpose, raw_token):
