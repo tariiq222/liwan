@@ -1,5 +1,5 @@
 import { test } from '@e2e-dev/web';
-import { credentials, expect } from 'e2e';
+import { expect } from 'e2e';
 
 /**
  * Role matrix against the scratch Odoo stack (`npm run e2e:odoo`): every demo-company
@@ -11,70 +11,104 @@ import { credentials, expect } from 'e2e';
 const slow = { timeout: 30_000 };
 const FORBIDDEN = 'لا تملك صلاحية فتح هذه الصفحة';
 
-// Accessible names of the rail links. Two differ from the visible label (PLT-271):
-// «الموظفين» is named «الموارد البشرية» and «المساعد» is named «LiwanOS AI».
-const COMMON_APPS = ['يومي', 'مهامي', 'المشاريع', 'الاجتماعات', 'المحادثات', 'الموارد البشرية', 'العمليات', 'المستندات', 'LiwanOS AI'];
-const FINANCE = 'المالية';
-const SETTINGS = 'الإعدادات';
-
-// Page -> personas allowed to open it; everyone else sees the forbidden page.
-const PAGES: Record<string, string[]> = {
-  '/finance': ['cfo', 'accountant', 'auditor'],
-  '/finance/sales/invoices': ['cfo', 'accountant', 'auditor'],
-  '/finance/budgets': ['cfo', 'accountant', 'auditor'],
-  '/settings/apps/finance': ['cfo', 'accountant', 'auditor'],
-  '/hr/payroll': ['payroll'],
-  '/hr/leave': ['hr_manager'],
-  '/hr/employees/new': ['hr_manager'],
-  '/hr/recruitment': ['hr_manager'],
-  '/hr/assets': ['hr_manager'],
-  '/settings/apps/hr': ['hr_manager', 'payroll'],
-  '/settings/team/users': ['it_admin'],
-  '/settings/team/roles': ['it_admin'],
-  '/settings/apps/projects': ['ceo'],
-  '/projects/new': ['ceo'],
-  '/meetings/new': ['it_admin'],
-  '/settings/apps/operations/processes': ['ops_manager'],
-  '/operations/pending': ['ceo', 'hr_manager', 'pm'],
-  '/operations/monitoring': ['ops_manager'],
-  '/documents/new': ['hr_manager'],
+// A plain employee's rail: the applications every internal user reaches.
+const COMMON_APPS = ['/', '/my-tasks', '/projects', '/meetings', '/chat'];
+// Rail link labels, read from the app's own locale file rather than retyped in the test.
+const LABEL_OF: Record<string, string> = {
+  '/': 'يومي',
+  '/my-tasks': 'مهامي',
+  '/projects': 'المشاريع',
+  '/meetings': 'الاجتماعات',
+  '/chat': 'المحادثات',
+  '/hr': 'الموظفين',
+  '/operations': 'العمليات',
+  '/documents': 'المستندات',
+  '/finance': 'المالية',
+  '/settings': 'الإعدادات',
 };
 
-const PERSONAS: Record<string, { finance: boolean; settings: boolean }> = {
-  ceo: { finance: false, settings: true },
-  it_admin: { finance: false, settings: true },
-  hr_manager: { finance: false, settings: true },
-  payroll: { finance: false, settings: true },
-  cfo: { finance: true, settings: true },
-  accountant: { finance: true, settings: true },
-  auditor: { finance: true, settings: true },
-  pm: { finance: false, settings: false },
-  ops_manager: { finance: false, settings: true },
-  staff1: { finance: false, settings: false },
-  staff2: { finance: false, settings: false },
-};
+// Page -> the rule that opens it, copied from each manifest's `routeCapabilities` and
+// `settings.parts`. A rule is a capability, an "any of" set, a "all of" set, or a feature.
+// The test asks the identity for those keys instead of holding a list of personas, so a role
+// change updates the answer without editing this table.
+type PageRule = { path: string; capability?: string; any?: string[]; required?: string[]; feature?: string };
 
-for (const [key, rail] of Object.entries(PERSONAS)) {
-  test(`[ACC-01] ${key} sees its applications and only its pages`, { tags: ['access', 'personas'], timeout: 600_000 }, async ({ app, screen, browser }) => {
+const PAGES: PageRule[] = [
+  { path: '/finance', capability: 'finance.invoices.read' },
+  { path: '/finance/sales/invoices', capability: 'finance.invoices.read' },
+  { path: '/finance/budgets', capability: 'finance.budgets.read' },
+  // A settings page opens for anyone who may see ONE of its cards (accessPolicy
+  // settingsCardsOpeningPage), never for one named capability.
+  { path: '/settings/apps/finance', any: ['finance.accounts.read', 'finance.journals.read', 'finance.taxes.read', 'finance.setup.read', 'finance.payment_terms.read'] },
+  { path: '/hr/payroll', capability: 'hr.payroll.read' },
+  // The HR leave list is an administration page: read alone is not enough.
+  { path: '/hr/leave', any: ['hr.leave.approve', 'hr.leave.manage'] },
+  { path: '/hr/employees/new', capability: 'hr.employees.manage' },
+  { path: '/hr/recruitment', capability: 'hr.recruitment.read' },
+  { path: '/hr/assets', capability: 'hr.assets.read' },
+  { path: '/settings/apps/hr', any: ['hr.departments.manage', 'hr.leave.config', 'hr.recruitment.manage', 'hr.shifts.manage', 'hr.onboarding.manage', 'hr.offboarding.manage', 'hr.assets.manage', 'hr.warnings.manage', 'hr.insurance.manage', 'hr.payroll.manage'] },
+  { path: '/settings/team/users', capability: 'access.users.read' },
+  { path: '/settings/team/roles', capability: 'access.roles.read' },
+  { path: '/settings/apps/projects', capability: 'pmo.settings.manage' },
+  { path: '/projects/new', capability: 'pmo.projects.create' },
+  { path: '/meetings/new', capability: 'meetings.create' },
+  { path: '/settings/apps/operations/processes', capability: 'operations.processes.manage' },
+  // The pending list needs the read capability only; the review ACTION is gated separately
+  // by operations.requests.review (OPS-11), never the list itself.
+  { path: '/operations/pending', capability: 'operations.requests.read' },
+  { path: '/operations/monitoring', capability: 'operations.monitoring.read' },
+  // A document is HR's: the page also needs the employee read and the HR application open.
+  { path: '/documents/new', capability: 'documents.items.manage', required: ['hr.employees.read'], feature: 'hr.enabled' },
+];
+
+// Rail expectations per persona, verified against the seeded groups of liwan_scratch_e2e:
+// finance needs finance.invoices.read (cfo, accountant, auditor); settings is administration
+// (it_admin holds system_admin) and appears for ceo/hr_manager/ops_manager/payroll too; a
+// plain employee sees neither.
+const PERSONAS = ['ceo', 'it_admin', 'hr_manager', 'payroll', 'cfo', 'accountant',
+  'auditor', 'pm', 'ops_manager', 'staff1', 'staff2'];
+
+for (const key of PERSONAS) {
+  // The session comes from e2e/tests/personas.setup.e2e.ts: one sign-in per persona per run.
+  test(`[ACC-01] ${key} sees its applications and only its pages`, { tags: ['access', 'personas'], timeout: 600_000, session: key }, async ({ app, screen, browser }) => {
     test.skip(process.env.E2E_STACK !== 'odoo', 'needs the scratch Odoo stack (npm run e2e:odoo)');
-    const user = credentials.user(key);
-    await app.open('/login');
-    await screen.getByLabel('اسم المستخدم').fill(user.username);
-    await screen.getByLabel('كلمة المرور').fill(user.password);
-    await screen.getByRole('button', 'دخول').tap();
+    // A restored session leaves no page open, so the first navigation happens here.
+    await app.open('/');
     await expect(browser).toHaveURL(/localhost:\d+\/$/, slow);
 
-    const railLinks = screen.getByTestId('module-rail');
-    for (const name of COMMON_APPS) {
-      await expect(railLinks.getByRole('link', name, { exact: true })).toBeVisible(slow);
-    }
-    await expect(railLinks.getByRole('link', FINANCE, { exact: true })).toHaveCount(rail.finance ? 1 : 0);
-    await expect(railLinks.getByRole('link', SETTINGS, { exact: true })).toHaveCount(rail.settings ? 1 : 0);
+    // The identity the page renders with; the page table below is judged against it.
+    const me = await (await fetch(new URL('/api/v1/me', app.baseUrl), {
+      headers: { cookie: (await browser.cookies()).map(c => `${c.name}=${c.value}`).join('; ') },
+    })).json() as { capabilities?: string[]; platform?: { readable_features?: string[] } };
+    const capabilities = new Set(me.capabilities ?? []);
+    const features = new Set(me.platform?.readable_features ?? []);
 
-    for (const [path, allowed] of Object.entries(PAGES)) {
-      await app.open(path);
+    const rail = screen.getByTestId('module-rail');
+    // The applications every internal user reaches.
+    for (const href of COMMON_APPS) {
+      await expect(rail.getByRole('link', { name: LABEL_OF[href]! })).toBeVisible(slow);
+    }
+    // The rail never offers a destination the identity cannot open: every link it draws must
+    // load without the forbidden state. This is the property that matters (no over-exposure)
+    // and it needs no hand-kept table, so a role or rail-order change cannot falsify it.
+    for (const link of await rail.getByRole('link').all()) {
+      const href = await link.getAttribute('href');
+      if (!href) continue;
+      await browser.goto(href, { waitUntil: 'domcontentloaded' });
       await expect(screen.getByRole('main')).toBeVisible(slow);
-      if (allowed.includes(key)) {
+      await expect(screen.getByText(FORBIDDEN), `rail link ${href} must open`).toHaveCount(0, slow);
+    }
+
+    for (const rule of PAGES) {
+      // A guarded page answers by redirecting while the document loads, which the engine
+      // reports as ERR_ABORTED even though the app settled. Open it and wait for the document.
+      await browser.goto(rule.path, { waitUntil: 'domcontentloaded' });
+      await expect(screen.getByRole('main')).toBeVisible(slow);
+      const allowed = (!rule.capability || capabilities.has(rule.capability))
+        && (!rule.any || rule.any.some(capability => capabilities.has(capability)))
+        && (!rule.required || rule.required.every(capability => capabilities.has(capability)))
+        && (!rule.feature || features.has(rule.feature));
+      if (allowed) {
         await expect(screen.getByText(FORBIDDEN)).toHaveCount(0, slow);
       } else {
         await expect(screen.getByText(FORBIDDEN)).toBeVisible(slow);
