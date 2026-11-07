@@ -2,8 +2,11 @@ import { currentReleaseWrite } from './releaseRouting'
 import { timingSafeEqual } from 'node:crypto'
 import { isIP } from 'node:net'
 import { createError, getHeader, type H3Event } from 'h3'
-import { readTenantRegistry } from './tenantRegistry'
-import { resolveTenantHost } from './tenantHostResolver'
+import { readTenantRegistrySnapshot, type TenantRegistrySnapshot } from './tenantRegistry'
+import type { TenantHostTarget } from './tenantHostResolver'
+
+// Weak ownership bounds retention to live requests; no identity/registry TTL crosses calls.
+const snapshots = new WeakMap<H3Event, { snapshot: TenantRegistrySnapshot; tenant: Readonly<TenantHostTarget> }>()
 
 export function tenantRequest(event: H3Event) {
   const mode = process.env.LIWAN_TENANCY_MODE ?? 'dedicated'
@@ -25,9 +28,15 @@ export function tenantRequest(event: H3Event) {
     const supplied = getHeader(event, 'x-liwan-proxy-token') ?? ''
     if (token.length < 32 || Buffer.byteLength(token) !== Buffer.byteLength(supplied) || !timingSafeEqual(Buffer.from(token), Buffer.from(supplied))) throw Error()
     const host = getHeader(event, 'host')
-    const tenant = resolveTenantHost(host, readTenantRegistry(process.env.LIWAN_TENANT_REGISTRY_PATH ?? '').targets)
-    if (getHeader(event, 'x-liwan-tenant-revision') !== String(tenant.registryRevision)) throw Error()
-    return { ...tenant, host: host! }
+    const previous = snapshots.get(event)
+    const snapshot = readTenantRegistrySnapshot(process.env.LIWAN_TENANT_REGISTRY_PATH ?? '', previous?.snapshot)
+    const tenant = typeof host === 'string' && /^[\x00-\x7F]*$/.test(host) ? snapshot.hosts[host.toLowerCase()] : undefined
+    if (!tenant?.enabled || getHeader(event, 'x-liwan-tenant-revision') !== String(tenant.registryRevision)) throw Error()
+    // A request never changes its tenant binding, even if configuration is replaced
+    // while it waits. A new request may adopt the new, fully published revision.
+    if (previous && (previous.snapshot.path !== snapshot.path || Object.keys(previous.tenant).some(key => previous.tenant[key as keyof TenantHostTarget] !== tenant[key as keyof TenantHostTarget]))) throw Error()
+    snapshots.set(event, { snapshot, tenant })
+    return { tenantId: tenant.tenantId, database: tenant.database, filestore: tenant.filestore, registryRevision: tenant.registryRevision, host: host! }
   } catch { throw createError({ statusCode: 403, message: 'tenant_boundary_rejected' }) }
 }
 export function tenantUpstreamHeaders(event: H3Event): Record<string, string> {

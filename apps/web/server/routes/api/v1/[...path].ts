@@ -1,6 +1,6 @@
-import { createError, getProxyRequestHeaders, sendWebResponse, setResponseHeader } from 'h3'
+import { createError, getHeader, getProxyRequestHeaders, sendWebResponse, setResponseHeader } from 'h3'
 import { boundedTenantBody, MAX_PUBLIC_HOOK_BODY, MAX_PUBLIC_MFA_BODY, tenantTransport, legacyTenantResponse, withTenantBody, withTenantResponse } from '../../../utils/tenantTransport'
-import { withUiLocale } from '../../../utils/uiLocale'
+import { uiLocaleHeaders, withUiLocale } from '../../../utils/uiLocale'
 import { tenantUpstreamHeaders } from '../../../utils/tenantRequest'
 import { requireApiSession } from '../../../utils/apiSessionAdmission'
 import { canonicalApiPath } from '../../../utils/apiPath'
@@ -43,7 +43,26 @@ export default defineEventHandler(async (event) => {
     setResponseHeader(event, 'connection', 'close')
     throw createError({ statusCode: 405, data: { code: 'method_not_allowed', message: 'This endpoint does not support the request method.' } })
   }
-  if (!publicMethods) await requireApiSession(event, odooUrl, headers)
+  // Reuse only a plain GET /me owned by this cold request. Conditional/query/HEAD
+  // requests still dispatch with their original semantics after admission.
+  const reuseIdentity = event.method === 'GET' && path === '/api/v1/me' && !getHeader(event, 'if-none-match') && !getHeader(event, 'if-modified-since') && !getHeader(event, 'range')
+  const identityHeaders: Record<string, string> | undefined = reuseIdentity ? (Object.keys(headers).length
+    ? { cookie: getHeader(event, 'cookie') ?? '', ...uiLocaleHeaders(event) }
+    : withUiLocale(event, getProxyRequestHeaders(event, { host: false }))) : undefined
+  // A probe never receives browser hop-by-hop headers or a body length.
+  if (identityHeaders) {
+    const nominated = (identityHeaders.connection ?? '').toLowerCase().split(',').map(name => name.trim())
+    for (const name of ['host', 'content-length', 'connection', 'keep-alive', 'proxy-connection', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade', ...nominated]) delete identityHeaders[name]
+  }
+  const identity = !publicMethods ? await requireApiSession(event, odooUrl, headers, identityHeaders) : undefined
+  if (identity) {
+    // The tenant may have been disabled while the probe waited. Do not send even
+    // its own response after the request's publication/revision boundary changed.
+    return withTenantResponse(event, 'session', async () => {
+      tenantUpstreamHeaders(event)
+      return sendWebResponse(event, identity)
+    })
+  }
   // Body credits are separate from Odoo work slots and retained through dispatch.
   // Public routes skip session admission, so they draw on the separate public pool.
   // Allowlisted heavy routes (never public) get their own pool, a longer deadline and, for writes, a write gate.

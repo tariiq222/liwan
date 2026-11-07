@@ -1,5 +1,6 @@
 import { assertPublicMutationOrigin, pickCheckBody } from '../../utils/invitation-accept'
 import { customerControlBase } from '../../utils/customer-commercial'
+import { boundedTenantBody, withTenantBody } from '../../utils/tenantTransport'
 
 // Public, read-only pre-check for the invitation page. Answers {usable} and nothing else: an unknown,
 // malformed, expired, used or revoked token all give usable:false, so it reveals what accept already would.
@@ -10,9 +11,10 @@ export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'cache-control', 'no-store')
   assertPublicMutationOrigin(event, config)
   const base = customerControlBase(config)
-  if (Number(getHeader(event, 'content-length') ?? 0) > 2 * 1024) throw createError({ statusCode: 413, data: { code: 'payload_too_large', message: 'Request body is too large' } })
+  // Bound chunked uploads before parsing, separately from the effect's own deadline.
+  const raw = await withTenantBody(event, 'public', () => boundedTenantBody(event, 2 * 1024))
   let parsed: unknown
-  try { parsed = JSON.parse((await readRawBody(event, 'utf8')) ?? '') } catch { parsed = null }
+  try { parsed = JSON.parse(raw?.toString('utf8') ?? '') } catch { parsed = null }
   const body = pickCheckBody(parsed)
   if (!body) return { usable: false }
   try {

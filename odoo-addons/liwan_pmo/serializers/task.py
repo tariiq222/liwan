@@ -234,7 +234,7 @@ def dump_task_detail(task, today=None):
         'planning_enabled': planning,
         'can_manage_dependencies': bool(planning and task._liwan_can_manage_dependencies()),
         'created_at': iso(task.create_date),
-        'updated_at': iso(task.write_date),
+        'updated_at': iso(task.write_date, timespec='microseconds'),
         'planned_start': fields.Date.to_string(task.liwan_planned_start) if planning and task.liwan_planned_start else None,
         'milestone': _milestone_ref(task.milestone_id) if planning and task.milestone_id else None,
         'completion_pending': bool(task.liwan_completion_pending),

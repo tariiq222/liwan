@@ -13,7 +13,7 @@ vi.mock('@tanstack/vue-query', async original => ({
 
 const link = { id: 42, token: 'tok-42' }
 
-type QueryOptions = { queryKey: { value: unknown }; enabled?: { value: boolean }; queryFn: () => Promise<unknown>; retry: boolean; staleTime?: number }
+type QueryOptions = { queryKey: { value: unknown }; enabled?: { value: boolean }; queryFn: (context: { queryKey: unknown; signal: AbortSignal }) => Promise<unknown>; retry: boolean; staleTime?: number }
 
 function readBooking(params: Record<string, string>, query: Record<string, unknown>) {
   vi.stubGlobal('useRoute', () => ({ params, query }))
@@ -35,8 +35,9 @@ describe('useGuestBooking', () => {
     expect(booking.staleTime).toBe(Infinity)
     expect(booking.queryKey.value).toEqual(bookingKeys.record(link))
     mocks.api.mockResolvedValue({})
-    await booking.queryFn().catch(() => undefined)
-    expect(mocks.api).toHaveBeenCalledWith('/api/v1/public/appointments/bookings/42', { query: { access_token: 'tok-42' }, schema: AppointmentPublicBookingSchema })
+    const signal = new AbortController().signal
+    await booking.queryFn({ queryKey: booking.queryKey.value, signal })
+    expect(mocks.api).toHaveBeenCalledWith('/api/v1/public/appointments/bookings/42', { query: { access_token: 'tok-42' }, signal, schema: AppointmentPublicBookingSchema })
   })
 
   it('makes no request for an address without a usable id or token', () => {
@@ -61,9 +62,11 @@ describe('useGuestSlots', () => {
     expect(slots.retry).toBe(false)
     expect(slots.queryKey.value).toEqual(bookingKeys.slots(link, '2026-10-30', '2026-11-05'))
     mocks.api.mockResolvedValue({})
-    await slots.queryFn().catch(() => undefined)
+    const signal = new AbortController().signal
+    await slots.queryFn({ queryKey: slots.queryKey.value, signal })
     expect(mocks.api).toHaveBeenCalledWith('/api/v1/public/appointments/bookings/42/slots', {
       query: { access_token: 'tok-42', from: '2026-10-30', to: '2026-11-05' },
+      signal,
       schema: AppointmentSlotListSchema,
     })
   })

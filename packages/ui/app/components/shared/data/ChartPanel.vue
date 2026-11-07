@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useIntersectionObserver, useEventListener } from '@vueuse/core'
 import SaduLoader from '../feedback/SaduLoader.vue'
 
 // One chart on a dashboard (Tasmim Plan 4): a titled card whose body is the chart in
@@ -11,6 +12,8 @@ import SaduLoader from '../feedback/SaduLoader.vue'
 // (a CSS length) for a chart that needs its own height prop. The title is a panel title (text-sm, DESIGN.md heading ladder).
 const CHART_HEIGHT = { sm: '224px', md: '300px', lg: '360px' } as const
 const props = withDefaults(defineProps<{
+  /** Mount expensive chart contents on first visibility, preserving their height. */
+  defer?: boolean
   title: string
   description?: string
   loading?: boolean
@@ -19,12 +22,25 @@ const props = withDefaults(defineProps<{
   span?: 'half' | 'full'
   size?: keyof typeof CHART_HEIGHT
 }>(), {
+  defer: false,
   loading: false,
   empty: false,
   span: 'half',
   size: 'md',
 })
 const { t } = useI18n()
+const chartHost = ref<HTMLElement | null>(null)
+const activated = ref(!props.defer)
+if (props.defer) {
+  const { isSupported, stop } = useIntersectionObserver(chartHost, (entries) => {
+    if (!entries.some(entry => entry.isIntersecting)) return
+    activated.value = true
+    stop()
+  })
+  // A browser without IntersectionObserver must still get the complete chart.
+  onMounted(() => { if (!isSupported.value) activated.value = true })
+  useEventListener('beforeprint', () => { activated.value = true })
+}
 const titleId = useId()
 const emptyLine = computed(() => props.emptyText?.trim() || t('states.chartEmpty'))
 const height = computed(() => CHART_HEIGHT[props.size])
@@ -47,8 +63,8 @@ const height = computed(() => CHART_HEIGHT[props.size])
       <SaduLoader />
     </div>
     <p v-else-if="props.empty" class="flex items-center justify-center text-center text-sm text-muted" :style="{ minHeight: height }">{{ emptyLine }}</p>
-    <div v-else class="min-w-0">
-      <slot :height="height" />
+    <div v-else ref="chartHost" class="min-w-0" :style="{ minHeight: props.defer ? height : undefined }">
+      <slot v-if="activated" :height="height" />
     </div>
   </UCard>
 </template>

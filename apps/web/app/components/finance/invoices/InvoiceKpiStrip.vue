@@ -1,24 +1,19 @@
 <script setup lang="ts">
-import { useFinanceInvoiceList } from '@/composables/finance/useFinanceInvoices'
+import { useFinanceInvoiceSummary } from '@/composables/finance/useFinanceKpis'
 import type { FinanceMoveType } from './invoiceKinds'
-import { invoiceKpiParams, invoiceKpiTiles, type InvoiceKpiCounts, type InvoiceListFilters } from './invoiceListParams'
+import { invoiceSummaryParams, invoiceKpiTiles, type InvoiceKpiCounts, type InvoiceListFilters } from './invoiceListParams'
 
-// The counts above a document list: every figure is the total the server reports for the list's own filters
-// (the state filter excepted: each tile picks its state), asked for with one row, never counted from the loaded page.
 const props = defineProps<{ moveType: FinanceMoveType; filters: InvoiceListFilters }>()
 const { t } = useI18n()
-const total = useFinanceInvoiceList(() => invoiceKpiParams(props.moveType, props.filters, null))
-const draft = useFinanceInvoiceList(() => invoiceKpiParams(props.moveType, props.filters, 'draft'))
-const posted = useFinanceInvoiceList(() => invoiceKpiParams(props.moveType, props.filters, 'posted'))
-const cancelled = useFinanceInvoiceList(() => invoiceKpiParams(props.moveType, props.filters, 'cancel'))
+const summary = useFinanceInvoiceSummary(() => invoiceSummaryParams(props.moveType, props.filters))
 const counts = computed<InvoiceKpiCounts>(() => ({
-  total: total.data.value?.total,
-  draft: draft.data.value?.total,
-  posted: posted.data.value?.total,
-  cancel: cancelled.data.value?.total,
+  total: summary.data.value?.total,
+  draft: summary.data.value?.draft,
+  posted: summary.data.value?.posted,
+  cancel: summary.data.value?.cancel,
 }))
 const tiles = computed(() => invoiceKpiTiles(counts.value, id => t(`financeDocuments.kpi.${id}`)))
-const loading = computed(() => Object.values(counts.value).some(count => count === undefined))
+const loading = computed(() => summary.data.value === undefined)
 </script>
 
 <template>

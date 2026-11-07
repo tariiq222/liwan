@@ -3,7 +3,13 @@ from odoo import http
 from odoo.exceptions import MissingError
 from odoo.http import request
 
-from .common import list_page, parse_choice, parse_day, require_capability
+from .common import (
+    list_page,
+    parse_choice,
+    parse_day,
+    require_capability,
+    state_summary,
+)
 from .write_support import attempt, company_records
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
@@ -160,6 +166,17 @@ def _require_distinct_cost_centers(budget, values, line=None):
             )
 
 
+def _budgets_domain(args, *, include_state=True):
+    domain = [('company_id', 'in', request.env.companies.ids)]
+    state = parse_choice(args.get('state'), request.env[BUDGET_MODEL]._fields['state'].get_values(request.env), 'state')
+    if state and include_state:
+        domain.append(('state', '=', state))
+    query = (args.get('q') or '').strip()
+    if query:
+        domain.append(('name', 'ilike', query))
+    return domain
+
+
 class FinanceBudgetController(http.Controller):
     """Budgets by account over OCA mis_builder_budget, and budget versus actual."""
 
@@ -169,15 +186,16 @@ class FinanceBudgetController(http.Controller):
     def list_budgets(self, **_):
         """Budgets of the current company, filtered by ``state`` and ``q`` (the name)."""
         require_capability('finance.budgets.read')
+        return list_page(BUDGET_MODEL, _budgets_domain(request.httprequest.args), dump_budgets)
+
+    @http.route('/api/v1/finance/budgets/summary', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('finance.enabled', operation='read')
+    def summary_budgets(self, **_):
+        """All tile counts for the list filters, independently of its selected state and page."""
+        require_capability('finance.budgets.read')
         args = request.httprequest.args
-        domain = [('company_id', 'in', request.env.companies.ids)]
-        state = parse_choice(args.get('state'), request.env[BUDGET_MODEL]._fields['state'].get_values(request.env), 'state')
-        if state:
-            domain.append(('state', '=', state))
-        query = (args.get('q') or '').strip()
-        if query:
-            domain.append(('name', 'ilike', query))
-        return list_page(BUDGET_MODEL, domain, dump_budgets)
+        return state_summary(BUDGET_MODEL, _budgets_domain(args, include_state=False), ('draft', 'confirmed', 'cancelled'))
 
     @http.route('/api/v1/finance/budgets/<int:budget_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

@@ -20,7 +20,7 @@ withDefaults(defineProps<{
 </script>
 
 <template>
-  <SharedChartPanel :data-testid="testId" :title="title" :description="description" :loading="loading" :empty="!hasData" :empty-text="emptyText" :span="span" :size="size">
+  <SharedChartPanel defer :data-testid="testId" :title="title" :description="description" :loading="loading" :empty="!hasData" :empty-text="emptyText" :span="span" :size="size">
     <template #default="{ height }">
       <DashboardChart :chart="chart" :variant="variant" :accessible-label="title" :height="height" />
     </template>

@@ -271,6 +271,7 @@ export * from './partners'
 export * from './report'
 export * from './setup'
 export * from './statements'
+export * from './summary'
 export * from './write'
 export * from './zatca'
 

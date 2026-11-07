@@ -1,6 +1,6 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
 import { enterFoundation } from './support/uxFoundations'
-import { fakeApi } from './support/myTaskApi'
+import { fakeApi, test } from './support/myTaskApi'
 
 test.describe.configure({ timeout: 40_000 })
 

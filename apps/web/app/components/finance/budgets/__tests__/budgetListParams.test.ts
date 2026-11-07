@@ -3,7 +3,7 @@ import {
   BUDGET_PAGE_SIZE,
   budgetActiveFilterCount,
   budgetFiltersFromQuery,
-  budgetKpiParams,
+  budgetSummaryParams,
   budgetKpiTiles,
   budgetListParams,
 } from '../budgetListParams'
@@ -27,10 +27,9 @@ describe('budget list params', () => {
     expect(budgetListParams(filters)).toEqual({ state: 'draft', q: 'x', limit: BUDGET_PAGE_SIZE, offset: BUDGET_PAGE_SIZE })
   })
 
-  it('a KPI count keeps the list filters, swaps the state and asks for one row', () => {
+  it('the summary keeps search while excluding selected state and pagination', () => {
     const filters = budgetFiltersFromQuery({ state: 'draft', q: 'x', page: '4' })
-    expect(budgetKpiParams(filters, 'confirmed')).toEqual({ state: 'confirmed', q: 'x', limit: 1, offset: 0 })
-    expect(budgetKpiParams(filters, null)).toEqual({ q: 'x', limit: 1, offset: 0 })
+    expect(budgetSummaryParams(filters)).toEqual({ q: 'x' })
   })
 
   it('has one tile per state after the total, empty until the server answers', () => {

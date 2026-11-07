@@ -9,6 +9,7 @@ import { ApiError } from '@/composables/useApi'
 import type { TaskListParams } from '@/composables/useTasks'
 import { useTasks, useTransitionTask, useUpdateTask } from '@/composables/useTasks'
 import { badgeLabel } from '@liwan/ui/app/utils/statusBadge'
+import { useBoardPagination } from '@/composables/useBoardPagination'
 import { usePersonalStages } from '@/composables/usePersonalStages'
 import TaskCard from './TaskCard.vue'
 import EmptyState from '@liwan/ui/app/components/shared/feedback/EmptyState.vue'
@@ -48,11 +49,8 @@ const { mutate: transitionTask } = useTransitionTask()
 
 const allItems = computed<Task[]>(() => data.value?.pages.flatMap((page) => page.items) ?? [])
 
-watchEffect(() => {
-  if (!isLoading.value && hasNextPage.value && !isFetchingNextPage.value && allItems.value.length < CAP) {
-    fetchNextPage()
-  }
-})
+useBoardPagination({ loading: isLoading, fetching: isFetchingNextPage, error, more: hasNextPage,
+  count: computed(() => allItems.value.length), cap: CAP, fetch: fetchNextPage })
 
 const isCapped = computed(() => isBoardCapped(allItems.value.length, CAP, hasNextPage.value))
 const items = computed(() => allItems.value.slice(0, CAP))

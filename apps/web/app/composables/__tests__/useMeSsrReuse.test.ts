@@ -100,6 +100,19 @@ describe('useMe with installed Nuxt SSR async-data behavior', () => {
     } finally { stop() }
   })
 
+  it('global passive observers never start private identity before a route requests it', async () => {
+    let requests = 0
+    const app = runtime(true, () => { requests++; return identity() })
+    const api = subject(true)
+    const passive = api.inApp(app, () => api.useMe({ immediate: false }))
+    await passive.ready
+    expect(requests).toBe(0)
+    const active = api.inApp(app, () => api.useMe())
+    await active.ready
+    expect(requests).toBe(1)
+    expect(passive.me.value.id).toBe(5)
+  })
+
   it.each([true, false])('passive identity observation does not fetch until explicit refresh (server=%s)', async server => {
     let requests = 0
     const app = runtime(server, () => { requests++; return identity() })

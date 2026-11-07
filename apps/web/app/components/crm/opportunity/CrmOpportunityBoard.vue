@@ -9,6 +9,8 @@ import { isCallDue } from '@/utils/crmOpportunity'
 // is shown in a "no stage" column so none disappears. Moving a record is done on its page, not by dragging.
 const props = defineProps<{ stages: CrmStage[]; items: CrmOpportunity[]; to: (opportunity: CrmOpportunity) => RouteLocationRaw; now?: number }>()
 const { t } = useI18n()
+const { me } = useMe()
+const timeZone = computed(() => me.value?.tz || 'UTC')
 const clock = computed(() => props.now ?? Date.now())
 
 interface Column { key: string; title: string; items: CrmOpportunity[] }
@@ -38,7 +40,7 @@ const columns = computed<Column[]>(() => {
           <UBadge v-else color="neutral" variant="subtle" class="rounded-full">{{ t('crm.opportunities.tag.pool') }}</UBadge>
           <UBadge v-if="item.needs_manager" color="warning" variant="subtle" class="rounded-full">{{ t('crm.opportunities.tag.needsManager') }}</UBadge>
           <UBadge v-else-if="isCallDue(item, clock)" color="warning" variant="subtle" class="rounded-full">{{ t('crm.opportunities.tag.due') }}</UBadge>
-          <time v-else-if="item.next_call_at" :datetime="item.next_call_at">{{ formatDateTime(item.next_call_at) }}</time>
+          <time v-else-if="item.next_call_at" :datetime="item.next_call_at">{{ formatDateTime(item.next_call_at, timeZone) }}</time>
         </span>
         </NuxtLink>
         <CrmCallButton :phone="item.phone" :name="item.contact_name" class="absolute end-2 top-2" />

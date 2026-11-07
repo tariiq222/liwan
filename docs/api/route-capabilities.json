@@ -1568,6 +1568,20 @@
       "handler": "list_assets",
       "no_capability_reason": null
     },
+    "GET /api/v1/finance/assets/summary": {
+      "addon": "liwan_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.assets.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "summary_assets",
+      "no_capability_reason": null
+    },
     "GET /api/v1/finance/assets/{asset_id}": {
       "addon": "liwan_finance",
       "auth": "user",
@@ -1666,6 +1680,20 @@
       "handler": "list_budgets",
       "no_capability_reason": null
     },
+    "GET /api/v1/finance/budgets/summary": {
+      "addon": "liwan_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.budgets.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "summary_budgets",
+      "no_capability_reason": null
+    },
     "GET /api/v1/finance/budgets/{budget_id}": {
       "addon": "liwan_finance",
       "auth": "user",
@@ -1716,6 +1744,20 @@
         "finance.enabled"
       ],
       "handler": "list_entries",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/finance/entries/summary": {
+      "addon": "liwan_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.entries.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "summary_entries",
       "no_capability_reason": null
     },
     "GET /api/v1/finance/entries/{entry_id}": {
@@ -1772,6 +1814,20 @@
         "finance.enabled"
       ],
       "handler": "list_invoices",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/finance/invoices/summary": {
+      "addon": "liwan_finance",
+      "auth": "user",
+      "capability_keys": [
+        "finance.invoices.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [
+        "finance.enabled"
+      ],
+      "handler": "summary_invoices",
       "no_capability_reason": null
     },
     "GET /api/v1/finance/invoices/{invoice_id}": {

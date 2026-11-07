@@ -3,7 +3,7 @@ import {
   ASSET_PAGE_SIZE,
   assetActiveFilterCount,
   assetFiltersFromQuery,
-  assetKpiParams,
+  assetSummaryParams,
   assetKpiTiles,
   assetListParams,
 } from '../assetListParams'
@@ -34,9 +34,12 @@ describe('asset list params', () => {
 describe('KPI params and tiles', () => {
   const filters = assetFiltersFromQuery({ state: 'close', profile_id: '9', page: '4', q: 'abc' })
 
-  it('keeps the list filters, forces the tile state and asks for one row', () => {
-    expect(assetKpiParams(filters, 'draft')).toEqual({ state: 'draft', profile_id: 9, q: 'abc', limit: 1, offset: 0 })
-    expect(assetKpiParams(filters, null)).toEqual({ profile_id: 9, q: 'abc', limit: 1, offset: 0 })
+  it('keeps meaningful filters while excluding selected state and pagination', () => {
+    const params = assetSummaryParams(filters)
+    expect(params).not.toHaveProperty('state')
+    expect(params).not.toHaveProperty('limit')
+    expect(params).not.toHaveProperty('offset')
+    expect(params).toEqual({ profile_id: 9, q: 'abc' })
   })
 
   it('draws all, draft, running and closed tiles from the server counts', () => {

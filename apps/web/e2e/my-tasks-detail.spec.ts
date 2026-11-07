@@ -1,5 +1,5 @@
-import { fakeApi, login } from './support/myTaskApi'
-import { expect as baseExpect, test, type Locator, type Page } from '@playwright/test'
+import { fakeApi, login, test } from './support/myTaskApi'
+import { expect as baseExpect, type Locator, type Page } from '@playwright/test'
 
 // Isolated stack only: not in ci-mock-specs.txt because the shared mock's /me does not know the tasks
 // application. Run it behind the wrapper e2e/my-tasks-mock.mjs (see docs/testing.md):
@@ -167,7 +167,7 @@ test('attachments: upload, download link, delete only after the inline confirmat
   await section.locator('input[type=file]').setInputFiles({ name: 'ملاحظات.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') })
   const link = section.getByRole('link', { name: 'ملاحظات.txt' })
   await expect(link).toBeVisible()
-  await expect(link).toHaveAttribute('href', /\/web\/content\//)
+  await expect(link).toHaveAttribute('href', '/api/v1/my-tasks/7/attachments/100/download')
   await expect(section).toContainText('مرفق واحد')
   const upload = api.writes()[0]!
   expect(upload.path).toBe('/7/attachments')

@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import { clearRenderedQueryCache } from './helpers/queryClient'
+import { waitForTaskListReady } from './helpers/taskListReady'
 
 // The product owner's acceptance gate for the navigation refactor. A passing
 // unit-test count proves none of this: every assertion here drives the running
@@ -38,6 +39,7 @@ test.describe('a list returns to where the reader left it', () => {
   test('cold: an emptied cache and a delayed list still land on the offset', async ({ page }) => {
     await page.goto('/tasks')
     await expect(page.locator('tbody tr').first()).toBeVisible()
+    await waitForTaskListReady(page)
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight)).toBeGreaterThan(LEAVE_AT + 768)
     await page.evaluate(top => window.scrollTo(0, top), LEAVE_AT)
     await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBe(LEAVE_AT)

@@ -44,6 +44,7 @@ export function useMe(options: { immediate?: boolean } = {}) {
     key: 'me',
     headers,
     immediate: options.immediate !== false && initialMe === undefined,
+    retry: 0,
     dedupe: import.meta.server ? 'defer' : 'cancel',
     // 401 = not logged in: the request still errors, and `me` resolves to null below.
     transform: (raw) => (raw ? MeSchema.parse(raw) : null),

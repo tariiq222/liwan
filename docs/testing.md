@@ -355,9 +355,9 @@ desktop and mobile screenshots of `/ai` and the open disclosure at 375px.
 
 ### Running the my-tasks specs
 
-`e2e/my-tasks-*.spec.ts` (list, new, detail) are not in `ci-mock-specs.txt`: the shared mock's `/me` does
-not know the tasks app, and the SSR route guard fetches `/me` on the server where `page.route` cannot
-reach. All three run through one wrapper, `e2e/my-tasks-mock.mjs`, behind one flag, `E2E_MY_TASKS=1`. The
+The standalone list, new and detail specs use `e2e/my-tasks-mock.mjs`, behind the flag `E2E_MY_TASKS=1`.
+The shared audit mock's module-preview profile also includes task capabilities. Both paths supply
+first-paint reads on the server, while `page.route` handles browser requests. The
 wrapper listens on `MOCK_PORT`, starts the audit mock on `MOCK_PORT + 1000` (the upstream), adds the tasks
 capabilities to `GET /api/v1/me`, and answers the first-paint reads of `/my-tasks/<id>` (the task, its
 comments and attachments, and `convert-targets`) from `e2e/my-tasks-fixtures.mjs`, because the server
@@ -375,6 +375,14 @@ E2E_MY_TASKS=1 E2E_BASE_URL=http://localhost:4401 npx playwright test e2e/my-tas
 
 Warm `nuxt dev` (open `/login` once) before the first run: a cold compile can time out the login.
 The specs use 60s test and 15s expect timeouts for a loaded machine.
+
+The CI personal-task journey and account-invitation specs use `e2e/ssr-fixture.ts` to install
+session-scoped first-paint data in the ordinary audit mock. Specs that install these fixtures import
+its extended `test`, whose automatic fixture deletes each session's data after the test, including
+when several spec files reuse one worker. Browser mutations synchronize confirmed successful writes
+with the server snapshot, so a hard refresh sees the same record. The shared mock and dedicated
+wrapper reuse `myTaskFixtureRead` from `e2e/my-tasks-fixtures.mjs`; their list fixtures retain their
+respective contexts, and unknown record IDs return 404.
 
 ## 4. Agentic e2e
 

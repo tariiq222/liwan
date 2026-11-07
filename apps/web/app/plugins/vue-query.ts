@@ -3,7 +3,7 @@ import { createSessionQueryScope, sessionQueryScopeKey, type SessionQueryOwner }
 import { clearChatDrafts } from '@/utils/chatDrafts'
 import { sessionIdentityKey, isPossibleSessionExpiry } from '@/utils/sessionExpiry'
 import { clearTenantSuspension, dropToastsWhileSuspended, isTenantSuspended, onTenantSuspension, SUSPENDED_LOGIN } from '@/utils/tenantSuspension'
-import { restoreDehydratedErrors, serializeDehydratedErrors, settleServerQueries, type SerializedDehydratedState } from '@/lib/vueQuerySsr'
+import { restoreDehydratedErrors, serializeDehydratedErrors, settleServerQueries, retryQuery, isTransientQueryError, type SerializedDehydratedState } from '@/lib/vueQuerySsr'
 
 // Bus and access refresh depend on this app-local owner scope.
 export default defineNuxtPlugin({
@@ -49,7 +49,7 @@ export default defineNuxtPlugin({
     }
 
     const queryScope = createSessionQueryScope(generation => new QueryClient({
-      defaultOptions: { queries: { staleTime: 5_000, retry: (failureCount, error) => error?.name !== 'AbortError' && failureCount < 1, refetchOnWindowFocus: true, retryOnMount: import.meta.server || !nuxt.isHydrating } },
+      defaultOptions: { queries: { staleTime: 5_000, retry: retryQuery, refetchOnWindowFocus: true, retryOnMount: import.meta.server || !nuxt.isHydrating } },
       queryCache: new QueryCache({ onError: error => onMaybeExpiredSession(generation, error) }),
       mutationCache: new MutationCache({ onError: error => onMaybeExpiredSession(generation, error) }),
     }), sessionIdentityKey(identity?.ownershipIdentity.value), router.currentRoute.value.meta.access === 'public' || router.currentRoute.value.meta.access === 'guest')
@@ -75,6 +75,7 @@ export default defineNuxtPlugin({
         await queryClient.refetchQueries({
           type: 'active',
           predicate: query => query.state.status === 'error'
+            && isTransientQueryError(query.state.error)
             && query.state.fetchStatus === 'idle'
             && query.observers.some(({ options }) => options.retryOnMount !== false
               && (typeof options.enabled === 'function' ? options.enabled(query) : options.enabled) !== false),

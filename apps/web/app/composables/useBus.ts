@@ -1,8 +1,10 @@
 import { ref, type Ref } from 'vue'
 import { useQueryClient } from '@tanstack/vue-query'
 import { CHAT_TYPING_MS } from '../utils/chatState'
-import { taskKeys } from './useTasks'
-import { invalidateProjectCaches } from './projectKeys'
+import { clearTaskWriteAcknowledgements, reconcileTaskWriteEvent, taskKeys } from './useTasks'
+import type { Task } from '@liwan/contracts'
+import { isTaskDependentProjectKey } from './projectKeys'
+import { inboxEventAffectsQuery } from './inbox/inboxEventQueries'
 
 export interface BusNotification {
   id: number
@@ -195,23 +197,120 @@ async function resolveWorkerVersion(crossOrigin: boolean): Promise<string> {
   return FALLBACK_WEBSOCKET_WORKER_VERSION
 }
 
+function invalidateTaskIds(client: ReturnType<typeof useQueryClient>, ids: number[], associationUnknown: boolean) {
+  for (const id of ids) {
+    client.invalidateQueries({ queryKey: taskKeys.detail(id) })
+  }
+  client.invalidateQueries({ queryKey: ['tasks', 'list'] })
+  client.invalidateQueries({ queryKey: ['tasks', 'summary'] })
+  client.invalidateQueries({ queryKey: ['tasks', 'attention'] })
+  const projectIds = new Set<number>()
+  let unknownProject = associationUnknown
+  for (const id of ids) {
+    const task = client.getQueryData<Task>(taskKeys.detail(id))
+      ?? client.getQueriesData<{ pages: { items: Task[] }[] }>({ queryKey: ['tasks', 'list'] }).flatMap(([, data]) => data?.pages.flatMap(p => p.items) ?? []).find(t => t.id === id)
+    if (!task) unknownProject = true
+    else if (task.project) projectIds.add(task.project.id)
+  }
+  // A task event cannot change followers, project settings, or project updates.
+  // Unknown/new tasks still refresh all aggregates so counts remain accurate.
+  client.invalidateQueries({ queryKey: ['projects'], predicate: q => isTaskDependentProjectKey(q.queryKey, unknownProject ? undefined : projectIds) })
+}
+
+async function invalidateTaskEvents(client: ReturnType<typeof useQueryClient>, notifications: BusNotification[], ownGeneration: number) {
+  const taskEvents = notifications.filter(n => n.message?.type === 'liwan/task' && typeof n.message.payload?.id === 'number')
+  if (!taskEvents.length) return
+  for (const id of collectTaskIds(taskEvents)) void client.invalidateQueries({ queryKey: taskKeys.timeline(id) })
+  // Duplicate identical notifications in one frame consume a local acknowledgement once.
+  const unique = [...new Map(taskEvents.map(n => [JSON.stringify(n.message.payload), n])).values()]
+  // An operator can move tasks or their parent between projects. Mixed/unknown
+  // origins lose that metadata, so a cached old project cannot safely scope them.
+  const unknownAssociations = new Set(taskEvents.filter(({ message: { payload } }) => payload.source !== 'write'
+    || !Array.isArray(payload.changed_fields) || !payload.changed_fields.length
+    || payload.changed_fields.some((field: unknown) => typeof field !== 'string' || field === 'project_id' || field === 'parent_id'))
+    .map(notification => notification.message.payload.id))
+  const readyIds = new Set<number>()
+  let queued = false
+  const refresh = (id: number) => {
+    readyIds.add(id)
+    if (queued) return
+    queued = true
+    queueMicrotask(() => {
+      queued = false
+      const ids = [...readyIds]
+      readyIds.clear()
+      if (ownGeneration === generation && client === queryClient) invalidateTaskIds(client, ids, ids.some(id => unknownAssociations.has(id)))
+    })
+  }
+  // A waiting local operation must not delay unrelated task events from the same frame.
+  await Promise.all(unique.map(async notification => {
+    if (!await reconcileTaskWriteEvent(client, notification.message.payload)) refresh(notification.message.payload.id)
+  }))
+}
+
 function invalidateForFrame(notifications: BusNotification[]) {
   if (!queryClient) return
-  const ids = collectTaskIds(notifications)
-  if (ids.length) {
-    for (const id of ids) {
-      queryClient.invalidateQueries({ queryKey: taskKeys.detail(id) })
-      queryClient.invalidateQueries({ queryKey: taskKeys.timeline(id) })
+  void invalidateTaskEvents(queryClient, notifications, generation)
+  const durableChat = notifications.filter(n => n.message?.type === 'liwan/chat' && n.message.payload?.event !== 'typing')
+  const chatIds = new Set(collectChatIds(durableChat))
+  const inboxEvents = notifications.filter(n => n.message?.type === 'liwan/inbox')
+  const inboxIds = new Set(collectInboxIds(inboxEvents.filter(n => n.message.payload?.event !== 'template')))
+  const templateIds = new Set(collectInboxIds(inboxEvents.filter(n => n.message.payload?.event === 'template')))
+  if (!chatIds.size && !inboxIds.size && !templateIds.size) return
+  const messageIds = new Set(collectChatIds(durableChat.filter(n => !['read_updated', 'conversation_updated'].includes(n.message.payload?.event))))
+  const memberIds = new Set(collectChatIds(durableChat.filter(n => ['members_updated', 'conversation_left'].includes(n.message.payload?.event))))
+  const client = queryClient
+  const ownGeneration = generation
+  const filters = {
+    predicate: ({ queryKey: key, state }: { queryKey: readonly unknown[]; state: { data: unknown } }) => {
+      if (key[0] === 'chat' && chatIds.size) {
+        if (key[2] === 'list') return true
+        if (!chatIds.has(key[3] as number)) return false
+        if (key[2] === 'detail') return true
+        if (key[2] === 'members') return memberIds.has(key[3] as number)
+        return ['messages', 'attachments'].includes(key[2] as string) && messageIds.has(key[3] as number)
+      }
+      return inboxEventAffectsQuery(key, state.data, inboxIds, templateIds)
+    },
+    // Hidden tabs retain staleness and reconcile on return without doing background reads.
+    refetchType: typeof document !== 'undefined' && document.visibilityState === 'hidden' ? 'none' as const : 'active' as const,
+  }
+  // An event can land after an ongoing read took its snapshot. Share that read,
+  // then reconcile once instead of cancelling/restarting it for every frame.
+  // A hidden invalidation resolves immediately; wait for the snapshot itself so
+  // its success cannot clear the staleness needed when the tab becomes visible.
+  const inFlight = client.getQueryCache().findAll(filters).filter(q => q.state.fetchStatus === 'fetching' && !trailingReconciliations.has(q.queryHash))
+  const pendingReads = inFlight.map(query => query.promise)
+  inFlight.forEach(q => trailingReconciliations.add(q.queryHash))
+  void Promise.allSettled([client.invalidateQueries(filters, { cancelRefetch: false }), ...pendingReads]).then(() => {
+    for (const query of inFlight) {
+      trailingReconciliations.delete(query.queryHash)
+      if (ownGeneration !== generation || client !== queryClient) continue
+      void client.invalidateQueries({ queryKey: query.queryKey, exact: true, refetchType: typeof document !== 'undefined' && document.visibilityState === 'hidden' ? 'none' : 'active' }, { cancelRefetch: false })
     }
-    queryClient.invalidateQueries({ queryKey: ['tasks', 'list'] })
-    invalidateProjectCaches(queryClient)
-  }
-  if (collectChatIds(notifications).length) {
-    queryClient.invalidateQueries({ queryKey: ['chat'] })
-  }
-  if (collectInboxIds(notifications).length) {
-    queryClient.invalidateQueries({ queryKey: ['inbox'] })
-  }
+  })
+}
+
+const trailingReconciliations = new Set<string>()
+let pendingNotifications: BusNotification[] = []
+let invalidationQueued = false
+function enqueueInvalidation(notifications: BusNotification[]) {
+  pendingNotifications.push(...notifications)
+  if (invalidationQueued) return
+  invalidationQueued = true
+  const ownGeneration = generation
+  queueMicrotask(() => {
+    if (ownGeneration !== generation) return
+    invalidationQueued = false
+    const pending = pendingNotifications
+    pendingNotifications = []
+    if (ownGeneration === generation) invalidateForFrame(pending)
+  })
+}
+
+function reconcileVisibleQueries() {
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+  void queryClient?.refetchQueries({ stale: true, type: 'active', predicate: q => q.queryKey[0] === 'chat' || q.queryKey[0] === 'inbox' }, { cancelRefetch: false })
 }
 
 function handleMessage(event: MessageEvent) {
@@ -230,7 +329,7 @@ function handleMessage(event: MessageEvent) {
       isTyping: Boolean(payload.is_typing),
     })
   }
-  invalidateForFrame(notifications)
+  enqueueInvalidation(notifications)
 }
 
 function subscribe() {
@@ -261,6 +360,7 @@ async function connect() {
   clearReconnectTimer()
   if (stopped) return
   manuallyClosed = false
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', reconcileVisibleQueries)
   const myGeneration = ++generation
   const config = useRuntimeConfig()
   const configuredUrl = config.public.wsUrl as string
@@ -277,6 +377,7 @@ async function connect() {
     attempt = 0
     versionCloseStreak = 0
     subscribe()
+    reconcileVisibleQueries()
   }
   ws.onmessage = (event) => {
     if (myGeneration !== generation) return
@@ -308,6 +409,11 @@ async function connect() {
 
 function disconnect() {
   manuallyClosed = true
+  if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', reconcileVisibleQueries)
+  pendingNotifications = []
+  invalidationQueued = false
+  trailingReconciliations.clear()
+  if (queryClient) clearTaskWriteAcknowledgements(queryClient)
   generation++
   clearReconnectTimer()
   attempt = 0

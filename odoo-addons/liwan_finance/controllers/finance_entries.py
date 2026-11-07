@@ -4,7 +4,13 @@ from odoo.exceptions import MissingError
 from odoo.http import request
 
 from .analytic_support import distribution_values, require_plain_distributions
-from .common import filter_domain, list_page, parse_choice, require_capability
+from .common import (
+    filter_domain,
+    list_page,
+    parse_choice,
+    require_capability,
+    state_summary,
+)
 from .finance_partners import company_partners_domain
 from .idempotency import idempotent
 from .write_support import (
@@ -107,6 +113,19 @@ def _require_no_reconciliations(entry):
         )
 
 
+def _entries_domain(args, *, include_state=True):
+    domain = manual_entries_domain() + filter_domain(args, 'date')
+    state = parse_choice(args.get('state'), request.env['account.move']._fields['state'].get_values(request.env), 'state')
+    if state and include_state:
+        domain.append(('state', '=', state))
+    if args.get('journal_id'):
+        domain.append(('journal_id', '=', parse_positive_int(args['journal_id'], 'journal_id')))
+    query = (args.get('q') or '').strip()
+    if query:
+        domain += ['|', ('name', 'ilike', query), ('ref', 'ilike', query)]
+    return domain
+
+
 class FinanceEntryController(http.Controller):
 
     @http.route('/api/v1/finance/entries', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -114,17 +133,16 @@ class FinanceEntryController(http.Controller):
     @requires_feature('finance.enabled', operation='read')
     def list_entries(self, **_):
         require_capability('finance.entries.read')
+        return list_page('account.move', _entries_domain(request.httprequest.args), dump_entries)
+
+    @http.route('/api/v1/finance/entries/summary', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('finance.enabled', operation='read')
+    def summary_entries(self, **_):
+        """All tile counts for the list filters, independently of its selected state and page."""
+        require_capability('finance.entries.read')
         args = request.httprequest.args
-        domain = manual_entries_domain() + filter_domain(args, 'date')
-        state = parse_choice(args.get('state'), request.env['account.move']._fields['state'].get_values(request.env), 'state')
-        if state:
-            domain.append(('state', '=', state))
-        if args.get('journal_id'):
-            domain.append(('journal_id', '=', parse_positive_int(args['journal_id'], 'journal_id')))
-        query = (args.get('q') or '').strip()
-        if query:
-            domain += ['|', ('name', 'ilike', query), ('ref', 'ilike', query)]
-        return list_page('account.move', domain, dump_entries)
+        return state_summary('account.move', _entries_domain(args, include_state=False), ('draft', 'posted', 'cancel'))
 
     @http.route('/api/v1/finance/entries/<int:entry_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

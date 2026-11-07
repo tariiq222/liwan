@@ -94,7 +94,7 @@ export function useApi() {
       const data = await $fetch<unknown>(path, {
         method: (opts.method ?? 'GET') as any,
         body: opts.body as any,
-        ...(writing ? { retry: 0 } : {}),
+        retry: 0,
         query: opts.query,
         signal: opts.signal,
         // Never forward a cookie or private hop identity to an absolute URL,
@@ -173,7 +173,7 @@ export function useApi() {
         responseType: 'blob',
         method: (opts.method ?? 'GET') as any,
         body: opts.body as any,
-        ...(opts.method && opts.method !== 'GET' ? { retry: 0 } : {}),
+        retry: 0,
         headers: /^\/api\/v1\/[a-zA-Z0-9_/-]+$/.test(path.split('?')[0] ?? '') && !path.includes('..') ? { ...headers, ...trustedHeaders } : {},
       })
       assertCurrentOwner(requestOwnerIsCurrent)

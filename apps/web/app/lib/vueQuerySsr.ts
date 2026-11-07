@@ -2,6 +2,16 @@ import { useQueryClient, type DehydratedState, type QueryClient } from '@tanstac
 import { onServerPrefetch } from 'vue'
 import { ApiError } from '../composables/useApi'
 
+/** Only transport failures have a bounded automatic recovery budget. */
+export function isTransientQueryError(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return false
+  return [0, 408, 425, 429, 500, 502, 503, 504].includes(error.status)
+}
+
+export function retryQuery(failureCount: number, error: unknown): boolean {
+  return failureCount < 1 && isTransientQueryError(error)
+}
+
 type DehydratedQuery = DehydratedState['queries'][number]
 export type SerializedDehydratedState = Omit<DehydratedState, 'queries'> & {
   queries: (Omit<DehydratedQuery, 'state'> & {

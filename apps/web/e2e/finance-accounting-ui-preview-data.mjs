@@ -1,8 +1,10 @@
+import { financeSummaryPreview } from './finance-summary-preview.mjs'
+
 // Finance accounting for the isolated mock (MODULE_UI_PREVIEW=1): manual journal entries in every state and a Saudi-style
 // chart of accounts (journals come from finance-documents-ui-preview-data.mjs). Reads only: the mock has no finance
 // write routes. Lists honour the filters the Odoo controllers support (entries: q, state, journal_id, date_from,
 // date_to, limit, offset; accounts: q, account_type, limit, offset), and `total` is the filtered count, so the KPI
-// strip's limit=1 requests report real totals.
+// strip summaries report real totals.
 const CURRENCY = 'SAR'
 const MISC = { id: 5, name: 'العمليات المتنوعة' }
 const ACME = { id: 1, name: 'شركة الأفق للتجارة' }
@@ -126,6 +128,7 @@ const recordId = (route, base) => {
 
 export function financeAccountingPreviewData(path, url) {
   const route = String(path || '/').replace(/\/+$/, '') || '/'
+  if (route === '/api/v1/finance/entries/summary') return financeSummaryPreview(filterEntries, url, ['draft', 'posted', 'cancel'])
   if (route === '/api/v1/finance/entries') return page(filterEntries(url).map(summary), url)
   if (route.startsWith('/api/v1/finance/entries/')) {
     const found = financeEntries.find(item => item.id === recordId(route, '/api/v1/finance/entries'))

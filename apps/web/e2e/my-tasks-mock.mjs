@@ -10,7 +10,7 @@ import http from 'node:http'
 import { createMyTasksPreview } from './my-tasks-preview-state.mjs'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { CONVERT_TARGETS, SSR_COMMENTS, SSR_LIST, SSR_TASKS } from './my-tasks-fixtures.mjs'
+import { myTaskFixtureRead } from './my-tasks-fixtures.mjs'
 
 const port = Number(process.env.MOCK_PORT ?? 4301)
 const upstream = port + 1000
@@ -39,19 +39,9 @@ function withTasks(me) {
 function serverRendered(req) {
   if (req.method !== 'GET') return null
   const url = new URL(req.url, 'http://localhost')
-  if (url.pathname === '/api/v1/my-tasks') {
-    const q = (url.searchParams.get('q') ?? '').trim().toLocaleLowerCase()
-    const rows = SSR_LIST.filter(row => (row.state !== 'open') === (url.searchParams.get('closed') === '1') && (!q || row.name.toLocaleLowerCase().includes(q)))
-    const offset = Number(url.searchParams.get('offset') ?? 0)
-    const limit = Number(url.searchParams.get('limit') ?? 50)
-    return { items: rows.slice(offset, offset + limit), total: rows.length }
-  }
-  if (req.url === '/api/v1/my-tasks/convert-targets') return { items: CONVERT_TARGETS, total: CONVERT_TARGETS.length }
-  const match = /^\/api\/v1\/my-tasks\/(\d+)(\/comments|\/attachments)?(?:\?.*)?$/.exec(req.url ?? '')
-  const task = match && SSR_TASKS[match[1]]
-  if (!task) return null
-  if (match[2] === '/comments') return { items: SSR_COMMENTS[match[1]] ?? [], total: (SSR_COMMENTS[match[1]] ?? []).length }
-  return match[2] ? { items: [], total: 0 } : task
+  // Scoped browser fakes keep confirmed mutations in the upstream session fixture.
+  if (url.pathname !== '/api/v1/my-tasks' && /(?:^|;\s*)session_id=liwan-ssr-/.test(req.headers.cookie ?? '')) return null
+  return myTaskFixtureRead(url, {}, true)
 }
 
 const preview = process.env.MY_TASKS_STATEFUL === '1' ? createMyTasksPreview() : null

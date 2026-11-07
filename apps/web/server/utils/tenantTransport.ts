@@ -215,6 +215,9 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
     releaseSlots = await acquireUpstream(cancellation.signal, options.heavy)
     // Cancellation can win after release grants this slot but before this continuation runs.
     if (cancellation.signal.aborted) throw failure()
+    // Admission may have waited across a registry disable/revision publication.
+    // Verify again at actual dispatch, rebuilding the trusted release envelope.
+    Object.assign(headers, tenantUpstreamHeaders(event))
     return await new Promise<Response>((resolve, reject) => {
     let settled = false
     const finish = (error?: Error, result?: Response) => {

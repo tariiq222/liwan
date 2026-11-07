@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useMediaQuery } from '@vueuse/core'
 import { useInboxProviderError } from '@/composables/inbox/inboxProviderError'
 import type { InboxChannelKind, InboxMessage } from '@liwan/contracts'
 import { useInboxMessages, useReactToInboxMessage, useRetryInboxMessage } from '@/composables/inbox/useInbox'
@@ -20,6 +21,23 @@ const { mutate: retry, isPending: retrying, variables: retryingId } = useRetryIn
 const { mutate: react } = useReactToInboxMessage(() => props.conversationId)
 const scroller = ref<HTMLElement | null>(null)
 const highlightedId = ref<number | null>(null)
+const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
+let disposed = false
+let quoteRequest = 0
+let highlightTimer: ReturnType<typeof setTimeout> | undefined
+const pendingLayouts = new Set<() => void>()
+function clearHighlight() {
+  if (highlightTimer !== undefined) clearTimeout(highlightTimer)
+  highlightTimer = undefined
+  highlightedId.value = null
+}
+watch(() => props.conversationId, () => { quoteRequest += 1; clearHighlight() }, { flush: 'sync' })
+onScopeDispose(() => {
+  disposed = true
+  quoteRequest += 1
+  clearHighlight()
+  for (const finish of pendingLayouts) finish()
+})
 const timeFormat = computed(() => new Intl.DateTimeFormat(locale.value, { hour: 'numeric', minute: '2-digit' }))
 const dayFormat = computed(() => new Intl.DateTimeFormat(locale.value, { weekday: 'long', day: 'numeric', month: 'long' }))
 
@@ -40,9 +58,14 @@ const rows = computed<Row[]>(() => {
 
 // Keep the newest message in view when one arrives, but leave the reading position alone while older ones load.
 const newestId = computed(() => items.value.at(-1)?.id)
-watch(newestId, async () => {
+watch(newestId, async (id) => {
+  const conversation = props.conversationId
   await nextTick()
-  scroller.value?.scrollTo({ top: scroller.value.scrollHeight })
+  const element = scroller.value
+  if (disposed || !element || props.conversationId !== conversation) return
+  element.scrollTo({ top: element.scrollHeight })
+  await afterMessageLayout()
+  if (!disposed && props.conversationId === conversation && scroller.value === element && newestId.value === id) element.scrollTo({ top: element.scrollHeight })
 }, { immediate: true, flush: 'post' })
 
 function loadOlder() {
@@ -66,10 +89,32 @@ function pickReaction(item: InboxMessage, emoji: string) {
   react({ messageId: item.id, emoji: item.reactions.agent === emoji ? '' : emoji }, { onError: e => toast.add({ title: e instanceof Error ? e.message : t('errors.generic'), color: 'error' }) })
 }
 // The quoted message is scrolled to and flashed when it is loaded; an older one that is not loaded stays a plain quote.
-function showQuoted(id: number) {
-  scroller.value?.querySelector(`[data-message-id="${id}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+// Native offscreen containment initially uses estimated row heights. One paint
+// resolves the revealed subtree; the following frame can align its real bounds.
+function afterMessageLayout() {
+  return new Promise<void>(resolve => {
+    let frame = requestAnimationFrame(() => { frame = requestAnimationFrame(finish) })
+    function finish() {
+      cancelAnimationFrame(frame)
+      pendingLayouts.delete(finish)
+      resolve()
+    }
+    pendingLayouts.add(finish)
+  })
+}
+async function showQuoted(id: number) {
+  const request = ++quoteRequest
+  const conversation = props.conversationId
+  clearHighlight()
+  const element = scroller.value
+  const target = element?.querySelector(`[data-message-id="${id}"]`)
+  if (disposed || !target) return
+  target.scrollIntoView({ block: 'center', behavior: 'instant' })
+  await afterMessageLayout()
+  if (disposed || props.conversationId !== conversation || request !== quoteRequest || scroller.value !== element || !element?.contains(target)) return
+  target.scrollIntoView({ block: 'center', behavior: reducedMotion.value ? 'instant' : 'smooth' })
   highlightedId.value = id
-  setTimeout(() => { if (highlightedId.value === id) highlightedId.value = null }, 1600)
+  highlightTimer = setTimeout(clearHighlight, 1600)
 }
 // A link such as /inbox/5?message=17 (from a form answer) scrolls to that message once it is loaded.
 const route = useRoute()
@@ -101,7 +146,7 @@ const deliveryLabel = (item: InboxMessage) => t(`inbox.delivery.${item.delivery_
             v-else
             :data-message-id="row.item.id"
             :data-direction="row.item.direction"
-            class="group flex max-w-[min(100%,28rem)] flex-col gap-1"
+            class="group flex max-w-[min(100%,28rem)] flex-col gap-1 supports-[(content-visibility:auto)_and_(contain-intrinsic-block-size:auto_1px)_and_(overflow-clip-margin:1px)]:[content-visibility:auto] [contain-intrinsic-block-size:auto_var(--liwan-row-h)] [overflow-clip-margin:var(--liwan-subcard-pad)] print:[content-visibility:visible]"
             :class="row.item.direction === 'out' ? 'ms-auto items-end' : row.item.direction === 'in' ? 'me-auto items-start' : 'w-full max-w-none items-stretch'"
           >
             <div

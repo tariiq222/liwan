@@ -1,4 +1,6 @@
 import { expect, type Page, type Route } from '@playwright/test'
+import { setSsrFixture } from '../ssr-fixture'
+export { test } from '../ssr-fixture'
 import { ADMIN, SARA, CONVERT_TARGETS, SSR_COMMENTS, SSR_TASKS, closedActions, openActions, personalTask } from '../my-tasks-fixtures.mjs'
 
 type Json = Record<string, any>
@@ -24,8 +26,15 @@ export async function fakeApi(page: Page, options: { convertHref?: string; write
   const rowsOf = (map: Map<number, Json[]>, id: number) => map.get(id) ?? map.set(id, []).get(id)!
   const calls: Call[] = []
   let nextId = 100
-  const reply = (route: Route, status: number, body: unknown) =>
-    route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
+  const sync = () => setSsrFixture(page, { myTasks: {
+    tasks: Object.fromEntries(tasks), comments: Object.fromEntries(commentRows), attachments: Object.fromEntries(attachmentRows),
+  } })
+  await sync()
+  const reply = async (route: Route, status: number, body: unknown) => {
+    // A subsequent hard refresh must see the same confirmed mutations as the browser fake.
+    if (route.request().method() !== 'GET' && status < 400) await sync()
+    return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
+  }
   const notFound = (route: Route) => reply(route, 404, { code: 'not_found', message: 'not found' })
 
   await page.route('**/api/v1/people**', route => reply(route, 200, PEOPLE))

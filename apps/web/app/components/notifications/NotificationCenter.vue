@@ -12,7 +12,7 @@ const hydrated = useHydrated()
 const open = ref(false)
 const route = useRoute()
 const { me } = useMe()
-const { data, isLoading, error, refetch, isFetching } = useNotifications()
+const { data, isLoading, error, refetch, isFetching } = useNotifications(hydrated)
 const { mutateAsync: markRead, isPending } = useMarkNotificationRead()
 // The API orders newest first (id desc), including read and unread records.
 const items = computed(() => data.value?.items.slice(0, 5) ?? [])

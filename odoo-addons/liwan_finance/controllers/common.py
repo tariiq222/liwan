@@ -67,6 +67,15 @@ def list_page(model, domain, dump_all):
     return {'items': dump_all(records), 'total': request.env[model].search_count(domain)}
 
 
+def state_summary(model, domain, states):
+    """Count authorized records once; emit only the declared tile keys, including zero matches."""
+    # Keep the list's pagination validation even though totals never use its window.
+    parse_page(request.httprequest.args)
+    groups = request.env[model]._read_group(domain, groupby=['state'], aggregates=['__count'])
+    counts = dict(groups)
+    return {'total': sum(counts.values()), **{state: counts.get(state, 0) for state in states}}
+
+
 def parse_period(args):
     """The required ``date_from`` and ``date_to`` query dates as ``(date_from, date_to)``."""
     days = {}

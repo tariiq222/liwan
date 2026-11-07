@@ -9,6 +9,7 @@ import {
   type FinanceCreditNoteCreate,
   type FinanceDebitNoteCreate,
   type FinanceInvoiceCreate,
+  type FinanceInvoiceDetail,
   type FinanceInvoicePatch,
 } from '@liwan/contracts'
 import type { InvoiceListParams } from '@/components/finance/invoices/invoiceListParams'
@@ -22,14 +23,14 @@ export const financeInvoiceKeys = {
 
 export type PartnerPickerKind = 'customer' | 'vendor' | 'any'
 
-/** One page of documents; the KPI counts ask for the same list with `limit=1` and read only its total. */
+/** One page of documents; the KPI counts come from the filtered summary endpoint. */
 export function useFinanceInvoiceList(params: MaybeRefOrGetter<InvoiceListParams>, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => financeInvoiceKeys.list(toValue(params))),
     enabled: computed(() => toValue(enabled)),
     placeholderData: keepPreviousData,
-    queryFn: () => $api('/api/v1/finance/invoices', { query: { ...toValue(params) }, schema: FinanceInvoiceListSchema }),
+    queryFn: ({ queryKey, signal }) => $api('/api/v1/finance/invoices', { query: { ...queryKey[3] }, signal, schema: FinanceInvoiceListSchema }),
   })
 }
 
@@ -38,7 +39,7 @@ export function useFinanceInvoice(id: MaybeRefOrGetter<number | null>) {
   return useQuery({
     queryKey: computed(() => financeInvoiceKeys.record(toValue(id) ?? 0)),
     enabled: computed(() => !!toValue(id)),
-    queryFn: () => $api(`/api/v1/finance/invoices/${toValue(id)}`, { schema: FinanceInvoiceDetailSchema }),
+    queryFn: ({ queryKey, signal }) => $api(`/api/v1/finance/invoices/${queryKey[3]}`, { signal, schema: FinanceInvoiceDetailSchema }),
   })
 }
 
@@ -48,7 +49,7 @@ export function useFinanceInvoicesByIds(ids: MaybeRefOrGetter<readonly number[]>
   return useQueries({
     queries: computed(() => toValue(ids).map(id => ({
       queryKey: financeInvoiceKeys.record(id),
-      queryFn: () => $api(`/api/v1/finance/invoices/${id}`, { schema: FinanceInvoiceDetailSchema }),
+      queryFn: ({ signal }: { signal: AbortSignal }) => $api(`/api/v1/finance/invoices/${id}`, { signal, schema: FinanceInvoiceDetailSchema }),
     }))),
     combine: results => ({
       records: results.flatMap(result => result.data ? [result.data] : []),
@@ -64,10 +65,11 @@ export function useFinancePartnerOptions(kind: MaybeRefOrGetter<PartnerPickerKin
   return useQuery({
     queryKey: computed(() => financeInvoiceKeys.partners(toValue(kind), toValue(q).trim())),
     placeholderData: keepPreviousData,
-    queryFn: () => {
-      const partnerKind = toValue(kind)
+    queryFn: ({ queryKey, signal }) => {
+      const partnerKind = queryKey[3]
       return $api('/api/v1/finance/partners', {
-        query: { ...(partnerKind === 'any' ? {} : { kind: partnerKind }), q: toValue(q).trim() || undefined, limit: 50 },
+        query: { ...(partnerKind === 'any' ? {} : { kind: partnerKind }), q: queryKey[4] || undefined, limit: 50 },
+        signal,
         schema: FinancePartnerListSchema,
       })
     },
@@ -81,16 +83,26 @@ export function useFinanceOpenInvoices(q: MaybeRefOrGetter<string>, enabled: May
     queryKey: computed(() => ['finance', 'invoices', 'open', toValue(q).trim()] as const),
     enabled: computed(() => toValue(enabled)),
     placeholderData: keepPreviousData,
-    queryFn: () => $api('/api/v1/finance/invoices', { query: { state: 'posted', q: toValue(q).trim() || undefined, limit: 50 }, schema: FinanceInvoiceListSchema }),
+    queryFn: ({ queryKey, signal }) => $api('/api/v1/finance/invoices', { query: { state: 'posted', q: queryKey[3] || undefined, limit: 50 }, signal, schema: FinanceInvoiceListSchema }),
   })
 }
 
-function useInvoiceWrite<T, R>(request: (input: T) => Promise<R>) {
+function useInvoiceWrite<T>(request: (input: T) => Promise<FinanceInvoiceDetail>, sourceId?: (input: T) => number) {
   const qc = useQueryClient()
+  const { me } = useMe()
+  const identity = () => me.value ? `${me.value.company.id}:${me.value.id}` : 'anonymous'
   return useMutation({
     mutationFn: request,
-    // A write waits for the server: every list, KPI count and record refreshes from the answer.
-    onSuccess: () => qc.invalidateQueries({ queryKey: financeInvoiceKeys.all }),
+    onMutate: () => identity(),
+    onSuccess: (detail, input, owner) => {
+      if (owner !== undefined && owner !== identity()) return
+      void qc.cancelQueries({ queryKey: financeInvoiceKeys.record(detail.id) })
+      qc.setQueryData(financeInvoiceKeys.record(detail.id), detail)
+      // Save completion follows the committed response; background reads cannot delay navigation.
+      void qc.invalidateQueries({ queryKey: financeInvoiceKeys.all, predicate: q => q.queryKey[2] !== 'record' })
+      const source = sourceId?.(input)
+      if (source && source !== detail.id) void qc.invalidateQueries({ queryKey: financeInvoiceKeys.record(source) })
+    },
   })
 }
 
@@ -106,7 +118,14 @@ export function usePatchFinanceInvoice() {
 
 export function useDeleteFinanceInvoice() {
   const { $api } = useApi()
-  return useInvoiceWrite((id: number) => $api(`/api/v1/finance/invoices/${id}`, { method: 'DELETE' }))
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => $api(`/api/v1/finance/invoices/${id}`, { method: 'DELETE' }),
+    onSuccess: (_answer, id) => {
+      qc.removeQueries({ queryKey: financeInvoiceKeys.record(id) })
+      void qc.invalidateQueries({ queryKey: financeInvoiceKeys.all, predicate: q => q.queryKey[2] !== 'record' })
+    },
+  })
 }
 
 export type FinanceInvoiceTransition = 'post' | 'cancel' | 'reset-to-draft'
@@ -120,13 +139,13 @@ export function useFinanceInvoiceTransition() {
 export function useCreateFinanceDebitNote() {
   const { $api } = useApi()
   return useInvoiceWrite(({ id, body }: { id: number; body: FinanceDebitNoteCreate }) =>
-    $api(`/api/v1/finance/invoices/${id}/debit-note`, { method: 'POST', body, schema: FinanceInvoiceDetailSchema }))
+    $api(`/api/v1/finance/invoices/${id}/debit-note`, { method: 'POST', body, schema: FinanceInvoiceDetailSchema }), input => input.id)
 }
 
 export function useCreateFinanceCreditNote() {
   const { $api } = useApi()
   return useInvoiceWrite(({ id, body }: { id: number; body: FinanceCreditNoteCreate }) =>
-    $api(`/api/v1/finance/invoices/${id}/credit-note`, { method: 'POST', body, schema: FinanceInvoiceDetailSchema }))
+    $api(`/api/v1/finance/invoices/${id}/credit-note`, { method: 'POST', body, schema: FinanceInvoiceDetailSchema }), input => input.id)
 }
 
 /** The submission answer is a committed state even when ZATCA says no: the caller reads the record again either way. */

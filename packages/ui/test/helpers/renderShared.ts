@@ -5,6 +5,7 @@ import { compileScript, parse } from '@vue/compiler-sfc'
 import { renderToString } from '@vue/server-renderer'
 import ts from 'typescript'
 import * as Vue from 'vue'
+import * as VueUse from '@vueuse/core'
 import * as brandMark from '../../app/utils/brandMark'
 
 const sharedRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../app/components/shared')
@@ -20,6 +21,8 @@ export function sharedFile(name: string): string {
 
 export interface SharedRenderOptions {
   hydrated?: boolean
+  /** Deterministic viewport for installed VueUse media queries in SSR fixtures. */
+  ssrWidth?: number
   /** Translations by key; a missing key renders as the key itself. `{name}` params are filled. */
   messages?: Record<string, string>
   /** The route path the component sees; the trail drops a step that links to it. */
@@ -94,6 +97,7 @@ export function loadShared(name: string, options: SharedRenderOptions = {}): Vue
   const require = (specifier: string): unknown => {
     if (specifier === 'vue') return Vue
     if (options.modules && specifier in options.modules) return options.modules[specifier]
+    if (specifier === '@vueuse/core') return VueUse
     // The mark geometry is plain data, shared by the logo and the Sadu loader.
     if (specifier === '../../../utils/brandMark') return brandMark
     const sibling = specifier.match(/^(?:\.\/|\.\.\/\w+\/|@\/components\/shared\/(?:\w+\/)?)([\w.]+)\.vue$/)
@@ -123,6 +127,7 @@ export async function renderShared(
   options: SharedRenderOptions = {},
 ): Promise<string> {
   const app = Vue.createSSRApp({ render: () => Vue.h(loadShared(name, options), props, slots) })
+  VueUse.provideSSRWidth(options.ssrWidth ?? 1280, app)
   app.config.globalProperties.$t = fakeT(options.messages) as never
   // Components the layer's own shared components draw through their auto-import name are compiled for real.
   const layerComponents = { SharedHeaderTags: loadShared('HeaderTags', options) }

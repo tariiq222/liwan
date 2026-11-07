@@ -57,3 +57,30 @@ export const SSR_LIST = [
   { id: 101, name: 'مهمة جارية', state: 'open', priority: 'normal', date_deadline: '2035-01-15T00:00:00Z',
     assignees: [ADMIN], source: 'project', project: { id: 1, name: 'مشروع ألفا' }, href: '/projects/1/tasks/101' },
 ]
+
+// First-paint reads shared by the ordinary audit mock and the dedicated wrapper.
+// List fixtures stay opt-in: ordinary audit specs depend on their existing rows.
+export function myTaskFixtureRead(url, state = {}, includeList = false) {
+  const tasks = state.tasks ?? SSR_TASKS
+  const comments = state.comments ?? SSR_COMMENTS
+  const attachments = state.attachments ?? {}
+  const path = url.pathname
+  if (includeList && path === '/api/v1/my-tasks') {
+    const q = (url.searchParams.get('q') ?? '').trim().toLocaleLowerCase()
+    const rows = SSR_LIST.filter(row => (row.state !== 'open') === (url.searchParams.get('closed') === '1') && (!q || row.name.toLocaleLowerCase().includes(q)))
+    const offset = Number(url.searchParams.get('offset') ?? 0)
+    const limit = Number(url.searchParams.get('limit') ?? 50)
+    return { items: rows.slice(offset, offset + limit), total: rows.length }
+  }
+  if (path === '/api/v1/my-tasks/convert-targets') {
+    const q = url.searchParams.get('q') ?? ''
+    const items = CONVERT_TARGETS.filter(project => project.name.includes(q))
+    return { items, total: items.length }
+  }
+  const match = /^\/api\/v1\/my-tasks\/(\d+)(?:\/(comments|attachments))?$/.exec(path)
+  const task = match && tasks[match[1]]
+  if (!task) return undefined
+  if (!match[2]) return task
+  const items = (match[2] === 'comments' ? comments : attachments)[match[1]] ?? []
+  return { items, total: items.length }
+}

@@ -1,5 +1,6 @@
 <script setup lang="ts" generic="T extends object">
 import type { TableColumn } from '@nuxt/ui'
+import { useMediaQuery } from '@vueuse/core'
 import type { RouteLocationRaw } from 'vue-router'
 import { useRowNavigation } from '../../../composables/useRowNavigation'
 import { clickedRowIndex, dataRowKey, headerContent, markSortHeaders, markTableRows, nextSortDirection, rowSelectionState, selectedFromRowSelection, type SortDirection, type TableSort } from '../../../utils/dataTable'
@@ -54,6 +55,10 @@ const emit = defineEmits<{ 'update:page': [page: number]; 'update:selected': [ke
 const slots = useSlots()
 const { t } = useI18n()
 const hydrated = useHydrated()
+// CSS selects the first-paint layout while both SSR trees hydrate identically.
+// Afterwards retain only the active representation, including after resize.
+const wide = useMediaQuery('(min-width: 768px)')
+const mobile = computed(() => !!slots['mobile-row'] && hydrated.value && !wide.value)
 const body = ref<HTMLElement | null>(null)
 const tableHost = ref<HTMLElement | null>(null)
 useRowNavigation(body)
@@ -128,6 +133,18 @@ function onClick(event: MouseEvent) {
 }
 
 watch(() => props.sort, markRows)
+// Restore focus only when hydration or resize removes the focused representation.
+watch([mobile, hydrated], async ([nextMobile]) => {
+  if (typeof document === 'undefined') return
+  const active = document.activeElement
+  const index = active && body.value?.contains(active)
+    ? active.closest('[data-row-index]')?.getAttribute('data-row-index') : null
+  if (index == null || nextMobile !== !!tableHost.value?.contains(active)) return
+  await nextTick()
+  markRows()
+  await nextTick()
+  body.value?.querySelector<HTMLElement>(`[data-row-index="${index}"]`)?.focus()
+})
 
 function clear() {
   emit('update:selected', [])
@@ -152,7 +169,7 @@ function clear() {
       <template v-if="$slots.emptyAction" #emptyAction><slot name="emptyAction" /></template>
       <div ref="body" data-slot="data-table-body" class="min-w-0" @click="onClick">
         <div :class="[props.bare ? '' : surfaceClass, densityClass]" :data-density="props.density">
-          <div ref="tableHost" class="overflow-x-auto" :class="{ 'hidden md:block': $slots['mobile-row'] }">
+          <div v-if="!mobile" ref="tableHost" class="overflow-x-auto" :class="{ 'hidden md:block': $slots['mobile-row'] && !hydrated }">
             <UTable
               v-model:row-selection="rowSelection"
               :data="props.rows"
@@ -207,8 +224,9 @@ function clear() {
             </UTable>
           </div>
           <ul
-            v-if="$slots['mobile-row']"
-            class="divide-y divide-default md:hidden"
+            v-if="$slots['mobile-row'] && (!hydrated || mobile)"
+            class="divide-y divide-default"
+            :class="{ 'md:hidden': !hydrated }"
             :aria-label="props.caption"
           >
             <li

@@ -3,7 +3,7 @@ from odoo import fields, http
 from odoo.exceptions import MissingError
 from odoo.http import request
 
-from .common import list_page, parse_choice, require_capability
+from .common import list_page, parse_choice, require_capability, state_summary
 from .finance_partners import company_partners_domain
 from .write_support import (
     attempt,
@@ -64,6 +64,19 @@ def _sync_acquisition_line(asset):
     })
 
 
+def _assets_domain(args, *, include_state=True):
+    domain = [('company_id', 'in', request.env.companies.ids)]
+    state = parse_choice(args.get('state'), request.env['account.asset']._fields['state'].get_values(request.env), 'state')
+    if state and include_state:
+        domain.append(('state', '=', state))
+    if args.get('profile_id'):
+        domain.append(('profile_id', '=', parse_positive_int(args['profile_id'], 'profile_id')))
+    query = (args.get('q') or '').strip()
+    if query:
+        domain += ['|', ('name', 'ilike', query), ('code', 'ilike', query)]
+    return domain
+
+
 class FinanceAssetController(http.Controller):
     """Fixed assets over OCA account_asset_management: the asset, its profile and the depreciation board."""
 
@@ -73,17 +86,16 @@ class FinanceAssetController(http.Controller):
     def list_assets(self, **_):
         """Fixed assets, filtered by ``state``, ``profile_id`` and ``q``."""
         require_capability('finance.assets.read')
+        return list_page('account.asset', _assets_domain(request.httprequest.args), dump_assets)
+
+    @http.route('/api/v1/finance/assets/summary', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('finance.enabled', operation='read')
+    def summary_assets(self, **_):
+        """All tile counts for the list filters, independently of its selected state and page."""
+        require_capability('finance.assets.read')
         args = request.httprequest.args
-        domain = [('company_id', 'in', request.env.companies.ids)]
-        state = parse_choice(args.get('state'), request.env['account.asset']._fields['state'].get_values(request.env), 'state')
-        if state:
-            domain.append(('state', '=', state))
-        if args.get('profile_id'):
-            domain.append(('profile_id', '=', parse_positive_int(args['profile_id'], 'profile_id')))
-        query = (args.get('q') or '').strip()
-        if query:
-            domain += ['|', ('name', 'ilike', query), ('code', 'ilike', query)]
-        return list_page('account.asset', domain, dump_assets)
+        return state_summary('account.asset', _assets_domain(args, include_state=False), ('draft', 'open', 'close'))
 
     @http.route('/api/v1/finance/assets/<int:asset_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

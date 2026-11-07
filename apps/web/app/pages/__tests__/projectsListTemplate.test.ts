@@ -11,7 +11,7 @@ describe('the projects list is one list card with an embedded filter row', () =>
   const page = read('pages/projects/index.vue')
 
   it('puts the filter bar in the card header, with the view switch inside it', () => {
-    for (const needle of ['<SharedListCard v-if="hydrated"', '<FilterBar embedded', 'views-in-filters', 'data-testid="projects-toolbar"']) expect(page, needle).toContain(needle)
+    for (const needle of ['<SharedListCard>', '<FilterBar embedded', 'views-in-filters', 'data-testid="projects-toolbar"']) expect(page, needle).toContain(needle)
   })
 
   it('draws no chip row, no bare toolbar div and no per-page result paragraph', () => {
@@ -38,7 +38,7 @@ describe('the projects list is one list card with an embedded filter row', () =>
 describe('the settings pages use the shared cards and states', () => {
   it('the catalog list is a list card with an embedded filter row and a row-actions menu', () => {
     const page = read('pages/settings/apps/projects/catalogs/[resource]/index.vue')
-    for (const needle of ['<SharedListCard v-if="hydrated"', '<FilterBar embedded', '<SharedDataTable\n          bare', '<SharedRowActions']) expect(page, needle).toContain(needle)
+    for (const needle of ['<SharedListCard>', '<FilterBar embedded', '<SharedDataTable\n          bare', '<SharedRowActions']) expect(page, needle).toContain(needle)
     expect(page).not.toContain('<UTabs')
   })
 

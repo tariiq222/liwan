@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { hashKey, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   TaskDetailSchema,
   TaskListSchema,
@@ -12,7 +12,7 @@ import {
 } from '@liwan/contracts'
 import { daysRemaining } from './taskState'
 import { ApiError } from './useApi'
-import { invalidateProjectCaches } from './projectKeys'
+import { invalidateProjectCaches, isTaskDependentProjectKey, projectKeys } from './projectKeys'
 import { taskAttributeQuery, type TaskAssignee, type TaskDeadline, type TaskPriority } from './taskFilterParams'
 
 export interface TaskListParams {
@@ -109,19 +109,24 @@ export function invalidateTaskLists(qc: { invalidateQueries: (filters: { queryKe
 
 export function useTasks(params: Ref<TaskListParams>) {
   const { $api } = useApi()
+  const qc = useQueryClient()
+  const { me } = useMe()
   return useInfiniteQuery({
     queryKey: computed(() => taskKeys.list(params.value)),
-    queryFn: ({ pageParam }) =>
-      $api('/api/v1/tasks', {
+    queryFn: async ({ pageParam, queryKey, signal }) => {
+      const page = await $api('/api/v1/tasks', {
         query: {
-          ...summaryQuery(params.value),
-          closed: params.value.closed ? 1 : 0,
-          sort: params.value.sort,
+          ...summaryQuery(queryKey[2]),
+          closed: queryKey[2].closed ? 1 : 0,
+          sort: queryKey[2].sort,
           limit: PAGE,
           offset: pageParam,
         },
+        signal,
         schema: TaskListSchema,
-      }),
+      })
+      return { ...page, items: page.items.map(row => pendingTask(qc, row, taskIdentity(me.value), queryKey)) }
+    },
     initialPageParam: 0,
     getNextPageParam: (last, pages) => {
       const loaded = pages.reduce((n, p) => n + p.items.length, 0)
@@ -135,55 +140,236 @@ export function useTaskSummary(params: Ref<TaskListParams>) {
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => taskKeys.summary(params.value)),
-    queryFn: () => $api('/api/v1/tasks/summary', { query: summaryQuery(params.value), schema: TaskSummarySchema }),
+    queryFn: ({ queryKey, signal }) => $api('/api/v1/tasks/summary', { query: queryKey[2], signal, schema: TaskSummarySchema }),
   })
 }
 
 export function useTask(id: Ref<number | null>) {
   const { $api } = useApi()
+  const qc = useQueryClient()
+  const { me } = useMe()
   return useQuery({
     queryKey: computed(() => taskKeys.detail(id.value ?? 0)),
     enabled: computed(() => !!id.value),
-    queryFn: () => $api(`/api/v1/tasks/${id.value}`, { schema: TaskDetailSchema }),
+    queryFn: async ({ queryKey, signal }) => pendingTask(qc, await $api(`/api/v1/tasks/${queryKey[2]}`, { signal, schema: TaskDetailSchema }), taskIdentity(me.value), queryKey, (edit, detail) => { edit.detail = detail }),
   })
 }
 
-// A failed update rolls the optimistic change back and tells the user why with a toast (the ApiError message).
-// A caller that shows the failure itself inline passes `notifyErrors: false` so it is not reported twice.
+type TaskPages = { pages: { items: Task[]; total: number }[]; pageParams?: unknown[] }
+type TaskLayer = { patch: TaskPatch; resolved?: Resolved; result?: TaskDetail; failed?: boolean; complete?: boolean; done: Promise<void>; finish: () => void; acknowledgements: TaskAcknowledgements }
+type TaskEdit = { owner: string; currentOwner: () => string; detail?: TaskDetail; rows: Map<string, [readonly unknown[], Task]>; layers: TaskLayer[] }
+const taskEdits = new WeakMap<object, Map<number, TaskEdit>>()
+const taskWrites = new WeakMap<object, Map<string, Promise<unknown>>>()
+
+// Only plain writes with fully covered cache effects may consume an exact bus acknowledgement.
+// This ledger is local to a QueryClient, bounded, and discarded when its socket/session closes.
+type TaskAcknowledgement = { id: number; revision: string; fields: Set<string>; owner: string; currentOwner: () => string }
+type TaskAcknowledgements = Map<string, TaskAcknowledgement>
+const taskAcknowledgements = new WeakMap<object, TaskAcknowledgements>()
+const PLAIN_TASK_FIELDS = new Set(['name', 'priority', 'date_deadline'])
+const PRECISE_TASK_REVISION = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/
+const ACKNOWLEDGEMENT_LIMIT = 128
+
+function plainTaskFields(patch: TaskPatch): Set<string> | null {
+  const fields = Object.keys(patch).filter(key => patch[key as keyof TaskPatch] !== undefined)
+  return fields.length && fields.every(field => PLAIN_TASK_FIELDS.has(field)) ? new Set(fields) : null
+}
+
+export function clearTaskWriteAcknowledgements(client: object): void {
+  taskAcknowledgements.delete(client)
+}
+
+/** A detail GET is deliberately insufficient: only a completed local mutation registers here. */
+export async function reconcileTaskWriteEvent(client: object, payload: Record<string, unknown>): Promise<boolean> {
+  if (typeof payload.id !== 'number') return false
+  const fields = Array.isArray(payload.changed_fields) && payload.changed_fields.every(field => typeof field === 'string')
+    ? payload.changed_fields as string[] : []
+  const eligible = payload.event === 'updated' && payload.source === 'write'
+    && typeof payload.updated_at === 'string' && PRECISE_TASK_REVISION.test(payload.updated_at)
+    && fields.some(field => PLAIN_TASK_FIELDS.has(field))
+    && fields.every(field => PLAIN_TASK_FIELDS.has(field) || field === 'write_date' || field === 'write_uid')
+  const ledger = taskAcknowledgements.get(client)
+  if (!ledger) return false
+  const consume = () => {
+    if (!eligible) return false
+    for (const [key, entry] of ledger) {
+      if (entry.currentOwner() !== entry.owner) { ledger.delete(key); continue }
+      if (entry.id !== payload.id || entry.revision !== payload.updated_at) continue
+      ledger.delete(key)
+      return fields.every(field => entry.fields.has(field) || field === 'write_date' || field === 'write_uid')
+    }
+    return false
+  }
+  if (consume()) return true
+  for (;;) {
+    if (taskAcknowledgements.get(client) !== ledger) return false
+    const edit = taskEdits.get(client)?.get(payload.id)
+    if (!edit || edit.currentOwner() !== edit.owner) return false
+    const pending = edit.layers.filter(layer => !layer.complete && layer.acknowledgements === ledger)
+    if (!pending.length) return false
+    // Unknown/comment events also refresh after this row's real pending writes,
+    // so a mutation response cannot cancel or overwrite their conservative read.
+    await Promise.race(pending.map(layer => layer.done))
+    if (consume()) return true
+  }
+}
+
+function taskIdentity(me: { id: number; company: { id: number } } | null | undefined): string {
+  return me ? `${me.company.id}:${me.id}` : 'anonymous'
+}
+
+function pendingTask<T extends Task>(qc: object, row: T, owner: string, key: readonly unknown[], captureDetail?: (edit: TaskEdit, detail: T) => void): T {
+  const edit = taskEdits.get(qc)?.get(row.id)
+  if (!edit || edit.owner !== owner) return row
+  if (edit.layers.some(layer => !layer.failed && !layer.result)) {
+    // A new filter/detail can load during the write. Keep its authoritative row
+    // before overlaying optimism so a later refusal can restore this cache too.
+    if (key[1] === 'list') edit.rows.set(hashKey(key), [key, row])
+    else if (key[1] === 'detail') captureDetail?.(edit, row)
+  }
+  return edit.layers.reduce((current, layer) => layer.failed || layer.result ? current : applyPatchToTask(current, layer.patch, layer.resolved), row)
+}
+
+/** Preserve row shape: a detail response also carries fields that do not belong to list rows. */
+function taskListRow(row: Task, detail: TaskDetail): Task {
+  return Object.fromEntries(Object.keys(row).map(key => [key, detail[key as keyof TaskDetail]])) as Task
+}
+
+function renderTaskEdit(qc: ReturnType<typeof useQueryClient>, id: number, edit: TaskEdit) {
+  const apply = <T extends Task>(base: T, list: boolean): T => edit.layers.reduce((row, layer) => {
+    if (layer.failed) return row
+    if (layer.result) return (list ? taskListRow(row, layer.result) : layer.result) as T
+    return applyPatchToTask(row, layer.patch, layer.resolved)
+  }, base)
+  if (edit.detail) qc.setQueryData(taskKeys.detail(id), apply(edit.detail, false))
+  for (const [key, base] of edit.rows.values()) {
+    qc.setQueryData<TaskPages>(key, data => data && ({ ...data, pages: data.pages.map(page => ({ ...page, items: page.items.map(row => row.id === id ? apply(base, true) : row) })) }))
+  }
+}
+
+/** Only a list whose membership or ordering can change needs its pages replayed. */
+function taskPatchAffectsList(p: TaskListParams, patch: TaskPatch): boolean {
+  if (!p || typeof p !== 'object') return true
+  return p.sort?.includes('write_date') === true
+    || (patch.name !== undefined && (!!p.q || p.sort?.includes('name') === true))
+    || (patch.priority !== undefined && (!!p.priority?.length || p.sort?.includes('priority') === true))
+    || (patch.date_deadline !== undefined && (!!p.deadline || p.sort?.includes('deadline') === true))
+    || (patch.stage_id !== undefined && !!p.state?.length)
+    || patch.user_ids !== undefined
+}
+
+// Independent rows remain optimistic. Writes of the same task serialize on the wire and
+// rebase their pending layers, so an older failure cannot restore a newer row's snapshot.
 export function useUpdateTask({ notifyErrors = true }: { notifyErrors?: boolean } = {}) {
   const qc = useQueryClient()
   const { $api } = useApi()
   const { t } = useI18n()
   const toast = useToast()
+  const { me } = useMe()
+  const identity = () => taskIdentity(me.value)
+  const cancelListReads = (recovery: Map<string, readonly unknown[]>) => qc.cancelQueries({
+    queryKey: ['tasks', 'list'],
+    predicate: query => {
+      if (query.state.fetchStatus === 'idle') return false
+      recovery.set(hashKey(query.queryKey), query.queryKey)
+      return true
+    },
+  })
   return useMutation({
-    mutationFn: ({ id, patch }: { id: number; patch: TaskPatch; resolved?: Resolved }) =>
-      $api(`/api/v1/tasks/${id}`, { method: 'PATCH', body: patch, schema: TaskDetailSchema }),
+    mutationFn: ({ id, patch }: { id: number; patch: TaskPatch; resolved?: Resolved }) => {
+      const writes = taskWrites.get(qc) ?? new Map<string, Promise<unknown>>()
+      taskWrites.set(qc, writes)
+      const owner = identity()
+      const key = `${owner}:${id}`
+      const previous = writes.get(key) ?? Promise.resolve()
+      const request = previous.catch(() => undefined).then(() => {
+        if (identity() !== owner) throw new ApiError(409, 'identity_changed', t('errors.generic'))
+        return $api(`/api/v1/tasks/${id}`, { method: 'PATCH', body: patch, schema: TaskDetailSchema })
+      })
+      writes.set(key, request)
+      void request.finally(() => { if (writes.get(key) === request) writes.delete(key) }).catch(() => undefined)
+      return request
+    },
     onMutate: async ({ id, patch, resolved }) => {
-      await qc.cancelQueries({ queryKey: taskKeys.detail(id) })
-      const prevDetail = qc.getQueryData<TaskDetail>(taskKeys.detail(id))
-      if (prevDetail) qc.setQueryData(taskKeys.detail(id), applyPatchToTask(prevDetail, patch, resolved))
-      const prevLists = qc.getQueriesData<{ pages: { items: Task[]; total: number }[] }>({ queryKey: ['tasks', 'list'] })
-      for (const [key, data] of prevLists) {
-        if (data) {
-          qc.setQueryData(key, {
-            ...data,
-            pages: data.pages.map((p) => ({ ...p, items: p.items.map((t) => (t.id === id ? applyPatchToTask(t, patch, resolved) : t)) })),
-          })
+      const owner = identity()
+      const cancelledLists = new Map<string, readonly unknown[]>()
+      await Promise.all([qc.cancelQueries({ queryKey: taskKeys.detail(id) }), cancelListReads(cancelledLists)])
+      if (identity() !== owner) throw new ApiError(409, 'identity_changed', t('errors.generic'))
+      const edits = taskEdits.get(qc) ?? new Map<number, TaskEdit>()
+      taskEdits.set(qc, edits)
+      let edit = edits.get(id)
+      if (!edit || edit.owner !== owner) {
+        const rows: TaskEdit['rows'] = new Map()
+        for (const [key, data] of qc.getQueriesData<TaskPages>({ queryKey: ['tasks', 'list'] })) {
+          const row = data?.pages.flatMap(page => page.items).find(row => row.id === id)
+          if (row) rows.set(hashKey(key), [key, row])
         }
+        edit = { owner, currentOwner: identity, detail: qc.getQueryData<TaskDetail>(taskKeys.detail(id)), rows, layers: [] }
+        edits.set(id, edit)
       }
-      return { prevDetail, prevLists }
+      const acknowledgements = taskAcknowledgements.get(qc) ?? new Map<string, TaskAcknowledgement>()
+      taskAcknowledgements.set(qc, acknowledgements)
+      let finish!: () => void
+      const done = new Promise<void>(resolve => { finish = resolve })
+      const layer: TaskLayer = { patch, resolved, done, finish, acknowledgements }
+      edit.layers.push(layer)
+      renderTaskEdit(qc, id, edit)
+      return { edit, layer, owner, cancelledLists }
     },
     onError: (error, { id }, ctx) => {
-      if (ctx?.prevDetail) qc.setQueryData(taskKeys.detail(id), ctx.prevDetail)
-      for (const [k, d] of ctx?.prevLists ?? []) qc.setQueryData(k, d)
+      if (ctx && ctx.owner !== identity()) return
+      if (ctx) { ctx.layer.failed = true; renderTaskEdit(qc, id, ctx.edit) }
       if (notifyErrors) toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' })
     },
-    onSuccess: (detail, { id }) => {
-      qc.setQueryData(taskKeys.detail(id), detail)
+    onSuccess: (detail, { id }, ctx) => {
+      if (ctx && ctx.owner !== identity()) return
+      if (ctx) {
+        void cancelListReads(ctx.cancelledLists)
+        void qc.cancelQueries({ queryKey: taskKeys.detail(id) })
+        if (!ctx.edit.detail) ctx.edit.detail = detail
+        ctx.layer.result = detail
+        renderTaskEdit(qc, id, ctx.edit)
+      }
+      else qc.setQueryData(taskKeys.detail(id), detail)
     },
-    onSettled: () => {
-      invalidateTaskLists(qc)
-      invalidateProjectCaches(qc)
+    onSettled: (detail, error, { id, patch }, ctx) => {
+      const complete = (reconciled: boolean) => {
+        if (!ctx) return
+        const fields = plainTaskFields(patch)
+        if (reconciled && detail && fields && PRECISE_TASK_REVISION.test(detail.updated_at)
+          && ctx.owner === identity() && taskAcknowledgements.get(qc) === ctx.layer.acknowledgements) {
+          const ledger = ctx.layer.acknowledgements
+          ledger.set(`${ctx.owner}:${id}:${detail.updated_at}`, { id, revision: detail.updated_at, fields, owner: ctx.owner, currentOwner: identity })
+          while (ledger.size > ACKNOWLEDGEMENT_LIMIT) ledger.delete(ledger.keys().next().value!)
+        }
+        ctx.layer.complete = true
+        ctx.layer.finish()
+        if (taskEdits.get(qc)?.get(id) === ctx.edit && ctx.edit.layers.every(layer => layer.complete)) taskEdits.get(qc)?.delete(id)
+      }
+      if (ctx && ctx.owner !== identity()) { complete(false); return }
+      const effects: Array<Promise<unknown>> = []
+      const refresh = (filters: Parameters<typeof qc.invalidateQueries>[0]) => { effects.push(qc.invalidateQueries(filters, { throwOnError: true })) }
+      // An interrupted warm read may reconcile another task's membership or total.
+      // Merge recovery and this patch's required reads so neither cancels its own restart.
+      const lists = new Map<string, readonly unknown[]>(ctx?.cancelledLists)
+      if (!error) {
+        for (const [key] of qc.getQueriesData({ queryKey: ['tasks', 'list'] })) {
+          if (taskPatchAffectsList(key[2] as TaskListParams, patch)) lists.set(hashKey(key), key)
+        }
+      }
+      for (const key of lists.values()) refresh({ queryKey: key, exact: true })
+      if (error) { void Promise.allSettled(effects).then(() => complete(false)); return }
+      if (patch.name !== undefined || patch.priority !== undefined || patch.date_deadline !== undefined || patch.user_ids !== undefined || patch.stage_id !== undefined) {
+        refresh({ queryKey: ['tasks', 'summary'] })
+        refresh({ queryKey: ['tasks', 'attention'] })
+      }
+      refresh({ queryKey: taskKeys.timeline(id) })
+      const projectIds = detail?.project?.id ? new Set([detail.project.id]) : undefined
+      const changedFields = new Set(Object.keys(patch).filter(key => patch[key as keyof TaskPatch] !== undefined))
+      refresh({ queryKey: projectKeys.all, predicate: query => isTaskDependentProjectKey(query.queryKey, projectIds, changedFields) })
+      // Mark eligibility only after all required reads/invalidation work has settled successfully.
+      // The form itself still follows its committed write response.
+      void Promise.allSettled(effects).then(results => complete(results.every(result => result.status === 'fulfilled')))
     },
   })
 }

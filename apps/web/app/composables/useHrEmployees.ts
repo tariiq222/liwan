@@ -74,7 +74,7 @@ export function useHrEmployees(params: MaybeRefOrGetter<HrEmployeeListParams> = 
     enabled: computed(() => toValue(enabled)),
     queryKey: computed(() => hrEmployeeKeys.list(toValue(params))),
     placeholderData: keepPreviousData,
-    queryFn: () => $api('/api/v1/hr/employees', { query: hrEmployeeListQuery(toValue(params)), schema: HrEmployeeListSchema }),
+    queryFn: ({ queryKey, signal }) => $api('/api/v1/hr/employees', { query: hrEmployeeListQuery(queryKey[2]), signal, schema: HrEmployeeListSchema }),
   })
 }
 
@@ -83,7 +83,7 @@ export function useHrEmployee(id: MaybeRefOrGetter<number | null>) {
   return useQuery({
     queryKey: computed(() => hrEmployeeKeys.detail(toValue(id) ?? 0)),
     enabled: computed(() => !!toValue(id)),
-    queryFn: () => $api(`/api/v1/hr/employees/${toValue(id)}`, { schema: HrEmployeeSchema }),
+    queryFn: ({ queryKey, signal }) => $api(`/api/v1/hr/employees/${queryKey[2]}`, { signal, schema: HrEmployeeSchema }),
   })
 }
 

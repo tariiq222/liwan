@@ -1,8 +1,10 @@
+import { financeSummaryPreview } from './finance-summary-preview.mjs'
+
 // Finance assets for the isolated mock (MODULE_UI_PREVIEW=1): three asset profiles and eight fixed assets in every
 // state, each with a consistent depreciation board (a draft has only unposted lines). Reads only: the mock has no
 // finance write routes, so POST compute-depreciation and validate are not served. The assets list honours the filters
 // the Odoo controller supports (q, state, profile_id, limit, offset) and `total` is the filtered count, so the KPI
-// strip's limit=1 requests report real totals.
+// strip summaries report real totals.
 const CURRENCY = 'SAR'
 const TODAY = '2026-10-20'
 const ref = (id, name) => ({ id, name })
@@ -141,6 +143,7 @@ const summary = ({ lines: _lines, note: _note, date_remove: _removed, method: _m
 export function financeAssetsPreviewData(path, url) {
   const route = String(path || '/').replace(/\/+$/, '') || '/'
   if (route === '/api/v1/finance/asset-profiles') return page(financeAssetProfiles, url)
+  if (route === '/api/v1/finance/assets/summary') return financeSummaryPreview(filterAssets, url, ['draft', 'open', 'close'])
   if (route === '/api/v1/finance/assets') return page(filterAssets(url).map(summary), url)
   const record = /^\/api\/v1\/finance\/assets\/(\d+)$/.exec(route)
   const found = record ? financeAssets.find(item => item.id === Number(record[1])) : undefined

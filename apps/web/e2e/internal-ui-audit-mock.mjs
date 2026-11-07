@@ -15,6 +15,7 @@ import { baselineGateCheck, handleBaselines } from './pmo-baseline-mock-routes.m
 import { handleChanges } from './pmo-change-mock-routes.mjs'
 import { handleEvm } from './pmo-evm-mock-routes.mjs'
 import { handlePayments, handlePublicPayments, PAYMENTS_LINKS_MANAGE, PAYMENTS_MANAGE, PAYMENTS_SETTINGS_MANAGE } from './payments-mock-routes.mjs'
+import { handleSsrFixtures, hasFixtureSession } from './ssr-fixture-sessions.mjs'
 import crypto from 'node:crypto'
 import { URL } from 'node:url'
 
@@ -371,7 +372,7 @@ function fail(res, status, code, message) {
 
 function hasSession(req) {
   const cookie = req.headers.cookie || ''
-  return cookie.split(';').some(part => part.trim() === `session_id=${SESSION}`)
+  return hasFixtureSession(req) || cookie.split(';').some(part => part.trim() === `session_id=${SESSION}`)
 }
 
 function readBody(req) {
@@ -444,6 +445,7 @@ async function handle(req, res) {
 
   if (!hasSession(req)) return fail(res, 403, 'forbidden', 'not logged in')
 
+  if (await handleSsrFixtures(req, res, path, url, { json, readBody, session: SESSION })) return
   if (await handlePayments(req, res, path, { json, readBody })) return
   if (process.env.PROJECTS_UI_PREVIEW === '1' && await handleChanges(req, res, path, url, { json, readBody })) return
   if (process.env.PROJECTS_UI_PREVIEW === '1' && await handleBaselines(req, res, path, url, { json, readBody })) return

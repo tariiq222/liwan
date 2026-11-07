@@ -3,7 +3,7 @@ import { keepPreviousData, useQuery } from '@tanstack/vue-query'
 import { MyTaskListPageSchema } from '@liwan/contracts'
 import { myTaskListQuery, type MyTaskListParams } from './useMyTasks'
 import { myTaskKeys } from './myTaskKeys'
-import { MY_TASK_PAGE_SIZE } from '@/utils/myTaskList'
+import { MY_TASK_PAGE_SIZE } from '../utils/myTaskList'
 
 export function useMyTaskList(params: MaybeRefOrGetter<MyTaskListParams>) {
   const { $api } = useApi()
@@ -11,6 +11,6 @@ export function useMyTaskList(params: MaybeRefOrGetter<MyTaskListParams>) {
   return useQuery({
     queryKey: computed(() => myTaskKeys.list(query.value)),
     placeholderData: keepPreviousData,
-    queryFn: () => $api('/api/v1/my-tasks', { query: query.value, schema: MyTaskListPageSchema }),
+    queryFn: ({ queryKey, signal }) => $api('/api/v1/my-tasks', { query: queryKey[2], signal, schema: MyTaskListPageSchema }),
   })
 }
