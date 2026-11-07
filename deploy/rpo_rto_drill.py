@@ -451,6 +451,9 @@ def run_drill(cfg: DrillConfig) -> dict:
             'concurrent production write load during backup', 'encryption at rest/in transit for the backup artifact',
             'retention policy enforcement', 'automated failure detection (this drill times from a manual drop)',
             'point-in-time recovery (WAL-based); this is full dump/restore only',
+            # This drill measures one local capture/restore. The scheduled encrypted
+            # pipeline, its offsite transport and its drill are separate and are
+            # proven offline today: deploy/backup_pipeline.py, deploy/restore_drill.py.
         ],
     }
 
