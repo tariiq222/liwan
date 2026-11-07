@@ -151,7 +151,7 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
     if(!z.uuid().safeParse(transfer[1]).success)throw new CommercialHttpError('not_found',404)
     const body=parseBody(input.raw,bankTransferInputSchema)
-    return {status:201,data:await confirmBankTransfer(pool,{invoice_id:transfer[1]!,operator:principal.actor_id,...body})}
+    return {status:201,data:await confirmBankTransfer(pool,{invoice_id:transfer[1]!,operator:principal.actor_id,...body,adapter:runtime?.adapter ?? undefined})}
   }
   // Vendor-editable billing settings: the refund window and the bank account customers transfer to.
   if(path==='/billing-settings'){

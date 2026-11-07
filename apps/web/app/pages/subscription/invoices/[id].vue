@@ -1,17 +1,25 @@
 <script setup lang="ts">
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
-import { subscriptionInvoiceView, formatSubscriptionMoney } from '@/utils/subscription'
+import { refusalCode, subscriptionInvoiceView, formatSubscriptionMoney } from '@/utils/subscription'
 const { t, locale } = useI18n(); const route = useRoute(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities()
 const allowed = computed(() => can('billing.read'))
 const id = computed(() => String(route.params.id ?? ''))
 // Another tenant's invoice id answers 404 from the BFF/control plane; SharedPageState shows "not found", never the data.
 const { data, error, pending, refresh } = await useAsyncData(() => `subscription:invoice:${id.value}`, () => api.invoice(id.value), { immediate: allowed.value, watch: [id] })
 const view = computed(() => data.value ? subscriptionInvoiceView(data.value, t, locale.value) : null)
-// Where to transfer while the invoice is unpaid. The control plane answers 409 until the vendor sets the account, and
-// the page then simply shows nothing: a customer is never shown a half-configured destination.
+// Where to transfer while the invoice is unpaid. The control plane answers 409 `bank_account_unavailable` until the
+// vendor fills the account in: that is "not configured", not a failure. Any other refusal is a real error worth showing.
 const wantsTransfer = computed(() => allowed.value && data.value?.status === 'issued')
-const { data: transfer } = await useAsyncData(() => `subscription:invoice-transfer:${id.value}`,
-  () => (wantsTransfer.value ? api.bankTransfer(id.value).catch(() => null) : Promise.resolve(null)), { immediate: allowed.value, watch: [wantsTransfer] })
+const transferFailure = ref<unknown>(null)
+const { data: transfer } = await useAsyncData(() => `subscription:invoice-transfer:${id.value}`, async () => {
+  if (!wantsTransfer.value) return null
+  transferFailure.value = null
+  try { return await api.bankTransfer(id.value) } catch (cause) {
+    if (refusalCode(cause) !== 'bank_account_unavailable') transferFailure.value = cause
+    return null
+  }
+}, { immediate: allowed.value, watch: [wantsTransfer] })
+const transferUnavailable = computed(() => wantsTransfer.value && !transfer.value && !transferFailure.value)
 const amount = computed(() => (transfer.value ? formatSubscriptionMoney({ currency: transfer.value.currency, exponent: transfer.value.exponent, minor: transfer.value.amount_minor }, locale.value) : ''))
 const instructions = computed(() => (transfer.value ? (locale.value.startsWith('ar') ? transfer.value.bank.instructions_ar : transfer.value.bank.instructions_en) : ''))
 const copied = ref('')
@@ -26,6 +34,8 @@ definePageMeta({ middleware: 'customer-commercial' })
     <SharedForbiddenState v-if="!allowed" />
     <template v-else-if="view">
       <SharedInvoiceLines layout="list" v-bind="view" />
+      <UAlert v-if="transferFailure" color="error" variant="subtle" :title="t('subscription.bankTransfer.error')" data-testid="bank-transfer-error" />
+      <p v-else-if="transferUnavailable" class="text-sm text-muted" data-testid="bank-transfer-unavailable">{{ t('subscription.bankTransfer.unavailable') }}</p>
       <SharedRecordSection v-if="transfer" :title="t('subscription.bankTransfer.title')" data-testid="bank-transfer">
         <p class="text-sm text-muted">{{ t('subscription.bankTransfer.hint') }}</p>
         <p v-if="instructions" class="text-sm">{{ instructions }}</p>

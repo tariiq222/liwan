@@ -69,6 +69,8 @@ const ROUTES: Route[] = [
   { method: 'POST', pattern: /^orders\/[A-Za-z0-9_-]{1,128}\/cancel$/ },
   { method: 'GET', pattern: /^invoices$/ },
   { method: 'GET', pattern: /^invoices\/[A-Za-z0-9_-]{1,128}$/ },
+  // A2: where to transfer while an invoice is unpaid; reads no more than the invoice itself.
+  { method: 'GET', pattern: /^invoices\/[A-Za-z0-9_-]{1,128}\/bank-transfer$/ },
   { method: 'GET', pattern: /^branches$/ },
   { method: 'POST', pattern: /^branch-quotes$/ },
   { method: 'GET', pattern: /^usage$/ },

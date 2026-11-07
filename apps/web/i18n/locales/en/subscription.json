@@ -17,7 +17,9 @@
       "accountNumber": "Account number",
       "iban": "IBAN",
       "copy": "Copy",
-      "copied": "Copied"
+      "copied": "Copied",
+      "unavailable": "Bank transfer is not available for this invoice right now.",
+      "error": "The transfer details could not be loaded. Try again."
     },
     "autoRenew": { "title": "Auto-renew", "on": "On", "off": "Off", "consent": "I agree that the renewal amount is charged automatically to the saved payment method each cycle, and that I can turn this off at any time.", "enable": "Turn on auto-renew", "disable": "Turn off auto-renew", "readOnly": "Changing this requires permission to manage the subscription." },
     "trial": { "daysLeft": "{count} days left in the trial", "endsOn": "The trial ends on {date}", "expiring": "Your trial is ending soon. The service stops after it ends unless it is renewed.", "start": "Start a {count}-day trial", "startFailed": "The trial could not be started. Try again.", "startSetup": "Start the trial", "convert": "Pay now", "convertFailed": "Payment could not be started. Try again.", "activationPending": "Your subscription is still activating; the invoice appears once activation completes.", "upgradeRequired": "Your service needs an update before the trial can start. Contact support to complete it.", "notConfigured": "The trial could not be prepared right now. Contact support."},

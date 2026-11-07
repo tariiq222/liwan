@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Pool } from 'pg'
 import { randomUUID } from 'node:crypto'
 import { url, client, money, monthly } from './commercial-helpers.js'
@@ -10,6 +10,7 @@ import { acceptQuote } from '../commercial/orders.js'
 import { getVendorInvoice } from '../commercial/invoices.js'
 import { confirmBankTransfer, bankTransferInstructions } from '../commercial/bank-transfer.js'
 import { billingSettings, setBillingSettings } from '../commercial/billing-settings.js'
+import { refundEligibility } from '../commercial/settlements.js'
 import { refundCreditNote } from '../commercial/settlements.js'
 import { routesB } from '../commercial/routes-b.js'
 
@@ -119,6 +120,71 @@ suite('bank transfer (W5)', () => {
       .rejects.toMatchObject({ status: 409 })
   })
 
+  it('settles reserve, payment and audit in one transaction: a failure after the reserve leaves nothing behind', async () => {
+    const { order, invoice } = await unpaidOrder()
+    // Fail the settlement itself, after the attempt row was reserved inside the transaction.
+    const payments = await import('../commercial/payments.js')
+    const spy = vi.spyOn(payments, 'settleAttemptIn').mockRejectedValueOnce(new Error('settlement exploded'))
+    try {
+      await expect(confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', ...transfer(invoice) } as never)).rejects.toThrow('settlement exploded')
+    } finally { spy.mockRestore() }
+    // Nothing was recorded and nothing was paid: the reserve rolled back with the settlement.
+    expect((await pool.query('SELECT count(*)::int AS n FROM payment_attempts WHERE order_id=$1', [order.id])).rows[0].n).toBe(0)
+    expect((await pool.query('SELECT payment_state FROM orders WHERE id=$1', [order.id])).rows[0].payment_state).toBe('awaiting_payment')
+    // And the retry settles it.
+    const retry = await confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', ...transfer(invoice) } as never)
+    expect(retry.replay).toBe(false)
+    expect((await pool.query('SELECT payment_state FROM orders WHERE id=$1', [order.id])).rows[0].payment_state).toBe('paid')
+  })
+
+  it('a reserved attempt that was never applied is settled by the retry, not reported as a replay', async () => {
+    const { order, invoice } = await unpaidOrder()
+    const body = transfer(invoice)
+    // Simulate the crash A3 names: the attempt committed as succeeded but the order was never paid.
+    const attemptId = randomUUID()
+    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,value_date)
+      VALUES($1,$2,$3,'bank_transfer','live',$4,$5,$6,$7,'succeeded',$8)`,
+    [attemptId, order.id, invoice.id, body.reference, Number(invoice.total_minor), invoice.currency, Number(invoice.exponent), body.value_date])
+    expect((await pool.query('SELECT payment_state FROM orders WHERE id=$1', [order.id])).rows[0].payment_state).toBe('awaiting_payment')
+    const retry = await confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', ...body } as never)
+    expect(retry.replay).toBe(true)
+    expect((await pool.query('SELECT payment_state FROM orders WHERE id=$1', [order.id])).rows[0].payment_state).toBe('paid')
+    expect((await pool.query("SELECT count(*)::int AS n FROM commercial_outbox WHERE kind='fulfillment.enqueue' AND aggregate_id=$1", [order.id])).rows[0].n).toBe(1)
+  })
+
+  it('two operators recording different references at once pay the order exactly once', async () => {
+    const { order, invoice } = await unpaidOrder()
+    const results = await Promise.allSettled([
+      confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', ...transfer(invoice) } as never),
+      confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:8', ...transfer(invoice) } as never),
+    ])
+    const ok = results.filter(r => r.status === 'fulfilled')
+    expect(ok).toHaveLength(1)
+    const failed = results.find(r => r.status === 'rejected') as PromiseRejectedResult
+    expect(failed.reason).toMatchObject({ status: 409 })
+    // The loser left no row behind, because its whole transaction rolled back.
+    expect((await pool.query("SELECT count(*)::int AS n FROM payment_attempts WHERE order_id=$1 AND provider='bank_transfer'", [order.id])).rows[0].n).toBe(1)
+    expect((await pool.query('SELECT payment_state FROM orders WHERE id=$1', [order.id])).rows[0].payment_state).toBe('paid')
+    expect((await pool.query("SELECT count(*)::int AS n FROM commercial_outbox WHERE kind='fulfillment.enqueue' AND aggregate_id=$1", [order.id])).rows[0].n).toBe(1)
+  })
+
+  it('refuses a value date that is not a real calendar date, and one in the future', async () => {
+    const { invoice } = await unpaidOrder()
+    for (const value_date of ['2026-13-45', '2026-02-30', '2026-11-6', '2999-01-01']) {
+      await expect(confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', ...transfer(invoice, { value_date }) } as never))
+        .rejects.toMatchObject({ status: 422, code: 'invalid_value_date' })
+    }
+  })
+
+  it('records the transfer\'s own value date as the immutable success time', async () => {
+    const { order, invoice } = await unpaidOrder()
+    const body = transfer(invoice, { value_date: '2026-11-01' })
+    await confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', ...body } as never)
+    const attempt = (await pool.query("SELECT value_date,succeeded_at FROM payment_attempts WHERE order_id=$1 AND provider='bank_transfer'", [order.id])).rows[0]
+    expect(attempt.succeeded_at).toBeInstanceOf(Date)
+    expect(attempt.succeeded_at.toISOString().slice(0, 10)).toBe('2026-11-01')
+  })
+
   it('needs the billing capability: an operator without it cannot record a transfer', async () => {
     const { invoice } = await unpaidOrder()
     await expect(routesB(pool, { method: 'POST', pathname: `/v1/commercial/invoices/${invoice.id}/bank-transfer`,
@@ -179,7 +245,7 @@ suite('the 14-day refund window (W7)', () => {
   afterAll(async () => { await pool.end() })
 
   /** A paid order, its paid invoice and the pending credit note the refund would close, at a chosen payment time. */
-  async function paidWithCreditNote(paidAt: string) {
+  async function paidWithCreditNote(paidAt: string, origin: 'vendor' | 'system' = 'vendor') {
     const id = randomUUID()
     const tenant = randomUUID()
     await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Customer','saas','managed',$2,true)", [tenant, `c-${tenant}`])
@@ -189,13 +255,13 @@ suite('the 14-day refund window (W7)', () => {
     const { order } = await acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: randomUUID() }, vendor)
     const invoice = (await pool.query("SELECT * FROM invoices WHERE order_id=$1 AND status='issued'", [order.id])).rows[0]
     const attemptId = randomUUID()
-    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,updated_at)
-      VALUES($1,$2,$3,'moyasar','live',$4,$5,$6,$7,'succeeded',$8)`, [attemptId, order.id, invoice.id, `moy-${attemptId}`, invoice.total_minor, invoice.currency, invoice.exponent, paidAt])
+    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,updated_at,succeeded_at)
+      VALUES($1,$2,$3,'moyasar','live',$4,$5,$6,$7,'succeeded',$8,$8)`, [attemptId, order.id, invoice.id, `moy-${attemptId}`, invoice.total_minor, invoice.currency, invoice.exponent, paidAt])
     await pool.query("UPDATE orders SET payment_state='paid',paid_attempt_id=$2 WHERE id=$1", [order.id, attemptId])
     await pool.query("UPDATE invoices SET status='paid',paid_at=$2 WHERE id=$1", [invoice.id, paidAt])
     const noteId = randomUUID()
-    await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by)
-      VALUES($1,$2,$3,'credit_note','Refund request',$4,$5,$6,'pending','vendor:7')`, [noteId, invoice.id, id, invoice.total_minor, invoice.currency, invoice.exponent])
+    await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin)
+      VALUES($1,$2,$3,'credit_note','Refund request',$4,$5,$6,'pending','vendor:7',$7)`, [noteId, invoice.id, id, invoice.total_minor, invoice.currency, invoice.exponent, origin])
     return { customer_id: id, order, invoice, noteId }
   }
   const ask = (noteId: string) => refundCreditNote(pool, { adjustment_id: noteId, actor, request: { external_reference: `MOY-${randomUUID().slice(0, 8)}`, reason: 'Customer asked within the window' } })
@@ -237,6 +303,41 @@ suite('the 14-day refund window (W7)', () => {
     await setBillingSettings(pool, { operator: 'vendor:7', reason: 'Release 1 billing settings', refund_window_days: 0 })
     const closed = await paidWithCreditNote(new Date().toISOString())
     await expect(ask(closed.noteId)).rejects.toMatchObject({ code: 'refund_window_closed' })
+  })
+
+  it('refuses a partial credit note: only a full refund of the invoice is recorded', async () => {
+    const { noteId, invoice } = await paidWithCreditNote(new Date().toISOString())
+    await pool.query('UPDATE invoice_adjustments SET amount_minor=$2 WHERE id=$1', [noteId, Number(invoice.total_minor) - 1])
+    await expect(ask(noteId)).rejects.toMatchObject({ status: 409, code: 'refund_not_full' })
+    expect((await pool.query('SELECT status FROM invoice_adjustments WHERE id=$1', [noteId])).rows[0].status).toBe('pending')
+  })
+
+  it('refuses a second refunded note on one invoice', async () => {
+    const { invoice, customer_id } = await paidWithCreditNote(new Date().toISOString())
+    const first = (await pool.query('SELECT id FROM invoice_adjustments WHERE invoice_id=$1', [invoice.id])).rows[0]
+    await ask(first.id)
+    // A second note covering the same invoice (a duplicate charge, say) can never be refunded twice.
+    const second = randomUUID()
+    await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin)
+      VALUES($1,$2,$3,'credit_note','Second note',$4,'SAR',2,'pending','system','system')`, [second, invoice.id, customer_id, invoice.total_minor])
+    await expect(ask(second)).rejects.toMatchObject({ status: 409, code: 'invoice_already_refunded' })
+  })
+
+  it('lets a system-created credit note be refunded outside the window', async () => {
+    // A5: a duplicate charge on day 20 is money the customer never planned to spend; the window must not strand it.
+    const old = await paidWithCreditNote(new Date(Date.now() - 20 * 86_400_000).toISOString(), 'system')
+    await expect(ask(old.noteId)).resolves.toMatchObject({ status: 'refunded' })
+    // The same age as a customer-requested note is still refused: that is the owner's rule.
+    const requested = await paidWithCreditNote(new Date(Date.now() - 20 * 86_400_000).toISOString(), 'vendor')
+    await expect(ask(requested.noteId)).rejects.toMatchObject({ code: 'refund_window_closed' })
+  })
+
+  it('measures the window from the immutable success time, not from a later touch', async () => {
+    const paid = await paidWithCreditNote(new Date(Date.now() - 3 * 86_400_000).toISOString())
+    // Reconciliation and sibling cancellation rewrite updated_at; succeeded_at must not move with it.
+    await pool.query("UPDATE payment_attempts SET updated_at=now() + interval '30 days' WHERE order_id=$1", [paid.order.id])
+    const eligibility = await refundEligibility(pool, paid.customer_id, paid.invoice.id)
+    expect(eligibility).toMatchObject({ refundable: true, first_payment: true })
   })
 
   it('tells the vendor whether a payment is still refundable and until when', async () => {

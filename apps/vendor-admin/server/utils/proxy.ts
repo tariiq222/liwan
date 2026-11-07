@@ -22,6 +22,9 @@ const ALLOWED = [
   new RegExp(`^/v1/commercial/orders/${SEGMENT}/(cancel|payment-attempts)$`),
   new RegExp(`^/v1/commercial/catalog/releases/${SEGMENT}/default-bundles$`),
   new RegExp(`^/v1/commercial/invoice-adjustments/${SEGMENT}/refund$`),
+  // Release 1 billing: the vendor-editable settings row, and recording a bank transfer against one invoice.
+  /^\/v1\/commercial\/billing-settings$/,
+  new RegExp(`^/v1/commercial/invoices/${SEGMENT}/bank-transfer$`),
   new RegExp(`^/v1/commercial/customers/${SEGMENT}/(trial|invitations)$`),
   new RegExp(`^/v1/commercial/trials/${SEGMENT}/(extend|end)$`),
   new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}(/(branches|usage))?$`),

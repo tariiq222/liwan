@@ -6,6 +6,7 @@ import { at, SESSION, cookieHeader, json, send, stubConfig, stubUpstream } from 
 
 const get = (path: string, headers: Record<string, string> = cookieHeader()) => send(proxy, `/api/vendor/v1${path}`, { method: 'GET', headers })
 const post = (path: string, sent: Parameters<typeof send>[2] = { body: { a: 1 } }) => send(proxy, `/api/vendor/v1${path}`, { headers: cookieHeader(), ...sent, ...(sent.headers ? { headers: { ...cookieHeader(), ...sent.headers } } : {}) })
+const patch = (path: string, sent: Parameters<typeof send>[2] = { body: { a: 1 } }) => send(proxy, `/api/vendor/v1${path}`, { method: 'PATCH', headers: cookieHeader(), ...sent, ...(sent.headers ? { headers: { ...cookieHeader(), ...sent.headers } } : {}) })
 
 describe('vendor API proxy', () => {
   beforeEach(() => stubConfig())
@@ -120,12 +121,31 @@ describe('vendor API proxy', () => {
 
   it('forwards only the vendor surface the console uses', async () => {
     const calls = stubUpstream(() => json(200, {}))
-    const allowed = ['/context', '/overview', '/targets', '/tenants', '/tenants/00000000-0000-4000-8000-000000000001/operations-grant', '/operations', '/catalog', '/audit', '/packages', '/packages/00000000-0000-4000-8000-000000000001', '/commercial/customers', '/commercial/customers/c-1', '/commercial/customers/c-1/trial', '/commercial/customers/c-1/invitations', '/commercial/attention', '/commercial/clients', '/commercial/orders', '/commercial/catalog/releases/r-1/default-bundles', '/commercial/orders/ab-1/cancel', '/commercial/orders/ab-1/payment-attempts', '/commercial/invoice-adjustments/a-1/refund', '/commercial/trials/s-1/extend', '/commercial/trials/s-1/end', '/commercial/subscriptions/s-1', '/commercial/subscriptions/s-1/usage', '/commercial/invoices/i-1', '/commercial/quotes', '/commercial/quotes/q-1', '/commercial/customer-terms', '/commercial/customer-quotes', '/commercial/catalog/releases', '/commercial/policies', '/commercial/plans/p-1/publish', '/commercial/bundles/b-1/revisions', '/shared/tenants/00000000-0000-4000-8000-000000000001/provisioning', '/platform/ai-provider', '/platform/ai-provider/presets', '/platform/ai-provider/models', '/platform/ai-provider/test', '/admin/me', '/admin/accounts', '/admin/accounts/12/roles']
+    const allowed = ['/context', '/overview', '/targets', '/tenants', '/tenants/00000000-0000-4000-8000-000000000001/operations-grant', '/operations', '/catalog', '/audit', '/packages', '/packages/00000000-0000-4000-8000-000000000001', '/commercial/customers', '/commercial/customers/c-1', '/commercial/customers/c-1/trial', '/commercial/customers/c-1/invitations', '/commercial/attention', '/commercial/clients', '/commercial/orders', '/commercial/catalog/releases/r-1/default-bundles', '/commercial/orders/ab-1/cancel', '/commercial/orders/ab-1/payment-attempts', '/commercial/invoice-adjustments/a-1/refund', '/commercial/trials/s-1/extend', '/commercial/trials/s-1/end', '/commercial/subscriptions/s-1', '/commercial/subscriptions/s-1/usage', '/commercial/invoices/i-1', '/commercial/quotes', '/commercial/quotes/q-1', '/commercial/customer-terms', '/commercial/billing-settings', '/commercial/invoices/i-1/bank-transfer', '/commercial/customer-quotes', '/commercial/catalog/releases', '/commercial/policies', '/commercial/plans/p-1/publish', '/commercial/bundles/b-1/revisions', '/shared/tenants/00000000-0000-4000-8000-000000000001/provisioning', '/platform/ai-provider', '/platform/ai-provider/presets', '/platform/ai-provider/models', '/platform/ai-provider/test', '/admin/me', '/admin/accounts', '/admin/accounts/12/roles']
     for (const path of allowed) expect((await get(path)).status, path).toBe(200)
     expect(calls).toHaveLength(allowed.length)
     const denied = ['/', '/registry/mutations', '/invitations/accept', '/admin', '/admin/accounts/x/roles', '/admin/accounts/12/other', '/admin/secret', '/internal/anything', '/tenantsx', '/contexts', '/packagesx', '/commercial', '/commercial/payment-events/moyasar', '/commercial/payment-simulator/a-1/settle', '/commercial/renewals/run', '/commercial/branch-quotes', '/commercial/customers/c-1/trial/x', '/commercial/attention/x', '/platform', '/platform/ai-provider/other', '/platform/ai-provider/models/x', '/platform/other', '/commercial/clients/c-1', '/commercial/orders/ab-1/other', '/commercial/invoice-adjustments/a-1', '/commercial/trials/s-1', '/commercial/trials/s-1/other', '/commercial/trials', '/commercial/invoice-adjustments/a-1/other', '/commercial/invoice-adjustments', '/commercial/plans/p-1/other', '/commercial/subscriptions/s-1/other', '/commercial/catalog', '/customer/orders', '/customer/invoices/i-1', '/invitations/accept']
     for (const path of denied) expect((await get(path)).status, path).toBe(404)
     expect(calls).toHaveLength(allowed.length)
+  })
+
+  it('forwards the release 1 billing routes and refuses their near misses', async () => {
+    // A1: the console's settings page and its "confirm transfer" action need these exact paths, with these methods.
+    const calls = stubUpstream(() => json(200, {}))
+    expect((await get('/commercial/billing-settings')).status).toBe(200)
+    expect((await patch('/commercial/billing-settings')).status).toBe(200)
+    expect((await post('/commercial/invoices/00000000-0000-4000-8000-000000000001/bank-transfer')).status).toBe(200)
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual([
+      'GET /v1/commercial/billing-settings',
+      'PATCH /v1/commercial/billing-settings',
+      'POST /v1/commercial/invoices/00000000-0000-4000-8000-000000000001/bank-transfer',
+    ])
+    // A near miss at either path is not the route: neither a settings subpath nor a second segment on the transfer.
+    for (const path of ['/commercial/billing-settings/extra', '/commercial/billing-settings/x/y', '/commercial/billing-settingsx',
+      '/commercial/invoices/i-1/bank-transfer/x', '/commercial/invoices/i-1/bank-transfers', '/commercial/invoices/i-1/refund']) {
+      expect((await get(path)).status, path).toBe(404)
+    }
+    expect(calls).toHaveLength(3)
   })
 
   it('waits long enough for the AI provider probes (15 s models, two 20 s asks for a test) and keeps 10 s everywhere else', async () => {

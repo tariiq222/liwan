@@ -79,7 +79,9 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
   }
   await client.query('UPDATE orders SET payment_state=$2,fulfillment_state=$3 WHERE id=$1', [order.id, next.payment_state, next.fulfillment_state])
   if (event.status === 'succeeded') {
-    await client.query("UPDATE payment_attempts SET status='succeeded',updated_at=now() WHERE id=$1", [attempt.id])
+    // succeeded_at is the immutable moment the money arrived: the first value wins, and later updates never move the
+    // refund window. A bank transfer arrives with it already set to its value date.
+    await client.query("UPDATE payment_attempts SET status='succeeded',succeeded_at=COALESCE(succeeded_at,now()),updated_at=now() WHERE id=$1", [attempt.id])
     await client.query('UPDATE orders SET paid_attempt_id=$2 WHERE id=$1 AND paid_attempt_id IS NULL', [order.id, attempt.id])
     await client.query("UPDATE invoices SET status='paid',paid_at=COALESCE(paid_at,now()) WHERE id=$1 AND status='issued'", [attempt.invoice_id])
     if (next.reconcile) {
@@ -107,6 +109,19 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
 /** Only authoritative adapter-fetched events may enter this settlement boundary. */
 export async function applyConfirmedEvent(pool: Pool, event: ProviderEvent) {
   return transaction(pool, client => apply(client, event))
+}
+
+/**
+ * The same settlement, inside a transaction the caller already owns (A3). A writer that must record money and settle it
+ * atomically — the vendor recording a bank transfer — joins this instead of starting a transaction of its own.
+ */
+export async function settleAttemptIn(client: PoolClient, event: ProviderEvent) {
+  return apply(client, event)
+}
+
+/** Closes every other still-open attempt of a paid order, through the adapter that owns them (after the commit). */
+export async function closeOtherAttempts(pool: Pool, adapter: PaymentAdapter, paid: ProviderEvent) {
+  return closeSiblingAttempts(pool, adapter, paid)
 }
 
 export async function handleProviderEvent(pool: Pool, input: { provider: string; rawBody: Uint8Array | string; headers: AdapterHeaders; adapter: PaymentAdapter }) {
