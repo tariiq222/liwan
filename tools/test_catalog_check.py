@@ -470,6 +470,19 @@ class ReleaseCatalogCase(CatalogFixture, unittest.TestCase):
         self.data['tiers'].append({'id': 'twice', 'name': 'Twice', 'modules': [], 'features': ['boolean:pmo.enabled']})
         self.assert_rejected("feature 'pmo.enabled' is declared by more than one tier", self.data)
 
+    def test_a_current_release_tier_must_state_whether_it_is_sold(self):
+        # A6: an omitted `sellable` sells nothing, so the current release must say it on every non-core tier rather
+        # than lock one by accident. A historical catalog file is not held to the newer rule.
+        without = json.loads(json.dumps(self.data))
+        del without['tiers'][1]['sellable']
+        self.assert_rejected('the current release must state sellable on every non-core tier', without)
+
+    def test_a_historical_catalog_keeps_omitting_sellable(self):
+        self.write('solutions/demo_v9.json', {**self.data, 'tiers': [{'id': 'old', 'name': 'Old', 'modules': ['demo_pmo'], 'features': ['boolean:pmo.enabled']}]})
+        modern = json.loads(json.dumps(self.data))
+        self.write('solutions/demo.json', modern)
+        self.assertNotIn('demo_v9.json', [error for error in self.errors()])
+
     def test_a_tier_with_modules_and_no_features_is_rejected(self):
         self.data['tiers'][1]['features'] = []
         self.assert_rejected("tier 'projects' lists modules but declares no feature", self.data)

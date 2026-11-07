@@ -176,6 +176,19 @@ suite('bank transfer (W5)', () => {
     }
   })
 
+  it('never moves succeeded_at once the payment succeeded', async () => {
+    // A3/A5: `updated_at` is touched by reconciliation and sibling cancellation; `succeeded_at` is written once.
+    const { invoice } = await unpaidOrder()
+    const body = transfer(invoice, { value_date: '2026-11-01' })
+    await confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', ...body } as never)
+    const before = (await pool.query("SELECT succeeded_at FROM payment_attempts WHERE provider_ref=$1", [body.reference])).rows[0].succeeded_at
+    // A second settlement attempt (the replay path) must leave it alone.
+    await confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', ...body } as never)
+    const after = (await pool.query("SELECT succeeded_at,updated_at FROM payment_attempts WHERE provider_ref=$1", [body.reference])).rows[0]
+    expect(after.succeeded_at).toEqual(before)
+    expect(after.succeeded_at.toISOString().slice(0, 10)).toBe('2026-11-01')
+  })
+
   it('records the transfer\'s own value date as the immutable success time', async () => {
     const { order, invoice } = await unpaidOrder()
     const body = transfer(invoice, { value_date: '2026-11-01' })
