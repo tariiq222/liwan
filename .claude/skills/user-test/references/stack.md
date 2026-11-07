@@ -32,11 +32,11 @@ Tenant state (exclusive phase only): `E2E_TENANT_STATE='{"off":["finance.enabled
 `.e2e/tenant_baseline.json`.
 
 non_saas rows: never convert the shared DB. Copy it (`createdb -T liwan_scratch_e2e
-liwan_scratch_ns`), switch the copy's tenant profile to `non_saas`, serve it on other free ports
+liwan_scratch_ns`; a hand-named throwaway that `odoo_test.py` and `wt gc` never touch, so drop it yourself), switch the copy's tenant profile to `non_saas`, serve it on other free ports
 (Odoo `--http-port`, Nuxt `--port`) from a temporary copy of `apps/web`, then drop the copy and
 the folder.
 
 SaaS rows need the local control plane (`deploy/control-plane/init-local.sh`, `run-local.sh`,
-Node 22, Docker Postgres on 55432) and the vendor console production build with the local
+the Node version in `.nvmrc`, Docker Postgres on 55432) and the vendor console production build with the local
 developer sign-in (`apps/vendor-admin/README.md`). Real tenant provisioning is not available
 locally; record those rows as planned with that reason.

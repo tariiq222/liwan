@@ -8,7 +8,9 @@ description: Test LiwanOS the way customers use it — role personas of a demo c
 The register `e2e/scenarios/*.md` lists every scenario (ID, persona, expected result, Covers
 tokens, status, notes). `e2e/scenarios/README.md` holds the personas, status values and rules.
 This skill runs it. Owner rule: **run everything first, find and record problems only; fixes
-happen later in their own session; then re-test.**
+happen later in their own session; then re-test.** This skill is the one exception allowed to open GitHub issues,
+one per problem, and to comment on them when re-testing (owner decision 2026-11-08, recorded in
+`docs/agents/issue-tracker.md`); no other skill may.
 
 Pick the mode from the request:
 
@@ -20,7 +22,9 @@ Pick the mode from the request:
 | `retest #NNN` | an issue was fixed | Retest |
 | `automate [area]` | turn `manual` rows into permanent tests | Automate |
 
-Reply to the owner in simple Arabic. Never use port 3000, 8069 or the `odoo19` database.
+Reply to the owner in simple Arabic. Never use port 3000, 8069 or the `odoo19` or `liwan_dev` database; the only
+database is the fixed scratch `liwan_scratch_e2e` that the isolated wrapper (`tools/e2e_isolated.mjs`) builds and
+refuses to rename (`docs/testing.md` section 4, `docs/e2e.md`).
 
 ## Coverage
 1. `python3 -B tools/e2e_scenario_coverage.py` lists every page, Odoo route and capability with
@@ -73,6 +77,7 @@ Reply to the owner in simple Arabic. Never use port 3000, 8069 or the `odoo19` d
 ## Automate
 Write deterministic exact-step tests (`e2e/tests/<area>-*.e2e.ts`, scenario ID in the title,
 `test.skip` unless `E2E_STACK=odoo`), run with `npm run e2e:odoo -- <file>`, set the rows to
-`automated` with the file name. The default agent model is paid-only (#133): no `agent.act`.
+`automated` with the file name. Avoid `agent.act`: the default agent and its Jev judge call external model
+services (`docs/testing.md` section 4), which needs the owner's key and consent. Exact steps need no model.
 
 Lessons from the first full run are in [references/lessons.md](references/lessons.md).

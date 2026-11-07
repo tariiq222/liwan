@@ -1,8 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """R7 gate: no sudo() without a recorded justification.
 
-AGENTS.md owns the rule: R7 forbids a new `sudo()` outside the documented cases. The cases and
-the reason for each live only in `tools/arch_documented_sudo.json`. `tools/arch_policy.py` only compares per-file counts against `tools/arch_baseline.json`
+AGENTS.md owns the rule: R7 forbids a new `sudo()` outside the documented cases; adding one needs
+no approval trailer (owner decision 2026-10-25, below). The cases and the reason for each live only
+in `tools/arch_documented_sudo.json`. `tools/arch_policy.py` only compares per-file counts against `tools/arch_baseline.json`
 and never reads a reason, so today a contributor can raise a documented count and the baseline
 together. This tool closes that hole and runs inside `npm test`:
 
