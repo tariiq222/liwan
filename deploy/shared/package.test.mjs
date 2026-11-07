@@ -41,7 +41,7 @@ test('rate module is present in actual proxy build recipe and exactly the declar
   assert.match(config, /reverse_proxy guard:8080/)
   assert.match(config, /reverse_proxy tiktok-relay:8090/)
   assert.match(config, /handle \/tiktok\/\*/)
-  assert.match(config, /\{\$LIWAN_TIKTOK_RELAY_HOST\}/)
+  assert.match(config, /\{\$LIWAN_TIKTOK_RELAY_HOST:invalid\.invalid\}/)
   assert.doesNotMatch(config, /reverse_proxy (?:odoo|web):/)
   const webZone = config.split('zone liwan_web {')[1].split('}')[0]
   // The built web image serves only /_nuxt/*, /_i18n/* (Nitro route
