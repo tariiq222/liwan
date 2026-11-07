@@ -132,10 +132,10 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
   const existing = await findReplay(client, quote, input, digest)
   if (existing) return existing
   let subscription = (await client.query('SELECT * FROM subscriptions WHERE customer_id=$1 FOR UPDATE', [quote.customer_id])).rows[0]
-  // Shared mode returns payments to the tenant's own host, so a paid first order for a customer with no tenant
-  // binding could never be paid: the first order there is the trial, and the customer pays from inside the tenant.
-  if (principal.kind === 'vendor' && process.env.LIWAN_TENANCY_MODE === 'shared' && quote.due_now.minor > 0 && !subscription?.applied_revision_id
-    && !(await client.query('SELECT 1 FROM shared_registry_bindings WHERE control_tenant_id=$1 AND enabled', [customer.tenant_id])).rowCount) throw new CommercialHttpError('trial_required_first', 409)
+  // A vendor may place a paid first order for a customer with no tenant binding yet (release 1, owner decision
+  // 2026-11-06): the order carries the control tenant its fulfilment provisions. Issue #143's invariant is kept where
+  // it belongs, in fulfilment: an order with no tenant is never applied, its fulfilment is released with
+  // `tenant_required` instead of stranding the payment.
   if (!subscription) {
     if (quote.subscription_id || input.expected_subscription_revision !== 0) throw new CommercialHttpError('revision_conflict', 409)
     subscription = (await client.query('INSERT INTO subscriptions(id,customer_id,tenant_id) VALUES($1,$2,$3) RETURNING *', [randomUUID(), customer.id, customer.tenant_id])).rows[0]

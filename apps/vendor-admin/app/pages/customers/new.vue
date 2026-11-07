@@ -20,8 +20,9 @@ const noRelease = computed(() => sharedEnabled.value && releases.value !== null 
 const published = computed(() => catalog.value?.items.filter(item => item.status === 'published') ?? [])
 const selectedCatalog = computed(() => published.value.find(item => item.version === form.catalog_version))
 const form = reactive({ name: '', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: '', catalog_version: '', catalog_tier: '', reason: '', admin_name: '', admin_login: '', plan_revision_id: '', cadence: '' })
-// A paid plan without a trial cannot be a shared customer's first order (the server answers trial_required_first).
-const startablePlans = computed(() => (plans.value ?? []).filter(p => p.trial_days > 0 || p.prices.every(price => price.amount.minor === 0)))
+// Every published plan can start a customer (release 1, owner decision 2026-11-06): a paid plan places a paid first
+// order the vendor then collects by bank transfer or the payment link, and a plan with a trial starts one instead.
+const startablePlans = computed(() => plans.value ?? [])
 const selectedPlan = computed(() => startablePlans.value.find(p => p.id === form.plan_revision_id))
 const cadenceItems = computed(() => (selectedPlan.value?.prices ?? []).map(p => ({ label: cadenceLabel(p.cadence, t), value: cadenceKey(p.cadence) })))
 const selectedCadence = computed<Cadence | undefined>(() => selectedPlan.value?.prices.find(p => cadenceKey(p.cadence) === form.cadence)?.cadence)
@@ -50,8 +51,8 @@ async function submit() {
       // The server also deduplicates: one request id per submission returns the same customer on a lost response.
       creationRequestId.value ??= crypto.randomUUID()
       createdCustomer.value ??= (await subscriptions.createCustomer(planTenantCustomerBody(form, creationRequestId.value))).id
-      // A new shared customer starts on the plan's trial and pays later from its own workspace; only a free plan
-      // without a trial places its order directly.
+      // A plan with a trial starts that trial; every other plan places its first order: free when its total is zero,
+      // paid (collected by bank transfer or a payment link) otherwise.
       if (selectedPlan.value.trial_days > 0) await subscriptions.startTrial(createdCustomer.value, planRequestBody(selectedPlan.value, selectedCadence.value))
       else {
         const quote = await subscriptions.changeQuote(planTenantQuoteBody(createdCustomer.value, selectedPlan.value, selectedCadence.value))

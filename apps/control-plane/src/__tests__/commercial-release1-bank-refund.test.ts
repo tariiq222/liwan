@@ -62,7 +62,9 @@ suite('bank transfer (W5)', () => {
   /** An accepted, unpaid order for one customer with its issued invoice. */
   async function unpaidOrder() {
     const id = randomUUID()
-    await pool.query('INSERT INTO customers(id,name) VALUES($1,$2)', [id, 'Bank customer'])
+    const tenant = randomUUID()
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Customer','saas','managed',$2,true)", [tenant, `c-${tenant}`])
+    await pool.query('INSERT INTO customers(id,name,tenant_id) VALUES($1,$2,$3)', [id, 'Bank customer', tenant])
     const quote = await createQuoteForCustomer(pool, { customer_id: id, request: { kind: 'new', plan_revision_id: plan.id, bundle_revision_ids: [], cadence: monthly,
       requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 5120 } })
     const { order } = await acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: randomUUID() }, vendor)
@@ -170,7 +172,9 @@ suite('the 14-day refund window (W7)', () => {
   /** A paid order, its paid invoice and the pending credit note the refund would close, at a chosen payment time. */
   async function paidWithCreditNote(paidAt: string) {
     const id = randomUUID()
-    await pool.query('INSERT INTO customers(id,name) VALUES($1,$2)', [id, 'Refund customer'])
+    const tenant = randomUUID()
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Customer','saas','managed',$2,true)", [tenant, `c-${tenant}`])
+    await pool.query('INSERT INTO customers(id,name,tenant_id) VALUES($1,$2,$3)', [id, 'Refund customer', tenant])
     const quote = await createQuoteForCustomer(pool, { customer_id: id, request: { kind: 'new', plan_revision_id: plan.id, bundle_revision_ids: [], cadence: monthly,
       requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 5120 } })
     const { order } = await acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: randomUUID() }, vendor)

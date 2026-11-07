@@ -52,8 +52,10 @@ describe('trial start wiring', () => {
     const { kind, ...rest } = planRequestBody(plan() as never, monthly)
     expect(planTenantQuoteBody('c1', plan() as never, monthly)).toEqual({ customer_id: 'c1', kind, ...rest })
   })
-  it('maps the paid-first refusal to its own message', () => {
-    expect(commercialErrorKey({ data: { code: 'trial_required_first' }, statusCode: 409 })).toBe('vendor.pricing.errors.trial_required_first')
+  it('maps a tenantless paid first order to the tenant_required message', () => {
+    // Release 1 (owner decision 2026-11-06): a vendor may take a paid first order; the refusal left is the one the
+    // issue #143 invariant needs, a paid order with no tenant to provision.
+    expect(commercialErrorKey({ data: { code: 'tenant_required' }, statusCode: 409 })).toBe('vendor.pricing.errors.generic')
   })
   it('posts to the vendor trial route and shows the panel only to a manager of a customer without a subscription', () => {
     expect(read('composables/useVendorSubscriptions.ts')).toContain('commercial/customers/${seg(customerId)}/trial')
