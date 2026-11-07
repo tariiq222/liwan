@@ -49,6 +49,11 @@ PERSONAS = (
     ('crm_manager', 'أحمد السهلي', 'مدير المبيعات', 'المبيعات', 'ceo', ('employee', 'crm_manager')),
     ('crm_agent', 'مها الثبيتي', 'موظفة مبيعات', 'المبيعات', 'crm_manager', ('employee', 'crm_agent')),
     ('crm_agent2', 'نايف العسيري', 'موظف مبيعات', 'المبيعات', 'crm_manager', ('employee', 'crm_agent')),
+    # The Customer Inbox application: without these three no seeded account holds any inbox.*
+    # capability, so every inbox scenario and its API routes were unreachable (finding 2026-11-07).
+    ('inbox_manager', 'منال الشريف', 'مديرة صندوق العملاء', 'المبيعات', 'ceo', ('employee', 'inbox_manager')),
+    ('inbox_supervisor', 'راكان الدوسري', 'مشرف صندوق العملاء', 'المبيعات', 'inbox_manager', ('employee', 'inbox_supervisor')),
+    ('inbox_agent', 'لمياء العتيبي', 'موظفة صندوق العملاء', 'المبيعات', 'inbox_supervisor', ('employee', 'inbox_agent')),
 )
 # Personas whose only purpose is a custom role or a role combination no business persona holds.
 ROLE_PERSONAS = (
