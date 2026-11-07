@@ -59,10 +59,11 @@ jobs:
       base: ${{ steps.select.outputs.base }}
       odoo-modules: ${{ steps.select.outputs.odoo-modules }}
       odoo-shards: ${{ steps.select.outputs.odoo-shards }}
+      e2e-mock-shards: ${{ steps.select.outputs.e2e-mock-shards }}
       apps: ${{ steps.select.outputs.apps }}
       bridges: ${{ steps.select.outputs.bridges }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
       - name: Select the stages
@@ -95,6 +96,7 @@ jobs:
           echo "stages=$stages" >> "$GITHUB_OUTPUT"
           echo "odoo-modules=$modules" >> "$GITHUB_OUTPUT"
           echo "odoo-shards=$(python3 -B tools/odoo_shards.py matrix ${modules:+--modules "$modules"})" >> "$GITHUB_OUTPUT"
+          echo "e2e-mock-shards=$(python3 -B tools/ci_stage_cache.py e2e-mock-shards)" >> "$GITHUB_OUTPUT"
           echo "apps=$(python3 -B tools/app_isolation.py matrix apps ${modules:+--modules "$modules"})" >> "$GITHUB_OUTPUT"
           echo "bridges=$(python3 -B tools/app_isolation.py matrix bridges ${modules:+--modules "$modules"})" >> "$GITHUB_OUTPUT"
           echo "Base $base, stages $stages"
@@ -109,6 +111,7 @@ jobs:
           SELECTED: ${{ steps.select.outputs.stages }}
           ODOO_MODULES: ${{ steps.select.outputs.odoo-modules }}
           ODOO_SHARDS: ${{ steps.select.outputs.odoo-shards }}
+          E2E_MOCK_SHARDS: ${{ steps.select.outputs.e2e-mock-shards }}
           APPS: ${{ steps.select.outputs.apps }}
           BRIDGES: ${{ steps.select.outputs.bridges }}
         run: |
@@ -116,7 +119,7 @@ jobs:
           cached='[]'
           if [ "$EVENT_NAME" = pull_request ] || [ "$EVENT_NAME" = merge_group ]; then
             cached="$(python3 -B tools/ci_stage_cache.py cached --stages "$SELECTED" \
-              --odoo-shards "$ODOO_SHARDS" --apps "$APPS" --bridges "$BRIDGES" --odoo-modules "$ODOO_MODULES")"
+              --odoo-shards "$ODOO_SHARDS" --e2e-mock-shards "$E2E_MOCK_SHARDS" --apps "$APPS" --bridges "$BRIDGES" --odoo-modules "$ODOO_MODULES")"
           fi
           echo "stages=$(jq -c --argjson cached "$cached" '. - $cached' <<< "$SELECTED")" >> "$GITHUB_OUTPUT"
           echo "cached=$cached" >> "$GITHUB_OUTPUT"
@@ -130,7 +133,7 @@ jobs:
     env:
       CI_BASE_REF: ${{ needs.scope.outputs.base }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
@@ -162,7 +165,7 @@ jobs:
           --health-timeout 5s
           --health-retries 12
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: ./.github/actions/setup
         with:
           node: 'false'
@@ -192,7 +195,7 @@ jobs:
           --health-timeout 5s
           --health-retries 12
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: ./.github/actions/setup
       - run: deploy/ci/control-plane.sh
       - uses: ./.github/actions/stage-pass
@@ -206,7 +209,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: ./.github/actions/setup
         with:
           npm-ci: 'false'
@@ -242,7 +245,7 @@ jobs:
           --health-timeout 5s
           --health-retries 12
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: ./.github/actions/setup
         with:
           node: 'false'
@@ -284,7 +287,7 @@ jobs:
           --health-timeout 5s
           --health-retries 12
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: ./.github/actions/setup
         with:
           node: 'false'
@@ -320,7 +323,7 @@ jobs:
           --health-timeout 5s
           --health-retries 12
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: ./.github/actions/setup
         with:
           node: 'false'
@@ -351,7 +354,7 @@ jobs:
           --health-timeout 5s
           --health-retries 12
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
@@ -383,7 +386,7 @@ jobs:
           --health-timeout 5s
           --health-retries 12
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: ./.github/actions/setup
         with:
           node: 'false'
@@ -416,29 +419,37 @@ jobs:
           --health-timeout 5s
           --health-retries 12
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - run: deploy/ci/image.sh
       - uses: ./.github/actions/stage-pass
         if: success()
         with:
           stage: image
 
+  # One job per shard (tools/ci_stage_cache.py E2E_MOCK_SHARDS): each builds Nuxt and runs its share of the mock specs;
+  # the last shard also runs the long-list specs (deploy/ci/e2e-mock.sh --shard k/N). fail-fast is off so a red run
+  # reports every failing shard.
   e2e-mock:
+    name: e2e-mock (shard ${{ matrix.shard }})
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'e2e-mock')
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.scope.outputs.e2e-mock-shards) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: ./.github/actions/setup
         with:
           playwright: 'true'
-      - run: deploy/ci/e2e-mock.sh
+      - run: deploy/ci/e2e-mock.sh --shard ${{ matrix.shard }}/${{ strategy.job-total }}
       - name: Upload the e2e-mock diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: e2e-mock-diagnostics
+          name: e2e-mock-diagnostics-${{ matrix.shard }}
           path: |
             apps/web/test-results/
             apps/web/playwright-report/
@@ -451,9 +462,11 @@ jobs:
         if: success()
         with:
           stage: e2e-mock
+          extra: ${{ matrix.shard }}/${{ strategy.job-total }}
 
   # The real-Odoo Playwright specs on a scratch database seeded through Odoo (deploy/ci/e2e-odoo.sh). Slow, so a pull
-  # request leaves it to the push to main, the nightly run and a full dispatch (tools/ci_scope.py DEFERRED_STAGES).
+  # request runs it only for a change that reaches the surfaces its specs write through (tools/ci_scope.py
+  # E2E_ODOO_TRIGGERS); otherwise it waits for the push to main, the nightly run and a full dispatch.
   e2e-odoo:
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'e2e-odoo')
@@ -473,7 +486,7 @@ jobs:
           --health-timeout 5s
           --health-retries 12
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: ./.github/actions/setup
         with:
           playwright: 'true'
@@ -481,7 +494,7 @@ jobs:
       - run: deploy/ci/e2e-odoo.sh
       - name: Upload the e2e-odoo diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: e2e-odoo-diagnostics
           path: |
@@ -500,7 +513,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: ./.github/actions/setup
         with:
           playwright: 'true'
@@ -531,3 +544,21 @@ jobs:
             all($selected[]; . as $stage | $needs[$stage].result == "success") and
             all(.[]; .result == "success" or .result == "skipped")
           ' > /dev/null
+
+  # A red push to main or nightly run opens (or updates) the one `CI is red on main` issue; a green one closes it.
+  # ci-result does not depend on this job. checkout is for the script; the issue and run reads need the other two.
+  main-alert:
+    if: always() && (github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
+    needs: ci-result
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - run: deploy/ci/main-alert.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_RESULT: ${{ needs.ci-result.result }}

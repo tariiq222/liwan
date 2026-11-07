@@ -80,7 +80,7 @@ class StagesForTest(unittest.TestCase):
 
     def test_every_stage_has_a_script_and_a_workflow_job(self):
         root = Path(ci_scope.__file__).resolve().parents[1]
-        scripts = sorted(path.stem for path in (root / 'deploy/ci').glob('*.sh'))
+        scripts = sorted(path.stem for path in (root / 'deploy/ci').glob('*.sh') if path.stem != 'main-alert')
         self.assertEqual(scripts, sorted(ALL))
         workflow = (root / '.github/workflows/ci.yml').read_text()
         for stage in ALL:
@@ -124,6 +124,34 @@ class PullRequestTest(unittest.TestCase):
     def test_a_pull_request_keeps_the_other_stages_of_a_path(self):
         stages = ci_scope.pull_request_stages(['apps/web/app/a.vue'], None)
         self.assertEqual(stages, ('static', 'control-plane', 'e2e-mock', 'rtl-stories'))
+
+    def test_a_change_reaching_the_profile_surfaces_keeps_e2e_odoo(self):
+        for path in ('apps/web/e2e/real-odoo-acceptance.spec.ts', 'apps/web/app/pages/projects/[id]/index.vue',
+                     'apps/web/app/components/pmo/projects/tabs/Workspace.vue', 'apps/web/app/composables/useTasks.ts',
+                     'apps/web/app/composables/useBus.ts', 'odoo-addons/liwan_pmo/models/project_tools.py',
+                     'odoo-addons/liwan_chat/models/chat_service.py'):
+            with self.subTest(path=path):
+                self.assertTrue(ci_scope.keeps_e2e_odoo([path]))
+                stages = ci_scope.pull_request_stages([path], self.affected(path))
+                self.assertIn('e2e-odoo', stages)
+                self.assertFalse(set(stages) & set(self.DEFERRED) - {'e2e-odoo'})
+
+    def test_every_other_change_still_defers_e2e_odoo(self):
+        for path in ('apps/web/app/pages/hr/index.vue', 'apps/web/app/composables/useHrEmployees.ts',
+                     'odoo-addons/liwan_hr/models/a.py', 'apps/ai-service/a.py', '.github/workflows/ci.yml',
+                     'plans/unmapped.txt'):
+            with self.subTest(path=path):
+                self.assertFalse(ci_scope.keeps_e2e_odoo([path]))
+                self.assertNotIn('e2e-odoo', ci_scope.pull_request_stages([path], self.affected(path)))
+
+    def test_every_e2e_odoo_trigger_still_names_a_path_in_the_tree(self):
+        root = Path(ci_scope.__file__).resolve().parents[1]
+        for pattern in ci_scope.E2E_ODOO_TRIGGERS:
+            with self.subTest(pattern=pattern):
+                # A renamed page or composable would silently stop selecting the stage.
+                target = root / pattern.rstrip('*')
+                self.assertTrue(target.is_dir() if pattern.endswith('*') else target.is_file(),
+                                f'{pattern} names no path in the tree')
 
     def test_a_changed_addon_reaches_its_dependents_transitively(self):
         self.assertEqual(self.affected('odoo-addons/base_mod/models/a.py'), ['a_b', 'app_a', 'app_b', 'base_mod'])

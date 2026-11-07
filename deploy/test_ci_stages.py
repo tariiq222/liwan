@@ -354,6 +354,54 @@ if args[:1] == ['run'] and any(a.startswith('aquasec/trivy:') for a in args): pr
         self.assertIn('scan failed: unreadable trivy report', process.stderr)
 
 
+class TestE2EOdooStage(unittest.TestCase):
+    """The real-Odoo stage's own wiring: the browser's host decides which socket carries the session."""
+
+    def test_the_websocket_uses_the_host_the_specs_browse(self):
+        script = commands('e2e-odoo')
+        # An Odoo socket reaches the session cookie only on the host that set it; the specs browse localhost.
+        self.assertIn('E2E_BASE_URL="http://localhost:$WEB_PORT"', script)
+        self.assertIn('export NUXT_PUBLIC_WS_URL="ws://localhost:$ODOO_PORT/websocket"', script)
+        self.assertNotIn('NUXT_PUBLIC_WS_URL="ws://127.0.0.1', script)
+
+    def test_the_timeouts_cover_a_production_build_and_a_server_push(self):
+        # The stage waits on the Nuxt build, then on two servers; a short bound would fail a slow runner.
+        self.assertIn('timeout-minutes: 60', (ROOT / '.github/workflows/ci.yml').read_text())
+
+
+class TestE2EMockStage(unittest.TestCase):
+    def run_script(self, *args):
+        return subprocess.run(['bash', str(ROOT / 'deploy/ci/e2e-mock.sh'), *args], cwd=ROOT, env={**os.environ, 'MOCK_PORT': ''},
+                              capture_output=True, text=True, check=False)
+
+    def test_a_malformed_shard_is_refused_before_anything_runs(self):
+        for args in (('--shard', '0/3'), ('--shard', '4/3'), ('--shard', '2'), ('--shard', 'a/b'), ('--shard', '02/3'),
+                     ('--shard', '1/3/3'), ('--other',)):
+            with self.subTest(args=args):
+                process = self.run_script(*args)
+                self.assertEqual(process.returncode, 2, process.stderr)
+                self.assertNotIn('MOCK_PORT', process.stderr)
+
+    def test_a_shard_flag_without_a_value_fails_loudly(self):
+        for args in (('--shard',), ('--shard', '')):
+            with self.subTest(args=args):
+                process = self.run_script(*args)
+                self.assertNotEqual(process.returncode, 0)
+                self.assertIn('usage: e2e-mock.sh --shard k/N', process.stderr)
+
+    def test_a_valid_shard_passes_the_validation(self):
+        process = self.run_script('--shard', '2/3')
+        self.assertIn('MOCK_PORT', process.stderr)
+
+    def test_the_main_specs_are_sharded_and_the_long_list_runs_in_the_last_shard_only(self):
+        script = commands('e2e-mock')
+        self.assertIn('npx playwright test ${SHARD:+--shard="$SHARD"} "${SPECS[@]}"', script)
+        guard = 'if [ -n "$SHARD" ] && [ "${SHARD%/*}" != "${SHARD#*/}" ]; then exit 0; fi'
+        self.assertEqual(script.count(guard), 1)
+        self.assertLess(script.index(guard), script.index('ci-mock-long-list-specs.txt'))
+        self.assertGreater(script.index(guard), script.index('"${SPECS[@]}"'))
+
+
 class TestVendorAdminStage(unittest.TestCase):
     def test_vendor_admin_stage_prepares_lints_tests_and_builds(self):
         script = commands('vendor-admin')
@@ -364,7 +412,7 @@ class TestVendorAdminStage(unittest.TestCase):
     def test_every_script_is_executable_bash_and_run_by_the_workflow(self):
         workflow = (ROOT / '.github/workflows/ci.yml').read_text()
         scripts = sorted((ROOT / 'deploy/ci').glob('*.sh'))
-        self.assertEqual(len(scripts), 13)
+        self.assertEqual(len(scripts), 14)  # the thirteen stages and main-alert
         for script in scripts:
             with self.subTest(script=script.name):
                 self.assertTrue(os.access(script, os.X_OK))
