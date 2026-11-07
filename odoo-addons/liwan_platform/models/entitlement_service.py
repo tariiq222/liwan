@@ -416,7 +416,15 @@ class LiwanEntitlementService(models.AbstractModel):
                 details={'reason': 'limit', 'limit_key': 'storage.limit_mb'},
             )
         self._liwan_profile()._liwan_bump_quota_revision()
+        self._liwan_storage_claimed(current + delta_bytes, limit_mb * 1048576)
         return True
+
+    @api.model
+    def _liwan_storage_claimed(self, used_bytes, limit_bytes):
+        """Extension point called after a claim fits a storage limit, with the usage the claim leads to and the limit, both in bytes.
+
+        The platform does nothing here; an addon that warns tenants near the limit extends it through super().
+        """
 
     @api.model
     def _liwan_readable_features(self, profile=None):
