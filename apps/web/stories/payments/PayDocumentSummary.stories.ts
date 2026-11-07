@@ -25,3 +25,4 @@ export const InvoiceWithoutDueDate: Story = { args: { payable: { ...invoice, due
 export const Order: Story = { args: { kind: 'order', payable: order } }
 export const OrderDeposit: Story = { args: { kind: 'order', payable: { ...order, amount_due: 5000, amount_total: 16905 } satisfies PayableOrder } }
 export const OrderWithoutExpiry: Story = { args: { kind: 'order', payable: { ...order, expires_at: null } satisfies PayableOrder } }
+export const OrderWithoutTax: Story = { args: { kind: 'order', payable: { ...order, amount_untaxed: 16905, amount_tax: 0 } satisfies PayableOrder } }

@@ -8,7 +8,7 @@
 // `tok-<id>`. Invoices: 2 payable, 3 payable in part (its start is refused as `payment_unavailable`), 4 paid,
 // 6 processing, 8 not payable, 9 payable but with no payment method (the tenant has no live gateway), 10 answers 429
 // (the service is busy). Online orders (their own id space): 21 payable, 22 payable with a deposit, 23 paid,
-// 24 processing, 25 not payable (cancelled or expired), 26 payable with no payment method. A draft invoice (1), any other
+// 24 processing, 25 not payable (cancelled or expired), 26 payable with no payment method, 27 payable and untaxed. A draft invoice (1), any other
 // id or a wrong token answers 404 `not_found`, like any invalid link. Only a live gateway takes a payment link: test
 // mode answers 422 `no_gateway`.
 import { capabilitiesForRequest } from './mock-capabilities.mjs'
@@ -161,6 +161,8 @@ const payerOrder = (id, status, extra = {}) => ({
 })
 const PAYER_ORDERS = new Map([
   [21, payerOrder(21, 'payable')],
+  // A company that is not registered for VAT charges no tax at all: the order carries none and the page shows no tax row.
+  [27, payerOrder(27, 'payable', { amount_untaxed: 16905, amount_tax: 0, amount_total: 16905, amount_due: 16905 })],
   [22, payerOrder(22, 'payable', { amount_due: 5000 })],
   [23, payerOrder(23, 'paid', { amount_due: 0 })],
   [24, payerOrder(24, 'processing')],
