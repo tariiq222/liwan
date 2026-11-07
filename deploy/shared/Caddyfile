@@ -86,10 +86,8 @@
 }
 
 # The platform TikTok app's single delivery host (D13/D14): the webhook and the OAuth bounce only.
-# Tenants are reached through the relay; this host never serves a tenant page. A deployment that runs
-# no TikTok app leaves the variable empty, and Caddy rejects an empty address ("server block without
-# any key"), so the address falls back to a name that resolves nowhere: the block stays valid and
-# nothing reaches it.
+# Tenants are reached through the relay. Compose supplies the reserved address for an empty or unset
+# host. The Caddyfile default covers direct validation when the variable is absent.
 {$LIWAN_TIKTOK_RELAY_HOST:invalid.invalid} {
 	@privateToken header X-Liwan-Proxy-Token *
 	@privateRevision header X-Liwan-Tenant-Revision *

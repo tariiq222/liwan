@@ -253,6 +253,14 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
             [('127.0.0.1', '8080', 80), ('127.0.0.1', '8443', 443)],
         )
 
+    def test_shared_overlay_supplies_proxy_host_when_relay_host_is_empty(self) -> None:
+        for configured, expected in (('', 'invalid.invalid'), ('hooks.example.test', 'hooks.example.test')):
+            with self.subTest(configured=configured):
+                services = self._render_shared({'LIWAN_TIKTOK_RELAY_HOST': configured})['services']
+                self.assertEqual(services['proxy']['environment']['LIWAN_TIKTOK_RELAY_HOST'], expected)
+                redirect = f'https://{configured}/tiktok/oauth/callback' if configured else ''
+                self.assertEqual(services['odoo']['environment']['LIWAN_TIKTOK_REDIRECT_URI'], redirect)
+
     def test_shared_overlay_odoo_healthcheck(self) -> None:
         """Behavioral: shared overlay replaces /web/health with a TCP listener probe; base remains /web/health."""
         shared = self._render_shared({})
