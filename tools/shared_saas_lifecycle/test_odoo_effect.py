@@ -564,5 +564,75 @@ class VerifiedHelperRuntimeBoundaryTests(unittest.TestCase):
             self.assertFalse(list((root / 'leases' / 'tenant_a').glob('*.json')))
 
 
+class TenantIsolationOrderTests(unittest.TestCase):
+    """The new database is closed to PUBLIC before Odoo installs into it; a failure stops the job."""
+    PROJECT = 'liwan-shared-test'
+    DATABASE = 'liwan_scratch_' + 'a' * 32
+
+    def runner(self, root, fail_on=None):
+        runner = object.__new__(odoo_effect.Runner)
+        runner.root = Path(root).resolve()
+        runner.config = {'projectName': self.PROJECT}
+        runner.database = self.DATABASE
+        runner.base = ['docker', 'compose']
+        runner.request = {'attemptId': 'a' * 32, 'fence': 1, 'payloadDigest': 'b' * 64,
+                          'admin': {'login': 'admin@example.test'},
+                          'job': {'requestId': 'r', 'policy': {'modules': ['liwan_core']}}}
+        runner.reservation = runner.root / 'reservation.json'
+        runner.credential = runner.root / 'credential.json'
+        runner.classification = runner.root / 'classification.json'
+        runner.preflight = lambda: None
+        runner.exists = lambda: False
+        runner.filestore_exists = lambda: False
+        runner.current_container = None
+        self.commands = []
+
+        def command(args, *, stdin='', timeout=90):
+            self.commands.append((args, stdin))
+            if fail_on and fail_on(args):
+                raise odoo_effect.EffectError('runtime_command_failed')
+            return ''
+        runner.command = command
+        return runner
+
+    def apply(self, runner):
+        def reserve(path, _payload):
+            Path(path).write_text('{}')
+        with unittest.mock.patch.object(odoo_effect, 'reserve', reserve), \
+                unittest.mock.patch.object(odoo_effect, 'permit', lambda stage: None):
+            runner.apply()
+
+    def psql_calls(self):
+        return [(args[args.index('-d') + 1], stdin) for args, stdin in self.commands if 'psql' in args]
+
+    def test_database_is_created_and_closed_before_the_odoo_install(self):
+        with tempfile.TemporaryDirectory() as raw:
+            runner = self.runner(raw, fail_on=lambda args: '-i' in args)
+            with self.assertRaises(odoo_effect.EffectError):
+                self.apply(runner)
+        kinds = ['install' if '-i' in args else 'psql' for args, _ in self.commands]
+        self.assertEqual(kinds, ['psql', 'psql', 'install'])
+        (create_db, create_sql), (extension_db, extension_sql) = self.psql_calls()
+        self.assertEqual((create_db, extension_db), ('postgres', self.DATABASE))
+        self.assertEqual(create_sql.count('CREATE DATABASE "' + self.DATABASE + '"'), 1)
+        revoke = create_sql.index('REVOKE CONNECT ON DATABASE "' + self.DATABASE + '" FROM PUBLIC')
+        grant = create_sql.index('GRANT CONNECT ON DATABASE "' + self.DATABASE + '" TO "odoo"')
+        self.assertLess(create_sql.index('CREATE DATABASE'), revoke)
+        self.assertLess(revoke, grant)
+        self.assertLess(grant, create_sql.index('public_connect_not_revoked'))
+        self.assertIn('pg_trgm', extension_sql)
+        for args, _ in self.commands:
+            if 'psql' in args:
+                self.assertIn('ON_ERROR_STOP=1', args)
+
+    def test_failed_isolation_fails_the_job_before_the_install(self):
+        with tempfile.TemporaryDirectory() as raw:
+            runner = self.runner(raw, fail_on=lambda args: 'psql' in args)
+            with self.assertRaisesRegex(odoo_effect.EffectError, '^runtime_command_failed$'):
+                self.apply(runner)
+        self.assertEqual(len(self.commands), 1)
+        self.assertFalse(any('-i' in args for args, _ in self.commands))
+
+
 if __name__ == '__main__':
     unittest.main()

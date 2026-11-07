@@ -54,7 +54,7 @@ def run_scratch(output_root, *, suffix='1016'):
     if os.environ.get('LIWAN_RUN_PG_SCRATCH') != '1': raise ValueError('scratch_opt_in_required')
     root = Path(output_root)
     if not root.is_absolute() or root.resolve() != root or root.exists(): raise ValueError('scratch_output_must_be_new')
-    tools = {key: shutil.which(name) for key, name in [('pgDump', 'pg_dump'), ('pgRestore', 'pg_restore'), ('createdb', 'createdb')]}
+    tools = {key: shutil.which(name) for key, name in [('pgDump', 'pg_dump'), ('pgRestore', 'pg_restore'), ('psql', 'psql')]}
     if not all(tools.values()): raise ValueError('postgres_tools_missing')
     connections = []
     checks = {name: False for name in CHECKS}
@@ -137,7 +137,7 @@ def run_scratch(output_root, *, suffix='1016'):
         report['stage'] = 'scratch_restore'
         restored_store = root / 'restored' / RESTORED
         restored = restore_tenant(root / 'backup', {'tenantId':binding['tenantId'],'database': RESTORED,'filestore':RESTORED}, {**config,
-            'restoreAllowed': True, 'writesResumed': False,'recoverySource':{key:receipt[key] for key in ('tenantId','database','filestore','fence')}, 'targetFilestore': str(restored_store)})
+            'restoreAllowed': True, 'writesResumed': False, 'applicationRole': config['pgEnv']['PGUSER'], 'recoverySource':{key:receipt[key] for key in ('tenantId','database','filestore','fence')}, 'targetFilestore': str(restored_store)})
         target = _connect(RESTORED); connections.append(target); target.autocommit = True
         checks['restored_fixture_matches'] = _query(target, 'SELECT id,value FROM release_infrastructure_probe ORDER BY id') == expected_rows
         expected_attachment = hashlib.sha256(ATTACHMENT).hexdigest()

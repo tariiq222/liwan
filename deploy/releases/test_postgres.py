@@ -1,7 +1,9 @@
 """Infrastructure SQL guards never operate on Odoo business tables."""
 import unittest
 from .backup import Deadline
-from .postgres import validate_runtime_role, fence_runtime, fence_writers, writer_grants, runtime_role_fixture
+from .postgres import (validate_runtime_role, fence_runtime, fence_writers, writer_grants, runtime_role_fixture,
+                       tenant_create_database_sql, tenant_isolation_sql, tenant_isolation_statements,
+                       TENANT_EXTENSION_SQL)
 
 
 class Cursor:
@@ -59,6 +61,38 @@ class Connection:
 def backup_binding(**overrides):
     return {'tenantId': 'a', 'database': 'tenant_a', 'fence': 2, 'gateClosed': True,
             'admittedWriters': 0, **overrides}
+
+
+class TenantIsolationTests(unittest.TestCase):
+    def test_public_connect_is_revoked_before_the_application_role_is_granted(self):
+        sql = tenant_isolation_statements('tenant_a', 'odoo')
+        self.assertEqual('REVOKE CONNECT ON DATABASE "tenant_a" FROM PUBLIC', sql[0])
+        self.assertEqual('GRANT CONNECT ON DATABASE "tenant_a" TO "odoo"', sql[1])
+        self.assertIn("a.grantee = 0 AND a.privilege_type = 'CONNECT'", sql[2])
+        self.assertEqual(3, len(sql))
+
+    def test_unsafe_identifiers_are_rejected_before_any_sql_is_built(self):
+        for database, role in (('tenant"; DROP', 'odoo'), ('tenant_a', 'odoo; x'), ('Tenant', 'odoo')):
+            with self.assertRaises(ValueError):
+                tenant_isolation_sql(database, role)
+
+    def test_shell_script_carries_the_same_statements_in_order(self):
+        script = tenant_isolation_sql('tenant_a', 'odoo')
+        self.assertLess(script.index('REVOKE CONNECT'), script.index('GRANT CONNECT'))
+        self.assertLess(script.index('GRANT CONNECT'), script.index('public_connect_not_revoked'))
+        self.assertTrue(script.endswith(';\n'))
+
+
+class TenantCreationTests(unittest.TestCase):
+    def test_create_statement_is_odoos_empty_database_recipe(self):
+        self.assertEqual("CREATE DATABASE \"tenant_a\" ENCODING 'unicode' LC_COLLATE 'C' TEMPLATE template0",
+                         tenant_create_database_sql('tenant_a'))
+        self.assertEqual('CREATE EXTENSION IF NOT EXISTS pg_trgm', TENANT_EXTENSION_SQL)
+
+    def test_unsafe_database_names_are_rejected(self):
+        for database in ('tenant"; DROP', 'Tenant', '1db', 'bad-name'):
+            with self.assertRaises(ValueError):
+                tenant_create_database_sql(database)
 
 
 class PostgresTests(unittest.TestCase):

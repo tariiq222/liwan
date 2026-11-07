@@ -6,13 +6,15 @@
 -- when the inventory entry names `ai_python`. The service's own operator bootstrap then creates the
 -- tables inside schema liwan_ai.
 --
+-- The database must already be closed to PUBLIC (deploy/releases/postgres.py, tenant_isolation_sql): that
+-- is the one place that revokes CONNECT from PUBLIC, whether or not the AI role exists, and this script
+-- only adds the AI role's own grant. Callers run that step first.
+--
 -- Idempotent: every statement can be applied again to the same database. The whole script is a no-op
 -- when role liwan_ai does not exist (a deployment without AI). Odoo keeps schema public for itself;
 -- only the AI role loses it, so AI state can never read an Odoo table.
 \set ON_ERROR_STOP on
 
-SELECT format('REVOKE CONNECT ON DATABASE %I FROM PUBLIC', :'tenant_db')
-  WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'liwan_ai') \gexec
 SELECT format('GRANT CONNECT ON DATABASE %I TO liwan_ai', :'tenant_db')
   WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'liwan_ai') \gexec
 

@@ -77,7 +77,7 @@ def prepare(args):
     addons = [_path_dir(item, 'addons path') for item in args.addons_path]
     pg_bin = Path(_path_dir(args.pg_bin, 'PostgreSQL 16 bin'))
     tools = {name: _path_file(pg_bin / name, name)
-             for name in ('psql', 'pg_dump', 'pg_restore', 'createdb')}
+             for name in ('psql', 'pg_dump', 'pg_restore')}
     evidence.mkdir(mode=0o700, parents=True)
     os.chmod(evidence, 0o700)
     state = evidence / 'state'

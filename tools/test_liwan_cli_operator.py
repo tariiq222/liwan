@@ -257,7 +257,7 @@ class OperatorCase(unittest.TestCase):
             module_dir.mkdir()
             (module_dir / '__manifest__.py').write_text('{}')
         self.tools = {}
-        for name in ('odoo-bin', 'psql', 'pg_dump', 'pg_restore', 'createdb', 'ai-python'):
+        for name in ('odoo-bin', 'psql', 'pg_dump', 'pg_restore', 'ai-python'):
             path = self.root / name
             path.write_text('fixture')
             self.tools[name] = str(path)
@@ -280,7 +280,6 @@ class OperatorCase(unittest.TestCase):
             'addons_paths': [str(self.addons)], 'data_dir': str(self.data),
             'psql': self.tools['psql'], 'pg_dump': self.tools['pg_dump'],
             'pg_restore': self.tools['pg_restore'],
-            'createdb': self.tools['createdb'],
             'backup_root': str(self.backups), 'release_root': str(self.releases),
             'classification_file': str(self.classification),
         }
@@ -473,8 +472,6 @@ class OperatorCase(unittest.TestCase):
                                        'projects.max_projects': None}) + '\n', ''
             if "state = 'installed'" in argv[-1]:
                 return 0, 'liwan_core\nliwan_platform\nliwan_api\nliwan_pmo\nliwan_meetings\n', ''
-            if argv[0] == self.tools['createdb']:
-                return 0, '', ''
             if 'shell' in argv:
                 return 0, 'LIWAN_OPERATOR_RESULT:{"status":"ok","changed":true,"policy_revision":1}\n', ''
             if '-i' in argv:
@@ -493,8 +490,10 @@ class OperatorCase(unittest.TestCase):
                                                         'liwan_api', 'liwan_pmo', 'liwan_meetings'])
         self.assertEqual(payload['commercial_mode'], 'non_saas')
         self.assertFalse(payload['deployment_ready'])
-        create = next(item[0] for item in calls if item[0][0] == self.tools['createdb'])
-        self.assertEqual(create[-1], 'liwan_scratch_demo')
+        create, _env, create_sql = next(item for item in calls if item[2] and 'CREATE DATABASE' in item[2])
+        self.assertEqual(create[0], self.tools['psql'])
+        self.assertEqual(create_sql, 'CREATE DATABASE "liwan_scratch_demo" ENCODING \'unicode\' '
+                                     "LC_COLLATE 'C' TEMPLATE template0;\n")
         install = next(item[0] for item in calls if '-i' in item[0])
         self.assertIn('--stop-after-init', install)
         self.assertIn('--no-http', install)
@@ -532,7 +531,7 @@ class OperatorCase(unittest.TestCase):
                         return 0, 'liwan_core\nliwan_platform\nliwan_api\n', ''
                     if 'shell' in argv:
                         return 0, 'LIWAN_OPERATOR_RESULT:{"status":"ok","changed":false,"policy_revision":1}\n', ''
-                    if argv[0] == self.tools['createdb'] or '-i' in argv:
+                    if '-i' in argv:
                         return 0, '', ''
                     if 'ir_module_module' in argv[-1]:
                         return 0, '0\n', ''
@@ -550,12 +549,18 @@ class OperatorCase(unittest.TestCase):
         modules = ['liwan_core', 'liwan_platform', 'liwan_api', 'liwan_pmo', 'liwan_meetings']
 
         def runner(argv, env=None, stdin_text=None):
-            calls.append((argv, env))
+            calls.append((argv, env, stdin_text))
+            if stdin_text and 'public_connect_not_revoked' in stdin_text:
+                return (1, '', '') if fail == 'isolation' else (0, '', '')
+            if stdin_text and 'CREATE EXTENSION' in stdin_text:
+                return (1, '', '') if fail == 'extension' else (0, '', '')
+            if stdin_text and 'CREATE DATABASE' in stdin_text:
+                return (1, '', '') if fail == 'create' else (0, '', '')
             if argv[0] == ai_python:
                 return (1, '', '') if fail == 'bootstrap' else (0, '', '')
             if '-f' in argv:
                 return (1, '', '') if fail == 'schema' else (0, '', '')
-            if argv[0] == self.tools['createdb'] or '-i' in argv:
+            if '-i' in argv:
                 return 0, '', ''
             if 'shell' in argv:
                 return 0, 'LIWAN_OPERATOR_RESULT:{"status":"ok","changed":true,"policy_revision":1}\n', ''
@@ -591,6 +596,56 @@ class OperatorCase(unittest.TestCase):
         return operator.operation_adapter(
             self.fields('tenant.create', policy_file=str(self.policy), request_id=request_id),
             runner=self.create_runner(calls, ai_python, fail=fail))
+
+    def test_create_closes_the_database_to_public_after_creation_and_before_the_install(self):
+        calls = []
+        code, payload = self.create_with_ai(calls, request_id='create_isolated')
+        self.assertEqual(code, 0, payload)
+        order = {}
+        for index, (argv, _env, stdin_text) in enumerate(calls):
+            if stdin_text and 'CREATE DATABASE' in stdin_text:
+                order['create'] = index
+            elif stdin_text and 'public_connect_not_revoked' in stdin_text:
+                order['isolate'] = index
+                isolate = (argv, stdin_text)
+            elif stdin_text and 'CREATE EXTENSION IF NOT EXISTS pg_trgm' in stdin_text:
+                order['extension'] = index
+                extension = argv
+            elif '-i' in argv:
+                order['install'] = index
+        self.assertLess(order['create'], order['isolate'])
+        self.assertLess(order['isolate'], order['extension'])
+        self.assertLess(order['extension'], order['install'])
+        self.assertEqual(extension[extension.index('-d') + 1], 'liwan_scratch_demo')
+        argv, sql = isolate
+        self.assertEqual(argv[0], self.tools['psql'])
+        self.assertEqual(argv[argv.index('-d') + 1], 'postgres')
+        self.assertIn('ON_ERROR_STOP=1', argv)
+        self.assertIn('REVOKE CONNECT ON DATABASE "liwan_scratch_demo" FROM PUBLIC;', sql)
+        self.assertIn('GRANT CONNECT ON DATABASE "liwan_scratch_demo" TO "scratch_user";', sql)
+        # No AI role in the inventory entry: the revoke does not depend on it.
+        self.assertEqual([call for call in calls if '-f' in call[0]], [])
+
+    def test_create_aborts_before_the_install_when_creation_or_the_extension_fails(self):
+        for fail, stage in (('create', 'database_create'), ('extension', 'database_extension')):
+            with self.subTest(fail=fail):
+                calls = []
+                code, payload = self.create_with_ai(calls, fail=fail, request_id='create_' + fail + '_failed')
+                self.assertEqual(code, 6, payload)
+                self.assertEqual(payload['stage'], stage)
+                self.assertTrue(payload['changed'])
+                self.assertEqual([call for call in calls if '-i' in call[0] or 'shell' in call[0]], [])
+
+    def test_create_aborts_before_the_install_when_the_isolation_step_fails(self):
+        calls = []
+        code, payload = self.create_with_ai(calls, fail='isolation', request_id='create_isolation_failed')
+        self.assertEqual(code, 6, payload)
+        self.assertEqual(payload['status'], 'needs_intervention')
+        self.assertEqual(payload['stage'], 'database_isolation')
+        self.assertEqual(payload['error']['code'], 'operation_failed')
+        self.assertTrue(payload['changed'])
+        self.assertEqual([call for call in calls if '-i' in call[0] or 'shell' in call[0]], [])
+        self.assertEqual([call for call in calls if '-f' in call[0]], [])
 
     def test_create_with_ai_python_grants_the_tenant_schema_then_bootstraps_ai_state(self):
         calls = []

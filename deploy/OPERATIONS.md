@@ -88,9 +88,9 @@ The `ai` service (`apps/ai-service`, port `8600`, `/healthz`) is optional and of
 
 AI state has two parts. The `liwan_ai` database holds release control state only: the deployment `state_id` (`ai_state_schema`) and the generation draining flags (`ai_generations`). It holds no tenant content. Each tenant's runs and LangGraph checkpoints live in schema `liwan_ai` inside that tenant's own database, so a tenant backup, restore or deletion carries its AI state with it.
 
-Tenancy is set per deployment. In the dedicated stack the service serves the one tenant database from `DB_NAME` (`LIWAN_TENANCY_MODE=dedicated`, `AI_TENANT_DATABASE="${DB_NAME}"`). In the shared stack it maps a tenant id to its database from the tenant registry (`LIWAN_TENANCY_MODE=shared`, `LIWAN_TENANT_REGISTRY_PATH=/etc/liwan/registry.json`), and an unknown tenant is refused with 403 before any connection. A database name must match `^[a-z][a-z0-9_]{0,62}$`; the service refuses to start otherwise, and so does `deploy/provision.sh` when the `ai` profile is enabled, before it does any install work.
+Tenancy is set per deployment. In the dedicated stack the service serves the one tenant database from `DB_NAME` (`LIWAN_TENANCY_MODE=dedicated`, `AI_TENANT_DATABASE="${DB_NAME}"`). In the shared stack it maps a tenant id to its database from the tenant registry (`LIWAN_TENANCY_MODE=shared`, `LIWAN_TENANT_REGISTRY_PATH=/etc/liwan/registry.json`), and an unknown tenant is refused with 403 before any connection. A database name must match `^[a-z][a-z0-9_]{0,62}$`; the service refuses to start otherwise, and so does `deploy/provision.sh` for every tenant, before it does any install work.
 
-Provisioning applies `deploy/ai/tenant_schema.sql` to each tenant database it creates, then, when the `ai` profile is enabled, runs the operator bootstraps that create the tables in schema `liwan_ai` of that database, after the control state:
+Provisioning creates each tenant database empty and isolates it before any install: `tenant_isolation_sql` in `deploy/releases/postgres.py` revokes `CONNECT` from `PUBLIC`, grants it to `odoo` and fails if `PUBLIC` still holds it. It then applies `deploy/ai/tenant_schema.sql`, then, when the `ai` profile is enabled, runs the operator bootstraps that create the tables in schema `liwan_ai` of that database, after the control state:
 
 ```sh
 docker compose exec -T db psql -U odoo -d postgres -v ON_ERROR_STOP=1 -v tenant_db="$DB_NAME" < ai/tenant_schema.sql
@@ -131,7 +131,7 @@ Knowledge retrieval (AI phase 5): the assistant can search company records throu
 
 Retention: each tenant keeps runs for its own `retention_days` (1 to 365, AI settings page). `AI_RUN_RETENTION_DAYS` is only the window a tenant starts with when its schema is bootstrapped; the scheduled cleanup deletes each tenant's runs past its own window.
 
-Database isolation: the service connects as the dedicated role `liwan_ai`, which owns the `liwan_ai` control database and can connect to each tenant database with USAGE and CREATE on schema `liwan_ai` only. It is not the `odoo` superuser and holds no grant on any Odoo table or sequence, having lost its own schema-`public` privileges, so it can read no Odoo table; PostgreSQL still gives every role USAGE on schema `public` and EXECUTE on functions through `PUBLIC`, and Odoo grants nothing on its tables to `PUBLIC`. `deploy/ai/init-db.sh` (mounted into `/docker-entrypoint-initdb.d/20-liwan-ai.sh`) runs on a fresh `db_data` volume only and, when `AI_DB_PASSWORD` is non-empty, creates the role and database, revokes `CONNECT` on `liwan_ai` from `PUBLIC`, and revokes `CONNECT` on every other existing database from `PUBLIC` and from `liwan_ai`. A tenant database created later gets `CONNECT` granted selectively by `deploy/ai/tenant_schema.sql`, which `deploy/provision.sh` applies to each tenant database it creates, right after the install and before the services start: when the `liwan_ai` role exists it grants `CONNECT` there, creates schema `liwan_ai`, and revokes `public` from the role; it does nothing when the role does not exist. A tenant database created by another route (shared-mode tenant databases) needs the same script once: `docker compose exec -T db psql -U odoo -d postgres -v ON_ERROR_STOP=1 -v tenant_db="<tenant_db>" < ai/tenant_schema.sql`, then the tenant bootstrap below.
+Database isolation: the service connects as the dedicated role `liwan_ai`, which owns the `liwan_ai` control database and can connect to each tenant database with USAGE and CREATE on schema `liwan_ai` only. It is not the `odoo` superuser and holds no grant on any Odoo table or sequence, having lost its own schema-`public` privileges, so it can read no Odoo table; PostgreSQL still gives every role USAGE on schema `public` and EXECUTE on functions through `PUBLIC`, and Odoo grants nothing on its tables to `PUBLIC`. `deploy/ai/init-db.sh` (mounted into `/docker-entrypoint-initdb.d/20-liwan-ai.sh`) runs on a fresh `db_data` volume only and, when `AI_DB_PASSWORD` is non-empty, creates the role and database, revokes `CONNECT` on `liwan_ai` from `PUBLIC`, and revokes `CONNECT` on every other existing database from `PUBLIC` and from `liwan_ai`. Every tenant database is closed to `PUBLIC` by the shared isolation step above on every creation path: `deploy/provision.sh`, the operator `tenant.create`, shared provisioning and restore in `tools/shared_saas_lifecycle`, the release restore in `deploy/releases/backup.py` and the restore check in `deploy/restore_verify.py`. Each creates the database with the same recipe as Odoo (`tenant_create_database_sql`: `unicode`, `LC_COLLATE 'C'`, `template0`). `deploy/ai/tenant_schema.sql` then grants `CONNECT` selectively: when the `liwan_ai` role exists it grants `CONNECT` there, creates schema `liwan_ai`, and revokes `public` from the role; it does nothing when the role does not exist. A tenant database created by another route needs the isolation step first, then the same script once: `docker compose exec -T db psql -U odoo -d postgres -v ON_ERROR_STOP=1 -v tenant_db="<tenant_db>" < ai/tenant_schema.sql`, then the tenant bootstrap below.
 
 Existing `db_data` volume (init scripts do not rerun): create the role and database once, by hand, with the password passed as a psql variable:
 
@@ -334,7 +334,7 @@ python3 deploy/backup.py --opt-in MANUAL_BACKUP_OPT_IN --acknowledge-unverified 
   --pg-host "$PGHOST" --pg-port "$PGPORT" --pg-user "$PGUSER"
 python3 deploy/restore_verify.py --backup-dir "$WORK/backup" --target-db liwan_drill_restored_scratch \
   --target-filestore "$WORK/restored-data/filestore/liwan_drill_restored_scratch" \
-  --pg-restore "$PGBIN/pg_restore" --createdb "$PGBIN/createdb" --psql "$PGBIN/psql" \
+  --pg-restore "$PGBIN/pg_restore" --psql "$PGBIN/psql" \
   --pg-host "$PGHOST" --pg-port "$PGPORT" --pg-user "$PGUSER"; echo exit=$?
 ```
 
@@ -371,7 +371,7 @@ test -n "$STORE_FNAME"
 rm -- "$WORK/backup/filestore/$STORE_FNAME"
 python3 deploy/restore_verify.py --backup-dir "$WORK/backup" --target-db liwan_drill_restored2_scratch \
   --target-filestore "$WORK/restored-data/filestore/liwan_drill_restored2_scratch" \
-  --pg-restore "$PGBIN/pg_restore" --createdb "$PGBIN/createdb" --psql "$PGBIN/psql" \
+  --pg-restore "$PGBIN/pg_restore" --psql "$PGBIN/psql" \
   --pg-host "$PGHOST" --pg-port "$PGPORT" --pg-user "$PGUSER"; echo exit=$?
 ```
 

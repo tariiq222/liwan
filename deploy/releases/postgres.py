@@ -40,6 +40,40 @@ def validate_runtime_role(connection, role, database):
     return {'valid': not reasons, 'reasons': reasons}
 
 
+# Odoo's own recipe for an empty database (odoo/service/db.py _create_empty_database): unicode, C
+# collation and template0, then pg_trgm in the new database. Without the C collation and the extension
+# Odoo silently drops its trigram indexes, so every tenant database is created through these two.
+TENANT_EXTENSION_SQL = 'CREATE EXTENSION IF NOT EXISTS pg_trgm'
+
+
+def tenant_create_database_sql(database):
+    """The statement that creates an empty tenant database the way Odoo would; run it against ``postgres``."""
+    return f"CREATE DATABASE {identifier(database)} ENCODING 'unicode' LC_COLLATE 'C' TEMPLATE template0"
+
+
+def tenant_isolation_statements(database, application_role):
+    """SQL that closes a tenant database to every role but the shared application role.
+
+    Run right after the database is created, as a role that may alter it. Each statement is
+    idempotent. The last one fails the whole script when PUBLIC still holds CONNECT, so a run
+    that did not close the database never reports success. Grants the AI role holds (see
+    deploy/ai/tenant_schema.sql) are separate ACL entries and stay untouched.
+    """
+    quoted_db, quoted_role = identifier(database), identifier(application_role)
+    return (
+        f'REVOKE CONNECT ON DATABASE {quoted_db} FROM PUBLIC',
+        f'GRANT CONNECT ON DATABASE {quoted_db} TO {quoted_role}',
+        "DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_database d, LATERAL aclexplode(COALESCE(d.datacl, acldefault('d', d.datdba))) a "
+        f"WHERE d.datname = '{database}' AND a.grantee = 0 AND a.privilege_type = 'CONNECT') "
+        "THEN RAISE EXCEPTION 'public_connect_not_revoked'; END IF; END $$",
+    )
+
+
+def tenant_isolation_sql(database, application_role):
+    """The statements of tenant_isolation_statements as one psql script (used by shell harnesses)."""
+    return ''.join(statement + ';\n' for statement in tenant_isolation_statements(database, application_role))
+
+
 def fence_runtime(binding, old_role, new_role, admin_connector, deadline_seconds=30):
     """Revoke old admission, drain transactions, terminate idle old sessions.
 

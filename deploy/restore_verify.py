@@ -8,6 +8,7 @@ was actually restored and what was checked.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import re
 import shutil
@@ -21,6 +22,9 @@ DB_NAME_RE = re.compile(r'^[A-Za-z][A-Za-z0-9_]*$')
 SQL_INSTALLED = "SELECT count(*) FROM ir_module_module WHERE name LIKE 'liwan\\_%' AND state = 'installed'"
 SQL_STUCK = "SELECT count(*) FROM ir_module_module WHERE state IN ('to upgrade', 'to install', 'to remove')"
 SQL_ATTACHMENTS = 'SELECT DISTINCT store_fname FROM ir_attachment WHERE store_fname IS NOT NULL ORDER BY 1'
+
+
+RELEASE_POSTGRES = Path(__file__).resolve().parent / 'releases' / 'postgres.py'
 
 
 class RestoreError(Exception):
@@ -48,7 +52,21 @@ def _conn(pg_host, pg_port, pg_user) -> list[str]:
     return argv
 
 
-def perform_restore(*, backup_dir, target_db, target_filestore, pg_restore, createdb, psql,
+def _tenant_database_sql(database: str, role: str) -> tuple[str, str]:
+    """The create and PUBLIC-closing scripts of deploy/releases/postgres.py, the one source.
+
+    Loaded by path because this file also runs as a script, where ``deploy`` is not a package.
+    """
+    spec = importlib.util.spec_from_file_location('liwan_release_postgres', RELEASE_POSTGRES)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    try:
+        return module.tenant_create_database_sql(database) + ';\n', module.tenant_isolation_sql(database, role)
+    except ValueError as error:
+        raise RestoreError(f'database or role cannot be quoted for provisioning: {error}') from None
+
+
+def perform_restore(*, backup_dir, target_db, target_filestore, pg_restore, psql,
                     pg_host=None, pg_port=None, pg_user=None, runner=subprocess.run) -> dict:
     db = validate_target_db(target_db)
     backup = Path(backup_dir)
@@ -60,18 +78,26 @@ def perform_restore(*, backup_dir, target_db, target_filestore, pg_restore, crea
         raise RestoreError('target filestore must be a new absolute path ending in the target database name')
     tools = {
         'pg_restore': _tool(pg_restore, 'pg_restore'),
-        'createdb': _tool(createdb, 'createdb'),
         'psql': _tool(psql, 'psql'),
     }
     conn = _conn(pg_host, pg_port, pg_user)
+    # The restored database stays open to the role the restore connects as once PUBLIC is closed.
+    if not pg_user:
+        raise RestoreError('--pg-user is required: it is the role the restored database stays open to')
+    create, isolation = _tenant_database_sql(db, pg_user)
 
-    def run(argv):
-        done = runner(argv, capture_output=True, text=True, shell=False, check=False)
+    def run(argv, input=None):
+        done = runner(argv, input=input, capture_output=True, text=True, shell=False, check=False)
         if done.returncode != 0:
             raise RestoreError(f'{Path(argv[0]).name} failed with exit code {done.returncode}')
         return done.stdout
 
-    run([tools['createdb'], *conn, db])
+    # Created by the provisioning recipe, so a restored tenant sorts like a provisioned one, then closed to
+    # PUBLIC before any data is restored into it. psql stops on the first error and a failure raises, so
+    # neither the isolation nor pg_restore runs after a failed step.
+    admin = [tools['psql'], *conn, '-X', '-q', '-v', 'ON_ERROR_STOP=1', '-d', 'postgres']
+    run(admin, input=create)
+    run(admin, input=isolation)
     run([tools['pg_restore'], *conn, '--no-owner', '--exit-on-error', '-d', db, str(dump)])
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(str(store), str(destination), symlinks=True)
@@ -104,9 +130,9 @@ def perform_restore(*, backup_dir, target_db, target_filestore, pg_restore, crea
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    for flag in ('--backup-dir', '--target-db', '--target-filestore', '--pg-restore', '--createdb', '--psql'):
+    for flag in ('--backup-dir', '--target-db', '--target-filestore', '--pg-restore', '--psql', '--pg-user'):
         parser.add_argument(flag, required=True)
-    for flag in ('--pg-host', '--pg-port', '--pg-user'):
+    for flag in ('--pg-host', '--pg-port'):
         parser.add_argument(flag)
     args = parser.parse_args(argv)
     try:
