@@ -32,6 +32,12 @@ export async function resolveCatalogSource(repositoryRoot: string, sha256: strin
   if (!matches[0]) throw new Error('catalog_source_unavailable')
   return matches[0]
 }
+/** A stored catalog entry may move towards publication only while its bytes are still the one publishable catalog. */
+export async function requirePublishableSource(repositoryRoot: string, sha256: string): Promise<ResolvedCatalogSource> {
+  const source = await resolveCatalogSource(repositoryRoot, sha256)
+  if (source.name !== PUBLISHABLE_SOURCE) throw new Error('catalog_source_not_publishable')
+  return source
+}
 export async function resolveCatalogBytes(repositoryRoot: string, sha256: string): Promise<Buffer> {
   return (await resolveCatalogSource(repositoryRoot, sha256)).bytes
 }

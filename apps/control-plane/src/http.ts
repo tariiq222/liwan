@@ -28,7 +28,7 @@ import { aiProviderHttp } from './ai-provider/http.js'
 import { defaultWebAuthn, type WebAuthnLib } from './admin-auth/webauthn.js'
 import { enqueueSharedJob } from './shared/job-store.js'
 import { createHash, randomUUID } from 'node:crypto'
-import { resolveCatalogSource } from './shared/catalog-source.js'
+import { requirePublishableSource } from './shared/catalog-source.js'
 import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
@@ -594,9 +594,10 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         if (!current.rowCount) throw new ApiError(404, 'not_found', 'Catalog entry not found')
         if (current.rows[0].status !== (action === 'validate' ? 'draft' : 'validated')) throw new ApiError(409, 'conflict', 'Catalog transition is unavailable')
         // A8: both transitions re-check the source, not only import. An entry stored from a catalog file that has since
-        // changed or that is no longer publishable would publish a version that sells nothing (or the wrong thing);
-        // refuse it with the same code the import uses. Publish re-checks because validation may be long past.
-        try { await resolveCatalogSource(config.repositoryRoot, current.rows[0].source_sha256) }
+        // changed, or from an earlier catalog that is no longer the publishable one, would publish a version that sells
+        // nothing (or the wrong thing); refuse it with the same code the import uses. Publish re-checks because
+        // validation may be long past.
+        try { await requirePublishableSource(config.repositoryRoot, current.rows[0].source_sha256) }
         catch { throw new ApiError(409, 'catalog_source_not_publishable', 'Catalog source is no longer publishable; import a new version') }
         if (action === 'validate') {
           try { await exec(config.python, ['-B', join(config.repositoryRoot, 'tools/catalog_check.py'), '--root', config.repositoryRoot], { cwd: config.repositoryRoot, timeout: 60000, maxBuffer: 65536 }) }
