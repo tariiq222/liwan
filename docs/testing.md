@@ -1,6 +1,6 @@
 # Testing guide
 
-liwan has four test layers. Pick the cheapest one that proves the change.
+liwan has four test layers (layer 3 has a mock variant and a real-Odoo variant, 3b). Pick the cheapest one that proves the change.
 
 | Layer | Use it for | Run |
 | --- | --- | --- |
@@ -53,7 +53,8 @@ This is a **manual scratch-only drill**, not a CI test or release gate. Never ru
 
 ## Node version
 
-`.nvmrc` pins Node **24.15.0**, matching the workspace lockfile. Select that
+`.nvmrc` pins the Node version (the file is the single source; do not copy the number into other
+documents). Select that
 version with your Node version manager before installing dependencies or running
 checks; confirm `node --version`. Local Claude Code's `SessionStart` hook reads
 the major from `.nvmrc` and prepends the installed Homebrew major to `PATH` for
@@ -66,7 +67,7 @@ root tests/type checks. Do not share `node_modules` or `.nuxt` by symlink.
 `npm run dev` loads the selected worktree's git-ignored `.env.worktree` automatically,
 including its Nuxt/Odoo ports, scratch database and WebSocket URL. Main uses its
 private apps/web/.env with the explicitly configured `liwan_dev` development
-database. Neither `liwan_dev` nor `odoo19` is a test target; use scratch resources.
+database. `liwan_dev` is never a test target (the Bash guard also refuses the legacy name `odoo19`); use scratch resources.
 
 In a Claude Code cloud session (`CLAUDE_CODE_REMOTE=true`) the same hook fetches the full Git history (the clone is
 shallow, and `tools/ui_policy.py` reads its baseline commit), runs `npm ci --ignore-scripts` when
@@ -79,12 +80,13 @@ The Bash guard reads the upstream Odoo checkout from `LIWAN_ODOO_SRC` (default `
 
 ## Fast local loop
 
-Run focused local checks for the changed behavior and affected interfaces.
-GitHub Actions runs the complete required suite and owns the final merge gate;
-do not repeat the full local suite for each change. Additional local checks are
-for diagnosing failures or covering material behavior CI does not exercise.
-Keep every required GitHub check and report local and remote evidence separately.
-The complete `npm test` sequence remains binding in CI before merge.
+This section owns the depth of local checks. Run focused local checks for the changed behavior and
+affected interfaces (`npm run check:fast`, `npm run test:odoo`). GitHub Actions runs the complete
+required suite and owns the final merge gate; do not repeat the full local `npm test` for each
+change or for each integration. Run it locally only to diagnose a failure or to cover material
+behavior CI does not exercise. Keep every required GitHub check and report local and remote
+evidence separately. The complete `npm test` sequence (it includes `apps/vendor-admin`) remains
+binding in CI before merge.
 
 | Command | What it does |
 | --- | --- |
@@ -95,17 +97,17 @@ The complete `npm test` sequence remains binding in CI before merge.
 | `npm run wt -- claim --owner <who> [--task ...] [--scope ...]` | Inside a task worktree: record its claim, change or refresh your own, or take over an expired one (`tools/wt.py`). |
 | `npm run wt -- check` | Read-only report of worktrees that break the location, naming or claim rules; exit 1 when there is one (`tools/wt.py`). |
 | `npm run wt -- status` | One table of every worktree wherever it lives (`*` = outside `.worktrees/`): branch, owner and claim state, ahead/behind `main`, merged, dirty, last commit age, `node_modules` size, recorded scratch DB and ports, a summary line and the rule report (`tools/wt.py`). |
-| `npm run wt -- gc [--apply] [--branch codex/<area>-<slug>]` | Dry run by default: lists worktrees+branches merged into `main` with commits of their own, clean, and held by no process, plus the scratch databases of those worktrees that nobody is connected to (`liwan_scratch_e2e`, hand-named and `odoo_test.py` databases are never touched). Removing a worktree also deletes its ignored files (`.env.worktree`, `.nuxt`, `node_modules`). `--apply` runs `git worktree remove`, `git branch -d` and `dropdb`, reports each failure and continues; unmerged, dirty, current, in-use and missing-folder worktrees are skipped. `--apply` needs the owner's authorization. `--branch` limits it to that branch's worktree and scratch database, says why a worktree is kept, and deletes the local branch when it has no worktree and is merged. |
+| `npm run wt -- gc [--apply] [--branch codex/<area>-<slug>]` | Dry run by default: lists worktrees+branches merged into `main` with commits of their own, clean, and held by no process, plus the scratch databases of those worktrees that nobody is connected to (`liwan_scratch_e2e`, hand-named and `tools/odoo_test.py` databases are never touched). Removing a worktree also deletes its ignored files (`.env.worktree`, `.nuxt`, `node_modules`). `--apply` runs `git worktree remove`, `git branch -d` and `dropdb`, reports each failure and continues; unmerged, dirty, current, in-use and missing-folder worktrees are skipped. After a merge `--apply` falls under the standing authorization in `docs/agents/integration-rules.md`. `--branch` limits it to that branch's worktree and scratch database, says why a worktree is kept, and deletes the local branch when it has no worktree and is merged. |
 | `npm run check:audit` | `npm audit` gate: fails on a high or critical advisory in production dependencies, or a critical one in any dependency. Needs registry access. The CI `static` stage runs it when a change touches `package.json` or `package-lock.json`; the daily `audit` workflow runs it on `main`. |
 | `npm run check:semgrep` | Semgrep (`p/python`, `p/typescript`, `p/secrets`) on the source files changed against `main`, tests and generated files excluded (`tools/semgrep_gate.py`). ERROR and secrets findings fail; WARNING is listed only. Needs network for the rulesets, sends no usage data, exits 3 when semgrep or the registry is unavailable. Also runs in the CI `static` stage. |
-| `npm run review:jev -- --task "<what the change does>"` | Advisory Jev quality scores (score and confidence per dimension, plus priorities) for the diff against `main` (`tools/jev_review.mjs`; `--base <ref>`, `--diff <file>`, `--json`, `--previous <file>` for a before/after delta). Needs the local `~/code/jev-review` server and a key in `JEV_API_KEY` or `~/.config/jev-review/api-key`; refuses diffs that touch secret-bearing paths; always exits 0. Never a gate: see `REVIEW.md`. |
-| `npm run test:rtl` | Builds Storybook and opens every story in Arabic at 1280 px and 390 px: no page error, `dir=rtl`, no sideways page scroll (`apps/web/e2e-rtl`, config `playwright.rtl.config.ts`). Stories that cannot render are listed with a reason in `KNOWN_BROKEN` and only that list may shrink. Runs in CI as the `rtl-stories` stage. |
+| `npm run review:jev -- --base <ref> --task "<what the change does>"` | Advisory Jev quality scores (score and confidence per dimension, plus priorities) for the diff against the base (`tools/jev_review.mjs`; `--diff <file>`, `--json`, `--previous <file>` for a before/after delta). Needs the local `~/code/jev-review` server and a key in `JEV_API_KEY` or `~/.config/jev-review/api-key`; refuses diffs that touch secret-bearing paths; always exits 0. Run once per non-trivial review (see `REVIEW.md`); never a gate. |
+| `npm run test:rtl` | Builds Storybook and opens every story in Arabic at 1280 px and 390 px: no page error, `dir=rtl`, no sideways page scroll (`apps/web/e2e-rtl`, config `apps/web/playwright.rtl.config.ts`). Stories that cannot render are listed with a reason in `KNOWN_BROKEN` and only that list may shrink. Runs in CI as the `rtl-stories` stage. |
 
 Optional local git hooks: `npm run hooks:install` writes `pre-commit` (secret guard, docs and
 architecture policy, plus ui policy and ruff for staged files) and `commit-msg` (the
 `type(scope): subject` rule) into the shared `.git/hooks`, so every worktree gets them. It leaves
 `core.hooksPath` and the existing Git LFS hooks alone, refuses to overwrite a hook that is not
-its own, and `git commit --no-verify` still bypasses it. When the checks pass, `pre-commit` also prints the advisory Jev scores for the staged diff (never blocks; `LIWAN_SKIP_JEV=1` skips it). The `ci` workflow stays binding.
+its own, and `git commit --no-verify` still bypasses it. The `ci` workflow stays binding.
 
 `tools/odoo_test.py` builds the template once from the base branch (Odoo commit, release
 module list and the base `odoo-addons` tree form its name, so it is rebuilt when any of them
@@ -116,8 +118,9 @@ changes) and only ever creates, clones or drops `liwan_scratch_*` databases. Sta
 
 Integration uses a PR to `main`, following
 [`agents/integration-rules.md`](agents/integration-rules.md). `ci` runs on PRs,
-merge-queue entries (`merge_group`) and pushes to `main`, and can be started with `workflow_dispatch` (`full: true` for all
-stages). Each job runs its `deploy/ci` script and can be reproduced locally with
+merge-queue entries (`merge_group`) and pushes to `main`, runs nightly on `main` (`schedule`), and can be started with
+`workflow_dispatch` (`full: true` for all stages). The workflow file `.github/workflows/ci.yml` is the source for the
+triggers. Each job runs its `deploy/ci` script and can be reproduced locally with
 isolated resources. `ci-result` aggregates selected stages; its success is needed
 before merge, but does not prove a full run or owner authorization.
 
@@ -148,7 +151,7 @@ remain separate from a review report.
 
 ### Change-scoped stages
 
-The thirteen stages take about 33 minutes without `e2e-odoo` (which adds about 9), so a pull request runs only the stages its changed files can
+The twelve stages other than `e2e-odoo` take about 33 minutes (`e2e-odoo` adds about 9), so a pull request runs only the stages its changed files can
 affect. The path-to-stage map is `RULES` in `tools/ci_scope.py`: the first matching rule wins, `static`
 always runs, and **a path with no rule runs all thirteen stages** (that includes any `tools/` file not
 listed in `STATIC_ONLY_TOOLS`). Preview a selection, with the rule behind each changed path:
@@ -181,7 +184,7 @@ and `merge_group` events; a merge-queue entry is selected from the queue base to
   (a bridge is affected through either side); with none, the stage is not selected, and `ci-result` does not
   expect it.
 
-Push to `main`, the nightly schedule and `workflow_dispatch` with `full: true` run all thirteen stages with all
+Every push to `main`, the nightly schedule and `workflow_dispatch` with `full: true` run all thirteen stages with all
 three shards and every isolation group, so a cross-module regression the narrowed pull request could not see is
 caught on `main`.
 
@@ -211,8 +214,8 @@ it, and a failing issue call fails the job so a broken alert is seen.
 
 ### After the merge
 
-Removing the merged task's worktree, branch and scratch database is `python3 -B tools/wt.py gc`
-(see "Fast local loop"), only with the owner's authorization.
+Removing the merged task's worktree, branch and scratch database is `python3 -B tools/wt.py gc --apply`
+(see "Fast local loop"), under the standing authorization in `docs/agents/integration-rules.md`.
 
 ### Stage notes
 
@@ -222,7 +225,7 @@ its own Postgres service and runs only its share of the module tests (`--test-ta
 behaviour is exercised in each. `tools/odoo_shards.py` splits the release modules by their `def test_`
 counts times `COST_FACTOR` (seconds per test relative to the median module, measured for `liwan_finance`, `liwan_hr`, `liwan_pmo` and five bridges; the comment in `tools/odoo_shards.py` records how) (greedy, heaviest first; refit the factors when the shard times drift apart); `python3 -B tools/odoo_shards.py plan` shows the split and its weights. Run one shard
 with `deploy/ci/odoo.sh --shard k/N`, all shards in parallel locally with `python3 -B tools/odoo_shards.py run`
-(same environment as `odoo.sh`; shard k uses `ODOO_PORT + k - 1` and its own scratch database), and the
+(same environment as `deploy/ci/odoo.sh`; shard k uses `ODOO_PORT + k - 1` and its own scratch database), and the
 unsharded full run with plain `deploy/ci/odoo.sh`. A template database does not help the shards: Odoo
 runs the module tests during `-i`, so each shard has to install anyway (the install is about 17 s). The
 shard count is `SHARD_COUNT` in `tools/odoo_shards.py`; a changed count changes the matrix and the
@@ -256,7 +259,7 @@ the probe does not invent) and it must serve at least one such route; the routes
 refuse with 403 `feature_not_included`, and a module asked to answer needs at least one 2xx; a bridge's routes with one side off, and a shared service's routes
 (gated by the keys applications register, so closed with the application side) may refuse but never fail
 with a 5xx. It checks the route surface, not bridge-specific fields inside a side's responses: those stay with
-the bridge's own tests. Run one locally with the environment of `odoo.sh` plus `ISOLATION_PORT`, for example
+the bridge's own tests. Run one locally with the environment of `deploy/ci/odoo.sh` plus `ISOLATION_PORT`, for example
 `deploy/ci/odoo-app-standalone.sh liwan_hr` or `deploy/ci/odoo-bridge.sh liwan_tasks_pmo`. The
 control-plane PostgreSQL suites run serially because they share their isolated scratch databases.
 `vendor-admin` has its own prepare, types, tests and build checks. The `image` stage builds every production image
@@ -282,7 +285,9 @@ outcome is not evidence of an upgrade having been exercised. Migration rules are
 [`migrations.md`](migrations.md), and the pinned Odoo source commit is
 [`deploy/odoo/ODOO_COMMIT`](../deploy/odoo/ODOO_COMMIT).
 
-## Measured timings (2026-10-13, 14-core Mac, warm caches, single runs)
+## Measured timings (dated 2026-10-13, 14-core Mac, warm caches, single runs)
+
+These numbers are a dated snapshot; the module, test and story counts have grown since. Re-measure before quoting them.
 
 | Step | Time |
 | --- | --- |
@@ -290,12 +295,10 @@ outcome is not evidence of an upgrade having been exercised. Migration rules are
 | `npm run check:fast` when only `tools/` changed | about 18 s |
 | `npm ci --ignore-scripts --prefer-offline` | 4.7 s |
 | `tools/wt.py new` (worktree, install, `nuxt prepare`) | about 10 s |
-| Odoo install of the 10 release modules | about 17 s |
 | `createdb -T` clone of the installed template | about 1.2 s |
-| `npm run test:odoo -- --addons liwan_hr` (80 tests), warm / cold template | 30 s / 43 s |
-| Full Odoo run (install and tests of all release modules, 658 tests) | 234 s |
-| CI `e2e-mock` locally on a busy machine (production build, then 109 spec files with 903 tests in 14 min, then 22 long-list tests in 25 s) | about 16 min |
-| `npm run test:rtl` (Storybook build 7.6 s, 184 stories x 2 viewports, 4 workers) | about 2.4 min |
+| `npm run test:odoo -- --addons liwan_hr`, warm / cold template | 30 s / 43 s |
+| CI `e2e-mock` locally on a busy machine (production build, then the spec files in 14 min, then the long-list tests in 25 s) | about 16 min |
+| `npm run test:rtl` (Storybook build 7.6 s, every story x 2 viewports, 4 workers) | about 2.4 min |
 | Semgrep gate on a few changed files | about 7 s |
 
 Not measured: the agentic e2e runner (needs model credentials) and the Odoo-backed e2e stack.
@@ -303,7 +306,7 @@ Not measured: the agentic e2e runner (needs model credentials) and the Odoo-back
 ## 1. Odoo tests
 
 Extend `LiwanApiCase` (or `LiwanPmoCase`) from `liwan_api/tests/common.py`. Every `test_*.py`
-is collected by its addon `tests/__init__.py` (`import_all_tests(__name__)` from `liwan_core.testing`). Never run them against the dev `odoo19` DB.
+is collected by its addon `tests/__init__.py` (`import_all_tests(__name__)` from `liwan_core.testing`). Never run them against the dev `liwan_dev` database.
 
 `tools/odoo_test.py` clones a template with every release module installed and runs `-u` of the
 selected addons, so an `at_install` test of a low-rank addon sees a PARTIAL registry (later modules
@@ -333,7 +336,7 @@ parsed with their strict schema by `src/fixtures.test.ts`, which runs in `npm te
 
 ## 3. Playwright mock specs
 
-Specs live in `apps/web/e2e` and talk to `internal-ui-audit-mock.mjs`. They are
+Specs live in `apps/web/e2e` and talk to `apps/web/e2e/internal-ui-audit-mock.mjs`. They are
 deterministic and free, and CI runs the list in `ci-mock-specs.txt`. Use them for page
 states, navigation and regressions that need no judgement.
 
@@ -387,7 +390,7 @@ wrapper listens on `MOCK_PORT`, starts the audit mock on `MOCK_PORT + 1000` (the
 capabilities to `GET /api/v1/me`, and answers the first-paint reads of `/my-tasks/<id>` (the task, its
 comments and attachments, and `convert-targets`) from `e2e/my-tasks-fixtures.mjs`, because the server
 renders them where `page.route` cannot reach. Everything else is forwarded untouched, and each spec mocks
-its later browser calls to `/api/v1/my-tasks` itself. Use free ports (never 3000, 8069 or the `odoo19`
+its later browser calls to `/api/v1/my-tasks` itself. Use free ports (never 3000, 8069 or the `liwan_dev`
 database), point Nuxt at the wrapper port, and open Nuxt on `localhost`, not `127.0.0.1`:
 
 ```sh
@@ -440,7 +443,7 @@ scenario yet (`--check` exits 1 on a gap).
 - `npm run e2e:odoo` (same wrapper with `E2E_STACK=odoo`) runs against a real scratch Odoo
   instead of the mock, for journeys that write data (`e2e/tests/pmo-journey.e2e.ts`, tag
   `journey`; it skips itself on the mock stack). The database is the fixed
-  `liwan_scratch_e2e` (the wrapper refuses any other name and never uses `odoo19`), served
+  `liwan_scratch_e2e` (the wrapper refuses any other name and never uses `liwan_dev`), served
   from `/Users/tariq/code/odoo` (override `E2E_ODOO_ROOT`) with a generated config, data
   and logs under `.e2e/odoo/` and a `saas` classification fixture like CI. PostgreSQL comes
   from `PGHOST`/`PGPORT`/`PGUSER` (defaults `127.0.0.1`, `5432`, `tariq`); passwords only
@@ -479,7 +482,7 @@ scenario yet (`--check` exits 1 on a gap).
 
 ## Rules
 
-- Never run tests against `:3000`, `:8069` or the `odoo19` database. The wrapper refuses
+- Never run tests against `:3000`, `:8069` or the `liwan_dev` database. The wrapper refuses
   an `E2E_BASE_URL` on those ports.
 - Test data only. Agent steps send screenshots to the configured model provider, so the
   page must never show real customer data.
@@ -493,7 +496,7 @@ scenario yet (`--check` exits 1 on a gap).
 
 ## 5. Vendor admin app
 
-`apps/vendor-admin` is tested on its own; `npm test` and the web commands above do not cover it. Run `npx nuxt prepare` in
+`apps/vendor-admin` has its own checks. `npm test` runs its unit tests (CI step `vendor-admin` too); the type check, build and Playwright specs below are separate commands. Run `npx nuxt prepare` in
 `apps/vendor-admin` first (the `postinstall` does it after a normal install).
 
 | Command | Proves |
@@ -528,7 +531,7 @@ python3 -m tools.continuous_updates_acceptance.run --config /absolute/operator/l
 
 The prepared configuration requires scratch database bindings, actual source
 process/config/role identities, existing sessions/attachments and loopback URLs.
-Never use `odoo19`. Reports distinguish source-process, PostgreSQL, Odoo upgrade,
+Never use `liwan_dev`. Reports distinguish source-process, PostgreSQL, Odoo upgrade,
 HTTP/session/attachment and concurrent tenant evidence from Docker/production
 proof. `tools/continuous_updates_acceptance/docker_odoo.py` is a separate scoped
 image experiment, not fresh product Dockerfile acceptance.

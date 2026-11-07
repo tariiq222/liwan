@@ -16,7 +16,7 @@ Review findings remain binding until resolved or explicitly decided by the owner
 A clean report does not replace tests or authorize publication, merging, release
 or deployment. Changes after review need a review of their affected behavior and
 fresh relevant checks. Read-only review must not mutate the candidate or invoke
-paid APIs without explicit authorization.
+paid APIs without explicit authorization; the one Jev run below is the authorized exception.
 
 ## Already automated: do not re-report what is covered
 
@@ -47,7 +47,10 @@ file the tool does not scan).
      `tools/arch_layers.json` / `tools/arch_baseline.json`.
    - A new `sudo()` outside the documented cases, or `sudo()` used to avoid an access error.
    - A route that is not `type='json2'`, `auth='user'` with `@api_handler`, or that skips its
-     feature gate (`requires_feature` / `requires_registered_feature`).
+     feature gate (`requires_feature` / `requires_registered_feature`). The one documented exception
+     is the public namespace `/api/v1/public/`: `auth='public'`, `save_session=False`, authorized by a
+     per-document access token or a gateway signature (never a session), listed with its reason in
+     `tools/route_gate_allowlist.json`; gateway callbacks there may be `type='http'`.
    - A write path with no capability check, or one that ignores current-company or record visibility.
    - A raw `read()` result sent to the client instead of a whitelisting serializer.
    - A schema change without its version bump and migration directory in the same commit.
@@ -57,7 +60,7 @@ file the tool does not scan).
    the composable reads must match; every write returns the full detail shape; errors carry a
    real HTTP status with `{code, message, field?}`.
 3. **Behavior the tests do not pin.** A new behavior without a test in the right class; a test
-   file not imported by `tests/__init__.py`; a test run against the dev `odoo19` database.
+   file not imported by `tests/__init__.py`; a test run against the dev `liwan_dev` database.
 4. **Frontend.** Strings through `$t()`/`t()` in the owning locale file; logical Tailwind
    properties; Storybook components reused rather than copied; `useHydrated()` for controls whose
    first click must not be lost; no stacked business dialogs; direct links, refresh and list
@@ -67,13 +70,16 @@ file the tool does not scan).
 
 ## Advisory signal: Jev
 
-Local reviews run `npm run review:jev -- --task "<what the change does>"` (`tools/jev_review.mjs`)
-and reports its scores; implementers also run it after a coherent slice and again before handoff; save `--json` output and pass it back with `--previous <file>` to see
-score deltas. It returns scores and confidence per dimension, no prose. The scores are advisory:
-never a merge gate, never a reason to skip or override the checks above, and a finding still needs
-its own `file:line` evidence. The diff leaves the machine, so never send secrets, customer data,
-`.env` files, key files or deploy data: the script refuses diffs that `tools/secret_guard.py`
-flags, but anything else sensitive is the sender's responsibility.
+The owner's standing authorization (2026-11-08) covers one Jev run per non-trivial review. The
+reviewer runs `npm run review:jev -- --base <base ref> --task "<one-line change description>"`
+(`tools/jev_review.mjs`) once and reports its scores per dimension. Implementers and the pre-commit
+hook do not run it; save `--json` output and pass it back with `--previous <file>` only to compare a
+re-review. It returns scores and confidence per dimension, no prose. The diff goes to the owner's own
+local jev-review service. The scores are advisory: never a merge gate, never a reason to skip or
+override the checks above, and a finding still needs its own `file:line` evidence. Never send
+secrets, customer data, `.env` files, key files or deploy data: the script refuses diffs that
+`tools/secret_guard.py` flags, but anything else sensitive is the sender's responsibility. If the
+script is absent or fails, say so in the report; do not retry or claim Jev passed.
 
 Remote reviews follow the criteria above and consume recorded CI evidence.
 Distinguish checks the reviewer actually ran from evidence supplied by others.
