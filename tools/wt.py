@@ -23,8 +23,7 @@ refresh it, or takes over a claim that has expired (no commit, edited file or re
 
 ``check`` reports every worktree that breaks a rule: outside ``.worktrees``, an invalid Git branch name,
 a folder name that does not match its branch suffix, no claim,
-and active claims that overlap without a stated reason; it exits 1 when there is one. The detached job
-worktrees of the ``opencode-executor`` runner (``RUNNER_STATE_DIR``) are exempt, as AGENTS.md states. It only reads: it never
+and active claims that overlap without a stated reason; it exits 1 when there is one. It only reads: it never
 moves, renames or removes a worktree, so a worktree that predates these rules is reported, never changed.
 ``status`` prints one table of every worktree, wherever it lives (``*`` marks one outside
 ``.worktrees``; ``missing`` one whose folder is gone), with its owner and claim state, then the violations. ``gc`` lists the worktrees and branches that are
@@ -71,9 +70,6 @@ MAIN = 'main'
 E2E_DATABASE = 'liwan_scratch_e2e'  # SCRATCH_DB in tools/e2e_isolated.mjs, a fixed database no worktree owns
 SCRATCH_PREFIX = 'liwan_scratch_'
 WORKTREES_DIR = '.worktrees'
-# The personal ``opencode-executor`` runner keeps one disposable detached worktree per delegated job at
-# ``<state dir>/job-<id>/worktree``; AGENTS.md exempts it from the task-worktree rules.
-RUNNER_STATE_DIR = Path('~/.local/state/claude-opencode').expanduser()
 INSTALL = (
     ['npm', 'ci', '--ignore-scripts', '--prefer-offline'],
     ['npm', '-w', 'apps/web', 'run', 'postinstall'],
@@ -420,17 +416,10 @@ def branch_violation(worktree):
     return None
 
 
-def runner_job(worktree):
-    """Whether the worktree is the disposable detached worktree of one ``opencode-executor`` job."""
-    path = worktree.path
-    return (not worktree.branch and path.name == 'worktree' and path.parent.name.startswith('job-')
-            and path.parent.parent == RUNNER_STATE_DIR)
-
-
 def violations(worktrees):
-    """``[(worktree, problem)]`` for every rule a task worktree breaks; the main checkout and runner jobs are not checked."""
+    """``[(worktree, problem)]`` for every rule a task worktree breaks; the main checkout is not checked."""
     found = []
-    tasks = [w for w in worktrees if not w.is_main and not runner_job(w)]
+    tasks = [w for w in worktrees if not w.is_main]
     for w in tasks:
         if not w.canonical:
             found.append((w, 'outside %s/; task worktrees live only in <main checkout>/%s/<area>-<slug>' % (
