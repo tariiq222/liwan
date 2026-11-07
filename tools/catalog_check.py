@@ -353,7 +353,7 @@ def current_release(root, catalog_dir=CATALOG_DIR):
     return current[-1].name, release_modules(root, load_json(current[-1]))
 
 
-def _check_release(root, where, data, registry, errors, current_name):
+def _check_release(root, where, data, registry, errors):
     """Every feature of a release module (and of the platform) sits in exactly one tier."""
     try:
         release = set(release_modules(root, data))
@@ -553,13 +553,12 @@ def check_catalog(root, catalog_dir=CATALOG_DIR):
     solutions = sorted((base / 'solutions').glob('*.json'))
     if not solutions:
         errors.append('solutions/: no solution file found')
-    # Resolve the current release once, and never let a broken closure escape as a traceback: a release module without
-    # a readable manifest is a catalog error like any other, reported by the closure check below.
+    # Resolve the current release once, and never let a broken closure escape as a traceback. The broken release module
+    # is reported once, by _check_release on the solution that holds it.
     try:
         resolved = current_release(root, catalog_dir)
-    except ClosureError as exc:
+    except ClosureError:
         resolved = None
-        errors.append(f'release module {exc} has no readable manifest')
     current_name = resolved[0] if resolved else None
     for path in solutions:
         where = f'solutions/{path.name}'
@@ -570,7 +569,7 @@ def check_catalog(root, catalog_dir=CATALOG_DIR):
         if data.get('id') != path.stem:
             errors.append(f'{where}: id {data.get("id")!r} must match the file name')
         if data.get('schema_version') == RELEASE_SCHEMA:
-            _check_release(root, where, data, registry, errors, current_name)
+            _check_release(root, where, data, registry, errors)
 
         industry = data.get('industry')
         if industry is not None and industry not in industry_ids:
@@ -698,15 +697,10 @@ def check_catalog(root, catalog_dir=CATALOG_DIR):
     for module in find_cycles(edges):
         errors.append(f'{module}: part of a dependency cycle in {ADDONS_DIR}')
 
-    try:
-        current = current_release(root, catalog_dir)
-    except ClosureError as exc:
-        current = None
-        errors.append(f'release module {exc} has no readable manifest')
-    if current is not None:
-        newest = load_json(base / 'solutions' / current[0])
-        _check_release_copies(root, list(newest.get('base_modules') or []), current[1], errors)
-        _check_release_apps(root, f'solution {current[0]}', newest, errors)
+    if resolved is not None:
+        newest = load_json(base / 'solutions' / resolved[0])
+        _check_release_copies(root, list(newest.get('base_modules') or []), resolved[1], errors)
+        _check_release_apps(root, f'solution {resolved[0]}', newest, errors)
 
     for module in sorted(TEST_ONLY_MODULES):
         summary = manifests.get(module, {}).get('summary', '')

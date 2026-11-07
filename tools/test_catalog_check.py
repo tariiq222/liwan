@@ -481,17 +481,20 @@ class ReleaseCatalogCase(CatalogFixture, unittest.TestCase):
         self.assertEqual(catalog_check.main(['--root', str(self.root)]), 1)
 
     def test_the_current_release_rule_does_not_leak_between_checks(self):
-        # The rule is about the newest solution file of ONE catalog root, not about whichever name a previous
-        # check_catalog() happened to leave behind.
-        self.errors()
-        other = Path(tempfile.mkdtemp()) / 'other'
-        other.mkdir(parents=True)
-        shutil.copytree(self.root / 'deploy', other / 'deploy')
-        schema_one = {'schema_version': 1, 'id': 'platform_v4', 'name': 'Old', 'industry': 'none', 'base_modules': ['demo_core'],
-                      'tiers': [{'id': 'projects', 'name': 'Projects', 'modules': ['demo_pmo'], 'features': ['boolean:pmo.enabled']}]}
-        (other / 'deploy' / 'catalog' / 'solutions').mkdir(parents=True, exist_ok=True)
-        collected = catalog_check.check_catalog(other, Path('deploy') / 'catalog')
-        self.assertFalse([e for e in collected if 'sellable' in e], collected)
+        # The rule is about the newest schema-3 solution of ONE catalog root, not about whichever name a previous
+        # check_catalog() left behind. Checking a catalog whose current release is demo.json (so its tiers must state
+        # `sellable`) and then a historical catalog whose only solution is also called demo.json must not hold the second
+        # one to that rule.
+        self.assertEqual(self.errors(), [])
+        with tempfile.TemporaryDirectory() as tmp:
+            other = Path(tmp) / 'other'
+            shutil.copytree(self.root, other)
+            historical = {'schema_version': 1, 'id': 'demo', 'name': 'Old', 'industry': 'none', 'base_modules': ['demo_core'],
+                          'tiers': [{'id': 'projects', 'name': 'Projects', 'modules': ['demo_pmo'],
+                                     'features': ['boolean:pmo.enabled', 'limit:projects.max_projects']}]}
+            (other / catalog_check.CATALOG_DIR / 'solutions' / 'demo.json').write_text(json.dumps(historical))
+            collected = catalog_check.check_catalog(other)
+        self.assertEqual([e for e in collected if 'sellable' in e], [], collected)
 
     def test_a_current_release_tier_must_state_whether_it_is_sold(self):
         # A6: an omitted `sellable` sells nothing, so the current release must say it on every non-core tier rather

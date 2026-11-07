@@ -41,15 +41,18 @@ BASE_TIER = (BASE, {'liwan_core', 'liwan_platform', 'liwan_api'})
 
 
 class RealManifestClosureTest(unittest.TestCase):
-    def test_each_tier_closure_is_exact(self):
-        # Each tier's closure must contain exactly the modules its selection requires. Derived from the release, so it
-        # proves the manifests are honoured rather than re-asserting a value computed from the same function.
-        for tier, (selected, expected) in _release_tiers().items():
+    def test_tier_closures_match_the_closures_read_by_hand_from_the_manifests(self):
+        # Expected values written out from the manifests, not computed: liwan_hr depends on liwan_api and liwan_notify, and
+        # the auto_install bridge liwan_access_hr joins once liwan_api and liwan_hr are in; liwan_appointments depends on
+        # liwan_api alone (plus Odoo's resource_booking) and has no bridge with the base modules.
+        expected = {
+            'people': {'liwan_core', 'liwan_platform', 'liwan_api', 'liwan_notify', 'liwan_hr', 'liwan_access_hr'},
+            'appointments': {'liwan_core', 'liwan_platform', 'liwan_api', 'liwan_appointments'},
+        }
+        tiers = _release_tiers()
+        for tier, modules in expected.items():
             with self.subTest(tier=tier):
-                closure = module_closure.install_closure([ADDONS], selected)
-                self.assertEqual(closure, expected)
-                # The closure is at least the selection, and adds only auto-install bridges.
-                self.assertTrue(set(selected) <= closure)
+                self.assertEqual(module_closure.install_closure([ADDONS], tiers[tier][0]), modules)
 
     def test_each_tier_closure_is_closed_under_its_own_auto_install_rules(self):
         # Independent property: feeding a tier's own closure back in must not grow it. If it did, the tier was not a
