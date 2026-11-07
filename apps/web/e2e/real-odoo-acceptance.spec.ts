@@ -7,6 +7,19 @@ async function body(response: APIResponse, status = 200) { expect(response.statu
 async function login(page: Page, reader = false) { await body(await page.request.post('/api/auth/login', { data: { login: reader ? 'e2e_employee' : 'e2e_admin', password: reader ? (process.env.E2E_USER_EMPLOYEE_PASSWORD ?? process.env.E2E_EMPLOYEE_PASSWORD ?? 'liwan-e2e-employee-2026') : (process.env.E2E_USER_ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'liwan-e2e-admin-2026') } })); }
 async function open(page: Page, path: string) { await page.goto(path); await expect(page.getByTestId('global-search-trigger')).toBeEnabled(); await expect(page.locator('main')).toBeVisible(); }
 async function project(page: Page) { return body(await page.request.post('/api/v1/projects', { data: { name: `تحقق حقيقي ${Date.now()}`, date_end: '2030-12-31' } }), 201); }
+// A tenant picks the project tools it subscribes to; nothing optional is on by default, and finance stays off
+// until a company enables it for the project. The finance journeys opt in the way a customer does, and assert
+// both halves: the default is off, and the server answers with the tool on after the preference.
+async function projectWithTools(page: Page, tools: Record<string, boolean>) {
+    const created = await project(page);
+    for (const [tool, enabled] of Object.entries(tools)) {
+        expect(created.tools[tool].policy, `${tool} policy`).toBe('optional');
+        expect(created.tools[tool].enabled, `${tool} default`).toBeFalsy();
+    }
+    const detail = await body(await page.request.patch(`/api/v1/projects/${created.id}`, { data: { expected_updated_at: created.updated_at, tool_preferences: tools } }));
+    for (const [tool, enabled] of Object.entries(tools)) expect(detail.tools[tool].enabled, `${tool} tool`).toBe(enabled);
+    return detail;
+}
 test('real login form rejects invalid credentials then loads a real capability identity', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('اسم المستخدم').fill('e2e_admin');
@@ -45,7 +58,7 @@ test('department create and edit persist through the real API', async ({ page })
 test('task edit, real attachment download, inline deletion and refresh', async ({ page }) => { await login(page); const p = await project(page); const task = await body(await page.request.post('/api/v1/tasks', { data: { project_id: p.id, name: `مهمة تحقق ${Date.now()}` } }), 201); await open(page, `/tasks/${task.id}`); const name = `مهمة معدلة ${Date.now()}`; await page.getByRole('heading', { level: 1 }).getByRole('button', { name: 'تعديل عنوان المهمة' }).click(); const title = page.getByTestId('task-title-input'); await title.fill(name); const saved = page.waitForResponse(r => new URL(r.url()).pathname === `/api/v1/tasks/${task.id}` && r.request().method() === 'PATCH'); await title.press('Enter'); await body(await saved); await page.reload(); await expect(page.getByRole('heading', { level: 1 })).toHaveText(name); await page.getByTestId('task-detail-tabs').getByRole('tab', { name: 'المرفقات', exact: true }).click(); const section = page.getByTestId('task-attachments'); const content = Buffer.from('%PDF-1.7\nScratch real file\n'); const filename = `scratch-${Date.now()}.pdf`; const uploaded = page.waitForResponse(r => new URL(r.url()).pathname === `/api/v1/tasks/${task.id}/attachments` && r.request().method() === 'POST'); await section.locator('input[type=file]').setInputFiles({ name: filename, mimeType: 'application/pdf', buffer: content }); await body(await uploaded, 201); const link = section.getByRole('link', { name: filename }); await expect(link).toBeVisible(); const download = await page.request.get((await link.getAttribute('href'))!); expect(download.status()).toBe(200); expect(await download.body()).toEqual(content); await section.getByRole('button', { name: 'حذف المرفق' }).click(); await section.getByRole('button', { name: 'إلغاء', exact: true }).click(); await expect(link).toBeVisible(); await section.getByRole('button', { name: 'حذف المرفق' }).click(); const deleted = page.waitForResponse(r => r.url().includes(`/api/v1/tasks/${task.id}/attachments/`) && r.request().method() === 'DELETE'); await section.getByRole('button', { name: 'تأكيد الحذف' }).click(); expect((await deleted).status()).toBe(204); await expect(link).toHaveCount(0); });
 test('finance budget create, record edit and list return use real stored values', async ({ page }) => {
     await login(page);
-    const p = await project(page);
+    const p = await projectWithTools(page, { finance: true });
     const origin = `/projects/${p.id}/finance?kind=budget#ledger`;
     await open(page, `/projects/${p.id}/finance/new?kind=budget&returnTo=${encodeURIComponent(origin)}`);
     const dialog = page.getByRole('dialog');
@@ -100,7 +113,7 @@ test('real record permissions reject HR writes for the employee while read UI re
 });
 test('real project task context survives finance roundtrip and refresh', async ({ page }) => {
     await login(page);
-    const p = await project(page);
+    const p = await projectWithTools(page, { finance: true });
     const title = `مهام سياق ${Date.now()}`;
     await body(await page.request.post('/api/v1/tasks', { data: { project_id: p.id, name: title } }), 201);
     const path = `/projects/${p.id}/tasks?view=board&q=${encodeURIComponent(title)}#tasks`;

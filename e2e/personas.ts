@@ -13,6 +13,9 @@ export const PERSONA_KEYS = [
   'auditor', 'pm', 'ops_manager', 'staff1', 'staff2', 'crm_manager', 'crm_agent', 'crm_agent2',
   'users_reader', 'ops_monitor', 'docs_editor', 'fin_reader', 'no_ai', 'payroll_finance', 'no_roles',
   'jeddah_staff', 'dammam_manager',
+  // The Customer Inbox roles: without these no seeded account holds any inbox.* capability,
+  // so every inbox scenario and its API routes are unreachable (finding 2026-11-07).
+  'inbox_manager', 'inbox_supervisor', 'inbox_agent',
 ] as const;
 
 export type PersonaKey = typeof PERSONA_KEYS[number];

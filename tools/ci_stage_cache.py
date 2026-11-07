@@ -1,8 +1,9 @@
 """Skip a CI stage that already passed on exactly the same inputs.
 
     python3 -B tools/ci_stage_cache.py key --stage S [--extra E] [--commit REF]
-    python3 -B tools/ci_stage_cache.py cached --stages JSON --odoo-shards JSON --apps JSON --bridges JSON \\
-        [--odoo-modules CSV]
+    python3 -B tools/ci_stage_cache.py cached --stages JSON --odoo-shards JSON --e2e-mock-shards JSON --apps JSON \\
+        --bridges JSON [--odoo-modules CSV]
+    python3 -B tools/ci_stage_cache.py e2e-mock-shards   # JSON array of the e2e-mock shard numbers, for the workflow matrix
 
 Only a pull request or a merge-queue entry skips a stage; the workflow runs this module for no other event.
 ``key`` prints the cache key a stage job saves when it passes: a hash of the tracked files the stage can
@@ -34,6 +35,8 @@ NEVER_CACHED = ('static',)
 # The Odoo stages and `e2e-odoo` are the only stages an addon file can reach in a pull request
 # (`ci_scope.pull_request_stages` leaves every other stage to the push to main).
 ADDON_STAGES = (*ci_scope.ODOO_STAGES, 'e2e-odoo')
+# The `e2e-mock` jobs: shard k of len(E2E_MOCK_SHARDS) of `deploy/ci/e2e-mock.sh --shard k/N`.
+E2E_MOCK_SHARDS = [1, 2, 3]
 
 Entry = tuple[str, str, str]  # (file mode, blob sha, path)
 
@@ -92,10 +95,13 @@ def cache_key(stage: str, extra: str, tree_digest: str) -> str:
     return f'{KEY_PREFIX}{stage}-{hashlib.sha256(extra.encode()).hexdigest()[:12]}-{tree_digest}'
 
 
-def matrix_extras(stage: str, odoo_shards: list, apps: list, bridges: list, modules: str) -> list[str]:
+def matrix_extras(stage: str, odoo_shards: list, e2e_mock_shards: list, apps: list, bridges: list,
+                  modules: str) -> list[str]:
     """The `--extra` of every job of a stage, exactly as the workflow passes it to `key`."""
     if stage == 'odoo':
         return [f'{shard}/{len(odoo_shards)}|{modules}' for shard in odoo_shards]
+    if stage == 'e2e-mock':
+        return [f'{shard}/{len(e2e_mock_shards)}' for shard in e2e_mock_shards]
     if stage == 'odoo-app-standalone':
         return [f'{group}|{modules}' for group in apps]
     if stage == 'odoo-bridge':
@@ -103,14 +109,14 @@ def matrix_extras(stage: str, odoo_shards: list, apps: list, bridges: list, modu
     return ['']
 
 
-def cached_stages(entries: list[Entry], stages: list[str], existing: set[str],
-                  odoo_shards: list, apps: list, bridges: list, modules: str) -> list[str]:
+def cached_stages(entries: list[Entry], stages: list[str], existing: set[str], odoo_shards: list,
+                  e2e_mock_shards: list, apps: list, bridges: list, modules: str) -> list[str]:
     """The selected stages whose every job has already passed on these inputs."""
     cached = []
     for stage in stages:
         if stage in NEVER_CACHED:
             continue
-        extras = matrix_extras(stage, odoo_shards, apps, bridges, modules)
+        extras = matrix_extras(stage, odoo_shards, e2e_mock_shards, apps, bridges, modules)
         keys = [cache_key(stage, extra, digest(entries, stage, extra)) for extra in extras]
         if keys and all(key in existing for key in keys):
             cached.append(stage)
@@ -150,8 +156,8 @@ def run_cached(args: argparse.Namespace, lookup) -> int:
         print('[]')
         return 0
     print(json.dumps(cached_stages(entries, json.loads(args.stages), existing,
-                                   json.loads(args.odoo_shards), json.loads(args.apps),
-                                   json.loads(args.bridges), args.odoo_modules)))
+                                   json.loads(args.odoo_shards), json.loads(args.e2e_mock_shards),
+                                   json.loads(args.apps), json.loads(args.bridges), args.odoo_modules)))
     return 0
 
 
@@ -165,12 +171,17 @@ def main(argv: list[str] | None = None, lookup=gh_cache_listing) -> int:
     caching = sub.add_parser('cached', help='print the selected stages that already passed, as a JSON array')
     caching.add_argument('--stages', required=True, help='JSON array of the selected stages')
     caching.add_argument('--odoo-shards', required=True, help='JSON array of the odoo shard numbers')
+    caching.add_argument('--e2e-mock-shards', required=True, help='JSON array of the e2e-mock shard numbers')
     caching.add_argument('--apps', required=True, help='JSON array of the odoo-app-standalone groups')
     caching.add_argument('--bridges', required=True, help='JSON array of the odoo-bridge groups')
     caching.add_argument('--odoo-modules', default='', help='comma-separated affected modules (empty: all)')
+    sub.add_parser('e2e-mock-shards', help='print the e2e-mock shard numbers, as a JSON array')
     args = parser.parse_args(argv)
     if args.command == 'cached':
         return run_cached(args, lookup)
+    if args.command == 'e2e-mock-shards':
+        print(json.dumps(E2E_MOCK_SHARDS))
+        return 0
     try:
         tree_digest = fingerprint(Path.cwd(), args.stage, args.extra, args.commit)
     except CacheLookupError as error:

@@ -1,0 +1,35 @@
+version: 2
+
+# The workflows pin every action to a commit SHA (`# vX.Y.Z` carries the readable version). A pin never
+# moves on its own: this file opens one grouped pull request a week so the pin, its comment and the
+# reviewed diff arrive together, and the `ci` workflow proves the result before it can merge.
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:10'
+      timezone: Asia/Riyadh
+    open-pull-requests-limit: 1
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ['*']
+
+  # The image digests the Dockerfiles pin are bumped by hand (deploy/test_container_hardening.py requires a
+  # digest), so only the npm advisories are watched automatically; `audit.yml` reports them daily.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:20'
+      timezone: Asia/Riyadh
+    open-pull-requests-limit: 1
+    commit-message:
+      prefix: build
+    groups:
+      npm:
+        patterns: ['*']

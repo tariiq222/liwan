@@ -148,7 +148,7 @@ remain separate from a review report.
 
 ### Change-scoped stages
 
-The first twelve stages take about 33 minutes (`e2e-odoo`, added later, is not timed yet), so a pull request runs only the stages its changed files can
+The thirteen stages take about 33 minutes without `e2e-odoo` (which adds about 9), so a pull request runs only the stages its changed files can
 affect. The path-to-stage map is `RULES` in `tools/ci_scope.py`: the first matching rule wins, `static`
 always runs, and **a path with no rule runs all thirteen stages** (that includes any `tools/` file not
 listed in `STATIC_ONLY_TOOLS`). Preview a selection, with the rule behind each changed path:
@@ -162,6 +162,10 @@ and `merge_group` events; a merge-queue entry is selected from the queue base to
 
 - `upgrade`, `restore-drill` and `image` never run on a pull request. They run on the push to `main`, the
   nightly run and a full dispatch.
+- `e2e-odoo` runs on a pull request only when the change reaches a surface its specs write through
+  (`E2E_ODOO_TRIGGERS` in `tools/ci_scope.py`: the specs and their fixtures, the project workspace pages and
+  components, the task, project, chat and realtime composables, and `liwan_pmo`/`liwan_chat`). Every other
+  pull request defers it to the push to `main`, the nightly run and a full dispatch.
 - A file under `odoo-addons/<addon>/` selects only `static` and the Odoo stages: `ai-service`, `control-plane`,
   `vendor-admin`, `e2e-mock` and `rtl-stories` read no addon code, so they run for an addon change on `main`.
 - The `odoo` stages reach only the affected release modules: the addons changed under `odoo-addons/<addon>/`
@@ -194,7 +198,16 @@ Every stage job except `static` ends with `.github/actions/stage-pass`, which sa
 `python3 -B tools/ci_stage_cache.py key`: a hash of the tracked files the stage reads (the `RULES` of
 `tools/ci_scope.py`) and its matrix entry. The `scope` job leaves out every stage whose jobs all saved a key on the
 same ref; a matrix stage is skipped only when every entry has one, and a failed lookup skips nothing. A push to
-`main`, the nightly run and `workflow_dispatch` run every selected stage.
+`main`, the nightly run and `workflow_dispatch` run every selected stage. `e2e-mock` is a matrix of
+`E2E_MOCK_SHARDS` (`tools/ci_stage_cache.py`; the `scope` job emits it as `e2e-mock-shards`) and is skipped only
+when every shard saved its `k/N` key.
+
+### Red `main` alert
+
+On a push to `main` and on the nightly run, the `main-alert` job (`deploy/ci/main-alert.sh`) reads `ci-result`. A red
+result opens one issue titled `CI is red on main` (label `ci-red`) or, when one is open, comments the run URL and the
+failed jobs; a green result comments the green run URL on the open issue and closes it. `ci-result` does not depend on
+it, and a failing issue call fails the job so a broken alert is seen.
 
 ### After the merge
 
@@ -207,7 +220,7 @@ The `odoo` stage covers the release modules and is a matrix of three shards (a j
 `ci-result`, so it stays one of the thirteen stages). Every shard installs the whole release module list on
 its own Postgres service and runs only its share of the module tests (`--test-tags`), so cross-module
 behaviour is exercised in each. `tools/odoo_shards.py` splits the release modules by their `def test_`
-counts times `COST_FACTOR` for a module measured slower per test (`liwan_finance`: 3) (greedy, heaviest first; revisit the factors when the shard times drift apart); `python3 -B tools/odoo_shards.py plan` shows the split. Run one shard
+counts times `COST_FACTOR` (seconds per test relative to the median module, measured for `liwan_finance`, `liwan_hr`, `liwan_pmo` and five bridges; the comment in `tools/odoo_shards.py` records how) (greedy, heaviest first; refit the factors when the shard times drift apart); `python3 -B tools/odoo_shards.py plan` shows the split and its weights. Run one shard
 with `deploy/ci/odoo.sh --shard k/N`, all shards in parallel locally with `python3 -B tools/odoo_shards.py run`
 (same environment as `odoo.sh`; shard k uses `ODOO_PORT + k - 1` and its own scratch database), and the
 unsharded full run with plain `deploy/ci/odoo.sh`. A template database does not help the shards: Odoo
@@ -326,7 +339,9 @@ states, navigation and regressions that need no judgement.
 
 How the stage runs (`deploy/ci/e2e-mock.sh`):
 
-- One production build, one worker, the mock on `MOCK_PORT`. The context menu starts folded, so a spec that reads the
+- One production build and one worker per job, the mock on `MOCK_PORT`. `e2e-mock` is a matrix of three jobs
+  (`deploy/ci/e2e-mock.sh --shard k/N`, Playwright `--shard=k/N` over `ci-mock-specs.txt`); the long-list run below
+  happens in the last shard only, and without `--shard` the script runs everything, as locally. The context menu starts folded, so a spec that reads the
   sidebar sets the `liwan-context-sidebar=open` cookie itself.
 - The customer commercial flag is on for this server (`NUXT_CUSTOMER_COMMERCIAL_ENABLED` and its public twin), with the
   mock acting as the stub control plane for `/subscription` and `/invite/accept`.
@@ -347,8 +362,9 @@ guarded by `E2E_REAL_ODOO=1`; they are not in any CI list until one scratch run 
 `.superpowers/real-odoo/fixtures.json`), starts Odoo and a production Nuxt build on port 44300 and runs
 `e2e/real-odoo-acceptance.spec.ts` and `e2e/real-odoo-services.spec.ts` with `E2E_REAL_ODOO=1`. No model call or API key is
 involved, unlike `npm run e2e:odoo` (the agentic runner of "Isolated agentic e2e"), which stays the local exploration path. The stage
-is deferred for pull requests (`DEFERRED_STAGES` in `tools/ci_scope.py`): it runs on the push to `main`, the nightly run and a full
-dispatch. It has not run on GitHub yet; the first full run is its first proof.
+runs on a pull request that touches `E2E_ODOO_TRIGGERS` (`tools/ci_scope.py`), and otherwise on the push to `main`, the nightly run and a
+full dispatch. A project starts with no optional tool enabled and finance stays off until a company enables it, so the finance journeys
+create their project with `tool_preferences` and assert the tool answered as enabled — the same opt-in a customer performs.
 
 ### LiwanOS AI spec
 
