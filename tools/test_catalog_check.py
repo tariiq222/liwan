@@ -448,7 +448,7 @@ class ReleaseCatalogCase(CatalogFixture, unittest.TestCase):
             'tiers': [
                 {'id': 'core', 'name': 'Core', 'modules': [],
                  'features': ['limit:users.limit', 'limit:storage.limit_mb', 'limit:branches.extra_limit:0']},
-                {'id': 'projects', 'name': 'Projects', 'modules': ['demo_pmo'],
+                {'id': 'projects', 'name': 'Projects', 'sellable': True, 'modules': ['demo_pmo'],
                  'features': ['boolean:pmo.enabled', 'limit:projects.max_projects']},
             ],
         }
