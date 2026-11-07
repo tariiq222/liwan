@@ -24,7 +24,7 @@ import { createPaymentAttempt, handleProviderEvent, paymentAttemptView } from '.
 import { generateRenewals, applyDunning } from './renewals.js'
 import { SimulatorAdapter } from './payment-simulator.js'
 import { refundCreditNote, requestInvoiceRefund } from './settlements.js'
-import { bankTransferInputSchema, confirmBankTransfer } from './bank-transfer.js'
+import { confirmBankTransfer, parseBankTransferInput } from './bank-transfer.js'
 import { billingSettings, billingSettingsInputSchema, setBillingSettings } from './billing-settings.js'
 
 export async function paymentEventsHttp(pool: Pool, input: {method:string;pathname:string;raw:string;headers:IncomingHttpHeaders}, runtime?: PaymentRuntime) {
@@ -150,7 +150,7 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     need(input,'vendor.billing.manage')
     if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
     if(!z.uuid().safeParse(transfer[1]).success)throw new CommercialHttpError('not_found',404)
-    const body=parseBody(input.raw,bankTransferInputSchema)
+    const body=parseBankTransferInput(parseBody(input.raw,z.unknown()))
     return {status:201,data:await confirmBankTransfer(pool,{invoice_id:transfer[1]!,operator:principal.actor_id,...body,adapter:runtime?.adapter ?? undefined})}
   }
   // Vendor-editable billing settings: the refund window and the bank account customers transfer to.

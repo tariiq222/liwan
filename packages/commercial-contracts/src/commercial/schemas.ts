@@ -22,6 +22,8 @@ export const admitsRequiredAdmin = (value: unknown) => value === null || (Number
  * 500 (22003 numeric out of range) rather than a validation error. Bound them where they are parsed.
  * Two tebibytes of a step is far beyond any plan and well inside the 4-byte range the column allows. */
 export const MAX_STORAGE_STEP_MB = 2 * 1024 * 1024
+/** The issue code a storage-step set that does not tile its range carries, in `planIssues` and in the parse refusal alike. */
+export const STORAGE_STEP_MISALIGNED = 'storage_step_misaligned'
 export const storageStepSchema = z.number().int().min(1).max(MAX_STORAGE_STEP_MB)
 /**
  * A6: the exact storage-step rule, shared by the zod schema, `planIssues` and the database CHECK.
@@ -114,7 +116,7 @@ export const bundleRevisionSchema = z.strictObject({
 function withAlignedStorageSteps<T extends z.ZodType<{ storage_step_mb: number; storage_step_threshold_mb: number; storage_large_step_mb: number }>>(schema: T) {
   return schema.superRefine((value, ctx) => {
     if (storageStepsAligned(value)) return
-    ctx.addIssue({ code: 'custom', message: 'storage steps must tile the range they govern', path: ['storage_step_threshold_mb'] })
+    ctx.addIssue({ code: 'custom', message: 'storage steps must tile the range they govern', path: ['storage_step_threshold_mb'], params: { code: STORAGE_STEP_MISALIGNED } })
   })
 }
 export const planRevisionSchema = z.strictObject({

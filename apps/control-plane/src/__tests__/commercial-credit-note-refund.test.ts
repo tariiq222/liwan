@@ -112,7 +112,7 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
       const pathname = `/v1/commercial/invoices/${f.invoice}`
       return (await routesB(pool, { method: 'GET', pathname, raw: '', issuer: 'vendor-test', actor: 7, capabilities: ['vendor.billing.manage'] }, new URL(pathname, 'https://liwan.test')))!.data as any
     }
-    expect((await read()).adjustments).toMatchObject([{ id: f.note, kind: 'credit_note', status: 'pending', refund_reference: null }])
+    expect((await read()).adjustments).toMatchObject([{ id: f.note, kind: 'credit_note', origin: 'system', status: 'pending', refund_reference: null }])
     await call(f.note, ok)
     expect((await read()).adjustments).toMatchObject([{ id: f.note, status: 'refunded', refund_reference: 'MOY-REFUND-77' }])
   })

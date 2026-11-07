@@ -91,11 +91,10 @@ async function recordRefund(pool: Pool, { adjustment_id, actor, request }: { adj
       const already = await client.query("SELECT 1 FROM invoice_adjustments WHERE invoice_id=$1 AND status='refunded' AND origin='vendor' AND id<>$2", [note.invoice_id, note.id])
       if (already.rowCount) throw new CommercialHttpError('invoice_already_refunded', 409)
     }
-    // Release 1 rule (owner decision 2026-11-06) applies to a refund the customer asked for: only their first
-    // successful payment, and only inside the vendor's window. A note the system opened (a duplicate charge, a payment
-    // after cancellation, a failed fulfilment) keeps the plain path: it is refunding money the customer did not plan
-    // to spend, so the window must not be able to strand it.
-    if (note.origin === 'vendor') await assertRefundable(client, note.customer_id, note.invoice_id)
+    // The release-1 window (owner decision 2026-11-06) is judged ONCE, when `requestInvoiceRefund` creates the vendor
+    // note. Recording the provider reference happens later, after the operator has refunded at the provider, so judging
+    // the window again here would strand a note the customer was entitled to. A system note (a duplicate charge, a
+    // payment after cancellation, a failed fulfilment) never had a window.
     const updated = (await client.query("UPDATE invoice_adjustments SET status='refunded',refund_reference=$2,refunded_by=$3,refunded_at=now() WHERE id=$1 RETURNING *",
       [note.id, request.external_reference, actorLabel(actor)])).rows[0]
     await audit(client, actor, 'invoice.credit_refunded', note.id, request.reason,
@@ -111,10 +110,10 @@ export type Refundability = { refundable: boolean; first_payment: boolean; until
  * pending credit note yet — the three system inserts only record duplicates, cancellation and failed fulfilment — so
  * this creates the vendor-origin note the record-refund flow then closes, and it is the only place such a note is made.
  *
- * The note is the full invoice total, because a refund is all-or-nothing (recordRefund refuses a partial one). The
- * eligibility rules are the same ones `recordRefund` re-checks as defence in depth, and the caller's refusal codes are
- * its own: a note that already exists for this invoice answers `refund_already_requested` rather than making a second
- * one, which the unique index would refuse anyway.
+ * The note is the full invoice total, because a refund is all-or-nothing (recordRefund refuses a partial one). This is
+ * the only place the eligibility rules (first payment, inside the window) are judged: `recordRefund` keeps only the
+ * structural checks. A note that already exists for this invoice answers `refund_already_requested` rather than making
+ * a second one, which the unique index would refuse anyway.
  */
 export async function requestInvoiceRefund(pool: Pool, { invoice_id, actor, reason }: { invoice_id: string; actor: CommercialActor; reason: string }) {
   return transaction(pool, async client => {
@@ -126,6 +125,7 @@ export async function requestInvoiceRefund(pool: Pool, { invoice_id, actor, reas
     const already = await client.query("SELECT 1 FROM invoice_adjustments WHERE invoice_id=$1 AND origin='vendor' AND kind='credit_note' AND status<>'void'", [invoice_id])
     if (already.rowCount) throw new CommercialHttpError('refund_already_requested', 409)
     await assertRefundable(client, invoice.customer_id, invoice.id)
+    // The note's `created_at` is the request time the window was judged at; recording the refund later never re-judges it.
     const id = randomUUID()
     const row = (await client.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin)
       VALUES($1,$2,$3,'credit_note',$4,$5,$6,$7,'pending',$8,'vendor') RETURNING *`,

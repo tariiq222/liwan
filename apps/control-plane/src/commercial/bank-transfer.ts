@@ -12,13 +12,25 @@ import type { ProviderEvent } from './payment-adapter.js'
 import { bankAccountOf, billingSettings } from './billing-settings.js'
 
 /** A transfer the vendor saw arrive: their own reference, the exact amount, and the day the money reached the account. */
-export const bankTransferInputSchema = z.strictObject({
+const bankTransferInputSchema = z.strictObject({
   reference: z.string().trim().min(3).max(200),
   amount: z.number().int().nonnegative(),
   value_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   reason: z.string().trim().min(3).max(1000).optional(),
 })
 export type BankTransferInput = z.infer<typeof bankTransferInputSchema>
+
+/**
+ * The one parse of a recorded transfer, for the route and for `confirmBankTransfer`. Each field has its own code, so the
+ * console names what is actually wrong instead of blaming the date; anything that is not a single field is `invalid`.
+ */
+const TRANSFER_FIELD_CODES: Record<string, string> = { reference: 'invalid_transfer_reference', amount: 'invalid_transfer_amount', value_date: 'invalid_value_date', reason: 'invalid_transfer_reason' }
+export function parseBankTransferInput(value: unknown): BankTransferInput {
+  const parsed = bankTransferInputSchema.safeParse(value)
+  if (parsed.success) return parsed.data
+  const field = String(parsed.error.issues[0]?.path[0] ?? 'body')
+  throw new CommercialHttpError(TRANSFER_FIELD_CODES[field] ?? 'invalid', 422, field)
+}
 
 export type BankTransferResult = { attempt: Record<string, unknown>; invoice_id: string; order_id: string; replay: boolean }
 
@@ -41,10 +53,9 @@ function assertValueDate(value: string, today: string) {
  * A5: the value date is a real Riyadh calendar day and not in the future. Both bounds are checked before the invoice is
  * read, so a malformed date is refused without touching the row.
  *
- * A date before the invoice was issued is deliberately allowed: a customer may transfer the day an invoice is raised in
- * another timezone, and an operator correcting a record may legitimately back-date by a day. The refund window reads
- * `succeeded_at`, which the value date sets, so a wildly old date is bounded by the not-in-the-future rule only — the
- * operator records what the bank statement shows.
+ * A date before the invoice was issued is refused (`value_date_before_invoice`): money cannot have arrived for an invoice
+ * that did not exist yet, and the refund window reads `succeeded_at`, which the value date sets, so an earlier date
+ * would shorten the customer's window.
  */
 function assertValueDateForInvoice(value: string, today: string, invoice?: Record<string, any>) {
   assertValueDate(value, today)
@@ -70,15 +81,7 @@ const RIYADH_SUCCEEDED_AT = (param: string) => `((${param}::timestamp + time '12
  * not settled yet and answers `replay: true` only once the order really is paid.
  */
 export async function confirmBankTransfer(pool: Pool, input: BankTransferInput & { invoice_id: string; operator: string; adapter?: PaymentAdapter }): Promise<BankTransferResult> {
-  // Each field has its own code, so the console names what is actually wrong instead of blaming the date.
-  let parsed: BankTransferInput
-  try { parsed = bankTransferInputSchema.parse({ reference: input.reference, amount: input.amount, value_date: input.value_date, reason: input.reason }) }
-  catch (error) {
-    const field = (error as { issues?: Array<{ path?: PropertyKey[] }> }).issues?.[0]?.path?.[0] ?? 'body'
-    const code = field === 'reference' ? 'invalid_transfer_reference' : field === 'amount' ? 'invalid_transfer_amount'
-      : field === 'value_date' ? 'invalid_value_date' : field === 'reason' ? 'invalid_transfer_reason' : 'invalid'
-    throw new CommercialHttpError(code, 422, String(field))
-  }
+  const parsed = parseBankTransferInput({ reference: input.reference, amount: input.amount, value_date: input.value_date, reason: input.reason })
   const today = riyadhDate(new Date())
 
   // A3: one lock decides who settles this invoice — the order row — and the invoice is read inside the transaction,

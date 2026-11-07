@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { planViewSchema, planCreateSchema, planEditSchema, lifecycleActionSchema, storageStepsAligned, type PlanView, type PlanRevision, type Price } from '@liwan/commercial-contracts'
+import { planViewSchema, planCreateSchema, planEditSchema, lifecycleActionSchema, storageStepsAligned, STORAGE_STEP_MISALIGNED, type PlanView, type PlanRevision, type Price } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { audit, CommercialHttpError, digestOf, iso, lockRevision, nextVersion, pageParams, referenceCount, requireStatus, statusSql, type CommercialActor, type Kind } from './lifecycle.js'
 import { priceIssues, bundleRevision, loadRelease } from './bundles.js'
@@ -74,7 +74,7 @@ export async function planIssues(client: Pool | PoolClient, row: Row): Promise<I
     const field = row.storage_large_step_mb < row.storage_step_mb ? 'storage_large_step_mb'
       : row.storage_step_threshold_mb < row.storage_step_mb || row.storage_step_threshold_mb % row.storage_step_mb !== 0 ? 'storage_step_threshold_mb'
         : 'storage_large_step_mb'
-    issues.push({ code: 'storage_step_misaligned', field })
+    issues.push({ code: STORAGE_STEP_MISALIGNED, field })
   }
   // A plan that costs nothing never carries a trial: its trial could only end in a past_due state whose expiry makes a
   // free tenant read-only, and there is no payment for the customer to make. A free plan starts active outright.
@@ -161,17 +161,26 @@ const insertArgs = (id: string, planId: string, version: number, r: Row) => [id,
 async function requirePolicy(client: PoolClient, id: string) {
   if (!(await client.query('SELECT 1 FROM pricing_policy_revisions WHERE id=$1', [id])).rowCount) throw new CommercialHttpError('invalid', 422, 'policy_revision_id', [{ code: 'policy_missing', field: 'policy_revision_id' }])
 }
+const STORAGE_STEP_FIELDS = ['storage_step_mb', 'storage_step_threshold_mb', 'storage_large_step_mb']
+type ZodLikeIssue = { path: PropertyKey[]; message: string; code?: string; params?: { code?: unknown } }
+/** The specific plan code a refused input carries: the code a refinement named, else the storage-step range error; `invalid` otherwise. */
+function planIssueCode(issue: ZodLikeIssue) {
+  if (issue.code === 'custom' && typeof issue.params?.code === 'string') return issue.params.code
+  return STORAGE_STEP_FIELDS.includes(String(issue.path[0])) ? 'storage_step_invalid' : 'invalid'
+}
 /**
  * A6: a plan input the contract schemas refuse is a structured 422 with its own issue code, not a raw ZodError that the
  * HTTP layer would flatten to `invalid`/body. The storage-step rules are the case that matters: they mirror the database
- * CHECK, so without this they would have surfaced as a 500 (23514) instead of a message naming the field.
+ * CHECK, so without this they would have surfaced as a 500 (23514) instead of a message naming the field. The top-level
+ * code is the first issue's, so the console names the specific rule instead of "invalid".
  */
-function parsePlanInput<T>(schema: { safeParse(value: unknown): { success: boolean; data?: T; error?: { issues: Array<{ path: PropertyKey[]; message: string }> } } }, value: unknown): T {
+function parsePlanInput<T>(schema: { safeParse(value: unknown): { success: boolean; data?: T; error?: { issues: ZodLikeIssue[] } } }, value: unknown): T {
   const parsed = schema.safeParse(value)
   if (parsed.success) return parsed.data as T
-  const issues = (parsed.error?.issues ?? []).map(i => ({ code: 'invalid', ...(i.path[0] !== undefined ? { field: String(i.path[0]) } : {}) }))
-  const first = parsed.error?.issues[0]
-  throw new CommercialHttpError('invalid', 422, first ? String(first.path[0] ?? 'body') : 'body', issues)
+  const refused = parsed.error?.issues ?? []
+  const issues = refused.map(i => ({ code: planIssueCode(i), ...(i.path[0] !== undefined ? { field: String(i.path[0]) } : {}) }))
+  const first = refused[0]
+  throw new CommercialHttpError(first ? planIssueCode(first) : 'invalid', 422, first ? String(first.path[0] ?? 'body') : 'body', issues)
 }
 export async function createPlan(pool: Pool, actor: CommercialActor, value: unknown) {
   const input = parsePlanInput<Record<string, any>>(planCreateSchema, value)

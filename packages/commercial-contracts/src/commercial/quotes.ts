@@ -141,7 +141,6 @@ export function computeQuote(input: ComputeQuoteInput): Quote {
 
   // The onboarding fee is a first-invoice item: it joins the lines due now, never the renewal, and only on a new order.
   if (input.onboarding) {
-    if (input.onboarding.amount.currency !== currency) throw new CommercialError('currency_mismatch')
     // The fee must be in the plan's own currency and exponent: a mismatch would silently divide or multiply it.
     if (input.onboarding.amount.currency !== currency || input.onboarding.amount.exponent !== exponent)
       throw new CommercialError('currency_mismatch', 'onboarding')

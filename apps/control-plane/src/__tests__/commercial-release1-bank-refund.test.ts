@@ -193,11 +193,12 @@ suite('bank transfer (W5)', () => {
 
   it('refuses a value date before the invoice was issued, and accepts the issue date itself', async () => {
     const { invoice } = await unpaidOrder()
-    // The invoice was issued today; yesterday closes the refund window on money that was in fact received today.
-    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10)
+    // The invoice was issued today (Riyadh); yesterday closes the refund window on money that was in fact received today.
+    // Every date here is a Riyadh calendar day, as in the production code, so the test does not flake between 00:00 and 03:00 Riyadh.
+    const yesterday = riyadhDate(new Date(Date.now() - 86_400_000))
     await expect(confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', ...transfer(invoice, { value_date: yesterday }) } as never))
       .rejects.toMatchObject({ status: 422, code: 'value_date_before_invoice' })
-    const issued = new Date(invoice.issued_at).toISOString().slice(0, 10)
+    const issued = riyadhDate(new Date(invoice.issued_at))
     await expect(confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', ...transfer(invoice, { value_date: issued }) } as never))
       .resolves.toMatchObject({ replay: false })
   })
@@ -211,6 +212,35 @@ suite('bank transfer (W5)', () => {
       .rejects.toMatchObject({ status: 422, code: 'invalid_transfer_amount', field: 'amount' })
     await expect(confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', ...base, reason: 'x' } as never))
       .rejects.toMatchObject({ status: 422, code: 'invalid_transfer_reason', field: 'reason' })
+  })
+
+  it('returns each refused transfer field with its own code through the route', async () => {
+    // The route parses the body before confirmBankTransfer runs: a code the inner function maps must not be flattened to
+    // `invalid` on the way in. This goes through the route handler the proxy calls, never the inner function.
+    const { invoice } = await unpaidOrder()
+    const base = transfer(invoice)
+    const post = (body: unknown, raw?: string) => routesB(pool, { method: 'POST', pathname: `/v1/commercial/invoices/${invoice.id}/bank-transfer`,
+      raw: raw ?? JSON.stringify(body), issuer: 'bank-test', actor: 7, capabilities: ['vendor.billing.manage'], stepUpFresh: true }, new URL('http://localhost/v1/commercial'))
+    const yesterday = riyadhDate(new Date(Date.now() - 86_400_000))
+    const cases: Array<[string, Record<string, unknown>, string, string]> = [
+      ['a future date', { value_date: '2999-01-01' }, 'value_date_in_future', 'value_date'],
+      ['a date before the invoice', { value_date: yesterday }, 'value_date_before_invoice', 'value_date'],
+      ['a date that is not on the calendar', { value_date: '2026-02-30' }, 'invalid_value_date', 'value_date'],
+      ['a malformed date', { value_date: '2026-11-6' }, 'invalid_value_date', 'value_date'],
+      ['a 2-character reference', { reference: 'ab' }, 'invalid_transfer_reference', 'reference'],
+      ['a negative amount', { amount: -1 }, 'invalid_transfer_amount', 'amount'],
+      ['an amount that is not a number', { amount: '115.00' }, 'invalid_transfer_amount', 'amount'],
+      ['a reason that is too short', { reason: 'x' }, 'invalid_transfer_reason', 'reason'],
+      ['an amount that is not the invoice total', { amount: Number(invoice.total_minor) - 1 }, 'transfer_amount_mismatch', ''],
+    ]
+    for (const [label, over, code, field] of cases)
+      await expect(post({ ...base, ...over }), label).rejects.toMatchObject({ status: 422, code, ...(field ? { field } : {}) })
+    // What belongs to no single field stays generic.
+    await expect(post({ ...base, surprise: true })).rejects.toMatchObject({ status: 422, code: 'invalid' })
+    await expect(post(null, 'not json')).rejects.toMatchObject({ status: 422, code: 'invalid', field: 'body' })
+    // And none of the refusals recorded anything.
+    expect((await pool.query('SELECT count(*)::int AS n FROM payment_attempts WHERE invoice_id=$1', [invoice.id])).rows[0].n).toBe(0)
+    await expect(post(base)).resolves.toMatchObject({ status: 201 })
   })
 
   it('builds succeeded_at in Riyadh time even when the session timezone is not', async () => {
@@ -260,11 +290,30 @@ suite('bank transfer (W5)', () => {
     // The first payment is still the customer's first: the duplicate is a second succeeded attempt, later in time.
     const eligibility = await refundEligibility(pool, customer_id, invoice.id)
     expect(eligibility).toMatchObject({ refundable: true, first_payment: true })
-    // Both transfers carry the same value date, so which is "first" is decided by the tie-break the rule states: the
-    // id. What matters is that the paying attempt is the one the rule treats as first, and it does.
-    const firsts = (await pool.query(`SELECT a.id FROM payment_attempts a JOIN orders o ON o.id=a.order_id
-      WHERE o.customer_id=$1 AND a.status='succeeded' ORDER BY a.succeeded_at NULLS LAST,a.id LIMIT 1`, [customer_id])).rows
-    expect([first.attempt.id, second.attempt.id]).toContain(firsts[0].id)
+  })
+
+  it('the paying transfer stays the customer\'s first payment even when a duplicate carries an earlier value date', async () => {
+    // The dangerous case: a duplicate transfer whose value date is EARLIER than the payment that bought the order. Read
+    // by value date alone it would become "the first payment" and the real one would stop being refundable.
+    const { customer_id, order, invoice } = await unpaidOrder()
+    const day = (ago: number) => riyadhDate(new Date(Date.now() - ago * 86_400_000))
+    const paying = await confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', ...transfer(invoice, { value_date: day(0) }) } as never)
+    // A paid invoice is immutable, so the route cannot record a value date before the invoice was issued; the earlier
+    // duplicate is written the way a second money-in with its own earlier success time is stored.
+    const duplicateId = randomUUID()
+    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,value_date,succeeded_at)
+      VALUES($1,$2,$3,'bank_transfer','live',$4,$5,$6,$7,'succeeded',$8::date,($8::timestamp + time '12:00') AT TIME ZONE 'Asia/Riyadh')`,
+    [duplicateId, order.id, invoice.id, `TRF-dup-${duplicateId.slice(0, 8)}`, Number(invoice.total_minor), invoice.currency, Number(invoice.exponent), day(3)])
+    // By time the duplicate really is the earlier success...
+    const byTime = (await pool.query("SELECT id FROM payment_attempts WHERE order_id=$1 AND status='succeeded' ORDER BY succeeded_at,id", [order.id])).rows.map(r => r.id)
+    expect(byTime).toEqual([duplicateId, paying.attempt.id])
+    // ...yet the order was paid by the other one, and that one is what the rule treats as the first payment.
+    expect((await pool.query('SELECT paid_attempt_id FROM orders WHERE id=$1', [order.id])).rows[0].paid_attempt_id).toBe(paying.attempt.id)
+    const eligibility = await refundEligibility(pool, customer_id, invoice.id)
+    expect(eligibility).toMatchObject({ refundable: true, first_payment: true })
+    // The window runs from the paying transfer (today), not from the earlier duplicate (3 days ago).
+    const expectedUntil = new Date(Date.parse(`${day(0)}T12:00:00+03:00`) + 14 * 86_400_000).toISOString().slice(0, 10)
+    expect(eligibility.until).toBe(`${expectedUntil}T23:59:59+03:00`)
   })
 
   it('two concurrent transfers on a paid invoice record one payment and one duplicate', async () => {
@@ -426,43 +475,57 @@ suite('the 14-day refund window (W7)', () => {
   }
   const ask = (noteId: string) => refundCreditNote(pool, { adjustment_id: noteId, actor, request: { external_reference: `MOY-${randomUUID().slice(0, 8)}`, reason: 'Customer asked within the window' } })
 
-  it('accepts a refund on day 14 and refuses it on day 15', async () => {
+  it('accepts a refund request on day 14 and refuses it on day 15', async () => {
     const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString()
-    const day14 = await paidWithCreditNote(daysAgo(14))
-    await expect(ask(day14.noteId!)).resolves.toMatchObject({ status: 'refunded' })
-    const day15 = await paidWithCreditNote(daysAgo(15))
-    await expect(ask(day15.noteId!)).rejects.toMatchObject({ status: 409, code: 'refund_window_closed' })
-    expect((await pool.query('SELECT status FROM invoice_adjustments WHERE id=$1', [day15.noteId])).rows[0].status).toBe('pending')
+    const day14 = await paidWithCreditNote(daysAgo(14), 'vendor', false)
+    await expect(requestRefund(day14.invoice.id)).resolves.toMatchObject({ status: 201 })
+    const day15 = await paidWithCreditNote(daysAgo(15), 'vendor', false)
+    await expect(requestRefund(day15.invoice.id)).rejects.toMatchObject({ status: 409, code: 'refund_window_closed' })
+    expect((await pool.query('SELECT count(*)::int AS n FROM invoice_adjustments WHERE invoice_id=$1', [day15.invoice.id])).rows[0].n).toBe(0)
   })
 
-  it('refuses a renewal: only the customer\'s first payment is refundable', async () => {
-    const { customer_id, invoice } = await paidWithCreditNote(new Date().toISOString())
-    // A renewal: a later, successful payment for the same customer, so refunding it is not the customer's first.
-    const laterOrder = randomUUID()
-    await pool.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,effective_at,idempotency_key,request_digest,due_now_minor,currency,exponent)
-      SELECT $1,customer_id,subscription_id,'renewal',gen_random_uuid(),target_revision_id,'paid','applied',now()+interval '30 days',$2,'d',$3,currency,exponent FROM orders WHERE id=(SELECT order_id FROM invoices WHERE id=$4)`,
-      [laterOrder, `k-${laterOrder}`, invoice.total_minor, invoice.id])
-    const laterInvoice = randomUUID()
-    await pool.query(`INSERT INTO invoices(id,number,customer_id,subscription_id,order_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,paid_at,issued_at)
-      SELECT $1,'INV-L',customer_id,subscription_id,$2,'renewal','paid',currency,exponent,subtotal_minor,0,total_minor,current_date,current_date+30,now(),now() FROM invoices WHERE id=$3`,
-      [laterInvoice, laterOrder, invoice.id])
-    await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,succeeded_at,updated_at)
-      SELECT $1,$2,$3,'moyasar','live',$4,total_minor,currency,exponent,'succeeded',now()+interval '30 days',now()+interval '30 days' FROM invoices WHERE id=$3::uuid`,
-      [randomUUID(), laterOrder, laterInvoice, `moy-${laterOrder.slice(0, 8)}`])
-    const noteId = randomUUID()
-    await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by)
-      VALUES($1,$2,$3,'credit_note','Renewal refund',$4,'SAR',2,'pending','vendor:7')`, [noteId, laterInvoice, customer_id, invoice.total_minor])
-    await expect(ask(noteId)).rejects.toMatchObject({ status: 409, code: 'refund_not_first_payment' })
+  it('records a vendor refund after the window closed, because the window was judged when the note was requested', async () => {
+    // The operator refunds at the provider and records the reference days later. Judging the window again at that point
+    // stranded the note: `refund_already_requested` blocked a second one and `refund_window_closed` blocked this one.
+    const paid = await paidWithCreditNote(new Date(Date.now() - 3 * 86_400_000).toISOString(), 'vendor', false)
+    const requested = (await requestRefund(paid.invoice.id))!
+    expect(requested.status).toBe(201)
+    const noteId = (requested.data as { id: string }).id
+    // The window closes: the payment ages to day 20 and the vendor then also shortens the window to nothing.
+    const old = new Date(Date.now() - 20 * 86_400_000).toISOString()
+    await pool.query('UPDATE payment_attempts SET succeeded_at=$2,updated_at=$2 WHERE invoice_id=$1', [paid.invoice.id, old])
+    await setBillingSettings(pool, { operator: 'vendor:7', reason: 'Release 1 billing settings', refund_window_days: 0 })
+    expect(await refundEligibility(pool, paid.customer_id, paid.invoice.id)).toMatchObject({ refundable: false })
+    await expect(ask(noteId)).resolves.toMatchObject({ status: 'refunded', origin: 'vendor' })
+    // A request made now is still refused at creation, on another invoice (this one already has its note).
+    const late = await paidWithCreditNote(old, 'vendor', false)
+    await expect(requestRefund(late.invoice.id)).rejects.toMatchObject({ status: 409, code: 'refund_window_closed' })
+  })
+
+  it('records a vendor note whatever the age of the payment: recording is structural only', async () => {
+    const paid = await paidWithCreditNote(new Date(Date.now() - 20 * 86_400_000).toISOString())
+    await expect(ask(paid.noteId!)).resolves.toMatchObject({ status: 'refunded' })
+  })
+
+  it('two simultaneous refund requests on one invoice make exactly one note and one structured 409', async () => {
+    const paid = await paidWithCreditNote(new Date().toISOString(), 'vendor', false)
+    const results = await Promise.allSettled([requestRefund(paid.invoice.id), requestRefund(paid.invoice.id)])
+    const won = results.filter(r => r.status === 'fulfilled')
+    const lost = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+    expect(won).toHaveLength(1)
+    expect(lost).toHaveLength(1)
+    expect(lost[0]!.reason).toMatchObject({ status: 409, code: 'refund_already_requested' })
+    expect((await pool.query("SELECT count(*)::int AS n FROM invoice_adjustments WHERE invoice_id=$1 AND origin='vendor' AND status='pending'", [paid.invoice.id])).rows[0].n).toBe(1)
   })
 
   it('never refunds a refund already made, and keeps the window length a vendor-editable value', async () => {
-    const paid = await paidWithCreditNote(new Date().toISOString())
-    await ask(paid.noteId!)
+    const paid = await paidWithCreditNote(new Date().toISOString(), 'vendor', false)
+    await requestRefund(paid.invoice.id)
     const settings = await billingSettings(pool)
     expect(settings.refund_window_days).toBe(14)
     await setBillingSettings(pool, { operator: 'vendor:7', reason: 'Release 1 billing settings', refund_window_days: 0 })
-    const closed = await paidWithCreditNote(new Date().toISOString())
-    await expect(ask(closed.noteId!)).rejects.toMatchObject({ code: 'refund_window_closed' })
+    const closed = await paidWithCreditNote(new Date().toISOString(), 'vendor', false)
+    await expect(requestRefund(closed.invoice.id)).rejects.toMatchObject({ code: 'refund_window_closed' })
   })
 
   it('refuses a partial credit note: only a full refund of the invoice is recorded', async () => {
@@ -491,10 +554,10 @@ suite('the 14-day refund window (W7)', () => {
   it('lets a system-created credit note be refunded outside the window', async () => {
     // A5: a duplicate charge on day 20 is money the customer never planned to spend; the window must not strand it.
     const old = await paidWithCreditNote(new Date(Date.now() - 20 * 86_400_000).toISOString(), 'system')
-    await expect(ask(old.noteId!)).resolves.toMatchObject({ status: 'refunded' })
-    // The same age as a customer-requested note is still refused: that is the owner's rule.
-    const requested = await paidWithCreditNote(new Date(Date.now() - 20 * 86_400_000).toISOString(), 'vendor')
-    await expect(ask(requested.noteId!)).rejects.toMatchObject({ code: 'refund_window_closed' })
+    await expect(ask(old.noteId!)).resolves.toMatchObject({ status: 'refunded', origin: 'system' })
+    // The same age as a customer REQUEST is refused, at creation: that is the owner's rule.
+    const requested = await paidWithCreditNote(new Date(Date.now() - 20 * 86_400_000).toISOString(), 'vendor', false)
+    await expect(requestRefund(requested.invoice.id)).rejects.toMatchObject({ code: 'refund_window_closed' })
   })
 
   it('measures the window from the immutable success time, not from a later touch', async () => {

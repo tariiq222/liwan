@@ -223,12 +223,18 @@ suite('a plan whose total is zero', () => {
       included_users: 3, included_storage_mb: 20480, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400,
       user_prices: [{ cadence: monthly, amount: money(2900) }], storage_prices: [{ cadence: monthly, amount: money(100) }],
       policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000002', trial_days: 0, grace_days: 7, auto_suspend: true, auto_renew_allowed: true, ...over })
+    // Each refusal carries the specific code through the route, not the generic `invalid`, so the console can name it.
+    const refused = async (over: Record<string, unknown>) => {
+      const answer = await api('POST', '/plans', body(over))
+      expect(answer.status, JSON.stringify(answer.body)).toBe(422)
+      return answer.body
+    }
     // A threshold that is not a whole number of small steps.
-    expect((await api('POST', '/plans', body({ storage_step_threshold_mb: 15360 }))).status).toBe(422)
+    expect(await refused({ storage_step_threshold_mb: 15360 })).toMatchObject({ code: 'storage_step_misaligned', field: 'storage_step_threshold_mb', issues: [{ code: 'storage_step_misaligned', field: 'storage_step_threshold_mb' }] })
     // A threshold that is not a whole number of large steps: the engine would offer it and then refuse it.
-    expect((await api('POST', '/plans', body({ storage_step_threshold_mb: 153600 }))).status).toBe(422)
+    expect(await refused({ storage_step_threshold_mb: 153600 })).toMatchObject({ code: 'storage_step_misaligned', field: 'storage_step_threshold_mb' })
     // A large step below the small one.
-    expect((await api('POST', '/plans', body({ storage_large_step_mb: 5120 }))).status).toBe(422)
+    expect(await refused({ storage_large_step_mb: 5120 })).toMatchObject({ code: 'storage_step_misaligned', field: 'storage_step_threshold_mb' })
     // The aligned plan is accepted.
     const ok = await api('POST', '/plans', body({}))
     expect(ok.status, JSON.stringify(ok.body)).toBe(201)
@@ -255,7 +261,24 @@ suite('a plan whose total is zero', () => {
       policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000002', trial_days: 0, grace_days: 7, auto_suspend: true, auto_renew_allowed: true }
     const tooLarge = await api('POST', '/plans', { ...body, storage_step_threshold_mb: Number.MAX_SAFE_INTEGER })
     expect(tooLarge.status).toBe(422)
-    expect(tooLarge.body.code).toBe('invalid')
+    expect(tooLarge.body).toMatchObject({ code: 'storage_step_invalid', field: 'storage_step_threshold_mb' })
+    // A zero step is the same kind of refusal, on the field that holds it.
+    expect(await api('POST', '/plans', { ...body, storage_step_mb: 0 })).toMatchObject({ status: 422, body: { code: 'storage_step_invalid', field: 'storage_step_mb' } })
+    // A field outside the storage steps keeps the generic code: only the rules that have their own code are named.
+    expect(await api('POST', '/plans', { ...body, name: '' })).toMatchObject({ status: 422, body: { code: 'invalid', field: 'name' } })
+  })
+
+  it('names the storage-step refusal on an edit too, not only on create', async () => {
+    const body = { name: `Step edit ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
+      prices: [{ cadence: monthly, amount: money(9900) }], platform_limits: AI_LIMITS, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
+      included_extra_branches: 1, extra_branch_prices: [{ cadence: monthly, amount: money(0) }], extra_branches_limit: null,
+      included_users: 3, included_storage_mb: 20480, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400,
+      user_prices: [{ cadence: monthly, amount: money(2900) }], storage_prices: [{ cadence: monthly, amount: money(100) }],
+      policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000002', trial_days: 0, grace_days: 7, auto_suspend: true, auto_renew_allowed: true }
+    const draft = await api('POST', '/plans', body)
+    expect(draft.status, JSON.stringify(draft.body)).toBe(201)
+    const edited = await api('PATCH', `/plans/${draft.body.id}`, { ...body, storage_step_threshold_mb: 15360, edit_revision: 1, reason: 'Misaligned edit' })
+    expect(edited).toMatchObject({ status: 422, body: { code: 'storage_step_misaligned', field: 'storage_step_threshold_mb' } })
   })
 
   it('refuses a trial on a plan that costs nothing', async () => {
