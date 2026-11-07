@@ -24,7 +24,7 @@ import {
   CHAT_PAGE_SIZE,
   chatCacheScope,
   chatListQuery,
-  chatPollInterval,
+  chatReconcileInterval,
   isFatalChatStatus,
   type ChatListRoute,
 } from '../utils/chatState'
@@ -66,15 +66,14 @@ export function applyChatAccessFailure(qc: { removeQueries: (opts: { queryKey: r
   return true
 }
 
-function chatQueryBase() {
+function chatQueryBase(activeThread = false) {
   const { connected } = useBus()
   return {
     retry: false as const,
     staleTime: 0,
     refetchIntervalInBackground: false as const,
     refetchInterval: (query: { state: { error: unknown } }) => {
-      const fallback = chatPollInterval(errorStatus(query.state.error))
-      return fallback && connected.value ? 30_000 : fallback
+      return chatReconcileInterval(errorStatus(query.state.error), connected.value, activeThread)
     },
   }
 }
@@ -124,7 +123,7 @@ export function useChatMessages(
   const qc = useQueryClient()
   const userId = currentUserId()
   return useQuery({
-    ...chatQueryBase(),
+    ...chatQueryBase(true),
     queryKey: computed(() => chatKeys.messages(userId.value, toValue(id) || 0, { ...toValue(cursor), q: toValue(q) || undefined })),
     queryFn: ({ queryKey, signal }) => $api(`/api/v1/chat/conversations/${queryKey[3]}/messages`, {
       signal,
