@@ -61,6 +61,10 @@ export const cadenceKey = (c: Cadence) => `${c.unit}:${c.count}`
 // ---- Limits (tri-state: explicit unlimited / none(0) / number; blank is never 0) ----
 export type LimitMode = '' | 'unlimited' | 'none' | 'number'
 export type LimitDraft = { mode: LimitMode; value: string }
+// The storage-step rule and its bound are the contract's; re-exported here because the form's harness strips module
+// imports and reads its scope from this file.
+export { MAX_STORAGE_STEP_MB, storageStepsAligned } from '@liwan/commercial-contracts'
+
 /** A11 seeds: 10 GiB steps below 100 GiB of extra storage, 100 GiB steps from there. Vendor-editable on the plan. */
 export const DEFAULT_STORAGE_STEP_MB = 10240
 export const DEFAULT_STORAGE_THRESHOLD_MB = 102400

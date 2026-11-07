@@ -129,7 +129,9 @@ export function handleCommercial(req, res, url, { capabilities } = {}) {
   else if (path === '/v1/commercial/bundles') send(page(fixtures.bundles, url, b => (!q(url, 'status') || b.status === q(url, 'status')) && (!q(url, 'q') || b.name.includes(q(url, 'q')))))
   else if ((m = /^\/v1\/commercial\/bundles\/([^/]+)$/.exec(path))) send(byId(fixtures.bundles, m[1]))
   else if (path === '/v1/commercial/catalog/releases') send({ items: fixtures.releases, total: fixtures.releases.length })
-  else if (path === '/v1/commercial/policies') send({ items: [fixtures.policy], total: 1 })
+  // The production order: schema_012 inserts both rows in one statement, so they share created_at and the VAT row sorts
+  // first. The plan form must still default to the no-tax policy — that is what this fixture exists to exercise.
+  else if (path === '/v1/commercial/policies') send({ items: [fixtures.policy, fixtures.noTaxPolicy], total: 2 })
   else notFound(res)
   return true
 }

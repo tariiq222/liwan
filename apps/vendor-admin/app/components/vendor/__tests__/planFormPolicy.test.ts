@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import * as Vue from 'vue'
 import * as selection from '../policySelection'
@@ -141,5 +142,49 @@ describe('plan form pricing policy selection', () => {
     const [, draft] = emit.mock.calls[0]! as [string, ReturnType<typeof commercial.emptyPlanDraft>]
     expect(draft.policy_revision_id).toBe(NO_TAX_ID)
     expect(commercial.planCreatePayload(draft, draft.policy_revision_id).policy_revision_id).toBe(NO_TAX_ID)
+  })
+})
+
+describe('the e2e mock reflects the production policy list', () => {
+  it('serves both approved policies with VAT first, so the default is genuinely exercised', async () => {
+    const fixtures = JSON.parse(readFileSync(new URL('../../../../e2e/commercial-fixtures.json', import.meta.url), 'utf8'))
+    const mock = readFileSync(new URL('../../../../e2e/commercial-mock-routes.mjs', import.meta.url), 'utf8')
+    expect(fixtures.policy.tax.kind).toBe('vat_exclusive')
+    expect(fixtures.noTaxPolicy.tax.kind).toBe('none')
+    // The mock must return both, in that order; one row could never exercise the default.
+    expect(mock).toContain('[fixtures.policy, fixtures.noTaxPolicy]')
+    // And the form's choice over that exact list is the no-tax policy, not the first row.
+    expect(defaultPolicyId([fixtures.policy, fixtures.noTaxPolicy])).toBe(fixtures.noTaxPolicy.id)
+  })
+})
+
+describe('the plan form states the storage steps and the users cap', () => {
+  it('validates the users cap above 100 instead of calling it required', () => {
+    // `parseCount(x, 100)` used to return null above the cap, so 150 read as «مطلوب» and the cap message never showed.
+    const setup = filledSetup({ bundles: [], policies: approvedVatFirst, policy: noTax })
+    setup.draft.included_users = '150'
+    expect(setup.errors.value.includedUsers).toBe('vendor.pricing.plan.usersCapExceeded')
+    setup.draft.included_users = '100'
+    expect(setup.errors.value.includedUsers).toBeUndefined()
+    setup.draft.included_users = ''
+    expect(setup.errors.value.includedUsers).toBe('vendor.pricing.plan.usersRequired')
+  })
+
+  it('requires the three storage steps and refuses a misaligned set', () => {
+    const setup = filledSetup({ bundles: [], policies: approvedVatFirst, policy: noTax })
+    setup.draft.storage_step_mb = ''
+    expect(setup.errors.value.storage_step_mb).toBe('vendor.pricing.required')
+    // 10 GiB step with a 15 GiB threshold: 20 GiB would be unbuyable while 10 GiB is fine.
+    Object.assign(setup.draft, { storage_step_mb: '10240', storage_step_threshold_mb: '15360', storage_large_step_mb: '102400' })
+    expect(setup.errors.value.storage_step_threshold_mb).toBe('vendor.pricing.plan.storageStepMisaligned')
+    // The seeded, aligned values pass.
+    Object.assign(setup.draft, { storage_step_mb: '10240', storage_step_threshold_mb: '102400', storage_large_step_mb: '102400' })
+    expect(setup.errors.value.storage_step_threshold_mb).toBeUndefined()
+  })
+
+  it('refuses a step larger than the integer column allows', () => {
+    const setup = filledSetup({ bundles: [], policies: approvedVatFirst, policy: noTax })
+    setup.draft.storage_step_mb = String(Number.MAX_SAFE_INTEGER)
+    expect(setup.errors.value.storage_step_mb).toBe('vendor.pricing.plan.storageStepTooLarge')
   })
 })

@@ -1874,5 +1874,13 @@
     "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "requested_users": 1,
     "requested_storage_mb": 0
+  },
+  "noTaxPolicy": {
+    "id": "00000000-0000-4000-8000-000000000102",
+    "timezone": "Asia/Riyadh",
+    "rounding": "half_up_per_line",
+    "tax": {
+      "kind": "none"
+    }
   }
 }

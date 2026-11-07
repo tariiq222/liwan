@@ -38,9 +38,11 @@ const refundUntil = computed(() => (data.value?.refund?.until ? formatLiwanDate(
 const refundable = computed(() => data.value?.refund?.refundable === true)
 const canRefund = computed(() => canBilling.value && !unavailable.value && refundable.value)
 /** The stated eligibility of the customer's payment: first payment or not, and the deadline or the closed window. */
+// Only a paid invoice can be refunded, so the eligibility alert is about a paid one; on an unpaid invoice it would
+// claim "this is not the customer's first payment" about a payment that does not exist yet.
 const refundEligibility = computed(() => {
   const refund = data.value?.refund
-  if (!refund) return null
+  if (!refund || data.value?.status !== 'paid') return null
   const label = refund.refundable ? t('vendor.invoices.refund.eligibilityRefundable', { date: refundUntil.value })
     : refund.first_payment ? t('vendor.invoices.refund.windowClosed', { days: refund.window_days })
       : t('vendor.invoices.refund.notFirstPayment')

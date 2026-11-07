@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AI_LIMIT_KEYS, COMMERCIAL_MAX_USERS, commercialErrorKey, commercialFailure, emptyPlanDraft, fieldIssue, limitFromDraft, MB_PER_GB, parseCount, planDraftFromView, priceRowErrors, type BundleView, type PlanDraft, type PlanView } from '@/utils/vendorCommercial'
+import { AI_LIMIT_KEYS, COMMERCIAL_MAX_USERS, commercialErrorKey, commercialFailure, emptyPlanDraft, fieldIssue, limitFromDraft, MAX_STORAGE_STEP_MB, MB_PER_GB, parseCount, planDraftFromView, priceRowErrors, storageStepsAligned, type BundleView, type PlanDraft, type PlanView } from '@/utils/vendorCommercial'
 import { defaultPolicyId, policyOptions } from './policySelection'
 import type { PricingPolicyView } from '@/composables/useVendorCommercial'
 // `policy` is the policy a saved plan keeps; the form only prefills it with an edit and lets the vendor choose any approved policy.
@@ -46,12 +46,23 @@ const errors = computed(() => {
   if (!draft.included.length && !draft.optional.length) e.bundles = t('vendor.pricing.plan.bundlesRequired')
   if (releaseIds.value.size > 1) e.bundles = t('vendor.pricing.plan.singleRelease')
   // Release 1 sells at most COMMERCIAL_MAX_USERS users; the cap is refused here, before any request is sent.
-  const includedUserCount = parseCount(draft.included_users, COMMERCIAL_MAX_USERS)
+  // Parsed without the cap: a value above it must say so, not read as "required" (the cap used to swallow the number).
+  const includedUserCount = parseCount(draft.included_users)
   if (includedUserCount === null) e.includedUsers = t('vendor.pricing.plan.usersRequired')
   else if (includedUserCount > COMMERCIAL_MAX_USERS) e.includedUsers = t('vendor.pricing.plan.usersCapExceeded')
   const storage = parseCount(draft.included_storage_mb)
   if (storage === null) e.includedStorage = req
   else if (storage % MB_PER_GB !== 0) e.includedStorage = t('vendor.pricing.plan.storageMinimumGb')
+  // A6: the three storage steps are vendor-editable plan values, bounded where they are parsed and required to tile
+  // the range they govern (the same rule the contract and the database CHECK enforce).
+  for (const field of ['storage_step_mb', 'storage_step_threshold_mb', 'storage_large_step_mb'] as const) {
+    const step = parseCount(draft[field])
+    if (step === null) e[field] = req
+    else if (step > MAX_STORAGE_STEP_MB) e[field] = t('vendor.pricing.plan.storageStepTooLarge')
+  }
+  if (!e.storage_step_mb && !e.storage_step_threshold_mb && !e.storage_large_step_mb
+    && !storageStepsAligned({ storage_step_mb: Number(draft.storage_step_mb), storage_step_threshold_mb: Number(draft.storage_step_threshold_mb), storage_large_step_mb: Number(draft.storage_large_step_mb) }))
+    e.storage_step_threshold_mb = t('vendor.pricing.plan.storageStepMisaligned')
   if (priceRowErrors(draft.user_prices).some(Boolean)) e.userPrices = t('vendor.pricing.prices.invalid')
   if (priceRowErrors(draft.storage_prices).some(Boolean)) e.storagePrices = t('vendor.pricing.prices.invalid')
   if (unitPriceMissing.value) e.unitPrices = t('vendor.pricing.prices.cadenceMissing')
@@ -125,6 +136,9 @@ const taxText = computed<string | null>(() => (policy.value ? policyTaxText(poli
           <UFormField :label="t('vendor.pricing.fields.includedUsers')" required :error="show('includedUsers') ?? serverIssue('included_users')"><UInput v-model="draft.included_users" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
           <p class="text-sm text-muted">{{ t('vendor.pricing.plan.usersCapNote') }}</p>
           <UFormField :label="t('vendor.pricing.fields.includedStorage')" required :error="show('includedStorage') ?? serverIssue('included_storage_mb')"><UInput v-model="draft.included_storage_mb" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
+          <UFormField :label="t('vendor.pricing.fields.storageStep')" required :help="t('vendor.pricing.fields.storageStepHint')" :error="show('storage_step_mb') ?? serverIssue('storage_step_mb')"><UInput v-model="draft.storage_step_mb" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
+          <UFormField :label="t('vendor.pricing.fields.storageStepThreshold')" required :help="t('vendor.pricing.fields.storageStepThresholdHint')" :error="show('storage_step_threshold_mb') ?? serverIssue('storage_step_threshold_mb')"><UInput v-model="draft.storage_step_threshold_mb" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
+          <UFormField :label="t('vendor.pricing.fields.storageLargeStep')" required :help="t('vendor.pricing.fields.storageLargeStepHint')" :error="show('storage_large_step_mb') ?? serverIssue('storage_large_step_mb')"><UInput v-model="draft.storage_large_step_mb" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
           <UFormField :label="t('vendor.pricing.fields.freeBranches')" required :error="show('free') ?? serverIssue('included_extra_branches')"><UInput v-model="draft.included_extra_branches" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
           <UFormField :label="t('vendor.pricing.fields.branchLimit')" required :error="show('branchLimit') ?? serverIssue('extra_branches_limit')"><VendorLimitControl v-model="draft.extra_branches_limit" :label="t('vendor.pricing.fields.branchLimit')" :disabled="dis" /></UFormField>
         </div>

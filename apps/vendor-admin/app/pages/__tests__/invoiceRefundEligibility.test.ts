@@ -21,7 +21,8 @@ afterEach(() => scopes.splice(0).forEach(s => s.stop()))
 
 const money = { minor: 12345, exponent: 2, currency: 'SAR' }
 /** Liwan's own invoice carries no tax: the API sends `tax_label: null` (never a missing key) and a zero tax line. */
-const makeInvoice = (tax_label: string | null = null) => ({ id: 'invoice1', order_id: 'order/1', customer_id: 'customer1', status: 'issued', kind: 'initial', total: money, subtotal: money,
+// A refund is about a paid invoice, so that is the default; the bank-transfer case below overrides it to `issued`.
+const makeInvoice = (tax_label: string | null = null) => ({ id: 'invoice1', order_id: 'order/1', customer_id: 'customer1', status: 'paid', kind: 'initial', total: money, subtotal: money,
   tax: tax_label === null ? { minor: 0, exponent: 2, currency: 'SAR' } : { minor: 100, exponent: 2, currency: 'SAR' },
   tax_label, period_start: '2026-10-01', period_end: '2026-11-01', lines: [], adjustments: [] })
 const invoice = makeInvoice()
@@ -133,8 +134,15 @@ describe('invoice refund eligibility', () => {
     expect(p.state.refundEligibility.value.label).toBe('vendor.invoices.refund.notFirstPayment')
   })
 
+  it('states no refund eligibility on an invoice that has not been paid', async () => {
+    // An unpaid invoice has no payment to judge, so "not the customer's first payment" would be a false statement.
+    const unpaid = await page({ taxLabel: null, overrides: { status: 'issued' } })
+    const { captured } = await unpaid.rendered()
+    expect(captured.some(c => c.props['data-testid'] === 'refund-window')).toBe(false)
+  })
+
   it('offers the bank-transfer action on an unpaid invoice and not on a paid one', async () => {
-    const unpaid = await page({ taxLabel: null })
+    const unpaid = await page({ taxLabel: null, overrides: { status: 'issued' } })
     expect((await unpaid.rendered()).captured.some(c => c.props['data-testid'] === 'bank-transfer-action')).toBe(true)
     const paid = await page({ taxLabel: null, overrides: { status: 'paid' } })
     const { html, captured } = await paid.rendered()
