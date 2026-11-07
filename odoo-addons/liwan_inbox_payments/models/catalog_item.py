@@ -166,10 +166,16 @@ class LiwanInboxCatalogItem(models.Model):
             item.price = item._liwan_price()
 
     def _liwan_price(self):
-        """The unit price the catalog shows: the list price with or without taxes as the catalog says."""
+        """The unit price the catalog shows: the list price with or without its taxes.
+
+        A company that is not registered for VAT charges no tax, so its catalog prices carry none whatever the
+        catalog's "prices include tax" option says.
+        """
         self.ensure_one()
         company = self.catalog_id.company_id
         product = self.product_id
+        if not company._liwan_vat_registered():
+            return product.lst_price
         taxes = product.taxes_id.filtered(lambda tax: tax.company_id == company)
         totals = taxes.compute_all(product.lst_price, currency=company.currency_id, quantity=1.0, product=product)
         return totals['total_included' if self.catalog_id.prices_include_tax else 'total_excluded']

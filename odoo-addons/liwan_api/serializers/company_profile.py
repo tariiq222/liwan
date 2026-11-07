@@ -20,7 +20,9 @@ EMAIL_PATTERN = re.compile(r'[^@\s]+@[^@\s]+\.[^@\s]+')
 TEXT_FIELDS = ('company_registry', 'vat', 'street', 'street2', 'city', 'zip', 'email', 'phone', 'website')
 # The country is set at provisioning and read-only here; the state is validated against it.
 # Fields added by installed applications come from ``res.company._liwan_company_profile_extensions``.
-EDITABLE_FIELDS = ('name', 'report_header', *TEXT_FIELDS, 'state_id')
+EDITABLE_FIELDS = ('name', 'report_header', 'vat_registered', *TEXT_FIELDS, 'state_id')
+# The wire name of a field whose ORM name carries the module prefix; every other one is written under its own name.
+ORM_FIELDS = {'vat_registered': 'liwan_vat_registered'}
 # What a finished profile holds; ``completeness`` counts the filled ones.
 COMPLETENESS_FIELDS = ('company_registry', 'vat', 'street', 'city', 'zip', 'email', 'phone')
 
@@ -57,7 +59,11 @@ def _tagline(company):
 
 def _completeness(company, logo_url):
     filled = [bool(company.name), bool(logo_url), bool(company.country_id)]
-    filled += [bool(company[field]) for field in COMPLETENESS_FIELDS]
+    # The VAT number is part of a finished profile only for a company registered for VAT.
+    fields = COMPLETENESS_FIELDS if company._liwan_vat_registered() else tuple(
+        field for field in COMPLETENESS_FIELDS if field != 'vat'
+    )
+    filled += [bool(company[field]) for field in fields]
     return {'done': sum(filled), 'total': len(filled)}
 
 
@@ -69,6 +75,9 @@ def dump_company_profile(company):
         'logo_url': logo_url,
         'report_header': _tagline(company),
         'company_registry': company.company_registry or None,
+        'vat_registered': company._liwan_vat_registered(),
+        # The number the tenant typed for its own records; the form offers it only while the company is
+        # registered, and only then does any document, price or pay page show a tax.
         'vat': company.vat or None,
         'address': {
             'street': company.street or None,
@@ -126,6 +135,10 @@ def _parse_field(company, field, value, extensions):
     if field == 'report_header':
         text = _parse_text(value, field)
         return plaintext2html(text) if text else False
+    if field == 'vat_registered':
+        if type(value) is not bool:
+            raise ApiError(422, 'invalid', 'vat_registered must be true or false', field=field)
+        return value
     if field == 'state_id':
         return _parse_state(company.env, value)
     if field in extensions and extensions[field]['kind'] == 'selection':
@@ -133,8 +146,25 @@ def _parse_field(company, field, value, extensions):
     return _parse_text(value, field)
 
 
+def _check_vat_registration(company, vals):
+    """Registering the company for VAT needs a valid VAT number: the payload's own or the saved one."""
+    if not vals.get('vat_registered'):
+        return
+    vat = vals.get('vat', company.vat or False)
+    if not vat:
+        raise ApiError(
+            422, 'invalid_vat',
+            'أدخل الرقم الضريبي قبل تسجيل الشركة في ضريبة القيمة المضافة.', field='vat',
+        )
+    if 'vat' not in vals:
+        check_vat(company.country_id, vat, vals.get('name', company.name))
+
+
 def parse_company_profile_vals(payload, company):
-    """Validated ORM values of a PATCH body; any unknown field rejects the whole request."""
+    """Validated ORM values of a PATCH body; any unknown field rejects the whole request.
+
+    The body speaks the wire names; ``ORM_FIELDS`` maps the ones whose ORM name carries the module prefix.
+    """
     if not isinstance(payload, dict) or not payload:
         raise ApiError(422, 'invalid', 'no fields to update')
     extensions = _extension_specs(company)
@@ -147,7 +177,8 @@ def parse_company_profile_vals(payload, company):
         raise ApiError(422, 'invalid', 'state_id does not belong to the company country', field='state_id')
     if 'vat' in vals:
         check_vat(company.country_id, vals['vat'], vals.get('name', company.name))
-    return vals
+    _check_vat_registration(company, vals)
+    return {ORM_FIELDS.get(field, field): value for field, value in vals.items()}
 
 
 def parse_logo_upload(payload):

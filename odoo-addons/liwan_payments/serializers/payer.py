@@ -27,6 +27,8 @@ def _dump_document(document, status, options):
         'merchant': document.company_id.name,
         'number': document.name,
         'currency': document.currency_id.name,
+        # What the document was issued with: a company that is not registered for VAT issues untaxed ones, and a
+        # document issued earlier keeps what it was issued with.
         'amount_untaxed': document.amount_untaxed,
         'amount_tax': document.amount_tax,
         'amount_total': document.amount_total,

@@ -173,7 +173,10 @@ export const InboxCatalogSchema = z.object({
   brand: z.string().min(1).max(L.brand),
   // The product page link Meta requires; null sends the click-to-chat link of the item's WhatsApp number.
   default_link: HttpsUrl.nullable(),
+  // Always false while the company is not registered for VAT: then its prices carry no tax at all.
   prices_include_tax: z.boolean(),
+  // Whether the company is registered for VAT: only then is the "prices include tax" option offered.
+  vat_registered: z.boolean(),
   currency: Currency,
   channels: z.array(InboxCatalogChannelSchema),
   counts: z.object({

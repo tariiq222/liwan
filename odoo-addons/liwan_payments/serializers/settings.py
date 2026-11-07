@@ -21,14 +21,19 @@ CHOICES = {
 }
 
 
-def dump_settings(row, invoice_when_paid):
-    """The company's saved settings, or the defaults (revision 0) while it has no row."""
+def dump_settings(row, invoice_when_paid, vat_registered):
+    """The company's saved settings, or the defaults (revision 0) while it has no row.
+
+    ``vat_registered`` tells the card whether to offer the tax mode at all: an unregistered company charges no
+    tax, so the saved mode is kept (it applies again once the company registers) but is not offered.
+    """
     return {
         'unpaid_order_expiry_minutes': row.unpaid_order_expiry_minutes if row else DEFAULT_EXPIRY_MINUTES,
         'invoice_when_paid': invoice_when_paid,
         'refund_policy': row.refund_policy if row else DEFAULT_POLICY,
         'refund_amounts': row.refund_amounts if row else DEFAULT_AMOUNTS,
         'tax_mode': row.tax_mode if row else DEFAULT_TAX_MODE,
+        'vat_registered': vat_registered,
         'system_admin_links': row.system_admin_links if row else False,
         'revision': row.revision if row else 0,
     }

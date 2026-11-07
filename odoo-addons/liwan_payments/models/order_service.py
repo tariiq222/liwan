@@ -74,9 +74,13 @@ class LiwanPaymentsService(models.AbstractModel):
             'product_id': product.id,
             'product_uom_qty': quantity,
         })
-        # Whatever the product's taxes are, the order charges as the company decides: its prices contain the tax or have it added.
-        mode = order.env['liwan.payments.settings']._liwan_tax_mode(order.company_id)
-        line.tax_ids = [Command.set(self._liwan_priced_taxes(line.tax_ids, included=mode == 'included').ids)]
+        # Whatever the product's taxes are, the order charges as the company decides: a company that is not
+        # registered for VAT charges no tax at all, and one that is charges its prices with the tax inside or added.
+        if order.company_id._liwan_vat_registered():
+            mode = order.env['liwan.payments.settings']._liwan_tax_mode(order.company_id)
+            line.tax_ids = [Command.set(self._liwan_priced_taxes(line.tax_ids, included=mode == 'included').ids)]
+        else:
+            line.tax_ids = [Command.clear()]
         return self.env['sale.order.line'].browse(line.id)
 
     @api.model

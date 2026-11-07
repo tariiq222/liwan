@@ -21,7 +21,7 @@ EMPLOYEE = 'company_profile_employee'
 ROUTE = '/api/v1/admin/company'
 VALID_VAT = '300000000000003'
 PROFILE_KEYS = {
-    'id', 'name', 'logo_url', 'report_header', 'company_registry', 'vat',
+    'id', 'name', 'logo_url', 'report_header', 'company_registry', 'vat_registered', 'vat',
     'address', 'email', 'phone', 'website', 'currency', 'completeness', 'extensions',
 }
 ADDRESS_KEYS = {'street', 'street2', 'city', 'zip', 'state', 'country'}
@@ -268,3 +268,41 @@ class TestCompanyProfile(LiwanApiCase):
         with self.assertRaises(AccessError):
             self.company.with_user(employee)._liwan_write_company_profile({'city': 'Riyadh'})
         self.assertNotEqual(self.company.city, 'Riyadh')
+
+    def test_vat_registration_is_read_and_written_through_the_profile(self):
+        self.company.write({'country_id': self.country.id, 'vat': False, 'liwan_vat_registered': False})
+        self.authenticate(ADMIN, PASSWORD)
+        self.assertFalse(self.api('GET', ROUTE).json()['vat_registered'])
+        response = self._patch({'vat': VALID_VAT, 'vat_registered': True})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual((response.json()['vat_registered'], response.json()['vat']), (True, VALID_VAT))
+        self.assertEqual(self.api('GET', ROUTE).json()['vat_registered'], True)
+        self.env.invalidate_all()
+        self.assertTrue(self.company._liwan_vat_registered())
+        self.assertFalse(self._patch({'vat_registered': False}).json()['vat_registered'])
+
+    def test_registering_without_a_valid_vat_number_is_a_422_and_changes_nothing(self):
+        self.company.write({'country_id': self.country.id, 'vat': False, 'liwan_vat_registered': False})
+        self.authenticate(ADMIN, PASSWORD)
+        for body in ({'vat_registered': True}, {'vat': '', 'vat_registered': True}, {'vat': 'not-a-vat', 'vat_registered': True}):
+            with self.subTest(body=body):
+                response = self._patch(body)
+                self.assertEqual((response.status_code, response.json()['code']), (422, 'invalid_vat'), response.text)
+                self.assertEqual(response.json()['field'], 'vat')
+        self.assertFalse(self.api('GET', ROUTE).json()['vat_registered'])
+        self.env.invalidate_all()
+        self.assertFalse(self.company._liwan_vat_registered())
+
+    def test_registering_with_the_saved_valid_number_needs_no_resend(self):
+        self.company.write({'country_id': self.country.id, 'vat': VALID_VAT, 'liwan_vat_registered': False})
+        self.authenticate(ADMIN, PASSWORD)
+        self.assertEqual(self._patch({'vat_registered': True}).status_code, 200)
+        self.env.invalidate_all()
+        self.assertTrue(self.company._liwan_vat_registered())
+
+    def test_the_vat_number_is_required_as_a_boolean_and_the_registration_is_not_an_extension(self):
+        self.authenticate(ADMIN, PASSWORD)
+        for body in ({'vat_registered': 'yes'}, {'vat_registered': 1}, {'vat_registered': None}):
+            with self.subTest(body=body):
+                response = self._patch(body)
+                self.assertEqual((response.status_code, response.json()['field']), (422, 'vat_registered'))
