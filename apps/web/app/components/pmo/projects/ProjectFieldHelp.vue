@@ -2,11 +2,8 @@
 // Hover-open/blur-close, outside-pointerdown dismiss, and Escape dismiss are
 // native to UPopover's `mode="hover"` (backed by reka-ui's HoverCard), so no
 // document-level listeners or manual outside-target detection are needed
-// here. Two small element-bound handlers remain because no single UPopover
-// mode covers both of them at once: HoverCardTrigger has no keyboard handling
-// at all (so Enter/Space would otherwise do nothing), and its touch support
-// reacts to `pointerup`, not the `pointerdown` this component (and its e2e
-// coverage) has always toggled on.
+// here. Element-bound handlers retain keyboard/touch toggling and settle
+// focus opening after the browser scrolls an offscreen trigger into view.
 const props = defineProps<{
   text: string
   label: string
@@ -18,9 +15,28 @@ const hydrated = useHydrated()
 const generatedId = useId()
 const tooltipId = computed(() => props.helpId || generatedId)
 const describedBy = computed(() => (open.value ? tooltipId.value : undefined))
+let focusFrame: number | undefined
+function cancelFocusOpen() {
+  if (focusFrame === undefined) return
+  cancelAnimationFrame(focusFrame)
+  focusFrame = undefined
+}
+function onFocus(event: FocusEvent) {
+  cancelFocusOpen()
+  const trigger = event.currentTarget as HTMLElement
+  // HoverCard dismisses on scroll. Browser focus autoscroll runs before this
+  // frame, so the focused trigger can open after that initial notification.
+  focusFrame = requestAnimationFrame(() => {
+    focusFrame = undefined
+    if (trigger.isConnected && trigger.ownerDocument.activeElement === trigger) open.value = true
+  })
+}
+function onBlur() { cancelFocusOpen() }
+onBeforeUnmount(cancelFocusOpen)
 
 function onPointerDown(event: PointerEvent) {
   if (event.pointerType !== 'touch') return
+  cancelFocusOpen()
   event.preventDefault()
   event.stopPropagation()
   open.value = !open.value
@@ -35,7 +51,9 @@ function onClick(event: MouseEvent) {
 }
 
 function onKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') cancelFocusOpen()
   if (event.key !== 'Enter' && event.key !== ' ') return
+  cancelFocusOpen()
   event.preventDefault()
   event.stopPropagation()
   open.value = !open.value
@@ -48,7 +66,7 @@ function onKeydown(event: KeyboardEvent) {
     mode="hover"
     :open-delay="0"
     :close-delay="0"
-    :content="{ side: 'top', align: 'start', collisionPadding: 8 }"
+    :content="{ side: 'top', align: 'start', collisionPadding: 8, onPointerDownOutside: cancelFocusOpen, onEscapeKeyDown: cancelFocusOpen }"
     :ui="{ content: 'px-2 py-1 text-xs' }"
   >
     <UButton
@@ -62,6 +80,8 @@ function onKeydown(event: KeyboardEvent) {
       :aria-label="label"
       :aria-describedby="describedBy"
       :aria-expanded="open"
+      @focus="onFocus"
+      @blur="onBlur"
       @pointerdown="onPointerDown"
       @click="onClick"
       @keydown="onKeydown"

@@ -22,7 +22,7 @@ export function useGuestBooking() {
   const query = useQuery({
     queryKey: computed(() => bookingKeys.record(link.value)),
     enabled: computed(() => link.value !== null),
-    queryFn: () => $api(bookingPath(link.value!), { query: { access_token: link.value!.token }, schema: AppointmentPublicBookingSchema }),
+    queryFn: ({ queryKey, signal }) => $api(bookingPath({ id: queryKey[2], token: queryKey[3] }), { query: { access_token: queryKey[3] }, signal, schema: AppointmentPublicBookingSchema }),
     retry: false,
     staleTime: Infinity,
   })
@@ -35,7 +35,7 @@ export function useGuestSlots(link: Ref<BookingLink>, range: Ref<{ from: string;
   return useQuery({
     queryKey: computed(() => bookingKeys.slots(link.value, range.value?.from, range.value?.to)),
     enabled: computed(() => range.value !== null),
-    queryFn: () => $api(`${bookingPath(link.value)}/slots`, { query: { access_token: link.value.token, ...range.value! }, schema: AppointmentSlotListSchema }),
+    queryFn: ({ queryKey, signal }) => $api(`${bookingPath({ id: queryKey[2], token: queryKey[3] })}/slots`, { query: { access_token: queryKey[3], from: queryKey[5], to: queryKey[6] }, signal, schema: AppointmentSlotListSchema }),
     retry: false,
   })
 }

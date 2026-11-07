@@ -133,6 +133,7 @@ class ProjectProject(models.Model):
         return Task.search_count(domain), Task.search_count(domain + [('state', 'in', ('1_done', '1_canceled'))])
 
     def _liwan_create_milestone(self, name, deadline=None, start_date=None, deliverables=None):
+        self._liwan_check_tool_write('planning')
         self._liwan_check_manage()
         if not self.allow_milestones:
             self._liwan_write_as_manager({'allow_milestones': True})
@@ -144,6 +145,7 @@ class ProjectProject(models.Model):
         })
 
     def _liwan_update_milestone(self, milestone, vals):
+        self._liwan_check_tool_write('planning')
         self._liwan_check_manage()
         if milestone.project_id != self:
             msg = "milestone does not belong to this project"
@@ -163,6 +165,7 @@ class ProjectProject(models.Model):
         return milestone
 
     def _liwan_delete_milestone(self, milestone):
+        self._liwan_check_tool_write('planning')
         self._liwan_check_manage()
         if milestone.project_id != self:
             msg = "milestone does not belong to this project"

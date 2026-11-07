@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ProjectObjectiveWriteSchema } from '../pmo/project'
 
 export const AiToolKindSchema = z.enum(['read', 'write_light', 'draft'])
 export const AiRouteSchema = z.object({ method: z.enum(['GET', 'POST', 'PATCH']), path: z.string().startsWith('/api/v1/') }).strict()
@@ -39,6 +40,11 @@ export type AiAgent = z.infer<typeof AiAgentSchema>
 export const AI_CORE_AGENT = 'core'
 /** The setup agent of liwan_ai: its tools exist only in a setup conversation. */
 export const AI_SETUP_AGENT = 'ai'
+/** The help agent of liwan_ai: its tools exist only in a help conversation. */
+export const AI_HELP_AGENT = 'ai_help'
+/** The modes of the free agents: a conversation with the setup agent only, or with the help agent only. */
+export const AiConversationModeSchema = z.enum(['setup', 'help'])
+export type AiConversationMode = z.infer<typeof AiConversationModeSchema>
 
 const AiLimitValueSchema = z.number().int().nonnegative().nullable() // null means unlimited
 export const AiProviderModeSchema = z.enum(['platform', 'tenant_key'])
@@ -59,9 +65,9 @@ export const AiLimitsSchema = z.object({
   tool_calls_per_run: AiLimitValueSchema,
   messages_monthly: AiLimitValueSchema,
   messages_used: z.number().int().nonnegative(),
-  /** The free setup agent's monthly budget (vendor-set) and this month's setup messages. */
-  setup_monthly: AiLimitValueSchema,
-  setup_used: z.number().int().nonnegative(),
+  /** The free agents' (setup and help) one monthly budget (vendor-set) and this month's messages against it. */
+  assist_monthly: AiLimitValueSchema,
+  assist_used: z.number().int().nonnegative(),
   policy: AiPolicySchema,
 }).strict()
 
@@ -72,8 +78,8 @@ export const AiToolsResponseSchema = z.object({
 }).strict()
 export type AiToolsResponse = z.infer<typeof AiToolsResponseSchema>
 
-/** `setup`: a user message of a setup conversation, counted against the setup budget instead of the package. */
-export const AiAuditKindSchema = z.enum(['message', 'setup', 'read', 'write_light', 'draft'])
+/** `setup` and `help`: a user message of a free agent's conversation, counted against the assistance budget instead of the package. */
+export const AiAuditKindSchema = z.enum(['message', 'setup', 'help', 'read', 'write_light', 'draft'])
 export const AiAuditResultSchema = z.enum(['ok', 'denied', 'failed', 'proposed', 'approved', 'rejected'])
 export const AiAuditRequestSchema = z.object({
   conversation_id: z.string().min(1).max(64),
@@ -168,6 +174,12 @@ export const AiRunStatusSchema = z.object({
   }).strict().nullable(),
 }).strict()
 export type AiRunStatus = z.infer<typeof AiRunStatusSchema>
+/** The mode of a conversation: `assistant` is the ordinary one. */
+export const AiRunModeSchema = z.enum(['assistant', ...AiConversationModeSchema.options])
+export type AiRunMode = z.infer<typeof AiRunModeSchema>
+/** `GET /api/ai/runs/{id}`: the service's run status plus the mode the conversation started in (decided by Odoo, never by the URL). */
+export const AiRunDetailSchema = AiRunStatusSchema.extend({ mode: AiRunModeSchema })
+export type AiRunDetail = z.infer<typeof AiRunDetailSchema>
 
 /** One row of the caller's own conversation history (`GET /api/ai/runs`); `title` is null for a run started before titles existed. */
 export const AiRunSummarySchema = z.object({
@@ -199,8 +211,8 @@ export const AI_MESSAGE_MAX = 8000
 export const AiStartRequestSchema = z.object({
   message: z.string().trim().min(1).max(AI_MESSAGE_MAX),
   run_id: z.string().min(1).max(64).nullish(),
-  /** `setup`: a conversation with the setup agent only, on the platform provider, against the setup budget. */
-  mode: z.enum(['setup']).nullish(),
+  /** `setup` or `help`: a conversation with that free agent only, on the platform provider, against the assistance budget. */
+  mode: AiConversationModeSchema.nullish(),
   context: z.object({ page: z.string().regex(/^[a-z][a-z0-9_-]{0,63}$/), id: z.number().int().nullish() }).strict().nullish(),
 }).strict()
 export type AiStartRequest = z.infer<typeof AiStartRequestSchema>
@@ -211,12 +223,13 @@ const Day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 export const AiDraftPayloadSchema = z.object({
   name: z.string().trim().min(1).max(255),
   description: Text.optional(),
+  objectives: z.array(ProjectObjectiveWriteSchema).optional(),
+  success_criteria: Text.optional(),
   date_start: Day.optional(),
   date_end: Day.optional(),
   charter: z.object({
     rationale: Text.optional(),
-    objectives: z.array(z.string().max(500)).max(10).optional(),
-    scope: Text.optional(), exclusions: Text.optional(), success: Text.optional(),
+    scope: Text.optional(), exclusions: Text.optional(),
     assumptions: Text.optional(), constraints: Text.optional(),
   }).optional(),
 })
@@ -254,6 +267,9 @@ export const AiSettingsSchema = z.object({
     month: z.string().regex(/^\d{4}-\d{2}$/),
     messages_used: z.number().int().nonnegative(),
     messages_limit: AiLimitValueSchema,
+    /** The free agents' (setup and help) messages against their one monthly budget. */
+    assist_used: z.number().int().nonnegative(),
+    assist_limit: AiLimitValueSchema,
     tokens_used: z.number().int().nonnegative(),
     tokens_limit: AiLimitValueSchema,
     output_tokens_per_run: AiLimitValueSchema,
@@ -302,6 +318,7 @@ export type AiMonitoring = z.infer<typeof AiMonitoringSchema>
 export const AI_RETENTION_DAYS_MIN = 1
 export const AI_RETENTION_DAYS_MAX = 365
 export const AI_LEAVER_RETENTION_DAYS_MAX = 365
+export const AI_BASE_URL_MAX_LENGTH = 512
 /** `GET /api/ai/config` (the AI service's tenant configuration): never the key itself, only whether one is set. */
 export const AiTenantConfigSchema = z.object({
   retention_days: z.number().int().min(AI_RETENTION_DAYS_MIN).max(AI_RETENTION_DAYS_MAX),
@@ -313,16 +330,24 @@ export const AiTenantConfigSchema = z.object({
     model: AiModelNameSchema.nullable(),
     last4: z.string().max(4).nullable(),
     updated_at: z.iso.datetime({ offset: true }).nullable(),
+    /** The endpoint of a provider that takes one (`needs_base_url`); not a secret. */
+    base_url: z.string().max(AI_BASE_URL_MAX_LENGTH).nullable(),
   }).strict(),
   platform: z.object({ provider: AiProviderNameSchema, model: AiModelNameSchema }).strict(),
-  providers: z.array(z.object({ name: AiProviderNameSchema, needs_api_key: z.boolean() }).strict()),
+  providers: z.array(z.object({ name: AiProviderNameSchema, needs_api_key: z.boolean(), needs_base_url: z.boolean() }).strict()),
 }).strict()
 export type AiTenantConfig = z.infer<typeof AiTenantConfigSchema>
 export const AiLeaverRetentionPutSchema = z.object({ leaver_retention_days: z.number().int().min(0).max(AI_LEAVER_RETENTION_DAYS_MAX) }).strict()
 export type AiLeaverRetentionPut = z.infer<typeof AiLeaverRetentionPutSchema>
 export const AiRetentionPutSchema = z.object({ retention_days: z.number().int().min(AI_RETENTION_DAYS_MIN).max(AI_RETENTION_DAYS_MAX) }).strict()
 export type AiRetentionPut = z.infer<typeof AiRetentionPutSchema>
-export const AiKeyPutSchema = z.object({ provider: AiProviderNameSchema, model: AiModelNameSchema, api_key: z.string().min(1).max(512) }).strict()
+/** `base_url` is sent for a provider that needs one and omitted for the rest; the AI service checks the rest of its shape and that it is public. */
+export const AiKeyPutSchema = z.object({
+  provider: AiProviderNameSchema,
+  model: AiModelNameSchema,
+  api_key: z.string().min(1).max(512),
+  base_url: z.string().max(AI_BASE_URL_MAX_LENGTH).regex(/^https:\/\//i).optional(),
+}).strict()
 export type AiKeyPut = z.infer<typeof AiKeyPutSchema>
 
 /** The administrator's mode for one tool: `approval` makes even a read wait for the user; `off` removes it. */
@@ -336,6 +361,8 @@ export const AiAgentSettingSchema = z.object({
   enabled: z.boolean(),
   read_only: z.boolean(),
   memory: z.boolean(),
+  /** The agent never remembers (the help agent): `memory` is false and cannot be switched on. */
+  memory_fixed: z.boolean(),
   role_ids: z.array(z.number().int().positive()),
   /** Bumped by every change of the agent or its tools; a save sends the revision it read and a stale one answers 409. */
   revision: z.number().int().nonnegative(),

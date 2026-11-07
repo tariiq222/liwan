@@ -49,7 +49,6 @@ class TestAccessAdminUsers(LiwanApiCase):
         return self.api('POST', '/api/v1/admin/users', {
             'name': 'Access Target',
             'login': 'access.target@example.com',
-            'password': 'target_password_123',
             'assignments': self._assignments(),
             **overrides,
         })
@@ -64,6 +63,17 @@ class TestAccessAdminUsers(LiwanApiCase):
         self.assertTrue(crypt.verify(original, hashed))
         self.assertFalse(crypt.verify(original.strip(), hashed))
         self.assertFalse(crypt.verify('wrong_password_000', hashed))
+
+    def _issued_link(self, user_id, purpose):
+        """Issue a link the way the service does and keep its raw token, which only the email carries."""
+        user = self.env['res.users'].with_context(active_test=False).browse(user_id)
+        _token, raw = self.env['liwan.account.token'].sudo()._liwan_issue(user, purpose)
+        return raw
+
+    def _accept(self, user_id, password='accepted_password_123', mobile='+966500000010'):
+        return self.api('POST', '/api/v1/public/account/invitation/accept', {
+            'token': self._issued_link(user_id, 'invite'), 'mobile': mobile, 'password': password,
+        })
 
     def test_user_list_is_capability_gated_and_server_counted(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
@@ -108,27 +118,39 @@ class TestAccessAdminUsers(LiwanApiCase):
         self.assertEqual(created['login'], 'access.target@example.com')
         self.assertEqual(created['name'], 'Access Target')
         self.assertEqual([item['role']['id'] for item in created['assignments']], [self.role.id])
-        assert_secret_absent(self, created, 'target_password_123')
+        self.assertEqual(created['invitation']['state'], 'pending')
+        self.assertIsNone(created['mobile'])
         grants = self.env['liwan.access.audit'].search([
-            ('action', '=', 'user.granted'), ('target_id', '=', created['id']),
+            ('action', '=', 'user.invited'), ('target_id', '=', created['id']),
         ])
         self.assertEqual(len(grants), 1)
 
+        accepted = self._accept(created['id'], 'target_password_123')
+        self.assertEqual(accepted.status_code, 200, accepted.text)
+        self.assertEqual(accepted.json(), {'login': 'access.target@example.com'})
         old_session = self.authenticate('access.target@example.com', 'target_password_123')
         root.session_store.save(old_session)
         self._admin()
-        response = self.api('POST', f"/api/v1/admin/users/{created['id']}/password", {
-            'password': 'target_password_456', 'expected_version': created['version'],
+        detail = self.api('GET', f"/api/v1/admin/users/{created['id']}").json()
+        self.assertIsNone(detail['invitation'])
+        self.assertEqual(detail['mobile'], '+966500000010')
+        self.assertIn('send_reset_link', detail['allowed_actions'])
+        response = self.api('POST', f"/api/v1/admin/users/{created['id']}/reset-link", {
+            'expected_version': detail['version'],
         })
         self.assertEqual(response.status_code, 200, response.text)
         changed = response.json()
-        assert_secret_absent(self, changed, 'target_password_456')
+        reset = self.api('POST', '/api/v1/public/account/password/reset', {
+            'token': self._issued_link(created['id'], 'reset'), 'password': 'target_password_456',
+        })
+        self.assertEqual(reset.status_code, 200, reset.text)
 
         self.opener = Opener(self)
         self.opener.cookies.set('session_id', old_session.sid, domain=HOST)
         self.assertEqual(self.api('GET', '/api/v1/me').status_code, 401)
 
         self._admin()
+        changed = self.api('GET', f"/api/v1/admin/users/{created['id']}").json()
         stopped = self.api('POST', f"/api/v1/admin/users/{created['id']}/disable", {
             'expected_version': changed['version'],
         })
@@ -136,14 +158,12 @@ class TestAccessAdminUsers(LiwanApiCase):
         self.assertFalse(stopped.json()['active'])
         failed = self.api('POST', f"/api/v1/admin/users/{created['id']}/reactivate", {
             'expected_version': 'stale-version',
-            'password': 'target_password_789',
         })
         self.assertEqual((failed.status_code, failed.json()['code']), (409, 'conflict'))
         self.env['res.users'].with_context(active_test=False).browse(created['id']).invalidate_recordset(['active'])
         self.assertFalse(self.env['res.users'].with_context(active_test=False).browse(created['id']).active)
         reactivated = self.api('POST', f"/api/v1/admin/users/{created['id']}/reactivate", {
             'expected_version': stopped.json()['version'],
-            'password': 'target_password_789',
         })
         self.assertEqual(reactivated.status_code, 200, reactivated.text)
         self.assertTrue(reactivated.json()['active'])
@@ -162,8 +182,11 @@ class TestAccessAdminUsers(LiwanApiCase):
         self.assertEqual((again.status_code, again.json()['code']), (409, 'account_exists'))
         self.assertEqual(again.json()['field'], 'login')
 
+        self.assertEqual(self._accept(first.json()['id']).status_code, 200)
+        self._admin()
+        accepted = self.api('GET', f"/api/v1/admin/users/{first.json()['id']}").json()
         stopped = self.api('POST', f"/api/v1/admin/users/{first.json()['id']}/disable", {
-            'expected_version': first.json()['version'],
+            'expected_version': accepted['version'],
         })
         self.assertEqual(stopped.status_code, 200, stopped.text)
         again = self._create()
@@ -198,7 +221,6 @@ class TestAccessAdminUsers(LiwanApiCase):
             self.assertEqual(response.json()['field'], field)
         missing = self.api('POST', '/api/v1/admin/users', {
             'name': 'Access Target', 'login': 'access.target@example.com',
-            'password': 'target_password_123',
         })
         self.assertEqual((missing.status_code, missing.json()['field']), (422, 'assignments'))
         failed = self._create(assignments=[{'role_id': 2147483647, 'scope': {
@@ -218,7 +240,6 @@ class TestAccessAdminUsers(LiwanApiCase):
         role = self.env.ref('liwan_core.role_employee')
         response = self.api('POST', '/api/v1/admin/users', {
             'name': 'Marked Contact', 'login': 'marked.contact@example.com',
-            'password': 'marked_contact_pass_123',
             'assignments': [{'role_id': role.id, 'scope': {'kind': 'company', 'id': self.env.company.id}}],
         })
         self.assertEqual(response.status_code, 201, response.text)
@@ -249,28 +270,25 @@ class TestAccessAdminUsers(LiwanApiCase):
         self.assertEqual(parse_positive_int('42', 'role_id'), 42)
         self.assertEqual(parse_positive_int('007', 'role_id'), 7)
 
-    def test_admin_password_preserves_original_whitespace_on_dedicated_accounts(self):
+    def test_the_account_holder_password_keeps_its_original_whitespace(self):
         self._admin()
-        grant_password = '  padded_grant_pass_123  '
-        weak = self._create(login='padded.grant@example.com', password='  1234567  ')
+        created = self._create(login='padded.accept@example.com')
+        self.assertEqual(created.status_code, 201, created.text)
+        weak = self._accept(created.json()['id'], password='  12345678901  ')
         self.assertEqual((weak.status_code, weak.json()['code']), (422, 'weak_password'))
-        granted = self._create(login='padded.grant@example.com', password=grant_password)
-        self.assertEqual(granted.status_code, 201, granted.text)
-        self._assert_stored_password('padded.grant@example.com', grant_password)
-        self.authenticate('padded.grant@example.com', grant_password)
+        padded = '  padded_accept_pass_123  '
+        accepted = self._accept(created.json()['id'], password=padded)
+        self.assertEqual(accepted.status_code, 200, accepted.text)
+        self._assert_stored_password('padded.accept@example.com', padded)
+        self.authenticate('padded.accept@example.com', padded)
         self.assertEqual(self.api('GET', '/api/v1/me').status_code, 200)
 
         self._admin()
-        created = self._create(login='padded.reset@example.com', password='reset_initial_pass_123')
-        self.assertEqual(created.status_code, 201, created.text)
-        reset_password = '  padded_reset_pass_456  '
-        reset = self.api('POST', f"/api/v1/admin/users/{created.json()['id']}/password", {
-            'password': reset_password, 'expected_version': created.json()['version'],
+        reset = self.api('POST', '/api/v1/public/account/password/reset', {
+            'token': self._issued_link(created.json()['id'], 'reset'), 'password': '  padded_reset_pass_456  ',
         })
         self.assertEqual(reset.status_code, 200, reset.text)
-        self._assert_stored_password('padded.reset@example.com', reset_password)
-        self.authenticate('padded.reset@example.com', reset_password)
-        self.assertEqual(self.api('GET', '/api/v1/me').status_code, 200)
+        self._assert_stored_password('padded.accept@example.com', '  padded_reset_pass_456  ')
 
 
 @tagged('post_install', '-at_install', 'liwan', 'liwan_access')

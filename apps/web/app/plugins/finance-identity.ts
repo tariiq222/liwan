@@ -6,7 +6,7 @@ import { createFinanceIdentityGeneration } from '../composables/finance/useFinan
 export default defineNuxtPlugin({
   name: 'finance-identity',
   setup(nuxtApp) {
-    const { me } = useMe()
+    const { me } = useMe({ immediate: false })
     const { generation, stop } = createFinanceIdentityGeneration(me)
     if (import.meta.server) nuxtApp.hooks.hookOnce('app:rendered', stop)
     else nuxtApp.vueApp.onUnmount(stop)

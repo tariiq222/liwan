@@ -25,18 +25,42 @@ TITLE_RULES = (
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 _MARKUP = re.compile(r"[*_`#>~|\[\]]")
 _QUOTES_AND_PUNCTUATION = " \t\"'“”‘’«».,;:!?،؛؟…-"
+# A token the Nuxt server issued for a mobile number or an email (spec 2026-11-04 §6.12): it restores the value in the
+# title it shows, so a title keeps each token whole: never stripped as markup, never cut through.
+_TOKEN = re.compile(r"\[(?:phone|email):[A-Za-z0-9_-]+\]")
+_HELD = "\ue000{}\ue001"
+_HELD_BACK = re.compile("\ue000(\\d+)\ue001")
+
+
+def _cut(text: str) -> str:
+    """``text`` cut to ``TITLE_MAX_CHARS`` with an ellipsis, never inside a token."""
+    if len(text) <= TITLE_MAX_CHARS:
+        return text
+    cut = text[: TITLE_MAX_CHARS - 1]
+    for token in _TOKEN.finditer(text):
+        if token.start() < len(cut) < token.end():
+            cut = text[: token.start()]
+            break
+    return cut.rstrip() + "…"
 
 
 def title_from(message: str) -> str:
     """The provisional title: the first user message with whitespace collapsed, cut to ``TITLE_MAX_CHARS`` with an ellipsis."""
-    text = " ".join(message.split())
-    return text if len(text) <= TITLE_MAX_CHARS else text[: TITLE_MAX_CHARS - 1].rstrip() + "…"
+    return _cut(" ".join(message.split()))
 
 
 def clean_generated_title(raw: str) -> str | None:
     """The model's reply as a title (first line, no markup, quotes or trailing punctuation, cut to the limit), or None if nothing is left."""
     first_line = next((line for line in raw.splitlines() if line.strip()), "")
-    text = " ".join(_MARKUP.sub("", _CONTROL.sub(" ", first_line)).split()).strip(_QUOTES_AND_PUNCTUATION)
+    tokens: list[str] = []
+
+    def hold(match: re.Match[str]) -> str:
+        tokens.append(match.group(0))
+        return _HELD.format(len(tokens) - 1)
+
+    held = _TOKEN.sub(hold, first_line)
+    text = " ".join(_MARKUP.sub("", _CONTROL.sub(" ", held)).split()).strip(_QUOTES_AND_PUNCTUATION)
+    text = _HELD_BACK.sub(lambda match: tokens[int(match.group(1))], text)
     return title_from(text) if text else None
 
 

@@ -6,7 +6,7 @@ test('project sidebar changes content without replaying the whole page entrance'
   await page.getByLabel('كلمة المرور', { exact: true }).fill('admin')
   await page.getByRole('button', { name: 'دخول', exact: true }).click()
   await expect(page).not.toHaveURL(/\/login/)
-  await page.goto('/projects/1?tab=tasks')
+  await page.goto('/projects/1/tasks')
   await expect(page.getByTestId('project-tab-governance')).toBeVisible()
   const origin = await page.evaluate(() => performance.timeOrigin)
   await page.evaluate(() => {

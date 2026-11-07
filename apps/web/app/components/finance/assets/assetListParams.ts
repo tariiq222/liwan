@@ -48,9 +48,10 @@ export function assetListParams(filters: AssetListFilters): AssetListParams {
   }
 }
 
-/** One KPI count: the list's own filters with the tile's state, and one row asked for because only `total` is read. */
-export function assetKpiParams(filters: AssetListFilters, state: AssetStateFilter | null): AssetListParams {
-  return { ...assetListParams({ ...filters, state, page: 1 }), limit: 1, offset: 0 }
+/** The summary has the list filters, without its selected state or page window. */
+export function assetSummaryParams(filters: AssetListFilters) {
+  const { state: _state, limit: _limit, offset: _offset, ...params } = assetListParams(filters)
+  return params
 }
 
 export type AssetKpiId = 'total' | 'draft' | 'open' | 'close'

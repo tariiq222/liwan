@@ -4,7 +4,7 @@ test.skip(process.env.E2E_PROJECT_POPUPS !== '1', 'Isolated synthetic project AP
 
 async function ready(page: Page) {
   await expect(page.getByTestId('project-workspace-settings')).toBeVisible()
-  await expect(page.getByTestId('project-workspace-tabs')).toBeVisible()
+  await expect(page.getByRole('navigation',{name:'أقسام المشروع',exact:true})).toBeVisible()
   await expect(page.getByTestId('project-workspace-name')).toHaveText('مشروع ألفا')
   await expect(page.locator('main h1')).toHaveCount(1)
   await expect(page.locator('main [role="alert"]')).toHaveCount(0)
@@ -20,10 +20,10 @@ test.beforeEach(async ({ page }) => {
 })
 
 const sections = [
-  ['tasks', '/projects/1?tab=tasks'],
-  ['board', '/projects/1?tab=board'],
-  ['milestones', '/projects/1?tab=milestones'],
-  ['summary', '/projects/1?tab=summary'],
+  ['tasks', '/projects/1/tasks'],
+  ['board', '/projects/1/tasks?view=board'],
+  ['milestones', '/projects/1/milestones'],
+  ['summary', '/projects/1'],
   ['stakeholders', '/projects/1/stakeholders'],
   ['raci', '/projects/1/raci'],
   ['register', '/projects/1/register'],
@@ -82,7 +82,7 @@ for (const width of [1440, 1024]) {
 }
 
 test('project task filters survive view changes and reload; create stays in the header', async ({ page }) => {
-  await page.goto('/projects/1?tab=tasks')
+  await page.goto('/projects/1/tasks')
   await ready(page)
   const header = page.locator('main [data-slot="page-header"]')
   await expect(header.getByTestId('project-header-create')).toBeEnabled()

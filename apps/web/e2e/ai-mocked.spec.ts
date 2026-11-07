@@ -27,7 +27,7 @@ async function ask(page: Page, text: string) {
   await page.getByTestId('ai-send').click()
 }
 
-test.describe('LiwanOS AI on the mock stack', () => {
+test.describe('Liwan AI on the mock stack', () => {
   test.beforeEach(async ({ page }) => { await login(page) })
 
   test('answers a read question with record cards and audits the message and the read', async ({ page }) => {
@@ -54,11 +54,12 @@ test.describe('LiwanOS AI on the mock stack', () => {
     const runId = runIdOf(page)
     await page.getByTestId('ai-draft-open').click()
     await expect(page).toHaveURL(/\/projects\/new\?aiDraft=/)
-    await expect(page.getByTestId('project-create-ai-badge')).toBeVisible()
+    await expect(page.getByText('مسودة من Liwan AI', {exact:true})).toBeVisible()
     await expect(page.getByTestId('project-create-name')).toHaveValue('بوابة إرادة')
-    for (let step = 0; step < 10 && await page.getByTestId('charter-step-next').isVisible(); step++) await page.getByTestId('charter-step-next').click()
+    await expect(page.getByTestId('charter-step-next')).toHaveCount(0)
+    await expect(page.getByTestId('project-objective-0')).toHaveValue('إطلاق البوابة')
     await expect(page.getByTestId('project-create-submit')).toBeDisabled()
-    await page.getByTestId('project-create-attest').getByRole('checkbox').check()
+    await page.getByTestId('project-create-attestation').check()
     await expect(page.getByTestId('project-create-submit')).toBeEnabled()
     await page.getByTestId('project-create-submit').click()
     // `/ai` strips `resume` and `created` from the address as soon as it has read them.
@@ -228,7 +229,7 @@ test.describe('LiwanOS AI on the mock stack', () => {
   test('shows the unavailable state when the server answers 503 ai_unavailable', async ({ page }) => {
     await page.route('**/api/ai/runs', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ data: { code: 'ai_unavailable', message: 'down' } }) }))
     await ask(page, 'وش مهامي؟')
-    await expect(page.getByTestId('ai-unavailable')).toContainText('LiwanOS AI غير متاح الآن')
+    await expect(page.getByTestId('ai-unavailable')).toContainText('Liwan AI غير متاح الآن')
     await expect(page.getByTestId('ai-composer')).toHaveCount(0)
   })
 })

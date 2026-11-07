@@ -8,14 +8,13 @@ from odoo.addons.liwan_api.serializers.common import iso
 from odoo.addons.liwan_pmo.models.project_project import (
     BUDGET_STATES,
     DELIVERABLE_KEYS,
-    OBJECTIVE_KEYS,
     PRIORITY_VALUES,
 )
 
 CHARTER_WRITE_FIELDS = {
     'type_id', 'owning_unit_id', 'sponsor_id', 'authority', 'rationale',
-    'objectives', 'benefits', 'scope', 'exclusions', 'high_level_requirements',
-    'deliverables', 'success', 'budget_state', 'amount', 'priority',
+    'benefits', 'scope', 'exclusions', 'high_level_requirements',
+    'deliverables', 'budget_state', 'amount', 'priority',
     'assumptions', 'constraints', 'closure',
 }
 CHARTER_READONLY_FIELDS = {'code', 'type', 'owning_unit', 'sponsor', 'currency', 'state'}
@@ -26,7 +25,6 @@ TEXT_TO_ORM = {
     'scope': 'liwan_scope',
     'exclusions': 'liwan_exclusions',
     'high_level_requirements': 'liwan_high_level_requirements',
-    'success': 'liwan_success',
     'assumptions': 'liwan_assumptions',
     'constraints': 'liwan_constraints',
     'closure': 'liwan_closure',
@@ -61,7 +59,9 @@ def dump_user_ref(user):
 
 
 def dump_charter(project):
-    amount = None if project.liwan_budget_state == 'unknown' else project.liwan_budget_amount
+    project._liwan_check_tool('governance')
+    finance = project._liwan_tool_enabled('finance')
+    amount = None if not finance or project.liwan_budget_state == 'unknown' else project.liwan_budget_amount
     return {
         'code': project.liwan_code or None,
         'type': dump_type_ref(project.liwan_type_id),
@@ -69,16 +69,14 @@ def dump_charter(project):
         'sponsor': dump_user_ref(project.liwan_sponsor_id),
         'authority': project.liwan_authority or '',
         'rationale': project.liwan_rationale or '',
-        'objectives': list(project.liwan_objectives or []),
         'benefits': project.liwan_benefits or '',
         'scope': project.liwan_scope or '',
         'exclusions': project.liwan_exclusions or '',
         'high_level_requirements': project.liwan_high_level_requirements or '',
         'deliverables': list(project.liwan_deliverables or []),
-        'success': project.liwan_success or '',
-        'budget_state': project.liwan_budget_state or 'unknown',
+        'budget_state': (project.liwan_budget_state or 'unknown') if finance else None,
         'amount': amount,
-        'currency': dump_currency(project.currency_id),
+        'currency': dump_currency(project.currency_id) if finance else None,
         'priority': project.liwan_priority or None,
         'assumptions': project.liwan_assumptions or '',
         'constraints': project.liwan_constraints or '',
@@ -95,6 +93,10 @@ def dump_charter(project):
 
 
 def parse_charter_vals(payload, project=None):
+    if project is not None:
+        project._liwan_check_tool('governance')
+        if isinstance(payload, dict) and {'budget_state', 'amount'}.intersection(payload):
+            project._liwan_check_tool('finance')
     if not isinstance(payload, dict):
         raise ApiError(422, 'invalid', "charter must be an object", field='charter')
     unknown = set(payload) - CHARTER_WRITE_FIELDS
@@ -111,8 +113,6 @@ def parse_charter_vals(payload, project=None):
             if not isinstance(value, str):
                 raise ApiError(422, 'invalid', f"{key} must be a string", field=key)
             vals[TEXT_TO_ORM[key]] = value
-        elif key == 'objectives':
-            vals['liwan_objectives'] = _parse_rows(value, 'objectives', OBJECTIVE_KEYS)
         elif key == 'deliverables':
             vals['liwan_deliverables'] = _parse_rows(value, 'deliverables', DELIVERABLE_KEYS)
         elif key == 'type_id':

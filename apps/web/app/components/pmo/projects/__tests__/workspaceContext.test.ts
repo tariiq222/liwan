@@ -63,7 +63,7 @@ describe('project section navigation context', () => {
       expect(url.searchParams.get('projectListReturnTo')).toBe('/projects?mine=1')
       expect(JSON.parse(url.searchParams.get('taskContext') ?? '{}')).toEqual({ view: 'board', q: 'review' })
     }
-    // The changes tab follows the project's change control (off in this fixture); the baselines and earned value tabs follow the plan.
-    expect(Object.keys(hrefs)).toHaveLength(6)
+    // Change control is off in this fixture. Baselines and EVM belong to planning and finance.
+    expect(Object.keys(hrefs)).toHaveLength(4)
   })
 })

@@ -32,6 +32,6 @@ onMounted(() => {
     :back-to="backTo"
     :sibling-params="siblingParams"
   >
-    <template #details><ProjectTaskScheduleSection :project-id="projectId!" :task-id="taskId!" /></template>
+    <template #details="{ task }"><ProjectTaskScheduleSection v-if="task.planning_enabled" :planning-enabled="task.planning_enabled" :project-id="projectId!" :task-id="taskId!" /></template>
   </TaskDetailPage>
 </template>

@@ -1,6 +1,7 @@
 import { BrandingSchema, MeSchema } from '@liwan/contracts'
 import { contextLinksForModule, visibleShellModules, type ShellContextLink } from '../../app/composables/nav/shellModules'
 import { contextLinkTestId, railModel, sidebarModel, subListSections } from '../../app/composables/nav/sidebarModel'
+import { pinnedRail } from '../../app/composables/nav/railPins'
 
 // A workspace user who sees every application and the administration module.
 export const shellMe = MeSchema.parse({
@@ -28,7 +29,9 @@ export const shellBranding = BrandingSchema.parse({
 
 const shellModules = visibleShellModules(shellMe)
 /** Every application this workspace user can reach. */
-export const shellRail = railModel(shellModules)
+const fullRail = railModel(shellModules)
+/** The rail as the shell renders it: every application pinned, the fixed entries and settings in the scroller. */
+export const shellRail = pinnedRail(fullRail, fullRail.applications.map(item => item.id), null)
 
 /** The same workspace user without any create or manage capability (palette Actions must be empty). */
 export const readOnlyShellMe = { ...shellMe, capabilities: shellMe.capabilities.filter(key => !/\.(create|manage)$/.test(key)) }

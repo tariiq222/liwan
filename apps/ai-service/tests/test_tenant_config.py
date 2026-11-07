@@ -9,6 +9,7 @@ from liwan_ai_service import cleanup, service
 from liwan_ai_service.settings import Settings, SettingsError
 from liwan_ai_service.tenant_config import Keyring
 from tests.fakes import PLATFORM_POLICY, ScriptedChatModel, ai_text, ai_tool_call, ai_usage, make_memory_app, new_id
+from tests.platform_file import platform_env
 from tests.test_cleanup import MappingDirectory, SeedStates
 from tests.test_service import BODY, HEADERS, SETTINGS, parse_sse
 
@@ -32,11 +33,12 @@ async def test_the_key_is_write_only_and_retention_is_bounded():
         initial = (await client.get("/v1/tenant/config", headers=HEADERS)).json()
         assert initial["retention_days"] == 30 and initial["key"]["configured"] is False
         assert initial["platform"] == {"provider": "ollama", "model": "m"}
-        assert {"name": "anthropic", "needs_api_key": True} in initial["providers"]
+        assert {"name": "anthropic", "needs_api_key": True, "needs_base_url": False} in initial["providers"]
+        assert {"name": "openai_compatible", "needs_api_key": True, "needs_base_url": True} in initial["providers"]
         written = await client.put("/v1/tenant/config/key", json=KEY_BODY, headers=HEADERS)
         assert written.status_code == 200 and TENANT_KEY not in written.text
         assert written.json()["key"] | {"updated_at": None} == {
-            "configured": True, "provider": "anthropic", "model": "claude-test", "last4": "abcd", "updated_at": None,
+            "configured": True, "provider": "anthropic", "model": "claude-test", "last4": "abcd", "updated_at": None, "base_url": None,
         }
         assert TENANT_KEY not in (await client.get("/v1/tenant/config", headers=HEADERS)).text
         keyless = await client.put("/v1/tenant/config/key", json={**KEY_BODY, "provider": "ollama"}, headers=HEADERS)
@@ -67,7 +69,7 @@ async def test_a_tenant_key_run_uses_the_tenants_model_and_is_billed_to_the_tena
     tenant_model = ScriptedChatModel([ai_text("تم")])
     built = []
 
-    def build(settings, provider, model, api_key):
+    def build(settings, provider, model, api_key, base_url):
         built.append((provider, model, api_key))
         return tenant_model
 
@@ -90,7 +92,7 @@ async def test_no_provider_sees_the_message_without_the_signed_acknowledgement(p
     # Every provider, a local model included: the acknowledgement is not about where a provider processes (§6.8).
     model = ScriptedChatModel([ai_text("x")])
     settings = Settings.from_env({
-        "AI_PROVIDER": provider, "AI_MODEL": "m", "AI_API_KEY": "sk-platform", "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true",
+        **platform_env(provider, "m", api_key="sk-platform"), "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true",
     })
     async with client_for(make_memory_app(model, settings)) as client:
         for policy in (UNSIGNED, {**UNSIGNED, "provider_mode": "setup"}, {**UNSIGNED, "provider_mode": "tenant_key"}):
@@ -104,7 +106,7 @@ async def test_no_provider_sees_the_message_without_the_signed_acknowledgement(p
 async def test_a_revoked_consent_stops_a_waiting_run_at_its_resume():
     model = ScriptedChatModel([ai_tool_call("pmo__list_my_tasks", {}, "c_1"), ai_text("تم")])
     settings = Settings.from_env({
-        "AI_PROVIDER": "anthropic", "AI_MODEL": "m", "AI_API_KEY": "sk-platform", "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true",
+        **platform_env("anthropic", "m", api_key="sk-platform"), "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true",
     })
     async with client_for(make_memory_app(model, settings)) as client:
         run_id = parse_sse((await client.post("/v1/runs", json=run_body(PLATFORM_POLICY), headers=HEADERS)).text)[0][1]["run_id"]

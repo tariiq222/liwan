@@ -57,7 +57,7 @@ describe('the shared conversation', () => {
     await bodyReading
     me.value = null
     me.value = { id: 8, company: { id: 1 } }
-    finishBody({ run_id: 'identity-a-run', status: 'done', messages: [{ role: 'assistant', content: 'private answer' }], pending: null })
+    finishBody({ mode: 'assistant', run_id: 'identity-a-run', status: 'done', messages: [{ role: 'assistant', content: 'private answer' }], pending: null })
     await settle()
     expect(useAiConversation().currentRunId.value).toBeNull()
     expect(run.runId.value).toBeNull()

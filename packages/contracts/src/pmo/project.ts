@@ -1,11 +1,24 @@
 import { z } from 'zod'
 import { ChangeControlModeSchema } from './change'
 import { ProjectCharterSchema, ProjectCharterStateSchema, ProjectCharterWriteSchema } from './project-charter'
+import { ProjectToolPreferencesPatchSchema, ProjectToolsStateSchema } from './project-tools'
 import { CalendarDateSchema } from './schedule'
 import { TagSchema } from './task'
 
 export const ProjectRefSchema = z.object({ id: z.number().int(), name: z.string() }).strict()
 export const UserRefSchema = z.object({ id: z.number().int().positive(), name: z.string() }).strict()
+
+export const ProjectObjectiveWriteSchema = z.object({
+  goal: z.string().trim().min(1),
+  metric: z.string().optional(),
+  target: z.string().optional(),
+}).strict()
+export const ProjectObjectiveSchema = z.object({
+  id: z.number().int().positive(),
+  goal: z.string().trim().min(1),
+  metric: z.string(),
+  target: z.string(),
+}).strict()
 
 export const ProjectStatusSchema = z.enum(['on_track', 'at_risk', 'off_track', 'on_hold', 'done'])
 export const PROJECT_STATUSES = ProjectStatusSchema.options
@@ -34,8 +47,8 @@ export const ProjectSchema = z.object({
   active: z.boolean(), can_manage: z.boolean(),
   manager: UserRefSchema.nullable().optional(), date_end: z.string().nullable().optional(),
   allowed_actions: z.array(z.enum(['read', 'write', 'archive'])).optional().default([]),
-  charter_state: ProjectCharterStateSchema,
-  phase: ProjectPhaseSchema,
+  charter_state: ProjectCharterStateSchema.nullable(),
+  phase: ProjectPhaseSchema.nullable(),
 }).strict()
 
 export const ProjectCompletionApprovalSchema = z.enum(['none', 'project_manager', 'specific_user'])
@@ -43,13 +56,16 @@ export const ProjectCompletionApprovalSchema = z.enum(['none', 'project_manager'
 export const ProjectDetailSchema = ProjectSchema.extend({
   stages: z.array(ProjectStageSchema), description_html: z.string(), manager: UserRefSchema.nullable(),
   privacy_visibility: VisibilitySchema, date_start: z.string().nullable(), date_end: z.string().nullable(),
-  tags: z.array(TagSchema), followers_count: z.number().int(), milestone_count: z.number().int(),
+  tags: z.array(TagSchema), followers_count: z.number().int(), milestone_count: z.number().int().nullable(),
   allow_task_dependencies: z.boolean().default(false),
   completion_approval: ProjectCompletionApprovalSchema,
   completion_approver: UserRefSchema.nullable(),
   updated_at: z.string().regex(/^v\d+$/),
-  charter: ProjectCharterSchema,
-  phase_state: ProjectPhaseStateSchema,
+  tools: ProjectToolsStateSchema,
+  objectives: z.array(ProjectObjectiveSchema),
+  success_criteria: z.string(),
+  charter: ProjectCharterSchema.nullable(),
+  phase_state: ProjectPhaseStateSchema.nullable(),
   change_control_mode: ChangeControlModeSchema,
 }).strict()
 
@@ -64,6 +80,8 @@ export const ProjectCopyInputSchema = z.object({
 export const ProjectCreateSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
+  objectives: z.array(ProjectObjectiveWriteSchema).optional(),
+  success_criteria: z.string().optional(),
   user_id: z.number().int().positive().nullable().optional(),
   privacy_visibility: VisibilitySchema.optional(),
   allow_task_dependencies: z.boolean().optional(),
@@ -71,7 +89,6 @@ export const ProjectCreateSchema = z.object({
   date: z.string().nullable().optional(),
   date_end: z.string().nullable().optional(),
   tag_ids: z.array(z.number().int()).optional(),
-  charter: ProjectCharterWriteSchema.optional(),
 }).strict().superRefine((value, ctx) => {
   if (value.date !== undefined && value.date_end !== undefined) {
     ctx.addIssue({
@@ -85,6 +102,9 @@ export const ProjectPatchSchema = z.object({
   name: z.string().min(1).optional(), description: z.string().optional(), user_id: z.number().int().nullable().optional(),
   privacy_visibility: VisibilitySchema.optional(), allow_task_dependencies: z.boolean().optional(), date_start: z.string().nullable().optional(), date: z.string().nullable().optional(), date_end: z.string().nullable().optional(),
   tag_ids: z.array(z.number().int()).optional(),
+  objectives: z.array(ProjectObjectiveWriteSchema).optional(),
+  success_criteria: z.string().optional(),
+  tool_preferences: ProjectToolPreferencesPatchSchema.optional(),
   liwan_completion_approval: ProjectCompletionApprovalSchema.optional(),
   liwan_completion_approver_id: z.number().int().positive().nullable().optional(),
   charter: ProjectCharterWriteSchema.optional(),
@@ -93,15 +113,15 @@ export const ProjectPatchSchema = z.object({
   if (value.date !== undefined && value.date_end !== undefined) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'date and date_end cannot both be provided', path: ['date_end'] })
   }
-  if (value.charter !== undefined && value.expected_updated_at === undefined) {
+  if ((value.charter !== undefined || value.objectives !== undefined || value.success_criteria !== undefined || value.tool_preferences !== undefined) && value.expected_updated_at === undefined) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: 'expected_updated_at is required when charter is present',
+      message: 'expected_updated_at is required when charter, objectives, success_criteria or tool_preferences is present',
       path: ['expected_updated_at'],
     })
   }
 })
-// Native-only PATCH may omit expected_updated_at. If the token is supplied,
+// Other core PATCH fields may omit expected_updated_at. If the token is supplied,
 // the server still row-locks and rejects a stale value.
 export const ProjectStatusBodySchema = z.object({ status: ProjectStatusSchema }).strict()
 export const StageBodySchema = z.object({ name: z.string().min(1), fold: z.boolean().optional() }).strict()
@@ -123,3 +143,6 @@ export type ProjectList = z.infer<typeof ProjectListSchema>
 export type ProjectPatch = z.infer<typeof ProjectPatchSchema>
 export type ProjectCreate = z.infer<typeof ProjectCreateSchema>
 export type ProjectCopyInput = z.infer<typeof ProjectCopyInputSchema>
+
+export type ProjectObjective = z.infer<typeof ProjectObjectiveSchema>
+export type ProjectObjectiveWrite = z.infer<typeof ProjectObjectiveWriteSchema>

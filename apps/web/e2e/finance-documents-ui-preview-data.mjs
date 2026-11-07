@@ -1,9 +1,11 @@
+import { financeSummaryPreview } from './finance-summary-preview.mjs'
+
 // Finance documents for the isolated mock (MODULE_UI_PREVIEW=1): invoices, credit notes, vendor bills and
 // refunds in every state, their payments and the payment journals (partners come from finance-ui-preview-data.mjs). Reads
 // only, except the internal transfer, a partner's bank accounts and the fiscal transfer account (`financeGapsPreview`
 // at the end of this file). Lists honour the filters the Odoo controller supports (move_type, state,
 // partner_id, q, date_from, date_to, limit, offset), and `total` is the filtered count, so the KPI strip's
-// limit=1 requests report real totals. A record carries the actions the server would allow its caller (an administrator
+// summary requests report real totals. A record carries the actions the server would allow its caller (an administrator
 // who holds every capability, on a tenant that can write), so the pages draw the same buttons.
 import { financeAccounts } from './finance-accounting-ui-preview-data.mjs'
 import { financePreviewData } from './finance-ui-preview-data.mjs'
@@ -293,6 +295,7 @@ export function financeGapsPreview(method, path, url, body = {}) {
 
 export function financeDocumentsPreviewData(path, url) {
   const route = String(path || '/').replace(/\/+$/, '') || '/'
+  if (route === '/api/v1/finance/invoices/summary') return financeSummaryPreview(filterDocuments, url, ['draft', 'posted', 'cancel'])
   if (route === '/api/v1/finance/invoices') return page(filterDocuments(url).map(summary), url)
   if (route.startsWith('/api/v1/finance/invoices/')) {
     const found = financeDocuments.find(item => item.id === recordId(route, '/api/v1/finance/invoices'))

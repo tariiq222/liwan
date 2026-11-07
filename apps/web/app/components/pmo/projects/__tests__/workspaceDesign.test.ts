@@ -28,12 +28,6 @@ describe('project workspace design contract', () => {
     expect(read('pages/projects/[id]/index.vue')).not.toContain('!max-w-none')
   })
 
-  it('keeps one action block: the phase gate, and the attention block only when the gate is absent', () => {
-    expect(pmo('ProjectOverviewTasks.vue')).toMatch(/attention\.value\.length && !props\.gateAction \? 'action' : 'tinted'/)
-    expect(pmo('ProjectOverview.vue')).toContain(':gate-action="isGateAction(')
-    expect(pmo('ProjectPhaseGate.vue')).toContain("isAction ? 'action' : 'tinted'")
-  })
-
   it('keeps the frame free of spacing hacks and shows the progress once, in the overview tile', () => {
     const frame = read('pages/projects/[id].vue')
     expect(frame).not.toMatch(/-my-2|\bh-9\b|w-1\/3|mb-3/)

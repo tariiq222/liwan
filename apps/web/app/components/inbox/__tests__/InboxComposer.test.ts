@@ -4,13 +4,15 @@ import ts from 'typescript'
 import * as Vue from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createInboxDrafts, emptyInboxDraft } from '../../../composables/inbox/inboxDrafts'
-import { INBOX_CAPTION_MAX, INBOX_UPLOAD_ACCEPT, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem } from '../../../composables/inbox/inboxAttachments'
+import { INBOX_CAPTION_MAX, inboxAcceptsCaption, inboxFileSize, inboxUploadAccept, inboxUploadProblem } from '../../../composables/inbox/inboxAttachments'
+import { channelCarriesTemplates, inboxComposerActions } from '../../../composables/inbox/inboxComposerKind'
 import { buildCommerceContent, emptyCommerceDraft } from '../../../composables/inbox/inboxCommerce'
 import { buildInteractive, emptyInteractiveDraft } from '../../../composables/inbox/inboxInteractive'
 import { buildLocation, emptyLocationDraft } from '../../../composables/inbox/inboxLocation'
 import { TEMPLATE_CATEGORY_TONE, templatePreview } from '../../../composables/inbox/inboxTemplate'
 import { HEADER_MEDIA_ACCEPT, buildTemplateReply, dynamicButtons, headerInput, templateReplyReady } from '../../../composables/inbox/inboxTemplateSend'
-import { cannedSuggestions, replyWindowOpen } from '../../../composables/inbox/inboxWindow'
+import { cannedSuggestions, replyWindowOpen, windowClosedDescriptionKey, windowClosedErrorKey } from '../../../composables/inbox/inboxWindow'
+import { inboxTikTokErrorKey } from '../../../composables/inbox/inboxTikTok'
 
 const filename = new URL('../InboxComposer.vue', import.meta.url).pathname
 const NOW = Date.parse('2026-10-28T12:00:00Z')
@@ -24,7 +26,7 @@ class ApiError extends Error {
   constructor(public status: number) { super('refused') }
 }
 
-function mountComposer(endsAt: string | null, store = new Map<string, string>(), template: Record<string, unknown> = TEMPLATE) {
+function mountComposer(endsAt: string | null, store = new Map<string, string>(), template: Record<string, unknown> = TEMPLATE, kind: 'whatsapp' | 'tiktok' = 'whatsapp') {
   const script = compileScript(parse(readFileSync(filename, 'utf8'), { filename }).descriptor, { id: 'inbox-composer' }).content
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
   const inboxDrafts = createInboxDrafts(() => ({ getItem: k => store.get(k) ?? null, setItem: (k, v) => void store.set(k, v), removeItem: k => void store.delete(k), key: i => [...store.keys()][i] ?? null, length: store.size }))
@@ -36,11 +38,13 @@ function mountComposer(endsAt: string | null, store = new Map<string, string>(),
   const notifyTyping = vi.fn()
   const uploadInboxFile = vi.fn(async (file: { name: string; size: number; type: string }) => ({ id: 41, name: file.name, mimetype: file.type, size: file.size }))
   const emitted: Array<[string, unknown]> = []
+  const toast = vi.fn()
   const bindings = {
     _defineComponent: Vue.defineComponent, _unref: Vue.unref, ref: Vue.ref, reactive: Vue.reactive, computed: Vue.computed, watch: Vue.watch,
     onMounted: (fn: () => void) => mounted.push(fn), onBeforeUnmount: (fn: () => void) => unmounting.push(fn),
-    useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useToast: () => ({ add: vi.fn() }), useMe: () => ({ me: Vue.ref({ id: 3 }) }),
-    ApiError, useInboxTyping: () => notifyTyping, useUploadInboxFile: () => ({ mutateAsync: uploadInboxFile }), INBOX_CAPTION_MAX, INBOX_UPLOAD_ACCEPT, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem, emptyInboxDraft,
+    useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useToast: () => ({ add: toast }), useMe: () => ({ me: Vue.ref({ id: 3 }) }),
+    ApiError, useInboxTyping: () => notifyTyping, useUploadInboxFile: () => ({ mutateAsync: uploadInboxFile }), INBOX_CAPTION_MAX, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem,
+    inboxUploadAccept, channelCarriesTemplates, inboxComposerActions, windowClosedDescriptionKey, windowClosedErrorKey, inboxTikTokErrorKey, emptyInboxDraft,
     buildCommerceContent, emptyCommerceDraft, buildInteractive, emptyInteractiveDraft, buildLocation, emptyLocationDraft,
     inboxDrafts, cannedSuggestions, replyWindowOpen, templatePreview, TEMPLATE_CATEGORY_TONE, HEADER_MEDIA_ACCEPT, buildTemplateReply, dynamicButtons, headerInput, templateReplyReady,
     useSendInboxReply: () => ({ mutateAsync: sendReply, isPending: Vue.ref(false) }), useSendInboxNote: () => ({ mutateAsync: sendNote, isPending: Vue.ref(false) }),
@@ -49,11 +53,11 @@ function mountComposer(endsAt: string | null, store = new Map<string, string>(),
   }
   const code = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
   const component = new Function(...Object.keys(bindings), code)(...Object.values(bindings))
-  const props = Vue.reactive({ conversation: { id: 5, channel: { id: 1 }, reply_window_ends_at: endsAt }, replyTo: null as { id: number; preview: string } | null })
+  const props = Vue.reactive({ conversation: { id: 5, channel: { id: 1, kind }, reply_window_ends_at: endsAt }, replyTo: null as { id: number; preview: string } | null })
   const scope = Vue.effectScope()
   const state = scope.run(() => component.setup(props, { expose: () => {}, emit: (name: string, value: unknown) => { emitted.push([name, value]); if (name === 'update:replyTo') props.replyTo = value as typeof props.replyTo } }))
   for (const fn of mounted) fn()
-  return { state, props, store, sendReply, sendNote, inboxDrafts, notifyTyping, uploadInboxFile, emitted, unmount: () => { for (const fn of unmounting) fn(); scope.stop() } }
+  return { state, props, store, sendReply, sendNote, inboxDrafts, notifyTyping, uploadInboxFile, emitted, toast, unmount: () => { for (const fn of unmounting) fn(); scope.stop() } }
 }
 
 describe('InboxComposer', () => {
@@ -83,6 +87,63 @@ describe('InboxComposer', () => {
   it('is in template mode at once when the window never opened or already closed', () => {
     expect(mountComposer(null).state.templateMode.value).toBe(true)
     expect(mountComposer('2026-10-27T11:00:00Z').state.templateMode.value).toBe(true)
+  })
+
+  it('offers a TikTok conversation a text, one image and a button card only', () => {
+    const { state } = mountComposer('2026-10-28T20:00:00Z', new Map(), TEMPLATE, 'tiktok')
+    expect(state.actions.value).toEqual(['attach', 'interactive'])
+    expect(state.templateMode.value).toBe(false)
+    expect(state.blockedWindow.value).toBe(false)
+    expect(state.kind.value).toBe('tiktok')
+  })
+
+  it('carries no template and no reply once the TikTok window closed', () => {
+    const { state } = mountComposer('2026-10-27T11:00:00Z', new Map(), TEMPLATE, 'tiktok')
+    expect(state.templateMode.value).toBe(false)
+    expect(state.closedWindow.value).toBe(true)
+    expect(state.blockedWindow.value).toBe(true)
+  })
+
+  it('sends a TikTok image alone: no caption, so the typed text stays a draft', async () => {
+    const { state, sendReply } = mountComposer('2026-10-28T20:00:00Z', new Map(), TEMPLATE, 'tiktok')
+    await state.onFilePicked(file('صورة.png', 'image/png', 1024))
+    state.draft.value = 'نص لا يُرسل مع الصورة'
+    expect(state.captionAllowed.value).toBe(false)
+    await state.submit()
+    expect(sendReply).toHaveBeenCalledWith({ attachment_id: 41 })
+    expect(state.draft.value).toBe('نص لا يُرسل مع الصورة')
+  })
+
+  it('refuses a TikTok attachment that is not a JPEG or PNG of up to 3 MB', async () => {
+    const { state, uploadInboxFile } = mountComposer('2026-10-28T20:00:00Z', new Map(), TEMPLATE, 'tiktok')
+    await state.onFilePicked(file('مستند.pdf', 'application/pdf', 1024))
+    expect(uploadInboxFile).not.toHaveBeenCalled()
+    expect(state.uploadError.value).toBe('inbox.composer.upload.unsupported')
+    await state.onFilePicked(file('كبيرة.jpg', 'image/jpeg', 3 * 1048576 + 1))
+    expect(uploadInboxFile).not.toHaveBeenCalled()
+    expect(state.uploadError.value).toBe('inbox.composer.upload.tooLarge')
+  })
+
+  it('shows the translated reason of a refused TikTok reply', async () => {
+    const { state, sendReply, toast } = mountComposer('2026-10-28T20:00:00Z', new Map(), TEMPLATE, 'tiktok')
+    state.draft.value = 'رد'
+    sendReply.mockRejectedValueOnce(Object.assign(new Error('refused'), { status: 422, details: { reason: 'inbox_tiktok_reply_limit' } }))
+    await state.submit()
+    expect(toast).toHaveBeenLastCalledWith({ title: 'inbox.tiktokErrors.inbox_tiktok_reply_limit', color: 'error' })
+  })
+
+  it('shows the closed-window line of the conversation kind when a send is refused for the window', async () => {
+    const refused = Object.assign(new Error('refused'), { status: 422, details: { reason: 'inbox_window_closed' } })
+    const tiktok = mountComposer('2026-10-28T20:00:00Z', new Map(), TEMPLATE, 'tiktok')
+    tiktok.state.draft.value = 'رد'
+    tiktok.sendReply.mockRejectedValueOnce(refused)
+    await tiktok.state.submit()
+    expect(tiktok.toast).toHaveBeenLastCalledWith({ title: 'inbox.inbox_window_closed.tiktok', color: 'error' })
+    const whatsapp = mountComposer('2026-10-28T20:00:00Z')
+    whatsapp.state.draft.value = 'رد'
+    whatsapp.sendReply.mockRejectedValueOnce(refused)
+    await whatsapp.state.submit()
+    expect(whatsapp.toast).toHaveBeenLastCalledWith({ title: 'inbox.inbox_window_closed.whatsapp', color: 'error' })
   })
 
   it('stores reply and note drafts per conversation and restores them on the next mount', async () => {

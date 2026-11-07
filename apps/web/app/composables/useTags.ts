@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { TagSchema } from '@liwan/contracts'
 
 export const tagKeys = {
@@ -13,6 +13,7 @@ export function useTags(q: Ref<string>) {
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => tagKeys.list(q.value)),
+    placeholderData: keepPreviousData,
     queryFn: () => $api('/api/v1/tags', { query: { q: q.value || undefined }, schema: TagListSchema }),
   })
 }

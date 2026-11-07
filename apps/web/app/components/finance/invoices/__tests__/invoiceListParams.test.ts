@@ -3,7 +3,7 @@ import {
   INVOICE_PAGE_SIZE,
   invoiceActiveFilterCount,
   invoiceFiltersFromQuery,
-  invoiceKpiParams,
+  invoiceSummaryParams,
   invoiceKpiTiles,
   invoiceListParams,
 } from '../invoiceListParams'
@@ -36,14 +36,12 @@ describe('invoice list params', () => {
 describe('KPI params and tiles', () => {
   const filters = invoiceFiltersFromQuery({ state: 'posted', partner_id: '9', date_from: '2026-03-01', page: '4', q: 'abc' })
 
-  it('keeps the list filters, forces the tile state and asks for one row', () => {
-    expect(invoiceKpiParams('out_refund', filters, 'draft')).toEqual({ move_type: 'out_refund', state: 'draft', partner_id: 9, date_from: '2026-03-01', q: 'abc', limit: 1, offset: 0 })
-  })
-
-  it('the total tile has no state at all, whatever the list filters by', () => {
-    const params = invoiceKpiParams('out_refund', filters, null)
+  it('keeps meaningful filters while excluding selected state and pagination', () => {
+    const params = invoiceSummaryParams('out_refund', filters)
     expect(params).not.toHaveProperty('state')
-    expect(params.limit).toBe(1)
+    expect(params).not.toHaveProperty('limit')
+    expect(params).not.toHaveProperty('offset')
+    expect(params).toEqual({ move_type: 'out_refund', partner_id: 9, date_from: '2026-03-01', q: 'abc' })
   })
 
   it('builds one tile per state from the server totals, empty while a count is missing', () => {

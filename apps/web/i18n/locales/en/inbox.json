@@ -1,7 +1,7 @@
 {
   "inbox": {
-    "title": "Customer WhatsApp",
-    "railLabel": "WhatsApp",
+    "title": "Customer Messages",
+    "railLabel": "Messages",
     "unassigned": "Unassigned",
     "unavailable": "This conversation is not available to you.",
     "select": "Select a conversation",
@@ -37,6 +37,174 @@
       "connected": "Connected",
       "error": "Error",
       "disabled": "Disabled"
+    },
+    "channelTabs": {
+      "label": "Channel sections",
+      "details": "Details",
+      "health": "Health",
+      "profile": "Business profile",
+      "templates": "Templates",
+      "automation": "Automation",
+      "shortcuts": "Questions and chat",
+      "import": "Import"
+    },
+    "health": {
+      "title": "Number health",
+      "refresh": "Refresh now",
+      "refreshed": "The number data was refreshed",
+      "checkedAt": "Last checked: {time}",
+      "neverChecked": "The number has not been checked yet. Press \"Refresh now\".",
+      "tilesLabel": "Number metrics",
+      "tiles": {
+        "quality": "Quality rating",
+        "limit": "Messaging limit",
+        "limitHint": "Per 24 hours, shared by all numbers of the business portfolio",
+        "throughput": "Throughput",
+        "name": "Verified name",
+        "code": "Number verification",
+        "number": "Display number",
+        "noName": "No verified name yet",
+        "requested": "Requested name: {name}",
+        "verified": "Verified",
+        "unverified": "Not verified"
+      },
+      "quality": {
+        "green": "High",
+        "yellow": "Medium",
+        "red": "Low",
+        "unknown": "Unknown"
+      },
+      "limit": {
+        "tier_50": "50",
+        "tier_250": "250",
+        "tier_2k": "2,000",
+        "tier_10k": "10,000",
+        "tier_100k": "100,000",
+        "unlimited": "Unlimited",
+        "not_set": "Not set",
+        "unknown": "Unknown"
+      },
+      "throughput": {
+        "standard": "Standard",
+        "high": "High",
+        "not_applicable": "Not applicable",
+        "unknown": "Unknown"
+      },
+      "nameStatus": {
+        "approved": "Approved",
+        "available_without_review": "Available without review",
+        "pending_review": "Pending review",
+        "declined": "Declined",
+        "expired": "Expired",
+        "none": "None",
+        "unknown": "Unknown"
+      },
+      "nameReasons": {
+        "NAME_EMPLOYEE_ISSUE": "The name belongs to an employee",
+        "NAME_ENDCLIENT_NOTRELATED": "The name is unrelated to your business",
+        "NAME_FORMAT_UNACCEPTABLE": "The name format is not acceptable",
+        "NAME_INDIVIDUAL_ISSUE": "The name belongs to an individual",
+        "NAME_NOT_CONSISTENT": "The name does not match your business",
+        "UNKNOWN": "Unknown reason"
+      },
+      "account": {
+        "restricted": "The account is restricted",
+        "restrictedUntil": "Meta restricted some account capabilities until {time}.",
+        "restrictedNoDate": "Meta restricted some account capabilities.",
+        "scheduled_for_disable": "The account is scheduled to be disabled",
+        "scheduledHint": "The business account will be disabled unless you resolve the cause in WhatsApp Manager.",
+        "disabled": "The account is disabled",
+        "disabledHint": "Meta disabled the business account: nothing can be sent until it is reinstated in WhatsApp Manager.",
+        "ok": "The account works normally"
+      },
+      "alerts": {
+        "title": "Alert timeline",
+        "description": "Quality, limit, name and account changes as Meta reported them",
+        "empty": "No alerts yet",
+        "caption": "Number alert timeline",
+        "severity": {
+          "info": "Info",
+          "warning": "Warning",
+          "danger": "Danger"
+        },
+        "reason": "Reason",
+        "expires": "Expires {time}",
+        "range": "{from}–{to} of {total}",
+        "kind": {
+          "quality_changed": "Quality rating changed to {quality}",
+          "messaging_limit_changed": "Messaging limit changed to {limit}",
+          "messaging_limit_changed_from": "Messaging limit changed from {previous} to {limit}",
+          "throughput_upgraded": "Throughput was upgraded",
+          "name_approved": "The display name was approved",
+          "name_rejected": "The requested name \"{name}\" was rejected",
+          "name_pending": "The requested name \"{name}\" is under Meta review",
+          "account_restricted": "The account was restricted",
+          "account_disabled": "The account was disabled",
+          "account_reinstated": "The account was reinstated",
+          "account_violation": "A violation was recorded on the account",
+          "scaling_denied": "Meta declined to raise the limit",
+          "connection_failed": "The connection to Meta failed"
+        }
+      },
+      "webhook": {
+        "title": "Webhook subscriptions",
+        "description": "Subscribe to these fields in the Meta app so every change to the number, account and templates reaches us.",
+        "copy": "Copy",
+        "copied": "Copied",
+        "copyAria": "Copy the field name {field}"
+      },
+      "actions": {
+        "displayName": {
+          "title": "Request a display name change",
+          "hint": "Meta reviews it and may reject it. The current name stays until it is approved.",
+          "label": "New name",
+          "submit": "Send request",
+          "done": "The name change was sent for review",
+          "invalid": "3 to 128 characters"
+        },
+        "pin": {
+          "title": "Two-step verification PIN",
+          "hint": "Six digits. The PIN is not stored and not shown after sending.",
+          "label": "PIN (6 digits)",
+          "submit": "Set PIN",
+          "done": "The two-step verification PIN was set",
+          "invalid": "The PIN is exactly six digits"
+        },
+        "register": {
+          "title": "Register the number",
+          "hint": "Register again after changing the PIN or migrating the number. It needs the two-step PIN (6 digits).",
+          "pinLabel": "PIN (6 digits)",
+          "button": "Register number",
+          "confirmTitle": "Register the number with Meta?",
+          "confirmDescription": "Meta allows only ten registration attempts per number in 72 hours, then blocks the number for 72 hours. Check the PIN before you continue.",
+          "confirm": "Confirm registration",
+          "done": "The number was registered"
+        },
+        "insights": {
+          "title": "Template analytics",
+          "hint": "A one-time opt-in on the business account gives us delivery, read and click figures.",
+          "enabled": "Enabled",
+          "enable": "Enable analytics",
+          "confirmTitle": "Enable template analytics?",
+          "confirmDescription": "This cannot be undone: Meta does not allow turning analytics off once it is on. It is unavailable for EU, UK and Japan accounts.",
+          "confirm": "Yes, enable",
+          "done": "Template analytics was enabled"
+        },
+        "sync": {
+          "title": "Sync analytics",
+          "hint": "Pull cost and template analytics from Meta now. Once every 10 minutes per channel.",
+          "button": "Sync now",
+          "done": "Analytics was synced",
+          "last": "Last sync: {time}",
+          "never": "Not synced yet",
+          "error": "Sync error"
+        },
+        "currency": "Billing currency: {currency}"
+      }
+    },
+    "channelKinds": {
+      "whatsapp": "WhatsApp",
+      "tiktok": "TikTok"
     },
     "list": {
       "label": "Conversations",
@@ -99,7 +267,10 @@
       "send": "Send",
       "saveNote": "Save note",
       "windowClosed": "The free-form reply window has closed",
-      "windowClosedDescription": "WhatsApp allows free-form replies for 24 hours after the customer's last message. After that only an approved template can be sent.",
+      "windowClosedByKind": {
+        "whatsapp": "WhatsApp accepts a free-form reply within 24 hours of the customer's last message. After that only an approved template may be sent.",
+        "tiktok": "TikTok accepts a reply within 48 hours of the customer's last message and carries no templates: once the window closes nothing can be sent."
+      },
       "noWindow": "The customer has not sent a message yet, so only an approved template can be sent.",
       "template": "Template",
       "pickTemplate": "Pick an approved template",
@@ -119,7 +290,7 @@
       "cancelReplyTo": "Cancel replying to the message",
       "upload": {
         "empty": "The file {name} is empty.",
-        "unsupported": "The file type of {name} is not supported by WhatsApp.",
+        "unsupported": "The file {name} is not a supported type.",
         "tooLarge": "The file {name} is larger than the {limit} MB limit. Choose a smaller file.",
         "tooLargeServer": "The file is larger than the allowed limit. Choose a smaller file.",
         "failed": "The file could not be uploaded. Try again."
@@ -165,10 +336,11 @@
         "flow": "Form",
         "flowHint": "A form published on this channel that the customer fills inside WhatsApp; sent inside the reply window only.",
         "flowCta": "Button text that opens the form",
-        "flowCtaHint": "Meta advises at most 30 characters and no emoji."
+        "flowCtaHint": "Meta advises at most 30 characters and no emoji.",
+        "cardTitle": "Card title"
       },
       "captionTooLong": "A file caption is at most {max} characters. Shorten it to send the file.",
-      "audioNoCaption": "WhatsApp does not allow a caption on an audio file.",
+      "noCaption": "This file carries no caption: it is sent on its own.",
       "headerParam": "Header value",
       "headerMedia": "Header file ({kind})",
       "code": "Code",
@@ -297,11 +469,13 @@
       },
       "channels": {
         "title": "Channels",
-        "hint": "The WhatsApp numbers connected to the inbox.",
-        "connect": "Connect a channel",
+        "hint": "The WhatsApp and TikTok channels connected to the inbox.",
+        "connect": "Connect WhatsApp",
         "connectHint": "Connect a WhatsApp Business number through the Cloud API.",
-        "empty": "No channel is connected yet.",
-        "whatsapp": "WhatsApp",
+        "tiktokNotice": "TikTok processes the message data outside the Kingdom of Saudi Arabia; connecting is optional and can be disconnected at any time.",
+        "tiktokConnect": "Connect TikTok",
+        "tiktokContinue": "Continue to TikTok",
+        "tiktokErrorTitle": "The TikTok account was not connected",
         "create": "Connect channel",
         "department": "Default department",
         "departmentHint": "Conversations of this channel reach this department.",
@@ -369,7 +543,8 @@
         "deleteTitle": "Delete the channel \"{name}\"?",
         "deleteDescription": "This cannot be undone. Deleting is refused while the channel has conversations; disable it instead.",
         "appId": "Meta app id",
-        "appIdHint": "Optional. Needed only to upload the sample file of a template header with an image, video or document."
+        "appIdHint": "Optional. Needed only to upload the sample file of a template header with an image, video or document.",
+        "empty": "No channel is connected yet."
       },
       "groups": {
         "basics": "Basics",
@@ -562,6 +737,12 @@
       "bad": "Dissatisfied",
       "badge": "Customer satisfaction: {score}"
     },
+    "referral": {
+      "badge": "Came from {source}",
+      "ad": "an ad",
+      "short_link": "a short link",
+      "ref": "Reference: {ref}"
+    },
     "automation": {
       "enable": "Enabled",
       "contentRequired": "Write the message text or complete the interactive message.",
@@ -621,6 +802,7 @@
         "title": "Satisfaction survey",
         "hint": "After an agent resolves the conversation the customer gets a question with three buttons, and the choice is saved on the conversation.",
         "question": "Question text",
+        "tooLong": "The question is longer than TikTok's {max}-character card title, so TikTok could not send it. Shorten the question.",
         "options": {
           "good": "Satisfied button",
           "neutral": "Neutral button",
@@ -715,6 +897,10 @@
         "noRules": "No rule matches.",
         "flow": "A form the customer submitted (optional)",
         "flowHint": "To try the rules that run when a form is submitted."
+      },
+      "tiktok": {
+        "title": "TikTok limits",
+        "hint": "The welcome message is a text of up to 250 characters (TikTok sends it itself); the away message and the survey are a text or a button card of up to 3 buttons with 20-character titles."
       }
     },
     "flows": {
@@ -1046,7 +1232,7 @@
       "channelHealth": "WhatsApp number health"
     },
     "reports": {
-      "title": "WhatsApp reports",
+      "title": "Customer message reports",
       "navLabel": "Report sections",
       "backToInbox": "Conversations",
       "tabs": {
@@ -1290,167 +1476,6 @@
             "liwanFailed": "Failed in LiwanOS"
           }
         }
-      }
-    },
-    "health": {
-      "tabs": {
-        "label": "Channel sections",
-        "details": "Details",
-        "health": "Health",
-        "profile": "Business profile",
-        "templates": "Templates"
-      },
-      "title": "Number health",
-      "refresh": "Refresh now",
-      "refreshed": "The number data was refreshed",
-      "checkedAt": "Last checked: {time}",
-      "neverChecked": "The number has not been checked yet. Press \"Refresh now\".",
-      "tilesLabel": "Number metrics",
-      "tiles": {
-        "quality": "Quality rating",
-        "limit": "Messaging limit",
-        "limitHint": "Per 24 hours, shared by all numbers of the business portfolio",
-        "throughput": "Throughput",
-        "name": "Verified name",
-        "code": "Number verification",
-        "number": "Display number",
-        "noName": "No verified name yet",
-        "requested": "Requested name: {name}",
-        "verified": "Verified",
-        "unverified": "Not verified"
-      },
-      "quality": {
-        "green": "High",
-        "yellow": "Medium",
-        "red": "Low",
-        "unknown": "Unknown"
-      },
-      "limit": {
-        "tier_50": "50",
-        "tier_250": "250",
-        "tier_2k": "2,000",
-        "tier_10k": "10,000",
-        "tier_100k": "100,000",
-        "unlimited": "Unlimited",
-        "not_set": "Not set",
-        "unknown": "Unknown"
-      },
-      "throughput": {
-        "standard": "Standard",
-        "high": "High",
-        "not_applicable": "Not applicable",
-        "unknown": "Unknown"
-      },
-      "nameStatus": {
-        "approved": "Approved",
-        "available_without_review": "Available without review",
-        "pending_review": "Pending review",
-        "declined": "Declined",
-        "expired": "Expired",
-        "none": "None",
-        "unknown": "Unknown"
-      },
-      "nameReasons": {
-        "NAME_EMPLOYEE_ISSUE": "The name belongs to an employee",
-        "NAME_ENDCLIENT_NOTRELATED": "The name is unrelated to your business",
-        "NAME_FORMAT_UNACCEPTABLE": "The name format is not acceptable",
-        "NAME_INDIVIDUAL_ISSUE": "The name belongs to an individual",
-        "NAME_NOT_CONSISTENT": "The name does not match your business",
-        "UNKNOWN": "Unknown reason"
-      },
-      "account": {
-        "restricted": "The account is restricted",
-        "restrictedUntil": "Meta restricted some account capabilities until {time}.",
-        "restrictedNoDate": "Meta restricted some account capabilities.",
-        "scheduled_for_disable": "The account is scheduled to be disabled",
-        "scheduledHint": "The business account will be disabled unless you resolve the cause in WhatsApp Manager.",
-        "disabled": "The account is disabled",
-        "disabledHint": "Meta disabled the business account: nothing can be sent until it is reinstated in WhatsApp Manager.",
-        "ok": "The account works normally"
-      },
-      "alerts": {
-        "title": "Alert timeline",
-        "description": "Quality, limit, name and account changes as Meta reported them",
-        "empty": "No alerts yet",
-        "caption": "Number alert timeline",
-        "severity": {
-          "info": "Info",
-          "warning": "Warning",
-          "danger": "Danger"
-        },
-        "reason": "Reason",
-        "expires": "Expires {time}",
-        "range": "{from}–{to} of {total}",
-        "kind": {
-          "quality_changed": "Quality rating changed to {quality}",
-          "messaging_limit_changed": "Messaging limit changed to {limit}",
-          "messaging_limit_changed_from": "Messaging limit changed from {previous} to {limit}",
-          "throughput_upgraded": "Throughput was upgraded",
-          "name_approved": "The display name was approved",
-          "name_rejected": "The requested name \"{name}\" was rejected",
-          "name_pending": "The requested name \"{name}\" is under Meta review",
-          "account_restricted": "The account was restricted",
-          "account_disabled": "The account was disabled",
-          "account_reinstated": "The account was reinstated",
-          "account_violation": "A violation was recorded on the account",
-          "scaling_denied": "Meta declined to raise the limit",
-          "connection_failed": "The connection to Meta failed"
-        }
-      },
-      "webhook": {
-        "title": "Webhook subscriptions",
-        "description": "Subscribe to these fields in the Meta app so every change to the number, account and templates reaches us.",
-        "copy": "Copy",
-        "copied": "Copied",
-        "copyAria": "Copy the field name {field}"
-      },
-      "actions": {
-        "displayName": {
-          "title": "Request a display name change",
-          "hint": "Meta reviews it and may reject it. The current name stays until it is approved.",
-          "label": "New name",
-          "submit": "Send request",
-          "done": "The name change was sent for review",
-          "invalid": "3 to 128 characters"
-        },
-        "pin": {
-          "title": "Two-step verification PIN",
-          "hint": "Six digits. The PIN is not stored and not shown after sending.",
-          "label": "PIN (6 digits)",
-          "submit": "Set PIN",
-          "done": "The two-step verification PIN was set",
-          "invalid": "The PIN is exactly six digits"
-        },
-        "register": {
-          "title": "Register the number",
-          "hint": "Register again after changing the PIN or migrating the number. It needs the two-step PIN (6 digits).",
-          "pinLabel": "PIN (6 digits)",
-          "button": "Register number",
-          "confirmTitle": "Register the number with Meta?",
-          "confirmDescription": "Meta allows only ten registration attempts per number in 72 hours, then blocks the number for 72 hours. Check the PIN before you continue.",
-          "confirm": "Confirm registration",
-          "done": "The number was registered"
-        },
-        "insights": {
-          "title": "Template analytics",
-          "hint": "A one-time opt-in on the business account gives us delivery, read and click figures.",
-          "enabled": "Enabled",
-          "enable": "Enable analytics",
-          "confirmTitle": "Enable template analytics?",
-          "confirmDescription": "This cannot be undone: Meta does not allow turning analytics off once it is on. It is unavailable for EU, UK and Japan accounts.",
-          "confirm": "Yes, enable",
-          "done": "Template analytics was enabled"
-        },
-        "sync": {
-          "title": "Sync analytics",
-          "hint": "Pull cost and template analytics from Meta now. Once every 10 minutes per channel.",
-          "button": "Sync now",
-          "done": "Analytics was synced",
-          "last": "Last sync: {time}",
-          "never": "Not synced yet",
-          "error": "Sync error"
-        },
-        "currency": "Billing currency: {currency}"
       }
     },
     "profile": {
@@ -2132,6 +2157,101 @@
       "recipient": "The number is not a valid WhatsApp recipient.",
       "unknown": "Meta: {message}",
       "uncertain": "Meta did not confirm the send. Check whether it arrived before sending it again."
+    },
+    "tiktokErrors": {
+      "inbox_tiktok_unsupported_kind": "TikTok does not carry this kind of message. Send a text, one image or a button card.",
+      "inbox_tiktok_reply_limit": "You reached TikTok's limit of 10 messages in a row. Wait for the customer to answer.",
+      "inbox_tiktok_auto_message_reviewing": "TikTok is still reviewing this item; it cannot be edited until the review ends.",
+      "inbox_tiktok_auto_message_limit": "The limit is reached: 3 suggested questions and 6 chat prompts.",
+      "inbox_tiktok_auto_message_refused": "TikTok refused the change. Try again, and reconnect the account if it keeps refusing.",
+      "inbox_tiktok_sync_running": "An import is already running for this channel. Wait for it to finish.",
+      "inbox_tiktok_not_configured": "The TikTok app is not configured on this system. Ask the system administrator.",
+      "inbox_channel_kind_unsupported": "This feature exists for WhatsApp channels only.",
+      "inbox_tiktok_scopes_missing": "TikTok did not grant every required permission. Reconnect and accept all of them.",
+      "inbox_tiktok_account_taken": "This TikTok account is connected to another channel. Disconnect that one first."
+    },
+    "inbox_window_closed": {
+      "whatsapp": "The 24-hour reply window is closed. Send an approved template.",
+      "tiktok": "The TikTok reply window is closed: 48 hours after the customer's last message. Wait for the customer to write again."
+    },
+    "tiktok": {
+      "details": "TikTok account",
+      "username": "Username",
+      "noUsername": "Unknown",
+      "tokenExpiresAt": "Token expires at",
+      "noTokenExpiry": "Unknown",
+      "needsReconnect": "The refresh token expired",
+      "reconnectHint": "The inbox can no longer refresh the token. Reconnect the account to resume receiving and sending messages.",
+      "reconnect": "Reconnect",
+      "welcomeAudit": "Welcome message review",
+      "noWelcomeAudit": "No welcome message was sent yet",
+      "audit": {
+        "draft": "Draft",
+        "reviewing": "Under review",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "shortcuts": {
+        "enabled": "Enable",
+        "enabledOn": "The kind was enabled and TikTok recreated its items",
+        "enabledOff": "The kind was switched off at TikTok",
+        "saved": "Item saved",
+        "deleted": "Item deleted",
+        "edit": "Edit item",
+        "delete": "Delete item",
+        "deleteTitle": "Delete this item?",
+        "deleteDescription": "It is removed from LiwanOS and from the TikTok account; past conversations are not affected.",
+        "question": {
+          "title": "Suggested questions",
+          "hint": "Questions offered to the customer before the conversation starts, {max} at most.",
+          "empty": "No suggested question yet.",
+          "disabledHint": "Suggested questions are switched off at TikTok; enable the kind to offer them.",
+          "limit": "The suggested questions limit is reached.",
+          "add": "Add question"
+        },
+        "prompt": {
+          "title": "Chat prompts",
+          "hint": "Ready-made replies an agent sees inside a TikTok conversation, {max} at most.",
+          "empty": "No chat prompt yet.",
+          "disabledHint": "Chat prompts are switched off at TikTok; enable the kind to offer them.",
+          "limit": "The chat prompts limit is reached.",
+          "add": "Add prompt"
+        },
+        "field": {
+          "question": "Question",
+          "answer": "Answer",
+          "promptTitle": "Chat prompt title",
+          "content": "Chat prompt content"
+        }
+      },
+      "import": {
+        "title": "Import conversations",
+        "hint": "Imports the last 90 days: the conversations and their 20 newest messages, in scheduled steps. Imported messages never trigger automation or notifications.",
+        "action": "Import conversations",
+        "refresh": "Refresh",
+        "none": "No import has run yet.",
+        "queued": "The import was queued",
+        "runningHint": "The import is running and will finish on its own.",
+        "failed": "The import failed",
+        "state": {
+          "queued": "Queued",
+          "running": "Running",
+          "done": "Completed",
+          "failed": "Failed"
+        },
+        "phase": {
+          "label": "Phase",
+          "single": "Single conversations",
+          "stranger": "Stranger conversations",
+          "messages": "Messages"
+        },
+        "conversations": "Imported conversations",
+        "messages": "Imported messages",
+        "startedAt": "Started at",
+        "finishedAt": "Finished at",
+        "notStarted": "Not started",
+        "notFinished": "Not finished"
+      }
     }
   },
   "errors": {

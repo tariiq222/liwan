@@ -9,7 +9,7 @@ from odoo.exceptions import UserError
 from .abstract_interactive import COMMERCE_TYPES
 from .batch import process_each
 from .constants import BACKOFF_MINUTES, MAX_ATTEMPTS, OUTBOX_BATCH, TYPING_MAX_AGE
-from odoo.addons.liwan_inbox.adapters import whatsapp
+from odoo.addons.liwan_inbox.adapters import errors, tiktok, whatsapp
 
 _logger = logging.getLogger(__name__)
 
@@ -59,18 +59,25 @@ class LiwanInboxMessageOutbox(models.Model):
 
     @api.model
     def _liwan_send_typing(self, conversation):
-        """The typing indicator (which also marks the newest inbound message read); a failure is only logged."""
+        """The typing indicator; a failure is only logged."""
         conversation.typing_pending = False
         inbound = conversation._liwan_latest_inbound()
         if (not inbound or fields.Datetime.now() - conversation.typing_requested_at > TYPING_MAX_AGE
                 or conversation._liwan_replied_since(conversation.typing_requested_at)):
             return
+        channel = conversation.channel_id
         try:
-            whatsapp.mark_read(conversation.channel_id._liwan_credentials(), inbound.provider_message_id, typing=True)
-        except (whatsapp.ProviderError, UserError) as error:
+            credentials = channel._liwan_credentials()
+            if channel.kind == 'tiktok':
+                tiktok.send_action(credentials, conversation.provider_conversation_id, 'TYPING')
+            else:
+                whatsapp.mark_read(credentials, inbound.provider_message_id, typing=True)
+        except (errors.ProviderError, UserError) as error:
             _logger.warning('typing indicator of conversation %s failed: %s', conversation.id, type(error).__name__)
         else:
-            inbound.write({'read_receipt': 'sent', 'receipt_attempts': 0})
+            # A WhatsApp read receipt travels with the typing indicator; TikTok marks a conversation read on its own.
+            if channel.kind != 'tiktok':
+                inbound.write({'read_receipt': 'sent', 'receipt_attempts': 0})
 
     @api.model
     def _liwan_unexpected_failure(self, message, error):
@@ -92,7 +99,7 @@ class LiwanInboxMessageOutbox(models.Model):
             return
         try:
             sent = self._liwan_provider_send()
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             self._liwan_record_failure(str(error), error.retryable, error.code, unconfirmed=error.unconfirmed)
         except UserError as error:
             self._liwan_record_failure(str(error), retryable=False)
@@ -105,6 +112,8 @@ class LiwanInboxMessageOutbox(models.Model):
     def _liwan_provider_send(self):
         """Send this message and return the whatsapp.SendResult (provider message id, held for a quality check)."""
         conversation = self.conversation_id
+        if conversation.channel_id.kind == 'tiktok':
+            return self._liwan_tiktok_provider_send(conversation)
         credentials = conversation.channel_id._liwan_credentials()
         to = conversation.identity_id.address
         context_id = self.reply_to_id.provider_message_id or None
@@ -131,6 +140,25 @@ class LiwanInboxMessageOutbox(models.Model):
         else:
             provider_id = whatsapp.send_text(credentials, to, self.body, context_id)
         return whatsapp.SendResult(provider_id, held=False)
+
+    def _liwan_tiktok_provider_send(self, conversation):
+        """A text, an image or a button card to the conversation's TikTok id (the card title is its body)."""
+        credentials = conversation.channel_id._liwan_credentials()
+        target = conversation.provider_conversation_id
+        if self.kind == 'image':
+            return whatsapp.SendResult(tiktok.send_image(credentials, target, self._liwan_tiktok_media_id(credentials)), held=False)
+        if self.interactive_type == 'buttons':
+            buttons = [tiktok.Button(option.option_id, option.title) for option in self.option_ids.sorted('sequence')]
+            return whatsapp.SendResult(tiktok.send_buttons(credentials, target, self.body, buttons), held=False)
+        context_id = self.reply_to_id.provider_message_id or None
+        return whatsapp.SendResult(tiktok.send_text(credentials, target, self.body, context_id), held=False)
+
+    def _liwan_tiktok_media_id(self, credentials):
+        """The TikTok media id of this message's image; it is uploaded once and kept for retries."""
+        if not self.media_id:
+            attachment = self._liwan_file()
+            self.media_id = tiktok.upload_image(credentials, attachment.name, attachment.mimetype, attachment.raw)
+        return self.media_id
 
     def _liwan_send_media(self, credentials, to, context_id):
         media_id = self._liwan_media_id(credentials)
@@ -192,7 +220,7 @@ class LiwanInboxMessageOutbox(models.Model):
             whatsapp.send_reaction(
                 credentials, self.conversation_id.identity_id.address, self.provider_message_id, self.agent_reaction or '',
             )
-        except whatsapp.ProviderError as error:
+        except errors.ProviderError as error:
             self._liwan_reaction_failed(error.retryable)
         except UserError:
             self._liwan_reaction_failed(retryable=False)
@@ -208,10 +236,14 @@ class LiwanInboxMessageOutbox(models.Model):
 
     def _liwan_send_read_receipt(self):
         self.ensure_one()
+        conversation = self.conversation_id
         try:
-            credentials = self.conversation_id.channel_id._liwan_credentials()
-            whatsapp.mark_read(credentials, self.provider_message_id)
-        except whatsapp.ProviderError as error:
+            credentials = conversation.channel_id._liwan_credentials()
+            if conversation.channel_id.kind == 'tiktok':
+                tiktok.send_action(credentials, conversation.provider_conversation_id, 'MARK_READ')
+            else:
+                whatsapp.mark_read(credentials, self.provider_message_id)
+        except errors.ProviderError as error:
             self._liwan_receipt_failed(error.retryable)
         except UserError:
             self._liwan_receipt_failed(retryable=False)

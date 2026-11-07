@@ -76,10 +76,20 @@ describe('SharedDataTable sorting', () => {
     expect(other).toContain('i-lucide-chevrons-up-down')
   })
 
-  it('keeps the sort buttons disabled until hydrated and adds none on the phone rows', async () => {
-    const html = await render({ columns: sortable }, { 'mobile-row': slot<{ row: Row }>(({ row }) => h('span', row.name)) }, { hydrated: false })
-    expect(html).toMatch(/data-slot="sort-button"[^>]*disabled/)
-    expect(html.slice(html.indexOf('<ul'))).not.toContain('sort-button')
+  it('keeps SSR sorting disabled and renders only phone rows after narrow hydration', async () => {
+    const mobile = { 'mobile-row': slot<{ row: Row }>(({ row }) => h('span', `mobile:${row.name}`)) }
+    const server = await render({ columns: sortable }, mobile, { hydrated: false, ssrWidth: 390 })
+    expect(server).toMatch(/data-slot="sort-button"[^>]*disabled/)
+    expect(server).toContain('<table')
+    expect(server).toContain('mobile:Portal')
+    expect(server).toContain('hidden md:block')
+    expect(server).toContain('md:hidden')
+    const phone = await render({ columns: sortable }, mobile, { hydrated: true, ssrWidth: 390 })
+    expect(phone).not.toContain('<table')
+    expect(phone).not.toContain('sort-button')
+    expect(phone).toContain('mobile:Portal')
+    expect(phone.match(/<li[^>]*data-shortcut-row[^>]*>/g)).toHaveLength(2)
+    expect(phone).toMatch(/<li[^>]*data-row-index="1"[^>]*tabindex="-1"/)
   })
 })
 
@@ -99,16 +109,17 @@ describe('sort helpers', () => {
 })
 
 describe('SharedDataTable', () => {
-  it('renders filters, the table, marked mobile rows and pagination', async () => {
+  it('renders filters, CSS-selected server layouts and pagination before client pruning', async () => {
     const html = await render({ page: 1, pages: 3, caption: 'Projects' }, {
       filters: () => h('input', { 'aria-label': 'Search' }),
       'mobile-row': slot<{ row: Row }>(({ row }) => h('span', `mobile:${row.name}`)),
-    })
+    }, { hydrated: false })
     expect(html).toContain('data-slot="data-table-filters"')
     expect(html).toContain('<caption>Projects</caption>')
     expect(html).toContain('hidden md:block')
+    expect(html).toContain('md:hidden')
+    expect(html.match(/<tr data-slot="tr">/g)).toHaveLength(2)
     expect(html.match(/<li[^>]*data-shortcut-row[^>]*>/g)).toHaveLength(2)
-    expect(html).toMatch(/<li[^>]*data-row-index="1"[^>]*tabindex="-1"/)
     expect(html).toContain('mobile:Portal')
     expect(html).toContain('data-testid="shared-pagination"')
     // Page buttons wrap so pagination never widens a 390px page.

@@ -1,30 +1,25 @@
 import pytest
 
 from liwan_ai_service.embeddings import build_embedder
-from liwan_ai_service.settings import CleanupSettings, EmbeddingSettings, Settings, SettingsError, bootstrap_retention_days
+from liwan_ai_service.settings import PLATFORM_PROVIDER_FILE, CleanupSettings, EmbeddingSettings, Settings, SettingsError, bootstrap_retention_days
+from tests.platform_file import platform_env
 
 
-def test_settings_from_env_reads_the_provider_and_defaults():
+def test_settings_from_env_reads_the_platform_provider_file_and_defaults():
     settings = Settings.from_env({
-        "AI_PROVIDER": "ollama", "AI_MODEL": "qwen2.5:7b", "AI_BASE_URL": "http://ollama:11434",
+        **platform_env("ollama", "qwen2.5:7b", base_url="http://ollama:11434"),
         "AI_DATABASE_URL": "postgresql://ai:ai@db/ai", "AI_SERVICE_TOKEN": "t" * 30, "AI_TENANT_DATABASE": "acme_db",
     })
-    assert settings.provider == "ollama"
-    assert settings.model == "qwen2.5:7b"
-    assert settings.base_url == "http://ollama:11434"
-    assert settings.api_key is None
+    assert settings.platform_provider_file.endswith(".json")
     assert settings.default_timeout_seconds == 120
     assert settings.tenancy_mode == "dedicated" and settings.tenant_database == "acme_db"
 
 
-def test_cloud_provider_requires_an_api_key():
-    with pytest.raises(ValueError, match="AI_API_KEY"):
-        Settings.from_env({"AI_PROVIDER": "anthropic", "AI_MODEL": "claude-sonnet-4-5"})
-
-
-def test_unknown_provider_is_rejected():
-    with pytest.raises(ValueError, match="AI_PROVIDER"):
-        Settings.from_env({"AI_PROVIDER": "gemini", "AI_MODEL": "x"})
+def test_the_platform_provider_file_is_required_and_the_old_variables_are_not_read():
+    for environ in ({}, {PLATFORM_PROVIDER_FILE: "  "}, {"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_API_KEY": "k", "AI_BASE_URL": "http://o:1"}):
+        with pytest.raises(SettingsError) as error:
+            Settings.from_env({**environ, "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true"})
+        assert error.value.variable == PLATFORM_PROVIDER_FILE
 
 
 def test_cleanup_settings_need_only_the_database():
@@ -50,7 +45,7 @@ def test_retention_must_be_one_day_to_a_year(days):
     assert error.value.variable == "AI_RUN_RETENTION_DAYS"
 
 
-ENV = {"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_SERVICE_TOKEN": "t" * 30}
+ENV = {**platform_env(), "AI_SERVICE_TOKEN": "t" * 30}
 
 
 @pytest.mark.parametrize("flag", [None, "", "True", "1", "yes", "false"])
@@ -73,16 +68,14 @@ def test_token_required_without_dev_flag():
 
 
 def test_dev_flag_allows_missing_token():
-    settings = Settings.from_env({
-        "AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_DEV_INSECURE": "true", "AI_ALLOW_MEMORY_STATE": "true",
-    })
+    settings = Settings.from_env({**platform_env(), "AI_DEV_INSECURE": "true", "AI_ALLOW_MEMORY_STATE": "true"})
     assert settings.service_token is None
 
 
 def test_dev_flag_refused_with_database():
     with pytest.raises(SettingsError) as error:
         Settings.from_env({
-            "AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_DEV_INSECURE": "true",
+            **platform_env(), "AI_DEV_INSECURE": "true",
             "AI_ALLOW_MEMORY_STATE": "true", "AI_DATABASE_URL": "postgresql://x/liwan_ai",
         })
     assert error.value.variable == "AI_DEV_INSECURE"
@@ -102,18 +95,6 @@ def test_generation_identity_is_explicit_and_validated():
         with pytest.raises(SettingsError) as error:
             Settings.from_env({**env, "AI_GENERATION_ID": generation})
         assert error.value.variable == "AI_GENERATION_ID"
-
-
-@pytest.mark.parametrize("model", ["a\nb", "a\x00b", "a\x7fb", "a\x85b", "a\x9fb", "x" * 129])
-def test_a_model_name_the_usage_ledger_would_refuse_stops_the_boot(model):
-    with pytest.raises(SettingsError) as error:
-        Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": model, "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true"})
-    assert error.value.variable == "AI_MODEL"
-
-
-def test_the_longest_model_name_and_a_unicode_one_boot():
-    for model in ("x" * 128, "نموذج-١"):
-        assert Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": model, "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true"}).model == model
 
 
 def test_every_registered_provider_name_fits_the_usage_ledger_rule():

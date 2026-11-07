@@ -16,6 +16,8 @@ const PAGE_SIZE = 20
 const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
+const { me } = useMe()
+const timeZone = computed(() => me.value?.tz || 'UTC')
 const path = computed(() => props.personal ? '/account/requests' : props.scope === 'mine' ? '/operations' : `/operations/${props.scope}`)
 const { hydrated, filterQuery, page, search, committedSearch, update } = useRouteListFilters({ background: () => props.background, fallbackPath: () => path.value, safeReturnTo: safeOperationReturnTo })
 const allowed = computed(() => can(props.scope === 'pending' ? 'operations.requests.read' : props.scope === 'monitoring' ? 'operations.monitoring.read' : 'operations.requests.read'))
@@ -62,7 +64,7 @@ const columns = computed<TableColumn<OperationRequestSummary>[]>(() => [
 
 <template>
   <SharedForbiddenState v-if="!allowed" :description="t('operations.errors.forbidden')" />
-  <SharedListCard v-else-if="hydrated">
+  <SharedListCard v-else>
     <template #filters>
       <SharedFilterBar embedded class="w-full" :active-count="activeCount" :default-open="!!selectedState || !!selectedPurpose" :disabled="!hydrated" @clear="clearFilters">
         <template #search><form @submit.prevent="update({ q: search.trim() || undefined, page: undefined })"><UInput v-model="search" class="w-full" icon="i-lucide-search" :placeholder="t('operations.searchRequests')" :aria-label="t('operations.searchRequests')" :disabled="!hydrated" /></form></template>
@@ -83,12 +85,12 @@ const columns = computed<TableColumn<OperationRequestSummary>[]>(() => [
           <span class="inline-flex min-w-0 items-center gap-2"><SharedPersonAvatar :people="[row.original.requester]" /><span class="min-w-0 truncate text-sm">{{ row.original.requester.name }}</span></span>
         </template>
         <template #state-cell="{ row }"><SharedStatusBadge :tone="operationsStateTone(row.original.state)" :label="t(`operations.states.${row.original.state}`)" /></template>
-        <template #created_at-cell="{ row }"><time class="text-sm text-muted" :datetime="row.original.created_at">{{ formatDate(row.original.created_at) }}</time></template>
+        <template #created_at-cell="{ row }"><time class="text-sm text-muted" :datetime="row.original.created_at">{{ formatDate(row.original.created_at, timeZone) }}</time></template>
         <template #mobile-row="{ row }">
           <NuxtLink :to="requestTo(row)" class="flex min-w-0 flex-col gap-2">
             <span class="flex min-w-0 items-center gap-2"><SharedRecordNumber :value="row.id" /><span class="min-w-0 truncate font-semibold text-highlighted">{{ row.name }}</span></span>
             <span class="truncate text-sm text-muted">{{ row.process.name }} · {{ row.requester.name }}</span>
-            <span class="flex items-center justify-between gap-2"><SharedStatusBadge :tone="operationsStateTone(row.state)" :label="t(`operations.states.${row.state}`)" /><time class="text-sm text-muted" :datetime="row.created_at">{{ formatDate(row.created_at) }}</time></span>
+            <span class="flex items-center justify-between gap-2"><SharedStatusBadge :tone="operationsStateTone(row.state)" :label="t(`operations.states.${row.state}`)" /><time class="text-sm text-muted" :datetime="row.created_at">{{ formatDate(row.created_at, timeZone) }}</time></span>
           </NuxtLink>
         </template>
       </SharedDataTable>

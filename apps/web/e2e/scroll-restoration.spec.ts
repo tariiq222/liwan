@@ -1,4 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
+import { clearRenderedQueryCache } from './helpers/queryClient'
+import { waitForTaskListReady } from './helpers/taskListReady'
 
 // Runs against the mock API with MOCK_TASK_COUNT=60, which is what makes
 // /tasks taller than a viewport:
@@ -24,6 +26,7 @@ async function login(page: Page) {
 async function leaveListAtOffset(page: Page) {
   await page.goto('/tasks')
   await expect(page.locator('tbody tr').first()).toBeVisible()
+  await waitForTaskListReady(page)
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight)).toBeGreaterThan(LEAVE_AT + 768)
   await page.evaluate(top => window.scrollTo(0, top), LEAVE_AT)
   await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBe(LEAVE_AT)
@@ -70,18 +73,18 @@ test.describe('a list comes back to the row the reader left it on', () => {
 
     // Reaching the query client is how a test empties the cache without a
     // reload, which would also wipe the remembered offset the push back needs.
-    await page.evaluate(() => {
-      const root = document.querySelector('#__nuxt') ?? document.body.firstElementChild
-      const app = (root as unknown as { __vue_app__?: { _context: { provides: Record<string, { clear(): void }> } } })?.__vue_app__
-      app?._context.provides.VUE_QUERY_CLIENT?.clear()
-    })
+    const cleared = await clearRenderedQueryCache(page)
+    expect(cleared.before, 'the rendered provider must own cached queries before clearing').toBeGreaterThan(0)
+    expect(cleared.after, 'the query cache must actually be emptied for this to be a cold test').toBe(0)
     await page.route('**/api/v1/tasks?**', async (route) => {
       await new Promise(done => setTimeout(done, 1500))
       await route.continue()
     })
+    const listRequest = page.waitForRequest(request => new URL(request.url()).pathname === '/api/v1/tasks')
 
     await backControl(page).click()
     await page.waitForURL(/\/tasks(\?|$)/)
+    await listRequest
     // The document is one screen tall here, so the offset is out of reach.
     expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThan(left)
     expect(await page.evaluate(() => Math.round(window.scrollY))).toBe(0)

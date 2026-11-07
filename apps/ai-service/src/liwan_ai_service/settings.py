@@ -4,10 +4,11 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from liwan_ai_service.contracts import AI_STATE_VERSION, MODEL_NAME, PROVIDER_NAME
-from liwan_ai_service.provider_registry import REGISTRY
+from liwan_ai_service.contracts import AI_STATE_VERSION, MODEL_NAME
 from liwan_ai_service.tenancy import tenancy_from_env
 from liwan_ai_service.tenant_config import Keyring
+
+PLATFORM_PROVIDER_FILE = "AI_PLATFORM_PROVIDER_FILE"
 
 
 class SettingsError(ValueError):
@@ -115,10 +116,7 @@ class CleanupSettings:
 
 @dataclass(frozen=True)
 class Settings:
-    provider: str
-    model: str
-    api_key: str | None
-    base_url: str | None
+    platform_provider_file: str  # where the platform provider is read from (platform_provider.py); never an environment variable
     database_url: str | None
     default_timeout_seconds: int
     service_token: str | None = None
@@ -131,6 +129,7 @@ class Settings:
     tenant_database: str | None = None
     tenant_registry_path: str | None = None
     embedding: EmbeddingSettings | None = None  # knowledge retrieval (spec 2026-11-04 §6.3); None leaves it unavailable
+    tenant_egress_dir: str | None = None  # where each tenant key's host is published for ai-egress (tenant_egress.py); None: no proxy
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str]) -> Settings:
@@ -140,22 +139,10 @@ class Settings:
         generation_id = environ.get("AI_GENERATION_ID")
         if generation_id is not None and not GENERATION_ID.fullmatch(generation_id):
             raise SettingsError("AI_GENERATION_ID", "AI_GENERATION_ID must be a stable generation identifier")
-        provider = environ.get("AI_PROVIDER", "")
-        if provider not in REGISTRY:
-            msg = f"AI_PROVIDER must be one of {', '.join(REGISTRY)}, got {provider!r}"
-            raise SettingsError("AI_PROVIDER", msg)
-        if not re.fullmatch(PROVIDER_NAME, provider):  # reported with every provider call: a bad name fails the boot, not every plan
-            raise SettingsError("AI_PROVIDER", f"AI_PROVIDER must match {PROVIDER_NAME}")
-        model = environ.get("AI_MODEL", "").strip()
-        if not model:
-            msg = "AI_MODEL is required"
-            raise SettingsError("AI_MODEL", msg)
-        if not re.fullmatch(MODEL_NAME, model):
-            raise SettingsError("AI_MODEL", "AI_MODEL must be 1 to 128 characters without control characters")
-        api_key = environ.get("AI_API_KEY") or None
-        if REGISTRY[provider].needs_api_key and not api_key:
-            msg = f"AI_API_KEY is required for provider {provider}"
-            raise SettingsError("AI_API_KEY", msg)
+        platform_provider_file = environ.get(PLATFORM_PROVIDER_FILE, "").strip()
+        if not platform_provider_file:
+            msg = f"{PLATFORM_PROVIDER_FILE} is required: the JSON file that names the platform provider"
+            raise SettingsError(PLATFORM_PROVIDER_FILE, msg)
         dev_insecure = _dev_insecure(environ)
         database_url = environ.get("AI_DATABASE_URL", "").strip() or None
         if database_url is None and environ.get("AI_ALLOW_MEMORY_STATE") != "true":
@@ -163,10 +150,7 @@ class Settings:
             raise SettingsError("AI_DATABASE_URL", msg)
         tenancy_mode, tenant_database, tenant_registry_path = tenancy_from_env(environ)
         return cls(
-            provider=provider,
-            model=model,
-            api_key=api_key,
-            base_url=environ.get("AI_BASE_URL") or None,
+            platform_provider_file=platform_provider_file,
             database_url=database_url,
             default_timeout_seconds=int(environ.get("AI_DEFAULT_TIMEOUT_SECONDS", "120")),
             service_token=_service_token(environ, dev_insecure=dev_insecure),
@@ -179,4 +163,5 @@ class Settings:
             generation_id=generation_id,
             keyring=Keyring.from_env(environ),
             embedding=EmbeddingSettings.from_env(environ),
+            tenant_egress_dir=environ.get("AI_TENANT_EGRESS_DIR", "").strip() or None,
         )

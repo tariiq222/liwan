@@ -5,7 +5,7 @@ from datetime import date
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
-from .constants import FLOWS_FEATURE, REPLY_WINDOW
+from .constants import FLOWS_FEATURE, REPLY_WINDOWS
 from .flow import FIELD_KINDS, INPUT_KINDS
 
 MAX_TEXT = 4096
@@ -69,7 +69,7 @@ class LiwanInboxFlowSubmission(models.Model):
         if ignored:
             Message._liwan_post_system_note(conversation, NOTE_IGNORED % (flow.name, '، '.join(ignored)))
         if flow.completion_message and self.env['liwan.entitlement.service']._liwan_feature_write(FLOWS_FEATURE):
-            if fields.Datetime.now() - message.date > REPLY_WINDOW:
+            if fields.Datetime.now() - message.date > REPLY_WINDOWS[channel.kind]:
                 Message._liwan_post_system_note(conversation, NOTE_COMPLETION_STALE % flow.name)  # a late delivery is never answered
             else:
                 self.env['liwan.inbox.automation']._liwan_send(conversation, message, flow, NOTE_COMPLETION % flow.name)

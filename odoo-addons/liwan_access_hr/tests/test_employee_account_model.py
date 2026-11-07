@@ -84,7 +84,7 @@ class TestEmployeeAccountModel(TransactionCase):
         )
         with self.assertRaises(LiwanAccessRule) as error:
             self.admin_service._liwan_grant_employee_account(
-                foreign.id, 'foreign_pass_123', self.assignments,
+                foreign.id, 'foreign.person@example.com', self.assignments,
             )
         self.assertEqual(error.exception.code, 'not_found')
         self.assertEqual(error.exception.status, 404)
@@ -92,7 +92,7 @@ class TestEmployeeAccountModel(TransactionCase):
     def test_grant_links_the_same_company_employee_and_normalizes_the_login(self):
         employee = self._employee(email='  Person@Example.COM ')
         user = self.admin_service._liwan_grant_employee_account(
-            employee.id, 'person_pass_123', self.assignments,
+            employee.id, 'person@example.com', self.assignments,
         )
         employee.invalidate_recordset(['user_id'])
         self.assertEqual(user.login, 'person@example.com')
@@ -107,7 +107,7 @@ class TestEmployeeAccountModel(TransactionCase):
         employee = self._employee()
         with self.assertRaises(AccessError):
             self.service.with_user(self.employee_user)._liwan_grant_employee_account(
-                employee.id, 'person_pass_123', self.assignments,
+                employee.id, 'person@example.com', self.assignments,
             )
         employee.invalidate_recordset(['user_id'])
         self.assertFalse(employee.user_id)

@@ -1,3 +1,4 @@
+import { captureSessionQueryOwner } from '../lib/sessionQueryScope'
 import type { ZodType } from 'zod'
 import { saveErrorMessage } from '../utils/formFeedback'
 import { ApiErrorSchema } from '@liwan/contracts'
@@ -62,7 +63,15 @@ function structuredError(body: unknown) {
 }
 
 export function useApi() {
+  const captureRequestOwner = !import.meta.server ? captureSessionQueryOwner() : undefined
   const { t, te, locale } = useI18n()
+  function captureOwnerFor(path: string) {
+    const pathname = path.split('?')[0] ?? ''
+    return captureRequestOwner?.(/^\/api\/v1\/public\/[a-zA-Z0-9_/-]+$/.test(pathname) && !pathname.includes('..'))
+  }
+  function assertCurrentOwner(isCurrent: (() => boolean) | undefined) {
+    if (isCurrent?.() === false) throw new DOMException(t('errors.generic'), 'AbortError')
+  }
   // Cookie forwarding is only meaningful during SSR: on the client the browser
   // already attaches the session cookie to same-origin requests.
   const headers = import.meta.server ? useRequestHeaders(['cookie']) : {}
@@ -78,12 +87,14 @@ export function useApi() {
     path: string,
     opts: { method?: string; body?: unknown; query?: Record<string, unknown>; schema?: ZodType<T>; signal?: AbortSignal; headers?: Record<string, string> } = {},
   ): Promise<T> {
+    const requestOwnerIsCurrent = captureOwnerFor(path)
     const writing = !['GET', 'HEAD', 'OPTIONS'].includes((opts.method ?? 'GET').toUpperCase())
     try {
+      assertCurrentOwner(requestOwnerIsCurrent)
       const data = await $fetch<unknown>(path, {
         method: (opts.method ?? 'GET') as any,
         body: opts.body as any,
-        ...(writing ? { retry: 0 } : {}),
+        retry: 0,
         query: opts.query,
         signal: opts.signal,
         // Never forward a cookie or private hop identity to an absolute URL,
@@ -92,23 +103,29 @@ export function useApi() {
           ? { ...headers, ...trustedHeaders, ...opts.headers }
           : {},
       })
+      assertCurrentOwner(requestOwnerIsCurrent)
       return opts.schema ? opts.schema.parse(data) : (data as T)
     } catch (e: any) {
-      throw await toError(e, writing)
+      assertCurrentOwner(requestOwnerIsCurrent)
+      const error = await toError(e, writing, requestOwnerIsCurrent)
+      assertCurrentOwner(requestOwnerIsCurrent)
+      throw error
     }
   }
 
   /** What a failed request throws: a contract bug passes through, a structured refusal becomes an ApiError. */
-  async function toError(e: any, writing: boolean): Promise<Error> {
+  async function toError(e: any, writing: boolean, requestOwnerIsCurrent?: () => boolean): Promise<Error> {
     // A ZodError is a contract bug, not a user-facing API error: let it
     // propagate unchanged rather than wrapping it as an ApiError.
+    if (e?.name === 'AbortError') return e
+    if (e?.cause?.name === 'AbortError') return e.cause
     if (e?.name === 'ZodError' || e?.cause?.name === 'ZodError') return e
     const status: number = e?.statusCode ?? e?.response?.status ?? 0
     const parsed = structuredError(await errorBody(e?.data))
     const sessionRefusal = status === 401 || status === 403
     if ((status === 403 && parsed.data?.code === TENANT_SUSPENDED) || (sessionRefusal && isTenantSuspended())) {
       // The suspension ended the session: every session refusal that follows it reads as the suspension itself.
-      reportTenantSuspension()
+      if (requestOwnerIsCurrent?.() !== false) reportTenantSuspension()
       return new ApiError(403, TENANT_SUSPENDED, t(`errors.codes.${TENANT_SUSPENDED}`))
     }
     if (parsed.success) {
@@ -149,17 +166,23 @@ export function useApi() {
   /** A file route: the raw body and the file name the server chose. A refusal is the same ApiError `$api` throws.
    * A file that is kept server-side is a JSON POST (`{ method: 'POST', body }`), never a GET. */
   async function $download(path: string, opts: { method?: string; body?: unknown } = {}): Promise<{ blob: Blob; filename: string | null }> {
+    const requestOwnerIsCurrent = captureOwnerFor(path)
     try {
+      assertCurrentOwner(requestOwnerIsCurrent)
       const response = await $fetch.raw<Blob>(path, {
         responseType: 'blob',
         method: (opts.method ?? 'GET') as any,
         body: opts.body as any,
-        ...(opts.method && opts.method !== 'GET' ? { retry: 0 } : {}),
+        retry: 0,
         headers: /^\/api\/v1\/[a-zA-Z0-9_/-]+$/.test(path.split('?')[0] ?? '') && !path.includes('..') ? { ...headers, ...trustedHeaders } : {},
       })
+      assertCurrentOwner(requestOwnerIsCurrent)
       return { blob: response._data as Blob, filename: contentDispositionFilename(response.headers.get('content-disposition')) }
     } catch (e: any) {
-      throw await toError(e, false)
+      assertCurrentOwner(requestOwnerIsCurrent)
+      const error = await toError(e, false, requestOwnerIsCurrent)
+      assertCurrentOwner(requestOwnerIsCurrent)
+      throw error
     }
   }
 

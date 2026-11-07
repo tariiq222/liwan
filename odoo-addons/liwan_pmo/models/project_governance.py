@@ -6,7 +6,6 @@ from psycopg2.errors import ForeignKeyViolation, UniqueViolation
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
-from odoo.fields import Domain
 from odoo.tools import SQL
 
 GOVERNANCE_ROLES = ('R', 'A', 'C', 'I')
@@ -27,8 +26,10 @@ def _check_project(project, manage=False):
         msg = "The project is outside the active company or archived."
         raise AccessError(msg)
     project._liwan_check_visible_current()
+    project._liwan_check_tool('governance')
     if manage:
         project._liwan_check_manage()
+        project._liwan_check_tool_write('governance')
     return project
 
 
@@ -84,55 +85,9 @@ REGISTER_WRITABLE = {'project_id', 'kind', 'title', 'description', 'priority', '
 
 class GovernanceVisibility(models.AbstractModel):
     _name = 'liwan.governance.visibility'
+    _inherit = 'liwan.project.child.visibility'
     _description = 'Caller-scoped governance visibility'
-    _liwan_governance_task_mode = None
-
-    def _liwan_visibility_domain(self):
-        # Odoo evaluates ir.rule domains with sudo, including relational `any`.
-        # Build the related queries in the original caller environment instead.
-        # Query objects remain SQL subqueries; no ids or environments are cached.
-        projects = self.env['project.project']._search([
-            ('active', '=', True), ('company_id', 'in', self.env.companies.ids),
-        ])
-        domain = Domain('project_id', 'in', projects)
-        if self._liwan_governance_task_mode:
-            try:
-                tasks = self.env['project.task']._search([
-                    ('active', '=', True), ('company_id', 'in', self.env.companies.ids),
-                    ('project_id.active', '=', True),
-                ])
-                task_domain = Domain('task_id', 'in', tasks)
-            except AccessError:
-                task_domain = Domain.FALSE
-            if self._liwan_governance_task_mode == 'optional':
-                task_domain |= Domain('task_id', '=', False)
-            domain &= task_domain
-        return domain
-
-    @api.model
-    def _search(self, domain, offset=0, limit=None, order=None, *, active_test=True, bypass_access=False):
-        if not self.env.su:
-            domain = Domain(domain) & self._liwan_visibility_domain()
-        return super()._search(domain, offset=offset, limit=limit, order=order, active_test=active_test, bypass_access=bypass_access)
-
-    def _check_access(self, operation):
-        denied = super()._check_access(operation)
-        if denied or self.env.su or not any(self._ids):
-            return denied
-        # This hook also protects field fetch/read, has_access and cached rows.
-        # The empty-record ACL check inside _search does not recurse here.
-        visible = self.browse(self._search([('id', 'in', self.ids)]))
-        forbidden = self - visible
-        if forbidden:
-            return forbidden, lambda: AccessError("Governance records require readable active current-company projects and tasks.")
-        return None
-
-    def _liwan_check_manage(self):
-        self.check_access('read')
-        self._liwan_check_visible()
-        for record in self:
-            _check_project(record.project_id, manage=True)
-        return self
+    _liwan_tool_key = 'governance'
 
 
 class ProjectStakeholder(models.Model):

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { VENDOR_ROLES } from '@liwan/commercial-contracts'
-import { capabilitiesFor } from '../roles.js'
+import { capabilitiesFor, rolesGranting, STEP_UP_CAPABILITIES } from '../roles.js'
 import { normalizeEmail } from '../accounts.js'
 
 describe('roles', () => {
@@ -11,7 +11,9 @@ describe('roles', () => {
     expect(capabilitiesFor(['product'])).toEqual(['vendor.catalog.manage','vendor.pricing.manage','vendor.read'])
     expect(capabilitiesFor(['operations'])).toEqual(['vendor.operations.run','vendor.read'])
     expect(capabilitiesFor(['support'])).toEqual(['vendor.audit.read','vendor.read'])
-    expect(capabilitiesFor(['owner'])).toHaveLength(9)
+    expect(capabilitiesFor(['owner'])).toHaveLength(10)
+    expect(rolesGranting('vendor.ai.manage')).toEqual(['owner'])  // the platform AI provider holds a key: the owner only, by default
+    expect(STEP_UP_CAPABILITIES).toContain('vendor.ai.manage')
     expect(capabilitiesFor(['finance','customer_success'])).toEqual(['vendor.billing.manage','vendor.read','vendor.subscriptions.manage','vendor.tenants.manage'])
     expect(capabilitiesFor([])).toEqual([])
   })

@@ -105,11 +105,11 @@ function openLink(project: ProjectListItem, event: MouseEvent) {
       <template #manager-cell="{ row }"><SharedPersonAvatar :people="row.original.manager ? [row.original.manager] : []" /></template>
       <template #status-cell="{ row }"><SharedStatusBadge v-bind="projectStatusPill(row.original.status, t)" data-testid="project-status" /></template>
       <template #date_end-cell="{ row }">
-        <SharedStatusBadge v-if="endTag(row.original)" v-bind="endTag(row.original)!" size="sm" data-testid="project-end-date" :aria-label="`${endTag(row.original)!.label} ${endTag(row.original)!.title}`" />
+        <SharedStatusBadge v-if="hydrated && endTag(row.original)" v-bind="endTag(row.original)!" size="sm" data-testid="project-end-date" :aria-label="`${endTag(row.original)!.label} ${endTag(row.original)!.title}`" />
         <span v-else class="text-muted">—</span>
       </template>
       <template #progress-cell="{ row }">
-        <ProjectProgress :progress="row.original.progress" :task-count="row.original.task_count" :closed-task-count="row.original.closed_task_count" :tone="projectProgressTone(row.original)" />
+        <ProjectProgress :progress="row.original.progress" :task-count="row.original.task_count" :closed-task-count="row.original.closed_task_count" :tone="projectProgressTone(hydrated ? row.original : { ...row.original, date_end: null })" />
       </template>
       <template #menu-cell="{ row }">
         <ProjectMenu :project="row.original" :to="toFor(row.original)" @archive="archive.request(row.original)" />

@@ -72,12 +72,14 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   ACL and record-rule environment, which tasks or meetings are still readable.
   Meeting-only access must not reveal task/digest notifications. Do not add an
   undocumented bypass.
-- The project charter is written as a stepper: basics, then the optional
-  steps the project type configures (`charter_steps` on `liwan.project.type`,
-  exposed on the types catalog and on `charter.type`), then review. The
-  charter carries `state` (`draft | final`); a new charter is a draft and the
-  review step finalizes it. `/projects/new` uses the route-backed create panel
-  (`SharedCreatePanel`), like other `/new` routes.
+- Project creation uses the existing route-backed `SharedCreatePanel` and one
+  create request; core objectives and success criteria are independent of the
+  charter. The charter editor remains a governance-only stepper, with the
+  project type's optional steps and `draft | submitted | approved` states.
+  Live company tool policies (`enabled | optional | disabled`) govern all
+  current/new projects; only optional preferences are project-writable.
+  DESIGN.md owns presentation. Enabling a tool does not implicitly require
+  approval, and tool policies never bypass capabilities or entitlements.
 - Task comments are one conversation per task family: `/tasks/{id}/timeline`
   returns the comments of the topmost readable ancestor and every readable
   descendant (each carries `task`), while tracking entries stay per task. A
@@ -213,9 +215,9 @@ TAGS="/${MODULES//,/,/}"
 ## Account contact create (R9 exception)
 
 The access-grant capability (`group_cap_access_users_grant`) holds no `res.partner` create ACL.
-`liwan.access.service._liwan_create_account` creates the one contact of a new account inside
-`protected_write.marked` with `PARTNER_CREATE_MARKER` set to the caller's uid, after its own
-`access.users.grant` check, and the `odoo-addons/liwan_core/models/res_partner.py` override of the public
+`liwan.access.service._liwan_create_invitee` (called by `_liwan_invite_account`, which holds the
+`access.users.grant` check; the account has no password until its holder accepts the emailed invitation) creates the one
+contact of a new account inside `protected_write.marked` with `PARTNER_CREATE_MARKER` set to the caller's uid, and the `odoo-addons/liwan_core/models/res_partner.py` override of the public
 `check_access` passes only the `create` operation while that marker holds the current uid; every other
 operation and every other caller keeps Odoo's ACLs and record rules. No Odoo method body is copied.
 Regression evidence: `test_grant_capability_creates_a_contact_only_inside_the_account_create` in

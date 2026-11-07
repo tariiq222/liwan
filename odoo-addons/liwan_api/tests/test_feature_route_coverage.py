@@ -4,6 +4,7 @@ from odoo.tests import TransactionCase, tagged
 BASE_PATHS = {
     '/api/v1/me',
     '/api/v1/me/password',
+    '/api/v1/me/mobile',
     '/api/v1/me/appearance',
     '/api/v1/branding',
 }

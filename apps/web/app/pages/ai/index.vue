@@ -13,12 +13,13 @@ import AiLimitNotice from '@/components/ai/AiLimitNotice.vue'
 import AiMessage from '@/components/ai/AiMessage.vue'
 import AiRecordCards from '@/components/ai/AiRecordCards.vue'
 import AiToolTrace from '@/components/ai/AiToolTrace.vue'
+import type { AiConversationMode } from '@liwan/contracts'
 import { isBlockingLimit, useAiRun } from '@/composables/useAiRun'
 import { useAttention } from '@/composables/useAttention'
 import { useAiConversation } from '@/composables/useAiConversation'
 import { aiRunKeys, useAiRuns } from '@/composables/useAiRuns'
 import { latestPendingIndex } from '@/utils/aiThread'
-import { AI_STARTER_KEYS, followUpKeys } from '@/utils/aiSuggestions'
+import { AI_HELP_STARTER_KEYS, AI_STARTER_KEYS, followUpKeys } from '@/utils/aiSuggestions'
 import { parseAiContext } from '@/utils/aiContext'
 import { forgetCreatedId, parseCreatedId, prepareDraftHandoff, readCreatedId, rememberCreatedId } from '@/utils/aiDraft'
 
@@ -27,7 +28,7 @@ const router = useRouter()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const config = useRuntimeConfig()
-const { runId, status, items, limit, error, unavailable, send, decide, load, reset } = useAiRun()
+const { runId, mode: runMode, status, items, limit, error, unavailable, send, decide, load, reset } = useAiRun()
 const queryClient = useQueryClient()
 const { me } = useMe()
 const { rows: attentionRows } = useAttention('all', { limit: 3 })
@@ -43,8 +44,15 @@ const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
 
 // `?context=project:12` comes from the page the user opened the assistant from.
 const context = computed(() => parseAiContext(route.query.context))
-// Opened from the AI settings (`?mode=setup`): a conversation with the setup agent only.
-const setupMode = computed(() => route.query.mode === 'setup')
+// `?mode=setup` (from the AI settings) or `?mode=help` (from the help entries) chooses the mode of a NEW conversation only.
+const queryMode = computed<AiConversationMode | null>(() => (route.query.mode === 'setup' || route.query.mode === 'help' ? route.query.mode : null))
+// An open conversation (or one opened by `?run=`) keeps the mode it started in, which the server reports: the URL cannot change it.
+const mode = computed<AiConversationMode | null>(() => {
+  if (runId.value === null && typeof route.query.run !== 'string') return queryMode.value
+  return runMode.value === 'setup' || runMode.value === 'help' ? runMode.value : null
+})
+// The help entry keeps the page the assistant was opened from, so the help agent knows which page is meant.
+const helpTo = computed(() => ({ path: '/ai', query: { mode: 'help', ...(typeof route.query.context === 'string' ? { context: route.query.context } : {}) } }))
 const streaming = computed(() => status.value === 'streaming')
 // A pending card is answered before another message: the service holds one pending call per run.
 const composerDisabled = computed(() => !hydrated.value || isBlockingLimit(limit.value) || status.value === 'waiting_user')
@@ -58,10 +66,11 @@ const runTitle = computed(() => {
   const firstQuestion = items.value.find(item => item.kind === 'user')
   return listed ?? (firstQuestion?.kind === 'user' ? firstQuestion.text : t('ai.history.untitled'))
 })
-const starters = computed(() => AI_STARTER_KEYS.map(key => t(`ai.starters.${key}`)))
+const starters = computed(() => mode.value === 'help' ? AI_HELP_STARTER_KEYS.map(key => t(`ai.helpStarters.${key}`)) : AI_STARTER_KEYS.map(key => t(`ai.starters.${key}`)))
 const followUps = computed(() => followUpKeys(context.value?.page ?? null).map(key => t(`ai.followUps.${key}`)))
 // Follow-ups follow the newest finished reply; while an answer streams or a card waits for a decision there is nothing to ask next.
-const showFollowUps = computed(() => !streaming.value && status.value !== 'waiting_user' && items.value.at(-1)?.kind === 'assistant')
+// A help conversation reads the guide, not the company's records: the follow-ups about tasks and projects do not apply.
+const showFollowUps = computed(() => mode.value !== 'help' && !streaming.value && status.value !== 'waiting_user' && items.value.at(-1)?.kind === 'assistant')
 
 // The thread scrolls inside the card: stay at the bottom while the reader is there, and always after their own message or a reopened run.
 const NEAR_BOTTOM_PX = 120
@@ -89,9 +98,9 @@ watch([identity, currentRunId], ([owner, id], [beforeOwner]) => {
 // Reopen a run by link/refresh; a `resume` query means the create page finished (or left) a draft.
 onMounted(async () => {
   if (disabledByConfig.value) return
-  // Without `?run=` the conversation the sheet has open continues here, except that the setup assistant always starts
-  // a conversation of its own (an ordinary one would keep its mode and never offer the setup tools).
-  if (setupMode.value && typeof route.query.run !== 'string') currentRunId.value = null
+  // Without `?run=` the conversation the sheet has open continues here, except that a free agent always starts
+  // a conversation of its own (an ordinary one would keep its mode and never offer that agent's tools).
+  if (queryMode.value && typeof route.query.run !== 'string') currentRunId.value = null
   const id = typeof route.query.run === 'string' ? route.query.run : currentRunId.value
   if (!id) return
   const owner = identity.value
@@ -134,7 +143,7 @@ function openDraft(item: { callId: string; tool: string; payload: Record<string,
 }
 
 async function onSend(text: string) {
-  await send(text, context.value, setupMode.value ? 'setup' : undefined)
+  await send(text, context.value, mode.value ?? undefined)
 }
 
 // The address follows the conversation as soon as the service names it, so a new-conversation click always changes the route.
@@ -145,9 +154,9 @@ watch(runId, async (id) => {
   if (id && route.query.run !== id) await router.replace({ path: '/ai', query: { ...route.query, run: id } })
 }, { flush: 'sync' })
 
-// Opening the setup assistant while this page is already shown starts a fresh setup conversation.
-watch(setupMode, (setup) => {
-  if (setup && typeof route.query.run !== 'string') currentRunId.value = null
+// Opening a free agent while this page is already shown starts a fresh conversation with it.
+watch(queryMode, (now) => {
+  if (now && typeof route.query.run !== 'string') currentRunId.value = null
 })
 
 // The history list opens another conversation or starts a new one by changing `?run=` (back/forward do the same).
@@ -178,9 +187,9 @@ watch(status, (now, before) => {
     <SharedListCard fill class="max-md:h-[75svh]">
       <SharedEmptyState v-if="showUnavailable" :title="t('ai.errors.unavailable')" data-testid="ai-unavailable" />
       <template v-else>
-        <p v-if="setupMode" class="flex shrink-0 items-center gap-2 border-b border-default px-4 py-2 text-sm text-muted" data-testid="ai-setup-banner">
-          <UIcon name="i-lucide-wand-sparkles" aria-hidden="true" class="size-4 shrink-0" />
-          <span>{{ t('ai.setup.banner') }}</span>
+        <p v-if="mode" class="flex shrink-0 items-center gap-2 border-b border-default px-4 py-2 text-sm text-muted" :data-testid="`ai-${mode}-banner`">
+          <UIcon :name="mode === 'help' ? 'i-lucide-circle-help' : 'i-lucide-wand-sparkles'" aria-hidden="true" class="size-4 shrink-0" />
+          <span>{{ t(`ai.${mode}.banner`) }}</span>
         </p>
         <header v-if="conversation" class="flex shrink-0 items-center gap-3 border-b border-default px-4 py-3" data-testid="ai-topbar">
           <h2 dir="auto" class="min-w-0 truncate text-sm font-semibold text-highlighted">{{ runTitle }}</h2>
@@ -199,7 +208,7 @@ watch(status, (now, before) => {
               <AiContextChip v-if="context" :page="context.page" />
             </div>
             <AiComposer :disabled="composerDisabled" :pending="streaming" @send="onSend" />
-            <section v-if="attentionRows.length" :aria-label="t('ai.glance.title')" class="flex flex-col gap-3" data-testid="ai-glance">
+            <section v-if="!mode && attentionRows.length" :aria-label="t('ai.glance.title')" class="flex flex-col gap-3" data-testid="ai-glance">
               <h3 class="text-sm font-semibold text-highlighted">{{ t('ai.glance.title') }}</h3>
               <ul class="liwan-auto-grid gap-3">
                 <li v-for="row in attentionRows" :key="row.id">
@@ -215,6 +224,9 @@ watch(status, (now, before) => {
               </ul>
             </section>
             <AiSuggestionChips :items="starters" :label="t('ai.starters.label')" :disabled="composerDisabled" @pick="onSend" />
+            <div v-if="!mode" class="flex justify-center" data-testid="ai-help-entry">
+              <UButton :to="helpTo" color="neutral" variant="soft" icon="i-lucide-circle-help" :label="t(context ? 'ai.help.askPage' : 'ai.help.open')" data-testid="ai-help-open" />
+            </div>
             <p class="flex items-center justify-center gap-2 text-center text-xs text-muted">
               <UIcon name="i-lucide-shield-check" aria-hidden="true" class="size-4 shrink-0" />
               <span>{{ t('ai.note') }}</span>

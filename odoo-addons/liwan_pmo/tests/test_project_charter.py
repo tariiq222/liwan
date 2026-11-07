@@ -1,14 +1,14 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.exceptions import AccessError, ValidationError
-from odoo.tests import TransactionCase, new_test_user, tagged
+from odoo.tests import new_test_user, tagged
 
 from .common import LiwanPmoCase
 from .test_projects import DETAIL_KEYS
 
 CHARTER_KEYS = {
-    'code', 'type', 'owning_unit', 'sponsor', 'authority', 'rationale', 'objectives',
+    'code', 'type', 'owning_unit', 'sponsor', 'authority', 'rationale',
     'benefits', 'scope', 'exclusions', 'high_level_requirements', 'deliverables',
-    'success', 'budget_state', 'amount', 'currency', 'priority', 'assumptions',
+    'budget_state', 'amount', 'currency', 'priority', 'assumptions',
     'constraints', 'closure', 'state', 'approval_required', 'can_review',
     'submitted_by', 'submitted_at', 'approved_by', 'approved_at', 'return_note',
 }
@@ -45,14 +45,19 @@ class TestProjectCharterApi(LiwanPmoCase):
         self.assertEqual(body['charter']['budget_state'], 'unknown')
         self.assertIsNone(body['charter']['amount'])
         self.assertEqual(body['charter']['authority'], '')
-        self.assertEqual(body['charter']['objectives'], [])
+        self.assertEqual(body['objectives'], [])
         self.assertEqual(body['charter']['state'], 'draft')
         self.assertEqual(self.api('POST', '/api/v1/projects', {'name': 'Nope', 'secret': 1}).status_code, 422)
 
     def test_full_charter_roundtrip_and_partial_rows(self):
         self.authenticate('api_mgr', 'api_mgr_pass_123')
-        res = self.api('POST', '/api/v1/projects', {
+        created = self.api('POST', '/api/v1/projects', {
             'name': 'Full charter',
+            'objectives': [{'goal': 'Ship', 'metric': '', 'target': ''}],
+            'success_criteria': 'Done',
+        }).json()
+        res = self.api('PATCH', f"/api/v1/projects/{created['id']}", {
+            'expected_updated_at': created['updated_at'],
             'description': '<p>d</p>',
             'user_id': self.manager.id,
             'date_start': '2030-01-01',
@@ -63,13 +68,11 @@ class TestProjectCharterApi(LiwanPmoCase):
                 'sponsor_id': self.employee.id,
                 'authority': 'Board note',
                 'rationale': 'Need it',
-                'objectives': [{'goal': 'Ship', 'metric': '', 'target': ''}],
                 'benefits': 'Faster',
                 'scope': 'In',
                 'exclusions': 'Out',
                 'high_level_requirements': 'Req',
                 'deliverables': [{'name': 'Doc', 'description': '', 'acceptance': 'Signed'}],
-                'success': 'Done',
                 'budget_state': 'estimate',
                 'amount': 0,
                 'priority': 'high',
@@ -78,7 +81,7 @@ class TestProjectCharterApi(LiwanPmoCase):
                 'closure': 'Close when signed',
             },
         })
-        self.assertEqual(res.status_code, 201, res.text)
+        self.assertEqual(res.status_code, 200, res.text)
         charter = res.json()['charter']
         self.assertEqual(charter['type']['id'], self.type_tech.id)
         self.assertEqual(set(charter['type']), {'id', 'name', 'charter_steps'})
@@ -108,9 +111,9 @@ class TestProjectCharterApi(LiwanPmoCase):
             'name': 'Draft charter',
             'charter': {'rationale': 'Partial', 'state': 'draft'},
         })
-        self.assertEqual((created.status_code, created.json()['field']), (422, 'state'))
+        self.assertEqual((created.status_code, created.json()['field']), (422, 'charter'))
         created = self.api('POST', '/api/v1/projects', {
-            'name': 'Draft charter', 'charter': {'rationale': 'Partial'},
+            'name': 'Draft charter',
         })
         self.assertEqual(created.status_code, 201, created.text)
         body = created.json()
@@ -130,7 +133,7 @@ class TestProjectCharterApi(LiwanPmoCase):
         path = f"/api/v1/projects/{created['id']}"
         empty_row = self.api('PATCH', path, {
             'expected_updated_at': token,
-            'charter': {'objectives': [{'goal': '', 'metric': '', 'target': ''}]},
+            'objectives': [{'goal': '', 'metric': '', 'target': ''}],
         })
         self.assertEqual((empty_row.status_code, empty_row.json()['field']), (422, 'objectives'))
         extra_key = self.api('PATCH', path, {
@@ -151,8 +154,9 @@ class TestProjectCharterApi(LiwanPmoCase):
 
     def test_budget_zero_unknown_and_inconsistent(self):
         self.authenticate('api_mgr', 'api_mgr_pass_123')
-        created = self.api('POST', '/api/v1/projects', {
-            'name': 'Budget',
+        core = self.api('POST', '/api/v1/projects', {'name': 'Budget'}).json()
+        created = self.api('PATCH', f"/api/v1/projects/{core['id']}", {
+            'expected_updated_at': core['updated_at'],
             'charter': {'budget_state': 'estimate', 'amount': 0},
         }).json()
         self.assertEqual(created['charter']['amount'], 0)
@@ -271,8 +275,9 @@ class TestProjectCharterApi(LiwanPmoCase):
 
     def test_inactive_ref_unchanged_and_foreign_company_rejected(self):
         self.authenticate('api_mgr', 'api_mgr_pass_123')
-        created = self.api('POST', '/api/v1/projects', {
-            'name': 'Refs',
+        core = self.api('POST', '/api/v1/projects', {'name': 'Refs'}).json()
+        created = self.api('PATCH', f"/api/v1/projects/{core['id']}", {
+            'expected_updated_at': core['updated_at'],
             'charter': {'type_id': self.type_tech.id, 'owning_unit_id': self.unit.id},
         }).json()
         self.type_tech.active = False
@@ -298,12 +303,13 @@ class TestProjectCharterApi(LiwanPmoCase):
         self.assertEqual(unchanged['charter']['type']['id'], self.type_tech.id)
 
 
-@tagged('liwan')
-class TestProjectCharterModel(TransactionCase):
+@tagged('post_install', '-at_install', 'liwan')
+class TestProjectCharterModel(LiwanPmoCase):
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        cls.env['liwan.pmo.settings'].set_values({f'{key}_tool_policy': 'enabled' for key in ('planning', 'governance', 'finance')})
         cls.manager = new_test_user(
             cls.env, login='charter_mgr',
             groups='liwan_core.group_employee,project.group_project_manager',
@@ -327,9 +333,7 @@ class TestProjectCharterModel(TransactionCase):
         self.assertTrue(project.liwan_code)
         self.assertEqual(project.liwan_revision, 1)
         with self.assertRaises(ValidationError):
-            project._liwan_write_as_manager({'liwan_objectives': [{'goal': '', 'metric': '', 'target': ''}]})
-        with self.assertRaises(ValidationError):
-            project.with_user(self.manager).write({'liwan_objectives': 0})
+            project._liwan_write_as_manager({'liwan_objective_ids': [(0, 0, {'goal': ''})]})
         with self.assertRaises(ValidationError):
             project.with_user(self.manager).write({'liwan_deliverables': 0.0})
         with self.assertRaises(AccessError):

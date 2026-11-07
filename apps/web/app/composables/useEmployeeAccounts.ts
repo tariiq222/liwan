@@ -1,6 +1,6 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
-import { useQuery } from '@tanstack/vue-query'
+import { keepPreviousData, useQuery } from '@tanstack/vue-query'
 import {
   AdminUserDetailSchema,
   EmployeeAccountCandidateListSchema,
@@ -41,6 +41,7 @@ export function useEmployeeAccountCandidates(params: MaybeRefOrGetter<EmployeeAc
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => employeeAccountKeys.candidates(toValue(params))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => toValue(enabled)),
     queryFn: () => $api('/api/v1/admin/employee-accounts/candidates', { query: employeeAccountCandidateQuery(toValue(params)), schema: EmployeeAccountCandidateListSchema }),
   })

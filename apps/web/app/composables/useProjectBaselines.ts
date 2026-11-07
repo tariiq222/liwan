@@ -1,5 +1,5 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   BaselineVarianceSchema, ProjectBaselineDetailSchema, ProjectBaselineListSchema, type ProjectBaselineWrite,
 } from '@liwan/contracts'
@@ -11,6 +11,7 @@ export function useProjectBaselines(projectId: MaybeRefOrGetter<number | null>, 
   const query = computed(() => ({ limit: BASELINE_PAGE, offset: toValue(offset) }))
   return useQuery({
     queryKey: computed(() => baselineKeys.list(toValue(projectId) ?? 0, query.value)),
+    placeholderData: keepPreviousData,
     enabled: computed(() => !!toValue(projectId)),
     queryFn: () => $api(`/api/v1/projects/${toValue(projectId)}/baselines`, { query: query.value, schema: ProjectBaselineListSchema }),
   })

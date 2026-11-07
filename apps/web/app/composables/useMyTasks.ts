@@ -10,7 +10,7 @@ import {
   PersonalTaskSchema,
   type PersonalTask,
 } from '@liwan/contracts'
-import { ApiError } from './useApi'
+import { retryQuery } from '../lib/vueQuerySsr'
 import { myTaskKeys } from './myTaskKeys'
 
 type Api = ReturnType<typeof useApi>['$api']
@@ -114,10 +114,8 @@ export const fetchMyTaskAttachments = ($api: Api, id: number | null) =>
 export const fetchConvertTargets = ($api: Api, q: string) =>
   $api('/api/v1/my-tasks/convert-targets', { query: { q: q.trim() || undefined }, schema: ConvertTargetsSchema })
 
-// A missing or foreign personal task answers 404 (403 for a withdrawn permission) and stays so:
-// retrying only delays the not-found state. Anything else is retried once, as everywhere.
-export const retryMyTask = (failureCount: number, error: unknown) =>
-  !(error instanceof ApiError && [403, 404].includes(error.status)) && failureCount < 1
+// Reuse the shared transport-only retry budget; deterministic refusals and schema bugs stay settled.
+export const retryMyTask = retryQuery
 
 const validId = (id: MaybeRefOrGetter<number | null>) => computed(() => Number.isInteger(toValue(id)))
 

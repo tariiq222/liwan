@@ -1,8 +1,12 @@
+import { useQueryClient } from '@tanstack/vue-query'
+import type { ProjectDetail } from '@liwan/contracts'
+import { projectKeys } from './projectKeys'
 import { projectEntryLocation, savedProjectLocation } from '@/utils/projectWorkspaceMemory'
 
 /** Preferences are local to this browser, company and authenticated user. */
 export function useProjectWorkspaceMemory() {
   const { me } = useMe()
+  const qc = useQueryClient()
   const hydrated = useHydrated()
   function key(id: number) {
     return me.value ? `liwan:project-location:v1:${me.value.company.id}:${me.value.id}:${id}` : null
@@ -21,7 +25,7 @@ export function useProjectWorkspaceMemory() {
     if (import.meta.client && hydrated.value && storageKey) {
       try { saved = JSON.parse(localStorage.getItem(storageKey) ?? 'null') } catch { /* Fall back to the normal project entry. */ }
     }
-    const location = projectEntryLocation(id, origin, saved)
+    const location = projectEntryLocation(id, origin, saved, qc.getQueryData<ProjectDetail>(projectKeys.detail(id))?.tools)
     // A changed role must not restore a task view it can no longer read.
     const taskSection = /\/(tasks|milestones|schedule)$/.test(location.path)
       || (location.path === `/projects/${id}` && !!location.query.tab && location.query.tab !== 'summary')

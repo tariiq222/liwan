@@ -9,7 +9,7 @@ function deferred() {
   return { promise, resolve }
 }
 
-function loadGuard(client = true, suspended = false) {
+function loadGuard(client = true, suspended = false, hydrating = false) {
   const ready = deferred()
   const notification = deferred()
   const me = ref<unknown>(suspended ? null : { id: 1 })
@@ -20,7 +20,7 @@ function loadGuard(client = true, suspended = false) {
   const planDenialCode = vi.fn((): string | null => null)
   const bindings = {
     defineNuxtRouteMiddleware: (handler: unknown) => handler,
-    useNuxtApp: () => ({ $i18n: { t: (key: string) => key }, callHook }),
+    useNuxtApp: () => ({ $i18n: { t: (key: string) => key }, callHook, isHydrating: hydrating, payload: { serverRendered: true } }),
     useMe: () => ({ me, error: ref(suspended ? { statusCode: 403, data: { code: 'tenant_suspended' } } : null), ready: ready.promise, refresh }),
     canReachPath,
     appRootFallback,
@@ -126,4 +126,12 @@ it('replaces an app root the identity cannot open with its first allowed page', 
   expect(view.appRootFallback).toHaveBeenCalledWith({ id: 2 }, '/finance')
   expect(view.navigateTo).toHaveBeenCalledWith('/finance/payments', { replace: true })
   expect(view.canReachPath).not.toHaveBeenCalled()
+})
+
+it('reuses the already checked server identity during initial hydration', async () => {
+  const view = loadGuard(true, false, true)
+  view.ready.resolve(); view.notification.resolve()
+  await view.guard({ path: '/projects', fullPath: '/projects' })
+  expect(view.refresh).not.toHaveBeenCalled()
+  expect(view.canReachPath).toHaveBeenCalledWith({ id: 1 }, '/projects')
 })

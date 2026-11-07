@@ -9,7 +9,7 @@ test.describe('Plan 6d: an access-log event', () => {
     test.use({ viewport: { width: 1440, height: 900 } })
 
     test('is the record template with the facts in the aside and before/after sections', async ({ page }) => {
-      await openClientSide(page, '/settings/team/access-log/31?action=user.granted')
+      await openClientSide(page, '/settings/team/access-log/31?action=user.invited')
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
       await expect(page.locator('[data-template="record"]')).toHaveCount(1)
       await expect(page.getByTestId('settings-layout')).toBeVisible()
@@ -23,9 +23,9 @@ test.describe('Plan 6d: an access-log event', () => {
     })
 
     test('the back link returns to the log with its filters', async ({ page }) => {
-      await openClientSide(page, '/settings/team/access-log/31?action=user.granted&offset=25')
+      await openClientSide(page, '/settings/team/access-log/31?action=user.invited&offset=25')
       await page.getByRole('link', { name: 'رجوع' }).first().click()
-      await expect(page).toHaveURL(/\/settings\/team\/access-log\?.*action=user\.granted/)
+      await expect(page).toHaveURL(/\/settings\/team\/access-log\?.*action=user\.invited/)
     })
 
     test('a missing event shows the not-found state under one heading', async ({ page }) => {

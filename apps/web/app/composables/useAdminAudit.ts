@@ -1,6 +1,6 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
-import { useQuery } from '@tanstack/vue-query'
+import { keepPreviousData, useQuery } from '@tanstack/vue-query'
 import {
   AccessAuditDetailSchema,
   AccessAuditListSchema,
@@ -43,6 +43,7 @@ export function useAdminAuditLog(params: MaybeRefOrGetter<AdminAuditListParams> 
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => adminAuditKeys.list(toValue(params))),
+    placeholderData: keepPreviousData,
     enabled: computed(() => toValue(enabled)),
     queryFn: () => $api('/api/v1/admin/access-log', {
       query: adminAuditListQuery(toValue(params)),

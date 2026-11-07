@@ -1,4 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+# Register the visibility parent before baseline imports the governance helpers.
+from . import project_child_visibility
+
+# isort: split
+
 from . import (
     access_service,
     directory,
@@ -18,6 +23,7 @@ from . import (
     project_finance,
     project_governance,
     project_milestone,
+    project_objective,
     project_phase,
     project_phase_baseline,
     project_project,
@@ -25,6 +31,7 @@ from . import (
     project_status,
     project_structure,
     project_task,
+    project_tools,
     res_company,
     task_attachments,
     task_completion,

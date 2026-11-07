@@ -8,7 +8,7 @@ STATUS_VALUES = {'on_track', 'at_risk', 'off_track', 'on_hold', 'done'}
 VISIBILITY_VALUES = ('employees', 'followers')
 ACCESS_USER_CREATE_MARKER = 'liwan_core.access_user_create_depth'
 POLICY_CREATE_MARKER = 'liwan_pmo.policy_create'
-OBJECTIVE_KEYS = ('goal', 'metric', 'target')
+OBJECTIVE_COMMAND_MARKER = 'liwan_pmo.objective_commands'
 DELIVERABLE_KEYS = ('name', 'description', 'acceptance')
 BUDGET_STATES = ('unknown', 'estimate')
 PRIORITY_VALUES = ('low', 'normal', 'high', 'critical')
@@ -19,10 +19,10 @@ BASELINE_NOTE_MAX = 2000
 TASK_CANCELED_STATE = '1_canceled'
 CHARTER_TEXT_FIELDS = (
     'liwan_authority', 'liwan_rationale', 'liwan_benefits', 'liwan_scope',
-    'liwan_exclusions', 'liwan_high_level_requirements', 'liwan_success',
+    'liwan_exclusions', 'liwan_high_level_requirements',
     'liwan_assumptions', 'liwan_constraints', 'liwan_closure',
 )
-CHARTER_JSON_FIELDS = ('liwan_objectives', 'liwan_deliverables')
+CHARTER_JSON_FIELDS = ('liwan_deliverables',)
 CHARTER_MANAGER_FIELDS = {
     'liwan_type_id', 'liwan_owning_unit_id', 'liwan_sponsor_id',
     'liwan_budget_state', 'liwan_budget_amount', 'liwan_priority',
@@ -58,6 +58,8 @@ MANAGER_WRITABLE = {
     'name', 'description', 'user_id', 'privacy_visibility', 'date_start', 'date',
     'tag_ids', 'active', 'last_update_status', 'allow_milestones', 'allow_task_dependencies', 'type_ids',
     'liwan_completion_approval', 'liwan_completion_approver_id',
+    'liwan_objective_ids', 'liwan_success',
+    'liwan_planning_enabled', 'liwan_governance_enabled', 'liwan_finance_enabled',
 } | CHARTER_MANAGER_FIELDS
 PROJECT_CREATE_FIELDS = MANAGER_WRITABLE | {'company_id', 'liwan_code'}
 REVISION_CONTENT_FIELDS = MANAGER_WRITABLE | {'company_id'} | CHARTER_APPROVAL_FIELDS

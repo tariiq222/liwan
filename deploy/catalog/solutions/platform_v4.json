@@ -33,7 +33,7 @@
         "limit:ai.messages.monthly",
         "limit:ai.tool_calls.per_run",
         "limit:ai.tokens.monthly",
-        "limit:ai.setup.monthly",
+        "limit:ai.assist.monthly:300",
         "limit:ai.output_tokens.per_run"
       ]
     },
@@ -161,6 +161,7 @@
       "features": [
         "boolean:inbox.enabled",
         "boolean:inbox.whatsapp",
+        "boolean:inbox.tiktok",
         "boolean:inbox.templates",
         "boolean:inbox.automation",
         "boolean:inbox.flows",

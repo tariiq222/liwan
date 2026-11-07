@@ -20,6 +20,7 @@ const CONFIG_KEYS: readonly string[] = [
   'LIWAN_CLI_INVENTORY',
   'LIWAN_MANAGED_INVENTORY',
   'LIWAN_TENANT_REGISTRY_PATH',
+  'LIWAN_AI_PLATFORM_PROVIDER_PATH',
   'LIWAN_CLI_STATE_DIR',
   'LIWAN_REPOSITORY_ROOT',
   'CONTROL_HOST',
@@ -153,6 +154,17 @@ describe('registry publication path', () => {
   })
   it('rejects a relative registry publication path', () => {
     applyEnv({ LIWAN_TENANT_REGISTRY_PATH: 'registry.json' })
+    expect(() => getConfig()).toThrow('operator paths must be absolute')
+  })
+})
+
+describe('platform AI provider file path', () => {
+  it('is optional, absolute when set, and read from LIWAN_AI_PLATFORM_PROVIDER_PATH', () => {
+    applyEnv()
+    expect(getConfig()).not.toHaveProperty('aiPlatformProviderPath')
+    applyEnv({ LIWAN_AI_PLATFORM_PROVIDER_PATH: '/srv/liwan/ai/platform-provider.json' })
+    expect(getConfig()).toHaveProperty('aiPlatformProviderPath', '/srv/liwan/ai/platform-provider.json')
+    applyEnv({ LIWAN_AI_PLATFORM_PROVIDER_PATH: 'platform-provider.json' })
     expect(() => getConfig()).toThrow('operator paths must be absolute')
   })
 })

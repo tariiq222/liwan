@@ -14,8 +14,8 @@ class LiwanAiFeatureRegistry(models.AbstractModel):
             # Platform-provider runs only: a tenant on its own key pays its provider and keeps the message limit alone.
             {'key': 'ai.tokens.monthly', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai'},
             {'key': 'ai.output_tokens.per_run', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai'},
-            # The free setup agent's monthly budget, set by the vendor in the package (spec 2026-11-04 §6.10).
-            {'key': 'ai.setup.monthly', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai'},
+            # The free agents' (setup and help) one monthly budget, set by the vendor in the package (spec 2026-11-04 §6.10).
+            {'key': 'ai.assist.monthly', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai'},
             # Knowledge retrieval over the company's records (spec 2026-11-04 §6.3); the tenant also turns it on in the settings.
             {'key': 'ai.knowledge', 'type': 'boolean', 'owner': 'liwan_ai', 'module': 'liwan_ai'},
         )

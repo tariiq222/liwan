@@ -79,17 +79,17 @@ describe('password form helpers', () => {
   })
 
   it('checks the effective trimmed password length', () => {
-    expect(validatePasswordForm('current-password', ' 1234567 ', ' 1234567 ')).toEqual({
+    expect(validatePasswordForm('current-password', ' 12345678901 ', ' 12345678901 ')).toEqual({
       valid: false,
       mismatch: false,
       weak: true,
     })
-    expect(validatePasswordForm('current-password', ' 12345678 ', ' 12345678 ')).toEqual({
+    expect(validatePasswordForm('current-password', ' 123456789012 ', ' 123456789012 ')).toEqual({
       valid: true,
       mismatch: false,
       weak: false,
     })
-    expect(validatePasswordForm('', ' 12345678 ', ' 12345678 ')).toEqual({
+    expect(validatePasswordForm('', ' 123456789012 ', ' 123456789012 ')).toEqual({
       valid: false,
       mismatch: false,
       weak: false,

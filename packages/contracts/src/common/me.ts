@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CapabilitySchema, MeRoleSchema } from '../access'
+import { CapabilitySchema, MeRoleSchema, MobileSchema } from '../access'
 
 export const RoleSchema = z.enum(['employee', 'admin', 'vendor'])
 export type Role = z.infer<typeof RoleSchema>
@@ -55,6 +55,10 @@ export const MeSchema = z.object({
   name: z.string(),
   login: z.string(),
   email: z.string(),
+  /** The holder's own number; the server never sends anyone else's. */
+  mobile: MobileSchema.nullable().optional().default(null),
+  /** True until the holder saves a mobile number: every other route then answers `mobile_required`. */
+  mobile_required: z.boolean().optional().default(false),
   lang: z.string(),
   tz: z.string(),
   role: RoleSchema,

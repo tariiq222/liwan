@@ -81,9 +81,11 @@ class TestProjectBaseline(LiwanPmoCase):
 
     # --- taking ---------------------------------------------------------------------
     def test_first_baseline_needs_an_approved_charter(self):
+        self.env['liwan.pmo.settings'].set_values({'require_charter_approval': True})
         response = self._take()
         self.assertEqual((response.status_code, response.json()['code']), (409, 'charter_state'))
-        self._approve_charter()
+        self.project.with_user(self.manager)._liwan_charter_submit()
+        self.project.with_user(self.sponsor)._liwan_charter_approve()
         body = self._taken(note='  Kick-off plan ')
         self.assertEqual((body['number'], body['note'], body['task_count']), (1, 'Kick-off plan', 3))
         self.assertEqual(body['taken_by']['id'], self.manager.id)

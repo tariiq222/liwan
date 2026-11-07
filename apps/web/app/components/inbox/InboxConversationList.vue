@@ -3,6 +3,7 @@ import type { InboxMessageKind } from '@liwan/contracts'
 import { avatarProps } from '@liwan/ui/app/utils/avatarTone'
 import EmptyState from '@liwan/ui/app/components/shared/feedback/EmptyState.vue'
 import { useInboxConversations } from '@/composables/inbox/useInbox'
+import { CHANNEL_KIND_ICON, channelKindLabelKey } from '@/composables/inbox/inboxChannelKind'
 import { useInboxDepartments } from '@/composables/inbox/useInboxSettings'
 import { CONVERSATION_STATES, CONVERSATION_STATE_TONE, CSAT_SCORES, CSAT_TONE, PRIORITIES, INBOX_PRIORITY_TONE, inboxFileKindKey, inboxListTime } from '@/composables/inbox/inboxPresentation'
 import { INBOX_PAGE_SIZE, inboxListQuery, inboxPageOffset, serializeInboxListRoute, type InboxListRoute } from '@/composables/inbox/inboxListRoute'
@@ -153,7 +154,7 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
     </div>
     <EmptyState v-if="empty && !filtered" class="m-4" :title="t('inbox.list.empty')" :description="t('inbox.list.emptyDescription')">
       <template #icon>
-        <UIcon name="i-liwan-whatsapp" class="size-8" />
+        <UIcon name="i-lucide-messages-square" class="size-8" />
       </template>
     </EmptyState>
     <SharedPageState
@@ -183,6 +184,7 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
                 <span v-if="item.unread" class="size-2.5 shrink-0 rounded-full bg-primary" :title="t('inbox.list.unread')" role="img" :aria-label="t('inbox.list.unread')" />
               </span>
               <span class="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-muted">
+                <UIcon :name="CHANNEL_KIND_ICON[item.channel.kind]" class="size-3.5 shrink-0" role="img" :aria-label="t(channelKindLabelKey(item.channel.kind))" :data-testid="`inbox-conversation-kind-${item.id}`" />
                 <SharedStatusBadge size="sm" :tone="CONVERSATION_STATE_TONE[item.state]" :label="t(`inbox.states.${item.state}`)" />
                 <SharedStatusBadge v-if="INBOX_PRIORITY_TONE[item.priority]" size="sm" :tone="INBOX_PRIORITY_TONE[item.priority]!" :label="t(`inbox.priorities.${item.priority}`)" data-testid="inbox-priority-badge" />
                 <SharedStatusBadge v-if="item.csat" size="sm" :tone="CSAT_TONE[item.csat.score]" :label="t(`inbox.csat.${item.csat.score}`)" />

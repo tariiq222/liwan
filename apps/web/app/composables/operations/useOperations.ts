@@ -1,5 +1,5 @@
 import { computed, onServerPrefetch, toValue, type MaybeRefOrGetter } from 'vue'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { OperationExecutionKindsSchema, OperationReviewerResolversSchema, OperationTargetsSchema, OperationProcessListSchema, OperationProcessSchema, OperationRequestListSchema, OperationRequestSchema, type OperationPurpose } from '@liwan/contracts'
 import { useApi } from '../useApi'
 import { operationProcessMutationOptions, operationRequestMutationOptions, type OperationApi } from './mutations'
@@ -18,8 +18,8 @@ export function useOperationRequests(params: MaybeRefOrGetter<{ scope: Operation
   const { $api } = useApi()
   const { me } = useMe()
   const query = useQuery({
-    queryKey: computed(() => ['operations', 'requests', 'list', toValue(params), me.value?.company.id, me.value?.id]), enabled: computed(() => toValue(enabled)),
-    queryFn: () => $api('/api/v1/operations/requests', { query: toValue(params), schema: OperationRequestListSchema }),
+    queryKey: computed(() => ['operations', 'requests', 'list', toValue(params), me.value?.company.id, me.value?.id] as const), enabled: computed(() => toValue(enabled)),
+    queryFn: ({ queryKey, signal }) => $api('/api/v1/operations/requests', { query: queryKey[3], signal, schema: OperationRequestListSchema }),
   })
   prefetch(query, enabled)
   return query
@@ -27,8 +27,9 @@ export function useOperationRequests(params: MaybeRefOrGetter<{ scope: Operation
 export function useOperationProcesses(params: MaybeRefOrGetter<{ published?: number; requestable?: number; purpose?: 'work' | 'employee'; q?: string; limit?: number; offset?: number }> = {}, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   const query = useQuery({
-    queryKey: computed(() => ['operations', 'processes', 'list', toValue(params)]), enabled: computed(() => toValue(enabled)),
-    queryFn: () => $api('/api/v1/operations/processes', { query: toValue(params), schema: OperationProcessListSchema }),
+    queryKey: computed(() => ['operations', 'processes', 'list', toValue(params)] as const), enabled: computed(() => toValue(enabled)),
+    placeholderData: keepPreviousData,
+    queryFn: ({ queryKey, signal }) => $api('/api/v1/operations/processes', { query: queryKey[3], signal, schema: OperationProcessListSchema }),
   })
   prefetch(query, enabled)
   return query

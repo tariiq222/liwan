@@ -45,7 +45,10 @@ const streaming = computed(() => status.value === 'streaming')
 const composerDisabled = computed(() => !hydrated.value || isBlockingLimit(limit.value) || status.value === 'waiting_user')
 const latestPending = computed(() => latestPendingIndex(items.value))
 const conversation = computed(() => items.value.length > 0)
-const context = computed(() => parseAiContext(assistantContext(route.path, activeModule.value)))
+const contextParam = computed(() => assistantContext(route.path, activeModule.value))
+const context = computed(() => parseAiContext(contextParam.value))
+// "Ask about this page": a help conversation on the full page, started with the page the user is on as its context.
+const helpTo = computed(() => ({ path: '/ai', query: { mode: 'help', ...(contextParam.value ? { context: contextParam.value } : {}) } }))
 const suggestion = computed(() => rows.value.find(row => row.suggestion)?.suggestion ?? null)
 const starters = computed(() => AI_STARTER_KEYS.map(key => t(`ai.starters.${key}`)))
 const followUps = computed(() => followUpKeys(context.value?.page ?? null).map(key => t(`ai.followUps.${key}`)))
@@ -120,6 +123,7 @@ watch(items, async (now, before) => {
       <div class="flex shrink-0 items-center gap-3 px-3 pt-3">
         <h3 class="text-xs font-semibold text-muted">{{ t('ai.sheet.conversation') }}</h3>
         <span class="h-px flex-1 bg-accented" aria-hidden="true" />
+        <UButton :to="helpTo" color="neutral" variant="link" size="xs" class="liwan-touch-target" :label="t(context ? 'ai.help.askPage' : 'ai.help.open')" data-testid="ai-sheet-help" />
         <UButton v-if="conversation" type="button" color="neutral" variant="link" size="xs" class="liwan-touch-target" :label="t('ai.history.new')" data-testid="ai-sheet-new" @click="startNew" />
       </div>
 

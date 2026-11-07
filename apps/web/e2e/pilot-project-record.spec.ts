@@ -40,7 +40,7 @@ test.describe('Plan 5 pilot: the project overview', () => {
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('مشروع ألفا')
       const headings = await page.locator('main h2').allTextContents()
-      expect(headings.map(text => text.trim())).toEqual(['الانتقال إلى مرحلة التنفيذ', 'يحتاج انتباهك', 'آخر تحديث'])
+      expect(headings.map(text => text.trim())).toEqual(['تعريف المشروع', 'يحتاج انتباهك', 'آخر تحديث'])
       await expect(page.locator('[data-template="record"]')).toHaveCount(1)
       // The overview's own page header carries actions only; the name is the frame's.
       await expect(page.locator('[data-template="record"] [data-slot="page-header"]').getByRole('heading')).toHaveCount(0)

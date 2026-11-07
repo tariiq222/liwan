@@ -27,7 +27,7 @@ export function createMyTasksPreview() {
   const pmoDetail = task => ({
     ...pmoRow(task),
     description_html: `<p>${escapeHtml(task.description)}</p>`, allocated_hours: 0, age_days: 0, cycle_days: null,
-    subtasks: task.subtasks.map(child => converted.get(child.id)).filter(Boolean).map(pmoRow), depends_on: [], attachments: rows(attachments, task.id).map(({ data: _data, ...item }) => item), can_manage_dependencies: false,
+    subtasks: task.subtasks.map(child => converted.get(child.id)).filter(Boolean).map(pmoRow), depends_on: [], attachments: rows(attachments, task.id).map(({ data: _data, ...item }) => item), planning_enabled: false, can_manage_dependencies: false,
     milestone: null, created_at: task.created_at, updated_at: task.updated_at, planned_start: null, deliverables: [], allowed_actions: ['read'],
     completion_pending: false, completion_revision: 0, completion_return_note: null, completion_policy: 'none', completion_approver: null, completion_blocked_reason: null, progress_method: 'binary', percent_complete: 0,
   })

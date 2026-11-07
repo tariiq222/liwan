@@ -1,10 +1,12 @@
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
+import { expect, test, type APIRequestContext, type Browser, type Page } from '@playwright/test'
 
 // Needs a real Odoo: it logs in as admin and writes data, which the mock answers with 404. It is in no CI list until it has run on a
 // scratch Odoo (see docs/testing.md, section 3).
 test.skip(process.env.E2E_REAL_ODOO !== '1', 'Explicit isolated real Odoo acceptance only')
 
-const TEST_PASSWORD = 'LiwanAccess-Test-123!'
+// The second internal user is the account tools/e2e_seed.py creates: an administrator cannot give a new account a password.
+const RECIPIENT_LOGIN = 'e2e_staff1'
+const RECIPIENT_PASSWORD = process.env.E2E_USER_STAFF1_PASSWORD ?? 'liwan-e2e-staff1-2026'
 
 type NotificationItem = {
   id: number
@@ -34,22 +36,13 @@ async function json(request: APIRequestContext, method: 'get' | 'post', url: str
   return response.json()
 }
 
-// The collaboration E2E seed only provisions admin. Create the second internal
-// recipient through the capability-based account grant API.
-async function ensureRecipientUser(page: Page, login: string, password: string): Promise<number> {
-  const me = await json(page.request, 'get', '/api/v1/me')
-  const roles = await json(page.request, 'get', '/api/v1/admin/roles')
-  const role = roles.items.find((item: { key: string }) => item.key === 'employee')
-  expect(role).toBeTruthy()
-  const employee = await json(page.request, 'post', '/api/v1/hr/employees', {
-    name: 'E2E Notification Recipient', work_email: login,
-  })
-  const user = await json(page.request, 'post', '/api/v1/admin/employee-accounts', {
-    employee_id: employee.id,
-    password,
-    assignments: [{ role_id: role.id, scope: { kind: 'company', id: me.company.id } }],
-  })
-  return user.id
+async function recipientUserId(browser: Browser): Promise<number> {
+  const context = await browser.newContext({ baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3000' })
+  try {
+    const login = await context.request.post('/api/auth/login', { data: { login: RECIPIENT_LOGIN, password: RECIPIENT_PASSWORD } })
+    expect(login.status()).toBe(200)
+    return (await json(context.request, 'get', '/api/v1/me')).id
+  } finally { await context.close() }
 }
 
 test('notification endpoint returns the polling envelope after login', async ({ page }) => {
@@ -64,10 +57,7 @@ test('notification endpoint returns the polling envelope after login', async ({ 
 
 test('second user receives real assignment and comment events and read state survives reload', async ({ page, browser }) => {
   await loginAs(page, 'admin', 'admin')
-  const runId = Date.now().toString()
-  const recipientLogin = `e2e_notifications_recipient_${runId}@example.test`
-  const recipientPassword = TEST_PASSWORD
-  const recipientId = await ensureRecipientUser(page, recipientLogin, recipientPassword)
+  const recipientId = await recipientUserId(browser)
 
   const projectResponse = await page.request.post('/api/v1/projects', {
     data: { name: `E2E notifications ${Date.now()}`, date_end: '2035-12-31' },
@@ -101,7 +91,7 @@ test('second user receives real assignment and comment events and read state sur
     baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3000',
     locale: 'ar-SA',
   })
-  await loginAs(recipientPage, recipientLogin, recipientPassword)
+  await loginAs(recipientPage, RECIPIENT_LOGIN, RECIPIENT_PASSWORD)
   const recipientNotifications = await recipientPage.request.get('/api/v1/notifications')
   expect(recipientNotifications.status()).toBe(200)
   const recipientBody = await recipientNotifications.json()

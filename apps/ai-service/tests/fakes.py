@@ -13,6 +13,7 @@ from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResu
 
 from liwan_ai_service.control import MemoryControlState
 from liwan_ai_service.graph import RUN_MODEL_KEY, build_graph
+from liwan_ai_service.platform_provider import PlatformModel, PlatformProvider
 from liwan_ai_service.service import create_app
 from liwan_ai_service.store import MemoryRunStore
 from liwan_ai_service.tenancy import MemoryDirectory
@@ -44,10 +45,15 @@ class SeededStates(TenantStates):
         return TenantState(database, store or MemoryRunStore(), self.graph_factory(checkpointer or InMemorySaver()))
 
 
+def platform_of(model, provider: str = "ollama", name: str = "m", api_key: str | None = None) -> PlatformModel:
+    """The platform provider whose model is the test's own (no file behind it, so nothing is watched)."""
+    return PlatformModel(PlatformProvider(provider, name, None, api_key, 1), model)
+
+
 def make_memory_app(model, settings, *, store=None, checkpointer=None, control=None, states=None, embedder=None):
     """A service app over memory state: the test keeps the store, the states and the control state it drives."""
     states = states or SeededStates(store=store, checkpointer=checkpointer)
-    return create_app(model, states, control or MemoryControlState(), settings, embedder)
+    return create_app(platform_of(model), states, control or MemoryControlState(), settings, embedder)
 
 
 async def open_test_state(database_url: str):

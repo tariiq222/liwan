@@ -14,7 +14,7 @@ const manifest: AppManifest = {
       { id: 'schedule', labelKey: 'meetingsSettings.schedule.title', icon: 'i-lucide-calendar-plus', capability: 'meetings.settings.manage' },
     ],
   },
-  rail: [{ id: 'meetings', labelKey: 'nav.meetings', icon: 'i-lucide-calendar-days', to: '/meetings', order: 30 }],
+  rail: [{ id: 'meetings', labelKey: 'nav.meetings', icon: 'i-lucide-calendar-days', to: '/meetings', order: 30, fixed: 'first' }],
   nav: [
     { to: '/meetings', labelKey: 'nav.meetings', icon: 'i-lucide-calendar-days', shortcut: 'm', goKey: 'm', capability: 'meetings.read' },
     { to: '/meetings/follow-up', labelKey: 'nav.meetingFollowup', icon: 'i-lucide-list-checks', shortcut: 'f', capability: 'meetings.read' },

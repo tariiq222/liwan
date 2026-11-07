@@ -85,17 +85,15 @@ function columnCreateTo(column: { state?: TaskState; stageId?: number }) {
     views-in-filters
     kpi-toggle
   >
-    <!-- Query data may resolve after SSR markup is emitted but before client hydration starts. Mount
-         the dynamic surface (and the toolbar in the card header) only after this page has hydrated so
-         no control's first click is lost; the toolbar's selects stay disabled until then. One card and one
-         filter row serve both views: switching only swaps what is under the row. -->
+    <!-- Settled query data renders on the server; controls stay disabled until hydration.
+         The draggable board and its viewer-clock labels mount after hydration. -->
     <TaskKpiStrip v-if="hydrated && kpisShown" :params="params" />
-    <SharedListCard v-if="hydrated" :fill="isBoard">
+    <SharedListCard :fill="isBoard">
       <template #filters><TaskToolbar v-model="params" embedded /></template>
       <TaskTable v-if="!isBoard" :params="params" :row-to="task => taskTo(task.id)" @create="openCreate" @update:sort="onSort" />
-      <TaskBoard v-else :params="boardParams" :card-to="taskTo" :create-to="createTo ? columnCreateTo : undefined" @open="id => router.push(taskTo(id))" />
+      <TaskBoard v-else-if="hydrated" :params="boardParams" :card-to="taskTo" :create-to="createTo ? columnCreateTo : undefined" @open="id => router.push(taskTo(id))" />
+      <SharedLoadingSkeleton v-else />
     </SharedListCard>
-    <SharedLoadingSkeleton v-else />
   </SharedListPage>
   <NuxtPage />
 </template>

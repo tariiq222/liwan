@@ -2,7 +2,7 @@
 {
     'name': 'liwan PMO',
     'summary': 'liwan platform: the project pillar — /api/v1 tasks, timeline, projects (status, stages)',
-    'version': '19.0.1.11.0',
+    'version': '19.0.1.12.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -31,6 +31,7 @@
         'security/ir.model.access.csv',
         'security/ir.model.access-governance.csv',
         'security/project_governance_rules.xml',
+        'security/project_objective_rules.xml',
         'security/liwan_pmo_rules.xml',
         'security/project_charter_rules.xml',
         'data/liwan_pmo_data.xml',

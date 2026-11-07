@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
-import { assertCustomerMutationOrigin, assertNoForgedFields, csrfMatches, customerCommercialEnabled, customerRoute, allowPaymentReturn, forwardCustomerRequest, issueCsrfCookie, PAYMENT_RETURN_LIMITS, paymentReturnStoreSize, rateLimitMutation, prospectLanding, relayPaymentReturn, resetRateLimitForTests, signedBodyFor } from '../customer-commercial'
+import { assertCustomerMutationOrigin, assertNoForgedFields, csrfMatches, customerPrincipal, customerCommercialEnabled, customerRoute, allowPaymentReturn, forwardCustomerRequest, issueCsrfCookie, PAYMENT_RETURN_LIMITS, paymentReturnStoreSize, rateLimitMutation, prospectLanding, relayPaymentReturn, resetRateLimitForTests, signedBodyFor } from '../customer-commercial'
 import { deriveCustomerCapabilities } from '../../../app/utils/customerCapabilities'
 
 vi.mock('../tenantRequest', async (orig) => {
@@ -8,6 +8,13 @@ vi.mock('../tenantRequest', async (orig) => {
   return { ...actual, tenantRequest: vi.fn(actual.tenantRequest) }
 })
 import { tenantRequest } from '../tenantRequest'
+// Business-contract unit tests use a parsed-body fixture; the wire suite exercises
+// incremental budgets, stalled sockets and admission using the real reader.
+vi.mock('../tenantTransport', async original => {
+  const actual = await original<typeof import('../tenantTransport')>()
+  return { ...actual, boundedTenantBody: vi.fn(), withTenantBody: async (_event: unknown, _scope: unknown, run: () => unknown) => run() }
+})
+import { boundedTenantBody } from '../tenantTransport'
 
 const KEY = 'k'.repeat(48)
 const CSRF = 'c'.repeat(40)
@@ -23,7 +30,7 @@ function setup(opts: { method?: string; url?: string; body?: string; headers?: R
   vi.stubGlobal('getCookie', (_e: unknown, n: string) => cookies[n])
   vi.stubGlobal('setCookie', vi.fn())
   vi.stubGlobal('getRequestURL', () => new URL(opts.url ?? 'https://acme.example/api/commercial/v1/subscription'))
-  vi.stubGlobal('readRawBody', async () => opts.body)
+  vi.mocked(boundedTenantBody).mockResolvedValue(opts.body === undefined ? undefined : Buffer.from(opts.body))
   vi.stubGlobal('setResponseStatus', vi.fn())
   vi.stubGlobal('setResponseHeader', vi.fn())
   vi.stubGlobal('createError', (e: { statusCode: number; data: unknown }) => Object.assign(new Error(), e))
@@ -45,6 +52,16 @@ describe('capability mapping', () => {
 })
 
 describe('customer commercial BFF', () => {
+  it.each([undefined, 500, 503])('reports a principal transport failure (%s) as temporary unavailable', async statusCode => {
+    setup()
+    vi.mocked($fetch).mockRejectedValueOnce(Object.assign(new Error('upstream unavailable'), { statusCode }))
+    await expect(customerPrincipal({} as never, config)).rejects.toMatchObject({ statusCode: 503, data: { code: 'commercial_unavailable' } })
+  })
+  it.each([401, 403])('preserves a real principal authentication refusal (%s)', async statusCode => {
+    setup()
+    vi.mocked($fetch).mockRejectedValueOnce(Object.assign(new Error('refused'), { statusCode }))
+    await expect(customerPrincipal({} as never, config)).rejects.toMatchObject({ statusCode: 401, data: { code: 'unauthorized' } })
+  })
   it('is 404 when disabled and never calls upstream', async () => {
     const raw = setup({ cfg: { customerCommercialEnabled: false } })
     expect(customerCommercialEnabled({ customerCommercialEnabled: 'false' })).toBe(false)

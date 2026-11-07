@@ -4,7 +4,13 @@ from odoo.exceptions import MissingError
 from odoo.http import request
 
 from .analytic_support import distribution_values, require_plain_distributions
-from .common import filter_domain, list_page, parse_choice, require_capability
+from .common import (
+    filter_domain,
+    list_page,
+    parse_choice,
+    require_capability,
+    state_summary,
+)
 from .finance_partners import company_partners_domain
 from .idempotency import idempotent
 from .write_support import attempt, company_records, require_open_period, require_state
@@ -202,6 +208,21 @@ def _lock_context(invoice):
     }
 
 
+def _invoices_domain(args, *, include_state=True):
+    Move = request.env['account.move']
+    domain = company_invoices_domain() + filter_domain(args, 'invoice_date')
+    move_type = parse_choice(args.get('move_type'), _invoice_types(), 'move_type')
+    if move_type:
+        domain.append(('move_type', '=', move_type))
+    state = parse_choice(args.get('state'), Move._fields['state'].get_values(request.env), 'state')
+    if state and include_state:
+        domain.append(('state', '=', state))
+    query = (args.get('q') or '').strip()
+    if query:
+        domain += ['|', '|', ('name', 'ilike', query), ('ref', 'ilike', query), ('partner_id.name', 'ilike', query)]
+    return domain
+
+
 class FinanceInvoiceController(http.Controller):
 
     @http.route('/api/v1/finance/invoices', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -209,19 +230,16 @@ class FinanceInvoiceController(http.Controller):
     @requires_feature('finance.enabled', operation='read')
     def list_invoices(self, **_):
         require_capability('finance.invoices.read')
+        return list_page('account.move', _invoices_domain(request.httprequest.args), dump_invoices)
+
+    @http.route('/api/v1/finance/invoices/summary', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('finance.enabled', operation='read')
+    def summary_invoices(self, **_):
+        """All tile counts for the list filters, independently of its selected state and page."""
+        require_capability('finance.invoices.read')
         args = request.httprequest.args
-        Move = request.env['account.move']
-        domain = company_invoices_domain() + filter_domain(args, 'invoice_date')
-        move_type = parse_choice(args.get('move_type'), _invoice_types(), 'move_type')
-        if move_type:
-            domain.append(('move_type', '=', move_type))
-        state = parse_choice(args.get('state'), Move._fields['state'].get_values(request.env), 'state')
-        if state:
-            domain.append(('state', '=', state))
-        query = (args.get('q') or '').strip()
-        if query:
-            domain += ['|', '|', ('name', 'ilike', query), ('ref', 'ilike', query), ('partner_id.name', 'ilike', query)]
-        return list_page('account.move', domain, dump_invoices)
+        return state_summary('account.move', _invoices_domain(args, include_state=False), ('draft', 'posted', 'cancel'))
 
     @http.route('/api/v1/finance/invoices/<int:invoice_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

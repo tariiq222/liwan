@@ -1,3 +1,6 @@
+import { projectSectionAvailable } from '../../utils/projectTools'
+import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
+import { projectDetail, me as storyMe } from '../../../stories/fixtures/pmo'
 import { archivedTags, projectRecordBack } from '../../utils/projectNavigation'
 import { projectSectionLocation } from '../../utils/projectWorkspaceMemory'
 import * as recordNavigation from './helpers/recordNavigation'
@@ -36,7 +39,7 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
     useRecordListPaths: () => Vue.ref(['/projects', '/projects/dashboard', '/tasks', '/hr', '/settings/team/users', '/account', '/search', '/notifications']),
     refDebounced: (value: unknown) => value, searchProviders: () => [], visibleCommands: () => [],
     _defineComponent: Vue.defineComponent, defineComponent: Vue.defineComponent,
-    computed: Vue.computed, ref: Vue.ref, watch: Vue.watch,
+    computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, reactive: Vue.reactive, projectSectionAvailable, formatCalendarDate,
     onMounted: () => undefined, useEventListener: () => undefined, useRowNavigation: () => undefined,
     useRoute: () => route, useRouter: () => router,
     useI18n: () => ({ t: (key: string) => key }),
@@ -46,10 +49,10 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
     provideFrameOwnsHeading: () => undefined,
     useEscapeBack: (target: unknown) => { escapeTargets.push(target) },
     projectTaskParams: () => ({}), projectTaskQuery: () => ({}),
-    useProject: () => ({ data: Vue.ref({ active: true, name: 'Example project', can_manage: true, status: 'active', phase_state: { current: 'initiating' } }), error: Vue.ref(null) }),
+    useProject: () => ({ data: Vue.ref({ ...projectDetail, id: 7, name: 'Example project' }), error: Vue.ref(null) }),
     useArchivedTasks: () => ({ data: Vue.ref({ pages: [] }), isLoading: Vue.ref(false) }),
     useRestoreTask: () => ({ mutate: vi.fn(), isPending: Vue.ref(false) }),
-    useMe: () => ({ me: Vue.ref({}) }), useProjectWorkspaceMemory: () => ({ remember: () => undefined }), useApi: () => ({ $api: vi.fn() }),
+    useMe: () => ({ me: Vue.ref(storyMe) }), useProjectWorkspaceMemory: () => ({ remember: () => undefined }), useApi: () => ({ $api: vi.fn() }),
     firstAllowedPath: () => '/projects', useNav: () => [],
     useQuery: () => ({ data: Vue.ref([{ id: 7, name: 'Example' }]), isLoading: Vue.ref(false), error: Vue.ref(null) }),
     ProjectRefSchema: { array: () => ({}) }, findSearchShortcut: () => undefined,
@@ -154,11 +157,12 @@ describe('reviewed page navigation and form feedback', () => {
     page.stop()
   })
 
-  it('keeps the empty-error frame hidden', async () => {
+  it('keeps the empty-error identity frame hidden while its retry state remains visible', async () => {
     const page = await loadPage('projects/[id].vue', '/projects/7', {
       useProject: () => ({ data: Vue.ref(undefined), error: Vue.ref(new Error('offline')), isLoading: Vue.ref(false) }),
     })
-    expect(await propsFor(page, 'SharedPageContainer')).toBeUndefined()
+    expect(await propsFor(page, 'SharedPageContainer', props=>props['data-testid']==='project-workspace-frame')).toBeUndefined()
+    expect((await propsFor(page,'SharedPageState'))?.error).toBeInstanceOf(Error)
     expect(Vue.toValue(page.escapeTargets[0] as Vue.ComputedRef<string>)).toBeUndefined()
     page.stop()
   })

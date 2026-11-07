@@ -60,6 +60,12 @@ describe('project dashboard summary contract', () => {
     }).overdue_task_count).toBeNull()
   })
 
+  it('redacts unavailable finance without removing core project counters', () => {
+    const parsed = ProjectReportRowSchema.parse({ ...row, finance: null })
+    expect(parsed.finance).toBeNull()
+    expect(parsed.task_count).toBe(5)
+  })
+
   it('requires strict row, count and status shapes', () => {
     expect(ProjectReportRowSchema.parse(row)).toEqual(row)
     expect(() => ProjectDashboardSummarySchema.parse({

@@ -40,7 +40,7 @@ export function useCrmOpportunities(params: MaybeRefOrGetter<OpportunityListPara
   return useQuery({
     queryKey: computed(() => crmKeys.opportunityList(toValue(params))),
     enabled: computed(() => toValue(enabled) && can('crm.leads.read')),
-    queryFn: () => $api('/api/v1/crm/opportunities', { query: listQuery(toValue(params)), schema: CrmOpportunityListSchema }),
+    queryFn: ({ queryKey, signal }) => $api('/api/v1/crm/opportunities', { query: listQuery(queryKey[3] as OpportunityListParams), signal, schema: CrmOpportunityListSchema }),
     placeholderData: keepPreviousData,
   })
 }
@@ -51,7 +51,7 @@ export function useCrmOpportunity(id: MaybeRefOrGetter<number>) {
   return useQuery({
     queryKey: computed(() => crmKeys.opportunity(toValue(id))),
     enabled: computed(() => toValue(id) > 0 && can('crm.leads.read')),
-    queryFn: () => $api(`/api/v1/crm/opportunities/${toValue(id)}`, { schema: CrmOpportunitySchema }),
+    queryFn: ({ queryKey, signal }) => $api(`/api/v1/crm/opportunities/${queryKey[3]}`, { signal, schema: CrmOpportunitySchema }),
   })
 }
 
@@ -80,7 +80,7 @@ export function useCrmCalls(id: MaybeRefOrGetter<number>) {
     queryKey: computed(() => crmKeys.calls(toValue(id))),
     enabled: computed(() => toValue(id) > 0 && can('crm.leads.read')),
     initialPageParam: 0,
-    queryFn: ({ pageParam }) => $api(`/api/v1/crm/opportunities/${toValue(id)}/calls`, { query: { limit: CRM_CALL_PAGE, offset: pageParam }, schema: CrmCallListSchema }),
+    queryFn: ({ pageParam, queryKey, signal }) => $api(`/api/v1/crm/opportunities/${queryKey[3]}/calls`, { query: { limit: CRM_CALL_PAGE, offset: pageParam }, signal, schema: CrmCallListSchema }),
     getNextPageParam: (_last, pages) => nextCallOffset(pages),
   })
   const items = computed<CrmCall[]>(() => mergeCallPages(query.data.value?.pages ?? []))

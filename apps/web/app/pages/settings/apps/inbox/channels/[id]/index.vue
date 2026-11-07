@@ -2,16 +2,22 @@
 import { useInboxProviderError } from '@/composables/inbox/inboxProviderError'
 import { useClipboard } from '@vueuse/core'
 import { InboxChannelPatchSchema } from '@liwan/contracts'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import { statusTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import InboxChannelTabs from '@/components/inbox/InboxChannelTabs.vue'
 import { useInboxCatalogEnabled } from '@/composables/inbox/useInboxCatalog'
+import { channelKindLabelKey } from '@/composables/inbox/inboxChannelKind'
 import { CHANNEL_STATE_TONE } from '@/composables/inbox/inboxPresentation'
+import { inboxTikTokErrorKey, useConnectInboxTikTok } from '@/composables/inbox/inboxTikTok'
+import { SHORTCUT_AUDIT_TONE } from '@/composables/inbox/inboxTikTokShortcuts'
 import {
   useDeleteInboxChannel, useInboxChannel, useInboxDepartments, usePatchInboxChannel, useRotateInboxVerifyToken, useSyncInboxTemplates, useTestInboxChannel,
 } from '@/composables/inbox/useInboxSettings'
 
-// One channel: its status and tests, the webhook details to paste into the Meta app, the editable name and department,
-// replaceable secrets (write-only) and the inline-confirmed delete.
+// One channel, by kind. A WhatsApp number: its status and tests, the webhook details to paste into the Meta app, the
+// editable name and department, replaceable secrets (write-only) and the inline-confirmed delete. A TikTok account: the
+// account and its token deadline, a "reconnect" when the refresh token expired, and the trust of its welcome message;
+// it has no webhook handshake, no Meta secrets, no business profile and no templates. Both keep their page tabs.
 const route = useRoute()
 const { t, locale } = useI18n()
 const { providerText } = useInboxProviderError()
@@ -35,7 +41,9 @@ const rotatedToken = ref<string | null>(null)
 const manage = computed(() => can('inbox.channels.manage'))
 const catalogOn = useInboxCatalogEnabled()
 const manageTemplates = computed(() => can('inbox.templates.manage'))
-const busy = computed(() => !hydrated.value || patching.value || testing.value || syncing.value || removing.value || rotating.value)
+const isTikTok = computed(() => channel.value?.kind === 'tiktok')
+const { mutateAsync: connect, isPending: connecting } = useConnectInboxTikTok()
+const busy = computed(() => !hydrated.value || patching.value || testing.value || syncing.value || removing.value || rotating.value || connecting.value)
 
 const NONE = 'none'
 const name = ref('')
@@ -59,9 +67,24 @@ const detailsDirty = computed(() => !!channel.value && (name.value.trim() !== ch
 const detailsValid = computed(() => InboxChannelPatchSchema.safeParse({ name: name.value.trim(), app_id: appIdValue.value }).success)
 const tags = computed(() => channel.value ? [statusTag({ tone: CHANNEL_STATE_TONE[channel.value.state], label: t(`inbox.channelStates.${channel.value.state}`) })] : [])
 const lastEvent = computed(() => channel.value?.last_event_at ? new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(channel.value.last_event_at)) : t('inbox.settings.channels.noEvents'))
+const welcomeAudit = computed(() => channel.value?.tiktok_welcome_audit ?? null)
+const tokenExpiry = computed(() => channel.value?.token_expires_at ? formatDateTime(channel.value.token_expires_at) : t('inbox.tiktok.noTokenExpiry'))
+// The channel's last failure is Meta's English for a WhatsApp number: it is translated when known and tagged otherwise.
+const channelError = computed(() => (channel.value?.last_error ? (isTikTok.value ? channel.value.last_error : providerText(channel.value.last_error)) : ''))
 
 function fail(e: unknown) {
-  toast.add({ title: e instanceof Error ? e.message : t('errors.generic'), color: 'error' })
+  const key = inboxTikTokErrorKey(e)
+  toast.add({ title: key ? t(key) : e instanceof Error ? e.message : t('errors.generic'), color: 'error' })
+}
+// A TikTok token is refreshed by the server; an expired refresh token can only be replaced by the account owner.
+async function reconnect() {
+  if (!channel.value || busy.value) return
+  try {
+    const { authorize_url } = await connect({ channel_id: channel.value.id })
+    window.location.assign(authorize_url)
+  } catch (e) {
+    fail(e)
+  }
 }
 function saveDetails() {
   if (busy.value || !detailsDirty.value || !detailsValid.value) return
@@ -137,7 +160,7 @@ async function copy(kind: 'callback' | 'token', value: string) {
     :error="id === null ? { status: 404 } : query.error.value"
     @retry="hydrated && query.refetch()"
   >
-    <template v-if="channel && manage" #actions>
+    <template v-if="channel && manage && !isTikTok" #actions>
       <UButton color="neutral" variant="outline" icon="i-lucide-plug-zap" :loading="testing" :disabled="busy" :label="t('inbox.settings.channels.test')" data-testid="inbox-channel-test" @click="runTest" />
       <UButton color="neutral" variant="outline" icon="i-lucide-file-text" :to="`/settings/apps/inbox/channels/${channel?.id}/templates`" :disabled="busy" :label="t('inbox.templates.title')" data-testid="inbox-channel-templates" />
       <UButton color="neutral" variant="outline" icon="i-lucide-clipboard-list" :to="`/settings/apps/inbox/channels/${channel?.id}/flows`" :disabled="busy" :label="t('inbox.flows.title')" data-testid="inbox-channel-flows" />
@@ -146,10 +169,45 @@ async function copy(kind: 'callback' | 'token', value: string) {
     </template>
 
     <template v-if="channel">
-      <InboxChannelTabs v-if="manage" :channel-id="channel.id" />
-      <UAlert v-if="channel.last_error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('inbox.settings.channels.lastError')" :description="providerText(channel.last_error)" data-testid="inbox-channel-error" />
+      <InboxChannelTabs v-if="manage" :channel-id="channel.id" :kind="channel.kind" />
+      <UAlert v-if="channel.last_error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('inbox.settings.channels.lastError')" :description="channelError" data-testid="inbox-channel-error" />
 
-      <SharedRecordSection id="webhook" variant="panel" :title="t('inbox.settings.channels.webhook.title')" :description="t('inbox.settings.channels.webhook.hint')">
+      <SharedRecordSection v-if="isTikTok" variant="panel" :title="t('inbox.tiktok.details')">
+        <div class="flex flex-col gap-4">
+          <UAlert
+            v-if="channel.needs_reconnect"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-plug-zap"
+            :title="t('inbox.tiktok.needsReconnect')"
+            :description="t('inbox.tiktok.reconnectHint')"
+            data-testid="inbox-tiktok-reconnect-alert"
+          >
+            <template #actions>
+              <UButton type="button" :loading="connecting" :disabled="busy" :label="t('inbox.tiktok.reconnect')" data-testid="inbox-tiktok-reconnect" @click="reconnect" />
+            </template>
+          </UAlert>
+          <dl class="liwan-auto-grid">
+            <div>
+              <dt class="text-xs text-muted">{{ t('inbox.tiktok.username') }}</dt>
+              <dd class="text-sm font-medium text-highlighted"><bdi dir="ltr">{{ channel.tiktok_username ? `@${channel.tiktok_username}` : t('inbox.tiktok.noUsername') }}</bdi></dd>
+            </div>
+            <div>
+              <dt class="text-xs text-muted">{{ t('inbox.tiktok.tokenExpiresAt') }}</dt>
+              <dd class="text-sm font-medium text-highlighted">{{ tokenExpiry }}</dd>
+            </div>
+            <div>
+              <dt class="text-xs text-muted">{{ t('inbox.tiktok.welcomeAudit') }}</dt>
+              <dd>
+                <SharedStatusBadge v-if="welcomeAudit" :tone="SHORTCUT_AUDIT_TONE[welcomeAudit]" :label="t(`inbox.tiktok.audit.${welcomeAudit}`)" data-testid="inbox-tiktok-welcome-audit" />
+                <span v-else class="text-sm text-muted">{{ t('inbox.tiktok.noWelcomeAudit') }}</span>
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </SharedRecordSection>
+
+      <SharedRecordSection v-if="!isTikTok" id="webhook" variant="panel" :title="t('inbox.settings.channels.webhook.title')" :description="t('inbox.settings.channels.webhook.hint')">
         <div class="flex flex-col gap-4">
           <UFormField :label="t('inbox.settings.channels.webhook.callbackUrl')">
             <div class="flex gap-2">
@@ -182,7 +240,7 @@ async function copy(kind: 'callback' | 'token', value: string) {
             <UFormField :label="t('inbox.settings.channels.department')" :description="t('inbox.settings.channels.departmentHint')">
               <USelect v-model="department" :items="departmentItems" class="w-full" :disabled="busy" />
             </UFormField>
-            <UFormField :label="t('inbox.settings.channels.appId')" :description="t('inbox.settings.channels.appIdHint')" :error="appIdValue && !detailsValid ? t('inbox.settings.channels.invalid.app_id') : undefined">
+            <UFormField v-if="!isTikTok" :label="t('inbox.settings.channels.appId')" :description="t('inbox.settings.channels.appIdHint')" :error="appIdValue && !detailsValid ? t('inbox.settings.channels.invalid.app_id') : undefined">
               <UInput v-model="appId" class="w-full" dir="ltr" inputmode="numeric" autocomplete="off" :disabled="busy" data-testid="inbox-channel-edit-app-id" />
             </UFormField>
             <div class="flex justify-end">
@@ -192,9 +250,9 @@ async function copy(kind: 'callback' | 'token', value: string) {
         </SharedRecordSection>
       </form>
 
-      <InboxChannelCommerceSection v-if="catalogOn && manage" :channel-id="channel.id" :manage="can('inbox.catalog.manage')" />
+      <InboxChannelCommerceSection v-if="!isTikTok && catalogOn && manage" :channel-id="channel.id" :manage="can('inbox.catalog.manage')" />
 
-      <form v-if="manage" @submit.prevent="saveSecrets">
+      <form v-if="manage && !isTikTok" @submit.prevent="saveSecrets">
         <SharedRecordSection variant="panel" :title="t('inbox.settings.channels.secrets')" :description="t('inbox.settings.channels.secretsHint')">
           <div class="flex flex-col gap-4">
             <UFormField :label="t('inbox.settings.channels.accessToken')" :description="channel.has_access_token ? t('inbox.settings.channels.stored') : t('inbox.settings.channels.notStored')">
@@ -235,9 +293,11 @@ async function copy(kind: 'callback' | 'token', value: string) {
 
     <template v-if="channel" #aside>
       <SharedPropertiesPanel :title="t('inbox.settings.channels.status')">
-        <SharedPropertyRow :label="t('inbox.settings.channels.kind')" :value="t('inbox.settings.channels.whatsapp')" />
-        <SharedPropertyRow :label="t('inbox.settings.channels.phoneNumberId')"><bdi dir="ltr">{{ channel.phone_number_id }}</bdi></SharedPropertyRow>
-        <SharedPropertyRow :label="t('inbox.settings.channels.businessAccountId')"><bdi dir="ltr">{{ channel.business_account_id }}</bdi></SharedPropertyRow>
+        <SharedPropertyRow :label="t('inbox.settings.channels.kind')" :value="t(channelKindLabelKey(channel.kind))" />
+        <SharedPropertyRow v-if="!isTikTok" :label="t('inbox.settings.channels.phoneNumberId')"><bdi dir="ltr">{{ channel.phone_number_id }}</bdi></SharedPropertyRow>
+        <SharedPropertyRow v-if="!isTikTok" :label="t('inbox.settings.channels.businessAccountId')"><bdi dir="ltr">{{ channel.business_account_id }}</bdi></SharedPropertyRow>
+        <SharedPropertyRow v-if="isTikTok" :label="t('inbox.tiktok.username')" :value="channel.tiktok_username ? `@${channel.tiktok_username}` : t('inbox.tiktok.noUsername')" />
+        <SharedPropertyRow v-if="isTikTok" :label="t('inbox.tiktok.tokenExpiresAt')" :value="tokenExpiry" />
         <SharedPropertyRow :label="t('inbox.settings.channels.department')" :value="channel.department?.name ?? t('inbox.settings.channels.noDepartment')" />
         <SharedPropertyRow :label="t('inbox.settings.channels.lastEvent')" :value="lastEvent" />
       </SharedPropertiesPanel>

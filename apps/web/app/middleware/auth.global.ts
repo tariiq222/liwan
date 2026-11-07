@@ -9,7 +9,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // leave an outgoing navigation pending. This notification never grants access.
   if (import.meta.client) await nuxtApp.callHook('liwan:navigation:start', to)
   await ready
-  if (import.meta.client && me.value) await refresh()
+  if (import.meta.client && me.value && !(nuxtApp.isHydrating && nuxtApp.payload.serverRendered)) await refresh()
   if (error.value && !isLoggedOutError(error.value)) {
     if (isSchemaError(error.value)) {
       console.error('[liwan] /api/v1/me failed schema validation', error.value)

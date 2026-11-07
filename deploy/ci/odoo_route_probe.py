@@ -34,7 +34,7 @@ from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTE
 
 PROBE_LOGIN = 'liwan_ci_route_probe'
 ACCOUNT_LOGIN = 'liwan-ci-account@example.invalid'
-ACCOUNT_PASSWORD = 'ci-account-pass-1'  # a disposable scratch database account
+PROBE_MOBILE = '+966500000001'  # a signed-in account without a mobile number is refused on most routes
 NEEDS_INPUT = (400, 422)
 
 
@@ -101,6 +101,8 @@ def probe_user(env):
             'company_id': company.id, 'company_ids': [(6, 0, company.ids)],
             'group_ids': [(4, env.ref('liwan_core.group_employee').id)],
         })
+    if not user.liwan_mobile:
+        user.liwan_mobile = PROBE_MOBILE
     roles = env['liwan.access.role'].search([
         ('active', '=', True), ('assignable', '=', True), ('company_id', 'in', (False, company.id)),
     ])
@@ -136,16 +138,16 @@ def verdict(expectation, status, body):
 
 
 def account_lifecycle(env, client, cookie):
-    """Create, disable and reactivate an account through /api/v1/admin/users; the failures, if any."""
+    """Invite, disable and reactivate an account through /api/v1/admin/users; the failures, if any."""
     role = env['liwan.access.role'].search([('key', '=', 'employee')], limit=1)
     create = {
-        'name': 'CI account', 'login': ACCOUNT_LOGIN, 'password': ACCOUNT_PASSWORD,
+        'name': 'CI account', 'login': ACCOUNT_LOGIN,
         'assignments': [{'role_id': role.id, 'scope': {'kind': 'company', 'id': env.company.id}}],
     }
     steps = [('create', '/api/v1/admin/users', lambda account: create),
              ('disable', '/api/v1/admin/users/{id}/disable', lambda account: {'expected_version': account['version']}),
              ('reactivate', '/api/v1/admin/users/{id}/reactivate',
-              lambda account: {'expected_version': account['version'], 'password': ACCOUNT_PASSWORD})]
+              lambda account: {'expected_version': account['version']})]
     account = {}
     for action, route, payload in steps:
         path = route.format(id=account.get('id'))

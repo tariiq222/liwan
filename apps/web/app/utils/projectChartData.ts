@@ -28,7 +28,7 @@ export type ProjectDashboardMetric = {
   suffix?: '%'
 }
 
-export type DashboardCurrency = ProjectReportRow['finance']['currency']
+export type DashboardCurrency = NonNullable<ProjectReportRow['finance']>['currency']
 
 /** Semantic colour of one mark; the chart resolves it to a status or brand token. */
 export type ChartTone = 'success' | 'info' | 'warning' | 'danger' | 'neutral' | 'primary'
@@ -160,6 +160,8 @@ function knownTaskRows(rows: readonly ProjectReportRow[]) {
   return rows.filter(row => row.task_count != null && row.closed_task_count != null && row.overdue_task_count != null)
 }
 
+function hasFinance(row: ProjectReportRow): row is ProjectReportRow & {finance: NonNullable<ProjectReportRow['finance']>} { return row.finance !== null }
+
 export function projectDashboardMetrics(rows: readonly ProjectReportRow[]): ProjectDashboardMetric[] {
   const taskRows = knownTaskRows(rows)
   const taskTotal = taskRows.reduce((sum, row) => sum + (row.task_count ?? 0), 0)
@@ -167,13 +169,13 @@ export function projectDashboardMetrics(rows: readonly ProjectReportRow[]): Proj
   return [
     { key: 'projects', value: rows.length },
     { key: 'taskProgress', value: taskTotal > 0 ? percent(closedTotal, taskTotal) : taskRows.length ? 0 : null, suffix: '%' },
-    { key: 'budgeted', value: rows.filter(row => row.finance.planned != null).length },
+    { key: 'budgeted', value: rows.some(hasFinance) ? rows.filter(hasFinance).filter(row => row.finance.planned != null).length : null },
   ]
 }
 
 export function projectDashboardCurrencies(rows: readonly ProjectReportRow[]): DashboardCurrency[] {
   const currencies = new Map<number, DashboardCurrency>()
-  for (const row of rows) currencies.set(row.finance.currency.id, row.finance.currency)
+  for (const row of rows.filter(hasFinance)) currencies.set(row.finance.currency.id, row.finance.currency)
   return [...currencies.values()].sort((left, right) => left.name.localeCompare(right.name) || left.id - right.id)
 }
 
@@ -272,7 +274,7 @@ export function projectBudgetHealthData(rows: readonly ProjectReportRow[], label
   let unknown = 0
   let within = 0
   let over = 0
-  for (const row of rows) {
+  for (const row of rows.filter(hasFinance)) {
     if (row.finance.planned == null) unknown++
     else if (row.finance.over_budget || row.finance.actual > row.finance.planned) over++
     else within++
@@ -286,7 +288,8 @@ export function projectBudgetHealthData(rows: readonly ProjectReportRow[], label
 
 export function projectBudgetHealthChart(rows: readonly ProjectReportRow[], labels: ChartLabels, centerSubLabel: string): DashboardDonutChart {
   const data = projectBudgetHealthData(rows, labels)
-  return { kind: 'donut', data, palette: 'budget', total: rows.length, centerLabel: String(rows.length), centerSubLabel }
+  const total = rows.filter(hasFinance).length
+  return { kind: 'donut', data, palette: 'budget', total, centerLabel: String(total), centerSubLabel }
 }
 
 function rowProgressState(row: ProjectReportRow): ProjectProgressState {
@@ -326,7 +329,7 @@ export function projectProgressByProjectChart(rows: readonly ProjectReportRow[],
 }
 
 export function projectFinanceComparisonData(rows: readonly ProjectReportRow[], currencyId: number): FinanceComparisonPoint[] {
-  return rows.filter(row => row.finance.currency.id === currencyId).map(row => ({
+  return rows.filter(hasFinance).filter(row => row.finance.currency.id === currencyId).map(row => ({
     name: row.project.name,
     projectId: row.project.id,
     planned: row.finance.planned,

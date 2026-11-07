@@ -1,5 +1,5 @@
 import { computed, getCurrentScope, onScopeDispose, ref, watch } from 'vue'
-import { AiEventSchema, AiRunStatusSchema, type AiEvent, type AiRecordRef, type AiRunStatus, type AiRunStatusValue } from '@liwan/contracts'
+import { AiEventSchema, AiRunDetailSchema, type AiConversationMode, type AiEvent, type AiRecordRef, type AiRunMode, type AiRunStatus, type AiRunStatusValue } from '@liwan/contracts'
 import { useAiStreamingRun } from './useAiConversation'
 
 export type AiThreadItem =
@@ -10,9 +10,9 @@ export type AiThreadItem =
   | { kind: 'draft'; callId: string; tool: string; payload: Record<string, unknown>; summaryAr: string; summaryEn: string; state: 'pending' | 'approved' | 'rejected' }
   | { kind: 'agent'; agent: string; nameAr: string; nameEn: string }
 
-export type AiLimit = 'max_tool_calls' | 'max_steps' | 'timeout' | 'messages_monthly' | 'messages_per_user' | 'setup_monthly' | 'output_tokens' | 'tokens_monthly' | 'consent_required' | 'tenant_key_missing'
+export type AiLimit = 'max_tool_calls' | 'max_steps' | 'timeout' | 'messages_monthly' | 'messages_per_user' | 'assist_monthly' | 'output_tokens' | 'tokens_monthly' | 'consent_required' | 'tenant_key_missing'
 /** The limits that stop every new message until something changes (a new month, a signature, a key), not just this run. */
-const BLOCKING_LIMITS: ReadonlySet<AiLimit> = new Set(['messages_monthly', 'messages_per_user', 'setup_monthly', 'tokens_monthly', 'consent_required', 'tenant_key_missing'])
+const BLOCKING_LIMITS: ReadonlySet<AiLimit> = new Set(['messages_monthly', 'messages_per_user', 'assist_monthly', 'tokens_monthly', 'consent_required', 'tenant_key_missing'])
 export const isBlockingLimit = (limit: AiLimit | null) => limit !== null && BLOCKING_LIMITS.has(limit)
 export type AiRunState = 'idle' | 'streaming' | 'waiting_user' | 'done' | 'failed' | 'limit_reached'
 type LocalEvent = AiEvent | { event: 'decided'; data: { call_id: string; decision: 'approved' | 'rejected' | 'pending' } }
@@ -20,7 +20,7 @@ type DecidableItem = Extract<AiThreadItem, { kind: 'confirm' | 'draft' }>
 
 // The package limit a 403 names, as the limit the assistant shows.
 const MONTHLY_LIMITS: Record<string, AiLimit> = {
-  'ai.messages.monthly': 'messages_monthly', 'ai.messages.per_user_monthly': 'messages_per_user', 'ai.setup.monthly': 'setup_monthly', 'ai.tokens.monthly': 'tokens_monthly',
+  'ai.messages.monthly': 'messages_monthly', 'ai.messages.per_user_monthly': 'messages_per_user', 'ai.assist.monthly': 'assist_monthly', 'ai.tokens.monthly': 'tokens_monthly',
 }
 // The tenant policy refusals the Nuxt server answers before a message is counted.
 const POLICY_REFUSALS: Record<string, AiLimit> = { ai_consent_required: 'consent_required', ai_tenant_key_missing: 'tenant_key_missing' }
@@ -98,6 +98,8 @@ export function applyEvent(items: AiThreadItem[], event: LocalEvent): AiThreadIt
  */
 export function useAiRun(options: { enabled?: () => boolean } = {}) {
   const runId = ref<string | null>(null)
+  // The mode of the open conversation: set by a new message, and read from the server for a run opened by link.
+  const mode = ref<AiRunMode | null>(null)
   const status = ref<AiRunState>('idle')
   const items = ref<AiThreadItem[]>([])
   const limit = ref<AiLimit | null>(null)
@@ -226,13 +228,15 @@ export function useAiRun(options: { enabled?: () => boolean } = {}) {
     }
   }
 
-  /** `setup`: a conversation with the setup agent only, opened from the AI settings (spec 2026-11-04 §6.5). */
-  async function send(message: string, context?: { page: string; id?: number | null } | null, mode?: 'setup') {
+  /** `setup` (opened from the AI settings, spec 2026-11-04 §6.5) or `help` (opened from the help entries, §6.13): a conversation with that free agent only. */
+  async function send(message: string, context?: { page: string; id?: number | null } | null, newMode?: AiConversationMode) {
     if (busy) return
     error.value = null
     limit.value = null
+    // A new conversation takes the mode it is started with; a continued one keeps its own.
+    if (!runId.value) mode.value = newMode ?? 'assistant'
     items.value = [...items.value, { kind: 'user', text: message }]
-    await post('/api/ai/runs', { message, context: context ?? null, run_id: runId.value ?? undefined, ...(mode ? { mode } : {}) })
+    await post('/api/ai/runs', { message, context: context ?? null, run_id: runId.value ?? undefined, ...(newMode ? { mode: newMode } : {}) })
   }
 
   /**
@@ -280,9 +284,10 @@ export function useAiRun(options: { enabled?: () => boolean } = {}) {
     try {
       const response = await fetch(`/api/ai/runs/${encodeURIComponent(id)}`, { signal })
       if (!response.ok) return await refuse(response)
-      const run = AiRunStatusSchema.parse(await response.json())
+      const run = AiRunDetailSchema.parse(await response.json())
       if (signal.aborted || generation !== loadGeneration) return
       runId.value = run.run_id
+      mode.value = run.mode
       let rebuilt: AiThreadItem[] = run.messages.map(m => m.role === 'user' ? { kind: 'user', text: m.content } : { kind: 'assistant', text: m.content, records: [], streaming: false })
       // The status endpoint carries no summary text; the card falls back to the tool name.
       if (run.pending) rebuilt = applyEvent(rebuilt, { event: 'tool_request', data: { ...run.pending, summary_ar: run.pending.tool, summary_en: run.pending.tool } })
@@ -308,11 +313,12 @@ export function useAiRun(options: { enabled?: () => boolean } = {}) {
     loadGeneration++
     loadingRunId.value = null
     runId.value = null
+    mode.value = null
     status.value = 'idle'
     items.value = []
     limit.value = null
     error.value = null
   }
 
-  return { runId, status, items, limit, error, unavailable, send, decide, load, reset }
+  return { runId, mode, status, items, limit, error, unavailable, send, decide, load, reset }
 }

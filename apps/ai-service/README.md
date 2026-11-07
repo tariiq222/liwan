@@ -16,14 +16,14 @@ stops at every tool with an `interrupt`; the Nuxt server executes tools and resu
     .venv/bin/python -m liwan_ai_service.store --initialize-tenant dev_tenant
 
     # Run against those databases: AI_SERVICE_TOKEN is required and must be at least 24 characters.
-    AI_PROVIDER=ollama AI_MODEL=qwen2.5:7b AI_BASE_URL=http://localhost:11434 \
+    AI_PLATFORM_PROVIDER_FILE=/path/to/platform-provider.json \
     AI_DATABASE_URL=postgresql://localhost/liwan_ai_dev \
     AI_SERVICE_TOKEN="$(python3 -c 'import secrets; print(secrets.token_hex(32))')" \
     LIWAN_TENANCY_MODE=dedicated AI_TENANT_DATABASE=dev_tenant \
     .venv/bin/uvicorn liwan_ai_service.service:app --port 8600
 
     # Or run without a database and without a token (local development only): in-memory state, no authentication.
-    AI_PROVIDER=ollama AI_MODEL=qwen2.5:7b AI_BASE_URL=http://localhost:11434 \
+    AI_PLATFORM_PROVIDER_FILE=/path/to/platform-provider.json \
     AI_ALLOW_MEMORY_STATE=true AI_DEV_INSECURE=true \
     .venv/bin/uvicorn liwan_ai_service.service:app --port 8600
 
@@ -37,10 +37,7 @@ must stay unset outside local development.
 
 | Variable | Meaning |
 |---|---|
-| `AI_PROVIDER` | `anthropic`, `openai`, `ollama` or `openrouter` (see Providers) |
-| `AI_MODEL` | provider model id |
-| `AI_API_KEY` | required for anthropic, openai and openrouter |
-| `AI_BASE_URL` | optional; overrides the provider's default base URL (Ollama host, OpenAI-compatible endpoint, OpenRouter) |
+| `AI_PLATFORM_PROVIDER_FILE` | required; the JSON file that names the platform provider (see Platform provider). The service no longer reads `AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY` or `AI_BASE_URL` |
 | `AI_OPENROUTER_REFERER` | optional; sent as `HTTP-Referer` to OpenRouter for app attribution (openrouter only; never required, never logged) |
 | `AI_OPENROUTER_TITLE` | optional; sent as `X-Title` to OpenRouter (openrouter only; never required, never logged) |
 | `AI_EMBEDDING_PROVIDER` | optional; `openai` (any OpenAI-compatible endpoint, through `AI_EMBEDDING_BASE_URL`) or `ollama`. Unset leaves knowledge search unavailable (the tool answers `knowledge_unavailable`). Setting any other `AI_EMBEDDING_*` variable without it refuses startup |
@@ -57,31 +54,58 @@ must stay unset outside local development.
 | `AI_DEV_INSECURE` | `true` (exactly) removes the service token requirement; accepted only with `AI_ALLOW_MEMORY_STATE=true` and no `AI_DATABASE_URL`, so development only, and it must stay unset in deployments |
 | `AI_RUN_RETENTION_DAYS` | default 30; `python -m liwan_ai_service.cleanup` deletes older runs |
 | `AI_DEFAULT_TIMEOUT_SECONDS` | default 120 |
+| `AI_TENANT_EGRESS_DIR` | optional; the directory shared with the `ai-egress` proxy (compose mounts it at `/egress`). Whenever a tenant key is saved or removed, and once at startup for every served tenant, the service writes `<tenant database>.hosts` there with the host that key needs (see Tenant policy). Unset: nothing is published and startup opens no tenant state |
 | `AI_SERVICE_TOKEN` | required: at least 24 characters (a shorter one refuses startup, and a missing one refuses it too), the only exception being `AI_DEV_INSECURE=true` above |
+
+## Platform provider
+
+The model LiwanOS pays for is read from one JSON file, `AI_PLATFORM_PROVIDER_FILE` (spec `docs/superpowers/specs/2026-11-04-liwan-ai-agents-design.md` §6.13):
+
+    {"provider": "openai_compatible", "model": "deepseek-chat", "base_url": "https://api.deepseek.com/v1", "api_key": "...", "revision": 4, "stream_usage": true}
+
+`provider`, `model` and `revision` (an integer from 1) are required; `api_key` is required except for `ollama`; `base_url` is required
+for `openai_compatible`, optional otherwise (a plain `http(s)` URL without credentials, query or fragment; `anthropic` ignores it).
+`stream_usage` (optional boolean) says whether to ask the provider's stream for token counts (`stream_options.include_usage`):
+without it a custom `base_url` is not asked and its calls are reported with null token counts, which also means the token limits
+cannot be enforced for it; with `true` the counts are recorded. `openai` without a `base_url` and `openrouter` always ask unless the
+file says `false`; `anthropic` and `ollama` report counts on their own. A tenant's own key keeps the old rule (a custom endpoint is not asked).
+Unknown fields are refused. In shared SaaS the control plane writes the file from the vendor's provider panel; in a dedicated or
+customer-hosted deployment `deploy/provision.sh` writes it from `deploy/.env`. Mount the directory, not the file, so an atomic
+replacement is seen. The dedicated file is mode 600 owned by uid 10001; the control plane's is mode 640 in a directory of group 10001.
+
+- At start a missing or invalid file stops the boot, naming the field (never a value).
+- Every 5 seconds the content is hashed. A valid change builds the new model and replaces it whole; runs that already started keep
+  the model they began on. An invalid or unreadable file is logged once, by reason only, and the last valid configuration stays.
+- The provider's public host is published as `platform.hosts` in `AI_TENANT_EGRESS_DIR` (the same mechanism as a tenant key's host), at
+  start and on every change. An internal endpoint (a self-hosted Ollama) is not published: list it in `AI_EGRESS_HOSTS`.
+  `platform` is therefore not a usable tenant database name for a tenant key.
 
 ## Providers
 
-The registry in `src/liwan_ai_service/provider_registry.py` is the single list of providers: `Settings.from_env` takes the valid
-`AI_PROVIDER` names and the key rule from it, and `build_chat_model` builds the client from it.
+The registry in `src/liwan_ai_service/provider_registry.py` is the single list of providers: the platform file and tenant keys take the
+valid provider names and the key rule from it, and `build_platform_model` / `build_tenant_model` build the client from it.
 
-| `AI_PROVIDER` | `AI_API_KEY` | Default base URL | Example `AI_MODEL` |
+| `provider` | `api_key` | Default base URL | Example `model` |
 |---|---|---|---|
 | `anthropic` | required | the Anthropic API | `claude-sonnet-4-5` |
-| `openai` | required | the OpenAI API (any OpenAI-compatible endpoint through `AI_BASE_URL`) | `gpt-4o` |
+| `openai` | required | the OpenAI API (any OpenAI-compatible endpoint through `base_url`) | `gpt-4o` |
 | `ollama` | not needed | `http://localhost:11434` | `qwen2.5:7b` |
 | `openrouter` | required | `https://openrouter.ai/api/v1` | `anthropic/claude-sonnet-4.5` |
+| `openai_compatible` | required | none: `base_url` (or the tenant's base URL) is required | the endpoint's model id |
 
-For `openrouter`, `AI_MODEL` is the OpenRouter model id (`vendor/model`).
+For `openrouter`, `model` is the OpenRouter model id (`vendor/model`).
 
-Token counts come from the provider's stream. The `openai` provider asks for the usage chunk (`stream_options`) only without `AI_BASE_URL`,
-because a compatible server may answer 400 to it; with a custom `AI_BASE_URL` its calls are still reported, with null token counts. OpenRouter
-and Anthropic always report tokens. `AI_MODEL` must be 1 to 128 characters without control characters and the provider name must match
-`^[a-z][a-z0-9_-]{0,31}$` (the usage ledger's rule); a bad value stops the boot.
+Token counts come from the provider's stream. The `openai` provider asks for the usage chunk (`stream_options`) only without `base_url`
+(or when the platform file's `stream_usage` says so), because a compatible server may answer 400 to it; otherwise its calls are still reported, with null token counts. OpenRouter
+and Anthropic always report tokens. `model` must be 1 to 128 characters without control characters and the provider name must match
+`^[a-z][a-z0-9_-]{0,31}$` (the usage ledger's rule); a bad value is refused.
 
 ## Adding a provider
 
 - An OpenAI-compatible endpoint (vLLM, LM Studio, LiteLLM, Together, Groq, Mistral's compatible API) needs no code:
-  set `AI_PROVIDER=openai` and `AI_BASE_URL` to the endpoint, with its key in `AI_API_KEY`.
+  set `provider` to `openai_compatible` (or `openai`) and `base_url` to the endpoint in the platform file, with its key in `api_key`. The
+  vendor's provider panel lists such endpoints as presets, one catalog entry each. A tenant on its own key
+  uses `openai_compatible` the same way, with its base URL saved beside the key.
 - A provider with its own LangChain package (for example `langchain-google-genai` or `langchain-mistralai`) needs, in this order:
   1. one dependency line in `pyproject.toml`;
   2. one build function and one `ProviderSpec(name, needs_api_key, default_base_url, build)` entry in `provider_registry.py`,
@@ -112,9 +136,19 @@ whatever the provider (spec 2026-11-04 §6.8); what may reach a provider is limi
 policy (§6.12), never by a provider's location. `max_output_tokens` stops a platform run with `limit_reached`
 (`output_tokens`) once its plan calls reached the cap. Every `model_call` event names its `billing`. The routes
 `GET /v1/tenant/config`, `PUT /v1/tenant/config/retention`, `PUT|DELETE /v1/tenant/config/key` never return the key, only
-`configured` and its last four characters. Pre-release, the tenant schema changed in place with `AI_STATE_VERSION` still
-`1`: a development database bootstrapped before `ai_tenant_config` existed is re-created (drop schema `liwan_ai`, run the
-bootstrap again).
+`configured`, the provider, the model, the base URL and its last four characters.
+
+A tenant key's provider is any provider that takes an API key. `openai_compatible` is the generic one and takes the tenant's `base_url`
+beside the key (required for it, refused for every other provider, which keep their own endpoints); the URL is stored in
+`ai_tenant_config.key_base_url`, is not secret and is returned. At save the service answers 422 `{"detail": {"code", "field": "base_url"}}`
+without echoing the key: `invalid` for a URL that is not `https` on port 443 without credentials, query or fragment, or whose host is a raw
+IP address, a single-label name or not lowercase ASCII; `ai_base_url_not_public` when any address the host resolves to is not globally
+routable unicast (private, loopback, link-local, CGNAT, multicast, reserved, IPv6 ULA). The `ai` container sits on internal networks, where
+a public name does not resolve, so a host this process cannot resolve is accepted and left to `ai-egress`, which refuses a private
+destination every time it connects (`deploy/ai-egress/render.sh`). The host files (`tenant_egress.py`) are one hostname per line, written
+atomically; a failed write answers 503 `ai_egress_unavailable` after the key was saved, and the same save may be repeated.
+
+A tenant schema bootstrapped by an earlier release is upgraded in place: re-running `--initialize-tenant <db>` adds `key_base_url` and its constraint (idempotent), like the other columns added since.
 
 ## Service token
 

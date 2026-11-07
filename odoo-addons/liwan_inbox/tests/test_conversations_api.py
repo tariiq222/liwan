@@ -10,6 +10,7 @@ from odoo.addons.liwan_api.tests.common import set_probe_feature
 CONVERSATION_KEYS = {
     'id', 'contact', 'channel', 'department', 'assignee', 'state', 'priority', 'tags', 'revision', 'last_message_at',
     'last_message_preview', 'last_message_kind', 'unread', 'reply_window_ends_at', 'csat',
+    'referral_source', 'referral_ref',
 }
 
 

@@ -2,6 +2,7 @@ import { computed, ref, watch, toValue, type MaybeRefOrGetter } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { HrEmployeeSchema, DocumentListSchema, DocumentDetailSchema, DocumentFileListSchema, DocumentAccessSchema, DocumentTagListSchema, DocumentTagSchema, DocumentContextListSchema, DocumentContextOptionListSchema, type DocumentCreate, type DocumentPatch, type DocumentAccessUpdate, type DocumentUpload, type DocumentDetail, type DocumentAccess } from '@liwan/contracts'
 import { ApiError } from './useApi'
+import { retryQuery } from '../lib/vueQuerySsr'
 import { documentKeys, type DocumentListQueryParams, type DocumentLookupParams } from '../lib/documentKeys'
 import { replaceDocumentDetail, invalidateDocumentLists, preferNewerDocumentRevision } from '../lib/documentListCache'
 export { documentKeys }
@@ -96,7 +97,7 @@ export function useDocumentFiles(id: MaybeRefOrGetter<number | null>, params: Ma
   const query = useQuery({
     queryKey: computed(() => [...documentKeys.filePage(companyId.value ?? 0, toValue(id) ?? 0, toValue(revision), toValue(params)), ...(options.personal ? ['employee', identity.value.user] as const : [])] as const),
     enabled: computed(() => !!companyId.value && !!toValue(id) && toValue(revision) > 0 && !recovering.value && (!options.personal || !!identity.value.user)),
-    retry: (count, cause) => !(cause instanceof ApiError && cause.status === 409) && count < 1,
+    retry: retryQuery,
     queryFn: ({ queryKey, signal }) => {
       assertDocumentCompany(companyId.value, queryKey[1])
       if (options.personal) assertEmployeeDocumentIdentity(identity.value, queryKey[1], Number(queryKey[7]))

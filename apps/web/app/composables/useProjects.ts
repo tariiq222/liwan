@@ -1,7 +1,8 @@
 import { toValue, type MaybeRefOrGetter, type Ref } from 'vue'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { PROJECT_STATUSES, ProjectDashboardSummarySchema, ProjectDetailSchema, ProjectListSchema, type ProjectCharterAction, type ProjectCopyInput, type ProjectCreate, type ProjectDetail, type ProjectPatch, type ProjectPhase, type ProjectStatus } from '@liwan/contracts'
 import { ApiError } from './useApi'
+import { taskKeys } from './useTasks'
 import { invalidateProjectCaches, projectKeys } from './projectKeys'
 import { parseOffset } from '../utils/routeQuery'
 import { projectPicker } from '../modules/pmo/recordPicker'
@@ -132,7 +133,8 @@ export function useProjectList(archived: Ref<boolean>, filters: MaybeRefOrGetter
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => [...projectKeys.list, projectListQuery(archived.value, toValue(filters))] as const),
-    queryFn: () => $api('/api/v1/projects', { query: projectListQuery(archived.value, toValue(filters)), schema: ProjectListSchema }),
+    placeholderData: keepPreviousData,
+    queryFn: ({ queryKey, signal }) => $api('/api/v1/projects', { query: queryKey[2], signal, schema: ProjectListSchema }),
   })
 }
 
@@ -147,7 +149,7 @@ export function useProjectSummary(filters: MaybeRefOrGetter<ProjectSummaryFilter
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => projectKeys.summary(projectSummaryQuery(toValue(filters)))),
-    queryFn: () => $api('/api/v1/reports/projects/summary', { query: projectSummaryQuery(toValue(filters)), schema: ProjectDashboardSummarySchema }),
+    queryFn: ({ queryKey, signal }) => $api('/api/v1/reports/projects/summary', { query: { ...queryKey[2] }, signal, schema: ProjectDashboardSummarySchema }),
   })
 }
 
@@ -163,7 +165,7 @@ export function useProject(id: Ref<number | null>) {
   return useQuery({
     queryKey: computed(() => projectKeys.detail(id.value ?? 0)),
     enabled: computed(() => !!id.value),
-    queryFn: () => $api(`/api/v1/projects/${id.value}`, { schema: ProjectDetailSchema }),
+    queryFn: ({ queryKey, signal }) => $api(`/api/v1/projects/${queryKey[2]}`, { signal, schema: ProjectDetailSchema }),
   })
 }
 
@@ -220,9 +222,14 @@ export function useUpdateProject() {
     onError: (_e, { id }, ctx) => {
       if (ctx?.prev) qc.setQueryData(projectKeys.detail(id), ctx.prev)
     },
-    onSuccess: (detail, { id }) => {
+    onSuccess: (detail, { id, patch }) => {
       qc.setQueryData(projectKeys.detail(id), detail)
       invalidateProjectCaches(qc)
+      if (patch.tool_preferences) {
+        qc.invalidateQueries({queryKey:taskKeys.all})
+        qc.invalidateQueries({queryKey:['project-finance']})
+        qc.invalidateQueries({queryKey:['project-reports']})
+      }
     },
   })
 }

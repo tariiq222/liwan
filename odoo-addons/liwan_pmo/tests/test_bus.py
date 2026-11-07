@@ -1,11 +1,22 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 
+from odoo.exceptions import AccessError, MissingError
 from odoo.tests import TransactionCase, new_test_user, tagged
+
+from odoo.addons.liwan_api.serializers.common import iso
+from odoo.addons.liwan_pmo.serializers.task import dump_task_detail
 
 
 @tagged('post_install', '-at_install', 'liwan')
 class TestTaskBus(TransactionCase):
+
+    def _assert_write_payload(self, payload, task, changed_fields):
+        self.assertEqual(set(payload), {'id', 'event', 'source', 'updated_at', 'changed_fields'})
+        self.assertEqual((payload['id'], payload['event'], payload['source']), (task.id, 'updated', 'write'))
+        self.assertEqual(payload['updated_at'], iso(task.write_date, timespec='microseconds'))
+        self.assertEqual(payload['changed_fields'], sorted(set(payload['changed_fields'])))
+        self.assertLessEqual(set(changed_fields), set(payload['changed_fields']))
 
     def test_write_notifies_old_and_new_assignees_and_writer(self):
         a = new_test_user(self.env, login='bus_a', groups='liwan_core.group_employee')
@@ -30,7 +41,7 @@ class TestTaskBus(TransactionCase):
             self.assertEqual(targets.count(partner), 1, f"expected exactly one notification per partner, got {targets}")
         self.assertEqual(len(targets), 3, f"expected no notifications to unrelated partners, got {targets}")
         for call in calls:
-            self.assertEqual(call.args[2], {'id': task.id, 'event': 'updated'})
+            self._assert_write_payload(call.args[2], task, {'user_ids'})
 
     def test_create_notifies_assignees(self):
         # project.task's own create() override writes computed fields (e.g.
@@ -43,8 +54,7 @@ class TestTaskBus(TransactionCase):
         # itself) in the same transaction - both are genuine, distinct
         # (partner, task, event) triples and _liwan_notify() sends both (see
         # its docstring: it dedupes identical triples, it doesn't collapse
-        # 'created' and 'updated' into one, nor does it order them - a
-        # `set` gives no ordering guarantee). Assert presence, not order.
+        # 'created' and 'updated' into one). Assert presence, not order.
         a = new_test_user(self.env, login='bus_c', groups='liwan_core.group_employee')
         project = self.env['project.project'].create({'name': 'Bus2'})
         self.env.flush_all()
@@ -97,7 +107,7 @@ class TestTaskBus(TransactionCase):
         self.assertIn(a.partner_id, targets)
         self.assertEqual(targets.count(a.partner_id), 1, f"expected exactly one notification per partner, got {targets}")
         for call in calls:
-            self.assertEqual(call.args[2], {'id': task.id, 'event': 'updated'})
+            self._assert_write_payload(call.args[2], task, {'stage_id'})
 
     def test_state_change_notifies_once(self):
         # Regression test for round 3: project.task's own write() override
@@ -107,7 +117,7 @@ class TestTaskBus(TransactionCase):
         # that recurses through the entire write() stack, including this
         # module's override - double-firing _liwan_notify('updated') for a
         # single user action. _liwan_notify()'s precommit accumulation into
-        # a set, drained once by a single precommit callback, must collapse
+        # a mapping, drained once by a single precommit callback, must collapse
         # this into exactly one notification per target partner.
         a = new_test_user(self.env, login='bus_f', groups='liwan_core.group_employee')
         project = self.env['project.project'].create({'name': 'Bus5'})
@@ -125,7 +135,61 @@ class TestTaskBus(TransactionCase):
         for partner in (a.partner_id, self.env.user.partner_id):
             self.assertEqual(targets.count(partner), 1, f"expected exactly one notification per partner, got {targets}")
         for call in calls:
-            self.assertEqual(call.args[2], {'id': task.id, 'event': 'updated'})
+            self._assert_write_payload(call.args[2], task, {'state', 'date_last_stage_update'})
+
+    def test_write_stamp_matches_detail_and_unions_fields(self):
+        project = self.env['project.project'].create({'name': 'Bus revisions'})
+        task = self.env['project.task'].create({'name': 'Revision', 'project_id': project.id})
+        self.env.flush_all()
+        self.env.cr.precommit.run()
+        with patch.object(type(self.env['bus.bus']), '_sendone') as sendone:
+            task.write({'name': 'Revised'})
+            task.write({'priority': '1'})
+            detail_stamp = dump_task_detail(task)['updated_at']
+            self.env.flush_all()
+            self.env.cr.precommit.run()
+        calls = [call for call in sendone.call_args_list if call.args[1] == 'liwan/task']
+        self.assertEqual(len(calls), 1)
+        self._assert_write_payload(calls[0].args[2], task, {'name', 'priority'})
+        self.assertEqual(calls[0].args[2]['updated_at'], detail_stamp)
+
+    def test_comment_and_unknown_origin_dominate_merged_write(self):
+        project = self.env['project.project'].create({'name': 'Bus comments'})
+        task = self.env['project.task'].create({'name': 'Comments', 'project_id': project.id})
+        self.env.flush_all()
+        self.env.cr.precommit.run()
+        for origin in ('comment', 'unknown'):
+            for write_first in (True, False):
+                with self.subTest(origin=origin, write_first=write_first):
+                    with patch.object(type(self.env['bus.bus']), '_sendone') as sendone:
+                        if write_first:
+                            task.write({'name': f'{origin} first'})
+                        if origin == 'comment':
+                            task.message_post(body='hi', message_type='comment', subtype_xmlid='mail.mt_comment')
+                        else:
+                            task._liwan_notify('updated')
+                        if not write_first:
+                            task.write({'name': f'{origin} last'})
+                        self.env.flush_all()
+                        self.env.cr.precommit.run()
+                    calls = [call for call in sendone.call_args_list if call.args[1] == 'liwan/task']
+                    self.assertEqual(len(calls), 1)
+                    self.assertEqual(calls[0].args[2], {'id': task.id, 'event': 'updated'})
+
+    def test_unavailable_revision_emits_conservative_notification(self):
+        project = self.env['project.project'].create({'name': 'Bus unavailable revision'})
+        task = self.env['project.task'].create({'name': 'Unavailable', 'project_id': project.id})
+        self.env.flush_all()
+        self.env.cr.precommit.run()
+        for error in (AccessError, MissingError):
+            with self.subTest(error=error.__name__):
+                with patch.object(type(self.env['bus.bus']), '_sendone') as sendone:
+                    with patch.object(type(task), 'write_date', new_callable=PropertyMock, side_effect=error('unavailable')):
+                        task._liwan_notify('updated', changed_fields={'name'})
+                    self.env.cr.precommit.run()
+                calls = [call for call in sendone.call_args_list if call.args[1] == 'liwan/task']
+                self.assertEqual(len(calls), 1)
+                self.assertEqual(calls[0].args[2], {'id': task.id, 'event': 'updated'})
 
     def test_comment_notifies_assignee(self):
         # message_post() doesn't go through write(), so without
@@ -136,8 +200,10 @@ class TestTaskBus(TransactionCase):
         task = self.env['project.task'].create({'name': 'T3', 'project_id': project.id, 'user_ids': [(4, a.id)]})
         self.env.flush_all()
         self.env.cr.precommit.run()
+        write_date = task.write_date
         with patch.object(type(self.env['bus.bus']), '_sendone') as sendone:
             task.message_post(body='hi', message_type='comment', subtype_xmlid='mail.mt_comment')
+            self.assertEqual(task.write_date, write_date)
             self.env.flush_all()
             self.env.cr.precommit.run()
         calls = [call for call in sendone.call_args_list if call.args[1] == 'liwan/task']

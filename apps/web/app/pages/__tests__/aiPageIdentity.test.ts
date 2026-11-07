@@ -15,7 +15,7 @@ const mounted: Vue.App[] = []
 afterEach(() => { mounted.splice(0).forEach(app => app.unmount()); vi.unstubAllGlobals() })
 const settle = async () => { for (let i = 0; i < 4; i++) { await new Promise(resolve => setTimeout(resolve, 0)); await Vue.nextTick() } }
 const textOf = (node: HostNode): string => (node.type === 'comment' ? '' : node.text ?? '') + node.children.map(textOf).join('')
-const responseBody = { run_id: 'identity-a-run', status: 'done', messages: [{ role: 'assistant', content: 'Identity A private transcript' }], pending: null }
+const responseBody = { mode: 'assistant', run_id: 'identity-a-run', status: 'done', messages: [{ role: 'assistant', content: 'Identity A private transcript' }], pending: null }
 
 function mountActualPage(fetch: typeof globalThis.fetch) {
   const me = Vue.ref<{ id: number; name: string; company: { id: number } } | null>({ id: 7, name: 'A', company: { id: 1 } })
@@ -174,6 +174,7 @@ describe('actual full AI page and sheet while one of them streams', () => {
       // Only the surface that owns the stream sees its events; the other one reads what the server has stored so far.
       return new Response(JSON.stringify({
         run_id: String(url).split('/').at(-1),
+        mode: 'assistant',
         status: state.settled ? 'done' : 'running',
         messages: state.settled ? [{ role: 'user', content: 'سؤال' }, { role: 'assistant', content: 'الجواب' }] : [{ role: 'user', content: 'سؤال' }],
         pending: null,

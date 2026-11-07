@@ -4,7 +4,7 @@ import { ApiError } from '../useApi'
 const setQueryData = vi.fn()
 const queryClient = {
   cancelQueries: vi.fn(),
-  getQueryData: vi.fn(() => ({ id: 1, name: 'old' })),
+  getQueryData: vi.fn((key: readonly unknown[]) => key[0] === 'tasks' ? { id: 1, name: 'old' } : undefined),
   getQueriesData: vi.fn(() => [[['tasks', 'list', 'a'], { pages: [] }]]),
   setQueryData,
   invalidateQueries: vi.fn(),
@@ -29,6 +29,7 @@ describe('useUpdateTask failure', () => {
   beforeEach(() => {
     toastAdd.mockReset()
     setQueryData.mockReset()
+    vi.stubGlobal('useMe', () => ({ me: { value: null } }))
     globals.useI18n = () => ({ t: (key: string) => key })
     globals.useToast = () => ({ add: toastAdd })
     globals.useApi = () => ({ $api: vi.fn() })
@@ -40,7 +41,7 @@ describe('useUpdateTask failure', () => {
     setQueryData.mockClear()
     options.onError!(new ApiError(422, 'invalid', 'رسالة الخادم'), { id: 1 }, ctx)
     expect(setQueryData).toHaveBeenCalledWith(['tasks', 'detail', 1], { id: 1, name: 'old' })
-    expect(setQueryData).toHaveBeenCalledWith(['tasks', 'list', 'a'], { pages: [] })
+    expect(setQueryData).not.toHaveBeenCalledWith(['tasks', 'list', 'a'], expect.anything())
     expect(toastAdd).toHaveBeenCalledWith({ title: 'رسالة الخادم', color: 'error' })
   })
 

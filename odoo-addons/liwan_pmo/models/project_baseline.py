@@ -14,7 +14,20 @@ from odoo.exceptions import AccessError, LockError, UserError, ValidationError
 
 from .project_charter import LiwanChangeRequired, LiwanCharterState
 from .project_constants import BASELINE_NOTE_MAX, TASK_CANCELED_STATE
-from .project_governance import _check_project, _create_values
+from .project_governance import _create_values
+
+
+def _check_project(project, manage=False):
+    project._liwan_check_tool('planning')
+    if not project.active:
+        msg = 'Archived projects are read-only.'
+        raise AccessError(msg)
+    if manage:
+        project._liwan_check_manage()
+        project._liwan_check_tool_write('planning')
+        project.env['liwan.entitlement.service'].require('pmo.baselines')
+    return project
+
 
 BASELINE_CREATE_FIELDS = {'project_id', 'note', 'change_id'}
 BASELINE_LINE_MARKER = 'liwan_pmo.baseline_lines'
@@ -32,7 +45,10 @@ class LiwanChangeUsed(UserError):
 
 class LiwanProjectBaseline(models.Model):
     _name = 'liwan.project.baseline'
-    _inherit = 'liwan.governance.visibility'
+    _inherit = 'liwan.project.child.visibility'
+    _liwan_tool_key = 'planning'
+    _liwan_required_features = ('pmo.baselines',)
+    _liwan_tool_field_map = {'finance': {'budget_total', 'currency_id', 'planned_value_share'}, 'governance': {'change_id'}}
     _description = 'Project schedule and cost baseline'
     _liwan_scope = 'company'
     _order = 'number desc, id desc'
@@ -93,6 +109,8 @@ class LiwanProjectBaseline(models.Model):
     @api.model
     def _liwan_current_budget(self, project):
         """The budget of the plan now: the finance budget entries, else the charter estimate, else zero."""
+        if not project._liwan_tool_enabled('finance'):
+            return 0.0
         entries = self.env['liwan.project.finance.entry'].search([('project_id', '=', project.id), ('kind', '=', 'budget')])
         if entries:
             return project.currency_id.round(sum(entries.mapped('amount')))
@@ -131,9 +149,9 @@ class LiwanProjectBaseline(models.Model):
 
     def _liwan_check_taking(self, project, change, has_previous):
         """The rules of taking a baseline: the caller manages the project, the plan is approved, a change covers a controlled project."""
-        if not has_previous and project.liwan_charter_state != 'approved':
+        if not has_previous and project._liwan_tool_enabled('governance') and project._liwan_charter_approval_required() and project.liwan_charter_state != 'approved':
             raise LiwanCharterState(self.env._("The first baseline needs an approved charter."))
-        mode = self.env['liwan.pmo.settings'].change_control_mode()
+        mode = self.env['liwan.pmo.settings'].change_control_mode() if project._liwan_tool_enabled('governance') else 'off'
         if change and mode == 'off':
             raise ValidationError(self.env._("Change control is turned off for this company."))
         if mode == 'required' and project.liwan_phase == 'executing' and not (change and change.state == 'approved'):
@@ -212,7 +230,10 @@ class LiwanProjectBaseline(models.Model):
 
 class LiwanProjectBaselineTask(models.Model):
     _name = 'liwan.project.baseline.task'
-    _inherit = 'liwan.governance.visibility'
+    _inherit = 'liwan.project.child.visibility'
+    _liwan_tool_key = 'planning'
+    _liwan_required_features = ('pmo.baselines',)
+    _liwan_tool_field_map = {'finance': {'budget_total', 'currency_id', 'planned_value_share'}, 'governance': {'change_id'}}
     _description = 'Task line of a project baseline'
     _liwan_scope = 'company'
     _order = 'planned_start asc, planned_end asc, id asc'

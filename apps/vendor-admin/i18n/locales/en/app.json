@@ -16,7 +16,8 @@
       "operations": "Operations",
       "invoices": "Invoices",
       "audit": "Audit",
-      "team": "Team"
+      "team": "Team",
+      "ai-provider": "AI provider"
     },
     "shell": {
       "header": "Console header",

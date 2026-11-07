@@ -10,6 +10,7 @@ const BLOCKED = 8002
 test.beforeEach(async ({ page }) => {
   await login(page)
   expect((await page.request.post('/api/v1/__mock/reset-charters')).status()).toBe(200)
+  expect((await page.request.patch('/api/v1/settings/projects',{data:{governance_tool_policy:'enabled',require_charter_approval:true}})).status()).toBe(200)
 })
 
 test.afterEach(async ({ page }) => {
@@ -17,7 +18,7 @@ test.afterEach(async ({ page }) => {
 })
 
 test('a project with an unapproved charter is blocked and links to the charter', async ({ page }) => {
-  await open(page, `/projects/${BLOCKED}`)
+  await open(page, `/projects/${BLOCKED}/charter`)
   await expect(page.getByTestId('project-phase-initiating')).toHaveAttribute('data-state', 'current')
   await expect(page.getByTestId('project-phase-check-charter_approved')).toHaveAttribute('data-ok', 'false')
   await expect(page.getByTestId('project-phase-move')).toBeDisabled()
@@ -26,12 +27,12 @@ test('a project with an unapproved charter is blocked and links to the charter',
 })
 
 test('the manager moves to planning once the charter is approved, then steps back inline', async ({ page }) => {
-  await open(page, `/projects/${APPROVABLE}`)
+  await open(page, `/projects/${APPROVABLE}/charter`)
   await expect(page.getByTestId('project-phase-move')).toBeDisabled()
   const detail = await (await page.request.get(`/api/v1/projects/${APPROVABLE}`)).json()
   const approved = await page.request.post(`/api/v1/projects/${APPROVABLE}/charter/approve`, { data: { expected_updated_at: detail.updated_at } })
   expect(approved.status()).toBe(200)
-  await open(page, `/projects/${APPROVABLE}`)
+  await open(page, `/projects/${APPROVABLE}/charter`)
   await expect(page.getByTestId('project-phase-move')).toBeEnabled()
   await page.getByTestId('project-phase-move').click()
   await expect(page.getByTestId('project-phase-planning')).toHaveAttribute('data-state', 'current')
@@ -43,7 +44,7 @@ test('the manager moves to planning once the charter is approved, then steps bac
 })
 
 test('a read-only project in planning shows the baseline check but offers no move', async ({ page }) => {
-  await open(page, '/projects/3')
+  await open(page, '/projects/3/charter')
   await expect(page.getByTestId('project-phase-planning')).toHaveAttribute('data-state', 'current')
   await expect(page.getByTestId('project-phase-check-baseline_set')).toHaveAttribute('data-ok', 'false')
   await expect(page.getByTestId('project-phase-fix')).toHaveCount(0)

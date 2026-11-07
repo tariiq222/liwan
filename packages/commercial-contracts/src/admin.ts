@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const vendorCapabilitySchema = z.enum(['vendor.read', 'vendor.tenants.manage', 'vendor.catalog.manage', 'vendor.operations.run', 'vendor.audit.read', 'vendor.pricing.manage', 'vendor.subscriptions.manage', 'vendor.billing.manage', 'vendor.accounts.manage'])
+export const vendorCapabilitySchema = z.enum(['vendor.read', 'vendor.tenants.manage', 'vendor.catalog.manage', 'vendor.operations.run', 'vendor.audit.read', 'vendor.pricing.manage', 'vendor.subscriptions.manage', 'vendor.billing.manage', 'vendor.accounts.manage', 'vendor.ai.manage'])
 export type VendorCapability = z.infer<typeof vendorCapabilitySchema>
 
 // Wire shapes of the vendor-admin identity routes (/v1/admin/auth/*, /v1/admin/me, /v1/admin/accounts*).

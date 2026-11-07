@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import errno
 import tempfile
 import unittest
 from pathlib import Path
@@ -157,15 +158,27 @@ class TestFilestoreAndPorts(TempDirCase):
         self.assertTrue((filestore_dest(self.root / 'data', 'liwan_scratch_run_x') / 'ab' / 'file').is_file())
 
     def test_port_lock_is_exclusive_until_released(self):
+        # This tests real flock ownership, independently of concurrent local HTTP servers.
+        with mock.patch.object(odoo_test.socket.socket, 'connect_ex', return_value=errno.ECONNREFUSED):
+            ports = range(8197, 8198)
+            port, handle = acquire_port(self.root, ports)
+            self.assertEqual(port, 8197)
+            with self.assertRaises(OdooTestError):
+                acquire_port(self.root, ports)
+            handle.close()
+            port, handle = acquire_port(self.root, ports)
+            self.assertEqual(port, 8197)
+            handle.close()
+
+    def test_occupied_port_is_rejected_without_retaining_its_lock(self):
         ports = range(8197, 8198)
-        port, handle = acquire_port(self.root, ports)
-        self.assertEqual(port, 8197)
-        with self.assertRaises(OdooTestError):
-            acquire_port(self.root, ports)
-        handle.close()
-        port, handle = acquire_port(self.root, ports)
-        self.assertEqual(port, 8197)
-        handle.close()
+        with mock.patch.object(odoo_test.socket.socket, 'connect_ex', return_value=0):
+            with self.assertRaisesRegex(OdooTestError, 'no free HTTP port'):
+                acquire_port(self.root, ports)
+        with mock.patch.object(odoo_test.socket.socket, 'connect_ex', return_value=errno.ECONNREFUSED):
+            port, handle = acquire_port(self.root, ports)
+            self.addCleanup(handle.close)
+            self.assertEqual(port, 8197)
 
 
 class TestGc(unittest.TestCase):

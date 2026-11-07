@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """The setup agent (spec 2026-11-04 §6.5): the platform's own agent, free for every tenant, that helps configure the
 enabled applications from their declared settings. It runs only in a setup conversation (``mode=setup``), on the
-platform provider and against the vendor's monthly budget ``ai.setup.monthly``, never in an ordinary one."""
+platform provider and against the vendor's monthly assistance budget ``ai.assist.monthly``, never in an ordinary one."""
 from odoo import api, models
 
 from odoo.addons.liwan_ai.models.access_service import AI_SETTINGS_MANAGE, AI_USE
@@ -21,12 +21,17 @@ SETUP_AGENT = {
     'description_ar': 'يساعد في ضبط إعدادات التطبيقات المفعّلة حسب نشاط الشركة',
     'description_en': "Helps configure the enabled applications' settings for the company's line of business",
     'instructions_ar': (
-        'أنت وكيل الإعداد. اسأل عن نشاط الشركة وطريقة عملها باختصار، ثم اقرأ الإعدادات المتاحة واقترح التغييرات المناسبة '
+        'أنت وكيل الإعداد. في بداية المحادثة اعرض على المستخدم فحص الجاهزية: إن وافق فاقرأه بأداة الجاهزية وأخبره بما ينقص '
+        'مبتدئًا بالأهم، واذكر لكل بند الصفحة التي تعالجه واعرض مساعدته فيه. وهو يقرأ ولا يغيّر شيئًا. '
+        'اسأل عن نشاط الشركة وطريقة عملها باختصار، ثم اقرأ الإعدادات المتاحة واقترح التغييرات المناسبة '
         'واحدًا واحدًا: اذكر لكل اقتراح القيمة الحالية والقيمة الجديدة وأثرها، ولا تطبّقه إلا بأداة التطبيق التي تنتظر '
         'موافقة المستخدم. لا تغيّر الأدوار ولا الصلاحيات: اقترحها بالكلام فقط ووجّه المستخدم إلى صفحة الوصول.'
     ),
     'instructions_en': (
-        "You are the setup agent. Briefly ask about the company's line of business and way of working, then read the "
+        'You are the setup agent. At the start, offer the user the readiness check: if they agree, read it with the readiness '
+        'tool and tell them what is missing, the most important first, naming the page that fixes each item and offering to '
+        'help with it. The check only reads and changes nothing. '
+        "Briefly ask about the company's line of business and way of working, then read the "
         'available settings and propose fitting changes one at a time: for each, state the current value, the new value '
         'and its impact, and apply it only with the apply tool, which waits for the user\'s approval. Never change roles '
         'or permissions: suggest them in words and point the user to the access page.'
@@ -35,6 +40,15 @@ SETUP_AGENT = {
 }
 
 SETUP_TOOLS = (
+    {
+        'name': 'ai.readiness', 'owner': OWNER, 'kind': 'read', 'capability': AI_USE, 'feature_key': 'ai.enabled',
+        'description_ar': 'يفحص ما ينقص الشركة لتكتمل جاهزيتها (مستخدمون بلا دور، إعدادات لم تُحفظ، تطبيقات مفعّلة بلا سجلات) مع صفحة علاج كل بند',
+        'description_en': 'Check what the company still lacks to be ready (users without a role, unsaved settings, enabled applications without records), with the page that fixes each item',
+        'route': {'method': 'GET', 'path': '/api/v1/ai/setup/readiness'},
+        'input_schema': {'type': 'object', 'properties': {}, 'additionalProperties': False},
+        'input_map': {},
+        'result_summary': ['items[].key', 'items[].severity', 'items[].label', 'items[].page', 'total'],
+    },
     {
         'name': 'ai.list_settings', 'owner': OWNER, 'kind': 'read', 'capability': AI_USE, 'feature_key': 'ai.enabled',
         'description_ar': 'يعرض إعدادات التطبيقات المفعّلة التي يحق للمستخدم تغييرها مع قيمها الحالية وأثرها',

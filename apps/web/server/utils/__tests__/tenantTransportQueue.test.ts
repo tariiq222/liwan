@@ -38,7 +38,7 @@ async function wireFixture() {
   const blocker = transport.withUpstreamSlot(() => { holding(); return new Promise<void>(resolve => { freeSlot = resolve }) })
   await held
   return {
-    ...transport, calls, base, event, freeSlot,
+    ...transport, calls, base, event, freeSlot, registry,
     async close() {
       freeSlot()
       await blocker
@@ -224,4 +224,18 @@ it('cancels a dedicated POST whose real socket closes before proxy body reading'
     await new Promise<void>(resolve => proxy.close(() => resolve()))
     await wire.close()
   }
+})
+
+// Reusing request snapshots must not let a queued operation bypass a later publication.
+it.each(['pending', 'disabled', 'revision'] as const)('rechecks a %s publication after queue admission before sending', async kind => {
+  const wire = await wireFixture()
+  try {
+    const pending = wire.tenantTransport(wire.event().event, wire.base, '/api/v1/stale', { method: 'POST', body: '{}' })
+    const outcome = pending.then(() => 'sent', () => 'rejected')
+    if (kind === 'pending') writeFileSync(`${wire.registry}.pending`, '')
+    else writeFileSync(wire.registry, JSON.stringify({ schemaVersion: 1, snapshotRevision: 2, targets: [{ host: 'a.example.test', tenantId: 'a', database: 'db_a', filestore: 'db_a', registryRevision: kind === 'revision' ? 2 : 1, enabled: kind !== 'disabled' }] }))
+    wire.freeSlot()
+    expect(await outcome).toBe('rejected')
+    expect(wire.calls).toEqual([])
+  } finally { await wire.close() }
 })

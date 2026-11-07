@@ -76,3 +76,17 @@ async def test_the_key_columns_are_all_set_or_all_empty(config):
         with pytest.raises(psycopg.errors.CheckViolation):
             await conn.execute("UPDATE ai_tenant_config SET key_provider = 'anthropic'")
     assert (await store.clear_key()).key.configured is False
+
+
+async def test_a_schema_bootstrapped_before_the_base_url_column_is_upgraded_in_place(config):
+    store, pool = config
+    async with pool.connection() as conn:
+        await conn.execute("ALTER TABLE ai_tenant_config DROP COLUMN key_base_url")  # what an earlier release created
+    await initialize_tenant(pool.conninfo)
+    await initialize_tenant(pool.conninfo)  # and the upgrade is idempotent
+    assert (await store.get()).key.base_url is None
+    saved = await store.set_key("openai_compatible", "llama-3", TENANT_KEY, OLD, "https://llm.tenant.example/v1")
+    assert saved.key.base_url == "https://llm.tenant.example/v1"
+    async with pool.connection() as conn:
+        with pytest.raises(psycopg.errors.CheckViolation):
+            await conn.execute("UPDATE ai_tenant_config SET key_provider = NULL, key_model = NULL, key_ciphertext = NULL, key_id = NULL, key_last4 = NULL, key_updated_at = NULL")
