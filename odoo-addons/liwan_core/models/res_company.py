@@ -3,6 +3,7 @@ from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 from odoo.tools import reset_cached_properties
 
+from .access_service import VAT_PERMISSION
 from .protected_write import is_marked_write, marked
 from .res_partner import (
     PARTNER_BRANDING_MARKER,
@@ -66,7 +67,10 @@ class ResCompany(models.Model):
     def create(self, vals_list):
         if not self.env.is_system():
             raise AccessError(self.env._('Only Odoo system administrators can create institutions.'))
-        return super().create(vals_list)
+        companies = super().create(vals_list)
+        # A company created already registered is a registration change too: from the default, not registered.
+        companies.filtered('liwan_vat_registered')._liwan_log_vat_registration(dict.fromkeys(companies.ids, False))
+        return companies
 
     def write(self, vals):
         if ('liwan_branch_access_mode' in vals and not self.env.is_superuser()
@@ -136,20 +140,41 @@ class ResCompany(models.Model):
         self.ensure_one()
         return bool(self.liwan_vat_registered)
 
+    @api.model
+    def _liwan_vat_number_is_checked(self):
+        """Whether this database checks a VAT number against its country's format: only ``base_vat`` does.
+
+        The module is the test, not the method: ``account`` also defines ``_run_vat_checks``, and its version
+        returns the number it is given, so its existence says nothing.
+        """
+        return 'base_vat' in self.env['ir.module.module']._installed()
+
+    def _liwan_require_vat_registration_right(self, registered):
+        """Changing whether the company is registered for VAT needs ``settings.company.vat.manage``.
+
+        The company profile's own capability (``settings.company.manage``, which custom roles may hold) is not
+        enough: this decides whether any tax shows, so only the system administrator role holds it. Sending the
+        value the company already has changes nothing and needs nothing.
+        """
+        self.ensure_one()
+        if bool(registered) != self.liwan_vat_registered:
+            self.env['liwan.access.service']._liwan_require_capability(VAT_PERMISSION)
+
     def _liwan_check_vat_registration(self):
         """Refuse a VAT-registered company without a valid VAT number: registering needs one, and so does keeping it.
 
         Odoo's own number check for the company's country (``base_vat``, the Saudi 15-digit TIN rule under
-        ``l10n_sa``) decides, never a hand-written pattern; a company with no installed checker accepts any text.
+        ``l10n_sa``) decides, never a hand-written pattern. ``liwan_core`` depends on ``base`` only, so the
+        check runs where ``base_vat`` is installed; the company profile route refuses to register a company
+        where it is not (``vat_check_unavailable``), so no customer request registers an unchecked number.
         """
         for company in self:
             if not company.liwan_vat_registered:
                 continue
             if not company.vat:
                 raise ValidationError(self.env._('Enter the VAT number before registering the company for VAT.'))
-            check = getattr(self.env['res.partner'], '_run_vat_checks', None)
-            if check and company.country_id:
-                check(company.country_id, company.vat, company.name)
+            if company.country_id and self._liwan_vat_number_is_checked():
+                self.env['res.partner']._run_vat_checks(company.country_id, company.vat, company.name)
 
     @api.constrains('liwan_vat_registered', 'vat')
     def _check_vat_registration(self):
@@ -185,6 +210,8 @@ class ResCompany(models.Model):
         if not vals or set(vals) - allowed:
             msg = 'invalid_company_profile_fields'
             raise AccessError(msg)
+        if 'liwan_vat_registered' in vals:
+            self._liwan_require_vat_registration_right(vals['liwan_vat_registered'])
         with marked(self.env, {COMPANY_PROFILE_MARKER: {self.id}, PARTNER_COMPANY_MARKER: {self.partner_id.id}}):
             result = self.write(vals)
         self._liwan_log_company_change('company.profile_changed', vals)

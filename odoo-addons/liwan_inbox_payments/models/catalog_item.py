@@ -150,6 +150,25 @@ class LiwanInboxCatalogItem(models.Model):
         self.invalidate_model(['sync_state', 'image_token'])
         self.browse(ids).catalog_id._liwan_request_sync()
 
+    @api.model
+    def _liwan_vat_registration_changed(self, company_ids):
+        """Resend the synced items of companies whose VAT registration changed: it decides whether their price carries tax.
+
+        Plain SQL on this model's own table, as for a changed product: the company's writer holds no right on items.
+        Items already pending, syncing, in error or being removed keep their state, and the next push reads the new price.
+        """
+        self.flush_model()
+        self.env.cr.execute(
+            "UPDATE liwan_inbox_catalog_item SET sync_state = 'pending' "
+            "WHERE company_id IN %s AND listed AND active AND sync_state = 'synced' RETURNING catalog_id",
+            [tuple(company_ids)],
+        )
+        catalog_ids = {row[0] for row in self.env.cr.fetchall()}
+        self.invalidate_model(['sync_state'])
+        if catalog_ids:
+            # Ids only: the person who flips the setting may hold no right on catalogs or items, so no field is read.
+            self.env['liwan.inbox.catalog'].browse(catalog_ids)._liwan_request_sync()
+
     # content
 
     @api.depends('product_id')
@@ -159,7 +178,7 @@ class LiwanInboxCatalogItem(models.Model):
             item.name = product.with_context(display_default_code=False).display_name[:MAX_PRODUCT_NAME]
             item.description = (product.description_sale or item.name)[:MAX_PRODUCT_DESCRIPTION]
 
-    @api.depends('product_id', 'catalog_id.prices_include_tax')
+    @api.depends('product_id', 'catalog_id.prices_include_tax', 'catalog_id.company_id.liwan_vat_registered')
     def _compute_price(self):
         for item in self:
             item.currency = item.catalog_id.company_id.currency_id.name

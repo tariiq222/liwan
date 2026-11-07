@@ -147,8 +147,8 @@ def _parse_field(company, field, value, extensions):
 
 
 def _check_vat_registration(company, vals):
-    """Registering the company for VAT needs a valid VAT number: the payload's own or the saved one."""
-    if not vals.get('vat_registered'):
+    """A company registered for VAT, before or after this write, needs a valid VAT number: the payload's own or the saved one."""
+    if not vals.get('vat_registered', company._liwan_vat_registered()):
         return
     vat = vals.get('vat', company.vat or False)
     if not vat:
@@ -156,8 +156,9 @@ def _check_vat_registration(company, vals):
             422, 'invalid_vat',
             'أدخل الرقم الضريبي قبل تسجيل الشركة في ضريبة القيمة المضافة.', field='vat',
         )
-    if 'vat' not in vals:
-        check_vat(company.country_id, vat, vals.get('name', company.name))
+    # The number is new, or newly relied on: it must pass the country check. An edit of anything else leaves it be.
+    if 'vat' in vals or not company._liwan_vat_registered():
+        check_vat(company.country_id, vat, vals.get('name', company.name), required=True)
 
 
 def parse_company_profile_vals(payload, company):
@@ -171,6 +172,9 @@ def parse_company_profile_vals(payload, company):
     for field in payload:
         if field not in EDITABLE_FIELDS and field not in extensions:
             raise ApiError(422, 'invalid', f'field {field!r} is not writable', field=field)
+    # Before any value is validated: a caller without the right learns nothing about the number's state.
+    if 'vat_registered' in payload:
+        company._liwan_require_vat_registration_right(payload['vat_registered'])
     vals = {field: _parse_field(company, field, value, extensions) for field, value in payload.items()}
     state = company.env['res.country.state'].browse(vals.get('state_id') or [])
     if state and state.country_id != company.country_id:

@@ -32,6 +32,10 @@ def _dump_document(document, status, options):
         'amount_untaxed': document.amount_untaxed,
         'amount_tax': document.amount_tax,
         'amount_total': document.amount_total,
+        # Whether the page shows its tax rows: a registered company's zero-rated document still does, and a
+        # document issued with tax before the company deregistered keeps them. Only an untaxed document of an
+        # unregistered company shows none.
+        'tax_applies': document.company_id._liwan_vat_registered() or not document.currency_id.is_zero(document.amount_tax),
         # A document nobody can pay (cancelled, expired) owes nothing; the payer is told so, not shown a stale amount.
         'amount_due': 0.0 if status == 'not_payable' else document._liwan_pay_amount(),
         'status': status,

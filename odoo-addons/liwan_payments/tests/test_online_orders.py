@@ -15,7 +15,7 @@ from odoo.addons.liwan_payments.models.order_service import (
     NotPayable,
 )
 
-ORDER_KEYS = {'id', 'merchant', 'number', 'expires_at', 'currency', 'amount_untaxed', 'amount_tax', 'amount_total', 'amount_due', 'status', 'options'}
+ORDER_KEYS = {'id', 'merchant', 'number', 'expires_at', 'currency', 'amount_untaxed', 'amount_tax', 'amount_total', 'tax_applies', 'amount_due', 'status', 'options'}
 
 
 @tagged('post_install', '-at_install', 'liwan')

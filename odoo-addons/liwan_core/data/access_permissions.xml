@@ -88,4 +88,12 @@
         <field name="group_xmlid">liwan_core.group_cap_settings_company_manage</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
+    <record id="permission_settings_company_vat_manage" model="liwan.access.permission">
+        <field name="key">settings.company.vat.manage</field><field name="domain">settings</field>
+        <field name="resource">company_vat</field><field name="action">manage</field>
+        <field name="name_ar">إدارة التسجيل في ضريبة القيمة المضافة</field><field name="name_en">Manage VAT registration</field>
+        <field name="description_ar">تسجيل الشركة في ضريبة القيمة المضافة أو إلغاء تسجيلها، وهو ما يقرّر ظهور الضريبة في الأسعار والفواتير</field><field name="description_en">Register the company for VAT or deregister it, which decides whether tax shows on prices and invoices</field>
+        <field name="group_xmlid">liwan_core.group_cap_settings_company_vat_manage</field>
+        <field name="custom_role_allowed" eval="False"/><field name="sensitive" eval="True"/>
+    </record>
 </odoo>

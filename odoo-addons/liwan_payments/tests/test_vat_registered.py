@@ -40,6 +40,7 @@ class TestNoTaxWithoutVatRegistration(LiwanOrderCase):
         body = self.payable(order)
         self.assertEqual((body['amount_untaxed'], body['amount_tax'], body['amount_total']), (115.0, 0.0, 115.0))
         self.assertEqual(body['amount_due'], 115.0)
+        self.assertFalse(body['tax_applies'])
 
     def test_the_price_the_customer_pays_is_the_price_the_seller_set(self):
         # A price that would not survive an inclusive tax (an odd cent) is charged whole, with no tax line.
@@ -86,8 +87,7 @@ class TestNoTaxWithoutVatRegistration(LiwanOrderCase):
         order = self.online_order()
         self.pay(order, 115.0)
         invoices, _credit_notes = order._liwan_invoices_and_credit_notes()
-        if not invoices:
-            self.skipTest('invoicing on payment is off in this fixture')
+        self.assertTrue(invoices, 'paying the order must have invoiced it')
         self.assertEqual((invoices.amount_tax, invoices.amount_total), (0.0, 115.0))
         credit_notes = order._liwan_credit_notes(115.0)
         self.assertEqual((credit_notes.amount_tax, credit_notes.amount_total), (0.0, 115.0))
@@ -99,3 +99,43 @@ class TestNoTaxWithoutVatRegistration(LiwanOrderCase):
         self.register(False)
         untaxed = self.online_order()
         self.assertEqual(untaxed.amount_tax, 0.0)
+
+    def test_the_pay_page_shows_tax_rows_for_a_registered_company_even_when_the_document_has_no_tax(self):
+        self.register(True)
+        self.service.taxes_id = [Command.clear()]
+        order = self.online_order()
+        self.assertEqual(order.amount_tax, 0.0)
+        self.assertTrue(self.payable(order)['tax_applies'])
+
+    def test_the_pay_page_shows_tax_rows_for_a_registered_company_with_a_taxed_document(self):
+        self.register(True)
+        order = self.online_order()
+        self.assertEqual(order.amount_tax, 15.0)
+        self.assertTrue(self.payable(order)['tax_applies'])
+
+    def test_the_pay_page_keeps_the_tax_rows_of_a_taxed_document_after_the_company_deregisters(self):
+        self.register(True)
+        order = self.online_order()
+        self.register(False)
+        order.invalidate_recordset()
+        self.assertEqual(order.amount_tax, 15.0)
+        self.assertTrue(self.payable(order)['tax_applies'])
+
+    def test_the_pay_page_shows_no_tax_rows_for_an_untaxed_document_of_an_unregistered_company(self):
+        order = self.online_order()
+        self.assertEqual((order.amount_tax, self.env.company.liwan_vat_registered), (0.0, False))
+        self.assertFalse(self.payable(order)['tax_applies'])
+
+    def test_changing_the_tax_mode_while_unregistered_keeps_the_stored_value_for_re_registration(self):
+        self.login_admin()
+        self.assertEqual(self.api('GET', '/api/v1/payments/settings').json()['tax_mode'], 'included')
+        revision = self.api('GET', '/api/v1/payments/settings').json()['revision']
+        response = self.api('PATCH', '/api/v1/payments/settings', json={'tax_mode': 'added', 'revision': revision})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertFalse(response.json()['vat_registered'])
+        self.assertEqual(response.json()['tax_mode'], 'added')
+        self.assertEqual(self.env['liwan.payments.settings']._liwan_tax_mode(self.env.company), 'added')
+        # Re-registering charges the stored mode: the tax is added on top of the price.
+        self.register(True)
+        order = self.online_order()
+        self.assertEqual((order.amount_untaxed, order.amount_tax, order.amount_total), (115.0, 17.25, 132.25))

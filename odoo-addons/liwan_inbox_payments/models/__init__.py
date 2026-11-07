@@ -5,6 +5,7 @@ from . import (
     catalog_item,
     catalog_sync,
     channel,
+    company,
     contact,
     feature_registry,
     message,

@@ -1,6 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from unittest.mock import patch
+
 from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import TransactionCase, new_test_user, tagged
+
+from odoo.addons.liwan_core.testing import skip_unless_vat_checked
 
 SAUDI_VAT = '300000000000003'
 ACTION = 'company.vat_registration_changed'
@@ -27,8 +31,6 @@ class TestVatRegistered(TransactionCase):
     def setUp(self):
         super().setUp()
         self.company.write({'country_id': self.country.id, 'liwan_vat_registered': False, 'vat': False})
-        # base_vat validates a partner number; liwan_core depends on base only, so a foundation-only install has no check.
-        self.vat_checked = hasattr(self.env['res.partner'], '_run_vat_checks')
 
     def events(self):
         return self.env['liwan.access.audit'].search([
@@ -59,9 +61,16 @@ class TestVatRegistered(TransactionCase):
                 self.company.write({'vat': vat, 'liwan_vat_registered': True})
         self.assertFalse(self.company.liwan_vat_registered)
 
+    def test_the_number_check_is_the_module_not_the_method_account_also_defines(self):
+        module = type(self.env['ir.module.module'])
+        company = self.env['res.company']
+        with patch.object(module, '_installed', lambda _model: {'account': 1}):
+            self.assertFalse(company._liwan_vat_number_is_checked())
+        with patch.object(module, '_installed', lambda _model: {'account': 1, 'base_vat': 2}):
+            self.assertTrue(company._liwan_vat_number_is_checked())
+
     def test_registering_with_a_number_that_is_not_the_country_format_is_refused(self):
-        if not self.vat_checked:
-            self.skipTest('base_vat is not installed: liwan_core alone carries no number format')
+        skip_unless_vat_checked(self)
         for vat in ('12345', '400000000000003'):
             with self.subTest(vat=vat), self.assertRaises(ValidationError), self.cr.savepoint():
                 self.company.write({'vat': vat, 'liwan_vat_registered': True})
@@ -94,6 +103,16 @@ class TestVatRegistered(TransactionCase):
         for column in ('before', 'after'):
             self.assertNotIn(SAUDI_VAT, str(events.mapped(column)))
 
+    def test_a_company_created_already_registered_is_audited(self):
+        created = self.env['res.company'].create({
+            'name': 'Born registered', 'country_id': self.country.id, 'vat': SAUDI_VAT, 'liwan_vat_registered': True,
+        })
+        events = self.env['liwan.access.audit'].search([('action', '=', ACTION), ('target_id', '=', created.id)])
+        self.assertEqual(events.mapped('before'), [{'vat_registered': False}])
+        self.assertEqual(events.mapped('after'), [{'vat_registered': True}])
+        unregistered = self.env['res.company'].create({'name': 'Born unregistered', 'country_id': self.country.id})
+        self.assertFalse(self.env['liwan.access.audit'].search([('action', '=', ACTION), ('target_id', '=', unregistered.id)]))
+
     def test_a_write_that_changes_nothing_else_audits_nothing_extra(self):
         self.company.write({'vat': SAUDI_VAT})
         self.company.write({'city': 'Riyadh'})
@@ -112,3 +131,37 @@ class TestVatRegistered(TransactionCase):
         with self.assertRaises(AccessError), self.cr.savepoint():
             self.company.with_user(employee)._liwan_write_company_profile({'liwan_vat_registered': True})
         self.assertFalse(self.company.liwan_vat_registered)
+
+    def _permissions(self, *keys):
+        return self.env['liwan.access.permission'].search([('key', 'in', list(keys))])
+
+    def test_only_the_system_administrator_role_holds_the_right_to_change_it(self):
+        key = 'settings.company.vat.manage'
+        self.assertIn(key, self.env.ref('liwan_core.role_system_admin').permission_ids.mapped('key'))
+        self.assertNotIn(key, self.env.ref('liwan_core.role_vendor_support').permission_ids.mapped('key'))
+        permission = self._permissions(key)
+        self.assertEqual((permission.custom_role_allowed, permission.sensitive), (False, True))
+        with self.assertRaises(ValidationError, msg='no custom role may hold it'), self.cr.savepoint():
+            self.env['liwan.access.role'].create({
+                'key': 'vat_custom', 'name_ar': 'مخصص', 'type': 'custom', 'company_id': self.company.id,
+                'permission_ids': [(6, 0, (permission | self._permissions('settings.company.manage', 'settings.company.read')).ids)],
+            })
+
+    def test_a_company_profile_manager_without_the_right_cannot_change_the_registration(self):
+        role = self.env['liwan.access.role'].create({
+            'key': 'vat_profile_manager', 'name_ar': 'مدير الملف', 'type': 'custom', 'company_id': self.company.id,
+            'permission_ids': [(6, 0, self._permissions('settings.company.manage', 'settings.company.read').ids)],
+        })
+        manager = new_test_user(self.env, login='vat_profile_manager', groups='liwan_core.group_employee')
+        self.env['liwan.access.service']._liwan_replace_assignments(manager, [{'role_id': role.id, 'company_id': self.company.id}])
+        company = self.company.with_user(manager)
+        with self.assertRaises(AccessError), self.cr.savepoint():
+            company._liwan_write_company_profile({'vat': SAUDI_VAT, 'liwan_vat_registered': True})
+        self.assertFalse(self.company.liwan_vat_registered)
+        # The rest of the profile, and the value it already has, stay open to the same caller.
+        company._liwan_write_company_profile({'city': 'Jeddah', 'liwan_vat_registered': False})
+        self.assertEqual(self.company.city, 'Jeddah')
+        self.company.write({'vat': SAUDI_VAT, 'liwan_vat_registered': True})
+        with self.assertRaises(AccessError), self.cr.savepoint():
+            company._liwan_write_company_profile({'liwan_vat_registered': False})
+        self.assertTrue(self.company.liwan_vat_registered)
