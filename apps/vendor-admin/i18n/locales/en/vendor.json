@@ -705,6 +705,8 @@
       },
       "plan": {
       "usersRequired": "The included minimum must admit at least one user.",
+      "usersCapNote": "Release 1 sells up to 100 users. For more than 100 users, contact the platform owner.",
+      "usersCapExceeded": "The included users are more than the 100 users Release 1 sells. Lower it and save; larger plans are agreed outside the platform.",
         "storageMinimumGb": "Enter the included storage minimum in whole gigabytes (a multiple of 1024 MB).",
       "quantitiesHint": "The minimums are covered by the base price; anything above them is priced per unit.",
       "userPricesHint": "Price per user above the minimum, for each billing cadence.",
@@ -712,6 +714,7 @@
         "bundlesRequired": "Select at least one bundle.",
         "singleRelease": "All bundles must come from one catalog release.",
         "policyMissing": "Pricing policy unavailable.",
+        "policyRequired": "Choose the approved pricing policy this plan is priced under.",
         "vat": "VAT {rate}% exclusive",
         "noTax": "No tax",
         "aiHint": "The assistant is free with a monthly quota. Empty means unlimited; these are editable values, not code defaults.",
@@ -736,7 +739,10 @@
       },
       "policy": {
         "timezone": "Time zone",
-        "tax": "Tax"
+        "tax": "Tax",
+        "select": "Pricing policy",
+        "selectHint": "The plan is priced under the policy you choose here; nothing is chosen for you.",
+        "none": "No approved policy"
       },
       "lifecycle": {
         "title": "Next action",
@@ -820,7 +826,25 @@
         "payload_too_large": "The request is too large.",
         "unauthorized": "Session expired. Sign in again.",
         "vendor_unavailable": "Vendor service is temporarily unavailable. Try later.",
-        "method_not_allowed": "Method not allowed.", "tenant_upgrade_required": "This tenant has not been upgraded and cannot store the commercial expiry. Upgrade the Odoo image, then repeat the action.", "tenant_binding_unavailable": "No enabled tenant binding exists for this subscription, so the trial date cannot be pushed. Fix the binding and repeat.", "trial_not_applied": "This trial's workspace is not active yet, so there is no invoice to issue. Wait for activation, then repeat.", "subscription_not_suspendable": "This subscription cannot be suspended in its current state.", "subscription_not_suspended": "This subscription is not suspended.", "trial_order_unavailable": "No applied order is available to attach the date change to. Wait for fulfilment, then repeat.", "trial_already_used": "This customer has already used their trial.", "trial_not_available": "A trial can only start before the customer has an active subscription.", "trial_disabled": "The selected plan does not offer a trial."
+        "method_not_allowed": "Method not allowed.", "tenant_upgrade_required": "This tenant has not been upgraded and cannot store the commercial expiry. Upgrade the Odoo image, then repeat the action.", "tenant_binding_unavailable": "No enabled tenant binding exists for this subscription, so the trial date cannot be pushed. Fix the binding and repeat.", "trial_not_applied": "This trial's workspace is not active yet, so there is no invoice to issue. Wait for activation, then repeat.", "subscription_not_suspendable": "This subscription cannot be suspended in its current state.", "subscription_not_suspended": "This subscription is not suspended.", "trial_order_unavailable": "No applied order is available to attach the date change to. Wait for fulfilment, then repeat.", "trial_already_used": "This customer has already used their trial.", "trial_not_available": "A trial can only start before the customer has an active subscription.", "trial_disabled": "The selected plan does not offer a trial.",
+        "users_limit_exceeded": "Release 1 sells up to 100 users per company. Lower the requested users and save, or record a custom agreement outside the platform.",
+        "transfer_amount_mismatch": "The transfer amount does not match the invoice total. Correct the amount, then record the transfer again.",
+        "transfer_reference_in_use": "This transfer reference is already recorded on another invoice. Use the bank statement line's reference, not one already used.",
+        "invoice_not_payable": "This invoice cannot be paid now: it is void, or its order is no longer pending. Reload the invoice and check its status.",
+        "order_not_payable": "This order is no longer awaiting payment, so the transfer cannot settle it. Reload the order, then cancel it or issue a new one.",
+        "bank_account_unavailable": "No company bank account is set up for bank transfers. Add it in the billing settings, then give the customer the transfer details.",
+        "step_up_required": "This action needs a fresh passkey confirmation. Confirm with your passkey, then repeat the action.",
+        "refund_window_closed": "The refund window has closed, so this payment cannot be refunded. Record the reason and answer the customer directly.",
+        "refund_not_first_payment": "Only the customer's first payment can be refunded; renewals and later payments cannot.",
+        "refund_not_full": "A refund must return the whole invoice. Open a credit note for the full total, then record the refund.",
+        "invoice_already_refunded": "This invoice is already refunded. Do not record another refund for it; reload the invoice to see the credit note.",
+        "admin_login_required": "The customer has no administrator who has signed in yet, so provisioning would fail. Have the customer administrator sign in, then place the order.",
+        "invalid_value_date": "Enter the value date from the bank statement: a real calendar date, today or earlier.",
+        "storage_step_invalid": "Extra storage is bought in the plan's steps. Lower the requested storage, or raise the plan's storage step.",
+        "onboarding_first_order_only": "The onboarding fee applies to a paid first order only. Take the change or renewal without it, and record it as a separate order if it is due.",
+        "onboarding_unavailable": "This plan has no onboarding fee configured. Add the fee and its price to the plan before quoting onboarding.",
+        "catalog_source_not_publishable": "Only the current catalog source can be published. Rebuild the catalog from the release source, then validate and publish it again.",
+        "tenant_required": "This subscription has no workspace linked yet, so the change cannot be reserved. Finish provisioning the workspace, then repeat the action."
       },
       "keys": {
         "users_limit": "Users",
@@ -1140,6 +1164,7 @@
       "period": "Period",
       "total": "Total",
       "subtotal": "Subtotal",
+      "subtotalNoTax": "Subtotal",
       "taxLine": "Tax ({label})",
       "customer": "Customer",
       "issuedAt": "Issued",
@@ -1180,8 +1205,11 @@
         "confirm": "Record refund",
         "at": "Recorded",
         "by": "Recorded by",
-        "windowOpen": "This payment is refundable until {date}.",
+        "firstPayment": "Refund eligibility: this is the customer's first payment.",
+        "firstPaymentNo": "Refund eligibility: this is not the customer's first payment.",
+        "eligibilityRefundable": "This payment is refundable until {date}.",
         "windowClosed": "The {days}-day refund window has closed; this payment is no longer refundable.",
+        "notFirstPayment": "Only the customer's first payment is refundable; this is a later payment.",
         "errors": {
           "credit_note_not_pending": "This credit note is no longer pending. The page shows its current state.",
           "refund_reference_in_use": "This refund reference is already recorded on another credit note.",

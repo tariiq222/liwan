@@ -10,6 +10,8 @@ export const CURRENCY = 'SAR'
 export const MB_PER_GB = 1024
 export const EXPONENT = 2
 export const MAX_LIMIT = Number.MAX_SAFE_INTEGER
+/** Release 1 sells at most this many users per company; the server refuses a quote above it (users_limit_exceeded). */
+export const COMMERCIAL_MAX_USERS = 100
 /** Platform limits are owned by the plan, never by a bundle. */
 export const PLATFORM_LIMIT_KEYS = ['users.limit', 'storage.limit_mb'] as const
 export const PLATFORM_ONLY_FEATURES = new Set(['branches.extra_limit', ...PLATFORM_LIMIT_KEYS])
@@ -194,10 +196,14 @@ export const emptyAiLimits = (): AiLimitsDraft => Object.fromEntries(AI_LIMIT_KE
 export type PlanDraft = {
   name: string; audience: AudienceDraft; term_months: string; prices: PriceDraft[]
   included: string[]; optional: string[]; included_users: string; included_storage_mb: string
+  // A11: how extra storage is bought — a small step below the threshold, a large step from it (editable values).
+  storage_step_mb: string; storage_step_threshold_mb: string; storage_large_step_mb: string
   user_prices: PriceDraft[]; storage_prices: PriceDraft[]
   included_extra_branches: string; extra_branch_prices: PriceDraft[]; extra_branches_limit: LimitDraft
   ai_limits: AiLimitsDraft
   trial_days: string; grace_days: string; auto_suspend: Tri; auto_renew_allowed: Tri; reason: string
+  /** The approved pricing policy the vendor chose; empty means none chosen yet, never "pick the first". */
+  policy_revision_id: string
 }
 
 /** A limit's value from the form: empty and unlimited both mean unlimited (null), a number is itself. */
@@ -223,7 +229,7 @@ export function emptyPlanDraft(): PlanDraft {
     storage_step_mb: String(DEFAULT_STORAGE_STEP_MB), storage_step_threshold_mb: String(DEFAULT_STORAGE_THRESHOLD_MB), storage_large_step_mb: String(DEFAULT_STORAGE_LARGE_STEP_MB),
     user_prices: [], storage_prices: [],
     included_extra_branches: '', extra_branch_prices: [],
-    extra_branches_limit: emptyLimit(), ai_limits: emptyAiLimits(), trial_days: '', grace_days: '', auto_suspend: '', auto_renew_allowed: '', reason: '',
+    extra_branches_limit: emptyLimit(), ai_limits: emptyAiLimits(), trial_days: '', grace_days: '', auto_suspend: '', auto_renew_allowed: '', reason: '', policy_revision_id: '',
   }
 }
 const triOf = (v: boolean): Tri => (v ? 'true' : 'false')
@@ -237,7 +243,7 @@ export function planDraftFromView(v: PlanRevision): PlanDraft {
     included_extra_branches: String(v.included_extra_branches), extra_branch_prices: v.extra_branch_prices.map(priceToDraft),
     extra_branches_limit: limitToDraft(v.extra_branches_limit), ai_limits: aiLimitsDraftFromView(v.platform_limits),
     trial_days: String(v.trial_days), grace_days: String(v.grace_days),
-    auto_suspend: triOf(v.auto_suspend), auto_renew_allowed: triOf(v.auto_renew_allowed), reason: '',
+    auto_suspend: triOf(v.auto_suspend), auto_renew_allowed: triOf(v.auto_renew_allowed), reason: '', policy_revision_id: v.policy_revision_id,
   }
 }
 /** The limits a saved plan carries, as form rows: a missing key is empty (unlimited). */
@@ -247,7 +253,7 @@ function aiLimitsDraftFromView(limits: CapacityMap | undefined): AiLimitsDraft {
 function triValue(v: Tri): boolean { if (!v) throw new Error('invalid_choice'); return v === 'true' }
 function requireCount(v: string, max = MAX_LIMIT): number { const n = parseCount(v, max); if (n === null) throw new Error('invalid_count'); return n }
 export function planFields(draft: PlanDraft, policyId: string) {
-  const includedUsers = requireCount(draft.included_users)
+  const includedUsers = requireCount(draft.included_users, COMMERCIAL_MAX_USERS)
   if (includedUsers < 1) throw new Error('invalid_count')
   const includedStorage = requireCount(draft.included_storage_mb)
   if (includedStorage % MB_PER_GB !== 0) throw new Error('invalid_storage_minimum')
@@ -260,7 +266,7 @@ export function planFields(draft: PlanDraft, policyId: string) {
     user_prices: pricesFromDrafts(draft.user_prices), storage_prices: pricesFromDrafts(draft.storage_prices),
     included_bundle_revision_ids: [...draft.included], optional_bundle_revision_ids: draft.optional.filter(id => !draft.included.includes(id)),
     included_extra_branches: requireCount(draft.included_extra_branches), extra_branch_prices: pricesFromDrafts(draft.extra_branch_prices),
-    extra_branches_limit: limitFromDraft(draft.extra_branches_limit), policy_revision_id: policyId,
+    extra_branches_limit: limitFromDraft(draft.extra_branches_limit), policy_revision_id: draft.policy_revision_id || policyId,
     trial_days: requireCount(draft.trial_days, 3650), grace_days: requireCount(draft.grace_days, 3650),
     auto_suspend: triValue(draft.auto_suspend), auto_renew_allowed: triValue(draft.auto_renew_allowed),
   }
@@ -305,7 +311,7 @@ export function commercialFailure(cause: unknown): CommercialFailure {
   return { status, code, message: body?.message ?? e?.message ?? '', field: body?.field ?? e?.field, conflict: status === 409 || code === 'revision_conflict', forbidden: status === 403 || code === 'forbidden' }
 }
 /** Every code the control-plane commercial routes, the contract compiler and the vendor proxy can emit; each needs vendor.pricing.errors.<code> in ar and en. */
-export const COMMERCIAL_ERROR_CODES = ['revision_conflict', 'invalid', 'forbidden', 'not_found', 'transition_forbidden', 'transition_invalid', 'customers_attached', 'price_missing', 'feature_not_selectable', 'dependency_missing', 'app_conflict', 'dependency_cycle', 'unknown_app', 'app_not_selectable', 'catalog_release_mismatch', 'bundle_not_allowed', 'bundle_missing', 'bundle_unavailable', 'bundle_duplicated', 'bundle_delete_forbidden', 'bundle_audience_mismatch', 'plan_missing', 'plan_unavailable', 'plan_delete_forbidden', 'policy_missing', 'release_missing', 'published_catalog_missing', 'quote_missing', 'quote_kind_unsupported', 'terms_unsupported', 'content_digest_mismatch', 'review_required', 'audience_invalid', 'branch_limit_invalid', 'branch_limit_exceeded', 'branch_price_missing', 'unit_price_missing', 'platform_limit_derived', 'users_limit_admin_required', 'storage_minimum_not_whole_gb', 'currency_mismatch', 'duplicate_price_cadence', 'term_not_multiple', 'ambiguous_limit', 'limit_not_supported', 'invalid_limit_scope', 'invalid_quantity', 'invalid_billing_period', 'invalid_order_transition', 'invalid_json', 'payload_too_large', 'unauthorized', 'vendor_unavailable', 'method_not_allowed', 'tenant_upgrade_required', 'tenant_binding_unavailable', 'trial_order_unavailable', 'trial_not_applied', 'subscription_not_suspendable', 'subscription_not_suspended', 'trial_already_used', 'trial_not_available', 'trial_disabled'] as const
+export const COMMERCIAL_ERROR_CODES = ['revision_conflict', 'invalid', 'forbidden', 'not_found', 'transition_forbidden', 'transition_invalid', 'customers_attached', 'price_missing', 'feature_not_selectable', 'dependency_missing', 'app_conflict', 'dependency_cycle', 'unknown_app', 'app_not_selectable', 'catalog_release_mismatch', 'bundle_not_allowed', 'bundle_missing', 'bundle_unavailable', 'bundle_duplicated', 'bundle_delete_forbidden', 'bundle_audience_mismatch', 'plan_missing', 'plan_unavailable', 'plan_delete_forbidden', 'policy_missing', 'release_missing', 'published_catalog_missing', 'quote_missing', 'quote_kind_unsupported', 'terms_unsupported', 'content_digest_mismatch', 'review_required', 'audience_invalid', 'branch_limit_invalid', 'branch_limit_exceeded', 'branch_price_missing', 'unit_price_missing', 'platform_limit_derived', 'users_limit_admin_required', 'storage_minimum_not_whole_gb', 'currency_mismatch', 'duplicate_price_cadence', 'term_not_multiple', 'ambiguous_limit', 'limit_not_supported', 'invalid_limit_scope', 'invalid_quantity', 'invalid_billing_period', 'invalid_order_transition', 'invalid_json', 'payload_too_large', 'unauthorized', 'vendor_unavailable', 'method_not_allowed', 'tenant_upgrade_required', 'tenant_binding_unavailable', 'trial_order_unavailable', 'trial_not_applied', 'subscription_not_suspendable', 'subscription_not_suspended', 'trial_already_used', 'trial_not_available', 'trial_disabled', 'users_limit_exceeded', 'transfer_amount_mismatch', 'transfer_reference_in_use', 'invoice_not_payable', 'order_not_payable', 'bank_account_unavailable', 'step_up_required', 'refund_window_closed', 'refund_not_first_payment', 'refund_not_full', 'invoice_already_refunded', 'admin_login_required', 'invalid_value_date', 'storage_step_invalid', 'onboarding_first_order_only', 'onboarding_unavailable', 'catalog_source_not_publishable', 'tenant_required'] as const
 const KNOWN_ERRORS = new Set<string>(COMMERCIAL_ERROR_CODES)
 export function commercialErrorKey(cause: unknown): string {
   const f = commercialFailure(cause)

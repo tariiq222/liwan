@@ -72,7 +72,8 @@ suite('commercial plans', () => {
     const rows = (await pool.query("SELECT * FROM plan_revisions WHERE status='published' AND available AND name='LiwanOS'")).rows
     expect(rows).toHaveLength(1)
     expect(rows[0].included_bundle_revision_ids).toEqual([])
-    expect(rows[0].trial_days).toBe(14)
+    // The seeded LiwanOS plan costs nothing, so it carries no trial: a free trial could only end past_due.
+    expect(rows[0].trial_days).toBe(0)
     expect(rows[0].included_users).toBe(3)
     // A10 (owner decision 2026-11-07): the seeded base includes 20 GiB.
     expect(rows[0].included_storage_mb).toBe(20480)

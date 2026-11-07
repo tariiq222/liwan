@@ -8,6 +8,7 @@ const view = {
   prices: [{ cadence: { unit: 'month', count: 1 }, amount: { currency: 'SAR', exponent: 2, minor: 0 } }],
   platform_limits: { 'ai.messages.monthly': 500, 'ai.tokens.monthly': 2500000, 'ai.assist.monthly': 100, 'ai.tool_calls.per_run': 8, 'ai.output_tokens.per_run': 2000 },
   included_bundle_revision_ids: [], optional_bundle_revision_ids: [], included_extra_branches: 1, extra_branch_prices: [],
+  storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400,
   extra_branches_limit: null, included_users: 3, included_storage_mb: 5120,
   user_prices: [{ cadence: { unit: 'month', count: 1 }, amount: { currency: 'SAR', exponent: 2, minor: 2900 } }],
   storage_prices: [{ cadence: { unit: 'month', count: 1 }, amount: { currency: 'SAR', exponent: 2, minor: 100 } }],

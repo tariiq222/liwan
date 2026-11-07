@@ -40,6 +40,9 @@ export function refusalCode(cause: unknown): string | null {
 
 /** Refusal codes that need a specific explanation; everything else falls back to the generic message. */
 export function refusalKey(code: unknown): string | null {
+  // Release 1: the server refuses a quote above MAX_USERS; the customer is told the cap and who to contact.
+  if (code === 'users_limit_exceeded') return 'subscription.change.usersCapNote'
+  if (code === 'storage_step_invalid') return 'subscription.change.storageStepInvalid'
   return code === 'tenant_upgrade_required' || code === 'tenant_binding_unavailable' || code === 'trial_order_unavailable'
     ? `subscription.trial.${code === 'tenant_upgrade_required' ? 'upgradeRequired' : 'notConfigured'}`
     : null
@@ -58,6 +61,78 @@ export function quoteEconomics(q: Quote) {
 
 export function sameQuoteEconomics(a: Quote, b: Quote): boolean {
   return JSON.stringify(quoteEconomics(a)) === JSON.stringify(quoteEconomics(b))
+}
+
+/**
+ * A11 (owner decision 2026-11-07): extra storage is bought in steps, and these are the only quantities the server quotes
+ * (`fitsStorageSteps` in `@liwan/commercial-contracts`, which throws `CommercialError('storage_step_invalid')`).
+ * Above `included_storage_mb`, an extra BELOW `storage_step_threshold_mb` must be a whole multiple of `storage_step_mb`;
+ * at or above the threshold it must be a whole multiple of `storage_large_step_mb`. Zero extra is always legal.
+ * With the seeded plan (20 GiB included, 10 GiB / 100 GiB threshold / 100 GiB large step) that is 20 GiB, 30 GiB …
+ * 120 GiB of total storage, then 220 GiB, 320 GiB … — 130 GiB is refused. All three steps are vendor-editable plan
+ * values, so the options are computed from the plan and never from constants.
+ */
+export const STORAGE_MB_PER_GB = 1024
+/** The list caps at 20 options (with the seeds: 20 GiB up to 220 GiB) so a small step cannot build an unusable menu. */
+export const STORAGE_OPTIONS_MAX = 20
+export type StoragePlanValues = {
+  included_storage_mb: number
+  storage_step_mb: number
+  storage_step_threshold_mb: number
+  storage_large_step_mb: number
+}
+export type StorageOption = {
+  /** The `requested_storage_mb` the page sends: the included amount plus the chosen extra. */
+  storageMb: number
+  extraMb: number
+  totalGb: number
+  extraGb: number
+  /** The `storage_prices` amount for this cadence that `extraMb` costs, or null when the option carries no extra. */
+  amount: Quote['due_now'] | null
+}
+
+/** Whole-GiB options only: the plan minimum itself must be whole GB, so a fractional total can never be sent. */
+function wholeGb(mb: number): number | null {
+  const gb = mb / STORAGE_MB_PER_GB
+  return Number.isSafeInteger(gb) && gb >= 0 ? gb : null
+}
+
+/**
+ * Every storage quantity the plan accepts, ascending, with the price of its extra storage.
+ *
+ * The list starts at `included_storage_mb` with no extra (zero is always legal), adds `storage_step_mb` while the extra is
+ * below `storage_step_threshold_mb`, then adds `storage_large_step_mb`, and stops after `STORAGE_OPTIONS_MAX` options.
+ * That cap follows the server rule (it never trims a legal step); quantities beyond the last row stay unbuyable from the
+ * change page. `storage_prices` supplies the per-step amount for the cadence being quoted; a cadence without a storage
+ * price yields `amount: null` (the unit price row is missing, so the option shows no price rather than zero).
+ */
+export function storageOptions(
+  plan: Partial<StoragePlanValues>,
+  prices: Array<{ cadence: { unit: string; count: number }; amount: Quote['due_now'] }> | undefined,
+  cadence: { unit: string; count: number },
+  max = STORAGE_OPTIONS_MAX,
+): StorageOption[] {
+  const included = wholeGb(plan.included_storage_mb ?? 0); const small = wholeGb(plan.storage_step_mb ?? 0)
+  const threshold = wholeGb(plan.storage_step_threshold_mb ?? 0); const large = wholeGb(plan.storage_large_step_mb ?? 0)
+  if (included === null || !small || threshold === null || !large) return []
+  const unit = prices?.find(p => p.cadence.unit === cadence.unit && p.cadence.count === cadence.count)?.amount ?? null
+  const options: StorageOption[] = [{ storageMb: included * STORAGE_MB_PER_GB, extraMb: 0, totalGb: included, extraGb: 0, amount: null }]
+  let extraGb = 0
+  while (options.length < Math.max(1, max)) {
+    const step = extraGb < threshold ? small : large
+    extraGb += step
+    const totalGb = included + extraGb
+    if (!Number.isSafeInteger(totalGb)) break
+    options.push({ storageMb: totalGb * STORAGE_MB_PER_GB, extraMb: extraGb * STORAGE_MB_PER_GB, totalGb, extraGb, amount: unit })
+  }
+  return options
+}
+
+/** Brings a stored or server-provided quantity onto the option list: an accepted figure stays, anything else steps up
+ * to the nearest option (so the page never submits a quantity the server would refuse). */
+export function nearestStorageOption(options: StorageOption[], storageMb: number): StorageOption | null {
+  if (!options.length) return null
+  return options.find(o => o.storageMb >= storageMb) ?? options[options.length - 1]!
 }
 
 export const QUOTE_IS_EXPIRED = (quote: Pick<Quote, 'expires_at'>, now = Date.now()): boolean => Date.parse(quote.expires_at) <= now

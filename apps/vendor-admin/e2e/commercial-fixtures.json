@@ -338,7 +338,10 @@
               "minor": 5000
             }
           }
-        ]
+        ],
+        "storage_step_mb": 10240,
+        "storage_step_threshold_mb": 102400,
+        "storage_large_step_mb": 102400
       },
       {
         "id": "00000000-0000-4000-8000-000000000011",
@@ -422,7 +425,10 @@
               "minor": 500
             }
           }
-        ]
+        ],
+        "storage_step_mb": 10240,
+        "storage_step_threshold_mb": 102400,
+        "storage_large_step_mb": 102400
       }
     ],
     "total": 2

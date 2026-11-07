@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { url, client, money, monthly } from './commercial-helpers.js'
 import { migrate } from '../db.js'
+import { setBillingSettings } from '../commercial/billing-settings.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { acceptQuote } from '../commercial/orders.js'
 import { generateRenewals } from '../commercial/renewals.js'
@@ -108,6 +109,16 @@ suite('the one-time onboarding fee (W6)', () => {
     await expect(createQuoteForCustomer(pool, { customer_id: id, request: { ...request(true), kind: 'change', subscription_id: sub.id,
       expected_subscription_revision: sub.revision, bundle_revision_ids: first.bundle_revision_ids } }))
       .rejects.toMatchObject({ code: 'onboarding_first_order_only' })
+  })
+
+  it('follows the fee the vendor edits in the billing settings', async () => {
+    // A9: the fee is a billing setting, editable and audited like the rest; the quote reads it.
+    await setBillingSettings(pool, { operator: 'vendor:7', reason: 'Raise the onboarding fee', onboarding_fee_minor: 75000 })
+    const id = await newCustomer()
+    const quote = await createQuoteForCustomer(pool, { customer_id: id, request: request(true) })
+    expect(quote.lines.find(line => line.kind === 'onboarding')!.amount).toEqual(money(75000))
+    // The change is audited with its reason, as every billing setting is.
+    expect((await pool.query("SELECT 1 FROM audit_events WHERE action='billing.settings_updated' AND reason='Raise the onboarding fee'")).rowCount).toBe(1)
   })
 
   it('offers no onboarding line while the vendor has not seeded the fee', async () => {

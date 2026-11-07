@@ -10,7 +10,7 @@ const ENTRIES: readonly AdminNavEntry[] = [
   { id: 'analytics', icon: 'i-lucide-chart-line', capability: 'vendor.billing.manage' },
   { id: 'customers', icon: 'i-lucide-users', capability: 'vendor.read', alsoUnder: ['/tenants'] },
   { id: 'catalog', icon: 'i-lucide-boxes', capability: 'vendor.read', to: CATALOG_TABS[0].to, alsoUnder: CATALOG_TABS.map(tab => tab.to) },
-  { id: 'invoices', icon: 'i-lucide-receipt', capability: 'vendor.billing.manage', alsoUnder: ['/billing-settings'] },
+  { id: 'invoices', icon: 'i-lucide-receipt', capability: 'vendor.billing.manage' },
   { id: 'billing-settings', icon: 'i-lucide-settings-2', capability: 'vendor.billing.manage' },
   { id: 'operations', icon: 'i-lucide-wrench', capability: 'vendor.read' },
   { id: 'audit', icon: 'i-lucide-history', capability: 'vendor.audit.read' },
@@ -27,12 +27,20 @@ export function adminNav(capabilities: readonly string[]): ShellRailItem[] {
     .map(entry => ({ id: entry.id, labelKey: `app.nav.${entry.id}`, icon: entry.icon, to: entry.to ?? `/${entry.id}` }))
 }
 
-/** The id of the item whose section contains `path`; the root belongs to the overview. */
+/**
+ * The id of the item whose section contains `path`; the root belongs to the overview.
+ * A section's own landing path is matched on its own (or by `alsoUnder`) BEFORE any
+ * other section's `alsoUnder` is consulted: `/billing-settings` is listed under
+ * `invoices` as a sibling billing destination, and the first pass keeps the highlight
+ * on the `billing-settings` item instead of letting the earlier `invoices` entry win.
+ */
 export function activeNavId(items: readonly ShellRailItem[], path: string): string | null {
   const target = path.split(/[?#]/, 1)[0]!.replace(/\/+$/, '') || '/'
   if (target === '/') return items.find(item => item.id === 'overview')?.id ?? null
   const within = (prefix: string) => target === prefix || target.startsWith(`${prefix}/`)
-  return items.find(item => within(item.to) || EXTRA_PREFIXES[item.id]?.some(within))?.id ?? null
+  return items.find(item => within(item.to))?.id
+    ?? items.find(item => EXTRA_PREFIXES[item.id]?.some(within))?.id
+    ?? null
 }
 
 const UTILITY_IDS: readonly string[] = ['audit', 'ai-provider', 'team']

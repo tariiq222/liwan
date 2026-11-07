@@ -100,6 +100,19 @@ describe('activeNavId', () => {
   it('returns null for a section the user cannot see', () => {
     expect(activeNavId(adminNav(caps('support')), '/invoices')).toBeNull()
   })
+
+  it('highlights billing-settings on its own path, not invoices', () => {
+    expect(activeNavId(items, '/billing-settings')).toBe('billing-settings')
+    expect(activeNavId(items, '/billing-settings/')).toBe('billing-settings')
+    expect(items.find(item => item.id === 'billing-settings')?.to).toBe('/billing-settings')
+  })
+
+  it('keeps the invoice list and invoice detail under invoices', () => {
+    expect(activeNavId(items, '/invoices')).toBe('invoices')
+    expect(activeNavId(items, '/invoices/inv-1')).toBe('invoices')
+    expect(activeNavId(items, '/invoices?state=issued')).toBe('invoices')
+    expect(activeNavId(items, '/invoicesx')).toBeNull()
+  })
 })
 
 describe('splitRail', () => {

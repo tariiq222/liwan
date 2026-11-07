@@ -2,13 +2,16 @@ import { describe, expect, it } from 'vitest'
 import { Pool } from 'pg'
 import { migrate } from '../db.js'
 import { readFile } from 'node:fs/promises'
-const url = process.env.CONTROL_TEST_DATABASE_URL!
-describe('schema_033 carries a pre-release development database forward', () => {
+const url = process.env.CONTROL_TEST_DATABASE_URL
+if (url) { const p = new URL(url); if (!['127.0.0.1', 'localhost', '::1'].includes(p.hostname) || !/^liwan_control_scratch_[a-z0-9]+$/.test(p.pathname.slice(1))) throw Error('scratch control DB required') }
+const suite = url ? describe : describe.skip
+suite('schema_033 carries a pre-release development database forward', () => {
   it('supersedes a stale published plan with a release-1 revision', async () => {
     const pool = new Pool({ connectionString: url, max: 4 })
     await migrate(pool)
-    // Make the database look like one seeded before release 1: the 299 base, 5 GiB, the VAT pin, a stale AI key.
-    await pool.query("UPDATE plan_revisions SET available=false, edit_revision=edit_revision+1 WHERE plan_id='00000000-0000-4000-8000-0000000000b1'")
+    // Plant a stale revision of the LiwanOS plan family. Other suites create their own plan families, so only a
+    // pre-existing LiwanOS revision has to be withdrawn for this fixture to be the authoritative one.
+    await pool.query("UPDATE plan_revisions SET available=false, edit_revision=edit_revision+1 WHERE plan_id='00000000-0000-4000-8000-0000000000b1' AND status='published' AND available")
     await pool.query(`INSERT INTO plan_revisions(id,plan_id,version,name,audience,status,available,term_months,currency,prices,platform_limits,
       included_bundle_revision_ids,optional_bundle_revision_ids,included_extra_branches,extra_branch_prices,extra_branches_limit,included_users,included_storage_mb,
       user_prices,storage_prices,policy_revision_id,trial_days,grace_days,auto_suspend,auto_renew_allowed,content_digest,validated_digest,published_at)
@@ -25,7 +28,9 @@ describe('schema_033 carries a pre-release development database forward', () => 
     try { await client.query('BEGIN'); await client.query(retro); await client.query('COMMIT') } finally { client.release() }
     const live = (await pool.query("SELECT * FROM plan_revisions WHERE plan_id='00000000-0000-4000-8000-0000000000b1' AND status='published' AND available")).rows
     expect(live).toHaveLength(1)
-    expect(live[0].version).toBe(Number(stale.version) + 1)
+    // A NEW revision supersedes the stale one (a published revision is immutable), and it is the highest of the family.
+    expect(live[0].version).toBeGreaterThan(Number(stale.version))
+    expect(live[0].version).toBe((await pool.query("SELECT max(version) AS v FROM plan_revisions WHERE plan_id=$1", ['00000000-0000-4000-8000-0000000000b1'])).rows[0].v)
     expect(live[0].included_storage_mb).toBe(20480)
     expect(live[0].policy_revision_id).toBe('6f1c3d8e-0000-4000-8000-000000000002')
     expect(live[0].platform_limits['ai.setup.monthly']).toBeUndefined()
