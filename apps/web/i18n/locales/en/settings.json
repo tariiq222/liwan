@@ -44,6 +44,8 @@
       "tagline": "Tagline",
       "taglineHint": "A short line shown with the company name on documents.",
       "registry": "Commercial registration number",
+      "vatRegistered": "Registered for VAT",
+      "vatRegisteredHint": "When on, the VAT number is required and the tax shows on orders, invoices and pay pages. Documents issued earlier keep what they were issued with.",
       "vat": "VAT number",
       "vatHint": "A tax number in the format of the company's country.",
       "country": "Country",
@@ -61,7 +63,8 @@
         "nameRequired": "Enter the company name",
         "logoFormat": "Use a PNG or JPEG image",
         "logoSize": "The logo must not exceed 2 MB",
-        "logoRead": "Could not read the logo image"
+        "logoRead": "Could not read the logo image",
+        "vatRequired": "Enter the VAT number before registering the company for VAT"
       }
     },
     "projects": {

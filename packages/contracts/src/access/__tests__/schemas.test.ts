@@ -384,6 +384,7 @@ describe('admin input schemas and fail-closed security fields', () => {
       'branch.policy_changed',
       'company.profile_changed',
       'company.branding_changed',
+      'company.vat_registration_changed',
       'employee.archived_access_disabled',
       'role.created',
       'role.updated',

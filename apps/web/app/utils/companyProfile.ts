@@ -4,7 +4,7 @@ export type CompanySection = 'profile' | 'address' | 'contact'
 
 /** The editable generic fields of each page, in their form order; installed applications add theirs as `extensions`. */
 export const SECTION_FIELDS = {
-  profile: ['name', 'report_header', 'company_registry', 'vat'],
+  profile: ['name', 'report_header', 'company_registry', 'vat_registered', 'vat'],
   address: ['state_id', 'city', 'street2', 'street', 'zip'],
   contact: ['email', 'phone', 'website'],
 } as const satisfies Record<CompanySection, readonly string[]>
@@ -12,7 +12,7 @@ export const SECTION_FIELDS = {
 /** The page that shows an extension of the profile's `identity` or `address` section. */
 const EXTENSION_PAGE = { identity: 'profile', address: 'address' } as const satisfies Record<CompanyProfileExtension['section'], CompanySection>
 
-export type CompanyForm = Record<string, string | number | null>
+export type CompanyForm = Record<string, string | number | boolean | null>
 type FormValue = CompanyForm[string]
 
 /** The extensions of `profile` shown on `section`. */
@@ -27,6 +27,7 @@ export function profileToForm(profile: CompanyProfile): CompanyForm {
     name: profile.name,
     report_header: profile.report_header,
     company_registry: profile.company_registry,
+    vat_registered: profile.vat_registered,
     vat: profile.vat,
     street: address.street,
     street2: address.street2,
@@ -40,14 +41,19 @@ export function profileToForm(profile: CompanyProfile): CompanyForm {
   }
 }
 
+// A cleared text becomes null; a boolean (the VAT registration switch) is sent as it is.
 const blank = (value: FormValue | undefined): FormValue => (typeof value === 'string' ? value.trim() || null : value ?? null)
 
 /** The PATCH body of the fields of `section` the user changed: a cleared text becomes null. */
 export function companyPatch(section: CompanySection, extensions: CompanyProfileExtension[], saved: CompanyForm, draft: CompanyForm): CompanyProfilePatch {
-  const patch: CompanyForm = {}
+  const patch: CompanyProfilePatch = {}
   const shown = [...SECTION_FIELDS[section], ...extensions.map(extension => extension.name)]
   for (const field of shown) {
-    if (blank(draft[field]) !== blank(saved[field])) patch[field] = blank(draft[field])
+    const value = blank(draft[field])
+    if (value === blank(saved[field])) continue
+    // The VAT registration switch is the one boolean of the generic profile; everything else is text or an id.
+    if (field === 'vat_registered') patch.vat_registered = Boolean(value)
+    else if (typeof value !== 'boolean') patch[field] = value
   }
   return patch
 }

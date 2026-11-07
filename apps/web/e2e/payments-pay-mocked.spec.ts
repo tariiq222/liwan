@@ -69,6 +69,23 @@ test.describe('the pay page', () => {
     expect(answer.status).toBe('payable')
   })
 
+  test('a document with no tax shows no tax or "before tax" row, only the amount due', async ({ page }) => {
+    // What an unregistered company's order answers: amount_tax 0, because it computes no tax at all.
+    await page.route('**/api/v1/public/payments/orders/21?*', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ id: 21, merchant: 'ليوان', number: 'S00021', expires_at: '2026-10-31T12:30:00Z', currency: 'SAR', amount_untaxed: 16905, amount_tax: 0, amount_total: 16905, amount_due: 16905, status: 'payable', options: [{ provider_id: 7, provider: 'paymob', method_id: 11, method: 'card', method_name: 'بطاقة بنكية' }] }),
+    }))
+    const withoutRefusals = trackRefusedRequests(page, '/api/v1/public/payments')
+    await page.goto(PAY(21, undefined, 'order'))
+    await expect(page.getByTestId('pay-amount-due')).toHaveText('16,905.00 SAR')
+    await expect(page.getByTestId('pay-untaxed')).toHaveCount(0)
+    await expect(page.getByTestId('pay-tax')).toHaveCount(0)
+    await expect(page.getByTestId('pay-total')).toHaveCount(0)
+    await expect(page.getByText('قبل الضريبة')).toHaveCount(0)
+    errors = withoutRefusals(errors)
+  })
+
   test('shows the total beside the amount due when the invoice was paid in part', async ({ page }) => {
     await openPayable(page, PAY(3))
     await expect(page.getByTestId('pay-amount-due')).toHaveText('3,000.00 SAR')

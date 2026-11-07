@@ -10,6 +10,9 @@ const { t, locale } = useI18n()
 // once the page is live in the browser (drawing it on the server too would differ and break hydration).
 const hydrated = useHydrated()
 const deadline = computed(() => (props.kind === 'order' && !hydrated.value ? null : payDeadline(props.payable, locale.value)))
+// A document that carries no tax (its company is not registered for VAT) has no tax line to explain: only the total
+// remains, and only when it differs from what is due now.
+const taxed = computed(() => props.payable.amount_tax !== 0)
 </script>
 
 <template>
@@ -22,13 +25,13 @@ const deadline = computed(() => (props.kind === 'order' && !hydrated.value ? nul
       <SharedPropertyRow :label="t('payments.pay.merchant')" :value="payable.merchant" data-testid="pay-merchant" />
       <SharedPropertyRow :label="t(`payments.pay.${kind}.number`)" data-testid="pay-number"><bdi dir="ltr">{{ payable.number }}</bdi></SharedPropertyRow>
       <SharedPropertyRow :label="t(`payments.pay.${kind}.deadline`)" :value="deadline" :data-testid="kind === 'order' ? 'pay-expires-at' : 'pay-due-date'" />
-      <SharedPropertyRow :label="t('payments.pay.untaxed')" data-testid="pay-untaxed">
+      <SharedPropertyRow v-if="taxed" :label="t('payments.pay.untaxed')" data-testid="pay-untaxed">
         <bdi dir="ltr" class="tabular-nums">{{ formatPayAmount(payable.amount_untaxed, payable.currency) }} {{ payable.currency }}</bdi>
       </SharedPropertyRow>
-      <SharedPropertyRow :label="t('payments.pay.tax')" data-testid="pay-tax">
+      <SharedPropertyRow v-if="taxed" :label="t('payments.pay.tax')" data-testid="pay-tax">
         <bdi dir="ltr" class="tabular-nums">{{ formatPayAmount(payable.amount_tax, payable.currency) }} {{ payable.currency }}</bdi>
       </SharedPropertyRow>
-      <SharedPropertyRow v-if="payable.amount_total !== payable.amount_due" :label="t(`payments.pay.${kind}.total`)" data-testid="pay-total">
+      <SharedPropertyRow v-if="taxed && payable.amount_total !== payable.amount_due" :label="t(`payments.pay.${kind}.total`)" data-testid="pay-total">
         <bdi dir="ltr" class="tabular-nums">{{ formatPayAmount(payable.amount_total, payable.currency) }} {{ payable.currency }}</bdi>
       </SharedPropertyRow>
     </dl>
