@@ -80,6 +80,13 @@ export function chatPollInterval(status: number | undefined): number | false {
   return isFatalChatStatus(status) ? false : CHAT_POLL_MS
 }
 
+/** Open threads must reconcile promptly even when the socket reports connected but misses a delivery. */
+export function chatReconcileInterval(status: number | undefined, connected: boolean, activeThread: boolean): number | false {
+  const fallback = chatPollInterval(status)
+  if (fallback === false) return false
+  return connected && !activeThread ? 30_000 : fallback
+}
+
 export function visibleReadMessageId(opts: {
   tabVisible: boolean
   pageVisible: boolean
