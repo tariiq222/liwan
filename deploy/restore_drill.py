@@ -202,7 +202,26 @@ def _extract_archive(archive: Path, destination: Path) -> None:
                 target == root or root in target.parents,
                 f'the artifact holds a member outside the restore directory: {member.name}',
             )
-        # Every member was checked above, so nothing is written outside the root.
+            # `data` is the only filter that matches this check and also refuses
+            # links, devices and absolute names on its own, so a member cannot be
+            # written outside the root even if the check above changed. Naming it
+            # explicitly also silences Python 3.12's pending-default warning, which
+            # would otherwise reach the command line's stderr.
+            _require(not (member.issym() or member.islnk() or member.isdev()),
+                     f'the artifact holds a link or device member: {member.name}')
+        _extract_all(bundle, destination)
+
+
+def _extract_all(bundle: tarfile.TarFile, destination: Path) -> None:
+    """Extract with the ``data`` filter where it exists (3.12+), else the checked members.
+
+    Every member was proven to sit inside the destination above, so the 3.9 path is
+    safe; the ``data`` filter additionally refuses links, devices and absolute names
+    on its own, and naming it silences 3.12's pending-default warning.
+    """
+    if hasattr(tarfile, 'data_filter'):
+        bundle.extractall(destination, filter='data')
+    else:
         bundle.extractall(destination)
 
 

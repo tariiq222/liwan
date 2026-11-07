@@ -141,7 +141,7 @@ jobs:
           playwright: 'true'
           python: 'true'
       - name: Python tools
-        run: python -m pip install --quiet ruff==0.16.3 semgrep==1.170.0
+        run: python -m pip install --quiet ruff==0.16.3 semgrep==1.170.0 pyyaml==6.0.3
       - run: deploy/ci/static.sh
 
   ai-service:

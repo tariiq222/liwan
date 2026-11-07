@@ -6,7 +6,12 @@ cd "$(dirname "$0")/../.."
 BASE_REF="${CI_BASE_REF:-origin/main}"
 ruff check odoo-addons
 # Release packages require their canonical name and installed jiti; run below.
+# Test helper for the compose and staging readers: the deployment suites parse
+# Docker Compose files, and the static stage installs only what those suites need.
 PYTHONPATH=deploy python3 -B -m unittest deploy/test_*.py
+# The staging definition lives in its own package, so `deploy/test_*.py` does not
+# match it; run it explicitly or its checks silently never execute in CI.
+PYTHONPATH=deploy python3 -B -m unittest discover -s deploy/staging -t . -p 'test_*.py'
 python3 -B -m unittest tools/shared_saas_lifecycle/test_*.py
 python3 -B tools/catalog_check.py
 python3 -B tools/migration_guard.py --base "$BASE_REF"
