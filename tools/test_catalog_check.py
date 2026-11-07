@@ -470,6 +470,29 @@ class ReleaseCatalogCase(CatalogFixture, unittest.TestCase):
         self.data['tiers'].append({'id': 'twice', 'name': 'Twice', 'modules': [], 'features': ['boolean:pmo.enabled']})
         self.assert_rejected("feature 'pmo.enabled' is declared by more than one tier", self.data)
 
+    def test_a_release_module_without_a_manifest_is_an_error_not_a_crash(self):
+        # A broken closure must be reported like any other catalog error; it used to escape check_catalog as a traceback
+        # and leave main() with no exit code at all.
+        data = json.loads(json.dumps(self.data))
+        data['base_modules'] = ['demo_core', 'liwan_does_not_exist']
+        self.write('solutions/demo.json', data)
+        errors = self.errors()
+        self.assertTrue([e for e in errors if 'liwan_does_not_exist' in e], errors)
+        self.assertEqual(catalog_check.main(['--root', str(self.root)]), 1)
+
+    def test_the_current_release_rule_does_not_leak_between_checks(self):
+        # The rule is about the newest solution file of ONE catalog root, not about whichever name a previous
+        # check_catalog() happened to leave behind.
+        self.errors()
+        other = Path(tempfile.mkdtemp()) / 'other'
+        other.mkdir(parents=True)
+        shutil.copytree(self.root / 'deploy', other / 'deploy')
+        schema_one = {'schema_version': 1, 'id': 'platform_v4', 'name': 'Old', 'industry': 'none', 'base_modules': ['demo_core'],
+                      'tiers': [{'id': 'projects', 'name': 'Projects', 'modules': ['demo_pmo'], 'features': ['boolean:pmo.enabled']}]}
+        (other / 'deploy' / 'catalog' / 'solutions').mkdir(parents=True, exist_ok=True)
+        collected = catalog_check.check_catalog(other, Path('deploy') / 'catalog')
+        self.assertFalse([e for e in collected if 'sellable' in e], collected)
+
     def test_a_current_release_tier_must_state_whether_it_is_sold(self):
         # A6: an omitted `sellable` sells nothing, so the current release must say it on every non-core tier rather
         # than lock one by accident. A historical catalog file is not held to the newer rule.
@@ -478,10 +501,18 @@ class ReleaseCatalogCase(CatalogFixture, unittest.TestCase):
         self.assert_rejected('the current release must state sellable on every non-core tier', without)
 
     def test_a_historical_catalog_keeps_omitting_sellable(self):
-        self.write('solutions/demo_v9.json', {**self.data, 'tiers': [{'id': 'old', 'name': 'Old', 'modules': ['demo_pmo'], 'features': ['boolean:pmo.enabled']}]})
-        modern = json.loads(json.dumps(self.data))
-        self.write('solutions/demo.json', modern)
-        self.assertNotIn('demo_v9.json', [error for error in self.errors()])
+        # The OLDER file is demo.json; the newest (demo_v9.json, a higher numeric suffix) is the current release and
+        # must state sellable. The historical one is not held to the newer rule.
+        historical = json.loads(json.dumps(self.data))
+        for tier in historical['tiers'][1:]:
+            tier.pop('sellable', None)
+        self.write('solutions/demo.json', historical)
+        newest = json.loads(json.dumps(self.data))
+        newest['id'] = 'demo_v9'
+        self.write('solutions/demo_v9.json', newest)
+        errors = self.errors()
+        self.assertFalse([e for e in errors if 'demo.json' in e and 'sellable' in e], errors)
+        self.assertEqual([e for e in errors if 'demo_v9.json' in e], [])
 
     def test_a_tier_with_modules_and_no_features_is_rejected(self):
         self.data['tiers'][1]['features'] = []

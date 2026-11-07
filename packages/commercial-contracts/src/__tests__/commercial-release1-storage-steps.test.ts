@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { computeQuote, fitsStorageSteps } from '../commercial/quotes.js'
+import { computeQuote } from '../commercial/quotes.js'
+import { fitsStorageSteps } from '../commercial/schemas.js'
 import { base, err, M, plan, policy, sar } from './fixtures.js'
 
 /**
