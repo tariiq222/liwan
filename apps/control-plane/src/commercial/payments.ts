@@ -9,6 +9,7 @@ import { confirmEvent } from './moyasar-adapter.js'
 import { enqueueOutbox } from './outbox.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { onRenewalPaid } from './renewals.js'
+import { isPaidFirstOrder, requireReachableManager } from './orders.js'
 
 export function paymentAttemptView(row: any) {
   return { id: row.id, order_id: row.order_id, invoice_id: row.invoice_id, provider: row.provider, mode: row.mode,
@@ -239,6 +240,9 @@ export async function createPaymentAttempt(pool: Pool, input: { order_id: string
     const order = (await client.query('SELECT * FROM orders WHERE id=$1 AND customer_id=$2 FOR UPDATE', [input.order_id,input.customer_id])).rows[0]
     if (!order) throw new CommercialHttpError('not_found', 404)
     if (order.payment_state !== 'awaiting_payment' || order.cancelled) throw new CommercialHttpError('payment_not_awaiting', 409)
+    // A4: never open a charge for a paid first order whose workspace could never invite anyone.
+    if (isPaidFirstOrder({ kind: order.kind }, Number(order.due_now_minor), order.expected_applied_revision_id))
+      await requireReachableManager(client, (await client.query('SELECT * FROM customers WHERE id=$1', [input.customer_id])).rows[0])
     const live = (await client.query("SELECT * FROM payment_attempts WHERE order_id=$1 AND status IN ('created','redirected','pending','unknown')", [order.id])).rows[0]
     if (live) return { row: live, fresh: false }
     const invoice = (await client.query("SELECT * FROM invoices WHERE order_id=$1 AND status='issued' ORDER BY created_at LIMIT 1 FOR UPDATE", [order.id])).rows[0]

@@ -9,10 +9,13 @@ export { CommercialError }
  * features carry every key of every release application (spec 3.6, rulings E2/E3/E6). */
 export const COMPILER_VERSION = 'commercial-compiler/3'
 
-/** Whether a customer may buy this application. A catalog published before `sellable` existed sold every
- * selectable tier, so its applications fall back to `selectable`; the core tier is never for sale. */
+/**
+ * Whether a customer may buy this application: only a tier that says so. A catalog that predates the flag declares
+ * nothing, so it sells nothing — the control plane refuses to publish such a catalog at all, and this is the second
+ * line of the same rule rather than a compatibility path.
+ */
 export function isSellable(app: Pick<CatalogApplication, 'selectable' | 'sellable'>): boolean {
-  return app.sellable ?? app.selectable
+  return app.sellable === true
 }
 
 export function compileEntitlements(input: {

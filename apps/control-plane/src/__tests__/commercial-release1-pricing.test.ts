@@ -146,7 +146,8 @@ suite('the 100-user cap', () => {
     plan = (await api('POST', `/plans/${draft.body.id}/publish`, { edit_revision: validated.body.edit_revision, reason: 'Cap acceptance' })).body
   })
   afterAll(async () => { await pool.end() })
-  const customer = async () => { const id = randomUUID(); await pool.query('INSERT INTO customers(id,name) VALUES($1,$2)', [id, 'Cap customer']); return id }
+  // A paid first order needs a manager to invite (A4), so every fixture customer carries one.
+  const customer = async () => { const id = randomUUID(); await pool.query('INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,$2,$3,$4)', [id, 'Cap customer', 'Manager', 'cap@example.test']); return id }
 
   it('admits exactly 100 users and refuses 101 with a structured error', async () => {
     const id = await customer()
@@ -195,7 +196,7 @@ suite('a plan whose total is zero', () => {
 
   async function freeCustomer() {
     const id = randomUUID()
-    await pool.query('INSERT INTO customers(id,name) VALUES($1,$2)', [id, 'Free customer'])
+    await pool.query('INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,$2,$3,$4)', [id, 'Free customer', 'Manager', 'free@example.test'])
     const quote = await createQuoteForCustomer(pool, { customer_id: id, request: request() })
     expect(quote.due_now.minor).toBe(0)
     const { order } = await acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: randomUUID() }, vendor)

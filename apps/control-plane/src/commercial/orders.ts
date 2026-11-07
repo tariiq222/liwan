@@ -14,6 +14,25 @@ import { reserveBranchesForOrder, restoreBranchesForOrder } from './branches.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import { assertDowngradeFitsUsage } from './usage.js'
 
+/**
+ * A4: a paid first order must leave the customer a way into its workspace. Fulfilment needs a manager to invite; with
+ * no bound tenant, no reserved enrollment and no stored admin_login, the order could be paid and then wait forever
+ * (`enrollment_admin_missing`), and the refund rule would refuse it once the window closed. Refused before any money
+ * is taken, for the order, a bank transfer and a payment attempt alike.
+ */
+export async function requireReachableManager(client: Pick<PoolClient, 'query'>, customer: Record<string, any>) {
+  if (customer.enrollment_request_id) return
+  if (customer.admin_login) return
+  const bound = await client.query('SELECT 1 FROM shared_registry_bindings WHERE control_tenant_id=$1 AND enabled', [customer.tenant_id])
+  if (bound.rowCount) return
+  throw new CommercialHttpError('admin_login_required', 409)
+}
+
+/** Whether this order is a paid first order: the one case the reachable-manager rule guards. */
+export function isPaidFirstOrder(order: { payment_state?: string; kind?: string }, quoteDueNow: number, appliedRevisionId: string | null | undefined) {
+  return quoteDueNow > 0 && !appliedRevisionId && order.kind !== 'renewal'
+}
+
 /** A missing or short reason reaches `cancelOrder`, which answers 422 `reason_required` for both. */
 export const cancelOrderBodySchema = z.strictObject({ reason: z.string().max(1000).default('') })
 
@@ -132,6 +151,10 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
   const existing = await findReplay(client, quote, input, digest)
   if (existing) return existing
   let subscription = (await client.query('SELECT * FROM subscriptions WHERE customer_id=$1 FOR UPDATE', [quote.customer_id])).rows[0]
+  // A4: a paid first order needs a manager the fulfilment can invite. Shared mode used to stand in for this rule with
+  // trial_required_first, which also refused orders that could have been fulfilled.
+  if (isPaidFirstOrder({ kind: quote.subscription_id && subscription?.applied_revision_id ? 'change' : 'new' }, quote.due_now.minor, subscription?.applied_revision_id))
+    await requireReachableManager(client, customer)
   // A vendor may place a paid first order for a customer with no tenant binding yet (release 1, owner decision
   // 2026-11-06): the order carries the control tenant its fulfilment provisions. Issue #143's invariant is kept where
   // it belongs, in fulfilment: an order with no tenant is never applied, its fulfilment is released with

@@ -33,7 +33,7 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
   beforeEach(async()=>{await pool.query('TRUNCATE customers CASCADE');await pool.query('TRUNCATE commercial_outbox')})
   afterAll(async()=>{await pool.end()})
   async function subscription(p=suspend){
-    const customer=randomUUID();await pool.query('INSERT INTO customers(id,name) VALUES($1,$2)',[customer,'Renewal customer'])
+    const customer=randomUUID();await pool.query('INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,$2,$3,$4)',[customer,'Renewal customer','Manager','renewals@example.test'])
     const quote=await createQuoteForCustomer(pool,{customer_id:customer,request:{kind:'new',plan_revision_id:p.id,bundle_revision_ids:[],cadence:monthly,requested_extra_branches:0,requested_users:1,requested_storage_mb:0}})
     const {order}=await acceptQuote(pool,{quote_id:quote.id,expected_subscription_revision:0,idempotency_key:randomUUID()},vendor)
     await pool.query("UPDATE orders SET payment_state='paid',fulfillment_state='applied' WHERE id=$1",[order.id])

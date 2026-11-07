@@ -56,6 +56,15 @@ suite('a vendor-added customer starts paid (W4)', () => {
   afterAll(async () => { await pool.end() })
 
   /** The vendor console path: create the customer, quote its paid first order, place the order. */
+  /** A customer the vendor created WITHOUT a manager email: nobody to invite, so a paid first order must be refused. */
+  async function createCustomerWithoutManager(name: string) {
+    const response = await routesB(pool, { method: 'POST', pathname: '/v1/commercial/customers',
+      raw: JSON.stringify({ name, tenant_id: await newTenant() }),
+      issuer: 'vendor-paid-test', actor: 1, capabilities: vendorCaps as any, stepUpFresh: true }, new URL('http://localhost/v1/commercial/customers'))
+    expect(response!.status).toBe(201)
+    return response!.data as { id: string }
+  }
+
   /** A control tenant the customer belongs to, with no enabled registry binding (nothing provisioned yet). */
   async function newTenant() {
     const id = randomUUID()
@@ -122,6 +131,29 @@ suite('a vendor-added customer starts paid (W4)', () => {
     expect(result.replay).toBe(false)
     const row = (await pool.query('SELECT payment_state, fulfillment_state FROM orders WHERE id=$1', [order.data.order.id])).rows[0]
     expect(row).toMatchObject({ payment_state: 'paid', fulfillment_state: 'queued' })
+  })
+
+  it('refuses a paid first order for a customer with no manager to invite', async () => {
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'shared')
+    const customer = await createCustomerWithoutManager('No manager')
+    const quote = await createQuoteForCustomer(pool, { customer_id: customer.id, request: { kind: 'new', plan_revision_id: plan.id,
+      bundle_revision_ids: bundles_param(), cadence: monthly, requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 5120 } })
+    expect(quote.due_now.minor).toBeGreaterThan(0)
+    await expect(placeOrder(customer.id, quote.id)).rejects.toMatchObject({ status: 409, code: 'admin_login_required' })
+    expect((await pool.query('SELECT count(*)::int AS n FROM orders WHERE customer_id=$1', [customer.id])).rows[0].n).toBe(0)
+  })
+
+  it('refuses a bank transfer and a payment attempt for the same unprovisionable order', async () => {
+    // The order itself is refused, so the only way to reach the later gates is a customer that lost its manager email
+    // after the order was accepted; the gates still refuse it rather than take money for a workspace nobody can enter.
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'shared')
+    const { customer_id, order } = await vendorOrder()
+    await pool.query('UPDATE customers SET admin_login=NULL WHERE id=$1', [customer_id])
+    const invoice = (await pool.query("SELECT * FROM invoices WHERE order_id=$1 AND status='issued'", [order.data.order.id])).rows[0]
+    await expect(confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', reference: `TRF-${randomUUID().slice(0, 8)}`,
+      amount: Number(invoice.total_minor), value_date: '2026-11-06' }))
+      .rejects.toMatchObject({ status: 409, code: 'admin_login_required' })
+    expect((await pool.query('SELECT payment_state FROM orders WHERE id=$1', [order.data.order.id])).rows[0].payment_state).toBe('awaiting_payment')
   })
 
   it('never leaves a paid first order without a way to get a tenant (issue #143 invariant)', async () => {

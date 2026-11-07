@@ -1083,13 +1083,14 @@
         "customerHint": "The customer name and its first administrator in the workspace.",
         "planTitle": "Plan and billing",
         "price": "Price per cycle by plan",
+        "onboarding": "Add assisted onboarding",
+        "onboardingHint": "A one-time line on this first invoice only, at the fee in the billing settings. Renewals never carry it.",
         "legacyTitle": "Legacy catalog path",
         "legacyHint": "This deployment has no shared workspaces, so the customer is registered as a standalone instance of a published catalog instead of a plan.",
         "hostingTitle": "Environment and hosting",
         "catalogTitle": "Catalog",
         "nameTitle": "Customer",
-        "planHint": "Choose the plan the customer subscribes to and its billing cycle.",
-        "trial": "The customer starts on a {days}-day trial and pays from its own workspace when it ends."
+        "planHint": "Choose the plan the customer subscribes to and its billing cycle."
       },
       "pendingActivation": "Awaiting activation"
     },

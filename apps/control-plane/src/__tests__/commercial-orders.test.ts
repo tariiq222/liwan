@@ -20,7 +20,7 @@ suite('commercial B1 atomic orders', () => {
   let plan: any
   const vendor: any = { actor_id: '7', kind: 'vendor', customer_id: null, tenant_id: null, capabilities: ['vendor.subscriptions.manage','vendor.pricing.manage'] }
   const request = () => ({ kind: 'new', plan_revision_id: plan.id, bundle_revision_ids: [], cadence: monthly, requested_extra_branches: 0, requested_users: 1, requested_storage_mb: 0 })
-  async function customer() { const id = randomUUID(); await pool.query('INSERT INTO customers(id,name) VALUES($1,$2)', [id, 'B1 customer']); return id }
+  async function customer() { const id = randomUUID(); await pool.query('INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,$2,$3,$4)', [id, 'B1 customer', 'Manager', 'b1@example.test']); return id }
   const accept = (q: any, key = randomUUID()) => ({ quote_id: q.id, expected_subscription_revision: q.expected_subscription_revision, idempotency_key: key })
   beforeAll(async () => {
     const { version } = await setup(pool)

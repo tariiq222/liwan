@@ -59,7 +59,7 @@ suite('the one-time onboarding fee (W6)', () => {
     const id = randomUUID()
     const tenant = randomUUID()
     await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Customer','saas','managed',$2,true)", [tenant, `c-${tenant}`])
-    await pool.query('INSERT INTO customers(id,name,tenant_id) VALUES($1,$2,$3)', [id, 'Onboarding customer', tenant])
+    await pool.query('INSERT INTO customers(id,name,tenant_id,admin_name,admin_login) VALUES($1,$2,$3,$4,$5)', [id, 'Onboarding customer', tenant, 'Manager', 'onboarding@example.test'])
     return id
   }
 

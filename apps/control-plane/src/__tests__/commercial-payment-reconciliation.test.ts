@@ -19,7 +19,7 @@ suite('bounded authoritative payment reconciliation on PostgreSQL', () => {
   async function fixture(adapter = new SimulatorAdapter()) {
     const customer = randomUUID(), subscription = randomUUID(), revision = randomUUID(), order = randomUUID(), invoice = randomUUID()
     await transaction(pool, async c => {
-      await c.query('INSERT INTO customers(id,name) VALUES($1,$2)', [customer, 'Reconciliation test'])
+      await c.query('INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,$2,$3,$4)', [customer, 'Reconciliation test', 'Manager', 'reconcile@example.test'])
       await c.query('INSERT INTO subscriptions(id,customer_id) VALUES($1,$2)', [subscription, customer])
       await c.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,$3,$4)', [revision, subscription, '{}', randomUUID()])
       await c.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent)

@@ -6,6 +6,7 @@ import { riyadhDate } from '@liwan/commercial-contracts'
 import { CommercialHttpError } from './lifecycle.js'
 import { closeOtherAttempts, settleAttemptIn } from './payments.js'
 import type { PaymentAdapter } from './payment-adapter.js'
+import { isPaidFirstOrder, requireReachableManager } from './orders.js'
 import type { ProviderEvent } from './payment-adapter.js'
 import { bankAccountOf, billingSettings } from './billing-settings.js'
 
@@ -66,6 +67,9 @@ export async function confirmBankTransfer(pool: Pool, input: BankTransferInput &
       return { attempt: replay.attempt, order_id: order.id as string, replay: replay.replay }
     }
     if (order.payment_state !== 'awaiting_payment' || order.cancelled) throw new CommercialHttpError('order_not_payable', 409)
+    // A4: the same reachable-manager rule the order itself carries, so a transfer cannot pay an unprovisionable order.
+    if (isPaidFirstOrder({ kind: order.kind }, Number(order.due_now_minor), order.expected_applied_revision_id))
+      await requireReachableManager(client, (await client.query('SELECT * FROM customers WHERE id=$1', [order.customer_id])).rows[0])
     if (invoice.status !== 'issued') throw new CommercialHttpError('invoice_not_payable', 409)
     // The attempt is reserved NOT settled: apply (below) is what flips it to succeeded and pays the order.
     // succeeded_at is the value date: the day the money reached the account, not the day it was recorded. apply()
