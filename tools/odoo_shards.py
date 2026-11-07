@@ -33,9 +33,15 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 SHARD_COUNT = 3
-# Per-test cost above the average module, measured on CI: liwan_finance's tests build accounting data
-# (journals, moves, reports), so its 653 tests took 837 s standalone against 279 s for liwan_hr's 626.
-COST_FACTOR = {'liwan_finance': 3}
+# Seconds per test relative to the median module (about 0.43 s on the CI runner with the whole release installed),
+# for the modules that differ by more than 1.4x. Measured 2026-11-07: a serial full-release run logged the time of
+# each of its 5534 tests per module (locally: finance 498 s, hr 267 s, inbox 241 s, pmo 214 s of 2042 s), then the
+# CI shard times of main run 42368275830 (finance-only shard 1 about 920 s, shard 2 about 950 s, shard 3 about
+# 1920 s) set the scale: finance, hr and pmo, which many bridges extend, run slower in the full install than the
+# rest. Refit when the shard times drift apart.
+COST_FACTOR = {'liwan_finance': 2.7, 'liwan_hr': 2.4, 'liwan_pmo': 2.1, 'liwan_hr_finance': 3.3,
+               'liwan_meetings_pmo': 4.9, 'liwan_pmo_finance': 2.2, 'liwan_appointments_payments': 2.3,
+               'liwan_hr_operations': 1.6}
 TEST_DEF = re.compile(r'^\s*def test_', re.MULTILINE)
 
 
@@ -55,7 +61,7 @@ def weight(module: str, addons: Path = REPO / 'odoo-addons') -> int:
     """Test count of a module times its COST_FACTOR; a module without tests weighs 1 so it still lands in a shard."""
     tests = addons / module / 'tests'
     count = sum(len(TEST_DEF.findall(f.read_text(encoding='utf-8'))) for f in sorted(tests.glob('test_*.py')))
-    return max(count, 1) * COST_FACTOR.get(module, 1)
+    return round(max(count, 1) * COST_FACTOR.get(module, 1))
 
 
 def split(weights: dict[str, int], count: int) -> list[list[str]]:
@@ -170,7 +176,7 @@ def main(argv: list[str] | None = None) -> int:
             return run_all(args.count)
         else:
             for number, shard in enumerate(plan(args.count), 1):
-                print('%d/%d  %4d tests  %s' % (number, args.count, sum(weight(m) for m in shard), ','.join(shard)))
+                print('%d/%d  %4d weight  %s' % (number, args.count, sum(weight(m) for m in shard), ','.join(shard)))
     except ShardError as error:
         print('odoo_shards: %s' % error, file=sys.stderr)
         return 1

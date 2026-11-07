@@ -198,7 +198,16 @@ Every stage job except `static` ends with `.github/actions/stage-pass`, which sa
 `python3 -B tools/ci_stage_cache.py key`: a hash of the tracked files the stage reads (the `RULES` of
 `tools/ci_scope.py`) and its matrix entry. The `scope` job leaves out every stage whose jobs all saved a key on the
 same ref; a matrix stage is skipped only when every entry has one, and a failed lookup skips nothing. A push to
-`main`, the nightly run and `workflow_dispatch` run every selected stage.
+`main`, the nightly run and `workflow_dispatch` run every selected stage. `e2e-mock` is a matrix of
+`E2E_MOCK_SHARDS` (`tools/ci_stage_cache.py`; the `scope` job emits it as `e2e-mock-shards`) and is skipped only
+when every shard saved its `k/N` key.
+
+### Red `main` alert
+
+On a push to `main` and on the nightly run, the `main-alert` job (`deploy/ci/main-alert.sh`) reads `ci-result`. A red
+result opens one issue titled `CI is red on main` (label `ci-red`) or, when one is open, comments the run URL and the
+failed jobs; a green result comments the green run URL on the open issue and closes it. `ci-result` does not depend on
+it, and a failing issue call fails the job so a broken alert is seen.
 
 ### After the merge
 
@@ -211,7 +220,7 @@ The `odoo` stage covers the release modules and is a matrix of three shards (a j
 `ci-result`, so it stays one of the thirteen stages). Every shard installs the whole release module list on
 its own Postgres service and runs only its share of the module tests (`--test-tags`), so cross-module
 behaviour is exercised in each. `tools/odoo_shards.py` splits the release modules by their `def test_`
-counts times `COST_FACTOR` for a module measured slower per test (`liwan_finance`: 3) (greedy, heaviest first; revisit the factors when the shard times drift apart); `python3 -B tools/odoo_shards.py plan` shows the split. Run one shard
+counts times `COST_FACTOR` (seconds per test relative to the median module, measured for `liwan_finance`, `liwan_hr`, `liwan_pmo` and five bridges; the comment in `tools/odoo_shards.py` records how) (greedy, heaviest first; refit the factors when the shard times drift apart); `python3 -B tools/odoo_shards.py plan` shows the split and its weights. Run one shard
 with `deploy/ci/odoo.sh --shard k/N`, all shards in parallel locally with `python3 -B tools/odoo_shards.py run`
 (same environment as `odoo.sh`; shard k uses `ODOO_PORT + k - 1` and its own scratch database), and the
 unsharded full run with plain `deploy/ci/odoo.sh`. A template database does not help the shards: Odoo
@@ -330,7 +339,9 @@ states, navigation and regressions that need no judgement.
 
 How the stage runs (`deploy/ci/e2e-mock.sh`):
 
-- One production build, one worker, the mock on `MOCK_PORT`. The context menu starts folded, so a spec that reads the
+- One production build and one worker per job, the mock on `MOCK_PORT`. `e2e-mock` is a matrix of three jobs
+  (`deploy/ci/e2e-mock.sh --shard k/N`, Playwright `--shard=k/N` over `ci-mock-specs.txt`); the long-list run below
+  happens in the last shard only, and without `--shard` the script runs everything, as locally. The context menu starts folded, so a spec that reads the
   sidebar sets the `liwan-context-sidebar=open` cookie itself.
 - The customer commercial flag is on for this server (`NUXT_CUSTOMER_COMMERCIAL_ENABLED` and its public twin), with the
   mock acting as the stub control plane for `/subscription` and `/invite/accept`.
