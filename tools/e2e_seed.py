@@ -49,11 +49,6 @@ PERSONAS = (
     ('crm_manager', 'أحمد السهلي', 'مدير المبيعات', 'المبيعات', 'ceo', ('employee', 'crm_manager')),
     ('crm_agent', 'مها الثبيتي', 'موظفة مبيعات', 'المبيعات', 'crm_manager', ('employee', 'crm_agent')),
     ('crm_agent2', 'نايف العسيري', 'موظف مبيعات', 'المبيعات', 'crm_manager', ('employee', 'crm_agent')),
-    # The Customer Inbox application: without these three no seeded account holds any inbox.*
-    # capability, so every inbox scenario and its API routes were unreachable (finding 2026-11-07).
-    ('inbox_manager', 'منال الشريف', 'مديرة صندوق العملاء', 'المبيعات', 'ceo', ('employee', 'inbox_manager')),
-    ('inbox_supervisor', 'راكان الدوسري', 'مشرف صندوق العملاء', 'المبيعات', 'inbox_manager', ('employee', 'inbox_supervisor')),
-    ('inbox_agent', 'لمياء العتيبي', 'موظفة صندوق العملاء', 'المبيعات', 'inbox_supervisor', ('employee', 'inbox_agent')),
 )
 # Personas whose only purpose is a custom role or a role combination no business persona holds.
 ROLE_PERSONAS = (
@@ -74,6 +69,14 @@ CUSTOM_ROLES = {
     'e2e_payments_reader': ('قراءة المدفوعات فقط', ('finance.payments.read',)),
     'e2e_employee_no_ai': ('موظف بلا مساعد ذكي', None),
 }
+# The Customer Inbox application: without these three no seeded account holds any inbox.* capability, so every
+# inbox scenario and its API routes were unreachable (finding 2026-11-07). Seeded after every other persona: see
+# mobile_of() below.
+INBOX_PERSONAS = (
+    ('inbox_manager', 'منال الشريف', 'مديرة صندوق العملاء', 'المبيعات', 'ceo', ('employee', 'inbox_manager')),
+    ('inbox_supervisor', 'راكان الدوسري', 'مشرف صندوق العملاء', 'المبيعات', 'inbox_manager', ('employee', 'inbox_supervisor')),
+    ('inbox_agent', 'لمياء العتيبي', 'موظفة صندوق العملاء', 'المبيعات', 'inbox_supervisor', ('employee', 'inbox_agent')),
+)
 # Branches (child companies of the root) and the people who work only there.
 BRANCHES = ('فرع جدة', 'فرع الدمام')
 BRANCH_PERSONAS = (
@@ -93,6 +96,9 @@ env['liwan.tenant.profile']._liwan_initialize_legacy_policy(registry._liwan_inst
 
 users = env['res.users'].with_context(no_reset_password=True)  # noqa: F821
 # The API refuses an account without a mobile number, so every seeded login holds one (E.164, unique per login).
+# Numbers follow the order logins are first seen, and a re-seed of an existing scratch database keeps its
+# accounts' numbers, so a new persona is seeded after all existing ones: inserting it earlier would hand it a
+# number an existing account still holds, which the unique mobile index rejects.
 mobiles = {}
 
 
@@ -192,6 +198,8 @@ for key, name, job_title, department_name, manager_key, role_keys in PERSONAS + 
     ensure_persona(key, name, job_title, company, role_keys, departments[department_name], employees.get(manager_key, False))
 for key, name, job_title, branch_name, role_keys in BRANCH_PERSONAS:
     ensure_persona(key, name, job_title, branches[branch_name], role_keys)
+for key, name, job_title, department_name, manager_key, role_keys in INBOX_PERSONAS:
+    ensure_persona(key, name, job_title, company, role_keys, departments[department_name], employees.get(manager_key, False))
 
 for department_name, head_key in DEPARTMENT_HEADS.items():
     departments[department_name].manager_id = employees[head_key]
