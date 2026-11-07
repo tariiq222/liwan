@@ -165,6 +165,21 @@ describe('vendor API proxy', () => {
     expect(calls).toHaveLength(forwarded)
   })
 
+  it('forwards the subscription suspend and resume actions the customer page offers', async () => {
+    // Without these the console answered its own 404 and a customer could never be suspended from the page.
+    const calls = stubUpstream(() => json(200, {}))
+    expect((await post('/commercial/subscriptions/s-1/suspend')).status).toBe(200)
+    expect((await post('/commercial/subscriptions/s-1/resume')).status).toBe(200)
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual([
+      'POST /v1/commercial/subscriptions/s-1/suspend',
+      'POST /v1/commercial/subscriptions/s-1/resume',
+    ])
+    // Still only those two extra actions, and only on a subscription id.
+    // `subscriptions/suspend` is a subscription whose id is "suspend", which the id segment already allowed.
+    for (const path of ['/commercial/subscriptions/s-1/suspends', '/commercial/subscriptions/s-1/suspend/x', '/commercial/subscriptions/s-1/delete'])
+      expect((await get(path)).status, path).toBe(404)
+  })
+
   it('waits long enough for the AI provider probes (15 s models, two 20 s asks for a test) and keeps 10 s everywhere else', async () => {
     expect(upstreamTimeoutMs('/v1/platform/ai-provider/models')).toBeGreaterThan(15_000)
     expect(upstreamTimeoutMs('/v1/platform/ai-provider/test')).toBeGreaterThan(40_000)

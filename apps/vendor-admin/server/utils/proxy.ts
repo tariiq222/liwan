@@ -27,7 +27,8 @@ const ALLOWED = [
   new RegExp(`^/v1/commercial/invoices/${SEGMENT}/bank-transfer$`),
   new RegExp(`^/v1/commercial/customers/${SEGMENT}/(trial|invitations)$`),
   new RegExp(`^/v1/commercial/trials/${SEGMENT}/(extend|end)$`),
-  new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}(/(branches|usage))?$`),
+  // suspend and resume are separate actions the customer page offers; without them the console answered its own 404.
+  new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}(/(branches|usage|suspend|resume))?$`),
   /^\/v1\/platform\/ai-provider(\/(presets|models|test))?$/,
   /^\/v1\/admin\/(me|accounts)$/,
   /^\/v1\/admin\/accounts\/[1-9][0-9]{0,15}\/(roles|disable|reset)$/,

@@ -22,7 +22,21 @@ const RELEASE1_BILLING_CODES = [
 type VendorLocales = { vendor: { pricing: { errors: Record<string, string> } } }
 const GENERIC = 'vendor.pricing.errors.generic'
 
+/**
+ * Plan and bundle *issue* codes reach the same `commercialErrorKey` path as route refusals (the plan form shows them
+ * from `LifecyclePanel`), so they must be mapped too — a code the console cannot name renders "generic".
+ */
+const PLAN_ISSUE_CODES = ['trial_on_free_plan', 'storage_step_misaligned', 'storage_step_invalid', 'platform_limit_derived',
+  'price_missing', 'branch_price_missing', 'unit_price_missing', 'branch_limit_invalid', 'storage_minimum_not_whole_gb']
+
 describe('commercial error codes', () => {
+  it('names every plan issue code the control plane can return', () => {
+    for (const code of PLAN_ISSUE_CODES) {
+      expect(COMMERCIAL_ERROR_CODES as readonly string[], code).toContain(code)
+      expect(commercialErrorKey({ data: { code } }), code).toBe(`vendor.pricing.errors.${code}`)
+    }
+  })
+
   it('knows every Release 1 billing refusal code', () => {
     const known = new Set<string>(COMMERCIAL_ERROR_CODES)
     expect(RELEASE1_BILLING_CODES.filter(code => !known.has(code))).toEqual([])
