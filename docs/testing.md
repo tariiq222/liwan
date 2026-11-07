@@ -148,7 +148,7 @@ remain separate from a review report.
 
 ### Change-scoped stages
 
-The first twelve stages take about 33 minutes (`e2e-odoo`, added later, is not timed yet), so a pull request runs only the stages its changed files can
+The thirteen stages take about 33 minutes without `e2e-odoo` (which adds about 9), so a pull request runs only the stages its changed files can
 affect. The path-to-stage map is `RULES` in `tools/ci_scope.py`: the first matching rule wins, `static`
 always runs, and **a path with no rule runs all thirteen stages** (that includes any `tools/` file not
 listed in `STATIC_ONLY_TOOLS`). Preview a selection, with the rule behind each changed path:
@@ -162,6 +162,10 @@ and `merge_group` events; a merge-queue entry is selected from the queue base to
 
 - `upgrade`, `restore-drill` and `image` never run on a pull request. They run on the push to `main`, the
   nightly run and a full dispatch.
+- `e2e-odoo` runs on a pull request only when the change reaches a surface its specs write through
+  (`E2E_ODOO_TRIGGERS` in `tools/ci_scope.py`: the specs and their fixtures, the project workspace pages and
+  components, the task, project, chat and realtime composables, and `liwan_pmo`/`liwan_chat`). Every other
+  pull request defers it to the push to `main`, the nightly run and a full dispatch.
 - A file under `odoo-addons/<addon>/` selects only `static` and the Odoo stages: `ai-service`, `control-plane`,
   `vendor-admin`, `e2e-mock` and `rtl-stories` read no addon code, so they run for an addon change on `main`.
 - The `odoo` stages reach only the affected release modules: the addons changed under `odoo-addons/<addon>/`
@@ -347,8 +351,10 @@ guarded by `E2E_REAL_ODOO=1`; they are not in any CI list until one scratch run 
 `.superpowers/real-odoo/fixtures.json`), starts Odoo and a production Nuxt build on port 44300 and runs
 `e2e/real-odoo-acceptance.spec.ts` and `e2e/real-odoo-services.spec.ts` with `E2E_REAL_ODOO=1`. No model call or API key is
 involved, unlike `npm run e2e:odoo` (the agentic runner of "Isolated agentic e2e"), which stays the local exploration path. The stage
-is deferred for pull requests (`DEFERRED_STAGES` in `tools/ci_scope.py`): it runs on the push to `main`, the nightly run and a full
-dispatch. It has not run on GitHub yet; the first full run is its first proof.
+runs on a pull request that touches `E2E_ODOO_TRIGGERS` (`tools/ci_scope.py`), and otherwise on the push to `main`, the nightly run and a
+full dispatch. A project starts with no optional tool enabled and finance stays off until a company enables it, so the finance journeys
+create their project with `tool_preferences` and assert the tool answered as enabled — the same opt-in a customer performs.
+One retry is configured for this suite only (`playwright.config.ts`, `E2E_REAL_ODOO=1`): its chat journey waits on a server push.
 
 ### LiwanOS AI spec
 
