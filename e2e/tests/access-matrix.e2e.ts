@@ -70,8 +70,15 @@ const PERSONAS = ['ceo', 'it_admin', 'hr_manager', 'payroll', 'cfo', 'accountant
 
 for (const key of PERSONAS) {
   // The session comes from e2e/tests/personas.setup.e2e.ts: one sign-in per persona per run.
-  test(`[ACC-01] ${key} sees its applications and only its pages`, { tags: ['access', 'personas'], timeout: 600_000, session: key }, async ({ app, screen, browser }) => {
-    test.skip(process.env.E2E_STACK !== 'odoo', 'needs the scratch Odoo stack (npm run e2e:odoo)');
+  // The stack restriction is a declaration option, not a body call: a body-level test.skip runs
+  // after the session's setup runs, so on the mock stack the setup would fail against the mock's
+  // admin/admin login instead of reporting these Odoo-only tests as skipped.
+  test(`[ACC-01] ${key} sees its applications and only its pages`, {
+    tags: ['access', 'personas'],
+    timeout: 600_000,
+    session: key,
+    skip: process.env.E2E_STACK !== 'odoo' ? 'needs the scratch Odoo stack (npm run e2e:odoo)' : false,
+  }, async ({ app, screen, browser }) => {
     // A restored session leaves no page open, so the first navigation happens here.
     await app.open('/');
     await expect(browser).toHaveURL(/localhost:\d+\/$/, slow);
