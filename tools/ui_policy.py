@@ -184,9 +184,20 @@ REVIEWED_TEST_TOOLING = {'@vue/compiler-sfc', '@vue/server-renderer', 'typescrip
 # Only the exact recorded specifier passes; any other change still needs review.
 REVIEWED_VERSIONS = {
     # Owner approval 2026-10-27, launch blocker B1: closes npm audit high and critical advisories.
-    'nuxt': '^4.6.2',
     'vitest': '4.1.12',
     'zod': '^4.6.7',
+    # Owner approval 2026-11-07 (Tariq, in chat), npm group bump PR #428: minor and patch updates only.
+    'nuxt': '^4.6.4',
+    '@playwright/test': '^1.64.1',
+    '@tailwindcss/vite': '^4.3.4',
+    '@tanstack/vue-query': '^5.105.3',
+    '@tiptap/extension-link': '^3.32.2',
+    '@tiptap/starter-kit': '^3.32.2',
+    '@tiptap/vue-3': '^3.32.2',
+    '@unovis/ts': '^1.7.1',
+    '@unovis/vue': '^1.7.1',
+    'reka-ui': '^2.11.0',
+    'tailwindcss': '^4.3.4',
 }
 
 
