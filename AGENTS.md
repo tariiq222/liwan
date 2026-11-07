@@ -228,9 +228,10 @@ another application) needs the owner's approval, recorded by the owner as an
 - `main` is the only long-lived branch and is always releasable. Any normal task branch
   name is accepted (a descriptive `<area>-<slug>` is recommended, not required);
   throwaway experiments are `spike/<slug>` and are never merged.
-  `<area>` is one of `core platform api pmo meetings hr chat tasks operations web cp deploy tools docs ci`; the
-  application areas (`pmo meetings hr chat tasks operations`) are derived from the rank-4 addons in `tools/arch_layers.json`,
-  so a new application's id becomes a valid area when it is registered there.
+  `<area>` is one of the fixed areas `core platform api web cp deploy tools docs ci` or an application area;
+  `tools/git_policy.py` (`app_areas()`) derives the application areas from the rank-4 addons in `tools/arch_layers.json`
+  (the addon name without `liwan_`): currently `appointments chat crm documents finance hr inbox meetings operations pmo tasks`.
+  A new application's id becomes a valid area when it is registered there.
 - Commit subjects are `type(scope): imperative subject`, at most 72 characters, with `type` in
   `feat fix refactor perf test docs ci build chore` and `scope` from the `<area>` list. One logical change
   per commit. No `wip` commit reaches `main`. A schema change carries its version bump and migration
