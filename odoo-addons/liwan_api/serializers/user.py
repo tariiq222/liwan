@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo import fields
 from odoo.exceptions import UserError
 
 DEFAULT_LANG = 'ar_001'
@@ -104,3 +105,18 @@ def dump_appearance(user):
         'mode': user.liwan_appearance_mode or 'light',
         'font_size': user.liwan_font_size or 'small',
     }
+
+
+def dump_device(device):
+    """One remembered browser: what the holder sees revoking it, never the token or its hash."""
+    return {
+        'id': device.id,
+        'label': device.label,
+        'issued_at': _iso(device.issued_at),
+        'expires_at': _iso(device.expires_at),
+        'last_used_at': _iso(device.last_used_at),
+    }
+
+
+def _iso(value):
+    return fields.Datetime.to_string(value).replace(' ', 'T') + 'Z' if value else None

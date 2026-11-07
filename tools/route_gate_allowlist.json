@@ -16,13 +16,14 @@
   ],
   "no_capability": [
     {
-      "reason": "Finishes the login of the caller's own pre-authenticated session (auth/totp) or acts only on the caller's own account or profile (/me); no capability applies.",
+      "reason": "Finishes the login of the caller's own pre-authenticated session or acts only on the caller's own account or profile (/me, language and time zone, remembered devices, password, mobile, appearance); no capability applies.",
       "routes": [
-        "liwan_api/controllers/auth.py:totp",
         "liwan_api/controllers/me.py:change_password",
+        "liwan_api/controllers/me.py:devices",
         "liwan_api/controllers/me.py:me",
         "liwan_api/controllers/me.py:patch_appearance",
-        "liwan_api/controllers/me.py:patch_mobile"
+        "liwan_api/controllers/me.py:patch_mobile",
+        "liwan_api/controllers/me.py:patch_profile"
       ]
     },
     {
@@ -186,6 +187,15 @@
         "liwan_api/controllers/account_public.py:check_token",
         "liwan_api/controllers/account_public.py:forgot_password",
         "liwan_api/controllers/account_public.py:reset_password"
+      ]
+    },
+    {
+      "reason": "The second step of a sign-in runs with no session (auth='public'): the password step named the account and the session holds only pre_uid, so no capability and no application feature applies. Every answer is limited to that one pending account's own channels, send and code.",
+      "routes": [
+        "liwan_api/controllers/auth.py:channels",
+        "liwan_api/controllers/auth.py:send_code",
+        "liwan_api/controllers/auth.py:verify",
+        "liwan_api/controllers/auth.py:remember_device"
       ]
     }
   ],
