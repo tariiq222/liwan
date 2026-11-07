@@ -4,6 +4,7 @@
 database: schema ``liwan_ai`` of its own, and nothing in schema ``public``. Each test applies the real
 script with the ``psql`` binary, exactly as provisioning does.
 """
+import importlib.util
 import os
 import shutil
 import subprocess
@@ -18,7 +19,8 @@ from psycopg.conninfo import conninfo_to_dict
 
 BASE_URL = os.environ.get("AI_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(not BASE_URL, reason="needs a superuser AI_TEST_DATABASE_URL")
-SCRIPT = Path(__file__).resolve().parents[3] / "deploy" / "ai" / "tenant_schema.sql"
+REPO = Path(__file__).resolve().parents[3]
+SCRIPT = REPO / "deploy" / "ai" / "tenant_schema.sql"
 AI_ROLE = "liwan_ai"
 
 
@@ -56,10 +58,20 @@ def run_script(database):
     return subprocess.run(argv, env=env, text=True, capture_output=True, check=False)
 
 
+def tenant_isolation_statements(database):
+    """Provisioning closes every tenant database to PUBLIC before tenant_schema.sql runs (deploy/releases/postgres.py)."""
+    spec = importlib.util.spec_from_file_location("release_postgres", REPO / "deploy" / "releases" / "postgres.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.tenant_isolation_statements(database, conninfo_to_dict(BASE_URL)["user"])
+
+
 @contextmanager
 def scratch_database():
     name = f"ai_g_{uuid4().hex[:12]}"
     admin(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(name)))
+    for statement in tenant_isolation_statements(name):
+        admin(statement)
     try:
         yield name
     finally:
@@ -124,7 +136,7 @@ def test_tenant_schema_is_idempotent():
             assert conn.execute("SELECT to_regnamespace('liwan_ai')").fetchone() == ("liwan_ai",)
             assert conn.execute(
                 "SELECT has_database_privilege('liwan_ai', current_database(), 'CONNECT')").fetchone() == (True,)
-            # The revocation survives the second run: PUBLIC keeps no CONNECT on the tenant database.
+            # The schema script never reopens the database: PUBLIC keeps no CONNECT on it.
             public_connect = conn.execute(
                 "SELECT count(*) FROM aclexplode((SELECT datacl FROM pg_database"
                 " WHERE datname = current_database())) acl"
