@@ -73,7 +73,7 @@ export function sameQuoteEconomics(a: Quote, b: Quote): boolean {
  * values, so the options are computed from the plan and never from constants.
  */
 export const STORAGE_MB_PER_GB = 1024
-/** The list caps at 20 options (with the seeds: 20 GiB up to 220 GiB) so a small step cannot build an unusable menu. */
+/** The list caps at 20 options (with the seeds: 20 GiB, then 30 … 120 GiB, then 220 … 1,020 GiB) so a small step cannot build an unusable menu. */
 export const STORAGE_OPTIONS_MAX = 20
 export type StoragePlanValues = {
   included_storage_mb: number
@@ -137,6 +137,17 @@ export function nearestStorageOption(options: StorageOption[], storageMb: number
   // An accepted figure stays; anything else steps UP to the nearest option. Never down: the fallback used to be the
   // largest option, which quietly reduced a customer who already had more than the list reaches.
   return options.find(o => o.storageMb >= storageMb) ?? null
+}
+
+/** The quantity the page keeps after the options change: the nearest option at or above it, and the quantity itself when it
+ * is above the last option (a subscription that already holds more than the list reaches is never shrunk by the form). */
+export function fitStorageMb(options: StorageOption[], storageMb: number): number {
+  return nearestStorageOption(options, storageMb)?.storageMb ?? storageMb
+}
+
+/** True when the quantity is not one of the options, so the select cannot show it and the customer must contact us to change it. */
+export function storageUnlisted(options: StorageOption[], storageMb: number): boolean {
+  return options.length > 0 && !options.some(o => o.storageMb === storageMb)
 }
 
 /**

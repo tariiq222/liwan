@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Quote } from '@liwan/commercial-contracts'
 import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
-import { nearestStorageOption, QUOTE_IS_EXPIRED, refusalCode, refusalKey, safeIdemAction, safePaymentRedirect, sameQuoteEconomics, storageOptions, STORAGE_MB_PER_GB, usersOverCap } from '@/utils/subscription'
+import { fitStorageMb, QUOTE_IS_EXPIRED, refusalCode, refusalKey, safeIdemAction, safePaymentRedirect, sameQuoteEconomics, storageOptions, storageUnlisted, usersOverCap } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t, locale } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('subscription.manage'))
@@ -43,8 +43,10 @@ const storageChoice = computed(() => storageChoices.value.find(o => o.storageMb 
 // Every row is a plan total in GiB; the extra it adds is priced, and the included amount says so instead of "0.00".
 const storageLabel = (o: (typeof storageChoices.value)[number]) => `${o.totalGb} ${t('subscription.change.gib')} · ${!o.extraMb ? t('subscription.change.storageIncluded') : o.amount ? money(o.amount) : t('subscription.change.unavailable')}`
 
+// A quantity above the last option stays as it is (never shrunk); the select cannot show it, so the customer is told to contact us.
+const storageLocked = computed(() => storageUnlisted(storageChoices.value, storageMb.value))
 // The included row has no extra to price, so it says so; a missing price is what "unavailable" means.
-const storageHelp = computed(() => !storageChoice.value?.extraMb ? t('subscription.change.perStorageNone')
+const storageHelp = computed(() => storageLocked.value ? t('subscription.change.storageUnlisted') : !storageChoice.value?.extraMb ? t('subscription.change.perStorageNone')
   : storageChoice.value.amount ? t('subscription.change.perStorage', { price: money(storageChoice.value.amount) }) : t('subscription.change.unavailable'))
 const bundlePrice = (b: (typeof bundles.value)[number]) => priceFor(b.prices)
 const bundleSelectable = (b: (typeof bundles.value)[number]) => Boolean(bundlePrice(b))
@@ -89,14 +91,14 @@ watch(planId, () => {
   // Only cadences with complete unit prices are offered; a missing one is unavailable, never zero.
   if (!cadenceOptions.value.some((o: { value: string }) => o.value === cadenceKey.value)) cadenceKey.value = cadenceOptions.value[0]?.value ?? ''
   users.value = Math.max(users.value, minUsers.value)
-  storageMb.value = nearestStorageOption(storageChoices.value, storageMb.value)?.storageMb ?? 0
+  storageMb.value = fitStorageMb(storageChoices.value, storageMb.value)
   extra.value = Math.max(extra.value, minBranches.value)
   bundleIds.value = bundleIds.value.filter(id => allowedBundleIds.value.has(id) && !includedIds.value.has(id))
 })
 // The storage options depend on the plan and the cadence: a different plan or cycle must not keep a quantity it does not sell.
 watch(storageChoices, (options) => {
   if (!options.length) return
-  storageMb.value = nearestStorageOption(options, storageMb.value)?.storageMb ?? 0
+  storageMb.value = fitStorageMb(options, storageMb.value)
 })
 // Live server quote: only ids and quantities are sent; every amount comes back from the control plane.
 let timer: ReturnType<typeof setTimeout> | undefined; let seq = 0
@@ -199,7 +201,7 @@ definePageMeta({ middleware: 'customer-commercial' })
                 <p class="mt-1 text-sm" :class="overCap ? 'text-error' : 'text-muted'">{{ t('subscription.change.usersCapNote') }}</p>
               </UFormField>
               <UFormField :label="t('subscription.change.storage')" :help="storageHelp">
-                <USelect v-model="storageMb" :items="storageChoices.map(o => ({ value: o.storageMb, label: storageLabel(o) }))" :disabled="!hydrated || !storageChoices.length" class="w-full" />
+                <USelect v-model="storageMb" :items="storageChoices.map(o => ({ value: o.storageMb, label: storageLabel(o) }))" :disabled="!hydrated || !storageChoices.length || storageLocked" class="w-full" />
               </UFormField>
               <UFormField :label="t('subscription.change.branches')" :help="t('subscription.change.includedBranches', { count: minBranches })">
                 <UInputNumber v-model="extra" :min="minBranches" :disabled="!hydrated" class="w-full" />

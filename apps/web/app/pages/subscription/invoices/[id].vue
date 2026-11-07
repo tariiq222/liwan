@@ -10,16 +10,16 @@ const view = computed(() => data.value ? subscriptionInvoiceView(data.value, t, 
 // Where to transfer while the invoice is unpaid. The control plane answers 409 `bank_account_unavailable` until the
 // vendor fills the account in: that is "not configured", not a failure. Any other refusal is a real error worth showing.
 const wantsTransfer = computed(() => invoiceWantsTransfer(allowed.value, data.value))
-// The one outcome the fetch produced; the template renders `transferNotice(outcome)` rather than re-deriving it.
-const transferOutcome = ref<ReturnType<typeof bankTransferOutcome> | null>(null)
-const { data: transfer } = await useAsyncData(() => `subscription:invoice-transfer:${id.value}`, async () => {
-  if (!wantsTransfer.value) { transferOutcome.value = null; return null }
-  const answer = await api.bankTransfer(id.value).then(instructions => ({ instructions }), (cause: unknown) => ({ cause }))
-  const outcome = bankTransferOutcome(wantsTransfer.value, answer)
-  transferOutcome.value = outcome
-  return outcome.kind === 'instructions' ? outcome.instructions : null
+// The fetch returns the whole answer (instructions and which notice to show) so the server payload alone is enough on
+// the client: a component-local ref set inside the fetcher would be lost when the payload is reused without running it.
+const { data: answer } = await useAsyncData(() => `subscription:invoice-transfer:${id.value}`, async () => {
+  if (!wantsTransfer.value) return { instructions: null, notice: 'none' as const }
+  const result = await api.bankTransfer(id.value).then(instructions => ({ instructions }), (cause: unknown) => ({ cause }))
+  const outcome = bankTransferOutcome(wantsTransfer.value, result)
+  return { instructions: outcome.kind === 'instructions' ? outcome.instructions : null, notice: transferNotice(outcome) }
 }, { immediate: allowed.value, watch: [wantsTransfer] })
-const transferState = computed(() => (transferOutcome.value ? transferNotice(transferOutcome.value) : 'none'))
+const transfer = computed(() => answer.value?.instructions ?? null)
+const transferState = computed(() => answer.value?.notice ?? 'none')
 const amount = computed(() => (transfer.value ? formatSubscriptionMoney({ currency: transfer.value.currency, exponent: transfer.value.exponent, minor: transfer.value.amount_minor }, locale.value) : ''))
 const instructions = computed(() => (transfer.value ? (locale.value.startsWith('ar') ? transfer.value.bank.instructions_ar : transfer.value.bank.instructions_en) : ''))
 const copied = ref('')

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { nearestStorageOption, refusalKey, STORAGE_MB_PER_GB, STORAGE_OPTIONS_MAX, storageOptions } from '../subscription'
+import { fitStorageMb, nearestStorageOption, refusalKey, STORAGE_MB_PER_GB, STORAGE_OPTIONS_MAX, storageOptions, storageUnlisted } from '../subscription'
 
 const GB = STORAGE_MB_PER_GB
 const monthly = { unit: 'month', count: 1 }
@@ -87,6 +87,30 @@ describe('nearestStorageOption', () => {
   })
 })
 
+describe('a subscription whose storage is above the last option', () => {
+  const options = storageOptions(SEEDED, pricePerStep(100), monthly)
+  const last = options.at(-1)!
+
+  it('ends the seeded list at 1,020 GiB in total', () => {
+    expect(last.totalGb).toBe(1020)
+  })
+
+  it('keeps its current quantity, so the quote request is not shrunk to the included amount', () => {
+    const current = 2000 * GB
+    expect(fitStorageMb(options, current)).toBe(current)
+    // A quantity inside the list still snaps to a legal option, and an empty list leaves the quantity alone.
+    expect(fitStorageMb(options, 130 * GB)).toBe(220 * GB)
+    expect(fitStorageMb([], current)).toBe(current)
+  })
+
+  it('is reported as unlisted so the page says to contact us, and a listed quantity is not', () => {
+    expect(storageUnlisted(options, 2000 * GB)).toBe(true)
+    expect(storageUnlisted(options, last.storageMb)).toBe(false)
+    expect(storageUnlisted(options, 40 * GB)).toBe(false)
+    expect(storageUnlisted([], 40 * GB)).toBe(false)
+  })
+})
+
 describe('the change page offers only the helper’s storage options', () => {
   const page = readFileSync(new URL('../../pages/subscription/change.vue', import.meta.url), 'utf8')
 
@@ -110,7 +134,7 @@ describe('the storage-step message exists in both languages', () => {
   const keys = (locale: string) => JSON.parse(readFileSync(new URL(`../../../i18n/locales/${locale}/subscription.json`, import.meta.url), 'utf8')).subscription.change
 
   it('has the same storage keys in en and ar', () => {
-    const names = ['storage', 'gib', 'storageIncluded', 'perStorage', 'perStorageNone', 'storageStepInvalid']
+    const names = ['storage', 'gib', 'storageIncluded', 'perStorage', 'perStorageNone', 'storageStepInvalid', 'storageUnlisted']
     for (const name of names) {
       expect(typeof keys('en')[name], `en.${name}`).toBe('string')
       expect(typeof keys('ar')[name], `ar.${name}`).toBe('string')

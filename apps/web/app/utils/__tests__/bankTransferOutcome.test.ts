@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { describe, expect, it, vi } from 'vitest'
 import { resolve } from 'node:path'
+import * as Vue from 'vue'
+import { renderToString } from '@vue/server-renderer'
+import { DEFAULT_STUBS, loadShared } from '@liwan/ui/test/helpers/renderShared'
+import * as subscription from '../subscription'
 import { bankTransferOutcome, invoiceWantsTransfer, transferNotice } from '../subscription'
 
 /**
@@ -9,8 +12,7 @@ import { bankTransferOutcome, invoiceWantsTransfer, transferNotice } from '../su
  * real failure. The page used to swallow every error with `catch { return null }`, which showed a customer nothing at
  * all when the request was actually broken.
  */
-const root = resolve(import.meta.dirname, '../..')
-const page = readFileSync(resolve(root, 'pages/subscription/invoices/[id].vue'), 'utf8')
+const page = resolve(import.meta.dirname, '../../pages/subscription/invoices/[id].vue')
 
 const instructions = {
   reference: 'INV-1001', amount_minor: 9900, currency: 'SAR', exponent: 2,
@@ -56,15 +58,67 @@ describe('bank-transfer instructions on an invoice', () => {
     expect(transferNotice(bankTransferOutcome(true, { cause: new Error('network') }))).toBe('failed')
     expect(transferNotice(bankTransferOutcome(false, {}))).toBe('none')
   })
+})
 
-  it('the page routes every answer through that decision and shows each branch', () => {
-    // The regression this guards: `api.bankTransfer(...).catch(() => null)` hides a real failure behind "unavailable".
-    expect(page).not.toMatch(/bankTransfer\([^)]*\)\.catch/)
-    expect(page).toContain('bankTransferOutcome(wantsTransfer.value, answer)')
-    expect(page).toContain('transferNotice(transferOutcome.value)')
-    expect(page).toContain('data-testid="bank-transfer-error"')
-    expect(page).toContain('data-testid="bank-transfer-unavailable"')
-    expect(page).toContain("t('subscription.bankTransfer.error')")
-    expect(page).toContain("t('subscription.bankTransfer.unavailable')")
+/**
+ * Renders the real invoice page twice from one fetch, the way Nuxt does: the server runs the fetcher and stores its return
+ * value; the client reuses that payload and never runs the fetcher. A notice held outside the payload would show on the
+ * server and vanish on the client.
+ */
+const invoice = {
+  number: 'INV-1001', status: 'issued', tax_label: null,
+  lines: [{ key: 'plan', kind: 'plan', description: 'Plan', quantity: 1, amount: { currency: 'SAR', exponent: 2, minor: 9900 } }],
+  subtotal: { currency: 'SAR', exponent: 2, minor: 9900 }, tax: { currency: 'SAR', exponent: 2, minor: 0 }, total: { currency: 'SAR', exponent: 2, minor: 9900 },
+}
+
+async function renderPage(bankTransfer: () => Promise<unknown>, payload: Record<string, unknown>, reuse: boolean) {
+  const api = { invoice: vi.fn(async () => invoice), bankTransfer: vi.fn(bankTransfer) }
+  const asyncData = async (key: string | (() => string), fetcher: () => Promise<unknown>) => {
+    const name = typeof key === 'function' ? key() : key
+    if (!reuse) payload[name] = await fetcher()
+    return { data: Vue.ref(payload[name]), error: Vue.ref(undefined), pending: Vue.ref(false), refresh: () => {} }
+  }
+  const component = loadShared(page, {
+    messages: { 'subscription.bankTransfer.error': 'transfer failed', 'subscription.bankTransfer.unavailable': 'transfer unavailable' },
+    globals: { useAsyncData: asyncData, useRoute: () => ({ path: '/subscription/invoices/inv-1', params: { id: 'inv-1' } }), definePageMeta: () => {} },
+    modules: {
+      '@/composables/useSubscription': { useSubscriptionApi: () => api, useCustomerCapabilities: () => ({ can: () => true }) },
+      '@/utils/subscription': subscription,
+    },
+  })
+  const slotted = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => Vue.h('div', attrs, slots.default?.()) })
+  const app = Vue.createSSRApp(component)
+  app.config.warnHandler = () => {}
+  for (const [tag, stub] of Object.entries({ ...DEFAULT_STUBS, SharedRecordPage: slotted, SharedRecordSection: slotted, SharedInvoiceLines: slotted, SharedForbiddenState: slotted })) app.component(tag, stub)
+  return { html: await renderToString(app), api }
+}
+
+describe('the invoice page shows the transfer notice from the server payload alone', () => {
+  const cases = [
+    ['a 409 bank_account_unavailable', async () => { throw refuse('bank_account_unavailable') }, 'bank-transfer-unavailable', 'bank-transfer-error'],
+    ['any other failure', async () => { throw new Error('network') }, 'bank-transfer-error', 'bank-transfer-unavailable'],
+  ] as const
+
+  for (const [name, bankTransfer, shown, hidden] of cases) {
+    it(`keeps the notice for ${name} when the client reuses the payload and the fetcher does not run`, async () => {
+      const payload: Record<string, unknown> = {}
+      const server = await renderPage(bankTransfer, payload, false)
+      expect(server.html).toContain(`data-testid="${shown}"`)
+      expect(server.html).not.toContain(`data-testid="${hidden}"`)
+      const client = await renderPage(bankTransfer, payload, true)
+      expect(client.api.bankTransfer).not.toHaveBeenCalled()
+      expect(client.html).toContain(`data-testid="${shown}"`)
+      expect(client.html).not.toContain(`data-testid="${hidden}"`)
+    })
+  }
+
+  it('shows the instructions, and no notice, when the transfer details resolve', async () => {
+    const payload: Record<string, unknown> = {}
+    await renderPage(async () => instructions, payload, false)
+    const client = await renderPage(async () => instructions, payload, true)
+    expect(client.html).toContain('data-testid="bank-transfer"')
+    expect(client.html).toContain('INV-1001')
+    expect(client.html).not.toContain('data-testid="bank-transfer-unavailable"')
+    expect(client.html).not.toContain('data-testid="bank-transfer-error"')
   })
 })
