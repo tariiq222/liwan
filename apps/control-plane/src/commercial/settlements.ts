@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { transaction } from '../db.js'
-import type { RefundCreditNoteRequest } from '@liwan/commercial-contracts'
+import { daysBetween, riyadhDate, type RefundCreditNoteRequest } from '@liwan/commercial-contracts'
 import { audit, CommercialHttpError, type CommercialActor } from './lifecycle.js'
 import { adjustmentView } from './invoices.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import { actorLabel } from '../admin-auth/grants.js'
+import { billingSettings } from './billing-settings.js'
 
 /** Late payment is a manual credit review, never an automatic provider refund. */
 export async function processRefundOutbox(pool: Pool, _adapter?: PaymentAdapter): Promise<number> {
@@ -78,10 +79,50 @@ async function recordRefund(pool: Pool, { adjustment_id, actor, request }: { adj
     if (!note) throw new CommercialHttpError('not_found', 404)
     if (note.kind === 'credit_note' && note.status === 'refunded' && note.refund_reference === request.external_reference) return adjustmentView(note)
     if (note.kind !== 'credit_note' || note.status !== 'pending') throw new CommercialHttpError('credit_note_not_pending', 409)
+    // Release 1 rule (owner decision 2026-11-06): only the customer's first successful payment is refundable, and only
+    // inside the vendor's window. This is refused before any write, and the console never offers a way around it.
+    await assertRefundable(client, note.customer_id, note.invoice_id)
     const updated = (await client.query("UPDATE invoice_adjustments SET status='refunded',refund_reference=$2,refunded_by=$3,refunded_at=now() WHERE id=$1 RETURNING *",
       [note.id, request.external_reference, actorLabel(actor)])).rows[0]
     await audit(client, actor, 'invoice.credit_refunded', note.id, request.reason,
       { invoice_id: note.invoice_id, external_reference: request.external_reference, amount_minor: Number(note.amount_minor), currency: note.currency })
     return adjustmentView(updated)
   })
+}
+
+export type Refundability = { refundable: boolean; first_payment: boolean; until: string | null; window_days: number }
+
+/** The attempt that paid this invoice, if it was paid. */
+async function payingAttempt(client: Pick<Pool, 'query'>, invoiceId: string) {
+  return (await client.query(`SELECT a.id,a.updated_at FROM payment_attempts a WHERE a.invoice_id=$1 AND a.status='succeeded'
+    ORDER BY a.updated_at,a.created_at,a.id LIMIT 1`, [invoiceId])).rows[0]
+}
+
+/**
+ * Whether refunding one invoice is allowed: its payment must be the customer's first, and that first payment must
+ * still be inside the window. A renewal, a later invoice or a second payment is never refundable.
+ */
+export async function refundEligibility(client: Pick<Pool, 'query'>, customerId: string, invoiceId: string): Promise<Refundability> {
+  const { refund_window_days: days } = await billingSettings(client)
+  const paying = await payingAttempt(client, invoiceId)
+  if (!paying) return { refundable: false, first_payment: false, until: null, window_days: days }
+  // "First" is the attempt that paid for this customer earliest. `created_at` is the transaction timestamp, which two
+  // orders written close together share, so the attempt's own creation breaks the tie: one first, always.
+  const first = (await client.query(`SELECT a.id,a.updated_at FROM payment_attempts a JOIN orders o ON o.id=a.order_id
+    WHERE o.customer_id=$1 AND a.status='succeeded' ORDER BY a.updated_at,a.created_at,a.id LIMIT 1`, [customerId])).rows[0]
+  if (!first || first.id !== paying.id) return { refundable: false, first_payment: false, until: null, window_days: days }
+  // The window covers whole days, not 14 x 24 hours from the minute of payment: a payment on day 1 is refundable
+  // through the end of day 14 and closed from day 15. Both ends are Riyadh calendar days. A window of 0 days means
+  // the vendor offers no refund at all, so nothing is ever inside it.
+  const paidOn = riyadhDate(new Date(paying.updated_at))
+  const until = new Date(Date.parse(`${paidOn}T12:00:00+03:00`) + days * 86_400_000).toISOString().slice(0, 10)
+  const elapsed = daysBetween(paidOn, riyadhDate(new Date()))
+  return { refundable: days > 0 && elapsed <= days, first_payment: true, until: `${until}T23:59:59+03:00`, window_days: days }
+}
+
+/** Two refusals, because the vendor needs to know which rule stopped them. */
+async function assertRefundable(client: Pick<Pool, 'query'>, customerId: string, invoiceId: string) {
+  const eligibility = await refundEligibility(client, customerId, invoiceId)
+  if (!eligibility.first_payment) throw new CommercialHttpError('refund_not_first_payment', 409)
+  if (!eligibility.refundable) throw new CommercialHttpError('refund_window_closed', 409)
 }

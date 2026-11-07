@@ -17,6 +17,8 @@ export type ComputeQuoteInput = {
   cadence: Cadence; requested_extra_branches: number; requested_users: number; requested_storage_mb: number; current?: QuoteCurrent
   effective_date: string; period: { start: string; end: string }; policy: PricingPolicy
   ids: QuoteIds; expires_at: string; entitlement_digest?: string
+  /** A one-time assisted onboarding on a first order only, at the vendor's own fee; never on a renewal. */
+  onboarding?: { amount: Money } | null
 }
 
 const same = (a: Cadence, b: Cadence) => a.unit === b.unit && a.count === b.count
@@ -132,6 +134,14 @@ export function computeQuote(input: ComputeQuoteInput): Quote {
     const storageDelta = paidStorage - cur.paid_storage_gb
     if (storageDelta > 0) pushDelta('storage', 'storage', 'Storage', storageDelta, storageUnit * storageDelta, plan.id, storageUnit)
     else if (storageDelta < 0) pushDelta('storage', 'storage', 'Storage', -storageDelta, -(cur.storage_unit_minor * -storageDelta), plan.id, 0)
+  }
+
+  // The onboarding fee is a first-invoice item: it joins the lines due now, never the renewal, and only on a new order.
+  if (input.onboarding) {
+    if (input.onboarding.amount.currency !== currency) throw new CommercialError('currency_mismatch')
+    exponents.add(input.onboarding.amount.exponent)
+    dueNow += input.onboarding.amount.minor
+    add('onboarding', 'onboarding', 'Onboarding', 1, input.onboarding.amount.minor, 'now', plan.id, period.start, period.end)
   }
 
   const tax = (base_: number, key: string, timing: 'now' | 'renewal', start: string, end: string) => {

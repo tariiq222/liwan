@@ -101,7 +101,7 @@ export const pricingPolicySchema = z.strictObject({
   ]),
 })
 export const quoteLineSchema = z.strictObject({
-  key: z.string(), kind: z.enum(['base', 'bundle', 'branch', 'users', 'storage', 'discount', 'tax', 'adjustment']),
+  key: z.string(), kind: z.enum(['base', 'bundle', 'branch', 'users', 'storage', 'onboarding', 'discount', 'tax', 'adjustment']),
   timing: z.enum(['now', 'renewal']), description: z.string(), quantity: z.number().int().min(0).max(MAX),
   amount: moneySchema, period_start: isoDate, period_end: isoDate, source_revision_id: revisionIdSchema,
 })
@@ -147,6 +147,8 @@ export const quoteRequestSchema = z.strictObject({
   requested_users: z.number().int().min(0).max(MAX), requested_storage_mb: z.number().int().min(0).max(MAX),
   subscription_id: z.string().nullable().optional(), expected_subscription_revision: z.number().int().min(0).optional(),
   effective_date: isoDate.optional(),
+  /** The optional one-time assisted onboarding on a first order; the vendor's own fee prices it. */
+  onboarding: z.boolean().optional(),
 })
 
 export type RevisionId = z.infer<typeof revisionIdSchema>

@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { adjustmentSchema, invoiceSchema, TAX_LABELS, type Adjustment, type Invoice, type Money, type Quote } from '@liwan/commercial-contracts'
+import { refundEligibility, type Refundability } from './settlements.js'
 
 export type InvoiceView = Invoice
-/** Vendor-console view: the customer-facing invoice plus the customer's name (never sent to customers). */
-export type VendorInvoiceView = InvoiceView & { customer_name: string; adjustments: Adjustment[] }
+/** Vendor-console view: the customer-facing invoice plus the customer's name and whether the owner may still refund
+ * its payment (never sent to customers). */
+export type VendorInvoiceView = InvoiceView & { customer_name: string; adjustments: Adjustment[]; refund: Refundability }
 export type VendorInvoiceSummary = { outstanding: Money[] }
 type Q = Pick<Pool, 'query'>
 
@@ -132,7 +134,10 @@ export async function getInvoice(pool: Q, id: string, { customer_id }: { custome
 async function hydrateVendor(pool: Q, rows: any[]): Promise<VendorInvoiceView[]> {
   const views = await hydrate(pool, rows)
   const notes = rows.length ? (await pool.query('SELECT * FROM invoice_adjustments WHERE invoice_id = ANY($1::uuid[]) ORDER BY created_at,id', [rows.map(r => r.id)])).rows : []
-  return views.map((v, i) => ({ ...v, customer_name: rows[i].customer_name as string, adjustments: notes.filter(n => n.invoice_id === v.id).map(adjustmentView) }))
+  const eligibility = new Map<string, Refundability>()
+  for (const row of rows) eligibility.set(row.id, await refundEligibility(pool, row.customer_id, row.id))
+  return views.map((v, i) => ({ ...v, customer_name: rows[i].customer_name as string, adjustments: notes.filter(n => n.invoice_id === v.id).map(adjustmentView),
+    refund: eligibility.get(rows[i].id)! }))
 }
 
 export async function getVendorInvoice(pool: Q, id: string): Promise<VendorInvoiceView | null> {

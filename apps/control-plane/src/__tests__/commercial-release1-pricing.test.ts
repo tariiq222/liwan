@@ -114,8 +114,9 @@ suite('release 1 pricing seeds', () => {
     }
   })
 
-  it('carries the six AI limits and no stale ai.setup.monthly', async () => {
-    const plan = await seedPlan()
+  it('carries the five AI limits the AI addon registers and no stale ai.setup.monthly', async () => {
+    // The seeded revision of the LiwanOS family: a later default-bundles revision is a different, newer draft of it.
+    const plan = (await pool.query("SELECT platform_limits FROM plan_revisions WHERE plan_id='00000000-0000-4000-8000-0000000000b1' ORDER BY version LIMIT 1")).rows[0]
     expect(plan.platform_limits).toEqual({
       'ai.messages.monthly': 500,
       'ai.tokens.monthly': 2500000,
