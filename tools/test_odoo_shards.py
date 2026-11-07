@@ -5,6 +5,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import odoo_shards
 
@@ -79,6 +80,30 @@ class WeightTest(unittest.TestCase):
             (Path(root) / 'empty' / 'tests').mkdir(parents=True)
             self.assertEqual(odoo_shards.weight('m', Path(root)), 2)
             self.assertEqual(odoo_shards.weight('empty', Path(root)), 1)
+
+
+    def test_the_cost_factor_scales_a_module_and_rounds_to_whole_weight(self):
+        with tempfile.TemporaryDirectory() as root:
+            tests = Path(root) / 'm' / 'tests'
+            tests.mkdir(parents=True)
+            (tests / 'test_a.py').write_text('class T:\n' + ''.join('    def test_%d(self): pass\n' % n for n in range(3)))
+            with mock.patch.dict(odoo_shards.COST_FACTOR, {'m': 2.4}):
+                self.assertEqual(odoo_shards.weight('m', Path(root)), 7)
+
+
+class CostFactorTest(unittest.TestCase):
+    def test_every_factor_names_a_release_module(self):
+        self.assertLessEqual(set(odoo_shards.COST_FACTOR), set(odoo_shards.release_modules()))
+
+    def test_the_release_split_is_balanced_within_fifteen_percent(self):
+        totals = [sum(odoo_shards.weight(m) for m in shard) for shard in odoo_shards.plan(odoo_shards.SHARD_COUNT)]
+        self.assertLess((max(totals) - min(totals)) / max(totals), 0.15)
+
+    def test_the_modules_that_dominate_the_release_are_not_in_one_shard(self):
+        heaviest = ('liwan_finance', 'liwan_hr', 'liwan_pmo')
+        shards = odoo_shards.plan(odoo_shards.SHARD_COUNT)
+        homes = {next(i for i, shard in enumerate(shards) if module in shard) for module in heaviest}
+        self.assertGreaterEqual(len(homes), 2)
 
 
 class CommandTest(unittest.TestCase):

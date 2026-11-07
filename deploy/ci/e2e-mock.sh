@@ -1,7 +1,19 @@
 #!/usr/bin/env bash
 # CI stage: the mock-backed Playwright specs against a production Nuxt build.
+#   deploy/ci/e2e-mock.sh              run every spec (the local full check)
+#   deploy/ci/e2e-mock.sh --shard k/N  run shard k of N of the main spec list; the long-list specs run in shard N only
 set -euo pipefail
 cd "$(dirname "$0")/../.."
+SHARD=""
+case "${1:-}" in
+  "") ;;
+  --shard) SHARD="${2:?usage: e2e-mock.sh --shard k/N}" ;;
+  *) echo "usage: e2e-mock.sh [--shard k/N]" >&2; exit 2 ;;
+esac
+if [ -n "$SHARD" ] && ! { [[ "$SHARD" =~ ^([1-9][0-9]*)/([1-9][0-9]*)$ ]] && [ "${BASH_REMATCH[1]}" -le "${BASH_REMATCH[2]}" ]; }; then
+  echo "e2e-mock.sh: --shard needs k/N with 1 <= k <= N, got '${SHARD}'" >&2
+  exit 2
+fi
 : "${MOCK_PORT:?}" "${AI_MOCK_PORT:?}" "${WEB_PORT:?}"
 npm -w apps/web run postinstall
 cd apps/web
@@ -40,7 +52,9 @@ for _ in $(seq 1 60); do
 done
 curl -fs "$E2E_BASE_URL/login" >/dev/null
 mapfile -t SPECS < <(sed 's#^#e2e/#' e2e/ci-mock-specs.txt)
-npx playwright test "${SPECS[@]}"
+npx playwright test ${SHARD:+--shard="$SHARD"} "${SPECS[@]}"
+# The long-list specs below run once, in the last shard.
+if [ -n "$SHARD" ] && [ "${SHARD%/*}" != "${SHARD#*/}" ]; then exit 0; fi
 
 # The scroll and navigation specs need lists taller than a viewport: a second mock pads the task fixture to 60 rows and a
 # second server from the same build serves it. The default fixture keeps its four tasks for every other spec.

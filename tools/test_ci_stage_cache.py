@@ -122,11 +122,11 @@ class FingerprintTest(RepoTestCase):
 
 
 class CachedStagesTest(RepoTestCase):
-    SHARDS, APPS, BRIDGES = [1, 2, 3], ['a b', 'c'], ['d']
+    SHARDS, E2E_SHARDS, APPS, BRIDGES = [1, 2, 3], [1, 2], ['a b', 'c'], ['d']
 
     def cached(self, existing, stages, modules=''):
         entries = ci_stage_cache.tree_entries(self.repo, 'HEAD')
-        return ci_stage_cache.cached_stages(entries, stages, set(existing), self.SHARDS, self.APPS,
+        return ci_stage_cache.cached_stages(entries, stages, set(existing), self.SHARDS, self.E2E_SHARDS, self.APPS,
                                             self.BRIDGES, modules)
 
     def key_of(self, stage, extra=''):
@@ -135,8 +135,17 @@ class CachedStagesTest(RepoTestCase):
     def odoo_keys(self, shards=(1, 2, 3), modules=''):
         return [self.key_of('odoo', f'{shard}/3|{modules}') for shard in shards]
 
+    def e2e_mock_keys(self, shards=(1, 2)):
+        return [self.key_of('e2e-mock', f'{shard}/2') for shard in shards]
+
     def test_plain_stage_cached_when_its_key_exists(self):
-        self.assertEqual(self.cached([self.key_of('e2e-mock')], ['static', 'e2e-mock', 'rtl-stories']), ['e2e-mock'])
+        self.assertEqual(self.cached([self.key_of('rtl-stories')], ['static', 'e2e-mock', 'rtl-stories']),
+                         ['rtl-stories'])
+
+    def test_e2e_mock_is_cached_only_with_every_shard(self):
+        self.assertEqual(self.cached(self.e2e_mock_keys(), ['e2e-mock']), ['e2e-mock'])
+        self.assertEqual(self.cached(self.e2e_mock_keys(shards=(2,)), ['e2e-mock']), [])
+        self.assertEqual(self.cached([self.key_of('e2e-mock')], ['e2e-mock']), [])
 
     def test_matrix_stage_cached_only_with_every_entry(self):
         self.assertEqual(self.cached(self.odoo_keys(), ['odoo']), ['odoo'])
@@ -153,13 +162,14 @@ class CachedStagesTest(RepoTestCase):
 
     def test_empty_matrix_is_not_cached(self):
         entries = ci_stage_cache.tree_entries(self.repo, 'HEAD')
-        self.assertEqual(ci_stage_cache.cached_stages(entries, ['odoo', 'odoo-bridge'], set(), [], [], [], ''), [])
+        self.assertEqual(ci_stage_cache.cached_stages(entries, ['odoo', 'e2e-mock', 'odoo-bridge'], set(),
+                                                      [], [], [], [], ''), [])
 
     def test_static_is_never_cached(self):
         self.assertEqual(self.cached([self.key_of('static')], ['static']), [])
 
     def test_changed_inputs_miss(self):
-        stale = [self.key_of('e2e-mock')]
+        stale = self.e2e_mock_keys()
         self.write('apps/web/app/a.vue', 'changed')
         self.commit()
         self.assertEqual(self.cached(stale, ['e2e-mock']), [])
@@ -172,7 +182,7 @@ class CachedStagesTest(RepoTestCase):
 
 class CachedCommandTest(RepoTestCase):
     ARGS = ['cached', '--stages', '["static","e2e-mock","odoo"]', '--odoo-shards', '[1]',
-            '--apps', '[]', '--bridges', '[]']
+            '--e2e-mock-shards', '[1,2]', '--apps', '[]', '--bridges', '[]']
 
     def run_cached(self, lookup, env=None):
         original = Path.cwd()
@@ -190,9 +200,16 @@ class CachedCommandTest(RepoTestCase):
 
     def test_prints_the_cached_stages_from_trusted_refs(self):
         code, cached, _ = self.run_cached(lambda repository: [
-            {'key': self.pass_key('e2e-mock'), 'ref': 'refs/pull/7/merge'},
+            {'key': self.pass_key('e2e-mock', '1/2'), 'ref': 'refs/pull/7/merge'},
+            {'key': self.pass_key('e2e-mock', '2/2'), 'ref': 'refs/pull/7/merge'},
             {'key': self.pass_key('odoo', '1/1|'), 'ref': 'refs/pull/8/merge'}])
         self.assertEqual((code, cached), (0, ['e2e-mock']))
+
+    def test_e2e_mock_shards_command_prints_the_matrix(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(ci_stage_cache.main(['e2e-mock-shards']), 0)
+        self.assertEqual(json.loads(out.getvalue()), ci_stage_cache.E2E_MOCK_SHARDS)
 
     def test_failed_lookup_caches_nothing_and_warns(self):
         def failing(repository):
@@ -237,8 +254,10 @@ class WorkflowWiringTest(unittest.TestCase):
     def test_matrix_extras_match_the_scope_job(self):
         jobs = self.jobs()
         shard = '${{ matrix.shard }}/${{ strategy.job-total }}|${{ needs.scope.outputs.odoo-modules }}'
+        e2e_shard = '${{ matrix.shard }}/${{ strategy.job-total }}'
         group = '${{ matrix.group }}|${{ needs.scope.outputs.odoo-modules }}'
         self.assertIn(f'extra: {shard}', jobs['odoo'])
+        self.assertIn(f'extra: {e2e_shard}', jobs['e2e-mock'])
         self.assertIn(f'extra: {group}', jobs['odoo-app-standalone'])
         self.assertIn(f'extra: {group}', jobs['odoo-bridge'])
 
@@ -247,6 +266,16 @@ class WorkflowWiringTest(unittest.TestCase):
         self.assertRegex(scope, r'(?m)^      actions: read$')
         self.assertIn('stages: ${{ steps.cache.outputs.stages }}', scope)
         self.assertIn('cached: ${{ steps.cache.outputs.cached }}', scope)
+
+    def test_e2e_mock_is_a_matrix_over_the_scope_shard_list(self):
+        scope, job = self.jobs()['scope'], self.jobs()['e2e-mock']
+        self.assertIn('e2e-mock-shards: ${{ steps.select.outputs.e2e-mock-shards }}', scope)
+        self.assertIn('ci_stage_cache.py e2e-mock-shards', scope)
+        self.assertIn('--e2e-mock-shards "$E2E_MOCK_SHARDS"', scope)
+        self.assertIn('shard: ${{ fromJSON(needs.scope.outputs.e2e-mock-shards) }}', job)
+        self.assertIn('name: e2e-mock (shard ${{ matrix.shard }})', job)
+        self.assertIn('deploy/ci/e2e-mock.sh --shard ${{ matrix.shard }}/${{ strategy.job-total }}', job)
+        self.assertIn('name: e2e-mock-diagnostics-${{ matrix.shard }}', job)
 
     def test_scope_job_skips_only_for_pull_requests_and_merge_queue(self):
         run = self.jobs()['scope'].split('id: cache', 1)[1]
