@@ -131,8 +131,8 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   shared `liwan_api` and the shared services never import a pillar, and one
   application never imports another; only a bridge imports both.
 - Keep `models/`, `security/`, `data/`, `tests/`; API pillars additionally use
-  `controllers/` and whitelist-based `serializers/`; PMO has `i18n/` and
-  `migrations/`; `liwan_meetings` has `report/` (the meeting report moved there). Import Python modules through their `__init__.py` files;
+  `controllers/` and whitelist-based `serializers/`; addons with user-facing strings have `i18n/`, and
+  `migrations/` follow `docs/migrations.md`; `liwan_meetings` has `report/` (the meeting report moved there). Import Python modules through their `__init__.py` files;
   list every XML/CSV file in manifest `data` in the required dependency order.
 - Every `/api/v1` route has `api_handler`, a feature gate and a capability gate:
   `@requires_capability('<key>', ..., match='all')` from `liwan_api/controllers/common.py`
@@ -158,7 +158,7 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   Model tests use `TransactionCase`; HTTP tests use `LiwanApiCase(HttpCase)` via
   `LiwanHrCase` / `LiwanPmoCase`. Mirror existing `liwan` / `liwan_access` tags and
   `post_install`, `-at_install` selection where appropriate.
-- Arabic: PMO ships `i18n/ar.po`; core/HR currently have no `i18n/` directory.
+- Arabic: every addon with user-facing server strings ships `i18n/ar.po`; `liwan_core` has no `i18n/` directory.
   Core capability data has explicit `name_ar` / `name_en` fields. Keep shipped
   PO filenames; make new UI strings extractable and update Arabic translations.
 - Lint: `ruff check odoo-addons` uses root `ruff.toml` (upstream Odoo rules;

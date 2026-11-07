@@ -28,6 +28,11 @@ own institution identity. PMO collaboration preserves record and company guards.
 | Locale namespace | `common.json` | `tasks.json`, `projects.json`, `settings.json` | `hr.json` |
 | Web surface | layout, UI primitives, `useApi`, `useMe`, `useBranding` | task/project pages and `components/pmo/**` | `/hr`, HR composables/components |
 
+Every other application (a rank-4 addon in `tools/arch_layers.json`) and every bridge (rank 5) owns, in
+the same way as the columns above, its own addon folder, its `packages/contracts/src/<app>/**` namespace,
+its locale namespace and its `apps/web` `pages/` and `components/` folders (`web_apps` in the same file). The rank
+list in `tools/arch_layers.json` is the single source; the table is not extended per application.
+
 Vendor administration and the shared UI layers have their own owners; none of them is an Odoo pillar:
 
 | Surface | Owner | Notes |
