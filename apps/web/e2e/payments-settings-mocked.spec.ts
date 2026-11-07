@@ -176,7 +176,7 @@ test.describe('payments settings', () => {
     await page.goto(PATH)
     // Wait until Nuxt has started in the browser: it logs NUXT_E1005 while starting, so ending the test earlier would
     // only sometimes see that line.
-    await page.waitForFunction(() => (window as unknown as { useNuxtApp: () => { isHydrating: boolean } }).useNuxtApp().isHydrating === false)
+    await expect.poll(() => errors).toContain('console: [NUXT_E1005]')
     await expect(page.getByText('لا تملك صلاحية فتح هذه الصفحة')).toBeVisible()
     await expect(page.getByTestId('payments-provider-paymob')).toHaveCount(0)
     await expect(page.getByTestId('payments-orders')).toHaveCount(0)
