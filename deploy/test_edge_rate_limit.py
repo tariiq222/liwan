@@ -202,6 +202,20 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
         self.assertIn('ipv6_prefix 64', text)
         self.assertNotIn('caddy:2', COMPOSE.read_text(encoding='utf-8'))
 
+    def test_shared_caddyfile_gives_every_server_block_an_address(self) -> None:
+        """A block keyed by a bare variable adapts to nothing, and Caddy refuses it.
+
+        Caddy answers "server block without any key" when the address expands to an empty string. The
+        TikTok block is keyed by LIWAN_TIKTOK_RELAY_HOST, which a deployment that runs no TikTok app
+        leaves empty, so that block must carry a fallback address of its own. DOMAIN is always
+        required of every deployment (the compose files interpolate it), so it is not at risk.
+        """
+        text = SHARED_CADDYFILE.read_text(encoding='utf-8')
+        self.assertIn('{$LIWAN_TIKTOK_RELAY_HOST:invalid.invalid} {', text)
+        bare_optional = [name for name in re.findall(r'^\{(\$[A-Z_]+)\}\s*\{', text, re.MULTILINE)
+                         if name != '$DOMAIN']
+        self.assertEqual(bare_optional, [], 'an optional variable keyed without a fallback adapts to nothing')
+
     def test_shared_caddyfile_declares_exactly_the_declared_zones(self) -> None:
         text = SHARED_CADDYFILE.read_text(encoding='utf-8')
         declared = re.findall(r'^\s*zone\s+(\S+)\s*\{', text, re.MULTILINE)
@@ -238,6 +252,14 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
             sorted((p['host_ip'], str(p['published']), p['target']) for p in proxy),
             [('127.0.0.1', '8080', 80), ('127.0.0.1', '8443', 443)],
         )
+
+    def test_shared_overlay_supplies_proxy_host_when_relay_host_is_empty(self) -> None:
+        for configured, expected in (('', 'invalid.invalid'), ('hooks.example.test', 'hooks.example.test')):
+            with self.subTest(configured=configured):
+                services = self._render_shared({'LIWAN_TIKTOK_RELAY_HOST': configured})['services']
+                self.assertEqual(services['proxy']['environment']['LIWAN_TIKTOK_RELAY_HOST'], expected)
+                redirect = f'https://{configured}/tiktok/oauth/callback' if configured else ''
+                self.assertEqual(services['odoo']['environment']['LIWAN_TIKTOK_REDIRECT_URI'], redirect)
 
     def test_shared_overlay_odoo_healthcheck(self) -> None:
         """Behavioral: shared overlay replaces /web/health with a TCP listener probe; base remains /web/health."""
