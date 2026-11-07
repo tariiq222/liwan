@@ -653,6 +653,7 @@
       },
       "sections": {
         "basics": "Basics",
+        "ai": "AI assistant budget",
         "release": "Catalog release",
         "apps": "Apps and features",
         "limits": "Usage limits",
@@ -713,6 +714,16 @@
         "policyMissing": "Pricing policy unavailable.",
         "vat": "VAT {rate}% exclusive",
         "noTax": "No tax",
+        "aiHint": "The assistant is free with a monthly quota. Empty means unlimited; these are editable values, not code defaults.",
+        "aiUnlimitedHint": "Empty means unlimited.",
+        "aiLimitInvalid": "Enter a non-negative whole number, or leave it empty for unlimited.",
+        "aiLimits": {
+          "ai_messages_monthly": "Messages a month",
+          "ai_tokens_monthly": "Tokens a month (platform provider only)",
+          "ai_assist_monthly": "Free-agent messages a month",
+          "ai_tool_calls_per_run": "Tool calls per run",
+          "ai_output_tokens_per_run": "Output tokens per run"
+        },
         "included": "Included",
         "optional": "Optional",
         "noBundles": "No published bundles available.",

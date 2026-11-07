@@ -83,7 +83,9 @@ describe('plan form ↔ payload', () => {
   it('maps explicit values (0 free branches, false renew) and drops optional dupes', () => {
     const p = planCreatePayload(filled(), rid(9))
     expect(p.included_extra_branches).toBe(0); expect(p.trial_days).toBe(0); expect(p.auto_renew_allowed).toBe(false); expect(p.extra_branches_limit).toBeNull()
-    expect(p.optional_bundle_revision_ids).toEqual([rid(6)]); expect(p.currency).toBe('SAR'); expect(p.platform_limits).toEqual({})
+    expect(p.optional_bundle_revision_ids).toEqual([rid(6)]); expect(p.currency).toBe('SAR')
+    // W8: every AI limit the release declares is saved, empty meaning unlimited; nothing derived is ever sent.
+    expect(p.platform_limits).toEqual({ 'ai.messages.monthly': null, 'ai.tokens.monthly': null, 'ai.assist.monthly': null, 'ai.tool_calls.per_run': null, 'ai.output_tokens.per_run': null })
   })
   it('round-trips the metered users and storage fields through a draft', () => {
     const p = planCreatePayload(filled(), rid(9))

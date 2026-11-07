@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { commercialErrorKey, commercialFailure, emptyPlanDraft, fieldIssue, limitFromDraft, MB_PER_GB, parseCount, planDraftFromView, priceRowErrors, type BundleView, type PlanDraft, type PlanView } from '@/utils/vendorCommercial'
+import { AI_LIMIT_KEYS, commercialErrorKey, commercialFailure, emptyPlanDraft, fieldIssue, limitFromDraft, MB_PER_GB, parseCount, planDraftFromView, priceRowErrors, type BundleView, type PlanDraft, type PlanView } from '@/utils/vendorCommercial'
 import type { PricingPolicyView } from '@/composables/useVendorCommercial'
 const props = withDefaults(defineProps<{ bundles: BundleView[]; policy?: PricingPolicyView; initial?: PlanView; busy?: boolean; error?: unknown; resetKey?: number; requireReason?: boolean }>(), { busy: false, resetKey: 0, requireReason: false })
 const emit = defineEmits<{ save: [draft: PlanDraft]; cancel: [] }>()
@@ -47,6 +47,11 @@ const errors = computed(() => {
   if (parseCount(draft.included_extra_branches) === null) e.free = req
   if (priceRowErrors(draft.extra_branch_prices).some(Boolean)) e.branchPrices = t('vendor.pricing.prices.invalid')
   try { limitFromDraft(draft.extra_branches_limit) } catch { e.branchLimit = t('vendor.pricing.limit.required') }
+  // The AI budget is a non-negative integer or unlimited; an unreadable value stops the save with a clear message.
+  for (const key of AI_LIMIT_KEYS) {
+    const limit = draft.ai_limits[key]
+    if (limit?.mode === 'number' && !/^\d+$/.test(String(limit.value).trim())) e[`ai_${key}`] = t('vendor.pricing.plan.aiLimitInvalid')
+  }
   if (parseCount(draft.trial_days, 3650) === null) e.trial = req
   if (parseCount(draft.grace_days, 3650) === null) e.grace = req
   if (!draft.auto_suspend) e.suspend = req
@@ -109,6 +114,13 @@ const taxText = computed(() => (props.policy?.tax.kind === 'vat_exclusive' ? t('
         </div>
         <p class="rounded-lg bg-elevated p-3 text-sm">{{ t('vendor.pricing.plan.hq') }}</p>
         <VendorPriceListEditor v-model="draft.extra_branch_prices" :label="t('vendor.pricing.fields.branchPrice')" :disabled="dis" :show-errors="attempted" :server-error="serverIssue('extra_branch_prices')" />
+      </div>
+    </SharedFormSection>
+    <SharedFormSection panel :title="t('vendor.pricing.sections.ai')" :description="t('vendor.pricing.plan.aiHint')">
+      <div class="grid items-start gap-4 sm:grid-cols-2">
+        <UFormField v-for="key in AI_LIMIT_KEYS" :key="key" :label="t(`vendor.pricing.plan.aiLimits.${key.replaceAll('.', '_')}`)" :help="t('vendor.pricing.plan.aiUnlimitedHint')" :error="show(`ai_${key}`)">
+          <VendorLimitControl v-model="draft.ai_limits[key]" :label="t(`vendor.pricing.plan.aiLimits.${key.replaceAll('.', '_')}`)" :none-allowed="false" :disabled="dis" />
+        </UFormField>
       </div>
     </SharedFormSection>
     <SharedFormSection panel :title="t('vendor.pricing.sections.lifecycle')" :description="t('vendor.pricing.plan.lifecycleHint')">

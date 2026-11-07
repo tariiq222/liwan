@@ -180,19 +180,44 @@ export function bundleEditPayload(draft: BundleDraft, release: CatalogRelease | 
 
 // ---- Plan form ↔ payload ----
 export type Tri = '' | 'true' | 'false'
+/** The AI assistant's limits, one per key the AI addon registers (release 1, owner decision 2026-11-06). The
+ * assistant is free with a monthly quota, so every plan carries them as vendor-editable values. */
+export const AI_LIMIT_KEYS = ['ai.messages.monthly', 'ai.tokens.monthly', 'ai.assist.monthly', 'ai.tool_calls.per_run', 'ai.output_tokens.per_run'] as const
+export type AiLimitKey = (typeof AI_LIMIT_KEYS)[number]
+export type AiLimitsDraft = Record<string, LimitDraft>
+export const emptyAiLimits = (): AiLimitsDraft => Object.fromEntries(AI_LIMIT_KEYS.map(key => [key, emptyLimit()]))
+
 export type PlanDraft = {
   name: string; audience: AudienceDraft; term_months: string; prices: PriceDraft[]
   included: string[]; optional: string[]; included_users: string; included_storage_mb: string
   user_prices: PriceDraft[]; storage_prices: PriceDraft[]
   included_extra_branches: string; extra_branch_prices: PriceDraft[]; extra_branches_limit: LimitDraft
+  ai_limits: AiLimitsDraft
   trial_days: string; grace_days: string; auto_suspend: Tri; auto_renew_allowed: Tri; reason: string
+}
+
+/** A limit's value from the form: empty and unlimited both mean unlimited (null), a number is itself. */
+export function aiLimitsFromDraft(limits: AiLimitsDraft): Record<string, number | null> {
+  return Object.fromEntries(Object.entries(limits).map(([key, draft]) => {
+    if (!draft || draft.mode === '' || draft.mode === 'unlimited') return [key, null]
+    if (draft.mode === 'none') return [key, 0]
+    const text = normalizeDigits(String(draft.value).trim())
+    // A budget is a non-negative integer; anything else is a form error, never a silent zero.
+    if (!/^\d+$/.test(text) || !Number.isSafeInteger(Number(text))) throw new Error('invalid_limit')
+    return [key, Number(text)]
+  }))
+}
+
+/** The plan's platform limits: the AI keys the form edits, and nothing a customer chooses. */
+export function planLimits(draft: PlanDraft): Record<string, number | null> {
+  return Object.fromEntries(AI_LIMIT_KEYS.map(key => [key, aiLimitsFromDraft({ [key]: draft.ai_limits[key] ?? emptyLimit() })[key]!]))
 }
 export function emptyPlanDraft(): PlanDraft {
   return {
     name: '', audience: { kind: 'public', customer_id: '' }, term_months: '', prices: [], included: [], optional: [],
     included_users: '', included_storage_mb: '', user_prices: [], storage_prices: [],
     included_extra_branches: '', extra_branch_prices: [],
-    extra_branches_limit: emptyLimit(), trial_days: '', grace_days: '', auto_suspend: '', auto_renew_allowed: '', reason: '',
+    extra_branches_limit: emptyLimit(), ai_limits: emptyAiLimits(), trial_days: '', grace_days: '', auto_suspend: '', auto_renew_allowed: '', reason: '',
   }
 }
 const triOf = (v: boolean): Tri => (v ? 'true' : 'false')
@@ -203,9 +228,14 @@ export function planDraftFromView(v: PlanRevision): PlanDraft {
     included_users: String(v.included_users), included_storage_mb: String(v.included_storage_mb),
     user_prices: v.user_prices.map(priceToDraft), storage_prices: v.storage_prices.map(priceToDraft),
     included_extra_branches: String(v.included_extra_branches), extra_branch_prices: v.extra_branch_prices.map(priceToDraft),
-    extra_branches_limit: limitToDraft(v.extra_branches_limit), trial_days: String(v.trial_days), grace_days: String(v.grace_days),
+    extra_branches_limit: limitToDraft(v.extra_branches_limit), ai_limits: aiLimitsDraftFromView(v.platform_limits),
+    trial_days: String(v.trial_days), grace_days: String(v.grace_days),
     auto_suspend: triOf(v.auto_suspend), auto_renew_allowed: triOf(v.auto_renew_allowed), reason: '',
   }
+}
+/** The limits a saved plan carries, as form rows: a missing key is empty (unlimited). */
+function aiLimitsDraftFromView(limits: CapacityMap | undefined): AiLimitsDraft {
+  return Object.fromEntries(AI_LIMIT_KEYS.map(key => [key, Object.hasOwn(limits ?? {}, key) ? limitToDraft(limits![key]) : emptyLimit()]))
 }
 function triValue(v: Tri): boolean { if (!v) throw new Error('invalid_choice'); return v === 'true' }
 function requireCount(v: string, max = MAX_LIMIT): number { const n = parseCount(v, max); if (n === null) throw new Error('invalid_count'); return n }
@@ -216,7 +246,7 @@ export function planFields(draft: PlanDraft, policyId: string) {
   if (includedStorage % MB_PER_GB !== 0) throw new Error('invalid_storage_minimum')
   return {
     name: draft.name.trim(), audience: audienceFromDraft(draft.audience), term_months: requireCount(draft.term_months, 120), currency: CURRENCY,
-    prices: pricesFromDrafts(draft.prices), platform_limits: {},
+    prices: pricesFromDrafts(draft.prices), platform_limits: planLimits(draft),
     included_users: includedUsers, included_storage_mb: includedStorage,
     user_prices: pricesFromDrafts(draft.user_prices), storage_prices: pricesFromDrafts(draft.storage_prices),
     included_bundle_revision_ids: [...draft.included], optional_bundle_revision_ids: draft.optional.filter(id => !draft.included.includes(id)),

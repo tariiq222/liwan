@@ -37,10 +37,9 @@ const isoExponent = (c: string) => { try { return new Intl.NumberFormat('en', { 
 const key = (p: Price) => `${p.cadence.unit}:${p.cadence.count}`
 
 export const DERIVED_LIMITS = ['branches.extra_limit', 'users.limit', 'storage.limit_mb']
-// AI fair-use (owner decision 2026-10-25): `ai.messages.monthly: null` means unlimited, and that
-// is intentional. The AI assistant is part of the platform base (owner decision 2026-11-05) and
-// every plan carries its limits explicitly; the fair-use limit is a term of service, not a system
-// value, so no hidden plan key is invented for it in this phase.
+// The AI assistant is part of the platform base (owner decision 2026-11-05) and free with a monthly quota, so every
+// plan carries each AI limit the release declares as a vendor-editable value (owner decision 2026-11-06): the vendor
+// console's plan form sets them, the seeds carry the release amounts, and an explicit null means unlimited.
 async function entitlementIssues(client: Pool | PoolClient, row: Row, bundleRows: Row[], releaseId: string | null, inc: string[]): Promise<Issue[]> {
   const out: Issue[] = []
   for (const k of Object.keys(row.platform_limits ?? {})) if (DERIVED_LIMITS.includes(k)) out.push({ code: 'platform_limit_derived', field: 'platform_limits' })
