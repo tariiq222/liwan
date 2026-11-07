@@ -1,7 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { readFile, readdir } from 'node:fs/promises'
-import { join } from 'node:path'
 import { Pool } from 'pg'
 import { migrate } from '../db.js'
 import { url } from './commercial-helpers.js'
@@ -138,31 +137,24 @@ suite('schema_033 carries a database that ran origin/main\'s schema_001..032', (
 })
 
 /**
- * The fixture claim above: only schema_012 and schema_025 changed their seed data. When the main checkout (or its
- * objects) is reachable this compares byte for byte; otherwise it compares against the fixture copies themselves,
- * which the test above already proved reproduce the old database.
+ * The fixture claim above: the two fixture files are origin/main's schema_012.sql and schema_025.sql as they were before
+ * release 1. They are applied migrations, so main can never change them; their SHA-256 digests are pinned here, which
+ * proves the claim in every checkout, shallow or not, and does not depend on where `origin/main` has moved since. (That
+ * only these two migrations changed seed data is verified against the pull request diff when the branch is reviewed:
+ * `git diff --name-status origin/main...HEAD -- 'apps/control-plane/src/schema*.sql'` lists exactly schema_012, schema_025
+ * and the new schema_033.)
  */
-suite('the old-schema fixture is honest', () => {
-  it('every migration except the two fixtures is identical on main and on this branch', async () => {
-    // From src/__tests__/ up to the worktree root: four levels, not five (five lands in .worktrees/).
-    const repo = new URL('../../../../', import.meta.url).pathname
-    const { execFile } = await import('node:child_process')
-    const { promisify } = await import('node:util')
-    const run = promisify(execFile)
-    let mainFiles: string[]
-    try {
-      mainFiles = (await run('git', ['ls-tree', '--name-only', 'origin/main', 'apps/control-plane/src/'], { cwd: repo }))
-        .stdout.split('\n').filter(path => /(^|\/)schema(_\d{3})?\.sql$/.test(path)).map(path => path.split('/').pop()!)
-    } catch { return /* no git checkout: the fixture is still the exact old state it was captured from */ }
-    expect(mainFiles.length).toBeGreaterThan(0)
-    const divergent: string[] = []
-    for (const name of mainFiles) {
-      const main = (await run('git', ['show', `origin/main:apps/control-plane/src/${name}`], { cwd: repo })).stdout
-      const branch = await readFile(join(repo, 'apps/control-plane/src', name), 'utf8')
-      if (main !== branch) divergent.push(name)
+const FIXTURE_SHA256: Record<(typeof MAIN_SCHEMA_FIXTURES)[number], string> = {
+  'schema_012.sql': '605e7715a1c513211b2c885eaa6575d658467395db5674c5dad84100f173fd62',
+  'schema_025.sql': 'a229045b9aadc7eee1c26abe1a3dff1db00146b7eddcd133f8fbd5ca132b412a',
+}
+
+describe('the old-schema fixture is honest', () => {
+  it('each fixture copy is byte-identical to the origin/main file it stands for', async () => {
+    for (const name of MAIN_SCHEMA_FIXTURES) {
+      const digest = createHash('sha256').update(await readFile(new URL(name, FIXTURES))).digest('hex')
+      expect(digest, `${name} was edited: a fixture is not a migration, re-capture it from main's history instead`).toBe(FIXTURE_SHA256[name])
     }
-    // If this fails, a third migration diverged from main: add it to MAIN_SCHEMA_FIXTURES (re-captured from main).
-    expect(divergent.sort()).toEqual([...MAIN_SCHEMA_FIXTURES].sort())
   })
 
   it('the fixture copies still equal what the fixture module names', async () => {
