@@ -244,6 +244,36 @@ export function trialDaysRemaining(endsAt: string | null | undefined, now: Date 
   return endsAt ? Math.max(0, daysBetween(riyadhDate(now), riyadhDate(endsAt))) : null
 }
 
+/** The invoice page asks for bank-transfer instructions only for a permitted reader of an invoice that is still `issued`. */
+export function invoiceWantsTransfer(allowed: boolean, invoice: { status: string } | null | undefined): boolean {
+  return allowed && invoice?.status === 'issued'
+}
+
+/**
+ * Which of the three bank-transfer answers the invoice page shows. The control plane answers 409 `bank_account_unavailable`
+ * until the vendor fills the bank account in: that is "not configured" (the unavailable note), never an error. Any other
+ * refusal is a real failure the customer must see, and is never swallowed.
+ */
+export interface BankTransferInstructionsLike {
+  reference: string
+  amount_minor: number
+  currency: string
+  exponent: number
+  bank: { account_name: string; account_number: string; iban: string; instructions_ar: string; instructions_en: string }
+}
+export type BankTransferOutcome<T extends BankTransferInstructionsLike> =
+  | { kind: 'not_requested' }
+  | { kind: 'unavailable' }
+  | { kind: 'failed'; cause: unknown }
+  | { kind: 'instructions'; instructions: T }
+
+/** `cause` is absent when the request resolved: then `instructions` is what it answered, or null when it answered nothing. */
+export function bankTransferOutcome<T extends BankTransferInstructionsLike>(wanted: boolean, result: { instructions?: T | null; cause?: unknown }): BankTransferOutcome<T> {
+  if (!wanted) return { kind: 'not_requested' }
+  if (result.cause !== undefined) return refusalCode(result.cause) === 'bank_account_unavailable' ? { kind: 'unavailable' } : { kind: 'failed', cause: result.cause }
+  return result.instructions ? { kind: 'instructions', instructions: result.instructions } : { kind: 'unavailable' }
+}
+
 /**
  * Keeps only the answer to the newest request: every `next()` supersedes the earlier tickets, so a slow response for an
  * earlier selection is dropped instead of replacing the one the customer is looking at.

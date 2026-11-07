@@ -1125,6 +1125,7 @@
       "saved": "The billing settings were saved.",
       "sections": {
         "refund": "Refund window",
+        "onboarding": "Assisted onboarding",
         "bank": "Bank transfer account",
         "bankHint": "Customers see this account on an unpaid invoice. Leave the IBAN empty to stop offering bank transfer."
       },
@@ -1136,11 +1137,14 @@
         "iban": "IBAN",
         "ibanHint": "A Saudi IBAN: SA followed by 22 digits.",
         "instructionsAr": "Transfer instructions (Arabic)",
-        "instructionsEn": "Transfer instructions (English)"
+        "instructionsEn": "Transfer instructions (English)",
+        "onboardingFee": "Onboarding fee (SAR)",
+        "onboardingFeeHint": "A positive whole amount charged once when a customer starts with assisted onboarding. Enter 0 to stop offering it; leave it empty to keep the current fee."
       },
       "errors": {
         "window": "Enter a whole number of days between 0 and 365.",
-        "iban": "Enter a Saudi IBAN (SA and 22 digits), or leave it empty."
+        "iban": "Enter a Saudi IBAN (SA and 22 digits), or leave it empty.",
+        "onboardingFee": "Enter a whole amount in SAR, without fractions, such as 499, or 0 to stop offering onboarding."
       }
     },
     "invoices": {
