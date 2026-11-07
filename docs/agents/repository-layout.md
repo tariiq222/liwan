@@ -18,6 +18,14 @@ limits describe implementation stages, not permanent product exclusions.
 
 ## Repository layout
 
+The authoritative addon list and ranks (0-2 foundation, 3 shared service, 4 application, 5 bridge,
+6 customer overlay) are in `tools/arch_layers.json`; the entries below describe ownership, not the
+complete list. Applications without an entry below: `liwan_finance` (Finance, `/api/v1/finance`),
+`liwan_appointments` (Appointments, `/api/v1/appointments`) and `liwan_inbox` (Customer Inbox,
+WhatsApp, `/api/v1/inbox`); the shared service `liwan_payments` (online payments through the
+tenant's own gateway account, `/api/v1/payments`). Bridges `liwan_<app>_ai` declare each
+application's AI agent and tools.
+
 - `odoo-addons/liwan_core` depends on `base` only. It owns the access service, the system capabilities, the
   built-in `employee`, `system_admin` and `vendor_support` roles, assignments, access audit, migration and identity
   protection. Applications add their capabilities to the catalog through `liwan.access.service` hooks.
@@ -143,15 +151,16 @@ limits describe implementation stages, not permanent product exclusions.
   of catalog-made products, the implementations of the neutral commerce hooks of `liwan_inbox`, and the carts that
   become online orders of `liwan.payments.service` (checkout, pay link, paid and cancelled notes). Feature
   `inbox.catalog`; capabilities `inbox.catalog.manage` and `inbox.orders.manage`.
-- `packages/contracts/src/common`, `src/access`, `src/pmo`, `src/hr`, `src/meetings`, `src/chat`,
-  `src/tasks` and `src/operations` hold the Zod wire
-  contracts; each namespace has a barrel re-exported from `src/index.ts`.
+- `packages/contracts/src/<namespace>` holds the Zod wire contracts (current namespaces: `access`, `ai`,
+  `appointments`, `chat`, `common`, `crm`, `documents`, `finance`, `hr`, `inbox`, `integrations`,
+  `maintenance`, `meetings`, `operations`, `payments`, `pmo`, `tasks`); each has a barrel re-exported
+  from `src/index.ts`.
 - `apps/web` holds Nuxt pages, components, composables, and per-pillar locale
   files. `/hr` is the shipped HR directory; `/people` is not the HR route.
   PMO components live in `app/components/pmo/{projects,tasks}`, personal-task
   components in `app/components/personal-tasks`. Presentational building blocks live in
   the `packages/ui` Nuxt layer (`@liwan/ui`, shared by every Nuxt app);
-  `app/components/shared/{data,form,commerce}` keeps only those that need app data.
+  `app/components/shared/{data,form}` keeps only those that need app data; commercial UI lives in `packages/commercial-ui`.
 - `deploy` holds per-customer Docker, Caddy, provisioning, and branding
   templates.
 

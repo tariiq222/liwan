@@ -42,7 +42,7 @@ def check_subject(subject: str) -> str | None:
     if revert:
         return check_subject(revert.group(1))
     if re.search(r'\bwip\b', subject, re.IGNORECASE):
-        return 'wip commits stay on the task branch and are squashed or reworded before merge'
+        return "wip commits stay on the task branch and are reworded before merge; never rewrite another worker's history"
     if not SUBJECT.match(subject):
         return f"expected 'type(scope): subject' with type in {TYPES} and scope in {AREAS}"
     if len(subject) > MAX_SUBJECT:

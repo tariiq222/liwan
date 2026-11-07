@@ -1,6 +1,7 @@
 # Opening issues from findings
 
-The repository is public: an issue is world-readable. Planner rules: `docs/agents/issue-tracker.md`.
+The repository is public: an issue is world-readable. `user-test` may open one issue per problem (owner decision
+2026-11-08); the exception and its limits are owned by `docs/agents/issue-tracker.md`.
 
 ## One issue per problem
 - Title in Arabic: `[التطبيق] وصف قصير للمشكلة` (التطبيق: المشاريع، المالية، الموارد البشرية،
