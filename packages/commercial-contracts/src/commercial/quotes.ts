@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { addCadence, canonicalJson, daysBetween, remainingDays } from './calendar.js'
 import { paidExtraBranches, paidStorageGb, paidUnits, prorateMinor, vat } from './pricing.js'
+import { fitsStorageSteps, MAX_USERS } from './schemas.js'
 import { CommercialError } from './types.js'
 import type { BundleRevision, Cadence, CustomerTermsRevision, Money, PlanRevision, Price, PricingPolicy, Quote, QuoteLine } from './types.js'
 
@@ -16,8 +17,11 @@ export type ComputeQuoteInput = {
   cadence: Cadence; requested_extra_branches: number; requested_users: number; requested_storage_mb: number; current?: QuoteCurrent
   effective_date: string; period: { start: string; end: string }; policy: PricingPolicy
   ids: QuoteIds; expires_at: string; entitlement_digest?: string
+  /** A one-time assisted onboarding on a first order only, at the vendor's own fee; never on a renewal. */
+  onboarding?: { amount: Money } | null
 }
 
+const MB_PER_GB = 1024
 const same = (a: Cadence, b: Cadence) => a.unit === b.unit && a.count === b.count
 function pick(cadence: Cadence, currency: string, ...sources: (Price[] | Price | undefined)[]): Price | undefined {
   for (const s of sources) {
@@ -41,7 +45,11 @@ export function computeQuote(input: ComputeQuoteInput): Quote {
   const paid = paidExtraBranches(requested, included)
   const paidUsers = paidUnits(input.requested_users, plan.included_users)
   const paidStorage = paidStorageGb(input.requested_storage_mb, plan.included_storage_mb)
+  // A11: extra storage is bought in steps — small ones until the extra reaches the threshold, then large ones.
+  if (paidStorage * MB_PER_GB > 0 && !fitsStorageSteps(paidStorage * MB_PER_GB, plan)) throw new CommercialError('storage_step_invalid', 'requested_storage_mb')
   if (limit !== null && requested > limit) throw new CommercialError('branch_limit_exceeded', 'requested_extra_branches')
+  // Release 1 stops selling at MAX_USERS; above it the customer is told to contact us.
+  if (input.requested_users > MAX_USERS) throw new CommercialError('users_limit_exceeded', 'requested_users')
   if (kind === 'change' && !input.current) throw new CommercialError('invalid_quantity', 'current')
 
   const exponents = new Set<number>()
@@ -129,6 +137,16 @@ export function computeQuote(input: ComputeQuoteInput): Quote {
     const storageDelta = paidStorage - cur.paid_storage_gb
     if (storageDelta > 0) pushDelta('storage', 'storage', 'Storage', storageDelta, storageUnit * storageDelta, plan.id, storageUnit)
     else if (storageDelta < 0) pushDelta('storage', 'storage', 'Storage', -storageDelta, -(cur.storage_unit_minor * -storageDelta), plan.id, 0)
+  }
+
+  // The onboarding fee is a first-invoice item: it joins the lines due now, never the renewal, and only on a new order.
+  if (input.onboarding) {
+    if (input.onboarding.amount.currency !== currency) throw new CommercialError('currency_mismatch')
+    // The fee must be in the plan's own currency and exponent: a mismatch would silently divide or multiply it.
+    if (input.onboarding.amount.currency !== currency || input.onboarding.amount.exponent !== exponent)
+      throw new CommercialError('currency_mismatch', 'onboarding')
+    dueNow += input.onboarding.amount.minor
+    add('onboarding', 'onboarding', 'Onboarding', 1, input.onboarding.amount.minor, 'now', plan.id, period.start, period.end)
   }
 
   const tax = (base_: number, key: string, timing: 'now' | 'renewal', start: string, end: string) => {

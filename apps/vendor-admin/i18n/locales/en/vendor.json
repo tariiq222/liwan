@@ -653,6 +653,7 @@
       },
       "sections": {
         "basics": "Basics",
+        "ai": "AI assistant budget",
         "release": "Catalog release",
         "apps": "Apps and features",
         "limits": "Usage limits",
@@ -704,6 +705,8 @@
       },
       "plan": {
       "usersRequired": "The included minimum must admit at least one user.",
+      "usersCapNote": "Release 1 sells up to 100 users. For more than 100 users, contact the platform owner.",
+      "usersCapExceeded": "The included users are more than the 100 users Release 1 sells. Lower it and save; larger plans are agreed outside the platform.",
         "storageMinimumGb": "Enter the included storage minimum in whole gigabytes (a multiple of 1024 MB).",
       "quantitiesHint": "The minimums are covered by the base price; anything above them is priced per unit.",
       "userPricesHint": "Price per user above the minimum, for each billing cadence.",
@@ -711,8 +714,19 @@
         "bundlesRequired": "Select at least one bundle.",
         "singleRelease": "All bundles must come from one catalog release.",
         "policyMissing": "Pricing policy unavailable.",
+        "policyRequired": "Choose the approved pricing policy this plan is priced under.",
         "vat": "VAT {rate}% exclusive",
         "noTax": "No tax",
+        "aiHint": "The assistant is free with a monthly quota. Empty means unlimited; these are editable values, not code defaults.",
+        "aiUnlimitedHint": "Empty means unlimited.",
+        "aiLimitInvalid": "Enter a non-negative whole number, or leave it empty for unlimited.",
+        "aiLimits": {
+          "ai_messages_monthly": "Messages a month",
+          "ai_tokens_monthly": "Tokens a month (platform provider only)",
+          "ai_assist_monthly": "Free-agent messages a month",
+          "ai_tool_calls_per_run": "Tool calls per run",
+          "ai_output_tokens_per_run": "Output tokens per run"
+        },
         "included": "Included",
         "optional": "Optional",
         "noBundles": "No published bundles available.",
@@ -725,7 +739,10 @@
       },
       "policy": {
         "timezone": "Time zone",
-        "tax": "Tax"
+        "tax": "Tax",
+        "select": "Pricing policy",
+        "selectHint": "The plan is priced under the policy you choose here; nothing is chosen for you.",
+        "none": "No approved policy"
       },
       "lifecycle": {
         "title": "Next action",
@@ -763,7 +780,7 @@
         "app_conflict": "Two conflicting apps cannot be in the same bundle.",
         "dependency_cycle": "App dependencies are circular.",
         "unknown_app": "App is not in the catalog release.",
-        "app_not_selectable": "This is a core app and cannot be selected.",
+        "app_not_selectable": "This app is included with the platform or is not sold in this catalog, so it cannot be selected as an add-on.",
         "catalog_release_mismatch": "Selected bundles come from a different catalog release.",
         "bundle_not_allowed": "Bundle is not allowed in this plan.",
         "bundle_missing": "An included bundle is missing.",
@@ -809,7 +826,34 @@
         "payload_too_large": "The request is too large.",
         "unauthorized": "Session expired. Sign in again.",
         "vendor_unavailable": "Vendor service is temporarily unavailable. Try later.",
-        "method_not_allowed": "Method not allowed.", "tenant_upgrade_required": "This tenant has not been upgraded and cannot store the commercial expiry. Upgrade the Odoo image, then repeat the action.", "tenant_binding_unavailable": "No enabled tenant binding exists for this subscription, so the trial date cannot be pushed. Fix the binding and repeat.", "trial_not_applied": "This trial's workspace is not active yet, so there is no invoice to issue. Wait for activation, then repeat.", "subscription_not_suspendable": "This subscription cannot be suspended in its current state.", "subscription_not_suspended": "This subscription is not suspended.", "trial_order_unavailable": "No applied order is available to attach the date change to. Wait for fulfilment, then repeat.", "trial_required_first": "A paid first order cannot be placed for a customer with no workspace yet. Start the trial instead; the customer pays from inside their workspace.", "trial_already_used": "This customer has already used their trial.", "trial_not_available": "A trial can only start before the customer has an active subscription.", "trial_disabled": "The selected plan does not offer a trial."
+        "method_not_allowed": "Method not allowed.", "tenant_upgrade_required": "This tenant has not been upgraded and cannot store the commercial expiry. Upgrade the Odoo image, then repeat the action.", "tenant_binding_unavailable": "No enabled tenant binding exists for this subscription, so the trial date cannot be pushed. Fix the binding and repeat.", "trial_not_applied": "This trial's workspace is not active yet, so there is no invoice to issue. Wait for activation, then repeat.", "subscription_not_suspendable": "This subscription cannot be suspended in its current state.", "subscription_not_suspended": "This subscription is not suspended.", "trial_order_unavailable": "No applied order is available to attach the date change to. Wait for fulfilment, then repeat.", "trial_already_used": "This customer has already used their trial.", "trial_not_available": "A trial can only start before the customer has an active subscription.", "trial_disabled": "The selected plan does not offer a trial.",
+        "users_limit_exceeded": "Release 1 sells up to 100 users per company. Lower the requested users and save, or record a custom agreement outside the platform.",
+        "transfer_amount_mismatch": "The transfer amount does not match the invoice total. Correct the amount, then record the transfer again.",
+        "transfer_reference_in_use": "This transfer reference is already recorded on another invoice. Use the bank statement line's reference, not one already used.",
+        "invoice_not_payable": "This invoice cannot be paid now: it is void, or its order is no longer pending. Reload the invoice and check its status.",
+        "order_not_payable": "This order is no longer awaiting payment, so the transfer cannot settle it. Reload the order, then cancel it or issue a new one.",
+        "bank_account_unavailable": "No company bank account is set up for bank transfers. Add it in the billing settings, then give the customer the transfer details.",
+        "step_up_required": "This action needs a fresh passkey confirmation. Confirm with your passkey, then repeat the action.",
+        "refund_window_closed": "The refund window has closed, so this payment cannot be refunded. Record the reason and answer the customer directly.",
+        "refund_not_first_payment": "Only the customer's first payment can be refunded; renewals and later payments cannot.",
+        "refund_not_full": "A refund must return the whole invoice. Open a credit note for the full total, then record the refund.",
+        "invoice_already_refunded": "This invoice is already refunded. Do not record another refund for it; reload the invoice to see the credit note.",
+        "admin_login_required": "The customer has no administrator who has signed in yet, so provisioning would fail. Have the customer administrator sign in, then place the order.",
+        "invalid_value_date": "Enter the value date from the bank statement: a real calendar date, today or earlier.",
+        "value_date_in_future": "A transfer cannot have arrived after today. Enter the value date from the bank statement, today or earlier.",
+        "value_date_before_invoice": "The value date is before this invoice was issued, so the money cannot be for it. Check the invoice date and the statement line.",
+        "invalid_transfer_reference": "Enter the transfer reference from the bank statement: at least 3 and at most 200 characters.",
+        "invalid_transfer_amount": "Enter the amount as a whole number of the invoice's minor units, with no sign and no fractions.",
+        "invalid_transfer_reason": "The reason must be between 3 and 1000 characters.",
+        "invoice_not_paid": "Only a paid invoice can be refunded. This invoice is still issued or void, so there is no payment to return.",
+        "refund_already_requested": "A refund note already exists for this invoice. Record its provider reference from the invoice's adjustments list instead of opening a second one.",
+        "storage_step_invalid": "Extra storage is bought in the plan's steps. Lower the requested storage, or raise the plan's storage step.",
+          "storage_step_misaligned": "The storage steps do not line up: the threshold must be a multiple of the small step, and the large step must not be smaller than it.",
+          "trial_on_free_plan": "A plan that costs nothing cannot offer a trial: a free customer has no payment to make, and the trial would only end in a past-due state.",
+        "onboarding_first_order_only": "The onboarding fee applies to a paid first order only. Take the change or renewal without it, and record it as a separate order if it is due.",
+        "onboarding_unavailable": "This plan has no onboarding fee configured. Add the fee and its price to the plan before quoting onboarding.",
+        "catalog_source_not_publishable": "Only the current catalog source can be published. Rebuild the catalog from the release source, then validate and publish it again.",
+        "tenant_required": "This subscription has no workspace linked yet, so the change cannot be reserved. Finish provisioning the workspace, then repeat the action."
       },
       "keys": {
         "users_limit": "Users",
@@ -1072,20 +1116,50 @@
         "customerHint": "The customer name and its first administrator in the workspace.",
         "planTitle": "Plan and billing",
         "price": "Price per cycle by plan",
+        "onboarding": "Add assisted onboarding",
+        "onboardingHint": "A one-time line on this first invoice only, at the fee in the billing settings. Renewals never carry it.",
         "legacyTitle": "Legacy catalog path",
         "legacyHint": "This deployment has no shared workspaces, so the customer is registered as a standalone instance of a published catalog instead of a plan.",
         "hostingTitle": "Environment and hosting",
         "catalogTitle": "Catalog",
         "nameTitle": "Customer",
-        "planHint": "Choose the plan the customer subscribes to and its billing cycle.",
-        "trial": "The customer starts on a {days}-day trial and pays from its own workspace when it ends."
+        "planHint": "Choose the plan the customer subscribes to and its billing cycle."
       },
       "pendingActivation": "Awaiting activation"
     },
+    "billingSettings": {
+      "title": "Billing settings",
+      "hint": "The values Liwan's own billing runs on. Change them here, never in code.",
+      "save": "Save settings",
+      "saved": "The billing settings were saved.",
+      "sections": {
+        "refund": "Refund window",
+        "onboarding": "Assisted onboarding",
+        "bank": "Bank transfer account",
+        "bankHint": "Customers see this account on an unpaid invoice. Leave the IBAN empty to stop offering bank transfer."
+      },
+      "fields": {
+        "window": "Refund window (days)",
+        "windowHint": "A full refund is allowed only for the customer's first payment and only within these days of it.",
+        "accountName": "Account name",
+        "accountNumber": "Account number",
+        "iban": "IBAN",
+        "ibanHint": "A Saudi IBAN: SA followed by 22 digits.",
+        "instructionsAr": "Transfer instructions (Arabic)",
+        "instructionsEn": "Transfer instructions (English)",
+        "onboardingFee": "Onboarding fee (SAR)",
+        "onboardingFeeHint": "A positive whole amount charged once when a customer starts with assisted onboarding. Enter 0 to stop offering it; leave it empty to keep the current fee."
+      },
+      "errors": {
+        "window": "Enter a whole number of days between 0 and 365.",
+        "iban": "Enter a Saudi IBAN (SA and 22 digits), or leave it empty.",
+        "onboardingFee": "Enter a whole amount in SAR, without fractions, such as 499, or 0 to stop offering onboarding."
+      }
+    },
     "invoices": {
       "title": "Invoices and collection",
-      "notOfficial": "Not an official tax invoice",
-      "notOfficialHint": "A commercial invoice for tracking only; it does not replace an e-tax invoice.",
+      "notOfficial": "Liwan subscription invoice",
+      "notOfficialHint": "What the customer is charged for their Liwan subscription.",
       "empty": "No invoices yet.",
       "noResults": "No invoices match the filters.",
       "notAvailable": "Not available yet",
@@ -1101,15 +1175,15 @@
       },
       "customerFilter": "Selected customer",
       "period": "Period",
-      "vat": "VAT",
       "total": "Total",
       "subtotal": "Subtotal",
+      "subtotalNoTax": "Subtotal",
+      "taxLine": "Tax ({label})",
       "customer": "Customer",
       "issuedAt": "Issued",
       "dueAt": "Due",
       "paidAt": "Paid",
       "lines": "Lines",
-      "vatNote": "Prices exclude 15% VAT.",
       "attempts": "Payment attempts",
       "attemptsNone": "Payment attempts are not yet attached to this invoice.",
       "adjustments": "Adjustments and credit notes",
@@ -1124,6 +1198,16 @@
         "refunded": "Refunded",
         "void": "Void"
       },
+      "transfer": {
+        "title": "Bank transfer received",
+        "hint": "Record a transfer you received for this invoice. The order is then paid and activated as any other payment.",
+        "action": "Confirm transfer received",
+        "confirm": "Record the transfer",
+        "confirmHint": "The amount must match the invoice total, and the reference cannot be used twice.",
+        "reference": "Transfer reference",
+        "amount": "Amount received",
+        "valueDate": "Value date"
+      },
       "refund": {
         "action": "Record refund",
         "title": "Record that this credit note was refunded",
@@ -1134,9 +1218,16 @@
         "confirm": "Record refund",
         "at": "Recorded",
         "by": "Recorded by",
+        "firstPayment": "Refund eligibility: this is the customer's first payment.",
+        "firstPaymentNo": "Refund eligibility: this is not the customer's first payment.",
+        "eligibilityRefundable": "This payment is refundable until {date}.",
+        "windowClosed": "The {days}-day refund window has closed; this payment is no longer refundable.",
+        "notFirstPayment": "Only the customer's first payment is refundable; this is a later payment.",
         "errors": {
           "credit_note_not_pending": "This credit note is no longer pending. The page shows its current state.",
-          "refund_reference_in_use": "This refund reference is already recorded on another credit note."
+          "refund_reference_in_use": "This refund reference is already recorded on another credit note.",
+          "refund_window_closed": "The refund window has closed, so this payment cannot be refunded.",
+          "refund_not_first_payment": "Only the customer's first payment can be refunded; renewals and later payments cannot."
         }
       },
       "immutable": "An issued invoice is never edited; corrections are separate documents.",

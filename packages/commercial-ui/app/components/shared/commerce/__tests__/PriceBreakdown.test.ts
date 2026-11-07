@@ -33,11 +33,17 @@ describe('PriceBreakdown', () => {
     expect(html).toContain('commercial.pricing.cadence.month.one')
   })
 
-  it('shows the renewal lines in a closed details block and the VAT note', async () => {
+  it('shows the renewal lines in a closed details block', async () => {
     const html = await render({ quote })
     expect(html).toContain('<details')
     expect(html).toContain('Base plan renewal')
-    expect(html).toContain('commercial.pricing.quote.vatNote')
+  })
+
+  it('shows the tax note only when the quote carries a tax line', async () => {
+    // Liwan is not VAT-registered (owner decision 2026-11-06): an untaxed quote says nothing about tax.
+    expect(await render({ quote })).not.toContain('commercial.pricing.quote.vatNote')
+    const taxed = { ...quote, lines: [...quote.lines, line('tax', 'tax', 'now', 'VAT', 1, 6210)] }
+    expect(await render({ quote: taxed })).toContain('commercial.pricing.quote.vatNote')
   })
 
   it('renders the metered users and storage lines from the server quote', async () => {

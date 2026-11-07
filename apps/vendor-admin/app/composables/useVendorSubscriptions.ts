@@ -25,6 +25,8 @@ export function useVendorSubscriptions() {
     invoice: (id: string) => request<VendorInvoice>(`commercial/invoices/${seg(id)}`),
     /** Records a refund the operator already made in the provider dashboard; nothing is refunded by this call. */
     refundCreditNote: (id: string, body: { external_reference: string; reason: string }) => request<Adjustment>(`commercial/invoice-adjustments/${seg(id)}/refund`, { method: 'POST', body: { external_reference: body.external_reference.trim(), reason: body.reason.trim() } }),
+    // The vendor records a bank transfer that arrived; the control plane then pays the order through its normal path.
+    recordBankTransfer: (id: string, body: { reference: string; amount: number; value_date: string }) => request<unknown>(`commercial/invoices/${seg(id)}/bank-transfer`, { method: 'POST', body: { reference: body.reference.trim(), amount: body.amount, value_date: body.value_date } }),
     saveTerms: (body: unknown) => request<CustomerTermsRevision>('commercial/customer-terms', { method: 'POST', body }),
     /** Draft `terms` bodies return a preview only (never persisted, never acceptable). */
     customerQuote: async (body: Record<string, unknown>) => normalizeQuoteResponse<Quote>(await request<unknown>('commercial/customer-quotes', { method: 'POST', body })),

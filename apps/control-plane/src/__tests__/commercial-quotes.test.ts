@@ -13,7 +13,7 @@ suite('commercial quotes', () => {
   const plan0 = (over: any = {}) => ({ name: `P ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
     prices: [{ cadence: monthly, amount: money(0) }], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
     included_extra_branches: 1, extra_branch_prices: [{ cadence: monthly, amount: money(50000) }], extra_branches_limit: null,
-    included_users: 3, included_storage_mb: 0, user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }], policy_revision_id: POLICY,
+    included_users: 3, included_storage_mb: 0, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }], policy_revision_id: POLICY,
     trial_days: 0, grace_days: 0, auto_suspend: true, auto_renew_allowed: true, ...over })
   async function publishPlan(over: any = {}) {
     const c = await api('POST', '/plans', plan0(over))

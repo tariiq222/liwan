@@ -176,6 +176,8 @@ def registration_edits(root, tokens):
         'id': app,
         'name': name_en,
         'description': f'The {name_en} application.',
+        # A new application starts for sale: every non-core tier of the current release must say so explicitly.
+        'sellable': True,
         'modules': [addon],
         'features': [f'boolean:{app}.enabled'],
     })

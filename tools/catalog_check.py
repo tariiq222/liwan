@@ -353,7 +353,7 @@ def current_release(root, catalog_dir=CATALOG_DIR):
     return current[-1].name, release_modules(root, load_json(current[-1]))
 
 
-def _check_release(root, where, data, registry, errors):
+def _check_release(root, where, data, registry, errors, current_name):
     """Every feature of a release module (and of the platform) sits in exactly one tier."""
     try:
         release = set(release_modules(root, data))
@@ -553,6 +553,14 @@ def check_catalog(root, catalog_dir=CATALOG_DIR):
     solutions = sorted((base / 'solutions').glob('*.json'))
     if not solutions:
         errors.append('solutions/: no solution file found')
+    # Resolve the current release once, and never let a broken closure escape as a traceback: a release module without
+    # a readable manifest is a catalog error like any other, reported by the closure check below.
+    try:
+        resolved = current_release(root, catalog_dir)
+    except ClosureError as exc:
+        resolved = None
+        errors.append(f'release module {exc} has no readable manifest')
+    current_name = resolved[0] if resolved else None
     for path in solutions:
         where = f'solutions/{path.name}'
         data = load_json(path)
@@ -562,7 +570,7 @@ def check_catalog(root, catalog_dir=CATALOG_DIR):
         if data.get('id') != path.stem:
             errors.append(f'{where}: id {data.get("id")!r} must match the file name')
         if data.get('schema_version') == RELEASE_SCHEMA:
-            _check_release(root, where, data, registry, errors)
+            _check_release(root, where, data, registry, errors, current_name)
 
         industry = data.get('industry')
         if industry is not None and industry not in industry_ids:
@@ -611,6 +619,20 @@ def check_catalog(root, catalog_dir=CATALOG_DIR):
             if tier_id in tier_ids:
                 errors.append(f'{where}.tiers: duplicate tier id {tier_id!r}')
             tier_ids.append(tier_id)
+            # `sellable` marks what a customer may buy; a tier that omits it sells nothing, which is what the
+            # schema says. The CURRENT release must say it explicitly on every tier, so no tier is silently locked
+            # by an omission. Older files keep their bytes (and their digests) and are not held to the newer rule.
+            is_current = path.name == current_name
+            if 'sellable' in tier:
+                if tier_id == 'core':
+                    errors.append(f'{tier_where}: the core tier is always included and can never be sellable')
+                if data.get('schema_version') != RELEASE_SCHEMA:
+                    errors.append(f'{tier_where}: sellable is a schema {RELEASE_SCHEMA} property')
+                if not isinstance(tier['sellable'], bool):
+                    errors.append(f'{tier_where}: sellable must be true or false')
+            elif is_current and tier_id != 'core':
+                # The core tier is always included; every other tier of the current release must say whether it is sold.
+                errors.append(f'{tier_where}: the current release must state sellable on every non-core tier')
             tier_modules = list(tier.get('modules') or [])
             for module in tier_modules:
                 known_module(module, f'{tier_where}.modules')

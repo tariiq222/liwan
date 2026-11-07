@@ -24,7 +24,7 @@ suite('restoring an archived branch is a priced order, end to end', () => {
     await api('POST', '/catalog/releases', { catalog_version: version, reason: 'Branch restore' })
     const created = await api('POST', '/plans', { name: `Restore ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR', prices: [{ cadence: monthly, amount: money(10000) }],
       platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [], included_extra_branches: 1, extra_branch_prices: [{ cadence: monthly, amount: money(5000) }],
-      extra_branches_limit: 2, included_users: 1, included_storage_mb: 0, user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }],
+      extra_branches_limit: 2, included_users: 1, included_storage_mb: 0, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }],
       policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000001', trial_days: 0, grace_days: 2, auto_suspend: true, auto_renew_allowed: true })
     const validated = await api('POST', `/plans/${created.body.id}/validate`, { edit_revision: 1, reason: 'Branch restore' })
     plan = (await api('POST', `/plans/${created.body.id}/publish`, { edit_revision: validated.body.edit_revision, reason: 'Branch restore' })).body

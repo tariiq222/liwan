@@ -18,9 +18,55 @@ export const capacityMapSchema = z.record(z.string().regex(dotted), z.number().i
  * them: a positive integer, or null for unlimited. One rule for packages, plans, terms and the compiler. */
 export const USERS_LIMIT_KEY = 'users.limit'
 export const admitsRequiredAdmin = (value: unknown) => value === null || (Number.isInteger(value) && (value as number) >= 1)
-/** Plan platform limits and customer terms limits, stored and input alike; schema_023 holds the same rule in the database. */
+/** A6: `storage_step_mb` and its siblings are `integer` columns in PostgreSQL — not bigint — so a larger value is a
+ * 500 (22003 numeric out of range) rather than a validation error. Bound them where they are parsed.
+ * Two tebibytes of a step is far beyond any plan and well inside the 4-byte range the column allows. */
+export const MAX_STORAGE_STEP_MB = 2 * 1024 * 1024
+export const storageStepSchema = z.number().int().min(1).max(MAX_STORAGE_STEP_MB)
+/**
+ * A6: the exact storage-step rule, shared by the zod schema, `planIssues` and the database CHECK.
+ *
+ * An extra storage amount is legal when it is a whole number of the step that applies to it (the small step below
+ * `storage_step_threshold_mb`, the large step from it). The plan must therefore make every step it advertises actually
+ * reachable:
+ *   1. all three values are positive whole megabytes;
+ *   2. `storage_large_step_mb >= storage_step_mb` and `storage_step_threshold_mb >= storage_step_mb` (the small step
+ *      must not overshoot the threshold on its first application, or the range below it has no buyable size);
+ *   3. `storage_step_threshold_mb % storage_step_mb === 0`: the small-step range must end exactly on the threshold;
+ *   4. `storage_step_threshold_mb % storage_large_step_mb === 0`: the threshold is itself the first large-step size, so
+ *      it must be a whole number of large steps, or the engine offers the threshold and then refuses it.
+ * With 10 GiB / 100 GiB / 100 GiB (the seeds) all four hold: extras are 10…100 GiB in 10 GiB steps, then 200 GiB and up.
+ */
+export function storageStepsAligned(steps: { storage_step_mb: number; storage_step_threshold_mb: number; storage_large_step_mb: number }): boolean {
+  const { storage_step_mb: small, storage_step_threshold_mb: threshold, storage_large_step_mb: large } = steps
+  if (![small, threshold, large].every(v => Number.isSafeInteger(v) && v > 0)) return false
+  if (large < small || threshold < small) return false
+  return threshold % small === 0 && threshold % large === 0
+}
+
+/**
+ * A6: whether one extra-storage amount is a size the plan sells. Below the threshold the small step applies; from the
+ * threshold the large step does. `compileEntitlements` and `computeQuote` both call this, so a quantity that reaches a
+ * subscription snapshot is one a quote could have produced.
+ */
+export function fitsStorageSteps(extraMb: number, plan: { storage_step_mb: number; storage_step_threshold_mb: number; storage_large_step_mb: number }): boolean {
+  if (extraMb <= 0) return true
+  const step = extraMb < plan.storage_step_threshold_mb ? plan.storage_step_mb : plan.storage_large_step_mb
+  return extraMb % step === 0
+}
+/** Release 1 sells at most this many users per company (owner decision 2026-11-06). Above it a customer is told to
+ * contact us; no quote, order, change or renewal may ask for more, and no entitlement may carry more. */
+export const MAX_USERS = 100
+/** A user count inside the cap. `null` (unlimited) is NOT inside it: the release says at most 100, so unlimited is
+ * above it by definition, and accepting it here would let a plan or terms revision reopen an uncapped tenant. */
+export const usersWithinCap = (value: unknown) => Number.isInteger(value) && (value as number) >= 0 && (value as number) <= MAX_USERS
+/** Plan platform limits and customer terms limits, stored and input alike. schema_023 holds the `users.limit` half of
+ * the rule in the database (it must admit the customer administrator); the 100-user sales cap is enforced by the
+ * contract schemas and the compiler only, because it is a commercial decision, not a stored-data invariant. */
 export const sellableLimitsSchema = capacityMapSchema.refine(m => !Object.hasOwn(m, USERS_LIMIT_KEY) || admitsRequiredAdmin(m[USERS_LIMIT_KEY]), {
   message: 'users.limit must allow the required customer administrator', path: [USERS_LIMIT_KEY],
+}).refine(m => !Object.hasOwn(m, USERS_LIMIT_KEY) || usersWithinCap(m[USERS_LIMIT_KEY]), {
+  message: `users.limit must not exceed ${MAX_USERS} users`, path: [USERS_LIMIT_KEY],
 })
 export const lifecycleSchema = z.enum(['draft', 'validated', 'published'])
 export const audienceSchema = z.discriminatedUnion('kind', [
@@ -38,7 +84,11 @@ export const catalogFeatureSchema = z.strictObject({
 export const catalogApplicationSchema = z.strictObject({
   id: z.string().regex(/^[a-z][a-z0-9_]*$/), name_ar: z.string().min(1), name_en: z.string().min(1),
   modules: z.array(z.string()), requires_apps: z.array(z.string()), conflicts_with_apps: z.array(z.string()),
-  selectable: z.boolean(), features: z.array(catalogFeatureSchema),
+  /** A bundle may grant this application: the core tier is always included, every other tier may be selected. */
+  selectable: z.boolean(),
+  /** A customer may buy this application. Omitted means it is not for sale: a catalog that predates the flag, or a
+   * tier the release installs without selling. The current release states it on every non-core tier. */
+  sellable: z.boolean().optional(), features: z.array(catalogFeatureSchema),
 })
 export const catalogReleaseSchema = z.strictObject({
   id: revisionIdSchema, version: z.string().min(1).max(100), source_digest: sha, artifact_digest: sha,
@@ -55,12 +105,28 @@ export const bundleRevisionSchema = z.strictObject({
   ...revisionBase, bundle_id: z.string(), description: z.string(), catalog_release_id: revisionIdSchema,
   selections: z.array(selectionSchema), domain_limits: capacityMapSchema,
 })
+/**
+ * A6: refuse misaligned storage steps at parse time as an issue on the threshold field, exactly as `planIssues` does,
+ * so a plan that would violate the database CHECK is a structured 422 rather than a 500. Applied to the create and edit
+ * inputs (the write paths); stored rows are read back through `planRevisionSchema`, which stays a plain object so views
+ * can `.extend()` it, and `planIssues` validates an existing row before it can be published.
+ */
+function withAlignedStorageSteps<T extends z.ZodType<{ storage_step_mb: number; storage_step_threshold_mb: number; storage_large_step_mb: number }>>(schema: T) {
+  return schema.superRefine((value, ctx) => {
+    if (storageStepsAligned(value)) return
+    ctx.addIssue({ code: 'custom', message: 'storage steps must tile the range they govern', path: ['storage_step_threshold_mb'] })
+  })
+}
 export const planRevisionSchema = z.strictObject({
   ...revisionBase, plan_id: z.string(), term_months: z.number().int().positive().max(120),
   platform_limits: sellableLimitsSchema, included_bundle_revision_ids: z.array(revisionIdSchema),
   optional_bundle_revision_ids: z.array(revisionIdSchema), included_extra_branches: z.number().int().min(0).max(MAX),
   extra_branch_prices: z.array(priceSchema), extra_branches_limit: z.number().int().min(0).max(MAX).nullable(),
   included_users: z.number().int().min(0).max(MAX), included_storage_mb: z.number().int().min(0).max(MAX),
+  // A11: how extra storage is bought. Small steps below the threshold, large steps above it.
+  // A6: integer columns, and every value must be one the plan can actually sell.
+  storage_step_mb: storageStepSchema, storage_step_threshold_mb: storageStepSchema,
+  storage_large_step_mb: storageStepSchema,
   user_prices: z.array(priceSchema), storage_prices: z.array(priceSchema),
   policy_revision_id: revisionIdSchema, currency: z.string().regex(/^[A-Z]{3}$/),
   trial_days: z.number().int().min(0).max(3650), grace_days: z.number().int().min(0).max(3650),
@@ -92,7 +158,7 @@ export const pricingPolicySchema = z.strictObject({
   ]),
 })
 export const quoteLineSchema = z.strictObject({
-  key: z.string(), kind: z.enum(['base', 'bundle', 'branch', 'users', 'storage', 'discount', 'tax', 'adjustment']),
+  key: z.string(), kind: z.enum(['base', 'bundle', 'branch', 'users', 'storage', 'onboarding', 'discount', 'tax', 'adjustment']),
   timing: z.enum(['now', 'renewal']), description: z.string(), quantity: z.number().int().min(0).max(MAX),
   amount: moneySchema, period_start: isoDate, period_end: isoDate, source_revision_id: revisionIdSchema,
 })
@@ -121,12 +187,15 @@ const planFields = {
   included_extra_branches: z.number().int().min(0).max(MAX), extra_branch_prices: z.array(priceSchema),
   extra_branches_limit: z.number().int().min(0).max(MAX).nullable(),
   included_users: z.number().int().min(0).max(MAX), included_storage_mb: z.number().int().min(0).max(MAX),
+  // A6: integer columns, and every value must be one the plan can actually sell.
+  storage_step_mb: storageStepSchema, storage_step_threshold_mb: storageStepSchema,
+  storage_large_step_mb: storageStepSchema,
   user_prices: z.array(priceSchema), storage_prices: z.array(priceSchema), policy_revision_id: revisionIdSchema,
   trial_days: z.number().int().min(0).max(3650), grace_days: z.number().int().min(0).max(3650),
   auto_suspend: z.boolean(), auto_renew_allowed: z.boolean(),
 }
-export const planCreateSchema = z.strictObject({ ...planFields, reason: reason.optional() })
-export const planEditSchema = z.strictObject({ ...planFields, edit_revision: z.number().int().positive().max(MAX), reason })
+export const planCreateSchema = withAlignedStorageSteps(z.strictObject({ ...planFields, reason: reason.optional() }))
+export const planEditSchema = withAlignedStorageSteps(z.strictObject({ ...planFields, edit_revision: z.number().int().positive().max(MAX), reason }))
 export const lifecycleActionSchema = z.strictObject({ edit_revision: z.number().int().positive().max(MAX), reason })
 export const listEnvelopeSchema = <T extends z.ZodType>(item: T) =>
   z.strictObject({ items: z.array(item), total: z.number().int().min(0) })
@@ -138,6 +207,8 @@ export const quoteRequestSchema = z.strictObject({
   requested_users: z.number().int().min(0).max(MAX), requested_storage_mb: z.number().int().min(0).max(MAX),
   subscription_id: z.string().nullable().optional(), expected_subscription_revision: z.number().int().min(0).optional(),
   effective_date: isoDate.optional(),
+  /** The optional one-time assisted onboarding on a first order; the vendor's own fee prices it. */
+  onboarding: z.boolean().optional(),
 })
 
 export type RevisionId = z.infer<typeof revisionIdSchema>

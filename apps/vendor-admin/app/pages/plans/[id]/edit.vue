@@ -11,7 +11,7 @@ const { data, error, pending, refresh } = await useAsyncData(() => `vendor:plan-
   const published = (await api.listBundles({ status: 'published', limit: 100 })).items.filter(b => b.available)
   const known = new Set(published.map(b => b.id))
   const kept = (await Promise.all([...view.included_bundle_revision_ids, ...view.optional_bundle_revision_ids].filter(x => !known.has(x)).map(x => api.get<BundleView>('bundle', x).catch(() => null)))).filter((b): b is BundleView => Boolean(b))
-  return { view, bundles: [...published, ...kept], policy: await api.policies() }
+  return { view, bundles: [...published, ...kept], policies: await api.policies() }
 })
 const busy = ref(false); const saveError = ref<unknown>(null); const resetKey = ref(0)
 const readOnly = computed(() => Boolean(data.value && data.value.view.status !== 'draft'))
@@ -19,7 +19,7 @@ const detailTo = computed(() => ({ path: `/plans/${id.value}`, query: { returnTo
 async function save(draft: PlanDraft) {
   if (busy.value || !data.value || !allowed.value) return
   busy.value = true; saveError.value = null
-  try { await api.update<PlanView>('plan', id.value, planEditPayload(draft, data.value.view.policy_revision_id, data.value.view.edit_revision)); resetKey.value++; await nextTick(); await refreshNuxtData(); await navigateTo(detailTo.value) }
+  try { await api.update<PlanView>('plan', id.value, planEditPayload(draft, draft.policy_revision_id, data.value.view.edit_revision)); resetKey.value++; await nextTick(); await refreshNuxtData(); await navigateTo(detailTo.value) }
   catch (cause) { saveError.value = cause } finally { busy.value = false }
 }
 </script>
@@ -29,7 +29,7 @@ async function save(draft: PlanDraft) {
     <SharedPageState :loading="pending" :error="error" :empty="readOnly || !allowed" :empty-text="readOnly ? t('vendor.pricing.notDraft') : t('vendor.pricing.errors.pricingRequired')" @retry="refresh">
       <template v-if="data && !readOnly && allowed">
         <UAlert v-if="saveError && commercialFailure(saveError).conflict" class="mb-4" color="warning" variant="subtle" :title="t('vendor.pricing.errors.revision_conflict')"><template #actions><UButton color="neutral" variant="outline" size="sm" @click="() => refresh()">{{ t('vendor.pricing.reload') }}</UButton></template></UAlert>
-        <VendorPlanForm :key="data.view.edit_revision" :bundles="data.bundles" :policy="data.policy" :initial="data.view" :busy="busy" :error="saveError" :reset-key="resetKey" require-reason @save="save" @cancel="navigateTo(detailTo)" />
+        <VendorPlanForm :key="data.view.edit_revision" :bundles="data.bundles" :policies="data.policies" :initial="data.view" :busy="busy" :error="saveError" :reset-key="resetKey" require-reason @save="save" @cancel="navigateTo(detailTo)" />
       </template>
     </SharedPageState>
   </SharedPageContainer>

@@ -23,7 +23,9 @@ import { resumeSubscription, suspendSubscription } from './suspension.js'
 import { createPaymentAttempt, handleProviderEvent, paymentAttemptView } from './payments.js'
 import { generateRenewals, applyDunning } from './renewals.js'
 import { SimulatorAdapter } from './payment-simulator.js'
-import { refundCreditNote } from './settlements.js'
+import { refundCreditNote, requestInvoiceRefund } from './settlements.js'
+import { bankTransferInputSchema, confirmBankTransfer } from './bank-transfer.js'
+import { billingSettings, billingSettingsInputSchema, setBillingSettings } from './billing-settings.js'
 
 export async function paymentEventsHttp(pool: Pool, input: {method:string;pathname:string;raw:string;headers:IncomingHttpHeaders}, runtime?: PaymentRuntime) {
   const hit=/^\/v1\/commercial\/payment-events\/([^/]+)$/.exec(input.pathname)
@@ -142,6 +144,24 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
   if(m==='GET'&&path==='/analytics'){need(input,'vendor.billing.manage');return {status:200,data:await analyticsFromQuery(pool,url)}}
   const invoice=/^\/invoices\/([^/]+)$/.exec(path)
   if(m==='GET'&&invoice){need(input,'vendor.billing.manage');if(!z.uuid().safeParse(invoice[1]).success)throw new CommercialHttpError('not_found',404);const data=await getVendorInvoice(pool,invoice[1]!);if(!data)throw new CommercialHttpError('not_found',404);return {status:200,data}}
+  // The vendor records that a bank transfer arrived; the order is then paid through the ordinary settlement path.
+  const transfer=/^\/invoices\/([^/]+)\/bank-transfer$/.exec(path)
+  if(m==='POST'&&transfer){
+    need(input,'vendor.billing.manage')
+    if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
+    if(!z.uuid().safeParse(transfer[1]).success)throw new CommercialHttpError('not_found',404)
+    const body=parseBody(input.raw,bankTransferInputSchema)
+    return {status:201,data:await confirmBankTransfer(pool,{invoice_id:transfer[1]!,operator:principal.actor_id,...body,adapter:runtime?.adapter ?? undefined})}
+  }
+  // Vendor-editable billing settings: the refund window and the bank account customers transfer to.
+  if(path==='/billing-settings'){
+    need(input,'vendor.read')
+    if(m==='GET')return {status:200,data:await billingSettings(pool)}
+    if(m!=='PATCH'&&m!=='POST')throw new CommercialHttpError('not_found',404)
+    need(input,'vendor.billing.manage')
+    if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
+    return {status:200,data:await setBillingSettings(pool,{...parseBody(input.raw,billingSettingsInputSchema),operator:principal.actor_id})}
+  }
   const payment=/^\/orders\/([^/]+)\/payment-attempts$/.exec(path)
   if(payment&&(m==='POST'||m==='GET')){
     need(input,'vendor.billing.manage');if(!z.uuid().safeParse(payment[1]).success)throw new CommercialHttpError('not_found',404)
@@ -154,6 +174,16 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     need(input,'vendor.billing.manage')
     if(!z.uuid().safeParse(refund[1]).success)throw new CommercialHttpError('not_found',404)
     return {status:200,data:await refundCreditNote(pool,{adjustment_id:refund[1]!,actor:{issuer:input.issuer,actorUid:input.actor},request:parseBody(input.raw,refundCreditNoteRequestSchema)})}
+  }
+  // A2: the customer asked for their money back inside the window and there is no note yet. Creates the pending
+  // vendor credit note for the full invoice; recording the provider reference is the existing refund route above.
+  const refundRequest=/^\/invoices\/([^/]+)\/refund-request$/.exec(path)
+  if(refundRequest&&m==='POST'){
+    need(input,'vendor.billing.manage')
+    if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
+    if(!z.uuid().safeParse(refundRequest[1]).success)throw new CommercialHttpError('not_found',404)
+    const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
+    return {status:201,data:await requestInvoiceRefund(pool,{invoice_id:refundRequest[1]!,actor:{issuer:input.issuer,actorUid:input.actor},reason:body.reason})}
   }
   const settle=/^\/payment-simulator\/([^/]+)\/settle$/.exec(path)
   if(settle){

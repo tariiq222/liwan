@@ -1,9 +1,19 @@
 import type { PricingPolicy, Quote } from '@liwan/commercial-contracts'
 import type { BundleView, CatalogReleaseView, CommercialKind, LifecycleAction, VendorListEnvelope, PlanView, StatusFilter } from '@/utils/vendorCommercial'
 import { lifecycleBody, lifecycleUrl } from '@/utils/vendorCommercial'
+import { approvedPolicies } from '@/components/vendor/policySelection'
 
 export type PricingPolicyView = PricingPolicy
 export type ListParams = { status?: StatusFilter; q?: string; limit?: number; offset?: number }
+
+/**
+ * Every approved pricing policy, in the order the control plane lists them (by created_at, then id). The order is not
+ * a preference — the VAT row sorts first — so callers choose explicitly through defaultPolicyId/policyOptions and
+ * never take the first item.
+ */
+export async function listPolicies(request: <T>(path: string) => Promise<T>): Promise<PricingPolicyView[]> {
+  return approvedPolicies(await request<VendorListEnvelope<PricingPolicyView>>('commercial/policies'))
+}
 
 /** Typed access to the commercial endpoints through the vendor proxy. All totals and prices come from the server. */
 export function useVendorCommercial() {
@@ -14,7 +24,7 @@ export function useVendorCommercial() {
     releases: () => request<VendorListEnvelope<CatalogReleaseView>>('commercial/catalog/releases').then(r => r.items),
     createRelease: (body: { catalog_version: string; reason: string }) => request<CatalogReleaseView>('commercial/catalog/releases', { method: 'POST', body }),
     seedDefaultBundles: (releaseId: string, reason: string) => request<{ bundles: string[]; created: string[]; plan_revision_id: string; plan_created: boolean }>(`commercial/catalog/releases/${encodeURIComponent(releaseId)}/default-bundles`, { method: 'POST', body: { reason } }),
-    policies: () => request<VendorListEnvelope<PricingPolicyView>>('commercial/policies').then(r => r.items[0]),
+    policies: (): Promise<PricingPolicyView[]> => listPolicies(request),
     listBundles: (p: ListParams = {}) => request<VendorListEnvelope<BundleView>>('commercial/bundles', { query: query(p) }),
     /** The server filters only by name substring and status, not bundle_id; renamed versions need the unfiltered list, so page through it. */
     bundleVersions: async (bundleId: string) => {

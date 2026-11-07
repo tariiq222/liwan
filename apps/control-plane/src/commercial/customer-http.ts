@@ -16,6 +16,7 @@ import { listInvoices, getInvoice } from './invoices.js'
 import { planWire } from './plans.js'
 import { bundleWire } from './bundles.js'
 import { getRelease } from './catalog-releases.js'
+import { bankTransferInstructions } from './bank-transfer.js'
 import { listBranches, requestedExtraBranches } from './branches.js'
 import { getUsage } from './usage.js'
 import { createPaymentAttempt, verifyReturnedAttempt } from './payments.js'
@@ -149,6 +150,13 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   if(m==='GET'&&path==='/invoices'){requireCapability(principal,'billing.read');return {status:200,data:await listInvoices(pool,{customer_id:customerId})}}
   const invoice=/^\/invoices\/([^/]+)$/.exec(path)
   if(m==='GET'&&invoice){requireCapability(principal,'billing.read');if(!z.uuid().safeParse(invoice[1]).success)throw new CommercialHttpError('not_found',404);const data=await getInvoice(pool,invoice[1]!,{customer_id:customerId});if(!data)throw new CommercialHttpError('not_found',404);return {status:200,data}}
+  // A customer's own bank-transfer instructions for one of its invoices; 409 while the vendor has no account set.
+  const transferGuide=/^\/invoices\/([^/]+)\/bank-transfer$/.exec(path)
+  if(m==='GET'&&transferGuide){
+    requireCapability(principal,'billing.read')
+    if(!z.uuid().safeParse(transferGuide[1]).success)throw new CommercialHttpError('not_found',404)
+    return {status:200,data:await bankTransferInstructions(pool,{invoice_id:transferGuide[1]!,customer_id:customerId})}
+  }
   if(m==='GET'&&path==='/branches'){requireCapability(principal,'subscription.read');const view=await getSubscription(pool,customerId);return {status:200,data:await listBranches(pool,view.id)}}
   if(m==='POST'&&path==='/branch-quotes'){requireCapability(principal,'branches.manage');return {status:201,data:await createBranchQuote(pool,customerId,input.raw)}}
   if(m==='GET'&&path==='/usage'){requireCapability(principal,'subscription.read');const view=await getSubscription(pool,customerId);const features=view.applied?.entitlement.features??{};const limits=Object.fromEntries(Object.entries(features).filter(([,v])=>v===null||typeof v==='number')) as Record<string,number|null>;return {status:200,data:await getUsage(pool,{tenant_id:principal.tenant_id!,limits})}}
