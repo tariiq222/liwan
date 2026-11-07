@@ -3,6 +3,13 @@
 These tools are operator wrappers. They do not start, stop, restore, schedule,
 or delete services. Local success is not production assurance.
 
+Production sizing (Odoo workers, PostgreSQL connections, pgbouncer pools and the
+memory budget for the Jeddah 4 OCPU / 24 GB server) is computed, not typed:
+[operations/odoo-sizing.md](../docs/operations/odoo-sizing.md) records the
+arithmetic and `deploy/odoo_sizing.py` reproduces it (`--render odoo` prints the
+`[options]` lines, `--render json` prints the whole plan with its invariants).
+`deploy/docker-compose.production.yml` applies the box-level envelope.
+
 ## Odoo image
 
 Build the Odoo image from the repository root with the pinned upstream source
@@ -378,17 +385,70 @@ python3 deploy/restore_verify.py --backup-dir "$WORK/backup" --target-db liwan_d
 After the drill, drop the three scratch databases created above and remove only
 the temporary `$WORK` directory. Never reuse an existing database or filestore.
 
+## Automated encrypted backups (owner decisions 2026-11-06)
+
+The scheduled path is `deploy/backup_pipeline.py`; the manual `deploy/backup.py`
+above stays the capture primitive it calls, and keeps its own `UNVERIFIED`
+contract. The owner decided (2026-11-06): **RPO 1 hour, RTO 4 hours**, hourly
+backups kept **7 days**, daily backups kept **30 days**, **encrypted before they
+leave the server**, stored in an **S3-compatible bucket in Riyadh** (Oracle Object
+Storage), and restore is performed by support on request.
+
+| Concern | Where it lives |
+| --- | --- |
+| Schedule and retention | `deploy/backup_pipeline.py` (`capture`, `prune`, `status`) |
+| Encryption | `deploy/backup_pipeline.py` (`encrypt_file`/`decrypt_file` through the `openssl` CLI) |
+| Offsite transport | `deploy/s3_client.py` (SigV4; a real S3 store and a filesystem store) |
+| Restore drill | `deploy/restore_drill.py` (restores the newest artifact into a scratch database) |
+| Alerts | `deploy/alerts.py` (email and Telegram; five events) |
+
+Every credential is an environment variable, never a repository file:
+
+```sh
+LIWAN_BACKUP_S3_ENDPOINT   # the Object Storage endpoint, for example the Riyadh namespace host
+LIWAN_BACKUP_S3_REGION     # the Object Storage region
+LIWAN_BACKUP_S3_BUCKET     # the backup bucket
+LIWAN_BACKUP_S3_ACCESS_KEY # Customer Secret Key access key
+LIWAN_BACKUP_S3_SECRET_KEY # Customer Secret Key secret
+LIWAN_BACKUP_PASSPHRASE_FILE # mode-600 file holding the backup passphrase
+```
+
+`restoreVerified` is **never hard-coded**. It is read from the latest drill record
+and is true only when a real drill passed inside the RPO/RTO budget. A repository
+that has never run the drill reports it false.
+
+## Restore drill
+
+`deploy/restore_drill.py` downloads the newest artifact for one tenant, restores it
+into a **new scratch database** through `deploy/restore_verify.py` (same checks: Liwan
+modules installed, none stuck mid-transition, every referenced attachment present),
+measures the elapsed time against the 4-hour RTO, and writes an atomic drill record.
+It refuses any non-scratch target and any `odoo19`/`production`/`postgres`/`template`
+name, exactly as the capture tools do.
+
+## Alerts (owner decisions 2026-11-06)
+
+Alerts reach the owner by **email and Telegram** (never WhatsApp). `deploy/alerts.py`
+emits exactly five events — failed backup, backup older than the RPO, disk above the
+threshold, container unhealthy, restore drill failed — and nothing else. A channel
+that fails to deliver is reported, never silently dropped, and one failing channel
+does not stop the other. The bot token, chat id and SMTP credentials are environment
+values the owner provides.
+
+The operator procedure and the per-alert first action are in
+[operations/saas-commercial-runbook.md](../docs/operations/saas-commercial-runbook.md) §5.
+
 ## Unresolved (do not invent answers)
 
 | Topic | Status |
 | --- | --- |
-| Retention | Not defined. This tool does not prune or age backups. |
-| Encryption at rest / in transit for backup files | Not implemented. |
-| Offsite / object-storage replication | Not implemented. |
-| RPO | Not defined. |
-| RTO | Not defined. |
+| Retention | Decided by the owner (hourly 7 days, daily 30 days) and enforced by `deploy/backup_pipeline.py prune`; not yet exercised against a real bucket. |
+| Encryption at rest / in transit for backup files | Implemented as AES-256-CBC with PBKDF2 through the `openssl` CLI, with SHA-256 of plaintext and ciphertext pinned in the manifest. Integrity is detected by checksum, not by an AEAD tag; see the `deploy/backup_pipeline.py` docstring. |
+| Offsite / object-storage replication | Implemented (`deploy/s3_client.py`); no real bucket has been written yet, so it is unproven live. |
+| RPO | Decided: 1 hour. Proven by a drill only when the drill record exists. |
+| RTO | Decided: 4 hours. Proven by a drill only when the drill record exists. |
 | Compose volume export procedure | Not implemented; operator must present host paths. |
-| Point-in-time PostgreSQL recovery | Not implemented (`pg_dump -Fc` only). |
+| Point-in-time PostgreSQL recovery | Not implemented (`pg_dump -Fc` only). The 1-hour RPO rests on hourly full dumps, not WAL archiving. |
 
 ## Verification of these files
 
@@ -400,4 +460,13 @@ python3 -m unittest discover -s deploy -p test_operations.py
 ruff check deploy/check_isolated.py deploy/backup.py deploy/test_operations.py
 python3 deploy/check_isolated.py --help
 python3 deploy/backup.py --help
+```
+
+The production sizing, the backup pipeline, the restore drill, the alerts and the
+image pins have their own offline suites:
+
+```sh
+PYTHONPATH=deploy python3 -m unittest deploy.test_odoo_sizing deploy.test_s3_client \
+  deploy.test_backup_pipeline deploy.test_restore_drill deploy.test_alerts \
+  deploy.test_image_pins deploy.staging.test_staging
 ```

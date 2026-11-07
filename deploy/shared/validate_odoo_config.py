@@ -6,6 +6,21 @@ import re
 import stat
 import sys
 
+# The runtime gate is copied standalone into the image, so it cannot import the
+# sizing module. It carries the ceilings instead: the largest worker budget and the
+# largest Odoo-side connection count any supported single box may declare, matching
+# `deploy/odoo_sizing.py` for the 4 OCPU / 24 GiB production server and the checks
+# `deploy/test_odoo_sizing.py` makes. A plan that needs more belongs on a second
+# application server.
+MAX_WORKERS = 9
+MAX_ODOO_CLIENT_CONNECTIONS = 88
+MAX_CLIENT_CONNECTIONS = 130
+# Odoo's default pool of 64 connections per process cannot fit any shared box plan.
+MAX_DB_MAXCONN = 8
+# The limits below are the plan's own recycle/ceiling pair; soft must stay below hard.
+MAX_LIMIT_MEMORY_SOFT = 640
+MAX_LIMIT_MEMORY_HARD = 800
+
 
 class ConfigRejected(Exception):
     """A deliberately non-diagnostic public configuration rejection."""
@@ -49,6 +64,55 @@ def validate_launch_arguments(arguments):
     return list(expected)
 
 
+def _positive_int(options, name):
+    raw = options.get(name)
+    if raw is None:
+        return None
+    value = raw.strip()
+    if not value.isdigit():
+        raise ConfigRejected()
+    return int(value)
+
+
+def _validate_sizing(options):
+    """Bound the worker budget; a production plan must state its whole budget.
+
+    The gate used to force ``workers = 2``, which cannot carry a production box: the
+    plan in ``deploy/odoo_sizing.py`` computes 9 workers for the 4 OCPU / 24 GiB
+    server. This gate now accepts any coherent plan inside the ceilings one box
+    supports and refuses the shapes that would exhaust the pool or the memory.
+
+    A local acceptance stack may keep its small two-worker shape without a budget;
+    a config that declares a larger worker count must state the matching connection
+    and memory bounds, so a production start cannot silently fall back to Odoo's
+    default 64-connection pool.
+    """
+    workers = _positive_int(options, 'workers')
+    if workers is None or workers < 1 or workers > MAX_WORKERS:
+        raise ConfigRejected()
+    budget = {name: _positive_int(options, name)
+              for name in ('db_maxconn', 'limit_memory_soft', 'limit_memory_hard')}
+    stated = [name for name, value in budget.items() if value is not None]
+    if not stated:
+        # The small local shape: two workers and Odoo's defaults are safe because
+        # nothing else shares that box. A larger count without a budget is not.
+        if workers > 2:
+            raise ConfigRejected()
+        return
+    if len(stated) != len(budget):
+        raise ConfigRejected()
+    db_maxconn = budget['db_maxconn']
+    soft = budget['limit_memory_soft']
+    hard = budget['limit_memory_hard']
+    if db_maxconn < 1 or db_maxconn > MAX_DB_MAXCONN:
+        raise ConfigRejected()
+    if soft >= hard or hard > MAX_LIMIT_MEMORY_HARD:
+        raise ConfigRejected()
+    cron = _positive_int(options, 'max_cron_threads') or 0
+    if (workers + cron) * db_maxconn > MAX_ODOO_CLIENT_CONNECTIONS:
+        raise ConfigRejected()
+
+
 def validate_config(path):
     try:
         descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
@@ -73,10 +137,11 @@ def validate_config(path):
                 raise ConfigRejected()
         required = {
             "dbfilter": "^%h$", "list_db": "False", "proxy_mode": "False",
-            "data_dir": "/var/lib/odoo", "workers": "2",
+            "data_dir": "/var/lib/odoo",
         }
         if any(options.get(key) != value for key, value in required.items()):
             raise ConfigRejected()
+        _validate_sizing(options)
         profile = release_profile()
         if "db_name" in options:
             if profile is None or profile['role'] != 'cron' or _databases(options['db_name']) != profile['databases']:

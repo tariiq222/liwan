@@ -1,0 +1,136 @@
+# Odoo sizing for the production application server
+
+هذه الصفحة تسجّل **حساب** حجم Odoo وPostgreSQL وpgbouncer على خادم التطبيق
+الإنتاجي، لا تُعيد كتابة الأرقام يدويًا. الأرقام تأتي من `deploy/odoo_sizing.py`
+(دالة `compute`) ويُطبَّق حدّ الحاوية عبر `deploy/docker-compose.production.yml`،
+والاختبار `deploy/test_odoo_sizing.py` يفشل إذا تباعدت الصفحة أو الـoverride عن
+الحساب.
+
+**كيف تصل أرقام العمال إلى Odoo:** مشغّل النظام المشترك (`deploy/shared/launch_odoo.py`)
+يرفض أي خيار سطر أوامر غير خيارات الدور، وملف الإعداد `deploy/shared/odoo.conf`
+يملكه حزمة أخرى. لذلك تُولَّد أسطر `[options]` وتُضاف إلى ملف الإعداد الخارجي
+السري (خارج المستودع) قبل الإقلاع:
+
+```sh
+python3 -B deploy/odoo_sizing.py --render odoo >> /path/to/external/odoo.conf
+# أو للمراجعة فقط، مع كل الثوابت والفحوص:
+python3 -B deploy/odoo_sizing.py --render json
+```
+
+الاختبار `test_the_validator_passes_the_rendered_production_fragment` يثبت أن
+الأسطر المولَّدة يمرّرها بوّابة التشغيل `deploy/shared/validate_odoo_config.py`.
+
+| البند | القيمة |
+| --- | --- |
+| الخادم | Oracle A1.Flex في جدة، 4 OCPU، 24 GB (24576 MiB) |
+| العملاء المستهدفون | 50 عميلًا خلال أول 3 أشهر |
+| سياسة قاعدة البيانات | قاعدة بيانات لكل عميل (بلا تغيير) |
+| التوسع لاحقًا | توزيع العملاء على عدة خوادم تطبيق (sharding)، لا تكبير خادم واحد |
+
+## 1. الأرقام الناتجة
+
+```
+workers = 9
+max_cron_threads = 2
+db_maxconn = 8
+limit_memory_soft = 640
+limit_memory_hard = 800
+```
+
+| المكوّن | القيمة | من أين |
+| --- | --- | --- |
+| `workers` | 9 | صيغة Odoo الموثّقة: `2 × OCPU + 1`، ولا يتجاوزها سقف الذاكرة |
+| `max_cron_threads` | 2 | خيطا cron يفصلان المهام المجدولة عن طلبات المستخدمين |
+| `db_maxconn` | 8 | اتصالات لكل عملية Odoo؛ الافتراضي في Odoo 64 يُفرط في حجز الاتصالات |
+| `limit_memory_soft` | 640 MiB | عامل يتجاوزه يُعاد تدويره بأمان |
+| `limit_memory_hard` | 800 MiB | سقف العملية قبل أن تصبح خطرًا على الخادم |
+| اتصالات عملاء Odoo | 88 | `(9 + 2) × 8` |
+| `pgbouncer max_client_conn` | `130` | `88 × 1.25 + 20` مرفوعًا إلى مضاعف 10 |
+| `pgbouncer max_db_connections` | `190` | `50 عميلًا × 2 + 88` |
+| `pgbouncer default_pool_size` | `3` | `190 ÷ 50` لكل قاعدة |
+| `pgbouncer reserve_pool_size` | `2` | `3 ÷ 4` بحد أدنى 2 |
+| `pgbouncer pool_mode` | `transaction` | الوضع الذي يسمح بعملاء أكثر من backends |
+| PostgreSQL `max_connections` | `338` | `190 + 20 محجوزة + 128 هامش` |
+| PostgreSQL `shared_buffers` | 6GB | ربع ذاكرة الخادم تقريبًا (العُرف المتّبع) |
+| فاصل الذاكرة المتبقي | 1024 MiB | احتياط إلزامي للخادم بعد كل البنود |
+
+## 2. حساب الذاكرة
+
+كل بند يُحجز بأقصى حالته، لا بمتوسطه، حتى لا يتحول خطأ قياس إلى قتل عملية
+بنفاد الذاكرة.
+
+| البند | MiB |
+| --- | --- |
+| نظام التشغيل وDocker وpage cache | 2048 |
+| PostgreSQL shared buffers | 6144 |
+| PostgreSQL 338 backendًا × 10 MiB | 3380 |
+| 9 عمال HTTP × 800 MiB | 7200 |
+| خيطا cron × 800 MiB | 1600 |
+| خادم Nuxt | 1024 |
+| guard والحافة وAI في وضع الخمول | 512 |
+| **المجموع المحجوز** | **21908** |
+| **المتبقي من 24576** | **2668** |
+
+المتبقي (2668 MiB) أكبر من الاحتياط الإلزامي (1024 MiB)، لذلك يمرّ التخطيط.
+الاختبار `test_total_reservation_fits_the_box_with_headroom` يفرض هذا الشرط،
+و`test_a_memory_tight_box_shrinks_workers_instead_of_overcommitting` يثبت أن
+خادمًا أصغر يُنقص عدد العمال بدل تجاوز الذاكرة.
+
+## 3. سلسلة الاتصالات
+
+السلسلة تُفحص كسلسلة واحدة، لا كأرقام منفصلة:
+
+```
+(9 workers + 2 cron) × 8 db_maxconn  =  88  اتصال عميل Odoo
+88 × 1.25 + 20                       = 130  pgbouncer max_client_conn   (88 ≤ 130)
+50 × 2 + 88                          = 190  pgbouncer max_db_connections
+190 + 20 محجوزة + 128 هامش           = 338  PostgreSQL max_connections
+```
+
+القواعد المفروضة في `compute()`:
+
+- `connections_fit_pgbouncer`: اتصالات Odoo لا تتجاوز حد عملاء pgbouncer، وإلا
+  توقف العمال عند أول ذروة.
+- `pgbouncer_fits_postgres`: اتصالات pgbouncer الخلفية + المحجوزة + الهامش تساوي
+  `max_connections` بالضبط، فلا يُحجز رقم لا يُستخدم ولا يُتجاهل رقم.
+- `memory_fits_box`: مجموع الخطة + الاحتياط ≤ ذاكرة الخادم.
+- `workers_within_cpu_formula`: العمال لا يتجاوزون صيغة Odoo للأقراص المتاحة.
+
+الهامش (128) هو ضعف حمولة عملية Odoo الافتراضية (64)، فيتحمل إعادة تشغيل عملية
+أو خادم تطبيق ثانٍ دون رفض اتصال. الاختبار
+`test_raising_db_maxconn_past_the_budget_is_refused` يثبت أن رفع `db_maxconn`
+إلى 64 (افتراضي Odoo) يُرفض بدل أن يُنتج خطة تُسقط الاتصالات.
+
+## 4. الفرضيات وما يغيّرها
+
+| الفرضية | القيمة | ما يغيّرها |
+| --- | --- | --- |
+| عدد العملاء | 50 | قرار المالك عند تجاوز 50 عميلًا |
+| ذروة العامل | 800 MiB | قياس فعلي على staging بعد أول 10 عملاء |
+| مساحة PostgreSQL للـbackend | 10 MiB | قياس فعلي عند الحمل |
+| `shared_buffers` | 6 GiB | تغيير حجم الخادم |
+| خادم Nuxt | 1 GiB | قياس فعلي |
+| الاحتياط للخادم | 2048 MiB | تغيير صورة النظام |
+
+كل فرضية ثابت مسمّى في `Assumptions`؛ تغييرها يعني إعادة الحساب لا تعديل الأرقام
+يدويًا. الصفحة والشيفرة والاختبار تُحدَّث في الالتزام نفسه.
+
+## 5. أهداف الاستمرارية
+
+| الهدف | القيمة | الحالة |
+| --- | --- | --- |
+| RPO (أقصى فقد بيانات) | ساعة واحدة | نسخ كل ساعة محفوظة 7 أيام، ويومية محفوظة 30 يومًا |
+| RTO (أقصى زمن استعادة) | 4 ساعات | الاستعادة تُنفَّذ بطلب من الدعم، لا بواجهة العميل |
+| موقع النسخ | الرياض | مشفّرة قبل مغادرة خادم جدة |
+
+الأرقام تُقاس بتمرين `deploy/rpo_rto_drill.py` وسجل تمرين الاستعادة
+`deploy/restore_drill.py`؛ لا تُعلن قبل نجاح تمرين حقيقي.
+
+## 6. pgpouncer: ما لم يُثبَت بعد
+
+الوضع `transaction` مُجرَّب في اختبار دخان على قاعدة scratch
+(`deploy/loadtest/results/COMPARISON.md`): قراءات وكتابات وcron تعمل. ما لم يُثبت
+بعد هو التوافق العميق — advisory locks بين العمال و`NOTIFY` للمحادثات الحية — تحت
+حمل ممتد (soak) على بيئة تمثيلية. حتى يُثبت ذلك، يبقى pgbouncer اختياريًا في
+الإنتاج: إن أُغلق، تعمل Odoo مباشرة مع PostgreSQL على نفس الأرقام باستثناء أن
+`db_maxconn` يصبح هو حد الاتصالات الفعلي.
