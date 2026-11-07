@@ -15,11 +15,13 @@ suite('schema_033 carries a pre-release development database forward', () => {
     await pool.query(`INSERT INTO plan_revisions(id,plan_id,version,name,audience,status,available,term_months,currency,prices,platform_limits,
       included_bundle_revision_ids,optional_bundle_revision_ids,included_extra_branches,extra_branch_prices,extra_branches_limit,included_users,included_storage_mb,
       user_prices,storage_prices,policy_revision_id,trial_days,grace_days,auto_suspend,auto_renew_allowed,content_digest,validated_digest,published_at)
-      VALUES(gen_random_uuid(),'00000000-0000-4000-8000-0000000000b1',
+      VALUES('11111111-1111-4111-8111-111111111111','00000000-0000-4000-8000-0000000000b1',
         (SELECT max(version)+1 FROM plan_revisions WHERE plan_id='00000000-0000-4000-8000-0000000000b1'),'LiwanOS','{"kind":"public"}','published',true,12,'SAR',
         '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":29900}}]'::jsonb,'{"ai.setup.monthly":50}'::jsonb,
         '[]','[]',0,'[]',NULL,3,5120,'[]','[]','6f1c3d8e-0000-4000-8000-000000000001',14,7,true,true,'d','d',now())`)
-    const stale = (await pool.query("SELECT id,version FROM plan_revisions WHERE status='published' AND available")).rows[0]
+    // The row this fixture planted, by its fixed id: the shared database may hold other suites' revisions.
+    await pool.query("UPDATE plan_revisions SET available=false, edit_revision=edit_revision+1 WHERE plan_id='00000000-0000-4000-8000-0000000000b1' AND id<>'11111111-1111-4111-8111-111111111111' AND available")
+    const stale = (await pool.query("SELECT id,version FROM plan_revisions WHERE id='11111111-1111-4111-8111-111111111111'")).rows[0]
     // Run the retroactive statement of schema_033 on its own: it is the part a database that already applied the
     // earlier half of 33 would re-run, and a fresh database skips it (its WHERE clause finds nothing).
     const sql = await readFile(new URL('../schema_033.sql', import.meta.url), 'utf8')
