@@ -354,7 +354,6 @@ involved, unlike `npm run e2e:odoo` (the agentic runner of "Isolated agentic e2e
 runs on a pull request that touches `E2E_ODOO_TRIGGERS` (`tools/ci_scope.py`), and otherwise on the push to `main`, the nightly run and a
 full dispatch. A project starts with no optional tool enabled and finance stays off until a company enables it, so the finance journeys
 create their project with `tool_preferences` and assert the tool answered as enabled — the same opt-in a customer performs.
-One retry is configured for this suite only (`playwright.config.ts`, `E2E_REAL_ODOO=1`): its chat journey waits on a server push.
 
 ### LiwanOS AI spec
 
