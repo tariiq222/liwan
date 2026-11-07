@@ -261,6 +261,17 @@ class TestValidatorBudgetMatches(unittest.TestCase):
             with self.subTest(fragment=fragment), self.assertRaises(self.validator.ConfigRejected):
                 self.validate_text(self.config(fragment))
 
+    def test_the_unsized_local_shape_is_bounded_by_the_same_pool_the_plan_reserves(self):
+        # Why two workers with no budget is safe and three is not: at Odoo's default
+        # 64-connection pool the small shape is (2 + 2) * 64 = 256 connections, inside
+        # the production plan's 338 max_connections; three workers is (3 + 2) * 64 =
+        # 320 plus the pool itself, and a nine-worker plan is 704.
+        default_pool = odoo_sizing.ODOO_DEFAULT_DB_MAXCONN
+        self.assertLessEqual((2 + self.sizing.max_cron_threads) * default_pool,
+                             self.sizing.postgres_max_connections)
+        self.assertGreater((self.sizing.workers + self.sizing.max_cron_threads) * default_pool,
+                           self.sizing.postgres_max_connections)
+
     def test_the_gate_refuses_the_unsized_shape_the_old_gate_forced(self):
         # workers=2 with no budget is accepted only as the local shape; the plan's
         # production fragment must carry the full budget instead.

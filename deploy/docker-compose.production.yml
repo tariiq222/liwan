@@ -16,12 +16,18 @@
 # environment variable cannot silently downsize production to Odoo's defaults.
 services:
   odoo:
-    # The worker budget does NOT live here: the shared launcher (`launch_odoo.py`)
-    # accepts no sizing flags, and the config file is the operator's external secret
-    # file (P2 owns `deploy/shared/odoo.conf`). Generate the `[options]` lines with
-    #   python3 -B deploy/odoo_sizing.py --render odoo
-    # and append them to that external config before starting the stack. The
-    # container limits below are the same plan's box-level envelope.
+    # The worker budget is NOT here, deliberately. In the production topology the
+    # shared overlay replaces this service's entrypoint with
+    # `deploy/shared/launch_odoo.py`, whose release profile accepts exactly the
+    # public role options and refuses any other Odoo CLI flag; a `command` here
+    # would refuse the boot. The budget therefore reaches Odoo through the external
+    # read-only config file, whose `[options]` lines the plan renders:
+    #
+    #   python3 -B deploy/odoo_sizing.py --render odoo >> /path/to/external/odoo.conf
+    #
+    # The runtime gate `deploy/shared/validate_odoo_config.py` then refuses that
+    # file unless the whole budget is coherent, so a start cannot fall back to
+    # Odoo's defaults. This override carries only the box-level envelope.
     #
     # A hard ceiling per container keeps a runaway worker inside its own budget
     # instead of starving PostgreSQL or the edge (9 workers + 2 cron at 800 MiB,

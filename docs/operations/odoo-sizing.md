@@ -6,10 +6,12 @@
 والاختبار `deploy/test_odoo_sizing.py` يفشل إذا تباعدت الصفحة أو الـoverride عن
 الحساب.
 
-**كيف تصل أرقام العمال إلى Odoo:** مشغّل النظام المشترك (`deploy/shared/launch_odoo.py`)
-يرفض أي خيار سطر أوامر غير خيارات الدور، وملف الإعداد `deploy/shared/odoo.conf`
-يملكه حزمة أخرى. لذلك تُولَّد أسطر `[options]` وتُضاف إلى ملف الإعداد الخارجي
-السري (خارج المستودع) قبل الإقلاع:
+**كيف تصل أرقام العمال إلى Odoo:** مسار الإنتاج هو الحزمة المشتركة، ومشغّل
+النظام المشترك (`deploy/shared/launch_odoo.py`) يقبل خيارات الدور العامة فقط
+ويرفض أي خيار سطر أوامر آخر؛ لذلك لا يضع `deploy/docker-compose.production.yml`
+أمر `command` لخدمة odoo، بل يُترك الحجم لملف الإعداد. تُولَّد أسطر `[options]`
+وتُضاف إلى ملف الإعداد الخارجي السري (خارج المستودع، يملكه مشغّل النظام) قبل
+الإقلاع:
 
 ```sh
 python3 -B deploy/odoo_sizing.py --render odoo >> /path/to/external/odoo.conf
@@ -17,8 +19,16 @@ python3 -B deploy/odoo_sizing.py --render odoo >> /path/to/external/odoo.conf
 python3 -B deploy/odoo_sizing.py --render json
 ```
 
-الاختبار `test_the_validator_passes_the_rendered_production_fragment` يثبت أن
-الأسطر المولَّدة يمرّرها بوّابة التشغيل `deploy/shared/validate_odoo_config.py`.
+بوّابة التشغيل `deploy/shared/validate_odoo_config.py` تقرأ ذلك الملف وترفض
+الإقلاع إذا كانت ميزانية العمال ناقصة أو غير متسقة: عدد عمال أكبر من اثنين بلا
+`db_maxconn` وحدود ذاكرة يُرفض، والافتراضي 64 اتصالًا لكل عملية يُرفض، وزوج
+الذاكرة المقلوب يُرفض. الشكل المحلي الصغير (عاملان بلا ميزانية) مقبول لسبب
+محسوب: `(2 + 2) × 64 = 256` اتصالًا تبقى داخل `max_connections = 338` التي
+تحجزها الخطة، بينما `(9 + 2) × 64 = 704` تتجاوزها، ويُثبت
+`test_the_unsized_local_shape_is_bounded_by_the_same_pool_the_plan_reserves`
+هذا الحساب. الاختبار
+`test_the_validator_passes_the_rendered_production_fragment` يثبت أن الأسطر
+المولَّدة يمرّرها بوّابة التشغيل.
 
 | البند | القيمة |
 | --- | --- |

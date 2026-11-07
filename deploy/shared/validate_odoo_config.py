@@ -94,8 +94,11 @@ def _validate_sizing(options):
               for name in ('db_maxconn', 'limit_memory_soft', 'limit_memory_hard')}
     stated = [name for name, value in budget.items() if value is not None]
     if not stated:
-        # The small local shape: two workers and Odoo's defaults are safe because
-        # nothing else shares that box. A larger count without a budget is not.
+        # The small local shape. It is safe for a stated reason, not by exemption:
+        # two workers plus two cron threads at Odoo's default 64-connection pool is
+        # 256 connections, which still fits the 338 the production plan allows. A
+        # larger count without a budget is 704 and would exhaust the pool, so it is
+        # refused. `deploy/test_odoo_sizing.py` pins that arithmetic.
         if workers > 2:
             raise ConfigRejected()
         return
