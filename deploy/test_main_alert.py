@@ -57,20 +57,23 @@ class ScriptTest(unittest.TestCase):
                       f'args = sys.argv[1:]\nopen({str(self.calls)!r}, "a").write(json.dumps(args) + "\\n")\n'
                       'if os.environ.get("GH_FAIL") == " ".join(args[:2]): sys.exit(1)\n'
                       'if args[:2] == ["issue", "list"]: print(os.environ.get("OPEN_ISSUE", ""))\n'
-                      'if args[:2] == ["run", "view"]: print("odoo (shard 3), e2e-mock (shard 1)")\n')
+                      'if args[:2] == ["run", "view"]: print("odoo (shard 3), e2e-mock (shard 1)")\n'
+                      'if args[:2] == ["api", "repos/o/r/commits/main"]: print(os.environ["MAIN_SHA"])\n')
         gh.chmod(0o755)
 
     def run_script(self, result, open_issue='', **extra):
         env = {**os.environ, 'PATH': f'{self.root}{os.pathsep}{os.environ["PATH"]}', 'GH_TOKEN': 'x',
                'GITHUB_REPOSITORY': 'o/r', 'GITHUB_RUN_ID': '77', 'GITHUB_SERVER_URL': 'https://github.com',
-               'CI_RESULT': result, 'OPEN_ISSUE': open_issue, **extra}
+               'GITHUB_SHA': 'abc', 'MAIN_SHA': 'abc', 'CI_RESULT': result, 'OPEN_ISSUE': open_issue, **extra}
         process = subprocess.run(['bash', str(SCRIPT)], env=env, capture_output=True, text=True, check=False)
         calls = [json.loads(line) for line in self.calls.read_text().splitlines()]
         return process, calls
 
     @staticmethod
     def verbs(calls):
-        return [' '.join(call[:2]) for call in calls]
+        """The issue and run calls, after the head-of-main check every red or green run makes first."""
+        assert calls[0] == ['api', 'repos/o/r/commits/main', '--jq', '.sha'], calls
+        return [' '.join(call[:2]) for call in calls[1:]]
 
     def test_red_run_without_an_open_issue_creates_the_label_and_the_issue(self):
         process, calls = self.run_script('failure')
@@ -97,8 +100,8 @@ class ScriptTest(unittest.TestCase):
         process, calls = self.run_script('success', open_issue='41')
         self.assertEqual(process.returncode, 0, process.stderr)
         self.assertEqual(self.verbs(calls), ['issue list', 'issue comment', 'issue close'])
-        self.assertIn(RUN_URL, calls[1][calls[1].index('--body') + 1])
-        self.assertEqual(calls[2][2], '41')
+        self.assertIn(RUN_URL, calls[2][calls[2].index('--body') + 1])
+        self.assertEqual(calls[3][2], '41')
 
     def test_green_run_without_an_open_issue_changes_nothing(self):
         process, calls = self.run_script('success')
@@ -110,6 +113,15 @@ class ScriptTest(unittest.TestCase):
             with self.subTest(result=result):
                 process, calls = self.run_script(result)
                 self.assertEqual((process.returncode, calls), (0, []))
+
+    def test_a_run_of_an_older_commit_changes_nothing(self):
+        for result in ('failure', 'success'):
+            with self.subTest(result=result):
+                self.calls.write_text('')
+                process, calls = self.run_script(result, open_issue='41', MAIN_SHA='newer')
+                self.assertEqual(process.returncode, 0, process.stderr)
+                self.assertEqual(self.verbs(calls), [])
+                self.assertIn('stale', process.stdout)
 
     def test_a_failing_issue_call_fails_the_script(self):
         process, _ = self.run_script('failure', GH_FAIL='issue create')

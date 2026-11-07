@@ -3,9 +3,11 @@
 #   CI_RESULT=<needs.ci-result.result> deploy/ci/main-alert.sh
 # A failed ci-result opens the issue (label ci-red) or, when one is open, comments the run URL and the failed jobs.
 # A passed ci-result comments the green run URL on the open issue and closes it. Any other result changes nothing.
+# A run of a commit that is no longer the head of main changes nothing: push and nightly runs overlap, and an
+# older green run must not close the alert of a newer red one.
 # A failing `gh` call fails the job on purpose: a broken alert must be seen.
 set -euo pipefail
-for name in GH_TOKEN GITHUB_REPOSITORY GITHUB_RUN_ID CI_RESULT; do
+for name in GH_TOKEN GITHUB_REPOSITORY GITHUB_RUN_ID GITHUB_SHA CI_RESULT; do
   [ -n "${!name:-}" ] || { echo "main-alert: $name is required" >&2; exit 2; }
 done
 export GH_REPO="$GITHUB_REPOSITORY"
@@ -17,6 +19,16 @@ failed_jobs() {
   gh run view "$GITHUB_RUN_ID" --json jobs \
     --jq '[.jobs[] | select(.conclusion == "failure" and .name != "ci-result") | .name] | join(", ")'
 }
+main_head() { gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha; }
+case "$CI_RESULT" in
+  failure|success)
+    head="$(main_head)"
+    if [ "$GITHUB_SHA" != "$head" ]; then
+      echo "run of $GITHUB_SHA is stale: main is at $head; no alert change"
+      exit 0
+    fi
+    ;;
+esac
 case "$CI_RESULT" in
   failure)
     body="The \`ci\` run is red: $RUN_URL
