@@ -25,6 +25,9 @@ const ALLOWED = [
   // Release 1 billing: the vendor-editable settings row, and recording a bank transfer against one invoice.
   /^\/v1\/commercial\/billing-settings$/,
   new RegExp(`^/v1/commercial/invoices/${SEGMENT}/bank-transfer$`),
+  // A2: the customer-requested refund. Creates the pending vendor credit note; the provider reference is recorded
+  // through the existing invoice-adjustments refund route above.
+  new RegExp(`^/v1/commercial/invoices/${SEGMENT}/refund-request$`),
   new RegExp(`^/v1/commercial/customers/${SEGMENT}/(trial|invitations)$`),
   new RegExp(`^/v1/commercial/trials/${SEGMENT}/(extend|end)$`),
   // suspend and resume are separate actions the customer page offers; without them the console answered its own 404.
@@ -54,6 +57,7 @@ const READ_ONLY = [new RegExp(`^/v1/packages(/${SEGMENT})?$`)]
 const METHOD_BOUND = [
   { pattern: /^\/v1\/commercial\/billing-settings$/, methods: ['GET', 'PATCH', 'POST'] },
   { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/bank-transfer$`), methods: ['POST'] },
+  { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/refund-request$`), methods: ['POST'] },
 ] as const
 
 /** Maps /api/vendor/v1/** to the control plane's /v1/**; anything outside the allowlist (the sign-in surface included) is 404. */

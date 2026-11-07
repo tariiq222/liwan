@@ -20,11 +20,38 @@ import { assertDowngradeFitsUsage } from './usage.js'
  * (`enrollment_admin_missing`), and the refund rule would refuse it once the window closed. Refused before any money
  * is taken, for the order, a bank transfer and a payment attempt alike.
  */
-export async function requireReachableManager(client: Pick<PoolClient, 'query'>, customer: Record<string, any>) {
-  if (customer.enrollment_request_id) return
-  if (customer.admin_login) return
-  const bound = await client.query('SELECT 1 FROM shared_registry_bindings WHERE control_tenant_id=$1 AND enabled', [customer.tenant_id])
-  if (bound.rowCount) return
+/**
+ * A7: one predicate, used by the pre-payment guard and by fulfilment.
+ *
+ * A paid order can only be provisioned if fulfilment can find (or create) a workspace with a manager to invite. Both
+ * sides must therefore answer the same question:
+ *   - a stored enrollment request carries the admin login and names the workspace;
+ *   - a stored admin login on the customer is enough;
+ *   - a shared-registry binding for the customer's tenant is enough;
+ *   - in dedicated mode a tenant the subscription already has (or inherits from the customer) is enough: fulfilment
+ *     proceeds without a manager there, so refusing it would block a payable order. In shared mode a tenant on its own
+ *     proves nothing, because the onboarding that creates the registry binding is where the manager comes from.
+ * The guard refuses only when none of those hold, which is the one case fulfilment would fail on
+ * `enrollment_admin_missing` after the money was taken.
+ */
+export function dedicatedTenancy(mode = process.env.LIWAN_TENANCY_MODE): boolean {
+  return mode === undefined || mode === '' || mode === 'dedicated'
+}
+
+export async function hasReachableManager(client: Pick<PoolClient, 'query'>, customer: Record<string, any>, subscription?: { tenant_id?: string | null }, mode = process.env.LIWAN_TENANCY_MODE) {
+  if (customer.enrollment_request_id) return true
+  if (customer.admin_login) return true
+  // The tenant fulfilment will act on: the subscription's, or (before it exists) the one it will inherit.
+  const tenantId = subscription?.tenant_id ?? customer.tenant_id
+  if (!tenantId) return false
+  if (dedicatedTenancy(mode)) return true
+  const bound = await client.query('SELECT 1 FROM shared_registry_bindings WHERE control_tenant_id=$1 AND enabled', [tenantId])
+  return Boolean(bound.rowCount)
+}
+
+/** The guard itself: the shared predicate, refused with the code the console already shows. */
+export async function requireReachableManager(client: Pick<PoolClient, 'query'>, customer: Record<string, any>, subscription?: { tenant_id?: string | null }) {
+  if (await hasReachableManager(client, customer, subscription)) return
   throw new CommercialHttpError('admin_login_required', 409)
 }
 
@@ -154,7 +181,7 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
   // A4: a paid first order needs a manager the fulfilment can invite. Shared mode used to stand in for this rule with
   // trial_required_first, which also refused orders that could have been fulfilled.
   if (isPaidFirstOrder({ kind: quote.subscription_id && subscription?.applied_revision_id ? 'change' : 'new' }, quote.due_now.minor, subscription?.applied_revision_id))
-    await requireReachableManager(client, customer)
+    await requireReachableManager(client, customer, subscription)
   // A vendor may place a paid first order for a customer with no tenant binding yet (release 1, owner decision
   // 2026-11-06): the order carries the control tenant its fulfilment provisions. Issue #143's invariant is kept where
   // it belongs, in fulfilment: an order with no tenant is never applied, its fulfilment is released with

@@ -23,7 +23,7 @@ import { resumeSubscription, suspendSubscription } from './suspension.js'
 import { createPaymentAttempt, handleProviderEvent, paymentAttemptView } from './payments.js'
 import { generateRenewals, applyDunning } from './renewals.js'
 import { SimulatorAdapter } from './payment-simulator.js'
-import { refundCreditNote } from './settlements.js'
+import { refundCreditNote, requestInvoiceRefund } from './settlements.js'
 import { bankTransferInputSchema, confirmBankTransfer } from './bank-transfer.js'
 import { billingSettings, billingSettingsInputSchema, setBillingSettings } from './billing-settings.js'
 
@@ -174,6 +174,16 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     need(input,'vendor.billing.manage')
     if(!z.uuid().safeParse(refund[1]).success)throw new CommercialHttpError('not_found',404)
     return {status:200,data:await refundCreditNote(pool,{adjustment_id:refund[1]!,actor:{issuer:input.issuer,actorUid:input.actor},request:parseBody(input.raw,refundCreditNoteRequestSchema)})}
+  }
+  // A2: the customer asked for their money back inside the window and there is no note yet. Creates the pending
+  // vendor credit note for the full invoice; recording the provider reference is the existing refund route above.
+  const refundRequest=/^\/invoices\/([^/]+)\/refund-request$/.exec(path)
+  if(refundRequest&&m==='POST'){
+    need(input,'vendor.billing.manage')
+    if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
+    if(!z.uuid().safeParse(refundRequest[1]).success)throw new CommercialHttpError('not_found',404)
+    const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
+    return {status:201,data:await requestInvoiceRefund(pool,{invoice_id:refundRequest[1]!,actor:{issuer:input.issuer,actorUid:input.actor},reason:body.reason})}
   }
   const settle=/^\/payment-simulator\/([^/]+)\/settle$/.exec(path)
   if(settle){

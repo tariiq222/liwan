@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { canonicalJson } from './calendar.js'
-import { admitsRequiredAdmin, USERS_LIMIT_KEY, usersWithinCap } from './schemas.js'
+import { admitsRequiredAdmin, fitsStorageSteps, USERS_LIMIT_KEY, usersWithinCap } from './schemas.js'
 import { CommercialError } from './types.js'
 import type { BundleRevision, CapacityMap, CatalogApplication, CatalogRelease, CustomerTermsRevision, EntitlementSnapshot, PlanRevision } from './types.js'
 
@@ -25,6 +25,11 @@ export function compileEntitlements(input: {
   const { release, plan, bundles, terms, quantities } = input
   if (![quantities.users, quantities.storage_mb].every(v => Number.isSafeInteger(v) && v >= 0))
     throw new CommercialError('invalid_quantity', 'quantities')
+  // A6/A8: the compiler is the last gate before a quantity becomes an entitlement, so it enforces the plan's own
+  // storage steps rather than trusting that every caller came through `computeQuote`. Same rule, same refusal code.
+  if (Number.isInteger(plan.included_storage_mb) && quantities.storage_mb > 0
+    && !fitsStorageSteps(Math.max(0, quantities.storage_mb - plan.included_storage_mb), plan))
+    throw new CommercialError('storage_step_invalid', 'quantities')
   const apps = new Map(release.applications.map(a => [a.id, a]))
   const coreApps = release.applications.filter(a => !a.selectable)
 

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { addCadence, canonicalJson, daysBetween, remainingDays } from './calendar.js'
 import { paidExtraBranches, paidStorageGb, paidUnits, prorateMinor, vat } from './pricing.js'
-import { MAX_USERS } from './schemas.js'
+import { fitsStorageSteps, MAX_USERS } from './schemas.js'
 import { CommercialError } from './types.js'
 import type { BundleRevision, Cadence, CustomerTermsRevision, Money, PlanRevision, Price, PricingPolicy, Quote, QuoteLine } from './types.js'
 
@@ -22,13 +22,6 @@ export type ComputeQuoteInput = {
 }
 
 const MB_PER_GB = 1024
-/** A11: an extra storage amount is legal when it is a whole number of the step that applies to it. */
-export function fitsStorageSteps(extraMb: number, plan: { storage_step_mb: number; storage_step_threshold_mb: number; storage_large_step_mb: number }): boolean {
-  if (extraMb <= 0) return true
-  // Below the threshold the small step applies; once the extra reaches it, the large step applies instead.
-  const step = extraMb < plan.storage_step_threshold_mb ? plan.storage_step_mb : plan.storage_large_step_mb
-  return extraMb % step === 0
-}
 const same = (a: Cadence, b: Cadence) => a.unit === b.unit && a.count === b.count
 function pick(cadence: Cadence, currency: string, ...sources: (Price[] | Price | undefined)[]): Price | undefined {
   for (const s of sources) {
@@ -149,7 +142,9 @@ export function computeQuote(input: ComputeQuoteInput): Quote {
   // The onboarding fee is a first-invoice item: it joins the lines due now, never the renewal, and only on a new order.
   if (input.onboarding) {
     if (input.onboarding.amount.currency !== currency) throw new CommercialError('currency_mismatch')
-    exponents.add(input.onboarding.amount.exponent)
+    // The fee must be in the plan's own currency and exponent: a mismatch would silently divide or multiply it.
+    if (input.onboarding.amount.currency !== currency || input.onboarding.amount.exponent !== exponent)
+      throw new CommercialError('currency_mismatch', 'onboarding')
     dueNow += input.onboarding.amount.minor
     add('onboarding', 'onboarding', 'Onboarding', 1, input.onboarding.amount.minor, 'now', plan.id, period.start, period.end)
   }

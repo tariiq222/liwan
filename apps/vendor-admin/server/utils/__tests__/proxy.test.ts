@@ -165,6 +165,23 @@ describe('vendor API proxy', () => {
     expect(calls).toHaveLength(forwarded)
   })
 
+  it('forwards the customer refund request, as a POST only', async () => {
+    // A2: the paid-invoice page offers «طلب استرداد». Without this entry the BFF answered its own 404 and a customer who
+    // asked for their money back inside the window could never be refunded from the console.
+    const calls = stubUpstream(() => json(201, {}))
+    expect((await post('/commercial/invoices/inv-1/refund-request')).status).toBe(201)
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual(['POST /v1/commercial/invoices/inv-1/refund-request'])
+    const forwarded = calls.length
+    // A method the console never uses is refused before anything is forwarded. (A DELETE with no body is refused 400 by
+    // the body reader first; PATCH and PUT reach the method check, which is the guard being tested here.)
+    for (const method of ['GET', 'PATCH', 'PUT'] as const)
+      expect((await send(proxy, '/api/vendor/v1/commercial/invoices/inv-1/refund-request', { method, body: { a: 1 }, headers: cookieHeader() })).status, method).toBe(405)
+    // A near miss is not the route.
+    for (const path of ['/commercial/invoices/inv-1/refund-requests', '/commercial/invoices/inv-1/refund', '/commercial/invoice-adjustments/inv-1/refund-request'])
+      expect((await post(path)).status, path).toBe(404)
+    expect(calls).toHaveLength(forwarded)
+  })
+
   it('forwards the subscription suspend and resume actions the customer page offers', async () => {
     // Without these the console answered its own 404 and a customer could never be suspended from the page.
     const calls = stubUpstream(() => json(200, {}))

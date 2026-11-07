@@ -58,8 +58,9 @@ export async function seedDefaultBundles(pool: Pool, actor: CommercialActor, inp
   body.optional_bundle_revision_ids = bundleIds
   // The new revision is a clone of the previous one, which may carry limits this release no longer declares (a renamed one):
   // compiling refuses those (limit_not_supported), so only the keys the release declares are kept. A limit the release adds
-  // is seeded with the catalog's default for it (the free assistants' budget, 300 a month) and otherwise as null (unlimited
-  // fair use, owner decision 2026-10-25), for the owner to tighten in the vendor console.
+  // A limit the release adds is seeded with the catalog's own ceiling for it (the free assistants' budget, 100 a month,
+  // which is also what the seeded LiwanOS plan carries) and otherwise as null (unlimited fair use, owner decision
+  // 2026-10-25), for the owner to tighten in the vendor console.
   const declared = new Map(release.applications.filter(a => !a.selectable).flatMap(a => a.features.filter(f => f.kind === 'limit' && !DERIVED_LIMITS.includes(f.key)).map(f => [f.key, f] as const)))
   const platformLimits: Record<string, number | null> = {}
   for (const [key, feature] of declared) {

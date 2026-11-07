@@ -38,7 +38,7 @@
         "limit:ai.messages.monthly",
         "limit:ai.tool_calls.per_run",
         "limit:ai.tokens.monthly",
-        "limit:ai.assist.monthly:300",
+        "limit:ai.assist.monthly:100",
         "limit:ai.output_tokens.per_run",
         "boolean:payments.enabled"
       ]

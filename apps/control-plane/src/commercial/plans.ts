@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { planViewSchema, planCreateSchema, planEditSchema, lifecycleActionSchema, type PlanView, type PlanRevision, type Price } from '@liwan/commercial-contracts'
+import { planViewSchema, planCreateSchema, planEditSchema, lifecycleActionSchema, storageStepsAligned, type PlanView, type PlanRevision, type Price } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { audit, CommercialHttpError, digestOf, iso, lockRevision, nextVersion, pageParams, referenceCount, requireStatus, statusSql, type CommercialActor, type Kind } from './lifecycle.js'
 import { priceIssues, bundleRevision, loadRelease } from './bundles.js'
@@ -67,12 +67,15 @@ export async function planIssues(client: Pool | PoolClient, row: Row): Promise<I
   const prices: Price[] = row.prices, branchPrices: Price[] = row.extra_branch_prices
   const userPrices: Price[] = row.user_prices ?? [], storagePrices: Price[] = row.storage_prices ?? []
   if (!prices.length) issues.push({ code: 'price_missing', field: 'prices' })
-  // A11: the storage steps must actually tile the range they govern, or the plan silently makes some quantities
-  // unbuyable (a 10 GiB step with a 15 GiB threshold refuses 20 GiB and then everything below the large step).
-  if (row.storage_step_mb > 0 && row.storage_step_threshold_mb % row.storage_step_mb !== 0)
-    issues.push({ code: 'storage_step_misaligned', field: 'storage_step_threshold_mb' })
-  if (row.storage_large_step_mb > 0 && row.storage_large_step_mb < row.storage_step_mb)
-    issues.push({ code: 'storage_step_misaligned', field: 'storage_large_step_mb' })
+  // A6: the storage steps must actually tile the range they govern, or the plan silently makes some quantities
+  // unbuyable (a 10 GiB step with a 15 GiB threshold refuses 20 GiB and then everything below the large step). The rule
+  // is `storageStepsAligned`, shared with the zod input schema and the database CHECK; the issue names the field to fix.
+  if (!storageStepsAligned({ storage_step_mb: row.storage_step_mb, storage_step_threshold_mb: row.storage_step_threshold_mb, storage_large_step_mb: row.storage_large_step_mb })) {
+    const field = row.storage_large_step_mb < row.storage_step_mb ? 'storage_large_step_mb'
+      : row.storage_step_threshold_mb < row.storage_step_mb || row.storage_step_threshold_mb % row.storage_step_mb !== 0 ? 'storage_step_threshold_mb'
+        : 'storage_large_step_mb'
+    issues.push({ code: 'storage_step_misaligned', field })
+  }
   // A plan that costs nothing never carries a trial: its trial could only end in a past_due state whose expiry makes a
   // free tenant read-only, and there is no payment for the customer to make. A free plan starts active outright.
   if (row.trial_days > 0 && prices.length > 0 && prices.every(p => p.amount.minor === 0))

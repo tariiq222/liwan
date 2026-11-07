@@ -7,7 +7,9 @@ const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
  * (owner decision 2026-11-06), so the active policy is `none` and every Liwan invoice carries no label; a registered
  * future policy names its own rate here. The label is never forced onto an invoice.
  */
-export const TAX_LABELS = { 'none': null, 'vat_exclusive': 'VAT 15% exclusive' } as const
+// Only the label an invoice can actually carry: an untaxed invoice has no label at all (the field is null),
+// so a `none` entry here would be a second way to spell the same thing.
+export const TAX_LABELS = { 'vat_exclusive': 'VAT 15% exclusive' } as const
 export type TaxLabel = (typeof TAX_LABELS)[keyof typeof TAX_LABELS]
 /** `null` for the policy that charges no tax, otherwise that policy's own label. */
 export const taxLabelSchema = z.union([z.null(), z.literal(TAX_LABELS.vat_exclusive)])

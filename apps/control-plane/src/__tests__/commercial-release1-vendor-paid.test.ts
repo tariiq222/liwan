@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { url, client, money, monthly } from './commercial-helpers.js'
 import { migrate } from '../db.js'
+import { riyadhDate } from '@liwan/commercial-contracts'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { routesB } from '../commercial/routes-b.js'
 import { confirmBankTransfer } from '../commercial/bank-transfer.js'
@@ -90,8 +91,8 @@ suite('a vendor-added customer starts paid (W4)', () => {
     return { customer_id: customer.id, quote, order: ordered! }
   }
   const bundles_param = () => (plan.optional_bundle_revision_ids as string[]).slice(0, 1)
-  const placeOrder = (customerId: string, quoteId: string) => routesB(pool, { method: 'POST', pathname: '/v1/commercial/orders',
-    raw: JSON.stringify({ quote_id: quoteId, expected_subscription_revision: 0, idempotency_key: randomUUID() }),
+  const placeOrder = (customerId: string, quoteId: string, revision = 0) => routesB(pool, { method: 'POST', pathname: '/v1/commercial/orders',
+    raw: JSON.stringify({ quote_id: quoteId, expected_subscription_revision: revision, idempotency_key: randomUUID() }),
     issuer: 'vendor-paid-test', actor: 1, capabilities: vendorCaps as any, stepUpFresh: true }, new URL('http://localhost/v1/commercial/orders'))
 
   it('places a paid first order in shared mode instead of forcing a trial', async () => {
@@ -127,10 +128,37 @@ suite('a vendor-added customer starts paid (W4)', () => {
     const { order } = await vendorOrder()
     const invoice = (await pool.query("SELECT id FROM invoices WHERE order_id=$1 AND status='issued'", [order.data.order.id])).rows[0]
     const result = await confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', reference: `TRF-${randomUUID().slice(0, 8)}`,
-      amount: order.data.order.due_now.minor, value_date: '2026-11-06' })
+      amount: order.data.order.due_now.minor, value_date: riyadhDate(new Date()) })
     expect(result.replay).toBe(false)
     const row = (await pool.query('SELECT payment_state, fulfillment_state FROM orders WHERE id=$1', [order.data.order.id])).rows[0]
     expect(row).toMatchObject({ payment_state: 'paid', fulfillment_state: 'queued' })
+  })
+
+  it('accepts a paid first order from a customer whose subscription already has a tenant, even with no admin_login', async () => {
+    // A7: in dedicated mode a bound tenant means fulfilment proceeds without a manager; the old guard refused it
+    // anyway, because it looked only at admin_login and shared-registry bindings. Both callers now share one predicate.
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated')
+    const customer = await createCustomerWithoutManager('Bound tenant')
+    // The subscription and its tenant: the workspace exists, so fulfilment has somewhere to provision into.
+    const subscription = randomUUID()
+    await pool.query('INSERT INTO subscriptions(id,customer_id,tenant_id) VALUES($1,$2,$3)', [subscription, customer.id, (await pool.query('SELECT tenant_id FROM customers WHERE id=$1', [customer.id])).rows[0].tenant_id])
+    const quote = await createQuoteForCustomer(pool, { customer_id: customer.id, request: { kind: 'new', plan_revision_id: plan.id,
+      bundle_revision_ids: bundles_param(), cadence: monthly, requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 20480 } })
+    expect(quote.due_now.minor).toBeGreaterThan(0)
+    const ordered = await placeOrder(customer.id, quote.id, 1)
+    expect(ordered!.status, JSON.stringify(ordered!.data)).toBe(201)
+    expect((await pool.query('SELECT count(*)::int AS n FROM orders WHERE customer_id=$1', [customer.id])).rows[0].n).toBe(1)
+  })
+
+  it('still refuses a paid first order from a customer with no tenant and no manager', async () => {
+    // The predicate must not have become "always true": a customer with no subscription tenant, no binding and no admin
+    // is still refused, because fulfilment would then have nowhere to put the workspace.
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated')
+    const customer = await createCustomerWithoutManager('No tenant either')
+    await pool.query('UPDATE customers SET tenant_id=NULL WHERE id=$1', [customer.id])
+    const quote = await createQuoteForCustomer(pool, { customer_id: customer.id, request: { kind: 'new', plan_revision_id: plan.id,
+      bundle_revision_ids: bundles_param(), cadence: monthly, requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 20480 } })
+    await expect(placeOrder(customer.id, quote.id)).rejects.toMatchObject({ status: 409, code: 'admin_login_required' })
   })
 
   it('refuses a paid first order for a customer with no manager to invite', async () => {
@@ -151,7 +179,7 @@ suite('a vendor-added customer starts paid (W4)', () => {
     await pool.query('UPDATE customers SET admin_login=NULL WHERE id=$1', [customer_id])
     const invoice = (await pool.query("SELECT * FROM invoices WHERE order_id=$1 AND status='issued'", [order.data.order.id])).rows[0]
     await expect(confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', reference: `TRF-${randomUUID().slice(0, 8)}`,
-      amount: Number(invoice.total_minor), value_date: '2026-11-06' }))
+      amount: Number(invoice.total_minor), value_date: riyadhDate(new Date()) }))
       .rejects.toMatchObject({ status: 409, code: 'admin_login_required' })
     expect((await pool.query('SELECT payment_state FROM orders WHERE id=$1', [order.data.order.id])).rows[0].payment_state).toBe('awaiting_payment')
   })

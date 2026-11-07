@@ -68,7 +68,9 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
     // A confirmed charge for an attempt that did not pay an order that is already paid (or refund-bound) is a
     // second charge: record it, and queue a credit note for the operator instead of silently ignoring money.
     if (event.status === 'succeeded' && attempt.status !== 'succeeded' && ['paid', 'refund_pending', 'refunded'].includes(order.payment_state)) {
-      await client.query("UPDATE payment_attempts SET status='succeeded',updated_at=now() WHERE id=$1", [attempt.id])
+      // A5: the duplicate is money that arrived now, so it gets the same immutable success time a first payment gets;
+      // left NULL it would read as 1970 to the refund window and every duplicate would look long out of it.
+      await client.query("UPDATE payment_attempts SET status='succeeded',succeeded_at=COALESCE(succeeded_at,now()),updated_at=now() WHERE id=$1", [attempt.id])
       const reason = 'Duplicate payment on an already paid order — manual refund'
       const inserted = await enqueueOutbox(client, { kind: 'reconcile.refund', aggregate_id: order.id, dedupe_key: event.event_id,
         payload: { order_id: order.id, attempt_id: attempt.id, payment_id: event.payment_id, event_id: event.event_id, duplicate: true } })
@@ -240,9 +242,13 @@ export async function createPaymentAttempt(pool: Pool, input: { order_id: string
     const order = (await client.query('SELECT * FROM orders WHERE id=$1 AND customer_id=$2 FOR UPDATE', [input.order_id,input.customer_id])).rows[0]
     if (!order) throw new CommercialHttpError('not_found', 404)
     if (order.payment_state !== 'awaiting_payment' || order.cancelled) throw new CommercialHttpError('payment_not_awaiting', 409)
-    // A4: never open a charge for a paid first order whose workspace could never invite anyone.
-    if (isPaidFirstOrder({ kind: order.kind }, Number(order.due_now_minor), order.expected_applied_revision_id))
-      await requireReachableManager(client, (await client.query('SELECT * FROM customers WHERE id=$1', [input.customer_id])).rows[0])
+    // A4/A7: never open a charge for a paid first order whose workspace could never invite anyone — the same predicate
+    // fulfilment uses, with the subscription it will fulfil.
+    if (isPaidFirstOrder({ kind: order.kind }, Number(order.due_now_minor), order.expected_applied_revision_id)) {
+      const customer = (await client.query('SELECT * FROM customers WHERE id=$1', [input.customer_id])).rows[0]
+      const subscription = (await client.query('SELECT id,tenant_id FROM subscriptions WHERE id=$1', [order.subscription_id])).rows[0]
+      await requireReachableManager(client, customer, subscription)
+    }
     const live = (await client.query("SELECT * FROM payment_attempts WHERE order_id=$1 AND status IN ('created','redirected','pending','unknown')", [order.id])).rows[0]
     if (live) return { row: live, fresh: false }
     const invoice = (await client.query("SELECT * FROM invoices WHERE order_id=$1 AND status='issued' ORDER BY created_at LIMIT 1 FOR UPDATE", [order.id])).rows[0]

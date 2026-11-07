@@ -1,3 +1,11 @@
+-- A1: every row this file references and does not create itself is inserted here first, because migrate() only applies a
+-- schema file once: a database that applied origin/main's schema_012 has no `none` policy row (it was added to
+-- schema_012 in release 1), so the retro revision below would violate plan_revisions.policy_revision_id's foreign key
+-- and the whole migration would roll back. Same values as schema_012, so a fresh database inserts nothing.
+INSERT INTO pricing_policy_revisions(id,timezone,rounding,tax_kind,tax_rate_bps,currency,approval_note)
+VALUES('6f1c3d8e-0000-4000-8000-000000000002','Asia/Riyadh','half_up_per_line','none',NULL,'SAR','owner decision 2026-11-06: Liwan is not VAT-registered')
+ON CONFLICT (id) DO NOTHING;
+
 -- Vendor-editable billing settings the code must not hardcode: one row, changed from the vendor console.
 -- refund_window_days (W7): a full refund is allowed only within this many days of the customer's first payment and
 -- only for that payment; renewals and later payments are never refundable. Release 1: 14 days (owner 2026-11-06).
@@ -38,15 +46,25 @@ ALTER TABLE plan_revisions
   ADD COLUMN storage_step_mb integer NOT NULL DEFAULT 10240 CHECK (storage_step_mb > 0),
   ADD COLUMN storage_step_threshold_mb integer NOT NULL DEFAULT 102400 CHECK (storage_step_threshold_mb > 0),
   ADD COLUMN storage_large_step_mb integer NOT NULL DEFAULT 102400 CHECK (storage_large_step_mb > 0),
-  ADD CONSTRAINT plan_storage_steps_ordered CHECK (storage_large_step_mb >= storage_step_mb AND storage_step_threshold_mb >= storage_step_mb);
+  -- A6: the same rule the zod schema and planIssues enforce (contracts: storageStepsAligned). The two divisibility
+  -- clauses are what make every advertised size buyable: the small-step range must end exactly on the threshold, and
+  -- the threshold itself must be a whole number of large steps or the engine offers it and then refuses it.
+  ADD CONSTRAINT plan_storage_steps_aligned CHECK (
+    storage_large_step_mb >= storage_step_mb
+    AND storage_step_threshold_mb >= storage_step_mb
+    AND storage_step_threshold_mb % storage_step_mb = 0
+    AND storage_step_threshold_mb % storage_large_step_mb = 0);
 -- The seeded LiwanOS plan takes the defaults above; nothing else is rewritten.
 
 -- A5: who a credit note came from. `vendor` is a refund the vendor records because the customer asked for it, and only
 -- those carry the first-payment/window rule; `system` notes (duplicate charge, payment after cancellation, fulfilment
 -- failure) keep the plain path. An explicit column, never inferred from the free-text created_by.
 ALTER TABLE invoice_adjustments ADD COLUMN origin text NOT NULL DEFAULT 'vendor' CHECK (origin IN ('vendor','system'));
--- One refunded note per invoice: a second refund of the same invoice is refused.
-CREATE UNIQUE INDEX invoice_adjustments_one_refund ON invoice_adjustments(invoice_id) WHERE status = 'refunded';
+-- A customer-requested refund is the whole invoice, once: a second vendor refund of the same invoice is refused.
+-- A system note is keyed by its own charge (a duplicate payment, a payment after cancellation), so each of those may be
+-- refunded once without blocking another: scoping the rule to the vendor origin is what keeps a second duplicate from
+-- stranding money. A total unique index would refuse it as invoice_already_refunded.
+CREATE UNIQUE INDEX invoice_adjustments_one_refund ON invoice_adjustments(invoice_id) WHERE status = 'refunded' AND origin = 'vendor';
 
 -- A5: the immutable moment a payment succeeded, written once. `updated_at` cannot carry it: reconciliation and sibling
 -- cancellation touch it, which would slide the refund window and could change which payment was the customer's first.
@@ -64,15 +82,21 @@ ALTER TABLE payment_attempts ADD CONSTRAINT payment_attempts_value_date_only_tra
 -- is a NEW published revision that supersedes the old one — the same way the vendor console would make it — rather
 -- than an edit in place. On a database seeded after release 1 the newest revision already matches, and nothing is
 -- written: the WHERE clause below is false.
-CREATE TEMP TABLE liwan_release1_retro ON COMMIT DROP AS
+-- Not ON COMMIT DROP: migrate() runs this file in one transaction, and the statements below read these tables
+-- after the point where an ON COMMIT DROP table would already be gone.
+CREATE TEMP TABLE liwan_release1_retro AS
   SELECT p.* FROM plan_revisions p
   WHERE p.plan_id = '00000000-0000-4000-8000-0000000000b1' AND p.status = 'published' AND p.available
     AND (p.policy_revision_id <> '6f1c3d8e-0000-4000-8000-000000000002' OR p.included_storage_mb <> 20480
          OR p.prices::text LIKE '%29900%' OR p.platform_limits ? 'ai.setup.monthly' OR p.platform_limits = '{}'::jsonb)
   ORDER BY p.version DESC LIMIT 1;
 
+-- The new ids are fixed before the insert, so the reference rows below can name the revision they belong to.
+CREATE TEMP TABLE liwan_release1_retro_map AS
+  SELECT r.id AS old_id, gen_random_uuid() AS new_id FROM liwan_release1_retro r;
+
 UPDATE plan_revisions SET available = false, edit_revision = edit_revision + 1
-WHERE id IN (SELECT id FROM liwan_release1_retro);
+WHERE id IN (SELECT old_id FROM liwan_release1_retro_map);
 
 INSERT INTO plan_revisions(
   id, plan_id, version, name, audience, audience_customer_id, status, available, term_months, currency,
@@ -81,7 +105,7 @@ INSERT INTO plan_revisions(
   included_users, included_storage_mb, storage_step_mb, storage_step_threshold_mb, storage_large_step_mb,
   user_prices, storage_prices, policy_revision_id, trial_days, grace_days, auto_suspend, auto_renew_allowed,
   content_digest, validated_digest, published_at)
-SELECT gen_random_uuid(), r.plan_id,
+SELECT m.new_id, r.plan_id,
        (SELECT max(x.version) FROM plan_revisions x WHERE x.plan_id = r.plan_id) + 1, r.name, r.audience, r.audience_customer_id,
        'published', true, r.term_months, r.currency,
        '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":0}},{"cadence":{"unit":"year","count":1},"amount":{"currency":"SAR","exponent":2,"minor":0}}]'::jsonb,
@@ -98,8 +122,18 @@ SELECT gen_random_uuid(), r.plan_id,
        encode(sha256(convert_to('liwan-release1-retro:'||r.id::text,'UTF8')),'hex'),
        encode(sha256(convert_to('liwan-release1-retro:'||r.id::text,'UTF8')),'hex'),
        now()
-FROM liwan_release1_retro r;
+FROM liwan_release1_retro r JOIN liwan_release1_retro_map m ON m.old_id = r.id;
+
+-- B: the superseding revision lists the same optional bundles, so it must carry the same reference rows. A reference is
+-- what keeps a bundle undeletable while a plan sells it; a clone that lost them would let the console delete a bundle
+-- the published plan still offers.
+INSERT INTO revision_references(revision_id,revision_kind,referenced_by_kind,referenced_by_id)
+SELECT (jsonb_array_elements_text(r.optional_bundle_revision_ids))::uuid, 'bundle', 'plan', m.new_id::text
+FROM liwan_release1_retro r JOIN liwan_release1_retro_map m ON m.old_id = r.id
+ON CONFLICT DO NOTHING;
 
 UPDATE commercial_plans c SET next_version = GREATEST(c.next_version,
   (SELECT max(r.version)+1 FROM plan_revisions r WHERE r.plan_id = c.id))
 WHERE c.id = '00000000-0000-4000-8000-0000000000b1';
+
+DROP TABLE IF EXISTS liwan_release1_retro_map, liwan_release1_retro;

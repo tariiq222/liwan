@@ -10,7 +10,6 @@ export const KNOWN_SOURCES = ['platform.json', 'platform_v2.json', 'platform_v3.
  * revisions are pinned to their bytes, but they are history: they predate the `sellable` flag and would publish a
  * catalog in which nothing — or, with a fallback, everything — is for sale. Pre-release rule: no parallel old paths. */
 export const PUBLISHABLE_SOURCE = 'platform_v4.json' as const
-export const LEGACY_SOURCE = PUBLISHABLE_SOURCE
 
 export type ResolvedCatalogSource = { name: string; path: string; bytes: Buffer; sha256: string }
 
