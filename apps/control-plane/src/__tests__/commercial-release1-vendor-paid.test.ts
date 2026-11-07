@@ -145,7 +145,7 @@ suite('a vendor-added customer starts paid (W4)', () => {
     const quote = await createQuoteForCustomer(pool, { customer_id: customer.id, request: { kind: 'new', plan_revision_id: plan.id,
       bundle_revision_ids: bundles_param(), cadence: monthly, requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 20480 } })
     expect(quote.due_now.minor).toBeGreaterThan(0)
-    const ordered = await placeOrder(customer.id, quote.id, 1)
+    const ordered = await placeOrder(customer.id, quote.id)
     expect(ordered!.status, JSON.stringify(ordered!.data)).toBe(201)
     expect((await pool.query('SELECT count(*)::int AS n FROM orders WHERE customer_id=$1', [customer.id])).rows[0].n).toBe(1)
   })

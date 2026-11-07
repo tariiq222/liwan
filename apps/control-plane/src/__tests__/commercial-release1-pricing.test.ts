@@ -5,6 +5,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { migrate } from '../db.js'
 import { acceptQuote } from '../commercial/orders.js'
+import { planIssues } from '../commercial/plans.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { getSubscription } from '../commercial/subscriptions.js'
 import { generateRenewals, applyDunning } from '../commercial/renewals.js'
@@ -211,6 +212,50 @@ suite('a plan whose total is zero', () => {
     expect(order).toMatchObject({ payment_state: 'not_required', fulfillment_state: 'queued' })
     expect(order.due_now.minor).toBe(0)
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE order_id=$1', [order.id])).rows[0].n).toBe(0)
+  })
+
+  it('refuses storage steps that do not tile the range they govern', async () => {
+    // A6: a 10 GiB step with a 15 GiB threshold leaves 20 GiB unbuyable while 10 GiB is fine. The misalignment is
+    // refused at parse time as a structured 422 — before this it reached the database CHECK and became a 500 (23514).
+    const body = (over: Record<string, unknown>) => ({ name: `Steps ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
+      prices: [{ cadence: monthly, amount: money(9900) }], platform_limits: AI_LIMITS, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
+      included_extra_branches: 1, extra_branch_prices: [{ cadence: monthly, amount: money(0) }], extra_branches_limit: null,
+      included_users: 3, included_storage_mb: 20480, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400,
+      user_prices: [{ cadence: monthly, amount: money(2900) }], storage_prices: [{ cadence: monthly, amount: money(100) }],
+      policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000002', trial_days: 0, grace_days: 7, auto_suspend: true, auto_renew_allowed: true, ...over })
+    // A threshold that is not a whole number of small steps.
+    expect((await api('POST', '/plans', body({ storage_step_threshold_mb: 15360 }))).status).toBe(422)
+    // A threshold that is not a whole number of large steps: the engine would offer it and then refuse it.
+    expect((await api('POST', '/plans', body({ storage_step_threshold_mb: 153600 }))).status).toBe(422)
+    // A large step below the small one.
+    expect((await api('POST', '/plans', body({ storage_large_step_mb: 5120 }))).status).toBe(422)
+    // The aligned plan is accepted.
+    const ok = await api('POST', '/plans', body({}))
+    expect(ok.status, JSON.stringify(ok.body)).toBe(201)
+    const okValid = await api('POST', `/plans/${ok.body.id}/validate`, { edit_revision: 1, reason: 'Step acceptance' })
+    expect(okValid.status, JSON.stringify(okValid.body)).toBe(200)
+    // planIssues still refuses a misaligned row it is handed, which is the path a row from an older database takes.
+    // The table itself now rejects such a row (the CHECK mirrors the rule), so the function is exercised directly
+    // rather than by planting one: the three callers are plan validate/publish, and they pass a row they did not write.
+    const stored = (await pool.query('SELECT * FROM plan_revisions WHERE id=$1', [ok.body.id])).rows[0]
+    const issues = await planIssues(pool, { ...stored, storage_step_threshold_mb: 15360 })
+    expect(issues.map(i => i.code)).toContain('storage_step_misaligned')
+    expect(issues.find(i => i.code === 'storage_step_misaligned')!.field).toBe('storage_step_threshold_mb')
+    // And the rule itself is one function, so the row the database accepted is the row planIssues accepts.
+    expect(await planIssues(pool, stored)).not.toContainEqual(expect.objectContaining({ code: 'storage_step_misaligned' }))
+  })
+
+  it('bounds the storage steps to the integer column, not MAX_SAFE_INTEGER', async () => {
+    // A6: the columns are `integer`; a larger value used to reach Postgres and answer 500 (22003 numeric out of range).
+    const body = { name: `Step bound ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
+      prices: [{ cadence: monthly, amount: money(9900) }], platform_limits: AI_LIMITS, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
+      included_extra_branches: 1, extra_branch_prices: [{ cadence: monthly, amount: money(0) }], extra_branches_limit: null,
+      included_users: 3, included_storage_mb: 20480, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400,
+      user_prices: [{ cadence: monthly, amount: money(2900) }], storage_prices: [{ cadence: monthly, amount: money(100) }],
+      policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000002', trial_days: 0, grace_days: 7, auto_suspend: true, auto_renew_allowed: true }
+    const tooLarge = await api('POST', '/plans', { ...body, storage_step_threshold_mb: Number.MAX_SAFE_INTEGER })
+    expect(tooLarge.status).toBe(422)
+    expect(tooLarge.body.code).toBe('invalid')
   })
 
   it('refuses a trial on a plan that costs nothing', async () => {

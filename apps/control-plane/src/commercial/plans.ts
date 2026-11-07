@@ -161,8 +161,20 @@ const insertArgs = (id: string, planId: string, version: number, r: Row) => [id,
 async function requirePolicy(client: PoolClient, id: string) {
   if (!(await client.query('SELECT 1 FROM pricing_policy_revisions WHERE id=$1', [id])).rowCount) throw new CommercialHttpError('invalid', 422, 'policy_revision_id', [{ code: 'policy_missing', field: 'policy_revision_id' }])
 }
+/**
+ * A6: a plan input the contract schemas refuse is a structured 422 with its own issue code, not a raw ZodError that the
+ * HTTP layer would flatten to `invalid`/body. The storage-step rules are the case that matters: they mirror the database
+ * CHECK, so without this they would have surfaced as a 500 (23514) instead of a message naming the field.
+ */
+function parsePlanInput<T>(schema: { safeParse(value: unknown): { success: boolean; data?: T; error?: { issues: Array<{ path: PropertyKey[]; message: string }> } } }, value: unknown): T {
+  const parsed = schema.safeParse(value)
+  if (parsed.success) return parsed.data as T
+  const issues = (parsed.error?.issues ?? []).map(i => ({ code: 'invalid', ...(i.path[0] !== undefined ? { field: String(i.path[0]) } : {}) }))
+  const first = parsed.error?.issues[0]
+  throw new CommercialHttpError('invalid', 422, first ? String(first.path[0] ?? 'body') : 'body', issues)
+}
 export async function createPlan(pool: Pool, actor: CommercialActor, value: unknown) {
-  const input = planCreateSchema.parse(value)
+  const input = parsePlanInput<Record<string, any>>(planCreateSchema, value)
   return transaction(pool, async client => {
     await requirePolicy(client, input.policy_revision_id)
     const planId = randomUUID(), id = randomUUID()
@@ -174,7 +186,7 @@ export async function createPlan(pool: Pool, actor: CommercialActor, value: unkn
 }
 type Action = 'edit' | 'delete' | 'validate' | 'publish' | 'withdraw' | 'restore' | 'revisions'
 export async function mutatePlan(pool: Pool, actor: CommercialActor, id: string, action: Action, value: unknown) {
-  const input: Record<string, any> = action === 'edit' ? planEditSchema.parse(value) : lifecycleActionSchema.parse(value)
+  const input: Record<string, any> = action === 'edit' ? parsePlanInput<Record<string, any>>(planEditSchema, value) : lifecycleActionSchema.parse(value)
   return transaction(pool, async client => {
     const row = await lockRevision(client, PLAN_KIND, id, input.edit_revision)
     const reason: string = input.reason
