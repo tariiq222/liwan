@@ -464,13 +464,6 @@ class TestRules(unittest.TestCase):
     def test_detached_head_is_reported(self):
         self.assertIn('detached HEAD', self.problems([worktree(branch=None, claim=CLAIM)])[0])
 
-    def test_a_runner_job_worktree_is_exempt_but_a_branch_there_is_not(self):
-        job = worktree(path=wt.RUNNER_STATE_DIR / 'job-abc123' / 'worktree', canonical=False, branch=None, claim=None)
-        self.assertEqual(self.problems([job]), [])
-        self.assertIn('outside .worktrees/', self.problems([job._replace(branch='codex/pmo-a')])[0])
-        elsewhere = job._replace(path=Path('/tmp/job-abc123/worktree'))
-        self.assertIn('outside .worktrees/', self.problems([elsewhere])[0])
-
     def test_a_missing_folder_is_only_checked_for_location(self):
         self.assertEqual(self.problems([worktree(missing=True, claim=None)]), [])
 

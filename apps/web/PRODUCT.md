@@ -18,7 +18,7 @@ The vision serves companies across business functions and industries. The
 currently implemented roles below do not limit the long-term audience to PMO
 or HR teams.
 
-Examples of roles inside that company (from shipped routes, not ranked personas): project managers and PMO staff, task assignees, meeting participants, HR and finance operators, operations requesters/reviewers, document users, AI users, and account/permission administrators.
+Examples of roles inside that company (from shipped routes, not ranked personas): project managers and PMO staff, task assignees, meeting participants, HR and finance operators, sales agents and customer-message agents, appointment staff, operations requesters/reviewers, document users, AI users, and account/permission administrators.
 
 ## Product Purpose
 
@@ -30,8 +30,8 @@ Examples of roles inside that company (from shipped routes, not ranked personas)
 LiwanOS aims to cover company operations with a breadth comparable to Odoo,
 under its own identity and customer experience. The vision includes sales,
 finance, purchasing, inventory, HR, projects, and other business applications
-on a common foundation. PMO and HR are initial applications within that
-platform, not its complete definition or permanent boundary.
+on a common foundation. Projects, tasks and HR are among the initial applications
+within that platform, not its complete definition or permanent boundary.
 
 Product success means connected work across departments, less duplicate data
 entry and integration effort, and lower total cost than fragmented systems.
@@ -60,7 +60,7 @@ company; it does not permit sharing data between customer companies.
 ## Operating Context
 
 - Customer UI: `apps/web` (Nuxt 4) talking to Odoo through `/api/v1`.
-- Engine: Odoo 19 CE. Foundation: `liwan_core` (capabilities/identity) and `liwan_api` (HTTP). Application addons: `liwan_tasks` (personal tasks without a project), `liwan_pmo` (projects and project-linked task workflows), `liwan_hr`, `liwan_finance`, `liwan_documents`, and `liwan_operations`. `liwan_tasks_pmo` bridges personal-task creation when Tasks and PMO are both installed. `liwan_meetings` owns the meeting engine and links it to projects through `liwan_meetings_pmo`; `liwan_documents_hr` links the document library to HR department and own-employee contexts. The `/ai` workspace calls the separately configured `apps/ai-service`.
+- Engine: Odoo 19 CE. Foundation: `liwan_core` (capabilities/identity), `liwan_platform` and `liwan_api` (HTTP). Shared services used by several applications: `liwan_directory` (the people picker), `liwan_notify` (the notification bell), `liwan_ai`, `liwan_payments` (online payments through the tenant's own gateway account) and `liwan_integrations_sa`. Application addons: `liwan_tasks` (personal tasks without a project), `liwan_pmo` (projects and project-linked task workflows), `liwan_hr`, `liwan_finance`, `liwan_documents`, `liwan_operations`, `liwan_meetings`, `liwan_chat`, `liwan_crm`, `liwan_inbox` and `liwan_appointments`. Bridge addons (`liwan_<a>_<b>`, for example `liwan_tasks_pmo`, `liwan_meetings_pmo`, `liwan_documents_hr`) link two applications; the full list and ranks are in `tools/arch_layers.json`. The `/ai` workspace calls the separately configured `apps/ai-service`.
 - Primary hosting target: self-service SaaS on shared application services,
   with a separate database and filestore per customer. Managed dedicated and
   customer-hosted deployments remain separate options. See the
@@ -79,7 +79,12 @@ updating the definition does not implement or authorize them automatically.
 - PMO: projects, tasks, schedules, templates, milestones, dependencies, stakeholders, RACI, register, finance/costs, updates, attachments, archive/restore, notifications.
 - Meetings: list, calendar, recurring series, minutes; print stays outside the record sheet.
 - Chat: conversation workspace (not the record-sheet recipe).
-- Finance: sales and purchase records, payments, partners, accounting, bank statements, budgets, assets and reports; see the finance gap register for remaining work and verification status.
+- CRM (`liwan_crm`, `/crm`): opportunities, calls, imports, a dashboard and tenant settings.
+- Customer messages (`liwan_inbox`, `/inbox`, «رسائل العملاء»): WhatsApp conversations, orders, campaigns, flows and reports.
+- Appointments (`liwan_appointments`, `/appointments`) with a public booking page at `/book/<id>`.
+- Online payments (`liwan_payments`): gateway settings under `/settings/apps/payments` and public payment pages under `/pay/`, each tenant using its own gateway account.
+- Notifications (`liwan_notify`): the bell and `/notifications`.
+- Finance: sales and purchase records, payments, partners, accounting, bank statements, budgets, assets and reports, with ZATCA e-invoicing in sandbox mode only; see the finance gap register for remaining work and verification status.
 - Documents: document list, creation, editing and access routes.
 - Operations: request, pending-approval, monitoring and process-settings routes.
 - AI: `/ai` workspace backed by the configured LiwanOS AI service; provider, model and API-key configuration is held by that service.
@@ -88,7 +93,7 @@ updating the definition does not implement or authorize them automatically.
 - Self-service: `/account` aggregates permission-filtered personal contributions from applications; profile, leave, employee requests, pay, assets, documents, schedule and personal settings use canonical `/account/*` routes.
 - Settings: users, roles, access log, institution branding (one document colour for invoices, reports and printouts; it never themes the interface, which keeps the fixed LiwanOS palette; ignore the backend's legacy `secondary_color` field; name and logo require `settings.company.manage` in LiwanOS).
 - Authorization is capability-based, not role-name-based.
-- Default locale Arabic / RTL-first; English secondary. Business screens are real routes: direct link, refresh, back with list filters. Overlay exceptions: global search dialog, notification popover (latest five, then `/notifications`), unsaved-draft guard, assistant sheet shared with `/ai`, value-selection menus, inline destroy confirm. Do not stack business dialogs.
+- Default locale Arabic / RTL-first; English secondary. Business screens are real routes: direct link, refresh, back with list filters. The only overlays are the ones listed in [DESIGN.md](../../DESIGN.md) section 5. Do not stack business dialogs.
 - Presentation follows [DESIGN.md](../../DESIGN.md); architecture, contracts and security belong to [AGENTS.md](../../AGENTS.md). `CLAUDE.md` imports those instructions and does not own a separate policy.
 
 ## Brand Commitments
@@ -105,8 +110,8 @@ Name: ليوان (LiwanOS). Binding UI constitution: [DESIGN.md](../../DESIGN.md
 
 1. Customer data stays isolated even when application services are shared.
 2. Employees work in LiwanOS; the LiwanOS vendor administration (`apps/vendor-admin`) is a separate staff application, not part of this product.
-3. Business applications share a coherent platform; PMO and HR are initial
-   domains, with their own contracts, within the broader product vision.
+3. Business applications share a coherent platform; projects, tasks and HR are
+   among the initial domains, with their own contracts, within the broader product vision.
 4. Capability and record/company context gate every action.
 5. Work screens are addressable: link, refresh, back, filters.
 6. Prefer connected workflows and reuse of existing Odoo business capabilities

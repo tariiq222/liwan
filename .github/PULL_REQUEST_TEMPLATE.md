@@ -23,13 +23,15 @@ Distinguish focused checks, combined-candidate checks and a full release run.
 
 ## Authorization and delivery
 
-- Owner authorization for publication / merge and its scope:
+- Authorization basis: standing authorization (integration-rules.md), or the owner's explicit words and their scope:
 - Remaining risks / recovery approach:
 
 Keep this PR **draft** until local preparation and checks are complete. Mark
 ready to request CI and review of the current candidate. The required status-check
 policy is `ci-result` only; review uses the selected available agent or a human.
-Before an explicitly authorized protected merge, recheck base/head, live rules,
-selected CI stages and review findings. Repeat affected verification when either
-head moves. Publication, merge, release, deployment and cleanup retain separate
-authorization boundaries. These boxes record evidence; they do not grant authority.
+Before merging, recheck base/head, live rules, selected CI stages and review
+findings, and repeat affected verification when either head moves. Merging falls
+under the standing authorization in
+[integration-rules.md](../docs/agents/integration-rules.md); release tags,
+deployment and the other excluded operations need the owner's explicit words.
+These boxes record evidence; they do not grant authority.
