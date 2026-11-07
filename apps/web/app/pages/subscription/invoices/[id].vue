@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
-import { bankTransferOutcome, formatSubscriptionMoney, invoiceWantsTransfer, subscriptionInvoiceView } from '@/utils/subscription'
+import { bankTransferOutcome, formatSubscriptionMoney, invoiceWantsTransfer, subscriptionInvoiceView, transferNotice } from '@/utils/subscription'
 const { t, locale } = useI18n(); const route = useRoute(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities()
 const allowed = computed(() => can('billing.read'))
 const id = computed(() => String(route.params.id ?? ''))
@@ -10,16 +10,16 @@ const view = computed(() => data.value ? subscriptionInvoiceView(data.value, t, 
 // Where to transfer while the invoice is unpaid. The control plane answers 409 `bank_account_unavailable` until the
 // vendor fills the account in: that is "not configured", not a failure. Any other refusal is a real error worth showing.
 const wantsTransfer = computed(() => invoiceWantsTransfer(allowed.value, data.value))
-const transferFailure = ref<unknown>(null)
+// The one outcome the fetch produced; the template renders `transferNotice(outcome)` rather than re-deriving it.
+const transferOutcome = ref<ReturnType<typeof bankTransferOutcome> | null>(null)
 const { data: transfer } = await useAsyncData(() => `subscription:invoice-transfer:${id.value}`, async () => {
-  if (!wantsTransfer.value) return null
-  transferFailure.value = null
+  if (!wantsTransfer.value) { transferOutcome.value = null; return null }
   const answer = await api.bankTransfer(id.value).then(instructions => ({ instructions }), (cause: unknown) => ({ cause }))
   const outcome = bankTransferOutcome(wantsTransfer.value, answer)
-  if (outcome.kind === 'failed') transferFailure.value = outcome.cause
+  transferOutcome.value = outcome
   return outcome.kind === 'instructions' ? outcome.instructions : null
 }, { immediate: allowed.value, watch: [wantsTransfer] })
-const transferUnavailable = computed(() => wantsTransfer.value && !transfer.value && !transferFailure.value)
+const transferState = computed(() => (transferOutcome.value ? transferNotice(transferOutcome.value) : 'none'))
 const amount = computed(() => (transfer.value ? formatSubscriptionMoney({ currency: transfer.value.currency, exponent: transfer.value.exponent, minor: transfer.value.amount_minor }, locale.value) : ''))
 const instructions = computed(() => (transfer.value ? (locale.value.startsWith('ar') ? transfer.value.bank.instructions_ar : transfer.value.bank.instructions_en) : ''))
 const copied = ref('')
@@ -34,8 +34,8 @@ definePageMeta({ middleware: 'customer-commercial' })
     <SharedForbiddenState v-if="!allowed" />
     <template v-else-if="view">
       <SharedInvoiceLines layout="list" v-bind="view" />
-      <UAlert v-if="transferFailure" color="error" variant="subtle" :title="t('subscription.bankTransfer.error')" data-testid="bank-transfer-error" />
-      <p v-else-if="transferUnavailable" class="text-sm text-muted" data-testid="bank-transfer-unavailable">{{ t('subscription.bankTransfer.unavailable') }}</p>
+      <UAlert v-if="transferState === 'failed'" color="error" variant="subtle" :title="t('subscription.bankTransfer.error')" data-testid="bank-transfer-error" />
+      <p v-else-if="transferState === 'unavailable'" class="text-sm text-muted" data-testid="bank-transfer-unavailable">{{ t('subscription.bankTransfer.unavailable') }}</p>
       <SharedRecordSection v-if="transfer" :title="t('subscription.bankTransfer.title')" data-testid="bank-transfer">
         <p class="text-sm text-muted">{{ t('subscription.bankTransfer.hint') }}</p>
         <p v-if="instructions" class="text-sm">{{ instructions }}</p>

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { bankTransferOutcome, invoiceWantsTransfer } from '../subscription'
+import { bankTransferOutcome, invoiceWantsTransfer, transferNotice } from '../subscription'
 
 /**
  * The customer invoice page asks the control plane where to transfer while an invoice is unpaid. Three answers must
@@ -48,11 +48,20 @@ describe('bank-transfer instructions on an invoice', () => {
     expect(bankTransferOutcome(true, { instructions: null })).toEqual({ kind: 'unavailable' })
   })
 
+  it('turns each answer into exactly one thing the page shows', () => {
+    // The page renders `transferNotice(outcome)`, so this is the decision itself, not a reading of the page's source.
+    expect(transferNotice(bankTransferOutcome(true, { instructions }))).toBe('none')
+    expect(transferNotice(bankTransferOutcome(true, { cause: refuse('bank_account_unavailable') }))).toBe('unavailable')
+    expect(transferNotice(bankTransferOutcome(true, { cause: refuse('forbidden') }))).toBe('failed')
+    expect(transferNotice(bankTransferOutcome(true, { cause: new Error('network') }))).toBe('failed')
+    expect(transferNotice(bankTransferOutcome(false, {}))).toBe('none')
+  })
+
   it('the page routes every answer through that decision and shows each branch', () => {
     // The regression this guards: `api.bankTransfer(...).catch(() => null)` hides a real failure behind "unavailable".
     expect(page).not.toMatch(/bankTransfer\([^)]*\)\.catch/)
     expect(page).toContain('bankTransferOutcome(wantsTransfer.value, answer)')
-    expect(page).toContain('outcome.kind === \'failed\'')
+    expect(page).toContain('transferNotice(transferOutcome.value)')
     expect(page).toContain('data-testid="bank-transfer-error"')
     expect(page).toContain('data-testid="bank-transfer-unavailable"')
     expect(page).toContain("t('subscription.bankTransfer.error')")

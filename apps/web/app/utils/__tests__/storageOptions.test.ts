@@ -59,8 +59,10 @@ describe('storageOptions', () => {
     expect(totals(early)).toEqual([0, 1, 2, 3, 4])
   })
 
-  it('prices the extra storage from storage_prices for the quoted cadence, and null without a row', () => {
-    expect(seeded.slice(1).every(o => o.amount?.minor === 100)).toBe(true)
+  it('prices each option by what it adds, from storage_prices for the quoted cadence, and null without a row', () => {
+    // storage_prices is the price per GiB, so an option that adds 10 GiB costs 10 x the unit, not the unit itself.
+    expect(seeded.slice(1).every(o => o.amount?.minor === 100 * o.extraGb)).toBe(true)
+    expect(seeded[1]!.amount!.minor).toBe(1000)
     expect(seeded[0]!.amount).toBeNull()
     const yearlyOnly = storageOptions(SEEDED, [{ cadence: { unit: 'year', count: 1 }, amount: { currency: 'SAR', exponent: 2, minor: 1200 } }], monthly)
     expect(yearlyOnly.slice(1).every(o => o.amount === null)).toBe(true)
@@ -79,7 +81,9 @@ describe('nearestStorageOption', () => {
     expect(nearestStorageOption(options, 40 * GB)!.totalGb).toBe(40)
     expect(nearestStorageOption(options, 130 * GB)!.totalGb).toBe(220)
     expect(nearestStorageOption(options, 1024)!.totalGb).toBe(20)
-    expect(nearestStorageOption(options, 5000 * GB)!.totalGb).toBe(1020)
+    // Above the list's reach there is no option to offer: never the largest, which would be a silent downgrade.
+    expect(nearestStorageOption(options, 5000 * GB)).toBeNull()
+    expect(nearestStorageOption(options, 1040 * GB)).toBeNull()
   })
 })
 

@@ -1,4 +1,4 @@
-import { daysBetween, riyadhDate, type Invoice, type Money, type Order, type Quote, type SubscriptionDisplayState, type UsageMetric, type UsageSnapshot } from '@liwan/commercial-contracts'
+import { daysBetween, MAX_USERS, riyadhDate, type Invoice, type Money, type Order, type Quote, type SubscriptionDisplayState, type UsageMetric, type UsageSnapshot } from '@liwan/commercial-contracts'
 
 import { invoiceLineQuantities, type InvoiceLineView } from '@liwan/commercial-ui/app/utils/invoiceLines'
 import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
@@ -123,7 +123,9 @@ export function storageOptions(
     extraGb += step
     const totalGb = included + extraGb
     if (!Number.isSafeInteger(totalGb)) break
-    options.push({ storageMb: totalGb * STORAGE_MB_PER_GB, extraMb: extraGb * STORAGE_MB_PER_GB, totalGb, extraGb, amount: unit })
+    // The option's own price: the unit price times the extra gigabytes it adds. `unit` is the price per GiB.
+    options.push({ storageMb: totalGb * STORAGE_MB_PER_GB, extraMb: extraGb * STORAGE_MB_PER_GB, totalGb, extraGb,
+      amount: unit ? { ...unit, minor: unit.minor * extraGb } : null })
   }
   return options
 }
@@ -132,8 +134,23 @@ export function storageOptions(
  * to the nearest option (so the page never submits a quantity the server would refuse). */
 export function nearestStorageOption(options: StorageOption[], storageMb: number): StorageOption | null {
   if (!options.length) return null
-  return options.find(o => o.storageMb >= storageMb) ?? options[options.length - 1]!
+  // An accepted figure stays; anything else steps UP to the nearest option. Never down: the fallback used to be the
+  // largest option, which quietly reduced a customer who already had more than the list reaches.
+  return options.find(o => o.storageMb >= storageMb) ?? null
 }
+
+/**
+ * What the invoice page shows for the transfer section. One decision, taken from the outcome, so the page cannot render
+ * an error where there is only an unconfigured account (or the reverse).
+ */
+export function transferNotice(outcome: BankTransferOutcome<BankTransferInstructionsLike>): 'none' | 'unavailable' | 'failed' {
+  if (outcome.kind === 'failed') return 'failed'
+  if (outcome.kind === 'unavailable') return 'unavailable'
+  return 'none'
+}
+
+/** The release sells up to MAX_USERS; above it the customer is asked to contact us rather than being told "failed". */
+export const usersOverCap = (users: number, max = MAX_USERS) => users > max
 
 export const QUOTE_IS_EXPIRED = (quote: Pick<Quote, 'expires_at'>, now = Date.now()): boolean => Date.parse(quote.expires_at) <= now
 
