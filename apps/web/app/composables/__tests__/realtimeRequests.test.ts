@@ -7,6 +7,20 @@ import { baselineKeys } from '../projectBaselineKeys'
 import { changeKeys } from '../projectChangeKeys'
 import { projectKeys } from '../projectKeys'
 import { projectsAtRiskAttention } from '../../modules/pmo/attention'
+import { inboxKeys } from '../inbox/useInbox'
+import { inboxOrderKeys } from '../inbox/useInboxOrders'
+import { inboxFlowKeys } from '../inbox/useInboxFlows'
+import { inboxCampaignKeys } from '../inbox/useInboxCampaigns'
+import { inboxReportKeys } from '../inbox/useInboxReports'
+import { inboxCatalogKeys } from '../inbox/useInboxCatalog'
+import { inboxSettingsKeys } from '../inbox/useInboxSettings'
+import { inboxAutomationKeys } from '../inbox/useInboxAutomation'
+import { inboxHealthKeys } from '../inbox/useInboxChannelHealth'
+import { inboxTikTokKeys } from '../inbox/inboxTikTok'
+import { DEFAULT_INBOX_LIST_ROUTE } from '../inbox/inboxListRoute'
+import { DEFAULT_CAMPAIGN_LIST_ROUTE, DEFAULT_RECIPIENT_ROUTE, DEFAULT_AUDIENCE_LIST_ROUTE, DEFAULT_MEMBER_ROUTE } from '../inbox/inboxCampaignRoute'
+import { InboxOrderSchema, type InboxOrderPaymentStatus } from '@liwan/contracts'
+vi.mock('@/modules/registry', () => ({ hasFeature: () => true }))
 
 let socket: { onopen?: () => void; onmessage?: (e: { data: string }) => void }
 const clients: QueryClient[] = []
@@ -204,4 +218,234 @@ it.each([
     send('liwan/task', { id: 1, event: 'updated', ...metadata })
     await vi.waitFor(() => expect(starts.map(read => read.mock.calls.length)).toEqual([1, 1, 1, 1, 0, 0, 0, 0, 0]))
   } finally { stops.forEach(stop => stop()) }
+})
+
+function inboxOrder(status: InboxOrderPaymentStatus, id = 80, conversationId = 3) {
+  return InboxOrderSchema.parse({
+    id, conversation_id: conversationId, channel: { id: 5, name: 'WhatsApp' }, contact: { id: 7, name: 'Customer' },
+    message_id: null, state: 'ordered', reference: `SO${id}`, lines: [], cart_total: null, cart_currency: null,
+    total: 100, currency: 'SAR', price_changed: false,
+    payment: { status, amount_total: 100, amount_due: status === 'paid' ? 0 : 100, refund_due: false, needs_attention: false, currency: 'SAR', expires_at: '2026-11-07T00:00:00Z' },
+    pay_link_sent_at: '2026-11-06T10:00:00Z', created_by: { id: 1, name: 'Agent' }, created_at: '2026-11-06T10:00:00Z',
+  })
+}
+it.each(['paid', 'cancelled'] as const)('a payment %s event updates order cards, membership and history using the canonical relation', async status => {
+  const keys = [inboxOrderKeys.list({ payment_status: 'payable' }), inboxOrderKeys.list({ payment_status: status }),
+    inboxOrderKeys.ofConversation(3), inboxOrderKeys.ofConversation(4), inboxOrderKeys.detail(80), inboxOrderKeys.detail(3), inboxOrderKeys.detail(82),
+    inboxKeys.messagesOf(3), inboxKeys.messagesOf(4)]
+  const { qc, starts, send, stops } = await setup(keys)
+  const before = inboxOrder('payable'), current = inboxOrder(status)
+  const pending = { items: [before], total: 1 }, empty = { items: [], total: 0 }, changed = { items: [current], total: 1 }
+  const old = [pending, empty, pending, { items: [inboxOrder('payable', 81, 4)], total: 1 }, before, inboxOrder('payable', 3, 4), {}, { items: [], total: 0 }, { items: [], total: 0 }]
+  const next = [empty, changed, changed, old[3], current, old[5], current, { items: [{ id: 90, body: status }], total: 1 }, old[8]]
+  keys.forEach((key, index) => { qc.setQueryData(key, old[index]); starts[index]!.mockResolvedValue(next[index]!) })
+  const inactiveKey = inboxOrderKeys.detail(83)
+  qc.setQueryData(inactiveKey, inboxOrder('payable', 83))
+  try {
+    send('liwan/inbox', { id: 3, event: 'conversation' })
+    await vi.waitFor(() => {
+      expect(qc.getQueryData(keys[0]!)).toEqual(empty)
+      expect(qc.getQueryData(keys[1]!)).toEqual(changed)
+      expect(qc.getQueryData(keys[2]!)).toEqual(changed)
+      expect(qc.getQueryData(keys[4]!)).toEqual(current)
+      expect(qc.getQueryData(keys[6]!)).toEqual(current)
+    })
+    expect(starts.map(read => read.mock.calls.length)).toEqual([1, 1, 1, 0, 1, 0, 1, 1, 0])
+    expect(qc.getQueryState(inactiveKey)?.isInvalidated).toBe(true)
+    expect(qc.getQueryData(inactiveKey)).toEqual(inboxOrder('payable', 83))
+  } finally { stops.forEach(stop => stop()) }
+})
+
+type InboxEventCase = { name: string; key: readonly unknown[]; conversation: number; template: number; data?: unknown }
+const inboxEventCases: InboxEventCase[] = [
+  { name: 'all conversation filters', key: inboxKeys.list({ ...DEFAULT_INBOX_LIST_ROUTE, state: 'closed', offset: 20 }), conversation: 1, template: 0 },
+  { name: 'matching conversation', key: inboxKeys.detail(3), conversation: 1, template: 0 },
+  { name: 'other conversation', key: inboxKeys.detail(4), conversation: 0, template: 0 },
+  { name: 'matching history', key: inboxKeys.messagesOf(3), conversation: 1, template: 0 },
+  { name: 'other history', key: inboxKeys.messagesOf(4), conversation: 0, template: 0 },
+  { name: 'global empty order filter', key: inboxOrderKeys.list({ payment_status: 'paid', offset: 20 }), conversation: 1, template: 0 },
+  { name: 'conversation orders', key: inboxOrderKeys.ofConversation(3), conversation: 1, template: 0 },
+  { name: 'other conversation orders', key: inboxOrderKeys.ofConversation(4), conversation: 0, template: 0 },
+  { name: 'known order relation', key: inboxOrderKeys.detail(80), data: { conversation_id: 3 }, conversation: 1, template: 0 },
+  { name: 'different order relation even with matching numeric id', key: inboxOrderKeys.detail(3), data: { conversation_id: 4 }, conversation: 0, template: 0 },
+  { name: 'unknown order relation', key: inboxOrderKeys.detail(82), conversation: 1, template: 0 },
+  { name: 'flow list', key: inboxFlowKeys.list(5, { status: 'published' }), conversation: 1, template: 1 },
+  { name: 'flow count', key: inboxFlowKeys.flow(20), conversation: 1, template: 1 },
+  { name: 'global submission filter', key: inboxFlowKeys.submissions(20, { offset: 20 }), conversation: 1, template: 1 },
+  { name: 'conversation submissions', key: inboxFlowKeys.conversation(3), conversation: 1, template: 0 },
+  { name: 'other submissions', key: inboxFlowKeys.conversation(4), conversation: 0, template: 0 },
+  { name: 'completed campaign list', key: inboxCampaignKeys.list({ ...DEFAULT_CAMPAIGN_LIST_ROUTE, state: 'done' }), conversation: 1, template: 1 },
+  { name: 'campaign detail', key: inboxCampaignKeys.detail(10), conversation: 1, template: 1 },
+  { name: 'filtered campaign recipients', key: inboxCampaignKeys.recipients(10, { ...DEFAULT_RECIPIENT_ROUTE, state: 'read' }), conversation: 1, template: 1 },
+  { name: 'matching preview template', key: inboxCampaignKeys.preview({ template_id: 2, params: [] }), conversation: 0, template: 1 },
+  { name: 'other preview template', key: inboxCampaignKeys.preview({ template_id: 9, params: [] }), conversation: 0, template: 0 },
+  { name: 'unknown preview template', key: [...inboxCampaignKeys.campaigns, 'preview', {}], conversation: 0, template: 1 },
+  { name: 'audience list', key: inboxCampaignKeys.audienceList(DEFAULT_AUDIENCE_LIST_ROUTE), conversation: 1, template: 1 },
+  { name: 'audience choices', key: [...inboxCampaignKeys.audiences, 'choices'], conversation: 1, template: 1 },
+  { name: 'audience count', key: inboxCampaignKeys.audience(7), conversation: 1, template: 1 },
+  { name: 'filtered audience members', key: inboxCampaignKeys.members(7, { ...DEFAULT_MEMBER_ROUTE, consent: 'opted_in' }), conversation: 1, template: 1 },
+  { name: 'contact consent', key: inboxCampaignKeys.marketing(7), conversation: 1, template: 1 },
+  { name: 'channel metadata', key: inboxSettingsKeys.channels, conversation: 1, template: 1 },
+  { name: 'exact channel metadata', key: inboxSettingsKeys.channel(5), conversation: 1, template: 1 },
+  { name: 'account sending budget', key: inboxCampaignKeys.sending(5), conversation: 1, template: 1 },
+  { name: 'channel alerts', key: inboxHealthKeys.alerts(5, 20), conversation: 1, template: 1 },
+  { name: 'TikTok shortcut audit', key: inboxTikTokKeys.shortcuts(5), conversation: 1, template: 0 },
+  { name: 'TikTok import status', key: inboxTikTokKeys.sync(5), conversation: 1, template: 0 },
+  { name: 'report overview opportunistic preservation', key: inboxReportKeys.overview({}), conversation: 1, template: 1 },
+  { name: 'report breakdown opportunistic preservation', key: inboxReportKeys.breakdown('channel', {}), conversation: 1, template: 1 },
+  { name: 'cost report preservation', key: inboxReportKeys.costs({}), conversation: 1, template: 1 },
+  { name: 'report channel refs preservation', key: ['inbox', 'reports', 'channels', '2026-11-07'], conversation: 1, template: 1 },
+  { name: 'template analytics list', key: inboxReportKeys.templates({ channel_id: 5 }), conversation: 1, template: 1 },
+  { name: 'matching template analytics detail', key: inboxReportKeys.template(2, {}), conversation: 1, template: 1 },
+  { name: 'other template analytics detail', key: inboxReportKeys.template(9, {}), conversation: 1, template: 0 },
+  { name: 'filtered templates', key: inboxKeys.templateList(5, { status: 'approved' }), conversation: 0, template: 1 },
+  { name: 'another template filter', key: inboxKeys.templateList(5, { category: 'marketing' }), conversation: 0, template: 1 },
+  { name: 'changed template definition', key: inboxKeys.template(2), conversation: 0, template: 1 },
+  { name: 'other template definition', key: inboxKeys.template(9), conversation: 0, template: 0 },
+  { name: 'canned replies', key: inboxKeys.canned, conversation: 0, template: 0 },
+  { name: 'tags', key: inboxKeys.tags, conversation: 0, template: 0 },
+  { name: 'agents', key: inboxKeys.agents, conversation: 0, template: 0 },
+  { name: 'settings', key: inboxSettingsKeys.settings, conversation: 0, template: 0 },
+  { name: 'departments', key: inboxSettingsKeys.departments, conversation: 0, template: 0 },
+  { name: 'channel refs', key: inboxSettingsKeys.channelRef(5), conversation: 0, template: 0 },
+  { name: 'campaign channel refs', key: inboxCampaignKeys.channels, conversation: 0, template: 0 },
+  { name: 'campaign settings', key: inboxCampaignKeys.settings, conversation: 0, template: 0 },
+  { name: 'automation channel refs', key: inboxAutomationKeys.channels, conversation: 0, template: 0 },
+  { name: 'working hours', key: inboxAutomationKeys.hours, conversation: 0, template: 0 },
+  { name: 'department hours', key: inboxAutomationKeys.departmentHours(1), conversation: 0, template: 0 },
+  { name: 'automation configuration', key: inboxAutomationKeys.automation(5), conversation: 0, template: 0 },
+  { name: 'rule list', key: inboxAutomationKeys.rules, conversation: 0, template: 0 },
+  { name: 'rule', key: inboxAutomationKeys.rule(8), conversation: 0, template: 0 },
+  { name: 'catalog list', key: inboxCatalogKeys.catalogs, conversation: 0, template: 0 },
+  { name: 'catalog', key: inboxCatalogKeys.catalog(6), conversation: 0, template: 0 },
+  { name: 'catalog items', key: inboxCatalogKeys.items(6, {}), conversation: 0, template: 0 },
+  { name: 'catalog item', key: inboxCatalogKeys.item(20), conversation: 0, template: 0 },
+  { name: 'catalog products', key: inboxCatalogKeys.products(6, ''), conversation: 0, template: 0 },
+  { name: 'channel commerce', key: inboxCatalogKeys.commerce(5), conversation: 0, template: 0 },
+  { name: 'catalog picker', key: inboxCatalogKeys.pick({ conversationId: 3 }, ''), conversation: 0, template: 0 },
+  { name: 'external live Meta profile', key: inboxHealthKeys.profile(5), conversation: 0, template: 0 },
+  { name: 'external bell', key: ['notifications'], conversation: 0, template: 0 },
+  { name: 'unknown future dynamic resource', key: ['inbox', 'future-dynamic', 1], conversation: 1, template: 1 },
+]
+it.each(['conversation', 'template'] as const)('preserves the complete %s event dependency matrix with native observers', async event => {
+  const keys = inboxEventCases.map(row => row.key)
+  const { qc, starts, send, stops } = await setup(keys)
+  inboxEventCases.forEach((row, index) => {
+    if (row.data !== undefined) qc.setQueryData(row.key, row.data)
+    starts[index]!.mockResolvedValue({ fresh: row.name })
+  })
+  try {
+    send('liwan/inbox', { id: event === 'conversation' ? 3 : 2, event })
+    await vi.waitFor(() => {
+      for (const [index, row] of inboxEventCases.entries()) {
+        expect(starts[index]!.mock.calls.length, row.name).toBe(row[event])
+        if (row[event]) expect(qc.getQueryData(row.key), row.name).toEqual({ fresh: row.name })
+      }
+    })
+  } finally { stops.forEach(stop => stop()) }
+})
+
+it('coalesces order-event bursts during an old read into one trailing payment reconciliation', async () => {
+  const key = inboxOrderKeys.detail(80)
+  const { qc, starts, send, stops } = await setup([key, inboxKeys.messagesOf(4), inboxCatalogKeys.catalogs])
+  qc.setQueryData(key, inboxOrder('payable'))
+  let release!: (value: object) => void
+  starts[0]!.mockImplementationOnce(() => new Promise(resolve => { release = resolve })).mockResolvedValue(inboxOrder('paid'))
+  try {
+    send('liwan/inbox', { id: 3, event: 'conversation' })
+    await vi.waitFor(() => expect(starts[0]).toHaveBeenCalledTimes(1))
+    for (let index = 0; index < 100; index++) send('liwan/inbox', { id: 3, event: 'conversation' })
+    await Promise.resolve(); await Promise.resolve()
+    expect(starts.map(read => read.mock.calls.length)).toEqual([1, 0, 0])
+    release(inboxOrder('payable'))
+    await vi.waitFor(() => expect(qc.getQueryData(key)).toEqual(inboxOrder('paid')))
+    expect(starts.map(read => read.mock.calls.length)).toEqual([2, 0, 0])
+  } finally { stops.forEach(stop => stop()) }
+})
+function inboxVisibility() {
+  const listeners = new Map<string, () => void>()
+  const document = { visibilityState: 'visible', addEventListener: (name: string, listener: () => void) => listeners.set(name, listener), removeEventListener: (name: string) => listeners.delete(name) }
+  vi.stubGlobal('document', document)
+  return { document, show: () => { document.visibilityState = 'visible'; listeners.get('visibilitychange')!() } }
+}
+it.each(['initial', 'refetch'] as const)('retains a hidden payment event after a pending order %s snapshot settles', async phase => {
+  const visibility = inboxVisibility(), key = inboxOrderKeys.detail(80)
+  let release!: (value: object) => void
+  const oldRead = new Promise<object>(resolve => { release = resolve })
+  const { qc, starts, send, stops } = await setup([key, inboxKeys.messagesOf(4), inboxCatalogKeys.catalogs], phase === 'initial' ? () => oldRead : undefined)
+  starts[0]!.mockResolvedValue(inboxOrder('paid'))
+  try {
+    if (phase === 'refetch') {
+      qc.setQueryData(key, inboxOrder('payable'))
+      starts[0]!.mockImplementationOnce(() => oldRead)
+      void qc.refetchQueries({ queryKey: key, exact: true })
+      await vi.waitFor(() => expect(starts[0]).toHaveBeenCalledTimes(1))
+    }
+    visibility.document.visibilityState = 'hidden'
+    send('liwan/inbox', { id: 3, event: 'conversation' })
+    await Promise.resolve(); await Promise.resolve()
+    release(inboxOrder('payable'))
+    await vi.waitFor(() => expect(qc.getQueryState(key)?.fetchStatus).toBe('idle'))
+    expect(starts.map(read => read.mock.calls.length)).toEqual([phase === 'initial' ? 0 : 1, 0, 0])
+    expect(qc.getQueryData(key)).toEqual(inboxOrder('payable'))
+    visibility.show()
+    await vi.waitFor(() => expect(qc.getQueryData(key)).toEqual(inboxOrder('paid')))
+    expect(starts.map(read => read.mock.calls.length)).toEqual([phase === 'initial' ? 1 : 2, 0, 0])
+  } finally { stops.forEach(stop => stop()) }
+})
+it('keeps an idle hidden order stale without reads until one visible payment catchup', async () => {
+  const visibility = inboxVisibility(), key = inboxOrderKeys.detail(80)
+  const { qc, starts, send, stops } = await setup([key, inboxKeys.messagesOf(4), inboxCatalogKeys.catalogs])
+  qc.setQueryData(key, inboxOrder('payable')); starts[0]!.mockResolvedValue(inboxOrder('paid'))
+  try {
+    visibility.document.visibilityState = 'hidden'
+    send('liwan/inbox', { id: 3, event: 'conversation' })
+    await Promise.resolve(); await Promise.resolve()
+    expect(starts.map(read => read.mock.calls.length)).toEqual([0, 0, 0])
+    expect(qc.getQueryState(key)?.isInvalidated).toBe(true)
+    visibility.show()
+    await vi.waitFor(() => expect(qc.getQueryData(key)).toEqual(inboxOrder('paid')))
+    expect(starts.map(read => read.mock.calls.length)).toEqual([1, 0, 0])
+  } finally { stops.forEach(stop => stop()) }
+})
+it.each(['queued', 'trailing'] as const)('fences %s payment work from a replacement session client', async phase => {
+  const key = inboxOrderKeys.detail(80)
+  let release!: (value: object) => void
+  const oldRead = new Promise<object>(resolve => { release = resolve })
+  const { qc, send, stops } = await setup([key], phase === 'trailing' ? () => oldRead : undefined)
+  if (phase === 'queued') qc.setQueryData(key, inboxOrder('payable'))
+  send('liwan/inbox', { id: 3, event: 'conversation' })
+  if (phase === 'trailing') {
+    await Promise.resolve(); await Promise.resolve()
+    expect(qc.getQueryState(key)?.isInvalidated).toBe(true)
+  }
+  useBus().disconnect()
+  const current = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
+  clients.push(current)
+  current.setQueryData(key, inboxOrder('paid'))
+  const read = vi.fn(async () => inboxOrder('paid'))
+  const stop = new QueryObserver(current, { queryKey: key, queryFn: read }).subscribe(() => {})
+  setBusQueryClient(current); await useBus().connect(); socket.onopen?.()
+  try {
+    if (phase === 'trailing') {
+      release(inboxOrder('payable'))
+      await vi.waitFor(() => expect(qc.getQueryState(key)?.fetchStatus).toBe('idle'))
+    }
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
+    expect(read).not.toHaveBeenCalled()
+    expect(current.getQueryData(key)).toEqual(inboxOrder('paid'))
+  } finally { stop(); stops.forEach(stop => stop()) }
+})
+
+it('marks a disabled manual preview stale on a template update without issuing a preview request', async () => {
+  const { qc, send } = await setup([])
+  const key = [...inboxCampaignKeys.campaigns, 'preview', {}]
+  const read = vi.fn(async () => ({ body: 'preview' }))
+  const stop = new QueryObserver(qc, { queryKey: key, enabled: false, queryFn: read }).subscribe(() => {})
+  try {
+    send('liwan/inbox', { id: 2, event: 'template' })
+    await vi.waitFor(() => expect(qc.getQueryState(key)?.isInvalidated).toBe(true))
+    expect(read).not.toHaveBeenCalled()
+    expect(qc.getQueryData(key)).toBeUndefined()
+  } finally { stop() }
 })

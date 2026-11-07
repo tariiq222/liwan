@@ -4,6 +4,7 @@ import { CHAT_TYPING_MS } from '../utils/chatState'
 import { clearTaskWriteAcknowledgements, reconcileTaskWriteEvent, taskKeys } from './useTasks'
 import type { Task } from '@liwan/contracts'
 import { isTaskDependentProjectKey } from './projectKeys'
+import { inboxEventAffectsQuery } from './inbox/inboxEventQueries'
 
 export interface BusNotification {
   id: number
@@ -261,7 +262,7 @@ function invalidateForFrame(notifications: BusNotification[]) {
   const client = queryClient
   const ownGeneration = generation
   const filters = {
-    predicate: ({ queryKey: key }: { queryKey: readonly unknown[] }) => {
+    predicate: ({ queryKey: key, state }: { queryKey: readonly unknown[]; state: { data: unknown } }) => {
       if (key[0] === 'chat' && chatIds.size) {
         if (key[2] === 'list') return true
         if (!chatIds.has(key[3] as number)) return false
@@ -269,9 +270,7 @@ function invalidateForFrame(notifications: BusNotification[]) {
         if (key[2] === 'members') return memberIds.has(key[3] as number)
         return ['messages', 'attachments'].includes(key[2] as string) && messageIds.has(key[3] as number)
       }
-      if (key[0] !== 'inbox') return false
-      if (templateIds.size && (key[1] === 'templates' || (key[1] === 'template' && templateIds.has(key[2] as number)))) return true
-      return inboxIds.size > 0 && (key[1] === 'conversations' || (['conversation', 'messages'].includes(key[1] as string) && inboxIds.has(key[2] as number)))
+      return inboxEventAffectsQuery(key, state.data, inboxIds, templateIds)
     },
     // Hidden tabs retain staleness and reconcile on return without doing background reads.
     refetchType: typeof document !== 'undefined' && document.visibilityState === 'hidden' ? 'none' as const : 'active' as const,
