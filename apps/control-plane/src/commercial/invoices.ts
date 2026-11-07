@@ -87,7 +87,7 @@ export function adjustmentView(row: any): Adjustment {
   return adjustmentSchema.parse({
     id: row.id, invoice_id: row.invoice_id, customer_id: row.customer_id, kind: row.kind, reason: row.reason,
     amount: { currency: row.currency, exponent: num(row.exponent), minor: num(row.amount_minor) },
-    status: row.status, created_at: ts(row.created_at), created_by: row.created_by,
+    status: row.status, origin: row.origin, created_at: ts(row.created_at), created_by: row.created_by,
     refund_reference: row.refund_reference ?? null, refunded_at: ts(row.refunded_at), refunded_by: row.refunded_by ?? null,
   })
 }

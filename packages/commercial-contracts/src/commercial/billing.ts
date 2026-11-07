@@ -46,6 +46,8 @@ export const adjustmentSchema = z.strictObject({
   id: z.string().min(1), invoice_id: z.string().min(1), customer_id: z.string().min(1),
   kind: z.enum(['credit_note', 'debit_note']), reason: z.string().min(3).max(1000),
   amount: moneySchema, status: z.enum(['pending', 'applied', 'refunded', 'void']),
+  /** Who raised it: a vendor-requested full refund of a first payment, or the system (duplicate charge, late payment, failed fulfilment). */
+  origin: z.enum(['vendor', 'system']),
   created_at: z.string(), created_by: z.string().min(1),
   /** Set together, only once the operator recorded the refund made outside the system. */
   refund_reference: z.string().nullable(), refunded_at: z.string().nullable(), refunded_by: z.string().nullable(),
