@@ -7,11 +7,19 @@ import { CommercialHttpError, type CommercialActor } from './lifecycle.js'
 
 /** The seeded LiwanOS plan family (schema_025.sql): the one sellable platform plan whose applications are optional bundles. */
 const LIWAN_PLAN_ID = '00000000-0000-4000-8000-0000000000b1'
-// PLACEHOLDER prices, the same development amounts schema_025 seeds; the owner replaces them from the vendor console.
-const PLACEHOLDER_PRICES = [
-  { cadence: { unit: 'month', count: 1 }, amount: { currency: 'SAR', exponent: 2, minor: 19900 } },
-  { cadence: { unit: 'year', count: 1 }, amount: { currency: 'SAR', exponent: 2, minor: 199000 } },
-]
+/** Release 1 application prices per month in SAR minor units (owner decision 2026-11-06). Seed amounts only: the
+ *  vendor console owns every later change, and the annual price is exactly ten monthly payments. */
+const SEED_MONTHLY_MINOR: Record<string, number> = { crm: 9900, inbox: 25000 }
+const DEFAULT_SEED_MONTHLY_MINOR = 0
+/** Annual is ten months for twelve: the one ratio every seeded amount follows. */
+const ANNUAL_MONTHS = 10
+function seedPrices(appId: string) {
+  const minor = SEED_MONTHLY_MINOR[appId] ?? DEFAULT_SEED_MONTHLY_MINOR
+  return [
+    { cadence: { unit: 'month', count: 1 }, amount: { currency: 'SAR', exponent: 2, minor } },
+    { cadence: { unit: 'year', count: 1 }, amount: { currency: 'SAR', exponent: 2, minor: minor * ANNUAL_MONTHS } },
+  ]
+}
 const PLAN_FIELDS = ['name', 'audience', 'term_months', 'currency', 'prices', 'platform_limits', 'included_bundle_revision_ids', 'optional_bundle_revision_ids',
   'included_extra_branches', 'extra_branch_prices', 'extra_branches_limit', 'included_users', 'included_storage_mb', 'user_prices', 'storage_prices',
   'policy_revision_id', 'trial_days', 'grace_days', 'auto_suspend', 'auto_renew_allowed'] as const
@@ -33,7 +41,7 @@ export async function seedDefaultBundles(pool: Pool, actor: CommercialActor, inp
     const featureKeys = app.features.filter(f => f.kind === 'boolean' && f.selectable).map(f => f.key)
     const draft = await createBundle(pool, actor, {
       name: app.name_ar, description: app.name_en, audience: { kind: 'public' }, catalog_release_id: release_id,
-      selections: [{ app_id: app.id, feature_keys: featureKeys }], domain_limits: {}, prices: PLACEHOLDER_PRICES, reason,
+      selections: [{ app_id: app.id, feature_keys: featureKeys }], domain_limits: {}, prices: seedPrices(app.id), reason,
     })
     const validated = await mutateBundle(pool, actor, draft.id, 'validate', { edit_revision: draft.edit_revision, reason }, { pricingGranted: true, pricingStepUp: true })
     await mutateBundle(pool, actor, draft.id, 'publish', { edit_revision: (validated as { edit_revision: number }).edit_revision, reason }, { pricingGranted: true, pricingStepUp: true })

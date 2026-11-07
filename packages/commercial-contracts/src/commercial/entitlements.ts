@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { canonicalJson } from './calendar.js'
-import { admitsRequiredAdmin, USERS_LIMIT_KEY } from './schemas.js'
+import { admitsRequiredAdmin, USERS_LIMIT_KEY, usersWithinCap } from './schemas.js'
 import { CommercialError } from './types.js'
 import type { BundleRevision, CapacityMap, CatalogApplication, CatalogRelease, CustomerTermsRevision, EntitlementSnapshot, PlanRevision } from './types.js'
 
@@ -110,6 +110,8 @@ export function compileEntitlements(input: {
   }
   if (!admitsRequiredAdmin(features[USERS_LIMIT_KEY]))
     throw new CommercialError('users_limit_admin_required', 'quantities')
+  // The entitlement a tenant receives never exceeds the release cap, whatever a plan or terms revision asks for.
+  if (!usersWithinCap(features[USERS_LIMIT_KEY])) throw new CommercialError('users_limit_exceeded', 'quantities')
   const branches = terms?.extra_branches_limit !== undefined ? terms.extra_branches_limit : plan.extra_branches_limit
   features['branches.extra_limit'] = branches
 

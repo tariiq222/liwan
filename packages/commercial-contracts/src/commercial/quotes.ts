@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { addCadence, canonicalJson, daysBetween, remainingDays } from './calendar.js'
 import { paidExtraBranches, paidStorageGb, paidUnits, prorateMinor, vat } from './pricing.js'
+import { MAX_USERS } from './schemas.js'
 import { CommercialError } from './types.js'
 import type { BundleRevision, Cadence, CustomerTermsRevision, Money, PlanRevision, Price, PricingPolicy, Quote, QuoteLine } from './types.js'
 
@@ -42,6 +43,8 @@ export function computeQuote(input: ComputeQuoteInput): Quote {
   const paidUsers = paidUnits(input.requested_users, plan.included_users)
   const paidStorage = paidStorageGb(input.requested_storage_mb, plan.included_storage_mb)
   if (limit !== null && requested > limit) throw new CommercialError('branch_limit_exceeded', 'requested_extra_branches')
+  // Release 1 stops selling at MAX_USERS; above it the customer is told to contact us.
+  if (input.requested_users > MAX_USERS) throw new CommercialError('users_limit_exceeded', 'requested_users')
   if (kind === 'change' && !input.current) throw new CommercialError('invalid_quantity', 'current')
 
   const exponents = new Set<number>()

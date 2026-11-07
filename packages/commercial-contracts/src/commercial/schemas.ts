@@ -18,9 +18,15 @@ export const capacityMapSchema = z.record(z.string().regex(dotted), z.number().i
  * them: a positive integer, or null for unlimited. One rule for packages, plans, terms and the compiler. */
 export const USERS_LIMIT_KEY = 'users.limit'
 export const admitsRequiredAdmin = (value: unknown) => value === null || (Number.isInteger(value) && (value as number) >= 1)
+/** Release 1 sells at most this many users per company (owner decision 2026-11-06). Above it a customer is told to
+ * contact us; no quote, order, change or renewal may ask for more, and no entitlement may carry more. */
+export const MAX_USERS = 100
+export const usersWithinCap = (value: unknown) => value === null || (Number.isInteger(value) && (value as number) >= 0 && (value as number) <= MAX_USERS)
 /** Plan platform limits and customer terms limits, stored and input alike; schema_023 holds the same rule in the database. */
 export const sellableLimitsSchema = capacityMapSchema.refine(m => !Object.hasOwn(m, USERS_LIMIT_KEY) || admitsRequiredAdmin(m[USERS_LIMIT_KEY]), {
   message: 'users.limit must allow the required customer administrator', path: [USERS_LIMIT_KEY],
+}).refine(m => !Object.hasOwn(m, USERS_LIMIT_KEY) || usersWithinCap(m[USERS_LIMIT_KEY]), {
+  message: `users.limit must not exceed ${MAX_USERS} users`, path: [USERS_LIMIT_KEY],
 })
 export const lifecycleSchema = z.enum(['draft', 'validated', 'published'])
 export const audienceSchema = z.discriminatedUnion('kind', [

@@ -6,10 +6,9 @@ ALTER TABLE plan_revisions
   ADD COLUMN user_prices jsonb NOT NULL DEFAULT '[]'::jsonb,
   ADD COLUMN storage_prices jsonb NOT NULL DEFAULT '[]'::jsonb;
 
--- PLACEHOLDER, not approved: the owner replaces every amount from the vendor console.
--- The LiwanOS plan is the single sellable platform plan: the base price covers the platform,
--- and every application is an optional, separately priced bundle. Prices here are development
--- placeholders only; a real tenant must never be sold from them.
+-- Release 1 amounts (owner decision 2026-11-06): the platform, its first 3 users, 5 GiB, the first branch and the
+-- AI assistant are free, so the base is 0 and every amount is a vendor-editable value the console replaces.
+-- ANNUAL IS EXACTLY TEN MONTHLY PAYMENTS: the same ratio every amount below follows.
 UPDATE plan_revisions SET available=false, edit_revision=edit_revision+1 WHERE status='published' AND available;
 
 -- Application prices live on a new revision: a published revision is immutable. The old
@@ -52,8 +51,9 @@ INSERT INTO plan_revisions(
 VALUES(
   '00000000-0000-4000-8000-0000000000b2', '00000000-0000-4000-8000-0000000000b1', 1, 'LiwanOS',
   '{"kind":"public"}', NULL, 'published', true, 12, 'SAR',
-  '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":29900}},{"cadence":{"unit":"year","count":1},"amount":{"currency":"SAR","exponent":2,"minor":299000}}]'::jsonb,
-  '{}'::jsonb, '[]'::jsonb,
+  '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":0}},{"cadence":{"unit":"year","count":1},"amount":{"currency":"SAR","exponent":2,"minor":0}}]'::jsonb,
+  -- The AI assistant's monthly budget per company, per run: a vendor-editable value (the console's plan form).
+  '{"ai.messages.monthly":500,"ai.tokens.monthly":2500000,"ai.assist.monthly":100,"ai.tool_calls.per_run":8,"ai.output_tokens.per_run":2000}'::jsonb, '[]'::jsonb,
   COALESCE((
     SELECT jsonb_agg(id ORDER BY created_at,id) FROM bundle_revisions
     WHERE status='published' AND available
@@ -62,11 +62,11 @@ VALUES(
         WHERE status='published' AND available
         ORDER BY created_at DESC, id DESC LIMIT 1)
   ), '[]'::jsonb),
-  0,
+  1,
   '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":5000}},{"cadence":{"unit":"year","count":1},"amount":{"currency":"SAR","exponent":2,"minor":50000}}]'::jsonb,
   NULL,
   3, 5120,
-  '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":1000}},{"cadence":{"unit":"year","count":1},"amount":{"currency":"SAR","exponent":2,"minor":10000}}]'::jsonb,
+  '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":2900}},{"cadence":{"unit":"year","count":1},"amount":{"currency":"SAR","exponent":2,"minor":29000}}]'::jsonb,
   '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":100}},{"cadence":{"unit":"year","count":1},"amount":{"currency":"SAR","exponent":2,"minor":1000}}]'::jsonb,
   '6f1c3d8e-0000-4000-8000-000000000001', 14, 7, true, true,
   encode(sha256(convert_to('liwan-plan-seed-v1','UTF8')),'hex'),

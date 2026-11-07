@@ -15,6 +15,13 @@ import { assertDowngradeFitsUsage } from './usage.js'
 
 const TTL_MS = 30 * 60 * 1000
 const bad = (code: string, field: string, status = 422) => new CommercialHttpError(code, status, field, [{ code, field }])
+/** A compiler refusal is a 422 with its code and field, exactly like one from `computeQuote` below. */
+function compileOrRefuse<T>(compile: () => T): T {
+  try { return compile() } catch (e) {
+    if (e instanceof CommercialError) { const i = toIssue(e); throw bad(i.code, i.field ?? 'quantities') }
+    throw e
+  }
+}
 
 export async function previewQuote(pool: Pool, value: unknown, now: Date = new Date()): Promise<Quote> {
   const input = quotePreviewRequestSchema.parse(value)
@@ -132,7 +139,7 @@ async function quoteForCustomer(pool: Pool, value: QuoteInput, now: Date, persis
       if (value.previewTerms.customer_id !== value.customer_id) throw bad('not_found', 'customer_id', 404)
       sources.terms = value.previewTerms
     }
-    const entitlement = compileEntitlements({ ...sources, quantities: { users: input.requested_users, storage_mb: input.requested_storage_mb } })
+    const entitlement = compileOrRefuse(() => compileEntitlements({ ...sources, quantities: { users: input.requested_users, storage_mb: input.requested_storage_mb } }))
     if (input.kind === 'change') await assertDowngradeFitsUsage(client, {
       tenant_id: customer.rows[0].tenant_id, subscription_id: s.id,
       previous: applied.entitlement?.features ?? {}, target: entitlement.features, now,
