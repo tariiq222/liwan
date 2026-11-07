@@ -11,6 +11,7 @@ import type { RegistryActor } from '../shared/registry-store.js'
 import { onboardSharedTenant } from '../shared/onboarding.js'
 import { commercialEnrollmentActor } from '../shared/commercial-enrollment-authority.js'
 import { enqueueOutbox } from './outbox.js'
+import { hasReachableManager } from './orders.js'
 
 /** The Odoo hard expiry: trial end plus the plan's grace, on the UTC calendar Odoo compares. */
 export function commercialExpiryDate(trialEndsAt: string | Date, graceDays: number): string {
@@ -135,7 +136,9 @@ async function enrollNewOrder(pool: Pool, orderId: string, runtime?: EnrollmentR
     // must not change the digest the first attempt registered.
     const stored = customer.enrollment_request_id ? (await client.query(`SELECT o.admin_name,o.admin_login,t.name,t.catalog_version,t.catalog_tier
       FROM shared_onboardings o JOIN tenants t ON t.id=o.control_tenant_id WHERE o.request_id=$1`, [customer.enrollment_request_id])).rows[0] : undefined
-    if (!stored && !customer.admin_login) return { reason: 'enrollment_admin_missing' } as const
+    // A7: the one predicate the pre-payment guard uses, so the two sides cannot disagree. A subscription with a tenant
+    // (dedicated mode) proceeds without a manager; the guard now allows that order too.
+    if (!stored && !(await hasReachableManager(client, customer, sub))) return { reason: 'enrollment_admin_missing' } as const
     if (!runtime) return { reason: 'enrollment_runtime_missing' } as const
     if (stored) return { input: { request_id: customer.enrollment_request_id as string, name: stored.name, admin_name: stored.admin_name, admin_login: stored.admin_login,
       catalog_version: stored.catalog_version, catalog_tier: stored.catalog_tier, reason: `Enroll paid subscription ${sub.id}` }, customerId, subscriptionId: sub.id }

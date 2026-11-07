@@ -553,6 +553,13 @@ def check_catalog(root, catalog_dir=CATALOG_DIR):
     solutions = sorted((base / 'solutions').glob('*.json'))
     if not solutions:
         errors.append('solutions/: no solution file found')
+    # Resolve the current release once, and never let a broken closure escape as a traceback. The broken release module
+    # is reported once, by _check_release on the solution that holds it.
+    try:
+        resolved = current_release(root, catalog_dir)
+    except ClosureError:
+        resolved = None
+    current_name = resolved[0] if resolved else None
     for path in solutions:
         where = f'solutions/{path.name}'
         data = load_json(path)
@@ -611,6 +618,20 @@ def check_catalog(root, catalog_dir=CATALOG_DIR):
             if tier_id in tier_ids:
                 errors.append(f'{where}.tiers: duplicate tier id {tier_id!r}')
             tier_ids.append(tier_id)
+            # `sellable` marks what a customer may buy; a tier that omits it sells nothing, which is what the
+            # schema says. The CURRENT release must say it explicitly on every tier, so no tier is silently locked
+            # by an omission. Older files keep their bytes (and their digests) and are not held to the newer rule.
+            is_current = path.name == current_name
+            if 'sellable' in tier:
+                if tier_id == 'core':
+                    errors.append(f'{tier_where}: the core tier is always included and can never be sellable')
+                if data.get('schema_version') != RELEASE_SCHEMA:
+                    errors.append(f'{tier_where}: sellable is a schema {RELEASE_SCHEMA} property')
+                if not isinstance(tier['sellable'], bool):
+                    errors.append(f'{tier_where}: sellable must be true or false')
+            elif is_current and tier_id != 'core':
+                # The core tier is always included; every other tier of the current release must say whether it is sold.
+                errors.append(f'{tier_where}: the current release must state sellable on every non-core tier')
             tier_modules = list(tier.get('modules') or [])
             for module in tier_modules:
                 known_module(module, f'{tier_where}.modules')
@@ -676,15 +697,10 @@ def check_catalog(root, catalog_dir=CATALOG_DIR):
     for module in find_cycles(edges):
         errors.append(f'{module}: part of a dependency cycle in {ADDONS_DIR}')
 
-    try:
-        current = current_release(root, catalog_dir)
-    except ClosureError as exc:
-        current = None
-        errors.append(f'release module {exc} has no readable manifest')
-    if current is not None:
-        newest = load_json(base / 'solutions' / current[0])
-        _check_release_copies(root, list(newest.get('base_modules') or []), current[1], errors)
-        _check_release_apps(root, f'solution {current[0]}', newest, errors)
+    if resolved is not None:
+        newest = load_json(base / 'solutions' / resolved[0])
+        _check_release_copies(root, list(newest.get('base_modules') or []), resolved[1], errors)
+        _check_release_apps(root, f'solution {resolved[0]}', newest, errors)
 
     for module in sorted(TEST_ONLY_MODULES):
         summary = manifests.get(module, {}).get('summary', '')

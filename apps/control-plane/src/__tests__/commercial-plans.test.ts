@@ -15,7 +15,7 @@ suite('commercial plans', () => {
   const planBody = (over: any = {}) => ({ name: `P ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
     prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
     included_extra_branches: 1, extra_branch_prices: [{ cadence: monthly, amount: money(50000) }], extra_branches_limit: 5,
-    included_users: 3, included_storage_mb: 5120, user_prices: [{ cadence: monthly, amount: money(2500) }], storage_prices: [{ cadence: monthly, amount: money(500) }], policy_revision_id: POLICY,
+    included_users: 3, included_storage_mb: 5120, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [{ cadence: monthly, amount: money(2500) }], storage_prices: [{ cadence: monthly, amount: money(500) }], policy_revision_id: POLICY,
     trial_days: 0, grace_days: 7, auto_suspend: true, auto_renew_allowed: true, ...over })
   async function publishedBundle(over: any = {}) {
     const c = await api('POST', '/bundles', bundleBody(over))
@@ -72,12 +72,14 @@ suite('commercial plans', () => {
     const rows = (await pool.query("SELECT * FROM plan_revisions WHERE status='published' AND available AND name='LiwanOS'")).rows
     expect(rows).toHaveLength(1)
     expect(rows[0].included_bundle_revision_ids).toEqual([])
-    expect(rows[0].trial_days).toBe(14)
+    // The seeded LiwanOS plan costs nothing, so it carries no trial: a free trial could only end past_due.
+    expect(rows[0].trial_days).toBe(0)
     expect(rows[0].included_users).toBe(3)
-    expect(rows[0].included_storage_mb).toBe(5120)
+    // A10 (owner decision 2026-11-07): the seeded base includes 20 GiB.
+    expect(rows[0].included_storage_mb).toBe(20480)
   })
   it('reads back the new plan columns', async () => {
-    const c = await api('POST', '/plans', planBody({ included_users: 3, included_storage_mb: 5120, user_prices: [{ cadence: monthly, amount: money(2500) }], storage_prices: [{ cadence: monthly, amount: money(500) }] }))
+    const c = await api('POST', '/plans', planBody({ included_users: 3, included_storage_mb: 5120, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [{ cadence: monthly, amount: money(2500) }], storage_prices: [{ cadence: monthly, amount: money(500) }] }))
     expect(c.status).toBe(201)
     const row = (await api('GET', `/plans/${c.body.id}`)).body
     expect(row.included_users).toBe(3)

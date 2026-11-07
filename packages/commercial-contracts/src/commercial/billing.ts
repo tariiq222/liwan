@@ -2,19 +2,32 @@ import { z } from 'zod'
 import { moneySchema, revisionIdSchema } from './schemas.js'
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
-export const TAX_LABEL = 'VAT 15% exclusive' as const
+/**
+ * The label of the tax line a policy charges, or null when the policy charges no tax. Liwan is not VAT-registered
+ * (owner decision 2026-11-06), so the active policy is `none` and every Liwan invoice carries no label; a registered
+ * future policy names its own rate here. The label is never forced onto an invoice.
+ */
+// Only the label an invoice can actually carry: an untaxed invoice has no label at all (the field is null),
+// so a `none` entry here would be a second way to spell the same thing.
+export const TAX_LABELS = { 'vat_exclusive': 'VAT 15% exclusive' } as const
+export type TaxLabel = (typeof TAX_LABELS)[keyof typeof TAX_LABELS]
+/** `null` for the policy that charges no tax, otherwise that policy's own label. */
+export const taxLabelSchema = z.union([z.null(), z.literal(TAX_LABELS.vat_exclusive)])
+
 
 export const invoiceKindSchema = z.enum(['initial', 'change', 'renewal', 'adjustment'])
 export const invoiceStatusSchema = z.enum(['draft', 'issued', 'paid', 'void', 'credit_pending'])
 export const invoiceLineSchema = z.strictObject({
-  key: z.string(), kind: z.enum(['base', 'bundle', 'branch', 'users', 'storage', 'discount', 'tax', 'adjustment']),
+  key: z.string(), kind: z.enum(['base', 'bundle', 'branch', 'users', 'storage', 'onboarding', 'discount', 'tax', 'adjustment']),
   timing: z.enum(['now', 'renewal']), description: z.string(), quantity: z.number().int().min(0),
   unit_amount: moneySchema, amount: moneySchema, period_start: isoDate, period_end: isoDate,
   source_revision_id: revisionIdSchema, free_quantity: z.number().int().min(0).optional(),
 })
 /**
- * Commercial invoice for the customer. NOT an official ZATCA e-invoice (out of scope):
- * `official_tax_invoice` is always false. Issued invoices are immutable; corrections use adjustments/credit notes.
+ * Commercial invoice for the customer: Liwan's own billing document, never a tax document of the customer's business.
+ * `tax_label` is null unless the invoice's pricing policy charges tax, and `official_tax_invoice` is always false:
+ * no Liwan invoice is an official tax document (owner decision 2026-11-06). Issued invoices are immutable;
+ * corrections use adjustments/credit notes.
  */
 export const invoiceSchema = z.strictObject({
   id: z.string().min(1), number: z.string().nullable(), customer_id: z.string().min(1),
@@ -23,14 +36,18 @@ export const invoiceSchema = z.strictObject({
   lines: z.array(invoiceLineSchema), subtotal: moneySchema, tax: moneySchema, total: moneySchema,
   period_start: isoDate, period_end: isoDate,
   issued_at: z.string().nullable(), due_at: z.string().nullable(), paid_at: z.string().nullable(),
-  tax_label: z.literal(TAX_LABEL), official_tax_invoice: z.literal(false),
+  tax_label: taxLabelSchema, official_tax_invoice: z.literal(false),
 }).refine(i => (i.status === 'draft') === (i.number === null) || i.status === 'void', { path: ['number'], message: 'Number only once issued' })
+  // No label without a tax amount, and no tax amount without the label of the policy that charged it.
+  .refine(i => (i.tax_label === null) === (i.tax.minor === 0), { path: ['tax_label'], message: 'A tax label exists exactly when the invoice taxes' })
 
 /** Separate immutable correction document (issued invoices are never edited). */
 export const adjustmentSchema = z.strictObject({
   id: z.string().min(1), invoice_id: z.string().min(1), customer_id: z.string().min(1),
   kind: z.enum(['credit_note', 'debit_note']), reason: z.string().min(3).max(1000),
   amount: moneySchema, status: z.enum(['pending', 'applied', 'refunded', 'void']),
+  /** Who raised it: a vendor-requested full refund of a first payment, or the system (duplicate charge, late payment, failed fulfilment). */
+  origin: z.enum(['vendor', 'system']),
   created_at: z.string(), created_by: z.string().min(1),
   /** Set together, only once the operator recorded the refund made outside the system. */
   refund_reference: z.string().nullable(), refunded_at: z.string().nullable(), refunded_by: z.string().nullable(),

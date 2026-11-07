@@ -135,6 +135,12 @@ describe('customer commercial BFF', () => {
     expect(customerRoute('POST', 'orders/abc')).toBeNull()
     expect(customerRoute('GET', 'orders/abc/payment-attempts')).toBeNull()
     expect(customerRoute('GET', 'invoices/inv-1')?.needs).toBe('billing.read')
+    // A2: a customer's own transfer instructions, under the same capability as the invoice read itself.
+    expect(customerRoute('GET', 'invoices/inv-1/bank-transfer')).toEqual({ upstream: '/v1/customer/invoices/inv-1/bank-transfer', needs: 'billing.read' })
+    expect(customerRoute('POST', 'invoices/inv-1/bank-transfer')).toBeNull()
+    expect(customerRoute('GET', 'invoices/inv-1/bank-transfers')).toBeNull()
+    // 'invoices/bank-transfer' is indistinguishable from an invoice id named bank-transfer, and answers 404 upstream.
+    expect(customerRoute('GET', 'invoices/inv-1/bank-transfer/x')).toBeNull()
     expect(customerRoute('POST', 'branch-quotes')?.needs).toBe('branches.manage')
     expect(customerRoute('GET', '../vendor/plans')).toBeNull()
     expect(customerRoute('GET', 'invoices/a/../b')).toBeNull()

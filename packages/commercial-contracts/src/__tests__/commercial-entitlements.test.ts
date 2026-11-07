@@ -6,12 +6,19 @@ import { admitsRequiredAdmin, customerTermsRevisionSchema, planCreateSchema, pla
 import type { BundleRevision, CatalogRelease, PlanRevision } from '../commercial/types.js'
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
-const solution = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform.json', import.meta.url), 'utf8'))
+// The compiler fixture sells every tier of the legacy composition, so a bundle may select any of them. `platform.json`
+// itself carries no `sellable` flag (it predates one) and would therefore sell nothing; these tests are about the
+// compiler, not about what release 1 sells, which the `commercial-release1-*` suites cover.
+const legacy = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform.json', import.meta.url), 'utf8'))
+const sellAll = (catalog: { tiers: Array<{ id: string }> }) => ({
+  ...catalog, tiers: catalog.tiers.map(tier => (tier.id === 'core' ? tier : { ...tier, sellable: true })),
+})
+const solution = sellAll(legacy)
 function fixture() {
   const release: CatalogRelease = { id: id(1), version: 'v1', source_digest: 'a'.repeat(64), artifact_digest: 'b'.repeat(64), applications: catalogApplicationsFromSolution(solution, 'v1') }
   const bundle = (n: number, app: string, keys: string[], limits = {}): BundleRevision => ({ id: id(n), bundle_id: id(n + 20), version: 1, edit_revision: 1, name: app, description: app, audience: { kind: 'public' }, status: 'published', available: true, catalog_release_id: release.id, selections: [{ app_id: app, feature_keys: keys }], domain_limits: limits, prices: [] })
   const bundles = [bundle(2, 'projects', ['pmo.enabled', 'meetings.enabled'], { 'projects.max_projects': 0 }), bundle(3, 'people', ['hr.enabled'])]
-  const plan: PlanRevision = { id: id(4), plan_id: id(5), version: 1, edit_revision: 1, name: 'Plan', status: 'published', available: true, audience: { kind: 'public' }, term_months: 12, prices: [], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: bundles.map(b => b.id), included_extra_branches: 1, extra_branch_prices: [], extra_branches_limit: 8, included_users: 20, included_storage_mb: 0, user_prices: [], storage_prices: [], policy_revision_id: id(6), currency: 'SAR', trial_days: 0, grace_days: 0, auto_suspend: false, auto_renew_allowed: false }
+  const plan: PlanRevision = { id: id(4), plan_id: id(5), version: 1, edit_revision: 1, name: 'Plan', status: 'published', available: true, audience: { kind: 'public' }, term_months: 12, prices: [], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: bundles.map(b => b.id), included_extra_branches: 1, extra_branch_prices: [], extra_branches_limit: 8, included_users: 20, included_storage_mb: 0, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [], storage_prices: [], policy_revision_id: id(6), currency: 'SAR', trial_days: 0, grace_days: 0, auto_suspend: false, auto_renew_allowed: false }
   return { release, plan, bundles, terms: null, quantities: { users: 20, storage_mb: 0 } }
 }
 
@@ -127,7 +134,10 @@ describe('commercial catalog and entitlement compiler', () => {
     const { id: _i, plan_id: _p, version: _v, edit_revision: _e, status: _s, available: _a, ...fields } = plan
     const planInput = (limit: number | null) => ({ ...fields, platform_limits: { 'users.limit': limit, 'storage.limit_mb': null } })
     expect(planCreateSchema.safeParse(planInput(1)).success).toBe(true)
-    expect(planCreateSchema.safeParse(planInput(null)).success).toBe(true)
+    // A6/A8: unlimited is above the release cap, so `users.limit: null` is no longer an accepted plan limit.
+    expect(planCreateSchema.safeParse(planInput(null)).success).toBe(false)
+    expect(planCreateSchema.safeParse(planInput(100)).success).toBe(true)
+    expect(planCreateSchema.safeParse(planInput(101)).success).toBe(false)
     const refused = planCreateSchema.safeParse(planInput(0))
     expect(refused.success).toBe(false)
     expect(refused.error?.issues[0]?.path).toEqual(['platform_limits', 'users.limit'])
@@ -144,7 +154,7 @@ describe('commercial catalog and entitlement compiler', () => {
     expect(compileEntitlements(input).features['core.always']).toBe(true)
   })
   it('compiles the real v3 catalog into exactly the seventeen policy keys', () => {
-    const v3 = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v3.json', import.meta.url), 'utf8'))
+    const v3 = sellAll(JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v3.json', import.meta.url), 'utf8')))
     const input = fixture()
     input.release.applications = catalogApplicationsFromSolution(v3, 'v3')
     expect(compileEntitlements(input).features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.assets': true, 'hr.enabled': true, 'hr.insurance': true, 'hr.offboarding': true, 'hr.onboarding': true, 'hr.payroll': true, 'hr.recruitment': true, 'hr.shifts': true, 'hr.warnings': true, 'meetings.enabled': true, 'pmo.baselines': true, 'pmo.change_control': true, 'pmo.enabled': true, 'pmo.evm': true, 'projects.max_projects': 0, 'storage.limit_mb': 0, 'tasks.enabled': false, 'users.limit': 20 })
@@ -159,10 +169,10 @@ describe('commercial catalog and entitlement compiler', () => {
 })
 
 describe('application is the grant unit', () => {
-  const v3 = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v3.json', import.meta.url), 'utf8'))
+  const v3 = sellAll(JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v3.json', import.meta.url), 'utf8')))
   const release: CatalogRelease = { id: id(1), version: 'v3', source_digest: 'a'.repeat(64), artifact_digest: 'b'.repeat(64), applications: catalogApplicationsFromSolution(v3, 'v3') }
   const bundle = (n: number, app: string): BundleRevision => ({ id: id(n), bundle_id: id(n + 20), version: 1, edit_revision: 1, name: app, description: app, audience: { kind: 'public' }, status: 'published', available: true, catalog_release_id: release.id, selections: [{ app_id: app, feature_keys: [] }], domain_limits: {}, prices: [] })
-  const plan: PlanRevision = { id: id(4), plan_id: id(5), version: 1, edit_revision: 1, name: 'Plan', status: 'published', available: true, audience: { kind: 'public' }, term_months: 12, prices: [], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [id(2), id(3)], included_extra_branches: 1, extra_branch_prices: [], extra_branches_limit: 8, included_users: 20, included_storage_mb: 0, user_prices: [], storage_prices: [], policy_revision_id: id(6), currency: 'SAR', trial_days: 0, grace_days: 0, auto_suspend: false, auto_renew_allowed: false }
+  const plan: PlanRevision = { id: id(4), plan_id: id(5), version: 1, edit_revision: 1, name: 'Plan', status: 'published', available: true, audience: { kind: 'public' }, term_months: 12, prices: [], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [id(2), id(3)], included_extra_branches: 1, extra_branch_prices: [], extra_branches_limit: 8, included_users: 20, included_storage_mb: 0, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [], storage_prices: [], policy_revision_id: id(6), currency: 'SAR', trial_days: 0, grace_days: 0, auto_suspend: false, auto_renew_allowed: false }
   it('grants all nine HR features when the people application is selected', () => {
     const snap = compileEntitlements({ release, plan, bundles: [bundle(3, 'people')], terms: null, quantities: { users: 20, storage_mb: 0 } })
     for (const k of ['hr.enabled', 'hr.recruitment', 'hr.shifts', 'hr.onboarding', 'hr.offboarding', 'hr.assets', 'hr.warnings', 'hr.insurance', 'hr.payroll'])

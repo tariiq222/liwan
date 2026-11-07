@@ -15,6 +15,13 @@ import { assertDowngradeFitsUsage } from './usage.js'
 
 const TTL_MS = 30 * 60 * 1000
 const bad = (code: string, field: string, status = 422) => new CommercialHttpError(code, status, field, [{ code, field }])
+/** A compiler refusal is a 422 with its code and field, exactly like one from `computeQuote` below. */
+function compileOrRefuse<T>(compile: () => T): T {
+  try { return compile() } catch (e) {
+    if (e instanceof CommercialError) { const i = toIssue(e); throw bad(i.code, i.field ?? 'quantities') }
+    throw e
+  }
+}
 
 export async function previewQuote(pool: Pool, value: unknown, now: Date = new Date()): Promise<Quote> {
   const input = quotePreviewRequestSchema.parse(value)
@@ -107,6 +114,14 @@ async function quoteForCustomer(pool: Pool, value: QuoteInput, now: Date, persis
     if (input.subscription_id && input.subscription_id !== s?.id) throw bad('not_found', 'subscription_id', 404)
     if (input.expected_subscription_revision !== undefined && input.expected_subscription_revision !== (s?.revision ?? 0)) throw bad('revision_conflict', 'expected_subscription_revision', 409)
     if (input.kind === 'new' && s?.applied_revision_id) throw bad('revision_conflict', 'kind', 409)
+    // The assisted onboarding is a first-order item at the vendor's fee, offered only while a fee is set.
+    let onboarding: { amount: { currency: string; exponent: number; minor: number } } | null = null
+    if (input.onboarding) {
+      if (input.kind !== 'new' || s?.applied_revision_id) throw bad('onboarding_first_order_only', 'onboarding')
+      const fee = (await client.query('SELECT onboarding_fee_minor,onboarding_currency,onboarding_exponent FROM billing_settings WHERE singleton')).rows[0]
+      if (!fee || Number(fee.onboarding_fee_minor) <= 0) throw bad('onboarding_unavailable', 'onboarding')
+      onboarding = { amount: { currency: fee.onboarding_currency, exponent: Number(fee.onboarding_exponent), minor: Number(fee.onboarding_fee_minor) } }
+    }
     let current: any, applied: any
     const effective = process.env.NODE_ENV !== 'production' && input.effective_date ? input.effective_date : riyadhDate(now)
     let period = { start: effective, end: addCadence(effective, input.cadence, 1) }
@@ -132,7 +147,7 @@ async function quoteForCustomer(pool: Pool, value: QuoteInput, now: Date, persis
       if (value.previewTerms.customer_id !== value.customer_id) throw bad('not_found', 'customer_id', 404)
       sources.terms = value.previewTerms
     }
-    const entitlement = compileEntitlements({ ...sources, quantities: { users: input.requested_users, storage_mb: input.requested_storage_mb } })
+    const entitlement = compileOrRefuse(() => compileEntitlements({ ...sources, quantities: { users: input.requested_users, storage_mb: input.requested_storage_mb } }))
     if (input.kind === 'change') await assertDowngradeFitsUsage(client, {
       tenant_id: customer.rows[0].tenant_id, subscription_id: s.id,
       previous: applied.entitlement?.features ?? {}, target: entitlement.features, now,
@@ -141,7 +156,7 @@ async function quoteForCustomer(pool: Pool, value: QuoteInput, now: Date, persis
       const quote = computeQuote({ ...sources, kind: input.kind, cadence: input.cadence, requested_extra_branches: input.requested_extra_branches,
         requested_users: input.requested_users, requested_storage_mb: input.requested_storage_mb,
         current, effective_date: effective, period, ids: { id: randomUUID(), customer_id: value.customer_id, subscription_id: s?.id ?? null, expected_subscription_revision: s?.revision ?? 0 },
-        expires_at: new Date(now.getTime() + TTL_MS).toISOString(), entitlement_digest: entitlement.digest })
+        expires_at: new Date(now.getTime() + TTL_MS).toISOString(), entitlement_digest: entitlement.digest, onboarding })
       if (persist && !value.previewTerms) await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [quote.id, value.customer_id, JSON.stringify(quote), quote.digest, quote.expires_at])
       return quoteSchema.parse(quote)
     } catch (e) {

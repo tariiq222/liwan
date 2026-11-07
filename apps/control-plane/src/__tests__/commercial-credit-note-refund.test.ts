@@ -24,6 +24,11 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
         VALUES($1,$2,$3,'new',$4,$5,'paid','failed',$6,'fixture',11500,'SAR',2)`, [order, customer, sub, randomUUID(), revision, randomUUID()])
       await c.query(`INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at)
         VALUES($1,$2,$3,$4,'initial','paid','SAR',2,10000,1500,11500,'2026-01-01','2026-02-01',now())`, [invoice, customer, sub, order])
+      // A paid order was paid: its successful attempt is what makes the payment refundable (W7).
+      const attempt = randomUUID()
+      await c.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status)
+        VALUES($1,$2,$3,'moyasar','live',$4,11500,'SAR',2,'succeeded')`, [attempt, order, invoice, `moy-${attempt}`])
+      await c.query('UPDATE orders SET paid_attempt_id=$2 WHERE id=$1', [order, attempt])
       const [note] = await recordFulfillmentFailure(c, { order_id: order, reason: 'Fulfillment failed permanently', actor: 'system' })
       return { invoice, note: note! }
     })
@@ -107,7 +112,7 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
       const pathname = `/v1/commercial/invoices/${f.invoice}`
       return (await routesB(pool, { method: 'GET', pathname, raw: '', issuer: 'vendor-test', actor: 7, capabilities: ['vendor.billing.manage'] }, new URL(pathname, 'https://liwan.test')))!.data as any
     }
-    expect((await read()).adjustments).toMatchObject([{ id: f.note, kind: 'credit_note', status: 'pending', refund_reference: null }])
+    expect((await read()).adjustments).toMatchObject([{ id: f.note, kind: 'credit_note', origin: 'system', status: 'pending', refund_reference: null }])
     await call(f.note, ok)
     expect((await read()).adjustments).toMatchObject([{ id: f.note, status: 'refunded', refund_reference: 'MOY-REFUND-77' }])
   })

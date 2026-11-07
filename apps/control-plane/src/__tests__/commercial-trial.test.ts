@@ -39,7 +39,7 @@ suite('commercial trial', () => {
     const created = await api('POST', '/plans', { name: `Trial ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
       prices: [{ cadence: monthly, amount: money(30000) }], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
       included_extra_branches: 0, extra_branch_prices: [{ cadence: monthly, amount: money(0) }], extra_branches_limit: null,
-      included_users: 3, included_storage_mb: 5120, user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }],
+      included_users: 3, included_storage_mb: 5120, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }],
       policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000001', trial_days: 14, grace_days: 7, auto_suspend: true, auto_renew_allowed: true })
     const validated = await api('POST', `/plans/${created.body.id}/validate`, { edit_revision: 1, reason })
     plan = (await api('POST', `/plans/${created.body.id}/publish`, { edit_revision: validated.body.edit_revision, reason })).body
@@ -305,10 +305,13 @@ suite('commercial trial', () => {
       return routesB(pool, { method: 'POST', pathname: '/v1/commercial/orders', raw: JSON.stringify({ quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: randomUUID() }),
         issuer: 'trial-test', actor: 1, capabilities: ['vendor.subscriptions.manage', 'vendor.tenants.manage'], stepUpFresh: true }, new URL('http://localhost/v1/commercial/orders'))
     }
-    it('refuses a paid first order for a tenantless customer in shared mode', async () => {
+    it('accepts a paid first order in shared mode (release 1) and leaves the tenant decision to fulfilment', async () => {
+      // Owner decision 2026-11-06: a vendor-added customer starts paid. Issue #143's invariant is kept in fulfilment:
+      // a customer with no tenant never has its order applied, so a payment can never be stranded.
       const id = await tenantless()
-      await expect(paidFirstOrder(id, 'shared')).rejects.toMatchObject({ code: 'trial_required_first', status: 409 })
-      expect((await pool.query('SELECT 1 FROM orders WHERE customer_id=$1', [id])).rowCount).toBe(0)
+      const response = await paidFirstOrder(id, 'shared')
+      expect(response!.status).toBe(201)
+      expect(response!.data.order.payment_state).toBe('awaiting_payment')
     })
     it('allows the same paid first order in dedicated mode', async () => {
       const response = await paidFirstOrder(await tenantless(), 'dedicated')
@@ -329,7 +332,7 @@ suite('commercial trial', () => {
       const draft = await api('POST', '/plans', { name: `Bigger ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
         prices: [{ cadence: monthly, amount: money(90000) }], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
         included_extra_branches: 0, extra_branch_prices: [{ cadence: monthly, amount: money(0) }], extra_branches_limit: null,
-        included_users: 3, included_storage_mb: 5120, user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }],
+        included_users: 3, included_storage_mb: 5120, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }],
         policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000001', trial_days: 0, grace_days: 7, auto_suspend: true, auto_renew_allowed: true })
       const validated = await api('POST', `/plans/${draft.body.id}/validate`, { edit_revision: 1, reason })
       const bigger = (await api('POST', `/plans/${draft.body.id}/publish`, { edit_revision: validated.body.edit_revision, reason })).body
@@ -339,7 +342,7 @@ suite('commercial trial', () => {
       vi.stubEnv('LIWAN_TENANCY_MODE', 'shared')
       const attempt = routesB(pool, { method: 'POST', pathname: '/v1/commercial/orders', raw: JSON.stringify({ quote_id: quote.id, expected_subscription_revision: sub.revision, idempotency_key: randomUUID() }),
         issuer: 'trial-test', actor: 1, capabilities: ['vendor.subscriptions.manage', 'vendor.tenants.manage'], stepUpFresh: true }, new URL('http://localhost/v1/commercial/orders'))
-      await expect(attempt.then(() => 'accepted', (e: { code?: string }) => e.code)).resolves.not.toBe('trial_required_first')
+      await expect(attempt.then(() => 'accepted', (e: { code?: string }) => e.code)).resolves.not.toBe('tenant_required')
     })
     it('allows the zero-due trial order in shared mode', async () => {
       vi.stubEnv('LIWAN_TENANCY_MODE', 'shared')

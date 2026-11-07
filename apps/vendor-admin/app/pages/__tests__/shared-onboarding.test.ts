@@ -43,13 +43,16 @@ describe('shared tenant onboarding browser contract', () => {
     // Identity fields lock once the customer exists so a retry never diverges from it.
     expect((form.match(/:disabled="Boolean\(createdCustomer\)"/g) ?? []).length).toBe(3)
     expect(form).toContain('subscriptions.createCustomer(planTenantCustomerBody(form, creationRequestId.value))')
-    expect(form).toContain('subscriptions.changeQuote(planTenantQuoteBody(')
+    expect(form).toContain('planTenantQuoteBody(createdCustomer.value, selectedPlan.value, selectedCadence.value)')
     expect(form).toContain('subscriptions.placeOrder(')
-    // A plan with a trial starts it instead of a paid first order the shared server refuses.
-    expect(form).toContain('if (selectedPlan.value.trial_days > 0) await subscriptions.startTrial(createdCustomer.value, planRequestBody(')
-    expect(form).toContain('data-testid="plan-trial"')
-    // Paid plans without a trial are not offered: they could never be a shared customer's first order.
-    expect(form).toContain('p.trial_days > 0 || p.prices.every(price => price.amount.minor === 0)')
+    // A4: a vendor-added customer never starts a trial, so no trial path exists here at all.
+    expect(form).not.toContain('subscriptions.startTrial')
+    expect(form).not.toContain('plan-trial')
+    expect(form).toContain('const startablePlans = computed(() => (plans.value ?? []).filter(p => p.trial_days === 0))')
+    // Every offered plan places its first order, free or paid, and the onboarding is an optional extra on it.
+    expect(form).toContain('await subscriptions.placeOrder({')
+    expect(form).toContain('data-testid="onboarding-choice"')
+    expect(form).toContain('admin_login')
     expect(form).toContain('startablePlans.map(p => ({ label: p.name, value: p.id }))')
     expect(form).not.toContain("'packages'")
     expect(form).not.toContain('package_revision_id')

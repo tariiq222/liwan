@@ -3,7 +3,7 @@ import { canonicalJson } from './calendar.js'
 import { parseCatalogTiers } from './feature-descriptor.js'
 import type { CatalogApplication, CatalogFeature, CatalogRelease } from './types.js'
 
-type SolutionTier = { id: string; name?: string; modules?: string[]; features?: string[] }
+type SolutionTier = { id: string; name?: string; modules?: string[]; features?: string[]; sellable?: boolean }
 type Solution = { schema_version?: unknown; descriptor_grammar?: unknown; base_modules?: string[]; tiers: SolutionTier[] }
 
 const NAMES: Record<string, [string, string]> = {
@@ -51,6 +51,9 @@ export function catalogApplicationsFromSolution(solution: Solution, _version: st
       id: tier.id, name_ar, name_en,
       modules: [...new Set([...(core ? base : []), ...(tier.modules ?? [])])].sort(),
       requires_apps: [], conflicts_with_apps: [], selectable: !core,
+      // Emitted only when the tier declares it. A catalog that predates the flag keeps its artifact digest byte for
+      // byte; whether such a catalog may still be published is a separate question the control plane answers.
+      ...(typeof tier.sellable === 'boolean' ? { sellable: tier.sellable } : {}),
       features: specs.map(({ kind, key, ceiling }): CatalogFeature => ({
         key, kind, selectable: kind === 'boolean' && !core, requires: [], enforcement_refs: enforcementRefs(key),
         // Emitted only when the descriptor carries a value; never defaulted.

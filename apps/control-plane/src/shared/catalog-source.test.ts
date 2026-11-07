@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { resolveCatalogSource, readKnownSource } from './catalog-source.js'
+import { resolveCatalogSource, readKnownSource, requirePublishableSource } from './catalog-source.js'
 import { verifyPackageSource } from '../packages.js'
 
 const repo = join(import.meta.dirname, '../../../..')
@@ -20,13 +20,22 @@ describe('catalog source resolution by sha256', () => {
     expect((await resolveCatalogSource(repo, sha('platform.json'))).name).toBe('platform.json')
     expect((await resolveCatalogSource(repo, sha('platform_v2.json'))).name).toBe('platform_v2.json')
   })
-  it('resolves the v3 sha to platform_v3.json', async () => {
+  it('resolves the v3 sha to platform_v3.json but refuses to publish it', async () => {
+    // A6: the bytes stay resolvable, because an already-published revision is pinned to them; publishing is refused,
+    // because that catalog predates the flag that says what is for sale.
     expect((await resolveCatalogSource(repo, sha('platform_v3.json'))).name).toBe('platform_v3.json')
-    expect((await readKnownSource(repo, 'platform_v3.json')).name).toBe('platform_v3.json')
+    await expect(readKnownSource(repo, 'platform_v3.json')).rejects.toThrow('catalog_source_not_publishable')
   })
-  it('resolves the v4 operations catalog without replacing older sources', async () => {
+  it('publishes the v4 operations catalog and only that one', async () => {
     expect((await resolveCatalogSource(repo, sha('platform_v4.json'))).name).toBe('platform_v4.json')
     expect((await readKnownSource(repo, 'platform_v4.json')).name).toBe('platform_v4.json')
+    expect((await readKnownSource(repo)).name).toBe('platform_v4.json')
+  })
+
+  it('lets a stored entry move towards publication only from the publishable catalog', async () => {
+    expect((await requirePublishableSource(repo, sha('platform_v4.json'))).name).toBe('platform_v4.json')
+    await expect(requirePublishableSource(repo, sha('platform_v3.json'))).rejects.toThrow('catalog_source_not_publishable')
+    await expect(requirePublishableSource(repo, '0'.repeat(64))).rejects.toThrow('catalog_source_unavailable')
   })
 
   it('rejects zero matches', async () => {
@@ -37,11 +46,11 @@ describe('catalog source resolution by sha256', () => {
     copyFileSync(join(dir, 'deploy/catalog/solutions/platform.json'), join(dir, 'deploy/catalog/solutions/platform_v2.json'))
     await expect(resolveCatalogSource(dir, sha('platform.json'))).rejects.toThrow('catalog_source_ambiguous')
   })
-  it('readKnownSource only accepts registered names', async () => {
-    expect((await readKnownSource(repo)).name).toBe('platform.json')
-    expect((await readKnownSource(repo, 'platform_v2.json')).name).toBe('platform_v2.json')
+  it('readKnownSource only accepts the current catalog, by name', async () => {
+    await expect(readKnownSource(repo, 'platform.json')).rejects.toThrow('catalog_source_not_publishable')
+    await expect(readKnownSource(repo, 'platform_v2.json')).rejects.toThrow('catalog_source_not_publishable')
     await expect(readKnownSource(repo, '../../../etc/passwd')).rejects.toThrow('catalog_source_unavailable')
-    await expect(readKnownSource(repo, 'other.json')).rejects.toThrow('catalog_source_unavailable')
+    await expect(readKnownSource(repo, 'other.json')).rejects.toThrow('catalog_source_not_publishable')
   })
   it('verifyPackageSource verifies per version and keeps legacy rows valid', async () => {
     await expect(verifyPackageSource({ repositoryRoot: repo }, sha('platform.json'))).resolves.toBeUndefined()

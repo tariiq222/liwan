@@ -1,14 +1,22 @@
 <script setup lang="ts">
-import { commercialErrorKey, commercialFailure, emptyPlanDraft, fieldIssue, limitFromDraft, MB_PER_GB, parseCount, planDraftFromView, priceRowErrors, type BundleView, type PlanDraft, type PlanView } from '@/utils/vendorCommercial'
+import { AI_LIMIT_KEYS, COMMERCIAL_MAX_USERS, commercialErrorKey, commercialFailure, emptyPlanDraft, fieldIssue, limitFromDraft, MAX_STORAGE_STEP_MB, MB_PER_GB, parseCount, planDraftFromView, priceRowErrors, storageStepsAligned, type BundleView, type PlanDraft, type PlanView } from '@/utils/vendorCommercial'
+import { defaultPolicyId, policyOptions } from './policySelection'
 import type { PricingPolicyView } from '@/composables/useVendorCommercial'
-const props = withDefaults(defineProps<{ bundles: BundleView[]; policy?: PricingPolicyView; initial?: PlanView; busy?: boolean; error?: unknown; resetKey?: number; requireReason?: boolean }>(), { busy: false, resetKey: 0, requireReason: false })
+// `policy` is the policy a saved plan keeps; the form only prefills it with an edit and lets the vendor choose any approved policy.
+const props = withDefaults(defineProps<{ bundles: BundleView[]; policies?: PricingPolicyView[]; policy?: PricingPolicyView; initial?: PlanView; busy?: boolean; error?: unknown; resetKey?: number; requireReason?: boolean }>(), { busy: false, resetKey: 0, requireReason: false })
 const emit = defineEmits<{ save: [draft: PlanDraft]; cancel: [] }>()
 const { t } = useI18n(); const hydrated = useHydrated()
-const draft = reactive<PlanDraft>(props.initial ? planDraftFromView(props.initial) : emptyPlanDraft())
-const serialized = () => JSON.stringify(draft)
-const baseline = ref(serialized()); const attempted = ref(false)
-const dirty = computed(() => serialized() !== baseline.value)
-watch(() => props.resetKey, () => { baseline.value = serialized(); attempted.value = false })
+const policyList = computed<PricingPolicyView[]>(() => (props.policies?.length ? props.policies : props.policy ? [props.policy] : []))
+function initialPolicyId(): string {
+  if (props.initial) return policyList.value.some(p => p.id === props.initial!.policy_revision_id) ? props.initial.policy_revision_id : ''
+  return defaultPolicyId(policyList.value) ?? ''
+}
+const draft = reactive<PlanDraft>({ ...(props.initial ? planDraftFromView(props.initial) : emptyPlanDraft()), policy_revision_id: initialPolicyId() })
+// The pricing policy is a selector, not a value typed into the form, so choosing it never counts as an unsaved edit.
+const editable = () => JSON.stringify({ ...draft, policy_revision_id: '' })
+const baseline = ref(editable()); const attempted = ref(false)
+const dirty = computed(() => editable() !== baseline.value)
+watch(() => props.resetKey, () => { baseline.value = editable(); attempted.value = false })
 const failure = computed(() => (props.error ? commercialFailure(props.error) : null))
 const serverIssue = (field: string) => { const code = fieldIssue(failure.value, field); return code ? t(commercialErrorKey({ code })) : undefined }
 const dis = computed(() => !hydrated.value || props.busy)
@@ -37,21 +45,43 @@ const errors = computed(() => {
   if (!draft.prices.length || priceRowErrors(draft.prices).some(Boolean)) e.prices = t('vendor.pricing.prices.invalid')
   if (!draft.included.length && !draft.optional.length) e.bundles = t('vendor.pricing.plan.bundlesRequired')
   if (releaseIds.value.size > 1) e.bundles = t('vendor.pricing.plan.singleRelease')
-  if ((parseCount(draft.included_users) ?? 0) < 1) e.includedUsers = t('vendor.pricing.plan.usersRequired')
+  // Release 1 sells at most COMMERCIAL_MAX_USERS users; the cap is refused here, before any request is sent.
+  // Parsed without the cap: a value above it must say so, not read as "required" (the cap used to swallow the number).
+  const includedUserCount = parseCount(draft.included_users)
+  if (includedUserCount === null) e.includedUsers = t('vendor.pricing.plan.usersRequired')
+  else if (includedUserCount > COMMERCIAL_MAX_USERS) e.includedUsers = t('vendor.pricing.plan.usersCapExceeded')
   const storage = parseCount(draft.included_storage_mb)
   if (storage === null) e.includedStorage = req
   else if (storage % MB_PER_GB !== 0) e.includedStorage = t('vendor.pricing.plan.storageMinimumGb')
+  // A6: the three storage steps are vendor-editable plan values, bounded where they are parsed and required to tile
+  // the range they govern (the same rule the contract and the database CHECK enforce). Alignment reads the parsed
+  // values: the typed text may use Arabic-Indic digits, which Number() cannot read.
+  const steps: Record<string, number> = {}
+  for (const field of ['storage_step_mb', 'storage_step_threshold_mb', 'storage_large_step_mb'] as const) {
+    const step = parseCount(draft[field])
+    if (step === null || step === 0) e[field] = req
+    else if (step > MAX_STORAGE_STEP_MB) e[field] = t('vendor.pricing.plan.storageStepTooLarge')
+    else steps[field] = step
+  }
+  if (Object.keys(steps).length === 3
+    && !storageStepsAligned({ storage_step_mb: steps.storage_step_mb!, storage_step_threshold_mb: steps.storage_step_threshold_mb!, storage_large_step_mb: steps.storage_large_step_mb! }))
+    e.storage_step_threshold_mb = t('vendor.pricing.plan.storageStepMisaligned')
   if (priceRowErrors(draft.user_prices).some(Boolean)) e.userPrices = t('vendor.pricing.prices.invalid')
   if (priceRowErrors(draft.storage_prices).some(Boolean)) e.storagePrices = t('vendor.pricing.prices.invalid')
   if (unitPriceMissing.value) e.unitPrices = t('vendor.pricing.prices.cadenceMissing')
   if (parseCount(draft.included_extra_branches) === null) e.free = req
   if (priceRowErrors(draft.extra_branch_prices).some(Boolean)) e.branchPrices = t('vendor.pricing.prices.invalid')
   try { limitFromDraft(draft.extra_branches_limit) } catch { e.branchLimit = t('vendor.pricing.limit.required') }
+  // The AI budget is a non-negative integer or unlimited; an unreadable value stops the save with a clear message.
+  for (const key of AI_LIMIT_KEYS) {
+    const limit = draft.ai_limits[key]
+    if (limit?.mode === 'number' && !/^\d+$/.test(String(limit.value).trim())) e[`ai_${key}`] = t('vendor.pricing.plan.aiLimitInvalid')
+  }
   if (parseCount(draft.trial_days, 3650) === null) e.trial = req
   if (parseCount(draft.grace_days, 3650) === null) e.grace = req
   if (!draft.auto_suspend) e.suspend = req
   if (!draft.auto_renew_allowed) e.renew = req
-  if (!props.policy) e.policy = t('vendor.pricing.plan.policyMissing')
+  if (!draft.policy_revision_id) e.policy = t('vendor.pricing.plan.policyRequired')
   if (props.requireReason && draft.reason.trim().length < 3) e.reason = t('vendor.pricing.reasonRequired')
   return e
 })
@@ -62,7 +92,11 @@ function submit() {
   emit('save', draft)
 }
 const show = (k: string) => (attempted.value ? errors.value[k] : undefined)
-const taxText = computed(() => (props.policy?.tax.kind === 'vat_exclusive' ? t('vendor.pricing.plan.vat', { rate: props.policy.tax.rate_bps / 100 }) : t('vendor.pricing.plan.noTax')))
+// The approved policy the vendor chose (never the first listed row); VAT wording appears only after an explicit VAT choice.
+const policy = computed(() => policyList.value.find(p => p.id === draft.policy_revision_id))
+const policyTaxText = (policy: PricingPolicyView) => (policy.tax.kind === 'vat_exclusive' ? t('vendor.pricing.plan.vat', { rate: policy.tax.rate_bps / 100 }) : t('vendor.pricing.plan.noTax'))
+const policyItems = computed(() => policyOptions(policyList.value, policyTaxText))
+const taxText = computed<string | null>(() => (policy.value ? policyTaxText(policy.value) : null))
 </script>
 <template>
   <form class="space-y-6" novalidate data-testid="plan-form" @submit.prevent="submit">
@@ -102,13 +136,23 @@ const taxText = computed(() => (props.policy?.tax.kind === 'vat_exclusive' ? t('
     <SharedFormSection panel :title="t('vendor.pricing.sections.quantities')" :description="t('vendor.pricing.plan.quantitiesHint')">
       <div class="space-y-6">
         <div class="grid gap-4 sm:grid-cols-2">
-          <UFormField :label="t('vendor.pricing.fields.includedUsers')" required :error="show('includedUsers') ?? serverIssue('included_users')"><UInput v-model="draft.included_users" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
+          <UFormField :label="t('vendor.pricing.fields.includedUsers')" required :help="t('vendor.pricing.plan.usersCapNote')" :error="show('includedUsers') ?? serverIssue('included_users')"><UInput v-model="draft.included_users" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
           <UFormField :label="t('vendor.pricing.fields.includedStorage')" required :error="show('includedStorage') ?? serverIssue('included_storage_mb')"><UInput v-model="draft.included_storage_mb" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
+          <UFormField :label="t('vendor.pricing.fields.storageStep')" required :help="t('vendor.pricing.fields.storageStepHint')" :error="show('storage_step_mb') ?? serverIssue('storage_step_mb')"><UInput v-model="draft.storage_step_mb" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
+          <UFormField :label="t('vendor.pricing.fields.storageStepThreshold')" required :help="t('vendor.pricing.fields.storageStepThresholdHint')" :error="show('storage_step_threshold_mb') ?? serverIssue('storage_step_threshold_mb')"><UInput v-model="draft.storage_step_threshold_mb" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
+          <UFormField :label="t('vendor.pricing.fields.storageLargeStep')" required :help="t('vendor.pricing.fields.storageLargeStepHint')" :error="show('storage_large_step_mb') ?? serverIssue('storage_large_step_mb')"><UInput v-model="draft.storage_large_step_mb" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
           <UFormField :label="t('vendor.pricing.fields.freeBranches')" required :error="show('free') ?? serverIssue('included_extra_branches')"><UInput v-model="draft.included_extra_branches" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
           <UFormField :label="t('vendor.pricing.fields.branchLimit')" required :error="show('branchLimit') ?? serverIssue('extra_branches_limit')"><VendorLimitControl v-model="draft.extra_branches_limit" :label="t('vendor.pricing.fields.branchLimit')" :disabled="dis" /></UFormField>
         </div>
         <p class="rounded-lg bg-elevated p-3 text-sm">{{ t('vendor.pricing.plan.hq') }}</p>
         <VendorPriceListEditor v-model="draft.extra_branch_prices" :label="t('vendor.pricing.fields.branchPrice')" :disabled="dis" :show-errors="attempted" :server-error="serverIssue('extra_branch_prices')" />
+      </div>
+    </SharedFormSection>
+    <SharedFormSection panel :title="t('vendor.pricing.sections.ai')" :description="t('vendor.pricing.plan.aiHint')">
+      <div class="grid items-start gap-4 sm:grid-cols-2">
+        <UFormField v-for="key in AI_LIMIT_KEYS" :key="key" :label="t(`vendor.pricing.plan.aiLimits.${key.replaceAll('.', '_')}`)" :help="t('vendor.pricing.plan.aiUnlimitedHint')" :error="show(`ai_${key}`)">
+          <VendorLimitControl v-model="draft.ai_limits[key]" :label="t(`vendor.pricing.plan.aiLimits.${key.replaceAll('.', '_')}`)" :none-allowed="false" :disabled="dis" />
+        </UFormField>
       </div>
     </SharedFormSection>
     <SharedFormSection panel :title="t('vendor.pricing.sections.lifecycle')" :description="t('vendor.pricing.plan.lifecycleHint')">
@@ -123,9 +167,12 @@ const taxText = computed(() => (props.policy?.tax.kind === 'vat_exclusive' ? t('
       <div class="space-y-4">
         <dl class="grid gap-2 text-sm sm:grid-cols-2">
           <div><dt class="text-muted">{{ t('vendor.pricing.policy.timezone') }}</dt><dd>{{ policy?.timezone ?? '—' }}</dd></div>
-          <div><dt class="text-muted">{{ t('vendor.pricing.policy.tax') }}</dt><dd>{{ taxText }}</dd></div>
+          <div><dt class="text-muted">{{ t('vendor.pricing.policy.tax') }}</dt><dd>{{ taxText ?? '—' }}</dd></div>
         </dl>
-        <p v-if="attempted && errors.policy" class="text-sm text-error">{{ errors.policy }}</p>
+        <UAlert v-if="!policyList.length" color="warning" variant="subtle" :title="t('vendor.pricing.plan.policyMissing')" />
+        <UFormField :label="t('vendor.pricing.policy.select')" required :help="t('vendor.pricing.policy.selectHint')" :error="show('policy') ?? serverIssue('policy_revision_id')">
+          <USelect v-model="draft.policy_revision_id" :items="policyItems" :placeholder="t('vendor.pricing.policy.none')" class="w-full" :disabled="dis" data-testid="plan-policy" />
+        </UFormField>
         <UFormField v-if="requireReason" :label="t('vendor.pricing.fields.reason')" required :error="show('reason') ?? serverIssue('reason')"><UTextarea v-model="draft.reason" maxlength="1000" class="w-full" :disabled="dis" /></UFormField>
       </div>
     </SharedFormSection>

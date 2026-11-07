@@ -7,6 +7,11 @@ export type CustomerCatalog = { plans: Array<Record<string, any>>; bundles: Arra
 /** Read-only order status; the control plane answers 404 for an order that is not this customer's. */
 export type CustomerOrderStatus = Pick<Order, 'id' | 'kind' | 'payment_state' | 'fulfillment_state' | 'due_now' | 'created_at'> & { cancelled: boolean }
 export type CustomerOrderResult = { order: NonNullable<SubscriptionView['pending_order']> }
+/** What the customer needs to make a bank transfer for one unpaid invoice (the vendor sets the account). */
+export type BankTransferInstructions = {
+  invoice_id: string; status: string; reference: string; amount_minor: number; currency: string; exponent: number
+  bank: { account_name: string; account_number: string; iban: string; instructions_ar: string; instructions_en: string }
+}
 const CSRF_COOKIE = 'liwan_csrf'
 
 export function useSubscriptionApi() {
@@ -29,6 +34,8 @@ export function useSubscriptionApi() {
     usage: () => request<UsageSnapshot>('usage'),
     invoices: () => request<SubscriptionList<Invoice>>('invoices'),
     invoice: (id: string) => request<Invoice>(`invoices/${encodeURIComponent(id)}`),
+    /** Where to transfer while an invoice is unpaid; the control plane answers 409 until the vendor sets the account. */
+    bankTransfer: (id: string) => request<BankTransferInstructions>(`invoices/${encodeURIComponent(id)}/bank-transfer`),
     order: (id: string) => request<CustomerOrderStatus>(`orders/${encodeURIComponent(id)}`),
     branches: () => request<BranchSummary>('branches'),
     quote: (body: unknown) => request<Quote>('quotes', { method: 'POST', body }),

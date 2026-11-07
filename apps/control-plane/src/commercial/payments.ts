@@ -9,6 +9,7 @@ import { confirmEvent } from './moyasar-adapter.js'
 import { enqueueOutbox } from './outbox.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { onRenewalPaid } from './renewals.js'
+import { isPaidFirstOrder, requireReachableManager } from './orders.js'
 
 export function paymentAttemptView(row: any) {
   return { id: row.id, order_id: row.order_id, invoice_id: row.invoice_id, provider: row.provider, mode: row.mode,
@@ -67,7 +68,9 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
     // A confirmed charge for an attempt that did not pay an order that is already paid (or refund-bound) is a
     // second charge: record it, and queue a credit note for the operator instead of silently ignoring money.
     if (event.status === 'succeeded' && attempt.status !== 'succeeded' && ['paid', 'refund_pending', 'refunded'].includes(order.payment_state)) {
-      await client.query("UPDATE payment_attempts SET status='succeeded',updated_at=now() WHERE id=$1", [attempt.id])
+      // A5: the duplicate is money that arrived now, so it gets the same immutable success time a first payment gets;
+      // left NULL it would read as 1970 to the refund window and every duplicate would look long out of it.
+      await client.query("UPDATE payment_attempts SET status='succeeded',succeeded_at=COALESCE(succeeded_at,now()),updated_at=now() WHERE id=$1", [attempt.id])
       const reason = 'Duplicate payment on an already paid order — manual refund'
       const inserted = await enqueueOutbox(client, { kind: 'reconcile.refund', aggregate_id: order.id, dedupe_key: event.event_id,
         payload: { order_id: order.id, attempt_id: attempt.id, payment_id: event.payment_id, event_id: event.event_id, duplicate: true } })
@@ -79,7 +82,9 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
   }
   await client.query('UPDATE orders SET payment_state=$2,fulfillment_state=$3 WHERE id=$1', [order.id, next.payment_state, next.fulfillment_state])
   if (event.status === 'succeeded') {
-    await client.query("UPDATE payment_attempts SET status='succeeded',updated_at=now() WHERE id=$1", [attempt.id])
+    // succeeded_at is the immutable moment the money arrived: the first value wins, and later updates never move the
+    // refund window. A bank transfer arrives with it already set to its value date.
+    await client.query("UPDATE payment_attempts SET status='succeeded',succeeded_at=COALESCE(succeeded_at,now()),updated_at=now() WHERE id=$1", [attempt.id])
     await client.query('UPDATE orders SET paid_attempt_id=$2 WHERE id=$1 AND paid_attempt_id IS NULL', [order.id, attempt.id])
     await client.query("UPDATE invoices SET status='paid',paid_at=COALESCE(paid_at,now()) WHERE id=$1 AND status='issued'", [attempt.invoice_id])
     if (next.reconcile) {
@@ -107,6 +112,19 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
 /** Only authoritative adapter-fetched events may enter this settlement boundary. */
 export async function applyConfirmedEvent(pool: Pool, event: ProviderEvent) {
   return transaction(pool, client => apply(client, event))
+}
+
+/**
+ * The same settlement, inside a transaction the caller already owns (A3). A writer that must record money and settle it
+ * atomically — the vendor recording a bank transfer — joins this instead of starting a transaction of its own.
+ */
+export async function settleAttemptIn(client: PoolClient, event: ProviderEvent) {
+  return apply(client, event)
+}
+
+/** Closes every other still-open attempt of a paid order, through the adapter that owns them (after the commit). */
+export async function closeOtherAttempts(pool: Pool, adapter: PaymentAdapter, paid: ProviderEvent) {
+  return closeSiblingAttempts(pool, adapter, paid)
 }
 
 export async function handleProviderEvent(pool: Pool, input: { provider: string; rawBody: Uint8Array | string; headers: AdapterHeaders; adapter: PaymentAdapter }) {
@@ -224,6 +242,13 @@ export async function createPaymentAttempt(pool: Pool, input: { order_id: string
     const order = (await client.query('SELECT * FROM orders WHERE id=$1 AND customer_id=$2 FOR UPDATE', [input.order_id,input.customer_id])).rows[0]
     if (!order) throw new CommercialHttpError('not_found', 404)
     if (order.payment_state !== 'awaiting_payment' || order.cancelled) throw new CommercialHttpError('payment_not_awaiting', 409)
+    // A4/A7: never open a charge for a paid first order whose workspace could never invite anyone — the same predicate
+    // fulfilment uses, with the subscription it will fulfil.
+    if (isPaidFirstOrder({ kind: order.kind }, Number(order.due_now_minor), order.expected_applied_revision_id)) {
+      const customer = (await client.query('SELECT * FROM customers WHERE id=$1', [input.customer_id])).rows[0]
+      const subscription = (await client.query('SELECT id,tenant_id FROM subscriptions WHERE id=$1', [order.subscription_id])).rows[0]
+      await requireReachableManager(client, customer, subscription)
+    }
     const live = (await client.query("SELECT * FROM payment_attempts WHERE order_id=$1 AND status IN ('created','redirected','pending','unknown')", [order.id])).rows[0]
     if (live) return { row: live, fresh: false }
     const invoice = (await client.query("SELECT * FROM invoices WHERE order_id=$1 AND status='issued' ORDER BY created_at LIMIT 1 FOR UPDATE", [order.id])).rows[0]
