@@ -16,6 +16,10 @@ python3 -B tools/semgrep_gate.py --base "$BASE_REF"
 # The retired product name stays out of the tree. The local checkout path keeps its folder name.
 python3 -B tools/forbidden_terms.py --terms tools/retired_terms.txt --exceptions tools/retired_terms_exceptions.txt \
   --allow-string /code/webvue
+# Report form, not `--check`: an unpublished liwan-* digest is the owner's pending registry decision, so
+# only that is reported here; a tag-only, drifted, missing or stale pin still fails, and this line starts
+# failing on unpublished entries too the moment production-images.json claims a registry account.
+python3 -B deploy/image_pins.py
 npm ci --ignore-scripts
 # Dependency advisories gate only a change to the dependency set; new advisories against an
 # unchanged set are reported by the daily audit workflow instead of failing unrelated PRs.

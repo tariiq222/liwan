@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "registry": null,
+  "images": [
+    {
+      "service": "odoo",
+      "reference": "liwan-odoo",
+      "digest": null,
+      "status": "unpublished",
+      "reason": "No registry publishes liwan-odoo: deploy/ci/image.sh builds it locally as liwan-odoo:ci-<run id> and the owner has not chosen the registry account.",
+      "evidence": "deploy/docker-compose.yml:49 runs liwan-odoo:${LIWAN_IMAGE_TAG}; deploy/ci/image.sh:38 builds it from deploy/odoo/Dockerfile."
+    },
+    {
+      "service": "web",
+      "reference": "liwan-web",
+      "digest": null,
+      "status": "unpublished",
+      "reason": "No registry publishes liwan-web: deploy/ci/image.sh builds it locally as liwan-web:ci-<run id> and the owner has not chosen the registry account.",
+      "evidence": "deploy/docker-compose.yml:23 declares only a build (apps/web/Dockerfile); deploy/ci/image.sh:17 and :72 build liwan-web."
+    },
+    {
+      "service": "proxy",
+      "reference": "liwan-caddy",
+      "digest": null,
+      "status": "unpublished",
+      "reason": "No registry publishes liwan-caddy: deploy/ci/image.sh builds it locally as liwan-caddy:ci-<run id> and the owner has not chosen the registry account.",
+      "evidence": "deploy/docker-compose.yml:3 runs liwan-caddy:${LIWAN_IMAGE_TAG}; deploy/ci/image.sh:20 and :72 build it from deploy/proxy/Dockerfile."
+    },
+    {
+      "service": "guard",
+      "reference": "liwan-guard",
+      "digest": null,
+      "status": "unpublished",
+      "reason": "No registry publishes liwan-guard: deploy/ci/image.sh builds it locally as liwan-guard:ci-<run id> and the owner has not chosen the registry account.",
+      "evidence": "deploy/docker-compose.shared.yml:20 runs liwan-guard:${LIWAN_IMAGE_TAG}; deploy/ci/image.sh:21 and :72 build it from deploy/shared/Dockerfile."
+    },
+    {
+      "service": "tiktok-relay",
+      "reference": "liwan-guard",
+      "digest": null,
+      "status": "unpublished",
+      "reason": "The relay service runs the same unpublished liwan-guard image with a different command, so no separate published digest exists.",
+      "evidence": "deploy/docker-compose.shared.yml:136 runs liwan-guard:${LIWAN_IMAGE_TAG}; deploy/ci/image.sh:21 and :72 build that image."
+    },
+    {
+      "service": "ai",
+      "reference": "liwan-ai-service",
+      "digest": null,
+      "status": "unpublished",
+      "reason": "No registry publishes liwan-ai-service: deploy/ci/image.sh builds it locally as liwan-ai-service:ci-<run id> and the owner has not chosen the registry account.",
+      "evidence": "deploy/docker-compose.yml:83 declares only a build (apps/ai-service/Dockerfile); deploy/ci/image.sh:19 and :72 build liwan-ai-service."
+    },
+    {
+      "service": "ai-egress",
+      "reference": "liwan-ai-egress",
+      "digest": null,
+      "status": "unpublished",
+      "reason": "No registry publishes liwan-ai-egress, and deploy/ci/image.sh builds no image for it: it is only parsed and smoke-checked today.",
+      "evidence": "deploy/docker-compose.yml:137 declares only a build (deploy/ai-egress/Dockerfile); deploy/ci/image.sh:95 runs the rendered Squid configuration test instead of a build."
+    },
+    {
+      "service": "db",
+      "reference": "pgvector/pgvector:pg16",
+      "digest": "sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f",
+      "status": "published",
+      "evidence": "docker buildx imagetools inspect pgvector/pgvector:pg16 on 2026-11-08 reported this multi-arch index digest; deploy/docker-compose.yml:157 pins the same digest."
+    },
+    {
+      "service": "pgbouncer",
+      "reference": "edoburu/pgbouncer:v1.24.1-p0",
+      "digest": "sha256:53d98b3174b0842c475b9842fb0a733b2d9f7ec9da834ec42252aa553f48c628",
+      "status": "published",
+      "evidence": "docker buildx imagetools inspect edoburu/pgbouncer:v1.24.1-p0 on 2026-11-08 reported this multi-arch index digest; deploy/docker-compose.production.yml:43 pins the same digest."
+    }
+  ]
+}
