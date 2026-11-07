@@ -2,7 +2,7 @@
 
 - Test with role-based personas, not the legacy admin: `e2e_admin` holds Odoo groups directly and
   hid that a role-assigned PMO manager cannot create projects (#132).
-- The default e2e agent model is paid-only; deterministic exact-step tests need no model.
+- The default e2e agent calls external model services; deterministic exact-step tests need no model.
 - Seven parallel agents exhausted memory: Nuxt dev ran out of heap and the machine swapped.
   Two agents at a time, one browser context each, Nuxt with an 8 GB heap.
 - Agents wrote state files into the worktree root; delete them before committing.

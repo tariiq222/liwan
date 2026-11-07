@@ -22,19 +22,24 @@ This file is the single source of repository instructions for every coding agent
 | Review findings and reviewer independence | [Review guide](REVIEW.md) |
 | Where planner-skill output lives (specs, tickets, triage) | [Issue tracker](docs/agents/issue-tracker.md) |
 | Verification commands and evidence scope | [Testing guide](docs/testing.md) |
+| Addon-by-addon layout and cross-addon links | [Repository layout](docs/agents/repository-layout.md) |
+| Schema versions and migrations | [Migrations](docs/migrations.md) |
+| Isolated agentic e2e runner | [E2E guide](docs/e2e.md) |
+| OCA addon sources | [OCA addons](docs/oca-addons.md) |
+| `apps/web` folder-level instructions | [apps/web/AGENTS.md](apps/web/AGENTS.md) |
 | Approval before updating external source versions | [Update policy](docs/UPDATE_POLICY.md) |
 | Checkout map and evidence entry points, not live runtime state | [Workspace map](docs/WORKSPACE.md) |
 
-Read the current task and the references for its scope before editing. A task-specific owner decision must state its scope; do not turn a bounded exception into a permanent policy change. If active references conflict or the decision source is unclear, report the exact conflict before changing the affected behavior. Plans, archived documents, old worktree instructions and reports do not silently supersede active policy.
+Read the current task and the references for its scope before editing. A task-specific owner decision must state its scope; do not turn a bounded exception into a permanent policy change. If active references conflict or the decision source is unclear, report the exact conflict before changing the affected behavior. Errors, stale text and dead code inside the task's own scope are fixed or deleted without asking; a user-visible behavior change or reversing a recorded owner decision goes to the owner as options with a recommended default ([integration-rules.md](docs/agents/integration-rules.md#standing-authorization-owner-decision-2026-11-08)). Plans, archived documents, old worktree instructions and reports do not silently supersede active policy.
 
-Keep three claims separate: an approved requirement, implementation present in a named branch/SHA, and behavior verified by a recorded check. Neither a document update nor green checks authorize publication, production deployment or cleanup. Change the owning reference and update its summaries together; do not copy a policy into another instruction file.
+Keep three claims separate: an approved requirement, implementation present in a named branch/SHA, and behavior verified by a recorded check. Neither a document update nor green checks authorize a release tag, production deployment or any operation excluded in [integration-rules.md](docs/agents/integration-rules.md). Change the owning reference and update its summaries together; do not copy a policy into another instruction file.
 
 ## تعريف المنتج المعتمد — 2026-09-30
 
 ليوان منصة عربية موحّدة لتشغيل الشركات، والأساس المشترك لجميع تطبيقاتها، ببيانات
 وإجراءات وصلاحيات مترابطة في نظام واحد. رؤيتها شاملة لوظائف الشركة، مثل أودو في
 اتساع النطاق، بدل الاشتراك في أنظمة متعددة معزولة، بهدف خفض التكلفة الإجمالية
-للاشتراكات والتكامل والتشغيل. المشاريع والمهام والموارد البشرية تطبيقات أولية
+للاشتراكات والتكامل والتشغيل. المشاريع والمهام والموارد البشرية وغيرها من التطبيقات الأولية
 داخل المنصة، وليست تعريف المنتج الكامل أو حدّه النهائي. المرجع التفصيلي هو
 [تعريف المنتج](apps/web/PRODUCT.md).
 
@@ -45,7 +50,7 @@ Keep three claims separate: an approved requirement, implementation present in a
 ## واجهة العميل
 
 ابدأ من [DESIGN.md](DESIGN.md): سياسة الواجهة الوحيدة وروابط فهرس المكونات والمرجع التقني.
-التنفيذ في `apps/web/app`. [الأرشيف](docs/archive/ui/README.md) والتقارير وخطط التنفيذ أدلة لسياقها، لا تعليمات واجهة نشطة.
+التنفيذ في `apps/web/app` مع الطبقتين المشتركتين `packages/ui` و`packages/commercial-ui`. [الأرشيف](docs/archive/ui/README.md) والتقارير وخطط التنفيذ أدلة لسياقها، لا تعليمات واجهة نشطة.
 مكوّنات الواجهة تؤخذ من Storybook (`apps/web/stories/**`، `npm -w apps/web run storybook`)؛ مكوّن مشترك بلا قصة ليس لبنة معتمدة، ولا نسخة محلية من مكوّن له قصة.
 اتبع [UPDATE_POLICY.md](docs/UPDATE_POLICY.md).
 
@@ -61,20 +66,17 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
   through `liwan_hr`. Do not recreate either pillar.
 - The HR page is `/hr`; `/api/v1/people` remains the user-id picker (owned by `liwan_directory`). Preserve
   HR documents and the `{items, total}` list envelopes.
-- Presentation (pages, the one route-backed create panel `SharedCreatePanel`,
-  and the four overlay exceptions: search, notification bell, unsaved draft, the assistant sheet)
-  follows DESIGN.md. `/new` routes open that panel, except the approved inline
-  conversation creation at `/chat/new`; records and edits are
-  pages. Task board view is `?view=board`. Keep direct links, refresh/back,
-  filters, permissions and draft protection. Do not stack business dialogs.
-  Confirm destructive actions inline. Value-selection menus are controls, not
-  screens.
+- Presentation follows DESIGN.md, and DESIGN.md section 5 owns the list of overlays and
+  the route-backed create panel. Records and edits are pages. Task board view is
+  `?view=board`. Keep direct links, refresh/back, filters, permissions and draft protection.
 - Read `docs/WORKSPACE.md` for the checkout map and links to acceptance evidence.
   Verify branch and dirty state live. Dated integration/recovery reports and
   older WIP describe their own checkpoints, not the current source state.
 - When reviewing a diff, follow `REVIEW.md` (what to report and what is already automated).
-- Never run tests on `odoo19`. Do not commit, merge, push, deploy, remove
-  worktrees/branches, or discard work without authorization for that action.
+- Never run tests on `liwan_dev` or `odoo19`. Commit, push of the task branch, PR, merge
+  and `wt gc` fall under the standing authorization in
+  [integration-rules.md](docs/agents/integration-rules.md); deploying, release tags,
+  force-push, direct push to `main` and discarding work still need the owner's explicit words.
 - Local verification does not prove production deployment. Report fresh test
   evidence and the actual branch/runtime state.
 
@@ -125,7 +127,7 @@ Accumulation in code or in the database schema is a defect, not technical debt t
   a shape; list envelopes stay `{items, total}`.
 - **Files where they belong.** Every file sits in the folder its application and layer own
   (R2–R4, [repository layout](docs/agents/repository-layout.md), the `apps/web` folder
-  conventions in DESIGN.md). One module per responsibility; no `misc`/`utils2`/`helpers_new`
+  conventions in `docs/agents/web-rules.md`). One module per responsibility; no `misc`/`utils2`/`helpers_new`
   dumping grounds. When a file's last use goes, the file goes, together with its tests,
   stories, fixtures and locale keys.
 - **Suppressions only shrink.** Like `tools/arch_baseline.json`, the set of test skips,
@@ -134,7 +136,8 @@ Accumulation in code or in the database schema is a defect, not technical debt t
 - **Touch it, clean it.** A task that meets accumulation inside its own file ownership removes
   it in the same task. Accumulation outside that ownership is reported in the task's result so
   the orchestrator schedules it; it is never extended. Cleaning is not a licence to widen scope,
-  reverse an approved decision, or merge without the authorizations above.
+  reverse an approved decision, or merge outside the authorization in
+  [integration-rules.md](docs/agents/integration-rules.md).
 - **Done means clean.** Work is not complete while it leaves a parallel path, an unused
   artifact, or a schema remnant behind. Reviewers (`REVIEW.md`, `odoo-reviewer`) report
   accumulation as a blocking finding, in the same class as a failing test.
@@ -194,12 +197,14 @@ never add an entry or raise a count to make a check pass.
   `apps/web/server/utils/customer-commercial.ts`) remain the sole customer-side exception.
 - **R6** No condition on a customer name or customer type. Differences come from `commercial_mode`,
   entitlements and `customer_<name>_*` addons.
-- **R7** No new `sudo()` outside the documented cases. `tools/sudo_gate.py` (inside `npm test`) fails
-  a `sudo()` site beyond its file's documented cases and `tools/arch_baseline.json` count, naming `file:line`,
-  and requires every documented case to carry a non-boilerplate reason that names the elevating call and
-  the blocking ACL or rule (empty and duplicated reasons are rejected). A documented count that the code
-  no longer reaches fails as stale. Adding a case needs no approval trailer (owner decision 2026-10-25);
-  the reason itself is the record, and review of the actual diff is what judges it.
+- **R7** No new `sudo()` outside the documented cases. `tools/arch_documented_sudo.json` is the single
+  registry of them, per file, outside the shrink-only baseline. `tools/sudo_gate.py` (inside `npm test`)
+  fails a `sudo()` site beyond its file's documented cases and `tools/arch_baseline.json` count, naming
+  `file:line`, and requires every documented case to carry a non-boilerplate reason that names the
+  elevating call and the blocking ACL or rule (empty and duplicated reasons are rejected). A documented
+  count that the code no longer reaches fails as stale. Adding a case needs no approval trailer (owner
+  decision 2026-10-25); the reason itself is the record, and review of the actual diff is what judges it.
+  Document a case only after fixing ACLs/rules where possible.
 - **R8** Every feature works in `saas` and `non_saas`, or is explicitly commercial and hidden in `non_saas`.
 - **R9** Customise Odoo through its public extension points only: no edits to Odoo source, no new direct
   SQL on Odoo tables, no new override of a private access method on an Odoo model without a documented
@@ -228,74 +233,54 @@ another application) needs the owner's approval, recorded by the owner as an
 - `main` is the only long-lived branch and is always releasable. Any normal task branch
   name is accepted (a descriptive `<area>-<slug>` is recommended, not required);
   throwaway experiments are `spike/<slug>` and are never merged.
-  `<area>` is one of `core platform api pmo meetings hr chat tasks operations web cp deploy tools docs ci`; the
-  application areas (`pmo meetings hr chat tasks operations`) are derived from the rank-4 addons in `tools/arch_layers.json`,
-  so a new application's id becomes a valid area when it is registered there.
+  `<area>` is one of the fixed areas `core platform api web cp deploy tools docs ci` or an application area;
+  `tools/git_policy.py` (`app_areas()`) derives the application areas from the rank-4 addons in `tools/arch_layers.json`
+  (the addon name without `liwan_`); `AREAS` in that file is the exact list. A new application's id becomes a valid area when it is registered there.
 - Commit subjects are `type(scope): imperative subject`, at most 72 characters, with `type` in
   `feat fix refactor perf test docs ci build chore` and `scope` from the `<area>` list. One logical change
   per commit. No `wip` commit reaches `main`. A schema change carries its version bump and migration
   directory in the same commit.
 - `main` is protected on GitHub with PR and current CI requirements and no admin bypass.
-  Integration uses a pull request; direct pushes and protection bypasses are prohibited. The preservation procedure, authorization boundaries and merge
-  checklist have one owner: [integration-rules.md](docs/agents/integration-rules.md).
-  Read that current policy before integrating an older branch. The 2026-10-17
-  direct-push exception is superseded by this PR workflow.
-- Prepare and check the combined result against the current remote `main`, preserving
-  unrelated dirty work and each worker's history. Use a task PR for an independent change;
-  use one `<prefix>/tools-integrate-<slug>` candidate and one PR for a coupled batch.
-  Regenerate the API artifacts there when needed. Do not submit both a batch and its
-  constituent branches for separate merge.
+  Integration uses a pull request; direct pushes and protection bypasses are prohibited. The
+  preservation procedure, the standing authorization (commit, push of the task branch, PR,
+  ready, merge after green `ci-result`, `wt gc`), the exclusions and the merge checklist have one
+  owner: [integration-rules.md](docs/agents/integration-rules.md). Read it before integrating an
+  older branch. The 2026-10-17 direct-push exception is superseded by this PR workflow.
+- Use a task PR for an independent change; use one `<prefix>/tools-integrate-<slug>` candidate
+  and one PR for a coupled batch, and do not submit both a batch and its constituent branches.
 - A PR stays **draft** while scope, local checks or prepublication inspection are incomplete.
-  Marking ready requests CI and review of the actual candidate; it does not authorize
-  publication or merging. The required status-check policy is current-head `ci-result`
-  only. Review follows `REVIEW.md` using the selected available agent or a human.
-  Publish and merge only within the owner's explicit authorization. Missing services,
-  stale checks or protected scope never authorize a bypass.
-- The `ci` workflow runs on PRs and pushes to `main`; selected stages must pass before
-  integration. `workflow_dispatch` with `full: true` runs all thirteen stages. A scoped
-  green run is not evidence of a full release run. A `release/19.0.X.Y.Z` tag requires
-  all thirteen stages green in a full run on that exact `main` commit and the owner's
-  explicit authorization to publish the release. No workflow creates tags automatically;
-  a tag is not deployment authorization.
-- Check actual GitHub rules before delivery. Branch protection, required reviews, required
-  status checks and administrator bypass are separate settings; a protected branch alone
-  does not prove CI is enforced. Report gaps instead of assuming a plan limitation.
-- After a branch is merged, removing its worktree, branch and scratch database is `python3 -B tools/wt.py gc`, only with
-  the owner's authorization and only after the content is preserved and no process uses it; unmerged work is
-  tagged `archive/<name>` before its branch is removed.
-- Only `main`, tags and authorized task branches are pushed, each push with the owner's explicit authorization.
-  `release/19.0.X.Y.Z` tags on `main` are the releases; there is no per-customer branch.
+  The required status-check policy is current-head `ci-result` only; review follows `REVIEW.md`.
+- The `ci` workflow runs on PRs, on pushes to `main` and nightly; the last two run all thirteen
+  stages. Release tags, the full-run requirement and the live-protection checks are in
+  [integration-rules.md](docs/agents/integration-rules.md); check scope is in
+  [testing.md](docs/testing.md#ci-workflow).
+- Only task branches and tags are pushed; `main` changes only through a merged PR.
+  `release/19.0.X.Y.Z` tags on `main` are the releases (owner's explicit authorization each time);
+  there is no per-customer branch. Unmerged work is tagged `archive/<name>` before its branch is removed.
 
 
 ## Preserve approved work on every merge — 2026-09-08
 
-The user's instruction «كومت ودمج» means: commit the requested work and
-prepare its integration against the latest remote `main`, preserving previously
-approved behavior and adding the requested changes. Follow the publication and
-merge authorization boundaries in `docs/agents/integration-rules.md`. It does not authorize undoing an
-earlier decision, merging unrelated worktrees, or deleting recovery material.
-
 Before every integration, including from an older worktree, follow the six steps in
-`docs/agents/integration-rules.md`. They are mandatory.
-
-These are mandatory agent workflow instructions. They are not a Git hook or
-server-enforced branch protection; do not claim automated merge protection
-exists unless it has actually been installed and verified.
+`docs/agents/integration-rules.md`. They are mandatory, as is its definition of the owner
+keywords «كومت ودمج» and «انشر». These are agent workflow instructions, not a Git hook or
+server-enforced branch protection; do not claim automated merge protection exists unless it has
+actually been installed and verified.
 
 ## Agent execution
 
 Use the model selected for the current session. No exclusive model is required
 for the coordinator, workers or reviewers. Choose available native models and
 supported effort appropriate to the task; a model-name mismatch does not block
-work or require permission. Delegate only when justified by independently owned
-work, with explicit scopes and isolated mutable resources. Model selection does
-not authorize commit, push, merge, deployment or cleanup. Never retry exhausted
-quota or use paid API credentials as a hidden fallback.
+work or require permission. Never retry exhausted quota or use paid API
+credentials as a hidden fallback.
 
-Implementation is delegated by default (owner decision 2026-11-02): the coordinator plans, writes the brief with
-explicit file ownership and checks, reviews the returned patch and re-runs the checks, while OpenCode (the
-`opencode-executor` skill) writes the bulk of the change. This does not relax any rule above or in
-`docs/parallel-work.md`: one writer per file, no commit, push, merge or cleanup without authorization.
+Implementation is delegated by default to native Sonnet subagents (owner decision 2026-11-08):
+the coordinator plans, writes the brief with explicit file ownership and checks, splits independent
+work across parallel agents, reviews the returned patch and re-runs the checks. Scopes stay
+explicit and mutable resources isolated: one writer per file, per `docs/parallel-work.md`. Delegation
+does not change who may commit, push, merge or clean up; that is in
+[integration-rules.md](docs/agents/integration-rules.md).
 
 ## Repository layout and product state
 
@@ -305,13 +290,9 @@ cross-addon links.
 
 ## Product contracts
 
-- Presentation follows DESIGN.md (pages, the route-backed `SharedCreatePanel`
-  for `/new` except inline `/chat/new`, and the overlay exceptions: search, notification bell, unsaved
-  draft). Keep stable routes, visible headings, direct-link/refresh support,
-  and back navigation that preserves list filters. Task board view is
-  `?view=board`. Destructive actions use explicit inline confirmation. Do not
-  stack business dialogs. Selection menus remain controls, not business
-  screens.
+- Presentation follows DESIGN.md (overlays and the create panel are in its section 5). Keep
+  stable routes, visible headings, direct-link/refresh support, and back navigation that
+  preserves list filters. Task board view is `?view=board`.
 - Arabic (`ar`) is the default locale and the UI is RTL-first. User-facing
   strings use `$t()`/`t()` and the owning locale namespace.
 - API routes use `type='json2'`, `auth='user'`, explicit methods, and the
@@ -422,14 +403,10 @@ cross-addon links.
   `controllers/commercial.py`, for the
   tenant-profile mode read that answers the commercial routes. Each of those reads a
   platform service or singleton, never an application record.
-  Do not add
-  another case without documenting it and fixing ACLs/rules where possible.
-  Documented cases are listed per file in `tools/arch_documented_sudo.json`, outside the
-  shrink-only baseline. Adding or raising one needs no approval trailer (owner decision
-  2026-10-25): the reason in the registry is the record, `tools/sudo_gate.py` judges its
-  shape, and review of the actual diff is the human gate. A documented count the code no
-  longer reaches is stale and fails. Weakening `tools/arch_layers.json` still needs the
-  owner's `Architecture-approved-by:` trailer; agents never add that trailer.
+  Do not add another case without documenting it (R7) and fixing ACLs/rules where possible.
+  `tools/arch_documented_sudo.json` is the registry of the documented cases and their reasons.
+  Never write `sudo()` inside an `@api.constrains` method: Odoo already runs constraints on
+  `self.sudo()`, so it changes nothing.
 - The current delivery scope has no time logging product surface: do not add `hr_timesheet`
   or timesheet fields/endpoints to the customer UI; adding them requires a separately scoped
   implementation request. Payroll is approved (owner decision 2026-10-19) as the Saudi payroll
@@ -442,43 +419,30 @@ cross-addon links.
   directory or people views or serializers. The company's own bank statements and reconciliation in
   `liwan_finance` are accounting data and are allowed.
 - Task detail routes are `/tasks/{id}` and `/projects/{id}/tasks/{taskId}`.
-  Presentation follows DESIGN.md. Preserve URL query filters when returning;
-  do not promise scroll restoration without evidence.
+  Presentation follows DESIGN.md. Preserve URL query filters when returning.
 
 ## Safe worktree workflow
 
 Create every task worktree with `npm run wt -- new <area>-<slug> --owner <who> --task <what> --scope <path>`:
 it lives only in `<main checkout>/.worktrees/<area>-<slug>`, branches from `main` (or the task's
 integration branch) and records its owner and scopes. Never use a bare `git worktree add` or a tool's own
-worktree folder (the Claude app's `worktrees` folder under `.claude`). The one exception is the disposable
-detached worktree that the personal `opencode-executor` runner creates for a single delegated job (owner decision
-2026-11-02): it is never a task worktree, holds no branch, is never committed or pushed from, and is removed once its
-reviewed patch is applied or discarded; its patch is applied only to a registered task worktree or the main checkout
-under the usual ownership rules. Overlapping another active claim needs `--allow-overlap
+worktree folder (the Claude app's `worktrees` folder under `.claude`). Overlapping another active claim needs `--allow-overlap
 "<reason>"` agreed with its owner. `npm run wt -- check` reports violations and changes nothing; the full
 rules are in `docs/parallel-work.md` ("Worktree rules").
 
-Use one temporary worktree per bounded task; its branch may use any normal name. Worktrees
-must have independent `node_modules` and `.nuxt` directories; do not symlink
-either one. One writer owns each file, and one orchestrator owns shared files,
-Git integration, runtime state, and final checks. The ownership and collision
-map is in `docs/parallel-work.md`.
+Use one temporary worktree per bounded task. Worktrees have independent `node_modules` and
+`.nuxt` (never symlinked); install with `npm ci --ignore-scripts`. Ports, databases and Odoo/Nuxt
+endpoints come from the worktree's `.env.worktree` profile, not from command-line overrides.
+One writer owns each file and one orchestrator owns shared files, Git integration, runtime state
+and final checks; install, port and collision rules are in `docs/parallel-work.md`. Never run
+tests against `liwan_dev` or `odoo19`; use a scratch database. Temporary integration databases,
+ports and logs are disposable and are not production evidence.
 
-For a worktree, install with `npm ci --ignore-scripts` (using the local cache
-when offline). Set its own `NUXT_ODOO_URL`, `NUXT_ODOO_DB`,
-`NUXT_PUBLIC_WS_URL`, and Nuxt `--port`. Start Odoo with an explicit addons
-path, an isolated scratch database, and a unique `--http-port`. Never run
-tests against the production-style `odoo19` database. Temporary integration
-databases, ports, and logs are disposable and must not be described as
-production evidence.
-
-The LiwanOS Git remote is `origin` (`https://github.com/tariiq222/liwan.git`),
-tracked by `main`. Fetch and compare `main` with `origin/main` before
-integration work. Push only when the user authorizes that push, and do not
-force-push or rewrite published history. Do not imply a push, merge,
-deployment, DNS cutover, or release approval that did not happen. Preserve
-unrelated user changes and inspect status/diffs before editing overlapping
-files.
+The LiwanOS Git remote is `origin` (`https://github.com/tariiq222/liwan.git`), tracked by `main`.
+Fetch and compare `main` with `origin/main` before integration work. Do not force-push or
+rewrite published history. Do not imply a push, merge, deployment, DNS cutover, or release
+approval that did not happen. Preserve unrelated user changes and inspect status/diffs before
+editing overlapping files.
 
 ## Authorization model
 
@@ -521,7 +485,8 @@ The Odoo scratch-database command block is in `docs/agents/odoo-rules.md`. CI is
 `npm run wt -- new <area>-<slug>`, `npm run hooks:install` (see `docs/testing.md`).
 Web checks and general commands:
 
-Use `npm test` for contracts and web unit tests, `npm -w apps/web run lint`
+Use `npm test` (the repository tools, policy gates and the unit tests of contracts, shared UI, web and
+vendor-admin; see `package.json`), `npm -w apps/web run lint`
 (that is `vue-tsc --build --noEmit`) for the web type check, and
 `cd apps/web && npm run test:e2e` for Playwright. Do not type-check with
 `npx -w apps/web vue-tsc ...`: `npx` has no `-w` flag, so it silently runs
@@ -531,10 +496,10 @@ Nuxt UI. API tests extend `LiwanApiCase` from `liwan_api/tests/common.py` or
 `LiwanPmoCase` for PMO fixtures; every `test_*.py` must be imported by its
 addon `tests/__init__.py`. Loading a code/data change into an authorized
 development database may use `-u <addon> --no-http --stop-after-init`; never
-run tests against the dev `odoo19` database.
+run tests against `liwan_dev` or `odoo19`.
 
-`apps/vendor-admin` has its own checks (run `npx nuxt prepare` there first):
-`npm -w apps/vendor-admin run lint` and `npm -w apps/vendor-admin run test`; the live proof
+`apps/vendor-admin` has its own lint (run `npx nuxt prepare` there first):
+`npm -w apps/vendor-admin run lint`; its tests are in `npm test`, and the live proof
 against the real control plane is in `apps/vendor-admin/README.md` and `docs/testing.md`.
 
 Test layers and the isolated agentic e2e runner (`npm run e2e`) are described in

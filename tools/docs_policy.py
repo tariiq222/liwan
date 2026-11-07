@@ -17,7 +17,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS = ('CLAUDE.md', 'AGENTS.md', 'docs/agents/odoo-rules.md', 'docs/agents/web-rules.md', 'docs/agents/repository-layout.md', 'docs/agents/integration-rules.md', 'docs/parallel-work.md', 'REVIEW.md')
+DOCS = ('CLAUDE.md', 'AGENTS.md', 'docs/agents/odoo-rules.md', 'docs/agents/web-rules.md', 'docs/agents/repository-layout.md', 'docs/agents/integration-rules.md', 'docs/parallel-work.md', 'REVIEW.md',
+        'docs/WORKSPACE.md', 'docs/testing.md', 'README.md', 'docs/agents/issue-tracker.md')
 FILE_SUFFIXES = ('.py', '.ts', '.vue', '.md', '.json', '.yml', '.yaml', '.sh', '.mjs', '.js')
 CODE_RE = re.compile(r'`([^`\n]+)`')
 LINK_RE = re.compile(r'\]\(([^)\s#]+)(?:#[^)]*)?\)')
@@ -28,12 +29,15 @@ ALLOWED_MISSING = frozenset({
     '.claude/odoo.json',
     'deploy/branding.json',
     'platform_vN.json',
+    # Written by a test run and git-ignored.
+    '.superpowers/real-odoo/fixtures.json',
+    '.e2e/report.json',
 })
 # File names the instruction documents mention without a directory because the
 # directory differs per application or addon; a bare name is not resolved by suffix.
 BARE_NAMES = frozenset({
     '__init__.py', 'common.json', 'hr.json', 'tasks.json', 'projects.json', 'settings.json',
-    'platform_v3.json', 'nuxt.config.ts',
+    'nuxt.config.ts',
 })
 # Directories whose slashed, suffix-less tokens are repository paths.
 TOP_DIRS = ('apps/', 'odoo-addons/', 'packages/', 'docs/', 'tools/', 'deploy/', 'e2e/', '.claude/')

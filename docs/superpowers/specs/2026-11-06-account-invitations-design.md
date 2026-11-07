@@ -1,6 +1,6 @@
 # Account invitations, self-set passwords and mobile numbers
 
-Status: design, awaiting owner approval (2026-11-06).
+Status: implemented and merged on 2026-11-06 (commits 5abdc9462, 0df25b332, fc4f0da2a; `liwan_core` 19.0.1.12.0 migration). A dated owner approval of this design is not recorded.
 
 ## Why
 
@@ -39,7 +39,7 @@ can be added in a later phase.
 ## Non-goals
 
 - SMS or OTP sign-in or verification (later phase; this phase only stores the number).
-- Self-service sign-up of new companies (owner decision 2026-10-29: invitation only).
+- Self-service sign-up of new companies (owner decision 2026-11-06: self sign-up with SMS verification and a 14-day trial is in release 1; see [the hosting contract](liwan-shared-saas-and-sovereign-deployment.md) §5.1 and AC-09). This design covers invitations to an existing company only.
 - Inbound mail. The sender address never receives mail (null MX on `liwanos.com`).
 - Changing the sign-in identifier: the email stays the login.
 

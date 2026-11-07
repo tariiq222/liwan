@@ -28,6 +28,11 @@ own institution identity. PMO collaboration preserves record and company guards.
 | Locale namespace | `common.json` | `tasks.json`, `projects.json`, `settings.json` | `hr.json` |
 | Web surface | layout, UI primitives, `useApi`, `useMe`, `useBranding` | task/project pages and `components/pmo/**` | `/hr`, HR composables/components |
 
+Every other application (a rank-4 addon in `tools/arch_layers.json`) and every bridge (rank 5) owns, in
+the same way as the columns above, its own addon folder, its `packages/contracts/src/<app>/**` namespace,
+its locale namespace and its `apps/web` `pages/` and `components/` folders (`web_apps` in the same file). The rank
+list in `tools/arch_layers.json` is the single source; the table is not extended per application.
+
 Vendor administration and the shared UI layers have their own owners; none of them is an Odoo pillar:
 
 | Surface | Owner | Notes |
@@ -52,7 +57,10 @@ one-line addition from the owning team:
 - `tools/arch_layers.json` — the addon rank (weakening it needs the owner's approval).
 - The active release catalog under `deploy/catalog/solutions/` — currently `deploy/catalog/solutions/platform_v4.json`, selected by `tools/catalog_check.py::current_release`; follow `docs/agents/odoo-rules.md` for publication and versioning. Older catalogs are not the registration target.
 - `packages/contracts/src/index.ts` — one pillar barrel export.
-- `deploy/provision.sh` — the pillar addon in the install list.
+- The release module lists in `deploy/provision.sh`, `deploy/check_isolated.py` and `deploy/OPERATIONS.md`
+  are synced from the catalog by `python3 -B tools/catalog_check.py --sync-release-copies`; do not edit them
+  by hand. A new application's registration files and the sync are described in `docs/agents/odoo-rules.md`
+  (`tools/new_app.py`).
 - `apps/web/i18n/locales/{ar,en}/common.json` — shared navigation labels.
 
 Merge/integrate a pillar before touching a shared file. Do not edit another
@@ -69,11 +77,12 @@ shared change must state the contract and the single writer before work starts.
 3. Give each worktree independent `node_modules` and `.nuxt` directories. Use
    `npm ci --ignore-scripts`; if offline, use the available local npm cache.
    Never symlink dependency or generated-state directories between worktrees.
-4. Set per-worktree `NUXT_ODOO_URL`, `NUXT_ODOO_DB`, and
-   `NUXT_PUBLIC_WS_URL`, and choose a distinct Nuxt `--port`.
+4. Give each worktree its own `NUXT_ODOO_URL`, `NUXT_ODOO_DB`, `NUXT_PUBLIC_WS_URL`, Nuxt port and Odoo
+   HTTP port. They live in the git-ignored `.env.worktree`; `npm run dev` (`tools/dev_web.mjs`) reads that
+   file and rejects command-line overrides, so do not pass `--port` or export those variables by hand.
 
 `npm run wt -- new <area>-<slug> --owner <who> --task <what> --scope <path>` performs the worktree
-creation, steps 3 and 4 (ports and scratch database name go to the git-ignored `.env.worktree`) and the
+creation, steps 3 and 4 (ports and scratch database name are written to `.env.worktree`) and the
 ownership claim in one command (`tools/wt.py`).
 
 ### Worktree rules
@@ -86,11 +95,13 @@ removed by it; its owner records a claim with `wt claim` or finishes and merges 
    where `wt new` creates them, also when run from another worktree. Never create one with a bare
    `git worktree add`, under `../liwan-wt/`, or in a tool's own folder (the Claude app's `worktrees` folder under `.claude`); a
    Claude subagent or session that needs isolation runs `wt new` instead of its built-in worktree option.
-   The disposable detached worktree of one `opencode-executor` job is not a task worktree: `AGENTS.md` owns that exception.
 2. **One name.** Any valid Git branch name is accepted; descriptive names are recommended.
    `wt new <suffix>` creates branch `codex/<suffix>` and folder `.worktrees/<suffix>`.
    Other valid task branch names may be claimed; `wt check` checks their folder suffix and claim.
-   Throwaway `spike/<slug>` experiments are never merged.
+   In `AGENTS.md` and `docs/agents/integration-rules.md`, `<prefix>/...` for an integration candidate
+   means `codex/...`, the prefix `wt new` adds (for example `codex/tools-integrate-<slug>`).
+   Throwaway `spike/<slug>` experiments are created with plain `git switch -c spike/<slug>` (`wt new` only
+   makes `codex/` branches) and are never merged.
 3. **One base.** `main` is the default `--base`; any valid branch name is accepted.
    Use the agreed integration branch for a dependent lane.
    Fetch and compare local `main` with `origin/main` first. When local `main` is dirty or stale,
@@ -110,8 +121,8 @@ removed by it; its owner records a claim with `wt claim` or finishes and merges 
 `npm run wt -- check` reports every worktree that breaks a rule and exits 1 when there is one; it only reads.
 `npm run wt -- status` answers "which worktrees exist, who owns them, which are merged, which are dirty"
 and ends with the same report; it marks a worktree outside `.worktrees/` with `*`. `npm run wt -- gc` lists
-what is safe to remove (merged, clean, behind `main`, no process inside) and `--apply` removes it, which
-needs the owner's authorization.
+what is safe to remove (merged, clean, behind `main`, no process inside) and `--apply` removes it; after a merge that falls under
+the standing authorization in [integration-rules.md](agents/integration-rules.md#standing-authorization-owner-decision-2026-11-08), and any other removal needs the owner.
 
 These are workflow rules carried by the tool, not an operating-system lock: a bare `git worktree add` or
 an edit outside the claimed scopes is still possible. `wt check` makes it visible; the integration checks
@@ -121,7 +132,7 @@ The Odoo checkout at `/Users/tariq/code/odoo` is upstream and its source,
 configuration, and Git state are read-only. Source inspection and read-only Git
 audits there are allowed. Authorized test or development commands may mutate an
 explicitly isolated scratch database; do not operate on arbitrary databases or
-run tests against the dev `odoo19` database. Start Odoo with the selected LiwanOS
+run tests against the dev `liwan_dev` database. Start Odoo with the selected LiwanOS
 worktree's addons path explicitly, an isolated scratch database, and a unique
 `--http-port`.
 
@@ -162,8 +173,8 @@ the task branches, and runs `python3 tools/api_surface.py --check` there. The pe
 
 Use [integration-rules.md](agents/integration-rules.md) for delivery: one draft PR
 per independent task or agreed integration batch, followed by review, checks and
-an explicitly authorized protected merge after current-head `ci-result` and review
-of the actual combined diff. CI does not repair code, merge PRs or create tags. `wt status` compares ancestry with **local** `main`; when it is stale, compare
+a protected merge under the standing authorization after current-head `ci-result`
+and review of the actual combined diff. CI does not repair code, merge PRs or create tags. `wt status` compares ancestry with **local** `main`; when it is stale, compare
 with current remote `main` too. A merged head with dirty files still contains
 undelivered work. A child sharing its parent's head is dependent work, not a
 second independent delivery.
@@ -175,8 +186,8 @@ test, health endpoint, or UI observation proves only the checked layer; it does
 not prove deployment, DNS, or release approval.
 
 The LiwanOS Git remote is `origin` (`https://github.com/tariiq222/liwan.git`),
-tracked by `main`. Push only with explicit authorization, never force-push
-published history, and do not imply that a push occurred. Do not remove a
+tracked by `main`. Push task branches under the standing authorization; `main` changes only
+through a merged PR; never force-push published history, and do not imply that a push occurred. Do not remove a
 branch or worktree until its content is preserved and no process is using it. A production deployment or DNS cutover
 requires separate authorization; local `:8069`/`:3000` development is not
 production evidence.

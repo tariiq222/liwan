@@ -17,6 +17,11 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   `not_found`, and 422 `invalid`. Never use `type='http'` for JSON or
   `auth='bearer'` for browser traffic. Never use `sudo()` to dodge an access
   error; fix the group or record rule.
+  The one exception is the public namespace `/api/v1/public/` (owner decision D3, 2026-10-28):
+  routes for anonymous visitors, `auth='public'` and `save_session=False`, authorized by a
+  per-document access token or a gateway signature, never by a session (the Nuxt proxy
+  forwards them without cookies); gateway callbacks there may be `type='http'`. Each is
+  listed with its reason in `tools/route_gate_allowlist.json`.
 - An application registers its capabilities by extending `liwan.access.service`
   through `super()`: `_liwan_capability_definitions` (with `owner` set to the
   addon), `_liwan_permission_dependencies`, `_liwan_builtin_role_grants`, and when
@@ -61,17 +66,15 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
 - PMO project management uses record-scoped `_liwan_can_manage` and checked
   private mutation helpers. Task writes, approvals, archive, dependency edits
   and attachment mutations preserve their dedicated capability/visibility gates.
-- Documented PMO elevated operations are policy/config access, policy-based
-  project creation, checked manager mutations, serializer display lookups,
-  integer counts, automatic completion status after an authorized task
-  mutation, the notification cron scans, and the recipient-owned candidate
-  lookups that build PMO's notification visibility branches. `liwan_notify`'s
-  documented elevated operations are bell delivery and recipient-owned bell
-  reads: every elevated read first restricts to the current partner's inbox
-  rows, and the owning application's branch decides, in the caller's ordinary
-  ACL and record-rule environment, which tasks or meetings are still readable.
-  Meeting-only access must not reveal task/digest notifications. Do not add an
-  undocumented bypass.
+- Elevated operations (`sudo()`, `with_user`, `env.su`): the single registry is
+  `tools/arch_documented_sudo.json`, listed per file. Do not copy its cases into prose; read
+  the registry. Rule R7 in `AGENTS.md` is enforced by `tools/sudo_gate.py` (inside `npm test`):
+  a site beyond its file's documented cases or the `tools/arch_baseline.json` count fails,
+  and every reason must name the elevating call and the blocking ACL or record rule. An
+  elevated read keeps the caller's authorization in front of it (for notifications, rows are
+  first restricted to the current partner's inbox, and the owning application decides in the
+  caller's ordinary environment what is still readable; meeting-only access must not reveal
+  task/digest notifications). Never add a case to dodge an access error; fix the group or rule first.
 - Project creation uses the existing route-backed `SharedCreatePanel` and one
   create request; core objectives and success criteria are independent of the
   charter. The charter editor remains a governance-only stepper, with the
@@ -96,10 +99,17 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   Dependency edits require project management, same active project, positive
   unique IDs and no cycles. Restores require a readable active parent project.
 - A new application starts from `python3 -B tools/new_app.py <app> --name-ar <ar>
-  --name-en <en>` and the `liwan-new-app` skill. Outside its own folders it edits
-  only three registration files: `tools/arch_layers.json`,
-  `deploy/catalog/solutions/platform_v4.json` and `packages/contracts/src/index.ts`
-  (plus copies written by `python3 -B tools/catalog_check.py --sync-release-copies`).
+  --name-en <en> [--route SLUG] [--dry-run]` and the `liwan-new-app` skill. It creates the
+  application's own folders (addon, web pages/components, contracts namespace) and its AI bridge
+  `liwan_<app>_ai` (rank 5, one agent, one read tool and the access test, from
+  `tools/new_app_templates`). Outside those folders it edits exactly three registration files:
+  `tools/arch_layers.json` (the application at rank 4, the bridge at rank 5, and its `web_apps` entry),
+  `deploy/catalog/solutions/platform_v4.json` (a sellable tier with module `liwan_<app>` and feature
+  `boolean:<app>.enabled`) and `packages/contracts/src/index.ts` (one export line). It then runs
+  `python3 -B tools/catalog_check.py --sync-release-copies`, which rewrites the release module
+  lists in `deploy/provision.sh`, `deploy/check_isolated.py`, `deploy/OPERATIONS.md`,
+  `deploy/verification-checks.json`, `tools/liwan_cli/operator.py` and the other copies named in
+  `RELEASE_COPIES` of `tools/catalog_check.py`. Nothing is written when any target exists or a check fails.
   It edits `deploy/catalog/solutions/platform_v4.json` in place only while that catalog is unpublished; after the
   first publish a new application needs a new `platform_vN.json`, decided before the first
   server deploy.
@@ -107,14 +117,12 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
 
 ## Odoo development
 
-- Use the `odoo-workflow` skill before any Odoo change; trace real source into a
-  Context Brief with `file:line`, then consult the `odoo-19` reference pack.
+- Before any Odoo change, trace the real source in `/Users/tariq/code/odoo` and cite
+  `file:line` for the behavior you rely on, instead of relying on memory of Odoo 18 or older.
 - Runtime: Odoo **19.0**, read-only core `/Users/tariq/code/odoo`, custom addons
   in this checkout's `odoo-addons/`. `.claude/odoo.json` is machine-local and
   already gitignored; it pins `odoo_version`, `odoo_root`, `addons` (a JSON
   array), and `python`, deliberately without a live config or `dev_db`.
-  Read-only trace command from the repo root (use Python 3.12 for core syntax):
-  `/Users/tariq/code/odoo/.venv/bin/python /Users/tariq/.agents/skills/odoo-workflow/scripts/odoo_trace.py env`.
 - Never run against named/live databases (including `odoo19`); use an explicitly
   isolated throwaway database and scratch-only config, data directory and logs.
   Odoo tests run only through the Check commands below or `npm run test:odoo`, never against a named or live database.
@@ -122,17 +130,16 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   `category: Hidden`, `installable: True`, `application: False`; versions use
   `19.0.X.Y.Z` (the current numbers are in each manifest). Follow
   `docs/migrations.md` for schema/data version bumps and migrations.
-- Declare real dependencies: core uses `base` only; HR uses `liwan_api`, `hr`,
-  `mail`; the shared services `liwan_notify` (`liwan_api`, `mail`) and
-  `liwan_directory` (`liwan_api`) know no application; PMO also uses
-  `liwan_platform`, `liwan_notify`, `liwan_directory`, `project`, `bus`; meetings
-  use `liwan_platform`, `liwan_notify`, `liwan_directory`, `calendar`, `mail`; the bridge `liwan_meetings_pmo` (`auto_install`) uses
-  `liwan_meetings` and `liwan_pmo` (see manifests). Preserve pillar direction:
+- Declare real dependencies, read from each addon manifest (core uses `base` only;
+  shared services such as `liwan_notify` and `liwan_directory` depend on `liwan_api` and stock
+  modules and know no application; a bridge such as `liwan_meetings_pmo` is `auto_install` and
+  depends on exactly its two sides). Do not copy a dependency list into prose. Ranks are in
+  `tools/arch_layers.json`. Preserve pillar direction:
   shared `liwan_api` and the shared services never import a pillar, and one
   application never imports another; only a bridge imports both.
 - Keep `models/`, `security/`, `data/`, `tests/`; API pillars additionally use
-  `controllers/` and whitelist-based `serializers/`; PMO has `i18n/` and
-  `migrations/`; `liwan_meetings` has `report/` (the meeting report moved there). Import Python modules through their `__init__.py` files;
+  `controllers/` and whitelist-based `serializers/`; addons with user-facing strings have `i18n/`, and
+  `migrations/` follow `docs/migrations.md`; `liwan_meetings` has `report/` (the meeting report moved there). Import Python modules through their `__init__.py` files;
   list every XML/CSV file in manifest `data` in the required dependency order.
 - Every `/api/v1` route has `api_handler`, a feature gate and a capability gate:
   `@requires_capability('<key>', ..., match='all')` from `liwan_api/controllers/common.py`
@@ -158,15 +165,22 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   Model tests use `TransactionCase`; HTTP tests use `LiwanApiCase(HttpCase)` via
   `LiwanHrCase` / `LiwanPmoCase`. Mirror existing `liwan` / `liwan_access` tags and
   `post_install`, `-at_install` selection where appropriate.
-- Arabic: PMO ships `i18n/ar.po`; core/HR currently have no `i18n/` directory.
+- Arabic: every addon with user-facing server strings ships `i18n/ar.po` (for example `liwan_hr`);
+  an addon without such strings (for example `liwan_core`, most bridges) has no `i18n/` directory.
   Core capability data has explicit `name_ar` / `name_en` fields. Keep shipped
   PO filenames; make new UI strings extractable and update Arabic translations.
 - Lint: `ruff check odoo-addons` uses root `ruff.toml` (upstream Odoo rules;
   imports: stdlib, third-party, `odoo`, `odoo.addons`). No pylint-odoo
   configuration exists; the optional local git hooks come from `npm run hooks:install`
   (`tools/hooks.py`). Do not introduce another convention.
-- Authorized module tests: use the **Check commands** block below
-  and `deploy/ci/odoo.sh` (the **odoo** stage, including its classification fixture; the
+- Authorized module tests. The normal local path is `npm run test:odoo` (`tools/odoo_test.py`): it
+  clones a cached template database that has every release module installed, runs `-u` of the
+  changed addons and their dependents, takes a free HTTP port from 8170-8199 and a unique
+  `liwan_scratch_*` database per run, drops it afterwards, and queues through `tools/test_slot.py`.
+  Options: `--addons a,b`, `--all`, `--base`, `--dry-run`, `--keep-db`. Its `-u` run sees a partial
+  registry for low-rank `at_install` tests, so tests touching later modules are tagged
+  `post_install` (see `docs/testing.md` section 1). The full fresh `-i` block under **Check commands**
+  below is the release/CI-equivalent check; use it with `deploy/ci/odoo.sh` (the **odoo** stage, including its classification fixture; the
   **odoo-app-standalone** and **odoo-bridge** matrix stages run the same shape for every
   application alone and every bridge with its two sides, see `docs/testing.md`),
   with the selected checkout's explicit addons path, `-i` modules,
@@ -175,8 +189,12 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
 
 ## Check commands (Odoo scratch database)
 
-Run Odoo checks from `/Users/tariq/code/odoo` using a fresh scratch database
-and the selected LiwanOS worktree's explicit addons path. Use a scratch-only
+This is the full fresh-install (`-i`) check, equivalent to the CI **odoo** stage; for ordinary
+local work prefer `npm run test:odoo`. Run Odoo checks from `/Users/tariq/code/odoo` using a fresh
+scratch database and the selected LiwanOS worktree's explicit addons path. For concurrent runs take the
+database name and HTTP port from the worktree's git-ignored `.env.worktree`
+(`NUXT_ODOO_DB`, `ODOO_HTTP_PORT`) instead of a shared fixed name and port; the block below shows
+`liwan_scratch` and 8169 only as the single-run default. Use a scratch-only
 config at `/absolute/path/to/scratch-only.conf`; do not use a live config whose
 `data_dir` or `logfile` points inside the read-only Odoo checkout. Keep the
 temporary data and logs outside that checkout, and remove the scratch database,

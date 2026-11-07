@@ -14,16 +14,50 @@ actual diff still follows `REVIEW.md`; any selected available agent or a human
 may perform it, without an exclusive model requirement or paid API fallback.
 
 Keep a PR draft while local preparation is incomplete. Marking ready requests
-CI and review; it does not authorize publication, merging or release. Those
-operations require the owner's explicit authorization for their scope. Prior
-approved product, access and data decisions remain binding. New changes require
-updated evidence and any authorization their scope needs.
+CI and review; it does not by itself authorize publication, merging or release.
+Publication and merging are covered by the standing authorization below; release,
+deployment and the other excluded operations need the owner's explicit words for
+their scope. Prior approved product, access and data decisions remain binding. New
+changes require updated evidence and any authorization their scope needs.
 
 CI reports checks; it does not repair code, merge PRs, create tags or deploy.
 Task authorization, remote publication, merge, release, production deployment
-and cleanup remain distinct. Local consolidation authority does not authorize a
-remote push or production deployment. Missing services, stale checks and failed
+and cleanup remain distinct operations. Local consolidation authority does not
+authorize a remote push or production deployment. Missing services, stale checks and failed
 checks never justify bypassing branch protection.
+
+### Standing authorization (owner decision 2026-11-08)
+
+The owner authorizes every agent, in every session, to do the following without
+asking each time, provided the evidence rules of this file hold:
+
+- commit the task's work, and push the task branch;
+- open a pull request, and move it from draft to ready;
+- merge the PR once current-head `ci-result` is green and no blocking review
+  finding or unresolved conversation remains;
+- resolve a review thread after verifying the fix in the code;
+- run `python3 -B tools/wt.py gc --apply` after a merge, once the content is preserved and no
+  process uses the worktree (step 6).
+
+Excluded, and needing the owner's explicit words each time: a `release/19.0.X.Y.Z`
+tag, deploying to any server, force-push or history rewrite, a direct push to `main`,
+bypassing branch protection or a failing check, and merging unrelated worktrees.
+Changes to external source versions still follow [UPDATE_POLICY.md](../UPDATE_POLICY.md).
+Missing, stale or failing checks never widen this authorization.
+
+Fix-alone scope: within its task an agent fixes or deletes errors, stale text and
+dead code without asking. A change in behavior the user can see, or reversing a
+recorded owner decision, goes to the owner as options with a recommended default.
+
+Owner keywords:
+
+- «كومت ودمج» means: commit the requested work and prepare its integration against
+  the latest remote `main`, preserving previously approved behavior and adding the
+  requested changes, then follow the six steps. It does not authorize undoing an
+  earlier decision, merging unrelated worktrees or deleting recovery material.
+- «انشر» means: commit, run the checks, open the PR, merge it after current-head
+  `ci-result` is green, and run `wt gc`. It never means a direct push to `main`,
+  a release tag or a deployment.
 
 ### Review-approval constraint on `protect-main` (recorded 2026-10-24)
 
@@ -63,18 +97,19 @@ count stays at `0`.
    `REVIEW.md`; addon/contract changes need Odoo-aware review. Keep compatible
    prior decisions. If the request conflicts with one, preserve it and ask for
    that specific decision; general merge authorization does not reverse it.
-4. **Verify the combined result.** Run focused checks, `npm test`, Git and
-   architecture policies against the recorded baseline, and the affected
-   layers' checks from `docs/testing.md`. Odoo checks use isolated scratch
+4. **Verify the combined result.** Run the focused checks of the affected
+   layers from `docs/testing.md` and the Git and architecture policies against
+   the recorded baseline; CI runs the full suite. Odoo checks use isolated scratch
    databases, never development databases. Record commands, commit, environment,
    pass/fail and gaps in the PR. Retain baseline regression requirements.
    Diagnose failures; a reproduced baseline failure is disclosed, not silently
-   waived. After local preparation and authorized publication, mark the PR ready.
+   waived. After local preparation and publication, mark the PR ready.
    Require successful current-head `ci-result` and every selected stage; inspect
    skipped stages and scope. An old green head, local checks or a conflict check
    alone does not establish readiness for protected remote integration.
-5. **Merge the authorized candidate.** Recheck the current base/head, current-head
-   CI, resolved review findings and conversations, and the owner's authorization.
+5. **Merge the candidate.** Recheck the current base/head, current-head
+   CI, resolved review findings and conversations, and that the merge falls
+   within the standing authorization (or the owner's explicit one).
    Fix failures in the owned scope and repeat affected checks after a change.
    When the head moves, update its evidence before merging. A moved base alone
    is not a reason to merge `main` into a branch: that cancels and restarts its
@@ -93,7 +128,7 @@ count stays at `0`.
    authorization and evidence. Cleanup is a separate action: ancestry alone
    does not preserve uncommitted, untracked or ignored files, scratch data or
    runtime state. Inspect ownership, preservation and process use, then use the
-   authorized `tools/wt.py gc` path.
+   `tools/wt.py gc` path.
 
 ## Local-only integration
 
@@ -145,9 +180,9 @@ authorization.
 ```mermaid
 flowchart TD
     A[Isolated candidate and local checks] --> B[Actual diff review]
-    B --> C[Authorized PR publication]
+    B --> C[PR publication]
     C --> D[Current-head deterministic CI]
-    D --> E{Checks pass and merge authorized?}
+    D --> E{Checks pass and merge allowed?}
     E -->|Failure or missing evidence| F[Fix owned scope or report blocker]
     F --> B
     E -->|Yes| G[Normal protected PR merge]

@@ -9,7 +9,7 @@
 - صفحات ومكونات التطبيق: `apps/web/app`؛ التطبيق لا يعتمد على معاينة مستقلة.
 - مصدر Odoo وإعداداته في `/Users/tariq/code/odoo` للقراءة فقط.
 - التطوير المحلي المعتاد: Nuxt `3000` وOdoo `8069`. ملف apps/web/.env الخاص بالنسخة الرئيسية يحدد قاعدة `liwan_dev` صراحةً؛ لا تختبر على `liwan_dev` أو `odoo19`.
-- إصدار Node المعتمد في `.nvmrc` هو `24.15.0`. لكل worktree تثبيت dependencies وملفات Nuxt مولّدة مستقلة. الأمر `npm run dev` يقرأ ملف `.env.worktree` المحلي تلقائيًا ليستخدم قاعدة النسخة ومنافذ Nuxt/Odoo وWebSocket الخاصة بها. المنافذ `3100` و`3103` محجوزة لإدارة البائع؛ المخصّص يستبعدهما للنسخ الجديدة ولا يغيّر حجوزات النسخ الموجودة.
+- إصدار Node هو المثبّت في `.nvmrc`. لكل worktree تثبيت dependencies وملفات Nuxt مولّدة مستقلة. الأمر `npm run dev` يقرأ ملف `.env.worktree` المحلي تلقائيًا ليستخدم قاعدة النسخة ومنافذ Nuxt/Odoo وWebSocket الخاصة بها. المنافذ `3100` و`3103` محجوزة لإدارة البائع؛ المخصّص يستبعدهما للنسخ الجديدة ولا يغيّر حجوزات النسخ الموجودة.
 
 قبل العمل، تحقق من الحالة الحية:
 
@@ -24,24 +24,16 @@ git tag -l 'archive/*'
 
 ## الأرشفة والاسترداد
 
-العمل غير المدمج الذي لم يُحسم يُحفظ في وسم موسوم `archive/<name>` قبل إزالة فرعه (تنظيف الفروع بـ `python3 -B tools/wt.py gc` بإذن المالك فقط). قائمة الوسوم الحية هي ناتج الأمر أعلاه، لا جدول في وثيقة. نسخ الاسترداد الكاملة خارج المستودع (حزم Git ومواد التخزين) تحت `/Users/tariq/Archives/liwan/<تاريخ>/`؛ تحقق من وجود المجلد قبل الاعتماد عليه.
+العمل غير المدمج الذي لم يُحسم يُحفظ في وسم موسوم `archive/<name>` قبل إزالة فرعه (تنظيف الفروع بـ `python3 -B tools/wt.py gc` بعد الدمج وفق [integration-rules.md](agents/integration-rules.md)). قائمة الوسوم الحية هي ناتج الأمر أعلاه، لا جدول في وثيقة. نسخ الاسترداد الكاملة خارج المستودع (حزم Git ومواد التخزين) تحت `/Users/tariq/Archives/liwan/<تاريخ>/`؛ تحقق من وجود المجلد قبل الاعتماد عليه.
 
 تقارير التقدم والتسليم المؤقتة وخطط التنفيذ المنجزة لا تتحول إلى تعليمات نشطة، ولا تُنقل تلقائيًا إلى أرشيف داخل المصدر؛ عند اعتماد إزالتها يبقى تاريخها في Git. قبل أي حذف، تحقق من ملكية الوثيقة والإحالات واعتماد الأدوات عليها، واحفظ القرارات والأدلة المطلوبة في المرجع المالك. لا تطبق التنظيف على عقد معتمد أو دليل قبول ما زال مرجعيًا للأدوات لمجرد أن عنوانه مؤرخ؛ تاريخ الدليل وحدود SHA والبيئة يبقيانه دليلًا لسياقه، لا شهادة جاهزية حالية. لا تغيير في شرط تفويض الحذف أو حفظ أعمال الآخرين. [أرشيف الواجهة](archive/ui/README.md) ليس وجهة تلقائية لوثائق جديدة.
 
 ## CI — GitHub Actions
 
-CI is the `ci` workflow in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): thirteen stages,
-selected per change by `tools/ci_scope.py`, each runnable through `deploy/ci`.
-Keep a PR draft during local preparation; ready requests deterministic CI and
-review of the actual diff. The required status-check policy is current-head
-`ci-result` only. Review uses the selected available agent or a human; publication
-and protected merging require the owner's explicit authorization. CI does not
-repair code, merge PRs, create release tags or deploy. A release tag requires a
-full green main run and separate owner authorization. Recheck live GitHub rules
-before remote delivery; source policy is not a live protection snapshot.
-The full procedure and live-protection caveats are in
-[integration-rules.md](agents/integration-rules.md); check commands are in
-[testing.md](testing.md#ci-workflow), migrations in [migrations.md](migrations.md).
+CI is the `ci` workflow in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml). The procedure,
+required checks, authorization and live-protection caveats are owned by
+[integration-rules.md](agents/integration-rules.md); check commands by [testing.md](testing.md#ci-workflow),
+migrations by [migrations.md](migrations.md).
 The control-plane live-PG suites run serially by design: its `test` script sets
 `--no-file-parallelism` and a 60s hook timeout because the suites share one scratch control database and TRUNCATE
 the same tables.
@@ -62,6 +54,6 @@ the same tables.
 - نسب التأمينات الاجتماعية في `data/hr_gosi_rate_data.xml` (وسمها `VERIFY`) تُؤكَّد على gosi.gov.sa، ومنها نسب الخليجيين التي لا صفوف لها بعد.
 - أعمدة ملف حماية الأجور في الملف الأساسي `profile_mudad_wps` تُطابَق مع قالب مُدد الحالي، ويُضاف ملف خاص لكل بنك عند طلب العميل.
 - معادلات مكافأة نهاية الخدمة وطريقة المخصص الشهري والقيد المحاسبي تراجعها محاسبة قانونية سعودية.
-- ملف حماية الأجور والملف البنكي يُقرآن من لقطة بيانات الدفع المحفوظة عند اعتماد المسيّر، لا من التعويضات الحية. مسيّر اعتُمد قبل `19.0.1.12.0` وبقيت لقطته بلا آيبان لا يُصحَّح من الواجهة؛ تصحيحه إجراء موثّق خارج المنتج ([قيود الترحيل](../odoo-addons/liwan_hr/migrations/19.0.1.12.0/README.md)).
+- ملف حماية الأجور والملف البنكي يُقرآن من لقطة بيانات الدفع المحفوظة عند اعتماد المسيّر، لا من التعويضات الحية. مسيّر اعتُمد قبل `19.0.1.12.0` وبقيت لقطته بلا آيبان لا يُصحَّح من الواجهة؛ تصحيحه إجراء خارج المنتج، ولا يوجد له ملف إجراء موثّق في المستودع.
 - قراران مؤجلان بشرط من المالك وغير منفّذين: الإلغاء المسجّل لإجازات الموظف عند خروجه (يُفتح بعد اعتماد تصميم نقطة امتداد تحفظ تاريخ الإجازة وتعالج الموظف بلا حساب وعزل الشركة)، وسقف فترة التجربة وفق المادة ٥٣ (يُفتح بعد نص رسمي حالي من وزارة الموارد البشرية). حتى ذلك لا يفرض ليوان أيًّا منهما.
 - حدود معروفة: لا حضور وانصراف بعد؛ كل شركة تنشأ تحصل على نسخة خاصة من هيكل الرواتب السعودي (والشركات القائمة تحصل عليها بالترحيل)، فتحسب كل شركة مسيّرها دون نسخ يدوي؛ الإعداد والاعتماد قدرتان منفصلتان (`hr.payroll.config` و`hr.payroll.approve`)، ودور `payroll_manager` الجاهز يجمعهما مع الإدارة، وفصل المهام بإنشاء دورين مخصصين من إدارة الأدوار، دور يملك القراءة والإعداد ودور يملك القراءة والاعتماد (مثبت باختبار)، والممنوع في كل حال اعتماد مسيّر يحمل قسيمة المعتمِد نفسه؛ البنك يُختار في نموذج التعويضات من قائمة البنوك السعودية.

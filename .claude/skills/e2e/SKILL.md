@@ -5,6 +5,15 @@ description: Agentic end-to-end tests with e2e, the e2e runner. Covers scaffoldi
 
 # e2e: agentic end-to-end tests in TypeScript
 
+> LiwanOS repository rules (they override the generic examples below: port `:3000`, `pnpm dev`, the
+> `gateway()` model and the feedback command).
+> - Run tests only through the isolated wrapper: `npm run e2e*` (`tools/e2e_isolated.mjs`; see
+>   `docs/testing.md` section 4 and `docs/e2e.md`). Never use port `:3000` or `:8069`, the `odoo19` or
+>   `liwan_dev` database, or `pnpm dev`; the only database is the fixed scratch `liwan_scratch_e2e`.
+> - No paid model gateway or `AI_GATEWAY_API_KEY`. Prefer exact-step tests that need no model; any model or
+>   Jev call is the owner's decision and sends only test data.
+> - Never run `npx e2e feedback`, and send nothing to an external service, unless the owner explicitly asks.
+
 e2e runs UI tests with agent goals and exact assertions. `agent.act` drives
 one goal; `agent.assert`, `agent.waitFor`, and `agent.extract` judge the
 screen. `screen`, `app`, `browser`, and `expect` make exact interactions and
