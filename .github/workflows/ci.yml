@@ -126,11 +126,19 @@ jobs:
           echo "cached=$cached" >> "$GITHUB_OUTPUT"
           echo "Cached (passed with these inputs): $cached"
 
+  # One job, one stage: the parts of deploy/ci/static.sh run in parallel as the matrix, and the job (so ci-result)
+  # passes only when every part passes; fail-fast is off so a red run reports every failing part. A documentation-only
+  # pull request runs its light checks in the policies part and nothing in the other two.
   static:
+    name: static (${{ matrix.part }})
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'static')
     runs-on: ubuntu-24.04
     timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [policies, tests, types]
     env:
       CI_BASE_REF: ${{ needs.scope.outputs.base }}
     steps:
@@ -147,18 +155,19 @@ jobs:
           echo "mode=$mode" >> "$GITHUB_OUTPUT"
           echo "Static checks: $mode"
       - name: Check documentation
-        if: steps.profile.outputs.mode == 'docs'
+        if: steps.profile.outputs.mode == 'docs' && matrix.part == 'policies'
         run: bash deploy/ci/lib/docs-static.sh
+      # Only the tests part drives Chromium (two web tests in npm test); the type check needs no Python.
       - uses: ./.github/actions/setup
         if: steps.profile.outputs.mode != 'docs'
         with:
-          playwright: 'true'
-          python: 'true'
+          playwright: ${{ matrix.part == 'tests' && 'true' || 'false' }}
+          python: ${{ matrix.part != 'types' && 'true' || 'false' }}
       - name: Python tools
-        if: steps.profile.outputs.mode != 'docs'
+        if: steps.profile.outputs.mode != 'docs' && matrix.part != 'types'
         run: python -m pip install --quiet ruff==0.16.3 semgrep==1.170.0
-      - if: steps.profile.outputs.mode != 'docs'
-        run: deploy/ci/static.sh
+      - run: deploy/ci/static.sh ${{ matrix.part }}
+        if: steps.profile.outputs.mode != 'docs'
 
   ai-service:
     needs: scope
