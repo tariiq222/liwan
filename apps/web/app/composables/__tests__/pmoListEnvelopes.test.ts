@@ -70,33 +70,46 @@ describe('the four pmo lists read the {items, total} envelope', () => {
   })
 })
 
-describe('a milestone reached by direct link loads its own page', () => {
-  it('walks the pages until the requested milestone is loaded', async () => {
-    const pages = [
-      { items: [{ ...MILESTONE, id: 1 }], total: 3 },
-      { items: [{ ...MILESTONE, id: 2 }], total: 3 },
-      { items: [{ ...MILESTONE, id: 3 }], total: 3 },
-    ]
-    const requests: Record<string, unknown>[] = []
-    vi.stubGlobal('useApi', () => ({
-      $api: async (_path: string, options: { query?: Record<string, unknown> }) => {
-        requests.push(options.query ?? {})
-        return pages[requests.length - 1]
-      },
-    }))
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const app = createApp({})
-    app.use(VueQueryPlugin, { queryClient: client })
-    const scope = effectScope()
-    const query = app.runWithContext(() => scope.run(() => useMilestones(ref(7))))!
-    await query.suspense()
-    expect(query.data.value.map(item => item.id)).toEqual([1])
-    // A direct link to milestone 3 must resolve after loading pages 2 and 3.
-    expect((await query.ensureMilestone(3))?.id).toBe(3)
-    expect(query.data.value.map(item => item.id)).toEqual([1, 2, 3])
-    expect(requests.map(page => page.offset)).toEqual([0, 1, 2])
-    expect(await query.ensureMilestone(999)).toBeUndefined()
-    scope.stop()
-    client.clear()
+function milestoneQuery(respond: (offset: number) => unknown) {
+  const offsets: number[] = []
+  vi.stubGlobal('useApi', () => ({
+    $api: async (_path: string, options: { query?: { offset?: number } }) => {
+      const offset = options.query?.offset ?? 0
+      offsets.push(offset)
+      return respond(offset)
+    },
+  }))
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const app = createApp({})
+  app.use(VueQueryPlugin, { queryClient: client })
+  const scope = effectScope()
+  const query = app.runWithContext(() => scope.run(() => useMilestones(ref(7))))!
+  return { query, offsets, stop: () => { scope.stop(); client.clear() } }
+}
+
+async function settle(done: () => boolean) {
+  for (let i = 0; i < 50 && !done(); i++) await new Promise(resolve => setTimeout(resolve, 5))
+}
+
+describe('a project with more milestones than one page', () => {
+  it('loads every page, so pickers and direct links see the whole plan', async () => {
+    const ctx = milestoneQuery(offset => ({ items: [{ ...MILESTONE, id: offset + 1 }], total: 3 }))
+    await settle(() => ctx.query.complete.value)
+    expect(ctx.query.data.value.map(item => item.id)).toEqual([1, 2, 3])
+    expect(ctx.offsets).toEqual([0, 1, 2])
+    ctx.stop()
+  })
+
+  it('stops at a failed page instead of requesting it again', async () => {
+    const ctx = milestoneQuery((offset) => {
+      if (offset === 1) throw new Error('page failed')
+      return { items: [{ ...MILESTONE, id: offset + 1 }], total: 3 }
+    })
+    await settle(() => ctx.query.isError.value)
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(ctx.offsets).toEqual([0, 1])
+    expect(ctx.query.complete.value).toBe(false)
+    expect(ctx.query.data.value.map(item => item.id)).toEqual([1])
+    ctx.stop()
   })
 })

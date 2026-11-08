@@ -11,18 +11,10 @@ const { t } = useI18n()
 const projectId = computed(() => { const n = Number(route.params.id); return Number.isInteger(n) && n > 0 ? n : null })
 const milestoneId = computed(() => { const n = Number(route.params.milestoneId); return Number.isInteger(n) && n > 0 ? n : null })
 const { data: project, isLoading: projectLoading, error: projectError, refetch: refetchProject } = useProject(projectId)
-const { data: milestones, isLoading: milestonesLoading, error: milestonesError, refetch: refetchMilestones, ensureMilestone, hasNextPage, isFetchingNextPage } = useMilestones(projectId)
+const { data: milestones, isLoading: milestonesLoading, error: milestonesError, refetch: refetchMilestones, complete } = useMilestones(projectId)
 const milestone = computed(() => milestones.value?.find((item) => item.id === milestoneId.value))
-watch(
-  [milestoneId, milestones, hasNextPage],
-  () => {
-    const id = milestoneId.value
-    if (id && !milestone.value && hasNextPage.value && !isFetchingNextPage.value) void ensureMilestone(id)
-  },
-  { immediate: true },
-)
-// A later page may still hold the milestone, so "not found" waits until the list is exhausted.
-const resolving = computed(() => hasNextPage.value || isFetchingNextPage.value)
+// A later page may still hold the milestone, so "not found" waits until every page has loaded.
+const resolving = computed(() => !complete.value && !milestonesError.value)
 const notFound = computed(() => projectId.value === null || milestoneId.value === null || (projectError.value instanceof ApiError && [403, 404].includes(projectError.value.status)))
 const sourcePaths = useProjectRecordListPaths(projectId, () => [`/projects/${projectId.value}/milestones`])
 const backTo = computed(() => recordParentTo(`/projects/${projectId.value}/milestones/${milestoneId.value}`, route.query, sourcePaths.value, route.hash))

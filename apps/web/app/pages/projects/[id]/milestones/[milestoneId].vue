@@ -16,23 +16,10 @@ const toast = useToast()
 const projectId = computed(() => parsePositiveId(route.params.id))
 const milestoneId = computed(() => parsePositiveId(route.params.milestoneId))
 const { data: project, error: projectError, isLoading: projectLoading, refetch: refetchProject } = useProject(projectId)
-const { data: milestones, error, isLoading, refetch, ensureMilestone, hasNextPage, isFetchingNextPage } = useMilestones(projectId)
+const { data: milestones, error, isLoading, refetch, complete } = useMilestones(projectId)
 const denied = computed(() => [projectError.value, error.value].some(cause => cause instanceof ApiError && [403, 404].includes(cause.status)))
 const milestone = computed(() => denied.value ? undefined : milestones.value?.find(item => item.id === milestoneId.value))
-// A project with more milestones than one page keeps its later milestones resolvable by direct link:
-// the list pages on demand, and a not-found verdict waits until every page has been loaded.
-watch(
-  [milestoneId, milestones, hasNextPage],
-  () => {
-    const id = milestoneId.value
-    if (id && !denied.value && !milestone.value && hasNextPage.value && !isFetchingNextPage.value) {
-      void ensureMilestone(id)
-    }
-  },
-  { immediate: true },
-)
-const exhausted = computed(() => !hasNextPage.value && !isFetchingNextPage.value)
-const notFound = computed(() => !projectId.value || !milestoneId.value || denied.value || (!isLoading.value && exhausted.value && !milestone.value))
+const notFound = computed(() => !projectId.value || !milestoneId.value || denied.value || (complete.value && !milestone.value))
 const canManage = computed(() => !notFound.value && project.value?.active === true && project.value.can_manage)
 const path = computed(() => `/projects/${projectId.value}/milestones/${milestoneId.value}`)
 const isRecord = computed(() => route.path.replace(/\/+$/, '') === path.value)

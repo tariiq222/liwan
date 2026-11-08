@@ -1,4 +1,4 @@
-import { computed, type Ref } from 'vue'
+import { computed, watch, type Ref } from 'vue'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { MilestoneListSchema, MilestoneSchema, type Milestone, type MilestonePatch } from '@liwan/contracts'
 import { projectKeys } from './projectKeys'
@@ -24,19 +24,20 @@ export function useMilestones(projectId: Ref<number | null>) {
   const items = computed<Milestone[]>(() => (query.data.value?.pages ?? []).flatMap(page => page.items))
   const total = computed(() => query.data.value?.pages.at(-1)?.total ?? 0)
 
-  /** Load further pages until `id` is in the list, so a deep link to a later page resolves. */
-  async function ensureMilestone(id: number): Promise<Milestone | undefined> {
-    let found = items.value.find(item => item.id === id)
-    while (!found && query.hasNextPage.value && !query.isFetchingNextPage.value) {
-      await query.fetchNextPage()
-      found = items.value.find(item => item.id === id)
-    }
-    return found
-  }
+  // A project's milestones are one bounded plan that pickers, the table and deep links read whole, so
+  // every page is loaded. A failed page stops the walk and leaves the error to the caller; `refetch`
+  // retries it, so the query's own retry policy stays the only automatic retry.
+  watch(
+    () => [query.hasNextPage.value, query.isFetchingNextPage.value, query.isError.value] as const,
+    ([more, fetching, failed]) => {
+      if (more && !fetching && !failed) void query.fetchNextPage()
+    },
+    { immediate: true },
+  )
+  /** Every page is loaded: a milestone missing from `data` does not exist (or is not visible). */
+  const complete = computed(() => query.isSuccess.value && !query.hasNextPage.value)
 
-  // `data` stays the flat list of every loaded milestone: the milestone pickers
-  // and detail pages read one list, not pages, and only the list views page.
-  return { ...query, data: items, items, total, ensureMilestone }
+  return { ...query, data: items, items, total, complete }
 }
 
 export function useCreateMilestone() {
