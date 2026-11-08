@@ -18,8 +18,9 @@ MAX_CLIENT_CONNECTIONS = 130
 # Odoo's default pool of 64 connections per process cannot fit any shared box plan.
 MAX_DB_MAXCONN = 8
 # The limits below are the plan's own recycle/ceiling pair; soft must stay below hard.
-MAX_LIMIT_MEMORY_SOFT = 640
-MAX_LIMIT_MEMORY_HARD = 800
+# Odoo's limit_memory_* options are in bytes, so the ceilings are too.
+MAX_LIMIT_MEMORY_SOFT = 640 * 1024 * 1024
+MAX_LIMIT_MEMORY_HARD = 800 * 1024 * 1024
 
 
 class ConfigRejected(Exception):

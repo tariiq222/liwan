@@ -24,7 +24,9 @@ import unittest
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest import mock
 
+from deploy import backup
 from deploy import backup_pipeline as bp
 from deploy.s3_client import FilesystemStore, StorageError
 
@@ -87,7 +89,12 @@ def fake_backup(writes: bool = True):
         output = Path(argv[argv.index('--output-dir') + 1])
         if not writes:
             return Completed(returncode=2)
-        (output / 'filestore' / 'ab').mkdir(parents=True, exist_ok=True)
+        # The real backup.perform_backup contract: an existing destination is refused
+        # and only the output directory itself is created (its parent must exist).
+        if output.exists() or not output.parent.is_dir():
+            return Completed(returncode=1)
+        output.mkdir(parents=False)
+        (output / 'filestore' / 'ab').mkdir(parents=True)
         (output / 'database.dump').write_bytes(DUMP_BYTES)
         (output / 'filestore' / 'ab' / 'cdef').write_bytes(ATTACHMENT_BYTES)
         return Completed()
@@ -307,6 +314,31 @@ class TestArchive(PipelineCase):
         self.assertEqual(payloads['database.dump'], DUMP_BYTES)
         self.assertEqual(payloads['filestore/ab/cdef'], ATTACHMENT_BYTES)
 
+    def test_the_archive_is_pax_so_a_member_of_eight_gib_or_more_fits(self):
+        staged = self.staged_tree()
+        with mock.patch.object(bp.tarfile, 'open', wraps=tarfile.open) as opened:
+            bp.archive_filestore(staged, self.root / 'artifact.tar')
+        self.assertEqual(opened.call_args.kwargs['format'], tarfile.PAX_FORMAT)
+        # A real 8 GiB file is impractical here; the header is where the limit lives.
+        huge = tarfile.TarInfo(name='database.dump')
+        huge.size = 8 * 1024 ** 3
+        with self.assertRaises(ValueError):
+            huge.tobuf(tarfile.USTAR_FORMAT, 'utf-8', 'surrogateescape')
+        header = huge.tobuf(tarfile.PAX_FORMAT, 'utf-8', 'surrogateescape')
+        self.assertIn(b'size=8589934592', header)
+
+    def test_a_path_longer_than_ustar_allows_round_trips(self):
+        staged = self.staged_tree()
+        deep = staged / 'filestore' / '/'.join(['d' * 90] * 3)
+        deep.mkdir(parents=True)
+        (deep / 'blob').write_bytes(ATTACHMENT_BYTES)
+        archive = self.root / 'artifact.tar'
+        first = bp.archive_filestore(staged, archive)
+        with tarfile.open(archive) as bundle:
+            name = 'filestore/' + '/'.join(['d' * 90] * 3) + '/blob'
+            self.assertEqual(bundle.extractfile(name).read(), ATTACHMENT_BYTES)
+        self.assertEqual(first, bp.archive_filestore(staged, self.root / 'again.tar'))
+
     def test_a_symlink_is_refused(self):
         staged = self.root / 'staged'
         staged.mkdir()
@@ -436,6 +468,30 @@ class TestCapture(PipelineCase):
             [],
         )
 
+    def test_the_output_dir_it_passes_is_accepted_by_the_real_backup_contract(self):
+        # Run the pipeline's exact argv through backup.perform_backup itself, which
+        # refuses an output directory that already exists.
+        def pg_dump(argv, **_kwargs):
+            Path(argv[argv.index('-f') + 1]).write_bytes(DUMP_BYTES)
+            return Completed()
+
+        def real_backup(argv, **_kwargs):
+            options = dict(zip(argv[2::2], argv[3::2]))
+            backup.perform_backup(
+                opt_in=options['--opt-in'],
+                acknowledge_unverified=options['--acknowledge-unverified'],
+                db_name=options['--db-name'],
+                filestore=options['--filestore'],
+                output_dir=options['--output-dir'],
+                pg_dump=options['--pg-dump'],
+                runner=pg_dump,
+            )
+            return Completed()
+
+        manifest = self.capture(runner=Runner(real_backup))
+        self.assertEqual(manifest.consistency, 'UNVERIFIED')
+        self.assertEqual(len(self.keys()), 3)
+
     def test_a_capture_without_a_dump_from_backup_py_is_refused(self):
         empty = Runner(lambda argv, **_kwargs: Completed())
         with self.assertRaises(bp.PipelineError):
@@ -507,6 +563,17 @@ class TestPrune(PipelineCase):
         self.assertEqual(report.as_dict()['tenant'], TENANT)
         self.assertEqual(len(report.as_dict()['deleted']), 3)
 
+    def test_ciphertext_without_a_manifest_does_not_justify_pruning_a_complete_backup(self):
+        complete = self.put_artifact('hourly', self.now() - timedelta(days=8))
+        partial = bp.artifact_prefix('acme', 'hourly', self.now() - timedelta(hours=1))
+        self.store.put(partial + bp.ARTIFACT_CIPHERTEXT_NAME, b'ciphertext, manifest upload failed')
+        report = bp.prune(self.store, TENANT, self.now())
+        self.assertEqual(report.deleted, ())
+        self.assertEqual(len(self.store.list(complete)), 3)
+        self.assertEqual(self.store.list(partial), [partial + bp.ARTIFACT_CIPHERTEXT_NAME])
+        self.assertEqual({action.reason for action in report.kept if action.key.startswith(partial)},
+                         {bp.KEEP_UNRECOGNISED})
+
     def test_an_unrecognised_object_is_kept_and_named(self):
         self.put_artifact('hourly', self.now() - timedelta(days=400))
         self.store.put(f'{TENANT}/notes/operator.txt', b'do not delete me')
@@ -528,6 +595,22 @@ class TestPrune(PipelineCase):
     def test_an_invalid_tenant_is_refused(self):
         with self.assertRaises(bp.PipelineError):
             bp.prune(self.store, '../escape', self.now())
+
+
+class TestLatestArtifact(PipelineCase):
+    def test_ciphertext_without_a_manifest_is_not_the_latest_artifact(self):
+        complete = datetime(2026, 11, 7, tzinfo=timezone.utc)
+        self.put_artifact('hourly', complete)
+        partial = bp.artifact_prefix(TENANT, 'hourly', datetime(2026, 11, 8, tzinfo=timezone.utc))
+        self.store.put(partial + bp.ARTIFACT_CIPHERTEXT_NAME, b'ciphertext, manifest upload failed')
+        latest = bp.latest_artifact(self.store, TENANT)
+        self.assertIsNotNone(latest)
+        self.assertEqual(latest.captured_at, complete)
+
+    def test_a_tenant_with_only_a_manifestless_artifact_has_no_latest(self):
+        partial = bp.artifact_prefix(TENANT, 'daily', datetime(2026, 11, 8, tzinfo=timezone.utc))
+        self.store.put(partial + bp.ARTIFACT_CIPHERTEXT_NAME, b'ciphertext, manifest upload failed')
+        self.assertIsNone(bp.latest_artifact(self.store, TENANT))
 
 
 class TestRestoreVerified(PipelineCase):

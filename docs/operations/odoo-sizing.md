@@ -43,8 +43,8 @@ python3 -B deploy/odoo_sizing.py --render json
 workers = 9
 max_cron_threads = 2
 db_maxconn = 8
-limit_memory_soft = 640
-limit_memory_hard = 800
+limit_memory_soft = 671088640
+limit_memory_hard = 838860800
 ```
 
 | المكوّن | القيمة | من أين |

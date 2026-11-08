@@ -43,6 +43,10 @@ services:
   # real ceiling.
   pgbouncer:
     profiles: [pgbouncer]
+    # In shared mode the database sits only on the internal `database` network, and
+    # Odoo reaches it there too (docker-compose.shared.yml). Without a declaration the
+    # service would join `default`, which neither can reach, so it names the network.
+    networks: [database]
     # Pinned by the multi-arch index digest resolved on 2026-11-08 with
     # `docker buildx imagetools inspect`; `deploy/production-images.json` records it
     # and `deploy/image_pins.py` fails the build when a production image is tag-only.

@@ -434,13 +434,18 @@ def archive_filestore(source_dir: Path, target_tar: Path) -> str:
     The standard library writes the archive on purpose: the ``tar`` on the operator's
     machine is bsdtar, which rejects ``--sort=name`` and ``--mtime``, so a shell-out
     could not promise the fixed metadata this function promises.
+
+    The format is PAX, not USTAR: USTAR's octal size field overflows at 8 GiB and
+    its name fields at 256 bytes, and a tenant's dump or filestore can pass either.
+    PAX writes a header record only for a member that needs one, so an ordinary
+    tree is still byte-for-byte reproducible, and ``tarfile`` reads every format.
     """
     _require(source_dir.is_absolute(), 'the archive source must be an absolute path')
     _require(source_dir.is_dir(), 'the archive source must be an existing directory')
     _fresh_path(target_tar, 'archive')
     members = _archive_members(source_dir)
     _require(bool(members), 'the archive source holds nothing to capture')
-    with tarfile.open(target_tar, 'w', format=tarfile.USTAR_FORMAT) as archive:
+    with tarfile.open(target_tar, 'w', format=tarfile.PAX_FORMAT) as archive:
         for relative, path, is_directory in members:
             _add_member(archive, relative, path, is_directory)
     return sha256_file(target_tar)
@@ -556,7 +561,9 @@ def capture(
     stamp = captured_at.strftime(STAMP_FORMAT)
     staging = capture_dir(work_root, stamp)
     _require(not staging.exists(), f'the work root already holds a capture for {stamp}')
-    staging.mkdir(parents=True)
+    # Only the parent: deploy/backup.py creates its output directory itself and
+    # refuses one that already exists.
+    staging.parent.mkdir(parents=True, exist_ok=True)
     plain_tar = staging / ARTIFACT_NAME
     script = backup_script or Path(__file__).with_name('backup.py')
 
@@ -604,14 +611,22 @@ def _kind_of(tenant: str, key: str) -> tuple[str, datetime] | None:
 
 
 def _footprints(store: ObjectStore, tenant: str) -> dict[str, list[ArtifactRef]]:
-    """Every recognised artifact of the tenant, newest first inside each kind."""
+    """Every complete artifact of the tenant, newest first inside each kind.
+
+    The manifest is uploaded last, so only an artifact whose manifest exists counts:
+    ciphertext whose manifest upload failed is a partial capture. It is neither a
+    restore candidate nor a copy that justifies pruning an older complete one.
+    """
+    keys = set(store.list(f'{tenant}/'))
     found: dict[str, dict[str, ArtifactRef]] = {kind: {} for kind in BACKUP_KINDS}
-    for key in store.list(f'{tenant}/'):
+    for key in keys:
         split = _kind_of(tenant, key)
         if split is None or not key.endswith('/' + ARTIFACT_CIPHERTEXT_NAME):
             continue
         kind, captured_at = split
         prefix = key.rsplit('/', 1)[0] + '/'
+        if prefix + MANIFEST_NAME not in keys:
+            continue
         found[kind][prefix] = ArtifactRef(
             tenant=tenant,
             kind=kind,

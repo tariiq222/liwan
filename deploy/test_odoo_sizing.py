@@ -166,7 +166,10 @@ class TestMemoryBudget(unittest.TestCase):
     def test_memory_limits_recycle_a_worker_before_the_box_does(self):
         sizing = odoo_sizing.compute(odoo_sizing.BOX_JEDDAH_A1, odoo_sizing.Assumptions())
         self.assertLess(sizing.limit_memory_soft, sizing.limit_memory_hard)
-        self.assertEqual((sizing.limit_memory_soft, sizing.limit_memory_hard), (640, 800))
+        self.assertEqual((sizing.limit_memory_soft_mib, sizing.limit_memory_hard_mib), (640, 800))
+        # Odoo 19 reads limit_memory_* in bytes; a bare 640 would be a 640-byte limit.
+        self.assertEqual((sizing.limit_memory_soft, sizing.limit_memory_hard),
+                         (640 * 1024 * 1024, 800 * 1024 * 1024))
 
     def test_a_memory_tight_box_shrinks_workers_instead_of_overcommitting(self):
         cramped = odoo_sizing.Box('cramped', ocpu=4, memory_gib=14)
@@ -183,8 +186,8 @@ class TestRenderedFragment(unittest.TestCase):
         self.assertIn('workers = 9', fragment)
         self.assertIn('max_cron_threads = 2', fragment)
         self.assertIn('db_maxconn = 8', fragment)
-        self.assertIn('limit_memory_soft = 640', fragment)
-        self.assertIn('limit_memory_hard = 800', fragment)
+        self.assertIn(f'limit_memory_soft = {640 * 1024 * 1024}\n', fragment)
+        self.assertIn(f'limit_memory_hard = {800 * 1024 * 1024}\n', fragment)
         for forbidden in ('db_password', 'admin_passwd', 'db_host'):
             self.assertNotIn(forbidden, fragment)
 
@@ -249,7 +252,8 @@ class TestValidatorBudgetMatches(unittest.TestCase):
 
     def test_the_gate_refuses_an_incomplete_worker_budget(self):
         full = self.sizing.odoo_fragment()
-        for missing in ('db_maxconn = 8\n', 'limit_memory_soft = 640\n', 'limit_memory_hard = 800\n'):
+        for missing in ('db_maxconn = 8\n', 'limit_memory_soft = 671088640\n',
+                        'limit_memory_hard = 838860800\n'):
             with self.subTest(missing=missing), self.assertRaises(self.validator.ConfigRejected):
                 self.validate_text(self.config(full.replace(missing, '')))
 
@@ -285,14 +289,24 @@ class TestValidatorBudgetMatches(unittest.TestCase):
             self.validate_text(naive)
 
     def test_the_gate_refuses_a_soft_memory_limit_at_or_above_the_hard_one(self):
-        inverted = self.config(self.sizing.odoo_fragment().replace('limit_memory_soft = 640',
-                                                                  'limit_memory_soft = 800'))
+        inverted = self.config(self.sizing.odoo_fragment().replace(
+            'limit_memory_soft = 671088640', 'limit_memory_soft = 838860800'))
         with self.assertRaises(self.validator.ConfigRejected):
             self.validate_text(inverted)
 
     def test_the_gate_still_accepts_a_small_local_stack(self):
         # The acceptance stacks size a two-worker box; the gate bounds it, it does not force production numbers.
         self.validate_text(self.config('workers = 2\nmax_cron_threads = 0\n'))
+
+    def test_the_memory_ceilings_are_bytes_and_match_the_plan(self):
+        self.assertEqual(self.validator.MAX_LIMIT_MEMORY_HARD, self.sizing.limit_memory_hard)
+        self.assertEqual(self.validator.MAX_LIMIT_MEMORY_SOFT, self.sizing.limit_memory_soft)
+
+    def test_the_gate_refuses_a_hard_limit_above_the_plan_in_bytes(self):
+        over = self.config(self.sizing.odoo_fragment().replace(
+            'limit_memory_hard = 838860800', 'limit_memory_hard = 838860801'))
+        with self.assertRaises(self.validator.ConfigRejected):
+            self.validate_text(over)
 
     def test_the_pool_ceiling_matches_the_plan(self):
         self.assertEqual(self.validator.MAX_ODOO_CLIENT_CONNECTIONS,
@@ -304,6 +318,25 @@ class TestValidatorBudgetMatches(unittest.TestCase):
                              self.validator.MAX_ODOO_CLIENT_CONNECTIONS)
         self.assertLessEqual(self.sizing.odoo_client_connections,
                              self.validator.MAX_CLIENT_CONNECTIONS)
+
+
+class _ComposeLoader(yaml.SafeLoader):
+    """Reads the overlay files, which carry `!override` and `!reset` tags."""
+
+
+def _construct_tagged(loader, _suffix, node):
+    if isinstance(node, yaml.SequenceNode):
+        return loader.construct_sequence(node, deep=True)
+    if isinstance(node, yaml.MappingNode):
+        return loader.construct_mapping(node, deep=True)
+    return loader.construct_scalar(node)
+
+
+_ComposeLoader.add_multi_constructor('!', _construct_tagged)
+
+
+def _load_compose(path):
+    return yaml.load(path.read_text(encoding='utf-8'), Loader=_ComposeLoader)
 
 
 class TestProductionOverridePinsThePlan(unittest.TestCase):
@@ -364,7 +397,7 @@ class TestProductionOverridePinsThePlan(unittest.TestCase):
         # The worker budget lives in the config file (the launcher accepts no flags);
         # this override carries the container envelope for the same plan.
         sizing = self.sizing
-        ceiling_mib = (sizing.workers + sizing.max_cron_threads) * sizing.limit_memory_hard
+        ceiling_mib = (sizing.workers + sizing.max_cron_threads) * sizing.limit_memory_hard_mib
         block = self.services['odoo']
         self.assertGreaterEqual(_mem_limit_mib(block['mem_limit']), ceiling_mib)
         self.assertEqual(block['cpu_shares'], 1024)
@@ -388,6 +421,19 @@ class TestProductionOverridePinsThePlan(unittest.TestCase):
     def test_pgbouncer_is_off_until_the_soak_test_passes(self):
         # docs/operations/odoo-sizing.md §6: transaction pooling is unproven at depth.
         self.assertEqual(self.services['pgbouncer']['profiles'], ['pgbouncer'])
+
+    def test_pgbouncer_shares_the_database_network_with_postgres_and_odoo(self):
+        # Base + shared + production: the shared overlay moves db to `database` only and
+        # Odoo to [guard_odoo, database, relay_odoo]; a pgbouncer with no declaration
+        # would sit on `default` and reach neither.
+        shared = _load_compose(ROOT / 'deploy/docker-compose.shared.yml')
+        shared_services = shared['services']
+        pgbouncer = set(self.services['pgbouncer']['networks'])
+        self.assertTrue(pgbouncer)
+        self.assertTrue(pgbouncer <= set(shared['networks']))
+        self.assertTrue(pgbouncer & set(shared_services['db']['networks']))
+        self.assertTrue(pgbouncer & set(shared_services['odoo']['networks']))
+        self.assertNotIn('default', pgbouncer)
 
     def test_pgbouncer_is_hardened_like_the_other_services(self):
         block = self.services['pgbouncer']

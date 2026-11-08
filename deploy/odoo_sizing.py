@@ -38,7 +38,9 @@ POSTGRES_HEADROOM_CONNECTIONS = 2 * ODOO_DEFAULT_DB_MAXCONN
 # one assumption does not become an out-of-memory kill.
 MEMORY_RESERVE_MIB = 1024
 # A worker that crosses the soft limit is recycled; the hard limit is the ceiling
-# Odoo enforces per process before it becomes a memory risk to the box.
+# Odoo enforces per process before it becomes a memory risk to the box. The plan
+# reasons in MiB; Odoo's limit_memory_* options take bytes, so rendering converts.
+BYTES_PER_MIB = 1024 * 1024
 LIMIT_MEMORY_SOFT_MIB = 640
 LIMIT_MEMORY_HARD_MIB = 800
 # One application server's Odoo-side ceiling: the plan's 9 workers + 2 cron threads
@@ -112,8 +114,8 @@ class Sizing:
     workers: int
     max_cron_threads: int
     db_maxconn: int
-    limit_memory_soft: int
-    limit_memory_hard: int
+    limit_memory_soft_mib: int
+    limit_memory_hard_mib: int
     pgbouncer_max_client_conn: int
     pgbouncer_max_db_connections: int
     pgbouncer_pool_size: int
@@ -135,6 +137,16 @@ class Sizing:
     def max_workers_ceiling(self) -> int:
         """The most workers any single box the plan supports may declare."""
         return self.workers
+
+    @property
+    def limit_memory_soft(self) -> int:
+        """Odoo's ``limit_memory_soft`` option, which takes bytes, not MiB."""
+        return self.limit_memory_soft_mib * BYTES_PER_MIB
+
+    @property
+    def limit_memory_hard(self) -> int:
+        """Odoo's ``limit_memory_hard`` option, which takes bytes, not MiB."""
+        return self.limit_memory_hard_mib * BYTES_PER_MIB
 
     @property
     def odoo_client_connections(self) -> int:
@@ -196,6 +208,8 @@ class Sizing:
                 'db_maxconn': self.db_maxconn,
                 'limit_memory_soft': self.limit_memory_soft,
                 'limit_memory_hard': self.limit_memory_hard,
+                'limit_memory_soft_mib': self.limit_memory_soft_mib,
+                'limit_memory_hard_mib': self.limit_memory_hard_mib,
                 'client_connections': self.odoo_client_connections,
             },
             'pgbouncer': self.pgbouncer_settings(),
@@ -358,8 +372,8 @@ def compute(box: Box, assumptions: Assumptions) -> Sizing:
         workers=workers,
         max_cron_threads=assumptions.max_cron_threads,
         db_maxconn=assumptions.db_maxconn_per_process,
-        limit_memory_soft=assumptions.worker_rss_soft_mib,
-        limit_memory_hard=assumptions.worker_rss_hard_mib,
+        limit_memory_soft_mib=assumptions.worker_rss_soft_mib,
+        limit_memory_hard_mib=assumptions.worker_rss_hard_mib,
         pgbouncer_max_client_conn=pgbouncer_max_client_conn,
         pgbouncer_max_db_connections=pgbouncer_max_db_connections,
         pgbouncer_pool_size=pool_size,

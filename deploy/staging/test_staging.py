@@ -169,7 +169,7 @@ class TestSizingFollowsTheComputation(StagingCase):
     def test_the_container_envelope_is_derived_from_the_plan(self):
         flags = command_flags(self.services['odoo']['command'])
         processes = int(flags['workers']) + int(flags['max_cron_threads'])
-        ceiling_mib = processes * self.plan.limit_memory_hard
+        ceiling_mib = processes * self.plan.limit_memory_hard_mib
         limit_mib = mem_limit_mib(self.services['odoo']['mem_limit'])
         self.assertGreaterEqual(limit_mib, ceiling_mib)
         # Rounded up to the next whole GiB, and still smaller than production's box.
