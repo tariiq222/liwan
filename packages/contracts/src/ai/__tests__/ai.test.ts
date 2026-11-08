@@ -3,7 +3,7 @@ import { AI_USAGE_BATCH_MAX, AiCompanyNoteListSchema, AiNoteListSchema, AiNoteSc
 const READ = {
   name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'مهامي', en: 'My tasks' },
   input_schema: { type: 'object', properties: {} }, route: { method: 'GET', path: '/api/v1/tasks' },
-  input_map: { query: { filter: 'mine' } }, result_summary: ['items[].id'], draft_target: null, requires_approval: false, platform: false,
+  input_map: { query: { filter: 'mine' } }, result_summary: ['items[].id'], draft_target: null, draft_model: null, requires_approval: false, platform: false,
 }
 const PMO_AGENT = { key: 'pmo', name: { ar: 'وكيل المشاريع', en: 'Projects agent' }, description: { ar: 'المشاريع', en: 'Projects' }, instructions: { ar: 'أنت وكيل المشاريع', en: 'You are the projects agent' }, pages: ['pmo', 'project'], memory: true }
 

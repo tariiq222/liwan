@@ -13,12 +13,14 @@ export const AiToolSchema = z.object({
   input_map: z.partialRecord(z.enum(['path', 'query', 'body']), z.record(z.string(), z.unknown())),
   result_summary: z.array(z.string()),
   draft_target: z.string().startsWith('/').nullable(),
+  /** The model an approved draft's record lives in; Odoo verifies the approval against it (issue #556). */
+  draft_model: z.string().regex(/^[a-z][a-z0-9_.]*$/).nullable(),
   /** Every write and draft waits for the user; a read waits only when the administrator set it to approval. */
   requires_approval: z.boolean(),
   /** A platform tool (such as `ai.search_knowledge`) belongs to no agent: it is read-only and offered to every agent. */
   platform: z.boolean(),
-}).strict().refine(tool => (tool.kind === 'draft') === (tool.route === null && tool.draft_target !== null), {
-  message: 'a draft tool has a draft_target and no route; other tools have a route',
+}).strict().refine(tool => (tool.kind === 'draft') === (tool.route === null && tool.draft_target !== null && tool.draft_model !== null), {
+  message: 'a draft tool has a draft_target, a draft_model and no route; other tools have a route and neither of the two',
 }).refine(tool => !tool.platform || tool.kind === 'read', { message: 'a platform tool is a read tool' })
 export type AiTool = z.infer<typeof AiToolSchema>
 /** A tool's agent is the application id its name starts with. */
@@ -98,6 +100,13 @@ export const AiAuditRequestSchema = z.object({
 export type AiAuditRequest = z.infer<typeof AiAuditRequestSchema>
 export const AiAuditReceiptSchema = z.object({ id: z.number().int().positive(), messages_used: z.number().int().nonnegative(), messages_limit: z.number().int().nonnegative().nullable() }).strict()
 export type AiAuditReceipt = z.infer<typeof AiAuditReceiptSchema>
+
+/**
+ * What an approved draft names: the record the real create page made (`POST /api/ai/runs/{id}/resume`, issue #556). A
+ * strict shape, so an approval cannot smuggle anything else into the audit row; Odoo still verifies the record itself.
+ */
+export const AiApprovedDraftSchema = z.object({ id: z.number().int().positive() }).strict()
+export type AiApprovedDraft = z.infer<typeof AiApprovedDraftSchema>
 
 export const AiRecordRefSchema = z.object({ type: z.string(), id: z.number().int(), label: z.string() }).strict()
 export type AiRecordRef = z.infer<typeof AiRecordRefSchema>

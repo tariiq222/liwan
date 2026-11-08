@@ -57,6 +57,7 @@ class ToolSpec(Strict):
     input_map: dict[str, dict[str, Any]] = Field(default_factory=dict)
     result_summary: list[str] = Field(default_factory=list)
     draft_target: str | None = None
+    draft_model: str | None = None  # the model an approved draft's record lives in; Odoo verifies the approval against it
     requires_approval: bool = False  # the administrator made this read wait for the user; a write always waits
     platform: bool = False  # a read tool of the platform itself (the knowledge search): no owning agent, offered to every agent
 
@@ -78,11 +79,11 @@ class ToolSpec(Strict):
             msg = f"input_schema is not a valid JSON Schema: {error.message}"
             raise ValueError(msg) from error
         if self.kind == "draft":
-            if self.route is not None or not self.draft_target:
-                msg = "a draft tool has a draft_target and no route"
+            if self.route is not None or not self.draft_target or not self.draft_model:
+                msg = "a draft tool has a draft_target, a draft_model and no route"
                 raise ValueError(msg)
-        elif self.route is None or self.draft_target is not None:
-            msg = "a read/write_light tool has a route and no draft_target"
+        elif self.route is None or self.draft_target is not None or self.draft_model is not None:
+            msg = "a read/write_light tool has a route and no draft_target or draft_model"
             raise ValueError(msg)
         if self.platform and self.kind != "read":
             msg = "only a read tool is a platform tool"

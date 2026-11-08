@@ -184,6 +184,8 @@ class LiwanAiAudit(models.Model):
         if result == 'approved' and not isinstance(values.get('approved'), dict):
             invalid('approved', 'an approved draft carries the approved payload')
         payload = {field: self._liwan_ai_json(field, values.get(field)) for field in ('input', 'draft', 'approved')}
+        if result == 'approved':
+            self._liwan_ai_check_approved(tool, payload['approved'])
         if tool is not None:
             if not self.env['liwan.access.service']._liwan_has_capability(self.env.user, tool['capability']):
                 raise AccessError(self.env._('You do not have access to the tool %(tool)s.', tool=tool_name))
@@ -203,6 +205,29 @@ class LiwanAiAudit(models.Model):
             'attested_at': fields.Datetime.now() if result == 'approved' else False,
             **payload,
         }
+
+    @api.model
+    def _liwan_ai_check_approved(self, tool, approved):
+        """An approval names the record the draft's target page created, and only one the caller may read.
+
+        The page submits the real create route as the user, so a record that exists and is readable in the current company
+        is the one that approval covers; a missing id, a record of another company or one the record rules hide is refused
+        before the row is written (issue #556). The search runs in the caller's environment, exactly like the knowledge
+        resolver's, so Odoo's own rules decide.
+        """
+        model = tool['draft_model']
+        res_id = approved.get('id')
+        if not isinstance(res_id, int) or isinstance(res_id, bool) or res_id <= 0:
+            self._liwan_ai_invalid('approved', "an approved draft names the record it created as {'id': <positive int>}")
+        try:
+            record = self.env[model].search([('id', '=', res_id)])
+        except AccessError:
+            # No read access to the model at all: the caller cannot have created and reopened a record of it.
+            record = self.env[model].browse()
+        # A record that belongs to no company (a shared partner) passes; one of another company is not this session's.
+        foreign_company = bool(record) and 'company_id' in record._fields and record.company_id and record.company_id != self.env.company
+        if not record or foreign_company:
+            self._liwan_ai_invalid('approved', f'record {res_id} of {model} is not visible here', code='not_found')
 
     @api.model_create_multi
     def create(self, vals_list):

@@ -20,7 +20,7 @@ SEARCH_TOOL = {
     "route": {"method": "POST", "path": "/api/v1/ai/knowledge/resolve"},
     "input_map": {"body": {"refs": "$refs"}},
     "result_summary": ["items[]"],
-    "draft_target": None,
+    "draft_target": None, "draft_model": None,
     "platform": True,  # what Odoo's catalog says of a tool that belongs to no agent
 }
 REFS = [{"model": "project.task", "res_id": 7, "chunk_no": 0}, {"model": "crm.lead", "res_id": 3, "chunk_no": 1}]

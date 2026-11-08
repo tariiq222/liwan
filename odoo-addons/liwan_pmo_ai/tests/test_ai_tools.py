@@ -46,6 +46,7 @@ class TestPmoAiTools(LiwanPmoCase):
         draft = next(item for item in body['items'] if item['name'] == 'pmo.draft_project')
         self.assertEqual(draft['kind'], 'draft')
         self.assertEqual(draft['draft_target'], '/projects/new')
+        self.assertEqual(draft['draft_model'], 'project.project')
         self.assertIsNone(draft['route'])
         self.assertEqual(draft['input_schema']['required'], ['name'])
 

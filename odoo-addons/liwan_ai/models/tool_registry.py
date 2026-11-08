@@ -129,11 +129,16 @@ class LiwanAiToolRegistry(models.AbstractModel):
             target = item.get('draft_target')
             if not isinstance(target, str) or not target.startswith('/'):
                 self._liwan_ai_error(name, 'draft_target must be an absolute page path')
+            # The record an approved draft creates lives in this model: the approval names it by id and the audit
+            # verifies the caller can read it (issue #556). Declared here because only the owning application knows it.
+            model = item.get('draft_model')
+            if not isinstance(model, str) or model not in self.env:
+                self._liwan_ai_error(name, 'draft_model must be a registered Odoo model')
             if item.get('input_map') or item.get('result_summary'):
                 self._liwan_ai_error(name, 'a draft tool has no input_map or result_summary')
             return
-        if item.get('draft_target') is not None:
-            self._liwan_ai_error(name, 'only a draft tool has a draft_target')
+        if item.get('draft_target') is not None or item.get('draft_model') is not None:
+            self._liwan_ai_error(name, 'only a draft tool has a draft_target or a draft_model')
         route = item.get('route')
         if not isinstance(route, dict) or route.get('method') not in ROUTE_METHODS or not str(route.get('path', '')).startswith('/api/v1/'):
             self._liwan_ai_error(name, 'route must be {method, path} under /api/v1/')

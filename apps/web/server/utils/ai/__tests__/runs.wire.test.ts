@@ -37,9 +37,9 @@ let taskName = 'تقرير'
 
 const TOOLS = {
   items: [
-    { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'م', en: 'm' }, input_schema: { type: 'object' }, route: { method: 'GET', path: '/api/v1/tasks' }, input_map: { query: { filter: 'mine' } }, result_summary: ['items[].id', 'items[].name', 'total'], draft_target: null, requires_approval: false, platform: false },
-    { name: 'pmo.update_task_state', kind: 'write_light', description: { ar: 'م', en: 'm' }, input_schema: { type: 'object' }, route: { method: 'POST', path: '/api/v1/tasks/{task_id}/transition' }, input_map: { path: { task_id: '$task_id' }, body: { state: '$state' } }, result_summary: ['id', 'state'], draft_target: null, requires_approval: true, platform: false },
-    { name: 'pmo.draft_project', kind: 'draft', description: { ar: 'م', en: 'm' }, input_schema: { type: 'object' }, route: null, input_map: {}, result_summary: [], draft_target: '/projects/new', requires_approval: true, platform: false },
+    { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'م', en: 'm' }, input_schema: { type: 'object' }, route: { method: 'GET', path: '/api/v1/tasks' }, input_map: { query: { filter: 'mine' } }, result_summary: ['items[].id', 'items[].name', 'total'], draft_target: null, draft_model: null, requires_approval: false, platform: false },
+    { name: 'pmo.update_task_state', kind: 'write_light', description: { ar: 'م', en: 'm' }, input_schema: { type: 'object' }, route: { method: 'POST', path: '/api/v1/tasks/{task_id}/transition' }, input_map: { path: { task_id: '$task_id' }, body: { state: '$state' } }, result_summary: ['id', 'state'], draft_target: null, draft_model: null, requires_approval: true, platform: false },
+    { name: 'pmo.draft_project', kind: 'draft', description: { ar: 'م', en: 'm' }, input_schema: { type: 'object' }, route: null, input_map: {}, result_summary: [], draft_target: '/projects/new', draft_model: 'project.project', requires_approval: true, platform: false },
   ],
   total: 3,
   agents: [],
@@ -80,6 +80,11 @@ beforeAll(async () => {
     if (req.url?.split('?')[0] === '/api/v1/ai/tools') { res.statusCode = odooToolsStatus; return res.end(JSON.stringify(odooToolsStatus === 200 ? TOOLS : { code: 'feature_not_included', message: 'limit', details: { reason: 'limit', limit_key: 'ai.messages.monthly' } })) }
     if (req.url === '/api/v1/ai/audit') {
       if (auditFailKind && JSON.parse(body).kind === auditFailKind) { res.statusCode = 500; return res.end(JSON.stringify({ code: 'boom', message: 'secret detail from odoo' })) }
+      // The approval payload is verified against a real record, as Odoo does (issue #556): only id 42 exists.
+      if (JSON.parse(body).result === 'approved' && JSON.parse(body).approved?.id !== 42) {
+        res.statusCode = 422
+        return res.end(JSON.stringify({ code: 'not_found', message: 'record does not exist', field: 'approved' }))
+      }
       odooToolsStatus === 200 ? res.end(JSON.stringify({ id: 1, messages_used: 2, messages_limit: 100 })) : (res.statusCode = 403, res.end(JSON.stringify({ code: 'feature_not_included', message: 'limit', details: { reason: 'limit', limit_key: 'ai.messages.monthly' } }))); return }
     if (req.url === '/api/v1/ai/usage') {
       const parsed = AiUsageBatchSchema.safeParse(JSON.parse(body))
@@ -583,13 +588,28 @@ describe('resume and status', () => {
     expect((await (await fetch(`${url}/api/ai/runs/r_1`, { headers: { cookie: 'session_id=s1' } })).json()).mode).toBe('assistant')
   })
   it('resumes with the user decision and relays the stream', async () => {
-    const list = await events(await post('/api/ai/runs/r_1/resume', { call_id: 'c_2', decision: 'approved', data: { id: 77, name: 'بوابة' } }))
+    const list = await events(await post('/api/ai/runs/r_1/resume', { call_id: 'c_2', decision: 'approved', data: { id: 42 } }))
     expect(list.map(([n]) => n)).toEqual(['run', 'token', 'answer', 'done'])
-    expect(JSON.parse(serviceCalls.at(-1)!.body)).toEqual({ call_id: 'c_2', policy: POLICY, result: { ok: true, decision: 'approved', data: { id: 77, name: 'بوابة' } } })
+    expect(JSON.parse(serviceCalls.at(-1)!.body)).toEqual({ call_id: 'c_2', policy: POLICY, result: { ok: true, decision: 'approved', data: { id: 42 } } })
   })
-  it('withholds identity and bank values from a submitted draft before the service sees them', async () => {
-    await events(await post('/api/ai/runs/r_1/resume', { call_id: 'c_2', decision: 'approved', data: { id: 77, name: 'بوابة', note: 'آيبان SA0380000000608010167519' } }))
-    expect(JSON.parse(serviceCalls.at(-1)!.body).result.data).toEqual({ id: 77, name: 'بوابة', note: 'آيبان [iban withheld]' })
+  it('refuses a draft approval whose data is not just the created record', async () => {
+    // Issue #556: the shape is strict, so nothing else can ride along into the audit row.
+    for (const data of [{ id: 0 }, { id: -1 }, { id: 1.5 }, { id: '42' }, { id: 42, name: 'بوابة' }, { name: 'بوابة' }, {}]) {
+      const response = await post('/api/ai/runs/r_1/resume', { call_id: 'c_2', decision: 'approved', data })
+      expect(response.status, JSON.stringify(data)).toBe(422)
+      await response.text()
+    }
+    expect(odooCalls.some(c => c.url === '/api/v1/ai/audit')).toBe(false)
+    expect(serviceCalls.some(c => c.url.endsWith('/resume'))).toBe(false)
+  })
+  it('refuses a draft approval of a record Odoo does not hold for this caller, and records nothing', async () => {
+    // Issue #556: the approval is recorded with the user's session, and Odoo verifies the id before it writes the row.
+    const response = await post('/api/ai/runs/r_1/resume', { call_id: 'c_2', decision: 'approved', data: { id: 999 } })
+    expect(response.status).toBe(422)
+    expect((await response.json()).data).toMatchObject({ code: 'not_found' })
+    // The row reached Odoo, which refused it: the approval was never recorded and the run was never resumed as approved.
+    expect(odooCalls.filter(c => c.url === '/api/v1/ai/audit').map(c => JSON.parse(c.body!).result)).toEqual(['approved'])
+    expect(serviceCalls.some(c => c.url.endsWith('/resume'))).toBe(false)
   })
   it('executes an approved write_light with the caller cookie, audits it, and passes the real result', async () => {
     pending = WRITE_PENDING
@@ -873,7 +893,7 @@ describe('claim before executing a write_light', () => {
   })
 
   it('does not claim drafts or rejections', async () => {
-    await events(await post('/api/ai/runs/r_1/resume', { call_id: 'c_2', decision: 'approved', data: { id: 1 } }))
+    await events(await post('/api/ai/runs/r_1/resume', { call_id: 'c_2', decision: 'approved', data: { id: 42 } }))
     pending = WRITE_PENDING
     await events(await post('/api/ai/runs/r_1/resume', { call_id: 'c_3', decision: 'rejected' }))
     expect(serviceCalls.some(c => c.url.endsWith('/claim'))).toBe(false)
@@ -1008,14 +1028,14 @@ describe('draft approval audit (issue #556)', () => {
 
   it('takes the payload from the browser but the call, the tool and the signer from the server', async () => {
     // A browser that names another call id never reaches the audit: the pending call of the service is the only one.
-    expect((await post('/api/ai/runs/r_1/resume', { call_id: 'c_other', decision: 'approved', data: { id: 1 } })).status).toBe(409)
+    expect((await post('/api/ai/runs/r_1/resume', { call_id: 'c_other', decision: 'approved', data: { id: 42 } })).status).toBe(409)
     expect(odooCalls.some(c => c.url === '/api/v1/ai/audit' && JSON.parse(c.body!).result === 'approved')).toBe(false)
-    await events(await approveDraft({ id: 7 }))
+    await events(await approveDraft({ id: 42 }))
     // The owner headers of the audit are the session's, never the browser's: nothing in the body names a user.
     const call = odooCalls.filter(c => c.url === '/api/v1/ai/audit').at(-1)!
     expect(call.cookie).toBe('session_id=s1')
     expect(JSON.parse(call.body!)).not.toHaveProperty('user_id')
-    expect(JSON.parse(call.body!).approved).toEqual({ id: 7 })
+    expect(JSON.parse(call.body!).approved).toEqual({ id: 42 })
   })
 
   it('still resumes the assistant when the approval row cannot be recorded', async () => {
@@ -1083,7 +1103,7 @@ describe('a failed service resume after the write ran', () => {
   })
   it('still fails with the service status when nothing was executed (an approved draft)', async () => {
     resumeMode = 'destroy'
-    const response = await post('/api/ai/runs/r_1/resume', { call_id: 'c_2', decision: 'approved', data: { id: 1 } })
+    const response = await post('/api/ai/runs/r_1/resume', { call_id: 'c_2', decision: 'approved', data: { id: 42 } })
     expect(response.status).toBe(503)
     await response.text()
   })

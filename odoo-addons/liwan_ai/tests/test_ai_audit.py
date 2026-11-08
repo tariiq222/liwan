@@ -34,6 +34,11 @@ DRAFT = {
 }
 
 
+def approved_record(env):
+    """A record of the model the probe draft creates (its `draft_model`), so an approval can name a real one."""
+    return env['res.partner'].create({'name': 'Approved record'})
+
+
 @tagged('post_install', '-at_install', 'liwan')
 class TestAiAudit(AiProbe, LiwanApiCase):
 
@@ -47,6 +52,7 @@ class TestAiAudit(AiProbe, LiwanApiCase):
             groups='liwan_core.group_employee,liwan_ai.group_cap_ai_use',
         )
         self.authenticate('api_emp', 'api_emp_pass_123')
+        self.record = approved_record(self.env)
 
     def _set_feature(self, key, value):
         profile = self.env.ref('liwan_platform.tenant_profile')
@@ -104,11 +110,40 @@ class TestAiAudit(AiProbe, LiwanApiCase):
         proposed = self.api('POST', '/api/v1/ai/audit', DRAFT)
         self.assertEqual(proposed.status_code, 200)
         self.assertFalse(self.env['liwan.ai.audit'].browse(proposed.json()['id']).attested_at)
-        approved = self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'result': 'approved', 'approved': {'name': 'A2'}})
+        approved = self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'result': 'approved', 'approved': {'id': self.record.id}})
         self.assertEqual(approved.status_code, 200)
         row = self.env['liwan.ai.audit'].browse(approved.json()['id'])
         self.assertTrue(row.attested_at)
-        self.assertEqual((row.draft, row.approved), ({'name': 'A'}, {'name': 'A2'}))
+        self.assertEqual((row.draft, row.approved), ({'name': 'A'}, {'id': self.record.id}))
+
+    def test_an_approval_must_name_a_record_the_caller_may_read(self):
+        """Issue #556: the audit verifies the approved id, so a forged one is refused instead of recorded."""
+        self.granted = {READ_CAP, CREATE_CAP}
+        foreign = self.env['res.company'].create({'name': 'AI other company'})
+        refused = (
+            {'id': 999_999_999},
+            {'id': 0},
+            {'id': -3},
+            {'id': True},
+            {'id': '1'},
+            {'id': 1.5},
+            {},
+        )
+        for approved in refused:
+            response = self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'result': 'approved', 'approved': approved})
+            self.assertEqual(response.status_code, 422, approved)
+            self.assertEqual(response.json()['field'], 'approved', approved)
+        self.assertFalse(self.env['liwan.ai.audit'].search([]))
+        # A record of another company is named but is not this session's: it is not readable here either.
+        theirs = self.env['res.partner'].create({'name': 'Theirs', 'company_id': foreign.id})
+        elsewhere = self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'result': 'approved', 'approved': {'id': theirs.id}})
+        self.assertEqual(elsewhere.status_code, 422)
+        self.assertEqual(elsewhere.json()['field'], 'approved')
+        self.assertFalse(self.env['liwan.ai.audit'].search([]))
+        # The caller's own readable record is the one an approval covers.
+        accepted = self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'result': 'approved', 'approved': {'id': self.record.id}})
+        self.assertEqual(accepted.status_code, 200)
+        self.assertEqual(self.env['liwan.ai.audit'].browse(accepted.json()['id']).approved, {'id': self.record.id})
 
     def test_the_wire_carries_no_attestation_flag(self):
         """Issue #556: a caller cannot assert an acknowledgement the server did not make, by any field name."""
@@ -156,6 +191,7 @@ class TestAiAuditHardening(AiProbe, LiwanApiCase):
         self.audit_a = self.env['liwan.ai.audit'].with_user(self.employee)
         self.audit_b = self.env['liwan.ai.audit'].with_user(self.other)
         self.authenticate('api_emp', 'api_emp_pass_123')
+        self.probe_record = approved_record(self.env)
 
     def _set_feature(self, key, value):
         profile = self.env.ref('liwan_platform.tenant_profile')
@@ -216,7 +252,8 @@ class TestAiAuditHardening(AiProbe, LiwanApiCase):
     def test_other_users_cannot_read_any_row_of_a_colleague(self):
         self.audit_a.create(MESSAGE)
         self.audit_a.create(READ)
-        self.audit_a.create({**DRAFT, 'result': 'approved', 'approved': {'name': 'A'}})
+        self.audit_a.create({**DRAFT, 'result': 'approved', 'approved': {'id': self.probe_record.id}})
+        self.assertEqual(self.audit_a.search_count([('result', '=', 'approved')]), 1)
         self.assertFalse(self.audit_b.search([]))
         self.assertEqual(len(self.audit_a.search([])), 3)
 
@@ -361,7 +398,7 @@ class TestAiAuditHardening(AiProbe, LiwanApiCase):
         self.assertFalse(self.env['liwan.ai.audit'].search([]))
 
     def test_direct_create_derives_owner_and_attestation(self):
-        row = self.audit_a.create({**DRAFT, 'result': 'approved', 'approved': {'name': 'B'}})
+        row = self.audit_a.create({**DRAFT, 'result': 'approved', 'approved': {'id': self.probe_record.id}})
         self.assertEqual((row.user_id, row.company_id), (self.employee, self.employee.company_id))
         self.assertTrue(row.attested_at)
         plain = self.audit_a.create(DRAFT)
