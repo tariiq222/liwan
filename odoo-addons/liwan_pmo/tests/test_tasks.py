@@ -520,6 +520,22 @@ class TestTaskWrite(LiwanPmoCase):
         self.task_overdue.invalidate_recordset(['user_ids'])
         self.assertEqual(self.task_overdue.user_ids.ids, [self.employee.id])
 
+    def test_patch_user_ids_keeps_an_assignee_who_was_archived_later(self):
+        """The picker sends the current list back: an assignee archived since assignment is no new id.
+
+        Only ids the task does not hold yet go through the people directory, so editing the list
+        (here adding the manager) keeps the archived assignee instead of refusing the whole save.
+        """
+        leaver = new_test_user(self.env, login='api_task_leaver', groups='liwan_core.group_employee')
+        self.task_overdue.user_ids = [(4, leaver.id)]
+        leaver.active = False
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        kept = sorted(self.task_overdue.user_ids.ids)
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'user_ids': kept + [self.manager.id]})
+        self.assertEqual(res.status_code, 200, res.text)
+        self.task_overdue.invalidate_recordset(['user_ids'])
+        self.assertEqual(sorted(self.task_overdue.user_ids.ids), sorted(kept + [self.manager.id]))
+
     def test_patch_user_ids_rejects_bad_shape_and_unknown_ids(self):
         """Non-int, bool and unknown ids answer 422, never a 500.
 
