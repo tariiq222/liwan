@@ -180,12 +180,8 @@ class LiwanPaymentsService(models.AbstractModel):
             # Stock records no payment entry for a transaction that already has a done child.
             raise RefundConflict(self.env._("A payment of this order is still being recorded; try again later."))
         currency = order.currency_id
-        duplicate = payments.child_transaction_ids.filtered(
-            lambda tx: tx.state == 'done' and tx.provider_reference == reference
-            and not currency.compare_amounts(abs(tx.amount), amount),
-        )
-        if duplicate:
-            recorded = duplicate[:1]
+        recorded = self._liwan_recorded_refund(payments, reference, amount)
+        if recorded:
             raise RefundConflict(self.env._(
                 "This refund is already recorded on order %(order)s of %(date)s under the reference %(reference)s.",
                 order=order.name,
@@ -218,6 +214,18 @@ class LiwanPaymentsService(models.AbstractModel):
         return self.env['payment.transaction'].browse(refunds.ids)
 
     @api.model
+    def _liwan_recorded_refund(self, payments, reference, amount):
+        """A split part of an already recorded refund of ``amount`` under ``reference``, if any.
+
+        Another amount under the same reference is a new refund the gateway made, not a replay.
+        """
+        currency = payments.currency_id[:1]
+        return payments.child_transaction_ids.filtered(
+            lambda tx: tx.state == 'done' and tx.operation == 'refund' and tx.provider_reference == reference
+            and not currency.compare_amounts(tx.liwan_refund_amount, amount),
+        )[:1]
+
+    @api.model
     def _liwan_refund_payments(self, order, amount, reference, credit_notes):
         """The refund children taking ``amount`` from the order's received payments, newest first."""
         currency = order.currency_id
@@ -231,6 +239,7 @@ class LiwanPaymentsService(models.AbstractModel):
                 continue
             refunds |= payment._create_child_transaction(
                 part, is_refund=True, provider_reference=reference, invoice_ids=[Command.set(credit_notes.ids)],
+                liwan_refund_amount=amount,
             )
             left -= part
             if currency.compare_amounts(left, 0.0) <= 0:

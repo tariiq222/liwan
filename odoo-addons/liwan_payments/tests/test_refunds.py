@@ -226,6 +226,18 @@ class TestRecordedRefunds(LiwanRefundCase):
         self.assertIn(order.name, message)
         self.assertIn(fields.Date.to_string(refunds[:1].last_state_change.date()), message)
 
+    def test_a_refund_split_over_two_payments_is_recorded_once(self):
+        """A refund taken from two payments is one refund: replaying it is a conflict, not a second refund."""
+        self.rules(refund_amounts='any')
+        order = self.paid_order(50.0)
+        self.pay(order, 65.0)
+        self.cancel_by_customer(order)
+        refunds = self.env['payment.transaction'].browse(self.record(order, 100.0, 'PMB-R-30').ids)
+        self.assertEqual(sorted(abs(amount) for amount in refunds.mapped('amount')), [35.0, 65.0])
+        with self.assertRaises(RefundConflict):
+            self.record(order, 100.0, 'PMB-R-30')
+        self.assertEqual(order.liwan_refund_due_amount, 15.0)
+
     def test_a_refund_being_recorded_holds_the_order(self):
         order = self.paid_order()
         self.cancel_by_customer(order)
