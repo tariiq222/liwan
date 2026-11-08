@@ -629,3 +629,15 @@ msgstr "الأجر الخاضع للتأمينات"
 #: model:hr.salary.rule,name:liwan_hr.rule_net
 msgid "Net"
 msgstr "الصافي"
+
+#. module: liwan_hr
+#. odoo-python
+#: code:addons/liwan_hr/models/hr_payslip.py:0
+msgid "An approved payslip is fixed: its figures and lines cannot be changed."
+msgstr "القسيمة المعتمدة ثابتة: لا يمكن تغيير أرقامها أو سطورها."
+
+#. module: liwan_hr
+#. odoo-python
+#: code:addons/liwan_hr/models/hr_payslip_run.py:0
+msgid "An approved payroll run cannot go back to an editable state."
+msgstr "لا يمكن إعادة مسيّر رواتب معتمد إلى حالة قابلة للتعديل."

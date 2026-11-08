@@ -4,6 +4,7 @@ from decimal import Decimal
 from markupsafe import Markup
 
 from odoo import fields, models
+from odoo.exceptions import AccessError
 from odoo.tools.misc import format_amount
 
 from .payroll_math import money
@@ -69,6 +70,33 @@ class HrPayslip(models.Model):
         if self.struct_id != settings.structure_id:
             return values
         return {**values, **self.env['liwan.hr.payroll.calculator']._liwan_payslip_values(self)}
+
+    def _liwan_is_fixed(self):
+        """Whether the payslip is frozen: approved (the engine's ``done``) or in a run that is no longer editable.
+
+        The routes refuse a change before it reaches the ORM; this one definition lets the model refuse every
+        other path too, so a support script or a maintenance task cannot rewrite an approved month.
+        """
+        return self.state == 'done' or bool(
+            self.payslip_run_id and not self.payslip_run_id._liwan_is_editable(),
+        )
+
+    def _liwan_refuse_when_fixed(self):
+        """Refuse a change to the payslip or its lines once it is frozen (``AccessError``, never a silent skip)."""
+        if self.filtered(lambda slip: slip._liwan_is_fixed()):
+            raise AccessError(
+                self.env._('An approved payslip is fixed: its figures and lines cannot be changed.'),
+            )
+
+    def write(self, vals):
+        if not self.env.su:
+            self._liwan_refuse_when_fixed()
+        return super().write(vals)
+
+    def unlink(self):
+        if not self.env.su:
+            self._liwan_refuse_when_fixed()
+        return super().unlink()
 
     def _liwan_refuse_saudi_rules_outside(self):
         """Refuse a structure that uses the Saudi rules but is not the company's: they would read zeros."""
@@ -228,3 +256,35 @@ class HrPayslip(models.Model):
             slip.id for slip in self
             if not with_iban[slip.id] and (slip.state == 'draft' or amounts[slip.id]['net'] > 0)
         }
+
+
+class HrPayslipLine(models.Model):
+    """The computed lines of a payslip are frozen with it: an approved month is never rewritten line by line."""
+
+    _inherit = 'hr.payslip.line'
+
+    def write(self, vals):
+        if not self.env.su:
+            self.slip_id._liwan_refuse_when_fixed()
+        return super().write(vals)
+
+    def unlink(self):
+        if not self.env.su:
+            self.slip_id._liwan_refuse_when_fixed()
+        return super().unlink()
+
+
+class HrPayslipInput(models.Model):
+    """The entered inputs of a payslip are frozen with it too: they are the pay data its lines come from."""
+
+    _inherit = 'hr.payslip.input'
+
+    def write(self, vals):
+        if not self.env.su:
+            self.payslip_id._liwan_refuse_when_fixed()
+        return super().write(vals)
+
+    def unlink(self):
+        if not self.env.su:
+            self.payslip_id._liwan_refuse_when_fixed()
+        return super().unlink()

@@ -4,7 +4,7 @@ from decimal import Decimal
 from dateutil.relativedelta import relativedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import AccessError, ValidationError
 
 from .hr_payslip import AMOUNT_KEYS, INPUT_CODES, RULE_VALUE_KEYS
 from .payroll_math import money
@@ -85,6 +85,34 @@ class HrPayslipRun(models.Model):
         """Refuse a transition from any other lifecycle state (403 ``transition_forbidden``)."""
         if any(run.liwan_state not in states for run in self):
             raise LiwanHrRule(TRANSITION_FORBIDDEN, message, status=403, details=details)
+
+    def _liwan_refuse_unlocking(self, vals):
+        """Refuse any write that would make an approved month editable or delete it again.
+
+        The routes already refuse it before they reach the ORM; this guard covers every other path
+        (a support script, a data fix, the scripting console), so approval is one way for the whole
+        model and never a route-level convention. A later state a bridge adds (posted, paid) advances
+        forward and is not an unlock; only the editable states the payroll section owns are, and the
+        engine's own ``state`` back to ``draft`` is the same unlock one layer down.
+        """
+        unlocks = (
+            ('liwan_state' in vals and vals['liwan_state'] in EDITABLE_STATES)
+            or vals.get('state') == 'draft'
+        )
+        if unlocks and self.filtered(lambda run: not run._liwan_is_editable()):
+            raise AccessError(
+                self.env._('An approved payroll run cannot go back to an editable state.'),
+            )
+
+    def write(self, vals):
+        if not self.env.su:
+            self._liwan_refuse_unlocking(vals)
+        return super().write(vals)
+
+    def unlink(self):
+        if not self.env.su and self.filtered(lambda run: not run._liwan_is_editable()):
+            raise AccessError(self.env._('An approved payroll run cannot be deleted.'))
+        return super().unlink()
 
     # --- who is paid -------------------------------------------------------------------------
 
