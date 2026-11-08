@@ -357,7 +357,7 @@ editing overlapping files.
 ## Authorization model
 
 
-Authorization uses the capability catalog composed by `liwan.access.service` (the eleven
+Authorization uses the capability catalog composed by `liwan.access.service` (the twelve
 `liwan_core` system capabilities plus each application's own), built-in and
 custom roles, and company-scoped assignments. `system_admin` manages access
 and settings without implicitly granting HR/PMO write access. Project ownership

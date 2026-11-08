@@ -32,7 +32,7 @@ const CAPABILITIES = [
   'hr.departments.read', 'hr.departments.manage', 'documents.items.read', 'documents.items.manage',
   'pmo.projects.read', 'pmo.projects.create', 'pmo.projects.manage', 'pmo.settings.manage',
   'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write', 'pmo.tasks.approve',
-  'settings.branding.manage', 'settings.company.read', 'settings.company.manage', 'ai.use', PAYMENTS_MANAGE, PAYMENTS_LINKS_MANAGE, PAYMENTS_SETTINGS_MANAGE,
+  'settings.branding.manage', 'settings.company.read', 'settings.company.manage', 'settings.company.vat.manage', 'ai.use', PAYMENTS_MANAGE, PAYMENTS_LINKS_MANAGE, PAYMENTS_SETTINGS_MANAGE,
   ...INBOX_CAPABILITIES,
 ]
 
@@ -71,7 +71,7 @@ const BRANDING = {
 const COMPANY_COUNTRY = { id: 192, name: 'المملكة العربية السعودية', code: 'SA' }
 const COMPANY_STATES = { 192: [{ id: 1, name: 'الرياض', code: 'RUH' }, { id: 2, name: 'مكة المكرمة', code: 'MAK' }], 229: [{ id: 3, name: 'دبي', code: 'DU' }] }
 const COMPANY = {
-  id: 1, name: 'ليوان', logo_url: null, report_header: 'منصة عربية موحّدة لتشغيل الشركات', company_registry: '1010000000', vat: '300000000000003',
+  id: 1, name: 'ليوان', logo_url: null, report_header: 'منصة عربية موحّدة لتشغيل الشركات', company_registry: '1010000000', vat_registered: true, vat: '300000000000003',
   address: {
     street: 'طريق الملك فهد', street2: 'العليا', city: 'الرياض', zip: '12211', state: { id: 1, name: 'الرياض' },
     country: COMPANY_COUNTRY,

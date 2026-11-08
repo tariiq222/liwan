@@ -16,3 +16,13 @@ def import_all_tests(package_name):
     for module in sorted(pkgutil.iter_modules(package.__path__), key=lambda info: info.name):
         if module.name.startswith('test_'):
             importlib.import_module(f'{package_name}.{module.name}')
+
+
+def skip_unless_vat_checked(case):
+    """Skip the running test unless this database checks VAT numbers: only ``base_vat`` does.
+
+    ``liwan_core`` depends on ``base`` only, so a foundation-only install has no number format to refuse;
+    the tests that need one run where ``base_vat`` is installed (see ``res.company._liwan_vat_number_is_checked``).
+    """
+    if not case.env['res.company']._liwan_vat_number_is_checked():
+        case.skipTest('base_vat is not installed: no number format is checked')

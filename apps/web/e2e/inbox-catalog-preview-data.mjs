@@ -34,7 +34,7 @@ export function seedCatalog() {
   return {
     catalogs: [{
       id: 1, business_account_id: '203456789012345', meta_catalog_id: '9988776655443', name: 'كتالوج المتجر', state: 'connected', last_error: null, brand: 'متجر الأمل',
-      default_link: null, prices_include_tax: true, currency: 'SAR', last_sync_at: ago(0.5), created_at: ago(72),
+      default_link: null, prices_include_tax: true, vat_registered: true, currency: 'SAR', last_sync_at: ago(0.5), created_at: ago(72),
     }],
     items: [
       makeItem(1, 'wv-101', 'قهوة مختصة 250 غ', 45),
@@ -191,7 +191,7 @@ function createCatalog(state, body) {
   if (state.catalog.catalogs.some(item => item.business_account_id === channel.business_account_id)) return fail(409, 'conflict', 'يوجد كتالوج لهذا الحساب')
   const catalog = {
     id: state.catalog.ids.catalog++, business_account_id: channel.business_account_id, meta_catalog_id: body.meta_catalog_id, name: `كتالوج ${body.meta_catalog_id}`, state: 'connected',
-    last_error: null, brand: body.brand.trim(), default_link: body.default_link ?? null, prices_include_tax: body.prices_include_tax, currency: 'SAR', last_sync_at: null, created_at: iso(Date.now()),
+    last_error: null, brand: body.brand.trim(), default_link: body.default_link ?? null, prices_include_tax: body.prices_include_tax, vat_registered: true, currency: 'SAR', last_sync_at: null, created_at: iso(Date.now()),
   }
   state.catalog.catalogs.push(catalog)
   state.catalog.commerce.set(channel.id, { ...DEFAULT_COMMERCE })

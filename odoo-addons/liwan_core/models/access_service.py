@@ -21,11 +21,14 @@ MIN_PASSWORD_LENGTH = 12
 MOBILE_SEPARATORS = str.maketrans('', '', ' -()')
 MOBILE_INDEX = 'res_users_liwan_mobile_unique'
 
+# Registering the company for VAT decides whether tax shows anywhere: the system administrator role only,
+# never a custom role and never the vendor support role.
+VAT_PERMISSION = 'settings.company.vat.manage'
 SYSTEM_PERMISSIONS = {
     'access.users.read', 'access.users.grant', 'access.users.assign_roles',
     'access.users.disable', 'access.users.reset_password', 'access.roles.read',
     'access.roles.manage', 'access.audit.read', 'settings.branding.manage',
-    'settings.company.read', 'settings.company.manage',
+    'settings.company.read', 'settings.company.manage', VAT_PERMISSION,
 }
 # The keys liwan_core owns. Each application adds its own through
 # _liwan_capability_definitions(); the composed map is the catalog.
@@ -40,6 +43,7 @@ PERMISSION_DEPENDENCIES = {
     'access.users.reset_password': {'access.users.read'},
     'access.roles.manage': {'access.roles.read'},
     'settings.company.manage': {'settings.company.read'},
+    VAT_PERMISSION: {'settings.company.manage'},
 }
 
 
@@ -112,7 +116,7 @@ class LiwanAccessService(models.AbstractModel):
         return {
             'liwan_core.role_employee': set(),
             'liwan_core.role_system_admin': set(SYSTEM_PERMISSIONS),
-            'liwan_core.role_vendor_support': set(SYSTEM_PERMISSIONS),
+            'liwan_core.role_vendor_support': SYSTEM_PERMISSIONS - {VAT_PERMISSION},
         }
 
     @api.model

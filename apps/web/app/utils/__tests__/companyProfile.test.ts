@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CompanyProfile } from '@liwan/contracts'
-import { companyPatch, profileToForm, sectionExtensions } from '../companyProfile'
+import { companyPatch, profileToForm, SECTION_FIELDS, sectionExtensions, vatNumberMissing } from '../companyProfile'
 import { canReachPath, requiredCapabilityForPath } from '../accessPolicy'
 
 const PROFILE: CompanyProfile = {
@@ -9,6 +9,7 @@ const PROFILE: CompanyProfile = {
   logo_url: null,
   report_header: null,
   company_registry: '1010000000',
+  vat_registered: true,
   vat: '300000000000003',
   address: {
     street: 'طريق الملك فهد',
@@ -62,5 +63,35 @@ describe('company profile form', () => {
     expect(canReachPath({ capabilities: ['settings.company.read'] }, '/settings/company')).toBe(true)
     expect(canReachPath({ capabilities: ['settings.branding.manage'] }, '/settings/company')).toBe(true)
     expect(canReachPath({ capabilities: ['access.users.read'] }, '/settings/company')).toBe(false)
+  })
+})
+
+describe('company VAT registration', () => {
+  const unregistered: CompanyProfile = { ...PROFILE, vat_registered: false, vat: null }
+
+  it('carries the registration switch in the profile card with the rest of the identity', () => {
+    expect(SECTION_FIELDS.profile).toContain('vat_registered')
+    expect(profileToForm(unregistered)).toMatchObject({ vat_registered: false, vat: null })
+  })
+
+  it('patches the switch alone and clears the number with it only when the user cleared it', () => {
+    const saved = profileToForm(unregistered)
+    expect(companyPatch('profile', profileExtensions('profile'), saved, { ...saved, vat_registered: true })).toEqual({ vat_registered: true })
+    expect(companyPatch('profile', profileExtensions('profile'), saved, { ...saved, vat_registered: true, vat: '300000000000003' })).toEqual({ vat_registered: true, vat: '300000000000003' })
+  })
+
+  it('does not send the switch when only the VAT number changed', () => {
+    const saved = profileToForm(unregistered)
+    expect(companyPatch('profile', profileExtensions('profile'), saved, { ...saved, vat: '300000000000003' })).toEqual({ vat: '300000000000003' })
+  })
+
+  it('holds a save to the VAT number only when it changes the switch or the number', () => {
+    const saved = profileToForm({ ...PROFILE, vat_registered: true, vat: null })
+    const blank = { ...saved, vat_registered: true, vat: null }
+    expect(vatNumberMissing({ name: 'x' }, blank)).toBe(false)
+    expect(vatNumberMissing({ vat_registered: true }, blank)).toBe(true)
+    expect(vatNumberMissing({ vat: null }, blank)).toBe(true)
+    expect(vatNumberMissing({ vat_registered: true, vat: '300000000000003' }, { ...blank, vat: '300000000000003' })).toBe(false)
+    expect(vatNumberMissing({ vat_registered: false }, { ...blank, vat_registered: false })).toBe(false)
   })
 })
