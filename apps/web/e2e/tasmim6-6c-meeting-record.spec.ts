@@ -81,7 +81,7 @@ test.describe('Plan 6c: the meeting record', () => {
       await expect(page).toHaveURL(/\/meetings\/1/)
       await tab(page, 'minutes').click()
       expect(new URL(page.url()).searchParams.get('returnTo')).toContain('/meetings')
-      await page.getByRole('link', { name: 'رجوع' }).click()
+      await page.getByTestId('meeting-detail-back').click()
       await expect(page).toHaveURL(/\/meetings\?(?=.*q=)/)
     })
 

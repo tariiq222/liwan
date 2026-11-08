@@ -7,7 +7,7 @@
   --shell-duration: var(--liwan-motion-panel);
   --shell-ease: var(--liwan-motion-ease);
   --shell-side-width: 264px;
-  --shell-header-height: 60px;
+  --shell-header-height: 68px;
   --shell-top: var(--shell-header-height);
   /* The gap a docked full-height card (SharedListCard fill) keeps above the viewport bottom. */
   --shell-inset: 12px;
