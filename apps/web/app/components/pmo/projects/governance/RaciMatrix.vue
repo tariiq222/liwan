@@ -44,7 +44,7 @@ const STICKY = 'sticky z-10 bg-default group-hover:bg-(--liwan-row-hover)'
           </tr>
         </thead>
         <tbody>
-          <tr v-for="task in tasks" :key="task.id" class="group h-(--liwan-row-h) border-b border-default transition-colors duration-150 last:border-b-0 hover:bg-(--liwan-row-hover) motion-reduce:transition-none">
+          <tr v-for="task in tasks" :key="task.id" class="group h-(--liwan-row-h) border-b border-default transition-colors last:border-b-0 hover:bg-(--liwan-row-hover) motion-reduce:transition-none">
             <td :class="[STICKY, 'start-0 w-12 min-w-12 px-2']"><RecordNumber :value="task.id" /></td>
             <th scope="row" :class="[STICKY, 'start-12 min-w-56 px-(--liwan-card-pad-dense) text-start']">
               <NuxtLink class="block max-w-72 truncate text-base font-semibold text-highlighted hover:underline" :to="{ path: `/projects/${projectId}/tasks/${task.id}`, query: { returnTo } }" :title="task.name">{{ task.name }}</NuxtLink>

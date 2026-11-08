@@ -38,3 +38,34 @@ export const WithCounts: Story = {
   }),
 }
 export const Pill: Story = { name: 'شريط حبّات (مساحة المشروع)', args: { variant: 'pill' } }
+
+export const NarrowScrolls: Story = {
+  name: 'شريط ضيق: سطر واحد يمرَّر مع تلاشي الحافة والتبويب الحالي في الوسط',
+  args: {
+    items: [
+      { key: 'tab-summary', label: 'الملخص', to: '/projects/1', active: false },
+      { key: 'tab-tasks', label: 'المهام', to: '/projects/1/tasks', active: false },
+      { key: 'tab-updates', label: 'التحديثات', to: '/projects/1/updates', active: false },
+      { key: 'tab-planning', label: 'التخطيط', to: '/projects/1/schedule', active: false },
+      { key: 'tab-governance', label: 'الحوكمة', to: '/projects/1/charter', active: false },
+      { key: 'tab-finance', label: 'المالية', to: '/projects/1/finance', active: false },
+      { key: 'tab-meetings', label: 'الاجتماعات', to: '/projects/1/meetings', active: true },
+    ],
+  },
+  render: args => ({
+    components: { RouteTabs },
+    setup: () => ({ args }),
+    template: '<div class="w-72"><RouteTabs v-bind="args" /></div>',
+  }),
+}
+export const WithSeparator: Story = {
+  name: 'فاصل قبل تبويبات السجل',
+  args: {
+    ariaLabel: 'أقسام الاجتماع',
+    items: [
+      { key: 'meeting-tab-summary', label: 'الملخص', to: '/meetings/1', active: true },
+      { key: 'meeting-tab-minutes', label: 'المحضر', to: '/meetings/1?tab=minutes', active: false },
+      { key: 'meeting-tab-history', label: 'السجل', to: '/meetings/1?tab=history', active: false, separatorBefore: true },
+    ],
+  },
+}

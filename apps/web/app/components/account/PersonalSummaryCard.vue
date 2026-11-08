@@ -10,7 +10,7 @@ const hydrated = useHydrated()
   <SharedRecordSection variant="panel" :data-testid="`personal-card-${entry.section}`">
     <div class="flex h-full flex-col gap-4">
       <div class="flex items-center gap-3">
-        <span class="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary" aria-hidden="true"><UIcon :name="entry.icon" class="size-5" /></span>
+        <span class="grid size-10 shrink-0 place-items-center rounded-tile bg-primary/10 text-primary" aria-hidden="true"><UIcon :name="entry.icon" class="size-5" /></span>
         <h2 class="min-w-0 flex-1 font-semibold text-highlighted"><NuxtLink :to="entry.to" class="rounded hover:underline focus-visible:ring-2 focus-visible:ring-primary">{{ t(entry.labelKey) }}</NuxtLink></h2>
         <div v-if="customize" class="flex gap-1">
           <UButton type="button" color="neutral" variant="ghost" icon="i-lucide-arrow-up" :disabled="!hydrated || first" :aria-label="t('account.moveUp', { name: t(entry.labelKey) })" @click="$emit('move', -1)" />

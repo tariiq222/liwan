@@ -7,7 +7,7 @@ import { usePalette } from './usePalette'
 export type ShortcutHandlers = { [K in ShortcutAction['kind']]?: (action: Extract<ShortcutAction, { kind: K }>) => boolean }
 
 /**
- * The shell's one keyboard listener (Tasmim spec §5); call it once, from ShellHeader. It listens
+ * The shell's one keyboard listener (Tasmim spec §5); call it once, from AppTopBar. It listens
  * on window in the capture phase, so a key it uses is default-prevented before any page listener
  * runs (those skip defaultPrevented keys) and never types into a field the action just focused.
  */

@@ -1,7 +1,6 @@
 {
   "ai": {
     "title": "Liwan AI",
-    "description": "Ask about your tasks and projects, and request what you want prepared. Liwan AI prepares, you approve.",
     "greeting": "Hello {name}",
     "greetingAnonymous": "Hello",
     "prompt": "How can I help with your work today?",
@@ -151,7 +150,6 @@
     },
     "home": {
       "title": "Assistant suggestions today",
-      "source": "Suggested from your work",
       "ask": "Ask the assistant"
     },
     "settings": {

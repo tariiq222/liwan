@@ -1228,13 +1228,9 @@
         }
       }
     },
-    "bell": {
-      "channelHealth": "WhatsApp number health"
-    },
     "reports": {
       "title": "Customer message reports",
       "navLabel": "Report sections",
-      "backToInbox": "Conversations",
       "tabs": {
         "overview": "Overview",
         "costs": "Costs",
@@ -2147,8 +2143,7 @@
         "tags": "Customer segments",
         "tagsHint": "Tags that audiences select on.",
         "history": "Consent history"
-      },
-      "navLabel": "Campaign sections"
+      }
     },
     "providerError": {
       "tokenInvalid": "Meta access token is invalid. Update the channel token.",

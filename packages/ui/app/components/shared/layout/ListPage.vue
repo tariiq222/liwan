@@ -61,8 +61,9 @@ if (props.viewsInFilters && props.views?.length) provide(LIST_VIEW_KEY, { view, 
       </template>
     </PageHeader>
     <div v-if="$slots.filters || (view && !props.viewsInFilters)" data-slot="list-page-toolbar" class="flex min-w-0 flex-wrap items-center gap-2.5">
-      <div v-if="$slots.filters" class="min-w-0 flex-1"><slot name="filters" /></div>
-      <ViewSwitch v-if="view && props.views && !props.viewsInFilters" class="ms-auto" :model-value="view" :options="props.views" @update:model-value="setView" />
+      <div v-if="$slots.filters" class="min-w-0 flex-1 max-md:basis-full"><slot name="filters" /></div>
+      <!-- On a phone the switch fills its own row with equal segments. -->
+      <ViewSwitch v-if="view && props.views && !props.viewsInFilters" class="ms-auto max-md:grid max-md:w-full max-md:grid-flow-col max-md:auto-cols-fr" :model-value="view" :options="props.views" @update:model-value="setView" />
     </div>
     <slot :view="view" />
   </PageContainer>

@@ -91,10 +91,34 @@ describe('FilterBar', () => {
       expect(html.match(/data-shortcut-search/g), `inline=${inline}`).toHaveLength(1)
     }
   })
-  it('sets each field label beside its control only when the fields share the toolbar row', async () => {
+  it('sets each field label beside its control from md up in every variant', async () => {
     const field = () => h(loadFilterComponent('FilterField'), { label: 'State', for: 'state' }, () => h('select', { id: 'state' }))
-    for (const props of [{ inline: true }, { embedded: true }]) expect(await renderFilter('FilterBar', props, { default: field }), JSON.stringify(props)).toContain('md:flex')
-    expect(await renderFilter('FilterBar', {}, { default: field })).not.toContain('md:flex')
+    for (const props of [{ inline: true }, { embedded: true }, {}]) expect(await renderFilter('FilterBar', props, { default: field }), JSON.stringify(props)).toContain('md:flex')
+  })
+  it('lays the search, the chips and the view in one row: the search grows from 220px, the view sits at the end', async () => {
+    const html = await renderFilter('FilterBar', {}, { search: () => h('input'), default: () => h('select'), view: () => h('button', 'Board') })
+    expect(html).toContain('data-slot="filter-row"')
+    expect(html).toContain('md:basis-55')
+    expect(html).toContain('md:min-w-55')
+    expect(html).toMatch(/data-slot="view" class="[^"]*md:ms-auto/)
+    expect(html).toContain('md:contents!')
+  })
+  it('gives the search the whole first row in a narrow workspace only when there are fields under it', async () => {
+    const withFields = await renderFilter('FilterBar', {}, { search: () => h('input'), default: () => h('select') })
+    expect(withFields).toContain('@container/filters')
+    expect(withFields).toContain('md:basis-full @4xl/filters:basis-55')
+    expect(await renderFilter('FilterBar', {}, { search: () => h('input') })).not.toContain('md:basis-full')
+  })
+  it('fills the phone row with the view switch', async () => {
+    const html = await renderFilter('FilterBar', {}, { search: () => h('input'), view: () => h('button', 'Board') })
+    expect(html).toMatch(/data-slot="view" class="[^"]*\bw-full\b[^"]*md:w-auto/)
+  })
+  it('styles every select, picker and date trigger in the row as a soft 40px chip with a 44px touch target', () => {
+    const css = readFileSync(resolve(import.meta.dirname, '../../../../assets/css/components.css'), 'utf8')
+    const trigger = String.raw`button\[data-slot="base"\]:is\(\[role="combobox"\], \[aria-haspopup="listbox"\], \[aria-haspopup="dialog"\]\)`
+    expect(css).toMatch(new RegExp(String.raw`\[data-slot="filter-root"\] ${trigger} \{[^}]*background-color: var\(--ui-bg-elevated\)`))
+    expect(css).toMatch(/min-height: var\(--liwan-filter-h, 40px\)/)
+    expect(css).toMatch(/@media \(pointer: coarse\) \{\s*\[data-slot="filter-root"\][^}]*min-height: 44px/)
   })
   it('Esc in the panel closes it and returns focus to the trigger', () => {
     const source = readFileSync(resolve(import.meta.dirname, '../FilterBar.vue'), 'utf8')

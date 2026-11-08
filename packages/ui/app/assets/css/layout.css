@@ -14,6 +14,16 @@
 .liwan-auto-grid { gap: var(--liwan-auto-grid-gap, 1.25rem 1rem); }
 /* Cards and tiles: the same grid with a wider minimum track and the card gap; the cards stretch over the whole row, leaving no empty tracks. */
 .liwan-card-grid { --liwan-auto-grid-fill: auto-fit; --liwan-auto-grid-min: 18rem; gap: var(--liwan-gap-card); }
+/* The row of metric tiles (SharedKpiStrip, the dashboard's metrics): two to a row on a phone, from sm up every tile is at least 220px
+   and a quarter of the row, and the tiles share the whole row evenly (two stretch to half each, three to a third, four to a quarter). */
+.liwan-kpi-grid { display: grid; gap: var(--liwan-gap-card); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 640px) {
+  .liwan-kpi-grid { grid-template-columns: repeat(auto-fit, minmax(max(13.75rem, calc((100% - 3 * var(--liwan-gap-card)) / 4)), 1fr)); }
+}
+/* Four tiles in a workspace too narrow for four across (a tablet, or a wide sidebar) sit two by two, not three and one. */
+@media (min-width: 640px) and (max-width: 1279px) {
+  .liwan-kpi-grid:has(> :nth-child(4):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 :is(.liwan-auto-grid, .liwan-card-grid, .liwan-form) > :is(.liwan-span-full, [data-span="full"]) { grid-column: 1 / -1; }
 :is(.liwan-auto-grid, .liwan-form) > :has(textarea, [contenteditable="true"], table, .liwan-auto-grid) { grid-column: 1 / -1; }
 /* In a form and a form section only stacked fields tile; a section, a hint, an alert, a list, the footer or a horizontal switch row owns its row. */
@@ -61,39 +71,32 @@ html[dir="rtl"] .schedule-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in
 
 html[dir="rtl"] body { padding-right: 0 !important; }
 
-/* Chat pages keep their conversation layout full-bleed. */
-.liwan-shell-main:has(.liwan-chat-create-layout) { --liwan-pad-x: 0px; --liwan-pad-top: 0px; padding: 0; }
-.liwan-chat-create-layout { height: calc(100svh - var(--shell-top)); }
-.liwan-chat-create-layout .liwan-form-footer { justify-content: flex-end; padding-block-start: 0; border-block-start: 0; }
-.liwan-chat-list-toolbar { display: flex; flex: none; align-items: center; gap: 8px; padding: 8px 12px 4px; }
-.liwan-chat-list-search { display: flex; min-width: 0; flex: 1; }
-.liwan-chat-list-filters { flex: none; min-width: 0; padding: 2px 12px 8px; }
-.liwan-chat-list-filters [data-slot="segmented-control"] { display: flex; }
-.liwan-chat-list-filters [data-slot="segmented-control"] > button { min-width: 0; min-height: var(--liwan-control-h); flex: 1 1 auto; justify-content: center; padding-inline: 4px; }
-/* One header recipe for the thread and the info aside. */
-.liwan-chat-thread-header { display: flex; flex: none; flex-wrap: wrap; align-items: center; gap: 8px; border-block-end: 1px solid var(--ui-border); background: var(--ui-bg); padding: 8px 12px; }
-.liwan-chat-thread-search { flex: 1 1 100%; width: 100%; }
+/* Chat thread: the message scroller, bubbles, day separators and composer. */
 .liwan-chat-scroller { background: var(--liwan-canvas); }
 .liwan-chat-day { margin-block: 8px; text-align: center; color: var(--ui-text-muted); font-size: var(--text-xs); }
 .liwan-chat-bubble { border-radius: var(--radius-control); border-end-start-radius: var(--ui-radius); background: var(--ui-bg); padding: 4px 8px; border: 1px solid var(--ui-border); }
 .liwan-chat-bubble[data-out="true"] { border-end-start-radius: var(--radius-control); border-end-end-radius: var(--ui-radius); background: var(--brand-soft); color: var(--ui-text-highlighted); }
 .liwan-chat-bubble-meta { display: flex; justify-content: flex-end; gap: 4px; margin-block-start: 4px; color: var(--ui-text-muted); font-size: var(--text-xs); }
 .liwan-chat-composer { display: flex; flex-direction: column; gap: 8px; border-block-start: 1px solid var(--ui-border); background: var(--ui-bg); padding: 8px 12px 12px; }
-.liwan-chat-conversation-link { display: flex; min-height: 72px; align-items: center; gap: 12px; margin-inline: 0; border-radius: 0; padding: 8px 16px; color: var(--ui-text-highlighted); text-align: start; text-decoration: none; }
-.liwan-chat-conversation-link:hover { background: var(--ui-bg-elevated); }
-.liwan-chat-conversation-link:focus-visible { outline: 2px solid var(--ui-primary); outline-offset: -2px; }
-.liwan-chat-conversation-link[data-selected="true"] { background: color-mix(in srgb, var(--brand-soft) 80%, var(--context-surface)); }
-.liwan-chat-avatar-badge { position: absolute; inset-inline-end: 0; inset-block-end: 0; display: grid; width: 16px; height: 16px; place-items: center; border-radius: 999px; background: var(--brand-link); color: var(--brand-soft); }
-.liwan-chat-list-time { flex: none; color: var(--ui-text-muted); font-size: var(--text-xs); }
-.liwan-chat-msg-actions { opacity: 1; }
+.liwan-chat-msg-actions { opacity: 1; transition: opacity var(--liwan-motion-feedback) var(--liwan-motion-color-ease); }
 @media (hover: hover) and (pointer: fine) {
   .liwan-chat-msg-actions { opacity: 0; }
 }
 .liwan-chat-row:hover .liwan-chat-msg-actions, .liwan-chat-row:focus-within .liwan-chat-msg-actions { opacity: 1; }
 
-/* Page content enters with one short fade when a route changes (the layout toggles the class). */
-.liwan-page-content-motion { animation: liwan-page-content-enter var(--liwan-motion-feedback) var(--liwan-motion-ease) both; }
-@keyframes liwan-page-content-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+/* Page transition (the single owner of route-change motion; nuxt.config app.pageTransition names it). Only the page area
+   inside <main> is swapped: the shell around it stays mounted. The old page fades out quickly, the new one fades in
+   with a short rise. `soft-in` is the same entrance for content that arrives after its skeleton. */
+.liwan-page-leave-active { transition: opacity var(--liwan-motion-exit) var(--liwan-motion-color-ease); }
+.liwan-page-enter-active { transition: opacity var(--liwan-motion-panel) var(--liwan-motion-ease), translate var(--liwan-motion-panel) var(--liwan-motion-ease); }
+.liwan-page-leave-to { opacity: 0; }
+.liwan-page-enter-from { opacity: 0; translate: 0 var(--liwan-motion-rise); }
+.liwan-soft-in { animation: liwan-soft-in var(--liwan-motion-panel) var(--liwan-motion-ease) both; }
+@keyframes liwan-soft-in { from { opacity: 0; translate: 0 calc(var(--liwan-motion-rise) / 2); } to { opacity: 1; translate: 0 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .liwan-page-enter-active, .liwan-page-leave-active { transition: none; }
+  .liwan-soft-in { animation: none; }
+}
 [data-slot="table-head"] { background: color-mix(in srgb, var(--background) 80%, var(--card)); font-weight: 400; }
 [data-slot="table-row"]:last-child { border-block-end: 0; }
 
@@ -108,7 +111,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .liwan-settings-search { grid-column: 1 / -1; }
 .liwan-settings-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; font-size: var(--text-xs); color: var(--ui-text-muted); }
 .liwan-settings-options, .liwan-settings-cards, .liwan-settings-branding { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 1.5rem; }
-.liwan-settings-option { display: flex; min-width: 0; align-items: start; gap: .75rem; border: 1px solid var(--ui-border); border-radius: var(--radius-xl); padding: 1.25rem; font-size: var(--text-sm); }
+.liwan-settings-option { display: flex; min-width: 0; align-items: start; gap: .75rem; border: 1px solid var(--ui-border); border-radius: var(--radius-card); padding: 1.25rem; font-size: var(--text-sm); }
 .liwan-settings-option:has([data-state="checked"], input:checked) { border-color: var(--ui-primary); }
 .liwan-settings-option > span { min-width: 0; overflow-wrap: anywhere; }
 @container settings (min-width: 640px) {
@@ -123,26 +126,6 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 [data-slot="record-summary"] { container-type: inline-size; }
 @container (min-width: 640px) {
   [data-slot="record-summary"] [data-slot="properties-panel"] dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
-}
-
-/* The project workspace card (identity and tabs) keeps its place under the flat top bar while the page scrolls.
-   The strip above it is filled with the canvas so scrolled content never shows between the bar and the card. */
-@media (min-width: 768px) {
-  .liwan-workspace-head[data-sticky="true"] {
-    position: sticky;
-    inset-block-start: calc(var(--shell-header-height) + 8px);
-    z-index: 20;
-  }
-  .liwan-workspace-head[data-sticky="true"]::before {
-    content: '';
-    position: absolute;
-    inset-block-end: 100%;
-    inset-inline: calc(-1 * var(--liwan-pad-x, 12px));
-    height: 8px;
-    z-index: -1;
-    background: var(--liwan-canvas);
-    pointer-events: none;
-  }
 }
 
 /* Keep compact desktop geometry while preserving touch target sizes. A switch keeps its own track size: its whole

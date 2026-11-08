@@ -26,7 +26,7 @@
 .liwan-shell[data-sidebar="none"] { --shell-side-width: 0px; }
 
 /* Workspace: the column beside the sidebar, holding the top bar and the page. */
-.liwan-shell-workspace { min-height: 100svh; margin-inline-start: var(--shell-side-width); background: var(--liwan-canvas); }
+.liwan-shell-workspace { min-height: 100svh; margin-inline-start: var(--shell-side-width); background: var(--liwan-canvas); transition: margin-inline-start var(--shell-duration) var(--shell-ease); }
 .liwan-shell-main {
   --liwan-pad-x: var(--shell-pad-x);
   --liwan-pad-top: 28px;
@@ -54,6 +54,7 @@
   background: var(--liwan-sidebar);
   border-inline-end: 1px solid var(--liwan-rail-border);
   color: var(--ui-text);
+  transition: width var(--shell-duration) var(--shell-ease);
 }
 .liwan-sidebar[data-surface="drawer"] { position: static; width: auto; height: 100%; padding: 0; overflow: visible; background: transparent; border: 0; }
 @media (max-width: 767px) {
@@ -65,12 +66,25 @@
 .liwan-side-brand-name { font-size: 1.0625rem; font-weight: 700; line-height: 1.2; }
 .liwan-side-brand-caption { color: var(--ui-text-muted); font-size: .6875rem; font-weight: 500; line-height: 1; }
 .liwan-side-brand:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: var(--radius-control); }
-.liwan-side-body { display: flex; min-height: 0; flex: 1; flex-direction: column; overflow-y: auto; scrollbar-width: none; }
+/* The scroller clips what overflows it, so it carries 4px of inline padding (offset by the same negative margin) and the 1px ring and soft shadow of the open row stay whole. */
+.liwan-side-body { display: flex; min-height: 0; flex: 1; flex-direction: column; margin-inline: -4px; padding-inline: 4px; overflow-x: clip; overflow-y: auto; scrollbar-width: none; }
+/* Global <-> application: the body swaps in the reading direction (deeper enters from the inline-end, back from the inline-start); the
+   shell around it stays put. The organisation card above it folds away with the same duration. */
+.liwan-side-swap { display: flex; flex-direction: column; }
+.liwan-side-swap-leave-active { transition: opacity var(--liwan-motion-exit) var(--liwan-motion-color-ease); }
+.liwan-side-swap-enter-active { transition: opacity var(--shell-duration) var(--shell-ease), translate var(--shell-duration) var(--shell-ease); }
+.liwan-side-swap-leave-to { opacity: 0; }
+.liwan-side-swap-enter-from { opacity: 0; translate: calc(var(--liwan-motion-inline-distance) * var(--liwan-inline-sign)) 0; }
+.liwan-side-swap[data-mode="global"].liwan-side-swap-enter-from { translate: calc(var(--liwan-motion-inline-distance) * var(--liwan-inline-sign) * -1) 0; }
+.liwan-side-orgslot { display: grid; grid-template-rows: 1fr; }
+.liwan-side-orgslot > div { min-height: 0; overflow: hidden; }
+.liwan-side-orgslot-enter-active, .liwan-side-orgslot-leave-active { transition: grid-template-rows var(--shell-duration) var(--shell-ease), opacity var(--shell-duration) var(--shell-ease); }
+.liwan-side-orgslot-enter-from, .liwan-side-orgslot-leave-to { grid-template-rows: 0fr; opacity: 0; }
 .liwan-side-body::-webkit-scrollbar { display: none; }
 .liwan-side-footer { display: grid; flex: none; gap: 2px; margin-block-start: auto; padding-block-start: 12px; border-block-start: 1px solid var(--liwan-rail-border); }
 .liwan-side-org { display: flex; align-items: center; gap: 10px; margin-block-end: 16px; padding: 8px 10px; border: 1px solid var(--liwan-rail-border); border-radius: var(--radius-control); background: var(--ui-bg); font-size: .8125rem; font-weight: 600; }
-.liwan-side-org [data-slot="initial"] { display: grid; width: 28px; height: 28px; flex: none; place-items: center; overflow: hidden; border-radius: var(--radius-inner); background: var(--liwan-ink); color: var(--liwan-on-ink); font-size: .8125rem; }
-.liwan-side-org img { width: 28px; height: 28px; flex: none; border-radius: var(--radius-inner); object-fit: contain; }
+.liwan-side-org [data-slot="initial"] { display: grid; width: 28px; height: 28px; flex: none; place-items: center; overflow: hidden; border-radius: var(--radius-tile); background: var(--liwan-ink); color: var(--liwan-on-ink); font-size: .8125rem; }
+.liwan-side-org img { width: 28px; height: 28px; flex: none; border-radius: var(--radius-tile); object-fit: contain; }
 .liwan-side-org [data-slot="name"] { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .liwan-side-group { display: grid; gap: 2px; }
 .liwan-side-heading { display: flex; align-items: center; justify-content: space-between; padding: 18px 10px 6px; color: var(--ui-text-muted); font-size: .6875rem; font-weight: 600; letter-spacing: .02em; }
@@ -98,12 +112,12 @@
 button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
 .liwan-side-row:hover { background: color-mix(in srgb, var(--ui-bg) 70%, transparent); }
 .liwan-side-row[data-active="true"] { background: var(--ui-bg); color: var(--ui-text-highlighted); font-weight: 600; box-shadow: 0 1px 3px rgb(20 16 42 / 8%), 0 0 0 1px var(--liwan-rail-border); }
-.dark .liwan-side-row[data-active="true"] { background: var(--liwan-nav-active); box-shadow: 0 0 0 1px var(--ui-border-accented); }
+.dark .liwan-side-row[data-active="true"] { background: var(--liwan-nav-active); box-shadow: 0 0 0 1px #40404b; }
 .liwan-side-row:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
-.liwan-side-row [data-slot="icon"] { display: grid; width: 26px; flex: none; place-items: center; color: var(--liwan-rail-ink); }
+.liwan-side-row [data-slot="icon"] { display: grid; width: 26px; flex: none; place-items: center; color: var(--liwan-rail-ink); transition: color var(--liwan-motion-feedback) var(--liwan-motion-color-ease); }
 .liwan-side-row[data-active="true"] [data-slot="icon"] { color: var(--liwan-rail-active-ink); }
 .liwan-side-row [data-slot="label"] { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.liwan-side-row [data-slot="count"] { margin-inline-start: auto; border-radius: var(--radius-control); background: var(--primary-solid); color: var(--primary-solid-foreground); padding-inline: 7px; font-size: .6875rem; font-weight: 600; line-height: 19px; font-variant-numeric: tabular-nums; }
+.liwan-side-row [data-slot="count"] { margin-inline-start: auto; border-radius: var(--radius-tag); background: var(--primary-solid); color: var(--primary-solid-foreground); padding-inline: 7px; font-size: .6875rem; font-weight: 600; line-height: 19px; font-variant-numeric: tabular-nums; }
 .liwan-side-row [data-slot="chevron"] { margin-inline-start: auto; color: var(--ui-text-muted); transition: rotate var(--shell-duration) var(--shell-ease); }
 .liwan-side-row[aria-expanded="true"] [data-slot="chevron"] { rotate: 180deg; }
 /* The create action reads as a link: the label and the icon take the brand link colour. */
@@ -133,11 +147,11 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
 
 /* App icon tiles (the colour comes from app-identity.css through data-app; a free application is ink). */
 .liwan-side-tile { box-shadow: none; }
-.liwan-side-tile[data-size="sm"] { width: 26px; height: 26px; border-radius: var(--radius-inner); }
+.liwan-side-tile[data-size="sm"] { width: 26px; height: 26px; }
 .liwan-side-tile[data-size="sm"] .iconify { width: 14px; height: 14px; }
-.liwan-side-tile[data-size="md"] { width: 32px; height: 32px; border-radius: 10px; }
+.liwan-side-tile[data-size="md"] { width: 32px; height: 32px; }
 .liwan-side-tile[data-size="md"] .iconify { width: 16px; height: 16px; }
-.liwan-side-tile[data-size="lg"] { width: 44px; height: 44px; border-radius: 13px; box-shadow: 0 6px 14px -4px color-mix(in srgb, var(--app-tile, var(--liwan-ink)) 40%, transparent); }
+.liwan-side-tile[data-size="lg"] { width: 44px; height: 44px; box-shadow: 0 6px 14px -4px color-mix(in srgb, var(--app-tile, var(--liwan-ink)) 40%, transparent); }
 .liwan-side-tile[data-size="lg"] .iconify { width: 21px; height: 21px; }
 
 /* Between 768px and 1099px the sidebar is an 84px icon-only strip: brand mark, icons, avatar. */
@@ -164,6 +178,7 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
   backdrop-filter: saturate(1.4) blur(10px);
   border-block-end: 1px solid transparent;
   color: var(--ui-text);
+  transition: border-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease);
 }
 .liwan-shell-header[data-scrolled="true"] { border-block-end-color: var(--ui-border); }
 .liwan-shell-header-start { display: none; min-width: 0; align-items: center; gap: 8px; }
@@ -173,7 +188,7 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
 .liwan-shell-header-end { display: flex; flex: none; align-items: center; gap: 10px; margin-inline-start: auto; }
 .liwan-shell-header .liwan-search-trigger { width: 100%; min-width: 0; height: 42px; justify-content: space-between; padding-inline: 14px; border-radius: var(--radius-control); background: var(--liwan-chip); box-shadow: inset 0 0 0 1px var(--ui-border); font-size: .875rem; font-weight: 400; color: var(--ui-text-muted); }
 .liwan-shell-header .liwan-search-trigger:hover { background: var(--liwan-chip); }
-.liwan-shell-header .liwan-search-trigger kbd { border-radius: 6px; }
+.liwan-shell-header .liwan-search-trigger kbd { border-radius: var(--radius-tag); }
 @media (hover: none) { .liwan-shell-header .liwan-search-trigger kbd { display: none; } }
 .liwan-shell-mark { display: inline-flex; align-items: center; gap: 8px; color: var(--ui-text-highlighted); font-size: 1rem; font-weight: 700; text-decoration: none; }
 @media (max-width: 767px) {
@@ -190,7 +205,7 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
 /* The account menu (vendor console): a dropdown from the bar's account button. */
 .approved-account-menu { z-index: 80; }
 .approved-account-menu [data-slot="dropdown-menu-item"] { width: 100%; overflow: hidden; white-space: nowrap; }
-.header-account { display: flex; min-width: 0; align-items: center; gap: 10px; padding-inline: 6px 14px; text-align: start; height: 38px; border-radius: var(--radius-control); box-shadow: inset 0 0 0 1px var(--ui-border-accented); }
+.header-account { display: flex; min-width: 0; align-items: center; gap: 10px; padding-inline: 6px 14px; text-align: start; height: 38px; border-radius: var(--radius-chip); box-shadow: inset 0 0 0 1px var(--ui-border-accented); }
 .header-account .account-copy { display: grid; min-width: 0; max-width: 10rem; line-height: 1.25; }
 .header-account .account-name, .header-account .account-role { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .header-account .account-name { font-size: .8125rem; font-weight: 600; }
@@ -208,7 +223,7 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
   place-items: center;
   padding: 0;
   border: 0;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-chip);
   background: transparent;
   color: color-mix(in srgb, var(--ui-text) 82%, var(--ui-bg));
   cursor: pointer;
@@ -230,7 +245,7 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
   height: 18px;
   place-items: center;
   padding-inline: 4px;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-tag);
   background: var(--primary-solid);
   color: var(--primary-solid-foreground);
   box-shadow: 0 0 0 2px var(--liwan-canvas);
@@ -279,7 +294,7 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
   .liwan-ai-button { height: 38px; }
 }
 
-/* Slide-over panel: opens under the bar on the inline-end side, 380px wide, 24px radius. */
+/* Slide-over panel: opens under the bar on the inline-end side, 380px wide, 18px radius. */
 .liwan-slideover {
   position: fixed;
   inset-block-start: calc(var(--shell-header-height) + 8px);
@@ -302,13 +317,18 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
 .liwan-slideover-title { margin: 0; font-size: 1rem; font-weight: 700; }
 .liwan-slideover-all { margin-inline-start: auto; color: var(--liwan-rail-active-ink); font-size: .8125rem; font-weight: 600; text-decoration: none; }
 .liwan-slideover-all:hover { text-decoration: underline; }
-.liwan-slideover-close { display: grid; width: 32px; height: 32px; flex: none; place-items: center; padding: 0; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--ui-text-muted); cursor: pointer; }
+.liwan-slideover-close { display: grid; width: 32px; height: 32px; flex: none; place-items: center; padding: 0; border: 0; border-radius: var(--radius-control-sm); background: transparent; color: var(--ui-text-muted); cursor: pointer; }
 .liwan-slideover-close:hover { background: var(--liwan-chip); }
 .liwan-slideover-close:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
 .liwan-slideover-body { display: flex; min-height: 0; flex: 1; flex-direction: column; overflow-y: auto; overscroll-behavior-y: contain; padding: 8px; }
 .liwan-slideover-body[data-flush="true"] { padding: 0; }
-.liwan-slideover-enter-active, .liwan-slideover-leave-active { transition: opacity var(--liwan-motion-feedback) var(--liwan-motion-ease), translate var(--liwan-motion-feedback) var(--liwan-motion-ease); }
-.liwan-slideover-enter-from, .liwan-slideover-leave-to { opacity: 0; translate: 0 -6px; }
+/* Enters from the inline-end side (toward the reading end), a little quicker on the way out. */
+.liwan-slideover-enter-active { transition: opacity var(--shell-duration) var(--shell-ease), translate var(--shell-duration) var(--shell-ease); }
+.liwan-slideover-leave-active { transition: opacity var(--liwan-motion-exit) var(--shell-ease), translate var(--liwan-motion-exit) var(--shell-ease); }
+.liwan-slideover-enter-from, .liwan-slideover-leave-to { opacity: 0; translate: calc(var(--liwan-motion-inline-distance) * var(--liwan-inline-sign)) 0; }
+@media (max-width: 767px) {
+  .liwan-slideover-enter-from, .liwan-slideover-leave-to { translate: 0 var(--liwan-motion-rise); }
+}
 @media (max-width: 767px) {
   .liwan-slideover { inset-block-start: calc(var(--shell-header-height) + 6px); inset-inline: 10px; width: auto; max-height: calc(100svh - var(--shell-header-height) - var(--shell-tabbar-height) - 24px); }
 }
@@ -321,14 +341,23 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
 .liwan-panel-row [data-slot="caption"] { overflow: hidden; color: var(--ui-text-muted); font-size: .75rem; text-overflow: ellipsis; white-space: nowrap; }
 .liwan-panel-row[data-done="true"] [data-slot="title"] { color: var(--ui-text-muted); text-decoration: line-through; }
 .liwan-panel-row [data-slot="lead"] { display: grid; width: 32px; height: 32px; flex: none; place-items: center; border-radius: 999px; background: var(--liwan-ink); color: var(--liwan-on-ink); font-size: .8125rem; font-weight: 600; }
-.liwan-panel-row [data-slot="check"] { display: grid; width: 22px; height: 22px; flex: none; place-items: center; border: 2px solid var(--ui-border-accented); border-radius: 7px; color: var(--liwan-on-ink); }
+.liwan-panel-row [data-slot="check"] { display: grid; width: 22px; height: 22px; flex: none; place-items: center; border: 2px solid var(--ui-border-accented); border-radius: var(--radius-tag); color: var(--liwan-on-ink); }
 .liwan-panel-row[data-done="true"] [data-slot="check"] { background: var(--liwan-ink); border-color: var(--liwan-ink); }
+.liwan-panel-loading { display: grid; gap: 2px; }
+.liwan-panel-loading-row { display: flex; align-items: center; gap: 12px; padding: 10px; }
 .liwan-panel-empty { padding: 28px 16px; text-align: center; color: var(--ui-text-muted); font-size: .875rem; }
 
-/* App switcher: tiles of the apps the user can reach, in a popover. */
+/* App switcher: tiles of the apps the user can reach, in a popover that grows from the button it opened from. */
+.liwan-app-switcher { transform-origin: var(--reka-popover-content-transform-origin); }
+.liwan-app-switcher[data-state="open"] { animation: liwan-pop-in var(--liwan-motion-panel) var(--liwan-motion-ease) both; }
+.liwan-app-switcher[data-state="closed"] { animation: liwan-pop-out var(--liwan-motion-exit) var(--liwan-motion-ease) both; }
+@keyframes liwan-pop-in { from { opacity: 0; scale: .96; } to { opacity: 1; scale: 1; } }
+@keyframes liwan-pop-out { from { opacity: 1; scale: 1; } to { opacity: 0; scale: .96; } }
 .liwan-app-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; width: 288px; max-width: calc(100vw - 24px); padding: 8px; }
 .liwan-app-grid-item { display: grid; justify-items: center; gap: 6px; padding: 10px 4px; border-radius: var(--radius-control); color: var(--ui-text); font-size: .75rem; font-weight: 500; text-align: center; text-decoration: none; }
+.liwan-app-grid-item { transition: background-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease), transform var(--liwan-motion-feedback) var(--liwan-motion-ease); }
 .liwan-app-grid-item:hover { background: var(--liwan-chip); }
+.liwan-app-grid-item:active { transform: scale(.97); }
 .liwan-app-grid-item:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
 .liwan-app-grid-item [data-slot="label"] { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -347,13 +376,19 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
     border-block-start: 1px solid var(--ui-border);
   }
 }
-.liwan-tabbar-item { display: flex; min-width: 0; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0; border: 0; background: transparent; color: var(--ui-text-muted); font-size: .6875rem; font-weight: 500; text-decoration: none; cursor: pointer; }
-.liwan-tabbar-item .iconify { width: 21px; height: 21px; }
+.liwan-tabbar-item { transition: color var(--liwan-motion-feedback) var(--liwan-motion-color-ease), transform var(--liwan-motion-feedback) var(--liwan-motion-ease); display: flex; min-width: 0; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0; border: 0; background: transparent; color: var(--ui-text-muted); font-size: .6875rem; font-weight: 500; text-decoration: none; cursor: pointer; }
+.liwan-tabbar-item .iconify { width: 21px; height: 21px; transition: transform var(--liwan-motion-panel) var(--liwan-motion-ease); }
+.liwan-tabbar-item:active { transform: scale(.96); }
+.liwan-tabbar-item[data-active="true"] .iconify { transform: translateY(-1px) scale(1.1); }
 .liwan-tabbar-item[data-active="true"] { color: var(--liwan-rail-active-ink); font-weight: 600; }
 .liwan-tabbar-item:focus-visible { outline: 2px solid var(--ring); outline-offset: -4px; }
 .liwan-tabbar-item [data-slot="label"] { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* The drawer behind «المزيد» reuses the one sidebar body. */
+/* The drawer behind «المزيد» (a Nuxt UI slideover) takes its durations from the shared tokens: in on the panel duration, out quicker. */
+.liwan-mobile-menu[data-state="open"], .liwan-mobile-menu-overlay[data-state="open"] { animation-duration: var(--liwan-motion-panel); animation-timing-function: var(--liwan-motion-ease); }
+.liwan-mobile-menu[data-state="closed"], .liwan-mobile-menu-overlay[data-state="closed"] { animation-duration: var(--liwan-motion-exit); animation-timing-function: var(--liwan-motion-ease); }
+
+/* The drawer reuses the one sidebar body. */
 .liwan-mobile-menu .liwan-side-row { height: 44px; }
 
 /* Touch: every shell control keeps a 44px target. */
@@ -366,7 +401,7 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .liwan-shell, .liwan-shell *, .liwan-mobile-menu, .liwan-mobile-menu * {
+  .liwan-shell, .liwan-shell *, .liwan-mobile-menu, .liwan-mobile-menu *, .liwan-mobile-menu-overlay, .liwan-app-switcher {
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;

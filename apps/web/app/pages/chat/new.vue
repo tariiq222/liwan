@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useMediaQuery } from '@vueuse/core'
 import ConversationList from '@/components/chat/ConversationList.vue'
 import { owningListBack } from '@/utils/recordListOrigin'
 import { ApiError } from '@/composables/useApi'
@@ -11,7 +10,6 @@ const hydrated = useHydrated()
 const route = useRoute()
 const routeState = computed(() => parseChatListRoute(route.query))
 const listQuery = computed(() => serializeChatListRoute(routeState.value))
-const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
 const router = useRouter()
 const sourcePaths = useRecordListPaths(['/chat'])
 const backTo = computed(() => {
@@ -88,19 +86,21 @@ async function submit() {
 <template>
   <SharedPageContainer>
     <SharedPageHeader :title="t(copy.title)" :back-to="backTo" :back-label="t('chat.title')" />
-    <div class="grid h-[max(540px,calc(100svh-340px))] min-w-0 overflow-hidden rounded-surface border-[1.5px] border-default bg-default" :class="isDesktop ? 'grid-cols-[360px_minmax(0,1fr)]' : 'grid-cols-1'" data-template="conversation-layout" data-testid="chat-create-layout">
-      <div v-if="isDesktop" data-template="conversation-list" class="flex min-h-0 min-w-0 flex-col border-e-[1.5px] border-default">
+    <SharedConversationLayout :has-selection="true" data-testid="chat-create-layout">
+      <template #list>
         <ConversationList class="min-h-0 flex-1" :route-state="routeState" @update:route-state="updateList" />
-      </div>
-      <section data-template="conversation-thread" class="flex min-h-0 min-w-0 flex-col">
-        <header data-template="conversation-header" class="flex shrink-0 flex-wrap items-center gap-3 border-b-[1.5px] border-default bg-default px-[18px] py-3">
+      </template>
+      <template #header>
+        <header class="flex shrink-0 flex-wrap items-center gap-3 border-b-[1.5px] border-default bg-default px-[18px] py-3">
           <UButton class="md:hidden" color="neutral" variant="ghost" square icon="i-lucide-arrow-left" :to="backTo" :aria-label="t('app.back')" :ui="{ leadingIcon: 'rtl:rotate-180' }" />
           <div class="min-w-0 flex-1">
             <h2 class="text-[17px]/[1.3] font-semibold text-highlighted">{{ t(copy.title) }}</h2>
             <p class="text-sm text-muted">{{ t(copy.description) }}</p>
           </div>
         </header>
-        <div data-template="conversation-messages" class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+      </template>
+      <template #thread>
+        <div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
           <form id="chat-create-form" data-testid="chat-create-form" :aria-label="t(copy.title)" class="mx-auto w-full max-w-xl space-y-6" @submit.prevent="submit">
             <SharedUnsavedChanges :dirty="dirty" guard-route-updates :ignore-query-keys="['q', 'filter', 'offset']" />
             <SharedFormSection v-if="kind !== 'channel'" :title="t('chat.recipients')" class="space-y-4">
@@ -133,7 +133,9 @@ async function submit() {
             <UAlert v-if="submitError" role="alert" color="error" variant="subtle" :title="submitError" />
           </form>
         </div>
-        <div data-template="conversation-composer" class="shrink-0 border-t-[1.5px] border-default p-4">
+      </template>
+      <template #composer>
+        <div class="shrink-0 border-t-[1.5px] border-default p-4">
           <div class="mx-auto w-full max-w-xl">
             <SharedFormActions class="justify-end">
               <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
@@ -141,7 +143,7 @@ async function submit() {
             </SharedFormActions>
           </div>
         </div>
-      </section>
-    </div>
+      </template>
+    </SharedConversationLayout>
   </SharedPageContainer>
 </template>

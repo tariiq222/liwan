@@ -14,7 +14,7 @@ function recordPath(record: AiRecordRef): string | null {
 }
 
 const NuxtLink = resolveComponent('NuxtLink')
-const CHIP = 'inline-flex max-w-full items-center gap-2 rounded-control bg-default py-1 ps-1 pe-3 text-sm text-highlighted ring ring-default'
+const CHIP = 'inline-flex max-w-full items-center gap-2 rounded-control-sm bg-default py-1 ps-1 pe-3 text-sm text-highlighted ring ring-default'
 </script>
 
 <template>

@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
 import AppSidebar from '../../app/components/shell/AppSidebar.vue'
 import ShellFrame from '@liwan/ui/app/components/shell/ShellFrame.vue'
-import ShellHeader from '../../app/components/shell/ShellHeader.vue'
+import AppTopBar from '../../app/components/shell/AppTopBar.vue'
 import BrandWordmark from '@liwan/ui/app/components/shared/layout/BrandWordmark.vue'
 import StandalonePage from '@liwan/ui/app/components/shared/layout/StandalonePage.vue'
 import { __getRouter } from '../../.storybook/nuxt-shims'
@@ -103,10 +103,10 @@ export const PrintInShell: Story = {
   parameters: { msw: { handlers: { api: shellHandlers } } },
   loaders: [async () => { await __getRouter()!.replace('/tasks'); return {} }],
   render: () => ({
-    components: { AppSidebar, ShellFrame, ShellHeader, StandalonePage },
+    components: { AppSidebar, ShellFrame, AppTopBar, StandalonePage },
     setup: () => ({ t: useI18n().t }),
     template: `<ShellFrame>
-      <template #header><ShellHeader /></template>
+      <template #topbar><AppTopBar /></template>
       <template #sidebar><AppSidebar /></template>
       <main class="liwan-shell-main" data-testid="shell-main"><StandalonePage variant="print" :title="t('meetingMinutesForm.documentTitle')">${DOCUMENT}</StandalonePage></main>
     </ShellFrame>`,

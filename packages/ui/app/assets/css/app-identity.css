@@ -56,12 +56,13 @@
   --primary-fill-active-foreground: #fff;
 }
 
-/* The icon tile: a solid rounded square with a white icon (ink with an inverse icon for a free application). */
+/* The icon tile: a solid rounded square with a white icon (ink with an inverse icon for a free application). The corner is 28% of the
+   side, capped at 18px (64 -> 18, 44 -> 13, 32 -> 10, 26 -> 8), so every size reads as the same shape. */
 .liwan-app-tile {
   display: grid;
   flex: none;
   place-items: center;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-tile);
   background: var(--app-tile, var(--liwan-ink));
   color: var(--app-tile-fg, var(--liwan-on-ink));
 }

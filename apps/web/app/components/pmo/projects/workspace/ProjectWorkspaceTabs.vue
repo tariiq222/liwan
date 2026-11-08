@@ -3,6 +3,7 @@ import { hasFeature } from '@/modules/registry'
 import { governanceSections } from '@/modules/pmo/governanceSections'
 import { planningSections, projectSections } from '@/modules/pmo/projectSections'
 import { activeGovernanceSection, activePlanningSection, activeProjectSection } from '@/modules/pmo/projectRoutes'
+import { hasCapability } from '@/utils/accessPolicy'
 import { useProject } from '@/composables/useProjects'
 import { projectSectionLocation } from '@/utils/projectWorkspaceMemory'
 
@@ -25,9 +26,13 @@ const projectData = computed(() => hydrated.value ? projectQuery.data.value : un
 const activeProject = computed(() => props.active ?? projectData.value?.active ?? true)
 const sectionItems = computed(() => {
   const current = activeProjectSection(route.path)
-  return projectSections(props.projectId, me.value, { active: activeProject.value, tools: projectData.value?.tools }).map(section => ({
+  const items = projectSections(props.projectId, me.value, { active: activeProject.value, tools: projectData.value?.tools }).map(section => ({
     key: `project-tab-${section.id}`, label: t(section.labelKey), to: projectSectionLocation(section.to, route.path, route.query), active: current === section.id, icon: section.icon,
   }))
+  // Meetings is the last tab of the same strip (it needs the meetings capability, not a project tool).
+  return hasCapability(me.value, 'meetings.read')
+    ? [...items, { key: 'project-tab-meetings', label: t('projects.tabs.meetings'), to: projectSectionLocation(`/projects/${props.projectId}/meetings`, route.path, route.query), active: current === 'meetings', icon: 'i-lucide-calendar-days' }]
+    : items
 })
 const governanceItems = computed(() => {
   const current = activeGovernanceSection(route.path)
@@ -47,7 +52,8 @@ const governance = computed(() => props.level === 'governance')
 <template>
   <SharedRouteTabs
     :items="governance ? governanceItems : props.level === 'planning' ? planningItems : props.level === 'finance' ? financeItems : sectionItems"
-    variant="pill"
+    :variant="sublevel ? 'pill' : 'underline'"
+    :divider="false"
     :ariaLabel="t(sublevel ? 'projects.workspace.subtabsLabel' : 'projects.workspace.tabsLabel')"
     :data-testid="governance ? 'project-governance-tabs' : props.level === 'planning' ? 'project-planning-tabs' : 'project-workspace-tabs'"
   />

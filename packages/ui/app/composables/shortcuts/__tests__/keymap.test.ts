@@ -12,9 +12,7 @@ describe('shortcutKey: the Latin character, else the US physical position', () =
   it.each([
     ['p', 'KeyP', 'p'], ['P', 'KeyP', 'p'],
     ['ح', 'KeyP', 'p'], ['ن', 'KeyK', 'k'], ['ل', 'KeyG', 'g'], // Arabic (101)
-    ['[', 'BracketLeft', '['], ['ج', 'BracketLeft', '['], // US, Arabic
-    ['ü', 'BracketLeft', '['], ['Dead', 'BracketLeft', '['], // QWERTZ, AZERTY dead key
-    ['[', 'Minus', '['], ['/', 'BracketLeft', '/'], // Dvorak: the character wins
+    ['[', 'BracketLeft', null], ['/', 'BracketLeft', '/'], // Dvorak: the character wins
     ['m', 'Semicolon', 'm'], [',', 'KeyM', null], // AZERTY: labels win
     ['ظ', 'Slash', '/'], ['?', 'Slash', '?'], ['؟', 'Slash', '?'],
     ['1', 'Digit1', '1'], ['١', 'Digit1', '1'],

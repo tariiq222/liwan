@@ -9,9 +9,9 @@ import { isCallDue } from '@/utils/crmOpportunity'
 // The pipeline as columns, one per active stage in the settings order. A record whose stage is archived or unset
 // is shown in a "no stage" column so none disappears. Moving a record is done on its page, not by dragging. With
 // `createTo` every column ends in a dashed add tile that opens the create panel (the panel has no stage field yet).
-const props = defineProps<{ stages: CrmStage[]; items: CrmOpportunity[]; to: (opportunity: CrmOpportunity) => RouteLocationRaw; now?: number; createTo?: RouteLocationRaw; createLabel?: string }>()
+const props = defineProps<{ loading?: boolean; stages: CrmStage[]; items: CrmOpportunity[]; to: (opportunity: CrmOpportunity) => RouteLocationRaw; now?: number; createTo?: RouteLocationRaw; createLabel?: string }>()
 // The card: 18px, 1.5px border, a lift on hover; the call button sits in its inline-end corner, outside the link.
-const CARD = 'relative overflow-hidden rounded-card border-[1.5px] border-default bg-default transition duration-200 ease-(--liwan-motion-ease) hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--primary-solid)_55%,var(--ui-border))] hover:shadow-[0_16px_30px_-18px_rgb(20_16_42/24%)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/4%)] dark:hover:shadow-[0_16px_30px_-16px_rgb(0_0_0/65%)] motion-reduce:transition-none motion-reduce:hover:translate-y-0'
+const CARD = 'relative overflow-hidden rounded-card border-[1.5px] border-default bg-default liwan-lift dark:shadow-[inset_0_1px_0_rgb(255_255_255/4%)]'
 const { t } = useI18n()
 const { me } = useMe()
 const timeZone = computed(() => me.value?.tz || 'UTC')
@@ -28,11 +28,19 @@ const columns = computed<Column[]>(() => {
 </script>
 
 <template>
-  <div class="flex min-h-0 min-w-0 items-start gap-4 overflow-x-auto pb-3" data-testid="crm-board">
+  <!-- While the records or stages load: columns of placeholder cards in the board's own geometry (never an empty board). -->
+  <div v-if="props.loading" role="status" aria-busy="true" :aria-label="t('app.loading')" class="flex min-h-0 min-w-0 items-start gap-4 overflow-hidden pb-3" data-testid="crm-board-loading">
+    <span class="sr-only">{{ t('app.loading') }}</span>
+    <div v-for="column in 4" :key="column" class="flex w-[290px] shrink-0 flex-col gap-[10px]" aria-hidden="true">
+      <USkeleton class="h-7 w-32" />
+      <USkeleton v-for="card in 3" :key="card" class="h-[104px] rounded-card" />
+    </div>
+  </div>
+  <div v-else class="liwan-soft-in flex min-h-0 min-w-0 items-start gap-4 overflow-x-auto pb-3" data-testid="crm-board">
     <section v-for="column in columns" :key="column.key" class="flex w-[290px] shrink-0 flex-col gap-[10px]" :data-testid="`crm-board-column-${column.key}`" :aria-label="column.title">
       <header class="flex items-center gap-2 px-0.5 py-1">
         <h2 class="truncate text-[15px] font-semibold text-highlighted">{{ column.title }}</h2>
-        <span class="rounded-full bg-elevated px-2.5 text-xs/5 font-semibold text-muted tabular-nums">{{ column.items.length }}</span>
+        <span class="rounded-tag bg-elevated px-2.5 text-xs/5 font-semibold text-muted tabular-nums">{{ column.items.length }}</span>
       </header>
       <p v-if="!column.items.length" class="px-0.5 py-1 text-sm text-muted">{{ t('crm.opportunities.board.emptyColumn') }}</p>
       <div v-for="item in column.items" :key="item.id" :class="CARD" data-slot="crm-board-item">
@@ -52,7 +60,7 @@ const columns = computed<Column[]>(() => {
         </NuxtLink>
         <CrmCallButton :phone="item.phone" :name="item.contact_name" class="absolute end-[10px] top-[10px]" />
       </div>
-      <NuxtLink v-if="createTo" :to="createTo" class="flex h-[46px] items-center justify-center gap-1.5 rounded-control border-[1.5px] border-dashed border-default text-sm text-muted transition-colors duration-150 hover:border-(--primary-solid) hover:bg-[color-mix(in_srgb,var(--primary-solid)_5%,transparent)] hover:text-highlighted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none" data-testid="crm-board-add">
+      <NuxtLink v-if="createTo" :to="createTo" class="flex h-[46px] items-center justify-center gap-1.5 rounded-control border-[1.5px] border-dashed border-default text-sm text-muted transition-colors hover:border-(--primary-solid) hover:bg-[color-mix(in_srgb,var(--primary-solid)_5%,transparent)] hover:text-highlighted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none" data-testid="crm-board-add">
         <UIcon name="i-lucide-plus" class="size-4" aria-hidden="true" />
         <span>{{ createLabel }}</span>
       </NuxtLink>

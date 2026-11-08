@@ -15,7 +15,6 @@ export const SHORTCUT_HELP: readonly ShortcutHelpEntry[] = [
   { id: 'go', labelKey: 'shortcuts.go', kbds: ['G'] },
   { id: 'rows', labelKey: 'shortcuts.rows', kbds: ['J', 'K'] },
   { id: 'open', labelKey: 'shortcuts.open', kbds: ['enter'] },
-  { id: 'sidebar', labelKey: 'shortcuts.sidebar', kbds: ['['] },
   { id: 'escape', labelKey: 'shortcuts.escape', kbds: ['escape'] },
   { id: 'help', labelKey: 'shortcuts.help', kbds: ['?'] },
 ]

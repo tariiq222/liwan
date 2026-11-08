@@ -4,7 +4,6 @@ import AppSidebar from '@/components/shell/AppSidebar.vue'
 import AppTabBar from '@/components/shell/AppTabBar.vue'
 import AppTopBar from '@/components/shell/AppTopBar.vue'
 import SlideOverHost from '@/components/shell/SlideOverHost.vue'
-import { pageArea } from '@/utils/workspacePresentation'
 import { shellBreadcrumb } from '@/composables/nav/breadcrumb'
 import { useShellModel } from '@/composables/useShellModel'
 import { usePageHeaderTitle } from '@liwan/ui/app/composables/usePageHeader'
@@ -32,42 +31,18 @@ providePageApp(() => {
   const taglineKey = `launcher.apps.${owner.id}.description`
   return { icon: owner.icon, id: owner.id, label: t(owner.labelKey), to: owner.to, tagline: te(taglineKey) ? t(taglineKey) : undefined }
 })
-const workspaceTheme = computed(() => !pageArea(route.path).plain)
 // The deleted route sheet restored focus when it closed; an ordinary page has
 // no such moment, so a keyboard or screen-reader user pressing Escape on a
 // record used to land on the list with focus on <body>. Moving focus to the
 // main region after each navigation replaces that. Pages are not dialogs, so
 // this is a focus move, not a trap, and the first load is left alone.
 const shellMain = ref<HTMLElement | null>(null)
-const pageMotionActive = ref(false)
-let pageMotionTimer: ReturnType<typeof setTimeout> | undefined
-let pageMotionFrame: number | undefined
-
-function triggerPageMotion() {
-  pageMotionActive.value = false
-  if (pageMotionTimer) clearTimeout(pageMotionTimer)
-  if (pageMotionFrame !== undefined) cancelAnimationFrame(pageMotionFrame)
-  // Project navigation replaces the section in a stable workspace. Replaying
-  // the whole content entrance looks like a reload and also moves its sheet.
-  if (workspaceTheme.value) return
-  pageMotionFrame = requestAnimationFrame(() => {
-    pageMotionActive.value = true
-    pageMotionTimer = setTimeout(() => { pageMotionActive.value = false }, 180)
-  })
-}
-
-onMounted(triggerPageMotion)
 // route.path, not fullPath: a same-page filter or tab change must not yank
 // focus out of the control the user is currently operating.
 watch(() => route.path, () => {
-  triggerPageMotion()
   if (!import.meta.client) return
   // preventScroll leaves Nuxt's own scroll restoration in charge.
   nextTick(() => shellMain.value?.focus({ preventScroll: true }))
-})
-onBeforeUnmount(() => {
-  if (pageMotionTimer) clearTimeout(pageMotionTimer)
-  if (pageMotionFrame !== undefined) cancelAnimationFrame(pageMotionFrame)
 })
 </script>
 
@@ -75,7 +50,7 @@ onBeforeUnmount(() => {
   <ShellFrame>
     <template #sidebar><AppSidebar /></template>
     <template #topbar><AppTopBar /></template>
-    <main ref="shellMain" tabindex="-1" data-testid="shell-main" :data-app="typeof activeModule === 'string' ? activeModule : undefined" class="liwan-shell-main focus:outline-none" :class="{ 'liwan-page-content-motion': pageMotionActive }">
+    <main ref="shellMain" tabindex="-1" data-testid="shell-main" :data-app="typeof activeModule === 'string' ? activeModule : undefined" class="liwan-shell-main focus:outline-none">
       <slot />
     </main>
     <template #bottom><AppTabBar v-model:open="drawerOpen" /></template>

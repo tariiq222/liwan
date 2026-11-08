@@ -4,7 +4,6 @@ import { MEETING_LIST_PATHS } from '@/modules/meetings/navigation'
 import MeetingAttachmentsTab from '@/components/meetings/MeetingAttachmentsTab.vue'
 import MeetingEventList from '@/components/meetings/MeetingEventList.vue'
 import MeetingMinutesDocument from '@/components/meetings/MeetingMinutesDocument.vue'
-import MeetingRecordTabs from '@/components/meetings/MeetingRecordTabs.vue'
 import MeetingResolutionsTab from '@/components/meetings/MeetingResolutionsTab.vue'
 import MeetingVersionList from '@/components/meetings/MeetingVersionList.vue'
 import { formatMeetingDate, formatMeetingTime, plainTextFromHtml, type MeetingMinutesFormValue, type MeetingMinutesRecommendation } from '@/utils/meetingMinutesForm'
@@ -84,9 +83,9 @@ const tabLinks = computed(() => meetingTabs.value.map(tab => ({
   label: tab.label,
   to: { query: meetingTabQuery(route.query, tab.value), hash: '' },
   active: activeTab.value === tab.value,
+  // Record tabs first, then a separator and the log tab (history).
+  separatorBefore: tab.value === 'history',
 })))
-// Index of the first log tab (history); the strip draws a divider before it.
-const logTabStart = computed(() => meetingTabs.value.findIndex(tab => tab.value === 'history'))
 
 const moreActions = computed<DropdownMenuItem[][]>(() => {
   const m = query.data.value
@@ -184,7 +183,7 @@ function displayValue(value: string | null | undefined) {
       </UDropdownMenu>
     </template>
     <template #tabs>
-      <MeetingRecordTabs :tabs="tabLinks" :log-tab-start="logTabStart" :label="t('meetingsUx.sections')" />
+      <SharedRouteTabs data-testid="meeting-tabs" :items="tabLinks" :ariaLabel="t('meetingsUx.sections')" />
     </template>
 
     <div v-if="query.data.value" class="grid min-w-0 gap-(--liwan-gap-card)">

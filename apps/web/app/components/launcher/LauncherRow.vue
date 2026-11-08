@@ -10,8 +10,8 @@ const id = useId()
 </script>
 
 <template>
-  <article :data-app="props.card.id" :aria-labelledby="`${id}-title`" class="group flex min-w-0 items-center gap-3.5 rounded-card border-[1.5px] border-default bg-default px-4 py-3.5 transition duration-200 hover:-translate-y-0.5 hover:border-accented hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:translate-y-0" data-testid="launcher-row">
-    <span class="liwan-app-tile size-[3.14rem] shrink-0 transition-transform duration-200 group-hover:scale-105 motion-reduce:transition-none" aria-hidden="true"><UIcon :name="props.card.icon" class="size-5.5" /></span>
+  <article :data-app="props.card.id" :aria-labelledby="`${id}-title`" class="group flex min-w-0 items-center gap-3.5 rounded-card border-[1.5px] border-default bg-default px-4 py-3.5 liwan-lift" data-testid="launcher-row">
+    <span class="liwan-app-tile size-[3.14rem] shrink-0 transition-transform duration-(--liwan-motion-panel) ease-(--liwan-motion-ease) group-hover:scale-105" aria-hidden="true"><UIcon :name="props.card.icon" class="size-5.5" /></span>
     <div class="min-w-0 flex-1">
       <h3 :id="`${id}-title`" class="text-base font-semibold text-highlighted">{{ t(props.card.labelKey) }}</h3>
       <p v-if="props.description" class="text-xs leading-relaxed text-muted">{{ props.description }}</p>

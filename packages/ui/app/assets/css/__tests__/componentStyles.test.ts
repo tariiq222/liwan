@@ -25,8 +25,10 @@ describe('mock identity utilities', () => {
     for (const name of ['sadu-diamond.svg', 'sadu-triangle.svg']) expect(() => readFileSync(resolve(app, 'assets/brand/sadu', name))).not.toThrow()
   })
 
-  it('draws the 64px tile at 18px radius, and lifts an interactive card 2px', () => {
-    expect(css).toMatch(/\.liwan-app-tile\.liwan-app-tile-lg \{\s*width: 64px;\s*height: 64px;\s*border-radius: var\(--radius-card\);/)
+  it('draws every app tile at 28% of its side, max 18px (the 64px tile is 18px), and lifts an interactive card 2px', () => {
+    expect(css).toMatch(/\.liwan-app-tile\.liwan-app-tile-lg \{\s*width: 64px;\s*height: 64px;\s*box-shadow/)
+    expect(readFileSync(resolve(app, 'assets/css/app-identity.css'), 'utf8')).toMatch(/\.liwan-app-tile \{[^}]*border-radius: var\(--radius-tile\);/)
+    expect(readFileSync(resolve(app, 'assets/css/tokens.css'), 'utf8')).toContain('--radius-tile: min(28%, 18px);')
     expect(css).toMatch(/\.liwan-lift:hover \{\s*transform: translateY\(-2px\);\s*box-shadow: 0 16px 30px -18px rgb\(20 16 42 \/ 24%\);/)
   })
 

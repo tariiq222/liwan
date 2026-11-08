@@ -3,7 +3,7 @@ import type { DropdownMenuItem } from '@nuxt/ui'
 import type { ShellRailItem } from '@liwan/ui/app/types/shell'
 import { usePageHeaderTitle } from '@liwan/ui/app/composables/usePageHeader'
 
-// The 48px neutral header: mobile menu, breadcrumb, the console badge that marks this as the
+// The 68px neutral header: mobile menu, breadcrumb, the console badge that marks this as the
 // vendor console, and the account menu (language, appearance, sign-out).
 const props = defineProps<{ items: ShellRailItem[], activeId: string | null }>()
 const { t, te, locale, locales } = useI18n()

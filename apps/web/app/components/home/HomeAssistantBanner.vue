@@ -25,8 +25,8 @@ const title = computed(() => (rows.value.length ? t('home.banner.title', { n: ro
     data-testid="home-assistant-banner"
   >
     <div>
-      <span class="inline-flex items-center gap-2 rounded-full bg-default/70 py-1 pe-3 ps-1.5 text-sm font-medium dark:bg-white/10">
-        <span class="liwan-app-tile size-[1.57rem] rounded-inner!" aria-hidden="true"><UIcon name="i-lucide-sparkles" class="size-3" /></span>
+      <span class="inline-flex items-center gap-2 rounded-chip bg-default/70 py-1 pe-3 ps-1.5 text-sm font-medium dark:bg-white/10">
+        <span class="liwan-app-tile size-[1.57rem]" aria-hidden="true"><UIcon name="i-lucide-sparkles" class="size-3" /></span>
         {{ t('ai.home.title') }}
       </span>
       <h2 class="mb-2 mt-3.5 font-display text-3xl font-bold leading-tight max-md:text-2xl">{{ title }}</h2>
@@ -39,10 +39,10 @@ const title = computed(() => (rows.value.length ? t('home.banner.title', { n: ro
       <UButton :to="surface.to" :class="rows.length ? '' : 'mt-3.5'" icon="i-lucide-arrow-left" trailing :ui="{ trailingIcon: 'ltr:rotate-180' }" :label="t('ai.home.ask')" data-testid="home-assistant-ask" />
     </div>
     <div class="relative h-[14.3rem] max-xl:hidden" aria-hidden="true">
-      <span data-app="crm" class="liwan-app-tile absolute end-[24%] top-2.5 size-[5.57rem] rounded-surface! shadow-xl"><UIcon name="i-lucide-handshake" class="size-8" /></span>
-      <span data-app="inbox" class="liwan-app-tile absolute end-[2%] top-16 size-[5.57rem] -rotate-8 rounded-surface! shadow-xl"><UIcon name="i-lucide-messages-square" class="size-8" /></span>
-      <span class="liwan-app-tile absolute end-[40%] top-24 size-[5.57rem] rotate-6 rounded-surface! shadow-xl"><UIcon name="i-lucide-sparkles" class="size-8" /></span>
-      <span class="liwan-app-tile absolute end-[58%] top-0 size-[5.57rem] rotate-10 rounded-surface! shadow-xl"><UIcon name="i-lucide-check-square" class="size-8" /></span>
+      <span data-app="crm" class="liwan-app-tile absolute end-[24%] top-2.5 size-[5.57rem] shadow-xl"><UIcon name="i-lucide-handshake" class="size-8" /></span>
+      <span data-app="inbox" class="liwan-app-tile absolute end-[2%] top-16 size-[5.57rem] -rotate-8 shadow-xl"><UIcon name="i-lucide-messages-square" class="size-8" /></span>
+      <span class="liwan-app-tile absolute end-[40%] top-24 size-[5.57rem] rotate-6 shadow-xl"><UIcon name="i-lucide-sparkles" class="size-8" /></span>
+      <span class="liwan-app-tile absolute end-[58%] top-0 size-[5.57rem] rotate-10 shadow-xl"><UIcon name="i-lucide-check-square" class="size-8" /></span>
     </div>
   </section>
 </template>

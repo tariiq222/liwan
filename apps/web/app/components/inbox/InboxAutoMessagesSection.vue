@@ -17,11 +17,11 @@ const items = computed(() => data.value?.items ?? [])
       v-else
       :key="channel.id"
       :to="`/settings/apps/inbox/auto-messages/${channel.id}`"
-      class="flex items-center justify-between gap-3 px-(--liwan-card-pad) py-3 text-start transition-colors duration-150 hover:bg-(--liwan-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+      class="flex items-center justify-between gap-3 px-(--liwan-card-pad) py-3 text-start transition-colors hover:bg-(--liwan-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
       :data-testid="`inbox-auto-messages-${channel.id}`"
     >
       <span class="flex min-w-0 items-center gap-3">
-        <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"><UIcon name="i-lucide-bot-message-square" class="size-5" aria-hidden="true" /></span>
+        <span class="flex size-9 shrink-0 items-center justify-center rounded-tile bg-primary/10 text-primary"><UIcon name="i-lucide-bot-message-square" class="size-5" aria-hidden="true" /></span>
         <span class="truncate text-sm font-medium text-highlighted">{{ channel.name }}</span>
       </span>
       <UIcon name="i-lucide-chevron-right" class="size-4 text-muted rtl:rotate-180" aria-hidden="true" />

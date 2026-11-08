@@ -25,7 +25,7 @@ const thumbnail = computed(() => (content.value?.type === 'catalog_message' && c
 
 <template>
   <div v-if="commerce" class="flex flex-col gap-1.5" :data-testid="`inbox-commerce-${commerce.type}`">
-    <p v-if="inquiry" class="inline-flex items-center gap-1.5 self-start rounded-control bg-elevated px-3 py-1 text-xs ring ring-default" data-testid="inbox-inquiry-chip">
+    <p v-if="inquiry" class="inline-flex items-center gap-1.5 self-start rounded-tag bg-elevated px-3 py-1 text-xs ring ring-default" data-testid="inbox-inquiry-chip">
       <UIcon name="i-lucide-package" class="size-3.5 shrink-0 text-muted" aria-hidden="true" />
       <span>{{ t('inbox.catalog.thread.inquiry') }}</span>
       <span class="font-medium">{{ inquiry.product?.name ?? inquiry.product_retailer_id }}</span>
@@ -37,14 +37,14 @@ const thumbnail = computed(() => (content.value?.type === 'catalog_message' && c
       <p v-if="single" class="text-sm">{{ price(single) }}</p>
       <p v-if="content.body" class="whitespace-pre-wrap">{{ content.body }}</p>
       <p v-if="content.footer" class="text-xs text-muted">{{ content.footer }}</p>
-      <p class="inline-flex items-center gap-1.5 self-start rounded-control px-3 py-1 text-sm text-primary ring ring-default"><UIcon name="i-lucide-shopping-bag" class="size-4" aria-hidden="true" />{{ t('inbox.catalog.thread.view') }}</p>
+      <p class="inline-flex items-center gap-1.5 self-start rounded-chip px-3 py-1 text-sm text-primary ring ring-default"><UIcon name="i-lucide-shopping-bag" class="size-4" aria-hidden="true" />{{ t('inbox.catalog.thread.view') }}</p>
     </SharedSubCard>
 
     <SharedSubCard v-else-if="content?.type === 'product_list'" class="flex flex-col gap-1.5" data-testid="inbox-product-list-card">
       <p class="font-semibold">{{ content.header }}</p>
       <p class="whitespace-pre-wrap">{{ content.body }}</p>
       <p v-if="content.footer" class="text-xs text-muted">{{ content.footer }}</p>
-      <p class="inline-flex items-center gap-1.5 self-start rounded-control px-3 py-1 text-sm text-primary ring ring-default"><UIcon name="i-lucide-list" class="size-4" aria-hidden="true" />{{ t('inbox.catalog.thread.products', { n: sent!.products.length }) }}</p>
+      <p class="inline-flex items-center gap-1.5 self-start rounded-chip px-3 py-1 text-sm text-primary ring ring-default"><UIcon name="i-lucide-list" class="size-4" aria-hidden="true" />{{ t('inbox.catalog.thread.products', { n: sent!.products.length }) }}</p>
       <details v-for="(section, index) in content.sections" :key="index" class="text-sm">
         <summary class="cursor-pointer text-xs font-medium text-muted">{{ section.title }} · {{ section.product_retailer_ids.length }}</summary>
         <ul class="mt-1 flex flex-col gap-1">
@@ -60,7 +60,7 @@ const thumbnail = computed(() => (content.value?.type === 'catalog_message' && c
       <InboxProductImage v-if="thumbnail" :src="thumbnail.image_url" :alt="thumbnail.name" class="h-32 w-full rounded-control" />
       <p class="whitespace-pre-wrap">{{ content.body }}</p>
       <p v-if="content.footer" class="text-xs text-muted">{{ content.footer }}</p>
-      <p class="inline-flex items-center gap-1.5 self-start rounded-control px-3 py-1 text-sm text-primary ring ring-default"><UIcon name="i-lucide-store" class="size-4" aria-hidden="true" />{{ t('inbox.catalog.thread.viewCatalog') }}</p>
+      <p class="inline-flex items-center gap-1.5 self-start rounded-chip px-3 py-1 text-sm text-primary ring ring-default"><UIcon name="i-lucide-store" class="size-4" aria-hidden="true" />{{ t('inbox.catalog.thread.viewCatalog') }}</p>
     </SharedSubCard>
 
     <SharedSubCard v-else-if="cart" class="flex flex-col gap-2" data-testid="inbox-cart-card">

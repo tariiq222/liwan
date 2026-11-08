@@ -60,29 +60,15 @@ describe('ChatWorkspace', () => {
     reading.stop()
   })
 
-  it('puts the list beside the thread from 768px and the open info panel beside both from 1280px', async () => {
-    const wide = await open(new Map(), 5, Vue.ref(null), true, { desktop: true, split: true, info: true })
-    expect(wide.state.showList.value).toBe(true)
-    expect(wide.state.showThread.value).toBe(true)
-    expect(wide.state.frameColumns.value).toBe('grid-cols-[360px_minmax(0,1fr)_320px]')
-    wide.stop()
+  it('hands the selection and the open info panel to the shared conversation frame', async () => {
+    const open5 = await open(new Map(), 5, Vue.ref(null), true, { desktop: true, split: true, info: true })
+    expect(open5.state.hasSelection.value).toBe(true)
+    expect(open5.state.infoOpen.value).toBe(true)
+    open5.stop()
 
-    const medium = await open(new Map(), 5, Vue.ref(null), true, { desktop: true, split: false, info: true })
-    expect(medium.state.showList.value).toBe(true)
-    expect(medium.state.showThread.value).toBe(false)
-    expect(medium.state.frameColumns.value).toBe('grid-cols-[360px_minmax(0,1fr)]')
-    medium.stop()
-  })
-
-  it('shows one column below 768px: the list without a conversation, the thread once one is open', async () => {
-    const list = await open(new Map(), undefined, Vue.ref(null), true, { desktop: false, split: false })
-    expect(list.state.showList.value).toBe(true)
-    expect(list.state.frameColumns.value).toBe('grid-cols-1')
-    list.stop()
-
-    const thread = await open(new Map(), 5, Vue.ref(null), true, { desktop: false, split: false })
-    expect(thread.state.showList.value).toBe(false)
-    expect(thread.state.showThread.value).toBe(true)
-    thread.stop()
+    const none = await open(new Map(), undefined, Vue.ref(null), true, { desktop: true, split: true, info: true })
+    expect(none.state.hasSelection.value).toBe(false)
+    expect(none.state.infoOpen.value).toBe(false)
+    none.stop()
   })
 })

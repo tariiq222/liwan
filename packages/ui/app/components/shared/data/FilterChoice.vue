@@ -17,7 +17,7 @@
         size="sm"
         :color="isSelected(item.value) ? 'primary' : 'neutral'"
         :variant="isSelected(item.value) ? 'solid' : 'soft'"
-        class="h-9"
+        class="h-9 rounded-chip"
         :aria-pressed="isSelected(item.value)"
         :disabled="disabled || item.disabled"
         :label="item.label"

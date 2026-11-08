@@ -40,7 +40,7 @@ describe('the print sheet', () => {
   })
 
   it('never prints the shell chrome or a .liwan-print-hide element', () => {
-    for (const selector of ['.liwan-shell-header', '.liwan-module-rail', '.liwan-context-sidebar', '.liwan-mobile-menu-trigger', '.liwan-print-hide']) {
+    for (const selector of ['.liwan-shell-header', '.liwan-mobile-menu-trigger', '.liwan-print-hide']) {
       expect(declarations(print, selector).get('display'), selector).toBe('none !important')
     }
     expect(declarations(print, '.liwan-shell-workspace').get('margin-inline')).toBe('0 !important')

@@ -8,7 +8,6 @@
     "create": "Create",
     "discardAndLeave": "Leave without saving",
     "hideKpis": "Hide key figures",
-    "kpis": "Key figures",
     "list": {
       "name": "Name",
       "add": "Add",
@@ -41,6 +40,7 @@
     "selectDate": "Choose date",
     "showKpis": "Show key figures",
     "stay": "Stay on this page",
+    "toggleKpis": "Hide or show key figures",
     "unsaved": "Unsaved",
     "unsavedChanges": "If you leave now, your changes will not be saved.",
     "unsavedChangesTitle": "Unsaved changes",

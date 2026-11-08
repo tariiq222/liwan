@@ -130,3 +130,37 @@ describe('ShellToolButton', () => {
     expect(html).toContain('aria-controls="slide-over-notifications"')
   })
 })
+
+describe('ShellSidebar motion', () => {
+  const render = (props: Record<string, unknown>, slots: Record<string, () => unknown>) => renderShared(file('ShellSidebar'), { label: 'التنقل', homeTo: '/', brandName: 'ليوان', ...props }, { default: () => Vue.h('p', 'صفوف'), ...slots }, { stubs: { NuxtLink: passthrough('a') }, modules: { '../shared/layout/BrandWordmark.vue': { __esModule: true, default: passthrough('span') } } })
+
+  it('keys the body on the mode so switching it swaps the body and never the sidebar', async () => {
+    const global = await render({ mode: 'global' }, {})
+    const app = await render({ mode: 'app' }, {})
+    expect(global).toContain('class="liwan-side-swap" data-mode="global"')
+    expect(app).toContain('class="liwan-side-swap" data-mode="app"')
+    expect(global).toContain('صفوف')
+  })
+
+  it('folds the organisation card in its own slot only when the app provides one', async () => {
+    expect(await render({}, { org: () => Vue.h('div', 'المنشأة') })).toContain('liwan-side-orgslot')
+    expect(await render({}, {})).not.toContain('liwan-side-orgslot')
+  })
+})
+
+describe('ShellPanelStatus', () => {
+  const render = (props: Record<string, unknown>) => renderShared(file('ShellPanelStatus'), { message: 'جارٍ التحميل', ...props })
+
+  it('loads as placeholder rows shaped like panel rows, keeping the message for assistive technology', async () => {
+    const html = await render({ kind: 'loading' })
+    expect(html).toContain('liwan-panel-loading')
+    expect(html.match(/liwan-panel-loading-row/g)).toHaveLength(4)
+    expect(html).toContain('aria-busy="true"')
+    expect(html).toContain('<span class="sr-only">جارٍ التحميل</span>')
+  })
+
+  it('keeps empty and error as one centred line', async () => {
+    expect(await render({ kind: 'empty', message: 'لا شيء' })).toContain('liwan-panel-empty')
+    expect(await render({ kind: 'error', message: 'تعذر', retryLabel: 'أعد' })).toContain('role="alert"')
+  })
+})

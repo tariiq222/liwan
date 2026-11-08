@@ -10,7 +10,7 @@
  * item has `to`; no v-model, no selected state and no `aria-pressed`. Each button item emits `select` with its value.
  *
  * `icon-only` draws square icon buttons with a tooltip (the label stays the accessible name); `block` makes the group
- * fill its row with equal segments. Attributes (`data-testid`) land on the group.
+ * fill its row with equal segments; on a touch screen each segment is 36px, so the group is a 44px target. Attributes (`data-testid`) land on the group.
  */
 export interface SegmentedItem { value: string; label: string; icon?: string; testId?: string; disabled?: boolean; /** Actions mode: renders a link. */ to?: string }
 
@@ -43,7 +43,7 @@ function choose(item: SegmentedItem) {
     role="group"
     :aria-label="props.label"
     data-slot="segmented-control"
-    :class="['gap-0.5 rounded-control bg-elevated p-1', props.block ? 'grid grid-flow-col auto-cols-fr' : 'inline-flex items-center']"
+    :class="['gap-0.5 rounded-control bg-elevated p-[4px]', props.block ? 'grid grid-flow-col auto-cols-fr' : 'inline-flex items-center']"
   >
     <UTooltip v-for="item in props.items" :key="item.value" :text="props.iconOnly ? item.label : undefined">
       <UButton
@@ -54,7 +54,7 @@ function choose(item: SegmentedItem) {
         :square="props.iconOnly"
         :to="isActions ? item.to : undefined"
         variant="ghost"
-        :class="['h-8 min-h-8 rounded-inner text-[13px] font-medium [&:not([disabled],[aria-disabled=true])]:hover:translate-y-0 active:scale-100', props.iconOnly ? 'min-w-8 px-0' : 'px-3.5', isSelected(item) ? 'bg-default font-semibold text-highlighted shadow-xs ring ring-default hover:bg-default' : 'text-muted']"
+        :class="['h-[32px] min-h-[32px] rounded-inner text-[13px] font-medium transition-[background-color,color,box-shadow] pointer-coarse:h-[36px] pointer-coarse:min-h-[36px] [&:not([disabled],[aria-disabled=true])]:hover:translate-y-0 active:scale-100', props.iconOnly ? 'min-w-[32px] px-0 pointer-coarse:min-w-[36px]' : 'px-3.5', isSelected(item) ? 'bg-default font-semibold text-highlighted shadow-xs ring ring-default hover:bg-default' : 'text-muted']"
         :icon="item.icon"
         :label="props.iconOnly ? undefined : item.label"
         :aria-label="props.iconOnly ? item.label : undefined"

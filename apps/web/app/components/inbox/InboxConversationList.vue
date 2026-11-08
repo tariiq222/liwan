@@ -171,7 +171,7 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
         <li v-for="item in items" :key="item.id">
           <NuxtLink
             :to="conversationTo(item.id)"
-            class="flex gap-3 border-b border-default px-4 py-[14px] text-start text-highlighted transition-colors duration-150 hover:bg-elevated focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary aria-[current=page]:bg-(--brand-soft) motion-reduce:transition-none"
+            class="flex gap-3 border-b border-default px-4 py-[14px] text-start text-highlighted transition-colors hover:bg-elevated focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary aria-[current=page]:bg-(--brand-soft) motion-reduce:transition-none"
             :aria-current="props.selectedId === item.id ? 'page' : undefined"
             :data-testid="`inbox-conversation-${item.id}`"
           >

@@ -63,7 +63,7 @@ function removeSection(index: number) {
           <UButton type="button" color="neutral" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('inbox.catalog.picker.removeSection')" @click="removeSection(index)" />
         </div>
         <ul v-if="section.ids.length" class="flex flex-wrap gap-1.5" :aria-label="t('inbox.catalog.picker.sectionProducts')">
-          <li v-for="id in section.ids" :key="id" class="inline-flex items-center gap-1 rounded-control bg-elevated py-0.5 ps-2.5 pe-1 text-xs ring ring-default">
+          <li v-for="id in section.ids" :key="id" class="inline-flex items-center gap-1 rounded-tag bg-elevated py-0.5 ps-2.5 pe-1 text-xs ring ring-default">
             <span class="max-w-40 truncate">{{ nameOf(id) }}</span>
             <UButton type="button" color="neutral" variant="ghost" size="xs" square icon="i-lucide-x" :aria-label="t('inbox.catalog.picker.removeProduct', { name: nameOf(id) })" @click="onToggle(id)" />
           </li>

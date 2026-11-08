@@ -58,4 +58,32 @@ describe('RouteTabs', () => {
     expect(pill.match(/aria-current="page"/g)).toHaveLength(1)
     expect(pill).toContain('data-testid="project-tab-overview"')
   })
+
+  it('never wraps: one scrolling line that fades its edges, for both variants', async () => {
+    for (const variant of ['underline', 'pill']) {
+      const html = await render({ items, ariaLabel: 'x', variant })
+      expect(html, variant).toMatch(/<nav[^>]*flex-nowrap[^>]*overflow-x-auto/)
+      expect(html, variant).toMatch(/<nav[^>]*liwan-scroll-fade-x/)
+      expect(html, variant).toContain('--tabs-fade-l:0px')
+      expect(html, variant).toContain('--tabs-fade-r:0px')
+      expect(html, variant).not.toMatch(/flex-wrap/)
+    }
+    expect(await render({ items, ariaLabel: 'x' })).toContain('shrink-0')
+  })
+
+  it('draws the 1px divider on the frame, not on the faded strip, and leaves it out when the header has one', async () => {
+    const html = await render({ items, ariaLabel: 'x' })
+    expect(html).toMatch(/<div[^>]*data-slot="route-tabs-frame"[^>]*border-b border-default/)
+    expect(html).not.toMatch(/<nav[^>]*border-b border-default/)
+    expect(await render({ items, ariaLabel: 'x', divider: false })).not.toMatch(/route-tabs-frame[^>]*border-b/)
+    expect(await render({ items, ariaLabel: 'x', variant: 'pill' })).not.toMatch(/route-tabs-frame[^>]*border-b/)
+  })
+
+  it('draws a separator before an item that asks for one, without making it a link', async () => {
+    const html = await render({ items: [items[0]!, { ...items[1]!, separatorBefore: true }], ariaLabel: 'x' })
+    expect(html).toMatch(/<span[^>]*role="separator"/)
+    expect(html.match(/<a\b/g)).toHaveLength(2)
+    expect(html.indexOf('role="separator"')).toBeLessThan(html.indexOf('project-tab-tasks'))
+    expect(await render({ items, ariaLabel: 'x' })).not.toContain('role="separator"')
+  })
 })

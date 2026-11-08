@@ -15,7 +15,7 @@ export interface QuickViewsInput {
   path: string
   query: Record<string, unknown>
   can: (capability: string) => boolean
-  /** The shell's create target (carries the return path); the same function the context sidebar uses. */
+  /** The shell's create target (carries the return path); the same function the sidebar uses. */
   createTo: (link: { id: string; to: string }) => RouteLocationRaw
 }
 

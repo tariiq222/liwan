@@ -20,14 +20,14 @@ const { rows } = useAttention(() => props.card.id, { limit: PREVIEW_ROWS })
     :aria-labelledby="`${id}-title`"
     :style="surface.style"
     :class="[
-      'group relative flex h-[430px] w-[300px] flex-col overflow-hidden rounded-surface px-5.5 pt-5.5 transition duration-300 hover:-translate-y-1 hover:shadow-xl motion-reduce:transition-none motion-reduce:hover:translate-y-0',
+      'group relative flex h-[430px] w-[300px] flex-col overflow-hidden rounded-surface px-5.5 pt-5.5 transition duration-(--liwan-motion-panel) ease-(--liwan-motion-ease) hover:-translate-y-1 hover:shadow-xl motion-reduce:hover:translate-y-0',
       'bg-[linear-gradient(170deg,var(--card-from),var(--card-to))] dark:bg-[linear-gradient(170deg,var(--card-from-dark),var(--card-to-dark))] dark:ring-1 dark:ring-white/10',
       surface.lightText ? 'text-white' : 'text-(--liwan-ink) dark:text-white',
     ]"
     data-testid="home-app-card"
   >
     <div class="mb-3.5 flex items-center gap-3">
-      <span class="liwan-app-tile size-[3.14rem] shrink-0 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-105 motion-reduce:transition-none" aria-hidden="true"><UIcon :name="props.card.icon" class="size-5.5" /></span>
+      <span class="liwan-app-tile size-[3.14rem] shrink-0 transition-transform duration-(--liwan-motion-panel) ease-(--liwan-motion-ease) group-hover:-rotate-6 group-hover:scale-105" aria-hidden="true"><UIcon :name="props.card.icon" class="size-5.5" /></span>
       <div class="min-w-0">
         <h3 :id="`${id}-title`" class="text-lg font-bold leading-tight">{{ t(props.card.labelKey) }}</h3>
         <p v-if="props.description" class="line-clamp-2 text-xs opacity-75">{{ props.description }}</p>
@@ -42,7 +42,7 @@ const { rows } = useAttention(() => props.card.id, { limit: PREVIEW_ROWS })
     <NuxtLink
       :to="props.card.to"
       :aria-describedby="`${id}-title`"
-      :class="['self-start rounded-control px-3.5 py-1.5 text-sm font-semibold shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current', surface.lightText ? 'bg-white/15 text-white' : 'bg-white text-(--liwan-ink) dark:bg-white/12 dark:text-white']"
+      :class="['self-start rounded-control-sm px-3.5 py-1.5 text-sm font-semibold shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current', surface.lightText ? 'bg-white/15 text-white' : 'bg-white text-(--liwan-ink) dark:bg-white/12 dark:text-white']"
       data-testid="home-app-open"
     >{{ t('launcher.open') }}</NuxtLink>
     <ul v-if="rows.length" :aria-label="t('appStart.attention')" class="mt-auto flex min-h-[10.7rem] flex-col gap-1.5 rounded-t-control bg-default p-3 text-xs text-default shadow-[0_-6px_18px_-10px_rgb(20_16_42/18%)]" data-testid="home-app-preview">

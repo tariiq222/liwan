@@ -13,12 +13,18 @@ describe('the project frame uses one tab helper', () => {
     const frame = read('pages/projects/[id].vue')
     expect(frame).not.toContain('ProjectGovernanceTabs')
     expect(frame).toContain('level="governance"')
-    expect(frame).toContain('liwan-workspace-head liwan-print-hide')
-    expect(frame).toContain('rounded-card bg-default px-4 py-3 ring ring-default')
+    // The open header of SharedPageHeader: no card, the 64px app tile, the display title, tag pills, a 1px divider under the tabs.
+    expect(frame).toContain('liwan-print-hide')
+    expect(frame.slice(frame.indexOf('<header'), frame.indexOf('</header>'))).not.toMatch(/ ring ring-default|bg-default|rounded-card/)
+    expect(frame).not.toContain('liwan-workspace-head')
+    expect(frame).toContain('liwan-app-tile liwan-app-tile-lg')
+    expect(frame).toContain('font-display')
     expect(frame).toContain('<SharedHeaderTags :tags="tags" />')
     expect(frame).not.toContain('liwan-page-band')
-    // The sub-strips live inside the same card as the main strip.
-    expect(frame.indexOf('level="governance"')).toBeLessThan(frame.indexOf('</header>'))
+    expect(frame).not.toContain('<UButton v-if="project && me?.capabilities.includes(\'meetings.read\')"')
+    // The sub-strips follow the header's divider; meetings is a tab of the main strip, never a lone link.
+    expect(frame.indexOf('level="governance"')).toBeGreaterThan(frame.indexOf('</header>'))
+    expect(tabs).toContain('project-tab-meetings')
     expect(frame).not.toContain('-my-2')
   })
 

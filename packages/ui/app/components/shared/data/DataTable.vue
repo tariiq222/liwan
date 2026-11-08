@@ -3,7 +3,7 @@ import type { TableColumn } from '@nuxt/ui'
 import { useMediaQuery } from '@vueuse/core'
 import type { RouteLocationRaw } from 'vue-router'
 import { useRowNavigation } from '../../../composables/useRowNavigation'
-import { clickedRowIndex, dataRowKey, headerContent, markSortHeaders, markTableRows, nextSortDirection, rowSelectionState, selectedFromRowSelection, type SortDirection, type TableSort } from '../../../utils/dataTable'
+import { applyScrollEdges, clickedRowIndex, dataRowKey, decorateColumns, headerContent, markSortHeaders, markTableRoles, markTableRows, nextSortDirection, rowSelectionState, scrollEdges, selectedFromRowSelection, STACK_BELOW_PX, tableMinWidth, TITLE_FLOOR_REM, type SortDirection, type TableSort } from '../../../utils/dataTable'
 import PageState from '../feedback/PageState.vue'
 import Pagination from './Pagination.vue'
 
@@ -21,6 +21,12 @@ import Pagination from './Pagination.vue'
  * Sorting is the server's: a column with `meta: { sortable: true }` renders its header as a button that cycles
  * ascending, descending, none and emits `update:sort` ({column, direction} or null; `column` is `sortKeys[id]`, else the
  * column id). The table never reorders rows itself, and the phone rows have no headers, so they carry no sort control.
+ * The table never overflows its card: it scrolls inside it (UTable's root), the first data column and the select column
+ * stay at the start edge and a last `actions` column at the end edge, with a fade or divider on the side that has more.
+ * Narrow containers (under 640px, a CSS container query) draw each row as a card: the first column is the title, the
+ * other cells are label / value pairs from the column headers, the actions come last. `stack` (default on) opts out for
+ * a table that cannot stack. `meta: { numeric: true }` aligns a column's numbers at the end. All of it is CSS (components.css,
+ * "Data tables"); after mount a ResizeObserver only toggles `data-*` edge flags and the roles a stacked table needs.
  */
 const props = withDefaults(defineProps<{
   rows: T[]
@@ -43,7 +49,10 @@ const props = withDefaults(defineProps<{
   sort?: TableSort | null
   /** Column id -> the server's sort key, for a sortable column whose key differs from its id. */
   sortKeys?: Record<string, string>
+  /** Draw each row as a card in a narrow container (default). Off for a table that must stay a table. */
+  stack?: boolean
 }>(), {
+  stack: true,
   sort: null,
   loading: false,
   density: 'dense',
@@ -63,12 +72,17 @@ const body = ref<HTMLElement | null>(null)
 const tableHost = ref<HTMLElement | null>(null)
 useRowNavigation(body)
 
-const tableColumns = computed<TableColumn<T>[]>(() => props.selectable
+const tableColumns = computed<TableColumn<T>[]>(() => decorateColumns(props.selectable
   ? [{ id: 'select', enableSorting: false, enableHiding: false, meta: { class: { td: 'liwan-select-cell' } } }, ...props.columns]
-  : props.columns)
-// Cells pad with the card padding and rows take the row height (app.config table recipe): density swaps those two tokens.
+  : props.columns, props.selectable))
+const hasActions = computed(() => {
+  const last = props.columns.at(-1)
+  return !!last && (columnId(last) === 'actions' || !!(last.meta as { actions?: boolean } | undefined)?.actions)
+})
+// Cells pad with the card padding and rows take the row height (app.config table recipe): density swaps those two tokens
+// (dense: 16px pad on a 48px row; comfortable: 20px on a 52px row).
 const densityClass = computed(() => props.density === 'dense'
-  ? '[--liwan-card-pad:var(--liwan-card-pad-dense)]'
+  ? '[--liwan-card-pad:var(--liwan-card-pad-dense)] [--liwan-row-h:3.428571rem]'
   : '[--liwan-row-h:var(--liwan-row-h-comfortable)]')
 // The border and radius sit on the card around the table, unless the caller's SharedListCard draws it.
 const surfaceClass = 'liwan-card overflow-hidden rounded-card'
@@ -115,6 +129,7 @@ function cycleSort(id: string) {
 function markRows() {
   void nextTick(() => {
     if (!tableHost.value) return
+    measure()
     markTableRows(tableHost.value)
     markSortHeaders(tableHost.value, tableColumns.value.map((column) => {
       const id = columnId(column)
@@ -132,6 +147,31 @@ function onClick(event: MouseEvent) {
   if (row) void navigateTo(props.rowTo(row))
 }
 
+// The scrolling element is UTable's root. Its edges and the stacked state go to the frame as flags the CSS reads; nothing here runs before mount.
+function measure() {
+  const frame = tableHost.value
+  const scroller = frame?.querySelector<HTMLElement>('[data-slot="root"]')
+  if (!frame || !scroller) return
+  const stacked = props.stack && frame.clientWidth < STACK_BELOW_PX
+  const table = scroller.querySelector('table')
+  const title = table?.querySelector<HTMLElement>('thead th.liwan-cell-title')
+  if (table && title && !stacked) {
+    const floor = TITLE_FLOOR_REM * parseFloat(getComputedStyle(document.documentElement).fontSize)
+    frame.style.setProperty('--liwan-table-min', `${tableMinWidth(table.offsetWidth, title.offsetWidth, parseFloat(getComputedStyle(title).minWidth), floor)}px`)
+  }
+  applyScrollEdges(frame, scrollEdges(scroller))
+  markTableRoles(frame, stacked)
+}
+watch(tableHost, (frame, _previous, onCleanup) => {
+  const scroller = frame?.querySelector<HTMLElement>('[data-slot="root"]')
+  if (!frame || !scroller) return
+  scroller.addEventListener('scroll', measure, { passive: true })
+  const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
+  observer?.observe(frame)
+  observer?.observe(scroller.querySelector('table') ?? scroller)
+  measure()
+  onCleanup(() => { scroller.removeEventListener('scroll', measure); observer?.disconnect() })
+}, { flush: 'post' })
 watch(() => props.sort, markRows)
 // Restore focus only when hydration or resize removes the focused representation.
 watch([mobile, hydrated], async ([nextMobile]) => {
@@ -169,7 +209,16 @@ function clear() {
       <template v-if="$slots.emptyAction" #emptyAction><slot name="emptyAction" /></template>
       <div ref="body" data-slot="data-table-body" class="min-w-0" @click="onClick">
         <div :class="[props.bare ? '' : surfaceClass, densityClass]" :data-density="props.density">
-          <div v-if="!mobile" ref="tableHost" class="overflow-x-auto" :class="{ 'hidden md:block': $slots['mobile-row'] && !hydrated }">
+          <div
+            v-if="!mobile"
+            ref="tableHost"
+            data-slot="data-table-frame"
+            class="liwan-table-frame"
+            :class="{ 'hidden md:block': $slots['mobile-row'] && !hydrated }"
+            :data-stack="props.stack || undefined"
+            :data-selectable="props.selectable || undefined"
+            :data-has-actions="hasActions || undefined"
+          >
             <UTable
               v-model:row-selection="rowSelection"
               :data="props.rows"
@@ -203,7 +252,7 @@ function clear() {
                   data-slot="sort-button"
                   :data-sort="directionOf(id) ?? 'none'"
                   :disabled="!hydrated"
-                  class="-ms-2 inline-flex h-7 max-w-full cursor-pointer items-center gap-1 rounded-control px-2 font-medium transition-colors duration-150 hover:bg-elevated hover:text-highlighted focus-visible:outline-2 focus-visible:outline-primary motion-reduce:transition-none disabled:cursor-default"
+                  class="-ms-2 inline-flex h-7 max-w-full cursor-pointer items-center gap-1 rounded-inner px-2 font-medium transition-colors hover:bg-elevated hover:text-highlighted focus-visible:outline-2 focus-visible:outline-primary motion-reduce:transition-none disabled:cursor-default"
                   :class="directionOf(id) ? 'text-highlighted' : ''"
                   @click="cycleSort(id)"
                 >
@@ -241,7 +290,7 @@ function clear() {
               <slot name="mobile-row" :row="row" />
             </li>
           </ul>
-          <div v-if="$slots.footer" data-slot="data-table-footer" class="flex flex-wrap items-center justify-between gap-3 border-t border-default px-(--liwan-card-pad) py-3 text-sm text-muted">
+          <div v-if="$slots.footer" data-slot="data-table-footer" class="flex flex-wrap items-center justify-between gap-3 border-t border-default px-(--liwan-card-pad) py-2.5 text-xs text-muted">
             <slot name="footer" />
           </div>
         </div>

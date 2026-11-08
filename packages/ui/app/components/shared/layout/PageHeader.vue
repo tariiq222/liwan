@@ -101,16 +101,17 @@ const trail = computed<HeaderTrailStep[]>(() => {
           </div>
           <p v-if="tagline" data-slot="page-header-tagline" class="mt-1 text-[15px] text-toned">{{ tagline }}</p>
         </div>
-        <div v-if="$slots.actions || $slots.default || props.kpiToggle" class="ms-auto flex min-w-0 max-w-full flex-wrap items-center gap-2.5">
+        <div v-if="$slots.actions || $slots.default || props.kpiToggle" class="ms-auto flex min-w-0 max-w-full flex-wrap items-center gap-2.5 pointer-coarse:*:min-h-11">
           <SharedKpiToggle v-if="props.kpiToggle" />
           <slot name="actions"><slot /></slot>
         </div>
       </div>
     </template>
-    <div v-else-if="$slots.actions || $slots.default || props.kpiToggle" class="ms-auto flex min-w-0 max-w-full flex-wrap items-center gap-2.5">
+    <div v-else-if="$slots.actions || $slots.default || props.kpiToggle" class="ms-auto flex min-w-0 max-w-full flex-wrap items-center gap-2.5 pointer-coarse:*:min-h-11">
       <SharedKpiToggle v-if="props.kpiToggle" />
       <slot name="actions"><slot /></slot>
     </div>
-    <div v-if="$slots.tabs" data-slot="page-header-tabs" class="mt-3 min-w-0"><slot name="tabs" /></div>
+    <!-- The header's own bottom border is the tabs' 1px divider, so the strip inside draws none. -->
+    <div v-if="$slots.tabs" data-slot="page-header-tabs" class="min-w-0" :class="props.hideTitle ? 'basis-full' : 'mt-3 [&_[data-slot=route-tabs-frame]]:border-b-0'"><slot name="tabs" /></div>
   </header>
 </template>

@@ -24,6 +24,12 @@ describe('radius tokens in the tailwind-merge conflict group', () => {
     expect(tv({ base: 'rounded-2xl p-4' })({ class: 'rounded-card' })).toBe('p-4 rounded-card')
   })
 
+  it('lets the size-scale shapes replace the control default', () => {
+    for (const shape of ['control-sm', 'chip', 'tag', 'tile']) {
+      expect(tv({ base: 'rounded-control p-4' })({ class: `rounded-${shape}` }), shape).toBe(`p-4 rounded-${shape}`)
+    }
+  })
+
   it('keeps side-specific radii independent of the token', () => {
     expect(tv({ base: 'rounded-control' })({ class: 'rounded-t-none' })).toBe('rounded-control rounded-t-none')
   })
@@ -37,8 +43,26 @@ describe('radius tokens in the tailwind-merge conflict group', () => {
   })
 })
 
+describe('radius scale tokens', () => {
+  it('defines a corner of about 30% of the height, capped at 18px', async () => {
+    const { readFileSync } = await import('node:fs')
+    const css = readFileSync(new URL('../app/assets/css/tokens.css', import.meta.url), 'utf8')
+    const px = (name: string) => Number(new RegExp(`--radius-${name}: ([\\d.]+)rem;`).exec(css)?.[1]) * 14
+    expect(css).toContain('--radius-tile: min(28%, 18px);')
+    expect(Object.fromEntries(['surface', 'card', 'control', 'chip', 'control-sm', 'inner', 'tag'].map(name => [name, Math.round(px(name))])))
+      .toEqual({ surface: 18, card: 18, control: 12, chip: 11, 'control-sm': 10, inner: 9, tag: 7 })
+  })
+
+  it('gives the squircle corner to every shape class where supported', async () => {
+    const { readFileSync } = await import('node:fs')
+    const css = readFileSync(new URL('../app/assets/css/components.css', import.meta.url), 'utf8')
+    expect(css).toContain('@supports (corner-shape: squircle)')
+    for (const selector of ['.rounded-tile', '.rounded-control-sm', '.rounded-chip', '.rounded-tag', '.liwan-app-tile']) expect(css).toContain(selector)
+  })
+})
+
 describe('segmented groups', () => {
-  it('are 12px groups around 8px inner segments', async () => {
+  it('are 12px groups around 9px inner segments', async () => {
     const { readFileSync } = await import('node:fs')
     const root = new URL('../app/components/shared/', import.meta.url)
     for (const file of ['data/SegmentedControl.vue']) {

@@ -49,9 +49,18 @@ describe('HomeIndicators', () => {
     expect(tile(html, 'execute')[0]).toBe('3')
   })
 
-  it('shows no figure while loading or when every provider failed', async () => {
-    expect(tile(await render({ pending: true }), 'execute')[0]).toBe('—')
+  it('shows a skeleton bar, not a zero, while loading, and a dash when every provider failed', async () => {
+    const loading = await render({ pending: true })
+    const card = loading.match(/data-testid="home-indicator-execute"[\s\S]*?<\/a>/)![0]
+    expect(card).toContain('data-slot="indicator-skeleton"')
+    expect(card).not.toMatch(/<b[ >]/)
     expect(tile(await render({ failed: true }), 'decide')[0]).toBe('—')
+  })
+
+  it('fades a figure in when it arrives, and lifts the card on hover with the shared recipe', async () => {
+    const html = await render()
+    expect(html).toContain('liwan-soft-in')
+    expect(html).toContain('liwan-lift')
   })
 
   it('is hidden entirely when the user has no work page or no provider', async () => {

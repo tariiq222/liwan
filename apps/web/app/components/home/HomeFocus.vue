@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import HomeFocusCard from '@/components/home/HomeFocusCard.vue'
 import HomeRail from '@/components/home/HomeRail.vue'
+import HomeRailSkeleton from '@/components/home/HomeRailSkeleton.vue'
 import HomeSection from '@/components/home/HomeSection.vue'
 import { shellModuleList } from '@/composables/nav/shellModules'
 import { useMyWork } from '@/composables/useMyWork'
@@ -28,10 +29,10 @@ const rail = ref<InstanceType<typeof HomeRail> | null>(null)
         <UButton type="button" square color="neutral" variant="soft" icon="i-lucide-chevron-right" class="rtl:rotate-180" :aria-label="t('home.rail.next')" data-testid="home-focus-next" @click="rail?.scrollCards(1)" />
       </div>
     </template>
-    <SharedLoadingSkeleton v-if="pending" />
+    <HomeRailSkeleton v-if="pending" />
     <SharedErrorState v-else-if="failed" data-testid="home-focus-error" @retry="refetch()" />
     <p v-else-if="!cards.length" class="rounded-card border-[1.5px] border-dashed border-default p-5 text-sm text-muted" data-testid="home-focus-empty">{{ t('home.focusEmpty') }}</p>
-    <HomeRail v-else ref="rail" :label="t('home.focus')" data-testid="home-focus-list">
+    <HomeRail v-else ref="rail" :label="t('home.focus')" class="liwan-soft-in" data-testid="home-focus-list">
       <HomeFocusCard v-for="card in cards" :key="card.row.id" :row="card.row" :app-label="card.label" :app-icon="card.icon" />
     </HomeRail>
   </HomeSection>

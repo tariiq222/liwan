@@ -102,15 +102,21 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
 
 <template>
   <div class="liwan-project-workspace flex flex-col gap-(--liwan-gap-card)">
-    <!-- One compact card like SharedPageHeader (DESIGN.md §4): chip, title and tags, actions, the trail, then the tab strips. Only this card sticks (identity and tabs); the phase stepper is its own card below and scrolls away. -->
-    <SharedPageContainer v-if="showFrame" class="liwan-workspace-head liwan-print-hide" data-sticky="true" data-testid="project-workspace-frame">
-      <header class="flex flex-col gap-3 rounded-card bg-default px-4 py-3 ring ring-default">
-        <div class="flex flex-col gap-0.5" data-testid="project-workspace-identity">
+    <!-- The open header of SharedPageHeader (DESIGN.md §4): the trail, the 64px app tile, the title in the display style with its tag pills, the settings action at the inline end, then the underline tabs over the header's 1px divider. The sub-strips and the phase stepper follow below it. -->
+    <SharedPageContainer v-if="showFrame" class="liwan-print-hide" data-testid="project-workspace-frame">
+      <header class="flex min-w-0 flex-col gap-3 border-b border-default">
+        <div class="flex min-w-0 flex-col gap-3" data-testid="project-workspace-identity">
           <template v-if="project">
-            <div class="flex flex-wrap items-center gap-x-3.5 gap-y-2">
-              <span aria-hidden="true" class="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"><UIcon name="i-lucide-folder-kanban" class="size-5" /></span>
-              <div class="flex min-w-0 flex-1 basis-40 flex-wrap items-center gap-x-2 gap-y-1">
-                <h1 class="min-w-0 text-lg/7 font-semibold text-highlighted" data-testid="project-workspace-name">{{ project.name }}</h1>
+            <nav :aria-label="t('nav.breadcrumb')" class="flex items-center gap-1.5 text-[13px]/5 text-muted">
+              <UButton :to="backTo ?? '/projects'" :aria-label="backLabel" color="neutral" variant="link" size="xs" class="p-0 font-medium text-muted hover:text-highlighted focus-visible:ring-2 focus-visible:ring-primary" :data-testid="backTo ? 'project-workspace-back' : 'project-workspace-trail'">
+                <span>{{ backLabel }}</span>
+              </UButton>
+              <UIcon name="i-lucide-chevron-left" aria-hidden="true" class="size-3.5 text-dimmed ltr:rotate-180" />
+            </nav>
+            <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
+              <span aria-hidden="true" class="liwan-app-tile liwan-app-tile-lg grid shrink-0 place-items-center" data-app="projects"><UIcon name="i-lucide-folder-kanban" class="size-[30px]!" /></span>
+              <div class="flex min-w-0 flex-1 basis-60 flex-wrap items-center gap-x-3 gap-y-1">
+                <h1 class="min-w-0 font-display text-[length:clamp(28px,3.2vw,38px)]/[1.15] font-bold tracking-[-0.01em] text-highlighted" data-testid="project-workspace-name">{{ project.name }}</h1>
                 <SharedHeaderTags :tags="tags" />
               </div>
               <UTooltip v-if="project.can_manage" :text="t('nav.projectSettings')">
@@ -126,24 +132,19 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
                 />
               </UTooltip>
             </div>
-            <nav :aria-label="t('nav.breadcrumb')" class="flex items-center gap-1.5 text-xs/5 text-muted">
-              <UButton :to="backTo ?? '/projects'" :aria-label="backLabel" color="neutral" variant="link" size="xs" class="p-0 font-medium text-muted hover:text-highlighted focus-visible:ring-2 focus-visible:ring-primary" :data-testid="backTo ? 'project-workspace-back' : 'project-workspace-trail'">
-                <span>{{ backLabel }}</span>
-              </UButton>
-              <UIcon name="i-lucide-chevron-left" aria-hidden="true" class="size-3.5 text-dimmed ltr:rotate-180" />
-            </nav>
           </template>
-          <USkeleton v-else-if="isLoading || !hydrated" class="h-10 w-64 max-w-full rounded-control" />
+          <USkeleton v-else-if="isLoading || !hydrated" class="h-16 w-72 max-w-full rounded-control" />
         </div>
         <!-- Tabs follow the hydrated project like the title row, so a first click is a client-side navigation. -->
         <ProjectWorkspaceTabs v-if="project" :project-id="projectId!" :active="project.active" />
         <USkeleton v-else-if="isLoading || !hydrated" class="h-(--liwan-control-h) w-full max-w-lg rounded-control" />
-        <UButton v-if="project && me?.capabilities.includes('meetings.read')" color="neutral" variant="link" :to="`/projects/${project.id}/meetings`" :label="t('projects.tabs.meetings')" />
+      </header>
+      <!-- Finance, governance and planning sub-sections: a pill strip under the header's divider. -->
+      <div class="mt-3 flex min-w-0 flex-col gap-3 empty:hidden">
         <ProjectWorkspaceTabs v-if="project?.tools.finance.enabled && activeProjectSection(route.path) === 'finance'" level="finance" :project-id="project.id" />
-        <!-- Governance and planning sub-sections: a second pill strip inside the same card. -->
         <ProjectWorkspaceTabs v-if="showGovernanceTabs" level="governance" :project-id="projectId!" />
         <ProjectWorkspaceTabs v-if="showPlanningTabs && projectId" :project-id="projectId" :active="project?.active" level="planning" />
-      </header>
+      </div>
     </SharedPageContainer>
     <SharedPageContainer v-if="showFrame && project?.phase_state && activeProjectSection(route.path) === 'governance' && routeAllowed" class="liwan-print-hide" data-testid="project-phase-card">
       <div class="rounded-card bg-default px-4 py-3 ring ring-default">

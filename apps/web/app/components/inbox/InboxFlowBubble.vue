@@ -11,7 +11,7 @@ const props = defineProps<{ message: Pick<InboxFlowInteractive, 'header' | 'body
     <p v-if="props.message.header" dir="auto" class="font-semibold break-words">{{ props.message.header }}</p>
     <p dir="auto" class="whitespace-pre-wrap break-words">{{ props.message.body }}</p>
     <p v-if="props.message.footer" dir="auto" class="text-xs text-muted break-words">{{ props.message.footer }}</p>
-    <p class="inline-flex items-center gap-1.5 self-start rounded-control px-3 py-1 text-sm text-primary ring ring-default" data-testid="inbox-flow-bubble-cta">
+    <p class="inline-flex items-center gap-1.5 self-start rounded-chip px-3 py-1 text-sm text-primary ring ring-default" data-testid="inbox-flow-bubble-cta">
       <UIcon name="i-lucide-file-pen-line" class="size-4 shrink-0" aria-hidden="true" /><span dir="auto" class="min-w-0 break-words">{{ props.message.cta }}</span>
     </p>
     <p v-if="props.name" class="text-xs text-muted" data-testid="inbox-flow-bubble-name"><bdi>{{ props.name }}</bdi></p>

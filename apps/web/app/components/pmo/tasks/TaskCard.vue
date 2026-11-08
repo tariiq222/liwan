@@ -56,7 +56,7 @@ function onCardClick(event: MouseEvent) {
     :data-testid="`board-card-${task.id}`"
     :data-task-id="task.id"
     :data-readonly="!task.can_write"
-    class="group relative flex shrink-0 cursor-pointer flex-col gap-2 rounded-control border border-default bg-default p-3.5 transition duration-150 hover:-translate-y-px hover:shadow-md focus-visible:outline-2 focus-visible:outline-primary motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+    class="group relative flex shrink-0 cursor-pointer flex-col gap-2 rounded-control border border-default bg-default p-3.5 transition hover:-translate-y-px hover:shadow-md focus-visible:outline-2 focus-visible:outline-primary motion-reduce:transition-none motion-reduce:hover:translate-y-0"
     @click="onCardClick"
   >
     <div class="flex items-center gap-2">
@@ -77,7 +77,7 @@ function onCardClick(event: MouseEvent) {
           size="sm"
           color="neutral"
           variant="ghost"
-          class="ms-auto opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 motion-reduce:transition-none pointer-coarse:opacity-100"
+          class="ms-auto opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 motion-reduce:transition-none pointer-coarse:opacity-100"
           icon="i-lucide-ellipsis"
           :aria-label="t('tasks.detail.menu')"
           @click.stop

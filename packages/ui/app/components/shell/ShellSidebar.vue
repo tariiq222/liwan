@@ -33,9 +33,14 @@ defineSlots<{ org?: () => unknown; default?: () => unknown; footer?: () => unkno
         <span v-if="props.caption" class="liwan-side-brand-caption">{{ props.caption }}</span>
       </span>
     </NuxtLink>
-    <slot name="org" />
+    <Transition name="liwan-side-orgslot">
+      <div v-if="$slots.org" class="liwan-side-orgslot"><div><slot name="org" /></div></div>
+    </Transition>
     <nav class="liwan-side-body" data-fresh-navigation :aria-label="props.label">
-      <slot />
+      <!-- Keyed on the mode: switching between the day and an application swaps the body, never the sidebar itself. -->
+      <Transition name="liwan-side-swap" mode="out-in">
+        <div :key="props.mode" class="liwan-side-swap" :data-mode="props.mode"><slot /></div>
+      </Transition>
     </nav>
     <div v-if="$slots.footer" class="liwan-side-footer">
       <slot name="footer" />

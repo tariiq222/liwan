@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { defineAsyncComponent, type Component } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
+import LoadingSkeleton from '@liwan/ui/app/components/shared/feedback/LoadingSkeleton.vue'
 import NotificationsPanel from '@/components/notifications/NotificationsPanel.vue'
 import { assistantBodyView, useAssistantSheet } from '@/composables/useAssistantSheet'
 import { useQuickPanels } from '@/composables/useQuickPanels'
@@ -24,7 +25,8 @@ const quickViews = new WeakMap<AppQuickPanel, Component>()
 function quickView(panel: AppQuickPanel): Component {
   let view = quickViews.get(panel)
   if (!view) {
-    view = defineAsyncComponent(panel.load)
+    // A panel whose chunk is slow to arrive shows rows in its place (after a short delay, so a fast load never flashes).
+    view = defineAsyncComponent({ loader: panel.load, loadingComponent: LoadingSkeleton, delay: 120 })
     quickViews.set(panel, view)
   }
   return view

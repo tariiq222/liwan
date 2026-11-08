@@ -107,7 +107,7 @@ function conversationTo(id: number) {
         <li v-for="item in items" :key="item.id">
           <NuxtLink
             :to="conversationTo(item.id)"
-            class="flex gap-3 border-b border-default px-4 py-[14px] text-start text-highlighted transition-colors duration-150 hover:bg-elevated focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary aria-[current=page]:bg-(--brand-soft) motion-reduce:transition-none"
+            class="flex gap-3 border-b border-default px-4 py-[14px] text-start text-highlighted transition-colors hover:bg-elevated focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary aria-[current=page]:bg-(--brand-soft) motion-reduce:transition-none"
             :aria-current="props.selectedId === item.id ? 'page' : undefined"
           >
             <span class="relative shrink-0">
@@ -118,7 +118,7 @@ function conversationTo(id: number) {
                 :class="item.im_status === 'online' ? 'liwan-status-dot-success' : 'bg-(--ui-text-dimmed)'"
                 :title="item.im_status === 'online' ? t('chat.online') : t('chat.offline')"
               />
-              <span v-else-if="item.type !== 'direct'" class="absolute end-0 bottom-0 z-10 grid size-4 place-items-center rounded-full bg-primary text-inverted" :title="t(`chat.${item.type}`)">
+              <span v-else-if="item.type !== 'direct'" class="absolute end-0 bottom-0 z-10 grid size-4 place-items-center rounded-tag bg-primary text-inverted" :title="t(`chat.${item.type}`)">
                 <UIcon name="i-lucide-users-round" class="size-3" aria-hidden="true" />
               </span>
             </span>

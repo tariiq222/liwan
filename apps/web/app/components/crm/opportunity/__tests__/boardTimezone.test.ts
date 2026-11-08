@@ -10,7 +10,7 @@ const NativeDateTimeFormat = Intl.DateTimeFormat
 const Badge = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }) => () => Vue.h('span', { 'data-tone': attrs.tone }, String(attrs.label)) })
 const Avatar = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }) => () => Vue.h('span', { 'data-avatar': attrs.text }) })
 
-async function boardHtml(runtimeZone: string, userZone?: string, extra: { items?: unknown[]; createTo?: string } = {}) {
+async function boardHtml(runtimeZone: string, userZone?: string, extra: { items?: unknown[]; createTo?: string; loading?: boolean } = {}) {
   // Separate server and browser formatter caches, each with a real Intl formatter.
   // Only their ambient time zone differs; an explicit session time zone wins.
   vi.resetModules()
@@ -32,7 +32,7 @@ async function boardHtml(runtimeZone: string, userZone?: string, extra: { items?
   const app = Vue.createSSRApp({ render: () => Vue.h(Board, {
     stages: [{ id: 1, name: 'Follow up', active: true, sequence: 1 }],
     items: extra.items ?? [{ id: 4, stage: { id: 1 }, contact_name: 'Future contact', phone: '+966500000000', user: null, needs_manager: false, status: 'pending', next_call_at: '2026-11-07T08:30:00Z' }],
-    now: Date.parse('2026-11-06T12:00:00Z'), to: () => '/crm/opportunities/4', createTo: extra.createTo, createLabel: 'Deal',
+    now: Date.parse('2026-11-06T12:00:00Z'), to: () => '/crm/opportunities/4', createTo: extra.createTo, createLabel: 'Deal', loading: extra.loading,
   }) })
   for (const [name, component] of Object.entries(DEFAULT_STUBS)) app.component(name, component)
   app.component('SharedStatusBadge', Badge)
@@ -75,4 +75,15 @@ it('ends every column with an add tile that links to the create panel only when 
   expect(withTile).toContain('data-testid="crm-board-add"')
   expect(withTile).toContain('Deal')
   expect(await boardHtml('UTC', 'Asia/Riyadh', { items: [owned] })).not.toContain('crm-board-add')
+})
+
+it('draws placeholder columns while loading, never an empty board, and fades the real board in', async () => {
+  const loading = await boardHtml('UTC', undefined, { items: [], loading: true })
+  expect(loading).toContain('data-testid="crm-board-loading"')
+  expect(loading).toContain('aria-busy="true"')
+  expect(loading).not.toContain('data-testid="crm-board"')
+  expect(loading).not.toContain('crm.opportunities.board.emptyColumn')
+  const loaded = await boardHtml('UTC')
+  expect(loaded).toContain('liwan-soft-in')
+  expect(loaded).not.toContain('crm-board-loading')
 })

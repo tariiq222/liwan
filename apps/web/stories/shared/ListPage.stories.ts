@@ -4,11 +4,11 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppSidebar from '../../app/components/shell/AppSidebar.vue'
 import ShellFrame from '@liwan/ui/app/components/shell/ShellFrame.vue'
-import ShellHeader from '../../app/components/shell/ShellHeader.vue'
+import AppTopBar from '../../app/components/shell/AppTopBar.vue'
 import DataTable from '@liwan/ui/app/components/shared/data/DataTable.vue'
 import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import ListPage from '@liwan/ui/app/components/shared/layout/ListPage.vue'
-import { __getRouter, useCookie } from '../../.storybook/nuxt-shims'
+import { __getRouter } from '../../.storybook/nuxt-shims'
 import { shellHandlers } from '../handlers/shell'
 import { people, projectRefs } from '../fixtures/pmo'
 import { storyContext } from '../support/context'
@@ -89,10 +89,9 @@ export const InShell: Story = {
   name: 'داخل الإطار (C و /)',
   loaders: [at('/projects')],
   render: () => ({
-    components: { AppSidebar, Page: page, ShellFrame, ShellHeader },
-    setup: () => { useCookie<'open' | 'closed'>('liwan-context-sidebar').value = 'open' },
+    components: { AppSidebar, Page: page, ShellFrame, AppTopBar },
     template: `<ShellFrame>
-      <template #header><ShellHeader /></template>
+      <template #topbar><AppTopBar /></template>
       <template #sidebar><AppSidebar /></template>
       <main class="liwan-shell-main" data-testid="shell-main"><Page /></main>
     </ShellFrame>`,

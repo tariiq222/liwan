@@ -9,22 +9,22 @@ const dir = (name: string) => resolve(import.meta.dirname, '..', name)
 const NuxtLink = Vue.defineComponent({ inheritAttrs: false, props: { to: { type: String, default: '' } }, setup: (props, { attrs, slots }) => () => Vue.h('a', { ...attrs, href: props.to }, slots.default?.()) })
 const UButton = Vue.defineComponent({ inheritAttrs: false, props: { to: { type: String, default: '' }, label: { type: String, default: '' } }, setup: (props, { attrs }) => () => Vue.h(props.to ? 'a' : 'button', { ...attrs, href: props.to || undefined }, props.label) })
 const UBadge = Vue.defineComponent({ inheritAttrs: false, props: { label: { type: String, default: '' } }, setup: (props, { attrs }) => () => Vue.h('span', attrs, props.label) })
-const SharedLoadingSkeleton = Vue.defineComponent({ setup: () => () => Vue.h('div', { 'data-testid': 'skeleton' }) })
 const messages = {
   'home.focus': 'ابدأ بالأهم', 'home.focusSubtitle': 'مرتبة حسب الاستعجال', 'home.viewAll': 'عرض الكل', 'home.focusEmpty': 'لا شيء عاجل الآن.',
-  'home.rail.previous': 'السابق', 'home.rail.next': 'التالي', 'nav.myTasks': 'مهامي',
+  'home.rail.previous': 'السابق', 'home.rail.next': 'التالي', 'nav.myTasks': 'مهامي', 'app.loading': 'جارٍ التحميل',
 }
 const row = (id: number, tone: 'urgent' | 'normal' = 'normal') => ({ id: `r${id}`, label: `بند ${id}`, to: `/x/${id}`, tone, module: 'tasks', work: 'execute' })
 const ErrorState = (retry: (callback: () => void) => void) => Vue.defineComponent({ emits: ['retry'], setup: (_, { attrs, emit }) => { retry(() => emit('retry')); return () => Vue.h('div', { ...attrs, role: 'alert' }, 'error') } })
 
 function options({ available = true, pending = false, failed = false, refetch = vi.fn(), retry = (_callback: () => void) => {}, rows = [] as ReturnType<typeof row>[] } = {}) {
-  const stubs = { ...DEFAULT_STUBS, NuxtLink, UButton, UBadge, SharedLoadingSkeleton, SharedErrorState: ErrorState(retry) }
+  const stubs = { ...DEFAULT_STUBS, NuxtLink, UButton, UBadge, SharedErrorState: ErrorState(retry) }
   const load = (name: string) => ({ __esModule: true, default: loadShared(dir(name), { messages, stubs, globals: { ref: Vue.ref } }) })
   return {
     messages, stubs,
     modules: {
       '@/components/home/HomeFocusCard.vue': load('HomeFocusCard.vue'),
       '@/components/home/HomeRail.vue': load('HomeRail.vue'),
+      '@/components/home/HomeRailSkeleton.vue': load('HomeRailSkeleton.vue'),
       '@/components/home/HomeSection.vue': load('HomeSection.vue'),
       '@/composables/nav/shellModules': { shellModuleList: () => [{ id: 'tasks', labelKey: 'nav.myTasks', icon: 'i-lucide-check-square' }] },
       '@/composables/useMyWork': { useMyWork: () => ({ available: Vue.computed(() => available), pending: Vue.computed(() => pending), failed: Vue.computed(() => failed), refetch, rows: Vue.computed(() => rows) }) },
@@ -89,7 +89,7 @@ describe('HomeFocus', () => {
   it('says so when there is nothing to start with, and shows a skeleton while loading', async () => {
     expect(await render({ rows: [] })).toContain('لا شيء عاجل الآن.')
     const loading = await render({ pending: true })
-    expect(loading).toContain('skeleton')
+    expect(loading).toContain('home-rail-skeleton')
     expect(loading).not.toContain('home-focus-empty')
   })
 
