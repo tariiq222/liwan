@@ -164,7 +164,7 @@ jobs:
           playwright: ${{ matrix.part == 'tests' && 'true' || 'false' }}
           python: ${{ matrix.part != 'types' && 'true' || 'false' }}
       - name: Python tools
-        if: steps.profile.outputs.mode != 'docs' && matrix.part != 'types'
+        if: steps.profile.outputs.mode != 'docs' && matrix.part == 'policies'
         run: python -m pip install --quiet ruff==0.16.3 semgrep==1.170.0
       - run: deploy/ci/static.sh ${{ matrix.part }}
         if: steps.profile.outputs.mode != 'docs'

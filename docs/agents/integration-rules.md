@@ -144,8 +144,11 @@ When marking a PR ready under the standing authorization, enable auto-merge in t
 (`gh pr merge <n> --auto --merge`) so GitHub merges it the moment the current-head `ci-result` is
 green, without waiting for an agent to come back. Auto-merge never bypasses protection: it waits
 for the required check and for resolved conversations. Disable it (`gh pr merge <n> --disable-auto`)
-before pushing a change that still needs review, and do not enable it on a PR that needs an owner
-decision or a separate authorization. Step 6 (verify and synchronize) still runs after the merge.
+before pushing a change that still needs review. Do not enable it on a PR that needs an owner
+decision or a separate authorization, or on one that changes authentication, authorization, tenant
+isolation, migrations or the CI rules that decide what must pass: those merge only after their
+independent review (see "Keep the PR loop short"). Inspect the selected and skipped stages before
+enabling it. Step 6 (verify and synchronize) still runs after the merge.
 
 Keep the PR in draft while its diff, applicable local checks and review notes are
 being prepared. Mark it ready once the candidate is stable, and batch related
