@@ -59,24 +59,24 @@ async function removeKey() {
 <template>
   <SharedRecordSection id="key" variant="panel" class="liwan-settings-anchor" :title="t('ai.settings.key.title')" :description="t('ai.settings.key.hint')" data-testid="ai-settings-key">
     <template #actions>
-      <UBadge v-if="config.key.configured" color="success" variant="subtle" class="rounded-full" :label="t('ai.settings.key.configured', { last4: config.key.last4 })" />
-      <UBadge v-else color="neutral" variant="subtle" class="rounded-full" :label="t('ai.settings.key.missing')" />
+      <UBadge v-if="config.key.configured" color="success" variant="subtle" :label="t('ai.settings.key.configured', { last4: config.key.last4 })" />
+      <UBadge v-else color="neutral" variant="subtle" :label="t('ai.settings.key.missing')" />
     </template>
     <form class="liwan-form grid gap-4" novalidate @submit.prevent="saveKey">
       <UAlert v-if="failure" role="alert" color="error" variant="subtle" :title="t('app.saveFailed')" :description="failure" />
       <div class="liwan-setting-rows">
-        <UFormField orientation="horizontal" :label="t('ai.settings.key.provider')" name="provider">
+        <SharedSettingRow :label="t('ai.settings.key.provider')" name="provider">
           <USelect id="ai-key-provider" v-model="provider" class="w-full" :items="providers" :disabled="busy" :aria-label="t('ai.settings.key.provider')" />
-        </UFormField>
+        </SharedSettingRow>
         <UFormField v-if="needsBaseUrl" orientation="horizontal" :label="t('ai.settings.key.baseUrl')" name="base_url" :description="t('ai.settings.key.baseUrlHint')">
           <UInput id="ai-key-base-url" v-model="baseUrl" type="url" class="w-full" dir="ltr" autocomplete="off" placeholder="https://api.example.com/v1" :disabled="busy" maxlength="512" />
         </UFormField>
-        <UFormField orientation="horizontal" :label="t('ai.settings.key.model')" name="model" :description="t('ai.settings.key.modelHint')">
+        <SharedSettingRow :label="t('ai.settings.key.model')" name="model" :description="t('ai.settings.key.modelHint')">
           <UInput id="ai-key-model" v-model="model" class="w-full" dir="ltr" autocomplete="off" :disabled="busy" maxlength="128" />
-        </UFormField>
-        <UFormField orientation="horizontal" :label="t('ai.settings.key.value')" name="api_key" :description="t('ai.settings.key.valueHint')">
+        </SharedSettingRow>
+        <SharedSettingRow :label="t('ai.settings.key.value')" name="api_key" :description="t('ai.settings.key.valueHint')">
           <UInput id="ai-key-value" v-model="apiKey" type="password" class="w-full" dir="ltr" autocomplete="new-password" :disabled="busy" maxlength="512" />
-        </UFormField>
+        </SharedSettingRow>
       </div>
       <SharedInlineConfirm
         v-if="confirmingRemove"

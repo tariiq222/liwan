@@ -6,7 +6,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shared/SegmentedControl',
   component: SegmentedControl,
-  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/components/pmo/tasks/TaskToolbar.vue:209', 'المجموعة المستديرة الواحدة للنطاقات والأنواع والتجميع والمقاييس: حاوية بحلقة وحبّات، المختارة `soft` وبقيتها `ghost`. تعمل بـ v-model، وتنتظر التهيئة، وتصلح بأيقونات فقط (مبدّل العرض) أو بملء الصف.') },
+  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/components/pmo/tasks/TaskToolbar.vue:209', 'المجموعة الواحدة للنطاقات والأنواع والتجميع والمقاييس: حاوية بزاوية 12px وحشوة 4px وقطع بزاوية 8px، المختارة سطح مرفوع بحلقة وظل خفيف ووزن 600 وبقيتها `ghost` رمادية. تعمل بـ v-model، وتنتظر التهيئة، وتصلح بأيقونات فقط (مبدّل العرض) أو بملء الصف.') },
   args: { label: 'النطاق', modelValue: 'open', items: [{ value: 'open', label: 'مفتوحة' }, { value: 'closed', label: 'مغلقة' }] },
   render: args => ({
     components: { SegmentedControl },

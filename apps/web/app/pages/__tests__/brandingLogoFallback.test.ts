@@ -16,7 +16,14 @@ describe('branding without a logo', () => {
     expect(source).toContain("'sr-only': !branding?.name")
   })
 
-  it.each(['components/shell/ShellHeader.vue', 'pages/meetings/[id]/print.vue'])('%s guards on logo_url', (file) => {
-    expect(read(file)).toContain('v-if="branding?.logo_url"')
+  it('the meeting print page guards on logo_url', () => {
+    expect(read('pages/meetings/[id]/print.vue')).toContain('v-if="branding?.logo_url"')
+  })
+
+  it('the sidebar organisation card draws a logo only when the tenant has one, and its initial otherwise', () => {
+    expect(read('components/shell/AppSidebar.vue')).toContain(':logo-url="branding?.logo_url"')
+    const card = readFileSync(resolve(app, '../../../packages/ui/app/components/shell/ShellOrgCard.vue'), 'utf8')
+    expect(card).toContain('v-if="props.logoUrl"')
+    expect(card).toContain('v-else data-slot="initial"')
   })
 })

@@ -42,7 +42,7 @@ onMounted(() => {
       class="[&>svg]:text-muted flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3"
     >
       <div
-        class="h-2 w-2 shrink-0 rounded-xs"
+        class="h-2 w-2 shrink-0 rounded-full"
         :style="{
           backgroundColor: itemConfig?.color,
         }"

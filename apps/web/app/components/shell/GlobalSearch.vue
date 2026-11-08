@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { refDebounced, useMediaQuery } from '@vueuse/core'
 import type { CommandPaletteGroup, CommandPaletteItem, CommandPaletteProps } from '@nuxt/ui'
-import { useNav, type NavItem } from '@/composables/nav/shellModules'
+import { useNav, visibleShellModules, type NavItem } from '@/composables/nav/shellModules'
 import {
-  commandItems, goToItems, helpItems, paletteGroups, PALETTE_SECTION_LIMIT, visibleCommands, type PaletteItem,
+  appItems, commandItems, goToItems, helpItems, paletteGroups, PALETTE_SECTION_LIMIT, visibleCommands, type PaletteItem,
 } from '@/composables/nav/paletteModel'
 import { isApplePlatform } from '@liwan/ui/app/composables/shortcuts/keymap'
 import { useAppSearch } from '@/composables/useAppSearch'
@@ -122,11 +122,13 @@ function onBackspace() {
 const liveGroups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => {
   if (!open.value) return []
   const visible = useNav(me.value)
+  const apps = appItems(visibleShellModules(me.value), visible, key => t(key))
   const shortcutsEntry: PaletteItem = { id: 'command:shortcuts', label: t('shortcuts.title'), icon: 'i-lucide-keyboard', kbds: ['?'], kbdsHidden: true, action: { kind: 'shortcuts' } }
   return paletteGroups({
     view: view.value,
     term: trimmed.value,
-    goTo: goToItems(visible, navLabel),
+    apps,
+    goTo: goToItems(visible, navLabel, apps),
     search: sections.filter(section => section.visible.value).map(section => ({
       id: section.provider.id,
       label: t(section.provider.labelKey),
@@ -141,7 +143,7 @@ const liveGroups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => {
     help: helpItems(visible, key => t(key), item => t('shortcuts.goTo', { name: navLabel(item) })),
     returnTo: route.fullPath,
     labels: {
-      goTo: t('nav.goTo'), actions: t('search.actions'), shortcuts: t('shortcuts.title'),
+      apps: t('nav.apps'), goTo: t('nav.goTo'), actions: t('search.actions'), shortcuts: t('shortcuts.title'),
       loading: t('search.loading'), error: t('search.error'), loadMore: t('app.loadMore'),
     },
   }).map(group => ({ ...group, items: group.items.map(toItem) }))

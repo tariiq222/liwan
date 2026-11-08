@@ -62,12 +62,12 @@ function clear() {
         v-for="flow in items"
         :key="flow.id"
         :to="flowsRoute(props.channelId, route.query, `/${flow.id}`)"
-        class="flex flex-col gap-1.5 px-(--liwan-card-pad) py-3 text-start transition-colors duration-150 hover:bg-(--liwan-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+        class="flex flex-col gap-1.5 px-(--liwan-card-pad) py-3 text-start transition-colors hover:bg-(--liwan-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
         :data-testid="`inbox-flow-${flow.id}`"
       >
         <span class="flex flex-wrap items-center justify-between gap-3">
           <span class="flex min-w-0 items-center gap-3">
-            <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"><UIcon name="i-lucide-clipboard-list" class="size-5" aria-hidden="true" /></span>
+            <span class="flex size-9 shrink-0 items-center justify-center rounded-tile bg-primary/10 text-primary"><UIcon name="i-lucide-clipboard-list" class="size-5" aria-hidden="true" /></span>
             <span class="min-w-0">
               <bdi class="block truncate text-sm font-medium text-highlighted">{{ flow.name }}</bdi>
               <span class="block truncate text-xs text-muted">{{ t(`inbox.flows.category.${flow.category}`) }} · <bdi dir="ltr">{{ flow.language }}</bdi><template v-if="can('inbox.conversations.read')"> · {{ t('inbox.flows.submissionCount', { n: flow.submission_count }) }}</template></span>

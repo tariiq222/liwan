@@ -5,19 +5,18 @@ import { badgeLabel } from '@liwan/ui/app/utils/statusBadge'
 import type { ProjectUpdate } from '@liwan/contracts'
 import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 import { useProjectUpdates } from '@/composables/useProjectUpdates'
-import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
-const props = defineProps<{ projectId: number; canManage: boolean }>()
+// The feed under the summary's latest update: every update after the newest, newest first. The latest panel above owns the
+// loading, error and empty states, so this draws nothing until there is an earlier update to list.
+const props = defineProps<{ projectId: number }>()
 
 const { t } = useI18n()
 const projectBadge = (status: ProjectStatus | null) => { const entry = projectStatusBadge(status); return { tone: entry.tone, label: badgeLabel(entry, status, t) } }
 const hydrated = useHydrated()
 
 const projectIdRef = computed(() => props.projectId)
-const { data, isLoading, error, refetch } = useProjectUpdates(projectIdRef)
-const items = computed<ProjectUpdate[]>(() => [...(data.value ?? [])].sort((a, b) => b.date.localeCompare(a.date)))
-const router = useRouter()
-const route = useRoute()
+const { data } = useProjectUpdates(projectIdRef)
+const items = computed<ProjectUpdate[]>(() => [...(data.value ?? [])].sort((a, b) => b.date.localeCompare(a.date)).slice(1))
 
 // u.date is a YYYY-MM-DD calendar date, not an instant — new Date(iso) parses
 // it as UTC midnight and renders a day early west of Greenwich.
@@ -53,21 +52,10 @@ function measure() {
 useResizeObserver(listEl, measure)
 watch(items, () => nextTick(measure), { flush: 'post' })
 onMounted(measure)
-
-function openCreate() {
-  router.push({ path: `/projects/${props.projectId}/updates/new`, query: returnToQuery(route.fullPath) })
-}
 </script>
 
 <template>
-  <SharedLoadingSkeleton v-if="isLoading" />
-  <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
-  <SharedEmptyState v-else-if="items.length === 0" bordered :title="t('projects.updates.empty')" :description="t('projects.updates.emptyHint')">
-    <template v-if="canManage" #action>
-      <UButton data-testid="project-update-new" size="sm" icon="i-lucide-plus" :disabled="!hydrated" :label="t('projects.updates.new')" @click="openCreate" />
-    </template>
-  </SharedEmptyState>
-  <SharedListCard v-else>
+  <SharedRecordSection v-if="items.length" variant="list" data-testid="project-overview-updates" :title="t('projects.updates.earlier')">
     <ol ref="listEl" class="divide-y divide-default">
       <li v-for="u in items" :key="u.id">
         <article data-testid="project-update" class="grid min-w-0 gap-2 px-(--liwan-card-pad) py-4">
@@ -88,5 +76,5 @@ function openCreate() {
         </article>
       </li>
     </ol>
-  </SharedListCard>
+  </SharedRecordSection>
 </template>

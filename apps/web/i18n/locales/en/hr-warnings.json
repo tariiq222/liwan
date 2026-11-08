@@ -100,7 +100,7 @@
     },
     "settings": {
       "title": "Administrative warnings",
-      "hint": "Choose who issues warnings, whether employees must answer them, and how long a warning counts toward escalation.",
+      "hint": "Who issues warnings, whether employees answer them, and how long they count toward escalation.",
       "issuedBy": "Who can issue warnings",
       "issuedByOption": {
         "hr_only": "HR only",

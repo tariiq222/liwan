@@ -47,8 +47,8 @@ function clearFilters() {
 <template>
   <SharedPageContainer data-testid="work-page">
     <SharedPageHeader :title="t('myTasks.work.title')">
-      <UButton to="/my-tasks" color="neutral" variant="outline" size="sm" class="rounded-full" icon="i-lucide-list-checks" :label="t('myTasks.work.myList')" data-testid="work-my-list" />
-      <UButton v-if="can('tasks.tasks.create')" to="/my-tasks/new" size="sm" class="rounded-full" icon="i-lucide-plus" :label="t('myTasks.new')" data-testid="work-new-task" />
+      <UButton to="/my-tasks" color="neutral" variant="outline" size="sm" icon="i-lucide-list-checks" :label="t('myTasks.work.myList')" data-testid="work-my-list" />
+      <UButton v-if="can('tasks.tasks.create')" to="/my-tasks/new" size="sm" icon="i-lucide-plus" :label="t('myTasks.new')" data-testid="work-new-task" />
     </SharedPageHeader>
     <p class="-mt-2 text-sm text-muted">{{ t('myTasks.work.description') }}</p>
     <SharedListCard>

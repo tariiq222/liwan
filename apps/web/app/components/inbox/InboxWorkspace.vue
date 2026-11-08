@@ -14,13 +14,15 @@ import { replyWindowOpen } from '@/composables/inbox/inboxWindow'
 import { useInboxCatalogEnabled, useInboxChannelCommerce } from '@/composables/inbox/useInboxCatalog'
 import { useInboxConversation, useInboxConversations, useMarkInboxConversationRead } from '@/composables/inbox/useInbox'
 
-// The inbox screen on SharedConversationLayout. From 768px the list is the shell's context-sidebar panel
-// (InboxSidebarPanel); below it the list, the thread and the contact panel replace one another. The contact panel is
-// the URL /inbox/<id>/info, so a direct link, a refresh and Back all work and the list filters stay in the query.
+// The inbox page: the page header, then one 24px frame with the conversation list on the inline-start (360px) and the
+// thread beside it. Below 768px the list, the thread and the contact panel replace one another; an open contact panel
+// sits beside the thread from 1280px and replaces it below that. The contact panel is the URL /inbox/<id>/info, so a
+// direct link, a refresh and Back all work and the list filters stay in the query.
 const props = defineProps<{ conversationId?: number; infoOpen?: boolean; ordersOpen?: boolean }>()
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
+const { can } = useAccess()
 const routeState = computed(() => parseInboxListRoute(route.query))
 const listQuery = computed(() => serializeInboxListRoute(routeState.value))
 const { data, error, refetch } = useInboxConversation(() => props.conversationId)
@@ -53,102 +55,100 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
 </script>
 
 <template>
-  <SharedConversationLayout :has-selection="hasSelection" :info-open="panelOpen">
-    <template #list>
-      <InboxConversationList page-heading :route-state="routeState" @update:route-state="updateRoute" />
-    </template>
-
-    <template #header>
-      <header class="flex flex-wrap items-center gap-2 border-b border-default bg-default px-3 py-2">
-        <UTooltip :text="t('app.back')">
-          <UButton color="neutral" variant="ghost" square class="md:hidden" :to="{ path: '/inbox', query: listQuery }" :aria-label="t('app.back')">
-            <UIcon name="i-lucide-arrow-left" class="size-5 rtl:rotate-180" aria-hidden="true" />
-          </UButton>
-        </UTooltip>
-        <UAvatar v-bind="avatarProps(data?.contact.name, data?.contact.id)" size="lg" class="shrink-0" />
-        <div class="min-w-0 flex-1 text-start">
-          <h1 class="truncate text-lg font-semibold text-highlighted">{{ data?.contact.name || t('inbox.title') }}</h1>
-          <p v-if="data" class="flex min-w-0 items-center gap-1 text-xs text-muted">
-            <UIcon :name="CHANNEL_KIND_ICON[data.channel.kind]" class="size-3.5 shrink-0" aria-hidden="true" />
-            <span class="truncate">{{ data.channel.name }}</span>
-            <template v-if="data.contact.phone">· <bdi dir="ltr" class="truncate">{{ data.contact.phone }}</bdi></template>
-          </p>
-        </div>
-        <SharedStatusBadge v-if="data?.csat" :tone="CSAT_TONE[data.csat.score]" icon="i-lucide-star" :label="t('inbox.csat.badge', { score: t(`inbox.csat.${data.csat.score}`) })" data-testid="inbox-csat-badge" />
-        <UTooltip v-if="data?.referral_source" :text="data.referral_ref ? t('inbox.referral.ref', { ref: data.referral_ref }) : t('inbox.referral.badge', { source: t(`inbox.referral.${data.referral_source}`) })">
-          <SharedStatusBadge tone="info" icon="i-lucide-megaphone" :label="t('inbox.referral.badge', { source: t(`inbox.referral.${data.referral_source}`) })" data-testid="inbox-referral-badge" />
-        </UTooltip>
-        <SharedStatusBadge v-if="data" :tone="CONVERSATION_STATE_TONE[data.state]" :label="t(`inbox.states.${data.state}`)" />
-        <UTooltip v-if="catalogOn" :text="t('inbox.orders.title')">
-          <UButton color="neutral" :variant="ordersOpen ? 'soft' : 'ghost'" square :to="ordersOpen ? threadTo : ordersTo" :aria-pressed="ordersOpen" :aria-label="t('inbox.orders.title')" data-testid="inbox-orders-toggle">
-            <UIcon name="i-lucide-shopping-cart" class="size-5" aria-hidden="true" />
-          </UButton>
-        </UTooltip>
-        <UTooltip :text="t('inbox.panel.title')">
-          <UButton
-            color="neutral"
-            :variant="infoOpen ? 'soft' : 'ghost'"
-            square
-            :to="infoOpen ? threadTo : infoTo"
-            :aria-pressed="infoOpen"
-            :aria-label="t('inbox.panel.title')"
-            data-testid="inbox-info-toggle"
-          >
-            <UIcon name="i-lucide-info" class="size-5" aria-hidden="true" />
-          </UButton>
-        </UTooltip>
-      </header>
-    </template>
-
-    <template #thread>
-      <div class="flex min-h-0 flex-1 flex-col" data-testid="inbox-thread">
-        <template v-if="props.conversationId && !error">
-          <InboxThread :conversation-id="props.conversationId" :channel-id="data?.channel.id" :channel-kind="data?.channel.kind" :can-reply="data?.can_reply ?? false" :window-open="!!data && replyWindowOpen(data)" @reply="replyTo = $event" />
-        </template>
-        <template v-else>
-          <!-- The one page heading when no thread header is shown. -->
-          <h1 class="sr-only">{{ t('inbox.title') }}</h1>
-          <SharedForbiddenState v-if="status === 403" :description="t('inbox.unavailable')" />
-          <SharedNotFoundState v-else-if="status === 404" class="m-4" :back-to="{ path: '/inbox', query: listQuery }" :back-label="t('inbox.title')" />
-          <SharedErrorState v-else :error="error" class="m-4" @retry="refetch()" />
-        </template>
-      </div>
-    </template>
-
-    <template v-if="data" #composer>
-      <InboxComposer v-if="data.can_reply" :key="data.id" v-model:reply-to="replyTo" :conversation="data" :commerce-ready="commerceReady" />
-      <UAlert v-else class="m-2" color="neutral" variant="subtle" icon="i-lucide-eye" data-testid="inbox-read-only" :title="t('inbox.composer.readOnly')" :description="t('inbox.composer.readOnlyDescription')" />
-    </template>
-
-    <template #info="{ headingLevel }">
-      <header class="flex flex-wrap items-center gap-2 border-b border-default bg-default px-3 py-2">
-        <UTooltip :text="t('app.back')">
-          <UButton color="neutral" variant="ghost" square :to="threadTo" :aria-label="t('app.back')">
-            <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-          </UButton>
-        </UTooltip>
-        <component :is="headingLevel" class="min-w-0 flex-1 truncate text-base font-semibold text-highlighted">{{ ordersOpen ? t('inbox.orders.title') : t('inbox.panel.title') }}</component>
-      </header>
-      <div class="min-h-0 flex-1 overflow-y-auto">
-        <InboxOrderPanel v-if="data && ordersOpen" :conversation-id="data.id" :window-open="replyWindowOpen(data)" />
-        <InboxContactPanel v-else-if="data" :conversation="data" />
-      </div>
-    </template>
-
-    <template #empty>
-      <div class="grid w-full max-w-md place-items-center">
-        <!-- The one page heading when no thread is open. -->
-        <h1 class="sr-only">{{ t('inbox.title') }}</h1>
-        <EmptyState
-          class="w-full"
-          :title="hasConversations ? t('inbox.select') : t('inbox.list.empty')"
-          :description="hasConversations ? t('inbox.selectDescription') : t('inbox.list.emptyDescription')"
-        >
-          <template #icon>
-            <UIcon name="i-lucide-messages-square" class="size-8" />
+  <SharedPageContainer>
+    <SharedPageHeader :title="t('inbox.title')">
+      <template v-if="can('inbox.channels.manage')" #actions>
+        <UButton to="/settings/apps/inbox/channels" color="neutral" variant="soft" icon="i-lucide-settings" :label="t('inbox.settings.channels.title')" data-testid="inbox-channels-link" />
+      </template>
+    </SharedPageHeader>
+    <SharedConversationLayout :has-selection="hasSelection" :info-open="panelOpen">
+      <template #list>
+        <InboxConversationList class="min-h-0 flex-1" :route-state="routeState" :selected-id="props.conversationId" @update:route-state="updateRoute" />
+      </template>
+      <template #header>
+        <header class="flex flex-wrap items-center gap-2 border-b-[1.5px] border-default bg-default px-[18px] py-3">
+          <UTooltip :text="t('app.back')">
+            <UButton color="neutral" variant="ghost" square class="md:hidden" :to="{ path: '/inbox', query: listQuery }" :aria-label="t('app.back')">
+              <UIcon name="i-lucide-arrow-left" class="size-5 rtl:rotate-180" aria-hidden="true" />
+            </UButton>
+          </UTooltip>
+          <UAvatar v-bind="avatarProps(data?.contact.name, data?.contact.id)" class="size-10 shrink-0" />
+          <div class="min-w-0 flex-1 text-start">
+            <h2 class="truncate text-[17px]/[1.3] font-semibold text-highlighted">{{ data?.contact.name || t('inbox.title') }}</h2>
+            <p v-if="data" class="flex min-w-0 items-center gap-1 text-xs text-muted">
+              <UIcon :name="CHANNEL_KIND_ICON[data.channel.kind]" class="size-3.5 shrink-0" :class="{ 'text-[#25d366]': data.channel.kind === 'whatsapp' }" aria-hidden="true" />
+              <span class="truncate">{{ data.channel.name }}</span>
+              <template v-if="data.contact.phone">· <bdi dir="ltr" class="truncate">{{ data.contact.phone }}</bdi></template>
+            </p>
+          </div>
+          <SharedStatusBadge v-if="data?.csat" :tone="CSAT_TONE[data.csat.score]" icon="i-lucide-star" :label="t('inbox.csat.badge', { score: t(`inbox.csat.${data.csat.score}`) })" data-testid="inbox-csat-badge" />
+          <UTooltip v-if="data?.referral_source" :text="data.referral_ref ? t('inbox.referral.ref', { ref: data.referral_ref }) : t('inbox.referral.badge', { source: t(`inbox.referral.${data.referral_source}`) })">
+            <SharedStatusBadge tone="info" icon="i-lucide-megaphone" :label="t('inbox.referral.badge', { source: t(`inbox.referral.${data.referral_source}`) })" data-testid="inbox-referral-badge" />
+          </UTooltip>
+          <SharedStatusBadge v-if="data" :tone="CONVERSATION_STATE_TONE[data.state]" :label="t(`inbox.states.${data.state}`)" />
+          <UTooltip v-if="catalogOn" :text="t('inbox.orders.title')">
+            <UButton color="neutral" :variant="ordersOpen ? 'soft' : 'ghost'" square :to="ordersOpen ? threadTo : ordersTo" :aria-pressed="ordersOpen" :aria-label="t('inbox.orders.title')" data-testid="inbox-orders-toggle">
+              <UIcon name="i-lucide-shopping-cart" class="size-5" aria-hidden="true" />
+            </UButton>
+          </UTooltip>
+          <UTooltip :text="t('inbox.panel.title')">
+            <UButton
+              color="neutral"
+              :variant="infoOpen ? 'soft' : 'ghost'"
+              square
+              :to="infoOpen ? threadTo : infoTo"
+              :aria-pressed="infoOpen"
+              :aria-label="t('inbox.panel.title')"
+              data-testid="inbox-info-toggle"
+            >
+              <UIcon name="i-lucide-info" class="size-5" aria-hidden="true" />
+            </UButton>
+          </UTooltip>
+        </header>
+      </template>
+      <template #thread>
+        <div class="flex min-h-0 flex-1 flex-col" data-testid="inbox-thread">
+          <template v-if="props.conversationId && !error">
+            <InboxThread :conversation-id="props.conversationId" :channel-id="data?.channel.id" :channel-kind="data?.channel.kind" :can-reply="data?.can_reply ?? false" :window-open="!!data && replyWindowOpen(data)" @reply="replyTo = $event" />
           </template>
-        </EmptyState>
-      </div>
-    </template>
-  </SharedConversationLayout>
+          <template v-else>
+            <SharedForbiddenState v-if="status === 403" :description="t('inbox.unavailable')" />
+            <SharedNotFoundState v-else-if="status === 404" class="m-4" :back-to="{ path: '/inbox', query: listQuery }" :back-label="t('inbox.title')" />
+            <SharedErrorState v-else :error="error" class="m-4" @retry="refetch()" />
+          </template>
+        </div>
+      </template>
+      <template v-if="data" #composer>
+        <InboxComposer v-if="data.can_reply" :key="data.id" v-model:reply-to="replyTo" :conversation="data" :commerce-ready="commerceReady" />
+        <UAlert v-else class="m-2" color="neutral" variant="subtle" icon="i-lucide-eye" data-testid="inbox-read-only" :title="t('inbox.composer.readOnly')" :description="t('inbox.composer.readOnlyDescription')" />
+      </template>
+      <template #empty>
+        <div class="grid w-full max-w-md place-items-center">
+          <EmptyState
+            class="w-full"
+            :title="hasConversations ? t('inbox.select') : t('inbox.list.empty')"
+            :description="hasConversations ? t('inbox.selectDescription') : t('inbox.list.emptyDescription')"
+          >
+            <template #icon>
+              <UIcon name="i-lucide-messages-square" class="size-8" />
+            </template>
+          </EmptyState>
+        </div>
+      </template>
+      <template #info>
+        <header class="flex flex-wrap items-center gap-2 border-b-[1.5px] border-default bg-default px-[18px] py-3">
+          <UTooltip :text="t('app.back')">
+            <UButton color="neutral" variant="ghost" square :to="threadTo" :aria-label="t('app.back')">
+              <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
+            </UButton>
+          </UTooltip>
+          <h2 class="min-w-0 flex-1 truncate text-base font-semibold text-highlighted">{{ ordersOpen ? t('inbox.orders.title') : t('inbox.panel.title') }}</h2>
+        </header>
+        <div class="min-h-0 flex-1 overflow-y-auto">
+          <InboxOrderPanel v-if="data && ordersOpen" :conversation-id="data.id" :window-open="replyWindowOpen(data)" />
+          <InboxContactPanel v-else-if="data" :conversation="data" />
+        </div>
+      </template>
+    </SharedConversationLayout>
+  </SharedPageContainer>
 </template>

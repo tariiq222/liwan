@@ -2,6 +2,7 @@
 import { ApiError } from '@/composables/useApi'
 import { useDeleteTaskAttachment, useTaskAttachments, useUploadTaskAttachment } from '@/composables/useTaskAttachments'
 import { ATTACHMENT_ACCEPT, attachmentSizeProblem, fileToBase64 } from '@/utils/attachmentFile'
+import RecordBlock from '../records/RecordBlock.vue'
 
 // The project task's wiring of `SharedAttachmentList`.
 const props = defineProps<{ taskId: number; canWrite: boolean }>()
@@ -51,11 +52,7 @@ async function deleteFile(attachmentId: number) {
 </script>
 
 <template>
-  <section data-testid="task-attachments" class="space-y-3">
-    <header class="flex flex-wrap items-center justify-between gap-3">
-      <h2 class="text-lg font-semibold text-highlighted">{{ t('attachments.title') }}</h2>
-      <span v-if="data" class="text-xs text-muted">{{ data.items.length }}</span>
-    </header>
+  <RecordBlock data-testid="task-attachments" :title="t('attachments.title')" :count="data?.items.length">
     <SharedAttachmentList
       :attachments="data?.items ?? []"
       :labels="labels"
@@ -69,5 +66,5 @@ async function deleteFile(attachmentId: number) {
       upload-id="task-attachment-upload"
       @retry="refetch"
     />
-  </section>
+  </RecordBlock>
 </template>

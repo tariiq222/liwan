@@ -23,7 +23,7 @@ const messages: Record<string, string> = {
   'ai.history.title': 'محادثات أخيرة', 'ai.history.new': 'محادثة جديدة', 'ai.history.empty': 'لا محادثات بعد',
   'ai.history.waiting': 'بانتظار قرارك', 'ai.history.failed': 'تعذّر إكمالها', 'ai.history.untitled': 'بلا عنوان',
   'ai.history.emptyArchived': 'لا مؤرشفة', 'ai.history.views.label': 'عرض', 'ai.history.views.active': 'المحادثات', 'ai.history.views.archived': 'المؤرشفة',
-  'ai.history.groups.today': 'اليوم', 'ai.history.groups.older': 'أقدم', 'ai.history.privacy': 'محادثاتك خاصة', 'ai.name': 'المساعد',
+  'ai.history.groups.today': 'اليوم', 'ai.history.groups.older': 'أقدم', 'ai.history.privacy': 'محادثاتك خاصة',
   'ai.history.actions.menu': 'خيارات', 'ai.history.actions.rename': 'تغيير الاسم', 'ai.history.actions.archive': 'أرشفة', 'ai.history.actions.unarchive': 'إلغاء الأرشفة',
 }
 const runs = [
@@ -46,7 +46,6 @@ async function renderList(options: { runs?: typeof runs; run?: string; loading?:
   const component = new Function(...Object.keys(bindings), js(script))(...Object.values(bindings))
   const app = Vue.createSSRApp(Vue.defineComponent({ setup: () => ({ ...component.setup({}, { expose: () => {}, emit: () => {} }) }), render }))
   app.component('NuxtLink', Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => Vue.h('a', { ...attrs, to: undefined, href: `${(attrs.to as any).path}?run=${(attrs.to as any).query.run}` }, slots.default?.()) }))
-  app.component('AiAvatar', Vue.defineComponent({ setup: () => () => Vue.h('i', { 'data-testid': 'ai-avatar' }) }))
   app.component('UInput', Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }) => () => Vue.h('input', { type: 'search', 'data-testid': attrs['data-testid'] as string }) }))
   app.component('UButton', Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }) => () => Vue.h('a', { href: attrs.to as string, 'data-testid': attrs['data-testid'] as string }, String(attrs.label)) }))
   app.component('SharedSegmentedControl', Vue.defineComponent({
@@ -110,5 +109,9 @@ describe('AiRunList', () => {
     expect(await renderList({ loading: true })).not.toContain('ai-run-item')
     expect(await renderList({ error: new Error('x') })).toContain('<p>error</p>')
     expect(await renderList({ hydrated: false })).toContain('<p>loading</p>')
+  })
+
+  it('heads the pane with the history title', async () => {
+    expect(await renderList()).toMatch(/<h2[^>]*>محادثات أخيرة<\/h2>/)
   })
 })

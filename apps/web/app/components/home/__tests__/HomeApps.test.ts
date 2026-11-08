@@ -1,113 +1,93 @@
 import { resolve } from 'node:path'
 import * as Vue from 'vue'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { DEFAULT_STUBS, loadShared, renderShared } from '@liwan/ui/test/helpers/renderShared'
-import { createHostNode, findNodes, hostRenderer } from '@liwan/ui/test/helpers/hostRenderer'
-import * as launcherModel from '../../../composables/nav/launcherModel'
-import * as shellModules from '../../../composables/nav/shellModules'
-import { withManifests } from '../../../modules/manifests'
-import type { AppManifest } from '../../../modules/types'
+import { createHostNode, findNode, findNodes, hostRenderer, type HostNode } from '@liwan/ui/test/helpers/hostRenderer'
+import { filterAppCards, presentCategories } from '../../../composables/useAppCards'
 
 const file = resolve(import.meta.dirname, '../HomeApps.vue')
-const cardFile = resolve(import.meta.dirname, '../../launcher/LauncherCard.vue')
-
-const app = (id: string, order: number, capability: string, top = false): AppManifest => ({
-  id, feature: `${id}.enabled`, routePrefixes: [`/${id}`],
-  rail: [{ id, labelKey: `nav.${id}`, icon: 'i-lucide-circle', to: `/${id}`, order, ...(top ? { fixed: 'top' as const } : {}) }],
-  nav: [{ to: `/${id}`, labelKey: `nav.${id}`, icon: 'i-lucide-circle', shortcut: '', capability }],
-})
-const manifests = [app('tasks', 10, 'tasks.read'), app('finance', 20, 'finance.read'), app('chat', 30, 'chat.read'), app('ai', 40, 'ai.use', true)]
-const capabilities = ['tasks.read', 'finance.read', 'chat.read', 'ai.use']
+const dir = (name: string) => resolve(import.meta.dirname, '..', name)
+const Card = Vue.defineComponent({ props: { card: { type: Object, default: () => ({}) }, description: { type: String, default: '' } }, setup: props => () => Vue.h('article', { 'data-app': (props.card as { id: string }).id }, props.description) })
 const messages = {
-  'home.apps': 'تطبيقاتك', 'nav.tasks': 'المهام', 'nav.finance': 'المالية', 'nav.chat': 'المحادثات', 'nav.ai': 'Liwan AI',
+  'home.apps': 'تطبيقاتك', 'home.appsSubtitle': 'كل تطبيق بأرقامه الحية', 'home.filter.label': 'تصفية التطبيقات', 'home.filter.all': 'الكل', 'home.filter.sales': 'المبيعات والعملاء', 'home.filter.team': 'الفريق والتشغيل',
   'launcher.apps.tasks.description': 'مهامك الشخصية',
-  'launcher.open': 'فتح التطبيق', 'launcher.pin': 'تثبيت', 'launcher.unpin': 'إزالة', 'launcher.pinLimit': 'الحد', 'launcher.actions': 'إجراءات سريعة',
 }
 const t = (key: string) => messages[key as keyof typeof messages] ?? key
 const te = (key: string) => key in messages
+const card = (id: string, category: 'sales' | 'team') => ({ id, labelKey: `nav.${id}`, icon: 'i-lucide-circle', to: `/${id}`, pinnable: true, category, plan: 'addon', surface: 'lav', figures: [] })
+const cards = [card('crm', 'sales'), card('tasks', 'team'), card('chat', 'team')]
 
-function identity(grants: string[] = capabilities) {
-  const features = manifests.map(manifest => manifest.feature)
-  return { id: 1, capabilities: grants, platform: { state: 'active', read_only: false, readable_features: features, writable_features: features } }
-}
-
-const UTooltip = Vue.defineComponent({
-  props: { text: { type: String, default: '' } },
-  setup(_, { slots }) { return () => Vue.h('span', slots.default?.()) },
-})
-
-function options(grants: string[], pins: string[], atLimit: boolean, toggle: (id: string) => void, hydrated = true) {
+function options() {
   return {
-    messages, hydrated,
-    globals: {
-      useI18n: () => ({ t, te }),
-      useMe: () => ({ me: Vue.ref(identity(grants)) }),
-      useShellModel: () => ({ railPins: { pins: Vue.ref(pins), atLimit: Vue.ref(atLimit), toggle } }),
-    },
+    messages,
+    globals: { useI18n: () => ({ t, te }), ref: Vue.ref, computed: Vue.computed },
+    stubs: { ...DEFAULT_STUBS },
     modules: {
-      '@/components/launcher/LauncherCard.vue': { __esModule: true, default: loadShared(cardFile, { messages, stubs: { UTooltip } }) },
-      '@/composables/nav/launcherModel': launcherModel,
-      '@/composables/nav/shellModules': shellModules,
+      '@/components/home/HomeAppCard.vue': { __esModule: true, default: Card },
+      '@/components/home/HomeRail.vue': { __esModule: true, default: loadShared(dir('HomeRail.vue'), { globals: { ref: Vue.ref } }) },
+      '@/components/home/HomeSection.vue': { __esModule: true, default: loadShared(dir('HomeSection.vue'), { messages }) },
+      '@/composables/useAppCards': { filterAppCards, presentCategories },
     },
-    stubs: { ...DEFAULT_STUBS, UTooltip },
   }
 }
+const render = (list: unknown[] = cards) => renderShared(file, { cards: list }, {}, options())
+const apps = (html: string) => [...html.matchAll(/data-app="([^"]+)"/g)].map(match => match[1])
 
-const render = (grants = capabilities, pins = ['tasks'], atLimit = false) =>
-  withManifests(manifests, () => renderShared(file, {}, {}, options(grants, pins, atLimit, () => undefined)))
-
-const cards = (html: string) => [...html.matchAll(/data-app="([^"]+)"/g)].map(match => match[1])
-
-function mount(grants = capabilities, pins = ['tasks'], atLimit = false) {
-  const toggle = vi.fn()
-  return withManifests(manifests, () => {
-    const app = hostRenderer.createApp(loadShared(file, options(grants, pins, atLimit, toggle)))
-    for (const [name, component] of Object.entries({ ...DEFAULT_STUBS, UTooltip })) app.component(name, component as Vue.Component)
-    const host = createHostNode()
-    app.mount(host)
-    return { host, toggle, unmount: () => app.unmount() }
-  })
+function mount() {
+  const app = hostRenderer.createApp(Vue.defineComponent({ render: () => Vue.h(loadShared(file, options()), { cards }) }))
+  const host = createHostNode()
+  const opts = options()
+  for (const [name, component] of Object.entries(opts.stubs)) app.component(name, component as Vue.Component)
+  app.mount(host)
+  return { host, unmount: () => app.unmount() }
 }
+const names = (host: HostNode) => findNodes(host, node => node.props['data-app'] !== undefined).map(node => node.props['data-app'])
 
 describe('HomeApps', () => {
-  it('shows the applications section with one card per application and its description', async () => {
+  it('shows «تطبيقاتك» as a labelled rail with one card per application and its tagline', async () => {
     const html = await render()
     expect(html).toContain('data-testid="home-apps"')
     expect(html).toContain('تطبيقاتك')
-    expect(cards(html)).toEqual(['tasks', 'finance', 'chat'])
+    expect(html).toContain('role="region"')
+    expect(apps(html)).toEqual(['crm', 'tasks', 'chat'])
     expect(html).toContain('مهامك الشخصية')
   })
 
-  it('never makes the assistant (fixed at the top of the rail) a card, even when the user may use it', async () => {
-    expect(capabilities).toContain('ai.use')
-    expect(cards(await render())).not.toContain('ai')
+  it('offers the chips «الكل» then each present category, with «الكل» pressed', async () => {
+    const html = await render()
+    expect(html.match(/<button[^>]*>/g)).toHaveLength(3)
+    expect(html).toMatch(/aria-pressed="true"[^>]*data-testid="home-apps-filter-all"|data-testid="home-apps-filter-all"[^>]*aria-pressed="true"/)
+    expect(html.indexOf('الكل')).toBeLessThan(html.indexOf('المبيعات والعملاء'))
+    expect(html.indexOf('المبيعات والعملاء')).toBeLessThan(html.indexOf('الفريق والتشغيل'))
   })
 
-  it('renders nothing at all without a reachable application', async () => {
+  it('offers no chips when only one category is present', async () => {
+    const html = await render([card('tasks', 'team'), card('chat', 'team')])
+    expect(html).not.toContain('home-apps-filter')
+  })
+
+  it('keeps only the cards of the chip that is pressed, and all again on «الكل»', async () => {
+    const view = mount()
+    try {
+      const press = (option: string) => (findNode(view.host, node => node.props['data-testid'] === `home-apps-filter-${option}`)!.props.onClick as () => void)()
+      expect(names(view.host)).toEqual(['crm', 'tasks', 'chat'])
+      press('team')
+      await Vue.nextTick()
+      expect(names(view.host)).toEqual(['tasks', 'chat'])
+      press('sales')
+      await Vue.nextTick()
+      expect(names(view.host)).toEqual(['crm'])
+      press('all')
+      await Vue.nextTick()
+      expect(names(view.host)).toEqual(['crm', 'tasks', 'chat'])
+    } finally {
+      view.unmount()
+    }
+  })
+
+  it('renders nothing at all without an application', async () => {
     const html = await render([])
     expect(html).not.toContain('data-testid="home-apps"')
     expect(html).not.toContain('تطبيقاتك')
-  })
-
-  it('toggles the pin of the card it belongs to', () => {
-    const view = mount()
-    try {
-      const pin = findNodes(view.host, node => node.props['data-testid'] === 'launcher-pin' && node.props['aria-label'] === 'إزالة: المهام')[0]
-      ;(pin!.props.onClick as () => void)()
-      expect(view.toggle).toHaveBeenCalledExactlyOnceWith('tasks')
-    } finally {
-      view.unmount()
-    }
-  })
-
-  it('disables the pin of an unpinned card at the pin limit, and keeps a pinned card usable', () => {
-    const view = mount(capabilities, ['tasks', 'finance', 'hr', 'meetings', 'documents', 'crm'], true)
-    try {
-      const pin = (id: string) => findNodes(view.host, node => node.props['data-testid'] === 'launcher-pin' && String(node.props['aria-label']).endsWith(`: ${t(`nav.${id}`)}`))[0]
-      expect(pin('tasks')?.props.disabled).toBe(false)
-      expect(pin('chat')?.props.disabled).toBe(true)
-    } finally {
-      view.unmount()
-    }
   })
 })

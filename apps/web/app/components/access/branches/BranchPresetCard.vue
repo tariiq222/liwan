@@ -34,10 +34,9 @@ const items = computed(() => BRANCH_PRESETS.map(value => ({
     id="branch-preset" v-bind="state" :title="t('access.branches.presets.title')" :description="t('access.branches.presets.description')"
     :can-edit="true" :save-label="t('access.branches.presets.apply')" @save="save" @revert="revert" @reload="reload"
   >
-    <URadioGroup
-      v-model="draft.preset" variant="card" indicator="hidden" :items="items" :disabled="locked"
-      :aria-label="t('access.branches.presets.title')" data-testid="branch-preset"
-      :ui="{ fieldset: 'liwan-auto-grid' }"
+    <SharedOptionCards
+      v-model="draft.preset" :options="items" :disabled="locked"
+      :label="t('access.branches.presets.title')" data-testid="branch-preset"
     />
     <UAlert v-if="policy.preset === 'custom'" color="neutral" variant="subtle" :title="t('access.branches.presets.custom')" :description="t('access.branches.presets.customHint')" />
     <UAlert v-if="state.dirty" color="warning" variant="subtle" :title="t('access.branches.presets.confirm')" />

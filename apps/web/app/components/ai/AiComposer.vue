@@ -1,5 +1,7 @@
 <script setup lang="ts">
-// Enter sends, Shift+Enter inserts a newline; the full page has two rows, the sheet (`compact`) one. The line under the
+// The prompt box (24px surface, 1.5px border, soft shadow): the field, then a row with the default slot (the starter
+// chips of an empty conversation) and the send button at the inline-end. Enter sends, Shift+Enter inserts a newline;
+// the full prompt has two rows; `compact` (the sheet and an open conversation) is one row in a smaller box. The line under the
 // field reminds users not to type sensitive data: free text cannot be fully scanned (spec 2026-11-04 §6.12).
 const props = defineProps<{
   disabled: boolean
@@ -29,7 +31,11 @@ function onKeydown(event: KeyboardEvent) {
 
 <template>
   <div class="grid gap-1.5">
-    <form class="flex items-end gap-2 rounded-card bg-default p-3 ring ring-accented focus-within:ring-2 focus-within:ring-primary" @submit.prevent="submit">
+    <form
+      class="flex flex-col gap-3 border-[1.5px] border-default bg-default focus-within:border-(--primary-solid)"
+      :class="props.compact ? 'rounded-card p-3' : 'rounded-surface p-[18px] shadow-[0_24px_60px_rgb(20_16_42/10%)] dark:shadow-[0_24px_50px_-18px_rgb(0_0_0/55%)]'"
+      @submit.prevent="submit"
+    >
       <UTextarea
         v-model="text"
         class="min-w-0 flex-1"
@@ -41,20 +47,24 @@ function onKeydown(event: KeyboardEvent) {
         :placeholder="t('ai.composer.placeholder')"
         :aria-label="t('ai.composer.placeholder')"
         :aria-describedby="noticeId"
-        :ui="{ base: 'w-full resize-none px-1 py-1' }"
+        :ui="{ base: props.compact ? 'w-full resize-none px-1 py-1' : 'w-full resize-none px-1 py-1 text-[17px]' }"
         data-testid="ai-composer"
         @keydown="onKeydown"
       />
-      <UButton
-        type="submit"
-        class="liwan-touch-target shrink-0 rounded-full"
-        icon="i-lucide-arrow-up"
-        size="lg"
-        :disabled="!canSend"
-        :loading="props.pending"
-        :aria-label="t(props.pending ? 'ai.composer.sending' : 'ai.composer.send')"
-        data-testid="ai-send"
-      />
+      <div class="flex flex-wrap items-center gap-2">
+        <slot />
+        <UButton
+          type="submit"
+          class="liwan-touch-target ms-auto shrink-0"
+          icon="i-lucide-send"
+          :size="props.compact ? 'md' : 'lg'"
+          :label="props.compact ? undefined : t(props.pending ? 'ai.composer.sending' : 'ai.composer.send')"
+          :disabled="!canSend"
+          :loading="props.pending"
+          :aria-label="t(props.pending ? 'ai.composer.sending' : 'ai.composer.send')"
+          data-testid="ai-send"
+        />
+      </div>
     </form>
     <p :id="noticeId" class="px-1 text-xs text-muted" data-testid="ai-composer-notice">{{ t('ai.composer.notice') }}</p>
   </div>

@@ -14,8 +14,10 @@ describe('the projects list is one list card with an embedded filter row', () =>
     for (const needle of ['<SharedListCard>', '<FilterBar embedded', 'views-in-filters', 'data-testid="projects-toolbar"']) expect(page, needle).toContain(needle)
   })
 
-  it('draws no chip row, no bare toolbar div and no per-page result paragraph', () => {
-    for (const gone of ['<SharedFilterChip', 'SharedFilterChoice', '<UTabs', 'projects.refresh.workspace.resultCount']) expect(page, gone).not.toContain(gone)
+  it('draws the presets as one chip row above the card and no other chip, tab or status select', () => {
+    expect(page.match(/<ProjectListChips/g)).toHaveLength(1)
+    expect(page.indexOf('<ProjectListChips')).toBeLessThan(page.indexOf('<SharedListCard>'))
+    for (const gone of ['<SharedFilterChip', 'SharedFilterChoice', '<UTabs', 'projects-status-filter', 'projects-scope', 'projects.refresh.workspace.resultCount']) expect(page, gone).not.toContain(gone)
   })
 
   it('shows the count and the pager in the card footer, for both views', () => {

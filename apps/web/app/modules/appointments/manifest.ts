@@ -4,6 +4,7 @@ const manifest: AppManifest = {
   id: 'appointments',
   feature: 'appointments.enabled',
   routePrefixes: ['/appointments'],
+  appCard: { category: 'sales', plan: 'addon', surface: 'lime' },
   rail: [{ id: 'appointments', labelKey: 'appointments.title', icon: 'i-lucide-calendar-clock', to: '/appointments', order: 80 }],
   nav: [
     { to: '/appointments', labelKey: 'appointments.nav.types', icon: 'i-lucide-calendar-clock', shortcut: 'd', capability: 'appointments.bookings.read' },

@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
 import AppSidebar from '../../app/components/shell/AppSidebar.vue'
 import ShellFrame from '@liwan/ui/app/components/shell/ShellFrame.vue'
-import ShellHeader from '../../app/components/shell/ShellHeader.vue'
+import AppTopBar from '../../app/components/shell/AppTopBar.vue'
 import BrandWordmark from '@liwan/ui/app/components/shared/layout/BrandWordmark.vue'
 import StandalonePage from '@liwan/ui/app/components/shared/layout/StandalonePage.vue'
 import { __getRouter } from '../../.storybook/nuxt-shims'
@@ -57,7 +57,7 @@ export const WithBrandHeader: Story = {
     template: `<StandalonePage v-bind="args">
       <template #header>
         <div class="flex flex-col items-center text-center">
-          <span class="mb-3 grid size-12 place-items-center rounded-xl bg-primary text-lg font-bold text-primary-foreground">ن</span>
+          <span class="mb-3 grid size-12 place-items-center rounded-card bg-primary text-lg font-bold text-primary-foreground">ن</span>
           <h1 class="text-2xl font-semibold text-highlighted">{{ t('app.productName') }}</h1>
           <p class="text-sm text-muted">{{ t('auth.signInToContinue') }}</p>
         </div>
@@ -103,10 +103,10 @@ export const PrintInShell: Story = {
   parameters: { msw: { handlers: { api: shellHandlers } } },
   loaders: [async () => { await __getRouter()!.replace('/tasks'); return {} }],
   render: () => ({
-    components: { AppSidebar, ShellFrame, ShellHeader, StandalonePage },
+    components: { AppSidebar, ShellFrame, AppTopBar, StandalonePage },
     setup: () => ({ t: useI18n().t }),
     template: `<ShellFrame>
-      <template #header><ShellHeader /></template>
+      <template #topbar><AppTopBar /></template>
       <template #sidebar><AppSidebar /></template>
       <main class="liwan-shell-main" data-testid="shell-main"><StandalonePage variant="print" :title="t('meetingMinutesForm.documentTitle')">${DOCUMENT}</StandalonePage></main>
     </ShellFrame>`,

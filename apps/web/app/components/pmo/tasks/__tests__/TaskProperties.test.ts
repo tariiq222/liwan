@@ -13,7 +13,7 @@ describe('task core properties without planning',()=>{
    '@internationalized/date':dates,
    '@/utils/listFormat':{joinList:(values:string[])=>values.join(',')},
    '@liwan/ui/app/composables/calendarDate':{formatLiwanDate:()=>'',formatLiwanDateTime:()=>''},
-   '@/composables/usePersonalStages':{usePersonalStages:()=>({data:ref([])})},
+   '@/composables/taskState':{STATE_LABEL_KEY:new Proxy({},{get:(_,key)=>String(key)})},
    '@/composables/useTasks':{useUpdateTask:()=>({mutate:vi.fn()})},
    '@/composables/useMilestones':{useMilestones:(id:any)=>{queries.push(id);return{data:ref([])}}},
    '@/composables/useProjects':{useProject:(id:any)=>{queries.push(id);return{data:ref(undefined)}}},

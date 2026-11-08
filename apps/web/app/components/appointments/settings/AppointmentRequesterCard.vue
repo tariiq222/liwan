@@ -34,12 +34,12 @@ const fieldKeys = ['phone_field', 'email_field', 'national_id_field', 'notes_fie
 
 <template>
   <SharedSettingsCard id="requester" v-bind="state" :title="t('appointments.settings.requester.title')" :description="t('appointments.settings.requester.hint')" :can-edit="canEdit" data-testid="appointments-requester" @save="save" @revert="revert" @reload="reload">
-    <UFormField orientation="horizontal" :label="t('appointments.settings.requester.selfBooking')" name="self_booking_policy" :description="t('appointments.settings.requester.selfBookingHint')">
+    <SharedSettingRow :label="t('appointments.settings.requester.selfBooking')" name="self_booking_policy" :description="t('appointments.settings.requester.selfBookingHint')">
       <USelect id="appointments-self-booking" v-model="draft.self_booking_policy" class="w-full" :items="policyItems" :disabled="locked" />
-    </UFormField>
-    <UFormField orientation="horizontal" :label="t('appointments.settings.requester.confirmation')" :description="t('appointments.settings.requester.confirmationHint')">
+    </SharedSettingRow>
+    <SharedSettingRow :label="t('appointments.settings.requester.confirmation')" :description="t('appointments.settings.requester.confirmationHint')">
       <USwitch id="appointments-confirmation" v-model="draft.requester_confirmation" :disabled="locked" :aria-label="t('appointments.settings.requester.confirmation')" />
-    </UFormField>
+    </SharedSettingRow>
     <UFormField v-for="key in fieldKeys" :key="key" orientation="horizontal" :label="t(`appointments.settings.requester.fields.${key}`)" :name="key">
       <USelect :id="`appointments-${key}`" v-model="draft[key]" class="w-full" :items="requirementItems" :disabled="locked" />
     </UFormField>

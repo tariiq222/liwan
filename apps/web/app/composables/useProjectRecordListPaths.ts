@@ -24,10 +24,10 @@ export function useProjectRecordListPaths(id: MaybeRefOrGetter<number | null>, o
       .filter(section => canReach(me.value, section.capability, section.to))
     const governance = sections.some(section => section.id === 'governance')
       ? governanceSections(projectId, { changeControl: project.value?.change_control_mode !== 'off' && hasFeature(me.value, 'pmo.change_control') }) : []
-    const planning = sections.some(section => section.id === 'planning')
+    // The milestones and baselines pages open from the tasks (their timeline view), so they need the tasks section and the planning tool.
+    const planning = sections.some(section => section.id === 'tasks') && projectSectionAvailable('planning', tools)
       ? planningSections(projectId, { active: project.value?.active ?? true, baselines: hasFeature(me.value, 'pmo.baselines') }) : []
-    const meetingsPath = `/projects/${projectId}/meetings`
-    const secondary = canReach(me.value, 'meetings.read', meetingsPath) ? [meetingsPath] : []
+    const secondary: string[] = []
     if (projectSectionAvailable('evm', tools) && hasFeature(me.value, 'pmo.evm')) secondary.push(`/projects/${projectId}/evm`)
     return [...toValue(owning), ...planning.map(section => section.to), ...sections.map(section => section.to), ...governance.map(section => section.to), ...secondary]
   })

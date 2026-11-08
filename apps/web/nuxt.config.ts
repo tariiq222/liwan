@@ -56,6 +56,9 @@ export default defineNuxtConfig({
     { path: '~/components', ignore: ['**/__tests__/**'] },
   ],
   app: {
+    // Route changes swap only the page inside <main> (the shell is never keyed on the route); its CSS is `.liwan-page-*` in
+    // packages/ui/app/assets/css/layout.css, built on the shared motion tokens and neutralised under reduced motion.
+    pageTransition: { name: 'liwan-page', mode: 'out-in' },
     head: {
       title: 'liwan',
       meta: [{ name: 'viewport', content: 'width=device-width, initial-scale=1' }],
@@ -146,9 +149,21 @@ export default defineNuxtConfig({
   vite: {
     define: { __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: process.env.LIWAN_HYDRATION_DEBUG === '1' },
     // Pre-bundle deps that only lazily-loaded pages import. Discovered late,
-    // Vite re-optimizes and changes the dep hash, so an open page's module
-    // imports fail with 504 "Outdated Optimize Dep" and the route errors.
-    optimizeDeps: { include: ['@tanstack/vue-table'] },
+    // Vite re-optimizes and changes the dep hash: the dev server then reloads the whole page in the middle of a
+    // client-side navigation (a "hard reload" when opening an app) and an open page's module imports can fail with
+    // 504 "Outdated Optimize Dep".
+    optimizeDeps: {
+      include: [
+        '@tanstack/vue-query',
+        '@tanstack/vue-table',
+        '@tiptap/extension-link',
+        '@unovis/ts',
+        '@unovis/vue',
+        '@vue/devtools-core',
+        'vue-draggable-plus',
+        'zod',
+      ],
+    },
   },
   typescript: { strict: true },
 })

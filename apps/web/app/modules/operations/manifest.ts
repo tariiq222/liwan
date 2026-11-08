@@ -5,6 +5,7 @@ import { operationPersonalEntry } from './personal'
 import { pendingReviewAttention } from './attention'
 const manifest: AppManifest = {
   id: 'operations', feature: 'operations.enabled', routePrefixes: ['/operations', '/account/requests'],
+  appCard: { category: 'team', plan: 'included', surface: 'sand' },
   rail: [{ id: 'operations', labelKey: 'operations.title', icon: 'i-lucide-workflow', to: '/operations', order: 60 }],
   nav: [
     { to: '/operations', labelKey: 'operations.nav.mine', icon: 'i-lucide-files', shortcut: 'o', capability: 'operations.requests.read' },

@@ -39,7 +39,7 @@ describe('project workspace memory', () => {
 })
 
 describe('tool-aware workspace restoration',()=>{
- it.each(['register','milestones','charter','finance','schedule'])('keeps the sanitized %s destination while metadata is unresolved',section=>{
+ it.each(['register','milestones','charter','finance'])('keeps the sanitized %s destination while metadata is unresolved',section=>{
   const saved=savedProjectLocation(`/projects/7/${section}`,{q:'review'})
   expect(projectEntryLocation(7,'/projects?mine=1',saved)).toEqual({path:`/projects/7/${section}`,query:{q:'review',returnTo:'/projects?mine=1',projectListReturnTo:'/projects?mine=1'}})
  })

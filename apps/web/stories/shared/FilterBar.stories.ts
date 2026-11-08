@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { fn } from 'storybook/test'
 import { ProjectStatusSchema } from '@liwan/contracts'
 import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
+import SegmentedControl from '@liwan/ui/app/components/shared/data/SegmentedControl.vue'
 import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
@@ -39,7 +40,7 @@ export const EmbeddedInCardHeader: Story = {
       const items = computed(() => ProjectStatusSchema.options.map(value => ({ value, label: t(`projects.status.${value}`) })))
       return { args, t, status, items, search: ref('') }
     },
-    template: `<main class="liwan-shell-main"><PageContainer><div class="overflow-hidden rounded-card bg-default ring ring-default"><div class="border-b border-default px-(--liwan-card-pad-dense) py-3"><FilterBar class="w-full" embedded v-bind="args"><template #search><UInput v-model="search" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" icon="i-lucide-search" class="w-full min-w-52" /></template><template #default><USelect v-model="status" multiple :items="items" :placeholder="t('projects.filters.allStatuses')" :aria-label="t('projects.filters.allStatuses')" class="w-full md:w-44" /></template></FilterBar></div></div></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer><div class="liwan-card overflow-hidden rounded-card"><div class="border-b border-default px-(--liwan-card-pad-dense) py-3"><FilterBar class="w-full" embedded v-bind="args"><template #search><UInput v-model="search" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" icon="i-lucide-search" class="w-full min-w-52" /></template><template #default><USelect v-model="status" multiple :items="items" :placeholder="t('projects.filters.allStatuses')" :aria-label="t('projects.filters.allStatuses')" class="w-full md:w-44" /></template></FilterBar></div></div></PageContainer></main>`,
   }),
 }
 export const EmbeddedTaskFilters: Story = {
@@ -66,7 +67,28 @@ export const EmbeddedTaskFilters: Story = {
       ])
       return { args, t, priority, assignee, priorityItems, assigneeItems, deadlineItems, deadline: ref(undefined), search: ref('') }
     },
-    template: `<main class="liwan-shell-main"><PageContainer><div class="overflow-hidden rounded-card bg-default ring ring-default"><div class="border-b border-default px-(--liwan-card-pad-dense) py-3"><FilterBar class="w-full" embedded v-bind="args"><template #search><UInput v-model="search" :placeholder="t('tasks.filters.search')" :aria-label="t('tasks.filters.search')" icon="i-lucide-search" class="w-full min-w-52" /></template><template #default><USelect v-model="priority" multiple icon="i-lucide-flag" :items="priorityItems" :placeholder="t('tasks.filters.priorityLabel')" :aria-label="t('tasks.filters.priorityLabel')" class="w-full md:w-40" /><USelect v-model="assignee" icon="i-lucide-user" :items="assigneeItems" :placeholder="t('tasks.filters.assigneeLabel')" :aria-label="t('tasks.filters.assigneeLabel')" class="w-full md:w-40" /><USelect v-model="deadline" icon="i-lucide-calendar-clock" :items="deadlineItems" :placeholder="t('tasks.filters.deadlineLabel')" :aria-label="t('tasks.filters.deadlineLabel')" class="w-full md:w-40" /></template></FilterBar></div></div></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer><div class="liwan-card overflow-hidden rounded-card"><div class="border-b border-default px-(--liwan-card-pad-dense) py-3"><FilterBar class="w-full" embedded v-bind="args"><template #search><UInput v-model="search" :placeholder="t('tasks.filters.search')" :aria-label="t('tasks.filters.search')" icon="i-lucide-search" class="w-full min-w-52" /></template><template #default><USelect v-model="priority" multiple icon="i-lucide-flag" :items="priorityItems" :placeholder="t('tasks.filters.priorityLabel')" :aria-label="t('tasks.filters.priorityLabel')" class="w-full md:w-40" /><USelect v-model="assignee" icon="i-lucide-user" :items="assigneeItems" :placeholder="t('tasks.filters.assigneeLabel')" :aria-label="t('tasks.filters.assigneeLabel')" class="w-full md:w-40" /><USelect v-model="deadline" icon="i-lucide-calendar-clock" :items="deadlineItems" :placeholder="t('tasks.filters.deadlineLabel')" :aria-label="t('tasks.filters.deadlineLabel')" class="w-full md:w-40" /></template></FilterBar></div></div></PageContainer></main>`,
   }),
+}
+const tabletTemplate = `<main class="liwan-shell-main"><PageContainer><div class="liwan-card overflow-hidden rounded-card"><div class="border-b border-default px-(--liwan-card-pad-dense) py-3"><FilterBar class="w-full" embedded v-bind="args"><template #search><UInput v-model="search" :placeholder="t('tasks.filters.search')" :aria-label="t('tasks.filters.search')" icon="i-lucide-search" class="w-full" /></template><template #default><USelect v-model="priority" multiple icon="i-lucide-flag" :items="priorityItems" :placeholder="t('tasks.filters.priorityLabel')" :aria-label="t('tasks.filters.priorityLabel')" class="w-full md:w-40" /><USelect v-model="assignee" icon="i-lucide-user" :items="assigneeItems" :placeholder="t('tasks.filters.assigneeLabel')" :aria-label="t('tasks.filters.assigneeLabel')" class="w-full md:w-40" /></template><template #view><SegmentedControl :label="t('states.view')" :items="views" v-model="view" /></template></FilterBar></div></div></PageContainer></main>`
+const narrowSetup = () => {
+  const { t } = useI18n()
+  const priority = ref<string[]>([])
+  const assignee = ref('all')
+  const view = ref('table')
+  const priorityItems = computed(() => ['3', '2', '1', '0'].map(value => ({ value, label: t(`tasks.priority.${value}`) })))
+  const assigneeItems = computed(() => [{ value: 'all', label: t('tasks.filters.assigneeAll') }, { value: 'me', label: t('tasks.filters.assigneeMe') }])
+  const views = computed(() => [{ value: 'table', label: t('myTasks.list.tableView'), icon: 'i-lucide-list' }, { value: 'board', label: t('myTasks.list.cardView'), icon: 'i-lucide-layout-grid' }])
+  return { t, priority, assignee, view, priorityItems, assigneeItems, views, search: ref('') }
+}
+export const Narrow: Story = {
+  name: 'ضيق (تابلت): البحث في صف كامل والشرائح تحته',
+  parameters: { viewport: { defaultViewport: 'tablet' } },
+  render: args => ({ components: { FilterBar, PageContainer, SegmentedControl }, setup: () => ({ args, ...narrowSetup() }), template: tabletTemplate }),
+}
+export const Mobile: Story = {
+  name: 'جوال: بحث بعرض الصف وزر الفلاتر ومبدّل العرض بعرض الصف',
+  parameters: { viewport: { defaultViewport: 'mobile1' } },
+  render: args => ({ components: { FilterBar, PageContainer, SegmentedControl }, setup: () => ({ args, ...narrowSetup() }), template: tabletTemplate }),
 }
 export const Disabled: Story = { name: 'معطّل', args: { disabled: true, activeCount: 1 } }

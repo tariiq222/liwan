@@ -10,6 +10,8 @@ export const PROJECT_STATUS_LABEL_KEY: Record<ProjectStatus, string> = {
   on_hold: 'projects.status.on_hold',
   done: 'projects.status.done',
 }
+/** The statuses that need a look, worst first: the «تحتاج انتباه» filter, row and attention provider all mean these. */
+export const PROJECT_ATTENTION_STATUSES = ['off_track', 'at_risk'] as const satisfies readonly ProjectStatus[]
 export const PROJECT_STATUS_UNSET_KEY = 'projects.status.unset'
 
 export const PROJECT_STATUS_TONE: Record<ProjectStatus, StateTone> = {

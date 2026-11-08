@@ -188,11 +188,8 @@ function credentialLabel(field: string): string {
       />
     </template>
 
-    <UFormField
-      orientation="horizontal"
-      :label="t('payments.mode.label')"
-      :description="provider.configured ? t('payments.mode.hint') : `${t('payments.mode.hint')} ${t('payments.mode.needsKeys')}`"
-    >
+    <SharedSettingRow :label="t('payments.mode.label')"
+      :description="provider.configured ? t('payments.mode.hint') : `${t('payments.mode.hint')} ${t('payments.mode.needsKeys')}`">
       <SharedSegmentedControl
         :model-value="provider.state"
         :items="modes"
@@ -201,7 +198,7 @@ function credentialLabel(field: string): string {
         data-testid="payments-mode"
         @update:model-value="chooseMode"
       />
-    </UFormField>
+    </SharedSettingRow>
     <div v-if="confirmingLive || modeFailure !== null">
       <SharedInlineConfirm
         v-if="confirmingLive"
@@ -252,11 +249,11 @@ function credentialLabel(field: string): string {
     <UAlert v-if="outcome" role="status" :color="outcome.color" variant="subtle" :title="t(outcome.titleKey)" :description="t(outcome.descriptionKey)" :data-testid="`payments-sync-${syncOutcome}`" />
     <UAlert v-if="syncFailure !== null" role="alert" color="error" variant="subtle" :title="t('payments.sync.failed')" :description="syncFailure || undefined" data-testid="payments-sync-error" />
 
-    <UFormField orientation="horizontal" :label="t('payments.methods.label')">
+    <SharedSettingRow :label="t('payments.methods.label')">
       <ul v-if="provider.methods.length" class="flex flex-wrap gap-2" data-testid="payments-methods">
         <li v-for="method in provider.methods" :key="method" dir="ltr"><SharedStatusBadge tone="neutral" :label="method" /></li>
       </ul>
       <p v-else class="text-sm text-muted">{{ t('payments.methods.empty') }}</p>
-    </UFormField>
+    </SharedSettingRow>
   </SharedSettingsCard>
 </template>

@@ -8,9 +8,9 @@ import { useInboxDepartments } from '@/composables/inbox/useInboxSettings'
 import { CONVERSATION_STATES, CONVERSATION_STATE_TONE, CSAT_SCORES, CSAT_TONE, PRIORITIES, INBOX_PRIORITY_TONE, inboxFileKindKey, inboxListTime } from '@/composables/inbox/inboxPresentation'
 import { INBOX_PAGE_SIZE, inboxListQuery, inboxPageOffset, serializeInboxListRoute, type InboxListRoute } from '@/composables/inbox/inboxListRoute'
 
-// The conversation list: filters (assignee, state, department, search) are the URL query, owned by the page that hosts
+// The conversation list pane of the inbox page (its left column): filters (assignee, state, department, search) are the URL query, owned by the page that hosts
 // this list. The component only reads them and emits the next filter state.
-const props = defineProps<{ routeState: InboxListRoute; selectedId?: number; pageHeading?: boolean }>()
+const props = defineProps<{ routeState: InboxListRoute; selectedId?: number }>()
 const emit = defineEmits<{ 'update:routeState': [InboxListRoute, options?: { replace: boolean }] }>()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
@@ -28,6 +28,8 @@ watch(q, (value) => {
 })
 
 const ALL = 'all'
+// Four filters share the pane's width as soft chips, two to a row.
+const FILTER_SELECT = 'min-w-0 flex-[1_1_calc(50%-4px)]'
 const scopeItems = computed(() => [
   { value: 'all', label: t('inbox.list.scopeAll') },
   { value: 'me', label: t('inbox.list.scopeMine') },
@@ -85,25 +87,23 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
 
 <template>
   <section class="flex h-full min-h-0 flex-col" data-testid="inbox-list" :aria-label="t('inbox.list.label')">
-    <h1 v-if="props.pageHeading" class="px-3 pt-3 text-lg font-semibold text-highlighted">{{ t('inbox.title') }}</h1>
-    <header class="flex flex-none items-center gap-2 px-3 pt-2 pb-1">
-      <form class="flex min-w-0 flex-1" @submit.prevent="applySearch">
-        <UInput
-          id="inbox-list-search"
-          v-model="q"
-          class="w-full"
-          :ui="{ base: 'rounded-full px-9 text-center' }"
-          icon="i-lucide-search"
-          :placeholder="t('inbox.list.search')"
-          :aria-label="t('inbox.list.search')"
-          :disabled="!hydrated"
-        />
-      </form>
-      <UTooltip v-if="can('inbox.conversations.export')" :text="t('inbox.list.export')">
-        <UButton :href="exportHref" external download color="neutral" variant="ghost" square icon="i-lucide-download" :aria-label="t('inbox.list.export')" data-testid="inbox-export" />
-      </UTooltip>
-    </header>
-    <div class="flex flex-none flex-col gap-2 px-3 pt-0.5 pb-2">
+    <div class="flex flex-none flex-col gap-2 border-b-[1.5px] border-default p-3">
+      <div class="flex items-center gap-2">
+        <form class="flex min-w-0 flex-1" @submit.prevent="applySearch">
+          <UInput
+            id="inbox-list-search"
+            v-model="q"
+            class="w-full"
+            icon="i-lucide-search"
+            :placeholder="t('inbox.list.search')"
+            :aria-label="t('inbox.list.search')"
+            :disabled="!hydrated"
+          />
+        </form>
+        <UTooltip v-if="can('inbox.conversations.export')" :text="t('inbox.list.export')">
+          <UButton :href="exportHref" external download color="neutral" variant="soft" square icon="i-lucide-download" :aria-label="t('inbox.list.export')" data-testid="inbox-export" />
+        </UTooltip>
+      </div>
       <SharedSegmentedControl
         class="w-full"
         block
@@ -112,11 +112,12 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
         :label="t('inbox.list.scope')"
         @update:model-value="update({ assignee: $event as InboxListRoute['assignee'] })"
       />
-      <div class="flex gap-2">
+      <div class="flex flex-wrap gap-2">
         <USelect
           :model-value="props.routeState.state || ALL"
           :items="stateItems"
-          class="min-w-0 flex-1"
+          variant="soft"
+          :class="FILTER_SELECT"
           :aria-label="t('inbox.list.state')"
           :disabled="!hydrated"
           @update:model-value="update({ state: $event === ALL ? '' : ($event as InboxListRoute['state']) })"
@@ -125,17 +126,17 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
           v-if="showDepartments"
           :model-value="props.routeState.departmentId ? String(props.routeState.departmentId) : ALL"
           :items="departmentItems"
-          class="min-w-0 flex-1"
+          variant="soft"
+          :class="FILTER_SELECT"
           :aria-label="t('inbox.list.department')"
           :disabled="!hydrated"
           @update:model-value="update({ departmentId: $event === ALL ? null : Number($event) })"
         />
-      </div>
-      <div class="flex gap-2">
         <USelect
           :model-value="props.routeState.priority || ALL"
           :items="priorityItems"
-          class="min-w-0 flex-1"
+          variant="soft"
+          :class="FILTER_SELECT"
           :aria-label="t('inbox.list.priority')"
           :disabled="!hydrated"
           data-testid="inbox-priority-filter"
@@ -144,7 +145,8 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
         <USelect
           :model-value="props.routeState.csat || ALL"
           :items="csatItems"
-          class="min-w-0 flex-1"
+          variant="soft"
+          :class="FILTER_SELECT"
           :aria-label="t('inbox.list.csat')"
           :disabled="!hydrated"
           data-testid="inbox-csat-filter"
@@ -169,22 +171,22 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
         <li v-for="item in items" :key="item.id">
           <NuxtLink
             :to="conversationTo(item.id)"
-            class="flex min-h-[72px] items-center gap-3 px-4 py-2 text-start text-highlighted hover:bg-elevated focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary aria-[current=page]:bg-primary/10"
+            class="flex gap-3 border-b border-default px-4 py-[14px] text-start text-highlighted transition-colors hover:bg-elevated focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary aria-[current=page]:bg-(--brand-soft) motion-reduce:transition-none"
             :aria-current="props.selectedId === item.id ? 'page' : undefined"
             :data-testid="`inbox-conversation-${item.id}`"
           >
-            <UAvatar v-bind="avatarProps(item.contact.name, item.contact.id)" size="xl" class="shrink-0" />
+            <UAvatar v-bind="avatarProps(item.contact.name, item.contact.id)" class="size-[42px] shrink-0" :ui="{ fallback: 'text-[15px]' }" />
             <span class="min-w-0 flex-1">
               <span class="flex items-center justify-between gap-2">
-                <span class="truncate" :class="item.unread ? 'font-semibold' : 'font-medium'">{{ item.contact.name }}</span>
-                <time v-if="item.last_message_at" class="shrink-0 text-xs text-muted" :class="{ 'text-brand-link': item.unread }">{{ inboxListTime(item.last_message_at, locale) }}</time>
+                <span class="truncate" :class="item.unread ? 'font-bold' : 'font-medium'">{{ item.contact.name }}</span>
+                <time v-if="item.last_message_at" class="shrink-0 text-xs" :class="item.unread ? 'font-semibold text-highlighted' : 'text-muted'">{{ inboxListTime(item.last_message_at, locale) }}</time>
               </span>
               <span class="flex items-center justify-between gap-2">
-                <span class="truncate text-sm text-muted">{{ item.last_message_preview || fileLabel(item.last_message_kind) || item.contact.phone || t('inbox.list.noMessages') }}</span>
-                <span v-if="item.unread" class="size-2.5 shrink-0 rounded-full bg-primary" :title="t('inbox.list.unread')" role="img" :aria-label="t('inbox.list.unread')" />
+                <span class="truncate text-[13px] text-muted">{{ item.last_message_preview || fileLabel(item.last_message_kind) || item.contact.phone || t('inbox.list.noMessages') }}</span>
+                <span v-if="item.unread" class="size-[9px] shrink-0 rounded-full bg-primary" :title="t('inbox.list.unread')" role="img" :aria-label="t('inbox.list.unread')" />
               </span>
-              <span class="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-muted">
-                <UIcon :name="CHANNEL_KIND_ICON[item.channel.kind]" class="size-3.5 shrink-0" role="img" :aria-label="t(channelKindLabelKey(item.channel.kind))" :data-testid="`inbox-conversation-kind-${item.id}`" />
+              <span class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+                <UIcon :name="CHANNEL_KIND_ICON[item.channel.kind]" class="size-[15px] shrink-0" :class="{ 'text-[#25d366]': item.channel.kind === 'whatsapp' }" role="img" :aria-label="t(channelKindLabelKey(item.channel.kind))" :data-testid="`inbox-conversation-kind-${item.id}`" />
                 <SharedStatusBadge size="sm" :tone="CONVERSATION_STATE_TONE[item.state]" :label="t(`inbox.states.${item.state}`)" />
                 <SharedStatusBadge v-if="INBOX_PRIORITY_TONE[item.priority]" size="sm" :tone="INBOX_PRIORITY_TONE[item.priority]!" :label="t(`inbox.priorities.${item.priority}`)" data-testid="inbox-priority-badge" />
                 <SharedStatusBadge v-if="item.csat" size="sm" :tone="CSAT_TONE[item.csat.score]" :label="t(`inbox.csat.${item.csat.score}`)" />
@@ -195,6 +197,6 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
         </li>
       </ul>
     </SharedPageState>
-    <SharedPagination class="border-t border-default p-2" :page="currentPage" :pages="pageCount" @update:page="goToPage" />
+    <SharedPagination class="border-t-[1.5px] border-default p-2" :page="currentPage" :pages="pageCount" @update:page="goToPage" />
   </section>
 </template>

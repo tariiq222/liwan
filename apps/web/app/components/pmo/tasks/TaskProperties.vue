@@ -3,8 +3,8 @@ import { joinList } from '@/utils/listFormat'
 import type { TaskDetail } from '@liwan/contracts'
 import { CalendarDate, parseDate } from '@internationalized/date'
 import { formatLiwanDate, formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
-import { usePersonalStages } from '@/composables/usePersonalStages'
 import { useUpdateTask } from '@/composables/useTasks'
+import { STATE_LABEL_KEY } from '@/composables/taskState'
 import { useMilestones } from '@/composables/useMilestones'
 import { useProject } from '@/composables/useProjects'
 import { validateTaskDates } from '@/utils/projectDateBounds'
@@ -16,7 +16,6 @@ const props = defineProps<{ task: TaskDetail }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const { mutate: updateTask } = useUpdateTask()
-const { data: stages } = usePersonalStages()
 const projectId = computed(() => props.task.planning_enabled ? props.task.project?.id ?? null : null)
 const { data: milestones } = useMilestones(projectId)
 const { data: project } = useProject(projectId)
@@ -127,148 +126,104 @@ function clearDeadline() {
   patch({ date_deadline: null })
 }
 
-// --- personal stage ----------------------------------------------------
-const NONE = 'none'
-function onStageChange(value: unknown) {
-  if (value === NONE) {
-    patch({ personal_stage_type_id: null }, { personal_stage: null })
-    return
-  }
-  const id = Number(value)
-  const stage = (stages.value ?? []).find((s) => s.id === id)
-  if (!stage) return
-  patch({ personal_stage_type_id: id }, { personal_stage: { id: stage.id, name: stage.name } })
-}
-
 // --- allocated hours (managers only) ------------------------------------
-const hoursDraft = ref(String(props.task.allocated_hours))
-watch(
-  () => props.task.allocated_hours,
-  (v) => {
-    hoursDraft.value = String(v)
-  },
-)
-function onHoursChange() {
-  const n = Number(hoursDraft.value)
-  // The field is min=0: a negative or empty entry puts the saved value back instead of staying on screen unsaved.
-  if (!Number.isFinite(n) || n < 0 || hoursDraft.value.trim() === '') {
-    hoursDraft.value = String(props.task.allocated_hours)
-    return
-  }
-  if (n === props.task.allocated_hours) return
+// The field is min=0: a negative or non-numeric entry is dropped and the saved value stays.
+function onHoursSave(value: string) {
+  const n = Number(value)
+  if (!Number.isFinite(n) || n < 0 || n === props.task.allocated_hours) return
   patch({ allocated_hours: n })
 }
 
 // --- percent complete (earned value, manual method only) ----------------
-const percentDraft = ref(String(props.task.percent_complete))
-watch(() => props.task.percent_complete, (v) => { percentDraft.value = String(v) })
 const percentEditable = computed(() => props.task.allowed_actions.includes('write_percent'))
-function onPercentChange() {
-  const n = Number(percentDraft.value)
-  // A whole number 0..100: anything else puts the saved value back instead of staying on screen unsaved.
-  if (!Number.isInteger(n) || n < 0 || n > 100 || percentDraft.value.trim() === '') {
-    percentDraft.value = String(props.task.percent_complete)
-    return
-  }
-  if (n !== props.task.percent_complete) patch({ percent_complete: n })
+function onPercentSave(value: string) {
+  const n = Number(value)
+  // A whole number 0..100: anything else is dropped and the saved value stays.
+  if (!Number.isInteger(n) || n < 0 || n > 100 || n === props.task.percent_complete) return
+  patch({ percent_complete: n })
 }
 
+// --- workflow stage ------------------------------------------------------
+// Shown only when it says something the status chip does not: a stage named like the state repeats it.
+const stageName = computed(() => {
+  const name = props.task.stage?.name
+  return name && name !== t(STATE_LABEL_KEY[props.task.state]) ? name : null
+})
+
+// --- record facts ----------------------------------------------------------
+const facts = computed(() => [
+  `${t('tasks.drawer.created')} ${createdLabel.value}`,
+  `${t('tasks.drawer.updated')} ${updatedLabel.value}`,
+  `${t('tasks.drawer.age')} ${t('tasks.drawer.days', { n: props.task.age_days }, props.task.age_days)}`,
+  ...(props.task.cycle_days !== null ? [`${t('tasks.drawer.cycle')} ${t('tasks.drawer.days', { n: props.task.cycle_days }, props.task.cycle_days)}`] : []),
+].join(' · '))
 </script>
 
 <template>
-  <SharedPropertiesPanel data-testid="task-properties" :title="t('tasks.detail.properties')">
-    <SharedPropertyRow :label="t('tasks.drawer.assignees')">
-      <span id="task-assignees-label" class="sr-only">{{ t('tasks.drawer.assignees') }}</span>
-      <span v-if="!task.can_write">{{ joinList(task.assignees.map(person => person.name), t) || t('tasks.drawer.unassigned') }}</span>
-      <AssigneePicker v-else :model-value="task.assignees" labelledby="task-assignees-label" @update:model-value="onAssigneesChange" />
-    </SharedPropertyRow>
-    <SharedPropertyRow :label="t('tasks.drawer.deadline')">
-      <span v-if="!task.can_write">{{ deadlineButtonLabel }}</span>
-      <SharedDateField
-        v-else
-        id="task-deadline"
-        :model-value="calendarValue?.toString() ?? null"
-        :label="deadlineInstant ? deadlineButtonLabel : undefined"
-        :min-value="milestoneStart"
-        :max-value="milestoneDeadline"
-        :aria-label="t('tasks.drawer.deadline')"
-        @update:model-value="onDeadlineDateChange"
-      >
-        <template #footer>
-          <label for="deadline-time" class="sr-only">{{ t('tasks.drawer.deadlineTime') }}</label>
-          <UInput id="deadline-time" v-model="timeDraft" type="time" class="me-auto w-32" :disabled="!hydrated" @change="onTimeChange" />
-        </template>
-      </SharedDateField>
-      <p v-if="deadlineError" role="alert" class="mt-1 text-xs text-error">{{ deadlineError }}</p>
-    </SharedPropertyRow>
-    <SharedPropertyRow :label="t('tasks.drawer.priority')">
-      <span id="task-priority-label" class="sr-only">{{ t('tasks.drawer.priority') }}</span>
-      <PrioritySelect :task="task" labelledby="task-priority-label" variant="outline" />
-    </SharedPropertyRow>
-    <SharedPropertyRow v-if="task.planning_enabled" :label="t('tasks.drawer.milestone')">
-      <span id="task-milestone-label" class="sr-only">{{ t('tasks.drawer.milestone') }}</span>
-      <MilestoneSelect v-if="task.project && task.can_write" :task="task" labelledby="task-milestone-label" />
-      <span v-else>{{ task.milestone?.name || t('tasks.drawer.noMilestone') }}</span>
-    </SharedPropertyRow>
-    <SharedPropertyRow :label="t('tasks.detail.workflowStage')">
-      <span>{{ task.stage?.name ?? t('tasks.detail.stageUnset') }}</span>
-    </SharedPropertyRow>
-    <SharedPropertyRow :label="t('tasks.drawer.stage')">
-      <span v-if="!task.can_write">{{ task.personal_stage?.name || t('tasks.drawer.unassigned') }}</span>
-      <USelect
-        v-else
-        :disabled="!hydrated"
-        size="sm"
-        class="w-full"
-        :aria-label="t('tasks.drawer.stage')"
-        :items="[{ label: t('tasks.drawer.unassigned'), value: NONE }, ...(stages ?? []).map((s) => ({ label: s.name, value: String(s.id) }))]"
-        :model-value="task.personal_stage ? String(task.personal_stage.id) : NONE"
-        @update:model-value="onStageChange"
-      />
-    </SharedPropertyRow>
-    <SharedPropertyRow v-if="task.can_write && task.can_approve" :label="t('tasks.drawer.allocatedHours')">
-      <UInput id="allocated-hours" :disabled="!hydrated" v-model="hoursDraft" type="number" min="0" step="0.5" size="sm" class="w-full" :aria-label="t('tasks.drawer.allocatedHours')" @change="onHoursChange" />
-    </SharedPropertyRow>
-    <SharedPropertyRow v-if="task.progress_method === 'manual'" :label="t('tasks.drawer.percentComplete')">
-      <UInput
-        v-if="percentEditable"
-        id="percent-complete"
-        v-model="percentDraft"
-        data-testid="task-percent-complete"
-        :disabled="!hydrated"
-        type="number"
-        min="0"
-        max="100"
-        step="1"
-        size="sm"
-        class="w-full"
-        :aria-label="t('tasks.drawer.percentComplete')"
-        @change="onPercentChange"
-      />
-      <span v-else dir="ltr" class="tabular-nums" data-testid="task-percent-complete">{{ task.percent_complete }}%</span>
-    </SharedPropertyRow>
-    <SharedPropertyRow :label="t('tasks.drawer.tags')">
-      <span id="task-tags-label" class="sr-only">{{ t('tasks.drawer.tags') }}</span>
-      <span v-if="!task.can_write">{{ joinList(task.tags.map(tag => tag.name), t) || '—' }}</span>
-      <TagPicker v-else :model-value="task.tags" :can-create="task.can_approve" labelledby="task-tags-label" @update:model-value="onTagsChange" />
-    </SharedPropertyRow>
-    <dl data-testid="task-record-facts" class="mt-1 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-default pt-3 text-xs text-muted">
-      <div class="min-w-0">
-        <dt>{{ t('tasks.drawer.created') }}</dt>
-        <dd class="mt-0.5 wrap-anywhere text-toned">{{ createdLabel }}</dd>
-      </div>
-      <div class="min-w-0">
-        <dt>{{ t('tasks.drawer.updated') }}</dt>
-        <dd class="mt-0.5 wrap-anywhere text-toned">{{ updatedLabel }}</dd>
-      </div>
-      <div class="min-w-0">
-        <dt>{{ t('tasks.drawer.age') }}</dt>
-        <dd class="mt-0.5 wrap-anywhere text-toned">{{ t('tasks.drawer.days', { n: task.age_days }, task.age_days) }}</dd>
-      </div>
-      <div v-if="task.cycle_days !== null" class="min-w-0">
-        <dt>{{ t('tasks.drawer.cycle') }}</dt>
-        <dd class="mt-0.5 wrap-anywhere text-toned">{{ t('tasks.drawer.days', { n: task.cycle_days }, task.cycle_days) }}</dd>
-      </div>
+  <div data-testid="task-properties" class="grid min-w-0 gap-4">
+    <dl class="divide-y divide-default">
+      <SharedPropertyRow :label="t('tasks.drawer.assignees')">
+        <span id="task-assignees-label" class="sr-only">{{ t('tasks.drawer.assignees') }}</span>
+        <span v-if="!task.can_write">{{ joinList(task.assignees.map(person => person.name), t) || t('tasks.drawer.unassigned') }}</span>
+        <AssigneePicker v-else plain :model-value="task.assignees" labelledby="task-assignees-label" @update:model-value="onAssigneesChange" />
+      </SharedPropertyRow>
+      <SharedPropertyRow :label="t('tasks.drawer.deadline')">
+        <span v-if="!task.can_write">{{ deadlineButtonLabel }}</span>
+        <SharedDateField
+          v-else
+          id="task-deadline"
+          plain
+          :model-value="calendarValue?.toString() ?? null"
+          :label="deadlineInstant ? deadlineButtonLabel : t('tasks.deadline.none')"
+          :min-value="milestoneStart"
+          :max-value="milestoneDeadline"
+          :aria-label="t('tasks.drawer.deadline')"
+          @update:model-value="onDeadlineDateChange"
+        >
+          <template #footer>
+            <label for="deadline-time" class="sr-only">{{ t('tasks.drawer.deadlineTime') }}</label>
+            <UInput id="deadline-time" v-model="timeDraft" type="time" class="me-auto w-32" :disabled="!hydrated" @change="onTimeChange" />
+          </template>
+        </SharedDateField>
+        <p v-if="deadlineError" role="alert" class="mt-1 text-xs text-error">{{ deadlineError }}</p>
+      </SharedPropertyRow>
+      <SharedPropertyRow :label="t('tasks.drawer.priority')">
+        <span id="task-priority-label" class="sr-only">{{ t('tasks.drawer.priority') }}</span>
+        <PrioritySelect :task="task" labelledby="task-priority-label" variant="plain" />
+      </SharedPropertyRow>
     </dl>
-  </SharedPropertiesPanel>
+    <dl class="divide-y divide-default border-t border-default">
+      <SharedPropertyRow v-if="task.planning_enabled" :label="t('tasks.drawer.milestone')">
+        <span id="task-milestone-label" class="sr-only">{{ t('tasks.drawer.milestone') }}</span>
+        <MilestoneSelect v-if="task.project && task.can_write" plain :task="task" labelledby="task-milestone-label" />
+        <span v-else>{{ task.milestone?.name || t('tasks.drawer.noMilestone') }}</span>
+      </SharedPropertyRow>
+      <SharedPropertyRow v-if="stageName" :label="t('tasks.detail.workflowStage')" :value="stageName" />
+      <SharedPropertyRow v-if="task.can_write && task.can_approve" :label="t('tasks.drawer.allocatedHours')">
+        <SharedInlineText :model-value="String(task.allocated_hours)" :label="t('tasks.drawer.allocatedHours')" type="number" :min="0" :step="0.5" @save="onHoursSave" />
+      </SharedPropertyRow>
+      <SharedPropertyRow v-if="task.progress_method === 'manual'" :label="t('tasks.drawer.percentComplete')">
+        <SharedInlineText
+          v-if="percentEditable"
+          :model-value="String(task.percent_complete)"
+          :label="t('tasks.drawer.percentComplete')"
+          type="number"
+          :min="0"
+          :max="100"
+          :step="1"
+         
+          data-testid="task-percent-complete"
+          input-test-id="task-percent-complete-input"
+          @save="onPercentSave"
+        ><bdi dir="ltr" class="tabular-nums">{{ task.percent_complete }}%</bdi></SharedInlineText>
+        <span v-else dir="ltr" class="tabular-nums" data-testid="task-percent-complete">{{ task.percent_complete }}%</span>
+      </SharedPropertyRow>
+      <SharedPropertyRow :label="t('tasks.drawer.tags')">
+        <span id="task-tags-label" class="sr-only">{{ t('tasks.drawer.tags') }}</span>
+        <span v-if="!task.can_write">{{ joinList(task.tags.map(tag => tag.name), t) || '—' }}</span>
+        <TagPicker v-else plain :model-value="task.tags" :can-create="task.can_approve" labelledby="task-tags-label" @update:model-value="onTagsChange" />
+      </SharedPropertyRow>
+    </dl>
+    <p data-testid="task-record-facts" class="border-t border-default pt-3 text-xs/5 text-muted">{{ facts }}</p>
+  </div>
 </template>

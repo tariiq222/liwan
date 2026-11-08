@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { activeManifests, withManifests } from '../manifests'
-import { bellKindFor, manifestRoutePrefixes, recordLinkFor, recordPickerFor, routeScopeOf, searchProviders, sidebarPanelFor } from '../surfaces'
+import { bellKindFor, manifestRoutePrefixes, recordLinkFor, recordPickerFor, routeScopeOf, quickPanels, searchProviders } from '../surfaces'
 import { projectsSearch, tasksSearch } from '../pmo/search'
 import type { AppManifest, AppSearchApi } from '../types'
 
@@ -84,17 +84,19 @@ describe('manifest bell kinds', () => {
   })
 })
 
-describe('manifest sidebar panels', () => {
-  it('gives chat a wide panel and no other module one', () => {
-    expect(sidebarPanelFor('chat')?.width).toBe('wide')
-    expect(typeof sidebarPanelFor('chat')?.load).toBe('function')
-    expect(sidebarPanelFor('projects')).toBeUndefined()
-    expect(sidebarPanelFor(null)).toBeUndefined()
+describe('manifest quick panels', () => {
+  it('gives chat, tasks and meetings a top-bar tool and no other application one', () => {
+    expect(quickPanels().map(panel => panel.id).sort()).toEqual(['chat', 'meetings', 'tasks'])
+    for (const panel of quickPanels()) {
+      expect(typeof panel.load).toBe('function')
+      expect(typeof panel.count).toBe('function')
+      expect(panel.to).toMatch(/^\//)
+    }
   })
   it('finds a panel a newer application registers', () => {
-    const panel = { module: 'sales', width: 'default' as const, load: async () => ({ default: {} }) }
-    withManifests([...activeManifests(), { ...sales, sidebarPanel: panel }], () => {
-      expect(sidebarPanelFor('sales')).toBe(panel)
+    const panel = { id: 'sales', labelKey: 'nav.sales', icon: 'i-lucide-box' as const, capability: 'sales.read', to: '/sales', queryKey: ['sales', 'badge'] as const, count: async () => 0, load: async () => ({ default: {} }) }
+    withManifests([...activeManifests(), { ...sales, quickPanel: panel }], () => {
+      expect(quickPanels()).toContain(panel)
     })
   })
 })

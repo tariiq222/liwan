@@ -5,15 +5,18 @@ import { projectStatusBadge } from '@/composables/projectStatus'
 import { useMilestones } from '@/composables/useMilestones'
 import { useProjectUpdates } from '@/composables/useProjectUpdates'
 import { badgeLabel } from '@liwan/ui/app/utils/statusBadge'
+import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import ProjectOverviewTasks from './ProjectOverviewTasks.vue'
+import ProjectUpdateList from './ProjectUpdateList.vue'
 
-// The main column of the project record: the tiles (progress, tasks, milestones, followers), tasks that need
-// attention, the latest update. Status and manager are shown once, by the
+// The main column of the project record: the updates (the latest with its post action, then the earlier ones), the basics, the tasks
+// that need attention and the tiles (progress, tasks, milestones, followers). Status and manager are shown once, by the
 // workspace frame, and are changed only in project settings.
 const props = defineProps<{ project: ProjectDetail }>()
 const { t } = useI18n()
 const projectBadge = (status: ProjectStatus | null) => { const entry = projectStatusBadge(status); return { tone: entry.tone, label: badgeLabel(entry, status, t) } }
 const route = useRoute()
+const hydrated = useHydrated()
 const { can } = useAccess()
 // The tasks section is refused without `pmo.tasks.read` and does not exist on an archived project: skip its request and its links.
 const canReadTasks = computed(() => can('pmo.tasks.read'))
@@ -28,6 +31,9 @@ const nearestMilestone = computed(() => {
     .sort((a, b) => (a.deadline ?? '9999-12-31').localeCompare(b.deadline ?? '9999-12-31'))[0] ?? null
 })
 const latestUpdate = computed(() => [...(updates.data.value ?? [])].sort((a, b) => b.date.localeCompare(a.date))[0] ?? null)
+// Posting follows the same rule as before the updates joined the summary: a manager, on an open project.
+const canPost = computed(() => props.project.can_manage && props.project.active)
+const postUpdateTo = computed(() => ({ path: `/projects/${projectId.value}/updates/new`, query: returnToQuery(route.fullPath) }))
 const openTaskCount = computed(() => Math.max(0, props.project.task_count - props.project.closed_task_count))
 
 function dateLabel(value: string | null) {
@@ -37,6 +43,30 @@ function dateLabel(value: string | null) {
 
 <template>
   <div data-testid="project-overview" class="@container flex min-w-0 flex-col gap-(--liwan-gap-card)">
+    <!-- The updates come first: the latest one with the action to post another, then the earlier ones. -->
+    <SharedRecordSection variant="panel" data-testid="project-overview-latest-update" :title="t('projects.overview.latestUpdate')">
+      <template v-if="canPost" #actions>
+        <UButton size="sm" icon="i-lucide-plus" data-testid="project-updates-create" :disabled="!hydrated" :to="postUpdateTo" :label="t('projects.updates.publish')" />
+      </template>
+      <SharedLoadingSkeleton v-if="updates.isLoading.value" :count="1" />
+      <SharedPageState v-else-if="updates.error.value" :error="updates.error.value" @retry="updates.refetch()" />
+      <div v-else-if="latestUpdate" class="grid min-w-0 gap-2">
+        <div class="flex min-w-0 items-center gap-2">
+          <SharedStatusBadge v-bind="projectBadge(latestUpdate.status)" />
+          <span class="truncate text-sm font-medium">{{ latestUpdate.name }}</span>
+        </div>
+        <p class="flex flex-wrap items-center gap-x-2 text-xs text-muted">
+          <SharedPersonAvatar :people="[latestUpdate.author]" />
+          <span>{{ latestUpdate.author.name }}</span>
+          <span aria-hidden="true">·</span>
+          <bdi>{{ dateLabel(latestUpdate.date) }}</bdi>
+        </p>
+        <SharedRichText size="sm" :html="latestUpdate.description_html" />
+      </div>
+      <p v-else class="text-sm text-muted">{{ t('projects.overview.noUpdates') }}</p>
+    </SharedRecordSection>
+    <ProjectUpdateList :project-id="project.id" />
+
     <SharedRecordSection variant="panel" :title="t('projects.basics.title')" data-testid="project-overview-basics">
       <SharedRichText v-if="project.description_html" :html="project.description_html" />
       <ul v-if="project.objectives.length" class="grid gap-(--liwan-gap-card)">
@@ -106,28 +136,5 @@ function dateLabel(value: string | null) {
         :value="project.followers_count"
       />
     </section>
-
-    <SharedRecordSection variant="panel" data-testid="project-overview-latest-update" :title="t('projects.overview.latestUpdate')">
-      <template #actions>
-        <NuxtLink :to="`/projects/${project.id}/updates`" class="text-xs text-muted underline underline-offset-4 hover:text-highlighted">
-          {{ t('projects.refresh.workspace.viewAllUpdates') }}
-        </NuxtLink>
-      </template>
-      <SharedLoadingSkeleton v-if="updates.isLoading.value" :count="1" />
-      <SharedPageState v-else-if="updates.error.value" :error="updates.error.value" @retry="updates.refetch()" />
-      <div v-else-if="latestUpdate" class="grid min-w-0 gap-2">
-        <div class="flex min-w-0 items-center gap-2">
-          <SharedStatusBadge v-bind="projectBadge(latestUpdate.status)" />
-          <span class="truncate text-sm font-medium">{{ latestUpdate.name }}</span>
-        </div>
-        <p class="flex flex-wrap items-center gap-x-2 text-xs text-muted">
-          <SharedPersonAvatar :people="[latestUpdate.author]" />
-          <span>{{ latestUpdate.author.name }}</span>
-          <span aria-hidden="true">·</span>
-          <bdi>{{ dateLabel(latestUpdate.date) }}</bdi>
-        </p>
-      </div>
-      <p v-else class="text-sm text-muted">{{ t('projects.overview.noUpdates') }}</p>
-    </SharedRecordSection>
   </div>
 </template>

@@ -23,25 +23,19 @@ function loadLayout(route: { path: string }) {
   const bindings: Record<string, unknown> = {
     _defineComponent: Vue.defineComponent,
     ref: Vue.ref, computed: Vue.computed, watch: Vue.watch, nextTick: Vue.nextTick,
-    onMounted: (fn: () => void) => fn(), onBeforeUnmount: () => undefined,
     useRoute: () => route,
     useI18n: () => ({ localeProperties: Vue.ref({ dir: 'rtl' }) }),
     useHead: () => undefined,
-    pageArea: () => ({ plain: false, record: false }),
-    hasNoContextSidebar: () => false,
     // The shell publishes the page trail from the layout (DESIGN.md §3); focus behaviour does not
     // read it, so the harness stands in with an empty rail and no page title.
     useHydrated: () => Vue.ref(true),
     useShellModel: () => ({ rail: Vue.ref({ all: [] }), activeModule: Vue.ref(null) }),
-    // The assistant sheet is not under test here: no surface, closed.
-    useAssistantSheet: () => ({ shown: Vue.ref(false), surface: Vue.ref(undefined) }),
-    AssistantSheet: {},
+    // The shell's own components are not under test here.
+    AppDrawer: {}, AppSidebar: {}, AppTabBar: {}, AppTopBar: {}, SlideOverHost: {},
     usePageHeaderTitle: () => Vue.ref(null),
     shellBreadcrumb: () => [],
     providePageTrail: () => undefined,
     providePageApp: () => undefined,
-    requestAnimationFrame: () => 1, cancelAnimationFrame: () => undefined,
-    setTimeout: () => 1, clearTimeout: () => undefined,
   }
   const component = new Function(...Object.keys(bindings), js)(...Object.values(bindings))
   return component.setup!({}, { expose: () => {}, attrs: {}, slots: {}, emit: () => {} }) as Record<string, Vue.Ref> & { shellMain: Vue.Ref }

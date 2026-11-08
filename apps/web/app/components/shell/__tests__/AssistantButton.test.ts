@@ -11,13 +11,16 @@ const state = (over: Partial<{ showButton: boolean; shown: boolean }> = {}) => (
   shown: Vue.ref(over.shown ?? false),
   toggle: () => undefined,
 })
+const modules = (sheet: unknown) => ({
+  '@/composables/useSlideOver': { ASSISTANT_PANEL: 'assistant', slideOverId: (id: string) => `slide-over-${id}` },
+  '@/composables/useAssistantSheet': { useAssistantSheet: () => sheet },
+})
 const render = (over?: Parameters<typeof state>[0], hydrated = true) => renderShared(component, {}, {}, {
-  hydrated, messages: { 'ai.sheet.label': 'المساعد' },
-  modules: { '@/composables/useAssistantSheet': { ASSISTANT_SHEET_ID: 'assistant-sheet', useAssistantSheet: () => state(over) } },
+  hydrated, messages: { 'ai.sheet.label': 'المساعد' }, modules: modules(state(over)),
 })
 
 describe('AssistantButton', () => {
-  it('renders disabled before hydration and enables the same button to open its sheet when ready', async () => {
+  it('renders disabled before hydration and enables the same button to open its panel when ready', async () => {
     expect(await render({}, false)).toMatch(/<button[^>]*disabled/)
     const hydrated = Vue.ref(false)
     const sheet = state()
@@ -25,7 +28,7 @@ describe('AssistantButton', () => {
     const app = hostRenderer.createApp(loadShared(component, {
       messages: { 'ai.sheet.label': 'المساعد' },
       globals: { useHydrated: () => hydrated },
-      modules: { '@/composables/useAssistantSheet': { ASSISTANT_SHEET_ID: 'assistant-sheet', useAssistantSheet: () => ({ ...sheet, toggle }) } },
+      modules: modules({ ...sheet, toggle }),
     }))
     app.component('UIcon', Vue.defineComponent({ render: () => Vue.h('span') }))
     const host = createHostNode()
@@ -46,18 +49,18 @@ describe('AssistantButton', () => {
     }
   })
 
-  it('renders nothing when the sheet is not offered (no surface, no capability, or the full page)', async () => {
+  it('renders nothing when the panel is not offered (no surface, no capability, or the full page)', async () => {
     expect(await render({ showButton: false })).not.toContain('<button')
   })
 
-  it('is a real button labelled by the surface, pointing at the sheet', async () => {
+  it('is a real button labelled by the surface, pointing at its panel', async () => {
     const html = await render()
     expect(html).toContain('<button')
     expect(html).toContain('type="button"')
     expect(html).toContain('aria-label="المساعد"')
-    expect(html).toContain('aria-controls="assistant-sheet"')
+    expect(html).toContain('aria-controls="slide-over-assistant"')
     expect(html).toContain('aria-expanded="false"')
-    expect(html).toContain('liwan-assistant-button-label')
+    expect(html).toContain('liwan-ai-button')
     expect(html).not.toContain('data-open')
   })
 

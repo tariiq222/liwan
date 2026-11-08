@@ -89,7 +89,7 @@ function columnCreateTo(column: { state?: TaskState; stageId?: number }) {
          The draggable board and its viewer-clock labels mount after hydration. -->
     <TaskKpiStrip v-if="hydrated && kpisShown" :params="params" />
     <SharedListCard :fill="isBoard">
-      <template #filters><TaskToolbar v-model="params" embedded /></template>
+      <template #filters><TaskToolbar v-model="params" /></template>
       <TaskTable v-if="!isBoard" :params="params" :row-to="task => taskTo(task.id)" @create="openCreate" @update:sort="onSort" />
       <TaskBoard v-else-if="hydrated" :params="boardParams" :card-to="taskTo" :create-to="createTo ? columnCreateTo : undefined" @open="id => router.push(taskTo(id))" />
       <SharedLoadingSkeleton v-else />

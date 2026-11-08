@@ -6,10 +6,10 @@ import { avatarProps } from '@liwan/ui/app/utils/avatarTone'
 import { chatListTime } from '@/utils/chatTime'
 import { CHAT_PAGE_SIZE, isFatalChatStatus, nextListOffset, serializeChatListRoute, type ChatFilter, type ChatListRoute } from '@/utils/chatState'
 
+// The conversation list pane of the chat page (its left column): filters and search are the URL query, owned by the page.
 const props = defineProps<{
   routeState: ChatListRoute
   selectedId?: number
-  pageHeading?: boolean
 }>()
 const emit = defineEmits<{ 'update:routeState': [ChatListRoute]; denied: [] }>()
 const { t, locale } = useI18n()
@@ -63,25 +63,23 @@ function conversationTo(id: number) {
 </script>
 
 <template>
-  <section class="liwan-chat-list flex h-full min-h-0 flex-col" data-testid="chat-list">
-    <h1 v-if="props.pageHeading" class="px-3 pt-3 text-lg font-semibold text-highlighted">{{ t('chat.title') }}</h1>
-    <header class="liwan-chat-list-toolbar">
-      <form class="liwan-chat-list-search" @submit.prevent="applySearch">
-        <UInput
-          id="chat-list-search"
-          v-model="q"
-          class="w-full"
-          :ui="{ base: 'rounded-full px-9 text-center' }"
-          icon="i-lucide-search"
-          :placeholder="t('chat.search')"
-          :disabled="!hydrated"
-        />
-      </form>
-      <UDropdownMenu :items="createItems" :content="{ align: 'end' }">
-        <UButton type="button" color="neutral" variant="soft" icon="i-lucide-plus" :label="t('chat.newAction')" :disabled="!hydrated" class="shrink-0" />
-      </UDropdownMenu>
-    </header>
-    <div class="liwan-chat-list-filters">
+  <section class="flex h-full min-h-0 flex-col" data-testid="chat-list">
+    <div class="flex flex-none flex-col gap-2 border-b-[1.5px] border-default p-3">
+      <div class="flex items-center gap-2">
+        <form class="flex min-w-0 flex-1" @submit.prevent="applySearch">
+          <UInput
+            id="chat-list-search"
+            v-model="q"
+            class="w-full"
+            icon="i-lucide-search"
+            :placeholder="t('chat.search')"
+            :disabled="!hydrated"
+          />
+        </form>
+        <UDropdownMenu :items="createItems" :content="{ align: 'end' }">
+          <UButton type="button" color="neutral" variant="soft" icon="i-lucide-plus" :label="t('chat.newAction')" :disabled="!hydrated" class="shrink-0" />
+        </UDropdownMenu>
+      </div>
       <SharedSegmentedControl
         class="w-full"
         :model-value="props.routeState.filter"
@@ -109,29 +107,28 @@ function conversationTo(id: number) {
         <li v-for="item in items" :key="item.id">
           <NuxtLink
             :to="conversationTo(item.id)"
-            class="liwan-chat-conversation-link"
-            :data-selected="props.selectedId === item.id"
+            class="flex gap-3 border-b border-default px-4 py-[14px] text-start text-highlighted transition-colors hover:bg-elevated focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary aria-[current=page]:bg-(--brand-soft) motion-reduce:transition-none"
             :aria-current="props.selectedId === item.id ? 'page' : undefined"
           >
             <span class="relative shrink-0">
-              <UAvatar v-bind="avatarProps(item.name, item.id)" size="xl" />
+              <UAvatar v-bind="avatarProps(item.name, item.id)" class="size-[42px]" :ui="{ fallback: 'text-[15px]' }" />
               <span
                 v-if="item.type === 'direct' && item.im_status"
                 class="absolute end-0 bottom-0 z-10 size-3 rounded-full border-2 border-(--ui-bg)"
                 :class="item.im_status === 'online' ? 'liwan-status-dot-success' : 'bg-(--ui-text-dimmed)'"
                 :title="item.im_status === 'online' ? t('chat.online') : t('chat.offline')"
               />
-              <span v-else-if="item.type !== 'direct'" class="liwan-chat-avatar-badge" :title="t(`chat.${item.type}`)">
+              <span v-else-if="item.type !== 'direct'" class="absolute end-0 bottom-0 z-10 grid size-4 place-items-center rounded-inner bg-primary text-inverted" :title="t(`chat.${item.type}`)">
                 <UIcon name="i-lucide-users-round" class="size-3" aria-hidden="true" />
               </span>
             </span>
             <span class="min-w-0 flex-1">
               <span class="flex items-center justify-between gap-2">
-                <span class="truncate font-medium">{{ item.name }}{{ item.muted ? ` · ${t('chat.muted')}` : '' }}</span>
-                <time v-if="item.last_message_at" class="liwan-chat-list-time" :class="{ 'text-brand-link': item.unread_count }">{{ timeLabel(item.last_message_at) }}</time>
+                <span class="truncate" :class="item.unread_count ? 'font-bold' : 'font-medium'">{{ item.name }}{{ item.muted ? ` · ${t('chat.muted')}` : '' }}</span>
+                <time v-if="item.last_message_at" class="shrink-0 text-xs" :class="item.unread_count ? 'font-semibold text-highlighted' : 'text-muted'">{{ timeLabel(item.last_message_at) }}</time>
               </span>
               <span class="flex items-center justify-between gap-2">
-                <span class="truncate text-sm text-muted">{{ item.last_message_preview || t(`chat.${item.type}`) }}</span>
+                <span class="truncate text-[13px] text-muted">{{ item.last_message_preview || t(`chat.${item.type}`) }}</span>
                 <UBadge v-if="item.unread_count" size="xs" variant="solid">{{ item.unread_count }}</UBadge>
               </span>
             </span>
@@ -139,6 +136,6 @@ function conversationTo(id: number) {
         </li>
       </ul>
     </SharedPageState>
-    <SharedPagination class="border-t border-default p-2" :page="currentPage" :pages="pageCount" @update:page="goToPage" />
+    <SharedPagination class="border-t-[1.5px] border-default p-2" :page="currentPage" :pages="pageCount" @update:page="goToPage" />
   </section>
 </template>
