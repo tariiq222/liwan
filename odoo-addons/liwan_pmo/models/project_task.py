@@ -439,6 +439,14 @@ class ProjectTask(models.Model):
         # Context default_* and copy/batch must not manufacture a pending request.
         vals_list = [{**vals, **COMPLETION_PRISTINE} for vals in vals_list]
         marker = self.env.cr.precommit.data
+        # The insert references its project (a key-share lock on that row) and the completion pass
+        # after it locks the project for update: taking that lock first keeps two concurrent creates
+        # in one project from deadlocking on each other's key-share lock.
+        parents = self.browse([vals['parent_id'] for vals in vals_list if vals.get('parent_id')])
+        projects = self.env['project.project'].browse(
+            [vals['project_id'] for vals in vals_list if vals.get('project_id')],
+        ) | parents.project_id
+        self._liwan_lock_projects_then_tasks(projects, self.browse())
         marker[TASK_CREATE_MARKER] = marker.get(TASK_CREATE_MARKER, 0) + 1
         try:
             tasks = super().create(vals_list)

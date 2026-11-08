@@ -80,7 +80,9 @@ class ProjectProject(models.Model):
         Task._liwan_lock_projects_then_tasks(projects, Task.browse())
         projects.invalidate_recordset()
         for project in projects:
-            # Writing the locked row is what makes a concurrent pass that waited on it retry.
+            # Writing the locked row is what makes a concurrent pass that waited on it retry: the
+            # unchanged value itself is skipped, but the write still issues the row's UPDATE
+            # (write_date, write_uid).
             project.write({'liwan_status_auto_done': project.liwan_status_auto_done})
             domain = [('project_id', '=', project.id)]
             open_count = Task.search_count(domain + [('state', 'not in', list(CLOSED_STATES))])
