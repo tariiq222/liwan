@@ -46,6 +46,18 @@ class TestFinanceIdempotency(LiwanFinanceWriteCase):
         self.assertEqual(paid[0].json()['id'], paid[1].json()['id'])
         self.assertEqual(self.env['account.payment'].search_count([('memo', 'like', invoice['name'])]), 1)
 
+    def test_a_repeated_credit_note_and_debit_note_are_created_once(self):
+        invoice = self.posted_invoice()
+        for action, origin in (('credit-note', 'reversed_entry_id'), ('debit-note', 'debit_origin_id')):
+            with self.subTest(action=action):
+                path = f'{INVOICES}/{invoice["id"]}/{action}'
+                before = self.env['account.move'].search_count([(origin, '=', invoice['id'])])
+                first = self.send(path, {}, f'{action}-key-1')
+                second = self.send(path, {}, f'{action}-key-1')
+                self.assertEqual((first.status_code, second.status_code), (201, 201), first.text)
+                self.assertEqual(first.json(), second.json())
+                self.assertEqual(self.env['account.move'].search_count([(origin, '=', invoice['id'])]), before + 1)
+
     def test_the_same_key_for_another_body_route_or_user_is_refused(self):
         self.send(f'{PAYMENTS}/standalone', self.receipt(), 'shared-key-1')
         changed = self.send(f'{PAYMENTS}/standalone', self.receipt(amount=301), 'shared-key-1')
