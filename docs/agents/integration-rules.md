@@ -139,6 +139,20 @@ applicable combined checks and review before updating local `main`. Record that
 there is no remote PR/CI evidence for this local-only action. The protected PR
 procedure above remains required for subsequent remote publication.
 
+## Keep the PR loop short
+
+Keep the PR in draft while its diff, focused local checks and review notes are
+being prepared. Mark it ready once the candidate is stable, and batch related
+review fixes before pushing again. If a selected check fails, read that job
+first and reproduce the failure before pushing another revision.
+
+Changes to authentication, authorization, tenant isolation, migrations, or the
+CI rules that decide what must pass need an independent review focused on those
+boundaries. Include evidence for the relevant refusal or failure paths and name
+the exact head reviewed. For coupled PRs, review and test their combined merge
+candidate before merging. GitHub requires the green check and resolved threads;
+it does not enforce an independent approval on this repository.
+
 ## PR handoff
 
 Use the repository PR template. Name one bounded outcome, included branches and
