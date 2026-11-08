@@ -98,6 +98,11 @@ bundles, and the base price covers only the platform.
    `storage.limit_mb`** (owner decision 2026-10-25): capacity changes only through a new
    subscription quote the customer accepts, so the invoice, the enforced limit and the
    renewal all carry one number. Terms remain for prices, branch limits and term length.
+   **Storage upgrades are manual** (owner decision 2026-11-08): the customer buys more
+   storage in the plan's steps and nothing upgrades automatically. Tenant administrators get a
+   bell notice and an email when usage rises past 80% and past 95% of `storage.limit_mb` (SaaS
+   only, since `non_saas` has no subscription page; one notice per level and limit, 95% only when
+   one upload passes both); uploads are refused at 100%. Implemented in PR 437 (not merged when this was written).
 6. A trial produces the same entitlements as the paid subscription for the same choices.
 7. **Selecting an application grants every selectable boolean feature it owns.** Today a
    bundle must list each key explicitly in `selections.feature_keys`, so `People (HR)` selects
