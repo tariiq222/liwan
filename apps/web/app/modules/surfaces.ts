@@ -1,5 +1,5 @@
 import { activeManifests, bellSources } from './manifests'
-import type { AppAssistantSurface, AppAttentionProvider, AppBellKind, AppCommand, AppRecordLink, AppRecordPicker, AppSearchProvider, AppSidebarPanel } from './types'
+import type { AppAssistantSurface, AppAttentionProvider, AppBellKind, AppCommand, AppRecordLink, AppRecordPicker, AppQuickPanel, AppSearchProvider } from './types'
 
 /** The assistant's sheet surface, declared by the one application that provides it. */
 export function assistantSurface(): AppAssistantSurface | undefined {
@@ -31,10 +31,9 @@ export function manifestRoutePrefixes(): string[] {
   return activeManifests().flatMap(manifest => manifest.routePrefixes)
 }
 
-/** The sidebar panel an application declares for a rail module, if any. */
-export function sidebarPanelFor(module: string | null): AppSidebarPanel | undefined {
-  if (!module) return undefined
-  return activeManifests().find(manifest => manifest.sidebarPanel?.module === module)?.sidebarPanel
+/** The top-bar tool panels of every application, in rail order. */
+export function quickPanels(): AppQuickPanel[] {
+  return activeManifests().flatMap(manifest => manifest.quickPanel ?? [])
 }
 
 /** Palette commands of every application, in rail order. */

@@ -1,11 +1,15 @@
 import { MeetingNotificationSchema } from '@liwan/contracts'
 import type { AppManifest } from '../types'
 import { overdueFollowupAttention, todayMeetingsAttention } from './attention'
+import { meetingsQuickPanel } from './quickPanel'
+import { meetingsAppCard } from './appCard'
 
 const manifest: AppManifest = {
   id: 'meetings',
   feature: 'meetings.enabled',
   routePrefixes: ['/meetings'],
+  quickPanel: meetingsQuickPanel,
+  appCard: meetingsAppCard,
   recordListSources: [{ pattern: /^\/meetings\/series\/[1-9]\d*$/, capability: 'meetings.read' }],
   // The application's settings are one page under Settings > Applications; who may schedule is its first card.
   settings: {

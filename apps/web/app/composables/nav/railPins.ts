@@ -29,10 +29,9 @@ export function toggleRailPin(pins: readonly string[], id: string): string[] {
 }
 
 /**
- * Manifest order is kept; the open application stays visible beside the pins so the rail always shows where you are.
- * The fixed entries and settings scroll with the applications, so only the top entries and the brand stay in place.
+ * The «تطبيقاتي» list of the sidebar: the fixed entries around the applications the user pinned, in manifest order.
+ * Settings is not an application; the sidebar footer carries it.
  */
-export function pinnedRail(rail: ShellRailModel, pins: readonly string[], activeId: string | null): ShellRailModel {
-  const shown = (item: ShellRailItem) => pins.includes(item.id) || item.id === activeId
-  return { ...rail, first: [], last: [], applications: [...rail.first, ...rail.applications.filter(shown), ...rail.last, ...rail.utility], utility: [] }
+export function pinnedApplications(rail: ShellRailModel, pins: readonly string[]): ShellRailItem[] {
+  return [...rail.first, ...rail.applications.filter(item => pins.includes(item.id)), ...rail.last]
 }

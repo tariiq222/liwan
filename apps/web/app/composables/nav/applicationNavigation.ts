@@ -1,6 +1,5 @@
 import type { ShellNavigationItem, ShellNavigationLink, ShellQuickItem } from '@liwan/ui/app/types/shell'
 import { canReach, canReachPath, type AccessIdentity } from '../../utils/accessPolicy'
-import { sidebarPanelFor } from '../../modules/surfaces'
 import { createLinkTo, type CreateActionRoute } from './createActions'
 import { contextLinksForModule, moduleContextLinks, visibleShellModules, type ShellContextLink } from './shellModules'
 import { contextLinkTestId, groupSections, railModel } from './sidebarModel'
@@ -12,6 +11,8 @@ export interface ApplicationNavigationInput {
   route: CreateActionRoute
   activeId: string | null
   contextLinks: readonly ShellContextLink[]
+  /** Build only this entry's menu (the open application); every entry when absent. */
+  only?: string
   translate: (key: string, values?: Record<string, string>) => string
 }
 
@@ -35,9 +36,11 @@ export function applicationNavigation(input: ApplicationNavigationInput): ShellN
     ...(personal ? [{ id: 'account', labelKey: 'nav.account', icon: 'i-lucide-user-round', to: '/account' }] : []),
     ...rail.utility]
 
-  return entries.map(entry => {
+  return entries.filter(entry => input.only === undefined || entry.id === input.only).map(entry => {
     const active = entry.id === activeId
-    const item: ShellNavigationItem = { id: entry.id, label: t(entry.labelKey), icon: entry.icon, to: entry.to, active, sections: [], views: [], actions: [] }
+    const item: ShellNavigationItem = { id: entry.id, label: t(entry.labelKey), icon: entry.icon, to: entry.to, active, sections: [], actions: [] }
+    // The list presets the rows below fold into their own branches; none stays as a separate group.
+    let remainingViews: ShellQuickItem[] = []
     if (entry.id === 'apps' || entry.id === 'home') return item
     const route = active ? input.route : { path: entry.to, fullPath: entry.to, query: {}, params: {} }
     const currentPath = normalizedPath(route.path)
@@ -115,7 +118,7 @@ export function applicationNavigation(input: ApplicationNavigationInput): ShellN
       seen.add(key)
       return true
     })
-    item.views = quick.views.map(quickItem)
+    remainingViews = quick.views.map(quickItem)
 
     function addPresets(row: ShellNavigationLink) {
       if (row.children?.length) { row.children.forEach(addPresets); return }
@@ -143,12 +146,12 @@ export function applicationNavigation(input: ApplicationNavigationInput): ShellN
         ...actions.map(child => ({ ...child, testId: `quick-action-${child.id}` })),
       ]
       row.active = row.active && !selectedPreset
-      item.views = item.views.filter(view => targetPath(view.to) !== path)
+      remainingViews = remainingViews.filter(view => targetPath(view.to) !== path)
       item.actions = item.actions.filter(action => action.primary || targetPath(action.to) !== path)
     }
     item.sections.forEach(section => section.items.forEach(addPresets))
     // A scoped list can have presets without a global navigation row (for example tasks inside a project).
-    const remainingPaths = new Set(item.views.map(view => targetPath(view.to)).filter((path): path is string => !!path))
+    const remainingPaths = new Set(remainingViews.map(view => targetPath(view.to)).filter((path): path is string => !!path))
     for (const path of remainingPaths) {
       if (!canReachPath(input.identity, path)) continue
       const row: ShellNavigationLink = { id: `list-${path}`, label: t('nav.quickViews'), icon: 'i-lucide-list-filter', to: path, active, testId: `context-list-${path}` }
@@ -165,8 +168,6 @@ export function applicationNavigation(input: ApplicationNavigationInput): ShellN
       }
       item.sections.forEach(section => clearUnfiltered(section.items))
     }
-    item.views = []
-    item.panel = active && !!sidebarPanelFor(entry.id)
     return item
   })
 }

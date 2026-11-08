@@ -46,7 +46,6 @@ describe('shared section hierarchy across applications', () => {
     expect(users?.children?.find(child => child.id === 'stopped')).toMatchObject({ active: true, to: { path: '/settings/team/users', query: { status: 'stopped' } } })
     const company = menu.sections.flatMap(section => section.items).find(row => row.id === 'settings-company')!
     expect(company.children?.some(child => JSON.stringify(child.to) === JSON.stringify({ path: '/settings/company', hash: '#branding' }))).toBe(true)
-    expect(menu.views).toEqual([])
   })
   it('retains a permitted child when its section parent is filtered out, without exposing that parent destination', () => {
     const menu = buildModule('finance', '/finance/sales/invoices', ['liwan.internal', 'finance.partners.read'])
@@ -92,7 +91,6 @@ describe('unified application navigation', () => {
     expect(item).toBeDefined()
     expect(item.sections.flatMap(section => section.items.map(row => row.to))).toEqual(['/meetings', '/meetings/follow-up', '/meetings/calendar', '/meetings/series'])
     expect(item.sections.flatMap(section => section.items).find(row => row.id === 'meetings')?.children?.map(view => view.to)).toContainEqual({ path: '/meetings', query: { state: 'done' } })
-    expect(item.views).toEqual([])
     expect(item.actions.filter(action => typeof action.to === 'object' && action.to.path === '/meetings/new')).toHaveLength(1)
   })
   it('does not carry an operations filter into an unopened meetings menu', () => {
@@ -167,7 +165,6 @@ describe('unified application navigation', () => {
     expect(tasks.children?.find(child => child.id === 'tasks-all')).toMatchObject({ label: 'nav.viewAll', to: { path: '/tasks', query: { view: 'board' } }, active: false })
     expect(tasks.children?.find(child => child.id === 'today')).toMatchObject({ to: { path: '/tasks', query: { view: 'board', deadline: 'today' } }, active: true })
     expect(tasks.children?.some(child => child.id === 'archived-tasks')).toBe(true)
-    expect(item.views).toEqual([])
     expect(item.actions.map(action => action.id)).toEqual(['new-project', 'new-task-pmo'])
     const projects = item.sections.flatMap(section => section.items).find(row => row.id === 'projects')!
     expect(projects.children?.find(child => child.id === 'mine')).toMatchObject({ to: { path: '/projects', query: { mine: '1' } }, active: false })

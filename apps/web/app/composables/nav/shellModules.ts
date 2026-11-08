@@ -105,24 +105,16 @@ export interface ShellModuleDefinition {
 /** The start page of an application (`/apps/<id>`); it is not a manifest module, so no navigation item or capability belongs to it. */
 export const LAUNCHER_MODULE: ShellModuleDefinition = { id: LAUNCHER_MODULE_ID, labelKey: 'nav.apps', icon: 'i-lucide-layout-grid', to: '/' }
 
-/** The label key naming the open area in the drawer and sidebar heading: its module, «التطبيقات» on the launcher, else the product name. */
-export function areaLabelKey(definition: Pick<ShellModuleDefinition, 'labelKey'> | null | undefined, activeModule: ShellModule | null): string {
-  if (definition) return definition.labelKey
-  return activeModule === LAUNCHER_MODULE_ID ? LAUNCHER_MODULE.labelKey : 'app.productName'
-}
-
 /** Every rail module: home, the applications by manifest `order`, then settings (the rail places each by `fixed`). */
 export function shellModuleList(): ShellModuleDefinition[] {
   const applications = activeManifests().flatMap(manifest => manifest.rail).sort((a, b) => a.order - b.order)
   return [
     { id: 'home', labelKey: 'nav.home', icon: House, to: '/' },
     ...applications.map(({ id, labelKey, shortLabelKey, icon, to, fixed }) => ({ id, labelKey, shortLabelKey, icon, to, ...(fixed ? { fixed } : {}) })),
-    // Settings is administration only: account and appearance live in the header.
+    // Settings is administration only: the account card is in the sidebar footer and the appearance button in the top bar.
     { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: SETTINGS_OVERVIEW_PATH },
   ]
 }
-/** The rail of the discovered manifests, for consumers that only look up a heading or icon. */
-export const shellModules: ShellModuleDefinition[] = shellModuleList()
 
 export function visibleShellModules(identity: AccessIdentity): ShellModuleDefinition[] {
   const nav = useNav(identity)

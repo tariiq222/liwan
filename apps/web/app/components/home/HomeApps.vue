@@ -1,31 +1,29 @@
 <script setup lang="ts">
-import LauncherCard from '@/components/launcher/LauncherCard.vue'
-import { launcherEntries } from '@/composables/nav/launcherModel'
+import HomeAppCard from '@/components/home/HomeAppCard.vue'
+import HomeRail from '@/components/home/HomeRail.vue'
+import HomeSection from '@/components/home/HomeSection.vue'
+import { filterAppCards, presentCategories, type AppCardFilter, type AppCardModel } from '@/composables/useAppCards'
 
-// Every application the user may open, on «يومي» itself: one card per application with its own start actions and its
-// rail pin. Search is the global palette's job, so the section carries no search box, and an application the base
-// system keeps in the rail (the assistant) is never a card. Nothing to show renders nothing, not an empty section.
+// «تطبيقاتك»: every application the user may open as a gradient card on a snapping rail, with chips that keep one category.
+// The chips appear only when more than one category is present. Nothing to show renders nothing, not an empty section.
+const props = defineProps<{ cards: readonly AppCardModel[] }>()
 const { t, te } = useI18n()
-const { me } = useMe()
-const entries = computed(() => launcherEntries(me.value, '', t))
-const { pins, atLimit, toggle } = useShellModel().railPins
-const hydrated = useHydrated()
+const filter = ref<AppCardFilter>('all')
+const categories = computed(() => presentCategories(props.cards))
+const shown = computed(() => filterAppCards(props.cards, filter.value))
 const descriptionOf = (id: string) => (te(`launcher.apps.${id}.description`) ? t(`launcher.apps.${id}.description`) : undefined)
+const CHIP = 'inline-flex h-9 items-center rounded-control px-4 text-base font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 </script>
 
 <template>
-  <section v-if="entries.length" id="apps" class="space-y-3" aria-labelledby="apps-title" data-testid="home-apps">
-    <h2 id="apps-title" class="text-sm font-semibold text-muted">{{ t('home.apps') }}</h2>
-    <div class="liwan-card-grid">
-      <LauncherCard
-        v-for="entry in entries"
-        :key="entry.id"
-        :entry="entry"
-        :description="descriptionOf(entry.id)"
-        :pinned="pins.includes(entry.id)"
-        :pin-disabled="!hydrated || (atLimit && !pins.includes(entry.id))"
-        @toggle-pin="toggle(entry.id)"
-      />
-    </div>
-  </section>
+  <HomeSection v-if="props.cards.length" id="apps" mark="diamond" :title="t('home.apps')" :subtitle="t('home.appsSubtitle')" data-testid="home-apps">
+    <template v-if="categories.length > 1" #actions>
+      <div class="flex flex-wrap gap-2.5" role="group" :aria-label="t('home.filter.label')" data-testid="home-apps-filter">
+        <button v-for="option in (['all', ...categories] as AppCardFilter[])" :key="option" type="button" :aria-pressed="filter === option" :class="[CHIP, filter === option ? 'bg-inverted text-inverted' : 'bg-muted text-default hover:bg-elevated']" :data-testid="`home-apps-filter-${option}`" @click="filter = option">{{ t(`home.filter.${option}`) }}</button>
+      </div>
+    </template>
+    <HomeRail :label="t('home.apps')" data-testid="home-apps-list">
+      <HomeAppCard v-for="card in shown" :key="card.id" :card="card" :description="descriptionOf(card.id)" />
+    </HomeRail>
+  </HomeSection>
 </template>

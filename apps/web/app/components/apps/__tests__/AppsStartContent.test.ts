@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 import * as Vue from 'vue'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_STUBS, renderShared } from '@liwan/ui/test/helpers/renderShared'
+import { DEFAULT_STUBS, loadShared, renderShared } from '@liwan/ui/test/helpers/renderShared'
 
 const file = resolve(import.meta.dirname, '../AppsStartContent.vue')
 const SharedLinkCard = Vue.defineComponent({
@@ -12,7 +12,9 @@ const SharedLinkCard = Vue.defineComponent({
 const messages = { 'appStart.attention': 'يحتاج انتباهك', 'appStart.start': 'ابدأ من هنا', page: 'الطلبات', create: 'طلب جديد' }
 const row = (id: string, tone: 'urgent' | 'normal' = 'normal') => ({ id, label: `بند ${id}`, to: `/r/${id}`, tone, module: 'operations', work: 'decide' as const, caption: 'غدًا' })
 const card = (to: string, labelKey: string) => ({ id: to, labelKey, icon: 'i-lucide-files' as const, to })
-const render = (props: Record<string, unknown>) => renderShared(file, props, {}, { messages, stubs: { ...DEFAULT_STUBS, SharedLinkCard } })
+const stubs = { ...DEFAULT_STUBS, SharedLinkCard }
+const modules = { '@/components/home/HomeSection.vue': { __esModule: true, default: loadShared(resolve(import.meta.dirname, '../../home/HomeSection.vue'), { messages }) } }
+const render = (props: Record<string, unknown>) => renderShared(file, props, {}, { messages, stubs, modules })
 
 describe('AppsStartContent', () => {
   it('shows the attention rows above the start links', async () => {
