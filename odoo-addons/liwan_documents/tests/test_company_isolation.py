@@ -14,15 +14,18 @@ from odoo.tests.common import HOST
 
 from odoo.addons.liwan_api.tests.common import (
     CompanyIsolationCase,
+    assert_isolation_discovery,
     cover_isolation_routes,
+    exempt_isolation_route,
 )
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 # Every GET /api/v1 route of this addon carrying an <int:...> record id. The
 # remaining GET routes (/api/v1/documents, /api/v1/documents/contexts,
-# /api/v1/documents/contexts/<string:kind>/options, /api/v1/documents/tags)
-# carry no <int:...> record id; the documents list is exercised by the list
-# test below.
+# /api/v1/documents/tags) carry no record id; the documents list is exercised by
+# the list test below. The context-options route is exempted at the bottom.
+EXPECTED_GET_RECORD_ROUTES = 5
+
 COVERED = (
     '/api/v1/documents/<int:document_id>',
     '/api/v1/documents/<int:document_id>/access',
@@ -134,5 +137,13 @@ class DocumentsCompanyIsolationCase(CompanyIsolationCase):
             [item['id'] for item in forged.json()['items']],
         )
 
+    def test_discovery_covers_every_get_record_route(self):
+        assert_isolation_discovery(self, 'liwan_documents', EXPECTED_GET_RECORD_ROUTES)
+
 
 cover_isolation_routes(COVERED, 'liwan_documents/tests/test_company_isolation.py')
+exempt_isolation_route(
+    '/api/v1/documents/contexts/<string:kind>/options',
+    'this addon defines no context kind and answers every kind as invalid; '
+    'each bridge that adds a kind scopes its option list to the current company',
+)
