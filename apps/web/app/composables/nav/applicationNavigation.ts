@@ -1,9 +1,11 @@
 import type { ShellNavigationItem, ShellNavigationLink, ShellQuickItem } from '@liwan/ui/app/types/shell'
 import { canReach, canReachPath, type AccessIdentity } from '../../utils/accessPolicy'
 import { createLinkTo, type CreateActionRoute } from './createActions'
-import { contextLinksForModule, moduleContextLinks, visibleShellModules, type ShellContextLink } from './shellModules'
+import { contextLinksForModule, moduleContextLinks, sidebarMenuForModule, visibleShellModules, type ShellContextLink } from './shellModules'
 import { contextLinkTestId, groupSections, railModel } from './sidebarModel'
 import { quickViewsModel } from './quickViewsModel'
+import { flatSidebar } from './flatSidebar'
+import type { RecentRecord } from './recentRecords'
 import { normalizedPath } from '../../utils/routePath'
 
 export interface ApplicationNavigationInput {
@@ -13,6 +15,10 @@ export interface ApplicationNavigationInput {
   contextLinks: readonly ShellContextLink[]
   /** Build only this entry's menu (the open application); every entry when absent. */
   only?: string
+  /** The numbers of a flat menu's rows that have arrived, by row id. */
+  sidebarCounts?: Readonly<Record<string, number | undefined>>
+  /** The records opened last, for a flat menu that lists them. */
+  recents?: readonly RecentRecord[]
   translate: (key: string, values?: Record<string, string>) => string
 }
 
@@ -45,8 +51,21 @@ export function applicationNavigation(input: ApplicationNavigationInput): ShellN
     const route = active ? input.route : { path: entry.to, fullPath: entry.to, query: {}, params: {} }
     const currentPath = normalizedPath(route.path)
     const links = active ? input.contextLinks : contextLinksForModule(entry.id, input.identity, route.path)
-    const roots = links.filter(link => !link.pinned && !link.section)
     const createTo = (link: { id: string; to: ShellContextLink['to'] }) => createLinkTo(link, route)
+    const menu = sidebarMenuForModule(entry.id)
+    if (menu) {
+      const create = links.find(link => link.id === menu.create)
+      return {
+        ...item,
+        ...flatSidebar({
+          menu, route, canOpen: (capability, path) => canReach(input.identity, capability, path) && (!path || canReachPath(input.identity, path)),
+          // The application's own colour tile marks the create action as the menu's primary one.
+          create: create ? { id: create.id, label: t(create.labelKey), icon: create.icon, to: createTo(create), primary: true, app: entry.id } : null,
+          counts: input.sidebarCounts ?? {}, recents: input.recents ?? [], translate: t,
+        }),
+      }
+    }
+    const roots = links.filter(link => !link.pinned && !link.section)
     const quickFor = (path: string) => quickViewsModel({ path, query: normalizedPath(path) === currentPath ? route.query : {}, can: capability => canReach(input.identity, capability), createTo })
     const quick = quickFor(route.path)
     const quickItem = (link: { id: string; labelKey: string; icon: string; to: ShellQuickItem['to']; active?: boolean; primary?: boolean }): ShellQuickItem =>

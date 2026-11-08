@@ -7,7 +7,7 @@ import { activeManifests } from '../../modules/manifests'
 import { normalizedPath } from '../../utils/routePath'
 import { LAUNCHER_MODULE_ID } from './activeRoute'
 import { partIsExact, settingsPageForPath, settingsPartPath, settingsPartTarget, settingsPages, type SettingsPage } from './settingsSections'
-import type { AppSettingsPart } from '../../modules/types'
+import type { AppSettingsPart, AppSidebarMenu } from '../../modules/types'
 import { CUSTOMER_COMMERCIAL_CAPABILITIES, deriveCustomerCapabilities } from '../../utils/customerCapabilities'
 import type { AppIcon, AppRailSlot } from '../../modules/types'
 
@@ -194,6 +194,11 @@ function resolveContextLinks(module: ShellModule, path: string | undefined, iden
   const owner = activeManifests().find(manifest => manifest.rail.some(entry => entry.id === module))
   if (owner) return owner.contextLinks?.(path) ?? []
   return module === 'settings' ? settingsContextLinks(path, identity) : []
+}
+
+/** The flat sidebar menu the application behind a rail module declares, or undefined for the generic context-link menu. */
+export function sidebarMenuForModule(module: ShellModule): AppSidebarMenu | undefined {
+  return activeManifests().find(manifest => manifest.rail.some(entry => entry.id === module))?.sidebar
 }
 
 /** A module's context links before capability filtering (the breadcrumb names the page the user is on). */

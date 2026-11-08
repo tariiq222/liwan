@@ -55,19 +55,18 @@ test('risk list shows understandable filters, no one-page pager, and readable te
   await expect(page.getByRole('textbox', { name: 'بحث عن خطر أو مشكلة' })).toHaveValue('اعتماد')
 })
 
-test('project list uses one create action and the sidebar switches between all and my projects', async ({ page }) => {
+test('project list uses one create action and its chips switch between all and my projects', async ({ page }) => {
   await page.goto('/projects?view=table&q=alpha')
   await expect(page.getByTestId('project-new')).toBeVisible()
   await expect(page.getByTestId('context-link-new-project')).toHaveCount(0)
   await expect(page.getByTestId('context-link-my-projects')).toHaveCount(0)
-  // «مشاريعي» is a quick view in the sidebar sub-list. A quick view starts a fresh filter and keeps only the layout (quickViewsModel keepKeys).
-  const navigation = page.getByTestId('application-navigation')
-  await navigation.getByTestId('quick-view-mine').click()
+  // «مشاريعي» is a chip above the list. A chip owns mine, status and archived; it keeps the search and the layout.
+  await page.getByTestId('projects-chip-mine').click()
   await expect(page).toHaveURL(/mine=1/)
   await expect(page).toHaveURL(/view=table/)
-  await expect(page).not.toHaveURL(/q=alpha/)
+  await expect(page).toHaveURL(/q=alpha/)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('مشاريعي')
-  await navigation.getByTestId('context-link-projects-all').click()
+  await page.getByTestId('projects-chip-all').click()
   await expect(page).not.toHaveURL(/mine=1/)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('كل المشاريع')
 })

@@ -221,6 +221,13 @@ const stateOf = p => { const state = CHARTER_STATE.get(p.id) ?? { charter: CHART
 const PHASES = ['initiating', 'planning', 'executing', 'closing', 'closed']
 const PHASE_OF = new Map()
 const phaseOf = p => PHASE_OF.get(p.id) ?? (PROJECTS.includes(p) ? 'planning' : 'initiating')
+// The list's `status` (one status, a comma list of them, or `unset`) and `mine` filters; the mock user (id 2) manages every project.
+function projectMatchesFilters(project, params) {
+  const statuses = (params.get('status') ?? '').split(',').filter(Boolean)
+  const byStatus = !statuses.length || (statuses[0] === 'unset' ? !project.status : statuses.includes(project.status))
+  return byStatus && (!['1', 'true'].includes(params.get('mine') ?? '') || project.manager?.id === 2)
+}
+
 const listItem = p => ({ ...p, charter_state: toolsOf(p).governance.enabled ? stateOf(p).charter.state : null, phase: toolsOf(p).governance.enabled ? phaseOf(p) : null })
 
 // Mirrors Project._liwan_phase_state: the gate into planning asks for the charter, the gate into executing for a baseline (warning).
@@ -726,7 +733,7 @@ async function handle(req, res) {
     // charter_review=1 is the sponsor's "waiting for me" list: charters submitted and reviewable by the caller.
     const items = url.searchParams.get('charter_review') === '1'
       ? allProjects().filter(p => stateOf(p).charter.state === 'submitted' && stateOf(p).charter.can_review).map(listItem)
-      : PROJECTS.map(listItem)
+      : PROJECTS.filter(p => projectMatchesFilters(p, url.searchParams)).map(listItem)
     return json(res, 200, { items, total: items.length, can_create: true, can_list_archived: true })
   }
   if (method === 'POST' && path === '/api/v1/projects') {

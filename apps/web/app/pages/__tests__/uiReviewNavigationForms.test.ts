@@ -52,7 +52,7 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
     useProject: () => ({ data: Vue.ref({ ...projectDetail, id: 7, name: 'Example project' }), error: Vue.ref(null) }),
     useArchivedTasks: () => ({ data: Vue.ref({ pages: [] }), isLoading: Vue.ref(false) }),
     useRestoreTask: () => ({ mutate: vi.fn(), isPending: Vue.ref(false) }),
-    useMe: () => ({ me: Vue.ref(storyMe) }), useProjectWorkspaceMemory: () => ({ remember: () => undefined }), useApi: () => ({ $api: vi.fn() }),
+    useMe: () => ({ me: Vue.ref(storyMe) }), useProjectWorkspaceMemory: () => ({ remember: () => undefined }), useRecentRecords: () => ({ remember: () => undefined }), useApi: () => ({ $api: vi.fn() }),
     firstAllowedPath: () => '/projects', useNav: () => [],
     useQuery: () => ({ data: Vue.ref([{ id: 7, name: 'Example' }]), isLoading: Vue.ref(false), error: Vue.ref(null) }),
     ProjectRefSchema: { array: () => ({}) }, findSearchShortcut: () => undefined,

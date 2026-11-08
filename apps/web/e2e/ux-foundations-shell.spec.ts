@@ -65,12 +65,12 @@ test('a deliberate shell visit starts at top even for the same list path or an a
   await enterFoundation(page, '/projects?q=مهمة')
   await page.evaluate(() => { document.body.style.minHeight = '4000px'; window.scrollTo(0, 500) })
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(500)
-  await page.evaluate(() => (document.querySelector('[data-testid="context-link-projects-all"]') as HTMLElement).click())
+  await page.evaluate(() => (document.querySelector('[data-testid="context-link-projects"]') as HTMLElement).click())
   await expect(page).toHaveURL(/\/projects$/)
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
   await page.evaluate(() => window.scrollTo(0, 500))
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(500)
-  await page.evaluate(() => (document.querySelector('[data-testid="context-link-projects-all"]') as HTMLElement).click())
+  await page.evaluate(() => (document.querySelector('[data-testid="context-link-projects"]') as HTMLElement).click())
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
 })
 
@@ -82,7 +82,7 @@ test.describe('mobile drawer entry', () => {
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(500)
     await page.getByTestId('mobile-navigation-trigger').click()
     const dialog = page.getByRole('dialog')
-    const projects = dialog.getByTestId('mobile-application-navigation').getByRole('link', { name: 'عرض الكل', exact: true })
+    const projects = dialog.getByTestId('mobile-context-link-projects')
     const box = (await projects.boundingBox())!
     expect(box.height).toBeGreaterThanOrEqual(44)
     await projects.click()

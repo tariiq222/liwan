@@ -32,6 +32,11 @@ const { remember } = useProjectWorkspaceMemory()
 watch([() => route.fullPath, project, me, hydrated], () => {
   if (project.value?.id === projectId.value && !error.value) remember(route.path, route.query)
 }, { immediate: true })
+// The sidebar lists the projects opened last.
+const recentProjects = useRecentRecords('project')
+watch([() => project.value?.id, () => project.value?.name, me], ([id, name]) => {
+  if (id !== undefined && name !== undefined && id === projectId.value && !error.value) recentProjects.remember({ id, name })
+}, { immediate: true })
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && (error.value.status === 404 || error.value.status === 403)))
 const settingsPath = computed(() => `/projects/${projectId.value}/settings`)
 // Like a section tab, the settings link keeps the task list's view and filters available for the way back.

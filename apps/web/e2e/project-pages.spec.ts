@@ -115,7 +115,9 @@ test('desktop project workspace has one identity and one toolbar after a direct 
   expect(search.y).toBeGreaterThan(tabs.y + tabs.height)
   await page.screenshot({ path: testInfo.outputPath('desktop-project-layout.png'), fullPage: true })
   await expect(page.getByTestId('project-tab-tasks')).toHaveAttribute('aria-current', 'page')
-  await expect(page.getByTestId('context-link-projects')).toHaveAttribute('aria-expanded', 'true')
+  // The flat sidebar lists the project among the recently opened ones and lights it while one of its pages is open.
+  await expect(page.getByTestId('recent-project-1')).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByTestId('application-navigation').locator('.liwan-side-branch')).toHaveCount(0)
   await expect(page.getByTestId('application-navigation').getByRole('heading', { name: 'العمل اليومي' })).toHaveCount(0)
   await expect(page.getByTestId('application-navigation').getByRole('heading', { name: 'متابعة المشروع' })).toHaveCount(0)
   await expect(page.getByTestId('context-link-project-system-settings')).toHaveCount(0)

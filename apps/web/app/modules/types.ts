@@ -277,6 +277,53 @@ export interface AppCard {
   /** At most two numbers, built only from the application's existing endpoints. */
   figures?: readonly AppCardFigure[]
 }
+/** The page the sidebar rows read to tell which one the open page belongs to. */
+export interface AppSidebarRoute { path: string; query: Record<string, unknown> }
+/** One flat row of an application's sidebar. */
+export interface AppSidebarRow {
+  /** Unique within the menu; names the row's test id and the key of its count. */
+  id: string
+  labelKey: string
+  icon: AppIcon
+  /** The path and the query that selects a preset of its list. */
+  to: { path: string; query?: Record<string, string> }
+  /** Query keys of the open page carried over when it is already on `to.path` (the layout switch, `view`). */
+  keep?: readonly string[]
+  capability: string
+  /** Whether the open page belongs to this row. */
+  active: (route: AppSidebarRoute) => boolean
+}
+/** The numbers beside rows: one request fills the counts of every row id it returns; a failed or pending one is not drawn. */
+export interface AppSidebarCounts {
+  /** Capability the numbers need; without it nothing is asked. */
+  capability: string
+  /** Vue-query key; the sidebar appends the owner. */
+  queryKey: readonly unknown[]
+  /** Runs through useApi(); the count of each row id, null when the endpoint has nothing to say. */
+  load: (api: AppSearchApi) => Promise<Record<string, number | null>>
+}
+/** The records the person opened last (`RECENT_RECORDS_MAX` of them), listed under their own heading; kept in this browser per person and company. */
+export interface AppSidebarRecent {
+  /** Record kind; names the browser storage. */
+  kind: string
+  titleKey: string
+  icon: AppIcon
+  /** Capability that opens the records. */
+  capability: string
+  /** The record is open when the path is its `to` or beneath it. */
+  to: (id: number) => string
+}
+/**
+ * A flat sidebar menu: the application's primary create action (the id of its pinned context link), its pages one
+ * level deep with optional counts, and the records opened last. An application without one keeps the generic
+ * context-link menu.
+ */
+export interface AppSidebarMenu {
+  create: string
+  rows: readonly AppSidebarRow[]
+  counts?: readonly AppSidebarCounts[]
+  recent?: AppSidebarRecent
+}
 export interface AppManifest {
   id: string                         // 'pmo' | 'meetings' | 'hr' | 'chat' | '<app>'
   feature: string                    // '<app>.enabled'
@@ -318,6 +365,8 @@ export interface AppManifest {
   assistant?: AppAssistantSurface
   /** What needs the user's attention, for the assistant surfaces and the home suggestions. */
   attention?: AppAttentionProvider[]
+  /** A flat sidebar menu in place of the generic one built from `contextLinks`. */
+  sidebar?: AppSidebarMenu
   /** The application's card on home and on the all-applications page. */
   appCard?: AppCard
   /** Employee-owned services, separate from work and administrative navigation. */

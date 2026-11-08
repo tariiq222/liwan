@@ -258,7 +258,7 @@ test('archiving and unarchiving a project moves it between the active and archiv
   await archived
   await expect(page.getByTestId('project-row').filter({ hasText: name })).toHaveCount(0)
 
-  await page.getByTestId('projects-scope').getByRole('button', { name: 'المؤرشفة' }).click()
+  await page.getByTestId('projects-chip-archived').click()
   await expect(page).toHaveURL((url) => url.searchParams.get('q') === name && url.searchParams.get('archived') === '1')
   const archivedRow = page.getByTestId('project-row').filter({ hasText: name })
   await expect(archivedRow).toBeVisible()
@@ -270,7 +270,7 @@ test('archiving and unarchiving a project moves it between the active and archiv
   await unarchiveResponse.finished()
   await expect(page.getByTestId('project-row').filter({ hasText: name })).toHaveCount(0)
 
-  await page.getByTestId('projects-scope').getByRole('button', { name: 'النشطة' }).click()
+  await page.getByTestId('projects-chip-all').click()
   await expect(page).not.toHaveURL(/archived=1/)
   await expect(page).toHaveURL((url) => url.searchParams.get('q') === name)
   const restoredListResponse = await page.request.get(`/api/v1/projects?q=${encodeURIComponent(name)}`)

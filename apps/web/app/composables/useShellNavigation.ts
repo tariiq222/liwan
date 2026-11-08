@@ -33,9 +33,6 @@ export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
     const linksModule = contextModuleFor(activeModule.value)
     if (!linksModule) return []
     const links = contextLinksForModule(linksModule, identityValue.value, route.path)
-      .map(link => route.path === '/projects' && link.id === 'projects'
-        ? { ...link, to: { path: '/projects', query: { ...route.query, mine: undefined, offset: undefined } } }
-        : link)
     const part = effectiveActivePart(route.path, links, activePart.value, hydrated.value ? route.hash : '')
     return links.map(link => ({ ...link, active: isContextLinkActive(route.path, link, part) }))
   })

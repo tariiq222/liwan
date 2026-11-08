@@ -70,10 +70,12 @@ const accountLabel = computed(() => me.value?.name ? `${t('nav.account')}: ${me.
     </template>
     <template v-else-if="app">
       <div class="liwan-side-back"><ShellNavSection :label="t('nav.allApps')" :items="backRows" :test-id-prefix="prefix" :hydrated="hydrated" @navigate="emit('navigate')" /></div>
-      <div class="liwan-side-appblock" :data-testid="`${prefix}navigation-app-block`">
-        <ShellAppTile :icon="app.icon" :app="app.id" size="md" />
-        <span data-slot="name">{{ app.label }}</span>
-      </div>
+      <ShellTip :label="app.label">
+        <div class="liwan-side-appblock" :data-testid="`${prefix}navigation-app-block`">
+          <ShellAppTile :icon="app.icon" :app="app.id" size="md" />
+          <span data-slot="name">{{ app.label }}</span>
+        </div>
+      </ShellTip>
       <ShellNavSection v-if="actionRows.length" :label="t('nav.quickActionsList')" :items="actionRows" :test-id-prefix="prefix" :hydrated="hydrated" @navigate="emit('navigate')" />
       <ShellNavSection v-for="section in sections" :key="section.id" :label="app.label" :title="section.title || undefined" :items="section.items" :test-id-prefix="prefix" :hydrated="hydrated" @navigate="emit('navigate')" />
     </template>

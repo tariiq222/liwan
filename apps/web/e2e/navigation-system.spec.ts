@@ -132,13 +132,13 @@ for (const width of [360, 1440]) {
   }
 }
 
-test('between 768px and 1099px the sidebar is an icon-only 84px column without branches', async ({ page }) => {
+test('between 768px and 1099px the sidebar is an icon-only 84px column, and the flat projects menu has no branch at all', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 900 })
   await open(page, '/projects')
   const menu = page.getByTestId('application-navigation')
   expect((await menu.boundingBox())!.width).toBe(84)
   await expect(menu.getByTestId('context-link-projects')).toBeVisible()
-  await expect(menu.getByTestId('submenu-projects')).toBeHidden()
+  await expect(menu.locator('.liwan-side-branch')).toHaveCount(0)
   await expect(menu.getByTestId('navigation-app-block').locator('[data-slot="name"]')).toBeHidden()
   await expect(menu.getByTestId('context-link-project-dashboard')).toHaveAccessibleName('نظرة عامة')
 })

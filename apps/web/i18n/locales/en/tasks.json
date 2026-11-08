@@ -1,13 +1,5 @@
 {
   "tasks": {
-    "quickViews": {
-      "assigned": "Assigned to me",
-      "today": "Today",
-      "week": "This week",
-      "overdue": "Overdue",
-      "urgent": "Urgent",
-      "done": "Completed"
-    },
     "title": "Project tasks",
     "description": "Track the tasks available to you, their status, and deadlines in one place.",
     "table": "Table",

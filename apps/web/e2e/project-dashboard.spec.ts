@@ -27,8 +27,9 @@ for (const width of [390, 768, 1440]) {
       const navigation = page.getByTestId('application-navigation')
       await expect(navigation.getByTestId('navigation-app-block')).toHaveText('المشاريع')
       await expect(navigation.getByTestId('context-link-project-dashboard')).toHaveAccessibleName('نظرة عامة')
-      await expect(navigation.getByTestId('context-link-projects')).toHaveAccessibleName('قائمة المشاريع')
-      await expect(navigation.getByTestId('context-link-tasks')).toHaveAccessibleName(/المهام|مهام/)
+      await expect(navigation.getByTestId('context-link-projects')).toHaveAccessibleName('المشاريع')
+      await expect(navigation.getByTestId('context-link-tasks')).toHaveAccessibleName('مهامي')
+      await expect(navigation.getByTestId('context-link-projects-attention')).toHaveAccessibleName('تحتاج انتباه')
       await expect(page.getByTestId('quick-action-new-project')).toBeVisible()
       await expect(page.getByTestId('context-link-project-dashboard')).toHaveAttribute('aria-current', 'page')
     }

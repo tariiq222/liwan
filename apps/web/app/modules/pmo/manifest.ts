@@ -5,12 +5,14 @@ import { projectPicker } from './recordPicker'
 import { openTasksAttention, overdueTasksAttention, projectsAtRiskAttention } from './attention'
 import { projectsSearch, tasksSearch } from './search'
 import { projectsAppCard } from './appCard'
+import { projectsSidebar } from './sidebar'
 
 const manifest: AppManifest = {
   id: 'pmo',
   feature: 'pmo.enabled',
   routePrefixes: ['/projects', '/tasks'],
   appCard: projectsAppCard,
+  sidebar: projectsSidebar,
   rail: [
     { id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', to: '/projects', order: 20 },
   ],
