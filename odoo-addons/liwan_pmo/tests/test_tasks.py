@@ -382,7 +382,7 @@ class TestTaskWrite(LiwanPmoCase):
 
     def test_patch_deadline_and_stage(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
-        stages = self.api('GET', '/api/v1/me/personal-stages').json()
+        stages = self.api('GET', '/api/v1/me/personal-stages').json()['items']
         res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}',
                        {'date_deadline': '2030-01-15T09:00:00Z', 'personal_stage_type_id': stages[1]['id']})
         self.assertEqual(res.status_code, 200)
@@ -448,9 +448,9 @@ class TestTaskWrite(LiwanPmoCase):
     def test_patch_rejects_another_users_personal_stage(self):
         """personal_stage_type_id's domain is UI-only — the API must own the check."""
         self.authenticate('api_mgr', 'api_mgr_pass_123')
-        manager_stages = self.api('GET', '/api/v1/me/personal-stages').json()
+        manager_stages = self.api('GET', '/api/v1/me/personal-stages').json()['items']
         self.authenticate('api_emp', 'api_emp_pass_123')
-        own_stages = self.api('GET', '/api/v1/me/personal-stages').json()
+        own_stages = self.api('GET', '/api/v1/me/personal-stages').json()['items']
         foreign = manager_stages[0]['id']
         self.assertNotIn(foreign, [s['id'] for s in own_stages])
         res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'personal_stage_type_id': foreign})

@@ -17,7 +17,9 @@ const hydrated = useHydrated()
 const toast = useToast()
 
 const projectIdRef = computed(() => props.projectId)
-const { data, isLoading, error, refetch } = useMilestones(projectIdRef)
+const {
+  data, isLoading, error, refetch, hasNextPage, isFetchingNextPage, fetchNextPage,
+} = useMilestones(projectIdRef)
 const items = computed<Milestone[]>(() => data.value ?? [])
 const route = useRoute()
 
@@ -166,6 +168,18 @@ const columns = computed<TableColumn<Milestone>[]>(() => [
             </div>
           </template>
         </SharedDataTable>
+        <div v-if="hasNextPage" class="flex justify-center border-t border-default py-3">
+          <UButton
+            color="neutral"
+            variant="outline"
+            size="sm"
+            data-testid="milestone-more"
+            :disabled="!hydrated || isFetchingNextPage"
+            :loading="isFetchingNextPage"
+            :label="t('app.loadMore')"
+            @click="fetchNextPage()"
+          />
+        </div>
       </SharedListCard>
     </template>
   </div>

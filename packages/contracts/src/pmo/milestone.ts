@@ -21,5 +21,9 @@ export const MilestonePatchSchema = z.object({
   is_reached: z.boolean().optional(),
 }).strict()
 
+export const MilestoneListSchema = z.object({
+  items: z.array(MilestoneSchema), total: z.number().int().nonnegative(),
+}).strict()
+
 export type Milestone = z.infer<typeof MilestoneSchema>
 export type MilestonePatch = z.infer<typeof MilestonePatchSchema>
