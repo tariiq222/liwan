@@ -208,7 +208,7 @@ test.describe('payments orders settings', () => {
     await expect(page.getByTestId('payments-orders')).toContainText('يسري هذا الخيار على الحساب كله')
     await expect(saveBar(page)).toBeHidden()
     expect(await readSettings(page)).toEqual({
-      unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', system_admin_links: false, revision: 0,
+      unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', vat_registered: true, system_admin_links: false, revision: 0,
     })
   })
 
@@ -276,6 +276,27 @@ test.describe('payments orders settings', () => {
     errors = withoutRefusals(errors)
   })
 
+  test('a company that is not registered for VAT gets no tax mode to choose, and says why', async ({ page }) => {
+    // The company profile holds the VAT registration; the orders card reads it from the settings answer.
+    expect((await page.request.post('/api/v1/__mock/payments-vat-registered/false', { data: {} })).status()).toBe(200)
+    await open(page, PATH, 'الدفع الإلكتروني')
+    await expect(page.getByTestId('payments-orders')).toBeVisible()
+    await expect(page.locator('#payments-order-tax-mode')).toHaveCount(0)
+    await expect(page.getByTestId('payments-order-tax-mode-unregistered')).toContainText('الشركة غير مسجّلة في ضريبة القيمة المضافة')
+    // The rest of the card still saves.
+    const bodies = patchBodies(page)
+    await expiry(page).fill('45')
+    await expiry(page).blur()
+    await save(page).click()
+    await expect(saveBar(page)).toBeHidden()
+    expect(bodies).toEqual([{ revision: 0, unpaid_order_expiry_minutes: 45 }])
+    // Registered again, the mode comes back.
+    expect((await page.request.post('/api/v1/__mock/payments-vat-registered/true', { data: {} })).status()).toBe(200)
+    await page.reload()
+    await expect(page.locator('#payments-order-tax-mode')).toBeVisible()
+    await expect(page.getByTestId('payments-order-tax-mode-unregistered')).toHaveCount(0)
+  })
+
   test('a save made on a stale revision locks the card until the saved values are loaded, and saves nothing', async ({ page }) => {
     await open(page, PATH, 'الدفع الإلكتروني')
     // Another session saves first: the card was made from revision 0, the server is now on 1.
@@ -293,7 +314,7 @@ test.describe('payments orders settings', () => {
     await expect(saveBar(page)).toBeHidden()
     expect(bodies).toEqual([{ revision: 0, unpaid_order_expiry_minutes: 30 }])
     expect(await readSettings(page)).toEqual({
-      unpaid_order_expiry_minutes: 120, invoice_when_paid: false, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', system_admin_links: false, revision: 1,
+      unpaid_order_expiry_minutes: 120, invoice_when_paid: false, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', vat_registered: true, system_admin_links: false, revision: 1,
     })
     errors = withoutRefusals(errors)
 
@@ -305,7 +326,7 @@ test.describe('payments orders settings', () => {
     await expect(orders(page).getByRole('alert')).toHaveCount(0)
     expect(bodies.at(-1)).toEqual({ revision: 1, unpaid_order_expiry_minutes: 30 })
     expect(await readSettings(page)).toEqual({
-      unpaid_order_expiry_minutes: 30, invoice_when_paid: false, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', system_admin_links: false, revision: 2,
+      unpaid_order_expiry_minutes: 30, invoice_when_paid: false, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', vat_registered: true, system_admin_links: false, revision: 2,
     })
   })
 

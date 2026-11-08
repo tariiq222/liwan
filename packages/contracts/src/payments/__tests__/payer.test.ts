@@ -19,6 +19,7 @@ const INVOICE = {
   amount_untaxed: 100,
   amount_tax: 15,
   amount_total: 115,
+  tax_applies: true,
   amount_due: 115,
   status: 'payable',
   options: [{ provider_id: 14, provider: 'Paymob', method_id: 3, method: 'card', method_name: 'Card' }],
@@ -28,7 +29,7 @@ describe('PayableInvoiceSchema', () => {
   it('is strict and carries no partner data', () => {
     expect(PayableInvoiceSchema.parse(INVOICE)).toEqual(INVOICE)
     expect(Object.keys(PayableInvoiceSchema.shape).sort()).toEqual(
-      ['amount_due', 'amount_tax', 'amount_total', 'amount_untaxed', 'currency', 'due_date', 'id', 'merchant', 'number', 'options', 'status'],
+      ['amount_due', 'amount_tax', 'amount_total', 'amount_untaxed', 'currency', 'due_date', 'id', 'merchant', 'number', 'options', 'status', 'tax_applies'],
     )
     expect(() => PayableInvoiceSchema.parse({ ...INVOICE, partner: 'Payer' })).toThrow()
     expect(() => PayableInvoiceSchema.parse({ ...INVOICE, status: 'refunded' })).toThrow()
@@ -76,7 +77,7 @@ describe('PaymentLinkSchema', () => {
 
 describe('PaymentSettingsSchema', () => {
   it('bounds the expiry and accepts partial changes on a revision', () => {
-    const settings = { unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', system_admin_links: false, revision: 0 }
+    const settings = { unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', vat_registered: true, system_admin_links: false, revision: 0 }
     expect(PaymentSettingsSchema.parse(settings)).toEqual(settings)
     expect(() => PaymentSettingsSchema.parse({ ...settings, unpaid_order_expiry_minutes: 4 })).toThrow()
     expect(() => PaymentSettingsSchema.parse({ ...settings, refund_policy: 'notice' })).toThrow()

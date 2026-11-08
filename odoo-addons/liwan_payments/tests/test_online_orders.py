@@ -15,7 +15,7 @@ from odoo.addons.liwan_payments.models.order_service import (
     NotPayable,
 )
 
-ORDER_KEYS = {'id', 'merchant', 'number', 'expires_at', 'currency', 'amount_untaxed', 'amount_tax', 'amount_total', 'amount_due', 'status', 'options'}
+ORDER_KEYS = {'id', 'merchant', 'number', 'expires_at', 'currency', 'amount_untaxed', 'amount_tax', 'amount_total', 'tax_applies', 'amount_due', 'status', 'options'}
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -265,7 +265,7 @@ class TestOnlineOrderMoney(LiwanOrderCase):
 
 @tagged('post_install', '-at_install', 'liwan')
 class TestOnlineOrderTaxMode(LiwanOrderCase):
-    """The company decides whether the price of a product contains its tax (the default) or has it added (issue #288)."""
+    """A VAT-registered company decides whether the price of a product contains its tax (the default) or has it added (issue #288)."""
 
     @classmethod
     def setUpClass(cls):
@@ -275,6 +275,8 @@ class TestOnlineOrderTaxMode(LiwanOrderCase):
             'company_id': cls.env.company.id,
         })
         cls.service.taxes_id = [Command.set(cls.vat.ids)]
+        # Only a company registered for VAT charges one; test_vat_registered covers the unregistered case.
+        cls.env.company.write({'vat': '300000000000003', 'liwan_vat_registered': True})
 
     def set_mode(self, mode):
         self.env['liwan.payments.settings'].search([('company_id', '=', self.env.company.id)]).unlink()

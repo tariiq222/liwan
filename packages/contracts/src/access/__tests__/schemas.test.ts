@@ -87,6 +87,7 @@ const CAPABILITIES = [
   'settings.branding.manage',
   'settings.company.read',
   'settings.company.manage',
+  'settings.company.vat.manage',
   'meetings.read',
   'meetings.create',
   'meetings.manage',
@@ -143,7 +144,7 @@ const AUDIT_SUMMARY = {
 describe('access capability and reference schemas', () => {
   it("lists today's capability catalog and accepts any well-formed key", () => {
     expect(KNOWN_CAPABILITIES).toEqual(CAPABILITIES)
-    expect(KNOWN_CAPABILITIES).toHaveLength(57)
+    expect(KNOWN_CAPABILITIES).toHaveLength(58)
     for (const key of [...CAPABILITIES, 'sales.orders.read', 'sales.orders.write', 'customer_acme.reports.export']) {
       expect(CapabilitySchema.parse(key)).toBe(key)
     }
@@ -385,6 +386,7 @@ describe('admin input schemas and fail-closed security fields', () => {
       'branch.policy_changed',
       'company.profile_changed',
       'company.branding_changed',
+      'company.vat_registration_changed',
       'employee.archived_access_disabled',
       'role.created',
       'role.updated',

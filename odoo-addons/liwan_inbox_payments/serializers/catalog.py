@@ -14,7 +14,9 @@ def dump_catalog(catalog):
         'last_error': catalog.last_error or None,
         'brand': catalog.brand,
         'default_link': catalog.default_link or None,
-        'prices_include_tax': catalog.prices_include_tax,
+        # A company that is not registered for VAT shows no tax at all: its prices include none, whatever the option says.
+        'prices_include_tax': catalog.prices_include_tax if catalog.company_id._liwan_vat_registered() else False,
+        'vat_registered': catalog.company_id._liwan_vat_registered(),
         'currency': catalog.company_id.currency_id.name,
         'channels': [{
             'id': channel.id, 'name': channel.name,

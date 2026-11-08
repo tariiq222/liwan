@@ -163,7 +163,8 @@
         "label": "Tax in the price",
         "hint": "Whether the price you set already contains the tax (the customer pays that price) or the tax is added on top. The tax shows to the customer as its own line either way. Applies to new orders of the current company.",
         "included": "Price includes tax",
-        "added": "Tax is added to the price"
+        "added": "Tax is added to the price",
+        "unregistered": "The company is not registered for VAT, so no tax is computed on its orders or shown to the customer. Turn registration on in the company profile to show it."
       },
       "systemAdminLinks": {
         "label": "Payment links for system administrators",

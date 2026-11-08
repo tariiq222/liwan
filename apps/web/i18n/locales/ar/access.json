@@ -340,7 +340,8 @@
         "userResetLinkRequested": "طلب إعادة تعيين كلمة المرور",
         "userSecondStepReset": "إعادة ضبط التحقق بخطوتين",
         "companyProfileChanged": "تعديل بيانات الشركة",
-        "companyBrandingChanged": "تعديل هوية الشركة"
+        "companyBrandingChanged": "تعديل هوية الشركة",
+        "companyVatRegistrationChanged": "تعديل التسجيل في ضريبة القيمة المضافة"
       }
     },
     "errors": {

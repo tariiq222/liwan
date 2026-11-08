@@ -8,7 +8,7 @@
 // `tok-<id>`. Invoices: 2 payable, 3 payable in part (its start is refused as `payment_unavailable`), 4 paid,
 // 6 processing, 8 not payable, 9 payable but with no payment method (the tenant has no live gateway), 10 answers 429
 // (the service is busy). Online orders (their own id space): 21 payable, 22 payable with a deposit, 23 paid,
-// 24 processing, 25 not payable (cancelled or expired), 26 payable with no payment method. A draft invoice (1), any other
+// 24 processing, 25 not payable (cancelled or expired), 26 payable with no payment method, 27 payable and untaxed. A draft invoice (1), any other
 // id or a wrong token answers 404 `not_found`, like any invalid link. Only a live gateway takes a payment link: test
 // mode answers 422 `no_gateway`.
 import { capabilitiesForRequest } from './mock-capabilities.mjs'
@@ -131,6 +131,7 @@ const payerInvoice = (id, status, extra = {}) => ({
   amount_untaxed: 14700,
   amount_tax: 2205,
   amount_total: 16905,
+  tax_applies: true,
   amount_due: 16905,
   status,
   options: status === 'payable' ? PAYER_OPTIONS : [],
@@ -154,6 +155,7 @@ const payerOrder = (id, status, extra = {}) => ({
   amount_untaxed: 14700,
   amount_tax: 2205,
   amount_total: 16905,
+  tax_applies: true,
   amount_due: 16905,
   status,
   options: status === 'payable' ? PAYER_OPTIONS : [],
@@ -161,6 +163,8 @@ const payerOrder = (id, status, extra = {}) => ({
 })
 const PAYER_ORDERS = new Map([
   [21, payerOrder(21, 'payable')],
+  // A company that is not registered for VAT charges no tax at all: the order carries none and the page shows no tax row.
+  [27, payerOrder(27, 'payable', { amount_untaxed: 16905, amount_tax: 0, amount_total: 16905, tax_applies: false, amount_due: 16905 })],
   [22, payerOrder(22, 'payable', { amount_due: 5000 })],
   [23, payerOrder(23, 'paid', { amount_due: 0 })],
   [24, payerOrder(24, 'processing')],
@@ -227,7 +231,7 @@ export async function handlePublicPayments(req, res, path, url, { json, readBody
 const EXPIRY_MINUTES = { min: 5, max: 1440 }
 const SETTINGS_FIELDS = ['revision', 'unpaid_order_expiry_minutes', 'invoice_when_paid', 'refund_policy', 'refund_amounts', 'tax_mode', 'system_admin_links']
 const SETTINGS_CHOICES = { refund_policy: ['full', 'none'], refund_amounts: ['due', 'any'], tax_mode: ['included', 'added'] }
-const freshSettings = () => ({ unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', system_admin_links: false, revision: 0 })
+const freshSettings = () => ({ unpaid_order_expiry_minutes: 60, invoice_when_paid: true, refund_policy: 'full', refund_amounts: 'due', tax_mode: 'included', vat_registered: true, system_admin_links: false, revision: 0 })
 let settings = freshSettings()
 
 /** A PATCH of the orders settings: validated first, then refused as stale when its revision is not the saved one. */
@@ -274,6 +278,13 @@ export async function handlePayments(req, res, path, { json, readBody }) {
     provider = freshProvider()
     settings = freshSettings()
     json(res, 200, {})
+    return true
+  }
+  // The company's VAT registration, which decides whether the tax mode is offered and a tax is charged at all.
+  const vat = path.match(/^\/api\/v1\/__mock\/payments-vat-registered\/(true|false)$/)
+  if (vat && req.method === 'POST') {
+    settings = { ...settings, vat_registered: vat[1] === 'true' }
+    json(res, 200, { vat_registered: settings.vat_registered })
     return true
   }
   if (path === SETTINGS_PATH) return handleSettings(req, res, { json, readBody })

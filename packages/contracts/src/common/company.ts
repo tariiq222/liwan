@@ -33,6 +33,8 @@ export const CompanyProfileSchema = z.object({
   logo_url: z.string().min(1).nullable(),
   report_header: text,
   company_registry: text,
+  /** Whether the company is registered for VAT; off by default. Only then is `vat` present and required. */
+  vat_registered: z.boolean(),
   vat: text,
   address: z.object({
     street: text,
@@ -60,6 +62,8 @@ export const CompanyProfilePatchSchema = z.object({
   name: z.string().trim().min(1).max(255),
   report_header: patchText,
   company_registry: patchText,
+  /** Turning VAT registration on requires a valid VAT number, in the same body or already saved: the server answers 422 `invalid_vat`. */
+  vat_registered: z.boolean(),
   vat: patchText,
   street: patchText,
   street2: patchText,

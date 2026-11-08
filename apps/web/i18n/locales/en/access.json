@@ -340,7 +340,8 @@
         "userResetLinkRequested": "Password reset requested",
         "userSecondStepReset": "Second sign-in step reset",
         "companyProfileChanged": "Company profile changed",
-        "companyBrandingChanged": "Company branding changed"
+        "companyBrandingChanged": "Company branding changed",
+        "companyVatRegistrationChanged": "VAT registration changed"
       }
     },
     "errors": {

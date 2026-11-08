@@ -7,6 +7,7 @@ const PROFILE = {
   logo_url: null,
   report_header: null,
   company_registry: '1010000000',
+  vat_registered: true,
   vat: '300000000000003',
   address: {
     street: 'King Fahd Road',

@@ -21,6 +21,7 @@ export const AUDIT_ACTION_LABELS: Record<AccessAuditSummary['action'], string> =
   'user.second_step_reset': 'access.audit.actions.userSecondStepReset',
   'company.profile_changed': 'access.audit.actions.companyProfileChanged',
   'company.branding_changed': 'access.audit.actions.companyBrandingChanged',
+  'company.vat_registration_changed': 'access.audit.actions.companyVatRegistrationChanged',
   'employee.archived_access_disabled': 'access.audit.actions.employeeArchived',
   'role.created': 'access.audit.actions.roleCreated',
   'role.updated': 'access.audit.actions.roleUpdated',

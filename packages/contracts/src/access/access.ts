@@ -68,6 +68,7 @@ export const KNOWN_CAPABILITIES = [
   'settings.branding.manage',
   'settings.company.read',
   'settings.company.manage',
+  'settings.company.vat.manage',
   'meetings.read',
   'meetings.create',
   'meetings.manage',
@@ -165,6 +166,7 @@ const SYSTEM: readonly KnownCapability[] = [
   'settings.branding.manage',
   'settings.company.read',
   'settings.company.manage',
+  'settings.company.vat.manage',
 ]
 const SYSTEM_CAPABILITIES = new Set<Capability>(SYSTEM)
 const RoleNameSchema = z.object({ ar: z.string().trim().min(1), en: z.string().trim().min(1).nullable() }).strict()
@@ -319,7 +321,7 @@ export const AuditActionSchema = z.enum([
   'user.reset_link_sent', 'user.password_set', 'user.employee_linked', 'user.roles_changed', 'user.disabled', 'user.reactivated',
   'user.password_reset', 'user.mobile_set', 'user.reset_link_requested', 'user.second_step_reset',
   'user.branch_roles_changed', 'branch.policy_changed',
-  'company.profile_changed', 'company.branding_changed',
+  'company.profile_changed', 'company.branding_changed', 'company.vat_registration_changed',
   'employee.archived_access_disabled', 'role.created',
   'role.updated', 'role.disabled', 'role.enabled', 'role.deleted',
   'migration.legacy_admin_preserved',

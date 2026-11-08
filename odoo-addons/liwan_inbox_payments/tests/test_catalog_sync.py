@@ -15,6 +15,8 @@ class TestCatalogSync(LiwanCatalogCase):
         super().setUpClass()
         cls.tax = cls.env['account.tax'].create({'name': 'VAT 15', 'amount': 15, 'amount_type': 'percent', 'type_tax_use': 'sale'})
         cls.taxed = cls.image_product('Taxed', 100.0, taxes_id=[Command.set(cls.tax.ids)])
+        # A catalog price carries a tax only while the company is registered for VAT (test_vat_registered covers the other case).
+        cls.env.company.write({'vat': '300000000000003', 'liwan_vat_registered': True})
 
     def setUp(self):
         super().setUp()
