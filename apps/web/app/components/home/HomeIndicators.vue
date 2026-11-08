@@ -8,8 +8,16 @@ import { useMyWork } from '@/composables/useMyWork'
 const { t } = useI18n()
 const { available, grouped, pending, failed, cappedKinds } = useMyWork()
 const ICONS = { execute: 'i-lucide-list-checks', decide: 'i-lucide-gavel', follow: 'i-lucide-eye' } as const
+// The tile wears the colour of the application most of its rows come from; no rows, or a tie between applications, keeps ink.
+function dominantModule(rows: readonly { module: string }[]): string | undefined {
+  const counts = new Map<string, number>()
+  for (const row of rows) counts.set(row.module, (counts.get(row.module) ?? 0) + 1)
+  const ranked = [...counts].sort((a, b) => b[1] - a[1])
+  return ranked.length && (ranked.length === 1 || ranked[0]![1] > ranked[1]![1]) ? ranked[0]![0] : undefined
+}
 const tiles = computed(() => WORK_KINDS.map(kind => ({
   kind,
+  app: dominantModule(grouped.value[kind]),
   label: t(`home.indicator.${kind}`),
   value: pending.value || failed.value ? null : workCountLabel(grouped.value[kind].length, cappedKinds.value.includes(kind)),
   loading: pending.value,
@@ -25,6 +33,7 @@ const tiles = computed(() => WORK_KINDS.map(kind => ({
       :key="tile.kind"
       :to="tile.to"
       :data-testid="`home-indicator-${tile.kind}`"
+      :data-app="tile.app"
       class="liwan-lift flex items-center gap-4 rounded-card border-[1.5px] border-default bg-default px-5 py-5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-md:flex-col max-md:items-start max-md:gap-2 max-md:p-3"
     >
       <div>

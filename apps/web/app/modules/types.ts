@@ -169,6 +169,8 @@ export interface AppAttentionRow {
   caption?: string
   /** `urgent` is overdue or waiting on the user's decision; it leads the list and is drawn warm. */
   tone: 'urgent' | 'normal'
+  /** How close the deadline is, for a row that has one: the home rail colours its chip by it. */
+  due?: 'overdue' | 'today' | 'soon'
   /** What the user could do next, translated; shown as a plain suggestion, never as an action the assistant takes. */
   suggestion?: string
 }

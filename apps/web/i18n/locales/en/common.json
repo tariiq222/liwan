@@ -93,6 +93,11 @@
     "banner": {
       "title": "One thing worth your time today | {n} things worth your time today",
       "idle": "Ask about your customers, tasks and meetings"
+    },
+    "due": {
+      "overdue": "Overdue",
+      "today": "Today",
+      "soon": "Soon"
     }
   },
   "nav": {
@@ -183,7 +188,15 @@
     "tools": "My tools",
     "tabBar": "Quick navigation",
     "more": "More",
-    "userMenu": {"label": "User menu", "services": "My services", "more": "More", "accountPassword": "My account and password", "appearance": "Appearance", "light": "Light", "dark": "Dark"},
+    "userMenu": {
+      "label": "User menu",
+      "services": "My services",
+      "more": "More",
+      "accountPassword": "My account and password",
+      "appearance": "Appearance",
+      "light": "Light",
+      "dark": "Dark"
+    },
     "panel": {
       "openAll": "Open all",
       "close": "Close",
@@ -377,12 +390,30 @@
       "subtitle": "Specialised apps for your work."
     },
     "figures": {
-      "tasks": { "open": "open", "overdue": "overdue" },
-      "crm": { "due": "need follow-up", "today": "new today" },
-      "inbox": { "open": "open conversations", "unassigned": "unassigned" },
-      "chat": { "unread": "unread", "channels": "channels" },
-      "meetings": { "upcoming": "upcoming meetings", "followup": "open recommendations" },
-      "projects": { "count": "projects", "attention": "need attention" }
+      "tasks": {
+        "open": "open",
+        "overdue": "overdue"
+      },
+      "crm": {
+        "due": "need follow-up",
+        "today": "new today"
+      },
+      "inbox": {
+        "open": "open conversations",
+        "unassigned": "unassigned"
+      },
+      "chat": {
+        "unread": "unread",
+        "channels": "channels"
+      },
+      "meetings": {
+        "upcoming": "upcoming meetings",
+        "followup": "open recommendations"
+      },
+      "projects": {
+        "count": "projects",
+        "attention": "need attention"
+      }
     },
     "open": "Open application",
     "openShort": "Open",

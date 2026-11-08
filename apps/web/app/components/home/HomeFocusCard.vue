@@ -6,6 +6,13 @@ import type { AttentionRowWithModule } from '@/composables/nav/attentionModel'
 const props = defineProps<{ row: AttentionRowWithModule; appLabel: string; appIcon?: string }>()
 const { t } = useI18n()
 const urgent = computed(() => props.row.tone === 'urgent')
+// The chip says how close the deadline is when the row has one (overdue and today are drawn red, later is neutral); a row
+// without a deadline keeps the old chip: «urgent» when it waits on the person, else the kind of work.
+const chip = computed(() => {
+  const due = props.row.due
+  if (due) return { color: due === 'soon' ? 'neutral' as const : 'error' as const, label: t(`home.due.${due}`) }
+  return { color: urgent.value ? 'warning' as const : 'neutral' as const, label: urgent.value ? t('home.focusUrgent') : t(`home.indicator.${props.row.work}`) }
+})
 </script>
 
 <template>
@@ -19,7 +26,7 @@ const urgent = computed(() => props.row.tone === 'urgent')
     </h3>
     <p v-if="props.row.caption" class="text-sm leading-normal text-muted">{{ props.row.caption }}</p>
     <div class="mt-auto flex items-center justify-between gap-2">
-      <UBadge :color="urgent ? 'warning' : 'neutral'" variant="soft" :label="urgent ? t('home.focusUrgent') : t(`home.indicator.${props.row.work}`)" />
+      <UBadge :color="chip.color" variant="soft" :label="chip.label" data-testid="home-focus-chip" />
       <span class="inline-flex h-8 items-center rounded-control-sm bg-muted px-3.5 text-sm font-medium text-default" aria-hidden="true">{{ t(`home.focusAction.${props.row.work}`) }}</span>
     </div>
   </article>

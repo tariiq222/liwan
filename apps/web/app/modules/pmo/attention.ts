@@ -1,4 +1,5 @@
 import { ProjectListSchema, TaskListSchema } from '@liwan/contracts'
+import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
 import { ATTENTION_ROWS_PER_PROVIDER } from '../../composables/nav/attentionModel'
 import { PROJECT_ATTENTION_STATUSES, PROJECT_STATUS_LABEL_KEY } from '../../composables/projectStatus'
 import type { AppAttentionProvider } from '../types'
@@ -19,6 +20,7 @@ export const overdueTasksAttention: AppAttentionProvider = {
       to: `/tasks/${task.id}`,
       caption: task.project?.name,
       tone: 'urgent' as const,
+      due: 'overdue' as const,
     }))
     const first = rows[0]
     return first ? [{ ...first, suggestion: t('tasks.attention.startOverdue') }, ...rows.slice(1)] : rows
@@ -41,8 +43,18 @@ export const openTasksAttention: AppAttentionProvider = {
       to: `/tasks/${task.id}`,
       caption: task.project?.name,
       tone: 'normal' as const,
+      due: dueOf(task.date_deadline),
     }))
   },
+}
+
+/** How close a deadline is, in the user's own time zone; no deadline gives no chip. */
+function dueOf(deadline: string | null): AppAttentionRow['due'] {
+  if (!deadline) return undefined
+  const day = localIsoDay(new Date(deadline))
+  const today = localIsoDay(new Date())
+  if (day < today) return 'overdue'
+  return day === today ? 'today' : 'soon'
 }
 
 /** Projects off track, then at risk, among those I can read. */
