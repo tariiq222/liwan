@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { savedProjectLocation, projectEntryLocation } from '../projectWorkspaceMemory'
+import { savedProjectLocation, projectEntryLocation, projectSectionLocation } from '../projectWorkspaceMemory'
 
 const enabled={policy:'enabled',enabled:true,can_toggle:false} as const
 const tools={planning:enabled,governance:enabled,finance:enabled}
@@ -15,6 +15,24 @@ describe('project workspace memory', () => {
     expect(projectEntryLocation(7, '/projects?mine=1', saved, tools)).toEqual({
       path: `/projects/7/${section}`,
       query: { view: 'board', q: 'review', state: 'in_progress', returnTo: '/projects?mine=1', projectListReturnTo: '/projects?mine=1' },
+    })
+  })
+  it('preserves the archived task scope through summary and workspace restoration', () => {
+    const tasks = '/projects/7/tasks'
+    const query = { scope: 'archived', q: 'review' }
+    const summary = projectSectionLocation('/projects/7', tasks, query)
+    expect(projectSectionLocation(tasks, summary.path, summary.query)).toEqual({ path: tasks, query })
+
+    const origin = { returnTo: '/projects', projectListReturnTo: '/projects' }
+    const savedSummary = savedProjectLocation(summary.path, summary.query)
+    const reopenedSummary = projectEntryLocation(7, '/projects', savedSummary, tools)
+    expect(projectSectionLocation(tasks, reopenedSummary.path, reopenedSummary.query)).toEqual({
+      path: tasks, query: { ...query, ...origin },
+    })
+
+    const savedTasks = savedProjectLocation(tasks, query)
+    expect(projectEntryLocation(7, '/projects', savedTasks, tools)).toEqual({
+      path: tasks, query: { ...query, ...origin },
     })
   })
   it('retains both searches and pages of the responsibility matrix', () => {

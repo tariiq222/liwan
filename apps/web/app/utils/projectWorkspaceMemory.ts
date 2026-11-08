@@ -3,8 +3,8 @@ import { projectSectionAvailable } from './projectTools'
 import { projectListReturnTo } from './projectNavigation'
 
 export interface ProjectLocation { path: string; query: Record<string, string> }
-const keys = ['tab', 'view', 'q', 'state', 'closed', 'kind', 'status', 'priority', 'offset', 'role', 'scale', 'type', 'category_id', 'date_from', 'date_to', 'task_q', 'stakeholder_q', 'task_page', 'stakeholder_page']
-const taskKeys = ['q', 'view', 'state', 'closed']
+const keys = ['tab', 'view', 'q', 'state', 'closed', 'scope', 'kind', 'status', 'priority', 'offset', 'role', 'scale', 'type', 'category_id', 'date_from', 'date_to', 'task_q', 'stakeholder_q', 'task_page', 'stakeholder_page']
+const taskKeys = ['q', 'view', 'state', 'closed', 'scope']
 
 function taskFilters(value: unknown): Record<string, string> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
