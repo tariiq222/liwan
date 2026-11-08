@@ -83,7 +83,7 @@ const columns = computed<TableColumn<HrApplicant>[]>(() => [
   { accessorKey: 'job', header: t('hrRecruitment.columns.job') },
   { accessorKey: 'stage', header: t('hrRecruitment.columns.stage') },
   { accessorKey: 'status', header: t('hrRecruitment.columns.status') },
-  { accessorKey: 'priority', header: t('hrRecruitment.columns.priority'), meta: { class: { th: 'w-[92px]', td: 'w-[92px]' } } },
+  { accessorKey: 'priority', header: t('hrRecruitment.columns.priority'), meta: { class: { th: 'w-[92px] max-[1365px]:hidden', td: 'w-[92px] max-[1365px]:hidden' } } },
 ])
 
 function writeQuery(patch: Partial<{ q: string; job: number | null; stage: number | null; status: HrApplicantStatusFilter; offset: number }>) {

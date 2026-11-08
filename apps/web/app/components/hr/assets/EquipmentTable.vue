@@ -22,7 +22,7 @@ const columns = computed<TableColumn<HrEquipment>[]>(() => [
   { accessorKey: 'name', header: t('hrAssets.columns.name'), meta: { title: true } },
   { accessorKey: 'category', header: t('hrAssets.columns.category') },
   { accessorKey: 'employee', header: t('hrAssets.columns.employee') },
-  { accessorKey: 'assign_date', header: t('hrAssets.columns.assignDate') },
+  { accessorKey: 'assign_date', header: t('hrAssets.columns.assignDate'), meta: { class: { th: 'max-[1365px]:hidden', td: 'max-[1365px]:hidden' } } },
   { accessorKey: 'active', header: t('hrAssets.columns.state'), meta: { class: { th: 'w-[110px]', td: 'w-[110px]' } } },
 ])
 
