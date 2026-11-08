@@ -13,6 +13,7 @@ from odoo.addons.base.models.res_bank import sanitize_account_number
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
+    requires_capability,
     requires_feature,
 )
 from odoo.addons.liwan_finance.serializers.bank import dump_bank_statement_detail
@@ -254,7 +255,8 @@ class FinanceBankImportController(http.Controller):
     @http.route('/api/v1/finance/bank-statements/import', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('finance.enabled', operation='write')
-    @idempotent('finance.bank.manage')
+    @requires_capability('finance.bank.manage')
+    @idempotent
     def import_bank_statement(self, **payload):
         """Create one statement from a CSV, OFX or CAMT file, whole or not at all.
 

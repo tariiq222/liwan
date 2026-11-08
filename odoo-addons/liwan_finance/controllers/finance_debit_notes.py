@@ -8,6 +8,7 @@ from .write_support import attempt, require_open_period
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
+    requires_capability,
     requires_feature,
 )
 from odoo.addons.liwan_finance.serializers.debit_note import parse_debit_note
@@ -34,7 +35,8 @@ class FinanceDebitNoteController(http.Controller):
     )
     @api_handler
     @requires_feature('finance.enabled', operation='write')
-    @idempotent('finance.invoices.manage')
+    @requires_capability('finance.invoices.manage')
+    @idempotent
     def create_debit_note(self, invoice_id, **payload):
         """The draft debit note of a posted invoice, made by Odoo's public ``account.debit.note`` wizard.
 

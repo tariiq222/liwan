@@ -8,6 +8,7 @@ from .write_support import attempt, require_open_period
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
+    requires_capability,
     requires_feature,
 )
 from odoo.addons.liwan_finance.serializers.credit_note import parse_credit_note
@@ -32,7 +33,8 @@ class FinanceCreditNoteController(http.Controller):
     )
     @api_handler
     @requires_feature('finance.enabled', operation='write')
-    @idempotent('finance.invoices.manage')
+    @requires_capability('finance.invoices.manage')
+    @idempotent
     def create_credit_note(self, invoice_id, **payload):
         """The draft credit note reversing a posted invoice, made by Odoo's public ``account.move.reversal`` wizard.
 

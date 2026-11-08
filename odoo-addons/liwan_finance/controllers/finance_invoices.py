@@ -17,6 +17,7 @@ from .write_support import attempt, company_records, require_open_period, requir
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
+    requires_capability,
     requires_feature,
 )
 from odoo.addons.liwan_finance.serializers.invoice import (
@@ -277,7 +278,8 @@ class FinanceInvoiceController(http.Controller):
     @http.route('/api/v1/finance/invoices', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('finance.enabled', operation='write')
-    @idempotent('finance.invoices.manage')
+    @requires_capability('finance.invoices.manage')
+    @idempotent
     def create_invoice(self, **payload):
         parsed = parse_invoice_create(payload)
         values = _move_values(parsed, parsed['move_type'], request.env.company)
