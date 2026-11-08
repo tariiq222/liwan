@@ -32,7 +32,7 @@ watch(
   { immediate: true },
 )
 const exhausted = computed(() => !hasNextPage.value && !isFetchingNextPage.value)
-const notFound = computed(() => !projectId.value || !milestoneId.value || denied.value || (exhausted.value && !!milestones.value && !milestone.value))
+const notFound = computed(() => !projectId.value || !milestoneId.value || denied.value || (!isLoading.value && exhausted.value && !milestone.value))
 const canManage = computed(() => !notFound.value && project.value?.active === true && project.value.can_manage)
 const path = computed(() => `/projects/${projectId.value}/milestones/${milestoneId.value}`)
 const isRecord = computed(() => route.path.replace(/\/+$/, '') === path.value)
