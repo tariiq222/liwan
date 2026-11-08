@@ -27,7 +27,11 @@ from odoo.addons.liwan_finance.serializers.invoice import (
     parse_invoice_patch,
 )
 from odoo.addons.liwan_finance.serializers.parsing import require_nonempty
-from odoo.addons.liwan_finance.serializers.zatca import zatca_content_final
+from odoo.addons.liwan_finance.serializers.zatca import (
+    zatca_content_final,
+    zatca_document,
+    zatca_state,
+)
 
 
 def _invoice_types():
@@ -85,11 +89,16 @@ def _require_not_final_zatca_content(invoice):
     index, which ZATCA treats as a second invoice for one ICV. The chain index is what makes the content final; a
     rejection clears it, so a rejected invoice stays correctable.
     """
-    if zatca_content_final(invoice):
-        raise ApiError(
-            422, 'invalid',
-            request.env._('ZATCA accepted this document: its content cannot change. Issue a credit note instead.'),
+    if not zatca_content_final(invoice):
+        return
+    if zatca_state(zatca_document(invoice)) == 'accepted':
+        message = request.env._('ZATCA accepted this document: its content cannot change. Issue a credit note instead.')
+    else:
+        message = request.env._(
+            'ZATCA has not answered this document yet and it keeps its chain number: its content cannot change. '
+            'Send it again to get the answer.',
         )
+    raise ApiError(422, 'invalid', message)
 
 
 def _asset_profile(profile_id, index, tax_use, company):

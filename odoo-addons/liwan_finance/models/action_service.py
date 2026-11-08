@@ -76,7 +76,7 @@ class LiwanFinanceActions(models.AbstractModel):
         transition = 'has_payments' if payments else locked if posted else None
         # A document that carries a ZATCA chain index cannot change content (accepted, or waiting after a timeout):
         # the index travels with it, so neither action is offered (the routes refuse them with 422 invalid).
-        final = posted and self._liwan_zatca_content_final(invoice)
+        final = posted and zatca_content_final(invoice)
         offers = []
         if draft:
             onboarding = self._liwan_zatca_posting_block(invoice)
@@ -92,11 +92,6 @@ class LiwanFinanceActions(models.AbstractModel):
         if posted:
             offers += self._liwan_posted_invoice_offers(invoice)
         return self._liwan_resolve(invoice.company_id, offers, write_block)
-
-    @api.model
-    def _liwan_zatca_content_final(self, invoice):
-        """Whether the content of this document is final to ZATCA (see ``zatca_content_final``): only a note answers it."""
-        return zatca_content_final(invoice)
 
     @api.model
     def _liwan_zatca_posting_block(self, invoice):

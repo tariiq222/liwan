@@ -518,7 +518,10 @@ class TestFinanceZatcaAcceptedDocumentIsFinal(LiwanZatcaCase):
         invoice = self.timed_out_invoice()
         for route in ('reset-to-draft', 'cancel'):
             with self.subTest(route):
-                self.assertRefused(self.api('POST', f'{self.INVOICES}/{invoice["id"]}/{route}', json={}), 422, 'invalid')
+                refused = self.api('POST', f'{self.INVOICES}/{invoice["id"]}/{route}', json={})
+                self.assertRefused(refused, 422, 'invalid')
+                # Not accepted yet: the message asks for the answer, not for a credit note.
+                self.assertIn('has not answered', refused.json()['message'])
         self.assertEqual(self.env['account.move'].browse(invoice['id']).state, 'posted')
         body = self.api('GET', f'{self.INVOICES}/{invoice["id"]}').json()
         self.assertNotIn('reset_to_draft', body['allowed_actions'])
