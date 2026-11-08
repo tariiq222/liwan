@@ -1,15 +1,18 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""OFX bank statements, version 1 (SGML) and version 2 (XML), read with no database and no Odoo import.
+"""OFX bank statements, version 1 (SGML) and version 2 (XML), read with no database and no Odoo model import.
 
 Both versions are a stream of ``<TAG>value`` leaves and ``<TAG>`` ... ``</TAG>`` aggregates; version 1 leaves have no
 closing tag. The reader builds the tree from the tags alone (never an XML parser, so a file cannot declare entities)
 and takes the account, the currency, the closing balance and every ``STMTTRN``. A structural problem raises
 ``OfxError``; a transaction that cannot be read is reported with its number so the file is accepted whole or not at all.
+Every amount is rounded to the ``rounding`` of the journal currency, which the caller passes in.
 """
 import html
 import re
 from collections import Counter
 from datetime import date
+
+from odoo.tools.float_utils import float_round
 
 AGGREGATES = frozenset({
     'OFX', 'SIGNONMSGSRSV1', 'SONRS', 'STATUS', 'FI', 'BANKMSGSRSV1', 'CREDITCARDMSGSRSV1', 'STMTTRNRS', 'CCSTMTTRNRS',
@@ -71,11 +74,11 @@ def _tree(text):
     return root
 
 
-def _amount(text):
+def _amount(text, rounding):
     value = text.replace(' ', '')
     if not OFX_NUMBER.fullmatch(value):
         raise ValueError(text)
-    return round(float(value.replace(',', '.')), 2)
+    return float_round(float(value.replace(',', '.')), precision_rounding=rounding)
 
 
 def _day(text):
@@ -106,7 +109,7 @@ def _unique_id(fitid, seen):
     return escaped if seen[escaped] == 1 else f'{escaped}#{seen[escaped]}'
 
 
-def _lines(statement):
+def _lines(statement, rounding):
     lines, errors, seen = [], [], Counter()
     for number, transaction in enumerate(statement.all('STMTTRN'), start=1):
         try:
@@ -115,7 +118,7 @@ def _lines(statement):
             errors.append({'row': number, 'field': 'date', 'message': 'not a date'})
             continue
         try:
-            amount = _amount(transaction.leaf('TRNAMT') or '')
+            amount = _amount(transaction.leaf('TRNAMT') or '', rounding)
         except ValueError:
             errors.append({'row': number, 'field': 'amount', 'message': 'not a number'})
             continue
@@ -127,28 +130,32 @@ def _lines(statement):
     return lines, errors
 
 
-def _closing_balance(statement):
+def _closing_balance(statement, rounding):
     """The ledger balance, else the available one; ``None`` when the statement states neither."""
     for name in ('LEDGERBAL', 'AVAILBAL'):
         for balance in statement.all(name):
             try:
-                return _amount(balance.leaf('BALAMT') or '')
+                return _amount(balance.leaf('BALAMT') or '', rounding)
             except ValueError:
                 message = f'{name} has no readable amount'
                 raise OfxError(message) from None
     return None
 
 
-def parse_ofx(text):
-    """The statements of an OFX file: ``{currency, account_number, balance_end, lines, errors}`` each, in file order."""
+def parse_ofx(text, rounding):
+    """The statements of an OFX file: ``{currency, account_number, balance_end, lines, errors}`` each, in file order.
+
+    ``rounding`` is the journal currency's rounding factor; the file states one currency per statement and the caller
+    has already matched it to the journal.
+    """
     statements = []
     for statement in _tree(text).all(*STATEMENTS):
         account = next(statement.all(*ACCOUNTS), None)
-        lines, errors = _lines(statement)
+        lines, errors = _lines(statement, rounding)
         statements.append({
             'currency': statement.leaf('CURDEF'),
             'account_number': account.leaf('ACCTID') if account else None,
-            'balance_end': _closing_balance(statement),
+            'balance_end': _closing_balance(statement, rounding),
             'lines': lines,
             'errors': errors,
         })
