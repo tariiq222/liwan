@@ -81,10 +81,12 @@ The Bash guard reads the upstream Odoo checkout from `LIWAN_ODOO_SRC` (default `
 ## Fast local loop
 
 This section owns the depth of local checks. For a pull request, GitHub Actions runs the required
-tests and type checks before merge. For a routine change covered by the selected PR stages, review
-the actual diff and run the applicable local Git and architecture policies. Local application
-tests and type checks are optional when they give faster feedback during development or help
-diagnose a failure. Do not put the local test queue on the path to Ready for routine changes.
+tests and type checks before merge. A failed PR run costs a full CI round (tens of minutes), so the
+goal before Ready is a PR that passes on its first run. For a routine change, review the actual
+diff, run the applicable local Git and architecture policies, and run the focused checks of the
+changed part only: `npm run check:fast` (it selects by changed layer), or the specific test files,
+type check or `npm run test:odoo -- --addons <changed>` that cover the diff. These take minutes;
+leave the broad suites (full `npm test`, every Odoo module, Playwright, RTL stories) to CI.
 
 Before marking Ready, run focused local verification for changes to authentication, permissions,
 tenant isolation, payments, migrations, or operations that can lose or corrupt persisted data.
@@ -165,8 +167,7 @@ remain separate from a review report.
 
 ### Change-scoped stages
 
-The twelve stages other than `e2e-odoo` take about 33 minutes (`e2e-odoo` adds about 9), so a pull request runs only the stages its changed files can
-affect. The path-to-stage map is `RULES` in `tools/ci_scope.py`: the first matching rule wins, `static`
+A pull request runs only the stages its changed files can affect. The path-to-stage map is `RULES` in `tools/ci_scope.py`: the first matching rule wins, `static`
 always runs, and **a path with no rule runs all thirteen stages** (that includes any `tools/` file not
 listed in `STATIC_ONLY_TOOLS`). Preview a selection, with the rule behind each changed path:
 
@@ -188,21 +189,23 @@ and `merge_group` events; a merge-queue entry is selected from the queue base to
   `tools/test_ci_scope.py` pins both lists. A surface joins the triggers when a spec that drives it joins the stage.
 - A file under `odoo-addons/<addon>/` selects only `static` and the Odoo stages: `ai-service`, `control-plane`,
   `vendor-admin`, `e2e-mock` and `rtl-stories` read no addon code, so they run for an addon change on `main`.
+- A change limited to `apps/web/server/` does not select `rtl-stories`: the Storybook build imports no
+  server file.
 - The `odoo` stages reach only the affected release modules: the addons changed under `odoo-addons/<addon>/`
   plus every release addon that depends on them, directly or transitively (`depends` in each manifest). A
   changed path outside `odoo-addons/` that feeds an Odoo stage (`.github/`, `deploy/`, `tools/catalog_check.py`,
   `packages/contracts/`, `package.json`, an unmapped file) affects all modules. `ci_scope.py --pull-request
   --modules` prints the list (empty means all).
 - `odoo` still installs the whole release but runs only the affected modules' tests, split by test weight over
-  as few shards as the weight needs: 1 shard up to a third of the release's total test weight, 2 up to two
-  thirds, otherwise 3 (`shard_count_for` in `tools/odoo_shards.py`). The scope job passes the list to the shards
+  as few shards as the weight needs: one shard per sixth of the release's total test weight, up to 6
+  (`shard_count_for` in `tools/odoo_shards.py`). The scope job passes the list to the shards
   as `ODOO_TEST_MODULES` (`ODOO_TEST_MODULES=a,b deploy/ci/odoo.sh --shard k/N`).
 - `odoo-app-standalone` and `odoo-bridge` run only the applications and bridges among the affected modules
   (a bridge is affected through either side); with none, the stage is not selected, and `ci-result` does not
   expect it.
 
 Every push to `main`, the nightly schedule and `workflow_dispatch` with `full: true` run all thirteen stages with all
-three shards and every isolation group, so a cross-module regression the narrowed pull request could not see is
+six shards and every isolation group, so a cross-module regression the narrowed pull request could not see is
 caught on `main`.
 
 A manual `workflow_dispatch` run with `full: true` runs all thirteen stages whatever the change. A
@@ -218,7 +221,7 @@ light static profile if the changed files are valid UTF-8 and at most 1 MiB each
 It checks new relative links in changed Markdown, the owning instruction
 documents' references, Git and
 architecture rules, tracked secrets and retired terms, without installing npm
-dependencies or Chromium. Deletions, renamed paths, binary files, changes in
+dependencies or Chromium; only the `policies` part of `static` runs them. Deletions, renamed paths, binary files, changes in
 `docs/api/` or `docs/design-system/`, and any mixed or unknown diff use the full
 static profile. The job and required `ci-result` are the same. Pushes to `main`,
 scheduled runs, manual runs and merge groups always use the full static profile.
@@ -226,6 +229,8 @@ scheduled runs, manual runs and merge groups always use the full static profile.
 ### Stage pass cache
 
 In a pull request or merge-queue entry, a stage that already passed on exactly the same inputs is not run again.
+`static` is one job with a matrix of three parallel parts (`deploy/ci/static.sh policies|tests|types`;
+without an argument the script runs all three in order); the stage passes only when every part passes.
 Every stage job except `static` ends with `.github/actions/stage-pass`, which saves a key from
 `python3 -B tools/ci_stage_cache.py key`: a hash of the tracked files the stage reads (the `RULES` of
 `tools/ci_scope.py`) and its matrix entry. The `scope` job leaves out every stage whose jobs all saved a key on the
@@ -248,7 +253,7 @@ Removing the merged task's worktree, branch and scratch database is `python3 -B 
 
 ### Stage notes
 
-The `odoo` stage covers the release modules and is a matrix of three shards (a job still named `odoo` to
+The `odoo` stage covers the release modules and is a matrix of six shards (a job still named `odoo` to
 `ci-result`, so it stays one of the thirteen stages). Every shard installs the whole release module list on
 its own Postgres service and runs only its share of the module tests (`--test-tags`), so cross-module
 behaviour is exercised in each. `tools/odoo_shards.py` splits the release modules by their `def test_`
