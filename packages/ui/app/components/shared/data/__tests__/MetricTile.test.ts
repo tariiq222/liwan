@@ -29,7 +29,7 @@ describe('SharedMetricTile', () => {
     expect(html).toContain('data-density="compact"')
     expect(html).toContain('order-last hidden sm:flex')
     expect(html).toContain('size-8 rounded-control-sm')
-    expect(html).toContain('text-[22px]/7 sm:text-[28px]/8')
+    expect(html).toContain('text-(length:--liwan-fs-figure)')
     expect(html).toContain('bg-status-success-soft text-status-success-foreground')
     expect(html).toContain('py-[18px]')
   })
@@ -71,7 +71,7 @@ describe('SharedMetricTile', () => {
   it('emphasis enlarges the figure and tints the neutral chip with the brand', async () => {
     const html = await render({ emphasis: true })
     expect(html).toContain('data-emphasis="true"')
-    expect(html).toContain('text-[34px]/10')
+    expect(html).toContain('var(--liwan-fs-figure)*1.2')
     expect(html).toContain('bg-primary/10 text-primary')
     expect(html).not.toContain('bg-elevated text-primary')
     const warning = await render({ emphasis: true, tone: 'warning' })

@@ -41,6 +41,13 @@
   --liwan-motion-ease: cubic-bezier(0.2, 0, 0, 1);
   --liwan-motion-color-ease: ease;
   --liwan-motion-inline-distance: 16px;
+  /* Fluid display type and tile sizes: rem + vw, so they follow both the viewport and the user's font-size mode.
+     Page title 21px (phone) to 38px, record title 18 to 28px, greeting 24 to 40px, headline figure 21 to 28px, header tile 40 to 64px. */
+  --liwan-fs-display: clamp(1.5rem, 1.05rem + 1.9vw, 2.714rem);
+  --liwan-fs-title: clamp(1.286rem, 1rem + 1.1vw, 2rem);
+  --liwan-fs-greeting: clamp(1.714rem, 1.1rem + 2.6vw, 2.857rem);
+  --liwan-fs-figure: clamp(1.5rem, 1.2rem + 0.8vw, 2rem);
+  --liwan-tile-lg: clamp(2.857rem, 2.3rem + 2.4vw, 4.571rem);
   /* A leaving element is quicker than an entering one; the rise is the vertical offset of a page or a block that arrives. */
   --liwan-motion-exit: calc(var(--liwan-motion-feedback) * 0.6);
   --liwan-motion-rise: 6px;

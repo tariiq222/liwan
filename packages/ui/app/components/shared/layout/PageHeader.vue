@@ -41,8 +41,8 @@ const chip = computed(() => {
   return props.icon ?? pageApp.value?.icon
 })
 const titleClass = computed(() => props.compact
-  ? 'font-display text-[length:clamp(22px,2.4vw,28px)]/[1.3] font-bold tracking-[-0.01em] text-highlighted'
-  : 'font-display text-[length:clamp(28px,3.2vw,38px)]/[1.3] font-bold tracking-[-0.01em] text-highlighted')
+  ? 'font-display text-(length:--liwan-fs-title)/[1.3] font-bold tracking-[-0.01em] text-highlighted'
+  : 'font-display text-(length:--liwan-fs-display)/[1.3] font-bold tracking-[-0.01em] text-highlighted')
 const tagline = computed(() => (props.compact ? undefined : props.description ?? pageApp.value?.tagline))
 // Inside the project workspace the frame is already the page's <h1>.
 const frameOwnsHeading = useFrameOwnsHeading()
@@ -99,14 +99,17 @@ const trail = computed<HeaderTrailStep[]>(() => {
           aria-hidden="true"
           class="liwan-app-tile liwan-app-tile-lg grid shrink-0 place-items-center"
           :data-app="pageApp?.id"
-        ><UIcon :name="chip" class="size-[30px]!" /></span>
+        ><UIcon :name="chip" class="size-[46%]!" /></span>
         <div class="min-w-0 flex-1 basis-60">
-          <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+          <!-- The tags stay beside the title and share the baseline of its first line, even when a long title wraps. -->
+          <div class="flex min-w-0 items-baseline gap-x-3">
             <h2 v-if="frameOwnsHeading" :class="titleClass" class="min-w-0"><slot name="title">{{ props.title }}</slot></h2>
             <h1 v-else :class="titleClass" class="min-w-0"><slot name="title">{{ props.title }}</slot></h1>
-            <slot name="tags">
-              <SharedHeaderTags :tags="props.tags" />
-            </slot>
+            <div class="shrink-0">
+              <slot name="tags">
+                <SharedHeaderTags :tags="props.tags" />
+              </slot>
+            </div>
           </div>
           <p v-if="tagline" data-slot="page-header-tagline" class="mt-2 text-[15px] leading-6 text-toned">{{ tagline }}</p>
         </div>

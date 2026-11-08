@@ -39,7 +39,7 @@ const known = computed(() => display.value !== t('app.notAvailable'))
 const compact = computed(() => props.density === 'compact')
 const chip = computed(() => props.emphasis && props.tone === 'neutral' ? 'bg-primary/10 text-primary' : TONE_CHIP[props.tone])
 // On a phone two compact tiles share a row: the figure drops a step and the icon circle steps aside, so a long amount stays whole inside its tile.
-const figureSize = computed(() => props.emphasis ? 'text-[34px]/10' : compact.value ? 'text-[22px]/7 sm:text-[28px]/8' : 'text-[28px]/9')
+const figureSize = computed(() => props.emphasis ? 'text-[length:calc(var(--liwan-fs-figure)*1.2)]/[1.2]' : 'text-(length:--liwan-fs-figure)/[1.2]')
 // The neutral tone of a compact tile is the application's tile (ink for a free application); the status tones stay soft chips.
 const appTile = computed(() => compact.value && props.tone === 'neutral' && !props.emphasis)
 </script>

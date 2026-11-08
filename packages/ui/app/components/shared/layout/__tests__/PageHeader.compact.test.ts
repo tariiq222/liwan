@@ -24,8 +24,8 @@ describe('SharedPageHeader compact and trail', () => {
     const html = clean(await renderShared('PageHeader', { title: 'Alpha', compact: true }, {}, options))
     expect(html).not.toContain('page-header-chip')
     expect(html).not.toContain('One place for projects')
-    expect(html).toContain('clamp(22px,2.4vw,28px)')
-    expect(html).not.toContain('clamp(28px,3.2vw,38px)')
+    expect(html).toContain('--liwan-fs-title')
+    expect(html).not.toContain('--liwan-fs-display')
   })
 
   it('draws an explicit trail as given, with its test ids, instead of the published ancestors and the back step', async () => {

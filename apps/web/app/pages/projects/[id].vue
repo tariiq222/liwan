@@ -122,11 +122,11 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
               <UIcon name="i-lucide-chevron-left" aria-hidden="true" class="size-3.5 text-dimmed ltr:rotate-180" />
             </nav>
             <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
-              <span aria-hidden="true" class="liwan-app-tile liwan-app-tile-lg grid shrink-0 place-items-center" data-app="projects"><UIcon name="i-lucide-folder-kanban" class="size-[30px]!" /></span>
+              <span aria-hidden="true" class="liwan-app-tile liwan-app-tile-lg grid shrink-0 place-items-center" data-app="projects"><UIcon name="i-lucide-folder-kanban" class="size-[46%]!" /></span>
               <div class="min-w-0 flex-1 basis-60">
-                <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-                  <h1 class="min-w-0 font-display text-[length:clamp(28px,3.2vw,38px)]/[1.3] font-bold tracking-[-0.01em] text-highlighted" data-testid="project-workspace-name">{{ project.name }}</h1>
-                  <SharedHeaderTags :tags="tags" />
+                <div class="flex min-w-0 items-baseline gap-x-3">
+                  <h1 class="min-w-0 font-display text-(length:--liwan-fs-display)/[1.3] font-bold tracking-[-0.01em] text-highlighted" data-testid="project-workspace-name">{{ project.name }}</h1>
+                  <div class="shrink-0"><SharedHeaderTags :tags="tags" /></div>
                 </div>
                 <p v-if="project.manager || dates" class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]/5 text-muted" data-testid="project-workspace-meta">
                   <span v-if="project.manager" class="inline-flex items-center gap-1.5" data-testid="project-workspace-manager"><UIcon name="i-lucide-user" aria-hidden="true" class="size-3.5 shrink-0" />{{ project.manager.name }}</span>

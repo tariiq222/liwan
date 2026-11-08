@@ -499,8 +499,8 @@ ul.list-disc > li::marker { content: "◆  "; color: var(--primary); font-size: 
 /* App tile sizes (the default tile and its 28% corner are app-identity.css). The 64px tile of the page header keeps its coloured shadow. */
 .liwan-app-tile.liwan-app-tile-md { width: 32px; height: 32px; }
 .liwan-app-tile.liwan-app-tile-lg {
-  width: 64px;
-  height: 64px;
+  width: var(--liwan-tile-lg);
+  height: var(--liwan-tile-lg);
   box-shadow: 0 6px 14px -4px color-mix(in srgb, var(--app-tile, var(--liwan-ink)) 40%, transparent);
 }
 .dark .liwan-app-tile.liwan-app-tile-lg { box-shadow: 0 8px 20px color-mix(in srgb, var(--app-tile, var(--liwan-ink)) 22%, transparent); }
