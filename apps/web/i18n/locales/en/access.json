@@ -4,7 +4,7 @@
       "currentPreset": "Current company type: {preset}",
       "presets": {
         "title": "Company type",
-        "description": "Pick the description closest to your company. Branch access is set for you, and the details stay editable in the next card.",
+        "description": "Pick the description closest to your company; branch access is set for you.",
         "apply": "Apply type",
         "single_company": "Single company",
         "single_companyHint": "No branches. Available only while the company has no branches.",
@@ -22,7 +22,7 @@
       "strict": {
         "description": "An optional switch that narrows the general policy for this application only.",
         "label": "Stricter than the general policy",
-        "widens": "Turning this off lets this application's roles inherit into branches again, as the general policy says.",
+        "widens": "Turning it off returns this application's roles to branches as the general policy says.",
         "hr": {
           "title": "Branch access to HR",
           "hint": "When on, HR roles are not inherited into branches; each branch needs an explicit delegation."
@@ -46,7 +46,7 @@
         "done": "The branch was added."
       },
       "title": "Branch access",
-      "description": "Choose how parent-company permissions apply to branches. Membership alone never grants data access.",
+      "description": "Choose how parent-company permissions reach branches. Membership alone grants no access.",
       "configure": "Configure branch access",
       "mode": "Branch access policy",
       "isolated": "Full isolation",
@@ -272,7 +272,7 @@
       "empty": "No matching roles.",
       "affectedUsers": "This change affects {count} user. | This change affects {count} users.",
       "conflict": "The role changed while you were editing. Reload the latest version.",
-      "disabledExistingAssignments": "Disabling a role blocks new assignments only; existing assignments and their capabilities remain effective until explicitly removed.",
+      "disabledExistingAssignments": "Disabling a role stops new assignments only; current holders keep it until it is removed.",
       "columns": {
         "name": "Role name",
         "description": "Description",

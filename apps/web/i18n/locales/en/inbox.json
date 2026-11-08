@@ -382,7 +382,7 @@
       "delete": "Delete",
       "policy": {
         "title": "General policy",
-        "hint": "Sets who sees conversations, when they close and when they are deleted.",
+        "hint": "Who sees conversations, when they close and when they are deleted.",
         "visibilityLabel": "Who sees conversations",
         "visibilityDescription": "Anyone with the assign permission always sees every conversation.",
         "visibility": {
@@ -400,7 +400,7 @@
         "retention": "Retention (months)",
         "retentionHint": "Conversations older than this are deleted with their attachments.",
         "assignmentLabel": "New conversation assignment",
-        "assignmentDescription": "Applied after the rules to a conversation that has no assignee, among its department members or all agents when it has no department.",
+        "assignmentDescription": "A conversation left unassigned after the rules goes to its department, or to all agents without one.",
         "assignment": {
           "manual": "Manual",
           "round_robin": "Round robin",
@@ -2112,7 +2112,7 @@
           "not_opted_out": "Customers who have not opted out, such as ones who wrote to you first."
         },
         "countryCode": "Default country code",
-        "countryCodeHint": "Turns local numbers in an import (starting with zero) into international ones. Example: 966. Empty accepts international numbers only.",
+        "countryCodeHint": "Turns imported local numbers (starting with zero) international, like 966. Empty accepts international only.",
         "keywordOptOut": "Opt out by keyword",
         "keywordOptOutHint": "A customer message that exactly matches a keyword records the opt-out or the opt-in again.",
         "stopKeywords": "Stop keywords",

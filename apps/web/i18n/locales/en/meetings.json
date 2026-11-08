@@ -426,7 +426,7 @@
   "meetingsSettings": {
     "schedule": {
       "title": "Who schedules meetings",
-      "hint": "The company chooses who may schedule a meeting or a series. The choice applies to the current company only.",
+      "hint": "Who may schedule a meeting or a series in the current company.",
       "label": "Who schedules",
       "all_employees": "Every employee",
       "all_employeesHint": "Any employee who can see meetings may schedule one.",
@@ -435,12 +435,12 @@
     },
     "reminders": {
       "title": "Reminder window and reference prefix",
-      "hint": "Applies to the current company: when the upcoming-meeting reminder is sent, and the prefix every new meeting is numbered with.",
+      "hint": "When the upcoming-meeting reminder is sent, and the prefix new meetings are numbered with.",
       "hoursLabel": "Remind before the meeting starts (hours)",
-      "hoursHelp": "The reminder is sent this many hours before the meeting starts.",
+      "hoursHelp": "The reminder arrives this many hours before the meeting starts.",
       "hoursRange": "Enter a whole number of hours between {min} and {max}.",
       "prefixLabel": "Meeting reference prefix",
-      "prefixHelp": "The first segment of every new meeting reference, like MIN in MIN/2026/0001.",
+      "prefixHelp": "The first part of every new meeting number, like MIN in MIN/2026/0001.",
       "prefixInvalid": "Use capital Latin letters and digits only, up to 10 characters."
     }
   }

@@ -16,7 +16,7 @@
         "teal": "Teal",
         "amber": "Amber"
       },
-      "managedIdentity": "The company name and logo are edited on the Company profile page. Here you set the company color used in documents and reports such as invoices and printouts. It does not change the interface colors.",
+      "managedIdentity": "Name and logo are on the Company profile page. Here is the company colour for documents and reports only, not the interface.",
       "primaryHint": "Used in invoices, reports and printouts only. It does not change the interface colors."
     },
     "company": {
@@ -40,7 +40,7 @@
       "taglineHint": "A short line shown with the company name on documents.",
       "registry": "Commercial registration number",
       "vatRegistered": "Registered for VAT",
-      "vatRegisteredHint": "When on, the VAT number is required and the tax shows on orders, invoices and pay pages. Documents issued earlier keep what they were issued with.",
+      "vatRegisteredHint": "The VAT number becomes required and tax shows on orders, invoices and pay pages. Earlier documents stay as issued.",
       "vatManageHint": "Only the system administrator can change the VAT registration and number.",
       "vat": "VAT number",
       "vatHint": "A tax number in the format of the company's country.",
@@ -252,7 +252,7 @@
       "noBookings": "No maintenance is booked.",
       "deadline": "Finish by {date} ({zone})",
       "estimate": "Measured maintenance estimate: {seconds} seconds",
-      "sharedScope": "This maintenance affects a shared service. Its operator coordinates the window for all affected customers.",
+      "sharedScope": "It affects a shared service; the operator coordinates the window for all affected customers.",
       "security": "Security update",
       "deadlinePassed": "Deadline passed",
       "newBooking": "Book maintenance",
