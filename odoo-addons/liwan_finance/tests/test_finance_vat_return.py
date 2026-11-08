@@ -103,23 +103,24 @@ class TestFinanceVatReturn(LiwanFinanceWriteCase):
         """A line carrying two tags of one expression is listed once and counts once in the box.
 
         ``account.account.tag`` is unique on ``(name, applicability, country_id)``, but ``name`` is a translated
-        value stored as one dictionary per language, so two rows can hold the same ``en_US`` name in the same
-        country and still be distinct index entries. ``_get_matching_tags`` reads the name in ``en_US``, so the
-        expression selects both rows and one journal item can carry two tags of a single expression. Its balance
+        value stored as one dictionary per language, so a second row can hold the same English name in the same
+        country under a different other-language name. ``_get_matching_tags`` reads the name in ``en_US``, so the
+        expression selects both rows, and one journal item can carry two tags of a single expression. Its balance
         must still reach the box once, not once per matching tag.
         """
         expression = self.box_expression('sa_1', 'base')
         base_line = self.invoice.invoice_line_ids
-        matching = base_line.tax_tag_ids & expression._get_matching_tags()
-        self.assertEqual(len(matching), 1, 'the sale line starts with one tag of this expression')
+        original = base_line.tax_tag_ids & expression._get_matching_tags()
+        self.assertEqual(len(original), 1, 'the sale line starts with one tag of this expression')
 
+        # The unique index covers the stored translations, so a second row can hold the same English name in the
+        # same country as long as it is also named in another language. The expression reads the name in ``en_US``,
+        # so it selects this row too: a leftover duplicate is how one line ends up with two matching tags.
         self.env['res.lang']._activate_lang('fr_FR')
-        leftover = self.env['account.account.tag'].with_context(lang='en_US').create({
-            'name': 'Standard rated sales leftover', 'applicability': 'taxes',
-            'country_id': expression.report_line_id.report_id.country_id.id,
+        duplicate = self.env['account.account.tag'].with_context(lang='fr_FR').create({
+            'name': '1(B)', 'applicability': 'taxes', 'country_id': original.country_id.id,
         })
-        leftover.update_field_translations('name', {'en_US': '1(B)', 'fr_FR': 'ventes au taux normal'})
-        base_line.tax_tag_ids = [Command.link(leftover.id)]
+        base_line.tax_tag_ids = [Command.link(duplicate.id)]
         matching = base_line.tax_tag_ids & expression._get_matching_tags()
         self.assertEqual(len(matching), 2, 'the expression must select both tags of the line')
 
