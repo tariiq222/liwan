@@ -22,10 +22,12 @@ EXPECTED_GET_RECORD_ROUTES = 5
 
 BRANCH_MODES = ('isolated', 'delegated', 'inherited')
 
-# liwan_api routes this file exercises with the full matrix.
+# liwan_api routes this file exercises with the full matrix. A custom role is a
+# company record (a built-in one is shared), so the role detail carries the matrix too.
 COVERED = (
     '/api/v1/admin/users/<int:user_id>',
     '/api/v1/admin/access-log/<int:event_id>',
+    '/api/v1/admin/roles/<int:role_id>',
     '/api/v1/admin/users/<int:user_id>/branches',
 )
 
@@ -120,12 +122,14 @@ class LiwanApiCompanyIsolationCase(CompanyIsolationCase):
         response = self.api('GET', f'/api/v1/admin/users/{self.p_record_user.id}/branches')
         self.assertEqual(response.status_code, 200, response.text)
 
-    def test_branch_session_reads_only_its_own_records_in_every_mode(self):
-        """Current company P1 reads P1's records and never P's, whatever the branch mode.
+    def test_branch_session_reads_its_own_and_shared_records_in_every_mode(self):
+        """A branch session keeps its own records and the shared catalog, never the parent's.
 
-        The user detail and access-log routes resolve records in the current company alone, so
-        the parent's branch mode (isolated, delegated, inherited) must neither let a branch
-        session read the parent's records nor let the parent session read the branch's.
+        Current company P1 owns its user and audit event and reads both. A built-in role carries
+        no company, so every company shares it and the branch reads it. A user, an audit event
+        and a custom role owned by the parent are company P's private records: the branch gets
+        the uniform not-found for them and only the parent session reads them. The parent's
+        branch mode (isolated, delegated, inherited) changes neither half.
         """
         p1_user = new_test_user(self.env, login='iso_p1_only', password='iso_p1_pass_123',
                                 name='Only P1', groups='liwan_core.group_employee',
@@ -137,17 +141,29 @@ class LiwanApiCompanyIsolationCase(CompanyIsolationCase):
                                       'target_name': f'{company.name}-event', 'action': 'read'})
             for company in (self.company_p, self.company_p1, self.company_p2, self.company_c)
         }
+        parent_role = self.env['liwan.access.role'].with_company(self.company_p).create({
+            'key': 'iso_parent_role', 'name_ar': 'Parent company role', 'type': 'custom',
+        })
+        shared_role = self.env.ref('liwan_core.role_employee')
         for mode in BRANCH_MODES:
             self.company_p.sudo().write({'liwan_branch_access_mode': mode})
             self.env_admin_in(self.company_p1)
             self.assertVisible(f'/api/v1/admin/users/{p1_user.id}')
             self.assertVisible(f'/api/v1/admin/access-log/{events[self.company_p1.id].id}')
+            self.assertVisible(f'/api/v1/admin/roles/{shared_role.id}')
             self.assertHiddenEveryWay('GET', f'/api/v1/admin/users/{self.p_record_user.id}', self.company_p.id)
             for company in (self.company_p, self.company_p2, self.company_c):
                 self.assertHiddenEveryWay('GET', f'/api/v1/admin/access-log/{events[company.id].id}', company.id)
+            self.assertHiddenEveryWay('GET', f'/api/v1/admin/roles/{parent_role.id}', self.company_p.id)
+            listed = self.api('GET', '/api/v1/admin/roles?limit=200')
+            self.assertEqual(listed.status_code, 200, listed.text)
+            role_ids = [item['id'] for item in listed.json()['items']]
+            self.assertIn(shared_role.id, role_ids, f'{mode}: the shared catalog stays visible')
+            self.assertNotIn(parent_role.id, role_ids, f'{mode}: the parent role stays out of the list')
             self.env_admin_in(self.company_p)
             self.assertVisible(f'/api/v1/admin/users/{self.p_record_user.id}')
             self.assertVisible(f'/api/v1/admin/access-log/{events[self.company_p.id].id}')
+            self.assertVisible(f'/api/v1/admin/roles/{parent_role.id}')
             self.assertHidden(f'/api/v1/admin/users/{p1_user.id}')
             self.assertHidden(f'/api/v1/admin/access-log/{events[self.company_p1.id].id}')
 
@@ -158,7 +174,6 @@ class LiwanApiCompanyIsolationCase(CompanyIsolationCase):
 
 def register_api_isolation_coverage():
     cover_isolation_routes(COVERED, 'liwan_api/tests/test_company_isolation.py')
-    exempt_isolation_route('/api/v1/admin/roles/<int:role_id>', 'roles are global capability templates, not company records')
     exempt_isolation_route('/api/v1/admin/company/countries/<int:country_id>/states', 'reference data shared by every company')
 
 
