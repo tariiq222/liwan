@@ -26,11 +26,15 @@ def _answer(status, text):
 
 
 def idempotent(func):
-    """Replay the stored answer of a request that repeats an ``Idempotency-Key``; without the header nothing changes.
+    """Replay the stored answer of a request that repeats an ``Idempotency-Key``.
 
-    The key is claimed before the route runs and the answer is stored after it, in the route's own transaction: a refused
-    or failed request leaves no key, so it can be sent again corrected. The same key with another route, user or body is
-    422 ``idempotency_key_reused``; two requests with one key racing each other are 409 ``duplicate_request`` for the loser.
+    The route declares its own capability gate outside this decorator, so the capability is checked
+    before any stored answer is returned and a caller who lost it cannot read back what an earlier
+    request created. Without the header the route runs as usual. The key is claimed before the route
+    runs and the answer is stored after it, in the route's own transaction: a refused or failed
+    request leaves no key, so it can be sent again corrected. The same key with another route, user
+    or body is 422 ``idempotency_key_reused``; two requests with one key racing each other are 409
+    ``duplicate_request`` for the loser.
     """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
