@@ -1595,7 +1595,7 @@ class BoundedArgvSecretsCase(ManagedRuntimeCase):
 # --------------------------------------------------------------------------
 class ScratchRegressionCase(ManagedRuntimeCase):
     def scratch_entry(self, kind='scratch'):
-        for name in ('odoo-bin', 'psql', 'pg_dump', 'pg_restore', 'createdb'):
+        for name in ('odoo-bin', 'psql', 'pg_dump', 'pg_restore'):
             (self.root / name).write_text('fixture')
         addons = self.root / 'addons'
         for module in operator.CREATE_MODULES:
@@ -1613,7 +1613,6 @@ class ScratchRegressionCase(ManagedRuntimeCase):
             'addons_paths': [str(addons)], 'data_dir': str(self.data),
             'psql': str(self.root / 'psql'), 'pg_dump': str(self.root / 'pg_dump'),
             'pg_restore': str(self.root / 'pg_restore'),
-            'createdb': str(self.root / 'createdb'),
             'backup_root': str(self.backups), 'release_root': str(self.releases),
             'classification_file': str(self.root / 'classification.json'),
         }
@@ -1643,10 +1642,10 @@ class ScratchRegressionCase(ManagedRuntimeCase):
     def test_t51_v2_entry_keys_unchanged(self):
         expected = {
             'database', 'kind', 'pg_host', 'pg_port', 'pg_user', 'python', 'odoo_bin',
-            'addons_paths', 'data_dir', 'psql', 'pg_dump', 'pg_restore', 'createdb',
+            'addons_paths', 'data_dir', 'psql', 'pg_dump', 'pg_restore',
             'backup_root', 'release_root', 'classification_file',
         }
-        self.assertEqual(len(operator.ENTRY_KEYS), 16)
+        self.assertEqual(len(operator.ENTRY_KEYS), 15)
         self.assertEqual(operator.ENTRY_KEYS, frozenset(expected))
 
     def test_t52_scratch_lane_still_admitted(self):

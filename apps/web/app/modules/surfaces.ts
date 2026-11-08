@@ -1,4 +1,4 @@
-import { activeManifests } from './manifests'
+import { activeManifests, bellSources } from './manifests'
 import type { AppAssistantSurface, AppAttentionProvider, AppBellKind, AppCommand, AppRecordLink, AppRecordPicker, AppSearchProvider, AppSidebarPanel } from './types'
 
 /** The assistant's sheet surface, declared by the one application that provides it. */
@@ -19,8 +19,8 @@ export function searchProviders(): AppSearchProvider[] {
 
 /** The application-declared handling of a bell row kind, or undefined for a kind no manifest knows. */
 export function bellKindFor(kind: string): AppBellKind | undefined {
-  for (const manifest of activeManifests()) {
-    const found = manifest.bell?.kinds?.find(entry => entry.kind === kind)
+  for (const source of bellSources()) {
+    const found = source.kinds.find(entry => entry.kind === kind)
     if (found) return found
   }
   return undefined

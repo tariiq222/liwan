@@ -20,6 +20,7 @@ import threading
 
 from deploy.releases.helper_runtime import verify_helper_runtime
 from deploy.releases.fencing import ReleaseOperationError, release_routes_enabled, tenant_operation
+from deploy.releases.postgres import TENANT_EXTENSION_SQL, tenant_create_database_sql, tenant_isolation_sql
 
 from tools.liwan_cli.managed_verify import ERROR_CODES, VerificationError, build_policy_script, build_snapshot_script, parse_snapshot
 from tools.shared_saas_lifecycle.catalog_source import CatalogSourceError, resolve_catalog_path
@@ -33,6 +34,7 @@ MODULE_ID = re.compile(r'(?:liwan|customer)_[a-z0-9_]+')
 # The routed tenant host (`t<id>.<domain suffix>`), the same DNS name the routing registry accepts.
 TENANT_HOST = re.compile(r'(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+')
 MAX_OUTPUT = 65536
+TENANT_DB_ROLE = 'odoo'  # db_user of deploy/shared/odoo.conf
 
 class EffectError(ValueError):
     pass
@@ -291,6 +293,19 @@ class Runner:
             raise EffectError('database_observation_invalid')
         return result == '1'
 
+    def psql(self, database, sql):
+        self.command(self.base + ['exec', '-T', 'db', 'psql', '-U', TENANT_DB_ROLE, '-d', database, '-v', 'ON_ERROR_STOP=1', '-q'], stdin=sql)
+
+    def create_isolated_database(self):
+        # Odoo would create the database itself on `-d`, open to every role through PUBLIC. Create it
+        # here instead, close it to PUBLIC, and only then let Odoo install into the existing empty
+        # database (it initializes any database without ir_module_module). The creation recipe is
+        # Odoo's own (deploy/releases/postgres.py). Any failure raises and the job fails before the
+        # install runs.
+        self.psql('postgres', tenant_create_database_sql(self.database) + ';\n'
+                  + tenant_isolation_sql(self.database, TENANT_DB_ROLE))
+        self.psql(self.database, TENANT_EXTENSION_SQL + ';\n')
+
     def filestore_exists(self):
         script = 'import json; from pathlib import Path; p=Path(' + repr('/var/lib/odoo/filestore/' + self.database) + '); print(json.dumps(p.exists() or p.is_symlink()))'
         value = json.loads(self.command(self.base + ['exec', '-T', 'odoo', '/opt/venv/bin/python', '-c', script]))
@@ -362,6 +377,7 @@ class Runner:
             'entitlement_source': 'control_plane', 'expected_valid_until': None, 'valid_until_action': 'preserve'})
         self.classification.chmod(0o644)
         permit('install')
+        self.create_isolated_database()
         self.current_container = self.config['projectName'] + '-effect-' + self.request['attemptId'][:8] + '-install'
         try:
             self.command(self.base + ['run', '--rm', '--no-deps', '-T', '--name', self.current_container,

@@ -362,7 +362,7 @@ class RuntimeTests(unittest.TestCase):
         source = {**self.binding, 'fence': 1}
         proof = {**source, 'gateClosed': True, 'admittedWriters': 0, 'activeTransactions': 0, 'oldConnections': 0}
         config = {'mode': 'local', 'outputDir': str(self.root / 'backup'), 'filestorePath': str(store),
-                  'pgDump': '/usr/bin/true', 'createdb': '/usr/bin/true', 'pgRestore': '/usr/bin/true',
+                  'pgDump': '/usr/bin/true', 'psql': '/usr/bin/true', 'applicationRole': 'odoo', 'pgRestore': '/usr/bin/true',
                   'image': self.manifest['images']['odoo'], 'runner': runner}
         capture_tenant(source, proof, config)
         target = self.root / 'liwan_scratch_restore_b'

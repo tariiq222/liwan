@@ -14,6 +14,8 @@ const manifest: AppManifest = {
   assistant: { capability: 'ai.use', labelKey: 'nav.ai', to: '/ai', load: () => import('../../components/ai/AiSheet.vue') },
   landing: [{ path: '/ai', capability: 'ai.use', late: true }],
   returnToPaths: ['/ai'],
+  // The monthly limit warning goes to AI settings managers (the server filters by `ai.settings.manage`); it opens their settings.
+  bell: { capabilities: ['ai.settings.manage'], kinds: [{ kind: 'ai.limit_warning', href: () => '/settings/apps/ai' }] },
   // The tenant administrator's AI settings (`ai.settings.manage`): provider, use acknowledgement, retention, agents and usage.
   settings: {
     id: 'ai', labelKey: 'ai.settings.title', icon: 'i-liwan-ai', to: '/settings/apps/ai',

@@ -122,16 +122,17 @@ class CliTests(unittest.TestCase):
                    'hashes': {name: hashlib.sha256((root/name).read_bytes()).hexdigest() for name in ('database.dump','filestore.tar')}}
         (root / 'receipt.json').write_text(json.dumps(receipt))
         binding = {'tenantId': 'tenant_a', 'database': 'liwan_scratch_restore', 'filestore': 'liwan_scratch_restore'}
-        config = {'mode': 'local', 'restoreAllowed': True, 'writesResumed': False, 'createdb': '/usr/bin/true',
-                  'pgRestore': '/usr/bin/true', 'targetFilestore': str(self.root/'liwan_scratch_restore'),
+        config = {'mode': 'local', 'restoreAllowed': True, 'writesResumed': False,
+                  'psql': '/usr/bin/true', 'applicationRole': 'odoo', 'pgRestore': '/usr/bin/true',
+                  'targetFilestore': str(self.root/'liwan_scratch_restore'),
                   'recoverySource': {key: receipt[key] for key in ('tenantId','database','filestore','fence')}}
         return root, binding, config
 
     def test_restore_checks_actual_hashes_and_restores_only_new_scratch_target(self):
         backup, binding, config = self.backup()
-        commands = []
+        commands, inputs = [], []
         def run(argv, **kwargs):
-            commands.append(argv)
+            commands.append(argv); inputs.append(kwargs.get('input'))
             return subprocess.CompletedProcess(argv, 0, '', '')
         with patch('subprocess.run', side_effect=run):
             code, out, err = self.invoke(['restore', '--backup', str(backup), '--binding', self.doc('target.json', binding),
@@ -139,8 +140,12 @@ class CliTests(unittest.TestCase):
         self.assertEqual((code, err), (0, ''))
         self.assertFalse(json.loads(out)['restoreVerified'])
         self.assertEqual((self.root/'liwan_scratch_restore/ab/attachment').read_bytes(), b'attachment')
-        self.assertEqual(len(commands), 2)
-        self.assertEqual(commands[0][-1], 'liwan_scratch_restore')
+        self.assertEqual(len(commands), 3)
+        self.assertIn('--dbname=postgres', commands[0])
+        self.assertIn('CREATE DATABASE "liwan_scratch_restore"', inputs[0])
+        self.assertIn('--dbname=postgres', commands[1])
+        self.assertIn('REVOKE CONNECT ON DATABASE "liwan_scratch_restore" FROM PUBLIC', inputs[1])
+        self.assertIn('--dbname', commands[2])
 
     def test_restore_refuses_resumed_writes_and_corrupt_backup_before_process(self):
         backup, binding, config = self.backup()

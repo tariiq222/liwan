@@ -68,6 +68,13 @@ describe('manifest bell kinds', () => {
     expect(bellKindFor('meeting_future_change')).toBeUndefined()
     expect(bellKindFor('sales_order_assigned')).toBeUndefined()
   })
+  it('opens the plan change page from the platform storage warning and AI settings from the AI limit warning', () => {
+    expect(bellKindFor('storage.limit_warning')?.href({ id: 1 })).toBe('/subscription/change')
+    expect(bellKindFor('ai.limit_warning')?.href({ id: 2 })).toBe('/settings/apps/ai')
+    // The server words both rows, so neither declares a client title.
+    expect(bellKindFor('storage.limit_warning')?.title).toBeUndefined()
+    withManifests([], () => expect(bellKindFor('storage.limit_warning')?.href({})).toBe('/subscription/change'))
+  })
   it('resolves a fake application kind href and title', () => {
     withManifests([...activeManifests(), sales], () => {
       const kind = bellKindFor('sales_order_assigned')

@@ -367,7 +367,6 @@ def run_drill(cfg: DrillConfig) -> dict:
 
     pg_dump_path = shutil.which('pg_dump')
     pg_restore_path = shutil.which('pg_restore')
-    createdb_path = shutil.which('createdb')
     psql_path = shutil.which('psql')
 
     # --- RPO measurement: time the real backup.py candidate copy ---
@@ -398,7 +397,7 @@ def run_drill(cfg: DrillConfig) -> dict:
         sys.executable, 'deploy/restore_verify.py',
         '--backup-dir', str(backup_dir), '--target-db', cfg.restored_db,
         '--target-filestore', str(restored_filestore),
-        '--pg-restore', pg_restore_path, '--createdb', createdb_path, '--psql', psql_path,
+        '--pg-restore', pg_restore_path, '--psql', psql_path,
         '--pg-host', cfg.pg_host, '--pg-user', cfg.pg_user,
     ], cwd=str(cfg.repo_root), env=pg_env(cfg), capture_output=True, text=True)
     restore_checks = json.loads(verify_completed.stdout)

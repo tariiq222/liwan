@@ -7,6 +7,7 @@ import unittest
 from unittest.mock import patch
 from . import backup
 from .backup import Deadline, capture_tenant, capture_window, validate_backup, restore_tenant
+from .postgres import tenant_create_database_sql
 
 
 class BackupTests(unittest.TestCase):
@@ -17,13 +18,15 @@ class BackupTests(unittest.TestCase):
         (self.store / 'attachment').write_bytes(b'attachment-data')
         self.binding = {'tenantId': 'tenant_a', 'database': 'tenant_a', 'filestore': 'shared_store', 'fence': 2}
         self.proof = {**self.binding, 'gateClosed': True, 'admittedWriters': 0, 'activeTransactions': 0, 'oldConnections': 0}
-        self.commands = []
+        self.commands, self.inputs, self.failing_tool, self.failing_input = [], [], None, ''
         def runner(argv, **kwargs):
-            self.commands.append(argv)
+            self.commands.append(argv); self.inputs.append(kwargs.get('input'))
             if '--file' in argv: Path(argv[argv.index('--file') + 1]).write_bytes(b'dump-data')
-            return subprocess.CompletedProcess(argv, 0, '', '')
+            fails = argv[0] == self.failing_tool and self.failing_input in (kwargs.get('input') or '')
+            return subprocess.CompletedProcess(argv, 1 if fails else 0, '', '')
         self.config = {'mode': 'local', 'outputDir': str(self.root / 'backup'), 'filestorePath': str(self.store),
-                       'pgDump': '/usr/bin/true', 'createdb': '/usr/bin/true', 'pgRestore': '/usr/bin/true',
+                       'pgDump': '/usr/bin/true', 'psql': '/usr/bin/true',
+                       'applicationRole': 'odoo', 'pgRestore': '/usr/bin/true',
                        'image': 'liwan/odoo@sha256:' + 'a' * 64, 'runner': runner,
                        'pgEnv': {}, 'timeoutSeconds': 30}
 
@@ -67,6 +70,49 @@ class BackupTests(unittest.TestCase):
             with self.assertRaises(ValueError):restore_tenant(self.root/'backup',binding,{**config,**patch})
         self.assertEqual(len(self.commands),before)
 
+    def restore(self, **patch):
+        capture_tenant(self.binding, self.proof, self.config)
+        del self.commands[:], self.inputs[:]
+        config = {**self.config, 'restoreAllowed': True, 'writesResumed': False, 'recoverySource': self.binding,
+                  'targetFilestore': str(self.root / 'liwan_scratch_restore'),
+                  'psql': '/bin/ls', 'pgRestore': '/usr/bin/true', **patch}
+        return restore_tenant(self.root / 'backup', {'tenantId': 'tenant_a', 'database': 'liwan_scratch_restore',
+                                                     'filestore': 'liwan_scratch_restore'}, config)
+
+    def test_restore_creates_with_the_tenant_recipe_then_closes_to_public_before_pg_restore(self):
+        self.restore()
+        self.assertEqual([Path(argv[0]).name for argv in self.commands], ['ls', 'ls', 'true'])
+        create, isolation = self.inputs[:2]
+        for argv in self.commands[:2]:
+            self.assertIn('ON_ERROR_STOP=1', argv)
+            self.assertIn('--dbname=postgres', argv)
+        self.assertEqual(create, tenant_create_database_sql('liwan_scratch_restore') + ';\n')
+        self.assertIn("ENCODING 'unicode' LC_COLLATE 'C' TEMPLATE template0", create)
+        self.assertIn('REVOKE CONNECT ON DATABASE "liwan_scratch_restore" FROM PUBLIC;', isolation)
+        self.assertIn('GRANT CONNECT ON DATABASE "liwan_scratch_restore" TO "odoo";', isolation)
+        self.assertLess(isolation.index('REVOKE'), isolation.index('GRANT'))
+        self.assertLess(isolation.index('GRANT'), isolation.index('public_connect_not_revoked'))
+
+    def test_restore_aborts_before_isolation_and_pg_restore_when_the_create_fails(self):
+        self.failing_tool, self.failing_input = '/bin/ls', 'CREATE DATABASE'
+        with self.assertRaises(ValueError):
+            self.restore()
+        self.assertEqual([Path(argv[0]).name for argv in self.commands], ['ls'])
+        self.assertFalse((self.root / 'liwan_scratch_restore').exists())
+
+    def test_restore_aborts_before_pg_restore_when_isolation_fails(self):
+        self.failing_tool, self.failing_input = '/bin/ls', 'REVOKE CONNECT'
+        with self.assertRaises(ValueError):
+            self.restore()
+        self.assertEqual([Path(argv[0]).name for argv in self.commands], ['ls', 'ls'])
+        self.assertFalse((self.root / 'liwan_scratch_restore').exists())
+
+    def test_restore_refuses_a_missing_or_unsafe_role_or_psql_before_any_command(self):
+        for patch in ({'applicationRole': None}, {'applicationRole': 'bad role'}, {'psql': '/nonexistent/psql'}):
+            with self.subTest(patch=patch), self.assertRaises(ValueError):
+                self.restore(**patch)
+            self.assertEqual(self.commands, [])
+
     def test_restore_only_new_explicit_scratch_and_never_after_resumed_writes(self):
         capture_tenant(self.binding, self.proof, self.config)
         config = {**self.config, 'restoreAllowed': True, 'writesResumed': False,
@@ -105,7 +151,7 @@ class CaptureWindowTests(unittest.TestCase):
             self.rechecks.append(deadline.remaining())
             return self.proof
         self.config = {'mode': 'local', 'outputDir': str(self.root / 'backup'), 'filestorePath': str(self.store),
-                       'pgDump': '/usr/bin/true', 'createdb': '/usr/bin/true', 'pgRestore': '/usr/bin/true',
+                       'pgDump': '/usr/bin/true', 'psql': '/usr/bin/true', 'applicationRole': 'odoo', 'pgRestore': '/usr/bin/true',
                        'image': 'liwan/odoo@sha256:' + 'a' * 64, 'runner': runner, 'recheck': recheck,
                        'pgEnv': {}, 'timeoutSeconds': 30}
 

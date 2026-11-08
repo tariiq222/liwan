@@ -137,7 +137,7 @@ def setup_database(source, root, report):
     restored = restore_tenant(backup, {'tenantId': 'tenant_03', 'database': DATABASE, 'filestore': DATABASE},
         {'mode': 'local', 'restoreAllowed': True, 'writesResumed': False,
          'recoverySource': {key: receipt[key] for key in ('tenantId', 'database', 'filestore', 'fence')},
-         'targetFilestore': str(store), 'createdb': '/opt/homebrew/bin/createdb',
+         'targetFilestore': str(store), 'psql': '/opt/homebrew/bin/psql', 'applicationRole': 'tariq',
          'pgRestore': '/opt/homebrew/bin/pg_restore',
          'pgEnv': {'PGHOST': '127.0.0.1', 'PGPORT': '5432', 'PGUSER': 'tariq'}, 'timeoutSeconds': 120})
     (data / 'sessions').mkdir(mode=0o700)

@@ -32,7 +32,9 @@ if ! git diff --quiet "$(git merge-base "$BASE_REF" HEAD)" HEAD -- package.json 
   npm run check:audit
 fi
 python3 -B -m unittest discover -s deploy/releases -t . -p 'test_*.py'
-node --test deploy/shared/release-guard.test.mjs deploy/shared/release-assets.test.mjs deploy/shared/release-routes.test.mjs deploy/releases/test_dedicated_guard.mjs
+node --test deploy/shared/release-guard.test.mjs deploy/shared/release-assets.test.mjs deploy/shared/release-routes.test.mjs deploy/releases/test_dedicated_guard.mjs \
+  deploy/shared/guard.test.mjs deploy/shared/boundary-regressions.test.mjs deploy/shared/guard-rate-limit.test.mjs \
+  deploy/shared/image-routes.test.mjs deploy/shared/tiktok-relay.test.mjs tools/shared_isolation_acceptance/ssr-boundary.test.mjs
 npm -w apps/web run postinstall
 npm -w apps/vendor-admin run postinstall
 npx playwright install chromium

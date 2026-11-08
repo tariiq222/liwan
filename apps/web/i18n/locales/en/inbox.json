@@ -1581,6 +1581,7 @@
       "defaultLinkHint": "An https link Meta requires for each product. Leave empty to use the click-to-chat link of the WhatsApp number.",
       "pricesIncludeTax": "Prices include VAT",
       "pricesIncludeTaxHint": "The catalog shows the price after VAT.",
+      "pricesIncludeTaxUnregistered": "The company is not registered for VAT, so prices carry no tax. Register it for VAT in the company profile to offer tax-inclusive prices.",
       "defaults": "Catalog defaults",
       "defaultsHint": "They apply to every product, and a change sends the products to Meta again.",
       "dangerTitle": "Danger zone",

@@ -5,7 +5,8 @@ import { avatarProps } from '@liwan/ui/app/utils/avatarTone'
 // The company at the top of the company page: logo, name, the registration facts and how much of the profile is filled in.
 const props = defineProps<{ profile: CompanyProfile }>()
 const { t } = useI18n()
-const facts = computed(() => [props.profile.company_registry, props.profile.vat].filter(Boolean).join(' · '))
+// The VAT number is a fact of the company only while it is registered for VAT.
+const facts = computed(() => [props.profile.company_registry, props.profile.vat_registered ? props.profile.vat : null].filter(Boolean).join(' · '))
 const avatar = computed(() => ({ ...avatarProps(props.profile.name, props.profile.id), ...(props.profile.logo_url ? { src: props.profile.logo_url } : {}) }))
 const percent = computed(() => (props.profile.completeness.total ? Math.round(props.profile.completeness.done / props.profile.completeness.total * 100) : 0))
 </script>

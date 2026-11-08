@@ -8,7 +8,7 @@ import subprocess
 import tarfile
 import time
 from .manifest import IMAGE
-from .postgres import identifier
+from .postgres import identifier, tenant_create_database_sql, tenant_isolation_sql
 
 
 def _path(value, *, exists=False, directory=False):
@@ -308,8 +308,15 @@ def restore_tenant(backup, target_binding, config):
         raise ValueError('restore_binding_mismatch')
     destination = _path(config['targetFilestore'])
     if destination.exists() or destination.name != db: raise ValueError('restore_target_rejected')
-    createdb, pg_restore = _tool(config['createdb']), _tool(config['pgRestore'])
-    _run([createdb, '--maintenance-db=postgres', db], config)
+    psql, pg_restore = _tool(config['psql']), _tool(config['pgRestore'])
+    # The role the restored database stays open to once PUBLIC is closed: the one the restore is verified as.
+    isolation = tenant_isolation_sql(db, config.get('applicationRole'))
+    # Created by the provisioning recipe, so a restored tenant sorts like a provisioned one, then closed to
+    # PUBLIC before any data is restored into it. psql stops on the first error and a failure raises, so
+    # neither the isolation nor pg_restore runs after a failed step.
+    psql_argv = [psql, '-X', '-q', '-v', 'ON_ERROR_STOP=1', '--dbname=postgres']
+    _run(psql_argv, config, input=tenant_create_database_sql(db) + ';\n')
+    _run(psql_argv, config, input=isolation)
     _run([pg_restore, '--no-owner', '--exit-on-error', '--dbname', db, str(Path(backup) / 'database.dump')], config)
     destination.mkdir(parents=True, mode=0o700, exist_ok=False)
     with tarfile.open(Path(backup) / 'filestore.tar', 'r') as archive:

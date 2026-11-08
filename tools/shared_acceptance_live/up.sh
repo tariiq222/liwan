@@ -212,10 +212,21 @@ for i in $(seq 1 60); do
 done
 echo "PostgreSQL healthy."
 
-# --- 3. Create tenant databases (no host psql) ---
-compose exec -T db createdb -U odoo "$TENANT_A_DB"
-compose exec -T db createdb -U odoo "$TENANT_B_DB"
-echo "Databases created."
+# --- 3. Create tenant databases (no host psql), close them to PUBLIC and add pg_trgm ---
+# Shared odoo.conf connects every tenant as db_user (odoo). A new database is open to every role through
+# PUBLIC, so CONNECT is revoked right after creation and granted to that role only. The SQL comes from
+# deploy/releases/postgres.py (the one source); psql stops on the first error and the pipeline fails with it.
+TENANT_DB_ROLE="odoo"
+create_tenant_database() {
+  (cd "$REPO_ROOT" && python3 -B -c 'import sys; from deploy.releases.postgres import tenant_create_database_sql, tenant_isolation_sql; sys.stdout.write(tenant_create_database_sql(sys.argv[1]) + ";\n" + tenant_isolation_sql(sys.argv[1], sys.argv[2]))' "$1" "$TENANT_DB_ROLE") \
+    | compose exec -T db psql -U odoo -d postgres -v ON_ERROR_STOP=1 -q
+  (cd "$REPO_ROOT" && python3 -B -c 'import sys; from deploy.releases.postgres import TENANT_EXTENSION_SQL; sys.stdout.write(TENANT_EXTENSION_SQL + ";\n")') \
+    | compose exec -T db psql -U odoo -d "$1" -v ON_ERROR_STOP=1 -q
+}
+for DBT in "${TENANT_DATABASES[@]}"; do
+  create_tenant_database "$DBT"
+done
+echo "Databases created and closed to PUBLIC."
 
 # --- 4. Install LiwanOS addons into each DB ---
 # launch_odoo.py rejects CLI args, so override entrypoint to liwan-odoo directly.

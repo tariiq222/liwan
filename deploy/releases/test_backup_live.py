@@ -161,7 +161,7 @@ class BackupLiveTests(unittest.TestCase):
         store.mkdir(parents=True); (store / 'attachment').write_bytes(b'live-attachment')
         pg = Path(shutil.which('pg_dump') or '').parent
         config = {'mode': 'local', 'outputDir': str(Path(self.temp.name).resolve() / 'backup'), 'filestorePath': str(store),
-                  'pgDump': str(pg / 'pg_dump'), 'createdb': str(pg / 'createdb'), 'pgRestore': str(pg / 'pg_restore'),
+                  'pgDump': str(pg / 'pg_dump'), 'psql': str(pg / 'psql'), 'pgRestore': str(pg / 'pg_restore'),
                   'image': 'liwan/odoo@sha256:' + 'a' * 64, 'recheck': self.runtime._recheck_window, 'timeoutSeconds': 60}
         proof = {**self.binding, 'fence': 1, 'gateClosed': True, 'admittedWriters': 0, 'activeTransactions': 0,
                  'oldConnections': 0, 'writerConnections': 0, 'deniedWriters': list(self.roles)}
@@ -170,12 +170,12 @@ class BackupLiveTests(unittest.TestCase):
         self.assertTrue(validate_backup(config['outputDir'])['valid'])
         target = {'tenantId': 'tenant_a', 'database': restored, 'filestore': restored}
         source = {key: receipt[key] for key in ('tenantId', 'database', 'filestore', 'fence')}
-        restore_config = {**config, 'restoreAllowed': True, 'writesResumed': False,
+        restore_config = {**config, 'restoreAllowed': True, 'writesResumed': False, 'applicationRole': admin_user,
             'targetFilestore': str(Path(self.temp.name).resolve() / 'restored' / restored), 'recoverySource': source}
-        # createdb fails on an existing name, so a successful restore means this run created it.
+        # CREATE DATABASE fails on an existing name, so a successful one means this run created it.
         def created_by_this_run(argv, **kwargs):
             result = backup.subprocess.run(argv, **kwargs)
-            if argv[0].endswith('createdb') and result.returncode == 0: created.append(restored)
+            if 'CREATE DATABASE' in (kwargs.get('input') or '') and result.returncode == 0: created.append(restored)
             return result
         restore_tenant(config['outputDir'], target, {**restore_config, 'runner': created_by_this_run})
         check = self.psycopg2.connect(dsn.rsplit('/', 1)[0] + '/' + restored)
