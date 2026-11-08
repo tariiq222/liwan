@@ -13,7 +13,8 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 const at = (path: string) => async () => { await __getRouter()!.replace(path); return {} }
-const render = (surface: 'sidebar' | 'drawer' = 'sidebar') => () => ({ components: { AppSidebar }, setup: () => ({ surface }), template: '<div class="liwan-shell min-h-svh"><AppSidebar :surface="surface" /></div>' })
+// The live drawer mounts this surface inside the padded USlideover body.
+const render = (surface: 'sidebar' | 'drawer' = 'sidebar') => () => ({ components: { AppSidebar }, setup: () => ({ surface }), template: `<div class="liwan-shell min-h-svh" :class="surface === 'drawer' ? 'p-4 sm:p-6' : undefined"><AppSidebar :surface="surface" /></div>` })
 
 export const Global: Story = { name: 'عام: المنظمة ويومي وتطبيقاتي', parameters: storyContext('apps/web/app/layouts/default.vue:65'), loaders: [at('/')], render: render() }
 export const Application: Story = { name: 'تطبيق مفتوح: رجوع وكتلة التطبيق وروابطه', parameters: storyContext('apps/web/app/layouts/default.vue:65'), loaders: [at('/projects')], render: render() }
