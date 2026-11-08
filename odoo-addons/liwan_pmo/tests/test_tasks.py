@@ -472,6 +472,79 @@ class TestTaskWrite(LiwanPmoCase):
         self.assertEqual(res.json()['code'], 'invalid')
         self.assertEqual(res.json()['field'], 'tag_ids')
 
+    def test_patch_user_ids_accepts_active_people_of_the_company(self):
+        """A valid assignee list is resolved through the people directory and deduped; [] clears it."""
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}',
+                       {'user_ids': [self.employee.id, self.manager.id, self.manager.id]})
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual(sorted(user['id'] for user in res.json()['assignees']),
+                         sorted([self.employee.id, self.manager.id]))
+        self.task_overdue.invalidate_recordset(['user_ids'])
+        self.assertEqual(sorted(self.task_overdue.user_ids.ids), sorted([self.employee.id, self.manager.id]))
+        cleared = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'user_ids': []})
+        self.assertEqual(cleared.status_code, 200, cleared.text)
+        self.assertEqual(cleared.json()['assignees'], [])
+
+    def test_patch_user_ids_rejects_assignees_outside_the_people_directory(self):
+        """user_ids ids were only shape-checked, so any existing user id was accepted.
+
+        The contract is the people directory: active, internal (`share=False`) users of the
+        current company. A foreign-company user, an archived one and a portal contact are all
+        refused with 422 instead of being written.
+        """
+        other_company = self.env['res.company'].create({'name': 'Task assignee other company'})
+        foreign = new_test_user(
+            self.env, login='api_task_foreign', groups='liwan_core.group_employee',
+            company_id=other_company.id, company_ids=[(6, 0, other_company.ids)],
+        )
+        inactive = new_test_user(self.env, login='api_task_inactive', groups='liwan_core.group_employee')
+        inactive.active = False
+        portal = new_test_user(self.env, login='api_task_portal', groups='base.group_portal')
+        # Pin the fixture assumptions: each user is refused for the one property that
+        # disqualifies them, not because the account was never created as expected.
+        self.assertTrue(portal.share)
+        self.assertFalse(inactive.active)
+        self.assertNotIn(self.env.company, foreign.company_ids)
+        self.assertIn(self.env.company, inactive.company_ids & portal.company_ids)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        for user in (foreign, inactive, portal):
+            with self.subTest(user=user.login):
+                res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'user_ids': [user.id]})
+                self.assertEqual(res.status_code, 422, res.text)
+                self.assertEqual(res.json(), {
+                    'code': 'invalid',
+                    'message': 'user_ids must be active people of this company',
+                    'field': 'user_ids',
+                })
+        self.task_overdue.invalidate_recordset(['user_ids'])
+        self.assertEqual(self.task_overdue.user_ids.ids, [self.employee.id])
+
+    def test_patch_user_ids_rejects_bad_shape_and_unknown_ids(self):
+        """Non-int, bool and unknown ids answer 422, never a 500.
+
+        `True` used to pass the old `isinstance(i, int)` check as the id 1, and an unknown
+        id reached the ORM write (FK violation, 500).
+        """
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        for value, message in (
+            (['1'], 'user_ids must be a list of ids'),
+            ([True], 'user_ids must be a list of ids'),
+            (1, 'user_ids must be a list of ids'),
+            (None, 'user_ids must be a list of ids'),
+            # A zero or negative id and an id that exists nowhere resolve to nobody:
+            # rejected with 422, never a 500 from the ORM write.
+            ([0], 'user_ids must be active people of this company'),
+            ([-3], 'user_ids must be active people of this company'),
+            ([999999], 'user_ids must be active people of this company'),
+        ):
+            with self.subTest(value=value):
+                res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'user_ids': value})
+                self.assertEqual(res.status_code, 422, res.text)
+                self.assertEqual(res.json(), {'code': 'invalid', 'message': message, 'field': 'user_ids'})
+        self.task_overdue.invalidate_recordset(['user_ids'])
+        self.assertEqual(self.task_overdue.user_ids.ids, [self.employee.id])
+
     def test_list_unknown_state_filter_is_422(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         res = self.api('GET', '/api/v1/tasks?filter=mine&state=in_progress,bogus')

@@ -354,6 +354,24 @@ def _parse_percent_complete(value, key, task):
     return value
 
 
+def _parse_user_ids(value, key):
+    """Coerce + authorise an assignee list: active internal users of the current company.
+
+    The shape check alone accepted any existing integer, so another company's user, an
+    archived one or a portal contact could be assigned. Ids are deduped and resolved through
+    the people directory (active, `share=False`, member of the current company) in the
+    caller's own environment; one unresolved id rejects the whole list rather than being
+    dropped silently. `isinstance(True, int)` is True in Python, so bools are excluded
+    explicitly — `[True]` used to pass as the id 1.
+    """
+    if not isinstance(value, list) or not all(isinstance(i, int) and not isinstance(i, bool) for i in value):
+        raise ApiError(422, 'invalid', f"{key} must be a list of ids", field=key)
+    ids = list(dict.fromkeys(value))
+    if len(request.env['liwan.directory']._liwan_people(ids)) != len(ids):
+        raise ApiError(422, 'invalid', f"{key} must be active people of this company", field=key)
+    return ids
+
+
 def parse_task_vals(payload, can_manage, task):
     """Whitelist + coerce a PATCH payload for ``task`` into ORM vals. Raises ApiError(422)."""
     allowed = MANAGER_FIELDS if can_manage else EMPLOYEE_FIELDS
@@ -368,9 +386,7 @@ def parse_task_vals(payload, can_manage, task):
                 raise ApiError(422, 'invalid', "priority must be one of '0'..'3'", field=key)
             vals[key] = value
         elif key == 'user_ids':
-            if not isinstance(value, list) or not all(isinstance(i, int) for i in value):
-                raise ApiError(422, 'invalid', f"{key} must be a list of ids", field=key)
-            vals[key] = [(6, 0, value)]
+            vals[key] = [(6, 0, _parse_user_ids(value, key))]
         elif key == 'tag_ids':
             if not isinstance(value, list) or not all(isinstance(i, int) and not isinstance(i, bool) for i in value):
                 raise ApiError(422, 'invalid', "tag_ids must be a list of ids", field=key)
