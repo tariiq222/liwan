@@ -73,22 +73,22 @@ class TestTenantQuotas(TransactionCase):
             })
         self.assertEqual(error.exception.details['limit_key'], 'storage.limit_mb')
 
-    def test_a_storage_claim_that_fits_reports_its_usage_and_limit_to_the_extension_point(self):
+    def test_a_storage_claim_that_fits_reports_its_usage_before_and_after_and_the_limit_to_the_extension_point(self):
         calls = []
         self.patch(
             type(self.service), '_liwan_storage_claimed',
-            lambda model, used_bytes, limit_bytes: calls.append((used_bytes, limit_bytes)),
+            lambda model, used_before, used_after, limit_bytes: calls.append((used_before, used_after, limit_bytes)),
         )
         current = int(self.service._liwan_count_storage_bytes())
         self._operator().write({'features': {**self.record.features, 'storage.limit_mb': 100}})
         self.assertTrue(self.service._liwan_claim_storage(7))
-        self.assertEqual(calls, [(current + 7, 100 * 1048576)])
+        self.assertEqual(calls, [(current, current + 7, 100 * 1048576)])
 
     def test_the_storage_extension_point_is_not_called_without_a_limit_or_on_refusal_or_release(self):
         calls = []
         self.patch(
             type(self.service), '_liwan_storage_claimed',
-            lambda model, used_bytes, limit_bytes: calls.append((used_bytes, limit_bytes)),
+            lambda model, used_before, used_after, limit_bytes: calls.append((used_before, used_after, limit_bytes)),
         )
         self._operator().write({'features': {**self.record.features, 'storage.limit_mb': None}})
         self.assertTrue(self.service._liwan_claim_storage(1))

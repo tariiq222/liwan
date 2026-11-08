@@ -41,6 +41,7 @@ class TestStorageLimitNotification(TransactionCase):
         self.service = self.env['liwan.entitlement.service']
         self.used = 0
         self.patch(type(self.service), '_liwan_count_storage_bytes', lambda model: self.used)
+        self._set_mode('saas')
         self._set_limit(LIMIT_MB)
 
     def _set_limit(self, limit_mb):
@@ -48,11 +49,21 @@ class TestStorageLimitNotification(TransactionCase):
             'features': {**self.profile.features, 'storage.limit_mb': limit_mb},
         })
 
-    def _claim(self, percent, limit_mb=None, user=None):
-        """Claim one byte that leaves usage at exactly ``percent`` of the limit."""
-        limit_bytes = (limit_mb or self.profile.features['storage.limit_mb']) * 1048576
-        self.used = limit_bytes * percent // 100 - 1
-        return self.service.with_user(user or self.employee)._liwan_claim_storage(1)
+    def _claim(self, percent, from_percent=None, user=None):
+        """Claim so that usage goes from ``from_percent`` (one byte short of ``percent`` by default) to ``percent``."""
+        limit_bytes = self.profile.features['storage.limit_mb'] * 1048576
+        target = limit_bytes * percent // 100
+        self.used = limit_bytes * from_percent // 100 if from_percent is not None else target - 1
+        return self.service.with_user(user or self.employee)._liwan_claim_storage(target - self.used)
+
+    def _set_mode(self, mode):
+        # Fixture-only conversion; production ORM conversion is deliberately forbidden.
+        source = 'control_plane' if mode == 'saas' else 'local_policy'
+        self.env.cr.execute(
+            'UPDATE liwan_tenant_profile SET commercial_mode=%s, entitlement_source=%s, valid_until=NULL WHERE id=%s',
+            [mode, source, self.profile.id],
+        )
+        self.profile.invalidate_recordset()
 
     def _bell(self, user):
         items = self.env['liwan.notify.service'].with_user(user)._liwan_list(50)['items']
@@ -107,7 +118,7 @@ class TestStorageLimitNotification(TransactionCase):
         self.assertEqual(len(self._emails()), 1)
 
     def test_ninety_five_percent_sends_the_ninety_five_notice(self):
-        self._claim(96)
+        self._claim(96, from_percent=90)
         items = self._bell(self.admin)
         self.assertEqual(len(items), 1)
         self.assertIn('95%', items[0]['title'])
@@ -115,7 +126,7 @@ class TestStorageLimitNotification(TransactionCase):
     def test_crossing_both_thresholds_at_once_sends_only_the_higher_one(self):
         self._claim(70)
         self.assertEqual(self._bell(self.admin), [])
-        self._claim(96)
+        self._claim(96, from_percent=70)
         items = self._bell(self.admin)
         self.assertEqual(len(items), 1)
         self.assertIn('95%', items[0]['title'])
@@ -135,16 +146,38 @@ class TestStorageLimitNotification(TransactionCase):
         self._claim(80)
         self.assertEqual(len(self._bell(self.admin)), 2)
 
-    def test_the_eighty_notice_is_not_repeated_after_the_ninety_five_notice(self):
-        self._claim(96)
-        self._claim(85)
+    def test_another_uploader_climbing_from_eighty_five_after_a_drop_sends_nothing(self):
+        other = new_test_user(
+            self.env, login='storage_other@example.com', name='Other uploader', groups='liwan_core.group_employee',
+        )
+        self._claim(96, from_percent=70)
+        self._claim(86, from_percent=85, user=other)
         titles = [item['title'] for item in self._bell(self.admin)]
         self.assertEqual(len(titles), 1)
         self.assertIn('95%', titles[0])
         self.assertEqual(len(self._emails()), 1)
 
+    def test_dropping_below_eighty_and_climbing_again_sends_one_new_eighty_notice(self):
+        other = new_test_user(
+            self.env, login='storage_other2@example.com', name='Other uploader', groups='liwan_core.group_employee',
+        )
+        self._claim(96, from_percent=70)
+        self._claim(81, from_percent=70, user=other)
+        self._claim(83, from_percent=82, user=other)
+        titles = [item['title'] for item in self._bell(self.admin)]
+        self.assertEqual(len(titles), 2)
+        self.assertEqual(sum('80%' in title for title in titles), 1)
+        self.assertEqual(sum('95%' in title for title in titles), 1)
+
+    def test_outside_saas_nobody_is_warned(self):
+        self._set_mode('non_saas')
+        self._claim(96, from_percent=70)
+        self._claim(81, from_percent=70)
+        self.assertEqual(self._bell(self.admin), [])
+        self.assertEqual(self._emails(), [])
+
     def test_a_raised_limit_rearms_the_eighty_notice_after_the_ninety_five_notice(self):
-        self._claim(96)
+        self._claim(96, from_percent=90)
         self._set_limit(LIMIT_MB * 2)
         self._claim(80)
         titles = [item['title'] for item in self._bell(self.admin)]

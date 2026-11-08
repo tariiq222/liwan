@@ -3,9 +3,11 @@
 
 The platform's own kind: it belongs to no application, so it has no feature key. Storage is tenant-wide, so the
 recipients are the holders of the settings-administration capabilities in the tenant's root company (the people who
-open ``/subscription``), whichever company the uploading user works in. Nothing is elevated here: the delivery runs
-in the uploader's environment, like the AI limit warning, and an upload by a portal or public user warns nobody
-(the next internal upload does). Upgrading storage stays manual and the hard refusal at 100% is the platform's.
+open ``/subscription``), whichever company the uploading user works in. A notice goes out only when a claim crosses a
+threshold upward, and only in SaaS: the upgrade page it links to is commercial and does not exist otherwise. Nothing is
+elevated here: the delivery runs in the uploader's environment, like the AI limit warning, and an upload by a portal
+or public user warns nobody (the next internal upload does). Upgrading storage stays manual and the hard refusal at
+100% is the platform's.
 """
 from odoo import api, fields, models
 from odoo.tools import html2plaintext
@@ -75,12 +77,16 @@ class LiwanNotifyStorageEntitlement(models.AbstractModel):
     _inherit = 'liwan.entitlement.service'
 
     @api.model
-    def _liwan_storage_claimed(self, used_bytes, limit_bytes):
-        super()._liwan_storage_claimed(used_bytes, limit_bytes)
-        percent = next((step for step in WARNING_PERCENTS if used_bytes * 100 >= step * limit_bytes), None)
-        if percent is None or (self.env.user.share and not self.env.su):
+    def _liwan_storage_claimed(self, used_before, used_after, limit_bytes):
+        super()._liwan_storage_claimed(used_before, used_after, limit_bytes)
+        if self._liwan_profile().commercial_mode != 'saas' or (self.env.user.share and not self.env.su):
             return
-        self.env['liwan.notify.storage.limit']._liwan_warn(percent, limit_bytes // 1048576)
+        # The highest threshold this claim crosses upward; a claim that starts at or above a threshold crosses nothing.
+        percent = next(
+            (step for step in WARNING_PERCENTS if used_before * 100 < step * limit_bytes <= used_after * 100), None,
+        )
+        if percent is not None:
+            self.env['liwan.notify.storage.limit']._liwan_warn(percent, limit_bytes // 1048576)
 
 
 class LiwanNotifyStorageLimit(models.AbstractModel):
@@ -110,15 +116,13 @@ class LiwanNotifyStorageLimit(models.AbstractModel):
     def _liwan_warn(self, percent, limit_mb):
         """Tell each administrator once per threshold and limit: a new limit after an upgrade warns again.
 
-        Once the highest notice exists for a limit, the lower one is never sent again, even if usage fell back below
-        the higher threshold and then grew. The existing delivery key answers that, so no extra state is kept.
+        The caller sends only for an upward crossing, so no earlier-notice lookup is needed; the delivery key makes a
+        repeated crossing of the same threshold under the same limit a no-op.
         """
         profile = self.env['liwan.entitlement.service']._liwan_profile()
         notify = self.env['liwan.notify.service']
         mail = self.env['liwan.notify.mail']
         for user in self._liwan_administrators():
-            if any(notify._liwan_key_taken(self._liwan_key(higher, limit_mb, user)) for higher in WARNING_PERCENTS if higher > percent):
-                continue
             delivered = notify._liwan_deliver(
                 PROFILE_MODEL, profile.id, KIND, user.partner_id, BODIES[percent],
                 key=self._liwan_key(percent, limit_mb, user),
