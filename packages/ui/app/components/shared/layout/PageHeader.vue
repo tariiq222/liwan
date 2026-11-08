@@ -41,8 +41,8 @@ const chip = computed(() => {
   return props.icon ?? pageApp.value?.icon
 })
 const titleClass = computed(() => props.compact
-  ? 'font-display text-[length:clamp(22px,2.4vw,28px)]/[1.2] font-bold tracking-[-0.01em] text-highlighted'
-  : 'font-display text-[length:clamp(28px,3.2vw,38px)]/[1.15] font-bold tracking-[-0.01em] text-highlighted')
+  ? 'font-display text-[length:clamp(22px,2.4vw,28px)]/[1.3] font-bold tracking-[-0.01em] text-highlighted'
+  : 'font-display text-[length:clamp(28px,3.2vw,38px)]/[1.3] font-bold tracking-[-0.01em] text-highlighted')
 const tagline = computed(() => (props.compact ? undefined : props.description ?? pageApp.value?.tagline))
 // Inside the project workspace the frame is already the page's <h1>.
 const frameOwnsHeading = useFrameOwnsHeading()
@@ -108,7 +108,7 @@ const trail = computed<HeaderTrailStep[]>(() => {
               <SharedHeaderTags :tags="props.tags" />
             </slot>
           </div>
-          <p v-if="tagline" data-slot="page-header-tagline" class="mt-1 text-[15px] text-toned">{{ tagline }}</p>
+          <p v-if="tagline" data-slot="page-header-tagline" class="mt-2 text-[15px] leading-6 text-toned">{{ tagline }}</p>
         </div>
         <div v-if="$slots.actions || $slots.default || props.kpiToggle" class="ms-auto flex min-w-0 max-w-full flex-wrap items-center gap-2.5 pointer-coarse:*:min-h-11">
           <SharedKpiToggle v-if="props.kpiToggle" />
