@@ -209,8 +209,9 @@ services:
     entrypoint: ["/opt/venv/bin/python", "/opt/liwan/shared/launch_odoo.py"]
     command: []
     environment:
+      # No LIWAN_SHARED_PROXY_TOKEN: Odoo reads it only for the TikTok relay, which restore-odoo cannot reach, and the
+      # live token must never sit in a service that opens restored customer data.
       LIWAN_TENANCY_MODE: shared
-      LIWAN_SHARED_PROXY_TOKEN: ${LIWAN_SHARED_PROXY_TOKEN:?set LIWAN_SHARED_PROXY_TOKEN}
     networks: [guard_restore, restore_database]
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]

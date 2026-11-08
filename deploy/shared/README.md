@@ -183,6 +183,14 @@ no port, share no network with `db` or `odoo`, and use their own volumes. `resto
 `LIWAN_RESTORE_ODOO_CONFIG`, a validated external config whose `db_host` is `restore-db`; unset, it mounts
 `deploy/shared/odoo.restore.conf`, an incomplete reference the startup validator rejects.
 
+**Open owner decision: who may reach a restore host.** A restore host is on the public edge and is authenticated like a
+tenant host, by the restored database's own users, so it accepts the credentials, including a disabled-since-backup user's
+or an old password, that the backup held. Its name is not guessable (128-bit approval id) and publishing it needs a
+step-up vendor session, but neither is access control. Options: (a) keep as is, restore verification by the customer
+administrators; (b) restrict `*.restore.{$DOMAIN}` to operator addresses with a Caddy `remote_ip` matcher (recommended
+default); (c) add an expiry and unpublish step for restore routes. None of these is implemented here.
+`restore-odoo` is deliberately given no `LIWAN_SHARED_PROXY_TOKEN`: Odoo reads it only for the TikTok relay.
+
 **Operator prerequisite: wildcard DNS and a wildcard certificate.** The Caddyfile serves `*.restore.{$DOMAIN}`, but
 without both of the following a restore host is not served:
 1. a wildcard DNS record, `*.restore.<domain>`, pointing at the edge;

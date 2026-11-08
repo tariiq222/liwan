@@ -82,6 +82,8 @@ it.skipIf(!hasDocker)('declares the restore services the restore runner requires
     expect(s[name].security_opt).toEqual(['no-new-privileges:true'])
     expect(s[name].healthcheck).toBeDefined()
   }
+  // The live proxy token never enters the service that opens restored customer data.
+  expect(JSON.stringify(s['restore-odoo'].environment)).not.toContain('PROXY_TOKEN')
   // Isolation: restore services share no network with the live db/odoo, and every network they use is internal.
   expect(Object.keys(s['restore-db'].networks)).toEqual(['restore_database'])
   expect(Object.keys(s['restore-odoo'].networks).sort()).toEqual(['guard_restore', 'restore_database'])
