@@ -366,7 +366,12 @@ class TestProjectCompletionStatusRace(BaseCase):
 
     @mute_logger('odoo.sql_db')
     def test_two_last_closers_never_post_two_completions(self):
-        """The issue's case: both last tasks close in parallel; at most one completion is posted."""
+        """The issue's case: both last tasks close in parallel and exactly one completion is posted.
+
+        The loser waits on the project row before writing its own task. The winner's pass wrote that
+        row, so the loser's REPEATABLE READ snapshot is refused with a serialization failure; Odoo
+        retries the request on a fresh snapshot, which sees both tasks closed and completes once.
+        """
         project_id, (first, second) = self._project_with_open_tasks(2, done_tasks=1)
         baseline = self._done_updates(project_id)
         winner, loser = self._cursor(), self._cursor()
@@ -375,18 +380,9 @@ class TestProjectCompletionStatusRace(BaseCase):
         self._wait_until_blocked(thread)  # the loser waits on the project row the winner holds
         winner.commit()
         self._finish(thread)
-        if outcome.get('error') is not None:
-            # The row each closer wrote may also change under the other one; Odoo retries that.
-            self.assertIsInstance(outcome['error'], psycopg2.errors.SerializationFailure)
-            loser.rollback()
-            with self.db.cursor() as cr:
-                self._close(self._env(cr), second)  # the retried close
-        else:
-            loser.commit()
-        # Whichever closer ran last may still read its own pre-commit snapshot of the other task, so
-        # the pair posts at most one completion and never two. A later pass settles the rest once.
-        self.assertLessEqual(self._done_updates(project_id), baseline + 1)
+        self.assertIsInstance(outcome.get('error'), psycopg2.errors.SerializationFailure)
+        loser.rollback()
         with self.db.cursor() as cr:
-            self._run_pass(self._env(cr), project_id)
+            self._close(self._env(cr), second)  # the request Odoo retries
         self.assertEqual(self._done_updates(project_id), baseline + 1)
         self.assertEqual(self._read(project_id), ('done', True))

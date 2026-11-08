@@ -584,7 +584,12 @@ class ProjectTask(models.Model):
             self.invalidate_recordset()
             self.mapped('project_id').invalidate_recordset()
         before = {task.id: task.user_ids.partner_id for task in self}
-        status_projects = self.project_id if COMPLETION_STATUS_FIELDS & set(vals) else None
+        status_projects = None
+        if COMPLETION_STATUS_FIELDS & set(vals):
+            status_projects = self.project_id | self.env['project.project'].browse(vals.get('project_id') or [])
+            # Project rows before the task rows the write below takes, in the project-then-task
+            # order of every completion path, so the completion pass after it cannot deadlock.
+            self._liwan_lock_projects_then_tasks(status_projects, self.browse())
         res = super().write(vals)
         if vals.get('state') == DONE_STATE:
             self._liwan_reject_unauthorized_done(self)
@@ -600,7 +605,7 @@ class ProjectTask(models.Model):
                         task._liwan_clear_completion_request(invalidate=True)
         self._liwan_notify('updated', extra_partners=before, changed_fields=vals)
         if status_projects is not None:
-            (status_projects | self.project_id)._liwan_sync_completion_status()
+            status_projects._liwan_sync_completion_status()
         return res
 
     def unlink(self):
@@ -611,6 +616,7 @@ class ProjectTask(models.Model):
         ):
             raise AccessError(self.env._("Tasks cannot be permanently deleted."))
         projects = self.project_id
+        self._liwan_lock_projects_then_tasks(projects, self.browse())
         res = super().unlink()
         projects._liwan_sync_completion_status()
         return res
