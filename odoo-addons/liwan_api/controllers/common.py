@@ -2,8 +2,18 @@
 import functools
 import logging
 
-from odoo.exceptions import AccessError, MissingError, UserError, ValidationError
+from psycopg2.errors import ReadOnlySqlTransaction
+from werkzeug.exceptions import HTTPException
+
+from odoo.exceptions import (
+    AccessError,
+    ConcurrencyError,
+    MissingError,
+    UserError,
+    ValidationError,
+)
 from odoo.http import request
+from odoo.service.model import PG_CONCURRENCY_EXCEPTIONS_TO_RETRY
 
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_platform.models.base import MIRROR_CONTEXT
@@ -11,6 +21,11 @@ from odoo.addons.liwan_platform.models.base import MIRROR_CONTEXT
 _logger = logging.getLogger(__name__)
 # Paths a signed-in user without a mobile number may still call: read the profile, save the number, change the password.
 MOBILE_EXEMPT_PATHS = frozenset({'/api/v1/me', '/api/v1/me/mobile', '/api/v1/me/password'})
+# Failures Odoo itself replays, never a client answer: its request retry resubmits a serialization,
+# lock or deadlock conflict (``PG_CONCURRENCY_EXCEPTIONS_TO_RETRY`` and ``ConcurrencyError``), and the
+# http layer replays a read-only route that wrote on a read/write cursor. Answering one here would
+# report a conflict that the replay resolves.
+REPLAYED_BY_ODOO = (*PG_CONCURRENCY_EXCEPTIONS_TO_RETRY, ConcurrencyError, ReadOnlySqlTransaction)
 
 
 def _raised_by_liwan(error):
@@ -288,7 +303,14 @@ def _require_mobile_number():
 
 
 def api_handler(func):
-    """Map exceptions raised by an /api/v1 controller to the contract error shape."""
+    """Map exceptions raised by an /api/v1 controller to the contract error shape.
+
+    Every answer is ``{code, message, field?, details?}`` with a real HTTP status. An unexpected failure
+    would otherwise reach Odoo's own json2 error body, which carries the traceback, the call arguments and
+    the model names, so it becomes a fixed 500 instead. Two kinds are re-raised because Odoo owns them: the
+    concurrency failures its request retry replays, and a framework ``HTTPException`` that already chose its
+    own status (an abort, a redirect response).
+    """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
@@ -320,6 +342,17 @@ def api_handler(func):
             return error_response(403, 'forbidden', request.env._("You do not have permission to do this"))
         except (ValidationError, UserError) as e:
             return error_response(422, 'invalid', str(e))
+        except REPLAYED_BY_ODOO:
+            # Odoo replays the request around this one; answering would report a conflict it resolves.
+            raise
+        except HTTPException:
+            # A framework refusal keeps the status its raiser chose (an abort, a redirect response).
+            raise
+        except Exception:
+            # Any other failure is a defect. Its traceback, the call arguments and the model names stay
+            # in the server log; Odoo's own json2 body would have carried all three to the browser.
+            _logger.exception('api internal error: %s %s', request.httprequest.method, request.httprequest.path)
+            return error_response(500, 'internal', request.env._("An unexpected error occurred"))
     wrapper._liwan_feature_keys = getattr(func, '_liwan_feature_keys', None)
     wrapper._liwan_feature_operation = getattr(func, '_liwan_feature_operation', None)
     wrapper._liwan_feature_match = getattr(func, '_liwan_feature_match', None)
