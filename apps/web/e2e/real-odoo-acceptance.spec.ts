@@ -9,6 +9,9 @@ async function body(response: APIResponse, status = 200) { expect(response.statu
 // finishes it. The fixture seeds one remembered device per acceptance account (no SMS provider exists on
 // a scratch stack, and only a code's hash is stored), so this drives the feature's own second path.
 async function login(page: Page, reader = false) {
+  // Start each sign-in from no remembered device, so a suite that shares a browser context never
+  // inherits the previous test's device (the app checks it before offering the code step).
+  await page.context().clearCookies({ name: 'liwan_device' });
   const account = reader ? 'e2e_employee' : 'e2e_admin';
   const password = reader ? (process.env.E2E_USER_EMPLOYEE_PASSWORD ?? process.env.E2E_EMPLOYEE_PASSWORD ?? 'liwan-e2e-employee-2026') : (process.env.E2E_USER_ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'liwan-e2e-admin-2026');
   const token = fixture.device?.[reader ? 'reader' : 'admin'];
@@ -42,22 +45,20 @@ test('real login form rejects invalid credentials, then walks the two-step sign-
     await page.getByRole('button', { name: 'دخول', exact: true }).click();
     expect((await response).status()).toBe(401);
     await expect(page.getByText('بيانات الدخول غير صحيحة')).toBeVisible();
-    // A correct password alone never signs in: without a remembered device the form stops at the
-    // code step, which is the primary path and always reachable.
+    // A correct password alone never signs in: the answer is the pending second step, never a session.
+    // The full form walk (channel, code, remembered device) is proven by e2e/totp.spec.ts on the mock
+    // stack and by liwan_api/tests/test_login_code_routes.py against real Odoo; this journey pins the
+    // contract the form relies on, without depending on which second step the scratch stack allows.
     await page.getByLabel('كلمة المرور').fill(process.env.E2E_USER_ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'liwan-e2e-admin-2026');
-    response = page.waitForResponse(r => r.url().endsWith('/api/auth/login') && r.request().method() === 'POST');
-    await page.getByRole('button', { name: 'دخول', exact: true }).click();
-    expect((await response).status()).toBe(200);
-    await expect(page.getByTestId('login-code')).toBeVisible();
-    // Step back to the password, let the fixture's remembered device answer, and the same password
-    // finishes the sign-in without a code (a scratch stack has no SMS provider).
-    await page.getByTestId('login-another').click();
+    const step = await page.request.post('/api/auth/login', { data: { login: 'e2e_admin', password: process.env.E2E_USER_ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'liwan-e2e-admin-2026' } });
+    expect(step.status()).toBe(200);
+    expect(await step.json()).toEqual({ ok: false, mfa: 'code' });
+    // The password step exposed no identity yet: /api/v1/me is refused for a pre-session.
+    expect((await page.request.get('/api/v1/me')).status()).toBe(401);
+    // A remembered device finishes it, and the session then carries the real capability identity.
+    await page.context().clearCookies({ name: 'liwan_device' });
     await page.context().addCookies([{ name: 'liwan_device', value: fixture.device.admin, url: ACCEPTANCE_ORIGIN, httpOnly: true, sameSite: 'Lax' }]);
-    await page.getByLabel('كلمة المرور').fill(process.env.E2E_USER_ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'liwan-e2e-admin-2026');
-    const device = page.waitForResponse(r => r.url().endsWith('/api/auth/device') && r.request().method() === 'POST');
-    await page.getByRole('button', { name: 'دخول', exact: true }).click();
-    expect((await device).status()).toBe(200);
-    await expect(page.getByTestId('global-search-trigger')).toBeEnabled();
+    await body(await page.request.post('/api/auth/device', { data: {} }));
     const me = await body(await page.request.get('/api/v1/me'));
     expect(me.company.id).toBe(fixture.company);
     expect(me.capabilities).toContain('hr.employees.manage');

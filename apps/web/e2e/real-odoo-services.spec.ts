@@ -19,6 +19,8 @@ async function body(response: APIResponse | Response, status = 200) {
 async function login(page: Page, reader = false) {
   const token = fixtures().device?.[reader ? 'reader' : 'admin']
   expect(token, 'the fixture must seed a remembered device').toBeTruthy()
+  // One device at a time: a shared browser context must not carry another test's remembered browser.
+  await page.context().clearCookies({ name: 'liwan_device' })
   await page.context().addCookies([{ name: 'liwan_device', value: token, url: 'http://localhost:44300', httpOnly: true, sameSite: 'Lax' }])
   const step = await (await page.request.post('/api/auth/login', { data: {
     login: reader ? 'e2e_employee' : 'e2e_admin',
