@@ -9,6 +9,8 @@ export default defineConfig({
   testDir: './e2e-rtl',
   testMatch: '**/*.rtl.ts',
   timeout: 30_000,
+  // One spec file holds every story test: without this, `--shard k/N` (the CI matrix) would put the whole file in one shard.
+  fullyParallel: true,
   workers: 4,
   reporter: 'list',
   use: { baseURL: `http://127.0.0.1:${port}`, locale: 'ar-SA' },

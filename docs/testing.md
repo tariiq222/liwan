@@ -116,7 +116,7 @@ merged result and supplies release evidence.
 | `npm run check:audit` | `npm audit` gate: fails on a high or critical advisory in production dependencies, or a critical one in any dependency. Needs registry access. The CI `static` stage runs it when a change touches `package.json` or `package-lock.json`; the daily `audit` workflow runs it on `main`. |
 | `npm run check:semgrep` | Semgrep (`p/python`, `p/typescript`, `p/secrets`) on the source files changed against `main`, tests and generated files excluded (`tools/semgrep_gate.py`). ERROR and secrets findings fail; WARNING is listed only. Needs network for the rulesets, sends no usage data, exits 3 when semgrep or the registry is unavailable. Also runs in the CI `static` stage. |
 | `npm run review:jev -- --base <ref> --task "<what the change does>"` | Advisory Jev quality scores (score and confidence per dimension, plus priorities) for the diff against the base (`tools/jev_review.mjs`; `--diff <file>`, `--json`, `--previous <file>` for a before/after delta). Needs the local `~/code/jev-review` server and a key in `JEV_API_KEY` or `~/.config/jev-review/api-key`; refuses diffs that touch secret-bearing paths; always exits 0. Run once per non-trivial review (see `REVIEW.md`); never a gate. |
-| `npm run test:rtl` | Builds Storybook and opens every story in Arabic at 1280 px and 390 px: no page error, `dir=rtl`, no sideways page scroll (`apps/web/e2e-rtl`, config `apps/web/playwright.rtl.config.ts`). Stories that cannot render are listed with a reason in `KNOWN_BROKEN` and only that list may shrink. Runs in CI as the `rtl-stories` stage. |
+| `npm run test:rtl` | Builds Storybook and opens every story in Arabic at 1280 px and 390 px: no page error, `dir=rtl`, no sideways page scroll (`apps/web/e2e-rtl`, config `apps/web/playwright.rtl.config.ts`). Stories that cannot render are listed with a reason in `KNOWN_BROKEN` and only that list may shrink. Runs in CI as the `rtl-stories` stage, a matrix of four shards (`deploy/ci/rtl-stories.sh --shard k/N`, Playwright `--shard=k/N` over the story tests, each job building Storybook itself); `fullyParallel` in the config splits the one spec file per test. |
 
 Optional local git hooks: `npm run hooks:install` writes `pre-commit` (secret guard, docs and
 architecture policy, plus ui policy and ruff for staged files) and `commit-msg` (the
@@ -236,8 +236,8 @@ Every stage job except `static` ends with `.github/actions/stage-pass`, which sa
 `tools/ci_scope.py`) and its matrix entry. The `scope` job leaves out every stage whose jobs all saved a key on the
 same ref; a matrix stage is skipped only when every entry has one, and a failed lookup skips nothing. A push to
 `main`, the nightly run and `workflow_dispatch` run every selected stage. `e2e-mock` is a matrix of
-`E2E_MOCK_SHARDS` (`tools/ci_stage_cache.py`; the `scope` job emits it as `e2e-mock-shards`) and is skipped only
-when every shard saved its `k/N` key.
+`E2E_MOCK_SHARDS` and `rtl-stories` of `RTL_STORIES_SHARDS` (`tools/ci_stage_cache.py`; the `scope` job emits them as
+`e2e-mock-shards` and `rtl-stories-shards`); each is skipped only when every shard saved its `k/N` key.
 
 ### Red `main` alert
 
