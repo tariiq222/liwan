@@ -28,6 +28,6 @@ export const Panel: Story = {
   render: () => ({
     components: { SettingsPage, FormSection },
     setup: () => ({ t: useI18n().t, modes: ['light', 'dark'] }),
-    template: `<main class="liwan-shell-main"><SettingsPage><div class="liwan-settings-cards"><FormSection panel class="rounded-card ring ring-default bg-default overflow-hidden" :title="t('settings.appearance.mode')" :description="t('settings.appearance.modeHint')"><URadioGroup model-value="light" variant="card" orientation="horizontal" indicator="hidden" :items="modes.map(value => ({ value, label: t('settings.appearance.' + value) }))" :ui="{ fieldset: 'grid grid-cols-1 sm:grid-cols-2' }" /></FormSection></div></SettingsPage></main>`,
+    template: `<main class="liwan-shell-main"><SettingsPage><div class="liwan-settings-cards"><FormSection panel class="liwan-card rounded-card overflow-hidden" :title="t('settings.appearance.mode')" :description="t('settings.appearance.modeHint')"><URadioGroup model-value="light" variant="card" orientation="horizontal" indicator="hidden" :items="modes.map(value => ({ value, label: t('settings.appearance.' + value) }))" :ui="{ fieldset: 'grid grid-cols-1 sm:grid-cols-2' }" /></FormSection></div></SettingsPage></main>`,
   }),
 }

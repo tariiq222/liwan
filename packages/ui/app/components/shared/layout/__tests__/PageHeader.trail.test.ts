@@ -2,7 +2,7 @@ import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { renderShared, type SharedRenderOptions } from '../../../../../test/helpers/renderShared'
 
-// The trail under the page title (DESIGN.md §3): the shell publishes the ancestors of the current
+// The trail above the page title (DESIGN.md §3): the shell publishes the ancestors of the current
 // route and the page header draws them, with the page's own back target as the nearest step.
 function options(ancestors: { label: string; to?: string }[] = []): SharedRenderOptions {
   return {
@@ -18,10 +18,10 @@ function options(ancestors: { label: string; to?: string }[] = []): SharedRender
 const clean = (html: string) => html.replace(/<!--[\s\S]*?-->/g, '')
 
 describe('SharedPageHeader trail', () => {
-  it('draws the published ancestors under the title, never above it', async () => {
+  it('draws the published ancestors above the title, never below it', async () => {
     const html = clean(await renderShared('PageHeader', { title: 'السجل' }, {}, options([{ label: 'المشاريع', to: '/projects' }, { label: 'الحوكمة', to: '/projects/7/governance' }])))
     expect(html).toContain('data-testid="page-header-trail"')
-    expect(html.indexOf('السجل')).toBeLessThan(html.indexOf('data-testid="page-header-trail"'))
+    expect(html.indexOf('data-testid="page-header-trail"')).toBeLessThan(html.indexOf('السجل'))
     expect(html).toContain('href="/projects"')
     expect(html).toContain('href="/projects/7/governance"')
   })

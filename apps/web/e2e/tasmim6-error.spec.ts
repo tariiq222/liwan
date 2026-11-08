@@ -11,7 +11,7 @@ test.describe('Plan 6d: the error page', () => {
     const error = page.getByTestId('app-error')
     await expect(error).toBeVisible()
     await expect(page.locator('main')).toHaveCount(1)
-    await expect(page.getByTestId('module-rail')).toBeVisible()
+    await expect(page.getByTestId('application-navigation')).toBeVisible()
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('الصفحة غير موجودة')
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
     await expect(error.getByText('404', { exact: true })).toBeVisible()

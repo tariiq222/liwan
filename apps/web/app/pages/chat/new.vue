@@ -1,13 +1,15 @@
 <script setup lang="ts">
+import ConversationList from '@/components/chat/ConversationList.vue'
 import { owningListBack } from '@/utils/recordListOrigin'
 import { ApiError } from '@/composables/useApi'
 import { avatarProps } from '@liwan/ui/app/utils/avatarTone'
-import { parseChatListRoute, serializeChatListRoute } from '@/utils/chatState'
+import { parseChatListRoute, serializeChatListRoute, type ChatListRoute } from '@/utils/chatState'
 
 const { t } = useI18n()
 const hydrated = useHydrated()
 const route = useRoute()
-const listQuery = computed(() => serializeChatListRoute(parseChatListRoute(route.query)))
+const routeState = computed(() => parseChatListRoute(route.query))
+const listQuery = computed(() => serializeChatListRoute(routeState.value))
 const router = useRouter()
 const sourcePaths = useRecordListPaths(['/chat'])
 const backTo = computed(() => {
@@ -20,8 +22,10 @@ const copy = computed(() => ({
   group: { title: 'chat.newGroupTitle', description: 'chat.newGroupDescription', submit: 'chat.createGroup', error: 'chat.needGroupRecipients' },
   channel: { title: 'chat.newChannelTitle', description: 'chat.newChannelDescription', submit: 'chat.createChannel', error: 'chat.needChannelName' },
 })[kind.value])
-usePageHeader(() => t(copy.value.title))
-useEscapeBack(() => backTo.value)
+// The list beside the form keeps its filters in the URL query next to the creation kind.
+function updateList(next: ChatListRoute) {
+  void router.replace({ path: route.path, query: { ...route.query, ...serializeChatListRoute(next) } })
+}
 const selected = ref<{ id: number; name: string }[]>([])
 const groupName = ref('')
 const submitError = ref('')
@@ -80,60 +84,66 @@ async function submit() {
 </script>
 
 <template>
-  <SharedConversationLayout :has-selection="true" class="liwan-chat-create-layout" data-testid="chat-create-layout">
-    <template #header>
-      <header class="liwan-chat-thread-header">
-        <UButton color="neutral" variant="ghost" square icon="i-lucide-arrow-left" :to="backTo" :aria-label="t('app.back')" :ui="{ leadingIcon: 'rtl:rotate-180' }" />
-        <div class="min-w-0 flex-1">
-          <h1 class="text-lg font-semibold text-highlighted">{{ t(copy.title) }}</h1>
-          <p class="text-sm text-muted">{{ t(copy.description) }}</p>
+  <SharedPageContainer>
+    <SharedPageHeader :title="t(copy.title)" :back-to="backTo" :back-label="t('chat.title')" />
+    <SharedConversationLayout :has-selection="true" data-testid="chat-create-layout">
+      <template #list>
+        <ConversationList class="min-h-0 flex-1" :route-state="routeState" @update:route-state="updateList" />
+      </template>
+      <template #header>
+        <header class="flex shrink-0 flex-wrap items-center gap-3 border-b-[1.5px] border-default bg-default px-[18px] py-3">
+          <UButton class="md:hidden" color="neutral" variant="ghost" square icon="i-lucide-arrow-left" :to="backTo" :aria-label="t('app.back')" :ui="{ leadingIcon: 'rtl:rotate-180' }" />
+          <div class="min-w-0 flex-1">
+            <p class="text-(length:--liwan-fs-conversation-title)/[1.3] font-semibold text-highlighted">{{ t(copy.title) }}</p>
+            <p class="text-sm text-muted">{{ t(copy.description) }}</p>
+          </div>
+        </header>
+      </template>
+      <template #thread>
+        <div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+          <form id="chat-create-form" data-testid="chat-create-form" :aria-label="t(copy.title)" class="mx-auto w-full max-w-xl space-y-6" @submit.prevent="submit">
+            <SharedUnsavedChanges :dirty="dirty" guard-route-updates :ignore-query-keys="['q', 'filter', 'offset']" />
+            <SharedFormSection v-if="kind !== 'channel'" :title="t('chat.recipients')" class="space-y-4">
+              <UFormField :label="t('chat.recipientSearch')" name="recipientSearch">
+                <SharedPersonPicker
+                  id="chat-recipient-search"
+                  :model-value="kind === 'group' ? selectedIds : selectedIds[0] ?? null"
+                  :multiple="kind === 'group'"
+                  value-key="user_id"
+                  :known="selected"
+                  :placeholder="t('chat.recipientSearch')"
+                  @resolve="setSelected"
+                />
+              </UFormField>
+              <ul v-if="selected.length" class="flex flex-wrap gap-2" :aria-label="t('chat.selected')">
+                <li v-for="person in selected" :key="person.id">
+                  <UBadge color="neutral" variant="subtle" size="lg" class="gap-1">
+                    <UAvatar v-bind="avatarProps(person.name, person.id)" size="2xs" />
+                    <span>{{ person.name }}</span>
+                    <UButton type="button" color="neutral" variant="link" size="xs" square icon="i-lucide-x" :aria-label="t('chat.removeRecipient', { name: person.name })" :disabled="!hydrated" @click="removePerson(person.id)" />
+                  </UBadge>
+                </li>
+              </ul>
+            </SharedFormSection>
+            <SharedFormSection v-if="kind !== 'direct'" :title="t(kind === 'channel' ? 'chat.channelName' : 'chat.groupName')" class="space-y-2">
+              <UFormField :label="t(kind === 'channel' ? 'chat.channelName' : 'chat.groupName')" name="groupName" :required="kind === 'channel'">
+                <UInput id="chat-group-name" v-model="groupName" class="w-full" :placeholder="t(kind === 'channel' ? 'chat.channelNamePlaceholder' : 'chat.groupNamePlaceholder')" :disabled="!hydrated" />
+              </UFormField>
+            </SharedFormSection>
+            <UAlert v-if="submitError" role="alert" color="error" variant="subtle" :title="submitError" />
+          </form>
         </div>
-      </header>
-    </template>
-    <template #thread>
-      <div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-        <form id="chat-create-form" data-testid="chat-create-form" :aria-label="t(copy.title)" class="mx-auto w-full max-w-xl space-y-6" @submit.prevent="submit">
-          <SharedUnsavedChanges :dirty="dirty" guard-route-updates :ignore-query-keys="['q', 'filter', 'offset']" />
-          <SharedFormSection v-if="kind !== 'channel'" :title="t('chat.recipients')" class="space-y-4">
-            <UFormField :label="t('chat.recipientSearch')" name="recipientSearch">
-              <SharedPersonPicker
-                id="chat-recipient-search"
-                :model-value="kind === 'group' ? selectedIds : selectedIds[0] ?? null"
-                :multiple="kind === 'group'"
-                value-key="user_id"
-                :known="selected"
-                :placeholder="t('chat.recipientSearch')"
-                @resolve="setSelected"
-              />
-            </UFormField>
-            <ul v-if="selected.length" class="flex flex-wrap gap-2" :aria-label="t('chat.selected')">
-              <li v-for="person in selected" :key="person.id">
-                <UBadge color="neutral" variant="subtle" size="lg" class="gap-1">
-                  <UAvatar v-bind="avatarProps(person.name, person.id)" size="2xs" />
-                  <span>{{ person.name }}</span>
-                  <UButton type="button" color="neutral" variant="link" size="xs" square icon="i-lucide-x" :aria-label="t('chat.removeRecipient', { name: person.name })" :disabled="!hydrated" @click="removePerson(person.id)" />
-                </UBadge>
-              </li>
-            </ul>
-          </SharedFormSection>
-          <SharedFormSection v-if="kind !== 'direct'" :title="t(kind === 'channel' ? 'chat.channelName' : 'chat.groupName')" class="space-y-2">
-            <UFormField :label="t(kind === 'channel' ? 'chat.channelName' : 'chat.groupName')" name="groupName" :required="kind === 'channel'">
-              <UInput id="chat-group-name" v-model="groupName" class="w-full" :placeholder="t(kind === 'channel' ? 'chat.channelNamePlaceholder' : 'chat.groupNamePlaceholder')" :disabled="!hydrated" />
-            </UFormField>
-          </SharedFormSection>
-          <UAlert v-if="submitError" role="alert" color="error" variant="subtle" :title="submitError" />
-        </form>
-      </div>
-    </template>
-    <template #composer>
-      <div class="border-t border-default p-4">
-        <div class="mx-auto w-full max-w-xl">
-          <SharedFormActions>
-            <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
-            <UButton type="submit" form="chat-create-form" :disabled="!hydrated || isPending" :loading="isPending" :label="t(copy.submit)" />
-          </SharedFormActions>
+      </template>
+      <template #composer>
+        <div class="shrink-0 border-t-[1.5px] border-default p-4">
+          <div class="mx-auto w-full max-w-xl">
+            <SharedFormActions class="justify-end">
+              <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
+              <UButton type="submit" form="chat-create-form" :disabled="!hydrated || isPending" :loading="isPending" :label="t(copy.submit)" />
+            </SharedFormActions>
+          </div>
         </div>
-      </div>
-    </template>
-  </SharedConversationLayout>
+      </template>
+    </SharedConversationLayout>
+  </SharedPageContainer>
 </template>

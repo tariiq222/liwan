@@ -31,9 +31,9 @@ async function apply() {
 
 <template>
   <SharedSettingsCard id="preset" v-bind="state" :title="t('crm.settings.preset.title')" :description="t('crm.settings.preset.hint')" :can-edit="canEdit" :save-label="t('crm.settings.preset.apply')" @save="confirming = true" @revert="revert" @reload="reload">
-    <UFormField orientation="horizontal" :label="t('crm.settings.preset.choose')" name="crm-preset" :description="labels[draft.preset].hint">
+    <SharedSettingRow :label="t('crm.settings.preset.choose')" name="crm-preset" :description="labels[draft.preset].hint">
       <USelect id="crm-preset" v-model="draft.preset" class="w-full min-w-44" :items="items" :disabled="locked" />
-    </UFormField>
+    </SharedSettingRow>
     <SharedInlineConfirm
       v-if="confirming && state.dirty"
       color="warning"

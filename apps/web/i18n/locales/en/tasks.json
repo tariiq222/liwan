@@ -1,13 +1,5 @@
 {
   "tasks": {
-    "quickViews": {
-      "assigned": "Assigned to me",
-      "today": "Today",
-      "week": "This week",
-      "overdue": "Overdue",
-      "urgent": "Urgent",
-      "done": "Completed"
-    },
     "title": "Project tasks",
     "description": "Track the tasks available to you, their status, and deadlines in one place.",
     "table": "Table",
@@ -28,21 +20,19 @@
       "deadline": "Deadline",
       "priority": "Priority",
       "stage": "Stage",
-      "assignees": "Assignees"
+      "assignees": "Assignee",
+      "record_number": "Number"
     },
     "filters": {
       "open": "Open",
       "scopeLabel": "Task scope",
       "closed": "Done",
-      "allStates": "All states",
-      "selectedStates": "{count} state | {count} states",
       "allProjects": "All projects",
       "stateLabel": "State",
       "projectLabel": "Project",
       "search": "Search titles…",
       "chip": "{label}: {value}",
       "priorityLabel": "Priority",
-      "selectedPriorities": "{count} priority | {count} priorities",
       "assigneeLabel": "Assignee",
       "assigneeAll": "All",
       "assigneeMe": "Me",
@@ -52,9 +42,14 @@
       "deadlineAll": "All",
       "deadlineOverdue": "Overdue",
       "deadlineWeek": "This week",
-      "searchValue": "Search: {value}",
       "clearSearch": "Clear search",
-      "clear": "Clear filters"
+      "clear": "Clear filters",
+      "button": "Filters",
+      "title": "Task filters",
+      "activeCount": "{count} active filter | {count} active filters",
+      "activeLabel": "Active filters",
+      "columns": "Columns",
+      "archived": "Archived"
     },
     "empty": {
       "title": "No tasks yet",
@@ -84,24 +79,13 @@
     "detail": {
       "next": "Next",
       "prev": "Previous",
-      "close": "Close",
-      "back": "Back to tasks",
       "pageLabel": "Task details",
       "navigation": "Task detail navigation",
       "menu": "Task actions",
       "logTitle": "Log",
       "commentsTitle": "Comments",
-      "logDescription": "Field changes for this task only.",
       "editTitle": "Edit task title",
-      "saveTitle": "Save task title",
-      "cancelTitle": "Cancel title editing",
       "workflowStage": "Workflow stage",
-      "stageUnset": "Not set",
-      "properties": "Properties",
-      "sectionAssignment": "Assignment and schedule",
-      "sectionOrganization": "Organization",
-      "sections": "Task sections",
-      "workResources": "Deliverables, attachments and related tasks",
       "subtaskProgress": "{done} of {total}",
       "noSubtasks": "No subtasks yet.",
       "noDependencies": "This task has no predecessors.",
@@ -111,7 +95,12 @@
       "orderedList": "Numbered list",
       "linkPrompt": "Link URL",
       "applyLink": "Apply link",
-      "cancelLink": "Cancel"
+      "cancelLink": "Cancel",
+      "position": "{n} of {total}",
+      "copyLink": "Copy task link",
+      "linkCopied": "Link copied",
+      "addAttachment": "Attachment",
+      "addDependsOn": "Depends on a task"
     },
     "drawer": {
       "deadlineTime": "Deadline time",
@@ -181,12 +170,10 @@
       "changed": "Changed {field} from \"{old}\" to \"{new}\"",
       "set": "Set {field}: \"{new}\"",
       "cleared": "Cleared {field}",
-      "add": "Add comment",
-      "write": "Write a comment…",
+      "write": "Write a comment… type {'@'} to mention a person or / for a task",
       "post": "Post",
       "empty": "No changes yet",
       "emptyComments": "No comments yet",
-      "referenceHint": "Type {'@'} to mention a person and / to reference a subtask.",
       "mentionPerson": "Mention a person",
       "referenceTask": "Reference a task",
       "noPeople": "No person matches",
@@ -197,7 +184,10 @@
       "invalidValue": "Invalid value",
       "booleanTrue": "Yes",
       "booleanFalse": "No",
-      "activeField": "Active"
+      "activeField": "Active",
+      "filter": "Filter activity",
+      "filterAll": "All",
+      "emptyAll": "No activity yet"
     },
     "kanban": {
       "groupBy": "Group board by",
@@ -225,13 +215,13 @@
     "scheduleRequired": "Set both the start and deadline for this task.",
     "descriptionField": {
       "empty": "No task description added.",
-      "edit": "Edit",
-      "add": "Add description",
-      "save": "Save",
-      "cancel": "Cancel",
+      "edit": "Edit description",
+      "add": "+ Add a description",
       "saved": "Description saved",
       "saveError": "Could not save the description. Try again.",
-      "placeholder": "Describe the task…"
+      "placeholder": "Describe the task…",
+      "hint": "Esc cancels, Ctrl+Enter saves, or click outside to save",
+      "saving": "Saving…"
     },
     "deliverables": {
       "title": "Task outputs",

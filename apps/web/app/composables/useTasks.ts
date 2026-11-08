@@ -402,15 +402,18 @@ export function useTransitionTask() {
 // request when the table is already mounted behind it) and re-renders when it
 // fills. Returns the neighbouring ids in that list's order; both null when the
 // task isn't in the filtered list or sits at one of its ends.
+// Where the task sits in the list it was opened from: its neighbours, its 1-based position and the list's total.
 export function useTaskSiblings(currentId: Ref<number>, params: Ref<TaskListParams>) {
   const { data } = useTasks(params)
-  return computed<{ prevId: number | null; nextId: number | null }>(() => {
+  return computed<{ prevId: number | null; nextId: number | null; position: number | null; total: number | null }>(() => {
     const items = (data.value?.pages ?? []).flatMap((p) => p.items)
     const idx = items.findIndex((t) => t.id === currentId.value)
-    if (idx === -1) return { prevId: null, nextId: null }
+    if (idx === -1) return { prevId: null, nextId: null, position: null, total: null }
     return {
       prevId: idx > 0 ? (items[idx - 1]?.id ?? null) : null,
       nextId: idx < items.length - 1 ? (items[idx + 1]?.id ?? null) : null,
+      position: idx + 1,
+      total: data.value?.pages[0]?.total ?? items.length,
     }
   })
 }

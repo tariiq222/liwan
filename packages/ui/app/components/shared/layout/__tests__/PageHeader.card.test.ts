@@ -2,8 +2,9 @@ import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { renderShared, type SharedRenderOptions } from '../../../../../test/helpers/renderShared'
 
-// The compact card (DESIGN.md §3): the chip comes from the application the shell published, in the brand colour, the tags follow the title.
-function options(app: { icon: string } | null = null): SharedRenderOptions {
+// The open header (DESIGN.md §3): no card, the 64px tile comes from the application the shell published, the tags follow the title,
+// the tagline sits under it, the actions close the row on the inline end and the tabs sit on the divider.
+function options(app: { icon: string; id?: string; tagline?: string } | null = null): SharedRenderOptions {
   return {
     globals: {
       usePageHeader: vi.fn(),
@@ -15,11 +16,13 @@ function options(app: { icon: string } | null = null): SharedRenderOptions {
 }
 const clean = (html: string) => html.replace(/<!--[\s\S]*?-->/g, '')
 
-describe('SharedPageHeader card', () => {
-  it('draws the published application as a tinted chip before the title', async () => {
-    const html = clean(await renderShared('PageHeader', { title: 'الاجتماعات' }, {}, options({ icon: 'i-lucide-calendar-days' })))
+describe('SharedPageHeader open header', () => {
+  it('draws the published application as an app tile before the title', async () => {
+    const html = clean(await renderShared('PageHeader', { title: 'الاجتماعات' }, {}, options({ icon: 'i-lucide-calendar-days', id: 'meetings' })))
     expect(html).toContain('data-slot="page-header-chip"')
-    expect(html).toContain('bg-primary/10 text-primary')
+    expect(html).toContain('liwan-app-tile liwan-app-tile-lg')
+    expect(html).toContain('data-app="meetings"')
+    expect(html).not.toContain('bg-primary/10')
     expect(html.indexOf('page-header-chip')).toBeLessThan(html.indexOf('الاجتماعات'))
   })
 
@@ -27,7 +30,7 @@ describe('SharedPageHeader card', () => {
     expect(clean(await renderShared('PageHeader', { title: 'خطط' }, {}, options()))).not.toContain('page-header-chip')
     const html = clean(await renderShared('PageHeader', { title: 'خطط', icon: 'i-lucide-star' }, {}, options()))
     expect(html).toContain('page-header-chip')
-    expect(html).toContain('bg-primary/10 text-primary')
+    expect(html).toContain('liwan-app-tile')
   })
 
   it('draws tags after the title, a link when the tag has a target, with its test id', async () => {
@@ -37,6 +40,39 @@ describe('SharedPageHeader card', () => {
     expect(html).toContain('to="/projects/1"')
     expect(html.indexOf('اجتماع')).toBeLessThan(html.indexOf('مؤكد'))
     expect(html).toMatch(/<h1[^>]*>اجتماع<\/h1>/)
+  })
+})
+
+describe('SharedPageHeader open frame', () => {
+  it('is a divided open block, with no card, ring or sticky slot', async () => {
+    const html = clean(await renderShared('PageHeader', { title: 'العملاء' }, {}, options({ icon: 'i-lucide-handshake', id: 'crm' })))
+    expect(html).toContain('border-b border-default')
+    for (const gone of ['ring-default', 'bg-default', 'rounded-card', 'data-sticky']) expect(html, gone).not.toContain(gone)
+    expect(html).toMatch(/<h1[^>]*font-display[^>]*font-bold[^>]*>العملاء<\/h1>/)
+  })
+
+  it('draws the tagline: the description prop wins over the shell tagline, and none without both', async () => {
+    const app = { icon: 'i-lucide-handshake', id: 'crm', tagline: 'لا تضيع صفقة بعد اليوم' }
+    expect(clean(await renderShared('PageHeader', { title: 'العملاء' }, {}, options(app)))).toMatch(/data-slot="page-header-tagline"[^>]*>لا تضيع صفقة بعد اليوم</)
+    expect(clean(await renderShared('PageHeader', { title: 'العملاء', description: 'الفرص المفتوحة' }, {}, options(app)))).toContain('>الفرص المفتوحة</p>')
+    expect(clean(await renderShared('PageHeader', { title: 'العملاء' }, {}, options()))).not.toContain('page-header-tagline')
+  })
+
+  it('puts the actions at the inline end and the tabs row last, on the divider', async () => {
+    const slots = { actions: () => Vue.h('button', { id: 'act' }, 'x'), tabs: () => Vue.h('nav', { id: 'tabs' }) }
+    const html = clean(await renderShared('PageHeader', { title: 'العملاء' }, slots, options()))
+    expect(html).toContain('ms-auto')
+    expect(html).toContain('data-slot="page-header-tabs"')
+    expect(html.indexOf('id="act"')).toBeLessThan(html.indexOf('id="tabs"'))
+    expect(html).toContain('pb-0')
+    expect(clean(await renderShared('PageHeader', { title: 'العملاء' }, {}, options()))).not.toContain('page-header-tabs')
+  })
+
+  it('draws the actions and the tabs row alone when the frame owns the heading', async () => {
+    const html = clean(await renderShared('PageHeader', { title: 'خطط', hideTitle: true }, { tabs: () => Vue.h('nav', { id: 'tabs' }) }, options()))
+    expect(html).toContain('id="tabs"')
+    expect(html).not.toContain('<h1')
+    expect(html).not.toContain('border-b')
   })
 })
 

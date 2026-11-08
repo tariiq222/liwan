@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { allNavItems, areaLabelKey, contextLinksForModule, featureForRailModule, hidePinnedNewProject, shellModuleList, visibleSettingsPages, visibleShellModules, useNav } from '../shellModules'
+import { allNavItems, contextLinksForModule, featureForRailModule, hidePinnedNewProject, shellModuleList, visibleSettingsPages, visibleShellModules, useNav } from '../shellModules'
 import { appManifests, withManifests } from '../../../modules/manifests'
 import type { AppManifest } from '../../../modules/types'
 import { activeShellModule } from '../activeRoute'
@@ -285,15 +285,5 @@ describe('navigation built from app manifests', () => {
       expect(featureForRailModule('ghost')).toBeUndefined()
       expect(useNav(pilotIdentity).map(item => item.to)).not.toContain('/pilot/ghost')
     })
-  })
-
-
-})
-
-describe('areaLabelKey', () => {
-  it('names the module, then «التطبيقات» on the launcher, then the product', () => {
-    expect(areaLabelKey({ labelKey: 'nav.home' }, 'home')).toBe('nav.home')
-    expect(areaLabelKey(null, 'apps')).toBe('nav.apps')
-    expect(areaLabelKey(null, null)).toBe('app.productName')
   })
 })

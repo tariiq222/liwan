@@ -62,7 +62,7 @@ function me() {
 function jsonFor(pathname: string): unknown {
   if (pathname === '/api/v1/me') return me()
   if (pathname === '/api/v1/finance/setup') return SETUP
-  if (pathname === '/api/v1/branding') return { name: 'ليوان', logo_url: null, primary_color: '#7843c6', font: 'IBM_Plex_Sans_Arabic' }
+  if (pathname === '/api/v1/branding') return { name: 'ليوان', logo_url: null, primary_color: '#14102a', font: 'IBM_Plex_Sans_Arabic' }
   // The other cards of the page are not this spec's subject; they answer an empty list.
   if (pathname.startsWith('/api/v1/')) return { items: [], total: 0 }
   return null
@@ -153,8 +153,6 @@ test.beforeEach(() => { mode = 'manager'; fiscalPatches = []; rejectNextPatch = 
 async function routeFiscal(page: Page, cookies: Array<{ name: string; value: string }> = []) {
   await page.context().addCookies([
     { name: 'session_id', value: 'fiscal_mock', url: origin, httpOnly: true, sameSite: 'Lax' },
-    // The context menu starts folded; the hash check reads its pinned sub-list.
-    { name: 'liwan-context-sidebar', value: 'open', url: origin, sameSite: 'Lax' },
     ...cookies.map(cookie => ({ ...cookie, url: origin })),
   ])
   await page.route('**/api/v1/**', fulfillApi)

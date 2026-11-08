@@ -210,6 +210,23 @@ class TestProjectReports(LiwanPmoCase):
         self.assertEqual([item['project']['id'] for item in body['attention']], [other.id])
         self.assertEqual(self.api('GET', f'{SUMMARY_URL}?status=unset').json()['project_count'], 0)
 
+    def test_dashboard_summary_status_accepts_a_comma_list(self):
+        self.project.with_user(self.manager)._liwan_set_status('on_track')
+        at_risk = self.env['project.project'].create({'company_id': self.env.company.id, 'name': 'Listed at risk'})
+        at_risk.with_user(self.manager)._liwan_set_status('at_risk')
+        off_track = self.env['project.project'].create({'company_id': self.env.company.id, 'name': 'Listed off track'})
+        off_track.with_user(self.manager)._liwan_set_status('off_track')
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        body = self.api('GET', f'{SUMMARY_URL}?status=off_track,at_risk&q=Listed').json()
+        self.assertEqual(body['project_count'], 2)
+        self.assertEqual(
+            sorted((item['status'], item['count']) for item in body['status_counts']),
+            [('at_risk', 1), ('off_track', 1)],
+        )
+        for bad in ('off_track,purple', 'off_track,', ',', 'unset,at_risk'):
+            res = self.api('GET', f'{SUMMARY_URL}?status={bad}')
+            self.assertEqual((res.status_code, res.json()['code'], res.json()['field']), (422, 'invalid', 'status'), bad)
+
     def test_dashboard_summary_task_totals_are_null_without_task_read(self):
         role = self.env['liwan.access.role'].create({
             'name_ar': 'قارئ المشاريع للوحة',

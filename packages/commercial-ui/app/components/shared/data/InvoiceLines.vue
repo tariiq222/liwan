@@ -38,7 +38,7 @@ const isolated = (value: string) => /\d/.test(value)
         </tbody>
       </table>
     </div>
-    <ul v-else class="divide-y divide-default rounded-lg ring ring-default" :aria-label="t('commercial.invoice.lines')">
+    <ul v-else class="divide-y divide-default rounded-control ring ring-default" :aria-label="t('commercial.invoice.lines')">
       <li v-for="line in props.lines" :key="line.id" class="flex items-center justify-between gap-3 p-3" data-testid="invoice-line">
         <span class="min-w-0">
           {{ line.description }}
@@ -50,7 +50,7 @@ const isolated = (value: string) => /\d/.test(value)
         <span class="font-medium tabular-nums"><bdi dir="ltr">{{ line.amount }}</bdi></span>
       </li>
     </ul>
-    <dl v-if="props.totals?.length" class="space-y-2 rounded-lg bg-elevated p-3" :aria-label="t('commercial.invoice.totals')">
+    <dl v-if="props.totals?.length" class="space-y-2 rounded-control bg-elevated p-3" :aria-label="t('commercial.invoice.totals')">
       <div v-for="(row, index) in props.totals" :key="row.label" class="flex justify-between gap-3">
         <dt :class="index === props.totals.length - 1 ? 'font-semibold' : 'text-toned'">{{ row.label }}</dt>
         <dd :class="['tabular-nums', index === props.totals.length - 1 && 'font-semibold']"><bdi dir="ltr">{{ row.value }}</bdi></dd>

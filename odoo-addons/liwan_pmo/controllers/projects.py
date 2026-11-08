@@ -4,6 +4,7 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.http import request
 
 from .records import get_visible_record
+from .status_filter import project_status_domain
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
@@ -61,13 +62,7 @@ class ProjectController(http.Controller):
         sort = args.get('sort', 'default')
         if sort not in ('default', 'name', 'progress'):
             raise ApiError(422, 'invalid', "sort must be 'default', 'name' or 'progress'", field='sort')
-        status = args.get('status')
-        if status is not None and status != 'unset' and status not in STATUS_VALUES:
-            raise ApiError(
-                422, 'invalid',
-                f"status must be one of {sorted(STATUS_VALUES)} or 'unset'",
-                field='status',
-            )
+        status_domain = project_status_domain(args.get('status'))
         Project = request.env['project.project']
         archived = archived_param in ('1', 'true')
         if archived and not Project._liwan_is_manager():
@@ -80,10 +75,7 @@ class ProjectController(http.Controller):
         q = (args.get('q') or '').strip()
         if q:
             domain.append(('name', 'ilike', q))
-        if status == 'unset':
-            domain.append(('last_update_status', '=', 'to_define'))
-        elif status:
-            domain.append(('last_update_status', '=', status))
+        domain += status_domain
         Project = Project.with_context(active_test=not archived)
         if sort == 'progress':
             # This native percentage is computed with the caller's task access,

@@ -35,7 +35,7 @@ function capturedAt(value: string) {
         <li v-for="version in versions" :key="version.id">
           <button
             type="button"
-            class="grid w-full min-w-0 justify-items-start gap-1 px-(--liwan-card-pad) py-3 text-start transition-colors duration-150 hover:bg-(--liwan-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary disabled:opacity-60 motion-reduce:transition-none"
+            class="grid w-full min-w-0 justify-items-start gap-1 px-(--liwan-card-pad) py-3 text-start transition-colors hover:bg-(--liwan-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary disabled:opacity-60 motion-reduce:transition-none"
             :class="selectedId === version.id ? 'bg-primary/5' : ''"
             :aria-pressed="selectedId === version.id"
             :data-selected="selectedId === version.id ? 'true' : undefined"

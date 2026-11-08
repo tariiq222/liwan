@@ -21,6 +21,7 @@ function options(query: Record<string, string> = {}, patch: SharedRenderOptions 
       usePageHeader: () => undefined,
       useEscapeBack: () => undefined,
       useFrameOwnsHeading: () => Vue.ref(false),
+      useFrameOwnsActions: () => Vue.ref(false),
     },
     stubs: { UTooltip: TooltipStub },
     ...patch,
@@ -50,11 +51,23 @@ describe('SharedListPage', () => {
     expect(html).toContain('Archived')
   })
 
+  it('draws no create button and no KPI toggle when the frame owns the primary action', async () => {
+    const framed = options({}, { globals: { ...options().globals, useFrameOwnsActions: () => Vue.ref(true) } })
+    const props = { title: 'Tasks', hideHeader: true, createTo: '/tasks/new', kpiToggle: true }
+    const html = await renderShared('ListPage', props, {}, framed)
+    expect(html).not.toContain('data-shortcut-create')
+    expect(html).not.toContain('kpi-toggle')
+    expect(html).not.toContain('page-header')
+    // A page with its own header keeps its button even inside a frame that draws actions.
+    const own = await renderShared('ListPage', { title: 'Tasks', createTo: '/tasks/new' }, {}, framed)
+    expect(own).toContain('data-shortcut-create')
+  })
+
   it('reads the view from the route query and hands it to the list', async () => {
     const html = await renderShared('ListPage', { title: 'Tasks', views }, showView, options({ view: 'board' }))
     expect(html).toContain('view:board')
-    expect(html).toMatch(/<button[^>]*aria-label="Board view"[^>]*aria-pressed="true"/)
-    expect(html).toMatch(/<button[^>]*aria-label="Table view"[^>]*aria-pressed="false"/)
+    expect(html).toMatch(/<button(?=[^>]*label="Board view")[^>]*aria-pressed="true"/)
+    expect(html).toMatch(/<button(?=[^>]*label="Table view")[^>]*aria-pressed="false"/)
   })
 
   it('viewsInFilters leaves the switch to the embedded filter bar', async () => {
@@ -95,12 +108,12 @@ describe('SharedListPage', () => {
 })
 
 describe('SharedViewSwitch', () => {
-  it('labels each icon-only option, marks the current one and waits for hydration', async () => {
+  it('labels each option with its icon and text, marks the current one and waits for hydration', async () => {
     const html = await renderShared('ViewSwitch', { modelValue: 'table', options: views }, {}, { hydrated: false, stubs: { UTooltip: TooltipStub } })
     expect(html).toContain('role="group"')
     expect(html).toContain('aria-label="states.view"')
-    expect(html).toMatch(/<button[^>]*aria-label="Table view"[^>]*aria-pressed="true"[^>]*disabled[^>]*data-value="table"/)
-    expect(html).toMatch(/<button[^>]*aria-label="Board view"[^>]*aria-pressed="false"[^>]*disabled[^>]*data-value="board"/)
+    expect(html).toMatch(/<button(?=[^>]*label="Table view")[^>]*aria-pressed="true"[^>]*disabled[^>]*data-value="table"/)
+    expect(html).toMatch(/<button(?=[^>]*label="Board view")[^>]*aria-pressed="false"[^>]*disabled[^>]*data-value="board"/)
   })
 
   it('puts an option test id on its button only when the option has one', async () => {
@@ -108,5 +121,14 @@ describe('SharedViewSwitch', () => {
     const html = await renderShared('ViewSwitch', { modelValue: 'table', options: withIds }, {}, { stubs: { UTooltip: TooltipStub } })
     expect(html).toMatch(/<button(?=[^>]*data-value="table")(?=[^>]*data-testid="projects-view-table")[^>]*>/)
     expect(html.match(/data-testid=/g)).toHaveLength(1)
+  })
+})
+
+describe('the injected list view context', () => {
+  it('reads its options through a getter, so a view that resolves after the page loads reaches the toolbar', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { resolve } = await import('node:path')
+    const source = readFileSync(resolve(import.meta.dirname, '../ListPage.vue'), 'utf8')
+    expect(source).toMatch(/provide\(LIST_VIEW_KEY, \{ view, get options\(\) \{ return props\.views \?\? \[\] \}, setView \}\)/)
   })
 })

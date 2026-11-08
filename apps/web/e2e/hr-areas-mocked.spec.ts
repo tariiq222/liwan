@@ -122,6 +122,8 @@ test.describe('assets', () => {
 
 test.describe('recruitment', () => {
   test('the applicants list shows the mock rows and filters by status from the URL', async ({ page }) => {
+    // The priority column is shown on wide screens only.
+    await page.setViewportSize({ width: 1440, height: 900 })
     await open(page, '/hr/recruitment', 'التوظيف')
     await expect(row(page, /عبدالله الغامدي.*مطور واجهات.*مقابلة أولى.*قيد التوظيف/)).toBeVisible()
     await expect(row(page, /فهد المطيري.*تم التعيين.*مرتفع/)).toBeVisible()

@@ -22,14 +22,14 @@ const locked = computed(() => !hydrated.value || !props.canEdit || state.value.s
 
 <template>
   <SharedSettingsCard id="pricing" v-bind="state" :title="t('crm.settings.pricing.title')" :description="t('crm.settings.pricing.hint')" :can-edit="canEdit" @save="save" @revert="revert" @reload="reload">
-    <UFormField orientation="horizontal" :label="t('crm.settings.pricing.discountAllowed')" :description="t('crm.settings.pricing.discountAllowedHint')">
+    <SharedSettingRow :label="t('crm.settings.pricing.discountAllowed')" :description="t('crm.settings.pricing.discountAllowedHint')">
       <USwitch v-model="draft.discount_allowed" :disabled="locked" :aria-label="t('crm.settings.pricing.discountAllowed')" />
-    </UFormField>
+    </SharedSettingRow>
     <UFormField orientation="horizontal" v-if="draft.discount_allowed" :label="t('crm.settings.pricing.discountMax')" name="discount-max" :description="t('crm.settings.pricing.discountMaxHint')">
       <UInputNumber id="discount-max" v-model="draft.discount_max_percent" class="w-full" :min="range.min" :max="range.max" :disabled="locked" />
     </UFormField>
-    <UFormField orientation="horizontal" :label="t('crm.settings.pricing.aboveList')" name="price-above-list" :description="t('crm.settings.pricing.aboveListHint')">
+    <SharedSettingRow :label="t('crm.settings.pricing.aboveList')" name="price-above-list" :description="t('crm.settings.pricing.aboveListHint')">
       <USelect id="price-above-list" v-model="draft.price_above_list" class="w-full min-w-44" :items="aboveListItems" :disabled="locked" />
-    </UFormField>
+    </SharedSettingRow>
   </SharedSettingsCard>
 </template>

@@ -91,14 +91,14 @@ describe('EmptyState art', () => {
 })
 
 describe('EmptyState bordered', () => {
-  it('is the dashed placeholder by default and the card recipe with bordered', async () => {
+  it('is the dashed placeholder by default and a filled one with bordered', async () => {
     const dashed = await renderShared('EmptyState', { title: 'Nothing here' })
     expect(dashed).toContain('border-dashed')
     expect(dashed).not.toContain('data-bordered')
     const card = await renderShared('EmptyState', { title: 'Nothing here', bordered: true })
     expect(card).toContain('data-bordered="true"')
-    expect(card).toContain('bg-default ring ring-default')
-    expect(card).toContain('rounded-card')
-    expect(card).not.toContain('border-dashed')
+    expect(card).toContain('border-dashed')
+    expect(card).toContain('bg-default')
+    expect(card).toContain('rounded-surface')
   })
 })

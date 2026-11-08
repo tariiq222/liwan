@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { appManifests, withManifests } from '../../../modules/manifests'
 import type { AppCommand, AppManifest } from '../../../modules/types'
-import { allNavItems, type NavItem } from '../shellModules'
+import { allNavItems, visibleShellModules, type NavItem, type ShellModuleDefinition } from '../shellModules'
 import {
-  commandItems, goKeyProblems, goKeyTargets, goToItems, helpItems, paletteGroups,
+  appItems, commandItems, goKeyProblems, goKeyTargets, goToItems, helpItems, paletteGroups,
   PALETTE_SECTION_LIMIT, visibleCommands, type PaletteSearchSection,
 } from '../paletteModel'
 
@@ -75,6 +75,31 @@ describe('palette items', () => {
     expect(rows[1]!.kbds).toBeUndefined()
   })
 
+  it('Apps rows open an application by its name, carry its first page G letter, and leave foundation pages out', () => {
+    const modules: ShellModuleDefinition[] = [
+      { id: 'home', labelKey: 'nav.home', icon: 'i-lucide-house', to: '/' },
+      { id: 'projects', labelKey: 'nav.rail.projects', icon: 'i-lucide-folder-kanban', to: '/projects' },
+      { id: 'meetings', labelKey: 'nav.rail.meetings', icon: 'i-lucide-calendar-days', to: '/meetings' },
+      { id: 'settings', labelKey: 'nav.settings', icon: 'i-lucide-settings', to: '/settings' },
+    ]
+    const rows = appItems(modules, [item('/projects', 'p'), item('/meetings')], key => `t:${key}`)
+    expect(rows.map(row => row.id)).toEqual(['app:projects', 'app:meetings'])
+    expect(rows[0]).toEqual({ id: 'app:projects', label: 't:nav.rail.projects', icon: 'i-lucide-folder-kanban', to: '/projects', kbds: ['G', 'P'], kbdsHidden: true })
+    expect(rows[1]!.kbds).toBeUndefined()
+  })
+
+  it('Go to leaves out the pages the Apps group already opens', () => {
+    const apps = appItems([{ id: 'projects', labelKey: 'nav.rail.projects', icon: 'i-lucide-folder-kanban', to: '/projects' }], [], key => key)
+    expect(goToItems([item('/projects', 'p'), item('/projects/reports')], navItem => navItem.to, apps).map(row => row.to)).toEqual(['/projects/reports'])
+  })
+
+  it('lists every application the user reaches, whatever the page labels say', () => {
+    const modules = visibleShellModules(writer)
+    const rows = appItems(modules, [], key => key)
+    expect(rows.map(row => row.id)).toEqual(expect.arrayContaining(['app:projects', 'app:meetings']))
+    expect(new Set(rows.map(row => row.id)).size).toBe(rows.length)
+  })
+
   it('commands open their form with a return path', () => {
     const [row] = commandItems(
       [{ id: 'pmo.new-project', labelKey: 'nav.newProject', icon: 'i-lucide-folder-kanban', to: '/projects/new', capability: 'pmo.projects.create' }],
@@ -95,7 +120,7 @@ describe('palette items', () => {
   })
 })
 
-const labels = { goTo: 'Go to', actions: 'Actions', shortcuts: 'Shortcuts', loading: 'Searching…', error: 'Search failed', loadMore: 'Load more' }
+const labels = { apps: 'Applications', goTo: 'Go to', actions: 'Actions', shortcuts: 'Shortcuts', loading: 'Searching…', error: 'Search failed', loadMore: 'Load more' }
 const section = (patch: Partial<PaletteSearchSection> = {}): PaletteSearchSection => ({
   id: 'pmo-tasks', label: 'Tasks', icon: 'i-lucide-check-square', rows: [], waiting: false, error: false,
   hasNext: false, notice: null, ...patch,
@@ -103,6 +128,7 @@ const section = (patch: Partial<PaletteSearchSection> = {}): PaletteSearchSectio
 const base = {
   view: 'main' as const,
   term: '',
+  apps: [],
   goTo: goToItems([item('/projects', 'p')], () => 'Projects'),
   search: [section({ rows: [{ id: 1, label: 'Fix login', to: '/tasks/1' }] })],
   actions: [{ id: 'command:pmo.new-project', label: 'New project' }],
@@ -114,6 +140,11 @@ const base = {
 describe('paletteGroups', () => {
   it('shows Go to then Actions before a term is typed', () => {
     expect(paletteGroups(base).map(group => group.id)).toEqual(['goto', 'actions'])
+  })
+
+  it('puts the Apps group first when the user reaches applications', () => {
+    const apps = [{ id: 'app:projects', label: 'Projects', to: '/projects' }]
+    expect(paletteGroups({ ...base, apps }).map(group => group.id)).toEqual(['apps', 'goto', 'actions'])
   })
 
   it('puts one unfiltered Search group per provider between Go to and Actions; rows return to the page', () => {

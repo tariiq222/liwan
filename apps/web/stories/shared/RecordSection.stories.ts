@@ -6,7 +6,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shared/RecordSection',
   component: RecordSection,
-  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('unused', 'قسم بعنوان في العمود الرئيسي للسجل، مع إجراءاته بجانب العنوان. `variant`: `flat` (الافتراضي بلا بطاقة)، `panel` بطاقة، `list` بطاقة بجسم بلا حشوة وصفوف مفصولة، `tinted` معلومة ثانوية، `action` الإجراء الوحيد المطلوب في الصفحة.') },
+  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('unused', 'قسم بعنوان في العمود الرئيسي للسجل، مع إجراءاته بجانب العنوان. `variant`: `flat` (الافتراضي بلا بطاقة: عنوان Rubik)، `panel` بطاقة بحدّ 1.5px، وقبل كل عنوان معين سدو صغير (`liwan-sadu-diamond-mark`)، `list` بطاقة بجسم بلا حشوة وصفوف مفصولة، `tinted` معلومة ثانوية، `action` الإجراء الوحيد المطلوب في الصفحة.') },
 } satisfies Meta<typeof RecordSection>
 export default meta
 type Story = StoryObj

@@ -31,10 +31,10 @@ test('task activity: post a comment and see a tracking entry after a state chang
   // wait for the client-rendered detail body before interacting (SSR hydration race)
   await expect(page.locator('h1')).toHaveText(name)
 
-  const tabs = page.getByTestId('task-activity-tabs')
-  await tabs.getByRole('tab', { name: 'التعليقات', exact: true }).click()
-  const comments = page.getByTestId('task-comments-card')
-  const composer = comments.getByPlaceholder('اكتب تعليقًا…')
+  const activity = page.getByTestId('task-activity')
+  const filter = page.getByTestId('task-activity-filter')
+  await filter.getByRole('button', { name: 'التعليقات', exact: true }).click()
+  const composer = activity.getByPlaceholder(/^اكتب تعليقًا…/)
   await expect(composer).toBeVisible()
   const commentText = `تعليق تجريبي ${Date.now()}`
   await composer.fill(commentText)
@@ -43,8 +43,9 @@ test('task activity: post a comment and see a tracking entry after a state chang
   await commentPosted
   await expect(composer).toHaveValue('')
 
-  const timeline = comments.getByRole('list').first()
-  const firstEntry = timeline.locator('li').first()
+  // The feed runs oldest first, so the new comment is the last entry.
+  const timeline = activity.getByTestId('task-activity-feed')
+  const firstEntry = timeline.locator('li').last()
   await expect(firstEntry).toContainText(commentText)
   await expect(firstEntry).toContainText(currentUser.name)
 
@@ -55,8 +56,8 @@ test('task activity: post a comment and see a tracking entry after a state chang
   await page.getByRole('menuitem').first().click()
   await transitioned
   // Fresh isolated Odoo databases may retain the stock English field label.
-  await tabs.getByRole('tab', { name: 'السجل', exact: true }).click()
-  const log = page.getByTestId('task-activity-card')
+  await filter.getByRole('button', { name: 'السجل', exact: true }).click()
+  const log = activity.getByTestId('task-activity-feed')
   await expect(log.locator('li').filter({ hasText: /الحالة|State/ }).first()).toBeVisible()
-  await expect(log.getByPlaceholder('اكتب تعليقًا…')).toHaveCount(0)
+  await expect(log).not.toContainText(commentText)
 })

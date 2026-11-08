@@ -167,40 +167,47 @@ describe('task comment draft persistence', () => {
     })
     const detail = defineComponent({
       setup() {
-        const siblings = ref({ prevId: null, nextId: null })
+        const siblings = ref({ prevId: null, nextId: null, position: null, total: null })
         return {
-          props: { taskId: 1, basePath: '/tasks', backTo: undefined, backLabel: undefined },
+          props: { taskId: 1, basePath: '/tasks', backTo: undefined },
           route: { query: {} },
           task,
           error,
           siblings,
           hydrated: true,
-          editingTitle: false,
-          titleSaving: false,
-          titleDraft: '',
           archiveConfirmOpen: false,
           archiving: false,
-          ArrowLeft: passthrough,
-          ArrowRight: passthrough,
-          ChevronLeft: passthrough,
-          ChevronRight: passthrough,
+          title: 'Cached task',
+          trail: [],
+          backTo: undefined,
+          headerTags: [],
+          menuItems: [],
           t: (key: string) => key,
           refetch: () => {},
-          startTitleEdit: () => {},
-          saveTitle: () => {},
-          cancelTitleEdit: () => {},
           goTo: () => {},
           doArchive: () => {},
         }
       },
       render,
     })
+    // The workspace draws its main and aside slots only; the header slots are not under test here.
+    const workspace = defineComponent({
+      inheritAttrs: false,
+      setup(_, { slots }) { return () => h('div', [slots.main?.(), slots.aside?.()]) },
+    })
     mountWith({
+      SharedRecordWorkspace: workspace,
       SharedPageState: pageState,
       TaskDetails: details,
       SharedInlineConfirm: passthrough,
       TaskCompletionApproval: passthrough,
+      TaskProperties: passthrough,
+      TaskTitleEditor: passthrough,
       StateMenu: passthrough,
+      SharedHeaderTags: passthrough,
+      UDropdownMenu: passthrough,
+      UTooltip: passthrough,
+      UIcon: passthrough,
       SharedStatusBadge: passthrough,
       NuxtLink: passthrough,
       UButton: passthrough,

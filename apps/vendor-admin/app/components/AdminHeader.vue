@@ -3,7 +3,7 @@ import type { DropdownMenuItem } from '@nuxt/ui'
 import type { ShellRailItem } from '@liwan/ui/app/types/shell'
 import { usePageHeaderTitle } from '@liwan/ui/app/composables/usePageHeader'
 
-// The 48px neutral header: mobile menu, breadcrumb, the console badge that marks this as the
+// The 68px neutral header: mobile menu, breadcrumb, the console badge that marks this as the
 // vendor console, and the account menu (language, appearance, sign-out).
 const props = defineProps<{ items: ShellRailItem[], activeId: string | null }>()
 const { t, te, locale, locales } = useI18n()
@@ -73,15 +73,15 @@ const menu = computed<MenuItem[][]>(() => [
 </script>
 
 <template>
-  <header data-testid="shell-header" class="liwan-shell-header" :aria-label="t('app.shell.header')">
-    <div class="liwan-shell-header-start">
+  <ShellTopBar :label="t('app.shell.header')" show-start>
+    <template #start>
       <AdminMobileNav :items="props.items" :active-id="props.activeId" />
       <ShellBreadcrumb :items="crumbs" />
       <UBadge color="neutral" variant="subtle" size="sm" class="min-w-0 shrink grow-0 overflow-hidden whitespace-nowrap" data-testid="vendor-console-badge">
         {{ t('app.shell.consoleBadge') }}
       </UBadge>
-    </div>
-    <div class="liwan-shell-header-actions">
+    </template>
+    <template #end>
       <UDropdownMenu
         :items="menu"
         :modal="false"
@@ -110,6 +110,6 @@ const menu = computed<MenuItem[][]>(() => [
           <UIcon v-if="iconOf(item)" :name="iconOf(item)!" class="liwan-shell-icon size-4.5 shrink-0" aria-hidden="true" />
         </template>
       </UDropdownMenu>
-    </div>
-  </header>
+    </template>
+  </ShellTopBar>
 </template>

@@ -19,7 +19,7 @@ function memory(capabilities: string[], savedPath: string) {
 }
 
 describe('project reentry access', () => {
-  it.each(['tasks', 'milestones', 'schedule'])('falls back to summary when task read was revoked from a saved %s section', section => {
+  it.each(['tasks', 'milestones'])('falls back to summary when task read was revoked from a saved %s section', section => {
     expect(memory(['pmo.projects.read'], `/projects/7/${section}`).entryTo(7, '/projects?mine=1')).toEqual({
       path: '/projects/7', query: { returnTo: '/projects?mine=1', projectListReturnTo: '/projects?mine=1' },
     })

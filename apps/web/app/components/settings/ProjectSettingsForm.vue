@@ -72,13 +72,43 @@ const approvalLocked = lockedWhile(approval)
 const remindersLocked = lockedWhile(reminders)
 const extensionsLocked = lockedWhile(extensions)
 
-// PROJECT_CREATORS has exactly two values; listing them explicitly (rather
-// than looping with a dynamic t() key) keeps every translation key a literal
-// string, matching how projectStatus.ts maps enum values to label keys.
-const CREATOR_OPTIONS: { value: ProjectSettings['project_creators']; labelKey: string }[] = [
-  { value: 'managers', labelKey: 'settings.projects.creators.managers' },
-  { value: 'employees', labelKey: 'settings.projects.creators.employees' },
-]
+// Every option list names its translation keys literally (no dynamic t() keys), matching how projectStatus.ts maps
+// enum values to label keys. Short two-choice settings are segmented; settings whose options need an explanation are cards.
+const creatorItems = computed(() => [
+  { value: 'managers', label: t('settings.projects.creators.managers') },
+  { value: 'employees', label: t('settings.projects.creators.employees') },
+])
+const toolPolicyItems = computed(() => [
+  { value: 'enabled', label: t('settings.projects.tools.enabled') },
+  { value: 'optional', label: t('settings.projects.tools.optional') },
+  { value: 'disabled', label: t('settings.projects.tools.disabled') },
+])
+const completionApprovalItems = computed(() => [
+  { value: 'none', label: t('settings.projects.approval.none') },
+  { value: 'project_manager', label: t('settings.projects.approval.projectManager') },
+])
+const closeWithOpenTasksItems = computed(() => [
+  { value: 'block', label: t('settings.projects.closeWithOpenTasks.block') },
+  { value: 'allow_with_warning', label: t('settings.projects.closeWithOpenTasks.allowWithWarning') },
+])
+const registerTransitionItems = computed(() => [
+  { value: 'sequence', label: t('settings.projects.registerTransitions.sequence') },
+  { value: 'free', label: t('settings.projects.registerTransitions.free') },
+])
+const changeControlOptions = computed(() => [
+  { value: 'off', label: t('settings.projects.changeControl.off'), description: t('settings.projects.changeControl.offHint') },
+  { value: 'optional', label: t('settings.projects.changeControl.optional'), description: t('settings.projects.changeControl.optionalHint') },
+  { value: 'required', label: t('settings.projects.changeControl.required'), description: t('settings.projects.changeControl.requiredHint') },
+])
+const baselineGateOptions = computed(() => [
+  { value: 'off', label: t('settings.projects.baselineGate.off'), description: t('settings.projects.baselineGate.offHint') },
+  { value: 'warning', label: t('settings.projects.baselineGate.warning'), description: t('settings.projects.baselineGate.warningHint') },
+  { value: 'required', label: t('settings.projects.baselineGate.required'), description: t('settings.projects.baselineGate.requiredHint') },
+])
+const evmProgressOptions = computed(() => [
+  { value: 'binary', label: t('settings.projects.evmProgress.binary'), description: t('settings.projects.evmProgress.binaryHint') },
+  { value: 'manual', label: t('settings.projects.evmProgress.manual'), description: t('settings.projects.evmProgress.manualHint') },
+])
 
 // --- default stages ------------------------------------------------------------
 // A settings default_stage is just {name, fold} — there's no id and no
@@ -138,15 +168,15 @@ function onDeleteStage(id: number | string) {
 
 <template>
   <SharedSettingsCard id="project-creation" v-bind="creation.state.value" :title="t('settings.projects.creation.title')" :description="t('settings.projects.creation.hint')" :can-edit="canEdit" @save="creation.save" @revert="creation.revert" @reload="creation.reload">
-    <UFormField id="project-creators" orientation="horizontal" :label="t('settings.projects.creators.label')" :description="t('settings.projects.creators.hint')">
-      <URadioGroup v-model="creation.draft.value.project_creators" :items="CREATOR_OPTIONS.map(option => ({ value: option.value, label: t(option.labelKey) }))" :disabled="creationLocked" />
-    </UFormField>
-    <UFormField orientation="horizontal" :label="t('settings.projects.createRequirements.manager')" :description="t('settings.projects.createRequirements.hint')">
+    <SharedSettingRow id="project-creators" :label="t('settings.projects.creators.label')" :description="t('settings.projects.creators.hint')">
+      <SharedSegmentedControl v-model="creation.draft.value.project_creators" :items="creatorItems" :label="t('settings.projects.creators.label')" :disabled="creationLocked" />
+    </SharedSettingRow>
+    <SharedSettingRow :label="t('settings.projects.createRequirements.manager')" :description="t('settings.projects.createRequirements.hint')">
       <USwitch id="settings-require-manager" v-model="creation.draft.value.require_manager_on_create" :aria-label="t('settings.projects.createRequirements.manager')" :disabled="creationLocked" />
-    </UFormField>
-    <UFormField orientation="horizontal" :label="t('settings.projects.createRequirements.endDate')">
+    </SharedSettingRow>
+    <SharedSettingRow :label="t('settings.projects.createRequirements.endDate')" :description="t('settings.projects.createRequirements.endDateHint')">
       <USwitch id="settings-require-end-date" v-model="creation.draft.value.require_end_date_on_create" :aria-label="t('settings.projects.createRequirements.endDate')" :disabled="creationLocked" />
-    </UFormField>
+    </SharedSettingRow>
   </SharedSettingsCard>
 
   <SharedRecordSection id="project-defaults" variant="panel" class="liwan-settings-anchor" :title="t('settings.projects.defaults.title')" :description="t('settings.projects.defaults.hint')">
@@ -165,96 +195,58 @@ function onDeleteStage(id: number | string) {
 
   <SharedSettingsCard id="project-approval" v-bind="approval.state.value" :title="t('settings.projects.approval.label')" :description="t('settings.projects.approval.hint')" :can-edit="canEdit" @save="approval.save" @revert="approval.revert" @reload="approval.reload">
     <SharedFormSection :title="t('settings.projects.tools.title')" :description="t('settings.projects.tools.hint')">
-      <UFormField v-for="key in ['planning', 'governance', 'finance'] as const" :key="key" orientation="horizontal" :label="t(`projects.tools.${key}`)">
-        <USelect v-model="approval.draft.value[`${key}_tool_policy`]" class="w-full" :disabled="approvalLocked" :aria-label="t(`projects.tools.${key}`)" :data-testid="`settings-project-tool-${key}`" :items="[{value:'enabled',label:t('settings.projects.tools.enabled')},{value:'optional',label:t('settings.projects.tools.optional')},{value:'disabled',label:t('settings.projects.tools.disabled')}]" />
-      </UFormField>
+      <SharedSettingRow v-for="key in ['planning', 'governance', 'finance'] as const" :key="key" :label="t(`projects.tools.${key}`)">
+        <SharedSegmentedControl v-model="approval.draft.value[`${key}_tool_policy`]" :items="toolPolicyItems" :label="t(`projects.tools.${key}`)" :disabled="approvalLocked" :data-testid="`settings-project-tool-${key}`" />
+      </SharedSettingRow>
       <UAlert v-for="conflict in toolConflicts" :key="conflict" color="warning" variant="subtle" :title="conflict" />
     </SharedFormSection>
-    <UFormField id="project-approval-default" orientation="horizontal" :label="t('settings.projects.approval.label')">
-      <URadioGroup
-        v-model="approval.draft.value.default_completion_approval"
-        :items="[{ value: 'none', label: t('settings.projects.approval.none') }, { value: 'project_manager', label: t('settings.projects.approval.projectManager') }]"
-        :disabled="approvalLocked"
-      />
-    </UFormField>
-    <UFormField orientation="horizontal" :label="t('settings.projects.charterApproval.label')" :description="t('settings.projects.charterApproval.hint')">
+    <SharedSettingRow id="project-approval-default" :label="t('settings.projects.approval.label')">
+      <SharedSegmentedControl v-model="approval.draft.value.default_completion_approval" :items="completionApprovalItems" :label="t('settings.projects.approval.label')" :disabled="approvalLocked" />
+    </SharedSettingRow>
+    <SharedSettingRow :label="t('settings.projects.charterApproval.label')" :description="t('settings.projects.charterApproval.hint')">
       <USwitch id="settings-require-charter-approval" v-model="approval.draft.value.require_charter_approval" data-testid="settings-require-charter-approval" :aria-label="t('settings.projects.charterApproval.label')" :disabled="approvalLocked" />
-    </UFormField>
-    <UFormField id="project-close-open-tasks" orientation="horizontal" :label="t('settings.projects.closeWithOpenTasks.label')" :description="t('settings.projects.closeWithOpenTasks.hint')">
-      <URadioGroup
-        v-model="approval.draft.value.close_with_open_tasks"
-        data-testid="settings-close-with-open-tasks"
-        :items="[{ value: 'block', label: t('settings.projects.closeWithOpenTasks.block') }, { value: 'allow_with_warning', label: t('settings.projects.closeWithOpenTasks.allowWithWarning') }]"
-        :disabled="approvalLocked"
-      />
-    </UFormField>
-    <UFormField id="project-register-transitions" orientation="horizontal" :label="t('settings.projects.registerTransitions.label')" :description="t('settings.projects.registerTransitions.hint')">
-      <URadioGroup
-        v-model="approval.draft.value.register_status_transitions"
-        data-testid="settings-register-transitions"
-        :items="[{ value: 'sequence', label: t('settings.projects.registerTransitions.sequence') }, { value: 'free', label: t('settings.projects.registerTransitions.free') }]"
-        :disabled="approvalLocked"
-      />
-    </UFormField>
-    <UFormField id="project-change-control" orientation="horizontal" :label="t('settings.projects.changeControl.label')" :description="t('settings.projects.changeControl.hint')">
-      <URadioGroup
-        v-model="approval.draft.value.change_control_mode"
-        data-testid="settings-change-control-mode"
-        :items="[
-          { value: 'off', label: t('settings.projects.changeControl.off'), description: t('settings.projects.changeControl.offHint') },
-          { value: 'optional', label: t('settings.projects.changeControl.optional'), description: t('settings.projects.changeControl.optionalHint') },
-          { value: 'required', label: t('settings.projects.changeControl.required'), description: t('settings.projects.changeControl.requiredHint') },
-        ]"
-        :disabled="approvalLocked"
-      />
-    </UFormField>
-    <UFormField id="project-baseline-gate" orientation="horizontal" :label="t('settings.projects.baselineGate.label')" :description="t('settings.projects.baselineGate.hint')">
-      <URadioGroup
-        v-model="approval.draft.value.baseline_gate"
-        data-testid="settings-baseline-gate"
-        :items="[
-          { value: 'off', label: t('settings.projects.baselineGate.off'), description: t('settings.projects.baselineGate.offHint') },
-          { value: 'warning', label: t('settings.projects.baselineGate.warning'), description: t('settings.projects.baselineGate.warningHint') },
-          { value: 'required', label: t('settings.projects.baselineGate.required'), description: t('settings.projects.baselineGate.requiredHint') },
-        ]"
-        :disabled="approvalLocked"
-      />
-    </UFormField>
-    <UFormField id="project-evm-progress" orientation="horizontal" :label="t('settings.projects.evmProgress.label')" :description="t('settings.projects.evmProgress.hint')">
-      <URadioGroup
-        v-model="approval.draft.value.evm_progress_method"
-        data-testid="settings-evm-progress"
-        :items="[
-          { value: 'binary', label: t('settings.projects.evmProgress.binary'), description: t('settings.projects.evmProgress.binaryHint') },
-          { value: 'manual', label: t('settings.projects.evmProgress.manual'), description: t('settings.projects.evmProgress.manualHint') },
-        ]"
-        :disabled="approvalLocked"
-      />
-    </UFormField>
+    </SharedSettingRow>
+    <SharedSettingRow id="project-close-open-tasks" :label="t('settings.projects.closeWithOpenTasks.label')" :description="t('settings.projects.closeWithOpenTasks.hint')">
+      <SharedSegmentedControl v-model="approval.draft.value.close_with_open_tasks" data-testid="settings-close-with-open-tasks" :items="closeWithOpenTasksItems" :label="t('settings.projects.closeWithOpenTasks.label')" :disabled="approvalLocked" />
+    </SharedSettingRow>
+    <SharedSettingRow id="project-register-transitions" :label="t('settings.projects.registerTransitions.label')" :description="t('settings.projects.registerTransitions.hint')">
+      <SharedSegmentedControl v-model="approval.draft.value.register_status_transitions" data-testid="settings-register-transitions" :items="registerTransitionItems" :label="t('settings.projects.registerTransitions.label')" :disabled="approvalLocked" />
+    </SharedSettingRow>
+    <SharedSettingRow id="project-change-control" stacked :label="t('settings.projects.changeControl.label')" :description="t('settings.projects.changeControl.hint')">
+      <SharedOptionCards v-model="approval.draft.value.change_control_mode" data-testid="settings-change-control-mode" :options="changeControlOptions" :label="t('settings.projects.changeControl.label')" :disabled="approvalLocked" />
+    </SharedSettingRow>
+    <SharedSettingRow id="project-baseline-gate" stacked :label="t('settings.projects.baselineGate.label')" :description="t('settings.projects.baselineGate.hint')">
+      <SharedOptionCards v-model="approval.draft.value.baseline_gate" data-testid="settings-baseline-gate" :options="baselineGateOptions" :label="t('settings.projects.baselineGate.label')" :disabled="approvalLocked" />
+    </SharedSettingRow>
+    <SharedSettingRow id="project-evm-progress" stacked :label="t('settings.projects.evmProgress.label')" :description="t('settings.projects.evmProgress.hint')">
+      <SharedOptionCards v-model="approval.draft.value.evm_progress_method" data-testid="settings-evm-progress" :options="evmProgressOptions" :label="t('settings.projects.evmProgress.label')" :disabled="approvalLocked" />
+    </SharedSettingRow>
   </SharedSettingsCard>
 
   <ChangeCategoriesPanel :can-edit="canEdit" />
 
   <SharedSettingsCard id="project-reminders" v-bind="reminders.state.value" :title="t('settings.projects.reminders.label')" :description="t('settings.projects.reminders.hint')" :can-edit="canEdit" @save="reminders.save" @revert="reminders.revert" @reload="reminders.reload">
-    <UFormField orientation="horizontal" :label="t('settings.projects.reminders.enabled')">
+    <SharedSettingRow :label="t('settings.projects.reminders.enabled')" :description="t('settings.projects.reminders.enabledHint')">
       <USwitch id="settings-deadline-reminders" v-model="reminders.draft.value.deadline_reminders_enabled" :aria-label="t('settings.projects.reminders.enabled')" :disabled="remindersLocked" />
-    </UFormField>
-    <UFormField orientation="horizontal" :label="t('settings.projects.reminders.daysBefore')" :error="daysError || undefined">
-      <UInputNumber id="reminder-days" v-model="reminders.draft.value.deadline_reminders_days_before" :min="0" :max="30" :disabled="remindersLocked" class="w-32" />
-    </UFormField>
-    <UFormField orientation="horizontal" :label="t('settings.projects.reminders.digest')">
+    </SharedSettingRow>
+    <SharedSettingRow :label="t('settings.projects.reminders.daysBefore')" :description="t('settings.projects.reminders.daysBeforeHint')">
+      <UFormField :error="daysError || undefined">
+        <UInputNumber id="reminder-days" v-model="reminders.draft.value.deadline_reminders_days_before" :min="0" :max="30" :disabled="remindersLocked" class="w-32" />
+      </UFormField>
+    </SharedSettingRow>
+    <SharedSettingRow :label="t('settings.projects.reminders.digest')">
       <USwitch id="settings-overdue-digest" v-model="reminders.draft.value.overdue_digest_enabled" :aria-label="t('settings.projects.reminders.digest')" :disabled="remindersLocked" />
-    </UFormField>
+    </SharedSettingRow>
   </SharedSettingsCard>
 
   <SharedSettingsCard v-if="settings.extensions.length" id="project-extensions" v-bind="extensions.state.value" :title="t('settings.projects.extensions.title')" :description="t('settings.projects.extensions.hint')" :can-edit="canEdit" @save="extensions.save" @revert="extensions.revert" @reload="extensions.reload">
     <template v-for="extension in settings.extensions" :key="extension.name">
-      <UFormField v-if="extension.kind === 'selection'" :id="`project-extension-${extension.name}`" orientation="horizontal" :label="extension.label" :description="extension.help ?? undefined">
-        <URadioGroup :model-value="(extensions.draft.value[extension.name] as string | null) ?? undefined" :items="extension.options" :data-testid="`settings-extension-${extension.name}`" :disabled="extensionsLocked" @update:model-value="extensions.draft.value[extension.name] = $event" />
-      </UFormField>
-      <UFormField v-else orientation="horizontal" :label="extension.label" :description="extension.help ?? undefined">
+      <SharedSettingRow v-if="extension.kind === 'selection'" :id="`project-extension-${extension.name}`" :label="extension.label" :description="extension.help ?? undefined">
+        <SharedSegmentedControl :model-value="(extensions.draft.value[extension.name] as string | null) ?? undefined" :items="extension.options" :label="extension.label" :data-testid="`settings-extension-${extension.name}`" :disabled="extensionsLocked" @update:model-value="extensions.draft.value[extension.name] = $event" />
+      </SharedSettingRow>
+      <SharedSettingRow v-else :label="extension.label" :description="extension.help ?? undefined">
         <USwitch v-model="extensions.draft.value[extension.name]" :id="`project-extension-${extension.name}`" :data-testid="`settings-extension-${extension.name}`" :aria-label="extension.label" :disabled="extensionsLocked" />
-      </UFormField>
+      </SharedSettingRow>
     </template>
   </SharedSettingsCard>
 </template>

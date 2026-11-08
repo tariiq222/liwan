@@ -1,8 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
 
 async function login(page: Page) {
-  // The context menu starts folded; these checks read the pinned menu.
-  await page.context().addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: new URL(process.env.E2E_BASE_URL ?? 'http://localhost:3000').origin }])
   await page.goto('/login')
   await page.getByLabel('اسم المستخدم').fill(process.env.E2E_ADMIN_LOGIN ?? 'admin')
   await page.getByLabel('كلمة المرور').fill(process.env.E2E_ADMIN_PASSWORD ?? 'admin')

@@ -5,7 +5,7 @@ import { storyContext } from '../../support/context'
 const meta = {
   title: 'CRM/CrmCallButton',
   component: CrmCallButton,
-  parameters: storyContext('apps/web/app/components/crm/opportunity/CrmOpportunityBoard.vue:35', 'زر اتصال دائري بجانب بطاقة الفرصة، يفتح tel: ولا يفتح البطاقة.'),
+  parameters: storyContext('apps/web/app/components/crm/opportunity/CrmOpportunityBoard.vue:53', 'زر اتصال مربع ناعم بجانب بطاقة الفرصة، يمتلئ بلون التطبيق عند المرور، يفتح tel: ولا يفتح البطاقة.'),
   args: { phone: '+966501234567', name: 'أحمد العتيبي' },
 } satisfies Meta<typeof CrmCallButton>
 export default meta

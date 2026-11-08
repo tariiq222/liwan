@@ -27,8 +27,8 @@ const modes = computed(() => (['platform', 'tenant_key'] as const).map(value => 
 
 <template>
   <SharedSettingsCard id="provider" v-bind="state" :title="t('ai.settings.provider.title')" :description="t('ai.settings.provider.hint')" :can-edit="true" data-testid="ai-settings-provider" @save="save" @revert="revert" @reload="reload">
-    <UFormField orientation="horizontal" :label="t('ai.settings.provider.mode.label')" name="provider_mode" :description="t(`ai.settings.provider.mode.${draft.provider_mode}Hint`)">
+    <SharedSettingRow :label="t('ai.settings.provider.mode.label')" name="provider_mode" :description="t(`ai.settings.provider.mode.${draft.provider_mode}Hint`)">
       <USelect id="ai-provider-mode" v-model="draft.provider_mode" class="w-full" :items="modes" :disabled="locked" :aria-label="t('ai.settings.provider.mode.label')" />
-    </UFormField>
+    </SharedSettingRow>
   </SharedSettingsCard>
 </template>

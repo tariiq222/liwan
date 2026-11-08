@@ -58,9 +58,9 @@ async function move(id: number, step: -1 | 1) {
       @rename="name => editor.change(row.id, { name })"
       @toggle="active => editor.change(row.id, { active })"
     >
-      <UFormField orientation="horizontal" :label="t('crm.settings.stages.won')">
+      <SharedSettingRow :label="t('crm.settings.stages.won')">
         <USwitch :model-value="row.is_won" :aria-label="t('crm.settings.stages.won')" :disabled="locked || !row.active || row.is_won" @update:model-value="editor.change(row.id, { is_won: true })" />
-      </UFormField>
+      </SharedSettingRow>
       <template v-if="canEdit && row.active">
         <UButton type="button" color="neutral" variant="ghost" size="sm" square icon="i-lucide-chevron-up" :aria-label="t('crm.settings.stages.moveUp', { name: row.name })" :disabled="locked || activeIds[0] === row.id" @click="move(row.id, -1)" />
         <UButton type="button" color="neutral" variant="ghost" size="sm" square icon="i-lucide-chevron-down" :aria-label="t('crm.settings.stages.moveDown', { name: row.name })" :disabled="locked || activeIds[activeIds.length - 1] === row.id" @click="move(row.id, 1)" />

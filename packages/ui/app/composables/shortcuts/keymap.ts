@@ -30,13 +30,13 @@ const MODIFIER_KEYS: ReadonlySet<string> = new Set(['Shift', 'Control', 'Alt', '
 /**
  * The key a shortcut sees. A Latin layout's own character wins (QWERTY, AZERTY, QWERTZ and
  * Dvorak follow their labels). A non-Latin character (Arabic «ن») or a dead key falls back to
- * the US physical position, so the same key works on an Arabic keyboard: «ل» is g, «ج» is [,
- * «ظ» is /. Returns a lower-case letter, a digit, `/`, `?`, `[` or null.
+ * the US physical position, so the same key works on an Arabic keyboard: «ل» is g,
+ * «ظ» is /. Returns a lower-case letter, a digit, `/`, `?` or null.
  */
 export function shortcutKey(event: Pick<ShortcutKeyEvent, 'key' | 'code' | 'shiftKey'>): string | null {
   const { key, code } = event
   if (/^[a-z0-9]$/i.test(key)) return key.toLowerCase()
-  if (key === '/' || key === '?' || key === '[') return key
+  if (key === '/' || key === '?') return key
   if (key === '؟') return '?'
   if (ASCII_PRINTABLE.test(key)) return null
   const letter = /^Key([A-Z])$/.exec(code)
@@ -44,7 +44,6 @@ export function shortcutKey(event: Pick<ShortcutKeyEvent, 'key' | 'code' | 'shif
   const digit = /^Digit(\d)$/.exec(code)
   if (digit) return digit[1]!
   if (code === 'Slash') return event.shiftKey ? '?' : '/'
-  if (code === 'BracketLeft') return '['
   return null
 }
 
@@ -80,10 +79,10 @@ export function plainShortcutBlocked(event: ShortcutKeyEvent, context: { hydrate
 export const CHORD_START_KEY = 'g'
 /**
  * Every key the shell owns: create, the go-to chord, row navigation (j/k, bound by the task and list
- * pages), search, help and the sidebar. A /search one-key nav shortcut must not take them.
+ * pages), search and help. A /search one-key nav shortcut must not take them.
  * tools/new_app.py HARD_WIRED_SHORTCUTS is its letter/digit part (a test keeps them equal).
  */
-export const SHELL_RESERVED_KEYS: readonly string[] = ['c', 'g', 'j', 'k', '/', '?', '[']
+export const SHELL_RESERVED_KEYS: readonly string[] = ['c', 'g', 'j', 'k', '/', '?']
 
 export type ShortcutAction =
   | { kind: 'palette' }
@@ -101,7 +100,6 @@ export const CHORD_TIMEOUT_MS = 1000
 
 /**
  * One step of the shell layer: the action a keydown asks for and the next chord state.
- * `[` is not here; AppSidebar owns the sidebar state and matches it with the same rule.
  */
 export function matchShortcut(
   event: ShortcutKeyEvent,

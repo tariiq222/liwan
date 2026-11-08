@@ -11,7 +11,7 @@ const meta = {
   render: args => ({
     components: { SettingsPage, PageState },
     setup: () => ({ args }),
-    template: `<main class="liwan-shell-main"><SettingsPage><div id="results" class="liwan-settings-anchor"><PageState v-bind="args"><div class="rounded-card ring ring-default bg-default overflow-hidden p-5 text-sm">{{ $t('app.noResults') }}</div></PageState></div></SettingsPage></main>`,
+    template: `<main class="liwan-shell-main"><SettingsPage><div id="results" class="liwan-settings-anchor"><PageState v-bind="args"><div class="liwan-card rounded-card overflow-hidden p-5 text-sm">{{ $t('app.noResults') }}</div></PageState></div></SettingsPage></main>`,
   }),
 } satisfies Meta<typeof PageState>
 export default meta

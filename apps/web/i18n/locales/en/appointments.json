@@ -74,11 +74,11 @@
       },
       "preset": {
         "title": "Sector preset",
-        "hint": "Sets the booking values and the requester fields together; adjust what you need in the next two cards.",
+        "hint": "Sets booking values and requester fields together; adjust them in the next two cards.",
         "label": "Preset",
         "warning": "Applying replaces the values of the next two cards with the preset's own, even when it is the current preset.",
-      "apply": "Apply preset",
-      "applied": "Preset applied"
+        "apply": "Apply preset",
+        "applied": "Preset applied"
       },
       "booking": {
         "title": "Booking times",

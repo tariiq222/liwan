@@ -72,7 +72,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
         <section v-if="query.trim() && section.visible.value && section.rows.value.length" class="min-w-0 border-t border-default first:border-t-0 [[data-slot=list-card-filters]+&]:border-t-0">
         <header class="flex items-center justify-between gap-3 bg-elevated/40 px-(--liwan-card-pad-dense) py-2">
           <h2 class="text-sm font-semibold text-highlighted">{{ t(section.provider.labelKey) }}</h2>
-          <UBadge color="neutral" variant="subtle" size="sm" class="rounded-full tabular-nums" data-testid="search-group-count" :label="String(section.rows.value.length)" />
+          <UBadge color="neutral" variant="subtle" size="sm" class="tabular-nums" data-testid="search-group-count" :label="String(section.rows.value.length)" />
         </header>
         <div class="divide-y divide-default">
           <NuxtLink v-for="row in section.rows.value" data-shortcut-row :key="row.id" :to="{ path: row.to, query: { returnTo: route.fullPath } }" class="flex items-center gap-3 px-(--liwan-card-pad-dense) py-3 transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"><UIcon :name="section.provider.icon" aria-hidden="true" class="size-4.5 shrink-0 text-muted" /><span class="min-w-0 flex-1"><span class="block truncate">{{ row.label }}</span><span v-if="row.caption" class="block truncate text-sm text-muted" dir="auto">{{ row.caption }}</span></span><UIcon name="i-lucide-arrow-left" aria-hidden="true" class="size-4.5 shrink-0 text-muted ltr:rotate-180" /></NuxtLink>
@@ -86,7 +86,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
       <section v-if="nav.length" class="min-w-0 border-t border-default first:border-t-0 [[data-slot=list-card-filters]+&]:border-t-0">
         <header class="flex items-center justify-between gap-3 bg-elevated/40 px-(--liwan-card-pad-dense) py-2">
           <h2 class="text-sm font-semibold text-highlighted">{{ t('nav.goTo') }}</h2>
-          <UBadge color="neutral" variant="subtle" size="sm" class="rounded-full tabular-nums" data-testid="search-group-count" :label="String(nav.length)" />
+          <UBadge color="neutral" variant="subtle" size="sm" class="tabular-nums" data-testid="search-group-count" :label="String(nav.length)" />
         </header>
         <div class="divide-y divide-default"><template v-for="item in visibleNav" :key="item.to">
           <NuxtLink data-shortcut-row :to="item.to" class="flex items-center gap-3 px-(--liwan-card-pad-dense) py-3 transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"><UIcon :name="item.icon" class="size-4.5 shrink-0 text-muted" aria-hidden="true" />{{ t(item.labelKey) }}<UKbd v-if="item.shortcut" dir="ltr" class="ms-auto">{{ item.shortcut.toLocaleUpperCase() }}</UKbd></NuxtLink>
@@ -107,7 +107,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
       <section v-if="!query.trim() && actions.length" class="min-w-0 border-t border-default first:border-t-0 [[data-slot=list-card-filters]+&]:border-t-0">
         <header class="flex items-center justify-between gap-3 bg-elevated/40 px-(--liwan-card-pad-dense) py-2">
           <h2 class="text-sm font-semibold text-highlighted">{{ t('app.actions') }}</h2>
-          <UBadge color="neutral" variant="subtle" size="sm" class="rounded-full tabular-nums" data-testid="search-group-count" :label="String(actions.length)" />
+          <UBadge color="neutral" variant="subtle" size="sm" class="tabular-nums" data-testid="search-group-count" :label="String(actions.length)" />
         </header>
         <div class="flex flex-wrap gap-2 px-(--liwan-card-pad-dense) py-3"><UButton v-for="action in actions" :key="action.id" :to="{ path: action.to, query: { returnTo: route.fullPath } }" :icon="action.icon" color="neutral" variant="outline" :label="t(action.labelKey)" /></div>
       </section>

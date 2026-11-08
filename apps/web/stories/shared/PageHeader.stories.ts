@@ -9,6 +9,7 @@ import ViewSwitch from '@liwan/ui/app/components/shared/data/ViewSwitch.vue'
 import PageContainer from '@liwan/ui/app/components/shared/layout/PageContainer.vue'
 import PageHeader from '@liwan/ui/app/components/shared/layout/PageHeader.vue'
 import RecordSection from '@liwan/ui/app/components/shared/layout/RecordSection.vue'
+import RouteTabs from '@liwan/ui/app/components/shared/layout/RouteTabs.vue'
 import { providePageApp } from '@liwan/ui/app/composables/usePageApp'
 import { providePageTrail } from '@liwan/ui/app/composables/usePageTrail'
 import { storyContext } from '../support/context'
@@ -42,11 +43,11 @@ export const WithKpiToggle: Story = {
   }),
 }
 
-// The compact card (DESIGN.md §3): the chip takes the icon of the active application from the shell, so a
+// The open header (DESIGN.md §3): the 64px tile takes the icon of the active application from the shell, so a
 // page passes nothing; a title alone is the smallest header.
 export const TitleOnly: Story = {
   name: 'عنوان فقط',
-  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:40', 'أصغر ترويسة: بطاقة مدمجة بأيقونة التطبيق من الغلاف وعنوان واحد، بلا وصف ولا وسوم ولا إجراءات.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:40', 'أصغر ترويسة: ترويسة مفتوحة بلا بطاقة، ببلاطة التطبيق من الغلاف وعنوان واحد وخط فاصل، بلا وصف ولا وسوم ولا إجراءات.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => {
@@ -76,10 +77,10 @@ export const WithTags: Story = {
   }),
 }
 
-// The trail under the title (DESIGN.md §3): the page's own back target is its nearest step, and the
+// The trail above the title (DESIGN.md §3): the page's own back target is its nearest step, and the
 // shell's published ancestors come before it. A step that only links back to this same page is dropped.
 export const WithBack: Story = {
-  name: 'مسار تحت العنوان',
+  name: 'مسار فوق العنوان',
   parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:40'),
   render: () => ({
     components: { PageContainer, PageHeader },
@@ -88,11 +89,11 @@ export const WithBack: Story = {
   }),
 }
 
-// The shell publishes the ancestors; the header draws them under the page title, so the floating header
-// above stays quiet and the reader still sees where the page sits.
+// The shell publishes the ancestors; the header draws them above the page title, so the top bar
+// stays quiet and the reader still sees where the page sits.
 export const TrailUnderTitle: Story = {
-  name: 'مسار الأسلاف تحت العنوان',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:49', 'المسار من الغلاف: ينشر الغلاف سلسلة الأسلاف ويستقبلها رأس الصفحة ويرسمها تحت العنوان، ويُسقط العنوان الحالي والخطوة التي تشير إلى الصفحة نفسها.'),
+  name: 'مسار الأسلاف فوق العنوان',
+  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:49', 'المسار من الغلاف: ينشر الغلاف سلسلة الأسلاف ويستقبلها رأس الصفحة ويرسمها فوق العنوان، ويُسقط العنوان الحالي والخطوة التي تشير إلى الصفحة نفسها.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => {
@@ -104,7 +105,7 @@ export const TrailUnderTitle: Story = {
       ])
       return { t }
     },
-    template: `<main class="liwan-shell-main"><PageContainer><PageHeader :title="t('nav.reports')"><template #actions><UButton icon="i-lucide-plus">{{ t('projects.new') }}</UButton></template></PageHeader><div class="rounded-card bg-default p-6 text-sm text-muted ring ring-default">{{ t('app.noResults') }}</div></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer><PageHeader :title="t('nav.reports')"><template #actions><UButton icon="i-lucide-plus">{{ t('projects.new') }}</UButton></template></PageHeader><div class="liwan-card rounded-card p-6 text-sm text-muted">{{ t('app.noResults') }}</div></PageContainer></main>`,
   }),
 }
 
@@ -118,8 +119,7 @@ export const TitleAndDescription: Story = {
   }),
 }
 
-// The sticky heading: scroll inside this story's frame and the heading holds its place under the floating header,
-// on the shell's canvas wash and blur, while the sections pass beneath it.
+// The open header over the page toolbar: filters, quick choices, the scope and view switches and the active filter chips.
 export const UnifiedHeaderWithFilters: Story = {
   name: 'الترويسة والفلاتر الموحدة (شامل المكونات)',
   parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:49', 'الترويسة الموحدة لجميع الصفحات: عنوان ووصف مع زر الرجوع، إجراءات الصفحة الأساسية، وشريط الفلاتر المدمج (بحث، منسدلة متعددة، خيارات سريعة، نطاق الحالات، تبديل العرض، وشرائح التصفية النشطة).'),
@@ -163,7 +163,7 @@ export const UnifiedHeaderWithFilters: Story = {
           </PageHeader>
 
           <!-- 2. بطاقة الفلاتر والبحث الموحدة (Unified Filter Card & Bar) -->
-          <div class="overflow-hidden rounded-card bg-default ring ring-default">
+          <div class="liwan-card overflow-hidden rounded-card">
             <div class="border-b border-default px-(--liwan-card-pad-dense) py-3">
               <FilterBar class="w-full" embedded :active-count="2" @clear="() => {}">
                 <!-- البحث السريع -->
@@ -222,13 +222,23 @@ export const UnifiedHeaderWithFilters: Story = {
   })
 }
 
-export const StickyHeading: Story = {
-  name: 'رأس ثابت مع تمرير',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:49', 'الرأس الملتصق: يبقى عنوان الصفحة وإجراءاتها أسفل الهيدر العائم أثناء التمرير، بخلفية ضبابية على لون اللوحة، ولا يلتصق على الجوال (أقل من 768px) ولا حين تملك البطاقة المرساة خانة الالتصاق.'),
+// The mock's page header: breadcrumb, a 64px application tile, the title in Rubik with the tagline under it, the actions at the
+// inline end in the application's button colour, and the views tabs on the 1px divider (the active one underlined 2.5px with its count).
+export const WithTaglineAndTabs: Story = {
+  name: 'وصف وتبويبات العروض',
+  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:49', 'الترويسة المفتوحة كما في النموذج: مسار، بلاطة 64px بلون التطبيق، العنوان بخط Rubik وتحته سطر وصف، الإجراءات عند نهاية السطر بلون زر التطبيق، وفي الأسفل تبويبات العروض فوق الخط الفاصل (الفتحة `tabs`).'),
   render: () => ({
-    components: { PageContainer, PageHeader, RecordSection },
-    setup: () => ({ t: useI18n().t, rows: [1, 2, 3, 4, 5, 6, 7, 8] }),
-    template: `<div class="liwan-shell" style="height: 30rem; overflow-y: auto"><main class="liwan-shell-main"><PageContainer><PageHeader :title="t('projects.title')"><template #actions><UButton icon="i-lucide-plus">{{ t('projects.new') }}</UButton></template></PageHeader><div class="grid gap-(--liwan-gap-card)"><RecordSection v-for="row in rows" :key="row" variant="panel" :title="t('projects.title') + ' ' + row"><p class="text-sm text-muted">{{ t('projects.description') }}</p></RecordSection></div></PageContainer></main></div>`,
+    components: { PageContainer, PageHeader, RouteTabs },
+    setup: () => {
+      providePageApp({ icon: 'i-lucide-handshake', id: 'crm', label: 'إدارة العملاء', tagline: 'لا تضيع صفقة بعد اليوم' })
+      const tabs = [
+        { key: 'crm-tab-dashboard', label: 'لوحة المتابعة', to: '/crm', active: false },
+        { key: 'crm-tab-opportunities', label: 'الفرص', to: '/crm/opportunities', active: true, count: 12 },
+        { key: 'crm-tab-import', label: 'الاستيراد', to: '/crm/import', active: false },
+      ]
+      return { tabs }
+    },
+    template: `<main class="liwan-shell-main" data-app="crm"><PageContainer><PageHeader title="الفرص"><template #actions><UButton color="neutral" variant="soft" icon="i-lucide-file-up">الاستيراد</UButton><UButton icon="i-lucide-plus">إضافة فرصة</UButton></template><template #tabs><RouteTabs :items="tabs" aria-label="أقسام العملاء" /></template></PageHeader></PageContainer></main>`,
   }),
 }
 

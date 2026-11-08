@@ -32,6 +32,7 @@ const motionEpoch = ref(0)
 
 function readTokens() {
   if (typeof document === 'undefined') return
+  // <html> carries the open application's colour scope (data-app): the first series colour follows it.
   const styles = getComputedStyle(document.documentElement)
   tokens.value = Object.fromEntries([
     '--chart-1', '--chart-2', '--chart-3', '--chart-4', '--chart-5', '--chart-6', '--muted-foreground', '--border', '--foreground', '--card', '--font-sans',
@@ -45,7 +46,7 @@ function token(name: string, fallback: string) {
 }
 
 const chartColors = computed(() => [
-  token('--chart-1', '#7843c6'),
+  token('--chart-1', '#14102a'),
   token('--chart-2', '#0f766e'),
   token('--chart-3', '#a16207'),
   token('--chart-4', '#be185d'),
@@ -61,7 +62,7 @@ const TONE_TOKEN: Record<ChartTone, [string[], string]> = {
   warning: [['--chart-status-warning', '--status-warning'], '#d97706'],
   danger: [['--chart-status-error', '--status-danger'], '#dc2626'],
   neutral: [['--chart-status-neutral', '--muted-foreground'], '#8a7450'],
-  primary: [['--chart-1'], '#7843c6'],
+  primary: [['--chart-1'], '#14102a'],
 }
 const toneColor = (tone: ChartTone) => {
   const [names, fallback] = TONE_TOKEN[tone]

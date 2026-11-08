@@ -12,9 +12,8 @@ describe('the meetings pages stay on their templates', () => {
     ['pages/meetings/index.vue', ['<SharedListPage', '<SharedDataTable', 'create-test-id="meeting-new"']],
     ['pages/meetings/series.vue', ['<SharedListPage', '<SharedDataTable', 'create-test-id="meeting-series-new"']],
     ['pages/meetings/calendar.vue', ['<SharedTimelineFrame']],
-    // The record's five tabs are a custom overflow-aware strip (MeetingRecordTabs), not SharedRouteTabs.
-    ['pages/meetings/[id].vue', ['<SharedRecordPage', '<MeetingRecordTabs', '<SharedPropertiesPanel', '<SharedRecordSection']],
-    ['components/meetings/MeetingRecordTabs.vue', ['data-testid="meeting-tabs"']],
+    // The record's five tabs are the shared route tabs (one line, scrolling, with the log tab after a separator).
+    ['pages/meetings/[id].vue', ['<SharedRecordWorkspace', '<SharedRouteTabs data-testid="meeting-tabs"', 'separatorBefore', 'data-testid="meeting-properties"', '<SharedRecordSection']],
     ['pages/meetings/series/[id].vue', ['<SharedRecordPage', '<SharedRouteTabs', '<SharedPropertiesPanel']],
     ['pages/meetings/[id]/print.vue', ['<SharedStandalonePage', 'variant="print"', 'liwan-print-landscape']],
   ])('%s uses its template', (file, needles) => {
@@ -45,13 +44,14 @@ describe('the meetings pages stay on their templates', () => {
   })
 })
 
-describe('chat stays on the conversation layout', () => {
-  it('the workspace renders the layout and keeps chat-thread on the messages column', () => {
+describe('chat stays on the conversation frame', () => {
+  it('the workspace draws the page header and fills the shared conversation frame, and keeps chat-thread on the messages column', () => {
     const source = read('components/chat/ChatWorkspace.vue')
+    expect(source).toContain('<SharedPageHeader')
     expect(source).toContain('<SharedConversationLayout')
+    expect(source).not.toContain('data-template="conversation-layout"')
     expect(source).toContain('data-testid="chat-thread"')
     expect(source).toContain('data-testid="chat-thread-header"')
-    expect(source).not.toContain('<SharedPageContainer')
   })
 
   it('the thread and the info panel are one page; the old two pages are gone', () => {

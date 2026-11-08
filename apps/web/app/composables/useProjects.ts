@@ -6,6 +6,7 @@ import { taskKeys } from './useTasks'
 import { invalidateProjectCaches, projectKeys } from './projectKeys'
 import { parseOffset } from '../utils/routeQuery'
 import { projectPicker } from '../modules/pmo/recordPicker'
+import { PROJECT_ATTENTION_STATUSES } from './projectStatus'
 
 export const PROJECT_PAGE = 50
 
@@ -13,13 +14,18 @@ export type ProjectListFilters = {
   q?: string
   mine?: boolean
   sort?: 'default' | 'name' | 'progress'
-  status?: 'unset' | ProjectStatus
+  status?: 'unset' | 'attention' | ProjectStatus
   charterReview?: boolean
   limit?: number
   offset?: number
 }
 
-export type ProjectListStatusFilter = 'all' | 'unset' | ProjectStatus
+export type ProjectListStatusFilter = 'all' | 'unset' | 'attention' | ProjectStatus
+
+/** The API's `status` value: `attention` is a comma list of the statuses it stands for. */
+function apiStatus(status: ProjectListFilters['status']): string | undefined {
+  return status === 'attention' ? PROJECT_ATTENTION_STATUSES.join(',') : status
+}
 
 export type ProjectListRouteState = {
   q: string
@@ -36,7 +42,7 @@ export function parseProjectListOffset(value: unknown): number {
 }
 
 export function parseProjectListStatus(value: unknown): ProjectListStatusFilter {
-  if (value === 'unset') return 'unset'
+  if (value === 'unset' || value === 'attention') return value
   if (typeof value === 'string' && PROJECT_STATUSES.includes(value as ProjectStatus)) return value as ProjectStatus
   return 'all'
 }
@@ -108,7 +114,7 @@ export function projectListQuery(archived: boolean, filters: ProjectListFilters 
     archived: archived ? 1 : undefined,
     ...(filters.mine ? { mine: 1 } : {}),
     q: filters.q?.trim() || undefined,
-    status: filters.status,
+    status: apiStatus(filters.status),
     ...(filters.charterReview ? { charter_review: 1 } : {}),
     ...(filters.sort && filters.sort !== 'default' ? { sort: filters.sort } : {}),
     limit,
@@ -141,7 +147,7 @@ export function useProjectList(archived: Ref<boolean>, filters: MaybeRefOrGetter
 export type ProjectSummaryFilters = Pick<ProjectListFilters, 'q' | 'mine' | 'status'>
 
 function projectSummaryQuery(filters: ProjectSummaryFilters) {
-  return { q: filters.q?.trim() || undefined, mine: filters.mine ? 1 : undefined, status: filters.status }
+  return { q: filters.q?.trim() || undefined, mine: filters.mine ? 1 : undefined, status: apiStatus(filters.status) }
 }
 
 // The headline counts above the projects list, for the same filters as the list (no paging).

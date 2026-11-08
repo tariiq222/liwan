@@ -2,7 +2,7 @@
 {
     'name': 'liwan Core',
     'summary': 'liwan platform: roles and branding defaults',
-    'version': '19.0.1.15.0',
+    'version': '19.0.1.15.1',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

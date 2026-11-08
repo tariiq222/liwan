@@ -4,15 +4,12 @@ import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState
 import ProjectOverview from '@/components/pmo/projects/ProjectOverview.vue'
 import { ApiError } from '@/composables/useApi'
 import { projectIdFromPath } from '@/modules/pmo/projectRoutes'
-import { useProject, useProjectList } from '@/composables/useProjects'
-import { canCopyProject } from '@/utils/projectCopyAccess'
-import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
+import { useProject } from '@/composables/useProjects'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
-const { can } = useAccess()
 const projectId = computed(() => projectIdFromPath(route.path))
 const sourcePaths = useProjectRecordListPaths(projectId, ['/projects', '/projects/dashboard'])
 const { data: projectData, isLoading, error, refetch } = useProject(projectId)
@@ -22,25 +19,14 @@ const notFound = computed(() => projectId.value === null || (error.value instanc
 const projectReturnTo = computed(() => router.resolve(projectRecordBack(route.query, projectId.value, sourcePaths.value, route.hash)).fullPath)
 // The first client render must match SSR, which has no project yet: loading until hydrated.
 const loading = computed(() => !project.value && !error.value && (isLoading.value || !hydrated.value))
-// Copying needs the server's create signal (the same one the projects list uses) and the right to read
-// the tasks that get copied. A one-row list query carries that signal.
-const { data: createSignal } = useProjectList(ref(false), { limit: 1 })
-const canCopy = computed(() => canCopyProject(Boolean(project.value), createSignal.value?.can_create, can('pmo.tasks.read')))
-const copyTo = computed(() => ({
-  path: '/projects/new',
-  query: { copyFrom: String(projectId.value), ...returnToQuery(route.fullPath) },
-}))
+// The workspace frame above is this page's h1, so hide-header draws no heading here. The title still names the page for the shell;
+// the frame's header draws the page's actions (a new task, copy). The frame and its tabs span the full list width, so the record is
+// full width too and the summary tiles line up with the tab strip. (Not a template comment: in development it would make a second root node.)
 </script>
 
 <template>
   <ProjectNotFoundState v-if="notFound" :back-to="projectReturnTo" />
-  <!-- The workspace frame above is this page's h1, so hide-header draws no heading here. The title still
-       names the page for the shell. The frame and its tabs span the full list width, so the record is full width
-       too and the summary tiles line up with the tab strip. -->
   <SharedRecordPage :keep-content="!!project" v-else hide-header :title="t('nav.projectSummary')" :loading="loading" :error="error" @retry="refetch">
-    <template v-if="canCopy" #actions>
-      <UButton color="neutral" variant="outline" icon="i-lucide-copy" :to="copyTo" data-testid="project-copy-link" :label="t('projects.copy.action')" />
-    </template>
     <div v-if="project" class="flex flex-col gap-(--liwan-gap-card)">
       <ProjectOverview :project="project" />
     </div>

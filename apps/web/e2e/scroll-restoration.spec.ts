@@ -45,7 +45,7 @@ async function leaveListAtOffset(page: Page) {
   return left
 }
 
-const backControl = (page: Page) => page.getByRole('link', { name: 'العودة إلى المهام' })
+const backControl = (page: Page) => page.getByTestId('task-detail-back')
 
 test.describe('a list comes back to the row the reader left it on', () => {
   test.beforeEach(async ({ page }) => { await login(page) })

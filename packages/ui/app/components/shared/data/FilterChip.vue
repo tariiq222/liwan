@@ -2,8 +2,9 @@
   <UButton
     type="button"
     size="xs"
-    color="primary"
-    variant="subtle"
+    color="neutral"
+    variant="soft"
+    class="rounded-control"
     trailing-icon="i-lucide-x"
     data-slot="filter-chip"
     :label="label"

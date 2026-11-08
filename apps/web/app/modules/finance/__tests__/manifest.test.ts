@@ -118,7 +118,7 @@ describe('finance manifest', () => {
   })
 })
 
-describe('finance context sidebar', () => {
+describe('finance sidebar links', () => {
   const top = ['finance-overview', 'finance-sales', 'finance-purchases', 'finance-payments', 'finance-partners', 'finance-accounting', 'finance-bank', 'finance-budgets', 'finance-assets', 'finance-reports']
 
   it('keeps the ten top links in every section', () => {

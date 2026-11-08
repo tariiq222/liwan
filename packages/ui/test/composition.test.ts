@@ -86,9 +86,9 @@ describe('shared composition rendered contracts', () => {
     expect(html).toContain('Back')
     expect(html).toContain('Title slot')
     expect(html).toContain('Create')
-    // The trail sits under the title (DESIGN.md §3), so the reading order is title, trail, actions.
-    expect(html.indexOf('Title slot')).toBeLessThan(html.indexOf('Back'))
-    expect(html.indexOf('Back')).toBeLessThan(html.indexOf('Create'))
+    // The trail sits above the title (DESIGN.md §3), so the reading order is trail, title, actions.
+    expect(html.indexOf('Back')).toBeLessThan(html.indexOf('Title slot'))
+    expect(html.indexOf('Title slot')).toBeLessThan(html.indexOf('Create'))
   })
 
   it('renders view actions above collapsible search and controls, with active filters below', async () => {

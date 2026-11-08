@@ -94,7 +94,7 @@ test('a settings card saves its draft from the page save bar and keeps the draft
   })
   await enterFoundation(page, '/settings/apps/projects')
   const card = page.locator('#project-creation')
-  const control = card.getByRole('switch', { name: 'يشترط مدير المشروع', exact: true })
+  const control = card.getByRole('switch', { name: 'إلزام تعيين مدير للمشروع', exact: true })
   // The page's one save bar appears while a card has edits and saves every edited card at once.
   const saveBar = page.getByTestId('settings-save-bar')
   const save = page.getByTestId('settings-save-bar-save')
@@ -142,7 +142,7 @@ for (const action of ['cancel', 'escape', 'navigation', 'back']) {
     await page.locator('#my-task-name').fill('مسودة لها أصل')
     if (action === 'cancel') await page.getByTestId('my-task-form-cancel').click()
     else if (action === 'escape') await page.keyboard.press('Escape')
-    else if (action === 'navigation') await page.evaluate(() => (document.querySelector('.liwan-module-rail-brand') as HTMLElement).click())
+    else if (action === 'navigation') await page.evaluate(() => (document.querySelector('.liwan-side-brand') as HTMLElement).click())
     else await page.goBack()
     const guard = page.getByTestId('unsaved-changes-dialog')
     await expect(guard).toBeVisible()
