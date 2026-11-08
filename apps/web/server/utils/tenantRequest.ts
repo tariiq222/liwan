@@ -3,7 +3,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { isIP } from 'node:net'
 import { createError, getHeader, type H3Event } from 'h3'
 import { readTenantRegistrySnapshot, type TenantRegistrySnapshot } from './tenantRegistry'
-import type { TenantHostTarget } from './tenantHostResolver'
+import { isRestoreHost, type TenantHostTarget } from './tenantHostResolver'
 
 // Weak ownership bounds retention to live requests; no identity/registry TTL crosses calls.
 const snapshots = new WeakMap<H3Event, { snapshot: TenantRegistrySnapshot; tenant: Readonly<TenantHostTarget> }>()
@@ -29,8 +29,16 @@ export function tenantRequest(event: H3Event) {
     if (token.length < 32 || Buffer.byteLength(token) !== Buffer.byteLength(supplied) || !timingSafeEqual(Buffer.from(token), Buffer.from(supplied))) throw Error()
     const host = getHeader(event, 'host')
     const previous = snapshots.get(event)
-    const snapshot = readTenantRegistrySnapshot(process.env.LIWAN_TENANT_REGISTRY_PATH ?? '', previous?.snapshot)
-    const tenant = typeof host === 'string' && /^[\x00-\x7F]*$/.test(host) ? snapshot.hosts[host.toLowerCase()] : undefined
+    let snapshot = readTenantRegistrySnapshot(process.env.LIWAN_TENANT_REGISTRY_PATH ?? '', previous?.snapshot)
+    const name = typeof host === 'string' && /^[\x00-\x7F]*$/.test(host) ? host.toLowerCase() : undefined
+    let tenant = name ? snapshot.hosts[name] : undefined
+    if (!tenant && name && isRestoreHost(name)) {
+      // Restore hosts live in the control plane's separate restore registry, which only restore hosts consult. The
+      // guard has already refused a restore registry that is broken or clashes with the tenant registry; a missing
+      // path or file refuses here.
+      snapshot = readTenantRegistrySnapshot(process.env.LIWAN_RESTORE_REGISTRY_PATH ?? '', previous?.snapshot)
+      tenant = snapshot.hosts[name]
+    }
     if (!tenant?.enabled || getHeader(event, 'x-liwan-tenant-revision') !== String(tenant.registryRevision)) throw Error()
     // A request never changes its tenant binding, even if configuration is replaced
     // while it waits. A new request may adopt the new, fully published revision.

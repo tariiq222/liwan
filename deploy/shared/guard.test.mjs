@@ -1,10 +1,10 @@
 import { test, mock } from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { sessionCodec, requestPlan, prospectPlan, createGuard } from './guard.mjs'
+import { sessionCodec, requestPlan, prospectPlan, createGuard, readRegistries } from './guard.mjs'
 import { validateRegistry, mutateRegistry } from '../../apps/web/server/utils/tenantRegistry.ts'
 const targets = Array.from({ length: 10 }, (_, i) => ({ host: `t${i}.example.test`, tenantId: `tenant_${i}`, database: `db_${i}`, filestore: `db_${i}`, enabled: true, registryRevision: 1 }))
 const registry = { schemaVersion: 1, snapshotRevision: 1, targets }
@@ -388,4 +388,153 @@ test('guard logs the websocket upgrade refusal once and redacts token path segme
     ['tenant_boundary_rejected', 'forbidden_header', 'GET', '/api/v1/public/inbox/catalog/images/7/*', targets[0].host]
   ])
   assert.ok(!lines.join('\n').includes(secret))
+})
+
+// The restore registry: a separate file of restore targets, served by restore-odoo, read per request for restore hosts only.
+const approvalHex = (n = 1) => String(n).padStart(32, '0')
+const restoreTarget = (n = 1, over = {}) => ({ host: `r${approvalHex(n)}.restore.example.test`, tenantId: `r${approvalHex(n)}`, database: `liwan_scratch_${approvalHex(n)}`, filestore: `liwan_scratch_${approvalHex(n)}`, enabled: true, registryRevision: 1, ...over })
+const restoreRegistry = (...list) => ({ schemaVersion: 1, snapshotRevision: list.length, targets: list })
+function restoreStack({ main = registry, restore } = {}) {
+  const root = mkdtempSync(join(tmpdir(), 'liwan-guard-restore-'))
+  const registryPath = join(root, 'registry.json')
+  const restoreRegistryPath = join(root, 'restore', 'registry.json')
+  mkdirSync(join(root, 'restore'))
+  writeFileSync(registryPath, JSON.stringify(main))
+  if (restore !== undefined) writeFileSync(restoreRegistryPath, typeof restore === 'string' ? restore : JSON.stringify(restore))
+  return { registryPath, restoreRegistryPath }
+}
+const restoreReq = (host, headers = {}, url = '/api/v1/me') => ({ headers: { host, ...headers }, url })
+const internal = { 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1' }
+
+test('a published restore host resolves to its own database and gets the same plan as a tenant host', () => {
+  const restore = restoreTarget()
+  const paths = restoreStack({ restore: restoreRegistry(restore) })
+  const { registry: combined, restoreTenantIds } = readRegistries(paths, restore.host)
+  assert.deepEqual([...restoreTenantIds], [restore.tenantId])
+  const plan = requestPlan(restoreReq(restore.host, internal), combined, token, codec)
+  assert.equal(plan.tenant.database, restore.database)
+  assert.equal(plan.odoo, true)
+  assert.equal(plan.headers.host, restore.database)
+  // A tenant host keeps its own tenant and is not marked as a restore target.
+  const tenant = readRegistries(paths, targets[0].host)
+  assert.equal(tenant.restoreTenantIds.size, 0)
+  assert.equal(requestPlan(req(0, internal), tenant.registry, token, codec).tenant.database, targets[0].database)
+})
+
+test('a restore host gets no route that a tenant host does not get', () => {
+  const restore = restoreTarget()
+  const { registry: combined } = readRegistries(restoreStack({ restore: restoreRegistry(restore) }), restore.host)
+  for (const path of ['/web/database/list', '/web/session/authenticate', '/jsonrpc', '/xmlrpc/2/object', '/api/v1/me?db=other', '/websocket?session_id=raw', '/report/pdf/x', '/odoo']) {
+    assert.throws(() => requestPlan(restoreReq(restore.host, {}, path), combined, token, codec), undefined, path)
+  }
+  for (const header of ['x-odoo-database', 'x-openerp-session-id', 'x-forwarded-host', 'forwarded']) {
+    assert.throws(() => requestPlan(restoreReq(restore.host, { [header]: 'forged' }), combined, token, codec), undefined, header)
+  }
+  // The proxy token is still required for the Odoo hop and a stale revision is still refused.
+  assert.equal(requestPlan(restoreReq(restore.host), combined, token, codec).odoo, false)
+  assert.throws(() => requestPlan(restoreReq(restore.host, { ...internal, 'x-liwan-tenant-revision': '2' }), combined, token, codec))
+  assert.throws(() => requestPlan(restoreReq(restore.host, { cookie: `session_id=${codec.seal('sid', targets[0])}` }), combined, token, codec))
+})
+
+test('an absent restore registry means no restore targets and never touches the tenant registry', () => {
+  const paths = restoreStack()
+  const restore = restoreTarget()
+  const { registry: combined, restoreTenantIds } = readRegistries(paths, restore.host)
+  assert.equal(restoreTenantIds.size, 0)
+  assert.throws(() => requestPlan(restoreReq(restore.host, internal), combined, token, codec), /tenant_host_unavailable/)
+  assert.doesNotThrow(() => requestPlan(req(0, internal), readRegistries(paths, targets[0].host).registry, token, codec))
+  assert.doesNotThrow(() => readRegistries({ registryPath: paths.registryPath }, targets[0].host))
+})
+
+test('a broken restore registry denies restore hosts and leaves every tenant host served', () => {
+  const restore = restoreTarget()
+  const other = restoreTarget(2)
+  const clashes = {
+    malformed: '{ not json',
+    wrong_schema: JSON.stringify({ schemaVersion: 2, snapshotRevision: 1, targets: [restore] }),
+    database_is_not_filestore: JSON.stringify(restoreRegistry({ ...restore, filestore: 'liwan_scratch_other' })),
+    duplicate_host_inside: JSON.stringify({ schemaVersion: 1, snapshotRevision: 2, targets: [restore, { ...other, host: restore.host }] }),
+    carries_a_tenant_host: JSON.stringify(restoreRegistry(restore, { ...targets[0] })),
+    reuses_a_tenant_database: JSON.stringify(restoreRegistry({ ...restore, database: targets[0].database, filestore: targets[0].database })),
+    reuses_a_tenant_id: JSON.stringify(restoreRegistry({ ...restore, tenantId: targets[0].tenantId })),
+  }
+  for (const [name, content] of Object.entries(clashes)) {
+    const paths = restoreStack({ restore: content })
+    assert.throws(() => readRegistries(paths, restore.host), /restore_registry_unavailable/, name)
+    assert.throws(() => readRegistries(paths, other.host), /restore_registry_unavailable/, name)
+    assert.equal(readRegistries(paths, targets[3].host).registry.targets.length, targets.length, name)
+  }
+  // A half-published file (barrier present) is unavailable even when the file itself is valid.
+  const paths = restoreStack({ restore: restoreRegistry(restore) })
+  writeFileSync(`${paths.restoreRegistryPath}.pending`, '')
+  assert.throws(() => readRegistries(paths, restore.host), /restore_registry_unavailable/)
+  assert.doesNotThrow(() => readRegistries(paths, targets[0].host))
+  // The barrier also blocks an absent file: nothing is published, but the writer was interrupted.
+  const barrierOnly = restoreStack()
+  writeFileSync(`${barrierOnly.restoreRegistryPath}.pending`, '')
+  assert.throws(() => readRegistries(barrierOnly, restore.host), /restore_registry_unavailable/)
+})
+
+test('a broken tenant registry still denies everything, restore hosts included', () => {
+  const restore = restoreTarget()
+  const paths = restoreStack({ main: { schemaVersion: 1, snapshotRevision: 1, targets: [targets[0], { ...targets[1], host: targets[0].host }] }, restore: restoreRegistry(restore) })
+  assert.throws(() => readRegistries(paths, restore.host))
+  assert.throws(() => readRegistries(paths, targets[0].host))
+})
+
+test('a host shared by both registries is refused for the restore host only', () => {
+  const restore = restoreTarget()
+  const shared = { ...targets[0], host: restore.host }
+  const paths = restoreStack({ main: { ...registry, targets: [shared, ...targets.slice(1)] }, restore: restoreRegistry(restore) })
+  assert.throws(() => readRegistries(paths, restore.host), /restore_registry_unavailable/)
+  assert.equal(readRegistries(paths, targets[1].host).registry.targets.length, targets.length)
+})
+
+test('the guard sends a restore host to restore-odoo and tenant hosts to the tenant Odoo, re-reading the file per request', async t => {
+  const restore = restoreTarget()
+  const paths = restoreStack({ restore: restoreRegistry(restore) })
+  const seen = []
+  const backend = name => http.createServer((request, res) => { seen.push([name, request.headers.host]); res.end(name) })
+  const odoo = backend('odoo'), web = backend('web'), restoreOdoo = backend('restore-odoo')
+  const [odooUrl, webUrl, restoreOdooUrl] = [await listen(odoo), await listen(web), await listen(restoreOdoo)]
+  const guard = createGuard({ ...paths, proxyToken: token, keys, activeKid: 'test', odooUrl, webUrl, restoreOdooUrl })
+  const url = await listen(guard)
+  t.after(() => { guard.closeAllConnections(); guard.close(); for (const server of [odoo, web, restoreOdoo]) { server.closeAllConnections(); server.close() } })
+  assert.equal((await call(url, '/api/v1/me', { host: restore.host, ...internal })).text, 'restore-odoo')
+  assert.equal((await call(url, '/login', { host: restore.host })).text, 'web')
+  assert.equal((await call(url, '/api/v1/me', { host: targets[0].host, ...internal })).text, 'odoo')
+  assert.deepEqual(seen, [['restore-odoo', restore.database], ['web', restore.host], ['odoo', targets[0].database]])
+  for (const path of ['/web/database/list', '/jsonrpc']) assert.equal((await call(url, path, { host: restore.host })).status, 403)
+  // A republished file is seen by the next request; an emptied or broken file denies the restore host at once.
+  writeFileSync(paths.restoreRegistryPath, JSON.stringify(restoreRegistry(restore, restoreTarget(2))))
+  assert.equal((await call(url, '/api/v1/me', { host: restoreTarget(2).host, ...internal })).text, 'restore-odoo')
+  writeFileSync(paths.restoreRegistryPath, '{ not json')
+  assert.equal((await call(url, '/api/v1/me', { host: restore.host, ...internal })).status, 403)
+  assert.equal((await call(url, '/api/v1/me', { host: targets[0].host, ...internal })).text, 'odoo')
+  rmSync(paths.restoreRegistryPath)
+  assert.equal((await call(url, '/api/v1/me', { host: restore.host, ...internal })).status, 403)
+  assert.equal((await call(url, '/api/v1/me', { host: targets[0].host, ...internal })).text, 'odoo')
+})
+
+test('a guard with a restore registry needs a restore Odoo upstream over private http', () => {
+  const paths = restoreStack()
+  const upstreams = { odooUrl: 'http://odoo:8069', webUrl: 'http://web:3000' }
+  assert.throws(() => createGuard({ ...paths, proxyToken: token, keys, activeKid: 'test', ...upstreams }), /restore_upstream_required/)
+  assert.throws(() => createGuard({ ...paths, proxyToken: token, keys, activeKid: 'test', ...upstreams, restoreOdooUrl: 'https://restore-odoo:8069' }), /private_http_upstreams_required/)
+  assert.doesNotThrow(() => createGuard({ registryPath: paths.registryPath, proxyToken: token, keys, activeKid: 'test', ...upstreams }))
+})
+
+test('with release routing on, a restore host is refused instead of leased', async t => {
+  const restore = restoreTarget()
+  const paths = restoreStack({ restore: restoreRegistry(restore) })
+  const backend = http.createServer((_request, res) => res.end('backend'))
+  const backendUrl = await listen(backend)
+  const guard = createGuard({ ...paths, proxyToken: token, keys, activeKid: 'test', odooUrl: backendUrl, webUrl: backendUrl, restoreOdooUrl: backendUrl, releaseRoutesDir: mkdtempSync(join(tmpdir(), 'liwan-guard-routes-')) })
+  const url = await listen(guard)
+  t.after(() => { guard.closeAllConnections(); guard.close(); backend.closeAllConnections(); backend.close() })
+  const lines = []
+  const error = mock.method(console, 'error', line => lines.push(line))
+  t.after(() => error.mock.restore())
+  assert.equal((await call(url, '/api/v1/me', { host: restore.host, ...internal })).status, 403)
+  assert.deepEqual(lines.map(line => JSON.parse(line).reason), ['restore_release_routes_unsupported'])
 })

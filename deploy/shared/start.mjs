@@ -7,6 +7,11 @@ if (Buffer.byteLength(process.env.LIWAN_SHARED_PROXY_TOKEN ?? '') < 32) throw Er
 readTenantRegistry(process.env.LIWAN_TENANT_REGISTRY_PATH)
 const server = createGuard({
   registryPath: process.env.LIWAN_TENANT_REGISTRY_PATH,
+  // Optional: the control plane's restore registry, served by restore-odoo. Unlike the tenant registry it is not
+  // validated at start: an absent or broken file only denies restore hosts, never the guard or the tenants.
+  restoreRegistryPath: process.env.LIWAN_RESTORE_REGISTRY_PATH || undefined,
+  restoreOdooUrl: process.env.LIWAN_GUARD_RESTORE_ODOO_URL || undefined,
+  restoreWsUrl: process.env.LIWAN_GUARD_RESTORE_WS_URL || undefined,
   releaseRoutesDir: process.env.LIWAN_RELEASE_ROUTES_DIR,
   releaseAssetsDir: process.env.LIWAN_RELEASE_ASSETS_DIR,
   proxyToken: process.env.LIWAN_SHARED_PROXY_TOKEN,

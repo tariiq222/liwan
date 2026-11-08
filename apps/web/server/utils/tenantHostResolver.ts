@@ -15,6 +15,15 @@ const hostPattern = /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z
 const tenantPattern = /^[a-z][a-z0-9_-]{0,62}$/
 const resourcePattern = /^[a-z][a-z0-9_]{0,62}$/
 
+// The only hosts the separate restore registry may carry: the control plane's `realRestoreHost`,
+// `r<approval uuid without dashes>.restore.<domain suffix>`. The edge uses the shape to decide which
+// requests a broken restore registry may still deny, without ever touching a tenant host.
+const restoreHostPattern = /^r[0-9a-f]{32}\.restore\.[a-z0-9-]+(?:\.[a-z0-9-]+)+$/
+
+export function isRestoreHost(host: unknown): boolean {
+  return typeof host === 'string' && restoreHostPattern.test(host.toLowerCase())
+}
+
 function canonicalHost(value: unknown): string {
   if (typeof value !== 'string' || !/^[\x00-\x7F]*$/.test(value)) throw new Error('tenant_host_unavailable')
   const name = value.toLowerCase()

@@ -3,7 +3,7 @@ import { createBodyAdmission, destroyUpstreamWhenCallerCloses, readBodyBytes } f
 import { isReleaseAssetRequest, readAsset, validateAssetStore } from '../../apps/web/server/utils/releaseAssets.ts'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { readTenantRegistry } from '../../apps/web/server/utils/tenantRegistry.ts'
-import { resolveTenantHost } from '../../apps/web/server/utils/tenantHostResolver.ts'
+import { isRestoreHost, resolveTenantHost } from '../../apps/web/server/utils/tenantHostResolver.ts'
 import { createReleaseLease, readReleaseRoute } from '../../apps/web/server/utils/releaseRouting.ts'
 import { readdirSync, existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -63,6 +63,40 @@ export function prospectPlan(req, prospectHost, token) {
   delete headers.cookie
   headers['x-liwan-proxy-token'] = token
   return { tenant: null, internal: false, odoo: false, prospect: true, headers, path: url.pathname + url.search, clearSession: false }
+}
+/**
+ * Restore targets live in their own registry file (`LIWAN_RESTORE_REGISTRY_PATH`, written by the control plane's
+ * restore publication) and never in the tenant registry: a restored copy must not be able to claim a tenant's
+ * database, filestore or host. The file is consulted only for restore hosts (`r<32 hex>.restore.<domain>`), so a
+ * missing, malformed or half-published restore file can deny restore hosts and nothing else.
+ * - no path configured, or a host outside the restore namespace: no restore targets;
+ * - file absent (and no `.pending` barrier): no restore targets, so the restore host is simply unknown;
+ * - anything else (barrier present, unreadable, malformed, a non-restore host, or a host, tenant id, database or
+ *   filestore also present in the tenant registry): `restore_registry_unavailable`, denied like any boundary refusal.
+ * It is read per request, with no cache, so a republished file is seen by the next request.
+ */
+function readRestoreTargets(restoreRegistryPath, mainTargets, host) {
+  if (!restoreRegistryPath || !isRestoreHost(host)) return []
+  try {
+    const { targets } = readTenantRegistry(restoreRegistryPath)
+    const clashes = target => ['host', 'tenantId', 'database', 'filestore'].some(key => mainTargets.some(main => main[key] === target[key]))
+    if (targets.some(target => !isRestoreHost(target.host) || clashes(target))) throw Error('restore_registry_invalid')
+    return targets
+  } catch (error) {
+    if (error.code === 'ENOENT') return []
+    throw Error('restore_registry_unavailable')
+  }
+}
+/** The tenant registry plus, for a restore host, the restore registry: one resolution over both, globally unique. */
+export function readRegistries({ registryPath, restoreRegistryPath }, host) {
+  const registry = readTenantRegistry(registryPath)
+  // Stock Odoo's filestore directory is named after its database.
+  if (registry.targets.some(t => t.database !== t.filestore)) throw Error('filestore_binding_invalid')
+  const restoreTargets = readRestoreTargets(restoreRegistryPath, registry.targets, host)
+  return {
+    registry: restoreTargets.length ? { ...registry, targets: [...registry.targets, ...restoreTargets] } : registry,
+    restoreTenantIds: new Set(restoreTargets.map(t => t.tenantId)),
+  }
 }
 export function requestPlan(req, registry, token, codec) {
   const host = req.headers.host
@@ -183,21 +217,25 @@ function auditRefusal(req, error) {
     host: String(req.headers?.host ?? '').slice(0, 200)
   }))
 }
-export function createGuard({ registryPath, proxyToken, prospectHost = '', keys, activeKid, odooUrl, webUrl, wsUrl = odooUrl, releaseRoutesDir, releaseAssetsDir }) {
+export function createGuard({ registryPath, restoreRegistryPath, proxyToken, prospectHost = '', keys, activeKid, odooUrl, webUrl, wsUrl = odooUrl, restoreOdooUrl, restoreWsUrl = restoreOdooUrl, releaseRoutesDir, releaseAssetsDir }) {
   if (releaseAssetsDir !== undefined) {
     if (!releaseRoutesDir) throw Error('release_assets_require_routes')
     validateAssetStore(releaseAssetsDir)
   }
   const codec = sessionCodec(keys, activeKid)
   const upstreams = [odooUrl, webUrl, wsUrl].map(v => new URL(v))
-  if (upstreams.some(u => u.protocol !== 'http:' || u.username || u.password)) throw Error('private_http_upstreams_required')
+  // Restored databases live in the restore Postgres, so a restore host is served by restore-odoo, never by the tenant Odoo.
+  if (restoreRegistryPath && !restoreOdooUrl) throw Error('restore_upstream_required')
+  const restoreUpstreams = restoreRegistryPath ? [restoreOdooUrl, webUrl, restoreWsUrl].map(v => new URL(v)) : upstreams
+  if ([...upstreams, ...restoreUpstreams].some(u => u.protocol !== 'http:' || u.username || u.password)) throw Error('private_http_upstreams_required')
   const plan = req => {
     const prospect = prospectPlan(req, prospectHost, proxyToken)
     if (prospect) return prospect
-    const registry = readTenantRegistry(registryPath)
-    // Stock Odoo's filestore directory is named after its database.
-    if (registry.targets.some(t => t.database !== t.filestore)) throw Error('filestore_binding_invalid')
+    const { registry, restoreTenantIds } = readRegistries({ registryPath, restoreRegistryPath }, req.headers.host)
     const p = requestPlan(req, registry, proxyToken, codec)
+    p.restore = restoreTenantIds.has(p.tenant.tenantId)
+    // A restore target has no release route; with release routing on it is refused rather than leased.
+    if (p.restore && releaseRoutesDir) throw Error('restore_release_routes_unsupported')
     if (!releaseRoutesDir) return p
     if (p.internal && p.path === '/_liwan/release-status') return { ...p, status: true }
     const pinHeaders = ['x-liwan-release-pool', 'x-liwan-release-revision', 'x-liwan-release-fence']
@@ -266,7 +304,7 @@ export function createGuard({ registryPath, proxyToken, prospectHost = '', keys,
         return
       }
     }
-    const target = p.release ? new URL(p.odoo ? p.release.odooUrl : p.release.webUrl) : upstreams[p.odoo ? 0 : 1]
+    const target = p.release ? new URL(p.odoo ? p.release.odooUrl : p.release.webUrl) : (p.restore ? restoreUpstreams : upstreams)[p.odoo ? 0 : 1]
     const upstream = http.request({ hostname: target.hostname, port: target.port, path: p.path, method: req.method, headers: p.headers }, reply => {
       const headers = { ...reply.headers }
       if (headers['set-cookie']) {
@@ -292,7 +330,7 @@ export function createGuard({ registryPath, proxyToken, prospectHost = '', keys,
     let p
     try { p = plan(req); if (!p.odoo || new URL(req.url, 'http://local').pathname !== '/websocket') throw Error() } catch (error) { auditRefusal(req, error); p?.closeLease?.(); socket.end(`HTTP/1.1 ${error.statusCode === 503 ? '503 Service Unavailable' : '403 Forbidden'}\r\nConnection: close\r\n\r\n`); return }
     if (p.closeLease) socket.once('close', p.closeLease)
-    const target = p.release ? new URL(p.release.wsUrl) : upstreams[2]
+    const target = p.release ? new URL(p.release.wsUrl) : (p.restore ? restoreUpstreams : upstreams)[2]
     const upstream = http.request({ hostname: target.hostname, port: target.port, path: p.path, headers: p.headers })
     upstream.on('upgrade', (reply, remote, remoteHead) => {
       const headers = { ...reply.headers }; headers['set-cookie'] = cookiesForBrowser(headers['set-cookie'], codec, p.tenant)
