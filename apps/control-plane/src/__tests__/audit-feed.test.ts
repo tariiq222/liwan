@@ -43,7 +43,7 @@ describe.skipIf(!url)('audit filters on PostgreSQL', () => {
     const outsider = await vendorSession(pool, config.installationId, ['finance'], { key: config.key })
     ownerHeaders = owner.headers; outsiderHeaders = outsider.headers; accountId = owner.accountId
     await pool.query("UPDATE vendor_accounts SET display_name='Layla Operator' WHERE id=$1", [accountId])
-    for (const [id, name] of [[tenant, 'Acme Workspace'], [orphanTenant, 'Lonely Workspace'], [otherTenant, 'Other Workspace']]) await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,$2,'saas','managed',$3,false)", [id, name, `target-${name}`])
+    for (const [id, name] of [[tenant, 'Acme Workspace'], [orphanTenant, 'Lonely Workspace'], [otherTenant, 'Other Workspace']]) await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,$2,'saas','dedicated_managed',$3,false)", [id, name, `target-${name}`])
     await pool.query('INSERT INTO customers(id,name,tenant_id) VALUES($1,$2,$3),($4,$5,$6)', [customer, 'Acme Trading', tenant, otherCustomer, 'Other Co', otherTenant])
     await pool.query("INSERT INTO subscriptions(id,customer_id,tenant_id,state) VALUES($1,$2,$3,'active')", [subscription, customer, tenant])
     await pool.query("INSERT INTO commercial_plans(id) VALUES($1)", [planId])

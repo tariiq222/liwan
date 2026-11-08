@@ -51,7 +51,7 @@ suite('vendor customer listing and cancellation HTTP boundary', () => {
   })
   it('finds the exact customer by tenant id', async () => {
     const tenant = randomUUID()
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Admin filter','saas','managed',$2,false)", [tenant, tenant])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Admin filter','saas','dedicated_managed',$2,false)", [tenant, tenant])
     await pool.query('UPDATE customers SET tenant_id=$2 WHERE id=$1', [ids[1], tenant])
     expect((await call('GET', `/customers?tenant_id=${tenant}&limit=1`)).data.items.map((x: any) => x.id)).toEqual([ids[1]])
   })

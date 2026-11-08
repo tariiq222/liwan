@@ -69,7 +69,7 @@ suite('a vendor-added customer starts paid (W4)', () => {
   /** A control tenant the customer belongs to, with no enabled registry binding (nothing provisioned yet). */
   async function newTenant() {
     const id = randomUUID()
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Vendor customer','saas','managed',$2,true)", [id, `vendor-${id}`])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Vendor customer','saas','dedicated_managed',$2,true)", [id, `vendor-${id}`])
     return id
   }
   /** The vendor console's customer creation, through the route it calls. */

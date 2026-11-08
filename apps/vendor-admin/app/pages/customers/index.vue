@@ -3,6 +3,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { ClientRow } from '@liwan/commercial-contracts'
 import { customerDisplayBadge, operationStatusBadge } from '@/utils/vendorBadges'
 import { CLIENT_PAGE_SIZE, CLIENT_STATE_FILTERS, clientListQuery, clientTo, isClientStateFilter } from '@/utils/vendorClients'
+import { hostingKey } from '@/utils/vendorTenant'
 import { isNotAvailable } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 definePageMeta({ capability: 'vendor.read' })
@@ -20,7 +21,7 @@ const to = (row: ClientRow) => clientTo(row, route.fullPath)
 // A plan bought but not yet applied is shown with its pending state rather than as "no plan".
 const planLabel = (row: ClientRow) => row.plan_name ?? (row.pending_plan_name ? t('vendor.customers.pendingPlan', { plan: row.pending_plan_name }) : t('vendor.customers.noPlan'))
 const rowKey = (row: ClientRow) => row.customer_id ?? row.tenant_id!
-const modeText = (row: ClientRow) => (row.commercial_mode && row.hosting_model ? `${t(`vendor.mode.${row.commercial_mode === 'saas' ? 'saas' : 'nonSaas'}`)} · ${t(`vendor.hosting.${row.hosting_model === 'managed' ? 'managed' : 'customerHosted'}`)}` : null)
+const modeText = (row: ClientRow) => (row.commercial_mode && row.hosting_model ? `${t(`vendor.mode.${row.commercial_mode === 'saas' ? 'saas' : 'nonSaas'}`)} · ${t(`vendor.hosting.${hostingKey[row.hosting_model]}`)}` : null)
 const workspaceLabel = (row: ClientRow) => (row.tenant_status ? (operationStatusBadge(row.tenant_status).labelKey ? t(operationStatusBadge(row.tenant_status).labelKey) : row.tenant_status) : '')
 
 const columns = computed<TableColumn<ClientRow>[]>(() => [

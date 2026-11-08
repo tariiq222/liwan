@@ -1,7 +1,8 @@
 import { z } from 'zod'
+import { hostingModelSchema } from './hosting.js'
 
+export * from './hosting.js'
 export const commercialModeSchema = z.enum(['saas', 'non_saas'])
-export const hostingModelSchema = z.enum(['managed', 'customer_hosted'])
 export const tenantStatusSchema = z.enum(['registered', 'provisioning', 'active', 'needs_intervention'])
 export const operationStatusSchema = z.enum(['queued', 'running', 'succeeded', 'failed', 'needs_intervention'])
 
@@ -24,7 +25,8 @@ const baseOperation = { request_id: z.uuid(), reason }
 export const tenantCreateSchema = z.strictObject({
   name: z.string().trim().min(1).max(200),
   commercial_mode: commercialModeSchema,
-  hosting_model: hostingModelSchema,
+  // A shared tenant is created only by self-service onboarding, never by vendor registration.
+  hosting_model: hostingModelSchema.exclude(['shared_managed']),
   inventory_target: inventoryId,
   catalog_version: z.string().min(1).max(100).optional(),
   catalog_tier: z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/).optional(),

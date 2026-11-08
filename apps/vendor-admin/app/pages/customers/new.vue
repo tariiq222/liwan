@@ -19,7 +19,7 @@ const { data: releases } = await useAsyncData('vendor:catalog-releases', () => s
 const noRelease = computed(() => sharedEnabled.value && releases.value !== null && releases.value !== undefined && releases.value.length === 0)
 const published = computed(() => catalog.value?.items.filter(item => item.status === 'published') ?? [])
 const selectedCatalog = computed(() => published.value.find(item => item.version === form.catalog_version))
-const form = reactive({ name: '', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: '', catalog_version: '', catalog_tier: '', reason: '', admin_name: '', admin_login: '', plan_revision_id: '', cadence: '', onboarding: false })
+const form = reactive({ name: '', commercial_mode: 'saas', hosting_model: 'dedicated_managed', inventory_target: '', catalog_version: '', catalog_tier: '', reason: '', admin_name: '', admin_login: '', plan_revision_id: '', cadence: '', onboarding: false })
 // A vendor-added customer never starts a trial (release 1, owner decision 2026-11-06): the console places a paid first
 // order the vendor collects by bank transfer or a payment link, or a free order when the plan's total is zero. A plan
 // that offers a trial is therefore not offered here: its trial would be the only thing the vendor could start.
@@ -32,7 +32,7 @@ const canSubscribe = computed(() => can('vendor.subscriptions.manage'))
 const createdCustomer = ref<string | null>(null)
 const creationRequestId = ref<string | null>(null)
 const busy = ref(false); const saveError = ref<unknown>(null); const submitted = ref(false)
-const dirty = computed(() => !submitted.value && Boolean(form.admin_name.trim() || form.admin_login.trim() || form.name.trim() || form.inventory_target || form.catalog_version || form.catalog_tier || form.plan_revision_id || form.reason.trim() || form.commercial_mode !== 'saas' || form.hosting_model !== 'managed'))
+const dirty = computed(() => !submitted.value && Boolean(form.admin_name.trim() || form.admin_login.trim() || form.name.trim() || form.inventory_target || form.catalog_version || form.catalog_tier || form.plan_revision_id || form.reason.trim() || form.commercial_mode !== 'saas' || form.hosting_model !== 'dedicated_managed'))
 function fieldError(error: unknown): string {
   const value = error as { data?: { field?: unknown; data?: { field?: unknown } }; field?: unknown; response?: { _data?: { field?: unknown } } } | null
   const field = value?.data?.field ?? value?.data?.data?.field ?? value?.response?._data?.field ?? value?.field
@@ -112,7 +112,7 @@ const backTo = computed(() => safeReturnTo(route.query.returnTo, '/customers', [
             <div class="grid gap-4">
               <div class="grid gap-4 sm:grid-cols-2">
                 <UFormField :label="t('vendor.tenants.fields.mode')" required><USelect v-model="form.commercial_mode" :items="[{ label: t('vendor.mode.saas'), value: 'saas' }, { label: t('vendor.mode.nonSaas'), value: 'non_saas' }]" class="w-full" /></UFormField>
-                <UFormField :label="t('vendor.tenants.fields.hosting')" required><USelect v-model="form.hosting_model" :items="[{ label: t('vendor.hosting.managed'), value: 'managed' }, { label: t('vendor.hosting.customerHosted'), value: 'customer_hosted' }]" class="w-full" /></UFormField>
+                <UFormField :label="t('vendor.tenants.fields.hosting')" required><USelect v-model="form.hosting_model" :items="[{ label: t('vendor.hosting.dedicatedManaged'), value: 'dedicated_managed' }, { label: t('vendor.hosting.customerHosted'), value: 'customer_hosted' }]" class="w-full" /></UFormField>
               </div>
               <UFormField :label="t('vendor.tenants.fields.target')" required :help="t('vendor.tenants.targetHelp')"><USelect v-model="form.inventory_target" :items="targets.items.map(item => ({ label: `${item.id} · ${t(`vendor.targetKind.${item.kind}`)}`, value: item.id }))" required class="w-full" /><p v-if="!targets.items.length" class="mt-1 text-xs text-muted">{{ t('vendor.tenants.noTargets') }}</p></UFormField>
             </div>

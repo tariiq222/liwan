@@ -21,7 +21,7 @@ suite('commercial branches & usage (B4)', () => {
   let sub = '', order = ''
   async function newSub(free = 1) {
     const cust = randomUUID(), s = randomUUID(), rev = randomUUID(), t = randomUUID()
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'T','saas','managed',$2,true)", [t, `inv-${t}`])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'T','saas','dedicated_managed',$2,true)", [t, `inv-${t}`])
     await pool.query('INSERT INTO customers(id,name,tenant_id,admin_name,admin_login) VALUES($1,$2,$3,$4,$5)', [cust, 'C', t, 'Manager', 'branches@example.test'])
     await pool.query("INSERT INTO subscriptions(id,customer_id,tenant_id,state) VALUES($1,$2,$3,'active')", [s, cust, t])
     await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,$3,$4)',
@@ -132,7 +132,7 @@ suite('commercial branches & usage (B4)', () => {
     const v = await api('POST',`/plans/${p.body.id}/validate`,{edit_revision:1,reason:'Initial branches regression'})
     const plan = (await api('POST',`/plans/${p.body.id}/publish`,{edit_revision:v.body.edit_revision,reason:'Initial branches regression'})).body
     const t=randomUUID(), customer=randomUUID()
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Initial','saas','managed',$2,true)",[t,`inv-${t}`])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Initial','saas','dedicated_managed',$2,true)",[t,`inv-${t}`])
     await pool.query("INSERT INTO customers(id,name,tenant_id,admin_name,admin_login) VALUES($1,'Initial',$2,'Manager','branches2@example.test')",[customer,t])
     const quote=await createQuoteForCustomer(pool,{customer_id:customer,request:{kind:'new',plan_revision_id:plan.id,bundle_revision_ids:[],cadence:monthly,requested_extra_branches:3,requested_users:3,requested_storage_mb:0}})
     const vendor:any={actor_id:'7',kind:'vendor',customer_id:null,tenant_id:null,capabilities:['vendor.subscriptions.manage']}

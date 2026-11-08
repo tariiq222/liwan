@@ -26,7 +26,7 @@ suite('vendor attention list on PostgreSQL', () => {
   const mine = <T extends { name: string }>(items: T[]) => items.filter(i => i.name.startsWith(tag))
 
   async function tenant(tenantId: string, name: string) {
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,$2,'saas','managed',$3,false)", [tenantId, name, `target-${tenantId}`])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,$2,'saas','dedicated_managed',$3,false)", [tenantId, name, `target-${tenantId}`])
   }
   async function subscription(customerId: string, state: string, renewal: string | null, tenantId: string | null = null) {
     const sub = randomUUID(), rev = randomUUID()

@@ -34,7 +34,7 @@ suite('restoring an archived branch is a priced order, end to end', () => {
   /** A running customer with a tenant: HQ, one free and one paid extra branch, the paid one ('Branch 2') archived. */
   async function scenario() {
     const tenant = randomUUID(), customer = randomUUID(), slug = `t${tenant.replaceAll('-', '')}`
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Restore','saas','managed',$2,true)", [tenant, slug])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Restore','saas','dedicated_managed',$2,true)", [tenant, slug])
     await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)', [tenant, slug, `${slug}.restore.test`, `liwan_scratch_${tenant.replaceAll('-', '')}`])
     await pool.query('INSERT INTO customers(id,name,tenant_id) VALUES($1,$2,$3)', [customer, 'Restore customer', tenant])
     const quote = await createQuoteForCustomer(pool, { customer_id: customer, request: { kind: 'new', plan_revision_id: plan.id, bundle_revision_ids: [], cadence: monthly, requested_extra_branches: 2, requested_users: 1, requested_storage_mb: 0 } })

@@ -41,7 +41,7 @@ suite('package immutable lifecycle and enrollment authority SQL',()=>{
    await client.query('BEGIN')
    authority=await resolvePackageAuthority(client,published.id,true,sourceOptions)
    const withdraw=pool.query('UPDATE package_revisions SET available=false,revision=revision+1 WHERE id=$1 RETURNING available',[published.id])
-   await client.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,package_revision_id,operations_enabled) VALUES($1,'Pinned','saas','managed',$2,$3,$4,$5,true)",[tenant,`package-${tenant}`,input.catalog_version,input.catalog_tier,published.id])
+   await client.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,package_revision_id,operations_enabled) VALUES($1,'Pinned','saas','dedicated_managed',$2,$3,$4,$5,true)",[tenant,`package-${tenant}`,input.catalog_version,input.catalog_tier,published.id])
    await client.query('COMMIT')
    expect((await withdraw).rows[0].available).toBe(false)
   }finally{await client.query('ROLLBACK');client.release()}

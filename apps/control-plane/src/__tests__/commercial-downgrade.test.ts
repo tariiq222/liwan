@@ -36,7 +36,7 @@ suite('downgrade fail-closed usage guards',()=>{
   afterAll(async()=>pool.end())
   async function fixture(){
     const tenant=randomUUID(),customer=randomUUID()
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Downgrade','saas','managed',$2,true)",[tenant,`inv-${tenant}`])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Downgrade','saas','dedicated_managed',$2,true)",[tenant,`inv-${tenant}`])
     await pool.query('INSERT INTO customers(id,name,tenant_id,admin_name,admin_login) VALUES($1,$2,$3,$4,$5)',[customer,'Downgrade',tenant,'Manager','downgrade@example.test'])
     const request={kind:'new',plan_revision_id:plan.id,bundle_revision_ids:[],cadence:monthly,requested_extra_branches:0,requested_users:10,requested_storage_mb:1024}
     const q=await createQuoteForCustomer(pool,{customer_id:customer,request},now)

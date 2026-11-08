@@ -23,7 +23,7 @@ suite('unified vendor client list on PostgreSQL', () => {
   const tag = `cl${randomUUID().slice(0, 8)}`
   const ids = { activeCustomer: randomUUID(), activeTenant: randomUUID(), bareCustomer: randomUUID(), setupCustomer: randomUUID(), lonelyTenant: randomUUID(), pendingCustomer: randomUUID() }
   async function tenant(id: string, name: string, mode = 'saas') {
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,$2,$3,'managed',$4,false)", [id, name, mode, `target-${id}`])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,$2,$3,'dedicated_managed',$4,false)", [id, name, mode, `target-${id}`])
   }
   beforeAll(async () => {
     const { version } = await setup(pool)
@@ -52,7 +52,7 @@ suite('unified vendor client list on PostgreSQL', () => {
     expect(r.body.total).toBe(5)
     expect(find(r.body.items, 'active customer')).toEqual({
       customer_id: ids.activeCustomer, tenant_id: ids.activeTenant, name: `${tag} active customer`, subscription_state: 'active', plan_name: `${tag} plan`, pending_plan_name: null,
-      renewal_at: '2026-12-01', setup_required: false, tenant_status: 'registered', commercial_mode: 'saas', hosting_model: 'managed',
+      renewal_at: '2026-12-01', setup_required: false, tenant_status: 'registered', commercial_mode: 'saas', hosting_model: 'dedicated_managed',
     })
     expect(find(r.body.items, 'lonely workspace')).toMatchObject({ customer_id: null, tenant_id: ids.lonelyTenant, subscription_state: null, setup_required: false, commercial_mode: 'non_saas' })
     expect(find(r.body.items, 'bare customer')).toMatchObject({ customer_id: ids.bareCustomer, tenant_id: null, subscription_state: null, tenant_status: null, commercial_mode: null })

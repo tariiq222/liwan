@@ -27,7 +27,7 @@ d('admin invitations', () => {
     sent.length = 0; set.length = 0
     await pool.query('TRUNCATE admin_invitations, commercial_outbox')
     tenant = randomUUID(); customer = randomUUID()
-    await pool.query(`INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'T','saas','managed',$2,true)`, [tenant, 'inv-' + tenant])
+    await pool.query(`INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'T','saas','dedicated_managed',$2,true)`, [tenant, 'inv-' + tenant])
     await pool.query(`INSERT INTO customers(id,name,tenant_id) VALUES($1,'شركة',$2)`, [customer, tenant])
   })
   const issue = (ttl = 3600) => issueInvitation(pool, { customer_id: customer, tenant_id: tenant, admin_login: 'admin@x.test', ttl_seconds: ttl })
@@ -53,7 +53,7 @@ d('admin invitations', () => {
     await bind(tenant, `acme-${key}.saas.example`)
     await issue()
     const other = { tenant: randomUUID(), customer: randomUUID() }
-    await pool.query(`INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'T2','saas','managed',$2,true)`, [other.tenant, 'inv-' + other.tenant])
+    await pool.query(`INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'T2','saas','dedicated_managed',$2,true)`, [other.tenant, 'inv-' + other.tenant])
     await pool.query(`INSERT INTO customers(id,name,tenant_id) VALUES($1,'Two',$2)`, [other.customer, other.tenant])
     await bind(other.tenant, `globex-${key}.saas.example`)
     await issueInvitation(pool, { customer_id: other.customer, tenant_id: other.tenant, admin_login: 'two@x.test', ttl_seconds: 3600 })
