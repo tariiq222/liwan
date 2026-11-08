@@ -23,7 +23,7 @@ class CiResultTest(unittest.TestCase):
             lines.append(line)
         command = textwrap.dedent('\n'.join(lines))
         needs = {
-            'scope': {'result': scope, 'outputs': {'stages': json.dumps(selected)}},
+            'scope': {'result': scope, 'outputs': {} if selected is None else {'stages': json.dumps(selected)}},
             'static': {'result': 'success', 'outputs': {}},
             'e2e-mock': {'result': 'skipped', 'outputs': {}},
         }
@@ -52,6 +52,13 @@ class CiResultTest(unittest.TestCase):
 
     def test_scope_failure_fails(self):
         self.assertNotEqual(self.gate(['static'], scope='failure').returncode, 0)
+
+    def test_skipped_scope_fails_with_a_clear_error(self):
+        # A draft PR skips scope, which leaves its outputs empty; jq must not crash on the missing stages.
+        result = self.gate(None, scope='skipped')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('scope did not run', result.stdout)
+        self.assertNotIn('jq: error', result.stderr)
 
     def test_static_failure_fails(self):
         self.assertNotEqual(self.gate(['static'], {'static': 'failure'}).returncode, 0)

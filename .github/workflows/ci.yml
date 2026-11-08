@@ -535,6 +535,10 @@ jobs:
           NEEDS: ${{ toJSON(needs) }}
         run: |
           echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          if [ "$(echo "$NEEDS" | jq -r '.scope.result')" != "success" ]; then
+            echo "::error::scope did not run (a draft PR runs no stage); mark the PR ready to run CI."
+            exit 1
+          fi
           # Only stages outside the selected scope may be skipped. Fail closed on
           # missing jobs or malformed scope; a green aggregate must prove the selection ran.
           echo "$NEEDS" | jq -e '
