@@ -58,7 +58,7 @@ else describe('fenced adapter live PostgreSQL integration', () => {
     await pool.query('TRUNCATE service_nonces, audit_events, operation_events, operations, restore_approvals')
     await pool.query('INSERT INTO shared_registry_state(singleton,revision) VALUES(true,0)')
     await vendorAccount(pool, ['customer_success', 'operations'], 7)
-    await pool.query('INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,operations_enabled) VALUES ($1,$2,\'saas\',\'managed\',$3,\'live-v1\',\'core\',true),($4,$5,\'saas\',\'managed\',$6,\'live-v1\',\'core\',true)',
+    await pool.query('INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,operations_enabled) VALUES ($1,$2,\'saas\',\'shared_managed\',$3,\'live-v1\',\'core\',true),($4,$5,\'saas\',\'shared_managed\',$6,\'live-v1\',\'core\',true)',
       [tenantA, 'Fenced A', 'fenced-a', tenantB, 'Fenced B', 'fenced-b'])
     const source = await readFile(join(repositoryRoot, 'deploy/catalog/solutions/platform.json'))
     await pool.query('INSERT INTO catalog_entries(id,version,status,solution,source_sha256,published_at) VALUES($1,\'live-v1\',\'published\',$2,$3,now())',

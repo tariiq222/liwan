@@ -54,7 +54,7 @@ suite('commercial B1 atomic orders', () => {
   })
   it.each(['pending', 'failed'] as const)('keeps a %s hosted payment authoritative when a fresh quote precedes its late success', async initialPayment => {
     const id = await customer(), tenant = randomUUID()
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Pending payment','saas','managed',$2,true)", [tenant, `pending-${tenant}`])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Pending payment','saas','dedicated_managed',$2,true)", [tenant, `pending-${tenant}`])
     await pool.query('UPDATE customers SET tenant_id=$2 WHERE id=$1', [id, tenant])
     const firstQuote = await createQuoteForCustomer(pool, { customer_id:id, request:request() })
     const input = accept(firstQuote), first = await acceptQuote(pool, input, vendor)

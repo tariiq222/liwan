@@ -39,7 +39,7 @@ describe.skipIf(!url)('shared restore waiting for commercial reconciliation', ()
     const slug = `t${tenant.replaceAll('-', '')}`, database = `liwan_scratch_${randomUUID().replaceAll('-', '')}`
     const restoredDatabase = `liwan_scratch_${randomUUID().replaceAll('-', '')}`
     const binding = { tenantId: slug, database, filestore: database, registryRevision: 1 }
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Waiting restore','saas','managed',$2,true)", [tenant, slug])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Waiting restore','saas','shared_managed',$2,true)", [tenant, slug])
     await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)', [tenant, slug, `${slug}.invalid`, database])
     await pool.query("INSERT INTO shared_backups(id,control_tenant_id,tenant_id,database_name,filestore,snapshot,database_sha256,filestore_sha256,artifact_path,consistency,created_by) VALUES($1,$2,$3,$4,$4,'{}',$5,$6,'fake-backup','verified',$7)", [backupId, tenant, slug, database, 'a'.repeat(64), 'b'.repeat(64), issuer])
     await pool.query("INSERT INTO shared_restore_approvals(id,backup_id,control_tenant_id,target_database,reason,expires_at) VALUES($1,$2,$3,$4,'Waiting fixture',now()+interval '1 hour')", [approval, backupId, tenant, restoredDatabase])

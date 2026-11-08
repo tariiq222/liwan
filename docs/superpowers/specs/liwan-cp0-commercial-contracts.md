@@ -67,7 +67,7 @@
 |---|---|---|
 | `commercial_mode` | `saas | non_saas` | مطلوب بعد ترحيل معتمد، بلا default صامت للقواعد القديمة |
 | `entitlement_source` | `control_plane | local_policy` | saas ↔ control_plane، non_saas ↔ local_policy في الإصدار الأول |
-| `hosting_model` | **تاريخيًا:** `managed | customer_hosted`؛ **الهدف الحالي:** `shared_managed | dedicated_managed | customer_hosted` | على D01 والمخزون/الترحيل اعتماد أو مواءمة القيم الثلاث قبل التطبيق؛ في deployment inventory/config الموثوق وليس قرار السماح بالميزة |
+| `hosting_model` | `shared_managed | dedicated_managed | customer_hosted` (القيمة القديمة `managed` أُلغيت وحُوّلت صفوفها في `schema_034`) | التسجيل اليدوي من لوحة البائع يقبل `dedicated_managed` و`customer_hosted` فقط؛ `shared_managed` يكتبه الإعداد الذاتي المشترك وحده؛ في deployment inventory/config الموثوق وليس قرار السماح بالميزة |
 | `installation_id` | UUID غير مشتق من db_name | هوية محلية مستقرة؛ لا تتطلب تسجيلًا مركزيًا لغير SaaS |
 | `policy_revision` | integer محلي متزايد | موجود؛ يظل مراجعة snapshot المحلي الكامل |
 | `commercial_policy_revision` | integer متزايد مستقل | مقترح لـSaaS فقط؛ آخر إصدار تجاري طُبق، يبدأ 0 |

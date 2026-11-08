@@ -159,9 +159,9 @@ else describe('shared restore queue', () => {
     await pool.query('INSERT INTO shared_registry_state(singleton,revision) VALUES(true,0)')
     await vendorAccount(pool, ['customer_success', 'operations'], 7)
     await pool.query(`INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,operations_enabled)
-      VALUES ($1,$2,'saas','managed',$3,'live-v1','core',true),($4,$5,'saas','managed',$6,'live-v1','core',true),
-             ($7,$8,'saas','managed',$9,'live-v1','core',true),($10,$11,'saas','managed',$12,'live-v1','core',true),
-             ($13,$14,'saas','managed',$15,'live-v1','core',true)`,
+      VALUES ($1,$2,'saas','shared_managed',$3,'live-v1','core',true),($4,$5,'saas','shared_managed',$6,'live-v1','core',true),
+             ($7,$8,'saas','shared_managed',$9,'live-v1','core',true),($10,$11,'saas','shared_managed',$12,'live-v1','core',true),
+             ($13,$14,'saas','shared_managed',$15,'live-v1','core',true)`,
       [tenantId, 'Restore source', 'restore-source', otherTenantId, 'Restore other tenant', 'restore-other',
        registeredTenantId, 'Registered target owner', 'registered-target', lateBoundTenantId, 'Late binding owner', 'late-binding',
        registryRaceTenantId, 'Registry race owner', 'registry-race'])

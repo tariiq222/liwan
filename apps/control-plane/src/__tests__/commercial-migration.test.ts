@@ -36,7 +36,7 @@ suite('legacy → SaaS commercial migration (C1)', () => {
     return id
   }
   async function addTenant(id: string, over: Record<string, any> = {}) {
-    const t = { mode: 'saas', hosting: 'managed', catalog_version: null, catalog_tier: null, package: null, desired: null, observed: null, rev: null, ...over }
+    const t = { mode: 'saas', hosting: 'dedicated_managed', catalog_version: null, catalog_tier: null, package: null, desired: null, observed: null, rev: null, ...over }
     await pool.query(`INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,package_revision_id,desired_policy,observed_policy,policy_revision,operations_enabled)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true)`, [id, `Tenant ${id.slice(0, 6)}`, t.mode, t.hosting, `inv-${id}`, t.catalog_version, t.catalog_tier, t.package, t.desired, t.observed, t.rev])
   }

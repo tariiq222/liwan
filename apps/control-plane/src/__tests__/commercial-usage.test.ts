@@ -84,7 +84,7 @@ live('usage persisted on isolated PostgreSQL', () => {
   afterAll(async () => { await pool.end() })
   async function tenant() {
     const id = randomUUID()
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Usage','saas','managed',$2,true)", [id, `usage-${id}`])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Usage','saas','dedicated_managed',$2,true)", [id, `usage-${id}`])
     return id
   }
   it('projects only the newest sample of the requested tenant with byte limits', async () => {

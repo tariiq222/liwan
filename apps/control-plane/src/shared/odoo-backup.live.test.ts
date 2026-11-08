@@ -24,7 +24,7 @@ describe.skipIf(!url)('real Odoo backup/restore authority (live PostgreSQL)',()=
   await migrate(pool);root=await realpath(await mkdtemp(join(tmpdir(),'liwan-real-backup-')))
   runtime={schemaVersion:1,projectName:'liwan-saas-test-backup',composeFile:join(root,'compose.yml'),envFile:join(root,'compose.env'),stateDir:root,domainSuffix:'saas.accept.liwan.test'}
   await vendorAccount(pool,['operations'],7)
-  await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Real authority fixture','saas','managed',$2,true)",[tenant,'fixture-'+tenant])
+  await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Real authority fixture','saas','shared_managed',$2,true)",[tenant,'fixture-'+tenant])
   await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)',[tenant,binding.tenantId,binding.tenantId+'.invalid',db])
   const receipt={schemaVersion:1,operation:'backup',binding,businessKey:businessKey(job),payloadDigest:payloadDigest(job),attemptId:randomUUID(),sequence:3,status:'verified'}
   await pool.query("INSERT INTO shared_jobs(id,control_tenant_id,business_key,payload,payload_digest,issuer,actor_uid,reason,state,receipt) VALUES($1,$2,$3,$4,$5,$6,7,'Real fixture','verified',$7)",[jobId,tenant,businessKey(job),job,payloadDigest(job),issuer,receipt])
@@ -51,7 +51,7 @@ describe.skipIf(!url)('real Odoo backup/restore authority (live PostgreSQL)',()=
  it('rejects registry publication into a permanently reserved restore target',async()=>{
   const approval=await approveOdooRestore(pool,runtime,actor,tenant,{backup_id:backupId,reason:'Reserve new target'})
   const target=(await pool.query('SELECT target_database FROM shared_odoo_restore_targets WHERE approval_id=$1',[approval.approval_id])).rows[0].target_database
-  const other=randomUUID();await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Collision fixture','saas','managed',$2,true)",[other,'fixture-'+other])
+  const other=randomUUID();await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Collision fixture','saas','shared_managed',$2,true)",[other,'fixture-'+other])
   await expect(pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,false,1)',[other,'t'+other.replaceAll('-',''),'t'+other+'.invalid',target])).rejects.toThrow('permanently reserved')
  })
  it('rejects a synthetic backup without real metadata even if its manifest has the expected shape',async()=>{

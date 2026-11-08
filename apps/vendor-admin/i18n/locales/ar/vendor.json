@@ -47,7 +47,8 @@
       "nonSaas": "غير برمجية كخدمة"
     },
     "hosting": {
-      "managed": "استضافة مُدارة",
+      "sharedManaged": "استضافة مُدارة مشتركة",
+      "dedicatedManaged": "استضافة مُدارة مخصّصة",
       "customerHosted": "استضافة لدى العميل"
     },
     "targetKind": {

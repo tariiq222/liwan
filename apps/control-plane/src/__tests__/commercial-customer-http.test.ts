@@ -16,7 +16,7 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
   const savedEnv = { provider: process.env.LIWAN_PAYMENT_PROVIDER, origins: process.env.LIWAN_PAYMENT_RETURN_ORIGINS }
   async function fixture() {
     const tenantId=randomUUID(), customer=randomUUID(), subscription=randomUUID(), invoice=randomUUID()
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'HTTP security','saas','managed',$2,false)",[tenantId,`security-${tenantId}`])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'HTTP security','saas','dedicated_managed',$2,false)",[tenantId,`security-${tenantId}`])
     await pool.query("INSERT INTO customers(id,name,tenant_id) VALUES($1,'HTTP customer',$2)",[customer,tenantId])
     await pool.query('INSERT INTO subscriptions(id,customer_id,tenant_id) VALUES($1,$2,$3)',[subscription,customer,tenantId])
     await pool.query(`INSERT INTO invoices(id,customer_id,subscription_id,kind,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end)

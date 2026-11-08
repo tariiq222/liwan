@@ -55,7 +55,7 @@ describe.skipIf(!url)('commercial server change quote proration', () => {
   async function appliedSubscription(withBundle: boolean) {
     const customer = randomUUID(), subscription = randomUUID(), revision = randomUUID()
     const tenant = randomUUID()
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Proration','saas','managed',$2,true)", [tenant, `inv-${tenant}`])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Proration','saas','dedicated_managed',$2,true)", [tenant, `inv-${tenant}`])
     await pool.query("INSERT INTO customers(id,name,tenant_id) VALUES($1,'Proration customer',$2)", [customer, tenant])
     // A fresh observation with the limit gates Odoo reports: removing an application is judged from these.
     const limits = releaseApps.flatMap(a => a.features.filter((f: any) => f.kind === 'limit').map((f: any) => [f.key, a.selectable ? a.features.filter((g: any) => g.kind === 'boolean').map((g: any) => g.key) : []] as const))

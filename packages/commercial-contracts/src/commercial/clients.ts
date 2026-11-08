@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { hostingModelSchema } from '../hosting.js'
 
 /** The vendor client list: every commercial customer with its workspace, plus workspaces that have no customer yet. */
 export const CLIENT_LIST_PAGE_SIZE = 25
@@ -18,7 +19,7 @@ export const clientRowSchema = z.strictObject({
   setup_required: z.boolean(),
   tenant_status: z.string().nullable(),
   commercial_mode: z.enum(['saas', 'non_saas']).nullable(),
-  hosting_model: z.enum(['managed', 'customer_hosted']).nullable(),
+  hosting_model: hostingModelSchema.nullable(),
 }).refine(row => row.customer_id !== null || row.tenant_id !== null, { message: 'client_without_identity' })
 export const clientListSchema = z.strictObject({ items: z.array(clientRowSchema), total: z.number().int().min(0) })
 

@@ -55,7 +55,7 @@ export async function onboardSharedTenant(pool:Pool,config:Config,actor:Registry
     const catalog=await client.query("SELECT solution FROM catalog_entries WHERE version=$1 AND status='published' FOR SHARE",[version])
     if(!catalog.rowCount)throw Error('published_catalog_missing')
     deriveSharedPolicy(catalog.rows[0].solution,tier)
-    await client.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,package_revision_id,operations_enabled,status) VALUES($1,$2,'saas','managed',$3,$4,$5,NULL,true,'provisioning')",[identity.tenantId,input.name,`shared-${identity.slug}`,version,tier])
+    await client.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,package_revision_id,operations_enabled,status) VALUES($1,$2,'saas','shared_managed',$3,$4,$5,NULL,true,'provisioning')",[identity.tenantId,input.name,`shared-${identity.slug}`,version,tier])
     await client.query('INSERT INTO shared_onboardings(request_id,control_tenant_id,issuer,actor_uid,request_digest,admin_name,admin_login,host,tenant_slug,database_name) VALUES($1,$1,$2,$3,$4,$5,$6,$7,$8,$9)',[input.request_id,actor.issuer,actor.actorUid,identity.digest,input.admin_name,input.admin_login,identity.host,identity.slug,identity.database])
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)',[randomUUID(),actorLabel(actor),'shared_onboarding.reserved',identity.tenantId,input.reason])
     return false

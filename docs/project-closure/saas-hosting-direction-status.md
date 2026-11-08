@@ -70,7 +70,7 @@
 `dedicated_managed` استضافة مخصصة تديرها ليوان؛ و`customer_hosted` مع `non_saas`
 تشغيل لدى الجهة دون اعتماد إلزامي على فوترة SaaS أو اتصال البائع وقت التشغيل.
 
-المحاور ليست مستقلة: مصدر السياسة مشتق من وضع التجارة بقيد `CHECK` (`saas` مع `control_plane`، و`non_saas` مع `local_policy`)، و`hosting_model` يحمل `managed` أو `customer_hosted` فقط، ولا يوجد عمود يميز المشترك عن المخصص؛ ذلك في مسار الجرد (`inventory_target`). خريطة التخزين الكاملة في القسم 2 من [العقد](../superpowers/specs/liwan-shared-saas-and-sovereign-deployment.md). الأصل خط مصدر وإصدار واحد مع تهيئة وإضافات خاصة عند الحاجة؛ إنشاء fork دائم يحتاج قرارًا منفصلًا.
+المحاور ليست مستقلة: مصدر السياسة مشتق من وضع التجارة بقيد `CHECK` (`saas` مع `control_plane`، و`non_saas` مع `local_policy`)، و`hosting_model` يحمل `shared_managed` أو `dedicated_managed` أو `customer_hosted` (المهاجرة `schema_034.sql`)، فالعمود نفسه يميز المشترك عن المخصص. خريطة التخزين الكاملة في القسم 2 من [العقد](../superpowers/specs/liwan-shared-saas-and-sovereign-deployment.md). الأصل خط مصدر وإصدار واحد مع تهيئة وإضافات خاصة عند الحاجة؛ إنشاء fork دائم يحتاج قرارًا منفصلًا.
 
 ## التنفيذ المثبت محليًا وحدود الدليل
 

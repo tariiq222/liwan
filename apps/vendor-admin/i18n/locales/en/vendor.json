@@ -47,7 +47,8 @@
       "nonSaas": "Non-SaaS"
     },
     "hosting": {
-      "managed": "Managed hosting",
+      "sharedManaged": "Shared managed hosting",
+      "dedicatedManaged": "Dedicated managed hosting",
       "customerHosted": "Customer-hosted"
     },
     "targetKind": {

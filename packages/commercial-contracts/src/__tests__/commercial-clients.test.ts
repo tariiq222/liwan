@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { clientListSchema, clientRowSchema, clientStateFilterSchema } from '../commercial/index.js'
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
-const row = { customer_id: id(1), tenant_id: id(2), name: 'شركة', subscription_state: 'active', plan_name: 'الأساسية', pending_plan_name: null, renewal_at: '2026-12-01', setup_required: false, tenant_status: 'active', commercial_mode: 'saas', hosting_model: 'managed' }
+const row = { customer_id: id(1), tenant_id: id(2), name: 'شركة', subscription_state: 'active', plan_name: 'الأساسية', pending_plan_name: null, renewal_at: '2026-12-01', setup_required: false, tenant_status: 'active', commercial_mode: 'saas', hosting_model: 'dedicated_managed' }
 
 describe('client list contract', () => {
   it('parses a customer with a workspace, a customer without one and a workspace without a customer', () => {
