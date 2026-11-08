@@ -217,7 +217,7 @@ function auditRefusal(req, error) {
     host: String(req.headers?.host ?? '').slice(0, 200)
   }))
 }
-export function createGuard({ registryPath, restoreRegistryPath, proxyToken, prospectHost = '', keys, activeKid, odooUrl, webUrl, wsUrl = odooUrl, restoreOdooUrl, restoreWsUrl = restoreOdooUrl, releaseRoutesDir, releaseAssetsDir }) {
+export function createGuard({ registryPath, restoreRegistryPath = '', proxyToken, prospectHost = '', keys, activeKid, odooUrl, webUrl, wsUrl = odooUrl, restoreOdooUrl = '', restoreWsUrl = restoreOdooUrl, releaseRoutesDir, releaseAssetsDir }) {
   if (releaseAssetsDir !== undefined) {
     if (!releaseRoutesDir) throw Error('release_assets_require_routes')
     validateAssetStore(releaseAssetsDir)
