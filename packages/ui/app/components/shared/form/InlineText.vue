@@ -78,7 +78,7 @@ function cancel() {
     <UInput
       v-if="editing"
       ref="input"
-      v-model="draft"
+      :model-value="draft"
       :type="props.type"
       :min="props.min"
       :max="props.max"
@@ -87,6 +87,7 @@ function cancel() {
       :class="['min-w-0', props.inputClass ?? 'w-full']"
       :aria-label="props.label"
       :data-testid="props.inputTestId"
+      @update:model-value="draft = String($event ?? '')"
       @blur="commit(false)"
       @keydown.enter.prevent="commit(true)"
       @keydown.escape.stop.prevent="cancel"
