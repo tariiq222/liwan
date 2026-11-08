@@ -34,7 +34,7 @@ async function projectWithTools(page: Page, tools: Record<string, boolean>) {
     for (const [tool, enabled] of Object.entries(tools)) expect(detail.tools[tool].enabled, `${tool} tool`).toBe(enabled);
     return detail;
 }
-test('real login form rejects invalid credentials then loads a real capability identity', async ({ page }) => {
+test('real login form rejects invalid credentials, then walks the two-step sign-in', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('اسم المستخدم').fill('e2e_admin');
     await page.getByLabel('كلمة المرور').fill('invalid-scratch-password');
@@ -42,10 +42,21 @@ test('real login form rejects invalid credentials then loads a real capability i
     await page.getByRole('button', { name: 'دخول', exact: true }).click();
     expect((await response).status()).toBe(401);
     await expect(page.getByText('بيانات الدخول غير صحيحة')).toBeVisible();
+    // A correct password alone never signs in: the form moves on to the second step.
     await page.getByLabel('كلمة المرور').fill(process.env.E2E_USER_ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'liwan-e2e-admin-2026');
     response = page.waitForResponse(r => r.url().endsWith('/api/auth/login') && r.request().method() === 'POST');
     await page.getByRole('button', { name: 'دخول', exact: true }).click();
     expect((await response).status()).toBe(200);
+    await expect(page.getByTestId('login-code')).toBeVisible();
+    // The fixture-seeded remembered device is what finishes this step on a stack with no SMS provider:
+    // the code step is the primary path, and a usable device cookie is the non-blocking alternative.
+    await page.context().addCookies([{ name: 'liwan_device', value: fixture.device.admin, url: ACCEPTANCE_ORIGIN, httpOnly: true, sameSite: 'Lax' }]);
+    response = page.waitForResponse(r => r.url().endsWith('/api/auth/login') && r.request().method() === 'POST');
+    await page.getByTestId('login-another').click();
+    await page.getByLabel('كلمة المرور').fill(process.env.E2E_USER_ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'liwan-e2e-admin-2026');
+    const device = page.waitForResponse(r => r.url().endsWith('/api/auth/device') && r.request().method() === 'POST');
+    await page.getByRole('button', { name: 'دخول', exact: true }).click();
+    expect((await device).status()).toBe(200);
     await expect(page.getByTestId('global-search-trigger')).toBeEnabled();
     const me = await body(await page.request.get('/api/v1/me'));
     expect(me.company.id).toBe(fixture.company);

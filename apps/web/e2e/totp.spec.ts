@@ -52,10 +52,10 @@ for (const destination of [
 
     // The channel chooser appears first (no destination exists yet), the send answer names the masked
     // destination, and then the code field is ready.
-    await expect(page.getByRole('radio', { name: 'رسالة نصية' })).toBeVisible()
-    await page.getByRole('button', { name: 'أرسل الرمز' }).click()
+    await expect(page.getByTestId('login-channel-sms')).toBeVisible()
+    await page.getByTestId('login-send').click()
     await expect(page.getByTestId('login-destination')).toContainText('***011')
-    await page.getByLabel('الرمز').fill('123456')
+    await page.getByTestId('login-code').fill('123456')
     await page.getByRole('button', { name: 'تحقق' }).click()
 
     await expect(page).toHaveURL(destination.expected)

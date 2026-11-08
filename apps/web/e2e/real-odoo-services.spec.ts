@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 // This suite creates scratch records. The coordinator alone selects/seeds/runs its real database.
 test.skip(process.env.E2E_REAL_ODOO !== '1', 'Explicit isolated real Odoo acceptance only')
 test.beforeEach(async ({}, info) => { const origin = new URL(String(info.project.use.baseURL)); expect(origin.hostname).toBe('localhost'); expect(origin.port).toBe('44300') })
-type Fixtures = { company: number; admin: number; reader: number; department: number; grant_employee: number; grant_email: string }
+type Fixtures = { company: number; admin: number; reader: number; department: number; grant_employee: number; grant_email: string; device: { admin: string; reader: string } }
 function fixtures(): Fixtures {
   const path = process.env.E2E_REAL_FIXTURE
   if (!path) throw new Error('E2E_REAL_FIXTURE must name the coordinator exported scratch fixture JSON')
@@ -14,13 +14,20 @@ async function body(response: APIResponse | Response, status = 200) {
   expect(response.status(), await response.text()).toBe(status)
   return response.json()
 }
+// Every sign-in is two-step. The fixture seeds one remembered device per acceptance account, because a
+// scratch stack has no SMS provider and only a code's hash is stored; this drives that second path.
 async function login(page: Page, reader = false) {
-  await body(await page.request.post('/api/auth/login', { data: {
+  const token = fixtures().device?.[reader ? 'reader' : 'admin']
+  expect(token, 'the fixture must seed a remembered device').toBeTruthy()
+  await page.context().addCookies([{ name: 'liwan_device', value: token, url: 'http://localhost:44300', httpOnly: true, sameSite: 'Lax' }])
+  const step = await (await page.request.post('/api/auth/login', { data: {
     login: reader ? 'e2e_employee' : 'e2e_admin',
     password: reader
       ? (process.env.E2E_USER_EMPLOYEE_PASSWORD ?? process.env.E2E_EMPLOYEE_PASSWORD ?? 'liwan-e2e-employee-2026')
       : (process.env.E2E_USER_ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'liwan-e2e-admin-2026'),
-  } }))
+  } })).json()
+  expect(step).toEqual({ ok: false, mfa: 'code' })
+  await body(await page.request.post('/api/auth/device', { data: {} }))
 }
 async function open(page: Page, path: string) {
   await page.goto(path)

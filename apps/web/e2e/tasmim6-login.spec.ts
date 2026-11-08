@@ -63,7 +63,7 @@ test.describe('Plan 6d: the sign-in page', () => {
     await page.locator('#login').fill('admin')
     await page.locator('#password').fill('mock-secret')
     await page.getByRole('button', { name: 'دخول', exact: true }).click()
-    await page.getByRole('button', { name: 'أرسل الرمز', exact: true }).click()
+    await page.getByTestId('login-send').click()
     await expect(page.locator('#login-code')).toBeVisible()
     await page.locator('#login-code').fill('123456')
     await page.getByRole('button', { name: 'تحقق', exact: true }).click()
