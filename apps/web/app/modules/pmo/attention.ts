@@ -2,7 +2,7 @@ import { ProjectListSchema, TaskListSchema } from '@liwan/contracts'
 import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
 import { ATTENTION_ROWS_PER_PROVIDER } from '../../composables/nav/attentionModel'
 import { PROJECT_ATTENTION_STATUSES, PROJECT_STATUS_LABEL_KEY } from '../../composables/projectStatus'
-import type { AppAttentionProvider } from '../types'
+import type { AppAttentionProvider, AppAttentionRow } from '../types'
 
 /** My project tasks whose deadline has passed, oldest deadline first. */
 export const overdueTasksAttention: AppAttentionProvider = {
