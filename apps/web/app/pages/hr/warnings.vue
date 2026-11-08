@@ -53,6 +53,7 @@ const showEmpty = computed(() => !warnings.isLoading.value && !warnings.error.va
 const activeFilterCount = computed(() => [employeeId.value, typeId.value, state.value === 'all' ? null : state.value].filter(Boolean).length)
 
 const typeOptions = computed(() => (types.data.value?.items ?? []).map(type => ({ value: String(type.id), label: type.name })))
+const typeName = computed(() => typeOptions.value.find(option => option.value === String(typeId.value))?.label ?? t('hrWarnings.columns.type'))
 const stateOptions = computed(() => (['all', ...HR_WARNING_STATES] as const).map(value => ({
   value,
   label: value === 'all' ? t('hrWarnings.allStates') : t(`hrWarnings.state.${value}`),
@@ -95,24 +96,18 @@ function warningTo(row: HrWarning) {
   <SharedListPage
     v-if="isListRoute"
     :title="t('nav.warnings')"
+    :description="t('hrWarnings.description')"
     :create-to="createTo"
     :create-label="t('hrWarnings.new')"
     create-test-id="hr-warning-new"
   >
     <SharedListCard>
       <template #filters>
-        <div class="liwan-page-stack">
-          <SharedSegmentedControl
-            :model-value="state"
-            :items="stateOptions"
-            :label="t('hrWarnings.filter.state')"
-            :disabled="!hydrated"
-            @update:model-value="writeQuery({ state: stateParam($event), offset: 0 })"
-          />
-          <SharedFilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-            <SharedFilterField :label="t('hrWarnings.columns.employee')" for="hr-warnings-employee">
-              <EmployeeSearchSelect id="hr-warnings-employee" :model-value="employeeId" :any-label="t('hrWarnings.anyEmployee')" :placeholder="t('hrWarnings.anyEmployee')" :disabled="!hydrated" test-id="hr-warnings-employee" @update:model-value="writeQuery({ employee: $event, offset: 0 })" />
-            </SharedFilterField>
+        <SharedFilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+          <template #search>
+            <EmployeeSearchSelect id="hr-warnings-employee" :model-value="employeeId" :any-label="t('hrWarnings.anyEmployee')" :placeholder="t('hr.employeePicker.search')" :disabled="!hydrated" test-id="hr-warnings-employee" @update:model-value="writeQuery({ employee: $event, offset: 0 })" />
+          </template>
+          <SharedFilterPopover :count="typeId ? 1 : 0" :disabled="!hydrated">
             <SharedFilterField :label="t('hrWarnings.columns.type')" for="hr-warnings-type">
               <USelect
                 id="hr-warnings-type"
@@ -125,11 +120,20 @@ function warningTo(row: HrWarning) {
                 @update:model-value="writeQuery({ type: $event ? Number($event) : null, offset: 0 })"
               />
             </SharedFilterField>
-            <template #active>
-              <SharedFilterChip v-if="state !== 'all'" :label="t(`hrWarnings.state.${state}`)" @remove="writeQuery({ state: 'all', offset: 0 })" />
-            </template>
-          </SharedFilterBar>
-        </div>
+          </SharedFilterPopover>
+          <div class="max-w-full overflow-x-auto">
+            <SharedSegmentedControl
+              :model-value="state"
+              :items="stateOptions"
+              :label="t('hrWarnings.filter.state')"
+              :disabled="!hydrated"
+              @update:model-value="writeQuery({ state: stateParam($event), offset: 0 })"
+            />
+          </div>
+          <template #active>
+            <SharedFilterChip v-if="typeId" :label="typeName" @remove="writeQuery({ type: null, offset: 0 })" />
+          </template>
+        </SharedFilterBar>
       </template>
 
       <SharedPageState :error="warnings.error.value" :keep-content="items.length > 0" @retry="warnings.refetch">

@@ -56,7 +56,7 @@ const activeOptions = computed(() => ACTIVE_FILTERS.map(value => ({
 
 const columns = computed<TableColumn<HrRecruitmentJob>[]>(() => [
   { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
-  { accessorKey: 'name', header: t('hrRecruitment.jobs.columns.name') },
+  { accessorKey: 'name', header: t('hrRecruitment.jobs.columns.name'), meta: { title: true } },
   { accessorKey: 'department', header: t('hrRecruitment.jobs.columns.department') },
   { accessorKey: 'no_of_recruitment', header: t('hrRecruitment.jobs.columns.target'), meta: { class: { th: 'w-[96px]', td: 'w-[96px]' } } },
   { accessorKey: 'application_count', header: t('hrRecruitment.jobs.columns.applications'), meta: { class: { th: 'w-[110px]', td: 'w-[110px]' } } },
@@ -105,33 +105,28 @@ function jobTo(job: HrRecruitmentJob) {
   >
     <SharedListCard>
       <template #filters>
-        <div class="liwan-page-stack">
-          <SharedSegmentedControl
-            :model-value="active"
-            :items="activeOptions"
-            :label="t('hrRecruitment.jobs.columns.state')"
-            :disabled="!hydrated"
-            @update:model-value="writeQuery({ active: activeParam($event), offset: 0 })"
-          />
-          <SharedFilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="writeQuery({ q: '', active: 'true', offset: 0 })">
-            <template #search>
-              <UInput
-                :model-value="search"
-                class="min-w-48 flex-1"
-                icon="i-lucide-search"
-                :disabled="!hydrated"
-                :aria-label="t('hrRecruitment.jobs.search')"
-                :placeholder="t('hrRecruitment.jobs.search')"
-                data-testid="hr-recruitment-jobs-search"
-                @update:model-value="writeQuery({ q: String($event ?? ''), offset: 0 })"
-              />
-            </template>
-            <template #active>
-              <SharedFilterChip v-if="search.trim()" :label="t('hrRecruitment.searchValue', { value: search })" @remove="writeQuery({ q: '', offset: 0 })" />
-              <SharedFilterChip v-if="active !== 'true'" :label="t(`hrRecruitment.jobs.filter.${active}`)" @remove="writeQuery({ active: 'true', offset: 0 })" />
-            </template>
-          </SharedFilterBar>
-        </div>
+        <SharedFilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="writeQuery({ q: '', active: 'true', offset: 0 })">
+          <template #search>
+            <UInput
+              :model-value="search"
+              icon="i-lucide-search"
+              :disabled="!hydrated"
+              :aria-label="t('hrRecruitment.jobs.search')"
+              :placeholder="t('hrRecruitment.jobs.search')"
+              data-testid="hr-recruitment-jobs-search"
+              @update:model-value="writeQuery({ q: String($event ?? ''), offset: 0 })"
+            />
+          </template>
+          <div class="max-w-full overflow-x-auto">
+            <SharedSegmentedControl
+              :model-value="active"
+              :items="activeOptions"
+              :label="t('hrRecruitment.jobs.columns.state')"
+              :disabled="!hydrated"
+              @update:model-value="writeQuery({ active: activeParam($event), offset: 0 })"
+            />
+          </div>
+        </SharedFilterBar>
       </template>
 
       <SharedPageState :error="jobs.error.value" :keep-content="items.length > 0" @retry="jobs.refetch">

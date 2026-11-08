@@ -1,5 +1,6 @@
 {
   "hrWarnings": {
+    "description": "Record administrative warnings for employees and follow their replies.",
     "title": "Administrative warnings",
     "new": "New warning",
     "anyEmployee": "All employees",
