@@ -56,7 +56,10 @@ services:
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     read_only: true
-    tmpfs: ["/tmp"]
+    tmpfs:
+      - /tmp
+      # The pinned image's postgres user (UID/GID 70) generates its config and userlist.
+      - /etc/pgbouncer:uid=70,gid=70,mode=0700,noexec,nosuid,nodev
     environment:
       DB_HOST: db
       DB_PORT: "5432"

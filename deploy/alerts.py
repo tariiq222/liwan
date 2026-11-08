@@ -31,6 +31,7 @@ import argparse
 import json
 import os
 import smtplib
+import ssl
 import sys
 import urllib.parse
 import urllib.request
@@ -378,7 +379,7 @@ class EmailSender:
         with self.smtp_factory(settings.host, settings.port, timeout=SMTP_TIMEOUT_SECONDS) as client:
             client.ehlo()
             if settings.starttls:
-                client.starttls()
+                client.starttls(context=ssl.create_default_context())
                 client.ehlo()
             if settings.username:
                 client.login(settings.username, settings.password)
@@ -648,13 +649,13 @@ def _report_payload(message: AlertMessage, report: DeliveryReport,
     payload: dict[str, object] = {
         'event': message.event.value.name,
         'severity': message.severity.value,
-        'target': message.target,
         'alerted': True,
         'channels': {delivery.channel: {'delivered': delivery.delivered, 'error': delivery.error}
                      for delivery in report.deliveries},
         'disabled': {state.channel: state.reason for state in config.states if not state.enabled},
     }
     if report.withheld_reason is None:
+        payload['target'] = message.target
         payload['subject'] = message.subject
         payload['body'] = message.body
     else:

@@ -12,6 +12,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import ssl
 import unittest
 import urllib.error
 import urllib.parse
@@ -252,8 +253,8 @@ class TestRealTransportsAddressTheRightEndpoint(unittest.TestCase):
             def ehlo(self):
                 calls.append(('ehlo',))
 
-            def starttls(self):
-                calls.append(('starttls',))
+            def starttls(self, *, context):
+                calls.append(('starttls', context.verify_mode, context.check_hostname))
 
             def login(self, user, password):
                 calls.append(('login', user, password))
@@ -265,7 +266,7 @@ class TestRealTransportsAddressTheRightEndpoint(unittest.TestCase):
         EmailSender(settings, smtp_factory=FakeSMTP).send(one_message(AlertEvent.BACKUP_STALE))
         self.assertEqual(calls[0], ('connect', 'smtp.example.test', 2525,
                                     alerts.SMTP_TIMEOUT_SECONDS))
-        self.assertLess(calls.index(('starttls',)), calls.index(
+        self.assertLess(calls.index(('starttls', ssl.CERT_REQUIRED, True)), calls.index(
             ('send_message', one_message(AlertEvent.BACKUP_STALE).subject)))
         self.assertIn(('login', 'alerts@example.test', SMTP_SECRET), calls)
 
@@ -285,7 +286,7 @@ class TestRealTransportsAddressTheRightEndpoint(unittest.TestCase):
             def ehlo(self):
                 pass
 
-            def starttls(self):
+            def starttls(self, *, context):
                 calls.append('starttls')
 
             def login(self, user, password):
@@ -663,6 +664,16 @@ class TestCommandLine(unittest.TestCase):
         self.assertNotIn('subject', payload)
         self.assertIn('credential', payload['withheld'])
         self.assertIn('credential', stderr)
+
+    def test_a_withheld_message_omits_a_credential_used_as_the_target(self):
+        code, stdout, stderr = self.run_main(
+            ['backup_failed', '--database', BOT_SECRET, '--reason', 'pg_dump failed'],
+            env=full_environment(),
+            transports=Transports(email=FakeTransport(), telegram=FakeTransport()),
+        )
+        self.assertEqual(code, alerts.EXIT_DELIVERY_FAILED)
+        self.assertNotIn(BOT_SECRET, stdout + stderr)
+        self.assertNotIn('target', json.loads(stdout))
 
     def test_the_container_probe_reports_the_state_it_actually_read(self):
         email = FakeTransport()
