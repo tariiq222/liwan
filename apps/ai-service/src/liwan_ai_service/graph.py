@@ -27,7 +27,7 @@ from liwan_ai_service.contracts import CORE_AGENT, AgentSpec, RunContext, RunReq
 from liwan_ai_service.embeddings import Embedder
 from liwan_ai_service.knowledge import KnowledgeStore
 from liwan_ai_service.memory import MemoryFull, MemoryStore
-from liwan_ai_service.prompts import system_prompt, tool_summary
+from liwan_ai_service.prompts import frame_record_text, system_prompt, tool_summary
 from liwan_ai_service.usage import RunModel, invoke_planned, tokens_of
 
 
@@ -268,6 +268,34 @@ def _error(call_id: str, code: str, message: str) -> ToolMessage:
     return ToolMessage(content=json.dumps({"ok": False, "error": {"code": code, "message": message}}, ensure_ascii=False), tool_call_id=call_id)
 
 
+def _carries_text(value: Any) -> bool:
+    """Whether a tool result holds any text at all: a count, a total and a bare status do not."""
+    if isinstance(value, str):
+        return True
+    if isinstance(value, dict):
+        return any(_carries_text(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_carries_text(item) for item in value)
+    return False
+
+
+def tool_message_content(result: ToolResult, tool: ToolSpec) -> str:
+    """What a tool result becomes in the model's context, its record text framed in the fixed delimiter (issue #555).
+
+    A read or a small change answers with record text — a knowledge passage, a task name, a project's rationale — that an
+    employee wrote and a colleague reads, so the payload reaches the model as one framed block. The whole JSON is framed
+    once rather than every string field: one delimiter pair covers all of the result's record text, the payload keeps its
+    shape inside the frame, and the prompt stays small. A result that carries no text at all (a finance summary's
+    numbers) stays bare, because framing would change the shape the model reads for nothing. A failure or a decision
+    keeps its own envelope, because it is the platform's answer; so does a draft's approval, whose data is the model's own
+    proposed payload, not an employee's record text.
+    """
+    if result.ok and result.data is not None:
+        payload = json.dumps(result.data, ensure_ascii=False)
+        return frame_record_text(payload) if tool.kind != "draft" and _carries_text(result.data) else payload
+    return json.dumps(result.model_dump(exclude_none=True), ensure_ascii=False)
+
+
 def interrupted_replies(messages: list) -> list[ToolMessage]:
     """Error replies for the tool calls of the last model message that never got one (a cancel or a crash cut the turn short).
 
@@ -466,8 +494,8 @@ def build_graph(checkpointer):
         }
         result = ToolResult.model_validate(interrupt(payload))
         # A successful result reaches the model as its bare data; a failure keeps the {ok, error|decision} envelope.
-        content = result.data if result.ok and result.data is not None else result.model_dump(exclude_none=True)
-        tool_message = ToolMessage(content=json.dumps(content, ensure_ascii=False), tool_call_id=first["id"])
+        # Record text is framed once, here, where the data enters the model's context (issue #555).
+        tool_message = ToolMessage(content=tool_message_content(result, tool), tool_call_id=first["id"])
         results = list(state["results"])
         if result.ok and result.data is not None and tool.kind == "read":
             results.append((tool.name, result.data))
