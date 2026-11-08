@@ -205,9 +205,26 @@ class TestRecordedRefunds(LiwanRefundCase):
         order = self.paid_order()
         self.cancel_by_customer(order)
         self.record(order, 50.0, 'PMB-R-12')
-        with self.assertRaises(RefundConflict):
+        with self.assertRaises(RefundConflict) as conflict:
             self.record(order, 50.0, 'PMB-R-12')
+        self.assertIn('already recorded', str(conflict.exception))
         self.assertEqual(order.liwan_refund_due_amount, 65.0)
+
+    def test_two_refunds_with_one_free_text_reference_are_both_recorded(self):
+        self.rules(refund_amounts='any')
+        order = self.paid_order()
+        self.cancel_by_customer(order)
+        first = self.record(order, 50.0, '1')
+        second = self.record(order, 65.0, '1')
+        self.assertEqual(order.liwan_refund_due_amount, 0.0)
+        refunds = self.env['payment.transaction'].browse((first | second).ids)
+        self.assertEqual(sorted(abs(amount) for amount in refunds.mapped('amount')), [50.0, 65.0])
+        self.assertEqual(set(refunds.mapped('provider_reference')), {'1'})
+        with self.assertRaises(RefundConflict) as conflict:
+            self.record(order, 50.0, '1')
+        message = str(conflict.exception)
+        self.assertIn(order.name, message)
+        self.assertIn(fields.Date.to_string(refunds[:1].last_state_change.date()), message)
 
     def test_a_refund_being_recorded_holds_the_order(self):
         order = self.paid_order()

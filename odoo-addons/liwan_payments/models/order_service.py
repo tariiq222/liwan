@@ -165,7 +165,8 @@ class LiwanPaymentsService(models.AbstractModel):
         :raise RefundRefused: when ``amount`` exceeds what is due, or is not all of it where the rules
             ask for the whole amount.
         :raise RefundConflict: when another refund of the order is being recorded, a payment of it is not
-            recorded yet, or a refund with ``reference`` is recorded already.
+            recorded yet, or a refund with the same ``reference`` and the same ``amount`` is recorded
+            already (an exact replay of one gateway refund).
         """
         order = order.sudo()
         self._liwan_require_capability_in(REFUND, order.company_id)
@@ -178,9 +179,19 @@ class LiwanPaymentsService(models.AbstractModel):
         if any(not tx.is_post_processed for tx in payments):
             # Stock records no payment entry for a transaction that already has a done child.
             raise RefundConflict(self.env._("A payment of this order is still being recorded; try again later."))
-        if payments.child_transaction_ids.filtered(lambda tx: tx.state == 'done' and tx.provider_reference == reference):
-            raise RefundConflict(self.env._("A refund with this gateway reference is already recorded on this order."))
         currency = order.currency_id
+        duplicate = payments.child_transaction_ids.filtered(
+            lambda tx: tx.state == 'done' and tx.provider_reference == reference
+            and not currency.compare_amounts(abs(tx.amount), amount),
+        )
+        if duplicate:
+            recorded = duplicate[:1]
+            raise RefundConflict(self.env._(
+                "This refund is already recorded on order %(order)s of %(date)s under the reference %(reference)s.",
+                order=order.name,
+                date=fields.Date.to_string(recorded.last_state_change.date()) if recorded.last_state_change else '',
+                reference=reference,
+            ))
         due = order.liwan_refund_due_amount
         if currency.compare_amounts(amount, 0.0) <= 0 or currency.compare_amounts(amount, due) > 0:
             raise RefundRefused(self.env._("A refund is more than zero and at most the amount due."))
