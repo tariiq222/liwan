@@ -94,8 +94,12 @@ export const AiAuditRequestSchema = z.object({
   http_status: z.number().int().min(100).max(599).nullable(),
   draft: z.record(z.string(), z.unknown()).nullable(),
   approved: z.record(z.string(), z.unknown()).nullable(),
+  /**
+   * Kept for wire compatibility and refused as a claim of its own: Odoo stamps the acknowledgement from the row's
+   * `result` (issue #556), so an `approved` draft carries one whatever this field says and a proposal never does.
+   */
   attested: z.boolean(),
-}).strict().refine(body => body.result !== 'approved' || body.attested, { message: 'an approved draft needs attestation', path: ['attested'] })
+}).strict()
 export type AiAuditRequest = z.infer<typeof AiAuditRequestSchema>
 export const AiAuditReceiptSchema = z.object({ id: z.number().int().positive(), messages_used: z.number().int().nonnegative(), messages_limit: z.number().int().nonnegative().nullable() }).strict()
 export type AiAuditReceipt = z.infer<typeof AiAuditReceiptSchema>

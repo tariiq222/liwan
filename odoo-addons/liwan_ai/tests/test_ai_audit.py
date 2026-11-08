@@ -98,18 +98,21 @@ class TestAiAudit(AiProbe, LiwanApiCase):
         self.assertEqual(response.status_code, 422)
         self.assertEqual(response.json()['field'], 'tool_name')
 
-    def test_draft_lifecycle_requires_attestation_to_approve(self):
+    def test_the_server_stamps_the_acknowledgement_of_an_approved_draft(self):
+        """Issue #556: the acknowledgement is not a field the caller asserts; an approved row carries it by construction."""
         self.granted = {READ_CAP, CREATE_CAP}
         proposed = self.api('POST', '/api/v1/ai/audit', DRAFT)
         self.assertEqual(proposed.status_code, 200)
-        unattested = self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'result': 'approved', 'approved': {'name': 'A2'}})
-        self.assertEqual(unattested.status_code, 422)
-        self.assertEqual(unattested.json()['field'], 'attested')
-        approved = self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'result': 'approved', 'approved': {'name': 'A2'}, 'attested': True})
+        # A caller that claims no attestation still gets one: the server, not the browser, records the approval.
+        approved = self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'result': 'approved', 'approved': {'name': 'A2'}, 'attested': False})
         self.assertEqual(approved.status_code, 200)
         row = self.env['liwan.ai.audit'].browse(approved.json()['id'])
         self.assertTrue(row.attested_at)
         self.assertEqual((row.draft, row.approved), ({'name': 'A'}, {'name': 'A2'}))
+        # A proposal is not an approval, whatever the wire said.
+        claimed = self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'attested': True})
+        self.assertEqual(claimed.status_code, 200)
+        self.assertFalse(self.env['liwan.ai.audit'].browse(claimed.json()['id']).attested_at)
 
     def test_approved_result_is_only_valid_for_drafts(self):
         response = self.api('POST', '/api/v1/ai/audit', {**READ, 'result': 'approved', 'attested': True})
@@ -345,7 +348,7 @@ class TestAiAuditHardening(AiProbe, LiwanApiCase):
             ({'company_id': self.env.company.id}, 'company_id'),
             ({'attested_at': '2020-01-01 00:00:00'}, 'attested_at'),
             ({'create_date': '2020-01-01 00:00:00'}, 'create_date'),
-            ({'result': 'approved', 'kind': 'draft', 'tool_name': 'probe.draft_thing', 'approved': {'a': 1}}, 'attested'),
+            ({'result': 'approved', 'kind': 'draft', 'tool_name': 'probe.draft_thing'}, 'approved'),
         ):
             with self.assertRaises(ValidationError, msg=change) as caught:
                 self.audit_a.create({**(DRAFT if 'kind' in change else READ), **change})

@@ -28,8 +28,11 @@ describe('LiwanOS AI contracts', () => {
     expect(() => AiEventSchema.parse({ event: 'explode', data: {} })).toThrow()
   })
 
-  it('requires attestation to approve a draft and strips nothing silently', () => {
-    expect(() => AiAuditRequestSchema.parse({ conversation_id: 'r_1', kind: 'draft', tool_name: 'pmo.draft_project', input: {}, result: 'approved', http_status: null, draft: {}, approved: {}, attested: false })).toThrow()
+  it('leaves the acknowledgement to the server and strips nothing silently (issue #556)', () => {
+    // The row's own result decides the acknowledgement; the wire flag is neither required nor decisive.
+    const row = { conversation_id: 'r_1', kind: 'draft', tool_name: 'pmo.draft_project', input: {}, result: 'approved', http_status: null, draft: {}, approved: {}, attested: false }
+    expect(AiAuditRequestSchema.parse(row).attested).toBe(false)
+    expect(() => AiAuditRequestSchema.parse({ ...row, surprise: 1 })).toThrow()
     expect(AiAuditRequestSchema.parse({ conversation_id: 'r_1', kind: 'message', tool_name: null, input: null, result: 'ok', http_status: null, draft: null, approved: null, attested: false }).kind).toBe('message')
   })
 

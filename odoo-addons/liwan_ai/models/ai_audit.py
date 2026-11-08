@@ -154,8 +154,10 @@ class LiwanAiAudit(models.Model):
         result = values.get('result')
         if not isinstance(result, str) or result not in AUDIT_RESULTS:
             invalid('result', f'result must be one of {AUDIT_RESULTS}')
-        attested = values.get('attested', False)
-        if not isinstance(attested, bool):
+        # ``attested`` stays on the wire contract as a flag the caller may set, but it is no longer the record of the
+        # acknowledgement: the row's own result decides that (see ``attested_at`` below), so a client can neither claim one
+        # it did not make nor lose one it did (issue #556).
+        if not isinstance(values.get('attested', False), bool):
             invalid('attested', 'attested must be a boolean')
         tool_name = values.get('tool_name')
         http_status = values.get('http_status')
@@ -167,7 +169,7 @@ class LiwanAiAudit(models.Model):
             for field in ('agent', 'tool_name', 'input', 'draft', 'approved', 'http_status'):
                 if values.get(field) is not None:
                     invalid(field, f'a message audit has no {field}')
-            if attested:
+            if values.get('attested'):
                 invalid('attested', 'a message audit is not attested')
             if result != 'ok':
                 invalid('result', 'a message audit result is ok')
@@ -186,8 +188,6 @@ class LiwanAiAudit(models.Model):
             invalid('result', f'a draft result must be one of {DRAFT_RESULTS}')
         if kind != 'draft' and result in DRAFT_RESULTS:
             invalid('result', f'result {result} is only valid for a draft')
-        if result == 'approved' and not attested:
-            invalid('attested', 'an approved draft needs the user attestation')
         if result == 'approved' and not isinstance(values.get('approved'), dict):
             invalid('approved', 'an approved draft carries the approved payload')
         payload = {field: self._liwan_ai_json(field, values.get(field)) for field in ('input', 'draft', 'approved')}
@@ -205,7 +205,9 @@ class LiwanAiAudit(models.Model):
             'tool_name': tool_name,
             'result': result,
             'http_status': http_status,
-            'attested_at': fields.Datetime.now() if attested else False,
+            # The server stamps the acknowledgement, never the caller (issue #556): an `approved` draft is approved by the
+            # session that recorded it, at this transaction's time, whatever the wire said about `attested`.
+            'attested_at': fields.Datetime.now() if result == 'approved' else False,
             **payload,
         }
 

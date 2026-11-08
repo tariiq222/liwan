@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import ProjectCreateForm from '@/components/pmo/projects/ProjectCreateForm.vue'
-import { useApi } from '@/composables/useApi'
-import { aiApprovalAudit, clearAiDraft, readAiDraft, withCreatedProject, withoutCreated } from '@/utils/aiDraft'
+import { clearAiDraft, readAiDraft, withCreatedProject, withoutCreated } from '@/utils/aiDraft'
 import { owningListBack, recordEntryOrigin } from '@/utils/recordListOrigin'
 import { useProjectList } from '@/composables/useProjects'
 import { createdProjectLocation } from '@/utils/projectCharter'
@@ -13,7 +12,6 @@ const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
-const { $api } = useApi()
 const aiDraftId = computed(() => (typeof route.query.aiDraft === 'string' ? route.query.aiDraft : null))
 // `/ai` is a valid way back only while a Liwan AI draft is being approved on this page.
 const sourcePaths = useRecordListPaths(() => ['/projects', '/projects/dashboard', ...(aiDraftId.value ? ['/ai'] : [])])
@@ -30,19 +28,12 @@ const forbidden = computed(() => errorStateKind(listError.value) === 'forbidden'
 async function onCreated(id: number) {
   toast.add({ title: t('projects.created'), color: 'success' })
   const draftId = aiDraftId.value
-  const handoff = draftId ? readAiDraft(draftId) : null
-  const audit = aiApprovalAudit(handoff, id)
-  if (!draftId || !audit) {
+  if (!draftId || !readAiDraft(draftId)) {
     router.replace(createdProjectLocation(id, returnTo.value))
     return
   }
-  // The project exists already, so a failed audit warns but never blocks the way back.
-  try {
-    await $api('/api/v1/ai/audit', { method: 'POST', body: audit })
-  }
-  catch {
-    toast.add({ title: t('projects.create.aiAuditFailed'), color: 'warning' })
-  }
+  // The draft was approved by creating this project, and `/ai` records that approval on the server when it resumes the
+  // draft's call with this id (issue #556): the browser writes no audit row and asserts nothing about itself.
   clearAiDraft(draftId)
   if (returnTo.value.startsWith('/ai')) router.replace(withCreatedProject(returnTo.value, id))
   else router.replace(createdProjectLocation(id, returnTo.value))

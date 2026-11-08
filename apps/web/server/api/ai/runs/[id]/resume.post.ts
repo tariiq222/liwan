@@ -57,6 +57,13 @@ export default defineEventHandler(async (event) => {
       const draft = restoreValue(pending.input, session.tokenKey)
       auditFailed = !await tryAudit(event, { conversation_id: id, kind: 'draft', agent: pending.agent, tool_name: pending.tool, input: draft, result: 'rejected', http_status: null, draft, approved: null, attested: false })
     }
+  } else if (pending.kind === 'draft') {
+    // A submitted draft is recorded here, never by the browser: the call and its payload come from the service, the signer
+    // is the session user and the time is Odoo's (`attested_at`), so no client can forge an approval or its payload.
+    const draft = restoreValue(pending.input, session.tokenKey)
+    const approved = body.data ?? {}
+    result = { ok: true, decision: 'approved', data: approved }
+    auditFailed = !await tryAudit(event, { conversation_id: id, kind: 'draft', agent: pending.agent, tool_name: pending.tool, input: draft, result: 'approved', http_status: 201, draft, approved, attested: true })
   } else if (pending.kind === 'write_light') {
     shield = null
     // The claim is atomic in the service: of two approvals only one is told to go on, the other gets 409 and executes nothing.

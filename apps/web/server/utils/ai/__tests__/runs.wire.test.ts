@@ -993,6 +993,43 @@ describe('draft rejection audit', () => {
   })
 })
 
+describe('draft approval audit (issue #556)', () => {
+  const approveDraft = (data: Record<string, unknown> = { id: 42 }) => post('/api/ai/runs/r_1/resume', { call_id: 'c_2', decision: 'approved', data })
+  it('records the approval itself, claiming the attestation from the payload and the call the service named', async () => {
+    await events(await approveDraft())
+    const approved = odooCalls.filter(c => c.url === '/api/v1/ai/audit').map(c => JSON.parse(c.body!)).at(-1)
+    expect(approved).toEqual({
+      conversation_id: 'r_1', kind: 'draft', agent: 'pmo', tool_name: 'pmo.draft_project',
+      input: { name: 'بوابة' }, result: 'approved', http_status: 201, draft: { name: 'بوابة' }, approved: { id: 42 }, attested: true,
+    })
+    // The service is resumed with the same decision and the same payload.
+    expect(lastResume()).toEqual({ call_id: 'c_2', policy: POLICY, result: { ok: true, decision: 'approved', data: { id: 42 } } })
+  })
+
+  it('takes the payload from the browser but the call, the tool and the signer from the server', async () => {
+    // A browser that names another call id never reaches the audit: the pending call of the service is the only one.
+    expect((await post('/api/ai/runs/r_1/resume', { call_id: 'c_other', decision: 'approved', data: { id: 1 } })).status).toBe(409)
+    expect(odooCalls.some(c => c.url === '/api/v1/ai/audit' && JSON.parse(c.body!).result === 'approved')).toBe(false)
+    await events(await approveDraft({ id: 7 }))
+    // The owner headers of the audit are the session's, never the browser's: nothing in the body names a user.
+    const call = odooCalls.filter(c => c.url === '/api/v1/ai/audit').at(-1)!
+    expect(call.cookie).toBe('session_id=s1')
+    expect(JSON.parse(call.body!)).not.toHaveProperty('user_id')
+    expect(JSON.parse(call.body!).approved).toEqual({ id: 7 })
+  })
+
+  it('still resumes the assistant when the approval row cannot be recorded', async () => {
+    auditFailKind = 'draft'
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const list = await events(await approveDraft())
+    spy.mockRestore()
+    expect(lastResume()).toEqual({ call_id: 'c_2', policy: POLICY, result: { ok: true, decision: 'approved', data: { id: 42 } } })
+    expect(list.map(([n]) => n)).toContain('answer')
+    // The failure reaches the browser as the fixed `audit_failed` error event, and the assistant still answers.
+    expect(list).toContainEqual(['error', { code: 'audit_failed', message: 'The action ran but its audit record could not be saved' }])
+  })
+})
+
 describe('service token', () => {
   it('sends X-Liwan-Service-Token only when configured', async () => {
     await events(await post('/api/ai/runs', { message: 'هلا' }))
