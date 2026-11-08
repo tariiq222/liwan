@@ -154,9 +154,8 @@ class FinanceEntryController(http.Controller):
     @http.route('/api/v1/finance/entries', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('finance.enabled', operation='write')
-    @idempotent
+    @idempotent('finance.entries.manage')
     def create_entry(self, **payload):
-        require_capability('finance.entries.manage')
         parsed = parse_entry_create(payload)
         values = _entry_values(parsed, request.env.company)
         values.update({'move_type': 'entry', 'company_id': request.env.company.id})

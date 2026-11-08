@@ -169,10 +169,9 @@ class FinanceBankController(http.Controller):
     @http.route('/api/v1/finance/bank-statements', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('finance.enabled', operation='write')
-    @idempotent
+    @idempotent('finance.bank.manage')
     def create_bank_statement(self, **payload):
         """A bank statement with its lines, on a bank journal of the current company."""
-        require_capability('finance.bank.manage')
         values = _statement_values(parse_statement_create(payload))
         statement = attempt(lambda: request.env['account.bank.statement'].create(values))
         request.env['liwan.finance.audit.event']._liwan_log('bank_statement_created', statement, outcome=_creation_outcome(statement))

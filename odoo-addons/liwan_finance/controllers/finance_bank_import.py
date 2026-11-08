@@ -254,7 +254,7 @@ class FinanceBankImportController(http.Controller):
     @http.route('/api/v1/finance/bank-statements/import', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('finance.enabled', operation='write')
-    @idempotent
+    @idempotent('finance.bank.manage')
     def import_bank_statement(self, **payload):
         """Create one statement from a CSV, OFX or CAMT file, whole or not at all.
 
@@ -262,7 +262,6 @@ class FinanceBankImportController(http.Controller):
         ``skip_duplicates`` is not set (``duplicate_lines``), or when the opening balance plus the lines is not the closing
         balance (``balance_mismatch``). The balances are the caller's; an OFX or CAMT file supplies those the caller omits.
         """
-        require_capability('finance.bank.manage')
         journal, fmt = _open(payload, IMPORT_FIELDS)
         read = _read_lines(journal, fmt, payload)
         if read['errors']:

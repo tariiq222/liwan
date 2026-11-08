@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import tagged
 
-from .write_common import INVOICES, PAYMENTS, LiwanFinanceWriteCase
+from .write_common import INVOICES, PASSWORD, PAYMENTS, LiwanFinanceWriteCase
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -57,6 +57,24 @@ class TestFinanceIdempotency(LiwanFinanceWriteCase):
                 self.assertEqual((first.status_code, second.status_code), (201, 201), first.text)
                 self.assertEqual(first.json(), second.json())
                 self.assertEqual(self.env['account.move'].search_count([(origin, '=', invoice['id'])]), before + 1)
+
+    def test_a_replay_needs_the_capability_of_the_route(self):
+        """A caller who lost the capability cannot read back, through its old key, what an earlier request created."""
+        clerk = self.user_with('finance_idem_clerk', ['finance.invoices.manage', 'finance.invoices.read', 'finance.bank.read', 'finance.bank.manage'])
+        invoice = self.posted_invoice()
+        path = f'{INVOICES}/{invoice["id"]}/credit-note'
+        self.authenticate(clerk.login, PASSWORD)
+        self.assertEqual(self.send(path, {}, 'revoked-key-1').status_code, 201)
+        self.user_with('finance_idem_clerk_bank', ['finance.bank.read', 'finance.bank.manage'])
+        self.env['liwan.access.service']._liwan_replace_assignments(clerk, [{
+            'role_id': self.env['liwan.access.role'].search([('key', '=', 'finance_idem_clerk_bank')]).id,
+            'company_id': self.company.id,
+        }])
+        # A role change ends the user's sessions; the replay comes from a new one.
+        self.authenticate(clerk.login, PASSWORD)
+        replay = self.send(path, {}, 'revoked-key-1')
+        self.assertEqual(replay.status_code, 403, replay.text)
+        self.assertNotIn('"id"', replay.text)
 
     def test_the_same_key_for_another_body_route_or_user_is_refused(self):
         self.send(f'{PAYMENTS}/standalone', self.receipt(), 'shared-key-1')

@@ -202,9 +202,8 @@ class FinancePaymentController(http.Controller):
     @http.route('/api/v1/finance/payments', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('finance.enabled', operation='write')
-    @idempotent
+    @idempotent('finance.payments.manage')
     def register_payment(self, **payload):
-        require_capability('finance.payments.manage')
         parsed = parse_payment_register(payload)
         invoices = _payable_invoices(parsed['invoice_ids'])
         values, journal = _wizard_values(parsed, invoices)
@@ -253,10 +252,9 @@ class FinancePaymentController(http.Controller):
     @http.route('/api/v1/finance/payments/standalone', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('finance.enabled', operation='write')
-    @idempotent
+    @idempotent('finance.payments.manage')
     def create_standalone_payment(self, **payload):
         """A receipt or payment voucher that names no invoice: an advance, or money kept to be allocated later."""
-        require_capability('finance.payments.manage')
         parsed = parse_payment_standalone(payload)
         partner = company_records('res.partner', [parsed['partner_id']], 'partner_id', company_partners_domain(request.env.company))
         journal = _payment_journal(parsed['journal_id'])
@@ -278,14 +276,13 @@ class FinancePaymentController(http.Controller):
     @http.route('/api/v1/finance/payments/transfer', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('finance.enabled', operation='write')
-    @idempotent
+    @idempotent('finance.payments.manage')
     def create_transfer(self, **payload):
         """Moves money between two bank or cash journals through the company's transfer account.
 
         Two posted payments (out of one journal, into the other) are paired and their transfer-account items
         are reconciled, so the transfer account nets to zero.
         """
-        require_capability('finance.payments.manage')
         parsed = parse_payment_transfer(payload)
         company = request.env.company
         source = _transfer_journal(parsed['from_journal_id'], 'from_journal_id', company)
