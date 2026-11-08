@@ -25,8 +25,8 @@ const id = useId()
   <div class="liwan-setting-row" :data-stacked="props.stacked ? 'true' : undefined" role="group" :aria-labelledby="`${id}-label`" data-slot="setting-row">
     <div class="liwan-setting-row-text">
       <p :id="`${id}-label`" class="text-sm font-medium text-highlighted">{{ props.label }}</p>
-      <p v-if="props.description" class="mt-0.5 text-sm text-muted">{{ props.description }}</p>
-      <p v-if="props.disabledReason" class="mt-1.5 flex items-start gap-1.5 text-sm text-status-warning-foreground" data-slot="setting-row-reason">
+      <p v-if="props.description" class="mt-0.5 text-[0.8125rem] leading-5 text-muted">{{ props.description }}</p>
+      <p v-if="props.disabledReason" class="mt-1.5 flex items-start gap-1.5 text-[0.8125rem] leading-5 text-status-warning-foreground" data-slot="setting-row-reason">
         <UIcon name="i-lucide-info" aria-hidden="true" class="mt-0.5 size-4 shrink-0" />
         <span>
           {{ props.disabledReason }}

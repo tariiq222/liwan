@@ -21,7 +21,7 @@ const group = props.name ?? useId()
 </script>
 
 <template>
-  <div role="radiogroup" :aria-label="props.label" class="grid gap-2.5" data-slot="option-cards">
+  <div role="radiogroup" :aria-label="props.label" class="liwan-option-cards" data-slot="option-cards">
     <label
       v-for="option in props.options"
       :key="option.value"
@@ -38,12 +38,12 @@ const group = props.name ?? useId()
         :disabled="props.disabled || option.disabled || !hydrated"
         @change="emit('update:modelValue', option.value)"
       >
-      <span class="liwan-option-dot" aria-hidden="true" />
-      <span class="min-w-0 flex-1">
-        <span class="block text-sm font-medium text-highlighted">{{ option.label }}</span>
-        <span v-if="option.description" class="mt-0.5 block text-sm text-muted">{{ option.description }}</span>
-        <span v-if="option.disabledReason" class="mt-1 block text-sm text-status-warning-foreground">{{ option.disabledReason }}</span>
+      <span class="flex items-center gap-2.5">
+        <span class="liwan-option-dot" aria-hidden="true" />
+        <span class="min-w-0 text-sm font-medium text-highlighted">{{ option.label }}</span>
       </span>
+      <span v-if="option.description" class="block text-[0.8125rem] leading-5 text-muted">{{ option.description }}</span>
+      <span v-if="option.disabledReason" class="block text-[0.8125rem] leading-5 text-status-warning-foreground">{{ option.disabledReason }}</span>
     </label>
   </div>
 </template>

@@ -153,12 +153,13 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   .liwan-setting-row-control { justify-self: stretch; }
 }
 /* A selectable option card (SharedOptionCards): the chosen one takes the application colour as border and a light tint. */
-.liwan-option-card { position: relative; display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem 1rem; border: 1.5px solid var(--ui-border); border-radius: var(--radius-control); background: var(--ui-bg); cursor: pointer; transition: border-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease), background-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease); }
+.liwan-option-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: 0.75rem; }
+.liwan-option-card { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 0.5rem; padding: 0.875rem 1rem; border: 1.5px solid var(--ui-border); border-radius: var(--radius-control); background: var(--ui-bg); cursor: pointer; transition: border-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease), background-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease); }
 .liwan-option-card:hover:not([data-disabled]) { border-color: var(--ui-border-accented); }
 .liwan-option-card[data-selected="true"] { border-color: var(--app-accent, var(--liwan-ink)); background: color-mix(in srgb, var(--app-accent, var(--liwan-ink)) 8%, var(--ui-bg)); }
 .liwan-option-card[data-disabled] { cursor: default; opacity: 0.6; }
 .liwan-option-card:has(input:focus-visible) { outline: 2px solid var(--ring); outline-offset: 2px; }
-.liwan-option-dot { position: relative; margin-block-start: 0.15rem; width: 1.125rem; height: 1.125rem; flex: none; border: 1.5px solid var(--ui-border-accented); border-radius: 999px; background: var(--ui-bg); }
+.liwan-option-dot { position: relative; width: 1.125rem; height: 1.125rem; flex: none; border: 1.5px solid var(--ui-border-accented); border-radius: 999px; background: var(--ui-bg); }
 .liwan-option-card[data-selected="true"] .liwan-option-dot { border-color: var(--app-accent, var(--liwan-ink)); }
 .liwan-option-card[data-selected="true"] .liwan-option-dot::after { content: ""; position: absolute; inset: 3px; border-radius: 999px; background: var(--app-accent, var(--liwan-ink)); }
 

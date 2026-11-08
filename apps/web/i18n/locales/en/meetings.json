@@ -431,7 +431,7 @@
       "all_employees": "Every employee",
       "all_employeesHint": "Any employee who can see meetings may schedule one.",
       "organizers_only": "Only holders of the meeting organizer role",
-      "organizers_onlyHint": "Only holders of the “Meeting organizer” role and system administrators schedule. Assign the role under Team, then Roles."
+      "organizers_onlyHint": "Only meeting organizers and administrators schedule. Assign the role under Team, then Roles."
     },
     "reminders": {
       "title": "Reminder window and reference prefix",

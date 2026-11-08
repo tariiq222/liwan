@@ -174,7 +174,7 @@ function onDeleteStage(id: number | string) {
     <SharedSettingRow :label="t('settings.projects.createRequirements.manager')" :description="t('settings.projects.createRequirements.hint')">
       <USwitch id="settings-require-manager" v-model="creation.draft.value.require_manager_on_create" :aria-label="t('settings.projects.createRequirements.manager')" :disabled="creationLocked" />
     </SharedSettingRow>
-    <SharedSettingRow :label="t('settings.projects.createRequirements.endDate')">
+    <SharedSettingRow :label="t('settings.projects.createRequirements.endDate')" :description="t('settings.projects.createRequirements.endDateHint')">
       <USwitch id="settings-require-end-date" v-model="creation.draft.value.require_end_date_on_create" :aria-label="t('settings.projects.createRequirements.endDate')" :disabled="creationLocked" />
     </SharedSettingRow>
   </SharedSettingsCard>
@@ -226,10 +226,10 @@ function onDeleteStage(id: number | string) {
   <ChangeCategoriesPanel :can-edit="canEdit" />
 
   <SharedSettingsCard id="project-reminders" v-bind="reminders.state.value" :title="t('settings.projects.reminders.label')" :description="t('settings.projects.reminders.hint')" :can-edit="canEdit" @save="reminders.save" @revert="reminders.revert" @reload="reminders.reload">
-    <SharedSettingRow :label="t('settings.projects.reminders.enabled')">
+    <SharedSettingRow :label="t('settings.projects.reminders.enabled')" :description="t('settings.projects.reminders.enabledHint')">
       <USwitch id="settings-deadline-reminders" v-model="reminders.draft.value.deadline_reminders_enabled" :aria-label="t('settings.projects.reminders.enabled')" :disabled="remindersLocked" />
     </SharedSettingRow>
-    <SharedSettingRow :label="t('settings.projects.reminders.daysBefore')">
+    <SharedSettingRow :label="t('settings.projects.reminders.daysBefore')" :description="t('settings.projects.reminders.daysBeforeHint')">
       <UFormField :error="daysError || undefined">
         <UInputNumber id="reminder-days" v-model="reminders.draft.value.deadline_reminders_days_before" :min="0" :max="30" :disabled="remindersLocked" class="w-32" />
       </UFormField>
