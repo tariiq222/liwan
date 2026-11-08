@@ -69,7 +69,7 @@ class TestAiLimitWarning(AiProbe, LiwanApiCase):
     def test_platform_tokens_warn_when_the_crossing_usage_is_recorded(self):
         self._set_feature('ai.tokens.monthly', 100)
         usage = {
-            'conversation_id': 'r_warn', 'kind': 'plan', 'billing': 'platform', 'provider': 'acme-ai', 'model': 'acme-1',
+            'conversation_id': 'r_warn', 'call_id': '0f1e2d3c4b5a6908', 'kind': 'plan', 'billing': 'platform', 'provider': 'acme-ai', 'model': 'acme-1',
             'outcome': 'ok', 'input_tokens': 90, 'output_tokens': 30, 'called_at': self._now(),
         }
         self.assertEqual(self.api('POST', '/api/v1/ai/usage', {'items': [usage]}).status_code, 200)
@@ -80,7 +80,7 @@ class TestAiLimitWarning(AiProbe, LiwanApiCase):
     def test_tenant_key_usage_never_warns_about_platform_tokens(self):
         self._set_feature('ai.tokens.monthly', 100)
         usage = {
-            'conversation_id': 'r_warn', 'kind': 'plan', 'billing': 'tenant_key', 'provider': 'acme-ai', 'model': 'acme-1',
+            'conversation_id': 'r_warn', 'call_id': '0f1e2d3c4b5a690a', 'kind': 'plan', 'billing': 'tenant_key', 'provider': 'acme-ai', 'model': 'acme-1',
             'outcome': 'ok', 'input_tokens': 90, 'output_tokens': 30, 'called_at': self._now(),
         }
         self.api('POST', '/api/v1/ai/usage', {'items': [usage]})

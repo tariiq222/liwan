@@ -161,7 +161,7 @@ export const AiModelUsageEventSchema = z.object({
 export type AiModelUsageEvent = z.infer<typeof AiModelUsageEventSchema>
 
 const AiUsageFields = {
-  conversation_id: z.string().min(1).max(64), kind: AiModelCallKindSchema, billing: AiBillingSchema, provider: AiProviderNameSchema, model: AiModelNameSchema,
+  conversation_id: z.string().min(1).max(64), call_id: AiCallIdSchema, kind: AiModelCallKindSchema, billing: AiBillingSchema, provider: AiProviderNameSchema, model: AiModelNameSchema,
   outcome: AiModelCallOutcomeSchema, input_tokens: AiTokenCountSchema, output_tokens: AiTokenCountSchema, called_at: z.iso.datetime({ offset: true }),
 }
 /** One provider attempt as `POST /api/v1/ai/usage` records it. */

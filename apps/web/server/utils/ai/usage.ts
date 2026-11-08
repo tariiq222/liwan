@@ -75,8 +75,8 @@ function removeSpooled(accepted: readonly SpooledRow[]): void {
  * Reports the rows this session still holds and is due, in batches of at most `AI_USAGE_BATCH_MAX` and in the order they were
  * observed. A batch leaves the spool only once Odoo answered 200, so a refusal, a timeout or a dead connection keeps every row
  * of it and makes it due again after the retry window. The rows behind a refused batch are deferred with it, so Odoo never
- * records a later attempt before an earlier one. At-least-once is deliberate: a timeout after Odoo stored a batch reports it a
- * second time, which is a smaller error than losing counted usage.
+ * records a later attempt before an earlier one. A retry can repeat a row Odoo already stored and never counted it twice: the
+ * row carries the provider's `call_id`, which Odoo holds once per user and conversation (issue #557).
  */
 async function sendSpooled(event: H3Event, session: string): Promise<void> {
   const now = Date.now()
@@ -161,7 +161,7 @@ export function createUsageLedger() {
   }
 
   const records = (conversationId: string): AiUsageRecord[] => [...attempts.values()].flatMap(({ call, usage }) => usage
-    ? [{ conversation_id: conversationId, kind: call.kind, billing: call.billing, provider: call.provider, model: call.model, outcome: usage.outcome, input_tokens: usage.input_tokens, output_tokens: usage.output_tokens, called_at: call.called_at }]
+    ? [{ conversation_id: conversationId, call_id: call.call_id, kind: call.kind, billing: call.billing, provider: call.provider, model: call.model, outcome: usage.outcome, input_tokens: usage.input_tokens, output_tokens: usage.output_tokens, called_at: call.called_at }]
     : [])
 
   /**

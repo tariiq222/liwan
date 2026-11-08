@@ -99,7 +99,7 @@ describe('LiwanOS AI contracts', () => {
 describe('LiwanOS AI usage contracts', () => {
   const call = { call_id: 'ab12cd34ef56ab78', kind: 'plan', billing: 'platform', provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5', called_at: '2026-10-27T10:00:00Z' }
   const usage = { call_id: 'ab12cd34ef56ab78', outcome: 'ok', input_tokens: 120, output_tokens: 7 }
-  const record = { conversation_id: 'r_1', kind: 'plan', billing: 'platform', provider: 'openrouter', model: 'm', outcome: 'ok', input_tokens: 1, output_tokens: 2, called_at: '2026-10-27T10:00:00+03:00' }
+  const record = { conversation_id: 'r_1', call_id: 'ab12cd34ef56ab78', kind: 'plan', billing: 'platform', provider: 'openrouter', model: 'm', outcome: 'ok', input_tokens: 1, output_tokens: 2, called_at: '2026-10-27T10:00:00+03:00' }
 
   it('parses a model_call and rejects loose ids, providers, models and offsets', () => {
     expect(AiModelCallEventSchema.parse(call).kind).toBe('plan')
@@ -130,6 +130,12 @@ describe('LiwanOS AI usage contracts', () => {
     expect(AiUsageBatchSchema.parse({ items: Array.from({ length: 64 }, () => record) }).items).toHaveLength(64)
     expect(() => AiUsageRecordSchema.parse({ ...record, conversation_id: '' })).toThrow()
     expect(() => AiUsageRecordSchema.parse({ ...record, conversation_id: 'x'.repeat(65) })).toThrow()
+    // The provider attempt's own id is what Odoo deduplicates a re-sent batch on (issue #557).
+    expect(AiUsageRecordSchema.parse(record).call_id).toBe('ab12cd34ef56ab78')
+    for (const call_id of ['', 'XYZ', 'AB12CD34EF56AB78', 'ab12cd34ef56ab7', 'ab12cd34ef56ab789']) {
+      expect(() => AiUsageRecordSchema.parse({ ...record, call_id }), call_id).toThrow()
+    }
+    expect(AiUsageRecordSchema.safeParse({ ...record, call_id: undefined }).success).toBe(false)
     expect(AiUsageRowSchema.parse({ ...record, id: 5 }).id).toBe(5)
     expect(AiUsageBatchResponseSchema.parse({ items: [{ ...record, id: 5 }], total: 1 }).total).toBe(1)
   })

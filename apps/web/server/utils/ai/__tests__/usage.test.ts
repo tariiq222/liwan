@@ -56,8 +56,8 @@ describe('usage ledger', () => {
     expect([method, path]).toEqual(['POST', '/api/v1/ai/usage'])
     const { body, signal } = sent()[0]!
     expect(signal).toBeNull()
-    expect(AiUsageBatchSchema.parse(body).items.map(item => [item.kind, item.outcome, item.input_tokens, item.output_tokens, item.conversation_id])).toEqual([
-      ['plan', 'retried', null, null, 'r_1'], ['plan', 'ok', 120, 7, 'r_1'], ['title', 'ok', 20, 3, 'r_1'],
+    expect(AiUsageBatchSchema.parse(body).items.map(item => [item.call_id, item.kind, item.outcome, item.input_tokens, item.output_tokens, item.conversation_id])).toEqual([
+      ['00000000000000a1', 'plan', 'retried', null, null, 'r_1'], ['00000000000000b2', 'plan', 'ok', 120, 7, 'r_1'], ['00000000000000c3', 'title', 'ok', 20, 3, 'r_1'],
     ])
     expect(body.items[0]).toMatchObject({ provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5', called_at: '2026-10-27T10:00:00Z' })
   })
@@ -65,6 +65,20 @@ describe('usage ledger', () => {
   it('does not consume the events of the browser stream', () => {
     const ledger = createUsageLedger()
     for (const name of ['token', 'answer', 'tool_request', 'run', 'done']) expect(ledger.observe(name, { text: 'x' })).toBe(false)
+  })
+
+  it('re-sends a retried batch row for row, with the call id that makes Odoo count it once', async () => {
+    // Issue #557: the retry carries the same `call_id`, so Odoo's unique (user, conversation, call) index settles it.
+    const session = ledgerEvent('resent')
+    odooJson.mockRejectedValueOnce(new TypeError('answer never arrived'))
+    await ledgerOf(2).flush(session, 'r_resent')
+    expect(sent()[0]!.body.items.map(item => item.call_id)).toEqual(['0000000000000000', '0000000000000001'])
+
+    advance(RETRY_AFTER_MS + 1)
+    await retryPending(session)
+    // The retry repeats the same attempts: Odoo answers success and records the two rows it already holds.
+    expect(sent()[1]!.body.items.map(item => item.call_id)).toEqual(['0000000000000000', '0000000000000001'])
+    expect(sent()[1]!.body.items).toEqual(sent()[0]!.body.items)
   })
 
   it('reports a call whose stream ended before its usage as aborted without tokens', async () => {

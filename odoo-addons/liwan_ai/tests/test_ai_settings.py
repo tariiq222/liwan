@@ -41,13 +41,18 @@ class TestAiSettings(AiProbe, LiwanApiCase):
             'features': {**(profile.features or {}), key: value},
         })
 
+    def _call_id(self):
+        """A distinct provider call id per fixture row (the column is unique per user and conversation)."""
+        self._calls = getattr(self, '_calls', 0) + 1
+        return f'{self._calls:016x}'
+
     def _raw_usage(self, billing, tokens, called_at):
         # create() validates the wire shape of the Nuxt executor; a fixture row is written directly.
         self.env.cr.execute(
-            "INSERT INTO liwan_ai_usage (company_id, user_id, conversation_id, kind, billing, provider, model, outcome,"
+            "INSERT INTO liwan_ai_usage (company_id, user_id, conversation_id, call_id, kind, billing, provider, model, outcome,"
             " input_tokens, output_tokens, tokens_reported, called_at)"
-            " VALUES (%s, %s, 'r_usage', 'plan', %s, 'acme-ai', 'acme-1', 'ok', %s, 0, true, %s) RETURNING id",
-            [self.env.company.id, self.employee.id, billing, tokens, called_at or datetime.now()],
+            " VALUES (%s, %s, 'r_usage', %s, 'plan', %s, 'acme-ai', 'acme-1', 'ok', %s, 0, true, %s) RETURNING id",
+            [self.env.company.id, self.employee.id, self._call_id(), billing, tokens, called_at or datetime.now()],
         )
         return self.env.cr.fetchone()[0]
 
