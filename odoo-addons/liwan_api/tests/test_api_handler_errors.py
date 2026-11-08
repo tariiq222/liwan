@@ -5,6 +5,7 @@ from psycopg2 import errorcodes
 from psycopg2.errors import DeadlockDetected, LockNotAvailable, SerializationFailure
 from werkzeug.exceptions import NotFound
 
+from odoo import http
 from odoo.exceptions import AccessError, ConcurrencyError, MissingError
 from odoo.tests import TransactionCase, tagged
 
@@ -156,6 +157,24 @@ class TestApiHandlerUnexpectedFailureOverTheWire(LiwanApiCase):
         with mock.patch('odoo.addons.liwan_api.controllers.me.dump_me', side_effect=KeyError('gross')):
             response = self.api('GET', '/api/v1/me')
         self.assert_generic_internal(response)
+
+    def test_a_broken_database_constraint_answers_invalid_and_writes_nothing(self):
+        """A unique violation is the caller's 422, as Odoo's retry words it, and the savepoint keeps no half write."""
+        def write_then_break(*args, **kwargs):
+            http.request.env['ir.config_parameter'].sudo().set_param('liwan.test.half_write', 'kept')
+            http.request.env.cr.execute(
+                "INSERT INTO ir_config_parameter (key, value) VALUES ('database.uuid', 'duplicate')",
+            )
+
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        with mock.patch('odoo.addons.liwan_api.controllers.me.dump_me', side_effect=write_then_break):
+            response = self.api('GET', '/api/v1/me')
+        self.assertEqual(response.status_code, 422, response.text)
+        body = response.json()
+        self.assertEqual(body['code'], 'invalid')
+        self.assertTrue(body['message'].startswith('The operation cannot be completed'))
+        self.assertNotIn(b'debug', response.content)
+        self.assertFalse(self.env['ir.config_parameter'].sudo().get_param('liwan.test.half_write'))
 
     def test_a_defect_in_a_public_route_answers_the_contract_body(self):
         def defect(service, token, purpose):

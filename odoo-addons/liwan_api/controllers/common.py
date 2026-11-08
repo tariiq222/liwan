@@ -2,6 +2,7 @@
 import functools
 import logging
 
+from psycopg2 import IntegrityError
 from psycopg2.errors import ReadOnlySqlTransaction
 from werkzeug.exceptions import HTTPException
 
@@ -302,6 +303,20 @@ def _require_mobile_number():
         raise ApiError(403, 'mobile_required', 'a mobile number is required before continuing')
 
 
+def _integrity_message(error):
+    """The user message of a broken database constraint, worded as Odoo's request retry words it.
+
+    Same table lookup and text as ``odoo/service/model.py`` ``retrying`` (the savepoint already rolled back,
+    so the cursor is usable): the constraint's own message when the model declares one, else Odoo's generic one.
+    """
+    env = request.env
+    model = next(
+        (env[model_class._name] for model_class in env.registry.values() if model_class._table == error.diag.table_name),
+        env['base'],
+    )
+    return env._("The operation cannot be completed: %s", model._sql_error_to_message(error))
+
+
 def api_handler(func):
     """Map exceptions raised by an /api/v1 controller to the contract error shape.
 
@@ -342,6 +357,10 @@ def api_handler(func):
             return error_response(403, 'forbidden', request.env._("You do not have permission to do this"))
         except (ValidationError, UserError) as e:
             return error_response(422, 'invalid', str(e))
+        except IntegrityError as e:
+            # A database constraint the payload broke (a unique or check constraint): Odoo's retry would
+            # turn it into a ValidationError, but answer it in its own json2 shape, with the traceback.
+            return error_response(422, 'invalid', _integrity_message(e))
         except REPLAYED_BY_ODOO:
             # Odoo replays the request around this one; answering would report a conflict it resolves.
             raise
