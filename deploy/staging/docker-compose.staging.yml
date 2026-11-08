@@ -3,7 +3,7 @@
 # This file is written to be read and validated, not started by this repository.
 # Render it without touching any service:
 #
-#   docker compose --env-file deploy/staging/env.example \
+#   docker compose --env-file deploy/staging/env.example -p liwan-staging-preview \
 #     -f deploy/staging/docker-compose.staging.yml config
 #
 # `deploy/staging/README.md` records what staging is for, the OVH OpenShip
@@ -99,14 +99,15 @@ services:
     # the next whole GiB: the same derivation `deploy/docker-compose.production.yml`
     # applies to its own larger plan.
     mem_limit: 6144m
-    environment:
-      HOST: db
-      USER: odoo
-      PASSWORD: "${STAGING_DB_PASSWORD:?set STAGING_DB_PASSWORD to the staging database password}"
     volumes:
-      # Operator-generated outside Git: `deploy/odoo.conf` rendered with this stack's
-      # own values, plus the plan's `[options]` lines (README, step 3).
-      - ./data/odoo.conf:/etc/odoo/odoo.conf:ro
+      # The custom entrypoint uses this file, not HOST/USER/PASSWORD variables.
+      # An absent source must fail instead of silently creating a directory.
+      - type: bind
+        source: ${STAGING_ODOO_CONFIG:?set STAGING_ODOO_CONFIG to the absolute private staging config path}
+        target: /etc/odoo/odoo.conf
+        read_only: true
+        bind:
+          create_host_path: false
       - staging_odoo_data:/var/lib/odoo
     expose: ["8069", "8072"]
     cap_drop: [ALL]
@@ -158,7 +159,9 @@ services:
     volumes:
       - staging_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      # The image's temporary initdb server only listens on a Unix socket.
+      # Wait for the final server before a one-off Odoo install connects.
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "odoo"]
       interval: 5s
       timeout: 5s
       retries: 20

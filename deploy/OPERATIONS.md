@@ -410,21 +410,48 @@ LIWAN_BACKUP_S3_REGION     # the Object Storage region
 LIWAN_BACKUP_S3_BUCKET     # the backup bucket
 LIWAN_BACKUP_S3_ACCESS_KEY # Customer Secret Key access key
 LIWAN_BACKUP_S3_SECRET_KEY # Customer Secret Key secret
-LIWAN_BACKUP_PASSPHRASE_FILE # mode-600 file holding the backup passphrase
+LIWAN_BACKUP_PASSPHRASE_FILE # mode 0600 or 0400; one strong line (for example 32 random bytes as hex)
+LIWAN_TENANT_REGISTRY_PATH # absolute path to the trusted shared tenant registry snapshot
 ```
 
-`restoreVerified` is **never hard-coded**. It is read from the latest drill record
-and is true only when a real drill passed inside the RPO/RTO budget. A repository
-that has never run the drill reports it false.
+Run capture from this checkout with the repository's Node version on PATH. The CLI
+uses the tenant's published registry binding to derive the database and filestore.
+Suspension does not stop backups for a tenant that still has a binding. Point `--data-dir` and the PostgreSQL connection options at the same trusted
+deployment; keep that scheduler configuration and the registry outside tenant control.
+The CLI refuses a missing or pending registry, a missing tenant, and a linked filestore.
+For example:
+
+```sh
+python3 -B deploy/backup_pipeline.py capture --tenant <tenant-id> --kind hourly \
+  --work-root /path/to/private/capture-volume --data-dir /path/to/odoo-data \
+  --pg-dump /path/to/pg_dump --pg-host <host> --pg-user <role>
+```
+
+The capture uses a private temporary directory for the dump and archive, then removes
+it on exit. Size the staging disk for the copied database and filestore, the archive,
+and its ciphertext at once. Ciphertext is uploaded in parts of up to 32 MiB (at most
+10,000 parts). A keyed HMAC binds the tenant, backup kind, timestamp, digests and
+lengths. The manifest carries this tag and is written last. Test multipart completion and its
+no-overwrite condition against the selected provider before scheduling captures.
 
 ## Restore drill
 
-`deploy/restore_drill.py` downloads the newest artifact for one tenant, restores it
+`deploy/restore_drill.py` authenticates the newest manifest for one tenant before
+downloading its artifact, then restores it
 into a **new scratch database** through `deploy/restore_verify.py` (same checks: Liwan
 modules installed, none stuck mid-transition, every referenced attachment present),
-measures the elapsed time against the 4-hour RTO, and writes an atomic drill record.
-It refuses any non-scratch target and any `odoo19`/`production`/`postgres`/`template`
-name, exactly as the capture tools do.
+measures the backup's age at drill start against the 1-hour RPO and the elapsed
+restore time against the 4-hour RTO, and writes an atomic record. Both budgets must
+pass for a verified result. The status command also requires a record that finished
+in the last hour; it reports the backup's current age separately. Use a fresh private
+scratch directory and an explicit PostgreSQL role with permission to create the
+scratch database. The scratch database and restored files remain for inspection.
+
+```sh
+python3 -B deploy/restore_drill.py run --tenant <tenant-id> \
+  --scratch-root /path/to/private/drill --target-db liwan_restore_scratch \
+  --pg-host <scratch-host> --pg-user <scratch-role>
+```
 
 ## Alerts (owner decisions 2026-11-06)
 
@@ -443,7 +470,7 @@ The operator procedure and the per-alert first action are in
 | Topic | Status |
 | --- | --- |
 | Retention | Decided by the owner (hourly 7 days, daily 30 days) and enforced by `deploy/backup_pipeline.py prune`; not yet exercised against a real bucket. |
-| Encryption at rest / in transit for backup files | Implemented as AES-256-CBC with PBKDF2 through the `openssl` CLI, with SHA-256 of plaintext and ciphertext pinned in the manifest. Integrity is detected by checksum, not by an AEAD tag; see the `deploy/backup_pipeline.py` docstring. |
+| Encryption at rest / in transit for backup files | Implemented as AES-256-CBC with PBKDF2 through the `openssl` CLI, with SHA-256 of plaintext and ciphertext pinned in the manifest. The manifest's HMAC authenticates its metadata and checksums before the drill reads the archive. The HMAC uses a separate key derived from the passphrase. |
 | Offsite / object-storage replication | Implemented (`deploy/s3_client.py`); no real bucket has been written yet, so it is unproven live. |
 | RPO | Decided: 1 hour. Proven by a drill only when the drill record exists. |
 | RTO | Decided: 4 hours. Proven by a drill only when the drill record exists. |

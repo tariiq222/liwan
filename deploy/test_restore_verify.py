@@ -64,6 +64,7 @@ class TestRestoreVerify(unittest.TestCase):
         self.run_verify(backup, ['5\n', '0\n', 'ab/abcdef\n'])
         names = [Path(argv[0]).name for argv, _ in self.calls]
         self.assertEqual(names[:3], ['psql', 'psql', 'pg_restore'])
+        self.assertIn('--no-acl', self.calls[2][0])
         (create_argv, create), (isolation_argv, isolation) = self.calls[:2]
         for argv in (create_argv, isolation_argv):
             self.assertIn('ON_ERROR_STOP=1', argv)

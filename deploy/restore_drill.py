@@ -39,6 +39,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -58,13 +59,12 @@ if TYPE_CHECKING:
 RECORD_SCHEMA_VERSION = 1
 RECORD_NAME = 'restore-drill.json'
 BACKUP_DIR_NAME = 'backup'
-STAGE_DIR_NAME = 'fetched'
 PLAINTEXT_NAME = 'artifact.tar'
 RESTORE_SCRIPT_NAME = 'restore_verify.py'
 RESTORE_VERIFICATION_NAME = 'restore-verification.json'
 ARTIFACT_CIPHERTEXT_NAME = backup_pipeline.ARTIFACT_CIPHERTEXT_NAME
 
-RESTORE_TOOLS = ('pg_restore', 'createdb', 'psql')
+RESTORE_TOOLS = ('pg_restore', 'psql')
 
 EXIT_OK = 0
 EXIT_REFUSED = 2
@@ -87,10 +87,9 @@ class DrillError(Exception):
 
 @dataclass(frozen=True)
 class RestoreTools:
-    """The three PostgreSQL client binaries a restore needs, already validated."""
+    """The PostgreSQL client binaries a restore needs, already validated."""
 
     pg_restore: Path
-    createdb: Path
     psql: Path
 
     @classmethod
@@ -106,8 +105,7 @@ class RestoreTools:
         return cls(**resolved)
 
     def as_argv_tail(self) -> list[str]:
-        return ['--pg-restore', str(self.pg_restore), '--createdb', str(self.createdb),
-                '--psql', str(self.psql)]
+        return ['--pg-restore', str(self.pg_restore), '--psql', str(self.psql)]
 
 
 def _require(condition: bool, message: str) -> None:
@@ -141,7 +139,7 @@ def _fetch_verified_artifact(
     passphrase_file: Path,
     runner: Callable[..., object],
 ) -> tuple[backup_pipeline.ArtifactRef, backup_pipeline.BackupManifest, bytes]:
-    """Fetch the newest artifact, prove both digests, and decrypt it.
+    """Authenticate the newest manifest, then fetch and decrypt its artifact.
 
     Returns the artifact reference, the parsed manifest, and the manifest bytes as
     they arrived. The bytes are returned rather than a digest alone so the restore
@@ -153,9 +151,17 @@ def _fetch_verified_artifact(
         message = f'tenant {tenant!r} has no artifact to drill'
         raise DrillError(message)
     manifest_bytes = store.get(ref.manifest_key)
-    manifest = backup_pipeline.BackupManifest.from_json(manifest_bytes.decode('utf-8'))
-    ciphertext = store.get(ref.artifact_key)
-    ciphertext_sha256 = hashlib.sha256(ciphertext).hexdigest()
+    manifest = backup_pipeline.BackupManifest.from_json(manifest_bytes, passphrase_file)
+    _require(
+        (manifest.tenant, manifest.kind, manifest.captured_at) == (ref.tenant, ref.kind, ref.captured_at),
+        f'manifest identity does not match the artifact key: {ref.artifact_key}',
+    )
+    encrypted = stage / ARTIFACT_CIPHERTEXT_NAME
+    try:
+        store.get_file(ref.artifact_key, encrypted, expected_size=manifest.ciphertext_bytes)
+    except s3_client.StorageError as error:
+        raise DrillError(f'could not download {ref.artifact_key}: {error}') from error
+    ciphertext_sha256 = backup_pipeline.sha256_file(encrypted)
     if ciphertext_sha256 != manifest.ciphertext_sha256:
         message = (
             f'artifact {ref.artifact_key} does not match its manifest: '
@@ -163,15 +169,11 @@ def _fetch_verified_artifact(
         )
         raise DrillError(message)
 
-    _require(not stage.exists(), f'{stage} is not fresh; a drill needs its own scratch root')
-    stage.mkdir(parents=True)
-    encrypted = stage / ARTIFACT_CIPHERTEXT_NAME
-    encrypted.write_bytes(ciphertext)
     plaintext = stage / PLAINTEXT_NAME
     plaintext_sha256 = backup_pipeline.decrypt_file(
         encrypted, plaintext, passphrase_file=passphrase_file, runner=runner,
     )
-    if plaintext_sha256 != manifest.plaintext_sha256:
+    if plaintext_sha256 != manifest.plaintext_sha256 or plaintext.stat().st_size != manifest.plaintext_bytes:
         message = (
             f'artifact {ref.artifact_key} decrypted to sha256 {plaintext_sha256}, '
             f'not the {manifest.plaintext_sha256} its manifest pinned'
@@ -193,7 +195,7 @@ def _write_capture_manifest(backup_dir: Path, manifest_bytes: bytes) -> None:
 
 def _extract_archive(archive: Path, destination: Path) -> None:
     """Extract the artifact inside ``destination`` and nowhere else."""
-    destination.mkdir(parents=True, exist_ok=True)
+    destination.mkdir(mode=0o700)
     root = destination.resolve()
     with tarfile.open(archive, 'r') as bundle:
         for member in bundle.getmembers():
@@ -299,7 +301,7 @@ def run_drill(
     record_path: Path | None = None,
     pg_host: str | None = None,
     pg_port: str | None = None,
-    pg_user: str | None = None,
+    pg_user: str,
     restore_script: Path | None = None,
     clock: Callable[[], float] = time.monotonic,
 ) -> dict[str, object]:
@@ -319,33 +321,35 @@ def run_drill(
     binaries = tools or RestoreTools.from_environment()
     script = restore_script or Path(__file__).with_name(RESTORE_SCRIPT_NAME)
     destination = record_path or scratch_root / RECORD_NAME
-    scratch_root.mkdir(parents=True, exist_ok=True)
-
+    scratch_root.mkdir(mode=0o700, parents=True, exist_ok=True)
     began = clock()
-    stage = scratch_root / STAGE_DIR_NAME
-    ref, manifest, manifest_bytes = _fetch_verified_artifact(
-        store, tenant, stage, passphrase_file, runner,
-    )
-    backup_dir = scratch_root / BACKUP_DIR_NAME
-    _extract_archive(stage / PLAINTEXT_NAME, backup_dir)
-    _write_capture_manifest(backup_dir, manifest_bytes)
-    argv = _restore_argv(
-        restore_script=script,
-        backup_dir=backup_dir,
-        target_db=database,
-        target_filestore=_target_filestore(scratch_root, database),
-        tools=binaries,
-        pg_host=pg_host,
-        pg_port=pg_port,
-        pg_user=pg_user,
-    )
-    completed = runner(argv, shell=False, check=False, capture_output=True, text=True)
-    exit_code = _exit_code(completed)
-    result = _read_restore_result(backup_dir, exit_code)
+    with tempfile.TemporaryDirectory(prefix='restore-', dir=scratch_root) as private:
+        stage = Path(private)
+        ref, manifest, manifest_bytes = _fetch_verified_artifact(
+            store, tenant, stage, passphrase_file, runner,
+        )
+        backup_dir = stage / BACKUP_DIR_NAME
+        _extract_archive(stage / PLAINTEXT_NAME, backup_dir)
+        _write_capture_manifest(backup_dir, manifest_bytes)
+        argv = _restore_argv(
+            restore_script=script,
+            backup_dir=backup_dir,
+            target_db=database,
+            target_filestore=_target_filestore(scratch_root, database),
+            tools=binaries,
+            pg_host=pg_host,
+            pg_port=pg_port,
+            pg_user=pg_user,
+        )
+        completed = runner(argv, shell=False, check=False, capture_output=True, text=True)
+        exit_code = _exit_code(completed)
+        result = _read_restore_result(backup_dir, exit_code)
     elapsed_seconds = clock() - began
     finished_at = started_at + timedelta(seconds=elapsed_seconds)
-    artifact_age_seconds = (finished_at - manifest.captured_at).total_seconds()
-    passed = result['restore_verified'] is True and exit_code == 0
+    rpo_ok, rto_ok = backup_pipeline.recovery_objectives(
+        manifest.captured_at, started_at, elapsed_seconds, active,
+    )
+    passed = result['restore_verified'] is True and exit_code == 0 and rpo_ok and rto_ok
     record = {
         'schema_version': RECORD_SCHEMA_VERSION,
         'started_at': started_at.isoformat(),
@@ -357,8 +361,8 @@ def run_drill(
         'artifact_captured_at': manifest.captured_at.isoformat(),
         'source_manifest_sha256': hashlib.sha256(manifest_bytes).hexdigest(),
         'restore_verified': passed,
-        'rpo_ok': 0 <= artifact_age_seconds <= active.rpo_seconds,
-        'rto_ok': elapsed_seconds <= active.rto_seconds,
+        'rpo_ok': rpo_ok,
+        'rto_ok': rto_ok,
         'checks': result.get('checks', {}),
         'not_covered': list(NOT_COVERED),
     }
@@ -393,7 +397,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument('--store-root', type=Path, help='a filesystem store instead of a bucket')
     run.add_argument('--pg-host')
     run.add_argument('--pg-port')
-    run.add_argument('--pg-user')
+    run.add_argument('--pg-user', required=True)
     run.add_argument('--now', help='override the drill start time, ISO 8601 (tests only)')
 
     report = commands.add_parser('status', help='report the last drill record')

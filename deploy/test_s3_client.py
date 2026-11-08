@@ -9,9 +9,13 @@ bucket can still run the pipeline and the drill, and it is what the tests exerci
 from __future__ import annotations
 
 import hashlib
+import io
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
+from urllib.parse import parse_qs, urlsplit
+from xml.etree import ElementTree as ET
 
 from deploy import s3_client
 from deploy.s3_client import (
@@ -211,6 +215,81 @@ class TestS3StoreOverAnInjectedTransport(unittest.TestCase):
             hashlib.sha256(b'ciphertext').hexdigest(),
         )
         self.assertEqual(request.headers['if-none-match'], '*')
+
+    def test_multipart_upload_is_bounded_and_completes_with_the_ordered_etags(self):
+        key = 'tenant/hourly/artifact.tar.enc'
+        requests = []
+
+        def transport(request):
+            requests.append(request)
+            query = parse_qs(urlsplit(request.url).query, keep_blank_values=True)
+            if query == {'uploads': ['']}:
+                return 200, {}, b'<InitiateMultipartUploadResult><UploadId>one+/=</UploadId></InitiateMultipartUploadResult>'
+            if request.method == 'PUT':
+                self.assertEqual(query['uploadId'], ['one+/='])
+                part_number = query['partNumber'][0]
+                self.assertEqual(request.headers['x-amz-content-sha256'], hashlib.sha256(request.body).hexdigest())
+                return 200, {'ETag': f'"part-{part_number}"'}, b''
+            self.assertEqual(query, {'uploadId': ['one+/=']})
+            self.assertEqual(request.headers['if-none-match'], '*')
+            self.assertEqual(request.headers['content-type'], 'application/xml')
+            parts = [(part.findtext('PartNumber'), part.findtext('ETag'))
+                     for part in ET.fromstring(request.body).findall('Part')]
+            self.assertEqual(parts, [('1', '"part-1"'), ('2', '"part-2"'), ('3', '"part-3"')])
+            return 200, {}, b'<CompleteMultipartUploadResult/>'
+
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / 'upload'
+            source.write_bytes(b'abcdefghijk')
+            store = s3_client.S3Store(self.credentials, transport=transport)
+            with patch.object(s3_client, 'MULTIPART_PART_BYTES', 4):
+                store.put_file(key, source)
+        self.assertEqual([req.body for req in requests if req.method == 'PUT'], [b'abcd', b'efgh', b'ijk'])
+
+    def test_embedded_multipart_completion_error_aborts_the_upload(self):
+        responses = iter([
+            (200, {}, b'<InitiateMultipartUploadResult><UploadId>one</UploadId></InitiateMultipartUploadResult>'),
+            (200, {'etag': '"part-1"'}, b''),
+            (200, {}, b'<Error><Code>InternalError</Code></Error>'),
+            (204, {}, b''),
+        ])
+
+        def transport(request):
+            self.sent.append(request)
+            return next(responses)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / 'upload'
+            source.write_bytes(b'xyz')
+            store = s3_client.S3Store(self.credentials, transport=transport)
+            with self.assertRaises(s3_client.StorageError):
+                store.put_file('tenant/hourly/artifact.tar.enc', source)
+        self.assertEqual([req.method for req in self.sent], ['POST', 'PUT', 'POST', 'DELETE'])
+        self.assertTrue(self.sent[-1].url.endswith('?uploadId=one'))
+
+    def test_archive_download_reads_bounded_chunks_and_refuses_a_short_body(self):
+        class Response(io.BytesIO):
+            status = 200
+            headers = {}
+
+            def read(self, size=-1):
+                if not 0 < size <= 1024 * 1024:
+                    msg = 'archive requested an unbounded read'
+                    raise AssertionError(msg)
+                return super().read(min(size, 3))
+
+        store = s3_client.S3Store(self.credentials)
+        key = 'tenant/hourly/artifact.tar.enc'
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / 'download'
+            with patch.object(s3_client.urllib.request, 'urlopen', return_value=Response(b'abcdefgh')):
+                store.get_file(key, target, expected_size=8)
+            self.assertEqual(target.read_bytes(), b'abcdefgh')
+            target.unlink()
+            with patch.object(s3_client.urllib.request, 'urlopen', return_value=Response(b'abc')), \
+                    self.assertRaises(s3_client.StorageError):
+                store.get_file(key, target, expected_size=8)
+            self.assertFalse(target.exists())
 
     def test_a_forbidden_answer_raises_without_the_secret(self):
         self.reply = (403, {}, b'')

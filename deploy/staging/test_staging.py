@@ -282,9 +282,16 @@ class TestNoProductionOrForeignProjectReference(StagingCase):
         self.assertEqual(staging_volumes & base_volumes, set())
 
     def test_no_backup_path_or_foreign_project_directory_is_mounted(self):
-        """Every mount is either this definition's own volume or a file in this repo."""
+        """Mount only staging volumes, the repository Caddyfile, and the staging config."""
+        config, = [mount for mount in self.services['odoo']['volumes'] if isinstance(mount, dict)]
+        self.assertEqual(config['target'], '/etc/odoo/odoo.conf')
+        self.assertEqual(config['type'], 'bind')
+        self.assertTrue(config['source'].startswith('${STAGING_ODOO_CONFIG:'))
+        self.assertTrue(config['read_only'])
+        self.assertIs(config['bind']['create_host_path'], False)
         own_volumes = set(self.compose['volumes'])
-        mounts = [str(mount) for service in self.services.values() for mount in service.get('volumes') or []]
+        mounts = [str(mount) for service in self.services.values() for mount in service.get('volumes') or []
+                  if mount is not config]
         self.assertTrue(mounts)
         for mount in mounts:
             with self.subTest(mount=mount):

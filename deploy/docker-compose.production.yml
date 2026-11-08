@@ -21,9 +21,10 @@ services:
     # `deploy/shared/launch_odoo.py`, whose release profile accepts exactly the
     # public role options and refuses any other Odoo CLI flag; a `command` here
     # would refuse the boot. The budget therefore reaches Odoo through the external
-    # read-only config file, whose `[options]` lines the plan renders:
+    # read-only config file. Replace existing sizing keys in `[options]` with
+    # these rendered values; the shared validator rejects duplicate keys:
     #
-    #   python3 -B deploy/odoo_sizing.py --render odoo >> /path/to/external/odoo.conf
+    #   python3 -B deploy/odoo_sizing.py --render odoo
     #
     # The runtime gate `deploy/shared/validate_odoo_config.py` then refuses that
     # file unless the whole budget is coherent, so a start cannot fall back to

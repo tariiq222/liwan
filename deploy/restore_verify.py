@@ -33,7 +33,8 @@ class RestoreError(Exception):
 
 def validate_target_db(name: str) -> str:
     if not DB_NAME_RE.match(name) or FORBIDDEN_DB_RE.search(name) or 'scratch' not in name.lower():
-        raise RestoreError('target database must be a new scratch name and must not resemble a live database')
+        message = 'target database must be a new scratch name and must not resemble a live database'
+        raise RestoreError(message)
     return name
 
 
@@ -72,10 +73,12 @@ def perform_restore(*, backup_dir, target_db, target_filestore, pg_restore, psql
     backup = Path(backup_dir)
     dump, store, manifest = backup / 'database.dump', backup / 'filestore', backup / 'manifest.json'
     if not (backup.is_absolute() and dump.is_file() and store.is_dir() and manifest.is_file()):
-        raise RestoreError('backup directory must be absolute and contain database.dump, filestore/ and manifest.json')
+        message = 'backup directory must be absolute and contain database.dump, filestore/ and manifest.json'
+        raise RestoreError(message)
     destination = Path(target_filestore)
     if not destination.is_absolute() or destination.exists() or destination.name != db:
-        raise RestoreError('target filestore must be a new absolute path ending in the target database name')
+        message = 'target filestore must be a new absolute path ending in the target database name'
+        raise RestoreError(message)
     tools = {
         'pg_restore': _tool(pg_restore, 'pg_restore'),
         'psql': _tool(psql, 'psql'),
@@ -83,7 +86,8 @@ def perform_restore(*, backup_dir, target_db, target_filestore, pg_restore, psql
     conn = _conn(pg_host, pg_port, pg_user)
     # The restored database stays open to the role the restore connects as once PUBLIC is closed.
     if not pg_user:
-        raise RestoreError('--pg-user is required: it is the role the restored database stays open to')
+        message = '--pg-user is required: it is the role the restored database stays open to'
+        raise RestoreError(message)
     create, isolation = _tenant_database_sql(db, pg_user)
 
     def run(argv, input=None):
@@ -98,7 +102,8 @@ def perform_restore(*, backup_dir, target_db, target_filestore, pg_restore, psql
     admin = [tools['psql'], *conn, '-X', '-q', '-v', 'ON_ERROR_STOP=1', '-d', 'postgres']
     run(admin, input=create)
     run(admin, input=isolation)
-    run([tools['pg_restore'], *conn, '--no-owner', '--exit-on-error', '-d', db, str(dump)])
+    # Source grants may reference tenant runtime roles absent from the isolated scratch host.
+    run([tools['pg_restore'], *conn, '--no-owner', '--no-acl', '--exit-on-error', '-d', db, str(dump)])
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(str(store), str(destination), symlinks=True)
 
@@ -138,9 +143,9 @@ def main(argv=None) -> int:
     try:
         result = perform_restore(**vars(args))
     except RestoreError as error:
-        print(f'restore_verify: {error}', file=sys.stderr)
+        sys.stderr.write(f'restore_verify: {error}\n')
         return 1
-    print(json.dumps(result['checks'], ensure_ascii=False))
+    sys.stdout.write(json.dumps(result['checks'], ensure_ascii=False) + '\n')
     return 0 if result['restore_verified'] else 1
 
 

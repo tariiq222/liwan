@@ -10,11 +10,12 @@
 النظام المشترك (`deploy/shared/launch_odoo.py`) يقبل خيارات الدور العامة فقط
 ويرفض أي خيار سطر أوامر آخر؛ لذلك لا يضع `deploy/docker-compose.production.yml`
 أمر `command` لخدمة odoo، بل يُترك الحجم لملف الإعداد. تُولَّد أسطر `[options]`
-وتُضاف إلى ملف الإعداد الخارجي السري (خارج المستودع، يملكه مشغّل النظام) قبل
-الإقلاع:
+ثم تُستبدل بها مفاتيح التحجيم في قسم `[options]` من ملف الإعداد الخارجي السري
+(خارج المستودع) قبل الإقلاع. عدّل كل مفتاح موجود في مكانه وأضف المفاتيح الغائبة فقط؛
+قالب الإعداد المشترك يحمل أصلًا `workers = 2` وبوابة التشغيل ترفض المفتاح المكرّر.
 
 ```sh
-python3 -B deploy/odoo_sizing.py --render odoo >> /path/to/external/odoo.conf
+python3 -B deploy/odoo_sizing.py --render odoo
 # أو للمراجعة فقط، مع كل الثوابت والفحوص:
 python3 -B deploy/odoo_sizing.py --render json
 ```

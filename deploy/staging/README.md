@@ -6,7 +6,7 @@
 لا أنها تعمل على خادم.
 
 هذه الصفحة تسجّل **قرارات** البيئة التمثيلية وحدودها، والأرقام تأتي من
-`deploy/odoo_sizing.py` كما في [صفحة تحجيم الإنتاج](../operations/odoo-sizing.md)
+`deploy/odoo_sizing.py` كما في [صفحة تحجيم الإنتاج](../../docs/operations/odoo-sizing.md)
 لا من نسخ أرقام الإنتاج.
 
 ## 1. ما الغرض منها
@@ -122,6 +122,7 @@ python3 -B deploy/odoo_sizing.py --ocpu 2 --memory-gib 16 --tenants 1 --render j
 | `STAGING_DOMAIN` | مضيف البيئة التمثيلية | لا يُستخدم نطاق الإنتاج |
 | `STAGING_DB_NAME` | اسم قاعدة البيئة التمثيلية | مختلف عن اسم قاعدة الإنتاج وعن `odoo19` المحلية |
 | `STAGING_DB_PASSWORD` | كلمة مرور مستخدم `odoo` في هذه القاعدة | تُولَّد لها، لا تُنسخ من الإنتاج |
+| `STAGING_ODOO_CONFIG` | مسار ملف إعداد Odoo الذي يربطه Compose للقراءة فقط | مسار مطلق خارج المستودع |
 | `STAGING_IMAGE_TAG` | وسم صور LiwanOS المبنية لهذه البيئة | لا `latest` ولا وسم إنتاج |
 | `ODOO_COMMIT` | إصدار Odoo المثبَّت لبناء الصورة | من `deploy/odoo/ODOO_COMMIT` |
 
@@ -132,8 +133,8 @@ python3 -B deploy/odoo_sizing.py --ocpu 2 --memory-gib 16 --tenants 1 --render j
 
 ```sh
 # 1) الشكل والمتغيرات: لا خدمة تُبدأ
-docker compose --env-file deploy/staging/env.example \
-  -f deploy/staging/docker-compose.staging.yml config
+docker compose --env-file deploy/staging/env.example -p liwan-staging-preview \
+  -f deploy/staging/docker-compose.staging.yml config -q
 
 # 2) اختبارات القواعد في هذا التعريف (YAML فقط، بلا Docker ولا شبكة)
 cd "$(git rev-parse --show-toplevel)" && PYTHONPATH=deploy \
@@ -166,53 +167,103 @@ python3 -B deploy/odoo_sizing.py --ocpu 2 --memory-gib 16 --tenants 1 --render j
 
 ## 9. الأوامر التي ينفّذها المالك
 
-تفترض الأوامر أن نسخة القيم الحقيقية موجودة في ملف خاص خارج Git
-(`deploy/staging/.env`، غير متابع). لا تُشغّل هذه الأوامر إلا بعد حسم §4.
+هذه الأوامر لخادم البيئة التمثيلية بعد حسم §4. نفّذها من Bash. استخدم مسارًا
+خاصًا خارج المستودع، ولا تشارك الملفات أو الأحجام مع مشروع آخر.
 
-```sh
+```bash
+set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
-# 1) انسخ الأسماء واملأ القيم في ملف خاص خارج Git (لا يُضاف إلى Git أبدًا)
-cp deploy/staging/env.example deploy/staging/.env
-chmod 600 deploy/staging/.env
-# أضف كلمة مرور مدير Odoo إلى الملف الخاص نفسه (يحتاجها ملف الإعداد في الخطوة 3
-# ولا يطلبها Compose): سطر واحد بصيغة STAGING_ODOO_ADMIN_PASSWORD=...
+# 1) جهّز ملف متغيرات خاصًا خارج المستودع، ثم املأ القيم قبل المتابعة.
+umask 077
+STAGING_PRIVATE=/srv/liwan-staging
+install -d -m 0700 "$STAGING_PRIVATE"
+STAGING_ENV="$STAGING_PRIVATE/staging.env"
+# هذه الخطوة مرة واحدة فقط؛ لا تستبدل ملفًا يحوي القيم الحقيقية.
+if [ ! -e "$STAGING_ENV" ]; then
+  install -m 0600 deploy/staging/env.example "$STAGING_ENV"
+fi
+# في الملف الخاص، عيّن STAGING_ODOO_CONFIG إلى /srv/liwan-staging/odoo.conf.
+# أضف STAGING_LOGIN_EMAIL لصندوق بريد فعلي تملكه هذه البيئة، وأضف
+# STAGING_ODOO_ADMIN_PASSWORD وSTAGING_LOGIN_PASSWORD بكلمتين مستقلتين،
+# مستقلتين أيضًا عن STAGING_DB_PASSWORD. القيم بصيغة تعيين صالحة لـ Bash.
+set -a
+. "$STAGING_ENV"
+set +a
+: "${STAGING_ODOO_ADMIN_PASSWORD:?}" "${STAGING_LOGIN_PASSWORD:?}" "${STAGING_LOGIN_EMAIL:?}"
 
-# 2) أرقام التحجيم: ولّد أسطر [options] لهذه البيئة
-python3 -B deploy/odoo_sizing.py --ocpu 2 --memory-gib 16 --tenants 1 --render odoo
+# قاعدة هذه العينة اصطناعية: استخدم اسمًا مثل liwan_staging_scratch.
+# يفشل فحص الاسم قبل بدء Docker أو إنشاء قاعدة إذا لم يكن الاسم مخصصًا للاختبار.
+STAGING_CLASSIFICATION="$STAGING_PRIVATE/classification.json"
+python3 -B deploy/classification.py fixture --database "$STAGING_DB_NAME" \
+  --mode non_saas --output "$STAGING_CLASSIFICATION"
 
-# 3) جهّز ملف إعداد Odoo لهذه البيئة (خارج Git، ملك المشغّل)
-#    القالب deploy/odoo.conf يحمل أسماءه الثلاثة (DB_NAME وDB_PASSWORD
-#    وODOO_ADMIN_PASSWORD)، فتُمرَّر قيم هذه البيئة صراحةً عند التوسيع:
-mkdir -p deploy/staging/data
-set -a; . deploy/staging/.env; set +a
-DB_NAME="$STAGING_DB_NAME" DB_PASSWORD="$STAGING_DB_PASSWORD" \
-  ODOO_ADMIN_PASSWORD="$STAGING_ODOO_ADMIN_PASSWORD" \
-  envsubst < deploy/odoo.conf > deploy/staging/data/odoo.conf
-# ثم أضف أسطر [options] من الخطوة 2 إلى نهاية الملف نفسه، واضبط ملكيته 0400
+# 2) جهّز ملف إعداد Odoo خارج المستودع. قالب deploy/odoo.conf لا يحمل
+# مفاتيح التحجيم، لذا تُضاف هنا مرة واحدة إلى الملف المؤقت الذي يُنشأ من الصفر.
+STAGING_TMP="$(mktemp "$STAGING_PRIVATE/odoo.XXXXXX")"
+{
+  DB_NAME="$STAGING_DB_NAME" DB_PASSWORD="$STAGING_DB_PASSWORD" \
+    ODOO_ADMIN_PASSWORD="$STAGING_ODOO_ADMIN_PASSWORD" \
+    envsubst < deploy/odoo.conf
+  python3 -B deploy/odoo_sizing.py --ocpu 2 --memory-gib 16 --tenants 1 --render odoo
+} > "$STAGING_TMP"
+sudo install -m 0400 -o 10001 "$STAGING_TMP" "$STAGING_ODOO_CONFIG"
+rm -- "$STAGING_TMP"
 
-# 4) تحقّق من الشكل قبل أي تشغيل
-docker compose --env-file deploy/staging/.env \
-  -f deploy/staging/docker-compose.staging.yml config >/dev/null
+stage_compose() {
+  docker compose --env-file "$STAGING_ENV" -f deploy/staging/docker-compose.staging.yml "$@"
+}
+stage_compose config -q
+stage_compose build odoo web proxy
+stage_compose run --rm --no-deps -T --entrypoint test odoo -r /etc/odoo/odoo.conf
 
-# 5) التشغيل (لا يُنشر بهذا الأمر شيء إلى الإنترنت؛ المنافذ على 127.0.0.1 فقط)
-docker compose --env-file deploy/staging/.env \
-  -f deploy/staging/docker-compose.staging.yml up -d
+# 3) أول تهيئة فقط: شغّل PostgreSQL دون نشر الواجهة، ثم أنشئ قاعدة فارغة
+# بالطريقة نفسها التي يستخدمها provision.sh واقفل CONNECT أمام PUBLIC.
+stage_compose up -d --wait db
+python3 -B -c '
+import sys
+from deploy.releases.postgres import tenant_create_database_sql, tenant_isolation_sql
+db = sys.argv[1]
+print(tenant_create_database_sql(db) + ";")
+print(tenant_isolation_sql(db, "odoo"))
+' "$STAGING_DB_NAME" | stage_compose exec -T db psql -X -U odoo -d postgres -v ON_ERROR_STOP=1
 
-# 6) الإيقاف بلا حذف البيانات
-docker compose --env-file deploy/staging/.env \
-  -f deploy/staging/docker-compose.staging.yml down
+python3 -B -c 'from deploy.releases.postgres import TENANT_EXTENSION_SQL; print(TENANT_EXTENSION_SQL + ";")' \
+  | stage_compose exec -T db psql -X -U odoo -d "$STAGING_DB_NAME" -v ON_ERROR_STOP=1
+
+# 4) ثبّت المجموعة الأساسية لهذه العينة الاصطناعية بإعداد محلي non_saas.
+# أضف تطبيقات السيناريو المطلوب صراحةً إلى -i؛ التهيئة بلا بيانات تجريبية من Odoo.
+LIWAN_CLASSIFICATION_FILE="$STAGING_CLASSIFICATION" \
+  docker compose --env-file "$STAGING_ENV" -f deploy/staging/docker-compose.staging.yml \
+  -f deploy/docker-compose.classification.yml run --rm --no-deps -T odoo \
+  -d "$STAGING_DB_NAME" -i liwan_directory --without-demo --no-http --stop-after-init
+
+# غيّر كلمة مرور حساب الدخول الأول قبل تشغيل الحافة؛ القيمة لا تظهر في سطر الأوامر.
+stage_compose run --rm --no-deps -T -e STAGING_LOGIN_PASSWORD -e STAGING_LOGIN_EMAIL odoo \
+  shell -d "$STAGING_DB_NAME" --no-http <<'PYTHON'
+import os
+email = os.environ["STAGING_LOGIN_EMAIL"]
+password = os.environ["STAGING_LOGIN_PASSWORD"]
+if "@" not in email or email != email.strip():
+    raise ValueError("Set the staging administrator mailbox")
+if len(password) < 16 or password == "REPLACE_WITH_STAGING_LOGIN_PASSWORD":
+    raise ValueError("Set an independent staging login password")
+env.ref("base.user_admin").write({"login": email, "email": email, "password": password})
+env.cr.commit()
+PYTHON
+
+# 5) بعد نجاح التهيئة فقط، شغّل الخدمات؛ المنافذ المنشورة على loopback فقط.
+stage_compose up -d --wait
+
+# 6) الإيقاف بلا حذف البيانات.
+stage_compose down
 ```
 
-ملاحظات على الأوامر:
-
-- `deploy/odoo_sizing.py` تُنتج أسطر `[options]` فقط (بلا كلمات مرور)، وهي الحدّ
-  الوحيد لعدد العمال والذاكرة؛ لا تُكتب الأرقام يدويًا في ملف الإعداد.
-- `deploy/odoo.conf` قالب واحد يملكه المستودع، وفيه ثلاثة أسماء (`DB_NAME`
-  و`DB_PASSWORD` و`ODOO_ADMIN_PASSWORD`) لا يحمل منها هذا التعريف إلا الأولين.
-  الخطوة 3 تمرّر قيم البيئة التمثيلية إليها صراحةً، و`STAGING_ODOO_ADMIN_PASSWORD`
-  يُسجَّل في الملف الخاص نفسه وإن لم يستعمله Compose.
-- لا تُكتب كلمة مرور في سطر أوامر، ولا في `env.example`، ولا في أي ملف متابَع.
+الرقم `10001` هو UID لمستخدم `odoo` داخل الصورة. على مضيف Docker يترجم
+المستخدمين، استخدم الملكية التي تظهر للحاوية بهذا الرقم؛ أمر `test -r` أعلاه
+يجب أن ينجح قبل التهيئة. ملف كلمة مرور قاعدة البيانات وإعداد Odoo خارج المستودع،
+ولا تُطبع نتيجة توسيع Compose التي قد تحتوي أسرارًا. الخطوات 3 و4 تخص حجم بيانات
+جديدًا، ولا تُعاد على قاعدة قائمة. تبقى هذه الخطوات غير مثبتة على خادم staging.
 
 ## 10. الحالة بعلامات المستودع
 

@@ -3,8 +3,8 @@
 
 Proven here: the signer reproduces AWS's published "GET Object" SigV4 vector byte for
 byte, credentials refuse empty values and never echo a value in an error, and both
-stores expose the same five operations (`put`, `get`, `head`, `list`, `delete`) with an
-explicit `StorageError` instead of a silent `None`.
+stores share file and metadata operations with an explicit `StorageError` instead of
+a silent `None`. Archive transfers use bounded multipart upload and streaming download.
 
 Not proven here: any real endpoint. The tests never open a socket, so a valid-looking
 signature against a provider that rejects single-chunk payloads, a virtual-hosted
@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import os
+import tempfile
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -28,6 +30,7 @@ from xml.etree import ElementTree as ET
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
+    from typing import BinaryIO
 
 ALGORITHM = 'AWS4-HMAC-SHA256'
 SERVICE = 's3'
@@ -57,6 +60,10 @@ HTTP_SUCCESS_MAX = 300
 HTTP_PRECONDITION_FAILED = 412
 TRANSPORT_TIMEOUT_SECONDS = 30
 ALLOWED_SCHEMES = ('http', 'https')
+DOWNLOAD_BLOCK_BYTES = 1024 * 1024
+METADATA_LIMIT_BYTES = 2 * 1024 * 1024
+MULTIPART_PART_BYTES = 32 * 1024 * 1024
+MULTIPART_MAX_PARTS = 10_000
 
 ENVIRONMENT_FIELDS = (
     ('LIWAN_BACKUP_S3_ENDPOINT', 'endpoint'),
@@ -80,6 +87,8 @@ class HttpRequest:
     url: str
     headers: dict[str, str]
     body: bytes
+    download: BinaryIO | None = None
+    expected_size: int | None = None
 
 
 @dataclass(frozen=True)
@@ -258,25 +267,36 @@ class FilesystemStore:
         self._root.mkdir(parents=True, exist_ok=True)
 
     def put(self, key: str, data: bytes) -> None:
+        self._put(key, lambda handle: handle.write(data))
+
+    def put_file(self, key: str, source: Path) -> None:
+        with source.open('rb') as incoming:
+            size = os.fstat(incoming.fileno()).st_size
+            self._put(key, lambda outgoing: _copy_exact(incoming, outgoing, size))
+
+    def _put(self, key: str, writer: Callable[[BinaryIO], object]) -> None:
         path = self._path(key)
-        if path.exists():
-            message = f'object already exists: {key}'
-            raise StorageError(message)
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
+            # Link a completed file into place, without exposing a partial object
+            # to concurrent readers or overwriting an existing key.
+            with tempfile.TemporaryDirectory(prefix='.upload-', dir=path.parent) as temporary:
+                pending = Path(temporary) / 'object'
+                with pending.open('xb') as handle:
+                    writer(handle)
+                os.link(pending, path)
         except (FileExistsError, NotADirectoryError) as error:
-            message = f'a parent of {key} is not a directory'
-            raise StorageError(message) from error
-        try:
-            with path.open('xb') as handle:
-                handle.write(data)
-        except FileExistsError as error:
-            message = f'object already exists: {key}'
+            message = f'object already exists or a parent is not a directory: {key}'
             raise StorageError(message) from error
 
     def get(self, key: str) -> bytes:
         path = self._existing(key)
         return path.read_bytes()
+
+    def get_file(self, key: str, target: Path, *, expected_size: int) -> None:
+        with self._existing(key).open('rb') as incoming:
+            _write_download(target, lambda outgoing: _copy_exact(incoming, outgoing, expected_size),
+                            expected_size)
 
     def head(self, key: str) -> int:
         return self._existing(key).stat().st_size
@@ -287,7 +307,7 @@ class FilesystemStore:
             if not path.is_file():
                 continue
             relative = path.relative_to(self._root).as_posix()
-            if relative.startswith(prefix):
+            if relative.startswith(prefix) and not any(part.startswith('.upload-') for part in Path(relative).parts):
                 keys.append(relative)
         return sorted(keys)
 
@@ -305,6 +325,36 @@ class FilesystemStore:
         return path
 
 
+def _copy_exact(source: BinaryIO, target: BinaryIO, expected_size: int) -> None:
+    remaining = expected_size
+    while remaining > 0:
+        data = source.read(min(DOWNLOAD_BLOCK_BYTES, remaining))
+        if not data:
+            break
+        target.write(data)
+        remaining -= len(data)
+    if remaining or source.read(1):
+        msg = 'archive size does not match the manifest or source file'
+        raise StorageError(msg)
+
+
+def _require_download_size(actual: int, expected: int) -> None:
+    if actual != expected:
+        message = 'archive size does not match the manifest'
+        raise StorageError(message)
+
+
+def _write_download(target: Path, writer: Callable[[BinaryIO], None], expected_size: int) -> None:
+    # Exclusive create protects any existing file; only remove a file this call opened.
+    with target.open('xb') as handle:
+        try:
+            writer(handle)
+            _require_download_size(handle.tell(), expected_size)
+        except BaseException:
+            target.unlink()
+            raise
+
+
 def urlopen_transport(request: HttpRequest) -> tuple[int, dict[str, str], bytes]:
     """The production transport; tests inject their own and never reach the network."""
     outgoing = urllib.request.Request(
@@ -315,11 +365,23 @@ def urlopen_transport(request: HttpRequest) -> tuple[int, dict[str, str], bytes]
     )
     try:
         with urllib.request.urlopen(outgoing, timeout=TRANSPORT_TIMEOUT_SECONDS) as response:
-            return response.status, _lower_headers(response.headers), response.read()
+            if request.download is not None:
+                if response.status == 200:
+                    if request.expected_size is None:
+                        msg = 'archive download requires an expected size'
+                        raise StorageError(msg)
+                    _copy_exact(response, request.download, request.expected_size)
+                return response.status, _lower_headers(response.headers), b''
+            body = response.read(METADATA_LIMIT_BYTES + 1)
+            if len(body) > METADATA_LIMIT_BYTES:
+                msg = 'storage metadata exceeds the response size limit'
+                raise StorageError(msg)
+            return response.status, _lower_headers(response.headers), body
     except urllib.error.HTTPError as error:
-        return error.code, _lower_headers(error.headers), error.read()
-    except urllib.error.URLError as error:
-        message = f'storage endpoint is unreachable: {error.reason}'
+        with error:
+            return error.code, _lower_headers(error.headers), b''
+    except OSError as error:
+        message = f'storage transfer failed: {error}'
         raise StorageError(message) from error
 
 
@@ -349,6 +411,74 @@ class S3Store:
             extra_headers={IF_NONE_MATCH_HEADER: IF_NONE_MATCH_ANY},
         )
         self._require_success(status, key, 'write')
+
+    def put_file(self, key: str, source: Path) -> None:
+        """Upload a file in bounded parts; make the new object visible at completion."""
+        key_parts = _key_parts(key)
+        with source.open('rb') as handle:
+            size = os.fstat(handle.fileno()).st_size
+            if not 0 < size <= MULTIPART_PART_BYTES * MULTIPART_MAX_PARTS:
+                msg = 'archive is empty or exceeds the multipart size limit'
+                raise StorageError(msg)
+            status, _headers, body = self._send('POST', key_parts, query='uploads=')
+            self._require_success(status, key, 'initiate multipart upload for')
+            initiated = _require_xml(body, 'InitiateMultipartUploadResult')
+            upload_id = _element_text(initiated, 'UploadId', _namespace_of(initiated.tag))
+            if not upload_id:
+                msg = 'multipart initiation returned no upload id'
+                raise StorageError(msg)
+            upload_query = canonical_query_string({'uploadId': upload_id})
+            try:
+                completion = self._upload_parts(key, key_parts, handle, size, upload_id)
+                status, _headers, body = self._send(
+                    'POST', key_parts, query=upload_query, body=completion,
+                    extra_headers={'Content-Type': 'application/xml', IF_NONE_MATCH_HEADER: IF_NONE_MATCH_ANY},
+                )
+                self._require_success(status, key, 'complete multipart upload for')
+                # S3 can return an XML error inside HTTP 200 during completion.
+                _require_xml(body, 'CompleteMultipartUploadResult')
+            except BaseException as error:
+                try:
+                    status, _headers, _body = self._send('DELETE', key_parts, query=upload_query)
+                    self._require_success(status, key, 'abort multipart upload for')
+                except StorageError as abort_error:
+                    if isinstance(error, Exception):
+                        msg = f'multipart upload failed: {error}; {abort_error}'
+                        raise StorageError(msg) from error
+                    raise abort_error from error
+                raise
+
+    def _upload_parts(
+        self, key: str, key_parts: tuple[str, ...], handle: BinaryIO, size: int, upload_id: str,
+    ) -> bytes:
+        parts = ET.Element('CompleteMultipartUpload')
+        for number, offset in enumerate(range(0, size, MULTIPART_PART_BYTES), start=1):
+            count = min(MULTIPART_PART_BYTES, size - offset)
+            data = handle.read(count)
+            if len(data) != count:
+                msg = 'archive shrank during upload'
+                raise StorageError(msg)
+            status, headers, _body = self._send(
+                'PUT', key_parts, body=data,
+                query=canonical_query_string({'partNumber': str(number), 'uploadId': upload_id}),
+            )
+            self._require_success(status, key, 'upload part for')
+            part = ET.SubElement(parts, 'Part')
+            ET.SubElement(part, 'PartNumber').text = str(number)
+            ET.SubElement(part, 'ETag').text = _response_header(headers, 'etag')
+        if handle.read(1):
+            msg = 'archive grew during upload'
+            raise StorageError(msg)
+        return ET.tostring(parts)
+
+    def get_file(self, key: str, target: Path, *, expected_size: int) -> None:
+        def download(handle: BinaryIO) -> None:
+            status, _headers, _body = self._send(
+                'GET', _key_parts(key), download=handle, expected_size=expected_size,
+            )
+            self._require_success(status, key, 'download')
+
+        _write_download(target, download, expected_size)
 
     def get(self, key: str) -> bytes:
         status, _headers, body = self._send('GET', _key_parts(key))
@@ -396,6 +526,8 @@ class S3Store:
         body: bytes = b'',
         extra_headers: Mapping[str, str] | None = None,
         query: str = '',
+        download: BinaryIO | None = None,
+        expected_size: int | None = None,
     ) -> tuple[int, dict[str, str], bytes]:
         url = self._url(key_parts, query)
         request_headers = {'Host': urlsplit(url).netloc}
@@ -410,7 +542,7 @@ class S3Store:
             ),
         )
         return self._transport(
-            HttpRequest(method=method, url=url, headers=signed.headers, body=body),
+            HttpRequest(method, url, signed.headers, body, download, expected_size),
         )
 
     def _url(self, key_parts: tuple[str, ...], query: str) -> str:
@@ -447,6 +579,18 @@ def _namespace_of(tag: str) -> str:
 
 def _element_text(element: ET.Element, name: str, namespace: str) -> str:
     return (element.findtext(namespace + name) or '').strip()
+
+
+def _require_xml(body: bytes, expected: str) -> ET.Element:
+    try:
+        root = ET.fromstring(body)
+    except ET.ParseError as error:
+        msg = f'storage did not return valid {expected} XML'
+        raise StorageError(msg) from error
+    if root.tag != _namespace_of(root.tag) + expected:
+        msg = f'storage did not return a successful {expected} response'
+        raise StorageError(msg)
+    return root
 
 
 def _parse_listing(body: bytes, prefix: str) -> tuple[list[str], str]:

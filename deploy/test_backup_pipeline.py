@@ -125,7 +125,8 @@ class PipelineCase(unittest.TestCase):
 
     def source(self) -> bp.CaptureSource:
         filestore = self.root / 'data' / 'filestore' / 'liwan_scratch'
-        filestore.mkdir(parents=True, exist_ok=True)
+        if not filestore.is_symlink():
+            filestore.mkdir(parents=True, exist_ok=True)
         pg_dump = self.root / 'pg_dump'
         pg_dump.write_text('', encoding='utf-8')
         return bp.CaptureSource(db_name='liwan_scratch', filestore=filestore, pg_dump=pg_dump)
@@ -221,6 +222,12 @@ class TestEncryption(PipelineCase):
                 with self.assertRaises(bp.PipelineError):
                     bp.encrypt_file(plaintext, self.root / f'cipher-{len(content)}.bin',
                                     passphrase_file=path, runner=self.runner)
+
+    def test_a_passphrase_must_be_one_line_openssl_will_use(self):
+        for content in ('\n' + PASSPHRASE, PASSPHRASE + '\nignored',
+                        PASSPHRASE + '\x00ignored', 'x' * 1024):
+            with self.subTest(content=repr(content[:20])), self.assertRaises(bp.PipelineError):
+                bp.require_passphrase_file(self.write_passphrase(content))
 
     def test_a_passphrase_file_others_can_read_is_refused(self):
         path = self.write_passphrase(mode=0o644)
@@ -364,20 +371,38 @@ class TestManifest(PipelineCase):
 
     def test_json_round_trip_keeps_every_field(self):
         manifest = self.manifest()
-        self.assertEqual(bp.BackupManifest.from_json(manifest.to_json()), manifest)
+        self.assertEqual(
+            bp.BackupManifest.from_json(manifest.to_json(self.passphrase_file), self.passphrase_file),
+            manifest,
+        )
         self.assertEqual(manifest.consistency, 'UNVERIFIED')
         self.assertEqual(manifest.cipher, 'aes-256-cbc-pbkdf2')
 
     def test_consistency_can_never_be_upgraded(self):
-        payload = json.loads(self.manifest().to_json())
+        payload = json.loads(self.manifest().to_json(self.passphrase_file))
         payload['consistency'] = 'CONSISTENT'
         with self.assertRaises(bp.PipelineError):
-            bp.BackupManifest.from_json(json.dumps(payload))
+            bp.BackupManifest.from_json(json.dumps(payload), self.passphrase_file)
+
+    def test_an_unsigned_or_ambiguously_encoded_manifest_is_refused(self):
+        manifest = self.manifest()
+        valid = manifest.to_json(self.passphrase_file)
+        with self.assertRaisesRegex(bp.PipelineError, 'authentication tag'):
+            bp.BackupManifest.from_json(json.dumps(manifest.payload()), self.passphrase_file)
+        duplicate = valid.replace('"tenant":', '"tenant": "other", "tenant":')
+        with self.assertRaisesRegex(bp.PipelineError, 'duplicate fields'):
+            bp.BackupManifest.from_json(duplicate, self.passphrase_file)
+
+    def test_a_manifest_signed_with_a_different_passphrase_is_refused(self):
+        valid = self.manifest().to_json(self.passphrase_file)
+        other_key = self.write_passphrase('different test-only passphrase', mode=0o400)
+        with self.assertRaisesRegex(bp.PipelineError, 'manifest authentication failed'):
+            bp.BackupManifest.from_json(valid, other_key)
 
     def test_a_malformed_manifest_is_refused(self):
         for text in ('', 'not json', '{}', '[]'):
             with self.subTest(text=text), self.assertRaises(bp.PipelineError):
-                bp.BackupManifest.from_json(text)
+                bp.BackupManifest.from_json(text, self.passphrase_file)
 
     def test_a_non_utc_or_naive_capture_time_is_refused(self):
         naive = datetime(2026, 11, 8)
@@ -411,7 +436,7 @@ class TestCapture(PipelineCase):
             f'{TENANT}/hourly/2026-11-08T000000Z/{bp.MANIFEST_NAME}',
         ])
         self.assertGreater(self.store.head(self.keys()[0]), 0)
-        uploaded = bp.BackupManifest.from_json(self.store.get(self.keys()[2]).decode('utf-8'))
+        uploaded = bp.BackupManifest.from_json(self.store.get(self.keys()[2]), self.passphrase_file)
         self.assertEqual(uploaded, manifest)
         self.assertEqual(uploaded.consistency, 'UNVERIFIED')
 
@@ -502,6 +527,33 @@ class TestCapture(PipelineCase):
         self.capture()
         with self.assertRaises(bp.PipelineError):
             self.capture()
+
+    def test_capture_stages_privately_and_removes_all_temporary_data(self):
+        roots = []
+
+        def inspect(argv, **kwargs):
+            staged = Path(argv[argv.index('--output-dir') + 1])
+            roots.append(staged.parent)
+            self.assertEqual(staged.parent.stat().st_mode & 0o777, 0o700)
+            return fake_backup()(argv, **kwargs)
+
+        self.capture(runner=Runner(inspect))
+        self.assertTrue(roots)
+        self.assertFalse(roots[0].exists())
+
+    def test_capture_cleans_up_plaintext_on_upload_failure(self):
+        class BrokenStore(FilesystemStore):
+            def put(self, key, data):
+                msg = 'upload failed'
+                raise StorageError(msg)
+
+        with self.assertRaises(StorageError):
+            bp.capture(
+                store=BrokenStore(self.root / 'broken'), tenant=TENANT, source=self.source(),
+                kind='hourly', work_root=self.work_root, passphrase_file=self.passphrase_file,
+                now=datetime.fromisoformat(STAMP), runner=self.runner,
+            )
+        self.assertEqual(list(self.work_root.iterdir()), [])
 
     def test_the_capture_never_claims_quiescence(self):
         self.assertIn('UNVERIFIED', self.capture().consistency)
@@ -619,6 +671,8 @@ class TestRestoreVerified(PipelineCase):
         return self.write_record({
             'restore_verified': verified,
             'finished_at': finished_at.isoformat(),
+            'started_at': (finished_at - timedelta(seconds=600)).isoformat(),
+            'artifact_captured_at': (finished_at - timedelta(seconds=601)).isoformat(),
             'elapsed_seconds': 600,
         }, name=name)
 
@@ -670,7 +724,9 @@ class TestStatus(PipelineCase):
         now = self.now()
         return self.write_record({
             'restore_verified': True,
-            'artifact_captured_at': (now - timedelta(seconds=captured_age)).isoformat(),
+            'artifact_captured_at': (now - timedelta(seconds=captured_age + finished_age
+                                                                        + elapsed_seconds)).isoformat(),
+            'started_at': (now - timedelta(seconds=finished_age + elapsed_seconds)).isoformat(),
             'finished_at': (now - timedelta(seconds=finished_age)).isoformat(),
             'elapsed_seconds': elapsed_seconds,
         })
@@ -688,8 +744,15 @@ class TestStatus(PipelineCase):
         self.assertFalse(bp.status(past_limit, self.now())['rto_ok'])
 
     def test_the_age_is_the_artifacts_age_not_the_drills_age(self):
-        path = self.record(captured_age=1800, elapsed_seconds=60, finished_age=10)
+        path = self.record(captured_age=1730, elapsed_seconds=60, finished_age=10)
         self.assertEqual(bp.status(path, self.now())['last_backup_age_seconds'], 1800)
+
+    def test_freshly_finished_restore_with_missed_objectives_is_not_verified(self):
+        path = self.record(captured_age=6 * 3600, elapsed_seconds=15000)
+        report = bp.status(path, self.now())
+        self.assertFalse(report['rpo_ok'])
+        self.assertFalse(report['rto_ok'])
+        self.assertFalse(report['restore_verified'])
 
     def test_no_record_reports_no_proof(self):
         report = bp.status(self.root / 'absent.json', self.now())
@@ -725,43 +788,92 @@ class TestCommandLine(PipelineCase):
         self.assertFalse(json.loads(stdout)['restore_verified'])
 
     def test_status_reports_a_fresh_record_as_verified(self):
+        now = datetime.now(timezone.utc)
         path = self.write_record({
             'restore_verified': True,
-            'artifact_captured_at': datetime.now(timezone.utc).isoformat(),
-            'finished_at': datetime.now(timezone.utc).isoformat(),
+            'artifact_captured_at': (now - timedelta(minutes=2)).isoformat(),
+            'started_at': (now - timedelta(minutes=1)).isoformat(),
+            'finished_at': now.isoformat(),
             'elapsed_seconds': 60,
         })
         code, stdout, _stderr = self.run_main(['status', '--record', str(path)])
         self.assertEqual(code, bp.EXIT_OK)
         self.assertTrue(json.loads(stdout)['restore_verified'])
 
-    def test_capture_through_the_environment_and_a_filesystem_store(self):
+    def capture_argv(self, *, tenant=TENANT) -> list[str]:
         source = self.source()
-        argv = [
-            'capture', '--tenant', TENANT, '--kind', 'daily',
-            '--work-root', str(self.work_root), '--db-name', source.db_name,
-            '--filestore', str(source.filestore), '--pg-dump', str(source.pg_dump),
-            '--store-root', str(self.root / 'cli-bucket'), '--now', STAMP,
+        return [
+            'capture', '--tenant', tenant, '--kind', 'daily',
+            '--work-root', str(self.work_root), '--data-dir', str(source.filestore.parent.parent),
+            '--pg-dump', str(source.pg_dump), '--store-root', str(self.root / 'cli-bucket'),
+            '--now', STAMP,
         ]
-        environ = {bp.PASSPHRASE_ENVIRONMENT_VARIABLE: str(self.passphrase_file)}
+
+    def registry_environment(self) -> dict[str, str]:
+        registry = self.root / 'registry.json'
+        registry.write_text(json.dumps({
+            'schemaVersion': 1, 'snapshotRevision': 1, 'targets': [
+                {'host': 'acme.example', 'tenantId': TENANT, 'database': 'liwan_scratch',
+                 'filestore': 'liwan_scratch', 'enabled': True, 'registryRevision': 1},
+                {'host': 'other.example', 'tenantId': 'other', 'database': 'liwan_other',
+                 'filestore': 'liwan_other', 'enabled': False, 'registryRevision': 1},
+            ],
+        }), encoding='utf-8')
+        return {'LIWAN_TENANT_REGISTRY_PATH': str(registry)}
+
+    def test_capture_uses_the_database_and_filestore_from_the_trusted_registry(self):
+        source = self.source()
+        environ = {bp.PASSPHRASE_ENVIRONMENT_VARIABLE: str(self.passphrase_file), **self.registry_environment()}
         with _environment(environ):
-            code, stdout, stderr = self.run_main(argv)
+            code, stdout, stderr = self.run_main(self.capture_argv())
         self.assertEqual((code, stderr), (bp.EXIT_OK, ''))
         self.assertEqual(json.loads(stdout)['status'], 'captured')
-        self.assertEqual(
-            len(FilesystemStore(self.root / 'cli-bucket').list(f'{TENANT}/daily/')), 3,
-        )
+        argv = self.runner.calls[0]
+        self.assertEqual(argv[argv.index('--db-name') + 1], source.db_name)
+        self.assertEqual(Path(argv[argv.index('--filestore') + 1]), source.filestore)
+        self.assertEqual(len(FilesystemStore(self.root / 'cli-bucket').list(f'{TENANT}/daily/')), 3)
+
+    def test_capture_protects_a_disabled_but_still_bound_tenant(self):
+        argv = self.capture_argv(tenant='other')
+        (self.root / 'data' / 'filestore' / 'liwan_other').mkdir()
+        environ = {bp.PASSPHRASE_ENVIRONMENT_VARIABLE: str(self.passphrase_file), **self.registry_environment()}
+        with _environment(environ):
+            code, _stdout, stderr = self.run_main(argv)
+        self.assertEqual((code, stderr), (bp.EXIT_OK, ''))
+        pg_dump = self.runner.calls[0]
+        self.assertEqual(pg_dump[pg_dump.index('--db-name') + 1], 'liwan_other')
+        self.assertEqual(len(FilesystemStore(self.root / 'cli-bucket').list('other/daily/')), 3)
+
+    def test_capture_refuses_an_unknown_tenant_or_pending_registry(self):
+        environ = {bp.PASSPHRASE_ENVIRONMENT_VARIABLE: str(self.passphrase_file), **self.registry_environment()}
+        with _environment(environ):
+            code, _stdout, stderr = self.run_main(self.capture_argv(tenant='unknown'))
+            self.assertEqual(code, bp.EXIT_REFUSED)
+            self.assertIn('tenant registry', stderr)
+            (self.root / 'registry.json.pending').touch()
+            code, _stdout, stderr = self.run_main(self.capture_argv())
+            self.assertEqual(code, bp.EXIT_REFUSED)
+            self.assertIn('tenant registry', stderr)
+        self.assertEqual(self.runner.calls, [])
+        self.assertFalse(self.work_root.exists())
+
+    def test_capture_refuses_a_filestore_link_to_another_database(self):
+        source = self.source()
+        source.filestore.rmdir()
+        other_store = self.root / 'another' / 'filestore' / source.db_name
+        other_store.mkdir(parents=True)
+        source.filestore.symlink_to(other_store)
+        environ = {bp.PASSPHRASE_ENVIRONMENT_VARIABLE: str(self.passphrase_file), **self.registry_environment()}
+        with _environment(environ):
+            code, _stdout, stderr = self.run_main(self.capture_argv())
+        self.assertEqual(code, bp.EXIT_REFUSED)
+        self.assertIn('filestore', stderr)
+        self.assertEqual(self.runner.calls, [])
+        source.filestore.unlink()
 
     def test_capture_without_the_passphrase_variable_is_a_refusal(self):
-        source = self.source()
-        argv = [
-            'capture', '--tenant', TENANT, '--kind', 'hourly',
-            '--work-root', str(self.work_root), '--db-name', source.db_name,
-            '--filestore', str(source.filestore), '--pg-dump', str(source.pg_dump),
-            '--store-root', str(self.root / 'cli-bucket'), '--now', STAMP,
-        ]
-        with _environment({}, clear=(bp.PASSPHRASE_ENVIRONMENT_VARIABLE,)):
-            code, _stdout, stderr = self.run_main(argv)
+        with _environment(self.registry_environment(), clear=(bp.PASSPHRASE_ENVIRONMENT_VARIABLE,)):
+            code, _stdout, stderr = self.run_main(self.capture_argv())
         self.assertEqual(code, bp.EXIT_REFUSED)
         self.assertIn(bp.PASSPHRASE_ENVIRONMENT_VARIABLE, stderr)
         self.assertEqual(FilesystemStore(self.root / 'cli-bucket').list(f'{TENANT}/'), [])

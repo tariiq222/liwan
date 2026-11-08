@@ -19,12 +19,14 @@ import os
 import subprocess
 import tempfile
 import unittest
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 from deploy import backup_pipeline as bp
 from deploy import restore_drill as drill
+from deploy import restore_verify
 from deploy.s3_client import FilesystemStore
 
 TENANT = 'acme'
@@ -73,6 +75,10 @@ class Runner(RecordingRunner):
         super().__init__(self._restore)
 
     def _restore(self, arguments, **_kwargs) -> Completed:
+        # Stop at the database boundary: exercise the production CLI parser first.
+        with patch.object(restore_verify, 'perform_restore', return_value={'restore_verified': True, 'checks': {}}), \
+                contextlib.redirect_stdout(io.StringIO()):
+            restore_verify.main(arguments[2:])
         backup_dir = Path(arguments[arguments.index('--backup-dir') + 1])
         # deploy/restore_verify.py refuses a backup directory that lacks any of the
         # three; the fake enforces the same precondition so the drill is proven to
@@ -82,6 +88,8 @@ class Runner(RecordingRunner):
         if missing:
             message = f'restore_verify would refuse {backup_dir}: missing {missing}'
             raise AssertionError(message)
+        self.backup_dir = backup_dir
+        self.staged = {name: (backup_dir / name).read_bytes() for name in ('database.dump', 'filestore/ab/cdef', 'manifest.json')}
         if self._writes_record:
             (backup_dir / drill.RESTORE_VERIFICATION_NAME).write_text(json.dumps({
                 'restore_verified': self._verified,
@@ -108,10 +116,9 @@ class DrillCase(unittest.TestCase):
         self.manifest = self.capture(now=datetime.fromisoformat(STAMP))
         self.tools = drill.RestoreTools(
             pg_restore=self.root / 'pg_restore',
-            createdb=self.root / 'createdb',
             psql=self.root / 'psql',
         )
-        for tool in (self.tools.pg_restore, self.tools.createdb, self.tools.psql):
+        for tool in (self.tools.pg_restore, self.tools.psql):
             tool.write_text('', encoding='utf-8')
 
     def tearDown(self) -> None:
@@ -165,7 +172,7 @@ class DrillCase(unittest.TestCase):
             runner=runner or Runner(),
             now=now or datetime.fromisoformat(STAMP) + timedelta(minutes=5),
             tools=self.tools,
-            record_path=record_path,
+            record_path=record_path, pg_user='scratch_operator',
         )
 
     def record(self) -> dict[str, object]:
@@ -199,8 +206,10 @@ class TestSuccessfulDrill(DrillCase):
         self.assertEqual(self.record(), json.loads(json.dumps(returned)))
 
     def test_the_source_manifest_digest_names_the_manifest_it_read(self):
-        record = self.run_drill()
-        staged = (self.scratch_root / drill.BACKUP_DIR_NAME / 'manifest.json').read_bytes()
+        runner = Runner()
+        record = self.run_drill(runner=runner)
+        staged = runner.staged['manifest.json']
+        self.assertFalse(runner.backup_dir.exists())
         self.assertEqual(record['source_manifest_sha256'], hashlib.sha256(staged).hexdigest())
         self.assertEqual(staged, self.store.get(self.manifest_key()))
 
@@ -212,23 +221,27 @@ class TestSuccessfulDrill(DrillCase):
             scratch_root=self.root / 'stale-scratch',
         )
         self.assertFalse(stale['rpo_ok'])
+        self.assertFalse(stale['restore_verified'])
 
     def test_the_rto_uses_the_measured_elapsed_seconds(self):
         ticks = iter([100.0, 100.0 + bp.RTO_SECONDS])
         inside = drill.run_drill(
             self.store, TENANT, scratch_root=self.root / 'fast', target_db='liwan_fast_scratch',
             passphrase_file=self.passphrase_file, runner=Runner(),
-            now=datetime.fromisoformat(STAMP), tools=self.tools, clock=lambda: next(ticks),
+            now=datetime.fromisoformat(STAMP), tools=self.tools, pg_user='scratch_operator', clock=lambda: next(ticks),
         )
         self.assertTrue(inside['rto_ok'])
+        self.assertTrue(inside['rpo_ok'])
+        self.assertTrue(inside['restore_verified'])
         self.assertEqual(inside['elapsed_seconds'], bp.RTO_SECONDS)
         ticks = iter([100.0, 100.0 + bp.RTO_SECONDS + 1])
         outside = drill.run_drill(
             self.store, TENANT, scratch_root=self.root / 'slow', target_db='liwan_slow_scratch',
             passphrase_file=self.passphrase_file, runner=Runner(),
-            now=datetime.fromisoformat(STAMP), tools=self.tools, clock=lambda: next(ticks),
+            now=datetime.fromisoformat(STAMP), tools=self.tools, pg_user='scratch_operator', clock=lambda: next(ticks),
         )
         self.assertFalse(outside['rto_ok'])
+        self.assertFalse(outside['restore_verified'])
 
     def test_it_restores_into_the_declared_scratch_database(self):
         runner = Runner()
@@ -244,15 +257,12 @@ class TestSuccessfulDrill(DrillCase):
         self.assertEqual(Path(runner.restore_calls()[0][1]).name, 'restore_verify.py')
 
     def test_it_stages_everything_restore_verify_needs_before_restoring(self):
-        self.run_drill()
-        backup_dir = self.scratch_root / drill.BACKUP_DIR_NAME
-        self.assertEqual((backup_dir / 'database.dump').read_bytes(), DUMP_BYTES)
-        self.assertEqual((backup_dir / 'filestore' / 'ab' / 'cdef').read_bytes(),
-                         ATTACHMENT_BYTES)
-        # The verifier requires a manifest; the drill must supply the verified one,
-        # byte for byte, so the restore records the capture-time manifest.
-        self.assertEqual((backup_dir / 'manifest.json').read_bytes(),
-                         self.store.get(self.manifest_key()))
+        runner = Runner()
+        self.run_drill(runner=runner)
+        self.assertEqual(runner.staged['database.dump'], DUMP_BYTES)
+        self.assertEqual(runner.staged['filestore/ab/cdef'], ATTACHMENT_BYTES)
+        self.assertEqual(runner.staged['manifest.json'], self.store.get(self.manifest_key()))
+        self.assertFalse(runner.backup_dir.exists())
 
     def test_the_passphrase_never_appears_in_any_argv(self):
         runner = Runner()
@@ -291,17 +301,14 @@ class TestRefusals(DrillCase):
         self.assertEqual(runner.calls, [])
 
     def test_an_artifact_whose_sha256_disagrees_with_its_manifest_is_refused(self):
-        manifest = bp.BackupManifest.from_json(
-            self.store.get(self.manifest_key()).decode('utf-8'),
-        )
-        tampered = dict(manifest.payload(), ciphertext_sha256='0' * 64)
-        self.store.delete(self.manifest_key())
-        self.store.put(self.manifest_key(),
-                       (json.dumps(tampered, indent=2, sort_keys=True) + '\n').encode('utf-8'))
+        key = self.artifact_key()
+        ciphertext = self.store.get(key)
+        self.store.delete(key)
+        self.store.put(key, bytes([ciphertext[0] ^ 1]) + ciphertext[1:])
         runner = Runner()
-        with self.assertRaises(drill.DrillError):
+        with self.assertRaisesRegex(drill.DrillError, 'ciphertext sha256'):
             self.run_drill(runner=runner)
-        self.assertEqual(runner.restore_calls(), [])
+        self.assertEqual(runner.calls, [])
         self.assertFalse(drill.drill_record_path(self.scratch_root).exists())
 
     def test_a_truncated_artifact_is_refused_by_the_ciphertext_digest(self):
@@ -313,17 +320,53 @@ class TestRefusals(DrillCase):
             self.run_drill()
 
     def test_a_manifest_that_pins_the_wrong_plaintext_digest_is_refused(self):
-        payload = json.loads(self.store.get(self.manifest_key()))
-        payload['plaintext_sha256'] = '0' * 64
-        # The ciphertext digest is untouched, so the artifact is accepted and the
-        # decrypted plaintext is what fails the comparison.
-        payload['ciphertext_sha256'] = hashlib.sha256(self.store.get(self.artifact_key())).hexdigest()
+        # Model a producer bug: the authenticated manifest pins a wrong plaintext
+        # digest. The drill must still decrypt and compare before restoring.
+        wrong = replace(self.manifest, plaintext_sha256='0' * 64)
         self.store.delete(self.manifest_key())
-        self.store.put(self.manifest_key(), json.dumps(payload).encode('utf-8'))
+        self.store.put(self.manifest_key(), wrong.to_json(self.passphrase_file).encode())
         runner = Runner()
-        with self.assertRaises(drill.DrillError):
+        with self.assertRaisesRegex(drill.DrillError, 'decrypted to sha256'):
             self.run_drill(runner=runner)
         self.assertEqual(runner.restore_calls(), [])
+
+    def test_transplanted_ciphertext_with_rewritten_tenant_is_refused_before_download(self):
+        class ObservableStore(FilesystemStore):
+            def __init__(self, root):
+                super().__init__(root)
+                self.downloads = []
+
+            def get_file(self, key, target, *, expected_size):
+                self.downloads.append(key)
+                return super().get_file(key, target, expected_size=expected_size)
+
+        other_tenant = 'another-tenant'
+        store = ObservableStore(self.root / 'other-bucket')
+        prefix = bp.artifact_prefix(other_tenant, 'hourly', datetime.fromisoformat(STAMP))
+        store.put(prefix + bp.ARTIFACT_CIPHERTEXT_NAME, self.store.get(self.artifact_key()))
+        manifest = json.loads(self.store.get(self.manifest_key()))
+        manifest['tenant'] = other_tenant
+        store.put(prefix + bp.MANIFEST_NAME, json.dumps(manifest).encode())
+        with self.assertRaisesRegex(bp.PipelineError, 'manifest authentication'):
+            drill.run_drill(
+                store, other_tenant, scratch_root=self.scratch_root,
+                target_db='liwan_drill_scratch', passphrase_file=self.passphrase_file,
+                runner=Runner(), now=datetime.fromisoformat(STAMP), tools=self.tools,
+                pg_user='scratch_operator',
+            )
+        self.assertEqual(store.downloads, [])
+
+    def test_manifest_identity_must_match_the_requested_bucket_key(self):
+        for change in ({'tenant': 'other'}, {'kind': 'daily'},
+                       {'captured_at': datetime.fromisoformat(STAMP) + timedelta(seconds=1)}):
+            with self.subTest(change=change):
+                wrong = replace(self.manifest, **change)
+                self.store.delete(self.manifest_key())
+                self.store.put(self.manifest_key(), wrong.to_json(self.passphrase_file).encode())
+                runner = Runner()
+                with self.assertRaises(drill.DrillError):
+                    self.run_drill(runner=runner, scratch_root=self.root / f'drill-{next(iter(change))}')
+                self.assertEqual(runner.calls, [])
 
     def test_an_unreadable_manifest_is_refused(self):
         self.store.delete(self.manifest_key())
@@ -336,7 +379,7 @@ class TestRefusals(DrillCase):
             drill.run_drill(
                 self.store, 'empty', scratch_root=self.scratch_root,
                 target_db='liwan_empty_scratch', passphrase_file=self.passphrase_file,
-                runner=Runner(), now=datetime.fromisoformat(STAMP), tools=self.tools,
+                runner=Runner(), now=datetime.fromisoformat(STAMP), tools=self.tools, pg_user='scratch_operator',
             )
 
     def test_a_failing_restore_is_recorded_as_not_verified(self):
@@ -365,7 +408,7 @@ class TestRefusals(DrillCase):
             drill.run_drill(
                 self.store, TENANT, scratch_root=Path('scratch'),
                 target_db='liwan_relative_scratch', passphrase_file=self.passphrase_file,
-                runner=Runner(), now=datetime.fromisoformat(STAMP), tools=self.tools,
+                runner=Runner(), now=datetime.fromisoformat(STAMP), tools=self.tools, pg_user='scratch_operator',
             )
 
 
@@ -404,7 +447,7 @@ class TestStatusAfterADrill(DrillCase):
         drill.run_drill(
             store, 'fresh', scratch_root=self.root / 'fresh-scratch',
             target_db='liwan_status_scratch', passphrase_file=self.passphrase_file,
-            runner=Runner(), now=started_at, tools=self.tools, clock=lambda: next(ticks),
+            runner=Runner(), now=started_at, tools=self.tools, pg_user='scratch_operator', clock=lambda: next(ticks),
         )
         record_path = drill.drill_record_path(self.root / 'fresh-scratch')
         report = bp.status(record_path)
@@ -433,7 +476,7 @@ class TestCommandLine(DrillCase):
     def test_a_refused_target_exits_two(self):
         code, _stdout, stderr = self.run_main([
             'run', '--tenant', TENANT, '--scratch-root', str(self.scratch_root),
-            '--target-db', 'odoo19', '--store-root', str(self.root / 'bucket'),
+            '--target-db', 'odoo19', '--store-root', str(self.root / 'bucket'), '--pg-user', 'scratch_operator',
         ])
         self.assertEqual(code, drill.EXIT_REFUSED)
         self.assertIn('restore_drill:', stderr)
@@ -441,7 +484,7 @@ class TestCommandLine(DrillCase):
     def test_a_missing_passphrase_variable_exits_two(self):
         code, _stdout, stderr = self.run_main([
             'run', '--tenant', TENANT, '--scratch-root', str(self.scratch_root),
-            '--target-db', 'liwan_cli_scratch', '--store-root', str(self.root / 'bucket'),
+            '--target-db', 'liwan_cli_scratch', '--store-root', str(self.root / 'bucket'), '--pg-user', 'scratch_operator',
         ])
         self.assertEqual(code, drill.EXIT_REFUSED)
         self.assertIn(bp.PASSPHRASE_ENVIRONMENT_VARIABLE, stderr)
@@ -449,7 +492,7 @@ class TestCommandLine(DrillCase):
     def test_a_successful_run_exits_zero_and_prints_the_record(self):
         argv = [
             'run', '--tenant', TENANT, '--scratch-root', str(self.scratch_root),
-            '--target-db', 'liwan_cli_scratch', '--store-root', str(self.root / 'bucket'),
+            '--target-db', 'liwan_cli_scratch', '--store-root', str(self.root / 'bucket'), '--pg-user', 'scratch_operator',
             '--now', STAMP,
         ]
         with _environment({bp.PASSPHRASE_ENVIRONMENT_VARIABLE: str(self.passphrase_file)}):
@@ -457,10 +500,27 @@ class TestCommandLine(DrillCase):
         self.assertEqual((code, stderr), (drill.EXIT_OK, ''))
         self.assertTrue(json.loads(stdout)['restore_verified'])
 
+    def test_a_restore_that_misses_rpo_exits_three_in_run_and_status(self):
+        run = [
+            'run', '--tenant', TENANT, '--scratch-root', str(self.scratch_root),
+            '--target-db', 'liwan_cli_scratch', '--store-root', str(self.root / 'bucket'),
+            '--pg-user', 'scratch_operator', '--now', '2026-11-08T06:00:00+00:00',
+        ]
+        with _environment({bp.PASSPHRASE_ENVIRONMENT_VARIABLE: str(self.passphrase_file)}):
+            code, stdout, stderr = self.run_main(run)
+        self.assertEqual((code, stderr), (drill.EXIT_NOT_VERIFIED, ''))
+        self.assertFalse(json.loads(stdout)['rpo_ok'])
+        code, stdout, stderr = self.run_main([
+            'status', '--record', str(drill.drill_record_path(self.scratch_root)),
+            '--now', '2026-11-08T06:00:01+00:00',
+        ])
+        self.assertEqual((code, stderr), (drill.EXIT_NOT_VERIFIED, ''))
+        self.assertFalse(json.loads(stdout)['restore_verified'])
+
     def test_a_failing_restore_exits_three(self):
         argv = [
             'run', '--tenant', TENANT, '--scratch-root', str(self.scratch_root),
-            '--target-db', 'liwan_cli_scratch', '--store-root', str(self.root / 'bucket'),
+            '--target-db', 'liwan_cli_scratch', '--store-root', str(self.root / 'bucket'), '--pg-user', 'scratch_operator',
             '--now', STAMP,
         ]
         stdout = io.StringIO()

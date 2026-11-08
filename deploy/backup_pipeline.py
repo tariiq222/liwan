@@ -23,23 +23,21 @@ process runners:
   manifest behind;
 * ``prune`` never deletes the newest hourly or the newest daily backup, however old
   it is, and stays inside the policy's windows otherwise;
-* ``restore_verified`` never hard-codes ``True``: a drill record must exist, must say
-  the restore passed, and must be inside both the RTO and the RPO window of the
-  caller's ``now``.
+* ``restore_verified`` requires a fresh successful drill record and proof that
+  the backup age at drill start and measured duration met their budgets.
 
 Not proven here: any real bucket (no socket is opened; :mod:`deploy.s3_client` owns
 that boundary), quiescence of the copied database, and recovery beyond a full dump.
 There is no WAL archiving, so the one-hour RPO rests on hourly captures, never on
-point-in-time recovery. Integrity is a SHA-256 comparison, not an authenticated
-cipher tag: ``openssl enc -aes-256-cbc`` is not an AEAD mode, and the manifest digest
-travels in the same bucket as the ciphertext, so a reader who can rewrite both is not
-detected. What this pipeline does prove is that a wrong key, a truncated upload or a
-substituted artifact makes the restore drill refuse.
+point-in-time recovery. The keyed manifest authenticates the tenant, capture type,
+timestamp, digests and lengths. The restore drill verifies it before fetching the
+ciphertext and compares both digests before restoring.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
+import hmac
 import json
 import os
 import re
@@ -47,6 +45,7 @@ import stat
 import subprocess
 import sys
 import tarfile
+import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -63,11 +62,15 @@ if TYPE_CHECKING:
     from typing import Protocol
 
     class ObjectStore(Protocol):
-        """The five operations ``s3_client``'s two stores share, and nothing more."""
+        """The shared file and metadata operations of the two stores."""
 
         def put(self, key: str, data: bytes) -> None: ...
 
         def get(self, key: str) -> bytes: ...
+
+        def put_file(self, key: str, source: Path) -> None: ...
+
+        def get_file(self, key: str, target: Path, *, expected_size: int) -> None: ...
 
         def head(self, key: str) -> int: ...
 
@@ -94,15 +97,19 @@ ARTIFACT_NAME = 'artifact.tar'
 ARTIFACT_CIPHERTEXT_NAME = 'artifact.tar.enc'
 MANIFEST_NAME = 'manifest.json'
 CHECKSUMS_NAME = 'checksums.sha256'
-CAPTURE_DIR_NAME = 'capture'
 CHECKSUM_LINE_SEPARATOR = '  '
 
 OPENSSL_BINARY = 'openssl'
+REGISTRY_ENVIRONMENT_VARIABLE = 'LIWAN_TENANT_REGISTRY_PATH'
 PASSPHRASE_ENVIRONMENT_VARIABLE = 'LIWAN_BACKUP_PASSPHRASE_FILE'
 ALLOWED_PASSPHRASE_MODES = (0o600, 0o400)
 # The shortest passphrase this pipeline accepts. openssl itself would accept an
 # empty passphrase; refusing it here is what keeps "encrypted" from meaning nothing.
 MINIMUM_PASSPHRASE_BYTES = 16
+MAXIMUM_PASSPHRASE_BYTES = 1022
+MANIFEST_KEY_DOMAIN = b'liwan-offsite-backup-manifest-v1\x00'
+MANIFEST_KEY_ITERATIONS = 600_000
+MANIFEST_TAG_FIELD = 'authentication_tag'
 
 TENANT_RE = re.compile(r'^[a-z0-9][a-z0-9_-]{0,62}$')
 SHA256_RE = re.compile(r'^[0-9a-f]{64}$')
@@ -194,27 +201,59 @@ class BackupManifest:
             'consistency': self.consistency,
         }
 
-    def to_json(self) -> str:
-        return json.dumps(self.payload(), indent=2, sort_keys=True) + '\n'
+    def to_json(self, passphrase_file: Path) -> str:
+        payload = self.payload()
+        payload[MANIFEST_TAG_FIELD] = self._authentication_tag(passphrase_file)
+        return json.dumps(payload, indent=2, sort_keys=True) + '\n'
 
     @classmethod
-    def from_json(cls, text: str) -> BackupManifest:
+    def from_json(cls, text: str | bytes, passphrase_file: Path) -> BackupManifest:
         try:
-            payload = json.loads(text)
-            return cls(
-                tenant=str(payload['tenant']),
-                kind=str(payload['kind']),
-                captured_at=parse_stamp(str(payload['captured_at'])),
-                plaintext_sha256=str(payload['plaintext_sha256']),
-                ciphertext_sha256=str(payload['ciphertext_sha256']),
-                plaintext_bytes=int(payload['plaintext_bytes']),
-                ciphertext_bytes=int(payload['ciphertext_bytes']),
-                cipher=str(payload.get('cipher', '')),
-                consistency=str(payload.get('consistency', '')),
+            if isinstance(text, bytes):
+                text = text.decode('utf-8')
+            payload = json.loads(text, object_pairs_hook=_unique_manifest_object)
+            _require(isinstance(payload, dict), 'a backup manifest must be a JSON object')
+            tag = payload.pop(MANIFEST_TAG_FIELD, None)
+            _require(
+                isinstance(tag, str) and bool(SHA256_RE.fullmatch(tag)),
+                'manifest authentication tag is missing or malformed',
+            )
+            manifest = cls(
+                tenant=payload['tenant'],
+                kind=payload['kind'],
+                captured_at=parse_stamp(payload['captured_at']),
+                plaintext_sha256=payload['plaintext_sha256'],
+                ciphertext_sha256=payload['ciphertext_sha256'],
+                plaintext_bytes=payload['plaintext_bytes'],
+                ciphertext_bytes=payload['ciphertext_bytes'],
+                cipher=payload['cipher'],
+                consistency=payload['consistency'],
             )
         except (ValueError, TypeError, KeyError, AttributeError) as error:
             message = 'not a backup manifest: the JSON is unreadable or incomplete'
             raise PipelineError(message) from error
+        _require(_manifest_canonical(payload) == _manifest_canonical(manifest.payload()),
+                 'backup manifest fields are not canonical')
+        _require(hmac.compare_digest(manifest._authentication_tag(passphrase_file), tag),
+                 'manifest authentication failed')
+        return manifest
+
+    def _authentication_tag(self, passphrase_file: Path) -> str:
+        # Ciphertext already incorporates OpenSSL's random salt. Its digest gives
+        # each manifest a distinct KDF salt, separate from the encryption key.
+        salt = MANIFEST_KEY_DOMAIN + bytes.fromhex(self.ciphertext_sha256)
+        key = hashlib.pbkdf2_hmac('sha256', _read_passphrase(passphrase_file), salt, MANIFEST_KEY_ITERATIONS)
+        return hmac.new(key, _manifest_canonical(self.payload()), hashlib.sha256).hexdigest()
+
+
+def _manifest_canonical(payload: Mapping[str, object]) -> bytes:
+    return json.dumps(payload, sort_keys=True, separators=(',', ':')).encode('utf-8')
+
+
+def _unique_manifest_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    payload = dict(pairs)
+    _require(len(payload) == len(pairs), 'backup manifest has duplicate fields')
+    return payload
 
 
 @dataclass(frozen=True)
@@ -284,7 +323,7 @@ def _require_kind(kind: str) -> str:
 
 
 def _require_sha256(value: str, field_name: str) -> None:
-    _require(bool(SHA256_RE.match(value)), f'{field_name} must be a lowercase SHA-256 hex digest')
+    _require(bool(SHA256_RE.fullmatch(value)), f'{field_name} must be a lowercase SHA-256 hex digest')
 
 
 def as_utc(moment: datetime | None) -> datetime:
@@ -326,7 +365,13 @@ def _fresh_path(path: Path, what: str) -> Path:
 
 
 def require_passphrase_file(passphrase_file: Path) -> Path:
-    """An absolute, owner-only, non-trivial passphrase file, or a refusal.
+    """An absolute, owner-only, non-trivial passphrase file, or a refusal."""
+    _read_passphrase(passphrase_file)
+    return passphrase_file
+
+
+def _read_passphrase(passphrase_file: Path) -> bytes:
+    """Read the exact line OpenSSL receives, excluding its trailing newline.
 
     The length is measured on the passphrase itself with the trailing newline
     removed, because that is what ``openssl -pass file:`` uses: measuring the file
@@ -339,13 +384,19 @@ def require_passphrase_file(passphrase_file: Path) -> Path:
         mode in ALLOWED_PASSPHRASE_MODES,
         f'the passphrase file must have mode 0600 or 0400, not {mode:04o}',
     )
-    passphrase = passphrase_file.read_bytes().strip()
-    _require(passphrase != b'', 'the passphrase must not be empty')
+    with passphrase_file.open('rb') as handle:
+        raw = handle.read(MAXIMUM_PASSPHRASE_BYTES + 2)
+    passphrase = raw[:-1] if raw.endswith(b'\n') else raw
     _require(
-        len(passphrase) >= MINIMUM_PASSPHRASE_BYTES,
+        len(passphrase) <= MAXIMUM_PASSPHRASE_BYTES
+        and not any(marker in passphrase for marker in (b'\n', b'\r', b'\x00')),
+        'the passphrase file must contain exactly one line within the OpenSSL size limit',
+    )
+    _require(
+        len(passphrase.strip()) >= MINIMUM_PASSPHRASE_BYTES,
         f'the passphrase must hold at least {MINIMUM_PASSPHRASE_BYTES} bytes',
     )
-    return passphrase_file
+    return passphrase
 
 
 def _run(runner: Callable[..., object], argv: list[str], what: str) -> object:
@@ -496,11 +547,6 @@ def artifact_prefix(tenant: str, kind: str, captured_at: datetime) -> str:
     return f'{tenant}/{kind}/{as_utc(captured_at).strftime(STAMP_FORMAT)}/'
 
 
-def capture_dir(work_root: Path, stamp: str) -> Path:
-    """A directory no earlier run used; backup.py refuses an existing output dir."""
-    return work_root / CAPTURE_DIR_NAME / stamp
-
-
 def _capture_argv(capture: Path, source: CaptureSource, backup_script: Path) -> list[str]:
     argv = [
         sys.executable,
@@ -557,45 +603,42 @@ def capture(
     _require_kind(kind)
     captured_at = as_utc(now)
     _require(work_root.is_absolute(), 'the work root must be an absolute path')
-    work_root.mkdir(parents=True, exist_ok=True)
-    stamp = captured_at.strftime(STAMP_FORMAT)
-    staging = capture_dir(work_root, stamp)
-    _require(not staging.exists(), f'the work root already holds a capture for {stamp}')
-    # Only the parent: deploy/backup.py creates its output directory itself and
-    # refuses one that already exists.
-    staging.parent.mkdir(parents=True, exist_ok=True)
-    plain_tar = staging / ARTIFACT_NAME
-    script = backup_script or Path(__file__).with_name('backup.py')
-
-    _run(runner, _capture_argv(staging, source, script), 'deploy/backup.py')
-    staged_dump = staging / 'database.dump'
-    _require(staged_dump.is_file(), 'deploy/backup.py produced no database.dump')
-    archive_filestore(staging, plain_tar)
-
-    ciphertext = staging / ARTIFACT_CIPHERTEXT_NAME
-    ciphertext_sha256 = encrypt_file(plain_tar, ciphertext, passphrase_file=passphrase_file, runner=runner)
-    manifest = BackupManifest(
-        tenant=tenant,
-        kind=kind,
-        captured_at=captured_at,
-        plaintext_sha256=sha256_file(plain_tar),
-        ciphertext_sha256=ciphertext_sha256,
-        plaintext_bytes=plain_tar.stat().st_size,
-        ciphertext_bytes=ciphertext.stat().st_size,
-    )
-    manifest_bytes = manifest.to_json().encode('utf-8')
-    manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
-    checksums = _checksums(
-        (manifest.ciphertext_sha256, manifest_sha256),
-        (ARTIFACT_CIPHERTEXT_NAME, MANIFEST_NAME),
-    )
-
+    require_passphrase_file(passphrase_file)
     prefix = artifact_prefix(tenant, kind, captured_at)
-    # The manifest is the success marker: uploaded last, after the artifact and its
-    # checksum listing are durable, so a half capture never looks complete.
-    store.put(prefix + ARTIFACT_CIPHERTEXT_NAME, ciphertext.read_bytes())
-    store.put(prefix + CHECKSUMS_NAME, checksums.encode('utf-8'))
-    store.put(prefix + MANIFEST_NAME, manifest_bytes)
+    _require(not store.list(prefix), 'the backup store already holds objects for this capture stamp')
+    work_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='capture-', dir=work_root) as private:
+        # backup.py creates its own output directory and refuses an existing one.
+        staging = Path(private) / 'snapshot'
+        plain_tar = Path(private) / ARTIFACT_NAME
+        script = backup_script or Path(__file__).with_name('backup.py')
+
+        _run(runner, _capture_argv(staging, source, script), 'deploy/backup.py')
+        _require((staging / 'database.dump').is_file(), 'deploy/backup.py produced no database.dump')
+        plaintext_sha256 = archive_filestore(staging, plain_tar)
+
+        ciphertext = Path(private) / ARTIFACT_CIPHERTEXT_NAME
+        ciphertext_sha256 = encrypt_file(plain_tar, ciphertext, passphrase_file=passphrase_file, runner=runner)
+        manifest = BackupManifest(
+            tenant=tenant,
+            kind=kind,
+            captured_at=captured_at,
+            plaintext_sha256=plaintext_sha256,
+            ciphertext_sha256=ciphertext_sha256,
+            plaintext_bytes=plain_tar.stat().st_size,
+            ciphertext_bytes=ciphertext.stat().st_size,
+        )
+        manifest_bytes = manifest.to_json(passphrase_file).encode('utf-8')
+        checksums = _checksums(
+            (manifest.ciphertext_sha256, hashlib.sha256(manifest_bytes).hexdigest()),
+            (ARTIFACT_CIPHERTEXT_NAME, MANIFEST_NAME),
+        )
+
+        # The manifest is the success marker: upload it only once the artifact and
+        # checksum listing are durable.
+        store.put_file(prefix + ARTIFACT_CIPHERTEXT_NAME, ciphertext)
+        store.put(prefix + CHECKSUMS_NAME, checksums.encode('utf-8'))
+        store.put(prefix + MANIFEST_NAME, manifest_bytes)
     return manifest
 
 
@@ -730,25 +773,22 @@ def restore_verified(
     now: datetime | None = None,
     policy: RetentionPolicy | None = None,
 ) -> bool:
-    """``True`` only for a fresh, passing drill record; never a constant.
+    """Whether a fresh drill restored successfully and met both recovery objectives."""
+    return bool(status(record_path, now, policy)['restore_verified'])
 
-    Three things must hold, and each has a test that fails when it is removed: the
-    record exists and says ``restore_verified`` is true, it finished inside the RTO
-    window, and it finished inside the RPO window of the caller's ``now``. Freshness
-    is what turns last month's good news into today's unproven claim.
-    """
-    current = as_utc(now)
-    active = policy or RetentionPolicy()
-    record = load_drill_record(record_path)
-    if record is None or record.get('restore_verified') is not True:
-        return False
-    finished_at = _record_timestamp(record, 'finished_at')
-    if finished_at is None:
-        return False
-    age_seconds = (current - finished_at).total_seconds()
-    inside_rto = age_seconds <= active.rto_seconds
-    inside_rpo = age_seconds <= active.rpo_seconds
-    return age_seconds >= 0 and inside_rto and inside_rpo
+
+def recovery_objectives(
+    captured_at: datetime | None,
+    started_at: datetime | None,
+    elapsed_seconds: float | None,
+    policy: RetentionPolicy,
+) -> tuple[bool, bool]:
+    """Measure data lost at the drill start and time spent restoring independently."""
+    age = None if captured_at is None or started_at is None else (started_at - captured_at).total_seconds()
+    return (
+        age is not None and 0 <= age <= policy.rpo_seconds,
+        elapsed_seconds is not None and 0 <= elapsed_seconds <= policy.rto_seconds,
+    )
 
 
 def _elapsed_seconds(record: Mapping[str, object]) -> float | None:
@@ -776,13 +816,24 @@ def status(
     record = load_drill_record(record_path)
     captured_at = _record_timestamp(record, 'artifact_captured_at') if record else None
     finished_at = _record_timestamp(record, 'finished_at') if record else None
+    started_at = _record_timestamp(record, 'started_at') if record else None
     elapsed_seconds = _elapsed_seconds(record) if record else None
+    rpo_ok, rto_ok = recovery_objectives(captured_at, started_at, elapsed_seconds, active)
+    if record:
+        rpo_ok = rpo_ok and record.get('rpo_ok') is not False
+        rto_ok = rto_ok and record.get('rto_ok') is not False
+    freshness = None if finished_at is None else (current - finished_at).total_seconds()
+    verified = (
+        record is not None and record.get('restore_verified') is True
+        and rpo_ok and rto_ok and freshness is not None
+        and 0 <= freshness <= active.rpo_seconds
+    )
     age_seconds = None if captured_at is None else (current - captured_at).total_seconds()
     return {
         'record_exists': record is not None,
-        'rpo_ok': age_seconds is not None and 0 <= age_seconds <= active.rpo_seconds,
-        'rto_ok': elapsed_seconds is not None and elapsed_seconds <= active.rto_seconds,
-        'restore_verified': restore_verified(record_path, current, active),
+        'rpo_ok': rpo_ok,
+        'rto_ok': rto_ok,
+        'restore_verified': verified,
         'last_backup_age_seconds': age_seconds,
         'artifact_captured_at': None if captured_at is None else captured_at.isoformat(),
         'finished_at': None if finished_at is None else finished_at.isoformat(),
@@ -818,8 +869,7 @@ def build_parser() -> argparse.ArgumentParser:
     take.add_argument('--tenant', required=True)
     take.add_argument('--kind', required=True, choices=BACKUP_KINDS)
     take.add_argument('--work-root', required=True, type=Path)
-    take.add_argument('--db-name', required=True)
-    take.add_argument('--filestore', required=True, type=Path)
+    take.add_argument('--data-dir', required=True, type=Path, help='trusted Odoo data directory containing filestore/')
     take.add_argument('--pg-dump', required=True, type=Path)
     take.add_argument('--pg-host')
     take.add_argument('--pg-port')
@@ -854,21 +904,43 @@ def _write_json(payload: Mapping[str, object]) -> None:
     sys.stdout.write(json.dumps(payload, indent=2, sort_keys=True) + '\n')
 
 
+def _registry_source(args: argparse.Namespace) -> CaptureSource:
+    tenant = _require_tenant(args.tenant)
+    registry = Path(os.environ.get(REGISTRY_ENVIRONMENT_VARIABLE, ''))
+    _require(registry.is_absolute(), f'{REGISTRY_ENVIRONMENT_VARIABLE} must be an absolute tenant registry path')
+    data_dir = args.data_dir
+    _require(data_dir.is_absolute() and data_dir.is_dir(),
+             '--data-dir must be the absolute path to the existing Odoo data directory')
+    resolver = Path(__file__).parent / 'shared' / 'backup-binding.mjs'
+    try:
+        result = subprocess.run(
+            ['node', str(resolver), str(registry), tenant],
+            check=False, capture_output=True, text=True, timeout=10,
+        )
+        _require(result.returncode == 0, 'tenant registry is unavailable or the tenant has no published binding')
+        binding = json.loads(result.stdout)
+        database = backup.validate_db_name(binding['database'])
+        store_name = backup.validate_db_name(binding['filestore'])
+    except (OSError, subprocess.TimeoutExpired, ValueError, KeyError, backup.BackupError) as error:
+        msg = 'could not read a valid tenant registry binding'
+        raise PipelineError(msg) from error
+    _require(database == store_name, 'tenant registry database and filestore do not match')
+    filestore = data_dir.resolve() / 'filestore' / store_name
+    _require(filestore.is_dir() and filestore.resolve() == filestore,
+             'the registered filestore must be an existing directory under the Odoo data directory without links')
+    return CaptureSource(database, filestore, args.pg_dump, args.pg_host, args.pg_port, args.pg_user)
+
+
 def _run_capture(args: argparse.Namespace, runner: Callable[..., object]) -> int:
+    passphrase_file = passphrase_from_environment(os.environ)
+    source = _registry_source(args)
     manifest = capture(
         store=build_store(args.store_root, os.environ),
         tenant=args.tenant,
-        source=CaptureSource(
-            db_name=args.db_name,
-            filestore=args.filestore,
-            pg_dump=args.pg_dump,
-            pg_host=args.pg_host,
-            pg_port=args.pg_port,
-            pg_user=args.pg_user,
-        ),
+        source=source,
         kind=args.kind,
         work_root=args.work_root,
-        passphrase_file=passphrase_from_environment(os.environ),
+        passphrase_file=passphrase_file,
         now=_parse_now(args.now),
         runner=runner,
     )
