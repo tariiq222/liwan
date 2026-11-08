@@ -198,14 +198,24 @@ restore is a recovery artefact, not a service. Expiry and unpublish remain futur
 stays until the operator removes it from the restore registry file.
 `restore-odoo` is deliberately given no `LIWAN_SHARED_PROXY_TOKEN`: Odoo reads it only for the TikTok relay.
 
-**Operator prerequisite: wildcard DNS and a wildcard certificate.** The Caddyfile serves `*.restore.{$DOMAIN}`, but
-without both of the following a restore host is not served:
-1. a wildcard DNS record, `*.restore.<domain>`, pointing at the edge;
-2. a TLS certificate valid for `*.restore.<domain>`. The stock proxy image (`deploy/proxy/Dockerfile`: Caddy plus
+**Operator prerequisite: wildcard DNS and a wildcard certificate.** The Caddyfile serves
+`*.restore.{$LIWAN_RESTORE_DOMAIN:invalid.invalid}`, but without both of the following a restore host is not served:
+1. `LIWAN_RESTORE_DOMAIN` set to the control plane's `domainSuffix`. This is a **separate** variable from `DOMAIN` on
+   purpose: `DOMAIN` is a site-address list that may carry several tenant hosts
+   (`DOMAIN="a.accept.test b.accept.test"`), so deriving the restore wildcard from it produced a site that matched no
+   published restore. With the variable unset the site falls back to `invalid.invalid`, which serves nothing.
+2. a wildcard DNS record, `*.restore.<domainSuffix>`, pointing at the edge;
+3. a TLS certificate valid for `*.restore.<domainSuffix>`. The stock proxy image (`deploy/proxy/Dockerfile`: Caddy plus
    `caddy-ratelimit`) has no DNS-challenge module, so Caddy cannot obtain a wildcard certificate by itself. The
    operator supplies it, for example by building the proxy with a DNS provider module and adding a `tls { dns ... }`
-   block, or by adding a `tls <cert> <key>` line, to the `*.restore.{$DOMAIN}` site only. Neither route is shipped or
-   verified here.
+   block, or by adding a `tls <cert> <key>` line, to the restore site only. Neither route is shipped or verified here.
+
+**A restored database runs no scheduled job.** `restore-odoo` is a recovery copy, so every cron the backup held is
+overdue on it and would mutate the data before an operator inspects it — `liwan_inbox`'s maintenance cron deletes
+conversations and attachments, which also makes `BackupRunner.verify_restore()` fail on a changed attachment
+inventory. Compose therefore starts it with `--max-cron-threads=0` and `LIWAN_RESTORE_ROLE=1`, and
+`deploy/shared/validate_odoo_config.py` refuses any other argument set or any `max_cron_threads` other than `0` in the
+restore config. That is a server-side invariant, not advice in a reference file.
 
 Not verified: no shared stack was started for this change, so serving a restored tenant end to end (DNS, TLS, guard to
 `restore-odoo`, Nuxt login) is unproven until an operator runs it with the wildcard certificate in place.

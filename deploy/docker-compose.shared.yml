@@ -12,6 +12,9 @@ services:
       # The operator allowlist for restore hosts (`remote_ip` syntax). Deliberately no default: unset or empty
       # answers 404 for every `*.restore.<domain>` host, so a stack cannot expose a restored database by omission.
       LIWAN_RESTORE_ALLOW: ${LIWAN_RESTORE_ALLOW:-}
+      # The restore wildcard's own suffix, which must be the control plane's `domainSuffix`. It is not derived from
+      # `DOMAIN`, a site-address list that may hold several tenant hosts.
+      LIWAN_RESTORE_DOMAIN: ${LIWAN_RESTORE_DOMAIN:-invalid.invalid}
     volumes:
       - ./shared/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -210,11 +213,14 @@ services:
     image: liwan-odoo:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG}
     restart: unless-stopped
     entrypoint: ["/opt/venv/bin/python", "/opt/liwan/shared/launch_odoo.py"]
-    command: []
+    # No scheduled job runs against a recovered database: the validator refuses any other argument set.
+    command: ["--max-cron-threads=0"]
     environment:
       # No LIWAN_SHARED_PROXY_TOKEN: Odoo reads it only for the TikTok relay, which restore-odoo cannot reach, and the
       # live token must never sit in a service that opens restored customer data.
       LIWAN_TENANCY_MODE: shared
+      # Marks this as the restore role: the validator then enforces `--max-cron-threads=0` and refuses anything else.
+      LIWAN_RESTORE_ROLE: "1"
     networks: [guard_restore, restore_database]
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]

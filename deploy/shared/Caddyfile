@@ -103,7 +103,11 @@
 # purpose: an unset or empty value answers 404 for every restore host, so a deployment cannot expose a restore by
 # forgetting to set it. `trusted_proxies` stays unset, so `remote_ip` reads the socket peer and no client header
 # can claim an allowlisted address.
-*.restore.{$DOMAIN} {
+# The restore suffix is its own variable on purpose: `DOMAIN` is a site-address list that may carry several tenant
+# hosts (`DOMAIN="a.example.test b.example.test"`), and deriving the wildcard from it would produce a host that
+# matches no published restore (`r<hex>.restore.example.test`). Set `LIWAN_RESTORE_DOMAIN` to the control plane's
+# `domainSuffix`. A default keeps `caddy validate` working when only `DOMAIN` is set.
+*.restore.{$LIWAN_RESTORE_DOMAIN:invalid.invalid} {
 	# `handle` blocks are mutually exclusive and evaluated in order, so the allowlist is decided before any
 	# request reaches the guarded snippet (a bare `respond` beside `import` is reordered by Caddy's directive sort).
 	@notOperator not remote_ip {$LIWAN_RESTORE_ALLOW}

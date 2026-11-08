@@ -139,10 +139,10 @@ def _caddy_container(script: str) -> subprocess.CompletedProcess:
     return result
 
 
-def _adapt_shared_caddyfile(text: str, *, restore_allow: str | None = None) -> dict:
+def _adapt_shared_caddyfile(text: str, *, restore_allow: str | None = None, domain: str = 'a.example.test') -> dict:
     allow = '' if restore_allow is None else f'export LIWAN_RESTORE_ALLOW="{restore_allow}"\n'
     result = _caddy_container(
-        "set -eu\nexport DOMAIN=a.example.test\nexport LIWAN_TIKTOK_RELAY_HOST=hooks.example.test\n"
+        "set -eu\nexport DOMAIN='" + domain + "'\nexport LIWAN_TIKTOK_RELAY_HOST=hooks.example.test\n"
         + allow
         + "cat > /tmp/source.Caddyfile <<'LIWAN_CADDY_SOURCE'\n"
         + text + "\nLIWAN_CADDY_SOURCE\n"
@@ -492,17 +492,32 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
         """
         adapted = _adapt_shared_caddyfile(SHARED_CADDYFILE.read_text(encoding='utf-8'))
         sites = {tuple(route['match'][0]['host']): route for route in adapted['apps']['http']['servers']['srv0']['routes']}
-        self.assertEqual(set(sites), {('a.example.test',), ('*.restore.a.example.test',), ('hooks.example.test',)})
-        self.assertTrue(_refuses_restore_before_proxying(sites[('*.restore.a.example.test',)]),
+        self.assertEqual(set(sites), {('a.example.test',), ('*.restore.invalid.invalid',), ('hooks.example.test',)})
+        self.assertTrue(_refuses_restore_before_proxying(sites[('*.restore.invalid.invalid',)]),
                         'the restore site must decide the allowlist before it reaches the guarded snippet')
         self.assertEqual(len([h for h in _find_handlers(adapted, 'rate_limit') if 'liwan_auth' in h['rate_limits']]), 2)
-        forwarded = _proxy_handlers(sites[('*.restore.a.example.test',)], 'guard:8080')
+        forwarded = _proxy_handlers(sites[('*.restore.invalid.invalid',)], 'guard:8080')
         self.assertEqual(len(forwarded), 1)
         deleted = forwarded[0]['handler']['headers']['request']['delete']
         for header in ('X-Forwarded-For', 'X-Forwarded-Host', 'X-Forwarded-Proto', 'Forwarded', 'X-Liwan-Proxy-Token', 'X-Liwan-Tenant-Revision'):
             self.assertIn(header, deleted)
 
-    def test_a_restore_host_is_reachable_only_from_the_operator_allowlist(self) -> None:
+    def test_the_restore_suffix_is_independent_of_the_tenant_address_list(self) -> None:
+        """Behavioral: a multi-host `DOMAIN` must not produce a restore wildcard no restore host matches.
+
+        The shared acceptance stack sets `DOMAIN="a.accept.test b.accept.test"` for the tenant site, while the control
+        plane publishes `r<hex>.restore.<domainSuffix>`. Deriving the restore wildcard from `DOMAIN` would yield
+        `*.restore.a.accept.test`, which matches no published restore.
+        """
+        adapted = _adapt_shared_caddyfile(SHARED_CADDYFILE.read_text(encoding='utf-8'),
+                                          domain='a.accept.test b.accept.test')
+        sites = {tuple(route['match'][0]['host']) for route in adapted['apps']['http']['servers']['srv0']['routes']}
+        self.assertIn(('a.accept.test', 'b.accept.test'), sites)
+        self.assertIn(('*.restore.invalid.invalid',), sites)
+        self.assertNotIn(('*.restore.a.accept.test',), sites)
+
+
+
         """Behavioral: the restore site answers 404 outside `LIWAN_RESTORE_ALLOW`, and 404 for everyone when unset.
 
         A restored database holds the credentials its backup held, so the edge — not the restored app — is the
@@ -514,7 +529,7 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
                 adapted = _adapt_shared_caddyfile(text, restore_allow=allow)
                 sites = {tuple(route['match'][0]['host']): route
                          for route in adapted['apps']['http']['servers']['srv0']['routes']}
-                restore = sites[('*.restore.a.example.test',)]
+                restore = sites[('*.restore.invalid.invalid',)]
                 tenant = sites[('a.example.test',)]
                 refusals = _status_handlers(restore, 'notOperator')
                 self.assertEqual(len(refusals), 1, 'the restore site must answer 404 for a non-allowlisted client')
