@@ -26,9 +26,7 @@ const shell = useShellModel()
 const slideOver = useSlideOver()
 const { tools } = useQuickPanels()
 const assistant = useAssistantSheet()
-// A divider only stands between two groups that both show: the assistant, the work tools, the notifications.
-const toolsDivider = computed(() => assistant.showButton.value && tools.value.length > 0)
-const bellDivider = computed(() => (assistant.showButton.value || tools.value.length > 0) && can('liwan.notifications'))
+
 useShellShortcuts({
   'focus-search': () => focusListSearch(document),
   create: () => {
@@ -59,7 +57,6 @@ useShellShortcuts({
     <template #search><GlobalSearch /></template>
     <template #end>
       <AssistantButton />
-      <span v-if="toolsDivider" class="liwan-shell-divider" aria-hidden="true" />
       <div v-if="tools.length" class="liwan-tools" role="group" :aria-label="t('nav.tools')">
         <ShellToolButton
           v-for="tool in tools"
@@ -75,7 +72,6 @@ useShellShortcuts({
           @click="slideOver.toggle(tool.panel.id, $event.currentTarget as HTMLElement)"
         />
       </div>
-      <span v-if="bellDivider" class="liwan-shell-divider" aria-hidden="true" />
       <NotificationCenter v-if="can('liwan.notifications')" />
       <AppUserMenu />
     </template>

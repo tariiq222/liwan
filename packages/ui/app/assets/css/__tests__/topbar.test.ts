@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-// Guard for the top bar's one icon-button style (owner-approved reorganisation): every tool is the same 40px button
+// Guard for the top bar's one icon-button style (owner-approved reorganisation): every tool is the same tile as the sidebar core-apps row
 // with no background at rest and a light fill on hover; groups are separated by a hairline, never a tinted capsule.
 const css = resolve(import.meta.dirname, '..')
 const strip = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, '')
@@ -10,14 +10,13 @@ const shell = strip(readFileSync(resolve(css, 'shell.css'), 'utf8'))
 const rule = (selector: string) => shell.match(new RegExp(`(?:^|\\})\\s*${selector.replace(/[.[\]"=():-]/g, '\\$&')}\\s*\\{([^}]*)\\}`))?.[1] ?? ''
 
 describe('top bar icon buttons', () => {
-  it('are 40px, transparent at rest and filled with the muted background on hover or while open', () => {
+  it('are the same 36px tile as the sidebar core-apps row: surface, hairline, ink icon, solid ink while open', () => {
     const tool = rule('.liwan-tool')
-    expect(tool).toMatch(/width: 40px;/)
-    expect(tool).toMatch(/height: 40px;/)
-    expect(tool).toMatch(/background: transparent;/)
-    expect(tool).toMatch(/border: 0;/)
-    expect(tool).toMatch(/border-radius: var\(--radius-control\);/)
-    expect(shell).toContain('.liwan-tool:hover, .liwan-tool[data-open="true"] { background: var(--ui-bg-muted);')
+    expect(tool).toMatch(/width: var\(--liwan-bar-tile\);/)
+    expect(tool).toMatch(/border: 1px solid var\(--ui-border\);/)
+    expect(tool).toMatch(/background: var\(--ui-bg\);/)
+    expect(tool).toMatch(/color: var\(--liwan-ink\);/)
+    expect(shell).toContain('.liwan-tool[data-open="true"] { border-color: var(--liwan-ink); background: var(--liwan-ink); color: var(--liwan-on-ink); }')
     expect(shell).toContain('.liwan-tool:focus-visible { outline: 2px solid var(--ring);')
   })
 
@@ -28,17 +27,17 @@ describe('top bar icon buttons', () => {
     expect(shell).not.toContain('.liwan-app-switcher')
   })
 
-  it('separate the groups with a one-pixel divider that phones drop', () => {
-    expect(rule('.liwan-shell-divider')).toMatch(/width: 1px;[\s\S]*background: var\(--ui-border\);/)
-    expect(shell).toMatch(/@media \(max-width: 767px\) \{[^@]*\.liwan-shell-divider \{ display: none; \}/)
+  it('have no divider between the groups', () => {
+    expect(shell).not.toContain('liwan-shell-divider')
   })
 })
 
 describe('top bar user button', () => {
-  it('is a transparent 40px button that fills on hover and while its menu is open', () => {
+  it('is a bordered surface tile of the same height that fills on hover and while its menu is open', () => {
     const user = rule('.liwan-user')
-    expect(user).toMatch(/height: 40px;/)
-    expect(user).toMatch(/background: transparent;/)
+    expect(user).toMatch(/height: var\(--liwan-bar-tile\);/)
+    expect(user).toMatch(/border: 1px solid var\(--ui-border\);/)
+    expect(user).toMatch(/background: var\(--ui-bg\);/)
     expect(shell).toContain('.liwan-user:hover, .liwan-user[data-state="open"] { background: var(--ui-bg-muted); }')
   })
 

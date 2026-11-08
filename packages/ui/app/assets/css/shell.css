@@ -7,12 +7,14 @@
   --shell-duration: var(--liwan-motion-panel);
   --shell-ease: var(--liwan-motion-ease);
   --shell-side-width: 264px;
-  --shell-header-height: 68px;
+  --shell-header-height: 60px;
   --shell-top: var(--shell-header-height);
   /* The gap a docked full-height card (SharedListCard fill) keeps above the viewport bottom. */
   --shell-inset: 12px;
   --shell-pad-x: 36px;
   --shell-content-max: 1240px;
+  /* Every control of the top bar is the same tile as the sidebar's core-apps row. */
+  --liwan-bar-tile: 36px;
   --shell-tabbar-height: 68px;
   min-height: 100svh;
   background: var(--liwan-canvas);
@@ -29,7 +31,7 @@
 .liwan-shell-workspace { min-height: 100svh; margin-inline-start: var(--shell-side-width); background: var(--liwan-canvas); transition: margin-inline-start var(--shell-duration) var(--shell-ease); }
 .liwan-shell-main {
   --liwan-pad-x: var(--shell-pad-x);
-  --liwan-pad-top: 28px;
+  --liwan-pad-top: 12px;
   min-width: 0;
   max-width: var(--shell-content-max);
   min-height: calc(100svh - var(--shell-header-height));
@@ -183,22 +185,23 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
   display: flex;
   height: var(--shell-header-height);
   align-items: center;
-  gap: 14px;
-  padding-inline: var(--shell-pad-x);
-  background: color-mix(in srgb, var(--liwan-canvas) 88%, transparent);
-  backdrop-filter: saturate(1.4) blur(10px);
+  gap: 10px;
+  /* The bar sits in the same column as the page: same maximum width and side padding, centred like the page. */
+  padding-inline: max(var(--shell-pad-x), calc((100% - var(--shell-content-max)) / 2 + var(--shell-pad-x)));
+  background: transparent;
   border-block-end: 1px solid transparent;
   color: var(--ui-text);
-  transition: border-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease);
+  transition: background-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease), border-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease);
 }
-.liwan-shell-header[data-scrolled="true"] { border-block-end-color: var(--ui-border); }
+/* Only once the page has scrolled under it does the bar take the page background and a hairline. */
+.liwan-shell-header[data-scrolled="true"] { background: color-mix(in srgb, var(--liwan-canvas) 92%, transparent); backdrop-filter: saturate(1.4) blur(10px); border-block-end-color: var(--ui-border); }
 .liwan-shell-header-start { display: none; min-width: 0; align-items: center; gap: 8px; }
 /* A console that has no sidebar column to carry the product mark (show-start) keeps the start slot on every width. */
 .liwan-shell-header[data-start="always"] .liwan-shell-header-start { display: flex; flex: 1; }
 .liwan-shell-header-search { min-width: 160px; flex: 0 1 380px; }
 .liwan-shell-header-end { display: flex; flex: none; align-items: center; gap: 10px; margin-inline-start: auto; }
-.liwan-shell-header .liwan-search-trigger { width: 100%; min-width: 0; height: 40px; justify-content: space-between; padding-inline: 14px; border-radius: var(--radius-control); background: var(--liwan-chip); box-shadow: inset 0 0 0 1px var(--ui-border); font-size: .875rem; font-weight: 400; color: var(--ui-text-muted); }
-.liwan-shell-header .liwan-search-trigger:hover { background: var(--liwan-chip); }
+.liwan-shell-header .liwan-search-trigger { width: 100%; min-width: 0; height: var(--liwan-bar-tile); justify-content: space-between; padding-inline: 14px; border-radius: var(--radius-control-sm); background: var(--ui-bg); box-shadow: inset 0 0 0 1px var(--ui-border); font-size: .875rem; font-weight: 400; color: var(--ui-text-muted); }
+.liwan-shell-header .liwan-search-trigger:hover { background: var(--ui-bg-muted); }
 .liwan-shell-header .liwan-search-trigger kbd { border-radius: var(--radius-tag); }
 @media (hover: none) { .liwan-shell-header .liwan-search-trigger kbd { display: none; } }
 .liwan-shell-mark { display: inline-flex; align-items: center; gap: 8px; color: var(--ui-text-highlighted); font-size: 1rem; font-weight: 700; text-decoration: none; }
@@ -225,62 +228,67 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
 
 /* Icon buttons of the bar: one 40px button, no background at rest, a light fill on hover or while its panel is open.
    The groups (AI, work tools, notifications) are separated by a hairline divider, never by a tinted capsule. */
-.liwan-tools { display: flex; align-items: center; gap: 2px; }
-.liwan-shell-divider { width: 1px; height: 22px; flex: none; background: var(--ui-border); }
+/* Icon buttons of the bar are the same tile as the sidebar's core-apps row: a surface with a hairline and an ink icon, a light
+   fill on hover, and the solid ink tile with the inverse icon while their panel is open. */
+.liwan-tools { display: flex; align-items: center; gap: 8px; }
 .liwan-tool {
   position: relative;
   display: grid;
-  width: 40px;
-  height: 40px;
+  width: var(--liwan-bar-tile);
+  height: var(--liwan-bar-tile);
   flex: none;
   place-items: center;
   padding: 0;
-  border: 0;
-  border-radius: var(--radius-control);
-  background: transparent;
-  color: color-mix(in srgb, var(--ui-text) 82%, var(--ui-bg));
+  border: 1px solid var(--ui-border);
+  border-radius: var(--radius-tile);
+  background: var(--ui-bg);
+  color: var(--liwan-ink);
   cursor: pointer;
-  transition: background-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease), transform var(--liwan-motion-feedback) var(--liwan-motion-color-ease), color var(--liwan-motion-feedback) var(--liwan-motion-color-ease);
+  transition: background-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease), transform var(--liwan-motion-feedback) var(--liwan-motion-color-ease), color var(--liwan-motion-feedback) var(--liwan-motion-color-ease), border-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease);
 }
-.liwan-tool:hover, .liwan-tool[data-open="true"] { background: var(--ui-bg-muted); color: var(--ui-text-highlighted); }
+.dark .liwan-tool { background: var(--ui-bg-muted); }
+.liwan-tool .iconify { width: 17px; height: 17px; }
+.liwan-tool:hover { background: var(--ui-bg-muted); }
+.dark .liwan-tool:hover { background: var(--ui-bg-elevated); }
+.liwan-tool[data-open="true"] { border-color: var(--liwan-ink); background: var(--liwan-ink); color: var(--liwan-on-ink); }
 .liwan-tool:active { transform: scale(.97); }
 .liwan-tool:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .liwan-tool:disabled { opacity: .5; cursor: default; }
 .liwan-tool-badge {
   position: absolute;
-  inset-block-start: 1px;
-  inset-inline-end: 1px;
+  inset-block-start: -6px;
+  inset-inline-end: -6px;
   display: grid;
   min-width: 18px;
   height: 18px;
   place-items: center;
   padding-inline: 4px;
   border-radius: var(--radius-tag);
-  background: var(--primary-solid);
-  color: var(--primary-solid-foreground);
-  box-shadow: 0 0 0 2px var(--liwan-canvas);
+  background: var(--liwan-ink);
+  color: var(--liwan-on-ink);
+  box-shadow: 0 0 0 2px var(--ui-bg);
   font-size: var(--text-xs);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
   pointer-events: none;
 }
-.liwan-tool-badge[data-dot="true"] { min-width: 12px; width: 12px; height: 12px; padding: 0; inset-block-start: 5px; inset-inline-end: 5px; }
+.liwan-tool-badge[data-dot="true"] { min-width: 12px; width: 12px; height: 12px; padding: 0; inset-block-start: -3px; inset-inline-end: -3px; }
 @media (max-width: 767px) {
   .liwan-tool { width: 38px; height: 38px; }
   .liwan-tool[data-mobile="hide"] { display: none; }
-  .liwan-shell-divider { display: none; }
 }
 
 /* The user at the far end of the bar: avatar (with the live-connection dot), name and role, chevron; it opens the user menu.
    Phones and narrow bars keep the avatar alone. */
-.liwan-user { display: flex; min-width: 0; align-items: center; gap: 10px; height: 40px; padding-inline: 4px 8px; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--ui-text); text-align: start; cursor: pointer; transition: background-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease), transform var(--liwan-motion-feedback) var(--liwan-motion-color-ease); }
+.liwan-user { display: flex; min-width: 0; align-items: center; gap: 10px; height: var(--liwan-bar-tile); padding-inline: 3px 8px; border: 1px solid var(--ui-border); border-radius: var(--radius-control-sm); background: var(--ui-bg); color: var(--ui-text); text-align: start; cursor: pointer; transition: background-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease), transform var(--liwan-motion-feedback) var(--liwan-motion-color-ease); }
+.dark .liwan-user { background: var(--ui-bg-muted); }
 .liwan-user:hover, .liwan-user[data-state="open"] { background: var(--ui-bg-muted); }
 .liwan-user:active { transform: scale(.98); }
 .liwan-user:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .liwan-user:disabled { opacity: .5; cursor: default; }
-.liwan-user [data-slot="avatar"] { position: relative; display: grid; width: 32px; height: 32px; flex: none; place-items: center; border-radius: 999px; background: var(--liwan-ink); color: var(--liwan-on-ink); font-size: var(--text-sm); font-weight: 600; }
-.liwan-user [data-slot="status"] { position: absolute; inset-inline-end: -1px; inset-block-start: -1px; width: 10px; height: 10px; border-radius: 999px; box-shadow: 0 0 0 2px var(--liwan-canvas); }
+.liwan-user [data-slot="avatar"] { position: relative; display: grid; width: 28px; height: 28px; flex: none; place-items: center; border-radius: 999px; background: var(--liwan-ink); color: var(--liwan-on-ink); font-size: var(--text-sm); font-weight: 600; }
+.liwan-user [data-slot="status"] { position: absolute; inset-inline-end: -1px; inset-block-start: -1px; width: 10px; height: 10px; border-radius: 999px; box-shadow: 0 0 0 2px var(--ui-bg); }
 .liwan-user [data-slot="status"][data-connected="true"] { background: var(--status-success, #16a34a); }
 .liwan-user [data-slot="status"][data-connected="false"] { background: var(--ui-text-dimmed); }
 .liwan-user [data-slot="copy"] { display: grid; min-width: 0; max-width: 10rem; line-height: 1.25; }
@@ -299,29 +307,29 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
 /* The AI button: black identity, sparkles; the label drops out below 1380px and on a phone. */
 .liwan-ai-button {
   display: inline-flex;
-  height: 40px;
+  height: var(--liwan-bar-tile);
   flex: none;
   align-items: center;
   gap: 8px;
-  padding-inline: 16px;
-  border: 0;
-  border-radius: var(--radius-control);
-  background: var(--liwan-chip);
-  box-shadow: inset 0 0 0 1px var(--ui-border);
-  color: var(--ui-text-highlighted);
+  padding-inline: 12px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--radius-control-sm);
+  background: var(--ui-bg);
+  color: var(--liwan-ink);
   font-size: .875rem;
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
   transition: background-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease), transform var(--liwan-motion-feedback) var(--liwan-motion-color-ease);
 }
-.liwan-ai-button:hover { background: var(--liwan-nav-active); }
-.liwan-ai-button[data-open="true"] { box-shadow: inset 0 0 0 2px var(--liwan-ink); }
+.dark .liwan-ai-button { background: var(--ui-bg-muted); }
+.liwan-ai-button:hover { background: var(--ui-bg-muted); }
+.liwan-ai-button[data-open="true"] { border-color: var(--liwan-ink); background: var(--liwan-ink); color: var(--liwan-on-ink); }
 .liwan-ai-button:active { transform: scale(.97); }
 .liwan-ai-button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .liwan-ai-button:disabled { opacity: .5; cursor: default; }
 @media (max-width: 1380px) {
-  .liwan-ai-button { padding-inline: 12px; }
+  .liwan-ai-button { padding-inline: 10px; }
   .liwan-ai-button [data-slot="label"] { display: none; }
 }
 @media (max-width: 767px) {
