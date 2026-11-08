@@ -16,6 +16,7 @@ from odoo.exceptions import MissingError, UserError
 
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_finance.serializers.zatca import (
+    ZATCA_FORMAT_CODE,
     dump_zatca_readiness,
     dump_zatca_submission,
     plain_text,
@@ -136,7 +137,7 @@ class LiwanFinanceZatca(models.AbstractModel):
             raise ApiError(422, 'invalid_state', 'ZATCA rejected the document; correct it and retry')
         elevated_move = self.sudo().with_context(lang='en_US').env['account.move'].browse(move.id)
         if retry:
-            elevated_move._retry_edi_documents_error()
+            self._liwan_retry_zatca_document(elevated_move)
         try:
             # The move-level action is the public wrapper; the document-level processor is private in stock.
             elevated_move.action_process_edi_web_services(with_commit=False)
@@ -152,3 +153,18 @@ class LiwanFinanceZatca(models.AbstractModel):
         )
         self.env['liwan.finance.audit.event']._liwan_log('zatca_submitted', move, outcome=state)
         return move
+
+    def _liwan_retry_zatca_document(self, move):
+        """Clear the stored failure of the ZATCA document only, leaving every other EDI format of the move untouched.
+
+        Stock's ``_retry_edi_documents_error`` writes ``error`` and ``blocking_level`` on **every** EDI document of the
+        move, so a failure of another format would vanish from the work list and its cron would retry it with nobody
+        told why it had failed. The rest of stock's ZATCA hook stays: the chain head is cleared so a blocked chain can
+        be sent again, and the attachments are detached so the XML is regenerated.
+        """
+        documents = move.edi_document_ids.filtered(lambda document: document.edi_format_id.code == ZATCA_FORMAT_CODE)
+        if not documents:
+            return
+        move.filtered(lambda move: move.country_code == 'SA').write({'l10n_sa_edi_chain_head_id': False})
+        move._detach_attachments()
+        documents.write({'error': False, 'blocking_level': False})
