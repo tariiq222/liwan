@@ -125,7 +125,8 @@ isolated resources. `ci-result` aggregates selected stages; its success is neede
 before merge, but does not prove a full run or owner authorization.
 
 `ci` remains read-only and deterministic. Keep a PR draft during local
-preparation; a draft runs no stage (its `ci-result` fails because `scope` did not run), and marking it
+preparation. A draft runs no stage and reports its blocked state as `ci-draft`. Draft events use a separate
+concurrency group so a delayed draft event cannot cancel a ready run or replace its required `ci-result`. Marking it
 ready starts the run on the actual candidate and requests review. A newer push to the same PR cancels its older
 run. On `main` a running run always finishes; GitHub keeps only the newest pending `main` run, whose
 commit contains every earlier merge. A manual `workflow_dispatch` run is never cancelled by a push. The required
