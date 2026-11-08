@@ -129,13 +129,30 @@ class HrPayslip(models.Model):
     def _liwan_period_version(self):
         """The employee version in force on the last paid day of the period.
 
-        The payslip carries this single version, so a mid-month version change never doubles the basic.
+        The payslip carries this single version, so a mid-month version change never doubles the basic. A version
+        that starts after the period, or one that ended before it, is refused as ``contract_missing`` instead of
+        falling back to another version: that fallback paid zero days and let an unpaid month through.
         """
         self.ensure_one()
         last_day = min(day for day in (self.date_to, self.employee_id.departure_date) if day)
         versions = self.env['hr.version'].search([('employee_id', '=', self.employee_id.id)], order='date_version')
-        in_force = versions.filtered(lambda version: version.date_version <= last_day)
-        return in_force[-1:] or versions[:1]
+        in_force = versions.filtered(
+            lambda version: version.contract_date_start
+            and version.contract_date_start <= last_day
+            and (not version.contract_date_end or version.contract_date_end >= self.date_from),
+        )
+        if not in_force:
+            code = 'contract_missing'
+            raise LiwanHrRule(
+                code,
+                self.env._(
+                    '%(name)s has no contract version in force on %(day)s: check the contract start and end dates.',
+                    name=self.employee_id.name, day=last_day.isoformat(),
+                ),
+                field='employee_id',
+                details={'employee_id': self.employee_id.id, 'date': last_day.isoformat()},
+            )
+        return in_force[-1:]
 
     def _liwan_mail_final_payslips(self):
         """Mail the payslip of an employee whose service ended with this month to the personal email on record.

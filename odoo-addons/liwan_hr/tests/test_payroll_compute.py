@@ -175,3 +175,39 @@ class TestPayrollCompute(PayrollCase):
             self._payslip(employee)
         self.assertEqual(refused.exception.code, 'contract_missing')
         self.assertEqual(refused.exception.field, 'employee_id')
+
+    def test_a_version_starting_after_the_period_is_refused(self):
+        """A version that starts after the month must not fall back to the oldest one and pay zero days."""
+        employee = self.make_employee('Starts Later', start=date(2027, 3, 1))
+        self.set_compensation(employee, 9000, gosi_registration_date=date(2020, 1, 1))
+        with self.assertRaises(LiwanHrRule) as refused:
+            self._payslip(employee)
+        self.assertEqual(refused.exception.code, 'contract_missing')
+        self.assertEqual(refused.exception.field, 'employee_id')
+        self.assertEqual(refused.exception.details['employee_id'], employee.id)
+
+    def test_a_version_starting_after_the_period_is_refused_before_the_structure_check(self):
+        """A Saudi-rules child structure would report a mismatch; the missing contract version is the named refusal."""
+        child = self.env['hr.payroll.structure'].create({
+            'name': 'Child of Saudi', 'parent_id': self.structure.id,
+        })
+        employee = self.make_employee('Later Joiner', start=date(2027, 1, 1))
+        with self.assertRaises(LiwanHrRule) as refused:
+            self._payslip(employee, structure=child)
+        self.assertEqual(refused.exception.code, 'contract_missing')
+
+    def test_a_version_ending_before_the_period_is_refused(self):
+        """The version ended before the month: the payslip is refused, never computed on a stale version."""
+        employee = self.make_employee('Left Earlier', start=date(2024, 1, 1))
+        employee.version_id.write({'contract_date_end': date(2026, 6, 30)})
+        self.set_compensation(employee, 9000, gosi_registration_date=date(2020, 1, 1))
+        with self.assertRaises(LiwanHrRule) as refused:
+            self._payslip(employee)
+        self.assertEqual(refused.exception.code, 'contract_missing')
+
+    def test_a_version_covering_the_period_is_the_one_the_payslip_carries(self):
+        employee = self.make_employee('In Force', start=date(2024, 1, 1))
+        self.set_compensation(employee, 9000, gosi_registration_date=date(2020, 1, 1))
+        payslip = self._payslip(employee)
+        self.assertEqual(payslip.contract_id, employee.version_id)
+        self.assertEqual(self._lines(payslip)['BASIC'], 9000)
