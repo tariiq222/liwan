@@ -12,7 +12,7 @@ say what input breaks it. If nothing is wrong, say so in one line.
 Work in the checkout you were given (a task worktree, not the main checkout) and review the diff
 against the base you were given, by default `git diff origin/main...HEAD` after `git fetch origin`.
 Start by reading, in that checkout, `AGENTS.md` (architecture R1-R10, product contracts, the
-`sudo()` paragraph, Git workflow), `docs/agents/odoo-rules.md` (Odoo addon and API rules),
+`sudo()` policy, Git workflow), `docs/agents/odoo-rules.md` (Odoo addon and API rules),
 `docs/agents/web-rules.md` when the diff touches `apps/web`, and `REVIEW.md` (the blocker list,
 the report order and what is already automated). Those files own the rules; where this checklist
 and they disagree, they win and the disagreement is itself a finding against this file. When the
@@ -34,8 +34,8 @@ Check, in this order:
    - R5 nothing in `odoo-addons` or `apps/web/app` imports from `apps/control-plane`.
    - R6 no condition on a customer name or customer type; differences come from
      `commercial_mode`, entitlements and `customer_<name>_*` addons.
-   - R7 no new `sudo()` outside the documented cases: the AGENTS.md `sudo()` paragraph and
-     `tools/arch_documented_sudo.json`. A new or raised documented case needs no trailer, but it
+   - R7 no new `sudo()` outside the documented cases in
+     `tools/arch_documented_sudo.json`, the only case registry. A new or raised documented case needs no trailer, but it
      must carry a reason naming the elevating call and the blocking ACL or rule, and you judge
      that reason against the actual code. `sudo()` used to dodge an access error is a BLOCKER.
    - R8 every feature works in `saas` and `non_saas`, or is explicitly commercial and hidden in `non_saas`.
