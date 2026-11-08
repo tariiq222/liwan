@@ -127,7 +127,9 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
 .dark .liwan-side-row[data-active="true"] { background: var(--liwan-nav-active); box-shadow: 0 0 0 1px #40404b; }
 .liwan-side-row:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
 .liwan-side-row [data-slot="icon"] { display: grid; width: 26px; flex: none; place-items: center; color: var(--liwan-rail-ink); transition: color var(--liwan-motion-feedback) var(--liwan-motion-color-ease); }
-.liwan-side-row[data-active="true"] [data-slot="icon"] { color: var(--liwan-rail-active-ink); }
+.liwan-side-row[data-active="true"] [data-slot="icon"] { color: var(--app-accent, var(--liwan-rail-active-ink)); }
+/* A paid application's open row also carries a thin bar of its colour on the start edge. */
+.liwan-side-row[data-active="true"]::before { content: ""; position: absolute; inset-block: 9px; inset-inline-start: 0; width: 3px; border-radius: 3px; background: var(--app-accent, transparent); }
 .liwan-side-row [data-slot="label"] { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .liwan-side-row [data-slot="count"] { margin-inline-start: auto; border-radius: var(--radius-tag); background: var(--primary-solid); color: var(--primary-solid-foreground); padding-inline: 7px; font-size: var(--text-xs); font-weight: 600; line-height: 19px; font-variant-numeric: tabular-nums; }
 .liwan-side-row [data-slot="chevron"] { margin-inline-start: auto; color: var(--ui-text-muted); transition: rotate var(--shell-duration) var(--shell-ease); }

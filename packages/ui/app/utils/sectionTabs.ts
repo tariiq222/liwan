@@ -8,7 +8,7 @@
 export const sectionTabsUi = {
   // Tabs never wrap or truncate; a narrow screen scrolls the strip instead.
   list: 'gap-7 p-0 overflow-x-auto',
-  indicator: 'rounded-none h-[2.5px] bottom-0 bg-[var(--app-action,var(--primary-solid))]',
+  indicator: 'rounded-none h-[2.5px] bottom-0 bg-[var(--app-accent,var(--primary-solid))]',
   trigger: 'grow-0 shrink-0 rounded-none px-0.5 pt-2 pb-2.5 text-[15px] font-medium data-[state=active]:font-semibold data-[state=active]:text-highlighted',
   label: 'overflow-visible text-clip',
 } as const

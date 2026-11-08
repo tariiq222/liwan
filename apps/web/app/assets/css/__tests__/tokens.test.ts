@@ -241,6 +241,27 @@ describe('per-application identity', () => {
     }
   })
 
+  it('keeps tinted chips and accent text at AA on their own tint (light and dark)', () => {
+    const hex = (value: number[]) => `#${value.map(channel => Math.round(channel).toString(16).padStart(2, '0')).join('')}`
+    const rgb = (value: string) => [1, 3, 5].map(start => Number.parseInt(value.slice(start, start + 2), 16))
+    const mixWith = (fg: string, bg: string, share: number) => hex(rgb(fg).map((channel, index) => channel * share + rgb(bg)[index]! * (1 - share)))
+    for (const [app, tile] of Object.entries(APP_TILES)) {
+      const lightText = mixWith(tile.action, '#000000', 0.8)
+      expect(contrastRatio(lightText, mixWith(tile.action, '#ffffff', 0.12)), `${app} light chip`).toBeGreaterThanOrEqual(4.5)
+      const darkText = mixWith(tile.dark, '#ffffff', 0.75)
+      expect(contrastRatio(darkText, mixWith(tile.dark, DARK_SURFACES.bg, 0.14)), `${app} dark chip`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it('defines the accent, its text, the ring and the first chart series for a paid application only', () => {
+    const sheetText = css()
+    expect(sheetText).toContain('--app-accent: var(--app-action);')
+    expect(sheetText).toContain('--app-accent: var(--app-tile);')
+    expect(sheetText).toContain('--chart-1: var(--app-accent);')
+    expect(sheetText).toContain('[role="progressbar"] > [data-slot="indicator"].bg-primary')
+    for (const free of ['chat', 'tasks', 'meetings', 'documents', 'operations', 'ai']) expect(sheetText, free).not.toContain(`data-app="${free}"`)
+  })
+
   it('scopes a paid application to its tile and button shade and leaves free applications on the ink', () => {
     const sheetText = css()
     for (const app of Object.keys(APP_TILES)) expect(sheetText).toContain(`[data-app="${app}"] { --app-tile: var(--liwan-app-${app}); --app-action: var(--liwan-app-${app}-action); }`)

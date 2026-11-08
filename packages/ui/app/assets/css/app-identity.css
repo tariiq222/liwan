@@ -54,7 +54,22 @@
   --primary-fill-foreground: #fff;
   --primary-fill-hover-foreground: #fff;
   --primary-fill-active-foreground: #fff;
+  /* App colour touches (a trial the owner may revert): the accent is the button shade in light mode and the lighter tile
+     colour in dark mode; the accent text is the darkest stop (light) or a lightened tile colour (dark), so a tinted chip
+     keeps AA. Used for the active nav item, the active tab, selected filter chips, progress, the first chart series and the
+     focus ring; never on large backgrounds, the table header, body text or status colours. */
+  --app-accent: var(--app-action);
+  --app-accent-text: color-mix(in srgb, var(--app-action) 80%, black);
+  --ring: var(--app-accent);
+  --chart-1: var(--app-accent);
 }
+.dark :is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"]) {
+  --app-accent: var(--app-tile);
+  --app-accent-text: color-mix(in srgb, var(--app-tile) 75%, white);
+}
+/* The primary progress bar and the keyboard focus outline take the application colour. */
+:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"]) [role="progressbar"] > [data-slot="indicator"].bg-primary { background-color: var(--app-accent); }
+:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"]) :focus-visible { outline-color: var(--app-accent); }
 
 /* The icon tile: a solid rounded square with a white icon (ink with an inverse icon for a free application). The corner is 28% of the
    side, capped at 18px (64 -> 18, 44 -> 13, 32 -> 10, 26 -> 8), so every size reads as the same shape. */
