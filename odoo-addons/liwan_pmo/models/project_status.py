@@ -55,6 +55,12 @@ class ProjectProject(models.Model):
         do not block). A project with no tasks never completes. Only an
         automatic completion is reverted; a manager's own 'done' stays.
 
+        The project rows are locked first, in the project-then-task order of
+        _liwan_lock_projects_then_tasks, and the counters are re-read after the
+        lock, so the counts and the write are one critical section: two
+        simultaneous last-task closes cannot both read "complete" and post
+        "All tasks are complete".
+
         sudo(): documented automatic-completion case. It runs after a task
         mutation the caller was already authorized for, reads integer counts
         over all of the project's tasks (the caller may not see every task)
@@ -62,7 +68,16 @@ class ProjectProject(models.Model):
         update that records the change.
         """
         Task = self.env['project.task'].sudo()
-        for project in self.sudo().filtered(lambda p: p.active):
+        projects = self.sudo().filtered(lambda p: p.active)
+        # Lock before the counters, then invalidate so the pass below is answered from the database
+        # under the lock and not from a cache that predates it: the counts and the status write are
+        # one critical section.
+        # Project rows only, sorted by id by the shared helper. The caller may already hold its own
+        # task row (it writes the task first), so locking tasks here would invert the
+        # project-then-task order that keeps _liwan_lock_projects_then_tasks deadlock-free.
+        Task._liwan_lock_projects_then_tasks(projects, Task.browse())
+        projects.invalidate_recordset()
+        for project in projects:
             domain = [('project_id', '=', project.id)]
             open_count = Task.search_count(domain + [('state', 'not in', list(CLOSED_STATES))])
             done_count = Task.search_count(domain + [('state', '=', '1_done')])
