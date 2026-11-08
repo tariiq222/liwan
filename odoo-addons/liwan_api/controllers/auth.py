@@ -6,7 +6,11 @@ from odoo.exceptions import AccessDenied
 from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.access_admin import require_exact
-from odoo.addons.liwan_api.controllers.common import ApiError, api_handler
+from odoo.addons.liwan_api.controllers.common import (
+    ApiError,
+    api_handler,
+    error_response,
+)
 from odoo.addons.liwan_api.serializers.user import dump_me
 from odoo.addons.liwan_core.models.login_code import CHANNELS
 from odoo.addons.liwan_platform.models.entitlement_service import LiwanTenantSuspended
@@ -30,9 +34,15 @@ DOUBLE_STEP_REFUSALS = {
 
 
 def _refusal(code, resend_after=0):
+    """The answer of a refused second step, RETURNED and never raised.
+
+    ``api_handler`` rolls back the request's savepoint when a controller raises, and a refusal is exactly
+    when this step has something to keep: the wrong-attempt counter that burns a guessed code and the
+    daily-cap alert. A returned response leaves the savepoint released and the request commits it.
+    """
     status, machine, message = DOUBLE_STEP_REFUSALS[code]
     details = {'resend_after': resend_after} if resend_after else None
-    raise ApiError(status, machine, message, details=details)
+    return error_response(status, machine, message, details=details)
 
 
 def _pending_user():
@@ -102,7 +112,7 @@ class AuthController(http.Controller):
         # The code table is system-only; the access service is its single documented reader/writer.
         outcome = request.env['liwan.access.service']._liwan_codes()._liwan_issue(user, channel)
         if outcome.error:
-            _refusal(outcome.error, outcome.resend_after)
+            return _refusal(outcome.error, outcome.resend_after)
         return {
             'channel': outcome.channel,
             'destination': outcome.destination,
@@ -117,7 +127,7 @@ class AuthController(http.Controller):
         _assert_login_allowed(user)
         error = request.env['liwan.access.service']._liwan_codes()._liwan_verify(user, payload['code'])
         if error:
-            _refusal(error)
+            return _refusal(error)
         device = None
         if payload.get('remember') is True:
             label = payload.get('label')
@@ -138,7 +148,7 @@ class AuthController(http.Controller):
         device = request.env['liwan.access.service']._liwan_devices()._liwan_usable(token)
         if not device or device.user_id.id != user.id:
             _clear_device_cookie()
-            _refusal('invalid_device')
+            return _refusal('invalid_device')
         return _finish(user, device)
 
 

@@ -5,6 +5,7 @@ from odoo import http
 from odoo.exceptions import AccessDenied
 from odoo.http import request
 
+from odoo.addons.liwan_api.controllers.auth import DEVICE_COOKIE
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
@@ -73,6 +74,19 @@ class MeController(http.Controller):
         service = request.env['liwan.access.service']
         records = service._liwan_devices().browse(service._liwan_remembered_devices(request.env.user))
         return {'items': [dump_device(record) for record in records], 'total': len(records)}
+
+    @http.route('/api/v1/me/devices', type='json2', auth='user', methods=['DELETE'], readonly=False)
+    @api_handler
+    def forget_devices(self):
+        """Forget the caller's remembered devices except the browser making this request.
+
+        The browser in use is named by its own device cookie, so the holder is never signed out of the
+        convenience they are using. Answers the ids that are still remembered.
+        """
+        service = request.env['liwan.access.service']
+        keep = service._liwan_devices()._liwan_usable(request.httprequest.cookies.get(DEVICE_COOKIE))
+        service._liwan_forget_devices(request.env.user, keep=keep)
+        return {'device_ids': service._liwan_remembered_devices(request.env.user)}
 
     @http.route('/api/v1/me/password', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

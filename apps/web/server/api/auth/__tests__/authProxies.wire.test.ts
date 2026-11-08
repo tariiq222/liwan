@@ -144,10 +144,12 @@ describe('the second sign-in step on the wire', () => {
 
   it('forgets the remembered devices with DELETE and returns the ids that stay', async () => {
     answer = { status: 200, body: { device_ids: [4] } }
-    const response = await request('/device', { method: 'DELETE' })
+    const response = await request('/device', { method: 'DELETE', headers: { cookie: 'session_id=live; liwan_device=in-use' } })
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ device_ids: [4] })
-    expect(calls[0]).toMatchObject({ path: '/api/v1/auth/device', method: 'DELETE' })
+    // The Odoo route that exists for the holder's own devices, with the cookie that names the browser in use.
+    expect(calls[0]).toMatchObject({ path: '/api/v1/me/devices', method: 'DELETE', body: '' })
+    expect(calls[0]!.headers.cookie).toBe('session_id=live; liwan_device=in-use')
   })
 
   it('refuses a cross-site or non-JSON mutation before contacting Odoo', async () => {

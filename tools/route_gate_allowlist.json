@@ -20,6 +20,7 @@
       "routes": [
         "liwan_api/controllers/me.py:change_password",
         "liwan_api/controllers/me.py:devices",
+        "liwan_api/controllers/me.py:forget_devices",
         "liwan_api/controllers/me.py:me",
         "liwan_api/controllers/me.py:patch_appearance",
         "liwan_api/controllers/me.py:patch_mobile",

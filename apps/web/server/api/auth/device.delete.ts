@@ -5,7 +5,7 @@ import { authRefusal, authStep } from './-upstream'
 // password step, it carries no payload: the browser's own session cookie is the whole request.
 export default defineEventHandler(async (event) => {
   assertSameSiteJson(event)
-  const answer = await authStep(event, '/api/v1/auth/device', { method: 'DELETE', scope: 'session' })
+  const answer = await authStep(event, '/api/v1/me/devices', { method: 'DELETE', scope: 'session' })
   if (!answer.ok) throw authRefusal(answer.status, answer.body, 'forbidden')
   return answer.body
 })

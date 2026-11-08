@@ -5,6 +5,7 @@ from odoo import fields
 from odoo.tests import get_db_name, new_test_user, tagged
 
 from .common import LiwanApiCase
+from odoo.addons.liwan_core.models.login_code import CODE_ATTEMPTS, DAILY_SENDS
 from odoo.addons.liwan_platform.models.entitlement_service import (
     OPERATOR_CONTEXT,
     LiwanTenantSuspended,
@@ -219,12 +220,63 @@ class TestLoginCodeRoutes(LiwanApiCase):
         self.assertNotIn('token_hash', listed.text)
         self.assertNotIn('token', listed.text)
 
-        # The Nuxt "forget all other devices" button calls DELETE /api/v1/auth/device; the service it
-        # delegates to is exercised here without a second HTTP session.
-        self.env['liwan.access.service'].with_user(self.employee)._liwan_forget_devices(self.employee)
+        # The Nuxt "forget all other devices" button calls DELETE /api/v1/me/devices. This browser signed in
+        # with a code and holds no device cookie, so nothing is kept.
+        forgotten = self.api('DELETE', '/api/v1/me/devices')
+        self.assertEqual(forgotten.status_code, 200, forgotten.text)
+        self.assertEqual(forgotten.json(), {'device_ids': []})
         self.assertTrue(first.revoked_at)
         self.assertTrue(second.revoked_at)
         self.assertEqual(self.api('GET', '/api/v1/me/devices').json()['items'], [])
+
+    def test_forgetting_devices_keeps_the_browser_in_use(self):
+        other, _raw = self.env['liwan.login.device']._liwan_issue(self.employee, 'old browser')
+        self._issue()
+        self.assertEqual(self.api('POST', '/api/v1/auth/verify', {
+            'code': self.sent_code(), 'remember': True, 'label': 'this browser',
+        }).status_code, 200)
+        current = self.env['liwan.login.device'].search([('label', '=', 'this browser')])
+        self.assertEqual(len(current), 1)
+        forgotten = self.api('DELETE', '/api/v1/me/devices')
+        self.assertEqual(forgotten.status_code, 200, forgotten.text)
+        self.assertEqual(forgotten.json(), {'device_ids': [current.id]})
+        self.assertTrue(other.revoked_at)
+        self.assertFalse(current.revoked_at)
+
+    def test_forgetting_devices_needs_a_signed_in_account(self):
+        self.authenticate()
+        res = self.api('DELETE', '/api/v1/me/devices')
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(self.env['liwan.login.device'].search_count([('revoked_at', '=', False)]), 0)
+
+    # -- refusals keep their counters ------------------------------------------------------------
+
+    def test_wrong_codes_in_separate_requests_burn_the_code(self):
+        """Each refusal persists its attempt: the fifth wrong guess locks even the right code out."""
+        self._issue()
+        right = self.sent_code()
+        wrong = '%06d' % ((int(right) + 1) % 1000000)
+        for attempt in range(CODE_ATTEMPTS):
+            res = self.api('POST', '/api/v1/auth/verify', {'code': wrong})
+            self.assertEqual(res.status_code, 401, res.text)
+            self.assertEqual(res.json()['code'], 'invalid_code')
+            record = self.env['liwan.login.code'].search([('user_id', '=', self.employee.id)], limit=1)
+            self.assertEqual(record.attempts, attempt + 1, 'the refusal must not roll the attempt back')
+        self.assertTrue(record.revoked_at, 'the last allowed attempt burns the code')
+        res = self.api('POST', '/api/v1/auth/verify', {'code': right})
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()['code'], 'invalid_code')
+        self.assertEqual(self.api('GET', '/api/v1/me').status_code, 401)
+
+    def test_the_daily_cap_alert_survives_its_refusal(self):
+        self.authenticate()
+        model = type(self.env['liwan.login.code'])
+        with patch.object(model, '_liwan_daily_sends', return_value=DAILY_SENDS):
+            res = self.api('POST', '/api/v1/auth/code', {'channel': 'sms'})
+        self.assertEqual(res.status_code, 503, res.text)
+        self.assertEqual(res.json()['code'], 'daily_send_cap')
+        self.assertEqual(self.env['liwan.login.code.alert'].search([]).attempts, 1)
+        self.assertEqual(self.sent, [], 'no code goes out once the cap is reached')
 
     # -- tenant lifecycle --------------------------------------------------------------------
 
