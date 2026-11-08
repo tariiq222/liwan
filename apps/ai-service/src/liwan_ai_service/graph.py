@@ -43,7 +43,7 @@ class AgentState(TypedDict):
     outcome: str | None
     output_tokens: int  # what the provider reported for this request's plan calls
     max_output_tokens: int | None  # the policy's per-run cap (platform runs); None means no cap
-    input_tokens: int  # the largest input count the provider reported for one plan call of this request
+    input_tokens: int  # the summed input tokens the provider reported for this request's plan calls
     max_input_tokens: int | None  # the tenant's per-run ceiling on input tokens (issue #554); None means no ceiling
     limit: str | None  # which limit stopped the run, when the graph itself decided it
     agents: list[dict[str, Any]]  # the specialists Odoo declared for this user and request

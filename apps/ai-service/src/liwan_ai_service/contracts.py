@@ -135,9 +135,10 @@ class Policy(Strict):
     provider_mode: Billing  # whose account pays the request; "setup" runs on the platform provider
     consent_signed: bool  # the tenant signed the current AI acknowledgement; no provider runs a request without it
     max_output_tokens: int | None = Field(ge=0, le=1_000_000)  # platform runs only; null means no cap, 0 allows no answer
-    # The tenant's own ceiling on the input tokens of one request (issue #554), in both provider modes. The first plan
-    # call (the message, its context and the history) must fit under it; a later call that would start above it stops the
-    # run with ``limit_reached`` and ``input_tokens``. null means no ceiling. 0 refuses even the first call.
+    # The tenant's own ceiling on the summed input tokens of one request (issue #554), in both provider modes. A plan call
+    # runs only while the total already spent is under it, so the call that reaches the ceiling completes, its text having
+    # streamed, and the next one stops the run with ``limit_reached`` and ``input_tokens``; a tool call it carried is not
+    # made. null means no ceiling. 0 refuses even the first call.
     max_input_tokens: int | None = Field(default=None, ge=0, le=2_000_000)
 
 
