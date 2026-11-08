@@ -2,7 +2,7 @@
 from unittest.mock import patch
 
 from odoo import fields
-from odoo.tests import get_db_name, tagged
+from odoo.tests import get_db_name, new_test_user, tagged
 
 from .common import LiwanApiCase
 from odoo.addons.liwan_platform.models.entitlement_service import (
@@ -82,6 +82,21 @@ class TestLoginCodeRoutes(LiwanApiCase):
         code = self.sent_code()
         wrong = '%06d' % ((int(code) + 1) % 1000000)
         res = self.api('POST', '/api/v1/auth/verify', {'code': wrong})
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()['code'], 'invalid_code')
+        self.assertEqual(self.api('GET', '/api/v1/me').status_code, 401)
+
+    def test_a_code_of_one_pending_session_does_not_finish_another(self):
+        """The code is bound to the account the password step named, not to whichever session asks."""
+        self._issue()
+        code = self.sent_code()
+        other = new_test_user(
+            self.env, login='api_other', password='api_other_pass_123', name='Other',
+            groups='liwan_core.group_employee',
+        )
+        other.email = 'api_other@example.test'
+        self.authenticate(login='api_other', password='api_other_pass_123')
+        res = self.api('POST', '/api/v1/auth/verify', {'code': code})
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()['code'], 'invalid_code')
         self.assertEqual(self.api('GET', '/api/v1/me').status_code, 401)
