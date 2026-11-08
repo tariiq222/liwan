@@ -146,6 +146,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .liwan-setting-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 1rem 2rem; }
 .liwan-setting-row-text { min-width: 0; max-width: 60ch; }
 .liwan-setting-row-control { min-width: 0; justify-self: end; }
+.liwan-setting-row-control [data-slot="segmented-control"] { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
 .liwan-setting-row[data-stacked="true"] { grid-template-columns: minmax(0, 1fr); align-items: start; }
 .liwan-setting-row[data-stacked="true"] .liwan-setting-row-control { justify-self: stretch; }
 @media (max-width: 640px) {

@@ -1,5 +1,5 @@
 /* The application shell (owner-approved dashboard layout): one fixed sidebar on the inline-start side (264px; an 84px icon-only
-   strip between 768px and 1099px), a flat sticky top bar beside it, the page in a 1240px column, inline-end slide-over panels
+   strip between 768px and 1099px), a flat sticky top bar beside it, the page in a centred fluid column (max 1680px), inline-end slide-over panels
    for the personal tools, and below 768px a bottom tab bar with the same sidebar content in a drawer.
    Geometry is px so the frame does not grow with the user's font size; text inside it uses rem.
    Page and form geometry that is not the shell's lives in layout.css. */
@@ -11,8 +11,8 @@
   --shell-top: var(--shell-header-height);
   /* The gap a docked full-height card (SharedListCard fill) keeps above the viewport bottom. */
   --shell-inset: 12px;
-  --shell-pad-x: 36px;
-  --shell-content-max: 1240px;
+  --shell-pad-x: clamp(16px, 3vw, 48px);
+  --shell-content-max: 1680px;
   /* Every control of the top bar is the same tile as the sidebar's core-apps row. */
   --liwan-bar-tile: 36px;
   --shell-tabbar-height: 68px;
@@ -23,7 +23,7 @@
   .liwan-shell { --shell-side-width: 84px; }
 }
 @media (max-width: 767px) {
-  .liwan-shell { --shell-side-width: 0px; --shell-header-height: 60px; --shell-pad-x: 14px; }
+  .liwan-shell { --shell-side-width: 0px; --shell-header-height: 60px; --shell-pad-x: 16px; }
 }
 .liwan-shell[data-sidebar="none"] { --shell-side-width: 0px; }
 
@@ -34,6 +34,7 @@
   --liwan-pad-top: 12px;
   min-width: 0;
   max-width: var(--shell-content-max);
+  margin-inline: auto;
   min-height: calc(100svh - var(--shell-header-height));
   padding: var(--liwan-pad-top) var(--liwan-pad-x) 80px;
   background: var(--liwan-canvas);
