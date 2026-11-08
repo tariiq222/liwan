@@ -242,7 +242,7 @@
       "title": "Maintenance scheduling",
       "preference": "Preferred maintenance window",
       "preferenceHint": "Save your weekly preference, then explicitly book each published release. Saving a preference does not schedule an update.",
-      "timezone": "IANA timezone",
+      "timezone": "Timezone",
       "weekday": "Day of week",
       "startTime": "Local start time",
       "duration": "Window duration (minutes)",

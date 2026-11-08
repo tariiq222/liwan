@@ -427,7 +427,7 @@
     "schedule": {
       "title": "Who schedules meetings",
       "hint": "Who may schedule a meeting or a series in the current company.",
-      "label": "Who schedules",
+      "label": "Who can schedule meetings",
       "all_employees": "Every employee",
       "all_employeesHint": "Any employee who can see meetings may schedule one.",
       "organizers_only": "Only holders of the meeting organizer role",

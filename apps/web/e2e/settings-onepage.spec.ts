@@ -137,6 +137,8 @@ test.describe('settings page of cards', () => {
   })
 
   test('the VAT number appears and is required only while the company is registered for VAT', async ({ page }) => {
+    // The mock keeps what this test saves, so start every run from a registered company.
+    await page.request.patch('/api/v1/admin/company', { data: { vat_registered: true, vat: '300000000000003' } })
     await open(page, '/settings/company')
     const card = page.getByTestId('company-profile')
     await expect(page.getByTestId('company-vat')).toBeVisible()

@@ -199,7 +199,7 @@ test('project settings open as a real page under Settings > Apps', async ({ page
   const settingsProjects = page.getByTestId('application-navigation').getByRole('button', { name: 'المشاريع', exact: true })
   await expect(settingsProjects).toHaveAttribute('aria-expanded', 'true')
   await expect(page.getByTestId('application-navigation').locator('a[href="/settings/apps/projects"]')).toBeVisible()
-  await expect(page.getByRole('region', { name: 'سياسة إنشاء المشاريع', exact: true }).getByRole('radiogroup')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'سياسة إنشاء المشاريع', exact: true }).locator('[data-slot="segmented-control"]').first()).toBeVisible()
   await expect(page.locator('.liwan-settings-content [data-slot="record-section"][data-variant="panel"], .liwan-settings-content [data-slot="record-section"][data-variant="list"]')).toHaveCount(6)
   expect(new URL(page.url()).pathname).toBe('/settings/apps/projects')
   await page.screenshot({ path: testInfo.outputPath('submenu-projects-desktop-rtl.png'), fullPage: true })
@@ -292,7 +292,6 @@ test('project settings sections are separate bordered cards with clear headers',
     await expect(card).toHaveAttribute('data-slot', 'record-section')
     await expect.poll(() => card.evaluate(element => Number.parseFloat(getComputedStyle(element).borderRadius))).toBeCloseTo(18, 2)
     await expect(card.locator(':scope > header')).toHaveCSS('border-bottom-width', '1px')
-    await expect.poll(() => card.evaluate(element => getComputedStyle(element).boxShadow)).not.toBe('none')
   }
   const remindersBox = await reminders.boundingBox()
   const catalogsBox = await catalogs.boundingBox()

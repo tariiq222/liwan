@@ -160,7 +160,7 @@
         "title": "Provider",
         "hint": "Who runs the assistant for your organization.",
         "mode": {
-          "label": "Run on",
+          "label": "How the assistant runs",
           "platform": "The LiwanOS provider",
           "tenant_key": "Your organization's own key",
           "platformHint": "LiwanOS runs it within your plan limits.",

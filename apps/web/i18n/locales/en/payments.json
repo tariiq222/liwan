@@ -12,7 +12,7 @@
       "enabled": "Live"
     },
     "mode": {
-      "label": "Mode",
+      "label": "Operating mode",
       "hint": "Off takes no payments, Test uses no real money, Live takes your customers' real payments.",
       "needsKeys": "Enter and save all keys first to turn on Test or Live.",
       "changed": "The mode was changed",
