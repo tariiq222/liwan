@@ -6,8 +6,8 @@ import { computed, inject, provide, readonly, ref, toValue, type InjectionKey, t
  * header draws the chip before the title and starts the trail with the application, so no page repeats them. Outside a shell nothing is published.
  */
 
-/** `label` and `to` name the application and its landing page: the first step of the header trail. */
-export interface PageApp { icon: string; label?: string; to?: string }
+/** `id` is the rail id (it selects the application colour); `label` and `to` name the application and its landing page: the first step of the header trail. */
+export interface PageApp { icon: string; id?: string; label?: string; to?: string }
 
 const PAGE_APP: InjectionKey<Readonly<Ref<PageApp | null>>> = Symbol('liwan-page-app')
 const NO_APP: Readonly<Ref<PageApp | null>> = readonly(ref<PageApp | null>(null))

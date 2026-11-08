@@ -2,8 +2,8 @@ import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { renderShared, type SharedRenderOptions } from '../../../../../test/helpers/renderShared'
 
-// The compact card (DESIGN.md §3): the chip comes from the application the shell published, in the brand colour, the tags follow the title.
-function options(app: { icon: string } | null = null): SharedRenderOptions {
+// The compact card (DESIGN.md §3): the chip comes from the application the shell published, as an application tile, the tags follow the title.
+function options(app: { icon: string; id?: string } | null = null): SharedRenderOptions {
   return {
     globals: {
       usePageHeader: vi.fn(),
@@ -16,10 +16,12 @@ function options(app: { icon: string } | null = null): SharedRenderOptions {
 const clean = (html: string) => html.replace(/<!--[\s\S]*?-->/g, '')
 
 describe('SharedPageHeader card', () => {
-  it('draws the published application as a tinted chip before the title', async () => {
-    const html = clean(await renderShared('PageHeader', { title: 'الاجتماعات' }, {}, options({ icon: 'i-lucide-calendar-days' })))
+  it('draws the published application as an app tile before the title', async () => {
+    const html = clean(await renderShared('PageHeader', { title: 'الاجتماعات' }, {}, options({ icon: 'i-lucide-calendar-days', id: 'meetings' })))
     expect(html).toContain('data-slot="page-header-chip"')
-    expect(html).toContain('bg-primary/10 text-primary')
+    expect(html).toContain('liwan-app-tile')
+    expect(html).toContain('data-app="meetings"')
+    expect(html).not.toContain('bg-primary/10')
     expect(html.indexOf('page-header-chip')).toBeLessThan(html.indexOf('الاجتماعات'))
   })
 
@@ -27,7 +29,7 @@ describe('SharedPageHeader card', () => {
     expect(clean(await renderShared('PageHeader', { title: 'خطط' }, {}, options()))).not.toContain('page-header-chip')
     const html = clean(await renderShared('PageHeader', { title: 'خطط', icon: 'i-lucide-star' }, {}, options()))
     expect(html).toContain('page-header-chip')
-    expect(html).toContain('bg-primary/10 text-primary')
+    expect(html).toContain('liwan-app-tile')
   })
 
   it('draws tags after the title, a link when the tag has a target, with its test id', async () => {

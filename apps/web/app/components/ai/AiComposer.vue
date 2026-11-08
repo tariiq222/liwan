@@ -47,7 +47,7 @@ function onKeydown(event: KeyboardEvent) {
       />
       <UButton
         type="submit"
-        class="liwan-touch-target shrink-0 rounded-full"
+        class="liwan-touch-target shrink-0"
         icon="i-lucide-arrow-up"
         size="lg"
         :disabled="!canSend"

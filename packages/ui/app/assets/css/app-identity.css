@@ -1,0 +1,67 @@
+/* Per-application identity (owner-approved dashboard redesign, phase 1).
+   Free applications (chat, tasks, meetings, documents, operations, the assistant) share the brand ink: their icon
+   tiles and primary buttons are ink. Paid applications keep their own colour on their icon tile (--app-tile) and on
+   their primary action buttons (--app-action).
+   Mechanism: put data-app="<rail id>" on any container. Everything inside reads --app-tile for `.liwan-app-tile`,
+   and every solid primary button inside takes the application's button shade. The layout sets it on <main> from
+   the open application, so a module's pages scope their buttons without touching the pages. */
+:root {
+  --liwan-ink: #14102a;
+  --liwan-on-ink: #fff;
+  --liwan-app-crm: #5b8def;
+  --liwan-app-inbox: #2ad67a;
+  --liwan-app-projects: #4f5bd5;
+  --liwan-app-hr: #e0644f;
+  --liwan-app-finance: #1f8a5b;
+  --liwan-app-appointments: #8bb513;
+  --liwan-app-crm-action: #2f62c9;
+  --liwan-app-inbox-action: #15803d;
+  --liwan-app-projects-action: #3d47b8;
+  --liwan-app-hr-action: #c2412d;
+  --liwan-app-finance-action: #166c47;
+  --liwan-app-appointments-action: #557309;
+}
+.dark {
+  --liwan-ink: #f3f3f6;
+  --liwan-on-ink: #0a0a0c;
+  --liwan-app-crm: #78a3f5;
+  --liwan-app-inbox: #3ee08a;
+  --liwan-app-projects: #7480ee;
+  --liwan-app-hr: #ef7d6a;
+  --liwan-app-finance: #34b07a;
+  --liwan-app-appointments: #9fca2a;
+}
+
+[data-app="crm"] { --app-tile: var(--liwan-app-crm); --app-action: var(--liwan-app-crm-action); }
+[data-app="inbox"] { --app-tile: var(--liwan-app-inbox); --app-action: var(--liwan-app-inbox-action); }
+[data-app="projects"] { --app-tile: var(--liwan-app-projects); --app-action: var(--liwan-app-projects-action); }
+[data-app="hr"] { --app-tile: var(--liwan-app-hr); --app-action: var(--liwan-app-hr-action); }
+[data-app="finance"] { --app-tile: var(--liwan-app-finance); --app-action: var(--liwan-app-finance-action); }
+[data-app="appointments"] { --app-tile: var(--liwan-app-appointments); --app-action: var(--liwan-app-appointments-action); }
+
+/* A paid application repaints the whole solid-primary family (buttons, create action, selected fills) in its button shade. */
+:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"]) {
+  --app-tile-fg: #fff;
+  --primary-solid: var(--app-action);
+  --primary-solid-hover: color-mix(in srgb, var(--app-action) 86%, black);
+  --primary-solid-active: color-mix(in srgb, var(--app-action) 72%, black);
+  --primary-solid-foreground: #fff;
+  --primary-solid-hover-foreground: #fff;
+  --primary-solid-active-foreground: #fff;
+  --primary-fill: var(--primary-solid);
+  --primary-fill-hover: var(--primary-solid-hover);
+  --primary-fill-active: var(--primary-solid-active);
+  --primary-fill-foreground: #fff;
+  --primary-fill-hover-foreground: #fff;
+  --primary-fill-active-foreground: #fff;
+}
+
+/* The icon tile: a solid rounded square with a white icon (ink with an inverse icon for a free application). */
+.liwan-app-tile {
+  display: grid;
+  flex: none;
+  place-items: center;
+  border-radius: var(--radius-control);
+  background: var(--app-tile, var(--liwan-ink));
+  color: var(--app-tile-fg, var(--liwan-on-ink));
+}

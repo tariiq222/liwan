@@ -43,7 +43,7 @@ function choose(item: SegmentedItem) {
     role="group"
     :aria-label="props.label"
     data-slot="segmented-control"
-    :class="['gap-0.5 rounded-full bg-elevated/40 p-0.5 ring ring-default', props.block ? 'grid grid-flow-col auto-cols-fr' : 'inline-flex items-center']"
+    :class="['gap-0.5 rounded-control bg-elevated/40 p-0.5 ring ring-default', props.block ? 'grid grid-flow-col auto-cols-fr' : 'inline-flex items-center']"
   >
     <UTooltip v-for="item in props.items" :key="item.value" :text="props.iconOnly ? item.label : undefined">
       <UButton
@@ -54,7 +54,7 @@ function choose(item: SegmentedItem) {
         :square="props.iconOnly"
         :to="isActions ? item.to : undefined"
         variant="ghost"
-        :class="isSelected(item) ? 'bg-default text-primary shadow-sm ring ring-default hover:bg-default' : 'text-muted'"
+        :class="['rounded-inner', isSelected(item) ? 'bg-default text-primary shadow-sm ring ring-default hover:bg-default' : 'text-muted']"
         :icon="item.icon"
         :label="props.iconOnly ? undefined : item.label"
         :aria-label="props.iconOnly ? item.label : undefined"

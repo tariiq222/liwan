@@ -35,7 +35,7 @@ describe('RouteTabs', () => {
     expect(underline).toContain('border-b border-default')
     expect(underline).not.toContain('rounded-full')
     const pill = await render({ items, ariaLabel: 'x', variant: 'pill' })
-    expect(pill).toMatch(/<nav[^>]*rounded-full[^>]*ring-default/)
+    expect(pill).toMatch(/<nav[^>]*rounded-control[^>]*ring-default/)
     expect(pill).toContain('h-8')
     expect(pill).toContain('data-[active=true]:bg-primary/10')
     expect(pill).not.toContain('border-b-2')

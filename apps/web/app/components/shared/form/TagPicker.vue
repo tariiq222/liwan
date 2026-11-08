@@ -78,7 +78,7 @@ function onCreateItem() {
           variant="ghost"
           square
           size="xs"
-          class="rounded-full hover:bg-elevated/50"
+          class="hover:bg-elevated/50"
           :aria-label="t('projects.followers.remove')"
           :disabled="!hydrated"
           @click="remove(tag.id)"

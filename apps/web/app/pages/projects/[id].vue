@@ -115,7 +115,7 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
               </div>
               <UTooltip v-if="project.can_manage" :text="t('nav.projectSettings')">
                 <UButton
-                  class="ms-auto rounded-full"
+                  class="ms-auto"
                   color="neutral"
                   variant="ghost"
                   icon="i-lucide-settings"
@@ -133,11 +133,11 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
               <UIcon name="i-lucide-chevron-left" aria-hidden="true" class="size-3.5 text-dimmed ltr:rotate-180" />
             </nav>
           </template>
-          <USkeleton v-else-if="isLoading || !hydrated" class="h-10 w-64 max-w-full rounded-full" />
+          <USkeleton v-else-if="isLoading || !hydrated" class="h-10 w-64 max-w-full rounded-control" />
         </div>
         <!-- Tabs follow the hydrated project like the title row, so a first click is a client-side navigation. -->
         <ProjectWorkspaceTabs v-if="project" :project-id="projectId!" :active="project.active" />
-        <USkeleton v-else-if="isLoading || !hydrated" class="h-(--liwan-control-h) w-full max-w-lg rounded-full" />
+        <USkeleton v-else-if="isLoading || !hydrated" class="h-(--liwan-control-h) w-full max-w-lg rounded-control" />
         <UButton v-if="project && me?.capabilities.includes('meetings.read')" color="neutral" variant="link" :to="`/projects/${project.id}/meetings`" :label="t('projects.tabs.meetings')" />
         <ProjectWorkspaceTabs v-if="project?.tools.finance.enabled && activeProjectSection(route.path) === 'finance'" level="finance" :project-id="project.id" />
         <!-- Governance and planning sub-sections: a second pill strip inside the same card. -->

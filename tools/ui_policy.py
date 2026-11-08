@@ -576,7 +576,7 @@ def whole_tree(current: dict[str, str]) -> bool:
     return APP + 'app.vue' in current
 
 
-# The theme inputs are the brand primary, the stone neutral, LiwanOS lavender/sand/ink,
+# The theme inputs are the brand primary, the stone neutral, LiwanOS ink and charcoal,
 # the official --ui-radius token, the Arabic font and the light/dark modes (DESIGN.md).
 ALLOWED_RECIPE_KEYS = frozenset((
     'colors', 'button', 'input', 'inputNumber', 'textarea', 'select', 'selectMenu', 'card', 'table', 'badge',

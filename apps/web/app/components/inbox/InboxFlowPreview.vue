@@ -56,7 +56,7 @@ const isChoice = (component: FlowPreviewComponent): component is Extract<FlowPre
         </template>
       </div>
       <div class="border-t border-default p-3">
-        <span class="block rounded-full bg-primary px-4 py-2 text-center text-sm font-medium text-inverted break-words" data-testid="inbox-flow-preview-footer">{{ empty(current.footer) }}</span>
+        <span class="block rounded-control bg-primary px-4 py-2 text-center text-sm font-medium text-inverted break-words" data-testid="inbox-flow-preview-footer">{{ empty(current.footer) }}</span>
       </div>
     </div>
   </div>

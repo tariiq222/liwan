@@ -15,7 +15,7 @@ const { rows: attention } = useAttention(() => (start.value.kind === 'ready' ? i
   <SharedPageContainer data-testid="app-start-page">
     <template v-if="start.kind === 'ready'">
       <SharedPageHeader :title="t(start.labelKey)" :icon="start.icon" back-to="/" :back-label="t('nav.apps')">
-        <template #actions><UButton :to="start.openTo" color="primary" class="rounded-full" :label="t('appStart.open')" data-testid="app-start-open" /></template>
+        <template #actions><UButton :to="start.openTo" color="primary" :label="t('appStart.open')" data-testid="app-start-open" /></template>
       </SharedPageHeader>
       <AppsStartContent :attention="attention" :cards="start.cards" :creates="start.creates" />
     </template>

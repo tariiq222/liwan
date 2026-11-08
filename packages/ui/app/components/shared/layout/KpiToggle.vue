@@ -15,7 +15,7 @@ const tooltip = computed(() => shown.value ? t('app.hideKpis') : t('app.showKpis
       color="neutral"
       variant="ghost"
       size="sm"
-      class="rounded-full"
+     
       data-testid="kpi-toggle"
       :icon="shown ? 'i-lucide-eye-off' : 'i-lucide-chart-no-axes-column'"
       :aria-pressed="shown"

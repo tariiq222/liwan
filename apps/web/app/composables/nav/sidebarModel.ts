@@ -14,7 +14,7 @@ const SETTINGS_MODULE_ID = 'settings'
 
 const HOME_MODULE_ID = 'home'
 const toRailItem = (module: ShellModuleDefinition): ShellRailItem =>
-  ({ id: module.id, labelKey: module.labelKey, shortLabelKey: module.shortLabelKey, icon: module.icon, to: module.to, ...(module.accent ? { accent: true } : {}) })
+  ({ id: module.id, labelKey: module.labelKey, shortLabelKey: module.shortLabelKey, icon: module.icon, to: module.to })
 
 /** `first` and `last` are the fixed base-system entries around the pinnable `applications`. */
 export interface ShellRailModel extends ShellRailGroups {

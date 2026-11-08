@@ -16,6 +16,6 @@ const heading = computed(() => props.title ?? t(errorStateKind(props.error) === 
       <UIcon name="i-lucide-circle-alert" class="size-5" />
     </span>
     <p class="max-w-prose text-sm font-medium text-highlighted">{{ heading }}</p>
-    <UButton size="xs" color="neutral" variant="outline" class="rounded-full" :disabled="!hydrated" @click="$emit('retry')">{{ t('app.retry') }}</UButton>
+    <UButton size="xs" color="neutral" variant="outline" :disabled="!hydrated" @click="$emit('retry')">{{ t('app.retry') }}</UButton>
   </div>
 </template>

@@ -9,7 +9,7 @@ describe('rail model', () => {
   const module = (id: string, extra: Partial<ShellModuleDefinition> = {}): ShellModuleDefinition => ({ id, labelKey: `nav.${id}`, icon: 'i-lucide-circle', to: `/${id}`, ...extra })
   const modules = [
     module('home', { to: '/' }), module('tasks'), module('meetings', { fixed: 'first' }), module('projects'), module('documents', { fixed: 'last' }),
-    module('chat'), module('assistant', { fixed: 'top', accent: true }), module('settings'),
+    module('chat'), module('assistant', { fixed: 'top' }), module('settings'),
   ]
 
   it('puts the assistant and home on top, meetings first, the applications, documents last, then settings', () => {
@@ -21,8 +21,6 @@ describe('rail model', () => {
     expect(rail.utility.map(item => item.id)).toEqual(['settings'])
     expect(rail.drawer.map(item => item.id)).toEqual(['assistant', 'home', 'meetings', 'tasks', 'projects', 'chat', 'documents', 'settings'])
     expect(rail.all).toEqual(rail.drawer)
-    expect(rail.top[0]?.accent).toBe(true)
-    expect(rail.top[1]?.accent).toBeUndefined()
   })
 
   it('never inserts an application not supplied by the permission-filtered model', () => {

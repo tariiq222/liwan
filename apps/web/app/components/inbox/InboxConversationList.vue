@@ -92,7 +92,7 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
           id="inbox-list-search"
           v-model="q"
           class="w-full"
-          :ui="{ base: 'rounded-full px-9 text-center' }"
+          :ui="{ base: 'rounded-control px-9 text-center' }"
           icon="i-lucide-search"
           :placeholder="t('inbox.list.search')"
           :aria-label="t('inbox.list.search')"

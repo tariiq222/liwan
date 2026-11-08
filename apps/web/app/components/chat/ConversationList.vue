@@ -71,7 +71,7 @@ function conversationTo(id: number) {
           id="chat-list-search"
           v-model="q"
           class="w-full"
-          :ui="{ base: 'rounded-full px-9 text-center' }"
+          :ui="{ base: 'rounded-control px-9 text-center' }"
           icon="i-lucide-search"
           :placeholder="t('chat.search')"
           :disabled="!hydrated"

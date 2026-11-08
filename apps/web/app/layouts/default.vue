@@ -26,7 +26,7 @@ providePageApp(() => {
   if (route.path === '/account' || route.path.startsWith('/account/')) return { icon: 'i-lucide-user-round', label: t('nav.account'), to: '/account' }
   const owner = rail.value.all.find(item => item.id === activeModule.value)
   if (!owner) return { icon: 'i-lucide-layout-grid' }
-  return { icon: owner.icon, label: t(owner.labelKey), to: owner.to }
+  return { icon: owner.icon, id: owner.id, label: t(owner.labelKey), to: owner.to }
 })
 const noSidebar = computed(() => hasNoContextSidebar(route.path))
 const workspaceTheme = computed(() => !pageArea(route.path).plain)
@@ -73,7 +73,7 @@ onBeforeUnmount(() => {
     <template #header><ShellHeader /></template>
     <template #sidebar><ShellAppSidebar /></template>
     <template #sheet><AssistantSheet v-if="assistant.surface.value" :surface="assistant.surface.value" /></template>
-    <main ref="shellMain" tabindex="-1" data-testid="shell-main" class="liwan-shell-main focus:outline-none" :class="{ 'liwan-page-content-motion': pageMotionActive }">
+    <main ref="shellMain" tabindex="-1" data-testid="shell-main" :data-app="typeof activeModule === 'string' ? activeModule : undefined" class="liwan-shell-main focus:outline-none" :class="{ 'liwan-page-content-motion': pageMotionActive }">
       <slot />
     </main>
   </ShellFrame>

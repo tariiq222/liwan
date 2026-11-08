@@ -197,8 +197,8 @@ const deliveryLabel = (item: InboxMessage) => t(`inbox.delivery.${item.delivery_
               </p>
             </div>
             <ul v-if="row.item.reactions.customer || row.item.reactions.agent" class="-mt-1 flex gap-1 px-2" :aria-label="t('inbox.thread.reactions')" data-testid="inbox-reactions">
-              <li v-if="row.item.reactions.customer" class="rounded-full bg-default px-1.5 text-sm ring ring-default" :aria-label="t('inbox.thread.customerReaction', { emoji: row.item.reactions.customer })">{{ row.item.reactions.customer }}</li>
-              <li v-if="row.item.reactions.agent" class="rounded-full bg-(--brand-soft) px-1.5 text-sm ring ring-default" :aria-label="t('inbox.thread.agentReaction', { emoji: row.item.reactions.agent })">{{ row.item.reactions.agent }}</li>
+              <li v-if="row.item.reactions.customer" class="rounded-control bg-default px-1.5 text-sm ring ring-default" :aria-label="t('inbox.thread.customerReaction', { emoji: row.item.reactions.customer })">{{ row.item.reactions.customer }}</li>
+              <li v-if="row.item.reactions.agent" class="rounded-control bg-(--brand-soft) px-1.5 text-sm ring ring-default" :aria-label="t('inbox.thread.agentReaction', { emoji: row.item.reactions.agent })">{{ row.item.reactions.agent }}</li>
             </ul>
             <div v-if="canAct(row.item)" class="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
               <UButton type="button" size="xs" color="neutral" variant="ghost" icon="i-lucide-reply" :label="t('inbox.thread.reply')" :disabled="!hydrated" data-testid="inbox-reply-action" @click="quote(row.item)" />

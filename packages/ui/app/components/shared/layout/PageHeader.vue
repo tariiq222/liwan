@@ -81,12 +81,13 @@ const trail = computed<HeaderTrailStep[]>(() => {
         v-if="chip"
         data-slot="page-header-chip"
         aria-hidden="true"
-        class="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"
+        class="liwan-app-tile grid size-10 shrink-0 place-items-center"
+        :data-app="pageApp?.id"
       ><UIcon :name="chip" class="size-5" /></span>
       <div class="min-w-0 flex-1 basis-40">
         <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-          <h2 v-if="frameOwnsHeading" class="min-w-0 text-lg/7 font-semibold text-highlighted"><slot name="title">{{ props.title }}</slot></h2>
-          <h1 v-else class="min-w-0 text-lg/7 font-semibold text-highlighted"><slot name="title">{{ props.title }}</slot></h1>
+          <h2 v-if="frameOwnsHeading" class="min-w-0 font-display text-lg/7 font-semibold text-highlighted"><slot name="title">{{ props.title }}</slot></h2>
+          <h1 v-else class="min-w-0 font-display text-lg/7 font-semibold text-highlighted"><slot name="title">{{ props.title }}</slot></h1>
           <slot name="tags">
             <SharedHeaderTags :tags="props.tags" />
           </slot>

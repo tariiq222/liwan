@@ -10,7 +10,7 @@ const open = ref(false)
   <UTooltip v-if="excerpt" v-model:open="open" :text="excerpt" :ui="{ content: 'h-auto max-w-80 py-1.5', text: 'whitespace-normal break-words text-start' }">
     <button
       type="button"
-      class="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-muted transition-colors duration-150 hover:text-default focus-visible:outline-2 focus-visible:outline-primary motion-reduce:transition-none"
+      class="inline-flex size-7 shrink-0 items-center justify-center rounded-control text-muted transition-colors duration-150 hover:text-default focus-visible:outline-2 focus-visible:outline-primary motion-reduce:transition-none"
       :aria-label="t('tasks.descriptionHint')"
       data-testid="task-description-hint"
       @click.prevent.stop="open = !open"

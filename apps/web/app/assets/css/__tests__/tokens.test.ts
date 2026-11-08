@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { layerFile } from '@liwan/ui/test/helpers/layerFile'
 import {
-  contrastRatio, DARK_PRIMARY_ACCENT, DARK_PRIMARY_FILL, DARK_SAND, DARK_SURFACES, DARK_TEXT, LIGHT_ACTIVE_TINT, LIGHT_BORDER,
-  LIGHT_CANVAS, LIGHT_INK, LIGHT_MUTED_TEXT, LIGHT_SAND, STATUS_TEXT, LIWAN_PRIMARY,
+  APP_TILES, contrastRatio, DARK_MID_TEXT, DARK_MUTED_TEXT, DARK_NAV_ACTIVE, DARK_PRIMARY_FILL, DARK_PRIMARY_LABEL, DARK_SURFACES, DARK_TEXT,
+  INK, INK_ACTIVE, INK_HOVER, LIGHT_BORDER, LIGHT_CANVAS, LIGHT_INK, LIGHT_MID_TEXT, LIGHT_MUTED_TEXT, LIGHT_SIDEBAR, LIGHT_SOFT, STATUS_TEXT,
 } from '../../../utils/liwanPalette'
 
 const sheet = (name: string) => readFileSync(layerFile(`app/assets/css/${name}`), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
@@ -26,28 +26,25 @@ function declarations(body: string): Map<string, string> {
   return found
 }
 
-describe('the module rail is a white floating card', () => {
-  it('paints with the surface and rail tokens and nothing tenant-derived', () => {
+describe('the module rail is a floating card on the sidebar tone', () => {
+  it('paints with the sidebar and rail tokens and nothing tenant-derived', () => {
     const rail = ruleBodies(sheet('shell.css'), '.liwan-module-rail')
-    expect(rail).toContain('var(--ui-bg)')
+    expect(rail).toContain('var(--liwan-sidebar)')
     expect(rail).toContain('var(--liwan-rail-border)')
     expect(rail).not.toMatch(/gradient|--primary|--brand|--color-brand/)
   })
 
-  it('keeps the inactive ink and the active ink readable on their surfaces', () => {
+  it('keeps the inactive and active ink readable on their surfaces', () => {
     const light = declarations(ruleBodies(sheet('tokens.css'), ':root'))
     const dark = declarations(ruleBodies(sheet('tokens.css'), '.dark'))
-    expect(contrastRatio(light.get('--liwan-rail-ink')!, '#ffffff')).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio(light.get('--liwan-rail-ink')!, LIGHT_SIDEBAR)).toBeGreaterThanOrEqual(4.5)
     expect(contrastRatio(light.get('--liwan-rail-active-ink')!, light.get('--liwan-rail-active')!)).toBeGreaterThanOrEqual(4.5)
-    expect(contrastRatio(dark.get('--liwan-rail-ink')!, DARK_SURFACES.bg)).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio(dark.get('--liwan-rail-ink')!, DARK_SURFACES.sidebar)).toBeGreaterThanOrEqual(4.5)
     expect(contrastRatio(dark.get('--liwan-rail-active-ink')!, dark.get('--liwan-rail-active')!)).toBeGreaterThanOrEqual(4.5)
-    // The active chip is the brand fill under a sand icon in both modes: 3:1 for an icon.
+    // The active chip is the solid primary under its own label in both modes.
     expect(light.get('--liwan-chip-active')).toBe('var(--primary-solid)')
-    expect(light.get('--liwan-chip-active-ink')).toBe('var(--liwan-sand)')
-    expect(contrastRatio(LIGHT_SAND, LIWAN_PRIMARY)).toBeGreaterThanOrEqual(3)
-    expect(contrastRatio(light.get('--liwan-rail-ink')!, light.get('--liwan-chip')!)).toBeGreaterThanOrEqual(4.5)
+    expect(light.get('--liwan-chip-active-ink')).toBe('var(--primary-solid-foreground)')
     expect(dark.has('--liwan-chip-active')).toBe(false)
-    expect(contrastRatio(DARK_SAND, DARK_PRIMARY_FILL)).toBeGreaterThanOrEqual(3)
   })
 })
 
@@ -56,6 +53,8 @@ describe('dark surfaces', () => {
     const found = declarations(ruleBodies(sheet('tokens.css'), '.dark'))
     const expected: Record<string, string> = {
       '--liwan-canvas': DARK_SURFACES.canvas,
+      '--liwan-sidebar': DARK_SURFACES.sidebar,
+      '--liwan-nav-active': DARK_NAV_ACTIVE,
       '--ui-bg': DARK_SURFACES.bg,
       '--ui-bg-muted': DARK_SURFACES.muted,
       '--ui-bg-elevated': DARK_SURFACES.elevated,
@@ -69,16 +68,25 @@ describe('dark surfaces', () => {
 })
 
 describe('solid primary', () => {
-  it('tokens.css :root declares one text-bearing solid primary for both modes, deeper than the accent', () => {
+  it('tokens.css :root declares the ink solid primary under a white label', () => {
     const found = declarations(ruleBodies(sheet('tokens.css'), ':root'))
-    expect(found.get('--primary')?.toLowerCase()).toBe(LIWAN_PRIMARY)
-    const solid = { '--primary-solid': LIWAN_PRIMARY, '--primary-solid-hover': '#6639a8', '--primary-solid-active': '#56308f' }
+    expect(found.get('--primary')?.toLowerCase()).toBe(INK)
+    const solid = { '--primary-solid': INK, '--primary-solid-hover': INK_HOVER, '--primary-solid-active': INK_ACTIVE }
     for (const [token, value] of Object.entries(solid)) {
       expect(found.get(token)?.toLowerCase(), token).toBe(value)
-      expect(contrastRatio('#ffffff', value), `${token} under white text`).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio('#ffffff', value), `${token} under white text`).toBeGreaterThanOrEqual(7)
     }
     for (const token of ['--primary-solid-foreground', '--primary-solid-hover-foreground', '--primary-solid-active-foreground']) {
       expect(found.get(token), token).toBeDefined()
+    }
+  })
+
+  it('tokens.css .dark inverts the solid primary: a light fill under a near-black label', () => {
+    const found = declarations(ruleBodies(sheet('tokens.css'), '.dark'))
+    expect(found.get('--primary-solid')?.toLowerCase()).toBe(DARK_PRIMARY_FILL)
+    expect(found.get('--primary-solid-foreground')?.toLowerCase()).toBe(DARK_PRIMARY_LABEL)
+    for (const token of ['--primary-solid', '--primary-solid-hover', '--primary-solid-active']) {
+      expect(contrastRatio(DARK_PRIMARY_LABEL, found.get(token)!), `${token} under the dark label`).toBeGreaterThanOrEqual(7)
     }
   })
 
@@ -116,7 +124,7 @@ describe('dark brand tone and chart defaults', () => {
 
   it('keeps the neutral status series visible on white, the canvas and sand', () => {
     const neutral = declarations(ruleBodies(sheet('tokens.css'), ':root')).get('--chart-status-neutral')!
-    for (const surface of ['#ffffff', '#f8f4ec', '#eadfc8']) expect(contrastRatio(neutral, surface), surface).toBeGreaterThanOrEqual(3)
+    for (const surface of [LIGHT_CANVAS, LIGHT_SIDEBAR, LIGHT_SOFT]) expect(contrastRatio(neutral, surface), surface).toBeGreaterThanOrEqual(3)
   })
 
   it('keeps the default dark brand tone readable on the dark surfaces', () => {
@@ -161,74 +169,82 @@ describe('hairline border', () => {
   })
 })
 
-describe('approved lavender and sand palette', () => {
+describe('approved ink palette', () => {
   const light = () => declarations(ruleBodies(sheet('tokens.css'), ':root'))
   const dark = () => declarations(ruleBodies(sheet('tokens.css'), '.dark'))
   const hex = (value: string | undefined) => value?.toLowerCase()
 
-  it('paints links, titles, secondary text, sand and the active tint in light mode', () => {
+  it('paints links, titles, secondary text and the surfaces in light mode', () => {
     const found = light()
-    expect(hex(found.get('--brand-link'))).toBe(LIWAN_PRIMARY)
+    expect(hex(found.get('--brand-link'))).toBe(INK)
     expect(hex(found.get('--ui-text-highlighted'))).toBe(LIGHT_INK)
     expect(hex(found.get('--ui-text'))).toBe(LIGHT_INK)
+    expect(hex(found.get('--ui-text-toned'))).toBe(LIGHT_MID_TEXT)
     expect(hex(found.get('--ui-text-muted'))).toBe(LIGHT_MUTED_TEXT)
-    expect(hex(found.get('--liwan-sand'))).toBe(LIGHT_SAND)
-    expect(hex(found.get('--liwan-nav-active'))).toBe(LIGHT_ACTIVE_TINT)
-    expect(hex(found.get('--liwan-rail-active'))).toBe(LIGHT_ACTIVE_TINT)
+    expect(hex(found.get('--liwan-sidebar'))).toBe(LIGHT_SIDEBAR)
+    expect(hex(found.get('--ui-bg-muted'))).toBe(LIGHT_SOFT)
+    expect(hex(found.get('--ui-border'))).toBe(LIGHT_BORDER)
   })
 
-  it('keeps secondary text at 4.5:1 on white, canvas and sand', () => {
-    for (const surface of ['#ffffff', LIGHT_CANVAS, LIGHT_SAND]) expect(contrastRatio(LIGHT_MUTED_TEXT, surface), surface).toBeGreaterThanOrEqual(4.5)
-  })
-
-  it('declares the dark lavender accent and the 6.15:1 text-bearing fill', () => {
+  it('declares the dark ink brand tone and the charcoal text roles', () => {
     const found = dark()
-    for (const token of ['--primary', '--brand-link', '--ring', '--sidebar-ring', '--liwan-rail-active-ink']) expect(hex(found.get(token)), token).toBe(DARK_PRIMARY_ACCENT)
-    expect(hex(found.get('--primary-solid'))).toBe(DARK_PRIMARY_FILL)
-    for (const token of ['--primary-solid', '--primary-solid-hover', '--primary-solid-active']) {
-      expect(contrastRatio('#ffffff', found.get(token)!), `${token} under white text`).toBeGreaterThanOrEqual(4.5)
-    }
-    expect(contrastRatio('#ffffff', DARK_PRIMARY_FILL)).toBeGreaterThanOrEqual(5)
-  })
-
-  it('keeps dark body text and sand text at 4.5:1 on every dark surface', () => {
-    const found = dark()
+    for (const token of ['--brand-link', '--ring', '--sidebar-ring', '--liwan-rail-active-ink']) expect(hex(found.get(token)), token).toBe(DARK_PRIMARY_FILL)
     expect(hex(found.get('--ui-text'))).toBe(DARK_TEXT)
-    expect(hex(found.get('--ui-text-muted'))).toBe(DARK_SAND)
-    for (const surface of Object.values(DARK_SURFACES).filter(value => value !== DARK_SURFACES.border && value !== DARK_SURFACES.borderMuted && value !== DARK_SURFACES.borderAccented)) {
+    expect(hex(found.get('--ui-text-toned'))).toBe(DARK_MID_TEXT)
+    expect(hex(found.get('--ui-text-muted'))).toBe(DARK_MUTED_TEXT)
+  })
+
+  it('keeps dark body text at 4.5:1 on every dark surface', () => {
+    const found = dark()
+    for (const surface of [DARK_SURFACES.canvas, DARK_SURFACES.sidebar, DARK_SURFACES.bg, DARK_SURFACES.muted, DARK_SURFACES.elevated, DARK_SURFACES.accented]) {
       for (const token of ['--ui-text', '--ui-text-toned', '--ui-text-muted', '--ui-text-highlighted']) {
         expect(contrastRatio(found.get(token)!, surface), `${token} on ${surface}`).toBeGreaterThanOrEqual(4.5)
       }
     }
   })
 
-  it('leaves no blue or lime identity value behind', () => {
+  it('leaves no lavender or earlier identity value in the token sheet', () => {
     const css = sheet('tokens.css').toLowerCase()
-    for (const old of ['#007ff8', '#0066cc', '#c6f432', '#13234a', '#0052a3', '#00478f']) expect(css, old).not.toContain(old)
+    for (const old of ['#7843c6', '#c2aae5', '#eee8f8', '#6639a8', '#56308f', '#007ff8', '#0066cc', '#c6f432', '#13234a', '#0052a3', '#00478f']) expect(css, old).not.toContain(old)
   })
 
   for (const mode of ['light', 'dark'] as const) {
     it(`${mode} chart colours reach 3:1 on their surfaces and stay distinct`, () => {
       const found = mode === 'light' ? light() : dark()
-      const surfaces = mode === 'light' ? ['#ffffff', LIGHT_CANVAS] : [DARK_SURFACES.bg, DARK_SURFACES.muted, DARK_SURFACES.elevated]
+      const surfaces = mode === 'light' ? [LIGHT_CANVAS, LIGHT_SIDEBAR] : [DARK_SURFACES.bg, DARK_SURFACES.muted, DARK_SURFACES.canvas]
       const colours = [1, 2, 3, 4, 5, 6].map(i => found.get(`--chart-${i}`)!)
       for (const colour of colours) for (const surface of surfaces) expect(contrastRatio(colour, surface), `${colour} on ${surface}`).toBeGreaterThanOrEqual(3)
       colours.forEach((first, i) => colours.slice(i + 1).forEach(second => expect(colourDistance(first, second), `${first} vs ${second}`).toBeGreaterThan(60)))
     })
   }
 
-  it('keeps the first chart colour led by the primary', () => {
-    expect(hex(light().get('--chart-1'))).toBe(LIWAN_PRIMARY)
-    expect(hex(dark().get('--chart-1'))).toBe(DARK_PRIMARY_ACCENT)
+  it('keeps the first chart colour led by the ink primary', () => {
+    expect(hex(light().get('--chart-1'))).toBe(INK)
   })
 
-  it('keeps the violet tag hue distinct from the primary in both modes', () => {
-    expect(colourDistance(light().get('--accent-violet-fg')!, LIWAN_PRIMARY)).toBeGreaterThan(60)
-    expect(colourDistance(dark().get('--accent-violet-fg')!, DARK_PRIMARY_ACCENT)).toBeGreaterThan(40)
+  it('keeps status text readable on the white surfaces', () => {
+    for (const text of Object.values(STATUS_TEXT.light)) for (const surface of [LIGHT_CANVAS, LIGHT_SOFT]) expect(contrastRatio(text, surface), `${text} on ${surface}`).toBeGreaterThanOrEqual(4.5)
+  })
+})
+
+describe('per-application identity', () => {
+  const css = () => sheet('app-identity.css')
+  const hex = (value: string | undefined) => value?.toLowerCase()
+
+  it('declares every paid application tile (light and dark) and button shade', () => {
+    const light = declarations(ruleBodies(css(), ':root'))
+    const dark = declarations(ruleBodies(css(), '.dark'))
+    for (const [app, tile] of Object.entries(APP_TILES)) {
+      expect(hex(light.get(`--liwan-app-${app}`)), `${app} tile`).toBe(tile.light)
+      expect(hex(dark.get(`--liwan-app-${app}`)), `${app} dark tile`).toBe(tile.dark)
+      expect(hex(light.get(`--liwan-app-${app}-action`)), `${app} action`).toBe(tile.action)
+    }
   })
 
-  it('keeps status text readable on sand and the white surfaces', () => {
-    for (const text of Object.values(STATUS_TEXT.light)) for (const surface of ['#ffffff', LIGHT_SAND]) expect(contrastRatio(text, surface), `${text} on ${surface}`).toBeGreaterThanOrEqual(4.5)
+  it('scopes a paid application to its tile and button shade and leaves free applications on the ink', () => {
+    const sheetText = css()
+    for (const app of Object.keys(APP_TILES)) expect(sheetText).toContain(`[data-app="${app}"] { --app-tile: var(--liwan-app-${app}); --app-action: var(--liwan-app-${app}-action); }`)
+    for (const free of ['chat', 'tasks', 'meetings', 'documents', 'operations', 'ai']) expect(sheetText, free).not.toContain(`data-app="${free}"`)
   })
 })
 

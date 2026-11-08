@@ -13,8 +13,8 @@ const { t } = useI18n()
     <div class="min-w-0 flex-1">
       <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
         <NuxtLink :to="row.to" class="min-w-0 break-words text-sm font-medium text-highlighted hover:underline focus-visible:ring-2 focus-visible:ring-primary" data-testid="work-row-link">{{ row.label }}</NuxtLink>
-        <UBadge v-if="row.tone === 'urgent'" color="warning" variant="soft" size="sm" class="rounded-full" :label="t('myTasks.work.urgent')" data-testid="work-row-urgent" />
-        <UBadge color="neutral" variant="outline" size="sm" class="rounded-full" :label="sourceLabel" data-testid="work-row-source" />
+        <UBadge v-if="row.tone === 'urgent'" color="warning" variant="soft" size="sm" :label="t('myTasks.work.urgent')" data-testid="work-row-urgent" />
+        <UBadge color="neutral" variant="outline" size="sm" :label="sourceLabel" data-testid="work-row-source" />
       </div>
       <p v-if="row.caption" class="mt-0.5 text-xs text-muted">{{ row.caption }}</p>
       <p v-if="row.suggestion" class="mt-1 break-words text-sm text-default">{{ row.suggestion }}</p>

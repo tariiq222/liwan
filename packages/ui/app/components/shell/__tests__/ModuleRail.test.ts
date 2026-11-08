@@ -5,7 +5,7 @@ import * as scroll from '../../../composables/useScrollEdges'
 import { renderShared } from '../../../../test/helpers/renderShared'
 const component = resolve(__dirname, '../ModuleRail.vue')
 const item = (id: string) => ({ id, labelKey: `nav.${id}`, icon: 'i-lucide-circle', to: `/${id}` })
-const rail = { top: [{ ...item('ai'), accent: true }, item('home')], applications: [item('projects'), item('chat')], utility: [item('settings')] }
+const rail = { top: [item('ai'), item('home')], applications: [item('projects'), item('chat')], utility: [item('settings')] }
 const render = (props: Record<string, unknown> = {}) => renderShared(component, { rail, activeId: 'projects', homeTo: '/', ...props }, {}, { modules: {
   '../../composables/useScrollEdges': scroll,
   '../shared/layout/BrandWordmark.vue': { __esModule: true, default: Vue.defineComponent({ render: () => Vue.h('span') }) },
@@ -19,8 +19,9 @@ describe('ModuleRail', () => {
     expect(at('to="/chat"')).toBeLessThan(at('to="/settings"'))
     expect(html).toMatch(/<nav[^>]*class="liwan-module-rail-links"[^>]*aria-label="nav.railApps"[^>]*data-group="applications"/)
   })
-  it('marks only the accent entry so it wears its own colour', async () => {
-    expect((await render()).match(/data-accent="true"/g)).toHaveLength(1)
+  it('tags every link with its rail id so the application identity applies', async () => {
+    const html = await render()
+    for (const id of ['ai', 'home', 'projects', 'chat', 'settings']) expect(html).toContain(`data-app="${id}"`)
   })
   it('marks only the active entry and keeps an empty scroller hidden from screen readers', async () => {
     expect((await render()).match(/aria-current="page"/g)).toHaveLength(1)

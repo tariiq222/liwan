@@ -302,7 +302,7 @@ function goToday() {
                       :key="meeting.id"
                       :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
                       :title="chipTitle(meeting)"
-                      class="relative flex min-w-0 items-center gap-1.5 rounded-full bg-elevated px-2 py-0.5 text-xs text-highlighted hover:bg-accented focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      class="relative flex min-w-0 items-center gap-1.5 rounded-control bg-elevated px-2 py-0.5 text-xs text-highlighted hover:bg-accented focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >
                       <span class="size-1.5 shrink-0 rounded-full" :class="stateDot(meeting.state)" aria-hidden="true" />
                       <span class="truncate">{{ meeting.name }}</span>

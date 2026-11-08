@@ -3,8 +3,8 @@ import type { RouteLocationRaw } from 'vue-router'
 /** One crumb of the header trail; the last one is the current page and carries no link. */
 export interface ShellCrumb { label: string; to?: string }
 
-/** One rail entry as the module rail and the mobile drawer render it; `accent` draws it in its own colour. */
-export interface ShellRailItem { id: string; labelKey: string; shortLabelKey?: string; icon: string; to: string; accent?: boolean }
+/** One rail entry as the module rail and the mobile drawer render it. */
+export interface ShellRailItem { id: string; labelKey: string; shortLabelKey?: string; icon: string; to: string }
 
 /** Fixed destinations, the scrollable applications and the utility slot. */
 export interface ShellRailGroups { top: ShellRailItem[]; applications: ShellRailItem[]; utility: ShellRailItem[] }

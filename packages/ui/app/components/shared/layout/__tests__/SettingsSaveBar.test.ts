@@ -46,7 +46,7 @@ describe('SharedSettingsSaveBar', () => {
     const bar = byTestId(host, 'settings-save-bar')!
     expect(bar).toBeTruthy()
     expect(bar.props.class).toContain('sticky bottom-4')
-    expect(bar.props.class).toContain('rounded-full')
+    expect(bar.props.class).toContain('rounded-surface')
     expect(bar.props.class).toContain('bg-inverted')
     expect(bar.props.class).toContain('text-inverted')
     expect(bar.props.role).toBe('region')

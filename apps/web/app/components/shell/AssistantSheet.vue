@@ -88,7 +88,7 @@ useEventListener(() => (typeof document === 'undefined' ? undefined : document),
       :aria-label="t('nav.assistantSheet.region')"
     >
       <div class="liwan-assistant-head" data-slot="assistant-head">
-        <span class="liwan-assistant-mark" aria-hidden="true"><UIcon name="i-liwan-ai" class="size-4" /></span>
+        <span class="liwan-assistant-mark" aria-hidden="true"><UIcon name="i-lucide-sparkles" class="size-4" /></span>
         <h2 class="liwan-assistant-title">{{ t(props.surface.labelKey) }}</h2>
         <span v-if="moduleLabel" class="liwan-assistant-module" data-testid="assistant-sheet-module">{{ moduleLabel }}</span>
         <span class="liwan-assistant-head-space" />

@@ -77,7 +77,7 @@ function onCardClick(event: MouseEvent) {
           size="sm"
           color="neutral"
           variant="ghost"
-          class="ms-auto rounded-full opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 motion-reduce:transition-none pointer-coarse:opacity-100"
+          class="ms-auto opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 motion-reduce:transition-none pointer-coarse:opacity-100"
           icon="i-lucide-ellipsis"
           :aria-label="t('tasks.detail.menu')"
           @click.stop

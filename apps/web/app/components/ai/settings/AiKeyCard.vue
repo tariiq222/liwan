@@ -59,8 +59,8 @@ async function removeKey() {
 <template>
   <SharedRecordSection id="key" variant="panel" class="liwan-settings-anchor" :title="t('ai.settings.key.title')" :description="t('ai.settings.key.hint')" data-testid="ai-settings-key">
     <template #actions>
-      <UBadge v-if="config.key.configured" color="success" variant="subtle" class="rounded-full" :label="t('ai.settings.key.configured', { last4: config.key.last4 })" />
-      <UBadge v-else color="neutral" variant="subtle" class="rounded-full" :label="t('ai.settings.key.missing')" />
+      <UBadge v-if="config.key.configured" color="success" variant="subtle" :label="t('ai.settings.key.configured', { last4: config.key.last4 })" />
+      <UBadge v-else color="neutral" variant="subtle" :label="t('ai.settings.key.missing')" />
     </template>
     <form class="liwan-form grid gap-4" novalidate @submit.prevent="saveKey">
       <UAlert v-if="failure" role="alert" color="error" variant="subtle" :title="t('app.saveFailed')" :description="failure" />

@@ -11,7 +11,6 @@ describe('SharedKpiToggle', () => {
   it('is a round ghost icon button, pressed while the figures are shown, whose tooltip offers to hide them', async () => {
     const html = await renderShared('KpiToggle', {}, {}, options(true))
     expect(html).toContain('data-testid="kpi-toggle"')
-    expect(html).toContain('rounded-full')
     expect(html).toContain('aria-pressed="true"')
     expect(html).toContain('aria-label="app.kpis"')
     expect(html).toContain('data-tip="app.hideKpis"')

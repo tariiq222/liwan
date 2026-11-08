@@ -141,9 +141,9 @@ const actionsOf = (run: AiRunSummary) => [
       @click="closeOnNavigate"
     >
       <div class="flex flex-col gap-2 p-3">
-        <UButton to="/ai" block class="rounded-full" :class="TOUCH_TARGET" icon="i-lucide-plus" :label="t('ai.history.new')" data-testid="ai-new-run" />
-        <UButton to="/ai/memory" block color="neutral" variant="ghost" class="rounded-full" :class="TOUCH_TARGET" icon="i-lucide-brain" :label="t('ai.memory.title')" data-testid="ai-memory-link" />
-        <UInput v-model="query" :disabled="!hydrated" type="search" size="sm" class="w-full" :ui="{ base: 'rounded-full' }" icon="i-lucide-search" :placeholder="t('ai.history.search')" :aria-label="t('ai.history.search')" data-testid="ai-run-search" />
+        <UButton to="/ai" block :class="TOUCH_TARGET" icon="i-lucide-plus" :label="t('ai.history.new')" data-testid="ai-new-run" />
+        <UButton to="/ai/memory" block color="neutral" variant="ghost" :class="TOUCH_TARGET" icon="i-lucide-brain" :label="t('ai.memory.title')" data-testid="ai-memory-link" />
+        <UInput v-model="query" :disabled="!hydrated" type="search" size="sm" class="w-full" icon="i-lucide-search" :placeholder="t('ai.history.search')" :aria-label="t('ai.history.search')" data-testid="ai-run-search" />
         <SharedSegmentedControl
           block
           :class="TOUCH_TARGET_BUTTONS"

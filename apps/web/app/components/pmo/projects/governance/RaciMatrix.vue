@@ -57,7 +57,6 @@ const STICKY = 'sticky z-10 bg-default group-hover:bg-(--liwan-row-hover)'
                 :items="roleItems"
                 :aria-label="`${task.name} — ${item.name} — ${t('projects.governance.raci.role')}`"
                 class="min-w-20"
-                :ui="{ base: 'rounded-full' }"
                 :disabled="!hydrated || locked"
                 @update:model-value="emit('change', task.id, item.id, $event as string)"
               >

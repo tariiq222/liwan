@@ -33,12 +33,12 @@ function pick(value: string) {
     <div data-slot="timeline-card" class="min-w-0 overflow-hidden rounded-card bg-default ring ring-default">
       <div data-template="timeline-toolbar" class="flex flex-wrap items-center justify-between gap-3 border-b border-default px-(--liwan-card-pad-dense) py-3">
         <div class="flex items-center gap-1.5" role="group" :aria-label="t('states.period')">
-          <UButton type="button" color="neutral" variant="ghost" size="sm" square class="rounded-full" data-testid="timeline-prev" :disabled="!hydrated" :aria-label="t('states.previous')" @click="emit('prev')">
+          <UButton type="button" color="neutral" variant="ghost" size="sm" square data-testid="timeline-prev" :disabled="!hydrated" :aria-label="t('states.previous')" @click="emit('prev')">
             <UIcon name="i-lucide-chevron-left" class="size-4.5 rtl:-scale-x-100" aria-hidden="true" />
           </UButton>
           <span data-testid="timeline-range" aria-live="polite" class="min-w-40 text-center text-sm font-medium text-highlighted">{{ props.rangeLabel }}</span>
-          <UButton type="button" color="neutral" variant="soft" size="sm" class="rounded-full" data-testid="timeline-today" :disabled="!hydrated" :label="t('states.today')" @click="emit('today')" />
-          <UButton type="button" color="neutral" variant="ghost" size="sm" square class="rounded-full" data-testid="timeline-next" :disabled="!hydrated" :aria-label="t('states.next')" @click="emit('next')">
+          <UButton type="button" color="neutral" variant="soft" size="sm" data-testid="timeline-today" :disabled="!hydrated" :label="t('states.today')" @click="emit('today')" />
+          <UButton type="button" color="neutral" variant="ghost" size="sm" square data-testid="timeline-next" :disabled="!hydrated" :aria-label="t('states.next')" @click="emit('next')">
             <UIcon name="i-lucide-chevron-right" class="size-4.5 rtl:-scale-x-100" aria-hidden="true" />
           </UButton>
         </div>

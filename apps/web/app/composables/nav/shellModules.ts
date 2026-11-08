@@ -100,8 +100,6 @@ export interface ShellModuleDefinition {
   to: string
   /** A base-system entry the rail always shows in this slot, whatever the user pins. */
   fixed?: AppRailSlot
-  /** Drawn in its own colour in the rail. */
-  accent?: boolean
 }
 
 /** The start page of an application (`/apps/<id>`); it is not a manifest module, so no navigation item or capability belongs to it. */
@@ -118,7 +116,7 @@ export function shellModuleList(): ShellModuleDefinition[] {
   const applications = activeManifests().flatMap(manifest => manifest.rail).sort((a, b) => a.order - b.order)
   return [
     { id: 'home', labelKey: 'nav.home', icon: House, to: '/' },
-    ...applications.map(({ id, labelKey, shortLabelKey, icon, to, fixed, accent }) => ({ id, labelKey, shortLabelKey, icon, to, ...(fixed ? { fixed } : {}), ...(accent ? { accent } : {}) })),
+    ...applications.map(({ id, labelKey, shortLabelKey, icon, to, fixed }) => ({ id, labelKey, shortLabelKey, icon, to, ...(fixed ? { fixed } : {}) })),
     // Settings is administration only: account and appearance live in the header.
     { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: SETTINGS_OVERVIEW_PATH },
   ]

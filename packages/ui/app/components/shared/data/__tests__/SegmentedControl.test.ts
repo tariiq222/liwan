@@ -14,7 +14,8 @@ describe('SharedSegmentedControl', () => {
   it('is a named group of pills with the chosen one pressed', async () => {
     const html = await render({})
     expect(html).toContain('role="group" aria-label="Scope"')
-    expect(html).toContain('rounded-full')
+    expect(html).toContain('rounded-control')
+    expect(html).toContain('rounded-inner')
     expect(html).toMatch(/<button[^>]*aria-pressed="true"[^>]*data-value="open"[^>]*>/)
     expect(html).toMatch(/<button[^>]*aria-pressed="false"[^>]*data-value="closed"[^>]*>/)
   })
@@ -73,7 +74,8 @@ describe('SharedSegmentedControl', () => {
     it('has no pressed state and renders a link for an item with `to`', async () => {
       const html = await renderShared('SegmentedControl', { items: ACTIONS, label: 'Actions', mode: 'actions' }, {}, { stubs: { UTooltip: TooltipStub as Component, NuxtLink: NuxtLinkStub as Component } })
       expect(html).toContain('role="group" aria-label="Actions"')
-      expect(html).toContain('rounded-full')
+      expect(html).toContain('rounded-control')
+      expect(html).toContain('rounded-inner')
       expect(html).not.toContain('aria-pressed')
       expect(html).toContain('href="/hr?department_id=1"')
       expect(html).toContain('data-testid="act-edit"')

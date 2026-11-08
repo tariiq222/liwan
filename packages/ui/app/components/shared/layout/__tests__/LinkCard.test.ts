@@ -6,7 +6,7 @@ describe('SharedLinkCard', () => {
     const html = await renderShared('LinkCard', { to: '/projects', icon: 'i-lucide-folder-kanban', title: 'PROJECTS', description: 'DESC' })
     expect(html).toMatch(/^<a[^>]*to="\/projects"[^>]*data-slot="link-card"/)
     expect(html).toContain('size-10')
-    expect(html).toContain('rounded-full')
+    expect(html).toContain('rounded-control')
     expect(html).toContain('PROJECTS')
     expect(html).toContain('DESC')
     expect(html).toContain('hover:-translate-y-px')

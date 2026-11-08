@@ -170,10 +170,10 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 /* Search sits in the middle: both sides share the leftover space equally, so it stays centred. */
 .liwan-shell-header-search { min-width: 0; flex: 0 1 28rem; }
 .liwan-shell-header-search + .liwan-shell-header-actions { flex: 1; justify-content: flex-end; }
-.liwan-shell-header .liwan-search-trigger { width: 100%; min-width: 0; height: 38px; padding-inline: 14px; justify-content: space-between; border-radius: 9999px; font-size: .9375rem; color: var(--ui-text-muted); }
+.liwan-shell-header .liwan-search-trigger { width: 100%; min-width: 0; height: 38px; padding-inline: 14px; justify-content: space-between; border-radius: var(--radius-control); font-size: .9375rem; color: var(--ui-text-muted); }
 .liwan-shell-header .liwan-search-trigger kbd { border-radius: 6px; }
-/* Apple-style capsules: every header control is fully rounded. */
-.liwan-shell-header :is([data-testid="notification-bell"], [data-slot="header-account"], .liwan-mobile-menu-trigger) { height: 38px; border-radius: 9999px; }
+/* Every header control takes the 12px control radius. */
+.liwan-shell-header :is([data-testid="notification-bell"], [data-slot="header-account"], .liwan-mobile-menu-trigger) { height: 38px; border-radius: var(--radius-control); }
 /* Bell and account share the search field's outlined look. */
 .liwan-shell-header :is([data-testid="notification-bell"], [data-slot="header-account"]) { box-shadow: inset 0 0 0 1px var(--ui-border-accented); }
 .liwan-shell-header [data-testid="notification-bell"] { width: 38px; padding: 0; justify-content: center; overflow: visible; }
@@ -190,9 +190,9 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 /* The row is a control group, not a menu entry: no row highlight, only the buttons react to hover. */
 .approved-account-menu .liwan-appearance-item::before { background: transparent !important; }
 .approved-account-menu .liwan-appearance-row { display: flex; width: 100%; gap: 4px; }
-.approved-account-menu .liwan-appearance-option { flex: 1; justify-content: center; height: 32px; border-radius: 9999px; }
+.approved-account-menu .liwan-appearance-option { flex: 1; justify-content: center; height: 32px; border-radius: var(--radius-inner); }
 
-/* Module rail: a white floating card; the active module is marked in the LiwanOS primary, never tenant-derived (tokens.css). */
+/* Module rail: a floating card on the sidebar tone; every application is an icon tile in its identity colour (app-identity.css), the open one wears a ring. */
 .liwan-module-rail {
   position: fixed;
   inset-block: var(--shell-top) var(--shell-inset);
@@ -204,7 +204,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   overflow: hidden;
   border-radius: var(--radius-card);
   box-shadow: var(--liwan-rail-shadow);
-  background: var(--ui-bg);
+  background: var(--liwan-sidebar);
   color: var(--liwan-rail-ink);
   border: 1px solid var(--liwan-rail-border);
 }
@@ -234,15 +234,13 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 }
 .liwan-module-rail-link:hover { color: var(--liwan-rail-active-ink); }
 .liwan-module-rail-link[data-active="true"] { color: var(--liwan-rail-active-ink); font-weight: 600; }
-/* Icons live in 32px round circles; the active one is the brand fill with a sand icon. */
-.liwan-module-rail-icon { position: relative; display: grid; width: 32px; height: 32px; place-items: center; border-radius: 9999px; transition: background-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease); }
+/* Icons live in 32px rounded-square tiles in the application's colour (ink for a free application) with a white icon; the open one wears a ring. */
+.liwan-module-rail-icon { position: relative; display: grid; width: 32px; height: 32px; place-items: center; border-radius: var(--radius-control); background: var(--app-tile, var(--liwan-ink)); color: var(--app-tile-fg, var(--liwan-on-ink)); transition: box-shadow var(--liwan-motion-feedback) var(--liwan-motion-color-ease); }
 .liwan-module-rail-icon .liwan-shell-icon { width: 20px; height: 20px; }
-.liwan-module-rail-link:hover .liwan-module-rail-icon { background: var(--liwan-chip); }
-.liwan-module-rail-link[data-active="true"] .liwan-module-rail-icon { background: var(--liwan-chip-active); color: var(--liwan-chip-active-ink); }
-.liwan-module-rail-link:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; border-radius: 14px; }
+.liwan-module-rail-link:hover .liwan-module-rail-icon { box-shadow: 0 0 0 2px var(--liwan-sidebar), 0 0 0 3.5px var(--ui-border-accented); }
+.liwan-module-rail-link[data-active="true"] .liwan-module-rail-icon { box-shadow: 0 0 0 2px var(--liwan-sidebar), 0 0 0 4px var(--app-tile, var(--liwan-ink)); }
+.liwan-module-rail-link:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; border-radius: var(--radius-control); }
 .liwan-module-rail-link [data-slot="label"] { max-width: 100%; overflow: hidden; font-size: 12px; font-weight: inherit; line-height: 18px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
-/* An accent entry (the assistant) wears its own sand circle; once open it looks like every other active entry. */
-.liwan-module-rail-link[data-accent]:not([data-active="true"]) .liwan-module-rail-icon { background: var(--liwan-ai-bg); color: var(--liwan-ai-ink); }
 @media (forced-colors: active) {
   .liwan-module-rail-link[data-active="true"] .liwan-module-rail-icon { outline: 2px solid Highlight; }
 }
@@ -293,7 +291,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .liwan-context-sidebar[data-panel="true"][data-expanded="true"] { height: calc(100svh - var(--shell-top) - var(--shell-inset)); }
 .liwan-context-heading { display: flex; height: 56px; flex: none; align-items: center; gap: 8px; padding-inline: 16px 12px; }
 .liwan-context-heading h2 { min-width: 0; flex: 1; margin: 0; overflow: hidden; font-size: .875rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.liwan-context-toggle { display: grid; width: 32px; height: 32px; flex: none; place-items: center; padding: 0; border-radius: 9999px; border: 1px solid var(--ui-border); color: var(--ui-text-muted); }
+.liwan-context-toggle { display: grid; width: 32px; height: 32px; flex: none; place-items: center; padding: 0; border-radius: var(--radius-control); border: 1px solid var(--ui-border); color: var(--ui-text-muted); }
 .liwan-context-toggle .liwan-shell-icon { width: 16px; height: 16px; }
 .liwan-context-toggle:hover { background: var(--liwan-nav-active); color: var(--liwan-rail-active-ink); }
 .liwan-context-row, .liwan-quick-row { position: relative; display: flex; align-items: center; }
@@ -305,7 +303,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   align-items: center;
   justify-content: start;
   gap: 10px;
-  border-radius: 9999px;
+  border-radius: var(--radius-control);
   padding-block: 0;
   padding-inline: var(--liwan-nav-row-inset);
   color: var(--ui-text-muted);
@@ -315,7 +313,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   transition: background-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease), color var(--liwan-motion-feedback) var(--liwan-motion-color-ease);
 }
 :is(.liwan-context-link, .liwan-quick-link):hover { background: var(--ui-bg-elevated); color: var(--ui-text-highlighted); }
-:is(.liwan-context-chip, .liwan-quick-chip) { position: relative; display: grid; width: var(--liwan-nav-chip-size); height: var(--liwan-nav-chip-size); flex: none; place-items: center; border-radius: 9999px; background: var(--liwan-chip); color: var(--liwan-rail-ink); }
+:is(.liwan-context-chip, .liwan-quick-chip) { position: relative; display: grid; width: var(--liwan-nav-chip-size); height: var(--liwan-nav-chip-size); flex: none; place-items: center; border-radius: var(--radius-inner); background: var(--liwan-chip); color: var(--liwan-rail-ink); }
 /* Active chips share the rail's brand fill and sand icon, without an outline around the icon. */
 :is(.liwan-context-link, .liwan-quick-link)[data-active="true"] :is(.liwan-context-chip, .liwan-quick-chip) { background: var(--liwan-chip-active); color: var(--liwan-chip-active-ink); }
 :is(.liwan-context-link, .liwan-quick-link)[data-active="true"] { background: var(--liwan-nav-active); color: var(--liwan-rail-active-ink); font-weight: 600; }
@@ -323,7 +321,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 @media (forced-colors: active) {
   :is(.liwan-context-link, .liwan-quick-link)[data-active="true"] { outline: 2px solid Highlight; }
 }
-:is(.liwan-context-count, .liwan-quick-count) { position: absolute; inset-inline-end: 12px; padding: 1px 8px; border-radius: 9999px; background: var(--ui-bg-elevated); color: var(--ui-text-muted); font-size: .75rem; font-variant-numeric: tabular-nums; pointer-events: none; }
+:is(.liwan-context-count, .liwan-quick-count) { position: absolute; inset-inline-end: 12px; padding: 1px 8px; border-radius: var(--radius-inner); background: var(--ui-bg-elevated); color: var(--ui-text-muted); font-size: .75rem; font-variant-numeric: tabular-nums; pointer-events: none; }
 :is(.liwan-context-row, .liwan-quick-row):has(:is(.liwan-context-count, .liwan-quick-count)) :is(.liwan-context-link, .liwan-quick-link) { padding-inline-end: 52px; }
 .liwan-context-panel { display: flex; min-height: 0; flex: 1; flex-direction: column; }
 .liwan-quick-views {

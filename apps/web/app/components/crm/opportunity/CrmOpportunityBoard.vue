@@ -28,7 +28,7 @@ const columns = computed<Column[]>(() => {
     <section v-for="column in columns" :key="column.key" class="flex w-72 shrink-0 flex-col gap-2 rounded-card bg-elevated/40 p-2" :data-testid="`crm-board-column-${column.key}`" :aria-label="column.title">
       <header class="flex items-center justify-between gap-2 px-1 py-1">
         <h2 class="truncate text-sm font-semibold text-highlighted">{{ column.title }}</h2>
-        <UBadge color="neutral" variant="subtle" class="rounded-full">{{ column.items.length }}</UBadge>
+        <UBadge color="neutral" variant="subtle">{{ column.items.length }}</UBadge>
       </header>
       <p v-if="!column.items.length" class="px-1 py-3 text-sm text-muted">{{ t('crm.opportunities.board.emptyColumn') }}</p>
       <div v-for="item in column.items" :key="item.id" class="relative min-w-0">
@@ -37,9 +37,9 @@ const columns = computed<Column[]>(() => {
         <span class="mt-1 block truncate text-sm text-muted"><bdi>{{ item.phone }}</bdi></span>
         <span class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
           <span v-if="item.user" class="truncate">{{ item.user.name }}</span>
-          <UBadge v-else color="neutral" variant="subtle" class="rounded-full">{{ t('crm.opportunities.tag.pool') }}</UBadge>
-          <UBadge v-if="item.needs_manager" color="warning" variant="subtle" class="rounded-full">{{ t('crm.opportunities.tag.needsManager') }}</UBadge>
-          <UBadge v-else-if="isCallDue(item, clock)" color="warning" variant="subtle" class="rounded-full">{{ t('crm.opportunities.tag.due') }}</UBadge>
+          <UBadge v-else color="neutral" variant="subtle">{{ t('crm.opportunities.tag.pool') }}</UBadge>
+          <UBadge v-if="item.needs_manager" color="warning" variant="subtle">{{ t('crm.opportunities.tag.needsManager') }}</UBadge>
+          <UBadge v-else-if="isCallDue(item, clock)" color="warning" variant="subtle">{{ t('crm.opportunities.tag.due') }}</UBadge>
           <time v-else-if="item.next_call_at" :datetime="item.next_call_at">{{ formatDateTime(item.next_call_at, timeZone) }}</time>
         </span>
         </NuxtLink>

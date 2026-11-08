@@ -1,38 +1,57 @@
-// LiwanOS's own identity: lavender primary, sand borders, ink titles and brown secondary text on a warm
-// cream canvas (owner-approved 2026-10-30). Tenant colours replace the primary only.
-// LIWAN_PRIMARY is the default company colour and the text-bearing primary
-// (white text 6.15:1); dark mode paints the same role with DARK_PRIMARY_FILL.
-export const LIWAN_PRIMARY = '#7843c6'
+// LiwanOS's own identity: black ink on white and cool grey neutrals (charcoal in dark mode), owner-approved for the
+// dashboard redesign. The interface primary is the ink; a company colour only paints documents and reports.
 
-/** Text-bearing primary fill in dark mode (white label 6.15:1) and the lavender accent for icons, rings and text. */
-export const DARK_PRIMARY_FILL = '#7843c6'
-export const DARK_PRIMARY_ACCENT = '#c2aae5'
+/** The default company colour of documents and reports (the server default); it never themes the interface. */
+export const DEFAULT_COMPANY_COLOR = '#7843c6'
 
-/** Ink (titles, numbers), brown (secondary text on white, canvas and sand) and sand (borders, table heads). */
-export const LIGHT_INK = '#14102a'
-export const LIGHT_MUTED_TEXT = '#6b4e2e'
-export const LIGHT_SAND = '#eadfc8'
-export const LIGHT_ACTIVE_TINT = '#eee8f8'
+/** The ink primary: solid buttons, selected states, links and titles in light mode (white label). */
+export const INK = '#14102a'
+export const INK_HOVER = '#2b2545'
+export const INK_ACTIVE = '#3a3550'
 
-/** Body text and sand accents on the dark surfaces. */
-export const DARK_TEXT = '#ede9f7'
-export const DARK_SAND = '#d2c3a3'
+/** Dark mode inverts the primary: a light fill under a near-black label. */
+export const DARK_PRIMARY_FILL = '#f3f3f6'
+export const DARK_PRIMARY_LABEL = '#0a0a0c'
 
-/** Page canvas behind the content cards: warm cream, and in dark mode darker than the cards (which stay --ui-bg). */
-export const LIGHT_CANVAS = '#f8f4ec'
+/** Light text roles: ink for titles and numbers, a mid tone, and secondary text. */
+export const LIGHT_INK = INK
+export const LIGHT_MID_TEXT = '#3a3550'
+export const LIGHT_MUTED_TEXT = '#6b6b76'
 
-/** The hairline border of cards, tables and dividers in light mode: sand (dark mode uses DARK_SURFACES.border). */
-export const LIGHT_BORDER = LIGHT_SAND
+/** Light surfaces: white page, #fafafa sidebar, #f4f4f5 soft fills and the #e8e8eb hairline. */
+export const LIGHT_CANVAS = '#ffffff'
+export const LIGHT_SIDEBAR = '#fafafa'
+export const LIGHT_SOFT = '#f4f4f5'
+export const LIGHT_BORDER = '#e8e8eb'
+export const LIGHT_ACTIVE_TINT = '#f4f4f5'
 
+/** Dark text roles on the charcoal surfaces. */
+export const DARK_TEXT = '#f3f3f6'
+export const DARK_MID_TEXT = '#dcdce3'
+export const DARK_MUTED_TEXT = '#a9a9b5'
+
+/** Dark charcoal surfaces: page, sidebar, cards (--ui-bg), soft fills, selected nav and the hairline. */
 export const DARK_SURFACES = {
-  canvas: '#0e0b1f',
-  bg: '#14102a',
-  muted: '#1b1736',
-  elevated: '#231e42',
-  accented: '#2e2852',
-  border: '#352e5c',
-  borderMuted: '#2a2448',
-  borderAccented: '#463e72',
+  canvas: '#1d1d22',
+  sidebar: '#222228',
+  bg: '#27272e',
+  muted: '#2f2f37',
+  elevated: '#2f2f37',
+  accented: '#383842',
+  border: '#3a3a44',
+  borderMuted: '#32323b',
+  borderAccented: '#4a4a56',
+} as const
+export const DARK_NAV_ACTIVE = '#30303a'
+
+/** Per-application icon tiles (light, dark) and button shades (white label), app-identity.css. */
+export const APP_TILES = {
+  crm: { light: '#5b8def', dark: '#78a3f5', action: '#2f62c9' },
+  inbox: { light: '#2ad67a', dark: '#3ee08a', action: '#15803d' },
+  projects: { light: '#4f5bd5', dark: '#7480ee', action: '#3d47b8' },
+  hr: { light: '#e0644f', dark: '#ef7d6a', action: '#c2412d' },
+  finance: { light: '#1f8a5b', dark: '#34b07a', action: '#166c47' },
+  appointments: { light: '#8bb513', dark: '#9fca2a', action: '#557309' },
 } as const
 
 /** Status badge text, kept apart from the indicator colour (dot, ring, soft fill): >= 4.5:1 on its own soft fill. */

@@ -13,8 +13,8 @@ const manifest: AppManifest = {
 }
 const assistant: AppManifest = {
   id: 'ai', feature: 'ai.enabled', routePrefixes: ['/ai'],
-  rail: [{ id: 'ai', labelKey: 'nav.ai', icon: 'i-liwan-ai', to: '/ai', order: 2, fixed: 'top' }],
-  nav: [{ to: '/ai', labelKey: 'nav.ai', icon: 'i-liwan-ai', shortcut: '', capability: 'ai.use' }],
+  rail: [{ id: 'ai', labelKey: 'nav.ai', icon: 'i-lucide-sparkles', to: '/ai', order: 2, fixed: 'top' }],
+  nav: [{ to: '/ai', labelKey: 'nav.ai', icon: 'i-lucide-sparkles', shortcut: '', capability: 'ai.use' }],
 }
 const me = (caps: string[]) => ({ capabilities: caps, platform: { readable_features: ['work.enabled', 'ai.enabled'], writable_features: ['work.enabled', 'ai.enabled'] } })
 const entries = (caps: string[], query = '') => withManifests([manifest, assistant], () => launcherEntries(me(caps), query, () => 'العمل'))

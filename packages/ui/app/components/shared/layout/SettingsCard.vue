@@ -76,8 +76,8 @@ watchEffect(() => {
     <SharedRecordSection :id="id" variant="panel" class="liwan-settings-anchor" :title="title" :description="description">
       <template v-if="!canEdit || $slots.actions || (managed && dirty)" #actions>
         <slot name="actions" />
-        <UBadge v-if="!canEdit" color="neutral" variant="subtle" class="rounded-full" :label="t('app.viewOnly')" />
-        <UBadge v-else-if="managed && dirty" color="warning" variant="subtle" class="rounded-full" :label="t('app.unsaved')" />
+        <UBadge v-if="!canEdit" color="neutral" variant="subtle" :label="t('app.viewOnly')" />
+        <UBadge v-else-if="managed && dirty" color="warning" variant="subtle" :label="t('app.unsaved')" />
       </template>
       <div class="grid gap-4">
         <UAlert v-if="message" role="alert" color="error" variant="subtle" :title="t('app.saveFailed')" :description="message" />

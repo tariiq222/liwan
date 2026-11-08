@@ -88,15 +88,11 @@
 
 /* Apple-style continuous corners on the two shape tokens; browsers without corner-shape keep the plain radius. */
 @supports (corner-shape: superellipse(2)) {
-  .rounded-card, .rounded-control { corner-shape: superellipse(2); }
+  .rounded-inner, .rounded-control, .rounded-card, .rounded-surface { corner-shape: superellipse(2); }
 }
 
-/* The embedded filter row (SharedFilterBar `embedded`, inside a list card) is pill-shaped end to end: the search input and
-   every select/dropdown trigger take the full pill, like the segmented groups beside them. Forms and panels keep 12px. */
-[data-variant="embedded"] .rounded-control {
-  border-radius: 9999px;
-  corner-shape: round;
-}
+/* The embedded filter row (SharedFilterBar `embedded`, inside a list card): the search input and every select/dropdown
+   trigger keep the 12px control radius and take a wider gutter. */
 /* Padding 14px, icon 16px, gap 8px: a leading or trailing icon sits in the 14px gutter and the text clears it by 8px. */
 [data-variant="embedded"] [data-slot="leading"] { padding-inline-start: 1rem; }
 [data-variant="embedded"] [data-slot="trailing"] { padding-inline-end: 1rem; }
@@ -394,9 +390,7 @@ ul.list-disc > li::marker { content: "◆  "; color: var(--primary); font-size: 
   height: 1.714rem;
   min-height: 0;
   padding-inline: 0.714rem;
-  border-radius: 9999px;
-  /* A full-radius pill stays a true pill even when a trigger also carries .rounded-control (superellipse would square it). */
-  corner-shape: round;
+  border-radius: var(--radius-control);
   font-size: var(--text-xs);
   font-weight: 500;
   line-height: 1;

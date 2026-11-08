@@ -38,8 +38,8 @@ onMounted(() => { today.value = new Date().toLocaleDateString(locale.value, { we
     <section v-if="actions.length || hasServices" :aria-label="t('home.quick')" class="space-y-3" data-testid="home-quick-actions">
       <h2 class="text-sm font-semibold text-muted">{{ t('home.quick') }}</h2>
       <div class="flex flex-wrap gap-2">
-        <UButton v-if="hasServices" to="/account" color="neutral" variant="soft" size="sm" class="rounded-full" icon="i-lucide-concierge-bell" :label="t('nav.account')" data-testid="home-services" />
-        <UButton v-for="action in quickActions" :key="action.id" :to="{ path: action.to, query: { returnTo: '/' } }" color="neutral" variant="soft" size="sm" class="rounded-full">
+        <UButton v-if="hasServices" to="/account" color="neutral" variant="soft" size="sm" icon="i-lucide-concierge-bell" :label="t('nav.account')" data-testid="home-services" />
+        <UButton v-for="action in quickActions" :key="action.id" :to="{ path: action.to, query: { returnTo: '/' } }" color="neutral" variant="soft" size="sm">
           <span class="flex size-5 items-center justify-center rounded-full bg-primary/10 text-primary" aria-hidden="true"><UIcon name="i-lucide-plus" class="size-3.5" /></span>
           {{ t(action.labelKey) }}
         </UButton>
@@ -51,7 +51,7 @@ onMounted(() => { today.value = new Date().toLocaleDateString(locale.value, { we
     <template v-if="!hasWork && !actions.length">
       <SharedEmptyState v-if="hasApps" bordered :title="t('home.nothingToday')" data-testid="home-empty-today" />
       <SharedEmptyState v-else bordered :title="t('home.empty')" data-testid="home-empty-no-apps">
-        <template #action><UButton to="/account" color="neutral" variant="outline" class="rounded-full" :label="t('nav.account')" /></template>
+        <template #action><UButton to="/account" color="neutral" variant="outline" :label="t('nav.account')" /></template>
       </SharedEmptyState>
     </template>
   </SharedPageContainer>

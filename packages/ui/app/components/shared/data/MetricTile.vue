@@ -54,7 +54,7 @@ const figureSize = computed(() => props.emphasis ? 'text-3xl/10' : compact.value
     <span
       v-if="props.icon"
       class="flex shrink-0 items-center justify-center"
-      :class="[chip, compact ? 'order-last hidden size-11.5 rounded-full sm:flex' : 'size-10 rounded-full']"
+      :class="[chip, compact ? 'order-last hidden size-11.5 rounded-control sm:flex' : 'size-10 rounded-control']"
       aria-hidden="true"
     >
       <UIcon :name="props.icon" class="size-5" />
@@ -63,7 +63,7 @@ const figureSize = computed(() => props.emphasis ? 'text-3xl/10' : compact.value
       <p :class="compact ? 'text-xs/4 font-semibold text-toned' : 'text-sm text-muted'">{{ props.label }}</p>
       <p
         class="wrap-break-word font-semibold tracking-tight tabular-nums"
-        :class="[figureSize, props.tone === 'danger' ? 'text-status-danger-foreground' : 'text-highlighted']"
+        :class="['font-display', figureSize, props.tone === 'danger' ? 'text-status-danger-foreground' : 'text-highlighted']"
         :dir="props.valueDir"
       >
         {{ display }}<span v-if="known && props.unit" class="ms-1 text-sm font-normal tracking-normal text-muted">{{ props.unit }}</span>

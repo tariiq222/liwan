@@ -14,6 +14,13 @@ describe('LauncherCard', () => {
     expect(html).not.toContain('launcher-action"')
     expect(html).not.toContain('aria-pressed')
   })
+  it('draws the application icon as an identity tile scoped by its id', async () => {
+    const html = await renderShared(component, { entry }, {}, { messages })
+    expect(html).toContain('data-app="projects"')
+    expect(html).toContain('liwan-app-tile')
+    expect(html).not.toContain('bg-primary/10')
+    expect(html).not.toContain('rounded-full')
+  })
   it('links the provided actions to their existing routes and keeps a return path', async () => {
     const action = { id: 'new', labelKey: 'nav.newProject', icon: 'i-lucide-plus', to: '/projects/new' }
     const html = await renderShared(component, { entry: { ...entry, actions: [action] } }, {}, { messages })

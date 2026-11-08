@@ -6,5 +6,5 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <UButton :href="`tel:${phone}`" color="neutral" variant="outline" size="sm" square icon="i-lucide-phone" class="shrink-0 rounded-full" :aria-label="t('crm.opportunities.callAction', { name })" data-testid="crm-card-call" @click.stop />
+  <UButton :href="`tel:${phone}`" color="neutral" variant="outline" size="sm" square icon="i-lucide-phone" class="shrink-0" :aria-label="t('crm.opportunities.callAction', { name })" data-testid="crm-card-call" @click.stop />
 </template>

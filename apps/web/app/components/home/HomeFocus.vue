@@ -16,7 +16,7 @@ const top = computed(() => rows.value.slice(0, FOCUS_ROWS))
   <section v-if="available" :aria-label="t('home.focus')" class="overflow-hidden rounded-card bg-default ring ring-default" data-testid="home-focus">
     <div class="flex items-center justify-between gap-3 border-b border-default px-(--liwan-card-pad-dense) py-3">
       <h2 class="text-sm font-semibold text-highlighted">{{ t('home.focus') }}</h2>
-      <UButton to="/work" color="neutral" variant="ghost" size="xs" class="rounded-full" :label="t('home.viewAll')" data-testid="home-focus-all" />
+      <UButton to="/work" color="neutral" variant="ghost" size="xs" :label="t('home.viewAll')" data-testid="home-focus-all" />
     </div>
     <SharedLoadingSkeleton v-if="pending" />
     <SharedErrorState v-else-if="failed" data-testid="home-focus-error" @retry="refetch()" />

@@ -6,7 +6,7 @@ const pageLabel = computed(() => (te(`ai.context.pages.${props.page}`) ? t(`ai.c
 </script>
 
 <template>
-  <span class="inline-flex max-w-full items-center gap-1.5 rounded-full bg-elevated px-3 py-1 text-xs text-muted" data-testid="ai-context">
+  <span class="inline-flex max-w-full items-center gap-1.5 rounded-control bg-elevated px-3 py-1 text-xs text-muted" data-testid="ai-context">
     <UIcon name="i-lucide-map-pin" aria-hidden="true" class="size-3.5 shrink-0" />
     <span class="truncate">{{ t('ai.context.chip', { page: pageLabel }) }}</span>
   </span>

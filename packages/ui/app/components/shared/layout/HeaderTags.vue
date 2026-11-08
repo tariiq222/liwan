@@ -13,18 +13,18 @@ const TAG_KIND_ACCENT: Record<PageHeaderTagKind, string> = {
   count: 'indigo',
   category: 'amber',
 }
-// Tags are full pills like every chip in the product.
+// Tags take their radius from the badge recipe.
 function tagLook(tag: PageHeaderTag) {
-  if (tag.tone) return { color: tag.tone, variant: 'subtle' as const, class: 'rounded-full' }
-  if (!tag.kind) return { color: 'neutral' as const, variant: 'subtle' as const, class: 'rounded-full' }
+  if (tag.tone) return { color: tag.tone, variant: 'subtle' as const }
+  if (!tag.kind) return { color: 'neutral' as const, variant: 'subtle' as const }
   const hue = TAG_KIND_ACCENT[tag.kind]
-  return { color: 'neutral' as const, variant: 'soft' as const, class: 'rounded-full', style: { backgroundColor: `var(--accent-${hue}-bg)`, color: `var(--accent-${hue}-fg)` } }
+  return { color: 'neutral' as const, variant: 'soft' as const, style: { backgroundColor: `var(--accent-${hue}-bg)`, color: `var(--accent-${hue}-fg)` } }
 }
 </script>
 
 <template>
   <template v-for="tag in props.tags" :key="tag.label">
-    <NuxtLink v-if="tag.to" :to="tag.to" class="rounded-full focus-visible:ring-2 focus-visible:ring-primary">
+    <NuxtLink v-if="tag.to" :to="tag.to" class="rounded-control focus-visible:ring-2 focus-visible:ring-primary">
       <UBadge v-bind="tagLook(tag)" size="md" :icon="tag.icon" :data-testid="tag.testId">{{ tag.label }}</UBadge>
     </NuxtLink>
     <UBadge v-else v-bind="tagLook(tag)" size="md" :icon="tag.icon" :data-testid="tag.testId">{{ tag.label }}</UBadge>

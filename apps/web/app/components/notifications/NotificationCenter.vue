@@ -79,7 +79,7 @@ async function openNotification(item: BellNotification) {
         v-if="hydrated && data?.unread_count"
         data-testid="notification-count"
         dir="ltr"
-        class="liwan-unread-count pointer-events-none absolute -end-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-xs leading-none font-bold tabular-nums ring-2 ring-(--ui-bg)"
+        class="liwan-unread-count pointer-events-none absolute -end-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-control px-1 text-xs leading-none font-bold tabular-nums ring-2 ring-(--ui-bg)"
       >{{ data.unread_count > 9 ? '9+' : data.unread_count }}</span>
     </UButton>
     <template #content>
