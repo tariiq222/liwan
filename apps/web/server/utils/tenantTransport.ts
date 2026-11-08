@@ -171,6 +171,8 @@ function isLiwanError(value: unknown): boolean {
   const record = value as Record<string, unknown>
   return typeof record.code === 'string' && typeof record.message === 'string'
     && Object.keys(record).every(key => LIWAN_ERROR_FIELDS.has(key))
+    && (record.field === undefined || typeof record.field === 'string')
+    && (record.details === undefined || (!!record.details && typeof record.details === 'object'))
 }
 
 /** Keep only a contract error body. Odoo serializes an uncaught exception as

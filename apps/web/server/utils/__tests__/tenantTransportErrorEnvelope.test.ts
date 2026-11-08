@@ -4,7 +4,7 @@ import { EventEmitter } from 'node:events'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { tenantTransport } from '../tenantTransport'
+import { legacyTenantResponse, tenantTransport } from '../tenantTransport'
 
 const token = 'synthetic-error-envelope-token'.repeat(2)
 const ENGINE_ERROR = {
@@ -127,6 +127,24 @@ describe('tenantTransport never relays the engine error shape', () => {
     try {
       const response = await tenantTransport(browserEvent().event, base, '/api/v1/engine-500', { method: 'HEAD' })
       expect([response.status, response.body]).toEqual([500, null])
+    } finally { spy.mockRestore() }
+  })
+})
+
+describe('the legacy dedicated transport applies the same envelope rule', () => {
+  beforeEach(() => { vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated') })
+
+  it('replaces the engine body and keeps a contract refusal', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const engine = await legacyTenantResponse(browserEvent().event, base, '/api/v1/engine-500', { headers: {} })
+      expect(engine.status).toBe(500)
+      const text = Buffer.from(await engine.arrayBuffer()).toString()
+      expect(JSON.parse(text)).toEqual({ code: 'internal', message: 'An unexpected error occurred' })
+      expect(text).not.toContain('Traceback')
+      const contract = await legacyTenantResponse(browserEvent().event, base, '/api/v1/contract-422', { headers: {} })
+      expect(contract.status).toBe(422)
+      expect(await contract.json()).toEqual({ code: 'invalid', message: 'gross must be positive', field: 'gross' })
     } finally { spy.mockRestore() }
   })
 })
