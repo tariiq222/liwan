@@ -34,6 +34,13 @@ describe('top bar icon buttons', () => {
   })
 })
 
+describe('top bar corner radius', () => {
+  it('is one token shared by the capsule, the AI tile, the search field and the user chip', () => {
+    for (const selector of ['.liwan-tools', '.liwan-user', '.liwan-ai-button']) expect(rule(selector), selector).toMatch(/border-radius: var\(--liwan-bar-radius\);/)
+    expect(shell).toMatch(/\.liwan-shell-header \.liwan-search-trigger \{[^}]*border-radius: var\(--liwan-bar-radius\);/)
+  })
+})
+
 describe('top bar user button', () => {
   it('is the same soft filled capsule as the tools, the same height, darker on hover and while its menu is open', () => {
     const user = rule('.liwan-user')
