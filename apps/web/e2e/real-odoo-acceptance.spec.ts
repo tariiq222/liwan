@@ -42,17 +42,17 @@ test('real login form rejects invalid credentials, then walks the two-step sign-
     await page.getByRole('button', { name: 'دخول', exact: true }).click();
     expect((await response).status()).toBe(401);
     await expect(page.getByText('بيانات الدخول غير صحيحة')).toBeVisible();
-    // A correct password alone never signs in: the form moves on to the second step.
+    // A correct password alone never signs in: without a remembered device the form stops at the
+    // code step, which is the primary path and always reachable.
     await page.getByLabel('كلمة المرور').fill(process.env.E2E_USER_ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'liwan-e2e-admin-2026');
     response = page.waitForResponse(r => r.url().endsWith('/api/auth/login') && r.request().method() === 'POST');
     await page.getByRole('button', { name: 'دخول', exact: true }).click();
     expect((await response).status()).toBe(200);
     await expect(page.getByTestId('login-code')).toBeVisible();
-    // The fixture-seeded remembered device is what finishes this step on a stack with no SMS provider:
-    // the code step is the primary path, and a usable device cookie is the non-blocking alternative.
-    await page.context().addCookies([{ name: 'liwan_device', value: fixture.device.admin, url: ACCEPTANCE_ORIGIN, httpOnly: true, sameSite: 'Lax' }]);
-    response = page.waitForResponse(r => r.url().endsWith('/api/auth/login') && r.request().method() === 'POST');
+    // Step back to the password, let the fixture's remembered device answer, and the same password
+    // finishes the sign-in without a code (a scratch stack has no SMS provider).
     await page.getByTestId('login-another').click();
+    await page.context().addCookies([{ name: 'liwan_device', value: fixture.device.admin, url: ACCEPTANCE_ORIGIN, httpOnly: true, sameSite: 'Lax' }]);
     await page.getByLabel('كلمة المرور').fill(process.env.E2E_USER_ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'liwan-e2e-admin-2026');
     const device = page.waitForResponse(r => r.url().endsWith('/api/auth/device') && r.request().method() === 'POST');
     await page.getByRole('button', { name: 'دخول', exact: true }).click();
