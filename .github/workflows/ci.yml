@@ -535,10 +535,16 @@ jobs:
       - name: Require every selected stage to pass
         env:
           NEEDS: ${{ toJSON(needs) }}
+          IS_DRAFT: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft }}
         run: |
           echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
-          if [ "$(echo "$NEEDS" | jq -r '.scope.result')" != "success" ]; then
-            echo "::error::scope did not run (a draft PR runs no stage); mark the PR ready to run CI."
+          scope_result=$(echo "$NEEDS" | jq -r '.scope.result // "missing"')
+          if [ "$scope_result" != "success" ]; then
+            if [ "$IS_DRAFT" = "true" ] && [ "$scope_result" = "skipped" ]; then
+              echo "::error::scope did not run (a draft PR runs no stage); mark the PR ready to run CI."
+            else
+              echo "::error::scope did not succeed ($scope_result); inspect the scope job before rerunning CI."
+            fi
             exit 1
           fi
           # Only stages outside the selected scope may be skipped. Fail closed on
