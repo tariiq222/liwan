@@ -20,13 +20,13 @@ describe('SharedSegmentedControl', () => {
     expect(html).toMatch(/<button[^>]*aria-pressed="false"[^>]*data-value="closed"[^>]*>/)
   })
 
-  it('draws the chosen item as a raised white thumb and the others muted', async () => {
+  it('draws the chosen item as a raised surface thumb and the others muted', async () => {
     const html = await render({})
     const chosen = html.match(/<button[^>]*data-value="open"[^>]*>/)?.[0] ?? ''
     const other = html.match(/<button[^>]*data-value="closed"[^>]*>/)?.[0] ?? ''
-    for (const token of ['bg-default', 'text-primary', 'shadow-sm', 'ring-default']) expect(chosen, token).toContain(token)
+    for (const token of ['bg-default', 'text-highlighted', 'font-semibold', 'shadow-xs', 'ring-default']) expect(chosen, token).toContain(token)
     expect(other).toContain('text-muted')
-    expect(other).not.toContain('shadow-sm')
+    expect(other).not.toContain('shadow-xs')
   })
 
   it('keeps an item test id on its button only when it has one', async () => {

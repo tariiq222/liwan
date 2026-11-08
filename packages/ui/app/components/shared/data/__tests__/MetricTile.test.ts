@@ -24,13 +24,20 @@ describe('SharedMetricTile', () => {
     expect(html).not.toContain('order-last')
   })
 
-  it('compact puts a round chip at the end from sm, tightens the padding and shrinks the figure on a phone', async () => {
+  it('compact puts a 32px chip at the end from sm, pads 18px/20px and shrinks the figure on a phone', async () => {
     const html = await render({ density: 'compact', tone: 'success' })
     expect(html).toContain('data-density="compact"')
-    expect(html).toContain('order-last hidden size-11.5 rounded-control sm:flex')
-    expect(html).toContain('text-xl/7 sm:text-2xl/8.5')
+    expect(html).toContain('order-last hidden sm:flex')
+    expect(html).toContain('size-8 rounded-[10px]')
+    expect(html).toContain('text-[22px]/7 sm:text-[28px]/8')
     expect(html).toContain('bg-status-success-soft text-status-success-foreground')
-    expect(html).toContain('py-3.5')
+    expect(html).toContain('py-[18px]')
+  })
+
+  it('compact draws the neutral tone as the application tile, and the status tones as soft chips', async () => {
+    expect(await render({ density: 'compact' })).toContain('liwan-app-tile liwan-app-tile-md')
+    expect(await render({ density: 'compact', tone: 'warning' })).not.toContain('liwan-app-tile')
+    expect(await render({})).not.toContain('liwan-app-tile')
   })
 
   it('lets a currency code wrap under its amount', async () => {
@@ -64,7 +71,7 @@ describe('SharedMetricTile', () => {
   it('emphasis enlarges the figure and tints the neutral chip with the brand', async () => {
     const html = await render({ emphasis: true })
     expect(html).toContain('data-emphasis="true"')
-    expect(html).toContain('text-3xl/10')
+    expect(html).toContain('text-[34px]/10')
     expect(html).toContain('bg-primary/10 text-primary')
     expect(html).not.toContain('bg-elevated text-primary')
     const warning = await render({ emphasis: true, tone: 'warning' })
@@ -76,7 +83,7 @@ describe('SharedMetricTile', () => {
     const link = await render({ to: '/tasks?state=overdue' })
     expect(link).toContain('to="/tasks?state=overdue"')
     expect(link).toContain('aria-label="Overdue: 18"')
-    expect(link).toContain('hover:bg-(--liwan-row-hover)')
+    expect(link).toContain('liwan-lift')
     const plain = await render({})
     expect(plain).not.toContain('<a')
     expect(plain).not.toContain('metric-link')

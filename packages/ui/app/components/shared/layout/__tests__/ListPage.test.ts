@@ -53,8 +53,8 @@ describe('SharedListPage', () => {
   it('reads the view from the route query and hands it to the list', async () => {
     const html = await renderShared('ListPage', { title: 'Tasks', views }, showView, options({ view: 'board' }))
     expect(html).toContain('view:board')
-    expect(html).toMatch(/<button[^>]*aria-label="Board view"[^>]*aria-pressed="true"/)
-    expect(html).toMatch(/<button[^>]*aria-label="Table view"[^>]*aria-pressed="false"/)
+    expect(html).toMatch(/<button(?=[^>]*label="Board view")[^>]*aria-pressed="true"/)
+    expect(html).toMatch(/<button(?=[^>]*label="Table view")[^>]*aria-pressed="false"/)
   })
 
   it('viewsInFilters leaves the switch to the embedded filter bar', async () => {
@@ -95,12 +95,12 @@ describe('SharedListPage', () => {
 })
 
 describe('SharedViewSwitch', () => {
-  it('labels each icon-only option, marks the current one and waits for hydration', async () => {
+  it('labels each option with its icon and text, marks the current one and waits for hydration', async () => {
     const html = await renderShared('ViewSwitch', { modelValue: 'table', options: views }, {}, { hydrated: false, stubs: { UTooltip: TooltipStub } })
     expect(html).toContain('role="group"')
     expect(html).toContain('aria-label="states.view"')
-    expect(html).toMatch(/<button[^>]*aria-label="Table view"[^>]*aria-pressed="true"[^>]*disabled[^>]*data-value="table"/)
-    expect(html).toMatch(/<button[^>]*aria-label="Board view"[^>]*aria-pressed="false"[^>]*disabled[^>]*data-value="board"/)
+    expect(html).toMatch(/<button(?=[^>]*label="Table view")[^>]*aria-pressed="true"[^>]*disabled[^>]*data-value="table"/)
+    expect(html).toMatch(/<button(?=[^>]*label="Board view")[^>]*aria-pressed="false"[^>]*disabled[^>]*data-value="board"/)
   })
 
   it('puts an option test id on its button only when the option has one', async () => {

@@ -13,7 +13,7 @@ import Pagination from './Pagination.vue'
  * J / K contract (data-shortcut-row + useRowNavigation), which reads keys on the document: one
  * DataTable per page. The `mobile-row` slot carries its own selection control if one is needed.
  * The selected count (and `bulk`'s `selected`) includes keys selected on other pages.
- * The table sits in one card (18px radius, hairline ring). `density` picks the variant: `dense` (lists, the
+ * The table sits in one card (18px radius, 1.5px hairline border). `density` picks the variant: `dense` (lists, the
  * default) pads cells 16px on a 44px row, `comfortable` (home and overview pages) 20px on a 52px row.
  * `bare` drops the table's own card: the caller wraps it in a SharedListCard, whose header row carries the embedded
  * filter bar. The `footer` slot is the card's last row,
@@ -70,8 +70,8 @@ const tableColumns = computed<TableColumn<T>[]>(() => props.selectable
 const densityClass = computed(() => props.density === 'dense'
   ? '[--liwan-card-pad:var(--liwan-card-pad-dense)]'
   : '[--liwan-row-h:var(--liwan-row-h-comfortable)]')
-// The ring and radius sit on the card around the table, unless the caller's SharedListCard draws it.
-const surfaceClass = 'overflow-hidden rounded-card bg-default ring ring-default'
+// The border and radius sit on the card around the table, unless the caller's SharedListCard draws it.
+const surfaceClass = 'liwan-card overflow-hidden rounded-card'
 const rowId = (row: T) => String(dataRowKey(row, props.rowKey))
 const rowSelection = computed({
   get: () => rowSelectionState(props.selected),

@@ -380,9 +380,8 @@ ul.list-disc > li::marker { content: "◆  "; color: var(--primary); font-size: 
 
 /* The status pill (utils/statusPill.ts): one shape for every status, priority and deadline tag. */
 .liwan-pill {
-  --pill-fg: var(--ui-text);
+  --pill-fg: var(--ui-text-muted);
   --pill-soft: var(--ui-bg-elevated);
-  --pill-border: var(--ui-border);
   display: inline-flex;
   align-items: center;
   gap: 0.357rem;
@@ -396,14 +395,13 @@ ul.list-disc > li::marker { content: "◆  "; color: var(--primary); font-size: 
   white-space: nowrap;
   color: var(--pill-fg);
   background-color: var(--pill-soft);
-  box-shadow: inset 0 0 0 1px var(--pill-border);
   transition: background-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease), box-shadow var(--liwan-motion-feedback) var(--liwan-motion-color-ease);
 }
-.liwan-pill[data-tone="success"] { --pill-fg: var(--status-success-foreground); --pill-soft: var(--status-success-soft); --pill-border: var(--status-success-border); }
-.liwan-pill[data-tone="warning"] { --pill-fg: var(--status-warning-foreground); --pill-soft: var(--status-warning-soft); --pill-border: var(--status-warning-border); }
-.liwan-pill[data-tone="info"] { --pill-fg: var(--status-info-foreground); --pill-soft: var(--status-info-soft); --pill-border: var(--status-info-border); }
-.liwan-pill[data-tone="destructive"] { --pill-fg: var(--status-danger-foreground); --pill-soft: var(--status-danger-soft); --pill-border: var(--status-danger-border); }
-.liwan-pill[data-tone="primary"] { --pill-fg: var(--brand-link); --pill-soft: var(--brand-soft); --pill-border: var(--brand-border); }
+.liwan-pill[data-tone="success"] { --pill-fg: var(--status-success-foreground); --pill-soft: var(--status-success-soft); }
+.liwan-pill[data-tone="warning"] { --pill-fg: var(--status-warning-foreground); --pill-soft: var(--status-warning-soft); }
+.liwan-pill[data-tone="info"] { --pill-fg: var(--status-info-foreground); --pill-soft: var(--status-info-soft); }
+.liwan-pill[data-tone="destructive"] { --pill-fg: var(--status-danger-foreground); --pill-soft: var(--status-danger-soft); }
+.liwan-pill[data-tone="primary"] { --pill-fg: var(--brand-link); --pill-soft: var(--brand-soft); }
 .liwan-pill[data-interactive] { cursor: pointer; }
 /* A 24px pill keeps its look on touch while its target reaches 44px. */
 @media (pointer: coarse) {
@@ -412,7 +410,6 @@ ul.list-disc > li::marker { content: "◆  "; color: var(--primary); font-size: 
 }
 .liwan-pill[data-interactive]:hover:not(:disabled) {
   background-color: color-mix(in srgb, var(--pill-fg) 8%, var(--pill-soft));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pill-fg) 40%, var(--pill-border));
 }
 .liwan-pill[data-interactive]:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .liwan-pill { transition: none; } }
@@ -479,3 +476,71 @@ ul.list-disc > li::marker { content: "◆  "; color: var(--primary); font-size: 
 @media (prefers-reduced-motion: reduce) {
   .liwan-sadu-lit, .liwan-sadu-pulse, .liwan-mark-draw, .liwan-mark-reveal { animation: none; opacity: 1; stroke-dashoffset: 0; }
 }
+
+/* The dashboard mock identity (mono): app tiles, interactive card lift, the open page header's tab strip and the tiny Sadu section marks. */
+/* App tile sizes (the default tile is app-identity.css). The 64px tile of the page header keeps its coloured shadow. */
+.liwan-app-tile.liwan-app-tile-md { width: 32px; height: 32px; border-radius: 10px; }
+.liwan-app-tile.liwan-app-tile-lg {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-card);
+  box-shadow: 0 6px 14px -4px color-mix(in srgb, var(--app-tile, var(--liwan-ink)) 40%, transparent);
+}
+.dark .liwan-app-tile.liwan-app-tile-lg { box-shadow: 0 8px 20px color-mix(in srgb, var(--app-tile, var(--liwan-ink)) 22%, transparent); }
+
+/* The card surface: a 1.5px hairline border on the surface fill (the radius is `rounded-card` / `rounded-surface` on the element);
+   dark mode adds a 4% highlight on the top edge. Every card of the shared layer uses it; a dense table or list inside a card has no second border. */
+.liwan-card { border: 1.5px solid var(--ui-border); background: var(--ui-bg); }
+.dark .liwan-card { box-shadow: inset 0 1px 0 rgb(255 255 255 / 4%); }
+
+/* An interactive card (a link tile, a metric that opens a list) lifts 2px with a soft shadow; the border takes the application colour. */
+.liwan-lift {
+  --liwan-lift-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition: transform 0.2s var(--liwan-lift-ease), box-shadow 0.2s var(--liwan-lift-ease), border-color 0.2s var(--liwan-lift-ease);
+}
+.liwan-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 30px -18px rgb(20 16 42 / 24%);
+  border-color: color-mix(in srgb, var(--app-action, var(--ui-text-highlighted)) 35%, var(--ui-border));
+}
+.dark .liwan-lift:hover { box-shadow: 0 16px 30px -16px rgb(0 0 0 / 65%); }
+@media (prefers-reduced-motion: reduce) {
+  .liwan-lift { transition: none; }
+  .liwan-lift:hover { transform: none; }
+}
+
+/* The open page header (SharedPageHeader): the tab row sits on the 1px divider and its active underline covers it by 1px. */
+[data-slot="page-header"] > [data-slot="page-header-tabs"] { margin-block-end: -1px; }
+[data-slot="page-header-tabs"] [data-slot="route-tabs"] { border-block-end-width: 0; }
+
+/* Tiny Sadu marks before a section title: put the class on the heading. The diamond marks every section title; the triangle
+   marks the one list that leads the reader into the day (it points toward the reading start, so it flips in RTL). Ink at 40% (50% in dark). */
+.liwan-sadu-diamond-mark::before,
+.liwan-sadu-triangle-mark::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  margin-inline-end: 9px;
+  background: var(--ui-text-highlighted);
+  opacity: 0.4;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+}
+.dark .liwan-sadu-diamond-mark::before,
+.dark .liwan-sadu-triangle-mark::before { opacity: 0.5; }
+.liwan-sadu-diamond-mark::before {
+  height: 13px;
+  mask-image: url("../brand/sadu/sadu-diamond.svg");
+  -webkit-mask-image: url("../brand/sadu/sadu-diamond.svg");
+}
+.liwan-sadu-triangle-mark::before {
+  height: 11px;
+  transform: scaleX(-1);
+  mask-image: url("../brand/sadu/sadu-triangle.svg");
+  -webkit-mask-image: url("../brand/sadu/sadu-triangle.svg");
+}
+.liwan-sadu-triangle-mark:dir(ltr)::before { transform: none; }

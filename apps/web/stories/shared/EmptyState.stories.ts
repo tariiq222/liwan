@@ -16,7 +16,7 @@ export const InTaskTable: Story = {
   parameters: storyContext('packages/ui/app/components/shared/feedback/PageState.vue:22'),
   render: () => ({
     components: { EmptyState },
-    template: `<div class="space-y-2"><div class="rounded-card ring ring-default bg-default overflow-hidden"><div class="hidden overflow-x-auto md:block"><EmptyState :title="$t('tasks.empty.title')"><template #action><UButton size="sm">{{ $t('tasks.empty.action') }}</UButton></template></EmptyState></div></div></div>`,
+    template: `<div class="space-y-2"><div class="liwan-card rounded-card overflow-hidden"><div class="hidden overflow-x-auto md:block"><EmptyState :title="$t('tasks.empty.title')"><template #action><UButton size="sm">{{ $t('tasks.empty.action') }}</UButton></template></EmptyState></div></div></div>`,
   }),
 }
 
@@ -25,7 +25,7 @@ export const InTaskListMobile: Story = {
   parameters: storyContext('packages/ui/app/components/shared/feedback/PageState.vue:22', 'يظهر تحت 768px (md:hidden)، فالغلاف بعرض شاشة جوال 375px.'),
   render: () => ({
     components: { EmptyState },
-    template: `<div class="rounded-card ring ring-default bg-default overflow-hidden" style="width: 375px"><div class="divide-y divide-default"><div class="p-6 text-center"><EmptyState :title="$t('tasks.empty.closedTitle')" /></div></div></div>`,
+    template: `<div class="liwan-card rounded-card overflow-hidden" style="width: 375px"><div class="divide-y divide-default"><div class="p-6 text-center"><EmptyState :title="$t('tasks.empty.closedTitle')" /></div></div></div>`,
   }),
 }
 

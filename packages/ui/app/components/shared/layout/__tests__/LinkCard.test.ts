@@ -9,8 +9,7 @@ describe('SharedLinkCard', () => {
     expect(html).toContain('rounded-control')
     expect(html).toContain('PROJECTS')
     expect(html).toContain('DESC')
-    expect(html).toContain('hover:-translate-y-px')
-    expect(html).toContain('hover:ring-primary')
+    expect(html).toContain('liwan-card liwan-lift')
     expect(html).toContain('focus-visible:ring-2')
   })
 

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // One headline figure: a label, the value, and an optional hint or extra line
 // (a progress bar, a badge). Used by dashboards, project summary, finance and the task list's KPI strip.
-// `density="compact"` is the slim strip tile (about 30% shorter: 12px/20px padding, a round 40px icon chip at the
-// end); `progress` (0-100) adds a slim SharedProgress under the caption in the tone colour; `tone` colours the icon chip, and the danger tone also the figure.
+// `density="compact"` is the slim strip tile (18px/20px padding, a 32px icon tile at the end: the application's own tile
+// for the neutral tone, a soft status chip for the others, shown from `sm` up); `progress` (0-100) adds a slim SharedProgress under the caption in the tone colour; `tone` colours the icon chip, and the danger tone also the figure.
 // `emphasis` is the page's headline figure: a larger number and a brand-tinted icon chip. `to` makes the whole tile a link
 // (a stretched link with its own focus ring); without it a tile is information, never a button.
 const TONE_CHIP = {
@@ -39,13 +39,15 @@ const known = computed(() => display.value !== t('app.notAvailable'))
 const compact = computed(() => props.density === 'compact')
 const chip = computed(() => props.emphasis && props.tone === 'neutral' ? 'bg-primary/10 text-primary' : TONE_CHIP[props.tone])
 // On a phone two compact tiles share a row: the figure drops a step and the icon circle steps aside, so a long amount stays whole inside its tile.
-const figureSize = computed(() => props.emphasis ? 'text-3xl/10' : compact.value ? 'text-xl/7 sm:text-2xl/8.5' : 'text-2xl')
+const figureSize = computed(() => props.emphasis ? 'text-[34px]/10' : compact.value ? 'text-[22px]/7 sm:text-[28px]/8' : 'text-[28px]/9')
+// The neutral tone of a compact tile is the application's tile (ink for a free application); the status tones stay soft chips.
+const appTile = computed(() => compact.value && props.tone === 'neutral' && !props.emphasis)
 </script>
 
 <template>
   <UCard
-    :class="{ 'relative transition-colors duration-150 hover:bg-(--liwan-row-hover) motion-reduce:transition-none': props.to }"
-    :ui="{ body: compact ? 'flex items-center gap-3 px-(--liwan-card-pad) py-3.5' : 'flex items-start gap-4 p-5' }"
+    :class="{ 'liwan-lift relative': props.to }"
+    :ui="{ body: compact ? 'flex items-center gap-3 px-5 py-[18px] sm:px-5 sm:py-[18px]' : 'flex items-start gap-4 p-5 sm:p-5' }"
     data-testid="metric-tile"
     :data-density="props.density"
     :data-tone="props.tone"
@@ -53,16 +55,18 @@ const figureSize = computed(() => props.emphasis ? 'text-3xl/10' : compact.value
   >
     <span
       v-if="props.icon"
-      class="flex shrink-0 items-center justify-center"
-      :class="[chip, compact ? 'order-last hidden size-11.5 rounded-control sm:flex' : 'size-10 rounded-control']"
+      class="shrink-0 items-center justify-center"
+      :class="compact ? 'order-last hidden sm:flex' : 'flex'"
       aria-hidden="true"
     >
-      <UIcon :name="props.icon" class="size-5" />
+      <span :class="[appTile ? 'liwan-app-tile liwan-app-tile-md' : ['flex items-center justify-center', chip, compact ? 'size-8 rounded-[10px]' : 'size-10 rounded-control']]">
+        <UIcon :name="props.icon" :class="compact ? 'size-4' : 'size-5'" />
+      </span>
     </span>
     <div class="grid min-w-0 flex-1" :class="compact ? 'gap-0' : 'gap-1'">
-      <p :class="compact ? 'text-xs/4 font-semibold text-toned' : 'text-sm text-muted'">{{ props.label }}</p>
+      <p class="text-[13px]/5 text-muted">{{ props.label }}</p>
       <p
-        class="wrap-break-word font-semibold tracking-tight tabular-nums"
+        class="wrap-break-word font-bold tracking-[-0.02em] tabular-nums"
         :class="['font-display', figureSize, props.tone === 'danger' ? 'text-status-danger-foreground' : 'text-highlighted']"
         :dir="props.valueDir"
       >

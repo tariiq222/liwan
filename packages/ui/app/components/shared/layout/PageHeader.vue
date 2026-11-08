@@ -2,25 +2,21 @@
 import type { RouteLocationRaw } from 'vue-router'
 import type { PageHeaderTag } from '../../../utils/pageHeaderTag'
 
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   title: string
-  /** Replaces the icon the shell publishes for the current application (the chip keeps the brand colour). */
+  /** Replaces the icon the shell publishes for the current application (the tile keeps the application colour). */
   icon?: string
+  /** The one line under the title; without it the shell's tagline for the current application is shown. */
+  description?: string
   /** Short facts about the page's subject (state, owner, count), drawn inline after the title; a tag with `to` is a link. */
   tags?: PageHeaderTag[]
   backTo?: RouteLocationRaw
   backLabel?: string
   /** A frame around the page already shows the heading (the project workspace's h1): draw the actions only. The title still names the page for the shell and `backTo` still answers Escape. */
   hideTitle?: boolean
-  /**
-   * The heading keeps its place under the floating header while the page scrolls under it
-   * (`.liwan-sticky-head` in shell.css). Off where another sticky thing owns that slot: a page frame
-   * that already carries the identity band, or a docked `SharedListCard fill` board.
-   */
-  sticky?: boolean
   /** The page carries a KPI strip: draw the one show/hide toggle for it before the actions (DESIGN.md; the choice is `useKpiVisibility`). */
   kpiToggle?: boolean
-}>(), { sticky: true })
+}>()
 
 const { t } = useI18n()
 usePageHeader(() => props.title)
@@ -30,21 +26,20 @@ usePageHeader(() => props.title)
 // title shows the same target as its nearest step, so the keyboard route out and
 // the visible one still cannot drift apart.
 useEscapeBack(() => props.backTo)
-// The chip before the title: the icon of the application the shell published, or the `icon` override, in the brand colour for every application.
-// Outside a shell (vendor-admin) nothing is published, so a header without an `icon` draws no chip.
+// The 64px tile before the title: the icon of the application the shell published, or the `icon` override, in the application colour.
+// Outside a shell (vendor-admin) nothing is published, so a header without an `icon` draws no tile.
 const pageApp = usePageApp()
 const chip = computed(() => {
   return props.icon ?? pageApp.value?.icon
 })
+const tagline = computed(() => props.description ?? pageApp.value?.tagline)
 // Inside the project workspace the frame is already the page's <h1>.
 const frameOwnsHeading = useFrameOwnsHeading()
-// The frame's own band is the sticky element there, so this header never claims a second sticky slot.
-const stickyHead = computed(() => props.sticky && !frameOwnsHeading.value)
 
 /** One step of the trail under the title: a page the reader came through, with its own link. */
 interface HeaderTrailStep { label: string; to?: RouteLocationRaw }
 
-// The trail (DESIGN.md §3) sits under the page title: the ancestors the shell published, then the page's
+// The trail (DESIGN.md §3) sits above the page title: the ancestors the shell published, then the page's
 // own back target as the nearest step. The current page is the title right above, so it is never repeated
 // here, and the page's target wins where it names the same step because it carries the list's filters.
 const publishedTrail = usePageTrail()
@@ -69,46 +64,53 @@ const trail = computed<HeaderTrailStep[]>(() => {
 
 <template>
   <header
-    v-if="!props.hideTitle || $slots.actions || $slots.default || props.kpiToggle"
+    v-if="!props.hideTitle || $slots.actions || $slots.default || $slots.tabs || props.kpiToggle"
     data-slot="page-header"
     data-empty="false"
-    :data-sticky="stickyHead ? 'true' : undefined"
-    class="flex flex-wrap items-center gap-x-3.5 gap-y-2"
-    :class="{ 'rounded-card bg-default px-4 py-3 ring ring-default': !props.hideTitle }"
+    class="min-w-0"
+    :class="props.hideTitle ? 'flex flex-wrap items-center justify-end gap-3' : ['grid gap-3 border-b border-default', $slots.tabs ? 'pb-0' : 'pb-5']"
   >
     <template v-if="!props.hideTitle">
-      <span
-        v-if="chip"
-        data-slot="page-header-chip"
-        aria-hidden="true"
-        class="liwan-app-tile grid size-10 shrink-0 place-items-center"
-        :data-app="pageApp?.id"
-      ><UIcon :name="chip" class="size-5" /></span>
-      <div class="min-w-0 flex-1 basis-40">
-        <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-          <h2 v-if="frameOwnsHeading" class="min-w-0 font-display text-lg/7 font-semibold text-highlighted"><slot name="title">{{ props.title }}</slot></h2>
-          <h1 v-else class="min-w-0 font-display text-lg/7 font-semibold text-highlighted"><slot name="title">{{ props.title }}</slot></h1>
-          <slot name="tags">
-            <SharedHeaderTags :tags="props.tags" />
+      <div v-if="trail.length || $slots.back" class="flex min-w-0 items-center gap-x-2 text-[13px]/5 text-muted">
+        <!-- A long trail at the large text size wraps instead of widening the page. -->
+        <nav data-testid="page-header-trail" :aria-label="$t('nav.breadcrumb')" class="flex min-w-0 flex-wrap items-center gap-x-1.5">
+          <slot name="back">
+            <template v-for="(step, index) in trail" :key="step.label">
+              <UIcon v-if="index" name="i-lucide-chevron-left" aria-hidden="true" class="size-3.5 text-dimmed ltr:rotate-180" />
+              <UButton v-if="step.to" :to="step.to" color="neutral" variant="link" size="xs" class="p-0 font-medium text-muted hover:text-highlighted focus-visible:ring-2 focus-visible:ring-primary">{{ step.label }}</UButton>
+              <span v-else class="text-dimmed">{{ step.label }}</span>
+            </template>
           </slot>
-        </div>
-        <div v-if="trail.length || $slots.back" class="mt-0.5 flex min-w-0 items-center gap-x-2 text-xs/5 text-muted">
-          <!-- A long trail at the large text size wraps instead of widening the page. -->
-          <nav data-testid="page-header-trail" :aria-label="$t('nav.breadcrumb')" class="flex min-w-0 flex-wrap items-center gap-x-1.5">
-            <slot name="back">
-              <template v-for="(step, index) in trail" :key="step.label">
-                <UIcon v-if="index" name="i-lucide-chevron-left" aria-hidden="true" class="size-3.5 text-dimmed ltr:rotate-180" />
-                <UButton v-if="step.to" :to="step.to" color="neutral" variant="link" size="xs" class="p-0 font-medium text-muted hover:text-highlighted focus-visible:ring-2 focus-visible:ring-primary">{{ step.label }}</UButton>
-                <span v-else class="text-dimmed">{{ step.label }}</span>
-              </template>
+        </nav>
+      </div>
+      <div data-slot="page-header-row" class="flex flex-wrap items-center gap-x-5 gap-y-3">
+        <span
+          v-if="chip"
+          data-slot="page-header-chip"
+          aria-hidden="true"
+          class="liwan-app-tile liwan-app-tile-lg grid shrink-0 place-items-center"
+          :data-app="pageApp?.id"
+        ><UIcon :name="chip" class="size-[30px]!" /></span>
+        <div class="min-w-0 flex-1 basis-60">
+          <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+            <h2 v-if="frameOwnsHeading" class="min-w-0 font-display text-[length:clamp(28px,3.2vw,38px)]/[1.15] font-bold tracking-[-0.01em] text-highlighted"><slot name="title">{{ props.title }}</slot></h2>
+            <h1 v-else class="min-w-0 font-display text-[length:clamp(28px,3.2vw,38px)]/[1.15] font-bold tracking-[-0.01em] text-highlighted"><slot name="title">{{ props.title }}</slot></h1>
+            <slot name="tags">
+              <SharedHeaderTags :tags="props.tags" />
             </slot>
-          </nav>
+          </div>
+          <p v-if="tagline" data-slot="page-header-tagline" class="mt-1 text-[15px] text-toned">{{ tagline }}</p>
+        </div>
+        <div v-if="$slots.actions || $slots.default || props.kpiToggle" class="ms-auto flex min-w-0 max-w-full flex-wrap items-center gap-2.5">
+          <SharedKpiToggle v-if="props.kpiToggle" />
+          <slot name="actions"><slot /></slot>
         </div>
       </div>
     </template>
-    <div v-if="$slots.actions || $slots.default || props.kpiToggle" class="ms-auto flex min-w-0 max-w-full flex-wrap items-center gap-3">
+    <div v-else-if="$slots.actions || $slots.default || props.kpiToggle" class="ms-auto flex min-w-0 max-w-full flex-wrap items-center gap-2.5">
       <SharedKpiToggle v-if="props.kpiToggle" />
       <slot name="actions"><slot /></slot>
     </div>
+    <div v-if="$slots.tabs" data-slot="page-header-tabs" class="mt-3 min-w-0"><slot name="tabs" /></div>
   </header>
 </template>

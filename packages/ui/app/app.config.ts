@@ -4,7 +4,7 @@ export default defineAppConfig({
     icons: { loading: 'i-sadu-loader' },
     // Tasmim recipes (DESIGN.md «وصفات الثيم المعتمدة»). Colours: the fixed
     // LiwanOS ink primary (the company colour is for documents only), stone neutral, LiwanOS ink/charcoal in
-    // tokens.css. Sizes come from tokens: --liwan-control-h, --liwan-row-h, --liwan-card-pad and the one radius
+    // tokens.css. Sizes come from tokens: --liwan-control-h (42px; a small control is 34px), --liwan-row-h, --liwan-card-pad and the one radius
     // system: rounded-inner (8px segments inside a control group), rounded-control (12px: every control),
     // rounded-card (18px: cards, table containers), rounded-surface (24px: banners, panels, modals). Progress bars stay
     // rounded-full. --ui-radius drives the rest of the scale.
@@ -15,18 +15,26 @@ export default defineAppConfig({
     // in the same conflict group as every rounded-* utility (the later class wins).
     tv: { twMergeConfig: { extend: { theme: { radius: ['inner', 'control', 'card', 'surface'] } } } },
 
-    // The 32px control floor applies to the default (md) size only; xs/sm stay compact.
+    // The 42px control floor applies to the default (md) size, 34px to sm; xs stays compact. Buttons are 600 weight and lift 1px on hover.
     // The solid primary paints from --primary-solid (ink with a white label in light mode, #f3f3f6 with a dark label in dark mode;
     // a paid application repaints it in its button shade, app-identity.css). --primary is for fills, icons and rings without text.
-    button: { slots: { base: 'rounded-control transition-colors duration-150 motion-reduce:transition-none' }, variants: { size: { md: { base: 'min-h-(--liwan-control-h)' } } }, compoundVariants: [{ size: 'md', square: true, class: 'min-w-(--liwan-control-h)' }, { color: 'primary', variant: 'solid', class: 'bg-(--primary-solid) text-(--primary-solid-foreground) hover:bg-(--primary-solid-hover) hover:text-(--primary-solid-hover-foreground) active:bg-(--primary-solid-active) active:text-(--primary-solid-active-foreground) disabled:bg-(--primary-solid) aria-disabled:bg-(--primary-solid)' }] },
-    input: { slots: { base: 'rounded-control bg-default' }, variants: { size: { md: { base: 'min-h-(--liwan-control-h)' } } } },
-    inputNumber: { slots: { base: 'rounded-control bg-default' }, variants: { size: { md: { base: 'min-h-(--liwan-control-h)' } } } },
-    textarea: { slots: { base: 'rounded-control bg-default' } },
-    select: { slots: { base: 'rounded-control bg-default', content: 'z-[var(--liwan-ui-z-menu)] rounded-control shadow-lg ring ring-default' }, variants: { size: { md: { base: 'min-h-(--liwan-control-h)' } } } },
-    selectMenu: { slots: { base: 'rounded-control bg-default', content: 'z-[var(--liwan-ui-z-menu)] rounded-control shadow-lg ring ring-default' }, variants: { size: { md: { base: 'min-h-(--liwan-control-h)' } } } },
+    button: {
+      slots: { base: 'rounded-control font-semibold transition-[color,background-color,translate,scale,box-shadow,filter] duration-150 [&:not([disabled],[aria-disabled=true])]:hover:-translate-y-px active:scale-[.97] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100' },
+      variants: { size: { sm: { base: 'min-h-[34px] px-3.5 text-[13px]' }, md: { base: 'min-h-(--liwan-control-h) px-5 gap-2' } } },
+      compoundVariants: [
+        { size: 'sm', square: true, class: 'min-w-[34px] justify-center' },
+        { size: 'md', square: true, class: 'min-w-(--liwan-control-h) justify-center' },
+        { color: 'primary', variant: 'solid', class: 'bg-(--primary-solid) text-(--primary-solid-foreground) shadow-[0_6px_14px_-6px_color-mix(in_srgb,var(--primary-solid)_45%,transparent)] hover:bg-(--primary-solid-hover) hover:text-(--primary-solid-hover-foreground) hover:shadow-[0_10px_20px_-8px_color-mix(in_srgb,var(--primary-solid)_50%,transparent)] active:bg-(--primary-solid-active) active:text-(--primary-solid-active-foreground) disabled:bg-(--primary-solid) aria-disabled:bg-(--primary-solid) dark:hover:brightness-110' },
+      ],
+    },
+    input: { slots: { base: 'rounded-control bg-default' }, variants: { variant: { outline: 'ring-[1.5px] ring-(--ui-border)' }, size: { md: { base: 'min-h-(--liwan-control-h)' } } } },
+    inputNumber: { slots: { base: 'rounded-control bg-default' }, variants: { variant: { outline: 'ring-[1.5px] ring-(--ui-border)' }, size: { md: { base: 'min-h-(--liwan-control-h)' } } } },
+    textarea: { slots: { base: 'rounded-control bg-default' }, variants: { variant: { outline: 'ring-[1.5px] ring-(--ui-border)' } } },
+    select: { slots: { base: 'rounded-control bg-default', content: 'z-[var(--liwan-ui-z-menu)] rounded-control shadow-lg ring ring-default' }, variants: { variant: { outline: 'ring-[1.5px] ring-(--ui-border)' }, size: { md: { base: 'min-h-(--liwan-control-h)' } } } },
+    selectMenu: { slots: { base: 'rounded-control bg-default', content: 'z-[var(--liwan-ui-z-menu)] rounded-control shadow-lg ring ring-default' }, variants: { variant: { outline: 'ring-[1.5px] ring-(--ui-border)' }, size: { md: { base: 'min-h-(--liwan-control-h)' } } } },
 
-    // Surfaces: hairline ring, no resting shadow, 20px padding (--liwan-card-pad).
-    card: { slots: { root: 'rounded-card bg-default ring ring-default shadow-none', header: 'px-(--liwan-card-pad) py-3 sm:px-(--liwan-card-pad)', body: 'p-(--liwan-card-pad) sm:p-(--liwan-card-pad)', footer: 'px-(--liwan-card-pad) py-3 sm:px-(--liwan-card-pad)' } },
+    // Surfaces: a 1.5px hairline border (a 4% top highlight in dark mode), no resting shadow, 20px padding (--liwan-card-pad).
+    card: { slots: { root: 'rounded-card bg-default ring-0 border-[1.5px] border-default shadow-none dark:shadow-[inset_0_1px_0_rgb(255_255_255/4%)]', header: 'px-(--liwan-card-pad) py-3 sm:px-(--liwan-card-pad)', body: 'p-(--liwan-card-pad) sm:p-(--liwan-card-pad)', footer: 'px-(--liwan-card-pad) py-3 sm:px-(--liwan-card-pad)' }, variants: { variant: { outline: { root: 'ring-0' }, subtle: { root: 'ring-0 border-[1.5px] border-default' } } } },
     table: {
       slots: {
         th: 'h-[40px] bg-(--liwan-table-head) px-(--liwan-card-pad) py-0 text-xs font-medium text-muted',

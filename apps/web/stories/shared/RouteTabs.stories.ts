@@ -21,4 +21,20 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Workspace: Story = { name: 'أقسام المشروع' }
+export const WithCounts: Story = {
+  name: 'تبويبات بأعداد (خط 2.5px بلون التطبيق)',
+  args: {
+    ariaLabel: 'محادثات البريد',
+    items: [
+      { key: 'inbox-tab-all', label: 'كل المحادثات', to: '/inbox', active: true, count: 12 },
+      { key: 'inbox-tab-mine', label: 'محادثاتي', to: '/inbox?scope=mine', active: false, count: 4 },
+      { key: 'inbox-tab-unassigned', label: 'غير مسندة', to: '/inbox?scope=unassigned', active: false, count: 3 },
+    ],
+  },
+  render: args => ({
+    components: { RouteTabs },
+    setup: () => ({ args }),
+    template: '<div data-app="inbox"><RouteTabs v-bind="args" /></div>',
+  }),
+}
 export const Pill: Story = { name: 'شريط حبّات (مساحة المشروع)', args: { variant: 'pill' } }

@@ -30,7 +30,7 @@ function pick(value: string) {
         <slot name="actions" />
       </template>
     </SharedPageHeader>
-    <div data-slot="timeline-card" class="min-w-0 overflow-hidden rounded-card bg-default ring ring-default">
+    <div data-slot="timeline-card" class="liwan-card min-w-0 overflow-hidden rounded-card">
       <div data-template="timeline-toolbar" class="flex flex-wrap items-center justify-between gap-3 border-b border-default px-(--liwan-card-pad-dense) py-3">
         <div class="flex items-center gap-1.5" role="group" :aria-label="t('states.period')">
           <UButton type="button" color="neutral" variant="ghost" size="sm" square data-testid="timeline-prev" :disabled="!hydrated" :aria-label="t('states.previous')" @click="emit('prev')">

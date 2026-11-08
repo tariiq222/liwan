@@ -7,7 +7,7 @@ import type { PageHeaderTag } from '../../../utils/pageHeaderTag'
 import ViewSwitch from '../data/ViewSwitch.vue'
 
 /*
- * The list template (Tasmim spec §6, template 1): heading, the page's own create button, filters,
+ * The list template (Tasmim spec §6, template 1): the open header with the page's own create button, then the tools row (filters),
  * a view switch bound to the route query `view`, and the list. The create button carries
  * data-shortcut-create, so `C` presses it; the search inside the caller's SharedFilterBar carries
  * data-shortcut-search, so `/` focuses it. On a ListPage, filters go in its #filters slot, not in
@@ -60,7 +60,7 @@ if (props.viewsInFilters && props.views?.length) provide(LIST_VIEW_KEY, { view, 
         <slot name="actions" />
       </template>
     </PageHeader>
-    <div v-if="$slots.filters || (view && !props.viewsInFilters)" data-slot="list-page-toolbar" class="flex min-w-0 flex-wrap items-start gap-3">
+    <div v-if="$slots.filters || (view && !props.viewsInFilters)" data-slot="list-page-toolbar" class="flex min-w-0 flex-wrap items-center gap-2.5">
       <div v-if="$slots.filters" class="min-w-0 flex-1"><slot name="filters" /></div>
       <ViewSwitch v-if="view && props.views && !props.viewsInFilters" class="ms-auto" :model-value="view" :options="props.views" @update:model-value="setView" />
     </div>

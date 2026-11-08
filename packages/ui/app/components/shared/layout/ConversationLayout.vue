@@ -27,7 +27,7 @@ const showThread = computed(() => (isDesktop.value || props.hasSelection) && (!s
 
 <template>
   <SharedPageContainer data-template="conversation-layout" class="h-[calc(100svh_-_var(--shell-top,0px))] min-h-0 grid-rows-[minmax(0,1fr)]">
-    <div class="flex min-h-0 overflow-hidden bg-default">
+    <div class="liwan-card flex min-h-0 overflow-hidden rounded-surface">
       <div v-if="showList" data-template="conversation-list" class="flex min-h-0 min-w-0 flex-1 flex-col">
         <slot name="list" />
       </div>
@@ -47,7 +47,7 @@ const showThread = computed(() => (isDesktop.value || props.hasSelection) && (!s
           <slot name="empty" />
         </div>
       </section>
-      <aside v-if="showInfo" data-template="conversation-info" :aria-label="t('states.details')" class="flex min-h-0 flex-col overflow-y-auto bg-default" :class="infoInAside ? 'w-80 shrink-0 md:border-s md:border-default' : 'min-w-0 flex-1'">
+      <aside v-if="showInfo" data-template="conversation-info" :aria-label="t('states.details')" class="flex min-h-0 flex-col overflow-y-auto bg-default" :class="infoInAside ? 'w-80 shrink-0 md:border-s-[1.5px] md:border-default' : 'min-w-0 flex-1'">
         <slot name="info" :headingLevel="infoInAside ? 'h2' : 'h1'" />
       </aside>
     </div>

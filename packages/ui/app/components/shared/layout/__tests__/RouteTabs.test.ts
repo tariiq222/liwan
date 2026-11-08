@@ -30,6 +30,22 @@ describe('RouteTabs', () => {
     expect(await render({ items: [], ariaLabel: 'x' })).not.toContain('<nav')
   })
 
+  it('draws a count chip after the label only on the underline variant', async () => {
+    const counted = [{ ...items[0]!, count: 12 }, items[1]!]
+    const underline = await render({ items: counted, ariaLabel: 'x' })
+    expect(underline).toContain('data-slot="route-tab-count"')
+    expect(underline).toContain('>12<')
+    expect(underline.match(/route-tab-count/g)).toHaveLength(1)
+    expect(await render({ items: counted, ariaLabel: 'x', variant: 'pill' })).not.toContain('route-tab-count')
+  })
+
+  it('is the 2.5px underline in the application colour, with the strip marked for the page header', async () => {
+    const html = await render({ items, ariaLabel: 'x' })
+    expect(html).toContain('data-slot="route-tabs"')
+    expect(html).toContain('border-b-[2.5px]')
+    expect(html).toContain('var(--app-action,var(--primary-solid))')
+  })
+
   it('draws the underline strip by default and the round pill strip for variant pill, with the same links', async () => {
     const underline = await render({ items, ariaLabel: 'x' })
     expect(underline).toContain('border-b border-default')
