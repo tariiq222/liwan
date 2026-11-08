@@ -38,7 +38,7 @@ function collectProblems(minWidthForNoScroll: number): string[] {
     let scroller: Element | null = table.parentElement
     while (scroller && scroller !== card && getComputedStyle(scroller).overflowX === 'visible') scroller = scroller.parentElement
     const scrollable = !!scroller && scroller !== card && scroller.scrollWidth > scroller.clientWidth + 1
-    if (innerWidth >= minWidthForNoScroll && scrollable) problems.push(`table scrolls inside its card at ${innerWidth}px`)
+    if (innerWidth >= minWidthForNoScroll && scrollable) problems.push(`table scrolls inside its card at ${innerWidth}px (scroll ${scroller!.scrollWidth} > client ${scroller!.clientWidth}, card ${Math.round(cardBox.width)}, min ${getComputedStyle(table).minWidth})`)
     if (!scrollable) {
       for (const th of table.querySelectorAll('th')) {
         const r = th.getBoundingClientRect()

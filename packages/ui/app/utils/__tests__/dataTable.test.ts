@@ -96,6 +96,14 @@ describe('decorateColumns', () => {
     expect(meta(actions).class?.td).toBe('liwan-cell-actions')
   })
 
+  it('takes the title role from a flagged column and leaves a narrow first column as the only sticky one', () => {
+    const [num, name, other] = decorateColumns([{ accessorKey: 'id', header: () => '#' }, { accessorKey: 'name', header: 'Name', meta: { title: true } }, { accessorKey: 'x', header: 'X' }] as never, false)
+    expect(meta(num).class?.td).toBe('liwan-sticky-start')
+    expect(meta(name).class?.th).toBe('liwan-cell-title')
+    expect(meta(name).class?.td).toBe('liwan-cell-title max-w-0 overflow-hidden text-ellipsis whitespace-nowrap')
+    expect(meta(other).class?.td).toBeUndefined()
+  })
+
   it('treats a column flagged meta.actions as the actions column', () => {
     const [, manage] = decorateColumns([{ accessorKey: 'a', header: 'A' }, { id: 'manage', header: () => 'x', meta: { actions: true } }] as never, false)
     expect(meta(manage).class?.td).toBe('liwan-cell-actions liwan-sticky-end')

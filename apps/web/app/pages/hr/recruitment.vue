@@ -79,7 +79,7 @@ const statusOptions = computed(() => STATUS_FILTERS.map(status => ({
 
 const columns = computed<TableColumn<HrApplicant>[]>(() => [
   { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
-  { accessorKey: 'partner_name', header: t('hrRecruitment.columns.applicant') },
+  { accessorKey: 'partner_name', header: t('hrRecruitment.columns.applicant'), meta: { title: true } },
   { accessorKey: 'job', header: t('hrRecruitment.columns.job') },
   { accessorKey: 'stage', header: t('hrRecruitment.columns.stage') },
   { accessorKey: 'status', header: t('hrRecruitment.columns.status') },

@@ -115,6 +115,8 @@ function joinStyle(existing: MetaValue, added: Record<string, string>): MetaValu
 }
 
 interface ColumnLike { id?: string; accessorKey?: string; header?: unknown; meta?: Record<string, unknown> }
+/** The title column's cell: it takes the width the other columns leave and truncates instead of pushing the table past its card. */
+const TITLE_CELL_CLASS = 'max-w-0 overflow-hidden text-ellipsis whitespace-nowrap'
 const idOf = (column: ColumnLike) => column.id ?? column.accessorKey
 
 /** A quoted CSS string for `content: var(--liwan-label)`. */
@@ -128,6 +130,9 @@ const cssString = (text: string) => JSON.stringify(text.replace(/\s+/g, ' ').tri
  */
 export function decorateColumns<T>(columns: TableColumn<T>[], selectable: boolean): TableColumn<T>[] {
   const first = selectable ? 1 : 0
+  // The title column is the first data column unless a column flags `meta.title` (a table whose first column is a narrow record number).
+  const flagged = columns.findIndex(column => (column as ColumnLike).meta?.title === true)
+  const titleAt = flagged >= 0 ? flagged : first
   return columns.map((column, index) => {
     const source = column as ColumnLike
     const id = idOf(source)
@@ -141,8 +146,10 @@ export function decorateColumns<T>(columns: TableColumn<T>[], selectable: boolea
       const end = index === columns.length - 1 ? ' liwan-sticky-end' : ''
       const named = typeof source.header === 'string' ? ' liwan-cell-actions-named' : ''
       th = td = `liwan-cell-actions${end}${named}`
-    } else if (index === first) {
-      th = td = `liwan-sticky-start liwan-cell-title${selectable ? ' liwan-sticky-second' : ''}`
+    } else if (index === first || index === titleAt) {
+      const classes = [index === first && 'liwan-sticky-start', index === titleAt && 'liwan-cell-title', index === first && selectable && 'liwan-sticky-second'].filter(Boolean).join(' ')
+      th = classes
+      td = flagged >= 0 && index === titleAt ? `${classes} ${TITLE_CELL_CLASS}` : classes
     } else if (typeof source.header === 'string' && source.header) {
       label = source.header
     }

@@ -56,7 +56,7 @@ const activeOptions = computed(() => ACTIVE_FILTERS.map(value => ({
 
 const columns = computed<TableColumn<HrRecruitmentJob>[]>(() => [
   { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
-  { accessorKey: 'name', header: t('hrRecruitment.jobs.columns.name') },
+  { accessorKey: 'name', header: t('hrRecruitment.jobs.columns.name'), meta: { title: true } },
   { accessorKey: 'department', header: t('hrRecruitment.jobs.columns.department') },
   { accessorKey: 'no_of_recruitment', header: t('hrRecruitment.jobs.columns.target'), meta: { class: { th: 'w-[96px]', td: 'w-[96px]' } } },
   { accessorKey: 'application_count', header: t('hrRecruitment.jobs.columns.applications'), meta: { class: { th: 'w-[110px]', td: 'w-[110px]' } } },
