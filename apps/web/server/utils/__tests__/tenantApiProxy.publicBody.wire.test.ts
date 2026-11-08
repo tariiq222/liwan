@@ -28,7 +28,7 @@ async function fixture(mode: 'shared' | 'dedicated', guarded = false) {
   const releaseReplies = () => { holdReplies = false; for (const reply of heldReplies.splice(0)) reply() }
   const upstream = http.createServer((req, res) => {
     const hash = createHash('sha256'); let bytes = 0; let authText = ''
-    req.on('data', chunk => { bytes += chunk.length; hash.update(chunk); if (req.url === '/web/session/authenticate' || req.url === '/api/v1/auth/totp') authText += chunk.toString() })
+    req.on('data', chunk => { bytes += chunk.length; hash.update(chunk); if (req.url === '/web/session/authenticate' || req.url === '/api/v1/auth/verify') authText += chunk.toString() })
     req.on('end', () => {
       const received = { path: req.url!, bytes, digest: hash.digest('hex'), ...(req.headers['x-hub-signature-256'] ? { signature: req.headers['x-hub-signature-256'] } : {}) }
       calls.push(received)
@@ -40,7 +40,11 @@ async function fixture(mode: 'shared' | 'dedicated', guarded = false) {
         res.setHeader('set-cookie', `session_id=${pending ? 'pending-wire' : 'verified-wire'}; HttpOnly; Path=/`)
         res.end(JSON.stringify({ result: { uid: pending ? null : 7 } })); return
       }
-      if (req.url === '/api/v1/auth/totp') res.setHeader('set-cookie', 'session_id=verified-wire; HttpOnly; Path=/')
+      if (req.url === '/api/v1/auth/verify') {
+        res.setHeader('set-cookie', 'session_id=verified-wire; HttpOnly; Path=/')
+        res.end(JSON.stringify({ id: 7, name: 'User', login: 'user', email: '', lang: 'ar_001', tz: 'UTC', role: 'employee', company: { id: 1, name: 'Company' }, remembered: false }))
+        return
+      }
       res.end(JSON.stringify(req.url === '/api/v1/me' ? { id: 7, company: { id: 1 } } : received))
       }
       if (holdReplies) heldReplies.push(respond); else respond()
@@ -65,13 +69,18 @@ async function fixture(mode: 'shared' | 'dedicated', guarded = false) {
   const transport = await import('../tenantTransport')
   const handler = (await import('../../routes/api/v1/[...path]')).default
   const login = (await import('../../api/auth/login.post')).default
-  const totp = (await import('../../api/auth/totp.post')).default
+  const verify = (await import('../../api/auth/verify.post')).default
   const app = createApp()
   if (guarded) app.use((await import('../../middleware/tenant-boundary')).default)
-  // Use Nitro's H3/radix router so accepted trailing-slash aliases exercise the same handlers.
-  const router = createRouter()
-  router.post('/api/auth/login', login); router.post('/api/auth/totp', totp)
-  app.use(router.handler); app.use(handler)
+  // Mirror Nitro's own mounting (nitropack/dist/runtime/internal/app.mjs): ONE preemptive router holds every
+  // method-scoped server/api route plus the `/api/v1/**` catch-all. `preemptive` is what makes an unsupported
+  // method answer 405 from the router; without it the request falls through to the proxy and is refused as an
+  // unauthenticated session (401) instead. The router is also what accepts trailing-slash aliases.
+  const router = createRouter({ preemptive: true })
+  router.post('/api/auth/login', login); router.post('/api/auth/verify', verify)
+  // `use` is the method-agnostic registration (`method` defaults to "all"), the same as Nitro's `h.method === undefined`.
+  router.use('/api/v1/**', handler)
+  app.use(router.handler)
   const webRequests: http.IncomingMessage[] = []
   const guardRequests: http.IncomingMessage[] = []
   const bodyBytes = new WeakMap<http.IncomingMessage, number>()
@@ -167,16 +176,18 @@ it.each(['shared', 'dedicated'] as const)('%s rejects a WhatsApp hook body above
   } finally { upload?.destroy(); await wire.close() }
 })
 
-// Both declared and chunked overflows must fail before a public MFA body reaches the work queue.
+// Both declared and chunked overflows must fail before a second-step body reaches the work queue. This is the
+// route's own 1 KiB limit (the shared `MAX_PUBLIC_MFA_BODY`), proven at the BFF because the edges do not cap these
+// paths yet.
 it.each([
   ['shared', 'declared'], ['shared', 'chunked'], ['dedicated', 'declared'], ['dedicated', 'chunked'],
-] as const)('%s rejects an oversized public MFA %s body before buffering/queueing it', async (mode, framing) => {
+] as const)('%s rejects an oversized second-step %s body before buffering/queueing it', async (mode, framing) => {
   const wire = await fixture(mode)
   let upload: http.ClientRequest | undefined
   try {
     await wire.hold()
     const result = await new Promise<{ status: number; body: unknown }>((resolve, reject) => {
-      upload = http.request(new URL('/api/v1/auth/totp?step=confirm', wire.url), { method: 'POST', headers: { ...wire.headers, cookie: 'session_id=unverified-mfa', 'content-type': 'application/json', ...(framing === 'declared' ? { 'content-length': '1025' } : {}) } }, response => {
+      upload = http.request(new URL('/api/auth/verify', wire.url), { method: 'POST', headers: { ...wire.headers, cookie: 'session_id=unverified-mfa', 'content-type': 'application/json', 'sec-fetch-site': 'same-origin', ...(framing === 'declared' ? { 'content-length': '1025' } : {}) } }, response => {
         let text = ''; response.on('data', chunk => { text += chunk }); response.on('end', () => resolve({ status: response.statusCode!, body: JSON.parse(text) }))
       })
       upload.on('error', reject); upload.setTimeout(500, () => upload!.destroy(Error('waited_for_oversized_mfa_body')))
@@ -193,19 +204,31 @@ it.each([
   } finally { upload?.destroy(); await wire.close() }
 })
 
-it.each(['shared', 'dedicated'] as const)('%s preserves the small MFA payload and exact 16MiB authenticated upload', async mode => {
+// The second sign-in step is a BFF route: the browser posts /api/auth/verify and this server hops to Odoo with the
+// pending cookie. Its Odoo path is a public API route too (a visitor has only the pre-login session), so it is
+// listed in PUBLIC_API_METHODS with the small public-auth body limit; a session is never required to finish a
+// sign-in, and the pending cookie is what bounds it to one account.
+it.each(['shared', 'dedicated'] as const)('%s carries the small second-step payload at the BFF and keeps the exact 16MiB authenticated upload', async mode => {
   const wire = await fixture(mode)
   try {
     const code = Buffer.from('{"code":"123456"}')
-    const padded = Buffer.concat([code, Buffer.alloc(1024 - code.length, 32)])
-    const mfa = await wire.call('/api/v1/auth/totp', padded, { 'content-type': 'application/json' })
-    expect(mfa.status).toBe(200)
-    expect(mfa.body).toEqual({ path: '/api/v1/auth/totp', bytes: 1024, digest: createHash('sha256').update(padded).digest('hex') })
+    const small = await wire.call('/api/auth/verify', code, { 'content-type': 'application/json', cookie: 'session_id=pending-wire' })
+    expect(small.status).toBe(200)
+    expect(small.body).toMatchObject({ login: 'user', remembered: false })
+    expect(wire.authCalls[0]!.body).toEqual({ code: '123456' })
+
+    // The same path through the browser proxy reaches Odoo without a session: the pending cookie is
+    // the only authority, exactly as on the BFF hop above.
+    const direct = await wire.call('/api/v1/auth/verify', code, { 'content-type': 'application/json', cookie: 'session_id=pending-wire' })
+    expect(direct.status).toBe(200)
+    expect(wire.authCalls).toHaveLength(2)
+    expect(wire.authCalls[1]!.body).toEqual({ code: '123456' })
+
     const upload = Buffer.alloc(16 * 1024 * 1024, 65)
     const result = await wire.call('/api/v1/echo', upload, { cookie: 'session_id=verified', 'content-type': 'application/octet-stream' })
     expect(result.status).toBe(200)
     expect(result.body).toEqual({ path: '/api/v1/echo', bytes: 16 * 1024 * 1024, digest: createHash('sha256').update(upload).digest('hex') })
-    expect(wire.calls.map(call => call.path)).toEqual(['/api/v1/auth/totp', '/api/v1/me', '/api/v1/echo'])
+    expect(wire.calls.map(call => call.path)).toEqual(['/api/v1/auth/verify', '/api/v1/auth/verify', '/api/v1/me', '/api/v1/echo'])
   } finally { await wire.close() }
 })
 
@@ -247,8 +270,8 @@ it.each([['shared', 'overflow'], ['shared', 'timeout'], ['dedicated', 'overflow'
 
 
 it.each([
-  ['shared', 'totp', 'declared', 1024], ['shared', 'totp', 'chunked', 1024],
-  ['dedicated', 'totp', 'declared', 1024], ['dedicated', 'totp', 'chunked', 1024],
+  ['shared', 'verify', 'declared', 1024], ['shared', 'verify', 'chunked', 1024],
+  ['dedicated', 'verify', 'declared', 1024], ['dedicated', 'verify', 'chunked', 1024],
   ['shared', 'login', 'declared', 65536], ['shared', 'login', 'chunked', 65536],
   ['dedicated', 'login', 'declared', 65536], ['dedicated', 'login', 'chunked', 65536],
 ] as const)('%s BFF %s rejects %s oversized JSON before parsing or upstream admission', async (mode, endpoint, framing, limit) => {
@@ -276,24 +299,24 @@ it.each(['shared', 'dedicated'] as const)('%s BFF auth retains pending MFA, rota
     const padded = Buffer.concat([login, Buffer.alloc(65536 - login.length, 32)])
     const first = await wire.call('/api/auth/login', padded, { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin', 'x-forwarded-proto': 'https' })
     expect(first.status).toBe(200)
-    expect(first.body).toEqual({ ok: false, mfa: 'totp' })
+    expect(first.body).toEqual({ ok: false, mfa: 'code' })
     expect(first.headers['set-cookie']![0]).toContain('session_id=pending-wire')
     expect(first.headers['set-cookie']![0]).toContain('Secure')
     const code = Buffer.from('{"code":"123456"}')
-    const mfa = await wire.call('/api/auth/totp', Buffer.concat([code, Buffer.alloc(1024 - code.length, 32)]), { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin', cookie: 'session_id=pending-wire' })
+    const mfa = await wire.call('/api/auth/verify', Buffer.concat([code, Buffer.alloc(1024 - code.length, 32)]), { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin', cookie: 'session_id=pending-wire' })
     expect(mfa.status).toBe(200)
-    expect(mfa.body).toEqual({ ok: true })
+    expect(mfa.body).toMatchObject({ login: 'user', remembered: false })
     expect(mfa.headers['set-cookie']![0]).toContain('session_id=verified-wire')
     expect(wire.authCalls[0]!.body).toEqual({ jsonrpc: '2.0', method: 'call', params: { db: mode === 'shared' ? 'db_a' : 'scratch_auth_body', login: 'mfa', password: 'synthetic' } })
     expect(wire.authCalls[1]!.body).toEqual({ code: '123456' })
     expect(wire.authCalls[1]!.headers.cookie).toBe('session_id=pending-wire')
     const calls = wire.calls.length
-    expect((await wire.call('/api/auth/totp', code, { 'content-type': 'application/json', 'sec-fetch-site': 'cross-site' })).status).toBe(403)
+    expect((await wire.call('/api/auth/verify', code, { 'content-type': 'application/json', 'sec-fetch-site': 'cross-site' })).status).toBe(403)
     expect(wire.calls).toHaveLength(calls)
   } finally { await wire.close() }
 })
 
-it.each([['shared', 'login'], ['shared', 'totp'], ['dedicated', 'login'], ['dedicated', 'totp']] as const)('%s BFF %s reports malformed JSON and non-object payloads with strict 400 errors', async (mode, endpoint) => {
+it.each([['shared', 'login'], ['shared', 'verify'], ['dedicated', 'login'], ['dedicated', 'verify']] as const)('%s BFF %s reports malformed JSON and non-object payloads with strict 400 errors', async (mode, endpoint) => {
   const wire = await fixture(mode)
   try {
     for (const text of ['{', 'null', '[]']) {
@@ -316,9 +339,10 @@ it.each(['shared', 'dedicated'] as const)('%s BFF login preserves missing creden
 })
 
 
+// The edges still cap only the retired /api/auth/totp path at the public-MFA size (package P3 owns both guard
+// files, so this file must not assume a guard cap for /api/auth/verify). Every guard-level case therefore stays on
+// /api/auth/login's 64 KiB limit; the BFF-level cases above already prove the verify route's own 1 KiB limit.
 it.each(([
-  ['shared', 'totp', 'declared', 1024], ['shared', 'totp', 'chunked', 1024],
-  ['dedicated', 'totp', 'declared', 1024], ['dedicated', 'totp', 'chunked', 1024],
   ['shared', 'login', 'declared', 65536], ['shared', 'login', 'chunked', 65536],
   ['dedicated', 'login', 'declared', 65536], ['dedicated', 'login', 'chunked', 65536],
 ] as const).flatMap(testCase => ['', '/'].map(suffix => [...testCase, suffix] as const)))('%s guard caps public BFF %s %s body before forwarding or buffering it (limit %i suffix %s)', async (mode, endpoint, framing, limit, suffix) => {
@@ -345,16 +369,18 @@ it.each((['shared', 'dedicated'] as const).flatMap(mode => ['', '/'].map(suffix 
     const login = Buffer.from('{"login":"mfa","password":"synthetic"}')
     const first = await wire.call('/api/auth/login' + suffix + '?step=confirm', Buffer.concat([login, Buffer.alloc(65536 - login.length, 32)]), { 'content-type': 'application/json' })
     expect(first.status).toBe(200)
-    expect(first.body).toEqual({ ok: false, mfa: 'totp' })
+    expect(first.body).toEqual({ ok: false, mfa: 'code' })
     const cookie = first.headers['set-cookie']![0]!.split(';')[0]!
     expect(wire.openCookie(cookie.slice(11))).toBe('pending-wire')
     const code = Buffer.from('{"code":"123456"}')
-    const second = await wire.call('/api/auth/totp' + suffix + '?step=confirm', Buffer.concat([code, Buffer.alloc(1024 - code.length, 32)]), { 'content-type': 'application/json', cookie })
+    const second = await wire.call('/api/auth/verify' + suffix + '?step=confirm', Buffer.concat([code, Buffer.alloc(1024 - code.length, 32)]), { 'content-type': 'application/json', cookie })
     expect(second.status).toBe(200)
-    expect(second.body).toEqual({ ok: true })
+    // The second step answers the signed-in identity plus whether this browser was remembered, never `{ok:true}`.
+    expect(second.body).toMatchObject({ login: 'user', company: { id: 1, name: 'Company' }, remembered: false })
     expect(wire.openCookie(second.headers['set-cookie']![0]!.split(';')[0]!.slice(11))).toBe('verified-wire')
     expect(wire.authCalls[0]!.body).toEqual({ jsonrpc: '2.0', method: 'call', params: { db: 'db_a', login: 'mfa', password: 'synthetic' } })
     expect(wire.authCalls[1]!.headers.cookie).toBe('session_id=pending-wire')
+    expect(wire.authCalls[1]!.body).toEqual({ code: '123456' })
     for (const call of wire.authCalls) expect(call.headers['x-liwan-proxy-token']).toBeUndefined()
     const before = wire.calls.length
     const selected = await wire.call('/api/auth/login' + suffix + '?step=confirm', Buffer.from('{"db":"foreign","login":"user","password":"synthetic"}'), { 'content-type': 'application/json' })
@@ -363,7 +389,18 @@ it.each((['shared', 'dedicated'] as const).flatMap(mode => ['', '/'].map(suffix 
   } finally { await wire.close() }
 })
 
-it.each([['shared', '/api/v1/branding', 'POST', 'GET, HEAD'], ['dedicated', '/api/v1/branding', 'POST', 'GET, HEAD'], ['shared', '/api/v1/auth/totp', 'GET', 'POST'], ['dedicated', '/api/v1/auth/totp', 'GET', 'POST'], ['shared', '/api/v1/inbox/hooks/whatsapp', 'PUT', 'GET, POST'], ['dedicated', '/api/v1/inbox/hooks/whatsapp', 'PUT', 'GET, POST']] as const)('%s public %s refuses unsupported %s before body buffering', async (mode, path, method, allow) => {
+// An unsupported method is refused before any body is buffered or any upstream slot is taken. Two owners answer
+// it, and each keeps its own real envelope: this server's public proxy answers 405 with an `allow` header and the
+// structured `method_not_allowed` code; the method-scoped BFF route (`/api/auth/login`, declared as `*.post.ts`)
+// is refused by Nitro's preemptive router itself, which answers a bare 405 before its handler runs.
+it.each([
+  ['shared', '/api/v1/branding', 'POST', 'GET, HEAD', 'proxy'],
+  ['dedicated', '/api/v1/branding', 'POST', 'GET, HEAD', 'proxy'],
+  ['shared', '/api/v1/inbox/hooks/whatsapp', 'PUT', 'GET, POST', 'proxy'],
+  ['dedicated', '/api/v1/inbox/hooks/whatsapp', 'PUT', 'GET, POST', 'proxy'],
+  ['shared', '/api/auth/login', 'GET', 'POST', 'router'],
+  ['dedicated', '/api/auth/login', 'GET', 'POST', 'router'],
+] as const)('%s public %s refuses unsupported %s before body buffering (%s)', async (mode, path, method, allow, owner) => {
   const wire = await fixture(mode, true)
   let upload: http.ClientRequest | undefined
   try {
@@ -374,8 +411,15 @@ it.each([['shared', '/api/v1/branding', 'POST', 'GET, HEAD'], ['dedicated', '/ap
       upload.on('error', reject); upload.setTimeout(500, () => upload!.destroy(Error('waited_for_unsupported_method_body'))); upload.write('{')
     })
     expect(response.status).toBe(405)
-    expect(response.allow).toBe(allow)
-    expect(ApiErrorSchema.parse((response.body as { data: unknown }).data).code).toBe('method_not_allowed')
+    if (owner === 'proxy') {
+      expect(response.allow).toBe(allow)
+      expect(ApiErrorSchema.parse((response.body as { data: unknown }).data).code).toBe('method_not_allowed')
+    } else {
+      // The router names no allowed methods and carries no structured data; its message names the method.
+      expect(response.allow).toBeUndefined()
+      expect(response.body).toMatchObject({ statusCode: 405 })
+      expect((response.body as { statusMessage?: string }).statusMessage).toContain(method.toLowerCase())
+    }
     expect(wire.calls).toHaveLength(0)
     expect(wire.webRequests).toHaveLength(1)
     expect(wire.webRequests[0]!.complete).toBe(false)
@@ -386,6 +430,7 @@ it.each([['shared', '/api/v1/branding', 'POST', 'GET, HEAD'], ['dedicated', '/ap
     expect((await wire.call('/api/v1/branding', undefined, {}, 'HEAD')).status).toBe(200)
   } finally { upload?.destroy(); await wire.close() }
 })
+
 
 
 function startBody(wire: Awaited<ReturnType<typeof fixture>>, path: string, bytes: Buffer, headers: Record<string, string>, finish = true) {

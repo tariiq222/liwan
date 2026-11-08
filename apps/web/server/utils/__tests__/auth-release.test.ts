@@ -21,7 +21,7 @@ beforeAll(async () => {
   vi.stubGlobal('assertSameSiteJson', assertSameSiteJson)
   vi.stubGlobal('$fetch', async (url: string, options: RequestInit) => (await fetch(url, options)).json())
   const login = (await import('../../api/auth/login.post')).default
-  const totp = (await import('../../api/auth/totp.post')).default
+  const verify = (await import('../../api/auth/verify.post')).default
   const logout = (await import('../../api/auth/logout.post')).default
   const { authUpstreamHeaders } = await import('../authUpstreamHeaders')
   const { customerPrincipal } = await import('../customer-commercial')
@@ -45,7 +45,7 @@ beforeAll(async () => {
     if (process.env.LIWAN_RELEASE_ROUTES_DIR) event.context.liwanRelease = { tenantId: 'release-route-tenant', identityRevision: 2, poolId: 'blue', releaseId: 'r1', routeRevision: 4, fence: 9, aiMaintenance: false, odooUrl, webUrl: odooUrl, wsUrl: odooUrl }
   }))
   h3.use('/login', login)
-  h3.use('/totp', totp)
+  h3.use('/verify', verify)
   h3.use('/logout', logout)
   h3.use('/headers', eventHandler(event => authUpstreamHeaders(event)))
   h3.use('/principal', eventHandler(event => customerPrincipal(event, { odooUrl, customerCommercialTenantId: 'dedicated-config-tenant' })))
@@ -88,7 +88,7 @@ function request(path: string, overrides: Record<string, string> = {}): Promise<
 }
 
 describe('dedicated release authentication transport', () => {
-  it.each([['/login', '/web/session/authenticate', 200], ['/totp', '/api/v1/auth/totp', 200], ['/logout', '/web/session/destroy', 204]] as const)('%s preserves the verified boundary, release pin and raw session cookie', async (path, target, status) => {
+  it.each([['/login', '/web/session/authenticate', 200], ['/verify', '/api/v1/auth/verify', 200], ['/logout', '/web/session/destroy', 204]] as const)('%s preserves the verified boundary, release pin and raw session cookie', async (path, target, status) => {
     const response = await request(path)
     expect(response.status).toBe(status)
     expect(calls).toHaveLength(1)
@@ -119,7 +119,7 @@ describe('dedicated release authentication transport', () => {
     expect(calls[0]).toMatchObject({ path: '/api/v1/me', headers: { host, ...pin, 'x-liwan-proxy-token': token, cookie: 'session_id=existing-session' } })
   })
 
-  it.each(['/login', '/totp', '/logout', '/principal'])('%s rejects an untrusted dedicated proxy before contacting Odoo', async (path) => {
+  it.each(['/login', '/verify', '/logout', '/principal'])('%s rejects an untrusted dedicated proxy before contacting Odoo', async (path) => {
     expect((await request(path, { 'x-liwan-proxy-token': 'forged' })).status).toBe(403)
     expect(calls).toEqual([])
   })

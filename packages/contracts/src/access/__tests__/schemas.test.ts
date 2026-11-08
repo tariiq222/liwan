@@ -380,6 +380,7 @@ describe('admin input schemas and fail-closed security fields', () => {
       'user.password_reset',
       'user.mobile_set',
       'user.reset_link_requested',
+      'user.second_step_reset',
       'user.branch_roles_changed',
       'branch.policy_changed',
       'company.profile_changed',

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MeSchema } from '../common/me'
 
 /** The delivery channel of a sign-in code. Email is always offered; SMS needs a configured provider. */
 export const LoginChannelSchema = z.enum(['sms', 'email'])
@@ -47,3 +48,20 @@ export const DOUBLE_STEP_ERROR_CODES = [
   'invalid_credentials',
 ] as const
 export type DoubleStepErrorCode = typeof DOUBLE_STEP_ERROR_CODES[number]
+
+/** The password step's answer: a signed-in session, or the pending one the second step continues. */
+export const LoginStepSchema = z.discriminatedUnion('ok', [
+  z.object({ ok: z.literal(true) }).strict(),
+  z.object({ ok: z.literal(false), mfa: z.literal('code') }).strict(),
+])
+export type LoginStep = z.infer<typeof LoginStepSchema>
+
+/** Finishing the sign-in: the identity the session now has, and whether this browser was remembered. */
+export const LoginVerifyResultSchema = MeSchema.extend({ remembered: z.boolean() })
+export type LoginVerifyResult = z.infer<typeof LoginVerifyResultSchema>
+
+/** What the account holder still has remembered after forgetting the rest; the ids only, never a token. */
+export const LoginDevicesForgottenSchema = z.object({
+  device_ids: z.array(z.number().int().positive()),
+}).strict()
+export type LoginDevicesForgotten = z.infer<typeof LoginDevicesForgottenSchema>

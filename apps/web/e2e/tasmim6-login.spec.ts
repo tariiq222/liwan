@@ -37,28 +37,39 @@ test.describe('Plan 6d: the sign-in page', () => {
     await expect(page.getByLabel('اسم المستخدم')).toHaveValue('admin')
   })
 
-  test('the MFA branch keeps its code field and translated invalid-code alert', async ({ page }) => {
+  test('the second step keeps its code field and translated invalid-code alert', async ({ page }) => {
     let loginCalls = 0
-    let totpCalls = 0
+    let verifyCalls = 0
     await page.route('**/api/auth/login', route => {
       loginCalls++
-      return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":false,"mfa":"totp"}' })
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":false,"mfa":"code"}' })
     })
-    await page.route('**/api/auth/totp', route => {
-      totpCalls++
-      return route.fulfill({ status: 401, contentType: 'application/json', body: '{}' })
+    await page.route('**/api/auth/channels', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '{"channels":["sms"],"sms_available":true,"has_mobile":true,"has_email":false}',
+    }))
+    await page.route('**/api/auth/code', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '{"channel":"sms","destination":"***011","resend_after":60}',
+    }))
+    await page.route('**/api/auth/verify', route => {
+      verifyCalls++
+      return route.fulfill({ status: 401, contentType: 'application/json', body: '{"data":{"code":"invalid_code"}}' })
     })
     await page.goto('/login')
     await expect(page.getByRole('button', { name: 'دخول', exact: true })).toBeEnabled()
     await page.locator('#login').fill('admin')
     await page.locator('#password').fill('mock-secret')
     await page.getByRole('button', { name: 'دخول', exact: true }).click()
-    await expect(page.locator('#totp-code')).toBeVisible()
-    await page.locator('#totp-code').fill('123456')
-    await page.getByRole('button', { name: 'متابعة', exact: true }).click()
+    await page.getByRole('button', { name: 'أرسل الرمز', exact: true }).click()
+    await expect(page.locator('#login-code')).toBeVisible()
+    await page.locator('#login-code').fill('123456')
+    await page.getByRole('button', { name: 'تحقق', exact: true }).click()
     await expect(page.getByRole('alert')).toContainText('رمز التحقق غير صحيح')
     expect(loginCalls).toBe(1)
-    expect(totpCalls).toBe(1)
+    expect(verifyCalls).toBe(1)
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
   })
 
