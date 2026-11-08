@@ -15,6 +15,7 @@ from odoo.addons.liwan_hr.rules import LiwanHrRule
 
 TRANSITION_FORBIDDEN = 'transition_forbidden'
 EOS_CASE_MISSING = 'eos_case_missing'
+SETTLEMENT_NEGATIVE = 'settlement_negative'
 COMPARED_KEYS = ('service_years', 'eos_wage', 'award', 'leave_days', 'leave_amount', 'open_deductions', 'total')
 
 
@@ -50,6 +51,26 @@ class LiwanHrPayrollEosSettlement(models.Model):
         'UNIQUE(employee_id, departure_date)', 'an employee has one final settlement per departure',
     )
     _deductions_valid = models.Constraint('CHECK(open_deductions >= 0)', 'open deductions must not be negative')
+
+    @api.constrains('total')
+    def _liwan_check_total(self):
+        """Refuse a settlement that owes nothing: a negative total is a deduction larger than the award.
+
+        The payroll approval refuses a negative net only after a whole month is computed, with wording that never
+        names this settlement. Refusing it here keeps the debt where the officer entered it. The constraint runs on
+        ``self.sudo()`` (Odoo's ``_validate_fields``), so no write path can store the figure even when it skips the
+        routes.
+        """
+        for settlement in self.filtered(lambda row: row.total < 0):
+            raise LiwanHrRule(
+                SETTLEMENT_NEGATIVE,
+                self.env._(
+                    'The final settlement of %(name)s is negative: the open deductions are larger than the award '
+                    'and the leave encashment. Reduce the deductions.',
+                    name=settlement.employee_id.name,
+                ),
+                field='open_deductions', details={'employee_id': settlement.employee_id.id},
+            )
 
     @api.model
     def _liwan_current(self, employee):

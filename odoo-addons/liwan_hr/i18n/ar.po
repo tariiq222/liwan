@@ -646,3 +646,13 @@ msgstr "لا يمكن إعادة مسيّر رواتب معتمد إلى حال�
 #: model:ir.model.fields,field_description:liwan_hr.field_liwan_hr_payslip_payment__gosi_number
 msgid "Paid GOSI number"
 msgstr "رقم التأمينات المسجَّل عند الاعتماد"
+
+#. module: liwan_hr
+#. odoo-python
+#: code:addons/liwan_hr/models/eos_settlement.py:0
+msgid ""
+"The final settlement of %(name)s is negative: the open deductions are "
+"larger than the award and the leave encashment. Reduce the deductions."
+msgstr ""
+"التسوية النهائية لـ%(name)s سالبة: الاستقطاعات المفتوحة أكبر من مكافأة نهاية الخدمة وبدل "
+"الإجازات. خفّض الاستقطاعات."
