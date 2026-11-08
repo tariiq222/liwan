@@ -283,9 +283,8 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
 
 /* The user at the far end of the bar: avatar (with the live-connection dot), name and role, chevron; it opens the user menu.
    Phones and narrow bars keep the avatar alone. */
-.liwan-user { display: flex; min-width: 0; align-items: center; gap: 10px; height: var(--liwan-bar-tile); padding-inline: 4px 10px; border: 1px solid var(--ui-border); border-radius: calc(var(--radius-control) + 4px); background: var(--ui-bg); color: var(--ui-text); text-align: start; cursor: pointer; transition: background-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease), transform var(--liwan-motion-feedback) var(--liwan-motion-color-ease); }
-.dark .liwan-user { background: var(--ui-bg-muted); }
-.liwan-user:hover, .liwan-user[data-state="open"] { background: var(--ui-bg-muted); }
+.liwan-user { display: flex; min-width: 0; align-items: center; gap: 10px; height: var(--liwan-bar-tile); padding-inline: 4px 10px; border: 1px solid var(--ui-border); border-radius: calc(var(--radius-control) + 4px); background: var(--ui-bg-muted); color: var(--ui-text); text-align: start; cursor: pointer; transition: background-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease), transform var(--liwan-motion-feedback) var(--liwan-motion-color-ease); }
+.liwan-user:hover, .liwan-user[data-state="open"] { background: color-mix(in srgb, var(--liwan-ink) 9%, var(--ui-bg-muted)); }
 .liwan-user:active { transform: scale(.98); }
 .liwan-user:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .liwan-user:disabled { opacity: .5; cursor: default; }

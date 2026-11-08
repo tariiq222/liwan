@@ -35,12 +35,12 @@ describe('top bar icon buttons', () => {
 })
 
 describe('top bar user button', () => {
-  it('is a bordered surface tile of the same height that fills on hover and while its menu is open', () => {
+  it('is the same soft filled capsule as the tools, the same height, darker on hover and while its menu is open', () => {
     const user = rule('.liwan-user')
     expect(user).toMatch(/height: var\(--liwan-bar-tile\);/)
     expect(user).toMatch(/border: 1px solid var\(--ui-border\);/)
-    expect(user).toMatch(/background: var\(--ui-bg\);/)
-    expect(shell).toContain('.liwan-user:hover, .liwan-user[data-state="open"] { background: var(--ui-bg-muted); }')
+    expect(user).toMatch(/background: var\(--ui-bg-muted\);/)
+    expect(shell).toContain('.liwan-user:hover, .liwan-user[data-state="open"] { background: color-mix(in srgb, var(--liwan-ink) 9%, var(--ui-bg-muted)); }')
   })
 
   it('keeps the avatar alone below 1100px', () => {

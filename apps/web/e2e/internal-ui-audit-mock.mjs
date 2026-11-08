@@ -363,8 +363,21 @@ const SETTINGS = {
   extensions: [],
 }
 
+// DEMO_DATA=1 shows realistic Arabic business content instead of the test fixtures' names; specs run without it.
+const DEMO_NAMES = process.env.DEMO_DATA === '1' ? [
+  ['"name":"Admin"', '"name":"عبدالله الشهري"'],
+  ['اشترِ الورق', 'اعتماد طلب شراء أجهزة المكتب'],
+  ['مهمة جارية', 'إعداد عرض السعر لشركة الراجحي'],
+  ['مهمة تحتاج تعديلاً', 'مراجعة عقد التوريد مع المورد'],
+  ['مهمة ملغاة', 'إلغاء حجز قاعة الاجتماعات'],
+  ['مهمة مكتملة', 'إرسال تقرير المبيعات الأسبوعي'],
+  ['مشروع ألفا', 'تطوير المتجر الإلكتروني'],
+  ['مشروع بيتا', 'تجهيز فرع جدة الجديد'],
+  ['مشروع جاما', 'تحديث نظام الموارد البشرية'],
+] : []
 function json(res, status, body, extra = {}) {
-  const payload = JSON.stringify(body)
+  let payload = JSON.stringify(body)
+  for (const [from, to] of DEMO_NAMES) payload = payload.replaceAll(from, to)
   res.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
     'content-length': Buffer.byteLength(payload),
