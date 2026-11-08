@@ -194,6 +194,17 @@ thirteen stages green, including every matrix job and aggregate on the exact mai
 commit. Publishing that immutable tag requires explicit owner authorization; no
 workflow creates it automatically.
 
+### Documentation-only static checks
+
+A pull request that only adds or edits ordinary Markdown under `docs/` uses the
+light static profile if the changed files are valid UTF-8 and at most 1 MiB each.
+It checks the repository's document references, Git and
+architecture rules, tracked secrets and retired terms, without installing npm
+dependencies or Chromium. Deletions, renamed paths, binary files, changes in
+`docs/api/` or `docs/design-system/`, and any mixed or unknown diff use the full
+static profile. The job and required `ci-result` are the same. Pushes to `main`,
+scheduled runs, manual runs and merge groups always use the full static profile.
+
 ### Stage pass cache
 
 In a pull request or merge-queue entry, a stage that already passed on exactly the same inputs is not run again.

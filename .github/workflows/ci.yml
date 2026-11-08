@@ -136,13 +136,28 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - name: Select the static checks
+        id: profile
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          mode="$(python3 -B tools/ci_static_profile.py --base "$PR_BASE")"
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "Static checks: $mode"
+      - name: Check documentation
+        if: steps.profile.outputs.mode == 'docs'
+        run: bash deploy/ci/lib/docs-static.sh
       - uses: ./.github/actions/setup
+        if: steps.profile.outputs.mode != 'docs'
         with:
           playwright: 'true'
           python: 'true'
       - name: Python tools
+        if: steps.profile.outputs.mode != 'docs'
         run: python -m pip install --quiet ruff==0.16.3 semgrep==1.170.0
-      - run: deploy/ci/static.sh
+      - if: steps.profile.outputs.mode != 'docs'
+        run: deploy/ci/static.sh
 
   ai-service:
     needs: scope
