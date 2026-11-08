@@ -24,10 +24,11 @@ beforeEach(() => {
 describe('the run policy sent to the AI service', () => {
   it('carries the acknowledgement and caps the output of platform runs only', async () => {
     const { runPolicy } = await import('../policy')
-    expect(runPolicy(session({}))).toEqual({ provider_mode: 'platform', consent_signed: true, max_output_tokens: 8000 })
-    expect(runPolicy(session({ provider_mode: 'tenant_key' })).max_output_tokens).toBeNull()
+    // The input ceiling is the tenant's own policy and holds in both provider modes (issue #554).
+    expect(runPolicy(session({}))).toEqual({ provider_mode: 'platform', consent_signed: true, max_output_tokens: 8000, max_input_tokens: 100000 })
+    expect(runPolicy(session({ provider_mode: 'tenant_key' }))).toEqual({ provider_mode: 'tenant_key', consent_signed: true, max_output_tokens: null, max_input_tokens: 100000 })
     // The free agents run on the platform provider whatever the tenant's own key.
-    for (const mode of ['setup', 'help'] as const) expect(runPolicy(session({ provider_mode: 'tenant_key' }, mode))).toEqual({ provider_mode: 'setup', consent_signed: true, max_output_tokens: 8000 })
+    for (const mode of ['setup', 'help'] as const) expect(runPolicy(session({ provider_mode: 'tenant_key' }, mode))).toEqual({ provider_mode: 'setup', consent_signed: true, max_output_tokens: 8000, max_input_tokens: 100000 })
   })
 })
 

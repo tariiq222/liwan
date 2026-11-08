@@ -1,4 +1,5 @@
-import type { H3Event } from 'h3'
+import { getHeader, type H3Event } from 'h3'
+import { createHash } from 'node:crypto'
 import { AI_USAGE_BATCH_MAX, AiModelCallEventSchema, AiModelUsageEventSchema, type AiModelCallEvent, type AiModelUsageEvent, type AiUsageRecord } from '@liwan/contracts'
 import { logFailure, odooJson } from './upstream'
 
@@ -9,6 +10,115 @@ class MalformedUsageEvent extends Error {}
 const skipped = (name: string) => logFailure(`skipped a malformed ${name} event`, new MalformedUsageEvent())
 
 const abortedUsage = (callId: string): AiModelUsageEvent => ({ call_id: callId, outcome: 'aborted', input_tokens: null, output_tokens: null })
+
+/** Odoo answered the usage report with a non-200 status. */
+class UsageRefused extends Error {
+  constructor(status: number) { super(`status ${status}`) }
+}
+
+/** Logged by count only: the spool reached its row bound, so its oldest rows were dropped. */
+class UsageSpoolOverflow extends Error {}
+/** Logged by count only: spooled rows waited past the age bound without Odoo accepting them. */
+class UsageSpoolExpired extends Error {}
+
+/** Rows kept for a retry: at most 2048, oldest dropped first, none older than an hour. Never unbounded, never a throw. */
+const SPOOL_MAX_ROWS = 2048
+const SPOOL_MAX_AGE_MS = 60 * 60 * 1000
+/**
+ * A refused row becomes due again this long after its refusal. It is bounded on purpose: a failing or ended session would
+ * otherwise be retried by every run that ends in the same session, so one broken Odoo would take the load of every finished
+ * run at once. Nothing is dropped by waiting: a row stays spooled until it is accepted or passes the age bound.
+ */
+const SPOOL_RETRY_AFTER_MS = 60 * 1000
+
+/**
+ * A row this process observed and Odoo has not accepted yet, with the hash of the session that observed it. Odoo derives the
+ * owner of a usage row from the session that sends it, so a row is retried only under the session that produced it and is never
+ * billed to whoever happens to flush next. Neither the cookie nor the host is ever retained in clear or logged.
+ */
+type SpooledRow = { row: AiUsageRecord; session: string; observedAt: number; dueAt: number }
+const spool: SpooledRow[] = []
+
+/** The reporting identity of one request: its tenant host and its session cookie, hashed. A shared process never mixes two tenants. */
+function sessionKey(event: H3Event): string {
+  const cookie = getHeader(event, 'cookie')
+  if (!cookie) return ''
+  return createHash('sha256').update(`${getHeader(event, 'host') ?? ''}\n${cookie}`).digest('base64url').slice(0, 22)
+}
+
+/** Drops rows that waited past the age bound, naming the count only: no row payload ever reaches a log line. */
+function expireSpooled(now: number): void {
+  const kept = spool.filter(entry => now - entry.observedAt <= SPOOL_MAX_AGE_MS)
+  const expired = spool.length - kept.length
+  if (!expired) return
+  spool.splice(0, spool.length, ...kept)
+  logFailure(`expired ${expired} usage rows unaccepted for ${SPOOL_MAX_AGE_MS / 60_000} minutes`, new UsageSpoolExpired())
+}
+
+/** Appends the rows of one run in the order the provider attempts were observed, then enforces the row bound. */
+function spoolRows(rows: readonly AiUsageRecord[], session: string): void {
+  const now = Date.now()
+  expireSpooled(now)
+  for (const row of rows) spool.push({ row, session, observedAt: now, dueAt: now })
+  const excess = spool.length - SPOOL_MAX_ROWS
+  if (excess <= 0) return
+  spool.splice(0, excess)
+  logFailure(`dropped ${excess} usage rows over the ${SPOOL_MAX_ROWS}-row spool bound`, new UsageSpoolOverflow())
+}
+
+function removeSpooled(accepted: readonly SpooledRow[]): void {
+  const settled = new Set(accepted)
+  for (let index = spool.length - 1; index >= 0; index--) if (settled.has(spool[index]!)) spool.splice(index, 1)
+}
+
+/**
+ * Reports the rows this session still holds and is due, in batches of at most `AI_USAGE_BATCH_MAX` and in the order they were
+ * observed. A batch leaves the spool only once Odoo answered 200, so a refusal, a timeout or a dead connection keeps every row
+ * of it and makes it due again after the retry window. The rows behind a refused batch are deferred with it, so Odoo never
+ * records a later attempt before an earlier one. At-least-once is deliberate: a timeout after Odoo stored a batch reports it a
+ * second time, which is a smaller error than losing counted usage.
+ */
+async function sendSpooled(event: H3Event, session: string): Promise<void> {
+  const now = Date.now()
+  const due = spool.filter(entry => entry.session === session && entry.dueAt <= now)
+  for (let start = 0; start < due.length; start += AI_USAGE_BATCH_MAX) {
+    const batch = due.slice(start, start + AI_USAGE_BATCH_MAX)
+    try {
+      const receipt = await odooJson(event, 'POST', '/api/v1/ai/usage', { body: { items: batch.map(entry => entry.row) }, signal: null })
+      if (receipt.status !== 200) throw new UsageRefused(receipt.status)
+    } catch (error) {
+      logFailure(`usage report of ${batch.length} rows failed`, error)
+      const retryAt = Date.now() + SPOOL_RETRY_AFTER_MS
+      for (const entry of due.slice(start)) entry.dueAt = retryAt
+      return
+    }
+    removeSpooled(batch)
+  }
+}
+
+/**
+ * One report at a time per session: two runs finishing together in the same session can never send the same spooled row twice,
+ * while one session's slow report never holds another session or tenant back. An entry is dropped as soon as its chain settles.
+ */
+const reporting = new Map<string, Promise<void>>()
+
+/**
+ * Reports now what this request's session still holds and is due. Every `flush` calls it, which makes the next flush of any
+ * ledger the retry trigger for rows an earlier refused report left behind once their retry window passed; the server bootstrap
+ * or a maintenance call may use it on its own. A retry needs a request that still carries the reporting session's cookie (a usage
+ * row is billed to the session that sends it), so no timer can do it alone. Serialized per session, and it never throws: a
+ * failure stays spooled for the next attempt.
+ */
+export function retryPending(event: H3Event): Promise<void> {
+  const session = sessionKey(event)
+  expireSpooled(Date.now())
+  const report = (reporting.get(session) ?? Promise.resolve())
+    .then(() => sendSpooled(event, session))
+    .catch(error => logFailure('usage spool retry failed', error))
+  reporting.set(session, report)
+  void report.finally(() => { if (reporting.get(session) === report) reporting.delete(session) })
+  return report
+}
 
 /**
  * The provider attempts of one `pumpRun`, reported to Odoo as usage rows. The AI service announces each attempt with
@@ -55,23 +165,27 @@ export function createUsageLedger() {
     : [])
 
   /**
-   * Sends the attempts to Odoo, once per ledger, in batches of at most `AI_USAGE_BATCH_MAX` rows. The call is shielded from the
-   * browser (`signal: null`). Known limit: the report runs as the user, so a session that ended mid-run (logout elsewhere,
-   * revoked `ai.use`) is refused with 401/403 and those rows are lost, only logged. Revisit with a server credential before a
-   * token quota bills. It never throws: a refusal or a failure is logged on the server (class name and row count) only.
+   * Hands this run's attempts to the process spool once per ledger, in order, then reports what the spool holds for this
+   * session. A batch Odoo refuses (a non-200, a timeout, a dead connection) stays spooled for the next flush of any ledger or an
+   * explicit `retryPending`, instead of dying with the session that observed it. The call is shielded from the browser
+   * (`signal: null`) and runs after the browser stream closed, so a slow or failing report never holds the UI busy.
+   *
+   * Residual limit, stated rather than hidden: the report still runs as the user, so a session that ended mid-run (logout
+   * elsewhere, revoked `ai.use`) is refused with 401/403. Those rows are never sent under another session, because Odoo would
+   * bill that session's owner; they wait for the spool's age bound and are then reported by count. Counting them exactly needs
+   * a server credential that reports without a user session, which is a separate owner decision.
    */
   async function flush(event: H3Event, conversationId: string): Promise<void> {
     if (flushed) return
     flushed = true
-    const rows = records(conversationId)
-    for (let start = 0; start < rows.length; start += AI_USAGE_BATCH_MAX) {
-      const items = rows.slice(start, start + AI_USAGE_BATCH_MAX)
-      try {
-        const receipt = await odooJson(event, 'POST', '/api/v1/ai/usage', { body: { items }, signal: null })
-        if (receipt.status !== 200) throw new UsageRefused(receipt.status)
-      } catch (error) {
-        logFailure(`usage report of ${items.length} rows failed`, error)
-      }
+    try {
+      const rows = records(conversationId)
+      if (rows.length) spoolRows(rows, sessionKey(event))
+      await retryPending(event)
+    } catch (error) {
+      // Bookkeeping never touches the user's turn, and this call is the last link of a chain nobody awaits: a request that
+      // cannot even name its session is logged, not thrown into an unhandled rejection.
+      logFailure('usage report could not be attempted', error)
     }
   }
 
@@ -79,8 +193,3 @@ export function createUsageLedger() {
 }
 
 export type UsageLedger = ReturnType<typeof createUsageLedger>
-
-/** Odoo answered the usage report with a non-200 status. */
-class UsageRefused extends Error {
-  constructor(status: number) { super(`status ${status}`) }
-}
