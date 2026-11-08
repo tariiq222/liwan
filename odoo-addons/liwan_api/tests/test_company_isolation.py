@@ -9,9 +9,8 @@ from odoo.tests import new_test_user, tagged
 from odoo.tests.common import HOST
 
 from odoo.addons.liwan_api.tests.common import (
-    ISOLATION_COVERED_ROUTES,
-    ISOLATION_NOT_APPLICABLE,
     CompanyIsolationCase,
+    assert_isolation_discovery,
     cover_isolation_routes,
     exempt_isolation_route,
 )
@@ -21,17 +20,14 @@ from odoo.addons.liwan_api.tests.common import (
 # Pillar routes are held accountable by each pillar's own isolation tests.
 EXPECTED_GET_RECORD_ROUTES = 5
 
+BRANCH_MODES = ('isolated', 'delegated', 'inherited')
+
 # liwan_api routes this file exercises with the full matrix.
 COVERED = (
     '/api/v1/admin/users/<int:user_id>',
     '/api/v1/admin/access-log/<int:event_id>',
     '/api/v1/admin/users/<int:user_id>/branches',
 )
-
-
-def route_owner_module(rule):
-    """The addon module serving `rule`, e.g. 'odoo.addons.liwan_api.controllers.company'."""
-    return getattr(getattr(rule.endpoint, '__func__', rule.endpoint), '__module__', '')
 
 
 # post_install like every other liwan_api test class: an at_install HttpCase
@@ -124,30 +120,45 @@ class LiwanApiCompanyIsolationCase(CompanyIsolationCase):
         response = self.api('GET', f'/api/v1/admin/users/{self.p_record_user.id}/branches')
         self.assertEqual(response.status_code, 200, response.text)
 
+    def test_branch_session_reads_only_its_own_records_in_every_mode(self):
+        """Current company P1 reads P1's records and never P's, whatever the branch mode.
+
+        The user detail and access-log routes resolve records in the current company alone, so
+        the parent's branch mode (isolated, delegated, inherited) must neither let a branch
+        session read the parent's records nor let the parent session read the branch's.
+        """
+        p1_user = new_test_user(self.env, login='iso_p1_only', password='iso_p1_pass_123',
+                                name='Only P1', groups='liwan_core.group_employee',
+                                company_id=self.company_p1.id)
+        Audit = self.env['liwan.access.audit'].sudo()
+        events = {
+            company.id: Audit.create({'company_id': company.id, 'actor_id': self.iso_user.id,
+                                      'target_type': 'user', 'target_id': self.iso_user.id,
+                                      'target_name': f'{company.name}-event', 'action': 'read'})
+            for company in (self.company_p, self.company_p1, self.company_p2, self.company_c)
+        }
+        for mode in BRANCH_MODES:
+            self.company_p.sudo().write({'liwan_branch_access_mode': mode})
+            self.env_admin_in(self.company_p1)
+            self.assertVisible(f'/api/v1/admin/users/{p1_user.id}')
+            self.assertVisible(f'/api/v1/admin/access-log/{events[self.company_p1.id].id}')
+            self.assertHiddenEveryWay('GET', f'/api/v1/admin/users/{self.p_record_user.id}', self.company_p.id)
+            for company in (self.company_p, self.company_p2, self.company_c):
+                self.assertHiddenEveryWay('GET', f'/api/v1/admin/access-log/{events[company.id].id}', company.id)
+            self.env_admin_in(self.company_p)
+            self.assertVisible(f'/api/v1/admin/users/{self.p_record_user.id}')
+            self.assertVisible(f'/api/v1/admin/access-log/{events[self.company_p.id].id}')
+            self.assertHidden(f'/api/v1/admin/users/{p1_user.id}')
+            self.assertHidden(f'/api/v1/admin/access-log/{events[self.company_p1.id].id}')
+
     def test_discovery_covers_every_get_record_route(self):
         """Every GET /api/v1 record route liwan_api owns is covered or exempted."""
-        rules = [
-            rule for rule in self.env['ir.http'].routing_map().iter_rules()
-            if 'GET' in (rule.methods or {'GET'})
-            and rule.rule.startswith('/api/v1/')
-            and '<int:' in rule.rule
-            and route_owner_module(rule).startswith('odoo.addons.liwan_api.')
-        ]
-        uncovered = sorted(
-            rule.rule for rule in rules
-            if rule.rule not in ISOLATION_COVERED_ROUTES and rule.rule not in ISOLATION_NOT_APPLICABLE
-        )
-        self.assertEqual(uncovered, [], 'GET record routes without an isolation case or exemption')
-        self.assertEqual(
-            len(rules), EXPECTED_GET_RECORD_ROUTES,
-            'the liwan_api GET record-route inventory moved; update EXPECTED_GET_RECORD_ROUTES and say why in the PR',
-        )
+        assert_isolation_discovery(self, 'liwan_api', EXPECTED_GET_RECORD_ROUTES)
 
 
 def register_api_isolation_coverage():
     cover_isolation_routes(COVERED, 'liwan_api/tests/test_company_isolation.py')
     exempt_isolation_route('/api/v1/admin/roles/<int:role_id>', 'roles are global capability templates, not company records')
-    exempt_isolation_route('/api/v1/admin/company/countries/<int:country_id>', 'reference data shared by every company')
     exempt_isolation_route('/api/v1/admin/company/countries/<int:country_id>/states', 'reference data shared by every company')
 
 
