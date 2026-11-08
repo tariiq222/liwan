@@ -23,7 +23,7 @@ const side = computed(() => (props.always && !collapsed.value ? 'bottom' : inlin
     ignore-non-keyboard-focus
     @update:open="onOpenChange"
     :content="{ side, sideOffset: 10 }"
-    :ui="{ content: 'h-auto rounded-tag bg-[var(--liwan-ink)] px-2.5 py-1.5 text-[var(--liwan-on-ink)] shadow-lg ring-0', text: 'text-sm font-medium text-[var(--liwan-on-ink)]' }"
+    :ui="{ content: 'h-auto rounded-inner bg-[var(--liwan-ink)] px-2.5 py-1.5 text-[var(--liwan-on-ink)] shadow-lg ring-0', text: 'text-sm font-medium text-[var(--liwan-on-ink)]' }"
   >
     <slot />
   </UTooltip>

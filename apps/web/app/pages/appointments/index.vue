@@ -21,7 +21,7 @@ const items = computed(() => types.data.value?.items ?? [])
       :empty-text="t('appointments.empty')"
       @retry="types.refetch()"
     >
-      <ul class="divide-y divide-default rounded-xl border border-default">
+      <ul class="divide-y divide-default rounded-card border border-default">
         <li v-for="item in items" :key="item.id" class="flex items-center justify-between gap-4 px-4 py-3 text-start">
           <span>{{ item.name }}</span>
           <span class="text-sm text-muted">{{ t('appointments.duration', { count: item.duration_minutes }) }}</span>

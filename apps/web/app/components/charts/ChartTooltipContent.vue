@@ -44,7 +44,7 @@ const tooltipLabel = computed(() => {
 
 <template>
   <div
-    :class="['ring ring-default bg-default grid min-w-[8rem] items-start gap-1.5 rounded-lg px-3 py-2 text-xs shadow-md', props.class]"
+    :class="['ring ring-default bg-default grid min-w-[8rem] items-start gap-1.5 rounded-control px-3 py-2 text-xs shadow-md', props.class]"
   >
     <slot>
       <div v-if="!nestLabel && tooltipLabel" class="font-medium">
@@ -59,7 +59,7 @@ const tooltipLabel = computed(() => {
           <div
             v-if="!hideIndicator"
             :class="[
-              'shrink-0 rounded-xs border-(--color-border) bg-(--color-bg)',
+              'shrink-0 rounded-full border-(--color-border) bg-(--color-bg)',
               {
                 'h-2.5 w-2.5': indicator === 'dot',
                 'w-1': indicator === 'line',

@@ -118,7 +118,7 @@ function conversationTo(id: number) {
                 :class="item.im_status === 'online' ? 'liwan-status-dot-success' : 'bg-(--ui-text-dimmed)'"
                 :title="item.im_status === 'online' ? t('chat.online') : t('chat.offline')"
               />
-              <span v-else-if="item.type !== 'direct'" class="absolute end-0 bottom-0 z-10 grid size-4 place-items-center rounded-tag bg-primary text-inverted" :title="t(`chat.${item.type}`)">
+              <span v-else-if="item.type !== 'direct'" class="absolute end-0 bottom-0 z-10 grid size-4 place-items-center rounded-inner bg-primary text-inverted" :title="t(`chat.${item.type}`)">
                 <UIcon name="i-lucide-users-round" class="size-3" aria-hidden="true" />
               </span>
             </span>

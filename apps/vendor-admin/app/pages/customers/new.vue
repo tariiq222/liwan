@@ -96,7 +96,7 @@ const backTo = computed(() => safeReturnTo(route.query.returnTo, '/customers', [
                 <UFormField :label="t('vendor.tenants.plan.field')" required><USelect v-model="form.plan_revision_id" :items="startablePlans.map(p => ({ label: p.name, value: p.id }))" :disabled="!hydrated || busy || !canSubscribe" class="w-full" /></UFormField>
                 <UFormField :label="t('vendor.tenants.plan.cadence')" required><USelect v-model="form.cadence" :items="cadenceItems" :disabled="!hydrated || busy || !selectedPlan" class="w-full" /></UFormField>
               </div>
-              <p v-if="selectedPrice" class="rounded-lg bg-elevated p-3 text-sm" data-testid="plan-price">{{ t('vendor.customers.newPage.price') }}: <bdi dir="ltr" class="font-semibold tabular-nums">{{ formatCommercialMoney(selectedPrice, locale) }}</bdi></p>
+              <p v-if="selectedPrice" class="rounded-control bg-elevated p-3 text-sm" data-testid="plan-price">{{ t('vendor.customers.newPage.price') }}: <bdi dir="ltr" class="font-semibold tabular-nums">{{ formatCommercialMoney(selectedPrice, locale) }}</bdi></p>
               <!-- A9: the assisted onboarding is an optional one-time line on this first invoice, never on a renewal. -->
               <UCheckbox v-model="form.onboarding" :label="t('vendor.customers.newPage.onboarding')" :help="t('vendor.customers.newPage.onboardingHint')" :disabled="!hydrated || busy || !canSubscribe" data-testid="onboarding-choice" />
             </div>

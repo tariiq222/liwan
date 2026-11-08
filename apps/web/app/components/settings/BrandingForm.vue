@@ -51,7 +51,7 @@ const swatchColor = computed(() => normalizeHex(draft.value.primary_color) ?? DE
         <UInput id="branding-color" v-model="draft.primary_color" data-testid="branding-color" dir="ltr" class="min-w-0 flex-1 font-mono" :aria-invalid="!primaryValid" :disabled="locked" />
         <UPopover>
           <UButton type="button" color="neutral" variant="outline" square data-testid="branding-color-picker" :aria-label="t('settings.branding.colorPicker')" :disabled="locked">
-            <span class="size-5 rounded border border-default" :style="{ backgroundColor: swatchColor }" />
+            <span class="size-5 rounded-inner border border-default" :style="{ backgroundColor: swatchColor }" />
           </UButton>
           <template #content><UColorPicker v-model="draft.primary_color" class="p-3" /></template>
         </UPopover>

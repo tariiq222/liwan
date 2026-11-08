@@ -4,7 +4,7 @@
     size="xs"
     color="neutral"
     variant="soft"
-    class="rounded-chip"
+    class="rounded-control"
     trailing-icon="i-lucide-x"
     data-slot="filter-chip"
     :label="label"

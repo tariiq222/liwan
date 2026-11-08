@@ -1,7 +1,7 @@
 /* LiwanOS identity (ink on white and cool grey neutrals; charcoal in dark mode), light/dark modes, dense type and
    shape on Nuxt UI's stock theme: the Arabic font and its size modes, the fixed ink primary
    (the company colour never themes the interface), the fixed shell rail, the chart
-   palette, 42px controls, 44px rows, the one radius system (30% of the height, max 18px: 18 card and surface / 12 control / 11 chip / 10 small control / 9 inner / 7 tag, tiles 28%) and the 4px spacing
+   palette, 42px controls, 44px rows, the one radius system (four steps: 18 card and surface / 12 control / 8 inner, tiles 28% of the side, max 18px) and the 4px spacing
    grid (8px steps). */
 @theme {
   --font-sans: "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
@@ -14,23 +14,18 @@
   --text-lg: 1.142857rem;
   --text-xl: 1.428571rem;
   --text-2xl: 1.714286rem;
-  /* One radius system at the 14px root: the corner is about 30% of the element height, capped at 18px, so every
-     element reads as the same shape whatever its size (the 64px app tile has an 18px corner).
-     rounded-tile (28% of the side, max 18px) for app tiles (64 -> 18, 44 -> 13, 32 -> 10, 26 -> 8),
+  /* One radius system at the 14px root, four steps so neighbouring shapes never differ by a pixel or two:
+     rounded-tile (28% of the side, max 18px) for app tiles (64 -> 18, 44 -> 12, 32 -> 9, 26 -> 7),
      rounded-card / rounded-surface (18px) for cards, panels, slide-overs, modals, tables and banners,
-     rounded-control (12px) for 40-42px buttons, inputs, nav rows and segmented containers,
-     rounded-chip (11px) for 36px chips and selects, rounded-control-sm (10px) for 32-34px buttons and inputs,
-     rounded-inner (9px) for segments nested inside a control group, rounded-tag (7px) for 20-24px pills and badges.
-     Only avatars, dots and progress tracks stay round. Where supported the named shapes get the continuous
-     squircle corner (components.css). */
+     rounded-control (12px) for every button, input, select, chip, nav row, menu and segmented container,
+     rounded-inner (8px) for what sits inside a control or a card: segments, tags, badges, tooltips, code and small hit areas.
+     Only avatars, dots and progress tracks stay round (rounded-full). Raw Tailwind rounded-sm/md/lg/xl are not used.
+     Where supported the named shapes get the continuous squircle corner (components.css). */
   --radius-tile: min(28%, 18px);
   --radius-card: 1.285714rem;
   --radius-surface: 1.285714rem;
   --radius-control: 0.857143rem;
-  --radius-chip: 0.785714rem;
-  --radius-control-sm: 0.714286rem;
-  --radius-inner: 0.642857rem;
-  --radius-tag: 0.5rem;
+  --radius-inner: 0.571429rem;
 }
 :root {
   color-scheme: light;
@@ -61,8 +56,8 @@
   --liwan-nav-chip-size: 28px;
   --liwan-nav-submenu-chip-size: 20px;
   --liwan-nav-submenu-indent: 20px;
-  /* Official Nuxt UI radius token: 6px base (Apple-style soft corners), so rounded-md = 9px, rounded-lg = 12px and rounded-xl = 18px. */
-  --ui-radius: 0.428571rem;
+  /* Official Nuxt UI radius token, 8px base, so stock components that keep their own rounded-sm = 8px (inner) and rounded-md = 12px (control). */
+  --ui-radius: 0.571429rem;
   /* Fixed LiwanOS primary family; nothing overwrites it at runtime. */
   --primary: #14102a;
   --primary-foreground: #fff;

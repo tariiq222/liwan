@@ -134,7 +134,7 @@ const operationTime = (op: OperationFeed) => formatLiwanDateTime(op.source === '
           <p class="text-sm text-muted">{{ t('vendor.tenants.currentRevision', { revision: expectedRevision ?? t('vendor.common.unknown') }) }}</p>
           <p v-if="expectedRevision === null" role="alert" class="text-sm text-error">{{ t('vendor.tenants.revisionUnavailable') }}</p>
           <div class="grid gap-3 sm:grid-cols-2">
-            <div v-for="[key, kind] in featureKeys" :key="key" class="rounded-lg p-3 ring ring-default">
+            <div v-for="[key, kind] in featureKeys" :key="key" class="rounded-control p-3 ring ring-default">
               <label v-if="kind === 'boolean'" class="flex items-center gap-3"><UCheckbox v-model="edits[key]" :aria-label="t(`vendor.features.${key}`, key)" /><span>{{ t(`vendor.features.${key}`, key) }}</span></label>
               <UFormField v-else :label="t(`vendor.features.${key}`, key)" :help="t('vendor.tenants.limitHelp')"><UInput v-model="edits[key]" type="number" min="0" step="1" inputmode="numeric" class="w-full" /></UFormField>
             </div>
@@ -161,7 +161,7 @@ const operationTime = (op: OperationFeed) => formatLiwanDateTime(op.source === '
       </SharedPageState>
     </SharedRecordSection>
 
-    <section v-if="canVendor('vendor.tenants.manage')" class="rounded-lg bg-default ring ring-error/40" aria-labelledby="operations-grant-title" data-testid="operations-danger-zone">
+    <section v-if="canVendor('vendor.tenants.manage')" class="rounded-control bg-default ring ring-error/40" aria-labelledby="operations-grant-title" data-testid="operations-danger-zone">
       <header class="flex items-start gap-3 border-b border-error/30 px-4 py-3">
         <UIcon name="i-lucide-shield-alert" class="mt-0.5 size-5 shrink-0 text-error" aria-hidden="true" />
         <div class="min-w-0">

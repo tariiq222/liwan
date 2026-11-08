@@ -59,7 +59,7 @@ const appTile = computed(() => compact.value && props.tone === 'neutral' && !pro
       :class="compact ? 'order-last hidden sm:flex' : 'flex'"
       aria-hidden="true"
     >
-      <span :class="[appTile ? 'liwan-app-tile liwan-app-tile-md' : ['flex items-center justify-center', chip, compact ? 'size-8 rounded-control-sm' : 'size-10 rounded-control']]">
+      <span :class="[appTile ? 'liwan-app-tile liwan-app-tile-md' : ['flex items-center justify-center', chip, compact ? 'size-8 rounded-control' : 'size-10 rounded-control']]">
         <UIcon :name="props.icon" :class="compact ? 'size-4' : 'size-5'" />
       </span>
     </span>

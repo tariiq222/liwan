@@ -40,7 +40,7 @@ const columns = computed<Column[]>(() => {
     <section v-for="column in columns" :key="column.key" class="flex w-[290px] shrink-0 flex-col gap-[10px]" :data-testid="`crm-board-column-${column.key}`" :aria-label="column.title">
       <header class="flex items-center gap-2 px-0.5 py-1">
         <h2 class="truncate text-[15px] font-semibold text-highlighted">{{ column.title }}</h2>
-        <span class="rounded-tag bg-elevated px-2.5 text-xs/5 font-semibold text-muted tabular-nums">{{ column.items.length }}</span>
+        <span class="rounded-inner bg-elevated px-2.5 text-xs/5 font-semibold text-muted tabular-nums">{{ column.items.length }}</span>
       </header>
       <p v-if="!column.items.length" class="px-0.5 py-1 text-sm text-muted">{{ t('crm.opportunities.board.emptyColumn') }}</p>
       <div v-for="item in column.items" :key="item.id" :class="CARD" data-slot="crm-board-item">

@@ -27,7 +27,7 @@ const chip = computed(() => {
     <p v-if="props.row.caption" class="text-sm leading-normal text-muted">{{ props.row.caption }}</p>
     <div class="mt-auto flex items-center justify-between gap-2">
       <UBadge :color="chip.color" variant="soft" :label="chip.label" data-testid="home-focus-chip" />
-      <span class="inline-flex h-8 items-center rounded-control-sm bg-muted px-3.5 text-sm font-medium text-default" aria-hidden="true">{{ t(`home.focusAction.${props.row.work}`) }}</span>
+      <span class="inline-flex h-8 items-center rounded-control bg-muted px-3.5 text-sm font-medium text-default" aria-hidden="true">{{ t(`home.focusAction.${props.row.work}`) }}</span>
     </div>
   </article>
 </template>

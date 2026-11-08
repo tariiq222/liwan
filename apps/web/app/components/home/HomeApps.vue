@@ -12,7 +12,7 @@ const filter = ref<AppCardFilter>('all')
 const categories = computed(() => presentCategories(props.cards))
 const shown = computed(() => filterAppCards(props.cards, filter.value))
 const descriptionOf = (id: string) => (te(`launcher.apps.${id}.description`) ? t(`launcher.apps.${id}.description`) : undefined)
-const CHIP = 'inline-flex h-9 items-center rounded-chip px-4 text-base font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+const CHIP = 'inline-flex h-9 items-center rounded-control px-4 text-base font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 </script>
 
 <template>

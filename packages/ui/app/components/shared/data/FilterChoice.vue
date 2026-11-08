@@ -17,7 +17,7 @@
         size="sm"
         color="neutral"
         variant="soft"
-        :class="['h-9 rounded-chip border', isSelected(item.value) ? SELECTED_CHIP : 'border-transparent']"
+        :class="['h-9 rounded-control border', isSelected(item.value) ? SELECTED_CHIP : 'border-transparent']"
         :aria-pressed="isSelected(item.value)"
         :disabled="disabled || item.disabled"
         :label="item.label"

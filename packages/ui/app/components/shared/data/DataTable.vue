@@ -276,7 +276,7 @@ function clear() {
               <template v-if="linkSlot" #[linkSlot]="{ row }">
                 <NuxtLink
                   :to="props.rowTo!(row.original)"
-                  class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  class="rounded-inner font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >{{ row.getValue(primaryColumn!) }}</NuxtLink>
               </template>
               <template v-for="name in cellSlotNames()" :key="name" #[name]="cell">

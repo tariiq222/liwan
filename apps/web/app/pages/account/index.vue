@@ -24,7 +24,7 @@ const profile = computed(() => cards.value.find(card => card.entry.section === '
     <SharedRecordSection v-if="attention.length" variant="panel" :title="t('account.attention')">
       <ul class="divide-y divide-default">
         <li v-for="row in attention" :key="row.id" class="py-3">
-          <NuxtLink :to="row.to" class="block rounded focus-visible:ring-2 focus-visible:ring-primary">
+          <NuxtLink :to="row.to" class="block rounded-inner focus-visible:ring-2 focus-visible:ring-primary">
             <p class="font-medium text-highlighted">{{ row.label }}</p>
             <p v-if="row.caption" class="mt-1 text-sm text-muted">{{ row.caption }}</p>
           </NuxtLink>

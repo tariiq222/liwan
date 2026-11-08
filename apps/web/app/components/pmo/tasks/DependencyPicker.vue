@@ -61,7 +61,7 @@ function remove(id: number) {
     </template>
 
     <ul v-if="dependencies.length" class="grid gap-1">
-      <li v-for="dep in dependencies" :key="dep.id" class="flex min-w-0 items-center gap-2 rounded-lg border border-transparent p-0.5 transition-colors hover:border-default hover:bg-elevated focus-within:border-primary">
+      <li v-for="dep in dependencies" :key="dep.id" class="flex min-w-0 items-center gap-2 rounded-control border border-transparent p-0.5 transition-colors hover:border-default hover:bg-elevated focus-within:border-primary">
         <SharedStatusBadge v-bind="stateBadge(dep.state)" />
         <span class="min-w-0 flex-1 truncate text-sm font-medium">{{ dep.name }}</span>
         <UButton

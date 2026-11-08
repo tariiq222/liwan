@@ -610,8 +610,8 @@ def theme_errors(current: dict[str, str]) -> list[str]:
         for token in REQUIRED_TOKENS:
             if token not in tokens:
                 errors.append(f'{UI}assets/css/tokens.css: missing theme input {token}')
-        if not re.search(r'--ui-radius:\s*0\.428571rem', tokens):
-            errors.append(f'{UI}assets/css/tokens.css: --ui-radius is the one official radius token (6px base: md 9px, lg 12px)')
+        if not re.search(r'--ui-radius:\s*0\.571429rem', tokens):
+            errors.append(f'{UI}assets/css/tokens.css: --ui-radius is the one official radius token (8px base: sm 8px, md 12px)')
     for token in RETIRED_TOKENS:
         if token in tokens:
             errors.append(f'{UI}assets/css/tokens.css: retired token {token}')

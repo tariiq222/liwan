@@ -24,7 +24,7 @@ function tagLook(tag: PageHeaderTag) {
 
 <template>
   <template v-for="tag in props.tags" :key="tag.label">
-    <NuxtLink v-if="tag.to" :to="tag.to" class="rounded-tag focus-visible:ring-2 focus-visible:ring-primary">
+    <NuxtLink v-if="tag.to" :to="tag.to" class="rounded-inner focus-visible:ring-2 focus-visible:ring-primary">
       <UBadge v-bind="tagLook(tag)" size="md" :icon="tag.icon" :data-testid="tag.testId">{{ tag.label }}</UBadge>
     </NuxtLink>
     <UBadge v-else v-bind="tagLook(tag)" size="md" :icon="tag.icon" :data-testid="tag.testId">{{ tag.label }}</UBadge>

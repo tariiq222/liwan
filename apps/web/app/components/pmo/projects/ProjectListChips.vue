@@ -26,7 +26,7 @@ const chips = computed(() => PROJECT_CHIP_IDS.filter(chip => chip !== 'archived'
       size="sm"
       :color="props.selected === chip ? 'primary' : 'neutral'"
       :variant="props.selected === chip ? 'solid' : 'soft'"
-      class="h-9 rounded-chip"
+      class="h-9 rounded-control"
       :aria-pressed="props.selected === chip"
       :disabled="props.disabled || !hydrated"
       :data-testid="`projects-chip-${chip}`"

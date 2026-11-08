@@ -26,7 +26,7 @@ const order = computed(() => props.subscription.pending_order)
       <slot />
     </SharedPropertiesPanel>
     <UAlert v-if="status !== 'applied_only' && status !== 'none'" :color="status === 'target_failed' ? 'error' : 'info'" variant="subtle" :ui="{ title: 'text-default', description: 'text-default' }" :title="t(`vendor.customers.target.${status}`)" :description="t(`vendor.customers.target.${status}Hint`)" />
-    <section v-if="order" class="space-y-3 rounded-lg p-4 ring ring-default" aria-labelledby="pending-order-title" data-slot="pending-order">
+    <section v-if="order" class="space-y-3 rounded-control p-4 ring ring-default" aria-labelledby="pending-order-title" data-slot="pending-order">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <h3 id="pending-order-title" class="text-sm font-semibold text-highlighted">{{ t('vendor.customers.sub.pendingOrder') }} · {{ t(`vendor.customers.order.kind.${order.kind}`) }}</h3>
         <span class="inline-flex flex-wrap items-center gap-1.5" data-slot="order-state-badge">

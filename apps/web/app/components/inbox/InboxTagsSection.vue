@@ -67,7 +67,7 @@ function confirmDelete() {
       />
       <p v-if="!items.length && editing === null" class="text-sm text-muted">{{ t('inbox.settings.tags.empty') }}</p>
       <ul v-else class="flex flex-wrap gap-2">
-        <li v-for="tag in items" :key="tag.id" class="inline-flex items-center gap-1 rounded-chip bg-elevated ps-3 pe-1 text-sm" :data-testid="`inbox-tag-${tag.id}`">
+        <li v-for="tag in items" :key="tag.id" class="inline-flex items-center gap-1 rounded-control bg-elevated ps-3 pe-1 text-sm" :data-testid="`inbox-tag-${tag.id}`">
           <span>{{ tag.name }}</span>
           <UButton type="button" color="neutral" variant="ghost" size="xs" square icon="i-lucide-pencil" :disabled="locked" :aria-label="t('inbox.settings.edit', { name: tag.name })" @click="edit(tag)" />
           <UButton type="button" color="error" variant="ghost" size="xs" square icon="i-lucide-x" :disabled="locked" :aria-label="t('inbox.settings.remove', { name: tag.name })" @click="deleting = tag; editing = null" />

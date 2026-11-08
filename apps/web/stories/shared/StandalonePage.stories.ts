@@ -57,7 +57,7 @@ export const WithBrandHeader: Story = {
     template: `<StandalonePage v-bind="args">
       <template #header>
         <div class="flex flex-col items-center text-center">
-          <span class="mb-3 grid size-12 place-items-center rounded-xl bg-primary text-lg font-bold text-primary-foreground">ن</span>
+          <span class="mb-3 grid size-12 place-items-center rounded-card bg-primary text-lg font-bold text-primary-foreground">ن</span>
           <h1 class="text-2xl font-semibold text-highlighted">{{ t('app.productName') }}</h1>
           <p class="text-sm text-muted">{{ t('auth.signInToContinue') }}</p>
         </div>

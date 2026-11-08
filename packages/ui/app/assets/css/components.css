@@ -89,7 +89,7 @@
 /* Apple-style continuous (squircle) corners on every shape token class, the app tile, the pill and the shell elements that read
    var(--radius-*) directly; browsers without corner-shape keep the plain border-radius. */
 @supports (corner-shape: squircle) {
-  .rounded-tile, .rounded-inner, .rounded-control, .rounded-control-sm, .rounded-chip, .rounded-tag, .rounded-card, .rounded-surface,
+  .rounded-tile, .rounded-inner, .rounded-control, .rounded-card, .rounded-surface,
   .liwan-app-tile, .liwan-pill, .liwan-status-callout-danger, .liwan-settings-option, .liwan-chat-bubble,
   .liwan-side-brand:focus-visible, .liwan-side-org, .liwan-side-org [data-slot="initial"], .liwan-side-org img, .liwan-side-row,
   .liwan-side-row [data-slot="count"], .liwan-side-account, .liwan-shell-header .liwan-search-trigger,
@@ -406,7 +406,7 @@ ul.list-disc > li::marker { content: "◆  "; color: var(--primary); font-size: 
   height: 1.714rem;
   min-height: 0;
   padding-inline: 0.714rem;
-  border-radius: var(--radius-tag);
+  border-radius: var(--radius-inner);
   font-size: var(--text-xs);
   font-weight: 500;
   line-height: 1;

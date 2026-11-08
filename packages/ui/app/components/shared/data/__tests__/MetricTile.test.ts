@@ -28,7 +28,7 @@ describe('SharedMetricTile', () => {
     const html = await render({ density: 'compact', tone: 'success' })
     expect(html).toContain('data-density="compact"')
     expect(html).toContain('order-last hidden sm:flex')
-    expect(html).toContain('size-8 rounded-control-sm')
+    expect(html).toContain('size-8 rounded-control')
     expect(html).toContain('text-(length:--liwan-fs-figure)')
     expect(html).toContain('bg-status-success-soft text-status-success-foreground')
     expect(html).toContain('py-[18px]')

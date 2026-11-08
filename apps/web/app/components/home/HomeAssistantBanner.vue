@@ -25,7 +25,7 @@ const title = computed(() => (rows.value.length ? t('home.banner.title', { n: ro
     data-testid="home-assistant-banner"
   >
     <div>
-      <span class="inline-flex items-center gap-2 rounded-chip bg-default/70 py-1 pe-3 ps-1.5 text-sm font-medium dark:bg-white/10">
+      <span class="inline-flex items-center gap-2 rounded-control bg-default/70 py-1 pe-3 ps-1.5 text-sm font-medium dark:bg-white/10">
         <span class="liwan-app-tile size-[1.57rem]" aria-hidden="true"><UIcon name="i-lucide-sparkles" class="size-3" /></span>
         {{ t('ai.home.title') }}
       </span>
