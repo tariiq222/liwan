@@ -3,8 +3,8 @@
    tiles and primary buttons are ink. Paid applications keep their own colour on their icon tile (--app-tile) and on
    their primary action buttons (--app-action).
    Mechanism: put data-app="<rail id>" on any container. Everything inside reads --app-tile for `.liwan-app-tile`,
-   and every solid primary button inside takes the application's button shade. The layout sets it on <main> from
-   the open application, so a module's pages scope their buttons without touching the pages. */
+   and every solid primary button inside takes the application's button shade. The layout sets it on <html> from
+   the open application so teleported controls inherit the same theme. */
 :root {
   --liwan-ink: #14102a;
   --liwan-on-ink: #fff;
@@ -63,13 +63,20 @@
   --ring: var(--app-accent);
   --chart-1: var(--app-accent);
 }
-.dark :is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"]) {
+:is(.dark, .dark *):is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"]) {
   --app-accent: var(--app-tile);
   --app-accent-text: color-mix(in srgb, var(--app-tile) 75%, white);
 }
 /* The primary progress bar and the keyboard focus outline take the application colour. */
 :is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"]) [role="progressbar"] > [data-slot="indicator"].bg-primary { background-color: var(--app-accent); }
 :is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"]) :focus-visible { outline-color: var(--app-accent); }
+
+/* Shell tiles and tiles with their own app id choose a colour independently of the page.
+   The paid app selectors outrank this default when the tile has a paid id. */
+:where(.liwan-side-tile, .liwan-app-tile[data-app]) {
+  --app-tile: var(--liwan-ink);
+  --app-tile-fg: var(--liwan-on-ink);
+}
 
 /* The icon tile: a solid rounded square with a white icon (ink with an inverse icon for a free application). The corner is 28% of the
    side, capped at 18px (64 -> 18, 44 -> 13, 32 -> 10, 26 -> 8), so every size reads as the same shape. */

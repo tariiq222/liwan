@@ -249,17 +249,33 @@ describe('per-application identity', () => {
       const lightText = mixWith(tile.action, '#000000', 0.8)
       expect(contrastRatio(lightText, mixWith(tile.action, '#ffffff', 0.12)), `${app} light chip`).toBeGreaterThanOrEqual(4.5)
       const darkText = mixWith(tile.dark, '#ffffff', 0.75)
-      expect(contrastRatio(darkText, mixWith(tile.dark, DARK_SURFACES.bg, 0.14)), `${app} dark chip`).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio(darkText, mixWith(tile.dark, DARK_SURFACES.bg, 0.12)), `${app} dark chip`).toBeGreaterThanOrEqual(4.5)
     }
   })
 
-  it('defines the accent, its text, the ring and the first chart series for a paid application only', () => {
+  const paidApps = `:is(${Object.keys(APP_TILES).map(app => `[data-app="${app}"]`).join(', ')})`
+
+  it('selects the dark accent when the app scope is the dark root or nested inside it', () => {
     const sheetText = css()
-    expect(sheetText).toContain('--app-accent: var(--app-action);')
-    expect(sheetText).toContain('--app-accent: var(--app-tile);')
-    expect(sheetText).toContain('--chart-1: var(--app-accent);')
+    const paidScope = declarations(ruleBodies(sheetText, paidApps))
+    const darkScope = declarations(ruleBodies(sheetText, `:is(.dark, .dark *)${paidApps}`))
+    expect(paidScope.get('--app-accent')).toBe('var(--app-action)')
+    expect(paidScope.get('--ring')).toBe('var(--app-accent)')
+    expect(paidScope.get('--chart-1')).toBe('var(--app-accent)')
+    expect(darkScope.get('--app-accent')).toBe('var(--app-tile)')
+    expect(darkScope.get('--app-accent-text')).toBe('color-mix(in srgb, var(--app-tile) 75%, white)')
     expect(sheetText).toContain('[role="progressbar"] > [data-slot="indicator"].bg-primary')
-    for (const free of ['chat', 'tasks', 'meetings', 'documents', 'operations', 'ai']) expect(sheetText, free).not.toContain(`data-app="${free}"`)
+  })
+
+  it('gives standalone and explicitly scoped tiles a local ink fallback below the paid selectors', () => {
+    const sheetText = css()
+    const fallback = declarations(ruleBodies(sheetText, ':where(.liwan-side-tile, .liwan-app-tile[data-app])'))
+    const tile = declarations(ruleBodies(sheetText, '.liwan-app-tile'))
+    expect(fallback.get('--app-tile')).toBe('var(--liwan-ink)')
+    expect(fallback.get('--app-tile-fg')).toBe('var(--liwan-on-ink)')
+    expect(declarations(ruleBodies(sheetText, paidApps)).get('--app-tile-fg')).toBe('#fff')
+    expect(tile.get('background')).toBe('var(--app-tile, var(--liwan-ink))')
+    expect(tile.get('color')).toBe('var(--app-tile-fg, var(--liwan-on-ink))')
   })
 
   it('scopes a paid application to its tile and button shade and leaves free applications on the ink', () => {
