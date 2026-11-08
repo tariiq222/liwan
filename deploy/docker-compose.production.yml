@@ -1,0 +1,99 @@
+# Production sizing override for the shared SaaS stack on one application server.
+#
+# Apply it only in production, on top of the base file and (in shared mode) the
+# shared overlay:
+#
+#   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.shared.yml \
+#     -f deploy/docker-compose.production.yml --env-file deploy/.env config
+#
+# Every number here comes from `deploy/odoo_sizing.py` for the Jeddah A1 box
+# (4 OCPU / 24 GB, 50 tenants); `deploy/test_odoo_sizing.py` fails when this file
+# and the computation disagree, and `docs/operations/odoo-sizing.md` records the
+# arithmetic. This file carries settings only: it never defines the Odoo config
+# file, which the shared overlay mounts from `LIWAN_SHARED_ODOO_CONFIG`.
+#
+# The values are written literally rather than interpolated so a missing or wrong
+# environment variable cannot silently downsize production to Odoo's defaults.
+services:
+  odoo:
+    # The worker budget is NOT here, deliberately. In the production topology the
+    # shared overlay replaces this service's entrypoint with
+    # `deploy/shared/launch_odoo.py`, whose release profile accepts exactly the
+    # public role options and refuses any other Odoo CLI flag; a `command` here
+    # would refuse the boot. The budget therefore reaches Odoo through the external
+    # read-only config file. Replace existing sizing keys in `[options]` with
+    # these rendered values; the shared validator rejects duplicate keys:
+    #
+    #   python3 -B deploy/odoo_sizing.py --render odoo
+    #
+    # The runtime gate `deploy/shared/validate_odoo_config.py` then refuses that
+    # file unless the whole budget is coherent, so a start cannot fall back to
+    # Odoo's defaults. This override carries only the box-level envelope.
+    #
+    # A hard ceiling per container keeps a runaway worker inside its own budget
+    # instead of starving PostgreSQL or the edge (9 workers + 2 cron at 800 MiB,
+    # plus headroom).
+    mem_limit: 9216m
+    # The workers are the load: give them a real CPU weight against the sidecars.
+    cpu_shares: 1024
+
+  # pgbouncer absorbs the concurrency the pool cannot: Odoo's own default of 64
+  # connections per process would exhaust PostgreSQL on this box. It is opt-in
+  # (`--profile pgbouncer`) until the soak test in docs/operations/odoo-sizing.md
+  # §6 passes; without it, Odoo connects to `db` directly and `db_maxconn` is the
+  # real ceiling.
+  pgbouncer:
+    profiles: [pgbouncer]
+    # In shared mode the database sits only on the internal `database` network, and
+    # Odoo reaches it there too (docker-compose.shared.yml). Without a declaration the
+    # service would join `default`, which neither can reach, so it names the network.
+    networks: [database]
+    # Pinned by the multi-arch index digest resolved on 2026-11-08 with
+    # `docker buildx imagetools inspect`; `deploy/production-images.json` records it
+    # and `deploy/image_pins.py` fails the build when a production image is tag-only.
+    image: edoburu/pgbouncer:v1.24.1-p0@sha256:53d98b3174b0842c475b9842fb0a733b2d9f7ec9da834ec42252aa553f48c628
+    restart: unless-stopped
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs:
+      - /tmp
+      # The pinned image's postgres user (UID/GID 70) generates its config and userlist.
+      - /etc/pgbouncer:uid=70,gid=70,mode=0700,noexec,nosuid,nodev
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: odoo
+      DB_PASSWORD: "${DB_PASSWORD}"
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: "130"
+      DEFAULT_POOL_SIZE: "3"
+      MAX_DB_CONNECTIONS: "190"
+      RESERVE_POOL_SIZE: "2"
+      AUTH_TYPE: scram-sha-256
+    expose: ["5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U odoo"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    depends_on:
+      db: { condition: service_healthy }
+
+  # PostgreSQL's own connection ceiling and buffers, per the same plan.
+  db:
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=338"
+      - "-c"
+      - "superuser_reserved_connections=3"
+      - "-c"
+      - "shared_buffers=6GB"
+      - "-c"
+      - "effective_cache_size=12288MB"
+      - "-c"
+      - "work_mem=4096kB"
+      - "-c"
+      - "maintenance_work_mem=256MB"
+    mem_limit: 10240m

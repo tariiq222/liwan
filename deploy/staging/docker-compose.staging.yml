@@ -1,0 +1,180 @@
+# Reproducible staging definition for the OVH OpenShip project (P3/O8).
+#
+# This file is written to be read and validated, not started by this repository.
+# Render it without touching any service:
+#
+#   docker compose --env-file deploy/staging/env.example -p liwan-staging-preview \
+#     -f deploy/staging/docker-compose.staging.yml config
+#
+# `deploy/staging/README.md` records what staging is for, the OVH OpenShip
+# project boundary, the no-real-data policy, the residency blocker and the
+# commands the owner runs. `deploy/staging/test_staging.py` fails when a rule
+# stated here or there is removed.
+#
+# Every variable is staging-named on purpose: the base definition reads `DOMAIN`,
+# `DB_NAME` and `DB_PASSWORD`, and none of those names appears here, so a base env
+# file cannot satisfy this file by accident, and no host name or database name is
+# written literally anywhere below.
+#
+# Same shapes as the base definition (`deploy/docker-compose.yml`), on a smaller
+# box: the Odoo and PostgreSQL numbers come from `deploy/odoo_sizing.py` for
+# 2 OCPU / 16 GiB serving one tenant, never from the full-size plan.
+name: ${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME to this staging project's own name}
+
+services:
+  proxy:
+    image: liwan-caddy:${STAGING_IMAGE_TAG:?set STAGING_IMAGE_TAG to the staging image tag}
+    build:
+      context: ../..
+      dockerfile: deploy/proxy/Dockerfile
+    restart: unless-stopped
+    # Loopback only, and never 80/443: the base definition publishes those host
+    # ports, and two projects on one server must not compete for a port. The values
+    # are also off the ports the rest of this repository uses (guard 8080, web 3000,
+    # Odoo 8069/8072), so a running staging stack cannot be mistaken for one of them.
+    ports: ["127.0.0.1:18080:80", "127.0.0.1:18443:443"]
+    environment: { DOMAIN: "${STAGING_DOMAIN:?set STAGING_DOMAIN to the staging host name}" }
+    # Non-root image user; the binary's file capability is the only way it binds 80/443.
+    # Deliberately no `no-new-privileges` here, as in the base file: that flag would stop
+    # execve from applying the binary's capability, and the edge could not bind its ports.
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    read_only: true
+    tmpfs: ["/tmp", "/config:uid=10002,gid=10002"]
+    volumes:
+      # The edge configuration is reused, not copied: one Caddyfile, one rate-limit
+      # policy, one set of upstream names (`odoo`, `web`).
+      - ../Caddyfile:/etc/caddy/Caddyfile:ro
+      - staging_caddy_data:/data
+    networks: [staging_edge]
+    healthcheck:
+      # Validates the mounted edge configuration. It does not prove the listener or an
+      # issued certificate; those stay unproven until the owner's own probe records them.
+      test: ["CMD", "caddy", "validate", "--config", "/etc/caddy/Caddyfile"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+    depends_on:
+      web: { condition: service_healthy }
+      odoo: { condition: service_healthy }
+
+  web:
+    build: { context: ../.., dockerfile: apps/web/Dockerfile }
+    restart: unless-stopped
+    networks: [staging_edge]
+    environment:
+      NUXT_ODOO_URL: http://odoo:8069
+      NUXT_ODOO_DB: "${STAGING_DB_NAME:?set STAGING_DB_NAME to the staging database name}"
+      NUXT_AUTH_PROXY_CLIENT_IP_HEADER: x-liwan-client-ip
+    expose: ["3000"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/login').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+    depends_on:
+      odoo: { condition: service_healthy }
+
+  odoo:
+    image: liwan-odoo:${STAGING_IMAGE_TAG:?set STAGING_IMAGE_TAG to the staging image tag}
+    build:
+      context: ../..
+      dockerfile: deploy/odoo/Dockerfile
+      args:
+        ODOO_COMMIT: ${ODOO_COMMIT:?set ODOO_COMMIT from deploy/odoo/ODOO_COMMIT}
+    restart: unless-stopped
+    networks: [staging_edge, staging_db]
+    # The plan for this box, not the full-size one:
+    #   python3 -B deploy/odoo_sizing.py --ocpu 2 --memory-gib 16 --tenants 1
+    # gives workers = 5, max_cron_threads = 2, db_maxconn = 8 (the 4 OCPU / 24 GiB
+    # box gives 9 workers). The memory limits are byte quantities, so they are not
+    # flags here: `--render odoo` writes them into the mounted config file (README,
+    # step 3).
+    command: ["--workers", "5", "--max-cron-threads", "2", "--db_maxconn", "8", "--proxy-mode"]
+    # (5 workers + 2 cron) x the plan's 800 MiB hard limit = 5600 MiB, rounded up to
+    # the next whole GiB: the same derivation `deploy/docker-compose.production.yml`
+    # applies to its own larger plan.
+    mem_limit: 6144m
+    volumes:
+      # The custom entrypoint uses this file, not HOST/USER/PASSWORD variables.
+      # An absent source must fail instead of silently creating a directory.
+      - type: bind
+        source: ${STAGING_ODOO_CONFIG:?set STAGING_ODOO_CONFIG to the absolute private staging config path}
+        target: /etc/odoo/odoo.conf
+        read_only: true
+        bind:
+          create_host_path: false
+      - staging_odoo_data:/var/lib/odoo
+    expose: ["8069", "8072"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "/opt/venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8069/web/health', timeout=2)"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+    depends_on:
+      db: { condition: service_healthy }
+
+  db:
+    # pgvector/pgvector is the official postgres:16 image plus the `vector` extension.
+    # The digest is the base file's, unchanged: a staging stack running a different
+    # PostgreSQL build than the one it rehearses for would rehearse the wrong engine.
+    image: pgvector/pgvector:pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f
+    restart: unless-stopped
+    networks: [staging_db]
+    # The postgres user owns the data directory in the image, so the entrypoint never needs root.
+    user: postgres
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp", "/var/run/postgresql:uid=999,gid=999"]
+    # The same plan as `odoo` above. Staging runs no pgbouncer, so Odoo's 56 client
+    # connections are the real ceiling and stay well inside this 208.
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=208"
+      - "-c"
+      - "superuser_reserved_connections=3"
+      - "-c"
+      - "shared_buffers=4GB"
+      - "-c"
+      - "effective_cache_size=8192MB"
+      - "-c"
+      - "work_mem=4096kB"
+      - "-c"
+      - "maintenance_work_mem=256MB"
+    # shared_buffers (4096 MiB) plus one backend per connection (208 x 10 MiB), rounded
+    # up to the next whole GiB: the same rule as the odoo envelope above.
+    mem_limit: 7168m
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: "${STAGING_DB_PASSWORD:?set STAGING_DB_PASSWORD to the staging database password}"
+    volumes:
+      - staging_db_data:/var/lib/postgresql/data
+    healthcheck:
+      # The image's temporary initdb server only listens on a Unix socket.
+      # Wait for the final server before a one-off Odoo install connects.
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "odoo"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+networks:
+  # The edge: proxy, web and odoo.
+  staging_edge: { name: liwan-staging-edge }
+  # The database network: odoo and db only, no route off the host.
+  staging_db: { name: liwan-staging-db, internal: true }
+
+# Named, staging-prefixed volumes. They are never the full-size stack's volumes, and no
+# host path, backup bucket or directory of another project on this server is mounted here.
+volumes:
+  staging_caddy_data: { name: liwan-staging-caddy-data }
+  staging_odoo_data: { name: liwan-staging-odoo-data }
+  staging_db_data: { name: liwan-staging-db-data }
