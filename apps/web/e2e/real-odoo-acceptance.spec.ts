@@ -1,10 +1,24 @@
 import { test, expect, type Page, type APIResponse } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 test.skip(process.env.E2E_REAL_ODOO !== '1', 'Explicit isolated real Odoo acceptance only');
-test.beforeEach(async ({}, info) => { const origin = new URL(String(info.project.use.baseURL)); expect(origin.hostname).toBe('localhost'); expect(origin.port).toBe('44300'); });
+const ACCEPTANCE_ORIGIN = 'http://localhost:44300';
+test.beforeEach(async ({}, info) => { const origin = new URL(String(info.project.use.baseURL)); expect(origin.origin).toBe(ACCEPTANCE_ORIGIN); });
 const fixture = process.env.E2E_REAL_ODOO === '1' ? JSON.parse(readFileSync(new URL('../../../.superpowers/real-odoo/fixtures.json', import.meta.url), 'utf8')) : {};
 async function body(response: APIResponse, status = 200) { expect(response.status(), await response.text()).toBe(status); return response.json(); }
-async function login(page: Page, reader = false) { await body(await page.request.post('/api/auth/login', { data: { login: reader ? 'e2e_employee' : 'e2e_admin', password: reader ? (process.env.E2E_USER_EMPLOYEE_PASSWORD ?? process.env.E2E_EMPLOYEE_PASSWORD ?? 'liwan-e2e-employee-2026') : (process.env.E2E_USER_ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'liwan-e2e-admin-2026') } })); }
+// Every sign-in is two-step: the password step leaves a pre-session, then a code or a remembered device
+// finishes it. The fixture seeds one remembered device per acceptance account (no SMS provider exists on
+// a scratch stack, and only a code's hash is stored), so this drives the feature's own second path.
+async function login(page: Page, reader = false) {
+  const account = reader ? 'e2e_employee' : 'e2e_admin';
+  const password = reader ? (process.env.E2E_USER_EMPLOYEE_PASSWORD ?? process.env.E2E_EMPLOYEE_PASSWORD ?? 'liwan-e2e-employee-2026') : (process.env.E2E_USER_ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'liwan-e2e-admin-2026');
+  const token = fixture.device?.[reader ? 'reader' : 'admin'];
+  expect(token, 'the fixture must seed a remembered device').toBeTruthy();
+  // The stack's only origin (asserted in beforeEach), so the cookie reaches /api/auth/device.
+  await page.context().addCookies([{ name: 'liwan_device', value: token, url: ACCEPTANCE_ORIGIN, httpOnly: true, sameSite: 'Lax' }]);
+  const step = await (await page.request.post('/api/auth/login', { data: { login: account, password } })).json();
+  expect(step).toEqual({ ok: false, mfa: 'code' });
+  await body(await page.request.post('/api/auth/device', { data: {} }));
+}
 async function open(page: Page, path: string) { await page.goto(path); await expect(page.getByTestId('global-search-trigger')).toBeEnabled(); await expect(page.locator('main')).toBeVisible(); }
 async function project(page: Page) { return body(await page.request.post('/api/v1/projects', { data: { name: `تحقق حقيقي ${Date.now()}`, date_end: '2030-12-31' } }), 201); }
 // A tenant picks the project tools it subscribes to; nothing optional is on by default, and finance stays off

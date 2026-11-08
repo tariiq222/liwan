@@ -36,11 +36,18 @@ def _refusal(code, resend_after=0):
 
 
 def _pending_user():
-    """The account the password step named: resolved without a session, never a signed-in caller."""
+    """The account a sign-in names: the pending one, else the signed-in caller.
+
+    The second step always has a pending account. The same question ("which channels may this account
+    use") is also asked about the signed-in caller, and both answers describe that one account only.
+    """
     pre_uid = request.session.get('pre_uid')
-    if not pre_uid:
-        raise ApiError(*NO_PENDING)
-    return request.env(user=pre_uid)['res.users'].browse(pre_uid)
+    if pre_uid:
+        return request.env(user=pre_uid)['res.users'].browse(pre_uid)
+    user = request.env.user
+    if user and not user._is_public():
+        return user
+    raise ApiError(*NO_PENDING)
 
 
 def _assert_login_allowed(user):

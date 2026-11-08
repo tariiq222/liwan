@@ -145,6 +145,18 @@ class TestLoginCodeRoutes(LiwanApiCase):
         self.assertEqual(body['channels'], ['sms', 'email'])
         self.assertTrue(body['sms_available'])
 
+    def test_the_channels_of_a_signed_in_caller_describe_that_account_only(self):
+        """The route answers for the pending account, or for the signed-in caller; never for a stranger."""
+        self.authenticate()
+        body = self.api('GET', '/api/v1/auth/channels').json()
+        self.assertTrue(body['has_mobile'])
+        self.assertTrue(body['has_email'])
+        # No session and nothing pending: there is no account to describe.
+        self.opener.cookies.clear()
+        res = self.api('GET', '/api/v1/auth/channels')
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()['code'], 'no_pending_login')
+
     # -- remembered device -------------------------------------------------------------------
 
     def test_remember_this_device_sets_an_httponly_cookie_and_not_a_body_token(self):
