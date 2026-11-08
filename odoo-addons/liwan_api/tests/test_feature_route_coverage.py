@@ -1,11 +1,14 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import TransactionCase, tagged
 
+# The holder's own account: no application feature and no capability applies to these.
 BASE_PATHS = {
     '/api/v1/me',
     '/api/v1/me/password',
     '/api/v1/me/mobile',
     '/api/v1/me/appearance',
+    '/api/v1/me/profile',
+    '/api/v1/me/devices',
     '/api/v1/branding',
 }
 BASE_PATH_PREFIXES = (

@@ -173,7 +173,9 @@ class TestSessionOdooSurface(HttpCase):
         login = self._rpc('/web/session/authenticate', {
             'db': get_db_name(), 'login': 'surface_emp', 'password': 'surface_emp_pass_123',
         })
-        self.assertEqual(login.json()['result']['uid'], self.user.id)
+        # Two-step is mandatory: a correct password leaves the session pre-authenticated (uid None)
+        # until the sign-in code or a remembered device finishes it.
+        self.assertIsNone(login.json()['result']['uid'], login.text)
 
     def test_session_routes_the_app_needs_still_work(self):
         self.authenticate('surface_emp', 'surface_emp_pass_123')
