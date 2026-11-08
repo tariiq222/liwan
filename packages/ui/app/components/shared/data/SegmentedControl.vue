@@ -54,7 +54,7 @@ function choose(item: SegmentedItem) {
         :square="props.iconOnly"
         :to="isActions ? item.to : undefined"
         variant="ghost"
-        :class="['h-[32px] min-h-[32px] rounded-inner text-[13px] font-medium transition-[background-color,color,box-shadow] pointer-coarse:h-[36px] pointer-coarse:min-h-[36px] [&:not([disabled],[aria-disabled=true])]:hover:translate-y-0 active:scale-100', props.iconOnly ? 'min-w-[32px] px-0 pointer-coarse:min-w-[36px]' : 'px-3.5', isSelected(item) ? 'bg-default font-semibold text-highlighted shadow-xs ring ring-default hover:bg-default' : 'text-muted']"
+        :class="['h-[32px] min-h-[32px] rounded-inner text-(length:--liwan-fs-small-label) font-medium transition-[background-color,color,box-shadow] pointer-coarse:h-[36px] pointer-coarse:min-h-[36px] [&:not([disabled],[aria-disabled=true])]:hover:translate-y-0 active:scale-100', props.iconOnly ? 'min-w-[32px] px-0 pointer-coarse:min-w-[36px]' : 'px-3.5', isSelected(item) ? 'bg-default font-semibold text-highlighted shadow-xs ring ring-default hover:bg-default' : 'text-muted']"
         :icon="item.icon"
         :label="props.iconOnly ? undefined : item.label"
         :aria-label="props.iconOnly ? item.label : undefined"

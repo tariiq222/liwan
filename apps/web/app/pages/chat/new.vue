@@ -94,7 +94,7 @@ async function submit() {
         <header class="flex shrink-0 flex-wrap items-center gap-3 border-b-[1.5px] border-default bg-default px-[18px] py-3">
           <UButton class="md:hidden" color="neutral" variant="ghost" square icon="i-lucide-arrow-left" :to="backTo" :aria-label="t('app.back')" :ui="{ leadingIcon: 'rtl:rotate-180' }" />
           <div class="min-w-0 flex-1">
-            <p class="text-[17px]/[1.3] font-semibold text-highlighted">{{ t(copy.title) }}</p>
+            <p class="text-(length:--liwan-fs-conversation-title)/[1.3] font-semibold text-highlighted">{{ t(copy.title) }}</p>
             <p class="text-sm text-muted">{{ t(copy.description) }}</p>
           </div>
         </header>

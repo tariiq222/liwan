@@ -47,7 +47,7 @@ function onKeydown(event: KeyboardEvent) {
         :placeholder="t('ai.composer.placeholder')"
         :aria-label="t('ai.composer.placeholder')"
         :aria-describedby="noticeId"
-        :ui="{ base: props.compact ? 'w-full resize-none px-1 py-1' : 'w-full resize-none px-1 py-1 text-[17px]' }"
+        :ui="{ base: props.compact ? 'w-full resize-none px-1 py-1' : 'w-full resize-none px-1 py-1 text-(length:--liwan-fs-conversation-title)' }"
         data-testid="ai-composer"
         @keydown="onKeydown"
       />

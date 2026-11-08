@@ -80,7 +80,7 @@ const trail = computed<HeaderTrailStep[]>(() => {
     :class="props.hideTitle ? 'flex flex-wrap items-center justify-end gap-3' : ['grid gap-3 border-b border-default', $slots.tabs ? 'pb-0' : 'pb-5']"
   >
     <template v-if="!props.hideTitle">
-      <div v-if="trail.length || $slots.back" class="flex min-w-0 items-center gap-x-2 text-[13px]/5 text-muted">
+      <div v-if="trail.length || $slots.back" class="flex min-w-0 items-center gap-x-2 text-(length:--liwan-fs-small-label)/5 text-muted">
         <!-- A long trail at the large text size wraps instead of widening the page. -->
         <nav data-testid="page-header-trail" :aria-label="$t('nav.breadcrumb')" class="flex min-w-0 flex-wrap items-center gap-x-1.5">
           <slot name="back">
@@ -111,7 +111,7 @@ const trail = computed<HeaderTrailStep[]>(() => {
               </slot>
             </div>
           </div>
-          <p v-if="tagline" data-slot="page-header-tagline" class="mt-2 text-[15px] leading-6 text-toned">{{ tagline }}</p>
+          <p v-if="tagline" data-slot="page-header-tagline" class="mt-2 text-(length:--liwan-fs-section) leading-6 text-toned">{{ tagline }}</p>
         </div>
         <div v-if="$slots.actions || $slots.default || props.kpiToggle" class="ms-auto flex min-w-0 max-w-full flex-wrap items-center gap-2.5 pointer-coarse:*:min-h-11">
           <SharedKpiToggle v-if="props.kpiToggle" />

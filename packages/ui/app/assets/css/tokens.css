@@ -42,6 +42,20 @@
   --liwan-fs-title: clamp(1.286rem, 1rem + 1.1vw, 2rem);
   --liwan-fs-greeting: clamp(1.714rem, 1.1rem + 2.6vw, 2.857rem);
   --liwan-fs-figure: clamp(1.5rem, 1.2rem + 0.8vw, 2rem);
+  /* Fixed label and count sizes from the dashboard design. */
+  --liwan-fs-section: 15px;
+  --liwan-fs-conversation-title: 17px;
+  --liwan-fs-tab-count: 11px;
+  --liwan-fs-small-label: 13px;
+  --liwan-fs-avatar-initials: 10px;
+  /* Fixed geometry in conversation rows and CRM cards. */
+  --liwan-conversation-avatar: 42px;
+  --liwan-conversation-unread-dot: 9px;
+  --liwan-conversation-channel-icon: 15px;
+  --liwan-card-action-size: 36px;
+  --liwan-card-avatar: 22px;
+  --liwan-message-edge: inset 0 0 0 1px rgb(255 255 255 / 5%);
+  --liwan-card-highlight: inset 0 1px 0 rgb(255 255 255 / 4%);
   --liwan-tile-lg: clamp(2.857rem, 2.3rem + 2.4vw, 4.571rem);
   /* A leaving element is quicker than an entering one; the rise is the vertical offset of a page or a block that arrives. */
   --liwan-motion-exit: calc(var(--liwan-motion-feedback) * 0.6);
@@ -114,6 +128,7 @@
   --ui-text-muted: #646b79;
   --ui-text-dimmed: #646b79;
   --liwan-sand: #eadfc8;
+  --liwan-whatsapp: #25d366;
   --liwan-table-head: var(--ui-bg-muted);
   /* LiwanOS identity and density, at the 14px root. Controls 42px (a small control 34px). Tables: a row is 44px and cells use
      the card padding; the dense list variant (default) pads cells 16px, the comfortable variant (home and

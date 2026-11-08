@@ -150,7 +150,7 @@ const deliveryLabel = (item: InboxMessage) => t(`inbox.delivery.${item.delivery_
             :class="row.item.direction === 'out' ? 'ms-auto items-end' : row.item.direction === 'in' ? 'me-auto items-start' : 'w-full max-w-none items-stretch'"
           >
             <div
-              class="max-w-full rounded-card px-[14px] py-[9px] text-start text-sm break-words shadow-[0_1px_2px_rgb(20_16_42/6%)] transition-shadow dark:shadow-[inset_0_0_0_1px_rgb(255_255_255/5%)]"
+              class="max-w-full rounded-card px-[14px] py-[9px] text-start text-sm break-words shadow-[0_1px_2px_rgb(20_16_42/6%)] transition-shadow dark:shadow-(--liwan-message-edge)"
               :data-highlighted="highlightedId === row.item.id || undefined"
               :class="{
                 'bg-default rounded-es-[5px]': row.item.direction === 'in',

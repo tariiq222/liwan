@@ -20,7 +20,7 @@ export default defineAppConfig({
     // a paid application repaints it in its button shade, app-identity.css). --primary is for fills, icons and rings without text.
     button: {
       slots: { base: 'rounded-control font-semibold transition-[color,background-color,translate,scale,box-shadow,filter] [&:not([disabled],[aria-disabled=true])]:hover:-translate-y-px active:scale-[.97] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100' },
-      variants: { size: { xs: { base: 'rounded-inner' }, sm: { base: 'min-h-[34px] px-3.5 text-[13px] rounded-control' }, md: { base: 'min-h-(--liwan-control-h) px-5 gap-2' } } },
+      variants: { size: { xs: { base: 'rounded-inner' }, sm: { base: 'min-h-[34px] px-3.5 text-(length:--liwan-fs-small-label) rounded-control' }, md: { base: 'min-h-(--liwan-control-h) px-5 gap-2' } } },
       compoundVariants: [
         { size: 'sm', square: true, class: 'min-w-[34px] justify-center' },
         { size: 'md', square: true, class: 'min-w-(--liwan-control-h) justify-center' },
@@ -34,7 +34,7 @@ export default defineAppConfig({
     selectMenu: { slots: { base: 'rounded-control bg-default', content: 'z-[var(--liwan-ui-z-menu)] rounded-control shadow-lg ring ring-default' }, variants: { variant: { outline: 'ring-[1.5px] ring-(--ui-border)' }, size: { sm: { base: 'rounded-control' }, md: { base: 'min-h-(--liwan-control-h)' } } } },
 
     // Surfaces: a 1.5px hairline border (a 4% top highlight in dark mode), no resting shadow, 20px padding (--liwan-card-pad).
-    card: { slots: { root: 'rounded-card bg-default ring-0 border-[1.5px] border-default shadow-none dark:shadow-[inset_0_1px_0_rgb(255_255_255/4%)]', header: 'px-(--liwan-card-pad) py-3 sm:px-(--liwan-card-pad)', body: 'p-(--liwan-card-pad) sm:p-(--liwan-card-pad)', footer: 'px-(--liwan-card-pad) py-3 sm:px-(--liwan-card-pad)' }, variants: { variant: { outline: { root: 'ring-0' }, subtle: { root: 'ring-0 border-[1.5px] border-default' } } } },
+    card: { slots: { root: 'rounded-card bg-default ring-0 border-[1.5px] border-default shadow-none dark:shadow-(--liwan-card-highlight)', header: 'px-(--liwan-card-pad) py-3 sm:px-(--liwan-card-pad)', body: 'p-(--liwan-card-pad) sm:p-(--liwan-card-pad)', footer: 'px-(--liwan-card-pad) py-3 sm:px-(--liwan-card-pad)' }, variants: { variant: { outline: { root: 'ring-0' }, subtle: { root: 'ring-0 border-[1.5px] border-default' } } } },
     // Tables (SharedDataTable, DESIGN.md §6): a calm header (12px muted on a very soft fill, a 1px hairline under it), rows on
     // --liwan-row-h (48px dense, 52px comfortable) with tabular numerals and a hover tint. The layout (scrolling inside the card,
     // sticky edge columns, stacked row cards) is components.css, "Data tables".

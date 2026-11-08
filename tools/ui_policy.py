@@ -46,14 +46,14 @@ LAYER_COMPONENTS = frozenset(
     ['shared/feedback/' + name + '.vue' for name in ('EmptyState', 'ErrorState', 'ForbiddenState', 'LoadingSkeleton', 'NotFoundState', 'PageState')]
     + ['shared/layout/' + name + '.vue' for name in (
         'BrandWordmark', 'ConversationLayout', 'CreatePanel', 'DashboardPage', 'FormSection', 'KpiStrip', 'KpiToggle', 'ListPage', 'PageContainer',
-        'PageHeader', 'ListCard', 'PropertiesPanel', 'PropertyRow', 'RecordPage', 'RecordSection', 'RecordWorkspace', 'RouteTabs', 'SettingRow', 'SettingsCard', 'SettingsSection', 'OptionCards', 'SettingsList', 'SettingsListRow', 'SettingsPage',
+        'PageHeader', 'ListCard', 'PropertiesPanel', 'PropertyRow', 'RecordPage', 'RecordSection', 'RecordWorkspace', 'RouteTabs', 'SettingRow', 'SettingsCard', 'SettingsSection', 'TimelineControls', 'SettingsList', 'SettingsListRow', 'SettingsPage',
         'SettingsSaveBar',
         'StandalonePage', 'SubCard', 'TimelineFrame', 'LinkCard', 'IdentityCard', 'HeaderTags')]
     + ['shared/data/' + name + '.vue' for name in (
         'ChartPanel', 'DataTable', 'FilterBar', 'FilterChip', 'FilterChoice', 'FilterField', 'MetricTile', 'Pagination',
         'PersonAvatar', 'Progress', 'RecordNumber', 'RowActions', 'SegmentedControl', 'StatusBadge', 'ViewSwitch', 'ListFooter')]
-    + ['shared/form/' + name + '.vue' for name in ('DateField', 'FileField', 'FormActions', 'InlineConfirm', 'InlineText', 'RichText', 'UnsavedChanges')]
-    + ['shell/' + name + '.vue' for name in ('ShellAccountCard', 'ShellAppTile', 'ShellBreadcrumb', 'ShellCoreApps', 'ShellFrame', 'ShellNavRow', 'ShellNavSection', 'ShellOrgCard', 'ShellPanelRow', 'ShellPanelStatus', 'ShellSidebar', 'ShellSlideOver', 'ShellTabBar', 'ShellToolButton', 'ShellTopBar')]
+    + ['shared/form/' + name + '.vue' for name in ('DateField', 'FileField', 'FormActions', 'InlineConfirm', 'InlineText', 'OptionCards', 'RichText', 'UnsavedChanges')]
+    + ['shell/' + name + '.vue' for name in ('ShellAccountCard', 'ShellAppTile', 'ShellBreadcrumb', 'ShellCoreApps', 'ShellFrame', 'ShellNavRow', 'ShellNavSection', 'ShellOrgCard', 'ShellPanelRow', 'ShellPanelStatus', 'ShellSidebar', 'ShellSlideOver', 'ShellTabBar', 'ShellTip', 'ShellToolButton', 'ShellTopBar')]
 )
 # Billing presentation shared by the customer subscription pages and the vendor console (@liwan/commercial-ui).
 COMMERCIAL_LAYER_COMPONENTS = frozenset(('shared/commerce/PriceBreakdown.vue', 'shared/data/InvoiceLines.vue'))
@@ -113,10 +113,10 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'shared/data/FilterBar.vue', 'shared/form/DateField.vue', 'shared/form/DescriptionEditor.vue', 'meetings/MeetingProjectFilter.vue',
     'meetings/MeetingPeopleFields.vue', 'meetings/MeetingEventList.vue', 'meetings/MeetingMinutesDocument.vue',
     'meetings/MeetingMinutesForm.vue', 'meetings/MeetingTimeline.vue', 'meetings/MeetingVersionList.vue',
-    'meetings/MeetingResolutionsTab.vue', 'meetings/MeetingAttachmentsTab.vue', 'meetings/MeetingRecordTabs.vue',
+    'meetings/MeetingResolutionsTab.vue', 'meetings/MeetingAttachmentsTab.vue',
     'shared/form/FileField.vue', 'pmo/projects/ProjectFieldHelp.vue',
     'pmo/tasks/PrioritySelect.vue', 'pmo/tasks/StateMenu.vue', 'shared/form/TagPicker.vue',
-    'pmo/projects/ProjectMenu.vue', 'shell/ShellFrame.vue', 'shell/ShellSidebar.vue', 'shell/ShellNavSection.vue', 'shell/ShellNavRow.vue', 'shell/ShellAppTile.vue', 'shell/ShellOrgCard.vue', 'shell/ShellCoreApps.vue', 'shell/ShellAccountCard.vue', 'shell/ShellTopBar.vue', 'shell/ShellToolButton.vue', 'shell/ShellSlideOver.vue', 'shell/ShellPanelRow.vue', 'shell/ShellPanelStatus.vue', 'shell/ShellTabBar.vue', 'shell/AppSidebar.vue', 'shell/AppTopBar.vue', 'shell/ShellBreadcrumb.vue', 'shell/GlobalSearch.vue', 'chat/ChatAttachment.vue', 'pmo/tasks/TaskCard.vue',
+    'pmo/projects/ProjectMenu.vue', 'shell/ShellFrame.vue', 'shell/ShellSidebar.vue', 'shell/ShellTip.vue', 'shell/ShellNavSection.vue', 'shell/ShellNavRow.vue', 'shell/ShellAppTile.vue', 'shell/ShellOrgCard.vue', 'shell/ShellCoreApps.vue', 'shell/ShellAccountCard.vue', 'shell/ShellTopBar.vue', 'shell/ShellToolButton.vue', 'shell/ShellSlideOver.vue', 'shell/ShellPanelRow.vue', 'shell/ShellPanelStatus.vue', 'shell/ShellTabBar.vue', 'shell/AppSidebar.vue', 'shell/AppTopBar.vue', 'shell/ShellBreadcrumb.vue', 'shell/GlobalSearch.vue', 'chat/ChatAttachment.vue', 'pmo/tasks/TaskCard.vue',
     'pmo/projects/dashboard/DashboardChartPanel.vue', 'shared/data/DashboardChart.client.vue', 'charts/ChartContainer.vue',
     'pmo/projects/workspace/ProjectWorkspaceTabs.vue', 'pmo/projects/governance/RaciMatrix.vue',
     'shared/form/RichText.vue', 'shared/data/Pagination.vue', 'shared/data/MetricTile.vue', 'shared/form/InlineConfirm.vue',
@@ -129,7 +129,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'subscription/UsagePanel.vue', 'subscription/AutoRenewControl.vue',
     'subscription/BranchSummary.vue',
     'shared/data/ChartPanel.vue', 'shared/layout/DashboardPage.vue',
-    'shared/layout/TimelineFrame.vue', 'shared/layout/ConversationLayout.vue',
+    'shared/layout/TimelineFrame.vue', 'shared/layout/TimelineControls.vue', 'shared/layout/ConversationLayout.vue',
     'shared/data/InvoiceLines.vue', 'shared/data/PersonAvatar.vue', 'pmo/tasks/TaskKpiStrip.vue', 'pmo/projects/ProjectKpiStrip.vue',
     'settings/SettingsPreviewCard.vue', 'settings/SettingsPreviewList.vue', 'settings/SettingsPreviewRow.vue', 'settings/IntegrationConnections.vue', 'finance/governance/AuditPreview.vue',
     'shared/layout/SettingsCard.vue', 'shared/layout/SettingRow.vue', 'shared/layout/SettingsSection.vue', 'shared/form/OptionCards.vue', 'shared/layout/SettingsList.vue', 'shared/layout/SettingsListRow.vue', 'shared/layout/SettingsSaveBar.vue',
@@ -143,6 +143,7 @@ SCOPE = (*(root.rstrip('/') for root in SOURCE_ROOTS), *(root.rstrip('/') for ro
 THEME_OWNERS = {
     UI + 'assets/css/main.css',
     UI + 'assets/css/tokens.css',
+    UI + 'assets/css/app-identity.css',  # DESIGN.md §2: owner of per-app colours.
     UI + 'assets/css/components.css',
     UI + 'assets/css/shell.css',
     UI + 'assets/css/layout.css',
@@ -630,7 +631,7 @@ PAGE_SHELLS = ('SharedPageContainer', 'SharedCreatePanel', 'SharedSettingsPage',
                # Application-owned reusable pages compose the approved shared shells.
                'HrLeaveList', 'HrLeaveRecord', 'RequestCreate', 'RequestRecord', 'RequestEdit',
                # The Plan 4 page templates are shells themselves (each wraps SharedPageContainer).
-               'SharedListPage', 'SharedRecordPage', 'SharedDashboardPage', 'SharedTimelineFrame',
+               'SharedListPage', 'SharedRecordPage', 'SharedRecordWorkspace', 'SharedDashboardPage', 'SharedTimelineFrame',
                'SharedConversationLayout', 'SharedStandalonePage')
 # Route parents that render a list or <NuxtPage /> by route, plus the unshelled
 # roots. Each entry is a deliberate exception, not a backlog.
@@ -860,7 +861,7 @@ FILTER_CARD_TAG = re.compile(r'<(?:Lazy)?(?:Shared)?FilterCard\b|<(?:lazy-)?(?:s
 CONTRACT_TEMPLATES: tuple[str, ...] = tuple(component_file('shared/' + name + '.vue') for name in (
     'feedback/LoadingSkeleton', 'feedback/ErrorState', 'feedback/ForbiddenState', 'feedback/NotFoundState', 'feedback/EmptyState', 'feedback/PageState',
     'data/StatusBadge', 'data/FilterBar', 'data/InvoiceLines', 'layout/RouteTabs', 'layout/SettingsPage', 'layout/SettingsSaveBar',
-    'data/DataTable', 'data/ViewSwitch', 'layout/ListPage', 'layout/RecordPage', 'layout/PropertiesPanel', 'layout/PropertyRow', 'layout/RecordSection',
+    'data/DataTable', 'data/ViewSwitch', 'layout/ListPage', 'layout/RecordPage', 'layout/RecordWorkspace', 'layout/PropertiesPanel', 'layout/PropertyRow', 'layout/RecordSection',
     'layout/CreatePanel', 'layout/FormSection', 'form/UnsavedChanges',
     'layout/DashboardPage', 'data/ChartPanel', 'layout/TimelineFrame', 'layout/ConversationLayout', 'layout/StandalonePage',
 ))

@@ -74,9 +74,9 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
           </UTooltip>
           <UAvatar v-bind="avatarProps(data?.contact.name, data?.contact.id)" class="size-10 shrink-0" />
           <div class="min-w-0 flex-1 text-start">
-            <h2 class="truncate text-[17px]/[1.3] font-semibold text-highlighted">{{ data?.contact.name || t('inbox.title') }}</h2>
+            <h2 class="truncate text-(length:--liwan-fs-conversation-title)/[1.3] font-semibold text-highlighted">{{ data?.contact.name || t('inbox.title') }}</h2>
             <p v-if="data" class="flex min-w-0 items-center gap-1 text-xs text-muted">
-              <UIcon :name="CHANNEL_KIND_ICON[data.channel.kind]" class="size-3.5 shrink-0" :class="{ 'text-[#25d366]': data.channel.kind === 'whatsapp' }" aria-hidden="true" />
+              <UIcon :name="CHANNEL_KIND_ICON[data.channel.kind]" class="size-3.5 shrink-0" :class="{ 'text-(color:--liwan-whatsapp)': data.channel.kind === 'whatsapp' }" aria-hidden="true" />
               <span class="truncate">{{ data.channel.name }}</span>
               <template v-if="data.contact.phone">· <bdi dir="ltr" class="truncate">{{ data.contact.phone }}</bdi></template>
             </p>

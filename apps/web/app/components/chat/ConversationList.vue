@@ -111,7 +111,7 @@ function conversationTo(id: number) {
             :aria-current="props.selectedId === item.id ? 'page' : undefined"
           >
             <span class="relative shrink-0">
-              <UAvatar v-bind="avatarProps(item.name, item.id)" class="size-[42px]" :ui="{ fallback: 'text-[15px]' }" />
+              <UAvatar v-bind="avatarProps(item.name, item.id)" class="size-(--liwan-conversation-avatar)" :ui="{ fallback: 'text-(length:--liwan-fs-section)' }" />
               <span
                 v-if="item.type === 'direct' && item.im_status"
                 class="absolute end-0 bottom-0 z-10 size-3 rounded-full border-2 border-(--ui-bg)"
@@ -128,7 +128,7 @@ function conversationTo(id: number) {
                 <time v-if="item.last_message_at" class="shrink-0 text-xs" :class="item.unread_count ? 'font-semibold text-highlighted' : 'text-muted'">{{ timeLabel(item.last_message_at) }}</time>
               </span>
               <span class="flex items-center justify-between gap-2">
-                <span class="truncate text-[13px] text-muted">{{ item.last_message_preview || t(`chat.${item.type}`) }}</span>
+                <span class="truncate text-(length:--liwan-fs-small-label) text-muted">{{ item.last_message_preview || t(`chat.${item.type}`) }}</span>
                 <UBadge v-if="item.unread_count" size="xs" variant="solid">{{ item.unread_count }}</UBadge>
               </span>
             </span>

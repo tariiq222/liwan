@@ -119,7 +119,7 @@ function updateRoute(next: ChatListRoute) {
           </UTooltip>
           <UAvatar v-bind="avatarProps(data?.name, props.conversationId)" class="size-10 shrink-0" />
           <div class="min-w-0 flex-1 text-start">
-            <h2 class="truncate text-[17px]/[1.3] font-semibold text-highlighted">{{ data?.name || t('chat.title') }}</h2>
+            <h2 class="truncate text-(length:--liwan-fs-conversation-title)/[1.3] font-semibold text-highlighted">{{ data?.name || t('chat.title') }}</h2>
             <p class="truncate text-xs text-muted">{{ typingLabel || (data?.type ? t(`chat.${data.type}`) : '') }}</p>
           </div>
           <div class="flex shrink-0 items-center gap-1">

@@ -175,18 +175,18 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
             :aria-current="props.selectedId === item.id ? 'page' : undefined"
             :data-testid="`inbox-conversation-${item.id}`"
           >
-            <UAvatar v-bind="avatarProps(item.contact.name, item.contact.id)" class="size-[42px] shrink-0" :ui="{ fallback: 'text-[15px]' }" />
+            <UAvatar v-bind="avatarProps(item.contact.name, item.contact.id)" class="size-(--liwan-conversation-avatar) shrink-0" :ui="{ fallback: 'text-(length:--liwan-fs-section)' }" />
             <span class="min-w-0 flex-1">
               <span class="flex items-center justify-between gap-2">
                 <span class="truncate" :class="item.unread ? 'font-bold' : 'font-medium'">{{ item.contact.name }}</span>
                 <time v-if="item.last_message_at" class="shrink-0 text-xs" :class="item.unread ? 'font-semibold text-highlighted' : 'text-muted'">{{ inboxListTime(item.last_message_at, locale) }}</time>
               </span>
               <span class="flex items-center justify-between gap-2">
-                <span class="truncate text-[13px] text-muted">{{ item.last_message_preview || fileLabel(item.last_message_kind) || item.contact.phone || t('inbox.list.noMessages') }}</span>
-                <span v-if="item.unread" class="size-[9px] shrink-0 rounded-full bg-primary" :title="t('inbox.list.unread')" role="img" :aria-label="t('inbox.list.unread')" />
+                <span class="truncate text-(length:--liwan-fs-small-label) text-muted">{{ item.last_message_preview || fileLabel(item.last_message_kind) || item.contact.phone || t('inbox.list.noMessages') }}</span>
+                <span v-if="item.unread" class="size-(--liwan-conversation-unread-dot) shrink-0 rounded-full bg-primary" :title="t('inbox.list.unread')" role="img" :aria-label="t('inbox.list.unread')" />
               </span>
               <span class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted">
-                <UIcon :name="CHANNEL_KIND_ICON[item.channel.kind]" class="size-[15px] shrink-0" :class="{ 'text-[#25d366]': item.channel.kind === 'whatsapp' }" role="img" :aria-label="t(channelKindLabelKey(item.channel.kind))" :data-testid="`inbox-conversation-kind-${item.id}`" />
+                <UIcon :name="CHANNEL_KIND_ICON[item.channel.kind]" class="size-(--liwan-conversation-channel-icon) shrink-0" :class="{ 'text-(color:--liwan-whatsapp)': item.channel.kind === 'whatsapp' }" role="img" :aria-label="t(channelKindLabelKey(item.channel.kind))" :data-testid="`inbox-conversation-kind-${item.id}`" />
                 <SharedStatusBadge size="sm" :tone="CONVERSATION_STATE_TONE[item.state]" :label="t(`inbox.states.${item.state}`)" />
                 <SharedStatusBadge v-if="INBOX_PRIORITY_TONE[item.priority]" size="sm" :tone="INBOX_PRIORITY_TONE[item.priority]!" :label="t(`inbox.priorities.${item.priority}`)" data-testid="inbox-priority-badge" />
                 <SharedStatusBadge v-if="item.csat" size="sm" :tone="CSAT_TONE[item.csat.score]" :label="t(`inbox.csat.${item.csat.score}`)" />

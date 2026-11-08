@@ -133,7 +133,7 @@ Nuxt UI هي مكتبة مكونات واجهة العميل، يشكّلها ث
 | `UFileUpload`/`UAlert`/`UToast`/`UPageCard` | `rounded-card` | سطوح بحجم البطاقة 18px |
 | `tv.twMergeConfig` | `extend.theme.radius: ['tile', 'inner', 'control', 'card', 'surface']` | يسجّل الأسماء الخمسة في مجموعة `rounded-*` لدى tailwind-merge |
 
-المصدر التنفيذي في العميل: `packages/ui/app/assets/css/main.css` الذي يستورد `tokens.css` (مدخلات الثيم والكثافة) و`components.css` (قواعد الغلاف فقط) و`layout.css` (هندسة الصفحات والنماذج) و`shell.css` (هندسة الغلاف)، و`packages/ui/app/app.config.ts` (الألوان والوصفات وطبقات z)، ولا اشتقاق للون وقت التشغيل. لا وصفة مكوّن مخصصة خارج `app.config.ts`؛ فحص `tools/ui_policy.py` يحرس ذلك.
+المصدر التنفيذي في العميل: `packages/ui/app/assets/css/main.css` الذي يستورد `tokens.css` (مدخلات الثيم والكثافة) و`app-identity.css` (ألوان التطبيقات) و`components.css` (قواعد الغلاف فقط) و`layout.css` (هندسة الصفحات والنماذج) و`shell.css` (هندسة الغلاف)، و`packages/ui/app/app.config.ts` (الألوان والوصفات وطبقات z)، ولا اشتقاق للون وقت التشغيل. لا وصفة مكوّن مخصصة خارج `app.config.ts`؛ فحص `tools/ui_policy.py` يحرس ذلك.
 
 ### ألوان التطبيقات (قرار المالك: إعادة تصميم اللوحة، المرحلة 1)
 
@@ -310,7 +310,7 @@ Nuxt UI هي مكتبة مكونات واجهة العميل، يشكّلها ث
 | القالب | المكونات | الصفحات |
 |---|---|---|
 | قائمة | `SharedListPage` و`SharedDataTable` و`SharedViewSwitch` | المشاريع، المهام، الموظفون، الأقسام، المستندات، الاجتماعات، السلاسل، القوالب، الأدوار، المستخدمون، سجل الوصول، الفواتير، قوائم الإدارة |
-| سجل | `SharedRecordPage` و`SharedPropertiesPanel` و`SharedPropertyRow` و`SharedRecordSection` | المشروع، المهمة، الموظف، القسم، الاجتماع، السلسلة، الدور، المستخدم، سجلات الإدارة |
+| سجل | `SharedRecordPage` مع `SharedPropertiesPanel` و`SharedPropertyRow` و`SharedRecordSection`، أو `SharedRecordWorkspace` للسجل المفتوح | المهمة والمعلم والاجتماع بالقالب المفتوح؛ المشروع والموظف والقسم والسلسلة والدور والمستخدم وسجلات الإدارة |
 | نموذج | `SharedCreatePanel` لمسارات `/new` عدا `/chat/new` الذي يُعرض داخل مساحة المحادثة، و`SharedFormSection` و`SharedUnsavedChanges`. صفحات التعديل تستخدم الأقسام نفسها | كل مسار `new` و`edit` |
 | لوحة | `SharedDashboardPage` (فتحة `primary` بعرض كامل فوق المؤشرات لكتلة الإجراء `SharedRecordSection variant="action"`، ثم شبكة `SharedMetricTile`؛ لوحة المشاريع: أربع بطاقات مدمجة، وبطاقة «تحتاج انتباهًا» `emphasis` بنبرة `danger` أو `success` عند الصفر، والنسب `SharedProgress` من البيانات المحمّلة فقط) و`SharedChartPanel` (`span="half\|full"` و`size="sm\|md\|lg"` بارتفاع 224/300/360px تستلمه الفتحة الافتراضية `height`؛ عنوانه `text-sm`) | الرئيسية، لوحة المشاريع، المالية، نظرة الإدارة، التقارير |
 | جدول زمني | `SharedTimelineFrame` حول التقويم أو Gantt: بطاقة واحدة بصف ترويسة بخط رفيع (السابق/اليوم/التالي بأزرار مستديرة، «اليوم» حبّة `soft` بلا زر بحدّ، والمقياس `SharedSegmentedControl`) والجسم تحته بلا حلقة خاصة | تقويم الاجتماعات، جدول المشروع |

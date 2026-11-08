@@ -12,7 +12,7 @@ const meta = {
   parameters: {
     layout: 'fullscreen',
     a11y: { test: 'error' },
-    ...storyContext('apps/web/app/components/chat/ChatWorkspace.vue', 'قالب المحادثة: إطار واحد بقائمة 360px وخيط؛ من 1280px تكون المعلومات عموداً ثالثاً بعرض 320px، ودون ذلك تحل محل الخيط مع حفظ المسودة. تحت 768px تحل القائمة والخيط والمعلومات محل بعضها.'),
+    ...storyContext('apps/web/app/components/chat/ChatWorkspace.vue:109', 'قالب المحادثة: إطار واحد بقائمة 360px وخيط؛ من 1280px تكون المعلومات عموداً ثالثاً بعرض 320px، ودون ذلك تحل محل الخيط مع حفظ المسودة. تحت 768px تحل القائمة والخيط والمعلومات محل بعضها.'),
   },
   args: { hasSelection: true, infoOpen: false },
   render: args => ({

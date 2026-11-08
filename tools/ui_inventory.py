@@ -18,8 +18,16 @@ SOURCES = (APP, LAYER)
 UI = APP / 'components/ui'
 CHARTS = APP / 'components/charts'
 CHART_OWNER = 'apps/web/app/components/shared/data/DashboardChart.client.vue'
-WRAPPERS = re.compile(r'\bliwan-(?:panel(?:-header|-body)?|metrics|metric(?:-title|-value|-foot)?|form-section-heading|settings-section-heading|project-toolbar|tabs|view-switch|settings-nav)\b')
+WRAPPERS = re.compile(r'(?<![\w-])liwan-(?:panel(?:-header|-body)?|metrics|metric(?:-title|-value|-foot)?|form-section-heading|settings-section-heading|project-toolbar|tabs|view-switch|settings-nav)(?![\w-])')
+SETTINGS_NAV_OWNER = 'packages/ui/app/components/shared/layout/SettingsPage.vue'
 COMMENT = re.compile(r'<!--[\s\S]*?-->|/\*[\s\S]*?\*/|^\s*//[^\n]*', re.M)
+
+
+def legacy_wrappers(path: str, source: str) -> list[str]:
+    wrappers = set(WRAPPERS.findall(source))
+    if path == SETTINGS_NAV_OWNER:
+        wrappers.discard('liwan-settings-nav')
+    return sorted(wrappers)
 
 
 def inventory():
@@ -49,7 +57,7 @@ def inventory():
             'retired_component_tree': retired,
             'legacy_components': legacy if not retired else [],
             'legacy_imports': imports if not retired else [],
-            'legacy_wrappers': sorted(set(WRAPPERS.findall(source))) if not retired else [],
+            'legacy_wrappers': legacy_wrappers(path, source) if not retired else [],
             'native_controls': sorted(set(re.findall(r'<(button|input|select|textarea|table)\b', template))),
         })
     return rows

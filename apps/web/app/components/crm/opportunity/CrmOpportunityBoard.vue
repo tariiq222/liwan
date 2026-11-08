@@ -11,7 +11,7 @@ import { isCallDue } from '@/utils/crmOpportunity'
 // `createTo` every column ends in a dashed add tile that opens the create panel (the panel has no stage field yet).
 const props = defineProps<{ loading?: boolean; stages: CrmStage[]; items: CrmOpportunity[]; to: (opportunity: CrmOpportunity) => RouteLocationRaw; now?: number; createTo?: RouteLocationRaw; createLabel?: string }>()
 // The card: 18px, 1.5px border, a lift on hover; the call button sits in its inline-end corner, outside the link.
-const CARD = 'relative overflow-hidden rounded-card border-[1.5px] border-default bg-default liwan-lift dark:shadow-[inset_0_1px_0_rgb(255_255_255/4%)]'
+const CARD = 'relative overflow-hidden rounded-card border-[1.5px] border-default bg-default liwan-lift dark:shadow-(--liwan-card-highlight)'
 const { t } = useI18n()
 const { me } = useMe()
 const timeZone = computed(() => me.value?.tz || 'UTC')
@@ -39,17 +39,17 @@ const columns = computed<Column[]>(() => {
   <div v-else class="liwan-soft-in flex min-h-0 min-w-0 items-start gap-4 overflow-x-auto pb-3" data-testid="crm-board">
     <section v-for="column in columns" :key="column.key" class="flex w-[290px] shrink-0 flex-col gap-[10px]" :data-testid="`crm-board-column-${column.key}`" :aria-label="column.title">
       <header class="flex items-center gap-2 px-0.5 py-1">
-        <h2 class="truncate text-[15px] font-semibold text-highlighted">{{ column.title }}</h2>
+        <h2 class="truncate text-(length:--liwan-fs-section) font-semibold text-highlighted">{{ column.title }}</h2>
         <span class="rounded-inner bg-elevated px-2.5 text-xs/5 font-semibold text-muted tabular-nums">{{ column.items.length }}</span>
       </header>
       <p v-if="!column.items.length" class="px-0.5 py-1 text-sm text-muted">{{ t('crm.opportunities.board.emptyColumn') }}</p>
       <div v-for="item in column.items" :key="item.id" :class="CARD" data-slot="crm-board-item">
         <NuxtLink :to="to(item)" class="block min-w-0 rounded-card p-[14px] pe-[58px] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" data-testid="crm-board-card">
-          <span class="block truncate text-[15px] font-semibold text-highlighted">{{ item.contact_name }}</span>
+          <span class="block truncate text-(length:--liwan-fs-section) font-semibold text-highlighted">{{ item.contact_name }}</span>
           <span class="mt-0.5 block truncate text-end text-sm text-muted" dir="ltr"><bdi>{{ item.phone }}</bdi></span>
           <span class="mt-[10px] flex flex-wrap items-center gap-2 text-xs text-muted">
             <template v-if="item.user">
-              <UAvatar v-bind="avatarProps(item.user.name, item.user.id)" class="size-[22px] shrink-0" :ui="{ fallback: 'text-[10px]' }" />
+              <UAvatar v-bind="avatarProps(item.user.name, item.user.id)" class="size-(--liwan-card-avatar) shrink-0" :ui="{ fallback: 'text-(length:--liwan-fs-avatar-initials)' }" />
               <span class="truncate">{{ item.user.name }}</span>
             </template>
             <SharedStatusBadge v-else tone="neutral" size="sm" :label="t('crm.opportunities.tag.pool')" />

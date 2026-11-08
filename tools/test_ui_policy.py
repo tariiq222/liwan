@@ -83,6 +83,15 @@ class UiPolicyTest(unittest.TestCase):
         snapshot.update(changes)
         return snapshot
 
+    def test_app_identity_palette_is_allowed_only_in_its_owning_sheet(self):
+        css = ":root { --liwan-app-projects: #4f5bd5; }"
+        owner = UI + "assets/css/app-identity.css"
+        local = APP + "assets/css/app-identity.css"
+        self.assertEqual(self.errors({owner: css}), [])
+        errors = self.errors({local: css})
+        self.assertTrue(any(error.startswith(local + ": literal hex color") for error in errors))
+        self.assertTrue(any(error.startswith(local + ": local root/font theme") for error in errors))
+
     def test_retired_unification_patterns_fail(self):
         for markup in (
             '<template><p class="text-muted-foreground" /></template>',
@@ -570,7 +579,7 @@ class StaticGateTest(unittest.TestCase):
         self.assertEqual([e for e in policy.page_shell_errors(shelled) if "approved shells" in e], [])
 
     def test_template_pages_count_as_approved_shells(self):
-        for tag in ('SharedListPage', 'SharedRecordPage', 'SharedDashboardPage', 'SharedTimelineFrame',
+        for tag in ('SharedListPage', 'SharedRecordPage', 'SharedRecordWorkspace', 'SharedDashboardPage', 'SharedTimelineFrame',
                     'SharedConversationLayout', 'SharedStandalonePage'):
             page = self.whole(**{self.PAGES + "probe.vue": f'<{tag} title="x" />'})
             self.assertEqual([e for e in policy.page_shell_errors(page) if "approved shells" in e], [], tag)

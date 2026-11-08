@@ -123,7 +123,7 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
       <header class="flex min-w-0 flex-col gap-3 border-b border-default">
         <div class="flex min-w-0 flex-col gap-3" data-testid="project-workspace-identity">
           <template v-if="project">
-            <nav :aria-label="t('nav.breadcrumb')" class="flex items-center gap-1.5 text-[13px]/5 text-muted">
+            <nav :aria-label="t('nav.breadcrumb')" class="flex items-center gap-1.5 text-(length:--liwan-fs-small-label)/5 text-muted">
               <UButton :to="backTo ?? '/projects'" :aria-label="backLabel" color="neutral" variant="link" size="xs" class="p-0 font-medium text-muted hover:text-highlighted focus-visible:ring-2 focus-visible:ring-primary" :data-testid="backTo ? 'project-workspace-back' : 'project-workspace-trail'">
                 <span>{{ backLabel }}</span>
               </UButton>
@@ -136,7 +136,7 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
                   <h1 class="min-w-0 font-display text-(length:--liwan-fs-display)/[1.3] font-bold tracking-[-0.01em] text-highlighted" data-testid="project-workspace-name">{{ project.name }}</h1>
                   <div class="shrink-0"><SharedHeaderTags :tags="tags" /></div>
                 </div>
-                <p v-if="project.manager || dates" class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]/5 text-muted" data-testid="project-workspace-meta">
+                <p v-if="project.manager || dates" class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-(length:--liwan-fs-small-label)/5 text-muted" data-testid="project-workspace-meta">
                   <span v-if="project.manager" class="inline-flex items-center gap-1.5" data-testid="project-workspace-manager"><UIcon name="i-lucide-user" aria-hidden="true" class="size-3.5 shrink-0" />{{ project.manager.name }}</span>
                   <span v-if="dates" class="inline-flex items-center gap-1.5" data-testid="project-workspace-dates"><UIcon name="i-lucide-calendar-range" aria-hidden="true" class="size-3.5 shrink-0" /><bdi>{{ dates }}</bdi></span>
                 </p>
