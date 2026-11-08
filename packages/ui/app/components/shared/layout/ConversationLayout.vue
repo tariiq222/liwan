@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
 
-// The conversation frame: one 24px card with the conversation list on the inline-start (360px) and the thread
+// The conversation frame: one 24px card with the conversation list on the inline-start (360px, narrowing to 260px on a tablet so the thread or info panel keeps room) and the thread
 // beside it (`header`, `thread`, `composer`; `empty` when nothing is selected). An open info panel sits in a third
 // 320px column from 1280px; below that it replaces the thread, which stays mounted (hidden) so its draft and
 // reading offset survive. Below 768px the list, the thread and the info panel replace one another: the list shows
@@ -19,7 +19,7 @@ const showInfo = computed(() => props.hasSelection && props.infoOpen)
 const infoInAside = computed(() => showInfo.value && canSplitInfo.value)
 const showList = computed(() => isDesktop.value || !props.hasSelection)
 const showThread = computed(() => (isDesktop.value || props.hasSelection) && (!showInfo.value || infoInAside.value))
-const columns = computed(() => !isDesktop.value ? 'grid-cols-1' : infoInAside.value ? 'grid-cols-[360px_minmax(0,1fr)_320px]' : 'grid-cols-[360px_minmax(0,1fr)]')
+const columns = computed(() => !isDesktop.value ? 'grid-cols-1' : infoInAside.value ? 'grid-cols-[360px_minmax(0,1fr)_320px]' : 'grid-cols-[clamp(260px,34vw,360px)_minmax(0,1fr)]')
 </script>
 
 <template>

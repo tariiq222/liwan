@@ -42,8 +42,8 @@ describe('ConversationLayout', () => {
     expect(html).not.toMatch(/\b(?:border-l|border-r|ml-|mr-)/)
   })
 
-  it('is one 360px | 1fr frame, with the info column from 1280px', async () => {
-    expect(await renderAt(1024, { hasSelection: true, infoOpen: true })).toContain('grid-cols-[360px_minmax(0,1fr)]')
+  it('is one list | 1fr frame (360px, narrowing to 260px on a tablet), with the info column from 1280px', async () => {
+    expect(await renderAt(1024, { hasSelection: true, infoOpen: true })).toContain('grid-cols-[clamp(260px,34vw,360px)_minmax(0,1fr)]')
     expect(await renderAt(1440, { hasSelection: true, infoOpen: true })).toContain('grid-cols-[360px_minmax(0,1fr)_320px]')
     expect(await renderAt(390, { hasSelection: true })).toContain('grid-cols-1')
   })

@@ -64,7 +64,7 @@ function conversationTo(id: number) {
 
 <template>
   <section class="flex h-full min-h-0 flex-col" data-testid="chat-list">
-    <div class="flex flex-none flex-col gap-2 border-b-[1.5px] border-default p-3">
+    <header class="flex flex-none flex-col gap-2 border-b-[1.5px] border-default p-3">
       <div class="flex items-center gap-2">
         <form class="flex min-w-0 flex-1" @submit.prevent="applySearch">
           <UInput
@@ -87,7 +87,7 @@ function conversationTo(id: number) {
         :label="t('chat.filters')"
         @update:model-value="setFilter($event as ChatFilter)"
       />
-    </div>
+    </header>
     <!-- With no conversations at all, the thread column carries the single empty state (with its start action); below 768px the list is the only column, so it carries it. -->
     <EmptyState v-if="showStartEmpty" class="m-4" :title="t('chat.empty')" :description="t('chat.emptyDescription')">
       <template #action>
