@@ -114,10 +114,16 @@ def _adapt_shared_caddyfile(text: str) -> dict:
 
 
 def _tenant_rate_limits(adapted: dict) -> dict:
-    """The rate-limit handler of the tenant site (the hooks host has its own handler)."""
+    """The rate limits of the guarded sites (the hooks host has its own handler).
+
+    The shared Caddyfile serves the tenant site and the restore site from one snippet, so every guarded site must
+    carry identical limits: a restore host is throttled exactly like a tenant host.
+    """
     handlers = [handler for handler in _find_handlers(adapted, 'rate_limit') if 'liwan_auth' in handler['rate_limits']]
-    if len(handlers) != 1:
-        raise AssertionError(f'expected one tenant rate_limit handler, got {len(handlers)}')
+    if not handlers:
+        raise AssertionError('expected a tenant rate_limit handler, got none')
+    if any(handler['rate_limits'] != handlers[0]['rate_limits'] for handler in handlers):
+        raise AssertionError('every guarded site must share one set of rate limits')
     return handlers[0]['rate_limits']
 
 
@@ -440,6 +446,22 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
             for upstream in handler.get('upstreams', [])
         }
         self.assertEqual(dials, {'guard:8080', 'tiktok-relay:8090'})
+
+    def test_restore_hosts_get_the_tenant_edge_on_their_own_wildcard_site(self) -> None:
+        """Behavioral: `*.restore.<domain>` is its own site with the identical guarded handlers.
+
+        The restore host format is the control plane's `realRestoreHost`: one label under `restore.<domain>`.
+        """
+        adapted = _adapt_shared_caddyfile(SHARED_CADDYFILE.read_text(encoding='utf-8'))
+        sites = {tuple(route['match'][0]['host']): route for route in adapted['apps']['http']['servers']['srv0']['routes']}
+        self.assertEqual(set(sites), {('a.example.test',), ('*.restore.a.example.test',), ('hooks.example.test',)})
+        self.assertEqual(sites[('*.restore.a.example.test',)]['handle'], sites[('a.example.test',)]['handle'])
+        self.assertEqual(len([h for h in _find_handlers(adapted, 'rate_limit') if 'liwan_auth' in h['rate_limits']]), 2)
+        forwarded = _proxy_handlers(sites[('*.restore.a.example.test',)], 'guard:8080')
+        self.assertEqual(len(forwarded), 1)
+        deleted = forwarded[0]['handler']['headers']['request']['delete']
+        for header in ('X-Forwarded-For', 'X-Forwarded-Host', 'X-Forwarded-Proto', 'Forwarded', 'X-Liwan-Proxy-Token', 'X-Liwan-Tenant-Revision'):
+            self.assertIn(header, deleted)
 
     def test_auth_zone_is_tighter_than_the_api_zone(self) -> None:
         text = CADDYFILE.read_text(encoding='utf-8')
