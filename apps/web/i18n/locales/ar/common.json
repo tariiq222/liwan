@@ -183,7 +183,7 @@
     "tools": "أدواتي",
     "tabBar": "التنقل السريع",
     "more": "المزيد",
-    "userMenu": { "label": "قائمة المستخدم", "account": "حسابي", "darkMode": "الوضع الداكن" },
+    "userMenu": {"label": "قائمة المستخدم", "services": "خدماتي", "more": "المزيد", "accountPassword": "حسابي وكلمة المرور", "appearance": "المظهر", "light": "فاتح", "dark": "داكن"},
     "panel": {
       "openAll": "افتح الكل",
       "close": "إغلاق",

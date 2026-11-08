@@ -183,7 +183,7 @@
     "tools": "My tools",
     "tabBar": "Quick navigation",
     "more": "More",
-    "userMenu": { "label": "User menu", "account": "My account", "darkMode": "Dark mode" },
+    "userMenu": {"label": "User menu", "services": "My services", "more": "More", "accountPassword": "My account and password", "appearance": "Appearance", "light": "Light", "dark": "Dark"},
     "panel": {
       "openAll": "Open all",
       "close": "Close",
