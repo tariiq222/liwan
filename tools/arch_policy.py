@@ -902,7 +902,7 @@ def main(
         return 2
     if args.write_baseline:
         # The first write records today's debt; every later write may only keep or shrink each rule total, and a
-        # documented sudo case that no longer matches the code or AGENTS.md blocks the write just like the check path.
+        # documented sudo case that no longer matches the code blocks the write just like the check path.
         growth = totals_growth(totals, rule_totals(baseline), 'existing baseline') if exists else []
         problems = hard + growth + ratchet + documented_problems(documented, found)
         if not problems:

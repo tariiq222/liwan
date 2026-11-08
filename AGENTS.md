@@ -316,7 +316,7 @@ cross-addon links.
   needs the owner's `Architecture-approved-by:` trailer; agents never add that trailer.
   `liwan_tasks`, `liwan_operations` and their bridges have no `sudo()` path. Never write `sudo()` inside
   an `@api.constrains` method: Odoo's `_validate_fields` already runs constraints on `self.sudo()`, so
-  it changes nothing and is noise. Cron jobs run as `base.user_root` and need none.
+  it changes nothing and is noise. The PMO deadline and overdue crons run as `base.user_root` and need none.
 - The current delivery scope has no time logging product surface: do not add `hr_timesheet`
   or timesheet fields/endpoints to the customer UI; adding them requires a separately scoped
   implementation request. Payroll is approved (owner decision 2026-10-19) as the Saudi payroll
