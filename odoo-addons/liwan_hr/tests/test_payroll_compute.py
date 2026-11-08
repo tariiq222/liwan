@@ -159,14 +159,15 @@ class TestPayrollCompute(PayrollCase):
         self.assertEqual(refused.exception.status, 422)
         self.assertEqual(self._payslip(employee, structure=other).state, 'verify')
 
-    def test_structure_mismatch_is_refused_when_the_contract_misses_the_period(self):
+    def test_a_version_starting_after_the_period_is_refused_before_the_structure_check(self):
+        """The old fallback made this a structure mismatch; the missing contract version is now the named refusal."""
         child = self.env['hr.payroll.structure'].create({
             'name': 'Child of Saudi', 'parent_id': self.structure.id,
         })
         employee = self.make_employee('Later Joiner', start=date(2027, 1, 1))
         with self.assertRaises(LiwanHrRule) as refused:
             self._payslip(employee, structure=child)
-        self.assertEqual(refused.exception.code, 'payroll_structure_mismatch')
+        self.assertEqual(refused.exception.code, 'contract_missing')
 
     def test_missing_contract_start_is_refused(self):
         employee = self.env['hr.employee'].create({'name': 'No Contract', 'company_id': self.env.company.id})
@@ -185,16 +186,6 @@ class TestPayrollCompute(PayrollCase):
         self.assertEqual(refused.exception.code, 'contract_missing')
         self.assertEqual(refused.exception.field, 'employee_id')
         self.assertEqual(refused.exception.details['employee_id'], employee.id)
-
-    def test_a_version_starting_after_the_period_is_refused_before_the_structure_check(self):
-        """A Saudi-rules child structure would report a mismatch; the missing contract version is the named refusal."""
-        child = self.env['hr.payroll.structure'].create({
-            'name': 'Child of Saudi', 'parent_id': self.structure.id,
-        })
-        employee = self.make_employee('Later Joiner', start=date(2027, 1, 1))
-        with self.assertRaises(LiwanHrRule) as refused:
-            self._payslip(employee, structure=child)
-        self.assertEqual(refused.exception.code, 'contract_missing')
 
     def test_a_version_ending_before_the_period_is_refused(self):
         """The version ended before the month: the payslip is refused, never computed on a stale version."""
