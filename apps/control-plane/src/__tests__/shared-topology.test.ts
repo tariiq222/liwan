@@ -65,6 +65,51 @@ it.skipIf(!hasDocker)('renders shared network boundaries, commands, directory mo
   expect(s.odoo.volumes).toContainEqual(expect.objectContaining({ source: '/synthetic/odoo.conf', target: '/etc/odoo/odoo.conf', read_only: true }))
   expect(JSON.stringify(s.web.healthcheck)).not.toContain('/login')
 })
+it.skipIf(!hasDocker)('declares the restore services the restore runner requires, inert and isolated from the live database', () => {
+  // tools/shared_saas_lifecycle/odoo_backup.py selects `--profile restore` and restores into these two services.
+  const live = rendered(true)
+  expect(live.services['restore-db']).toBeUndefined()
+  expect(live.services['restore-odoo']).toBeUndefined()
+  const model = rendered(true, ['--profile', 'restore'])
+  const s = model.services
+  expect(s['restore-db'].image).toBe(s.db.image)
+  // Compose renders the tag the odoo service builds; the restore runner compares image ids, so the tag must be shared.
+  expect(s['restore-odoo'].image).toBe(s.odoo.image)
+  for (const name of ['restore-db', 'restore-odoo']) {
+    expect(s[name].profiles).toEqual(['restore'])
+    expect(s[name].ports ?? []).toEqual([])
+    expect(s[name].cap_drop).toEqual(['ALL'])
+    expect(s[name].security_opt).toEqual(['no-new-privileges:true'])
+    expect(s[name].healthcheck).toBeDefined()
+  }
+  // The live proxy token never enters the service that opens restored customer data.
+  expect(JSON.stringify(s['restore-odoo'].environment)).not.toContain('PROXY_TOKEN')
+  // Isolation: restore services share no network with the live db/odoo, and every network they use is internal.
+  expect(Object.keys(s['restore-db'].networks)).toEqual(['restore_database'])
+  expect(Object.keys(s['restore-odoo'].networks).sort()).toEqual(['guard_restore', 'restore_database'])
+  for (const network of ['guard_restore', 'restore_database']) expect(model.networks[network].internal).toBe(true)
+  for (const name of ['db', 'odoo']) for (const network of Object.keys(s[name].networks)) expect(Object.keys(s['restore-odoo'].networks)).not.toContain(network)
+  const volumes = (name: string) => s[name].volumes.map((v: { source: string }) => v.source)
+  expect(volumes('restore-db')).toContain('restore_db_data')
+  expect(volumes('restore-db')).not.toContain('db_data')
+  expect(volumes('restore-odoo')).toContain('restore_odoo_data')
+  expect(volumes('restore-odoo')).not.toContain('odoo_data')
+  // Unconfigured, restore-odoo mounts the incomplete reference config that points at restore-db, never the live one.
+  expect(s['restore-odoo'].volumes).toContainEqual(expect.objectContaining({ source: resolve(root, 'deploy/shared/odoo.restore.conf'), target: '/etc/odoo/odoo.conf', read_only: true }))
+  expect(readFileSync(resolve(root, 'deploy/shared/odoo.restore.conf'), 'utf8')).toMatch(/^db_host = restore-db$/m)
+})
+it.skipIf(!hasDocker)('mounts the restore registry read-only on the guard and web, and points the guard at restore-odoo', () => {
+  const s = rendered(true, [], { LIWAN_RESTORE_REGISTRY_DIR: '/synthetic/restore-registry' }).services
+  for (const name of ['guard', 'web']) {
+    expect(s[name].volumes).toContainEqual(expect.objectContaining({ source: '/synthetic/restore-registry', target: '/etc/liwan-restore', read_only: true }))
+    expect(s[name].environment.LIWAN_RESTORE_REGISTRY_PATH).toBe('/etc/liwan-restore/registry.json')
+  }
+  // The tenant registry directory stays a separate mount: the two files are never merged.
+  expect(s.guard.volumes).toContainEqual(expect.objectContaining({ source: '/synthetic/registry', target: '/etc/liwan', read_only: true }))
+  expect(s.guard.environment.LIWAN_GUARD_RESTORE_ODOO_URL).toBe('http://restore-odoo:8069')
+  expect(s.guard.environment.LIWAN_GUARD_RESTORE_WS_URL).toBe('http://restore-odoo:8072')
+  expect(Object.keys(s.guard.networks)).toContain('guard_restore')
+})
 function nuxt(mode: string) {
   // The config is evaluated as a plain script, so its ES imports and import.meta are replaced by stubs.
   const source = readFileSync(resolve(root, 'apps/web/nuxt.config.ts'), 'utf8')

@@ -329,13 +329,13 @@ class TestRecordedRepositoryState(unittest.TestCase):
     def test_every_finding_is_an_unpublished_owned_image(self):
         self.assertEqual({finding.rule for finding in self.report.findings},
                          {image_pins.UNPUBLISHED_PIN})
-        self.assertEqual(len(self.report.findings), 7)
+        self.assertEqual(len(self.report.findings), 8)
 
     def test_the_stack_declares_every_service_the_manifest_covers(self):
         self.assertEqual(services_in(self.report),
                          ['ai', 'ai-egress', 'db', 'guard', 'odoo', 'pgbouncer', 'proxy',
-                          'tiktok-relay', 'web'])
-        self.assertEqual(len(self.manifest.entries), 9)
+                          'restore-db', 'restore-odoo', 'tiktok-relay', 'web'])
+        self.assertEqual(len(self.manifest.entries), 11)
 
     def test_the_vendor_console_is_not_a_production_stack_service(self):
         # apps/vendor-admin is built and smoke-tested by deploy/ci/image.sh, but no
@@ -347,7 +347,7 @@ class TestRecordedRepositoryState(unittest.TestCase):
     def test_no_registry_is_claimed_while_the_owned_images_are_unpublished(self):
         self.assertIsNone(self.manifest.registry)
         self.assertEqual(self.report.failures(release=False), ())
-        self.assertEqual(len(self.report.failures(release=True)), 7)
+        self.assertEqual(len(self.report.failures(release=True)), 8)
 
     def test_the_pgbouncer_pin_is_the_digest_the_manifest_and_compose_both_carry(self):
         entry = self.manifest.by_service()['pgbouncer']

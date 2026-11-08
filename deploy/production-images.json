@@ -40,7 +40,7 @@
       "digest": null,
       "status": "unpublished",
       "reason": "The relay service runs the same unpublished liwan-guard image with a different command, so no separate published digest exists.",
-      "evidence": "deploy/docker-compose.shared.yml:136 runs liwan-guard:${LIWAN_IMAGE_TAG}; deploy/ci/image.sh:21 and :72 build that image."
+      "evidence": "deploy/docker-compose.shared.yml:144 runs liwan-guard:${LIWAN_IMAGE_TAG}; deploy/ci/image.sh:21 and :72 build that image."
     },
     {
       "service": "ai",
@@ -71,6 +71,21 @@
       "digest": "sha256:53d98b3174b0842c475b9842fb0a733b2d9f7ec9da834ec42252aa553f48c628",
       "status": "published",
       "evidence": "docker buildx imagetools inspect edoburu/pgbouncer:v1.24.1-p0 on 2026-11-08 reported this multi-arch index digest; deploy/docker-compose.production.yml:43 pins the same digest."
+    },
+    {
+      "service": "restore-db",
+      "reference": "pgvector/pgvector:pg16",
+      "digest": "sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f",
+      "status": "published",
+      "evidence": "Same multi-arch index digest as the db service, recorded above; deploy/docker-compose.shared.yml:182 pins it for the restore profile, whose runner refuses a Postgres image that differs from the backup's."
+    },
+    {
+      "service": "restore-odoo",
+      "reference": "liwan-odoo",
+      "digest": null,
+      "status": "unpublished",
+      "reason": "The restore profile runs the same unpublished liwan-odoo image as the odoo service, so no separate published digest exists.",
+      "evidence": "deploy/docker-compose.shared.yml:207 runs liwan-odoo:${LIWAN_IMAGE_TAG}; deploy/ci/image.sh:38 builds it from deploy/odoo/Dockerfile."
     }
   ]
 }

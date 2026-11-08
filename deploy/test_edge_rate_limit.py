@@ -68,6 +68,42 @@ def _find_handlers(obj: object, handler_name: str) -> list[dict]:
     return found
 
 
+def _has_allowlist_matcher(route: dict) -> bool:
+    """A route whose match is `not remote_ip …` — Caddy drops the matcher's name, so the shape is the identity."""
+    for match in route.get('match', []):
+        for negated in match.get('not', []):
+            if isinstance(negated, dict) and 'remote_ip' in negated:
+                return True
+    return False
+
+
+def _status_handlers(site: dict, _matcher_name: str = '') -> list[dict]:
+    """Static responses on the allowlist route, walking Caddy's `subroute` nesting."""
+    found = []
+    for route in site['handle'][0]['routes']:
+        if _has_allowlist_matcher(route):
+            found.extend(_find_handlers(route.get('handle'), 'static_response'))
+    return found
+
+
+def _refuses_restore_before_proxying(site: dict) -> bool:
+    """The allowlist route is evaluated, and mutually exclusive with, the guarded route that follows it.
+
+    `handle` becomes one `group`, so the two branches cannot both run; the guard's route must come second.
+    """
+    routes = site['handle'][0]['routes']
+    if len(routes) != 2:
+        return False
+    refusal, guarded = routes
+    return (
+        refusal.get('group') is not None
+        and refusal.get('group') == guarded.get('group')
+        and _has_allowlist_matcher(refusal)
+        and not _has_allowlist_matcher(guarded)
+        and bool(_proxy_handlers(guarded, 'guard:8080'))
+    )
+
+
 def _docker(args: list[str], *, stdin: str | None = None, timeout: int) -> subprocess.CompletedProcess:
     if not shutil.which('docker'):
         raise unittest.SkipTest('docker executable unavailable')
@@ -103,10 +139,12 @@ def _caddy_container(script: str) -> subprocess.CompletedProcess:
     return result
 
 
-def _adapt_shared_caddyfile(text: str) -> dict:
+def _adapt_shared_caddyfile(text: str, *, restore_allow: str | None = None, domain: str = 'a.example.test') -> dict:
+    allow = '' if restore_allow is None else f'export LIWAN_RESTORE_ALLOW="{restore_allow}"\n'
     result = _caddy_container(
-        "set -eu\nexport DOMAIN=a.example.test\nexport LIWAN_TIKTOK_RELAY_HOST=hooks.example.test\n"
-        "cat > /tmp/source.Caddyfile <<'LIWAN_CADDY_SOURCE'\n"
+        "set -eu\nexport DOMAIN='" + domain + "'\nexport LIWAN_TIKTOK_RELAY_HOST=hooks.example.test\n"
+        + allow
+        + "cat > /tmp/source.Caddyfile <<'LIWAN_CADDY_SOURCE'\n"
         + text + "\nLIWAN_CADDY_SOURCE\n"
         + 'caddy adapt --config /tmp/source.Caddyfile --adapter caddyfile\n'
     )
@@ -114,10 +152,16 @@ def _adapt_shared_caddyfile(text: str) -> dict:
 
 
 def _tenant_rate_limits(adapted: dict) -> dict:
-    """The rate-limit handler of the tenant site (the hooks host has its own handler)."""
+    """The rate limits of the guarded sites (the hooks host has its own handler).
+
+    The shared Caddyfile serves the tenant site and the restore site from one snippet, so every guarded site must
+    carry identical limits: a restore host is throttled exactly like a tenant host.
+    """
     handlers = [handler for handler in _find_handlers(adapted, 'rate_limit') if 'liwan_auth' in handler['rate_limits']]
-    if len(handlers) != 1:
-        raise AssertionError(f'expected one tenant rate_limit handler, got {len(handlers)}')
+    if not handlers:
+        raise AssertionError('expected a tenant rate_limit handler, got none')
+    if any(handler['rate_limits'] != handlers[0]['rate_limits'] for handler in handlers):
+        raise AssertionError('every guarded site must share one set of rate limits')
     return handlers[0]['rate_limits']
 
 
@@ -440,6 +484,62 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
             for upstream in handler.get('upstreams', [])
         }
         self.assertEqual(dials, {'guard:8080', 'tiktok-relay:8090'})
+
+    def test_restore_hosts_get_the_tenant_edge_on_their_own_wildcard_site(self) -> None:
+        """Behavioral: `*.restore.<domain>` is its own site with the identical guarded handlers.
+
+        The restore host format is the control plane's `realRestoreHost`: one label under `restore.<domain>`.
+        """
+        adapted = _adapt_shared_caddyfile(SHARED_CADDYFILE.read_text(encoding='utf-8'))
+        sites = {tuple(route['match'][0]['host']): route for route in adapted['apps']['http']['servers']['srv0']['routes']}
+        self.assertEqual(set(sites), {('a.example.test',), ('*.restore.invalid.invalid',), ('hooks.example.test',)})
+        self.assertTrue(_refuses_restore_before_proxying(sites[('*.restore.invalid.invalid',)]),
+                        'the restore site must decide the allowlist before it reaches the guarded snippet')
+        self.assertEqual(len([h for h in _find_handlers(adapted, 'rate_limit') if 'liwan_auth' in h['rate_limits']]), 2)
+        forwarded = _proxy_handlers(sites[('*.restore.invalid.invalid',)], 'guard:8080')
+        self.assertEqual(len(forwarded), 1)
+        deleted = forwarded[0]['handler']['headers']['request']['delete']
+        for header in ('X-Forwarded-For', 'X-Forwarded-Host', 'X-Forwarded-Proto', 'Forwarded', 'X-Liwan-Proxy-Token', 'X-Liwan-Tenant-Revision'):
+            self.assertIn(header, deleted)
+
+    def test_the_restore_suffix_is_independent_of_the_tenant_address_list(self) -> None:
+        """Behavioral: a multi-host `DOMAIN` must not produce a restore wildcard no restore host matches.
+
+        The shared acceptance stack sets `DOMAIN="a.accept.test b.accept.test"` for the tenant site, while the control
+        plane publishes `r<hex>.restore.<domainSuffix>`. Deriving the restore wildcard from `DOMAIN` would yield
+        `*.restore.a.accept.test`, which matches no published restore.
+        """
+        adapted = _adapt_shared_caddyfile(SHARED_CADDYFILE.read_text(encoding='utf-8'),
+                                          domain='a.accept.test b.accept.test')
+        sites = {tuple(route['match'][0]['host']) for route in adapted['apps']['http']['servers']['srv0']['routes']}
+        self.assertIn(('a.accept.test', 'b.accept.test'), sites)
+        self.assertIn(('*.restore.invalid.invalid',), sites)
+        self.assertNotIn(('*.restore.a.accept.test',), sites)
+
+
+
+        """Behavioral: the restore site answers 404 outside `LIWAN_RESTORE_ALLOW`, and 404 for everyone when unset.
+
+        A restored database holds the credentials its backup held, so the edge — not the restored app — is the
+        access boundary. The tenant site must not carry the same restriction.
+        """
+        text = SHARED_CADDYFILE.read_text(encoding='utf-8')
+        for allow in (None, '', '203.0.113.0/24 10.0.0.5'):
+            with self.subTest(allow=allow):
+                adapted = _adapt_shared_caddyfile(text, restore_allow=allow)
+                sites = {tuple(route['match'][0]['host']): route
+                         for route in adapted['apps']['http']['servers']['srv0']['routes']}
+                restore = sites[('*.restore.invalid.invalid',)]
+                tenant = sites[('a.example.test',)]
+                refusals = _status_handlers(restore, 'notOperator')
+                self.assertEqual(len(refusals), 1, 'the restore site must answer 404 for a non-allowlisted client')
+                self.assertEqual(refusals[0]['status_code'], 404)
+                self.assertTrue(_refuses_restore_before_proxying(restore),
+                                'the refusal must be mutually exclusive with, and precede, the guarded route')
+                self.assertEqual(_status_handlers(tenant, 'notOperator'), [],
+                                 'the tenant site must not gain the restore allowlist')
+                # The allowlist is read from the socket peer: a client header must never select it.
+                self.assertNotIn('trusted_proxies', json.dumps(restore))
 
     def test_auth_zone_is_tighter_than_the_api_zone(self) -> None:
         text = CADDYFILE.read_text(encoding='utf-8')

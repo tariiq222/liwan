@@ -37,6 +37,11 @@ def _databases(value):
     return tuple(sorted(values))
 
 
+def restore_role():
+    """Whether this process validates the restore Odoo config (`restore-odoo`), not a tenant Odoo."""
+    return os.environ.get('LIWAN_RESTORE_ROLE') == '1'
+
+
 def release_profile():
     """Explicit operator profile; partial/unknown release settings fail closed."""
     pool = os.environ.get('LIWAN_RELEASE_POOL_ID')
@@ -56,6 +61,12 @@ def release_profile():
 def validate_launch_arguments(arguments):
     """Only the exact public options rendered for the validated role may pass."""
     profile = release_profile()
+    if restore_role():
+        # `restore-odoo` runs no scheduled job: an overdue cron inherited from the backup would mutate or prune the
+        # recovered data before anyone inspects it. The launcher passes this flag, so an operator cannot forget it.
+        if arguments != ['--max-cron-threads=0']:
+            raise ConfigRejected()
+        return ['--max-cron-threads=0']
     expected = []
     if profile is not None:
         expected = ['--max-cron-threads=0'] if profile['role'] == 'http' else [
@@ -144,6 +155,11 @@ def validate_config(path):
             "data_dir": "/var/lib/odoo",
         }
         if any(options.get(key) != value for key, value in required.items()):
+            raise ConfigRejected()
+        # A restore target is a recovery copy of a backup, so no scheduled job may run against it: an overdue
+        # cron from the backup would mutate (or prune) the recovered data before verification or inspection.
+        # `restore-odoo` therefore always runs with zero cron threads, whatever the operator's file says or omits.
+        if restore_role() and (options.get('max_cron_threads', '0').strip() != '0'):
             raise ConfigRejected()
         _validate_sizing(options)
         profile = release_profile()
