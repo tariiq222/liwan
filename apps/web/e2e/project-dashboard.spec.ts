@@ -20,12 +20,18 @@ for (const width of [390, 768, 1440]) {
   test(`six charts and five latest projects at ${width}px`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 1000 })
     await login(page)
-    await page.getByTestId('module-rail').getByRole('link', { name: 'نظرة عامة', exact: true }).click()
+    await page.goto('/projects/dashboard')
     await expect(page).toHaveURL(/\/projects\/dashboard$/)
-    await expect(page.getByTestId('application-navigation').getByRole('heading', { name: 'المشاريع', level: 2 })).toBeVisible()
-    await expect(page.getByTestId('application-navigation').locator('.liwan-sub-list .liwan-quick-link')).toHaveText(['نظرة عامة', 'عرض الكل', 'مهامي'])
-    await expect(page.getByTestId('context-link-new-project')).toBeVisible()
-    await expect(page.getByTestId('context-link-project-dashboard')).toHaveAttribute('aria-current', 'page')
+    if (width >= 768) {
+      // The sidebar is in application mode: 264px with labels from 1100px, 84px icons below.
+      const navigation = page.getByTestId('application-navigation')
+      await expect(navigation.getByTestId('navigation-app-block')).toHaveText('المشاريع')
+      await expect(navigation.getByTestId('context-link-project-dashboard')).toHaveAccessibleName('نظرة عامة')
+      await expect(navigation.getByTestId('context-link-projects')).toHaveAccessibleName('قائمة المشاريع')
+      await expect(navigation.getByTestId('context-link-tasks')).toHaveAccessibleName(/المهام|مهام/)
+      await expect(page.getByTestId('quick-action-new-project')).toBeVisible()
+      await expect(page.getByTestId('context-link-project-dashboard')).toHaveAttribute('aria-current', 'page')
+    }
     await charts(page)
     const response = await page.request.get('/api/v1/reports/projects/analytics')
     expect(response.status()).toBe(200)

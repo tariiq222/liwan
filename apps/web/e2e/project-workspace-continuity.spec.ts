@@ -1,8 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 
 test.skip(process.env.E2E_PROJECT_POPUPS !== '1', 'Isolated project mock only')
-test.beforeEach(async ({ page, context, baseURL }) => {
-  await context.addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: baseURL! }])
+test.beforeEach(async ({ page }) => {
   await page.goto('/login')
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور', { exact: true }).fill('admin')
@@ -11,7 +10,7 @@ test.beforeEach(async ({ page, context, baseURL }) => {
 })
 async function openAlpha(page: Page) {
   // The row link only knows the remembered section after hydration (localStorage is client-only).
-  await expect(page.getByTestId('context-sidebar-toggle')).toBeEnabled()
+  await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
   await page.getByTestId('project-card').filter({ hasText: 'مشروع ألفا' }).getByRole('link', { name: 'مشروع ألفا', exact: true }).click()
 }
 test('project reentry restores section filters and keeps the new list origin', async ({ page }) => {
@@ -50,14 +49,16 @@ test('project sections are in-page tabs while the sidebar keeps the projects mod
   await page.goto('/projects/1')
   await expect(page.getByTestId('project-workspace-settings')).toBeVisible()
   const sidebar = page.getByTestId('application-navigation')
-  await expect(sidebar.getByTestId('projects-context-sub-list')).toBeVisible()
+  await expect(sidebar.getByTestId('submenu-projects')).toBeVisible()
   await expect(sidebar.getByTestId('context-link-project-dashboard')).toBeVisible()
-  await expect(sidebar.getByTestId('projects-quick-view-mine')).toBeVisible()
+  await expect(sidebar.getByTestId('quick-view-mine')).toBeVisible()
   await expect(sidebar.getByRole('heading', { name: 'العمل اليومي' })).toHaveCount(0)
   await expect(sidebar.getByRole('heading', { name: 'متابعة المشروع' })).toHaveCount(0)
   const tabs = await page.getByRole('navigation',{name:'أقسام المشروع',exact:true}).getByRole('link').allTextContents()
-  expect(tabs.map(s => s.trim())).toEqual(['الملخص', 'المهام', 'التحديثات', 'التخطيط', 'الحوكمة', 'المالية'])
-  await expect(page.getByTestId('project-workspace-frame').getByRole('link',{name:'الاجتماعات',exact:true})).toBeVisible()
+  expect(tabs.map(s => s.trim())).toEqual(['الملخص', 'المهام', 'التحديثات', 'التخطيط', 'الحوكمة', 'المالية', 'الاجتماعات'])
+  // The tabs never wrap: the last tab sits on the same line as the first.
+  const tabBoxes = await page.getByTestId('project-workspace-tabs').getByRole('link').evaluateAll(links => links.map(link => Math.round(link.getBoundingClientRect().top)))
+  expect(new Set(tabBoxes).size).toBe(1)
   await expect(page.getByTestId('project-planning-tabs')).toHaveCount(0)
   await expect(page.getByTestId('project-governance-tabs')).toHaveCount(0)
   await page.getByTestId('project-tab-planning').click()

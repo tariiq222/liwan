@@ -60,15 +60,13 @@ test('mobile navigation opens one drawer and closes after route navigation', asy
   await page.setViewportSize({ width: 390, height: 844 })
   await login(page)
 
+  // The last tab of the bottom bar, «المزيد», opens the one drawer.
   const toggle = page.getByTestId('mobile-navigation-trigger')
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
-  await expect(toggle).toHaveAttribute('aria-controls', 'mobile-navigation')
+  await expect(toggle).toHaveAttribute('aria-haspopup', 'dialog')
   await toggle.click()
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
   const mobileNav = page.locator('#mobile-navigation')
   await expect(mobileNav).toBeVisible()
-  await mobileNav.getByRole('navigation', { name: 'التطبيقات', exact: true }).getByRole('link', { name: 'يومي', exact: true }).click()
+  await mobileNav.getByTestId('mobile-navigation-app-home').click()
   await expect(page).toHaveURL(/\/$/)
   await expect(mobileNav).toBeHidden()
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
 })

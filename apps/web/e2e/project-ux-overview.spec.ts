@@ -1,9 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { login, open } from './support/tasmim6'
 
-test.beforeEach(async ({ page, context, baseURL }) => {
-  // The context menu starts folded; these checks click its dashboard link.
-  await context.addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: baseURL! }])
+test.beforeEach(async ({ page }) => {
   await login(page)
   await open(page, '/projects')
 })

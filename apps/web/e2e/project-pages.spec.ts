@@ -15,8 +15,7 @@ async function login(page: Page) {
   await expect(page).not.toHaveURL(/\/login/)
 }
 
-test.beforeEach(async ({ page, context, baseURL }) => {
-  await context.addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: baseURL! }])
+test.beforeEach(async ({ page }) => {
   await login(page)
 })
 
@@ -133,14 +132,12 @@ test('desktop project workspace has one identity and one toolbar after a direct 
   await expect(page.getByTestId('application-navigation')).toBeVisible()
 })
 
-test('desktop sidebar keeps project navigation and collapses independently of the module rail', async ({ page }, testInfo) => {
+test('desktop sidebar keeps project navigation at a fixed width through the project pages', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/projects/1/tasks?q=مهمة')
   const sidebar = page.getByTestId('application-navigation')
-  const toggle = page.getByTestId('context-sidebar-toggle')
-  const rail = page.getByTestId('module-rail')
-  await expect(toggle).toBeEnabled()
-  await expect(sidebar.getByRole('heading', { name: 'المشاريع', exact: true, level: 2 }).first()).toBeVisible()
+  await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
+  await expect(sidebar.getByTestId('navigation-app-block')).toHaveText('المشاريع')
   await expect(sidebar.getByRole('heading', { name: 'مشروع ألفا', exact: true })).toHaveCount(0)
   await expect(page.getByTestId('project-workspace-name')).toHaveText('مشروع ألفا')
   for (const id of ['project-tab-tasks', 'project-tab-planning', 'project-workspace-settings']) {
@@ -153,13 +150,7 @@ test('desktop sidebar keeps project navigation and collapses independently of th
     await expect(page.getByTestId(`context-link-${id}`)).toHaveCount(0)
   }
   await expect(page.getByTestId('project-tab-settings')).toHaveCount(0)
-  await toggle.click()
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
-  await expect(rail).toHaveCSS('width', '76px')
-  // Folded, the context menu takes no space at all (DESIGN.md, the inner menu); the module rail keeps its width.
-  await expect(sidebar).toBeHidden()
-  await expect(page.getByTestId('module-rail-toggle')).toHaveCount(0)
-  await expect(sidebar).toHaveAttribute('data-expanded', 'false')
+  expect((await sidebar.boundingBox())!.width).toBe(264)
   await page.getByTestId('project-workspace-settings').click()
   await expect(page).toHaveURL(/\/projects\/1\/settings/)
   await expect(page.getByRole('heading', { name: 'إعدادات المشروع', level: 2 })).toBeVisible()
@@ -167,13 +158,11 @@ test('desktop sidebar keeps project navigation and collapses independently of th
   await page.getByTestId('project-tab-tasks').click()
   await expect(page.getByTestId('project-tab-tasks')).toHaveAttribute('aria-current', 'page')
   await expect(page.locator('main [data-shortcut-search] input')).toHaveValue('مهمة')
-  await expect(sidebar).toHaveAttribute('data-expanded', 'false')
-  await page.screenshot({ path: testInfo.outputPath('project-sidebar-collapsed.png'), fullPage: true })
-  // Folded, the toggle lives inside the hidden menu; the «[» key pins it open again (the rail's hover menu is the other way in).
+  // The sidebar has no fold state: «[» does nothing and the width never changes.
   await page.getByRole('heading', { level: 1 }).click()
   await page.keyboard.press('[')
-  await expect(sidebar).toHaveAttribute('data-expanded', 'true')
-  await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(230)
+  expect((await sidebar.boundingBox())!.width).toBe(264)
+  await page.screenshot({ path: testInfo.outputPath('project-sidebar.png'), fullPage: true })
 })
 
 // Only a create route opens the one create panel over its list; records and edits are pages.

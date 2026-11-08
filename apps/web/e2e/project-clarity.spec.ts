@@ -1,8 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test.skip(process.env.E2E_PROJECT_POPUPS !== '1', 'Isolated project UI mock only')
-test.beforeEach(async ({ page, context, baseURL }) => {
-  await context.addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: baseURL! }])
+test.beforeEach(async ({ page }) => {
   await page.goto('/login')
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور', { exact: true }).fill('admin')
@@ -63,12 +62,12 @@ test('project list uses one create action and the sidebar switches between all a
   await expect(page.getByTestId('context-link-my-projects')).toHaveCount(0)
   // «مشاريعي» is a quick view in the sidebar sub-list. A quick view starts a fresh filter and keeps only the layout (quickViewsModel keepKeys).
   const navigation = page.getByTestId('application-navigation')
-  await navigation.getByTestId('projects-quick-view-mine').click()
+  await navigation.getByTestId('quick-view-mine').click()
   await expect(page).toHaveURL(/mine=1/)
   await expect(page).toHaveURL(/view=table/)
   await expect(page).not.toHaveURL(/q=alpha/)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('مشاريعي')
-  await navigation.getByTestId('projects-context-link-projects-all').click()
+  await navigation.getByTestId('context-link-projects-all').click()
   await expect(page).not.toHaveURL(/mine=1/)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('كل المشاريع')
 })
@@ -126,7 +125,7 @@ for (const path of [
     await page.goto(path)
     await page.waitForLoadState('networkidle')
     await expect(page.locator('.animate-pulse')).toHaveCount(0)
-    await expect(page.getByTestId('context-sidebar-toggle')).toBeEnabled()
+    await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
     const dialog = page.getByRole('dialog')
     // The project workspace frame (title row + tabs) precedes the section container since 2026-09-11.
     const scope = await dialog.count() ? dialog : page.locator('[data-slot="page-container"]').filter({ has: page.getByRole('heading', { level: 1 }) }).first()
@@ -148,10 +147,11 @@ for (const path of ['/projects', '/projects/1/register', '/projects/1/stakeholde
     await page.goto(path)
     await page.waitForLoadState('networkidle')
     await expect(page.locator('.animate-pulse')).toHaveCount(0)
-    await expect(page.getByTestId('context-sidebar-toggle')).toBeEnabled()
+    await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
     // A panel route slides in and the zoom reflows the page: wait for each layout to settle before judging it.
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
-    await page.evaluate(() => { document.documentElement.style.zoom = '2' })
+    // 200% browser zoom halves the CSS viewport, which also moves the page past the 768px breakpoint (CSS `zoom` does not).
+    await page.setViewportSize({ width: 512, height: 450 })
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
     await page.screenshot({ path: testInfo.outputPath('zoom-200.png'), fullPage: true })
   })
