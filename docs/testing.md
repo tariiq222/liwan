@@ -80,17 +80,30 @@ The Bash guard reads the upstream Odoo checkout from `LIWAN_ODOO_SRC` (default `
 
 ## Fast local loop
 
-This section owns the depth of local checks. Run focused local checks for the changed behavior and
-affected interfaces (`npm run check:fast`, `npm run test:odoo`). GitHub Actions runs the complete
-required suite and owns the final merge gate; do not repeat the full local `npm test` for each
-change or for each integration. Run it locally only to diagnose a failure or to cover material
-behavior CI does not exercise. Keep every required GitHub check and report local and remote
-evidence separately. The complete `npm test` sequence (it includes `apps/vendor-admin`) remains
-binding in CI before merge.
+This section owns the depth of local checks. For a pull request, GitHub Actions runs the required
+tests and type checks before merge. For a routine change covered by the selected PR stages, review
+the actual diff and run the applicable local Git and architecture policies. Local application
+tests and type checks are optional when they give faster feedback during development or help
+diagnose a failure. Do not put the local test queue on the path to Ready for routine changes.
+
+Before marking Ready, run focused local verification for changes to authentication, permissions,
+tenant isolation, payments, migrations, or operations that can lose or corrupt persisted data.
+Also verify locally when changing how CI selects or gates checks, when the selected PR stages
+leave a material coverage gap, or when the task or layer rules require specific evidence. Select
+checks that prove the affected behavior and relevant failure or refusal paths. Odoo checks use
+isolated scratch databases. For local-only integration, verify the combined result locally
+because there is no PR run.
+
+Record which local checks ran and which coverage was left to CI. Reuse recorded local evidence
+when it covers the candidate and the relevant inputs are unchanged. The orchestrator runs the
+checks that depend on the combined candidate when earlier evidence cannot cover it. Run a broad
+local suite only when focused checks cannot diagnose a failure or cover a material gap. GitHub
+still requires successful `ci-result` for the current PR head. The full run on `main` checks the
+merged result and supplies release evidence.
 
 | Command | What it does |
 | --- | --- |
-| `npm run check:fast` | Policy checks always, plus ruff, tools tests, contracts/web tests and the web type check only for the layers that changed against `main` (`tools/check_fast.py`). |
+| `npm run check:fast` | Optional local shortcut: policy checks and checks for layers changed against `main` (`tools/check_fast.py`). Root `package.json`, `package-lock.json` or the CI workflow also select the full `npm test`. Use `-- --dry-run` to see the plan without running checks. |
 | `npm run test:odoo` | Odoo tests of the changed addons and their dependents on a scratch database cloned from a cached template (`tools/odoo_test.py`). Options: `--addons a,b`, `--all`, `--base`, `--dry-run`, `--keep-db`. |
 | `python3 -B tools/test_slot.py -- <command>` | Machine-wide test queue shared by every session and worktree: at most `LIWAN_TEST_SLOTS` (default 2) heavy checks run at once, the rest wait and print who holds the slots. `npm test`, `npm run test:odoo`, `npm run check:fast`, the `npm run e2e*` scripts and `npm -w apps/web run lint` already take a slot; wrap any other heavy command (a direct `odoo-bin` test run, `vitest`, Playwright, `vue-tsc`) in it. A command inside a held slot takes no second one. `--status` lists the holders. From a worktree that predates it, call it by the main checkout path. |
 | `npm run wt -- new <area>-<slug> --owner <who> --task <what> --scope <path>` | New task worktree with its own `node_modules`/`.nuxt`, free ports and a scratch DB name in the git-ignored `.env.worktree`, and its ownership claim; accepts any valid branch name as a base and refuses scopes that overlap another active claim unless `--allow-overlap "<reason>"` (`tools/wt.py`, rules in `docs/parallel-work.md`). |
