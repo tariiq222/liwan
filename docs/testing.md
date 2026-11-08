@@ -166,10 +166,13 @@ and `merge_group` events; a merge-queue entry is selected from the queue base to
 
 - `upgrade`, `restore-drill` and `image` never run on a pull request. They run on the push to `main`, the
   nightly run and a full dispatch.
-- `e2e-odoo` runs on a pull request only when the change reaches a surface its specs write through
-  (`E2E_ODOO_TRIGGERS` in `tools/ci_scope.py`: the specs and their fixtures, the project workspace pages and
-  components, the task, project, chat and realtime composables, and `liwan_pmo`/`liwan_chat`). Every other
-  pull request defers it to the push to `main`, the nightly run and a full dispatch.
+- `e2e-odoo` runs on a pull request only when the change reaches a surface its running specs drive
+  (`E2E_ODOO_TRIGGERS` in `tools/ci_scope.py`): the stage script, its seed and the specs; sign-in and the server proxy;
+  the project, task and chat pages, components and composables; the account, access-administration and HR people
+  pages; and the Odoo addons behind them (`liwan_core`, `liwan_platform`, `liwan_api`, `liwan_directory`, `liwan_pmo`,
+  `liwan_tasks`, `liwan_chat`, `liwan_hr`, `liwan_pmo_finance`, `liwan_tasks_pmo`, `liwan_access_hr`). A documentation,
+  tooling-only or other-application change defers it to the push to `main`, the nightly run and a full dispatch.
+  `tools/test_ci_scope.py` pins both lists. A surface joins the triggers when a spec that drives it joins the stage.
 - A file under `odoo-addons/<addon>/` selects only `static` and the Odoo stages: `ai-service`, `control-plane`,
   `vendor-admin`, `e2e-mock` and `rtl-stories` read no addon code, so they run for an addon change on `main`.
 - The `odoo` stages reach only the affected release modules: the addons changed under `odoo-addons/<addon>/`
@@ -368,15 +371,17 @@ How the stage runs (`deploy/ci/e2e-mock.sh`):
 
 A spec that logs in as `admin` and writes real data cannot run on the mock (it answers 404 to a write). Such a journey
 either runs in the `e2e-odoo` stage below or is covered by an addon test plus a mock spec, in which case it is deleted.
-The journeys that have not been run on a scratch Odoo yet (login, access boundaries, realtime, task lifecycle) are kept and
-guarded by `E2E_REAL_ODOO=1`; they are not in any CI list until one scratch run proves them.
+The `E2E_REAL_ODOO` specs that have not yet passed on a scratch Odoo are named, with the reason, in
+`deploy/ci/e2e-odoo.sh` and in the latest record under `docs/verification/`; they are in no CI list until one scratch run proves them.
 
 ### Real-Odoo specs (`e2e-odoo` stage)
 
 `deploy/ci/e2e-odoo.sh` installs every release module on the scratch database `liwan_scratch_e2e`, seeds it through Odoo
 (`tools/e2e_seed.py`, then `apps/web/e2e/fixtures/real-odoo-acceptance.py`, which writes the fixture ids to
-`.superpowers/real-odoo/fixtures.json`), starts Odoo and a production Nuxt build on port 44300 and runs
-`e2e/real-odoo-acceptance.spec.ts` and `e2e/real-odoo-services.spec.ts` with `E2E_REAL_ODOO=1`. No model call or API key is
+`.superpowers/real-odoo/fixtures.json`), starts Odoo and a production Nuxt build on port 44300 and runs the specs named in
+`REAL_ODOO_SPECS` (`e2e/real-odoo-acceptance.spec.ts`, `e2e/real-odoo-services.spec.ts`) with `E2E_REAL_ODOO=1`. The twelve other
+`E2E_REAL_ODOO` specs fail on a clean scratch run (single-step `admin`/`admin` sign-in; the seed has `e2e_*` accounts and a two-step
+sign-in) and are excluded by name in the script until each is moved to the two-step sign-in. No model call or API key is
 involved, unlike `npm run e2e:odoo` (the agentic runner of "Isolated agentic e2e"), which stays the local exploration path. The stage
 runs on a pull request that touches `E2E_ODOO_TRIGGERS` (`tools/ci_scope.py`), and otherwise on the push to `main`, the nightly run and a
 full dispatch. A project starts with no optional tool enabled and finance stays off until a company enables it, so the finance journeys
