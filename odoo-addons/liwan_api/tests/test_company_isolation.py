@@ -22,10 +22,12 @@ EXPECTED_GET_RECORD_ROUTES = 5
 
 BRANCH_MODES = ('isolated', 'delegated', 'inherited')
 
-# liwan_api routes this file exercises with the full matrix.
+# liwan_api routes this file exercises with the full matrix. A custom role is a
+# company record (a built-in one is shared), so the role detail carries the matrix too.
 COVERED = (
     '/api/v1/admin/users/<int:user_id>',
     '/api/v1/admin/access-log/<int:event_id>',
+    '/api/v1/admin/roles/<int:role_id>',
     '/api/v1/admin/users/<int:user_id>/branches',
 )
 
@@ -172,7 +174,6 @@ class LiwanApiCompanyIsolationCase(CompanyIsolationCase):
 
 def register_api_isolation_coverage():
     cover_isolation_routes(COVERED, 'liwan_api/tests/test_company_isolation.py')
-    exempt_isolation_route('/api/v1/admin/roles/<int:role_id>', 'roles are global capability templates, not company records')
     exempt_isolation_route('/api/v1/admin/company/countries/<int:country_id>/states', 'reference data shared by every company')
 
 
