@@ -21,7 +21,7 @@ async function fixture(mode: 'shared' | 'dedicated', guarded = false) {
   writeFileSync(join(root, 'registry.json'), JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: [{ host: 'a.example.test', tenantId: 'a', database: 'db_a', filestore: 'db_a', registryRevision: 1, enabled: true }] }))
   vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', token)
   vi.stubEnv('LIWAN_TENANT_REGISTRY_PATH', join(root, 'registry.json'))
-  const calls: Array<{ path: string; bytes: number; digest: string; signature?: string; tiktokSignature?: string }> = []
+  const calls: Array<{ path: string; bytes: number; digest: string; signature?: string | string[]; tiktokSignature?: string | string[] }> = []
   const authCalls: Array<{ path: string; body: Record<string, unknown>; headers: http.IncomingHttpHeaders }> = []
   let holdReplies = false
   const heldReplies: Array<() => void> = []
