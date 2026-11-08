@@ -135,13 +135,13 @@ const deliveryLabel = (item: InboxMessage) => t(`inbox.delivery.${item.delivery_
     <SharedErrorState v-if="isError && !items.length" :error="error" class="m-4" @retry="refetch()" />
     <SharedLoadingSkeleton v-else-if="isLoading" class="m-4" />
     <SharedEmptyState v-else-if="!items.length" :title="t('inbox.thread.empty')" class="m-4" />
-    <div v-else ref="scroller" class="min-h-0 flex-1 overflow-y-auto bg-(--liwan-canvas) px-4 py-2" data-testid="inbox-thread-scroller">
+    <div v-else ref="scroller" class="min-h-0 flex-1 overflow-y-auto bg-elevated px-5 py-4 dark:bg-(--liwan-canvas)" data-testid="inbox-thread-scroller">
       <div v-if="hasNextPage" class="flex justify-center p-2">
         <UButton type="button" color="neutral" variant="ghost" size="sm" :disabled="!hydrated || isFetchingNextPage" :label="t('inbox.thread.loadOlder')" @click="loadOlder" />
       </div>
-      <ol class="flex flex-col gap-1.5" :aria-label="t('inbox.thread.label')">
+      <ol class="flex flex-col gap-2" :aria-label="t('inbox.thread.label')">
         <template v-for="row in rows" :key="row.kind === 'day' ? row.key : row.item.id">
-          <li v-if="row.kind === 'day'" class="my-2 text-center text-xs text-muted"><time :datetime="row.key">{{ dayFormat.format(new Date(`${row.key}T12:00:00`)) }}</time></li>
+          <li v-if="row.kind === 'day'" class="my-1 text-center text-xs text-muted"><time :datetime="row.key">{{ dayFormat.format(new Date(`${row.key}T12:00:00`)) }}</time></li>
           <li
             v-else
             :data-message-id="row.item.id"
@@ -150,13 +150,13 @@ const deliveryLabel = (item: InboxMessage) => t(`inbox.delivery.${item.delivery_
             :class="row.item.direction === 'out' ? 'ms-auto items-end' : row.item.direction === 'in' ? 'me-auto items-start' : 'w-full max-w-none items-stretch'"
           >
             <div
-              class="max-w-full rounded-control px-3 py-1.5 text-start text-sm break-words ring ring-default transition-shadow"
+              class="max-w-full rounded-[16px] px-[14px] py-[9px] text-start text-sm break-words shadow-[0_1px_2px_rgb(20_16_42/6%)] transition-shadow dark:shadow-[inset_0_0_0_1px_rgb(255_255_255/5%)]"
               :data-highlighted="highlightedId === row.item.id || undefined"
               :class="{
-                'bg-default rounded-es-sm': row.item.direction === 'in',
-                'bg-(--brand-soft) text-highlighted rounded-ee-sm': row.item.direction === 'out',
-                'bg-warning/10 ring-warning/30': row.item.direction === 'note' && row.item.author,
-                'bg-elevated ring-default': row.item.direction === 'note' && !row.item.author,
+                'bg-default rounded-es-[5px]': row.item.direction === 'in',
+                'bg-(--brand-soft) text-highlighted rounded-ee-[5px]': row.item.direction === 'out',
+                'bg-status-warning-soft': row.item.direction === 'note' && row.item.author,
+                'bg-default': row.item.direction === 'note' && !row.item.author,
                 'ring-2 ring-primary': highlightedId === row.item.id,
               }"
             >

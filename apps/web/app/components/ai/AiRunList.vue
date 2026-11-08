@@ -5,8 +5,8 @@ import { ApiError } from '@/composables/useApi'
 import { useAiRunActions, useAiRuns } from '@/composables/useAiRuns'
 import { filterRunsByTitle, groupRunsByDate } from '@/utils/aiRunGroups'
 
-// The AI manifest's context-sidebar panel (AppManifest.sidebarPanel): the user's own conversations beside the open thread; below 768px
-// the /ai page mounts this same component with `disclosure`: a toggle that opens the list inline (never an overlay) and closes
+// The history pane of the /ai page: the user's own conversations in a 24px card beside the open thread (from 1024px); below
+// that the page mounts this same component with `disclosure`: a toggle that opens the list inline (never an overlay) and closes
 // again when a conversation or "new" is chosen. The runs are grouped by date and filtered live by the search field (client side,
 // over the loaded titles).
 // The selected one is the `?run=` of the route; the page reacts to the route, so the rows only link. A row can be renamed in
@@ -109,7 +109,7 @@ const actionsOf = (run: AiRunSummary) => [
 
 <template>
   <section
-    :class="disclosure ? 'rounded-control ring ring-default' : 'flex h-full min-h-0 flex-col'"
+    :class="disclosure ? 'rounded-control ring ring-default' : 'flex max-h-[max(480px,calc(100svh-300px))] min-h-0 flex-col overflow-hidden rounded-surface border-[1.5px] border-default bg-default'"
     data-testid="ai-run-list"
     :aria-label="t('ai.history.title')"
   >
@@ -129,10 +129,7 @@ const actionsOf = (run: AiRunSummary) => [
       data-testid="ai-history-toggle"
       @click="open = !open"
     />
-    <div v-else class="flex items-center gap-2.5 px-4 pt-4">
-      <AiAvatar size="md" />
-      <h2 class="text-base font-semibold text-highlighted">{{ t('ai.name') }}</h2>
-    </div>
+    <h2 v-else class="px-4 pt-4 text-base font-semibold text-highlighted">{{ t('ai.history.title') }}</h2>
     <div
       v-if="expanded"
       id="ai-run-list-body"

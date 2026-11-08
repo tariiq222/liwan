@@ -5,18 +5,19 @@ import { ApiError } from '../../../composables/useApi'
 import { createChatDrafts } from '../../../utils/chatDrafts'
 import { isFatalChatStatus } from '../../../utils/chatState'
 
-function open(store: Map<string, string>, conversationId: number, error: Vue.Ref<unknown> = Vue.ref(null), writable = true) {
+function open(store: Map<string, string>, conversationId: number | undefined, error: Vue.Ref<unknown> = Vue.ref(null), writable = true, queries: { desktop: boolean; split: boolean; info?: boolean } = { desktop: true, split: true }) {
+  const media = (query: string) => Vue.ref(query.includes('1280px') ? queries.split : queries.desktop)
   const storage = { get length() { return store.size }, key: (i: number) => [...store.keys()][i] ?? null, getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) }
   const query = (data: unknown) => ({ data: Vue.ref(data), error, isLoading: Vue.ref(false), refetch: vi.fn() })
   const bindings = {
-    onMounted: (fn: () => void) => fn(), useMediaQuery: () => Vue.ref(true), useQueryClient: () => ({ cancelQueries: vi.fn(), removeQueries: vi.fn() }),
+    onMounted: (fn: () => void) => fn(), useMediaQuery: media, useQueryClient: () => ({ cancelQueries: vi.fn(), removeQueries: vi.fn() }),
     useMe: () => ({ me: Vue.ref({ id: 1 }) }), useEscapeBack: () => {}, useChatConversation: () => query({ name: 'G', type: 'group' }), useChatConversations: () => query({ total: 1, items: [] }),
     chatDrafts: createChatDrafts(() => storage), chatKeys: { root: () => ['chat'] }, applyChatAccessFailure: vi.fn(), chatTypingEvent: Vue.ref(null),
     isFatalChatStatus, parseChatListRoute: () => ({ q: '', filter: 'all', offset: 0 }), serializeChatListRoute: () => ({}), avatarProps: () => ({}),
     useChatWritable: () => Vue.computed(() => writable),
     EmptyState: {}, ChatInfoPanel: {}, ConversationList: {}, MessageHistory: {}, MessageComposer: {},
   }
-  return load('app/components/chat/ChatWorkspace.vue', { conversationId }, true, { bindings })
+  return load('app/components/chat/ChatWorkspace.vue', { conversationId, infoOpen: queries.info }, true, { bindings })
 }
 
 describe('ChatWorkspace', () => {
@@ -57,5 +58,31 @@ describe('ChatWorkspace', () => {
     const reading = await open(new Map(), 5, Vue.ref(null), false)
     expect(reading.state.writable.value).toBe(false)
     reading.stop()
+  })
+
+  it('puts the list beside the thread from 768px and the open info panel beside both from 1280px', async () => {
+    const wide = await open(new Map(), 5, Vue.ref(null), true, { desktop: true, split: true, info: true })
+    expect(wide.state.showList.value).toBe(true)
+    expect(wide.state.showThread.value).toBe(true)
+    expect(wide.state.frameColumns.value).toBe('grid-cols-[360px_minmax(0,1fr)_320px]')
+    wide.stop()
+
+    const medium = await open(new Map(), 5, Vue.ref(null), true, { desktop: true, split: false, info: true })
+    expect(medium.state.showList.value).toBe(true)
+    expect(medium.state.showThread.value).toBe(false)
+    expect(medium.state.frameColumns.value).toBe('grid-cols-[360px_minmax(0,1fr)]')
+    medium.stop()
+  })
+
+  it('shows one column below 768px: the list without a conversation, the thread once one is open', async () => {
+    const list = await open(new Map(), undefined, Vue.ref(null), true, { desktop: false, split: false })
+    expect(list.state.showList.value).toBe(true)
+    expect(list.state.frameColumns.value).toBe('grid-cols-1')
+    list.stop()
+
+    const thread = await open(new Map(), 5, Vue.ref(null), true, { desktop: false, split: false })
+    expect(thread.state.showList.value).toBe(false)
+    expect(thread.state.showThread.value).toBe(true)
+    thread.stop()
   })
 })

@@ -39,8 +39,8 @@ const identity = computed(() => me.value ? `${me.value.company.id}:${me.value.id
 const disabledByConfig = computed(() => !config.public.aiEnabled)
 const showUnavailable = computed(() => disabledByConfig.value || unavailable.value)
 
-// Below 768px the shell drops the sidebar panel, so the same AiRunList is offered here as an inline disclosure.
-const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
+// From 1024px the history is a pane beside the conversation; below it the same AiRunList is an inline disclosure above it.
+const isWide = useMediaQuery('(min-width: 1024px)', { ssrWidth: 1280 })
 
 // `?context=project:12` comes from the page the user opened the assistant from.
 const context = computed(() => parseAiContext(route.query.context))
@@ -72,16 +72,16 @@ const followUps = computed(() => followUpKeys(context.value?.page ?? null).map(k
 // A help conversation reads the guide, not the company's records: the follow-ups about tasks and projects do not apply.
 const showFollowUps = computed(() => mode.value !== 'help' && !streaming.value && status.value !== 'waiting_user' && items.value.at(-1)?.kind === 'assistant')
 
-// The thread scrolls inside the card: stay at the bottom while the reader is there, and always after their own message or a reopened run.
+// The thread scrolls inside its card: stay at the bottom while the reader is there, and always after their own message or a reopened run.
 const NEAR_BOTTOM_PX = 120
 const scroller = ref<HTMLElement | null>(null)
 watch(items, async (now, before) => {
+  // The thread card exists only once there is a conversation, so its first messages are followed after it mounts.
   const el = scroller.value
-  if (!el) return
-  const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX
+  const atBottom = !el || el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX
   const follow = atBottom || before.length === 0 || now.at(-1)?.kind === 'user'
   await nextTick()
-  if (follow) el.scrollTop = el.scrollHeight
+  if (follow && scroller.value) scroller.value.scrollTop = scroller.value.scrollHeight
 })
 const summary = (item: { summaryAr: string; summaryEn: string }) => (locale.value === 'en' ? item.summaryEn : item.summaryAr)
 
@@ -182,37 +182,30 @@ watch(status, (now, before) => {
 
 <template>
   <SharedPageContainer data-template="ai-conversation">
-    <h1 class="sr-only">{{ t('ai.title') }}</h1>
-    <AiRunList v-if="!showUnavailable && !isDesktop" disclosure />
-    <SharedListCard fill class="max-md:h-[75svh]">
-      <SharedEmptyState v-if="showUnavailable" :title="t('ai.errors.unavailable')" data-testid="ai-unavailable" />
-      <template v-else>
-        <p v-if="mode" class="flex shrink-0 items-center gap-2 border-b border-default px-4 py-2 text-sm text-muted" :data-testid="`ai-${mode}-banner`">
-          <UIcon :name="mode === 'help' ? 'i-lucide-circle-help' : 'i-lucide-wand-sparkles'" aria-hidden="true" class="size-4 shrink-0" />
-          <span>{{ t(`ai.${mode}.banner`) }}</span>
-        </p>
-        <header v-if="conversation" class="flex shrink-0 items-center gap-3 border-b border-default px-4 py-3" data-testid="ai-topbar">
-          <h2 dir="auto" class="min-w-0 truncate text-sm font-semibold text-highlighted">{{ runTitle }}</h2>
-          <AiContextChip v-if="context" :page="context.page" />
-        </header>
-        <div v-if="limit || error" class="mx-auto flex w-full max-w-180 shrink-0 flex-col gap-3 px-4 pt-3">
-          <AiLimitNotice v-if="limit" :limit="limit" />
-          <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
-        </div>
-        <div ref="scroller" class="min-h-0 flex-1 overflow-y-auto">
-          <div v-if="!conversation" class="mx-auto flex min-h-full w-full max-w-180 flex-col justify-center gap-7 px-4 py-8" data-testid="ai-empty">
-            <div class="flex flex-col items-center gap-3 text-center">
-              <AiAvatar size="lg" />
-              <h2 class="text-2xl font-bold text-highlighted">{{ firstName ? t('ai.greeting', { name: firstName }) : t('ai.greetingAnonymous') }}</h2>
-              <p class="text-base text-muted">{{ t('ai.prompt') }}</p>
-              <AiContextChip v-if="context" :page="context.page" />
-            </div>
-            <AiComposer :disabled="composerDisabled" :pending="streaming" @send="onSend" />
+    <SharedPageHeader :title="t('ai.title')" />
+    <SharedEmptyState v-if="showUnavailable" bordered :title="t('ai.errors.unavailable')" data-testid="ai-unavailable" />
+    <template v-else>
+      <AiRunList v-if="!isWide" disclosure />
+      <div class="grid min-w-0 items-start gap-4" :class="{ 'grid-cols-[minmax(0,1fr)_320px]': isWide }">
+        <div class="flex min-w-0 flex-col gap-4">
+          <p v-if="mode" class="flex items-center gap-2 rounded-control bg-elevated px-4 py-2 text-sm text-muted" :data-testid="`ai-${mode}-banner`">
+            <UIcon :name="mode === 'help' ? 'i-lucide-circle-help' : 'i-lucide-wand-sparkles'" aria-hidden="true" class="size-4 shrink-0" />
+            <span>{{ t(`ai.${mode}.banner`) }}</span>
+          </p>
+          <div v-if="limit || error" class="flex w-full flex-col gap-3">
+            <AiLimitNotice v-if="limit" :limit="limit" />
+            <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
+          </div>
+          <div v-if="!conversation" class="flex min-w-0 flex-col gap-4" data-testid="ai-empty">
+            <AiContextChip v-if="context" :page="context.page" />
+            <AiComposer :disabled="composerDisabled" :pending="streaming" @send="onSend">
+              <AiSuggestionChips :items="starters" :label="t('ai.starters.label')" :disabled="composerDisabled" @pick="onSend" />
+            </AiComposer>
             <section v-if="!mode && attentionRows.length" :aria-label="t('ai.glance.title')" class="flex flex-col gap-3" data-testid="ai-glance">
               <h3 class="text-sm font-semibold text-highlighted">{{ t('ai.glance.title') }}</h3>
               <ul class="liwan-auto-grid gap-3">
                 <li v-for="row in attentionRows" :key="row.id">
-                  <NuxtLink :to="row.to" class="flex h-full flex-col gap-1 rounded-control bg-default p-3 ring ring-default hover:bg-elevated focus-visible:ring-2 focus-visible:ring-primary" data-testid="ai-glance-tile">
+                  <NuxtLink :to="row.to" class="flex h-full flex-col gap-1 rounded-card border-[1.5px] border-default bg-default p-3 transition-colors hover:bg-elevated focus-visible:ring-2 focus-visible:ring-primary" data-testid="ai-glance-tile">
                     <span class="flex items-center gap-2 text-sm font-medium text-highlighted">
                       <span aria-hidden="true" :class="['size-2 shrink-0 rounded-full', row.tone === 'urgent' ? 'bg-warning' : 'bg-primary']" />
                       <span v-if="row.tone === 'urgent'" class="sr-only">{{ t('ai.glance.urgent') }}</span>
@@ -223,40 +216,55 @@ watch(status, (now, before) => {
                 </li>
               </ul>
             </section>
-            <AiSuggestionChips :items="starters" :label="t('ai.starters.label')" :disabled="composerDisabled" @pick="onSend" />
-            <div v-if="!mode" class="flex justify-center" data-testid="ai-help-entry">
-              <UButton :to="helpTo" color="neutral" variant="soft" icon="i-lucide-circle-help" :label="t(context ? 'ai.help.askPage' : 'ai.help.open')" data-testid="ai-help-open" />
+            <div class="grid justify-items-center gap-2.5 rounded-surface border-[1.5px] border-dashed border-default bg-default px-5 py-14 text-center">
+              <AiAvatar size="lg" />
+              <h2 class="mt-2 font-display text-xl font-bold text-highlighted">{{ firstName ? t('ai.greeting', { name: firstName }) : t('ai.greetingAnonymous') }}</h2>
+              <p class="max-w-105 text-sm text-muted">{{ t('ai.prompt') }}</p>
+              <p class="flex max-w-105 items-center justify-center gap-2 text-center text-xs text-muted">
+                <UIcon name="i-lucide-shield-check" aria-hidden="true" class="size-4 shrink-0" />
+                <span>{{ t('ai.note') }}</span>
+              </p>
+              <div v-if="!mode" class="flex justify-center" data-testid="ai-help-entry">
+                <UButton :to="helpTo" color="neutral" variant="soft" icon="i-lucide-circle-help" :label="t(context ? 'ai.help.askPage' : 'ai.help.open')" data-testid="ai-help-open" />
+              </div>
             </div>
-            <p class="flex items-center justify-center gap-2 text-center text-xs text-muted">
-              <UIcon name="i-lucide-shield-check" aria-hidden="true" class="size-4 shrink-0" />
-              <span>{{ t('ai.note') }}</span>
-            </p>
           </div>
-          <div v-else class="mx-auto flex w-full max-w-180 flex-col gap-5 px-4 py-6" role="log" aria-live="polite">
-            <template v-for="(item, index) in items" :key="index">
-              <AiMessage v-if="item.kind === 'user'" role="user" :text="item.text" />
-              <AiMessage v-else-if="item.kind === 'assistant'" role="assistant" :text="item.text" :streaming="item.streaming">
-                <template #footer>
-                  <div v-if="item.records.length || (item.text && !item.streaming)" class="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <AiRecordCards v-if="item.records.length" :records="item.records" />
-                    <AiCopyButton v-if="item.text && !item.streaming" :text="item.text" />
-                  </div>
+          <div v-else class="flex h-[max(480px,calc(100svh-300px))] min-h-0 min-w-0 flex-col overflow-hidden rounded-surface border-[1.5px] border-default bg-default">
+            <header class="flex shrink-0 items-center gap-3 border-b-[1.5px] border-default px-5 py-3" data-testid="ai-topbar">
+              <h2 dir="auto" class="min-w-0 truncate text-sm font-semibold text-highlighted">{{ runTitle }}</h2>
+              <AiContextChip v-if="context" :page="context.page" />
+            </header>
+            <div ref="scroller" class="min-h-0 flex-1 overflow-y-auto">
+              <div class="mx-auto flex w-full max-w-180 flex-col gap-5 px-4 py-6" role="log" aria-live="polite">
+                <template v-for="(item, index) in items" :key="index">
+                  <AiMessage v-if="item.kind === 'user'" role="user" :text="item.text" />
+                  <AiMessage v-else-if="item.kind === 'assistant'" role="assistant" :text="item.text" :streaming="item.streaming">
+                    <template #footer>
+                      <div v-if="item.records.length || (item.text && !item.streaming)" class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <AiRecordCards v-if="item.records.length" :records="item.records" />
+                        <AiCopyButton v-if="item.text && !item.streaming" :text="item.text" />
+                      </div>
+                    </template>
+                  </AiMessage>
+                  <AiHandoffLine v-else-if="item.kind === 'agent'" :name="locale === 'en' ? item.nameEn : item.nameAr" />
+                  <AiToolTrace v-else-if="item.kind === 'tool'" :summary="summary(item)" :state="item.state" :disabled="!hydrated || streaming" @retry="decide(item.callId, 'approved')" />
+                  <AiConfirmCard v-else-if="item.kind === 'confirm'" :summary="summary(item)" :state="item.state" :latest="index === latestPending" :disabled="!hydrated || streaming || item.busy" :note="item.busy ? t('ai.confirm.executing') : undefined" @approve="decide(item.callId, 'approved')" @reject="decide(item.callId, 'rejected')" />
+                  <AiDraftCard v-else :summary="summary(item)" :state="item.state" :latest="index === latestPending" @open="openDraft(item)" @discard="decide(item.callId, 'rejected')" />
                 </template>
-              </AiMessage>
-              <AiHandoffLine v-else-if="item.kind === 'agent'" :name="locale === 'en' ? item.nameEn : item.nameAr" />
-              <AiToolTrace v-else-if="item.kind === 'tool'" :summary="summary(item)" :state="item.state" :disabled="!hydrated || streaming" @retry="decide(item.callId, 'approved')" />
-              <AiConfirmCard v-else-if="item.kind === 'confirm'" :summary="summary(item)" :state="item.state" :latest="index === latestPending" :disabled="!hydrated || streaming || item.busy" :note="item.busy ? t('ai.confirm.executing') : undefined" @approve="decide(item.callId, 'approved')" @reject="decide(item.callId, 'rejected')" />
-              <AiDraftCard v-else :summary="summary(item)" :state="item.state" :latest="index === latestPending" @open="openDraft(item)" @discard="decide(item.callId, 'rejected')" />
-            </template>
+              </div>
+            </div>
+            <div class="shrink-0 border-t-[1.5px] border-default bg-default px-4 pb-4 pt-3">
+              <div class="mx-auto flex w-full max-w-180 flex-col gap-3">
+                <AiSuggestionChips v-if="showFollowUps" :items="followUps" :label="t('ai.followUps.label')" :disabled="composerDisabled" @pick="onSend" />
+                <AiComposer compact :disabled="composerDisabled" :pending="streaming" @send="onSend" />
+              </div>
+            </div>
           </div>
         </div>
-        <div v-if="conversation" class="shrink-0 bg-default px-4 pb-4 pt-2">
-          <div class="mx-auto flex w-full max-w-180 flex-col gap-3">
-            <AiSuggestionChips v-if="showFollowUps" :items="followUps" :label="t('ai.followUps.label')" :disabled="composerDisabled" @pick="onSend" />
-            <AiComposer :disabled="composerDisabled" :pending="streaming" @send="onSend" />
-          </div>
-        </div>
-      </template>
-    </SharedListCard>
+        <aside v-if="isWide" :aria-label="t('ai.history.title')">
+          <AiRunList />
+        </aside>
+      </div>
+    </template>
   </SharedPageContainer>
 </template>
