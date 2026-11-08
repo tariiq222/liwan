@@ -11,6 +11,7 @@ from . import (
     ir_attachment,
     ir_rule,
     liwan_model,
+    outbound_mail,
     res_company,
     res_groups,
     res_partner,

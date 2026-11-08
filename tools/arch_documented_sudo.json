@@ -206,7 +206,7 @@
     },
     "odoo-addons/liwan_core/models/account_mail.py": {
       "count": 2,
-      "reason": "liwan_core account link mail: `api.Environment(cr, SUPERUSER_ID, {})` in the postcommit send and in `_liwan_mark_failed` opens a fresh cursor after the request committed, to call `ir.mail_server.send_email` and to write `delivery` and `sent_at` on the link row; blocked by the system-only `ir.mail_server` ACL and by `access_account_token_system`, and the requester may be the public user of forgot-password. It runs only for a link the service just issued and carries the recipient and text already fixed by the service, never request input."
+      "reason": "liwan_core account link mail: `SUPERUSER_ID` passed as the send uid to the shared `liwan.outbound.mail._liwan_send_after_commit` (which opens a fresh cursor after the request committed to call `ir.mail_server.send_email`) and `api.Environment(cr, SUPERUSER_ID, {})` in `_liwan_mark_failed` and the sent callback, to write `delivery` and `sent_at` on the link row; blocked by the system-only `ir.mail_server` ACL and by `access_account_token_system`, and the requester may be the public user of forgot-password. It runs only for a link the service just issued and carries the recipient and text already fixed by the service, never request input."
     }
   }
 }

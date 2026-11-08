@@ -1,4 +1,5 @@
-import type { AppManifest, AppSettingsPage, AppSettingsPart } from './types'
+import { PLATFORM_BELL } from './platformBell'
+import type { AppBellKind, AppManifest, AppSettingsPage, AppSettingsPart } from './types'
 
 // Relative imports only: vitest runs these modules directly, without the `@/` alias.
 const discovered = import.meta.glob<{ default: AppManifest }>('./*/manifest.ts', { eager: true })
@@ -15,6 +16,17 @@ let override: readonly AppManifest[] | null = null
 /** Manifests in force: the discovered ones, or the list a test installed with `withManifests`. */
 export function activeManifests(): readonly AppManifest[] {
   return override ?? appManifests
+}
+
+/** One declaration of bell kinds: the application's feature gates it (null for the platform), `capabilities` open the bell. */
+export interface BellSource { feature: string | null; capabilities: readonly string[]; kinds: readonly AppBellKind[] }
+
+/** The bell declarations of the active applications, then the platform's own. */
+export function bellSources(): BellSource[] {
+  const apps = activeManifests().flatMap(manifest => manifest.bell
+    ? [{ feature: manifest.feature, capabilities: manifest.bell.capabilities, kinds: manifest.bell.kinds ?? [] }]
+    : [])
+  return [...apps, { feature: null, ...PLATFORM_BELL }]
 }
 
 /** Test seam: run `fn` with `list` as the manifests in force (sync or async), then restore. Throws if an override is already active (no nesting, no concurrent async use). */
