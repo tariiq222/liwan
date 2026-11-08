@@ -40,7 +40,11 @@ describe('top bar corner radius', () => {
     expect(shell).toMatch(/\.liwan-shell-header \.liwan-search-trigger \{[^}]*border-radius: var\(--liwan-bar-radius\);/)
   })
 
-  it('has the same corner shape on all four: none of them is a squircle', () => {
+  it('states the same plain round corner shape on all four rendered controls', () => {
+    expect(shell).toContain('.liwan-tools, .liwan-ai-button, .liwan-user, .liwan-shell-header .liwan-search-trigger { border-radius: var(--liwan-bar-radius); corner-shape: round; }')
+  })
+
+  it('keeps all four out of the squircle list', () => {
     const components = strip(readFileSync(resolve(css, 'components.css'), 'utf8'))
     const squircle = components.match(/@supports \(corner-shape: squircle\) \{([\s\S]*?)\{ corner-shape: squircle; \}/)?.[1] ?? ''
     for (const selector of ['.liwan-tools', '.liwan-ai-button', '.liwan-user', '.liwan-shell-header .liwan-search-trigger,', '.liwan-shell-header .liwan-search-trigger\n']) expect(squircle, selector).not.toContain(selector)

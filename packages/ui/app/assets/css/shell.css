@@ -182,6 +182,10 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
   .liwan-sidebar[data-surface="sidebar"] .liwan-side-account { justify-content: center; padding-inline: 0; }
 }
 
+/* One corner for the four top-bar controls: the radius token plus the plain round shape, stated on the rendered elements (the search
+   trigger is a UButton that also carries the squircle `rounded-control` class, so the shape must be set on it directly). */
+.liwan-tools, .liwan-ai-button, .liwan-user, .liwan-shell-header .liwan-search-trigger { border-radius: var(--liwan-bar-radius); corner-shape: round; }
+
 /* Top bar: flat, sticky, blurred; a hairline appears once the page has scrolled. */
 .liwan-shell-header {
   position: sticky;
