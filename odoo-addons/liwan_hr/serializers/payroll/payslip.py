@@ -40,3 +40,16 @@ def dump_payslip(slip):
         'company': {'name': slip.company_id.name, 'vat': slip.company_id.vat or ''},
         'currency': currency_code(slip.company_id),
     }
+
+
+def dump_my_payslip(slip):
+    """The caller's own payslip: the same document without the company's operating figures.
+
+    The employer GOSI share and the company tax number are the employer's own cost and registration data; the
+    company's payroll readers keep them through ``dump_payslip``, an employee reading their own payslip gets only
+    what concerns their pay.
+    """
+    document = dump_payslip(slip)
+    del document['gosi_employer']
+    document['company'] = {'name': document['company']['name']}
+    return document

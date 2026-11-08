@@ -107,8 +107,18 @@ class TestPayrollPayslips(PayrollCase):
         self.assertEqual(body['employee']['id'], self.employee_a.id)
         self.assertEqual(set(body['company']), {'name', 'vat'})
 
+    def test_the_own_payslip_document_has_no_employer_figures(self):
+        """The employee's own detail is the same document without the employer share and the tax number."""
+        approved = self._run(APPROVED_MONTH, approve=True)
+        slip = self._slip(approved, self.employee_a)
+        self._login(self.officer)
+        manager = self.api('GET', f'{RUNS}/{approved}/payslips/{slip.id}').json()
         self._login(self.own)
-        self.assertEqual(self.api('GET', f'{MINE}/{slip.id}').json(), body)
+        mine = self.api('GET', f'{MINE}/{slip.id}').json()
+        self.assertEqual(set(mine), set(manager) - {'gosi_employer'})
+        self.assertEqual(mine['company'], {'name': manager['company']['name']})
+        for key in ('id', 'month', 'state', 'net', 'gross', 'deductions', 'lines', 'paid_days'):
+            self.assertEqual(mine[key], manager[key], key)
 
     def test_run_payslip_of_another_run_is_not_found(self):
         approved = self._run(APPROVED_MONTH, approve=True)
