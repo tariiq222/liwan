@@ -2,7 +2,7 @@
 {
     'name': 'liwan HR',
     'summary': 'liwan platform: the HR pillar — /api/v1/hr departments, employees, leave, recruitment, shifts, onboarding, offboarding, assets, warnings, medical insurance',
-    'version': '19.0.1.19.0',
+    'version': '19.0.1.20.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

@@ -146,17 +146,20 @@ class LiwanHrPayrollExport(models.AbstractModel):
 
     @api.model
     def _liwan_gosi_statement(self, run):
-        """The GOSI statement of a run: per employee the contributory wage and the share of each branch."""
+        """The GOSI statement of a run: per employee the contributory wage and the share of each branch.
+
+        The GOSI number is the one stored with the payslip when the run was approved (owner decision D-4), so
+        correcting the live compensation afterwards never rewrites the statement of a closed month.
+        """
         totals = self._liwan_line_totals(run)
-        compensations = self.env['liwan.hr.compensation'].search([('employee_id', 'in', run.slip_ids.employee_id.ids)])
-        by_employee = {record.employee_id.id: record for record in compensations}
+        snapshots = self.env['liwan.hr.payslip.payment']._liwan_by_payslip(run.slip_ids)
         lines = []
         for slip in run.slip_ids.sorted(lambda row: (row.employee_id.name or '', row.id)):
             codes = totals[slip.id]
             if not any(codes.get(code) for code in (GOSI_WAGE_CODE, *GOSI_CODES.values())):
                 continue
             employee = slip.employee_id
-            compensation = by_employee.get(employee.id)
+            paid = snapshots.get(slip.id)
             branches = {}
             for branch in ('annuities', 'saned', 'hazards'):
                 branches[branch] = {
@@ -165,7 +168,7 @@ class LiwanHrPayrollExport(models.AbstractModel):
                 }
             lines.append({
                 'employee': employee,
-                'gosi_number': (compensation.gosi_number if compensation else '') or '',
+                'gosi_number': (paid.gosi_number if paid else '') or '',
                 'nationality_class': slip.liwan_gosi_class,
                 'contributory_wage': money(codes.get(GOSI_WAGE_CODE, Decimal(0))),
                 'branches': branches,

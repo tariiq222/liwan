@@ -641,3 +641,8 @@ msgstr "القسيمة المعتمدة ثابتة: لا يمكن تغيير أ�
 #: code:addons/liwan_hr/models/hr_payslip_run.py:0
 msgid "An approved payroll run cannot go back to an editable state."
 msgstr "لا يمكن إعادة مسيّر رواتب معتمد إلى حالة قابلة للتعديل."
+
+#. module: liwan_hr
+#: model:ir.model.fields,field_description:liwan_hr.field_liwan_hr_payslip_payment__gosi_number
+msgid "Paid GOSI number"
+msgstr "رقم التأمينات المسجَّل عند الاعتماد"
