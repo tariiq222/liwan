@@ -1,7 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import contextlib
+import io
+import subprocess
+import tempfile
 import unittest
+from pathlib import Path
 
-from docs_policy import find_missing
+from docs_policy import find_missing, main
 
 KNOWN = {
     'tools', 'tools/real.py', 'docs', 'docs/a.md',
@@ -30,6 +35,30 @@ class TestDocsPolicy(unittest.TestCase):
     def test_ignores_placeholders_globs_routes_and_commands(self):
         text = '`apps/web/app/modules/<app>/manifest.ts` `odoo-addons/*/x.py` `/api/v1/people` `npm -w apps/web run lint` `origin/main` `release/19.0.X.Y.Z`'
         self.assertEqual(find_missing('docs/x.md', text, KNOWN), [])
+
+    def test_changed_prose_rejects_new_broken_links_outside_instruction_docs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            def git(*args):
+                return subprocess.check_output(['git', '-C', directory, *args], text=True).strip()
+            git('init', '-q')
+            git('config', 'user.email', 'fixture@example.invalid')
+            git('config', 'user.name', 'Fixture')
+            docs = root / 'docs'
+            docs.mkdir()
+            (docs / 'دليل.md').write_text('# Guide\n', encoding='utf-8')
+            report = docs / 'report.md'
+            report.write_text('[Existing](old-missing.md)\n', encoding='utf-8')
+            git('add', '.')
+            git('commit', '-qm', 'baseline')
+            base = git('rev-parse', 'HEAD')
+            report.write_text('[Existing](old-missing.md)\n[Guide](دليل.md)\n[New](new-missing.md)\n', encoding='utf-8')
+            git('add', '.')
+            git('commit', '-qm', 'changed')
+            errors = io.StringIO()
+            with contextlib.redirect_stderr(errors):
+                self.assertEqual(main(['--changed-markdown', base], root=root), 1)
+            self.assertEqual(errors.getvalue(), 'docs/report.md:3: missing file reference new-missing.md\n')
 
 
 if __name__ == '__main__':

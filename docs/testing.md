@@ -198,7 +198,8 @@ workflow creates it automatically.
 
 A pull request that only adds or edits ordinary Markdown under `docs/` uses the
 light static profile if the changed files are valid UTF-8 and at most 1 MiB each.
-It checks the repository's document references, Git and
+It checks new relative links in changed Markdown, the owning instruction
+documents' references, Git and
 architecture rules, tracked secrets and retired terms, without installing npm
 dependencies or Chromium. Deletions, renamed paths, binary files, changes in
 `docs/api/` or `docs/design-system/`, and any mixed or unknown diff use the full
