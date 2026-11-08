@@ -3,25 +3,27 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 // Guard for the top bar's one icon-button style (owner-approved reorganisation): every tool is the same tile as the sidebar core-apps row
-// with no background at rest and a light fill on hover; groups are separated by a hairline, never a tinted capsule.
+// with no background at rest and a light fill on hover; the tools share one soft capsule (the mock's top-bar treatment).
 const css = resolve(import.meta.dirname, '..')
 const strip = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, '')
 const shell = strip(readFileSync(resolve(css, 'shell.css'), 'utf8'))
 const rule = (selector: string) => shell.match(new RegExp(`(?:^|\\})\\s*${selector.replace(/[.[\]"=():-]/g, '\\$&')}\\s*\\{([^}]*)\\}`))?.[1] ?? ''
 
 describe('top bar icon buttons', () => {
-  it('are the same 36px tile as the sidebar core-apps row: surface, hairline, ink icon, solid ink while open', () => {
+  it('sit in one soft capsule: no border or fill at rest, ink icon, solid ink while their panel is open', () => {
     const tool = rule('.liwan-tool')
-    expect(tool).toMatch(/width: var\(--liwan-bar-tile\);/)
-    expect(tool).toMatch(/border: 1px solid var\(--ui-border\);/)
-    expect(tool).toMatch(/background: var\(--ui-bg\);/)
+    expect(tool).toMatch(/border: 0;/)
+    expect(tool).toMatch(/background: transparent;/)
     expect(tool).toMatch(/color: var\(--liwan-ink\);/)
-    expect(shell).toContain('.liwan-tool[data-open="true"] { border-color: var(--liwan-ink); background: var(--liwan-ink); color: var(--liwan-on-ink); }')
+    expect(shell).toContain('.liwan-tool[data-open="true"] { background: var(--liwan-ink); color: var(--liwan-on-ink); }')
     expect(shell).toContain('.liwan-tool:focus-visible { outline: 2px solid var(--ring);')
   })
 
-  it('have no tinted capsule around a group and no bordered stand-alone variant', () => {
-    expect(rule('.liwan-tools')).not.toMatch(/background|box-shadow|padding/)
+  it('share one soft filled capsule with the same height as the other bar controls', () => {
+    const tools = rule('.liwan-tools')
+    expect(tools).toMatch(/height: var\(--liwan-bar-tile\);/)
+    expect(tools).toMatch(/background: var\(--ui-bg-muted\);/)
+    expect(tools).toMatch(/border: 1px solid var\(--ui-border\);/)
     expect(shell).not.toContain('data-variant="outline"')
     expect(shell).not.toContain('.liwan-app-grid')
     expect(shell).not.toContain('.liwan-app-switcher')

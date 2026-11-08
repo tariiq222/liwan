@@ -57,7 +57,7 @@ useShellShortcuts({
     <template #search><GlobalSearch /></template>
     <template #end>
       <AssistantButton />
-      <div v-if="tools.length" class="liwan-tools" role="group" :aria-label="t('nav.tools')">
+      <div v-if="tools.length || can('liwan.notifications')" class="liwan-tools" role="group" :aria-label="t('nav.tools')">
         <ShellToolButton
           v-for="tool in tools"
           :key="tool.panel.id"
@@ -71,8 +71,8 @@ useShellShortcuts({
           hide-on-mobile
           @click="slideOver.toggle(tool.panel.id, $event.currentTarget as HTMLElement)"
         />
+        <NotificationCenter v-if="can('liwan.notifications')" />
       </div>
-      <NotificationCenter v-if="can('liwan.notifications')" />
       <AppUserMenu />
     </template>
   </ShellTopBar>
