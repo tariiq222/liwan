@@ -41,6 +41,7 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
     refDebounced: (value: unknown) => value, searchProviders: () => [], visibleCommands: () => [],
     _defineComponent: Vue.defineComponent, defineComponent: Vue.defineComponent,
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, reactive: Vue.reactive, projectSectionAvailable, formatCalendarDate,
+    definePageMeta: () => undefined,
     onMounted: () => undefined, useEventListener: () => undefined, useRowNavigation: () => undefined,
     useRoute: () => route, useRouter: () => router,
     useI18n: () => ({ t: (key: string) => key }),
