@@ -44,3 +44,18 @@ it('gives each form its own key, so two notes of one page do not collapse into o
   expect(keys[0]).toBeTruthy()
   expect(keys[0]).not.toBe(keys[1])
 })
+
+/** Two forms of the same page are two notes: their keys must never be equal, for either note kind. */
+it.each([
+  ['debit note', useCreateFinanceDebitNote],
+  ['credit note', useCreateFinanceCreditNote],
+] as const)('gives two %s hooks different keys', async (_label, hook) => {
+  const api = harness()
+  await (hook() as any).mutationFn({ id: 5, body: {} })
+  await (hook() as any).mutationFn({ id: 5, body: {} })
+  const keys = (api.mock.calls as unknown as [string, { headers: Record<string, string> }][])
+    .map(call => call[1].headers['Idempotency-Key'])
+  expect(keys[0]).toBeTruthy()
+  expect(keys[1]).toBeTruthy()
+  expect(keys[0]).not.toBe(keys[1])
+})
