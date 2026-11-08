@@ -65,9 +65,9 @@ function submit() {
     <SharedPageState v-else-if="error" :error="error" @retry="refetch()" />
     <form v-else class="liwan-form" novalidate data-testid="inbox-campaign-settings" @submit.prevent="submit">
       <SharedUnsavedChanges :dirty="dirty" />
-      <UFormField :label="t('inbox.campaigns.settings.policyLabel')" :description="t('inbox.campaigns.settings.policyDescription')">
-        <URadioGroup v-model="draft.consentPolicy" :items="policyItems" :disabled="!hydrated || isPending" data-testid="inbox-consent-policy" />
-      </UFormField>
+      <SharedSettingRow stacked :label="t('inbox.campaigns.settings.policyLabel')" :description="t('inbox.campaigns.settings.policyDescription')">
+        <SharedOptionCards v-model="draft.consentPolicy" :options="policyItems" :label="t('inbox.campaigns.settings.policyLabel')" :disabled="!hydrated || isPending" data-testid="inbox-consent-policy" />
+      </SharedSettingRow>
       <UFormField :label="t('inbox.campaigns.settings.countryCode')" :description="t('inbox.campaigns.settings.countryCodeHint')">
         <UInput :model-value="draft.countryCode" class="w-full sm:w-40" dir="ltr" inputmode="numeric" maxlength="3" placeholder="966" :disabled="!hydrated || isPending" data-testid="inbox-country-code" @update:model-value="draft.countryCode = digits(String($event ?? ''))" />
       </UFormField>

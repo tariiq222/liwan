@@ -57,7 +57,7 @@ const swatchColor = computed(() => normalizeHex(draft.value.primary_color) ?? DE
         </UPopover>
       </div>
     </UFormField>
-    <UFormField orientation="horizontal" :label="t('settings.branding.presets.label')">
+    <SharedSettingRow :label="t('settings.branding.presets.label')">
       <div class="flex flex-wrap gap-2" role="group" :aria-label="t('settings.branding.presets.label')">
         <UButton
           v-for="preset in PRESETS"
@@ -73,6 +73,6 @@ const swatchColor = computed(() => normalizeHex(draft.value.primary_color) ?? DE
           {{ t(preset.labelKey) }}
         </UButton>
       </div>
-    </UFormField>
+    </SharedSettingRow>
   </SharedSettingsCard>
 </template>

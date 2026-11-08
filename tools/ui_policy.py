@@ -46,7 +46,7 @@ LAYER_COMPONENTS = frozenset(
     ['shared/feedback/' + name + '.vue' for name in ('EmptyState', 'ErrorState', 'ForbiddenState', 'LoadingSkeleton', 'NotFoundState', 'PageState')]
     + ['shared/layout/' + name + '.vue' for name in (
         'BrandWordmark', 'ConversationLayout', 'CreatePanel', 'DashboardPage', 'FormSection', 'KpiStrip', 'KpiToggle', 'ListPage', 'PageContainer',
-        'PageHeader', 'ListCard', 'PropertiesPanel', 'PropertyRow', 'RecordPage', 'RecordSection', 'RecordWorkspace', 'RouteTabs', 'SettingsCard', 'SettingsList', 'SettingsListRow', 'SettingsPage',
+        'PageHeader', 'ListCard', 'PropertiesPanel', 'PropertyRow', 'RecordPage', 'RecordSection', 'RecordWorkspace', 'RouteTabs', 'SettingRow', 'SettingsCard', 'SettingsSection', 'OptionCards', 'SettingsList', 'SettingsListRow', 'SettingsPage',
         'SettingsSaveBar',
         'StandalonePage', 'SubCard', 'TimelineFrame', 'LinkCard', 'IdentityCard', 'HeaderTags')]
     + ['shared/data/' + name + '.vue' for name in (
@@ -132,7 +132,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'shared/layout/TimelineFrame.vue', 'shared/layout/ConversationLayout.vue',
     'shared/data/InvoiceLines.vue', 'shared/data/PersonAvatar.vue', 'pmo/tasks/TaskKpiStrip.vue', 'pmo/projects/ProjectKpiStrip.vue',
     'settings/SettingsPreviewCard.vue', 'settings/SettingsPreviewList.vue', 'settings/SettingsPreviewRow.vue', 'settings/IntegrationConnections.vue', 'finance/governance/AuditPreview.vue',
-    'shared/layout/SettingsCard.vue', 'shared/layout/SettingsList.vue', 'shared/layout/SettingsListRow.vue', 'shared/layout/SettingsSaveBar.vue',
+    'shared/layout/SettingsCard.vue', 'shared/layout/SettingRow.vue', 'shared/layout/SettingsSection.vue', 'shared/form/OptionCards.vue', 'shared/layout/SettingsList.vue', 'shared/layout/SettingsListRow.vue', 'shared/layout/SettingsSaveBar.vue',
     'shared/layout/SubCard.vue', 'shared/layout/KpiStrip.vue', 'shared/data/Progress.vue', 'shared/layout/LinkCard.vue', 'shared/layout/IdentityCard.vue', 'shared/layout/HeaderTags.vue',
 ))
 STORY_CONTEXT = re.compile(r'''\bstoryContext\(\s*(['"])([^'"]+)\1''')

@@ -181,8 +181,8 @@ const monthOptions = computed(() => Array.from({ length: 12 }, (_, index) => ({
         :aria-label="t('finance.setup.fiscal.transfer_account_id')"
       />
     </UFormField>
-    <UFormField orientation="horizontal" :label="t('finance.setup.fiscal.hard_lock_date')" :description="t('finance.setup.fiscal.hardLockHint')">
+    <SharedSettingRow :label="t('finance.setup.fiscal.hard_lock_date')" :description="t('finance.setup.fiscal.hardLockHint')">
       <SharedDateField id="finance-fiscal-hard_lock_date" :model-value="setup.fiscal.hard_lock_date" disabled :aria-label="t('finance.setup.fiscal.hard_lock_date')" />
-    </UFormField>
+    </SharedSettingRow>
   </SharedSettingsCard>
 </template>

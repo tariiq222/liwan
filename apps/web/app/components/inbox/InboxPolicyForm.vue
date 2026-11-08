@@ -59,9 +59,9 @@ function submit() {
     <SharedPageState v-else-if="error" :error="error" @retry="refetch()" />
     <form v-else class="liwan-form" novalidate @submit.prevent="submit">
       <SharedUnsavedChanges :dirty="dirty" />
-      <UFormField :label="t('inbox.settings.policy.visibilityLabel')" :description="t('inbox.settings.policy.visibilityDescription')">
-        <URadioGroup v-model="visibility" :items="policyItems" :disabled="!hydrated || isPending" data-testid="inbox-visibility" />
-      </UFormField>
+      <SharedSettingRow stacked :label="t('inbox.settings.policy.visibilityLabel')" :description="t('inbox.settings.policy.visibilityDescription')">
+        <SharedOptionCards v-model="visibility" :options="policyItems" :label="t('inbox.settings.policy.visibilityLabel')" :disabled="!hydrated || isPending" data-testid="inbox-visibility" />
+      </SharedSettingRow>
       <div class="liwan-auto-grid gap-4">
         <UFormField :label="t('inbox.settings.policy.autoClose')" :description="t('inbox.settings.policy.autoCloseHint')">
           <UInputNumber v-model="autoClose" class="w-full" :min="0" :max="720" :disabled="!hydrated || isPending" data-testid="inbox-auto-close" />
@@ -70,9 +70,9 @@ function submit() {
           <UInputNumber v-model="retention" class="w-full" :min="1" :max="120" :disabled="!hydrated || isPending" data-testid="inbox-retention" />
         </UFormField>
       </div>
-      <UFormField :label="t('inbox.settings.policy.assignmentLabel')" :description="t('inbox.settings.policy.assignmentDescription')">
-        <URadioGroup v-model="assignment" :items="assignmentItems" :disabled="!hydrated || isPending" data-testid="inbox-assignment" />
-      </UFormField>
+      <SharedSettingRow stacked :label="t('inbox.settings.policy.assignmentLabel')" :description="t('inbox.settings.policy.assignmentDescription')">
+        <SharedOptionCards v-model="assignment" :options="assignmentItems" :label="t('inbox.settings.policy.assignmentLabel')" :disabled="!hydrated || isPending" data-testid="inbox-assignment" />
+      </SharedSettingRow>
       <UFormField :label="t('inbox.settings.policy.reportRetention')" :description="t('inbox.settings.policy.reportRetentionHint')">
         <UInputNumber v-model="reportRetention" class="w-full sm:w-60" :min="12" :max="120" :disabled="!hydrated || isPending" data-testid="inbox-report-retention" />
       </UFormField>

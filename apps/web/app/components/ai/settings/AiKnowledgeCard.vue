@@ -40,15 +40,15 @@ async function rebuildIndex() {
 
 <template>
   <SharedSettingsCard id="knowledge" v-bind="state" :title="t('ai.settings.knowledge.title')" :description="t('ai.settings.knowledge.hint')" :can-edit="true" data-testid="ai-settings-knowledge" @save="save" @revert="revert" @reload="reload">
-    <UFormField orientation="horizontal" :label="t('ai.settings.knowledge.enabled')" name="knowledge_enabled" :description="t('ai.settings.knowledge.enabledHint')">
+    <SharedSettingRow :label="t('ai.settings.knowledge.enabled')" name="knowledge_enabled" :description="t('ai.settings.knowledge.enabledHint')">
       <USwitch id="ai-knowledge-enabled" v-model="draft.knowledge_enabled" :disabled="locked" :aria-label="t('ai.settings.knowledge.enabled')" />
-    </UFormField>
+    </SharedSettingRow>
     <SharedInlineConfirm
       v-if="confirming" :title="t('ai.settings.knowledge.rebuildTitle')" :description="t('ai.settings.knowledge.rebuildHint')"
       :confirm-label="t('ai.settings.knowledge.rebuild')" :pending="rebuilding" @cancel="confirming = false" @confirm="rebuildIndex"
     />
-    <UFormField v-else orientation="horizontal" :label="t('ai.settings.knowledge.rebuild')" name="rebuild" :description="t('ai.settings.knowledge.rebuildHint')">
+    <SharedSettingRow v-else  :label="t('ai.settings.knowledge.rebuild')" name="rebuild" :description="t('ai.settings.knowledge.rebuildHint')">
       <UButton type="button" color="neutral" variant="outline" icon="i-lucide-refresh-cw" :label="t('ai.settings.knowledge.rebuild')" :disabled="locked" data-testid="ai-knowledge-rebuild" @click="confirming = true" />
-    </UFormField>
+    </SharedSettingRow>
   </SharedSettingsCard>
 </template>

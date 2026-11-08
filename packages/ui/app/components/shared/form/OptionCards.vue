@@ -8,7 +8,7 @@
 export interface OptionCard { value: string; label: string; description?: string; disabled?: boolean; disabledReason?: string }
 
 const props = defineProps<{
-  modelValue: string
+  modelValue?: string
   options: OptionCard[]
   /** The accessible name of the group. */
   label: string

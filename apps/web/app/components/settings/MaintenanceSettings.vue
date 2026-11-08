@@ -115,18 +115,18 @@ function resetBooking() {
     <SharedUnsavedChanges :dirty="dirty" />
     <UAlert v-if="error" data-testid="maintenance-error" color="error" :title="error" :description="t('settings.maintenance.keepDraft')" />
     <SharedSettingsCard id="maintenance" v-bind="state" data-testid="maintenance-preference-form" :title="t('settings.maintenance.preference')" :description="t('settings.maintenance.preferenceHint')" :can-edit="true" @save="savePreferenceDraft" @revert="revert" @reload="reloadPreference">
-      <UFormField orientation="horizontal" :label="t('settings.maintenance.timezone')" name="timezone">
+      <SharedSettingRow :label="t('settings.maintenance.timezone')" name="timezone">
         <UInput v-model="draft.timezone" class="w-full" data-testid="maintenance-timezone" :disabled="locked" dir="ltr" />
-      </UFormField>
-      <UFormField orientation="horizontal" :label="t('settings.maintenance.weekday')" name="weekday">
+      </SharedSettingRow>
+      <SharedSettingRow :label="t('settings.maintenance.weekday')" name="weekday">
         <USelect v-model="draft.weekday" class="w-full" :items="weekdays" :disabled="locked" />
-      </UFormField>
-      <UFormField orientation="horizontal" :label="t('settings.maintenance.startTime')" name="startTime">
+      </SharedSettingRow>
+      <SharedSettingRow :label="t('settings.maintenance.startTime')" name="startTime">
         <UInput v-model="startTime" class="w-full" type="time" dir="ltr" :disabled="locked" />
-      </UFormField>
-      <UFormField orientation="horizontal" :label="t('settings.maintenance.duration')" name="duration">
+      </SharedSettingRow>
+      <SharedSettingRow :label="t('settings.maintenance.duration')" name="duration">
         <UInput v-model="draft.durationMinutes" class="w-full" data-testid="maintenance-duration" type="number" :min="1" :max="1440" :disabled="locked" />
-      </UFormField>
+      </SharedSettingRow>
     </SharedSettingsCard>
     <SharedRecordSection variant="list" :title="t('settings.maintenance.releases')">
       <p v-if="!snapshot.releases.items.length" class="p-(--liwan-card-pad) text-sm text-muted">{{ t('settings.maintenance.noReleases') }}</p>
