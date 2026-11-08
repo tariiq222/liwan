@@ -142,7 +142,7 @@ describe('managed registration HTTP slice', () => {
     await setCatalog('test-v1')
     await setInventories({}, { [target]: descriptor(target) })
     const before = tenants.length
-    const response = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Managed fixture', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: target, catalog_version: 'test-v1', catalog_tier: 'core', reason: 'Register managed fixture' }))
+    const response = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Managed fixture', commercial_mode: 'saas', hosting_model: 'dedicated_managed', inventory_target: target, catalog_version: 'test-v1', catalog_tier: 'core', reason: 'Register managed fixture' }))
     expect(response.status).toBe(201)
     expect((await response.json() as Tenant).inventory_target).toBe(target)
     expect(tenants).toHaveLength(before + 1)
@@ -153,10 +153,10 @@ describe('managed registration HTTP slice', () => {
     await setCatalog('other-v1')
     await setCatalog('test-v1', `sha256:${'e'.repeat(64)}`)
     await setInventories({}, { [target]: descriptor(target) })
-    const wrongVersion = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Wrong catalog version', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: target, catalog_version: 'other-v1', catalog_tier: 'core', reason: 'Reject mismatched catalog version' }))
+    const wrongVersion = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Wrong catalog version', commercial_mode: 'saas', hosting_model: 'dedicated_managed', inventory_target: target, catalog_version: 'other-v1', catalog_tier: 'core', reason: 'Reject mismatched catalog version' }))
     expect(wrongVersion.status).toBe(422)
     expect(await wrongVersion.json()).toMatchObject({ field: 'catalog_version' })
-    const wrongDigest = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Wrong catalog source', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: target, catalog_version: 'test-v1', catalog_tier: 'core', reason: 'Reject mismatched catalog source' }))
+    const wrongDigest = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Wrong catalog source', commercial_mode: 'saas', hosting_model: 'dedicated_managed', inventory_target: target, catalog_version: 'test-v1', catalog_tier: 'core', reason: 'Reject mismatched catalog source' }))
     expect(wrongDigest.status).toBe(422)
     expect(await wrongDigest.json()).toMatchObject({ field: 'catalog_version' })
     expect(tenants.some((tenant) => tenant.inventory_target === target)).toBe(false)
@@ -166,7 +166,7 @@ describe('managed registration HTTP slice', () => {
     const managedTarget = 'tgt_managed_actions'
     await setInventories({ 'legacy-scratch': { kind: 'scratch', database: 'safe_scratch', classification_file: join(fixtureDir, 'classification.json') } }, { [managedTarget]: descriptor(managedTarget) })
     await setCatalog('test-v1')
-    const managed = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Managed actions', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: managedTarget, catalog_version: 'test-v1', catalog_tier: 'core', reason: 'Check actions' }))
+    const managed = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Managed actions', commercial_mode: 'saas', hosting_model: 'dedicated_managed', inventory_target: managedTarget, catalog_version: 'test-v1', catalog_tier: 'core', reason: 'Check actions' }))
     const managedId = (await managed.json() as Tenant).id
     const registered = await call('GET', `/v1/tenants/${managedId}`)
     expect((await registered.json() as Tenant).available_operations).toEqual(['tenant.create'])
@@ -174,7 +174,7 @@ describe('managed registration HTTP slice', () => {
     stored.status = 'active'
     const active = await call('GET', `/v1/tenants/${managedId}`)
     expect((await active.json() as Tenant).available_operations).toEqual(['tenant.inspect', 'health'])
-    const scratch = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Scratch actions', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: 'legacy-scratch', catalog_version: 'test-v1', catalog_tier: 'core', reason: 'Check scratch' }))
+    const scratch = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Scratch actions', commercial_mode: 'saas', hosting_model: 'dedicated_managed', inventory_target: 'legacy-scratch', catalog_version: 'test-v1', catalog_tier: 'core', reason: 'Check scratch' }))
     const scratchId = (await scratch.json() as Tenant).id
     tenants.find((item) => item.id === scratchId)!.status = 'active'
     const scratchDetail = await call('GET', `/v1/tenants/${scratchId}`)
@@ -192,7 +192,7 @@ describe('managed registration HTTP slice', () => {
     const target = 'tgt_create_only_actions'
     await setCatalog('test-v1')
     await setInventories({}, { [target]: descriptor(target, { allowed_operations: ['tenant.create'] }) })
-    const registered = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Create only', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: target, catalog_version: 'test-v1', catalog_tier: 'core', reason: 'Check allowlist' }))
+    const registered = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Create only', commercial_mode: 'saas', hosting_model: 'dedicated_managed', inventory_target: target, catalog_version: 'test-v1', catalog_tier: 'core', reason: 'Check allowlist' }))
     expect(registered.status).toBe(201)
     const id = (await registered.json() as Tenant).id
     tenants.find((item) => item.id === id)!.status = 'active'
@@ -209,7 +209,7 @@ describe('managed registration HTTP slice', () => {
     const target = 'tgt_managed_drift_actions'
     await setCatalog('test-v1')
     await setInventories({}, { [target]: descriptor(target) })
-    const response = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Drift actions', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: target, catalog_version: 'test-v1', catalog_tier: 'core', reason: 'Check drift' }))
+    const response = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Drift actions', commercial_mode: 'saas', hosting_model: 'dedicated_managed', inventory_target: target, catalog_version: 'test-v1', catalog_tier: 'core', reason: 'Check drift' }))
     expect(response.status).toBe(201)
     const id = (await response.json() as Tenant).id
     await setCatalog('test-v1', `sha256:${'f'.repeat(64)}`)
@@ -220,7 +220,7 @@ describe('managed registration HTTP slice', () => {
   it('does not report a failed grant after its committed tenant update when inventory readback fails', async () => {
     const target = 'tgt_grant_readback'
     await setInventories({}, { [target]: descriptor(target) })
-    const registered = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Grant fixture', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: target, reason: 'Grant fixture' }))
+    const registered = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Grant fixture', commercial_mode: 'saas', hosting_model: 'dedicated_managed', inventory_target: target, reason: 'Grant fixture' }))
     const id = (await registered.json() as Tenant).id
     await writeFile(config.managedInventoryPath, '{not-json')
     const response = await call('POST', `/v1/tenants/${id}/operations-grant`, JSON.stringify({ enabled: true, reason: 'Enable even if inventory is unavailable' }))
@@ -232,7 +232,7 @@ describe('managed registration HTTP slice', () => {
 
   it('keeps v2 scratch registration compatible', async () => {
     await setInventories({ 'legacy-scratch': { kind: 'scratch', database: 'safe_scratch', classification_file: join(fixtureDir, 'classification.json') } }, {})
-    const response = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Legacy fixture', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: 'legacy-scratch', reason: 'Register scratch fixture' }))
+    const response = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Legacy fixture', commercial_mode: 'saas', hosting_model: 'dedicated_managed', inventory_target: 'legacy-scratch', reason: 'Register scratch fixture' }))
     expect(response.status).toBe(201)
   })
 
@@ -248,7 +248,7 @@ describe('managed registration HTTP slice', () => {
     ['shared reserved port', 'tgt_reserved_port', { resource_refs: { ...descriptor('nested').resource_refs as Record<string, unknown>, ports: { db: 55433, odoo: 8069, web: 13130 } } }],
   ])('rejects a managed descriptor with %s', async (_label, target, overrides) => {
     await setInventories({}, { [target]: descriptor(target, overrides) })
-    const response = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Rejected', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: target, reason: 'Reject invalid target' }))
+    const response = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Rejected', commercial_mode: 'saas', hosting_model: 'dedicated_managed', inventory_target: target, reason: 'Reject invalid target' }))
     expect(response.status).toBe(422)
     expect(tenants.some((tenant) => tenant.inventory_target === target)).toBe(false)
   })
@@ -257,7 +257,7 @@ describe('managed registration HTTP slice', () => {
     const target = 'tgt_managed_enqueue_catalog'
     await setCatalog('test-v1')
     await setInventories({}, { [target]: descriptor(target) })
-    const registered = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Catalog-bound managed', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: target, catalog_version: 'test-v1', catalog_tier: 'core', reason: 'Register catalog-bound managed' }))
+    const registered = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Catalog-bound managed', commercial_mode: 'saas', hosting_model: 'dedicated_managed', inventory_target: target, catalog_version: 'test-v1', catalog_tier: 'core', reason: 'Register catalog-bound managed' }))
     expect(registered.status).toBe(201)
     const tenant = await registered.json() as Tenant
     catalogs.find((item) => item.version === 'test-v1')!.sha = 'f'.repeat(64)
@@ -271,7 +271,7 @@ describe('managed registration HTTP slice', () => {
     const target = 'tgt_managed_enqueue_version'
     await setCatalog('test-v1')
     await setInventories({}, { [target]: descriptor(target) })
-    const registered = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Version-bound managed', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: target, catalog_version: 'test-v1', catalog_tier: 'core', reason: 'Register version-bound managed' }))
+    const registered = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Version-bound managed', commercial_mode: 'saas', hosting_model: 'dedicated_managed', inventory_target: target, catalog_version: 'test-v1', catalog_tier: 'core', reason: 'Register version-bound managed' }))
     expect(registered.status).toBe(201)
     const tenant = await registered.json() as Tenant
     await setInventories({}, { [target]: descriptor(target, { release_ref: { ...(descriptor(target).release_ref as Record<string, unknown>), catalog_version: 'other-v1' } }) })
@@ -285,7 +285,7 @@ describe('managed registration HTTP slice', () => {
     const target = 'tgt_managed_create_match'
     await setCatalog('test-v1')
     await setInventories({}, { [target]: descriptor(target) })
-    const registered = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Matching managed', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: target, catalog_version: 'test-v1', catalog_tier: 'core', reason: 'Register matching managed' }))
+    const registered = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Matching managed', commercial_mode: 'saas', hosting_model: 'dedicated_managed', inventory_target: target, catalog_version: 'test-v1', catalog_tier: 'core', reason: 'Register matching managed' }))
     expect(registered.status).toBe(201)
     const tenant = await registered.json() as Tenant
     queries.length = 0
@@ -298,7 +298,7 @@ describe('managed registration HTTP slice', () => {
     const target = 'tgt_duplicate'
     await setInventories({ [target]: { kind: 'scratch', database: 'safe_scratch', classification_file: join(fixtureDir, 'classification.json') } }, { [target]: descriptor(target) })
     const listed = await call('GET', '/v1/targets')
-    const registered = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Duplicate', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: target, reason: 'Reject duplicate target' }))
+    const registered = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Duplicate', commercial_mode: 'saas', hosting_model: 'dedicated_managed', inventory_target: target, reason: 'Reject duplicate target' }))
     expect(listed.status).toBe(503)
     expect(registered.status).toBe(422)
     expect(tenants.some((tenant) => tenant.inventory_target === target)).toBe(false)
@@ -317,10 +317,10 @@ describe('managed registration HTTP slice', () => {
     const classification = join(fixtureDir, 'non-saas.json')
     await writeFile(classification, JSON.stringify({ schema_version: 1, database: 'customer_db', commercial_mode: 'non_saas', entitlement_source: 'local_policy' }))
     await setInventories({ 'legacy-customer': { kind: 'customer', database: 'safe_scratch', classification_file: join(fixtureDir, 'classification.json') }, 'local-install': { kind: 'scratch', database: 'customer_db', classification_file: classification } }, {})
-    const customer = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Customer alias', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: 'legacy-customer', reason: 'Reject customer alias' }))
+    const customer = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Customer alias', commercial_mode: 'saas', hosting_model: 'dedicated_managed', inventory_target: 'legacy-customer', reason: 'Reject customer alias' }))
     const nonSaas = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Non SaaS', commercial_mode: 'non_saas', hosting_model: 'customer_hosted', inventory_target: 'local-install', reason: 'Reject local target' }))
     await setInventories({}, { 'tgt_non_saas_managed': descriptor('tgt_non_saas_managed', { commercial_mode: 'non_saas' }) })
-    const nonSaasManaged = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Managed non-SaaS', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: 'tgt_non_saas_managed', reason: 'Reject non-SaaS managed descriptor' }))
+    const nonSaasManaged = await call('POST', '/v1/tenants', JSON.stringify({ name: 'Managed non-SaaS', commercial_mode: 'saas', hosting_model: 'dedicated_managed', inventory_target: 'tgt_non_saas_managed', reason: 'Reject non-SaaS managed descriptor' }))
     expect(customer.status).toBe(422)
     expect(nonSaas.status).toBe(201)
     expect(nonSaasManaged.status).toBe(422)

@@ -136,7 +136,7 @@ suite('spec 3.6 acceptance: plans flip keys and limits on a tenant with every ap
     expect(provisioned.error_code, JSON.stringify(provisioned)).toBeUndefined()
     expect(provisioned.result.policy_revision).toBe(1)
     state.tenant = randomUUID(); state.customer = randomUUID()
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Acceptance','saas','managed',$2,true)", [state.tenant, `inv-${state.tenant}`])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Acceptance','saas','dedicated_managed',$2,true)", [state.tenant, `inv-${state.tenant}`])
     await pool.query('INSERT INTO customers(id,name,tenant_id) VALUES($1,$2,$3)', [state.customer, 'Acceptance', state.tenant])
     await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)', [state.tenant, 'tacceptance', HOST, DB])
     const full = await order('new', state.full.id)

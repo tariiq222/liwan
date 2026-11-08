@@ -3,7 +3,7 @@ name: ci
 on:
   pull_request:
     branches: [main]
-    # ready_for_review starts the first run of a PR that was opened as a draft (drafts run nothing).
+    # ready_for_review starts the tests for a PR that was opened as a draft.
     types: [opened, synchronize, reopened, ready_for_review]
   # A merge-queue entry runs the same pull-request selection on the queued merge result, so the required
   # ci-result check reports for it; GitHub sends no merge_group event while the queue is off.
@@ -24,12 +24,13 @@ on:
 permissions:
   contents: read
 
-# A newer push to a PR cancels its older run. On main a running run always finishes (cancelling it left
+# Draft events have their own group: a late draft event must not cancel a ready run.
+# A newer push to a ready PR cancels its older ready run. On main a running run always finishes (cancelling it left
 # main with no completed run while merges kept coming); GitHub keeps only the newest pending main run, and
 # that commit contains every earlier merge. A manual (release) run has its own group. Each merge-queue entry
 # has its own gh-readonly-queue ref, so its run is never cancelled by another entry.
 concurrency:
-  group: ci-${{ github.event_name }}-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.ref }}${{ github.event_name == 'pull_request' && github.event.pull_request.draft && '-draft' || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # The Postgres service container is ephemeral and reachable only from its own job, so these are throwaway values.
@@ -136,13 +137,28 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - name: Select the static checks
+        id: profile
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          mode="$(python3 -B tools/ci_static_profile.py --base "$PR_BASE")"
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "Static checks: $mode"
+      - name: Check documentation
+        if: steps.profile.outputs.mode == 'docs'
+        run: bash deploy/ci/lib/docs-static.sh
       - uses: ./.github/actions/setup
+        if: steps.profile.outputs.mode != 'docs'
         with:
           playwright: 'true'
           python: 'true'
       - name: Python tools
+        if: steps.profile.outputs.mode != 'docs'
         run: python -m pip install --quiet ruff==0.16.3 semgrep==1.170.0
-      - run: deploy/ci/static.sh
+      - if: steps.profile.outputs.mode != 'docs'
+        run: deploy/ci/static.sh
 
   ai-service:
     needs: scope
@@ -524,7 +540,8 @@ jobs:
           stage: rtl-stories
 
   ci-result:
-    # Runs for a draft too and fails there (scope did not run), so a skipped check never reads as a pass.
+    # A draft still fails closed. It must not publish the required check, even if it finishes after a ready run.
+    name: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft && 'ci-draft' || 'ci-result' }}
     if: always()
     needs: [scope, static, ai-service, control-plane, vendor-admin, odoo, odoo-app-standalone, odoo-bridge, upgrade, restore-drill, image, e2e-mock, e2e-odoo, rtl-stories]
     runs-on: ubuntu-24.04
@@ -533,8 +550,18 @@ jobs:
       - name: Require every selected stage to pass
         env:
           NEEDS: ${{ toJSON(needs) }}
+          IS_DRAFT: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft }}
         run: |
           echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          scope_result=$(echo "$NEEDS" | jq -r '.scope.result // "missing"')
+          if [ "$scope_result" != "success" ]; then
+            if [ "$IS_DRAFT" = "true" ] && [ "$scope_result" = "skipped" ]; then
+              echo "::error::scope did not run (a draft PR runs no stage); mark the PR ready to run CI."
+            else
+              echo "::error::scope did not succeed ($scope_result); inspect the scope job before rerunning CI."
+            fi
+            exit 1
+          fi
           # Only stages outside the selected scope may be skipped. Fail closed on
           # missing jobs or malformed scope; a green aggregate must prove the selection ran.
           echo "$NEEDS" | jq -e '

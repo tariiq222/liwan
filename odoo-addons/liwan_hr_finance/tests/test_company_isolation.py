@@ -1,17 +1,22 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Per-request company isolation for the HR-finance bridge routes.
 
-The bridge owns no GET record route: its only ``<int:...>`` route is the POST
-run posting, which the run's own company scopes. Its two GET routes carry no
-record id — the current company's payroll finance settings singleton and the
-current company's cost-center list — so this file pins their list scope instead.
+The bridge owns one GET record route, the posting preview of a payroll run, which the
+matrix below pins. Its two other GET routes carry no record id — the current company's
+payroll finance settings singleton and the current company's cost-center list — so this
+file pins their list scope instead.
 """
 from odoo.tests import tagged
 
 from odoo.addons.liwan_api.tests.common import (
     CompanyIsolationCase,
-    exempt_isolation_route,
+    assert_isolation_discovery,
+    cover_isolation_routes,
 )
+from odoo.addons.liwan_hr.tests.test_company_isolation import MATRIX
+
+EXPECTED_GET_RECORD_ROUTES = 1
+PREVIEW_ROUTE = '/api/v1/hr/payroll/runs/{}/posting-preview'
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -34,6 +39,15 @@ class TestHrFinanceCompanyIsolation(CompanyIsolationCase):
                 })
         cls.departments = {}
         cls.analytic = {}
+        # A draft run per company: the preview refuses it with a state error, which
+        # tells a run the request can see (403 transition_forbidden) from the not-found of a hidden one.
+        cls.runs = {
+            tag: cls.env['hr.payslip.run'].create({
+                'name': f'Bridge run {tag.upper()}', 'date_start': '2026-04-01', 'date_end': '2026-04-30',
+                'company_id': company.id,
+            })
+            for tag, company in cls.by_tag.items()
+        }
         for tag, company in cls.by_tag.items():
             cls.departments[tag] = cls.env['hr.department'].create(
                 {'name': f'Bridge Dept {tag.upper()}', 'company_id': company.id},
@@ -74,12 +88,22 @@ class TestHrFinanceCompanyIsolation(CompanyIsolationCase):
         settings = self.assertVisible('/api/v1/hr/payroll/finance-settings').json()
         self.assertEqual(settings['default_analytic_account']['id'], self.analytic['p1'].id)
 
+    def test_posting_preview_follows_the_branch_matrix(self):
+        """From P the run of P and its branches resolve, C's is not-found; from the branch P1 only P1's resolves."""
+        for current, visible, hidden in MATRIX:
+            self.env_in(self.by_tag[current])
+            for tag in visible:
+                response = self.api('GET', PREVIEW_ROUTE.format(self.runs[tag].id))
+                self.assertEqual(response.status_code, 403, f'{current}->{tag}: {response.text[:200]}')
+                self.assertEqual(response.json()['code'], 'transition_forbidden', f'{current}->{tag} must resolve the run')
+            for tag in hidden:
+                self.assertHiddenEveryWay('GET', PREVIEW_ROUTE.format(self.runs[tag].id), self.by_tag[tag].id)
 
-exempt_isolation_route(
-    '/api/v1/hr/payroll/finance-settings',
-    'no record id: the current company payroll finance settings singleton',
-)
-exempt_isolation_route(
-    '/api/v1/hr/payroll/cost-centers',
-    'no record id: the cost-center list of the current company departments',
+    def test_discovery_covers_every_get_record_route(self):
+        assert_isolation_discovery(self, 'liwan_hr_finance', EXPECTED_GET_RECORD_ROUTES)
+
+
+cover_isolation_routes(
+    ('/api/v1/hr/payroll/runs/<int:run_id>/posting-preview',),
+    source='liwan_hr_finance/tests/test_company_isolation.py',
 )

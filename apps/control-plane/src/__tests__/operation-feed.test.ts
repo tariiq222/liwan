@@ -26,7 +26,7 @@ describe.skipIf(!url)('opt-in operation feed on PostgreSQL', () => {
     sessions[7] = await vendorSession(pool, config.installationId, ['operations'], { key: config.key })
     sessions[8] = await vendorSession(pool, config.installationId, [], { key: config.key })
     for (const [tid, slug] of [[tenant, 'feed_a'], [otherTenant, 'feed_b']]) {
-      await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,status,operations_enabled) VALUES($1,$2,'saas','managed',$2,'needs_intervention',true)", [tid, slug])
+      await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,status,operations_enabled) VALUES($1,$2,'saas','dedicated_managed',$2,'needs_intervention',true)", [tid, slug])
       await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$2,$2,$2,false,1)', [tid, slug])
     }
     for (const n of [...Array.from({ length: 26 }, (_, i) => i + 1).filter(n => n !== 2), 2]) {

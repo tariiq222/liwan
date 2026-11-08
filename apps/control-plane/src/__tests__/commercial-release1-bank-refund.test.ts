@@ -65,7 +65,7 @@ suite('bank transfer (W5)', () => {
   async function unpaidOrder() {
     const id = randomUUID()
     const tenant = randomUUID()
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Customer','saas','managed',$2,true)", [tenant, `c-${tenant}`])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Customer','saas','dedicated_managed',$2,true)", [tenant, `c-${tenant}`])
     await pool.query('INSERT INTO customers(id,name,tenant_id,admin_name,admin_login) VALUES($1,$2,$3,$4,$5)', [id, 'Bank customer', tenant, 'Manager', 'bank@example.test'])
     const quote = await createQuoteForCustomer(pool, { customer_id: id, request: { kind: 'new', plan_revision_id: plan.id, bundle_revision_ids: [], cadence: monthly,
       requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 20480 } })
@@ -456,7 +456,7 @@ suite('the 14-day refund window (W7)', () => {
   async function paidWithCreditNote(paidAt: string, origin: 'vendor' | 'system' = 'vendor', withNote = true) {
     const id = randomUUID()
     const tenant = randomUUID()
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Customer','saas','managed',$2,true)", [tenant, `c-${tenant}`])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Customer','saas','dedicated_managed',$2,true)", [tenant, `c-${tenant}`])
     await pool.query('INSERT INTO customers(id,name,tenant_id,admin_name,admin_login) VALUES($1,$2,$3,$4,$5)', [id, 'Refund customer', tenant, 'Manager', 'refund@example.test'])
     const quote = await createQuoteForCustomer(pool, { customer_id: id, request: { kind: 'new', plan_revision_id: plan.id, bundle_revision_ids: [], cadence: monthly,
       requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 20480 } })

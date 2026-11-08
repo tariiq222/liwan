@@ -3,7 +3,7 @@ import { createBodyAdmission, destroyUpstreamWhenCallerCloses, readBodyBytes } f
 import { isReleaseAssetRequest, readAsset, validateAssetStore } from '../../apps/web/server/utils/releaseAssets.ts'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { readTenantRegistry } from '../../apps/web/server/utils/tenantRegistry.ts'
-import { resolveTenantHost } from '../../apps/web/server/utils/tenantHostResolver.ts'
+import { isRestoreHost, resolveTenantHost } from '../../apps/web/server/utils/tenantHostResolver.ts'
 import { createReleaseLease, readReleaseRoute } from '../../apps/web/server/utils/releaseRouting.ts'
 import { readdirSync, existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -14,6 +14,9 @@ const browserHeaders = new Set(['x-liwan-csrf'])
 // The UI language the web proxy forwards on its trusted hop; any other value, or any other sender, is refused.
 const UI_LOCALE_HEADER = 'x-liwan-ui-locale'
 const uiLocale = value => value === 'ar' || value === 'en'
+const deviceCookieName = 'liwan_device='
+const deviceToken = /^[A-Za-z0-9_-]{20,256}$/
+const deviceMaxAge = 30 * 24 * 60 * 60
 const selectors = /^(db|database|session_id|sid)$/i
 // Match the BFF's fixed public auth budgets before this edge buffers JSON.
 // Separate hop pools avoid a public BFF request deadlocking its internal continuation.
@@ -60,6 +63,40 @@ export function prospectPlan(req, prospectHost, token) {
   delete headers.cookie
   headers['x-liwan-proxy-token'] = token
   return { tenant: null, internal: false, odoo: false, prospect: true, headers, path: url.pathname + url.search, clearSession: false }
+}
+/**
+ * Restore targets live in their own registry file (`LIWAN_RESTORE_REGISTRY_PATH`, written by the control plane's
+ * restore publication) and never in the tenant registry: a restored copy must not be able to claim a tenant's
+ * database, filestore or host. The file is consulted only for restore hosts (`r<32 hex>.restore.<domain>`), so a
+ * missing, malformed or half-published restore file can deny restore hosts and nothing else.
+ * - no path configured, or a host outside the restore namespace: no restore targets;
+ * - file absent (and no `.pending` barrier): no restore targets, so the restore host is simply unknown;
+ * - anything else (barrier present, unreadable, malformed, a non-restore host, or a host, tenant id, database or
+ *   filestore also present in the tenant registry): `restore_registry_unavailable`, denied like any boundary refusal.
+ * It is read per request, with no cache, so a republished file is seen by the next request.
+ */
+function readRestoreTargets(restoreRegistryPath, mainTargets, host) {
+  if (!restoreRegistryPath || !isRestoreHost(host)) return []
+  try {
+    const { targets } = readTenantRegistry(restoreRegistryPath)
+    const clashes = target => ['host', 'tenantId', 'database', 'filestore'].some(key => mainTargets.some(main => main[key] === target[key]))
+    if (targets.some(target => !isRestoreHost(target.host) || clashes(target))) throw Error('restore_registry_invalid')
+    return targets
+  } catch (error) {
+    if (error.code === 'ENOENT') return []
+    throw Error('restore_registry_unavailable')
+  }
+}
+/** The tenant registry plus, for a restore host, the restore registry: one resolution over both, globally unique. */
+export function readRegistries({ registryPath, restoreRegistryPath }, host) {
+  const registry = readTenantRegistry(registryPath)
+  // Stock Odoo's filestore directory is named after its database.
+  if (registry.targets.some(t => t.database !== t.filestore)) throw Error('filestore_binding_invalid')
+  const restoreTargets = readRestoreTargets(restoreRegistryPath, registry.targets, host)
+  return {
+    registry: restoreTargets.length ? { ...registry, targets: [...registry.targets, ...restoreTargets] } : registry,
+    restoreTenantIds: new Set(restoreTargets.map(t => t.tenantId)),
+  }
 }
 export function requestPlan(req, registry, token, codec) {
   const host = req.headers.host
@@ -120,22 +157,46 @@ export function requestPlan(req, registry, token, codec) {
         (['/api/auth/login', '/api/auth/logout'].includes(url.pathname) && method === 'POST')
       )
       if (!recovery) throw error
-      headers.cookie = cookies.filter(value => !value.startsWith('session_id=')).join('; ')
       clearSession = true
     }
   }
+  const method = req.method ?? 'GET'
+  const exact = req.url.split('?')[0] === url.pathname && !req.url.includes('#')
+  const devicePath = internal ? '/api/v1/auth/device' : '/api/auth/device'
+  const forgetPath = internal ? '/api/v1/me/devices' : devicePath
+  const verifyPath = internal ? '/api/v1/auth/verify' : '/api/auth/verify'
+  const readDevice = exact && ((method === 'POST' && url.pathname === devicePath)
+    || (method === 'DELETE' && url.pathname === forgetPath))
+  const writeDevice = exact && method === 'POST' && [devicePath, verifyPath].includes(url.pathname)
+  const devices = cookies.filter(value => value.startsWith(deviceCookieName))
+  const device = readDevice && devices.length === 1 && deviceToken.test(devices[0].slice(deviceCookieName.length))
+    ? devices[0] : null
   // Keep the signed envelope on the Nuxt hop; unwrap ONLY at the Odoo hop.
-  if (odoo) headers.cookie = rawSid ? `session_id=${rawSid}` : ''
+  if (odoo) {
+    headers.cookie = [rawSid && `session_id=${rawSid}`, device].filter(Boolean).join('; ')
+  } else if (clearSession || (devices.length && !device)) {
+    headers.cookie = cookies.filter(value =>
+      !(clearSession && value.startsWith('session_id=')) && (device || !value.startsWith(deviceCookieName))).join('; ')
+  }
   headers.host = odoo ? tenant.database : host
   if (!odoo) {
     headers['x-liwan-proxy-token'] = token
     headers['x-liwan-tenant-revision'] = String(tenant.registryRevision)
   }
-  return { tenant, internal, odoo, headers, path: url.pathname + url.search, clearSession }
+  return { tenant, internal, odoo, headers, path: url.pathname + url.search, clearSession, writeDevice }
 }
-function cookiesForBrowser(cookies, codec, tenant) {
+function cookiesForBrowser(cookies, codec, tenant, { odoo = true, writeDevice = false } = {}) {
+  const deviceCount = (cookies ?? []).filter(cookie => cookie.startsWith(deviceCookieName)).length
   return (cookies ?? []).map(cookie => {
     const first = cookie.split(';')[0]
+    if (first.startsWith(deviceCookieName)) {
+      if (!writeDevice || deviceCount !== 1) return null
+      const token = first.slice(deviceCookieName.length)
+      const deletion = !token && /;\s*max-age=0(?:;|$)/i.test(cookie)
+      if (!deletion && !deviceToken.test(token)) return null
+      return `${first}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${deletion ? 0 : deviceMaxAge}`
+    }
+    if (!odoo) return cookie
     if (!first.startsWith('session_id=')) return null // no unreviewed Odoo cookie scope
     const sid = first.slice(11)
     const deletion = !sid || /max-age=0(?:;|$)/i.test(cookie)
@@ -156,21 +217,25 @@ function auditRefusal(req, error) {
     host: String(req.headers?.host ?? '').slice(0, 200)
   }))
 }
-export function createGuard({ registryPath, proxyToken, prospectHost = '', keys, activeKid, odooUrl, webUrl, wsUrl = odooUrl, releaseRoutesDir, releaseAssetsDir }) {
+export function createGuard({ registryPath, restoreRegistryPath = '', proxyToken, prospectHost = '', keys, activeKid, odooUrl, webUrl, wsUrl = odooUrl, restoreOdooUrl = '', restoreWsUrl = restoreOdooUrl, releaseRoutesDir, releaseAssetsDir }) {
   if (releaseAssetsDir !== undefined) {
     if (!releaseRoutesDir) throw Error('release_assets_require_routes')
     validateAssetStore(releaseAssetsDir)
   }
   const codec = sessionCodec(keys, activeKid)
   const upstreams = [odooUrl, webUrl, wsUrl].map(v => new URL(v))
-  if (upstreams.some(u => u.protocol !== 'http:' || u.username || u.password)) throw Error('private_http_upstreams_required')
+  // Restored databases live in the restore Postgres, so a restore host is served by restore-odoo, never by the tenant Odoo.
+  if (restoreRegistryPath && !restoreOdooUrl) throw Error('restore_upstream_required')
+  const restoreUpstreams = restoreRegistryPath ? [restoreOdooUrl, webUrl, restoreWsUrl].map(v => new URL(v)) : upstreams
+  if ([...upstreams, ...restoreUpstreams].some(u => u.protocol !== 'http:' || u.username || u.password)) throw Error('private_http_upstreams_required')
   const plan = req => {
     const prospect = prospectPlan(req, prospectHost, proxyToken)
     if (prospect) return prospect
-    const registry = readTenantRegistry(registryPath)
-    // Stock Odoo's filestore directory is named after its database.
-    if (registry.targets.some(t => t.database !== t.filestore)) throw Error('filestore_binding_invalid')
+    const { registry, restoreTenantIds } = readRegistries({ registryPath, restoreRegistryPath }, req.headers.host)
     const p = requestPlan(req, registry, proxyToken, codec)
+    p.restore = restoreTenantIds.has(p.tenant.tenantId)
+    // A restore target has no release route; with release routing on it is refused rather than leased.
+    if (p.restore && releaseRoutesDir) throw Error('restore_release_routes_unsupported')
     if (!releaseRoutesDir) return p
     if (p.internal && p.path === '/_liwan/release-status') return { ...p, status: true }
     const pinHeaders = ['x-liwan-release-pool', 'x-liwan-release-revision', 'x-liwan-release-fence']
@@ -239,10 +304,12 @@ export function createGuard({ registryPath, proxyToken, prospectHost = '', keys,
         return
       }
     }
-    const target = p.release ? new URL(p.odoo ? p.release.odooUrl : p.release.webUrl) : upstreams[p.odoo ? 0 : 1]
+    const target = p.release ? new URL(p.odoo ? p.release.odooUrl : p.release.webUrl) : (p.restore ? restoreUpstreams : upstreams)[p.odoo ? 0 : 1]
     const upstream = http.request({ hostname: target.hostname, port: target.port, path: p.path, method: req.method, headers: p.headers }, reply => {
       const headers = { ...reply.headers }
-      if (p.odoo) headers['set-cookie'] = cookiesForBrowser(headers['set-cookie'], codec, p.tenant)
+      if (headers['set-cookie']) {
+        headers['set-cookie'] = cookiesForBrowser(headers['set-cookie'], codec, p.tenant, p)
+      }
       if (p.clearSession) {
         headers['cache-control'] = 'no-store'
         // A successful login may already replace the rejected cookie; never delete its replacement.
@@ -263,7 +330,7 @@ export function createGuard({ registryPath, proxyToken, prospectHost = '', keys,
     let p
     try { p = plan(req); if (!p.odoo || new URL(req.url, 'http://local').pathname !== '/websocket') throw Error() } catch (error) { auditRefusal(req, error); p?.closeLease?.(); socket.end(`HTTP/1.1 ${error.statusCode === 503 ? '503 Service Unavailable' : '403 Forbidden'}\r\nConnection: close\r\n\r\n`); return }
     if (p.closeLease) socket.once('close', p.closeLease)
-    const target = p.release ? new URL(p.release.wsUrl) : upstreams[2]
+    const target = p.release ? new URL(p.release.wsUrl) : (p.restore ? restoreUpstreams : upstreams)[2]
     const upstream = http.request({ hostname: target.hostname, port: target.port, path: p.path, headers: p.headers })
     upstream.on('upgrade', (reply, remote, remoteHead) => {
       const headers = { ...reply.headers }; headers['set-cookie'] = cookiesForBrowser(headers['set-cookie'], codec, p.tenant)

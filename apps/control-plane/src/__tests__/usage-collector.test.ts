@@ -121,7 +121,7 @@ suite('usage collector (scratch control database)', () => {
 
   async function tenant(enabled = true, opts: { state?: string; ops?: boolean } = {}) {
     const id = randomUUID(), hex = id.replaceAll('-', ''), database = `liwan_scratch_${hex}`
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Usage','saas','managed',$2,$3)", [id, `inv-${id}`, opts.ops ?? true])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Usage','saas','dedicated_managed',$2,$3)", [id, `inv-${id}`, opts.ops ?? true])
     const customer = randomUUID(), subscription = randomUUID(), revision = randomUUID()
     await pool.query('INSERT INTO customers(id,name,tenant_id) VALUES($1,$2,$3)', [customer, 'Usage', id])
     await pool.query("INSERT INTO subscriptions(id,customer_id,tenant_id,state) VALUES($1,$2,$3,'active')", [subscription, customer, id])

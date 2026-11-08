@@ -38,7 +38,7 @@ suite('per-tenant payment return origins on PostgreSQL', () => {
   async function customer(hostTemplate: string | null, enabled = true, withTenant = true) {
     const tenant = randomUUID(), id = randomUUID(), sub = randomUUID(), revision = randomUUID(), order = randomUUID(), invoice = randomUUID(), slug = `t${tenant.replaceAll('-', '').slice(0, 12)}`, host = hostTemplate?.replace('@', slug) ?? null
     await transaction(pool, async c => {
-      if (withTenant) await c.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,$2,'saas','managed',$3,true)", [tenant, 'Return origin', `shared-${slug}`])
+      if (withTenant) await c.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,$2,'saas','dedicated_managed',$3,true)", [tenant, 'Return origin', `shared-${slug}`])
       if (host) await c.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,$5,1)', [tenant, slug, host, `db_${slug}`, enabled])
       await c.query('INSERT INTO customers(id,name,tenant_id,admin_name,admin_login) VALUES($1,$2,$3,$4,$5)', [id, 'Return origin', withTenant ? tenant : null, 'Manager', 'origin@example.test'])
       await c.query('INSERT INTO subscriptions(id,customer_id) VALUES($1,$2)', [sub, id])

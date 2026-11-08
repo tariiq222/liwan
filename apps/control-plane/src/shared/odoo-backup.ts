@@ -111,6 +111,18 @@ export async function requireOdooRestorePublicationAuthority(client:import('pg')
  if(!await actorHolds(client,actor,['vendor.tenants.manage','vendor.operations.run'],true))throw new RegistryError('restore_publication_forbidden',403)
  if(!(await client.query("SELECT id FROM tenants WHERE id=$1 AND commercial_mode='saas' AND operations_enabled=true FOR SHARE",[tenantId])).rowCount)throw new RegistryError('tenant_operations_unavailable')
 }
+/** The restore registry file the guard reads (`LIWAN_RESTORE_REGISTRY_PATH`): restore targets only, never the tenant registry. */
+export async function writeRestoreRoute(stateDir:string,approvalId:string,host:string,database:string){
+ const dir=join(stateDir,'restore-registry');await mkdir(dir,{recursive:true});assertNoSymlink(dir)
+ const path=join(dir,'registry.json')
+ let existing:{schemaVersion:number;snapshotRevision:number;targets:Array<Record<string,unknown>>}={schemaVersion:1,snapshotRevision:0,targets:[]}
+ try{assertNoSymlink(path);existing=z.strictObject({schemaVersion:z.literal(1),snapshotRevision:z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER-1),targets:z.array(registryTargetSchema)}).parse(JSON.parse(await readFile(path,'utf8')))}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error}
+ // Parsed through the schema so the key order matches what is read back: a republished route compares equal, not as a conflict.
+ const target=registryTargetSchema.parse({tenantId:'r'+approvalId.replaceAll('-',''),host,database,filestore:database,enabled:true,registryRevision:1})
+ const old=existing.targets.find(t=>t.host===host)
+ if(old && JSON.stringify(old)!==JSON.stringify(target))throw Error('shared_restore_route_conflict')
+ if(!old){existing.targets.push(target);existing.snapshotRevision++;const temp=path+'.'+randomUUID();await writeFile(temp,JSON.stringify(existing),{mode:0o644,flag:'wx'});await rename(temp,path)}
+}
 /** Separate restore registry only. Caller must freshly observe the exact effect first. */
 export async function publishOdooRestore(pool:Pool,runtime:SharedRuntimeConfig,actor:RegistryActor,approvalId:string,observe:(job:SharedJob)=>Promise<unknown>,options:{runner?:CommercialRestoreRunner}={}){
  z.uuid().parse(approvalId)
@@ -147,15 +159,7 @@ export async function publishOdooRestore(pool:Pool,runtime:SharedRuntimeConfig,a
   const current=await client.query("SELECT 1 FROM shared_jobs WHERE payload_digest=$1 AND state='verified' AND receipt=$2::jsonb FOR SHARE",[row.payload_digest,JSON.stringify(receipt)])
   if(current.rowCount!==1)throw Error('shared_restore_unverified')
   if(!await revalidateCommercialRestorePublication(client,row.control_tenant_id,commercial.applied_revision_id))throw new RegistryError('commercial_reconciliation_pending')
-  const dir=join(runtime.stateDir,'restore-registry');await mkdir(dir,{recursive:true});assertNoSymlink(dir)
-  const path=join(dir,'registry.json')
-  let existing:{schemaVersion:number;snapshotRevision:number;targets:Array<Record<string,unknown>>}={schemaVersion:1,snapshotRevision:0,targets:[]}
-  try{assertNoSymlink(path);existing=z.strictObject({schemaVersion:z.literal(1),snapshotRevision:z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER-1),targets:z.array(registryTargetSchema)}).parse(JSON.parse(await readFile(path,'utf8')))}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error}
-  const target={tenantId:'r'+approvalId.replaceAll('-',''),host,database:row.target_database,filestore:row.target_database,enabled:true,registryRevision:1}
-  registryTargetSchema.parse(target)
-  const old=existing.targets.find(t=>t.host===host)
-  if(old && JSON.stringify(old)!==JSON.stringify(target))throw Error('shared_restore_route_conflict')
-  if(!old){existing.targets.push(target);existing.snapshotRevision++;const temp=path+'.'+randomUUID();await writeFile(temp,JSON.stringify(existing),{mode:0o644,flag:'wx'});await rename(temp,path)}
+  await writeRestoreRoute(runtime.stateDir,approvalId,host,row.target_database)
   await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)',[randomUUID(),actorLabel(actor),'shared_odoo_restore.route_published',approvalId,'Verified isolated restore route'])
  })
  return {approvalId,host,database:row.target_database}

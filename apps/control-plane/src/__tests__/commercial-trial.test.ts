@@ -25,7 +25,7 @@ suite('commercial trial', () => {
   async function newCustomer(bind = true) {
     customer = randomUUID()
     const ownTenant = randomUUID()
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Trial customer','saas','managed',$2,true)", [ownTenant, `trial-${ownTenant}`])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Trial customer','saas','dedicated_managed',$2,true)", [ownTenant, `trial-${ownTenant}`])
     await pool.query('INSERT INTO customers(id,name,tenant_id,admin_login) VALUES($1,$2,$3,$4)', [customer, 'Trial customer', ownTenant, `${customer}@example.test`])
     if (bind) {
       const slug = `t${ownTenant.replaceAll('-', '')}`
@@ -44,7 +44,7 @@ suite('commercial trial', () => {
     const validated = await api('POST', `/plans/${created.body.id}/validate`, { edit_revision: 1, reason })
     plan = (await api('POST', `/plans/${created.body.id}/publish`, { edit_revision: validated.body.edit_revision, reason })).body
     tenant = randomUUID()
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Trial','saas','managed',$2,true)", [tenant, `trial-${tenant}`])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Trial','saas','dedicated_managed',$2,true)", [tenant, `trial-${tenant}`])
     principal = { actor_id: '7', kind: 'customer', customer_id: '', tenant_id: tenant, capabilities: ['subscription.manage'] } as Principal
   })
   afterAll(async () => { await pool.end() })
@@ -181,7 +181,7 @@ suite('commercial trial', () => {
     const other = await trialAt(now, -1)
     const otherSub = await getSubscription(pool, other.id)
     const thirdTenant = randomUUID(), third = randomUUID()
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Another','saas','managed',$2,true)", [thirdTenant, `trial-${thirdTenant}`])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Another','saas','dedicated_managed',$2,true)", [thirdTenant, `trial-${thirdTenant}`])
     await pool.query('INSERT INTO customers(id,name,tenant_id,admin_login) VALUES($1,$2,$3,$4)', [third, 'Another customer', thirdTenant, `${third}@example.test`])
     await pool.query(`INSERT INTO subscriptions(id,customer_id,tenant_id,state,renewal_at,applied_revision_id)
       VALUES('00000000-0000-4000-8000-000000000001',$1,$2,'past_due','2026-10-20',$3)`, [third, thirdTenant, otherSub.applied!.id])

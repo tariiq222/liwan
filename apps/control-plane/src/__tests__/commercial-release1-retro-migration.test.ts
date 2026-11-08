@@ -83,9 +83,11 @@ suite('schema_033 carries a database that ran origin/main\'s schema_001..032', (
     expect((await pool.query('SELECT available FROM plan_revisions WHERE id=$1', [before[0].id])).rows[0].available).toBe(false)
     // The policy schema_033 inserted is the one the superseding revision is pinned to.
     expect((await pool.query("SELECT tax_kind FROM pricing_policy_revisions WHERE id='6f1c3d8e-0000-4000-8000-000000000002'")).rows[0].tax_kind).toBe('none')
+    // schema_035 then supersedes that revision once more for the 70/700 extra-branch price (owner decision 2026-11-08).
+    expect(live[0].extra_branch_prices[0].amount.minor).toBe(7000)
     // And the migration is idempotent: a second run changes nothing.
     await migrate(pool)
-    expect((await pool.query("SELECT count(*)::int AS n FROM plan_revisions WHERE plan_id='00000000-0000-4000-8000-0000000000b1'")).rows[0].n).toBe(2)
+    expect((await pool.query("SELECT count(*)::int AS n FROM plan_revisions WHERE plan_id='00000000-0000-4000-8000-0000000000b1'")).rows[0].n).toBe(3)
   })
 
   it('gives the superseding revision the optional-bundle references of the revision it replaces', async () => {

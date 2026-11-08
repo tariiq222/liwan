@@ -8,6 +8,8 @@ from typing import NamedTuple
 
 from odoo import api, fields, models
 from odoo.exceptions import LockError
+from odoo.tools import SQL, escape_psql
+from odoo.tools.mail import email_split
 
 # Every limit of the sign-in code lives here, in one place, so no route repeats a number:
 # six digits, five minutes, five attempts, a 60-second resend cooldown, and two send caps.
@@ -61,6 +63,24 @@ class IssueOutcome(NamedTuple):
     error: str
 
 
+class LiwanLoginCodeQuota(models.Model):
+    """Singleton write fence for sign-in code sends in this tenant database."""
+    _name = 'liwan.login.code.quota'
+    _description = 'LiwanOS Sign-in Code Quota'
+    _liwan_scope = 'tenant'
+
+    def _liwan_lock(self):
+        self.ensure_one()
+        self.check_access('write')
+        # Odoo uses REPEATABLE READ. Mutate the fence row so a contender with an older
+        # snapshot retries the whole request before counting newly committed code rows.
+        self.env.cr.execute(SQL(
+            "UPDATE %s SET write_date = CURRENT_TIMESTAMP AT TIME ZONE 'UTC' WHERE id = %s",
+            SQL.identifier(self._table), self.id,
+        ))
+        self.invalidate_recordset(['write_date'])
+
+
 class LiwanLoginCode(models.Model):
     """One sign-in code of one user, for one delivery channel.
 
@@ -91,15 +111,18 @@ class LiwanLoginCode(models.Model):
         The user row is locked first, so two overlapping requests for one account run one after the
         other and only the later code stays usable.
         """
-        user = user.with_context(active_test=False) if user.id else user
-        destination = (user.liwan_mobile if channel == 'sms' else user.email) or ''
-        if channel not in CHANNELS or not user.active or user.share or not destination:
-            return IssueOutcome(self.browse(), channel, '', 0, 'channel_unavailable')
-        gateway = self.env['liwan.sms.gateway']
-        if channel == 'sms' and not gateway._liwan_sms_available():
-            # A production configuration with no SMS provider offers email only; the screen says so.
+        if channel not in CHANNELS or not user.active or user.share:
             return IssueOutcome(self.browse(), channel, '', 0, 'channel_unavailable')
         user.lock_for_update(allow_referencing=True)
+        gateway = self.env['liwan.sms.gateway']
+        if channel == 'email':
+            recipients = email_split(user.email)
+            destination = recipients[0] if len(recipients) == 1 else ''
+        else:
+            destination = user.liwan_mobile
+        if not destination or (channel == 'sms' and not gateway._liwan_sms_available()):
+            return IssueOutcome(self.browse(), channel, '', 0, 'channel_unavailable')
+        self.env.ref('liwan_core.login_code_quota')._liwan_lock()
         refusal = self._liwan_send_refusal(user, destination, channel)
         if refusal:
             return IssueOutcome(self.browse(), channel, '', self._liwan_resend_after(user), refusal)
@@ -124,24 +147,20 @@ class LiwanLoginCode(models.Model):
         latest = self.search([('user_id', '=', user.id), *LIVE], limit=1)
         if latest and latest.cooldown_until > now:
             return 'resend_cooldown'
-        if self._liwan_recent_count(user, channel) >= HOURLY_SENDS:
+        cutoff = now - timedelta(hours=1)
+        if self.search_count([('user_id', '=', user.id), ('create_date', '>=', cutoff)]) >= HOURLY_SENDS:
             return 'send_limit_reached'
+        destination_match = ('destination', '=ilike', escape_psql(destination)) if channel == 'email' else (
+            'destination', '=', destination,
+        )
         if self.search_count([
-            ('destination', '=', destination), ('channel', '=', channel),
-            ('create_date', '>=', now - timedelta(hours=1)),
+            destination_match, ('channel', '=', channel), ('create_date', '>=', cutoff),
         ]) >= HOURLY_SENDS:
             return 'send_limit_reached'
         if self._liwan_daily_sends() >= DAILY_SENDS:
             self.env['liwan.login.code.alert']._liwan_raise()
             return 'daily_send_cap'
         return None
-
-    @api.model
-    def _liwan_recent_count(self, user, channel, window=timedelta(hours=1)):
-        return self.search_count([
-            ('user_id', '=', user.id), ('channel', '=', channel),
-            ('create_date', '>=', fields.Datetime.now() - window),
-        ])
 
     @api.model
     def _liwan_daily_sends(self):

@@ -37,7 +37,7 @@ suite('customer quote preview without persistence', () => {
     const validated = await api('POST', `/plans/${created.body.id}/validate`, { edit_revision: 1, reason })
     plan = (await api('POST', `/plans/${created.body.id}/publish`, { edit_revision: validated.body.edit_revision, reason })).body
     tenant = randomUUID(); customer = randomUUID()
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Preview','saas','managed',$2,true)", [tenant, `preview-${tenant}`])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Preview','saas','dedicated_managed',$2,true)", [tenant, `preview-${tenant}`])
     await pool.query("INSERT INTO customers(id,name,tenant_id) VALUES($1,'Preview customer',$2)", [customer, tenant])
     server = createApp(pool, config).listen(0, '127.0.0.1')
     await new Promise<void>(resolve => server.once('listening', resolve))

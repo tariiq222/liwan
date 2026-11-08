@@ -10,9 +10,12 @@ from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     clear_security_caches_after_commit,
+)
+from odoo.addons.liwan_api.models.res_users import (
+    APPEARANCE_MODES,
+    FONT_SIZES,
     fresh_session_token,
 )
-from odoo.addons.liwan_api.models.res_users import APPEARANCE_MODES, FONT_SIZES
 from odoo.addons.liwan_api.serializers.user import dump_device, dump_me
 
 PROFILE_FIELDS = ('lang', 'tz')
@@ -28,11 +31,13 @@ def _language(value):
 
 def _timezone(value):
     """The IANA zone of VALUE, or 422. An empty value clears the stored zone."""
+    if not isinstance(value, str) and value is not None and value is not False:
+        raise ApiError(422, 'invalid', 'tz must be an IANA time zone', field='tz')
     if not value:
         return False
     try:
         pytz.timezone(value)
-    except (pytz.UnknownTimeZoneError, TypeError):
+    except pytz.UnknownTimeZoneError:
         raise ApiError(422, 'invalid', 'tz must be an IANA time zone', field='tz') from None
     return value
 

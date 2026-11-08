@@ -63,7 +63,7 @@ else describe('shared backup and restore authority', () => {
     await pool.query('TRUNCATE service_nonces, audit_events, operation_events, operations, restore_approvals')
     await pool.query('INSERT INTO shared_registry_state(singleton,revision) VALUES(true,0)')
     await vendorAccount(pool, ['customer_success', 'operations'], 7)
-    await pool.query('INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,operations_enabled) VALUES ($1,$2,\'saas\',\'managed\',$3,\'live-v1\',\'core\',true)',
+    await pool.query('INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,operations_enabled) VALUES ($1,$2,\'saas\',\'shared_managed\',$3,\'live-v1\',\'core\',true)',
       [tenantId, 'Backup source', 'backup-source'])
     const source = await readFile(join(repositoryRoot, 'deploy/catalog/solutions/platform.json'))
     await pool.query('INSERT INTO catalog_entries(id,version,status,solution,source_sha256,published_at) VALUES($1,\'live-v1\',\'published\',$2,$3,now())',
@@ -117,7 +117,7 @@ else describe('shared backup and restore authority', () => {
     expect(createHash('sha256').update(artifact).digest('hex')).toBe(record.filestoreSha256)
     // Refuses to snapshot an unverified tenant (bound but never provisioned).
     const unverified = randomUUID()
-    await pool.query('INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,operations_enabled) VALUES ($1,$2,\'saas\',\'managed\',$3,\'live-v1\',\'core\',true)', [unverified, 'Unverified', 'unverified-target'])
+    await pool.query('INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,operations_enabled) VALUES ($1,$2,\'saas\',\'shared_managed\',$3,\'live-v1\',\'core\',true)', [unverified, 'Unverified', 'unverified-target'])
     await publishRegistryMutation(pool, registryPath, actor, { controlTenantId: unverified, expectedSnapshotRevision: 1, target: { host: 't99.backup.invalid', tenantId: 't99', database: unverifiedDatabase, filestore: unverifiedDatabase, enabled: true, registryRevision: 1 }, reason: 'Unverified fixture tenant' })
     await expect(createTenantBackup(pool, connect, { controlTenantId: unverified, backupRoot, createdBy: `${issuer}:7` })).rejects.toThrow('provision_not_verified')
   })
@@ -200,7 +200,7 @@ else describe('shared backup and restore authority', () => {
     // A restored tenant without a policy is fail-closed: the activation
     // readiness check reports initial_policy as failed.
     const restoreTenant = randomUUID()
-    await pool.query('INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,operations_enabled) VALUES ($1,$2,\'saas\',\'managed\',$3,\'live-v1\',\'core\',true)',
+    await pool.query('INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,operations_enabled) VALUES ($1,$2,\'saas\',\'shared_managed\',$3,\'live-v1\',\'core\',true)',
       [restoreTenant, 'Legacy restore target', 'legacy-restore'])
     const revision = Number((await pool.query('SELECT revision::int AS revision FROM shared_registry_state WHERE singleton')).rows[0].revision)
     await publishRegistryMutation(pool, registryPath, actor, { controlTenantId: restoreTenant, expectedSnapshotRevision: revision, target: { host: 't09.legacy.invalid', tenantId: 't09', database: preChangeTarget, filestore: preChangeTarget, enabled: true, registryRevision: 1 }, reason: 'Legacy restore target binding' })

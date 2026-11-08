@@ -1280,13 +1280,10 @@ class TestLayersRatchetTags(BaseRefCase):
 class TestDocumentedSudo(BaseRefCase):
     """R7 documented cases: a separate approved allowlist next to the shrink-only baseline."""
 
-    AGENTS = '# Agents\n\n- `liwan_a` has no `sudo()` path. `liwan_b` uses it only for X.\n- next item\n'
-
     def setUp(self):
         super().setUp()
         self.documented_file = self.root / 'tools' / 'arch_documented_sudo.json'
         self.b_file = 'odoo-addons/liwan_b/models/m.py'
-        (self.root / 'AGENTS.md').write_text(self.AGENTS, encoding='utf-8')
         self.sudo('b', 2)
 
     def document(self, count, rel=None):
@@ -1387,13 +1384,6 @@ class TestDocumentedSudo(BaseRefCase):
         self.document(1, rel='odoo-addons/liwan_b/models/gone.py')
         self.assertIn('gone.py: 0 found, documented sudo case says 1', self.problems()[1])
 
-    def test_case_must_be_described_in_agents_md(self):
-        self.adopt_documented()
-        (self.root / 'AGENTS.md').write_text(self.AGENTS.replace('`liwan_b`', 'liwan_b'), encoding='utf-8')
-        code, text = self.problems()
-        self.assertEqual(code, 1)
-        self.assertIn(f'R7: {self.b_file}: documented case not described in AGENTS.md', text)
-
     def test_write_baseline_refuses_a_stale_case_and_leaves_the_baseline_alone(self):
         self.adopt_documented()
         before = self.baseline_file.read_text(encoding='utf-8')
@@ -1402,16 +1392,6 @@ class TestDocumentedSudo(BaseRefCase):
         code, text = self.problems('--write-baseline')
         self.assertEqual(code, 1)
         self.assertIn(f'R7: {self.b_file}: 1 found, documented sudo case says 2', text)
-        self.assertEqual(self.baseline_file.read_text(encoding='utf-8'), before)
-
-    def test_write_baseline_refuses_an_undescribed_case_and_leaves_the_baseline_alone(self):
-        self.adopt_documented()
-        before = self.baseline_file.read_text(encoding='utf-8')
-        self.sudo('a', 1)
-        (self.root / 'AGENTS.md').write_text(self.AGENTS.replace('`liwan_b`', 'liwan_b'), encoding='utf-8')
-        code, text = self.problems('--write-baseline')
-        self.assertEqual(code, 1)
-        self.assertIn(f'R7: {self.b_file}: documented case not described in AGENTS.md', text)
         self.assertEqual(self.baseline_file.read_text(encoding='utf-8'), before)
 
     def test_write_baseline_still_passes_on_an_unchanged_tree_and_baseline(self):

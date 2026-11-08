@@ -63,7 +63,7 @@ VALUES(
         ORDER BY created_at DESC, id DESC LIMIT 1)
   ), '[]'::jsonb),
   1,
-  '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":5000}},{"cadence":{"unit":"year","count":1},"amount":{"currency":"SAR","exponent":2,"minor":50000}}]'::jsonb,
+  '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":7000}},{"cadence":{"unit":"year","count":1},"amount":{"currency":"SAR","exponent":2,"minor":70000}}]'::jsonb,
   NULL,
   3, 20480,
   '[{"cadence":{"unit":"month","count":1},"amount":{"currency":"SAR","exponent":2,"minor":2900}},{"cadence":{"unit":"year","count":1},"amount":{"currency":"SAR","exponent":2,"minor":29000}}]'::jsonb,

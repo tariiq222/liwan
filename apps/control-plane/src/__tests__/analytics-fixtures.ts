@@ -38,7 +38,7 @@ export async function seedCustomer(pool: Pool, input: Customer): Promise<Seeded>
   let tenant_id: string | null = null
   if (input.usage) {
     tenant_id = randomUUID()
-    await pool.query(`INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,$2,'saas','managed',$3,true)`, [tenant_id, input.name, `target-${tenant_id}`])
+    await pool.query(`INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,$2,'saas','dedicated_managed',$3,true)`, [tenant_id, input.name, `target-${tenant_id}`])
     await pool.query(`INSERT INTO usage_snapshots(tenant_id,observed_at,freshness,metrics,source) VALUES($1,now(),'fresh',$2,'fixture')`, [tenant_id, JSON.stringify(input.usage)])
   }
   await pool.query('INSERT INTO customers(id,name) VALUES($1,$2)', [customer_id, input.name])

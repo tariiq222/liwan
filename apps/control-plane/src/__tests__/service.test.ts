@@ -77,7 +77,7 @@ else describe('control-plane PostgreSQL integration', () => {
   })
 
   it('registers tenant and durably deduplicates queued operation by actor, tenant and payload', async () => {
-    const create = JSON.stringify({ name: 'Scratch', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: 'scratch-one', catalog_version:'test-v1',catalog_tier:'core',reason: 'Register scratch' })
+    const create = JSON.stringify({ name: 'Scratch', commercial_mode: 'saas', hosting_model: 'dedicated_managed', inventory_target: 'scratch-one', catalog_version:'test-v1',catalog_tier:'core',reason: 'Register scratch' })
     const created = await call('POST','/v1/tenants',create)
     expect(created.status).toBe(201)
     const tenant = await created.json() as { id: string }
@@ -97,7 +97,7 @@ else describe('control-plane PostgreSQL integration', () => {
   })
 
   it('rejects tenant classification mismatch before registration', async () => {
-    const body = JSON.stringify({ name:'Wrong', commercial_mode:'non_saas', hosting_model:'managed', inventory_target:'scratch-two', reason:'Registration' })
+    const body = JSON.stringify({ name:'Wrong', commercial_mode:'non_saas', hosting_model:'dedicated_managed', inventory_target:'scratch-two', reason:'Registration' })
     expect((await call('POST','/v1/tenants',body)).status).toBe(422)
   })
 
@@ -179,7 +179,7 @@ else describe('control-plane PostgreSQL integration', () => {
   })
 
   it('retains verified desired and observed policy after incomplete create without activating tenant', async () => {
-    const create = JSON.stringify({name:'Second scratch',commercial_mode:'saas',hosting_model:'managed',inventory_target:'scratch-two',catalog_version:'test-v1',catalog_tier:'core',reason:'Register scratch'})
+    const create = JSON.stringify({name:'Second scratch',commercial_mode:'saas',hosting_model:'dedicated_managed',inventory_target:'scratch-two',catalog_version:'test-v1',catalog_tier:'core',reason:'Register scratch'})
     const tenant = await (await call('POST','/v1/tenants',create)).json() as {id:string}
     const body = JSON.stringify({type:'tenant.create',request_id:crypto.randomUUID(),reason:'Provision scratch'})
     expect((await call('POST',`/v1/tenants/${tenant.id}/operations`,body)).status).toBe(202)

@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class CiResultTest(unittest.TestCase):
-    def gate(self, selected, results=None, scope='success'):
+    def gate(self, selected, results=None, scope='success', *, draft=False):
         workflow = (ROOT / '.github/workflows/ci.yml').read_text()
         step = workflow.split('- name: Require every selected stage to pass\n', 1)[1]
         block = step.split('        run: |\n', 1)[1]
@@ -23,7 +23,7 @@ class CiResultTest(unittest.TestCase):
             lines.append(line)
         command = textwrap.dedent('\n'.join(lines))
         needs = {
-            'scope': {'result': scope, 'outputs': {'stages': json.dumps(selected)}},
+            'scope': {'result': scope, 'outputs': {} if selected is None else {'stages': json.dumps(selected)}},
             'static': {'result': 'success', 'outputs': {}},
             'e2e-mock': {'result': 'skipped', 'outputs': {}},
         }
@@ -31,7 +31,7 @@ class CiResultTest(unittest.TestCase):
             needs[name] = {'result': result, 'outputs': {}}
         return subprocess.run(
             ['bash', '-e', '-o', 'pipefail', '-c', command], cwd=ROOT,
-            env={**os.environ, 'NEEDS': json.dumps(needs)}, capture_output=True, text=True, check=False)
+            env={**os.environ, 'NEEDS': json.dumps(needs), 'IS_DRAFT': str(draft).lower()}, capture_output=True, text=True, check=False)
 
     def test_unselected_stage_can_be_skipped(self):
         self.assertEqual(self.gate(['static']).returncode, 0)
@@ -51,7 +51,17 @@ class CiResultTest(unittest.TestCase):
         self.assertNotEqual(self.gate(['static', 'missing-job']).returncode, 0)
 
     def test_scope_failure_fails(self):
-        self.assertNotEqual(self.gate(['static'], scope='failure').returncode, 0)
+        result = self.gate(None, scope='failure')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('scope did not succeed (failure)', result.stdout)
+        self.assertNotIn('mark the PR ready', result.stdout)
+
+    def test_skipped_scope_fails_with_a_clear_error(self):
+        # A draft PR skips scope, which leaves its outputs empty; jq must not crash on the missing stages.
+        result = self.gate(None, scope='skipped', draft=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('scope did not run', result.stdout)
+        self.assertNotIn('jq: error', result.stderr)
 
     def test_static_failure_fails(self):
         self.assertNotEqual(self.gate(['static'], {'static': 'failure'}).returncode, 0)

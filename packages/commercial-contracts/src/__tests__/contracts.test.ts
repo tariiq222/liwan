@@ -1,10 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { operationRequestSchema, tenantCreateSchema, vendorCapabilitySchema } from '../index'
+import { hostingModelSchema, operationRequestSchema, tenantCreateSchema, vendorCapabilitySchema } from '../index'
 import { signServiceRequest, verifyServiceRequest } from '../server'
 
 describe('commercial input contracts', () => {
+  it('knows exactly three hosting models and no bare managed', () => {
+    expect(hostingModelSchema.options).toEqual(['shared_managed', 'dedicated_managed', 'customer_hosted'])
+    expect(hostingModelSchema.safeParse('managed').success).toBe(false)
+  })
+  it('registers vendor tenants as dedicated or customer-hosted, never shared', () => {
+    const base = { name: 'A', commercial_mode: 'saas', inventory_target: 'scratch-a', reason: 'Create' }
+    expect(tenantCreateSchema.safeParse({ ...base, hosting_model: 'dedicated_managed' }).success).toBe(true)
+    expect(tenantCreateSchema.safeParse({ ...base, hosting_model: 'customer_hosted' }).success).toBe(true)
+    expect(tenantCreateSchema.safeParse({ ...base, hosting_model: 'shared_managed' }).success).toBe(false)
+    expect(tenantCreateSchema.safeParse({ ...base, hosting_model: 'managed' }).success).toBe(false)
+  })
   it('rejects a browser supplied target coordinate or authority', () => {
-    expect(tenantCreateSchema.safeParse({ name: 'A', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: 'scratch-a', reason: 'Create', host: 'evil' }).success).toBe(false)
+    expect(tenantCreateSchema.safeParse({ name: 'A', commercial_mode: 'saas', hosting_model: 'dedicated_managed', inventory_target: 'scratch-a', reason: 'Create', host: 'evil' }).success).toBe(false)
     expect(operationRequestSchema.safeParse({ type: 'health', request_id: 'ed71479b-938e-44f5-ae60-12f83bbcb521', reason: 'Check', actor: 9 }).success).toBe(false)
   })
 

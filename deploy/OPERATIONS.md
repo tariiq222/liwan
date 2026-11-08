@@ -3,6 +3,13 @@
 These tools are operator wrappers. They do not start, stop, restore, schedule,
 or delete services. Local success is not production assurance.
 
+Production sizing (Odoo workers, PostgreSQL connections, pgbouncer pools and the
+memory budget for the Jeddah 4 OCPU / 24 GB server) is computed, not typed:
+[operations/odoo-sizing.md](../docs/operations/odoo-sizing.md) records the
+arithmetic and `deploy/odoo_sizing.py` reproduces it (`--render odoo` prints the
+`[options]` lines, `--render json` prints the whole plan with its invariants).
+`deploy/docker-compose.production.yml` applies the box-level envelope.
+
 ## Odoo image
 
 Build the Odoo image from the repository root with the pinned upstream source
@@ -378,17 +385,97 @@ python3 deploy/restore_verify.py --backup-dir "$WORK/backup" --target-db liwan_d
 After the drill, drop the three scratch databases created above and remove only
 the temporary `$WORK` directory. Never reuse an existing database or filestore.
 
+## Automated encrypted backups (owner decisions 2026-11-06)
+
+The scheduled path is `deploy/backup_pipeline.py`; the manual `deploy/backup.py`
+above stays the capture primitive it calls, and keeps its own `UNVERIFIED`
+contract. The owner decided (2026-11-06): **RPO 1 hour, RTO 4 hours**, hourly
+backups kept **7 days**, daily backups kept **30 days**, **encrypted before they
+leave the server**, stored in an **S3-compatible bucket in Riyadh** (Oracle Object
+Storage), and restore is performed by support on request.
+
+| Concern | Where it lives |
+| --- | --- |
+| Schedule and retention | `deploy/backup_pipeline.py` (`capture`, `prune`, `status`) |
+| Encryption | `deploy/backup_pipeline.py` (`encrypt_file`/`decrypt_file` through the `openssl` CLI) |
+| Offsite transport | `deploy/s3_client.py` (SigV4; a real S3 store and a filesystem store) |
+| Restore drill | `deploy/restore_drill.py` (restores the newest artifact into a scratch database) |
+| Alerts | `deploy/alerts.py` (email and Telegram; five events) |
+
+Every credential is an environment variable, never a repository file:
+
+```sh
+LIWAN_BACKUP_S3_ENDPOINT   # the Object Storage endpoint, for example the Riyadh namespace host
+LIWAN_BACKUP_S3_REGION     # the Object Storage region
+LIWAN_BACKUP_S3_BUCKET     # the backup bucket
+LIWAN_BACKUP_S3_ACCESS_KEY # Customer Secret Key access key
+LIWAN_BACKUP_S3_SECRET_KEY # Customer Secret Key secret
+LIWAN_BACKUP_PASSPHRASE_FILE # mode 0600 or 0400; one strong line (for example 32 random bytes as hex)
+LIWAN_TENANT_REGISTRY_PATH # absolute path to the trusted shared tenant registry snapshot
+```
+
+Run capture from this checkout with the repository's Node version on PATH. The CLI
+uses the tenant's published registry binding to derive the database and filestore.
+Suspension does not stop backups for a tenant that still has a binding. Point `--data-dir` and the PostgreSQL connection options at the same trusted
+deployment; keep that scheduler configuration and the registry outside tenant control.
+The CLI refuses a missing or pending registry, a missing tenant, and a linked filestore.
+For example:
+
+```sh
+python3 -B deploy/backup_pipeline.py capture --tenant <tenant-id> --kind hourly \
+  --work-root /path/to/private/capture-volume --data-dir /path/to/odoo-data \
+  --pg-dump /path/to/pg_dump --pg-host <host> --pg-user <role>
+```
+
+The capture uses a private temporary directory for the dump and archive, then removes
+it on exit. Size the staging disk for the copied database and filestore, the archive,
+and its ciphertext at once. Ciphertext is uploaded in parts of up to 32 MiB (at most
+10,000 parts). A keyed HMAC binds the tenant, backup kind, timestamp, digests and
+lengths. The manifest carries this tag and is written last. Test multipart completion and its
+no-overwrite condition against the selected provider before scheduling captures.
+
+## Restore drill
+
+`deploy/restore_drill.py` authenticates the newest manifest for one tenant before
+downloading its artifact, then restores it
+into a **new scratch database** through `deploy/restore_verify.py` (same checks: Liwan
+modules installed, none stuck mid-transition, every referenced attachment present),
+measures the backup's age at drill start against the 1-hour RPO and the elapsed
+restore time against the 4-hour RTO, and writes an atomic record. Both budgets must
+pass for a verified result. The status command also requires a record that finished
+in the last hour; it reports the backup's current age separately. Use a fresh private
+scratch directory and an explicit PostgreSQL role with permission to create the
+scratch database. The scratch database and restored files remain for inspection.
+
+```sh
+python3 -B deploy/restore_drill.py run --tenant <tenant-id> \
+  --scratch-root /path/to/private/drill --target-db liwan_restore_scratch \
+  --pg-host <scratch-host> --pg-user <scratch-role>
+```
+
+## Alerts (owner decisions 2026-11-06)
+
+Alerts reach the owner by **email and Telegram** (never WhatsApp). `deploy/alerts.py`
+emits exactly five events — failed backup, backup older than the RPO, disk above the
+threshold, container unhealthy, restore drill failed — and nothing else. A channel
+that fails to deliver is reported, never silently dropped, and one failing channel
+does not stop the other. The bot token, chat id and SMTP credentials are environment
+values the owner provides.
+
+The operator procedure and the per-alert first action are in
+[operations/saas-commercial-runbook.md](../docs/operations/saas-commercial-runbook.md) §5.
+
 ## Unresolved (do not invent answers)
 
 | Topic | Status |
 | --- | --- |
-| Retention | Not defined. This tool does not prune or age backups. |
-| Encryption at rest / in transit for backup files | Not implemented. |
-| Offsite / object-storage replication | Not implemented. |
-| RPO | Not defined. |
-| RTO | Not defined. |
+| Retention | Decided by the owner (hourly 7 days, daily 30 days) and enforced by `deploy/backup_pipeline.py prune`; not yet exercised against a real bucket. |
+| Encryption at rest / in transit for backup files | Implemented as AES-256-CBC with PBKDF2 through the `openssl` CLI, with SHA-256 of plaintext and ciphertext pinned in the manifest. The manifest's HMAC authenticates its metadata and checksums before the drill reads the archive. The HMAC uses a separate key derived from the passphrase. |
+| Offsite / object-storage replication | Implemented (`deploy/s3_client.py`); no real bucket has been written yet, so it is unproven live. |
+| RPO | Decided: 1 hour. Proven by a drill only when the drill record exists. |
+| RTO | Decided: 4 hours. Proven by a drill only when the drill record exists. |
 | Compose volume export procedure | Not implemented; operator must present host paths. |
-| Point-in-time PostgreSQL recovery | Not implemented (`pg_dump -Fc` only). |
+| Point-in-time PostgreSQL recovery | Not implemented (`pg_dump -Fc` only). The 1-hour RPO rests on hourly full dumps, not WAL archiving. |
 
 ## Verification of these files
 
@@ -400,4 +487,13 @@ python3 -m unittest discover -s deploy -p test_operations.py
 ruff check deploy/check_isolated.py deploy/backup.py deploy/test_operations.py
 python3 deploy/check_isolated.py --help
 python3 deploy/backup.py --help
+```
+
+The production sizing, the backup pipeline, the restore drill, the alerts and the
+image pins have their own offline suites:
+
+```sh
+PYTHONPATH=deploy python3 -m unittest deploy.test_odoo_sizing deploy.test_s3_client \
+  deploy.test_backup_pipeline deploy.test_restore_drill deploy.test_alerts \
+  deploy.test_image_pins deploy.staging.test_staging
 ```

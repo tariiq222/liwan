@@ -20,7 +20,7 @@ from sudo_gate import (
 
 HEADER = '# Part of Odoo. See LICENSE file for full copyright and licensing details.\n'
 TRAILER = 'Architecture-approved-by: owner'
-# A reason of the shape AGENTS.md requires: the elevating call, then the blocking rule and its file.
+# A reason of the shape the gate requires: the elevating call, then the blocking rule and its file.
 REASON = (
     "liwan_pmo project charter reference: `self.env['project.project'].sudo().search_count([...])` counts the "
     "catalog usage; blocked by `rule_liwan_project_owning_unit_current_company` in security/project_charter_rules.xml."
@@ -113,7 +113,7 @@ class TestAllowedSites(unittest.TestCase):
 
 
 class GateCase(unittest.TestCase):
-    """A temp tree with one core addon, its baseline, the documented cases and the AGENTS.md paragraph."""
+    """A temp tree with one core addon, its baseline, the documented cases."""
 
     ADDON = 'odoo-addons/liwan_core/models/m.py'
 
@@ -131,7 +131,6 @@ class GateCase(unittest.TestCase):
         self.sudo(1)
         self.baseline({'R7': {self.ADDON: 1}})
         self.document({})
-        self.agents('`liwan_core`')
 
     def write(self, relative, text):
         path = self.root / relative
@@ -146,9 +145,6 @@ class GateCase(unittest.TestCase):
 
     def document(self, cases):
         self.documented_file.write_text(json.dumps({'cases': cases}), encoding='utf-8')
-
-    def agents(self, tokens):
-        self.write('AGENTS.md', f'# t\n\n- The `sudo()` cases are listed per file in `tools/arch_documented_sudo.json`; {tokens} has a documented path.\n')
 
     def problems(self, *argv):
         out = io.StringIO()
@@ -181,13 +177,6 @@ class GateCase(unittest.TestCase):
         code, text = self.problems()
         self.assertEqual(code, 1)
         self.assertIn('not specific enough', text)
-
-    def test_a_documented_case_must_be_described_in_agents_md(self):
-        self.document({self.ADDON: {'count': 1, 'reason': REASON}})
-        self.agents('`liwan_other`')
-        code, text = self.problems()
-        self.assertEqual(code, 1)
-        self.assertIn(f'R7: {self.ADDON}: documented case not described in AGENTS.md', text)
 
     def test_an_unregistered_addon_leaves_its_sites_unchecked(self):
         self.write('odoo-addons/liwan_new/__manifest__.py', HEADER + repr({'name': 'new', 'depends': ['base']}))

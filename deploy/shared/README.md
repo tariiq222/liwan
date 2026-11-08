@@ -58,6 +58,8 @@ Environment:
 - guard: `LIWAN_SESSION_KEYS` JSON map key-id → >=32-byte random secret;
   `LIWAN_SESSION_ACTIVE_KID`, `LIWAN_GUARD_PORT` (default 8080),
   `LIWAN_GUARD_ODOO_URL`, `LIWAN_GUARD_WEB_URL`, `LIWAN_GUARD_WS_URL`
+- guard + Nuxt, optional: `LIWAN_RESTORE_REGISTRY_PATH`; guard only: `LIWAN_GUARD_RESTORE_ODOO_URL`
+  (required with the path), `LIWAN_GUARD_RESTORE_WS_URL`. See "Restore hosts".
 - Nuxt: `NUXT_ODOO_URL=http://guard:8080`, public WS URL empty (same-origin).
   Remove Odoo routeRules and dev WS bypass in shared only. Do not expose keyring to Nuxt.
 - control-api + control-worker (invitation acceptance): control-api has no Docker access; it hands
@@ -143,6 +145,80 @@ publication. Already running HTTP requests may finish. WS connections forcibly c
 within 30 seconds of handshake, bounding reauthorization delay; this is not immediate
 revocation. Revise through registry writer; writing a static file manually bypasses
 CAS/audit and is not an authorized mutation protocol.
+
+## Restore hosts
+
+A verified restore is published by the control plane (`publishOdooRestore`) as a route in a **separate** registry file,
+`<stateDir>/restore-registry/registry.json`, with the same schema as the tenant registry and one target per approval:
+host `r<approval uuid hex>.restore.<domain>`, tenant id `r<approval uuid hex>`, and the scratch database as both
+`database` and `filestore`. The files are never merged (the control plane's `shared_odoo_restore_registry_guard`
+trigger keeps a restore database out of the tenant bindings).
+
+Readers:
+- **guard** reads the file per request, with no cache, when `LIWAN_RESTORE_REGISTRY_PATH` is set. A restore host goes
+  through the same `requestPlan` as a tenant host: the same forbidden headers and routes, the same proxy-token check,
+  the same session binding. The restored database lives in `restore-db`, so the guard sends a restore host's Odoo
+  traffic to `LIWAN_GUARD_RESTORE_ODOO_URL` (`restore-odoo`) and never to the tenant Odoo; web traffic still goes to the
+  one Nuxt service.
+- **Nuxt** (`tenantRequest`) resolves a restore host from the same file, so the page it renders carries the restore
+  target's revision; it is consulted only for restore hosts.
+
+Failure rule. The restore file is consulted **only** for hosts shaped `r<32 hex>.restore.<domain>`, so it can never
+affect a tenant host:
+- no path configured, or a host outside that shape: no restore targets;
+- file absent (and no `registry.json.pending` barrier): no restore targets, so the restore host is unknown (403);
+- anything else is `restore_registry_unavailable` (403) for that restore host: a barrier file, an unreadable or
+  malformed file, `database != filestore`, a target whose host is outside the restore shape, or a host, tenant id,
+  database or filestore that the tenant registry also carries (hosts stay globally unique across both files);
+- a broken **tenant** registry still denies every request, restore hosts included.
+With release routing on (`LIWAN_RELEASE_ROUTES_DIR`) a restore host is refused (`restore_release_routes_unsupported`):
+a restore target has no release route.
+
+Compose (`deploy/docker-compose.shared.yml`). `LIWAN_RESTORE_REGISTRY_DIR` must be the control plane's
+`<stateDir>/restore-registry` (mounted read-only into guard and web at `/etc/liwan-restore`; the default
+`./data/restore-registry` is an empty directory, so a stack that does not set it serves no restore host). The
+`restore` profile declares `restore-db` (same pinned image as `db`) and `restore-odoo` (same image as `odoo`), the two
+services `tools/shared_saas_lifecycle/odoo_backup.py` restores into. They start only with `--profile restore`, publish
+no port, share no network with `db` or `odoo`, and use their own volumes. `restore-odoo` mounts
+`LIWAN_RESTORE_ODOO_CONFIG`, a validated external config whose `db_host` is `restore-db`; unset, it mounts
+`deploy/shared/odoo.restore.conf`, an incomplete reference the startup validator rejects.
+
+**Access control: who may reach a restore host (owner decision 2026-11-08).** A restore host is on the public edge and
+is authenticated like a tenant host, by the restored database's own users, so it would otherwise accept the
+credentials the backup held — including a user disabled since the backup, or an old password. Its name is not
+guessable (128-bit approval id) and publishing it needs a step-up vendor session, but neither is access control.
+
+So the edge restricts `*.restore.{$DOMAIN}` to the operator's own addresses: the site answers **404** for any client
+outside `LIWAN_RESTORE_ALLOW`, an allowlist in Caddy `remote_ip` syntax (`CIDRs`, `private_ranges`, or bare
+addresses). There is deliberately **no default**: with the variable unset or empty, every restore host answers 404,
+so a deployment cannot expose a restore by forgetting to set it. `trusted_proxies` stays unset on this site, so
+`remote_ip` compares the socket peer and no client-supplied header can claim an allowlisted address. A customer
+administrator therefore reaches a restored copy only through an operator, which is the intended review step: a
+restore is a recovery artefact, not a service. Expiry and unpublish remain future work; today a published route
+stays until the operator removes it from the restore registry file.
+`restore-odoo` is deliberately given no `LIWAN_SHARED_PROXY_TOKEN`: Odoo reads it only for the TikTok relay.
+
+**Operator prerequisite: wildcard DNS and a wildcard certificate.** The Caddyfile serves
+`*.restore.{$LIWAN_RESTORE_DOMAIN:invalid.invalid}`, but without both of the following a restore host is not served:
+1. `LIWAN_RESTORE_DOMAIN` set to the control plane's `domainSuffix`. This is a **separate** variable from `DOMAIN` on
+   purpose: `DOMAIN` is a site-address list that may carry several tenant hosts
+   (`DOMAIN="a.accept.test b.accept.test"`), so deriving the restore wildcard from it produced a site that matched no
+   published restore. With the variable unset the site falls back to `invalid.invalid`, which serves nothing.
+2. a wildcard DNS record, `*.restore.<domainSuffix>`, pointing at the edge;
+3. a TLS certificate valid for `*.restore.<domainSuffix>`. The stock proxy image (`deploy/proxy/Dockerfile`: Caddy plus
+   `caddy-ratelimit`) has no DNS-challenge module, so Caddy cannot obtain a wildcard certificate by itself. The
+   operator supplies it, for example by building the proxy with a DNS provider module and adding a `tls { dns ... }`
+   block, or by adding a `tls <cert> <key>` line, to the restore site only. Neither route is shipped or verified here.
+
+**A restored database runs no scheduled job.** `restore-odoo` is a recovery copy, so every cron the backup held is
+overdue on it and would mutate the data before an operator inspects it — `liwan_inbox`'s maintenance cron deletes
+conversations and attachments, which also makes `BackupRunner.verify_restore()` fail on a changed attachment
+inventory. Compose therefore starts it with `--max-cron-threads=0` and `LIWAN_RESTORE_ROLE=1`, and
+`deploy/shared/validate_odoo_config.py` refuses any other argument set or any `max_cron_threads` other than `0` in the
+restore config. That is a server-side invariant, not advice in a reference file.
+
+Not verified: no shared stack was started for this change, so serving a restored tenant end to end (DNS, TLS, guard to
+`restore-odoo`, Nuxt login) is unproven until an operator runs it with the wildcard certificate in place.
 
 ## Session and route contract
 

@@ -54,7 +54,7 @@ else describe('shared order and sandbox payment lifecycle', () => {
     await pool.query('TRUNCATE service_nonces, audit_events, operation_events, operations, restore_approvals')
     await pool.query('INSERT INTO shared_registry_state(singleton,revision) VALUES(true,0)')
     await vendorAccount(pool, ['customer_success', 'operations'], 7)
-    await pool.query('INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES ($1,$2,\'saas\',\'managed\',$3,true),($4,$5,\'saas\',\'managed\',$6,true)',
+    await pool.query('INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES ($1,$2,\'saas\',\'shared_managed\',$3,true),($4,$5,\'saas\',\'shared_managed\',$6,true)',
       [tenantA, 'Order A', 'order-a', tenantB, 'Order B', 'order-b'])
     const source = await readFile(join(repositoryRoot, 'deploy/catalog/solutions/platform.json'))
     await pool.query('INSERT INTO catalog_entries(id,version,status,solution,source_sha256,published_at) VALUES($1,\'live-v1\',\'published\',$2,$3,now())',

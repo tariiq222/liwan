@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import hashlib
 import io
+import re
 import tarfile
 import tempfile
 import unittest
@@ -280,6 +281,24 @@ class RestoreIsolationTests(unittest.TestCase):
                 with self.assertRaisesRegex(odoo_effect.EffectError, '^restore_stopped_after_database$'):
                     runner._restore_operation()
         self.assertEqual(streams, [('restore-db', odoo_backup.restore_database_script(self.DATABASE), self.DATABASE)])
+
+
+class RestoreServicesDeclaredTests(unittest.TestCase):
+    """The services the restore runner drives must exist in the compose file it is pointed at."""
+
+    ROOT = Path(__file__).resolve().parents[2]
+
+    def test_every_restore_service_the_runner_names_is_declared_under_the_restore_profile(self):
+        source = Path(odoo_backup.__file__).read_text(encoding='utf-8')
+        required = set(re.findall(r"'(restore-(?:odoo|db))'", source))
+        self.assertEqual(required, {'restore-odoo', 'restore-db'})
+        self.assertIn("'--profile', 'restore'", source)
+        compose = (self.ROOT / 'deploy/docker-compose.shared.yml').read_text(encoding='utf-8')
+        for service in required:
+            block = re.search(r'^  ' + service + r':\n((?:    .*\n|\n)+)', compose, re.M)
+            with self.subTest(service=service):
+                self.assertIsNotNone(block, service + ' is not declared in docker-compose.shared.yml')
+                self.assertIn('profiles: [restore]', block.group(1))
 
 
 if __name__ == '__main__':

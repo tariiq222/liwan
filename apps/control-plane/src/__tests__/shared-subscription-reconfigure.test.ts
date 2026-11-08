@@ -23,7 +23,7 @@ export async function seedOrder(pool: Pool, tenantRequired = false) {
   const tenant = randomUUID(), customer = randomUUID(), subscription = randomUUID(), previous = randomUUID(), target = randomUUID(), order = randomUUID(), branch = randomUUID()
   const slug = `t${tenant.replaceAll('-','')}`, database = `liwan_scratch_${tenant.replaceAll('-','')}`
   const entitlement = { modules: ['liwan_platform'], features: {'users.limit':10,'storage.limit_mb':100}, digest:'a'.repeat(64),compiler_version:1 }
-  await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'B3','saas','managed',$2,true)", [tenant, slug])
+  await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'B3','saas','shared_managed',$2,true)", [tenant, slug])
   await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)',[tenant,slug,`${slug}.test`,database])
   await pool.query('INSERT INTO customers(id,name,tenant_id) VALUES($1,\'B3\',$2)',[customer,tenantRequired?null:tenant])
   await pool.query('INSERT INTO subscriptions(id,customer_id,tenant_id) VALUES($1,$2,$3)',[subscription,customer,tenantRequired?null:tenant])

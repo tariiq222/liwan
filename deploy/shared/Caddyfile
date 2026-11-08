@@ -1,6 +1,8 @@
 # Shared opt-in; requires deploy/proxy/Dockerfile with pinned caddy-ratelimit.
 # Only TLS edge publishes ports. No trusted_proxies: client_ip is the socket peer.
-{$DOMAIN} {
+# The edge every guarded host gets: tenant hosts and restore hosts alike, so a restored copy is throttled,
+# stripped and forwarded exactly like a tenant and gains no route of its own (the guard decides the rest).
+(guarded_site) {
 	@privateToken header X-Liwan-Proxy-Token *
 	@privateRevision header X-Liwan-Tenant-Revision *
 	route {
@@ -82,6 +84,38 @@
 			header_up -X-Liwan-Proxy-Token
 			header_up -X-Liwan-Tenant-Revision
 		}
+	}
+}
+
+{$DOMAIN} {
+	import guarded_site
+}
+
+# Restore hosts, `r<approval uuid hex>.restore.<domain>`, are published by the control plane's restore
+# publication and resolved by the guard from its separate restore registry. They need a wildcard DNS record
+# AND a certificate valid for `*.restore.<domain>`; see "Restore hosts" in deploy/shared/README.md. Caddy cannot
+# issue that wildcard itself with the stock proxy image (no DNS-challenge module), so until the operator supplies
+# it a restore host has no usable TLS.
+#
+# Access control: a restored database still holds the credentials the backup held, including a user disabled since
+# the backup or an old password, so this site is not open to the internet. `LIWAN_RESTORE_ALLOW` is the operator's
+# client-address allowlist (`remote_ip` syntax: CIDRs, `private_ranges`, or bare addresses). It has no default on
+# purpose: an unset or empty value answers 404 for every restore host, so a deployment cannot expose a restore by
+# forgetting to set it. `trusted_proxies` stays unset, so `remote_ip` reads the socket peer and no client header
+# can claim an allowlisted address.
+# The restore suffix is its own variable on purpose: `DOMAIN` is a site-address list that may carry several tenant
+# hosts (`DOMAIN="a.example.test b.example.test"`), and deriving the wildcard from it would produce a host that
+# matches no published restore (`r<hex>.restore.example.test`). Set `LIWAN_RESTORE_DOMAIN` to the control plane's
+# `domainSuffix`. A default keeps `caddy validate` working when only `DOMAIN` is set.
+*.restore.{$LIWAN_RESTORE_DOMAIN:invalid.invalid} {
+	# `handle` blocks are mutually exclusive and evaluated in order, so the allowlist is decided before any
+	# request reaches the guarded snippet (a bare `respond` beside `import` is reordered by Caddy's directive sort).
+	@notOperator not remote_ip {$LIWAN_RESTORE_ALLOW}
+	handle @notOperator {
+		respond 404
+	}
+	handle {
+		import guarded_site
 	}
 }
 

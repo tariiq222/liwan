@@ -10,11 +10,14 @@ relative to the document; the addon shorthand needs a slash (`liwan_hr/x.py`).
 """
 from __future__ import annotations
 
+import argparse
 import posixpath
 import re
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
+from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ('CLAUDE.md', 'AGENTS.md', 'docs/agents/odoo-rules.md', 'docs/agents/web-rules.md', 'docs/agents/repository-layout.md', 'docs/agents/integration-rules.md', 'docs/parallel-work.md', 'REVIEW.md',
@@ -55,9 +58,9 @@ def _candidate(token: str) -> str | None:
 
 def _known_paths(root: Path) -> set[str]:
     out = subprocess.run(
-        ['git', 'ls-files', '-co', '--exclude-standard'],
+        ['git', 'ls-files', '-z', '-co', '--exclude-standard'],
         cwd=root, capture_output=True, text=True, check=True,
-    ).stdout.split('\n')
+    ).stdout.split('\0')
     known: set[str] = set()
     for path in filter(None, out):
         known.add(path)
@@ -90,15 +93,75 @@ def find_missing(doc: str, text: str, known: set[str]) -> list[tuple[int, str]]:
     return missing
 
 
-def main() -> int:
-    known = _known_paths(ROOT)
+# Accept bare and angle-delimited destinations, with an optional link title.
+MARKDOWN_TARGET = r'(<[^>]+>|[^\s)]+)'
+INLINE_LINK_RE = re.compile(r'\]\(\s*' + MARKDOWN_TARGET + r'(?:\s+[^)]*)?\)')
+REFERENCE_LINK_RE = re.compile(r'^ {0,3}\[[^]]+\]:\s*' + MARKDOWN_TARGET)
+FENCE_RE = re.compile(r'^ {0,3}(`{3,}|~{3,})(.*)$')
+INLINE_CODE_RE = re.compile(r'(?<!`)(`+)(?!`).*?(?<!`)\1(?!`)')
+URI_RE = re.compile(r'^[A-Za-z][A-Za-z0-9+.-]*:')
+
+
+def _missing_relative_links(doc: str, text: str, known: set[str]):
+    parent = Path(doc).parent.as_posix()
+    fence = ''
+    for number, line in enumerate(text.splitlines(), 1):
+        marker = FENCE_RE.match(line)
+        if marker:
+            run, tail = marker.groups()
+            if not fence:
+                fence = run
+            elif run[0] == fence[0] and len(run) >= len(fence) and not tail.strip():
+                fence = ''
+            continue
+        if fence:
+            continue
+        line = INLINE_CODE_RE.sub('', line)
+        for pattern in (INLINE_LINK_RE, REFERENCE_LINK_RE):
+            for raw in pattern.findall(line):
+                target = raw.strip('<>').split('#', 1)[0]
+                if not target or target.startswith('/') or URI_RE.match(target):
+                    continue
+                target = unquote(target).rstrip('/')
+                relative = posixpath.normpath(posixpath.join(parent, target))
+                if relative != '.' and relative not in known:
+                    yield number, target
+
+
+def changed_link_failures(root: Path, base: str, known: set[str]):
+    def git(*args: str) -> str:
+        return subprocess.check_output(['git', *args], cwd=root, text=True, encoding='utf-8')
+
+    ancestor = git('merge-base', base, 'HEAD').strip()
+    changed = git('diff', '--name-status', '--diff-filter=AM', '--no-renames',
+                  '-z', ancestor, 'HEAD', '--', 'docs/').split('\0')
+    for status, doc in zip(changed[::2], changed[1::2]):
+        if not doc.endswith('.md') or doc in DOCS:
+            continue
+        previous = git('show', f'{ancestor}:{doc}') if status == 'M' else ''
+        existing = Counter(target for _, target in _missing_relative_links(doc, previous, known))
+        for number, target in _missing_relative_links(doc, (root / doc).read_text(encoding='utf-8'), known):
+            if existing[target]:
+                existing[target] -= 1
+            else:
+                yield f'{doc}:{number}: missing file reference {target}'
+
+
+def main(argv=None, *, root: Path = ROOT) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--changed-markdown', metavar='BASE',
+                        help='also check new relative links in edited Markdown under docs/')
+    args = parser.parse_args(argv)
+    known = _known_paths(root)
     failures = []
     for doc in DOCS:
-        path = ROOT / doc
+        path = root / doc
         if not path.exists():
             continue
         for number, token in find_missing(doc, path.read_text(encoding='utf-8'), known):
             failures.append(f'{doc}:{number}: missing file reference {token}')
+    if args.changed_markdown:
+        failures.extend(changed_link_failures(root, args.changed_markdown, known))
     for failure in failures:
         sys.stderr.write(failure + '\n')
     return 1 if failures else 0

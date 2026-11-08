@@ -306,107 +306,17 @@ cross-addon links.
   bearer token.
 - Keep `/api/v1/people?q=` and its user-id `PersonRef` contract unchanged.
   HR employee ids and user ids are distinct resources and must not be merged.
-- `liwan_tasks`, `liwan_operations` and their bridges have no `sudo()` path. `liwan_hr` and its bridges have none either, except the per-company copy of the shipped Saudi payroll structure that creating a company triggers (`models/res_company.py`: the structure's multi-company rule hides a company the system administrator has only just created, and its ACL row is read-only), and the final payslip mail of a leaver (`models/hr_payslip.py`: the private email field is for HR users only and the outgoing-mail ACL is administrator only), sent once when the run is approved.
-  `liwan_pmo` uses it only for the documented manager-write,
-  charter-approval (approval fields only, through `_liwan_write_sudo` with its own whitelist, after the manager or sponsor check), policy/config, display-lookup, integer-count, completion-status and notification
-  candidate cases, each after the caller's authorization check: the project create and copy-create policy, the shared
-  project-stage writes (Odoo lets a project user write only personal stages), the stage and milestone
-  task counts, the settings and legacy
-  `ir.config_parameter` policy writes, the project-type provisioning seed (a system administrator who creates a
-  company need not hold the employee ACL on `liwan.project.type`), the task serializers' project and milestone
-  display lookups and milestone id lookup, the timeline tracking-value reads, and the charter and completion reviewer-eligibility
-  company reads. Its milestone-bounds validators carry no elevation at all, and
-  that is deliberate: Odoo's `_validate_fields` runs every `@api.constrains` method on `self.sudo()`
-  ("run constrains just as sudoed computed-stored fields"), so a `sudo()` written inside a constraint
-  cannot change what it reads and was only noise. Never add one there. The deadline and overdue crons and the
-  project quota claims carry none either: the cron runs as `base.user_root`, and the entitlement service elevates
-  its own tenant-profile read. The milestone routes, task-create milestone check and stage id checks look the
-  reference up with `search` in the caller's environment, so a reference hidden by a record rule answers 422.
-  `liwan_platform` uses it only for the entitlement service's tenant-profile read, blocked by the system-only
-  `access_liwan_tenant_profile_system` row, which no ordinary user or public route may hold. Its callers (the user quota
-  delta, the pre-login suspension gates, the attachment storage-quota accounting, the binary image route and the
-  pre-session request authentication guard) call the service unelevated: the service raises its own read, and its
-  other reads (the support group, the user and storage counts) are raw SQL. The installed-module probe carries no elevation of its own: it reads the
-  stock cached `ir.module.module._installed()` map, which serves every caller, including the public user of a feature-gated public route.
-  `liwan_core` uses it only for the company-partner existence check, which Odoo's `res_company_rule_employee` hides and
-  `active_test=False` must still see.
-  `liwan_crm` uses it only for two boolean existence checks that return no record: the company-wide duplicate-phone check and the tenant-wide stage-occupancy check (stages are shared, the caller's rules hide other companies' deals); and for the one write of the current company's opportunity custom-field definition (`models/res_company.py`, the single `liwan_lead_properties_definition` field, after the `crm.settings.manage` check and validation), because only `group_erp_manager` writes `res.company`.
-  `liwan_appointments` uses it only in `models/guest_service.py`, to read the one booking behind an invited requester's access token (the public user holds no ACL on `resource.booking`); the token is compared in constant time and the booking is returned, elevated, only when it matches. That elevated booking is then also used to schedule, confirm and cancel that one booking and its own meeting (the engine's `_sync_meeting` creates, updates and unlinks its calendar event and attendees), with the modification deadline checked by `within_deadline`.
-  `liwan_chat` uses it for the two `mail.message.reaction` paths — the toggle after `_liwan_member_channel`
-  proved the caller's membership, and the reaction aggregation of an already-authorized message — both blocked
-  by `mail.message.reaction` being system-only in Odoo (owner decision 2026-10-25: authorized), and for the author's
-  message clearing (the company's «deleted row» choice) after the member and author checks, because clearing a
-  message reads `message_link_preview_ids`, a field Odoo limits to `base.group_erp_manager`, and its reactions are
-  system-only (as stock Odoo's own thread controller does); removing a message for good is unelevated.
-  `liwan_notify` uses it for bell delivery and recipient-owned bell reads. The `mail.message` environment in
-  `_liwan_deliver` bypasses the stock create/unlink document-access gates: create may be allowed by following the
-  source, while unlink requires source write/create access. The three recipient-owned reader helpers retain
-  elevation for the measured same-transaction flush/SQL-ordering issue in `mail.message._search`; the recorded
-  cold reads miss rows without it, and after flush their results agree. These are not `mail.notification`
-  read-ACL failures. Elevated reader domains remain restricted to the current partner, and `_liwan_domain`
-  refuses `env.su`. The idempotency precheck and the `mail.notification` create carry no elevation: the unique key
-  index guarantees single delivery and the actor creates the linked message.
-  `liwan_meetings` uses it only for its server-controlled minutes, snapshot,
-  version and event records (the finalized-version count that refuses a delete reads unelevated), the
-  company-wide organizer-overlap check, the
-  existence check of the minutes linked to a calendar event (read only, access is
-  rechecked by the caller) and the recipient-owned bell candidates. It does not
-  elevate the meeting-manager group lookup or the follower allow-list: tests
-  `liwan_meetings/tests/test_follower_access.py` and `liwan_meetings/tests/test_bell_access.py` call both as an ordinary
-  participant who is not a meeting manager and pass unelevated, so the group's
-  `user_ids` and the recipient's bell rows are readable through the ordinary ACLs;
-  `liwan_meetings_pmo` only for the id-only lookup of converted tasks;
-  `liwan_finance` only in `models/setup_service.py`, for writing the fiscal settings of the current
-  company, after the `finance.setup.manage` check, with a field whitelist, and in `models/zatca_service.py`, for the
-  ZATCA onboarding of a sales journal and the submission of one invoice through stock `l10n_sa_edi`,
-  after the `finance.zatca.manage` / `finance.zatca.submit` capability and current-company checks,
-  in the sandbox api mode only (ZATCA onboarding is sandbox-only in this phase, so production invoicing for real
-  tenants is a release blocker until the preprod/prod policy is approved).
-  `liwan_payments` uses it only in `models/payment_provider.py`, to switch one gateway's mode
-  (disabled, test, live) after the `payments.providers.manage` capability and current-company checks:
-  stock `payment.provider.write` then archives the provider's saved tokens and toggles its payment
-  methods and the payment post-processing cron, all system-only models. The tenant's gateway keys are
-  written without elevation (the capability group joins the stock key field's group) and never returned.
-  It also uses it in `models/payer_service.py`, for the anonymous payer of one payable document (a posted
-  customer invoice or an online order) whose access token the stock portal check already verified: the
-  compatible provider and payment-method lookups and the transaction create, with the document's own
-  amount, currency and partner, blocked by the system-only `payment.provider` (read by the method lookup
-  too) and `payment.transaction` ACL rows as in the stock portal; in `models/order_service.py`, for the
-  online orders a selling application creates, cancels and reads after authorizing its own record (its
-  user holds no sales rights): order and line create with server values only (no price or amount
-  parameter), stock `_action_cancel`, the payment summary and the pay link of an authorized document,
-  every returned record unelevated, and for the company's payments staff: the online orders list and
-  detail of the current company after `payments.orders.read`, and a recorded refund after `payments.refund`
-  (refund children of the paid transactions, the outbound payment and the credit notes, the amount bounded
-  by the amount due); in `models/refund_policy.py`, for the refund rules of a product a selling application
-  sells, after it authorized its own record; and in `models/payments_settings.py`, for the one whitelisted
-  tenant-wide stock parameter `sale.automatic_invoice`: read by the server when it decides, and written
-  only after the `payments.settings.manage` check in the tenant's root company.
-  `liwan_appointments_payments` uses it only in `models/resource_booking_type.py`, for the product
-  that sells a paying booking type: its price (and its creation, named after the type and linked to it)
-  after the `appointments.bookings.manage` check in the type's company, and the name sync after the
-  caller's own rename of the type; appointments managers hold no product rights.
-  `liwan_inbox_payments` uses it only for four bounded reads and writes of the WhatsApp catalog bridge, each after
-  its own check: in `models/contact.py`, creating the `res.partner` of an inbox contact with server values only, after
-  the `inbox.orders.manage` check (stock gives employees read-only partners); in `models/sale_order.py`, looking up the
-  ids of the inbox order lines of a sale order that stock payment post-processing or the expiry cron confirms or
-  cancels (the order is browsed back unelevated); in `models/order.py`, writing the conversation note and the
-  automated paid-notice reply of that payment event, which the cron or payer identity cannot write; and in
-  `controllers/images.py`, reading the image of one listed catalog item for the public product image route, after a
-  constant-time token match (the public user holds no product read).
-  `liwan_api` uses it in `controllers/common.py` only for the single company-ownership
-  read in `get_record`, before any access check, so another company's record answers the
-  same 404 not-found as a missing one instead of a 403 that leaks its existence; in
-  `controllers/branding.py`, for the one tenant-profile read behind the public
-  `/api/v1/branding` route, which has no session to authorize it; in
-  `serializers/user.py`, for the entitlement service's self-service checks; and in
-  `controllers/commercial.py`, for the
-  tenant-profile mode read that answers the commercial routes. Each of those reads a
-  platform service or singleton, never an application record.
-  Do not add another case without documenting it (R7) and fixing ACLs/rules where possible.
-  `tools/arch_documented_sudo.json` is the registry of the documented cases and their reasons.
-  Never write `sudo()` inside an `@api.constrains` method: Odoo already runs constraints on
-  `self.sudo()`, so it changes nothing.
+- `sudo()` is allowed only in the documented cases. `tools/arch_documented_sudo.json` is their single
+  source: per file, a count and a reason that names the elevating call and the blocking ACL or record
+  rule. `tools/sudo_gate.py` (inside `npm test`) fails any site beyond that registry plus the
+  `tools/arch_baseline.json` count, any weak or duplicated reason, and any documented count the code no
+  longer reaches. Do not add a case without documenting it and fixing ACLs/rules where possible.
+  Adding or raising one needs no approval trailer (owner decision 2026-10-25): the reason is the
+  record and review of the actual diff is the human gate. Weakening `tools/arch_layers.json` still
+  needs the owner's `Architecture-approved-by:` trailer; agents never add that trailer.
+  `liwan_tasks`, `liwan_operations` and their bridges have no `sudo()` path. Never write `sudo()` inside
+  an `@api.constrains` method: Odoo's `_validate_fields` already runs constraints on `self.sudo()`, so
+  it changes nothing and is noise. The PMO deadline and overdue crons run as `base.user_root` and need none.
 - The current delivery scope has no time logging product surface: do not add `hr_timesheet`
   or timesheet fields/endpoints to the customer UI; adding them requires a separately scoped
   implementation request. Payroll is approved (owner decision 2026-10-19) as the Saudi payroll

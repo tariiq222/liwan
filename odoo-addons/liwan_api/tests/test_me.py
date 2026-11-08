@@ -6,10 +6,8 @@ from odoo.http import root
 from odoo.tests import HttpCase, new_test_user, tagged
 from odoo.tests.common import HOST, Opener
 
-from odoo.addons.liwan_api.controllers.common import (
-    clear_security_caches_after_commit,
-    fresh_session_token,
-)
+from odoo.addons.liwan_api.controllers.common import clear_security_caches_after_commit
+from odoo.addons.liwan_api.models.res_users import fresh_session_token
 from odoo.addons.liwan_api.serializers.user import dump_me, dump_platform
 from odoo.addons.liwan_api.tests.common import LiwanApiCase
 
@@ -45,6 +43,19 @@ class TestMeEndpoint(HttpCase):
         self.assertEqual(body['platform']['schema_version'], 1)
         self.assertIn(body['platform']['state'], ('active', 'expired', 'suspended'))
         self.assertEqual(body['appearance'], {'mode': 'light', 'font_size': 'small'})
+
+    def test_profile_timezone_rejects_non_string_values(self):
+        new_test_user(self.env, login='emp_timezone', password='emp_timezone_pass_123',
+                      groups='liwan_core.group_employee')
+        self.authenticate('emp_timezone', 'emp_timezone_pass_123')
+        for value in (0, 1, True, [], {}, ['Asia/Riyadh'], {'zone': 'Asia/Riyadh'}):
+            with self.subTest(value=value):
+                result = self.url_open(
+                    '/api/v1/me/profile', json={'tz': value}, method='PATCH',
+                    headers={'Content-Type': 'application/json'},
+                )
+                self.assertEqual(result.status_code, 422, result.text)
+                self.assertEqual(result.json()['field'], 'tz')
 
     def patch_appearance(self, payload):
         return self.url_open(

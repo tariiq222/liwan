@@ -17,7 +17,7 @@ suite('subscription suspension reaches the tenant', () => {
 
   async function subscription(state: string, { tenant = true, binding = true }: { tenant?: boolean; binding?: boolean } = {}) {
     const tenantId = randomUUID(), customer = randomUUID(), id = randomUUID()
-    if (tenant) await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Suspension','saas','managed',$2,true)", [tenantId, `suspension-${tenantId}`])
+    if (tenant) await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Suspension','saas','dedicated_managed',$2,true)", [tenantId, `suspension-${tenantId}`])
     if (tenant && binding) {
       const slug = `t${tenantId.replaceAll('-', '')}`
       await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)', [tenantId, slug, `${slug}.susp.test`, `liwan_scratch_${slug.slice(1)}`])

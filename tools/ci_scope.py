@@ -55,16 +55,59 @@ DEFERRED_STAGES = ('upgrade', 'restore-drill', 'image', 'e2e-odoo')
 # chat and API records, so those surfaces prove their journeys before the merge instead of turning main red
 # afterwards. A path outside this list still defers the stage, and so does a change with no listed path.
 E2E_ODOO_TRIGGERS = (
-    'apps/web/e2e/*',                            # the specs and their fixtures
-    'apps/web/app/pages/projects/*',             # the project workspace the suite drives
-    'apps/web/app/components/pmo/projects/*',
-    'apps/web/app/composables/useProjects.ts',
-    'apps/web/app/composables/useTasks.ts',
+    # The stage itself: its script, its seed and the specs with their fixtures.
+    'deploy/ci/e2e-odoo.sh',
+    'tools/e2e_seed.py',
+    'apps/web/e2e/*',
+    # Sign-in, session and the server proxy every journey goes through.
+    'apps/web/server/*',
+    'apps/web/app/middleware/*',
+    'apps/web/app/plugins/*',
+    'apps/web/app/pages/login.vue',
+    'apps/web/app/components/auth/*',
+    'apps/web/app/composables/useMe.ts',
+    'apps/web/app/composables/useAccess.ts',
+    'apps/web/app/composables/useApi.ts',
+    'apps/web/app/composables/useSignOut.ts',
+    # Projects, tasks and chat with the realtime path they wait on.
+    'apps/web/app/pages/projects/*',
+    'apps/web/app/pages/projects.vue',
+    'apps/web/app/pages/tasks/*',
+    'apps/web/app/pages/tasks.vue',
+    'apps/web/app/components/pmo/*',
+    'apps/web/app/components/work/*',
+    'apps/web/app/components/chat/*',
+    'apps/web/app/composables/useProject*',
+    'apps/web/app/composables/project*',
+    'apps/web/app/composables/useTask*',
+    'apps/web/app/composables/task*',
     'apps/web/app/composables/useChat.ts',
-    'apps/web/app/composables/useBus.ts',        # the realtime path the chat journey waits on
-    'apps/web/app/composables/projectKeys.ts',
-    'odoo-addons/liwan_pmo/*',                   # the project and task API behind it
+    'apps/web/app/composables/useBus.ts',
+    # Account, access administration and the HR people pages.
+    'apps/web/app/pages/account/*',
+    'apps/web/app/pages/hr/*',
+    'apps/web/app/pages/hr.vue',
+    'apps/web/app/pages/settings/*',
+    'apps/web/app/components/account/*',
+    'apps/web/app/components/access/*',
+    'apps/web/app/components/hr/*',
+    'apps/web/app/components/settings/*',
+    'apps/web/app/composables/useAdmin*',
+    'apps/web/app/composables/useHrEmployees.ts',
+    'apps/web/app/composables/useEmployeeAccounts.ts',
+    'apps/web/app/composables/usePeople.ts',
+    # The Odoo side of those journeys: the foundation they sit on and the applications behind them.
+    'odoo-addons/liwan_core/*',
+    'odoo-addons/liwan_platform/*',
+    'odoo-addons/liwan_api/*',
+    'odoo-addons/liwan_directory/*',
+    'odoo-addons/liwan_pmo/*',
+    'odoo-addons/liwan_tasks/*',
     'odoo-addons/liwan_chat/*',
+    'odoo-addons/liwan_hr/*',
+    'odoo-addons/liwan_pmo_finance/*',
+    'odoo-addons/liwan_tasks_pmo/*',
+    'odoo-addons/liwan_access_hr/*',
 )
 # The web and vendor-admin images build from these packages, so `image` is selected with them.
 SHARED_PACKAGE_STAGES = ('control-plane', 'vendor-admin', 'image', 'e2e-mock', 'e2e-odoo', 'rtl-stories')
