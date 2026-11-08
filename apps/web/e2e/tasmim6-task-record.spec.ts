@@ -5,24 +5,23 @@ test.describe('Plan 6a: the task record', () => {
   test.beforeEach(async ({ page }) => { await login(page) })
   test.describe('desktop', () => {
     test.use({ viewport: DESKTOP })
-    test('/tasks/101 is a record page: one h1 with the task name, the back control, the tabs and the properties aside', async ({ page }) => {
+    test('/tasks/101 is a record workspace: one h1 with the task name, the trail, no tabs and the properties aside', async ({ page }) => {
       await open(page, '/tasks/101')
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('مهمة جارية')
-      await expect(page.locator('[data-template="record"]')).toHaveCount(1)
+      await expect(page.locator('[data-template="record-workspace"]')).toHaveCount(1)
       await expect(page.getByTestId('task-detail-page')).toBeVisible()
       await expect(page.getByTestId('task-detail-back')).toHaveAttribute('href', '/tasks')
-      await expect(page.getByTestId('task-detail-tabs')).toBeVisible()
+      await expect(page.getByRole('tab')).toHaveCount(0)
       await expect(page.getByTestId('task-properties')).toBeVisible()
       await expect(page.getByTestId('task-properties').locator('dt').filter({ hasText: 'المسؤولون' })).toBeVisible()
-      await expect(page.getByTestId('deadline-badge')).toBeVisible()
+      // The deadline is a property, not a countdown in the header.
+      await expect(page.getByTestId('deadline-badge')).toHaveCount(0)
     })
-    test('the editors work from the aside without opening a tab, and the tabs keep their sections', async ({ page }) => {
+    test('the properties read as text and edit from the aside, and the sections stand without tabs', async ({ page }) => {
       await open(page, '/tasks/101')
       await expect(page.getByTestId('task-properties').getByRole('combobox').first()).toBeEnabled()
-      const tabs = page.getByTestId('task-detail-tabs')
-      for (const name of ['المهام الفرعية', 'المهام السابقة', 'المرفقات']) await expect(tabs.getByRole('tab', { name, exact: true })).toBeVisible()
-      await tabs.getByRole('tab', { name: 'المهام الفرعية', exact: true }).click()
-      await expect(page.getByTestId('task-properties')).toBeVisible()
+      await expect(page.getByTestId('task-subtasks')).toBeVisible()
+      await expect(page.getByTestId('task-activity')).toBeVisible()
     })
     test('the title edits from the header: Escape reverts the draft', async ({ page }) => {
       await open(page, '/tasks/101')
@@ -39,7 +38,8 @@ test.describe('Plan 6a: the task record', () => {
     })
     test('archive asks inline and never in a dialog', async ({ page }) => {
       await open(page, '/tasks/101')
-      await page.getByTestId('task-archive').click()
+      await page.getByTestId('task-detail-menu').click()
+      await page.getByRole('menuitem', { name: 'أرشفة المهمة' }).click()
       await expect(page.getByTestId('task-archive-confirm')).toBeVisible()
       await expect(page.getByRole('dialog')).toHaveCount(0)
       let archiveRequests = 0
@@ -58,11 +58,12 @@ test.describe('Plan 6a: the task record', () => {
       await expect(page).toHaveURL(url)
       expect(archiveRequests).toBe(0)
     })
-    test('inside a project the frame keeps the only h1 and the task name is an h2', async ({ page }) => {
+    test('inside a project the record owns the only h1 and the trail names the project', async ({ page }) => {
       await open(page, '/projects/1/tasks/101')
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
-      await expect(page.getByRole('heading', { level: 2, name: 'مهمة جارية' })).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: 'مهمة جارية' })).toBeVisible()
       await expect(page.getByTestId('task-detail-back')).toHaveAttribute('href', /\/projects\/1\/tasks/)
+      await expect(page.getByTestId('page-header-trail').getByRole('link', { name: 'مشروع ألفا' })).toHaveAttribute('href', '/projects/1')
     })
     test('a task that does not exist shows the shared error state', async ({ page }) => {
       await open(page, '/tasks/99999')

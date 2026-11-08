@@ -14,7 +14,7 @@ test('search opens centered, searches real tasks, closes with Escape and navigat
   // Task 101 of the mock project «مشروع ألفا».
   const task = { id: 101, name: 'مهمة جارية' }
   await page.goto('/tasks?q=kept-search&sort=deadline')
-  await page.getByRole('button', { name: 'بحث', exact: true }).click()
+  await page.getByTestId('global-search-trigger').click()
   const dialog = page.getByRole('dialog', { name: 'بحث', exact: true })
   await expect(dialog).toBeVisible()
   await expect(page).toHaveURL(/\/tasks\?q=kept-search&sort=deadline$/)
@@ -28,7 +28,7 @@ test('search opens centered, searches real tasks, closes with Escape and navigat
   expect(Math.abs(box!.y + box!.height / 2 - viewport.height / 2)).toBeLessThan(3)
   await page.keyboard.press('Escape')
   await expect(dialog).toBeHidden()
-  await expect(page.getByRole('button', { name: 'بحث', exact: true })).toBeFocused()
+  await expect(page.getByTestId('global-search-trigger')).toBeFocused()
   await page.keyboard.press('Control+k')
   await expect(dialog).toBeVisible()
   await dialog.getByRole('textbox').fill(task.name)
@@ -39,7 +39,7 @@ test('search opens centered, searches real tasks, closes with Escape and navigat
   await expect(page).toHaveURL(/\/tasks\?q=kept-search&sort=deadline$/)
 })
 
-test('bell preview routes a digest item to the digest page instead of a task id', async ({ page }) => {
+test('bell panel routes a digest item to the digest page instead of a task id', async ({ page }) => {
   await page.route('**/api/v1/notifications?*', route => route.fulfill({
     json: {
       items: [
@@ -61,30 +61,44 @@ test('bell preview routes a digest item to the digest page instead of a task id'
   await expect(page).not.toHaveURL(/\/tasks\/undefined/)
 })
 
-test('bell previews latest five and More opens the full notification page', async ({ page }) => {
-  // Deterministic notification history verifies the preview cap independently of recipient events.
-  const items = Array.from({ length: 8 }, (_, i) => ({ id: 108 - i, kind: 'comment', task_id: 2, task_name: `Notification ${8 - i}`, body: 'Preview body', created_at: '2026-09-06T12:00:00', is_read: false }))
-  await page.route('**/api/v1/notifications?*', route => route.fulfill({ json: { items, total: 8, unread_count: 8 } }))
+test('bell panel lists the latest eight and «افتح الكل» opens the full notification page', async ({ page }) => {
+  // Deterministic notification history verifies the panel cap independently of recipient events.
+  const items = Array.from({ length: 10 }, (_, i) => ({ id: 110 - i, kind: 'comment', task_id: 2, task_name: `Notification ${10 - i}`, body: 'Preview body', created_at: '2026-09-06T12:00:00', is_read: false }))
+  await page.route('**/api/v1/notifications?*', route => route.fulfill({ json: { items, total: 10, unread_count: 10 } }))
   await login(page)
   await page.getByTestId('notification-bell').click()
+  const panel = page.getByTestId('slide-over-notifications')
+  await expect(panel).toBeVisible()
   const preview = page.getByTestId('notification-preview')
-  await expect(preview).toBeVisible()
-  await expect(preview.locator('[data-notification-preview-item]')).toHaveCount(5)
-  await expect(preview.getByText('Notification 8', { exact: true })).toBeVisible()
-  await expect(preview.getByText('Notification 3', { exact: true })).toHaveCount(0)
-  await preview.getByRole('link', { name: 'المزيد', exact: true }).click()
+  await expect(preview.locator('[data-testid^="notification-preview-"]')).toHaveCount(8)
+  await expect(preview.getByText('Notification 10', { exact: true })).toBeVisible()
+  await expect(preview.getByText('Notification 2', { exact: true })).toHaveCount(0)
+  await page.getByTestId('slide-over-notifications-all').click()
   await expect(page).toHaveURL(/\/notifications$/)
-  await expect(page.getByTestId('notification-center').getByText('Notification 8', { exact: true })).toBeVisible()
+  await expect(panel).toBeHidden()
+  await expect(page.getByTestId('notification-center').getByText('Notification 10', { exact: true })).toBeVisible()
 })
 
-test('notification preview keeps a failed read open and opens the task after retry', async ({ page }) => {
+test('the notifications panel closes with Escape and returns focus to the bell', async ({ page }) => {
+  await login(page)
+  const bell = page.getByTestId('notification-bell')
+  await bell.click()
+  await expect(page.getByTestId('slide-over-notifications')).toBeVisible()
+  await expect(bell).toHaveAttribute('aria-expanded', 'true')
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('slide-over-notifications')).toBeHidden()
+  await expect(bell).toBeFocused()
+  await expect(bell).toHaveAttribute('aria-expanded', 'false')
+})
+
+test('notification panel keeps a failed read open and opens the task after retry', async ({ page }) => {
   await page.route('**/api/v1/notifications?*', route => route.fulfill({ json: { items: [{ id: 901, kind: 'comment', task_id: 101, task_name: 'مهمة جارية', body: 'تعليق تجريبي', created_at: '2026-09-06T12:00:00', is_read: false }], total: 1, unread_count: 1 } }))
   let failRead = true
   await page.route('**/api/v1/notifications/901/read', route => route.fulfill(failRead ? { status: 500, json: { code: 'server_error', message: 'تعذر تحديث الإشعار' } } : { json: { updated: 1 } }))
   await login(page)
   await page.getByTestId('notification-bell').click()
   await page.getByTestId('notification-preview-901').click()
-  await expect(page.getByTestId('notification-preview')).toBeVisible()
+  await expect(page.getByTestId('slide-over-notifications')).toBeVisible()
   await expect(page.getByTestId('notification-preview-901')).toBeEnabled()
   failRead = false
   await page.getByTestId('notification-preview-901').click()
@@ -98,7 +112,7 @@ test('overlays fit mobile dark mode with large text and search handles no result
   await page.request.patch('/api/v1/me/appearance', { data: { mode: 'dark', font_size: 'large' } })
   await page.goto('/tasks')
   await expect(page.locator('html')).toHaveClass(/dark/)
-  await page.getByRole('button', { name: 'بحث', exact: true }).click()
+  await page.getByTestId('global-search-trigger').click()
   const dialog = page.getByRole('dialog', { name: 'بحث', exact: true })
   await dialog.getByRole('textbox').fill('zzzero-result-unmatchable-098765')
   await expect(dialog.getByText('لا نتائج.', { exact: true })).toBeVisible()
@@ -110,11 +124,11 @@ test('overlays fit mobile dark mode with large text and search handles no result
   await page.screenshot({ path: testInfo.outputPath('search-mobile-dark.png') })
   await page.keyboard.press('Escape')
   await page.getByTestId('notification-bell').click()
-  const preview = page.getByTestId('notification-preview')
-  await expect(preview.getByRole('link', { name: 'المزيد', exact: true })).toBeVisible()
-  const previewBox = await preview.boundingBox()
+  const panel = page.getByTestId('slide-over-notifications')
+  await expect(page.getByTestId('slide-over-notifications-all')).toBeVisible()
+  const previewBox = await panel.boundingBox()
   expect(previewBox!.x).toBeGreaterThanOrEqual(0)
   expect(previewBox!.x + previewBox!.width).toBeLessThanOrEqual(390)
-  await expect(preview).toHaveCSS('opacity', '1')
+  await expect(panel).toHaveCSS('opacity', '1')
   await page.screenshot({ path: testInfo.outputPath('notifications-mobile-dark.png') })
 })

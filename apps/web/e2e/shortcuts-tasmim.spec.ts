@@ -109,7 +109,7 @@ test.describe('Tasmim palette and shortcuts', () => {
     await expect(page.getByTestId('command-palette')).toHaveAttribute('data-view', 'shortcuts')
     await page.keyboard.press('Escape')
     await expect(dialog(page)).toBeHidden()
-    await page.getByTestId('notification-bell').click()
+    await page.getByTestId('account-menu').click()
     await expect(page.locator('[data-dismissable-layer]')).not.toHaveCount(0)
     // Record whether the page saw g unprevented: the shell must leave a plain key alone while a popover is open.
     await page.evaluate(() => {
@@ -128,12 +128,12 @@ test.describe('Tasmim palette and shortcuts', () => {
 
   test('Cmd+K does not open the palette over an open popover', async ({ page }) => {
     await hydrated(page, '/tasks')
-    await page.getByTestId('notification-bell').click()
-    await expect(page.getByTestId('notification-preview')).toBeVisible()
+    await page.getByTestId('account-menu').click()
+    await expect(page.getByRole('menu')).toBeVisible()
     await page.keyboard.press('ControlOrMeta+k')
-    // The notification popover is itself a dialog; the palette must not open over it.
+    // The user menu is itself a dismissable layer; the palette must not open over it.
     await expect(page.getByTestId('command-palette')).toHaveCount(0)
-    await expect(page.getByTestId('notification-preview')).toBeVisible()
+    await expect(page.getByRole('menu')).toBeVisible()
   })
   test('a palette navigation the draft guard blocks returns focus to the palette trigger', async ({ page }) => {
     // The branding form is a full page with the draft guard; a create panel would itself block Cmd+K.

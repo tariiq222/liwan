@@ -63,9 +63,9 @@ test('document colour draft cancels, resets, and saves explicitly without themin
   const savedColour = await colour.inputValue()
   const initialTitle = await page.title()
   const initialPrimary = await uiPrimary(page)
-  const shellBrand = page.getByTestId('shell-header').locator('.liwan-shell-brand')
+  // The sidebar keeps the fixed product mark; the tenant's own name sits on the organisation card of the day page.
+  const shellBrand = page.getByTestId('application-navigation').locator('.liwan-side-brand')
   await expect(shellBrand).toBeVisible()
-  expect(await shellBrand.getAttribute('aria-label')).toContain(savedName)
 
   try {
   await colour.fill('#ffffff')
@@ -99,7 +99,7 @@ test('document colour draft cancels, resets, and saves explicitly without themin
   }
   page.on('request', onResetRequest)
   await page.getByTestId('branding-preset').first().click()
-  await expect(colour).toHaveValue('#7843c6')
+  await expect(colour).toHaveValue('#14102a')
   page.off('request', onResetRequest)
   expect(resetPatchCount).toBe(0)
 
@@ -113,8 +113,7 @@ test('document colour draft cancels, resets, and saves explicitly without themin
   expect(savedResponse.request().postDataJSON()).toEqual({ primary_color: '#123456' })
   await page.reload()
   await expect(page.getByTestId('branding-color')).toHaveValue('#123456')
-  await expect(page.getByTestId('shell-header').locator('.liwan-shell-brand')).toBeVisible()
-  expect(await page.getByTestId('shell-header').locator('.liwan-shell-brand').getAttribute('aria-label')).toContain(savedName)
+  await expect(page.getByTestId('application-navigation').locator('.liwan-side-brand')).toBeVisible()
   await expect(page).toHaveTitle(savedName)
   // The saved colour is for documents; the interface keeps the fixed LiwanOS palette.
   expect(await uiPrimary(page)).toBe(initialPrimary)
@@ -136,6 +135,8 @@ test('document colour draft cancels, resets, and saves explicitly without themin
   ))
   await page.getByTestId('settings-save-bar-save').click()
   expect((await restored).status()).toBe(200)
+  await page.goto('/')
+  await expect(page.getByTestId('shell-org')).toContainText(savedName)
   } finally {
     const restore = await page.request.patch('/api/v1/admin/branding', { data: { primary_color: savedColour } })
     expect(restore.status()).toBe(200)

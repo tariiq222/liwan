@@ -1,8 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 
 test.skip(process.env.E2E_PROJECT_POPUPS !== '1', 'Isolated project mock only')
-test.beforeEach(async ({ page, context, baseURL }) => {
-  await context.addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: baseURL! }])
+test.beforeEach(async ({ page }) => {
   await page.goto('/login')
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور', { exact: true }).fill('admin')
@@ -11,13 +10,13 @@ test.beforeEach(async ({ page, context, baseURL }) => {
 })
 async function openAlpha(page: Page) {
   // The row link only knows the remembered section after hydration (localStorage is client-only).
-  await expect(page.getByTestId('context-sidebar-toggle')).toBeEnabled()
+  await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
   await page.getByTestId('project-card').filter({ hasText: 'مشروع ألفا' }).getByRole('link', { name: 'مشروع ألفا', exact: true }).click()
 }
 test('project reentry restores section filters and keeps the new list origin', async ({ page }) => {
   await page.goto('/projects/1/register?q=اعتماد&kind=risk')
   await expect(page.getByRole('link', { name: 'إضافة خطر أو مشكلة' })).toBeVisible()
-  await expect(page.getByTestId('project-workspace-settings')).toBeVisible()
+  await expect(page.getByTestId('project-workspace-menu')).toBeVisible()
   await page.goto('/projects?mine=1')
   await openAlpha(page)
   await expect(page).toHaveURL(/\/projects\/1\/register\?/)
@@ -29,7 +28,7 @@ test('project reentry restores section filters and keeps the new list origin', a
 })
 test('task board survives leaving the project and a browser refresh', async ({ page }) => {
   await page.goto('/projects/1/tasks?view=board&q=تصميم')
-  await expect(page.getByTestId('project-workspace-settings')).toBeVisible()
+  await expect(page.getByTestId('project-workspace-menu')).toBeVisible()
   await page.goto('/projects')
   await page.reload()
   await openAlpha(page)
@@ -48,19 +47,23 @@ test('opening a create form does not replace the last workspace section', async 
 })
 test('project sections are in-page tabs while the sidebar keeps the projects module', async ({ page }) => {
   await page.goto('/projects/1')
-  await expect(page.getByTestId('project-workspace-settings')).toBeVisible()
+  await expect(page.getByTestId('project-workspace-menu')).toBeVisible()
   const sidebar = page.getByTestId('application-navigation')
-  await expect(sidebar.getByTestId('projects-context-sub-list')).toBeVisible()
   await expect(sidebar.getByTestId('context-link-project-dashboard')).toBeVisible()
-  await expect(sidebar.getByTestId('projects-quick-view-mine')).toBeVisible()
+  await expect(sidebar.getByTestId('context-link-projects-attention')).toBeVisible()
+  await expect(sidebar.locator('.liwan-side-branch')).toHaveCount(0)
   await expect(sidebar.getByRole('heading', { name: 'العمل اليومي' })).toHaveCount(0)
   await expect(sidebar.getByRole('heading', { name: 'متابعة المشروع' })).toHaveCount(0)
   const tabs = await page.getByRole('navigation',{name:'أقسام المشروع',exact:true}).getByRole('link').allTextContents()
-  expect(tabs.map(s => s.trim())).toEqual(['الملخص', 'المهام', 'التحديثات', 'التخطيط', 'الحوكمة', 'المالية'])
-  await expect(page.getByTestId('project-workspace-frame').getByRole('link',{name:'الاجتماعات',exact:true})).toBeVisible()
+  expect(tabs.map(s => s.trim())).toEqual(['الملخص', 'المهام', 'الاجتماعات', 'المالية', 'الحوكمة'])
+  // The tabs never wrap: the last tab sits on the same line as the first.
+  const tabBoxes = await page.getByTestId('project-workspace-tabs').getByRole('link').evaluateAll(links => links.map(link => Math.round(link.getBoundingClientRect().top)))
+  expect(new Set(tabBoxes).size).toBe(1)
   await expect(page.getByTestId('project-planning-tabs')).toHaveCount(0)
   await expect(page.getByTestId('project-governance-tabs')).toHaveCount(0)
-  await page.getByTestId('project-tab-planning').click()
+  // Milestones and baselines open under the tasks tab, with the pill strip that leads back to the timeline view.
+  await page.goto('/projects/1/milestones')
+  await expect(page.getByTestId('project-tab-tasks')).toHaveAttribute('aria-current', 'page')
   await expect(page.getByTestId('project-planning-tabs')).toBeVisible()
   const planning = await page.getByTestId('project-planning-tabs').getByRole('link').allTextContents()
   expect(planning.map(s => s.trim())).toEqual(['الجدول الزمني', 'خطوط الأساس', 'المعالم'])
@@ -71,30 +74,20 @@ test('project sections are in-page tabs while the sidebar keeps the projects mod
   expect(governance.map(s => s.trim())).toEqual(['ملف المشروع', 'أصحاب المصلحة', 'المسؤوليات RACI', 'المخاطر والمشكلات', 'طلبات التغيير'])
   await expect(page.locator('main h1')).toHaveCount(1)
 })
-test('project task uses tabs instead of stacked cards', async ({ page }, testInfo) => {
+test('project task is one flat record: no tabs, sections in the main column, one activity feed', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/projects/1/tasks/101')
-  // The description is its own card, always visible: no tab hides it.
+  // The description is plain text, always visible: nothing hides it.
   await expect(page.getByTestId('task-description')).toBeVisible()
-  const tabs = page.getByTestId('task-detail-tabs')
-  await expect(tabs.getByRole('tab', { name: 'المهام الفرعية', exact: true })).toHaveAttribute('data-state', 'active')
-  await expect(tabs.getByRole('tab', { name: 'المهام السابقة', exact: true })).toBeVisible()
-  await expect(tabs.getByRole('tab', { name: 'المرفقات', exact: true })).toBeVisible()
-  // The schedule is the project record's own extra work section.
-  await expect(tabs.getByRole('tab', { name: 'الجدول الزمني', exact: true })).toBeVisible()
-  // The subtasks tab shows its progress line and list, not a second heading.
-  await expect(tabs.getByText('0 من 0', { exact: true })).toBeVisible()
-  await expect(tabs.getByRole('heading', { name: 'المهام الفرعية', exact: true })).toHaveCount(0)
-  // Activity lives in its own tabs block, comments first.
-  const activity = page.getByTestId('task-activity-tabs')
-  await expect(activity.getByRole('tab', { name: 'التعليقات', exact: true })).toHaveAttribute('data-state', 'active')
-  await expect(activity.getByRole('tab', { name: 'السجل', exact: true })).toBeVisible()
-  // The log renders only when its tab is chosen.
-  await expect(page.getByTestId('task-activity-card')).toBeHidden()
+  await expect(page.getByRole('tab')).toHaveCount(0)
+  await expect(page.getByTestId('task-subtasks').getByRole('heading', { name: /المهام الفرعية/ })).toBeVisible()
+  // The schedule is the project record's own section, after the work sections.
+  await expect(page.getByTestId('project-task-schedule-section')).toBeVisible()
+  // Comments and the log are one feed with a filter.
+  await expect(page.getByTestId('task-activity').getByRole('button', { name: 'الكل', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await page.screenshot({ path: testInfo.outputPath('project-task.png'), fullPage: true })
   await page.goto('/tasks/101')
-  await expect(page.getByTestId('task-detail-tabs')).toBeVisible()
+  await expect(page.getByTestId('task-subtasks')).toBeVisible()
   // The plain `/tasks` host has no schedule section.
-  await expect(page.getByTestId('task-detail-tabs').getByRole('tab', { name: 'الجدول الزمني', exact: true })).toHaveCount(0)
-  await expect(page.locator('.task-optional-details')).toHaveCount(0)
+  await expect(page.getByTestId('project-task-schedule-section')).toHaveCount(0)
 })

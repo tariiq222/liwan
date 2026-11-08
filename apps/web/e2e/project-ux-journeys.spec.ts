@@ -16,7 +16,7 @@ for (const locale of ['ar', 'en']) for (const mode of ['light', 'dark']) {
         await expect(page.locator('html')).toHaveClass(mode === 'dark' ? /dark/ : /^(?!.*dark)/)
         await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
         expect(await fitsWidth(page), `${locale} ${mode} ${width} ${path}`).toBe(true)
-        if (path.includes('/milestones/')) await expect(page.getByTestId('milestone-detail-edit')).toBeVisible()
+        if (path.includes('/milestones/')) await expect(page.getByTestId('milestone-detail-menu')).toBeVisible()
         if (path.includes('/schedule')) {
           await expect(page.getByTestId('planning-tab-schedule')).toHaveAttribute('aria-current', 'page')
           if (process.env.E2E_PROJECTS_SCREENSHOTS) {

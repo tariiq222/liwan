@@ -36,7 +36,7 @@ test('manager can add a dependency and it survives reload', async ({ page }) => 
   expect(setting.ok()).toBeTruthy()
 
   await page.goto(`/tasks/${firstId}`)
-  await page.getByTestId('task-detail-tabs').getByRole('tab', { name: 'المهام السابقة', exact: true }).click()
+  await page.getByTestId('task-add-dependency').click()
   const picker = page.getByTestId('dependency-picker')
   await expect(picker).toBeVisible()
   await picker.getByRole('button', { name: 'إضافة مهمة سابقة' }).click()
@@ -47,7 +47,6 @@ test('manager can add a dependency and it survives reload', async ({ page }) => 
   expect(dependencyDetail.state).toBe('waiting')
   await expect(picker).toContainText(`E2E prerequisite ${stamp}`)
   await page.reload()
-  await page.getByTestId('task-detail-tabs').getByRole('tab', { name: 'المهام السابقة', exact: true }).click()
   const reloadedPicker = page.getByTestId('dependency-picker')
   await expect(reloadedPicker).toContainText(`E2E prerequisite ${stamp}`)
   const dependencyRemoved = page.waitForResponse((response) => response.url().includes(`/api/v1/tasks/${firstId}/dependencies`) && response.request().method() === 'PUT')
@@ -55,9 +54,9 @@ test('manager can add a dependency and it survives reload', async ({ page }) => 
   const clearedDetail = await (await dependencyRemoved).json()
   expect(clearedDetail.depends_on).toEqual([])
   await page.reload()
-  await page.getByTestId('task-detail-tabs').getByRole('tab', { name: 'المهام السابقة', exact: true }).click()
-  await expect(page.getByTestId('dependency-picker')).toBeVisible()
-  await expect(page.getByTestId('dependency-picker')).not.toContainText(`E2E prerequisite ${stamp}`)
+  // With no predecessor left the section gives way to the small button again.
+  await expect(page.getByTestId('task-add-dependency')).toBeVisible()
+  await expect(page.getByTestId('dependency-picker')).toHaveCount(0)
 })
 
 test('a creator can restore an archived task from the dedicated page', async ({ page }) => {
