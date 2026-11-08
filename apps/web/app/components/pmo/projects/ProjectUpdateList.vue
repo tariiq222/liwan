@@ -15,7 +15,7 @@ const projectBadge = (status: ProjectStatus | null) => { const entry = projectSt
 const hydrated = useHydrated()
 
 const projectIdRef = computed(() => props.projectId)
-const { data } = useProjectUpdates(projectIdRef)
+const { data, hasNextPage, isFetchingNextPage, fetchNextPage } = useProjectUpdates(projectIdRef)
 const items = computed<ProjectUpdate[]>(() => [...(data.value ?? [])].sort((a, b) => b.date.localeCompare(a.date)).slice(1))
 
 // u.date is a YYYY-MM-DD calendar date, not an instant — new Date(iso) parses
@@ -76,5 +76,17 @@ onMounted(measure)
         </article>
       </li>
     </ol>
+    <div v-if="hasNextPage" class="flex justify-center px-(--liwan-card-pad) py-3">
+      <UButton
+        color="neutral"
+        variant="outline"
+        size="sm"
+        data-testid="project-update-more"
+        :disabled="!hydrated || isFetchingNextPage"
+        :loading="isFetchingNextPage"
+        :label="t('app.loadMore')"
+        @click="fetchNextPage()"
+      />
+    </div>
   </SharedRecordSection>
 </template>

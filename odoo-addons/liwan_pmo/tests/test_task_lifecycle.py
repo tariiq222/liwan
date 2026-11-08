@@ -1,11 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from unittest.mock import patch
 
 from odoo.exceptions import AccessError
 from odoo.tests import new_test_user, tagged
 
 from .common import LiwanPmoCase
-from odoo.addons.liwan_pmo.controllers.task_archive import eligible_archived_task_ids
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -262,78 +260,97 @@ class TestTaskLifecycle(LiwanPmoCase):
             404,
         )
 
-    def test_archive_eligibility_skips_ineligible_before_pagination(self):
-        company = self.env.company
-        archived = self.env['project.task'].create([
-            {
-                'name': f'Eligible skip {index}',
-                'project_id': self.project.id,
-                'company_id': company.id,
-                'user_ids': [(4, self.manager.id)],
-                'active': False,
-            }
-            for index in range(6)
-        ])
-        Task = self.env['project.task'].with_user(self.manager).with_context(active_test=False)
-        domain = [
-            ('active', '=', False),
-            ('company_id', '=', company.id),
-            ('project_id', '=', self.project.id),
-            ('id', 'in', archived.ids),
+    def _archive_tasks(self, count, prefix='Archive eligibility'):
+        """Archive COUNT tasks created by api_emp, so they are restorable by their creator."""
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        created = []
+        for index in range(count):
+            res = self.api('POST', '/api/v1/tasks', {
+                'name': f'{prefix} {index}', 'project_id': self.project.id,
+            })
+            self.assertEqual(res.status_code, 201, res.text)
+            task_id = res.json()['id']
+            self.assertEqual(self.api('POST', f'/api/v1/tasks/{task_id}/archive', {}).status_code, 200)
+            created.append(task_id)
+        return created
+
+    def test_archive_list_matches_the_per_record_rule_for_each_actor(self):
+        """The domain form of _liwan_can_archive answers exactly what the model method answers.
+
+        The creator reads the archive of their own project, the project manager reads it as the
+        approver, and an employee without `pmo.tasks.write` sees nothing of it: the two results are
+        compared to the model method over the same project scope, so a domain that widened or
+        narrowed eligibility would fail here.
+        """
+        self.project.write({'user_id': self.manager.id})
+        created = self._archive_tasks(3)
+        url = f'/api/v1/tasks/archived?project_id={self.project.id}'
+        without_write = new_test_user(
+            self.env, login='archive_no_write', password='archive_no_write_pass',
+            groups='liwan_core.group_employee',
+        )
+        for login, password in (
+            ('api_emp', 'api_emp_pass_123'), ('api_mgr', 'api_mgr_pass_123'),
+        ):
+            with self.subTest(login=login):
+                self.authenticate(login, password)
+                body = self.api('GET', url).json()
+                user = self.env['res.users'].search([('login', '=', login)])
+                Task = self.env['project.task'].with_user(user).with_context(active_test=False)
+                expected = Task.browse(created).filtered(lambda task: task._liwan_can_archive()).ids
+                self.assertEqual({item['id'] for item in body['items']}, set(expected))
+                self.assertEqual(body['total'], len(expected))
+        # A reader without the write capability may restore nothing and sees an empty page.
+        self.authenticate('archive_no_write', 'archive_no_write_pass')
+        self.assertEqual(self.api('GET', url).json(), {'items': [], 'total': 0})
+        self.assertFalse(
+            self.env['project.task'].with_user(without_write).browse(created[0])._liwan_can_archive(),
+        )
+
+    def test_archive_list_pages_in_sql_with_a_stable_total_and_order(self):
+        """Paging slices the eligible set in SQL: every page agrees on the total and the order."""
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        created = self._archive_tasks(5, prefix='SQL page')
+        query = 'SQL page'
+        url = f'/api/v1/tasks/archived?project_id={self.project.id}&q={query}'
+        pages = [
+            self.api('GET', f'{url}&limit=2&offset={offset}').json()
+            for offset in (0, 2, 4)
         ]
-        allowed = {archived[1].id, archived[3].id, archived[5].id}
+        self.assertEqual({page['total'] for page in pages}, {5})
+        page_ids = [item['id'] for page in pages for item in page['items']]
+        self.assertEqual(sorted(page_ids), sorted(created))
+        self.assertEqual(len(page_ids), len(set(page_ids)), 'a page repeated a row')
+        full = self.api('GET', f'{url}&limit=200').json()
+        self.assertEqual([item['id'] for item in full['items']], page_ids)
+        beyond = self.api('GET', f'{url}&limit=2&offset=5').json()
+        self.assertEqual((beyond['total'], beyond['items']), (5, []))
 
-        def can_archive(task):
-            task.ensure_one()
-            return task.id in allowed
+    def test_archive_list_cost_does_not_grow_with_the_archive(self):
+        """The page cost is the page, not the archive: one task and 300 tasks answer in the same queries.
 
-        with patch.object(type(Task), '_liwan_can_archive', can_archive):
-            eligible_ids = eligible_archived_task_ids(Task, domain, batch_size=4)
-        ordered = Task.search(domain, order='write_date desc, id desc').ids
-        expected = [task_id for task_id in ordered if task_id in allowed]
-        self.assertEqual(list(eligible_ids), expected)
-        self.assertEqual(eligible_ids[1:2], expected[1:2])
-
-    def test_archive_scan_batch_load_is_bounded_and_matches_filtered_search(self):
-        company = self.env.company
-        archived = self.env['project.task'].create([
-            {
-                'name': f'Batch archive {index}',
-                'project_id': self.project.id,
-                'company_id': company.id,
-                'user_ids': [(4, self.manager.id)],
-                'active': False,
-            }
-            for index in range(12)
-        ])
-        Task = self.env['project.task'].with_user(self.manager).with_context(active_test=False)
-        domain = [
-            ('active', '=', False),
-            ('company_id', '=', company.id),
-            ('project_id.company_id', '=', company.id),
-            ('project_id.active', '=', True),
-            ('project_id', '=', self.project.id),
-            ('id', 'in', archived.ids),
-        ]
-        self.env.flush_all()
-        prefetch_sizes = []
-        orig_can_archive = type(Task)._liwan_can_archive
-
-        def wrapped_can_archive(task):
-            prefetch_sizes.append(len(tuple(task._prefetch_ids)))
-            return orig_can_archive(task)
-
-        with patch.object(type(Task), '_liwan_can_archive', wrapped_can_archive):
-            eligible_ids = eligible_archived_task_ids(Task, domain, batch_size=5)
-        legacy = Task.search(domain, order='write_date desc, id desc').filtered(
-            lambda task: task._liwan_can_archive(),
-        ).ids
-        self.assertEqual(list(eligible_ids), list(legacy))
-        self.assertEqual(len(eligible_ids), 12)
-        self.assertEqual(len(prefetch_sizes), 12)
-        self.assertTrue(prefetch_sizes)
-        self.assertLessEqual(max(prefetch_sizes), 5)
-        self.assertGreater(max(prefetch_sizes), 1)
-        # Proven bound: eligibility walks isolated batches; prefetch never
-        # holds the whole 12-row candidate set. Unmeasured: SQL count from
-        # `_liwan_can_archive` / capability checks (cache may skip fetches).
+        The old path fetched every matching id and ran _liwan_can_archive per record before
+        slicing, so this count grew with the archive. `sql_log_count` counts every statement of
+        the request, the search_count and the page query included.
+        """
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        # One row per page in both measurements, so only the archive size differs: the per-row
+        # serialization of the page stays constant, and the eligibility search is SQL either way.
+        url = '/api/v1/tasks/archived?filter=mine&limit=1'
+        # Warm the route once, so the two measurements compare the same caches.
+        self._archive_tasks(1, prefix='Cost warm')
+        self.assertEqual(self.api('GET', url).status_code, 200)
+        small = self._archive_tasks(1, prefix='Cost small')
+        start = self.env.cr.sql_log_count
+        self.assertEqual(self.api('GET', url).json()['total'], len(small) + 1)
+        one_task_queries = self.env.cr.sql_log_count - start
+        large = self._archive_tasks(300, prefix='Cost large')
+        start = self.env.cr.sql_log_count
+        body = self.api('GET', url).json()
+        many_task_queries = self.env.cr.sql_log_count - start
+        self.assertEqual(body['total'], len(small) + 1 + len(large))
+        self.assertEqual(len(body['items']), 1)
+        self.assertEqual(
+            many_task_queries, one_task_queries,
+            f'{one_task_queries} queries for a 2-task archive but {many_task_queries} for 302',
+        )

@@ -125,6 +125,8 @@ RULES = (
     ('tools/catalog_check.py', STAGES),      # odoo, upgrade, restore-drill and image read --release-modules
     ('tools/upgrade_baseline.py', STAGES),   # the upgrade step
     ('tools/upgrade_log_guard.py', STAGES),  # the upgrade step
+    ('deploy/ci/static.sh', ()),             # only the static job runs it (and the light profile below)
+    ('deploy/ci/lib/docs-static.sh', ()),
     ('deploy/*', STAGES),                    # deploy/ci/*.sh, ci-test.sh, classification.py, the image Dockerfile
     ('odoo-addons/*', STAGES),               # the Odoo steps, the image and the static ruff run
     ('packages/contracts/*', STAGES),
@@ -143,6 +145,9 @@ RULES = (
     ('.claude/*', ()),                       # agent setup for local and cloud sessions; no CI step reads it
     ('ruff.toml', ('ai-service',)),          # the ai-service step lints with the nearest ruff config
     # Applications and the shared packages they build from.
+    # The Nitro server is built into the image and the mock build, and the control-plane tests import it; the
+    # Storybook build behind rtl-stories imports no `server/` file.
+    ('apps/web/server/*', ('control-plane', 'image', 'e2e-mock', 'e2e-odoo')),
     ('apps/web/*', ('control-plane', 'image', 'e2e-mock', 'e2e-odoo', 'rtl-stories')),  # control-plane tests import apps/web server code
     ('apps/vendor-admin/*', ('vendor-admin', 'image')),
     ('apps/control-plane/*', ('control-plane',)),

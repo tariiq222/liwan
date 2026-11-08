@@ -24,7 +24,7 @@ for (const state of ['empty', 'error'] as const) {
 }
 
 test('a failed milestone lookup is an error, never an empty milestone claim', async ({ page }) => {
-  await page.route('**/api/v1/projects/1/milestones', route => route.fulfill({
+  await page.route('**/api/v1/projects/1/milestones?*', route => route.fulfill({
     status: 503, contentType: 'application/json', body: JSON.stringify({ code: 'unavailable', message: 'تعذر تحميل المعالم' }),
   }))
   await page.getByRole('link', { name: 'مشروع ألفا', exact: true }).click()

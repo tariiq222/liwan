@@ -29,9 +29,9 @@ not `404`.
 
 | Bound | Routes |
 | --- | --- |
-| 50 | `/api/v1/people` |
-| 50 | project updates |
-| 200 | employees, departments, documents, projects, tasks, notifications, meetings, and other ordinary lists |
+| 50 default, 200 maximum | `/api/v1/people`, project updates, milestones, personal stages, and ordinary lists |
+| 100 default, 200 maximum | `/api/v1/tags`, whose datalist page is its own picker default |
+| 200 maximum | employees, departments, documents, projects, tasks, notifications, meetings |
 | route-specific | a calendar month (`MAX_MONTH = 2000`) because it is a bounded date window, not an open list |
 
 `/api/v1/people` returns a user-id picker array, not the `{items, total}`

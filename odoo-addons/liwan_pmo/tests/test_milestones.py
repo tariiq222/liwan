@@ -26,7 +26,7 @@ class TestMilestones(LiwanPmoCase):
     def test_crud_and_rules(self):
         url = f'/api/v1/projects/{self.project.id}/milestones'
         self.authenticate('api_emp', 'api_emp_pass_123')
-        self.assertEqual(self.api('GET', url).json(), [])
+        self.assertEqual(self.api('GET', url).json(), {'items': [], 'total': 0})
         self.assertEqual(self.api('POST', url, {'name': 'M'}).status_code, 403)
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         res = self.api('POST', url, {'name': 'M1', 'deadline': '2030-02-01'})
@@ -36,10 +36,10 @@ class TestMilestones(LiwanPmoCase):
         self.assertEqual((m1['deadline'], m1['is_reached'], m1['task_count']), ('2030-02-01', False, 0))
         m0 = self.api('POST', url, {'name': 'M0', 'deadline': '2030-01-01'}).json()
         mx = self.api('POST', url, {'name': 'MX'}).json()
-        self.assertEqual([m['name'] for m in self.api('GET', url).json()], ['M0', 'M1', 'MX'])
+        self.assertEqual([m['name'] for m in self.api('GET', url).json()['items']], ['M0', 'M1', 'MX'])
         self.assertEqual(self.api('POST', url, {'name': 'bad', 'deadline': 'x'}).status_code, 422)
         self.env['project.task'].create({'name': 't', 'project_id': self.project.id, 'milestone_id': m1['id'], 'state': '1_done'})
-        got = next(m for m in self.api('GET', url).json() if m['id'] == m1['id'])
+        got = next(m for m in self.api('GET', url).json()['items'] if m['id'] == m1['id'])
         self.assertEqual((got['task_count'], got['done_task_count']), (1, 1))
         res = self.api('PATCH', f"{url}/{m1['id']}", {'is_reached': True, 'name': 'M1r', 'deadline': None})
         self.assertEqual((res.json()['is_reached'], res.json()['name'], res.json()['deadline']), (True, 'M1r', None))
@@ -51,6 +51,28 @@ class TestMilestones(LiwanPmoCase):
         other = self.env['project.project'].create({'name': 'O'})
         foreign = self.env['project.milestone'].create({'name': 'F', 'project_id': other.id})
         self.assertEqual(self.api('PATCH', f'{url}/{foreign.id}', {'name': 'x'}).status_code, 422)
+
+    def test_milestone_list_is_paged_with_a_true_total(self):
+        url = f'/api/v1/projects/{self.project.id}/milestones'
+        milestones = self.env['project.milestone'].create([
+            {'name': f'Paged {index}', 'project_id': self.project.id}
+            for index in range(3)
+        ])
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        body = self.api('GET', f'{url}?limit=2').json()
+        self.assertEqual((len(body['items']), body['total']), (2, 3))
+        second = self.api('GET', f'{url}?limit=2&offset=2').json()
+        self.assertEqual((len(second['items']), second['total']), (1, 3))
+        self.assertEqual(
+            {item['id'] for item in body['items']} | {item['id'] for item in second['items']},
+            set(milestones.ids),
+        )
+        # Undated milestones sort after dated ones, the order the old in-Python sort used.
+        dated = self.env['project.milestone'].create({
+            'name': 'Dated', 'project_id': self.project.id, 'deadline': '2030-01-01',
+        })
+        self.assertEqual(self.api('GET', url).json()['items'][0]['id'], dated.id)
+        self.assertEqual(self.api('GET', f'{url}?limit=abc').status_code, 422)
 
     def test_patch_milestone_of_unreadable_project_is_422_not_403(self):
         """A milestone belonging to a private project the caller can't read must not
@@ -115,7 +137,7 @@ class TestMilestones(LiwanPmoCase):
             'name': 'Requirements task', 'project_id': project.id,
             'milestone_id': milestone.id,
         })
-        before = next(item for item in self.api('GET', url).json() if item['id'] == milestone.id)
+        before = next(item for item in self.api('GET', url).json()['items'] if item['id'] == milestone.id)
         self.assertEqual((before['task_count'], before['done_task_count'], before['is_reached']), (1, 0, False))
 
         res = self.api('PATCH', f'{url}/{milestone.id}', {

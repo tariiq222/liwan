@@ -55,6 +55,16 @@ class ProjectProject(models.Model):
         do not block). A project with no tasks never completes. Only an
         automatic completion is reverted; a manager's own 'done' stays.
 
+        The project rows are locked first, in the project-then-task order of
+        _liwan_lock_projects_then_tasks (task writes and unlinks take the same
+        lock before touching their own rows), and the counters are re-read after
+        the lock. Under REPEATABLE READ a lock alone is not enough: the second of
+        two simultaneous last-task closes would still count from a snapshot that
+        predates the first one's commit and miss the completion. So every pass
+        writes the project row it holds; the waiting transaction then fails with
+        a serialization error on that row and Odoo retries it on a fresh
+        snapshot, which counts both closes.
+
         sudo(): documented automatic-completion case. It runs after a task
         mutation the caller was already authorized for, reads integer counts
         over all of the project's tasks (the caller may not see every task)
@@ -62,7 +72,18 @@ class ProjectProject(models.Model):
         update that records the change.
         """
         Task = self.env['project.task'].sudo()
-        for project in self.sudo().filtered(lambda p: p.active):
+        projects = self.sudo().filtered(lambda p: p.active)
+        # Lock before the counters, then invalidate so the pass below is answered from the database
+        # under the lock and not from a cache that predates it: the counts and the status write are
+        # one critical section.
+        # Project rows only, sorted by id by the shared helper; the task rows are already held.
+        Task._liwan_lock_projects_then_tasks(projects, Task.browse())
+        projects.invalidate_recordset()
+        for project in projects:
+            # Writing the locked row is what makes a concurrent pass that waited on it retry: the
+            # unchanged value itself is skipped, but the write still issues the row's UPDATE
+            # (write_date, write_uid).
+            project.write({'liwan_status_auto_done': project.liwan_status_auto_done})
             domain = [('project_id', '=', project.id)]
             open_count = Task.search_count(domain + [('state', 'not in', list(CLOSED_STATES))])
             done_count = Task.search_count(domain + [('state', '=', '1_done')])
