@@ -17,6 +17,14 @@ import { useProjectArchive } from '@/composables/useProjectArchive'
 import { archivedTags, projectRecordBack } from '@/utils/projectNavigation'
 import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
 
+// Sections share the project frame; standalone records keep their own entrance.
+definePageMeta({
+  pageEntranceGroup: (path: string) => {
+    const id = projectIdFromPath(path)
+    return id !== null && !isProjectRecordPath(path) ? `project-workspace:${id}` : undefined
+  },
+})
+
 const sourcePaths = useRecordListPaths(['/projects', '/projects/dashboard'])
 const route = useRoute()
 const router = useRouter()

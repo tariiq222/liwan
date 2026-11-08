@@ -83,6 +83,9 @@ test.describe('top bar (desktop)', () => {
     await page.getByTestId('account-menu').click()
     await page.getByTestId('user-menu-language').getByRole('button', { name: 'English' }).click()
     await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
+    // Reload to verify the preference and start the second switch from a closed menu.
+    await page.reload()
+    await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
     await page.getByTestId('account-menu').click()
     await page.getByTestId('user-menu-language').getByRole('button', { name: 'العربية' }).click()
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')

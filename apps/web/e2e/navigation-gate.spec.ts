@@ -81,15 +81,15 @@ test.describe('back from an edit form returns to the record', () => {
   // page and resolves its backTo against a real vue-router.
   test('a stakeholder editor returns to its stakeholder, not the section list', async ({ page }) => {
     await page.goto('/projects/1/stakeholders/1/edit')
-    await expect(page.locator('main').first()).toBeVisible()
-    await page.locator('[data-slot="page-header"] a').first().click()
+    const trail = page.getByTestId('page-header-trail')
+    await trail.locator('a[href="/projects/1/stakeholders/1"]').click()
     await expect(page).toHaveURL(/\/projects\/1\/stakeholders\/1(\?|$)/)
   })
 
   test('a register entry editor returns to its entry, not the section list', async ({ page }) => {
     await page.goto('/projects/1/register/1/edit')
-    await expect(page.locator('main').first()).toBeVisible()
-    await page.locator('[data-slot="page-header"] a').first().click()
+    const trail = page.getByTestId('page-header-trail')
+    await trail.locator('a[href="/projects/1/register/1"]').click()
     await expect(page).toHaveURL(/\/projects\/1\/register\/1(\?|$)/)
   })
 })

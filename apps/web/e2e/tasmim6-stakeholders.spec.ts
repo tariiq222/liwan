@@ -66,10 +66,18 @@ test.describe('Plan 6a: stakeholders', () => {
       expect(new URL(page.url()).searchParams.get('q')).toBe('تأخر')
       expect(new URL(page.url()).searchParams.get('offset')).toBe('50')
 
+      const listLink = page.getByTestId('page-header-trail').getByRole('link', { name: 'أصحاب المصلحة', exact: true })
+      const href = await listLink.getAttribute('href')
+      const listUrl = new URL(href!, page.url())
+      expect(listUrl.pathname).toBe('/projects/2/stakeholders')
+      expect(listUrl.searchParams.get('q')).toBe('تأخر')
+      expect(listUrl.searchParams.get('offset')).toBe('50')
+
       await page.keyboard.press('Escape')
-      await expect(page).toHaveURL(/\/stakeholders\?/)
-      expect(new URL(page.url()).searchParams.get('q')).toBe('تأخر')
-      expect(new URL(page.url()).searchParams.get('offset')).toBe('50')
+      await expect(page).toHaveURL(url => url.pathname === listUrl.pathname
+        && url.searchParams.get('q') === 'تأخر'
+        && !url.searchParams.has('offset')) // This fixture has no second page.
+      await expect(page.getByRole('textbox', { name: 'بحث بالاسم أو الجهة' })).toHaveValue('تأخر')
     })
 
     test('a viewer who cannot manage sees no create and no actions', async ({ page }) => {

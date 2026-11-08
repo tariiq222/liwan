@@ -13,10 +13,9 @@ describe('page transition ownership', () => {
     expect(read('nuxt.config.ts')).not.toMatch(/pageTransition|layoutTransition/)
   })
 
-  it('replays the CSS entrance on <main> when the path changes, with no second mechanism', () => {
+  it('keeps the CSS entrance on <main> as the single animation mechanism', () => {
     const layout = read('app/layouts/default.vue')
     expect(layout).toContain("classList.add('liwan-page-enter')")
-    expect(layout).toMatch(/watch\(\(\) => route\.path, \(\) => \{\s*replayPageEnter\(\)/)
     expect(layout).not.toMatch(/liwan-page-content-motion|pageMotion|requestAnimationFrame/)
   })
 })

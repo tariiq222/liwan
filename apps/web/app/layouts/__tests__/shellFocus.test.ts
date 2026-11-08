@@ -23,7 +23,7 @@ function loadLayout(route: { path: string }) {
   const bindings: Record<string, unknown> = {
     _defineComponent: Vue.defineComponent,
     ref: Vue.ref, computed: Vue.computed, watch: Vue.watch, nextTick: Vue.nextTick,
-    useRoute: () => route,
+    useRoute: () => ({ get path() { return route.path }, meta: {} }),
     useI18n: () => ({ localeProperties: Vue.ref({ dir: 'rtl' }) }),
     useHead: () => undefined,
     // The shell publishes the page trail from the layout (DESIGN.md §3); focus behaviour does not

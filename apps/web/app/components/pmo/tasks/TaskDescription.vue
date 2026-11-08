@@ -30,6 +30,11 @@ const dirty = computed(() => editing.value && isDirtySnapshot(baseline.value, dr
 // The read view is a click target for pointers; keyboard users reach the same action through a button that
 // shows on focus. Focus goes back to whichever of them exists once the editor closes.
 const TRIGGER_ID = 'task-description-trigger'
+const editorForm = ref<HTMLFormElement | null>(null)
+// Own the keyboard as soon as the form opens, before the rich-text editor moves the caret on mount.
+watch(editing, (open) => {
+  if (open) editorForm.value?.focus({ preventScroll: true })
+}, { flush: 'post' })
 function focusTrigger() {
   if (typeof document !== 'undefined') void nextTick(() => document.getElementById(TRIGGER_ID)?.focus())
 }
@@ -176,7 +181,7 @@ watch(() => props.task.can_write, (canWrite) => {
       <p v-else data-testid="task-description-empty" class="text-sm text-muted">{{ t('tasks.descriptionField.empty') }}</p>
     </template>
 
-    <form v-else class="liwan-form" data-testid="task-description-editor" @submit.prevent="save" @focusout="onFocusOut" @keydown="onEditorKeydown">
+    <form v-else ref="editorForm" tabindex="-1" class="liwan-form" data-testid="task-description-editor" @submit.prevent="save" @focusout="onFocusOut" @keydown="onEditorKeydown">
       <DescriptionEditor
         :model-value="editorInitialHtml"
         :task-id="editTaskId!"

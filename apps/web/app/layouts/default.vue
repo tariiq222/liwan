@@ -53,12 +53,16 @@ function replayPageEnter() {
   void element.offsetWidth
   element.classList.add('liwan-page-enter')
 }
-watch(() => route.path, () => {
-  replayPageEnter()
-  if (!import.meta.client) return
-  // preventScroll leaves Nuxt's own scroll restoration in charge.
-  nextTick(() => shellMain.value?.focus({ preventScroll: true }))
-})
+watch(
+  () => [route.path, route.meta.pageEntranceGroup?.(route.path)] as const,
+  ([path, group], [previousPath, previousGroup]) => {
+    if (path === previousPath) return
+    if (!group || group !== previousGroup) replayPageEnter()
+    if (!import.meta.client) return
+    // preventScroll leaves Nuxt's own scroll restoration in charge.
+    nextTick(() => shellMain.value?.focus({ preventScroll: true }))
+  },
+)
 </script>
 
 <template>

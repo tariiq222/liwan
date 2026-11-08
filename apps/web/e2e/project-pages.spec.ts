@@ -191,13 +191,22 @@ for (const path of [
   '/projects/1/schedule/tasks/101', '/projects/1/charter?edit=1',
 ]) {
   test(`direct record or edit route is a page with no dialog: ${path}`, async ({ page }) => {
+    const taskRecord = path.endsWith('/tasks/101')
+    const main = page.getByRole('main')
+    const heading = main.getByRole('heading', { level: 1 })
+    const assertRecordPage = async () => {
+      await expect(heading).toHaveCount(1)
+      await expect(heading).toHaveText(taskRecord ? 'مهمة جارية' : 'مشروع ألفا')
+      if (taskRecord) {
+        await expect(main.getByRole('navigation', { name: 'مسار الصفحة' }).getByRole('link', { name: 'مشروع ألفا' })).toHaveAttribute('href', '/projects/1')
+      }
+      await expect(page.getByRole('dialog')).toHaveCount(0)
+      await expect(page.getByText('500', { exact: true })).toHaveCount(0)
+    }
     await page.goto(path)
-    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
-    await expect(page.getByTestId('project-workspace-name')).toBeVisible()
-    await expect(page.getByRole('dialog')).toHaveCount(0)
-    await expect(page.getByText('500', { exact: true })).toHaveCount(0)
+    await assertRecordPage()
     await page.reload()
-    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await assertRecordPage()
   })
 }
 

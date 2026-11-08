@@ -92,7 +92,9 @@ test.describe('a project record', () => {
       await expect(page.getByTestId('task-description-editor')).toBeVisible()
       await page.keyboard.press('Escape')
       await expect(page.getByTestId('task-description-editor')).toHaveCount(0)
+      await expect(page).toHaveURL(/\/projects\/1\/tasks\/101$/)
       await expect(description).toContainText('توثيق خطوات العمل')
+      await expect(description.getByTestId('task-description-edit')).toBeFocused()
     })
 
     test('sub-tasks add inline, and an empty attachment or predecessor is a small button', async ({ page }) => {
