@@ -3,7 +3,7 @@ import hashlib
 from datetime import timedelta
 
 from odoo import fields
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, LockError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
 from odoo.addons.liwan_core.models.login_code import (
@@ -182,6 +182,19 @@ class TestLoginCodeVerify(LoginCodeCase):
             self.assertEqual(record.attempts, attempt + 1)
         self.assertTrue(record.revoked_at)
         self.assertEqual(self.service._liwan_verify(self.user, code), 'invalid_code')
+
+    def test_an_attempt_on_a_code_locked_by_another_is_refused_uncompared(self):
+        record = self.issue().record
+        code = self.sent_code()
+
+        def locked(records, **kwargs):
+            msg = 'busy'
+            raise LockError(msg)
+
+        self.patch(type(record), 'lock_for_update', locked)
+        self.assertEqual(self.service._liwan_verify(self.user, code), 'invalid_code')
+        self.assertEqual(record.attempts, 0)
+        self.assertFalse(record.consumed_at)
 
     def test_arabic_indic_digits_are_accepted(self):
         record = self.issue().record

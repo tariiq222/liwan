@@ -7,6 +7,7 @@ from datetime import timedelta
 from typing import NamedTuple
 
 from odoo import api, fields, models
+from odoo.exceptions import LockError
 
 # Every limit of the sign-in code lives here, in one place, so no route repeats a number:
 # six digits, five minutes, five attempts, a 60-second resend cooldown, and two send caps.
@@ -182,6 +183,12 @@ class LiwanLoginCode(models.Model):
             return 'invalid_code_format'
         record = self.search([('user_id', '=', user.id), *ACTIVE], limit=1)
         if not record or record.expires_at <= fields.Datetime.now():
+            return 'invalid_code'
+        try:
+            # One attempt at a time per code: parallel guesses would otherwise all read the same count.
+            record.lock_for_update()
+        except LockError:
+            # Another attempt on this code is in flight; this one is refused without being compared.
             return 'invalid_code'
         if not hmac.compare_digest(record.code_hash, hash_value(code)):
             record.attempts += 1
