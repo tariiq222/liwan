@@ -199,7 +199,27 @@ export function markTableRoles(root: ParentNode, stacked: boolean): void {
  * the title) plus the title's own floor, which is the larger of that and the `min-width` its header declares (`NaN` for `auto`).
  * Table layout ignores `min-width` on cells, so a caller's `table-fixed` table whose fixed columns fill the card would
  * otherwise give the title column no width at all; the frame sets this as `--liwan-table-min` (components.css, "Data tables").
+ * `tableWidth` and `titleWidth` must be measured with no `--liwan-table-min` applied (see `settleTableMin`): measured under the
+ * minimum, the other columns have already been stretched by it and every pass would raise it again.
  */
 export function tableMinWidth(tableWidth: number, titleWidth: number, declaredMin: number, floor: number): number {
   return Math.ceil(tableWidth - titleWidth + Math.max(Number.isFinite(declaredMin) ? declaredMin : 0, floor))
+}
+
+/** The frame custom property the table's `min-width` reads (components.css, "Data tables"). */
+export const TABLE_MIN_PROPERTY = '--liwan-table-min'
+
+/** The widths `tableMinWidth` is computed from. */
+export interface TableMinSample { tableWidth: number; titleWidth: number; declaredMin: number }
+
+/**
+ * Sets the frame's `--liwan-table-min` from a measurement taken with the property cleared, so the result depends only on the
+ * columns and the card, never on the previous result: repeating it (a resize, a patch, the observer that its own change
+ * wakes) reaches the same value instead of growing. `sample` reads the layout (it forces one), and the property is back in
+ * place before the browser paints, so nothing flickers.
+ */
+export function settleTableMin(frame: Pick<HTMLElement, 'style'>, sample: () => TableMinSample, floor: number): void {
+  frame.style.removeProperty(TABLE_MIN_PROPERTY)
+  const { tableWidth, titleWidth, declaredMin } = sample()
+  frame.style.setProperty(TABLE_MIN_PROPERTY, `${tableMinWidth(tableWidth, titleWidth, declaredMin, floor)}px`)
 }

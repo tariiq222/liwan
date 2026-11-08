@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyScrollEdges, clickedRowIndex, dataRowKey, decorateColumns, markTableRoles, markTableRows, rowSelectionState, scrollEdges, selectedFromRowSelection, tableMinWidth, TABLE_BODY_ROWS } from '../dataTable'
+import { applyScrollEdges, clickedRowIndex, dataRowKey, decorateColumns, markTableRoles, markTableRows, rowSelectionState, scrollEdges, selectedFromRowSelection, settleTableMin, tableMinWidth, TABLE_BODY_ROWS, TABLE_MIN_PROPERTY, type TableMinSample } from '../dataTable'
 
 interface Row { id: number; code: string; name: string }
 const rows: Row[] = [{ id: 1, code: 'a', name: 'One' }, { id: 2, code: 'b', name: 'Two' }, { id: 3, code: 'c', name: 'Three' }]
@@ -154,5 +154,41 @@ describe('tableMinWidth', () => {
     expect(tableMinWidth(760, 0, Number.NaN, 154)).toBe(914)
     expect(tableMinWidth(760, 0, 200, 154)).toBe(960)
     expect(tableMinWidth(1100, 340, 200, 154)).toBe(960)
+  })
+})
+
+describe('settleTableMin', () => {
+  // A table-layout stand-in: the table is as wide as the card or its `--liwan-table-min`, whichever is larger, and a title that
+  // collapses (`max-w-0`) stays 0 wide while the other columns take all the free width, as a browser does.
+  function framed(card: number) {
+    const props = new Map<string, string>()
+    const frame = { style: { removeProperty: (name: string) => { props.delete(name); return '' }, setProperty: (name: string, value: string) => { props.set(name, value) } } } as unknown as Pick<HTMLElement, 'style'>
+    const sample = (): TableMinSample => ({ tableWidth: Math.max(card, Number.parseFloat(props.get(TABLE_MIN_PROPERTY) ?? '0')), titleWidth: 0, declaredMin: Number.NaN })
+    return { frame, sample, value: () => props.get(TABLE_MIN_PROPERTY) }
+  }
+
+  it('reaches the same minimum however often it runs, so the table cannot keep growing', () => {
+    const { frame, sample, value } = framed(1000)
+    const seen = Array.from({ length: 6 }, () => { settleTableMin(frame, sample, 154); return value() })
+    expect(new Set(seen)).toEqual(new Set(['1154px']))
+  })
+
+  it('follows the card when it resizes', () => {
+    const wide = framed(1400)
+    settleTableMin(wide.frame, wide.sample, 154)
+    expect(wide.value()).toBe('1554px')
+  })
+
+  it('shows why the measurement is taken with the minimum cleared: measured under it, each pass raises it', () => {
+    const { frame, sample, value } = framed(1000)
+    let min = 0
+    const grown = Array.from({ length: 3 }, () => {
+      frame.style.setProperty(TABLE_MIN_PROPERTY, `${min}px`)
+      const { tableWidth, titleWidth, declaredMin } = sample()
+      min = tableMinWidth(tableWidth, titleWidth, declaredMin, 154)
+      return min
+    })
+    expect(grown).toEqual([1154, 1308, 1462])
+    expect(value()).toBe('1308px')
   })
 })

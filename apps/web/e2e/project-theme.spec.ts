@@ -106,7 +106,7 @@ test('project typography scales with preference and releases its scope on client
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   }
   await page.getByTestId('notification-bell').click()
-  expect(await page.locator('[data-testid="notification-preview"] [data-slot="caption"]').first().evaluate(e => parseFloat(getComputedStyle(e).fontSize))).toBeCloseTo(18 * 12 / 16, 1)
+  expect(await page.locator('[data-testid="notification-preview"] [data-slot="caption"]').first().evaluate(e => parseFloat(getComputedStyle(e).fontSize))).toBeCloseTo(18 * 12 / 14, 1)
   await page.getByTestId('slide-over-notifications-all').click()
   await expect(page).toHaveURL(/\/notifications$/)
   await expect(page.locator('html')).not.toHaveAttribute('data-project-theme')

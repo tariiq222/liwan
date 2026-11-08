@@ -3,7 +3,7 @@ import type { TableColumn } from '@nuxt/ui'
 import { useMediaQuery } from '@vueuse/core'
 import type { RouteLocationRaw } from 'vue-router'
 import { useRowNavigation } from '../../../composables/useRowNavigation'
-import { applyScrollEdges, clickedRowIndex, dataRowKey, decorateColumns, headerContent, markSortHeaders, markTableRoles, markTableRows, nextSortDirection, rowSelectionState, scrollEdges, selectedFromRowSelection, STACK_BELOW_PX, tableMinWidth, TITLE_FLOOR_REM, type SortDirection, type TableSort } from '../../../utils/dataTable'
+import { applyScrollEdges, clickedRowIndex, dataRowKey, decorateColumns, headerContent, markSortHeaders, markTableRoles, markTableRows, nextSortDirection, rowSelectionState, scrollEdges, selectedFromRowSelection, settleTableMin, STACK_BELOW_PX, TITLE_FLOOR_REM, type SortDirection, type TableSort } from '../../../utils/dataTable'
 import PageState from '../feedback/PageState.vue'
 import Pagination from './Pagination.vue'
 
@@ -148,29 +148,41 @@ function onClick(event: MouseEvent) {
 }
 
 // The scrolling element is UTable's root. Its edges and the stacked state go to the frame as flags the CSS reads; nothing here runs before mount.
-function measure() {
+// The table's minimum width is measured with its own `--liwan-table-min` cleared (settleTableMin), so it is a function of the columns and
+// the card alone: the table growing under the minimum, and the observer that growth wakes, reach the same value instead of raising it again.
+// A scroll only moves the edges, so it never touches the layout.
+function frameParts() {
   const frame = tableHost.value
   const scroller = frame?.querySelector<HTMLElement>('[data-slot="root"]')
-  if (!frame || !scroller) return
+  return frame && scroller ? { frame, scroller } : null
+}
+function measureEdges() {
+  const parts = frameParts()
+  if (parts) applyScrollEdges(parts.frame, scrollEdges(parts.scroller))
+}
+function measure() {
+  const parts = frameParts()
+  if (!parts) return
+  const { frame, scroller } = parts
   const stacked = props.stack && frame.clientWidth < STACK_BELOW_PX
   const table = scroller.querySelector('table')
   const title = table?.querySelector<HTMLElement>('thead th.liwan-cell-title')
   if (table && title && !stacked) {
     const floor = TITLE_FLOOR_REM * parseFloat(getComputedStyle(document.documentElement).fontSize)
-    frame.style.setProperty('--liwan-table-min', `${tableMinWidth(table.offsetWidth, title.offsetWidth, parseFloat(getComputedStyle(title).minWidth), floor)}px`)
+    settleTableMin(frame, () => ({ tableWidth: table.offsetWidth, titleWidth: title.offsetWidth, declaredMin: parseFloat(getComputedStyle(title).minWidth) }), floor)
   }
-  applyScrollEdges(frame, scrollEdges(scroller))
+  measureEdges()
   markTableRoles(frame, stacked)
 }
 watch(tableHost, (frame, _previous, onCleanup) => {
   const scroller = frame?.querySelector<HTMLElement>('[data-slot="root"]')
   if (!frame || !scroller) return
-  scroller.addEventListener('scroll', measure, { passive: true })
+  scroller.addEventListener('scroll', measureEdges, { passive: true })
   const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
   observer?.observe(frame)
   observer?.observe(scroller.querySelector('table') ?? scroller)
   measure()
-  onCleanup(() => { scroller.removeEventListener('scroll', measure); observer?.disconnect() })
+  onCleanup(() => { scroller.removeEventListener('scroll', measureEdges); observer?.disconnect() })
 }, { flush: 'post' })
 watch(() => props.sort, markRows)
 // Restore focus only when hydration or resize removes the focused representation.
