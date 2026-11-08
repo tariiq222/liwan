@@ -3,9 +3,8 @@ import { BaseTransition, KeepAlive, TransitionGroup, type App, type AppContext }
 /*
  * Vue derives `useId()` from the chain of "serverPrefetch boundaries" above a component, and the vue-query plugin's global
  * `serverPrefetch` mixin makes every stateful component one (on both sides, so the two trees agree). Vue's built-in
- * wrappers break that agreement: the server renderer compiles `<Transition>`, `<TransitionGroup>` and `<KeepAlive>` away and
- * Nuxt's `pageTransition` wraps the page in `<Transition>` on the client only, so the browser builds one boundary more than
- * the server did and every id under it (`filter-card-v-…`, `reka-dropdown-menu-trigger-v-…`) mismatches during hydration.
+ * wrappers break that agreement: the server renderer compiles `<Transition>`, `<TransitionGroup>` and `<KeepAlive>` away, so
+ * the browser builds one boundary more than the server did and every id under it (`filter-card-v-…`, `reka-dropdown-menu-trigger-v-…`) mismatches during hydration.
  * These components take part in no id, so they are kept out of the merged options the mixin joins.
  */
 const BUILT_INS = [BaseTransition, TransitionGroup, KeepAlive]

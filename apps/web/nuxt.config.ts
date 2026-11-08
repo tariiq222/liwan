@@ -56,9 +56,6 @@ export default defineNuxtConfig({
     { path: '~/components', ignore: ['**/__tests__/**'] },
   ],
   app: {
-    // Route changes swap only the page inside <main> (the shell is never keyed on the route); its CSS is `.liwan-page-*` in
-    // packages/ui/app/assets/css/layout.css, built on the shared motion tokens and neutralised under reduced motion.
-    pageTransition: { name: 'liwan-page', mode: 'out-in' },
     head: {
       title: 'liwan',
       meta: [{ name: 'viewport', content: 'width=device-width, initial-scale=1' }],

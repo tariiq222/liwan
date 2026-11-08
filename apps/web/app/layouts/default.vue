@@ -44,7 +44,17 @@ providePageApp(() => {
 const shellMain = ref<HTMLElement | null>(null)
 // route.path, not fullPath: a same-page filter or tab change must not yank
 // focus out of the control the user is currently operating.
+// A route change replays the page entrance (`.liwan-page-enter`, a fade with a short rise) on <main>. It is a CSS animation, not a
+// Vue <Transition>, because a page whose root is a fragment (a list plus its create panel) cannot be animated by one.
+function replayPageEnter() {
+  const element = shellMain.value
+  if (!element) return
+  element.classList.remove('liwan-page-enter')
+  void element.offsetWidth
+  element.classList.add('liwan-page-enter')
+}
 watch(() => route.path, () => {
+  replayPageEnter()
   if (!import.meta.client) return
   // preventScroll leaves Nuxt's own scroll restoration in charge.
   nextTick(() => shellMain.value?.focus({ preventScroll: true }))

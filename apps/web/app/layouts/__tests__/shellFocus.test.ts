@@ -48,7 +48,7 @@ describe('shell focus after navigation', () => {
     const state = loadLayout(route)
 
     // The browser binds this ref; stand in for it.
-    state.shellMain.value = { focus: (options: unknown) => focusCalls.push(options) }
+    state.shellMain.value = { focus: (options: unknown) => focusCalls.push(options), classList: { add: () => undefined, remove: () => undefined }, offsetWidth: 0 }
 
     await Vue.nextTick()
     expect(focusCalls, 'the first load must keep the browser default focus').toEqual([])
@@ -64,7 +64,7 @@ describe('shell focus after navigation', () => {
     const focusCalls: unknown[] = []
     const route = Vue.reactive({ path: '/projects/7/tasks', fullPath: '/projects/7/tasks' })
     const state = loadLayout(route)
-    state.shellMain.value = { focus: (options: unknown) => focusCalls.push(options) }
+    state.shellMain.value = { focus: (options: unknown) => focusCalls.push(options), classList: { add: () => undefined, remove: () => undefined }, offsetWidth: 0 }
 
     // Typing in a filter must not have focus yanked out from under it.
     route.fullPath = '/projects/7/tasks?q=a'

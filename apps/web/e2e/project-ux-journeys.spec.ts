@@ -18,7 +18,9 @@ for (const locale of ['ar', 'en']) for (const mode of ['light', 'dark']) {
         expect(await fitsWidth(page), `${locale} ${mode} ${width} ${path}`).toBe(true)
         if (path.includes('/milestones/')) await expect(page.getByTestId('milestone-detail-menu')).toBeVisible()
         if (path.includes('/schedule')) {
-          await expect(page.getByTestId('planning-tab-schedule')).toHaveAttribute('aria-current', 'page')
+          // The schedule is the timeline view of the tasks: the old URL redirects there and the tasks tab is current.
+          await expect(page).toHaveURL(/\/projects\/2\/tasks\?(?:.*&)?view=timeline/)
+          await expect(page.getByTestId('project-tab-tasks')).toHaveAttribute('aria-current', 'page')
           if (process.env.E2E_PROJECTS_SCREENSHOTS) {
             await mkdir(process.env.E2E_PROJECTS_SCREENSHOTS, { recursive: true })
             await page.screenshot({ path: `${process.env.E2E_PROJECTS_SCREENSHOTS}/planning-${locale}-${mode}-${width}.png`, fullPage: true })
@@ -51,13 +53,13 @@ test('project meetings preserve the source through record, edit and creation can
   await page.locator('tbody tr a[href^="/meetings/"]').first().click()
   await expect(page).toHaveURL(/\/meetings\/1\?/)
   expect(new URL(page.url()).searchParams.get('returnTo')).toBe(source)
-  await expect(page.locator('[data-template="record"] header a').filter({ hasText: 'رجوع' })).toHaveAttribute('href', source)
+  await expect(page.getByTestId('meeting-detail-back')).toHaveAttribute('href', source)
   await page.getByRole('link', { name: 'تعديل', exact: true }).click()
   await expect(page).toHaveURL(/\/meetings\/1\/edit\?/)
   expect(new URL(page.url()).searchParams.get('listOrigin')).toBe(source)
   await page.keyboard.press('Escape')
   await expect(page).toHaveURL(/\/meetings\/1\?/)
-  await page.locator('[data-template="record"] header a').filter({ hasText: 'رجوع' }).click()
+  await page.getByTestId('meeting-detail-back').click()
   await expect(page).toHaveURL(source)
   await page.getByTestId('project-meetings-create').click()
   await expect(page.getByRole('dialog')).toBeVisible()

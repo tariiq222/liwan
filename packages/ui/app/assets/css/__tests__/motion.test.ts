@@ -58,11 +58,11 @@ describe('motion recipes', () => {
     expect(literal).toEqual([])
   })
 
-  it('moves only the page area on a route change, with the page classes neutralised for reduced motion', () => {
+  it('moves only the page area on a route change, with a CSS entrance neutralised for reduced motion', () => {
     const layout = strip(read('layout.css'))
-    expect(layout).toMatch(/\.liwan-page-enter-from \{ opacity: 0; translate: 0 var\(--liwan-motion-rise\); \}/)
-    expect(layout).toMatch(/\.liwan-page-leave-active \{ transition: opacity var\(--liwan-motion-exit\)/)
-    expect(layout).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.liwan-page-enter-active, \.liwan-page-leave-active \{ transition: none; \}\s*\.liwan-soft-in \{ animation: none; \}/)
+    expect(layout).toMatch(/\.liwan-page-enter \{ animation: liwan-soft-in var\(--liwan-motion-panel\) var\(--liwan-motion-ease\) both; \}/)
+    expect(layout).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.liwan-page-enter, \.liwan-soft-in \{ animation: none; \}/)
+    expect(layout).not.toContain('liwan-page-leave')
     expect(layout).not.toContain('liwan-page-content-motion')
   })
 

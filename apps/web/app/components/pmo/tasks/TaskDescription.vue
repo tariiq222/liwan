@@ -76,7 +76,8 @@ function onFocusOut(event: FocusEvent) {
 }
 
 function onEditorKeydown(event: KeyboardEvent) {
-  if (event.defaultPrevented) return
+  // The rich-text editor itself consumes Escape (it marks the event handled), so Escape is read before that mark is.
+  if (event.defaultPrevented && event.key !== 'Escape') return
   if (event.key === 'Escape') {
     // The link field closes itself on Escape; the description stays open.
     if ((event.target as HTMLElement).closest('[data-testid="link-editor"]')) return
