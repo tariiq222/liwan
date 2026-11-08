@@ -7,7 +7,7 @@ SYSTEM = frozenset({
     'access.users.read', 'access.users.grant', 'access.users.assign_roles',
     'access.users.disable', 'access.users.reset_password', 'access.roles.read',
     'access.roles.manage', 'access.audit.read', 'settings.branding.manage',
-    'settings.company.read', 'settings.company.manage',
+    'settings.company.read', 'settings.company.manage', 'settings.company.vat.manage',
 })
 HR = frozenset({
     'hr.employees.read', 'hr.employees.manage', 'hr.employees.archive',
@@ -56,6 +56,7 @@ DEPENDENCIES = {
     'access.users.reset_password': {'access.users.read'},
     'access.roles.manage': {'access.roles.read'},
     'settings.company.manage': {'settings.company.read'},
+    'settings.company.vat.manage': {'settings.company.manage'},
     'hr.employees.manage': {'hr.employees.read'},
     'hr.employees.archive': {'hr.employees.read'},
     'hr.employees.access_status.read': {'hr.employees.read'},
@@ -126,10 +127,10 @@ class TestAccessComposition(TransactionCase):
     def _group(self, key):
         return self.env.ref(self.Permission.search([('key', '=', key)]).group_xmlid)
 
-    def test_catalog_has_the_approved_54_keys_each_owned_by_one_addon(self):
+    def test_catalog_has_the_approved_55_keys_each_owned_by_one_addon(self):
         catalog = self.service._liwan_capability_map()
         self.assertEqual(self._release(catalog), CATALOG)
-        self.assertEqual(len(self._release(catalog)), 54)
+        self.assertEqual(len(self._release(catalog)), 55)
         permissions = self.Permission.search([])
         self.assertEqual(sorted(permissions.mapped('key')), sorted(catalog))
         installed = set(self.env['ir.module.module'].search([('state', '=', 'installed')]).mapped('name'))
@@ -147,7 +148,7 @@ class TestAccessComposition(TransactionCase):
         self.assertEqual(self._role_keys('hr_manager'), HR | PRIVATE_HR)
         self.assertEqual(self._role_keys('pmo_manager'), PMO)
         self.assertEqual(self._role_keys('system_admin'), SYSTEM | MEETINGS)
-        self.assertEqual(self._role_keys('vendor_support'), CATALOG - PAYROLL - PRIVATE_HR)
+        self.assertEqual(self._role_keys('vendor_support'), CATALOG - PAYROLL - PRIVATE_HR - {'settings.company.vat.manage'})
         self.assertEqual(self._role_keys('payroll_manager'), PAYROLL)
         self.assertLessEqual(
             BUILT_IN_ROLES,

@@ -235,7 +235,12 @@ class TestRecordedRefunds(LiwanRefundCase):
             self.skipTest('the Saudi localization is not installed')
         self.assertEqual(credit_note.l10n_sa_reason, 'BR-KSA-17-reason-1')
 
+    def registered(self):
+        """Only a company registered for VAT charges a tax on what it sells (test_vat_registered covers the other case)."""
+        self.env.company.write({'vat': '300000000000003', 'liwan_vat_registered': True})
+
     def test_a_partial_credit_note_with_a_fixed_tax_credits_its_share(self):
+        self.registered()
         fixed = self.env['account.tax'].create({'name': 'Fixed 10', 'amount_type': 'fixed', 'amount': 10, 'type_tax_use': 'sale'})
         product = self.env['product.product'].create({
             'name': 'Fixed tax service', 'type': 'service', 'list_price': 100.0, 'taxes_id': [Command.set(fixed.ids)],
@@ -253,6 +258,7 @@ class TestRecordedRefunds(LiwanRefundCase):
         self.assertEqual((credit_note.amount_total, credit_note.amount_tax), (55.0, 5.0))
 
     def test_a_partial_credit_note_of_a_taxed_order_meets_the_refund_or_says_so(self):
+        self.registered()
         tax = self.env['account.tax'].create({'name': 'VAT 15', 'amount': 15, 'type_tax_use': 'sale'})
         taxed = self.env['product.product'].create({
             'name': 'Taxed consultation', 'type': 'service', 'list_price': 100.0, 'taxes_id': [Command.set(tax.ids)],

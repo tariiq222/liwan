@@ -8,8 +8,8 @@ test.skip(process.env.E2E_PROJECT_POPUPS !== '1', MOCK_STACK_ONLY)
 // The customer's pay-by-link pages and the staff "payment link" action against payments-mock-routes.mjs. The pay pages are
 // public: those tests never sign in. The mock serves invoices 2 (payable), 3 (payable in part, its start is refused),
 // 4 (paid), 6 (processing), 8 (not payable) and 9 (payable with no payment method), and online orders 21 (payable),
-// 22 (payable with a deposit), 23 (paid), 24 (processing), 25 (not payable) and 26 (payable with no payment method), all
-// with the access token `tok-<id>`; invoice 10 answers 429 (the service is busy).
+// 22 (payable with a deposit), 23 (paid), 24 (processing), 25 (not payable), 26 (payable with no payment method) and
+// 27 (payable, untaxed), all with the access token `tok-<id>`; invoice 10 answers 429 (the service is busy).
 const PAY = (id: number, token = `tok-${id}`, kind: PayDocumentKind = 'invoice') => `/pay/${kind}/${id}?access_token=${token}`
 const STATUS = (id: number, token = `tok-${id}`, kind: PayDocumentKind = 'invoice') => `/pay/${kind}/${id}/status?access_token=${token}`
 const GATEWAY = 'https://gateway.example/**'
@@ -67,6 +67,16 @@ test.describe('the pay page', () => {
     // The mock's answer is the contract the page reads.
     const answer = PayableInvoiceSchema.parse(await (await page.request.get('/api/v1/public/payments/invoices/2?access_token=tok-2')).json())
     expect(answer.status).toBe('payable')
+  })
+
+  test('a document with no tax shows no tax or "before tax" row, only the amount due', async ({ page }) => {
+    // What an unregistered company's order answers: amount_tax 0, because it computes no tax at all.
+    await page.goto(PAY(27, undefined, 'order'))
+    await expect(page.getByTestId('pay-amount-due')).toHaveText('16,905.00 SAR')
+    await expect(page.getByTestId('pay-untaxed')).toHaveCount(0)
+    await expect(page.getByTestId('pay-tax')).toHaveCount(0)
+    await expect(page.getByTestId('pay-total')).toHaveCount(0)
+    await expect(page.getByText('قبل الضريبة')).toHaveCount(0)
   })
 
   test('shows the total beside the amount due when the invoice was paid in part', async ({ page }) => {
@@ -145,7 +155,7 @@ test.describe('the pay page', () => {
     await page.route('**/api/v1/public/payments/invoices/2?*', route => route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ id: 2, merchant: 'ليوان', number: 'INV/2026/0002', due_date: '2026-10-31', currency: 'SAR', amount_untaxed: 14700, amount_tax: 2205, amount_total: 16905, amount_due: 0, status: 'paid', options: [] }),
+      body: JSON.stringify({ id: 2, merchant: 'ليوان', number: 'INV/2026/0002', due_date: '2026-10-31', currency: 'SAR', amount_untaxed: 14700, amount_tax: 2205, amount_total: 16905, tax_applies: true, amount_due: 0, status: 'paid', options: [] }),
     }))
     await payButton(page).click()
     await expect.poll(() => started).toBe(true)
@@ -251,7 +261,7 @@ test.describe('the status page', () => {
     let reads = 0
     await page.route('**/api/v1/public/payments/invoices/2?*', async (route) => {
       const status = answers[Math.min(reads++, answers.length - 1)]
-      const body = { id: 2, merchant: 'ليوان', number: 'INV/2026/0002', due_date: '2026-10-31', currency: 'SAR', amount_untaxed: 14700, amount_tax: 2205, amount_total: 16905, amount_due: status === 'paid' ? 0 : 16905, status, options: [] }
+      const body = { id: 2, merchant: 'ليوان', number: 'INV/2026/0002', due_date: '2026-10-31', currency: 'SAR', amount_untaxed: 14700, amount_tax: 2205, amount_total: 16905, tax_applies: true, amount_due: status === 'paid' ? 0 : 16905, status, options: [] }
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(PayableInvoiceSchema.parse(body)) })
     })
     await page.goto(STATUS(2))

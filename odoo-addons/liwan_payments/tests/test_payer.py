@@ -4,7 +4,7 @@ from odoo.tests import tagged
 from .common import LiwanPayerCase
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 
-INVOICE_KEYS = {'id', 'merchant', 'number', 'due_date', 'currency', 'amount_untaxed', 'amount_tax', 'amount_total', 'amount_due', 'status', 'options'}
+INVOICE_KEYS = {'id', 'merchant', 'number', 'due_date', 'currency', 'amount_untaxed', 'amount_tax', 'amount_total', 'tax_applies', 'amount_due', 'status', 'options'}
 OPTION_KEYS = {'provider_id', 'provider', 'method_id', 'method', 'method_name'}
 CHECKOUT = 'https://ksa.paymob.com/unifiedcheckout/'
 
@@ -39,6 +39,7 @@ class TestPayer(LiwanPayerCase):
         self.assertNotIn('set-cookie', {key.lower() for key in response.headers})
         body = response.json()
         self.assertEqual(set(body), INVOICE_KEYS)
+        self.assertEqual(body['tax_applies'], bool(self.invoice.amount_tax))
         self.assertEqual(
             (body['status'], body['currency'], body['amount_due'], body['number']),
             ('payable', 'SAR', 115.0, self.invoice.name),

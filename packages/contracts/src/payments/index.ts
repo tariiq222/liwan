@@ -86,6 +86,8 @@ const PayableDocumentShape = {
   amount_untaxed: z.number(),
   amount_tax: z.number(),
   amount_total: z.number(),
+  /** Whether tax is shown on this document: the company is registered for VAT, or the document already carries tax. */
+  tax_applies: z.boolean(),
   /** Zero while the document cannot be paid (cancelled, expired). */
   amount_due: z.number(),
   status: PayableStatusSchema,
@@ -160,7 +162,9 @@ export const TaxModeSchema = z.enum(['included', 'added'])
 export type TaxMode = z.infer<typeof TaxModeSchema>
 
 /**
- * The payments settings. `tax_mode` belongs to the current company (default `included`). `unpaid_order_expiry_minutes` belongs to the current company (default 60);
+ * The payments settings. `tax_mode` belongs to the current company (default `included`) and is only offered
+ * while the company is registered for VAT (`vat_registered`): an unregistered company charges no tax, so the
+ * server ignores the mode and reports `included`. `unpaid_order_expiry_minutes` belongs to the current company (default 60);
  * `invoice_when_paid` is one choice for the whole tenant (default on): stock invoices and posts a
  * paid online order at once. `system_admin_links` (company, default off) lets a system administrator without access to
  * the company's invoices create their payment links. `refund_policy` (default `full`) and `refund_amounts` (default `due`)
@@ -173,6 +177,8 @@ export const PaymentSettingsSchema = z.object({
   refund_policy: CompanyRefundPolicySchema,
   refund_amounts: RefundAmountsSchema,
   tax_mode: TaxModeSchema,
+  /** Whether the current company is registered for VAT: only then is `tax_mode` offered. */
+  vat_registered: z.boolean(),
   system_admin_links: z.boolean(),
   revision: z.number().int().nonnegative(),
 }).strict()

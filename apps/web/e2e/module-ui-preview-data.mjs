@@ -107,6 +107,7 @@ export const moduleUiCapabilities = [
   'settings.branding.manage',
   'settings.company.read',
   'settings.company.manage',
+  'settings.company.vat.manage',
   'meetings.read',
   'meetings.create',
   'meetings.manage',

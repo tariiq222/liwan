@@ -138,6 +138,28 @@ test.describe('settings page of cards', () => {
     })
   })
 
+  test('the VAT number appears and is required only while the company is registered for VAT', async ({ page }) => {
+    await open(page, '/settings/company')
+    const card = page.getByTestId('company-profile')
+    await expect(page.getByTestId('company-vat')).toBeVisible()
+    await page.getByTestId('company-vat-registered').click()
+    await expect(page.getByTestId('company-vat')).toHaveCount(0)
+    // Turning it off is saved on its own, without the number.
+    const bodies: unknown[] = []
+    page.on('request', request => { if (request.method() === 'PATCH' && request.url().endsWith('/api/v1/admin/company')) bodies.push(request.postDataJSON()) })
+    await page.getByTestId('settings-save-bar-save').click()
+    await expect(page.getByTestId('settings-save-bar')).toBeHidden()
+    expect(bodies).toEqual([{ vat_registered: false }])
+    await expect(page.getByTestId('company-vat')).toHaveCount(0)
+    // Back on, the number is required: the card refuses the save and names the field.
+    await page.getByTestId('company-vat-registered').click()
+    await expect(page.getByTestId('company-vat')).toBeVisible()
+    await page.getByTestId('company-vat').fill('')
+    await page.getByTestId('settings-save-bar-save').click()
+    await expect(card).toContainText('أدخل الرقم الضريبي')
+    await expect(page.getByTestId('company-vat')).toHaveAttribute('aria-invalid', 'true')
+  })
+
   test('on a 390px phone a sub-list tap in the drawer closes it and scrolls to the card', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await open(page, '/settings/company')

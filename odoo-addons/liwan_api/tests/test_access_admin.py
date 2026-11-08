@@ -319,12 +319,12 @@ class TestAccessAdminRoles(LiwanApiCase):
         installed_all = {
             module.name for module in self.env['ir.module.module'].search([('state', '=', 'installed')])
         }
-        # 11 core capabilities; HR's two document permissions moved to Documents,
+        # 12 core capabilities (the VAT registration among them); HR's two document permissions moved to Documents,
         # leaving 25 for HR (departments, employees, leave, recruitment, shifts,
         # onboarding, offboarding, assets, warnings and insurance) and 6 for payroll (its four keys, the audit
         # reader of owner decision D-7 and the finance mapping).
         total = (
-            11 + 31 * ('liwan_hr' in installed) + 5 * ('liwan_documents' in installed)
+            12 + 31 * ('liwan_hr' in installed) + 5 * ('liwan_documents' in installed)
             + 8 * ('liwan_pmo' in installed) + 4 * ('liwan_meetings' in installed)
         )
         # An application added later adds capabilities; today's are exact.

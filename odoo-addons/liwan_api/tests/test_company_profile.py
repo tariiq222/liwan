@@ -13,15 +13,18 @@ from .common import LiwanApiCase
 from odoo.addons.liwan_api.serializers.company_profile import (
     parse_company_profile_vals,
 )
+from odoo.addons.liwan_core.testing import skip_unless_vat_checked
 
 PASSWORD = 'company_profile_pass_123'
 ADMIN = 'company_profile_admin'
+SETTINGS_MANAGER = 'company_profile_settings_manager'
+SYSTEM_ADMIN = 'company_profile_system_admin'
 READER = 'company_profile_reader'
 EMPLOYEE = 'company_profile_employee'
 ROUTE = '/api/v1/admin/company'
 VALID_VAT = '300000000000003'
 PROFILE_KEYS = {
-    'id', 'name', 'logo_url', 'report_header', 'company_registry', 'vat',
+    'id', 'name', 'logo_url', 'report_header', 'company_registry', 'vat_registered', 'vat',
     'address', 'email', 'phone', 'website', 'currency', 'completeness', 'extensions',
 }
 ADDRESS_KEYS = {'street', 'street2', 'city', 'zip', 'state', 'country'}
@@ -54,6 +57,21 @@ class TestCompanyProfile(LiwanApiCase):
         cls.env['liwan.access.service']._liwan_replace_assignments(
             reader, [{'role_id': role.id, 'company_id': cls.company.id}],
         )
+        # A custom role holds the company profile right but not the VAT one, which no custom role may hold.
+        manager_role = cls.env['liwan.access.role'].create({
+            'key': 'company_profile_settings_manager', 'name_ar': 'مدير إعدادات', 'name_en': 'Settings manager', 'type': 'custom',
+            'company_id': cls.company.id,
+            'permission_ids': [Command.set(cls.env['liwan.access.permission'].search([
+                ('key', 'in', ['settings.company.read', 'settings.company.manage']),
+            ]).ids)],
+        })
+        manager = new_test_user(cls.env, login=SETTINGS_MANAGER, password=PASSWORD, groups='liwan_core.group_employee')
+        system_admin = new_test_user(cls.env, login=SYSTEM_ADMIN, password=PASSWORD, groups='liwan_core.group_employee')
+        service = cls.env['liwan.access.service']
+        service._liwan_replace_assignments(manager, [{'role_id': manager_role.id, 'company_id': cls.company.id}])
+        service._liwan_replace_assignments(system_admin, [{
+            'role_id': cls.env.ref('liwan_core.role_system_admin').id, 'company_id': cls.company.id,
+        }])
 
     def _patch(self, body):
         return self.api('PATCH', ROUTE, body)
@@ -143,14 +161,11 @@ class TestCompanyProfile(LiwanApiCase):
         self.company.write({'country_id': self.country.id, 'city': 'Before'})
         self.authenticate(ADMIN, PASSWORD)
         before = self.api('GET', ROUTE).json()
-        # The number check is base_vat's: a tenant without it accepts any text, so that case needs it installed.
-        vat_checked = hasattr(self.env['res.partner'], '_run_vat_checks')
         for body, code, field in (
             ({}, 'invalid', None),
             ({'currency': 'USD'}, 'invalid', 'currency'),
             ({'logo': image_base64()}, 'invalid', 'logo'),
             ({'completeness': 1}, 'invalid', 'completeness'),
-            *((({'city': 'After', 'vat': 'not-a-vat'}, 'invalid_vat', 'vat'),) if vat_checked else ()),
             ({'city': 'After', 'vat': 12}, 'invalid', 'vat'),
             ({'city': 'After', 'email': 'nope'}, 'invalid', 'email'),
             ({'city': 'After', 'phone': 'x' * 300}, 'invalid', 'phone'),
@@ -268,3 +283,136 @@ class TestCompanyProfile(LiwanApiCase):
         with self.assertRaises(AccessError):
             self.company.with_user(employee)._liwan_write_company_profile({'city': 'Riyadh'})
         self.assertNotEqual(self.company.city, 'Riyadh')
+
+    def test_vat_registration_is_read_and_written_through_the_profile(self):
+        skip_unless_vat_checked(self)
+        self.company.write({'country_id': self.country.id, 'vat': False, 'liwan_vat_registered': False})
+        self.authenticate(ADMIN, PASSWORD)
+        self.assertFalse(self.api('GET', ROUTE).json()['vat_registered'])
+        response = self._patch({'vat': VALID_VAT, 'vat_registered': True})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual((response.json()['vat_registered'], response.json()['vat']), (True, VALID_VAT))
+        self.assertEqual(self.api('GET', ROUTE).json()['vat_registered'], True)
+        self.env.invalidate_all()
+        self.assertTrue(self.company._liwan_vat_registered())
+        self.assertFalse(self._patch({'vat_registered': False}).json()['vat_registered'])
+
+    def test_registering_without_a_valid_vat_number_is_a_422_and_changes_nothing(self):
+        self.company.write({'country_id': self.country.id, 'vat': False, 'liwan_vat_registered': False})
+        self.authenticate(ADMIN, PASSWORD)
+        for body in ({'vat_registered': True}, {'vat': '', 'vat_registered': True}):
+            with self.subTest(body=body):
+                response = self._patch(body)
+                self.assertEqual((response.status_code, response.json()['code']), (422, 'invalid_vat'), response.text)
+                self.assertEqual(response.json()['field'], 'vat')
+        self.assertFalse(self.api('GET', ROUTE).json()['vat_registered'])
+        self.env.invalidate_all()
+        self.assertFalse(self.company._liwan_vat_registered())
+
+    def test_registering_with_a_number_the_country_check_rejects_is_a_422_and_changes_nothing(self):
+        skip_unless_vat_checked(self)
+        self.company.write({'country_id': self.country.id, 'vat': False, 'liwan_vat_registered': False})
+        self.authenticate(ADMIN, PASSWORD)
+        response = self._patch({'vat': 'not-a-vat', 'vat_registered': True})
+        self.assertEqual((response.status_code, response.json()['code'], response.json()['field']), (422, 'invalid_vat', 'vat'))
+        self.assertFalse(self.api('GET', ROUTE).json()['vat_registered'])
+        self.env.invalidate_all()
+        self.assertFalse(self.company._liwan_vat_registered())
+
+    def test_saving_a_number_the_country_check_rejects_is_a_422_and_changes_nothing(self):
+        skip_unless_vat_checked(self)
+        self.company.write({'country_id': self.country.id, 'city': 'Before', 'vat': False, 'liwan_vat_registered': False})
+        self.authenticate(ADMIN, PASSWORD)
+        response = self._patch({'city': 'After', 'vat': 'not-a-vat'})
+        self.assertEqual((response.status_code, response.json()['code'], response.json()['field']), (422, 'invalid_vat', 'vat'))
+        self.env.invalidate_all()
+        self.assertEqual((self.company.city, self.company.vat), ('Before', False))
+
+    def test_registering_where_no_number_check_exists_is_refused_rather_than_accepting_any_text(self):
+        self.company.write({'country_id': self.country.id, 'vat': False, 'liwan_vat_registered': False})
+        self.authenticate(ADMIN, PASSWORD)
+        with patch.object(type(self.env['res.company']), '_liwan_vat_number_is_checked', return_value=False):
+            for body in ({'vat': VALID_VAT, 'vat_registered': True}, {'vat': 'any text', 'vat_registered': True}):
+                with self.subTest(body=body):
+                    response = self._patch(body)
+                    self.assertEqual(
+                        (response.status_code, response.json()['code'], response.json()['field']),
+                        (422, 'vat_check_unavailable', 'vat'), response.text,
+                    )
+            # A number only saved, for a company that stays unregistered, is not relied on.
+            self.assertEqual(self._patch({'vat': VALID_VAT}).status_code, 200)
+            # Nor is an edit of a company already registered.
+            self.company.write({'liwan_vat_registered': True})
+            self.assertEqual(self._patch({'city': 'Jeddah'}).status_code, 200)
+        self.env.invalidate_all()
+        self.assertTrue(self.company.liwan_vat_registered)
+
+    def test_clearing_the_vat_number_of_a_registered_company_is_a_422_on_the_vat_field(self):
+        self.company.write({'country_id': self.country.id, 'vat': VALID_VAT, 'liwan_vat_registered': True})
+        self.authenticate(ADMIN, PASSWORD)
+        for body in ({'vat': ''}, {'vat': None}):
+            with self.subTest(body=body):
+                response = self._patch(body)
+                self.assertEqual((response.status_code, response.json()['code'], response.json()['field']), (422, 'invalid_vat', 'vat'))
+        self.env.invalidate_all()
+        self.assertEqual((self.company.liwan_vat_registered, self.company.vat), (True, VALID_VAT))
+
+    def test_clearing_the_number_while_deregistering_in_one_request_is_allowed(self):
+        self.company.write({'country_id': self.country.id, 'vat': VALID_VAT, 'liwan_vat_registered': True})
+        self.authenticate(ADMIN, PASSWORD)
+        response = self._patch({'vat': '', 'vat_registered': False})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual((response.json()['vat_registered'], response.json()['vat']), (False, None))
+
+    def test_a_custom_role_with_the_company_profile_right_cannot_change_the_vat_registration(self):
+        self.company.write({'country_id': self.country.id, 'vat': VALID_VAT, 'liwan_vat_registered': False})
+        self.authenticate(SETTINGS_MANAGER, PASSWORD)
+        for body in ({'vat_registered': True}, {'vat': VALID_VAT, 'vat_registered': True}):
+            with self.subTest(body=body):
+                response = self._patch(body)
+                self.assertEqual((response.status_code, response.json()['code']), (403, 'forbidden'), response.text)
+        self.env.invalidate_all()
+        self.assertFalse(self.company.liwan_vat_registered)
+        self.company.write({'liwan_vat_registered': True})
+        self.authenticate(SETTINGS_MANAGER, PASSWORD)
+        response = self._patch({'vat_registered': False})
+        self.assertEqual((response.status_code, response.json()['code']), (403, 'forbidden'), response.text)
+        self.env.invalidate_all()
+        self.assertTrue(self.company.liwan_vat_registered)
+
+    def test_the_refusal_comes_before_any_validation_of_the_request(self):
+        self.company.write({'country_id': self.country.id, 'vat': False, 'liwan_vat_registered': False})
+        self.authenticate(SETTINGS_MANAGER, PASSWORD)
+        response = self._patch({'vat_registered': True})
+        self.assertEqual((response.status_code, response.json()['code']), (403, 'forbidden'), response.text)
+
+    def test_the_same_custom_role_still_edits_the_rest_of_the_profile_and_may_resend_the_flag_it_already_has(self):
+        self.company.write({'country_id': self.country.id, 'vat': VALID_VAT, 'liwan_vat_registered': True})
+        self.authenticate(SETTINGS_MANAGER, PASSWORD)
+        response = self._patch({'city': 'Jeddah', 'vat_registered': True})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['address']['city'], 'Jeddah')
+
+    def test_the_system_administrator_role_changes_the_vat_registration(self):
+        skip_unless_vat_checked(self)
+        self.company.write({'country_id': self.country.id, 'vat': False, 'liwan_vat_registered': False})
+        self.authenticate(SYSTEM_ADMIN, PASSWORD)
+        response = self._patch({'vat': VALID_VAT, 'vat_registered': True})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertTrue(response.json()['vat_registered'])
+        self.assertFalse(self._patch({'vat_registered': False}).json()['vat_registered'])
+
+    def test_registering_with_the_saved_valid_number_needs_no_resend(self):
+        skip_unless_vat_checked(self)
+        self.company.write({'country_id': self.country.id, 'vat': VALID_VAT, 'liwan_vat_registered': False})
+        self.authenticate(ADMIN, PASSWORD)
+        self.assertEqual(self._patch({'vat_registered': True}).status_code, 200)
+        self.env.invalidate_all()
+        self.assertTrue(self.company._liwan_vat_registered())
+
+    def test_the_vat_number_is_required_as_a_boolean_and_the_registration_is_not_an_extension(self):
+        self.authenticate(ADMIN, PASSWORD)
+        for body in ({'vat_registered': 'yes'}, {'vat_registered': 1}, {'vat_registered': None}):
+            with self.subTest(body=body):
+                response = self._patch(body)
+                self.assertEqual((response.status_code, response.json()['field']), (422, 'vat_registered'))
