@@ -8,6 +8,7 @@ never accepts connection coordinates or executable paths from command flags.
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -35,7 +36,7 @@ SCRATCH_DB = re.compile(r'^liwan_scratch_[a-z0-9_]{1,42}$')
 FEATURE_KEY = re.compile(r'^[a-z][a-z0-9_.-]{0,63}$')
 ENTRY_KEYS = frozenset({
     'database', 'kind', 'pg_host', 'pg_port', 'pg_user', 'python', 'odoo_bin',
-    'addons_paths', 'data_dir', 'psql', 'pg_dump', 'pg_restore', 'createdb',
+    'addons_paths', 'data_dir', 'psql', 'pg_dump', 'pg_restore',
     'backup_root', 'release_root', 'classification_file',
 })
 # The one optional key: an entry that names the AI service's interpreter also bootstraps that service's
@@ -44,9 +45,9 @@ AI_KEY = 'ai_python'
 ENTRY_KEY_SETS = (ENTRY_KEYS, ENTRY_KEYS | {AI_KEY})
 PATH_KEYS = frozenset({
     'python', 'odoo_bin', 'data_dir', 'psql', 'pg_dump', 'pg_restore',
-    'createdb', 'backup_root', 'release_root', 'classification_file', AI_KEY,
+    'backup_root', 'release_root', 'classification_file', AI_KEY,
 })
-SYMLINK_PATH_KEYS = frozenset({'python', 'psql', 'pg_dump', 'pg_restore', 'createdb', AI_KEY})
+SYMLINK_PATH_KEYS = frozenset({'python', 'psql', 'pg_dump', 'pg_restore', AI_KEY})
 CREATE_MODULES = (
     'liwan_core', 'liwan_platform', 'liwan_api', 'liwan_ai', 'liwan_ai_notify', 'liwan_directory', 'liwan_documents',
     'liwan_notify', 'liwan_meetings', 'liwan_operations', 'liwan_pmo', 'liwan_meetings_pmo',
@@ -69,6 +70,7 @@ SESSIONS_SQL = ("SELECT count(*) FROM pg_stat_activity WHERE datname = current_d
                 "AND pid <> pg_backend_pid()")
 BACKUP_WRAPPER = Path(__file__).resolve().parents[2] / 'deploy' / 'backup.py'
 RESTORE_WRAPPER = Path(__file__).resolve().parents[2] / 'deploy' / 'restore_verify.py'
+RELEASE_POSTGRES = Path(__file__).resolve().parents[2] / 'deploy' / 'releases' / 'postgres.py'
 
 # The row lock and revision check are in the same Odoo transaction as the ORM
 # update. The read-only psql snapshot used by preflight cannot authorize a write.
@@ -374,6 +376,44 @@ def _same_server(database_url, entry):
             and port == entry['pg_port'])
 
 
+def _release_postgres():
+    """The tenant database SQL of deploy/releases/postgres.py, the one source.
+
+    Loaded by path because the operator runs with PYTHONPATH=tools and the repository root need not
+    be importable.
+    """
+    spec = importlib.util.spec_from_file_location('liwan_release_postgres', RELEASE_POSTGRES)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _run_database_sql(entry, runner, maintenance_database, sql):
+    """Run a script through psql, which stops on the first error; True on success."""
+    code, _ = _run(runner, _psql_argv(entry, maintenance_database), entry, stdin_text=sql)
+    return code == 0
+
+
+def _create_database(entry, runner, database):
+    """Create an empty database exactly as Odoo would (unicode, C collation, template0); True on success."""
+    return _run_database_sql(entry, runner, 'postgres',
+                             _release_postgres().tenant_create_database_sql(database) + ';\n')
+
+
+def _isolate_database(entry, runner, database):
+    """Close a freshly created database to PUBLIC and grant CONNECT to the inventory role; True on success.
+
+    The script's final assertion (public_connect_not_revoked) fails the step when PUBLIC keeps CONNECT.
+    """
+    return _run_database_sql(entry, runner, 'postgres',
+                             _release_postgres().tenant_isolation_sql(database, entry['pg_user']))
+
+
+def _enable_trigram_extension(entry, runner, database):
+    """Install pg_trgm in the new database, as Odoo does; without it Odoo drops its trigram indexes."""
+    return _run_database_sql(entry, runner, database, _release_postgres().TENANT_EXTENSION_SQL + ';\n')
+
+
 def _bootstrap_ai_state(entry, runner, database):
     """Give the AI role its schema in this database, then bootstrap its tables; True when both succeeded.
 
@@ -630,7 +670,7 @@ def _restore_candidate(entry, runner, backup_dir, operation_id, purpose):
         return target_db, False
     argv = [entry['python'], str(RESTORE_WRAPPER), '--backup-dir', str(backup_dir),
             '--target-db', target_db, '--target-filestore', str(destination),
-            '--pg-restore', entry['pg_restore'], '--createdb', entry['createdb'],
+            '--pg-restore', entry['pg_restore'],
             '--psql', entry['psql'], '--pg-host', entry['pg_host'],
             '--pg-port', str(entry['pg_port']), '--pg-user', entry['pg_user']]
     code, _ = _run(runner, argv, entry)
@@ -713,13 +753,18 @@ def _other_mutation(fields, entry, fingerprint, runner, store):
                 return _payload(fields, 'conflict', 'create_preflight', changed=False,
                                 error={'code': 'target_exists',
                                        'message': 'Scratch database or filestore already exists'})
-            argv = [entry['createdb'], '-h', entry['pg_host'], '-p', str(entry['pg_port']),
-                    '-U', entry['pg_user'], '-E', 'UTF8', '--template=template0', database]
-            code, _ = _run(runner, argv, entry)
-            if code != 0:
+            if not _create_database(entry, runner, database):
                 return _payload(fields, 'needs_intervention', 'database_create', changed=True,
                                 error={'code': 'operation_failed',
                                        'message': 'Scratch database creation outcome is uncertain'})
+            if not _isolate_database(entry, runner, database):
+                return _payload(fields, 'needs_intervention', 'database_isolation', changed=True,
+                                error={'code': 'operation_failed',
+                                       'message': 'Scratch database isolation requires inspection'})
+            if not _enable_trigram_extension(entry, runner, database):
+                return _payload(fields, 'needs_intervention', 'database_extension', changed=True,
+                                error={'code': 'operation_failed',
+                                       'message': 'Scratch database extension requires inspection'})
             classification_path = _save_input(store, operation_id, 'classification', classification_raw)
             config = _config(store, operation_id, entry)
             code, _ = _run(runner, _odoo_argv(entry, config, database, 'i', modules),

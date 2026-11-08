@@ -32,7 +32,7 @@ python3 deploy/backup.py --opt-in MANUAL_BACKUP_OPT_IN --acknowledge-unverified 
   --output-dir "$W/backup" --pg-dump "$B/pg_dump" --pg-host "$PGHOST" --pg-port "$PGPORT" --pg-user "$PGUSER"
 cp "$W/backup/manifest.json" "$W/original-manifest.json"
 verify() { python3 deploy/restore_verify.py --backup-dir "$W/backup" --target-db "$1" \
-  --target-filestore "$W/restored/filestore/$1" --pg-restore "$B/pg_restore" --createdb "$B/createdb" \
+  --target-filestore "$W/restored/filestore/$1" --pg-restore "$B/pg_restore" \
   --psql "$B/psql" --pg-host "$PGHOST" --pg-port "$PGPORT" --pg-user "$PGUSER"; }
 verify "$RST_DB"
 # Classified restored databases must start without a mapping or billing service.

@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import re
+import shlex
 import signal
 import subprocess
 import sys
@@ -18,10 +19,23 @@ from datetime import datetime, timezone
 from tools.shared_saas_lifecycle.odoo_effect import (
     Runner, EffectError, no_symlink, reserve, permit, emit, validate_database,
     require_new_target, verified_observation, MAX_OUTPUT, OBSERVE_CONTAINER, classify_error,
-    release_routes_enabled, effect_operation,
+    release_routes_enabled, effect_operation, TENANT_DB_ROLE,
 )
+from deploy.releases.postgres import tenant_create_database_sql, tenant_isolation_sql
 MAX_ARCHIVE = 2 * 1024 * 1024 * 1024
 MAX_MEMBERS = 100000
+
+
+def restore_database_script(database):
+    # Create the database with the provisioning recipe, then close it to PUBLIC before the first dump byte
+    # is restored; `set -e` stops the script on a failed create or isolation, so pg_restore never runs
+    # against a missing or open database.
+    create = shlex.quote(tenant_create_database_sql(database))
+    isolation = shlex.quote(tenant_isolation_sql(database, TENANT_DB_ROLE))
+    host_role = '-h restore-db -U ' + TENANT_DB_ROLE
+    psql = 'psql ' + host_role + ' -d postgres -v ON_ERROR_STOP=1 -q -c '
+    return ('set -eu; export PGPASSWORD="$POSTGRES_PASSWORD"; ' + psql + create + '; ' + psql + isolation + '; '
+            'exec pg_restore ' + host_role + ' --no-owner --exit-on-error --single-transaction -d "$1"')
 
 
 def sha256_file(path):
@@ -385,7 +399,7 @@ with tarfile.open(fileobj=sys.stdout.buffer,mode='w|') as out:
         reserve(classification,{'schema_version':1,'database':self.target,'commercial_mode':'saas','entitlement_source':'control_plane','expected_valid_until':None,'valid_until_action':'preserve'})
         classification.chmod(0o644)
         permit('restore-database')
-        self.pg_stream('restore-db','restore-db','set -eu; export PGPASSWORD="$POSTGRES_PASSWORD"; createdb -h restore-db -U odoo "$1"; exec pg_restore -h restore-db -U odoo --no-owner --exit-on-error --single-transaction -d "$1"',self.target,source=self.artifact/'database.dump')
+        self.pg_stream('restore-db','restore-db',restore_database_script(self.target),self.target,source=self.artifact/'database.dump')
         permit('restore-filestore')
         # Validation is repeated INSIDE the destination before writing its first file.
         unpack='import os,sys,tarfile,tempfile,shutil\nfrom pathlib import Path,PurePosixPath\nclass EffectError(Exception): pass\nMAX_ARCHIVE='+str(MAX_ARCHIVE)+'\nMAX_MEMBERS='+str(MAX_MEMBERS)+'\n'+inspect.getsource(safe_members)+'''

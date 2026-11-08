@@ -122,13 +122,10 @@ fi
 set -a; source .env; set +a
 DOMAIN="${1:?usage: provision.sh <domain> <db name>}"
 DB_NAME="${2:?usage: provision.sh <domain> <db name>}"
-[[ "$DB_NAME" =~ ^[a-zA-Z0-9_]+$ ]] || { echo "db name must be [a-zA-Z0-9_]+" >&2; exit 1; }
-# With the ai profile the tenant database name also becomes the AI tenant id and the AI database name, which
-# the service accepts only as ^[a-z][a-z0-9_]{0,62}$. Refuse it here, before any install work starts.
-if grep -Eq '^COMPOSE_PROFILES=([^#]*,)?ai(,|$|[[:space:]])' .env; then
-  [[ "$DB_NAME" =~ ^[a-z][a-z0-9_]{0,62}$ ]] \
-    || { echo "db name '$DB_NAME' must match ^[a-z][a-z0-9_]{0,62}$ when the ai profile is enabled" >&2; exit 1; }
-fi
+# The name is also the PostgreSQL identifier the isolation step quotes and, with the ai profile, the AI tenant id
+# and AI database name: all accept only ^[a-z][a-z0-9_]{0,62}$. Refuse anything else before any install work starts.
+[[ "$DB_NAME" =~ ^[a-z][a-z0-9_]{0,62}$ ]] \
+  || { echo "db name '$DB_NAME' must match ^[a-z][a-z0-9_]{0,62}$" >&2; exit 1; }
 # The public origin is https://<domain>: a lowercase DNS name, no port, no trailing dot.
 [ "${#DOMAIN}" -le 253 ] && [[ "$DOMAIN" =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$ ]] \
   || { echo "domain must be a lowercase DNS name" >&2; exit 1; }
@@ -180,6 +177,24 @@ for _ in $(seq 1 60); do
 done
 docker compose exec -T db pg_isready -U odoo >/dev/null 2>&1 || { echo "db not ready after 60s"; exit 1; }
 
+# Create the tenant database the way Odoo would (unicode, C collation, template0, then pg_trgm; without them Odoo
+# disables its trigram indexes) and close it to PUBLIC before anything is installed into it. A new database is open
+# to every role through PUBLIC; the SQL (REVOKE CONNECT FROM PUBLIC, GRANT CONNECT to the Odoo role, then an
+# assertion that fails the script when PUBLIC still holds CONNECT) comes from deploy/releases/postgres.py, the
+# one source, and psql stops on the first error. Isolation runs whether or not the AI role exists, and on a rerun too.
+repo_python() { (cd "$PWD/.." && python3 -B -c "$@"); }
+tenant_psql() { docker compose exec -T db psql -U odoo -v ON_ERROR_STOP=1 -q "$@"; }
+db_exists="$(printf '%s\n' "SELECT 1 FROM pg_database WHERE datname = :'tenant_db'" \
+  | docker compose exec -T db psql -U odoo -d postgres -v ON_ERROR_STOP=1 -v tenant_db="$DB_NAME" -tA)"
+if [ -z "$db_exists" ]; then
+  repo_python 'import sys; from deploy.releases.postgres import tenant_create_database_sql; sys.stdout.write(tenant_create_database_sql(sys.argv[1]) + ";\n")' "$DB_NAME" \
+    | tenant_psql -d postgres
+fi
+repo_python 'import sys; from deploy.releases.postgres import tenant_isolation_sql; sys.stdout.write(tenant_isolation_sql(sys.argv[1], sys.argv[2]))' "$DB_NAME" odoo \
+  | tenant_psql -d postgres
+repo_python 'import sys; from deploy.releases.postgres import TENANT_EXTENSION_SQL; sys.stdout.write(TENANT_EXTENSION_SQL + ";\n")' \
+  | tenant_psql -d "$DB_NAME"
+
 # Every pillar must be listed explicitly: pillars depend on liwan_api, not the other way round.
 docker compose -f docker-compose.yml -f docker-compose.classification.yml run --rm \
   -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" odoo \
@@ -189,9 +204,9 @@ docker compose run --rm -T -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$
 docker compose run --rm -T -e VENDOR_PASSWORD -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
   shell -d "$DB_NAME" --no-http < data/seed/seed_branding.py
 set_public_origin
-# Close the tenant database to PUBLIC and give LiwanOS AI's role its own schema there, with no access to
-# schema public (ai/tenant_schema.sql). A no-op when the liwan_ai role does not exist (deployments
-# without AI); a real error still stops provisioning.
+# Give LiwanOS AI's role CONNECT and its own schema in the tenant database, with no access to schema public
+# (ai/tenant_schema.sql; the PUBLIC revoke is the isolation step above). A no-op when the liwan_ai role does not
+# exist (deployments without AI); a real error still stops provisioning.
 docker compose exec -T db psql -U odoo -d postgres -v ON_ERROR_STOP=1 -v tenant_db="$DB_NAME" \
   < ai/tenant_schema.sql
 # The runtime validates AI state and never runs DDL: the operator bootstrap creates the tables in that

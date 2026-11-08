@@ -238,5 +238,49 @@ class ReleaseBackupBoundaryTests(unittest.TestCase):
             self.assertEqual(calls, [])
 
 
+class RestoreIsolationTests(unittest.TestCase):
+    DATABASE = 'liwan_scratch_' + 'b' * 32
+
+    def test_restore_script_creates_with_the_tenant_recipe_then_closes_before_pg_restore(self):
+        self.assertTrue(odoo_backup)
+        script = odoo_backup.restore_database_script(self.DATABASE)
+        create = script.index('CREATE DATABASE "' + self.DATABASE + '"')
+        # shlex.quote splits the recipe's single quotes, so the options are checked after the name.
+        self.assertTrue(create < script.index('LC_COLLATE') < script.index('TEMPLATE template0'))
+        revoke = script.index('REVOKE CONNECT ON DATABASE "' + self.DATABASE + '" FROM PUBLIC')
+        grant, assertion = script.index('GRANT CONNECT ON DATABASE'), script.index('public_connect_not_revoked')
+        restore = script.index('pg_restore ')
+        self.assertTrue(create < revoke < grant < assertion < restore)
+        self.assertNotIn('createdb', script)
+        self.assertTrue(script.startswith('set -eu;'))
+        self.assertEqual(script.count('-v ON_ERROR_STOP=1'), 2)
+
+    def test_restore_operation_passes_the_isolating_script_to_the_restore_container(self):
+        self.assertTrue(odoo_backup)
+        with tempfile.TemporaryDirectory() as raw:
+            runner = object.__new__(odoo_backup.BackupRunner)
+            runner.root = Path(raw).resolve()
+            (runner.root / 'classifications').mkdir()
+            runner.target = self.DATABASE
+            runner.artifact = Path(raw) / 'artifact'
+            runner.authority = {'approvalId': 'a'}
+            runner.backup_id = 'b'
+            runner.request = {'payloadDigest': 'c' * 64, 'attemptId': 'd' * 32, 'fence': 1}
+            runner.read_artifact = lambda: {'sourceImageId': 'i', 'postgresImageId': 'p'}
+            runner.inspect_service = lambda service: {'Image': 'i' if service == 'restore-odoo' else 'p'}
+            runner.database_exists = lambda *_: False
+            runner.files_exist = lambda *_: False
+            streams = []
+            def pg_stream(service, stage, script, database, **kwargs):
+                streams.append((stage, script, database))
+                raise odoo_effect.EffectError('restore_stopped_after_database')
+            runner.pg_stream = pg_stream
+            with patch.object(odoo_backup, 'permit', lambda stage: None), \
+                    patch.object(odoo_backup, 'reserve', lambda path, payload: Path(path).write_text('{}')):
+                with self.assertRaisesRegex(odoo_effect.EffectError, '^restore_stopped_after_database$'):
+                    runner._restore_operation()
+        self.assertEqual(streams, [('restore-db', odoo_backup.restore_database_script(self.DATABASE), self.DATABASE)])
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -84,7 +84,7 @@ describe('inbox report queries', () => {
 describe('inbox report export', () => {
   it('downloads the breakdown as CSV under the file name the server chose', async () => {
     await hooks.useInboxReportExport()('agent', { ...RANGE, channel_id: 3 })
-    expect($download).toHaveBeenCalledWith('/api/v1/inbox/reports/export?by=agent&from=2026-10-01&to=2026-10-07&channel_id=3')
+    expect($download).toHaveBeenCalledWith('/api/v1/inbox/reports/export', { query: { by: 'agent', ...RANGE, channel_id: 3 } })
     expect(saveBlob).toHaveBeenCalledWith(expect.any(Blob), 'inbox-agent.csv')
   })
 

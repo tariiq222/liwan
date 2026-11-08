@@ -107,8 +107,7 @@ export function useInboxReportChannels(day: MaybeRefOrGetter<string>, enabled: M
 export function useInboxReportExport() {
   const { $download } = useApi()
   return async (by: InboxReportBreakdownBy, query: object) => {
-    const search = new URLSearchParams(Object.entries(cleanQuery({ by, ...query })).map(([key, value]) => [key, String(value)]))
-    const { blob, filename } = await $download(`/api/v1/inbox/reports/export?${search}`)
+    const { blob, filename } = await $download('/api/v1/inbox/reports/export', { query: cleanQuery({ by, ...query }) })
     saveBlob(blob, filename ?? `inbox-${by}.csv`)
   }
 }
