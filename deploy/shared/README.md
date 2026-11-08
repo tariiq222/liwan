@@ -183,12 +183,19 @@ no port, share no network with `db` or `odoo`, and use their own volumes. `resto
 `LIWAN_RESTORE_ODOO_CONFIG`, a validated external config whose `db_host` is `restore-db`; unset, it mounts
 `deploy/shared/odoo.restore.conf`, an incomplete reference the startup validator rejects.
 
-**Open owner decision: who may reach a restore host.** A restore host is on the public edge and is authenticated like a
-tenant host, by the restored database's own users, so it accepts the credentials, including a disabled-since-backup user's
-or an old password, that the backup held. Its name is not guessable (128-bit approval id) and publishing it needs a
-step-up vendor session, but neither is access control. Options: (a) keep as is, restore verification by the customer
-administrators; (b) restrict `*.restore.{$DOMAIN}` to operator addresses with a Caddy `remote_ip` matcher (recommended
-default); (c) add an expiry and unpublish step for restore routes. None of these is implemented here.
+**Access control: who may reach a restore host (owner decision 2026-11-08).** A restore host is on the public edge and
+is authenticated like a tenant host, by the restored database's own users, so it would otherwise accept the
+credentials the backup held — including a user disabled since the backup, or an old password. Its name is not
+guessable (128-bit approval id) and publishing it needs a step-up vendor session, but neither is access control.
+
+So the edge restricts `*.restore.{$DOMAIN}` to the operator's own addresses: the site answers **404** for any client
+outside `LIWAN_RESTORE_ALLOW`, an allowlist in Caddy `remote_ip` syntax (`CIDRs`, `private_ranges`, or bare
+addresses). There is deliberately **no default**: with the variable unset or empty, every restore host answers 404,
+so a deployment cannot expose a restore by forgetting to set it. `trusted_proxies` stays unset on this site, so
+`remote_ip` compares the socket peer and no client-supplied header can claim an allowlisted address. A customer
+administrator therefore reaches a restored copy only through an operator, which is the intended review step: a
+restore is a recovery artefact, not a service. Expiry and unpublish remain future work; today a published route
+stays until the operator removes it from the restore registry file.
 `restore-odoo` is deliberately given no `LIWAN_SHARED_PROXY_TOKEN`: Odoo reads it only for the TikTok relay.
 
 **Operator prerequisite: wildcard DNS and a wildcard certificate.** The Caddyfile serves `*.restore.{$DOMAIN}`, but

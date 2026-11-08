@@ -96,8 +96,23 @@
 # AND a certificate valid for `*.restore.<domain>`; see "Restore hosts" in deploy/shared/README.md. Caddy cannot
 # issue that wildcard itself with the stock proxy image (no DNS-challenge module), so until the operator supplies
 # it a restore host has no usable TLS.
+#
+# Access control: a restored database still holds the credentials the backup held, including a user disabled since
+# the backup or an old password, so this site is not open to the internet. `LIWAN_RESTORE_ALLOW` is the operator's
+# client-address allowlist (`remote_ip` syntax: CIDRs, `private_ranges`, or bare addresses). It has no default on
+# purpose: an unset or empty value answers 404 for every restore host, so a deployment cannot expose a restore by
+# forgetting to set it. `trusted_proxies` stays unset, so `remote_ip` reads the socket peer and no client header
+# can claim an allowlisted address.
 *.restore.{$DOMAIN} {
-	import guarded_site
+	# `handle` blocks are mutually exclusive and evaluated in order, so the allowlist is decided before any
+	# request reaches the guarded snippet (a bare `respond` beside `import` is reordered by Caddy's directive sort).
+	@notOperator not remote_ip {$LIWAN_RESTORE_ALLOW}
+	handle @notOperator {
+		respond 404
+	}
+	handle {
+		import guarded_site
+	}
 }
 
 # The platform TikTok app's single delivery host (D13/D14): the webhook and the OAuth bounce only.
