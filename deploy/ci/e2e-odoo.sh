@@ -66,7 +66,9 @@ odoo -i "$(python3 -B tools/catalog_check.py --release-modules)" --without-demo=
 odoo_shell < tools/e2e_seed.py
 E2E_REAL_FIXTURE_OUTPUT="$FIXTURE_DIR/fixtures.json" odoo_shell < apps/web/e2e/fixtures/real-odoo-acceptance.py
 test -s "$FIXTURE_DIR/fixtures.json"
-odoo > "$SCRATCH_ROOT/logs/odoo-stdout.log" 2>&1 &
+# Started directly, not through odoo(): a backgrounded shell function would make $! the subshell, and the cleanup
+# would leave Odoo running on the port.
+"$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" -c "$SCRATCH_ROOT/odoo.conf" -d "$SCRATCH_DB" > "$SCRATCH_ROOT/logs/odoo-stdout.log" 2>&1 &
 ODOO_PID=$!
 for _ in $(seq 1 60); do
   kill -0 "$ODOO_PID"
@@ -92,4 +94,14 @@ for _ in $(seq 1 60); do
 done
 curl -fs "http://localhost:$WEB_PORT/login" >/dev/null
 export E2E_REAL_ODOO=1 E2E_BASE_URL="http://localhost:$WEB_PORT" E2E_REAL_FIXTURE="$FIXTURE_DIR/fixtures.json"
-npx playwright test e2e/real-odoo-acceptance.spec.ts e2e/real-odoo-services.spec.ts
+# A spec joins this list only after it passes on a scratch database. `grep -rl E2E_REAL_ODOO apps/web/e2e` lists every
+# spec guarded by the flag; the 12 below were run here on 2026-11-08 and fail before their first assertion, so they stay
+# out by name until each is moved to the two-step sign-in (docs/verification/2026-11-08-e2e-odoo-run.md):
+#   access-admin account activity appearance-user board hr-leave hr-people-access notifications project-admin
+#   projects-phase2 realtime task-lifecycle: the sign-in is a single step as `admin`/`admin`, an account the scratch seed
+#   does not create (its accounts are `e2e_*` and sign in with a password and then a remembered device).
+REAL_ODOO_SPECS=(
+  e2e/real-odoo-acceptance.spec.ts
+  e2e/real-odoo-services.spec.ts
+)
+npx playwright test "${REAL_ODOO_SPECS[@]}"
