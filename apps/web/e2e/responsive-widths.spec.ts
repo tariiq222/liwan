@@ -13,37 +13,40 @@ async function login(page: Page) {
   await expect(page).not.toHaveURL(/\/login/)
 }
 
+async function switchLanguage(page: Page, dir: 'rtl' | 'ltr') {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/projects', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByTestId('account-menu')).toBeEnabled()
+  await page.getByTestId('account-menu').click()
+  await page.getByTestId('user-menu-language').getByRole('button', { name: dir === 'ltr' ? 'English' : 'العربية' }).click()
+  await expect(page.locator('html')).toHaveAttribute('dir', dir)
+}
+
+// One test per direction and width, so a slow dev server fails one case instead of the whole sweep.
 for (const dir of ['rtl', 'ltr'] as const) {
-  test(`no main route scrolls sideways at any width (${dir})`, async ({ page }) => {
-    test.setTimeout(300_000)
-    await login(page)
-    // The real interface language, not a flipped attribute: the user menu switches it.
-    await page.setViewportSize({ width: 1440, height: 900 })
-    await page.goto('/projects', { waitUntil: 'domcontentloaded' })
-    await expect(page.getByTestId('account-menu')).toBeEnabled()
-    await page.getByTestId('account-menu').click()
-    await page.getByTestId('user-menu-language').getByRole('button', { name: dir === 'ltr' ? 'English' : 'العربية' }).click()
-    await expect(page.locator('html')).toHaveAttribute('dir', dir)
-    const failures: string[] = []
-    for (const width of WIDTHS) {
-      await page.setViewportSize({ width, height: 900 })
-      for (const route of ROUTES) {
-        console.log(`> ${dir} ${width} ${route}`)
-        await page.goto(route, { waitUntil: 'domcontentloaded' })
-        await expect(page.getByTestId('shell-main')).toBeVisible()
-        await expect(page.locator('html')).toHaveAttribute('dir', dir)
-        await page.waitForTimeout(250)
-        const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)
-        if (overflow > 0) failures.push(`${dir} ${width}px ${route}: +${overflow}px`)
+  for (const width of WIDTHS) {
+    test(`no main route scrolls sideways at ${width}px (${dir})`, async ({ page }) => {
+      test.setTimeout(180_000)
+      await login(page)
+      await switchLanguage(page, dir)
+      try {
+        await page.setViewportSize({ width, height: 900 })
+        const failures: string[] = []
+        for (const route of ROUTES) {
+          await page.goto(route, { waitUntil: 'domcontentloaded' })
+          await expect(page.getByTestId('shell-main')).toBeVisible()
+          await expect(page.locator('html')).toHaveAttribute('dir', dir)
+          await page.waitForTimeout(250)
+          const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)
+          if (overflow > 0) failures.push(`${route}: +${overflow}px`)
+        }
+        expect(failures).toEqual([])
+      } finally {
+        // The mock keeps the language: leave it Arabic for the next test.
+        if (dir === 'ltr') await switchLanguage(page, 'rtl')
       }
-    }
-    expect(failures).toEqual([])
-    if (dir === 'ltr') {
-      await page.setViewportSize({ width: 1440, height: 900 })
-      await page.getByTestId('account-menu').click()
-      await page.getByTestId('user-menu-language').getByRole('button', { name: 'العربية' }).click()
-    }
-  })
+    })
+  }
 }
 
 test('the page column is centred in the workspace at 1920px and capped at 1680px', async ({ page }) => {
