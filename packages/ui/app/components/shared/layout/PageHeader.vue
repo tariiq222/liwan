@@ -101,11 +101,11 @@ const trail = computed<HeaderTrailStep[]>(() => {
           :data-app="pageApp?.id"
         ><UIcon :name="chip" class="size-[46%]!" /></span>
         <div class="min-w-0 flex-1 basis-60">
-          <!-- The tags stay beside the title and share the baseline of its first line, even when a long title wraps. -->
-          <div class="flex min-w-0 items-baseline gap-x-3">
-            <h2 v-if="frameOwnsHeading" :class="titleClass" class="min-w-0"><slot name="title">{{ props.title }}</slot></h2>
-            <h1 v-else :class="titleClass" class="min-w-0"><slot name="title">{{ props.title }}</slot></h1>
-            <div class="shrink-0">
+          <!-- The tags sit beside the title when they fit; otherwise the whole group wraps under it. The title keeps its own line(s) and never shrinks to a word per line. -->
+          <div class="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-2">
+            <h2 v-if="frameOwnsHeading" :class="titleClass" class="max-w-full min-w-0"><slot name="title">{{ props.title }}</slot></h2>
+            <h1 v-else :class="titleClass" class="max-w-full min-w-0"><slot name="title">{{ props.title }}</slot></h1>
+            <div data-slot="page-header-tags" class="flex min-w-0 max-w-full flex-wrap items-center gap-2">
               <slot name="tags">
                 <SharedHeaderTags :tags="props.tags" />
               </slot>
