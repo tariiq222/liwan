@@ -3,6 +3,7 @@ import contextlib
 import io
 import json
 import os
+import re
 import subprocess
 import tempfile
 import unittest
@@ -11,6 +12,7 @@ from pathlib import Path
 import ci_scope
 
 ALL = ci_scope.STAGES
+REPO = Path(ci_scope.__file__).resolve().parents[1]
 SHARED = ('static', 'control-plane', 'vendor-admin', 'image', 'e2e-mock', 'e2e-odoo', 'rtl-stories')
 WEB = ('static', 'control-plane', 'image', 'e2e-mock', 'e2e-odoo', 'rtl-stories')
 
@@ -354,6 +356,31 @@ class ChangedPathsTest(unittest.TestCase):
         finally:
             os.chdir(previous)
         return out.getvalue()
+
+
+    def test_every_real_odoo_spec_is_either_run_or_named_as_excluded(self):
+        """A new `E2E_REAL_ODOO` spec cannot be silently skipped.
+
+        The stage runs `REAL_ODOO_SPECS` and records the ones it cannot yet run in `EXCLUDED_REAL_ODOO_SPECS`. Both are
+        read from the script itself, so the two lists cannot drift from it, and a spec guarded by the flag but present in
+        neither list fails here instead of never running anywhere.
+        """
+        script = (REPO / 'deploy' / 'ci' / 'e2e-odoo.sh').read_text(encoding='utf-8')
+
+        def listed(name):
+            block = re.search(rf'^{name}=\((.*?)^\)', script, re.S | re.M)
+            self.assertIsNotNone(block, f'{name} is missing from deploy/ci/e2e-odoo.sh')
+            return set(re.findall(r'^\s*(e2e/\S+\.spec\.ts)\s*$', block.group(1), re.M))
+
+        run, excluded = listed('REAL_ODOO_SPECS'), listed('EXCLUDED_REAL_ODOO_SPECS')
+        self.assertTrue(run, 'REAL_ODOO_SPECS must run at least one journey')
+        self.assertEqual(run & excluded, set(), 'a spec cannot be both run and excluded')
+        guarded = {
+            path.name for path in (REPO / 'apps' / 'web' / 'e2e').glob('*.spec.ts')
+            if 'E2E_REAL_ODOO' in path.read_text(encoding='utf-8')
+        }
+        self.assertEqual(guarded - {Path(p).name for p in run | excluded}, set(),
+                         'every spec guarded by E2E_REAL_ODOO must be run or named as excluded in the stage')
 
 
 if __name__ == '__main__':
