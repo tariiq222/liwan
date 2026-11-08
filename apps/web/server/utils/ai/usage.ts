@@ -18,11 +18,20 @@ class UsageRefused extends Error {
 
 /** Logged by count only: the spool reached its row bound, so its oldest rows were dropped. */
 class UsageSpoolOverflow extends Error {}
+/** Logged by count only: one session reached its own row bound, so its oldest rows there were dropped. */
+class UsageSessionOverflow extends Error {}
+/** Logged by count only: a run ended on a request that carried no session, so its rows had no owner to be reported under. */
+class UsageUnattributed extends Error {}
 /** Logged by count only: spooled rows waited past the age bound without Odoo accepting them. */
 class UsageSpoolExpired extends Error {}
 
-/** Rows kept for a retry: at most 2048, oldest dropped first, none older than an hour. Never unbounded, never a throw. */
+/**
+ * Rows kept for a retry: at most 2048 in the process, oldest dropped first, none older than an hour. A busy tenant must not
+ * evict the rows of another on a shared process, so each session also keeps at most `SPOOL_SESSION_MAX_ROWS` (issue #557).
+ * A run reports at most a handful of attempts, so the per-session bound is far above any one conversation's need.
+ */
 const SPOOL_MAX_ROWS = 2048
+const SPOOL_SESSION_MAX_ROWS = 256
 const SPOOL_MAX_AGE_MS = 60 * 60 * 1000
 /**
  * A refused row becomes due again this long after its refusal. It is bounded on purpose: a failing or ended session would
@@ -55,11 +64,30 @@ function expireSpooled(now: number): void {
   logFailure(`expired ${expired} usage rows unaccepted for ${SPOOL_MAX_AGE_MS / 60_000} minutes`, new UsageSpoolExpired())
 }
 
-/** Appends the rows of one run in the order the provider attempts were observed, then enforces the row bound. */
+/** Drops the oldest rows one session holds beyond its own bound, so a busy session cannot push another's rows out. */
+function enforceSessionBound(session: string): void {
+  const held = spool.filter(entry => entry.session === session)
+  const excess = held.length - SPOOL_SESSION_MAX_ROWS
+  if (excess <= 0) return
+  const dropped = new Set(held.slice(0, excess))
+  for (let index = spool.length - 1; index >= 0; index--) if (dropped.has(spool[index]!)) spool.splice(index, 1)
+  logFailure(`dropped ${excess} usage rows of one session over the ${SPOOL_SESSION_MAX_ROWS}-row bound`, new UsageSessionOverflow())
+}
+
+/**
+ * Appends the rows of one run in the order the provider attempts were observed, then enforces both bounds: the session's own,
+ * then the process's. A row of no session is never spooled: it could only be retried under that empty key, and Odoo bills a
+ * usage row to the session that sends it (issue #557).
+ */
 function spoolRows(rows: readonly AiUsageRecord[], session: string): void {
+  if (!session) {
+    logFailure(`dropped ${rows.length} usage rows of a request with no session`, new UsageUnattributed())
+    return
+  }
   const now = Date.now()
   expireSpooled(now)
   for (const row of rows) spool.push({ row, session, observedAt: now, dueAt: now })
+  enforceSessionBound(session)
   const excess = spool.length - SPOOL_MAX_ROWS
   if (excess <= 0) return
   spool.splice(0, excess)
@@ -111,6 +139,8 @@ const reporting = new Map<string, Promise<void>>()
  */
 export function retryPending(event: H3Event): Promise<void> {
   const session = sessionKey(event)
+  // A request with no session gives the rows no owner to be reported under, so it neither sends nor waits.
+  if (!session) return Promise.resolve()
   expireSpooled(Date.now())
   const report = (reporting.get(session) ?? Promise.resolve())
     .then(() => sendSpooled(event, session))
@@ -167,8 +197,10 @@ export function createUsageLedger() {
   /**
    * Hands this run's attempts to the process spool once per ledger, in order, then reports what the spool holds for this
    * session. A batch Odoo refuses (a non-200, a timeout, a dead connection) stays spooled for the next flush of any ledger or an
-   * explicit `retryPending`, instead of dying with the session that observed it. The call is shielded from the browser
-   * (`signal: null`) and runs after the browser stream closed, so a slow or failing report never holds the UI busy.
+   * explicit `retryPending`, instead of dying with the session that observed it. A run whose request carried no session cookie
+   * has no owner for its rows: they are dropped and logged by count, never spooled under an empty key (issue #557). The call is
+   * shielded from the browser (`signal: null`) and runs after the browser stream closed, so a slow or failing report never
+   * holds the UI busy.
    *
    * Residual limit, stated rather than hidden: the report still runs as the user, so a session that ended mid-run (logout
    * elsewhere, revoked `ai.use`) is refused with 401/403. Those rows are never sent under another session, because Odoo would

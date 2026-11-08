@@ -224,22 +224,65 @@ describe('usage spool', () => {
 
   it('bounds the spool, drops the oldest rows and logs one line by count only, never the payload', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    const session = ledgerEvent('bounded')
-    odooJson.mockResolvedValueOnce({ status: 500, body: { code: 'boom', message: 'secret detail from odoo' } })
-    await ledgerOf(2100).flush(session, 'r_bound')
-    expect(logged(spy)).toEqual([
-      expect.stringMatching(/^\[liwan-ai] dropped \d+ usage rows over the 2048-row spool bound: UsageSpoolOverflow$/),
-      '[liwan-ai] usage report of 64 rows failed: UsageRefused',
-    ])
+    // Nine sessions at their own bound (256) hold 2304 rows, so the process bound is what drops the oldest 256.
+    const sessions = Array.from({ length: 9 }, (_, index) => ledgerEvent(`bounded-${index}`))
+    odooJson.mockResolvedValue({ status: 500, body: { code: 'boom' } })
+    for (const session of sessions) await ledgerOf(256).flush(session, 'r_bound')
+    expect(logged(spy)).toContain('[liwan-ai] dropped 256 usage rows over the 2048-row spool bound: UsageSpoolOverflow')
     expect(JSON.stringify(spy.mock.calls)).not.toMatch(/openrouter|claude-sonnet|r_bound|secret detail/)
 
     // Exactly the bounded remainder survives, reported in batches of at most 64: the newest rows are the ones kept.
     advance(RETRY_AFTER_MS + 1)
-    await retryPending(session)
-    const reported = sent().slice(1).flatMap(call => call.body.items)
+    odooJson.mockResolvedValue({ status: 200, body: { items: [], total: 0 } })
+    const before = sent().length
+    for (const session of sessions) await retryPending(session)
+    const reported = sent().slice(before).flatMap(call => call.body.items)
     expect(reported).toHaveLength(2048)
-    expect(sent().slice(1).every(call => call.body.items.length <= 64)).toBe(true)
+    expect(sent().slice(before).every(call => call.body.items.length <= 64)).toBe(true)
     expect(reported.every(item => item.conversation_id === 'r_bound')).toBe(true)
+  })
+
+  it('bounds one session separately, so a busy session never evicts the rows of another', async () => {
+    // Issue #557: on a shared process a busy tenant must not push another tenant's rows out of the global spool.
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const quiet = ledgerEvent('quiet-tenant')
+    const busy = ledgerEvent('busy-tenant')
+    odooJson.mockResolvedValueOnce({ status: 500, body: { code: 'boom' } })
+    await ledgerOf(2).flush(quiet, 'r_quiet')
+
+    // The busy session reports far more than its own bound; only its own rows are dropped, oldest first.
+    odooJson.mockResolvedValue({ status: 500, body: { code: 'boom' } })
+    await ledgerOf(400).flush(busy, 'r_busy')
+    expect(logged(spy)).toEqual([
+      '[liwan-ai] usage report of 2 rows failed: UsageRefused',
+      '[liwan-ai] dropped 144 usage rows of one session over the 256-row bound: UsageSessionOverflow',
+      '[liwan-ai] usage report of 64 rows failed: UsageRefused',
+    ])
+    expect(spy.mock.calls.map(call => call[0])).toContain('[liwan-ai] dropped 144 usage rows of one session over the 256-row bound: UsageSessionOverflow')
+
+    // The quiet session still holds its two rows, and reports them once its retry window passed.
+    spy.mockClear()
+    odooJson.mockResolvedValue({ status: 200, body: { items: [], total: 0 } })
+    advance(RETRY_AFTER_MS + 1)
+    await retryPending(quiet)
+    expect(sent().at(-1)!.body.items.map(item => item.conversation_id)).toEqual(['r_quiet', 'r_quiet'])
+    expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('never spools the rows of a request with no session, and logs them by count only', async () => {
+    // Issue #557: a usage row is billed to the session that sends it, so one with no session has no owner to retry under.
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const anonymous = { node: { req: { headers: {} } } } as unknown as H3Event
+    odooJson.mockRejectedValueOnce(new TypeError('answer never arrived'))
+    await expect(ledgerOf(3).flush(anonymous, 'r_anonymous')).resolves.toBeUndefined()
+    expect(odooJson).not.toHaveBeenCalled()
+    expect(logged(spy)).toEqual(['[liwan-ai] dropped 3 usage rows of a request with no session: UsageUnattributed'])
+    expect(JSON.stringify(spy.mock.calls)).not.toMatch(/openrouter|claude-sonnet|r_anonymous/)
+
+    // Nothing was spooled, so no later session reports those rows as its own.
+    advance(RETRY_AFTER_MS + 1)
+    await retryPending(ledgerEvent('someone-else'))
+    expect(odooJson).not.toHaveBeenCalled()
   })
 
   it('drops a spooled row past its age bound and reports it by count only, never the payload', async () => {
@@ -250,7 +293,7 @@ describe('usage spool', () => {
     spy.mockClear()
     advance(60 * 60 * 1000 + 1)
     await retryPending(session)
-    expect(logged(spy)).toEqual(['[liwan-ai] expired 2 usage rows unaccepted for 60 minutes: UsageSpoolExpired'])
+    expect(logged(spy)).toEqual([expect.stringMatching(/^\[liwan-ai] expired \d+ usage rows unaccepted for 60 minutes: UsageSpoolExpired$/)])
     expect(odooJson).toHaveBeenCalledTimes(1)
     expect(JSON.stringify(spy.mock.calls)).not.toMatch(/openrouter|r_aged/)
   })
