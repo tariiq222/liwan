@@ -171,6 +171,39 @@ def verified_observation(request, verified):
             'businessKey': request['businessKey'], 'payloadDigest': request['payloadDigest'], 'verified': True}
 
 
+def password_step_script(database, credentials):
+    """Probe the routed admin's password step without requesting or consuming a second factor."""
+    auth = {'jsonrpc': '2.0', 'method': 'call', 'id': 1, 'params': {
+        'db': database, 'login': credentials['login'], 'password': credentials['password'],
+    }}
+    values = f'database = {database!r}\npayload = {json.dumps(auth)!r}\n'
+    return values + '''
+import http.cookiejar
+import json
+import urllib.error
+import urllib.request
+
+root = 'http://127.0.0.1:8069'
+opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+login = urllib.request.Request(root + '/web/session/authenticate', data=payload.encode(),
+                               headers={'Content-Type': 'application/json', 'Host': database})
+verified = False
+try:
+    with opener.open(login, timeout=25) as response:
+        result = json.load(response)
+    if 'error' not in result and result.get('result') == {'uid': None}:
+        channels = urllib.request.Request(root + '/api/v1/auth/channels', headers={'Host': database})
+        with opener.open(channels, timeout=10) as response:
+            options = json.load(response)
+        verified = options.get('has_email') is True and 'email' in options.get('channels', [])
+except urllib.error.HTTPError as error:
+    if error.code not in (401, 403):
+        raise
+    verified = False
+print(json.dumps({'passwordStepVerified': verified}))
+'''
+
+
 def emit(value):
     print(json.dumps(value, separators=(',', ':')), flush=True)
 
@@ -417,7 +450,7 @@ try:
     keys = env['liwan.entitlement.service']._liwan_entitled_admin_roles()
     if not snapshot:
         assert admin.login == 'admin'
-        admin._liwan_access_write({'login': values['login'], 'name': values['name']}, 'access.users.update')
+        admin._liwan_access_write({'login': values['login'], 'name': values['name'], 'email': values['login']}, 'access.users.update')
         profile.root_company_id.write({'name': values['companyName']})
         # Stock builds payment return/webhook and mail links from web.base.url: pin it to the routed host.
         profile.with_context(**{OPERATOR_CONTEXT: True})._liwan_set_public_origin(values['host'])
@@ -446,7 +479,7 @@ try:
     users = service._liwan_count_users()
     limit = service._liwan_limit_value('users.limit')
     assert users >= 1 and (limit is None or users <= limit)
-    assert admin.login == values['login'] and admin.name == values['name']
+    assert admin.login == values['login'] and admin.name == values['name'] and admin.email == values['login']
     assert profile.root_company_id.name == values['companyName']
     params = env['ir.config_parameter']
     assert params.get_param('web.base.url') == 'https://' + values['host'] and params.get_param('web.base.url.freeze')
@@ -516,15 +549,14 @@ print('LIWAN_SHARED_ADMIN:' + json.dumps(result))
         snapshot = parse_snapshot(self.shell(build_snapshot_script(self.database), 'snapshot'), policy, self.database)
         if snapshot['policy_revision'] != 1:
             return {'state': 'partial'}
-        uid = self.parse_admin(self.shell(self.admin_script(credentials['password'], snapshot=True), 'read-admin'))
-        # Actual HTTP authentication in the existing shared Odoo server; the
-        # internal Host is the database name selected by the routing guard.
-        auth = {'jsonrpc': '2.0', 'method': 'call', 'params': {'db': self.database, 'login': credentials['login'], 'password': credentials['password']}, 'id': 1}
-        script = 'import json, urllib.request\npayload = ' + repr(json.dumps(auth)) + '\n'
-        script += 'req = urllib.request.Request("http://127.0.0.1:8069/web/session/authenticate", data=payload.encode(), headers={"Content-Type":"application/json", "Host":' + repr(self.database) + '})\n'
-        script += 'response=json.load(urllib.request.urlopen(req, timeout=30))\nprint(json.dumps({"authenticated":response.get("result",{}).get("uid") == ' + repr(uid) + '}))\n'
-        result = json.loads(self.command(self.base + ['exec', '-T', 'odoo', '/opt/venv/bin/python', '-'], stdin=script, timeout=45))
-        return verified_observation(self.request, result == {'authenticated': True})
+        self.parse_admin(self.shell(self.admin_script(credentials['password'], snapshot=True), 'read-admin'))
+        # The shell pins the exact user and mailbox. The HTTP hop verifies that the stored password
+        # establishes a usable pending session on the routed database without sending a code.
+        result = json.loads(self.command(
+            self.base + ['exec', '-T', 'odoo', '/opt/venv/bin/python', '-'],
+            stdin=password_step_script(self.database, credentials), timeout=45,
+        ))
+        return verified_observation(self.request, result == {'passwordStepVerified': True})
 
 
 # Non-secret refusal codes that may be reported; everything else is opaque.

@@ -1,11 +1,17 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import hashlib
 from datetime import timedelta
+from unittest.mock import patch
+from uuid import uuid4
 
-from odoo import fields
+from psycopg2.errors import SerializationFailure
+
+from odoo import SUPERUSER_ID, api, fields
 from odoo.exceptions import AccessError, LockError
 from odoo.tests import TransactionCase, new_test_user, tagged
+from odoo.tools import mute_logger
 
+from odoo.addons.liwan_core.models import login_code
 from odoo.addons.liwan_core.models.login_code import (
     CODE_ATTEMPTS,
     CODE_LENGTH,
@@ -90,6 +96,21 @@ class TestLoginCodeIssue(LoginCodeCase):
         self.assertIn('@', outcome.destination)
         self.assertNotIn(self.user.email, outcome.destination)
 
+    def test_email_delivery_preserves_mailbox_case(self):
+        mailbox = 'CaseSensitive@EXAMPLE.test'
+        self.user.email = f'Code User <{mailbox}>'
+        outcome = self.issue(channel='email')
+        self.assertEqual(outcome.error, '')
+        self.assertEqual(outcome.record.destination, mailbox)
+        self.assertEqual(self.sent[-1][1], mailbox)
+
+    def test_email_delivery_refuses_multiple_recipients(self):
+        self.user.email = 'one@example.test, two@example.test'
+        outcome = self.issue(channel='email')
+        self.assertEqual(outcome.error, 'channel_unavailable')
+        self.assertFalse(outcome.record)
+        self.assertEqual(self.sent, [])
+
     def test_a_channel_without_a_destination_is_refused(self):
         self.user.liwan_mobile = False
         outcome = self.issue(channel='sms')
@@ -127,24 +148,24 @@ class TestLoginCodeIssue(LoginCodeCase):
         self.assertEqual(len(self.sent), 1)
         self.assertEqual(self.service.search_count([('user_id', '=', self.user.id)]), 1)
 
-    def test_the_hourly_cap_per_user(self):
-        self.issue()
-        for _ in range(HOURLY_SENDS - 1):
+    def test_the_hourly_cap_per_user_counts_every_channel(self):
+        self.user.email = 'code-user@example.test'
+        for _ in range(HOURLY_SENDS):
             self.clear_cooldown()
-            self.issue()
+            self.assertEqual(self.issue().error, '')
         self.clear_cooldown()
-        self.assertEqual(self.issue().error, 'send_limit_reached')
+        self.assertEqual(self.issue(channel='email').error, 'send_limit_reached')
 
-    def test_the_hourly_cap_per_destination(self):
-        """A number's allowance counts every code delivered to it inside the hour."""
-        self.issue()
-        for _ in range(HOURLY_SENDS - 1):
+    def test_the_hourly_cap_per_destination_counts_other_users(self):
+        self.user.email = 'one-mailbox@example.test'
+        for _ in range(HOURLY_SENDS):
             self.clear_cooldown()
-            self.issue()
-        self.clear_cooldown()
-        self.assertEqual(self.service.search_count([('destination', '=', MOBILE)]), HOURLY_SENDS)
-        # The per-user cap and the per-destination cap both refuse the sixth send of one number.
-        self.assertIn(self.issue().error, {'send_limit_reached'})
+            self.assertEqual(self.issue(channel='email').error, '')
+        other = new_test_user(
+            self.env, login='same_inbox', password=PASSWORD, name='Same Inbox',
+            email='One-Mailbox@EXAMPLE.test', groups='liwan_core.group_employee',
+        )
+        self.assertEqual(self.issue(channel='email', user=other).error, 'send_limit_reached')
 
     def test_the_daily_global_cap_alerts_instead_of_sending(self):
         self.patch(type(self.service), '_liwan_daily_sends', lambda model: DAILY_SENDS)
@@ -222,3 +243,53 @@ class TestLoginCodeVerify(LoginCodeCase):
         record = self.issue().record
         with self.assertRaises(AccessError):
             self.env['liwan.login.code'].with_user(self.user).browse(record.id).read(['code_hash'])
+
+
+@tagged('post_install', '-at_install', 'liwan', 'liwan_access')
+class TestLoginCodeQuotaConcurrency(TransactionCase):
+
+    def _assert_concurrent_cap(self, *, same_mailbox, limit, refusal):
+        self.assertTrue(self.env.cr.dbname.startswith('liwan_scratch_'), 'A committed fixture needs a scratch database')
+        prefix = 'quota_' + uuid4().hex
+        with self.registry.cursor() as setup:
+            env = api.Environment(setup, SUPERUSER_ID, {})
+            first = new_test_user(env, login=prefix + '_a', password=PASSWORD, email=prefix + '@example.test')
+            second = new_test_user(
+                env, login=prefix + '_b', password=PASSWORD,
+                email=prefix + ('@example.test' if same_mailbox else '_b@example.test'),
+            )
+            users = first.id, second.id
+            setup.commit()
+
+        def issue(cursor, user_id):
+            env = api.Environment(cursor, SUPERUSER_ID, {})
+            return env['liwan.login.code']._liwan_issue(env['res.users'].browse(user_id), 'email')
+
+        try:
+            with (
+                patch.object(login_code, limit, 1),
+                patch.object(type(self.env['liwan.sms.gateway']), '_liwan_send') as send,
+            ):
+                with self.registry.cursor() as stale:
+                    stale.execute('SELECT 1')  # Fix B's snapshot before A's committed send.
+                    with self.registry.cursor() as first_cursor:
+                        self.assertEqual(issue(first_cursor, users[0]).error, '')
+                        first_cursor.commit()
+                    with self.assertRaises(SerializationFailure), mute_logger('odoo.sql_db'):
+                        issue(stale, users[1])
+                    stale.rollback()
+                with self.registry.cursor() as retry:
+                    self.assertEqual(issue(retry, users[1]).error, refusal)
+                    retry.rollback()
+                self.assertEqual(send.call_count, 1)
+        finally:
+            with self.registry.cursor() as cleanup:
+                env = api.Environment(cleanup, SUPERUSER_ID, {})
+                env['res.users'].browse(users).unlink()
+                cleanup.commit()
+
+    def test_stale_request_retries_against_the_destination_cap(self):
+        self._assert_concurrent_cap(same_mailbox=True, limit='HOURLY_SENDS', refusal='send_limit_reached')
+
+    def test_stale_request_retries_against_the_daily_cap(self):
+        self._assert_concurrent_cap(same_mailbox=False, limit='DAILY_SENDS', refusal='daily_send_cap')

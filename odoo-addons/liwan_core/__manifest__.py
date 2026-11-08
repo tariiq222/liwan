@@ -2,7 +2,7 @@
 {
     'name': 'liwan Core',
     'summary': 'liwan platform: roles and branding defaults',
-    'version': '19.0.1.14.0',
+    'version': '19.0.1.15.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -25,6 +25,7 @@
         'data/res_users_data.xml',
         'data/account_token_cron.xml',
         'data/login_code_cron.xml',
+        'data/login_code_quota.xml',
     ],
     'installable': True,
     'application': False,

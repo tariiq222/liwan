@@ -41,6 +41,29 @@ class PhysicalBoundaryTests(unittest.TestCase):
     def test_observation_never_returns_present_from_marker_only(self):
         self.assertEqual(odoo_effect.verified_observation({}, False), {'state': 'partial'})
 
+class PasswordStepScriptTests(unittest.TestCase):
+    def test_probe_requires_pending_session_and_an_email_channel(self):
+        script = odoo_effect.password_step_script('liwan_scratch_probe', {'login': 'admin@example.test', 'password': 'fixture'})
+        for login, channels, verified in (
+            ({'result': {'uid': None}}, {'has_email': True, 'channels': ['email']}, True),
+            ({'result': {'uid': None}}, {'has_email': False, 'channels': ['email']}, False),
+            ({'result': {'uid': 2}}, None, False),
+            ({'error': {'message': 'Access denied'}}, None, False),
+        ):
+            with self.subTest(login=login, channels=channels):
+                bodies = [io.BytesIO(json.dumps(body).encode()) for body in (login, channels) if body is not None]
+                opener = SimpleNamespace(open=unittest.mock.Mock(side_effect=bodies))
+                output = io.StringIO()
+                with unittest.mock.patch('urllib.request.build_opener', return_value=opener) as build, contextlib.redirect_stdout(output):
+                    exec(compile(script, '<password-step>', 'exec'), {})
+                self.assertEqual(json.loads(output.getvalue()), {'passwordStepVerified': verified})
+                self.assertEqual(type(build.call_args.args[0]).__name__, 'HTTPCookieProcessor')
+                self.assertEqual(
+                    [call.args[0].selector for call in opener.open.call_args_list],
+                    ['/web/session/authenticate'] + (['/api/v1/auth/channels'] if channels else []),
+                )
+
+
 class PackageAdministratorScriptTests(unittest.TestCase):
     """Execute the generated control flow with a minimal Odoo protocol double.
 
@@ -64,6 +87,7 @@ class PackageAdministratorScriptTests(unittest.TestCase):
             company_id = company
             login = 'customer@example.test' if snapshot else 'admin'
             name = 'Customer administrator' if snapshot else 'Administrator'
+            email = 'customer@example.test' if snapshot else 'admin@localhost'
             support_member = support
             def _liwan_access_write(self, values, capability):
                 writes.append(('user', values, capability))
@@ -179,6 +203,7 @@ class PackageAdministratorScriptTests(unittest.TestCase):
     def test_package_apply_removes_only_support_and_preserves_customer_roles(self):
         result, writes, admin, roles = self.run_script()
         self.assertEqual(result, {'verified': True, 'uid': 2})
+        self.assertEqual(admin.email, 'customer@example.test')
         self.assertFalse(admin.support_member)
         self.assertEqual(roles, {'existing_customer_role', 'system_admin', 'pmo_manager', 'hr_manager'})
         self.assertIn(('user', {'group_ids': [(3, 99, 0)]}, 'access.users.assign_roles'), writes)
