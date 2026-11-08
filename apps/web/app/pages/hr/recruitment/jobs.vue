@@ -105,33 +105,28 @@ function jobTo(job: HrRecruitmentJob) {
   >
     <SharedListCard>
       <template #filters>
-        <div class="liwan-page-stack">
-          <SharedSegmentedControl
-            :model-value="active"
-            :items="activeOptions"
-            :label="t('hrRecruitment.jobs.columns.state')"
-            :disabled="!hydrated"
-            @update:model-value="writeQuery({ active: activeParam($event), offset: 0 })"
-          />
-          <SharedFilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="writeQuery({ q: '', active: 'true', offset: 0 })">
-            <template #search>
-              <UInput
-                :model-value="search"
-                class="min-w-48 flex-1"
-                icon="i-lucide-search"
-                :disabled="!hydrated"
-                :aria-label="t('hrRecruitment.jobs.search')"
-                :placeholder="t('hrRecruitment.jobs.search')"
-                data-testid="hr-recruitment-jobs-search"
-                @update:model-value="writeQuery({ q: String($event ?? ''), offset: 0 })"
-              />
-            </template>
-            <template #active>
-              <SharedFilterChip v-if="search.trim()" :label="t('hrRecruitment.searchValue', { value: search })" @remove="writeQuery({ q: '', offset: 0 })" />
-              <SharedFilterChip v-if="active !== 'true'" :label="t(`hrRecruitment.jobs.filter.${active}`)" @remove="writeQuery({ active: 'true', offset: 0 })" />
-            </template>
-          </SharedFilterBar>
-        </div>
+        <SharedFilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="writeQuery({ q: '', active: 'true', offset: 0 })">
+          <template #search>
+            <UInput
+              :model-value="search"
+              icon="i-lucide-search"
+              :disabled="!hydrated"
+              :aria-label="t('hrRecruitment.jobs.search')"
+              :placeholder="t('hrRecruitment.jobs.search')"
+              data-testid="hr-recruitment-jobs-search"
+              @update:model-value="writeQuery({ q: String($event ?? ''), offset: 0 })"
+            />
+          </template>
+          <div class="max-w-full overflow-x-auto">
+            <SharedSegmentedControl
+              :model-value="active"
+              :items="activeOptions"
+              :label="t('hrRecruitment.jobs.columns.state')"
+              :disabled="!hydrated"
+              @update:model-value="writeQuery({ active: activeParam($event), offset: 0 })"
+            />
+          </div>
+        </SharedFilterBar>
       </template>
 
       <SharedPageState :error="jobs.error.value" :keep-content="items.length > 0" @retry="jobs.refetch">

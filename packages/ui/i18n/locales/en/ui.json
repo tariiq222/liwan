@@ -59,6 +59,8 @@
     "notFound": "This record is unavailable or no longer exists."
   },
   "filterCard": {
+    "button": "Filters",
+    "popoverTitle": "Filters",
     "clear": "Clear filters",
     "remove": "Remove filter",
     "title": "Search and filters"

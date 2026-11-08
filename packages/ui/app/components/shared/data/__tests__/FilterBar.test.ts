@@ -129,3 +129,17 @@ describe('FilterBar', () => {
     expect(() => readFileSync(resolve(import.meta.dirname, '../FilterCard.vue'))).toThrow()
   })
 })
+
+describe('FilterPopover', () => {
+  it('is one labelled button with the active count and the fields inside the popover', async () => {
+    const html = await renderFilter('FilterPopover', { count: 2 }, { default: () => h('select', [h('option', 'Any type')]) })
+    expect(html).toContain('Filters')
+    expect(html).toContain('data-slot="filter-popover-count"')
+    expect(html).toContain('>2<')
+    expect(html).toContain('Any type')
+  })
+  it('draws no count badge without active filters and disables the button before hydration', async () => {
+    expect(await renderFilter('FilterPopover', { count: 0 })).not.toContain('filter-popover-count')
+    expect(await renderFilter('FilterPopover', {}, {}, false)).toMatch(/<button\b[^>]*disabled/)
+  })
+})
