@@ -26,13 +26,15 @@ defineSlots<{ org?: () => unknown; default?: () => unknown; footer?: () => unkno
 
 <template>
   <aside class="liwan-sidebar liwan-print-hide" :data-testid="`${props.testIdPrefix}application-navigation`" :data-surface="props.surface" :data-mode="props.mode" :aria-label="props.label">
-    <NuxtLink :to="props.homeTo" class="liwan-side-brand" :aria-label="`${props.brandName}: ${props.label}`">
-      <BrandWordmark size="lg" mark-only />
-      <span class="liwan-side-brand-copy">
-        <span class="liwan-side-brand-name">{{ props.brandName }}</span>
-        <span v-if="props.caption" class="liwan-side-brand-caption">{{ props.caption }}</span>
-      </span>
-    </NuxtLink>
+    <ShellTip :label="props.brandName">
+      <NuxtLink :to="props.homeTo" class="liwan-side-brand" :aria-label="`${props.brandName}: ${props.label}`">
+        <BrandWordmark size="lg" mark-only />
+        <span class="liwan-side-brand-copy">
+          <span class="liwan-side-brand-name">{{ props.brandName }}</span>
+          <span v-if="props.caption" class="liwan-side-brand-caption">{{ props.caption }}</span>
+        </span>
+      </NuxtLink>
+    </ShellTip>
     <Transition name="liwan-side-orgslot">
       <div v-if="$slots.org" class="liwan-side-orgslot"><div><slot name="org" /></div></div>
     </Transition>

@@ -42,21 +42,22 @@ const testId = (row: ShellNavigationLink) => `${props.testIdPrefix ?? ''}${row.t
   <DefineRows v-slot="{ rows, path }">
     <template v-for="row in rows" :key="row.id">
       <template v-if="row.children?.length">
-        <button
-          type="button"
-          class="liwan-side-row"
-          :data-active="selected(row) && !opened.has(keyOf([...path, row.id])) ? 'true' : undefined"
-          :aria-expanded="opened.has(keyOf([...path, row.id]))"
-          :aria-label="row.label"
-          :title="row.label"
-          :data-testid="testId(row)"
-          :disabled="props.hydrated === false"
-          @click="toggle([...path, row.id])"
-        >
-          <span data-slot="icon" aria-hidden="true"><UIcon :name="row.icon" class="liwan-shell-icon" /></span>
-          <span data-slot="label">{{ row.label }}</span>
-          <UIcon data-slot="chevron" name="i-lucide-chevron-down" class="size-4 shrink-0" aria-hidden="true" />
-        </button>
+        <ShellTip :label="row.label">
+          <button
+            type="button"
+            class="liwan-side-row"
+            :data-active="selected(row) && !opened.has(keyOf([...path, row.id])) ? 'true' : undefined"
+            :aria-expanded="opened.has(keyOf([...path, row.id]))"
+            :aria-label="row.label"
+            :data-testid="testId(row)"
+            :disabled="props.hydrated === false"
+            @click="toggle([...path, row.id])"
+          >
+            <span data-slot="icon" aria-hidden="true"><UIcon :name="row.icon" class="liwan-shell-icon" /></span>
+            <span data-slot="label">{{ row.label }}</span>
+            <UIcon data-slot="chevron" name="i-lucide-chevron-down" class="size-4 shrink-0" aria-hidden="true" />
+          </button>
+        </ShellTip>
         <div v-if="opened.has(keyOf([...path, row.id]))" class="liwan-side-branch" :data-testid="`${props.testIdPrefix ?? ''}submenu-${[...path, row.id].join('-')}`">
           <ReuseRows :rows="row.children" :path="[...path, row.id]" />
         </div>

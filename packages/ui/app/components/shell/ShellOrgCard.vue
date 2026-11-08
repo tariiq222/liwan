@@ -5,9 +5,11 @@ const props = defineProps<{ name: string; initial: string; logoUrl?: string | nu
 </script>
 
 <template>
-  <div class="liwan-side-org" data-testid="shell-org">
-    <img v-if="props.logoUrl" :src="props.logoUrl" alt="">
-    <span v-else data-slot="initial" aria-hidden="true">{{ props.initial }}</span>
-    <span data-slot="name">{{ props.name }}</span>
-  </div>
+  <ShellTip :label="props.name">
+    <div class="liwan-side-org" data-testid="shell-org">
+      <img v-if="props.logoUrl" :src="props.logoUrl" alt="">
+      <span v-else data-slot="initial" aria-hidden="true">{{ props.initial }}</span>
+      <span data-slot="name">{{ props.name }}</span>
+    </div>
+  </ShellTip>
 </template>

@@ -137,6 +137,28 @@ test.describe('sidebar modes and widths', () => {
     expect(await fitsWidth(page)).toBe(true)
   })
 
+  test('the icon-only strip names an item in a tooltip on hover and focus, and the expanded sidebar has none', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 900 })
+    await open(page, '/')
+    const menu = page.getByTestId('application-navigation')
+    await menu.getByTestId('navigation-app-projects').hover()
+    await expect(page.locator('[role="tooltip"]').filter({ hasText: 'المشاريع' })).toBeVisible()
+    // The row's aria-label already names it, so the open tooltip must not add a second, described-by name.
+    await page.waitForTimeout(200)
+    await expect(menu.getByTestId('navigation-app-projects')).not.toHaveAttribute('aria-describedby', /.+/)
+    await page.mouse.move(600, 500)
+    await expect(page.locator('[role="tooltip"]')).toHaveCount(0)
+    await menu.getByTestId('navigation-app-home').focus()
+    await page.keyboard.press('Tab')
+    await expect(page.locator('[role="tooltip"]')).toHaveCount(1)
+    await page.keyboard.press('Escape')
+    await expect(page.locator('[role="tooltip"]')).toHaveCount(0)
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await menu.getByTestId('navigation-app-projects').hover()
+    await page.waitForTimeout(600)
+    await expect(page.locator('[role="tooltip"]')).toHaveCount(0)
+  })
+
   test('under 768px there is no sidebar column and no sidebar-owned width', async ({ page }) => {
     await page.setViewportSize({ width: 767, height: 900 })
     await open(page, '/')

@@ -1,11 +1,23 @@
 import { resolve } from 'node:path'
 import * as Vue from 'vue'
 import { describe, expect, it } from 'vitest'
-import { renderShared } from '../../../../test/helpers/renderShared'
+import { dropDuplicatedDescription } from '../../../utils/tooltipDescription'
+import { loadShared, renderShared } from '../../../../test/helpers/renderShared'
 
 const file = (name: string) => resolve(import.meta.dirname, `../${name}.vue`)
 const passthrough = (tag: string) => Vue.defineComponent({ inheritAttrs: false, setup(_, { attrs, slots }) { return () => Vue.h(tag, attrs, slots.default?.()) } })
-const stubs = { ShellAppTile: passthrough('span') }
+const slotOnly = Vue.defineComponent({ setup(_, { slots }) { return () => slots.default?.() } })
+const stubs = { ShellAppTile: passthrough('span'), ShellTip: slotOnly }
+// The real ShellTip over a UTooltip stand-in that draws its tooltip text (role=tooltip) only while the tooltip is enabled.
+const tooltipStub = Vue.defineComponent({
+  inheritAttrs: false,
+  props: { text: String, disabled: Boolean, delayDuration: Number, content: Object },
+  setup(props, { slots }) {
+    return () => [slots.default?.(), props.disabled ? null : Vue.h('span', { role: 'tooltip', 'data-side': props.content?.side, 'data-delay': props.delayDuration }, props.text)]
+  },
+})
+const tipOptions = (collapsed: boolean, dir = 'rtl') => ({ globals: { useSidebarCollapsed: () => Vue.ref(collapsed), useI18n: () => ({ localeProperties: Vue.ref({ dir }) }) } })
+const tipStubs = (collapsed: boolean, dir = 'rtl') => ({ ...stubs, UTooltip: tooltipStub, ShellTip: loadShared(resolve(import.meta.dirname, '../ShellTip.vue'), tipOptions(collapsed, dir)) })
 const row = (id: string, extra: Record<string, unknown> = {}) => ({ id, label: id, icon: 'i-lucide-circle', to: `/${id}`, active: false, testId: `row-${id}`, ...extra })
 
 describe('ShellNavRow', () => {
@@ -18,11 +30,43 @@ describe('ShellNavRow', () => {
     expect(await render(row('tasks'))).not.toContain('aria-current')
   })
 
-  it('names the link by its label and keeps the label as a tooltip for the icon-only strip', async () => {
+  it('names the link by its label and no longer relies on a native title', async () => {
     const html = await render(row('tasks', { label: 'مهامي' }))
     expect(html).toContain('aria-label="مهامي"')
-    expect(html).toContain('title="مهامي"')
+    expect(html).not.toContain('title=')
     expect(html).toContain('data-testid="hook"')
+  })
+
+  describe('name tooltip of the icon-only strip', () => {
+    const renderTip = (collapsed: boolean, dir?: string) => renderShared(file('ShellNavRow'), { item: row('tasks', { label: 'مهامي' }) }, {}, { stubs: tipStubs(collapsed, dir) })
+
+    it('shows the label as a tooltip when the sidebar is collapsed, 300ms after hover, on the inline-end side', async () => {
+      const html = await renderTip(true)
+      expect(html).toContain('role="tooltip"')
+      expect(html).toContain('>مهامي</span>')
+      expect(html).toContain('data-delay="300"')
+      expect(html).toContain('data-side="left"')
+      expect(await renderTip(true, 'ltr')).toContain('data-side="right"')
+    })
+
+    it('leaves no aria-describedby on the labelled row, and the helper drops Reka\'s link only from labelled triggers', async () => {
+      expect(await renderTip(true)).not.toContain('aria-describedby')
+      const el = (attrs: Record<string, string>) => {
+        const store = { ...attrs }
+        return { store, getAttribute: (n: string) => store[n] ?? null, removeAttribute: (n: string) => { delete store[n] } } as unknown as Element & { store: Record<string, string> }
+      }
+      const labelled = el({ 'aria-describedby': 'tip', 'aria-label': 'مهامي' })
+      const unlabelled = el({ 'aria-describedby': 'tip' })
+      const tip = { getAttribute: (n: string) => (n === 'role' ? 'tooltip' : null) } as unknown as Element
+      dropDuplicatedDescription({ querySelectorAll: () => [labelled], getElementById: () => tip })
+      expect(labelled.store['aria-describedby']).toBeUndefined()
+      dropDuplicatedDescription({ querySelectorAll: () => [unlabelled], getElementById: () => ({ getAttribute: () => 'note' } as unknown as Element) })
+      expect(unlabelled.store['aria-describedby']).toBe('tip')
+    })
+
+    it('draws no tooltip when the sidebar is expanded, so the label is never shown twice', async () => {
+      expect(await renderTip(false)).not.toContain('role="tooltip"')
+    })
   })
 
   it('draws a bare icon unless the row belongs to an application', async () => {
