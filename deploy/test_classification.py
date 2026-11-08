@@ -95,7 +95,7 @@ class TestClassification(unittest.TestCase):
         self.source.write_text(json.dumps(self.data))
         (deploy / '.env').write_text(
             'DB_PASSWORD=long-test-only-password\nODOO_ADMIN_PASSWORD=long-test-only-password\n'
-            'VENDOR_PASSWORD=long-test-only-password\n',
+            'VENDOR_PASSWORD=long-test-only-password\nVENDOR_EMAIL=operator@example.test\n',
         )
         binpath = self.root / 'bin'
         binpath.mkdir()
@@ -275,6 +275,20 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('provision', result.stderr)
         self.assertFalse((self.root / 'docker.log').exists())
+
+    def test_provision_rejects_an_invalid_vendor_mailbox_before_docker(self):
+        deploy, env = self.provision_fixture()
+        dotenv = deploy / '.env'
+        fixture = dotenv.read_text()
+        for mailbox in ('', 'not-a-mailbox', 'operator@example..test'):
+            with self.subTest(mailbox=mailbox):
+                dotenv.write_text(fixture.replace('operator@example.test', mailbox))
+                result = subprocess.run(['bash', str(deploy / 'provision.sh'), 'test.invalid', self.data['database']],
+                                        env=env, text=True, capture_output=True, check=False)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('VENDOR_EMAIL', result.stderr)
+                self.assertNotIn('Traceback', result.stderr)
+                self.assertFalse((self.root / 'docker.log').exists())
 
     def test_invalid_provision_never_calls_docker(self):
         deploy, env = self.provision_fixture()

@@ -1,12 +1,34 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Seed res.company branding from /seed/branding.json and set the vendor login. Usage:
-    VENDOR_PASSWORD=… odoo shell -c /etc/odoo/odoo.conf -d <db> --no-http < /seed/seed_branding.py
+    VENDOR_PASSWORD=… VENDOR_EMAIL=… odoo shell -c /etc/odoo/odoo.conf -d <db> --no-http < /seed/seed_branding.py
 """
 import base64
 import json
 import os
 import re
 import sys
+from email.errors import HeaderParseError
+from email.headerregistry import Address
+
+
+def _vendor_mailbox():
+    """Read a single plain mailbox from the operator environment."""
+    value = os.environ.get('VENDOR_EMAIL', '').strip()
+    try:
+        address = Address(addr_spec=value)
+    except (HeaderParseError, IndexError, ValueError):
+        address = None
+    if (
+        not address or not address.username or len(value) > 254
+        or not re.fullmatch(r'(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}', address.domain)
+    ):
+        sys.exit('VENDOR_EMAIL must be set to the vendor administrator mailbox')
+    return address.addr_spec
+
+
+vendor_email = _vendor_mailbox()
+if sys.argv[1:] == ['--validate-email']:
+    sys.exit(0)
 
 with open('/seed/branding.json', encoding='utf-8') as f:
     branding = json.load(f)
@@ -35,7 +57,7 @@ company.write(vals)
 vendor_password = os.environ.get('VENDOR_PASSWORD') or ''
 if not vendor_password or vendor_password == 'change-me':
     sys.exit('VENDOR_PASSWORD must be set to a real password')
-env.ref('base.user_admin').write({'password': vendor_password})  # noqa: F821
+env.ref('base.user_admin').write({'password': vendor_password, 'email': vendor_email})  # noqa: F821
 
 env.cr.commit()  # noqa: F821
 print('branding seeded:', company.name, company.primary_color, company.font)  # noqa: T201

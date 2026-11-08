@@ -14,6 +14,9 @@ const browserHeaders = new Set(['x-liwan-csrf'])
 // The UI language the web proxy forwards on its trusted hop; any other value, or any other sender, is refused.
 const UI_LOCALE_HEADER = 'x-liwan-ui-locale'
 const uiLocale = value => value === 'ar' || value === 'en'
+const deviceCookieName = 'liwan_device='
+const deviceToken = /^[A-Za-z0-9_-]{20,256}$/
+const deviceMaxAge = 30 * 24 * 60 * 60
 const selectors = /^(db|database|session_id|sid)$/i
 // Match the BFF's fixed public auth budgets before this edge buffers JSON.
 // Separate hop pools avoid a public BFF request deadlocking its internal continuation.
@@ -120,22 +123,46 @@ export function requestPlan(req, registry, token, codec) {
         (['/api/auth/login', '/api/auth/logout'].includes(url.pathname) && method === 'POST')
       )
       if (!recovery) throw error
-      headers.cookie = cookies.filter(value => !value.startsWith('session_id=')).join('; ')
       clearSession = true
     }
   }
+  const method = req.method ?? 'GET'
+  const exact = req.url.split('?')[0] === url.pathname && !req.url.includes('#')
+  const devicePath = internal ? '/api/v1/auth/device' : '/api/auth/device'
+  const forgetPath = internal ? '/api/v1/me/devices' : devicePath
+  const verifyPath = internal ? '/api/v1/auth/verify' : '/api/auth/verify'
+  const readDevice = exact && ((method === 'POST' && url.pathname === devicePath)
+    || (method === 'DELETE' && url.pathname === forgetPath))
+  const writeDevice = exact && method === 'POST' && [devicePath, verifyPath].includes(url.pathname)
+  const devices = cookies.filter(value => value.startsWith(deviceCookieName))
+  const device = readDevice && devices.length === 1 && deviceToken.test(devices[0].slice(deviceCookieName.length))
+    ? devices[0] : null
   // Keep the signed envelope on the Nuxt hop; unwrap ONLY at the Odoo hop.
-  if (odoo) headers.cookie = rawSid ? `session_id=${rawSid}` : ''
+  if (odoo) {
+    headers.cookie = [rawSid && `session_id=${rawSid}`, device].filter(Boolean).join('; ')
+  } else if (clearSession || (devices.length && !device)) {
+    headers.cookie = cookies.filter(value =>
+      !(clearSession && value.startsWith('session_id=')) && (device || !value.startsWith(deviceCookieName))).join('; ')
+  }
   headers.host = odoo ? tenant.database : host
   if (!odoo) {
     headers['x-liwan-proxy-token'] = token
     headers['x-liwan-tenant-revision'] = String(tenant.registryRevision)
   }
-  return { tenant, internal, odoo, headers, path: url.pathname + url.search, clearSession }
+  return { tenant, internal, odoo, headers, path: url.pathname + url.search, clearSession, writeDevice }
 }
-function cookiesForBrowser(cookies, codec, tenant) {
+function cookiesForBrowser(cookies, codec, tenant, { odoo = true, writeDevice = false } = {}) {
+  const deviceCount = (cookies ?? []).filter(cookie => cookie.startsWith(deviceCookieName)).length
   return (cookies ?? []).map(cookie => {
     const first = cookie.split(';')[0]
+    if (first.startsWith(deviceCookieName)) {
+      if (!writeDevice || deviceCount !== 1) return null
+      const token = first.slice(deviceCookieName.length)
+      const deletion = !token && /;\s*max-age=0(?:;|$)/i.test(cookie)
+      if (!deletion && !deviceToken.test(token)) return null
+      return `${first}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${deletion ? 0 : deviceMaxAge}`
+    }
+    if (!odoo) return cookie
     if (!first.startsWith('session_id=')) return null // no unreviewed Odoo cookie scope
     const sid = first.slice(11)
     const deletion = !sid || /max-age=0(?:;|$)/i.test(cookie)
@@ -242,7 +269,9 @@ export function createGuard({ registryPath, proxyToken, prospectHost = '', keys,
     const target = p.release ? new URL(p.odoo ? p.release.odooUrl : p.release.webUrl) : upstreams[p.odoo ? 0 : 1]
     const upstream = http.request({ hostname: target.hostname, port: target.port, path: p.path, method: req.method, headers: p.headers }, reply => {
       const headers = { ...reply.headers }
-      if (p.odoo) headers['set-cookie'] = cookiesForBrowser(headers['set-cookie'], codec, p.tenant)
+      if (headers['set-cookie']) {
+        headers['set-cookie'] = cookiesForBrowser(headers['set-cookie'], codec, p.tenant, p)
+      }
       if (p.clearSession) {
         headers['cache-control'] = 'no-store'
         // A successful login may already replace the rejected cookie; never delete its replacement.

@@ -6,26 +6,93 @@ Odoo 19 and Node/Postgres images. Publishes no ports. Stops only its own stack;
 scratch named volumes and evidence are retained. Never targets a live database.
 """
 import argparse
-import base64
-import hashlib
-import hmac
 import json
 import re
 import secrets
-import struct
 import subprocess
 import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 DATABASE = 'liwan_auth_edge_scratch'
-TOTP_SECRET = 'JBSWY3DPEHPK3PXP'  # Synthetic fixture only.
+VENDOR_EMAIL = 'vendor@auth-edge.example.test'
+SMTP_SINK = r'''
+import email
+import email.policy
+import http.server
+import json
+import re
+import socketserver
+import threading
+
+latest = None
+
+class SMTP(socketserver.StreamRequestHandler):
+    def handle(self):
+        global latest
+        recipient = ''
+        self.wfile.write(b'220 scratch SMTP\r\n')
+        for line in self.rfile:
+            command = line.split(None, 1)[0].upper()
+            if command == b'EHLO':
+                self.wfile.write(b'250-scratch\r\n250 8BITMIME\r\n')
+            elif command == b'RCPT':
+                recipient = line.decode().split('<', 1)[1].split('>', 1)[0]
+                self.wfile.write(b'250 OK\r\n')
+            elif command == b'DATA':
+                self.wfile.write(b'354 End data with <CRLF>.<CRLF>\r\n')
+                data = bytearray()
+                for content in self.rfile:
+                    if content == b'.\r\n':
+                        break
+                    data.extend(content[1:] if content.startswith(b'..') else content)
+                message = email.message_from_bytes(bytes(data), policy=email.policy.default)
+                match = re.search(r'Your LiwanOS sign-in code: ([0-9]{6})', message.get_body(preferencelist=('plain',)).get_content())
+                if match:
+                    latest = {'recipient': recipient, 'code': match.group(1)}
+                self.wfile.write(b'250 OK\r\n')
+            elif command == b'QUIT':
+                self.wfile.write(b'221 Bye\r\n')
+                return
+            else:
+                self.wfile.write(b'250 OK\r\n')
+
+class Mailbox(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200 if latest else 404)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps(latest).encode())
+
+    def log_message(self, *_args):
+        pass
+
+with socketserver.ThreadingTCPServer(('0.0.0.0', 2525), SMTP) as smtp:
+    threading.Thread(target=smtp.serve_forever, daemon=True).start()
+    http.server.ThreadingHTTPServer(('0.0.0.0', 8025), Mailbox).serve_forever()
+'''
 NODE_REQUEST = r'''
 const https = require('node:https'), fs = require('node:fs');
 let input = ''; process.stdin.on('data', chunk => input += chunk);
 process.stdin.on('end', async () => {
-  const results = []; let cookie = '';
+  const results = []; const jar = new Map();
   for (const item of JSON.parse(input)) {
+    let mailboxVerified = false;
+    if (item.mail) {
+      for (let attempt = 0; attempt < 50; attempt++) {
+        const mailbox = await fetch('http://mail:8025/');
+        if (mailbox.ok) {
+          const { recipient, code } = await mailbox.json();
+          if (recipient !== item.mail || !/^[0-9]{6}$/.test(code)) throw Error('unexpected mailbox delivery');
+          item.body.code = item.wrong ? String((Number(code) + 1) % 1000000).padStart(6, '0') : code;
+          mailboxVerified = true;
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      if (!mailboxVerified) throw Error('mail delivery timeout');
+    }
+    const cookie = [...jar.values()].join('; ');
     const body = item.body === undefined ? undefined : JSON.stringify(item.body);
     const result = await new Promise((resolve, reject) => {
       const req = https.request({hostname:'proxy', port:443, servername:'localhost',
@@ -36,9 +103,14 @@ process.stdin.on('end', async () => {
         let data = ''; res.on('data', chunk => data += chunk);
         res.on('end', () => {
           const cookies = res.headers['set-cookie'] || [];
-          if (cookies.length) cookie = cookies[0].split(';')[0];
+          for (const cookie of cookies) {
+            const first = cookie.split(';')[0], name = first.split('=')[0];
+            if (/;\s*max-age=0(?:;|$)/i.test(cookie)) jar.delete(name);
+            else if (name === 'session_id' || name === 'liwan_device') jar.set(name, first);
+          }
           resolve({status:res.statusCode, secureCookie:cookies.some(c => /;\s*secure\b/i.test(c)),
-            mfa:data.includes('"mfa":"totp"')});
+            secureDevice:cookies.some(c => c.startsWith('liwan_device=') && /;\s*secure\b/i.test(c) && /;\s*httponly\b/i.test(c)),
+            mfa:data.includes('"mfa":"code"'), mailboxVerified});
         });
       });
       req.setTimeout(10000, () => req.destroy(new Error('deadline')));
@@ -93,6 +165,9 @@ def main():
         + f'\ndbfilter = ^{DATABASE}$\nlist_db = False\nproxy_mode = True\n'
         + 'workers = 2\nmax_cron_threads = 0\nwithout_demo = True\n'
     )
+    seed_dir = output / 'seed'
+    seed_dir.mkdir(mode=0o755)
+    (seed_dir / 'branding.json').write_text(json.dumps({'name': 'Scratch auth acceptance'}))
     (output / 'odoo.conf').write_text(config)
     (output / 'odoo.conf').chmod(0o644)  # Host directory is private; image UID 10001 needs read.
     run(['python3', '-B', str(ROOT / 'deploy/classification.py'), 'fixture', '--database', DATABASE,
@@ -104,7 +179,9 @@ def main():
                  'command': ['-d', DATABASE, '--workers', '2', '--max-cron-threads', '0', '--proxy-mode'],
                  'volumes': [str(output / 'odoo.conf') + ':/etc/odoo/odoo.conf:ro',
                              str(output / 'classification.json') + ':/fixture/classification.json:ro',
+                             str(seed_dir) + ':/seed:ro',
                              str(ROOT / 'odoo-addons') + ':/opt/liwan/addons:ro', 'odoo:/var/lib/odoo']},
+        'mail': {'image': args.odoo_image, 'entrypoint': ['/opt/venv/bin/python', '-u', '-c', SMTP_SINK]},
         'web': {'image': 'node:22-alpine', 'working_dir': '/app', 'command': ['node', '.output/server/index.mjs'],
                 'environment': {'NODE_ENV': 'production', 'HOST': '0.0.0.0', 'PORT': '3000',
                                 'NUXT_ODOO_URL': 'http://odoo:8069', 'NUXT_ODOO_DB': DATABASE,
@@ -134,11 +211,13 @@ def main():
         compose('run', '--rm', '-T', '--no-deps', 'odoo', '-d', DATABASE, '-i', 'liwan_api',
                 '--without-demo=all', '--workers', '0', '--max-cron-threads', '0', '--stop-after-init')
         seed = (
-            "owner = env.ref('base.user_admin')\n"
-            f"owner.write({{'login':'auth_edge_owner','password':{owner_password!r}}})\n"
-            "user = env['res.users'].create({'name':'Synthetic MFA','login':'auth_edge_mfa',"
-            f"'password':{owner_password!r}}})\n"
-            f"user.sudo().write({{'totp_secret':{TOTP_SECRET!r}}})\n"
+            "import os\n"
+            f"os.environ['VENDOR_PASSWORD'] = {owner_password!r}\n"
+            f"os.environ['VENDOR_EMAIL'] = {VENDOR_EMAIL!r}\n"
+            + (ROOT / 'deploy/seed_branding.py').read_text()
+            + "\nassert env.ref('base.user_admin').email == os.environ['VENDOR_EMAIL']\n"
+            "env['ir.config_parameter'].set_param('mail.default.from', 'no-reply@auth-edge.example.test')\n"
+            "env['ir.mail_server'].create({'name':'Scratch SMTP','smtp_host':'mail','smtp_port':2525})\n"
             "env.cr.commit()\n"
         )
         compose('run', '--rm', '-T', '--no-deps', 'odoo', 'shell', '-d', DATABASE,
@@ -162,38 +241,48 @@ def main():
                        'X-Liwan-Client-Host': 'evil.example.test', 'X-Liwan-Client-Proto': 'ftp',
                        'Connection': 'X-Liwan-Client-IP, X-Liwan-Client-Host, X-Liwan-Client-Proto'}
             rows = request(peer, [{'path': '/api/auth/login', 'headers': headers,
-                                   'body': {'login': 'auth_edge_owner', 'password': owner_password}}])
+                                   'body': {'login': 'admin', 'password': owner_password}}])
             logs = compose('logs', '--no-color', 'odoo')
-            identities = re.findall(r'Login successful for login:auth_edge_owner from ([^\s]+)', logs)
+            identities = re.findall(r'Login successful for login:admin from ([^\s]+)', logs)
             actual = identities[-1] if identities else None
             check('odoo_real_identity_' + peer, rows[0]['status'] == 200 and rows[0]['secureCookie'] and actual == peers[peer],
                   {'response': rows[0], 'peer_ip': peers[peer], 'odoo_ip': actual})
 
-        bad = request('a', [{'path': '/api/auth/login', 'body': {'login': 'auth_edge_owner', 'password': 'synthetic-wrong'}} for _ in range(12)])
-        good = request('b', [{'path': '/api/auth/login', 'body': {'login': 'auth_edge_owner', 'password': owner_password}} for _ in range(3)])
+        bad = request('a', [{'path': '/api/auth/login', 'body': {'login': 'admin', 'password': 'synthetic-wrong'}} for _ in range(12)])
+        good = request('b', [{'path': '/api/auth/login', 'body': {'login': 'admin', 'password': owner_password}} for _ in range(3)])
         bad_codes, good_codes = [r['status'] for r in bad], [r['status'] for r in good]
         check('other_peer_after_failures_two_workers', bad_codes == [401] * 12 and good_codes == [200] * 3,
               {'bad_codes': bad_codes, 'other_peer_codes': good_codes})
 
         mixed = [{'path': '/api/auth/login', 'body': {}, 'headers': {'X-Forwarded-For': f'198.51.100.{i + 1}'}} for i in range(10)]
         mixed += [{'path': '/web/login', 'headers': {'X-Forwarded-For': f'198.51.100.{i + 40}'}} for i in range(10)]
-        aliases = ['/api/auth/totp', '/api/auth/login/', '/api/auth/%6cogin', '/API/AUTH/LOGIN',
-                   '/api/v1/auth/totp', '/web/session/authenticate', '/web/login/totp', '/web/login/']
+        aliases = ['/api/auth/code', '/api/auth/verify', '/api/auth/device', '/api/auth/login/',
+                   '/api/auth/%6cogin', '/API/AUTH/LOGIN', '/api/v1/auth/verify',
+                   '/web/session/authenticate', '/web/login/totp', '/web/login/']
         mixed += [{'path': path, 'body': {}} for path in aliases]
         codes = [r['status'] for r in request('budget', mixed)]
         check('aggregate_twenty_and_spoofed_aliases', codes == [400] * 10 + [200] * 10 + [429] * len(aliases), codes)
         codes = [r['status'] for r in request('budget', [{'path': path} for path in ['/login', '/web/health', '/web/session/get_session_info']])]
         check('noncredential_probes_not_auth_limited', codes[:2] == [200, 200] and codes[2] != 429, codes)
 
-        digest = hmac.new(base64.b32decode(TOTP_SECRET), struct.pack('>Q', int(time.time()) // 30), hashlib.sha1).digest()
-        offset = digest[-1] & 15
-        code = (struct.unpack('>I', digest[offset:offset + 4])[0] & 0x7fffffff) % 1000000
+        result['mail_ready_attempts'] = wait_for(('exec', '-T', 'mfa', 'node', '-e',
+            "fetch('http://mail:8025/').then(()=>process.exit(0),()=>process.exit(1))"))
+        login = {'path': '/api/auth/login', 'body': {'login': 'admin', 'password': owner_password}}
         rows = request('mfa', [
-            {'path': '/api/auth/login', 'body': {'login': 'auth_edge_mfa', 'password': owner_password}},
-            {'path': '/api/auth/totp', 'session': True, 'body': {'code': f'{(code + 1) % 1000000:06d}'}},
-            {'path': '/api/auth/totp', 'session': True, 'body': {'code': f'{code:06d}'}},
+            login,
+            {'path': '/api/v1/me', 'session': True},
+            {'path': '/api/auth/code', 'session': True, 'body': {'channel': 'email'}},
+            {'path': '/api/auth/verify', 'session': True, 'mail': VENDOR_EMAIL, 'wrong': True, 'body': {}},
+            {'path': '/api/auth/verify', 'session': True, 'mail': VENDOR_EMAIL, 'body': {'remember': True}},
+            {'path': '/api/v1/me', 'session': True},
+            {**login, 'session': True},
+            {'path': '/api/auth/device', 'session': True, 'body': {}},
+            {'path': '/api/v1/me', 'session': True},
         ])
-        check('real_totp_pending_wrong_then_correct', [r['status'] for r in rows] == [200, 401, 200] and rows[0]['mfa'], rows)
+        check('provisioned_admin_email_code_and_remembered_device',
+              [row['status'] for row in rows] == [200, 401, 200, 401, 200, 200, 200, 200, 200]
+              and rows[0]['mfa'] and rows[3]['mailboxVerified'] and rows[4]['mailboxVerified']
+              and rows[4]['secureDevice'] and rows[6]['mfa'], rows)
         logs = compose('logs', '--no-color', 'odoo')
         result['odoo_worker_start_count'] = len(re.findall(r'Worker WorkerHTTP .* alive', logs))
         check('two_http_workers_started', result['odoo_worker_start_count'] >= 2, result['odoo_worker_start_count'])

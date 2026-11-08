@@ -1,10 +1,13 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import timedelta
+from time import time
 from unittest.mock import patch
 
 from odoo import fields
 from odoo.tests import get_db_name, new_test_user, tagged
 
 from .common import LiwanApiCase
+from odoo.addons.liwan_api.models.res_users import LOGIN_CHALLENGE_TTL
 from odoo.addons.liwan_core.models.login_code import CODE_ATTEMPTS, DAILY_SENDS
 from odoo.addons.liwan_platform.models.entitlement_service import (
     OPERATOR_CONTEXT,
@@ -157,6 +160,72 @@ class TestLoginCodeRoutes(LiwanApiCase):
         res = self.api('GET', '/api/v1/auth/channels')
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()['code'], 'no_pending_login')
+
+    def _assert_pending_rejected(self, code, status, reason):
+        record = self.env['liwan.login.code'].search([('user_id', '=', self.employee.id)], limit=1)
+        original_attempts = record.attempts
+        self.opener.cookies.set('liwan_device', self.env['liwan.login.device']._liwan_issue(self.employee, 'pending')[1])
+        for path, payload in (
+            ('code', {'channel': 'email'}),
+            ('verify', {'code': code, 'remember': True}),
+            ('device', {}),
+        ):
+            with self.subTest(path=path):
+                response = self.api('POST', f'/api/v1/auth/{path}', payload)
+                self.assertEqual(response.status_code, status, response.text)
+                self.assertEqual(response.json()['code'], reason)
+        self.assertEqual(len(self.sent), 1)
+        self.assertFalse(record.consumed_at)
+        self.assertEqual(record.attempts, original_attempts)
+        self.assertEqual(self.api('GET', '/api/v1/me').status_code, 401)
+
+    def test_disabled_account_cannot_mutate_or_finalize_its_pending_sign_in(self):
+        self.assertEqual(self._issue().status_code, 200)
+        self.employee.active = False
+        self._assert_pending_rejected(self.sent_code(), 403, 'login_refused')
+
+    def test_reactivated_account_requires_a_new_password_step(self):
+        self.assertEqual(self._issue().status_code, 200)
+        access_version = self.employee.liwan_access_version
+        self.employee.active = False
+        self.employee.active = True
+        self.assertGreater(self.employee.liwan_access_version, access_version)
+        self._assert_pending_rejected(self.sent_code(), 401, 'no_pending_login')
+        self.env['liwan.login.code'].search([('user_id', '=', self.employee.id)]).write({
+            'cooldown_until': fields.Datetime.now() - timedelta(seconds=1),
+        })
+        self.assertEqual(self._issue(channel='email').status_code, 200)
+        self.assertEqual(self.api('POST', '/api/v1/auth/verify', {'code': self.sent_code()}).status_code, 200)
+
+    def test_password_reset_invalidates_pending_mutations_and_a_new_password_can_sign_in(self):
+        self.assertEqual(self._issue().status_code, 200)
+        self.employee.password = 'changed-password-456'
+        self._assert_pending_rejected(self.sent_code(), 401, 'no_pending_login')
+        self.env['liwan.login.code'].search([('user_id', '=', self.employee.id)]).write({
+            'cooldown_until': fields.Datetime.now() - timedelta(seconds=1),
+        })
+        self.assertIsNone(self.authenticate(password='changed-password-456').json()['result']['uid'])
+        self.assertEqual(self.api('POST', '/api/v1/auth/code', {'channel': 'email'}).status_code, 200)
+        self.assertEqual(self.api('POST', '/api/v1/auth/verify', {'code': self.sent_code()}).status_code, 200)
+
+    def test_expired_pending_sign_in_is_refused_before_any_mutation(self):
+        self.assertEqual(self._issue().status_code, 200)
+        with patch('odoo.addons.liwan_api.controllers.auth.time', return_value=time() + LOGIN_CHALLENGE_TTL):
+            self._assert_pending_rejected(self.sent_code(), 401, 'no_pending_login')
+
+    def test_signed_in_caller_can_inspect_channels_but_cannot_mutate_second_step(self):
+        self.assertEqual(self._issue().status_code, 200)
+        self.assertEqual(self.api('POST', '/api/v1/auth/verify', {'code': self.sent_code()}).status_code, 200)
+        self.assertEqual(self.api('GET', '/api/v1/auth/channels').status_code, 200)
+        for path, payload in (
+            ('code', {'channel': 'email'}),
+            ('verify', {'code': self.sent_code()}),
+            ('device', {}),
+        ):
+            response = self.api('POST', f'/api/v1/auth/{path}', payload)
+            self.assertEqual(response.status_code, 401, response.text)
+            self.assertEqual(response.json()['code'], 'no_pending_login')
+        self.assertEqual(self.api('GET', '/api/v1/me').status_code, 200)
 
     # -- remembered device -------------------------------------------------------------------
 

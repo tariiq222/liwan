@@ -72,9 +72,53 @@ test('registry revisions, authority, immutable binding and conflicts', () => {
   assert.throws(() => requestPlan(req(), changed.registry, token, codec))
 })
 const listen = server => new Promise(resolve => server.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${server.address().port}`)))
-const call = (url, path, headers, body) => new Promise((resolve, reject) => {
-  const r = http.request(new URL(path, url), { method: body ? 'POST' : 'GET', headers }, res => { let text = ''; res.on('data', b => { text += b }); res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, text })) }); r.setTimeout(2000, () => r.destroy(Error('test_timeout'))); r.on('error', reject); r.end(body)
+const call = (url, path, headers, body, method = body ? 'POST' : 'GET') => new Promise((resolve, reject) => {
+  const r = http.request(new URL(path, url), { method, headers }, res => { let text = ''; res.on('data', b => { text += b }); res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, text })) }); r.setTimeout(2000, () => r.destroy(Error('test_timeout'))); r.on('error', reject); r.end(body)
 })
+test('remembered device cookies are scoped on both shared HTTP hops', async t => {
+  const root = mkdtempSync(join(tmpdir(), 'liwan-guard-device-'))
+  const path = join(root, 'registry.json')
+  writeFileSync(path, JSON.stringify(registry))
+  const device = 'liwan_device=synthetic-device-token-0123456789'
+  const calls = []
+  const backend = http.createServer((req, res) => {
+    calls.push(req.headers.cookie)
+    const deviceCookie = req.url.endsWith('/device') ? 'liwan_device=; Max-Age=0' : device
+    res.setHeader('set-cookie', [deviceCookie + '; Domain=example.test; Path=/untrusted', 'other=value'])
+    res.end('ok')
+  })
+  const upstream = await listen(backend)
+  const guard = createGuard({ registryPath: path, proxyToken: token, keys, activeKid: 'test', odooUrl: upstream, webUrl: upstream })
+  const url = await listen(guard)
+  t.after(() => { guard.closeAllConnections(); guard.close(); backend.closeAllConnections(); backend.close() })
+  const signed = 'session_id=' + codec.seal('sid', targets[0])
+  const external = { host: targets[0].host, 'content-type': 'application/json', cookie: signed + '; ' + device + '; other=value' }
+  const internal = { ...external, 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1' }
+
+  for (const [headers, verify, remember, forget, sid] of [
+    [external, '/api/auth/verify', '/api/auth/device', '/api/auth/device', signed],
+    [internal, '/api/v1/auth/verify', '/api/v1/auth/device', '/api/v1/me/devices', 'session_id=sid'],
+  ]) {
+    let response = await call(url, verify, headers, '{}')
+    assert.equal(response.status, 200)
+    assert.ok(response.headers['set-cookie'].includes(device + '; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000'))
+    assert.ok(!calls.at(-1).includes(device))
+    response = await call(url, remember, headers, '{}')
+    assert.equal(response.status, 200)
+    assert.ok(response.headers['set-cookie'].includes('liwan_device=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'))
+    assert.equal(calls.at(-1), sid + '; ' + device + (headers === external ? '; other=value' : ''))
+    response = await call(url, forget, headers, undefined, 'DELETE')
+    assert.equal(response.status, 200)
+    assert.ok(calls.at(-1).includes(device))
+    response = await call(url, remember + '/', headers, '{}')
+    assert.ok(!calls.at(-1).includes(device))
+    assert.ok(!(response.headers['set-cookie'] ?? []).some(cookie => cookie.startsWith('liwan_device=')))
+    response = await call(url, '/api/v1/me', headers)
+    assert.ok(!calls.at(-1).includes(device))
+    assert.ok(!(response.headers['set-cookie'] ?? []).some(cookie => cookie.startsWith('liwan_device=')))
+  }
+})
+
 test('actual HTTP guard login/MFA/content/BFF, cookie propagation and fresh disable (mock upstream only)', async t => {
   const root = mkdtempSync(join(tmpdir(), 'liwan-guard-test-'))
   const path = join(root, 'registry.json'); writeFileSync(path, JSON.stringify(registry))

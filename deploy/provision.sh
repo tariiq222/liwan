@@ -148,6 +148,7 @@ for var in DB_PASSWORD ODOO_ADMIN_PASSWORD VENDOR_PASSWORD; do
   esac
   [ "${#value}" -ge 16 ] || { echo "provision: $var must be at least 16 characters" >&2; exit 1; }
 done
+python3 -B seed_branding.py --validate-email
 
 # Explicit classification is required before starting any Docker service.
 # Keep the validated snapshot separate from branding's replaceable staging directory.
@@ -201,7 +202,7 @@ docker compose -f docker-compose.yml -f docker-compose.classification.yml run --
   -d "$DB_NAME" -i liwan_core,liwan_platform,liwan_api,liwan_ai,liwan_ai_notify,liwan_directory,liwan_documents,liwan_notify,liwan_meetings,liwan_operations,liwan_pmo,liwan_meetings_pmo,liwan_operations_pmo,liwan_pmo_ai,liwan_hr,liwan_access_hr,liwan_documents_hr,liwan_hr_operations,liwan_integrations_sa,liwan_finance,liwan_hr_finance,liwan_pmo_finance,liwan_payments,liwan_chat,liwan_tasks,liwan_tasks_pmo,liwan_crm,liwan_appointments,liwan_appointments_payments,liwan_inbox,liwan_inbox_payments,liwan_hr_ai,liwan_crm_ai,liwan_meetings_ai,liwan_tasks_ai,liwan_operations_ai,liwan_finance_ai --stop-after-init
 docker compose run --rm -T -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
   shell -d "$DB_NAME" --no-http < data/seed/seed_legacy_policy.py
-docker compose run --rm -T -e VENDOR_PASSWORD -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
+docker compose run --rm -T -e VENDOR_PASSWORD -e VENDOR_EMAIL -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
   shell -d "$DB_NAME" --no-http < data/seed/seed_branding.py
 set_public_origin
 # Give LiwanOS AI's role CONNECT and its own schema in the tenant database, with no access to schema public
