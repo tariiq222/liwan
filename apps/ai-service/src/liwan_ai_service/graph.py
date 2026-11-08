@@ -43,6 +43,8 @@ class AgentState(TypedDict):
     outcome: str | None
     output_tokens: int  # what the provider reported for this request's plan calls
     max_output_tokens: int | None  # the policy's per-run cap (platform runs); None means no cap
+    input_tokens: int  # the largest input count the provider reported for one plan call of this request
+    max_input_tokens: int | None  # the tenant's per-run ceiling on input tokens (issue #554); None means no ceiling
     limit: str | None  # which limit stopped the run, when the graph itself decided it
     agents: list[dict[str, Any]]  # the specialists Odoo declared for this user and request
     agent: str  # the active agent: a specialist's key or ``core``
@@ -186,6 +188,8 @@ def request_state(request: RunRequest) -> dict[str, Any]:
         "outcome": None,
         "output_tokens": 0,
         "max_output_tokens": request.policy.max_output_tokens,
+        "input_tokens": 0,
+        "max_input_tokens": request.policy.max_input_tokens,
         "limit": None,
         "agents": [agent.model_dump() for agent in request.agents],
         "handoffs": 0,
@@ -313,6 +317,11 @@ def build_graph(checkpointer):
         cap = state.get("max_output_tokens")
         if cap is not None and state.get("output_tokens", 0) >= cap:
             return {"outcome": "limit_reached", "limit": "output_tokens"}
+        # The tenant's ceiling on input tokens (issue #554): every plan call sends the whole prompt and history, so the
+        # calls already made are what the next one costs again. A run that has spent its ceiling stops before spending more.
+        input_cap = state.get("max_input_tokens")
+        if input_cap is not None and state.get("input_tokens", 0) >= input_cap:
+            return {"outcome": "limit_reached", "limit": "input_tokens"}
         run_model: RunModel = config["configurable"][RUN_MODEL_KEY]
         current = state.get("agent", CORE_AGENT)
         visible = visible_tools(state["tools"], current)
@@ -329,12 +338,22 @@ def build_graph(checkpointer):
         deadline_at = config["configurable"].get(DEADLINE_KEY)
         tools = run_model.model.bind_tools([*_openai_tools(visible), *([handoff_tool(targets)] if targets else []), *memory_tools(state, config)])
         response = await invoke_planned(tools, [prompt, *history], run_model.identity, get_stream_writer(), deadline_at)
-        spent = tokens_of([response])[1]
+        used, spent = tokens_of([response])
         if spent is None and cap is not None:
             # The cap is checked between plan calls (a call that crosses it completes); a provider reporting no usage
             # cannot be capped at all, and that is logged rather than hidden.
             log.warning("a capped run's provider reported no output tokens; the per-run cap cannot count this call")
-        return {"messages": [response], "steps": state["steps"] + 1, "output_tokens": state.get("output_tokens", 0) + (spent or 0)}
+        if used is None and input_cap is not None:
+            log.warning("a capped run's provider reported no input tokens; the per-run input ceiling cannot count this call")
+        update: dict[str, Any] = {
+            "messages": [response], "steps": state["steps"] + 1, "output_tokens": state.get("output_tokens", 0) + (spent or 0),
+            "input_tokens": state.get("input_tokens", 0) + (used or 0),
+        }
+        if input_cap is not None and update["input_tokens"] >= input_cap:
+            # The call that reached the ceiling completes (its text has already streamed to the browser) and the run stops
+            # there, exactly as the output cap does: no further prompt is spent, and a tool request it carried is not made.
+            update.update({"outcome": "limit_reached", "limit": "input_tokens"})
+        return update
 
     def route_after_plan(state: AgentState) -> Literal["retrieve", "answer", "__end__"]:
         if state["outcome"] == "limit_reached":

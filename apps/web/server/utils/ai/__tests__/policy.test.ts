@@ -9,7 +9,7 @@ const NO_KEY = { configured: false, provider: null, model: null, last4: null, up
 const KEY = { configured: true, provider: 'anthropic', model: 'claude-test', last4: 'abcd', updated_at: '2026-11-05T10:00:00Z', base_url: null }
 
 function session(policy: Record<string, unknown>, mode: 'assistant' | 'setup' | 'help' = 'assistant') {
-  return { owner: OWNER, mode, policy: { provider_mode: 'platform', consent_signed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: 8000, ...policy } } as any
+  return { owner: OWNER, mode, policy: { provider_mode: 'platform', consent_signed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: 8000, input_tokens_per_run: 100000, ...policy } } as any
 }
 function serviceConfig(key: object) {
   // A body is read once: each call gets its own response.

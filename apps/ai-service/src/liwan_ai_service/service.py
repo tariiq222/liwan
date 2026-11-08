@@ -450,8 +450,8 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
             if decided is None:
                 values = (await tenant.graph.aget_state(config)).values
                 if values.get("outcome") == "limit_reached":
-                    if values.get("limit") == "output_tokens":
-                        limit = "output_tokens"
+                    if values.get("limit") in ("output_tokens", "input_tokens"):
+                        limit = values["limit"]
                     elif values["tool_calls_made"] >= values["limits"]["max_tool_calls"]:
                         limit = "max_tool_calls"
                     else:

@@ -58,6 +58,8 @@ export const AiPolicySchema = z.object({
   tokens_monthly: AiLimitValueSchema,
   tokens_used: z.number().int().nonnegative(),
   output_tokens_per_run: AiLimitValueSchema,
+  /** The tenant's own ceiling on the input tokens of one request (issue #554); null means no ceiling of its own. */
+  input_tokens_per_run: AiLimitValueSchema,
 }).strict()
 export type AiPolicy = z.infer<typeof AiPolicySchema>
 
@@ -118,7 +120,7 @@ export const AiEventSchema = z.discriminatedUnion('event', [
   z.object({ event: z.literal('tool_request'), data: AiToolRequestSchema }),
   z.object({ event: z.literal('tool_result'), data: z.object({ call_id: z.string(), tool: z.string(), kind: AiToolKindSchema, ok: z.boolean(), summary_ar: z.string(), summary_en: z.string() }).strict() }),
   z.object({ event: z.literal('answer'), data: z.object({ text: z.string(), records: z.array(AiRecordRefSchema) }).strict() }),
-  z.object({ event: z.literal('limit_reached'), data: z.object({ limit: z.enum(['max_tool_calls', 'max_steps', 'timeout', 'messages_monthly', 'output_tokens']) }).strict() }),
+  z.object({ event: z.literal('limit_reached'), data: z.object({ limit: z.enum(['max_tool_calls', 'max_steps', 'timeout', 'messages_monthly', 'output_tokens', 'input_tokens']) }).strict() }),
   z.object({ event: z.literal('error'), data: z.object({ code: z.string(), message: z.string() }).strict() }),
   z.object({ event: z.literal('done'), data: z.object({ status: AiDoneStatusSchema }).strict() }),
 ])
@@ -248,10 +250,14 @@ const AiPersonSchema = z.object({ id: z.number().int().positive(), name: z.strin
 export const AiExternalSendSchema = z.enum(['draft_only', 'approve'])
 export const AI_MESSAGES_PER_USER_MAX = 100_000
 const AiMessagesPerUserSchema = z.number().int().min(0).max(AI_MESSAGES_PER_USER_MAX) // 0 means no cap per user
+/** The tenant's ceiling on the input tokens of one request (issue #554); 0 means no cap of its own. */
+export const AI_INPUT_TOKENS_PER_RUN_MAX = 2_000_000
+const AiInputTokensPerRunSchema = z.number().int().min(0).max(AI_INPUT_TOKENS_PER_RUN_MAX)
 
 export const AiSettingsSchema = z.object({
   provider_mode: AiProviderModeSchema,
   messages_per_user_monthly: AiMessagesPerUserSchema,
+  input_tokens_per_run: AiInputTokensPerRunSchema,
   external_send: AiExternalSendSchema,
   /** Whether the assistant may search company records (knowledge retrieval); applies only while the consent is valid. */
   knowledge_enabled: z.boolean(),
@@ -279,6 +285,7 @@ export type AiSettings = z.infer<typeof AiSettingsSchema>
 export const AiSettingsPatchSchema = z.object({
   provider_mode: AiProviderModeSchema.optional(),
   messages_per_user_monthly: AiMessagesPerUserSchema.optional(),
+  input_tokens_per_run: AiInputTokensPerRunSchema.optional(),
   external_send: AiExternalSendSchema.optional(),
   knowledge_enabled: z.boolean().optional(),
   revision: z.number().int().positive(),

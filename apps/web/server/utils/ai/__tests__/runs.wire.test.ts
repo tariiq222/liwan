@@ -43,13 +43,13 @@ const TOOLS = {
   ],
   total: 3,
   agents: [],
-  limits: { tool_calls_per_run: 8, messages_monthly: 100, messages_used: 1, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: 8000 } }, blocked_fields: [],
+  limits: { tool_calls_per_run: 8, messages_monthly: 100, messages_used: 1, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: 8000, input_tokens_per_run: 100000 } }, blocked_fields: [],
 }
 const ME = { id: 42, name: 'سارة', company: { id: 1, name: 'ليوان' } }
 
 const CALL_A = '00000000000000a1', CALL_B = '00000000000000b2', CALL_C = '00000000000000c3', CALL_D = '00000000000000d4'
-// The policy every resume sends: the tools response's, with the platform output cap.
-const POLICY = { provider_mode: 'platform', consent_signed: true, max_output_tokens: 8000 }
+// The policy every resume sends: the tools response's, with the platform output cap and the tenant's input ceiling.
+const POLICY = { provider_mode: 'platform', consent_signed: true, max_output_tokens: 8000, max_input_tokens: 100000 }
 const modelCall = (id: string, kind = 'plan'): [string, unknown] => ['model_call', { call_id: id, kind, billing: 'platform', provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5', called_at: '2026-10-27T10:00:00Z' }]
 const modelUsage = (id: string, outcome: string, input: number | null, output: number | null): [string, unknown] => ['model_usage', { call_id: id, outcome, input_tokens: input, output_tokens: output }]
 const MODEL_PLAN_RETRIED = [modelCall(CALL_A), modelUsage(CALL_A, 'retried', null, null)]

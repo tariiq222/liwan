@@ -2,6 +2,7 @@
 from odoo.addons.liwan_ai.models import consent_text
 from odoo.addons.liwan_ai.models.ai_settings import (
     EXTERNAL_SEND_MODES,
+    MAX_INPUT_TOKENS_PER_RUN,
     MAX_MESSAGES_PER_USER,
     PROVIDER_MODES,
 )
@@ -9,7 +10,7 @@ from odoo.addons.liwan_ai.models.tool_registry import ASSIST_KINDS
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.serializers.common import iso
 
-SETTING_KEYS = frozenset({'provider_mode', 'messages_per_user_monthly', 'external_send', 'knowledge_enabled'})
+SETTING_KEYS = frozenset({'provider_mode', 'messages_per_user_monthly', 'input_tokens_per_run', 'external_send', 'knowledge_enabled'})
 CONSENT_KEYS = frozenset({'text_version', 'text_hash'})
 
 
@@ -31,6 +32,7 @@ def dump_settings(env):
     return {
         'provider_mode': settings.provider_mode,
         'messages_per_user_monthly': settings.messages_per_user_monthly,
+        'input_tokens_per_run': settings.input_tokens_per_run,
         'external_send': settings.external_send,
         'knowledge_enabled': settings.knowledge_enabled,
         'revision': settings.revision,
@@ -84,6 +86,10 @@ def parse_settings_patch(payload):
         cap = values['messages_per_user_monthly']
         if not isinstance(cap, int) or isinstance(cap, bool) or not 0 <= cap <= MAX_MESSAGES_PER_USER:
             raise ApiError(422, 'invalid', f'messages_per_user_monthly must be 0 to {MAX_MESSAGES_PER_USER}', field='messages_per_user_monthly')
+    if 'input_tokens_per_run' in values:
+        cap = values['input_tokens_per_run']
+        if not isinstance(cap, int) or isinstance(cap, bool) or not 0 <= cap <= MAX_INPUT_TOKENS_PER_RUN:
+            raise ApiError(422, 'invalid', f'input_tokens_per_run must be 0 to {MAX_INPUT_TOKENS_PER_RUN}', field='input_tokens_per_run')
     return values, revision
 
 

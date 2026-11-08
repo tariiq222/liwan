@@ -90,6 +90,7 @@
       "used": "{used} of {limit} messages this month",
       "tokensMonthly": "Your organization reached this month's AI usage (tokens) limit.",
       "outputTokens": "This request stopped: it reached the answer length allowed for one request.",
+      "inputTokens": "This request stopped at your organization's input-token ceiling for one request.",
       "consentRequired": "The assistant is off until a system administrator signs the AI use acknowledgement.",
       "tenantKeyMissing": "Your organization chose to run the assistant on its own key, and no key has been added yet.",
       "openSettings": "Open the AI settings",
@@ -250,6 +251,10 @@
         "perUser": {
           "label": "Messages per employee each month",
           "hint": "Zero means only your plan limit applies."
+        },
+        "inputTokens": {
+          "label": "Input tokens per request",
+          "hint": "A ceiling so one huge prompt cannot spend the quota and the cost. Zero means no limit of your own."
         },
         "external": {
           "label": "Contact with outside parties",

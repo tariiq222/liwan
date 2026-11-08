@@ -4,8 +4,12 @@ import { AiTenantConfigSchema } from '@liwan/contracts'
 import type { RunSession } from './session'
 import { serviceFetch } from './upstream'
 
-/** What the AI service enforces on one request: whose provider runs it, whether the tenant signed the AI acknowledgement, the output cap. */
-export type ServicePolicy = { provider_mode: 'platform' | 'tenant_key' | 'setup'; consent_signed: boolean; max_output_tokens: number | null }
+/** What the AI service enforces on one request: whose provider runs it, whether the tenant signed the AI acknowledgement, the output cap, the input ceiling. */
+export type ServicePolicy = {
+  provider_mode: 'platform' | 'tenant_key' | 'setup'; consent_signed: boolean; max_output_tokens: number | null
+  /** The tenant's own ceiling on the input tokens of the request (issue #554); null means no ceiling. */
+  max_input_tokens: number | null
+}
 
 /** Whose provider runs the request: a setup or help conversation always runs on the platform provider, paid by the assistance budget. */
 function providerMode(session: RunSession): ServicePolicy['provider_mode'] {
@@ -13,10 +17,11 @@ function providerMode(session: RunSession): ServicePolicy['provider_mode'] {
 }
 
 export function runPolicy(session: RunSession): ServicePolicy {
-  const { consent_signed, output_tokens_per_run } = session.policy
+  const { consent_signed, output_tokens_per_run, input_tokens_per_run } = session.policy
   const provider_mode = providerMode(session)
-  // The output cap protects the platform's provider account; a tenant on its own key pays its own provider.
-  return { provider_mode, consent_signed, max_output_tokens: provider_mode === 'tenant_key' ? null : output_tokens_per_run }
+  // The output cap protects the platform's provider account; a tenant on its own key pays its own provider. The input
+  // ceiling is the tenant's own policy (issue #554) and holds in both provider modes: the prompt costs whoever pays.
+  return { provider_mode, consent_signed, max_output_tokens: provider_mode === 'tenant_key' ? null : output_tokens_per_run, max_input_tokens: input_tokens_per_run }
 }
 
 /**

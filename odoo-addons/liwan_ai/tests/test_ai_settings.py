@@ -4,6 +4,10 @@ from datetime import datetime, timedelta
 from odoo.tests import new_test_user, tagged
 
 from odoo.addons.liwan_ai.models import consent_text
+from odoo.addons.liwan_ai.models.ai_settings import (
+    DEFAULT_INPUT_TOKENS_PER_RUN,
+    MAX_INPUT_TOKENS_PER_RUN,
+)
 from odoo.addons.liwan_ai.tests.common import AiProbe
 from odoo.addons.liwan_api.tests.common import LiwanApiCase
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
@@ -120,6 +124,30 @@ class TestAiSettings(AiProbe, LiwanApiCase):
         self.assertEqual((invalid.status_code, invalid.json()['field']), (422, 'provider_mode'))
         extra = self.api('PATCH', '/api/v1/ai/settings', {'provider_mode': 'platform', 'revision': 2, 'x': 1})
         self.assertEqual((extra.status_code, extra.json()['field']), (422, 'x'))
+
+    def test_the_input_token_ceiling_is_the_tenants_own_and_reaches_every_run(self):
+        """Issue #554: a request may not send input tokens past the tenant's ceiling; 0 means no ceiling of its own."""
+        self._as_manager()
+        body = self.api('GET', '/api/v1/ai/settings').json()
+        self.assertEqual(body['input_tokens_per_run'], DEFAULT_INPUT_TOKENS_PER_RUN)
+        # The run policy carries it in both provider modes, and null when the tenant wants no ceiling of its own.
+        policy = self.env['liwan.ai.tool.registry']._liwan_ai_policy()
+        self.assertEqual(policy['input_tokens_per_run'], DEFAULT_INPUT_TOKENS_PER_RUN)
+        for mode in ('platform', 'tenant_key'):
+            settings = self.env['liwan.ai.settings']._liwan_current()
+            settings.write({'provider_mode': mode})
+            self.assertEqual(self.env['liwan.ai.tool.registry']._liwan_ai_policy()['input_tokens_per_run'], DEFAULT_INPUT_TOKENS_PER_RUN)
+        changed = self.api('PATCH', '/api/v1/ai/settings', {'input_tokens_per_run': 25_000, 'revision': body['revision']}).json()
+        self.assertEqual(changed['input_tokens_per_run'], 25_000)
+        self.assertEqual(self.env['liwan.ai.tool.registry']._liwan_ai_policy()['input_tokens_per_run'], 25_000)
+        # Zero is a choice of its own: it stores 0 and the policy then says there is no ceiling.
+        off = self.api('PATCH', '/api/v1/ai/settings', {'input_tokens_per_run': 0, 'revision': changed['revision']}).json()
+        self.assertEqual(off['input_tokens_per_run'], 0)
+        self.assertIsNone(self.env['liwan.ai.tool.registry']._liwan_ai_policy()['input_tokens_per_run'])
+        for value in (-1, MAX_INPUT_TOKENS_PER_RUN + 1, '10', True):
+            with self.subTest(value=value):
+                refused = self.api('PATCH', '/api/v1/ai/settings', {'input_tokens_per_run': value, 'revision': off['revision']})
+                self.assertEqual((refused.status_code, refused.json()['field']), (422, 'input_tokens_per_run'))
 
     def test_consent_needs_the_current_text_and_a_new_version_voids_it(self):
         self._as_manager()

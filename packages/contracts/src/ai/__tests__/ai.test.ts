@@ -9,14 +9,14 @@ const PMO_AGENT = { key: 'pmo', name: { ar: 'وكيل المشاريع', en: 'Pr
 
 describe('LiwanOS AI contracts', () => {
   it('parses the tools response with limits', () => {
-    const parsed = AiToolsResponseSchema.parse({ items: [READ], total: 1, agents: [PMO_AGENT], limits: { tool_calls_per_run: 8, messages_monthly: null, messages_used: 2, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } }, blocked_fields: ['wage'] })
+    const parsed = AiToolsResponseSchema.parse({ items: [READ], total: 1, agents: [PMO_AGENT], limits: { tool_calls_per_run: 8, messages_monthly: null, messages_used: 2, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null, input_tokens_per_run: null } }, blocked_fields: ['wage'] })
     expect(parsed.items[0]!.route?.method).toBe('GET')
     expect(parsed.limits.messages_monthly).toBeNull()
   })
 
   it('rejects a draft tool with a route and an unknown kind', () => {
-    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'draft' }], total: 1, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } }, blocked_fields: ['wage'] })).toThrow()
-    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'delete' }], total: 1, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } }, blocked_fields: ['wage'] })).toThrow()
+    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'draft' }], total: 1, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null, input_tokens_per_run: null } }, blocked_fields: ['wage'] })).toThrow()
+    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'delete' }], total: 1, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null, input_tokens_per_run: null } }, blocked_fields: ['wage'] })).toThrow()
   })
 
   it('types every SSE event by name', () => {
@@ -131,7 +131,7 @@ describe('LiwanOS AI usage contracts', () => {
 
   it('parses the AI settings with the consent text and the month usage', () => {
     const settings = {
-      provider_mode: 'platform', messages_per_user_monthly: 0, external_send: 'draft_only', knowledge_enabled: false, revision: 1,
+      provider_mode: 'platform', messages_per_user_monthly: 0, input_tokens_per_run: 100000, external_send: 'draft_only', knowledge_enabled: false, revision: 1,
       consent: { required_version: '2026-11-05-draft', text_ar: 'نص', text_en: 'text', text_hash: 'a'.repeat(64), signed: null },
       usage: { month: '2026-11', messages_used: 3, messages_limit: null, assist_used: 4, assist_limit: 300, tokens_used: 120, tokens_limit: 2000000, output_tokens_per_run: 8000 },
     }
@@ -141,6 +141,9 @@ describe('LiwanOS AI usage contracts', () => {
     expect(() => AiSettingsPatchSchema.parse({ provider_mode: 'tenant_key', revision: 0 })).toThrow()
     expect(() => AiSettingsSchema.parse({ ...settings, knowledge_enabled: undefined })).toThrow()
     expect(AiSettingsPatchSchema.parse({ knowledge_enabled: true, revision: 1 }).knowledge_enabled).toBe(true)
+    expect(AiSettingsPatchSchema.parse({ input_tokens_per_run: 0, revision: 1 }).input_tokens_per_run).toBe(0)
+    expect(() => AiSettingsPatchSchema.parse({ input_tokens_per_run: -1, revision: 1 })).toThrow()
+    expect(() => AiSettingsPatchSchema.parse({ input_tokens_per_run: 2_000_001, revision: 1 })).toThrow()
     expect(() => AiSettingsPatchSchema.parse({ knowledge_enabled: 'yes', revision: 1 })).toThrow()
     expect(AiKnowledgeRebuildSchema.parse({ queued: true }).queued).toBe(true)
     expect(() => AiKnowledgeRebuildSchema.parse({ queued: false })).toThrow()
