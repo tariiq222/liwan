@@ -9,6 +9,9 @@ services:
     environment:
       # Give Caddy a reserved address when the TikTok host is unset or empty.
       LIWAN_TIKTOK_RELAY_HOST: ${LIWAN_TIKTOK_RELAY_HOST:-invalid.invalid}
+      # The operator allowlist for restore hosts (`remote_ip` syntax). Deliberately no default: unset or empty
+      # answers 404 for every `*.restore.<domain>` host, so a stack cannot expose a restored database by omission.
+      LIWAN_RESTORE_ALLOW: ${LIWAN_RESTORE_ALLOW:-}
     volumes:
       - ./shared/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
