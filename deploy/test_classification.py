@@ -84,6 +84,10 @@ class TestClassification(unittest.TestCase):
         (deploy / 'ai').mkdir()
         for name in ('tenant_schema.sql', 'ensure_secrets.sh', 'egress_hosts.sh'):
             shutil.copy(ROOT / 'deploy' / 'ai' / name, deploy / 'ai' / name)
+        (deploy / '__init__.py').write_text('')
+        (deploy / 'releases').mkdir()
+        for name in ('__init__.py', 'postgres.py'):
+            shutil.copy(ROOT / 'deploy' / 'releases' / name, deploy / 'releases' / name)
         (deploy / 'odoo').mkdir()
         (deploy / 'odoo/ODOO_COMMIT').write_text('test-pin')
         (deploy / 'odoo.conf').write_text('[options]\n')
@@ -136,24 +140,91 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         records = [json.loads(line) for line in (self.root / 'docker.log').read_text().splitlines()]
         return [record for record in records if 'psql' in record['args']]
 
-    def test_provision_closes_tenant_database_to_ai_role_before_serving(self):
-        deploy, env = self.provision_fixture()
+    def provision_records(self, deploy, env):
         result = subprocess.run(['bash', str(deploy / 'provision.sh'), 'test.invalid', self.data['database']],
                                 env=env, text=True, capture_output=True, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
+        return [json.loads(line) for line in (self.root / 'docker.log').read_text().splitlines()]
+
+    def test_provision_creates_and_closes_the_database_to_public_before_the_install(self):
+        deploy, env = self.provision_fixture()
+        records = self.provision_records(deploy, env)
+        db = self.data['database']
+        create = next(i for i, r in enumerate(records) if 'psql' in r['args'] and 'CREATE DATABASE' in r.get('stdin', ''))
+        # Odoo's own creation recipe, from the shared helper: unicode, C collation, template0.
+        self.assertEqual(records[create]['stdin'],
+                         f"CREATE DATABASE \"{db}\" ENCODING 'unicode' LC_COLLATE 'C' TEMPLATE template0;\n")
+        self.assertIn('postgres', records[create]['args'])
+        isolate = next(i for i, r in enumerate(records) if 'psql' in r['args']
+                       and 'public_connect_not_revoked' in r.get('stdin', ''))
+        extension = next(i for i, r in enumerate(records) if 'psql' in r['args']
+                         and 'CREATE EXTENSION IF NOT EXISTS pg_trgm' in r.get('stdin', ''))
+        self.assertEqual(records[extension]['args'][records[extension]['args'].index('-d') + 1], db)
+        install = next(i for i, r in enumerate(records) if 'snapshot' in r)
+        self.assertLess(create, isolate)
+        self.assertLess(isolate, extension)
+        self.assertLess(extension, install)
+        self.assertEqual([r for r in records if 'createdb' in r['args']], [])
+        record = records[isolate]
+        self.assertIn('ON_ERROR_STOP=1', record['args'])
+        # The unconditional revoke does not depend on the AI role: this is the shared helper's script verbatim.
+        db = self.data['database']
+        self.assertIn(f'REVOKE CONNECT ON DATABASE "{db}" FROM PUBLIC;', record['stdin'])
+        self.assertIn(f'GRANT CONNECT ON DATABASE "{db}" TO "odoo";', record['stdin'])
+        self.assertNotIn('liwan_ai', record['stdin'])
+
+    def test_provision_skips_creation_for_an_existing_database_but_still_isolates_it(self):
+        deploy, env = self.provision_fixture()
+        docker = deploy.parent / 'bin' / 'docker'
+        docker.write_text(docker.read_text().replace(
+            "with open(os.environ['DOCKER_LOG']",
+            "if 'psql' in args and 'pg_database' in record.get('stdin', '') and 'tenant_db' in ' '.join(args):\n"
+            "    print(1)\n"
+            "with open(os.environ['DOCKER_LOG']"))
+        records = self.provision_records(deploy, env)
+        self.assertEqual([r for r in records if 'CREATE DATABASE' in r.get('stdin', '')], [])
+        self.assertTrue(any('public_connect_not_revoked' in r.get('stdin', '') for r in records))
+
+    def test_provision_stops_before_the_install_when_the_isolation_step_fails(self):
+        deploy, env = self.provision_fixture()
+        docker = deploy.parent / 'bin' / 'docker'
+        docker.write_text(docker.read_text().replace(
+            "with open(os.environ['DOCKER_LOG']",
+            "failed = 'public_connect_not_revoked' in record.get('stdin', '')\n"
+            "with open(os.environ['DOCKER_LOG']").rstrip('\n') + '\nsys.exit(1 if failed else 0)\n')
+        result = subprocess.run(['bash', str(deploy / 'provision.sh'), 'test.invalid', self.data['database']],
+                                env=env, text=True, capture_output=True, check=False)
+        self.assertNotEqual(result.returncode, 0)
         records = [json.loads(line) for line in (self.root / 'docker.log').read_text().splitlines()]
-        revokes = [index for index, record in enumerate(records) if 'psql' in record['args']]
-        self.assertEqual(len(revokes), 1)
-        self.assertLess(max(i for i, r in enumerate(records) if 'snapshot' in r), revokes[0])
-        self.assertLess(revokes[0], len(records) - 1)
-        record = records[revokes[0]]
-        self.assertIn(f'tenant_db={self.data["database"]}', record['args'])
+        self.assertEqual([r for r in records if 'snapshot' in r], [])
+
+    def test_provision_refuses_a_database_name_the_isolation_step_cannot_quote(self):
+        deploy, env = self.provision_fixture()
+        for name in ('Upper', '1db', 'bad-name'):
+            with self.subTest(name=name):
+                result = subprocess.run(['bash', str(deploy / 'provision.sh'), 'test.invalid', name],
+                                        env=env, text=True, capture_output=True, check=False)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('db name', result.stderr)
+        self.assertFalse((self.root / 'docker.log').exists())
+
+    def test_provision_grants_the_ai_role_its_schema_after_the_database_is_closed(self):
+        deploy, env = self.provision_fixture()
+        records = self.provision_records(deploy, env)
+        schema = [index for index, record in enumerate(records)
+                  if 'psql' in record['args'] and f'tenant_db={self.data["database"]}' in record['args']
+                  and 'REVOKE ALL ON SCHEMA public FROM liwan_ai' in record.get('stdin', '')]
+        self.assertEqual(len(schema), 1)
+        isolate = next(i for i, r in enumerate(records) if 'public_connect_not_revoked' in r.get('stdin', ''))
+        self.assertLess(isolate, schema[0])
+        self.assertLess(max(i for i, r in enumerate(records) if 'snapshot' in r), schema[0])
+        self.assertLess(schema[0], len(records) - 1)
+        record = records[schema[0]]
         self.assertIn('ON_ERROR_STOP=1', record['args'])
         sql = record['stdin']  # deploy/ai/tenant_schema.sql, the one place that grants the AI role its schema
         self.assertEqual(sql, (ROOT / 'deploy' / 'ai' / 'tenant_schema.sql').read_text())
         self.assertIn("rolname = 'liwan_ai'", sql)
-        self.assertIn('FROM PUBLIC', sql)
-        self.assertIn('REVOKE ALL ON SCHEMA public FROM liwan_ai', sql)
+        self.assertNotIn('FROM PUBLIC', sql)  # the PUBLIC revoke lives only in the shared isolation helper
         self.assertNotIn(self.data['database'], sql)
 
     def origin_records(self):

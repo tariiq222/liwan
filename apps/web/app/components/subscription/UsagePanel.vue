@@ -3,8 +3,8 @@ import type { UsageSnapshot } from '@liwan/commercial-contracts'
 import { usageFigure, usageMetricLabel } from '@/utils/subscription'
 const props = defineProps<{ usage: UsageSnapshot }>()
 const { t, te, locale } = useI18n()
-const WARN_AT = 75
-const DANGER_AT = 90
+const WARN_AT = 80
+const DANGER_AT = 95
 const num = (n: number) => new Intl.NumberFormat(locale.value.startsWith('ar') ? 'ar-SA-u-nu-latn' : 'en-US').format(n)
 // Share of the limit used; unknown or unlimited metrics draw no bar.
 const percent = (value: number | null, limit: number | null) => (value === null || !limit ? undefined : (value / limit) * 100)

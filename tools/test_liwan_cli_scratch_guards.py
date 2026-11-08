@@ -82,7 +82,7 @@ class ScratchGuardCase(unittest.TestCase):
             module_dir.mkdir()
             (module_dir / '__manifest__.py').write_text('{}')
         self.tools = {}
-        for name in ('odoo-bin', 'psql', 'pg_dump', 'pg_restore', 'createdb', 'ai-python'):
+        for name in ('odoo-bin', 'psql', 'pg_dump', 'pg_restore', 'ai-python'):
             path = self.root / name
             path.write_text('fixture')
             self.tools[name] = str(path)
@@ -100,7 +100,6 @@ class ScratchGuardCase(unittest.TestCase):
             'addons_paths': [str(self.addons)], 'data_dir': str(self.data),
             'psql': self.tools['psql'], 'pg_dump': self.tools['pg_dump'],
             'pg_restore': self.tools['pg_restore'],
-            'createdb': self.tools['createdb'],
             'backup_root': str(self.backups), 'release_root': str(self.releases),
             'classification_file': str(self.classification),
         }

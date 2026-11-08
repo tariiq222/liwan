@@ -8,8 +8,8 @@ import { sessionCodec, requestPlan, prospectPlan, createGuard } from './guard.mj
 import { validateRegistry, mutateRegistry } from '../../apps/web/server/utils/tenantRegistry.ts'
 const targets = Array.from({ length: 10 }, (_, i) => ({ host: `t${i}.example.test`, tenantId: `tenant_${i}`, database: `db_${i}`, filestore: `db_${i}`, enabled: true, registryRevision: 1 }))
 const registry = { schemaVersion: 1, snapshotRevision: 1, targets }
-const token = 'test-only-proxy-token-'.repeat(3)
-const keys = { test: 'test-only-signing-key-'.repeat(3) }
+const token = 'synthetic-proxy-marker-'.repeat(3)
+const keys = { test: 'synthetic-signing-marker-'.repeat(3) }
 const codec = sessionCodec(keys, 'test')
 const req = (i = 0, headers = {}, url = '/api/v1/me') => ({ headers: { host: targets[i].host, ...headers }, url })
 test('10 tenants positive plus 90 foreign session pairs reject before dispatch', () => {
@@ -301,4 +301,47 @@ test('the public host refuses everything else, and other hosts never take the pr
   assert.equal(prospectPlan(prospect('/payment-done'), undefined, token), null)
   assert.throws(() => requestPlan(prospect('/payment-done', {}, 'GET', 'unknown.test'), registry, token, codec))
   assert.throws(() => requestPlan(prospect('/payment-done'), registry, token, codec))
+})
+test('guard logs one structured line per refused route or header without secrets or query strings', async t => {
+  const root = mkdtempSync(join(tmpdir(), 'liwan-guard-audit-'))
+  const path = join(root, 'registry.json'); writeFileSync(path, JSON.stringify(registry))
+  const backend = http.createServer((_, res) => res.end('ok'))
+  const backendUrl = await listen(backend)
+  const guard = createGuard({ registryPath: path, proxyToken: token, keys, activeKid: 'test', odooUrl: backendUrl, webUrl: backendUrl })
+  const url = await listen(guard)
+  const lines = []
+  mock.method(console, 'error', line => lines.push(line))
+  t.after(() => { mock.restoreAll(); guard.closeAllConnections(); guard.close(); backend.closeAllConnections(); backend.close() })
+  const secret = 'synthetic-cookie-marker'
+  assert.equal((await call(url, '/web/content/1?' + new URLSearchParams({ access_token: secret }), { host: targets[0].host, cookie: 'session_id=' + secret })).status, 403)
+  assert.equal((await call(url, '/api/v1/me', { host: targets[0].host, 'x-liwan-db': secret, authorization: 'Bearer ' + secret })).status, 403)
+  const events = lines.map(line => JSON.parse(line))
+  assert.deepEqual(events.map(e => [e.event, e.reason, e.method, e.path, e.host]), [
+    ['tenant_boundary_rejected', 'forbidden_route', 'GET', '/web/content/1', targets[0].host],
+    ['tenant_boundary_rejected', 'forbidden_header', 'GET', '/api/v1/me', targets[0].host]
+  ])
+  assert.ok(!lines.join('\n').includes(secret))
+})
+test('guard logs the websocket upgrade refusal once and redacts token path segments', async t => {
+  const root = mkdtempSync(join(tmpdir(), 'liwan-guard-audit-ws-'))
+  const path = join(root, 'registry.json'); writeFileSync(path, JSON.stringify(registry))
+  const backend = http.createServer((_, res) => res.end('ok'))
+  const backendUrl = await listen(backend)
+  const guard = createGuard({ registryPath: path, proxyToken: token, keys, activeKid: 'test', odooUrl: backendUrl, webUrl: backendUrl })
+  const url = await listen(guard)
+  const lines = []
+  mock.method(console, 'error', line => lines.push(line))
+  t.after(() => { mock.restoreAll(); guard.closeAllConnections(); guard.close(); backend.closeAllConnections(); backend.close() })
+  const secret = 'synthetic-Token-Marker0123456789'
+  await new Promise((resolve, reject) => {
+    const ws = http.request(new URL('/api/v1/public/inbox/catalog/images/7/' + secret + '?x=' + secret, url), { headers: { host: targets[0].host, 'x-liwan-db': secret, connection: 'Upgrade', upgrade: 'websocket' } })
+    ws.on('response', res => { assert.equal(res.statusCode, 403); res.resume(); res.on('end', resolve) })
+    ws.on('upgrade', () => reject(Error('upgrade_must_be_refused')))
+    ws.on('error', reject); ws.end()
+  })
+  const events = lines.map(line => JSON.parse(line))
+  assert.deepEqual(events.map(e => [e.event, e.reason, e.method, e.path, e.host]), [
+    ['tenant_boundary_rejected', 'forbidden_header', 'GET', '/api/v1/public/inbox/catalog/images/7/*', targets[0].host]
+  ])
+  assert.ok(!lines.join('\n').includes(secret))
 })

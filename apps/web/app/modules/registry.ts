@@ -1,4 +1,4 @@
-import { activeManifests, appManifests, manifestForPath, settingsPartForPath } from './manifests'
+import { activeManifests, appManifests, bellSources, manifestForPath, settingsPartForPath } from './manifests'
 
 const NOTIFICATION_ACCESS = 'liwan.notifications'
 
@@ -122,10 +122,9 @@ export function capabilityAllowed(
 
 export function canUse(identity: TenantIdentity, capability: string, write = false): boolean {
   if (capability === NOTIFICATION_ACCESS) {
-    // The bell opens through one application that both grants a bell capability and has its feature on.
-    return activeManifests().some(manifest => manifest.bell
-      && manifest.bell.capabilities.some(key => identity?.capabilities?.includes(key))
-      && hasFeature(identity, manifest.feature))
+    // The bell opens through one application (or the platform) that both grants a bell capability and has its feature on.
+    return bellSources().some(source => source.capabilities.some(key => identity?.capabilities?.includes(key))
+      && hasFeature(identity, source.feature))
   }
   return capabilityAllowed(identity, capability, write || isWriteCapability(capability))
 }

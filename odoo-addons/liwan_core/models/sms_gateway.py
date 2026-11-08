@@ -29,11 +29,11 @@ class LiwanSmsGateway(models.AbstractModel):
     def _liwan_provider(self):
         """The configured SMS provider, or ''.
 
-        ``ir.config_parameter`` is readable by ``group_system`` only, and a sign-in code runs for the
-        pre-authenticated (or public) user of the login page, so the one parameter read is elevated.
+        It is read through the cached ``_get_param`` accessor, as ``liwan.outbound.mail`` reads the sender,
+        because the caller of a sign-in code is the pre-authenticated (or public) user of the login page.
         It returns a provider name, never a credential; ``_liwan_send`` decides what that name may do.
         """
-        return (self.env['ir.config_parameter'].sudo().get_param(PROVIDER_PARAM) or '').strip().lower()
+        return (self.env['ir.config_parameter']._get_param(PROVIDER_PARAM) or '').strip().lower()
 
     @api.model
     def _liwan_providers(self):

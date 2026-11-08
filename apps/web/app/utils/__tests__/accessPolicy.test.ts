@@ -11,6 +11,12 @@ describe('access policy navigation', () => {
     expect(hasCapability({ capabilities: ['hr.employees.read'] }, 'liwan.notifications')).toBe(true)
     expect(hasCapability({ capabilities: ['documents.items.read'] }, 'liwan.notifications')).toBe(false)
   })
+  it('opens the bell for tenant administrators (platform storage warning) and AI settings managers only', () => {
+    expect(hasCapability({ capabilities: ['settings.branding.manage'] }, 'liwan.notifications')).toBe(true)
+    expect(hasCapability({ capabilities: ['access.roles.manage'] }, 'liwan.notifications')).toBe(true)
+    expect(hasCapability({ capabilities: ['ai.settings.manage'] }, 'liwan.notifications')).toBe(true)
+    expect(hasCapability({ capabilities: ['access.users.read'] }, 'liwan.notifications')).toBe(false)
+  })
   it('checks the named capability without elevating other domains', () => {
     const hr = { capabilities: ['hr.employees.read', 'hr.employees.manage'] }
     expect(hasCapability(hr, 'hr.employees.manage')).toBe(true)

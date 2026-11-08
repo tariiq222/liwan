@@ -70,7 +70,7 @@ No leftover processes or listening ports after the runs.
   binding, and the publication barrier all fail closed with no DB selection
   and no metadata leak.
 - **AC-02 (90 A→B pairs per surface):** covered for the HTTP surfaces the
-  edge owns — API identity, SSR/web, `/web/content` object ids, project object
+  edge owns — API identity, SSR/web, project object
   ids, sessions/cookies, WebSocket handshakes. Browser-level hydration for the
   A→B→A journey was already proven separately in
   `operational-ssr.test.mjs` (2 tenants, synthetic network interception).

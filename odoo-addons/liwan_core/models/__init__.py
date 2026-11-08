@@ -14,6 +14,7 @@ from . import (
     login_code,
     login_code_alert,
     login_device,
+    outbound_mail,
     res_company,
     res_groups,
     res_partner,

@@ -101,7 +101,7 @@ Target binding example:
 ```json
 {
   "mode":"local", "restoreAllowed":true, "writesResumed":false,
-  "createdb":"/opt/homebrew/bin/createdb", "pgRestore":"/opt/homebrew/bin/pg_restore",
+  "psql":"/opt/homebrew/bin/psql", "pgRestore":"/opt/homebrew/bin/pg_restore", "applicationRole":"odoo",
   "targetFilestore":"/var/lib/liwan/scratch/filestore/liwan_scratch_restore_a",
   "recoverySource":{"tenantId":"tenant_a","database":"liwan_scratch_tenant_a","filestore":"liwan_scratch_tenant_a","fence":2},
   "pgEnv":{"PGHOST":"127.0.0.1","PGPORT":"5432","PGUSER":"scratch_bootstrap","PGPASSFILE":"/etc/liwan/releases/scratch.pgpass"},
@@ -109,7 +109,7 @@ Target binding example:
 }
 ```
 
-Hashes and safe archive entry types are checked before `createdb`; source binding/fence must exactly match the receipt. Existing databases fail `createdb`; existing filestore paths are rejected. No global service stop occurs. A command failure may leave a partial scratch target for investigation; no automatic deletion follows. Success returns `restoreVerified:false` until independent Odoo ORM and attachment/business acceptance is complete.
+Hashes and safe archive entry types are checked before the database is created; source binding/fence must exactly match the receipt. The target is created with the tenant provisioning recipe (`tenant_create_database_sql`, `template0`, `LC_COLLATE 'C'`) and closed to `PUBLIC` (`tenant_isolation_sql`, open to `applicationRole`) before `pg_restore` runs. Existing databases fail the create; existing filestore paths are rejected. No global service stop occurs. A command failure may leave a partial scratch target for investigation; no automatic deletion follows. Success returns `restoreVerified:false` until independent Odoo ORM and attachment/business acceptance is complete.
 
 ## Dedicated edge wiring
 
