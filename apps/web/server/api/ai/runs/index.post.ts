@@ -7,10 +7,15 @@ import { runLocale } from '../../../utils/ai/runLocale'
 import { assertRunnable, runPolicy } from '../../../utils/ai/policy'
 import { protectText } from '../../../utils/ai/outbound'
 import { conversationMode, runSession } from '../../../utils/ai/session'
+import { boundedTenantJson } from '../../../utils/tenantTransport'
+
+// One message (the contract allows 8000 characters) plus the run id and the page context around it: 64 KiB is generous,
+// and the body is refused with a 413 before it is parsed (issue #479).
+const MAX_BODY = 64 * 1024
 
 export default defineEventHandler(async (event) => {
   assertSameSiteJson(event)
-  const parsed = AiStartRequestSchema.safeParse(await readBody(event))
+  const parsed = AiStartRequestSchema.safeParse(await boundedTenantJson<Record<string, unknown>>(event, MAX_BODY))
   if (!parsed.success) throw createError({ statusCode: 422, data: { code: 'invalid', message: 'invalid request', field: String(parsed.error.issues[0]?.path[0] ?? 'body') } })
   const { message, run_id: continued, context, mode } = parsed.data
   // A continued conversation keeps the mode it started in, whatever the browser sends (Odoo refuses a mismatch anyway).

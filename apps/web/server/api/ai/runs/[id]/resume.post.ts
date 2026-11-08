@@ -6,15 +6,19 @@ import { assertRunnable, runPolicy } from '../../../../utils/ai/policy'
 import { protectValue, restoreValue } from '../../../../utils/ai/outbound'
 import { modeForAgent, ownerFor, runSession } from '../../../../utils/ai/session'
 import type { ToolResult } from '../../../../utils/ai/executor'
+import { boundedTenantJson } from '../../../../utils/tenantTransport'
 
 type ResumeBody = { call_id?: string; decision?: 'approved' | 'rejected'; data?: Record<string, unknown> }
+
+// A call id, a decision and the data a draft was approved with: 32 KiB, refused with a 413 before it is parsed (issue #479).
+const MAX_BODY = 32 * 1024
 
 const conflict = (message: string) => createError({ statusCode: 409, data: { code: 'conflict', message } })
 
 export default defineEventHandler(async (event) => {
   assertSameSiteJson(event)
   const id = getRouterParam(event, 'id') ?? event.context.params?.id
-  const body = await readBody<ResumeBody>(event)
+  const body = await boundedTenantJson<ResumeBody>(event, MAX_BODY)
   if (!id || !body?.call_id || (body.decision !== 'approved' && body.decision !== 'rejected')) throw createError({ statusCode: 422, data: { code: 'invalid', message: 'call_id and decision are required' } })
   if (body.data !== undefined && (body.data === null || typeof body.data !== 'object' || Array.isArray(body.data))) throw createError({ statusCode: 422, data: { code: 'invalid', message: 'data must be an object', field: 'data' } })
   const path = `/v1/runs/${encodeURIComponent(id)}`
