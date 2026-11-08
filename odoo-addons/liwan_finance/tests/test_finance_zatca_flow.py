@@ -19,6 +19,7 @@ from .zatca_common import (
     unreachable,
 )
 from odoo.addons.liwan_api.tests.common import set_probe_feature
+from odoo.addons.liwan_finance.serializers.zatca import zatca_document
 
 STATUS = '/api/v1/finance/zatca/status'
 SUBMISSION_KEYS = {'state', 'mode', 'errors', 'warnings', 'qr_present'}
@@ -476,7 +477,11 @@ class TestFinanceZatcaWorkList(LiwanZatcaCase):
 
 @tagged('post_install', '-at_install', 'liwan')
 class TestFinanceZatcaAcceptedDocumentIsFinal(LiwanZatcaCase):
-    """A document ZATCA accepted keeps its chain index: its content cannot be edited by a reset to draft or a cancel."""
+    """A ZATCA document that carries a chain index is final: reset to draft and cancel are refused.
+
+    The index is kept on acceptance and on a submission that timed out, where the document still waits in ``to_send``;
+    a rejection clears it, so a rejected invoice stays correctable.
+    """
 
     INVOICES = '/api/v1/finance/invoices'
 
@@ -484,6 +489,17 @@ class TestFinanceZatcaAcceptedDocumentIsFinal(LiwanZatcaCase):
         self.onboarded_journal()
         invoice = self.sale_invoice()
         self.assertEqual(self.submit(invoice).json()['state'], 'accepted')
+        return invoice
+
+    def timed_out_invoice(self):
+        """An invoice whose submission got no answer: its document waits in ``to_send`` and keeps the chain index."""
+        self.onboarded_journal()
+        invoice = self.sale_invoice()
+        self.zatca.answers['invoices/clearance/single'] = unreachable
+        self.assertRefused(self.submit(invoice), 502, 'zatca_unavailable')
+        move = self.env['account.move'].browse(invoice['id'])
+        self.assertTrue(move.l10n_sa_chain_index)
+        self.assertEqual(zatca_document(move).state, 'to_send')
         return invoice
 
     def test_reset_to_draft_of_an_accepted_document_is_422(self):
@@ -498,11 +514,23 @@ class TestFinanceZatcaAcceptedDocumentIsFinal(LiwanZatcaCase):
         self.assertRefused(self.api('POST', f'{self.INVOICES}/{invoice["id"]}/cancel', json={}), 422, 'invalid')
         self.assertEqual(self.env['account.move'].browse(invoice['id']).state, 'posted')
 
+    def test_a_timed_out_submission_keeps_its_chain_index_and_cannot_be_reset(self):
+        invoice = self.timed_out_invoice()
+        for route in ('reset-to-draft', 'cancel'):
+            with self.subTest(route):
+                self.assertRefused(self.api('POST', f'{self.INVOICES}/{invoice["id"]}/{route}', json={}), 422, 'invalid')
+        self.assertEqual(self.env['account.move'].browse(invoice['id']).state, 'posted')
+        body = self.api('GET', f'{self.INVOICES}/{invoice["id"]}').json()
+        self.assertNotIn('reset_to_draft', body['allowed_actions'])
+        self.assertNotIn('cancel', body['allowed_actions'])
+
     def test_a_document_that_was_rejected_can_still_be_reset_and_corrected(self):
         self.onboarded_journal()
         invoice = self.sale_invoice()
         self.zatca.answers['invoices/clearance/single'] = answer(400, {'validationResults': results('ERROR', errors=[ERROR])})
         self.assertRefused(self.submit(invoice), 422, 'zatca_rejected')
+        # Stock clears the chain index on a rejection, so the invoice is correctable again.
+        self.assertFalse(self.env['account.move'].browse(invoice['id']).l10n_sa_chain_index)
         reset = self.api('POST', f'{self.INVOICES}/{invoice["id"]}/reset-to-draft', json={})
         self.assertEqual(reset.status_code, 200, reset.text)
         self.assertEqual(reset.json()['state'], 'draft')

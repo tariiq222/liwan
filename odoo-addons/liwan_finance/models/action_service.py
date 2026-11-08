@@ -20,8 +20,8 @@ from odoo.addons.liwan_finance.serializers.invoice import WRITABLE_MOVE_TYPES
 from odoo.addons.liwan_finance.serializers.zatca import (
     ZATCA_FORMAT_CODE,
     dump_zatca_submission,
+    zatca_content_final,
     zatca_document,
-    zatca_state,
 )
 
 DEBITABLE_MOVE_TYPES = ('out_invoice', 'in_invoice')
@@ -74,9 +74,9 @@ class LiwanFinanceActions(models.AbstractModel):
         ) else None
         payments = posted and bool(invoice.reconciled_payment_ids.filtered(lambda payment: payment.state not in LIVE_PAYMENT_EXCLUDED))
         transition = 'has_payments' if payments else locked if posted else None
-        # An accepted ZATCA document cannot change content: its chain index travels with it, so neither action is
-        # offered (the routes refuse them with 422 invalid).
-        final = posted and self._liwan_zatca_accepted(invoice)
+        # A document that carries a ZATCA chain index cannot change content (accepted, or waiting after a timeout):
+        # the index travels with it, so neither action is offered (the routes refuse them with 422 invalid).
+        final = posted and self._liwan_zatca_content_final(invoice)
         offers = []
         if draft:
             onboarding = self._liwan_zatca_posting_block(invoice)
@@ -94,10 +94,9 @@ class LiwanFinanceActions(models.AbstractModel):
         return self._liwan_resolve(invoice.company_id, offers, write_block)
 
     @api.model
-    def _liwan_zatca_accepted(self, invoice):
-        """Whether ZATCA accepted this document: its content is final and it can only be answered with a note."""
-        document = zatca_document(invoice)
-        return bool(document) and zatca_state(document) == 'accepted'
+    def _liwan_zatca_content_final(self, invoice):
+        """Whether the content of this document is final to ZATCA (see ``zatca_content_final``): only a note answers it."""
+        return zatca_content_final(invoice)
 
     @api.model
     def _liwan_zatca_posting_block(self, invoice):

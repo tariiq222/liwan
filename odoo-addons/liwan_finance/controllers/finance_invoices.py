@@ -27,7 +27,7 @@ from odoo.addons.liwan_finance.serializers.invoice import (
     parse_invoice_patch,
 )
 from odoo.addons.liwan_finance.serializers.parsing import require_nonempty
-from odoo.addons.liwan_finance.serializers.zatca import zatca_document, zatca_state
+from odoo.addons.liwan_finance.serializers.zatca import zatca_content_final
 
 
 def _invoice_types():
@@ -76,15 +76,16 @@ def _require_no_payments(invoice):
         )
 
 
-def _require_not_accepted_by_zatca(invoice):
-    """Refuse editing a document ZATCA already accepted: re-sending it would reuse its chain index with other content.
+def _require_not_final_zatca_content(invoice):
+    """Refuse editing a document that carries a ZATCA chain index: re-sending it would reuse that index with other content.
 
-    Stock's own guards only fire in production (``l10n_sa_edi_is_production``, set after the first successful
-    production submission), so an invoice accepted in the sandbox could be reset to draft, changed and posted again
-    under the same ``l10n_sa_chain_index``. The ZATCA EDI document it accepted is what makes the content final.
+    Stock's own guard fires in production and for a submission that timed out (``l10n_sa_edi/models/account_move.py:175``),
+    and only hides the button; its ``button_draft`` raises in production alone. An invoice accepted (or still awaiting an
+    answer after a timeout) in the sandbox could therefore be reset to draft, changed and posted again under the same
+    index, which ZATCA treats as a second invoice for one ICV. The chain index is what makes the content final; a
+    rejection clears it, so a rejected invoice stays correctable.
     """
-    document = zatca_document(invoice)
-    if document and zatca_state(document) == 'accepted':
+    if zatca_content_final(invoice):
         raise ApiError(
             422, 'invalid',
             request.env._('ZATCA accepted this document: its content cannot change. Issue a credit note instead.'),
@@ -373,7 +374,7 @@ class FinanceInvoiceController(http.Controller):
         if invoice.state == 'cancel':
             raise ApiError(422, 'invalid_state', 'the invoice is already cancelled')
         _require_no_payments(invoice)
-        _require_not_accepted_by_zatca(invoice)
+        _require_not_final_zatca_content(invoice)
         attempt(invoice.button_cancel, **_lock_context(invoice))
         request.env['liwan.finance.audit.event']._liwan_log(
             'invoice_cancelled', invoice, fields_written=('state',), outcome=invoice.state,
@@ -389,7 +390,7 @@ class FinanceInvoiceController(http.Controller):
         if invoice.state == 'draft':
             raise ApiError(422, 'invalid_state', 'the invoice is already a draft')
         _require_no_payments(invoice)
-        _require_not_accepted_by_zatca(invoice)
+        _require_not_final_zatca_content(invoice)
         attempt(invoice.button_draft, **_lock_context(invoice))
         request.env['liwan.finance.audit.event']._liwan_log(
             'invoice_reset_to_draft', invoice, fields_written=('state',), outcome=invoice.state,
