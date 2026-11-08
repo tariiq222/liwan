@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { ProjectListSchema } from '@liwan/contracts'
+import { openProjectMenu, projectMenuItem, PROJECT_SETTINGS_ITEM } from './support/projectMenu'
 
 // Needs a real Odoo: it logs in as admin and writes data, which the mock answers with 404. It is in no CI list until it has run on a
 // scratch Odoo (see docs/testing.md, section 3).
@@ -101,7 +102,7 @@ test('project settings: visibility, followers, and the full stage lifecycle', as
   await createTask(page, `${name} task`, id)
 
   await page.goto(`/projects/${id}`)
-  await page.getByTestId('project-workspace-settings').click()
+  await (await projectMenuItem(page, PROJECT_SETTINGS_ITEM)).click()
   await expect(page).toHaveURL(new RegExp(`/projects/${id}/settings\\?`))
   let settings = page.getByTestId('project-settings-page')
   await expect(settings).toBeVisible()
@@ -200,7 +201,7 @@ test('posting a project update keeps the status set in settings', async ({ page 
   const id = await createProject(page, name)
 
   await page.goto(`/projects/${id}?tab=updates`)
-  await page.getByTestId('project-update-new').click()
+  await page.getByTestId('project-updates-create').click()
   await expect(page).toHaveURL(new RegExp(`/projects/${id}/updates/new`))
   await expect(page.getByRole('dialog')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'تحديث جديد' })).toBeVisible()
@@ -208,9 +209,9 @@ test('posting a project update keeps the status set in settings', async ({ page 
   await expect(updateForm.getByLabel('الحالة')).toHaveCount(0)
   await updateForm.getByLabel('العنوان').fill(`${name} update`)
   await updateForm.getByRole('button', { name: 'إنشاء' }).click()
-  await expect(page).toHaveURL(new RegExp(`/projects/${id}\\?tab=updates`))
+  await expect(page).toHaveURL(new RegExp(`/projects/${id}(\\?|$)`))
 
-  await expect(page.getByTestId('project-update').filter({ hasText: `${name} update` })).toBeVisible()
+  await expect(page.getByTestId('project-overview-latest-update')).toContainText(`${name} update`)
   await expect(page.getByTestId('project-status-select')).toHaveCount(0)
   await page.goto(`/projects/${id}/settings`)
   await expect(page.getByTestId('project-status-select')).toBeVisible()
@@ -226,7 +227,8 @@ test('archiving a task removes it from the project list', async ({ page }) => {
   await page.getByRole('row', { name: new RegExp(`${name} task`) }).click()
   const taskDetail = page.getByTestId('task-detail-page')
   await expect(taskDetail).toBeVisible()
-  await taskDetail.getByTestId('task-archive').click()
+  await taskDetail.getByTestId('task-detail-menu').click()
+  await page.getByRole('menuitem', { name: 'أرشفة المهمة' }).click()
   const taskConfirm = taskDetail.getByTestId('task-archive-confirm')
   await expect(taskConfirm).toBeVisible()
   await taskConfirm.getByRole('button', { name: 'أرشفة المهمة' }).click()

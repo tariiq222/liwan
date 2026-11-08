@@ -1,12 +1,11 @@
 <script setup lang="ts">
-// An icon button of the top bar with an optional badge: a number, or `dot` for "something new". The personal tools
-// toggle a slide-over (`aria-expanded`, `aria-controls`); the theme and switcher buttons use the `outline` variant.
-const props = withDefaults(defineProps<{
+// An icon button of the top bar with an optional badge: a number, or `dot` for "something new". Every tool of the bar is
+// this one 40px button (no background at rest, a light fill on hover); it toggles a slide-over (`aria-expanded`, `aria-controls`).
+const props = defineProps<{
   icon: string
   label: string
   badge?: number | 'dot' | null
   open?: boolean
-  variant?: 'tool' | 'outline'
   controls?: string
   /** Menu or panel the button opens, for assistive technology. */
   haspopup?: 'dialog' | 'menu'
@@ -14,7 +13,7 @@ const props = withDefaults(defineProps<{
   hideOnMobile?: boolean
   disabled?: boolean
   badgeTestId?: string
-}>(), { variant: 'tool' })
+}>()
 const emit = defineEmits<{ click: [event: MouseEvent] }>()
 const badgeText = computed(() => (typeof props.badge === 'number' ? (props.badge > 99 ? '99+' : String(props.badge)) : ''))
 const hasBadge = computed(() => props.badge === 'dot' || (typeof props.badge === 'number' && props.badge > 0))
@@ -25,7 +24,6 @@ const hasBadge = computed(() => props.badge === 'dot' || (typeof props.badge ===
     type="button"
     class="liwan-tool"
     data-slide-over-trigger
-    :data-variant="props.variant === 'outline' ? 'outline' : undefined"
     :data-open="props.open ? 'true' : undefined"
     :data-mobile="props.hideOnMobile ? 'hide' : undefined"
     :aria-label="props.badge === 'dot' || !hasBadge ? props.label : `${props.label} (${badgeText})`"

@@ -10,7 +10,7 @@ type PersonRef = Task['assignees'][number]
 // optimistic cache update). Searching and selection belong to
 // SharedPersonPicker; task assignees use the PersonRef `id` the task API takes
 // as `user_ids`.
-const props = defineProps<{ modelValue: PersonRef[]; labelledby?: string }>()
+const props = defineProps<{ modelValue: PersonRef[]; labelledby?: string; plain?: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [{ ids: number[]; resolved: PersonRef[] }] }>()
 
 const { t } = useI18n()
@@ -34,6 +34,7 @@ function onResolve(people: PickedPerson[]) {
   <SharedPersonPicker
     :model-value="selectedIds"
     multiple
+    :plain="props.plain"
     value-key="id"
     :known="modelValue"
     :placeholder="t('tasks.drawer.unassigned')"

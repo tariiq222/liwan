@@ -5,8 +5,8 @@ import { orderQuickPanels, toolBadge } from '../quickPanelModel'
 const panel = (id: string): AppQuickPanel => ({ id, labelKey: `nav.${id}`, icon: 'i-lucide-box', capability: 'x.y.read', to: `/${id}`, queryKey: [id], count: async () => 0, load: async () => ({ default: {} }) })
 
 describe('quick panel order', () => {
-  it('shows conversations, tasks and meetings in that order whatever the manifest order', () => {
-    expect(orderQuickPanels([panel('meetings'), panel('tasks'), panel('chat')]).map(item => item.id)).toEqual(['chat', 'tasks', 'meetings'])
+  it('shows meetings, tasks and conversations in that order whatever the manifest order', () => {
+    expect(orderQuickPanels([panel('chat'), panel('tasks'), panel('meetings')]).map(item => item.id)).toEqual(['meetings', 'tasks', 'chat'])
   })
 
   it('keeps a newer application tool after them, in manifest order', () => {

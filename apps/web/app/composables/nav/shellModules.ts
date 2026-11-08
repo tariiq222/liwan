@@ -9,7 +9,7 @@ import { LAUNCHER_MODULE_ID } from './activeRoute'
 import { partIsExact, settingsPageForPath, settingsPartPath, settingsPartTarget, settingsPages, type SettingsPage } from './settingsSections'
 import type { AppSettingsPart, AppSidebarMenu } from '../../modules/types'
 import { CUSTOMER_COMMERCIAL_CAPABILITIES, deriveCustomerCapabilities } from '../../utils/customerCapabilities'
-import type { AppIcon, AppRailSlot } from '../../modules/types'
+import type { AppIcon } from '../../modules/types'
 
 // UIcon resolves these names from the local Lucide Iconify collection. Keep
 // the names in this shared model so every shell consumer renders the same icon
@@ -98,19 +98,19 @@ export interface ShellModuleDefinition {
   shortLabelKey?: string
   icon: AppIcon
   to: string
-  /** A base-system entry the rail always shows in this slot, whatever the user pins. */
-  fixed?: AppRailSlot
+  /** Position in the icon row of the free base-system applications; set on those only. */
+  core?: number
 }
 
 /** The start page of an application (`/apps/<id>`); it is not a manifest module, so no navigation item or capability belongs to it. */
 export const LAUNCHER_MODULE: ShellModuleDefinition = { id: LAUNCHER_MODULE_ID, labelKey: 'nav.apps', icon: 'i-lucide-layout-grid', to: '/' }
 
-/** Every rail module: home, the applications by manifest `order`, then settings (the rail places each by `fixed`). */
+/** Every rail module: home, the applications by manifest `order`, then settings (the rail places each by `core`). */
 export function shellModuleList(): ShellModuleDefinition[] {
   const applications = activeManifests().flatMap(manifest => manifest.rail).sort((a, b) => a.order - b.order)
   return [
     { id: 'home', labelKey: 'nav.home', icon: House, to: '/' },
-    ...applications.map(({ id, labelKey, shortLabelKey, icon, to, fixed }) => ({ id, labelKey, shortLabelKey, icon, to, ...(fixed ? { fixed } : {}) })),
+    ...applications.map(({ id, labelKey, shortLabelKey, icon, to, core }) => ({ id, labelKey, shortLabelKey, icon, to, ...(core ? { core } : {}) })),
     // Settings is administration only: the account card is in the sidebar footer and the appearance button in the top bar.
     { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: SETTINGS_OVERVIEW_PATH },
   ]

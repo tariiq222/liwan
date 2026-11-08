@@ -2,6 +2,8 @@
 import type { TaskState } from '@liwan/contracts'
 import type { LocationQueryRaw } from 'vue-router'
 import ProjectNotFoundState from '@/components/pmo/projects/ProjectNotFoundState.vue'
+import ScheduleGantt from '@/components/pmo/projects/schedule/ScheduleGantt.vue'
+import TaskArchivedTable from '@/components/pmo/tasks/TaskArchivedTable.vue'
 import TaskBoard from '@/components/pmo/tasks/TaskBoard.vue'
 import TaskKpiStrip from '@/components/pmo/tasks/TaskKpiStrip.vue'
 import TaskTable from '@/components/pmo/tasks/TaskTable.vue'
@@ -9,8 +11,12 @@ import TaskToolbar from '@/components/pmo/tasks/TaskToolbar.vue'
 import { ApiError } from '@/composables/useApi'
 import { projectIdFromPath } from '@/modules/pmo/projectRoutes'
 import { projectTaskParams, projectTaskQuery } from '@/composables/projectTaskParams'
+import { projectTaskScope, projectTaskScopeQuery, type TaskScope } from '@/composables/taskScope'
 import { useProject } from '@/composables/useProjects'
+import { useProjectTimeline } from '@/composables/useProjectTimeline'
 import type { TaskListParams } from '@/composables/useTasks'
+import { projectSectionAvailable } from '@/utils/projectTools'
+import type { ScheduleScale } from '@/utils/projectSchedule'
 import { taskCreatePresetQuery } from '@/utils/taskCreatePolicy'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 
@@ -26,7 +32,6 @@ const { data: projectData, error, refetch } = useProject(projectId)
 const project = computed(() => hydrated.value ? projectData.value : undefined)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && (error.value.status === 404 || error.value.status === 403)))
 const projectReturnTo = computed(() => safeReturnTo(route.query.returnTo, '/projects', ['/projects', '/tasks', '/hr', '/settings', '/account', '/search', '/notifications', '/reports']))
-const isBoard = computed(() => route.query.view === 'board')
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
 const isListRoute = computed(() => {
   const rest = normalizedPath.value.replace(/^\/projects\/[^/]+\/tasks/, '')
@@ -48,7 +53,7 @@ const canCreate = computed(() => can('pmo.tasks.create') && project.value?.activ
 // forwarded — the section path already names where the record returns to, and
 // a stale returnTo on the list URL would redirect this page's own controls.
 const liveSearch = ref(typeof route.query.q === 'string' ? route.query.q : '')
-const openingTask = ref(false)
+const openingTask = useListOpening()
 watch(() => route.query.q, value => { liveSearch.value = typeof value === 'string' ? value : '' })
 const filterQuery = computed<LocationQueryRaw>(() => {
   const { returnTo: _referrer, ...listState } = route.query
@@ -79,18 +84,35 @@ async function openTask(path: string) {
 function openLiveLink(event: MouseEvent) {
   if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
   const anchor = (event.target as Element).closest<HTMLAnchorElement>('a[href]')
-  if (!anchor) return
+  // The timeline's links carry their own return target and `#schedule`: they open as they are.
+  if (!anchor || isTimeline.value) return
   const target = new URL(anchor.href)
   if (!new RegExp(`^/projects/${projectId.value}/tasks/(new|[1-9]\\d*)$`).test(target.pathname)) return
   event.preventDefault()
   void openTask(target.pathname)
 }
 
-// Table is the first option, so it is the bare URL; the switch writes ?view=board for the board.
+// Table is the first option, so it is the bare URL; the switch writes ?view=board or ?view=timeline. The timeline is the
+// project's schedule, offered while its planning tool is on (until the project has loaded it is assumed on).
+const timelineAvailable = computed(() => !project.value || projectSectionAvailable('planning', project.value.tools))
 const views = computed(() => [
   { value: 'table', label: t('projects.tabs.list'), icon: 'i-lucide-list', testId: 'project-tasks-view-table' },
   { value: 'board', label: t('projects.tabs.board'), icon: 'i-lucide-layout-grid', testId: 'project-tasks-view-board' },
+  ...(timelineAvailable.value ? [{ value: 'timeline', label: t('projects.tabs.gantt'), icon: 'i-lucide-chart-gantt', testId: 'project-tasks-view-timeline' }] : []),
 ])
+const scope = computed(() => projectTaskScope(route.query))
+const isArchived = computed(() => scope.value === 'archived')
+const isBoard = computed(() => !isArchived.value && route.query.view === 'board')
+const isTimeline = computed(() => !isArchived.value && timelineAvailable.value && route.query.view === 'timeline')
+const archivedParams = computed(() => ({ project_id: projectId.value ?? undefined, mine: false, q: params.value.q }))
+const { schedule, baseline, scale, scales, rangeLabel, gantt } = useProjectTimeline(projectId, project, isTimeline)
+
+function setScale(value: string) {
+  scale.value = value as ScheduleScale
+}
+function onScope(next: TaskScope) {
+  void router.replace({ query: { ...route.query, ...projectTaskScopeQuery(next) } })
+}
 const createTo = computed(() => ({ path: `/projects/${projectId.value}/tasks/new`, query: filterQuery.value }))
 
 function openCreate() {
@@ -126,13 +148,20 @@ function columnCreateTo(column: { state?: TaskState; stageId?: number }) {
       kpi-toggle
     >
       <section class="min-w-0 space-y-4" :aria-label="t('projects.tabs.tasks')">
-        <div class="flex justify-end">
-          <NuxtLink :to="{ path: '/tasks', query: { scope: 'archived', project_id: projectId, returnTo: route.fullPath } }" class="text-sm text-muted hover:underline">{{ t('taskLifecycle.archivedTasks') }}</NuxtLink>
-        </div>
-        <TaskKpiStrip v-if="kpisShown" :params="params" />
+        <TaskKpiStrip v-if="kpisShown && !isArchived" :params="params" />
         <SharedListCard :fill="isBoard">
-          <template #filters><TaskToolbar :model-value="params" embedded hide-project-filter @update:model-value="onParams" @search="liveSearch = $event" /></template>
-          <TaskTable v-if="!isBoard" :params="params" variant="project" :can-create="canCreate" :row-to="task => taskTo(task.id)" @create="openCreate" @update:sort="sort => onParams({ ...params, sort })" />
+          <template #filters>
+            <TaskToolbar :model-value="params" variant="project" :scope="scope" hide-project-filter @update:model-value="onParams" @update:scope="onScope" @search="liveSearch = $event">
+              <template #timeline>
+                <SharedTimelineControls :range-label="rangeLabel" :scale="scale" :scales="scales" @prev="gantt?.scrollPage(-1)" @next="gantt?.scrollPage(1)" @today="gantt?.scrollToToday()" @update:scale="setScale" />
+              </template>
+            </TaskToolbar>
+          </template>
+          <TaskArchivedTable v-if="isArchived" :params="archivedParams" hide-project />
+          <SharedPageState v-else-if="isTimeline" :loading="schedule.isLoading.value && !schedule.data.value" :error="schedule.error.value" :empty="!schedule.isLoading.value && !schedule.data.value && !schedule.error.value" :empty-text="t('projects.schedule.empty')" @retry="schedule.refetch()">
+            <ScheduleGantt v-if="schedule.data.value" ref="gantt" :schedule="schedule.data.value" :scale="scale" :baseline="baseline" :project-start="project?.date_start" :project-end="project?.date_end" />
+          </SharedPageState>
+          <TaskTable v-else-if="!isBoard" :params="params" variant="project" :can-create="canCreate" :row-to="task => taskTo(task.id)" @create="openCreate" @update:sort="sort => onParams({ ...params, sort })" />
           <TaskBoard v-else :params="boardParams" :stage-source="stageSource" :card-to="(id: number) => ({ path: `/projects/${projectId}/tasks/${id}`, query: filterQuery })" :create-to="canCreate ? columnCreateTo : undefined" @open="(id: number) => openTask(`/projects/${projectId}/tasks/${id}`)" />
         </SharedListCard>
       </section>

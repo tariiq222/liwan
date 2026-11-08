@@ -13,7 +13,7 @@ const manifest: AppManifest = {
 }
 const assistant: AppManifest = {
   id: 'ai', feature: 'ai.enabled', routePrefixes: ['/ai'],
-  rail: [{ id: 'ai', labelKey: 'nav.ai', icon: 'i-lucide-sparkles', to: '/ai', order: 2, fixed: 'top' }],
+  rail: [{ id: 'ai', labelKey: 'nav.ai', icon: 'i-lucide-sparkles', to: '/ai', order: 2, core: 1 }],
   nav: [{ to: '/ai', labelKey: 'nav.ai', icon: 'i-lucide-sparkles', shortcut: '', capability: 'ai.use' }],
 }
 const me = (caps: string[]) => ({ capabilities: caps, platform: { readable_features: ['work.enabled', 'ai.enabled'], writable_features: ['work.enabled', 'ai.enabled'] } })
@@ -30,7 +30,7 @@ describe('practical launcher', () => {
     expect(entries(['work.items.read'])[0]?.actions).toEqual([])
     expect(entries([])).toEqual([])
   })
-  it('never makes the top fixed module (the assistant) a launcher entry, even for a user who may use it', () => {
+  it('never makes the assistant a launcher entry, even for a user who may use it', () => {
     expect(entries(['work.items.read', 'ai.use']).map(item => item.id)).toEqual(['work'])
     expect(entries(['ai.use'])).toEqual([])
   })

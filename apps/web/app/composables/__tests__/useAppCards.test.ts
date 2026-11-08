@@ -5,9 +5,9 @@ import { withManifests } from '../../modules/manifests'
 import type { AppCard, AppCardFigure, AppManifest } from '../../modules/types'
 import { appCardModels, filterAppCards, presentCategories, useAppFigures } from '../useAppCards'
 
-const app = (id: string, order: number, appCard?: AppCard, fixed?: 'top'): AppManifest => ({
+const app = (id: string, order: number, appCard?: AppCard, core?: number): AppManifest => ({
   id, feature: `${id}.enabled`, routePrefixes: [`/${id}`],
-  rail: [{ id, labelKey: `nav.${id}`, icon: 'i-lucide-circle', to: `/${id}`, order, ...(fixed ? { fixed } : {}) }],
+  rail: [{ id, labelKey: `nav.${id}`, icon: 'i-lucide-circle', to: `/${id}`, order, ...(core ? { core } : {}) }],
   nav: [{ to: `/${id}`, labelKey: `nav.${id}`, icon: 'i-lucide-circle', shortcut: '', capability: `${id}.read` }],
   ...(appCard ? { appCard } : {}),
 })
@@ -15,7 +15,7 @@ const figure = (name: string, load: AppCardFigure['load'], capability?: string):
 const manifests = [
   app('tasks', 10, { category: 'team', plan: 'included', surface: 'lav', figures: [figure('a', async () => 1), figure('b', async () => 2), figure('c', async () => 3)] }),
   app('crm', 20, { category: 'sales', plan: 'addon', surface: 'navy' }),
-  app('ai', 30, { category: 'team', plan: 'included' }, 'top'),
+  app('ai', 30, { category: 'team', plan: 'included' }, 1),
   app('legacy', 40),
 ]
 const identity = (grants: string[]) => {
@@ -46,6 +46,14 @@ describe('appCardModels', () => {
       expect(tasks).toMatchObject({ category: 'team', plan: 'included', surface: 'lav', pinnable: true })
       expect(tasks!.figures.map(item => item.labelKey)).toEqual(['figure.a', 'figure.b'])
       expect(crm).toMatchObject({ category: 'sales', plan: 'addon', surface: 'navy', figures: [] })
+    })
+  })
+
+  it('takes no pin for a core application, which the sidebar icon row always shows', () => {
+    withManifests(manifests, () => {
+      const cards = appCardModels(identity(all), { assistant: true })
+      expect(cards.find(card => card.id === 'ai')!.pinnable).toBe(false)
+      expect(cards.filter(card => card.id !== 'ai').every(card => card.pinnable)).toBe(true)
     })
   })
 

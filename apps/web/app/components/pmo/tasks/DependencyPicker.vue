@@ -5,6 +5,7 @@ import { badgeLabel } from '@liwan/ui/app/utils/statusBadge'
 import type { TaskDetail } from '@liwan/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useTaskDependencies, useTaskDependencyCandidates, useUpdateTaskDependencies } from '@/composables/useTaskDependencies'
+import RecordBlock from '../records/RecordBlock.vue'
 
 const props = defineProps<{ task: TaskDetail }>()
 const { t } = useI18n()
@@ -35,11 +36,9 @@ function remove(id: number) {
 </script>
 
 <template>
-  <section v-if="task.planning_enabled" class="space-y-3" data-testid="dependency-picker">
-    <header class="flex flex-wrap items-center justify-between gap-3">
-      <h2 class="text-lg font-semibold text-highlighted">{{ t('taskLifecycle.dependencies') }} <span class="text-xs font-normal text-muted">{{ dependencies.length }}</span></h2>
+  <RecordBlock v-if="task.planning_enabled" data-testid="dependency-picker" :title="t('taskLifecycle.dependencies')" :count="dependencies.length">
+    <template v-if="task.can_manage_dependencies" #actions>
       <USelectMenu
-        v-if="task.can_manage_dependencies"
         v-model:search-term="q"
         :model-value="[...selected]"
         :items="availableItems"
@@ -59,28 +58,26 @@ function remove(id: number) {
           <UButton v-if="hasNextPage" color="neutral" variant="outline" block :loading="isFetchingNextPage" :disabled="isFetchingNextPage" :label="t('taskLifecycle.loadMore')" @click="fetchNextPage()" />
         </template>
       </USelectMenu>
-    </header>
+    </template>
 
-    <div class="space-y-3">
-      <ul v-if="dependencies.length" class="grid gap-1">
-        <li v-for="dep in dependencies" :key="dep.id" class="flex min-w-0 items-center gap-2 rounded-lg border border-transparent p-0.5 transition-colors hover:border-default hover:bg-elevated focus-within:border-primary">
-          <SharedStatusBadge v-bind="stateBadge(dep.state)" />
-          <span class="min-w-0 flex-1 truncate text-sm font-medium">{{ dep.name }}</span>
-          <UButton
-            v-if="task.can_manage_dependencies"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            square
-            type="button"
-            icon="i-lucide-x"
-            :aria-label="t('taskLifecycle.removeDependency')"
-            :disabled="!hydrated || isPending"
-            @click="remove(dep.id)"
-          />
-        </li>
-      </ul>
-      <p v-else class="py-2 text-sm text-muted">{{ t('tasks.detail.noDependencies') }}</p>
-    </div>
-  </section>
+    <ul v-if="dependencies.length" class="grid gap-1">
+      <li v-for="dep in dependencies" :key="dep.id" class="flex min-w-0 items-center gap-2 rounded-lg border border-transparent p-0.5 transition-colors hover:border-default hover:bg-elevated focus-within:border-primary">
+        <SharedStatusBadge v-bind="stateBadge(dep.state)" />
+        <span class="min-w-0 flex-1 truncate text-sm font-medium">{{ dep.name }}</span>
+        <UButton
+          v-if="task.can_manage_dependencies"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          square
+          type="button"
+          icon="i-lucide-x"
+          :aria-label="t('taskLifecycle.removeDependency')"
+          :disabled="!hydrated || isPending"
+          @click="remove(dep.id)"
+        />
+      </li>
+    </ul>
+    <p v-else class="text-sm text-muted">{{ t('tasks.detail.noDependencies') }}</p>
+  </RecordBlock>
 </template>

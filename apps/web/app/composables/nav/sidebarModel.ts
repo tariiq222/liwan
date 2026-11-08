@@ -1,5 +1,5 @@
 // Relative imports: this module is unit-tested directly under plain vitest.
-import type { ShellRailGroups, ShellRailItem } from '@liwan/ui/app/types/shell'
+import type { ShellRailItem } from '@liwan/ui/app/types/shell'
 import { hidePinnedNewProject, LAUNCHER_MODULE, type ShellContextLink, type ShellModuleDefinition } from './shellModules'
 
 /** A run of context links under one optional section heading (a locale key). */
@@ -10,29 +10,27 @@ const HOME_MODULE_ID = 'home'
 const toRailItem = (module: ShellModuleDefinition): ShellRailItem =>
   ({ id: module.id, labelKey: module.labelKey, shortLabelKey: module.shortLabelKey, icon: module.icon, to: module.to })
 
-/** `first` and `last` are the fixed base-system entries around the pinnable `applications`. */
-export interface ShellRailModel extends ShellRailGroups {
-  first: ShellRailItem[]
-  last: ShellRailItem[]
+/** `core` is «يومي» and the free base-system applications (the icon row under the organisation); `applications` are the pinnable ones. */
+export interface ShellRailModel {
+  core: ShellRailItem[]
+  applications: ShellRailItem[]
+  utility: ShellRailItem[]
   all: ShellRailItem[]
 }
 
 /**
- * Rail order (owner decision 2026-11-06): the assistant and «يومي» fixed at the top, then the `first` fixed entries
- * (meetings), the pinnable applications in manifest order, the `last` fixed entries (documents), then settings.
- * The sidebar and the phone drawer list these destinations: the pinned ones in global mode, the open one in app mode.
+ * Rail order (owner decision 2026-11-08): «يومي» then the free base-system applications by their manifest `core`
+ * position (the icon row under the organisation), the pinnable applications in manifest order, then settings.
+ * The sidebar and the phone drawer list these destinations: the core row always, the pinned ones in global mode,
+ * the open one in app mode.
  */
 export function railModel(modules: readonly ShellModuleDefinition[]): ShellRailModel {
   const home = modules.find(module => module.id === HOME_MODULE_ID)
-  const slot = (fixed: ShellModuleDefinition['fixed']) => modules.filter(module => module.fixed === fixed).map(toRailItem)
   // «يومي» opens the page that holds the day and the applications.
-  const top = [...slot('top'), toRailItem(home ?? LAUNCHER_MODULE)]
-  const first = slot('first')
-  const applications = modules.filter(module => !module.fixed && module.id !== HOME_MODULE_ID && module.id !== SETTINGS_MODULE_ID).map(toRailItem)
-  const last = slot('last')
+  const core = [toRailItem(home ?? LAUNCHER_MODULE), ...modules.filter(module => module.core !== undefined).sort((a, b) => a.core! - b.core!).map(toRailItem)]
+  const applications = modules.filter(module => module.core === undefined && module.id !== HOME_MODULE_ID && module.id !== SETTINGS_MODULE_ID).map(toRailItem)
   const utility = modules.filter(module => module.id === SETTINGS_MODULE_ID).map(toRailItem)
-  const all = [...top, ...first, ...applications, ...last, ...utility]
-  return { top, first, applications, last, utility, all }
+  return { core, applications, utility, all: [...core, ...applications, ...utility] }
 }
 
 /** The create links the sidebar lists first for the open page: the pinned ones, minus «مشروع جديد» where it would repeat the page. */

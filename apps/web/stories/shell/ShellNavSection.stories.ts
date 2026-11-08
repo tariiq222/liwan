@@ -12,7 +12,7 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-const context = storyContext('apps/web/app/components/shell/AppSidebar.vue:78')
+const context = storyContext('apps/web/app/components/shell/AppSidebar.vue:65')
 
 export const Applications: Story = { name: 'تطبيقات بشارة العدد', parameters: context, args: { action: { label: 'تعديل', to: '/apps' } } }
 export const Branches: Story = { name: 'فرع مفتوح فيه الصفحة الحالية', parameters: context, args: { label: 'المشاريع', title: 'المشاريع', items: appLinkRows.map(row => row.id === 'planning' ? { ...row, children: row.children!.map(child => child.id === 'planning-mine' ? { ...child, active: true } : child) } : { ...row, active: false }) } }

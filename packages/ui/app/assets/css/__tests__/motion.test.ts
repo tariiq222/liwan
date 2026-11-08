@@ -72,18 +72,16 @@ describe('motion recipes', () => {
     expect(shell).toMatch(/\.liwan-slideover-leave-active \{ transition: opacity var\(--liwan-motion-exit\)/)
   })
 
-  it('swaps the sidebar body in the reading direction and folds the organisation card', () => {
+  it('swaps the sidebar body in the reading direction', () => {
     const shell = strip(read('shell.css'))
     expect(shell).toContain('.liwan-side-swap-enter-from { opacity: 0; translate: calc(var(--liwan-motion-inline-distance) * var(--liwan-inline-sign)) 0; }')
     expect(shell).toContain('.liwan-side-swap[data-mode="global"].liwan-side-swap-enter-from')
-    expect(shell).toContain('.liwan-side-orgslot-leave-to')
   })
 
   it('switches off every keyframe animation of the shell and the shared entrance under reduced motion', () => {
     const shell = strip(read('shell.css'))
     const reduced = shell.match(/@media \(prefers-reduced-motion: reduce\) \{\s*([^{]+)\{([^}]*)\}/)!
     expect(reduced[1]).toContain('.liwan-shell *')
-    expect(reduced[1]).toContain('.liwan-app-switcher')
     expect(reduced[1]).toContain('.liwan-mobile-menu-overlay')
     expect(reduced[2]).toMatch(/animation: none !important;\s*transition: none !important;/)
   })

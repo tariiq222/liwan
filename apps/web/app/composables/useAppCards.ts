@@ -3,7 +3,7 @@ import { CancelledError, useQueries, useQueryClient } from '@tanstack/vue-query'
 import { activeManifests } from '../modules/manifests'
 import type { AppCard, AppCardFigure, AppCardSurface, AppIcon } from '../modules/types'
 import type { AccessIdentity } from '../utils/accessPolicy'
-import { reachableApplications } from './nav/launcherModel'
+import { ASSISTANT_MODULE_ID, reachableApplications } from './nav/launcherModel'
 import { visibleShellModules } from './nav/shellModules'
 
 export type AppCardCategory = AppCard['category']
@@ -22,7 +22,7 @@ export interface AppCardModel {
   labelKey: string
   icon: AppIcon
   to: string
-  /** Fixed rail entries (the assistant, meetings, documents) are always in the sidebar, so they take no pin. */
+  /** The core applications (the assistant, tasks, meetings, conversations, documents) are always in the sidebar's icon row, so they take no pin. */
   pinnable: boolean
   category: AppCardCategory
   plan: AppCard['plan']
@@ -41,11 +41,11 @@ export function appCardModels(identity: AccessIdentity, options: { assistant: bo
     .map((module): AppCardModel => {
       const card = activeManifests().find(manifest => manifest.rail.some(entry => entry.id === module.id))?.appCard ?? DEFAULT_CARD
       return {
-        id: module.id, labelKey: module.labelKey, icon: module.icon, to: module.to, pinnable: !module.fixed,
+        id: module.id, labelKey: module.labelKey, icon: module.icon, to: module.to, pinnable: module.core === undefined,
         category: card.category, plan: card.plan, surface: card.surface ?? 'lav', figures: (card.figures ?? []).slice(0, MAX_FIGURES),
       }
     })
-    .sort((a, b) => Number(b.id === 'ai') - Number(a.id === 'ai'))
+    .sort((a, b) => Number(b.id === ASSISTANT_MODULE_ID) - Number(a.id === ASSISTANT_MODULE_ID))
 }
 
 /** The cards a filter chip keeps; «الكل» keeps them all. */

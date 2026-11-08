@@ -24,7 +24,10 @@ describe('the project frame uses one tab helper', () => {
     expect(frame).not.toContain('<UButton v-if="project && me?.capabilities.includes(\'meetings.read\')"')
     // The sub-strips follow the header's divider; meetings is a tab of the main strip, never a lone link.
     expect(frame.indexOf('level="governance"')).toBeGreaterThan(frame.indexOf('</header>'))
-    expect(tabs).toContain('project-tab-meetings')
+    // Five tabs in one strip, meetings among them: the tab list comes from projectSections, nothing is appended by hand.
+    expect(tabs).toContain('project-tab-${section.id}')
+    expect(tabs).not.toContain('project-tab-meetings')
+    expect(tabs).not.toContain('hasCapability')
     expect(frame).not.toContain('-my-2')
   })
 

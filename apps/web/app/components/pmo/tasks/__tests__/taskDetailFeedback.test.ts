@@ -7,10 +7,10 @@ const read = (file: string) => readFileSync(resolve(tasks, file), 'utf8')
 const locale = (lang: string, file: string, path: string) => path.split('.').reduce<unknown>((value, key) => (value as Record<string, unknown> | undefined)?.[key], JSON.parse(readFileSync(resolve(import.meta.dirname, `../../../../../i18n/locales/${lang}/${file}.json`), 'utf8')))
 
 describe('the task record answers every change', () => {
-  it('draws the header deadline as the lists do (DESIGN.md tones, no tag without a deadline)', () => {
+  it('keeps the deadline countdown out of the header: the deadline is a property of the aside', () => {
     const panel = read('TaskDetailPanel.vue')
-    expect(panel).toContain('deadlineTagView(current, t)')
-    expect(panel).not.toContain('deadlineTone')
+    expect(panel).not.toContain('deadlineTagView')
+    expect(read('TaskProperties.vue')).toContain('tasks.drawer.deadline')
   })
 
   it('toasts each completion step, each attachment change and the description save', () => {

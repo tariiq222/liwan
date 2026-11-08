@@ -7,9 +7,10 @@ test.skip(process.env.E2E_SELF_SERVICE !== '1', 'Requires an isolated fixture wi
 // Own-record authorization is covered by the Odoo tests; these pin the real shell/routes.
 test.beforeEach(async ({ page }) => { await login(page) })
 
-test('the account entry opens Self-service and card order survives reload without moving the sidebar', async ({ page }) => {
+test('the user menu opens Self-service and card order survives reload without moving the sidebar', async ({ page }) => {
   await open(page, '/projects')
   await page.getByTestId('account-menu').click()
+  await page.getByRole('menuitem', { name: 'حسابي' }).click()
   await expect(page).toHaveURL(/\/account$/)
   await expect(page.getByRole('heading', { level: 1, name: 'الخدمة الذاتية' })).toBeVisible()
   const cards = page.locator('[data-testid^="personal-card-"]')

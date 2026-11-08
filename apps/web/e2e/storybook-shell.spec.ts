@@ -59,7 +59,7 @@ test.describe('Tasmim shell (desktop)', () => {
     const sidebar = page.getByTestId('application-navigation')
     await expect(sidebar).toHaveAttribute('data-mode', 'global')
     await expect(page.getByTestId('shell-org')).toBeVisible()
-    await expect(page.getByTestId('navigation-app-home')).toHaveAttribute('aria-current', 'page')
+    await expect(page.getByTestId('core-app-home')).toHaveAttribute('aria-current', 'page')
     await expect(page.getByTestId('navigation-app-projects')).toHaveAttribute('href', '/projects')
   })
 
@@ -105,8 +105,8 @@ test.describe('Tasmim shell (desktop)', () => {
     const search = page.getByTestId('global-search-trigger')
     await expect(search).toBeEnabled()
     await expect(search).toHaveAccessibleName('بحث')
-    // The outline buttons are 42px; the personal tools sit 36px inside their tinted group.
-    for (const [id, size] of [['theme-toggle', 42], ['app-switcher', 42], ['notification-bell', 36]] as const) {
+    // Every icon button of the bar is one 40px button.
+    for (const [id, size] of [['notification-bell', 40]] as const) {
       const area = await box(page, id)
       expect(area.width).toBeCloseTo(size, 0)
       expect(area.height).toBeCloseTo(size, 0)

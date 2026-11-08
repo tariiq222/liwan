@@ -3,12 +3,11 @@ import { hasFeature } from '@/modules/registry'
 import { governanceSections } from '@/modules/pmo/governanceSections'
 import { planningSections, projectSections } from '@/modules/pmo/projectSections'
 import { activeGovernanceSection, activePlanningSection, activeProjectSection } from '@/modules/pmo/projectRoutes'
-import { hasCapability } from '@/utils/accessPolicy'
 import { useProject } from '@/composables/useProjects'
 import { projectSectionLocation } from '@/utils/projectWorkspaceMemory'
 
-// The project workspace's tab strips (Tasmim spec §6 merge). `sections` is the main strip; `governance` is the
-// sub-strip on the canvas under the frame band on every governance page, as a pill strip. Both are route tabs and keep their own test ids.
+// The project workspace's tab strips (Tasmim spec §6 merge). `sections` is the main strip; `governance`, `planning` (milestones and
+// baselines) and `finance` are the sub-strips under the header's divider, as pill strips. All are route tabs and keep their own test ids.
 const props = withDefaults(defineProps<{
   projectId: number
   active?: boolean
@@ -24,15 +23,12 @@ const projectQuery = useProject(projectId)
 // Server and first client render must produce the same tab set.
 const projectData = computed(() => hydrated.value ? projectQuery.data.value : undefined)
 const activeProject = computed(() => props.active ?? projectData.value?.active ?? true)
+// Five tabs: summary, tasks, meetings (with `meetings.read`), finance, governance. Updates are part of the summary and the timeline is a view of the tasks.
 const sectionItems = computed(() => {
   const current = activeProjectSection(route.path)
-  const items = projectSections(props.projectId, me.value, { active: activeProject.value, tools: projectData.value?.tools }).map(section => ({
+  return projectSections(props.projectId, me.value, { active: activeProject.value, tools: projectData.value?.tools }).map(section => ({
     key: `project-tab-${section.id}`, label: t(section.labelKey), to: projectSectionLocation(section.to, route.path, route.query), active: current === section.id, icon: section.icon,
   }))
-  // Meetings is the last tab of the same strip (it needs the meetings capability, not a project tool).
-  return hasCapability(me.value, 'meetings.read')
-    ? [...items, { key: 'project-tab-meetings', label: t('projects.tabs.meetings'), to: projectSectionLocation(`/projects/${props.projectId}/meetings`, route.path, route.query), active: current === 'meetings', icon: 'i-lucide-calendar-days' }]
-    : items
 })
 const governanceItems = computed(() => {
   const current = activeGovernanceSection(route.path)
@@ -40,8 +36,9 @@ const governanceItems = computed(() => {
     key: `governance-tab-${section.id}`, label: t(section.labelKey), to: projectSectionLocation(section.to, route.path, route.query), active: current === section.id, icon: section.icon,
   }))
 })
-const planningItems = computed(() => planningSections(props.projectId, { active: activeProject.value, baselines: hasFeature(me.value, 'pmo.baselines') }).map(section => ({
-  key: `planning-tab-${section.id}`, label: t(section.labelKey), to: projectSectionLocation(section.to, route.path, route.query), active: activePlanningSection(route.path) === section.id, icon: section.icon,
+// The timeline is a view of the tasks, so its link opens the task list on that view; the other two keep their own pages.
+const planningItems = computed(() => planningSections(props.projectId, { active: activeProject.value, baselines: hasFeature(me.value, 'pmo.baselines') }).map(({ to, query, ...section }) => ({
+  key: `planning-tab-${section.id}`, label: t(section.labelKey), to: query ? { path: to, query } : projectSectionLocation(to, route.path, route.query), active: activePlanningSection(route.path) === section.id, icon: section.icon,
 })))
 
 const financeItems = computed(() => [{key:'finance-tab-overview',label:t('nav.projectFinance'),to:`/projects/${props.projectId}/finance`,active:route.path === `/projects/${props.projectId}/finance`}, ...(projectData.value?.tools.planning.enabled && hasFeature(me.value,'pmo.evm') ? [{key:'finance-tab-evm',label:t('nav.projectEvm'),to:`/projects/${props.projectId}/evm`,active:route.path.includes('/evm')}] : [])])

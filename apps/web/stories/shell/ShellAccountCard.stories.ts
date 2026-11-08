@@ -5,7 +5,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shell/ShellAccountCard',
   component: ShellAccountCard,
-  parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:92'),
+  parameters: storyContext('unused'),
   args: { name: 'سارة العتيبي', initial: 'س', caption: 'مديرة المبيعات', to: '/account', connected: true, label: 'الخدمة الذاتية: سارة العتيبي', connectedLabel: 'متصل', disconnectedLabel: 'غير متصل' },
   render: args => ({ components: { ShellAccountCard }, setup: () => ({ args }), template: '<div class="liwan-shell" style="width: 264px; padding: 14px"><ShellAccountCard v-bind="args" /></div>' }),
 } satisfies Meta<typeof ShellAccountCard>

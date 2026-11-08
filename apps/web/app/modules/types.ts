@@ -81,11 +81,10 @@ export interface AppSettingsPage {
 }
 /**
  * `shortLabelKey` names the entry under its rail icon when the full label (still the tooltip) needs two lines.
- * `fixed` keeps a base-system entry in the rail whatever the user pins: `top` beside «يومي» at the head of the rail
- * (the assistant), `first` before the pinned applications, `last` after them, above settings.
+ * `core` marks a free base-system application: the icon row under the organisation always lists it (ascending, after
+ * «يومي»), whatever the user pins, and it takes no pin of its own.
  */
-export type AppRailSlot = 'top' | 'first' | 'last'
-export interface AppRailEntry { id: string; labelKey: string; shortLabelKey?: string; icon: AppIcon; to: string; order: number; fixed?: AppRailSlot }
+export interface AppRailEntry { id: string; labelKey: string; shortLabelKey?: string; icon: AppIcon; to: string; order: number; core?: number }
 /** The fetcher a search provider receives: `useApi().$api`, so requests keep its cookies, errors and zod parsing. */
 export type AppSearchApi = <T>(
   url: string,

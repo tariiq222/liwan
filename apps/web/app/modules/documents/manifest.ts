@@ -3,7 +3,7 @@ import type { AppManifest } from '../types'
 const manifest: AppManifest = {
   id: 'documents', feature: 'documents.enabled', routePrefixes: ['/documents', '/account/documents'],
   appCard: { category: 'team', plan: 'included', surface: 'lav' },
-  rail: [{ id: 'documents', labelKey: 'documents.title', icon: 'i-lucide-files', to: '/documents', order: 70, fixed: 'last' }],
+  rail: [{ id: 'documents', labelKey: 'documents.title', icon: 'i-lucide-files', to: '/documents', order: 70, core: 5 }],
   nav: [{ to: '/documents', labelKey: 'documents.title', icon: 'i-lucide-files', shortcut: '6', capability: 'documents.items.read' }],
   contextLinks: () => [
     { id: 'new-document', labelKey: 'documents.new', icon: 'i-lucide-plus', to: '/documents/new', capability: 'documents.items.manage', pinned: true },

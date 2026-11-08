@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import BrandWordmark from '../shared/layout/BrandWordmark.vue'
 
-// The one sidebar: the brand mark, then whatever the app puts in `org` and the default slot (global mode: the
-// organisation, the day, the pinned applications; app mode: the open application and its links), and `footer`
-// (settings and the account). `surface="drawer"` is the same content flat inside the phone drawer.
+// The one sidebar: the brand mark, then `org` (the organisation) and `core` (the icon row of the core applications),
+// both kept in either mode, then the default slot (global mode: the pinned applications; app mode: the open
+// application and its links), and `footer` (settings and the account). `surface="drawer"` is the same content flat
+// inside the phone drawer.
 // Presentational: labels and rows come in as props and slots.
 const props = withDefaults(defineProps<{
   /** Accessible name of the landmark. */
@@ -21,7 +22,7 @@ const props = withDefaults(defineProps<{
   /** Prefix of the test id, so the drawer copy and the column never share one. */
   testIdPrefix?: string
 }>(), { surface: 'sidebar', mode: 'global', testIdPrefix: '' })
-defineSlots<{ org?: () => unknown; default?: () => unknown; footer?: () => unknown }>()
+defineSlots<{ org?: () => unknown; core?: () => unknown; default?: () => unknown; footer?: () => unknown }>()
 </script>
 
 <template>
@@ -35,9 +36,8 @@ defineSlots<{ org?: () => unknown; default?: () => unknown; footer?: () => unkno
         </span>
       </NuxtLink>
     </ShellTip>
-    <Transition name="liwan-side-orgslot">
-      <div v-if="$slots.org" class="liwan-side-orgslot"><div><slot name="org" /></div></div>
-    </Transition>
+    <slot name="org" />
+    <slot name="core" />
     <nav class="liwan-side-body" data-fresh-navigation :aria-label="props.label">
       <!-- Keyed on the mode: switching between the day and an application swaps the body, never the sidebar itself. -->
       <Transition name="liwan-side-swap" mode="out-in">

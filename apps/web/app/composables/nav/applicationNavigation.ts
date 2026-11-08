@@ -38,7 +38,7 @@ export function applicationNavigation(input: ApplicationNavigationInput): ShellN
   const personal = input.route.path === '/account' || input.route.path.startsWith('/account/')
   const activeId = personal ? 'account' : input.activeId
   const rail = railModel(visibleShellModules(input.identity))
-  const entries = [...rail.top, ...rail.first, ...rail.applications, ...rail.last,
+  const entries = [...rail.core, ...rail.applications,
     ...(personal ? [{ id: 'account', labelKey: 'nav.account', icon: 'i-lucide-user-round', to: '/account' }] : []),
     ...rail.utility]
 

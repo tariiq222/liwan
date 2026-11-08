@@ -4,7 +4,7 @@ import { canReach, canReachPath, type AccessIdentity } from '../../utils/accessP
 import { appCommands } from '../../modules/surfaces'
 import type { AppCommand, AppSearchRow } from '../../modules/types'
 import { CHORD_START_KEY } from '@liwan/ui/app/composables/shortcuts/keymap'
-import type { NavItem } from './shellModules'
+import type { NavItem, ShellModuleDefinition } from './shellModules'
 
 interface ShortcutHelpEntry { id: string; labelKey: string; kbds: readonly string[] }
 /** The fixed rows of the `?` help view in reading order; a `G` row per visible go key follows (paletteModel.helpItems). */
@@ -92,9 +92,27 @@ export function visibleCommands(identity: AccessIdentity, commands: readonly App
 
 const goKbds = (key: string) => ['G', key.toUpperCase()]
 
-/** Go to: the nav items the user can see, in rail order, with their `G` letter as a decorative hint. */
-export function goToItems(visible: readonly NavItem[], label: (item: NavItem) => string): PaletteItem[] {
-  return visible.map(item => ({
+/** Rail modules that are foundation pages, not applications to open by name. */
+const NON_APP_MODULES: ReadonlySet<string> = new Set(['home', 'settings'])
+
+/** Applications the user may open, in rail order: each opens by its name; the `G` letter of its first page shows as the hint. */
+export function appItems(modules: readonly ShellModuleDefinition[], visible: readonly NavItem[], label: (key: string) => string): PaletteItem[] {
+  return modules.filter(module => !NON_APP_MODULES.has(module.id)).map(module => {
+    const goKey = visible.find(item => item.to === module.to)?.goKey
+    return {
+      id: `app:${module.id}`,
+      label: label(module.labelKey),
+      icon: module.icon,
+      to: module.to,
+      ...(goKey ? { kbds: goKbds(goKey), kbdsHidden: true } : {}),
+    }
+  })
+}
+
+/** Go to: the nav items the user can see, in rail order, with their `G` letter as a decorative hint. Pages the Apps group already opens are left out. */
+export function goToItems(visible: readonly NavItem[], label: (item: NavItem) => string, apps: readonly PaletteItem[] = []): PaletteItem[] {
+  const opened = new Set(apps.map(app => app.to))
+  return visible.filter(item => !opened.has(item.to)).map(item => ({
     id: `goto:${item.to}`,
     label: label(item),
     icon: item.icon,
@@ -125,19 +143,20 @@ export function helpItems(visible: readonly NavItem[], label: (key: string) => s
 }
 
 /**
- * The palette's groups (Tasmim spec §5): Go to; while a term is typed, one Search group per
+ * The palette's groups (Tasmim spec §5): Apps, then Go to; while a term is typed, one Search group per
  * provider (not re-filtered by Fuse: the provider already matched); then Actions. The shortcuts
  * view shows only the help. Empty groups are dropped.
  */
 export function paletteGroups(input: {
   view: 'main' | 'shortcuts'
   term: string
+  apps: PaletteItem[]
   goTo: PaletteItem[]
   search: readonly PaletteSearchSection[]
   actions: PaletteItem[]
   help: PaletteItem[]
   returnTo: string
-  labels: { goTo: string; actions: string; shortcuts: string; loading: string; error: string; loadMore: string }
+  labels: { apps: string; goTo: string; actions: string; shortcuts: string; loading: string; error: string; loadMore: string }
 }): PaletteGroup[] {
   if (input.view === 'shortcuts') return [{ id: 'shortcuts', label: input.labels.shortcuts, items: input.help }]
   const search = input.term.trim() ? input.search.flatMap((section): PaletteGroup[] => {
@@ -163,6 +182,7 @@ export function paletteGroups(input: {
     return items.length ? [{ id: `search-${section.id}`, label: section.label, items, ignoreFilter: true }] : []
   }) : []
   return [
+    { id: 'apps', label: input.labels.apps, items: input.apps },
     { id: 'goto', label: input.labels.goTo, items: input.goTo },
     ...search,
     { id: 'actions', label: input.labels.actions, items: input.actions },

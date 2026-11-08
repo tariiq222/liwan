@@ -21,6 +21,7 @@ function options(query: Record<string, string> = {}, patch: SharedRenderOptions 
       usePageHeader: () => undefined,
       useEscapeBack: () => undefined,
       useFrameOwnsHeading: () => Vue.ref(false),
+      useFrameOwnsActions: () => Vue.ref(false),
     },
     stubs: { UTooltip: TooltipStub },
     ...patch,
@@ -48,6 +49,18 @@ describe('SharedListPage', () => {
     const html = await renderShared('ListPage', { title: 'Tasks' }, { actions: () => h('button', 'Archived') }, options())
     expect(html).not.toContain('data-shortcut-create')
     expect(html).toContain('Archived')
+  })
+
+  it('draws no create button and no KPI toggle when the frame owns the primary action', async () => {
+    const framed = options({}, { globals: { ...options().globals, useFrameOwnsActions: () => Vue.ref(true) } })
+    const props = { title: 'Tasks', hideHeader: true, createTo: '/tasks/new', kpiToggle: true }
+    const html = await renderShared('ListPage', props, {}, framed)
+    expect(html).not.toContain('data-shortcut-create')
+    expect(html).not.toContain('kpi-toggle')
+    expect(html).not.toContain('page-header')
+    // A page with its own header keeps its button even inside a frame that draws actions.
+    const own = await renderShared('ListPage', { title: 'Tasks', createTo: '/tasks/new' }, {}, framed)
+    expect(own).toContain('data-shortcut-create')
   })
 
   it('reads the view from the route query and hands it to the list', async () => {

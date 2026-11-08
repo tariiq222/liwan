@@ -1,7 +1,7 @@
 import type { TaskListParams } from '../useTasks'
 import { describe, expect, it } from 'vitest'
 import { projectTaskParams, projectTaskQuery } from '../projectTaskParams'
-import { taskSearchText, parseAssignee, parsePriorities, taskAttributeFilterCount, taskAttributeFilters, taskAttributeQuery, taskListQuery, withTaskAttributeFilters, withTaskListFilters } from '../taskFilterParams'
+import { taskFilterChipRemoval, taskFilterChips, taskPopoverFilterCount, taskSearchText, parseAssignee, parsePriorities, taskAttributeFilterCount, taskAttributeFilters, taskAttributeQuery, taskListQuery, withTaskAttributeFilters, withTaskListFilters } from '../taskFilterParams'
 import { summaryQuery, taskKeys } from '../useTasks'
 
 describe('task attribute filters', () => {
@@ -86,5 +86,35 @@ describe('withTaskListFilters', () => {
 
   it('removes the keys of an empty list state', () => {
     expect(taskListQuery({ closed: false, state: [] })).toMatchObject({ closed: undefined, state: undefined, project_id: undefined, q: undefined })
+  })
+})
+
+describe('toolbar filter chips', () => {
+  const params = { closed: false, state: ['in_progress' as const, 'waiting' as const], project_id: 4, priority: ['3' as const, '1' as const], assignee: 'me' as const, deadline: 'week' as const, q: 'عقد' }
+
+  it('lists one chip per set filter in toolbar order and never one for the search text', () => {
+    expect(taskFilterChips(params, true).map(chip => chip.id)).toEqual(['state:in_progress', 'state:waiting', 'project', 'priority:3', 'priority:1', 'assignee', 'deadline'])
+    expect(taskFilterChips({}, true)).toEqual([])
+  })
+
+  it('leaves the project out where the list is already one project', () => {
+    expect(taskFilterChips(params, false).some(chip => chip.kind === 'project')).toBe(false)
+    expect(taskPopoverFilterCount(params, false)).toBe(6)
+    expect(taskPopoverFilterCount(params, true)).toBe(7)
+  })
+
+  it('names a person picked from a link as a specific person', () => {
+    expect(taskFilterChips({ assignee: 12 }, true)).toEqual([{ id: 'assignee', kind: 'assignee', value: 'person' }])
+  })
+
+  it('removes exactly the filter a chip stands for', () => {
+    const chips = Object.fromEntries(taskFilterChips(params, true).map(chip => [chip.id, chip]))
+    expect(taskFilterChipRemoval(params, chips['state:waiting']!)).toEqual({ state: ['in_progress'] })
+    expect(taskFilterChipRemoval({ ...params, state: ['waiting'] }, chips['state:waiting']!)).toEqual({ state: undefined })
+    expect(taskFilterChipRemoval(params, chips['priority:3']!)).toEqual({ priority: ['1'] })
+    expect(taskFilterChipRemoval({ ...params, priority: ['1'] }, chips['priority:1']!)).toEqual({ priority: undefined })
+    expect(taskFilterChipRemoval(params, chips.project!)).toEqual({ project_id: undefined })
+    expect(taskFilterChipRemoval(params, chips.assignee!)).toEqual({ assignee: undefined })
+    expect(taskFilterChipRemoval(params, chips.deadline!)).toEqual({ deadline: undefined })
   })
 })

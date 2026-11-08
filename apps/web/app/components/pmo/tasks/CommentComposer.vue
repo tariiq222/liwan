@@ -110,10 +110,8 @@ function onKeydown(e: KeyboardEvent) {
 <template>
   <SharedCommentComposer
     v-model="body"
-    class="mt-4 border-t border-default pt-3.5"
+    class="mt-2"
     :field-id="`task-comment-${props.taskId}`"
-    :label="t('tasks.activity.add')"
-    :help="t('tasks.activity.referenceHint')"
     :placeholder="t('tasks.activity.write')"
     :submit-label="t('tasks.activity.post')"
     :pending="isPending"

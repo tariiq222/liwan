@@ -66,7 +66,7 @@ test('mobile navigation opens one drawer and closes after route navigation', asy
   await toggle.click()
   const mobileNav = page.locator('#mobile-navigation')
   await expect(mobileNav).toBeVisible()
-  await mobileNav.getByTestId('mobile-navigation-app-home').click()
+  await mobileNav.getByTestId('mobile-core-app-home').click()
   await expect(page).toHaveURL(/\/$/)
   await expect(mobileNav).toBeHidden()
 })

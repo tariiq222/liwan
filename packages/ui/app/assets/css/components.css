@@ -93,8 +93,8 @@
   .liwan-app-tile, .liwan-pill, .liwan-status-callout-danger, .liwan-settings-option, .liwan-chat-bubble,
   .liwan-side-brand:focus-visible, .liwan-side-org, .liwan-side-org [data-slot="initial"], .liwan-side-org img, .liwan-side-row,
   .liwan-side-row [data-slot="count"], .liwan-side-account, .liwan-shell-header .liwan-search-trigger,
-  .liwan-shell-header .liwan-search-trigger kbd, .header-account, .liwan-tools, .liwan-tool, .liwan-tool-badge, .liwan-slideover, .liwan-slideover-close,
-  .liwan-panel-row, .liwan-panel-row [data-slot="check"], .liwan-app-grid-item, .liwan-ai-button { corner-shape: squircle; }
+  .liwan-shell-header .liwan-search-trigger kbd, .header-account, .liwan-user, .liwan-tool, .liwan-tool-badge, .liwan-slideover, .liwan-slideover-close,
+  .liwan-panel-row, .liwan-panel-row [data-slot="check"], .liwan-ai-button { corner-shape: squircle; }
 }
 
 /* The list filter row (SharedFilterBar, the mock's `.tools` row): the search input and every select/dropdown trigger keep the

@@ -12,7 +12,8 @@ import ViewSwitch from '../data/ViewSwitch.vue'
  * data-shortcut-create, so `C` presses it; the search inside the caller's SharedFilterBar carries
  * data-shortcut-search, so `/` focuses it. On a ListPage, filters go in its #filters slot, not in
  * the DataTable's own. With `viewsInFilters` the switch is drawn by the embedded SharedFilterBar (card header) instead. `hideHeader` is for a page inside a frame that already owns the heading
- * (the project workspace): no heading is drawn, the create button and the actions still are.
+ * (the project workspace): no heading is drawn, the create button and the actions still are, unless the frame also draws the
+ * page's primary action in its own header (`provideFrameOwnsActions`): then the page draws no button and no KPI toggle.
  */
 const props = defineProps<{
   title: string
@@ -35,6 +36,8 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
+const frameOwnsActions = useFrameOwnsActions()
+const actionsInFrame = computed(() => props.hideHeader === true && frameOwnsActions.value)
 const view = computed(() => (props.views?.length ? currentListView(route.query.view, props.views) : undefined))
 
 function setView(value: string) {
@@ -46,8 +49,8 @@ if (props.viewsInFilters && props.views?.length) provide(LIST_VIEW_KEY, { view, 
 
 <template>
   <PageContainer data-template="list">
-    <PageHeader :title="props.title" :tags="props.tags" :back-to="props.backTo" :back-label="props.backLabel" :hide-title="props.hideHeader" :kpi-toggle="props.kpiToggle">
-      <template v-if="props.createTo || $slots.actions" #actions>
+    <PageHeader :title="props.title" :tags="props.tags" :back-to="props.backTo" :back-label="props.backLabel" :hide-title="props.hideHeader" :kpi-toggle="props.kpiToggle && !actionsInFrame">
+      <template v-if="!actionsInFrame && (props.createTo || $slots.actions)" #actions>
         <UButton
           v-if="props.createTo"
           :to="props.createTo"

@@ -25,6 +25,7 @@ project-phase.spec.ts
 project-ux-journeys.spec.ts
 project-ux-navigation.spec.ts
 project-ux-planning.spec.ts
+project-record.spec.ts
 project-ux-create.spec.ts
 tasmim6-charter.spec.ts
 tasmim6-catalogs.spec.ts
@@ -37,6 +38,7 @@ tasmim6-notification-digest.spec.ts
 tasmim7-pmo-hydration.spec.ts
 my-tasks-journey.spec.ts
 pilot-tasks.spec.ts
+project-tasks-toolbar.spec.ts
 tasmim6-6c-meeting-record.spec.ts
 tasmim6-6c-calendar.spec.ts
 tasmim6-6c-history-lists.spec.ts
@@ -50,6 +52,7 @@ project-smooth-navigation.spec.ts
 project-workspace-continuity.spec.ts
 project-theme.spec.ts
 project-pages.spec.ts
+project-frame.spec.ts
 tasmim6-hr-directory.spec.ts
 tasmim6-hr-forms.spec.ts
 tasmim6-hr-employee-record.spec.ts
@@ -92,6 +95,8 @@ finance-fiscal-settings-mocked.spec.ts
 finance-pr8-screens-mocked.spec.ts
 legacy-finance-navigation.spec.ts
 shell-design.spec.ts
+shell-core-apps.spec.ts
+shell-topbar.spec.ts
 tasmim6-6c-chat-composer.spec.ts
 tasmim6-6c-chat-list-states.spec.ts
 tasmim6-6c-meeting-print.spec.ts

@@ -20,9 +20,10 @@ test.describe('unified application navigation', () => {
     await expect(menu).toHaveAttribute('data-mode', 'app')
     await expect(menu.getByTestId('navigation-app-back')).toHaveAttribute('href', '/apps')
     await expect(menu.getByTestId('navigation-app-block')).toHaveText('الاجتماعات')
-    // The day and pinned applications belong to the global mode.
-    await expect(menu.getByTestId('navigation-app-home')).toHaveCount(0)
-    await expect(menu.getByTestId('shell-org')).toHaveCount(0)
+    // The pinned applications belong to the global mode; the organisation and the core icon row stay in both.
+    await expect(menu.getByTestId('navigation-app-projects')).toHaveCount(0)
+    await expect(menu.getByTestId('shell-org')).toBeVisible()
+    await expect(menu.getByTestId('core-app-meetings')).toHaveAttribute('aria-current', 'page')
     await expect(menu.getByRole('link', { name: 'عرض الكل', exact: true })).toBeVisible()
     const initial = page.url()
     await menu.getByTestId('context-link-meetings').click()
@@ -94,19 +95,22 @@ test.describe('sidebar modes and widths', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
   test.beforeEach(async ({ page }) => { await login(page) })
 
-  test('the day page shows the global mode: organisation, the day, pinned applications and all applications', async ({ page }) => {
+  test('the day page shows the global mode: organisation, the core icons, pinned applications and all applications', async ({ page }) => {
     await open(page, '/')
     const menu = page.getByTestId('application-navigation')
     await expect(menu).toHaveAttribute('data-mode', 'global')
     await expect(menu.getByTestId('shell-org')).toBeVisible()
-    await expect(menu.getByTestId('navigation-app-home')).toHaveAttribute('data-active', 'true')
+    await expect(menu.getByTestId('core-app-home')).toHaveAttribute('aria-current', 'page')
+    await expect(menu.getByTestId('navigation-app-home')).toHaveCount(0)
+    await expect(menu.getByTestId('navigation-app-tasks')).toHaveCount(0)
     await expect(menu.getByTestId('navigation-app-projects')).toHaveAttribute('href', '/projects')
     await expect(menu.getByTestId('side-section-action')).toHaveAttribute('href', '/apps')
     await expect(menu.getByTestId('navigation-app-apps')).toHaveAttribute('href', '/apps')
     await expect(menu.getByTestId('navigation-app-block')).toHaveCount(0)
-    // The settings row and the account card close the sidebar in both modes.
+    // «كل التطبيقات» and the settings close the sidebar in both modes; the account is in the top bar.
     await expect(menu.getByTestId('navigation-app-settings')).toBeVisible()
-    await expect(menu.getByTestId('account-menu')).toBeVisible()
+    await expect(menu.getByTestId('navigation-app-apps')).toHaveCount(1)
+    await expect(menu.getByTestId('account-menu')).toHaveCount(0)
     await menu.getByTestId('navigation-app-projects').click()
     await expect(page).toHaveURL(/\/projects/)
     await expect(menu).toHaveAttribute('data-mode', 'app')
@@ -148,7 +152,7 @@ test.describe('sidebar modes and widths', () => {
     await expect(menu.getByTestId('navigation-app-projects')).not.toHaveAttribute('aria-describedby', /.+/)
     await page.mouse.move(600, 500)
     await expect(page.locator('[role="tooltip"]')).toHaveCount(0)
-    await menu.getByTestId('navigation-app-home').focus()
+    await menu.getByTestId('core-app-home').focus()
     await page.keyboard.press('Tab')
     await expect(page.locator('[role="tooltip"]')).toHaveCount(1)
     await page.keyboard.press('Escape')
@@ -179,8 +183,9 @@ test.describe('top bar tools and slide-over panels', () => {
     const bar = page.getByTestId('shell-header')
     expect((await bar.boundingBox())!.height).toBeCloseTo(68, 0)
     await expect(bar.getByTestId('global-search-trigger')).toBeVisible()
-    await expect(bar.getByTestId('app-switcher')).toBeVisible()
-    await expect(bar.getByTestId('theme-toggle')).toBeVisible()
+    await expect(bar.getByTestId('app-switcher')).toHaveCount(0)
+    await expect(bar.getByTestId('theme-toggle')).toHaveCount(0)
+    await expect(bar.getByTestId('account-menu')).toBeVisible()
     await expect(bar.getByTestId('notification-bell')).toBeVisible()
     await expect(bar.getByTestId('assistant-button')).toBeVisible()
     await expect(bar.locator('h1')).toHaveCount(0)
@@ -248,30 +253,5 @@ test.describe('top bar tools and slide-over panels', () => {
     await expect(button).toBeFocused()
     // Mounted after the first open, only hidden.
     await expect(panel).toHaveCount(1)
-  })
-
-  test('the app switcher lists the reachable applications and opens one', async ({ page }) => {
-    await page.getByTestId('app-switcher').click()
-    const grid = page.getByTestId('app-switcher-grid')
-    await expect(grid).toBeVisible()
-    expect(await grid.locator('a').count()).toBeGreaterThan(3)
-    await expect(grid.getByTestId('app-switcher-projects')).toHaveAttribute('href', '/projects')
-    await expect(grid.getByTestId('app-switcher-settings')).toHaveCount(0)
-    await grid.getByTestId('app-switcher-meetings').click()
-    await expect(page).toHaveURL(/\/meetings/)
-    await expect(grid).toBeHidden()
-  })
-
-  test('the theme button flips light and dark', async ({ page }) => {
-    const html = page.locator('html')
-    const toggle = page.getByTestId('theme-toggle')
-    const dark = (await html.getAttribute('class'))?.includes('dark') ?? false
-    try {
-      await toggle.click()
-      if (dark) await expect(html).not.toHaveClass(/dark/)
-      else await expect(html).toHaveClass(/dark/)
-    } finally {
-      await page.request.patch('/api/v1/me/appearance', { data: { mode: 'light', font_size: 'small' } })
-    }
   })
 })

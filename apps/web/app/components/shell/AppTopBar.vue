@@ -1,22 +1,23 @@
 <script setup lang="ts">
 import AssistantButton from '@/components/shell/AssistantButton.vue'
 import GlobalSearch from '@/components/shell/GlobalSearch.vue'
-import AppAppSwitcher from '@/components/shell/AppAppSwitcher.vue'
-import ThemeToggle from '@/components/shell/ThemeToggle.vue'
+import AppUserMenu from '@/components/shell/AppUserMenu.vue'
 import NotificationCenter from '@/components/notifications/NotificationCenter.vue'
 import { goKeyTargets } from '@/composables/nav/paletteModel'
 import { useNav, type ShellContextLink } from '@/composables/nav/shellModules'
 import { pinnedCreateLinks } from '@/composables/nav/sidebarModel'
 import { toolBadge } from '@/composables/nav/quickPanelModel'
 import { clickPageCreate, createShortcutTarget, focusListSearch } from '@/composables/shortcuts/targets'
+import { useAssistantSheet } from '@/composables/useAssistantSheet'
 import { useQuickPanels } from '@/composables/useQuickPanels'
 import { useShellModel } from '@/composables/useShellModel'
 import { slideOverId, useSlideOver } from '@/composables/useSlideOver'
 import { useShellShortcuts } from '@/composables/useShellShortcuts'
 
-// The flat 68px top bar: the ⌘K command palette, the personal tools (notifications, then the tools applications
-// declare: chat, tasks, meetings), the assistant, the app switcher and the theme. It also hosts the shell's one keyboard
-// listener (useShellShortcuts). On a phone the bar shows the product mark instead of the search field.
+// The flat 68px top bar, start to end: the ⌘K command palette (which also opens any application), the assistant, a
+// divider, the work tools the applications declare (meetings, tasks, chats), a divider, the notifications, and the user
+// menu at the far end. It also hosts the shell's one keyboard listener (useShellShortcuts). On a phone the bar shows
+// the product mark beside the search icon.
 const { t } = useI18n()
 const route = useRoute()
 const { can } = useAccess()
@@ -24,6 +25,10 @@ const { me } = useMe()
 const shell = useShellModel()
 const slideOver = useSlideOver()
 const { tools } = useQuickPanels()
+const assistant = useAssistantSheet()
+// A divider only stands between two groups that both show: the assistant, the work tools, the notifications.
+const toolsDivider = computed(() => assistant.showButton.value && tools.value.length > 0)
+const bellDivider = computed(() => (assistant.showButton.value || tools.value.length > 0) && can('liwan.notifications'))
 useShellShortcuts({
   'focus-search': () => focusListSearch(document),
   create: () => {
@@ -53,10 +58,9 @@ useShellShortcuts({
     </template>
     <template #search><GlobalSearch /></template>
     <template #end>
-      <AppAppSwitcher />
-      <ThemeToggle />
-      <div class="liwan-tools" role="group" :aria-label="t('nav.tools')">
-        <NotificationCenter v-if="can('liwan.notifications')" />
+      <AssistantButton />
+      <span v-if="toolsDivider" class="liwan-shell-divider" aria-hidden="true" />
+      <div v-if="tools.length" class="liwan-tools" role="group" :aria-label="t('nav.tools')">
         <ShellToolButton
           v-for="tool in tools"
           :key="tool.panel.id"
@@ -71,7 +75,9 @@ useShellShortcuts({
           @click="slideOver.toggle(tool.panel.id, $event.currentTarget as HTMLElement)"
         />
       </div>
-      <AssistantButton />
+      <span v-if="bellDivider" class="liwan-shell-divider" aria-hidden="true" />
+      <NotificationCenter v-if="can('liwan.notifications')" />
+      <AppUserMenu />
     </template>
   </ShellTopBar>
 </template>

@@ -227,7 +227,6 @@
       "gantt": "Gantt",
       "milestones": "Milestones",
       "meetings": "Meetings",
-      "updates": "Updates",
       "timeline": "Timeline"
     },
     "meetings": {
@@ -237,7 +236,6 @@
       "changed": "The milestone changed while you were editing. Load the latest version before saving.",
       "reload": "Load latest version",
       "checklistTitle": "Milestone deliverables",
-      "checklistHint": "Deliverable completion, milestone achievement and task completion are independent. Deliverable changes save automatically.",
       "noDeliverables": "No deliverables yet",
       "projectTasks": "View project tasks",
       "new": "New milestone",
@@ -274,20 +272,21 @@
       "deleteBlocked": "Delete (linked to {count} task) | Delete (linked to {count} tasks)",
       "deleteConfirm": "Delete milestone “{name}”?",
       "actionsNamed": "Actions for milestone {name}",
-      "nameRequired": "Enter a milestone name."
+      "nameRequired": "Enter a milestone name.",
+      "editName": "Edit milestone name",
+      "menu": "Milestone actions"
     },
     "updates": {
       "publish": "Publish update",
       "new": "New update",
       "title": "Title",
       "body": "Body",
-      "emptyHint": "Post a concise update so followers know where the project stands.",
-      "empty": "No updates yet",
       "by": "by {name}",
       "posted": "Update posted",
       "showMore": "Show more",
       "showLess": "Show less",
-      "titleRequired": "Enter an update title."
+      "titleRequired": "Enter an update title.",
+      "earlier": "Earlier updates"
     },
     "phase": {
       "title": "Project phase",
@@ -495,7 +494,6 @@
       "stepJumped": "Moved to a step with fields that need fixing."
     },
     "planningLinks": {
-      "title": "Planning",
       "schedule": "Timeline / Gantt",
       "stakeholders": "Stakeholders",
       "raci": "RACI matrix",
@@ -511,11 +509,8 @@
       "unavailable": "Scheduling is unavailable for this task.",
       "title": "Schedule",
       "editTitle": "Edit task schedule",
-      "scale": "Timeline scale",
       "week": "Week",
-      "weekLabel": "Week {n}",
       "month": "Month",
-      "monthLabel": "Month {n}",
       "columnSpanGrouped": "{span} — columns grouped",
       "columnSpan": {
         "week": {
@@ -535,8 +530,6 @@
       "endOnly": "Ends {date}; no start date",
       "baselineBar": "Baseline {start} – {end}",
       "baselineLegend": "Baseline {number}",
-      "dependencies": "Predecessor tasks",
-      "predecessor": "Predecessor task",
       "empty": "There are no visible tasks in this project",
       "invalidDates": "Enter two valid dates, with the start on or before the end.",
       "saved": "Schedule saved",
@@ -882,9 +875,6 @@
     "refresh": {
       "workspace": {
         "needsAttentionPreviewEmpty": "No overdue tasks among the tasks shown.",
-        "viewAllUpdates": "View update history",
-        "updatesTitle": "Project update history",
-        "updatesDescription": "The latest 50 project updates, newest first.",
         "raciLegendTitle": "RACI responsibility guide",
         "raciLegendDescription": "The matrix shows each stakeholder’s role for each task. Each task can have one accountable stakeholder.",
         "raciResponsible": "Responsible",
@@ -953,12 +943,13 @@
         "overview": "Summary",
         "execution": "Execution",
         "governance": "Governance",
-        "finance": "Finance",
-        "updates": "Updates"
+        "finance": "Finance"
       },
       "sections": {
         "raci": "Responsibilities (RACI)"
-      }
+      },
+      "newTask": "New task",
+      "moreActions": "More actions"
     },
     "listTabsLabel": "Project list",
     "changes": {

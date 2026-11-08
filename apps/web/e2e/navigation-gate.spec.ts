@@ -63,7 +63,7 @@ test.describe('a list returns to where the reader left it', () => {
     expect(cleared.after, 'the query cache must actually be emptied for this to be a cold test').toBe(0)
     const listRequest = page.waitForRequest(request => new URL(request.url()).pathname === '/api/v1/tasks')
 
-    await page.getByRole('link', { name: 'العودة إلى المهام' }).click()
+    await page.getByTestId('task-detail-back').click()
     await page.waitForURL(/\/tasks(\?|$)/)
     await listRequest
     // Proof the list really was empty when the router asked where to scroll.
@@ -160,7 +160,7 @@ test.describe('filters and permissions survive navigation', () => {
     await page.goto('/tasks?q=%D9%85%D9%87%D9%85%D8%A9')
     await expect(page.locator('tbody tr').first()).toBeVisible()
     await openFirstTask(page)
-    await page.getByRole('link', { name: 'العودة إلى المهام' }).click()
+    await page.getByTestId('task-detail-back').click()
     await page.waitForURL(/\/tasks(\?|$)/)
     expect(new URL(page.url()).searchParams.get('q'), 'the filter did not survive the round trip').toBe('مهمة')
   })
@@ -170,7 +170,7 @@ test.describe('filters and permissions survive navigation', () => {
     // lesser identity is asserted at unit level (projectWorkspaceFrame.test.ts);
     // here we prove the gate is wired to the record, not hardcoded on.
     await page.goto('/projects/1')
-    const settings = page.getByTestId('project-workspace-settings')
+    const settings = page.getByTestId('project-workspace-menu')
     const canManage = await page.evaluate(async () => {
       const res = await fetch('/api/v1/projects/1', { headers: { 'Content-Type': 'application/json' } })
       const body = await res.json().catch(() => null)

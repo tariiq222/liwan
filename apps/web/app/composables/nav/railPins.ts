@@ -29,9 +29,9 @@ export function toggleRailPin(pins: readonly string[], id: string): string[] {
 }
 
 /**
- * The «تطبيقاتي» list of the sidebar: the fixed entries around the applications the user pinned, in manifest order.
- * Settings is not an application; the sidebar footer carries it.
+ * The «تطبيقاتي» list of the sidebar: the applications the user pinned, in manifest order. The free base-system
+ * applications are the core icon row and settings is the sidebar footer, so neither is listed here.
  */
 export function pinnedApplications(rail: ShellRailModel, pins: readonly string[]): ShellRailItem[] {
-  return [...rail.first, ...rail.applications.filter(item => pins.includes(item.id)), ...rail.last]
+  return rail.applications.filter(item => pins.includes(item.id))
 }

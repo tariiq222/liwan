@@ -14,11 +14,11 @@ test.describe('Plan 6c: the meeting record', () => {
   test.describe('desktop', () => {
     test.use({ viewport: { width: 1440, height: 900 } })
 
-    test('is the record template: one h1 with the name, five tab links, and the properties aside', async ({ page }) => {
+    test('is the record workspace: one h1 with the name, five tab links, and the properties aside', async ({ page }) => {
       await open(page, '/meetings/1')
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
       await expect(page.getByRole('heading', { level: 1 })).toHaveText(NAME)
-      await expect(page.locator('[data-template="record"]')).toHaveCount(1)
+      await expect(page.locator('[data-template="record-workspace"]')).toHaveCount(1)
       await expect(page.getByRole('navigation', { name: 'أقسام الاجتماع', exact: true })).toBeVisible()
       await expect(page.getByTestId('meeting-tabs').getByRole('link')).toHaveCount(5)
       await expect(tab(page, 'summary')).toHaveAttribute('aria-current', 'page')

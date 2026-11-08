@@ -3,12 +3,13 @@ import type { TaskDetail } from '@liwan/contracts'
 import { useMilestones } from '@/composables/useMilestones'
 import { useUpdateTask } from '@/composables/useTasks'
 import { validateTaskDates } from '@/utils/projectDateBounds'
+import { plainSelectUi } from '@liwan/ui/app/utils/plainSelect'
 
 // Owns its own optimistic mutation, same as PrioritySelect — useUpdateTask
 // already rolls back on error, so there is nothing else to wire up here.
 // Rendered only when `task.project` exists (guarded by the caller), but the
 // project id is still read defensively via optional chaining.
-const props = defineProps<{ task: TaskDetail; labelledby?: string }>()
+const props = defineProps<{ task: TaskDetail; labelledby?: string; plain?: boolean }>()
 
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -53,7 +54,9 @@ function onChange(value: unknown) {
   <USelect
     v-if="task.planning_enabled"
     size="sm"
-    class="w-full"
+    :variant="props.plain ? 'none' : undefined"
+    :ui="props.plain ? plainSelectUi : undefined"
+    :class="props.plain ? '' : 'w-full'"
     data-testid="milestone-select"
     :items="items"
     :model-value="task.milestone ? String(task.milestone.id) : NONE"

@@ -8,17 +8,12 @@ const props = defineProps<{
   basePath?: string
   backTo?: RouteLocationRaw
   siblingParams?: TaskListParams
-  backLabel?: string
 }>()
 
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
 const hydrated = useHydrated()
 const backTo = computed(() => props.backTo ?? { path: '/tasks', query: route.query })
-const taskIdRef = computed(() => props.taskId)
-const { data: task } = useTask(taskIdRef)
-const title = computed(() => task.value?.name ?? t('tasks.detail.pageLabel'))
 
 function close() {
   if (!hydrated.value) return
@@ -33,7 +28,6 @@ function close() {
     :base-path="props.basePath"
     :sibling-params="props.siblingParams"
     :back-to="backTo"
-    :back-label="props.backLabel ?? t('tasks.detail.back')"
     @close="close"
   >
     <template v-if="$slots.details" #details="context"><slot name="details" v-bind="context" /></template>

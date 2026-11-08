@@ -2,6 +2,9 @@
 import type { RouteLocationRaw } from 'vue-router'
 import type { PageHeaderTag } from '../../../utils/pageHeaderTag'
 
+/** One step of the trail under the title: a page the reader came through, with its own link. */
+interface HeaderTrailStep { label: string; to?: RouteLocationRaw; testId?: string }
+
 const props = defineProps<{
   title: string
   /** Replaces the icon the shell publishes for the current application (the tile keeps the application colour). */
@@ -16,6 +19,10 @@ const props = defineProps<{
   hideTitle?: boolean
   /** The page carries a KPI strip: draw the one show/hide toggle for it before the actions (DESIGN.md; the choice is `useKpiVisibility`). */
   kpiToggle?: boolean
+  /** A record inside a workspace: no app tile, no tagline and a smaller title, so the heading, its status and the actions sit on one row. */
+  compact?: boolean
+  /** The whole trail, including the current page as the last step; replaces the published ancestors and the `backTo` step. Escape still follows `backTo`. */
+  trail?: HeaderTrailStep[]
 }>()
 
 const { t } = useI18n()
@@ -30,14 +37,15 @@ useEscapeBack(() => props.backTo)
 // Outside a shell (vendor-admin) nothing is published, so a header without an `icon` draws no tile.
 const pageApp = usePageApp()
 const chip = computed(() => {
+  if (props.compact) return undefined
   return props.icon ?? pageApp.value?.icon
 })
-const tagline = computed(() => props.description ?? pageApp.value?.tagline)
+const titleClass = computed(() => props.compact
+  ? 'font-display text-[length:clamp(22px,2.4vw,28px)]/[1.2] font-bold tracking-[-0.01em] text-highlighted'
+  : 'font-display text-[length:clamp(28px,3.2vw,38px)]/[1.15] font-bold tracking-[-0.01em] text-highlighted')
+const tagline = computed(() => (props.compact ? undefined : props.description ?? pageApp.value?.tagline))
 // Inside the project workspace the frame is already the page's <h1>.
 const frameOwnsHeading = useFrameOwnsHeading()
-
-/** One step of the trail under the title: a page the reader came through, with its own link. */
-interface HeaderTrailStep { label: string; to?: RouteLocationRaw }
 
 // The trail (DESIGN.md §3) sits above the page title: the ancestors the shell published, then the page's
 // own back target as the nearest step. The current page is the title right above, so it is never repeated
@@ -45,6 +53,7 @@ interface HeaderTrailStep { label: string; to?: RouteLocationRaw }
 const publishedTrail = usePageTrail()
 const route = useRoute()
 const trail = computed<HeaderTrailStep[]>(() => {
+  if (props.trail) return props.trail
   // The title states the current page, so a step with its name goes; a step that points at the page the
   // reader is on stays as plain text. A page with no ancestor still starts with its application, so every
   // header shows where it sits.
@@ -77,7 +86,7 @@ const trail = computed<HeaderTrailStep[]>(() => {
           <slot name="back">
             <template v-for="(step, index) in trail" :key="step.label">
               <UIcon v-if="index" name="i-lucide-chevron-left" aria-hidden="true" class="size-3.5 text-dimmed ltr:rotate-180" />
-              <UButton v-if="step.to" :to="step.to" color="neutral" variant="link" size="xs" class="p-0 font-medium text-muted hover:text-highlighted focus-visible:ring-2 focus-visible:ring-primary">{{ step.label }}</UButton>
+              <UButton v-if="step.to" :to="step.to" :data-testid="step.testId" color="neutral" variant="link" size="xs" class="p-0 font-medium text-muted hover:text-highlighted focus-visible:ring-2 focus-visible:ring-primary">{{ step.label }}</UButton>
               <span v-else class="text-dimmed">{{ step.label }}</span>
             </template>
           </slot>
@@ -93,8 +102,8 @@ const trail = computed<HeaderTrailStep[]>(() => {
         ><UIcon :name="chip" class="size-[30px]!" /></span>
         <div class="min-w-0 flex-1 basis-60">
           <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-            <h2 v-if="frameOwnsHeading" class="min-w-0 font-display text-[length:clamp(28px,3.2vw,38px)]/[1.15] font-bold tracking-[-0.01em] text-highlighted"><slot name="title">{{ props.title }}</slot></h2>
-            <h1 v-else class="min-w-0 font-display text-[length:clamp(28px,3.2vw,38px)]/[1.15] font-bold tracking-[-0.01em] text-highlighted"><slot name="title">{{ props.title }}</slot></h1>
+            <h2 v-if="frameOwnsHeading" :class="titleClass" class="min-w-0"><slot name="title">{{ props.title }}</slot></h2>
+            <h1 v-else :class="titleClass" class="min-w-0"><slot name="title">{{ props.title }}</slot></h1>
             <slot name="tags">
               <SharedHeaderTags :tags="props.tags" />
             </slot>

@@ -1,8 +1,8 @@
 // Relative imports: this module is unit-tested directly under plain vitest.
 import type { AppQuickPanel } from '../../modules/types'
 
-/** The bar shows conversations, then tasks, then meetings; a panel a newer application declares follows in manifest order. */
-const BAR_ORDER = ['chat', 'tasks', 'meetings'] as const
+/** The bar shows meetings, then tasks, then conversations; a panel a newer application declares follows in manifest order. */
+const BAR_ORDER = ['meetings', 'tasks', 'chat'] as const
 
 export function orderQuickPanels(panels: readonly AppQuickPanel[]): AppQuickPanel[] {
   const rank = (panel: AppQuickPanel) => {

@@ -111,6 +111,57 @@ describe('ShellNavSection', () => {
   })
 })
 
+describe('ShellCoreApps', () => {
+  const items = [row('home', { label: 'يومي', active: true }), row('tasks', { label: 'مهامي', count: 4 }), row('chat', { label: 'المحادثات', count: 250 })]
+  const render = (props: Record<string, unknown> = {}, stubOptions = { stubs: { ...stubs, NuxtLink: passthrough('a') } }) =>
+    renderShared(file('ShellCoreApps'), { label: 'التطبيقات الأساسية', items, ...props }, {}, stubOptions)
+
+  it('is a named group with one link per core application to its own page, in the order given', async () => {
+    const html = await render()
+    expect(html).toContain('role="group"')
+    expect(html).toContain('aria-label="التطبيقات الأساسية"')
+    expect(html).toContain('data-testid="core-apps"')
+    expect([...html.matchAll(/data-testid="core-app-(\w+)"/g)].map(match => match[1])).toEqual(['home', 'tasks', 'chat'])
+    expect(html).toContain('to="/tasks"')
+  })
+
+  it('names each tile by its label, with the count in the name, and draws no visible label', async () => {
+    const html = await render()
+    expect(html).toContain('aria-label="يومي"')
+    expect(html).toContain('aria-label="مهامي (4)"')
+    expect(html).toContain('aria-label="المحادثات (99+)"')
+    expect(html).not.toContain('data-slot="label"')
+  })
+
+  it('marks the open application with aria-current and the active flag, and no other', async () => {
+    const html = await render()
+    expect(html.match(/aria-current="page"/g)).toHaveLength(1)
+    expect(html).toMatch(/data-active="true"[^>]*data-testid="core-app-home"|data-testid="core-app-home"[^>]*data-active="true"/)
+  })
+
+  it('draws the badge only for an item with a count, capped at 99+', async () => {
+    const html = await render()
+    expect(html.match(/data-slot="badge"/g)).toHaveLength(2)
+    expect(html).toContain('>4</span>')
+    expect(html).toContain('>99+</span>')
+  })
+
+  it('prefixes the test ids for the drawer copy and draws nothing for an empty row', async () => {
+    expect(await render({ testIdPrefix: 'mobile-' })).toContain('data-testid="mobile-core-app-tasks"')
+    expect(await render({ items: [] })).not.toContain('liwan-side-core')
+  })
+
+  it('always shows the name tooltip, below the tile while the sidebar is expanded and on the inline-end side in the strip', async () => {
+    const withTips = (collapsed: boolean) => ({ stubs: { ...stubs, NuxtLink: passthrough('a'), UTooltip: tooltipStub, ShellTip: loadShared(resolve(import.meta.dirname, '../ShellTip.vue'), tipOptions(collapsed)) } }) as never
+    const expanded = await render({}, withTips(false))
+    expect(expanded).toContain('role="tooltip"')
+    expect(expanded).toContain('data-side="bottom"')
+    expect(expanded).toContain('>مهامي</span>')
+    const strip = await render({}, withTips(true))
+    expect(strip).toContain('data-side="left"')
+  })
+})
+
 describe('ShellTabBar', () => {
   const items = [
     { id: 'home', label: 'يومي', icon: 'i-lucide-house', to: '/', active: true },
@@ -186,9 +237,21 @@ describe('ShellSidebar motion', () => {
     expect(global).toContain('صفوف')
   })
 
-  it('folds the organisation card in its own slot only when the app provides one', async () => {
-    expect(await render({}, { org: () => Vue.h('div', 'المنشأة') })).toContain('liwan-side-orgslot')
-    expect(await render({}, {})).not.toContain('liwan-side-orgslot')
+  it('draws the core icon row in both modes, between the organisation and the body', async () => {
+    for (const mode of ['global', 'app']) {
+      const html = await render({ mode }, { org: () => Vue.h('div', 'المنشأة'), core: () => Vue.h('div', { class: 'row' }, 'الأيقونات') })
+      expect(html.indexOf('المنشأة')).toBeLessThan(html.indexOf('الأيقونات'))
+      expect(html.indexOf('الأيقونات')).toBeLessThan(html.indexOf('liwan-side-body'))
+    }
+    expect(await render({}, {})).not.toContain('الأيقونات')
+  })
+
+  it('keeps the brand and the organisation card at the top in either mode, never swapped with the body', async () => {
+    for (const mode of ['global', 'app']) {
+      const html = await render({ mode }, { org: () => Vue.h('div', 'المنشأة') })
+      expect(html.indexOf('liwan-side-brand')).toBeLessThan(html.indexOf('المنشأة'))
+      expect(html.indexOf('المنشأة')).toBeLessThan(html.indexOf('liwan-side-swap'))
+    }
   })
 })
 

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { AppCardModel } from '@/composables/useAppCards'
 
-// One application on the all-applications page: its tile, name and tagline, a pin for the sidebar (an application the
-// sidebar always shows takes none) and the button that opens it.
+// One application on the all-applications page: its tile, name and tagline, a pin for the sidebar list (a core
+// application, which the sidebar's icon row always shows, takes none) and the button that opens it.
 const props = defineProps<{ card: AppCardModel; description?: string; pinned?: boolean; pinDisabled?: boolean }>()
 const emit = defineEmits<{ togglePin: [] }>()
 const { t } = useI18n()

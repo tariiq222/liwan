@@ -27,7 +27,7 @@ export function useProjectWorkspaceMemory() {
     }
     const location = projectEntryLocation(id, origin, saved, qc.getQueryData<ProjectDetail>(projectKeys.detail(id))?.tools)
     // A changed role must not restore a task view it can no longer read.
-    const taskSection = /\/(tasks|milestones|schedule)$/.test(location.path)
+    const taskSection = /\/(tasks|milestones)$/.test(location.path)
       || (location.path === `/projects/${id}` && !!location.query.tab && location.query.tab !== 'summary')
     if (!active || (!me.value?.capabilities.includes('pmo.tasks.read') && taskSection)) {
       return { path: `/projects/${id}`, query: { returnTo: location.query.returnTo, projectListReturnTo: location.query.projectListReturnTo } }

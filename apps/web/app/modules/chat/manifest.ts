@@ -15,7 +15,7 @@ const manifest: AppManifest = {
       { id: 'messages', labelKey: 'chatSettings.delete.title', icon: 'i-lucide-message-square-x', capability: 'chat.settings.manage' },
     ],
   },
-  rail: [{ id: 'chat', labelKey: 'nav.chat', icon: 'i-lucide-message-circle', to: '/chat', order: 40 }],
+  rail: [{ id: 'chat', labelKey: 'nav.chat', icon: 'i-lucide-message-circle', to: '/chat', order: 40, core: 4 }],
   nav: [
     { to: '/chat', labelKey: 'nav.chat', icon: 'i-lucide-message-circle', shortcut: 'n', goKey: 'c', capability: 'liwan.internal' },
   ],

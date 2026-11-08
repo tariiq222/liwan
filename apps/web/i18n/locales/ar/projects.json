@@ -227,7 +227,6 @@
       "gantt": "جدول زمني",
       "milestones": "المعالم",
       "meetings": "الاجتماعات",
-      "updates": "التحديثات",
       "timeline": "الخط الزمني"
     },
     "meetings": {
@@ -237,7 +236,6 @@
       "changed": "تغيرت بيانات المعلم أثناء التحرير. حمّل أحدث نسخة قبل الحفظ.",
       "reload": "تحميل أحدث نسخة",
       "checklistTitle": "مخرجات المعلم",
-      "checklistHint": "إنجاز المخرجات وتحقق المعلم واكتمال المهام حالات مستقلة. تُحفظ تغييرات المخرجات تلقائيًا.",
       "noDeliverables": "لا مخرجات بعد",
       "projectTasks": "عرض مهام المشروع",
       "new": "معلم جديد",
@@ -274,20 +272,21 @@
       "deleteBlocked": "حذف | حذف (مرتبط بمهمة واحدة) | حذف (مرتبط بمهمتين) | حذف (مرتبط بـ {count} مهام) | حذف (مرتبط بـ {count} مهمة) | حذف (مرتبط بـ {count} مهمة)",
       "deleteConfirm": "حذف المعلم «{name}»؟",
       "actionsNamed": "إجراءات المعلم {name}",
-      "nameRequired": "أدخل اسم المعلم."
+      "nameRequired": "أدخل اسم المعلم.",
+      "editName": "تعديل اسم المعلم",
+      "menu": "إجراءات المعلم"
     },
     "updates": {
       "publish": "نشر تحديث",
       "new": "تحديث جديد",
       "title": "العنوان",
       "body": "النص",
-      "empty": "لا تحديثات بعد",
-      "emptyHint": "انشر تحديثًا موجزًا ليعرف المتابعون أين وصل المشروع.",
       "by": "بواسطة {name}",
       "posted": "تم نشر التحديث",
       "showMore": "عرض المزيد",
       "showLess": "عرض أقل",
-      "titleRequired": "أدخل عنوان التحديث."
+      "titleRequired": "أدخل عنوان التحديث.",
+      "earlier": "التحديثات السابقة"
     },
     "phase": {
       "title": "مرحلة المشروع",
@@ -495,7 +494,6 @@
       "stepJumped": "انتقلت إلى خطوة فيها حقول تحتاج تصحيحًا."
     },
     "planningLinks": {
-      "title": "التخطيط",
       "schedule": "الجدول الزمني",
       "stakeholders": "أصحاب المصلحة",
       "raci": "مصفوفة المسؤوليات",
@@ -511,11 +509,8 @@
       "unavailable": "الجدولة غير متاحة لهذه المهمة.",
       "title": "الجدول الزمني",
       "editTitle": "تعديل جدولة المهمة",
-      "scale": "مقياس الجدول الزمني",
       "week": "أسبوعي",
-      "weekLabel": "الأسبوع {n}",
       "month": "شهري",
-      "monthLabel": "الشهر {n}",
       "columnSpanGrouped": "{span} — الأعمدة مجمّعة",
       "columnSpan": {
         "week": {
@@ -541,8 +536,6 @@
       "endOnly": "ينتهي في {date} بلا تاريخ بدء",
       "baselineBar": "خط الأساس {start} – {end}",
       "baselineLegend": "خط الأساس {number}",
-      "dependencies": "المهام السابقة",
-      "predecessor": "المهمة السابقة",
       "empty": "لا توجد مهام قابلة للعرض في هذا المشروع",
       "invalidDates": "أدخل تاريخين صحيحين، ويجب ألا يسبق البدء النهاية.",
       "saved": "تم حفظ الجدولة",
@@ -888,9 +881,6 @@
     "refresh": {
       "workspace": {
         "needsAttentionPreviewEmpty": "لا توجد مهام متأخرة بين المهام المعروضة.",
-        "viewAllUpdates": "عرض سجل التحديثات",
-        "updatesTitle": "سجل تحديثات المشروع",
-        "updatesDescription": "آخر 50 تحديثًا للمشروع، مرتبة من الأحدث إلى الأقدم.",
         "raciLegendTitle": "دليل مصفوفة المسؤوليات",
         "raciLegendDescription": "توضح المصفوفة دور كل طرف في كل مهمة. يمكن أن يكون لكل مهمة مسؤول نهائي واحد.",
         "raciResponsible": "منفذ",
@@ -959,12 +949,13 @@
         "overview": "الملخص",
         "execution": "التنفيذ",
         "governance": "الحوكمة",
-        "finance": "المالية",
-        "updates": "التحديثات"
+        "finance": "المالية"
       },
       "sections": {
         "raci": "المسؤوليات RACI"
-      }
+      },
+      "newTask": "مهمة جديدة",
+      "moreActions": "المزيد من الإجراءات"
     },
     "listTabsLabel": "قائمة المشاريع",
     "changes": {

@@ -12,6 +12,7 @@ describe('legacyProjectTabTarget', () => {
   it('sends tab=milestones and tab=summary to their sections', () => {
     expect(legacyProjectTabTarget('/projects/7', { tab: 'milestones' })).toEqual({ path: '/projects/7/milestones', query: {} })
     expect(legacyProjectTabTarget('/projects/7', { tab: 'summary' })).toEqual({ path: '/projects/7', query: {} })
+    expect(legacyProjectTabTarget('/projects/7', { tab: 'updates' })).toEqual({ path: '/projects/7', query: {} })
   })
   it('keeps the board view of tab=tasks', () => {
     expect(legacyProjectTabTarget('/projects/7', { tab: 'tasks', view: 'board', q: 'عقد' })).toEqual({ path: '/projects/7/tasks', query: { q: 'عقد', view: 'board' } })
@@ -48,4 +49,18 @@ it('redirects the former schedule editor to the task and preserves a safe source
     path: '/projects/7/tasks/9', query: { returnTo: '/projects/7/schedule?scale=month#planning' }, hash: '#schedule',
   })
   expect(legacyProjectTabTarget('/projects/7/schedule/tasks/9', { returnTo: 'https://evil.test' })?.query.returnTo).toBe('/projects/7/schedule')
+})
+
+describe('the removed updates and planning sections', () => {
+  it('opens the summary for the updates, keeping the query and the hash', () => {
+    expect(legacyProjectTabTarget('/projects/7/updates', {})).toEqual({ path: '/projects/7', query: {} })
+    expect(legacyProjectTabTarget('/projects/7/updates/', { returnTo: '/projects?mine=1', q: 'x' }, '#latest')).toEqual({ path: '/projects/7', query: { returnTo: '/projects?mine=1', q: 'x' }, hash: '#latest' })
+  })
+  it('opens the timeline view of the tasks for the schedule and the planning section', () => {
+    expect(legacyProjectTabTarget('/projects/7/schedule', {})).toEqual({ path: '/projects/7/tasks', query: { view: 'timeline' } })
+    expect(legacyProjectTabTarget('/projects/7/planning', { scale: 'month', view: 'x' }, '#today')).toEqual({ path: '/projects/7/tasks', query: { scale: 'month', view: 'timeline' }, hash: '#today' })
+  })
+  it('leaves the create form of an update and the other planning pages alone', () => {
+    for (const path of ['/projects/7/updates/new', '/projects/7/milestones', '/projects/7/baselines']) expect(legacyProjectTabTarget(path, {})).toBeNull()
+  })
 })

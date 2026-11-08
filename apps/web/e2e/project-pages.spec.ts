@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { expectFrameOwnsH1 } from './support/tasmim6'
+import { openProjectMenu, projectMenuItem, PROJECT_SETTINGS_ITEM } from './support/projectMenu'
 
 // Project routes on the isolated mock: records and edits are pages, /new opens the one create panel, drafts are protected.
 // Opt-in local UI fixture only: no production/default port or real database.
@@ -21,7 +22,7 @@ test.beforeEach(async ({ page }) => {
 
 test('project settings opens as an ordinary page and keeps sidebar navigation', async ({ page }) => {
   await page.goto('/projects/1/tasks?q=تصميم')
-  await page.getByTestId('project-workspace-settings').click()
+  await (await projectMenuItem(page, PROJECT_SETTINGS_ITEM)).click()
   await expect(page).toHaveURL(/\/projects\/1\/settings/)
   await expect(page.getByRole('heading', { name: 'إعدادات المشروع', level: 2 })).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(0)
@@ -29,7 +30,8 @@ test('project settings opens as an ordinary page and keeps sidebar navigation', 
   await page.reload()
   await expect(page.getByRole('heading', { name: 'إعدادات المشروع', level: 2 })).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  await expect(page.getByTestId('project-workspace-settings')).toHaveAttribute('aria-current', 'page')
+  await expect(await projectMenuItem(page, PROJECT_SETTINGS_ITEM)).toHaveAttribute('aria-current', 'page')
+  await page.keyboard.press('Escape')
   await expect(page.getByRole('navigation',{name:'أقسام المشروع',exact:true}).locator('[aria-current="page"]')).toHaveCount(0)
   await page.getByTestId('project-tab-tasks').click()
   await expect(page.getByTestId('project-tab-tasks')).toHaveAttribute('aria-current', 'page')
@@ -43,7 +45,7 @@ for (const [path, title, inProject] of [
   ['/projects/dashboard', 'نظرة عامة', false],
   ['/projects/1', 'مشروع ألفا', true],
   ['/projects/1/milestones', 'مشروع ألفا', true],
-  ['/projects/1/schedule', 'مشروع ألفا', true],
+  ['/projects/1/tasks?view=timeline', 'مشروع ألفا', true],
   ['/projects/1/raci', 'مشروع ألفا', true],
   ['/projects/1/updates', 'مشروع ألفا', true],
   ['/projects/1/milestones/1/edit', 'مشروع ألفا', true],
@@ -101,15 +103,17 @@ test('desktop project workspace has one identity and one toolbar after a direct 
   await expectFrameOwnsH1(page)
   await expect(page.getByTestId('application-navigation')).toBeVisible()
   await expect(page.getByTestId('project-tab-settings')).toHaveCount(0)
-  await expect(page.getByTestId('project-workspace-settings')).toBeVisible()
+  await expect(page.getByTestId('project-workspace-menu')).toBeVisible()
   await expect(page.locator('[data-slot="skeleton"] h1')).toHaveCount(0)
   expect(hydrationErrors).toEqual([])
   const search = (await page.locator('main [data-shortcut-search] input').boundingBox())!
+  // The create button is in the frame header, on the title's row, and the page below draws no second action row.
   const create = (await page.getByTestId('project-header-create').boundingBox())!
-  const header = (await page.locator('main [data-slot="page-header"]').boundingBox())!
+  const header = (await page.getByTestId('project-workspace-frame').boundingBox())!
   expect(create.y).toBeGreaterThanOrEqual(header.y)
-  expect(create.y + create.height).toBeLessThanOrEqual(header.y + header.height + 1)
+  await expect(page.locator('main [data-slot="page-header"]')).toHaveCount(0)
   const title = (await page.getByRole('heading', { level: 1 }).boundingBox())!
+  expect(create.y + create.height).toBeLessThanOrEqual(title.y + title.height + 24)
   const tabs = (await page.getByRole('navigation',{name:'أقسام المشروع',exact:true}).boundingBox())!
   expect(title.y + title.height).toBeLessThanOrEqual(tabs.y + 1)
   expect(search.y).toBeGreaterThan(tabs.y + tabs.height)
@@ -142,7 +146,7 @@ test('desktop sidebar keeps project navigation at a fixed width through the proj
   await expect(sidebar.getByTestId('navigation-app-block')).toHaveText('المشاريع')
   await expect(sidebar.getByRole('heading', { name: 'مشروع ألفا', exact: true })).toHaveCount(0)
   await expect(page.getByTestId('project-workspace-name')).toHaveText('مشروع ألفا')
-  for (const id of ['project-tab-tasks', 'project-tab-planning', 'project-workspace-settings']) {
+  for (const id of ['project-tab-tasks', 'project-tab-meetings', 'project-workspace-menu']) {
     await expect(page.getByTestId(id)).toBeVisible()
   }
   for (const id of ['project-dashboard', 'projects', 'tasks']) {
@@ -153,7 +157,7 @@ test('desktop sidebar keeps project navigation at a fixed width through the proj
   }
   await expect(page.getByTestId('project-tab-settings')).toHaveCount(0)
   expect((await sidebar.boundingBox())!.width).toBe(264)
-  await page.getByTestId('project-workspace-settings').click()
+  await (await projectMenuItem(page, PROJECT_SETTINGS_ITEM)).click()
   await expect(page).toHaveURL(/\/projects\/1\/settings/)
   await expect(page.getByRole('heading', { name: 'إعدادات المشروع', level: 2 })).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(0)

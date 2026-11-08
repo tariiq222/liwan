@@ -13,7 +13,7 @@ describe('the meetings pages stay on their templates', () => {
     ['pages/meetings/series.vue', ['<SharedListPage', '<SharedDataTable', 'create-test-id="meeting-series-new"']],
     ['pages/meetings/calendar.vue', ['<SharedTimelineFrame']],
     // The record's five tabs are the shared route tabs (one line, scrolling, with the log tab after a separator).
-    ['pages/meetings/[id].vue', ['<SharedRecordPage', '<SharedRouteTabs data-testid="meeting-tabs"', 'separatorBefore', '<SharedPropertiesPanel', '<SharedRecordSection']],
+    ['pages/meetings/[id].vue', ['<SharedRecordWorkspace', '<SharedRouteTabs data-testid="meeting-tabs"', 'separatorBefore', 'data-testid="meeting-properties"', '<SharedRecordSection']],
     ['pages/meetings/series/[id].vue', ['<SharedRecordPage', '<SharedRouteTabs', '<SharedPropertiesPanel']],
     ['pages/meetings/[id]/print.vue', ['<SharedStandalonePage', 'variant="print"', 'liwan-print-landscape']],
   ])('%s uses its template', (file, needles) => {

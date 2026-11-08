@@ -33,7 +33,7 @@ export function projectSectionLocation(path: string, fromPath: string, query: Re
 /** Only browseable sections are eligible; never reopen a form or record. */
 export function savedProjectLocation(path: string, query: Record<string, unknown>): ProjectLocation | null {
   path = path.replace(/\/+$/, '') || '/'
-  if (!/^\/projects\/[1-9]\d*(?:\/(tasks|milestones|register|stakeholders|raci|finance|charter|schedule|updates))?$/.test(path) || query.edit != null) return null
+  if (!/^\/projects\/[1-9]\d*(?:\/(tasks|milestones|register|stakeholders|raci|finance|charter))?$/.test(path) || query.edit != null) return null
   const clean: Record<string, string> = {}
   for (const key of keys) if (typeof query[key] === 'string' && query[key].length <= 1000) clean[key] = query[key]
   if (typeof query.taskContext === 'string') {

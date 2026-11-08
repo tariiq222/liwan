@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TaskDetail } from '@liwan/contracts'
-import { sectionTabsUi } from '@liwan/ui/app/utils/sectionTabs'
+import { useTaskAttachments } from '@/composables/useTaskAttachments'
+import { useTaskDependencies } from '@/composables/useTaskDependencies'
 import DependencyPicker from './DependencyPicker.vue'
 import TaskActivity from './TaskActivity.vue'
 import TaskAttachments from './TaskAttachments.vue'
@@ -8,90 +9,44 @@ import TaskDescription from './TaskDescription.vue'
 import TaskDeliverables from './TaskDeliverables.vue'
 import SubtaskList from './SubtaskList.vue'
 
-// Three stacked cards in the record's main column: what the task is (description and deliverables),
-// its work sections, and its activity. A host that has more work sections (the project workspace's
-// schedule) passes them through the `schedule` slot, which becomes one more work tab.
+// The record's main column, without cards: the description as plain text, the deliverables, the sub-tasks, then the
+// attachments and predecessors (a small button each while empty, a section once they hold something), the schedule a
+// host passes through the `schedule` slot (it brings its own section), and the activity feed.
 const props = withDefaults(defineProps<{ task: TaskDetail; basePath?: string }>(), {
   basePath: '/tasks',
 })
 
 const { t } = useI18n()
 const hydrated = useHydrated()
-const slots = useSlots()
-const route = useRoute()
-// A link to `#schedule` (the project timeline) opens the record on its schedule tab.
-const hashTab = () => (props.task.planning_enabled && slots.schedule && route.hash === '#schedule' ? 'schedule' : 'subtasks')
-const workTab = ref(hashTab())
-watch([() => route.hash, () => props.task.planning_enabled], () => { workTab.value = hashTab() })
-const workTabs = computed(() => [
-  { label: t('tasks.drawer.subtasks'), value: 'subtasks', slot: 'subtasks', disabled: !hydrated.value },
-  ...(props.task.planning_enabled ? [{ label: t('taskLifecycle.dependencies'), value: 'dependencies', slot: 'dependencies', disabled: !hydrated.value }] : []),
-  { label: t('tasks.drawer.attachments'), value: 'attachments', slot: 'attachments', disabled: !hydrated.value },
-  ...(props.task.planning_enabled && slots.schedule ? [{ label: t('projects.schedule.title'), value: 'schedule', slot: 'schedule', disabled: !hydrated.value }] : []),
-])
-const activityTabs = computed(() => [
-  { label: t('tasks.detail.commentsTitle'), value: 'comments', slot: 'comments', disabled: !hydrated.value },
-  { label: t('tasks.detail.logTitle'), value: 'log', slot: 'log', disabled: !hydrated.value },
-])
-const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => subtask.is_closed).length)
+
+const { data: attachments } = useTaskAttachments(() => props.task.id)
+const dependencyTaskId = computed(() => props.task.planning_enabled ? props.task.id : null)
+const { data: dependencyState } = useTaskDependencies(dependencyTaskId)
+
+const attachmentsOpen = ref(false)
+const dependenciesOpen = ref(false)
+
+const attachmentCount = computed(() => attachments.value?.items.length ?? 0)
+const dependencyCount = computed(() => dependencyState.value?.items.length ?? props.task.depends_on.length)
+// The host keys this component by task, so a new task starts closed. A section that held something stays on screen when its last row goes, so removing the last item is not a jump.
+watch(attachmentCount, count => { if (count > 0) attachmentsOpen.value = true }, { immediate: true })
+watch(dependencyCount, count => { if (count > 0) dependenciesOpen.value = true }, { immediate: true })
+const showAttachments = computed(() => attachmentsOpen.value)
+const showDependencies = computed(() => props.task.planning_enabled && dependenciesOpen.value)
+const canAddAttachment = computed(() => props.task.can_write && !showAttachments.value && attachments.value !== undefined)
+const canAddDependency = computed(() => props.task.planning_enabled && props.task.can_manage_dependencies && !showDependencies.value)
 </script>
 
 <template>
-  <SharedRecordSection variant="panel" :title="t('tasks.drawer.description')">
-    <TaskDescription :key="task.id" :task="task" />
-    <TaskDeliverables :key="`outputs-${task.id}`" :task="task" class="mt-4 block border-t border-default pt-4" />
-  </SharedRecordSection>
-
-  <SharedRecordSection variant="panel">
-    <UTabs
-      data-testid="task-detail-tabs"
-      variant="link"
-      :ui="sectionTabsUi"
-      v-model="workTab"
-      :items="workTabs"
-      :unmount-on-hide="false"
-      :aria-label="t('tasks.detail.sections')"
-      class="min-w-0"
-    >
-      <template #subtasks>
-        <section class="space-y-3">
-          <p class="text-xs text-muted">{{ t('tasks.detail.subtaskProgress', { done: completedSubtasks, total: task.subtasks.length }) }}</p>
-          <SubtaskList :task="task" :base-path="props.basePath" />
-        </section>
-      </template>
-
-      <template #dependencies>
-        <DependencyPicker v-if="task.planning_enabled" :task="task" />
-      </template>
-
-      <template #attachments>
-        <TaskAttachments :key="task.id" :task-id="task.id" :can-write="task.can_write" />
-      </template>
-
-      <template v-if="task.planning_enabled && $slots.schedule" #schedule>
-        <slot name="schedule" :task="task" />
-      </template>
-    </UTabs>
-  </SharedRecordSection>
-
-  <SharedRecordSection variant="panel">
-    <UTabs
-      data-testid="task-activity-tabs"
-      variant="link"
-      :ui="sectionTabsUi"
-      :items="activityTabs"
-      default-value="comments"
-      :unmount-on-hide="false"
-      :aria-label="t('tasks.drawer.activity')"
-      class="min-w-0"
-    >
-      <template #comments>
-        <TaskActivity :task="task" mode="comments" />
-      </template>
-
-      <template #log>
-        <TaskActivity :task="task" mode="log" />
-      </template>
-    </UTabs>
-  </SharedRecordSection>
+  <TaskDescription :key="task.id" :task="task" />
+  <TaskDeliverables :key="`outputs-${task.id}`" :task="task" />
+  <SubtaskList :task="task" :base-path="props.basePath" />
+  <DependencyPicker v-if="showDependencies" :task="task" />
+  <TaskAttachments v-if="showAttachments" :key="task.id" :task-id="task.id" :can-write="task.can_write" />
+  <div v-if="canAddAttachment || canAddDependency" data-testid="task-add-row" class="flex flex-wrap items-center gap-2">
+    <UButton v-if="canAddAttachment" data-testid="task-add-attachment" color="neutral" variant="outline" size="sm" icon="i-lucide-paperclip" :disabled="!hydrated" :label="t('tasks.detail.addAttachment')" @click="attachmentsOpen = true" />
+    <UButton v-if="canAddDependency" data-testid="task-add-dependency" color="neutral" variant="outline" size="sm" icon="i-lucide-git-branch-plus" :disabled="!hydrated" :label="t('tasks.detail.addDependsOn')" @click="dependenciesOpen = true" />
+  </div>
+  <slot v-if="task.planning_enabled" name="schedule" :task="task" />
+  <TaskActivity :task="task" />
 </template>
