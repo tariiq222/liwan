@@ -551,7 +551,8 @@ async function handle(req, res) {
   if (method === 'POST' && path === '/api/v1/ai/audit') {
     let entry = {}
     try { entry = JSON.parse(await readBody(req) || '{}') } catch { entry = {} }
-    AI_AUDIT.push(entry)
+    // Odoo stamps the acknowledgement itself from the row's result (issue #556); the wire never carries it.
+    AI_AUDIT.push(entry.result === 'approved' ? { ...entry, attested_at: NOW() } : entry)
     return json(res, 200, { id: AI_AUDIT.length, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length, messages_limit: 500 })
   }
   if (method === 'POST' && path === '/api/v1/ai/usage') {

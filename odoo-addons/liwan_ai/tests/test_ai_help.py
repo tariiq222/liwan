@@ -51,7 +51,7 @@ page: /projects/new
 """
 MESSAGE = {
     'conversation_id': 'r_help_01', 'kind': 'help', 'tool_name': None, 'input': None,
-    'result': 'ok', 'http_status': None, 'draft': None, 'approved': None, 'attested': False,
+    'result': 'ok', 'http_status': None, 'draft': None, 'approved': None,
 }
 
 
@@ -217,7 +217,7 @@ class TestHelpAgent(AiProbe, LiwanApiCase):
         Audit = self.env['liwan.ai.audit'].with_user(self.employee)
         row = Audit.create({
             'conversation_id': 'r_help_01', 'kind': 'read', 'agent': 'ai_help', 'tool_name': 'ai_help.search_guide',
-            'input': {'query': 'x'}, 'result': 'ok', 'http_status': 200, 'draft': None, 'approved': None, 'attested': False,
+            'input': {'query': 'x'}, 'result': 'ok', 'http_status': 200, 'draft': None, 'approved': None,
         })
         self.assertEqual(row.agent_key, 'ai_help')
 

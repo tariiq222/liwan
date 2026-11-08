@@ -29,11 +29,13 @@ describe('LiwanOS AI contracts', () => {
   })
 
   it('leaves the acknowledgement to the server and strips nothing silently (issue #556)', () => {
-    // The row's own result decides the acknowledgement; the wire flag is neither required nor decisive.
-    const row = { conversation_id: 'r_1', kind: 'draft', tool_name: 'pmo.draft_project', input: {}, result: 'approved', http_status: null, draft: {}, approved: {}, attested: false }
-    expect(AiAuditRequestSchema.parse(row).attested).toBe(false)
+    // The row's own result decides the acknowledgement; the wire says neither `attested` nor `attested_at`.
+    const row = { conversation_id: 'r_1', kind: 'draft', tool_name: 'pmo.draft_project', input: {}, result: 'approved', http_status: null, draft: {}, approved: {} }
+    expect(AiAuditRequestSchema.parse(row).result).toBe('approved')
+    expect(() => AiAuditRequestSchema.parse({ ...row, attested: true })).toThrow()
+    expect(() => AiAuditRequestSchema.parse({ ...row, attested_at: '2026-11-01T00:00:00Z' })).toThrow()
     expect(() => AiAuditRequestSchema.parse({ ...row, surprise: 1 })).toThrow()
-    expect(AiAuditRequestSchema.parse({ conversation_id: 'r_1', kind: 'message', tool_name: null, input: null, result: 'ok', http_status: null, draft: null, approved: null, attested: false }).kind).toBe('message')
+    expect(AiAuditRequestSchema.parse({ conversation_id: 'r_1', kind: 'message', tool_name: null, input: null, result: 'ok', http_status: null, draft: null, approved: null }).kind).toBe('message')
   })
 
   it('keeps only known draft keys and needs a name', () => {
@@ -83,7 +85,7 @@ describe('LiwanOS AI contracts', () => {
     expect(AiStartRequestSchema.parse({ message: 'x', context: { page: 'home' } }).context).toEqual({ page: 'home' })
     expect(AiStartRequestSchema.parse({ message: 'x', context: null, run_id: null }).context).toBeNull()
     for (const mode of ['setup', 'help']) expect(AiStartRequestSchema.parse({ message: 'x', mode }).mode).toBe(mode)
-    expect(AiAuditRequestSchema.parse({ conversation_id: 'r_1', kind: 'help', tool_name: null, input: null, result: 'ok', http_status: null, draft: null, approved: null, attested: false }).kind).toBe('help')
+    expect(AiAuditRequestSchema.parse({ conversation_id: 'r_1', kind: 'help', tool_name: null, input: null, result: 'ok', http_status: null, draft: null, approved: null }).kind).toBe('help')
     expect(aiToolAgent('ai_help.search_guide')).toBe('ai_help')
     for (const bad of [
       { message: 'x', mode: 'chat' }, { message: 5 }, { message: '  ' }, { message: 'x'.repeat(8001) }, { message: 'x', run_id: 7 }, { message: 'x', run_id: '' },

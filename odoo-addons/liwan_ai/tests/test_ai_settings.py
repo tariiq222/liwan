@@ -14,7 +14,7 @@ from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTE
 
 MESSAGE = {
     'conversation_id': 'r_settings_01', 'kind': 'message', 'tool_name': None, 'input': None,
-    'result': 'ok', 'http_status': None, 'draft': None, 'approved': None, 'attested': False,
+    'result': 'ok', 'http_status': None, 'draft': None, 'approved': None,
 }
 SIGNATURE = {'text_version': consent_text.CONSENT_VERSION, 'text_hash': consent_text.CONSENT_TEXT_HASH}
 

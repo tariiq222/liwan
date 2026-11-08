@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 test.skip(process.env.E2E_PROJECT_POPUPS !== '1', 'Isolated synthetic API only')
 
 const mockOdoo = process.env.NUXT_ODOO_URL ?? `http://127.0.0.1:${process.env.MOCK_PORT ?? 4498}`
-type AuditRow = { conversation_id: string; kind: string; result: string; tool_name: string | null; attested: boolean; approved: { id: number } | null }
+type AuditRow = { conversation_id: string; kind: string; result: string; tool_name: string | null; attested_at: string | null; approved: { id: number } | null }
 const allAudit = async (page: Page): Promise<AuditRow[]> => (await (await page.request.get(`${mockOdoo}/__mock/ai-audit`)).json()).items
 type UsageRow = { conversation_id: string; kind: string; outcome: string; input_tokens: number | null }
 const allUsage = async (page: Page): Promise<UsageRow[]> => (await (await page.request.get(`${mockOdoo}/__mock/ai-usage`)).json()).items
@@ -69,7 +69,9 @@ test.describe('Liwan AI on the mock stack', () => {
     expect(created).toBeGreaterThan(0)
     await expect(page.getByTestId('ai-record').getByRole('link', { name: 'بوابة إرادة' })).toHaveAttribute('href', `/projects/${created}`)
     expect((await auditSince(page, before)).map(row => [row.kind, row.result])).toEqual([['message', 'ok'], ['draft', 'proposed'], ['draft', 'approved']])
-    expect((await auditSince(page, before)).at(-1)).toMatchObject({ conversation_id: runId, attested: true, approved: { id: created } })
+    // The acknowledgement is Odoo's own stamp on the approval row, not a flag the browser sent (issue #556).
+    expect((await auditSince(page, before)).at(-1)).toMatchObject({ conversation_id: runId, approved: { id: created } })
+    expect((await auditSince(page, before)).at(-1)!.attested_at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
   })
 
   test('a refresh on a waiting run shows the pending draft and discarding sends one rejection', async ({ page }) => {

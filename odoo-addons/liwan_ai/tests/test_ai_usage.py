@@ -16,7 +16,7 @@ ITEM = {
 }
 MESSAGE = {
     'conversation_id': 'r_test_01', 'kind': 'message', 'tool_name': None, 'input': None,
-    'result': 'ok', 'http_status': None, 'draft': None, 'approved': None, 'attested': False,
+    'result': 'ok', 'http_status': None, 'draft': None, 'approved': None,
 }
 
 

@@ -20,17 +20,17 @@ from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTE
 
 MESSAGE = {
     'conversation_id': 'r_test_01', 'kind': 'message', 'tool_name': None, 'input': None,
-    'result': 'ok', 'http_status': None, 'draft': None, 'approved': None, 'attested': False,
+    'result': 'ok', 'http_status': None, 'draft': None, 'approved': None,
 }
 READ = {
     'conversation_id': 'r_test_01', 'kind': 'read', 'agent': 'probe', 'tool_name': 'probe.list_things',
     'input': {'limit': 5, 'token': 'secret'}, 'result': 'ok', 'http_status': 200,
-    'draft': None, 'approved': None, 'attested': False,
+    'draft': None, 'approved': None,
 }
 DRAFT = {
     'conversation_id': 'r_test_01', 'kind': 'draft', 'agent': 'probe', 'tool_name': 'probe.draft_thing',
     'input': {'name': 'A'}, 'result': 'proposed', 'http_status': None,
-    'draft': {'name': 'A'}, 'approved': None, 'attested': False,
+    'draft': {'name': 'A'}, 'approved': None,
 }
 
 
@@ -103,19 +103,25 @@ class TestAiAudit(AiProbe, LiwanApiCase):
         self.granted = {READ_CAP, CREATE_CAP}
         proposed = self.api('POST', '/api/v1/ai/audit', DRAFT)
         self.assertEqual(proposed.status_code, 200)
-        # A caller that claims no attestation still gets one: the server, not the browser, records the approval.
-        approved = self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'result': 'approved', 'approved': {'name': 'A2'}, 'attested': False})
+        self.assertFalse(self.env['liwan.ai.audit'].browse(proposed.json()['id']).attested_at)
+        approved = self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'result': 'approved', 'approved': {'name': 'A2'}})
         self.assertEqual(approved.status_code, 200)
         row = self.env['liwan.ai.audit'].browse(approved.json()['id'])
         self.assertTrue(row.attested_at)
         self.assertEqual((row.draft, row.approved), ({'name': 'A'}, {'name': 'A2'}))
-        # A proposal is not an approval, whatever the wire said.
-        claimed = self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'attested': True})
-        self.assertEqual(claimed.status_code, 200)
-        self.assertFalse(self.env['liwan.ai.audit'].browse(claimed.json()['id']).attested_at)
+
+    def test_the_wire_carries_no_attestation_flag(self):
+        """Issue #556: a caller cannot assert an acknowledgement the server did not make, by any field name."""
+        self.granted = {READ_CAP, CREATE_CAP}
+        for change in ({'attested': True}, {'attested': False}, {'attested_at': '2020-01-01 00:00:00'}):
+            response = self.api('POST', '/api/v1/ai/audit', {**DRAFT, **change})
+            self.assertEqual(response.status_code, 422, change)
+            self.assertEqual(response.json()['field'], next(iter(change)))
+            self.assertEqual(response.json()['code'], 'unknown_field')
+        self.assertFalse(self.env['liwan.ai.audit'].search([]))
 
     def test_approved_result_is_only_valid_for_drafts(self):
-        response = self.api('POST', '/api/v1/ai/audit', {**READ, 'result': 'approved', 'attested': True})
+        response = self.api('POST', '/api/v1/ai/audit', {**READ, 'result': 'approved'})
         self.assertEqual(response.status_code, 422)
         self.assertEqual(response.json()['field'], 'result')
 
@@ -210,7 +216,7 @@ class TestAiAuditHardening(AiProbe, LiwanApiCase):
     def test_other_users_cannot_read_any_row_of_a_colleague(self):
         self.audit_a.create(MESSAGE)
         self.audit_a.create(READ)
-        self.audit_a.create({**DRAFT, 'result': 'approved', 'approved': {'name': 'A'}, 'attested': True})
+        self.audit_a.create({**DRAFT, 'result': 'approved', 'approved': {'name': 'A'}})
         self.assertFalse(self.audit_b.search([]))
         self.assertEqual(len(self.audit_a.search([])), 3)
 
@@ -225,7 +231,6 @@ class TestAiAuditHardening(AiProbe, LiwanApiCase):
             ({'draft': {'a': 1}}, 'draft'),
             ({'approved': {'a': 1}}, 'approved'),
             ({'http_status': 200}, 'http_status'),
-            ({'attested': True}, 'attested'),
         ):
             with self.assertRaises(ValidationError, msg=change) as caught:
                 self.audit_a.create({**MESSAGE, **change})
@@ -356,7 +361,7 @@ class TestAiAuditHardening(AiProbe, LiwanApiCase):
         self.assertFalse(self.env['liwan.ai.audit'].search([]))
 
     def test_direct_create_derives_owner_and_attestation(self):
-        row = self.audit_a.create({**DRAFT, 'result': 'approved', 'approved': {'name': 'B'}, 'attested': True})
+        row = self.audit_a.create({**DRAFT, 'result': 'approved', 'approved': {'name': 'B'}})
         self.assertEqual((row.user_id, row.company_id), (self.employee, self.employee.company_id))
         self.assertTrue(row.attested_at)
         plain = self.audit_a.create(DRAFT)
@@ -380,7 +385,7 @@ class TestAiAuditHardening(AiProbe, LiwanApiCase):
             self._assert_422(self._post(**change), field)
         self._assert_422(self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'draft': {'name': 'a\x00'}}), 'draft')
         self._assert_422(
-            self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'result': 'approved', 'attested': True, 'approved': {'n': '\x00'}}),
+            self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'result': 'approved', 'approved': {'n': '\x00'}}),
             'approved',
         )
         with self.assertRaises(ValidationError) as caught:

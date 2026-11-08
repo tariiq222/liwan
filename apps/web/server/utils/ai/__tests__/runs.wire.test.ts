@@ -980,7 +980,7 @@ describe('draft rejection audit', () => {
   it('audits a rejected draft before resuming', async () => {
     await events(await rejectDraft())
     const rejected = odooCalls.filter(c => c.url === '/api/v1/ai/audit').map(c => JSON.parse(c.body!)).at(-1)
-    expect(rejected).toEqual({ conversation_id: 'r_1', kind: 'draft', agent: 'pmo', tool_name: 'pmo.draft_project', input: { name: 'بوابة' }, result: 'rejected', http_status: null, draft: { name: 'بوابة' }, approved: null, attested: false })
+    expect(rejected).toEqual({ conversation_id: 'r_1', kind: 'draft', agent: 'pmo', tool_name: 'pmo.draft_project', input: { name: 'بوابة' }, result: 'rejected', http_status: null, draft: { name: 'بوابة' }, approved: null })
     expect(lastResume()).toEqual({ call_id: 'c_2', policy: POLICY, result: { ok: false, decision: 'rejected' } })
   })
   it('resumes even when that audit fails', async () => {
@@ -995,12 +995,12 @@ describe('draft rejection audit', () => {
 
 describe('draft approval audit (issue #556)', () => {
   const approveDraft = (data: Record<string, unknown> = { id: 42 }) => post('/api/ai/runs/r_1/resume', { call_id: 'c_2', decision: 'approved', data })
-  it('records the approval itself, claiming the attestation from the payload and the call the service named', async () => {
+  it('records the approval itself, taking the call and the payload from what the service and the create page named', async () => {
     await events(await approveDraft())
     const approved = odooCalls.filter(c => c.url === '/api/v1/ai/audit').map(c => JSON.parse(c.body!)).at(-1)
     expect(approved).toEqual({
       conversation_id: 'r_1', kind: 'draft', agent: 'pmo', tool_name: 'pmo.draft_project',
-      input: { name: 'بوابة' }, result: 'approved', http_status: 201, draft: { name: 'بوابة' }, approved: { id: 42 }, attested: true,
+      input: { name: 'بوابة' }, result: 'approved', http_status: 201, draft: { name: 'بوابة' }, approved: { id: 42 },
     })
     // The service is resumed with the same decision and the same payload.
     expect(lastResume()).toEqual({ call_id: 'c_2', policy: POLICY, result: { ok: true, decision: 'approved', data: { id: 42 } } })

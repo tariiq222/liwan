@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
   // This server names a new run, so its first `message` audit already carries the run id and the message is still counted before the service is reached.
   const runId = continued ?? `r_${randomBytes(12).toString('hex')}`
   // A setup or help message spends the vendor's assistance budget, never the package's messages; its audit kind is its mode.
-  await audit(event, { conversation_id: runId, kind: session.mode === 'assistant' ? 'message' : session.mode, tool_name: null, input: null, result: 'ok', http_status: null, draft: null, approved: null, attested: false })
+  await audit(event, { conversation_id: runId, kind: session.mode === 'assistant' ? 'message' : session.mode, tool_name: null, input: null, result: 'ok', http_status: null, draft: null, approved: null })
   const locale = runLocale(getCookie(event, 'liwan-locale'))
   const response = await serviceFetch(event, 'POST', '/v1/runs', session.owner, {
     tenant: session.owner.tenant, user_ref: session.owner.user, locale, message: outbound,

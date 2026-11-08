@@ -21,7 +21,7 @@ PER_USER_MESSAGES = 'ai.messages.per_user_monthly'
 AUDIT_RESULTS = ('ok', 'denied', 'failed', 'proposed', 'approved', 'rejected')
 DRAFT_RESULTS = ('proposed', 'approved', 'rejected')
 WIRE_KEYS = frozenset({
-    'conversation_id', 'kind', 'agent', 'tool_name', 'input', 'result', 'http_status', 'draft', 'approved', 'attested',
+    'conversation_id', 'kind', 'agent', 'tool_name', 'input', 'result', 'http_status', 'draft', 'approved',
 })
 SECRET_FRAGMENTS = ('password', 'passwd', 'token', 'secret', 'apikey', 'authorization', 'credential')
 NUL = '\x00'
@@ -154,11 +154,6 @@ class LiwanAiAudit(models.Model):
         result = values.get('result')
         if not isinstance(result, str) or result not in AUDIT_RESULTS:
             invalid('result', f'result must be one of {AUDIT_RESULTS}')
-        # ``attested`` stays on the wire contract as a flag the caller may set, but it is no longer the record of the
-        # acknowledgement: the row's own result decides that (see ``attested_at`` below), so a client can neither claim one
-        # it did not make nor lose one it did (issue #556).
-        if not isinstance(values.get('attested', False), bool):
-            invalid('attested', 'attested must be a boolean')
         tool_name = values.get('tool_name')
         http_status = values.get('http_status')
         if http_status is not None and (not isinstance(http_status, int) or isinstance(http_status, bool) or not 100 <= http_status <= 599):
@@ -169,8 +164,6 @@ class LiwanAiAudit(models.Model):
             for field in ('agent', 'tool_name', 'input', 'draft', 'approved', 'http_status'):
                 if values.get(field) is not None:
                     invalid(field, f'a message audit has no {field}')
-            if values.get('attested'):
-                invalid('attested', 'a message audit is not attested')
             if result != 'ok':
                 invalid('result', 'a message audit result is ok')
         else:
@@ -206,7 +199,7 @@ class LiwanAiAudit(models.Model):
             'result': result,
             'http_status': http_status,
             # The server stamps the acknowledgement, never the caller (issue #556): an `approved` draft is approved by the
-            # session that recorded it, at this transaction's time, whatever the wire said about `attested`.
+            # session that recorded it, at this transaction's time.
             'attested_at': fields.Datetime.now() if result == 'approved' else False,
             **payload,
         }
