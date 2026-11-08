@@ -81,3 +81,7 @@
   background: var(--app-tile, var(--liwan-ink));
   color: var(--app-tile-fg, var(--liwan-on-ink));
 }
+
+/* Settings and filters inside a paid application: an «on» toggle and the chosen segment take the application colour. */
+:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"]) button[role="switch"][data-state="checked"] { background-color: var(--app-accent); }
+:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"]) [data-slot="segmented-control"] [aria-pressed="true"] { color: var(--app-accent-text); }

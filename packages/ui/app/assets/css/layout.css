@@ -140,3 +140,35 @@ html[dir="rtl"] body { padding-right: 0 !important; }
     align-items: center;
   }
 }
+
+/* A setting row (SharedSettingRow): text on the start side, the control on the end side, centred; a phone stacks them.
+   Options with explanations (`data-stacked`) go full width under the text. */
+.liwan-setting-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 1rem 2rem; }
+.liwan-setting-row-text { min-width: 0; max-width: 60ch; }
+.liwan-setting-row-control { min-width: 0; justify-self: end; }
+.liwan-setting-row[data-stacked="true"] { grid-template-columns: minmax(0, 1fr); align-items: start; }
+.liwan-setting-row[data-stacked="true"] .liwan-setting-row-control { justify-self: stretch; }
+@media (max-width: 640px) {
+  .liwan-setting-row { grid-template-columns: minmax(0, 1fr); align-items: start; }
+  .liwan-setting-row-control { justify-self: stretch; }
+}
+/* A selectable option card (SharedOptionCards): the chosen one takes the application colour as border and a light tint. */
+.liwan-option-card { position: relative; display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem 1rem; border: 1.5px solid var(--ui-border); border-radius: var(--radius-control); background: var(--ui-bg); cursor: pointer; transition: border-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease), background-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease); }
+.liwan-option-card:hover:not([data-disabled]) { border-color: var(--ui-border-accented); }
+.liwan-option-card[data-selected="true"] { border-color: var(--app-accent, var(--liwan-ink)); background: color-mix(in srgb, var(--app-accent, var(--liwan-ink)) 8%, var(--ui-bg)); }
+.liwan-option-card[data-disabled] { cursor: default; opacity: 0.6; }
+.liwan-option-card:has(input:focus-visible) { outline: 2px solid var(--ring); outline-offset: 2px; }
+.liwan-option-dot { position: relative; margin-block-start: 0.15rem; width: 1.125rem; height: 1.125rem; flex: none; border: 1.5px solid var(--ui-border-accented); border-radius: 999px; background: var(--ui-bg); }
+.liwan-option-card[data-selected="true"] .liwan-option-dot { border-color: var(--app-accent, var(--liwan-ink)); }
+.liwan-option-card[data-selected="true"] .liwan-option-dot::after { content: ""; position: absolute; inset: 3px; border-radius: 999px; background: var(--app-accent, var(--liwan-ink)); }
+
+/* The settings body: the sections in one column, and (three or more sections) a sticky section navigation on the end side. */
+.liwan-settings-body { display: block; min-width: 0; }
+.liwan-settings-nav { display: none; }
+@media (min-width: 1100px) {
+  .liwan-settings-body[data-nav="true"] { display: grid; grid-template-columns: minmax(0, 1fr) 13rem; gap: 2rem; align-items: start; }
+  .liwan-settings-nav { position: sticky; inset-block-start: calc(var(--shell-header-height) + 1rem); display: block; }
+  .liwan-settings-nav ul { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; border-inline-start: 1.5px solid var(--ui-border); }
+  .liwan-settings-nav a { display: block; padding: 0.35rem 0.75rem; color: var(--ui-text-muted); font-size: var(--text-sm); text-decoration: none; border-radius: var(--radius-inner); }
+  .liwan-settings-nav a:hover { color: var(--ui-text-highlighted); background: var(--ui-bg-muted); }
+}
