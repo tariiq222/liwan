@@ -8,6 +8,7 @@ from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     declare_read_capability_scope,
+    parse_page,
     requires_feature,
 )
 from odoo.addons.liwan_pmo.models.project_milestone import _validate_deliverables
@@ -33,10 +34,6 @@ def _milestone_of(project, mid):
     return m
 
 
-def _sorted(milestones):
-    return milestones.sorted(lambda m: (m.deadline is False, m.deadline or '', m.id))
-
-
 def _parse_deliverables(value):
     if not isinstance(value, list):
         raise ApiError(422, 'invalid', "deliverables must be a list", field='deliverables')
@@ -55,7 +52,16 @@ class MilestoneController(http.Controller):
         declare_read_capability_scope('pmo.projects.read')
         project = get_visible_record('project.project', project_id)
         project._liwan_check_tool('planning')
-        return [dump_milestone(project, m) for m in _sorted(project.milestone_ids)]
+        limit, offset = parse_page(request.httprequest.args)
+        domain = [('project_id', '=', project.id)]
+        Milestone = request.env['project.milestone']
+        milestones = Milestone.search(
+            domain, order='deadline asc NULLS LAST, id asc', limit=limit, offset=offset,
+        )
+        return {
+            'items': [dump_milestone(project, milestone) for milestone in milestones],
+            'total': Milestone.search_count(domain),
+        }
 
     @http.route('/api/v1/projects/<int:project_id>/milestones', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

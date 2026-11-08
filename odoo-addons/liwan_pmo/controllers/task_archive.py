@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import http
 from odoo.exceptions import AccessError, MissingError
+from odoo.fields import Domain
 from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.common import (
@@ -17,27 +18,31 @@ from odoo.addons.liwan_pmo.serializers.task import (
 )
 
 MAX_LIMIT = 200
-# Field fetches for `_liwan_can_archive` are isolated per batch so the
-# candidate id list is not kept as one prefetched recordset. Capability
-# checks remain per record; this is not an asymptotic SQL improvement.
-ARCHIVE_SCAN_BATCH = 200
+ARCHIVE_ORDER = 'write_date desc, id desc'
 
 
-def eligible_archived_task_ids(tasks, domain, batch_size=ARCHIVE_SCAN_BATCH):
-    """Ids the caller may restore, in `write_date desc, id desc` order.
+def archive_eligibility_domain(service, user):
+    """The SQL form of ``project.task._liwan_can_archive`` for this caller.
 
-    Eligibility is fully applied before any caller pagination. Candidates
-    are scanned in batches so the whole matching recordset is not
-    materialized at once.
+    A task is restorable when the caller may write it and is either its creator
+    or its approver. Write and approve are each held company-wide or
+    contextually, as the task's project manager, so:
+
+    * global ``pmo.tasks.write`` — every task of the current company;
+    * otherwise the contextual write grant — ``project_id.user_id`` is the caller;
+    * global ``pmo.tasks.approve``, the creator, or the same project manager.
+
+    The caller's own domain pins the task and its project to the current
+    company, so the contextual grant's company condition (the project's company
+    equals the task's) is already satisfied, and its readability condition is
+    carried by the record rules of the search itself.
     """
-    candidate_ids = tasks._search(domain, order='write_date desc, id desc').get_result_ids()
-    batch_size = max(int(batch_size), 1)
-    eligible_ids = []
-    for start in range(0, len(candidate_ids), batch_size):
-        batch_ids = candidate_ids[start:start + batch_size]
-        batch = tasks.browse(batch_ids).with_prefetch(batch_ids)
-        eligible_ids.extend(task.id for task in batch if task._liwan_can_archive())
-    return eligible_ids
+    write_all = service._liwan_has_capability(user, 'pmo.tasks.write')
+    approve_all = service._liwan_has_capability(user, 'pmo.tasks.approve')
+    manager_scope = Domain('project_id.user_id', '=', user.id)
+    return (Domain.TRUE if write_all else manager_scope) & (
+        Domain('create_uid', '=', user.id) | (Domain.TRUE if approve_all else manager_scope)
+    )
 
 
 class TaskArchiveController(http.Controller):
@@ -72,38 +77,45 @@ class TaskArchiveController(http.Controller):
         Task = request.env['project.task'].with_context(active_test=False)
         # Restoration is impossible while the parent project is archived;
         # omit those rows from both items and total.
-        domain = [
+        domain = Domain([
             ('active', '=', False),
             ('company_id', '=', company_id),
             ('project_id.company_id', '=', company_id),
             ('project_id.active', '=', True),
-        ]
+        ])
         if project_id is not None:
             project = request.env['project.project'].with_context(active_test=False).search([
                 ('id', '=', project_id), ('company_id', '=', company_id), ('active', '=', True),
             ], limit=1)
             if not project:
                 return {'items': [], 'total': 0}
-            domain.append(('project_id', '=', project_id))
+            domain &= Domain('project_id', '=', project_id)
         if filter_ == 'mine':
-            domain.append(('create_uid', '=', request.env.uid))
+            domain &= Domain('create_uid', '=', request.env.uid)
         elif not request.env['project.project']._liwan_is_manager():
             # Assigned project managers may restore all tasks in their project;
             # employees can list only tasks they created.
-            domain.append('|')
-            domain.extend([('create_uid', '=', request.env.uid), ('project_id.user_id', '=', request.env.uid)])
+            domain &= (
+                Domain('create_uid', '=', request.env.uid)
+                | Domain('project_id.user_id', '=', request.env.uid)
+            )
         q = args.get('q')
         if q:
-            domain.append(('name', 'ilike', q))
-        # Capability checks are record-scoped and cannot be represented by the
-        # ORM domain. Filter before pagination so totals and pages contain only
-        # tasks this user may actually restore.
+            domain &= Domain('name', 'ilike', q)
+        # Restore eligibility is the same rule as `_liwan_can_archive`, expressed
+        # as a domain so the counts and the page are decided in SQL.
+        eligibility = archive_eligibility_domain(
+            request.env['liwan.access.service'], request.env.user,
+        )
         page_limit = min(limit, MAX_LIMIT)
-        eligible_ids = eligible_archived_task_ids(Task, domain)
-        page_ids = eligible_ids[offset:offset + page_limit]
-        tasks = Task.browse(page_ids)
+        eligible = domain & eligibility
+        total = Task.search_count(eligible)
+        # `limit=0` is a valid request for the total alone, with no items.
+        if not page_limit:
+            return {'items': [], 'total': total}
+        tasks = Task.search(eligible, order=ARCHIVE_ORDER, limit=page_limit, offset=offset)
         counts = task_counts(tasks)
-        return {'items': [dump_task(task, counts=counts) for task in tasks], 'total': len(eligible_ids)}
+        return {'items': [dump_task(task, counts=counts) for task in tasks], 'total': total}
 
     @http.route('/api/v1/tasks/<int:task_id>/unarchive', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

@@ -14,7 +14,7 @@ const projectBadge = (status: ProjectStatus | null) => { const entry = projectSt
 const hydrated = useHydrated()
 
 const projectIdRef = computed(() => props.projectId)
-const { data, isLoading, error, refetch } = useProjectUpdates(projectIdRef)
+const { data, isLoading, error, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } = useProjectUpdates(projectIdRef)
 const items = computed<ProjectUpdate[]>(() => [...(data.value ?? [])].sort((a, b) => b.date.localeCompare(a.date)))
 const router = useRouter()
 const route = useRoute()
@@ -88,5 +88,17 @@ function openCreate() {
         </article>
       </li>
     </ol>
+    <div v-if="hasNextPage" class="flex justify-center border-t border-default px-(--liwan-card-pad) py-3">
+      <UButton
+        color="neutral"
+        variant="outline"
+        size="sm"
+        data-testid="project-update-more"
+        :disabled="!hydrated || isFetchingNextPage"
+        :loading="isFetchingNextPage"
+        :label="t('app.loadMore')"
+        @click="fetchNextPage()"
+      />
+    </div>
   </SharedListCard>
 </template>

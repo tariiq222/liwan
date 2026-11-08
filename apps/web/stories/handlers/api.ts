@@ -14,7 +14,10 @@ export const apiHandlers = [
     status_counts: [{ status: 'on_track', count: 9 }, { status: 'at_risk', count: 4 }, { status: 'off_track', count: 2 }, { status: 'on_hold', count: 1 }, { status: 'done', count: 6 }, { status: null, count: 2 }],
   })),
   http.get('/api/v1/tasks/summary', () => HttpResponse.json({ total: 128, open: 82, overdue: 18, done: 28 })),
-  http.get('/api/v1/tags', ({ request }) => HttpResponse.json(tags.filter(tag => contains(tag.name, request)))),
+  http.get('/api/v1/tags', ({ request }) => {
+    const items = tags.filter(tag => contains(tag.name, request))
+    return HttpResponse.json({ items, total: items.length })
+  }),
   http.post('/api/v1/tags', async ({ request }) => {
     const body = await request.json() as { name: string }
     return HttpResponse.json(TagSchema.parse({ id: 900, name: body.name, color: 0 }))

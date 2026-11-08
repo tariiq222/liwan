@@ -447,12 +447,15 @@ class ProjectProject(models.Model):
         project-manager *group* may write project.project), which is why the
         write itself runs in sudo once the caller has done its own check.
         Third documented sudo() in liwan_pmo (settings, policy create, this).
+
+        The whitelist is the enforcement of this *do* step, so a field outside
+        it is a refusal of the write (403 through the API error contract), not
+        a programming error: a caller that forgot its own field check must fail
+        closed, and an uncaught exception would answer 500 instead.
         """
         self.ensure_one()
-        bad = set(vals) - allowed
-        if bad:
-            msg = f"cannot write non-whitelisted project fields: {sorted(bad)}"
-            raise ValueError(msg)
+        if set(vals) - allowed:
+            raise AccessError(self.env._("Project fields are not allowed."))
         self.sudo().write(vals)
         return self
 
