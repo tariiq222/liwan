@@ -7,6 +7,11 @@
 
 	route {
 		rate_limit {
+			# One aggregate budget per client address for every credential endpoint: the
+			# password step, the code send/verify/device steps of the two-step sign-in,
+			# sign-out, and the stock session calls. Per-account limits (resend cooldown,
+			# code attempts, send caps) are Odoo's, in liwan_core/models/login_code.py:
+			# the edge sees one address behind a shared NAT and never learns the account.
 			zone liwan_auth {
 				match {
 					path /api/auth/* /api/v1/auth/* /web/session/* /web/login /web/login/*
@@ -67,6 +72,41 @@
 			reverse_proxy odoo:8072
 		}
 		handle {
+			# Browser documents come only from Nuxt. The Odoo handles above answer JSON,
+			# PDF reports and binary downloads, where a document CSP breaks report and
+			# barcode rendering, so these headers never leave this block.
+			# `defer` gives the edge the last word over an upstream value: the baseline policy
+			# below is the one the browser enforces. If Nuxt ever emits its own CSP (for a
+			# nonce), merge the two here instead of letting either layer win.
+			#
+			# script-src needs 'unsafe-inline': Nuxt 4 writes its hydration payload, the
+			# import map and the entry bootstrap as inline <script> elements, and the edge
+			# cannot mint a nonce for them (that is a Nuxt-side change). style-src needs it
+			# too: Nuxt inlines component CSS and Vue binds `:style` attributes.
+			# img-src allows any https host because the WhatsApp business profile picture
+			# is returned as a remote https URL (pps.whatsapp.net), and blob:/data: because
+			# an upload preview is a local object URL. connect-src is same-origin plus wss:
+			# for the /websocket live bus. form-action allows https because the pay page
+			# submits a hidden form to the payment gateway rather than framing it. frame-src
+			# is empty: the app embeds no document. frame-ancestors 'none' is repeated as
+			# X-Frame-Options because older browsers read only the latter.
+			header {
+				defer
+				Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' wss:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self' https:; frame-ancestors 'none'"
+				# '?' keeps a stricter value the app already sent: the pages that carry a
+				# document token in their address (/pay, /book, /join, /reset-password)
+				# set `referrer-policy: no-referrer` themselves.
+				?Referrer-Policy "strict-origin-when-cross-origin"
+				# A year, no includeSubDomains: a tenant's other subdomains are not ours to
+				# promise over TLS.
+				Strict-Transport-Security "max-age=31536000"
+				X-Content-Type-Options "nosniff"
+				X-Frame-Options "DENY"
+				# Only what the app uses: the inbox location picker reads geolocation, and a
+				# message's video player is allowed to go fullscreen. Nothing here records
+				# audio, video or a screen.
+				Permissions-Policy "camera=(), microphone=(), display-capture=(), geolocation=(self), fullscreen=(self)"
+			}
 			reverse_proxy web:3000 {
 				# Set after Connection-nominated fields are stripped; never append.
 				header_up X-Liwan-Client-IP {remote_host}
