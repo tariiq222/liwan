@@ -62,8 +62,8 @@ const ME = {
 
 const BRANDING = {
   name: 'ليوان',
-  logo_url: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="6" fill="#7843c6"/></svg>'),
-  primary_color: process.env.PREVIEW_PRIMARY_COLOR || '#7843c6',
+  logo_url: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="6" fill="#14102a"/></svg>'),
+  primary_color: process.env.PREVIEW_PRIMARY_COLOR || '#14102a',
   font: 'IBM Plex Sans Arabic',
 }
 

@@ -47,19 +47,10 @@ describe('the print sheet', () => {
     expect(declarations(print, '.liwan-shell-workspace').get('padding-block-start')).toBe('0 !important')
   })
 
-  it('never prints the Sadu strip', () => {
-    expect(declarations(print, '.liwan-shell::after').get('display')).toBe('none !important')
-  })
-
-  it('draws the Sadu strip as a 14px sand band masked by the slim Sadu band, with whole units only', () => {
+  it('draws no Sadu strip in the shell', () => {
     const shell = readFileSync(resolve(import.meta.dirname, '../shell.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
-    const strip = declarations(shell, '.liwan-shell::after')
-    expect(shell).toContain('--liwan-sadu-height: 14px')
-    expect(shell).toContain('--liwan-sadu-unit: url("../brand/sadu/sadu-band-slim.svg")')
-    expect(strip.get('background')).toBe('var(--liwan-sand)')
-    for (const property of ['mask', '-webkit-mask']) expect(strip.get(property)).toBe('var(--liwan-sadu-unit) 0 0 / auto 100% round no-repeat')
-    expect(strip.get('pointer-events')).toBe('none')
-    expect(strip.get('height')).toBe('var(--liwan-sadu-height)')
+    expect(shell).not.toContain('.liwan-shell::after')
+    expect(shell).not.toContain('--liwan-sadu')
   })
 
   it('prints a .liwan-print page black on white through the tokens and their aliases', () => {

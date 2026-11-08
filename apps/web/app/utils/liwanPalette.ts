@@ -2,7 +2,7 @@
 // dashboard redesign. The interface primary is the ink; a company colour only paints documents and reports.
 
 /** The default company colour of documents and reports (the server default); it never themes the interface. */
-export const DEFAULT_COMPANY_COLOR = '#7843c6'
+export const DEFAULT_COMPANY_COLOR = '#14102a'
 
 /** The ink primary: solid buttons, selected states, links and titles in light mode (white label). */
 export const INK = '#14102a'
