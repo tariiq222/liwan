@@ -442,10 +442,16 @@ class ProjectTask(models.Model):
         # The insert references its project (a key-share lock on that row) and the completion pass
         # after it locks the project for update: taking that lock first keeps two concurrent creates
         # in one project from deadlocking on each other's key-share lock.
-        parents = self.browse([vals['parent_id'] for vals in vals_list if vals.get('parent_id')])
-        projects = self.env['project.project'].browse(
-            [vals['project_id'] for vals in vals_list if vals.get('project_id')],
-        ) | parents.project_id
+        # Stock create fills default_project_id / default_parent_id after this point, so resolve them here.
+        context = self.env.context
+        parents = self.browse([
+            parent_id for vals in vals_list
+            if (parent_id := vals.get('parent_id') or context.get('default_parent_id'))
+        ])
+        projects = self.env['project.project'].browse([
+            project_id for vals in vals_list
+            if (project_id := vals.get('project_id') or context.get('default_project_id'))
+        ]) | parents.project_id
         self._liwan_lock_projects_then_tasks(projects, self.browse())
         marker[TASK_CREATE_MARKER] = marker.get(TASK_CREATE_MARKER, 0) + 1
         try:

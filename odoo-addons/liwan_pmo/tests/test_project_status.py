@@ -179,6 +179,21 @@ class TestProjectCompletionStatus(TransactionCase):
         self.assertEqual(steps[0][1], [self.project.id])
         self.assertEqual(steps[0][2], [])
 
+    def test_task_create_locks_its_project_before_the_insert(self):
+        """The insert's key-share lock must come after the project lock, also for a context default."""
+        task_model = self.env['project.task']
+        task_class = type(task_model)
+        real_lock = task_class._liwan_lock_projects_then_tasks
+        locked = []
+
+        def lock(model, projects, tasks):
+            locked.append((sorted(projects.ids), model.search_count([('name', '=', 'Locked create')])))
+            return real_lock(model, projects, tasks)
+
+        self.patch(task_class, '_liwan_lock_projects_then_tasks', lock)
+        task_model.with_context(default_project_id=self.project.id).create({'name': 'Locked create'})
+        self.assertEqual(locked[0], ([self.project.id], 0), 'the project was not locked before the insert')
+
     def test_a_project_already_done_posts_no_second_update(self):
         def completions():
             return self.env['project.update'].search_count([('project_id', '=', self.project.id)])
