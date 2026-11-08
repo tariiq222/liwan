@@ -20,8 +20,8 @@
 
 مدخلات الثيم (كما في DESIGN.md §1): لوحة ليوان الثابتة (الحبر `#14102a` يمرّ بنص أبيض، وداكنًا `#f3f3f6` بنص `#0a0a0c`) تغذّي `primary`، والمحايد `stone`، وهوية ليوان (الحبر والرمادي الفاتح والفحمي) في `tokens.css`، وخط IBM Plex Sans Arabic بثلاثة أحجام،
 ومظهران فقط (فاتح وداكن؛ أي قيمة قديمة مخزنة تُقرأ فاتحًا). الكثافة من
-`--liwan-control-h` (32px) و`--liwan-row-h` (44px)، والزوايا من
-`--radius-card` (18px) و`--radius-control` (12px)، والظلال للطبقات العائمة فقط. ألوان الشريط ثابتة
+`--liwan-control-h` (42px) و`--liwan-row-h` (44px)، والزوايا من
+`--radius-card` (18px) و`--radius-control` (12px)، والظلال للطبقات العائمة فقط. ألوان الشريط الجانبي ثابتة
 من عائلة `--liwan-rail-*` و`--liwan-chip*` في `tokens.css`. هندسة الغلاف في قسم «الغلاف» أدناه.
 اللون الافتراضي للشركة (`primary_color`) هو حبر الهوية `#14102a`. الواجهة لا تتبع لون الشركة: عائلة `--primary*` و`--chart-*` وتوكنات النجاح
 والتحذير والخطأ والمعلومة ثابتة في `tokens.css` لكل مظهر. الشعار المعتمد في
@@ -83,7 +83,7 @@ Storybook في `apps/web` يعرض المكونات المتكررة وتوكن�
 
 ## الغلاف
 
-غلاف ليوان مخصص ولا يستخدم `UDashboard*`: مكوناته المشتركة في `packages/ui/app/components/shell/` (`ShellFrame` و`ModuleRail` و`ShellNavigation` و`ShellBreadcrumb`…)، والمرتبطة ببيانات العميل في `apps/web/app/components/shell/` (`AppSidebar` و`ShellHeader` و`MobileNavigation` و`GlobalSearch` و`AssistantSheet`…)، لثلاثة أسباب: الهيدر يجب أن يعلو القائمة السياقية، ونقطة التوقف `lg` مثبتة داخل المكونات، ولكل شريط جانبي درج جوال خاص بجهة ثابتة على اليسار. زر طي القائمة السياقية يبقى معطلًا حتى الترطيب (قاعدة `useHydrated()`)، أما حالته فتُحفظ في كوكي `liwan-context-sidebar` يقرؤه الخادم فتُرسم من أول إطار، بالأسلوب نفسه الذي يستخدمه `useResizable`. المكونات المستخدمة داخله: `USlideover` و`UButton` و`UTooltip` و`UBadge`، و`UBreadcrumb` في هيدر لوحة المورّد وحده (هيدر العميل بلا مسار؛ DESIGN.md §3).
+غلاف ليوان مخصص ولا يستخدم `UDashboard*`: مكوناته المشتركة العرضية في `packages/ui/app/components/shell/` (`ShellFrame` و`ShellSidebar` و`ShellTopBar` و`ShellTabBar` و`ShellSlideOver` و`ShellNavSection` و`ShellNavRow` و`ShellToolButton` و`ShellAppGrid`…)، والمرتبطة ببيانات العميل في `apps/web/app/components/shell/` (`AppSidebar` و`AppTopBar` و`AppTabBar` و`AppDrawer` و`SlideOverHost` و`AppAppSwitcher` و`GlobalSearch` و`AssistantButton` و`ThemeToggle`…). الأسباب: شريط جانبي ثابت بوضعين (عام ووضع تطبيق) يقرأ الـmanifests، وشريط علوي مسطّح لاصق، ولوحات منزلقة غير مودال تحت الشريط (`ShellSlideOver`، ليست `USlideover`)، ونقطة الجوال `768px` مثبتة داخل المكونات. تحت `768px` يحل شريط تبويب سفلي ودرج `USlideover` من بداية القراءة محل الشريط الجانبي. الهندسة في `shell.css` والقياسات في DESIGN.md §1. لا كوكي لطيّ الشريط: ليس له زر طي. المكونات المستخدمة داخله: `USlideover` (الدرج) و`UPopover` (مبدّل التطبيقات) و`UButton` و`UTooltip` و`UBadge`، و`UBreadcrumb` في شريط لوحة المورّد العلوي وحده (شريط العميل العلوي بلا مسار؛ DESIGN.md §3).
 
 تُستخدم `UCommandPalette` داخل `UModal` في `shell/GlobalSearch.vue` وحده، ويمنع `ui_policy` استخدامها في مكان آخر. إعداداتها:
 
