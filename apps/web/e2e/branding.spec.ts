@@ -54,7 +54,7 @@ test('document colour draft cancels, resets, and saves explicitly without themin
   await expect(page.getByTestId('branding-logo')).toHaveCount(0)
   await expect(page.getByTestId('branding-secondary-color')).toHaveCount(0)
   await expect(page.getByTestId('branding-suggest-secondary')).toHaveCount(0)
-  await expect(settingsBranding.getByText('لا يغيّر هذا ألوان الواجهة')).toBeVisible()
+  await expect(settingsBranding.getByText('لا للواجهة')).toBeVisible()
 
   const savedBranding = await (await page.request.get('/api/v1/admin/branding')).json() as { name: string; logo_url: string | null }
   const savedName = savedBranding.name

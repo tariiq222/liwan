@@ -428,6 +428,8 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
 /* Touch: every shell control keeps a 44px target. */
 @media (pointer: coarse) {
   .liwan-shell :is(.liwan-tool, .liwan-user, .liwan-slideover-close, .liwan-search-trigger, .liwan-ai-button, .liwan-side-row, .liwan-tabbar-item) { min-height: 44px; min-width: 44px; }
+  /* The page's own buttons, links and selects too (a switch keeps its own track). */
+  .liwan-shell-main :is(button[data-slot="base"]:not([role="switch"]), a[data-slot="base"], [data-slot="select-trigger"]) { min-height: 44px; min-width: 44px; }
 }
 
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {

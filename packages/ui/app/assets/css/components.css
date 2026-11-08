@@ -639,3 +639,7 @@ ul.list-disc > li::marker { content: "◆  "; color: var(--primary); font-size: 
   -webkit-mask-image: url("../brand/sadu/sadu-triangle.svg");
 }
 .liwan-sadu-triangle-mark:dir(ltr)::before { transform: none; }
+
+/* A toned avatar (utils/avatarTone) sets its own readable text colour on the avatar; Nuxt UI's fallback span would otherwise
+   paint the initials `text-muted`, which is below 4.5:1 on the pale tones. */
+[data-slot="fallback"][data-tone] { color: inherit; }

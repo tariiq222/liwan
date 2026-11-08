@@ -79,7 +79,7 @@ test('tasks: "New task" button is disabled pre-hydration, then an immediate clic
 test('hr: directory create is disabled pre-hydration, then an immediate click works with no retry', async ({ page }) => {
   await login(page)
   const hydrate = await beforeHydration(page, '/hr')
-  const createButton = page.getByRole('link', { name: 'موظف جديد' })
+  const createButton = page.getByTestId('hr-employee-new')
   await expect(createButton).toBeVisible()
   await expect(createButton).toBeDisabled()
   hydrate()

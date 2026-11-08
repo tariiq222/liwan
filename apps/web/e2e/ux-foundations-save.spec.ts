@@ -94,7 +94,7 @@ test('a settings card saves its draft from the page save bar and keeps the draft
   })
   await enterFoundation(page, '/settings/apps/projects')
   const card = page.locator('#project-creation')
-  const control = card.getByRole('switch', { name: 'يشترط مدير المشروع', exact: true })
+  const control = card.getByRole('switch', { name: 'إلزام تعيين مدير للمشروع', exact: true })
   // The page's one save bar appears while a card has edits and saves every edited card at once.
   const saveBar = page.getByTestId('settings-save-bar')
   const save = page.getByTestId('settings-save-bar-save')

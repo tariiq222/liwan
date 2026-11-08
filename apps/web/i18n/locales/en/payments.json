@@ -151,17 +151,17 @@
       "hint": "What applies to the orders your customers pay online.",
       "expiry": {
         "label": "Time to pay an unpaid order (minutes)",
-        "hint": "An unpaid order is cancelled after this time, between {min} and {max} minutes.",
+        "hint": "An unpaid order is cancelled after this time, between {min} and {max} minutes, for the current company.",
         "invalid": "Enter a whole number between {min} and {max}."
       },
       "invoiceWhenPaid": {
         "label": "Invoice when paid",
-        "hint": "The invoice is created and posted once payment is confirmed, for the whole account."
+        "hint": "The invoice is created and posted once payment is confirmed. It applies to the whole account, not one company."
       },
       "saved": "The order settings were saved",
       "taxMode": {
         "label": "Tax in the price",
-        "hint": "Whether the price includes tax or tax is added on top. Tax shows as its own line, for new orders.",
+        "hint": "Whether the price includes tax or tax is added on top. Tax shows as its own line, for new orders of the current company.",
         "included": "Price includes tax",
         "added": "Tax is added to the price",
         "unregistered": "The company is not VAT-registered, so no tax is added. Turn registration on in the company profile."
