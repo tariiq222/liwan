@@ -360,6 +360,7 @@ def api_handler(func):
         except IntegrityError as e:
             # A database constraint the payload broke (a unique or check constraint): Odoo's retry would
             # turn it into a ValidationError, but answer it in its own json2 shape, with the traceback.
+            _logger.info('api constraint refused: %s %s: %s', request.httprequest.method, request.httprequest.path, e.diag.constraint_name)
             return error_response(422, 'invalid', _integrity_message(e))
         except REPLAYED_BY_ODOO:
             # Odoo replays the request around this one; answering would report a conflict it resolves.
