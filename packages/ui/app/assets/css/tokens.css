@@ -105,19 +105,19 @@
   --chart-status-neutral: #8a7450;
   /* Hairline of cards, tables and dividers; --ui-border drives every ring-default and border-default. */
   --ui-bg: #ffffff;
-  --ui-bg-muted: #f4f4f5;
-  --ui-bg-elevated: #f4f4f5;
-  --ui-bg-accented: #ebebed;
-  --ui-border: #e8e8eb;
-  --ui-border-muted: #f0f0f2;
-  --ui-border-accented: #d8d8de;
-  /* Ink for titles and numbers, #3a3550 for a mid tone, #6b6b76 for secondary text. The neutral scale is Nuxt UI
+  --ui-bg-muted: #f1f3f6;
+  --ui-bg-elevated: #f1f3f6;
+  --ui-bg-accented: #e6e9ee;
+  --ui-border: #e2e6ec;
+  --ui-border-muted: #eceff3;
+  --ui-border-accented: #cfd5de;
+  /* Ink for titles and numbers, #374151 for a mid tone, #646b79 for secondary text. The neutral scale is Nuxt UI
      `stone` (app.config.ts). Sand survives only as the Sadu decoration colour. */
   --ui-text: #14102a;
   --ui-text-highlighted: #14102a;
-  --ui-text-toned: #3a3550;
-  --ui-text-muted: #6b6b76;
-  --ui-text-dimmed: #6b6b76;
+  --ui-text-toned: #374151;
+  --ui-text-muted: #646b79;
+  --ui-text-dimmed: #646b79;
   --liwan-sand: #eadfc8;
   --liwan-table-head: var(--ui-bg-muted);
   /* LiwanOS identity and density, at the 14px root. Controls 42px (a small control 34px). Tables: a row is 44px and cells use
@@ -148,12 +148,12 @@
   --liwan-progress-sm: 0.428571rem;
   --liwan-progress-md: 0.571429rem;
   /* Shell: a floating module rail on the sidebar tone (fixed LiwanOS ink accents, not tenant-derived) and surfaces. */
-  --liwan-sidebar: #fafafa;
-  --liwan-rail-border: #e8e8eb;
-  --liwan-rail-ink: #6b6b76;
-  --liwan-rail-active: #f4f4f5;
+  --liwan-sidebar: #f9fafb;
+  --liwan-rail-border: #e2e6ec;
+  --liwan-rail-ink: #646b79;
+  --liwan-rail-active: #f1f3f6;
   /* Icon chips of the sidebar links. */
-  --liwan-chip: #f4f4f5;
+  --liwan-chip: #f1f3f6;
   /* The active chip (sidebar chip) is the ink fill with an inverse icon. */
   --liwan-chip-active: var(--primary-solid);
   --liwan-chip-active-ink: var(--primary-solid-foreground);
@@ -161,9 +161,9 @@
   /* Floating shell cards (top bar, sidebar) lift off the canvas with these shadows. */
   --liwan-shell-shadow: 0 12px 32px rgb(20 16 42 / 8%);
   --liwan-rail-shadow: 0 12px 32px rgb(20 16 42 / 10%);
-  --liwan-nav-active: #f4f4f5;
+  --liwan-nav-active: #f1f3f6;
   /* Table row under the pointer: a very light grey (dark mode: a lighter layer on the surface). */
-  --liwan-row-hover: #fafafa;
+  --liwan-row-hover: #f9fafb;
   /* Page canvas: white behind content cards, which stay --ui-bg (bg-default) with a hairline ring. */
   --liwan-canvas: #ffffff;
   --shell-background: var(--liwan-canvas);
@@ -242,23 +242,23 @@
 :root:lang(en) { font-size: 13px; }
 :root:lang(en)[data-font-size="medium"] { font-size: 15px; }
 :root:lang(en)[data-font-size="large"] { font-size: 17px; }
-/* Dark mode: charcoal surfaces (page #1d1d22, sidebar #222228, cards #27272e), light ink text and a light solid primary. */
+/* Dark mode: charcoal surfaces (page #1c1e24, sidebar #21242b, cards #262a33), light ink text and a light solid primary. */
 .dark {
   color-scheme: dark;
-  --ui-bg: #27272e;
-  --ui-bg-muted: #2f2f37;
-  --ui-bg-elevated: #2f2f37;
-  --ui-bg-accented: #383842;
-  --ui-border: #3a3a44;
-  --ui-border-muted: #32323b;
-  --ui-border-accented: #4a4a56;
+  --ui-bg: #262a33;
+  --ui-bg-muted: #2e323c;
+  --ui-bg-elevated: #2e323c;
+  --ui-bg-accented: #373c47;
+  --ui-border: #393e49;
+  --ui-border-muted: #31353f;
+  --ui-border-accented: #4a505c;
   --ui-text: #f3f3f6;
   --ui-text-highlighted: #ffffff;
-  --ui-text-muted: #a9a9b5;
-  --ui-text-toned: #dcdce3;
-  --ui-text-dimmed: #a9a9b5;
-  --liwan-canvas: #1d1d22;
-  --liwan-sidebar: #222228;
+  --ui-text-muted: #a8aeba;
+  --ui-text-toned: #dadee5;
+  --ui-text-dimmed: #a8aeba;
+  --liwan-canvas: #1c1e24;
+  --liwan-sidebar: #21242b;
   --liwan-sand: #d2c3a3;
   --liwan-table-head: var(--ui-bg-muted);
   /* The primary is a light ink: #f3f3f6 for icons, rings and text, and for the solid fill under dark text (#0a0a0c). */
@@ -275,20 +275,20 @@
   --primary-solid-active: #d4d4dc;
   --primary-solid-active-foreground: #0a0a0c;
   /* The rail stays a surface step clearly lighter than the page canvas, with an edge line (shell.css). */
-  --liwan-rail-border: #3a3a44;
-  --liwan-rail-ink: #a9a9b5;
-  --liwan-rail-active: #30303a;
-  --liwan-chip: #2f2f37;
+  --liwan-rail-border: #393e49;
+  --liwan-rail-ink: #a8aeba;
+  --liwan-rail-active: #30353f;
+  --liwan-chip: #2e323c;
   --liwan-rail-active-ink: #f3f3f6;
   --liwan-shell-shadow: 0 12px 32px rgb(0 0 0 / 35%);
   --liwan-rail-shadow: 0 12px 32px rgb(0 0 0 / 35%);
-  --liwan-nav-active: #30303a;
-  --liwan-row-hover: #2c2c34;
+  --liwan-nav-active: #30353f;
+  --liwan-row-hover: #2b2f38;
   /* Brand tone on dark surfaces: 4.5:1 on every surface (fixed values). */
   --brand-link: #f3f3f6;
   --ring: #f3f3f6;
   --sidebar-ring: #f3f3f6;
-  --chart-1: #dcdce3;
+  --chart-1: #dadee5;
   --chart-2: #2dd4bf;
   --chart-3: #fbbf24;
   --chart-4: #f472b6;
@@ -298,7 +298,7 @@
   --chart-status-info: #60a5fa;
   --chart-status-warning: #fbbf24;
   --chart-status-error: #f87171;
-  --chart-status-neutral: #a9a9b5;
+  --chart-status-neutral: #a8aeba;
   /* Tag-kind pills on dark surfaces: light text on a 16% tint of the same hue. */
   --accent-blue-bg: color-mix(in srgb, #93c5fd 16%, transparent);
   --accent-blue-fg: #93c5fd;

@@ -15,34 +15,34 @@ export const DARK_PRIMARY_LABEL = '#0a0a0c'
 
 /** Light text roles: ink for titles and numbers, a mid tone, and secondary text. */
 export const LIGHT_INK = INK
-export const LIGHT_MID_TEXT = '#3a3550'
-export const LIGHT_MUTED_TEXT = '#6b6b76'
+export const LIGHT_MID_TEXT = '#374151'
+export const LIGHT_MUTED_TEXT = '#646b79'
 
-/** Light surfaces: white page, #fafafa sidebar, #f4f4f5 soft fills and the #e8e8eb hairline. */
+/** Light surfaces: white page, #f9fafb sidebar, #f1f3f6 soft fills and the #e2e6ec hairline (a cool, ink-tinted grey ramp). */
 export const LIGHT_CANVAS = '#ffffff'
-export const LIGHT_SIDEBAR = '#fafafa'
-export const LIGHT_SOFT = '#f4f4f5'
-export const LIGHT_BORDER = '#e8e8eb'
-export const LIGHT_ACTIVE_TINT = '#f4f4f5'
+export const LIGHT_SIDEBAR = '#f9fafb'
+export const LIGHT_SOFT = '#f1f3f6'
+export const LIGHT_BORDER = '#e2e6ec'
+export const LIGHT_ACTIVE_TINT = '#f1f3f6'
 
 /** Dark text roles on the charcoal surfaces. */
 export const DARK_TEXT = '#f3f3f6'
-export const DARK_MID_TEXT = '#dcdce3'
-export const DARK_MUTED_TEXT = '#a9a9b5'
+export const DARK_MID_TEXT = '#dadee5'
+export const DARK_MUTED_TEXT = '#a8aeba'
 
 /** Dark charcoal surfaces: page, sidebar, cards (--ui-bg), soft fills, selected nav and the hairline. */
 export const DARK_SURFACES = {
-  canvas: '#1d1d22',
-  sidebar: '#222228',
-  bg: '#27272e',
-  muted: '#2f2f37',
-  elevated: '#2f2f37',
-  accented: '#383842',
-  border: '#3a3a44',
-  borderMuted: '#32323b',
-  borderAccented: '#4a4a56',
+  canvas: '#1c1e24',
+  sidebar: '#21242b',
+  bg: '#262a33',
+  muted: '#2e323c',
+  elevated: '#2e323c',
+  accented: '#373c47',
+  border: '#393e49',
+  borderMuted: '#31353f',
+  borderAccented: '#4a505c',
 } as const
-export const DARK_NAV_ACTIVE = '#30303a'
+export const DARK_NAV_ACTIVE = '#30353f'
 
 /** Per-application icon tiles (light, dark) and button shades (white label), app-identity.css. */
 export const APP_TILES = {

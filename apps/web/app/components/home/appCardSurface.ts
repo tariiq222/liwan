@@ -9,8 +9,8 @@ interface SurfaceColours { light: readonly [string, string]; dark: readonly [str
 const SURFACES: Record<AppCardSurface, SurfaceColours> = {
   navy: { light: ['#1c2b4a', '#0f1a33'], dark: ['#1c2b4a', '#0c1428'], lightText: true },
   mint: { light: ['#e4fbf2', '#b4f0d7'], dark: ['#12402f', '#0a2219'], lightText: false },
-  lav: { light: ['#f5f5f7', '#dcdce3'], dark: ['#34343d', '#27272e'], lightText: false },
-  sand: { light: ['#f8f8f9', '#e4e4e9'], dark: ['#34343d', '#27272e'], lightText: false },
+  lav: { light: ['#f4f5f8', '#dde1e8'], dark: ['#333844', '#262a33'], lightText: false },
+  sand: { light: ['#f7f8fa', '#e3e6ec'], dark: ['#333844', '#262a33'], lightText: false },
   indigo: { light: ['#e8eafd', '#c3c8f6'], dark: ['#222861', '#13163a'], lightText: false },
   coral: { light: ['#fdeae6', '#f7c4b9'], dark: ['#4a221c', '#26120f'], lightText: false },
   forest: { light: ['#163d2c', '#0d2a1e'], dark: ['#174532', '#0b2219'], lightText: true },
