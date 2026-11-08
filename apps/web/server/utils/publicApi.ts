@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import { getProxyRequestHeaders } from 'h3'
-import { legacyTenantResponse, tenantTransport } from './tenantTransport'
+import { legacyTenantResponse, MAX_PUBLIC_HOOK_BODY, MAX_PUBLIC_MFA_BODY, tenantTransport } from './tenantTransport'
 import { tenantUpstreamHeaders } from './tenantRequest'
 import { withUiLocale } from './uiLocale'
 
@@ -14,6 +14,28 @@ export const PUBLIC_API_NAMESPACE = '/api/v1/public/'
 export const PUBLIC_API_NAMESPACE_METHODS = ['GET', 'HEAD', 'POST'] as const
 /** Public JSON bodies are small forms: a token and a few ids. */
 export const MAX_PUBLIC_API_BODY = 16 * 1024
+
+// The auth='public' routes outside the public namespace: login-page branding, the second step of a
+// sign-in (which needs the pre-login session cookie) and the inbox provider webhooks (WhatsApp and TikTok sign
+// every POST with HMAC; Odoo verifies it). Everything under the public namespace is public too, without cookies;
+// everything else requires a session cookie.
+export const PUBLIC_API_METHODS = new Map<string, readonly string[]>([
+  ['/api/v1/branding', ['GET', 'HEAD']],
+  ['/api/v1/auth/channels', ['GET']],
+  ['/api/v1/auth/code', ['POST']],
+  ['/api/v1/auth/verify', ['POST']],
+  ['/api/v1/auth/device', ['POST']],
+  ['/api/v1/inbox/hooks/whatsapp', ['GET', 'POST']],
+  ['/api/v1/inbox/hooks/tiktok', ['POST']],
+])
+export const PUBLIC_BODY_LIMITS = new Map<string, number>([
+  ['/api/v1/auth/channels', MAX_PUBLIC_MFA_BODY],
+  ['/api/v1/auth/code', MAX_PUBLIC_MFA_BODY],
+  ['/api/v1/auth/verify', MAX_PUBLIC_MFA_BODY],
+  ['/api/v1/auth/device', MAX_PUBLIC_MFA_BODY],
+  ['/api/v1/inbox/hooks/whatsapp', MAX_PUBLIC_HOOK_BODY],
+  ['/api/v1/inbox/hooks/tiktok', MAX_PUBLIC_HOOK_BODY],
+])
 
 export function isPublicApiPath(apiPath: string): boolean {
   return apiPath.startsWith(PUBLIC_API_NAMESPACE)

@@ -1,5 +1,5 @@
 import http from 'node:http'
-import { createHash } from 'node:crypto'
+import { createHash, createHmac } from 'node:crypto'
 import { existsSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -21,7 +21,7 @@ async function fixture(mode: 'shared' | 'dedicated', guarded = false) {
   writeFileSync(join(root, 'registry.json'), JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: [{ host: 'a.example.test', tenantId: 'a', database: 'db_a', filestore: 'db_a', registryRevision: 1, enabled: true }] }))
   vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', token)
   vi.stubEnv('LIWAN_TENANT_REGISTRY_PATH', join(root, 'registry.json'))
-  const calls: Array<{ path: string; bytes: number; digest: string }> = []
+  const calls: Array<{ path: string; bytes: number; digest: string; signature?: string | string[]; tiktokSignature?: string | string[] }> = []
   const authCalls: Array<{ path: string; body: Record<string, unknown>; headers: http.IncomingHttpHeaders }> = []
   let holdReplies = false
   const heldReplies: Array<() => void> = []
@@ -30,7 +30,7 @@ async function fixture(mode: 'shared' | 'dedicated', guarded = false) {
     const hash = createHash('sha256'); let bytes = 0; let authText = ''
     req.on('data', chunk => { bytes += chunk.length; hash.update(chunk); if (req.url === '/web/session/authenticate' || req.url === '/api/v1/auth/verify') authText += chunk.toString() })
     req.on('end', () => {
-      const received = { path: req.url!, bytes, digest: hash.digest('hex'), ...(req.headers['x-hub-signature-256'] ? { signature: req.headers['x-hub-signature-256'] } : {}) }
+      const received = { path: req.url!, bytes, digest: hash.digest('hex'), ...(req.headers['x-hub-signature-256'] ? { signature: req.headers['x-hub-signature-256'] } : {}), ...(req.headers['tiktok-signature'] ? { tiktokSignature: req.headers['tiktok-signature'] } : {}) }
       calls.push(received)
       const respond = () => {
       res.setHeader('content-type', 'application/json')
@@ -160,12 +160,55 @@ it.each(['shared', 'dedicated'] as const)('%s forwards the session-less WhatsApp
   } finally { await wire.close() }
 })
 
-it.each(['shared', 'dedicated'] as const)('%s rejects a WhatsApp hook body above 1 MiB before queueing it', async mode => {
+// TikTok signs `{t}.{raw body}` and Odoo checks it, so the hook must be session-less, keep the body byte for byte
+// (the pretty-printed spacing below would not survive a JSON round trip) and forward only its own header.
+const tiktokSignature = (body: Buffer, secret = 'synthetic-client-secret') => {
+  const t = String(Math.floor(Date.now() / 1000))
+  return `t=${t},s=${createHmac('sha256', secret).update(`${t}.`).update(body).digest('hex')}`
+}
+
+it.each(['shared', 'dedicated'] as const)('%s forwards a signed session-less TikTok hook delivery unchanged', async mode => {
+  const wire = await fixture(mode)
+  try {
+    const envelope = Buffer.from('{ "event": "message",\n  "user_openid": "u-1",  "content": "{\\"text\\": \\"مرحبا\\"}" }')
+    const signature = tiktokSignature(envelope)
+    const hook = await wire.call('/api/v1/inbox/hooks/tiktok', envelope, { 'content-type': 'application/json', 'tiktok-signature': signature })
+    expect(hook.status).toBe(200)
+    expect(hook.body).toEqual({ path: '/api/v1/inbox/hooks/tiktok', bytes: envelope.length, digest: createHash('sha256').update(envelope).digest('hex'), tiktokSignature: signature })
+    // No session probe (`/api/v1/me`) or login reached Odoo: the delivery was admitted as public.
+    expect(wire.calls.map(call => call.path)).toEqual(['/api/v1/inbox/hooks/tiktok'])
+  } finally { await wire.close() }
+})
+
+it.each([
+  ['shared', '/api/v1/inbox/hooks/whatsapp', 'POST'],
+  ['dedicated', '/api/v1/inbox/hooks/whatsapp', 'POST'],
+  ['shared', '/api/v1/inbox/hooks/tiktok', 'POST'],
+  ['dedicated', '/api/v1/inbox/hooks/tiktok', 'POST'],
+  ['shared', '/api/v1/branding', 'GET'],
+  ['dedicated', '/api/v1/branding', 'GET'],
+] as const)('%s %s %s forwards only the signature header that path owns', async (mode, path, method) => {
+  // Guarded, so both modes reach Odoo through `tenantTransport`; the unguarded dedicated mode proxies every browser header.
+  const wire = await fixture(mode, true)
+  try {
+    const body = method === 'POST' ? Buffer.from('{}') : undefined
+    const owned = path.endsWith('/tiktok') ? 'tiktok-signature' : path.endsWith('/whatsapp') ? 'x-hub-signature-256' : undefined
+    const response = await wire.call(path, body, { 'content-type': 'application/json', 'tiktok-signature': 't=1,s=00', 'x-hub-signature-256': 'sha256=00' }, method)
+    expect(response.status).toBe(200)
+    const [received] = wire.calls
+    expect(received?.tiktokSignature).toBe(owned === 'tiktok-signature' ? 't=1,s=00' : undefined)
+    expect(received?.signature).toBe(owned === 'x-hub-signature-256' ? 'sha256=00' : undefined)
+  } finally { await wire.close() }
+})
+
+it.each([
+  ['shared', 'whatsapp'], ['dedicated', 'whatsapp'], ['shared', 'tiktok'], ['dedicated', 'tiktok'],
+] as const)('%s rejects a %s hook body above 1 MiB before queueing it', async (mode, provider) => {
   const wire = await fixture(mode)
   let upload: http.ClientRequest | undefined
   try {
     const result = await new Promise<{ status: number; body: unknown }>((resolve, reject) => {
-      upload = http.request(new URL('/api/v1/inbox/hooks/whatsapp', wire.url), { method: 'POST', headers: { ...wire.headers, 'content-type': 'application/json', 'content-length': String(1024 * 1024 + 1) } }, response => {
+      upload = http.request(new URL(`/api/v1/inbox/hooks/${provider}`, wire.url), { method: 'POST', headers: { ...wire.headers, 'content-type': 'application/json', 'content-length': String(1024 * 1024 + 1) } }, response => {
         let text = ''; response.on('data', chunk => { text += chunk }); response.on('end', () => resolve({ status: response.statusCode!, body: JSON.parse(text) }))
       })
       upload.on('error', reject); upload.setTimeout(500, () => upload!.destroy(Error('waited_for_oversized_hook_body'))); upload.flushHeaders()
@@ -398,6 +441,8 @@ it.each([
   ['dedicated', '/api/v1/branding', 'POST', 'GET, HEAD', 'proxy'],
   ['shared', '/api/v1/inbox/hooks/whatsapp', 'PUT', 'GET, POST', 'proxy'],
   ['dedicated', '/api/v1/inbox/hooks/whatsapp', 'PUT', 'GET, POST', 'proxy'],
+  ['shared', '/api/v1/inbox/hooks/tiktok', 'GET', 'POST', 'proxy'],
+  ['dedicated', '/api/v1/inbox/hooks/tiktok', 'GET', 'POST', 'proxy'],
   ['shared', '/api/auth/login', 'GET', 'POST', 'router'],
   ['dedicated', '/api/auth/login', 'GET', 'POST', 'router'],
 ] as const)('%s public %s refuses unsupported %s before body buffering (%s)', async (mode, path, method, allow, owner) => {
