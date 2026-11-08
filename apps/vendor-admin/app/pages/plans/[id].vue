@@ -65,7 +65,7 @@ const cadenceItems = computed(() => (view.value?.prices ?? []).map(p => ({ value
       </VendorCatalogFacts>
       <SharedRecordSection :title="t('vendor.plans.sold')" :description="t('vendor.plans.soldHint')" class="mt-6" data-testid="plan-bundles">
         <ul class="grid gap-2 sm:grid-cols-2">
-          <li v-for="x in [...view.included_bundle_revision_ids, ...view.optional_bundle_revision_ids]" :key="x" class="flex items-center justify-between gap-3 rounded-lg p-3 ring ring-default">
+          <li v-for="x in [...view.included_bundle_revision_ids, ...view.optional_bundle_revision_ids]" :key="x" class="flex items-center justify-between gap-3 rounded-control p-3 ring ring-default">
             <NuxtLink :to="bundleTo(x)" data-testid="plan-bundle-link" class="min-w-0 truncate font-medium hover:underline">{{ bundleName(x) }}</NuxtLink>
             <UBadge color="neutral" :variant="includedIds.includes(x) ? 'subtle' : 'outline'">{{ t(includedIds.includes(x) ? 'vendor.pricing.plan.included' : 'vendor.pricing.plan.optional') }}</UBadge>
           </li>
@@ -78,10 +78,10 @@ const cadenceItems = computed(() => (view.value?.prices ?? []).map(p => ({ value
         </dl>
       </SharedRecordSection>
       <SharedRecordSection :title="t('vendor.pricing.sections.prices')" class="mt-6">
-        <ul class="grid gap-2 sm:grid-cols-2"><li v-for="p in view.prices" :key="cadenceKey(p.cadence)" class="flex justify-between rounded-lg p-3 ring ring-default"><span>{{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatCommercialMoney(p.amount, locale) }}</span></li></ul>
-        <ul v-if="view.extra_branch_prices.length" class="mt-2 grid gap-2 sm:grid-cols-2"><li v-for="p in view.extra_branch_prices" :key="cadenceKey(p.cadence)" class="flex justify-between rounded-lg p-3 ring ring-default"><span>{{ t('vendor.pricing.fields.branchPrice') }} · {{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatCommercialMoney(p.amount, locale) }}</span></li></ul>
-        <ul v-if="view.user_prices.length" class="mt-2 grid gap-2 sm:grid-cols-2"><li v-for="p in view.user_prices" :key="cadenceKey(p.cadence)" class="flex justify-between rounded-lg p-3 ring ring-default"><span>{{ t('vendor.pricing.fields.userPrice') }} · {{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatCommercialMoney(p.amount, locale) }}</span></li></ul>
-        <ul v-if="view.storage_prices.length" class="mt-2 grid gap-2 sm:grid-cols-2"><li v-for="p in view.storage_prices" :key="cadenceKey(p.cadence)" class="flex justify-between rounded-lg p-3 ring ring-default"><span>{{ t('vendor.pricing.fields.storagePrice') }} · {{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatCommercialMoney(p.amount, locale) }}</span></li></ul>
+        <ul class="grid gap-2 sm:grid-cols-2"><li v-for="p in view.prices" :key="cadenceKey(p.cadence)" class="flex justify-between rounded-control p-3 ring ring-default"><span>{{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatCommercialMoney(p.amount, locale) }}</span></li></ul>
+        <ul v-if="view.extra_branch_prices.length" class="mt-2 grid gap-2 sm:grid-cols-2"><li v-for="p in view.extra_branch_prices" :key="cadenceKey(p.cadence)" class="flex justify-between rounded-control p-3 ring ring-default"><span>{{ t('vendor.pricing.fields.branchPrice') }} · {{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatCommercialMoney(p.amount, locale) }}</span></li></ul>
+        <ul v-if="view.user_prices.length" class="mt-2 grid gap-2 sm:grid-cols-2"><li v-for="p in view.user_prices" :key="cadenceKey(p.cadence)" class="flex justify-between rounded-control p-3 ring ring-default"><span>{{ t('vendor.pricing.fields.userPrice') }} · {{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatCommercialMoney(p.amount, locale) }}</span></li></ul>
+        <ul v-if="view.storage_prices.length" class="mt-2 grid gap-2 sm:grid-cols-2"><li v-for="p in view.storage_prices" :key="cadenceKey(p.cadence)" class="flex justify-between rounded-control p-3 ring ring-default"><span>{{ t('vendor.pricing.fields.storagePrice') }} · {{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatCommercialMoney(p.amount, locale) }}</span></li></ul>
       </SharedRecordSection>
       <SharedRecordSection :title="t('vendor.pricing.quote.title')" :description="t('vendor.pricing.quote.hint')" class="mt-6" data-testid="quote-preview">
         <div class="grid gap-3 sm:grid-cols-2">

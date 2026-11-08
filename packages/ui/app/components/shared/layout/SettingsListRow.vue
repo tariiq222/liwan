@@ -33,8 +33,8 @@ function commit(event: Event) {
   <li class="flex flex-wrap items-center gap-2" data-slot="settings-list-row">
     <UInput :model-value="name" class="min-w-40 flex-1" :aria-label="t('app.list.name')" :maxlength="maxlength" :disabled="disabled || !active || locked" @change="commit" />
     <slot />
-    <UBadge v-if="locked" color="neutral" variant="subtle" class="rounded-full" :label="t('app.list.protected')" />
-    <UBadge v-else-if="!active" color="neutral" variant="outline" class="rounded-full" :label="t('app.list.archived')" />
+    <UBadge v-if="locked" color="neutral" variant="subtle" :label="t('app.list.protected')" />
+    <UBadge v-else-if="!active" color="neutral" variant="outline" :label="t('app.list.archived')" />
     <UButton
       v-if="canEdit && !locked"
       type="button"

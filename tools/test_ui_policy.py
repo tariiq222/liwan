@@ -446,7 +446,7 @@ class StaticGateTest(unittest.TestCase):
                                            "\n.dark { color: #fff; }",
             UI + "assets/css/components.css": ".liwan-status-text-warning { color: var(--status-warning); }\n"
                                                ".liwan-unread-count { color: var(--unread-count-foreground); }",
-            UI + "assets/css/shell.css": ".liwan-auto-grid { display: grid; "
+            UI + "assets/css/layout.css": ".liwan-auto-grid { display: grid; "
                                           "grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }",
         }
         snapshot.update(files)
@@ -590,12 +590,12 @@ class StaticGateTest(unittest.TestCase):
 
     def test_auto_grid_probe_tolerates_minified_css(self):
         minified = self.whole()
-        minified[UI + "assets/css/shell.css"] = ".liwan-auto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr))}"
-        self.assertEqual([e for e in policy.page_shell_errors(minified) if "shell.css" in e], [])
+        minified[UI + "assets/css/layout.css"] = ".liwan-auto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr))}"
+        self.assertEqual([e for e in policy.page_shell_errors(minified) if "layout.css" in e], [])
 
     def test_a_page_width_band_is_reported(self):
         banded = self.whole()
-        banded[UI + "assets/css/shell.css"] += "\n.liwan-page-width-detail { max-width: 68rem; }"
+        banded[UI + "assets/css/layout.css"] += "\n.liwan-page-width-detail { max-width: 68rem; }"
         self.assertTrue(any("retired page width band" in e for e in policy.page_shell_errors(banded)))
 
     def test_completeness_rules_say_nothing_about_a_partial_snapshot(self):
@@ -627,7 +627,7 @@ class StaticGateTest(unittest.TestCase):
         self.assertEqual(policy.breadcrumb_errors({page: '<!-- <UBreadcrumb /> -->'}), [])
 
     def test_breadcrumb_check_covers_the_shell_component_and_kebab_tags(self):
-        header = APP + 'components/shell/ShellHeader.vue'
+        header = APP + 'components/shell/AppTopBar.vue'
         page = APP + 'pages/tasks.vue'
         self.assertEqual(policy.breadcrumb_errors({header: '<template><ShellBreadcrumb :items="items" /></template>'}), [])
         for tag in ('<ShellBreadcrumb />', '<shell-breadcrumb />', '<u-breadcrumb />', '<ubreadcrumb />'):
@@ -635,7 +635,7 @@ class StaticGateTest(unittest.TestCase):
                              [page + ': the breadcrumb belongs to shell/ShellBreadcrumb.vue (DESIGN.md)'], tag)
 
     def test_the_header_may_mount_only_shell_breadcrumb(self):
-        for header in (APP + 'components/shell/ShellHeader.vue', VENDOR + 'components/AdminHeader.vue'):
+        for header in (APP + 'components/shell/AppTopBar.vue', VENDOR + 'components/AdminHeader.vue'):
             self.assert_header_rejects_raw_breadcrumb(header)
 
     def assert_header_rejects_raw_breadcrumb(self, header):

@@ -11,7 +11,7 @@ const outcome = computed(() => copier.outcomeFor(props.link))
 </script>
 
 <template>
-  <section class="grid gap-3 rounded-lg border border-default bg-elevated/40 p-4" data-slot="invitation-link" :aria-label="t('team.link.title', { name: props.name })">
+  <section class="grid gap-3 rounded-control border border-default bg-elevated/40 p-4" data-slot="invitation-link" :aria-label="t('team.link.title', { name: props.name })">
     <h2 class="text-base font-semibold text-highlighted">
       {{ t('team.link.title', { name: props.name }) }}
     </h2>

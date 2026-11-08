@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /*
- * The one round segmented group (DESIGN.md §6): a full-pill container (ring + faint fill) with one pill button per
- * option; the chosen one is a raised white thumb (ring + soft shadow, primary icon or label) over the faint container,
+ * The one segmented group (DESIGN.md §6): a 12px container (faint fill, 4px padding) with one 8px segment per
+ * option; the chosen one is a raised surface thumb (ring + soft shadow, bold ink label) over the faint container,
  * the rest are `ghost` and muted. In the default `toggle` mode it is a labelled group of toggle
  * buttons (`aria-pressed`), bound with v-model. Used for scopes (open/closed, active/archived), kinds, groupings,
  * scales and, icon-only, the list view switch. Waits for hydration like every interactive control.
@@ -10,7 +10,7 @@
  * item has `to`; no v-model, no selected state and no `aria-pressed`. Each button item emits `select` with its value.
  *
  * `icon-only` draws square icon buttons with a tooltip (the label stays the accessible name); `block` makes the group
- * fill its row with equal segments. Attributes (`data-testid`) land on the group.
+ * fill its row with equal segments; on a touch screen each segment is 36px, so the group is a 44px target. Attributes (`data-testid`) land on the group.
  */
 export interface SegmentedItem { value: string; label: string; icon?: string; testId?: string; disabled?: boolean; /** Actions mode: renders a link. */ to?: string }
 
@@ -43,7 +43,7 @@ function choose(item: SegmentedItem) {
     role="group"
     :aria-label="props.label"
     data-slot="segmented-control"
-    :class="['gap-0.5 rounded-full bg-elevated/40 p-0.5 ring ring-default', props.block ? 'grid grid-flow-col auto-cols-fr' : 'inline-flex items-center']"
+    :class="['gap-0.5 rounded-control bg-elevated p-[4px]', props.block ? 'grid grid-flow-col auto-cols-fr' : 'inline-flex items-center']"
   >
     <UTooltip v-for="item in props.items" :key="item.value" :text="props.iconOnly ? item.label : undefined">
       <UButton
@@ -54,7 +54,7 @@ function choose(item: SegmentedItem) {
         :square="props.iconOnly"
         :to="isActions ? item.to : undefined"
         variant="ghost"
-        :class="isSelected(item) ? 'bg-default text-primary shadow-sm ring ring-default hover:bg-default' : 'text-muted'"
+        :class="['h-[32px] min-h-[32px] rounded-inner text-[13px] font-medium transition-[background-color,color,box-shadow] pointer-coarse:h-[36px] pointer-coarse:min-h-[36px] [&:not([disabled],[aria-disabled=true])]:hover:translate-y-0 active:scale-100', props.iconOnly ? 'min-w-[32px] px-0 pointer-coarse:min-w-[36px]' : 'px-3.5', isSelected(item) ? 'bg-default font-semibold text-highlighted shadow-xs ring ring-default hover:bg-default' : 'text-muted']"
         :icon="item.icon"
         :label="props.iconOnly ? undefined : item.label"
         :aria-label="props.iconOnly ? item.label : undefined"

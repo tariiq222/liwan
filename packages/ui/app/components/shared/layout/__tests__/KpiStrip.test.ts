@@ -18,10 +18,9 @@ const tiles = [
 const clean = (html: string) => html.replace(/<!--[\s\S]*?-->/g, '')
 
 describe('SharedKpiStrip', () => {
-  it('draws one compact tile per entry in a two/four column grid', async () => {
+  it('draws one compact tile per entry in the metric grid that shares the row evenly', async () => {
     const html = clean(await renderShared('KpiStrip', { tiles }, {}, options(true)))
-    expect(html).toContain('grid-cols-2')
-    expect(html).toContain('lg:grid-cols-4')
+    expect(html).toContain('liwan-kpi-grid')
     expect(html).toContain('data-tile="Open"')
     expect(html).toContain('data-density="compact"')
     expect(html).toContain('data-tone="success"')

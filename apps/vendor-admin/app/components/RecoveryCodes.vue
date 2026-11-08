@@ -9,7 +9,7 @@ const { t } = useI18n()
 <template>
   <div class="grid gap-4" data-slot="recovery-codes">
     <UAlert role="note" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('adminAuth.enroll.recoveryWarning')" />
-    <ol dir="ltr" class="grid grid-cols-2 gap-2 rounded-md bg-elevated p-3 font-mono text-sm text-highlighted">
+    <ol dir="ltr" class="grid grid-cols-2 gap-2 rounded-inner bg-elevated p-3 font-mono text-sm text-highlighted">
       <li v-for="code in codes" :key="code" class="select-all text-center">
         {{ code }}
       </li>

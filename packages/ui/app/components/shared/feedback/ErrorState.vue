@@ -12,10 +12,10 @@ const heading = computed(() => props.title ?? t(errorStateKind(props.error) === 
 
 <template>
   <div role="alert" class="flex flex-col items-center justify-center gap-3 px-6 py-8 text-center" data-slot="error-state">
-    <span class="flex size-9 items-center justify-center rounded-full bg-error/10 text-error" aria-hidden="true">
+    <span class="flex size-10 items-center justify-center rounded-control bg-error/10 text-error" aria-hidden="true">
       <UIcon name="i-lucide-circle-alert" class="size-5" />
     </span>
     <p class="max-w-prose text-sm font-medium text-highlighted">{{ heading }}</p>
-    <UButton size="xs" color="neutral" variant="outline" class="rounded-full" :disabled="!hydrated" @click="$emit('retry')">{{ t('app.retry') }}</UButton>
+    <UButton size="xs" color="neutral" variant="outline" :disabled="!hydrated" @click="$emit('retry')">{{ t('app.retry') }}</UButton>
   </div>
 </template>

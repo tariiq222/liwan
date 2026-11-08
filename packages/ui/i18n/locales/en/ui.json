@@ -8,7 +8,6 @@
     "create": "Create",
     "discardAndLeave": "Leave without saving",
     "hideKpis": "Hide key figures",
-    "kpis": "Key figures",
     "list": {
       "name": "Name",
       "add": "Add",
@@ -34,13 +33,16 @@
     "reloadFailed": "Could not load the current values",
     "retry": "Try again",
     "revert": "Revert",
+    "sectionsNav": "Page sections",
     "saveBar": "Save the page changes",
     "saveChanges": "Save changes",
     "saveFailed": "Could not save",
+    "saved": "Saved",
     "saveSomeFailed": "Some changes could not be saved. Check the card that shows the error.",
     "selectDate": "Choose date",
     "showKpis": "Show key figures",
     "stay": "Stay on this page",
+    "toggleKpis": "Hide or show key figures",
     "unsaved": "Unsaved",
     "unsavedChanges": "If you leave now, your changes will not be saved.",
     "unsavedChangesTitle": "Unsaved changes",
@@ -62,18 +64,7 @@
     "title": "Search and filters"
   },
   "nav": {
-    "home": "Today",
-    "modules": "Modules",
-    "railApps": "Applications",
-    "railTools": "Tools",
-    "breadcrumb": "Breadcrumb",
-    "apps": "Applications",
-    "collapseContext": "Collapse sidebar",
-    "expandContext": "Expand sidebar",
-    "keepContextOpen": "Keep sidebar open",
-    "quickActionsList": "Page actions",
-    "quickViews": "Quick views and actions",
-    "quickViewsList": "Quick views"
+    "breadcrumb": "Breadcrumb"
   },
   "states": {
     "bulkActions": "Actions on selected rows",

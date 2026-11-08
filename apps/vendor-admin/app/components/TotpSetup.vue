@@ -22,7 +22,7 @@ const qr = computed(() => hydrated.value && props.uri?.startsWith('otpauth://') 
           :viewBox="`0 0 ${qr.size} ${qr.size}`"
           width="192"
           height="192"
-          class="rounded-md"
+          class="rounded-inner"
           role="img"
           :aria-label="t('adminAuth.enroll.qrLabel')"
           shape-rendering="crispEdges"
@@ -35,7 +35,7 @@ const qr = computed(() => hydrated.value && props.uri?.startsWith('otpauth://') 
         <p class="text-sm font-medium text-highlighted">
           {{ t('adminAuth.enroll.setupKey') }}
         </p>
-        <code v-if="secret" dir="ltr" class="select-all rounded-md bg-elevated px-3 py-2 text-center font-mono text-base tracking-wider text-highlighted">{{ secret }}</code>
+        <code v-if="secret" dir="ltr" class="select-all rounded-inner bg-elevated px-3 py-2 text-center font-mono text-base tracking-wider text-highlighted">{{ secret }}</code>
         <p class="text-xs text-muted">
           {{ t('adminAuth.enroll.setupKeyHint') }}
         </p>

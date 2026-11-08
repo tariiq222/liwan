@@ -1,4 +1,5 @@
 import { h, type VNode } from 'vue'
+import type { TableColumn } from '@nuxt/ui'
 // Relative import: this module is unit-tested directly under plain vitest.
 import { ROW_SELECTOR } from '../composables/shortcuts/keymap'
 
@@ -90,4 +91,135 @@ export function clickedRowIndex(target: unknown): number | null {
   if (raw === null || raw === undefined) return null
   const index = Number(raw)
   return Number.isInteger(index) && index >= 0 ? index : null
+}
+
+/**
+ * The container width under which a table stacks its rows as cards (layout rules in components.css, "Data tables").
+ * The CSS container query uses the same 640px, so the roles below follow what the browser draws.
+ */
+export const STACK_BELOW_PX = 640
+/** The least width, in rem (11rem), a table's title column keeps; the same floor components.css gives its cell. */
+export const TITLE_FLOOR_REM = 11
+
+type MetaValue = unknown
+/** Joins a caller's `meta.class.*` (a string, or a function of the cell) with more classes. */
+function joinClass(existing: MetaValue, added: string): MetaValue {
+  if (!added) return existing
+  if (typeof existing === 'function') return (arg: unknown) => [(existing as (a: unknown) => unknown)(arg), added].filter(Boolean).join(' ')
+  return [existing, added].filter(Boolean).join(' ')
+}
+/** Adds custom properties to a caller's `meta.style.td` (an object, a string, or a function of the cell). */
+function joinStyle(existing: MetaValue, added: Record<string, string>): MetaValue {
+  if (typeof existing === 'function') return (arg: unknown) => [(existing as (a: unknown) => unknown)(arg), added]
+  return existing ? [existing, added] : added
+}
+
+interface ColumnLike { id?: string; accessorKey?: string; header?: unknown; meta?: Record<string, unknown> }
+const idOf = (column: ColumnLike) => column.id ?? column.accessorKey
+
+/** A quoted CSS string for `content: var(--liwan-label)`. */
+const cssString = (text: string) => JSON.stringify(text.replace(/\s+/g, ' ').trim())
+
+/**
+ * Gives each column the classes the table layout reads (components.css, "Data tables"): the first data column and the
+ * select column stick to the start edge, a last `actions` column to the end edge, `meta.numeric` aligns numbers at the
+ * end, and a column whose header is a string carries it as `--liwan-label`, the label of its cell in the stacked row card.
+ * The caller's own `meta` classes and styles are kept. `columns` already holds the select column first when `selectable`.
+ */
+export function decorateColumns<T>(columns: TableColumn<T>[], selectable: boolean): TableColumn<T>[] {
+  const first = selectable ? 1 : 0
+  return columns.map((column, index) => {
+    const source = column as ColumnLike
+    const id = idOf(source)
+    const meta = (source.meta ?? {}) as { class?: { th?: MetaValue; td?: MetaValue }; style?: { td?: MetaValue }; numeric?: boolean; actions?: boolean }
+    let th = ''
+    let td = ''
+    let label: string | undefined
+    if (id === 'select') {
+      th = td = 'liwan-sticky-start liwan-cell-select'
+    } else if (id === 'actions' || meta.actions) {
+      const end = index === columns.length - 1 ? ' liwan-sticky-end' : ''
+      const named = typeof source.header === 'string' ? ' liwan-cell-actions-named' : ''
+      th = td = `liwan-cell-actions${end}${named}`
+    } else if (index === first) {
+      th = td = `liwan-sticky-start liwan-cell-title${selectable ? ' liwan-sticky-second' : ''}`
+    } else if (typeof source.header === 'string' && source.header) {
+      label = source.header
+    }
+    if (meta.numeric) th = td = `${th} text-end tabular-nums`.trim()
+    if (!th && !td && !label) return column
+    return {
+      ...column,
+      meta: {
+        ...meta,
+        class: { ...meta.class, th: joinClass(meta.class?.th, th), td: joinClass(meta.class?.td, td) },
+        ...(label ? { style: { ...meta.style, td: joinStyle(meta.style?.td, { '--liwan-label': cssString(label) }) } } : {}),
+      },
+    } as TableColumn<T>
+  })
+}
+
+/** What the scroll container shows beyond its edges, for the fades and the sticky columns' dividers. */
+export interface ScrollEdges { scrolledStart: boolean; canScrollEnd: boolean }
+
+/** The edges of a horizontally scrolling element. `scrollLeft` is 0 at the start and negative in RTL, so its magnitude is used. */
+export function scrollEdges(el: Pick<HTMLElement, 'scrollLeft' | 'scrollWidth' | 'clientWidth'>): ScrollEdges {
+  const max = el.scrollWidth - el.clientWidth
+  const position = Math.abs(el.scrollLeft)
+  return { scrolledStart: position > 1, canScrollEnd: max > 1 && position < max - 1 }
+}
+
+/** Writes the edges as `data-scrolled-start` / `data-can-scroll-end` on the table frame (the CSS reads them). */
+export function applyScrollEdges(frame: Pick<HTMLElement, 'toggleAttribute'>, edges: ScrollEdges): void {
+  frame.toggleAttribute('data-scrolled-start', edges.scrolledStart)
+  frame.toggleAttribute('data-can-scroll-end', edges.canScrollEnd)
+}
+
+/**
+ * Table roles for the stacked layout: `display: block` drops a table's native semantics in browsers, so while the rows
+ * are cards each element gets its role back (the header row is visually hidden, not removed), and a table drawn as a
+ * table keeps its native elements bare. UTable's empty separator row is presentational either way.
+ */
+const STACKED_ROLES: readonly (readonly [string, string])[] = [
+  ['table', 'table'], ['thead, tbody', 'rowgroup'], ['tr:not([data-slot="separator"])', 'row'], ['th', 'columnheader'], ['td', 'cell'],
+]
+export function markTableRoles(root: ParentNode, stacked: boolean): void {
+  if (!stacked) {
+    root.querySelectorAll<HTMLElement>('[data-stacked-role]').forEach((el) => { el.removeAttribute('role'); el.removeAttribute('data-stacked-role') })
+    return
+  }
+  for (const [selector, role] of STACKED_ROLES) {
+    root.querySelectorAll<HTMLElement>(selector).forEach((el) => { el.setAttribute('role', role); el.setAttribute('data-stacked-role', '') })
+  }
+  root.querySelectorAll<HTMLElement>('tr[data-slot="separator"]').forEach((el) => { el.setAttribute('role', 'presentation'); el.setAttribute('data-stacked-role', '') })
+}
+
+/**
+ * The smallest width a fixed-layout table needs so its title column keeps `floor` px: the other columns' width (the table less
+ * the title) plus the title's own floor, which is the larger of that and the `min-width` its header declares (`NaN` for `auto`).
+ * Table layout ignores `min-width` on cells, so a caller's `table-fixed` table whose fixed columns fill the card would
+ * otherwise give the title column no width at all; the frame sets this as `--liwan-table-min` (components.css, "Data tables").
+ * `tableWidth` and `titleWidth` must be measured with no `--liwan-table-min` applied (see `settleTableMin`): measured under the
+ * minimum, the other columns have already been stretched by it and every pass would raise it again.
+ */
+export function tableMinWidth(tableWidth: number, titleWidth: number, declaredMin: number, floor: number): number {
+  return Math.ceil(tableWidth - titleWidth + Math.max(Number.isFinite(declaredMin) ? declaredMin : 0, floor))
+}
+
+/** The frame custom property the table's `min-width` reads (components.css, "Data tables"). */
+export const TABLE_MIN_PROPERTY = '--liwan-table-min'
+
+/** The widths `tableMinWidth` is computed from. */
+export interface TableMinSample { tableWidth: number; titleWidth: number; declaredMin: number }
+
+/**
+ * Sets the frame's `--liwan-table-min` from a measurement taken with the property cleared, so the result depends only on the
+ * columns and the card, never on the previous result: repeating it (a resize, a patch, the observer that its own change
+ * wakes) reaches the same value instead of growing. `sample` reads the layout (it forces one), and the property is back in
+ * place before the browser paints, so nothing flickers.
+ */
+export function settleTableMin(frame: Pick<HTMLElement, 'style'>, sample: () => TableMinSample, floor: number): void {
+  frame.style.removeProperty(TABLE_MIN_PROPERTY)
+  const { tableWidth, titleWidth, declaredMin } = sample()
+  frame.style.setProperty(TABLE_MIN_PROPERTY, `${tableMinWidth(tableWidth, titleWidth, declaredMin, floor)}px`)
 }
