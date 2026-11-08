@@ -45,11 +45,19 @@ def seed(environment, output):
         'work_email': f'scratch-grant-{time_ns()}@example.test',
         'company_id': company.id,
     })
+    # Every sign-in is two-step and no SMS provider exists on a scratch stack, so each acceptance
+    # account starts with a remembered device: the spec finishes the password step with it instead of a
+    # code the test cannot read (only the code's hash is stored). This is the feature's own path.
+    devices = {
+        account: environment['liwan.login.device']._liwan_issue(user, 'acceptance')[1]
+        for account, user in (('admin', admin), ('reader', reader))
+    }
     output.write_text(json.dumps({
         'company': company.id, 'admin': admin.id, 'reader': reader.id,
         'department': department.id, 'employee': employee.id,
         'reader_employee': reader_employee.id, 'admin_employee': admin_employee.id,
         'grant_employee': grant_employee.id, 'grant_email': grant_employee.work_email,
+        'device': devices,
     }))
     environment.cr.commit()
 

@@ -30,3 +30,6 @@ access_branch_strict_system,branch strict system,model_liwan_access_branch_stric
 access_branch_strict_user,branch strict user,model_liwan_access_branch_strict,base.group_user,1,0,1,1
 access_company_branch_admin,company branch admin,base.model_res_company,group_cap_access_users_assign_roles,1,1,0,0
 access_account_token_system,account token system,model_liwan_account_token,base.group_system,1,1,1,1
+access_login_code_system,login code system,model_liwan_login_code,base.group_system,1,1,1,1
+access_login_device_system,login device system,model_liwan_login_device,base.group_system,1,1,1,1
+access_login_code_alert_system,login code alert system,model_liwan_login_code_alert,base.group_system,1,1,1,1

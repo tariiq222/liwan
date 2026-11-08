@@ -31,16 +31,18 @@ class LiwanOutboundMail(models.AbstractModel):
         return sender if sender and '@' in sender else None
 
     @api.model
-    def _liwan_compose(self, sender, recipient, subject, lines, link):
-        """One message: the (Arabic, English) ``lines`` each followed by ``link``, as plain text and as HTML."""
+    def _liwan_compose(self, sender, recipient, subject, lines, link=None):
+        """One message: the (Arabic, English) ``lines``, each followed by ``link`` when one is given, as text and HTML."""
         ar, en = lines
-        text = f'{ar}\n{link}\n\n{en}\n{link}\n'
+        link_text = f'{link}\n' if link else ''
+        link_html = f'<p><a href="{escape(link)}">{escape(link)}</a></p>' if link else ''
+        text = f'{ar}\n{link_text}\n{en}\n{link_text}'
         html = (
             '<div dir="rtl" style="font-family:sans-serif">'
-            f'<p>{escape(ar)}</p><p><a href="{escape(link)}">{escape(link)}</a></p></div>'
+            f'<p>{escape(ar)}</p>{link_html}</div>'
             '<hr/>'
             '<div dir="ltr" style="font-family:sans-serif">'
-            f'<p>{escape(en)}</p><p><a href="{escape(link)}">{escape(link)}</a></p></div>'
+            f'<p>{escape(en)}</p>{link_html}</div>'
         )
         message = EmailMessage(policy=email.policy.SMTP)
         message['Message-Id'] = make_msgid()

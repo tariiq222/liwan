@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import PasswordForm from '@/components/account/PasswordForm.vue'
+import RememberedDevicesSection from '@/components/account/RememberedDevicesSection.vue'
 
 import type { AppearanceMode, FontSize } from '@/utils/appearance'
 import { useSignOut } from '@/composables/useSignOut'
@@ -68,6 +69,7 @@ async function logout() {
       </div>
     </SharedFormSection>
     <SharedFormSection panel :title="t('account.passwordTitle')"><PasswordForm /></SharedFormSection>
+    <RememberedDevicesSection />
     <UButton type="button" color="neutral" variant="outline" icon="i-lucide-log-out" :label="t('nav.logout')" :disabled="!hydrated" @click="logout" />
   </SharedSettingsPage>
 </template>

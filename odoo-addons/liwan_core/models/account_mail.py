@@ -11,6 +11,7 @@ LINK_PATHS = {'invite': '/join', 'reset': '/reset-password'}
 SUBJECTS = {
     'invite': 'دعوة للانضمام إلى ليوان | Invitation to join LiwanOS',
     'reset': 'إعادة تعيين كلمة المرور | Reset your LiwanOS password',
+    'login_code': 'رمز الدخول إلى ليوان | Your LiwanOS sign-in code',
 }
 LINES = {
     'invite': (
@@ -58,6 +59,29 @@ class LiwanAccountMail(models.AbstractModel):
             f'account link mail row {token_id}', SUPERUSER_ID, build,
             on_sent=mark_sent, on_failed=lambda registry: self._liwan_mark_failed(registry, token_id),
         )
+
+    @api.model
+    def _liwan_send_code(self, recipient, body):
+        """Queue one sign-in code message for RECIPIENT after the commit, through the shared outbound path.
+
+        BODY is the Arabic line and the English line of the code text, already fixed by the service. Like an
+        account link, it only lives in the thread's closure: a code is never stored, logged or returned.
+        """
+        ar, _, en = body.partition('\n')
+
+        def build(env):
+            return self._liwan_compose_code(env, recipient, (ar, en))
+
+        self.env['liwan.outbound.mail']._liwan_send_after_commit('login code mail', SUPERUSER_ID, build)
+
+    @api.model
+    def _liwan_compose_code(self, env, recipient, lines):
+        outbound = env['liwan.outbound.mail']
+        sender = outbound._liwan_sender()
+        if not sender:
+            msg = 'no sender address is configured (mail.default.from)'
+            raise ValueError(msg)
+        return outbound._liwan_compose(sender, recipient, SUBJECTS['login_code'], lines)
 
     @api.model
     def _liwan_link(self, base_url, purpose, raw_token):

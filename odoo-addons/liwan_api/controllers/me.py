@@ -1,8 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import pytz
+
 from odoo import http
 from odoo.exceptions import AccessDenied
 from odoo.http import request
 
+from odoo.addons.liwan_api.controllers.auth import DEVICE_COOKIE
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
@@ -10,7 +13,28 @@ from odoo.addons.liwan_api.controllers.common import (
     fresh_session_token,
 )
 from odoo.addons.liwan_api.models.res_users import APPEARANCE_MODES, FONT_SIZES
-from odoo.addons.liwan_api.serializers.user import dump_me
+from odoo.addons.liwan_api.serializers.user import dump_device, dump_me
+
+PROFILE_FIELDS = ('lang', 'tz')
+
+
+def _language(value):
+    """The locale code of VALUE; 422 when it is not installed. Arabic is the product default."""
+    installed = {code for code, _name in request.env['res.lang'].get_installed()}
+    if not isinstance(value, str) or value not in installed:
+        raise ApiError(422, 'invalid', 'lang must be an installed locale', field='lang')
+    return value
+
+
+def _timezone(value):
+    """The IANA zone of VALUE, or 422. An empty value clears the stored zone."""
+    if not value:
+        return False
+    try:
+        pytz.timezone(value)
+    except (pytz.UnknownTimeZoneError, TypeError):
+        raise ApiError(422, 'invalid', 'tz must be an IANA time zone', field='tz') from None
+    return value
 
 
 class MeController(http.Controller):
@@ -19,6 +43,50 @@ class MeController(http.Controller):
     @api_handler
     def me(self):
         return dump_me(request.env.user)
+
+    @http.route('/api/v1/me/profile', type='json2', auth='user', methods=['PATCH'], readonly=False)
+    @api_handler
+    def patch_profile(self, **payload):
+        """Save the account holder's own language and time zone on the user record.
+
+        Both are stock ``res.users`` self-writable fields, so the owner needs no capability; the
+        values are validated against the installed languages and the IANA zone list. Mail and
+        notifications then render in the stored language and zone, not in a cookie.
+        """
+        unknown = set(payload) - set(PROFILE_FIELDS)
+        if unknown:
+            field = sorted(unknown)[0]
+            raise ApiError(422, 'invalid', f"field {field!r} is not writable", field=field)
+        if not payload:
+            raise ApiError(422, 'invalid', 'no fields to update')
+        vals = {}
+        if 'lang' in payload:
+            vals['lang'] = _language(payload['lang'])
+        if 'tz' in payload:
+            vals['tz'] = _timezone(payload['tz'])
+        request.env.user.write(vals)
+        return dump_me(request.env.user)
+
+    @http.route('/api/v1/me/devices', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    def devices(self):
+        """The caller's own usable remembered devices, newest first, without any token."""
+        service = request.env['liwan.access.service']
+        records = service._liwan_devices().browse(service._liwan_remembered_devices(request.env.user))
+        return {'items': [dump_device(record) for record in records], 'total': len(records)}
+
+    @http.route('/api/v1/me/devices', type='json2', auth='user', methods=['DELETE'], readonly=False)
+    @api_handler
+    def forget_devices(self):
+        """Forget the caller's remembered devices except the browser making this request.
+
+        The browser in use is named by its own device cookie, so the holder is never signed out of the
+        convenience they are using. Answers the ids that are still remembered.
+        """
+        service = request.env['liwan.access.service']
+        keep = service._liwan_devices()._liwan_usable(request.httprequest.cookies.get(DEVICE_COOKIE))
+        service._liwan_forget_devices(request.env.user, keep=keep)
+        return {'device_ids': service._liwan_remembered_devices(request.env.user)}
 
     @http.route('/api/v1/me/password', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

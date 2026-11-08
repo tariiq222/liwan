@@ -207,6 +207,16 @@ class AccessAdminUsersController(http.Controller):
         service._liwan_send_reset_link(target, payload['expected_version'])
         return _dump(target, _extra(target))
 
+    @http.route('/api/v1/admin/users/<int:user_id>/second-step/reset', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    def reset_second_step(self, user_id, **payload):
+        require_exact(payload, {'expected_version'}, {'expected_version'})
+        service = request.env['liwan.access.service']
+        service._liwan_require_capability('access.users.disable')
+        target = _target_user(user_id)
+        service._liwan_reset_second_step(target, payload['expected_version'])
+        return _dump(target, _extra(target))
+
     @http.route('/api/v1/admin/users/<int:user_id>/disable', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     def disable(self, user_id, **payload):

@@ -113,6 +113,27 @@ class LiwanResUsers(models.Model):
         """Fields a write may change without bumping the access version."""
         return set()
 
+    def _mfa_type(self):
+        """Every interactive password sign-in has a second step: LiwanOS's own 6-digit code.
+
+        Stock Odoo finalizes the session immediately when this answers None, which is exactly the
+        behaviour this product replaces. A later MFA engine's own type still wins, so this stays
+        one hook among the stock ones.
+        """
+        return super()._mfa_type() or 'code'
+
+    def _mfa_url(self):
+        """A truthy answer is what keeps the session pre-authenticated; the web app owns the screen."""
+        return super()._mfa_url() or '/login'
+
+    def _rpc_api_keys_only(self):
+        """Password credentials stay usable for the interactive sign-in; RPC is closed by ``ir.http``.
+
+        Returning True here (as a TOTP-enabled user would) would refuse the password step itself,
+        because that step *is* a password credential.
+        """
+        return False
+
     def unlink(self):
         if (
             not self.env.is_superuser()

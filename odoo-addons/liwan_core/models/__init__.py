@@ -11,9 +11,13 @@ from . import (
     ir_attachment,
     ir_rule,
     liwan_model,
+    login_code,
+    login_code_alert,
+    login_device,
     outbound_mail,
     res_company,
     res_groups,
     res_partner,
     res_users,
+    sms_gateway,
 )

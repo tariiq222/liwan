@@ -8,17 +8,23 @@ import { heavyRouteKind } from '../../../utils/heavyRoutes'
 import { HEAVY_TIMEOUT } from '../../../utils/upstreamDeadlines'
 import { forwardPublicApi, isPublicApiPath, MAX_PUBLIC_API_BODY, PUBLIC_API_NAMESPACE_METHODS } from '../../../utils/publicApi'
 
-// The auth='public' routes outside the public namespace: login-page branding, the MFA
-// confirmation (which needs the pre-login session cookie) and the WhatsApp webhook (Meta signs
-// every POST with HMAC; Odoo verifies it). Everything under the public namespace is public too,
-// without cookies; everything else requires a session cookie.
+// The auth='public' routes outside the public namespace: login-page branding, the second step of a
+// sign-in (which needs the pre-login session cookie) and the WhatsApp webhook (Meta signs every POST
+// with HMAC; Odoo verifies it). Everything under the public namespace is public too, without cookies;
+// everything else requires a session cookie.
 const PUBLIC_API_METHODS = new Map<string, readonly string[]>([
   ['/api/v1/branding', ['GET', 'HEAD']],
-  ['/api/v1/auth/totp', ['POST']],
+  ['/api/v1/auth/channels', ['GET']],
+  ['/api/v1/auth/code', ['POST']],
+  ['/api/v1/auth/verify', ['POST']],
+  ['/api/v1/auth/device', ['POST']],
   ['/api/v1/inbox/hooks/whatsapp', ['GET', 'POST']],
 ])
 const PUBLIC_BODY_LIMITS = new Map<string, number>([
-  ['/api/v1/auth/totp', MAX_PUBLIC_MFA_BODY],
+  ['/api/v1/auth/channels', MAX_PUBLIC_MFA_BODY],
+  ['/api/v1/auth/code', MAX_PUBLIC_MFA_BODY],
+  ['/api/v1/auth/verify', MAX_PUBLIC_MFA_BODY],
+  ['/api/v1/auth/device', MAX_PUBLIC_MFA_BODY],
   ['/api/v1/inbox/hooks/whatsapp', MAX_PUBLIC_HOOK_BODY],
 ])
 

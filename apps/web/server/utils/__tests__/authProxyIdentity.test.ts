@@ -20,7 +20,7 @@ beforeAll(async () => {
   const { assertSameSiteJson } = await import('../same-site')
   vi.stubGlobal('assertSameSiteJson', assertSameSiteJson)
   const login = (await import('../../api/auth/login.post')).default
-  const totp = (await import('../../api/auth/totp.post')).default
+  const verify = (await import('../../api/auth/verify.post')).default
   upstream = http.createServer((req, res) => {
     calls.push(req.headers)
     req.resume()
@@ -32,7 +32,7 @@ beforeAll(async () => {
   upstreamUrl = `http://127.0.0.1:${(upstream.address() as { port: number }).port}`
   const h3 = createApp()
   h3.use('/login', login)
-  h3.use('/totp', totp)
+  h3.use('/verify', verify)
   app = http.createServer(toNodeListener(h3))
   await new Promise<void>(resolve => app.listen(0, '127.0.0.1', resolve))
   url = `http://127.0.0.1:${(app.address() as { port: number }).port}`
@@ -69,7 +69,7 @@ async function request(path: string, headers: Record<string, string> = edge) {
   })
 }
 
-describe.each(['/login', '/totp'])('dedicated auth identity on %s', (path) => {
+describe.each(['/login', '/verify'])('dedicated auth identity on %s', (path) => {
   it('forwards only the validated private edge fields and preserves the session cookie', async () => {
     const response = await request(path, { ...edge, 'x-forwarded-for': '198.51.100.99', 'x-forwarded-host': 'evil.example.test', 'x-forwarded-proto': 'http', forwarded: 'for=198.51.100.100' })
     expect(response.status).toBe(200)
@@ -118,7 +118,7 @@ describe.each(['/login', '/totp'])('dedicated auth identity on %s', (path) => {
   })
 })
 
-it.each(['/login', '/totp'])('shared %s preserves tenant authority without trusting dedicated headers', async (path) => {
+it.each(['/login', '/verify'])('shared %s preserves tenant authority without trusting dedicated headers', async (path) => {
   const directory = mkdtempSync(join(tmpdir(), 'liwan-auth-shared-'))
   const registry = join(directory, 'registry.json')
   const token = 'synthetic-shared-auth-boundary'.repeat(2)

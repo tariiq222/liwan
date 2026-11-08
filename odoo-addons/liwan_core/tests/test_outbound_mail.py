@@ -113,3 +113,20 @@ class TestOutboundMail(TransactionCase):
         with self.assertLogs('odoo.addons.liwan_core.models.outbound_mail', 'WARNING'):
             self._run_postcommit()
         self.assertEqual(self.sent, [])
+
+    def test_message_without_a_link_carries_only_the_two_lines(self):
+        message = self.mail._liwan_compose(SENDER, 'to@example.com', 'Subject', ('رمزك 123456', 'Your code 123456'))
+        text = message.get_body(('plain',)).get_content()
+        html = message.get_body(('html',)).get_content()
+        self.assertEqual(text.strip().splitlines(), ['رمزك 123456', '', 'Your code 123456'])
+        self.assertNotIn('<a ', html)
+
+    def test_sign_in_code_mail_goes_through_the_shared_send(self):
+        self.env['ir.config_parameter'].set_param('mail.default.from', SENDER)
+        self.env['liwan.account.mail']._liwan_send_code('to@example.com', 'رمزك 123456\nYour code 123456')
+        self.assertEqual(self.sent, [])
+        self._run_postcommit()
+        self.assertEqual(len(self.sent), 1)
+        message = self.sent[0][1]
+        self.assertEqual((message['To'], message['From']), ('to@example.com', SENDER))
+        self.assertIn('Your code 123456', message.get_body(('plain',)).get_content())

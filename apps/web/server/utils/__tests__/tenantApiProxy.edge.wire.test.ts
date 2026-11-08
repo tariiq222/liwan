@@ -152,7 +152,8 @@ it.each(['shared', 'dedicated'] as const)('%s public API reaches actual Nuxt adm
     const issued = result.headers['set-cookie']![0]!.split(';')[0]!.slice(11)
     expect(mode === 'shared' ? wire.codec.open(issued, tenant) : issued).toBe('verified')
     expect((await wire.call('/api/v1/branding')).status).toBe(200)
-    expect((await wire.call('/api/v1/auth/totp', undefined, Buffer.from('{"code":"123456"}'), { 'content-type': 'application/json' })).status).toBe(200)
+    // The second step is a public API route: a visitor with only a pre-login session reaches it.
+    expect((await wire.call('/api/v1/auth/verify', undefined, Buffer.from('{"code":"123456"}'), { 'content-type': 'application/json' })).status).toBe(200)
   } finally { await wire.close() }
 })
 

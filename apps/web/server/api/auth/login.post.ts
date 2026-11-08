@@ -45,8 +45,9 @@ export default defineEventHandler(async (event) => {
     }
 
     if (body.result.uid === null) {
-      // MFA pending: the cookie above now carries pre_uid/pre_login, not a real session.
-      return { ok: false as const, mfa: 'totp' as const }
+      // The second step is mandatory for every account: the cookie above now carries pre_uid/pre_login and no
+      // real session, and the page continues with a 6-digit code.
+      return { ok: false as const, mfa: 'code' as const }
     }
     return { ok: true as const }
   })
