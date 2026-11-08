@@ -19,7 +19,7 @@ const { cards } = useAppCards({ assistant: false })
 <template>
   <SharedPageContainer data-testid="foundation-home">
     <HomeGreeting />
-    <HomeAssistantBanner />
+    <HomeAssistantBanner :apps="cards" />
     <HomeIndicators />
     <HomeFocus />
     <HomeApps v-if="cards.length" :cards="cards" />
