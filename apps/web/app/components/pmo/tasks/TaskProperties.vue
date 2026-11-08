@@ -211,7 +211,7 @@ const facts = computed(() => [
           :min="0"
           :max="100"
           :step="1"
-         
+
           data-testid="task-percent-complete"
           input-test-id="task-percent-complete-input"
           @save="onPercentSave"

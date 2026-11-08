@@ -217,4 +217,3 @@ describe('SharedDataTable layout', () => {
     expect((seen[1] as { meta: { style: { td: unknown } } }).meta.style.td).toEqual({ '--liwan-label': '"Manager"' })
   })
 })
-

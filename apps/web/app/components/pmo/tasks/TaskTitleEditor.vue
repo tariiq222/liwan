@@ -18,7 +18,7 @@ function save(name: string) {
     :model-value="task.name"
     :label="t('tasks.detail.editTitle')"
     :editable="task.can_write"
-   
+
     input-test-id="task-title-input"
     input-class="w-[min(32rem,70vw)]"
     @save="save"
