@@ -51,30 +51,56 @@
   },
   "home": {
     "empty": "No workspaces are currently available for your account.",
-    "nothingToday": "Nothing for you today. Browse the applications to get started.",
     "apps": "Your apps",
+    "appsSubtitle": "Every app with its live numbers. Click to go in.",
     "greeting": "Hello {name}",
+    "greetingMorning": "Good morning, {name}",
+    "greetingEvening": "Good evening, {name}",
+    "count": {
+      "tasks": "{n} task | {n} tasks",
+      "decisions": "{n} decision | {n} decisions"
+    },
+    "summary": {
+      "one": "You have {item} waiting today",
+      "two": "You have {first} and {second} waiting today"
+    },
     "indicators": "My indicators",
     "indicator": {
       "execute": "To do",
       "decide": "To decide",
       "follow": "To follow"
     },
-    "quick": "Quick access",
     "focus": "Start with what matters",
+    "focusSubtitle": "Ordered by urgency, from all your apps.",
     "focusEmpty": "Nothing urgent right now.",
-    "viewAll": "View all"
+    "focusUrgent": "Urgent",
+    "focusAction": {
+      "execute": "Open",
+      "decide": "Review",
+      "follow": "Details"
+    },
+    "viewAll": "View all",
+    "rail": {
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "filter": {
+      "label": "Filter apps",
+      "all": "All",
+      "sales": "Sales and customers",
+      "team": "Team and operations"
+    },
+    "banner": {
+      "title": "One thing worth your time today | {n} things worth your time today",
+      "idle": "Ask about your customers, tasks and meetings"
+    }
   },
   "nav": {
     "today": "Today",
     "tasks": "Project tasks",
     "projects": "Projects",
-    "toggleNavigation": "Toggle navigation",
     "header": "Application header",
-    "context": "Context navigation",
     "assistantSheet": {
-      "region": "Assistant panel",
-      "close": "Close the assistant",
       "openFullPage": "Open full page"
     },
     "backToProjects": "Back to projects",
@@ -122,7 +148,6 @@
     "projectSettings": "Project settings",
     "hr": "Human Resources",
     "systemAdministration": "System administration",
-    "toggleSidebar": "Toggle navigation",
     "chat": "Chat",
     "myTasks": "My tasks",
     "meetings": "Meetings",
@@ -143,7 +168,6 @@
     "allProjects": "All projects",
     "myProjects": "My projects",
     "projectTasks": "Tasks",
-    "openMenu": "Open menu",
     "navigation": "Navigation",
     "language": "Language",
     "goToShowAll": "Show all pages ({count})",
@@ -155,7 +179,34 @@
     "viewAll": "View all",
     "listOf": "{name} list",
     "overview": "Overview",
-    "crm": "CRM"
+    "crm": "CRM",
+    "home": "Today",
+    "apps": "Applications",
+    "quickActionsList": "Page actions",
+    "quickViews": "Quick views and actions",
+    "platformName": "Liwan Platform",
+    "platformCaption": "For Saudi businesses",
+    "sidebar": "Sidebar",
+    "day": "Today",
+    "myApps": "My apps",
+    "editApps": "Edit",
+    "allApps": "All apps",
+    "tools": "My tools",
+    "tabBar": "Quick navigation",
+    "more": "More",
+    "appSwitcher": "Switch app",
+    "theme": { "dark": "Dark mode", "light": "Light mode" },
+    "panel": {
+      "openAll": "Open all",
+      "close": "Close",
+      "loading": "Loading…",
+      "error": "Could not load the list.",
+      "retry": "Try again",
+      "chatEmpty": "No conversations yet.",
+      "tasksEmpty": "No open tasks. Well done!",
+      "meetingsEmpty": "No upcoming meetings.",
+      "noDeadline": "No deadline"
+    }
   },
   "auth": {
     "username": "Username",
@@ -329,11 +380,36 @@
     "open": "Open the app"
   },
   "launcher": {
+    "title": "All apps",
+    "subtitle": "Pin up to {count} apps to show in your sidebar.",
+    "included": {
+      "title": "Core",
+      "subtitle": "Included with the Liwan platform."
+    },
+    "addon": {
+      "title": "Add-ons",
+      "subtitle": "Specialised apps for your work."
+    },
+    "figures": {
+      "tasks": { "open": "open", "overdue": "overdue" },
+      "crm": { "due": "need follow-up", "today": "new today" },
+      "inbox": { "open": "open conversations", "unassigned": "unassigned" },
+      "chat": { "unread": "unread", "channels": "channels" },
+      "meetings": { "upcoming": "upcoming meetings", "followup": "open recommendations" },
+      "projects": { "count": "projects", "attention": "need attention" }
+    },
     "open": "Open application",
+    "openShort": "Open",
     "pin": "Pin to the rail",
     "unpin": "Remove from the rail",
     "pinLimit": "You can pin up to 6 applications",
     "apps": {
+      "appointments": {
+        "description": "Customer bookings in one calendar."
+      },
+      "inbox": {
+        "description": "WhatsApp and TikTok conversations in one inbox."
+      },
       "projects": {
         "description": "One workspace for project status, progress, and the next step."
       },
@@ -364,7 +440,6 @@
       "crm": {
         "description": "Track prospects and sales deals through to close."
       }
-    },
-    "actions": "Quick actions"
+    }
   }
 }

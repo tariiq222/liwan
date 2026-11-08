@@ -45,13 +45,15 @@ describe('the meetings pages stay on their templates', () => {
   })
 })
 
-describe('chat stays on the conversation layout', () => {
-  it('the workspace renders the layout and keeps chat-thread on the messages column', () => {
+describe('chat stays on the conversation frame', () => {
+  it('the workspace draws the page header and the list/thread frame, and keeps chat-thread on the messages column', () => {
     const source = read('components/chat/ChatWorkspace.vue')
-    expect(source).toContain('<SharedConversationLayout')
+    expect(source).toContain('<SharedPageHeader')
+    expect(source).toContain('data-template="conversation-layout"')
+    expect(source).toContain('data-template="conversation-list"')
+    expect(source).not.toContain('<SharedConversationLayout')
     expect(source).toContain('data-testid="chat-thread"')
     expect(source).toContain('data-testid="chat-thread-header"')
-    expect(source).not.toContain('<SharedPageContainer')
   })
 
   it('the thread and the info panel are one page; the old two pages are gone', () => {

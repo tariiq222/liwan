@@ -1,0 +1,159 @@
+/* Page and content geometry shared by every page template (moved out of shell.css: the shell owns only its own frame). */
+/* Shared page geometry from the approved executable Nuxt UI reference. */
+/* Full-height workspaces can override the default grid with Tailwind flex. */
+.liwan-page-stack { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: var(--liwan-gap-section); }
+.liwan-page-stack > * { min-width: 0; }
+/* Shared composition for project sections and their routed record workflows. */
+.liwan-page-stack[data-workspace-area="true"] { align-content: start; }
+[data-workspace-area="true"] [data-slot="page-header"] { min-height: 2.25rem; align-items: center; }
+[data-workspace-area="true"] .liwan-form-footer { justify-content: flex-end; }
+
+/* Equal-weight content tiles by its own width: one column on a phone, two on a narrow screen, up to four on a wide one.
+   An item that owns the row (a long editor, a table, a nested grid) spans it. */
+.liwan-auto-grid, .liwan-card-grid, .liwan-form { display: grid; grid-template-columns: repeat(var(--liwan-auto-grid-fill, auto-fill), minmax(max(min(100%, var(--liwan-auto-grid-min, 15rem)), calc((100% - 4.5rem) / 4)), 1fr)); }
+.liwan-auto-grid { gap: var(--liwan-auto-grid-gap, 1.25rem 1rem); }
+/* Cards and tiles: the same grid with a wider minimum track and the card gap; the cards stretch over the whole row, leaving no empty tracks. */
+.liwan-card-grid { --liwan-auto-grid-fill: auto-fit; --liwan-auto-grid-min: 18rem; gap: var(--liwan-gap-card); }
+:is(.liwan-auto-grid, .liwan-card-grid, .liwan-form) > :is(.liwan-span-full, [data-span="full"]) { grid-column: 1 / -1; }
+:is(.liwan-auto-grid, .liwan-form) > :has(textarea, [contenteditable="true"], table, .liwan-auto-grid) { grid-column: 1 / -1; }
+/* In a form and a form section only stacked fields tile; a section, a hint, an alert, a list, the footer or a horizontal switch row owns its row. */
+:is(.liwan-field-grid, .liwan-form) > :not([data-slot="root"][data-orientation="vertical"]) { grid-column: 1 / -1; }
+
+.liwan-form { gap: var(--liwan-gap-card); width: 100%; }
+
+.liwan-form-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-block-start: 20px; border-block-start: 1px solid var(--border); }
+/* A settings panel as a list of rows: name and hint at the start, the control at the end, a rule between rows. */
+.liwan-setting-rows { display: grid; }
+.liwan-setting-rows > * { padding-block: 16px; border-block-start: 1px solid var(--border); }
+.liwan-setting-rows > :first-child { padding-block-start: 0; border-block-start: 0; }
+.liwan-setting-rows > :last-child { padding-block-end: 0; }
+.liwan-setting-rows > [data-orientation="horizontal"] { align-items: center; gap: 24px; }
+.schedule-gantt { overflow-x: auto; }
+/* max-content: the grid must span every track, or its sticky name column stops at the scroller's width. */
+.schedule-gantt-grid { display: grid; width: max-content; min-width: max(720px, 100%); }
+.schedule-gantt-name { position: sticky; inset-inline-start: 0; z-index: 2; display: flex; min-height: 48px; align-items: center; padding: 8px 12px; background: var(--card); border-block-end: 1px solid var(--border); box-shadow: -8px 0 16px -12px color-mix(in srgb, var(--foreground) 18%, transparent); font-size: 0.8125rem; color: var(--muted-foreground); }
+html[dir="rtl"] .schedule-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in srgb, var(--foreground) 18%, transparent); }
+.schedule-gantt-corner { min-height: 40px; font-size: 0.75rem; font-weight: 500; border-block-end: 0; }
+.schedule-gantt-task { min-width: 0; color: var(--foreground); font-weight: 500; }
+.schedule-gantt-task:hover { background: var(--muted); }
+.schedule-gantt-head { position: relative; display: grid; grid-template-columns: repeat(var(--gantt-cols, 6), minmax(0, 1fr)); min-height: 40px; direction: ltr; background: var(--muted); color: var(--muted-foreground); border-block-end: 1px solid var(--border); }
+.schedule-gantt-head > span:not(.schedule-gantt-focus) { display: flex; align-items: center; justify-content: center; padding: 8px 4px; font-size: 0.75rem; font-weight: 500; box-shadow: inset -1px 0 0 var(--border); }
+.schedule-gantt-focus { position: absolute; inset-block: 0; width: 0; pointer-events: none; }
+.schedule-gantt-track { position: relative; direction: ltr; min-height: 64px; border-block-end: 1px solid var(--border); background-image: linear-gradient(to right, var(--border) 1px, transparent 1px); background-size: calc(100% / var(--gantt-cols, 6)) 100%; background-repeat: repeat-x; }
+.schedule-gantt-dates { position: absolute; inset-inline-start: 10px; inset-block-end: 3px; font-size: 0.6875rem; color: var(--muted-foreground); }
+.schedule-gantt-bar { position: absolute; top: 50%; height: 18px; min-width: 8px; border-radius: 999px; transform: translateY(-50%); }
+.schedule-gantt-bar-info { background: var(--status-info); }
+.schedule-gantt-bar-success { background: var(--status-success); }
+.schedule-gantt-bar-warning { background: var(--status-warning); }
+.schedule-gantt-bar-danger { background: var(--status-danger); }
+.schedule-gantt-bar-muted { background: color-mix(in srgb, var(--muted-foreground) 45%, var(--card)); }
+.schedule-gantt-baseline { position: absolute; top: calc(50% + 14px); height: 5px; min-width: 6px; border-radius: 999px; background: color-mix(in srgb, var(--foreground) 55%, transparent); }
+.schedule-gantt-baseline-key { width: 16px; height: 5px; flex: none; border-radius: 999px; background: color-mix(in srgb, var(--foreground) 55%, transparent); }
+.schedule-gantt-mark { position: absolute; top: 50%; width: 10px; height: 10px; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg); }
+.schedule-gantt-empty { grid-column: 1 / -1; padding: 32px 16px; text-align: center; font-size: 0.875rem; color: var(--muted-foreground); }
+.schedule-gantt-legend { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 0; padding: 14px 16px; border-block-start: 1px solid var(--border); list-style: none; font-size: 0.75rem; color: var(--muted-foreground); }
+.schedule-gantt-legend li { display: inline-flex; align-items: center; gap: 8px; }
+.schedule-gantt-swatch { width: 8px; height: 8px; flex: none; border-radius: 999px; }
+
+@media (max-width: 600px) {
+  .liwan-setting-rows > [data-orientation="horizontal"] { flex-direction: column; align-items: stretch; gap: 10px; }
+}
+
+html[dir="rtl"] body { padding-right: 0 !important; }
+
+/* Chat pages keep their conversation layout full-bleed. */
+.liwan-shell-main:has(.liwan-chat-create-layout) { --liwan-pad-x: 0px; --liwan-pad-top: 0px; padding: 0; }
+.liwan-chat-create-layout { height: calc(100svh - var(--shell-top)); }
+.liwan-chat-create-layout .liwan-form-footer { justify-content: flex-end; padding-block-start: 0; border-block-start: 0; }
+.liwan-chat-list-toolbar { display: flex; flex: none; align-items: center; gap: 8px; padding: 8px 12px 4px; }
+.liwan-chat-list-search { display: flex; min-width: 0; flex: 1; }
+.liwan-chat-list-filters { flex: none; min-width: 0; padding: 2px 12px 8px; }
+.liwan-chat-list-filters [data-slot="segmented-control"] { display: flex; }
+.liwan-chat-list-filters [data-slot="segmented-control"] > button { min-width: 0; min-height: var(--liwan-control-h); flex: 1 1 auto; justify-content: center; padding-inline: 4px; }
+/* One header recipe for the thread and the info aside. */
+.liwan-chat-thread-header { display: flex; flex: none; flex-wrap: wrap; align-items: center; gap: 8px; border-block-end: 1px solid var(--ui-border); background: var(--ui-bg); padding: 8px 12px; }
+.liwan-chat-thread-search { flex: 1 1 100%; width: 100%; }
+.liwan-chat-scroller { background: var(--liwan-canvas); }
+.liwan-chat-day { margin-block: 8px; text-align: center; color: var(--ui-text-muted); font-size: var(--text-xs); }
+.liwan-chat-bubble { border-radius: var(--radius-control); border-end-start-radius: var(--ui-radius); background: var(--ui-bg); padding: 4px 8px; border: 1px solid var(--ui-border); }
+.liwan-chat-bubble[data-out="true"] { border-end-start-radius: var(--radius-control); border-end-end-radius: var(--ui-radius); background: var(--brand-soft); color: var(--ui-text-highlighted); }
+.liwan-chat-bubble-meta { display: flex; justify-content: flex-end; gap: 4px; margin-block-start: 4px; color: var(--ui-text-muted); font-size: var(--text-xs); }
+.liwan-chat-composer { display: flex; flex-direction: column; gap: 8px; border-block-start: 1px solid var(--ui-border); background: var(--ui-bg); padding: 8px 12px 12px; }
+.liwan-chat-conversation-link { display: flex; min-height: 72px; align-items: center; gap: 12px; margin-inline: 0; border-radius: 0; padding: 8px 16px; color: var(--ui-text-highlighted); text-align: start; text-decoration: none; }
+.liwan-chat-conversation-link:hover { background: var(--ui-bg-elevated); }
+.liwan-chat-conversation-link:focus-visible { outline: 2px solid var(--ui-primary); outline-offset: -2px; }
+.liwan-chat-conversation-link[data-selected="true"] { background: color-mix(in srgb, var(--brand-soft) 80%, var(--context-surface)); }
+.liwan-chat-avatar-badge { position: absolute; inset-inline-end: 0; inset-block-end: 0; display: grid; width: 16px; height: 16px; place-items: center; border-radius: 999px; background: var(--brand-link); color: var(--brand-soft); }
+.liwan-chat-list-time { flex: none; color: var(--ui-text-muted); font-size: var(--text-xs); }
+.liwan-chat-msg-actions { opacity: 1; }
+@media (hover: hover) and (pointer: fine) {
+  .liwan-chat-msg-actions { opacity: 0; }
+}
+.liwan-chat-row:hover .liwan-chat-msg-actions, .liwan-chat-row:focus-within .liwan-chat-msg-actions { opacity: 1; }
+
+/* Page content enters with one short fade when a route changes (the layout toggles the class). */
+.liwan-page-content-motion { animation: liwan-page-content-enter var(--liwan-motion-feedback) var(--liwan-motion-ease) both; }
+@keyframes liwan-page-content-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+[data-slot="table-head"] { background: color-mix(in srgb, var(--background) 80%, var(--card)); font-weight: 400; }
+[data-slot="table-row"]:last-child { border-block-end: 0; }
+
+/* SharedSettingsPage geometry; all settings routes share this owner. */
+/* The settings page shell (moved from settings/SettingsLayout.vue); route navigation belongs to the shell. */
+.liwan-settings-layout { display: block; min-width: 0; }
+/* Geometry only: U components own surfaces and field styling. */
+.liwan-settings-content { min-width: 0; width: 100%; container: settings / inline-size; }
+.liwan-settings-content .liwan-settings-anchor { scroll-margin-block-start: 88px; }
+.liwan-settings-field { display: grid; min-width: 0; gap: .5rem; font-size: var(--text-sm); }
+.liwan-settings-field > span { color: var(--ui-text-muted); }
+.liwan-settings-search { grid-column: 1 / -1; }
+.liwan-settings-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; font-size: var(--text-xs); color: var(--ui-text-muted); }
+.liwan-settings-options, .liwan-settings-cards, .liwan-settings-branding { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 1.5rem; }
+.liwan-settings-option { display: flex; min-width: 0; align-items: start; gap: .75rem; border: 1px solid var(--ui-border); border-radius: var(--radius-xl); padding: 1.25rem; font-size: var(--text-sm); }
+.liwan-settings-option:has([data-state="checked"], input:checked) { border-color: var(--ui-primary); }
+.liwan-settings-option > span { min-width: 0; overflow-wrap: anywhere; }
+@container settings (min-width: 640px) {
+  .liwan-settings-options, .liwan-settings-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .liwan-settings-branding { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
+}
+
+/* Creation actions have a dedicated surface outside the body scroller. */
+.liwan-create-panel { max-width: min(640px, 100vw); }
+.liwan-create-panel-footer-surface { padding-block-end: max(16px, env(safe-area-inset-bottom)); }
+.liwan-form-footer[data-panel="true"] { width: 100%; margin: 0; padding: 0; border: 0; justify-content: space-between; }
+[data-slot="record-summary"] { container-type: inline-size; }
+@container (min-width: 640px) {
+  [data-slot="record-summary"] [data-slot="properties-panel"] dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
+}
+
+/* The project workspace card (identity and tabs) keeps its place under the flat top bar while the page scrolls.
+   The strip above it is filled with the canvas so scrolled content never shows between the bar and the card. */
+@media (min-width: 768px) {
+  .liwan-workspace-head[data-sticky="true"] {
+    position: sticky;
+    inset-block-start: calc(var(--shell-header-height) + 8px);
+    z-index: 20;
+  }
+  .liwan-workspace-head[data-sticky="true"]::before {
+    content: '';
+    position: absolute;
+    inset-block-end: 100%;
+    inset-inline: calc(-1 * var(--liwan-pad-x, 12px));
+    height: 8px;
+    z-index: -1;
+    background: var(--liwan-canvas);
+    pointer-events: none;
+  }
+}
+
+/* Keep compact desktop geometry while preserving touch target sizes. A switch keeps its own track size: its whole
+   row (the track and its label) is the 44px target instead, so the track never grows into a circle. */
+@media (pointer: coarse) {
+  :is(.liwan-create-panel, .liwan-search-dialog, [data-testid="unsaved-changes-dialog"]) :is(button[data-slot="base"]:not([role="switch"]), a[data-slot="base"], [data-slot="select-trigger"]) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  :is(.liwan-create-panel, .liwan-search-dialog, [data-testid="unsaved-changes-dialog"]) [data-slot="root"]:has(> [data-slot="container"] > button[role="switch"]) {
+    min-height: 44px;
+    align-items: center;
+  }
+}

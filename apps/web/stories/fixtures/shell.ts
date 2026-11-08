@@ -1,7 +1,5 @@
 import { BrandingSchema, MeSchema } from '@liwan/contracts'
-import { contextLinksForModule, visibleShellModules, type ShellContextLink } from '../../app/composables/nav/shellModules'
-import { contextLinkTestId, railModel, sidebarModel, subListSections } from '../../app/composables/nav/sidebarModel'
-import { pinnedRail } from '../../app/composables/nav/railPins'
+import type { ShellNavigationLink } from '@liwan/ui/app/types/shell'
 
 // A workspace user who sees every application and the administration module.
 export const shellMe = MeSchema.parse({
@@ -27,33 +25,41 @@ export const shellBranding = BrandingSchema.parse({
   font: 'IBM Plex Sans Arabic',
 })
 
-const shellModules = visibleShellModules(shellMe)
-/** Every application this workspace user can reach. */
-const fullRail = railModel(shellModules)
-/** The rail as the shell renders it: every application pinned, the fixed entries and settings in the scroller. */
-export const shellRail = pinnedRail(fullRail, fullRail.applications.map(item => item.id), null)
-
 /** The same workspace user without any create or manage capability (palette Actions must be empty). */
 export const readOnlyShellMe = { ...shellMe, capabilities: shellMe.capabilities.filter(key => !/\.(create|manage)$/.test(key)) }
 
 
-// Story-only grouping: the first link stays in the fixed card, the others sit under a section heading and go to the sub-list card.
-const settingsLinks: ShellContextLink[] = contextLinksForModule('settings', shellMe, '/settings/team/users')
-  .map((link, index) => ({ ...link, active: link.id === 'users', section: index === 0 ? undefined : 'nav.systemAdministration' }))
-const settingsModel = sidebarModel({ links: settingsLinks, moduleLabelKey: 'nav.settings', path: '/settings/team/users', panel: null, surface: 'desktop' })
-// The titled sections, rendered in their own card under the context sidebar (labels already translated).
-export const subListFixture = subListSections(settingsModel.subSections, key => ({ 'nav.systemAdministration': 'إدارة النظام' }[key] ?? key.split('.').at(-1)!), contextLinkTestId)
-
-/** The quick views card as the shell hands it over: labels already translated (the tasks list). */
-export const quickViewItems = [
-  { id: 'assigned', label: 'المسندة إليّ', icon: 'i-lucide-user', to: '/tasks?assignee=me', active: false },
-  { id: 'today', label: 'اليوم', icon: 'i-lucide-sun', to: '/tasks?deadline=today', active: true },
-  { id: 'week', label: 'هذا الأسبوع', icon: 'i-lucide-calendar-range', to: '/tasks?deadline=week', active: false },
-  { id: 'overdue', label: 'المتأخرة', icon: 'i-lucide-circle-alert', to: '/tasks?deadline=overdue', active: false, count: 3 },
-  { id: 'urgent', label: 'عاجلة', icon: 'i-lucide-flame', to: '/tasks?priority=3', active: false },
-  { id: 'done', label: 'المنجزة', icon: 'i-lucide-circle-check', to: '/tasks?closed=1', active: false },
+/** Sidebar rows as the shell hands them to the presentational sidebar: labels already translated. */
+export const dayRows: ShellNavigationLink[] = [
+  { id: 'home', label: 'يومي', icon: 'i-lucide-house', to: '/', active: true, testId: 'navigation-app-home' },
+  { id: 'ai', label: 'Liwan AI', icon: 'i-lucide-sparkles', to: '/ai', active: false, app: 'ai', testId: 'navigation-app-ai' },
 ]
-export const quickActionItems = [
-  { id: 'new-task-pmo', label: 'مهمة جديدة', icon: 'i-lucide-plus', to: '/tasks/new', primary: true },
-  { id: 'archived-tasks', label: 'المهام المؤرشفة', icon: 'i-lucide-archive', to: '/tasks?scope=archived' },
+export const pinnedRows: ShellNavigationLink[] = [
+  { id: 'crm', label: 'إدارة العملاء', icon: 'i-lucide-handshake', to: '/crm', active: false, app: 'crm', testId: 'navigation-app-crm' },
+  { id: 'inbox', label: 'رسائل العملاء', icon: 'i-lucide-messages-square', to: '/inbox', active: false, app: 'inbox', count: 4, testId: 'navigation-app-inbox' },
+  { id: 'tasks', label: 'مهامي', icon: 'i-lucide-check-square', to: '/my-tasks', active: false, app: 'tasks', testId: 'navigation-app-tasks' },
+  { id: 'projects', label: 'المشاريع', icon: 'i-lucide-folder-kanban', to: '/projects', active: false, app: 'projects', testId: 'navigation-app-projects' },
+]
+export const allAppsRows: ShellNavigationLink[] = [{ id: 'apps', label: 'كل التطبيقات', icon: 'i-lucide-layout-grid', to: '/apps', active: false, testId: 'navigation-app-apps' }]
+/** The links of one application (the projects settings of a long list): a create action, then a branch with children. */
+export const appActionRows: ShellNavigationLink[] = [{ id: 'new-project', label: 'مشروع جديد', icon: 'i-lucide-plus', to: '/projects/new', active: false, primary: true, testId: 'quick-action-new-project' }]
+export const appLinkRows: ShellNavigationLink[] = [
+  { id: 'projects-all', label: 'كل المشاريع', icon: 'i-lucide-folder-kanban', to: '/projects', active: true, testId: 'context-link-projects' },
+  {
+    id: 'planning', label: 'التخطيط', icon: 'i-lucide-list-checks', to: '/tasks', active: false, testId: 'context-link-planning',
+    children: [
+      { id: 'planning-all', label: 'كل المهام', icon: 'i-lucide-list', to: '/tasks', active: false, testId: 'context-link-planning-all' },
+      { id: 'planning-mine', label: 'المسندة إليّ', icon: 'i-lucide-user', to: '/tasks?assignee=me', active: false, count: 3, testId: 'context-link-planning-mine' },
+    ],
+  },
+  { id: 'reports', label: 'التقارير', icon: 'i-lucide-chart-column', to: '/reports', active: false, testId: 'context-link-reports' },
+]
+/** The applications of the switcher grid. */
+export const switcherApps = [
+  { id: 'crm', label: 'إدارة العملاء', icon: 'i-lucide-handshake', to: '/crm' },
+  { id: 'inbox', label: 'رسائل العملاء', icon: 'i-lucide-messages-square', to: '/inbox' },
+  { id: 'tasks', label: 'مهامي', icon: 'i-lucide-check-square', to: '/my-tasks' },
+  { id: 'meetings', label: 'الاجتماعات', icon: 'i-lucide-calendar-days', to: '/meetings' },
+  { id: 'hr', label: 'الموارد البشرية', icon: 'i-lucide-users', to: '/hr' },
+  { id: 'finance', label: 'المالية', icon: 'i-lucide-landmark', to: '/finance' },
 ]

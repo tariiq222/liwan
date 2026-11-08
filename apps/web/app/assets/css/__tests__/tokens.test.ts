@@ -26,9 +26,9 @@ function declarations(body: string): Map<string, string> {
   return found
 }
 
-describe('the module rail is a floating card on the sidebar tone', () => {
+describe('the sidebar is a fixed column on the sidebar tone', () => {
   it('paints with the sidebar and rail tokens and nothing tenant-derived', () => {
-    const rail = ruleBodies(sheet('shell.css'), '.liwan-module-rail')
+    const rail = ruleBodies(sheet('shell.css'), '.liwan-sidebar')
     expect(rail).toContain('var(--liwan-sidebar)')
     expect(rail).toContain('var(--liwan-rail-border)')
     expect(rail).not.toMatch(/gradient|--primary|--brand|--color-brand/)

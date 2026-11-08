@@ -1,93 +1,96 @@
 <script setup lang="ts">
-import { useElementSize, useEventListener, useMediaQuery } from '@vueuse/core'
-import ModuleRail from '@liwan/ui/app/components/shell/ModuleRail.vue'
-import { hasNoContextSidebar } from './noContextRoutes'
-import ShellNavigation from '@liwan/ui/app/components/shell/ShellNavigation.vue'
-import type { ShellNavigationItem } from '@liwan/ui/app/types/shell'
-import { overlayOwnsEscape } from '@liwan/ui/app/composables/useEscapeBack'
+import type { ShellNavigationLink, ShellQuickItem } from '@liwan/ui/app/types/shell'
 import { useApplicationNavigation } from '@/composables/useApplicationNavigation'
-import { useContextSidebar } from '@/composables/useShellNavigation'
-import { useContextPeek } from '@/composables/useContextPeek'
-import { isSidebarToggleShortcut } from '@/composables/nav/sidebarShortcut'
-import { aimsAtMenu, type AimPoint } from '@/composables/nav/menuAim'
+import { useShellModel } from '@/composables/useShellModel'
 
+// The one sidebar. Global mode (the day page, the start pages, search, notifications): the organisation, «يومي» and the
+// assistant, the pinned applications, «كل التطبيقات». App mode (an application, settings or the self-service pages): a
+// back row to «كل التطبيقات», the application's block, then its own links (create action first, then sections). The
+// footer carries settings and the account card in both. `surface="drawer"` is the same content inside the phone drawer.
+const props = withDefaults(defineProps<{ surface?: 'sidebar' | 'drawer' }>(), { surface: 'sidebar' })
+const emit = defineEmits<{ navigate: [] }>()
+const { t, locale } = useI18n()
 const route = useRoute()
+const hydrated = useHydrated()
+const { branding } = useBranding()
+const { me } = useMe()
+const { connected } = useBus()
+const shell = useShellModel()
 const navigation = useApplicationNavigation()
-const { expanded, hydrated, forced, toggle, preference } = useContextSidebar()
-const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
-const canHover = useMediaQuery('(hover: hover)', { ssrWidth: 1024 })
-const overlay = computed(() => hydrated.value && isDesktop.value && canHover.value && !expanded.value && !forced.value)
-const { peekId, pinnedId, anchorTop, peek, keep, release, close, dismissOnEscape, pin, unpin } = useContextPeek(overlay)
-watch(navigation.routeKey, () => { close(); unpin() })
-watch(expanded, value => { if (!value) unpin() })
-const hasMenu = (item: ShellNavigationItem) => !item.panel && !!(item.sections.length || item.views.length || item.actions.length)
-const menuItem = (id: string | null) => navigation.items.value.find(item => item.id === id && hasMenu(item)) ?? null
-const peekItem = computed(() => menuItem(peekId.value))
-const shownItem = computed(() => peekItem.value ?? menuItem(pinnedId.value))
-const contextItems = computed(() => shownItem.value ? [shownItem.value] : navigation.items.value.filter(item => item.id === navigation.activeId.value))
-const column = ref<HTMLElement | null>(null)
-const { height: columnHeight } = useElementSize(column, undefined, { box: 'border-box' })
-// A hovered menu opens level with its rail item; shell.css only lifts it to keep it on screen.
-const anchorStyle = computed(() => peekItem.value && anchorTop.value !== null
-  ? { '--peek-top': `${anchorTop.value}px`, '--peek-height': `${columnHeight.value}px` }
-  : undefined)
-// The pointer path while a menu is open: a rail item crossed on the way into the menu must not take it over.
-const AIM_SAMPLE_MS = 80
-const trail: (AimPoint & { at: number })[] = []
-useEventListener(() => typeof document === 'undefined' ? null : document, 'pointermove', (event: PointerEvent) => {
-  if (event.pointerType !== 'mouse' || !peekItem.value) return
-  trail.push({ x: event.clientX, y: event.clientY, at: event.timeStamp })
-  while (trail.length > 1 && event.timeStamp - trail[0]!.at > AIM_SAMPLE_MS) trail.shift()
-}, { passive: true })
-// A trail older than the sample window (a resting pointer, or keyboard focus) says nothing about where it is heading.
-function aimingAtMenu() {
-  const from = trail[0]
-  const to = trail.at(-1)
-  if (!from || !to || from === to || performance.now() - to.at > AIM_SAMPLE_MS) return false
-  const menu = column.value?.querySelector('.liwan-context-sidebar')?.getBoundingClientRect()
-  return !!menu && aimsAtMenu(from, to, menu)
-}
-function peekFrom(id: string, anchor: HTMLElement) {
-  peek(id, anchor.getBoundingClientRect().top, !!peekItem.value && id !== peekId.value && aimingAtMenu())
-}
-const releaseFromRail = () => release(!!peekItem.value && aimingAtMenu())
-const showContext = computed(() => !!shownItem.value || (!hasNoContextSidebar(route.path) && contextItems.value.length > 0))
-function toggleSidebar() {
-  pin()
-  toggle()
-}
-// Focus stays on the rail link that opened a hovered menu, so Escape is read before any page handler.
-useEventListener(() => typeof document === 'undefined' ? null : document, 'keydown', (event: KeyboardEvent) => {
-  if (!overlayOwnsEscape(document)) dismissOnEscape(event)
-}, { capture: true })
-useEventListener('keydown', (event: KeyboardEvent) => {
-  if (!isDesktop.value || !isSidebarToggleShortcut(event, overlayOwnsEscape(document))) return
-  event.preventDefault()
-  toggleSidebar()
+
+const prefix = computed(() => props.surface === 'drawer' ? 'mobile-' : '')
+const tenantName = computed(() => branding.value?.name?.trim() || me.value?.company.name || '')
+const initial = (text: string) => Array.from(text.trim())[0]?.toLocaleUpperCase() ?? '?'
+const onAppsPage = computed(() => route.path === '/apps' || route.path.startsWith('/apps/'))
+
+const link = (id: string, label: string, icon: string, to: string, active: boolean, app?: string): ShellNavigationLink =>
+  ({ id, label, icon, to, active, app, testId: `navigation-app-${id}` })
+const home = computed(() => shell.rail.value.top.find(item => item.id === 'home'))
+const dayRows = computed<ShellNavigationLink[]>(() => [
+  ...(home.value ? [link('home', t(home.value.labelKey), home.value.icon, home.value.to, shell.activeModule.value === 'home')] : []),
+  ...shell.rail.value.top.filter(item => item.id !== 'home').map(item => link(item.id, t(item.labelKey), item.icon, item.to, shell.activeModule.value === item.id, item.id)),
+])
+const pinnedRows = computed<ShellNavigationLink[]>(() => shell.pinned.value.map(item => link(item.id, t(item.labelKey), item.icon, item.to, shell.activeModule.value === item.id, item.id)))
+const allAppsRows = computed<ShellNavigationLink[]>(() => [link('apps', t('nav.allApps'), 'i-lucide-layout-grid', '/apps', onAppsPage.value)])
+const settings = computed(() => shell.rail.value.utility[0])
+const settingsRows = computed<ShellNavigationLink[]>(() => settings.value ? [link(settings.value.id, t(settings.value.labelKey), settings.value.icon, settings.value.to, navigation.activeId.value === settings.value.id)] : [])
+const backRows = computed<ShellNavigationLink[]>(() => [link('back', t('nav.allApps'), 'i-lucide-arrow-left', '/apps', false)])
+
+// App mode: the create action first, then the application's own sections.
+const app = computed(() => navigation.item.value)
+const asLink = (row: ShellQuickItem): ShellNavigationLink => ({ ...row, testId: `quick-action-${row.id}` })
+const actionRows = computed<ShellNavigationLink[]>(() => (app.value?.actions ?? []).map(asLink))
+const sections = computed(() => app.value?.sections ?? [])
+// The person's first role names them under their name; a person without one shows the name alone.
+const roleName = computed(() => {
+  const role = me.value?.roles?.[0]
+  return role ? role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar : undefined
 })
+const accountLabel = computed(() => me.value?.name ? `${t('nav.account')}: ${me.value.name}` : t('nav.account'))
 </script>
 
 <template>
-  <ModuleRail :rail="navigation.rail.value" :active-id="navigation.railActive.value" :home-to="navigation.homePath.value" @peek="peekFrom" @release="releaseFromRail" />
-  <div v-if="showContext" ref="column" class="liwan-context-column" :data-anchored="anchorStyle ? 'true' : undefined" :style="anchorStyle" @pointerenter="keep" @pointerleave="release()" @focusin="keep" @focusout="release()">
-    <ShellNavigation
-      surface="context"
-      :items="contextItems"
-      :title="shownItem?.label ?? navigation.title.value"
-      hide-brand
-      :active-id="shownItem?.id ?? navigation.activeId.value"
-      :route-key="navigation.routeKey.value"
-      :home-to="navigation.homePath.value"
-      :expanded="expanded || !!peekItem"
-      :overlay="!!peekItem"
-      :hydrated="hydrated"
-      :locked="forced"
-      :preference="preference"
-      :show-panel="isDesktop"
-      :panel-width="navigation.panel.value?.width ?? 'default'"
-      @toggle="toggleSidebar"
-    >
-      <template #panel><component :is="navigation.panelView.value" v-if="navigation.panelView.value" /></template>
-    </ShellNavigation>
-  </div>
+  <ShellSidebar
+    :label="t('nav.sidebar')"
+    :brand-name="t('nav.platformName')"
+    :caption="t('nav.platformCaption')"
+    :home-to="shell.homePath.value"
+    :surface="props.surface"
+    :mode="navigation.mode.value"
+    :test-id-prefix="prefix"
+  >
+    <template v-if="navigation.mode.value === 'global'" #org>
+      <ShellOrgCard v-if="tenantName" :name="tenantName" :initial="initial(tenantName)" :logo-url="branding?.logo_url" />
+    </template>
+
+    <template v-if="navigation.mode.value === 'global'">
+      <ShellNavSection :label="t('nav.day')" :items="dayRows" :test-id-prefix="prefix" :hydrated="hydrated" @navigate="emit('navigate')" />
+      <ShellNavSection :label="t('nav.myApps')" :title="t('nav.myApps')" :action="{ label: t('nav.editApps'), to: '/apps' }" :items="pinnedRows" :test-id-prefix="prefix" :hydrated="hydrated" @navigate="emit('navigate')" />
+      <ShellNavSection :label="t('nav.allApps')" :items="allAppsRows" :test-id-prefix="prefix" :hydrated="hydrated" @navigate="emit('navigate')" />
+    </template>
+    <template v-else-if="app">
+      <div class="liwan-side-back"><ShellNavSection :label="t('nav.allApps')" :items="backRows" :test-id-prefix="prefix" :hydrated="hydrated" @navigate="emit('navigate')" /></div>
+      <div class="liwan-side-appblock" :data-testid="`${prefix}navigation-app-block`">
+        <ShellAppTile :icon="app.icon" :app="app.id" size="md" />
+        <span data-slot="name">{{ app.label }}</span>
+      </div>
+      <ShellNavSection v-if="actionRows.length" :label="t('nav.quickActionsList')" :items="actionRows" :test-id-prefix="prefix" :hydrated="hydrated" @navigate="emit('navigate')" />
+      <ShellNavSection v-for="section in sections" :key="section.id" :label="app.label" :title="section.title || undefined" :items="section.items" :test-id-prefix="prefix" :hydrated="hydrated" @navigate="emit('navigate')" />
+    </template>
+
+    <template #footer>
+      <ShellNavSection v-if="settingsRows.length" :label="t('nav.settings')" :items="settingsRows" :test-id-prefix="prefix" :hydrated="hydrated" @navigate="emit('navigate')" />
+      <ShellAccountCard
+        :name="me?.name ?? ''"
+        :initial="initial(me?.name ?? '?')"
+        :caption="roleName"
+        to="/account"
+        :connected="hydrated ? connected : null"
+        :label="accountLabel"
+        :connected-label="t('bus.connected')"
+        :disconnected-label="t('bus.disconnected')"
+        :disabled="!hydrated"
+      />
+    </template>
+  </ShellSidebar>
 </template>

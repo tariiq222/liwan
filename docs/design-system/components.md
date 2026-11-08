@@ -457,9 +457,15 @@ Storybook هو فهرس المكونات الملزم، وقاعدة ما يُش
 | المكون | المسؤولية والقصة | مكونات الأساس والوصفة |
 | --- | --- | --- |
 | `apps/web/app/components/apps/AppsStartContent.vue` | بداية التطبيق من مساهمات الـmanifest؛ القصة `apps/web/stories/apps/AppsStartContent.stories.ts` | SharedLinkCard، NuxtLink؛ بطاقات وروابط من الثيم المشترك |
-| `apps/web/app/components/home/HomeAssistantSuggestions.vue` | اقتراحات قواعد من أعمال المستخدم؛ القصة `apps/web/stories/home/HomeAssistantSuggestions.stories.ts` | UButton، NuxtLink؛ سطح rounded-card وحدّ ring-default |
-| `apps/web/app/components/home/HomeFocus.vue` | أهم ثلاثة أعمال؛ القصة `apps/web/stories/home/HomeToday.stories.ts` | WorkRow، UButton، SharedLoadingSkeleton، SharedErrorState؛ سطح rounded-card |
-| `apps/web/app/components/home/HomeApps.vue` | قسم «تطبيقاتك» في «يومي»: بطاقة لكل تطبيق مسموح مع تثبيته في الشريط، بلا المساعد؛ القصة `apps/web/stories/launcher/LauncherCard.stories.ts` | LauncherCard؛ شبكة liwan-card-grid |
-| `apps/web/app/components/home/HomeIndicators.vue` | مؤشرات التنفيذ والقرار والمتابعة؛ القصة `apps/web/stories/home/HomeToday.stories.ts` | SharedMetricTile density=compact؛ التوكنات المشتركة |
-| `apps/web/app/components/launcher/LauncherCard.vue` | بطاقة التطبيق وإجراءاته المسموحة؛ القصة `apps/web/stories/launcher/LauncherCard.stories.ts` | UIcon، UButton؛ rounded-card وliwan-card-pad |
+| `apps/web/app/components/home/HomeAssistantBanner.vue` | لافتة ليوان AI في «يومي»: حتى ثلاثة اقتراحات بقواعد وزر إلى المساعد، وتُخفى لمن لا يملكه؛ القصة `apps/web/stories/home/HomeAssistantBanner.stories.ts` | UButton، UIcon، NuxtLink؛ سطح rounded-surface بتدرج من ألوان الواجهة |
+| `apps/web/app/components/home/HomeFocus.vue` | «ابدأ بالأهم»: سكة بطاقات `HomeFocusCard` من صفوف «مهامي» مع سهمين ورابط «عرض الكل»؛ القصة `apps/web/stories/home/HomeToday.stories.ts` | HomeSection، HomeRail، UButton، SharedLoadingSkeleton، SharedErrorState |
+| `apps/web/app/components/home/HomeFocusCard.vue` | بطاقة عمل واحدة في السكة: التطبيق والعنوان (البطاقة كلها رابط) والشرح وشارة الاستعجال وما يطلبه الفتح؛ تُعرض ضمن القصة `apps/web/stories/home/HomeToday.stories.ts` | UBadge، NuxtLink، liwan-app-tile؛ سطح rounded-card وحدّ 1.5px |
+| `apps/web/app/components/home/HomeApps.vue` | «تطبيقاتك»: سكة بطاقات `HomeAppCard` متدرجة بأرقام حية ومعاينة وشرائح تصفية بالفئة؛ القصة `apps/web/stories/home/HomeApps.stories.ts` | HomeSection، HomeRail، HomeAppCard |
+| `apps/web/app/components/home/HomeAppCard.vue` | بطاقة تطبيق: البلاطة والاسم والوصف ورقمان حيّان وزر الفتح ومعاينة صفوف التطبيق؛ تُعرض ضمن القصة `apps/web/stories/home/HomeApps.stories.ts` | NuxtLink، liwan-app-tile؛ سطح rounded-surface وتدرج السطح من `appCardSurface.ts` |
+| `apps/web/app/components/home/HomeIndicators.vue` | ثلاث بطاقات للتنفيذ والقرار والمتابعة تفتح تبويبها في «مهامي»؛ القصة `apps/web/stories/home/HomeToday.stories.ts` | NuxtLink، liwan-app-tile؛ سطح rounded-card وحدّ 1.5px |
+| `apps/web/app/components/home/HomeGreeting.vue` | التحية الكبيرة باسم الشخص حسب وقت المتصفح والتاريخ وعدّ ما ينتظره؛ بلا قصة (تُقرأ من المتصفح) | HomeHello |
+| `apps/web/app/components/home/HomeHello.vue` | عنوان صفحات الأساس («يومي» و«كل التطبيقات»): عنوان عرض كبير وسطر باهت؛ يُرى في قصة `apps/web/stories/home/HomeApps.stories.ts` بسياقه | — |
+| `apps/web/app/components/home/HomeSection.vue` | قسم بعنوان عرض وعلامة سدو صغيرة (معيّن أو مثلث) وسطر فرعي ومكان للأسهم أو الشرائح | — |
+| `apps/web/app/components/home/HomeRail.vue` | سكة أفقية تقف عند كل بطاقة، منطقة مسمّاة قابلة للتركيز، تتحرك بالاتجاه المنطقي | — |
+| `apps/web/app/components/launcher/LauncherRow.vue` | صف تطبيق في «كل التطبيقات»: البلاطة والاسم والوصف وتثبيت وزر الفتح؛ القصة `apps/web/stories/launcher/LauncherRow.stories.ts` | UButton، UTooltip، liwan-app-tile؛ سطح rounded-card |
 | `apps/web/app/components/work/WorkRow.vue` | صف عمل يفتح سجله ويذكر مصدره؛ القصة `apps/web/stories/work/WorkRow.stories.ts` | UBadge، NuxtLink؛ نبرة الاستعجال وشارات الثيم |

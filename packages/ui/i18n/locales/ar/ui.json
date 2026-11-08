@@ -62,18 +62,7 @@
     "title": "البحث والفلاتر"
   },
   "nav": {
-    "home": "يومي",
-    "modules": "الموديولات",
-    "railApps": "التطبيقات",
-    "railTools": "الأدوات",
-    "breadcrumb": "مسار الصفحة",
-    "apps": "التطبيقات",
-    "collapseContext": "طي القائمة الجانبية",
-    "expandContext": "توسيع القائمة الجانبية",
-    "keepContextOpen": "إبقاء القائمة الجانبية مفتوحة",
-    "quickActionsList": "إجراءات الصفحة",
-    "quickViews": "عروض وإجراءات سريعة",
-    "quickViewsList": "العروض السريعة"
+    "breadcrumb": "مسار الصفحة"
   },
   "states": {
     "bulkActions": "إجراءات على الصفوف المحددة",

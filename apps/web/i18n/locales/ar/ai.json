@@ -2,7 +2,6 @@
   "ai": {
     "title": "Liwan AI",
     "description": "اسأل عن مهامك ومشاريعك، واطلب ما تريد تجهيزه. يُعدّ Liwan AI، وأنت تعتمد.",
-    "name": "Liwan AI",
     "greeting": "أهلًا {name}",
     "greetingAnonymous": "أهلًا بك",
     "prompt": "كيف أساعدك في عملك اليوم؟",

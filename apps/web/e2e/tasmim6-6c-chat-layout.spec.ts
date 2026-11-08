@@ -47,7 +47,7 @@ test.describe('Plan 6c: the chat workspace', () => {
   test.describe('desktop', () => {
     test.use({ viewport: { width: 1440, height: 900 } })
 
-    test('/chat is the conversation layout with the empty state, one h1 and the list in the sidebar', async ({ page }) => {
+    test('/chat is the conversation layout with the empty state, one h1 and the list in its own pane', async ({ page }) => {
       await mockChat(page)
       await open(page, '/chat')
       await expect(page.locator('[data-template="conversation-layout"]')).toHaveCount(1)
@@ -62,7 +62,7 @@ test.describe('Plan 6c: the chat workspace', () => {
       await mockChat(page)
       await open(page, '/chat/42')
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
-      await expect(page.locator('[data-template="conversation-header"]').getByRole('heading', { level: 1 })).toHaveText('محادثة تجريبية')
+      await expect(page.locator('[data-template="conversation-header"]').getByRole('heading', { level: 2 })).toHaveText('محادثة تجريبية')
       await expect(page.getByTestId('chat-thread-header')).toBeVisible()
       await expect(page.getByTestId('chat-thread').locator('[data-message-id]')).toHaveCount(2)
       await expect(page.locator('[data-template="conversation-composer"]')).toBeVisible()
@@ -86,7 +86,7 @@ test.describe('Plan 6c: the chat workspace', () => {
         await expect(page.getByTestId('chat-thread')).toBeHidden()
         await expect(composer(page)).toBeHidden()
         await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
-        await expect(info.getByRole('heading', { level: 1 })).toHaveText('معلومات المحادثة')
+        await expect(info.getByRole('heading', { level: 2 })).toHaveText('معلومات المحادثة')
         expect((await info.boundingBox())?.width).toBeGreaterThan(300)
         expect(await fitsWidth(page)).toBe(true)
         await page.screenshot({ path: testInfo.outputPath(`chat-info-${width}.png`) })

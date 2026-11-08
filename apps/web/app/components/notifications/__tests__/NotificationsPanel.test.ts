@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { NotificationListSchema, NotificationSchema, type BellNotification } from '@liwan/contracts'
 import { isDigestNotification, isKnownNotification, isMeetingNotification, isProjectNotification } from '../../../composables/useNotifications'
 
-// Mirrors notificationHref() in NotificationCenter.vue.
+// Mirrors hrefOf() in NotificationsPanel.vue.
 function href(item: BellNotification) {
   if (isDigestNotification(item)) return `/notification-digests/${item.digest_id}`
   if (isMeetingNotification(item)) return `/meetings/${item.meeting_id}`
@@ -11,7 +11,7 @@ function href(item: BellNotification) {
   return null
 }
 
-describe('NotificationCenter digest routing', () => {
+describe('notifications panel digest routing', () => {
   it('routes meeting invitations to the meeting without inventing a task id', () => {
     const meeting = NotificationSchema.parse({
       id: 91, kind: 'meeting_invite', meeting_id: 7, meeting_name: 'Review', body: '',

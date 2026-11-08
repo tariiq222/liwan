@@ -53,7 +53,7 @@ LAYER_COMPONENTS = frozenset(
         'ChartPanel', 'DataTable', 'FilterBar', 'FilterChip', 'FilterChoice', 'FilterField', 'MetricTile', 'Pagination',
         'PersonAvatar', 'Progress', 'RecordNumber', 'RowActions', 'SegmentedControl', 'StatusBadge', 'ViewSwitch', 'ListFooter')]
     + ['shared/form/' + name + '.vue' for name in ('DateField', 'FileField', 'FormActions', 'InlineConfirm', 'RichText', 'UnsavedChanges')]
-    + ['shell/' + name + '.vue' for name in ('ModuleRail', 'ShellBreadcrumb', 'ShellContextSubList', 'ShellFrame', 'ShellNavigation', 'ShellQuickRow', 'ShellQuickViews')]
+    + ['shell/' + name + '.vue' for name in ('ShellAccountCard', 'ShellAppGrid', 'ShellAppTile', 'ShellBreadcrumb', 'ShellFrame', 'ShellNavRow', 'ShellNavSection', 'ShellOrgCard', 'ShellPanelRow', 'ShellPanelStatus', 'ShellSidebar', 'ShellSlideOver', 'ShellTabBar', 'ShellToolButton', 'ShellTopBar')]
 )
 # Billing presentation shared by the customer subscription pages and the vendor console (@liwan/commercial-ui).
 COMMERCIAL_LAYER_COMPONENTS = frozenset(('shared/commerce/PriceBreakdown.vue', 'shared/data/InvoiceLines.vue'))
@@ -99,7 +99,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'operations/ProcessForm.vue', 'operations/RequestCreate.vue', 'operations/RequestRecord.vue', 'operations/RequestEdit.vue',
     'account/PersonalSummaryCard.vue', 'hr/LeaveList.vue', 'hr/LeaveRecord.vue',
     'work/WorkRow.vue',
-    'ai/AiSheet.vue', 'shell/AssistantButton.vue', 'shell/AssistantSheet.vue',
+    'ai/AiSheet.vue', 'shell/AssistantButton.vue',
     'shared/layout/PageHeader.vue', 'shared/feedback/PageState.vue', 'shared/layout/PageContainer.vue', 'shared/form/UnsavedChanges.vue',
     'shared/feedback/LoadingSkeleton.vue', 'shared/feedback/ErrorState.vue', 'shared/feedback/ForbiddenState.vue', 'shared/feedback/NotFoundState.vue',
     'shared/layout/RecordPage.vue', 'shared/layout/PropertiesPanel.vue', 'shared/layout/PropertyRow.vue', 'shared/layout/RecordSection.vue',
@@ -116,7 +116,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'meetings/MeetingResolutionsTab.vue', 'meetings/MeetingAttachmentsTab.vue', 'meetings/MeetingRecordTabs.vue',
     'shared/form/FileField.vue', 'pmo/projects/ProjectFieldHelp.vue',
     'pmo/tasks/PrioritySelect.vue', 'pmo/tasks/StateMenu.vue', 'shared/form/TagPicker.vue',
-    'pmo/projects/ProjectMenu.vue', 'shell/ShellFrame.vue', 'shell/ShellNavigation.vue', 'shell/ModuleRail.vue', 'shell/ShellQuickViews.vue', 'shell/ShellContextSubList.vue', 'shell/AppSidebar.vue', 'shell/ShellHeader.vue', 'shell/ShellBreadcrumb.vue', 'shell/MobileNavigation.vue', 'shell/AppAccountMenu.vue', 'shell/GlobalSearch.vue', 'chat/ChatAttachment.vue', 'pmo/tasks/TaskCard.vue',
+    'pmo/projects/ProjectMenu.vue', 'shell/ShellFrame.vue', 'shell/ShellSidebar.vue', 'shell/ShellNavSection.vue', 'shell/ShellNavRow.vue', 'shell/ShellAppTile.vue', 'shell/ShellOrgCard.vue', 'shell/ShellAccountCard.vue', 'shell/ShellTopBar.vue', 'shell/ShellToolButton.vue', 'shell/ShellSlideOver.vue', 'shell/ShellPanelRow.vue', 'shell/ShellPanelStatus.vue', 'shell/ShellTabBar.vue', 'shell/ShellAppGrid.vue', 'shell/AppSidebar.vue', 'shell/AppTopBar.vue', 'shell/ShellBreadcrumb.vue', 'shell/GlobalSearch.vue', 'chat/ChatAttachment.vue', 'pmo/tasks/TaskCard.vue',
     'pmo/projects/dashboard/DashboardChartPanel.vue', 'shared/data/DashboardChart.client.vue', 'charts/ChartContainer.vue',
     'pmo/projects/workspace/ProjectWorkspaceTabs.vue', 'pmo/projects/governance/RaciMatrix.vue',
     'shared/form/RichText.vue', 'shared/data/Pagination.vue', 'shared/data/MetricTile.vue', 'shared/form/InlineConfirm.vue',
@@ -145,6 +145,7 @@ THEME_OWNERS = {
     UI + 'assets/css/tokens.css',
     UI + 'assets/css/components.css',
     UI + 'assets/css/shell.css',
+    UI + 'assets/css/layout.css',
     UI + 'app.config.ts',
 }
 RETIRED_CSS = {
@@ -657,11 +658,11 @@ def page_shell_errors(current: dict[str, str]) -> list[str]:
         if AD_HOC_WIDTH.search(source):
             errors.append(path + ': ad-hoc page max-width; shell pages fill the workspace')
     if complete:
-        shell = current.get(UI + 'assets/css/shell.css', '')
-        if 'liwan-page-width-' in shell:
-            errors.append(f'{UI}assets/css/shell.css: retired page width band; shell pages fill the workspace')
-        if not AUTO_GRID.search(shell):
-            errors.append(f'{UI}assets/css/shell.css: missing the shared .liwan-auto-grid rule')
+        layout = current.get(UI + 'assets/css/layout.css', '')
+        if 'liwan-page-width-' in layout:
+            errors.append(f'{UI}assets/css/layout.css: retired page width band; shell pages fill the workspace')
+        if not AUTO_GRID.search(layout):
+            errors.append(f'{UI}assets/css/layout.css: missing the shared .liwan-auto-grid rule')
     if complete:
         status = current.get(UI + 'assets/css/components.css', '') + current.get(UI + 'assets/css/tokens.css', '')
         for token in STATUS_TOKENS:
@@ -695,7 +696,7 @@ def secret_render_errors(current: dict[str, str]) -> list[str]:
 # the raw UBreadcrumb; the header that mounts it may use <ShellBreadcrumb> only
 # (any case, kebab or Pascal).
 BREADCRUMB_OWNER = UI_COMPONENTS + 'shell/ShellBreadcrumb.vue'
-BREADCRUMB_HEADERS = (COMPONENTS + 'shell/ShellHeader.vue', VENDOR_ADMIN_COMPONENTS + 'AdminHeader.vue')
+BREADCRUMB_HEADERS = (COMPONENTS + 'shell/AppTopBar.vue', VENDOR_ADMIN_COMPONENTS + 'AdminHeader.vue')
 BREADCRUMB_TAG = re.compile(r'<(?:u|shell)-?breadcrumb\b', re.I)
 RAW_BREADCRUMB_TAG = re.compile(r'<u-?breadcrumb\b', re.I)
 

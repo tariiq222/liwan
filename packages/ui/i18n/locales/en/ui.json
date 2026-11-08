@@ -62,18 +62,7 @@
     "title": "Search and filters"
   },
   "nav": {
-    "home": "Today",
-    "modules": "Modules",
-    "railApps": "Applications",
-    "railTools": "Tools",
-    "breadcrumb": "Breadcrumb",
-    "apps": "Applications",
-    "collapseContext": "Collapse sidebar",
-    "expandContext": "Expand sidebar",
-    "keepContextOpen": "Keep sidebar open",
-    "quickActionsList": "Page actions",
-    "quickViews": "Quick views and actions",
-    "quickViewsList": "Quick views"
+    "breadcrumb": "Breadcrumb"
   },
   "states": {
     "bulkActions": "Actions on selected rows",
