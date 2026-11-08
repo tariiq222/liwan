@@ -1,10 +1,13 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo import Command
 from odoo.tests import tagged
 
 from .write_common import PASSWORD, LiwanFinanceWriteCase
 
 RETURN = '/api/v1/finance/reports/vat-return'
-OCTOBER = 'date_from=2026-10-01&date_to=2026-10-31'
+PERIOD_START = '2026-10-01'
+PERIOD_END = '2026-10-31'
+OCTOBER = f'date_from={PERIOD_START}&date_to={PERIOD_END}'
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -18,6 +21,23 @@ class TestFinanceVatReturn(LiwanFinanceWriteCase):
         result = self.api('GET', f'{RETURN}?{query}')
         self.assertEqual(result.status_code, 200, result.text)
         return result.json()
+
+    def ledger_amount(self, code, column):
+        """The posted balances the column really selects, read from the ORM, not from the endpoint or the box."""
+        expression = self.box_expression(code, column)
+        items = self.env['account.move.line'].search([
+            ('company_id', '=', self.company.id), ('parent_state', '=', 'posted'),
+            ('date', '>=', PERIOD_START), ('date', '<=', PERIOD_END),
+            ('tax_tag_ids', 'in', expression._get_matching_tags().ids),
+        ])
+        sign = -1 if expression.formula.startswith('-') else 1
+        return self.company.currency_id.round(sum(items.mapped('balance')) * sign)
+
+    def box_expression(self, code, column):
+        """The ``tax_tags`` expression behind one box column of the installed return definition."""
+        return self.env['liwan.finance.vat.return']._liwan_lines().filtered(
+            lambda line: line.code == code,
+        ).expression_ids.filtered(lambda item: item.label == column and item.engine == 'tax_tags')
 
     def test_sales_fill_the_standard_rated_box_and_the_totals(self):
         report = self.get()
@@ -68,12 +88,47 @@ class TestFinanceVatReturn(LiwanFinanceWriteCase):
         self.assertEqual(sum(row['amount'] for row in base['items']), 1000)
         self.assertEqual(self.api('GET', f'{RETURN}/items?code=sa_6&column=base&{OCTOBER}').json(), {'items': [], 'total': 0})
 
-    def test_the_total_of_the_items_equals_the_box(self):
+    def test_the_total_of_the_items_equals_the_posted_ledger(self):
+        """The drill-down and the box are each compared to the ledger: two wrongs could otherwise agree."""
         self.posted_invoice(self.bill_body())
         report = self.get()
         for code, column in (('sa_1', 'base'), ('sa_1', 'tax'), ('sa_7', 'base'), ('sa_7', 'tax')):
-            items = self.api('GET', f'{RETURN}/items?code={code}&column={column}&{OCTOBER}').json()['items']
-            self.assertAlmostEqual(sum(row['amount'] for row in items), self.box(report, code)[column], places=2)
+            with self.subTest(code=code, column=column):
+                items = self.api('GET', f'{RETURN}/items?code={code}&column={column}&{OCTOBER}').json()['items']
+                ledger = self.ledger_amount(code, column)
+                self.assertAlmostEqual(sum(row['amount'] for row in items), ledger, places=2)
+                self.assertAlmostEqual(self.box(report, code)[column], ledger, places=2)
+
+    def test_a_line_with_two_matching_tags_contributes_its_balance_once(self):
+        """A line carrying two tags of one expression is listed once and counts once in the box.
+
+        ``account.account.tag`` is unique on ``(name, applicability, country_id)``, but ``name`` is a translated
+        value stored as one dictionary per language, so two rows can hold the same ``en_US`` name in the same
+        country and still be distinct index entries. ``_get_matching_tags`` reads the name in ``en_US``, so the
+        expression selects both rows and one journal item can carry two tags of a single expression. Its balance
+        must still reach the box once, not once per matching tag.
+        """
+        expression = self.box_expression('sa_1', 'base')
+        base_line = self.invoice.invoice_line_ids
+        matching = base_line.tax_tag_ids & expression._get_matching_tags()
+        self.assertEqual(len(matching), 1, 'the sale line starts with one tag of this expression')
+
+        self.env['res.lang']._activate_lang('fr_FR')
+        leftover = self.env['account.account.tag'].with_context(lang='en_US').create({
+            'name': 'Standard rated sales leftover', 'applicability': 'taxes',
+            'country_id': expression.report_line_id.report_id.country_id.id,
+        })
+        leftover.update_field_translations('name', {'en_US': '1(B)', 'fr_FR': 'ventes au taux normal'})
+        base_line.tax_tag_ids = [Command.link(leftover.id)]
+        matching = base_line.tax_tag_ids & expression._get_matching_tags()
+        self.assertEqual(len(matching), 2, 'the expression must select both tags of the line')
+
+        rows = self.env['liwan.finance.vat.return']._liwan_items(self.company, 'sa_1', 'base', PERIOD_START, PERIOD_END)
+        self.assertEqual([amount for item, amount in rows if item == base_line], [1000])
+        self.assertEqual(self.box(self.get(), 'sa_1')['base'], 1000)
+        listed = self.api('GET', f'{RETURN}/items?code=sa_1&column=base&{OCTOBER}').json()
+        self.assertEqual(listed['total'], 1)
+        self.assertEqual([row['amount'] for row in listed['items']], [1000])
 
     def test_bad_queries_and_capability(self):
         for query, field in (
