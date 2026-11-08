@@ -6,8 +6,11 @@ cd "$(dirname "$0")/../.."
 BASE_REF="${CI_BASE_REF:-origin/main}"
 ruff check odoo-addons
 # Release packages require their canonical name and installed jiti; run below.
-# Test helper for the compose and staging readers: the deployment suites parse
-# Docker Compose files, and the static stage installs only what those suites need.
+# Deployment suites parse Compose files. CI uses the interpreter prepared by the
+# setup action; local callers supply PyYAML in their own test environment.
+if [ "${GITHUB_ACTIONS:-}" = true ]; then
+  python3 -m pip install --quiet pyyaml==6.0.3
+fi
 PYTHONPATH=deploy python3 -B -m unittest deploy/test_*.py
 # The staging definition lives in its own package, so `deploy/test_*.py` does not
 # match it; run it explicitly or its checks silently never execute in CI.
