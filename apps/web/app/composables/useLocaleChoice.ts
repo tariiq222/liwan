@@ -1,5 +1,4 @@
-import { LOCALE_COOKIE } from '@/plugins/locale-preference'
-
+export const LOCALE_COOKIE = 'liwan-locale'
 export const LANGUAGES = [{ code: 'ar', name: 'العربية' }, { code: 'en', name: 'English' }] as const
 export type LanguageCode = (typeof LANGUAGES)[number]['code']
 
