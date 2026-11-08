@@ -151,6 +151,31 @@ class LiwanApiCompanyIsolationCase(CompanyIsolationCase):
             self.assertHidden(f'/api/v1/admin/users/{p1_user.id}')
             self.assertHidden(f'/api/v1/admin/access-log/{events[self.company_p1.id].id}')
 
+    def test_branch_session_reads_shared_records_but_not_the_parent_ones_in_every_mode(self):
+        """A branch session keeps the shared catalog and never its parent's private record.
+
+        A built-in role carries no company, so it is shared by every company and stays readable
+        from the branch in every mode, alone and in the list. A custom role owned by the parent
+        is that company's private record: the branch and its sibling get the uniform not-found,
+        and only the parent session reads it.
+        """
+        parent_role = self.env['liwan.access.role'].with_company(self.company_p).create({
+            'key': 'iso_parent_role', 'name_ar': 'Parent company role', 'type': 'custom',
+        })
+        shared_role = self.env.ref('liwan_core.role_employee')
+        for mode in BRANCH_MODES:
+            self.company_p.sudo().write({'liwan_branch_access_mode': mode})
+            self.env_admin_in(self.company_p1)
+            self.assertVisible(f'/api/v1/admin/roles/{shared_role.id}')
+            self.assertHidden(f'/api/v1/admin/roles/{parent_role.id}')
+            listed = self.api('GET', '/api/v1/admin/roles?limit=200')
+            self.assertEqual(listed.status_code, 200, listed.text)
+            ids = [item['id'] for item in listed.json()['items']]
+            self.assertIn(shared_role.id, ids, f'{mode}: the shared catalog stays visible')
+            self.assertNotIn(parent_role.id, ids, f'{mode}: the parent role stays out of the branch list')
+            self.env_admin_in(self.company_p)
+            self.assertVisible(f'/api/v1/admin/roles/{parent_role.id}')
+
     def test_discovery_covers_every_get_record_route(self):
         """Every GET /api/v1 record route liwan_api owns is covered or exempted."""
         assert_isolation_discovery(self, 'liwan_api', EXPECTED_GET_RECORD_ROUTES)
