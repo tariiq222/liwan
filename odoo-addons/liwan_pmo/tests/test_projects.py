@@ -323,6 +323,21 @@ class TestProjects(LiwanPmoCase):
         self.assertEqual((res.status_code, res.json()['code'], res.json()['field']), (422, 'invalid', 'status'))
         res = self.api('GET', '/api/v1/projects?status=to_define')
         self.assertEqual((res.status_code, res.json()['code'], res.json()['field']), (422, 'invalid', 'status'))
+        res = self.api('GET', '/api/v1/projects?status=at_risk,purple')
+        self.assertEqual((res.status_code, res.json()['code'], res.json()['field']), (422, 'invalid', 'status'))
+
+    def test_list_status_accepts_a_comma_list(self):
+        Project = self.env['project.project']
+        risky = Project.create({'name': 'Listed risky', 'company_id': self.env.company.id})
+        risky.with_user(self.manager)._liwan_set_status('at_risk')
+        late = Project.create({'name': 'Listed late', 'company_id': self.env.company.id})
+        late.with_user(self.manager)._liwan_set_status('off_track')
+        fine = Project.create({'name': 'Listed fine', 'company_id': self.env.company.id})
+        fine.with_user(self.manager)._liwan_set_status('on_track')
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        body = self.api('GET', '/api/v1/projects?q=Listed&status=off_track,at_risk').json()
+        self.assertEqual(sorted(item['id'] for item in body['items']), sorted([risky.id, late.id]))
+        self.assertEqual(body['total'], 2)
 
     def test_list_pagination_filters_and_visibility(self):
         Project = self.env['project.project']
