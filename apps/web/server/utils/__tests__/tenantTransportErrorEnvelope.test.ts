@@ -32,6 +32,8 @@ beforeEach(async () => {
   server = http.createServer((req, res) => {
     req.resume()
     seen.push(req.url ?? '')
+    // A cancelled oversize read resets the receiving socket while this response is still writing.
+    res.on('error', () => {})
     res.setHeader('content-type', 'application/json')
     // Odoo's own json2 body for an uncaught exception, exactly as serialize_exception builds it.
     if (req.url === '/api/v1/engine-500') { res.statusCode = 500; res.setHeader('x-synthetic', 'kept'); res.end(JSON.stringify(ENGINE_ERROR)); return }
@@ -39,6 +41,9 @@ beforeEach(async () => {
     if (req.url === '/api/v1/contract-422') { res.statusCode = 422; res.end(JSON.stringify({ code: 'invalid', message: 'gross must be positive', field: 'gross' })); return }
     // An engine 4xx carries the same serialized shape (a werkzeug NotFound reaches json2's handle_error).
     if (req.url === '/api/v1/engine-404') { res.statusCode = 404; res.end(JSON.stringify({ name: 'werkzeug.exceptions.NotFound', message: 'no route', arguments: ['/api/v1/x'], context: {}, debug: 'Traceback' })); return }
+    // A non-contract error body that exceeds the response cap: the bound applies before the
+    // envelope check, exactly as it does to a success body, so it is refused and never buffered.
+    if (req.url === '/api/v1/huge-engine-500') { res.statusCode = 500; res.end(Buffer.alloc(33 * 1024 * 1024, 65)); return }
     // A success body is never touched, even when it carries a key named like an engine field.
     if (req.url === '/api/v1/ok') { res.statusCode = 200; res.end(JSON.stringify({ debug: true, items: [], total: 0 })); return }
     // A non-JSON error body cannot carry the engine's serialized exception and passes unchanged.
@@ -129,6 +134,16 @@ describe('tenantTransport never relays the engine error shape', () => {
       expect([response.status, response.body]).toEqual([500, null])
     } finally { spy.mockRestore() }
   })
+
+  it('refuses an oversize non-contract error body instead of buffering it', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      // The cap is applied while reading, before the envelope check, so the answer fails
+      // exactly as an oversize success body does and is never materialized whole.
+      await expect(tenantTransport(browserEvent().event, base, '/api/v1/huge-engine-500'))
+        .rejects.toThrow('tenant_upstream_unavailable')
+    } finally { spy.mockRestore() }
+  }, 30_000)
 })
 
 describe('the legacy dedicated transport applies the same envelope rule', () => {
@@ -147,4 +162,14 @@ describe('the legacy dedicated transport applies the same envelope rule', () => 
       expect(await contract.json()).toEqual({ code: 'invalid', message: 'gross must be positive', field: 'gross' })
     } finally { spy.mockRestore() }
   })
+
+  it('refuses an oversize non-contract error body instead of buffering it', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      // Dedicated mode reads the error body through the same bound as a success body,
+      // so an over-cap answer fails before any envelope check can replace it.
+      await expect(legacyTenantResponse(browserEvent().event, base, '/api/v1/huge-engine-500', { headers: {} }))
+        .rejects.toThrow('tenant_upstream_unavailable')
+    } finally { spy.mockRestore() }
+  }, 30_000)
 })

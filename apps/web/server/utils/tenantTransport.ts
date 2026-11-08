@@ -108,6 +108,27 @@ function clientCancellation(event?: H3Event, options: { signal?: AbortSignal; ig
   }
 }
 
+/** Read a response body under the transport's single response cap. A body over the cap
+ * cancels its reader and fails the whole answer the same way an oversized success body does. */
+async function boundedResponseBody(body: ReadableStream<Uint8Array>): Promise<Buffer<ArrayBuffer>> {
+  const reader = body.getReader()
+  const chunks: Uint8Array[] = []
+  let bytes = 0
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      bytes += value.byteLength
+      if (bytes > MAX_RESPONSE) {
+        await reader.cancel()
+        throw failure()
+      }
+      chunks.push(value)
+    }
+  } finally { reader.releaseLock() }
+  return Buffer.concat(chunks)
+}
+
 /** Hold one upstream slot, with caller cancellation and a 15s admitted deadline
  * (the heavy budget's deadline, and write gate for a heavy write, on an allowlisted heavy route). */
 export async function withUpstreamSlot<T>(run: (signal: AbortSignal) => Promise<T>, event?: H3Event, heavy?: HeavyBudget): Promise<T> {
@@ -125,22 +146,7 @@ export async function withUpstreamSlot<T>(run: (signal: AbortSignal) => Promise<
     // this wrapper returns, so finish buffering here while the deadline and
     // admission slot still own the receiving socket.
     if (result instanceof Response && result.body) {
-      const reader = result.body.getReader()
-      const chunks: Uint8Array[] = []
-      let bytes = 0
-      try {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          bytes += value.byteLength
-          if (bytes > MAX_RESPONSE) {
-            await reader.cancel()
-            throw failure()
-          }
-          chunks.push(value)
-        }
-      } finally { reader.releaseLock() }
-      return new Response(Buffer.concat(chunks), { status: result.status, statusText: result.statusText, headers: result.headers }) as T
+      return new Response(await boundedResponseBody(result.body), { status: result.status, statusText: result.statusText, headers: result.headers }) as T
     }
     return result
   } finally {
@@ -197,11 +203,13 @@ function contractErrorBody(status: number, path: string, headers: Headers, body:
 }
 
 /** Rewrite one upstream answer: an error body the engine wrote itself becomes the contract refusal.
- * Every status, header and byte of a successful or an already-contract answer is preserved. */
+ * Every status, header and byte of a successful or an already-contract answer is preserved.
+ * The body is read through the same bounded reader as a success answer, so a non-contract error
+ * body can never be buffered beyond the response cap before its envelope is checked. */
 async function contractAnswer(response: Response, path: string): Promise<Response> {
   if (response.status < 400 || !response.body) return response
   const headers = new Headers(response.headers)
-  const served = contractErrorBody(response.status, path, headers, Buffer.from(await response.arrayBuffer()))
+  const served = contractErrorBody(response.status, path, headers, await boundedResponseBody(response.body))
   return new Response(new Uint8Array(served), { status: response.status, statusText: response.statusText, headers })
 }
 
