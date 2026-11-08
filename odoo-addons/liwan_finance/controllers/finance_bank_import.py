@@ -77,8 +77,10 @@ def _open(payload, allowed):
 def _mark_duplicates(journal, lines, currency):
     """Flag the lines the journal already holds: same day, amount and reference, counted occurrence by occurrence.
 
-    Amounts are compared at the journal currency's precision (``currency.round`` on both sides), which is exactly what
-    ``currency.compare_amounts(...) == 0`` means: two amounts that round to the same currency amount collide.
+    Amounts are compared at the journal currency's precision, so two amounts that round to the same currency amount
+    collide (that is what ``currency.compare_amounts(...) == 0`` means). The file's lines already arrive rounded by the
+    statement serializer (``statement_csv``/``statement_ofx``/``statement_camt``) and are used as they are; a stored
+    journal line is rounded here, since its ``amount`` is the raw float Odoo kept.
 
     Two identical lines in one file are both legitimate (two coffees, one day) as long as the journal holds fewer
     copies than the file has seen so far. A line that carries the bank's own transaction id (OFX ``FITID``) is judged by
@@ -103,7 +105,7 @@ def _mark_duplicates(journal, lines, currency):
         if 'unique_import_id' in line:
             line['duplicate'] = line['unique_import_id'] in known_ids
             continue
-        key = (line['date'], currency.round(line['amount']), line['payment_ref'])
+        key = (line['date'], line['amount'], line['payment_ref'])
         seen[key] += 1
         line['duplicate'] = existing[key] >= seen[key]
 
