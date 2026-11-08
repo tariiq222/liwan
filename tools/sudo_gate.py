@@ -2,8 +2,8 @@
 """R7 gate: no sudo() without a recorded justification.
 
 AGENTS.md owns the rule: R7 forbids a new `sudo()` outside the documented cases, and the sudo
-paragraph of the product contracts says why each case exists and that adding one needs the owner's
-approval. `tools/arch_policy.py` only compares per-file counts against `tools/arch_baseline.json`
+paragraph of the product contracts says why each case exists; adding one needs no approval trailer
+(owner decision 2026-10-25, below). `tools/arch_policy.py` only compares per-file counts against `tools/arch_baseline.json`
 and never reads a reason, so today a contributor can raise a documented count and the baseline
 together. This tool closes that hole and runs inside `npm test`:
 

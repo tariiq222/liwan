@@ -25,7 +25,7 @@ See [the hosting contract](docs/superpowers/specs/liwan-shared-saas-and-sovereig
 and [WORKSPACE.md](docs/WORKSPACE.md) for implementation and acceptance evidence;
 the product vision does not establish production readiness.
 
-Remote integration into `main` uses a protected GitHub pull request under the [integration policy](docs/agents/integration-rules.md). The required status-check policy is current-head `ci-result` only, alongside review of the actual diff, an up-to-date branch and resolved conversations. CI success does not authorize publication or merging; the owner's explicit authorization remains required. Review uses the selected available agent or a human. See the [testing guide](docs/testing.md#ci-workflow) for check scope. Release, production deployment and cleanup retain separate authorization requirements.
+Remote integration into `main` uses a protected GitHub pull request. The [integration policy](docs/agents/integration-rules.md) owns the procedure, the required checks, the standing authorization and what still needs the owner's explicit words (release tags, deployment). See the [testing guide](docs/testing.md#ci-workflow) for check scope.
 
 ## Current product
 
@@ -61,7 +61,7 @@ The following is a partial overview of implemented surfaces, not a complete rele
 
 Task detail routes are `/tasks/{id}` and `/projects/{id}/tasks/{taskId}`.
 Presentation follows DESIGN.md. Returning from a nested task preserves query
-filters; scroll restoration is not part of the contract.
+filters; DESIGN.md owns scroll restoration.
 
 [WORKSPACE.md](docs/WORKSPACE.md) is the workspace map. Dated reports are
 historical evidence, not UI policy.
@@ -95,8 +95,8 @@ Use a unique Odoo database and HTTP port, and a matching Nuxt port, for every
 active worktree; the Odoo values above are placeholders and must match `.env.worktree`.
 Worktree dev rejects CLI overrides; its saved profile owns the ports and endpoints. Ports `3100` and `3103` are reserved for vendor administration and its live-proof build; follow [parallel-work.md](docs/parallel-work.md) and check current claims before choosing others. Install dependencies independently in each worktree with
 `npm ci --ignore-scripts`; use the local cache when working offline. Do not
-share `node_modules` or `.nuxt` through symlinks. Never run tests against the
-production-style `odoo19` database.
+share `node_modules` or `.nuxt` through symlinks. Never run tests against `liwan_dev` or
+`odoo19`.
 
 After installing dependencies or moving a checkout, regenerate each Nuxt
 app's local files before running the root tests or type checks:
@@ -107,7 +107,7 @@ npm -w apps/vendor-admin run postinstall
 ```
 
 The ordinary local development topology is Odoo `:8069` and Nuxt `:3000`.
-Use Node 24.15.0 from `.nvmrc`. Main's private apps/web/.env selects the explicitly
+Use the Node version in `.nvmrc`. Main's private apps/web/.env selects the explicitly
 configured `liwan_dev` database; it is a development target, never a test target.
 In a task worktree, `npm run dev` loads that worktree's git-ignored `.env.worktree`
 for its allocated Nuxt/Odoo ports, database and WebSocket endpoint. Install local
@@ -142,7 +142,7 @@ No production deployment or DNS cutover is implied by this repository.
 The detailed one-writer ownership and isolation workflow is in
 [`docs/parallel-work.md`](docs/parallel-work.md). The Git remote is
 `origin` (`https://github.com/tariiq222/liwan.git`), tracked by `main`. Pushes
-need explicit authorization; do not imply that a push occurred.
+follow [integration-rules.md](docs/agents/integration-rules.md); do not imply that a push occurred.
 
 ## Documentation
 

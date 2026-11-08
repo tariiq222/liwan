@@ -337,7 +337,7 @@ suite('commercial trial', () => {
       const validated = await api('POST', `/plans/${draft.body.id}/validate`, { edit_revision: 1, reason })
       const bigger = (await api('POST', `/plans/${draft.body.id}/publish`, { edit_revision: validated.body.edit_revision, reason })).body
       const sub = await getSubscription(pool, c.id)
-      const quote = await createQuoteForCustomer(pool, { customer_id: c.id, request: { ...request(), kind: 'change', plan_revision_id: bigger.id, subscription_id: sub.id } })
+      const quote = await createQuoteForCustomer(pool, { customer_id: c.id, request: { ...request(), kind: 'change', plan_revision_id: bigger.id, subscription_id: sub.id } }, now)
       expect(quote.due_now.minor).toBeGreaterThan(0)
       vi.stubEnv('LIWAN_TENANCY_MODE', 'shared')
       const attempt = routesB(pool, { method: 'POST', pathname: '/v1/commercial/orders', raw: JSON.stringify({ quote_id: quote.id, expected_subscription_revision: sub.revision, idempotency_key: randomUUID() }),

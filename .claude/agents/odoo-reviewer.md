@@ -68,7 +68,8 @@ Check, in this order:
 4. **Tests.** New behaviour has an Odoo test in the right class (`LiwanApiCase` for API,
    `LiwanPmoCase` for PMO fixtures, `TransactionCase` for ORM rules), tagged
    `post_install, -at_install, liwan` for HttpCase; imported from `tests/__init__.py`; zod
-   schema test and live contract e2e updated. No test runs against the dev `odoo19` database.
+   schema test (`packages/contracts/src/<app>/__tests__/`) and, where the route has one, its fixture entry in
+   `packages/contracts/fixtures/manifest.json` updated. No test runs against the dev database `liwan_dev` (or the legacy `odoo19`).
 5. **Frontend rules.** Logical Tailwind properties only (`ms-`, `pe-`, `text-start`); all
    strings through `t()`, with keys in the owning locale namespace under
    `apps/web/i18n/locales/{ar,en}`; optimistic updates only for plain field edits; transitions go
@@ -83,14 +84,11 @@ Check, in this order:
    are checked by `tools/git_policy.py`, which owns the type and scope lists.
    Run `python3 -B tools/arch_policy.py --base origin/main` and
    `python3 -B tools/git_policy.py --base origin/main` and report their result.
-7. **Jev (advisory, when authorized).** Run `npm run review:jev -- --base origin/main --task "<one line: what
-   the change does>"` from the reviewed checkout and copy its per-dimension scores into
-   `## Jev scores`. The diff leaves the machine for a paid service, so run it only when the
-   session holds authorization for Jev calls (the owner's standing authorization in their own
-   sessions, or the requester's explicit approval); otherwise write `Jev skipped: no
-   authorization` and continue (REVIEW.md: no paid API without explicit authorization). The
-   scores never replace a finding's file:line evidence and never gate a merge. If it fails (no key, refused diff), report that in one line;
-   do not retry.
+7. **Jev (advisory, once per non-trivial review).** The owner's standing authorization (2026-11-08, owned by
+   REVIEW.md "Advisory signal: Jev") covers one run. Run `npm run review:jev -- --base origin/main --task
+   "<one line: what the change does>"` from the reviewed checkout and copy its per-dimension scores into
+   `## Jev scores`. The scores never replace a finding's file:line evidence and never gate a merge. If the script
+   is absent or fails (no key, refused diff), say so in one line; do not retry and do not claim Jev passed.
 
 Output format:
 

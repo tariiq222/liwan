@@ -197,12 +197,15 @@ class UiPolicyTest(unittest.TestCase):
         self.assertIn("dependency needs review: left-pad", self.errors({vendor: json.dumps(unknown)}))
 
     def test_only_the_recorded_reviewed_version_change_passes(self):
-        self.base[MANIFEST] = json.dumps({"dependencies": {"vue": "3", "nuxt": "^4.5.2"}})
-        manifest = lambda nuxt: {MANIFEST: json.dumps({"dependencies": {"vue": "3", "@nuxt/ui": "4.11.1", "nuxt": nuxt}})}
-        self.assertEqual(policy.REVIEWED_VERSIONS["nuxt"], "^4.6.2")
-        self.assertNotIn("dependency version needs review: nuxt", self.errors(manifest("^4.5.2")))
-        self.assertNotIn("dependency version needs review: nuxt", self.errors(manifest("^4.6.2")))
-        self.assertIn("dependency version needs review: nuxt", self.errors(manifest("^4.6.3")))
+        self.base[MANIFEST] = json.dumps({"dependencies": {"vue": "3", "nuxt": "^4.5.2", "reka-ui": "^2.9.0"}})
+        manifest = lambda nuxt, reka: {MANIFEST: json.dumps({"dependencies": {"vue": "3", "@nuxt/ui": "4.11.1", "nuxt": nuxt, "reka-ui": reka}})}
+        self.assertEqual(policy.REVIEWED_VERSIONS["nuxt"], "^4.6.4")
+        self.assertEqual(policy.REVIEWED_VERSIONS["reka-ui"], "^2.11.0")
+        self.assertNotIn("dependency version needs review: nuxt", self.errors(manifest("^4.5.2", "^2.9.0")))
+        self.assertNotIn("dependency version needs review: nuxt", self.errors(manifest("^4.6.4", "^2.9.0")))
+        self.assertNotIn("dependency version needs review: reka-ui", self.errors(manifest("^4.5.2", "^2.11.0")))
+        self.assertIn("dependency version needs review: nuxt", self.errors(manifest("^4.6.5", "^2.9.0")))
+        self.assertIn("dependency version needs review: reka-ui", self.errors(manifest("^4.5.2", "^2.11.1")))
 
     def test_theme_literals_and_local_roots_fail_but_tokens_pass(self):
         for source in ('<style>.x { color: #123456; }</style>',

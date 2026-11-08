@@ -18,6 +18,14 @@ limits describe implementation stages, not permanent product exclusions.
 
 ## Repository layout
 
+The authoritative addon list and ranks (0-2 foundation, 3 shared service, 4 application, 5 bridge,
+6 customer overlay) are in `tools/arch_layers.json`; the entries below describe ownership, not the
+complete list. Applications without an entry below: `liwan_finance` (Finance, `/api/v1/finance`),
+`liwan_appointments` (Appointments, `/api/v1/appointments`) and `liwan_inbox` (Customer Inbox,
+WhatsApp, `/api/v1/inbox`); the shared service `liwan_payments` (online payments through the
+tenant's own gateway account, `/api/v1/payments`). Bridges `liwan_<app>_ai` declare each
+application's AI agent and tools.
+
 - `odoo-addons/liwan_core` depends on `base` only. It owns the access service, the system capabilities, the
   built-in `employee`, `system_admin` and `vendor_support` roles, assignments, access audit, migration and identity
   protection. Applications add their capabilities to the catalog through `liwan.access.service` hooks.
@@ -52,15 +60,25 @@ limits describe implementation stages, not permanent product exclusions.
   (the user-id picker, whose ids are `res.users` ids) and its population of
   active internal users of the current company; applications that pick people
   register their feature keys in `liwan.directory`.
+- `odoo-addons/liwan_integrations_sa` (shared service, rank 3) owns the status of the Saudi live links
+  (ZATCA, banks) at `/api/v1/integrations` and the `integrations.enabled` feature. It depends on `liwan_api` only.
 - `odoo-addons/liwan_pmo` owns projects, tasks, timelines, project settings,
   attachments, dependencies, archive/restore, its task and digest notification
   kinds, producers and `/api/v1/notification-digests`, and the `pmo.*`
   capabilities, their groups and the `pmo_manager` role. It does not depend on
   the meeting engine.
+- `odoo-addons/liwan_ai_notify` (bridge, rank 5, `auto_install` on `liwan_ai` and `liwan_notify`) tells the AI
+  settings managers in the bell when AI usage reaches 80% of a limit.
 - `odoo-addons/liwan_hr` owns the HR directory, departments, HR-specific
   serializers/controllers, `/api/v1/hr/*` (employee ids are
   `hr.employee` ids), and the `hr.*` capabilities, their groups and the
   `hr_manager` role.
+- `odoo-addons/liwan_crm` (application, rank 4) owns the CRM: opportunities, calls and follow-up over stock
+  `crm` and OCA `crm_phonecall`, the `/api/v1/crm` routes, their serializers, `crm.enabled`, the `crm.*`
+  capabilities and their groups, and the opportunity custom-field definition of the current company. It knows
+  no other application; its AI tools live in the bridge `liwan_crm_ai`.
+- `odoo-addons/liwan_chat` (application, rank 4) owns member-private chat over the native `discuss.channel`:
+  conversations, messages, reactions and the `/api/v1/chat` routes, `chat.enabled` and the `chat.*` capabilities.
 - `odoo-addons/liwan_documents` (application, rank 4) owns the central DMS-backed
   document library and `/api/v1/documents` routes. `odoo-addons/liwan_documents_hr`
   (bridge, rank 5, `auto_install`) adds HR department and own-employee contexts to that library.
@@ -95,6 +113,8 @@ limits describe implementation stages, not permanent product exclusions.
   the list, and owns the convert route (`/api/v1/my-tasks/<id>/convert`, `convert-targets`).
 - `odoo-addons/base_tier_validation` (shared service, rank 3) is the vendored OCA tier-validation
   engine (AGPL-3) used by `liwan_operations`.
+- `odoo-addons/liwan_registry_probe` (shared service, rank 3) is test-only: it contributes one probe capability and
+  one probe feature to the access and feature registries so tests can prove their extension hooks. It is never installed in production.
 - `odoo-addons/liwan_operations` (application, rank 4) owns versioned process definitions and
   permission-checked approval requests, `/api/v1/operations`, and the `operations.*`
   capabilities and their groups.
@@ -131,15 +151,16 @@ limits describe implementation stages, not permanent product exclusions.
   of catalog-made products, the implementations of the neutral commerce hooks of `liwan_inbox`, and the carts that
   become online orders of `liwan.payments.service` (checkout, pay link, paid and cancelled notes). Feature
   `inbox.catalog`; capabilities `inbox.catalog.manage` and `inbox.orders.manage`.
-- `packages/contracts/src/common`, `src/access`, `src/pmo`, `src/hr`, `src/meetings`, `src/chat`,
-  `src/tasks` and `src/operations` hold the Zod wire
-  contracts; each namespace has a barrel re-exported from `src/index.ts`.
+- `packages/contracts/src/<namespace>` holds the Zod wire contracts (current namespaces: `access`, `ai`,
+  `appointments`, `chat`, `common`, `crm`, `documents`, `finance`, `hr`, `inbox`, `integrations`,
+  `maintenance`, `meetings`, `operations`, `payments`, `pmo`, `tasks`); each has a barrel re-exported
+  from `src/index.ts`.
 - `apps/web` holds Nuxt pages, components, composables, and per-pillar locale
   files. `/hr` is the shipped HR directory; `/people` is not the HR route.
   PMO components live in `app/components/pmo/{projects,tasks}`, personal-task
   components in `app/components/personal-tasks`. Presentational building blocks live in
   the `packages/ui` Nuxt layer (`@liwan/ui`, shared by every Nuxt app);
-  `app/components/shared/{data,form,commerce}` keeps only those that need app data.
+  `app/components/shared/{data,form}` keeps only those that need app data; commercial UI lives in `packages/commercial-ui`.
 - `deploy` holds per-customer Docker, Caddy, provisioning, and branding
   templates.
 
@@ -153,8 +174,10 @@ guidance; dated delivery/recovery reports are historical snapshots and do not
 override the capability policy below.
 
 HR manages employee records and archival. Account grants, role assignments,
-password resets and reactivation belong to `/settings/team/users` and the
-`/api/v1/admin/users` API. Archiving an employee disables linked access;
+reset links and reactivation belong to `/settings/team/users` and the
+`/api/v1/admin/users` API; the administrator never sets a password, the reset
+action (`/api/v1/admin/users/<id>/reset-link`, capability `access.users.reset_password`)
+only sends the user a link to choose one. Archiving an employee disables linked access;
 unarchiving does not reactivate the login. `/account` changes one's own password.
 LiwanOS branding settings edit only `primary_color`. Institution name and logo
 are managed in Odoo by `base.group_system`, with company, related partner and

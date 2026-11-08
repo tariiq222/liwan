@@ -323,12 +323,11 @@ itself:
 So today the vendor console is the only door, and every customer is created by the owner by
 hand.
 
-**Open decision for the owner:** keep Launch 1 invitation-only (the console creates each
-customer), or build full self-service sign-up. The recommendation is invitation-only for
-Launch 1: a 14-day trial with no payment method and no abuse control is an open invitation to
-unlimited free tenants, and the hosting cost is the vendor's. Self-service becomes its own
-project once demand is proven. **Until the owner answers, §5 must be read as starting at
-`/subscription` for an existing customer, not at `/register` for a stranger.**
+**Owner decision 2026-11-06:** release 1 includes self sign-up with SMS verification and a
+14-day trial, alongside vendor-created paid customers. This replaces the earlier
+invitation-only decision. The current owner of the sign-up journey and its acceptance
+criteria is [the hosting contract](liwan-shared-saas-and-sovereign-deployment.md) §5.1 and
+AC-09; the state table above describes the code as audited, before that decision.
 
 ## 11. Acceptance criteria
 

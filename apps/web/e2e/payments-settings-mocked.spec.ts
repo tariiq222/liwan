@@ -23,6 +23,15 @@ test.afterEach(() => {
   expect(errors, 'no page error and no console error').toEqual([])
 })
 
+// A hard load of a page the route middleware refuses with 403 makes Nuxt run that navigation again in the browser before
+// the app mounts. Nuxt's production build then logs the code of its diagnostic NUXT_E1005 ("Error caught during app
+// initialization"; here the cause is the middleware's own 403) once. Exactly one such line is dropped, so any other
+// console error, or a second one, still fails the test.
+function withoutAppStartError(list: string[]): string[] {
+  const at = list.indexOf('console: [NUXT_E1005]')
+  return list.filter((_, index) => index !== at)
+}
+
 const credential = (page: Page, field: (typeof FIELDS)[number]) => page.getByTestId(`payments-credential-${field}`)
 const providerCard = (page: Page) => page.getByTestId('payments-provider-paymob')
 const saveKeys = (page: Page) => page.getByTestId('settings-save-bar-save')
@@ -165,12 +174,15 @@ test.describe('payments settings', () => {
     // The refused document is the behaviour under test; the browser logs it as a refused resource.
     const withoutRefusals = trackRefusedRequests(page, PATH)
     await page.goto(PATH)
+    // Wait until Nuxt has started in the browser: it logs NUXT_E1005 while starting, so ending the test earlier would
+    // only sometimes see that line.
+    await expect.poll(() => errors).toContain('console: [NUXT_E1005]')
     await expect(page.getByText('لا تملك صلاحية فتح هذه الصفحة')).toBeVisible()
     await expect(page.getByTestId('payments-provider-paymob')).toHaveCount(0)
     await expect(page.getByTestId('payments-orders')).toHaveCount(0)
     expect((await page.request.get('/api/v1/payments/providers')).status()).toBe(403)
     expect((await page.request.get('/api/v1/payments/settings')).status()).toBe(403)
-    errors = withoutRefusals(errors)
+    errors = withoutAppStartError(withoutRefusals(errors))
   })
 })
 
