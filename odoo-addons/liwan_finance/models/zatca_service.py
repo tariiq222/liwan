@@ -16,7 +16,6 @@ from odoo.exceptions import MissingError, UserError
 
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_finance.serializers.zatca import (
-    ZATCA_FORMAT_CODE,
     dump_zatca_readiness,
     dump_zatca_submission,
     plain_text,
@@ -155,16 +154,16 @@ class LiwanFinanceZatca(models.AbstractModel):
         return move
 
     def _liwan_retry_zatca_document(self, move):
-        """Clear the stored failure of the ZATCA document only, leaving every other EDI format of the move untouched.
+        """Clear the stored failure of the ZATCA document of ``move``, leaving every other EDI format of the move untouched.
 
-        Stock's ``_retry_edi_documents_error`` writes ``error`` and ``blocking_level`` on **every** EDI document of the
-        move, so a failure of another format would vanish from the work list and its cron would retry it with nobody
-        told why it had failed. The rest of stock's ZATCA hook stays: the chain head is cleared so a blocked chain can
-        be sent again, and the attachments are detached so the XML is regenerated.
+        Stock's ``_retry_edi_documents_error`` writes ``error`` and ``blocking_level`` on **every** EDI document of the move
+        (``account_edi/models/account_move.py:367``), so a failure of another format would vanish from the work list and its
+        cron would retry it with nobody told why it had failed. The two lines of stock's ``l10n_sa_edi`` override
+        (``l10n_sa_edi/models/account_move.py:338``: clear the chain head so a blocked chain can be sent again, and detach
+        the attachments so the XML is regenerated) are therefore reproduced here instead of calling it: going through the
+        hook would also reach that all-formats write, which is exactly what this method exists to avoid.
         """
-        documents = move.edi_document_ids.filtered(lambda document: document.edi_format_id.code == ZATCA_FORMAT_CODE)
-        if not documents:
-            return
-        move.filtered(lambda move: move.country_code == 'SA').write({'l10n_sa_edi_chain_head_id': False})
+        documents = zatca_document(move)
+        move.filtered(lambda invoice: invoice.country_code == 'SA').write({'l10n_sa_edi_chain_head_id': False})
         move._detach_attachments()
         documents.write({'error': False, 'blocking_level': False})
