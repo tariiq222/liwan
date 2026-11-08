@@ -4,6 +4,7 @@ import AppSidebar from '@/components/shell/AppSidebar.vue'
 import AppTabBar from '@/components/shell/AppTabBar.vue'
 import AppTopBar from '@/components/shell/AppTopBar.vue'
 import SlideOverHost from '@/components/shell/SlideOverHost.vue'
+import { appScopeFor } from '@/utils/appScope'
 import { shellBreadcrumb } from '@/composables/nav/breadcrumb'
 import { useShellModel } from '@/composables/useShellModel'
 import { usePageHeaderTitle } from '@liwan/ui/app/composables/usePageHeader'
@@ -20,6 +21,10 @@ const pageTitle = usePageHeaderTitle()
 // current route and SharedPageHeader draws them under the page title, so there is one trail, not two. The page
 // title arrives after hydration (the page registers it) and the shell names the current page only then, so both
 // renders agree.
+// The open application's identity (app-identity.css) rides on <html>, so overlays teleported to <body> (slide-overs, modals,
+// popovers, menus, toasts) inherit it. An application's settings page takes that application's identity too.
+const appScope = computed(() => appScopeFor(route.path, activeModule.value))
+useHead(() => ({ htmlAttrs: { 'data-app': appScope.value } }))
 const trail = computed(() => shellBreadcrumb({ path: route.path, pageTitle: hydrated.value ? pageTitle.value : null, t, rail: rail.value.all }))
 providePageTrail(trail)
 // The page header draws the tile and the one-line tagline before its title from the application that owns the
@@ -50,7 +55,7 @@ watch(() => route.path, () => {
   <ShellFrame>
     <template #sidebar><AppSidebar /></template>
     <template #topbar><AppTopBar /></template>
-    <main ref="shellMain" tabindex="-1" data-testid="shell-main" :data-app="typeof activeModule === 'string' ? activeModule : undefined" class="liwan-shell-main focus:outline-none">
+    <main ref="shellMain" tabindex="-1" data-testid="shell-main" class="liwan-shell-main focus:outline-none">
       <slot />
     </main>
     <template #bottom><AppTabBar v-model:open="drawerOpen" /></template>

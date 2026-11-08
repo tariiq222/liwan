@@ -53,7 +53,6 @@ const sections = computed(() => app.value?.sections ?? [])
     :surface="props.surface"
     :mode="navigation.mode.value"
     :test-id-prefix="prefix"
-    :data-app="navigation.mode.value === 'app' ? app?.id : undefined"
   >
     <template #org>
       <ShellOrgCard v-if="tenantName" :name="tenantName" :initial="initial(tenantName)" :logo-url="branding?.logo_url" />

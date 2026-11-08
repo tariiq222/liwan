@@ -32,8 +32,8 @@ const motionEpoch = ref(0)
 
 function readTokens() {
   if (typeof document === 'undefined') return
-  // The page area carries the open application's colour scope (data-app): its first series colour follows it.
-  const styles = getComputedStyle(document.querySelector('[data-testid="shell-main"]') ?? document.documentElement)
+  // <html> carries the open application's colour scope (data-app): the first series colour follows it.
+  const styles = getComputedStyle(document.documentElement)
   tokens.value = Object.fromEntries([
     '--chart-1', '--chart-2', '--chart-3', '--chart-4', '--chart-5', '--chart-6', '--muted-foreground', '--border', '--foreground', '--card', '--font-sans',
     '--status-success', '--status-info', '--status-warning', '--status-danger',
