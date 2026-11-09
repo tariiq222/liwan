@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import math
+from datetime import timedelta
 
+from odoo import fields
 from odoo.exceptions import AccessError, ValidationError
 from odoo.fields import Command
 from odoo.tests import new_test_user, tagged
@@ -39,6 +41,27 @@ def approved_record(env):
     return env['res.partner'].create({'name': 'Approved record'})
 
 
+def stamp_creator(env, record, user, created_at=None):
+    """Make `record` a record that `user` created at `created_at` (naive UTC, default now).
+
+    The ORM refuses to write its access-log columns, so this is plain SQL on the record's own table — the same way the
+    other addons' tests rewrite `create_date` — after flushing the pending create, then a cache clear so the model reads
+    the new values.
+    """
+    env.flush_all()
+    env.cr.execute(
+        f'UPDATE {record._table} SET create_uid = %s, create_date = %s WHERE id = %s',
+        [user.id, created_at or fields.Datetime.now(), record.id],
+    )
+    env.invalidate_all()
+    return record
+
+
+def caller_record(env, user, created_at=None):
+    """A record of the probe draft's model (`res.partner`) that `user` created, by default now."""
+    return stamp_creator(env, approved_record(env), user, created_at)
+
+
 @tagged('post_install', '-at_install', 'liwan')
 class TestAiAudit(AiProbe, LiwanApiCase):
 
@@ -52,7 +75,8 @@ class TestAiAudit(AiProbe, LiwanApiCase):
             groups='liwan_core.group_employee,liwan_ai.group_cap_ai_use',
         )
         self.authenticate('api_emp', 'api_emp_pass_123')
-        self.record = approved_record(self.env)
+        # The create page makes the record as the user, after the draft was proposed: creator and time must say so.
+        self.record = caller_record(self.env, self.employee)
 
     def _set_feature(self, key, value):
         profile = self.env.ref('liwan_platform.tenant_profile')
@@ -109,9 +133,12 @@ class TestAiAudit(AiProbe, LiwanApiCase):
         self.granted = {READ_CAP, CREATE_CAP}
         proposed = self.api('POST', '/api/v1/ai/audit', DRAFT)
         self.assertEqual(proposed.status_code, 200)
-        self.assertFalse(self.env['liwan.ai.audit'].browse(proposed.json()['id']).attested_at)
+        proposal = self.env['liwan.ai.audit'].browse(proposed.json()['id'])
+        self.assertFalse(proposal.attested_at)
+        # The create page makes this record after the draft it belongs to; the fixture predates it, so pin it.
+        stamp_creator(self.env, self.record, self.employee, proposal.create_date)
         approved = self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'result': 'approved', 'approved': {'id': self.record.id}})
-        self.assertEqual(approved.status_code, 200)
+        self.assertEqual(approved.status_code, 200, approved.text)
         row = self.env['liwan.ai.audit'].browse(approved.json()['id'])
         self.assertTrue(row.attested_at)
         self.assertEqual((row.draft, row.approved), ({'name': 'A'}, {'id': self.record.id}))
@@ -144,6 +171,55 @@ class TestAiAudit(AiProbe, LiwanApiCase):
         accepted = self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'result': 'approved', 'approved': {'id': self.record.id}})
         self.assertEqual(accepted.status_code, 200)
         self.assertEqual(self.env['liwan.ai.audit'].browse(accepted.json()['id']).approved, {'id': self.record.id})
+
+    def test_an_approval_refuses_a_record_another_user_created(self):
+        """Issue #556: naming a colleague's record proves nothing, even when it is readable and in this company."""
+        self.granted = {READ_CAP, CREATE_CAP}
+        theirs = stamp_creator(self.env, approved_record(self.env), self.other)
+        # The refusal must be about the creator: the caller can read this record, and its company is theirs too.
+        self.assertTrue(self.env['res.partner'].with_user(self.employee).search([('id', '=', theirs.id)]))
+        refused = self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'result': 'approved', 'approved': {'id': theirs.id}})
+        self.assertEqual(refused.status_code, 422)
+        self.assertEqual(refused.json()['field'], 'approved')
+        self.assertEqual(refused.json()['code'], 'not_found')
+        self.assertFalse(self.env['liwan.ai.audit'].search([]))
+
+    def test_an_approval_refuses_a_record_older_than_the_proposal(self):
+        """Issue #556: an old record of the caller is not what this draft created, so it cannot be approved."""
+        self.granted = {READ_CAP, CREATE_CAP}
+        proposed = self.api('POST', '/api/v1/ai/audit', DRAFT)
+        self.assertEqual(proposed.status_code, 200)
+        proposed_at = self.env['liwan.ai.audit'].browse(proposed.json()['id']).create_date
+        stamp_creator(self.env, self.record, self.employee, proposed_at - timedelta(minutes=1))
+        refused = self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'result': 'approved', 'approved': {'id': self.record.id}})
+        self.assertEqual(refused.status_code, 422)
+        self.assertEqual(refused.json()['field'], 'approved')
+        self.assertEqual(refused.json()['code'], 'not_found')
+        self.assertEqual(self.env['liwan.ai.audit'].search_count([]), 1)
+
+    def test_an_approval_accepts_the_callers_record_created_after_the_proposal(self):
+        """Issue #556: the real flow — the proposal row, then the create page's record — is the one an approval covers."""
+        self.granted = {READ_CAP, CREATE_CAP}
+        proposed = self.api('POST', '/api/v1/ai/audit', DRAFT)
+        self.assertEqual(proposed.status_code, 200)
+        # The create page makes the record as the user once the draft is proposed; the boundary is inclusive.
+        proposed_at = self.env['liwan.ai.audit'].browse(proposed.json()['id']).create_date
+        stamp_creator(self.env, self.record, self.employee, proposed_at)
+        approved = self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'result': 'approved', 'approved': {'id': self.record.id}})
+        self.assertEqual(approved.status_code, 200, approved.text)
+        self.assertTrue(self.env['liwan.ai.audit'].browse(approved.json()['id']).attested_at)
+
+    def test_an_approval_without_a_recorded_proposal_uses_a_bounded_window(self):
+        """No proposal row (its audit write failed, or a direct ORM create): only the last 24 hours are trusted."""
+        self.granted = {READ_CAP, CREATE_CAP}
+        stale = caller_record(self.env, self.employee, fields.Datetime.now() - timedelta(hours=25))
+        refused = self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'result': 'approved', 'approved': {'id': stale.id}})
+        self.assertEqual(refused.status_code, 422)
+        self.assertEqual(refused.json()['field'], 'approved')
+        self.assertFalse(self.env['liwan.ai.audit'].search([]))
+        stamp_creator(self.env, self.record, self.employee, fields.Datetime.now() - timedelta(hours=1))
+        accepted = self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'result': 'approved', 'approved': {'id': self.record.id}})
+        self.assertEqual(accepted.status_code, 200, accepted.text)
 
     def test_the_wire_carries_no_attestation_flag(self):
         """Issue #556: a caller cannot assert an acknowledgement the server did not make, by any field name."""
@@ -191,7 +267,7 @@ class TestAiAuditHardening(AiProbe, LiwanApiCase):
         self.audit_a = self.env['liwan.ai.audit'].with_user(self.employee)
         self.audit_b = self.env['liwan.ai.audit'].with_user(self.other)
         self.authenticate('api_emp', 'api_emp_pass_123')
-        self.probe_record = approved_record(self.env)
+        self.probe_record = caller_record(self.env, self.employee)
 
     def _set_feature(self, key, value):
         profile = self.env.ref('liwan_platform.tenant_profile')

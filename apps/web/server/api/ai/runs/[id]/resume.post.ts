@@ -27,7 +27,8 @@ const unhandledKind = (kind: never): never => {
 /**
  * What an approved draft may carry: exactly `{id: <positive int>}`, the record the create page made (issue #556).
  * A shape the contract does not accept is a 422 before any audit row is written; whether the record exists, belongs to
- * this company and is readable here is Odoo's answer, so the check runs where the record rules are.
+ * this company, was created by this session and after the draft was proposed is Odoo's answer, so the check runs where the
+ * record rules are.
  */
 function approvedData(data: Record<string, unknown> | undefined): { id: number } {
   const approved = AiApprovedDraftSchema.safeParse(data ?? {})
@@ -81,8 +82,8 @@ export default defineEventHandler(async (event) => {
   } else if (pending.kind === 'draft') {
     // A submitted draft is recorded here, never by the browser. The approval is recorded with the user's session: the call
     // and the draft come from the service, and Odoo verifies in the same transaction that the id the create page submitted
-    // is a record this session may read, then stamps the time (issue #556). A client can therefore approve only a record it
-    // really created and can see; anything else comes back 422 and the run is never resumed as an approval.
+    // names a record this session can read, that this session created it, and that it was created at or after the moment the
+    // draft was proposed (issue #556); anything else comes back 422 and the run is never resumed as an approval.
     const draft = restoreValue(pending.input, session.tokenKey)
     const approved = approvedData(body.data)
     result = { ok: true, decision: 'approved', data: approved }
