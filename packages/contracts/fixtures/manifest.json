@@ -966,7 +966,7 @@
       "method": "GET",
       "route": "/api/v1/hr/payroll/payslips/mine/{id}",
       "status": 200,
-      "schema": "HrPayslipSchema"
+      "schema": "HrMyPayslipSchema"
     },
     {
       "name": "hr/payroll-payslip-detail",

@@ -48,3 +48,11 @@ type Story = StoryObj<typeof meta>
 export const Default: Story = { name: 'قسيمة راتب' }
 
 export const NoDeductions: Story = { name: 'بلا خصومات', args: { payslip: { ...payslip, lines: payslip.lines.slice(0, 3), deductions: 0, net: 10500 } } }
+
+// The caller's own payslip (/account/pay/:id): the same document without the employer share and tax number, so the
+// employer footnote and the tax line disappear while everything about the employee's own pay stays.
+const { gosi_employer: _share, ...own } = payslip
+export const MyPayslip: Story = {
+  name: 'قسيمة الموظف الخاصة',
+  args: { payslip: { ...own, company: { name: payslip.company.name } } },
+}

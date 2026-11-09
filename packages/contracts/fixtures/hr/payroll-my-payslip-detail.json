@@ -1,7 +1,6 @@
 {
   "company": {
-    "name": "My Company",
-    "vat": ""
+    "name": "My Company"
   },
   "currency": "SAR",
   "deductions": 1218.75,
@@ -10,7 +9,6 @@
     "id": 2,
     "name": "Snap Worker"
   },
-  "gosi_employer": 1468.75,
   "gross": 13500.0,
   "id": 1,
   "lines": [

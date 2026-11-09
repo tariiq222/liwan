@@ -2,7 +2,7 @@ import { useHrOwnIdentity } from './useHrOwnIdentity'
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import { HrMyPayslipListSchema, HrPayslipSchema } from '@liwan/contracts'
+import { HrMyPayslipListSchema, HrMyPayslipSchema } from '@liwan/contracts'
 
 type Api = ReturnType<typeof useApi>['$api']
 
@@ -25,7 +25,7 @@ export function fetchMyHrPayslips($api: Api, page: HrMyPayslipPage) {
 }
 
 export function fetchMyHrPayslip($api: Api, payslipId: number) {
-  return $api(`${MINE_PATH}/${payslipId}`, { schema: HrPayslipSchema })
+  return $api(`${MINE_PATH}/${payslipId}`, { schema: HrMyPayslipSchema })
 }
 
 /** Gated by the employee read capability, not the payroll one: every employee reads their own approved payslips. */

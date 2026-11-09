@@ -169,6 +169,25 @@ export const HrMyPayslipListSchema = z.object({
   total: z.number().int().nonnegative(),
 }).strict()
 
+// An employee's own payslip: the same document without the employer's own figures. The employer GOSI share and
+// the company tax number are the employer's cost and registration data, not something the payslip of one employee
+// reports, so the self-service route sends neither and this shape requires neither.
+export const HrMyPayslipSchema = z.object({
+  id: z.number().int().positive(),
+  number: z.string(),
+  month: payrollMonth,
+  state: z.string(),
+  employee: HrRefSchema,
+  department: HrRefSchema.nullable(),
+  paid_days: z.number(),
+  lines: z.array(HrPayslipLineSchema),
+  gross: z.number(),
+  deductions: z.number(),
+  net: z.number(),
+  currency: z.string().length(3),
+  company: z.object({ name: z.string() }).strict(),
+}).strict()
+
 const dayDivisor = z.number().int().min(28).max(31)
 // The optimistic revision of a payroll settings row: a write sends the one it read, a stale one answers 409.
 // A row the company has not saved yet (the settings, an end-of-service case) is revision 0.
@@ -395,6 +414,7 @@ export type HrPayslipRowList = z.infer<typeof HrPayslipRowListSchema>
 export type HrPayslip = z.infer<typeof HrPayslipSchema>
 export type HrMyPayslipSummary = z.infer<typeof HrMyPayslipSummarySchema>
 export type HrMyPayslipList = z.infer<typeof HrMyPayslipListSchema>
+export type HrMyPayslip = z.infer<typeof HrMyPayslipSchema>
 export type HrPayrollSettings = z.infer<typeof HrPayrollSettingsSchema>
 export type HrPayrollSettingsPatch = z.infer<typeof HrPayrollSettingsPatchSchema>
 export type HrGosiRate = z.infer<typeof HrGosiRateSchema>

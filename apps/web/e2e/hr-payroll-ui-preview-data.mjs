@@ -149,6 +149,11 @@ function payslip(run, slip) {
     company: { name: 'شركة النماء للتقنية', vat: '300012345600003' }, currency: 'SAR',
   }
 }
+/** The caller's own payslip: the same document without the employer share and the company tax number. */
+function myPayslip(run, slip) {
+  const { gosi_employer: _employer, ...own } = payslip(run, slip)
+  return { ...own, company: { name: own.company.name } }
+}
 
 const debitCredit = (account, debit, credit) => ({ account, analytic_account: null, employee: null, debit: money(debit), credit: money(credit) })
 function postingPreview(run) {
@@ -243,7 +248,7 @@ export function hrPayrollPreviewData(route, url) {
     const entries = ownSlips().sort((a, b) => b.run.month.localeCompare(a.run.month))
     if (!own[1]) return { items: entries.map(({ run, slip }) => ({ id: slip.id, number: payslip(run, slip).number, month: run.month, net: figures(slip).net, currency: 'SAR' })), total: entries.length }
     const entry = entries.find(({ slip }) => slip.id === Number(own[1]))
-    return entry ? payslip(entry.run, entry.slip) : undefined
+    return entry ? myPayslip(entry.run, entry.slip) : undefined
   }
   const match = runRoute.exec(route)
   if (!match) return undefined

@@ -1,15 +1,19 @@
 <script setup lang="ts">
-import type { HrPayslip } from '@liwan/contracts'
+import type { HrMyPayslip, HrPayslip } from '@liwan/contracts'
 import { formatPayrollAmount, formatPayrollMonth, payrollCurrencyLabel } from '@/utils/payrollFormat'
 
 // One payslip as a document: the company and employee heading, the earnings and deductions the payroll engine
 // produced, and the net. It is the content of a print page (black on white on paper); the page owns the data and the
-// print and back actions, and the caller's own payslip page reuses it.
-const props = defineProps<{ payslip: HrPayslip }>()
+// print and back actions. The payroll area shows it with the employer figures; the caller's own payslip page shows
+// the same document without them, so the employer block and the tax number are read only when the shape carries them.
+const props = defineProps<{ payslip: HrPayslip | HrMyPayslip }>()
 
 const { t, locale } = useI18n()
 const amount = (value: number) => formatPayrollAmount(value, locale.value)
 const money = (value: number) => `${amount(value)} ${payrollCurrencyLabel(props.payslip.currency, t('hrPayroll.currency'))}`
+// The employer's own cost and registration data: present on the payroll-area payslip, never on an employee's own.
+const employerShare = computed(() => 'gosi_employer' in props.payslip ? props.payslip.gosi_employer : null)
+const companyVat = computed(() => 'vat' in props.payslip.company ? props.payslip.company.vat : '')
 
 // The engine signs its lines: an earning is positive, a deduction negative.
 const earnings = computed(() => props.payslip.lines.filter(line => line.amount > 0))
@@ -27,7 +31,7 @@ const facts = computed(() => [
     <header class="flex min-w-0 flex-wrap items-start justify-between gap-3 border-b-2 border-primary pb-3">
       <div>
         <p class="text-xl font-bold">{{ props.payslip.company.name }}</p>
-        <p v-if="props.payslip.company.vat" class="text-sm text-muted">{{ t('hrPayroll.payslip.vat') }}: <bdi>{{ props.payslip.company.vat }}</bdi></p>
+        <p v-if="companyVat" class="text-sm text-muted">{{ t('hrPayroll.payslip.vat') }}: <bdi>{{ companyVat }}</bdi></p>
       </div>
       <div class="text-end">
         <p class="text-lg font-semibold">{{ t('hrPayroll.payslip.title') }}</p>
@@ -78,7 +82,7 @@ const facts = computed(() => [
       <span class="text-lg font-semibold">{{ t('hrPayroll.payslip.net') }}</span>
       <strong class="text-2xl tabular-nums" data-testid="hr-payslip-net">{{ money(props.payslip.net) }}</strong>
     </div>
-    <p class="text-xs text-muted">{{ t('hrPayroll.payslip.gosiEmployerNote', { amount: money(props.payslip.gosi_employer) }) }}</p>
+    <p v-if="employerShare !== null" class="text-xs text-muted">{{ t('hrPayroll.payslip.gosiEmployerNote', { amount: money(employerShare) }) }}</p>
 
     <footer class="grid grid-cols-2 gap-7 pt-5">
       <div v-for="label in [t('hrPayroll.payslip.employeeSignature'), t('hrPayroll.payslip.accountantSignature')]" :key="label" class="grid gap-4.5">
