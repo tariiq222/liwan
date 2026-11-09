@@ -63,6 +63,8 @@ class LiwanInboxCase(LiwanApiCase):
         )
         cls.department = cls.env['liwan.inbox.department'].create({'name': 'Support', 'member_ids': [(6, 0, cls.agent.ids)]})
         cls.other_department = cls.env['liwan.inbox.department'].create({'name': 'Sales'})
+        # The pinned public origin provisioning writes; the hook URL of a channel is built from it.
+        cls.env['ir.config_parameter'].sudo().set_param('web.base.url', 'https://liwan.test')
         cls.channel = cls.make_channel()
         cls.settings = cls.env['liwan.inbox.settings']._get_for_company()
         cls.counter = 0
