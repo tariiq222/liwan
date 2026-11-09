@@ -177,6 +177,29 @@ class TestPayrollCompute(PayrollCase):
         self.assertEqual(refused.exception.code, 'contract_missing')
         self.assertEqual(refused.exception.field, 'employee_id')
 
+    def test_a_future_contract_recorded_earlier_does_not_shadow_the_version_in_force(self):
+        """A scheduled contract carries an earlier ``date_version`` than its start date.
+
+        The old selection compared ``date_version`` to the last paid day, so a contract that only starts in 2027
+        but was recorded in 2026 was chosen for the 2026-11 payslip: it paid zero days instead of refusing. The
+        version in force is the one whose effective window covers the day, and when none does the payslip is
+        refused by name.
+        """
+        employee = self.make_employee('Scheduled', start=date(2024, 1, 1))
+        employee.version_id.write({'contract_date_end': date(2026, 12, 31)})
+        scheduled = self.env['hr.version'].create({
+            'employee_id': employee.id, 'date_version': date(2026, 10, 1),
+            'contract_date_start': date(2027, 1, 1),
+            'country_id': self.env.ref('base.sa').id,
+        })
+        self.assertLessEqual(scheduled.date_version, date(2026, 11, 30))
+        self.assertGreater(scheduled.contract_date_start, date(2026, 11, 30))
+        self.set_compensation(employee, 9000, gosi_registration_date=date(2020, 1, 1))
+        with self.assertRaises(LiwanHrRule) as refused:
+            self._payslip(employee)
+        self.assertEqual(refused.exception.code, 'contract_missing')
+        self.assertEqual(refused.exception.details['date'], '2026-11-30')
+
     def test_a_version_starting_after_the_period_is_refused(self):
         """A version that starts after the month must not fall back to the oldest one and pay zero days."""
         employee = self.make_employee('Starts Later', start=date(2027, 3, 1))
@@ -195,6 +218,25 @@ class TestPayrollCompute(PayrollCase):
         with self.assertRaises(LiwanHrRule) as refused:
             self._payslip(employee)
         self.assertEqual(refused.exception.code, 'contract_missing')
+        self.assertEqual(refused.exception.field, 'employee_id')
+        self.assertEqual(refused.exception.details['date'], '2026-11-30')
+
+    def test_a_mid_period_contract_change_pays_the_version_in_force_at_its_end(self):
+        """Two versions cover the month: the payslip carries the one in force on the last paid day, not the first."""
+        employee = self.make_employee('Renewed', start=date(2024, 1, 1))
+        old = employee.version_id
+        old.write({'contract_date_end': date(2026, 11, 14)})
+        renewal = self.env['hr.version'].create({
+            'employee_id': employee.id, 'date_version': date(2026, 11, 15),
+            'contract_date_start': date(2026, 11, 15),
+            'country_id': self.env.ref('base.sa').id,
+        })
+        self.set_compensation(employee, 9000, gosi_registration_date=date(2020, 1, 1))
+        payslip = self._payslip(employee)
+        self.assertEqual(payslip.contract_id, renewal)
+        self.assertEqual(payslip.liwan_paid_days, 16)
+        # The renewal governs the tail (16 days of the 30-capped divisor): 9000 * 16 / 30, not a whole month.
+        self.assertEqual(self._lines(payslip)['BASIC'], 4800.00)
 
     def test_a_version_covering_the_period_is_the_one_the_payslip_carries(self):
         employee = self.make_employee('In Force', start=date(2024, 1, 1))
