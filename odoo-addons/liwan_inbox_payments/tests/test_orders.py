@@ -1,5 +1,4 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-import json
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
@@ -42,9 +41,7 @@ class OrderCase(LiwanCatalogCase):
             'order', {'catalog_id': catalog_id, 'text': 'please', 'product_items': items},
             provider_id=f'wamid.CART{self.counter_cart}', wa_id=conversation.identity_id.address,
         )
-        self.env['liwan.inbox.event'].create({
-            'channel_id': conversation.channel_id.id, 'owner_company_id': conversation.company_id.id, 'payload': json.dumps(data),
-        })
+        self.store_event(conversation.channel_id, data)
         self.env['liwan.inbox.event']._liwan_run_events()
         return self.env['liwan.inbox.order'].search([('message_id.provider_message_id', '=', f'wamid.CART{self.counter_cart}')])
 
@@ -89,9 +86,7 @@ class TestOrderIngest(OrderCase):
         data = wa.inbound_message('order', {
             'catalog_id': CATALOG_ID, 'text': 'x', 'product_items': [cart_line('SHIRT-1')],
         }, provider_id='wamid.NOFEATURE', wa_id=self.conversation.identity_id.address)
-        self.env['liwan.inbox.event'].create({
-            'channel_id': self.channel.id, 'owner_company_id': self.channel.owner_company_id.id, 'payload': json.dumps(data),
-        })
+        self.store_event(self.channel, data)
         with self.without_catalog():
             self.env['liwan.inbox.event']._liwan_run_events()
         message = self.env['liwan.inbox.message'].search([('provider_message_id', '=', 'wamid.NOFEATURE')])
@@ -106,9 +101,8 @@ class TestOrderIngest(OrderCase):
     def test_a_replayed_webhook_makes_one_order(self):
         order = self.deliver_cart([cart_line('SHIRT-1')])
         event = self.env['liwan.inbox.event'].search([], order='id desc', limit=1)
-        self.env['liwan.inbox.event'].create({
-            'channel_id': event.channel_id.id, 'owner_company_id': event.owner_company_id.id, 'payload': event.payload,
-        })
+        # The same delivery again is not stored at all, so its side effects cannot run twice.
+        self.assertFalse(self.store_event(event.channel_id, event.payload))
         self.env['liwan.inbox.event']._liwan_run_events()
         self.assertEqual(self.env['liwan.inbox.order'].search_count([('message_id', '=', order.message_id.id)]), 1)
 

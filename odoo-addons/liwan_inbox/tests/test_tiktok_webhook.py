@@ -73,6 +73,13 @@ class TestTikTokWebhook(LiwanInboxCase):
         self.assertEqual(self.post(tt.receive_text(), now=int(time.time()) - 4).status_code, 200)
         self.assertEqual(len(self.events()), 1)
 
+    def test_a_delivery_replayed_to_the_tenant_is_stored_once(self):
+        # The dedupe key bounds a replay: the same signed delivery twice leaves one event and one side effect.
+        raw = json.dumps(tt.receive_text()).encode()
+        self.assertEqual(self.post(None, raw=raw).status_code, 200)
+        self.assertEqual(self.post(None, raw=raw).status_code, 200)
+        self.assertEqual(len(self.events()), 1)
+
     def test_a_disabled_channel_receives_nothing(self):
         self.tiktok.state = 'disabled'
         self.assertError(self.post(tt.receive_text()), 403, 'forbidden')

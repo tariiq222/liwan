@@ -49,7 +49,5 @@ class TikTokHookController(http.Controller):
             ], limit=1)
         if not channel:
             reject_webhook()
-        request.env['liwan.inbox.event'].create([{
-            'channel_id': channel.id, 'owner_company_id': channel.owner_company_id.id, 'payload': raw.decode(),
-        }])
+        request.env['liwan.inbox.event']._liwan_store(channel, raw)
         return request.make_response('ok', headers=[('Content-Type', 'text/plain; charset=utf-8')])

@@ -112,8 +112,6 @@ class WhatsAppHookController(http.Controller):
         verified = channels.filtered(lambda channel: signed_by(channel, raw, signature))
         if not verified:
             reject_webhook()
-        env['liwan.inbox.event'].create([
-            {'channel_id': channel.id, 'owner_company_id': channel.owner_company_id.id, 'payload': raw.decode()}
-            for channel in verified
-        ])
+        for channel in verified:
+            env['liwan.inbox.event']._liwan_store(channel, raw)
         return request.make_response('ok', headers=[('Content-Type', 'text/plain; charset=utf-8')])

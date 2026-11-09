@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import base64
+import json
 import os
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
@@ -103,6 +104,18 @@ class LiwanInboxCase(LiwanApiCase):
         })
         channel._liwan_rotate_verify_token()
         return channel
+
+    @classmethod
+    def store_event(cls, channel, payload):
+        """Store one delivery of `channel` through the model's only writer, as a webhook arrives.
+
+        `payload` is a parsed envelope (or the raw text/bytes it was read from). A replay of a stored
+        delivery returns an empty recordset, exactly as the hook controllers see it.
+        """
+        raw = payload if isinstance(payload, bytes) else (
+            payload.encode() if isinstance(payload, str) else json.dumps(payload).encode()
+        )
+        return cls.env['liwan.inbox.event']._liwan_store(channel, raw)
 
     @classmethod
     def make_template(cls, channel=None, **values):

@@ -354,10 +354,7 @@ class TestTikTokCompanyIsolation(CompanyIsolationCase):
         return {
             'channel': channel, 'conversation': conversation, 'message': message, 'shortcut': shortcut,
             'sync': channel._liwan_tiktok_queue_sync(),
-            'event': env['liwan.inbox.event'].create({
-                'channel_id': channel.id, 'owner_company_id': company.id,
-                'payload': json.dumps(tt.receive_text(message_id=f'msg-iso-{business_id}')),
-            }),
+            'event': cls.store_event(channel, tt.receive_text(message_id=f'msg-iso-{business_id}')),
         }
 
     def test_tiktok_records_isolated(self):
