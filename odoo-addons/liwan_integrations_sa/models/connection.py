@@ -9,10 +9,9 @@ class LiwanIntegrationConnection(models.Model):
 
     Status only: this model stores no credential and makes no network call.
 
-    Rows are seeded on install and on every upgrade of the addon, for the companies that exist
-    at that moment. There is no `res.company` create hook (it would need `sudo()`): the
-    provisioning flow upgrades this addon after it creates a company, and the page's empty
-    state covers the gap until then.
+    Rows are seeded on install and on every upgrade of the addon, for the companies that exist at that
+    moment, and by the `res.company` create hook for a company made afterwards (models/res_company.py), so a
+    new company or branch shows its links at once.
     """
     _name = 'liwan.integration.connection'
     _description = 'LiwanOS integration connection'
@@ -36,15 +35,21 @@ class LiwanIntegrationConnection(models.Model):
     )
 
     @api.model
-    def _liwan_ensure_default_connections(self):
-        """Give every company its default connections (one ZATCA link); idempotent, run by module data."""
+    def _liwan_ensure_default_connections(self, companies=None):
+        """Give each company its default connections (one ZATCA link); idempotent.
+
+        Run by module data for the companies that exist at install and at every upgrade, and by the
+        `res.company` create hook for a company made afterwards, so a new company (or branch) never shows an
+        empty integrations page until the next upgrade.
+        """
+        companies = self.env['res.company'].search([]) if companies is None else companies
         existing = {
             (row['company_id'], row['kind'], row['provider'])
             for row in self.search_read([], ['company_id', 'kind', 'provider'], load=None)
         }
         self.create([
             {'company_id': company_id, 'kind': kind, 'provider': provider}
-            for company_id in self.env['res.company'].search([]).ids
+            for company_id in companies.ids
             for kind, provider in DEFAULT_CONNECTIONS if (company_id, kind, provider) not in existing
         ])
 

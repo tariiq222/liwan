@@ -50,11 +50,11 @@ class TestMaintenance(LiwanInboxCase):
         self.assertTrue(recent.exists() and recent.contact_id.exists())
 
     def test_processed_events_are_deleted_after_seven_days(self):
-        Event = self.env['liwan.inbox.event']
-        values = {'channel_id': self.channel.id, 'owner_company_id': self.channel.owner_company_id.id, 'payload': '{}'}
-        old = Event.create({**values, 'state': 'done', 'processed_at': fields.Datetime.now() - timedelta(days=8)})
-        recent = Event.create({**values, 'state': 'done', 'processed_at': fields.Datetime.now() - timedelta(days=6)})
-        pending = Event.create(values)
+        old = self.store_event(self.channel, '{"old": true}')
+        old.write({'state': 'done', 'processed_at': fields.Datetime.now() - timedelta(days=8)})
+        recent = self.store_event(self.channel, '{"recent": true}')
+        recent.write({'state': 'done', 'processed_at': fields.Datetime.now() - timedelta(days=6)})
+        pending = self.store_event(self.channel, '{"pending": true}')
         self.run_maintenance()
         self.assertFalse(old.exists())
         self.assertTrue(recent.exists() and pending.exists())

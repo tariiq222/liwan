@@ -169,6 +169,37 @@ class TestCrmCron(LiwanCrmCase):
         self.assertFalse(self.assignment_mails(lead))
         self.assertEqual(len(self.bell_rows(lead.user_id, lead, 'crm.followup_due')), 1)
 
+    def test_a_released_follow_up_in_manual_mode_rings_the_managers_bell(self):
+        # A9-F6: manual distribution leaves the released opportunity unassigned on purpose, but nothing else
+        # told anyone. The holder of crm.leads.assign rings, and no agent does (the lead is in the pool).
+        self.set_settings(distribution_mode='manual')
+        lead = self.due_lead()
+        self.make_viewer(self.agent)
+        self.Followup._liwan_cron_tick(now=NOW)
+        self.assertFalse(lead.user_id, 'manual mode leaves it in the pool')
+        self.assertEqual(len(self.bell_rows(self.manager, lead, 'crm.needs_manager')), 1)
+        self.assertFalse(self.bell_rows(self.agent, lead, 'crm.followup_due'))
+        self.assertEqual(self.kinds(self.agent), [])
+        self.assertEqual(self.kinds(self.manager), ['crm.needs_manager'])
+
+    def test_a_released_follow_up_in_round_robin_mode_rings_the_new_agent_and_no_manager(self):
+        # The ring is a manual-mode consequence alone: an assigned follow-up keeps its crm.followup_due.
+        lead = self.due_lead()
+        self.make_viewer(self.agent)
+        self.Followup._liwan_cron_tick(now=NOW)
+        self.assertTrue(lead.user_id)
+        self.assertEqual(self.kinds(self.manager), [])
+        self.assertEqual(len(self.bell_rows(lead.user_id, lead, 'crm.followup_due')), 1)
+
+    def test_a_manual_release_rings_the_manager_once_per_rescheduled_follow_up(self):
+        # A rescheduled due call is a fresh decision, and each decision rings once (the bell key is per time).
+        self.set_settings(distribution_mode='manual')
+        lead = self.due_lead()
+        self.make_viewer(self.agent)
+        self.Followup._liwan_cron_tick(now=NOW)
+        self.Followup._liwan_cron_tick(now=NOW + timedelta(minutes=15))
+        self.assertEqual(len(self.bell_rows(self.manager, lead, 'crm.needs_manager')), 1)
+
     def test_a_not_due_follow_up_keeps_its_agent_even_without_work(self):
         lead = self.make_lead(self.agent, liwan_next_call_at=NOW + DAY)
         self.revoke(self.agent)

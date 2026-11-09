@@ -179,6 +179,7 @@ class TestTikTokChannelApi(LiwanInboxCase):
             ('tiktok', None, None, None, None, None),
         )
         self.assertTrue(body['callback_url'].endswith('/api/v1/inbox/hooks/tiktok'), body['callback_url'])
+        self.assertEqual(body['callback_url'], 'https://liwan.test/api/v1/inbox/hooks/tiktok')
         self.assertEqual(body['health']['quality_rating'], 'unknown')
         self.assertEqual(
             (body['tiktok_username'], body['token_expires_at'], body['needs_reconnect'], body['tiktok_welcome_audit'],

@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from unittest.mock import patch
 
+from psycopg2.errors import NotNullViolation, UniqueViolation
+
 from odoo.tests import tagged
 
 from . import whatsapp_payloads as wa
@@ -69,6 +71,87 @@ class TestWhatsAppWebhook(LiwanInboxCase):
         self.assertError(self.post(None, raw=b'[1, 2]'), 403, 'forbidden')
         self.assertEqual(self.post(None, raw=b'{"pad": "' + b'x' * (1024 * 1024) + b'"}').status_code, 413)
         self.assertFalse(self.events())
+
+    def test_a_replayed_delivery_leaves_one_event_and_one_side_effect(self):
+        # Meta signs the body alone, so a captured body stays valid forever. The event's dedupe key
+        # (SHA-256 of channel and body) stores this delivery once, so a replay changes nothing.
+        raw = wa.body_of(wa.inbound_text())
+        self.assertEqual(self.post(None, raw=raw).status_code, 200)
+        self.assertEqual(self.post(None, raw=raw).status_code, 200)
+        self.assertEqual(len(self.events()), 1)
+        keys = self.env['liwan.inbox.event'].search([('channel_id', '=', self.channel.id)]).mapped('dedupe_key')
+        self.assertEqual(keys, [self.env['liwan.inbox.event']._liwan_dedupe_key(self.channel, raw)])
+
+    def test_the_key_is_required_and_unique_on_its_own(self):
+        # One plain unique index on the required column: `_liwan_store` always sets the key, so a stored
+        # delivery without one cannot exist and the index needs no partial WHERE clause.
+        field = self.env['liwan.inbox.event']._fields['dedupe_key']
+        self.assertTrue(field.required)
+        self.assertFalse(field.index, 'the unique index already covers the column; a second btree index is dead weight')
+        event = self.store_event(self.channel, wa.inbound_text())
+        with self.assertRaises(UniqueViolation), self.env.cr.savepoint():
+            self.env['liwan.inbox.event'].create({
+                'channel_id': self.channel.id, 'owner_company_id': self.channel.owner_company_id.id,
+                'payload': event.payload, 'dedupe_key': event.dedupe_key,
+            })
+        with self.assertRaises(NotNullViolation), self.env.cr.savepoint():
+            self.env['liwan.inbox.event'].create({
+                'channel_id': self.channel.id, 'owner_company_id': self.channel.owner_company_id.id,
+                'payload': event.payload,
+            })
+
+    def test_a_replayed_resume_cannot_withdraw_a_later_opt_out(self):
+        # The sharp end of a replay (A9-F3): a captured `user_preferences: resume` delivery, replayed after
+        # the customer sent `stop`, must not withdraw the marketing opt-out. The delivery was already stored,
+        # so the replay is not processed at all and the consent history keeps one opt-out.
+        contact = self.env['liwan.inbox.contact'].create({
+            'name': 'Sara', 'phone': '+966501112222', 'company_id': self.channel.owner_company_id.id,
+        })
+        self.env['liwan.inbox.contact.identity'].create({
+            'contact_id': contact.id, 'channel_kind': 'whatsapp', 'address': '966501112222',
+            'company_id': self.channel.owner_company_id.id,
+        })
+
+        def preference(value):
+            payload = wa.payload(wa.PHONE_ID)
+            payload['entry'][0]['changes'][0]['value']['user_preferences'] = [{
+                'wa_id': '966501112222', 'category': 'marketing_messages', 'value': value,
+                'timestamp': str(wa.TIMESTAMP),
+            }]
+            return wa.body_of(payload)
+
+        resume_raw, stop_raw = preference('resume'), preference('stop')
+        self.assertEqual(self.post(None, raw=resume_raw).status_code, 200)
+        self.assertEqual(self.post(None, raw=stop_raw).status_code, 200)
+        self.env['liwan.inbox.event']._liwan_run_events()
+        self.assertEqual((contact.marketing_consent, contact.marketing_consent_source), ('opted_out', 'whatsapp'))
+        decisions = contact.consent_ids
+        # The replay is accepted (the provider must not retry) and changes nothing at all.
+        self.assertEqual(self.post(None, raw=resume_raw).status_code, 200)
+        self.env['liwan.inbox.event']._liwan_run_events()
+        self.assertEqual(len(self.events()), 2, 'the replayed resume is not stored twice')
+        self.assertEqual(contact.consent_ids, decisions)
+        self.assertEqual(contact.marketing_consent, 'opted_out')
+
+    def test_an_old_envelope_is_still_stored_once(self):
+        # Meta signs the body alone, so its age proves nothing: Meta retries after an outage for days, and
+        # the signature stays valid. The dedupe key is the replay bound, not the envelope's own timestamp.
+        data = wa.inbound_text()
+        for entry in data['entry']:
+            entry['time'] = wa.TIMESTAMP
+        raw = wa.body_of(data)
+        self.assertEqual(self.post(None, raw=raw).status_code, 200)
+        self.assertEqual(self.post(None, raw=raw).status_code, 200)
+        self.assertEqual(len(self.events()), 1)
+
+    def test_a_delivery_without_an_envelope_time_is_judged_by_its_dedupe_key(self):
+        data = wa.inbound_text()
+        for entry in data['entry']:
+            entry.pop('time', None)
+        raw = wa.body_of(data)
+        self.assertEqual(self.post(None, raw=raw).status_code, 200)
+        self.assertEqual(self.post(None, raw=raw).status_code, 200)
+        self.assertEqual(len(self.events()), 1)
 
     def test_a_disabled_channel_receives_nothing(self):
         self.channel.state = 'disabled'

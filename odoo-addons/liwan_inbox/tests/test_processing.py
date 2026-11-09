@@ -1,5 +1,4 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-import json
 from unittest.mock import patch
 
 from odoo.tests import tagged
@@ -14,9 +13,7 @@ from odoo.addons.liwan_inbox.models.constants import REPLY_WINDOWS
 class TestEventProcessing(LiwanInboxCase):
 
     def deliver(self, data):
-        event = self.env['liwan.inbox.event'].create({
-            'channel_id': self.channel.id, 'owner_company_id': self.channel.owner_company_id.id, 'payload': json.dumps(data),
-        })
+        event = self.store_event(self.channel, data)
         self.env['liwan.inbox.event']._liwan_run_events()
         return event
 
@@ -90,9 +87,7 @@ class TestEventProcessing(LiwanInboxCase):
         self.assertEqual((event.state, message.body, message.error), ('done', '[audio]', 'gone'))
 
     def test_a_broken_event_fails_and_is_retried_up_to_five_times(self):
-        event = self.env['liwan.inbox.event'].create({
-            'channel_id': self.channel.id, 'owner_company_id': self.channel.owner_company_id.id, 'payload': '{"entry": "x"',
-        })
+        event = self.store_event(self.channel, '{"entry": "x"')
         for expected in range(1, 6):
             self.env['liwan.inbox.event']._liwan_run_events()
             self.assertEqual((event.state, event.attempts), ('failed', expected))

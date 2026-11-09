@@ -208,15 +208,25 @@ class CrmOpportunitiesController(http.Controller):
         return dump_opportunity(lead)
 
     @http.route('/api/v1/crm/opportunities/<int:lead_id>', type='json2', auth='user', methods=['GET'],
-                readonly=False)
+                readonly=True)
     @api_handler
     @requires_feature('crm.enabled', operation='read')
     @requires_capability('crm.leads.read')
     def get_opportunity(self, lead_id, **_):
-        # Not readonly: the view log, when enabled, records this opening.
+        # A read never writes: the viewing log is the explicit POST `<id>/seen` below, so a preview or a
+        # prefetch cannot grow a personal-data table (A9-F10).
+        return dump_opportunity(find_opportunity(lead_id))
+
+    @http.route('/api/v1/crm/opportunities/<int:lead_id>/seen', type='json2', auth='user', methods=['POST'],
+                readonly=False)
+    @api_handler
+    @requires_feature('crm.enabled', operation='read')
+    @requires_capability('crm.leads.read')
+    def mark_opportunity_seen(self, lead_id, **_):
+        """Record this opening in the audit trail, when the company enabled it; 204 either way."""
         lead = find_opportunity(lead_id)
         request.env['liwan.crm.view.log']._liwan_record(lead)
-        return dump_opportunity(lead)
+        return request.make_json_response('', status=204)
 
     @http.route('/api/v1/crm/opportunities/<int:lead_id>', type='json2', auth='user', methods=['PATCH'],
                 readonly=False)

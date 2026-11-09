@@ -23,9 +23,10 @@ CADDYFILE = ROOT / 'deploy' / 'Caddyfile'
 DOCKERFILE = ROOT / 'deploy' / 'proxy' / 'Dockerfile'
 COMPOSE = ROOT / 'deploy' / 'docker-compose.yml'
 
-DEDICATED_ZONES = ('liwan_auth', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo', 'liwan_web')
-ZONES = ('liwan_auth', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo_image', 'liwan_odoo', 'liwan_web',
-         'liwan_tiktok')
+DEDICATED_ZONES = ('liwan_auth', 'liwan_provider_hook', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo',
+                   'liwan_web')
+ZONES = ('liwan_auth', 'liwan_provider_hook', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo_image',
+         'liwan_odoo', 'liwan_web', 'liwan_tiktok')
 SHARED_CADDYFILE = ROOT / 'deploy' / 'shared' / 'Caddyfile'
 CADDY_IMAGE_REPOSITORY = 'liwan-caddy-test'
 DOCKER_UNAVAILABLE = ('cannot connect to the docker daemon', 'is the docker daemon running',
@@ -50,6 +51,8 @@ SHARED_ZONE_CASES = (
     ('/api/auth/login', {'liwan_auth'}),
     ('/web/image/res.company/1/logo', {'liwan_odoo_image'}),
     ('/api/v1/me', {'liwan_api'}),
+    ('/api/v1/inbox/hooks/whatsapp', {'liwan_provider_hook'}),
+    ('/api/v1/inbox/hooks/tiktok', {'liwan_provider_hook'}),
     ('/api/v1/public/appointments/bookings/7/slots', {'liwan_api', 'liwan_public_appointments_ip'}),
     ('/', {'liwan_web'}),
 )
@@ -235,7 +238,7 @@ def _probe_shared_zones(text: str, paths: list[str]) -> list[set[str]]:
 
 
 class TestEdgeRateLimitTemplate(unittest.TestCase):
-    def test_caddyfile_declares_exactly_the_four_zones(self) -> None:
+    def test_caddyfile_declares_exactly_the_declared_zones(self) -> None:
         text = CADDYFILE.read_text(encoding='utf-8')
         declared = re.findall(r'^\s*zone\s+(\S+)\s*\{', text, re.MULTILINE)
         self.assertEqual(len(declared), len(DEDICATED_ZONES))
@@ -332,7 +335,13 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
 
         self.assertEqual(zones['liwan_api']['max_events'], 300)
         self.assertEqual(zones['liwan_api']['match'][0]['path'], ['/api/v1/*'])
-        self.assertEqual(zones['liwan_api']['match'][0]['not'][0]['path'], ['/api/v1/auth/*'])
+        self.assertEqual(zones['liwan_api']['match'][0]['not'][0]['path'], ['/api/v1/auth/*', '/api/v1/inbox/hooks/*'])
+
+        # A9-F12: a provider webhook has its own budget, kept out of the UI's 300 a minute.
+        hook = zones['liwan_provider_hook']
+        self.assertEqual(hook['max_events'], 1200)
+        self.assertEqual(hook['match'][0]['path'], ['/api/v1/inbox/hooks/*'])
+        self.assertNotIn('not', hook['match'][0])
 
         # F5: get_session_info is a non-credential call and moves from the 20/min
         # auth bucket to the Odoo bucket; every other /web/session/* stays in auth.
@@ -543,11 +552,22 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
 
     def test_auth_zone_is_tighter_than_the_api_zone(self) -> None:
         text = CADDYFILE.read_text(encoding='utf-8')
-        auth = text.split('zone liwan_auth {', 1)[1].split('zone liwan_api {', 1)[0]
-        api = text.split('zone liwan_api {', 1)[1].split('zone liwan_odoo {', 1)[0]
+        auth = text.split('zone liwan_auth {', 1)[1].split('zone liwan_provider_hook {', 1)[0]
+        api = text.split('zone liwan_api {', 1)[1].split('zone liwan_public_appointments_ip {', 1)[0]
+        hook = text.split('zone liwan_provider_hook {', 1)[1].split('zone liwan_api {', 1)[0]
         self.assertIn('events 20', auth)
         self.assertIn('events 300', api)
-        self.assertIn('not path /api/v1/auth/*', api)
+        self.assertIn('not path /api/v1/auth/* /api/v1/public/appointments/* /api/v1/inbox/hooks/*', api)
+        # The provider webhook budget is the larger one and holds the hook paths alone.
+        self.assertIn('events 1200', hook)
+        self.assertIn('path /api/v1/inbox/hooks/*', hook)
+
+    def test_the_dedicated_edge_keeps_hooks_out_of_the_api_budget(self) -> None:
+        text = CADDYFILE.read_text(encoding='utf-8')
+        hook = text.split('zone liwan_provider_hook {', 1)[1].split('zone liwan_api {', 1)[0]
+        api = text.split('zone liwan_api {', 1)[1].split('zone liwan_public_appointments_ip {', 1)[0]
+        self.assertIn('path /api/v1/inbox/hooks/*', hook)
+        self.assertIn('/api/v1/inbox/hooks/*', api.split('not path', 1)[1].split('}', 1)[0])
 
 
 if __name__ == '__main__':
