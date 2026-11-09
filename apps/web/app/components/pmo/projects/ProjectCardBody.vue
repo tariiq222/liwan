@@ -32,7 +32,7 @@ const taskLabel = computed(() => t('projects.progressOf', { closed: props.projec
       <ProjectMenu v-if="project.can_manage" :project="project" class="-me-1 -my-1 shrink-0" @archive="archive.request(project)" />
     </div>
     <h2 :id="`project-card-${project.id}`" class="min-w-0 truncate text-sm font-semibold text-highlighted" :title="project.name">
-      <NuxtLink :to="toFor(project)" class="rounded hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ project.name }}</NuxtLink>
+      <NuxtLink :to="toFor(project)" class="rounded-inner hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ project.name }}</NuxtLink>
     </h2>
     <div class="flex min-w-0 items-center gap-2">
       <span class="shrink-0 text-sm font-semibold tabular-nums text-highlighted" data-testid="project-progress" dir="ltr">{{ project.progress }}%</span>

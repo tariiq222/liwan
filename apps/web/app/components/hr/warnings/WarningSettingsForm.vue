@@ -44,12 +44,12 @@ async function submit() {
 
 <template>
   <SharedSettingsCard id="warning-policy" v-bind="state" :title="t('hrWarnings.settings.title')" :description="t('hrWarnings.settings.hint')" :can-edit="canEdit" data-testid="hr-warning-settings" @save="submit" @revert="revert" @reload="reload">
-    <UFormField orientation="horizontal" :label="t('hrWarnings.settings.issuedBy')" name="warning-issued-by">
+    <SharedSettingRow :label="t('hrWarnings.settings.issuedBy')" name="warning-issued-by">
       <USelect id="warning-issued-by" v-model="draft.warnings_issued_by" class="w-full" :items="issuedByItems" :disabled="locked" data-testid="hr-warning-issued-by" />
-    </UFormField>
-    <UFormField orientation="horizontal" :label="t('hrWarnings.settings.acknowledgement')" name="warning-acknowledgement">
+    </SharedSettingRow>
+    <SharedSettingRow :label="t('hrWarnings.settings.acknowledgement')" name="warning-acknowledgement">
       <USelect id="warning-acknowledgement" v-model="draft.warnings_employee_acknowledgement" class="w-full" :items="acknowledgementItems" :disabled="locked" data-testid="hr-warning-acknowledgement" />
-    </UFormField>
+    </SharedSettingRow>
     <UFormField orientation="horizontal" :label="t('hrWarnings.settings.window')" name="warning-window" :description="t('hrWarnings.settings.windowHint')" :error="windowError">
       <UInputNumber id="warning-window" v-model="draft.warnings_escalation_window_months" class="w-full" :min="WINDOW_MONTHS.min" :max="WINDOW_MONTHS.max" :step="1" :disabled="locked" data-testid="hr-warning-window" />
     </UFormField>

@@ -15,8 +15,9 @@
         :key="item.value"
         type="button"
         size="sm"
-        :color="isSelected(item.value) ? 'primary' : 'neutral'"
-        :variant="isSelected(item.value) ? 'soft' : 'outline'"
+        color="neutral"
+        variant="soft"
+        :class="['h-9 rounded-control border', isSelected(item.value) ? SELECTED_CHIP : 'border-transparent']"
         :aria-pressed="isSelected(item.value)"
         :disabled="disabled || item.disabled"
         :label="item.label"
@@ -27,6 +28,9 @@
 </template>
 
 <script setup lang="ts">
+// The chosen chip: a light tint of the application colour with its darkest-stop text and a tinted border (ink for a free application).
+const SELECTED_CHIP = 'border-[color-mix(in_srgb,var(--app-accent,var(--liwan-ink))_35%,transparent)] bg-[color-mix(in_srgb,var(--app-accent,var(--liwan-ink))_12%,var(--ui-bg))] text-[var(--app-accent-text,var(--ui-text-highlighted))]'
+
 export interface FilterChoiceItem {
   value: string
   label: string

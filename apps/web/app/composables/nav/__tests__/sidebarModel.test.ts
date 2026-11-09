@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ShellContextLink, ShellModuleDefinition } from '../shellModules'
-import { contextLinkTestId, groupSections, railActiveId, railModel, sidebarModel, subListSections } from '../sidebarModel'
+import { contextLinkTestId, groupSections, pinnedCreateLinks, railModel } from '../sidebarModel'
 
 const link = (id: string, extra: Partial<ShellContextLink> = {}): ShellContextLink =>
   ({ id, labelKey: `nav.${id}`, icon: 'i-lucide-circle', to: `/${id}`, capability: 'x.y.read', ...extra })
@@ -8,104 +8,40 @@ const link = (id: string, extra: Partial<ShellContextLink> = {}): ShellContextLi
 describe('rail model', () => {
   const module = (id: string, extra: Partial<ShellModuleDefinition> = {}): ShellModuleDefinition => ({ id, labelKey: `nav.${id}`, icon: 'i-lucide-circle', to: `/${id}`, ...extra })
   const modules = [
-    module('home', { to: '/' }), module('tasks'), module('meetings', { fixed: 'first' }), module('projects'), module('documents', { fixed: 'last' }),
-    module('chat'), module('assistant', { fixed: 'top', accent: true }), module('settings'),
+    module('home', { to: '/' }), module('tasks', { core: 2 }), module('meetings', { core: 3 }), module('projects'), module('documents', { core: 5 }),
+    module('chat', { core: 4 }), module('assistant', { core: 1 }), module('crm'), module('settings'),
   ]
 
-  it('puts the assistant and home on top, meetings first, the applications, documents last, then settings', () => {
+  it('puts home and the core applications by their position first, then the pinnable applications, then settings', () => {
     const rail = railModel(modules)
-    expect(rail.top.map(item => item.id)).toEqual(['assistant', 'home'])
-    expect(rail.first.map(item => item.id)).toEqual(['meetings'])
-    expect(rail.applications.map(item => item.id)).toEqual(['tasks', 'projects', 'chat'])
-    expect(rail.last.map(item => item.id)).toEqual(['documents'])
+    expect(rail.core.map(item => item.id)).toEqual(['home', 'assistant', 'tasks', 'meetings', 'chat', 'documents'])
+    expect(rail.applications.map(item => item.id)).toEqual(['projects', 'crm'])
     expect(rail.utility.map(item => item.id)).toEqual(['settings'])
-    expect(rail.drawer.map(item => item.id)).toEqual(['assistant', 'home', 'meetings', 'tasks', 'projects', 'chat', 'documents', 'settings'])
-    expect(rail.all).toEqual(rail.drawer)
-    expect(rail.top[0]?.accent).toBe(true)
-    expect(rail.top[1]?.accent).toBeUndefined()
+    expect(rail.all.map(item => item.id)).toEqual(['home', 'assistant', 'tasks', 'meetings', 'chat', 'documents', 'projects', 'crm', 'settings'])
   })
 
   it('never inserts an application not supplied by the permission-filtered model', () => {
-    expect(railModel(modules.filter(item => item.id !== 'chat')).applications.map(item => item.id)).toEqual(['tasks', 'projects'])
+    const rail = railModel(modules.filter(item => item.id !== 'chat' && item.id !== 'crm'))
+    expect(rail.core.map(item => item.id)).toEqual(['home', 'assistant', 'tasks', 'meetings', 'documents'])
+    expect(rail.applications.map(item => item.id)).toEqual(['projects'])
     expect(railModel([]).applications).toEqual([])
-    expect(railModel([]).top.map(item => item.id)).toEqual(['apps'])
-  })
-
-  it('lights the actual application and keeps home optional', () => {
-    const rail = railModel(modules)
-    for (const id of ['tasks', 'projects', 'chat', 'home', 'settings']) expect(railActiveId(rail, id)).toBe(id)
-    expect(railActiveId(rail, 'apps')).toBe('home')
-    expect(railActiveId(rail, null)).toBeNull()
-    expect(railModel(modules.filter(item => item.id !== 'home')).top.map(item => item.id)).toEqual(['assistant', 'apps'])
+    expect(railModel([]).core.map(item => item.id)).toEqual(['apps'])
   })
 })
 
-describe('sidebar model', () => {
-  const projects = [link('projects'), link('new-project', { pinned: true, to: '/projects/new' }), link('tasks')]
-  const chat = [link('new-chat', { pinned: true }), link('chat')]
-
-  it('puts pinned create actions first and hides new project on the projects list', () => {
-    const onTasks = sidebarModel({ links: projects, moduleLabelKey: 'nav.projects', path: '/tasks', panel: null, surface: 'desktop' })
-    expect(onTasks.createLinks.map(item => item.id)).toEqual(['new-project'])
-    expect(onTasks.sections.flatMap(section => section.links.map(item => item.id))).toEqual(['projects', 'tasks'])
-    expect(sidebarModel({ links: projects, moduleLabelKey: 'nav.projects', path: '/projects', panel: null, surface: 'desktop' }).createLinks).toEqual([])
+describe('create links', () => {
+  const links = [link('new-project', { pinned: true, to: '/projects/new' }), link('new-task', { pinned: true }), link('tasks')]
+  it('lists the pinned links first for the open page and hides «مشروع جديد» on the projects list and inside a project', () => {
+    expect(pinnedCreateLinks(links, '/tasks').map(item => item.id)).toEqual(['new-project', 'new-task'])
+    for (const path of ['/projects', '/projects/new', '/projects/7', '/projects/7/tasks/3']) expect(pinnedCreateLinks(links, path).map(item => item.id)).toEqual(['new-task'])
   })
+})
 
-  it('gives an expanded desktop panel the whole sidebar', () => {
-    const model = sidebarModel({ links: chat, moduleLabelKey: 'nav.chat', path: '/chat', panel: { expanded: true }, surface: 'desktop' })
-    expect(model).toEqual({ createLinks: [], sections: [], subSections: [], showNav: false })
-  })
-
-  it('shows the links but no create action beside a collapsed panel', () => {
-    const model = sidebarModel({ links: chat, moduleLabelKey: 'nav.other', path: '/chat', panel: { expanded: false }, surface: 'desktop' })
-    expect(model.createLinks).toEqual([])
-    expect(model.sections.flatMap(section => section.links.map(item => item.id))).toEqual(['chat'])
-    expect(model.showNav).toBe(true)
-  })
-
-  it('hides a lone desktop link that only repeats the heading', () => {
-    expect(sidebarModel({ links: chat, moduleLabelKey: 'nav.chat', path: '/chat', panel: { expanded: false }, surface: 'desktop' }).showNav).toBe(false)
-  })
-
-  it('ignores the panel in the mobile drawer', () => {
-    const model = sidebarModel({ links: chat, moduleLabelKey: 'nav.chat', path: '/chat', panel: null, surface: 'mobile' })
-    expect(model.createLinks.map(item => item.id)).toEqual(['new-chat'])
-    expect(model.showNav).toBe(true)
-  })
-
+describe('section grouping', () => {
   it('groups consecutive links by section with unique ids', () => {
     const sections = groupSections([link('a'), link('b', { section: 'nav.s1' }), link('c', { section: 'nav.s1' }), link('d')])
     expect(sections.map(section => [section.titleKey, section.links.map(item => item.id)])).toEqual([[null, ['a']], ['nav.s1', ['b', 'c']], [null, ['d']]])
     expect(new Set(sections.map(section => section.id)).size).toBe(3)
-  })
-
-  it('keeps untitled links in the first card and moves titled sections to the sub-list', () => {
-    const links = [link('users'), link('apps', { section: 'nav.apps' }), link('billing', { section: 'nav.apps' })]
-    for (const surface of ['desktop', 'mobile'] as const) {
-      const model = sidebarModel({ links, moduleLabelKey: 'nav.settings', path: '/settings', panel: null, surface })
-      expect(model.sections.map(section => section.links.map(item => item.id))).toEqual([['users']])
-      expect(model.subSections.map(section => [section.titleKey, section.links.map(item => item.id)])).toEqual([['nav.apps', ['apps', 'billing']]])
-      expect(model.showNav).toBe(true)
-    }
-  })
-
-  it('heads a run of first-card links with their group', () => {
-    const links = [link('overview'), link('company'), link('finance', { group: 'nav.apps' }), link('projects', { group: 'nav.apps' }), link('system'), link('card', { section: 'nav.finance' })]
-    const model = sidebarModel({ links, moduleLabelKey: 'nav.settings', path: '/settings/apps/finance', panel: null, surface: 'desktop' })
-    expect(model.sections.map(section => [section.titleKey, section.links.map(item => item.id)])).toEqual([[null, ['overview', 'company']], ['nav.apps', ['finance', 'projects']], [null, ['system']]])
-    expect(model.subSections.map(section => [section.titleKey, section.links.map(item => item.id)])).toEqual([['nav.finance', ['card']]])
-  })
-
-  it('lists no first-card navigation when every link sits under a heading', () => {
-    const model = sidebarModel({ links: [link('a', { section: 'nav.s' })], moduleLabelKey: 'nav.other', path: '/a', panel: null, surface: 'desktop' })
-    expect(model.sections).toEqual([])
-    expect(model.showNav).toBe(false)
-    expect(model.subSections).toHaveLength(1)
-  })
-
-  it('builds the sub-list rows with translated labels and test ids', () => {
-    const [section] = subListSections(groupSections([link('apps', { section: 'nav.s1', active: true })]), key => `t:${key}`, id => `hook-${id}`)
-    expect(section).toMatchObject({ title: 't:nav.s1', items: [{ id: 'apps', label: 't:nav.apps', to: '/apps', active: true, testId: 'hook-apps' }] })
   })
 
   it('keeps the three legacy Playwright ids', () => {

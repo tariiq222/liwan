@@ -1,20 +1,20 @@
-"""Skip a CI stage that already passed on exactly the same inputs.
+"""Skip a CI job that already passed on exactly the same inputs.
 
     python3 -B tools/ci_stage_cache.py key --stage S [--extra E] [--commit REF]
-    python3 -B tools/ci_stage_cache.py cached --stages JSON --odoo-shards JSON --e2e-mock-shards JSON --apps JSON \\
-        --bridges JSON [--odoo-modules CSV]
+    python3 -B tools/ci_stage_cache.py plan [--reuse-passes] --stages JSON --odoo-shards JSON --e2e-mock-shards JSON \\
+        --rtl-stories-shards JSON --apps JSON --bridges JSON [--odoo-modules CSV]
     python3 -B tools/ci_stage_cache.py e2e-mock-shards   # JSON array of the e2e-mock shard numbers, for the workflow matrix
+    python3 -B tools/ci_stage_cache.py rtl-stories-shards   # the same for the rtl-stories matrix
 
-Only a pull request or a merge-queue entry skips a stage; the workflow runs this module for no other event.
+Only pull requests and merge-queue entries enable pass reuse.
 ``key`` prints the cache key a stage job saves when it passes: a hash of the tracked files the stage can
 read (the ``RULES`` of ``tools/ci_scope.py``, where an addon file reaches only the Odoo stages, as in
-``ci_scope.pull_request_stages``) and the matrix entry (``--extra``). ``cached`` prints, as a JSON array, the
-selected stages whose every job already saved its key; the ``scope`` job of ``.github/workflows/ci.yml``
-leaves them out of the stages to run. A matrix stage counts as cached only when every one of its entries has
-a key. ``static`` is never cached: ``ci-result`` requires it.
+``ci_scope.pull_request_stages``) and the matrix entry (``--extra``). ``plan`` prints the stages and matrix jobs still required, plus the
+jobs whose results are reused. A shard retains its original total even when other shards are omitted.
+``static`` is never cached: ``ci-result`` requires it.
 
-Keys are read with the GitHub API and trusted only from the current ref, so another pull request's caches
-never skip a stage. A failed lookup is reported on stderr and caches nothing.
+Keys are read with the GitHub API and trusted only from the current ref. A failed lookup is
+reported on stderr and reuses nothing.
 """
 from __future__ import annotations
 
@@ -37,6 +37,8 @@ NEVER_CACHED = ('static',)
 ADDON_STAGES = (*ci_scope.ODOO_STAGES, 'e2e-odoo')
 # The `e2e-mock` jobs: shard k of len(E2E_MOCK_SHARDS) of `deploy/ci/e2e-mock.sh --shard k/N`.
 E2E_MOCK_SHARDS = [1, 2, 3]
+# The `rtl-stories` jobs: shard k of len(RTL_STORIES_SHARDS) of `deploy/ci/rtl-stories.sh --shard k/N`.
+RTL_STORIES_SHARDS = [1, 2, 3, 4]
 
 Entry = tuple[str, str, str]  # (file mode, blob sha, path)
 
@@ -95,32 +97,43 @@ def cache_key(stage: str, extra: str, tree_digest: str) -> str:
     return f'{KEY_PREFIX}{stage}-{hashlib.sha256(extra.encode()).hexdigest()[:12]}-{tree_digest}'
 
 
-def matrix_extras(stage: str, odoo_shards: list, e2e_mock_shards: list, apps: list, bridges: list,
-                  modules: str) -> list[str]:
-    """The `--extra` of every job of a stage, exactly as the workflow passes it to `key`."""
-    if stage == 'odoo':
-        return [f'{shard}/{len(odoo_shards)}|{modules}' for shard in odoo_shards]
-    if stage == 'e2e-mock':
-        return [f'{shard}/{len(e2e_mock_shards)}' for shard in e2e_mock_shards]
-    if stage == 'odoo-app-standalone':
-        return [f'{group}|{modules}' for group in apps]
-    if stage == 'odoo-bridge':
-        return [f'{group}|{modules}' for group in bridges]
-    return ['']
+def shard_jobs(shards: list[int]) -> list[dict]:
+    return [{'shard': shard, 'total': len(shards)} for shard in shards]
 
 
-def cached_stages(entries: list[Entry], stages: list[str], existing: set[str], odoo_shards: list,
-                  e2e_mock_shards: list, apps: list, bridges: list, modules: str) -> list[str]:
-    """The selected stages whose every job has already passed on these inputs."""
-    cached = []
+def job_extra(stage: str, job: dict, modules: str) -> str:
+    """Match the cache key suffix saved by the corresponding workflow job."""
+    if 'shard' in job:
+        shard = f"{job['shard']}/{job['total']}"
+        return f'{shard}|{modules}' if stage == 'odoo' else shard
+    if 'group' in job:
+        return f"{job['group']}|{modules}"
+    return ''
+
+
+def run_plan(entries: list[Entry], stages: list[str], existing: set[str], matrices: dict,
+             modules: str) -> dict:
+    pending_stages = []
+    pending_matrices = {}
+    reused = {}
     for stage in stages:
-        if stage in NEVER_CACHED:
-            continue
-        extras = matrix_extras(stage, odoo_shards, e2e_mock_shards, apps, bridges, modules)
-        keys = [cache_key(stage, extra, digest(entries, stage, extra)) for extra in extras]
-        if keys and all(key in existing for key in keys):
-            cached.append(stage)
-    return cached
+        jobs = matrices.get(stage, [{}])
+        if not jobs:
+            raise ValueError(f'no jobs for selected stage {stage}')
+        pending = []
+        for job in jobs:
+            extra = job_extra(stage, job, modules)
+            if existing and stage not in NEVER_CACHED:
+                key = cache_key(stage, extra, digest(entries, stage, extra))
+                if key in existing:
+                    reused.setdefault(stage, []).append(job or stage)
+                    continue
+            pending.append(job)
+        if pending:
+            pending_stages.append(stage)
+        if stage in matrices:
+            pending_matrices[stage] = {'include': pending}
+    return {'stages': pending_stages, 'matrices': pending_matrices, 'reused': reused}
 
 
 def trusted_keys(listing: list[dict], ref: str) -> set[str]:
@@ -147,17 +160,31 @@ def existing_keys(lookup) -> set[str]:
     return trusted_keys(lookup(repository), ref)
 
 
-def run_cached(args: argparse.Namespace, lookup) -> int:
+def print_plan(args: argparse.Namespace, lookup) -> int:
+    existing = set()
+    entries = []
+    if args.reuse_passes:
+        try:
+            existing = existing_keys(lookup)
+            if existing:
+                entries = tree_entries(Path.cwd(), 'HEAD')
+        except CacheLookupError as error:
+            print(f'ci_stage_cache: warning: {error}; no job is skipped', file=sys.stderr)
+            existing = set()
+
+    matrices = {
+        'odoo': shard_jobs(json.loads(args.odoo_shards)),
+        'e2e-mock': shard_jobs(json.loads(args.e2e_mock_shards)),
+        'rtl-stories': shard_jobs(json.loads(args.rtl_stories_shards)),
+        'odoo-app-standalone': [{'group': group} for group in json.loads(args.apps)],
+        'odoo-bridge': [{'group': group} for group in json.loads(args.bridges)],
+    }
     try:
-        existing = existing_keys(lookup)
-        entries = tree_entries(Path.cwd(), 'HEAD')
-    except CacheLookupError as error:
-        print(f'ci_stage_cache: warning: {error}; no stage is skipped', file=sys.stderr)
-        print('[]')
-        return 0
-    print(json.dumps(cached_stages(entries, json.loads(args.stages), existing,
-                                   json.loads(args.odoo_shards), json.loads(args.e2e_mock_shards),
-                                   json.loads(args.apps), json.loads(args.bridges), args.odoo_modules)))
+        plan = run_plan(entries, json.loads(args.stages), existing, matrices, args.odoo_modules)
+    except ValueError as error:
+        print(f'ci_stage_cache: {error}', file=sys.stderr)
+        return 1
+    print(json.dumps(plan))
     return 0
 
 
@@ -168,19 +195,25 @@ def main(argv: list[str] | None = None, lookup=gh_cache_listing) -> int:
     keying.add_argument('--stage', required=True, choices=ci_scope.STAGES)
     keying.add_argument('--extra', default='', help='the matrix entry of the job')
     keying.add_argument('--commit', default='HEAD')
-    caching = sub.add_parser('cached', help='print the selected stages that already passed, as a JSON array')
-    caching.add_argument('--stages', required=True, help='JSON array of the selected stages')
-    caching.add_argument('--odoo-shards', required=True, help='JSON array of the odoo shard numbers')
-    caching.add_argument('--e2e-mock-shards', required=True, help='JSON array of the e2e-mock shard numbers')
-    caching.add_argument('--apps', required=True, help='JSON array of the odoo-app-standalone groups')
-    caching.add_argument('--bridges', required=True, help='JSON array of the odoo-bridge groups')
-    caching.add_argument('--odoo-modules', default='', help='comma-separated affected modules (empty: all)')
+    planning = sub.add_parser('plan', help='print the required stages, matrix jobs, and reused jobs as JSON')
+    planning.add_argument('--reuse-passes', action='store_true', help='reuse successful jobs from this ref')
+    planning.add_argument('--stages', required=True, help='JSON array of the selected stages')
+    planning.add_argument('--odoo-shards', required=True, help='JSON array of the odoo shard numbers')
+    planning.add_argument('--e2e-mock-shards', required=True, help='JSON array of the e2e-mock shard numbers')
+    planning.add_argument('--rtl-stories-shards', required=True, help='JSON array of the rtl-stories shard numbers')
+    planning.add_argument('--apps', required=True, help='JSON array of the odoo-app-standalone groups')
+    planning.add_argument('--bridges', required=True, help='JSON array of the odoo-bridge groups')
+    planning.add_argument('--odoo-modules', default='', help='comma-separated affected modules (empty: all)')
     sub.add_parser('e2e-mock-shards', help='print the e2e-mock shard numbers, as a JSON array')
+    sub.add_parser('rtl-stories-shards', help='print the rtl-stories shard numbers, as a JSON array')
     args = parser.parse_args(argv)
-    if args.command == 'cached':
-        return run_cached(args, lookup)
+    if args.command == 'plan':
+        return print_plan(args, lookup)
     if args.command == 'e2e-mock-shards':
         print(json.dumps(E2E_MOCK_SHARDS))
+        return 0
+    if args.command == 'rtl-stories-shards':
+        print(json.dumps(RTL_STORIES_SHARDS))
         return 0
     try:
         tree_digest = fingerprint(Path.cwd(), args.stage, args.extra, args.commit)

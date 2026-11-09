@@ -1,6 +1,7 @@
 import { CrmBellKindSchema } from '@liwan/contracts'
 import { crmBellTitleInApp } from '../../utils/crmBell'
 import type { AppManifest } from '../types'
+import { crmAppCard } from './appCard'
 
 const manifest: AppManifest = {
   id: 'crm',
@@ -42,6 +43,7 @@ const manifest: AppManifest = {
     { id: 'crm-imports', labelKey: 'crm.nav.imports', icon: 'i-lucide-file-up', to: '/crm/imports', capability: 'crm.leads.import' },
   ],
   landing: [{ path: '/crm', capability: 'crm.leads.read' }],
+  appCard: crmAppCard,
   commands: [
     { id: 'crm.import', labelKey: 'crm.imports.new', icon: 'i-lucide-file-up', to: '/crm/imports/new', capability: 'crm.leads.import' },
   ],

@@ -1,21 +1,22 @@
 <script setup lang="ts">
-// The floating application frame: header, module rail and context sidebar are
-// cards floating on the canvas around the scrolling workspace. Geometry lives in
-// packages/ui/app/assets/css/shell.css (.liwan-shell custom properties). The optional `sheet` slot hosts a docked side
-// sheet; `sheetOpen` sets data-sheet="open", which assistant-sheet.css reads to make room for it.
-const props = defineProps<{ noSidebar?: boolean; sheetOpen?: boolean }>()
-defineSlots<{ header?: () => unknown; sidebar?: () => unknown; sheet?: () => unknown; default?: () => unknown }>()
+// The application frame: a fixed sidebar on the inline-start side, and beside it the workspace column holding the
+// sticky top bar and the page. The bottom tab bar and the slide-over panels sit last so they layer over the page.
+// Geometry lives in packages/ui/app/assets/css/shell.css (.liwan-shell custom properties). Without a `sidebar` slot
+// the workspace takes the whole width (data-sidebar="none").
+const slots = useSlots()
+defineSlots<{ sidebar?: () => unknown; topbar?: () => unknown; bottom?: () => unknown; overlay?: () => unknown; default?: () => unknown }>()
 const { localeProperties } = useI18n()
 const dir = computed(() => localeProperties.value.dir ?? 'ltr')
 </script>
 
 <template>
-  <div data-liwan-shell class="liwan-shell" :data-direction="dir" :data-sidebar="props.noSidebar ? 'none' : undefined" :data-sheet="props.sheetOpen ? 'open' : undefined">
-    <slot name="header" />
+  <div data-liwan-shell class="liwan-shell" :data-direction="dir" :data-sidebar="slots.sidebar ? undefined : 'none'">
     <slot name="sidebar" />
     <div class="liwan-shell-workspace">
+      <slot name="topbar" />
       <slot />
     </div>
-    <slot name="sheet" />
+    <slot name="bottom" />
+    <slot name="overlay" />
   </div>
 </template>

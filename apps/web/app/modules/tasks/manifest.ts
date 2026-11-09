@@ -1,12 +1,15 @@
 import type { AppManifest } from '../types'
 import { myTasksAttention } from './attention'
+import { tasksQuickPanel } from './quickPanel'
+import { tasksAppCard } from './appCard'
 
 const manifest: AppManifest = {
   id: 'tasks',
   feature: 'tasks.enabled',
   routePrefixes: ['/my-tasks', '/work'],
+  quickPanel: tasksQuickPanel,
   // Order 15 puts «مهامي» before the PMO projects entry (20) and after the home entry (10).
-  rail: [{ id: 'tasks', labelKey: 'nav.myTasks', icon: 'i-lucide-check-square', to: '/my-tasks', order: 15 }],
+  rail: [{ id: 'tasks', labelKey: 'nav.myTasks', icon: 'i-lucide-check-square', to: '/my-tasks', order: 15, core: 2 }],
   nav: [
     { to: '/my-tasks', labelKey: 'nav.myTasks', icon: 'i-lucide-check-square', shortcut: 'a', capability: 'tasks.tasks.read' },
   ],
@@ -21,6 +24,7 @@ const manifest: AppManifest = {
     { pattern: /^\/work$/, capability: 'tasks.tasks.read' },
   ],
   attention: [myTasksAttention],
+  appCard: tasksAppCard,
   bell: {
     capabilities: ['tasks.tasks.read'],
     kinds: [{

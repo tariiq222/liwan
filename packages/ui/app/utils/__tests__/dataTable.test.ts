@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clickedRowIndex, dataRowKey, markTableRows, rowSelectionState, selectedFromRowSelection, TABLE_BODY_ROWS } from '../dataTable'
+import { applyScrollEdges, clickedRowIndex, dataRowKey, decorateColumns, markTableRoles, markTableRows, rowSelectionState, scrollEdges, selectedFromRowSelection, settleTableMin, tableMinWidth, TABLE_BODY_ROWS, TABLE_MIN_PROPERTY, type TableMinSample } from '../dataTable'
 
 interface Row { id: number; code: string; name: string }
 const rows: Row[] = [{ id: 1, code: 'a', name: 'One' }, { id: 2, code: 'b', name: 'Two' }, { id: 3, code: 'c', name: 'Three' }]
@@ -66,5 +66,137 @@ describe('clickedRowIndex', () => {
     expect(clickedRowIndex(target({}))).toBeNull()
     expect(clickedRowIndex(target({ '[data-shortcut-row]': row(null) }))).toBeNull()
     expect(clickedRowIndex(null)).toBeNull()
+  })
+})
+
+describe('decorateColumns', () => {
+  type Meta = { class?: { th?: unknown; td?: unknown }; style?: { td?: unknown } }
+  const meta = (column: unknown) => (column as { meta: Meta }).meta
+  const columns = [
+    { accessorKey: 'name', header: 'Name' },
+    { accessorKey: 'manager', header: 'Manager', meta: { class: { th: 'w-24', td: 'w-24' } } },
+    { accessorKey: 'total', header: 'Total', meta: { numeric: true } },
+    { id: 'actions', header: 'Actions' },
+  ]
+
+  it('sticks the first data column, labels the others and ends on a sticky actions column', () => {
+    const [name, manager, total, actions] = decorateColumns(columns as never, false)
+    expect(meta(name).class?.td).toBe('liwan-sticky-start liwan-cell-title')
+    expect(meta(name).style).toBeUndefined()
+    expect(meta(manager).class?.td).toBe('w-24')
+    expect(meta(manager).style?.td).toEqual({ '--liwan-label': '"Manager"' })
+    expect(meta(total).class?.th).toBe('text-end tabular-nums')
+    expect(meta(actions).class?.td).toBe('liwan-cell-actions liwan-sticky-end liwan-cell-actions-named')
+  })
+
+  it('sticks the select column and the column after it, and keeps a mid-table actions column unstuck', () => {
+    const [select, name, actions] = decorateColumns([{ id: 'select' }, { accessorKey: 'name', header: 'Name' }, { id: 'actions', header: () => 'x' }, { accessorKey: 'last', header: 'Last' }] as never, true)
+    expect(meta(select).class?.th).toBe('liwan-sticky-start liwan-cell-select')
+    expect(meta(name).class?.td).toBe('liwan-sticky-start liwan-cell-title liwan-sticky-second')
+    expect(meta(actions).class?.td).toBe('liwan-cell-actions')
+  })
+
+  it('takes the title role from a flagged column and leaves a narrow first column as the only sticky one', () => {
+    const [num, name, other] = decorateColumns([{ accessorKey: 'id', header: () => '#' }, { accessorKey: 'name', header: 'Name', meta: { title: true } }, { accessorKey: 'x', header: 'X' }] as never, false)
+    expect(meta(num).class?.td).toBe('liwan-sticky-start')
+    expect(meta(name).class?.th).toBe('liwan-cell-title')
+    expect(meta(name).class?.td).toBe('liwan-cell-title max-w-0 overflow-hidden text-ellipsis whitespace-nowrap')
+    expect(meta(other).class?.td).toBeUndefined()
+  })
+
+  it('treats a column flagged meta.actions as the actions column', () => {
+    const [, manage] = decorateColumns([{ accessorKey: 'a', header: 'A' }, { id: 'manage', header: () => 'x', meta: { actions: true } }] as never, false)
+    expect(meta(manage).class?.td).toBe('liwan-cell-actions liwan-sticky-end')
+  })
+
+  it('keeps a caller function for classes and gives no label to a column without a text header', () => {
+    const [custom, plain] = decorateColumns([
+      { accessorKey: 'a', header: 'A' },
+      { accessorKey: 'b', header: () => 'B', meta: { class: { td: () => 'from-caller' } } },
+    ] as never, false)
+    expect(meta(custom).class?.td).toContain('liwan-cell-title')
+    expect(meta(plain).style).toBeUndefined()
+    expect(typeof meta(plain).class?.td).toBe('function')
+  })
+
+  it('escapes a header into a quoted CSS string', () => {
+    const [, quoted] = decorateColumns([{ accessorKey: 'a', header: 'A' }, { accessorKey: 'b', header: 'Say "hi"  now' }] as never, false)
+    expect(meta(quoted).style?.td).toEqual({ '--liwan-label': '"Say \\"hi\\" now"' })
+  })
+})
+
+describe('scroll edges', () => {
+  it('reads both directions from the magnitude of scrollLeft (RTL is negative)', () => {
+    expect(scrollEdges({ scrollLeft: 0, scrollWidth: 800, clientWidth: 400 })).toEqual({ scrolledStart: false, canScrollEnd: true })
+    expect(scrollEdges({ scrollLeft: -200, scrollWidth: 800, clientWidth: 400 })).toEqual({ scrolledStart: true, canScrollEnd: true })
+    expect(scrollEdges({ scrollLeft: 400, scrollWidth: 800, clientWidth: 400 })).toEqual({ scrolledStart: true, canScrollEnd: false })
+    expect(scrollEdges({ scrollLeft: 0, scrollWidth: 400, clientWidth: 400 })).toEqual({ scrolledStart: false, canScrollEnd: false })
+  })
+
+  it('writes the two flags on the frame', () => {
+    const flags: Record<string, boolean> = {}
+    applyScrollEdges({ toggleAttribute: (name: string, force?: boolean) => { flags[name] = !!force; return !!force } }, { scrolledStart: true, canScrollEnd: false })
+    expect(flags).toEqual({ 'data-scrolled-start': true, 'data-can-scroll-end': false })
+  })
+})
+
+describe('markTableRoles', () => {
+  const element = () => { const attrs: Record<string, string> = {}; return { attrs, setAttribute: (k: string, v: string) => { attrs[k] = v }, removeAttribute: (k: string) => { delete attrs[k] } } }
+
+  it('gives a stacked table its roles back and removes them when it is a table again', () => {
+    const parts: Record<string, ReturnType<typeof element>[]> = { table: [element()], 'thead, tbody': [element(), element()], 'tr:not([data-slot="separator"])': [element()], th: [element()], td: [element()], 'tr[data-slot="separator"]': [element()] }
+    const root = { querySelectorAll: (selector: string) => parts[selector] ?? [] } as unknown as ParentNode
+    markTableRoles(root, true)
+    expect(parts.table![0]!.attrs.role).toBe('table')
+    expect(parts['thead, tbody']!.map(el => el.attrs.role)).toEqual(['rowgroup', 'rowgroup'])
+    expect(parts.th![0]!.attrs.role).toBe('columnheader')
+    expect(parts['tr[data-slot="separator"]']![0]!.attrs.role).toBe('presentation')
+    const marked = Object.values(parts).flat()
+    markTableRoles({ querySelectorAll: () => marked } as unknown as ParentNode, false)
+    expect(marked.every(el => !('role' in el.attrs) && !('data-stacked-role' in el.attrs))).toBe(true)
+  })
+})
+
+describe('tableMinWidth', () => {
+  it('adds the title floor to the other columns, using the larger of the declared minimum and the floor', () => {
+    expect(tableMinWidth(760, 0, Number.NaN, 154)).toBe(914)
+    expect(tableMinWidth(760, 0, 200, 154)).toBe(960)
+    expect(tableMinWidth(1100, 340, 200, 154)).toBe(960)
+  })
+})
+
+describe('settleTableMin', () => {
+  // A table-layout stand-in: the table is as wide as the card or its `--liwan-table-min`, whichever is larger, and a title that
+  // collapses (`max-w-0`) stays 0 wide while the other columns take all the free width, as a browser does.
+  function framed(card: number) {
+    const props = new Map<string, string>()
+    const frame = { style: { removeProperty: (name: string) => { props.delete(name); return '' }, setProperty: (name: string, value: string) => { props.set(name, value) } } } as unknown as Pick<HTMLElement, 'style'>
+    const sample = (): TableMinSample => ({ tableWidth: Math.max(card, Number.parseFloat(props.get(TABLE_MIN_PROPERTY) ?? '0')), titleWidth: 0, declaredMin: Number.NaN })
+    return { frame, sample, value: () => props.get(TABLE_MIN_PROPERTY) }
+  }
+
+  it('reaches the same minimum however often it runs, so the table cannot keep growing', () => {
+    const { frame, sample, value } = framed(1000)
+    const seen = Array.from({ length: 6 }, () => { settleTableMin(frame, sample, 154); return value() })
+    expect(new Set(seen)).toEqual(new Set(['1154px']))
+  })
+
+  it('follows the card when it resizes', () => {
+    const wide = framed(1400)
+    settleTableMin(wide.frame, wide.sample, 154)
+    expect(wide.value()).toBe('1554px')
+  })
+
+  it('shows why the measurement is taken with the minimum cleared: measured under it, each pass raises it', () => {
+    const { frame, sample, value } = framed(1000)
+    let min = 0
+    const grown = Array.from({ length: 3 }, () => {
+      frame.style.setProperty(TABLE_MIN_PROPERTY, `${min}px`)
+      const { tableWidth, titleWidth, declaredMin } = sample()
+      min = tableMinWidth(tableWidth, titleWidth, declaredMin, 154)
+      return min
+    })
+    expect(grown).toEqual([1154, 1308, 1462])
+    expect(value()).toBe('1308px')
   })
 })

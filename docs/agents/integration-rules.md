@@ -97,13 +97,12 @@ count stays at `0`.
    `REVIEW.md`; addon/contract changes need Odoo-aware review. Keep compatible
    prior decisions. If the request conflicts with one, preserve it and ask for
    that specific decision; general merge authorization does not reverse it.
-4. **Verify the combined result.** Run the focused checks of the affected
-   layers from `docs/testing.md` and the Git and architecture policies against
-   the recorded baseline; CI runs the full suite. Odoo checks use isolated scratch
-   databases, never development databases. Record commands, commit, environment,
-   pass/fail and gaps in the PR. Retain baseline regression requirements.
-   Diagnose failures; a reproduced baseline failure is disclosed, not silently
-   waived. After local preparation and publication, mark the PR ready.
+4. **Verify the combined result.** Run the Git and architecture policies against
+   the recorded baseline and follow the [local verification policy](../testing.md#fast-local-loop)
+   for any additional local checks. Record commands, commit, environment, results,
+   and coverage left to CI in the PR. Retain baseline regression requirements.
+   Disclose any reproduced baseline failure. After local preparation and
+   publication, mark the PR ready.
    Require successful current-head `ci-result` and every selected stage; inspect
    skipped stages and scope. An old green head, local checks or a conflict check
    alone does not establish readiness for protected remote integration.
@@ -141,16 +140,26 @@ procedure above remains required for subsequent remote publication.
 
 ## Keep the PR loop short
 
-Keep the PR in draft while its diff, focused local checks and review notes are
+When marking a PR ready under the standing authorization, enable auto-merge in the same step
+(`gh pr merge <n> --auto --merge`) so GitHub merges it the moment the current-head `ci-result` is
+green, without waiting for an agent to come back. Auto-merge never bypasses protection: it waits
+for the required check and for resolved conversations. Disable it (`gh pr merge <n> --disable-auto`)
+before pushing a change that still needs review. Do not enable it on a PR that needs an owner
+decision or a separate authorization, or on one that changes authentication, authorization, tenant
+isolation, migrations or the CI rules that decide what must pass: those merge only after their
+independent review (see "Keep the PR loop short"). Inspect the selected and skipped stages before
+enabling it. Step 6 (verify and synchronize) still runs after the merge.
+
+Keep the PR in draft while its diff, applicable local checks and review notes are
 being prepared. Mark it ready once the candidate is stable, and batch related
 review fixes before pushing again. If a selected check fails, read that job
-first and reproduce the failure before pushing another revision.
+first and reproduce the failure locally when needed to diagnose or verify the fix.
 
 Changes to authentication, authorization, tenant isolation, migrations, or the
 CI rules that decide what must pass need an independent review focused on those
 boundaries. Include evidence for the relevant refusal or failure paths and name
-the exact head reviewed. For coupled PRs, review and test their combined merge
-candidate before merging. GitHub requires the green check and resolved threads;
+the exact head reviewed. For coupled PRs, review the combined candidate and
+verify it under step 4. GitHub requires the green check and resolved threads;
 it does not enforce an independent approval on this repository.
 
 ## PR handoff

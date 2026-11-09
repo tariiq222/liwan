@@ -4,6 +4,7 @@ import type { Task } from '@liwan/contracts'
 import { refDebounced } from '@vueuse/core'
 import { ApiError } from '@/composables/useApi'
 import { useCreateTag, useTags } from '@/composables/useTags'
+import { plainSelectUi } from '@liwan/ui/app/utils/plainSelect'
 
 type TagRef = Task['tags'][number]
 
@@ -11,7 +12,7 @@ type TagRef = Task['tags'][number]
 // AssigneePicker: the emitted payload gives both the bare ids (for the PATCH
 // body) and the resolved objects (for useUpdateTask's optimistic cache
 // update).
-const props = defineProps<{ modelValue: TagRef[]; canCreate: boolean; labelledby?: string }>()
+const props = defineProps<{ modelValue: TagRef[]; canCreate: boolean; labelledby?: string; plain?: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [{ ids: number[]; resolved: TagRef[] }] }>()
 
 const { t } = useI18n()
@@ -69,7 +70,7 @@ function onCreateItem() {
 
 <template>
   <div class="space-y-2" data-testid="tag-picker">
-    <div v-if="modelValue.length" class="flex flex-wrap gap-1">
+    <div v-if="modelValue.length && !props.plain" class="flex flex-wrap gap-1">
       <UBadge v-for="tag in modelValue" :key="tag.id" variant="outline" class="min-w-0 max-w-full gap-1 pe-1">
         <span class="min-w-0 max-w-full truncate" :title="tag.name">{{ tag.name }}</span>
         <UButton
@@ -78,7 +79,7 @@ function onCreateItem() {
           variant="ghost"
           square
           size="xs"
-          class="rounded-full hover:bg-elevated/50"
+          class="hover:bg-elevated/50"
           :aria-label="t('projects.followers.remove')"
           :disabled="!hydrated"
           @click="remove(tag.id)"
@@ -96,9 +97,10 @@ function onCreateItem() {
       :create-item="showCreate ? { position: 'bottom', when: 'always' } : false"
       multiple
       value-key="value"
-      variant="outline"
+      :variant="props.plain ? 'none' : 'outline'"
+      :ui="props.plain ? plainSelectUi : undefined"
       size="sm"
-      class="w-full"
+      :class="props.plain ? '' : 'w-full'"
       :disabled="!hydrated"
       :placeholder="t('tasks.drawer.addTag')"
       :search-input="{ placeholder: t('app.search') }"

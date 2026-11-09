@@ -10,6 +10,7 @@ export interface HostNode {
   text?: string
   type?: string
   getRootNode(): HostNode
+  querySelector(selector: string): null
 }
 
 // RouterView compares the rendered element's root with the app container's root
@@ -18,9 +19,13 @@ const hostNodeMethods = {
   getRootNode(this: HostNode): HostNode {
     return this.parent ? this.parent.getRootNode() : this
   },
+  // SharedDataTable looks its scroller up after mount; there is no layout to measure here.
+  querySelector(): null {
+    return null
+  },
 }
 
-function hostNode(fields: Omit<HostNode, 'getRootNode'>): HostNode {
+function hostNode(fields: Omit<HostNode, 'getRootNode' | 'querySelector'>): HostNode {
   return Object.assign(Object.create(hostNodeMethods) as HostNode, fields)
 }
 

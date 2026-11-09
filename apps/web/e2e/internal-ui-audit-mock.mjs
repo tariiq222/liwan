@@ -62,8 +62,8 @@ const ME = {
 
 const BRANDING = {
   name: 'ليوان',
-  logo_url: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="6" fill="#7843c6"/></svg>'),
-  primary_color: process.env.PREVIEW_PRIMARY_COLOR || '#7843c6',
+  logo_url: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="6" fill="#14102a"/></svg>'),
+  primary_color: process.env.PREVIEW_PRIMARY_COLOR || '#14102a',
   font: 'IBM Plex Sans Arabic',
 }
 
@@ -221,6 +221,13 @@ const stateOf = p => { const state = CHARTER_STATE.get(p.id) ?? { charter: CHART
 const PHASES = ['initiating', 'planning', 'executing', 'closing', 'closed']
 const PHASE_OF = new Map()
 const phaseOf = p => PHASE_OF.get(p.id) ?? (PROJECTS.includes(p) ? 'planning' : 'initiating')
+// The list's `status` (one status, a comma list of them, or `unset`) and `mine` filters; the mock user (id 2) manages every project.
+function projectMatchesFilters(project, params) {
+  const statuses = (params.get('status') ?? '').split(',').filter(Boolean)
+  const byStatus = !statuses.length || (statuses[0] === 'unset' ? !project.status : statuses.includes(project.status))
+  return byStatus && (!['1', 'true'].includes(params.get('mine') ?? '') || project.manager?.id === 2)
+}
+
 const listItem = p => ({ ...p, charter_state: toolsOf(p).governance.enabled ? stateOf(p).charter.state : null, phase: toolsOf(p).governance.enabled ? phaseOf(p) : null })
 
 // Mirrors Project._liwan_phase_state: the gate into planning asks for the charter, the gate into executing for a baseline (warning).
@@ -356,8 +363,21 @@ const SETTINGS = {
   extensions: [],
 }
 
+// DEMO_DATA=1 shows realistic Arabic business content instead of the test fixtures' names; specs run without it.
+const DEMO_NAMES = process.env.DEMO_DATA === '1' ? [
+  ['"name":"Admin"', '"name":"عبدالله الشهري"'],
+  ['اشترِ الورق', 'اعتماد طلب شراء أجهزة المكتب'],
+  ['مهمة جارية', 'إعداد عرض السعر لشركة الراجحي'],
+  ['مهمة تحتاج تعديلاً', 'مراجعة عقد التوريد مع المورد'],
+  ['مهمة ملغاة', 'إلغاء حجز قاعة الاجتماعات'],
+  ['مهمة مكتملة', 'إرسال تقرير المبيعات الأسبوعي'],
+  ['مشروع ألفا', 'تطوير المتجر الإلكتروني'],
+  ['مشروع بيتا', 'تجهيز فرع جدة الجديد'],
+  ['مشروع جاما', 'تحديث نظام الموارد البشرية'],
+] : []
 function json(res, status, body, extra = {}) {
-  const payload = JSON.stringify(body)
+  let payload = JSON.stringify(body)
+  for (const [from, to] of DEMO_NAMES) payload = payload.replaceAll(from, to)
   res.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
     'content-length': Buffer.byteLength(payload),
@@ -726,7 +746,7 @@ async function handle(req, res) {
     // charter_review=1 is the sponsor's "waiting for me" list: charters submitted and reviewable by the caller.
     const items = url.searchParams.get('charter_review') === '1'
       ? allProjects().filter(p => stateOf(p).charter.state === 'submitted' && stateOf(p).charter.can_review).map(listItem)
-      : PROJECTS.map(listItem)
+      : PROJECTS.filter(p => projectMatchesFilters(p, url.searchParams)).map(listItem)
     return json(res, 200, { items, total: items.length, can_create: true, can_list_archived: true })
   }
   if (method === 'POST' && path === '/api/v1/projects') {
@@ -881,16 +901,16 @@ async function handle(req, res) {
     return json(res, 201, { ...projectDetail(created), date_start: body.start_date })
   }
   if (method === 'GET' && match(path, '/api/v1/projects/:id/followers')) return json(res, 200, [{ id: 2, name: 'Admin' }])
-  if (method === 'GET' && match(path, '/api/v1/projects/:id/milestones')) return json(res, 200, [])
-  if (method === 'GET' && match(path, '/api/v1/projects/:id/updates')) return json(res, 200, [])
+  if (method === 'GET' && match(path, '/api/v1/projects/:id/milestones')) return json(res, 200, { items: [], total: 0 })
+  if (method === 'GET' && match(path, '/api/v1/projects/:id/updates')) return json(res, 200, { items: [], total: 0 })
   if (method === 'GET' && path === '/api/v1/hr/employees') return json(res, 200, { items: [], total: 0 })
   if (method === 'GET' && path === '/api/v1/hr/departments') return json(res, 200, { items: [], total: 0 })
   if (method === 'GET' && path === '/api/v1/admin/users') return json(res, 200, { items: [], total: 0 })
   if (method === 'GET' && path === '/api/v1/admin/roles') return json(res, 200, { items: [], total: 0 })
   if (method === 'GET' && path === '/api/v1/chat/conversations') return json(res, 200, { items: [], total: 0 })
-  if (method === 'GET' && path === '/api/v1/me/personal-stages') return json(res, 200, [])
+  if (method === 'GET' && path === '/api/v1/me/personal-stages') return json(res, 200, { items: [], total: 0 })
   if (method === 'GET' && path === '/api/v1/people') return json(res, 200, [{ id: 5, name: 'نورة الحربي', user_id: 5 }, { id: 6, name: 'سارة محمد', user_id: 6 }])
-  if (method === 'GET' && path === '/api/v1/tags') return json(res, 200, [])
+  if (method === 'GET' && path === '/api/v1/tags') return json(res, 200, { items: [], total: 0 })
   if (method === 'GET' && path === '/api/v1/settings/projects') return json(res, 200, SETTINGS)
   if (method === 'GET' && path === '/api/v1/settings/projects/create-defaults') {
     return json(res, 200, { require_manager_on_create: SETTINGS.require_manager_on_create, require_end_date_on_create: SETTINGS.require_end_date_on_create, default_manager_id: 2 })

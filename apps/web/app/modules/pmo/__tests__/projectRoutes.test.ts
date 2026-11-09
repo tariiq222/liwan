@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { activeGovernanceSection, activeProjectSection, projectIdFromPath } from '../projectRoutes'
+import { activeGovernanceSection, activePlanningSection, activeProjectSection, projectIdFromPath } from '../projectRoutes'
 
 describe('projectIdFromPath', () => {
   it('reads a positive integer id', () => {
@@ -19,18 +19,21 @@ describe('activeProjectSection', () => {
   })
   it('maps each section root to itself', () => {
     expect(activeProjectSection('/projects/12/tasks')).toBe('tasks')
-    expect(activeProjectSection('/projects/12/schedule')).toBe('planning')
-    expect(activeProjectSection('/projects/12/milestones')).toBe('planning')
     expect(activeProjectSection('/projects/12/governance')).toBe('governance')
     expect(activeProjectSection('/projects/12/finance')).toBe('finance')
-    expect(activeProjectSection('/projects/12/updates')).toBe('updates')
     expect(activeProjectSection('/projects/12/meetings')).toBe('meetings')
   })
   it('keeps a record page on its owning section', () => {
     expect(activeProjectSection('/projects/12/tasks/99')).toBe('tasks')
     expect(activeProjectSection('/projects/12/finance/5/edit')).toBe('finance')
-    expect(activeProjectSection('/projects/12/schedule/tasks/99')).toBe('planning')
-    expect(activeProjectSection('/projects/12/milestones/4/edit')).toBe('planning')
+    expect(activeProjectSection('/projects/12/updates/new')).toBe('summary')
+  })
+  it('keeps the planning pages under the tasks tab', () => {
+    for (const path of ['/projects/12/schedule', '/projects/12/schedule/tasks/99', '/projects/12/milestones', '/projects/12/milestones/4/edit', '/projects/12/baselines']) expect(activeProjectSection(path), path).toBe('tasks')
+    expect(activePlanningSection('/projects/12/milestones/4/edit')).toBe('milestones')
+    expect(activePlanningSection('/projects/12/baselines')).toBe('baselines')
+    expect(activePlanningSection('/projects/12/tasks')).toBeNull()
+    expect(activePlanningSection('/projects')).toBeNull()
   })
   it('maps the four governance children to governance', () => {
     expect(activeProjectSection('/projects/12/charter')).toBe('governance')

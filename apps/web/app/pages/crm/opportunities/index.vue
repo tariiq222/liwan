@@ -6,6 +6,6 @@ const page = useOpportunityListPage()
 
 <template>
   <SharedListPage v-bind="page" #default="{ view }">
-    <CrmOpportunityList :view="view" />
+    <CrmOpportunityList :view="view" :create-to="page.createTo" />
   </SharedListPage>
 </template>

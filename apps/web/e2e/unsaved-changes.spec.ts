@@ -1,15 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
 
-// «يومي» is a destination in both navigation surfaces: the rail on desktop and the drawer on a phone.
-async function goToday(page: Page, width: number) {
-  if (width < 768) {
-    // The drawer stays open under the guard, so open it only when it is closed.
-    if (!await page.locator('#mobile-navigation').isVisible()) await page.getByTestId('mobile-navigation-trigger').click()
-    await page.locator('#mobile-navigation').getByRole('link', { name: 'يومي', exact: true }).click()
-    return
-  }
-  await page.getByTestId('module-rail').getByRole('link', { name: 'يومي', exact: true }).click()
-}
+// The product mark leads to «يومي» in both navigation surfaces: the sidebar brand on desktop and the top bar mark on a phone.
+const todayLink = (page: Page, width: number) => width < 768
+  ? page.getByTestId('shell-header').locator('.liwan-shell-mark')
+  : page.getByTestId('application-navigation').locator('.liwan-side-brand')
+const goToday = (page: Page, width: number) => todayLink(page, width).click()
 
 for (const width of [1440, 390]) {
   test(`unsaved confirmation stays centered, preserves drafts and confirms navigation at ${width}px`, async ({ page }) => {
@@ -35,7 +30,7 @@ for (const width of [1440, 390]) {
     await expect(dialog.getByRole('button', { name: 'البقاء في الصفحة' })).toBeFocused()
     await page.keyboard.press('Escape')
     await expect(dialog).toHaveCount(0)
-    if (width >= 768) await expect(page.getByTestId('module-rail').getByRole('link', { name: 'يومي', exact: true })).toBeFocused()
+    await expect(todayLink(page, width)).toBeFocused()
     await expect(color).toHaveValue(draft)
     await goToday(page, width)
     await dialog.getByRole('button', { name: 'البقاء في الصفحة' }).click()

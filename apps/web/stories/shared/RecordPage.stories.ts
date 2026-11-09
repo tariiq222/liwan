@@ -4,6 +4,7 @@ import PropertiesPanel from '@liwan/ui/app/components/shared/layout/PropertiesPa
 import PropertyRow from '@liwan/ui/app/components/shared/layout/PropertyRow.vue'
 import RecordPage from '@liwan/ui/app/components/shared/layout/RecordPage.vue'
 import RecordSection from '@liwan/ui/app/components/shared/layout/RecordSection.vue'
+import RouteTabs from '@liwan/ui/app/components/shared/layout/RouteTabs.vue'
 import { project } from '../fixtures/pmo'
 import { storyContext } from '../support/context'
 
@@ -19,9 +20,9 @@ const meta = {
 export default meta
 type Story = StoryObj
 
-// The tabs slot holds a plain labelled nav here; SharedRouteTabs fills it once a page adopts the template.
+// The tabs slot holds the shared route tabs, which end the open header.
 const record = (state: { loading?: boolean; error?: unknown; backSlot?: boolean; summary?: boolean } = {}) => ({
-  components: { PropertiesPanel, PropertyRow, RecordPage, RecordSection },
+  components: { PropertiesPanel, PropertyRow, RecordPage, RecordSection, RouteTabs },
   setup() {
     const { t } = useI18n()
     return { t, project, loading: state.loading ?? false, error: state.error }
@@ -32,10 +33,7 @@ const record = (state: { loading?: boolean; error?: unknown; backSlot?: boolean;
       <template #actions><UButton color="neutral" variant="outline" icon="i-lucide-pencil">{{ t('app.edit') }}</UButton></template>
       ${state.summary ? `<template #summary><PropertiesPanel :title="t('states.properties')"><PropertyRow :label="t('projects.columns.manager')" :value="project.manager?.name" /><PropertyRow :label="t('projects.columns.dateEnd')" :value="project.date_end" /></PropertiesPanel></template>` : ''}
       <template #tabs>
-        <nav :aria-label="t('projects.title')" class="flex gap-4 border-b border-default text-sm">
-          <a href="#overview" aria-current="page" class="border-b-2 border-primary pb-2 font-medium text-highlighted">{{ t('projects.tabs.overview') }}</a>
-          <a href="#milestones" class="pb-2 text-muted">{{ t('projects.tabs.milestones') }}</a>
-        </nav>
+        <RouteTabs :aria-label="t('projects.title')" :items="[{ key: 'tab-overview', label: t('projects.tabs.overview'), to: '#overview', active: true }, { key: 'tab-milestones', label: t('projects.tabs.milestones'), to: '#milestones', active: false }]" />
       </template>
       <RecordSection id="overview" :title="t('projects.tabs.overview')" :description="t('projects.description')">
         <p class="text-sm text-default">{{ project.name }}</p>
@@ -63,4 +61,4 @@ export const ErrorState: Story = { name: 'خطأ', render: () => record({ error:
 // The page supplies its own back control through the header's back slot; Escape still leaves for back-to.
 export const WithBackSlot: Story = { name: 'خانة الرجوع', render: () => record({ backSlot: true }) }
 
-export const OperationalSummary: Story = { name: 'ملخص تشغيلي قبل المحتوى', parameters: storyContext('apps/web/app/components/pmo/tasks/TaskDetailPanel.vue:113'), render: () => record({ summary: true }) }
+export const OperationalSummary: Story = { name: 'ملخص تشغيلي قبل المحتوى', parameters: storyContext('apps/web/app/pages/meetings/series/[id].vue:266'), render: () => record({ summary: true }) }

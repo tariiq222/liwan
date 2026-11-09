@@ -8,7 +8,7 @@ const meta = {
   title: 'Project/ProjectWorkspaceTabs',
   component: ProjectWorkspaceTabs,
   args: { projectId: 1, active: true },
-  parameters: storyContext('apps/web/app/pages/projects/[id].vue:124', 'شريط أقسام المشروع: حبّات مستديرة والقسم الحالي حبّة بصبغة primary، داخل بطاقة المساحة.'),
+  parameters: storyContext('apps/web/app/pages/projects/[id].vue:124', 'شريط أقسام المشروع: خط سفلي بلون التطبيق للقسم الحالي، سطر واحد لا يلتف، والاجتماعات آخر تبويب فيه. صفوف التخطيط والحوكمة والمالية حبّات.'),
   render: args => ({
     components: { ProjectWorkspaceTabs },
     setup: () => {

@@ -3,7 +3,7 @@ import { test, expect, type Page } from '@playwright/test'
 test.skip(process.env.E2E_PROJECT_POPUPS !== '1', 'Isolated synthetic project API only')
 
 async function ready(page: Page) {
-  await expect(page.getByTestId('project-workspace-settings')).toBeVisible()
+  await expect(page.getByTestId('project-workspace-menu')).toBeVisible()
   await expect(page.getByRole('navigation',{name:'أقسام المشروع',exact:true})).toBeVisible()
   await expect(page.getByTestId('project-workspace-name')).toHaveText('مشروع ألفا')
   await expect(page.locator('main h1')).toHaveCount(1)
@@ -30,8 +30,7 @@ const sections = [
   ['finance', '/projects/1/finance'],
   ['charter', '/projects/1/charter'],
   ['settings', '/projects/1/settings'],
-  ['schedule', '/projects/1/schedule'],
-  ['updates', '/projects/1/updates'],
+  ['timeline', '/projects/1/tasks?view=timeline'],
 ] as const
 
 for (const width of [1440, 1024]) {
@@ -71,7 +70,9 @@ for (const width of [1440, 1024]) {
         await expect(page.locator('main [data-slot="filter-root"] [data-slot="search"]')).toBeVisible()
         await expect(page.getByRole('button', { name: 'البحث والفلاتر', exact: true })).toBeHidden()
       }
-      if (['tasks', 'board', 'milestones', 'summary', 'stakeholders', 'register', 'finance', 'schedule'].includes(name)) {
+      // The summary and the task list take their create action from the frame header, the other sections from their own page header.
+      if (['tasks', 'board', 'summary'].includes(name)) await expect(frame.getByTestId('project-header-create')).toBeEnabled()
+      if (['milestones', 'stakeholders', 'register', 'finance'].includes(name)) {
         // Header create actions may be route links (UButton :to) or buttons.
         await expect(heading.first().locator('button, a').first()).toBeEnabled()
       }
@@ -84,7 +85,8 @@ for (const width of [1440, 1024]) {
 test('project task filters survive view changes and reload; create stays in the header', async ({ page }) => {
   await page.goto('/projects/1/tasks')
   await ready(page)
-  const header = page.locator('main [data-slot="page-header"]')
+  // The create button lives in the frame header; the task list below has no action row of its own.
+  const header = page.getByTestId('project-workspace-frame')
   await expect(header.getByTestId('project-header-create')).toBeEnabled()
   const search = page.locator('main [data-shortcut-search] input')
   await expect(search).toBeEnabled()
@@ -102,8 +104,8 @@ test('project task filters survive view changes and reload; create stays in the 
   expect(new URL(page.url()).searchParams.get('q')).toBe('جارية')
 })
 
-test('schedule toolbar changes scale and retains it after reload', async ({ page }) => {
-  await page.goto('/projects/1/schedule')
+test('timeline toolbar changes scale and retains it after reload', async ({ page }) => {
+  await page.goto('/projects/1/tasks?view=timeline')
   await ready(page)
   await page.getByRole('group', { name: 'مقياس العرض' }).getByRole('button', { name: 'شهري', exact: true }).click()
   await expect(page).toHaveURL(/scale=month/)

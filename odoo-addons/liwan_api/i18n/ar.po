@@ -70,6 +70,12 @@ msgstr "متوسط"
 #. module: liwan_api
 #. odoo-python
 #: code:addons/liwan_api/controllers/common.py:0
+msgid "An unexpected error occurred"
+msgstr "حدث خطأ غير متوقع"
+
+#. module: liwan_api
+#. odoo-python
+#: code:addons/liwan_api/controllers/common.py:0
 msgid "Record does not exist"
 msgstr "السجل غير موجود"
 

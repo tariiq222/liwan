@@ -151,7 +151,7 @@ function confirmDelete(stageId: StageRow['id']) {
           color="neutral"
           variant="ghost"
           square
-          class="stage-drag-handle shrink-0 rounded p-1 text-muted outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          class="stage-drag-handle shrink-0 rounded-inner p-1 text-muted outline-none focus-visible:ring-2 focus-visible:ring-primary"
           :class="disabled ? 'cursor-not-allowed' : 'cursor-grab'"
           :disabled="disabled"
           :aria-label="t('projects.stages.reorder', { name: stage.name })"

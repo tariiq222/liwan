@@ -44,7 +44,7 @@ const amount = (value: number) => formatPayrollAmount(value, locale.value)
   >
     <template #id-cell="{ row }"><RecordNumber :value="row.original.id" :data-testid="`hr-payroll-run-${row.original.id}`" /></template>
     <template #month-cell="{ row }">
-      <NuxtLink :to="props.rowTo(row.original)" class="rounded font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ formatPayrollMonth(row.original.month, locale) }}</NuxtLink>
+      <NuxtLink :to="props.rowTo(row.original)" class="rounded-inner font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ formatPayrollMonth(row.original.month, locale) }}</NuxtLink>
     </template>
     <template #state-cell="{ row }">
       <SharedStatusBadge size="sm" :tone="payrollRunStateTone(row.original.state)" :label="t(`hrPayroll.runs.state.${row.original.state}`)" data-testid="hr-payroll-run-state" />

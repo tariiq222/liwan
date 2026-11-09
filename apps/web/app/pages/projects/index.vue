@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { PROJECT_STATUSES } from '@liwan/contracts'
 import { refDebounced } from '@vueuse/core'
 import { onScopeDispose } from 'vue'
 import { onBeforeRouteLeave, type RouteLocationNormalized } from 'vue-router'
@@ -7,17 +6,19 @@ import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import ProjectTable from '@/components/pmo/projects/ProjectTable.vue'
 import ProjectCards from '@/components/pmo/projects/ProjectCards.vue'
 import ProjectKpiStrip from '@/components/pmo/projects/ProjectKpiStrip.vue'
+import ProjectListChips from '@/components/pmo/projects/ProjectListChips.vue'
 import {
   PROJECT_PAGE,
   parseProjectListRoute,
-  parseProjectListStatus,
   patchProjectListRoute,
   sameProjectListRoute,
   serializeProjectListRoute,
   useProjectList,
+  useProjectSummary,
   type ProjectListRouteState,
 } from '@/composables/useProjects'
 import { listFilterQuery } from '@/composables/useRouteListFilters'
+import { projectChipCounts, projectChipFilters, selectedProjectChip, type ProjectChipId } from '@/utils/projectListChips'
 import { returnToQuery, safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 
 const router = useRouter()
@@ -200,23 +201,24 @@ watch(() => route.query.view, (view) => {
   void navigateTo({ path: route.path, query: { ...route.query, view: 'table' }, hash: route.hash }, { replace: true })
 }, { immediate: true })
 
-function onStatusChange(value: unknown) {
-  applyPatch({ status: parseProjectListStatus(value) })
+// The chips own mine, status and archived; the filter bar below them clears the search and the sort.
+const chipFilters = computed(() => ({ mine: filters.mine, status: filters.status, archived: archived.value }))
+const selectedChip = computed(() => selectedProjectChip(chipFilters.value))
+const chipSummary = useProjectSummary({})
+const chipMineSummary = useProjectSummary({ mine: true })
+const chipCounts = computed(() => projectChipCounts(chipSummary.data.value, chipMineSummary.data.value))
+function onChipSelect(chip: ProjectChipId) {
+  applyPatch(projectChipFilters(chip))
 }
 function clearFilters() {
   search.value = ''
-  applyPatch({ q: '', status: 'all', sort: 'default' })
+  applyPatch({ q: '', sort: 'default' })
 }
 const sort = computed(() => filters.sort ?? 'default')
-const activeFilterCount = computed(() => Number(Boolean(rawSearch.value.trim())) + Number(statusFilter.value !== 'all') + Number(sort.value !== 'default'))
+const activeFilterCount = computed(() => Number(Boolean(rawSearch.value.trim())) + Number(sort.value !== 'default'))
 function onSortChange(value: unknown) {
   applyPatch({ sort: value === 'name' || value === 'progress' ? value : 'default' })
 }
-const statusOptions = computed(() => [
-  { value: 'all', label: t('projects.filters.allStatuses') },
-  ...PROJECT_STATUSES.map(status => ({ value: status, label: t(`projects.status.${status}`) })),
-  { value: 'unset', label: t('projects.filters.unset') },
-])
 const sortOptions = computed(() => [
   { value: 'default', label: t('projects.filters.sortDefault') },
   { value: 'name', label: t('projects.filters.sortName') },
@@ -230,16 +232,9 @@ function clearSearch() {
 const displayedItems = items
 const isLoading = computed(() => projectList.isLoading.value)
 // The empty state keeps its title and its hint, so the page draws it, not the table.
-const emptyKey = computed(() => (Boolean(rawSearch.value.trim()) || statusFilter.value !== 'all') ? 'filteredEmpty' : archived.value ? 'archivedEmpty' : 'empty')
+const emptyKey = computed(() => (Boolean(rawSearch.value.trim()) || statusFilter.value !== 'all' || filters.mine) ? 'filteredEmpty' : archived.value ? 'archivedEmpty' : 'empty')
 const showEmpty = computed(() => !isLoading.value && items.value.length === 0)
 
-const scopes = computed(() => [
-  { value: 'active', label: t('projects.filters.active') },
-  { value: 'archived', label: t('projects.filters.archived') },
-])
-function onFilterChange(v: unknown) {
-  applyPatch({ archived: v === 'archived' })
-}
 function setPage(next: number) {
   if (!hydrated.value || projectList.isFetching.value || next < 1 || next > pages.value) return
   applyPatch({ offset: (next - 1) * PROJECT_PAGE })
@@ -275,6 +270,7 @@ async function openProject(id: number) {
   >
     <template #default="{ view }">
       <!-- Query data is settled before SSR; the shared controls remain disabled until hydration. -->
+      <ProjectListChips :selected="selectedChip" :counts="chipCounts" :archived-available="canListArchived" @select="onChipSelect" />
       <ProjectKpiStrip v-if="hydrated && kpisShown && !archived" :filters="summaryFilters" />
       <SharedListCard>
         <template #filters>
@@ -289,15 +285,6 @@ async function openProject(id: number) {
               </template>
               <template #default>
                 <USelect
-                  class="w-full md:w-44"
-                  data-testid="projects-status-filter"
-                  :disabled="!hydrated"
-                  :items="statusOptions"
-                  :model-value="statusFilter"
-                  :aria-label="t('projects.filters.statusLabel')"
-                  @update:model-value="onStatusChange"
-                />
-                <USelect
                   class="w-full md:w-48"
                   data-testid="projects-sort"
                   :disabled="!hydrated"
@@ -305,16 +292,6 @@ async function openProject(id: number) {
                   :model-value="sort"
                   :aria-label="t('projects.filters.sortLabel')"
                   @update:model-value="onSortChange"
-                />
-              </template>
-              <template #view>
-                <SharedSegmentedControl
-                  v-if="canListArchived"
-                  data-testid="projects-scope"
-                  :label="t('projects.filters.scopeLabel')"
-                  :items="scopes"
-                  :model-value="archived ? 'archived' : 'active'"
-                  @update:model-value="onFilterChange"
                 />
               </template>
             </FilterBar>

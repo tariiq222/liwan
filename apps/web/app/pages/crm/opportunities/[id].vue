@@ -227,7 +227,7 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
             <dt class="text-xs text-muted">{{ t('crm.opportunities.record.probability') }}</dt>
             <dd v-if="canWork" class="flex flex-wrap items-center gap-2">
               <UInputNumber class="w-28" size="sm" :model-value="probability" :min="0" :max="100" :step="5" :disabled="busy" :aria-label="t('crm.opportunities.record.probability')" data-testid="crm-probability-input" @update:model-value="value => (probability = value ?? 0)" />
-              <UButton size="xs" variant="outline" class="rounded-full" :label="t('crm.opportunities.record.probabilitySave')" :disabled="busy || probability === record.probability" :loading="actions.patch.isPending.value" data-testid="crm-probability-save" @click="saveProbability" />
+              <UButton size="xs" variant="outline" :label="t('crm.opportunities.record.probabilitySave')" :disabled="busy || probability === record.probability" :loading="actions.patch.isPending.value" data-testid="crm-probability-save" @click="saveProbability" />
             </dd>
             <dd v-else class="font-semibold">{{ record.probability }}%</dd>
           </div>
@@ -236,7 +236,7 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
             <dd class="flex flex-wrap items-center gap-2">
               <span class="font-semibold">{{ record.user?.name ?? t('crm.opportunities.tag.pool') }}</span>
               <UPopover v-if="canAssign && pending">
-                <UButton size="xs" variant="outline" class="rounded-full" :label="t('crm.opportunities.record.assignAction')" :disabled="busy" data-testid="crm-assign-open" />
+                <UButton size="xs" variant="outline" :label="t('crm.opportunities.record.assignAction')" :disabled="busy" data-testid="crm-assign-open" />
                 <template #content>
                   <div class="grid w-64 gap-3 p-3">
                     <SharedPersonPicker v-model="assignee" value-key="user_id" endpoint="/api/v1/crm/agents" :aria-label="t('crm.opportunities.record.assign')" :disabled="busy" />

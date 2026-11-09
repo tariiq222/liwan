@@ -1,22 +1,23 @@
 <script setup lang="ts">
 /*
  * A titled block of a record's main column; `id` makes it a link target (`#milestones`). One card recipe for every
- * block that is a card (DESIGN.md §6): radius `rounded-card`, the hairline ring of the list card, a header row of
+ * block that is a card (DESIGN.md §6): radius `rounded-card`, the 1.5px hairline border of the list card, a header row of
  * `--liwan-card-pad` inline padding, and the body padded by `--liwan-card-pad`.
  * `variant` picks the look:
- *   flat    no card: a page-section title (text-base) over the content (default)
+ *   flat    no card: a page-section title (Rubik, with the Sadu diamond) over the content (default)
  *   panel   the card: a panel title (text-sm) in a header row with a hairline below, a padded body
  *   list    a card whose body has no padding and divides its rows, for a list or a table inside the card
  *   tinted  secondary information: a soft elevated fill, no ring
  *   action  the one call to action of a page (a decision, a pending approval): primary tint, primary hairline and an inline-start accent
+ * Every title carries the tiny Sadu diamond (`liwan-sadu-diamond-mark`).
  * `title` is optional on the card variants (a card with no heading draws no header row).
  */
 type Variant = 'flat' | 'panel' | 'list' | 'tinted' | 'action'
 const CARD: Record<Exclude<Variant, 'flat'>, string> = {
-  panel: 'bg-default ring ring-default',
-  list: 'overflow-hidden bg-default ring ring-default',
+  panel: 'liwan-card',
+  list: 'liwan-card overflow-hidden',
   tinted: 'bg-elevated/40',
-  action: 'border-s-4 border-s-primary bg-primary/5 ring ring-primary/30',
+  action: 'border-[1.5px] border-primary/30 border-s-4 border-s-primary bg-primary/5',
 }
 const props = withDefaults(defineProps<{ title?: string; description?: string; id?: string; variant?: Variant }>(), { variant: 'flat' })
 const generated = useId()
@@ -38,7 +39,7 @@ const bordered = computed(() => props.variant === 'panel' || props.variant === '
       :class="card ? ['flex flex-wrap items-center justify-between gap-3 px-(--liwan-card-pad) py-3', bordered && 'border-b border-default'] : 'flex flex-wrap items-start justify-between gap-3'"
     >
       <div class="min-w-0">
-        <h2 v-if="props.title" :id="headingId" :class="card ? 'text-sm font-semibold text-highlighted' : 'text-base font-semibold text-highlighted'">{{ props.title }}</h2>
+        <h2 v-if="props.title" :id="headingId" :class="['liwan-sadu-diamond-mark', card ? 'text-sm font-semibold text-highlighted' : 'font-display text-xl font-bold tracking-tight text-highlighted']">{{ props.title }}</h2>
         <p v-if="props.description" class="text-sm text-muted" :class="{ 'mt-1': props.title }">{{ props.description }}</p>
       </div>
       <div v-if="$slots.actions" class="flex shrink-0 flex-wrap items-center gap-2"><slot name="actions" /></div>

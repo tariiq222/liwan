@@ -80,17 +80,32 @@ The Bash guard reads the upstream Odoo checkout from `LIWAN_ODOO_SRC` (default `
 
 ## Fast local loop
 
-This section owns the depth of local checks. Run focused local checks for the changed behavior and
-affected interfaces (`npm run check:fast`, `npm run test:odoo`). GitHub Actions runs the complete
-required suite and owns the final merge gate; do not repeat the full local `npm test` for each
-change or for each integration. Run it locally only to diagnose a failure or to cover material
-behavior CI does not exercise. Keep every required GitHub check and report local and remote
-evidence separately. The complete `npm test` sequence (it includes `apps/vendor-admin`) remains
-binding in CI before merge.
+This section owns the depth of local checks. For a pull request, GitHub Actions runs the required
+tests and type checks before merge. A failed PR run costs a full CI round (tens of minutes), so the
+goal before Ready is a PR that passes on its first run. For a routine change, review the actual
+diff, run the applicable local Git and architecture policies, and run the focused checks of the
+changed part only: `npm run check:fast` (it selects by changed layer), or the specific test files,
+type check or `npm run test:odoo -- --addons <changed>` that cover the diff. These take minutes;
+leave the broad suites (full `npm test`, every Odoo module, Playwright, RTL stories) to CI.
+
+Before marking Ready, run focused local verification for changes to authentication, permissions,
+tenant isolation, payments, migrations, or operations that can lose or corrupt persisted data.
+Also verify locally when changing how CI selects or gates checks, when the selected PR stages
+leave a material coverage gap, or when the task or layer rules require specific evidence. Select
+checks that prove the affected behavior and relevant failure or refusal paths. Odoo checks use
+isolated scratch databases. For local-only integration, verify the combined result locally
+because there is no PR run.
+
+Record which local checks ran and which coverage was left to CI. Reuse recorded local evidence
+when it covers the candidate and the relevant inputs are unchanged. The orchestrator runs the
+checks that depend on the combined candidate when earlier evidence cannot cover it. Run a broad
+local suite only when focused checks cannot diagnose a failure or cover a material gap. GitHub
+still requires successful `ci-result` for the current PR head. The full run on `main` checks the
+merged result and supplies release evidence.
 
 | Command | What it does |
 | --- | --- |
-| `npm run check:fast` | Policy checks always, plus ruff, tools tests, contracts/web tests and the web type check only for the layers that changed against `main` (`tools/check_fast.py`). |
+| `npm run check:fast` | Optional local shortcut: policy checks and checks for layers changed against `main` (`tools/check_fast.py`). Root `package.json`, `package-lock.json` or the CI workflow also select the full `npm test`. Use `-- --dry-run` to see the plan without running checks. |
 | `npm run test:odoo` | Odoo tests of the changed addons and their dependents on a scratch database cloned from a cached template (`tools/odoo_test.py`). Options: `--addons a,b`, `--all`, `--base`, `--dry-run`, `--keep-db`. |
 | `python3 -B tools/test_slot.py -- <command>` | Machine-wide test queue shared by every session and worktree: at most `LIWAN_TEST_SLOTS` (default 2) heavy checks run at once, the rest wait and print who holds the slots. `npm test`, `npm run test:odoo`, `npm run check:fast`, the `npm run e2e*` scripts and `npm -w apps/web run lint` already take a slot; wrap any other heavy command (a direct `odoo-bin` test run, `vitest`, Playwright, `vue-tsc`) in it. A command inside a held slot takes no second one. `--status` lists the holders. From a worktree that predates it, call it by the main checkout path. |
 | `npm run wt -- new <area>-<slug> --owner <who> --task <what> --scope <path>` | New task worktree with its own `node_modules`/`.nuxt`, free ports and a scratch DB name in the git-ignored `.env.worktree`, and its ownership claim; accepts any valid branch name as a base and refuses scopes that overlap another active claim unless `--allow-overlap "<reason>"` (`tools/wt.py`, rules in `docs/parallel-work.md`). |
@@ -101,7 +116,7 @@ binding in CI before merge.
 | `npm run check:audit` | `npm audit` gate: fails on a high or critical advisory in production dependencies, or a critical one in any dependency. Needs registry access. The CI `static` stage runs it when a change touches `package.json` or `package-lock.json`; the daily `audit` workflow runs it on `main`. |
 | `npm run check:semgrep` | Semgrep (`p/python`, `p/typescript`, `p/secrets`) on the source files changed against `main`, tests and generated files excluded (`tools/semgrep_gate.py`). ERROR and secrets findings fail; WARNING is listed only. Needs network for the rulesets, sends no usage data, exits 3 when semgrep or the registry is unavailable. Also runs in the CI `static` stage. |
 | `npm run review:jev -- --base <ref> --task "<what the change does>"` | Advisory Jev quality scores (score and confidence per dimension, plus priorities) for the diff against the base (`tools/jev_review.mjs`; `--diff <file>`, `--json`, `--previous <file>` for a before/after delta). Needs the local `~/code/jev-review` server and a key in `JEV_API_KEY` or `~/.config/jev-review/api-key`; refuses diffs that touch secret-bearing paths; always exits 0. Run once per non-trivial review (see `REVIEW.md`); never a gate. |
-| `npm run test:rtl` | Builds Storybook and opens every story in Arabic at 1280 px and 390 px: no page error, `dir=rtl`, no sideways page scroll (`apps/web/e2e-rtl`, config `apps/web/playwright.rtl.config.ts`). Stories that cannot render are listed with a reason in `KNOWN_BROKEN` and only that list may shrink. Runs in CI as the `rtl-stories` stage. |
+| `npm run test:rtl` | Builds Storybook and opens every story in Arabic at 1280 px and 390 px: no page error, `dir=rtl`, no sideways page scroll (`apps/web/e2e-rtl`, config `apps/web/playwright.rtl.config.ts`). Stories that cannot render are listed with a reason in `KNOWN_BROKEN` and only that list may shrink. Runs in CI as the `rtl-stories` stage, a matrix of four shards (`deploy/ci/rtl-stories.sh --shard k/N`, Playwright `--shard=k/N` over the story tests, each job building Storybook itself); `fullyParallel` in the config splits the one spec file per test. |
 
 Optional local git hooks: `npm run hooks:install` writes `pre-commit` (secret guard, docs and
 architecture policy, plus ui policy and ruff for staged files) and `commit-msg` (the
@@ -152,8 +167,7 @@ remain separate from a review report.
 
 ### Change-scoped stages
 
-The twelve stages other than `e2e-odoo` take about 33 minutes (`e2e-odoo` adds about 9), so a pull request runs only the stages its changed files can
-affect. The path-to-stage map is `RULES` in `tools/ci_scope.py`: the first matching rule wins, `static`
+A pull request runs only the stages its changed files can affect. The path-to-stage map is `RULES` in `tools/ci_scope.py`: the first matching rule wins, `static`
 always runs, and **a path with no rule runs all thirteen stages** (that includes any `tools/` file not
 listed in `STATIC_ONLY_TOOLS`). Preview a selection, with the rule behind each changed path:
 
@@ -175,21 +189,23 @@ and `merge_group` events; a merge-queue entry is selected from the queue base to
   `tools/test_ci_scope.py` pins both lists. A surface joins the triggers when a spec that drives it joins the stage.
 - A file under `odoo-addons/<addon>/` selects only `static` and the Odoo stages: `ai-service`, `control-plane`,
   `vendor-admin`, `e2e-mock` and `rtl-stories` read no addon code, so they run for an addon change on `main`.
+- A change limited to `apps/web/server/` does not select `rtl-stories`: the Storybook build imports no
+  server file.
 - The `odoo` stages reach only the affected release modules: the addons changed under `odoo-addons/<addon>/`
   plus every release addon that depends on them, directly or transitively (`depends` in each manifest). A
   changed path outside `odoo-addons/` that feeds an Odoo stage (`.github/`, `deploy/`, `tools/catalog_check.py`,
   `packages/contracts/`, `package.json`, an unmapped file) affects all modules. `ci_scope.py --pull-request
   --modules` prints the list (empty means all).
 - `odoo` still installs the whole release but runs only the affected modules' tests, split by test weight over
-  as few shards as the weight needs: 1 shard up to a third of the release's total test weight, 2 up to two
-  thirds, otherwise 3 (`shard_count_for` in `tools/odoo_shards.py`). The scope job passes the list to the shards
+  as few shards as the weight needs: one shard per sixth of the release's total test weight, up to 6
+  (`shard_count_for` in `tools/odoo_shards.py`). The scope job passes the list to the shards
   as `ODOO_TEST_MODULES` (`ODOO_TEST_MODULES=a,b deploy/ci/odoo.sh --shard k/N`).
 - `odoo-app-standalone` and `odoo-bridge` run only the applications and bridges among the affected modules
   (a bridge is affected through either side); with none, the stage is not selected, and `ci-result` does not
   expect it.
 
 Every push to `main`, the nightly schedule and `workflow_dispatch` with `full: true` run all thirteen stages with all
-three shards and every isolation group, so a cross-module regression the narrowed pull request could not see is
+six shards and every isolation group, so a cross-module regression the narrowed pull request could not see is
 caught on `main`.
 
 A manual `workflow_dispatch` run with `full: true` runs all thirteen stages whatever the change. A
@@ -205,21 +221,23 @@ light static profile if the changed files are valid UTF-8 and at most 1 MiB each
 It checks new relative links in changed Markdown, the owning instruction
 documents' references, Git and
 architecture rules, tracked secrets and retired terms, without installing npm
-dependencies or Chromium. Deletions, renamed paths, binary files, changes in
+dependencies or Chromium; only the `policies` part of `static` runs them. Deletions, renamed paths, binary files, changes in
 `docs/api/` or `docs/design-system/`, and any mixed or unknown diff use the full
 static profile. The job and required `ci-result` are the same. Pushes to `main`,
 scheduled runs, manual runs and merge groups always use the full static profile.
 
-### Stage pass cache
+### CI job pass cache
 
-In a pull request or merge-queue entry, a stage that already passed on exactly the same inputs is not run again.
-Every stage job except `static` ends with `.github/actions/stage-pass`, which saves a key from
+In a pull request or merge-queue entry, an individual job that already passed on exactly the same inputs
+is omitted from the next run. `static` always runs with three parallel parts
+(`deploy/ci/static.sh policies|tests|types`; without an argument the script runs all three in order).
+Every other stage job ends with `.github/actions/stage-pass`, which saves a key from
 `python3 -B tools/ci_stage_cache.py key`: a hash of the tracked files the stage reads (the `RULES` of
-`tools/ci_scope.py`) and its matrix entry. The `scope` job leaves out every stage whose jobs all saved a key on the
-same ref; a matrix stage is skipped only when every entry has one, and a failed lookup skips nothing. A push to
-`main`, the nightly run and `workflow_dispatch` run every selected stage. `e2e-mock` is a matrix of
-`E2E_MOCK_SHARDS` (`tools/ci_stage_cache.py`; the `scope` job emits it as `e2e-mock-shards`) and is skipped only
-when every shard saved its `k/N` key.
+`tools/ci_scope.py`) and its matrix entry. The `scope` job trusts keys from the same ref only.
+It logs the reused jobs and sends GitHub the remaining matrix entries. A shard retains its original
+number and total: if only shard 4 of 6 is still required, it runs as `4/6`. A shared input change invalidates
+the keys of every job that reads it. When every job of a stage is reused, the stage is omitted.
+A failed cache lookup reuses nothing. Pushes to `main`, nightly runs and manual runs execute every selected job.
 
 ### Red `main` alert
 
@@ -235,7 +253,7 @@ Removing the merged task's worktree, branch and scratch database is `python3 -B 
 
 ### Stage notes
 
-The `odoo` stage covers the release modules and is a matrix of three shards (a job still named `odoo` to
+The `odoo` stage covers the release modules and is a matrix of six shards (a job still named `odoo` to
 `ci-result`, so it stays one of the thirteen stages). Every shard installs the whole release module list on
 its own Postgres service and runs only its share of the module tests (`--test-tags`), so cross-module
 behaviour is exercised in each. `tools/odoo_shards.py` splits the release modules by their `def test_`

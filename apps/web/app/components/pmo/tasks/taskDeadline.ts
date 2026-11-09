@@ -23,3 +23,19 @@ export function deadlineTagView(task: Pick<Task, 'date_deadline' | 'days_remaini
   const date = task.date_deadline ? formatDate(task.date_deadline) : undefined
   return { ...tag, label: task.is_closed && date ? date : deadlineLabel(days, t), title: date }
 }
+
+/** A task due within this many days (or overdue) is coloured in the table. */
+export const DEADLINE_SOON_DAYS = 3
+
+/**
+ * The deadline cell of the table: the plain date, coloured only when an unfinished task is overdue (`overdue`) or due
+ * within three days (`soon`); a finished task and a far deadline stay plain. Null without a deadline (the cell shows a dash).
+ */
+export function deadlineCellView(task: Pick<Task, 'date_deadline' | 'days_remaining' | 'is_closed'>, now: Date = new Date()) {
+  const days = taskDaysRemaining(task, now)
+  if (days === null) return null
+  const date = formatDate(task.date_deadline)
+  if (!date) return null
+  const tone = task.is_closed ? null : days < 0 ? 'overdue' as const : days <= DEADLINE_SOON_DAYS ? 'soon' as const : null
+  return { text: date, tone }
+}

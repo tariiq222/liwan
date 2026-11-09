@@ -46,7 +46,6 @@ describe('shared section hierarchy across applications', () => {
     expect(users?.children?.find(child => child.id === 'stopped')).toMatchObject({ active: true, to: { path: '/settings/team/users', query: { status: 'stopped' } } })
     const company = menu.sections.flatMap(section => section.items).find(row => row.id === 'settings-company')!
     expect(company.children?.some(child => JSON.stringify(child.to) === JSON.stringify({ path: '/settings/company', hash: '#branding' }))).toBe(true)
-    expect(menu.views).toEqual([])
   })
   it('retains a permitted child when its section parent is filtered out, without exposing that parent destination', () => {
     const menu = buildModule('finance', '/finance/sales/invoices', ['liwan.internal', 'finance.partners.read'])
@@ -92,7 +91,6 @@ describe('unified application navigation', () => {
     expect(item).toBeDefined()
     expect(item.sections.flatMap(section => section.items.map(row => row.to))).toEqual(['/meetings', '/meetings/follow-up', '/meetings/calendar', '/meetings/series'])
     expect(item.sections.flatMap(section => section.items).find(row => row.id === 'meetings')?.children?.map(view => view.to)).toContainEqual({ path: '/meetings', query: { state: 'done' } })
-    expect(item.views).toEqual([])
     expect(item.actions.filter(action => typeof action.to === 'object' && action.to.path === '/meetings/new')).toHaveLength(1)
   })
   it('does not carry an operations filter into an unopened meetings menu', () => {
@@ -125,22 +123,6 @@ describe('unified application navigation', () => {
     const item = build('/meetings', { state: 'done' }).find(item => item.id === 'meetings')!
     expect(item.sections.flatMap(section => section.items).find(link => link.to === '/meetings')?.active).toBe(false)
   })
-  it('disambiguates the projects landing link while retaining overview and task destinations', () => {
-    const actor = { capabilities: ['liwan.internal', 'pmo.projects.read', 'pmo.tasks.read'] }
-    const item = applicationNavigation({ identity: actor, route: route('/projects'), activeId: 'projects', contextLinks: contextLinksForModule('projects', actor, '/projects'), translate: key => key }).find(item => item.id === 'projects')!
-    const links = item.sections.flatMap(section => section.items)
-    expect(links.find(link => link.to === '/projects')).toMatchObject({ label: 'nav.listOf' })
-    expect(links.filter(link => link.label === item.label)).toEqual([])
-    expect(links.map(link => link.to)).toContain('/projects/dashboard')
-    expect(links.map(link => link.to)).toContain('/tasks')
-  })
-  it('View all clears project filters while preserving the chosen layout', () => {
-    const actor = { capabilities: ['liwan.internal', 'pmo.projects.read'] }
-    const current = route('/projects', { mine: '1', status: 'at_risk', view: 'board' })
-    const links = contextLinksForModule('projects', actor, '/projects').map(link => link.to === '/projects' ? { ...link, to: { path: '/projects', query: { mine: '1', status: 'at_risk', view: 'board' } } } : link)
-    const item = applicationNavigation({ identity: actor, route: current, activeId: 'projects', contextLinks: links, translate: key => key }).find(item => item.id === 'projects')!
-    expect(item.sections.flatMap(section => section.items).find(link => link.id === 'projects')?.to).toEqual({ path: '/projects', query: { view: 'board' } })
-  })
   it('keeps the Tasks landing page reachable alongside its work destination', () => {
     const actor = { capabilities: ['liwan.internal', 'tasks.tasks.read'] }
     const item = applicationNavigation({ identity: actor, route: route('/work'), activeId: 'tasks', contextLinks: contextLinksForModule('tasks', actor, '/work'), translate: key => key }).find(item => item.id === 'tasks')!
@@ -148,36 +130,54 @@ describe('unified application navigation', () => {
     expect(links.find(link => link.to === '/my-tasks')).toMatchObject({ label: 'nav.viewAll', active: false })
     expect(links.map(link => link.to)).toContain('/work')
   })
-  it('marks only Archive selected on the archived project list', () => {
-    const actor = { capabilities: ['liwan.internal', 'pmo.projects.read', 'pmo.projects.manage'] }
-    const item = applicationNavigation({ identity: actor, route: route('/projects', { archived: '1' }), activeId: 'projects', contextLinks: contextLinksForModule('projects', actor, '/projects').map(link => ({ ...link, active: link.to === '/projects' })), translate: key => key }).find(item => item.id === 'projects')!
-    expect(item.sections.flatMap(section => section.items).flatMap(row => row.children ?? []).find(action => action.id === 'archived-projects')?.active).toBe(true)
-    expect(item.sections.flatMap(section => section.items).find(link => link.to === '/projects')?.active).toBe(false)
-  })
   it('preserves the Tasks cards layout on its fallback landing link', () => {
     const actor = { capabilities: ['liwan.internal', 'tasks.tasks.read'] }
     const item = applicationNavigation({ identity: actor, route: route('/my-tasks', { view: 'cards', q: 'test' }), activeId: 'tasks', contextLinks: contextLinksForModule('tasks', actor, '/my-tasks'), translate: key => key }).find(item => item.id === 'tasks')!
     expect(item.sections.flatMap(section => section.items).find(link => link.label === 'nav.viewAll')?.to).toEqual({ path: '/my-tasks', query: { view: 'cards' } })
   })
-  it('puts task filters and archive under Tasks while retaining View all and global creation actions', () => {
-    const actor = { capabilities: ['liwan.internal', 'pmo.projects.read', 'pmo.projects.create', 'pmo.tasks.read', 'pmo.tasks.create'] }
-    const current = route('/tasks', { view: 'board', deadline: 'today' })
-    const item = applicationNavigation({ identity: actor, route: current, activeId: 'projects', contextLinks: contextLinksForModule('projects', actor, '/tasks').map(link => ({ ...link, active: link.to === '/tasks' })), translate: key => key }).find(item => item.id === 'projects')!
-    const tasks = item.sections.flatMap(section => section.items).find(row => row.id === 'tasks')!
-    expect(tasks.children?.find(child => child.id === 'tasks-all')).toMatchObject({ label: 'nav.viewAll', to: { path: '/tasks', query: { view: 'board' } }, active: false })
-    expect(tasks.children?.find(child => child.id === 'today')).toMatchObject({ to: { path: '/tasks', query: { view: 'board', deadline: 'today' } }, active: true })
-    expect(tasks.children?.some(child => child.id === 'archived-tasks')).toBe(true)
-    expect(item.views).toEqual([])
-    expect(item.actions.map(action => action.id)).toEqual(['new-project', 'new-task-pmo'])
-    const projects = item.sections.flatMap(section => section.items).find(row => row.id === 'projects')!
-    expect(projects.children?.find(child => child.id === 'mine')).toMatchObject({ to: { path: '/projects', query: { mine: '1' } }, active: false })
+})
+
+describe('the flat projects menu', () => {
+  const actor = { capabilities: ['liwan.internal', 'pmo.projects.read', 'pmo.projects.create', 'pmo.tasks.read', 'pmo.tasks.create'] }
+  const projectsMenu = (path: string, query: Record<string, unknown> = {}, extra: Partial<Parameters<typeof applicationNavigation>[0]> = {}, identity = actor) =>
+    applicationNavigation({ identity, route: route(path, query), activeId: 'projects', contextLinks: contextLinksForModule('projects', identity, path), translate: key => key, ...extra }).find(item => item.id === 'projects')!
+  const rows = (item: ReturnType<typeof projectsMenu>) => item.sections.flatMap(section => section.items)
+
+  it('lists one level of pages with the create action first and no branches', () => {
+    const item = projectsMenu('/projects')
+    expect(item.actions.map(action => action.id)).toEqual(['new-project'])
+    expect(item.actions[0]).toMatchObject({ primary: true, to: { path: '/projects/new', query: { returnTo: '/projects' } } })
+    expect(rows(item).map(row => row.id)).toEqual(['project-dashboard', 'projects', 'tasks', 'projects-attention'])
+    expect(rows(item).every(row => !row.children)).toBe(true)
   })
-  it('preserves the selected task preset and board layout on a trailing-slash URL', () => {
-    const actor = { capabilities: ['liwan.internal', 'pmo.projects.read', 'pmo.tasks.read'] }
-    const current = route('/tasks/', { view: 'board', deadline: 'today' })
-    const item = applicationNavigation({ identity: actor, route: current, activeId: 'projects', contextLinks: contextLinksForModule('projects', actor, current.path).map(link => ({ ...link, active: link.id === 'tasks' })), translate: key => key }).find(item => item.id === 'projects')!
-    const tasks = item.sections.flatMap(section => section.items).find(row => row.id === 'tasks')!
-    expect(tasks.children?.find(child => child.id === 'today')).toMatchObject({ active: true, to: { path: '/tasks', query: { view: 'board', deadline: 'today' } } })
-    expect(tasks.children?.find(child => child.id === 'tasks-all')?.to).toEqual({ path: '/tasks', query: { view: 'board' } })
+  it('points my tasks at the assigned list and needs attention at the combined status filter', () => {
+    const item = projectsMenu('/projects')
+    expect(rows(item).find(row => row.id === 'tasks')?.to).toEqual({ path: '/tasks', query: { assignee: 'me' } })
+    expect(rows(item).find(row => row.id === 'projects-attention')?.to).toEqual({ path: '/projects', query: { status: 'attention' } })
+  })
+  it('lights the projects row on the list and needs attention on its preset, never both', () => {
+    expect(rows(projectsMenu('/projects')).filter(row => row.active).map(row => row.id)).toEqual(['projects'])
+    expect(rows(projectsMenu('/projects', { mine: '1', status: 'done' })).filter(row => row.active).map(row => row.id)).toEqual(['projects'])
+    expect(rows(projectsMenu('/projects', { status: 'attention' })).filter(row => row.active).map(row => row.id)).toEqual(['projects-attention'])
+    expect(rows(projectsMenu('/projects/dashboard')).filter(row => row.active).map(row => row.id)).toEqual(['project-dashboard'])
+    expect(rows(projectsMenu('/tasks/', { assignee: 'me' })).filter(row => row.active).map(row => row.id)).toEqual(['tasks'])
+  })
+  it('keeps the chosen layout when a row leads to the page that is open', () => {
+    expect(rows(projectsMenu('/tasks', { view: 'board', assignee: 'me' })).find(row => row.id === 'tasks')?.to).toEqual({ path: '/tasks', query: { assignee: 'me', view: 'board' } })
+    expect(rows(projectsMenu('/projects', { view: 'table', status: 'done' })).find(row => row.id === 'projects')?.to).toEqual({ path: '/projects', query: { view: 'table' } })
+    expect(rows(projectsMenu('/projects/dashboard', { view: 'board' })).find(row => row.id === 'tasks')?.to).toEqual({ path: '/tasks', query: { assignee: 'me' } })
+  })
+  it('draws only the counts that have arrived and the recent projects under their own heading', () => {
+    const item = projectsMenu('/projects/7/tasks', {}, { sidebarCounts: { projects: 12, 'projects-attention': 0 }, recents: [{ id: 7, name: 'ألفا' }, { id: 3, name: 'بيتا' }] })
+    expect(rows(item).filter(row => row.count !== undefined).map(row => [row.id, row.count])).toEqual([['projects', 12], ['projects-attention', 0]])
+    const recent = item.sections.find(section => section.title === 'nav.recentProjects')!
+    expect(recent.items.map(row => [row.label, row.to, row.active])).toEqual([['ألفا', '/projects/7', true], ['بيتا', '/projects/3', false]])
+    expect(item.sections.filter(section => section.title).length).toBe(1)
+  })
+  it('omits the heading without recent projects and every row the person may not open', () => {
+    const item = projectsMenu('/projects', {}, {}, { capabilities: ['liwan.internal', 'pmo.projects.read'] })
+    expect(item.sections.length).toBe(1)
+    expect(rows(item).map(row => row.id)).toEqual(['project-dashboard', 'projects', 'projects-attention'])
+    expect(item.actions).toEqual([])
   })
 })

@@ -179,7 +179,8 @@ test.describe('Liwan AI on the mock stack', () => {
     // Touch targets: the toggle, "new", both view buttons, the rows and their menu buttons are at least 44px tall.
     for (const target of [toggle, page.getByTestId('ai-new-run'), page.getByTestId('ai-view-active'), page.getByTestId('ai-view-archived'), firstItem, body.getByRole('button', { name: /خيارات المحادثة/ }).first()]) {
       const box = (await target.boundingBox())!
-      expect(box.height, await target.evaluate(el => el.outerHTML.slice(0, 120))).toBeGreaterThanOrEqual(44)
+      // The browser can report 43.99998px for a 44px target during the page's translation.
+      expect(box.height, await target.evaluate(el => el.outerHTML.slice(0, 120))).toBeGreaterThanOrEqual(44 - 0.001)
     }
     if (process.env.AI_SHOTS_DIR) await page.screenshot({ path: `${process.env.AI_SHOTS_DIR}/ai-history-375-open.png`, fullPage: true })
 

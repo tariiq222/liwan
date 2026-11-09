@@ -2,13 +2,13 @@
 from odoo import http
 from odoo.http import request
 
+from .status_filter import project_status_domain
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     require_capabilities,
     requires_feature,
 )
-from odoo.addons.liwan_pmo.models.project_project import STATUS_VALUES
 from odoo.addons.liwan_pmo.serializers.project_reports import (
     build_dashboard_summary,
     build_project_dashboard_analytics,
@@ -24,11 +24,7 @@ class ProjectReportsController(http.Controller):
         unknown = set(args) - allowed_query
         if unknown:
             raise ApiError(400, 'unsupported_filter', f"unsupported query parameter {sorted(unknown)[0]!r}")
-        status = args.get('status')
-        if status is not None and status != 'unset' and status not in STATUS_VALUES:
-            raise ApiError(
-                422, 'invalid', f"status must be one of {sorted(STATUS_VALUES)} or 'unset'", field='status',
-            )
+        status_domain = project_status_domain(args.get('status'))
         mine = args.get('mine')
         if mine is not None and mine not in ('1', 'true', '0', 'false'):
             raise ApiError(422, 'invalid', "mine must be '1', 'true', '0' or 'false'", field='mine')
@@ -38,11 +34,7 @@ class ProjectReportsController(http.Controller):
             domain.append(('user_id', '=', request.env.uid))
         if q:
             domain.append(('name', 'ilike', q))
-        if status == 'unset':
-            domain.append(('last_update_status', '=', 'to_define'))
-        elif status:
-            domain.append(('last_update_status', '=', status))
-        return domain
+        return domain + status_domain
 
     @http.route('/api/v1/reports/projects/summary', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

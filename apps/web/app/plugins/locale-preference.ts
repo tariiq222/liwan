@@ -1,6 +1,7 @@
+import { LOCALE_COOKIE } from '@/composables/useLocaleChoice'
+
 // The language switch in the account menu is saved in a cookie. `detectBrowserLanguage` is off
 // (Arabic is the default), so this plugin applies the saved choice before the first render.
-export const LOCALE_COOKIE = 'liwan-locale'
 export const LOCALE_CODES = ['ar', 'en'] as const
 
 export default defineNuxtPlugin({

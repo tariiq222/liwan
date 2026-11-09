@@ -69,6 +69,8 @@ const activeFilterCount = computed(() => [search.value.trim(), jobId.value, stag
 
 const jobOptions = computed(() => (jobs.data.value?.items ?? []).map(job => ({ value: String(job.id), label: job.name })))
 const stageOptions = computed(() => (stages.data.value?.items ?? []).map(stage => ({ value: String(stage.id), label: stage.name })))
+const jobName = computed(() => jobOptions.value.find(option => option.value === String(jobId.value))?.label ?? t('hrRecruitment.columns.job'))
+const stageName = computed(() => stageOptions.value.find(option => option.value === String(stageId.value))?.label ?? t('hrRecruitment.columns.stage'))
 const statusOptions = computed(() => STATUS_FILTERS.map(status => ({
   value: status,
   label: t(`hrRecruitment.statusFilter.${status}`),
@@ -77,11 +79,11 @@ const statusOptions = computed(() => STATUS_FILTERS.map(status => ({
 
 const columns = computed<TableColumn<HrApplicant>[]>(() => [
   { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
-  { accessorKey: 'partner_name', header: t('hrRecruitment.columns.applicant') },
+  { accessorKey: 'partner_name', header: t('hrRecruitment.columns.applicant'), meta: { title: true } },
   { accessorKey: 'job', header: t('hrRecruitment.columns.job') },
   { accessorKey: 'stage', header: t('hrRecruitment.columns.stage') },
   { accessorKey: 'status', header: t('hrRecruitment.columns.status') },
-  { accessorKey: 'priority', header: t('hrRecruitment.columns.priority'), meta: { class: { th: 'w-[92px]', td: 'w-[92px]' } } },
+  { accessorKey: 'priority', header: t('hrRecruitment.columns.priority'), meta: { class: { th: 'w-[92px] max-[1365px]:hidden', td: 'w-[92px] max-[1365px]:hidden' } } },
 ])
 
 function writeQuery(patch: Partial<{ q: string; job: number | null; stage: number | null; status: HrApplicantStatusFilter; offset: number }>) {
@@ -133,33 +135,19 @@ function applicantTo(applicant: HrApplicant) {
 
     <SharedListCard>
       <template #filters>
-        <div class="liwan-page-stack">
-          <SharedSegmentedControl
-            :model-value="status"
-            :items="statusOptions"
-            :label="t('hrRecruitment.columns.status')"
-            :disabled="!hydrated"
-            @update:model-value="writeQuery({ status: statusParam($event), offset: 0 })"
-          />
-          <SharedFilterBar
-            embedded
-            class="w-full"
-            :active-count="activeFilterCount"
-            :disabled="!hydrated"
-            @clear="clearFilters"
-          >
-            <template #search>
-              <UInput
-                :model-value="search"
-                class="min-w-48 flex-1"
-                icon="i-lucide-search"
-                :disabled="!hydrated"
-                :aria-label="t('hrRecruitment.searchApplicants')"
-                :placeholder="t('hrRecruitment.searchApplicants')"
-                data-testid="hr-recruitment-search"
-                @update:model-value="writeQuery({ q: String($event ?? ''), offset: 0 })"
-              />
-            </template>
+        <SharedFilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+          <template #search>
+            <UInput
+              :model-value="search"
+              icon="i-lucide-search"
+              :disabled="!hydrated"
+              :aria-label="t('hrRecruitment.searchApplicants')"
+              :placeholder="t('hrRecruitment.searchApplicants')"
+              data-testid="hr-recruitment-search"
+              @update:model-value="writeQuery({ q: String($event ?? ''), offset: 0 })"
+            />
+          </template>
+          <SharedFilterPopover :count="(jobId ? 1 : 0) + (stageId ? 1 : 0)" :disabled="!hydrated">
             <SharedFilterField :label="t('hrRecruitment.columns.job')" for="hr-recruitment-job">
               <USelect
                 id="hr-recruitment-job"
@@ -184,12 +172,21 @@ function applicantTo(applicant: HrApplicant) {
                 @update:model-value="writeQuery({ stage: $event ? Number($event) : null, offset: 0 })"
               />
             </SharedFilterField>
-            <template #active>
-              <SharedFilterChip v-if="search.trim()" :label="t('hrRecruitment.searchValue', { value: search })" @remove="writeQuery({ q: '', offset: 0 })" />
-              <SharedFilterChip v-if="status !== 'all'" :label="t(`hrRecruitment.statusFilter.${status}`)" @remove="writeQuery({ status: 'all', offset: 0 })" />
-            </template>
-          </SharedFilterBar>
-        </div>
+          </SharedFilterPopover>
+          <div class="max-w-full overflow-x-auto">
+            <SharedSegmentedControl
+              :model-value="status"
+              :items="statusOptions"
+              :label="t('hrRecruitment.columns.status')"
+              :disabled="!hydrated"
+              @update:model-value="writeQuery({ status: statusParam($event), offset: 0 })"
+            />
+          </div>
+          <template #active>
+            <SharedFilterChip v-if="jobId" :label="jobName" @remove="writeQuery({ job: null, stage: null, offset: 0 })" />
+            <SharedFilterChip v-if="stageId" :label="stageName" @remove="writeQuery({ stage: null, offset: 0 })" />
+          </template>
+        </SharedFilterBar>
       </template>
 
       <SharedPageState :error="applicants.error.value" :keep-content="items.length > 0" @retry="applicants.refetch">

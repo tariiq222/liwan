@@ -102,7 +102,7 @@ test('second user receives real assignment and comment events and read state sur
   const comment = events.find((item: NotificationItem) => item.kind === 'comment') as NotificationItem
 
   await recipientPage.getByTestId('notification-bell').click()
-  await recipientPage.getByTestId('notification-preview').getByRole('link', { name: 'المزيد', exact: true }).click()
+  await recipientPage.getByTestId('slide-over-notifications-all').click()
   await expect(recipientPage).toHaveURL(/\/notifications$/)
   await expect(recipientPage.getByTestId('notification-center')).toBeVisible()
   await expect(recipientPage.getByTestId('notification-count')).toHaveText('2')

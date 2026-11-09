@@ -21,7 +21,7 @@ const { t } = useI18n()
 
 const columns = computed<TableColumn<HrInsurancePlan>[]>(() => [
   { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
-  { accessorKey: 'name', header: t('hrInsurance.columns.plan') },
+  { accessorKey: 'name', header: t('hrInsurance.columns.plan'), meta: { title: true } },
   { accessorKey: 'provider', header: t('hrInsurance.columns.provider') },
   { accessorKey: 'valid_from', header: t('hrInsurance.columns.validity') },
   { accessorKey: 'state', header: t('hrInsurance.columns.state'), meta: { class: { th: 'w-[170px]', td: 'w-[170px]' } } },

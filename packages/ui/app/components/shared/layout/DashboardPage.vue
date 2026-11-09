@@ -27,7 +27,7 @@ const { shown: kpisShown } = useKpiVisibility()
     </SharedPageHeader>
     <div v-if="$slots.filters" data-template="dashboard-filters" class="min-w-0"><slot name="filters" /></div>
     <div v-if="$slots.primary" data-template="dashboard-primary" class="min-w-0"><slot name="primary" /></div>
-    <section v-if="$slots.metrics && (!props.kpiToggle || kpisShown)" :aria-label="t('states.metrics')" data-template="dashboard-metrics" class="grid gap-(--liwan-gap-card) sm:grid-cols-2 xl:grid-cols-4">
+    <section v-if="$slots.metrics && (!props.kpiToggle || kpisShown)" :aria-label="t('states.metrics')" data-template="dashboard-metrics" class="liwan-kpi-grid">
       <slot name="metrics" />
     </section>
     <div data-template="dashboard-charts" class="liwan-card-grid min-w-0 [--liwan-auto-grid-min:24rem]">

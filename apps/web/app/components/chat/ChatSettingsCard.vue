@@ -31,8 +31,8 @@ async function submit() {
 
 <template>
   <SharedSettingsCard id="chat-delete-mode" v-bind="state" :title="t('chatSettings.delete.title')" :description="t('chatSettings.delete.hint')" :can-edit="canEdit" data-testid="chat-delete-mode" @save="submit" @revert="revert" @reload="reload">
-    <UFormField orientation="horizontal" :label="t('chatSettings.delete.label')" name="message_delete_mode">
-      <URadioGroup v-model="draft.message_delete_mode" :items="items" :disabled="locked" data-testid="chat-delete-mode-options" />
-    </UFormField>
+    <SharedSettingRow stacked :label="t('chatSettings.delete.label')" name="message_delete_mode">
+      <SharedOptionCards v-model="draft.message_delete_mode" :options="items" :label="t('chatSettings.delete.label')" :disabled="locked" data-testid="chat-delete-mode-options" />
+    </SharedSettingRow>
   </SharedSettingsCard>
 </template>

@@ -12,7 +12,7 @@ const meta = {
   parameters: {
     layout: 'fullscreen',
     a11y: { test: 'error' },
-    ...storyContext('apps/web/app/components/chat/ChatWorkspace.vue:91', 'قالب المحادثة: من 768px تكون القائمة لوحة الشريط السياقي ويعرض القالب المحادثة فقط؛ تحتها تملأ القائمة الصفحة حتى تُختار محادثة. من 1280px تكون المعلومات جانبية؛ دون ذلك تستخدم المنطقة المتاحة وتحل محل المحادثة مع حفظ المسودة.'),
+    ...storyContext('apps/web/app/components/chat/ChatWorkspace.vue:109', 'قالب المحادثة: إطار واحد بقائمة 360px وخيط؛ من 1280px تكون المعلومات عموداً ثالثاً بعرض 320px، ودون ذلك تحل محل الخيط مع حفظ المسودة. تحت 768px تحل القائمة والخيط والمعلومات محل بعضها.'),
   },
   args: { hasSelection: true, infoOpen: false },
   render: args => ({
@@ -40,9 +40,9 @@ const meta = {
           <UInput class="w-full" :placeholder="t('chat.composerPlaceholder')" :aria-label="t('chat.composerPlaceholder')" />
         </div>
       </template>
-      <template #info="{ headingLevel }">
+      <template #info>
         <div class="grid gap-2 p-4">
-          <component :is="headingLevel" class="font-semibold text-highlighted">{{ t('chat.info') }}</component>
+          <h2 class="font-semibold text-highlighted">{{ t('chat.info') }}</h2>
           <p class="text-sm text-muted">{{ people[0] }}</p>
         </div>
       </template>

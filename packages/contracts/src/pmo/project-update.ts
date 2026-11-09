@@ -9,5 +9,10 @@ export const ProjectUpdateSchema = z.object({
 // The status is set in project settings; an update carries it but cannot change it.
 export const ProjectUpdateBodySchema = z.object({ name: z.string().min(1), description: z.string().optional() }).strict()
 
+export const ProjectUpdateListSchema = z.object({
+  items: z.array(ProjectUpdateSchema), total: z.number().int().nonnegative(),
+}).strict()
+
 export type ProjectUpdate = z.infer<typeof ProjectUpdateSchema>
 export type ProjectUpdateBody = z.infer<typeof ProjectUpdateBodySchema>
+export type ProjectUpdateList = z.infer<typeof ProjectUpdateListSchema>

@@ -13,6 +13,7 @@ from odoo.addons.liwan_api.serializers.company import (
 class BrandingController(http.Controller):
 
     @http.route('/api/v1/branding', type='json2', auth='public', methods=['GET'], readonly=True)
+    @api_handler
     def branding(self):
         # `auth='public'`: no session, so the tenant singleton and its root company are
         # read through one narrow elevation instead of a full superuser environment.

@@ -81,7 +81,7 @@ test('real meeting create persists and detail returns to a filtered meeting list
   await page.getByRole('link', { name, exact: true }).click()
   await expect.poll(() => new URL(page.url()).pathname).toBe(`/meetings/${meeting.id}`)
   assertReturnTo(page, origin)
-  await page.locator('[data-slot="page-header"]').getByRole('link', { name: 'رجوع', exact: true }).click()
+  await page.getByTestId('meeting-detail-back').click()
   await atList(page, origin)
   const persisted = await body(await page.request.get(`/api/v1/meetings/${meeting.id}`))
   expect(persisted.name).toBe(name)

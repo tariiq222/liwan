@@ -1,45 +1,24 @@
 <script setup lang="ts">
-import { ApiError } from '@/composables/useApi'
+import ProjectOverview from '@/components/pmo/projects/ProjectOverview.vue'
+import { projectIdFromPath } from '@/modules/pmo/projectRoutes'
 import { useProject } from '@/composables/useProjects'
-import ProjectUpdateList from '@/components/pmo/projects/ProjectUpdateList.vue'
-import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
+// Updates have no page of their own: `/projects/:id/updates` redirects to the summary, which lists them. This route stays
+// only as the parent of the create form (`/updates/new`), so its panel opens over the summary like any create panel over its context.
 const route = useRoute()
 const { t } = useI18n()
 const hydrated = useHydrated()
-const projectId = computed(() => {
-  const value = Number(route.params.id)
-  return Number.isInteger(value) && value > 0 ? value : null
-})
-const { data: project, isLoading, error, refetch } = useProject(projectId)
-const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && [403, 404].includes(error.value.status)))
-const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
-const isListRoute = computed(() => {
-  const rest = normalizedPath.value.replace(/^\/projects\/[^/]+\/updates/, '')
-  return rest === '' || rest === '/new'
-})
-
-const createTo = computed(() => project.value?.can_manage && project.value.active ? { path: `/projects/${projectId.value}/updates/new`, query: returnToQuery(route.fullPath) } : undefined)
+const projectId = computed(() => projectIdFromPath(route.path))
+const { data: projectData, isLoading } = useProject(projectId)
+const project = computed(() => hydrated.value ? projectData.value : undefined)
 </script>
 
 <template>
-  <SharedListPage
-    v-if="isListRoute"
-    hide-header
-    :title="t('projects.refresh.workspace.updatesTitle')"
-    :create-to="createTo"
-    :create-label="t('projects.updates.new')"
-    create-test-id="project-updates-create"
-  >
-    <SharedPageState
-      :loading="isLoading && !project"
-      :error="notFound ? null : error"
-      :empty="notFound || (!isLoading && !error && !project)"
-      :empty-text="notFound ? t('projects.notFound') : t('projects.empty')"
-      @retry="refetch"
-    >
-      <ProjectUpdateList v-if="project" :project-id="project.id" :can-manage="project.can_manage" />
-    </SharedPageState>
-  </SharedListPage>
-  <NuxtPage />
+  <!-- One root element: this route replaces the summary route, and a page transition cannot animate a fragment. -->
+  <div class="contents">
+    <SharedRecordPage hide-header keep-content :title="t('nav.projectSummary')" :loading="!project && (isLoading || !hydrated)">
+      <ProjectOverview v-if="project" :project="project" />
+    </SharedRecordPage>
+    <NuxtPage />
+  </div>
 </template>

@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import models
+from odoo import fields, models
 
 REJECTIONS = 'liwan_payments_rejections'
 PROCESSED = 'liwan_payments_processed'
@@ -20,6 +20,10 @@ class Collector:
 
 class PaymentTransaction(models.Model):
     _inherit = 'payment.transaction'
+
+    # One recorded refund may be split over several payments; each split part carries the whole refund's
+    # amount, so a replay of the same gateway refund is recognised however it was split.
+    liwan_refund_amount = fields.Monetary(currency_field='currency_id', copy=False, readonly=True)
 
     def _process(self, provider_code, payment_data):
         """Check the amount and currency of every notification, not only the first one.

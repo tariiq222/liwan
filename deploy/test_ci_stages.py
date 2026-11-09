@@ -402,6 +402,30 @@ class TestE2EMockStage(unittest.TestCase):
         self.assertGreater(script.index(guard), script.index('"${SPECS[@]}"'))
 
 
+class TestRtlStoriesStage(unittest.TestCase):
+    def run_script(self, *args):
+        return subprocess.run(['bash', str(ROOT / 'deploy/ci/rtl-stories.sh'), *args], cwd=ROOT,
+                              capture_output=True, text=True, check=False)
+
+    def test_a_malformed_shard_is_refused_before_anything_runs(self):
+        for args in (('--shard', '0/4'), ('--shard', '5/4'), ('--shard', '2'), ('--shard', 'a/b'), ('--shard', '02/4'),
+                     ('--shard', '1/4/4'), ('--other',)):
+            with self.subTest(args=args):
+                process = self.run_script(*args)
+                self.assertEqual(process.returncode, 2, process.stderr)
+                self.assertNotIn('npm', process.stderr)
+
+    def test_a_shard_flag_without_a_value_fails_loudly(self):
+        for args in (('--shard',), ('--shard', '')):
+            with self.subTest(args=args):
+                process = self.run_script(*args)
+                self.assertNotEqual(process.returncode, 0)
+                self.assertIn('usage: rtl-stories.sh --shard k/N', process.stderr)
+
+    def test_the_shard_reaches_playwright_through_the_test_script(self):
+        self.assertIn('npm run test:rtl ${SHARD:+-- --shard="$SHARD"}', commands('rtl-stories'))
+
+
 class TestVendorAdminStage(unittest.TestCase):
     def test_vendor_admin_stage_prepares_lints_tests_and_builds(self):
         script = commands('vendor-admin')

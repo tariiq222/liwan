@@ -123,7 +123,7 @@ const taxText = computed<string | null>(() => (policy.value ? policyTaxText(poli
         <VendorFormSubsection :title="t('vendor.pricing.sections.bundles')" :description="t('vendor.pricing.plan.bundlesHint')">
           <SharedEmptyState v-if="!bundles.length" :title="t('vendor.pricing.plan.noBundles')" />
           <p v-if="show('bundles') ?? serverIssue('included_bundle_revision_ids')" class="text-sm text-error">{{ show('bundles') ?? serverIssue('included_bundle_revision_ids') }}</p>
-          <div v-for="b in bundles" :key="b.id" class="flex flex-wrap items-center justify-between gap-3 rounded-lg p-3 ring ring-default">
+          <div v-for="b in bundles" :key="b.id" class="flex flex-wrap items-center justify-between gap-3 rounded-control p-3 ring ring-default">
             <span class="font-medium">{{ bundleName(b) }}</span>
             <span class="flex flex-wrap gap-4">
               <UCheckbox :model-value="draft.included.includes(b.id)" :label="t('vendor.pricing.plan.included')" :disabled="dis" @update:model-value="setBundle('included', b.id, $event === true)" />
@@ -144,7 +144,7 @@ const taxText = computed<string | null>(() => (policy.value ? policyTaxText(poli
           <UFormField :label="t('vendor.pricing.fields.freeBranches')" required :error="show('free') ?? serverIssue('included_extra_branches')"><UInput v-model="draft.included_extra_branches" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
           <UFormField :label="t('vendor.pricing.fields.branchLimit')" required :error="show('branchLimit') ?? serverIssue('extra_branches_limit')"><VendorLimitControl v-model="draft.extra_branches_limit" :label="t('vendor.pricing.fields.branchLimit')" :disabled="dis" /></UFormField>
         </div>
-        <p class="rounded-lg bg-elevated p-3 text-sm">{{ t('vendor.pricing.plan.hq') }}</p>
+        <p class="rounded-control bg-elevated p-3 text-sm">{{ t('vendor.pricing.plan.hq') }}</p>
         <VendorPriceListEditor v-model="draft.extra_branch_prices" :label="t('vendor.pricing.fields.branchPrice')" :disabled="dis" :show-errors="attempted" :server-error="serverIssue('extra_branch_prices')" />
       </div>
     </SharedFormSection>

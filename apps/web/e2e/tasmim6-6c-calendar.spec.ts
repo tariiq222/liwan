@@ -64,7 +64,7 @@ test.describe('Plan 6c: the meetings calendar', () => {
       await open(page, '/meetings/calendar?year=2026&month=9')
       await page.locator('main a[href^="/meetings/1?"]:visible').first().click()
       await expect(page).toHaveURL(/\/meetings\/1/)
-      await page.getByRole('link', { name: 'رجوع' }).click()
+      await page.getByTestId('meeting-detail-back').click()
       await expect.poll(() => monthParams(page.url())).toEqual({ year: '2026', month: '9' })
     })
   })

@@ -11,7 +11,7 @@ export default defineNuxtConfig({
     ...['layout', 'data', 'form', 'feedback'].map(group => ({
       path: join(here, `app/components/shared/${group}`), prefix: 'Shared', pathPrefix: false, ignore: ['**/__tests__/**'],
     })),
-    // The shell template keeps its plain names (ShellFrame, ModuleRail).
+    // The shell template keeps its plain names (ShellFrame, ShellSidebar).
     { path: join(here, 'app/components/shell'), pathPrefix: false, ignore: ['**/__tests__/**'] },
   ],
   ui: { fonts: false, colorMode: false },

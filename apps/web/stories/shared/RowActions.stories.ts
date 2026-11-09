@@ -6,7 +6,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shared/RowActions',
   component: RowActions,
-  parameters: storyContext('apps/web/app/components/pmo/projects/MilestoneTable.vue:154', 'إجراء واحد غير هدّام زر رابط، وأكثر من ذلك قائمة «…» والحذف آخرها باللون الهدّام.'),
+  parameters: storyContext('apps/web/app/components/pmo/projects/MilestoneTable.vue:157', 'إجراء واحد غير هدّام زر رابط، وأكثر من ذلك قائمة «…» والحذف آخرها باللون الهدّام.'),
   args: {
     label: 'إجراءات معلم اعتماد الخطة',
     actions: [
@@ -18,7 +18,7 @@ const meta = {
   render: args => ({
     components: { RowActions },
     setup: () => ({ args }),
-    template: '<div class="max-w-3xl rounded-card ring ring-default bg-default"><div class="flex items-center justify-between gap-4 p-4"><div><p class="font-medium text-highlighted">اعتماد الخطة</p><p class="text-sm text-muted">الموعد 2026/10/01</p></div><RowActions v-bind="args" /></div></div>',
+    template: '<div class="liwan-card max-w-3xl rounded-card"><div class="flex items-center justify-between gap-4 p-4"><div><p class="font-medium text-highlighted">اعتماد الخطة</p><p class="text-sm text-muted">الموعد 2026/10/01</p></div><RowActions v-bind="args" /></div></div>',
   }),
 } satisfies Meta<typeof RowActions>
 export default meta

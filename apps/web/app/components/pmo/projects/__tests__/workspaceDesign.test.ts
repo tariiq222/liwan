@@ -36,10 +36,10 @@ describe('project workspace design contract', () => {
     expect(pmo('ProjectOverview.vue')).toContain('data-testid="project-overview-progress"')
   })
 
-  it('lists milestones, updates and meetings in a SharedListCard', () => {
+  it('lists milestones and meetings in a SharedListCard and the earlier updates in a list section', () => {
     expect(pmo('MilestoneTable.vue')).toContain('<SharedListCard>')
     expect(pmo('MilestoneTable.vue')).toContain('bare')
-    expect(pmo('ProjectUpdateList.vue')).toContain('<SharedListCard')
+    expect(pmo('ProjectUpdateList.vue')).toContain('<SharedRecordSection v-if="items.length" variant="list"')
     expect(read('pages/projects/[id]/meetings.vue')).toContain('<SharedListCard>')
   })
 })

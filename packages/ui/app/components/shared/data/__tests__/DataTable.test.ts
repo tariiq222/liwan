@@ -191,3 +191,29 @@ describe('SharedDataTable', () => {
     expect(await render({ rows: [], emptyText: 'No projects yet' })).toContain('No projects yet')
   })
 })
+
+describe('SharedDataTable layout', () => {
+  it('wraps the table in a container frame that stacks by default and carries the layout flags', async () => {
+    const html = await render({ selectable: true, columns: [...columns, { id: 'actions', header: 'Actions' }] })
+    expect(html).toMatch(/<div[^>]*data-slot="data-table-frame"[^>]*class="liwan-table-frame"[^>]*data-stack="true"[^>]*data-selectable="true"[^>]*data-has-actions="true"/)
+  })
+
+  it('opts out of stacking and leaves the other flags off', async () => {
+    const html = await render({ stack: false })
+    expect(html).toContain('data-slot="data-table-frame"')
+    expect(html).not.toContain('data-stack')
+    expect(html).not.toContain('data-has-actions')
+    expect(html).not.toContain('data-selectable')
+  })
+
+  it('decorates columns for the layout: sticky first column, labelled cells, sticky actions', async () => {
+    let seen: Column[] = []
+    const Spy = Vue.defineComponent({ props: { columns: { type: Array, default: () => [] } }, setup(props) { return () => { seen = props.columns as Column[]; return h('table') } } })
+    await render({ columns: [...columns, { id: 'actions', header: 'Actions' }] }, {}, { stubs: { UTable: Spy } })
+    const classes = seen.map(column => (column as { meta?: { class?: { td?: string } } }).meta?.class?.td)
+    expect(classes[0]).toContain('liwan-sticky-start')
+    expect(classes[1]).toBeUndefined()
+    expect(classes[2]).toContain('liwan-sticky-end')
+    expect((seen[1] as { meta: { style: { td: unknown } } }).meta.style.td).toEqual({ '--liwan-label': '"Manager"' })
+  })
+})

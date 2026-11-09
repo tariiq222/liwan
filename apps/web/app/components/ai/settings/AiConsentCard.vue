@@ -47,8 +47,8 @@ async function revoke() {
 <template>
   <SharedRecordSection id="consent" variant="panel" class="liwan-settings-anchor" :title="t('ai.settings.consent.title')" :description="t('ai.settings.consent.hint')" data-testid="ai-settings-consent">
     <template #actions>
-      <UBadge v-if="consent.signed" color="success" variant="subtle" class="rounded-full" :label="t('ai.settings.consent.active')" />
-      <UBadge v-else color="warning" variant="subtle" class="rounded-full" :label="t('ai.settings.consent.required')" />
+      <UBadge v-if="consent.signed" color="success" variant="subtle" :label="t('ai.settings.consent.active')" />
+      <UBadge v-else color="warning" variant="subtle" :label="t('ai.settings.consent.required')" />
     </template>
     <div class="grid gap-4">
       <UAlert v-if="failure" role="alert" color="error" variant="subtle" :title="t('app.saveFailed')" :description="failure" />

@@ -42,8 +42,8 @@ describe('attention providers', () => {
       const rows = await myTasksAttention.load(fetcher, t)
       expect(api).toHaveBeenCalledWith('/api/v1/my-tasks', expect.objectContaining({ query: { closed: 0, assigned: 'me', sort: 'deadline', limit: 50 } }))
       expect(rows).toEqual([
-        { id: 'task-1', recordKey: 'task:1', label: 'مهمة 1', to: '/my-tasks/1', caption: 'myTasks.attention.overdue', tone: 'urgent', suggestion: 'myTasks.attention.startOverdue' },
-        { id: 'task-2', recordKey: 'task:2', label: 'مهمة 2', to: '/my-tasks/2', caption: 'myTasks.attention.today', tone: 'normal' },
+        { id: 'task-1', recordKey: 'task:1', label: 'مهمة 1', to: '/my-tasks/1', caption: 'myTasks.attention.overdue', tone: 'urgent', due: 'overdue', suggestion: 'myTasks.attention.startOverdue' },
+        { id: 'task-2', recordKey: 'task:2', label: 'مهمة 2', to: '/my-tasks/2', caption: 'myTasks.attention.today', tone: 'normal', due: 'today' },
       ])
     })
     it('gives no suggestion when nothing is overdue and returns at most twenty rows', async () => {
@@ -140,8 +140,8 @@ describe('attention providers', () => {
       expect(rows.map(row => row.recordKey)).toEqual(['task:1', 'task:2'])
       expect(api).toHaveBeenCalledWith('/api/v1/tasks', expect.objectContaining({ query: { filter: 'mine', deadline: 'overdue', sort: 'date_deadline', limit: 20 } }))
       expect(rows).toEqual([
-        { id: 'task-1', recordKey: 'task:1', label: 'مهمة 1', to: '/tasks/1', caption: 'مشروع الرياض', tone: 'urgent', suggestion: 'tasks.attention.startOverdue' },
-        { id: 'task-2', recordKey: 'task:2', label: 'مهمة 2', to: '/tasks/2', caption: 'مشروع الرياض', tone: 'urgent' },
+        { id: 'task-1', recordKey: 'task:1', label: 'مهمة 1', to: '/tasks/1', caption: 'مشروع الرياض', tone: 'urgent', due: 'overdue', suggestion: 'tasks.attention.startOverdue' },
+        { id: 'task-2', recordKey: 'task:2', label: 'مهمة 2', to: '/tasks/2', caption: 'مشروع الرياض', tone: 'urgent', due: 'overdue' },
       ])
     })
     it('lists my open project tasks as normal rows that share the overdue provider\'s record keys', async () => {
@@ -149,8 +149,8 @@ describe('attention providers', () => {
       const rows = await openTasksAttention.load(fetcher, t)
       expect(api).toHaveBeenCalledWith('/api/v1/tasks', expect.objectContaining({ query: { filter: 'mine', sort: 'date_deadline', limit: 20 } }))
       expect(rows).toEqual([
-        { id: 'task-1', recordKey: 'task:1', label: 'مهمة 1', to: '/tasks/1', caption: 'مشروع الرياض', tone: 'normal' },
-        { id: 'task-3', recordKey: 'task:3', label: 'مهمة 3', to: '/tasks/3', caption: 'مشروع الرياض', tone: 'normal' },
+        { id: 'task-1', recordKey: 'task:1', label: 'مهمة 1', to: '/tasks/1', caption: 'مشروع الرياض', tone: 'normal', due: 'overdue' },
+        { id: 'task-3', recordKey: 'task:3', label: 'مهمة 3', to: '/tasks/3', caption: 'مشروع الرياض', tone: 'normal', due: 'overdue' },
       ])
     })
     it('is empty without overdue tasks and passes a failure on', async () => {

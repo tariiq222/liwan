@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import type { Branding } from '@liwan/contracts'
-import { LIWAN_PRIMARY } from '@/utils/liwanPalette'
+import { DEFAULT_COMPANY_COLOR } from '@/utils/liwanPalette'
 import { ApiError } from '@/composables/useApi'
 import { buildBrandingPatch, normalizeHex } from '@/composables/colorHex'
 import { useBrandingAdmin, useUpdateBranding } from '@/composables/useBrandingAdmin'
 import { useSettingsForm } from '@/composables/settings/useSettingsForm'
 
 const PRESETS = [
-  { key: 'default', color: LIWAN_PRIMARY, labelKey: 'settings.branding.presets.default' },
+  { key: 'default', color: DEFAULT_COMPANY_COLOR, labelKey: 'settings.branding.presets.default' },
   { key: 'blue', color: '#0055ff', labelKey: 'settings.branding.presets.blue' },
   { key: 'teal', color: '#0f766e', labelKey: 'settings.branding.presets.teal' },
   { key: 'amber', color: '#b45309', labelKey: 'settings.branding.presets.amber' },
@@ -24,7 +24,7 @@ const { refetch } = useBrandingAdmin()
 const editable = computed(() => can('settings.branding.manage'))
 const { draft, state, save, revert, reload } = useSettingsForm<Branding, { primary_color: string }>({
   source: () => props.branding,
-  read: branding => ({ primary_color: normalizeHex(branding.primary_color) ?? LIWAN_PRIMARY }),
+  read: branding => ({ primary_color: normalizeHex(branding.primary_color) ?? DEFAULT_COMPANY_COLOR }),
   save: async (values) => {
     const patch = buildBrandingPatch({ primaryColor: values.primary_color })
     if (!patch) throw new ApiError(422, 'invalid', t('settings.branding.errors.invalidColor'), 'primary_color')
@@ -41,7 +41,7 @@ const { draft, state, save, revert, reload } = useSettingsForm<Branding, { prima
 
 const locked = computed(() => !hydrated.value || !editable.value || state.value.saving || state.value.reloading)
 const primaryValid = computed(() => normalizeHex(draft.value.primary_color) !== null)
-const swatchColor = computed(() => normalizeHex(draft.value.primary_color) ?? LIWAN_PRIMARY)
+const swatchColor = computed(() => normalizeHex(draft.value.primary_color) ?? DEFAULT_COMPANY_COLOR)
 </script>
 
 <template>
@@ -51,13 +51,13 @@ const swatchColor = computed(() => normalizeHex(draft.value.primary_color) ?? LI
         <UInput id="branding-color" v-model="draft.primary_color" data-testid="branding-color" dir="ltr" class="min-w-0 flex-1 font-mono" :aria-invalid="!primaryValid" :disabled="locked" />
         <UPopover>
           <UButton type="button" color="neutral" variant="outline" square data-testid="branding-color-picker" :aria-label="t('settings.branding.colorPicker')" :disabled="locked">
-            <span class="size-5 rounded border border-default" :style="{ backgroundColor: swatchColor }" />
+            <span class="size-5 rounded-inner border border-default" :style="{ backgroundColor: swatchColor }" />
           </UButton>
           <template #content><UColorPicker v-model="draft.primary_color" class="p-3" /></template>
         </UPopover>
       </div>
     </UFormField>
-    <UFormField orientation="horizontal" :label="t('settings.branding.presets.label')">
+    <SharedSettingRow :label="t('settings.branding.presets.label')">
       <div class="flex flex-wrap gap-2" role="group" :aria-label="t('settings.branding.presets.label')">
         <UButton
           v-for="preset in PRESETS"
@@ -73,6 +73,6 @@ const swatchColor = computed(() => normalizeHex(draft.value.primary_color) ?? LI
           {{ t(preset.labelKey) }}
         </UButton>
       </div>
-    </UFormField>
+    </SharedSettingRow>
   </SharedSettingsCard>
 </template>

@@ -160,18 +160,18 @@ async function onLogo(event: Event) {
       <UFormField orientation="horizontal" name="company_registry" :label="t('settings.company.registry')" :error="fieldErrors.company_registry">
         <UInput id="company-registry" v-model="fields.company_registry.value" class="w-full" dir="ltr" inputmode="numeric" data-testid="company-registry" :disabled="locked" />
       </UFormField>
-      <UFormField orientation="horizontal" name="vat_registered" :label="t('settings.company.vatRegistered')" :description="vatEditable ? t('settings.company.vatRegisteredHint') : t('settings.company.vatManageHint')">
+      <SharedSettingRow name="vat_registered" :label="t('settings.company.vatRegistered')" :description="vatEditable ? t('settings.company.vatRegisteredHint') : t('settings.company.vatManageHint')">
         <USwitch id="company-vat-registered" v-model="vatRegistered" :aria-label="t('settings.company.vatRegistered')" data-testid="company-vat-registered" :disabled="vatLocked" />
-      </UFormField>
+      </SharedSettingRow>
       <UFormField v-if="vatRegistered" orientation="horizontal" name="vat" :label="t('settings.company.vat')" :description="t('settings.company.vatHint')" required :error="fieldErrors.vat">
         <UInput id="company-vat" v-model="fields.vat.value" class="w-full" dir="ltr" inputmode="numeric" data-testid="company-vat" :disabled="vatLocked" />
       </UFormField>
     </template>
 
     <template v-else-if="section === 'address'">
-      <UFormField orientation="horizontal" name="country_id" :label="t('settings.company.country')" :description="t('settings.company.countryFixed')">
+      <SharedSettingRow name="country_id" :label="t('settings.company.country')" :description="t('settings.company.countryFixed')">
         <UInput id="company-country" :model-value="country?.name ?? ''" class="w-full" data-testid="company-country" readonly disabled />
-      </UFormField>
+      </SharedSettingRow>
       <UFormField orientation="horizontal" name="state_id" :label="t('settings.company.state')" :error="fieldErrors.state_id">
         <USelectMenu id="company-state" :model-value="(draft.state_id as number | null) ?? undefined" class="w-full" value-key="value" :items="stateItems" data-testid="company-state" :disabled="locked || !countryId" @update:model-value="setField('state_id', $event as number | undefined)" />
       </UFormField>

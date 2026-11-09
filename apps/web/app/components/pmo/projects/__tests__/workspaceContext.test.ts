@@ -7,6 +7,7 @@ import * as projectNavigation from '../../../../modules/pmo/projectSections'
 import * as governanceNavigation from '../../../../modules/pmo/governanceSections'
 import * as activeRoute from '../../../../modules/pmo/projectRoutes'
 import * as workspaceMemory from '../../../../utils/projectWorkspaceMemory'
+import * as accessPolicy from '../../../../utils/accessPolicy'
 import * as sectionTabs from '@liwan/ui/app/utils/sectionTabs'
 
 async function links(path: string, level = 'sections') {
@@ -24,6 +25,7 @@ async function links(path: string, level = 'sections') {
       '@/modules/registry': { hasFeature: () => true },
       '@/composables/useProjects': { useProject: () => ({ data: ref({ active: true }) }) },
       '@/utils/projectWorkspaceMemory': workspaceMemory,
+      '@/utils/accessPolicy': accessPolicy,
     },
     stubs: {
       SharedRouteTabs: loadShared('RouteTabs', { modules: { '../../../utils/sectionTabs': sectionTabs } }),

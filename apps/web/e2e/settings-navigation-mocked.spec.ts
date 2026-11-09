@@ -35,7 +35,7 @@ const ME = {
   },
   terminology: { ar: {}, en: {} },
 }
-const BRANDING = { name: 'ليوان', logo_url: '/web/binary/company_logo?company=1', primary_color: '#7843c6', font: 'IBM_Plex_Sans_Arabic' }
+const BRANDING = { name: 'ليوان', logo_url: '/web/binary/company_logo?company=1', primary_color: '#14102a', font: 'IBM_Plex_Sans_Arabic' }
 const PROJECT_SETTINGS = {
   project_creators: 'managers',
   planning_tool_policy: 'optional', governance_tool_policy: 'optional', finance_tool_policy: 'optional',
@@ -179,10 +179,8 @@ test.afterAll(async () => {
 })
 
 async function openApp(page: Page, path: string) {
-  // The context menu starts folded and opens over the page on hover; these checks read the pinned menu.
   await page.context().addCookies([
     { name: 'session_id', value: 'settings_mock', url: origin, httpOnly: true, sameSite: 'Lax' },
-    { name: 'liwan-context-sidebar', value: 'open', url: origin, sameSite: 'Lax' },
   ])
   await page.route('**/api/v1/**', fulfillApi)
   await page.route('**/api/auth/**', async (route) => {
@@ -201,7 +199,7 @@ test('project settings open as a real page under Settings > Apps', async ({ page
   const settingsProjects = page.getByTestId('application-navigation').getByRole('button', { name: 'المشاريع', exact: true })
   await expect(settingsProjects).toHaveAttribute('aria-expanded', 'true')
   await expect(page.getByTestId('application-navigation').locator('a[href="/settings/apps/projects"]')).toBeVisible()
-  await expect(page.getByRole('region', { name: 'سياسة إنشاء المشاريع', exact: true }).getByRole('radiogroup')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'سياسة إنشاء المشاريع', exact: true }).locator('[data-slot="segmented-control"]').first()).toBeVisible()
   await expect(page.locator('.liwan-settings-content [data-slot="record-section"][data-variant="panel"], .liwan-settings-content [data-slot="record-section"][data-variant="list"]')).toHaveCount(6)
   expect(new URL(page.url()).pathname).toBe('/settings/apps/projects')
   await page.screenshot({ path: testInfo.outputPath('submenu-projects-desktop-rtl.png'), fullPage: true })
@@ -210,13 +208,13 @@ test('project settings open as a real page under Settings > Apps', async ({ page
 test('in-page anchors scroll, mark location current, and survive hash refresh', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await openApp(page, '/settings/apps/projects')
-  const sectionNav = page.getByTestId('settings-context-sub-list')
+  const sectionNav = page.getByTestId('application-navigation')
   const catalogsLink = sectionNav.getByRole('link', { name: 'القوائم المشتركة', exact: true })
-  await expect(sectionNav.getByRole('link', { name: 'سياسة إنشاء المشاريع', exact: true })).toHaveAttribute('aria-current', 'true')
+  await expect(sectionNav.getByRole('link', { name: 'سياسة إنشاء المشاريع', exact: true })).toHaveAttribute('aria-current', 'page')
   await expect(catalogsLink).toHaveAttribute('href', '/settings/apps/projects#catalogs')
   await catalogsLink.click()
   await expect(page).toHaveURL(/#catalogs/)
-  await expect(catalogsLink).toHaveAttribute('aria-current', 'true')
+  await expect(catalogsLink).toHaveAttribute('aria-current', 'page')
   await expect(catalogsLink).toHaveCSS('font-weight', '600')
   await expect.poll(async () => page.evaluate(() => {
     const el = document.getElementById('catalogs')
@@ -225,7 +223,7 @@ test('in-page anchors scroll, mark location current, and survive hash refresh', 
     return rect.top < innerHeight && rect.bottom > 0
   })).toBe(true)
   await openApp(page, '/settings/apps/projects#catalogs')
-  await expect(page.getByTestId('settings-context-sub-list').getByRole('link', { name: 'القوائم المشتركة', exact: true })).toHaveAttribute('aria-current', 'true')
+  await expect(page.getByTestId('application-navigation').getByRole('link', { name: 'القوائم المشتركة', exact: true })).toHaveAttribute('aria-current', 'page')
   await page.screenshot({ path: testInfo.outputPath('anchors-desktop-rtl.png'), fullPage: true })
 })
 
@@ -248,7 +246,7 @@ test('users list has one card without nested chrome and mobile settings navigati
   await expect(drawer.getByRole('button', { name: 'المستخدمون', exact: true })).toHaveAttribute('aria-expanded', 'true')
   const users = drawer.locator('a[href="/settings/team#users"]')
   await expect(users).toHaveAttribute('href', '/settings/team#users')
-  await expect(drawer.locator('a[href="/settings/team/users"]')).toHaveAttribute('aria-current', 'true')
+  await expect(drawer.locator('a[href="/settings/team/users"]')).toHaveAttribute('aria-current', 'page')
   await users.click()
   await expect(page).toHaveURL(/\/settings\/team#users$/)
   await expect(drawer).toHaveCount(0)
@@ -294,7 +292,6 @@ test('project settings sections are separate bordered cards with clear headers',
     await expect(card).toHaveAttribute('data-slot', 'record-section')
     await expect.poll(() => card.evaluate(element => Number.parseFloat(getComputedStyle(element).borderRadius))).toBeCloseTo(18, 2)
     await expect(card.locator(':scope > header')).toHaveCSS('border-bottom-width', '1px')
-    await expect.poll(() => card.evaluate(element => getComputedStyle(element).boxShadow)).not.toBe('none')
   }
   const remindersBox = await reminders.boundingBox()
   const catalogsBox = await catalogs.boundingBox()

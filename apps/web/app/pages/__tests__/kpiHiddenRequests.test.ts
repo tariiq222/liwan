@@ -11,7 +11,7 @@ describe('hidden KPIs ask nothing', () => {
   it.each([
     ['pages/tasks.vue', '<TaskKpiStrip v-if="hydrated && kpisShown"'],
     ['pages/projects/index.vue', '<ProjectKpiStrip v-if="hydrated && kpisShown && !archived"'],
-    ['pages/projects/[id]/tasks.vue', '<TaskKpiStrip v-if="kpisShown"'],
+    ['pages/projects/[id]/tasks.vue', '<TaskKpiStrip v-if="kpisShown && !isArchived"'],
     ['pages/operations/index.vue', '<RequestKpiStrip v-if="kpisShown" scope="mine"'],
     ['pages/operations/pending.vue', '<RequestKpiStrip v-if="kpisShown" scope="pending"'],
     ['pages/operations/monitoring.vue', '<RequestKpiStrip v-if="kpisShown" scope="monitoring"'],
