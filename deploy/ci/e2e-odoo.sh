@@ -96,15 +96,12 @@ curl -fs "http://localhost:$WEB_PORT/login" >/dev/null
 export E2E_REAL_ODOO=1 E2E_BASE_URL="http://localhost:$WEB_PORT" E2E_REAL_FIXTURE="$FIXTURE_DIR/fixtures.json"
 # A spec joins REAL_ODOO_SPECS only after it passes on a scratch database. `grep -rl E2E_REAL_ODOO apps/web/e2e` lists
 # every guarded spec, and `tools/test_ci_scope.py` fails when one is in neither list, so a new spec cannot be forgotten.
+# Every guarded spec now runs: each signs in through apps/web/e2e/support/realOdooSession.ts, which finishes the
+# mandatory second step with the remembered device apps/web/e2e/fixtures/real-odoo-acceptance.py seeds per account.
+# docs/verification/2026-11-08-e2e-odoo-specs.md records the per-file result.
 REAL_ODOO_SPECS=(
   e2e/real-odoo-acceptance.spec.ts
   e2e/real-odoo-services.spec.ts
-)
-# Run here on 2026-11-08 and failing before their first assertion: each signs in with a single step as `admin`/`admin`,
-# an account the scratch seed does not create (its accounts are `e2e_*` and sign in with a password and then a
-# remembered device). They stay out by name until each is moved to the two-step sign-in.
-# docs/verification/2026-11-08-e2e-odoo-run.md records the per-file result and reason.
-EXCLUDED_REAL_ODOO_SPECS=(
   e2e/access-admin.spec.ts
   e2e/account.spec.ts
   e2e/activity.spec.ts
@@ -117,6 +114,9 @@ EXCLUDED_REAL_ODOO_SPECS=(
   e2e/projects-phase2.spec.ts
   e2e/realtime.spec.ts
   e2e/task-lifecycle.spec.ts
+)
+# Document the reason beside any explicitly excluded spec. Currently every guarded spec runs.
+EXCLUDED_REAL_ODOO_SPECS=(
 )
 if [ "${#REAL_ODOO_SPECS[@]}" -eq 0 ]; then
   echo "e2e-odoo: REAL_ODOO_SPECS is empty; a green stage must run at least one journey" >&2; exit 2

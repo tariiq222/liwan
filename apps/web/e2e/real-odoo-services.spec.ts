@@ -1,39 +1,23 @@
 import { test, expect, type Page, type APIResponse, type Response } from '@playwright/test'
-import { readFileSync } from 'node:fs'
+import { ACCEPTANCE_ORIGIN, signIn } from './support/realOdooSession'
+import { fixtures, openShell } from './support/realOdooSession'
 
 // This suite creates scratch records. The coordinator alone selects/seeds/runs its real database.
 test.skip(process.env.E2E_REAL_ODOO !== '1', 'Explicit isolated real Odoo acceptance only')
-test.beforeEach(async ({}, info) => { const origin = new URL(String(info.project.use.baseURL)); expect(origin.hostname).toBe('localhost'); expect(origin.port).toBe('44300') })
-type Fixtures = { company: number; admin: number; reader: number; department: number; grant_employee: number; grant_email: string; device: { admin: string; reader: string } }
-function fixtures(): Fixtures {
-  const path = process.env.E2E_REAL_FIXTURE
-  if (!path) throw new Error('E2E_REAL_FIXTURE must name the coordinator exported scratch fixture JSON')
-  return JSON.parse(readFileSync(path, 'utf8')) as Fixtures
-}
+test.beforeEach(async ({}, info) => {
+  const origin = new URL(String(info.project.use.baseURL))
+  expect(origin.hostname).toBe('localhost')
+  expect(origin.port).toBe('44300')
+})
 async function body(response: APIResponse | Response, status = 200) {
   expect(response.status(), await response.text()).toBe(status)
   return response.json()
 }
-// Every sign-in is two-step. The fixture seeds one remembered device per acceptance account, because a
-// scratch stack has no SMS provider and only a code's hash is stored; this drives that second path.
-async function login(page: Page, reader = false) {
-  const token = fixtures().device?.[reader ? 'reader' : 'admin']
-  expect(token, 'the fixture must seed a remembered device').toBeTruthy()
-  // One device at a time: a shared browser context must not carry another test's remembered browser.
-  await page.context().clearCookies({ name: 'liwan_device' })
-  await page.context().addCookies([{ name: 'liwan_device', value: token, url: 'http://localhost:44300', httpOnly: true, sameSite: 'Lax' }])
-  const step = await (await page.request.post('/api/auth/login', { data: {
-    login: reader ? 'e2e_employee' : 'e2e_admin',
-    password: reader
-      ? (process.env.E2E_USER_EMPLOYEE_PASSWORD ?? process.env.E2E_EMPLOYEE_PASSWORD ?? 'liwan-e2e-employee-2026')
-      : (process.env.E2E_USER_ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'liwan-e2e-admin-2026'),
-  } })).json()
-  expect(step).toEqual({ ok: false, mfa: 'code' })
-  await body(await page.request.post('/api/auth/device', { data: {} }))
-}
+// Every sign-in is two-step; ./support/realOdooSession drives the fixture's remembered-device path.
+const login = (page: Page, reader = false) => signIn(page, reader ? 'reader' : 'admin')
 async function open(page: Page, path: string) {
-  await page.goto(path)
-  await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
+  await openShell(page, path)
+  await expect(page.locator('main')).toBeVisible()
 }
 function responseFor(page: Page, path: string, method: string) {
   return page.waitForResponse(response => new URL(response.url()).pathname === path && response.request().method() === method)

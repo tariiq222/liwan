@@ -13,10 +13,6 @@ push to ``main``, the nightly run and a full dispatch, and the Odoo stages reach
 the change affects (the changed addons plus every addon depending on them, ``None`` meaning all of them
 when a changed path outside ``odoo-addons/`` feeds an Odoo stage). ``--modules`` prints that affected list
 as comma-separated names (empty means every release module).
-
-``E2E_ODOO_TRIGGERS`` is the one deferred stage a pull request keeps when its change reaches the surfaces
-the real-Odoo acceptance suite writes through: waiting for the push to ``main`` let a merged regression turn
-``main`` red with no reviewable gate, so those paths prove the journeys before the merge instead.
 """
 from __future__ import annotations
 
@@ -50,65 +46,7 @@ STATIC_ONLY_TOOLS = (
 ISOLATION_STAGES = ('odoo-app-standalone', 'odoo-bridge')
 ODOO_STAGES = ('odoo', *ISOLATION_STAGES)
 # Slow, and about the merged result rather than one change: a pull request leaves them to the push to main.
-DEFERRED_STAGES = ('upgrade', 'restore-drill', 'image', 'e2e-odoo')
-# The one deferred stage a pull request keeps: the real-Odoo acceptance suite writes real project, task,
-# chat and API records, so those surfaces prove their journeys before the merge instead of turning main red
-# afterwards. A path outside this list still defers the stage, and so does a change with no listed path.
-E2E_ODOO_TRIGGERS = (
-    # The stage itself: its script, its seed and the specs with their fixtures.
-    'deploy/ci/e2e-odoo.sh',
-    'tools/e2e_seed.py',
-    'apps/web/e2e/*',
-    # Sign-in, session and the server proxy every journey goes through.
-    'apps/web/server/*',
-    'apps/web/app/middleware/*',
-    'apps/web/app/plugins/*',
-    'apps/web/app/pages/login.vue',
-    'apps/web/app/components/auth/*',
-    'apps/web/app/composables/useMe.ts',
-    'apps/web/app/composables/useAccess.ts',
-    'apps/web/app/composables/useApi.ts',
-    'apps/web/app/composables/useSignOut.ts',
-    # Projects, tasks and chat with the realtime path they wait on.
-    'apps/web/app/pages/projects/*',
-    'apps/web/app/pages/projects.vue',
-    'apps/web/app/pages/tasks/*',
-    'apps/web/app/pages/tasks.vue',
-    'apps/web/app/components/pmo/*',
-    'apps/web/app/components/work/*',
-    'apps/web/app/components/chat/*',
-    'apps/web/app/composables/useProject*',
-    'apps/web/app/composables/project*',
-    'apps/web/app/composables/useTask*',
-    'apps/web/app/composables/task*',
-    'apps/web/app/composables/useChat.ts',
-    'apps/web/app/composables/useBus.ts',
-    # Account, access administration and the HR people pages.
-    'apps/web/app/pages/account/*',
-    'apps/web/app/pages/hr/*',
-    'apps/web/app/pages/hr.vue',
-    'apps/web/app/pages/settings/*',
-    'apps/web/app/components/account/*',
-    'apps/web/app/components/access/*',
-    'apps/web/app/components/hr/*',
-    'apps/web/app/components/settings/*',
-    'apps/web/app/composables/useAdmin*',
-    'apps/web/app/composables/useHrEmployees.ts',
-    'apps/web/app/composables/useEmployeeAccounts.ts',
-    'apps/web/app/composables/usePeople.ts',
-    # The Odoo side of those journeys: the foundation they sit on and the applications behind them.
-    'odoo-addons/liwan_core/*',
-    'odoo-addons/liwan_platform/*',
-    'odoo-addons/liwan_api/*',
-    'odoo-addons/liwan_directory/*',
-    'odoo-addons/liwan_pmo/*',
-    'odoo-addons/liwan_tasks/*',
-    'odoo-addons/liwan_chat/*',
-    'odoo-addons/liwan_hr/*',
-    'odoo-addons/liwan_pmo_finance/*',
-    'odoo-addons/liwan_tasks_pmo/*',
-    'odoo-addons/liwan_access_hr/*',
-)
+DEFERRED_STAGES = ('upgrade', 'restore-drill', 'image')
 # The web and vendor-admin images build from these packages, so `image` is selected with them.
 SHARED_PACKAGE_STAGES = ('control-plane', 'vendor-admin', 'image', 'e2e-mock', 'e2e-odoo', 'rtl-stories')
 UNMAPPED = '(no rule: all stages)'
@@ -119,6 +57,7 @@ RULES = (
     # CI machinery: the workflow, its composite action, and the repository-wide inputs of every stage.
     ('.github/*', STAGES),
     ('tools/ci_scope.py', STAGES),
+    ('tools/e2e_seed.py', ('e2e-odoo',)),
     ('tools/odoo_shards.py', ('odoo',)),     # splits the odoo stage into its matrix shards
     ('tools/app_isolation.py', ISOLATION_STAGES),  # their matrices and isolation check
     ('tools/arch_layers.json', ISOLATION_STAGES),  # its ranks name the applications and bridges of those matrices
@@ -135,6 +74,7 @@ RULES = (
     ('.npmrc', STAGES),
     ('.nvmrc', STAGES),
     ('.dockerignore', STAGES),               # shapes the image build context
+    ('apps/web/*.md', ('e2e-odoo',)),      # every web change selects real-Odoo acceptance
     # Only the static stage reads these.
     ('*.md', ()),
     ('docs/*', ()),
@@ -144,11 +84,11 @@ RULES = (
     ('.gitignore', ()),                      # no step reads it; tools/test_gitignore.py is static
     ('.claude/*', ()),                       # agent setup for local and cloud sessions; no CI step reads it
     ('ruff.toml', ('ai-service',)),          # the ai-service step lints with the nearest ruff config
-    # Applications and the shared packages they build from.
     # The Nitro server is built into the image and the mock build, and the control-plane tests import it; the
     # Storybook build behind rtl-stories imports no `server/` file.
     ('apps/web/server/*', ('control-plane', 'image', 'e2e-mock', 'e2e-odoo')),
     ('apps/web/*', ('control-plane', 'image', 'e2e-mock', 'e2e-odoo', 'rtl-stories')),  # control-plane tests import apps/web server code
+    # Other applications and the shared packages they build from.
     ('apps/vendor-admin/*', ('vendor-admin', 'image')),
     ('apps/control-plane/*', ('control-plane',)),
     ('apps/ai-service/*', ('ai-service', 'image')),
@@ -192,24 +132,17 @@ def affected_modules(paths: list[str], release: list[str], addons: Path = app_is
     return app_isolation.affected(changed, release, addons)
 
 
-def keeps_e2e_odoo(paths: list[str]) -> bool:
-    """Whether a pull request runs the real-Odoo acceptance suite for this change."""
-    return any(fnmatchcase(path, pattern) for path in paths for pattern in E2E_ODOO_TRIGGERS)
-
-
 def pull_request_stages(paths: list[str], affected: list[str] | None) -> tuple[str, ...]:
-    """The stages of a pull request: no deferred stage, and an Odoo stage only when it has something to run.
+    """Keep nondeferred stages and run the Odoo test stages only when they have work.
 
-    An addon file reaches only the Odoo stages here: the other stages that `odoo-addons/*` selects read
-    no addon code (the image, which packs them, is deferred), so they stay for the push to main.
-    `E2E_ODOO_TRIGGERS` keeps `e2e-odoo` for a change that reaches the surfaces its specs write through.
+    Addon files feed the Odoo stages and the real-Odoo browser suite before merge.
+    The other stages selected by the broad addon rule run on main.
     """
     addon_files = [path for path in paths if path.startswith('odoo-addons/') and path.count('/') >= 2]
-    keep_e2e = keeps_e2e_odoo(paths)
-    deferred = {stage for stage in DEFERRED_STAGES if stage != 'e2e-odoo' or not keep_e2e}
-    selected = (set(stages_for([path for path in paths if path not in addon_files]))
-                | (set(ODOO_STAGES) if addon_files else set())
-                | ({'e2e-odoo'} if keep_e2e else set())) - deferred
+    selected = set(stages_for([path for path in paths if path not in addon_files]))
+    if addon_files:
+        selected.update((*ODOO_STAGES, 'e2e-odoo'))
+    selected.difference_update(DEFERRED_STAGES)
     if affected is not None:
         runs = {'odoo': affected,
                 'odoo-app-standalone': app_isolation.matrix('apps', only=affected),
