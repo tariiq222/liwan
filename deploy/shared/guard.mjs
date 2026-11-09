@@ -8,6 +8,7 @@ import { isRestoreHost, resolveTenantHost } from '../../apps/web/server/utils/te
 import { createReleaseLease, readReleaseRoute } from '../../apps/web/server/utils/releaseRouting.ts'
 import { readdirSync, existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { applyDocumentHeaders } from './securityHeaders.mjs'
 
 const forbidden = /^(x-odoo-|x-openerp-|x-liwan-|forwarded$|x-forwarded-)/i
 // The web's double-submit CSRF token (compared with its cookie, never trusted as identity); Nuxt hop only.
@@ -320,6 +321,9 @@ export function createGuard({ registryPath, restoreRegistryPath = '', proxyToken
     const target = p.release ? new URL(p.odoo ? p.release.odooUrl : p.release.webUrl) : (p.restore ? restoreUpstreams : upstreams)[p.odoo ? 0 : 1]
     const upstream = http.request({ hostname: target.hostname, port: target.port, path: p.path, method: req.method, headers: p.headers }, reply => {
       const headers = { ...reply.headers }
+      // A browser document from Nuxt gets the shared edge's security headers; Odoo's JSON,
+      // reports and downloads do not, exactly as on the dedicated edge (issue #480).
+      if (!p.odoo) applyDocumentHeaders(headers)
       if (headers['set-cookie']) {
         headers['set-cookie'] = cookiesForBrowser(headers['set-cookie'], codec, p.tenant, p)
       }

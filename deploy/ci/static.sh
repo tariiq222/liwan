@@ -54,6 +54,7 @@ policies() {
   python3 -B -m unittest discover -s deploy/releases -t . -p 'test_*.py'
   node --test deploy/shared/release-guard.test.mjs deploy/shared/release-assets.test.mjs deploy/shared/release-routes.test.mjs deploy/releases/test_dedicated_guard.mjs \
     deploy/shared/guard.test.mjs deploy/shared/boundary-regressions.test.mjs deploy/shared/guard-rate-limit.test.mjs \
+    deploy/shared/securityHeaders.test.mjs \
     deploy/shared/image-routes.test.mjs deploy/shared/tiktok-relay.test.mjs tools/shared_isolation_acceptance/ssr-boundary.test.mjs
 }
 
