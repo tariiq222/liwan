@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import itertools
 import re
 from datetime import UTC, date, datetime, time, timedelta
 
@@ -14,8 +15,9 @@ UTC_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 MAX_SLOT_WINDOW_DAYS = 31
 # The window a public slots request gets when it names none: the week the requester's page shows.
 PUBLIC_DEFAULT_WINDOW_DAYS = 7
-# The most slots one answer lists. A short slot of a long day could still be thousands, and a page draws a day at a
-# time; the answer keeps the earliest slots of the window in start order.
+# The most slots one answer lists. A short slot of a long day could still be thousands, so the answer stops on a day
+# boundary once the next whole day would pass this: the day it stopped at is the answer's ``next_date``, and a requester
+# asks again from there. An answer always keeps at least one day of slots, so a day that alone holds more is listed whole.
 MAX_SLOT_ITEMS = 500
 
 
@@ -73,7 +75,8 @@ def last_bookable_date(booking_type, settings, now):
 
 
 def type_slot_items(booking_type, combination, first, last, settings, now, origin=None, honour_deadline=True):
-    """The free slots of ``booking_type`` (on ``combination`` when given) from ``first`` to ``last`` inclusive.
+    """The free slots of ``booking_type`` (on ``combination`` when given) from ``first`` to ``last`` inclusive, and the
+    day the answer stopped before (None when it lists the whole window).
 
     Only slots a booking route would accept are listed: the same notice and horizon bounds ``parse_start``
     applies. ``origin`` is the booking being rescheduled: the engine then leaves its own meeting out
@@ -83,6 +86,9 @@ def type_slot_items(booking_type, combination, first, last, settings, now, origi
     The engine's slot search also hides everything inside the type's modification deadline. A requester must keep to
     it; a staff member booking for them does not (``parse_start`` accepts those starts), so staff pass
     ``honour_deadline=False`` and the search runs on an unsaved copy of the type that follows no deadline.
+
+    The answer stops on a day boundary once the next whole day would pass ``MAX_SLOT_ITEMS``; the caller reports that
+    day as ``next_date`` so the same window is asked for again from there and no day is silently dropped.
     """
     tz = _type_timezone(booking_type)
     searched_type = booking_type if honour_deadline else booking_type.new(
@@ -101,7 +107,23 @@ def type_slot_items(booking_type, combination, first, last, settings, now, origi
     duration = timedelta(hours=booking.duration)
     starts = sorted(start.astimezone(UTC) for day_slots in slots.values() for start in day_slots)
     bounded = [start for start in starts if earliest <= start <= latest]
-    return [dump_slot(start, start + duration) for start in bounded[:MAX_SLOT_ITEMS]]
+    return _slot_items_by_day(bounded, duration, tz)
+
+
+def _slot_items_by_day(starts, duration, tz):
+    """``starts`` as slot dicts, and the first day of the ``tz`` calendar the answer left out (None when it lists them all).
+
+    The cap counts whole days: a day is listed entirely or not at all, so a client never sees a day that looks empty only
+    because the answer stopped in its middle. The first day is always listed, even when it alone passes the cap.
+    """
+    items, next_date = [], None
+    for day, day_starts in itertools.groupby(starts, key=lambda start: start.astimezone(tz).date()):
+        day_items = [dump_slot(start, start + duration) for start in day_starts]
+        if items and len(items) + len(day_items) > MAX_SLOT_ITEMS:
+            next_date = day
+            break
+        items.extend(day_items)
+    return items, next_date
 
 
 def require_slot_alignment(start, booking_type):

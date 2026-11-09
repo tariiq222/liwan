@@ -159,7 +159,13 @@ describe('AppointmentSlotSchema', () => {
     expect(AppointmentSlotSchema.parse(SLOT)).toEqual(SLOT)
     expect(() => AppointmentSlotSchema.parse({ ...SLOT, start: '2026-10-30T08:00:00+03:00' })).toThrow()
     expect(() => AppointmentSlotSchema.parse({ ...SLOT, resource: 1 })).toThrow()
-    expect(AppointmentSlotListSchema.parse({ items: [SLOT], total: 1 }).total).toBe(1)
+    expect(AppointmentSlotListSchema.parse({ items: [SLOT], total: 1, next_date: null }).total).toBe(1)
+  })
+
+  it('names the day an answer stopped at, or null when it lists the window whole', () => {
+    expect(AppointmentSlotListSchema.parse({ items: [], total: 0, next_date: '2026-11-02' }).next_date).toBe('2026-11-02')
+    expect(() => AppointmentSlotListSchema.parse({ items: [], total: 0 })).toThrow()
+    expect(() => AppointmentSlotListSchema.parse({ items: [], total: 0, next_date: 'tomorrow' })).toThrow()
   })
 
   it('the query needs from and to as dates and takes an optional combination', () => {

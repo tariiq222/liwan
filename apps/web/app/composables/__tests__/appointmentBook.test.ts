@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { AppointmentPublicBooking } from '@liwan/contracts'
-import { addDays, bookingLinkOf, canChange, formatDay, formatMoment, formatSlot, formatSlotTime, isInvalidBookingLink, localDay, refusalStatus, slotsByDay, windowDays } from '../appointmentBook'
+import { addDays, bookingLinkOf, canChange, collectSlots, formatDay, formatMoment, formatSlot, formatSlotTime, isInvalidBookingLink, localDay, refusalStatus, slotsByDay, windowDays } from '../appointmentBook'
 
 describe('bookingLinkOf', () => {
   it('reads the booking and token of a well-formed address', () => {
@@ -70,6 +70,36 @@ describe('days', () => {
     const grouped = slotsByDay(slots)
     expect([...grouped.keys()]).toEqual(['2026-10-29', '2026-10-30'])
     expect(grouped.get('2026-10-29')).toEqual([slots[0], slots[1]])
+  })
+})
+
+describe('collectSlots', () => {
+  const slot = (start: string) => ({ start, stop: start })
+
+  it('asks once when the answer covers the whole window', async () => {
+    const read = vi.fn().mockResolvedValue({ items: [slot('2026-10-30T07:00:00Z')], total: 1, next_date: null })
+    const answer = await collectSlots(read, '2026-10-30', '2026-11-05')
+    expect(read).toHaveBeenCalledTimes(1)
+    expect(read).toHaveBeenCalledWith('2026-10-30', '2026-11-05')
+    expect(answer).toEqual({ items: [slot('2026-10-30T07:00:00Z')], total: 1, next_date: null })
+  })
+
+  it('continues from the day each answer stopped at, keeping every slot in order', async () => {
+    const read = vi.fn()
+      .mockResolvedValueOnce({ items: [slot('2026-10-30T07:00:00Z')], total: 1, next_date: '2026-11-01' })
+      .mockResolvedValueOnce({ items: [slot('2026-11-01T07:00:00Z')], total: 1, next_date: '2026-11-05' })
+      .mockResolvedValueOnce({ items: [slot('2026-11-05T07:00:00Z')], total: 1, next_date: null })
+    const answer = await collectSlots(read, '2026-10-30', '2026-11-05')
+    expect(read.mock.calls).toEqual([['2026-10-30', '2026-11-05'], ['2026-11-01', '2026-11-05'], ['2026-11-05', '2026-11-05']])
+    expect(answer.items.map(item => item.start)).toEqual(['2026-10-30T07:00:00Z', '2026-11-01T07:00:00Z', '2026-11-05T07:00:00Z'])
+    expect(answer.total).toBe(3)
+    expect(answer.next_date).toBeNull()
+  })
+
+  it('stops when the server names the day it already asked for, instead of repeating the request', async () => {
+    const read = vi.fn().mockResolvedValue({ items: [], total: 0, next_date: '2026-10-30' })
+    await collectSlots(read, '2026-10-30', '2026-11-05')
+    expect(read).toHaveBeenCalledTimes(1)
   })
 })
 

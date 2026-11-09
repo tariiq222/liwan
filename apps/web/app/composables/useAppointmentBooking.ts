@@ -1,7 +1,7 @@
 import { computed, type Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { AppointmentPublicBookingSchema, AppointmentSlotListSchema } from '@liwan/contracts'
-import { bookingLinkOf, refusalStatus, type BookingLink } from './appointmentBook'
+import { bookingLinkOf, collectSlots, refusalStatus, type BookingLink } from './appointmentBook'
 
 const bookingPath = (link: BookingLink) => `/api/v1/public/appointments/bookings/${link.id}`
 
@@ -29,13 +29,23 @@ export function useGuestBooking() {
   return { link, ...query }
 }
 
-/** The free slots from `from` to `to` (inclusive days) of the booking `link` names; no request while there is no range. */
+/**
+ * The free slots from `from` to `to` (inclusive days) of the booking `link` names; no request while there is no range.
+ * A dense grid makes one answer stop on a day boundary and name `next_date`, the first day it left out: those days are then
+ * read in the same query, starting there, so a day is never shown as unavailable only because an answer ended early.
+ */
 export function useGuestSlots(link: Ref<BookingLink>, range: Ref<{ from: string; to: string } | null>) {
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => bookingKeys.slots(link.value, range.value?.from, range.value?.to)),
+    // The query runs only while a range exists (`enabled` below), so it reads that range rather than the key's optional tail.
     enabled: computed(() => range.value !== null),
-    queryFn: ({ queryKey, signal }) => $api(`${bookingPath({ id: queryKey[2], token: queryKey[3] })}/slots`, { query: { access_token: queryKey[3], from: queryKey[5], to: queryKey[6] }, signal, schema: AppointmentSlotListSchema }),
+    queryFn: ({ signal }) => collectSlots(
+      (from, to) => $api(`${bookingPath(link.value)}/slots`, {
+        query: { access_token: link.value.token, from, to }, signal, schema: AppointmentSlotListSchema,
+      }),
+      range.value!.from, range.value!.to,
+    ),
     retry: false,
   })
 }

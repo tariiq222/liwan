@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import patch
 
 from odoo.tests import tagged
@@ -26,6 +26,7 @@ class TestAppointmentSlots(LiwanAppointmentsCase):
         body = result.json()
         self.assertGreater(body['total'], 0)
         self.assertEqual(body['total'], len(body['items']))
+        self.assertIsNone(body['next_date'], 'the whole week fits one answer')
         earliest = datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=self.booking_type.modifications_deadline)
         for item in body['items']:
             self.assertEqual(set(item), {'start', 'stop'})
@@ -97,6 +98,41 @@ class TestAppointmentSlots(LiwanAppointmentsCase):
         items = self._slots(0, 5).json()['items']
         self.assertTrue(items)
         self.assertTrue(all(datetime.strptime(item['start'], UTC_FORMAT) <= latest for item in items))
+
+    def test_a_dense_grid_is_reachable_across_answers_and_no_day_is_cut(self):
+        """#546: a 5-minute grid over a week passes the per-answer limit, so whole days are paged, never truncated mid-day."""
+        self.env['liwan.appointment.settings'].create({'company_id': self.env.company.id, 'min_notice_hours': 0})
+        self.booking_type.write({'slot_duration': 5 / 60})
+        self._always_open(self.booking_type, self.combination)
+        self.authenticate('appointments_booker', 'appointments_booker_pass_123')
+        today = datetime.now(UTC).date()
+        days = [str(today + timedelta(days=offset)) for offset in range(2, 9)]
+        pages, paged, next_date = [], [], None
+        for _page in range(8):
+            first = 2 if next_date is None else (next_date - today).days
+            body = self._slots(first, 8).json()
+            pages.append(body)
+            self.assertEqual(body['total'], len(body['items']))
+            self.assertLessEqual(body['total'], 500)
+            paged.extend(item['start'] for item in body['items'])
+            next_date = date.fromisoformat(body['next_date']) if body['next_date'] else None
+            if next_date is None:
+                break
+        self.assertIsNone(next_date, 'the whole week is reachable')
+        self.assertGreater(len(pages), 1, 'the per-answer cap is reachable on a 5-minute grid')
+        # The uncapped answer of the same week is the reference: paging must list exactly it.
+        with patch('odoo.addons.liwan_appointments.serializers.appointment_slot.MAX_SLOT_ITEMS', 10 ** 6):
+            uncapped = [item['start'] for item in self._slots(2, 8).json()['items']]
+        self.assertEqual(paged, uncapped, 'no slot is lost, repeated or reordered across the answers')
+        self.assertTrue(set(days) <= {start[:10] for start in paged})
+        # Each answer lists whole days: every day it names is listed exactly as the uncapped answer lists that day.
+        per_day = {}
+        for start in uncapped:
+            per_day.setdefault(start[:10], []).append(start)
+        for body in pages:
+            listed = [item['start'] for item in body['items']]
+            for day in sorted({start[:10] for start in listed}):
+                self.assertEqual([start for start in listed if start[:10] == day], per_day[day], day)
 
     def test_bad_dates_are_422(self):
         self.authenticate('appointments_booker', 'appointments_booker_pass_123')

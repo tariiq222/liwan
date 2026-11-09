@@ -61,7 +61,7 @@ describe('useGuestSlots', () => {
     const slots = useGuestSlots(ref(link), ref({ from: '2026-10-30', to: '2026-11-05' })) as unknown as QueryOptions
     expect(slots.retry).toBe(false)
     expect(slots.queryKey.value).toEqual(bookingKeys.slots(link, '2026-10-30', '2026-11-05'))
-    mocks.api.mockResolvedValue({})
+    mocks.api.mockResolvedValue({ items: [], total: 0, next_date: null })
     const signal = new AbortController().signal
     await slots.queryFn({ queryKey: slots.queryKey.value, signal })
     expect(mocks.api).toHaveBeenCalledWith('/api/v1/public/appointments/bookings/42/slots', {
@@ -69,6 +69,28 @@ describe('useGuestSlots', () => {
       signal,
       schema: AppointmentSlotListSchema,
     })
+  })
+
+  it('reads the days after a stopped answer, so a dense grid is not read as unavailable', async () => {
+    vi.stubGlobal('useApi', () => ({ $api: mocks.api }))
+    const slots = useGuestSlots(ref(link), ref({ from: '2026-10-30', to: '2026-11-05' })) as unknown as QueryOptions
+    mocks.api
+      .mockResolvedValueOnce({ items: [{ start: '2026-10-30T07:00:00Z', stop: '2026-10-30T07:30:00Z' }], total: 1, next_date: '2026-11-01' })
+      .mockResolvedValueOnce({ items: [{ start: '2026-11-01T07:00:00Z', stop: '2026-11-01T07:30:00Z' }], total: 1, next_date: '2026-11-04' })
+      .mockResolvedValueOnce({ items: [{ start: '2026-11-04T07:00:00Z', stop: '2026-11-04T07:30:00Z' }], total: 1, next_date: null })
+    const answer = await slots.queryFn({ queryKey: slots.queryKey.value, signal: new AbortController().signal }) as { items: unknown[]; total: number; next_date: string | null }
+    expect(mocks.api.mock.calls.map(call => call[1].query.from)).toEqual(['2026-10-30', '2026-11-01', '2026-11-04'])
+    expect(answer.items).toHaveLength(3)
+    expect(answer.total).toBe(3)
+    expect(answer.next_date).toBeNull()
+  })
+
+  it('stops at an answer that does not move the window forward, instead of asking for ever', async () => {
+    vi.stubGlobal('useApi', () => ({ $api: mocks.api }))
+    const slots = useGuestSlots(ref(link), ref({ from: '2026-10-30', to: '2026-11-05' })) as unknown as QueryOptions
+    mocks.api.mockResolvedValue({ items: [], total: 0, next_date: '2026-10-30' })
+    await slots.queryFn({ queryKey: slots.queryKey.value, signal: new AbortController().signal })
+    expect(mocks.api).toHaveBeenCalledTimes(1)
   })
 })
 

@@ -117,8 +117,8 @@ class AppointmentGuestController(http.Controller):
             max_window_days=MAX_SLOT_WINDOW_DAYS, default_window_days=PUBLIC_DEFAULT_WINDOW_DAYS,
         )
         pinned = booking.env['resource.booking.combination'] if booking.combination_auto_assign else booking.combination_id
-        items = type_slot_items(booking_type, pinned, first, last, settings, now, origin=booking)
-        return {'items': items, 'total': len(items)}
+        items, next_date = type_slot_items(booking_type, pinned, first, last, settings, now, origin=booking)
+        return {'items': items, 'total': len(items), 'next_date': next_date.isoformat() if next_date else None}
 
     @http.route(BOOKING_PATH + '/schedule', type='json2', auth='public', methods=['POST'], readonly=False, save_session=False)
     @api_handler

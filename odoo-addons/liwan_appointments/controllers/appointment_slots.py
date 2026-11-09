@@ -40,5 +40,5 @@ class AppointmentSlotController(http.Controller):
         now = datetime.now(UTC)
         first, last, combination_id = parse_type_slot_query(booking_type, request.httprequest.args, settings, now)
         combination = offered_combination(booking_type, combination_id)
-        items = type_slot_items(booking_type, combination, first, last, settings, now, honour_deadline=False)
-        return {'items': items, 'total': len(items)}
+        items, next_date = type_slot_items(booking_type, combination, first, last, settings, now, honour_deadline=False)
+        return {'items': items, 'total': len(items), 'next_date': next_date.isoformat() if next_date else None}

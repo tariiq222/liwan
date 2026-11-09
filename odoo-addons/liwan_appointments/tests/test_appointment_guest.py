@@ -2,6 +2,7 @@
 import logging
 import re
 from datetime import UTC, date, datetime, timedelta
+from unittest.mock import patch
 
 from odoo.tests import tagged
 
@@ -226,6 +227,43 @@ class TestAppointmentGuest(LiwanAppointmentsCase):
             self.assertEqual(starts, sorted(starts))
             self.assertLessEqual(len(starts), 500)
             self.assertTrue(all(datetime.strptime(value, UTC_FORMAT).date() <= last for value in starts))
+        self.assertIsNone(body['next_date'], 'a sparse grid fits one answer')
+
+    def test_a_dense_grid_is_read_to_the_end_across_answers(self):
+        """#546: a 5-minute grid around the clock fills an answer before the week ends, so the answer names the day it stopped
+        at and the next request starts there: every day of the week stays bookable and no slot is lost."""
+        self._settings(min_notice_hours=0, horizon_days=10)
+        self.booking_type.write({'slot_duration': 5 / 60, 'inherits_company_deadline': False, 'own_deadline_hours': 0})
+        self._always_open(self.booking_type, self.combination)
+        self.env.flush_all()
+        today = datetime.now(UTC).date()
+        last = today + timedelta(days=7)
+        pages, paged = [], []
+        day = today + timedelta(days=1)
+        while True:
+            body = self._call('GET', self.invited, '/slots', **{'from': day, 'to': last}).json()
+            pages.append(body)
+            self.assertEqual(body['total'], len(body['items']))
+            self.assertLessEqual(body['total'], 500)
+            paged.extend(item['start'] for item in body['items'])
+            if not body['next_date']:
+                break
+            next_day = date.fromisoformat(body['next_date'])
+            self.assertGreater(next_day, day, 'an answer names a day after the one it started on')
+            day = next_day
+        self.assertGreater(len(pages), 1, 'the cap is reachable on a 5-minute grid')
+        # The uncapped answer of the same week is the reference: paging must list exactly it, and nothing twice.
+        with patch('odoo.addons.liwan_appointments.serializers.appointment_slot.MAX_SLOT_ITEMS', 10 ** 6):
+            uncapped = [item['start'] for item in self._call('GET', self.invited, '/slots', **{'from': today + timedelta(days=1), 'to': last}).json()['items']]
+        self.assertEqual(paged, uncapped, 'no slot is lost, repeated or reordered across the answers')
+        # Each day the answers name is whole: it holds the same slots the uncapped answer lists for that day.
+        per_day = {}
+        for start in uncapped:
+            per_day.setdefault(start[:10], []).append(start)
+        for body in pages:
+            listed = [item['start'] for item in body['items']]
+            for day_key in sorted({start[:10] for start in listed}):
+                self.assertEqual([start for start in listed if start[:10] == day_key], per_day[day_key], day_key)
 
     def test_one_token_has_its_own_read_budget(self):
         """#546: the edge limit counts addresses, not tokens; the token itself is bounded inside Odoo."""
