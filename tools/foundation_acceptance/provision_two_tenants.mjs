@@ -131,13 +131,14 @@ try {
     return [first, first + size - 1]
   }
   const occupied = JSON.parse(networks.stdout).flatMap(network => (network.IPAM?.Config ?? []).map(entry => entry.Subnet).filter(subnet => subnet && !subnet.includes(':'))).map(toRange)
+  const networkRoles = ['EDGE', 'WEB', 'ODOO', 'DB', 'CONTROL', 'RELAY', 'RESTORE_EDGE', 'RESTORE_DB']
   const subnets = []
-  for (let third = 16; third < 240 && subnets.length < 5; third++) {
+  for (let third = 16; third < 240 && subnets.length < networkRoles.length; third++) {
     const subnet = `10.245.${third}.0/24`
     const [low, high] = toRange(subnet)
     if (!occupied.some(([a, b]) => low <= b && a <= high)) subnets.push(subnet)
   }
-  if (subnets.length !== 5) throw new Error('no five isolated acceptance subnets available')
+  if (subnets.length !== networkRoles.length) throw new Error('isolated acceptance subnets are unavailable')
   const env = { ...baseEnv, LIWAN_IMAGE_TAG: tag, ODOO_COMMIT: readFileSync(join(sourceRoot, 'deploy/odoo/ODOO_COMMIT'), 'utf8').trim(), DB_NAME: '', DB_PASSWORD: dbPassword,
     LIWAN_SHARED_PROXY_TOKEN: secret(), LIWAN_SESSION_KEYS: JSON.stringify({ k1: secret() }), LIWAN_SESSION_ACTIVE_KID: 'k1',
     LIWAN_TENANT_REGISTRY_DIR: registryDir, LIWAN_RESTORE_REGISTRY_DIR: restoreRegistryDir, LIWAN_SHARED_ODOO_CONFIG: odooConfig,
@@ -149,7 +150,7 @@ try {
     LIWAN_EDGE_BIND: '127.0.0.1', LIWAN_EDGE_HTTPS_PORT: String(httpsPort), LIWAN_EDGE_HTTP_PORT: String(httpPort),
     FOUNDATION_CADDYFILE: join(sourceRoot, 'tools/shared_acceptance_live/acceptance.Caddyfile'), FOUNDATION_STATE_DIR: stateDir, FOUNDATION_DOMAIN_SUFFIX: domainSuffix,
     FOUNDATION_CONTROL_DB_PASSWORD: controlDbPassword, FOUNDATION_CONTROL_DB_PORT: String(controlDbPort),
-    ...Object.fromEntries(['EDGE', 'WEB', 'ODOO', 'DB', 'CONTROL'].map((key, index) => [`FOUNDATION_NET_${key}`, subnets[index]])),
+    ...Object.fromEntries(networkRoles.map((key, index) => [`FOUNDATION_NET_${key}`, subnets[index]])),
   }
   const rendered = command('render', 'docker', ['compose', '-f', 'docker-compose.yml', '-f', 'docker-compose.shared.yml', '-f', join(toolDir, 'stack.override.yml'), '--project-name', project, ...(commercial ? ['--profile', 'restore'] : []), 'config'], { cwd: join(sourceRoot, 'deploy'), env })
   if (!rendered.ok) throw new Error('Compose render failed')
