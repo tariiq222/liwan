@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import base64
+import json
 import os
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
@@ -17,6 +18,20 @@ PHONE_ID = '100000000001'
 BUSINESS_ACCOUNT_ID = '200000000001'
 ACCESS_TOKEN = 'EAAB-access-token-0123456789'
 APP_SECRET = 'app-secret-0123456789abcdef'
+
+
+def store_event(env, channel, payload):
+    """Store one delivery of `channel` through the model's only writer, as a webhook arrives.
+
+    `payload` is a parsed envelope, or the text/bytes it was read from. A replay of a stored delivery
+    returns an empty recordset, exactly as the hook controllers see it.
+    """
+    raw = payload if isinstance(payload, bytes) else (
+        payload.encode() if isinstance(payload, str) else json.dumps(payload).encode()
+    )
+    return env['liwan.inbox.event']._liwan_store(channel, raw)
+
+
 # Every key of InboxMessageSchema (packages/contracts/src/inbox/index.ts).
 MESSAGE_KEYS = {
     'id', 'direction', 'kind', 'body', 'author', 'template', 'delivery_state', 'error', 'error_code', 'unconfirmed',
@@ -62,6 +77,8 @@ class LiwanInboxCase(LiwanApiCase):
         )
         cls.department = cls.env['liwan.inbox.department'].create({'name': 'Support', 'member_ids': [(6, 0, cls.agent.ids)]})
         cls.other_department = cls.env['liwan.inbox.department'].create({'name': 'Sales'})
+        # The pinned public origin provisioning writes; the hook URL of a channel is built from it.
+        cls.env['ir.config_parameter'].sudo().set_param('web.base.url', 'https://liwan.test')
         cls.channel = cls.make_channel()
         cls.settings = cls.env['liwan.inbox.settings']._get_for_company()
         cls.counter = 0
@@ -103,6 +120,15 @@ class LiwanInboxCase(LiwanApiCase):
         })
         channel._liwan_rotate_verify_token()
         return channel
+
+    @classmethod
+    def store_event(cls, channel, payload):
+        """Store one delivery of `channel` through the model's only writer, as a webhook arrives.
+
+        `payload` is a parsed envelope (or the raw text/bytes it was read from). A replay of a stored
+        delivery returns an empty recordset, exactly as the hook controllers see it.
+        """
+        return store_event(cls.env, channel, payload)
 
     @classmethod
     def make_template(cls, channel=None, **values):

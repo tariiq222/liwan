@@ -1,6 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """TikTok inbound: the message kinds, the conversation they create, media and reactions."""
-import json
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -47,10 +46,7 @@ class TestTikTokInbound(LiwanInboxCase):
 
     def deliver(self, payload):
         """Deliver one webhook payload and process it on the next cron run, after the echo settle time."""
-        event = self.env['liwan.inbox.event'].create({
-            'channel_id': self.tiktok.id, 'owner_company_id': self.tiktok.owner_company_id.id,
-            'payload': json.dumps(payload),
-        })
+        event = self.store_event(self.tiktok, payload)
         later = fields.Datetime.now() + TIKTOK_ECHO_SETTLE + timedelta(seconds=1)
         with patch('odoo.fields.Datetime.now', return_value=later):
             self.env['liwan.inbox.event']._liwan_run_events()
@@ -221,10 +217,7 @@ class TestTikTokInbound(LiwanInboxCase):
 
     def test_young_events_wait(self):
         self.deliver(tt.receive_text())
-        event = self.env['liwan.inbox.event'].create({
-            'channel_id': self.tiktok.id, 'owner_company_id': self.tiktok.owner_company_id.id,
-            'payload': json.dumps(tt.send_echo(message_id='msg-echo-young')),
-        })
+        event = self.store_event(self.tiktok, tt.send_echo(message_id='msg-echo-young'))
         self.env['liwan.inbox.event']._liwan_run_events()
         self.assertEqual((event.state, len(self.message('msg-echo-young'))), ('pending', 0))
         with patch('odoo.fields.Datetime.now', return_value=fields.Datetime.now() + TIKTOK_ECHO_SETTLE):
@@ -282,6 +275,7 @@ class TestTikTokInbound(LiwanInboxCase):
         self.assertEqual(len(job), 1)
         self.assertEqual((job.state, job.owner_company_id), ('queued', self.tiktok.owner_company_id))
         self.assertFalse(self.env['liwan.inbox.conversation'].search_count([]))
-        # An import already queued reads the same messages: a second notice starts nothing and raises nothing.
-        self.assertEqual(self.deliver(tt.eu_notice()).state, 'done')
+        # An import already queued reads the same messages: a second notice is a replay, so it stores no event
+        # and starts nothing, and raises nothing.
+        self.assertFalse(self.deliver(tt.eu_notice()))
         self.assertEqual(len(Sync.search([('channel_id', '=', self.tiktok.id)])), 1)

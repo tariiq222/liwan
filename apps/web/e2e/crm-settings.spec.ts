@@ -83,6 +83,20 @@ test('the privacy card saves the view log switch', async ({ page }) => {
   await expect(page.locator('#privacy').getByRole('switch', { name: 'سجل الاطلاع' })).toBeChecked()
 })
 
+test('the privacy card keeps the view log retention only while the log is on', async ({ page }) => {
+  await page.goto('/settings/apps/crm?tab=privacy')
+  const card = page.locator('#privacy')
+  const log = card.getByRole('switch', { name: 'سجل الاطلاع' })
+  // The retention input appears with the log: the window only means something while openings are recorded.
+  await expect(card.locator('#view-log-retention')).toHaveCount(0)
+  await log.click()
+  await card.locator('#view-log-retention').fill('6')
+  await page.getByTestId('settings-save-bar-save').click()
+  await expect(page.getByTestId('settings-save-bar')).toBeHidden()
+  await page.reload()
+  await expect(page.locator('#privacy #view-log-retention')).toHaveValue('6')
+})
+
 test('the pricing card saves the discount ceiling and the above-list policy', async ({ page }) => {
   await page.goto('/settings/apps/crm?tab=sales')
   const card = page.locator('#pricing')

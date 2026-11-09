@@ -19,11 +19,16 @@ class CatalogImageController(http.Controller):
     def product_image(self, item_id, token, **_):
         """The image of a listed catalog item, JPEG or PNG; an unknown or unlisted item and a wrong token answer the same 404.
 
-        The public user holds no right on items or products, so the item is read elevated and matched by its token.
+        The public user holds no right on items or products, so the item is read elevated. Only the item's own
+        token is read first; the image column is fetched after it matches, so a wrong token costs one row lookup
+        and never reads or decodes an image.
         """
-        item = request.env['liwan.inbox.catalog.item'].sudo().search([('id', '=', item_id), ('listed', '=', True)], limit=1)
-        raw = item.product_id.image_1024 if item else None
-        if not item or not raw or not hmac.compare_digest(item.image_token.encode(), token.encode()):
+        public = request.env['liwan.inbox.catalog.item'].sudo()
+        item = public.search([('id', '=', item_id), ('listed', '=', True)], limit=1)
+        if not item or not hmac.compare_digest(item.image_token.encode(), token.encode()):
+            return request.not_found()
+        raw = item.product_id.image_1024
+        if not raw:
             return request.not_found()
         data, mimetype = public_image(base64.b64decode(raw))
         return request.make_response(data, [

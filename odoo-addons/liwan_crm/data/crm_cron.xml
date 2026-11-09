@@ -10,4 +10,15 @@
         <field name="interval_type">minutes</field>
         <field name="active" eval="True"/>
     </record>
+    <!-- The view log holds "who opened what": prune it to each company's stated retention once a day. -->
+    <record id="ir_cron_view_log_prune" model="ir.cron">
+        <field name="name">liwan CRM: prune the view log past its retention</field>
+        <field name="model_id" ref="model_liwan_crm_view_log"/>
+        <field name="state">code</field>
+        <field name="code">model._liwan_prune()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
 </odoo>

@@ -1,6 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Meta responses and event helpers shared by the phase 6 tests (number health, profile, analytics)."""
-import json
 from unittest.mock import MagicMock
 
 from . import whatsapp_payloads as wa
@@ -34,12 +33,15 @@ def account_event(field, value, account_id=BUSINESS_ACCOUNT_ID, time=EVENT_TIME)
 
 
 def process(case, channel, payload):
-    """Store `payload` as an event of `channel` and run the events cron; returns the event."""
-    event = case.env['liwan.inbox.event'].create({
-        'channel_id': channel.id, 'owner_company_id': channel.owner_company_id.id, 'payload': json.dumps(payload),
-    })
+    """Store `payload` as an event of `channel` and run the events cron; returns the stored event.
+
+    A replay of an already stored delivery returns an empty recordset: it is not processed again, which is
+    exactly what the health tests assert when they deliver the same body twice.
+    """
+    event = case.store_event(channel, payload)
     case.env['liwan.inbox.event']._liwan_run_events()
-    case.assertEqual(event.state, 'done', event.error)
+    if event:
+        case.assertEqual(event.state, 'done', event.error)
     return event
 
 

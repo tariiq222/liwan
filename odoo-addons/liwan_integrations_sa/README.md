@@ -9,10 +9,14 @@ Routes: `GET /api/v1/integrations/connections`, gated by `integrations.enabled` 
 
 `liwan.integration.connection` rows (one ZATCA link per company) are created by
 `_liwan_ensure_default_connections`, which runs from module data on **install and on every
-upgrade**, for the companies that exist at that moment. There is deliberately no
-`res.company` create hook: it would need `sudo()` (rule R7). The provisioning flow must
-therefore upgrade this addon after it creates a company. Until it does, the page shows its
-empty state.
+upgrade**, for the companies that exist at that moment, and by the `res.company` create hook
+(`models/res_company.py`) for a company created afterwards — a second company or a branch —
+so its page shows the links at once rather than after the next upgrade.
+
+That hook elevates once (`_liwan_provisioning_env`), the same shape as `liwan_pmo`'s
+per-company seeds: core `res.company.create` admits only a Settings administrator, who need
+not hold `integrations.manage`. The case is documented in `tools/arch_documented_sudo.json`
+and writes nothing but the company, kind and provider of its own default rows.
 
 ## Access
 

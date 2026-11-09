@@ -1,7 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Shared fixtures of the form (WhatsApp Flows) tests: a valid form body, a form factory and a fake Meta."""
 import calendar
-import json
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
@@ -184,9 +183,9 @@ class FlowCase(AutomationCase):
 
     def run_event(self, data, channel=None, provider_id=None):
         channel = channel or self.channel
-        event = self.env['liwan.inbox.event'].create({
-            'channel_id': channel.id, 'owner_company_id': channel.owner_company_id.id, 'payload': json.dumps(data),
-        })
+        event = self.store_event(channel, data)
         self.env['liwan.inbox.event']._liwan_run_events()
-        self.assertEqual(event.state, 'done', event.error)
+        # A replayed delivery is not stored again, so it has no event to check; its message is still the first one.
+        if event:
+            self.assertEqual(event.state, 'done', event.error)
         return self.env['liwan.inbox.message'].search([('provider_message_id', '=', provider_id)]) if provider_id else event

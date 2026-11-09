@@ -19,6 +19,7 @@ RANGES = {
     'recycle_after_days': (1, 365),
     'recycle_cycles': (0, 5),
     'discount_max_percent': (0, 100),
+    'view_log_retention_months': (1, 60),
 }
 
 TERM_DEFAULTS = {
@@ -51,6 +52,8 @@ DEFAULTS = {
     'distribution_mode': 'round_robin',
     'visibility': 'own',
     'view_log_enabled': False,
+    # How long an opening of an opportunity stays in the audit trail; the prune cron deletes older rows.
+    'view_log_retention_months': 12,
     'discount_allowed': False,
     'discount_max_percent': 0,
     'price_above_list': 'managers',
@@ -66,7 +69,7 @@ DEFAULTS = {
 _PRESET_FIELDS = (
     'followup_attempts', 'followup_interval_hours', 'after_attempts', 'recycle_enabled',
     'recycle_after_days', 'recycle_cycles', 'distribution_mode', 'visibility',
-    'view_log_enabled', 'discount_allowed', 'discount_max_percent', 'price_above_list',
+    'view_log_enabled', 'view_log_retention_months', 'discount_allowed', 'discount_max_percent', 'price_above_list',
 )
 PRESETS = {
     'phone_packages': {name: DEFAULTS[name] for name in _PRESET_FIELDS},
@@ -85,6 +88,7 @@ PRESETS = {
         'distribution_mode': 'manual',
         'visibility': 'own',
         'view_log_enabled': False,
+        'view_log_retention_months': 12,
         'discount_allowed': True,
         'discount_max_percent': 10,
         'price_above_list': 'managers',
@@ -99,6 +103,7 @@ PRESETS = {
         'distribution_mode': 'manual',
         'visibility': 'all',
         'view_log_enabled': False,
+        'view_log_retention_months': 12,
         'discount_allowed': True,
         'discount_max_percent': 5,
         'price_above_list': 'forbid',
@@ -113,6 +118,7 @@ PRESETS = {
         'distribution_mode': 'round_robin',
         'visibility': 'own',
         'view_log_enabled': False,
+        'view_log_retention_months': 12,
         'discount_allowed': True,
         'discount_max_percent': 15,
         'price_above_list': 'forbid',
@@ -172,6 +178,9 @@ class LiwanCrmSettings(models.Model):
 
     visibility = fields.Selection(_selection(VISIBILITIES), required=True, default=DEFAULTS['visibility'])
     view_log_enabled = fields.Boolean(default=DEFAULTS['view_log_enabled'])
+    # The audit trail of opportunity openings holds personal data ("who opened what"), so a company states
+    # how long it keeps one; the prune cron deletes older rows. In months, because this is a stated policy.
+    view_log_retention_months = fields.Integer(required=True, default=DEFAULTS['view_log_retention_months'])
 
     discount_allowed = fields.Boolean(default=DEFAULTS['discount_allowed'])
     discount_max_percent = fields.Integer(required=True, default=DEFAULTS['discount_max_percent'])
@@ -195,6 +204,9 @@ class LiwanCrmSettings(models.Model):
     )
     _discount_range = models.Constraint(
         'CHECK(discount_max_percent BETWEEN 0 AND 100)', 'the maximum discount is between 0 and 100 percent',
+    )
+    _view_log_retention_range = models.Constraint(
+        'CHECK(view_log_retention_months BETWEEN 1 AND 60)', 'the view log is kept from 1 to 60 months',
     )
 
     @api.model_create_multi
