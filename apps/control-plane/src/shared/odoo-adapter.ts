@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { assertReconfigureAuthority, type SubscriptionRunner } from './subscription-reconfigure.js'
 import type { ObserveRunner } from './subscription-reconcile.js'
+import { z } from 'zod'
 import type { Pool } from 'pg'
 import type { SharedJob,SharedReconfigureJob } from '@liwan/commercial-contracts/shared'
 import { sharedObservationSchema } from '@liwan/commercial-contracts/shared'
@@ -18,7 +19,7 @@ import { publishRegistryMutation, recoverRegistry } from './registry-store.js'
 import { lstat } from 'node:fs/promises'
 import { createAdminPasswordRunner } from './admin-password-runner.js'
 import { createTenantStatusRunner } from './tenant-status-runner.js'
-import { resolveOdooBackupAuthority,recordOdooBackup } from './odoo-backup.js'
+import { resolveOdooBackupAuthority,recordOdooBackup,resolveCommercialOdooRestore,findVerifiedRestoreCommercialEffect } from './odoo-backup.js'
 
 /** Non-secret refusal codes the provision effect may report; all others are opaque.
  * Mirrors tools/liwan_cli/managed_verify.py ERROR_CODES plus the managed-policy
@@ -29,8 +30,7 @@ export function subscriptionRequest(input:{job:SharedReconfigureJob;action:'obse
     ...(typeof adminLogin==='string' && adminLogin.length>0?{admin_login:adminLogin}:{})}
 }
 /** Source usage/subscription observations must match the current source binding.
- * Isolated restores require their own physically verified adapter; never route a
- * target database through the source service or weaken release admission. */
+ * Isolated restores use separately verified authority and never use the source service. */
 export function subscriptionObservationRequest(binding:{tenantId:string;database:string;filestore:string;registryRevision:number;host:string},input:{database:string}){
   if(binding.database!==input.database || binding.filestore!==input.database)throw Error('tenant_binding_mismatch')
   return {action:'observe',tenant:{database:binding.database,host:binding.host},releaseBinding:binding,attemptId:randomUUID(),fence:0}
@@ -48,6 +48,9 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
   const execute=async(job:SharedJob,action:'observe'|'apply',claim?:{attemptId:string;fence:number;assertOwned:()=>Promise<void>})=>{
     const packageAuthority=job.operation==='provision'?await resolvePackageJobAuthority(pool,job):undefined
     const authority=job.operation==='provision'?null:await resolveOdooBackupAuthority(pool,runtime,job,{starting:action==='apply'})
+    const commercial = job.operation==='restore' && action==='observe' && authority && 'targetDatabase' in authority && typeof authority.targetDatabase==='string'
+      ? await findVerifiedRestoreCommercialEffect(pool,authority.controlTenantId,job.approvalId,authority.targetDatabase)
+      : undefined
     const onboarding=job.operation==='provision'?await pool.query(`SELECT o.admin_name,o.admin_login,o.host,o.issuer,o.actor_uid,o.request_id,t.name FROM shared_onboardings o
       JOIN tenants t ON t.id=o.control_tenant_id JOIN shared_jobs j ON j.id=o.job_id
       WHERE o.request_id=$1 AND o.job_digest=$2 AND j.payload_digest=o.job_digest AND o.tenant_slug=$3 AND o.database_name=$4`,[job.requestId,payloadDigest(job),job.binding.tenantId,job.binding.database]):null
@@ -117,7 +120,7 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
           else resolve(result)
         })
       })
-      child.stdin.write(JSON.stringify({action,config:runtime,job,businessKey:businessKey(job),payloadDigest:payloadDigest(job),...(job.operation==='provision'?{admin:{name:row.admin_name,login:row.admin_login},companyName:row.name,host:row.host,...(packageAuthority?{packageAuthority}:{})}:{authority}),...(claim?{attemptId:claim.attemptId,fence:claim.fence}:{})})+'\n')
+      child.stdin.write(JSON.stringify({action,config:runtime,job,businessKey:businessKey(job),payloadDigest:payloadDigest(job),...(job.operation==='provision'?{admin:{name:row.admin_name,login:row.admin_login},companyName:row.name,host:row.host,...(packageAuthority?{packageAuthority}:{})}:{authority,...(commercial?{commercial}:{})}),...(claim?{attemptId:claim.attemptId,fence:claim.fence}:{})})+'\n')
     })
   }
   const subscriptionExecute=async(request:Record<string,unknown>,assertOwned?:()=>Promise<void>,cancel?:AbortSignal)=>{
@@ -161,22 +164,45 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
     })
   }
   const subscriptionRunner:SubscriptionRunner=async input=>{
-    const assertCurrent=async()=>{await input.assertOwned();await transaction(pool,client=>assertReconfigureAuthority(client,input.job))}
-    await assertCurrent()
+    const {job}=input
+    const assertCurrent=async()=>{
+      await input.assertOwned()
+      return transaction(pool,async client=>{
+        await assertReconfigureAuthority(client,job)
+        if(!job.restore)return undefined
+        const target=await resolveCommercialOdooRestore(client,runtime,{tenantId:job.controlTenantId,approvalId:job.restoreId,database:job.binding.database})
+        if(job.binding.filestore!==job.binding.database || job.binding.tenantId!==target.binding.tenantId ||
+          job.binding.registryRevision!==target.binding.registryRevision)throw Error('tenant_binding_mismatch')
+        return target
+      })
+    }
+    const target=await assertCurrent()
     // The enrolment administrator is the one stored in the control plane's onboarding record.
     // Older tenants without it get no login, and the effect then grants no roles.
-    const admin=input.action==='reconfigure'?await pool.query("SELECT admin_login FROM shared_onboardings WHERE control_tenant_id=$1 AND database_name=$2 AND host=$3 AND stage='active'",[input.job.controlTenantId,input.job.binding.database,input.job.host]):undefined
-    return subscriptionExecute(subscriptionRequest(input,admin?.rowCount===1?admin.rows[0].admin_login:undefined),assertCurrent)
+    const admin=input.action==='reconfigure'?await pool.query("SELECT admin_login FROM shared_onboardings WHERE control_tenant_id=$1 AND database_name=$2 AND ($3::text IS NULL OR host=$3) AND stage='active'",[job.controlTenantId,target?.binding.database??job.binding.database,target?null:job.host]):undefined
+    const request=subscriptionRequest(input,admin?.rowCount===1?admin.rows[0].admin_login:undefined)
+    return subscriptionExecute(target?{...request,tenant:{...request.tenant,host:target.host},restore:target.restore}:request,async()=>{await assertCurrent()})
   }
   const observeSubscription:ObserveRunner=async input=>{
     const row=await pool.query('SELECT host,tenant_id AS "tenantId",database_name AS database,filestore,registry_revision::float8 AS "registryRevision" FROM shared_registry_bindings WHERE control_tenant_id=$1 AND enabled=true',[input.tenant_id])
     if(!row.rowCount)throw Error('tenant_binding_mismatch')
     return await subscriptionExecute(subscriptionObservationRequest(row.rows[0],input),undefined,input.signal) as Awaited<ReturnType<ObserveRunner>>
   }
+  const observeRestoreSubscription:ObserveRunner=async input=>{
+    if(!z.uuid().safeParse(input.restore_id).success)throw Error('shared_restore_approval_unavailable')
+    const target=await transaction(pool,client=>resolveCommercialOdooRestore(client,runtime,{tenantId:input.tenant_id,approvalId:input.restore_id,database:input.database}))
+    const result=await subscriptionExecute({
+      action:'observe',tenant:{database:input.database,host:target.host},restore:target.restore,attemptId:randomUUID(),fence:0,
+    },undefined,input.signal) as Awaited<ReturnType<ObserveRunner>> & {database?:string}
+    if(result.database!==input.database)throw Error('tenant_binding_mismatch')
+    return result
+  }
   // The same read-only observe action; the collector validates every field it keeps.
   const observeUsage:NonNullable<SharedFencedAdapter['observeUsage']>=async input=>await observeSubscription(input) as unknown
   return {
     subscriptionRunner,observeSubscription,observeUsage,
+    // Release routing only attests the live helper topology.
+    ...(!Object.hasOwn(process.env,'LIWAN_RELEASE_ROUTES_DIR')?{observeRestoreSubscription}:{}),
     async observe(job){
       try{return sharedObservationSchema.parse(await execute(job,'observe'))}catch{return {state:'unknown'}}
     },

@@ -1,7 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import hashlib
 import io
+import json
 import re
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -47,6 +49,14 @@ class BackupBoundaryTests(unittest.TestCase):
             self.assertTrue((runner.root/'runtime-gate'/'owner.json').exists())
             with self.assertRaises(odoo_effect.EffectError):
                 odoo_effect.RuntimeGate(runner.root,{'attemptId':'second'}).acquire()
+
+    def test_reads_structured_helper_output_with_compose_progress_on_stderr(self):
+        runner = object.__new__(odoo_backup.BackupRunner)
+        def command_args(*_):
+            return [sys.executable, '-c',
+                    "import sys; print(' Container scratch-helper Creating', file=sys.stderr); print('{\"projects\": 2}')"]
+        runner.helper_args = command_args
+        self.assertEqual(json.loads(runner.helper('odoo', 'inventory', '')), {'projects': 2})
 
     def test_capture_checks_writers_before_stopping_odoo(self):
         self.assertTrue(odoo_backup)
@@ -303,3 +313,80 @@ class RestoreServicesDeclaredTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class CommercialRestoreInventoryTests(unittest.TestCase):
+    def test_authorized_policy_changes_preserve_backed_up_data_and_identity(self):
+        original = {
+            'attachments': [[1, '01/file', 'sha1', 4]], 'databaseAttachments': [],
+            'projects': 3, 'tasks': 4, 'modules': [['liwan_platform', '1', 'installed']],
+            'profile': [{'id': 1, 'root_company_id': 5, 'commercial_revision_id': 'old',
+                         'commercial_digest': 'old', 'features': {}, 'policy_revision': 1}],
+        }
+        current = {**original, 'profile': [{**original['profile'][0],
+            'commercial_revision_id': 'paid', 'commercial_digest': 'digest',
+            'features': {'users.limit': 4}, 'policy_revision': 2}]}
+        repaired = {'revisionId': 'paid', 'digest': 'digest'}
+        self.assertTrue(odoo_backup.restore_inventory_matches(original, current, repaired))
+        for change in (
+            {'tasks': 3}, {'attachments': []}, {'modules': []},
+            {'profile': [{**current['profile'][0], 'root_company_id': 6}]},
+            {'profile': [{**current['profile'][0], 'commercial_digest': 'wrong'}]},
+        ):
+            self.assertFalse(odoo_backup.restore_inventory_matches(original, {**current, **change}, repaired))
+        self.assertFalse(odoo_backup.restore_inventory_matches(original, current))
+
+class OdooReadinessTests(unittest.TestCase):
+    SOURCE = 'liwan_scratch_' + 'a' * 32
+    TARGET = 'liwan_scratch_' + 'b' * 32
+
+    def test_source_resume_probes_only_enabled_databases_without_bootstrap_credentials(self):
+        with tempfile.TemporaryDirectory() as raw:
+            runner = object.__new__(odoo_backup.BackupRunner)
+            runner.root = Path(raw).resolve()
+            (runner.root / 'registry').mkdir()
+            (runner.root / 'registry' / 'registry.json').write_text(json.dumps({'targets': [
+                {'enabled': True, 'database': self.SOURCE},
+                {'enabled': False, 'database': self.TARGET},
+            ]}))
+            runner.verify_odoo_readiness = unittest.mock.Mock()
+            runner.verify_originals()
+        runner.verify_odoo_readiness.assert_called_once_with('odoo', self.SOURCE)
+
+    def test_restore_checks_exact_service_and_database_after_inventory_and_filestore(self):
+        runner = object.__new__(odoo_backup.BackupRunner)
+        runner.target = self.TARGET
+        inventory = {'profile': [{'id': 1, 'root_company_id': 1}]}
+        probes = unittest.mock.Mock()
+        runner.inventory = probes.inventory
+        runner.inventory.return_value = inventory
+        runner.check_files = probes.check_files
+        runner.verify_odoo_readiness = probes.verify_odoo_readiness
+        runner.verify_restore({'inventory': inventory})
+        self.assertEqual(probes.mock_calls, [
+            unittest.mock.call.inventory('restore-odoo', self.TARGET),
+            unittest.mock.call.check_files('restore-odoo', self.TARGET, inventory),
+            unittest.mock.call.verify_odoo_readiness('restore-odoo', self.TARGET),
+        ])
+
+    def test_readiness_probes_the_db_scoped_public_route_without_credentials_or_redirects(self):
+        with patch('http.client.HTTPConnection') as connection:
+            http = connection.return_value
+            response = http.getresponse.return_value
+            response.status = 200
+            response.read.return_value = b'{"name":"Fixture company","primary_color":"#14102a"}'
+            config = {'dbfilter': '^%h$', 'db_host': 'restore-db'}
+            self.assertEqual(odoo_backup.read_odoo_readiness(config, self.TARGET, restore=True), {'database': self.TARGET})
+            connection.assert_called_once_with('127.0.0.1', 8069, timeout=25)
+            http.request.assert_called_once_with('GET', '/api/v1/branding', headers={'Host': self.TARGET})
+            self.assertEqual(http.close.call_count, 1)
+            response.status = 302
+            with self.assertRaises(ValueError):
+                odoo_backup.read_odoo_readiness(config, self.TARGET, restore=True)
+
+    def test_restore_readiness_rejects_the_source_db_host_and_an_ambiguous_dbfilter(self):
+        for config in ({'dbfilter': '^%h$', 'db_host': 'db'},
+                       {'dbfilter': '.*', 'db_host': 'restore-db'}):
+            with patch('http.client.HTTPConnection') as connection, self.assertRaises(ValueError):
+                odoo_backup.read_odoo_readiness(config, self.TARGET, restore=True)
+            connection.assert_not_called()

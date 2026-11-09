@@ -63,10 +63,10 @@ describe.skipIf(!url)('durable publication (live PG, physical observation seam)'
       await pool.query("INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent) VALUES($1,$2,$3,'change',$4,$5,'paid','applied',$6,'fixture',100,'SAR',2)", [order,customer,subscription,randomUUID(),applied,randomUUID()])
     }
     const observe = async () => ({ state:'present',verified:true,binding,businessKey:businessKey(restored),payloadDigest:payloadDigest(restored) })
-    let observed: Awaited<ReturnType<ObserveRunner>> = { commercial_revision_id:older,commercial_digest:'b'.repeat(64),branches:[] }
+    let observed: Awaited<ReturnType<ObserveRunner>> = { commercial_revision_id:older,commercial_digest:'b'.repeat(64),branches:[],status:'active',commercial_valid_until:null }
     const runner: ObserveRunner = async input => { expect(input.database).toBe(target); return observed }
     const reopen = () => publishOdooRestore(pool,runtime,actor,approval,observe,{runner})
-    return { tenant,approval,subscription,applied,target,order,runner,reopen,observe, current: () => { observed={commercial_revision_id:applied,commercial_digest:'c'.repeat(64),branches:[]} } }
+    return { tenant,approval,subscription,applied,target,order,runner,reopen,observe, current: () => { observed={commercial_revision_id:applied,commercial_digest:'c'.repeat(64),branches:[],status:'active',commercial_valid_until:null} } }
   }
 
   it('queues once, worker publishes and repeated dispatch does not repeat publication', async () => {
