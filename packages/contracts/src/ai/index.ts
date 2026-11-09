@@ -23,8 +23,6 @@ export const AiToolSchema = z.object({
   message: 'a draft tool has a draft_target, a draft_model and no route; other tools have a route and neither of the two',
 }).refine(tool => !tool.platform || tool.kind === 'read', { message: 'a platform tool is a read tool' })
 export type AiTool = z.infer<typeof AiToolSchema>
-/** A tool's agent is the application id its name starts with. */
-export const aiToolAgent = (name: string): string => name.slice(0, name.indexOf('.'))
 
 const AiTextSchema = z.object({ ar: z.string().min(1), en: z.string().min(1) }).strict()
 const AiAgentKeySchema = z.string().regex(/^[a-z][a-z0-9_]*$/)
