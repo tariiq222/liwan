@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { sessionCodec, createGuard } from './guard.mjs'
@@ -80,4 +80,16 @@ test('the header set is the dedicated edge set, and a default never overrides th
     'content-security-policy', 'referrer-policy', 'strict-transport-security',
     'x-content-type-options', 'x-frame-options', 'permissions-policy',
   ]))
+})
+
+test('the guard image carries every module guard.mjs imports', () => {
+  // The image copies an explicit list, so a new relative import that is not listed builds
+  // an image whose guard cannot start. Read the import lines, not a hand-kept copy of them.
+  const read = path => readFileSync(path, 'utf8')
+  const dockerfile = read('deploy/shared/Dockerfile')
+  const imports = [...read('deploy/shared/guard.mjs').matchAll(/^import .* from '\.\/([^']+)'/gm)].map(m => m[1])
+  assert.ok(imports.length > 0)
+  for (const name of imports) {
+    assert.ok(dockerfile.includes(`deploy/shared/${name}`), `Dockerfile does not copy deploy/shared/${name}`)
+  }
 })

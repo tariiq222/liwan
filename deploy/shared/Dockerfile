@@ -2,7 +2,7 @@
 FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
 ENV NODE_ENV=production
 WORKDIR /app
-COPY --chown=node:node deploy/shared/guard.mjs deploy/shared/start.mjs deploy/shared/healthcheck.mjs deploy/shared/tiktok-relay.mjs ./deploy/shared/
+COPY --chown=node:node deploy/shared/guard.mjs deploy/shared/securityHeaders.mjs deploy/shared/start.mjs deploy/shared/healthcheck.mjs deploy/shared/tiktok-relay.mjs ./deploy/shared/
 COPY --chown=node:node deploy/releases/dedicated_guard.mjs deploy/releases/start_dedicated.mjs ./deploy/releases/
 COPY --chown=node:node apps/web/server/utils/tenantRegistry.ts apps/web/server/utils/tenantHostResolver.ts apps/web/server/utils/releaseRouting.ts apps/web/server/utils/releaseAssets.ts apps/web/server/utils/bufferAdmission.mjs ./apps/web/server/utils/
 # Native type stripping follows exactly these relative imports; no node_modules required.
