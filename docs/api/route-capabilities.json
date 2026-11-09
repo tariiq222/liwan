@@ -7586,9 +7586,7 @@
     "POST /api/v1/admin/users/{user_id}/disable": {
       "addon": "liwan_api",
       "auth": "user",
-      "capability_keys": [
-        "access.users.disable"
-      ],
+      "capability_keys": [],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [],
@@ -8833,11 +8831,7 @@
       "addon": "liwan_finance",
       "auth": "user",
       "capability_keys": [
-        "action_cancel",
-        "budget_cancelled",
-        "confirmed",
-        "draft",
-        "invalid_state"
+        "finance.budgets.manage"
       ],
       "capability_match": "all",
       "capability_source": "body",
@@ -8851,10 +8845,7 @@
       "addon": "liwan_finance",
       "auth": "user",
       "capability_keys": [
-        "action_confirm",
-        "budget_confirmed",
-        "draft",
-        "not_draft"
+        "finance.budgets.manage"
       ],
       "capability_match": "all",
       "capability_source": "body",
@@ -8896,11 +8887,7 @@
       "addon": "liwan_finance",
       "auth": "user",
       "capability_keys": [
-        "action_draft",
-        "budget_reset_to_draft",
-        "cancelled",
-        "confirmed",
-        "invalid_state"
+        "finance.budgets.manage"
       ],
       "capability_match": "all",
       "capability_source": "body",
@@ -11362,7 +11349,7 @@
       "addon": "liwan_tasks",
       "auth": "user",
       "capability_keys": [
-        "cancel"
+        "tasks.tasks.write"
       ],
       "capability_match": "all",
       "capability_source": "body",
@@ -11405,7 +11392,7 @@
       "addon": "liwan_tasks",
       "auth": "user",
       "capability_keys": [
-        "done"
+        "tasks.tasks.write"
       ],
       "capability_match": "all",
       "capability_source": "body",
@@ -11419,7 +11406,7 @@
       "addon": "liwan_tasks",
       "auth": "user",
       "capability_keys": [
-        "reopen"
+        "tasks.tasks.write"
       ],
       "capability_match": "all",
       "capability_source": "body",
@@ -12138,7 +12125,7 @@
       "addon": "liwan_pmo",
       "auth": "user",
       "capability_keys": [
-        "1_done"
+        "pmo.tasks.approve"
       ],
       "capability_match": "all",
       "capability_source": "body",

@@ -39,7 +39,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import api_surface
-from api_surface import FEATURE_DECORATORS, const_strings, decorator_name, kw_const
+from api_surface import FEATURE_DECORATORS, _unstar, const_strings, decorator_name, kw_const
 
 REPO = api_surface.REPO
 ADDONS = api_surface.ADDONS
@@ -52,6 +52,10 @@ API_PREFIX = '/api/v1'
 CAPABILITY_DECORATOR = 'requires_capability'
 # Primitives that check a capability; credited by name on any receiver.
 CAPABILITY_CALLS = frozenset({'require_capability', 'require_capabilities', 'require_any_capability', '_liwan_require_capability'})
+# A thin wrapper that hands its own argument to a capability primitive (`_require(capability)`),
+# whose key is therefore named at the call site rather than inside it. Checked for a method call
+# too, where the receiver's model cannot be typed (a service object's `convert._require(...)`).
+WRAPPER_NAMES = frozenset({'_require', 'require', 'require_capability', 'require_capabilities', 'require_any_capability', '_liwan_require_capability'})
 # Stock Odoo names the models override: never a gate by name.
 ORM_METHODS = frozenset({
     'check_access', 'has_access', '_check_access', 'create', 'write', 'unlink', 'read', '_read', 'search',
@@ -279,9 +283,17 @@ class Gates:
         for call in _unconditional_calls(statement.value):
             if self._call_gates(call, func, local):
                 match = kw_const(call, 'match') or ('any' if call_name(call) == 'require_any_capability' else 'all')
-                keys = _literal_keys(call, constants) or self._reached_keys(call, func, local)
+                # Only a capability primitive's own arguments are keys. A gated helper takes
+                # ordinary arguments (`_liwan_transition(DONE_STATE)` takes a task state), so
+                # its keys come from the check it performs, never from its arguments.
+                keys = (self._gate_keys(call, constants) if call_name(call) in CAPABILITY_CALLS
+                        else self._reached_keys(call, func, local))
                 return keys, match
         return None
+
+    def _gate_keys(self, call: ast.Call, constants: dict[str, str | tuple[str, ...]]) -> list[str]:
+        """The keys a recognized capability primitive is called with."""
+        return _literal_keys(call, constants)
 
     def _reader_gate(self, statement, func: Func):
         local = _local_models(func.node)
@@ -311,7 +323,20 @@ class Gates:
         candidates, _ = self._candidates(call, func, local)
         keys: list[str] = []
         for candidate in candidates:
+            if self.forwards_its_argument(candidate):
+                # The wrapper takes the key from its caller: read it from this call's arguments.
+                for key in _literal_keys(call, self.constants(func.path)):
+                    if key not in keys:
+                        keys.append(key)
+                continue
             for key in self.function_keys(candidate):
+                if key not in keys:
+                    keys.append(key)
+        # A method on a service object (``convert._require('tasks.tasks.read')``) is also a
+        # forwarding wrapper: the key is named at this call site, and the index does not type
+        # the receiver to reach its definition.
+        if not candidates and isinstance(call.func, ast.Attribute) and call_name(call) in WRAPPER_NAMES:
+            for key in _literal_keys(call, self.constants(func.path)):
                 if key not in keys:
                     keys.append(key)
         return keys
@@ -326,12 +351,45 @@ class Gates:
             self._key_memo[key] = keys
         return self._key_memo[key]
 
+    def forwards_its_argument(self, func: Func) -> bool:
+        """Whether ``func`` hands one of its own parameters to a capability check.
+
+        ``_require(capability)`` in the HR controllers calls ``require_capabilities(capability)``;
+        the tasks converter's ``_require(key)`` calls ``self._has_capability(key)`` inside a
+        refusing ``if``. Either way the key is named at the call site
+        (``_require('hr.employees.archive')``), not inside the wrapper. A helper that takes a
+        domain argument instead — ``_liwan_transition(DONE_STATE)`` — never hands it to a
+        capability check, so its call site's literals are not keys.
+        """
+        parameter_names = {
+            argument.arg for argument in (*func.node.args.args, *func.node.args.kwonlyargs)
+        }
+        if not parameter_names:
+            return False
+
+        def names_a_parameter(call: ast.Call) -> bool:
+            return any(
+                isinstance(_unstar(arg), ast.Name) and _unstar(arg).id in parameter_names
+                for arg in call.args
+            )
+
+        for call in _calls(func.node):
+            name = call_name(call)
+            if (name in CAPABILITY_CALLS or _is_reader_name(name) or name in ('_has_capability', 'has_capability')) and names_a_parameter(call):
+                return True
+        return False
+
     def _reader_keys(self, func: Func) -> list[str]:
         """The literal keys of the capability readers a gate function calls itself.
 
         ``_liwan_can_manage`` answers a boolean and names its key inside the reader call
         (``_liwan_has_capability(user, 'pmo.projects.manage')``), so a route gated through it
         has a precise requirement without looking at any other model (issue #470 review).
+
+        Only a call that *is* a reader names a key in its own arguments. A function that merely
+        reaches a reader through another helper (``_liwan_transition(DONE_STATE)``, whose
+        helper calls ``_liwan_can_approve``) takes ordinary arguments — a task state here — and
+        its keys come from the check it performs, never from those arguments.
         """
         constants = self.constants(func.path)
         keys: list[str] = []
@@ -339,7 +397,9 @@ class Gates:
         for call in _calls(func.node):
             if not self._is_reader_call(call, func, local):
                 continue
-            for key in _literal_keys(call, constants):
+            direct = self.index.is_reader(func.path, call_name(call))
+            found = _literal_keys(call, constants) if direct else self._reached_keys(call, func, local)
+            for key in found:
                 if key not in keys:
                     keys.append(key)
         return keys

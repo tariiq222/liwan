@@ -153,6 +153,58 @@ class TestHelperCapabilityKeys(unittest.TestCase):
         self.assertTrue(route.has_capability, 'the helper still counts as a gate')
         self.assertEqual(route.capability_keys, [], 'but its key is not this route\'s requirement')
 
+    def test_a_state_argument_is_never_published_as_a_capability(self):
+        """``_liwan_transition(DONE_STATE)`` passes a task state, not a capability."""
+        source = (
+            "class P:\n"
+            "    @route('/api/v1/c', type='json2', auth='user', methods=['POST'], readonly=False)\n"
+            "    @api_handler\n"
+            "    @requires_feature('pmo.enabled')\n"
+            "    def accept(self, task_id):\n"
+            "        task = get_visible_record('project.task', task_id)\n"
+            "        return task._liwan_accept_completion()\n"
+        )
+        models = {route_gate_policy.ADDONS / 'liwan_pmo' / 'models' / 'task_completion.py': ast.parse(
+            "DONE_STATE = '1_done'\n"
+            "class Task:\n"
+            "    _name = 'project.task'\n"
+            "    def _liwan_accept_completion(self):\n"
+            "        self._liwan_transition(DONE_STATE)\n"
+            "    def _liwan_transition(self, state):\n"
+            "        self._liwan_check_transition_allowed(state)\n"
+            "        return self\n"
+            "    def _liwan_check_transition_allowed(self, state):\n"
+            "        if not self._liwan_can_approve():\n"
+            "            raise AccessError('no')\n"
+            "    def _liwan_can_approve(self):\n"
+            "        return self.env['liwan.access.service']._liwan_has_capability(self.env.user, 'pmo.tasks.approve')\n"
+        )}
+        route = self.routes(source, models)['accept']
+        self.assertNotIn('1_done', route.capability_keys)
+        self.assertEqual(route.capability_keys, ['pmo.tasks.approve'])
+
+    def test_a_wrapper_names_its_key_at_the_call_site(self):
+        """``convert._require('tasks.tasks.read')`` forwards its argument to the reader."""
+        source = (
+            "class P:\n"
+            "    @route('/api/v1/d', type='json2', auth='user', methods=['GET'], readonly=True)\n"
+            "    @api_handler\n"
+            "    @requires_feature('tasks.enabled')\n"
+            "    def targets(self):\n"
+            "        convert = request.env['liwan.my.task.convert']\n"
+            "        convert._require('tasks.tasks.read')\n"
+            "        return {'items': []}\n"
+        )
+        models = {route_gate_policy.ADDONS / 'liwan_tasks_pmo' / 'models' / 'task_convert.py': ast.parse(
+            "class Convert:\n"
+            "    _name = 'liwan.my.task.convert'\n"
+            "    def _require(self, key):\n"
+            "        if not self._has_capability(key):\n"
+            "            raise ApiError(403, 'forbidden')\n"
+        )}
+        route = self.routes(source, models)['targets']
+        self.assertEqual(route.capability_keys, ['tasks.tasks.read'])
+
 
 class TestRoutePathResolution(unittest.TestCase):
     """A route path may be a literal, a module constant or an f-string over constants; nothing is dropped silently."""
