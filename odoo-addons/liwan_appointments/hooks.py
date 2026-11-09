@@ -2,22 +2,29 @@
 import logging
 import re
 
-# The requester's booking link carries its access token in the query string, and werkzeug's request line is written to the
-# `werkzeug` logger at info level with the whole path. A container log, a monitoring tool or a copy of them is shared
-# between tenants, so the token must never reach it (#543). Every query value of a token parameter is masked here, under
-# whatever name the public namespace uses.
-SECRET_QUERY = re.compile(r'(?i)\b(access_token|token)=([^&\s"\']+)')
-MASK = r'\1=***'
+# The requester's booking link, the payer's pay link and every other public tokenised route carry a secret in the request
+# line, and werkzeug writes the whole line to its log at info level. A container log, a monitoring tool or a copy of them
+# is shared between tenants, so these values must never reach it (#543).
+#
+# A query parameter is a secret when its name ends with one of these suffixes, whatever namespace or gateway it belongs
+# to: `access_token` on `/book/...` and `/pay/...`, the `hub.verify_token` handshake, and a gateway's `hmac`.
+SECRET_QUERY = re.compile(
+    r'(?i)(?<=[?&;])([a-z0-9_.\-]*(?:token|signature|hmac|secret|password)|api_?key|key)=([^&\s"\']+)',
+)
+# A token that is a path segment: the public catalog image route names the item and then its own token.
+SECRET_PATH = re.compile(r'(?i)(/api/v1/public/inbox/catalog/images/\d+/)([^/\s"\']+)')
+QUERY_MASK = r'\1=***'
+PATH_MASK = r'\1***'
 LOGGERS = ('werkzeug',)
 
 
 def mask_access_tokens(text):
-    """``text`` with every token query value replaced by ``***``, so the path and the rest of the line stay readable."""
-    return SECRET_QUERY.sub(MASK, text)
+    """``text`` with every secret query value and path token replaced by ``***``, so the route stays readable."""
+    return SECRET_PATH.sub(PATH_MASK, SECRET_QUERY.sub(QUERY_MASK, text))
 
 
 class AccessTokenLogFilter(logging.Filter):
-    """Mask token query values in a werkzeug request line before any handler writes it.
+    """Mask secret query values in a werkzeug request line before any handler writes it.
 
     werkzeug logs ``'"%s" %s %s'`` with the path as a formatted argument, so the record's message and its argument tuple
     are both masked; a record that already carries a formatted string is masked as it is.
