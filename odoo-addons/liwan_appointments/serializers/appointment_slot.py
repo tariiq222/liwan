@@ -23,8 +23,8 @@ def parse_slot_query(args, today, horizon_days, *, max_window_days=MAX_SLOT_WIND
     """Validate ``from``/``to`` (inclusive YYYY-MM-DD) and the optional ``combination_id`` of a slots request.
 
     A request without ``from``/``to`` is refused unless ``default_window_days`` gives it a window, which then starts
-    today. ``to`` may not pass ``today`` plus the company's booking horizon, and the range (when ``max_window_days`` is
-    not 0) may not be longer than that many days.
+    today. ``to`` may not pass ``today`` plus the company's booking horizon, and the range may not be longer than
+    ``max_window_days``: one answer never lists a whole horizon.
     """
     if default_window_days and 'from' not in args and 'to' not in args:
         first, last = today, today + timedelta(days=default_window_days - 1)
