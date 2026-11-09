@@ -2,7 +2,6 @@
 """TikTok outbound: the 48-hour window and the reply limit, the content TikTok accepts, and the send."""
 import base64
 import calendar
-import json
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -99,10 +98,7 @@ class TikTokCase(LiwanInboxCase):
 
     def deliver(self, payload):
         """Deliver one webhook payload and process it after the echo settle time."""
-        self.env['liwan.inbox.event'].create({
-            'channel_id': self.tiktok.id, 'owner_company_id': self.tiktok.owner_company_id.id,
-            'payload': json.dumps(payload),
-        })
+        self.store_event(self.tiktok, payload)
         later = fields.Datetime.now() + TIKTOK_ECHO_SETTLE + timedelta(seconds=1)
         with patch('odoo.fields.Datetime.now', return_value=later):
             self.env['liwan.inbox.event']._liwan_run_events()

@@ -87,6 +87,14 @@ class TestTikTokOAuth(LiwanInboxCase):
         self.assertEqual(response.status_code, 302, response.text)
         self.assertEqual(response.headers['Location'], f'{SETTINGS_PATH}?tiktok_error={reason}')
 
+    def assert_local_redirect(self, response):
+        """The callback's redirect is an in-app path: the Nuxt proxy follows it only under the inbox settings pages."""
+        self.assertEqual(response.status_code, 302, response.text)
+        location = response.headers['Location']
+        self.assertTrue(location.startswith('/'), location)
+        self.assertTrue(location.startswith(SETTINGS_PATH), location)
+        self.assertNotIn('//', location)
+
     def channels(self):
         return self.env['liwan.inbox.channel'].search([('kind', '=', 'tiktok')])
 
@@ -147,6 +155,9 @@ class TestTikTokOAuth(LiwanInboxCase):
         self.assertEqual(len(channel), 1)
         self.assertEqual(response.status_code, 302, response.text)
         self.assertEqual(response.headers['Location'], f'{SETTINGS_PATH}/channels/{channel.id}')
+        # The Nuxt proxy now lets this redirect reach the browser, so it must stay a local path under the
+        # inbox settings pages: anything else would be an open redirect, refused there as a 502.
+        self.assert_local_redirect(response)
         self.assertEqual(
             (channel.kind, channel.state, channel.tiktok_business_id, channel.tiktok_username),
             ('tiktok', 'connected', tt.BUSINESS_ID, 'liwan_shop'),
@@ -211,6 +222,7 @@ class TestTikTokOAuth(LiwanInboxCase):
         with exchange, profile:
             response = self.callback(self.state())
         self.redirects_to_error(response, 'inbox_tiktok_account_taken')
+        self.assert_local_redirect(response)
         self.assertEqual(self.channels().ids, existing.ids)
 
     def test_reconnect_updates_the_same_channel(self):

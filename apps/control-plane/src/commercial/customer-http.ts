@@ -64,7 +64,7 @@ async function customerForAttempt(client: PoolClient, attemptId: string) {
   if (!customer.rowCount) throw new CommercialHttpError('not_found',404)
   return {customerId:customer.rows[0].customer_id as string}
 }
-async function consumeNonce(client: PoolClient, signed: {issuer: string; nonce: string}) {
+export async function consumeNonce(client: PoolClient, signed: {issuer: string; nonce: string}) {
   await client.query('DELETE FROM service_nonces WHERE expires_at<now()')
   const nonce=await client.query("INSERT INTO service_nonces(issuer,nonce,expires_at) VALUES($1,$2,now()+interval '60 seconds') ON CONFLICT DO NOTHING RETURNING nonce",[signed.issuer,signed.nonce])
   if (!nonce.rowCount) throw new CommercialHttpError('unauthorized',401)

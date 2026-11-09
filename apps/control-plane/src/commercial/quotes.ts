@@ -105,73 +105,74 @@ export async function loadQuoteSources(client: PoolClient, customerId: string, i
 }
 
 type QuoteInput = { customer_id: string; request: unknown; previewTerms?: CustomerTermsRevision }
-async function quoteForCustomer(pool: Pool, value: QuoteInput, now: Date, persist: boolean): Promise<Quote> {
+async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Date, persist: boolean): Promise<Quote> {
   const input = quoteRequestSchema.parse(value.request)
-  return transaction(pool, async client => {
-    const customer = await client.query('SELECT * FROM customers WHERE id=$1', [value.customer_id])
-    if (!customer.rowCount) throw bad('not_found', 'customer_id', 404)
-    const s = (await client.query('SELECT * FROM subscriptions WHERE customer_id=$1 FOR SHARE', [value.customer_id])).rows[0]
-    if (input.subscription_id && input.subscription_id !== s?.id) throw bad('not_found', 'subscription_id', 404)
-    if (input.expected_subscription_revision !== undefined && input.expected_subscription_revision !== (s?.revision ?? 0)) throw bad('revision_conflict', 'expected_subscription_revision', 409)
-    if (input.kind === 'new' && s?.applied_revision_id) throw bad('revision_conflict', 'kind', 409)
-    // The assisted onboarding is a first-order item at the vendor's fee, offered only while a fee is set.
-    let onboarding: { amount: { currency: string; exponent: number; minor: number } } | null = null
-    if (input.onboarding) {
-      if (input.kind !== 'new' || s?.applied_revision_id) throw bad('onboarding_first_order_only', 'onboarding')
-      const fee = (await client.query('SELECT onboarding_fee_minor,onboarding_currency,onboarding_exponent FROM billing_settings WHERE singleton')).rows[0]
-      if (!fee || Number(fee.onboarding_fee_minor) <= 0) throw bad('onboarding_unavailable', 'onboarding')
-      onboarding = { amount: { currency: fee.onboarding_currency, exponent: Number(fee.onboarding_exponent), minor: Number(fee.onboarding_fee_minor) } }
+  const customer = await client.query('SELECT * FROM customers WHERE id=$1', [value.customer_id])
+  if (!customer.rowCount) throw bad('not_found', 'customer_id', 404)
+  const s = (await client.query('SELECT * FROM subscriptions WHERE customer_id=$1 FOR SHARE', [value.customer_id])).rows[0]
+  if (input.subscription_id && input.subscription_id !== s?.id) throw bad('not_found', 'subscription_id', 404)
+  if (input.expected_subscription_revision !== undefined && input.expected_subscription_revision !== (s?.revision ?? 0)) throw bad('revision_conflict', 'expected_subscription_revision', 409)
+  if (input.kind === 'new' && s?.applied_revision_id) throw bad('revision_conflict', 'kind', 409)
+  // The assisted onboarding is a first-order item at the vendor's fee, offered only while a fee is set.
+  let onboarding: { amount: { currency: string; exponent: number; minor: number } } | null = null
+  if (input.onboarding) {
+    if (input.kind !== 'new' || s?.applied_revision_id) throw bad('onboarding_first_order_only', 'onboarding')
+    const fee = (await client.query('SELECT onboarding_fee_minor,onboarding_currency,onboarding_exponent FROM billing_settings WHERE singleton')).rows[0]
+    if (!fee || Number(fee.onboarding_fee_minor) <= 0) throw bad('onboarding_unavailable', 'onboarding')
+    onboarding = { amount: { currency: fee.onboarding_currency, exponent: Number(fee.onboarding_exponent), minor: Number(fee.onboarding_fee_minor) } }
+  }
+  let current: any, applied: any
+  const effective = process.env.NODE_ENV !== 'production' && input.effective_date ? input.effective_date : riyadhDate(now)
+  let period = { start: effective, end: addCadence(effective, input.cadence, 1) }
+  if (input.kind === 'change') {
+    if (!s?.applied_revision_id) throw bad('subscription_required', 'kind', 409)
+    applied = (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [s.applied_revision_id])).rows[0]?.snapshot
+    if (!applied) throw bad('subscription_required', 'kind', 409)
+    if (JSON.stringify(applied.cadence) !== JSON.stringify(input.cadence)) throw bad('cadence_change_unsupported', 'cadence')
+    period = { start: applied.period_start, end: applied.period_end }
+    current = applied.pricing
+    if (!current) {
+      const old = (await client.query('SELECT payload FROM commercial_quotes WHERE id=$1', [applied.quote_id])).rows[0]?.payload
+      if (!old) throw bad('baseline_missing', 'subscription_id', 409)
+      const pinned = (await client.query('SELECT included_users, included_storage_mb FROM plan_revisions WHERE id=$1', [applied.plan_revision_id])).rows[0]
+      current = pricingBaseline(old, { extra_branches: applied.included_extra_branches, users: pinned?.included_users ?? 0, storage_mb: pinned?.included_storage_mb ?? 0 })
     }
-    let current: any, applied: any
-    const effective = process.env.NODE_ENV !== 'production' && input.effective_date ? input.effective_date : riyadhDate(now)
-    let period = { start: effective, end: addCadence(effective, input.cadence, 1) }
-    if (input.kind === 'change') {
-      if (!s?.applied_revision_id) throw bad('subscription_required', 'kind', 409)
-      applied = (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [s.applied_revision_id])).rows[0]?.snapshot
-      if (!applied) throw bad('subscription_required', 'kind', 409)
-      if (JSON.stringify(applied.cadence) !== JSON.stringify(input.cadence)) throw bad('cadence_change_unsupported', 'cadence')
-      period = { start: applied.period_start, end: applied.period_end }
-      current = applied.pricing
-      if (!current) {
-        const old = (await client.query('SELECT payload FROM commercial_quotes WHERE id=$1', [applied.quote_id])).rows[0]?.payload
-        if (!old) throw bad('baseline_missing', 'subscription_id', 409)
-        const pinned = (await client.query('SELECT included_users, included_storage_mb FROM plan_revisions WHERE id=$1', [applied.plan_revision_id])).rows[0]
-        current = pricingBaseline(old, { extra_branches: applied.included_extra_branches, users: pinned?.included_users ?? 0, storage_mb: pinned?.included_storage_mb ?? 0 })
-      }
-    }
-    // A change against the subscription's own pinned revision stays quotable after that
-    // revision is withdrawn from new sales; only a new sale requires a sellable plan.
-    const pinnedChange = input.kind === 'change' && Boolean(s?.applied_revision_id)
-    const sources = await loadQuoteSources(client, value.customer_id, input, !pinnedChange)
-    if (value.previewTerms) {
-      if (value.previewTerms.customer_id !== value.customer_id) throw bad('not_found', 'customer_id', 404)
-      sources.terms = value.previewTerms
-    }
-    const entitlement = compileOrRefuse(() => compileEntitlements({ ...sources, quantities: { users: input.requested_users, storage_mb: input.requested_storage_mb } }))
-    if (input.kind === 'change') await assertDowngradeFitsUsage(client, {
-      tenant_id: customer.rows[0].tenant_id, subscription_id: s.id,
-      previous: applied.entitlement?.features ?? {}, target: entitlement.features, now,
-    })
-    try {
-      const quote = computeQuote({ ...sources, kind: input.kind, cadence: input.cadence, requested_extra_branches: input.requested_extra_branches,
-        requested_users: input.requested_users, requested_storage_mb: input.requested_storage_mb,
-        current, effective_date: effective, period, ids: { id: randomUUID(), customer_id: value.customer_id, subscription_id: s?.id ?? null, expected_subscription_revision: s?.revision ?? 0 },
-        expires_at: new Date(now.getTime() + TTL_MS).toISOString(), entitlement_digest: entitlement.digest, onboarding })
-      if (persist && !value.previewTerms) await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [quote.id, value.customer_id, JSON.stringify(quote), quote.digest, quote.expires_at])
-      return quoteSchema.parse(quote)
-    } catch (e) {
-      if (e instanceof CommercialError) { const i = toIssue(e); throw new CommercialHttpError(i.code, 422, i.field, [i]) }
-      throw e
-    }
+  }
+  // A change against the subscription's own pinned revision stays quotable after that
+  // revision is withdrawn from new sales; only a new sale requires a sellable plan.
+  const pinnedChange = input.kind === 'change' && Boolean(s?.applied_revision_id)
+  const sources = await loadQuoteSources(client, value.customer_id, input, !pinnedChange)
+  if (value.previewTerms) {
+    if (value.previewTerms.customer_id !== value.customer_id) throw bad('not_found', 'customer_id', 404)
+    sources.terms = value.previewTerms
+  }
+  const entitlement = compileOrRefuse(() => compileEntitlements({ ...sources, quantities: { users: input.requested_users, storage_mb: input.requested_storage_mb } }))
+  if (input.kind === 'change') await assertDowngradeFitsUsage(client, {
+    tenant_id: customer.rows[0].tenant_id, subscription_id: s.id,
+    previous: applied.entitlement?.features ?? {}, target: entitlement.features, now,
   })
+  try {
+    const quote = computeQuote({ ...sources, kind: input.kind, cadence: input.cadence, requested_extra_branches: input.requested_extra_branches,
+      requested_users: input.requested_users, requested_storage_mb: input.requested_storage_mb,
+      current, effective_date: effective, period, ids: { id: randomUUID(), customer_id: value.customer_id, subscription_id: s?.id ?? null, expected_subscription_revision: s?.revision ?? 0 },
+      expires_at: new Date(now.getTime() + TTL_MS).toISOString(), entitlement_digest: entitlement.digest, onboarding })
+    if (persist && !value.previewTerms) await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [quote.id, value.customer_id, JSON.stringify(quote), quote.digest, quote.expires_at])
+    return quoteSchema.parse(quote)
+  } catch (e) {
+    if (e instanceof CommercialError) { const i = toIssue(e); throw new CommercialHttpError(i.code, 422, i.field, [i]) }
+    throw e
+  }
 }
 
 /** The in-memory half of a customer quote: same validation and pricing, no `commercial_quotes` row. */
 export function buildQuote(pool: Pool, value: QuoteInput, now = new Date()): Promise<Quote> {
-  return quoteForCustomer(pool, value, now, false)
+  return transaction(pool, client => buildQuoteOn(client, value, now))
+}
+export function buildQuoteOn(client: PoolClient, value: QuoteInput, now: Date): Promise<Quote> {
+  return quoteForCustomerOn(client, value, now, false)
 }
 export function createQuoteForCustomer(pool: Pool, value: QuoteInput, now = new Date()): Promise<Quote> {
-  return quoteForCustomer(pool, value, now, true)
+  return transaction(pool, client => quoteForCustomerOn(client, value, now, true))
 }
 
 export function pricingBaseline(quote: Quote, included: { extra_branches: number; users: number; storage_mb: number }) {

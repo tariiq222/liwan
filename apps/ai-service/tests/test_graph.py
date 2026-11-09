@@ -7,7 +7,7 @@ from langgraph.types import Command
 
 from liwan_ai_service.contracts import RunRequest, ToolResult
 from liwan_ai_service.graph import initial_state, run_config, text_of
-from tests.fakes import PLATFORM_POLICY, BoundGraph, ScriptedChatModel, ai_text, ai_tool_call, new_id
+from tests.fakes import PLATFORM_POLICY, BoundGraph, ScriptedChatModel, ai_text, ai_tool_call, new_id, tool_payload
 from tests.test_contracts import DRAFT_TOOL, PMO_AGENT, READ_TOOL
 
 
@@ -44,9 +44,9 @@ async def test_read_tool_interrupts_with_the_request_payload_and_resumes_to_an_a
     assert final["outcome"] == "answer"
     assert final["messages"][-1].content == "عندك مهمة واحدة: تقرير"
     assert final["results"] == [("pmo.list_my_tasks", {"items": [{"id": 5, "name": "تقرير"}], "total": 1})]
-    # The tool result reached the model as a tool message with the JSON data.
+    # The tool result reached the model as a tool message with the JSON data (record text framed, issue #555).
     tool_messages = [m for m in model.calls[-1] if m.type == "tool"]
-    assert json.loads(tool_messages[-1].content)["total"] == 1
+    assert tool_payload(tool_messages[-1])["total"] == 1
 
 
 async def test_denied_result_is_passed_to_the_model_as_a_structured_error():

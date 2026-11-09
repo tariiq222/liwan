@@ -1,0 +1,20 @@
+# Opt-in for the public commercial host and customer BFF. Load after docker-compose.shared.yml.
+# The external network joins only web and the operator's private HTTPS control-plane ingress.
+services:
+  guard:
+    environment:
+      LIWAN_PROSPECT_HOST: ${LIWAN_PROSPECT_HOST:?set LIWAN_PROSPECT_HOST}
+  web:
+    networks: !override [guard_web, commercial_control]
+    environment:
+      NUXT_CUSTOMER_COMMERCIAL_ENABLED: "true"
+      NUXT_PUBLIC_SIGNUP_ENABLED: ${LIWAN_PUBLIC_SIGNUP:-false}
+      NUXT_PUBLIC_CUSTOMER_COMMERCIAL_ENABLED: "true"
+      NUXT_CUSTOMER_COMMERCIAL_PUBLIC_ORIGIN: ${NUXT_CUSTOMER_COMMERCIAL_PUBLIC_ORIGIN:?set NUXT_CUSTOMER_COMMERCIAL_PUBLIC_ORIGIN}
+      NUXT_CUSTOMER_COMMERCIAL_CONTROL_URL: ${NUXT_CUSTOMER_COMMERCIAL_CONTROL_URL:?set NUXT_CUSTOMER_COMMERCIAL_CONTROL_URL}
+      NUXT_CUSTOMER_COMMERCIAL_SERVICE_KEY: ${CUSTOMER_COMMERCIAL_SERVICE_KEY:?set CUSTOMER_COMMERCIAL_SERVICE_KEY}
+      NUXT_CUSTOMER_COMMERCIAL_ISSUER: ${CUSTOMER_COMMERCIAL_ISSUER:?set CUSTOMER_COMMERCIAL_ISSUER}
+networks:
+  commercial_control:
+    external: true
+    name: ${LIWAN_COMMERCIAL_CONTROL_NETWORK:?set LIWAN_COMMERCIAL_CONTROL_NETWORK}

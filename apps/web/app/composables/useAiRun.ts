@@ -10,7 +10,7 @@ export type AiThreadItem =
   | { kind: 'draft'; callId: string; tool: string; payload: Record<string, unknown>; summaryAr: string; summaryEn: string; state: 'pending' | 'approved' | 'rejected' }
   | { kind: 'agent'; agent: string; nameAr: string; nameEn: string }
 
-export type AiLimit = 'max_tool_calls' | 'max_steps' | 'timeout' | 'messages_monthly' | 'messages_per_user' | 'assist_monthly' | 'output_tokens' | 'tokens_monthly' | 'consent_required' | 'tenant_key_missing'
+export type AiLimit = 'max_tool_calls' | 'max_steps' | 'timeout' | 'messages_monthly' | 'messages_per_user' | 'assist_monthly' | 'output_tokens' | 'input_tokens' | 'tokens_monthly' | 'consent_required' | 'tenant_key_missing'
 /** The limits that stop every new message until something changes (a new month, a signature, a key), not just this run. */
 const BLOCKING_LIMITS: ReadonlySet<AiLimit> = new Set(['messages_monthly', 'messages_per_user', 'assist_monthly', 'tokens_monthly', 'consent_required', 'tenant_key_missing'])
 export const isBlockingLimit = (limit: AiLimit | null) => limit !== null && BLOCKING_LIMITS.has(limit)

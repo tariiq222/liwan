@@ -1,7 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import hashlib
 import json
 
 from dateutil.relativedelta import relativedelta
+from psycopg2.errors import UniqueViolation
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
@@ -19,7 +21,13 @@ ERROR_TEXT_LENGTH = 200
 
 
 class LiwanInboxEvent(models.Model):
-    """The verified raw body of one webhook delivery, kept until it is processed."""
+    """The verified raw body of one webhook delivery, kept until it is processed.
+
+    A delivery is stored once per channel: `dedupe_key` is the SHA-256 of the channel and the raw body, so a
+    provider's replay of an already accepted delivery creates no second row and therefore no second side effect
+    (a consent change, a message). The key lives as long as the row does (`_liwan_purge_processed` keeps a
+    processed event for `PROCESSED_EVENT_DAYS`), which is the documented replay window.
+    """
     _name = 'liwan.inbox.event'
     _description = 'Customer Inbox webhook event'
     _order = 'id'
@@ -31,12 +39,39 @@ class LiwanInboxEvent(models.Model):
                                        default=lambda self: self.env.company)
     channel_id = fields.Many2one('liwan.inbox.channel', required=True, index=True, ondelete='cascade')
     payload = fields.Text(required=True)
+    # Derived from the channel and the raw body by `_liwan_store`, the only writer of a delivery.
+    dedupe_key = fields.Char(required=True, copy=False)
     state = fields.Selection(
         [('pending', 'Pending'), ('done', 'Done'), ('failed', 'Failed')], required=True, default='pending', index=True,
     )
     error = fields.Char()
     attempts = fields.Integer(default=0)
     processed_at = fields.Datetime()
+
+    _dedupe_unique = models.UniqueIndex('(dedupe_key)', 'A webhook delivery is stored once per channel.')
+
+    @api.model
+    def _liwan_dedupe_key(self, channel, raw):
+        """The SHA-256 of one channel's raw body: the same delivery always derives the same key."""
+        return hashlib.sha256(b'%d:' % channel.id + raw).hexdigest()
+
+    @api.model
+    def _liwan_store(self, channel, raw):
+        """Store one verified delivery for ``channel``, or nothing when it was already stored.
+
+        Idempotent by construction: the unique key turns a replay (or a concurrent duplicate) into a
+        UniqueViolation the savepoint absorbs, so the caller reports success and no second side effect runs.
+        """
+        try:
+            with self.env.cr.savepoint():
+                return self.create({
+                    'channel_id': channel.id,
+                    'owner_company_id': channel.owner_company_id.id,
+                    'payload': raw.decode(),
+                    'dedupe_key': self._liwan_dedupe_key(channel, raw),
+                })
+        except UniqueViolation:
+            return self.browse()
 
     @api.model
     def _liwan_run_events(self):

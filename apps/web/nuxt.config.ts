@@ -88,6 +88,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // Customer-scoped commercial BFF (disabled by default; own service identity).
     customerCommercialEnabled: false,
+    publicSignupEnabled: false,
     customerCommercialControlUrl: '',
     customerCommercialServiceKey: '',
     customerCommercialIssuer: '',

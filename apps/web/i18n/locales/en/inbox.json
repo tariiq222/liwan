@@ -2263,6 +2263,7 @@
       "inbox_conversation_stale": "This conversation was changed by someone else. Refresh the page.",
       "inbox_customer_has_open_conversation": "This customer already has an open conversation on the channel. Close it first, then reopen this one.",
       "inbox_channel_disabled": "The channel is disabled.",
+      "inbox_public_base_missing": "The site's public address is not set yet. Ask the system administrator to set it before copying a webhook address.",
       "inbox_window_closed": "The 24-hour reply window is closed. Send an approved template.",
       "inbox_channel_has_conversations": "A channel with conversations cannot be deleted. Disable it instead."
     }

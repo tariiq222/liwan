@@ -538,3 +538,20 @@ test('with release routing on, a restore host is refused instead of leased', asy
   assert.equal((await call(url, '/api/v1/me', { host: restore.host, ...internal })).status, 403)
   assert.deepEqual(lines.map(line => JSON.parse(line).reason), ['restore_release_routes_unsupported'])
 })
+
+test('public signup allows only its exact routes and relays the address supplied by the private edge', () => {
+  for (const asset of ['/register', '/fonts/IBMPlexSansArabic-Regular.woff2', '/favicon.svg', '/_i18n/0123456789ab/en/messages.json']) {
+    assert.equal(prospectPlan(prospect(asset), 'app.liwan.test', token).path, asset)
+  }
+  assert.throws(() => prospectPlan(prospect('/fonts/LICENSE.txt'), 'app.liwan.test', token))
+  const path = '/api/commercial/signup/start'
+  const plan = prospectPlan(prospect(path, {
+    'x-liwan-signup-client': '192.0.2.9', 'x-forwarded-for': '192.0.2.99', cookie: 'session_id=forged',
+  }, 'POST'), 'app.liwan.test', token)
+  assert.equal(plan.headers['x-liwan-signup-client'], '192.0.2.9')
+  assert.equal(plan.headers['x-forwarded-for'], undefined)
+  assert.equal(plan.headers.cookie, undefined)
+  for (const [target, method] of [[path, 'GET'], [`${path}?id=1`, 'POST'], ['/api/commercial/signup/unknown', 'POST']]) {
+    assert.throws(() => prospectPlan(prospect(target, {}, method), 'app.liwan.test', token))
+  }
+})

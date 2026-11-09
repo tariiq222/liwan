@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import secrets
 from collections.abc import AsyncIterator, Iterator, Sequence
 from typing import Any
@@ -100,6 +101,20 @@ class BoundGraph:
 
 def new_id() -> str:
     return "r_" + secrets.token_hex(12)
+
+
+def tool_payload(message) -> Any:
+    """The JSON a tool message carries, with the record-text frame of a successful read result removed (issue #555).
+
+    ``prompts.frame_record_text`` is the one place the frame is built, so the tests read through it here rather than
+    repeating its markers: an unframed message (a failure, a decision, a write) parses as it is.
+    """
+    from liwan_ai_service.prompts import RECORD_TEXT_CLOSE, RECORD_TEXT_OPEN
+
+    content = message.content
+    if content.startswith(f"{RECORD_TEXT_OPEN}\n") and content.endswith(f"\n{RECORD_TEXT_CLOSE}"):
+        content = content[len(RECORD_TEXT_OPEN) + 1:-(len(RECORD_TEXT_CLOSE) + 1)]
+    return json.loads(content)
 
 
 def ai_text(text: str) -> AIMessage:

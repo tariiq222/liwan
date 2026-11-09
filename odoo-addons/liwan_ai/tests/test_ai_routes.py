@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import tagged
 
+from odoo.addons.liwan_ai.models.ai_settings import DEFAULT_INPUT_TOKENS_PER_RUN
 from odoo.addons.liwan_ai.models.tool_registry import SENSITIVE_FIELDS
 from odoo.addons.liwan_ai.tests.common import CREATE_CAP, READ_CAP, WRITE_CAP, AiProbe
 from odoo.addons.liwan_api.tests.common import LiwanApiCase, set_probe_feature
@@ -64,6 +65,8 @@ class TestAiToolsRoute(AiProbe, LiwanApiCase):
             'policy': {
                 'provider_mode': 'platform', 'consent_signed': False,
                 'tokens_monthly': None, 'tokens_used': 0, 'output_tokens_per_run': None,
+                # The tenant's own ceiling on the input tokens of one request (issue #554); the default applies until set.
+                'input_tokens_per_run': DEFAULT_INPUT_TOKENS_PER_RUN,
             },
         })
 

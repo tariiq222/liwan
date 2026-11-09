@@ -14,6 +14,7 @@ const TEXT: Record<AiLimit, string> = {
   assist_monthly: 'ai.limits.assistMonthly',
   tokens_monthly: 'ai.limits.tokensMonthly',
   output_tokens: 'ai.limits.outputTokens',
+  input_tokens: 'ai.limits.inputTokens',
   consent_required: 'ai.limits.consentRequired',
   tenant_key_missing: 'ai.limits.tenantKeyMissing',
   timeout: 'ai.limits.timeout',

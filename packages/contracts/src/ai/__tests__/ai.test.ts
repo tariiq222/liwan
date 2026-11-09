@@ -1,22 +1,22 @@
-import { AI_USAGE_BATCH_MAX, AiCompanyNoteListSchema, AiNoteListSchema, AiNoteSchema, AiAgentPatchSchema, AiAgentSettingsSchema, aiToolAgent, AiAuditRequestSchema, AiKeyPutSchema, AiKnowledgeRebuildSchema, AiMonitoringSchema, AiRetentionPutSchema, AiSettingsPatchSchema, AiSettingsSchema, AiTenantConfigSchema, AiDraftPayloadSchema, AiEventSchema, AiModelCallEventSchema, AiModelUsageEventSchema, AiRunListQuerySchema, AiRunListSchema, AiRunPatchSchema, AiRunStatusSchema, AiStartRequestSchema, AiToolsResponseSchema, AiUsageBatchResponseSchema, AiUsageBatchSchema, AiUsageRecordSchema, AiUsageRowSchema } from '../index'
+import { AI_USAGE_BATCH_MAX, AiCompanyNoteListSchema, AiNoteListSchema, AiNoteSchema, AiAgentPatchSchema, AiAgentSettingsSchema, AiAuditRequestSchema, AiKeyPutSchema, AiKnowledgeRebuildSchema, AiMonitoringSchema, AiRetentionPutSchema, AiSettingsPatchSchema, AiSettingsSchema, AiTenantConfigSchema, AiDraftPayloadSchema, AiEventSchema, AiModelCallEventSchema, AiModelUsageEventSchema, AiRunListQuerySchema, AiRunListSchema, AiRunPatchSchema, AiRunStatusSchema, AiStartRequestSchema, AiToolsResponseSchema, AiUsageBatchResponseSchema, AiUsageBatchSchema, AiUsageRecordSchema, AiUsageRowSchema } from '../index'
 
 const READ = {
   name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'مهامي', en: 'My tasks' },
   input_schema: { type: 'object', properties: {} }, route: { method: 'GET', path: '/api/v1/tasks' },
-  input_map: { query: { filter: 'mine' } }, result_summary: ['items[].id'], draft_target: null, requires_approval: false, platform: false,
+  input_map: { query: { filter: 'mine' } }, result_summary: ['items[].id'], draft_target: null, draft_model: null, requires_approval: false, platform: false,
 }
 const PMO_AGENT = { key: 'pmo', name: { ar: 'وكيل المشاريع', en: 'Projects agent' }, description: { ar: 'المشاريع', en: 'Projects' }, instructions: { ar: 'أنت وكيل المشاريع', en: 'You are the projects agent' }, pages: ['pmo', 'project'], memory: true }
 
 describe('LiwanOS AI contracts', () => {
   it('parses the tools response with limits', () => {
-    const parsed = AiToolsResponseSchema.parse({ items: [READ], total: 1, agents: [PMO_AGENT], limits: { tool_calls_per_run: 8, messages_monthly: null, messages_used: 2, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } }, blocked_fields: ['wage'] })
+    const parsed = AiToolsResponseSchema.parse({ items: [READ], total: 1, agents: [PMO_AGENT], limits: { tool_calls_per_run: 8, messages_monthly: null, messages_used: 2, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null, input_tokens_per_run: null } }, blocked_fields: ['wage'] })
     expect(parsed.items[0]!.route?.method).toBe('GET')
     expect(parsed.limits.messages_monthly).toBeNull()
   })
 
   it('rejects a draft tool with a route and an unknown kind', () => {
-    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'draft' }], total: 1, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } }, blocked_fields: ['wage'] })).toThrow()
-    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'delete' }], total: 1, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } }, blocked_fields: ['wage'] })).toThrow()
+    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'draft' }], total: 1, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null, input_tokens_per_run: null } }, blocked_fields: ['wage'] })).toThrow()
+    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'delete' }], total: 1, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null, input_tokens_per_run: null } }, blocked_fields: ['wage'] })).toThrow()
   })
 
   it('types every SSE event by name', () => {
@@ -28,9 +28,14 @@ describe('LiwanOS AI contracts', () => {
     expect(() => AiEventSchema.parse({ event: 'explode', data: {} })).toThrow()
   })
 
-  it('requires attestation to approve a draft and strips nothing silently', () => {
-    expect(() => AiAuditRequestSchema.parse({ conversation_id: 'r_1', kind: 'draft', tool_name: 'pmo.draft_project', input: {}, result: 'approved', http_status: null, draft: {}, approved: {}, attested: false })).toThrow()
-    expect(AiAuditRequestSchema.parse({ conversation_id: 'r_1', kind: 'message', tool_name: null, input: null, result: 'ok', http_status: null, draft: null, approved: null, attested: false }).kind).toBe('message')
+  it('leaves the acknowledgement to the server and strips nothing silently (issue #556)', () => {
+    // The row's own result decides the acknowledgement; the wire says neither `attested` nor `attested_at`.
+    const row = { conversation_id: 'r_1', kind: 'draft', tool_name: 'pmo.draft_project', input: {}, result: 'approved', http_status: null, draft: {}, approved: {} }
+    expect(AiAuditRequestSchema.parse(row).result).toBe('approved')
+    expect(() => AiAuditRequestSchema.parse({ ...row, attested: true })).toThrow()
+    expect(() => AiAuditRequestSchema.parse({ ...row, attested_at: '2026-11-01T00:00:00Z' })).toThrow()
+    expect(() => AiAuditRequestSchema.parse({ ...row, surprise: 1 })).toThrow()
+    expect(AiAuditRequestSchema.parse({ conversation_id: 'r_1', kind: 'message', tool_name: null, input: null, result: 'ok', http_status: null, draft: null, approved: null }).kind).toBe('message')
   })
 
   it('keeps only known draft keys and needs a name', () => {
@@ -80,8 +85,7 @@ describe('LiwanOS AI contracts', () => {
     expect(AiStartRequestSchema.parse({ message: 'x', context: { page: 'home' } }).context).toEqual({ page: 'home' })
     expect(AiStartRequestSchema.parse({ message: 'x', context: null, run_id: null }).context).toBeNull()
     for (const mode of ['setup', 'help']) expect(AiStartRequestSchema.parse({ message: 'x', mode }).mode).toBe(mode)
-    expect(AiAuditRequestSchema.parse({ conversation_id: 'r_1', kind: 'help', tool_name: null, input: null, result: 'ok', http_status: null, draft: null, approved: null, attested: false }).kind).toBe('help')
-    expect(aiToolAgent('ai_help.search_guide')).toBe('ai_help')
+    expect(AiAuditRequestSchema.parse({ conversation_id: 'r_1', kind: 'help', tool_name: null, input: null, result: 'ok', http_status: null, draft: null, approved: null }).kind).toBe('help')
     for (const bad of [
       { message: 'x', mode: 'chat' }, { message: 5 }, { message: '  ' }, { message: 'x'.repeat(8001) }, { message: 'x', run_id: 7 }, { message: 'x', run_id: '' },
       { message: 'x', context: 'project' }, { message: 'x', context: { page: 3 } }, { message: 'x', context: { page: 'a/b' } },
@@ -94,7 +98,7 @@ describe('LiwanOS AI contracts', () => {
 describe('LiwanOS AI usage contracts', () => {
   const call = { call_id: 'ab12cd34ef56ab78', kind: 'plan', billing: 'platform', provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5', called_at: '2026-10-27T10:00:00Z' }
   const usage = { call_id: 'ab12cd34ef56ab78', outcome: 'ok', input_tokens: 120, output_tokens: 7 }
-  const record = { conversation_id: 'r_1', kind: 'plan', billing: 'platform', provider: 'openrouter', model: 'm', outcome: 'ok', input_tokens: 1, output_tokens: 2, called_at: '2026-10-27T10:00:00+03:00' }
+  const record = { conversation_id: 'r_1', call_id: 'ab12cd34ef56ab78', kind: 'plan', billing: 'platform', provider: 'openrouter', model: 'm', outcome: 'ok', input_tokens: 1, output_tokens: 2, called_at: '2026-10-27T10:00:00+03:00' }
 
   it('parses a model_call and rejects loose ids, providers, models and offsets', () => {
     expect(AiModelCallEventSchema.parse(call).kind).toBe('plan')
@@ -125,13 +129,19 @@ describe('LiwanOS AI usage contracts', () => {
     expect(AiUsageBatchSchema.parse({ items: Array.from({ length: 64 }, () => record) }).items).toHaveLength(64)
     expect(() => AiUsageRecordSchema.parse({ ...record, conversation_id: '' })).toThrow()
     expect(() => AiUsageRecordSchema.parse({ ...record, conversation_id: 'x'.repeat(65) })).toThrow()
+    // The provider attempt's own id is what Odoo deduplicates a re-sent batch on (issue #557).
+    expect(AiUsageRecordSchema.parse(record).call_id).toBe('ab12cd34ef56ab78')
+    for (const call_id of ['', 'XYZ', 'AB12CD34EF56AB78', 'ab12cd34ef56ab7', 'ab12cd34ef56ab789']) {
+      expect(() => AiUsageRecordSchema.parse({ ...record, call_id }), call_id).toThrow()
+    }
+    expect(AiUsageRecordSchema.safeParse({ ...record, call_id: undefined }).success).toBe(false)
     expect(AiUsageRowSchema.parse({ ...record, id: 5 }).id).toBe(5)
     expect(AiUsageBatchResponseSchema.parse({ items: [{ ...record, id: 5 }], total: 1 }).total).toBe(1)
   })
 
   it('parses the AI settings with the consent text and the month usage', () => {
     const settings = {
-      provider_mode: 'platform', messages_per_user_monthly: 0, external_send: 'draft_only', knowledge_enabled: false, revision: 1,
+      provider_mode: 'platform', messages_per_user_monthly: 0, input_tokens_per_run: 100000, external_send: 'draft_only', knowledge_enabled: false, revision: 1,
       consent: { required_version: '2026-11-05-draft', text_ar: 'نص', text_en: 'text', text_hash: 'a'.repeat(64), signed: null },
       usage: { month: '2026-11', messages_used: 3, messages_limit: null, assist_used: 4, assist_limit: 300, tokens_used: 120, tokens_limit: 2000000, output_tokens_per_run: 8000 },
     }
@@ -141,6 +151,9 @@ describe('LiwanOS AI usage contracts', () => {
     expect(() => AiSettingsPatchSchema.parse({ provider_mode: 'tenant_key', revision: 0 })).toThrow()
     expect(() => AiSettingsSchema.parse({ ...settings, knowledge_enabled: undefined })).toThrow()
     expect(AiSettingsPatchSchema.parse({ knowledge_enabled: true, revision: 1 }).knowledge_enabled).toBe(true)
+    expect(AiSettingsPatchSchema.parse({ input_tokens_per_run: 0, revision: 1 }).input_tokens_per_run).toBe(0)
+    expect(() => AiSettingsPatchSchema.parse({ input_tokens_per_run: -1, revision: 1 })).toThrow()
+    expect(() => AiSettingsPatchSchema.parse({ input_tokens_per_run: 2_000_001, revision: 1 })).toThrow()
     expect(() => AiSettingsPatchSchema.parse({ knowledge_enabled: 'yes', revision: 1 })).toThrow()
     expect(AiKnowledgeRebuildSchema.parse({ queued: true }).queued).toBe(true)
     expect(() => AiKnowledgeRebuildSchema.parse({ queued: false })).toThrow()
@@ -185,7 +198,6 @@ describe('LiwanOS AI usage contracts', () => {
     expect(() => AiAgentPatchSchema.parse({ revision: 0, tools: { 'pmo.list_my_tasks': 'always' } })).toThrow()
     expect(() => AiAgentPatchSchema.parse({ read_only: true })).toThrow()
     expect(AiAgentPatchSchema.parse({ revision: 2, read_only: true }).read_only).toBe(true)
-    expect(aiToolAgent('pmo.list_my_tasks')).toBe('pmo')
   })
 
   it('parses notes and refuses a note longer than the limit', () => {

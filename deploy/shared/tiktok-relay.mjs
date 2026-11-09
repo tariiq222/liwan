@@ -13,7 +13,11 @@ import { readBodyBytes } from '../../apps/web/server/utils/bufferAdmission.mjs'
 import { readTenantRegistry } from '../../apps/web/server/utils/tenantRegistry.ts'
 
 export const SIGNATURE_HEADER = 'tiktok-signature'
-/** TikTok signs `{timestamp}.{raw body}`; a delivery older than five seconds is a replay. */
+/** TikTok signs `{timestamp}.{raw body}`; a delivery older than five seconds is a replay at this first hop.
+ * The tenant is the second hop: it trusts this verification and judges the same timestamp with its own wider
+ * window (`SIGNATURE_MAX_AGE_RELAY` in odoo-addons/liwan_inbox/adapters/tiktok.py), because the forward alone
+ * may take ten seconds and the two hosts' clocks differ by seconds. The tenant's event dedupe key makes a
+ * replay that window would admit a single stored delivery. */
 export const SIGNATURE_MAX_AGE_SECONDS = 5
 export const BINDINGS_SCHEMA_VERSION = 1
 export const BINDINGS_HEADER = 'x-liwan-proxy-token'
@@ -44,8 +48,9 @@ const hmac = (secret, ...parts) => {
 const equal = (expected, actual) => expected.length === actual.length && timingSafeEqual(expected, actual)
 
 /** `Tiktok-Signature: t=<unix s>,s=<hex>`, where `s == HMAC_SHA256(client_secret, f"{t}.{raw}")`.
- * The window mirrors the tenant and is symmetric: refuse when `|now - t| > 5`, because a
- * timestamp dated in the future would otherwise escape the replay window as the clock advances. */
+ * The window mirrors the first hop only and is symmetric: refuse when `|now - t| > 5`, because a
+ * timestamp dated in the future would otherwise escape the replay window as the clock advances. The
+ * tenant re-checks the same timestamp with a wider window after this forward. */
 export function verifySignature(clientSecret, raw, header, now) {
   if (typeof header !== 'string') return false
   const match = SIGNATURE_PATTERN.exec(header)
