@@ -23,13 +23,15 @@ describe('registry publication interruption boundary', () => {
     unlinkSync(`${path}.pending`)
     expect(readTenantRegistry(path)).toEqual(disabled)
   })
-  it('refuses the old enabled snapshot while durable publication is pending', () => {
+  it('marks a publication barrier as unavailable, not a boundary refusal', () => {
     const directory = mkdtempSync(join(tmpdir(), 'liwan-registry-reader-'))
     const path = join(directory, 'registry.json')
     writeFileSync(path, JSON.stringify(snapshot))
     expect(readTenantRegistry(path)).toEqual(snapshot)
     writeFileSync(`${path}.pending`, 'publication in progress')
-    expect(() => readTenantRegistry(path)).toThrow('tenant_registry_unavailable')
+    let error: unknown
+    try { readTenantRegistry(path) } catch (caught) { error = caught }
+    expect(error).toMatchObject({ message: 'tenant_registry_unavailable', code: 'tenant_registry_unavailable', statusCode: 503 })
   })
   it('does not interpret an empty pending marker as permission to serve', () => {
     const directory = mkdtempSync(join(tmpdir(), 'liwan-registry-reader-'))

@@ -249,11 +249,11 @@ test('ten-tenant guard+Nuxt isolation matrix rejects all 90 directional pairs pe
       assert.equal(badOrigin.status, 403)
       console.log('Phase 7: websocket own upgrade + echo ok; foreign-cookie and foreign-origin handshakes rejected')
 
-      // Phase 8 — registry publication barrier fails closed, then recovers.
+      // Phase 8 — registry publication barrier is an unavailable service, then recovers.
       await writeFile(`${registry}.pending`, 'registry publication pending\n')
       const barrier = await call('GET', '/api/v1/me', { host: tenants[1].host, cookie: cookies.get(tenants[1]) })
-      assert.equal(barrier.status, 403, 'pending publication marker did not fail closed')
-      assert.equal(barrier.text, 'tenant_boundary_rejected')
+      assert.equal(barrier.status, 503, 'pending publication marker did not report an unavailable service')
+      assert.equal(JSON.parse(barrier.text).code, 'tenant_registry_unavailable')
       await unlink(`${registry}.pending`)
       const afterBarrier = await call('GET', '/api/v1/me', { host: tenants[1].host, cookie: cookies.get(tenants[1]) })
       assert.equal(afterBarrier.status, 200, 'recovery after barrier removal failed')
@@ -264,7 +264,7 @@ test('ten-tenant guard+Nuxt isolation matrix rejects all 90 directional pairs pe
       assert.equal((await call('GET', '/api/v1/me', { host: tenants[5].host, cookie: cookies.get(tenants[5]) })).status, 200, 'disable of t05 broke t06')
       await writeFile(registry, JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: targetsOnly(tenants) }))
       assert.equal((await call('GET', '/api/v1/me', { host: tenants[4].host, cookie: cookies.get(tenants[4]) })).status, 200, 'restore after re-enable failed')
-      console.log('Phases 8-9: publication barrier failed closed then recovered; single-target disable isolated to that tenant')
+      console.log('Phases 8-9: publication barrier answered 503 unavailable then recovered; single-target disable isolated to that tenant')
 
       // Final audit — no dispatched call ever carried a foreign session or trusted headers.
       for (const c of calls) {

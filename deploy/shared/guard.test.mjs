@@ -260,6 +260,49 @@ test('guard denies bootstrap hosts and serves the first publication without rest
   assert.equal(result.text, 'first tenant')
 })
 
+test('a publication barrier answers 503 with a machine-readable code, not a boundary refusal', async t => {
+  const root = mkdtempSync(join(tmpdir(), 'liwan-guard-barrier-'))
+  const path = join(root, 'registry.json')
+  writeFileSync(path, JSON.stringify(registry))
+  writeFileSync(`${path}.pending`, 'registry publication pending\n')
+  const backend = http.createServer((_req, res) => res.end('must not be reached'))
+  const backendUrl = await listen(backend)
+  const guard = createGuard({ registryPath: path, proxyToken: token, keys, activeKid: 'test', odooUrl: backendUrl, webUrl: backendUrl })
+  const url = await listen(guard)
+  const lines = []
+  const error = mock.method(console, 'error', line => lines.push(line))
+  t.after(() => { error.mock.restore(); guard.closeAllConnections(); guard.close(); backend.closeAllConnections(); backend.close() })
+  const response = await call(url, '/api/v1/me', { host: targets[0].host })
+  assert.equal(response.status, 503)
+  assert.match(response.headers['content-type'], /^application\/json/)
+  assert.deepEqual(JSON.parse(response.text), {
+    code: 'tenant_registry_unavailable',
+    message: 'The tenant registry is not currently published. The service is unavailable, not refusing this tenant.',
+  })
+  // Unavailable is not a boundary refusal: the audit stays for refusals only.
+  assert.deepEqual(lines, [])
+  // The barrier is not a per-host decision: every host is unavailable, not refused.
+  for (const host of [targets[1].host, 'unknown.example.test']) assert.equal((await call(url, '/api/v1/me', { host })).status, 503)
+  rmSync(`${path}.pending`)
+  assert.equal((await call(url, '/api/v1/me', { host: targets[0].host })).status, 200)
+})
+
+test('unknown hosts and forged headers stay 403 tenant_boundary_rejected', async t => {
+  const root = mkdtempSync(join(tmpdir(), 'liwan-guard-refusal-'))
+  const path = join(root, 'registry.json'); writeFileSync(path, JSON.stringify(registry))
+  const backend = http.createServer((_req, res) => res.end('ok'))
+  const backendUrl = await listen(backend)
+  const guard = createGuard({ registryPath: path, proxyToken: token, keys, activeKid: 'test', odooUrl: backendUrl, webUrl: backendUrl })
+  const url = await listen(guard)
+  t.after(() => { guard.closeAllConnections(); guard.close(); backend.closeAllConnections(); backend.close() })
+  for (const headers of [{ host: 'unknown.example.test' }, { host: targets[0].host, 'x-forwarded-host': 'forged' }, { host: targets[0].host, 'x-odoo-database': 'db_1' }]) {
+    const response = await call(url, '/api/v1/me', headers)
+    assert.equal(response.status, 403)
+    assert.match(response.headers['content-type'], /^text\/plain/)
+    assert.equal(response.text, 'tenant_boundary_rejected')
+  }
+})
+
 // Body credits are four per hop pool: four hung forwards would admit nothing else if a departed caller kept them.
 const BODY_CREDITS = 4
 const settle = async () => { for (let turn = 0; turn < 50; turn++) await new Promise(resolve => setImmediate(resolve)) }
