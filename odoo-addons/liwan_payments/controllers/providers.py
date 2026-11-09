@@ -130,7 +130,7 @@ class PaymentProviderController(http.Controller):
         provider = _offered_provider(provider_id)
         state = _parse_state(payload['state']) if 'state' in payload else provider.state
         if 'credentials' in payload:
-            provider.write(_parse_credentials(provider, payload['credentials']))
+            provider._liwan_payments_set_credentials(_parse_credentials(provider, payload['credentials']))
         if 'account_country' in payload:
             provider._liwan_payments_set_account_country(_parse_account_country(provider, payload['account_country']))
         if state != 'disabled':
