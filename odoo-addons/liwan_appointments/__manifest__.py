@@ -23,4 +23,7 @@
     ],
     'installable': True,
     'application': False,
+    # The requester's access token travels in the query string, and werkzeug writes the whole request line at info level
+    # (#543): the hook installs a masking filter on that logger before any request is served.
+    'post_load': 'post_load',
 }
