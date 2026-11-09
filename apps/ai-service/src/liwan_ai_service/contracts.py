@@ -57,6 +57,7 @@ class ToolSpec(Strict):
     input_map: dict[str, dict[str, Any]] = Field(default_factory=dict)
     result_summary: list[str] = Field(default_factory=list)
     draft_target: str | None = None
+    draft_model: str | None = None  # the model an approved draft's record lives in; Odoo verifies the approval against it
     requires_approval: bool = False  # the administrator made this read wait for the user; a write always waits
     platform: bool = False  # a read tool of the platform itself (the knowledge search): no owning agent, offered to every agent
 
@@ -78,11 +79,11 @@ class ToolSpec(Strict):
             msg = f"input_schema is not a valid JSON Schema: {error.message}"
             raise ValueError(msg) from error
         if self.kind == "draft":
-            if self.route is not None or not self.draft_target:
-                msg = "a draft tool has a draft_target and no route"
+            if self.route is not None or not self.draft_target or not self.draft_model:
+                msg = "a draft tool has a draft_target, a draft_model and no route"
                 raise ValueError(msg)
-        elif self.route is None or self.draft_target is not None:
-            msg = "a read/write_light tool has a route and no draft_target"
+        elif self.route is None or self.draft_target is not None or self.draft_model is not None:
+            msg = "a read/write_light tool has a route and no draft_target or draft_model"
             raise ValueError(msg)
         if self.platform and self.kind != "read":
             msg = "only a read tool is a platform tool"
@@ -134,6 +135,11 @@ class Policy(Strict):
     provider_mode: Billing  # whose account pays the request; "setup" runs on the platform provider
     consent_signed: bool  # the tenant signed the current AI acknowledgement; no provider runs a request without it
     max_output_tokens: int | None = Field(ge=0, le=1_000_000)  # platform runs only; null means no cap, 0 allows no answer
+    # The tenant's own ceiling on the summed input tokens of one request (issue #554), in both provider modes. A plan call
+    # runs only while the total already spent is under it, so the call that reaches the ceiling completes, its text having
+    # streamed, and the next one stops the run with ``limit_reached`` and ``input_tokens``; a tool call it carried is not
+    # made. null means no ceiling. 0 refuses even the first call.
+    max_input_tokens: int | None = Field(default=None, ge=0, le=2_000_000)
 
 
 class RunContext(Strict):

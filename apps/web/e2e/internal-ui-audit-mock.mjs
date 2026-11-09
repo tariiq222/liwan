@@ -168,7 +168,7 @@ const AI_SETTINGS = {
     text_en: 'Draft pending legal review.\n\nAI use acknowledgement and liability disclaimer.',
     text_hash: 'a'.repeat(64), signed: null,
   },
-  usage: { month: '2026-11', messages_used: 0, messages_limit: 500, assist_used: 0, assist_limit: 300, tokens_used: 1620000, tokens_limit: 2000000, output_tokens_per_run: 8000 },
+  usage: { month: '2026-11', messages_used: 0, messages_limit: 500, assist_used: 0, assist_limit: 300, tokens_used: 1620000, tokens_limit: 2000000, output_tokens_per_run: 8000, input_tokens_per_run: 100000 },
 }
 
 // Charter approval fixtures. Their charters live in CHARTER_STATE (project id -> charter + write token) so the
@@ -516,10 +516,10 @@ async function handle(req, res) {
     const reader = /(?:^|;\s*)mock_caps=reader(?:;|$)/.test(req.headers.cookie ?? '')
     const canCreate = !reader && capabilitiesForRequest(req.headers.cookie, moduleUiCapabilities).includes('pmo.projects.create')
     const items = [
-      { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'يعرض مهامي', en: 'List my tasks' }, input_schema: { type: 'object', properties: { limit: { type: 'integer' } } }, route: { method: 'GET', path: '/api/v1/tasks' }, input_map: { query: { filter: 'mine', limit: '$limit' } }, result_summary: ['items[].id', 'items[].name', 'items[].state', 'total'], draft_target: null, requires_approval: AI_AGENT_SETTINGS.pmo.tools['pmo.list_my_tasks'] === 'approval', platform: false },
-      ...(canCreate ? [{ name: 'pmo.draft_project', kind: 'draft', description: { ar: 'مسودة مشروع', en: 'Project draft' }, input_schema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] }, route: null, input_map: {}, result_summary: [], draft_target: '/projects/new', requires_approval: true, platform: false }] : []),
+      { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'يعرض مهامي', en: 'List my tasks' }, input_schema: { type: 'object', properties: { limit: { type: 'integer' } } }, route: { method: 'GET', path: '/api/v1/tasks' }, input_map: { query: { filter: 'mine', limit: '$limit' } }, result_summary: ['items[].id', 'items[].name', 'items[].state', 'total'], draft_target: null, draft_model: null, requires_approval: AI_AGENT_SETTINGS.pmo.tools['pmo.list_my_tasks'] === 'approval', platform: false },
+      ...(canCreate ? [{ name: 'pmo.draft_project', kind: 'draft', description: { ar: 'مسودة مشروع', en: 'Project draft' }, input_schema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] }, route: null, input_map: {}, result_summary: [], draft_target: '/projects/new', draft_model: 'project.project', requires_approval: true, platform: false }] : []),
     ]
-    return json(res, 200, { items, total: items.length, agents: [{ ...PMO_AGENT, memory: AI_AGENT_SETTINGS.pmo.memory }], limits: { tool_calls_per_run: 8, messages_monthly: 500, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null } }, blocked_fields: [] })
+    return json(res, 200, { items, total: items.length, agents: [{ ...PMO_AGENT, memory: AI_AGENT_SETTINGS.pmo.memory }], limits: { tool_calls_per_run: 8, messages_monthly: 500, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null, input_tokens_per_run: null } }, blocked_fields: [] })
   }
   // The AI settings of the tenant (ai.settings.manage): provider mode, the AI acknowledgement and this month's use.
   if (path === '/api/v1/ai/settings' || path === '/api/v1/ai/consent' || path === '/api/v1/ai/consent/revoke') {
@@ -571,7 +571,8 @@ async function handle(req, res) {
   if (method === 'POST' && path === '/api/v1/ai/audit') {
     let entry = {}
     try { entry = JSON.parse(await readBody(req) || '{}') } catch { entry = {} }
-    AI_AUDIT.push(entry)
+    // Odoo stamps the acknowledgement itself from the row's result (issue #556); the wire never carries it.
+    AI_AUDIT.push(entry.result === 'approved' ? { ...entry, attested_at: NOW() } : entry)
     return json(res, 200, { id: AI_AUDIT.length, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length, messages_limit: 500 })
   }
   if (method === 'POST' && path === '/api/v1/ai/usage') {
