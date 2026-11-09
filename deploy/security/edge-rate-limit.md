@@ -17,10 +17,14 @@ addresses. A request matches exactly one zone.
 | Zone | Paths | Events / minute | Why |
 | --- | --- | --- | --- |
 | `liwan_auth` | `/api/auth/*`, `/api/v1/auth/*`, `/web/session/*` except `get_session_info`, `/web/login` and `/web/login/*` | 20 total | credential attempts across Nuxt and Odoo |
-| `liwan_api` | other `/api/v1/*` except `/api/v1/public/appointments/*` | 300 | authenticated product API |
+| `liwan_provider_hook` | `/api/v1/inbox/hooks/*` (Meta and TikTok deliveries) | 1200 | a provider's burst after an outage must not be refused with 429 |
+| `liwan_api` | other `/api/v1/*` except `/api/v1/public/appointments/*` and `/api/v1/inbox/hooks/*` | 300 | authenticated product API |
 | `liwan_public_appointments_ip` | `/api/v1/public/appointments/*` | 60 | an invited requester's token routes (no session) |
 | `liwan_odoo` | other Odoo paths except `/web/health`, including `/web/session/get_session_info` | 600 | Odoo web client, assets, reports |
 | `liwan_web` | Nuxt responses | 600 | customer UI |
+
+The shared edge (`deploy/shared/Caddyfile`) declares the same `liwan_provider_hook` zone on `{client_ip}` over its
+guarded sites; a delivery the TikTok relay forwards reaches Odoo through a tenant host like any other hook.
 
 `/websocket*` is not counted. `/web/health` is exempt so a probe cannot consume
 a customer's interactive budget. These are abuse boundaries, not billing quotas.
