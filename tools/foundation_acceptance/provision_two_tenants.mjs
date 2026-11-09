@@ -209,9 +209,10 @@ try {
   const send = async (path, { method = 'POST', body, anonymous = !session } = {}) => {
     assertRunning(api)
     const raw = body === undefined ? undefined : JSON.stringify(body)
-    const headers = { ...signServiceRequest({ method, path, body: raw, issuer: installationId, key: serviceKey, ...(anonymous ? { actor: 'anonymous', anonymous: true } : { actor }) }), accept: 'application/json', ...(raw === undefined ? {} : { 'content-type': 'application/json' }), ...(session ? { 'x-liwan-session': session } : {}), ...(anonymous ? { 'x-liwan-client-ip': '127.0.0.1' } : {}) }
+    const headers = { ...signServiceRequest({ method, path, body: raw, issuer: installationId, key: serviceKey, ...(anonymous ? { actor: 'anonymous', anonymous: true } : { actor }) }), accept: 'application/json', connection: 'close', ...(raw === undefined ? {} : { 'content-type': 'application/json' }), ...(session ? { 'x-liwan-session': session } : {}), ...(anonymous ? { 'x-liwan-client-ip': '127.0.0.1' } : {}) }
     // No automatic retry of state-changing requests: preserve the first failure.
     const response = await fetch(`http://127.0.0.1:${controlPort}${path}`, { method, headers, body: raw, signal: AbortSignal.timeout(30_000) })
+      .catch(error => { throw new Error(`${method} ${path} transport failed (${error.cause?.code ?? error.name})`) })
     const text = await response.text()
     return { status: response.status, body: text ? JSON.parse(text) : undefined }
   }
