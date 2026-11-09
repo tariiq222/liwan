@@ -25,3 +25,6 @@ def migrate(cr, version):
                 event.write({'dedupe_key': key})
                 seen.add(key)
         env.flush_all()
+        # Each batch's payloads are read once and never again: drop the cache so a 1000-row batch does not keep
+        # its event bodies loaded for the whole run.
+        env.invalidate_all()
