@@ -1,14 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, fields, models
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import AccessError
 
 SETTINGS_CAPABILITIES = ('appointments.bookings.read', 'appointments.bookings.write', 'appointments.bookings.manage')
 FIELD_REQUIREMENTS = (('required', 'Required'), ('optional', 'Optional'), ('hidden', 'Hidden'))
-# ``invite_only`` is the only policy any route enforces: the platform has no public self-booking page, so choosing
-# ``open`` would promise a capability that does not exist. The value stays in the selection so a stored row still reads
-# back, and the settings parser refuses to write it (issue #550).
-SELF_BOOKING_POLICIES = (('invite_only', 'Invite only'), ('open', 'Open'))
-ENFORCED_SELF_BOOKING_POLICIES = ('invite_only',)
+# ``invite_only`` is the only value: the platform has no public self-booking page, so the field offers no policy that
+# would promise one. It is kept as an explicit, readable setting rather than dropped (issue #550).
+SELF_BOOKING_POLICIES = (('invite_only', 'Invite only'),)
 SECTOR_PRESETS = (('general', 'General'), ('clinic', 'Clinic'), ('services', 'Services'))
 # Inclusive (min, max) of every numeric setting; the database CHECKs and the API parser read this one table.
 INTEGER_RANGES = {
@@ -75,7 +73,7 @@ class LiwanAppointmentSettings(models.Model):
     settings (``attendance_tracking``, ``auto_no_show``, ``no_show_grace_minutes``, ``walk_in_allowed``,
     ``visit_reason_field``, ``cancel_reason_required``) by the booking routes and the no-show cron
     (ticket 14); ``cancel_reason_required`` binds the staff cancel route and the requester's. ``self_booking_policy``
-    has no route that implements ``open`` (issue #550), so only ``invite_only`` is accepted on write.
+    is ``invite_only`` only: no route implements a public self-booking page (issue #550).
     ``reference_prefix`` is read when a booking is created, and ``link_valid_days_after_end`` bounds how long the
     requester's link stays readable after the appointment ends. Existing bookings are never changed. Applying a sector
     preset writes ``sector_preset`` (the last applied preset) and every preset value in one save; a field sent with the
@@ -119,16 +117,6 @@ class LiwanAppointmentSettings(models.Model):
     _prefix_format = models.Constraint(
         "CHECK(reference_prefix ~ '^%s$')" % REFERENCE_PREFIX_PATTERN, 'the reference prefix is 1 to 10 of A-Z, 0-9 and -',
     )
-
-    @api.constrains('self_booking_policy')
-    def _check_self_booking_policy(self):
-        """Refuse a policy no route implements (issue #550): ``open`` would promise a public booking page nobody serves."""
-        unsupported = {row.self_booking_policy for row in self} - set(ENFORCED_SELF_BOOKING_POLICIES)
-        if unsupported:
-            raise ValidationError(self.env._(
-                'self-booking policy %(policy)s needs a public booking page that does not exist yet.',
-                policy=', '.join(sorted(unsupported)),
-            ))
 
     @api.model
     def _liwan_require_current_company(self, *capabilities):

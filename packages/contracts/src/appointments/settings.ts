@@ -1,9 +1,9 @@
 import { z } from 'zod'
 
 export const AppointmentFieldRequirementSchema = z.enum(['required', 'optional', 'hidden'])
-/** Who may book. Only `invite_only` is enforced: `open` needs a public booking page the platform does not have, so the
- * server refuses to save it, and the UI shows it as unavailable (issue #550). */
-export const AppointmentSelfBookingPolicySchema = z.enum(['invite_only', 'open'])
+/** Who may book. `invite_only` is the only policy: no route serves a public booking page, so `open` is not a value at
+ * all (issue #550). */
+export const AppointmentSelfBookingPolicySchema = z.enum(['invite_only'])
 export const AppointmentSectorPresetSchema = z.enum(['general', 'clinic', 'services'])
 
 const slotMinutes = z.number().int().min(5).max(480)

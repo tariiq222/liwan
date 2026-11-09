@@ -59,16 +59,16 @@ class TestAppointmentSettings(LiwanAppointmentsCase):
         self.assertEqual((body['revision'], body['horizon_days'], body['phone_field']), (2, 10, 'hidden'))
         self.assertEqual(self.api('GET', URL).json(), body)
 
-    def test_open_self_booking_cannot_be_saved(self):
-        """#550: ``open`` has no route that implements it, so the write is refused rather than silently ignored."""
+    def test_self_booking_offers_only_the_policy_a_route_serves(self):
+        """#550: `open` is not a value of the setting at all, so no write can promise a page nobody serves."""
         self._as_manager()
         refused = self.api('PATCH', URL, {'self_booking_policy': 'open', 'revision': 0})
         self.assertEqual((refused.status_code, refused.json()['code'], refused.json()['field']), (422, 'invalid', 'self_booking_policy'), refused.text)
-        self.assertIn('public booking page', refused.json()['message'])
+        self.assertEqual(refused.json()['message'], 'choose one of: invite_only')
         self.assertFalse(self.env['liwan.appointment.settings'].search([]))
-        # The one policy every route enforces is accepted and read back.
         saved = self.api('PATCH', URL, {'self_booking_policy': 'invite_only', 'revision': 0})
         self.assertEqual((saved.status_code, saved.json()['self_booking_policy']), (200, 'invite_only'), saved.text)
+        self.assertEqual(self.env['liwan.appointment.settings']._fields['self_booking_policy'].selection, (('invite_only', 'Invite only'),))
 
     def test_preset_sets_every_value_and_explicit_field_overrides(self):
         self._as_manager()

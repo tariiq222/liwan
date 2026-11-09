@@ -205,7 +205,7 @@ describe('AppointmentSettingsSchema', () => {
     for (const bad of [
       { default_slot_minutes: 4 }, { default_slot_minutes: 481 }, { min_notice_hours: 721 },
       { horizon_days: 0 }, { horizon_days: 366 }, { modification_deadline_hours: -1 },
-      { phone_field: 'maybe' }, { self_booking_policy: 'anyone' }, { sector_preset: 'bank' }, { revision: -1 },
+      { phone_field: 'maybe' }, { self_booking_policy: 'anyone' }, { self_booking_policy: 'open' }, { sector_preset: 'bank' }, { revision: -1 },
       { no_show_grace_minutes: -1 }, { no_show_grace_minutes: 1441 }, { visit_reason_field: 'maybe' }, { walk_in_allowed: 'yes' },
       { reference_prefix: '' }, { reference_prefix: 'apt' }, { reference_prefix: 'ABCDEFGHIJK' }, { reference_prefix: 'A/B' },
       { link_valid_days_after_end: -1 }, { link_valid_days_after_end: 3651 }, { link_valid_days_after_end: 1.5 },

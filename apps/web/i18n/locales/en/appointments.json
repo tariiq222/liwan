@@ -110,11 +110,9 @@
         "title": "Requester",
         "hint": "What the requester is asked for and may do.",
         "selfBooking": "Who can book",
-        "selfBookingHint": "Invite only is what is available now; open booking needs a public booking page that is not built yet, so it cannot be saved.",
+        "selfBookingHint": "Booking is by invitation: staff invite a requester, who books from their own link.",
         "policy": {
-          "invite_only": "Invite only",
-          "open": "Open to everyone",
-          "openUnavailable": "Unavailable: needs a public booking page that is not built yet"
+          "invite_only": "Invite only"
         },
         "confirmation": "Requester confirmation",
         "confirmationHint": "The appointment waits for the requester to confirm after booking.",
