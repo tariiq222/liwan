@@ -5,14 +5,19 @@ each turn. ``policy.max_input_tokens`` bounds that spend the same way the platfo
 the ceiling completes (its text has already streamed to the browser) and the run ends there — ``limit_reached`` with
 ``input_tokens`` — so no further prompt is paid for and no tool request a completed call carried is made.
 """
+import httpx
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
 
 from liwan_ai_service.contracts import RunRequest, ToolResult
 from liwan_ai_service.graph import initial_state, run_config
-from tests.fakes import PLATFORM_POLICY, BoundGraph, ScriptedChatModel, ai_text, ai_tool_call, ai_usage, new_id
+from tests.fakes import PLATFORM_POLICY, BoundGraph, ScriptedChatModel, ai_text, ai_tool_call, ai_usage, make_memory_app, new_id
 from tests.test_contracts import DRAFT_TOOL, PMO_AGENT, READ_TOOL
+from tests.test_service import BODY, HEADERS, SETTINGS, fresh, parse_sse
+
+PAUSED = ai_usage(ai_tool_call("pmo__list_my_tasks", {}, "c_1"), 5000, 20)  # one plan call, then the read waits for its result
+ROWS = {"ok": True, "data": {"items": [{"id": 5, "name": "تقرير"}], "total": 1}}
 
 
 def make(responses, policy=None):
@@ -103,3 +108,49 @@ def test_the_ceiling_is_bounded(cap):
             "tools": [], "agents": [], "limits": {"max_steps": 6, "max_tool_calls": 2, "timeout_seconds": 60},
             "policy": {**PLATFORM_POLICY, "max_input_tokens": cap},
         })
+
+
+def make_client(responses):
+    model = ScriptedChatModel(responses)
+    app = make_memory_app(model, SETTINGS)
+    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai"), model
+
+
+async def run_paused_on_a_read(client, policy):
+    """Start a run whose one plan call spends 5000 input tokens and then waits for its tool result."""
+    body = fresh({**BODY, "policy": {**PLATFORM_POLICY, **policy}})
+    events = parse_sse((await client.post("/v1/runs", json=body, headers=HEADERS)).text)
+    assert events[-1][1] == {"status": "waiting_tool"} and (events[-2][0], events[-2][1]["call_id"]) == ("tool_request", "c_1")
+    return events[0][1]["run_id"]
+
+
+async def test_a_ceiling_lowered_while_the_run_waited_stops_the_resumed_run():
+    """A ceiling set after the pause applies to the rest of the run: the tokens already spent are over it, so no call is made."""
+    client, model = make_client([PAUSED])
+    async with client:
+        run_id = await run_paused_on_a_read(client, {})
+        resumed = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={
+            "call_id": "c_1", "policy": {**PLATFORM_POLICY, "max_input_tokens": 1000}, "result": ROWS,
+        }, headers=HEADERS)).text)
+        assert ("limit_reached", {"limit": "input_tokens"}) in resumed and resumed[-1][1] == {"status": "limit_reached"}
+        assert len(model.calls) == 1  # the stale no-ceiling checkpoint does not spend another prompt
+        assert (await client.get(f"/v1/runs/{run_id}", headers=HEADERS)).json()["status"] == "limit_reached"
+
+
+@pytest.mark.parametrize("policy", [{"max_input_tokens": 20_000}, {"max_input_tokens": None}])
+async def test_a_ceiling_raised_or_cleared_while_the_run_waited_lets_the_resumed_run_answer(policy):
+    """The ceiling is the resume policy's, not the checkpoint's.
+
+    The run started under a 6000 ceiling, paused after spending 5000, and its next call spends 5000 more: under the
+    checkpointed 6000 the resumed run would stop at 10000, so only the raised (or cleared) ceiling lets it answer.
+    """
+    client, model = make_client([PAUSED, ai_usage(ai_text("عندك مهمة واحدة"), 5000, 8)])
+    async with client:
+        run_id = await run_paused_on_a_read(client, {"max_input_tokens": 6000})
+        resumed = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={
+            "call_id": "c_1", "policy": {**PLATFORM_POLICY, **policy}, "result": ROWS,
+        }, headers=HEADERS)).text)
+        assert len(model.calls) == 2  # the raised ceiling let the second call be made
+        assert ("limit_reached", {"limit": "input_tokens"}) not in resumed
+        assert dict(resumed)["answer"]["text"] == "عندك مهمة واحدة" and resumed[-1][1] == {"status": "done"}
+        assert (await client.get(f"/v1/runs/{run_id}", headers=HEADERS)).json()["status"] == "done"

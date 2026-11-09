@@ -554,8 +554,12 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
             lease = await tenant.store.acquire(record.run_id, WAITING, stale_after_seconds=STALE_AFTER_SECONDS, pending_call_id=body.call_id)
             if lease is None:
                 raise HTTPException(409, "run is already being resumed")
-            # The cap is the policy's now: a smaller cap set while the run waited applies to the rest of it.
-            resume = Command(resume=resume_value(body.result), update={"max_output_tokens": body.policy.max_output_tokens})
+            # The caps are the policy's now: an output cap or an input ceiling changed while the run waited applies to the
+            # rest of it, the input ceiling against the tokens already spent, so a raised one or null takes effect at once.
+            resume = Command(resume=resume_value(body.result), update={
+                "max_output_tokens": body.policy.max_output_tokens,
+                "max_input_tokens": body.policy.max_input_tokens,
+            })
             await tenant.memory.drain_outbox()
             company = state.values.get("company")
             notes = await tenant.memory.for_prompt(who.user_ref, company)
