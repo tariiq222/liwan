@@ -3,6 +3,7 @@
 import { spawn } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { chmodSync, chownSync, existsSync, mkdirSync, mkdtempSync, openSync, closeSync, readFileSync, realpathSync } from 'node:fs'
+import { request } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -209,12 +210,25 @@ try {
   const send = async (path, { method = 'POST', body, anonymous = !session } = {}) => {
     assertRunning(api)
     const raw = body === undefined ? undefined : JSON.stringify(body)
-    const headers = { ...signServiceRequest({ method, path, body: raw, issuer: installationId, key: serviceKey, ...(anonymous ? { actor: 'anonymous', anonymous: true } : { actor }) }), accept: 'application/json', connection: 'close', ...(raw === undefined ? {} : { 'content-type': 'application/json' }), ...(session ? { 'x-liwan-session': session } : {}), ...(anonymous ? { 'x-liwan-client-ip': '127.0.0.1' } : {}) }
-    // No automatic retry of state-changing requests: preserve the first failure.
-    const response = await fetch(`http://127.0.0.1:${controlPort}${path}`, { method, headers, body: raw, signal: AbortSignal.timeout(30_000) })
-      .catch(error => { throw new Error(`${method} ${path} transport failed (${error.cause?.code ?? error.name})`) })
-    const text = await response.text()
-    return { status: response.status, body: text ? JSON.parse(text) : undefined }
+    const headers = { ...signServiceRequest({ method, path, body: raw, issuer: installationId, key: serviceKey, ...(anonymous ? { actor: 'anonymous', anonymous: true } : { actor }) }), accept: 'application/json', ...(raw === undefined ? {} : { 'content-type': 'application/json', 'content-length': Buffer.byteLength(raw) }), ...(session ? { 'x-liwan-session': session } : {}), ...(anonymous ? { 'x-liwan-client-ip': '127.0.0.1' } : {}) }
+    // Compose/shell commands block this test process, so do not reuse an idle socket
+    // whose close could have been delayed while a command ran.
+    return new Promise((resolve, reject) => {
+      const req = request({ hostname: '127.0.0.1', port: controlPort, path, method, headers, agent: false, timeout: 30_000 }, response => {
+        const chunks = []
+        response.on('data', chunk => chunks.push(chunk))
+        response.on('error', reject)
+        response.on('end', () => {
+          try {
+            const text = Buffer.concat(chunks).toString('utf8')
+            resolve({ status: response.statusCode, body: text ? JSON.parse(text) : undefined })
+          } catch (error) { reject(error) }
+        })
+      })
+      req.on('timeout', () => req.destroy(new Error('control request timed out')))
+      req.on('error', error => reject(new Error(`${method} ${path} transport failed (${error.code ?? error.name})`)))
+      req.end(raw)
+    })
   }
   const login = await send('/v1/admin/auth/dev-login', { body: {} })
   record('vendor dev sign-in', login.status === 200 && typeof login.body?.session === 'string')
