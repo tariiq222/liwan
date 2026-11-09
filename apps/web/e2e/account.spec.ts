@@ -1,64 +1,51 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import { MeSchema } from '@liwan/contracts'
+import { ACCEPTANCE_ORIGIN, account, openShell, signIn, type SeededUser } from './support/realOdooSession'
 
-// Needs a real Odoo: it signs in as a seeded account and changes its password, which the mock answers with 404. It is in no CI list until it has run on a
-// scratch Odoo (see docs/testing.md, section 3).
+// Runs only on the isolated real-Odoo stack (deploy/ci/e2e-odoo.sh).
 test.skip(process.env.E2E_REAL_ODOO !== '1', 'Explicit isolated real Odoo acceptance only')
+test.beforeEach(async ({}, info) => { expect(new URL(String(info.project.use.baseURL)).origin).toBe(ACCEPTANCE_ORIGIN) })
 
-const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:3000'
-// The account tools/e2e_seed.py creates: an administrator cannot give a new account a password.
-const ACCOUNT_LOGIN = 'e2e_staff2'
-const FIXTURE_PASSWORD = process.env.E2E_USER_STAFF2_PASSWORD ?? 'liwan-e2e-staff2-2026'
-
-async function login(page, loginName: string, password: string) {
-  await page.goto('/login')
-  await page.getByLabel('اسم المستخدم').fill(loginName)
-  await page.getByLabel('كلمة المرور').fill(password)
-  await page.getByRole('button', { name: 'دخول' }).click()
-  // Login lands on the first section the user may open (accessPolicy.firstAllowedPath).
-  await expect(page).not.toHaveURL(/\/login(?:\?|$)/)
-}
-
-async function restorePassword(page, browser, loginName: string, temporaryPassword: string) {
-  let restoreRes = await page.request.post('/api/v1/me/password', {
-    data: { current: temporaryPassword, new: FIXTURE_PASSWORD },
-  })
-  if (restoreRes.status() !== 200) {
-    // A failed assertion may have left the browser context in a bad state;
-    // obtain a fresh session before the final credential restoration attempt.
-    const recovery = await browser.newContext({ baseURL: BASE_URL })
-    try {
-      const recoveryLogin = await recovery.request.post('/api/auth/login', {
-        data: { login: loginName, password: temporaryPassword },
-      })
-      if (recoveryLogin.status() === 200) {
-        restoreRes = await recovery.request.post('/api/v1/me/password', {
-          data: { current: temporaryPassword, new: FIXTURE_PASSWORD },
-        })
-      }
-    } finally {
-      await recovery.close()
-    }
+/**
+ * Puts the seeded credential back, unconditionally, whatever the journey above did.
+ *
+ * The signed-in browser session is the only context that can write it: a password step alone leaves a pre-session
+ * that `/api/v1/me/password` answers 401 for, so a fresh context can never sign in to restore. When the change never
+ * landed (`changed` false) the attempt is a no-op that answers 422 `wrong_password` and the fixture is already intact;
+ * when it did land, anything but 200 leaves the fixture's password changed and fails the run.
+ */
+async function restoreSeededPassword(page: Page, fixture: SeededUser, temporaryPassword: string, changed: boolean) {
+  let restored: { status: number, body: string }
+  try {
+    const response = await page.request.post('/api/v1/me/password', {
+      data: { current: temporaryPassword, new: fixture.password },
+    })
+    restored = { status: response.status(), body: await response.text() }
+  } catch (error) {
+    restored = { status: 0, body: String(error) }
   }
-  expect(restoreRes.status()).toBe(200)
-  MeSchema.parse(await restoreRes.json())
+  // A refusal only matters when the temporary password had actually landed; otherwise the fixture is untouched.
+  if (restored.status !== 200) {
+    if (changed) expect(restored.status, `restoring the seeded password failed: ${restored.body}`).toBe(200)
+    return
+  }
+  MeSchema.parse(JSON.parse(restored.body))
 }
 
-test('employee changes a password, keeps the session, and can restore the original credential', async ({ page, browser }) => {
-  const fixture = { loginName: ACCOUNT_LOGIN, suffix: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}` }
-  const employeeContext = await browser.newContext({ baseURL: BASE_URL, locale: 'ar-SA' })
+test('employee changes a password, keeps the session, and can restore the original credential', async ({ browser }) => {
+  const fixture = account('staff2')
+  const temporaryPassword = `E2E-account-password-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const employeeContext = await browser.newContext({ baseURL: ACCEPTANCE_ORIGIN, locale: 'ar-SA' })
   const employeePage = await employeeContext.newPage()
-  await login(employeePage, fixture.loginName, FIXTURE_PASSWORD)
-
-  const temporaryPassword = `E2E-account-password-${fixture.suffix}`
   let changed = false
 
   try {
-    await employeePage.goto('/account')
-    await expect(employeePage.getByRole('heading', { name: 'الحساب' })).toBeVisible()
+    await signIn(employeePage, 'staff2')
+    await openShell(employeePage, '/account/settings')
+    await expect(employeePage.getByRole('heading', { level: 1, name: 'إعدادات حسابي' })).toBeVisible()
 
     // Failed credentials must clear every secret field just like success.
-    await employeePage.getByTestId('pw-current').fill(`${FIXTURE_PASSWORD}-wrong`)
+    await employeePage.getByTestId('pw-current').fill(`${fixture.password}-wrong`)
     await employeePage.getByTestId('pw-new').fill(temporaryPassword)
     await employeePage.getByTestId('pw-confirm').fill(temporaryPassword)
     const rejectedMutation = employeePage.waitForResponse((response) => (
@@ -70,7 +57,7 @@ test('employee changes a password, keeps the session, and can restore the origin
     await expect(employeePage.getByTestId('pw-new')).toHaveValue('')
     await expect(employeePage.getByTestId('pw-confirm')).toHaveValue('')
 
-    await employeePage.getByTestId('pw-current').fill(FIXTURE_PASSWORD)
+    await employeePage.getByTestId('pw-current').fill(fixture.password)
     await employeePage.getByTestId('pw-new').fill(temporaryPassword)
     await employeePage.getByTestId('pw-confirm').fill(temporaryPassword)
     const passwordMutation = employeePage.waitForResponse((response) => (
@@ -78,32 +65,36 @@ test('employee changes a password, keeps the session, and can restore the origin
     ))
     await employeePage.getByTestId('pw-submit').click()
     const passwordMutationRes = await passwordMutation
-    if (passwordMutationRes.status() === 200) changed = true
+    changed = passwordMutationRes.status() === 200
+    expect(passwordMutationRes.status(), await passwordMutationRes.text()).toBe(200)
     await expect(employeePage.getByRole('status').filter({ hasText: 'تم تغيير كلمة المرور بنجاح' })).toBeVisible()
     await expect(employeePage.getByTestId('pw-current')).toHaveValue('')
     await expect(employeePage.getByTestId('pw-new')).toHaveValue('')
     await expect(employeePage.getByTestId('pw-confirm')).toHaveValue('')
 
     // The password endpoint must preserve the current authenticated session.
-    await expect(employeePage).toHaveURL(/\/account$/)
+    await expect(employeePage).toHaveURL(/\/account\/settings$/)
     const meRes = await employeePage.request.get('/api/v1/me')
     expect(meRes.status()).toBe(200)
     MeSchema.parse(await meRes.json())
 
-    const newContext = await browser.newContext({ baseURL: BASE_URL, locale: 'ar-SA' })
+    // A correct password alone never signs in: it answers the pending second step, a pre-session that carries no
+    // identity. The credential it replaced is refused outright.
+    const newContext = await browser.newContext({ baseURL: ACCEPTANCE_ORIGIN, locale: 'ar-SA' })
     try {
       const newLogin = await newContext.request.post('/api/auth/login', {
-        data: { login: fixture.loginName, password: temporaryPassword },
+        data: { login: fixture.login, password: temporaryPassword },
       })
       expect(newLogin.status()).toBe(200)
+      expect(await newLogin.json()).toEqual({ ok: false, mfa: 'code' })
     } finally {
       await newContext.close()
     }
 
-    const oldContext = await browser.newContext({ baseURL: BASE_URL, locale: 'ar-SA' })
+    const oldContext = await browser.newContext({ baseURL: ACCEPTANCE_ORIGIN, locale: 'ar-SA' })
     try {
       const oldLogin = await oldContext.request.post('/api/auth/login', {
-        data: { login: fixture.loginName, password: FIXTURE_PASSWORD },
+        data: { login: fixture.login, password: fixture.password },
       })
       expect(oldLogin.status()).toBe(401)
     } finally {
@@ -111,7 +102,7 @@ test('employee changes a password, keeps the session, and can restore the origin
     }
   } finally {
     try {
-      if (changed) await restorePassword(employeePage, browser, fixture.loginName, temporaryPassword)
+      await restoreSeededPassword(employeePage, fixture, temporaryPassword, changed)
     } finally {
       await employeeContext.close()
     }

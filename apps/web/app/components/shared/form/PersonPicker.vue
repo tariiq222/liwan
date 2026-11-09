@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { refDebounced } from '@vueuse/core'
 import { PEOPLE_ENDPOINT, usePeople } from '@/composables/usePeople'
+import { plainSelectUi } from '@liwan/ui/app/utils/plainSelect'
 
 export interface PickedPerson { id: number; name: string }
 
@@ -24,6 +25,8 @@ const props = withDefaults(defineProps<{
   id?: string
   ariaLabel?: string
   ariaLabelledby?: string
+  /** Reads as plain text that opens the list on click (a record's property). */
+  plain?: boolean
 }>(), { valueKey: 'id', multiple: false, endpoint: PEOPLE_ENDPOINT })
 const emit = defineEmits<{
   'update:modelValue': [value: number | number[] | null]
@@ -86,7 +89,9 @@ function onChange(value: unknown) {
     :disabled="props.disabled || !hydrated"
     :aria-label="props.ariaLabel"
     :aria-labelledby="props.ariaLabelledby"
-    class="w-full"
+    :variant="props.plain ? 'none' : undefined"
+    :ui="props.plain ? plainSelectUi : undefined"
+    :class="props.plain ? '' : 'w-full'"
     data-testid="person-picker"
     @update:model-value="onChange"
   />

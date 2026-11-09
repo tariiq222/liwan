@@ -11,6 +11,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { loadShared, DEFAULT_STUBS } from '@liwan/ui/test/helpers/renderShared'
 import { createHostNode, hostRenderer, type HostNode } from '@liwan/ui/test/helpers/hostRenderer'
 import * as sessionExpiry from '../../utils/sessionExpiry'
+import * as hydrationIds from '../../lib/hydrationIds'
 import * as ssr from '../../lib/vueQuerySsr'
 import * as sessionQueries from '../../lib/sessionQueryScope'
 import SessionQueryProvider from '../../components/shell/SessionQueryProvider'
@@ -112,7 +113,7 @@ function fixture(options: { access?: string; server?: boolean; hydrating?: boole
   const app: Vue.App<HostNode | Element> = options.server ? Vue.createSSRApp(Root) : hostRenderer.createApp(Root)
   for (const [name, component] of Object.entries({ ...DEFAULT_STUBS, UApp: Pass, NuxtLayout: Layout, NuxtPage: Page })) app.component(name, component)
   const nuxt = { isHydrating: !!options.hydrating, vueApp: app, runWithContext: (fn: () => unknown) => app.runWithContext(fn), hook: (name: string, fn: () => unknown) => hooks.set(name, fn), hooks: { hook: (name: string, fn: () => unknown) => hooks.set(name, fn) } }
-  const bindings = { ...Vue, ...Query, ...ssr, ...sessionExpiry, ...sessionQueries, defineNuxtPlugin: (value: unknown) => value, useState: () => state, useRouter: () => ({ currentRoute: Vue.ref(route) }), useMe, onTenantSuspension: tenantSuspension.onTenantSuspension, dropToastsWhileSuspended: tenantSuspension.dropToastsWhileSuspended, useToast: () => ({ toasts, clear: () => { toasts.value = [] } }), clearTenantSuspension: () => { suspensionClears++; tenantSuspension.clearTenantSuspension() }, beginAccessRefreshInFlight, drainAccessRefreshInFlight, useEventListener: (_target: unknown, event: string, listener: () => void) => { if (event === 'focus') focusListeners.push(listener) }, window: {}, navigateTo, clearChatDrafts: () => {}, isTenantSuspended: tenantSuspension.isTenantSuspended, useBus: () => ({ connect: () => {}, disconnect: () => {} }), setBusQueryClient: (client: Query.QueryClient) => { busClients.push(client) } }
+  const bindings = { ...Vue, ...Query, ...hydrationIds, ...ssr, ...sessionExpiry, ...sessionQueries, defineNuxtPlugin: (value: unknown) => value, useState: () => state, useRouter: () => ({ currentRoute: Vue.ref(route) }), useMe, onTenantSuspension: tenantSuspension.onTenantSuspension, dropToastsWhileSuspended: tenantSuspension.dropToastsWhileSuspended, useToast: () => ({ toasts, clear: () => { toasts.value = [] } }), clearTenantSuspension: () => { suspensionClears++; tenantSuspension.clearTenantSuspension() }, beginAccessRefreshInFlight, drainAccessRefreshInFlight, useEventListener: (_target: unknown, event: string, listener: () => void) => { if (event === 'focus') focusListeners.push(listener) }, window: {}, navigateTo, clearChatDrafts: () => {}, isTenantSuspended: tenantSuspension.isTenantSuspended, useBus: () => ({ connect: () => {}, disconnect: () => {} }), setBusQueryClient: (client: Query.QueryClient) => { busClients.push(client) } }
   const scope = Vue.effectScope()
   let access: { provide: { waitForAccessRefresh: () => Promise<void> } } | undefined
   scope.run(() => {

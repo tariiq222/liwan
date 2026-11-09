@@ -3,11 +3,11 @@ import type { ZodType } from 'zod'
 
 /**
  * Application manifest: the one place an application declares its web surface.
- * Data only: manifests import no components, except the lazy `sidebarPanel.load`
- * (a dynamic import of the application's own panel). Icons are Iconify strings.
+ * Data only: manifests import no components, except the lazy `quickPanel.load`
+ * and `assistant.load` (dynamic imports of the application's own panel body). Icons are Iconify strings.
  */
 /** Local Lucide icons, the approved customer WhatsApp brand icon and the Liwan AI sparkle. */
-export type AppIcon = `i-lucide-${string}` | 'i-liwan-whatsapp' | 'i-liwan-ai'
+export type AppIcon = `i-lucide-${string}` | 'i-liwan-whatsapp' | 'i-lucide-sparkles'
 /**
  * `feature` on a nav item, context link or route rule: an extra sub-feature key (e.g. 'hr.assets') the
  * entry needs on top of its capability and the feature derived from it, at the same read/write level.
@@ -81,12 +81,10 @@ export interface AppSettingsPage {
 }
 /**
  * `shortLabelKey` names the entry under its rail icon when the full label (still the tooltip) needs two lines.
- * `fixed` keeps a base-system entry in the rail whatever the user pins: `top` beside «يومي» at the head of the rail
- * (the assistant), `first` before the pinned applications, `last` after them, above settings.
- * `accent` gives the entry its own colour in the rail.
+ * `core` marks a free base-system application: the icon row under the organisation always lists it (ascending, after
+ * «يومي»), whatever the user pins, and it takes no pin of its own.
  */
-export type AppRailSlot = 'top' | 'first' | 'last'
-export interface AppRailEntry { id: string; labelKey: string; shortLabelKey?: string; icon: AppIcon; to: string; order: number; fixed?: AppRailSlot; accent?: boolean }
+export interface AppRailEntry { id: string; labelKey: string; shortLabelKey?: string; icon: AppIcon; to: string; order: number; core?: number }
 /** The fetcher a search provider receives: `useApi().$api`, so requests keep its cookies, errors and zod parsing. */
 export type AppSearchApi = <T>(
   url: string,
@@ -129,16 +127,23 @@ export interface AppLandingEntry {
   late?: boolean
 }
 /**
- * Content an application shows in the context sidebar of its rail module, below its links
- * (chat: the conversation list). Lazily loaded; the component takes no props and reads the route.
- * On desktop no pinned create action shows beside it, and while the sidebar is expanded the
- * module's links give way to it.
+ * A personal tool the application adds to the top bar (chat: recent conversations, tasks: my open tasks,
+ * meetings: the upcoming ones). The button shows `count` as its badge and opens a slide-over whose body is the
+ * application's own component, loaded lazily so the shell imports no application code (R3). The body takes no props.
  */
-export interface AppSidebarPanel {
-  /** Rail module whose sidebar hosts the panel. */
-  module: string
-  /** 'wide' widens the sidebar to 400px (320px between 768 and 1100px). */
-  width: 'default' | 'wide'
+export interface AppQuickPanel {
+  /** Unique across manifests; names the slide-over and its test ids. */
+  id: string
+  labelKey: string
+  icon: AppIcon
+  /** Capability that shows the button and the panel (with the application's feature). */
+  capability: string
+  /** The page «افتح الكل» goes to. */
+  to: string
+  /** Vue-query key of the badge count; the surfaces append nothing. */
+  queryKey: readonly unknown[]
+  /** The badge number; runs through useApi() with the caller's session. */
+  count: (api: AppSearchApi) => Promise<number>
   load: () => Promise<{ default: Component }>
 }
 /**
@@ -164,6 +169,8 @@ export interface AppAttentionRow {
   caption?: string
   /** `urgent` is overdue or waiting on the user's decision; it leads the list and is drawn warm. */
   tone: 'urgent' | 'normal'
+  /** How close the deadline is, for a row that has one: the home rail colours its chip by it. */
+  due?: 'overdue' | 'today' | 'soon'
   /** What the user could do next, translated; shown as a plain suggestion, never as an action the assistant takes. */
   suggestion?: string
 }
@@ -247,6 +254,77 @@ export interface AppRouteScope {
   /** Id of the record `path` lives inside, or null for a path outside every such record. */
   idFromPath: (path: string) => number | null
 }
+/** One live number on an application's card on the home page; a failed or pending figure is simply not drawn. */
+export interface AppCardFigure {
+  /** Locale key of the caption under the number. */
+  labelKey: string
+  /** Capability the number needs, when the application's own pages are open to someone who may not read it. */
+  capability?: string
+  /** Vue-query key; the card appends the owner. */
+  queryKey: readonly unknown[]
+  /** Runs through useApi(); null when the endpoint has nothing to say. */
+  load: (api: AppSearchApi) => Promise<number | null>
+}
+/** The gradient of an application's card (owner design); the colours live in `components/home/appCardSurface.ts`. */
+export type AppCardSurface = 'navy' | 'mint' | 'lav' | 'sand' | 'indigo' | 'coral' | 'forest' | 'lime'
+/** How an application shows on the home page «تطبيقاتك» and on the all-applications page. */
+export interface AppCard {
+  /** The filter chip that lists the card. */
+  category: 'sales' | 'team'
+  /** `included` (free, ink identity) under «الأساسية», `addon` (paid, its own colour) under «الإضافية». */
+  plan: 'included' | 'addon'
+  /** Defaults to `lav`. */
+  surface?: AppCardSurface
+  /** At most two numbers, built only from the application's existing endpoints. */
+  figures?: readonly AppCardFigure[]
+}
+/** The page the sidebar rows read to tell which one the open page belongs to. */
+export interface AppSidebarRoute { path: string; query: Record<string, unknown> }
+/** One flat row of an application's sidebar. */
+export interface AppSidebarRow {
+  /** Unique within the menu; names the row's test id and the key of its count. */
+  id: string
+  labelKey: string
+  icon: AppIcon
+  /** The path and the query that selects a preset of its list. */
+  to: { path: string; query?: Record<string, string> }
+  /** Query keys of the open page carried over when it is already on `to.path` (the layout switch, `view`). */
+  keep?: readonly string[]
+  capability: string
+  /** Whether the open page belongs to this row. */
+  active: (route: AppSidebarRoute) => boolean
+}
+/** The numbers beside rows: one request fills the counts of every row id it returns; a failed or pending one is not drawn. */
+export interface AppSidebarCounts {
+  /** Capability the numbers need; without it nothing is asked. */
+  capability: string
+  /** Vue-query key; the sidebar appends the owner. */
+  queryKey: readonly unknown[]
+  /** Runs through useApi(); the count of each row id, null when the endpoint has nothing to say. */
+  load: (api: AppSearchApi) => Promise<Record<string, number | null>>
+}
+/** The records the person opened last (`RECENT_RECORDS_MAX` of them), listed under their own heading; kept in this browser per person and company. */
+export interface AppSidebarRecent {
+  /** Record kind; names the browser storage. */
+  kind: string
+  titleKey: string
+  icon: AppIcon
+  /** Capability that opens the records. */
+  capability: string
+  /** The record is open when the path is its `to` or beneath it. */
+  to: (id: number) => string
+}
+/**
+ * A flat sidebar menu: the application's primary create action (the id of its pinned context link), its pages one
+ * level deep with optional counts, and the records opened last. An application without one keeps the generic
+ * context-link menu.
+ */
+export interface AppSidebarMenu {
+  create: string
+  rows: readonly AppSidebarRow[]
+  counts?: readonly AppSidebarCounts[]
+  recent?: AppSidebarRecent
+}
 export interface AppManifest {
   id: string                         // 'pmo' | 'meetings' | 'hr' | 'chat' | '<app>'
   feature: string                    // '<app>.enabled'
@@ -282,11 +360,16 @@ export interface AppManifest {
   search?: AppSearchProvider[]
   /** Palette actions (Actions group of the command palette). */
   commands?: AppCommand[]
-  sidebarPanel?: AppSidebarPanel
+  /** A top-bar tool with a slide-over panel (a personal list and its badge). */
+  quickPanel?: AppQuickPanel
   /** The assistant's header button and sheet; only the assistant application declares it. */
   assistant?: AppAssistantSurface
   /** What needs the user's attention, for the assistant surfaces and the home suggestions. */
   attention?: AppAttentionProvider[]
+  /** A flat sidebar menu in place of the generic one built from `contextLinks`. */
+  sidebar?: AppSidebarMenu
+  /** The application's card on home and on the all-applications page. */
+  appCard?: AppCard
   /** Employee-owned services, separate from work and administrative navigation. */
   personal?: AppPersonalEntry[]
   /** Record kinds other applications may pick or filter by. */

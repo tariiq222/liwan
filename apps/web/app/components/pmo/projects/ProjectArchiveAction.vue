@@ -1,36 +1,15 @@
 <script setup lang="ts">
 import type { ProjectDetail } from '@liwan/contracts'
-import { ApiError } from '@/composables/useApi'
-import { useArchiveProject, useUnarchiveProject } from '@/composables/useProjects'
+import { useProjectArchive } from '@/composables/useProjectArchive'
 
 const props = defineProps<{ project: ProjectDetail }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
-const toast = useToast()
-const { mutateAsync: archiveProject, isPending: archiving } = useArchiveProject()
-const { mutateAsync: restoreProject, isPending: restoring } = useUnarchiveProject()
+const { archive: archiveProject, restore, pending } = useProjectArchive(() => props.project)
 const confirming = ref(false)
-const pending = computed(() => archiving.value || restoring.value)
 
 async function archive() {
-  if (!props.project.can_manage || !hydrated.value || pending.value) return
-  try {
-    await archiveProject({ id: props.project.id })
-    confirming.value = false
-    toast.add({ title: t('projects.archived'), color: 'success' })
-  } catch (error) {
-    toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' })
-  }
-}
-
-async function restore() {
-  if (!props.project.can_manage || !hydrated.value || pending.value) return
-  try {
-    await restoreProject({ id: props.project.id })
-    toast.add({ title: t('projects.unarchived'), color: 'success' })
-  } catch (error) {
-    toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' })
-  }
+  if (await archiveProject()) confirming.value = false
 }
 </script>
 

@@ -44,12 +44,12 @@ const toolDisabled = (kind: string) => locked.value || !draft.value.enabled || (
 
 <template>
   <SharedSettingsCard :id="`agent-${agent.key}`" v-bind="state" :title="text(agent.name)" :description="text(agent.description)" :can-edit="true" :data-testid="`ai-agent-${agent.key}`" @save="save" @revert="revert" @reload="reload">
-    <UFormField orientation="horizontal" :label="t('ai.settings.agents.enabled')" :name="`${agent.key}-enabled`">
+    <SharedSettingRow :label="t('ai.settings.agents.enabled')" :name="`${agent.key}-enabled`">
       <USwitch v-model="draft.enabled" :disabled="locked" :aria-label="t('ai.settings.agents.enabled')" />
-    </UFormField>
-    <UFormField orientation="horizontal" :label="t('ai.settings.agents.readOnly')" :name="`${agent.key}-read-only`" :description="t('ai.settings.agents.readOnlyHint')">
+    </SharedSettingRow>
+    <SharedSettingRow :label="t('ai.settings.agents.readOnly')" :name="`${agent.key}-read-only`" :description="t('ai.settings.agents.readOnlyHint')">
       <USwitch v-model="draft.read_only" :disabled="locked || !draft.enabled" :aria-label="t('ai.settings.agents.readOnly')" />
-    </UFormField>
+    </SharedSettingRow>
     <UFormField v-if="!agent.memory_fixed" orientation="horizontal" :label="t('ai.settings.agents.memory')" :name="`${agent.key}-memory`" :description="t('ai.settings.agents.memoryHint')">
       <USwitch v-model="draft.memory" :disabled="locked || !draft.enabled" :aria-label="t('ai.settings.agents.memory')" />
     </UFormField>

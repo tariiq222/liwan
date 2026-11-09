@@ -69,6 +69,7 @@ const manifest: AppManifest = {
   id: 'hr',
   feature: 'hr.enabled',
   routePrefixes: ['/hr', '/account/profile', '/account/leave', '/account/pay', '/account/assets', '/account/schedule', '/account/warnings', '/account/insurance'],
+  appCard: { category: 'team', plan: 'addon', surface: 'coral' },
   rail: [{ id: 'hr', labelKey: 'nav.hr', shortLabelKey: 'nav.rail.hr', icon: 'i-lucide-users', to: '/hr', order: 50 }],
   nav: [
     { to: '/hr', labelKey: 'nav.employees', icon: 'i-lucide-users', shortcut: '3', goKey: 'e', capability: 'hr.employees.read' },

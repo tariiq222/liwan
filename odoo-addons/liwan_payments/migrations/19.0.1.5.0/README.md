@@ -1,0 +1,1 @@
+Adds payment.transaction.liwan_refund_amount (the whole refund a split refund part belongs to). Refund parts recorded before it keep an empty value: no tenant data exists before release, so nothing is carried forward.

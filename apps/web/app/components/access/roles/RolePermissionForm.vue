@@ -85,11 +85,11 @@ async function saveRole() {
   <SharedSettingsCard id="role" v-bind="state" :title="t('access.roles.details')" :can-edit="canEdit" @save="saveRole" @revert="revert" @reload="reload">
     <UAlert v-if="!canEdit && role.protected" color="neutral" variant="subtle" icon="i-lucide-lock" :title="t('access.protectedRole')" />
     <UAlert v-if="!role.active" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('access.roles.disabledExistingAssignments')" />
-    <UFormField orientation="horizontal" :label="t('access.roles.nameArabic')" name="nameAr"><UInput v-model="draft.nameAr" class="w-full" :disabled="locked" /></UFormField>
-    <UFormField orientation="horizontal" :label="t('access.roles.nameEnglish')" name="nameEn"><UInput v-model="draft.nameEn" dir="ltr" class="w-full" :disabled="locked" /></UFormField>
-    <UFormField orientation="horizontal" :label="t('access.roles.descriptionLabel')" name="description">
+    <SharedSettingRow :label="t('access.roles.nameArabic')" name="nameAr"><UInput v-model="draft.nameAr" class="w-full" :disabled="locked" /></SharedSettingRow>
+    <SharedSettingRow :label="t('access.roles.nameEnglish')" name="nameEn"><UInput v-model="draft.nameEn" dir="ltr" class="w-full" :disabled="locked" /></SharedSettingRow>
+    <SharedSettingRow :label="t('access.roles.descriptionLabel')" name="description">
       <UTextarea :model-value="descriptionView" class="w-full" :disabled="locked" @update:model-value="(value) => { draft.description = String(value ?? '') }" />
-    </UFormField>
+    </SharedSettingRow>
     <fieldset class="grid min-w-0 gap-3" :disabled="locked">
       <legend class="mb-1 text-sm font-medium text-highlighted">{{ t('access.roles.permissions') }}</legend>
       <UAlert v-if="canEdit && permissions.some((permission) => permission.sensitive)" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('access.roles.sensitiveNotice')" />

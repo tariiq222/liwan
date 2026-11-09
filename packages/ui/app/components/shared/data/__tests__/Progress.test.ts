@@ -44,12 +44,11 @@ describe('SharedProgress', () => {
     expect(html).toContain('aria-label="Completion"')
   })
 
-  it('marks the leading edge with a Sadu triangle in the tone colour between 0 and 100 only', async () => {
-    const html = await render({ value: 40, tone: 'success' })
-    expect(html).toMatch(/<svg[^>]*data-slot="progress-head"[^>]*aria-hidden="true"/)
-    expect(html).toContain('text-success')
-    expect(html).toContain('inset-inline-start:calc(40% - 4px)')
-    expect(await render({ value: 40, size: 'md' })).toContain('inset-inline-start:calc(40% - 5px)')
-    for (const value of [0, 100]) expect(await render({ value }), String(value)).not.toContain('progress-head')
+  it('draws a plain bar: no arrow or pointer cap at the end of the fill', async () => {
+    for (const value of [0, 40, 100]) {
+      const html = await render({ value, tone: 'success' })
+      expect(html).not.toContain('progress-head')
+      expect(html).not.toContain('<svg')
+    }
   })
 })

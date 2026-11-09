@@ -121,14 +121,20 @@ class FingerprintTest(RepoTestCase):
         self.assertTrue(outputs[0].startswith('ci-pass-v2-e2e-mock-'))
 
 
-class CachedStagesTest(RepoTestCase):
+class RunPlanTest(RepoTestCase):
     SHARDS, E2E_SHARDS, RTL_SHARDS, APPS, BRIDGES = [1, 2, 3], [1, 2], [1, 2], ['a b', 'c'], ['d']
 
     def cached(self, existing, stages, modules=''):
         entries = ci_stage_cache.tree_entries(self.repo, 'HEAD')
-        return ci_stage_cache.cached_stages(entries, stages, set(existing), self.SHARDS, self.E2E_SHARDS,
-                                            self.RTL_SHARDS, self.APPS,
-                                            self.BRIDGES, modules)
+        matrices = {
+            'odoo': ci_stage_cache.shard_jobs(self.SHARDS),
+            'e2e-mock': ci_stage_cache.shard_jobs(self.E2E_SHARDS),
+            'rtl-stories': ci_stage_cache.shard_jobs(self.RTL_SHARDS),
+            'odoo-app-standalone': [{'group': group} for group in self.APPS],
+            'odoo-bridge': [{'group': group} for group in self.BRIDGES],
+        }
+        plan = ci_stage_cache.run_plan(entries, stages, set(existing), matrices, modules)
+        return [stage for stage in stages if stage not in plan['stages']]
 
     def key_of(self, stage, extra=''):
         return ci_stage_cache.cache_key(stage, extra, self.key(stage, extra))
@@ -168,10 +174,9 @@ class CachedStagesTest(RepoTestCase):
         bridges = [self.key_of('odoo-bridge', 'd|')]
         self.assertEqual(self.cached(bridges, ['odoo-bridge']), ['odoo-bridge'])
 
-    def test_empty_matrix_is_not_cached(self):
-        entries = ci_stage_cache.tree_entries(self.repo, 'HEAD')
-        self.assertEqual(ci_stage_cache.cached_stages(entries, ['odoo', 'e2e-mock', 'rtl-stories', 'odoo-bridge'],
-                                                      set(), [], [], [], [], [], ''), [])
+    def test_empty_selected_matrix_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, 'no jobs for selected stage odoo'):
+            ci_stage_cache.run_plan([], ['odoo'], set(), {'odoo': []}, '')
 
     def test_static_is_never_cached(self):
         self.assertEqual(self.cached([self.key_of('static')], ['static']), [])
@@ -188,11 +193,11 @@ class CachedStagesTest(RepoTestCase):
         self.assertEqual(ci_stage_cache.trusted_keys(listing, 'refs/pull/1/merge'), {'a'})
 
 
-class CachedCommandTest(RepoTestCase):
-    ARGS = ['cached', '--stages', '["static","e2e-mock","odoo"]', '--odoo-shards', '[1]',
+class PlanCommandTest(RepoTestCase):
+    ARGS = ['plan', '--stages', '["static","e2e-mock","odoo"]', '--odoo-shards', '[1]',
             '--e2e-mock-shards', '[1,2]', '--rtl-stories-shards', '[1,2]', '--apps', '[]', '--bridges', '[]']
 
-    def run_cached(self, lookup, env=None):
+    def run_cli_plan(self, lookup, env=None, reuse=True):
         original = Path.cwd()
         os.chdir(self.repo)
         self.addCleanup(os.chdir, original)
@@ -200,18 +205,55 @@ class CachedCommandTest(RepoTestCase):
         environment = {'GITHUB_REPOSITORY': 'o/r', 'GITHUB_REF': 'refs/pull/7/merge', **(env or {})}
         with mock.patch.dict(os.environ, environment), contextlib.redirect_stdout(out), \
                 contextlib.redirect_stderr(err):
-            code = ci_stage_cache.main(self.ARGS, lookup=lookup)
+            args = [*self.ARGS, '--reuse-passes'] if reuse else self.ARGS
+            code = ci_stage_cache.main(args, lookup=lookup)
         return code, json.loads(out.getvalue()), err.getvalue()
 
     def pass_key(self, stage, extra=''):
         return ci_stage_cache.cache_key(stage, extra, self.key(stage, extra))
 
-    def test_prints_the_cached_stages_from_trusted_refs(self):
-        code, cached, _ = self.run_cached(lambda repository: [
+    def test_omits_fully_reused_stage_and_keeps_other_ref_jobs(self):
+        code, plan, _ = self.run_cli_plan(lambda repository: [
             {'key': self.pass_key('e2e-mock', '1/2'), 'ref': 'refs/pull/7/merge'},
             {'key': self.pass_key('e2e-mock', '2/2'), 'ref': 'refs/pull/7/merge'},
             {'key': self.pass_key('odoo', '1/1|'), 'ref': 'refs/pull/8/merge'}])
-        self.assertEqual((code, cached), (0, ['e2e-mock']))
+        self.assertEqual((code, plan['stages']), (0, ['static', 'odoo']))
+        self.assertEqual(plan['matrices']['e2e-mock'], {'include': []})
+        self.assertEqual(plan['matrices']['odoo'], {'include': [{'shard': 1, 'total': 1}]})
+
+    def test_reuses_only_passed_shards_across_a_code_fix(self):
+        listing = [
+            {'key': self.pass_key('e2e-mock', '1/2'), 'ref': 'refs/pull/7/merge'},
+            {'key': self.pass_key('e2e-mock', '2/2'), 'ref': 'refs/pull/8/merge'},
+        ]
+        self.write('odoo-addons/liwan_finance/models/entry.py', 'corrected')
+        self.commit()
+        code, plan, _ = self.run_cli_plan(lambda repository: listing)
+        self.assertEqual(code, 0)
+        self.assertEqual(plan['stages'], ['static', 'e2e-mock', 'odoo'])
+        self.assertEqual(plan['matrices']['e2e-mock'], {'include': [{'shard': 2, 'total': 2}]})
+        self.assertEqual(plan['reused']['e2e-mock'], [{'shard': 1, 'total': 2}])
+
+    def test_a_shared_input_change_requires_every_shard(self):
+        listing = [
+            {'key': self.pass_key('e2e-mock', f'{shard}/2'), 'ref': 'refs/pull/7/merge'}
+            for shard in (1, 2)
+        ]
+        self.write('apps/web/app/a.vue', 'corrected')
+        self.commit()
+        code, plan, _ = self.run_cli_plan(lambda repository: listing)
+        self.assertEqual((code, plan['reused']), (0, {}))
+        self.assertEqual(plan['matrices']['e2e-mock'],
+                         {'include': [{'shard': 1, 'total': 2}, {'shard': 2, 'total': 2}]})
+
+    def test_reuse_disabled_keeps_every_job_without_reading_the_cache(self):
+        lookup = mock.Mock(side_effect=AssertionError('unexpected cache lookup'))
+        code, plan, _ = self.run_cli_plan(lookup, reuse=False)
+        lookup.assert_not_called()
+        self.assertEqual((code, plan['reused']), (0, {}))
+        self.assertEqual(plan['stages'], ['static', 'e2e-mock', 'odoo'])
+        self.assertEqual(plan['matrices']['e2e-mock'],
+                         {'include': [{'shard': 1, 'total': 2}, {'shard': 2, 'total': 2}]})
 
     def test_e2e_mock_shards_command_prints_the_matrix(self):
         out = io.StringIO()
@@ -228,13 +270,13 @@ class CachedCommandTest(RepoTestCase):
     def test_failed_lookup_caches_nothing_and_warns(self):
         def failing(repository):
             raise ci_stage_cache.CacheLookupError('boom')
-        code, cached, err = self.run_cached(failing)
-        self.assertEqual((code, cached), (0, []))
+        code, plan, err = self.run_cli_plan(failing)
+        self.assertEqual((code, plan['stages'], plan['reused']), (0, ['static', 'e2e-mock', 'odoo'], {}))
         self.assertIn('boom', err)
 
     def test_missing_github_environment_caches_nothing(self):
-        code, cached, err = self.run_cached(lambda repository: [], env={'GITHUB_REF': ''})
-        self.assertEqual((code, cached), (0, []))
+        code, plan, err = self.run_cli_plan(lambda repository: [], env={'GITHUB_REF': ''})
+        self.assertEqual((code, plan['stages'], plan['reused']), (0, ['static', 'e2e-mock', 'odoo'], {}))
         self.assertIn('GITHUB_REPOSITORY and GITHUB_REF', err)
 
 
@@ -267,8 +309,8 @@ class WorkflowWiringTest(unittest.TestCase):
 
     def test_matrix_extras_match_the_scope_job(self):
         jobs = self.jobs()
-        shard = '${{ matrix.shard }}/${{ strategy.job-total }}|${{ needs.scope.outputs.odoo-modules }}'
-        e2e_shard = '${{ matrix.shard }}/${{ strategy.job-total }}'
+        shard = '${{ matrix.shard }}/${{ matrix.total }}|${{ needs.scope.outputs.odoo-modules }}'
+        e2e_shard = '${{ matrix.shard }}/${{ matrix.total }}'
         group = '${{ matrix.group }}|${{ needs.scope.outputs.odoo-modules }}'
         self.assertIn(f'extra: {shard}', jobs['odoo'])
         self.assertIn(f'extra: {e2e_shard}', jobs['e2e-mock'])
@@ -280,33 +322,32 @@ class WorkflowWiringTest(unittest.TestCase):
         scope = self.jobs()['scope']
         self.assertRegex(scope, r'(?m)^      actions: read$')
         self.assertIn('stages: ${{ steps.cache.outputs.stages }}', scope)
-        self.assertIn('cached: ${{ steps.cache.outputs.cached }}', scope)
+        self.assertIn('matrices: ${{ steps.cache.outputs.matrices }}', scope)
 
     def test_e2e_mock_is_a_matrix_over_the_scope_shard_list(self):
         scope, job = self.jobs()['scope'], self.jobs()['e2e-mock']
-        self.assertIn('e2e-mock-shards: ${{ steps.select.outputs.e2e-mock-shards }}', scope)
         self.assertIn('ci_stage_cache.py e2e-mock-shards', scope)
         self.assertIn('--e2e-mock-shards "$E2E_MOCK_SHARDS"', scope)
-        self.assertIn('shard: ${{ fromJSON(needs.scope.outputs.e2e-mock-shards) }}', job)
+        self.assertIn("matrix: ${{ fromJSON(needs.scope.outputs.matrices)['e2e-mock'] }}", job)
         self.assertIn('name: e2e-mock (shard ${{ matrix.shard }})', job)
-        self.assertIn('deploy/ci/e2e-mock.sh --shard ${{ matrix.shard }}/${{ strategy.job-total }}', job)
+        self.assertIn('deploy/ci/e2e-mock.sh --shard ${{ matrix.shard }}/${{ matrix.total }}', job)
         self.assertIn('name: e2e-mock-diagnostics-${{ matrix.shard }}', job)
 
     def test_rtl_stories_is_a_matrix_over_the_scope_shard_list(self):
         scope, job = self.jobs()['scope'], self.jobs()['rtl-stories']
-        self.assertIn('rtl-stories-shards: ${{ steps.select.outputs.rtl-stories-shards }}', scope)
         self.assertIn('ci_stage_cache.py rtl-stories-shards', scope)
         self.assertIn('--rtl-stories-shards "$RTL_STORIES_SHARDS"', scope)
-        self.assertIn('shard: ${{ fromJSON(needs.scope.outputs.rtl-stories-shards) }}', job)
+        self.assertIn("matrix: ${{ fromJSON(needs.scope.outputs.matrices)['rtl-stories'] }}", job)
         self.assertIn('name: rtl-stories (shard ${{ matrix.shard }})', job)
-        self.assertIn('deploy/ci/rtl-stories.sh --shard ${{ matrix.shard }}/${{ strategy.job-total }}', job)
+        self.assertIn('deploy/ci/rtl-stories.sh --shard ${{ matrix.shard }}/${{ matrix.total }}', job)
 
     def test_scope_job_skips_only_for_pull_requests_and_merge_queue(self):
         run = self.jobs()['scope'].split('id: cache', 1)[1]
         for event in ('push', 'schedule', 'workflow_dispatch'):
             self.assertNotIn(event, run)
         self.assertIn('if [ "$EVENT_NAME" = pull_request ] || [ "$EVENT_NAME" = merge_group ]; then', run)
-        self.assertEqual(run.count('ci_stage_cache.py cached'), 1)
+        self.assertIn('args+=(--reuse-passes)', run)
+        self.assertEqual(run.count('ci_stage_cache.py plan'), 1)
 
     def test_composite_action_saves_a_pinned_cache(self):
         action = (ROOT / '.github/actions/stage-pass/action.yml').read_text()

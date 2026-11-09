@@ -44,11 +44,11 @@ async function submit() {
 
 <template>
   <SharedSettingsCard id="shift-reference" v-bind="state" :title="t('hr.shiftSettings.title')" :description="t('hr.shiftSettings.hint')" :can-edit="canEdit" @save="submit" @revert="revert" @reload="reload">
-    <UFormField orientation="horizontal" :label="t('hr.shiftSettings.reference')" name="shift-day-reference" :description="t('hr.shiftSettings.defaultHint', { timezone: settings.company_timezone })">
+    <SharedSettingRow :label="t('hr.shiftSettings.reference')" name="shift-day-reference" :description="t('hr.shiftSettings.defaultHint', { timezone: settings.company_timezone })">
       <USelect id="shift-day-reference" v-model="draft.day_reference" class="w-full" :items="items" :disabled="locked" />
-    </UFormField>
-    <UFormField orientation="horizontal" :label="t('hr.shiftSettings.defaultSchedule')" name="shift-default-schedule" :description="t('hr.shiftSettings.defaultScheduleHint')">
+    </SharedSettingRow>
+    <SharedSettingRow :label="t('hr.shiftSettings.defaultSchedule')" name="shift-default-schedule" :description="t('hr.shiftSettings.defaultScheduleHint')">
       <USelect id="shift-default-schedule" v-model="draft.defaultSchedule" class="w-full" :items="scheduleItems" :disabled="locked || !scheduleItems.length" />
-    </UFormField>
+    </SharedSettingRow>
   </SharedSettingsCard>
 </template>

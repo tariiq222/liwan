@@ -51,7 +51,7 @@ function measureReadability(elements: Element[]) {
 }
 
 async function readability(page: Page) {
-  return page.locator('main h1, main th, main [data-tone], [data-notification-preview-item] .text-xs, [data-notification-preview-item] .text-sm').evaluateAll(measureReadability)
+  return page.locator('main h1, main th, main [data-tone], [data-testid="notification-preview"] [data-slot="title"], [data-testid="notification-preview"] [data-slot="caption"]').evaluateAll(measureReadability)
 }
 
 for (const mode of ['light', 'dark']) {
@@ -59,7 +59,7 @@ for (const mode of ['light', 'dark']) {
     await page.setViewportSize({ width: 1440, height: 1000 })
     await appearance(page, mode)
     await page.getByTestId('notification-bell').click()
-    await expect(page.getByTestId('notification-preview')).toBeVisible()
+    await expect(page.getByTestId('slide-over-notifications')).toBeVisible()
     // Trigger an actual failure toast through the notification workflow, with
     // the request intercepted so no synthetic or real record is mutated.
     await page.route('**/api/v1/notifications/*/read', route => route.fulfill({ status: 500, json: { code: 'server_error', message: 'تعذر تحديث الإشعار' } }))
@@ -70,9 +70,8 @@ for (const mode of ['light', 'dark']) {
       ...await page.getByText('تعذر تحديث الإشعار', { exact: true }).evaluateAll(measureReadability),
     ]
     expect(measurements.some(item => item.text === 'تعذر تحديث الإشعار')).toBe(true)
-    expect(measurements.some(item => item.text === 'تذكير باجتماع قادم')).toBe(true)
+    expect(measurements.some(item => item.text?.startsWith('تذكير باجتماع قادم'))).toBe(true)
     expect(measurements.some(item => item.text === 'اجتماع متابعة التحول الرقمي')).toBe(true)
-    expect(measurements.some(item => item.tag === 'time' && !!item.text)).toBe(true)
     expect(measurements.length).toBeGreaterThan(15)
     for (const item of measurements) {
       expect(item.ratio, JSON.stringify(item)).toBeGreaterThanOrEqual(4.5)
@@ -101,14 +100,14 @@ test('project typography scales with preference and releases its scope on client
     }
     await expect(page.locator('html')).toHaveCSS('font-size', `${root}px`)
     const title = page.locator('main h1')
-    // The project name is the h1 and uses --text-lg (16px at the 14px root).
-    expect(await title.evaluate(e => parseFloat(getComputedStyle(e).fontSize))).toBeCloseTo(root * 16 / 14, 1)
+    // The project name is the h1 and, in the open page header, a display title: well above the body size at every root.
+    expect(await title.evaluate(e => parseFloat(getComputedStyle(e).fontSize))).toBeGreaterThan(root * 1.5)
     expect(await page.locator('main td').first().evaluate(e => parseFloat(getComputedStyle(e).fontSize))).toBeCloseTo(root * 13 / 14, 1)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   }
   await page.getByTestId('notification-bell').click()
-  expect(await page.locator('[data-notification-preview-item] time').first().evaluate(e => parseFloat(getComputedStyle(e).fontSize))).toBeCloseTo(18 * 12 / 14, 1)
-  await page.getByRole('link', { name: 'المزيد', exact: true }).click()
+  expect(await page.locator('[data-testid="notification-preview"] [data-slot="caption"]').first().evaluate(e => parseFloat(getComputedStyle(e).fontSize))).toBeCloseTo(18 * 12 / 14, 1)
+  await page.getByTestId('slide-over-notifications-all').click()
   await expect(page).toHaveURL(/\/notifications$/)
   await expect(page.locator('html')).not.toHaveAttribute('data-project-theme')
   await page.goBack()

@@ -24,9 +24,9 @@ const modeItems = computed(() => ['isolated', 'delegated', 'inherited'].map(valu
 
 <template>
   <SharedSettingsCard id="branch-policy" v-bind="state" :title="t('access.branches.title')" :description="t('access.branches.description')" :can-edit="true" @save="save" @revert="revert" @reload="reload">
-    <UFormField orientation="horizontal" :label="t('access.branches.mode')" name="branch-mode" :description="t(`access.branches.${draft.mode}Hint`)">
+    <SharedSettingRow :label="t('access.branches.mode')" name="branch-mode" :description="t(`access.branches.${draft.mode}Hint`)">
       <USelect v-model="draft.mode" :items="modeItems" class="w-full" :disabled="locked" />
-    </UFormField>
+    </SharedSettingRow>
     <template v-if="draft.mode === 'inherited'">
       <fieldset class="grid min-w-0 gap-3">
         <legend class="mb-1 text-sm font-medium text-highlighted">{{ t('access.branches.branchRoles') }}</legend>

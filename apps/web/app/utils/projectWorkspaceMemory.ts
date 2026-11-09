@@ -3,8 +3,8 @@ import { projectSectionAvailable } from './projectTools'
 import { projectListReturnTo } from './projectNavigation'
 
 export interface ProjectLocation { path: string; query: Record<string, string> }
-const keys = ['tab', 'view', 'q', 'state', 'closed', 'kind', 'status', 'priority', 'offset', 'role', 'scale', 'type', 'category_id', 'date_from', 'date_to', 'task_q', 'stakeholder_q', 'task_page', 'stakeholder_page']
-const taskKeys = ['q', 'view', 'state', 'closed']
+const keys = ['tab', 'view', 'q', 'state', 'closed', 'scope', 'kind', 'status', 'priority', 'offset', 'role', 'scale', 'type', 'category_id', 'date_from', 'date_to', 'task_q', 'stakeholder_q', 'task_page', 'stakeholder_page']
+const taskKeys = ['q', 'view', 'state', 'closed', 'scope']
 
 function taskFilters(value: unknown): Record<string, string> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
@@ -33,7 +33,7 @@ export function projectSectionLocation(path: string, fromPath: string, query: Re
 /** Only browseable sections are eligible; never reopen a form or record. */
 export function savedProjectLocation(path: string, query: Record<string, unknown>): ProjectLocation | null {
   path = path.replace(/\/+$/, '') || '/'
-  if (!/^\/projects\/[1-9]\d*(?:\/(tasks|milestones|register|stakeholders|raci|finance|charter|schedule|updates))?$/.test(path) || query.edit != null) return null
+  if (!/^\/projects\/[1-9]\d*(?:\/(tasks|milestones|register|stakeholders|raci|finance|charter))?$/.test(path) || query.edit != null) return null
   const clean: Record<string, string> = {}
   for (const key of keys) if (typeof query[key] === 'string' && query[key].length <= 1000) clean[key] = query[key]
   if (typeof query.taskContext === 'string') {

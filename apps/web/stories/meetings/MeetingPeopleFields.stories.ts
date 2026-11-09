@@ -9,12 +9,12 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Meetings/MeetingPeopleFields',
   component: MeetingPeopleFields,
-  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/meetings/new.vue:184') },
+  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/meetings/new.vue:188') },
   args: { attendeeIds: [7], secretaryId: null, disabled: false },
   render: args => ({
     components: { FormSection, MeetingPeopleFields, PageContainer },
     setup: () => ({ args, t: useI18n().t, attendees: ref(args.attendeeIds), secretary: ref(args.secretaryId) }),
-    template: `<main class="liwan-shell-main"><PageContainer><form class="space-y-8"><FormSection :title="t('meetingsUi.sectionPeople')"><MeetingPeopleFields v-model:attendee-ids="attendees" v-model:secretary-id="secretary" :disabled="args.disabled" /></FormSection></form></PageContainer></main>`,
+    template: `<main class="liwan-shell-main"><PageContainer><form class="space-y-8"><FormSection panel :title="t('meetingsUi.sectionPeople')"><MeetingPeopleFields v-model:attendee-ids="attendees" v-model:secretary-id="secretary" :disabled="args.disabled" /></FormSection></form></PageContainer></main>`,
   }),
 } satisfies Meta<typeof MeetingPeopleFields>
 export default meta

@@ -56,9 +56,9 @@ async function submitReminders() {
 
 <template>
   <SharedSettingsCard id="meetings-schedule" v-bind="schedule.state.value" :title="t('meetingsSettings.schedule.title')" :description="t('meetingsSettings.schedule.hint')" :can-edit="canEdit" data-testid="meetings-schedule" @save="submitSchedule" @revert="schedule.revert" @reload="schedule.reload">
-    <UFormField orientation="horizontal" :label="t('meetingsSettings.schedule.label')" name="schedule_policy">
-      <URadioGroup v-model="schedule.draft.value.schedule_policy" :items="items" :disabled="locked(schedule)" data-testid="meetings-schedule-policy" />
-    </UFormField>
+    <SharedSettingRow stacked :label="t('meetingsSettings.schedule.label')" name="schedule_policy">
+      <SharedOptionCards v-model="schedule.draft.value.schedule_policy" :options="items" :label="t('meetingsSettings.schedule.label')" :disabled="locked(schedule)" data-testid="meetings-schedule-policy" />
+    </SharedSettingRow>
   </SharedSettingsCard>
   <SharedSettingsCard id="meetings-reminders" v-bind="reminders.state.value" :title="t('meetingsSettings.reminders.title')" :description="t('meetingsSettings.reminders.hint')" :can-edit="canEdit" @save="submitReminders" @revert="reminders.revert" @reload="reminders.reload">
     <UFormField orientation="horizontal" :label="t('meetingsSettings.reminders.hoursLabel')" name="reminder_hours" required :description="t('meetingsSettings.reminders.hoursHelp')" :error="reminderError">

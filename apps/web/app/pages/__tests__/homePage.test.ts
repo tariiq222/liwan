@@ -1,119 +1,66 @@
 import { resolve } from 'node:path'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import { HOME_QUICK_LIMIT, homeQuickActions } from '../../composables/nav/homeQuickActions'
 import { DEFAULT_STUBS, renderShared } from '@liwan/ui/test/helpers/renderShared'
 
 const file = resolve(import.meta.dirname, '../index.vue')
-const UButton = Vue.defineComponent({
-  inheritAttrs: false,
-  props: { to: { type: [String, Object], default: '' }, label: { type: String, default: '' } },
-  setup: (props, { attrs, slots }) => () => Vue.h('a', { ...attrs, href: typeof props.to === 'string' ? props.to : `${(props.to as { path: string }).path}?returnTo=${(props.to as { query: { returnTo: string } }).query.returnTo}` }, [props.label, slots.default?.()]),
-})
+const UButton = Vue.defineComponent({ inheritAttrs: false, props: { to: { type: String, default: '' }, label: { type: String, default: '' } }, setup: (props, { attrs }) => () => Vue.h('a', { ...attrs, href: props.to }, props.label) })
 const section = (tag: string) => Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => Vue.h(tag, attrs, slots.default?.()) })
-const SharedPageHeader = Vue.defineComponent({ props: { title: { type: String, default: '' } }, setup: (props) => () => Vue.h('h1', props.title) })
 const SharedEmptyState = Vue.defineComponent({ inheritAttrs: false, props: { title: { type: String, default: '' } }, setup: (props, { attrs, slots }) => () => Vue.h('div', attrs, [props.title, slots.action?.()]) })
-const Marker = (testid: string) => Vue.defineComponent({ setup: () => () => Vue.h('div', { 'data-testid': testid }) })
-const messages = { 'nav.home': 'يومي', 'home.greeting': 'أهلًا {name}', 'home.quick': 'الوصول السريع', 'home.empty': 'لا توجد مساحات عمل', 'home.nothingToday': 'لا شيء لك اليوم', 'nav.account': 'الخدمة الذاتية', 'nav.newTask': 'مهمة جديدة', 'services.title': 'خدماتي' }
+const Marker = (testid: string) => Vue.defineComponent({ props: { cards: { type: Array, default: undefined } }, setup: props => () => Vue.h('div', { 'data-testid': testid }, props.cards ? String(props.cards.length) : undefined) })
+const messages = { 'nav.home': 'يومي', 'home.empty': 'لا توجد مساحات عمل', 'nav.account': 'الخدمة الذاتية' }
 
-async function render({ apps = true, services = false, work = true, commands = [] as Array<{ id: string; to: string; labelKey: string }>, name = 'سارة العتيبي' } = {}) {
-  return renderShared(file, {}, {}, {
+async function render({ cards = [{ id: 'tasks' }] as Array<{ id: string }>, capabilities = ['x'] as unknown } = {}) {
+  const navigateTo = vi.fn()
+  const usePageHeader = vi.fn()
+  const html = await renderShared(file, {}, {}, {
     messages,
-    stubs: {
-      ...DEFAULT_STUBS, UButton, SharedPageContainer: section('main'), SharedPageHeader, SharedEmptyState,
-      HomeAssistantSuggestions: Marker('suggestions'),
-    },
-    globals: {
-      useMe: () => ({ me: Vue.ref({ name, capabilities: ['x'] }), ready: Promise.resolve() }),
-      navigateTo: vi.fn(), onMounted: Vue.onMounted,
-    },
+    stubs: { ...DEFAULT_STUBS, UButton, SharedPageContainer: section('main'), SharedEmptyState },
+    globals: { useMe: () => ({ me: Vue.ref({ name: 'سارة', capabilities }), ready: Promise.resolve() }), navigateTo, usePageHeader },
     modules: {
-      '@/components/home/HomeFocus.vue': { __esModule: true, default: Marker('focus') },
+      '@/components/home/HomeGreeting.vue': { __esModule: true, default: Marker('greeting') },
+      '@/components/home/HomeAssistantBanner.vue': { __esModule: true, default: Marker('banner') },
       '@/components/home/HomeIndicators.vue': { __esModule: true, default: Marker('indicators') },
+      '@/components/home/HomeFocus.vue': { __esModule: true, default: Marker('focus') },
       '@/components/home/HomeApps.vue': { __esModule: true, default: Marker('home-apps') },
-      '@/composables/nav/shellModules': { visibleShellModules: () => [{ id: 'home' }, ...(apps ? [{ id: 'tasks' }] : []), { id: 'settings' }] },
-      '@/composables/nav/launcherModel': { reachableApplications: (modules: Array<{ id: string }>) => modules.filter(module => module.id !== 'home' && module.id !== 'settings') },
-      '@/composables/nav/homeQuickActions': { HOME_QUICK_LIMIT, homeQuickActions },
-      '@/composables/nav/paletteModel': { visibleCommands: () => commands },
-      '@/composables/useMyWork': { useMyWork: () => ({ available: Vue.computed(() => work) }) },
-      '@/composables/nav/personalModel': { personalEntries: () => (services ? [{ id: 'hr' }] : []) },
-      '@/utils/accessPolicy': { postLoginPath: () => '/' },
+      '@/composables/useAppCards': { useAppCards: () => ({ cards: Vue.computed(() => cards) }) },
+      '@/utils/accessPolicy': { postLoginPath: () => '/login' },
     },
   })
+  return { html, navigateTo, usePageHeader }
 }
+const at = (html: string, testid: string) => html.indexOf(`data-testid="${testid}"`)
 
 describe('home page', () => {
-  it('is «يومي» with the greeting, the indicators, the focus card, the assistant suggestions and the applications section, and no tabs', async () => {
-    const html = await render({ commands: [{ id: 'task', to: '/my-tasks/new', labelKey: 'nav.newTask' }] })
+  it('is «يومي»: the greeting, the assistant banner, the indicators, what to start with, then the applications', async () => {
+    const { html } = await render()
     expect(html).toContain('data-testid="foundation-home"')
-    expect(html).toContain('<h1>يومي</h1>')
-    expect(html).toContain('أهلًا سارة')
-    expect(html).not.toContain('العتيبي')
-    for (const part of ['indicators', 'focus', 'suggestions', 'home-apps']) expect(html).toContain(`data-testid="${part}"`)
-    expect(html).not.toContain('home-tabs')
-    expect(html).not.toContain('link-card')
+    const order = ['greeting', 'banner', 'indicators', 'focus', 'home-apps'].map(testid => at(html, testid))
+    expect(order.every(position => position >= 0)).toBe(true)
+    expect(order).toEqual([...order].sort((a, b) => a - b))
     expect(html).not.toContain('home-empty-')
-    expect(html).not.toContain('لا شيء لك اليوم')
-    expect(html).not.toContain('لا توجد مساحات عمل')
   })
 
-  it('offers the commands the user may run as quick actions that come back home', async () => {
-    const html = await render({ commands: [{ id: 'task', to: '/my-tasks/new', labelKey: 'nav.newTask' }] })
-    expect(html).toContain('الوصول السريع')
-    expect(html).toMatch(/href="\/my-tasks\/new\?returnTo=\/"/)
-    expect(html).toContain('مهمة جديدة')
+  it('hands the applications it may show to the applications section, and registers its title', async () => {
+    const { html, usePageHeader } = await render({ cards: [{ id: 'tasks' }, { id: 'crm' }] })
+    expect(html).toMatch(/data-testid="home-apps">2</)
+    expect((usePageHeader.mock.calls[0] as unknown as [() => string])[0]()).toBe('يومي')
   })
 
-  it('puts the indicators and the focus before the quick actions, and the suggestions and the applications after them', async () => {
-    const html = await render({ commands: [{ id: 'pmo.task', to: '/tasks/new', labelKey: 'nav.newTask' }] })
-    const at = (testid: string) => html.indexOf(`data-testid="${testid}"`)
-    expect(at('home-greeting')).toBeLessThan(at('indicators'))
-    expect(at('indicators')).toBeLessThan(at('focus'))
-    expect(at('focus')).toBeLessThan(at('home-quick-actions'))
-    expect(at('home-quick-actions')).toBeLessThan(at('suggestions'))
-    expect(at('suggestions')).toBeLessThan(at('home-apps'))
-  })
-
-  it('shows five actions at most, the services link included, and no link to a separate applications page', async () => {
-    const commands = Array.from({ length: 12 }, (_, index) => ({ id: `app${index}.new`, to: `/app${index}/new`, labelKey: `app${index}` }))
-    const html = await render({ commands, services: true })
-    expect((html.match(/returnTo=\//g) ?? [])).toHaveLength(4)
-    expect(html).toContain('data-testid="home-services"')
-    expect(html).not.toContain('home-all-apps')
-    expect((await render({ commands, services: false }).then(page => page.match(/returnTo=\//g) ?? []))).toHaveLength(5)
-  })
-
-  it('links «الخدمة الذاتية» only when the user can see a service', async () => {
-    expect(await render({ services: true })).toMatch(/href="\/account"[^>]*>الخدمة الذاتية</)
-    expect(await render({ services: false })).not.toContain('home-services')
-  })
-
-  it('has no quick-actions section without commands', async () => {
-    expect(await render({ commands: [] })).not.toContain('home-quick-actions')
-  })
-
-  it('with reachable applications but nothing to show, says there is nothing for today and links nowhere else', async () => {
-    const html = await render({ work: false })
-    expect(html).toMatch(/data-testid="home-empty-today"[^>]*>لا شيء لك اليوم/)
-    expect(html).not.toContain('href="/apps"')
-    expect(html).not.toContain('لا توجد مساحات عمل')
+  it('has no quick-action pills, no suggestions card and no separate applications link', async () => {
+    const { html } = await render()
+    for (const gone of ['home-quick-actions', 'home-services', 'home-assistant-suggestions', 'home-all-apps', 'href="/apps"']) expect(html).not.toContain(gone)
   })
 
   it('with no reachable application, explains it and links to the account page', async () => {
-    const html = await render({ work: false, apps: false })
+    const { html } = await render({ cards: [] })
     expect(html).toMatch(/data-testid="home-empty-no-apps"[^>]*>لا توجد مساحات عمل/)
     expect(html).toMatch(/href="\/account"[^>]*>الخدمة الذاتية</)
-    expect(html).not.toContain('لا شيء لك اليوم')
+    expect(html).not.toContain('data-testid="home-apps"')
   })
 
-  it('says there is nothing for today when the only thing on the page is the standing services link', async () => {
-    const html = await render({ work: false, services: true })
-    expect(html).toContain('data-testid="home-services"')
-    expect(html).toMatch(/data-testid="home-empty-today"[^>]*>لا شيء لك اليوم/)
-  })
-
-  it('does not show an empty state when only the quick actions exist', async () => {
-    const html = await render({ work: false, commands: [{ id: 'task', to: '/my-tasks/new', labelKey: 'nav.newTask' }] })
-    expect(html).not.toContain('home-empty-')
+  it('sends someone whose identity has no capability list on to their landing page', async () => {
+    expect((await render({ capabilities: null })).navigateTo).toHaveBeenCalledWith('/login')
+    expect((await render()).navigateTo).not.toHaveBeenCalled()
   })
 })

@@ -315,7 +315,7 @@ async function submit() {
 </script>
 
 <template>
-  <form class="flex flex-col gap-2 border-t border-default bg-default px-3 pt-2 pb-3" data-testid="inbox-composer" @submit.prevent="submit">
+  <form class="flex flex-col gap-[10px] border-t-[1.5px] border-default bg-default px-4 py-3" data-testid="inbox-composer" @submit.prevent="submit">
     <SharedSegmentedControl v-model="mode" class="self-start" :items="modeItems" :label="t('inbox.composer.mode')" />
     <UAlert
       v-if="closedWindow"
@@ -431,7 +431,7 @@ async function submit() {
       <p v-if="mode === 'reply' && !templateMode && !panel" class="text-xs text-muted">{{ t('inbox.composer.cannedHint') }}</p>
       <p v-else-if="mode === 'note'" class="text-xs text-muted">{{ t('inbox.composer.noteHint') }}</p>
       <span v-else />
-      <UButton type="submit" :disabled="!canSend" :loading="sending" :label="mode === 'note' ? t('inbox.composer.saveNote') : t('inbox.composer.send')" />
+      <UButton type="submit" class="ms-auto" icon="i-lucide-send" :disabled="!canSend" :loading="sending" :label="mode === 'note' ? t('inbox.composer.saveNote') : t('inbox.composer.send')" />
     </div>
   </form>
 </template>

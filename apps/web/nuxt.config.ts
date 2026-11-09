@@ -146,9 +146,21 @@ export default defineNuxtConfig({
   vite: {
     define: { __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: process.env.LIWAN_HYDRATION_DEBUG === '1' },
     // Pre-bundle deps that only lazily-loaded pages import. Discovered late,
-    // Vite re-optimizes and changes the dep hash, so an open page's module
-    // imports fail with 504 "Outdated Optimize Dep" and the route errors.
-    optimizeDeps: { include: ['@tanstack/vue-table'] },
+    // Vite re-optimizes and changes the dep hash: the dev server then reloads the whole page in the middle of a
+    // client-side navigation (a "hard reload" when opening an app) and an open page's module imports can fail with
+    // 504 "Outdated Optimize Dep".
+    optimizeDeps: {
+      include: [
+        '@tanstack/vue-query',
+        '@tanstack/vue-table',
+        '@tiptap/extension-link',
+        '@unovis/ts',
+        '@unovis/vue',
+        '@vue/devtools-core',
+        'vue-draggable-plus',
+        'zod',
+      ],
+    },
   },
   typescript: { strict: true },
 })

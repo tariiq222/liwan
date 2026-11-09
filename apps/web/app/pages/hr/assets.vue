@@ -83,6 +83,8 @@ const employeeOptions = computed(() => (employees.data.value?.items ?? []).map(e
   value: String(employee.id),
   label: employee.name,
 })))
+const categoryName = computed(() => categoryOptions.value.find(option => option.value === String(categoryId.value))?.label ?? t('hrAssets.columns.category'))
+const employeeName = computed(() => employeeOptions.value.find(option => option.value === String(employeeId.value))?.label ?? t('hrAssets.columns.employee'))
 const assignedOptions = computed(() => ASSIGNED_FILTERS.map(value => ({
   value,
   label: t(`hrAssets.assignedFilter.${value}`),
@@ -154,27 +156,19 @@ function equipmentTo(row: HrEquipment) {
 
     <SharedListCard>
       <template #filters>
-        <div class="liwan-page-stack">
-          <SharedSegmentedControl
-            :model-value="active"
-            :items="activeOptions"
-            :label="t('hrAssets.filter.active')"
-            :disabled="!hydrated"
-            @update:model-value="writeQuery({ active: activeParam($event), offset: 0 })"
-          />
-          <SharedFilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-            <template #search>
-              <UInput
-                :model-value="search"
-                class="min-w-48 flex-1"
-                icon="i-lucide-search"
-                :disabled="!hydrated"
-                :aria-label="t('hrAssets.search')"
-                :placeholder="t('hrAssets.search')"
-                data-testid="hr-assets-search"
-                @update:model-value="writeQuery({ q: String($event ?? ''), offset: 0 })"
-              />
-            </template>
+        <SharedFilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+          <template #search>
+            <UInput
+              :model-value="search"
+              icon="i-lucide-search"
+              :disabled="!hydrated"
+              :aria-label="t('hrAssets.search')"
+              :placeholder="t('hrAssets.search')"
+              data-testid="hr-assets-search"
+              @update:model-value="writeQuery({ q: String($event ?? ''), offset: 0 })"
+            />
+          </template>
+          <SharedFilterPopover :count="(categoryId ? 1 : 0) + (employeeId ? 1 : 0)" :disabled="!hydrated">
             <SharedFilterField :label="t('hrAssets.columns.category')" for="hr-assets-category">
               <USelect
                 id="hr-assets-category"
@@ -199,20 +193,30 @@ function equipmentTo(row: HrEquipment) {
                 @update:model-value="writeQuery({ employee: $event ? Number($event) : null, offset: 0 })"
               />
             </SharedFilterField>
-            <template #active>
-              <SharedFilterChip v-if="search.trim()" :label="t('hrAssets.searchValue', { value: search })" @remove="writeQuery({ q: '', offset: 0 })" />
-              <SharedFilterChip v-if="assigned !== 'all'" :label="t(`hrAssets.assignedFilter.${assigned}`)" @remove="writeQuery({ assigned: 'all', offset: 0 })" />
-              <SharedFilterChip v-if="active !== 'true'" :label="t(`hrAssets.activeFilter.${active}`)" @remove="writeQuery({ active: 'true', offset: 0 })" />
-            </template>
-          </SharedFilterBar>
-          <SharedSegmentedControl
-            :model-value="assigned"
-            :items="assignedOptions"
-            :label="t('hrAssets.filter.custody')"
-            :disabled="!hydrated"
-            @update:model-value="writeQuery({ assigned: assignedParam($event), offset: 0 })"
-          />
-        </div>
+          </SharedFilterPopover>
+          <div class="max-w-full overflow-x-auto">
+            <SharedSegmentedControl
+              :model-value="active"
+              :items="activeOptions"
+              :label="t('hrAssets.filter.active')"
+              :disabled="!hydrated"
+              @update:model-value="writeQuery({ active: activeParam($event), offset: 0 })"
+            />
+          </div>
+          <div class="max-w-full overflow-x-auto">
+            <SharedSegmentedControl
+              :model-value="assigned"
+              :items="assignedOptions"
+              :label="t('hrAssets.filter.custody')"
+              :disabled="!hydrated"
+              @update:model-value="writeQuery({ assigned: assignedParam($event), offset: 0 })"
+            />
+          </div>
+          <template #active>
+            <SharedFilterChip v-if="categoryId" :label="categoryName" @remove="writeQuery({ category: null, offset: 0 })" />
+            <SharedFilterChip v-if="employeeId" :label="employeeName" @remove="writeQuery({ employee: null, offset: 0 })" />
+          </template>
+        </SharedFilterBar>
       </template>
 
       <SharedPageState :error="equipment.error.value" :keep-content="items.length > 0" @retry="equipment.refetch">

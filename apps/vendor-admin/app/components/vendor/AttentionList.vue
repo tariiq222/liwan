@@ -13,7 +13,7 @@ function sentence(item: AttentionItem) {
 const rows = computed(() => props.items.map((item, index) => ({ item, index, view: attentionPresentation(item) })))
 </script>
 <template>
-  <ul class="divide-y divide-default rounded-xl ring ring-default" data-slot="attention-list">
+  <ul class="divide-y divide-default rounded-card ring ring-default" data-slot="attention-list">
     <li v-for="{ item, index, view } in rows" :key="`${item.kind}:${item.operation_id ?? item.invoice_id ?? item.customer_id ?? item.tenant_id}:${index}`" data-testid="attention-item" :data-kind="item.kind">
       <component :is="view.to ? NuxtLink : 'div'" :to="view.to ?? undefined" class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 focus-visible:outline-2 focus-visible:outline-primary" :class="view.to ? 'hover:bg-elevated' : ''">
         <UIcon :name="view.icon" class="size-5 shrink-0" :class="view.tone === 'destructive' ? 'text-error' : view.tone === 'warning' ? 'text-warning' : 'text-info'" aria-hidden="true" />

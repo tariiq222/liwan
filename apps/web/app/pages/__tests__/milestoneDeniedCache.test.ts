@@ -28,9 +28,11 @@ async function renderRecord(status?: number, source: 'project' | 'milestones' = 
       '@/components/pmo/projects/milestoneState': { milestoneBadge },
       '@/utils/routeParams': { parsePositiveId },
       '@liwan/ui/app/composables/calendarDate': { formatCalendarDate: () => '' },
+      '@liwan/ui/app/utils/statusPill': { statusPillAttrs: () => ({}) },
+      '@/components/pmo/records/RecordBlock.vue': { __esModule: true, default: defineComponent({ setup: () => () => null }) },
     },
     stubs: {
-      SharedRecordPage: defineComponent({ props: ['title'], setup: props => () => h('section', [h('h2', props.title)]) }),
+      SharedRecordWorkspace: defineComponent({ props: ['title'], setup: props => () => h('section', [h('h2', props.title)]) }),
       NuxtPage: defineComponent({ setup: () => () => null }),
     },
   })

@@ -34,7 +34,7 @@ const rowTo = (row: Row) => ({ path: `/inbox/reports/templates/${row.template.id
     <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,900px)]">
       <SharedDataTable bare :rows="[...rows]" :columns="columns" :row-key="(row: Row) => row.template.id" :caption="t('inbox.reports.templates.caption')">
         <template #template-cell="{ row }">
-          <NuxtLink :to="rowTo(row.original)" class="flex min-w-0 flex-col gap-1 rounded focus-visible:outline-2 focus-visible:outline-primary" :data-testid="`inbox-template-analytics-${row.original.template.id}`">
+          <NuxtLink :to="rowTo(row.original)" class="flex min-w-0 flex-col gap-1 rounded-inner focus-visible:outline-2 focus-visible:outline-primary" :data-testid="`inbox-template-analytics-${row.original.template.id}`">
             <span class="truncate text-sm font-medium text-highlighted"><bdi dir="ltr">{{ row.original.template.name }}</bdi></span>
             <span class="flex flex-wrap items-center gap-2 text-xs text-muted">
               <bdi dir="ltr">{{ row.original.template.language }}</bdi>

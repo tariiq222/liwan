@@ -24,6 +24,7 @@ from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     parse_positive_int,
+    requires_capability,
     requires_feature,
 )
 from odoo.addons.liwan_finance.serializers.entry import (
@@ -154,9 +155,9 @@ class FinanceEntryController(http.Controller):
     @http.route('/api/v1/finance/entries', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('finance.enabled', operation='write')
+    @requires_capability('finance.entries.manage')
     @idempotent
     def create_entry(self, **payload):
-        require_capability('finance.entries.manage')
         parsed = parse_entry_create(payload)
         values = _entry_values(parsed, request.env.company)
         values.update({'move_type': 'entry', 'company_id': request.env.company.id})

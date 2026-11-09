@@ -389,7 +389,7 @@
     },
     "shiftSettings": {
       "title": "Schedule day reference",
-      "hint": "Choose the timezone used to decide which personal schedule assignments are current or upcoming.",
+      "hint": "The timezone used to work out employees' current and upcoming schedules.",
       "reference": "Day reference",
       "company": "Company timezone (default)",
       "user": "Each user timezone",
@@ -398,7 +398,7 @@
       "reload": "Discard draft and reload",
       "saveError": "Could not save schedule settings",
       "defaultSchedule": "Company default work schedule",
-      "defaultScheduleHint": "The schedule new employees start on. Changing it applies to employees added from now on only; existing employees, including those on the old default, keep their current schedule and are not moved automatically."
+      "defaultScheduleHint": "The schedule new employees start on. It does not change anyone already added."
     },
     "self": {
       "profile": "My employment profile",
@@ -445,7 +445,7 @@
     },
     "leaveSettings": {
       "title": "Leave cancellation policy",
-      "hint": "Choose how approved leave is cancelled in this company. Pending requests keep their approval requirement when the policy changes.",
+      "hint": "Choose how approved leave is cancelled. Pending requests still need the manager's decision.",
       "reference": "Approved leave cancellation",
       "defaultHint": "The default requires manager approval. Pending leave withdrawal is unchanged.",
       "managerApproval": "Employee requests, manager approves (default)",

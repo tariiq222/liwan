@@ -60,7 +60,7 @@ const issues = computed(() => {
 
 <template>
   <div class="space-y-6" data-slot="customer-glance">
-    <section class="rounded-lg p-4 ring" :class="issues.length || workspaceUnreadable ? 'bg-warning/5 ring-warning/40' : 'bg-default ring-default'" aria-labelledby="glance-issues-title" data-testid="glance-issues">
+    <section class="rounded-control p-4 ring" :class="issues.length || workspaceUnreadable ? 'bg-warning/5 ring-warning/40' : 'bg-default ring-default'" aria-labelledby="glance-issues-title" data-testid="glance-issues">
       <h2 id="glance-issues-title" class="flex items-center gap-2 text-sm font-semibold text-highlighted">
         <UIcon :name="issues.length || workspaceUnreadable ? 'i-lucide-triangle-alert' : 'i-lucide-circle-check'" class="size-4" :class="issues.length || workspaceUnreadable ? 'text-warning' : 'text-success'" aria-hidden="true" />
         {{ issues.length ? t('vendor.customers.glance.issuesTitle', { count: issues.length }) : workspaceUnreadable ? t('vendor.customers.glance.unreadable') : t('vendor.customers.glance.noIssues') }}

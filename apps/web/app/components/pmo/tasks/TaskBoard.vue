@@ -270,7 +270,7 @@ function dropGroup(lane: Lane) {
               color="neutral"
               variant="ghost"
               icon="i-lucide-plus"
-              class="ms-auto size-8 rounded-full"
+              class="ms-auto size-8"
               data-testid="board-column-add"
               :data-stage-id="lane.key"
               :aria-label="t('tasks.kanban.addToColumn')"

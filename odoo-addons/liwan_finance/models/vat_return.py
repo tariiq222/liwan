@@ -5,7 +5,6 @@ from odoo import api, models
 from odoo.exceptions import UserError
 
 VAT_RETURN = 'l10n_sa.tax_report_vat_filing'
-TAG_FORMULA = re.compile(r'(-?)(\d+\(([BT])\))')
 TERM = re.compile(r'([+-]?)\s*(sa_\d+)\.(base|tax)')
 COLUMNS = ('base', 'tax')
 
@@ -42,16 +41,18 @@ class LiwanFinanceVatReturn(models.AbstractModel):
 
     @api.model
     def _liwan_tag_amount(self, expression, company, date_from, date_to):
+        """The balance of the posted items that carry a tag of ``expression``, counted once per item.
+
+        The domain selects the items carrying any matching tag, so summing the items themselves counts one membership
+        per line however many of its tags match. Summing per tag instead would count a line once per matching tag.
+        """
         domain, tags = self._liwan_tag_domain(expression, company, date_from, date_to)
         if not tags:
             return 0.0
         formula_sign = -1 if expression.formula.startswith('-') else 1
-        total = 0.0
-        groups = self.env['account.move.line']._read_group(domain, ['tax_tag_ids'], ['balance:sum'])
-        for tag, balance in groups:
-            if tag in tags:
-                total += balance * formula_sign
-        return company.currency_id.round(total)
+        # One sum over the items themselves: a line carrying several matching tags is still one item.
+        ((total,),) = self.env['account.move.line']._read_group(domain, [], ['balance:sum'])
+        return company.currency_id.round((total or 0.0) * formula_sign)
 
     @api.model
     def _liwan_vat_return(self, company, date_from, date_to):
@@ -86,9 +87,10 @@ class LiwanFinanceVatReturn(models.AbstractModel):
         if not expression:
             return []
         domain, tags = self._liwan_tag_domain(expression, company, date_from, date_to)
+        if not tags:
+            return []
         formula_sign = -1 if expression.formula.startswith('-') else 1
         items = self.env['account.move.line'].search(domain, order='date, id')
-        rows = []
-        for item in items:
-            rows.append((item, company.currency_id.round(item.balance * formula_sign * len(item.tax_tag_ids & tags))))
-        return rows
+        # Membership counts once: a line belongs to the box whether it carries one matching tag or several, so its
+        # balance is never multiplied by the number of matching tags. The domain above already selects only those lines.
+        return [(item, company.currency_id.round(item.balance * formula_sign)) for item in items]

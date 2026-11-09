@@ -29,23 +29,22 @@ test('reduced motion reaches the portaled search overlay and preserves close foc
   await expect(page.locator('#global-search-input')).toHaveValue('')
 })
 
-test('assistant uses the approved text scale without changing family, primary or geometry', async ({ page }) => {
+test('assistant panel uses the approved text scale without changing family, primary or geometry', async ({ page }) => {
   await page.getByTestId('assistant-button').click()
-  const sheet = page.getByTestId('assistant-sheet')
+  const sheet = page.getByTestId('slide-over-assistant')
   await expect(sheet).toBeVisible()
   await expect(sheet).toHaveCSS('width', '380px')
-  await expect(page.locator('.liwan-shell-header')).toHaveCSS('height', '56px')
-  await expect(page.locator('.liwan-module-rail')).toHaveCSS('width', '76px')
-  await expect(page.locator('.liwan-assistant-button')).toHaveCSS('font-size', '13px')
-  await expect(page.locator('.liwan-assistant-module')).toHaveCSS('font-size', '12px')
+  await expect(page.locator('.liwan-shell-header')).toHaveCSS('height', '68px')
+  await expect(page.locator('.liwan-sidebar')).toHaveCSS('width', '264px')
+  await expect(page.locator('.liwan-ai-button')).toHaveCSS('font-size', '12.25px')
   expect(await sheet.evaluate(el => getComputedStyle(el).fontFamily)).toContain('IBM Plex Sans Arabic')
-  expect(await sheet.evaluate(el => getComputedStyle(el).getPropertyValue('--primary').trim())).toBe('#7843c6')
-  await expect(page.locator('.liwan-assistant-body')).toHaveCSS('overscroll-behavior-y', 'contain')
+  expect(await sheet.evaluate(el => getComputedStyle(el).getPropertyValue('--primary').trim())).toBe('#14102a')
+  await expect(page.locator('.liwan-slideover-body')).toHaveCSS('overscroll-behavior-y', 'contain')
 })
 
 test('higher contrast uses solid material while retaining geometry', async ({ page }) => {
   await page.emulateMedia({ contrast: 'more' })
-  expect(await page.locator('.liwan-shell').evaluate(el => getComputedStyle(el, '::before').backdropFilter)).toBe('none')
+  await expect(page.locator('.liwan-shell-header')).toHaveCSS('backdrop-filter', 'none')
   await page.getByTestId('global-search-trigger').click()
   await expect(page.locator('.liwan-search-overlay')).toHaveCSS('backdrop-filter', 'none')
   await expect(page.locator('.liwan-search-dialog')).toHaveCSS('outline-width', '1px')
@@ -55,10 +54,10 @@ test('reduced transparency uses solid material without changing the brand', asyn
   const session = await page.context().newCDPSession(page)
   await session.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-transparency', value: 'reduce' }] })
   expect(await page.evaluate(() => matchMedia('(prefers-reduced-transparency: reduce)').matches)).toBe(true)
-  expect(await page.locator('.liwan-shell').evaluate(el => getComputedStyle(el, '::before').backdropFilter)).toBe('none')
+  await expect(page.locator('.liwan-shell-header')).toHaveCSS('backdrop-filter', 'none')
   await page.getByTestId('global-search-trigger').click()
   await expect(page.locator('.liwan-search-overlay')).toHaveCSS('backdrop-filter', 'none')
-  expect(await page.locator('.liwan-search-overlay').evaluate(el => getComputedStyle(el).getPropertyValue('--primary').trim())).toBe('#7843c6')
+  expect(await page.locator('.liwan-search-overlay').evaluate(el => getComputedStyle(el).getPropertyValue('--primary').trim())).toBe('#14102a')
   await session.detach()
 })
 
@@ -72,37 +71,42 @@ test('an open search responds to a live reduced-motion change', async ({ page })
   await expect(page.getByTestId('global-search-trigger')).toBeFocused()
 })
 
-test('sheet can reverse before settling and its frames retain mirrored inline motion', async ({ page }, testInfo) => {
+test('panel can reverse before settling and its frames retain mirrored inline motion', async ({ page }, testInfo) => {
+  await page.getByTestId('assistant-button').click()
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('slide-over-assistant')).toBeHidden()
   const samples = await page.evaluate(async () => {
     const trigger = document.querySelector<HTMLButtonElement>('[data-testid="assistant-button"]')!
-    const close = document.querySelector<HTMLButtonElement>('[data-testid="assistant-sheet-close"]')!
-    const sheet = document.querySelector<HTMLElement>('[data-testid="assistant-sheet"]')!
+    const sheet = document.querySelector<HTMLElement>('[data-testid="slide-over-assistant"]')!
     const samples: { time: number; x: number; opacity: number }[] = []
     trigger.click()
-    setTimeout(() => close.click(), 60)
+    setTimeout(() => document.querySelector<HTMLButtonElement>('[data-testid="slide-over-assistant-close"]')!.click(), 60)
     setTimeout(() => trigger.click(), 100)
     const start = performance.now()
     await new Promise<void>(resolve => {
       const frame = (now: number) => {
         const style = getComputedStyle(sheet)
         samples.push({ time: now - start, x: parseFloat(style.translate) || 0, opacity: Number(style.opacity) })
-        if (now - start < 500) requestAnimationFrame(frame)
+        if (now - start < 600) requestAnimationFrame(frame)
         else resolve()
       }
       requestAnimationFrame(frame)
     })
     return samples
   })
-  await expect(page.getByTestId('assistant-sheet')).toBeVisible()
+  await expect(page.getByTestId('slide-over-assistant')).toBeVisible()
   await expect(page.getByTestId('assistant-button')).toHaveAttribute('aria-expanded', 'true')
   expect(samples.length).toBeGreaterThan(5)
-  expect(samples.every(sample => sample.x <= 0 && sample.x >= -16 && sample.opacity >= 0 && sample.opacity <= 1)).toBe(true)
+  expect(samples.every(sample => Number.isFinite(sample.x) && Math.abs(sample.x) <= 24 && sample.opacity >= 0 && sample.opacity <= 1)).toBe(true)
+  // Every moving frame leans to one inline side: the panel never overshoots across its resting place.
+  const sides = new Set(samples.filter(sample => sample.x !== 0).map(sample => Math.sign(sample.x)))
+  expect(sides.size).toBeLessThanOrEqual(1)
   expect(samples.at(-1)!.x).toBe(0)
   expect(samples.at(-1)!.opacity).toBe(1)
   const intervals = samples.slice(1).map((sample, index) => sample.time - samples[index]!.time).sort((a, b) => a - b)
-  const evidencePath = testInfo.outputPath('sheet-frame-samples.json')
+  const evidencePath = testInfo.outputPath('panel-frame-samples.json')
   await writeFile(evidencePath, JSON.stringify({ samples, p95FrameIntervalMs: intervals[Math.ceil(intervals.length * .95) - 1] }, null, 2))
-  await testInfo.attach('sheet-frame-samples', { path: evidencePath, contentType: 'application/json' })
+  await testInfo.attach('panel-frame-samples', { path: evidencePath, contentType: 'application/json' })
 })
 
 test('chosen feedback is immediate and cards can be rearranged again without a settling lock', async ({ page }) => {
@@ -148,7 +152,7 @@ test('chosen feedback is immediate and cards can be rearranged again without a s
 
 for (const locale of ['ar', 'en']) {
   for (const width of [390, 768, 1440]) {
-    test(`assistant retains layout in ${locale} at ${width}px with large dark text`, async ({ page, baseURL }, testInfo) => {
+    test(`assistant panel retains layout in ${locale} at ${width}px with large dark text`, async ({ page, baseURL }, testInfo) => {
       expect((await page.request.patch('/api/v1/me/appearance', { data: { mode: 'dark', font_size: 'large' } })).status()).toBe(200)
       await page.context().addCookies([
         { name: 'liwan-locale', value: locale, url: baseURL! },
@@ -161,13 +165,13 @@ for (const locale of ['ar', 'en']) {
       await expect(page.locator('html')).toHaveCSS('font-size', locale === 'ar' ? '18px' : '17px')
       await expect(page.getByTestId('assistant-button')).toBeEnabled()
       await page.getByTestId('assistant-button').click()
-      const sheet = page.getByTestId('assistant-sheet')
+      const sheet = page.getByTestId('slide-over-assistant')
       await expect(sheet).toBeVisible()
       await expect(sheet).toHaveCSS('opacity', '1')
-      await expect(sheet).toHaveCSS('width', `${width < 768 ? width : 380}px`)
-      await expect(sheet).toHaveAttribute('data-mode', width < 768 ? 'full' : width < 1100 ? 'overlay' : 'push')
+      // Under 768px the panel spans the screen with a 10px margin; from there up it is 380px wide.
+      await expect(sheet).toHaveCSS('width', `${width < 768 ? width - 20 : 380}px`)
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-      expect(await page.locator('.liwan-assistant-head').evaluate(el => {
+      expect(await page.locator('.liwan-slideover-head').evaluate(el => {
         const head = el.getBoundingClientRect()
         return [...el.children].every(child => {
           const rect = child.getBoundingClientRect()
@@ -175,7 +179,7 @@ for (const locale of ['ar', 'en']) {
         })
       })).toBe(true)
       expect(await sheet.evaluate(el => getComputedStyle(el).fontFamily)).toContain('IBM Plex Sans Arabic')
-      expect(await sheet.evaluate(el => getComputedStyle(el).getPropertyValue('--primary').trim())).toBe('#c2aae5')
+      expect(await sheet.evaluate(el => getComputedStyle(el).getPropertyValue('--primary').trim())).toBe('#f3f3f6')
       if (locale === 'ar' && width !== 768) await page.screenshot({ path: testInfo.outputPath(`assistant-${locale}-${width}.png`) })
     })
   }

@@ -3,8 +3,6 @@ import { expect, test, type Page } from '@playwright/test'
 // A settings page is one page of cards: the sidebar sub-list scrolls to a card in place, follows the reader while
 // scrolling, and a direct link with a hash lands on its card. Isolated mock stack (admin / admin).
 async function login(page: Page) {
-  // The context menu starts folded; these checks read the pinned menu.
-  await page.context().addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: new URL(process.env.E2E_BASE_URL ?? 'http://localhost:3000').origin }])
   await page.goto('/login')
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور', { exact: true }).fill('admin')
@@ -18,7 +16,7 @@ async function open(page: Page, path: string) {
   await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
 }
 const cardTop = (page: Page, id: string) => page.evaluate((target) => document.getElementById(target)?.getBoundingClientRect().top ?? Number.NaN, id)
-const subListLink = (page: Page, id: string) => page.locator(`.liwan-sub-list a[href="/settings/company#${id}"]`)
+const subListLink = (page: Page, id: string) => page.getByTestId('application-navigation').locator(`a[href="/settings/company#${id}"]`)
 
 test.describe('settings page of cards', () => {
   test.beforeEach(async ({ page }) => {
@@ -35,12 +33,12 @@ test.describe('settings page of cards', () => {
     await subListLink(page, 'address').click()
     await expect.poll(() => new URL(page.url()).hash, { timeout: 15_000 }).toBe('#address')
     await expect.poll(async () => Math.abs((await cardTop(page, 'address')) - header), { timeout: 15_000 }).toBeLessThan(4)
-    await expect(subListLink(page, 'address')).toHaveAttribute('aria-current', 'true')
+    await expect(subListLink(page, 'address')).toHaveAttribute('aria-current', 'page')
 
     await subListLink(page, 'profile').click()
     await expect.poll(() => new URL(page.url()).hash, { timeout: 15_000 }).toBe('#profile')
     await expect.poll(async () => Math.abs((await cardTop(page, 'profile')) - header), { timeout: 15_000 }).toBeLessThan(4)
-    await expect(subListLink(page, 'profile')).toHaveAttribute('aria-current', 'true')
+    await expect(subListLink(page, 'profile')).toHaveAttribute('aria-current', 'page')
 
     expect(await page.evaluate(() => (window as unknown as { __sameDocument?: boolean }).__sameDocument)).toBe(true)
   })
@@ -54,20 +52,20 @@ test.describe('settings page of cards', () => {
     await page.keyboard.press('Enter')
     await expect.poll(() => new URL(page.url()).hash, { timeout: 15_000 }).toBe('#address')
     await expect.poll(async () => Math.abs((await cardTop(page, 'address')) - header), { timeout: 15_000 }).toBeLessThan(4)
-    await expect(subListLink(page, 'address')).toHaveAttribute('aria-current', 'true')
+    await expect(subListLink(page, 'address')).toHaveAttribute('aria-current', 'page')
   })
 
   test('scrolling moves the active sub-list item and the hash to the card being read', async ({ page }) => {
     await open(page, '/settings/company')
     await expect(page.locator('#branding')).toBeVisible()
-    await expect(subListLink(page, 'profile')).toHaveAttribute('aria-current', 'true')
+    await expect(subListLink(page, 'profile')).toHaveAttribute('aria-current', 'page')
     await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }))
     // At the end of the page the last, short card is the one being read although it never reaches the reading band.
-    await expect(subListLink(page, 'branding')).toHaveAttribute('aria-current', 'true', { timeout: 15_000 })
-    await expect(subListLink(page, 'profile')).not.toHaveAttribute('aria-current', 'true')
+    await expect(subListLink(page, 'branding')).toHaveAttribute('aria-current', 'page', { timeout: 15_000 })
+    await expect(subListLink(page, 'profile')).not.toHaveAttribute('aria-current', 'page')
     await expect.poll(() => new URL(page.url()).hash, { timeout: 15_000 }).toBe('#branding')
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))
-    await expect(subListLink(page, 'profile')).toHaveAttribute('aria-current', 'true', { timeout: 15_000 })
+    await expect(subListLink(page, 'profile')).toHaveAttribute('aria-current', 'page', { timeout: 15_000 })
   })
 
   test('a direct link with a hash lands on its card', async ({ page }) => {
@@ -77,7 +75,7 @@ test.describe('settings page of cards', () => {
       const top = await cardTop(page, 'branding')
       return top > 0 && top < 800
     }, { timeout: 15_000 }).toBe(true)
-    await expect(subListLink(page, 'branding')).toHaveAttribute('aria-current', 'true')
+    await expect(subListLink(page, 'branding')).toHaveAttribute('aria-current', 'page')
   })
 
   for (const width of [1440, 375]) {
@@ -100,21 +98,21 @@ test.describe('settings page of cards', () => {
     await expect(page.getByTestId('team-users-preview')).toBeVisible()
     await page.getByTestId('team-users-preview').getByRole('link', { name: 'كل المستخدمين' }).click()
     await expect(page).toHaveURL(/\/settings\/team\/users$/)
-    await expect(page.locator('.liwan-sub-list a[aria-current="true"]')).toHaveCount(1)
+    await expect(page.locator('[data-testid="application-navigation"] .liwan-side-branch a[aria-current="page"]')).toHaveCount(1)
   })
 
   test.describe('projects settings', () => {
-    const projectLink = (id: string) => (page: Page) => page.locator(`.liwan-sub-list a[href="/settings/apps/projects#${id}"]`)
+    const projectLink = (id: string) => (page: Page) => page.locator(`[data-testid="application-navigation"] a[href="/settings/apps/projects#${id}"]`)
 
     test('cold client navigation from the overview: the spy follows the cards that render after the data arrives', async ({ page }) => {
       await open(page, '/settings')
       // The sidebar entry opens its sub-list; the page itself is the sub-list's first link.
       await page.getByTestId('settings-projects-tab').click()
-      await page.locator('.liwan-sub-list a[href="/settings/apps/projects"]').first().click()
+      await page.locator('[data-testid="application-navigation"] a[href="/settings/apps/projects"]').first().click()
       await expect(page).toHaveURL(/\/settings\/apps\/projects/)
       await expect(page.locator('#project-defaults')).toBeVisible({ timeout: 15_000 })
       await page.evaluate(() => window.scrollTo({ top: document.getElementById('project-defaults')!.getBoundingClientRect().top + scrollY - 80, behavior: 'instant' }))
-      await expect(projectLink('project-defaults')(page)).toHaveAttribute('aria-current', 'true', { timeout: 15_000 })
+      await expect(projectLink('project-defaults')(page)).toHaveAttribute('aria-current', 'page', { timeout: 15_000 })
     })
 
     test('a deep link with a hash after a cold navigation lands on its card', async ({ page }) => {
@@ -122,7 +120,7 @@ test.describe('settings page of cards', () => {
       await page.evaluate(() => (window as unknown as { useNuxtApp: () => { $router: { push: (to: string) => Promise<unknown> } } }).useNuxtApp().$router.push('/settings/apps/projects#project-defaults'))
       await expect(page.locator('#project-defaults')).toBeVisible({ timeout: 15_000 })
       await expect.poll(async () => Math.abs((await cardTop(page, 'project-defaults')) - 88), { timeout: 15_000 }).toBeLessThan(40)
-      await expect(projectLink('project-defaults')(page)).toHaveAttribute('aria-current', 'true')
+      await expect(projectLink('project-defaults')(page)).toHaveAttribute('aria-current', 'page')
     })
 
     test('a round trip through the catalogs keeps the spy working', async ({ page }) => {
@@ -134,11 +132,13 @@ test.describe('settings page of cards', () => {
       await expect(page.locator('#catalogs')).toBeVisible({ timeout: 15_000 })
       await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))
       await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }))
-      await expect(projectLink('catalogs')(page)).toHaveAttribute('aria-current', 'true', { timeout: 15_000 })
+      await expect(projectLink('catalogs')(page)).toHaveAttribute('aria-current', 'page', { timeout: 15_000 })
     })
   })
 
   test('the VAT number appears and is required only while the company is registered for VAT', async ({ page }) => {
+    // The mock keeps what this test saves, so start every run from a registered company.
+    await page.request.patch('/api/v1/admin/company', { data: { vat_registered: true, vat: '300000000000003' } })
     await open(page, '/settings/company')
     const card = page.getByTestId('company-profile')
     await expect(page.getByTestId('company-vat')).toBeVisible()

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { projectMenuItem } from './support/projectMenu'
 
 // Opt-in local UI fixture only: shares the isolated PROJECTS_UI_PREVIEW mock server with project-popups.
 test.skip(process.env.E2E_PROJECT_POPUPS !== '1', 'Requires isolated PROJECTS_UI_PREVIEW mock server')
@@ -17,7 +18,7 @@ test.beforeEach(async ({ page }) => { await login(page) })
 
 test('copying a project from its summary opens the create panel and lands on the new project', async ({ page }) => {
   await page.goto('/projects/1')
-  await page.getByTestId('project-copy-link').click()
+  await (await projectMenuItem(page, 'نسخ المشروع')).click()
   await expect(page).toHaveURL(url => url.pathname === '/projects/new' && url.searchParams.get('copyFrom') === '1')
   await expect(page.getByRole('dialog')).toHaveCount(1)
   const form = page.getByTestId('project-copy-form')

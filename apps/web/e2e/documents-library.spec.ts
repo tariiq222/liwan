@@ -4,8 +4,7 @@ import { test, expect } from '@playwright/test'
 // file limits are covered by the liwan_documents addon tests; the document form pages by tasmim6-hr-forms.
 test.skip(process.env.E2E_PROJECT_POPUPS !== '1', 'Isolated synthetic API only')
 
-test.beforeEach(async ({ page, context, baseURL }) => {
-  await context.addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: baseURL! }])
+test.beforeEach(async ({ page }) => {
   const response = await page.request.post('/api/auth/login', { data: { login: process.env.E2E_ADMIN_LOGIN ?? 'admin', password: process.env.E2E_ADMIN_PASSWORD ?? 'admin' } })
   expect(response.ok()).toBe(true)
 })

@@ -37,6 +37,7 @@ export const myTasksAttention: AppAttentionProvider = {
         to: task.href,
         caption: t(`myTasks.attention.${due}`),
         tone: due === 'overdue' ? 'urgent' : 'normal',
+        due,
       })
     }
     const first = rows[0]

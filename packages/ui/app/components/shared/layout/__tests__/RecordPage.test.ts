@@ -36,11 +36,13 @@ describe('SharedRecordPage', () => {
     expect(html.indexOf('MAIN')).toBeLessThan(html.indexOf('PROPERTIES'))
   })
 
-  it('places the operational summary ahead of tabs and long content, without rendering it while loading', async () => {
+  it('ends the open header with the tabs, then places the operational summary ahead of long content, without rendering it while loading', async () => {
     const slots = { ...record, summary: () => h('p', 'OWNER AND DEADLINE') }
     const html = await renderShared('RecordPage', { title: 'Alpha' }, slots, options)
     expect(html.indexOf('OWNER AND DEADLINE')).toBeGreaterThan(-1)
-    expect(html.indexOf('OWNER AND DEADLINE')).toBeLessThan(html.indexOf('TABS'))
+    expect(html).toMatch(/<header[^>]*data-slot="page-header"[\s\S]*data-slot="page-header-tabs"[\s\S]*data-slot="record-tabs"[\s\S]*TABS[\s\S]*<\/header>/)
+    expect(html.indexOf('TABS')).toBeLessThan(html.indexOf('OWNER AND DEADLINE'))
+    expect(html.indexOf('OWNER AND DEADLINE')).toBeLessThan(html.indexOf('MAIN'))
     const loading = await renderShared('RecordPage', { title: 'Alpha', loading: true }, slots, options)
     expect(loading).not.toContain('OWNER AND DEADLINE')
   })

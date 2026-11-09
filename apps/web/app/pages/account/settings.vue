@@ -3,28 +3,22 @@ import PasswordForm from '@/components/account/PasswordForm.vue'
 import RememberedDevicesSection from '@/components/account/RememberedDevicesSection.vue'
 
 import type { AppearanceMode, FontSize } from '@/utils/appearance'
+import { useLocaleChoice } from '@/composables/useLocaleChoice'
 import { useSignOut } from '@/composables/useSignOut'
 
 // Personal preferences keep their existing persistence and session cleanup.
 // Mode and size are saved per user on the server (useAppearance); the language is a cookie.
 const signOut = useSignOut()
-const { t, locale, setLocale } = useI18n()
+const { t, locale } = useI18n()
 const toast = useToast()
 const { mode, fontSize, setMode, setFontSize } = useAppearance()
-const localeCookie = useCookie<string | null>('liwan-locale', { default: () => null, path: '/', sameSite: 'lax', maxAge: 60 * 60 * 24 * 365 })
-const languages = [{ code: 'ar', name: 'العربية' }, { code: 'en', name: 'English' }] as const
+const { languages, choose: chooseLanguage } = useLocaleChoice()
 const modes: AppearanceMode[] = ['light', 'dark']
 const sizes: FontSize[] = ['small', 'medium', 'large']
 const modeIcons: Record<AppearanceMode, string> = { light: 'i-lucide-sun', dark: 'i-lucide-moon' }
 const sizeGlyphClass: Record<FontSize, string> = { small: 'text-xs', medium: 'text-base', large: 'text-xl' }
 const { me } = useMe()
 const hydrated = useHydrated()
-
-function chooseLanguage(code: (typeof languages)[number]['code']) {
-  if (locale.value === code) return
-  localeCookie.value = code
-  void setLocale(code)
-}
 
 async function logout() {
   if (!(await signOut())) toast.add({ title: t('account.logoutFailed'), color: 'error' })

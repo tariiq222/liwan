@@ -3,7 +3,7 @@ import { useMediaQuery } from '@vueuse/core'
 import type { SlideoverProps } from '@nuxt/ui'
 import type { ShellRailItem } from '@liwan/ui/app/types/shell'
 
-// The same sections as the module rail, in a drawer below 768px where the rail is hidden.
+// The same sections as the sidebar, in a drawer below 768px where the sidebar is hidden.
 const props = defineProps<{ items: ShellRailItem[], activeId: string | null }>()
 const open = ref(false)
 const { t, localeProperties } = useI18n()
@@ -42,24 +42,13 @@ watch(() => route.fullPath, () => { open.value = false })
     </UButton>
     <template #body>
       <nav data-fresh-navigation data-testid="mobile-nav" :aria-label="t('app.shell.navigation')" class="liwan-mobile-section">
-        <UButton
+        <ShellNavRow
           v-for="item in props.items"
           :key="item.id"
-          :to="item.to"
-          color="neutral"
-          variant="ghost"
-          class="liwan-context-link"
-          :data-testid="`mobile-nav-${item.id}`"
-          :data-active="props.activeId === item.id"
-          :active="props.activeId === item.id"
-          :aria-current="props.activeId === item.id ? 'page' : undefined"
-          @click="open = false"
-        >
-          <template #leading>
-            <UIcon :name="item.icon" class="liwan-shell-icon size-4.5 shrink-0" aria-hidden="true" />
-          </template>
-          <span data-slot="label">{{ t(item.labelKey) }}</span>
-        </UButton>
+          :item="{ id: item.id, label: t(item.labelKey), icon: item.icon, to: item.to, active: props.activeId === item.id }"
+          :test-id="`mobile-nav-${item.id}`"
+          @navigate="open = false"
+        />
       </nav>
     </template>
   </USlideover>

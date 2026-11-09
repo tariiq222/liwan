@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import type { TableColumn } from '@nuxt/ui'
-import { computed, ref } from 'vue'
+import { computed, h, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import DataTable from '@liwan/ui/app/components/shared/data/DataTable.vue'
 import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
@@ -83,3 +83,31 @@ export const Selectable: Story = { name: 'تحديد وشريط إجراءات',
 export const Loading: Story = { name: 'تحميل', render: () => table({ rows: [], loading: true }) }
 export const Empty: Story = { name: 'فارغ', render: () => table({ rows: [] }) }
 export const ErrorState: Story = { name: 'خطأ', render: () => table({ rows: [], error: { status: 500 } }) }
+
+interface WideRow extends Row { stage: string; budget: number; updated: string }
+const wideRows: WideRow[] = rows.map((row, index) => ({ ...row, stage: ['planning', 'active', 'review'][index % 3]!, budget: 120000 + index * 37500, updated: `2026-11-0${(index % 8) + 1}` }))
+// A card of `width` px: many columns and a trailing actions column. Wide enough it is a table; narrower than 640px it
+// stacks into row cards; in between it would scroll inside the card with the first column and the actions pinned.
+const framed = (width: string) => ({
+  components: { DataTable, ListCard, PageContainer },
+  setup() {
+    const { t } = useI18n()
+    const columns = computed<TableColumn<WideRow>[]>(() => [
+      { accessorKey: 'name', header: t('projects.columns.name'), meta: { class: { th: 'min-w-[180px]', td: 'min-w-[180px]' } } as TableColumn<WideRow>['meta'] },
+      { accessorKey: 'manager', header: t('projects.columns.manager'), meta: { class: { th: 'min-w-[140px]', td: 'min-w-[140px]' } } as TableColumn<WideRow>['meta'] },
+      { accessorKey: 'stage', header: 'Stage', meta: { class: { th: 'min-w-[120px]', td: 'min-w-[120px]' } } as TableColumn<WideRow>['meta'] },
+      { accessorKey: 'budget', header: 'Budget', meta: { numeric: true, class: { th: 'min-w-[120px]', td: 'min-w-[120px]' } } as TableColumn<WideRow>['meta'] },
+      { accessorKey: 'updated', header: 'Updated', meta: { class: { th: 'min-w-[120px]', td: 'min-w-[120px]' } } as TableColumn<WideRow>['meta'] },
+      { id: 'actions', header: () => h('span', { class: 'sr-only' }, 'Actions'), meta: { class: { th: 'w-12', td: 'w-12 text-end' } } as TableColumn<WideRow>['meta'] },
+    ])
+    return { t, columns, rows: wideRows, width, rowTo: (row: Row) => `/projects/${row.id}` }
+  },
+  template: `<main class="liwan-shell-main"><PageContainer><div :style="{ width, maxWidth: '100%' }"><ListCard>
+    <DataTable bare :rows="rows" :columns="columns" row-key="id" :row-to="rowTo" :caption="t('projects.title')" :empty-text="t('projects.empty')">
+      <template #actions-cell><UButton color="neutral" variant="ghost" size="sm" icon="i-lucide-ellipsis" aria-label="Row actions" /></template>
+      <template #footer><span class="tabular-nums">{{ rows.length }} / 128</span></template>
+    </DataTable>
+  </ListCard></div></PageContainer></main>`,
+})
+export const Narrow: Story = { name: 'ضيق: يمرّر داخل البطاقة، عمود أول وعمود إجراءات ثابتان', render: () => framed('760px') }
+export const Mobile: Story = { name: 'جوال: كل صف بطاقة، العنوان ثم أزواج تسمية وقيمة ثم الإجراءات', render: () => framed('390px') }

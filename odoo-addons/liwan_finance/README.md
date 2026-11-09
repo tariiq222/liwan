@@ -264,9 +264,12 @@ A file that is not a readable statement of its format, holds more than one state
   `null`, never 0, and the import asks the caller for it. The engine gives no transaction ids, so CAMT duplicates use the content rule below.
 
 Numbers in a CSV accept thousands separators, parentheses or a sign for negatives, `decimal_separator` `.` or `,`, and
-Arabic-Indic digits; dates use one of the listed formats (`DD/MM/YYYY` is not guessed, it is chosen). A line is a duplicate
+Arabic-Indic digits; dates use one of the listed formats (`DD/MM/YYYY` is not guessed, it is chosen). Every amount of a
+file (CSV, OFX, CAMT) and both balances are rounded with the journal currency's rounding, so a three-decimal currency
+keeps its fils and a half-up case rounds away from zero. A line is a duplicate
 when the journal already holds at least as many lines with the same day, amount and reference as the file has shown so
-far, so two identical coffees in one file are both kept. Statements and imports work on bank and cash journals.
+far, so two identical coffees in one file are both kept; amounts are compared at the journal currency's precision, which
+is what `currency.compare_amounts` means. Statements and imports work on bank and cash journals.
 The API takes text; the screen decodes the file by its declared charset (byte order mark, XML declaration, OFX 1 `CHARSET`)
 and refuses a file with bytes that have no character in it.
 

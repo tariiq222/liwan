@@ -5,8 +5,9 @@ import { useFormField } from '@nuxt/ui/composables'
 defineOptions({ inheritAttrs: false })
 // `label` replaces the formatted date on the trigger (for example a date and a
 // time); the `footer` slot adds controls under the calendar, such as a time
-// input, and keeps the popover open after a day is picked.
-const props = defineProps<{ modelValue: string | null; disabled?: boolean; id?: string; name?: string; ariaLabel?: string; minValue?: string | null; maxValue?: string | null; label?: string }>()
+// input, and keeps the popover open after a day is picked. `plain` draws the trigger as text (a record's property)
+// that opens the same calendar.
+const props = defineProps<{ modelValue: string | null; disabled?: boolean; id?: string; name?: string; ariaLabel?: string; minValue?: string | null; maxValue?: string | null; label?: string; plain?: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string | null] }>()
 const { t } = useI18n()
 const attrs = useAttrs()
@@ -39,7 +40,7 @@ const buttonAttrs = computed(() => {
 </script>
 <template>
   <UPopover v-model:open="open">
-    <UButton v-bind="buttonAttrs" :id="id" :name="name" type="button" :color="formFieldColor || 'neutral'" variant="outline" class="w-full justify-start font-normal" icon="i-lucide-calendar-days" :label="text" :highlight="formFieldHighlight" :disabled="formFieldDisabled || !hydrated" @focus="emitFormFocus" @blur="emitFormBlur" />
+    <UButton v-bind="buttonAttrs" :id="id" :name="name" type="button" :color="formFieldColor || 'neutral'" :variant="plain ? 'ghost' : 'outline'" :class="plain ? '-mx-1.5 h-auto min-h-0 w-fit max-w-full justify-start rounded-inner px-1.5 py-0.5 font-normal text-highlighted' : 'w-full justify-start font-normal'" :icon="plain ? undefined : 'i-lucide-calendar-days'" :label="text" :highlight="formFieldHighlight" :disabled="formFieldDisabled || !hydrated" @focus="emitFormFocus" @blur="emitFormBlur" />
     <template #content>
       <UCalendar v-model="date" class="p-2" :disabled="formFieldDisabled" :min-value="toCalendarDate(minValue ?? null)" :max-value="toCalendarDate(maxValue ?? null)" />
       <div v-if="modelValue || $slots.footer" class="flex items-center justify-end gap-2 border-t border-default p-2">

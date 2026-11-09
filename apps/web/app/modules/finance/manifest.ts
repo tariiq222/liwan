@@ -69,6 +69,7 @@ const manifest: AppManifest = {
   id: 'finance',
   feature: 'finance.enabled',
   routePrefixes: ['/finance'],
+  appCard: { category: 'sales', plan: 'addon', surface: 'forest' },
   rail: [{ id: 'finance', labelKey: 'nav.finance', icon: 'i-lucide-landmark', to: '/finance', order: 55 }],
   nav: [
     { to: '/finance', labelKey: 'finance.nav.overview', icon: 'i-lucide-layout-dashboard', shortcut: 'e', capability: 'finance.invoices.read' },

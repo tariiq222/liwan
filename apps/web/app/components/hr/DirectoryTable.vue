@@ -139,9 +139,9 @@ const WIDTH = {
   access: 'w-[144px] min-w-[144px]',
   manage: 'w-[56px] min-w-[56px]',
 }
-function column(id: string, header: string, width: string, fit = true): TableColumn<HrEmployee> {
+function column(id: string, header: string, width: string, fit = true, actions = false): TableColumn<HrEmployee> {
   const cell = fit ? 'whitespace-nowrap' : 'max-w-0 overflow-hidden text-ellipsis whitespace-nowrap'
-  return { id, header, meta: { class: { th: `text-start ${width}`, td: `${cell} ${width}` } } as TableColumn<HrEmployee>['meta'] }
+  return { id, header, meta: { class: { th: `text-start ${width}`, td: `${cell} ${width}` }, ...(actions ? { actions: true } : {}) } as TableColumn<HrEmployee>['meta'] }
 }
 const columns = computed<TableColumn<HrEmployee>[]>(() => [
   column('name', t('hr.directory.columns.name'), WIDTH.name, false),
@@ -149,7 +149,7 @@ const columns = computed<TableColumn<HrEmployee>[]>(() => [
   column('manager', t('hr.directory.columns.manager'), WIDTH.manager),
   column('status', t('hr.directory.columns.status'), WIDTH.status),
   ...(canSeeAccess.value ? [column('access', t('hr.directory.columns.account'), WIDTH.access)] : []),
-  ...(showActions.value ? [column('manage', t('hr.directory.columns.actions'), WIDTH.manage)] : []),
+  ...(showActions.value ? [column('manage', t('hr.directory.columns.actions'), WIDTH.manage, true, true)] : []),
 ])
 
 function onDepartmentChange(value: unknown) {

@@ -106,3 +106,44 @@ export function taskAttributeQuery(params: TaskAttributeFilters): Record<(typeof
 
 /** How many of the three attribute filters are set. */
 export const taskAttributeFilterCount = (params: TaskAttributeFilters) => Number(params.assignee !== undefined) + Number(Boolean(params.deadline)) + Number(Boolean(params.priority?.length))
+
+/** One removable chip under the toolbar: the filter it stands for and the value that filter holds. */
+export interface TaskFilterChip {
+  /** Unique within the row (`state:done`), also the chip's `key`. */
+  id: string
+  kind: 'state' | 'project' | 'priority' | 'assignee' | 'deadline'
+  /** The state, project id, priority, assignee (`me`, `none` or `person`) or deadline the chip names. */
+  value: string
+}
+
+type TaskPopoverFilters = TaskAttributeFilters & Pick<TaskListParams, 'state' | 'project_id'>
+
+/**
+ * The chips of the filters set in the toolbar's popover (state, project when it is offered, priority, assignee and
+ * deadline), in that order. The search text is not one of them: it has its own visible field.
+ */
+export function taskFilterChips(params: TaskPopoverFilters, projectFilter: boolean): TaskFilterChip[] {
+  const chips: TaskFilterChip[] = (params.state ?? []).map(state => ({ id: `state:${state}`, kind: 'state', value: state }))
+  if (projectFilter && params.project_id) chips.push({ id: 'project', kind: 'project', value: String(params.project_id) })
+  for (const priority of params.priority ?? []) chips.push({ id: `priority:${priority}`, kind: 'priority', value: priority })
+  if (params.assignee !== undefined) chips.push({ id: 'assignee', kind: 'assignee', value: typeof params.assignee === 'number' ? 'person' : params.assignee })
+  if (params.deadline) chips.push({ id: 'deadline', kind: 'deadline', value: params.deadline })
+  return chips
+}
+
+/** What removing a chip changes in the list params. */
+export function taskFilterChipRemoval(params: TaskPopoverFilters, chip: TaskFilterChip): Partial<TaskListParams> {
+  switch (chip.kind) {
+    case 'state': {
+      const states = (params.state ?? []).filter(state => state !== chip.value)
+      return { state: states.length ? states : undefined }
+    }
+    case 'priority': return { priority: parsePriorities((params.priority ?? []).filter(priority => priority !== chip.value)) }
+    case 'project': return { project_id: undefined }
+    case 'assignee': return { assignee: undefined }
+    case 'deadline': return { deadline: undefined }
+  }
+}
+
+/** The popover's active-filter count (the badge on its button): one per chip. */
+export const taskPopoverFilterCount = (params: TaskPopoverFilters, projectFilter: boolean) => taskFilterChips(params, projectFilter).length

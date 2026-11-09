@@ -108,6 +108,27 @@ function clientCancellation(event?: H3Event, options: { signal?: AbortSignal; ig
   }
 }
 
+/** Read a response body under the transport's single response cap. A body over the cap
+ * cancels its reader and fails the whole answer the same way an oversized success body does. */
+async function boundedResponseBody(body: ReadableStream<Uint8Array>): Promise<Buffer<ArrayBuffer>> {
+  const reader = body.getReader()
+  const chunks: Uint8Array[] = []
+  let bytes = 0
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      bytes += value.byteLength
+      if (bytes > MAX_RESPONSE) {
+        await reader.cancel()
+        throw failure()
+      }
+      chunks.push(value)
+    }
+  } finally { reader.releaseLock() }
+  return Buffer.concat(chunks)
+}
+
 /** Hold one upstream slot, with caller cancellation and a 15s admitted deadline
  * (the heavy budget's deadline, and write gate for a heavy write, on an allowlisted heavy route). */
 export async function withUpstreamSlot<T>(run: (signal: AbortSignal) => Promise<T>, event?: H3Event, heavy?: HeavyBudget): Promise<T> {
@@ -125,22 +146,7 @@ export async function withUpstreamSlot<T>(run: (signal: AbortSignal) => Promise<
     // this wrapper returns, so finish buffering here while the deadline and
     // admission slot still own the receiving socket.
     if (result instanceof Response && result.body) {
-      const reader = result.body.getReader()
-      const chunks: Uint8Array[] = []
-      let bytes = 0
-      try {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          bytes += value.byteLength
-          if (bytes > MAX_RESPONSE) {
-            await reader.cancel()
-            throw failure()
-          }
-          chunks.push(value)
-        }
-      } finally { reader.releaseLock() }
-      return new Response(Buffer.concat(chunks), { status: result.status, statusText: result.statusText, headers: result.headers }) as T
+      return new Response(await boundedResponseBody(result.body), { status: result.status, statusText: result.statusText, headers: result.headers }) as T
     }
     return result
   } finally {
@@ -151,6 +157,61 @@ export async function withUpstreamSlot<T>(run: (signal: AbortSignal) => Promise<
 }
 const failure = () => createError({ statusCode: 502, message: 'tenant_upstream_unavailable', data: { code: 'tenant_upstream_unavailable', message: 'The upstream service is temporarily unavailable.' } })
 const payloadTooLarge = () => createError({ statusCode: 413, message: 'payload_too_large', data: { code: 'payload_too_large', message: 'The request body exceeds the allowed size.' } })
+
+/** The contract envelope's own keys: anything else in an error body came from the engine, not LiwanOS. */
+const LIWAN_ERROR_FIELDS = new Set(['code', 'message', 'field', 'details'])
+const GENERIC_ERROR_MESSAGE = 'An unexpected error occurred'
+/** The generic refusal for a status: only the class of the failure is kept, never what caused it. */
+function genericError(status: number): { code: string; message: string } {
+  const code = status === 401 ? 'unauthorized'
+    : status === 403 ? 'forbidden'
+      : status === 404 ? 'not_found'
+        : status === 409 ? 'conflict'
+          : status === 429 ? 'rate_limited'
+            : status >= 500 ? 'internal' : 'invalid'
+  return { code, message: GENERIC_ERROR_MESSAGE }
+}
+
+function isLiwanError(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const record = value as Record<string, unknown>
+  return typeof record.code === 'string' && typeof record.message === 'string'
+    && Object.keys(record).every(key => LIWAN_ERROR_FIELDS.has(key))
+    && (record.field === undefined || typeof record.field === 'string')
+    && (record.details === undefined || (!!record.details && typeof record.details === 'object' && !Array.isArray(record.details)))
+}
+
+/** Keep only a contract error body. Odoo serializes an uncaught exception as
+ * `{name, message, arguments, context, debug}` with the whole traceback, so an error answer this BFF cannot
+ * verify as the envelope becomes the generic refusal and the status is kept. The body is never inspected for
+ * the fields it holds: an answer outside the contract is replaced whole, whatever it carries. */
+function contractErrorBody(status: number, path: string, headers: Headers, body: Buffer): Buffer {
+  if (status < 400 || !body.length || !path.startsWith('/api/v1/')) return body
+  let parsed: unknown
+  try { parsed = JSON.parse(body.toString('utf8')) } catch { parsed = undefined }
+  if (isLiwanError(parsed)) return body
+  // Server-side evidence that the engine answered outside the contract: the route and the status only, never
+  // the body it wrote (a serialized exception can carry query values).
+  console.error(`[liwan-bff] non-contract upstream error body: ${status} ${path.split('?')[0]}`)
+  const replacement = Buffer.from(JSON.stringify(genericError(status)))
+  headers.set('content-type', 'application/json')
+  if (headers.has('content-length')) headers.set('content-length', String(replacement.length))
+  headers.delete('content-encoding')
+  // The entity changed, so its validator is no longer true.
+  headers.delete('etag')
+  return replacement
+}
+
+/** Rewrite one upstream answer: an error body the engine wrote itself becomes the contract refusal.
+ * Every status, header and byte of a successful or an already-contract answer is preserved.
+ * The body is read through the same bounded reader as a success answer, so a non-contract error
+ * body can never be buffered beyond the response cap before its envelope is checked. */
+async function contractAnswer(response: Response, path: string): Promise<Response> {
+  if (response.status < 400 || !response.body) return response
+  const headers = new Headers(response.headers)
+  const served = contractErrorBody(response.status, path, headers, await boundedResponseBody(response.body))
+  return new Response(new Uint8Array(served), { status: response.status, statusText: response.statusText, headers })
+}
 
 /** Share the same fixed operator destination/path validation in both transport modes. */
 function operatorUpstream(configuredUpstream: string, path: string): URL {
@@ -181,7 +242,8 @@ export async function legacyTenantResponse(event: H3Event, configuredUpstream: s
       // Fetch decodes payloads but leaves representation headers unchanged.
       // HEAD/304 have no decoded body, so their representation metadata remains valid.
       if (response.body) { forwarded.delete('content-encoding'); forwarded.delete('content-length') }
-      return new Response(response.body, { status: response.status, statusText: response.statusText, headers: forwarded })
+      const plain = new Response(response.body, { status: response.status, statusText: response.statusText, headers: forwarded })
+      return contractAnswer(plain, path)
     }, event, options.heavy)
   } catch { throw failure() }
 }
@@ -249,7 +311,9 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
           for (const item of Array.isArray(value) ? value : [value]) responseHeaders.append(name, item)
         }
         const status = reply.statusCode ?? 502
-        finish(undefined, new Response(options.method === 'HEAD' || [204, 205, 304].includes(status) ? null : Buffer.concat(chunks), { status, headers: responseHeaders }))
+        const bodiless = options.method === 'HEAD' || [204, 205, 304].includes(status)
+        const served = bodiless ? null : contractErrorBody(status, path, responseHeaders, Buffer.concat(chunks))
+        finish(undefined, new Response(served && new Uint8Array(served), { status, headers: responseHeaders }))
       })
     })
     const abort = () => { request.destroy(); finish(failure()) }

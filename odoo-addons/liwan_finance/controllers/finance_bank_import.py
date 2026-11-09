@@ -13,6 +13,7 @@ from odoo.addons.base.models.res_bank import sanitize_account_number
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
+    requires_capability,
     requires_feature,
 )
 from odoo.addons.liwan_finance.serializers.bank import dump_bank_statement_detail
@@ -57,6 +58,11 @@ def _journal(parsed_id):
     )
 
 
+def _currency(journal):
+    """The currency a journal's statements and lines are kept in: its own, else the company's."""
+    return journal.currency_id or journal.company_id.currency_id
+
+
 def _open(payload, allowed):
     """``(journal, format)`` of a request once its fields are checked; CSV options belong to CSV files only."""
     reject_unknown(payload, allowed)
@@ -69,8 +75,13 @@ def _open(payload, allowed):
     return journal, fmt
 
 
-def _mark_duplicates(journal, lines):
+def _mark_duplicates(journal, lines, currency):
     """Flag the lines the journal already holds: same day, amount and reference, counted occurrence by occurrence.
+
+    Amounts are compared at the journal currency's precision, so two amounts that round to the same currency amount
+    collide (that is what ``currency.compare_amounts(...) == 0`` means). The file's lines already arrive rounded by the
+    statement serializer (``statement_csv``/``statement_ofx``/``statement_camt``) and are used as they are; a stored
+    journal line is rounded here, since its ``amount`` is the raw float Odoo kept.
 
     Two identical lines in one file are both legitimate (two coffees, one day) as long as the journal holds fewer
     copies than the file has seen so far. A line that carries the bank's own transaction id (OFX ``FITID``) is judged by
@@ -88,7 +99,7 @@ def _mark_duplicates(journal, lines):
         ('date', '>=', min(line['date'] for line in lines)), ('date', '<=', max(line['date'] for line in lines)),
     ]):
         if line.unique_import_id not in file_ids:
-            existing[line.date, round(line.amount, 2), line.payment_ref or '-'] += 1
+            existing[line.date, currency.round(line.amount), line.payment_ref or '-'] += 1
     known_ids = set(request.env['account.bank.statement.line'].search([('unique_import_id', 'in', file_ids)]).mapped('unique_import_id'))
     seen = Counter()
     for line in lines:
@@ -100,27 +111,26 @@ def _mark_duplicates(journal, lines):
         line['duplicate'] = existing[key] >= seen[key]
 
 
-def _camt_statements(text):
+def _camt_statements(text, rounding):
     data = camt_bytes(text)
     try:
         parsed = request.env['account.statement.import.camt.parser'].parse(data)
     except (ValueError, LookupError, TypeError, AttributeError):
         message = 'the file is not a readable CAMT statement'
         raise CamtError(message) from None
-    return normalize_camt(text, *parsed)
+    return normalize_camt(text, *parsed, rounding)
 
 
-def _statement(journal, fmt, content):
+def _statement(journal, fmt, content, currency):
     """The one statement of an OFX or CAMT file, in the journal's currency; its lines carry ``unique_import_id`` when the bank gave ids."""
     text = read_text(content)
     try:
-        statements = parse_ofx(text) if fmt == 'ofx' else _camt_statements(text)
+        statements = parse_ofx(text, currency.rounding) if fmt == 'ofx' else _camt_statements(text, currency.rounding)
     except (OfxError, CamtError) as error:
         refuse(str(error), 'content')
     if len(statements) > 1:
         refuse(f'the file holds {len(statements)} statements; import one at a time', 'content')
     statement = statements[0]
-    currency = journal.currency_id or journal.company_id.currency_id
     if statement['currency'] and statement['currency'].upper() != currency.name:
         refuse(f'the file is in {statement["currency"]} but the journal is in {currency.name}', 'journal_id')
     _check_account(journal, statement['account_number'])
@@ -142,7 +152,7 @@ def _check_account(journal, file_account):
         raise ApiError(422, 'account_mismatch', 'the file belongs to another bank account than the journal', field='journal_id')
 
 
-def _file_balances(journal, fmt, statement, lines):
+def _file_balances(journal, fmt, statement, lines, currency):
     """``(opening, closing)`` for the lines the import would create, as far as the file lets us know them.
 
     CAMT states both: the opening balance moves by the lines the journal already holds. OFX states only the closing
@@ -150,7 +160,6 @@ def _file_balances(journal, fmt, statement, lines):
     """
     if fmt == 'csv':
         return None, None
-    currency = journal.currency_id or journal.company_id.currency_id
     if fmt == 'camt':
         skipped = sum(line['amount'] for line in lines if line['duplicate'])
         opening = statement['balance_start']
@@ -162,20 +171,21 @@ def _file_balances(journal, fmt, statement, lines):
 def _read_lines(journal, fmt, payload):
     """Every line the file holds with its ``duplicate`` flag, the row problems and the balances the file suggests."""
     shape = {'delimiter': None, 'columns': []}
+    currency = _currency(journal)
     if fmt == 'csv':
         delimiter, rows = read_table(payload['content'], payload.get('delimiter'))
         date_format, decimal, has_header = parse_options(payload)
         header = rows[0] if has_header else None
         columns = parse_mapping(payload.get('mapping'), header)
         numbered = [(index + 1, row) for index, row in enumerate(rows)][1 if has_header else 0:]
-        lines, errors = parse_rows(numbered, columns, date_format, decimal)
+        lines, errors = parse_rows(numbered, columns, date_format, decimal, currency.rounding)
         shape = {'delimiter': delimiter, 'columns': header or []}
         statement = None
     else:
-        statement = _statement(journal, fmt, payload['content'])
+        statement = _statement(journal, fmt, payload['content'], currency)
         lines, errors = statement['lines'], statement['errors']
-    _mark_duplicates(journal, lines)
-    start, end = _file_balances(journal, fmt, statement, lines)
+    _mark_duplicates(journal, lines, currency)
+    start, end = _file_balances(journal, fmt, statement, lines, currency)
     return {**shape, 'format': fmt, 'lines': lines, 'errors': errors, 'balance_start': start, 'balance_end_real': end}
 
 
@@ -236,7 +246,7 @@ class FinanceBankImportController(http.Controller):
             'balance_end_real': read['balance_end_real'],
             'summary': {
                 'lines': len(lines), 'duplicates': len(lines) - len(kept),
-                'total': journal.currency_id.round(total) if journal.currency_id else round(total, 2),
+                'total': _currency(journal).round(total),
                 'date_from': dump_day(min((line['date'] for line in lines), default=None)),
                 'date_to': dump_day(max((line['date'] for line in lines), default=None)),
             },
@@ -245,6 +255,7 @@ class FinanceBankImportController(http.Controller):
     @http.route('/api/v1/finance/bank-statements/import', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('finance.enabled', operation='write')
+    @requires_capability('finance.bank.manage')
     @idempotent
     def import_bank_statement(self, **payload):
         """Create one statement from a CSV, OFX or CAMT file, whole or not at all.
@@ -253,7 +264,6 @@ class FinanceBankImportController(http.Controller):
         ``skip_duplicates`` is not set (``duplicate_lines``), or when the opening balance plus the lines is not the closing
         balance (``balance_mismatch``). The balances are the caller's; an OFX or CAMT file supplies those the caller omits.
         """
-        require_capability('finance.bank.manage')
         journal, fmt = _open(payload, IMPORT_FIELDS)
         read = _read_lines(journal, fmt, payload)
         if read['errors']:
@@ -269,7 +279,7 @@ class FinanceBankImportController(http.Controller):
         if not kept:
             raise ApiError(422, 'invalid', 'the file has no new lines to import', field='content')
         start, end = _balances(payload, read)
-        currency = journal.currency_id or journal.company_id.currency_id
+        currency = _currency(journal)
         expected = currency.round(start + sum(line['amount'] for line in kept))
         if currency.compare_amounts(expected, end):
             raise ApiError(

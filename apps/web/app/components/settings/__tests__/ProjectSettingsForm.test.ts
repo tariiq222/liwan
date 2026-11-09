@@ -38,7 +38,7 @@ const guard = Vue.defineComponent({ props: ['dirty'], setup: props => () => Vue.
 const stubs = {
   ...DEFAULT_STUBS,
   SharedUnsavedChanges: guard,
-  ...Object.fromEntries(['UFormField', 'USelect', 'URadioGroup', 'USwitch', 'UInputNumber', 'SharedRecordSection', 'StageListEditor', 'ChangeCategoriesPanel'].map(name => [name, passthrough])),
+  ...Object.fromEntries(['UFormField', 'USelect', 'URadioGroup', 'SharedSettingRow', 'SharedSegmentedControl', 'SharedOptionCards', 'USwitch', 'UInputNumber', 'SharedRecordSection', 'StageListEditor', 'ChangeCategoriesPanel'].map(name => [name, passthrough])),
   SharedSettingsCard: card,
 }
 
@@ -175,6 +175,16 @@ describe('ProjectSettingsForm production template', () => {
     h.find(el => el.props['data-testid'] === 'settings-project-tool-governance')!.props['onUpdate:modelValue']('enabled')
     await Vue.nextTick(); h.save('project-approval'); await settle()
     expect(h.updateSettings).toHaveBeenCalledExactlyOnceWith({require_charter_approval:true,governance_tool_policy:'enabled'})
+    h.app.unmount()
+  })
+
+  it('stores the same raw values whether a setting is a segmented choice, an option card or a switch', async () => {
+    const h = mount()
+    h.find(el => el.props['data-testid'] === 'settings-evm-progress')!.props['onUpdate:modelValue']('manual')
+    h.find(el => el.props['data-testid'] === 'settings-close-with-open-tasks')!.props['onUpdate:modelValue']('allow_with_warning')
+    h.find(el => el.props['data-testid'] === 'settings-register-transitions')!.props['onUpdate:modelValue']('free')
+    await Vue.nextTick(); h.save('project-approval'); await settle()
+    expect(h.updateSettings).toHaveBeenCalledExactlyOnceWith({ close_with_open_tasks: 'allow_with_warning', register_status_transitions: 'free', evm_progress_method: 'manual' })
     h.app.unmount()
   })
 

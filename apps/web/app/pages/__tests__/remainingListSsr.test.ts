@@ -85,8 +85,8 @@ describe('settled lists render before hydration', () => {
     expect(html).not.toContain('Unexpected KPI request')
   })
   it('task deadline labels wait for the viewer clock while the row remains on the server', async () => {
-    const tag = vi.fn(() => ({ label: 'Viewer deadline' }))
-    const component = (hydrated: boolean) => templateComponent('components/pmo/tasks/TaskTable.vue', { ...bindings('rows', hydrated), deadlineTagView: tag })
+    const tag = vi.fn(() => ({ text: 'Viewer deadline', tone: null }))
+    const component = (hydrated: boolean) => templateComponent('components/pmo/tasks/TaskTable.vue', { ...bindings('rows', hydrated), deadlineCellView: tag, DEADLINE_TONE_CLASS: { plain: 'text-default' } })
     const html = await render(component(false))
     expect(html).toContain('Server row')
     expect(html).not.toContain('Viewer deadline')

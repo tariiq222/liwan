@@ -156,7 +156,7 @@ async function retry() {
             <dt class="text-muted">{{ t('vendor.operations.workspaceId') }}</dt><dd><bdi dir="ltr" class="break-all">{{ data.tenant_id }}</bdi></dd>
             <template v-if="data.customer_id"><dt class="text-muted">{{ t('vendor.operations.customerId') }}</dt><dd><bdi dir="ltr" class="break-all">{{ data.customer_id }}</bdi></dd></template>
           </dl>
-          <pre v-if="data.result" class="mt-3 max-h-96 overflow-auto rounded-md bg-elevated p-3 text-xs" dir="ltr">{{ JSON.stringify(data.result, null, 2) }}</pre>
+          <pre v-if="data.result" class="mt-3 max-h-96 overflow-auto rounded-inner bg-elevated p-3 text-xs" dir="ltr">{{ JSON.stringify(data.result, null, 2) }}</pre>
         </details>
       </div>
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { KpiTile } from '../../../utils/kpiTile'
 
-// The row of metric tiles above a main or list page: compact `SharedMetricTile`s, four to a row from `lg`, two on a phone.
+// The row of metric tiles above a main or list page: compact `SharedMetricTile`s that share the row evenly (`liwan-kpi-grid`: at least 220px each, up to four across; two on a phone).
 // Tiles are information, never buttons (a tile with `to` is a link). While `loading` the row is skeletons of the same size, so the
 // page does not jump. The whole strip is absent when the user turned KPIs off (`useKpiVisibility`, toggled from the page header).
 const props = withDefaults(defineProps<{
@@ -18,7 +18,7 @@ const skeletons = computed(() => props.skeletonCount ?? (props.tiles.length || 4
 </script>
 
 <template>
-  <section v-if="shown" data-slot="kpi-strip" class="grid grid-cols-2 gap-(--liwan-gap-card) lg:grid-cols-4" :aria-label="props.label ?? t('states.metrics')">
+  <section v-if="shown" data-slot="kpi-strip" class="liwan-kpi-grid" :aria-label="props.label ?? t('states.metrics')">
     <template v-if="!props.loading">
       <SharedMetricTile
         v-for="tile in props.tiles"

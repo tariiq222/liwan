@@ -1,28 +1,30 @@
 <script setup lang="ts">
-import { deadlineTagView } from './taskDeadline'
 import type { RouteLocationRaw } from 'vue-router'
-import { statusTag, type PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
+import type { PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import { ApiError } from '@/composables/useApi'
 import { withTaskListFilters } from '@/composables/taskFilterParams'
 import { normalizeTaskSort } from '@/composables/taskSort'
 import { useTaskFilters } from '@/composables/useTaskFilters'
 import { shortcutKey } from '@liwan/ui/app/composables/shortcuts/keymap'
 import type { TaskListParams } from '@/composables/useTasks'
-import { useArchiveTask, useTask, useTaskSiblings } from '@/composables/useTasks'
+import { useArchiveTask, useTask, useTaskSiblings, useUpdateTask } from '@/composables/useTasks'
+import { usePersonalStages } from '@/composables/usePersonalStages'
 import StateMenu from './StateMenu.vue'
+import { taskMenuItems, type TaskMenuStage } from './taskMenu'
 import TaskCompletionApproval from './TaskCompletionApproval.vue'
 import TaskDetails from './TaskDetails.vue'
 import TaskProperties from './TaskProperties.vue'
 import TaskTitleEditor from './TaskTitleEditor.vue'
 
-// The task record: the heading carries the editable name, the state menu and the deadline; the main
-// column holds approval, description, work tabs and activity; the properties sit in the record aside.
+// The task record (`SharedRecordWorkspace`): one header row with the editable name, the status menu, the position in
+// the list, previous/next and the ⋯ menu; the main column holds approval, description, sub-tasks, attachments,
+// predecessors and the activity feed; the properties sit in the aside. The trail ends with the task.
 // basePath routes prev/next within the host's own URL space (default /tasks,
 // مهامي's own list). siblingParams lets a host that keeps its filters in the
 // URL (the project screen) drive prev/next from those instead of the
 // localStorage-backed filters — decided once per instance since the two
 // branches are different composables.
-const props = withDefaults(defineProps<{ taskId: number; basePath?: string; siblingParams?: TaskListParams; backLabel?: string; backTo?: RouteLocationRaw }>(), {
+const props = withDefaults(defineProps<{ taskId: number; basePath?: string; siblingParams?: TaskListParams; backTo?: RouteLocationRaw }>(), {
   basePath: '/tasks',
 })
 const emit = defineEmits<{ close: [] }>()
@@ -94,78 +96,109 @@ function onKeydown(e: KeyboardEvent) {
 
 useEventListener(document, 'keydown', onKeydown)
 const title = computed(() => task.value?.name ?? t('tasks.detail.pageLabel'))
-// The task's context sits in the heading as short facts: the project, but only on the plain `/tasks`
-// host because inside a project its frame already names the project, and the deadline. The deadline is the
-// same tag the lists draw (DESIGN.md: overdue danger, today warning, a future date success, closed neutral, none no tag),
-// counted from the instant the Deadline property prints so the tag and the date cannot disagree.
+// The task's project sits in the heading as a short fact, but only on the plain `/tasks` host: inside a project
+// the trail already names it.
 const headerTags = computed<PageHeaderTag[]>(() => {
   const current = task.value
-  if (!current) return []
-  const deadline = deadlineTagView(current, t)
+  if (!current?.project || props.basePath !== '/tasks') return []
+  return [{ label: current.project.name, icon: 'i-lucide-folder-kanban', to: `/projects/${current.project.id}`, testId: 'task-detail-context', kind: 'project' }]
+})
+
+// Projects › Alpha › Tasks › Write the brief. The list step carries the filters the task was opened from.
+const trail = computed(() => {
+  const project = task.value?.project
+  const inProject = props.basePath.startsWith('/projects/')
   return [
-    ...(current.project && props.basePath === '/tasks' ? [{ label: current.project.name, icon: 'i-lucide-folder-kanban', to: `/projects/${current.project.id}`, testId: 'task-detail-context', kind: 'project' as const }] : []),
-    ...(deadline ? [{ ...statusTag({ tone: deadline.tone, label: deadline.label }, 'deadline-badge'), icon: deadline.icon }] : []),
+    ...(inProject && project ? [{ label: t('nav.projects'), to: '/projects' }, { label: project.name, to: `/projects/${project.id}` }] : []),
+    { label: t(inProject ? 'projects.tabs.tasks' : 'nav.tasks'), to: backTo.value, testId: 'task-detail-back' },
+    { label: title.value },
   ]
 })
+
+// --- the ⋯ menu ------------------------------------------------------------
+const { data: stages } = usePersonalStages()
+const { mutate: updateTask } = useUpdateTask()
+
+async function copyLink() {
+  try {
+    await navigator.clipboard.writeText(window.location.href)
+    toast.add({ title: t('tasks.detail.linkCopied'), color: 'success' })
+  } catch {
+    toast.add({ title: t('errors.generic'), color: 'error' })
+  }
+}
+
+function setStage(stage: TaskMenuStage | null) {
+  if (!task.value?.can_write) return
+  updateTask({
+    id: task.value.id,
+    patch: { personal_stage_type_id: stage?.id ?? null },
+    resolved: { personal_stage: stage ? { id: stage.id, name: stage.name } : null },
+  })
+}
+
+const menuItems = computed(() => task.value
+  ? taskMenuItems({
+    task: task.value,
+    stages: stages.value ?? [],
+    t,
+    disabled: !hydrated.value || archiving.value,
+    copyLink,
+    setStage,
+    archive: () => { archiveConfirmOpen.value = true },
+  })
+  : [])
 </script>
 
 <template>
-  <SharedRecordPage
+  <SharedRecordWorkspace
     :title="title"
+    :trail="trail"
     :back-to="archiveConfirmOpen ? undefined : backTo"
-    :back-label="props.backLabel ?? t('tasks.detail.back')"
     :loading="!task && !error"
     :error="error"
     :keep-content="!!task"
-    aside-first
     @retry="refetch"
   >
     <template v-if="task" #title>
       <TaskTitleEditor :task="task" />
     </template>
-    <template #back>
-      <UButton :to="backTo" data-testid="task-detail-back" color="neutral" variant="outline" class="focus-visible:ring-2 focus-visible:ring-primary" :disabled="!hydrated">
-        <UIcon name="i-lucide-arrow-right" aria-hidden="true" class="size-4.5 ltr:rotate-180" />{{ props.backLabel ?? t('tasks.detail.back') }}
-      </UButton>
-    </template>
-    <template #tags>
+    <template #status>
       <StateMenu v-if="task" :task="task" :can-approve="task.can_approve" />
+    </template>
+    <template #meta>
       <SharedHeaderTags :tags="headerTags" />
     </template>
     <template v-if="task" #actions>
-      <div data-testid="task-detail-menu" class="flex flex-none items-center gap-1.5" role="group" :aria-label="t('tasks.detail.menu')">
+      <div data-testid="task-detail-nav" class="flex flex-none items-center gap-1" role="group" :aria-label="t('tasks.detail.navigation')">
+        <span v-if="siblings.position" data-testid="task-position" class="me-1 text-sm text-muted tabular-nums">{{ t('tasks.detail.position', { n: siblings.position, total: siblings.total }) }}</span>
         <UTooltip :text="t('tasks.detail.prev')">
-          <UButton color="neutral" variant="outline" size="sm" square type="button" :aria-label="t('tasks.detail.prev')" :disabled="!hydrated || !siblings.prevId" @click="goTo(siblings.prevId)">
+          <UButton color="neutral" variant="ghost" size="sm" square type="button" :aria-label="t('tasks.detail.prev')" :disabled="!hydrated || !siblings.prevId" @click="goTo(siblings.prevId)">
             <UIcon name="i-lucide-chevron-right" class="size-4.5 ltr:rotate-180" aria-hidden="true" />
           </UButton>
         </UTooltip>
         <UTooltip :text="t('tasks.detail.next')">
-          <UButton color="neutral" variant="outline" size="sm" square type="button" :aria-label="t('tasks.detail.next')" :disabled="!hydrated || !siblings.nextId" @click="goTo(siblings.nextId)">
+          <UButton color="neutral" variant="ghost" size="sm" square type="button" :aria-label="t('tasks.detail.next')" :disabled="!hydrated || !siblings.nextId" @click="goTo(siblings.nextId)">
             <UIcon name="i-lucide-chevron-left" class="size-4.5 ltr:rotate-180" aria-hidden="true" />
           </UButton>
         </UTooltip>
-        <UTooltip v-if="task.allowed_actions.includes('archive')" :text="t('tasks.drawer.archive')">
-          <UButton data-testid="task-archive" color="neutral" variant="outline" size="sm" square type="button" icon="i-lucide-archive" :disabled="!hydrated || archiving" :aria-label="t('tasks.drawer.archive')" @click="archiveConfirmOpen = true" />
-        </UTooltip>
       </div>
+      <UDropdownMenu :items="menuItems" :content="{ align: 'end' }">
+        <UButton data-testid="task-detail-menu" color="neutral" variant="ghost" size="sm" square type="button" icon="i-lucide-ellipsis" :disabled="!hydrated" :aria-label="t('tasks.detail.menu')" />
+      </UDropdownMenu>
     </template>
 
-    <template v-if="task">
+    <template v-if="task" #main>
       <SharedInlineConfirm v-if="archiveConfirmOpen" data-testid="task-archive-confirm" :title="t('tasks.drawer.archive')" :description="t('tasks.drawer.archiveConfirm')" :confirm-label="t('tasks.drawer.archive')" :pending="archiving" @confirm="doArchive" @cancel="archiveConfirmOpen = false" />
-
-      <div data-testid="task-detail-grid" class="grid min-w-0 gap-(--liwan-gap-card)">
-        <div data-testid="task-details-card" class="grid min-w-0 gap-(--liwan-gap-card)">
-          <TaskCompletionApproval :task="task" />
-          <TaskDetails :key="task.id" :task="task" :base-path="props.basePath">
-            <template v-if="$slots.details" #schedule>
-              <slot name="details" :task="task" />
-            </template>
-          </TaskDetails>
-        </div>
-      </div>
+      <TaskCompletionApproval :task="task" />
+      <TaskDetails :key="task.id" :task="task" :base-path="props.basePath">
+        <template v-if="$slots.details" #schedule>
+          <slot name="details" :task="task" />
+        </template>
+      </TaskDetails>
     </template>
     <template v-if="task" #aside>
       <TaskProperties :key="task.id" :task="task" />
     </template>
-  </SharedRecordPage>
+  </SharedRecordWorkspace>
 </template>
