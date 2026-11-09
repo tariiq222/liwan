@@ -26,7 +26,7 @@ COMPOSE = ROOT / 'deploy' / 'docker-compose.yml'
 DEDICATED_ZONES = ('liwan_auth', 'liwan_provider_hook', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo',
                    'liwan_web')
 ZONES = ('liwan_auth', 'liwan_provider_hook', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo_image',
-         'liwan_odoo', 'liwan_web', 'liwan_tiktok')
+         'liwan_odoo', 'liwan_signup', 'liwan_web', 'liwan_tiktok')
 SHARED_CADDYFILE = ROOT / 'deploy' / 'shared' / 'Caddyfile'
 CADDY_IMAGE_REPOSITORY = 'liwan-caddy-test'
 DOCKER_UNAVAILABLE = ('cannot connect to the docker daemon', 'is the docker daemon running',
@@ -49,6 +49,8 @@ SHARED_ZONE_CASES = (
     ('/web/binary/company_logo/../session/authenticate', {'liwan_odoo'}),
     ('/web/session/authenticate', {'liwan_auth'}),
     ('/api/auth/login', {'liwan_auth'}),
+    ('/api/commercial/signup/start', {'liwan_signup', 'liwan_web'}),
+    ('/api/commercial/payment-callback', {'liwan_web'}),
     ('/web/image/res.company/1/logo', {'liwan_odoo_image'}),
     ('/api/v1/me', {'liwan_api'}),
     ('/api/v1/inbox/hooks/whatsapp', {'liwan_provider_hook'}),
@@ -329,6 +331,12 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
         adapted = _adapt_shared_caddyfile(SHARED_CADDYFILE.read_text(encoding='utf-8'))
 
         zones = _tenant_rate_limits(adapted)
+
+        signup = zones['liwan_signup']
+        self.assertEqual(signup['max_events'], 30)
+        self.assertEqual(signup['window'], 60000000000)
+        self.assertEqual(signup['key'], '{http.vars.client_ip}')
+        self.assertEqual(signup['match'], [{'path': ['/api/commercial/signup/*']}])
 
         self.assertEqual(zones['liwan_auth']['max_events'], 20)
         self.assertEqual(zones['liwan_auth']['match'][0]['path'], ['/api/auth/*', '/api/v1/auth/*', '/web/session/*', '/web/login'])

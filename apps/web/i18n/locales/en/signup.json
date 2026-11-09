@@ -1,0 +1,44 @@
+{
+  "signup": {
+    "steps": {
+      "details": "Step 1 of 3",
+      "sms": "Step 2 of 3",
+      "email": "Step 3 of 3"
+    },
+    "headings": {
+      "details": "Start your Liwan trial",
+      "sms": "Verify your mobile number",
+      "email": "Verify your email address",
+      "done": "We’re preparing your workspace"
+    },
+    "trial": "Try Liwan free for 14 days. No payment card required.",
+    "companyName": "Company name",
+    "adminName": "Administrator’s full name",
+    "email": "Work email",
+    "mobile": "Saudi mobile number",
+    "sendSms": "Send SMS code",
+    "smsSent": "Enter the code we sent by SMS to {destination}.",
+    "emailSent": "Enter the code we sent to {destination}.",
+    "emailDestination": "We’ll use {destination} to verify your email address.",
+    "code": "Six-digit verification code",
+    "verify": "Verify code",
+    "sendEmail": "Send email code",
+    "resend": "Resend code",
+    "resendIn": "Resend in {seconds} s",
+    "editDetails": "Change registration details",
+    "invitation": "When your workspace is ready, we’ll email you an invitation to set your password.",
+    "errors": {
+      "companyRequired": "Enter your company name.",
+      "adminRequired": "Enter the administrator’s name.",
+      "emailInvalid": "Enter a valid email address.",
+      "mobileInvalid": "Enter a Saudi mobile number, such as 0500000000.",
+      "codeFormat": "Enter the six digits from the verification message.",
+      "invalid": "Check your registration details and try again.",
+      "invalidCode": "That code is incorrect or has expired. Check the code or request a new one.",
+      "rateLimited": "Too many attempts. Wait a moment before trying again.",
+      "unavailable": "Registration is temporarily unavailable. Try again shortly.",
+      "trialAlreadyUsed": "A trial has already been used with these details.",
+      "expired": "Your registration session has expired. Start again below."
+    }
+  }
+}

@@ -1,8 +1,9 @@
 import { timingSafeEqual } from 'node:crypto'
 
-type ProspectConfig = { customerCommercialEnabled?: boolean | string; customerCommercialPublicOrigin?: string }
+type ProspectConfig = { customerCommercialEnabled?: boolean | string; customerCommercialPublicOrigin?: string; publicSignupEnabled?: boolean | string }
 
-/** What the LiwanOS public host serves: the payment-done page, the payment return relay and the built assets they need. */
+export const SIGNUP_API = /^\/api\/commercial\/signup\/(start|verify-sms|send-email|verify-email)$/
+export const isSignupPage = (pathname: string) => /^\/register\/?$/.test(pathname)
 const PROSPECT_PATHS = [/^\/payment-done\/?$/, /^\/api\/commercial\/payment-callback$/, /^\/_nuxt\//]
 
 /** The `x-liwan-tenant` value signed for a payment return that arrives on the LiwanOS public host. */
@@ -23,5 +24,8 @@ export function isProspectRequest(request: { host?: string; proxyToken?: string;
   const token = process.env.LIWAN_SHARED_PROXY_TOKEN ?? ''
   const supplied = request.proxyToken ?? ''
   if (token.length < 32 || Buffer.byteLength(token) !== Buffer.byteLength(supplied) || !timingSafeEqual(Buffer.from(token), Buffer.from(supplied))) return false
+  if (isSignupPage(request.pathname) || SIGNUP_API.test(request.pathname)) {
+    return config.publicSignupEnabled === true || config.publicSignupEnabled === 'true'
+  }
   return PROSPECT_PATHS.some(pattern => pattern.test(request.pathname))
 }

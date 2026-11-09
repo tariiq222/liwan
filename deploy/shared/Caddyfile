@@ -5,6 +5,7 @@
 (guarded_site) {
 	@privateToken header X-Liwan-Proxy-Token *
 	@privateRevision header X-Liwan-Tenant-Revision *
+	@signup path /api/commercial/signup/*
 	route {
 		respond @privateToken 403
 		respond @privateRevision 403
@@ -79,6 +80,15 @@
 				window 1m
 				ipv6_prefix 64
 			}
+			zone liwan_signup {
+				match {
+					path /api/commercial/signup/*
+				}
+				key {client_ip}
+				events 30
+				window 1m
+				ipv6_prefix 64
+			}
 			zone liwan_web {
 				match {
 					not path /api/auth/* /api/v1/* /web/* /odoo/* /jsonrpc /xmlrpc/* /report/* /mail/* /bus/* /discuss/* /websocket /_nuxt/* /_i18n/* /fonts/* /favicon.ico /robots.txt
@@ -89,6 +99,8 @@
 				ipv6_prefix 64
 			}
 		}
+		request_header -X-Liwan-Signup-Client
+		request_header @signup X-Liwan-Signup-Client {client_ip}
 		reverse_proxy guard:8080 {
 			header_up -X-Forwarded-For
 			header_up -X-Forwarded-Host
