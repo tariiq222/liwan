@@ -1,9 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""The HR agent of the LiwanOS AI and its tools: read tools over existing liwan_hr routes, each with the
-capability its route already checks. Fields that are sensitive never appear in a result summary."""
+"""The HR agent and its self-service job profile tool."""
 from odoo import api, models
 
-from odoo.addons.liwan_ai.models.tool_registry import PAGE_SCHEMA, read_tool
+from odoo.addons.liwan_ai.models.tool_registry import read_tool
 
 OWNER = 'liwan_hr'
 FEATURE = 'hr.enabled'
@@ -14,32 +13,25 @@ HR_AGENT = {
     'feature_key': FEATURE,
     'name_ar': 'وكيل الموارد البشرية',
     'name_en': 'HR agent',
-    'description_ar': 'إجازات الموظف وأرصدته وملفه الوظيفي',
-    'description_en': "The employee's leave requests, balances and job profile",
-    'instructions_ar': 'أنت وكيل الموارد البشرية. تجيب عن إجازات المستخدم نفسه وأرصدته وملفه الوظيفي فقط. لا تتحدث عن رواتب أحد ولا بياناته الخاصة، ووجّه المستخدم إلى صفحة الموارد البشرية لتقديم طلب.',
-    'instructions_en': "You are the HR agent. You answer only about the user's own leave requests, balances and job profile. Never discuss anyone's pay or private data; point the user to the HR page to submit a request.",
+    'description_ar': 'الملف الوظيفي للمستخدم والإرشاد إلى صفحة الموارد البشرية للإجازات',
+    'description_en': "The user's job profile and directions to the HR page for leave",
+    'instructions_ar': (
+        'أنت وكيل الموارد البشرية. أجب فقط عن الملف الوظيفي للمستخدم نفسه. '
+        'وجّه المستخدم إلى صفحة الموارد البشرية لعرض طلبات الإجازة وأرصدتها أو تقديم طلب. '
+        'لا تتحدث عن رواتب أحد أو بياناته الخاصة.'
+    ),
+    'instructions_en': (
+        "You are the HR agent. Answer only about the user's own job profile. "
+        "Direct the user to the HR page to view leave requests and balances or to submit a request. "
+        "Never discuss anyone's pay or private data."
+    ),
     'pages': ['hr'],
     'sensitive_fields': ['contract', 'nationality', 'birthday'],
 }
 
 
 HR_AI_TOOLS = (
-    read_tool(
-        OWNER, FEATURE, 'hr.list_my_leave_requests', 'hr.leave.read',
-        ('يعرض طلبات إجازة المستخدم وحالتها', "List the user's leave requests and their state"),
-        '/api/v1/hr/leave/requests',
-        {'state': {'type': 'string', 'enum': ['confirm', 'validate1', 'validate', 'refuse', 'cancel']}, 'limit': PAGE_SCHEMA},
-        {'mine': '1', 'state': '$state', 'limit': '$limit'},
-        ['items[].id', 'items[].leave_type.name', 'items[].date_from', 'items[].date_to', 'items[].number_of_days', 'items[].state', 'total'],
-    ),
-    read_tool(
-        OWNER, FEATURE, 'hr.get_my_leave_balances', 'hr.leave.read',
-        ('يعرض أرصدة إجازات المستخدم', "Show the user's leave balances"),
-        '/api/v1/hr/leave/balances',
-        {},
-        {},
-        ['items[].leave_type.name', 'items[].allocated', 'items[].taken', 'items[].pending', 'items[].remaining', 'total'],
-    ),
+    # Leave type names may disclose sensitive information, so leave data stays in HR.
     read_tool(
         OWNER, FEATURE, 'hr.get_my_profile', 'hr.employees.read',
         ('يعرض المسمى الوظيفي والقسم والمدير للمستخدم', "Show the user's job title, department and manager"),
