@@ -310,7 +310,8 @@ class LiwanHrAuditEvent(models.Model):
             return
         registry, uid = self.env.registry, self.env.uid
         model, record_id, company_id = record._name, record.id, record.company_id.id
-        # Copy the names now: the caller's ``vals`` is a live dict the request may still mutate until commit.
+        # The one place that normalises the attempted fields, and it copies them: a caller hands over its live
+        # ``vals`` (the request may still mutate it until commit), the queued hook only sees this tuple.
         names = tuple(sorted(names))
 
         def log():

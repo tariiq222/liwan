@@ -93,9 +93,8 @@ class HrPayslip(models.Model):
         frozen = self.filtered(lambda slip: slip._liwan_is_fixed())
         if frozen:
             Audit = self.env['liwan.hr.audit.event']
-            attempted = tuple(sorted(names))
             for slip in frozen:
-                Audit._liwan_log_refused_write('payslip_write_refused', slip, attempted)
+                Audit._liwan_log_refused_write('payslip_write_refused', slip, names)
             raise AccessError(
                 self.env._('An approved payslip is fixed: its figures and lines cannot be changed.'),
             )

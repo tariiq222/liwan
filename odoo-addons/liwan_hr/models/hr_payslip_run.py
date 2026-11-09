@@ -112,7 +112,7 @@ class HrPayslipRun(models.Model):
         if unlocks:
             frozen = self.filtered(lambda run: not run._liwan_is_editable())
             if frozen:
-                frozen._liwan_audit_refused_write(sorted(vals))
+                frozen._liwan_audit_refused_write(vals)
                 raise AccessError(
                     self.env._('An approved payroll run cannot go back to an editable state.'),
                 )
@@ -138,7 +138,7 @@ class HrPayslipRun(models.Model):
             ),
         )
         if refused:
-            refused._liwan_audit_refused_write(sorted(changed))
+            refused._liwan_audit_refused_write(changed)
             raise AccessError(
                 self.env._('An approved payroll run keeps its month, company and structure: its figures are fixed.'),
             )

@@ -16,9 +16,10 @@ class TestPayrollWriteRefusalAudit(PayrollCase):
     """A write the payroll guards refuse after approval leaves exactly one audit event (issue #520).
 
     The refusal raises, so the event is queued on the cursor's ``postcommit`` and written on its own cursor once
-    the transaction commits: the route answers its 403 as a normal response, so the queue runs. These tests run
-    the queue the way that commit would, then read the event through a second cursor whose transaction starts
-    after it.
+    the transaction commits. These tests run that queue and read the event back through a second cursor. Under
+    ``HttpCase`` the registry hands out ``TestCursor`` instances over the one connection, so this proves the
+    queued hook writes the event and that another cursor sees it; the separate real transaction a worker commits
+    is Odoo's own path (``service_model.retrying`` -> ``cr.commit()`` -> ``postcommit.run()``), not exercised here.
     """
 
     @classmethod
@@ -45,7 +46,7 @@ class TestPayrollWriteRefusalAudit(PayrollCase):
         return len(self.env.cr.postcommit)
 
     def _committed_events(self, action):
-        """The events of ``action`` as a later transaction sees them, read before that cursor closes."""
+        """The events of ``action`` read back through a second cursor, before that cursor closes."""
         self.env.flush_all()
         cursor = self.registry.cursor()
         try:
@@ -134,12 +135,14 @@ class TestPayrollWriteRefusalAudit(PayrollCase):
         self._assert_refused('run_write_refused', run, ('unlink',), run.unlink)
         self.assertTrue(run.exists())
 
-    def test_the_refusal_survives_the_commit_and_is_read_by_a_later_transaction(self):
-        """The production sequence for a direct write: the raise, the commit, the queue, an independent cursor.
+    def test_the_queued_refusal_write_is_visible_to_another_cursor(self):
+        """The refusal queues its event; running that queue makes the event visible to a second cursor.
 
-        ``enter_registry_test_mode`` makes the registry hand out the test cursor the way a request's worker cursor
-        would, so running the queue here runs the hook the commit runs, and the event is read by a second cursor
-        whose transaction starts afterwards.
+        ``HttpCase`` already runs in registry test mode, so ``registry.cursor()`` hands out a ``TestCursor`` over
+        the same connection (its ``commit`` only releases a savepoint). This therefore proves the queued hook
+        writes the event and that another cursor reads it back, not that a separate transaction committed; the
+        independent-cursor path in production is Odoo's own commit sequence (``service_model.retrying`` ->
+        ``cr.commit()`` -> ``postcommit.run()``).
 
         A route cannot be the vehicle for this: every payroll route that could reach a frozen payslip refuses in
         ``_liwan_require_state`` with a 403 before the ORM guard runs (``_liwan_set_inputs``, ``_liwan_cancel``),
@@ -149,13 +152,12 @@ class TestPayrollWriteRefusalAudit(PayrollCase):
         run = self._approved_run()
         slip = run.slip_ids
         self.env.flush_all()
-        with self.enter_registry_test_mode():
-            before = self._queued()
-            with self.assertRaises(AccessError):
-                slip.write({'liwan_paid_days': 1})
-            self.assertEqual(self._queued() - before, 1)
-            self.env.cr.postcommit.run()
-            events = self._committed_events('payslip_write_refused')
+        before = self._queued()
+        with self.assertRaises(AccessError):
+            slip.write({'liwan_paid_days': 1})
+        self.assertEqual(self._queued() - before, 1)
+        self.env.cr.postcommit.run()
+        events = self._committed_events('payslip_write_refused')
         self.assertEqual(len(events), 1, events)
         self.assertEqual((events[0]['res_model'], events[0]['res_id']), ('hr.payslip', slip.id))
         self.assertEqual(events[0]['create_uid'], self.officer.id)
