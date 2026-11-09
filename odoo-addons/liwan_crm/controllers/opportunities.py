@@ -28,10 +28,6 @@ ORDER = 'create_date desc, id desc'
 MAX_AGENTS = 50
 
 
-def no_content():
-    return request.make_json_response('', status=204)
-
-
 def _visibility():
     return request.env['liwan.crm.visibility']
 
@@ -230,7 +226,7 @@ class CrmOpportunitiesController(http.Controller):
         """Record this opening in the audit trail, when the company enabled it; 204 either way."""
         lead = find_opportunity(lead_id)
         request.env['liwan.crm.view.log']._liwan_record(lead)
-        return no_content()
+        return request.make_json_response('', status=204)
 
     @http.route('/api/v1/crm/opportunities/<int:lead_id>', type='json2', auth='user', methods=['PATCH'],
                 readonly=False)
