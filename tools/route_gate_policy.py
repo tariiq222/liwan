@@ -39,7 +39,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import api_surface
-from api_surface import FEATURE_DECORATORS, const_strings, decorator_name, kw_const
+from api_surface import FEATURE_DECORATORS, _unstar, const_strings, decorator_name, kw_const
 
 REPO = api_surface.REPO
 ADDONS = api_surface.ADDONS
@@ -52,6 +52,10 @@ API_PREFIX = '/api/v1'
 CAPABILITY_DECORATOR = 'requires_capability'
 # Primitives that check a capability; credited by name on any receiver.
 CAPABILITY_CALLS = frozenset({'require_capability', 'require_capabilities', 'require_any_capability', '_liwan_require_capability'})
+# A thin wrapper that hands its own argument to a capability primitive (`_require(capability)`),
+# whose key is therefore named at the call site rather than inside it. Checked for a method call
+# too, where the receiver's model cannot be typed (a service object's `convert._require(...)`).
+WRAPPER_NAMES = frozenset({'_require', 'require', 'require_capability', 'require_capabilities', 'require_any_capability', '_liwan_require_capability'})
 # Stock Odoo names the models override: never a gate by name.
 ORM_METHODS = frozenset({
     'check_access', 'has_access', '_check_access', 'create', 'write', 'unlink', 'read', '_read', 'search',
@@ -61,7 +65,7 @@ ORM_METHODS = frozenset({
 ORM_PREFIXES = ('action_', '_compute_', '_onchange_', '_inverse_', '_search_', '_cron')
 # Calls that keep the receiver's model: `request.env['x'].sudo().m()` is still model x.
 RECEIVER_PASSTHROUGH = frozenset({'sudo', 'with_context', 'with_user', 'with_company', 'with_env', 'browse', 'exists'})
-RECORD_GETTERS = frozenset({'get_record'})
+RECORD_GETTERS = frozenset({'get_record', 'get_visible_record'})
 CONSTANT_NAME = re.compile(r'[A-Z][A-Z0-9_]*')
 # Decorator order, outermost first; a decorator not listed is unconstrained.
 DECORATOR_ORDER = (('route',), ('api_handler',), FEATURE_DECORATORS, (CAPABILITY_DECORATOR,))
@@ -238,6 +242,17 @@ class Gates:
     def __init__(self, index: Index):
         self.index = index
         self._memo: dict[int, bool] = {}
+        self._key_memo: dict[int, list[str]] = {}
+        self._constants: dict[Path, dict[str, str | tuple[str, ...]]] = {}
+
+    def constants(self, path: Path) -> dict[str, str | tuple[str, ...]]:
+        """The string constants of the module a function lives in, imports included (issue #470)."""
+        if path not in self._constants:
+            tree = self.index.trees.get(path)
+            self._constants[path] = (
+                api_surface.resolvable_constants(path, tree) if tree is not None else {}
+            )
+        return self._constants[path]
 
     def function_gates(self, func: Func) -> bool:
         key = id(func.node)
@@ -264,11 +279,21 @@ class Gates:
             return self._reader_gate(statement, func)
         if not isinstance(statement, (ast.Expr, ast.Assign, ast.AnnAssign, ast.Return)) or statement.value is None:
             return None
+        constants = self.constants(func.path)
         for call in _unconditional_calls(statement.value):
             if self._call_gates(call, func, local):
                 match = kw_const(call, 'match') or ('any' if call_name(call) == 'require_any_capability' else 'all')
-                return _literal_keys(call), match
+                # Only a capability primitive's own arguments are keys. A gated helper takes
+                # ordinary arguments (`_liwan_transition(DONE_STATE)` takes a task state), so
+                # its keys come from the check it performs, never from its arguments.
+                keys = (self._gate_keys(call, constants) if call_name(call) in CAPABILITY_CALLS
+                        else self._reached_keys(call, func, local))
+                return keys, match
         return None
+
+    def _gate_keys(self, call: ast.Call, constants: dict[str, str | tuple[str, ...]]) -> list[str]:
+        """The keys a recognized capability primitive is called with."""
+        return _literal_keys(call, constants)
 
     def _reader_gate(self, statement, func: Func):
         local = _local_models(func.node)
@@ -276,9 +301,128 @@ class Gates:
         if not readers:
             return None
         body = statement.body if isinstance(statement, ast.If) else [ast.Raise(exc=None)]
-        if isinstance(statement, ast.Assert) or any(_refuses(n) for stmt in body for n in ast.walk(stmt)):
-            return [k for c in readers for k in _literal_keys(c)], 'all'
-        return None
+        if not (isinstance(statement, ast.Assert) or any(_refuses(n) for stmt in body for n in ast.walk(stmt))):
+            return None
+        # The refusal must depend on the reader alone. `if state in MANAGER_STATES and not
+        # can_approve(): raise` refuses for one state, not for the route's own call, so its key
+        # is not the route's requirement (issue #470 review). Keys stay empty; the gate stands.
+        if not _test_is_readers_only(statement.test, readers):
+            return [], 'all'
+        constants = self.constants(func.path)
+        keys: list[str] = []
+        for call in readers:
+            # A reader's own key is named in its arguments. `_liwan_can_manage()` matches the
+            # reader naming rule but takes no key of its own; its key is inside the reader it
+            # calls, so an argument-less call falls through to that resolution.
+            own = _literal_keys(call, constants)
+            found = own or self._reached_keys(call, func, local)
+            for key in found:
+                if key not in keys:
+                    keys.append(key)
+        return keys, 'all'
+
+    def _reached_keys(self, call: ast.Call, func: Func, local: dict[str, str]) -> list[str]:
+        """The keys of the gate a helper call reaches, for a controller that wraps its check.
+
+        ``self._require_manage()`` carries no key of its own; the capability it enforces is
+        named in the function it calls. Reading that keeps the documented matrix equal to the
+        gate the controller applies (issue #470), and an unresolvable chain stays empty.
+
+        An untyped receiver (a helper called on a record expression whose model the index cannot
+        tell) publishes no key: the same method name exists on several models, and taking every
+        definition's key would present another application's requirement as this route's.
+        """
+        if self._ambiguous(call, func, local):
+            return []
+        candidates, _ = self._candidates(call, func, local)
+        keys: list[str] = []
+        for candidate in candidates:
+            if self.forwards_its_argument(candidate):
+                # The wrapper takes the key from its caller: read it from this call's arguments.
+                for key in _literal_keys(call, self.constants(func.path)):
+                    if key not in keys:
+                        keys.append(key)
+                continue
+            for key in self.function_keys(candidate):
+                if key not in keys:
+                    keys.append(key)
+        if len(candidates) > 1 and len(keys) > 1:
+            # Several applications define the same helper, each naming its own capability
+            # (``_liwan_can_write`` is PMO's rule, overridden by Tasks for a personal task).
+            # The route needs one of them, not all: publishing them as a conjunctive
+            # requirement would be a rule the code never enforces (issue #470 review).
+            return []
+        # A method on a service object (``convert._require('tasks.tasks.read')``) is also a
+        # forwarding wrapper: the key is named at this call site, and the index does not type
+        # the receiver to reach its definition.
+        if not candidates and isinstance(call.func, ast.Attribute) and call_name(call) in WRAPPER_NAMES:
+            for key in _literal_keys(call, self.constants(func.path)):
+                if key not in keys:
+                    keys.append(key)
+        return keys
+
+    def function_keys(self, func: Func) -> list[str]:
+        key = id(func.node)
+        if key not in self._key_memo:
+            self._key_memo[key] = []
+            keys = self.scan(func)[1]
+            if not keys:
+                keys = self._reader_keys(func)
+            self._key_memo[key] = keys
+        return self._key_memo[key]
+
+    def forwards_its_argument(self, func: Func) -> bool:
+        """Whether ``func`` hands one of its own parameters to a capability check.
+
+        ``_require(capability)`` in the HR controllers calls ``require_capabilities(capability)``;
+        the tasks converter's ``_require(key)`` calls ``self._has_capability(key)`` inside a
+        refusing ``if``. Either way the key is named at the call site
+        (``_require('hr.employees.archive')``), not inside the wrapper. A helper that takes a
+        domain argument instead — ``_liwan_transition(DONE_STATE)`` — never hands it to a
+        capability check, so its call site's literals are not keys.
+        """
+        parameter_names = {
+            argument.arg for argument in (*func.node.args.args, *func.node.args.kwonlyargs)
+        }
+        if not parameter_names:
+            return False
+
+        def names_a_parameter(call: ast.Call) -> bool:
+            return any(
+                isinstance(_unstar(arg), ast.Name) and _unstar(arg).id in parameter_names
+                for arg in call.args
+            )
+
+        for call in _calls(func.node):
+            name = call_name(call)
+            if (name in CAPABILITY_CALLS or _is_reader_name(name) or name in ('_has_capability', 'has_capability')) and names_a_parameter(call):
+                return True
+        return False
+
+    def _reader_keys(self, func: Func) -> list[str]:
+        """The literal keys of the capability readers a gate function calls itself.
+
+        ``_liwan_can_manage`` answers a boolean and names its key inside the reader call
+        (``_liwan_has_capability(user, 'pmo.projects.manage')``), so a route gated through it
+        has a precise requirement without looking at any other model (issue #470 review).
+
+        Only a call that *is* a reader names a key in its own arguments. A function that merely
+        reaches a reader through another helper (``_liwan_transition(DONE_STATE)``, whose
+        helper calls ``_liwan_can_approve``) takes ordinary arguments — a task state here — and
+        its keys come from the check it performs, never from those arguments.
+        """
+        constants = self.constants(func.path)
+        keys: list[str] = []
+        local = _local_models(func.node)
+        for call in _calls(func.node):
+            if not self._is_reader_call(call, func, local):
+                continue
+            direct = self.index.is_reader(func.path, call_name(call))
+            found = _literal_keys(call, constants) if direct else self._reached_keys(call, func, local)
+            for key in found:
+                if key not in keys:
+                    keys.append(key)
+        return keys
 
     def _is_reader_call(self, call: ast.Call, func: Func, local: dict[str, str]) -> bool:
         """A reader by name, or a resolved function that calls one directly."""
@@ -324,6 +468,21 @@ class Gates:
             return [f for methods in self.index.by_model.values() for f in methods.get(name, [])], False
         return [], False
 
+    def _ambiguous(self, call: ast.Call, func: Func, local: dict[str, str]) -> bool:
+        """Whether a call's receiver cannot be typed, so its keys say nothing about this route.
+
+        ``get_visible_record(...)._liwan_archive()`` names a helper that several applications
+        define; taking the gate from every definition would publish another application's
+        capability (HR's archive key under a PMO route). Such a call still counts as a gate —
+        the helper does refuse — but it contributes no key to the matrix (issue #470 review).
+        """
+        if not isinstance(call.func, ast.Attribute):
+            return False
+        receiver = call.func.value
+        if isinstance(receiver, ast.Name) and receiver.id in ('self', 'cls'):
+            return False
+        return _receiver_model(receiver, local) is None and call_name(call).startswith('_liwan_')
+
 
 def _top_level(body: list[ast.stmt]):
     """The statements that always run in order: a `try` body counts, its handlers do not."""
@@ -347,8 +506,30 @@ def _unconditional_calls(expression: ast.expr):
         stack.extend(ast.iter_child_nodes(node))
 
 
-def _literal_keys(call: ast.Call) -> list[str]:
-    return [k for arg in call.args for k in const_strings(arg)]
+def _literal_keys(call: ast.Call, constants: dict[str, str | tuple[str, ...]] | None = None) -> list[str]:
+    return [k for arg in call.args for k in const_strings(api_surface._unstar(arg), constants)]
+
+
+def _test_is_readers_only(test: ast.expr, readers: list[ast.Call]) -> bool:
+    """Whether ``test`` refuses on a reader alone, with no other condition deciding it.
+
+    ``if not can_approve(): raise`` is the reader's own verdict. ``if state in MANAGER_STATES
+    and not can_approve(): raise`` is a branch of a larger rule: the capability applies to some
+    inputs only, so publishing it as the route's requirement would be wrong (issue #470 review).
+    A boolean operator or a comparison in the test means the reader is one condition among
+    others, and the keys stay empty while the gate itself still counts.
+    """
+    if not readers:
+        return False
+    reader_ids = {id(call) for call in readers}
+    for node in ast.walk(test):
+        if isinstance(node, ast.Call):
+            if id(node) not in reader_ids:
+                return False
+            continue
+        if isinstance(node, (ast.BoolOp, ast.Compare)):
+            return False
+    return True
 
 
 def _refuses(node: ast.AST) -> bool:
@@ -395,7 +576,7 @@ def _route(raw: dict, paths: list[str], gates: Gates) -> Route:
                       and isinstance(d, ast.Call)), None)
     if decorator is not None:
         route.capability_source = 'decorator'
-        route.capability_keys = _literal_keys(decorator)
+        route.capability_keys = _literal_keys(decorator, gates.constants(REPO / raw['file']))
         route.capability_match = kw_const(decorator, 'match') or 'all'
         return route
     func = gates.index.func_of.get(id(fn)) or Func(fn, REPO / raw['file'], raw['class_node'], ())
