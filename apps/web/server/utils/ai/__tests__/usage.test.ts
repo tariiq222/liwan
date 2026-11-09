@@ -10,6 +10,8 @@ const callEvent = (id: string, extra: Record<string, unknown> = {}) => ({ call_i
 const usageEvent = (id: string, extra: Record<string, unknown> = {}) => ({ call_id: id.padStart(16, '0'), outcome: 'ok', input_tokens: 120, output_tokens: 7, ...extra })
 /** Each test reports as its own session, because the spool is per session and one test must never retry another's rows. */
 const ledgerEvent = (session: string) => ({ node: { req: { headers: { cookie: `session_id=${session}` } } } }) as unknown as H3Event
+/** A request carrying a whole cookie jar, for when another cookie rides along with the session. */
+const cookieEvent = (cookie: string) => ({ node: { req: { headers: { cookie } } } }) as unknown as H3Event
 const event = ledgerEvent('plain')
 /** A flush that observed nothing is the retry trigger for the rows an earlier refused report left behind. */
 const retried = (session: H3Event) => createUsageLedger().flush(session, 'r_retry')
@@ -328,6 +330,31 @@ describe('usage spool', () => {
     // Accepted, so the spool is empty and the next run reports only its own rows.
     await ledgerOf(1, 1).flush(session, 'r_loud')
     expect(sent().map(conversations)).toEqual([['r_failed'], ['r_failed'], ['r_loud']])
+  })
+
+  it('keys the spool by the session cookie, so a UI language switch still retries the rows an earlier report left behind', async () => {
+    // Issue #557: `liwan-locale` rides in the same browser jar, so hashing the whole `Cookie` header would strand the rows.
+    const arabic = cookieEvent('session_id=s1; liwan-locale=ar')
+    const english = cookieEvent('session_id=s1; liwan-locale=en')
+    odooJson.mockResolvedValueOnce({ status: 500, body: { code: 'boom' } })
+    await ledgerOf(1).flush(arabic, 'r_locale')
+    expect(sent().map(conversations)).toEqual([['r_locale']])
+
+    advance(RETRY_AFTER_MS + 1)
+    await retried(english)
+    // The same session, so the earlier run's rows are reported rather than nothing at all.
+    expect(sent().map(conversations)).toEqual([['r_locale'], ['r_locale']])
+  })
+
+  it('keys two different sessions apart, so one never reports the rows of the other', async () => {
+    const first = cookieEvent('session_id=s3')
+    const second = cookieEvent('session_id=s4')
+    odooJson.mockResolvedValueOnce({ status: 500, body: { code: 'boom' } })
+    await ledgerOf(1).flush(first, 'r_first')
+
+    advance(RETRY_AFTER_MS + 1)
+    await retried(second)
+    expect(sent().map(conversations)).toEqual([['r_first']])
   })
 
   it('never throws from a flush, even when the request cannot name its session', async () => {

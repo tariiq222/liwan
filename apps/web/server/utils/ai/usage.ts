@@ -1,4 +1,4 @@
-import { getHeader, type H3Event } from 'h3'
+import { getCookie, getHeader, type H3Event } from 'h3'
 import { createHash } from 'node:crypto'
 import { AI_USAGE_BATCH_MAX, AiModelCallEventSchema, AiModelUsageEventSchema, type AiModelCallEvent, type AiModelUsageEvent, type AiUsageRecord } from '@liwan/contracts'
 import { logFailure, odooJson } from './upstream'
@@ -43,16 +43,20 @@ const SPOOL_RETRY_AFTER_MS = 60 * 1000
 /**
  * A row this process observed and Odoo has not accepted yet, with the hash of the session that observed it. Odoo derives the
  * owner of a usage row from the session that sends it, so a row is retried only under the session that produced it and is never
- * billed to whoever happens to flush next. Neither the cookie nor the host is ever retained in clear or logged.
+ * billed to whoever happens to flush next. Neither the session cookie nor the host is ever retained in clear or logged.
  */
 type SpooledRow = { row: AiUsageRecord; session: string; observedAt: number; dueAt: number }
 const spool: SpooledRow[] = []
 
-/** The reporting identity of one request: its tenant host and its session cookie, hashed. A shared process never mixes two tenants. */
+/**
+ * The reporting identity of one request: its tenant host and its Odoo session cookie, hashed. A shared process never mixes two
+ * tenants. Only the session cookie keys it, so a UI language switch (`liwan-locale` in the same browser jar) never strands rows
+ * an earlier request spooled (issue #557); a request with no session has no key.
+ */
 function sessionKey(event: H3Event): string {
-  const cookie = getHeader(event, 'cookie')
-  if (!cookie) return ''
-  return createHash('sha256').update(`${getHeader(event, 'host') ?? ''}\n${cookie}`).digest('base64url').slice(0, 22)
+  const session = getCookie(event, 'session_id')
+  if (!session) return ''
+  return createHash('sha256').update(`${getHeader(event, 'host') ?? ''}\n${session}`).digest('base64url').slice(0, 22)
 }
 
 /** Drops rows that waited past the age bound, naming the count only: no row payload ever reaches a log line. */
