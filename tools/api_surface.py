@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import functools
 import json
 import re
 import subprocess
@@ -72,23 +73,100 @@ def decorator_name(dec: ast.expr) -> str:
     return ""
 
 
-def module_constants(tree: ast.Module) -> dict[str, str]:
-    """The top-level ``NAME = 'text'`` assignments of a module (a route prefix such as ``RUN``)."""
-    return {
-        target.id: node.value.value
-        for node in tree.body
-        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str)
-        for target in node.targets
-        if isinstance(target, ast.Name)
-    }
+def module_constants(tree: ast.Module) -> dict[str, str | tuple[str, ...]]:
+    """The top-level string constants of a module.
+
+    A single ``NAME = 'text'`` is a route prefix such as ``RUN``; a tuple of
+    strings such as ``FEATURES = ('crm.enabled', 'crm.import')`` is what a
+    controller spreads into ``requires_feature(*FEATURES)``.
+    """
+    found: dict[str, str | tuple[str, ...]] = {}
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
+            value: str | tuple[str, ...] | None = node.value.value
+        elif isinstance(node.value, (ast.Tuple, ast.List)) and all(
+            isinstance(element, ast.Constant) and isinstance(element.value, str) for element in node.value.elts
+        ):
+            value = tuple(element.value for element in node.value.elts)
+        else:
+            value = None
+        if value is None:
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                found[target.id] = value
+    return found
 
 
-def resolved_string(node: ast.expr, constants: dict[str, str]) -> str | None:
-    """The text of a string literal, a module constant, an f-string over constants or a ``+`` of those; else None."""
+@functools.lru_cache(maxsize=None)
+def _parsed_module(path: Path) -> ast.Module | None:
+    """One module parsed for constant resolution, or None when it cannot be read."""
+    try:
+        return ast.parse(path.read_text(encoding='utf-8'))
+    except (OSError, SyntaxError, UnicodeDecodeError):
+        return None
+
+
+def _imported_module(path: Path, node: ast.ImportFrom) -> Path | None:
+    """The file an ``ImportFrom`` names, for the two forms controllers use.
+
+    Absolute ``from odoo.addons.<addon>.<...> import NAME`` resolves under
+    ``odoo-addons``; a relative ``from .x import NAME`` resolves beside the module.
+    """
+    module = node.module or ''
+    if node.level:
+        base = path.parent
+        for _ in range(node.level - 1):
+            base = base.parent
+        candidate = base / module.replace('.', '/') if module else base
+    elif module.startswith('odoo.addons.'):
+        candidate = ADDONS / module[len('odoo.addons.'):].replace('.', '/')
+    else:
+        return None
+    for option in (candidate.with_suffix('.py'), candidate / '__init__.py'):
+        if option.is_file():
+            return option
+    return None
+
+
+def resolvable_constants(path: Path, tree: ast.Module, _seen: frozenset[Path] = frozenset()) -> dict[str, str]:
+    """Module constants plus the string constants it imports from other modules.
+
+    A controller writes its feature and capability keys as names — some defined in
+    the module itself (``FEATURE``) and some imported from a service module
+    (``ORDERS_READ``). Resolving both is what keeps the generated gate matrix
+    equal to the gate the controller enforces (issue #470). Only string constants
+    are followed; a name that resolves to nothing is left out, never guessed.
+    """
+    constants = dict(module_constants(tree))
+    seen = _seen | {path}
+    for node in tree.body:
+        if not isinstance(node, ast.ImportFrom):
+            continue
+        target = _imported_module(path, node)
+        if target is None or target in seen:
+            continue
+        other = _parsed_module(target)
+        if other is None:
+            continue
+        resolved = resolvable_constants(target, other, seen)
+        for alias in node.names:
+            name = alias.name
+            source_name = alias.asname or name
+            if name in resolved:
+                constants[source_name] = resolved[name]
+    return constants
+
+
+def resolved_string(node: ast.expr, constants: dict[str, str | tuple[str, ...]]) -> str | None:
+    """The text of a string literal, a string constant, an f-string over constants or a ``+`` of those; else None."""
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         return node.value
     if isinstance(node, ast.Name):
-        return constants.get(node.id)
+        value = constants.get(node.id)
+        return value if isinstance(value, str) else None
     if isinstance(node, ast.JoinedStr):
         parts = [
             part.value if isinstance(part, ast.Constant) else resolved_string(part.value, constants)
@@ -101,8 +179,13 @@ def resolved_string(node: ast.expr, constants: dict[str, str]) -> str | None:
     return None
 
 
-def const_strings(node: ast.expr, constants: dict[str, str] | None = None) -> list[str]:
+def const_strings(node: ast.expr, constants: dict[str, str | tuple[str, ...]] | None = None) -> list[str]:
+    """Every string a node stands for: a literal, a tuple/list, or a constant naming either."""
     constants = constants or {}
+    if isinstance(node, ast.Name):
+        value = constants.get(node.id)
+        if isinstance(value, tuple):
+            return list(value)
     if isinstance(node, (ast.List, ast.Tuple)):
         texts = [resolved_string(e, constants) for e in node.elts]
     else:
@@ -120,21 +203,32 @@ def kw_const(call: ast.Call, name: str):
 FEATURE_DECORATORS = ("requires_feature", "requires_registered_feature")
 
 
-def feature_metadata(fn: ast.FunctionDef) -> tuple[list[str], str | None]:
+def feature_metadata(fn: ast.FunctionDef, constants: dict[str, str] | None = None) -> tuple[list[str], str | None]:
     """Documented feature keys and operation of a route.
 
     ``requires_feature`` lists its keys as positional arguments.
     ``requires_registered_feature`` resolves its keys at request time and
     documents them in its ``keys=`` argument.
+
+    A key is normally written as the module constant that names it (``FEATURE``,
+    ``ORDERS_READ``); resolving those through ``constants`` keeps the generated
+    matrix equal to the gate the controller actually enforces. A key that is
+    neither a literal nor a resolvable constant is reported, never dropped.
     """
+    constants = constants or {}
     feature = next((d for d in fn.decorator_list if decorator_name(d) in FEATURE_DECORATORS), None)
     if not isinstance(feature, ast.Call):
         return [], None
     if decorator_name(feature) == "requires_feature":
-        keys = [a.value for a in feature.args if isinstance(a, ast.Constant)]
+        keys = [k for a in feature.args for k in const_strings(_unstar(a), constants)]
     else:
-        keys = next((const_strings(kw.value) for kw in feature.keywords if kw.arg == "keys"), [])
+        keys = next((const_strings(kw.value, constants) for kw in feature.keywords if kw.arg == "keys"), [])
     return keys, kw_const(feature, "operation")
+
+
+def _unstar(node: ast.expr) -> ast.expr:
+    """The value a starred argument expands (``*FEATURES``); any other node as it is."""
+    return node.value if isinstance(node, ast.Starred) else node
 
 
 def api_version() -> str:
@@ -165,7 +259,7 @@ def extract_routes(trees: dict[Path, ast.Module] | None = None) -> list[dict]:
     routes = []
     for py, tree in (trees if trees is not None else parse_controllers()).items():
         addon = addon_name(py)
-        constants = module_constants(tree)
+        constants = resolvable_constants(py, tree)
         for cls in (n for n in tree.body if isinstance(n, ast.ClassDef)):
             for fn in (n for n in cls.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))):
                 names = [decorator_name(d) for d in fn.decorator_list]
@@ -178,7 +272,7 @@ def extract_routes(trees: dict[Path, ast.Module] | None = None) -> list[dict]:
                 paths = const_strings(route.args[0], constants)
                 if not paths:
                     raise SystemExit(f"{py.relative_to(REPO)}:{fn.name}: route path is not a literal or a module constant")
-                feature_keys, feature_operation = feature_metadata(fn)
+                feature_keys, feature_operation = feature_metadata(fn, constants)
                 docstring = ast.get_docstring(fn) or ""
                 routes.append(
                     {

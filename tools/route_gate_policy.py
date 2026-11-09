@@ -238,6 +238,17 @@ class Gates:
     def __init__(self, index: Index):
         self.index = index
         self._memo: dict[int, bool] = {}
+        self._key_memo: dict[int, list[str]] = {}
+        self._constants: dict[Path, dict[str, str | tuple[str, ...]]] = {}
+
+    def constants(self, path: Path) -> dict[str, str | tuple[str, ...]]:
+        """The string constants of the module a function lives in, imports included (issue #470)."""
+        if path not in self._constants:
+            tree = self.index.trees.get(path)
+            self._constants[path] = (
+                api_surface.resolvable_constants(path, tree) if tree is not None else {}
+            )
+        return self._constants[path]
 
     def function_gates(self, func: Func) -> bool:
         key = id(func.node)
@@ -264,10 +275,12 @@ class Gates:
             return self._reader_gate(statement, func)
         if not isinstance(statement, (ast.Expr, ast.Assign, ast.AnnAssign, ast.Return)) or statement.value is None:
             return None
+        constants = self.constants(func.path)
         for call in _unconditional_calls(statement.value):
             if self._call_gates(call, func, local):
                 match = kw_const(call, 'match') or ('any' if call_name(call) == 'require_any_capability' else 'all')
-                return _literal_keys(call), match
+                keys = _literal_keys(call, constants) or self._reached_keys(call, func, local)
+                return keys, match
         return None
 
     def _reader_gate(self, statement, func: Func):
@@ -277,8 +290,32 @@ class Gates:
             return None
         body = statement.body if isinstance(statement, ast.If) else [ast.Raise(exc=None)]
         if isinstance(statement, ast.Assert) or any(_refuses(n) for stmt in body for n in ast.walk(stmt)):
-            return [k for c in readers for k in _literal_keys(c)], 'all'
+            constants = self.constants(func.path)
+            keys = [k for c in readers for k in (_literal_keys(c, constants) or self._reached_keys(c, func, local))]
+            return keys, 'all'
         return None
+
+    def _reached_keys(self, call: ast.Call, func: Func, local: dict[str, str]) -> list[str]:
+        """The keys of the gate a helper call reaches, for a controller that wraps its check.
+
+        ``self._require_manage()`` carries no key of its own; the capability it enforces is
+        named in the function it calls. Reading that keeps the documented matrix equal to the
+        gate the controller applies (issue #470), and an unresolvable chain stays empty.
+        """
+        candidates, _ = self._candidates(call, func, local)
+        keys: list[str] = []
+        for candidate in candidates:
+            for key in self.function_keys(candidate):
+                if key not in keys:
+                    keys.append(key)
+        return keys
+
+    def function_keys(self, func: Func) -> list[str]:
+        key = id(func.node)
+        if key not in self._key_memo:
+            self._key_memo[key] = []
+            self._key_memo[key] = self.scan(func)[1]
+        return self._key_memo[key]
 
     def _is_reader_call(self, call: ast.Call, func: Func, local: dict[str, str]) -> bool:
         """A reader by name, or a resolved function that calls one directly."""
@@ -347,8 +384,8 @@ def _unconditional_calls(expression: ast.expr):
         stack.extend(ast.iter_child_nodes(node))
 
 
-def _literal_keys(call: ast.Call) -> list[str]:
-    return [k for arg in call.args for k in const_strings(arg)]
+def _literal_keys(call: ast.Call, constants: dict[str, str | tuple[str, ...]] | None = None) -> list[str]:
+    return [k for arg in call.args for k in const_strings(api_surface._unstar(arg), constants)]
 
 
 def _refuses(node: ast.AST) -> bool:
@@ -395,7 +432,7 @@ def _route(raw: dict, paths: list[str], gates: Gates) -> Route:
                       and isinstance(d, ast.Call)), None)
     if decorator is not None:
         route.capability_source = 'decorator'
-        route.capability_keys = _literal_keys(decorator)
+        route.capability_keys = _literal_keys(decorator, gates.constants(REPO / raw['file']))
         route.capability_match = kw_const(decorator, 'match') or 'all'
         return route
     func = gates.index.func_of.get(id(fn)) or Func(fn, REPO / raw['file'], raw['class_node'], ())

@@ -76,10 +76,12 @@
               "user.password_reset",
               "user.mobile_set",
               "user.reset_link_requested",
+              "user.second_step_reset",
               "user.branch_roles_changed",
               "branch.policy_changed",
               "company.profile_changed",
               "company.branding_changed",
+              "company.vat_registration_changed",
               "employee.archived_access_disabled",
               "role.created",
               "role.updated",
@@ -232,10 +234,12 @@
                     "user.password_reset",
                     "user.mobile_set",
                     "user.reset_link_requested",
+                    "user.second_step_reset",
                     "user.branch_roles_changed",
                     "branch.policy_changed",
                     "company.profile_changed",
                     "company.branding_changed",
+                    "company.vat_registration_changed",
                     "employee.archived_access_disabled",
                     "role.created",
                     "role.updated",
@@ -361,10 +365,12 @@
               "user.password_reset",
               "user.mobile_set",
               "user.reset_link_requested",
+              "user.second_step_reset",
               "user.branch_roles_changed",
               "branch.policy_changed",
               "company.profile_changed",
               "company.branding_changed",
+              "company.vat_registration_changed",
               "employee.archived_access_disabled",
               "role.created",
               "role.updated",
@@ -2132,6 +2138,21 @@
         ],
         "type": "object"
       },
+      "AiApprovedDraftSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
       "AiAuditKindSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
@@ -2199,9 +2220,6 @@
                 "type": "null"
               }
             ]
-          },
-          "attested": {
-            "type": "boolean"
           },
           "conversation_id": {
             "maxLength": 64,
@@ -2285,8 +2303,7 @@
           "result",
           "http_status",
           "draft",
-          "approved",
-          "attested"
+          "approved"
         ],
         "type": "object"
       },
@@ -2911,7 +2928,8 @@
                       "max_steps",
                       "timeout",
                       "messages_monthly",
-                      "output_tokens"
+                      "output_tokens",
+                      "input_tokens"
                     ],
                     "type": "string"
                   }
@@ -3110,6 +3128,18 @@
               "consent_signed": {
                 "type": "boolean"
               },
+              "input_tokens_per_run": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "output_tokens_per_run": {
                 "anyOf": [
                   {
@@ -3152,7 +3182,8 @@
               "consent_signed",
               "tokens_monthly",
               "tokens_used",
-              "output_tokens_per_run"
+              "output_tokens_per_run",
+              "input_tokens_per_run"
             ],
             "type": "object"
           },
@@ -3560,6 +3591,18 @@
           "consent_signed": {
             "type": "boolean"
           },
+          "input_tokens_per_run": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "output_tokens_per_run": {
             "anyOf": [
               {
@@ -3602,7 +3645,8 @@
           "consent_signed",
           "tokens_monthly",
           "tokens_used",
-          "output_tokens_per_run"
+          "output_tokens_per_run",
+          "input_tokens_per_run"
         ],
         "type": "object"
       },
@@ -4051,6 +4095,11 @@
             ],
             "type": "string"
           },
+          "input_tokens_per_run": {
+            "maximum": 2000000,
+            "minimum": 0,
+            "type": "integer"
+          },
           "knowledge_enabled": {
             "type": "boolean"
           },
@@ -4161,6 +4210,11 @@
             ],
             "type": "string"
           },
+          "input_tokens_per_run": {
+            "maximum": 2000000,
+            "minimum": 0,
+            "type": "integer"
+          },
           "knowledge_enabled": {
             "type": "boolean"
           },
@@ -4268,6 +4322,7 @@
         "required": [
           "provider_mode",
           "messages_per_user_monthly",
+          "input_tokens_per_run",
           "external_send",
           "knowledge_enabled",
           "revision",
@@ -4581,6 +4636,17 @@
             ],
             "type": "object"
           },
+          "draft_model": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_.]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "draft_target": {
             "anyOf": [
               {
@@ -4682,6 +4748,7 @@
           "input_map",
           "result_summary",
           "draft_target",
+          "draft_model",
           "requires_approval",
           "platform"
         ],
@@ -4805,6 +4872,17 @@
                   ],
                   "type": "object"
                 },
+                "draft_model": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[a-z][a-z0-9_.]*$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "draft_target": {
                   "anyOf": [
                     {
@@ -4906,6 +4984,7 @@
                 "input_map",
                 "result_summary",
                 "draft_target",
+                "draft_model",
                 "requires_approval",
                 "platform"
               ],
@@ -4956,6 +5035,18 @@
                   "consent_signed": {
                     "type": "boolean"
                   },
+                  "input_tokens_per_run": {
+                    "anyOf": [
+                      {
+                        "maximum": 9007199254740991,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "output_tokens_per_run": {
                     "anyOf": [
                       {
@@ -4998,7 +5089,8 @@
                   "consent_signed",
                   "tokens_monthly",
                   "tokens_used",
-                  "output_tokens_per_run"
+                  "output_tokens_per_run",
+                  "input_tokens_per_run"
                 ],
                 "type": "object"
               },
@@ -5054,6 +5146,10 @@
                     "tenant_key",
                     "setup"
                   ],
+                  "type": "string"
+                },
+                "call_id": {
+                  "pattern": "^[0-9a-f]{16}$",
                   "type": "string"
                 },
                 "called_at": {
@@ -5124,6 +5220,7 @@
               "required": [
                 "id",
                 "conversation_id",
+                "call_id",
                 "kind",
                 "billing",
                 "provider",
@@ -5163,6 +5260,10 @@
                     "tenant_key",
                     "setup"
                   ],
+                  "type": "string"
+                },
+                "call_id": {
+                  "pattern": "^[0-9a-f]{16}$",
                   "type": "string"
                 },
                 "called_at": {
@@ -5227,6 +5328,7 @@
               },
               "required": [
                 "conversation_id",
+                "call_id",
                 "kind",
                 "billing",
                 "provider",
@@ -5258,6 +5360,10 @@
               "tenant_key",
               "setup"
             ],
+            "type": "string"
+          },
+          "call_id": {
+            "pattern": "^[0-9a-f]{16}$",
             "type": "string"
           },
           "called_at": {
@@ -5322,6 +5428,7 @@
         },
         "required": [
           "conversation_id",
+          "call_id",
           "kind",
           "billing",
           "provider",
@@ -5343,6 +5450,10 @@
               "tenant_key",
               "setup"
             ],
+            "type": "string"
+          },
+          "call_id": {
+            "pattern": "^[0-9a-f]{16}$",
             "type": "string"
           },
           "called_at": {
@@ -5413,6 +5524,7 @@
         "required": [
           "id",
           "conversation_id",
+          "call_id",
           "kind",
           "billing",
           "provider",
@@ -7977,10 +8089,12 @@
           "user.password_reset",
           "user.mobile_set",
           "user.reset_link_requested",
+          "user.second_step_reset",
           "user.branch_roles_changed",
           "branch.policy_changed",
           "company.profile_changed",
           "company.branding_changed",
+          "company.vat_registration_changed",
           "employee.archived_access_disabled",
           "role.created",
           "role.updated",
@@ -11502,6 +11616,9 @@
               }
             ]
           },
+          "vat_registered": {
+            "type": "boolean"
+          },
           "website": {
             "anyOf": [
               {
@@ -11848,6 +11965,9 @@
               "null"
             ]
           },
+          "vat_registered": {
+            "type": "boolean"
+          },
           "website": {
             "type": [
               "string",
@@ -11861,6 +11981,7 @@
           "logo_url",
           "report_header",
           "company_registry",
+          "vat_registered",
           "vat",
           "address",
           "email",
@@ -15575,6 +15696,26 @@
             },
             "type": "array"
           },
+          "view_log_retention_months": {
+            "additionalProperties": false,
+            "properties": {
+              "max": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              "min": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "min",
+              "max"
+            ],
+            "type": "object"
+          },
           "visibility": {
             "items": {
               "enum": [
@@ -15597,6 +15738,7 @@
           "followup_interval_hours",
           "recycle_after_days",
           "recycle_cycles",
+          "view_log_retention_months",
           "discount_max_percent",
           "property_types",
           "property_limits"
@@ -15878,6 +16020,11 @@
                   "view_log_enabled": {
                     "type": "boolean"
                   },
+                  "view_log_retention_months": {
+                    "maximum": 60,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
                   "visibility": {
                     "enum": [
                       "own",
@@ -16148,6 +16295,26 @@
                 },
                 "type": "array"
               },
+              "view_log_retention_months": {
+                "additionalProperties": false,
+                "properties": {
+                  "max": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer"
+                  },
+                  "min": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "min",
+                  "max"
+                ],
+                "type": "object"
+              },
               "visibility": {
                 "items": {
                   "enum": [
@@ -16170,6 +16337,7 @@
               "followup_interval_hours",
               "recycle_after_days",
               "recycle_cycles",
+              "view_log_retention_months",
               "discount_max_percent",
               "property_types",
               "property_limits"
@@ -16501,6 +16669,11 @@
               "view_log_enabled": {
                 "type": "boolean"
               },
+              "view_log_retention_months": {
+                "maximum": 60,
+                "minimum": 1,
+                "type": "integer"
+              },
               "visibility": {
                 "enum": [
                   "own",
@@ -16521,6 +16694,7 @@
               "distribution_user_ids",
               "visibility",
               "view_log_enabled",
+              "view_log_retention_months",
               "discount_allowed",
               "discount_max_percent",
               "price_above_list",
@@ -16989,6 +17163,11 @@
           "view_log_enabled": {
             "type": "boolean"
           },
+          "view_log_retention_months": {
+            "maximum": 60,
+            "minimum": 1,
+            "type": "integer"
+          },
           "visibility": {
             "enum": [
               "own",
@@ -17320,6 +17499,11 @@
           "view_log_enabled": {
             "type": "boolean"
           },
+          "view_log_retention_months": {
+            "maximum": 60,
+            "minimum": 1,
+            "type": "integer"
+          },
           "visibility": {
             "enum": [
               "own",
@@ -17340,6 +17524,7 @@
           "distribution_user_ids",
           "visibility",
           "view_log_enabled",
+          "view_log_retention_months",
           "discount_allowed",
           "discount_max_percent",
           "price_above_list",
@@ -53432,8 +53617,7 @@
           "meta_catalog_id",
           "connect",
           "brand",
-          "default_link",
-          "prices_include_tax"
+          "default_link"
         ],
         "type": "object"
       },
@@ -54276,6 +54460,9 @@
                     "error"
                   ],
                   "type": "string"
+                },
+                "vat_registered": {
+                  "type": "boolean"
                 }
               },
               "required": [
@@ -54288,6 +54475,7 @@
                 "brand",
                 "default_link",
                 "prices_include_tax",
+                "vat_registered",
                 "currency",
                 "channels",
                 "counts",
@@ -54821,6 +55009,9 @@
               "error"
             ],
             "type": "string"
+          },
+          "vat_registered": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -54833,6 +55024,7 @@
           "brand",
           "default_link",
           "prices_include_tax",
+          "vat_registered",
           "currency",
           "channels",
           "counts",
@@ -78761,6 +78953,514 @@
         ],
         "type": "object"
       },
+      "LoginChannelSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "sms",
+          "email"
+        ],
+        "type": "string"
+      },
+      "LoginChannelsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "channels": {
+            "items": {
+              "enum": [
+                "sms",
+                "email"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "has_email": {
+            "type": "boolean"
+          },
+          "has_mobile": {
+            "type": "boolean"
+          },
+          "sms_available": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "channels",
+          "sms_available",
+          "has_mobile",
+          "has_email"
+        ],
+        "type": "object"
+      },
+      "LoginCodeRequestSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "channel": {
+            "enum": [
+              "sms",
+              "email"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "channel"
+        ],
+        "type": "object"
+      },
+      "LoginCodeSentSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "channel": {
+            "enum": [
+              "sms",
+              "email"
+            ],
+            "type": "string"
+          },
+          "destination": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "resend_after": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "channel",
+          "destination",
+          "resend_after"
+        ],
+        "type": "object"
+      },
+      "LoginDevicesForgottenSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "device_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "device_ids"
+        ],
+        "type": "object"
+      },
+      "LoginStepSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "ok": {
+                "const": true,
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "mfa": {
+                "const": "code",
+                "type": "string"
+              },
+              "ok": {
+                "const": false,
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "ok",
+              "mfa"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "LoginVerifyResultSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "access_policy_version": {
+            "default": 0,
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "appearance": {
+            "additionalProperties": false,
+            "properties": {
+              "font_size": {
+                "enum": [
+                  "small",
+                  "medium",
+                  "large"
+                ],
+                "type": "string"
+              },
+              "mode": {
+                "enum": [
+                  "light",
+                  "cream",
+                  "dark"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "mode",
+              "font_size"
+            ],
+            "type": "object"
+          },
+          "capabilities": {
+            "default": [],
+            "items": {
+              "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "commercial": {
+            "additionalProperties": false,
+            "properties": {
+              "mode": {
+                "enum": [
+                  "saas",
+                  "non_saas"
+                ],
+                "type": "string"
+              },
+              "schema_version": {
+                "const": 1,
+                "type": "number"
+              },
+              "self_service_available": {
+                "const": false,
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "schema_version",
+              "mode",
+              "self_service_available"
+            ],
+            "type": "object"
+          },
+          "company": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "email": {
+            "type": "string"
+          },
+          "entitlements": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              ]
+            },
+            "default": {},
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "lang": {
+            "type": "string"
+          },
+          "login": {
+            "type": "string"
+          },
+          "mobile": {
+            "anyOf": [
+              {
+                "pattern": "^\\+[1-9]\\d{7,14}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "mobile_required": {
+            "default": false,
+            "type": "boolean"
+          },
+          "modules": {
+            "default": [],
+            "items": {
+              "pattern": "^(liwan|customer)_[a-z0-9_]+$",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "platform": {
+            "additionalProperties": false,
+            "properties": {
+              "policy_revision": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "read_only": {
+                "type": "boolean"
+              },
+              "readable_features": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "schema_version": {
+                "const": 1,
+                "type": "number"
+              },
+              "state": {
+                "enum": [
+                  "active",
+                  "suspended",
+                  "expired"
+                ],
+                "type": "string"
+              },
+              "valid_until": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "writable_features": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "schema_version",
+              "policy_revision",
+              "state",
+              "valid_until",
+              "read_only",
+              "readable_features",
+              "writable_features"
+            ],
+            "type": "object"
+          },
+          "remembered": {
+            "type": "boolean"
+          },
+          "role": {
+            "enum": [
+              "employee",
+              "admin",
+              "vendor"
+            ],
+            "type": "string"
+          },
+          "roles": {
+            "default": [],
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "key": {
+                  "pattern": "^[a-z][a-z0-9_]*$",
+                  "type": "string"
+                },
+                "name": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "ar": {
+                      "type": "string"
+                    },
+                    "en": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ar",
+                    "en"
+                  ],
+                  "type": "object"
+                },
+                "protected": {
+                  "type": "boolean"
+                },
+                "source": {
+                  "enum": [
+                    "assignment",
+                    "contextual"
+                  ],
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "built_in",
+                    "custom",
+                    "contextual"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "key",
+                "name",
+                "type",
+                "protected",
+                "source"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "terminology": {
+            "additionalProperties": false,
+            "default": {
+              "ar": {},
+              "en": {}
+            },
+            "properties": {
+              "ar": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "propertyNames": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              "en": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "propertyNames": {
+                  "type": "string"
+                },
+                "type": "object"
+              }
+            },
+            "required": [
+              "ar",
+              "en"
+            ],
+            "type": "object"
+          },
+          "tz": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "login",
+          "email",
+          "mobile",
+          "mobile_required",
+          "lang",
+          "tz",
+          "role",
+          "roles",
+          "capabilities",
+          "access_policy_version",
+          "company",
+          "modules",
+          "entitlements",
+          "terminology",
+          "remembered"
+        ],
+        "type": "object"
+      },
+      "LoginVerifySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "maxLength": 16,
+            "minLength": 1,
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 80,
+            "type": "string"
+          },
+          "remember": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "type": "object"
+      },
       "LookupListSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -84712,6 +85412,118 @@
         ],
         "type": "object"
       },
+      "MilestoneListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "deadline": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "deliverables": {
+                  "default": [],
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "done": {
+                        "type": "boolean"
+                      },
+                      "name": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "done"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "done_task_count": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "is_reached": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "reached_date": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "start_date": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "task_count": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "deadline",
+                "is_reached",
+                "reached_date",
+                "task_count",
+                "done_task_count",
+                "start_date",
+                "deliverables"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
       "MilestonePatchSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -87774,6 +88586,9 @@
               "not_payable"
             ],
             "type": "string"
+          },
+          "tax_applies": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -87784,6 +88599,7 @@
           "amount_untaxed",
           "amount_tax",
           "amount_total",
+          "tax_applies",
           "amount_due",
           "status",
           "options",
@@ -87883,6 +88699,9 @@
               "not_payable"
             ],
             "type": "string"
+          },
+          "tax_applies": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -87893,6 +88712,7 @@
           "amount_untaxed",
           "amount_tax",
           "amount_total",
+          "tax_applies",
           "amount_due",
           "status",
           "options",
@@ -88889,6 +89709,9 @@
             "maximum": 1440,
             "minimum": 5,
             "type": "integer"
+          },
+          "vat_registered": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -88897,6 +89720,7 @@
           "refund_policy",
           "refund_amounts",
           "tax_mode",
+          "vat_registered",
           "system_admin_links",
           "revision"
         ],
@@ -89248,6 +90072,53 @@
           "id",
           "name",
           "user_id"
+        ],
+        "type": "object"
+      },
+      "PersonalStageListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "fold": {
+                  "type": "boolean"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "sequence": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "sequence",
+                "fold"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
         ],
         "type": "object"
       },
@@ -89634,6 +90505,33 @@
           "done",
           "cancelled"
         ],
+        "type": "string"
+      },
+      "ProfileLangSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "maxLength": 16,
+        "minLength": 2,
+        "type": "string"
+      },
+      "ProfilePatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "lang": {
+            "maxLength": 16,
+            "minLength": 2,
+            "type": "string"
+          },
+          "tz": {
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ProfileTimezoneSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "maxLength": 64,
         "type": "string"
       },
       "ProjectBaselineDetailSchema": {
@@ -97184,6 +98082,81 @@
         ],
         "type": "object"
       },
+      "ProjectUpdateListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "author": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "date": {
+                  "type": "string"
+                },
+                "description_html": {
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "status": {
+                  "enum": [
+                    "on_track",
+                    "at_risk",
+                    "off_track",
+                    "on_hold",
+                    "done"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "status",
+                "description_html",
+                "date",
+                "author"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
       "ProjectUpdateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -97397,6 +98370,104 @@
           "free"
         ],
         "type": "string"
+      },
+      "RememberedDeviceListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "expires_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "issued_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "label": {
+                  "type": "string"
+                },
+                "last_used_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "label",
+                "issued_at",
+                "expires_at",
+                "last_used_at"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "RememberedDeviceSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "issued_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "last_used_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "issued_at",
+          "expires_at",
+          "last_used_at"
+        ],
+        "type": "object"
       },
       "RoleAssignmentInputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -98307,6 +99378,49 @@
         },
         "required": [
           "name"
+        ],
+        "type": "object"
+      },
+      "TagListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "color": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "color"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
         ],
         "type": "object"
       },
@@ -100408,7 +101522,7 @@
   "info": {
     "description": "Generated surface of every /api/v1 route across the liwan Odoo addons, with contract schemas harvested from @liwan/contracts. Regenerate with `python3 tools/api_surface.py`; never edit by hand.",
     "title": "liwan /api/v1",
-    "version": "19.0.1.1.3"
+    "version": "19.0.1.2.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -102414,6 +103528,57 @@
         }
       }
     },
+    "/api/v1/admin/users/{user_id}/second-step/reset": {
+      "post": {
+        "operationId": "liwan_api.AccessAdminUsersController.reset_second_step.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "reset_second_step",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "AccessAdminUsersController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "reset_second_step",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/ai/agents": {
       "get": {
         "operationId": "liwan_ai.AiAgentsController.list_agents.get",
@@ -102444,7 +103609,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiAgentsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "ai.enabled"
+          ],
           "feature_operation": "read",
           "handler": "list_agents",
           "readonly": true,
@@ -102495,7 +103662,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiAgentsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "ai.enabled"
+          ],
           "feature_operation": "write",
           "handler": "update_agent",
           "readonly": false,
@@ -102533,7 +103702,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiController",
-          "feature_keys": [],
+          "feature_keys": [
+            "ai.enabled"
+          ],
           "feature_operation": "write",
           "handler": "record_audit",
           "readonly": false,
@@ -102571,7 +103742,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiSettingsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "ai.enabled"
+          ],
           "feature_operation": "write",
           "handler": "authorize_company_memory",
           "readonly": false,
@@ -102609,7 +103782,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiSettingsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "ai.enabled"
+          ],
           "feature_operation": "write",
           "handler": "authorize_config_write",
           "readonly": false,
@@ -102647,7 +103822,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiSettingsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "ai.enabled"
+          ],
           "feature_operation": "write",
           "handler": "sign_consent",
           "readonly": false,
@@ -102685,7 +103862,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiSettingsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "ai.enabled"
+          ],
           "feature_operation": "write",
           "handler": "revoke_consent",
           "readonly": false,
@@ -102736,7 +103915,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiController",
-          "feature_keys": [],
+          "feature_keys": [
+            "ai.enabled"
+          ],
           "feature_operation": "read",
           "handler": "conversation_mode",
           "readonly": true,
@@ -102774,7 +103955,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiHelpController",
-          "feature_keys": [],
+          "feature_keys": [
+            "ai.enabled"
+          ],
           "feature_operation": "read",
           "handler": "search_help",
           "readonly": true,
@@ -102812,7 +103995,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiKnowledgeController",
-          "feature_keys": [],
+          "feature_keys": [
+            "ai.knowledge"
+          ],
           "feature_operation": "write",
           "handler": "rebuild",
           "readonly": false,
@@ -102850,7 +104035,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiKnowledgeController",
-          "feature_keys": [],
+          "feature_keys": [
+            "ai.knowledge"
+          ],
           "feature_operation": "read",
           "handler": "resolve",
           "readonly": true,
@@ -102888,7 +104075,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiSettingsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "ai.enabled"
+          ],
           "feature_operation": "read",
           "handler": "read_monitoring",
           "readonly": true,
@@ -102926,7 +104115,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiSettingsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "ai.enabled"
+          ],
           "feature_operation": "read",
           "handler": "read_settings",
           "readonly": true,
@@ -102962,7 +104153,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiSettingsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "ai.enabled"
+          ],
           "feature_operation": "write",
           "handler": "write_settings",
           "readonly": false,
@@ -103000,7 +104193,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiSetupController",
-          "feature_keys": [],
+          "feature_keys": [
+            "ai.enabled"
+          ],
           "feature_operation": "read",
           "handler": "readiness",
           "readonly": true,
@@ -103038,7 +104233,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiSetupController",
-          "feature_keys": [],
+          "feature_keys": [
+            "ai.enabled"
+          ],
           "feature_operation": "read",
           "handler": "list_settings",
           "readonly": true,
@@ -103089,7 +104286,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiSetupController",
-          "feature_keys": [],
+          "feature_keys": [
+            "ai.enabled"
+          ],
           "feature_operation": "write",
           "handler": "apply_setting",
           "readonly": false,
@@ -103127,7 +104326,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiController",
-          "feature_keys": [],
+          "feature_keys": [
+            "ai.enabled"
+          ],
           "feature_operation": "read",
           "handler": "list_tools",
           "readonly": true,
@@ -103165,7 +104366,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiController",
-          "feature_keys": [],
+          "feature_keys": [
+            "ai.enabled"
+          ],
           "feature_operation": "write",
           "handler": "record_usage",
           "readonly": false,
@@ -105013,16 +106216,16 @@
         }
       }
     },
-    "/api/v1/auth/totp": {
-      "post": {
-        "operationId": "liwan_api.AuthController.totp.post",
+    "/api/v1/auth/channels": {
+      "get": {
+        "operationId": "liwan_api.AuthController.channels.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
           }
         },
         "security": [],
-        "summary": "totp",
+        "summary": "What a pending sign-in may use: SMS only when a provider is configured, email always.",
         "tags": [
           "liwan_api"
         ],
@@ -105035,7 +106238,91 @@
           "controller": "AuthController",
           "feature_keys": [],
           "feature_operation": null,
-          "handler": "totp",
+          "handler": "channels",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/auth/code": {
+      "post": {
+        "operationId": "liwan_api.AuthController.send_code.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          }
+        },
+        "security": [],
+        "summary": "send_code",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "public",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AuthController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "send_code",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/auth/device": {
+      "post": {
+        "operationId": "liwan_api.AuthController.remember_device.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          }
+        },
+        "security": [],
+        "summary": "Finish a password step with the remembered device of this browser instead of a code.",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "public",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AuthController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "remember_device",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/auth/verify": {
+      "post": {
+        "operationId": "liwan_api.AuthController.verify.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          }
+        },
+        "security": [],
+        "summary": "verify",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "public",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AuthController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "verify",
           "readonly": false,
           "route_type": "json2"
         }
@@ -105056,7 +106343,7 @@
         ],
         "x-liwan": {
           "addon": "liwan_api",
-          "api_handler": false,
+          "api_handler": true,
           "auth": "public",
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "common",
@@ -106363,7 +107650,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "crm",
           "controller": "CrmExportController",
-          "feature_keys": [],
+          "feature_keys": [
+            "crm.enabled",
+            "crm.export"
+          ],
           "feature_operation": "read",
           "handler": "export_opportunities",
           "readonly": true,
@@ -106401,7 +107691,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "crm",
           "controller": "CrmImportsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "crm.enabled",
+            "crm.import"
+          ],
           "feature_operation": "read",
           "handler": "list_mappings",
           "readonly": true,
@@ -106437,7 +107730,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "crm",
           "controller": "CrmImportsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "crm.enabled",
+            "crm.import"
+          ],
           "feature_operation": "write",
           "handler": "create_mapping",
           "readonly": false,
@@ -106488,7 +107784,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "crm",
           "controller": "CrmImportsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "crm.enabled",
+            "crm.import"
+          ],
           "feature_operation": "write",
           "handler": "delete_mapping",
           "readonly": false,
@@ -106526,7 +107825,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "crm",
           "controller": "CrmImportsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "crm.enabled",
+            "crm.import"
+          ],
           "feature_operation": "read",
           "handler": "list_imports",
           "readonly": true,
@@ -106562,7 +107864,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "crm",
           "controller": "CrmImportsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "crm.enabled",
+            "crm.import"
+          ],
           "feature_operation": "write",
           "handler": "create_import",
           "readonly": false,
@@ -106600,7 +107905,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "crm",
           "controller": "CrmImportsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "crm.enabled",
+            "crm.import"
+          ],
           "feature_operation": "write",
           "handler": "import_columns",
           "readonly": true,
@@ -106638,7 +107946,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "crm",
           "controller": "CrmImportsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "crm.enabled",
+            "crm.import"
+          ],
           "feature_operation": "write",
           "handler": "preview_import",
           "readonly": true,
@@ -106954,7 +108265,7 @@
           ],
           "feature_operation": "read",
           "handler": "get_opportunity",
-          "readonly": false,
+          "readonly": true,
           "route_type": "json2"
         }
       },
@@ -107268,6 +108579,59 @@
           ],
           "feature_operation": "write",
           "handler": "reopen",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/crm/opportunities/{lead_id}/seen": {
+      "post": {
+        "operationId": "liwan_crm.CrmOpportunitiesController.mark_opportunity_seen.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "lead_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Record this opening in the audit trail, when the company enabled it; 204 either way.",
+        "tags": [
+          "liwan_crm"
+        ],
+        "x-liwan": {
+          "addon": "liwan_crm",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "crm",
+          "controller": "CrmOpportunitiesController",
+          "feature_keys": [
+            "crm.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "mark_opportunity_seen",
           "readonly": false,
           "route_type": "json2"
         }
@@ -118707,7 +120071,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "hr",
           "controller": "HrLeaveApprovalController",
-          "feature_keys": [],
+          "feature_keys": [
+            "hr.enabled",
+            "operations.enabled"
+          ],
           "feature_operation": "read",
           "handler": "get_approval_process",
           "readonly": true,
@@ -118745,7 +120112,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "hr",
           "controller": "HrLeaveApprovalController",
-          "feature_keys": [],
+          "feature_keys": [
+            "hr.enabled",
+            "operations.enabled"
+          ],
           "feature_operation": null,
           "handler": "create_default_process",
           "readonly": false,
@@ -119020,7 +120390,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "hr",
           "controller": "HrLeaveApprovalController",
-          "feature_keys": [],
+          "feature_keys": [
+            "hr.enabled",
+            "operations.enabled"
+          ],
           "feature_operation": "read",
           "handler": "get_approval",
           "readonly": true,
@@ -120995,7 +122368,11 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "hr",
           "controller": "HrPayrollFinanceSettingsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "hr.enabled",
+            "hr.payroll",
+            "finance.enabled"
+          ],
           "feature_operation": "read",
           "handler": "list_cost_centers",
           "readonly": true,
@@ -121046,7 +122423,11 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "hr",
           "controller": "HrPayrollFinanceSettingsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "hr.enabled",
+            "hr.payroll",
+            "finance.enabled"
+          ],
           "feature_operation": "write",
           "handler": "put_cost_center",
           "readonly": false,
@@ -121164,7 +122545,11 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "hr",
           "controller": "HrPayrollEosProvisionController",
-          "feature_keys": [],
+          "feature_keys": [
+            "hr.enabled",
+            "hr.payroll",
+            "finance.enabled"
+          ],
           "feature_operation": "read",
           "handler": "list_provisions",
           "readonly": true,
@@ -121200,7 +122585,11 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "hr",
           "controller": "HrPayrollEosProvisionController",
-          "feature_keys": [],
+          "feature_keys": [
+            "hr.enabled",
+            "hr.payroll",
+            "finance.enabled"
+          ],
           "feature_operation": "write",
           "handler": "post_provision",
           "readonly": false,
@@ -121452,7 +122841,11 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "hr",
           "controller": "HrPayrollFinanceSettingsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "hr.enabled",
+            "hr.payroll",
+            "finance.enabled"
+          ],
           "feature_operation": "read",
           "handler": "get_finance_settings",
           "readonly": true,
@@ -121488,7 +122881,11 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "hr",
           "controller": "HrPayrollFinanceSettingsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "hr.enabled",
+            "hr.payroll",
+            "finance.enabled"
+          ],
           "feature_operation": "write",
           "handler": "patch_finance_settings",
           "readonly": false,
@@ -122222,7 +123619,11 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "hr",
           "controller": "HrPayrollPostingController",
-          "feature_keys": [],
+          "feature_keys": [
+            "hr.enabled",
+            "hr.payroll",
+            "finance.enabled"
+          ],
           "feature_operation": "write",
           "handler": "record_payment",
           "readonly": false,
@@ -122451,7 +123852,11 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "hr",
           "controller": "HrPayrollPostingController",
-          "feature_keys": [],
+          "feature_keys": [
+            "hr.enabled",
+            "hr.payroll",
+            "finance.enabled"
+          ],
           "feature_operation": "write",
           "handler": "post_run",
           "readonly": false,
@@ -122502,7 +123907,11 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "hr",
           "controller": "HrPayrollPostingController",
-          "feature_keys": [],
+          "feature_keys": [
+            "hr.enabled",
+            "hr.payroll",
+            "finance.enabled"
+          ],
           "feature_operation": "read",
           "handler": "get_posting_preview",
           "readonly": true,
@@ -124929,7 +126338,8 @@
           "contract_namespace": "inbox",
           "controller": "AudienceController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "read",
           "handler": "list_audiences",
@@ -124967,7 +126377,8 @@
           "contract_namespace": "inbox",
           "controller": "AudienceController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "write",
           "handler": "create_audience",
@@ -125020,7 +126431,8 @@
           "contract_namespace": "inbox",
           "controller": "AudienceController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "write",
           "handler": "delete_audience",
@@ -125071,7 +126483,8 @@
           "contract_namespace": "inbox",
           "controller": "AudienceController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "read",
           "handler": "read_audience",
@@ -125122,7 +126535,8 @@
           "contract_namespace": "inbox",
           "controller": "AudienceController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "write",
           "handler": "patch_audience",
@@ -125175,7 +126589,8 @@
           "contract_namespace": "inbox",
           "controller": "AudienceController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "read",
           "handler": "list_members",
@@ -125255,7 +126670,8 @@
           "contract_namespace": "inbox",
           "controller": "CampaignController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "read",
           "handler": "list_campaigns",
@@ -125293,7 +126709,8 @@
           "contract_namespace": "inbox",
           "controller": "CampaignController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "write",
           "handler": "create_campaign",
@@ -125333,7 +126750,8 @@
           "contract_namespace": "inbox",
           "controller": "CampaignController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "write",
           "handler": "preview",
@@ -125373,7 +126791,8 @@
           "contract_namespace": "inbox",
           "controller": "CampaignController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "write",
           "handler": "upload_header",
@@ -125426,7 +126845,8 @@
           "contract_namespace": "inbox",
           "controller": "CampaignController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "write",
           "handler": "delete_campaign",
@@ -125477,7 +126897,8 @@
           "contract_namespace": "inbox",
           "controller": "CampaignController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "read",
           "handler": "read_campaign",
@@ -125528,7 +126949,8 @@
           "contract_namespace": "inbox",
           "controller": "CampaignController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "write",
           "handler": "patch_campaign",
@@ -125581,7 +127003,8 @@
           "contract_namespace": "inbox",
           "controller": "CampaignController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "write",
           "handler": "cancel_campaign",
@@ -125634,7 +127057,8 @@
           "contract_namespace": "inbox",
           "controller": "CampaignController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "write",
           "handler": "launch_campaign",
@@ -125687,7 +127111,8 @@
           "contract_namespace": "inbox",
           "controller": "CampaignController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "write",
           "handler": "pause_campaign",
@@ -125740,7 +127165,8 @@
           "contract_namespace": "inbox",
           "controller": "CampaignController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "read",
           "handler": "list_recipients",
@@ -125793,7 +127219,8 @@
           "contract_namespace": "inbox",
           "controller": "CampaignController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "write",
           "handler": "resume_campaign",
@@ -125846,7 +127273,8 @@
           "contract_namespace": "inbox",
           "controller": "CampaignController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "write",
           "handler": "retry_campaign",
@@ -125899,7 +127327,8 @@
           "contract_namespace": "inbox",
           "controller": "CampaignController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "write",
           "handler": "test_send",
@@ -126134,7 +127563,8 @@
           "contract_namespace": "inbox",
           "controller": "CatalogItemController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.catalog"
           ],
           "feature_operation": "write",
           "handler": "delete_item",
@@ -126185,7 +127615,8 @@
           "contract_namespace": "inbox",
           "controller": "CatalogItemController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.catalog"
           ],
           "feature_operation": "read",
           "handler": "read_item",
@@ -126236,7 +127667,8 @@
           "contract_namespace": "inbox",
           "controller": "CatalogItemController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.catalog"
           ],
           "feature_operation": "write",
           "handler": "patch_item",
@@ -126276,7 +127708,8 @@
           "contract_namespace": "inbox",
           "controller": "CatalogController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.catalog"
           ],
           "feature_operation": "read",
           "handler": "list_catalogs",
@@ -126314,7 +127747,8 @@
           "contract_namespace": "inbox",
           "controller": "CatalogController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.catalog"
           ],
           "feature_operation": "write",
           "handler": "create_catalog",
@@ -126367,7 +127801,8 @@
           "contract_namespace": "inbox",
           "controller": "CatalogController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.catalog"
           ],
           "feature_operation": "write",
           "handler": "delete_catalog",
@@ -126418,7 +127853,8 @@
           "contract_namespace": "inbox",
           "controller": "CatalogController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.catalog"
           ],
           "feature_operation": "read",
           "handler": "read_catalog",
@@ -126469,7 +127905,8 @@
           "contract_namespace": "inbox",
           "controller": "CatalogController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.catalog"
           ],
           "feature_operation": "write",
           "handler": "patch_catalog",
@@ -126522,7 +127959,8 @@
           "contract_namespace": "inbox",
           "controller": "CatalogItemController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.catalog"
           ],
           "feature_operation": "read",
           "handler": "list_items",
@@ -126573,7 +128011,8 @@
           "contract_namespace": "inbox",
           "controller": "CatalogItemController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.catalog"
           ],
           "feature_operation": "write",
           "handler": "create_item",
@@ -126626,7 +128065,8 @@
           "contract_namespace": "inbox",
           "controller": "CatalogItemController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.catalog"
           ],
           "feature_operation": "read",
           "handler": "list_products",
@@ -126679,7 +128119,8 @@
           "contract_namespace": "inbox",
           "controller": "CatalogController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.catalog"
           ],
           "feature_operation": "write",
           "handler": "sync_catalog",
@@ -126796,7 +128237,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "inbox",
           "controller": "TikTokOAuthController",
-          "feature_keys": [],
+          "feature_keys": [
+            "inbox.tiktok"
+          ],
           "feature_operation": null,
           "handler": "connect",
           "readonly": false,
@@ -127056,7 +128499,8 @@
           "contract_namespace": "inbox",
           "controller": "ChannelHealthController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.whatsapp"
           ],
           "feature_operation": "write",
           "handler": "sync_analytics",
@@ -127109,7 +128553,8 @@
           "contract_namespace": "inbox",
           "controller": "AutomationController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.automation"
           ],
           "feature_operation": "read",
           "handler": "get_channel_automation",
@@ -127160,7 +128605,8 @@
           "contract_namespace": "inbox",
           "controller": "AutomationController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.automation"
           ],
           "feature_operation": "write",
           "handler": "patch_channel_automation",
@@ -127213,7 +128659,8 @@
           "contract_namespace": "inbox",
           "controller": "ChannelCommerceController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.catalog"
           ],
           "feature_operation": "read",
           "handler": "read_commerce",
@@ -127264,7 +128711,8 @@
           "contract_namespace": "inbox",
           "controller": "ChannelCommerceController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.catalog"
           ],
           "feature_operation": "write",
           "handler": "patch_commerce",
@@ -127317,7 +128765,8 @@
           "contract_namespace": "inbox",
           "controller": "ChannelHealthController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.whatsapp"
           ],
           "feature_operation": "write",
           "handler": "request_display_name",
@@ -127370,7 +128819,8 @@
           "contract_namespace": "inbox",
           "controller": "FlowController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.flows"
           ],
           "feature_operation": "read",
           "handler": "list_flows",
@@ -127421,7 +128871,8 @@
           "contract_namespace": "inbox",
           "controller": "FlowController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.flows"
           ],
           "feature_operation": "write",
           "handler": "create_flow",
@@ -127474,7 +128925,8 @@
           "contract_namespace": "inbox",
           "controller": "FlowController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.flows"
           ],
           "feature_operation": "write",
           "handler": "sync_flows",
@@ -127527,7 +128979,8 @@
           "contract_namespace": "inbox",
           "controller": "ChannelHealthController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.whatsapp"
           ],
           "feature_operation": "read",
           "handler": "read_profile",
@@ -127578,7 +129031,8 @@
           "contract_namespace": "inbox",
           "controller": "ChannelHealthController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.whatsapp"
           ],
           "feature_operation": "write",
           "handler": "update_profile",
@@ -127631,7 +129085,8 @@
           "contract_namespace": "inbox",
           "controller": "ChannelHealthController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.whatsapp"
           ],
           "feature_operation": "write",
           "handler": "upload_picture",
@@ -127737,7 +129192,8 @@
           "contract_namespace": "inbox",
           "controller": "ChannelHealthController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.whatsapp"
           ],
           "feature_operation": "write",
           "handler": "register_number",
@@ -127790,7 +129246,8 @@
           "contract_namespace": "inbox",
           "controller": "SendingController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "read",
           "handler": "read_sending",
@@ -127841,7 +129298,8 @@
           "contract_namespace": "inbox",
           "controller": "SendingController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "write",
           "handler": "patch_sending",
@@ -127894,7 +129352,9 @@
           "contract_namespace": "inbox",
           "controller": "SendingController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.whatsapp",
+            "inbox.campaigns"
           ],
           "feature_operation": "write",
           "handler": "refresh_sending",
@@ -127947,7 +129407,9 @@
           "contract_namespace": "inbox",
           "controller": "ChannelHealthController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.whatsapp",
+            "inbox.templates"
           ],
           "feature_operation": "write",
           "handler": "enable_template_insights",
@@ -128051,7 +129513,8 @@
           "contract_namespace": "inbox",
           "controller": "TemplateController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.templates"
           ],
           "feature_operation": "write",
           "handler": "create_template",
@@ -128104,7 +129567,8 @@
           "contract_namespace": "inbox",
           "controller": "TemplateController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.templates"
           ],
           "feature_operation": "write",
           "handler": "sync_templates",
@@ -128157,7 +129621,8 @@
           "contract_namespace": "inbox",
           "controller": "TemplateController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.templates"
           ],
           "feature_operation": "write",
           "handler": "upload_sample",
@@ -128262,7 +129727,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "inbox",
           "controller": "TikTokSettingsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "inbox.tiktok"
+          ],
           "feature_operation": "read",
           "handler": "list_shortcuts",
           "readonly": true,
@@ -128311,7 +129778,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "inbox",
           "controller": "TikTokSettingsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "inbox.tiktok"
+          ],
           "feature_operation": "write",
           "handler": "create_shortcut",
           "readonly": false,
@@ -128362,7 +129831,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "inbox",
           "controller": "TikTokSettingsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "inbox.tiktok"
+          ],
           "feature_operation": "write",
           "handler": "enable_shortcuts",
           "readonly": false,
@@ -128421,7 +129892,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "inbox",
           "controller": "TikTokSettingsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "inbox.tiktok"
+          ],
           "feature_operation": "write",
           "handler": "delete_shortcut",
           "readonly": false,
@@ -128478,7 +129951,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "inbox",
           "controller": "TikTokSettingsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "inbox.tiktok"
+          ],
           "feature_operation": "write",
           "handler": "patch_shortcut",
           "readonly": false,
@@ -128529,7 +130004,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "inbox",
           "controller": "TikTokSettingsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "inbox.tiktok"
+          ],
           "feature_operation": "read",
           "handler": "latest_sync",
           "readonly": true,
@@ -128578,7 +130055,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "inbox",
           "controller": "TikTokSettingsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "inbox.tiktok"
+          ],
           "feature_operation": "write",
           "handler": "start_sync",
           "readonly": false,
@@ -128630,7 +130109,8 @@
           "contract_namespace": "inbox",
           "controller": "ChannelHealthController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.whatsapp"
           ],
           "feature_operation": "write",
           "handler": "set_pin",
@@ -128723,7 +130203,8 @@
           "contract_namespace": "inbox",
           "controller": "ContactMarketingController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "write",
           "handler": "import_contacts",
@@ -128880,7 +130361,8 @@
           "contract_namespace": "inbox",
           "controller": "ContactMarketingController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "read",
           "handler": "read_marketing",
@@ -128931,7 +130413,8 @@
           "contract_namespace": "inbox",
           "controller": "ContactMarketingController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "write",
           "handler": "patch_marketing",
@@ -129167,7 +130650,8 @@
           "contract_namespace": "inbox",
           "controller": "CatalogItemController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.catalog"
           ],
           "feature_operation": "read",
           "handler": "pick_items",
@@ -129220,7 +130704,8 @@
           "contract_namespace": "inbox",
           "controller": "FlowController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.flows"
           ],
           "feature_operation": "read",
           "handler": "list_conversation_submissions",
@@ -129430,7 +130915,8 @@
           "contract_namespace": "inbox",
           "controller": "OrderController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.catalog"
           ],
           "feature_operation": "read",
           "handler": "list_conversation_orders",
@@ -129481,7 +130967,8 @@
           "contract_namespace": "inbox",
           "controller": "OrderController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.catalog"
           ],
           "feature_operation": "write",
           "handler": "create_order",
@@ -129875,7 +131362,8 @@
           "contract_namespace": "inbox",
           "controller": "AutomationController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.automation"
           ],
           "feature_operation": "read",
           "handler": "get_department_hours",
@@ -129926,7 +131414,8 @@
           "contract_namespace": "inbox",
           "controller": "AutomationController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.automation"
           ],
           "feature_operation": "write",
           "handler": "put_department_hours",
@@ -129979,7 +131468,8 @@
           "contract_namespace": "inbox",
           "controller": "FlowController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.flows"
           ],
           "feature_operation": "write",
           "handler": "delete_flow",
@@ -130030,7 +131520,8 @@
           "contract_namespace": "inbox",
           "controller": "FlowController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.flows"
           ],
           "feature_operation": "read",
           "handler": "read_flow",
@@ -130081,7 +131572,8 @@
           "contract_namespace": "inbox",
           "controller": "FlowController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.flows"
           ],
           "feature_operation": "write",
           "handler": "edit_flow",
@@ -130134,7 +131626,8 @@
           "contract_namespace": "inbox",
           "controller": "FlowController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.flows"
           ],
           "feature_operation": "write",
           "handler": "copy_flow",
@@ -130187,7 +131680,8 @@
           "contract_namespace": "inbox",
           "controller": "FlowController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.flows"
           ],
           "feature_operation": "write",
           "handler": "deprecate_flow",
@@ -130240,7 +131734,8 @@
           "contract_namespace": "inbox",
           "controller": "FlowController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.flows"
           ],
           "feature_operation": "write",
           "handler": "preview_flow",
@@ -130293,7 +131788,8 @@
           "contract_namespace": "inbox",
           "controller": "FlowController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.flows"
           ],
           "feature_operation": "write",
           "handler": "publish_flow",
@@ -130346,7 +131842,8 @@
           "contract_namespace": "inbox",
           "controller": "FlowController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.flows"
           ],
           "feature_operation": "read",
           "handler": "list_submissions",
@@ -130384,7 +131881,9 @@
           "auth": "inbox_hook",
           "contract_namespace": "inbox",
           "controller": "TikTokHookController",
-          "feature_keys": [],
+          "feature_keys": [
+            "inbox.tiktok"
+          ],
           "feature_operation": null,
           "handler": "receive",
           "readonly": null,
@@ -130421,7 +131920,9 @@
           "auth": "inbox_hook",
           "contract_namespace": "inbox",
           "controller": "WhatsAppHookController",
-          "feature_keys": [],
+          "feature_keys": [
+            "inbox.whatsapp"
+          ],
           "feature_operation": "read",
           "handler": "verify",
           "readonly": null,
@@ -130456,7 +131957,9 @@
           "auth": "inbox_hook",
           "contract_namespace": "inbox",
           "controller": "WhatsAppHookController",
-          "feature_keys": [],
+          "feature_keys": [
+            "inbox.whatsapp"
+          ],
           "feature_operation": null,
           "handler": "receive",
           "readonly": null,
@@ -130661,7 +132164,8 @@
           "contract_namespace": "inbox",
           "controller": "OrderController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.catalog"
           ],
           "feature_operation": "read",
           "handler": "list_orders",
@@ -130714,7 +132218,8 @@
           "contract_namespace": "inbox",
           "controller": "OrderController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.catalog"
           ],
           "feature_operation": "read",
           "handler": "read_order",
@@ -130765,7 +132270,8 @@
           "contract_namespace": "inbox",
           "controller": "OrderController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.catalog"
           ],
           "feature_operation": "write",
           "handler": "patch_order",
@@ -130818,7 +132324,8 @@
           "contract_namespace": "inbox",
           "controller": "OrderController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.catalog"
           ],
           "feature_operation": "write",
           "handler": "cancel_order",
@@ -130871,7 +132378,9 @@
           "contract_namespace": "inbox",
           "controller": "OrderController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.catalog",
+            "payments.enabled"
           ],
           "feature_operation": "write",
           "handler": "checkout_order",
@@ -130911,7 +132420,8 @@
           "contract_namespace": "inbox",
           "controller": "ReportController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.reports"
           ],
           "feature_operation": "read",
           "handler": "breakdown",
@@ -130951,7 +132461,8 @@
           "contract_namespace": "inbox",
           "controller": "ReportController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.reports"
           ],
           "feature_operation": "read",
           "handler": "costs",
@@ -130990,7 +132501,8 @@
           "contract_namespace": "inbox",
           "controller": "ReportController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.reports"
           ],
           "feature_operation": "read",
           "handler": "export",
@@ -131030,7 +132542,8 @@
           "contract_namespace": "inbox",
           "controller": "ReportController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.reports"
           ],
           "feature_operation": "read",
           "handler": "overview",
@@ -131070,7 +132583,8 @@
           "contract_namespace": "inbox",
           "controller": "ReportController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.reports"
           ],
           "feature_operation": "read",
           "handler": "templates",
@@ -131123,7 +132637,8 @@
           "contract_namespace": "inbox",
           "controller": "ReportController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.reports"
           ],
           "feature_operation": "read",
           "handler": "template_detail",
@@ -131163,7 +132678,8 @@
           "contract_namespace": "inbox",
           "controller": "AutomationController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.automation"
           ],
           "feature_operation": "read",
           "handler": "list_rules",
@@ -131201,7 +132717,8 @@
           "contract_namespace": "inbox",
           "controller": "AutomationController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.automation"
           ],
           "feature_operation": "write",
           "handler": "create_rule",
@@ -131241,7 +132758,8 @@
           "contract_namespace": "inbox",
           "controller": "AutomationController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.automation"
           ],
           "feature_operation": "write",
           "handler": "reorder_rules",
@@ -131281,7 +132799,8 @@
           "contract_namespace": "inbox",
           "controller": "AutomationController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.automation"
           ],
           "feature_operation": "read",
           "handler": "test_rules",
@@ -131334,7 +132853,8 @@
           "contract_namespace": "inbox",
           "controller": "AutomationController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.automation"
           ],
           "feature_operation": "write",
           "handler": "delete_rule",
@@ -131385,7 +132905,8 @@
           "contract_namespace": "inbox",
           "controller": "AutomationController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.automation"
           ],
           "feature_operation": "read",
           "handler": "get_rule",
@@ -131436,7 +132957,8 @@
           "contract_namespace": "inbox",
           "controller": "AutomationController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.automation"
           ],
           "feature_operation": "write",
           "handler": "patch_rule",
@@ -131671,7 +133193,8 @@
           "contract_namespace": "inbox",
           "controller": "TemplateController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.templates"
           ],
           "feature_operation": "write",
           "handler": "delete_template",
@@ -131773,7 +133296,8 @@
           "contract_namespace": "inbox",
           "controller": "TemplateController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.templates"
           ],
           "feature_operation": "write",
           "handler": "edit_template",
@@ -131811,7 +133335,9 @@
           "auth": "user",
           "contract_namespace": "inbox",
           "controller": "TikTokOAuthController",
-          "feature_keys": [],
+          "feature_keys": [
+            "inbox.tiktok"
+          ],
           "feature_operation": null,
           "handler": "callback",
           "readonly": null,
@@ -131850,7 +133376,8 @@
           "contract_namespace": "inbox",
           "controller": "AutomationController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.automation"
           ],
           "feature_operation": "read",
           "handler": "get_working_hours",
@@ -131888,7 +133415,8 @@
           "contract_namespace": "inbox",
           "controller": "AutomationController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.automation"
           ],
           "feature_operation": "write",
           "handler": "put_working_hours",
@@ -132013,6 +133541,80 @@
         }
       }
     },
+    "/api/v1/me/devices": {
+      "delete": {
+        "operationId": "liwan_api.MeController.forget_devices.delete",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Forget the caller's remembered devices except the browser making this request.",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "MeController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "forget_devices",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      },
+      "get": {
+        "operationId": "liwan_api.MeController.devices.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The caller's own usable remembered devices, newest first, without any token.",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "MeController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "devices",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/me/mobile": {
       "patch": {
         "operationId": "liwan_api.MeController.patch_mobile.patch",
@@ -132124,6 +133726,44 @@
           ],
           "feature_operation": "read",
           "handler": "personal_stages",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/me/profile": {
+      "patch": {
+        "operationId": "liwan_api.MeController.patch_profile.patch",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Save the account holder's own language and time zone on the user record.",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "MeController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "patch_profile",
           "readonly": false,
           "route_type": "json2"
         }
@@ -135744,7 +137384,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "payments",
           "controller": "PaymentLinkController",
-          "feature_keys": [],
+          "feature_keys": [
+            "payments.enabled"
+          ],
           "feature_operation": "write",
           "handler": "create_link",
           "readonly": false,
@@ -135782,7 +137424,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "payments",
           "controller": "PaymentOrdersController",
-          "feature_keys": [],
+          "feature_keys": [
+            "payments.enabled"
+          ],
           "feature_operation": "read",
           "handler": "list_orders",
           "readonly": true,
@@ -135833,7 +137477,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "payments",
           "controller": "PaymentOrdersController",
-          "feature_keys": [],
+          "feature_keys": [
+            "payments.enabled"
+          ],
           "feature_operation": "read",
           "handler": "get_order",
           "readonly": true,
@@ -135884,7 +137530,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "payments",
           "controller": "PaymentOrdersController",
-          "feature_keys": [],
+          "feature_keys": [
+            "payments.enabled"
+          ],
           "feature_operation": "write",
           "handler": "record_refund",
           "readonly": false,
@@ -135922,7 +137570,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "payments",
           "controller": "PaymentProviderController",
-          "feature_keys": [],
+          "feature_keys": [
+            "payments.enabled"
+          ],
           "feature_operation": "read",
           "handler": "list_providers",
           "readonly": true,
@@ -135973,7 +137623,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "payments",
           "controller": "PaymentProviderController",
-          "feature_keys": [],
+          "feature_keys": [
+            "payments.enabled"
+          ],
           "feature_operation": "write",
           "handler": "update_provider",
           "readonly": false,
@@ -136024,7 +137676,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "payments",
           "controller": "PaymentProviderController",
-          "feature_keys": [],
+          "feature_keys": [
+            "payments.enabled"
+          ],
           "feature_operation": "write",
           "handler": "sync_provider",
           "readonly": false,
@@ -136062,7 +137716,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "payments",
           "controller": "PaymentSettingsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "payments.enabled"
+          ],
           "feature_operation": "read",
           "handler": "get_settings",
           "readonly": true,
@@ -136098,7 +137754,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "payments",
           "controller": "PaymentSettingsController",
-          "feature_keys": [],
+          "feature_keys": [
+            "payments.enabled"
+          ],
           "feature_operation": "write",
           "handler": "patch_settings",
           "readonly": false,
@@ -136176,7 +137834,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "pmo",
           "controller": "ChangeCategoryController",
-          "feature_keys": [],
+          "feature_keys": [
+            "pmo.enabled",
+            "pmo.change_control"
+          ],
           "feature_operation": "read",
           "handler": "list_change_categories",
           "readonly": true,
@@ -136212,7 +137873,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "pmo",
           "controller": "ChangeCategoryController",
-          "feature_keys": [],
+          "feature_keys": [
+            "pmo.enabled",
+            "pmo.change_control"
+          ],
           "feature_operation": "write",
           "handler": "create_change_category",
           "readonly": false,
@@ -136263,7 +137927,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "pmo",
           "controller": "ChangeCategoryController",
-          "feature_keys": [],
+          "feature_keys": [
+            "pmo.enabled",
+            "pmo.change_control"
+          ],
           "feature_operation": "write",
           "handler": "patch_change_category",
           "readonly": false,
@@ -136872,7 +138539,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "pmo",
           "controller": "ProjectBaselineController",
-          "feature_keys": [],
+          "feature_keys": [
+            "pmo.enabled",
+            "pmo.baselines"
+          ],
           "feature_operation": "read",
           "handler": "list_baselines",
           "readonly": true,
@@ -136921,7 +138591,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "pmo",
           "controller": "ProjectBaselineController",
-          "feature_keys": [],
+          "feature_keys": [
+            "pmo.enabled",
+            "pmo.baselines"
+          ],
           "feature_operation": "write",
           "handler": "take_baseline",
           "readonly": false,
@@ -136972,7 +138645,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "pmo",
           "controller": "ProjectBaselineController",
-          "feature_keys": [],
+          "feature_keys": [
+            "pmo.enabled",
+            "pmo.baselines"
+          ],
           "feature_operation": "read",
           "handler": "get_variance",
           "readonly": true,
@@ -137031,7 +138707,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "pmo",
           "controller": "ProjectBaselineController",
-          "feature_keys": [],
+          "feature_keys": [
+            "pmo.enabled",
+            "pmo.baselines"
+          ],
           "feature_operation": "read",
           "handler": "get_baseline",
           "readonly": true,
@@ -137082,7 +138761,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "pmo",
           "controller": "ProjectChangeController",
-          "feature_keys": [],
+          "feature_keys": [
+            "pmo.enabled",
+            "pmo.change_control"
+          ],
           "feature_operation": "read",
           "handler": "list_changes",
           "readonly": true,
@@ -137131,7 +138813,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "pmo",
           "controller": "ProjectChangeController",
-          "feature_keys": [],
+          "feature_keys": [
+            "pmo.enabled",
+            "pmo.change_control"
+          ],
           "feature_operation": "write",
           "handler": "create_change",
           "readonly": false,
@@ -137190,7 +138875,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "pmo",
           "controller": "ProjectChangeController",
-          "feature_keys": [],
+          "feature_keys": [
+            "pmo.enabled",
+            "pmo.change_control"
+          ],
           "feature_operation": "read",
           "handler": "get_change",
           "readonly": true,
@@ -137247,7 +138935,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "pmo",
           "controller": "ProjectChangeController",
-          "feature_keys": [],
+          "feature_keys": [
+            "pmo.enabled",
+            "pmo.change_control"
+          ],
           "feature_operation": "write",
           "handler": "patch_change",
           "readonly": false,
@@ -137306,7 +138997,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "pmo",
           "controller": "ProjectChangeController",
-          "feature_keys": [],
+          "feature_keys": [
+            "pmo.enabled",
+            "pmo.change_control"
+          ],
           "feature_operation": "write",
           "handler": "approve_change",
           "readonly": false,
@@ -137365,7 +139059,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "pmo",
           "controller": "ProjectChangeController",
-          "feature_keys": [],
+          "feature_keys": [
+            "pmo.enabled",
+            "pmo.change_control"
+          ],
           "feature_operation": "write",
           "handler": "implement_change",
           "readonly": false,
@@ -137424,7 +139121,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "pmo",
           "controller": "ProjectChangeController",
-          "feature_keys": [],
+          "feature_keys": [
+            "pmo.enabled",
+            "pmo.change_control"
+          ],
           "feature_operation": "write",
           "handler": "reject_change",
           "readonly": false,
@@ -137483,7 +139183,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "pmo",
           "controller": "ProjectChangeController",
-          "feature_keys": [],
+          "feature_keys": [
+            "pmo.enabled",
+            "pmo.change_control"
+          ],
           "feature_operation": "write",
           "handler": "submit_change",
           "readonly": false,
@@ -137542,7 +139245,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "pmo",
           "controller": "ProjectChangeController",
-          "feature_keys": [],
+          "feature_keys": [
+            "pmo.enabled",
+            "pmo.change_control"
+          ],
           "feature_operation": "write",
           "handler": "withdraw_change",
           "readonly": false,
@@ -137858,7 +139564,10 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "pmo",
           "controller": "ProjectEvmController",
-          "feature_keys": [],
+          "feature_keys": [
+            "pmo.enabled",
+            "pmo.evm"
+          ],
           "feature_operation": "read",
           "handler": "get_evm",
           "readonly": true,
@@ -140232,7 +141941,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AppointmentGuestController",
-          "feature_keys": [],
+          "feature_keys": [
+            "appointments.enabled"
+          ],
           "feature_operation": "read",
           "handler": "get_booking",
           "readonly": true,
@@ -140270,7 +141981,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AppointmentGuestController",
-          "feature_keys": [],
+          "feature_keys": [
+            "appointments.enabled"
+          ],
           "feature_operation": "write",
           "handler": "cancel_booking",
           "readonly": false,
@@ -140308,7 +142021,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AppointmentGuestController",
-          "feature_keys": [],
+          "feature_keys": [
+            "appointments.enabled"
+          ],
           "feature_operation": "write",
           "handler": "confirm_booking",
           "readonly": false,
@@ -140346,7 +142061,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AppointmentGuestController",
-          "feature_keys": [],
+          "feature_keys": [
+            "appointments.enabled"
+          ],
           "feature_operation": "write",
           "handler": "schedule_booking",
           "readonly": false,
@@ -140384,7 +142101,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AppointmentGuestController",
-          "feature_keys": [],
+          "feature_keys": [
+            "appointments.enabled"
+          ],
           "feature_operation": "read",
           "handler": "list_slots",
           "readonly": true,
@@ -140558,7 +142277,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "PayerController",
-          "feature_keys": [],
+          "feature_keys": [
+            "payments.enabled"
+          ],
           "feature_operation": "read",
           "handler": "get_invoice",
           "readonly": true,
@@ -140596,7 +142317,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "PayerController",
-          "feature_keys": [],
+          "feature_keys": [
+            "payments.enabled"
+          ],
           "feature_operation": "write",
           "handler": "start_invoice_payment",
           "readonly": false,
@@ -140634,7 +142357,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "PayerController",
-          "feature_keys": [],
+          "feature_keys": [
+            "payments.enabled"
+          ],
           "feature_operation": "read",
           "handler": "get_order",
           "readonly": true,
@@ -140672,7 +142397,9 @@
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "PayerController",
-          "feature_keys": [],
+          "feature_keys": [
+            "payments.enabled"
+          ],
           "feature_operation": "write",
           "handler": "start_order_payment",
           "readonly": false,
@@ -140869,7 +142596,8 @@
           "contract_namespace": null,
           "controller": "SendingController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "read",
           "handler": "get_campaign_settings",
@@ -140907,7 +142635,8 @@
           "contract_namespace": null,
           "controller": "SendingController",
           "feature_keys": [
-            "inbox.enabled"
+            "inbox.enabled",
+            "inbox.campaigns"
           ],
           "feature_operation": "write",
           "handler": "patch_campaign_settings",

@@ -37,6 +37,66 @@ class TestFeatureMetadata(unittest.TestCase):
         self.assertEqual(api_surface.feature_metadata(functions['registered_gate']), (['registry:liwan.example'], 'read'))
         self.assertEqual(api_surface.feature_metadata(functions['row_level']), ([], None))
 
+    def test_a_key_written_as_a_constant_resolves_to_the_gate_the_controller_sets(self):
+        """Issue #470: the documented key must equal the gate, however the decorator spells it."""
+        source = (
+            "FEATURE = 'payments.enabled'\n"
+            "FEATURES = ('crm.enabled', 'crm.import')\n"
+            "class P:\n"
+            "    @requires_feature(FEATURE, operation='read')\n"
+            "    def named(self): pass\n"
+            "    @requires_feature(*FEATURES, operation='write')\n"
+            "    def spread(self): pass\n"
+            "    @requires_feature(FEATURE, 'literal.enabled')\n"
+            "    def mixed(self): pass\n"
+        )
+        tree = ast.parse(source)
+        functions = {node.name: node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)}
+        constants = api_surface.resolvable_constants(Path('probe.py'), tree)
+        self.assertEqual(api_surface.feature_metadata(functions['named'], constants), (['payments.enabled'], 'read'))
+        self.assertEqual(api_surface.feature_metadata(functions['spread'], constants),
+                         (['crm.enabled', 'crm.import'], 'write'))
+        self.assertEqual(api_surface.feature_metadata(functions['mixed'], constants),
+                         (['payments.enabled', 'literal.enabled'], None))
+
+    def test_a_key_imported_from_another_module_resolves(self):
+        """``from ...models.access_service import ORDERS_READ`` names a real capability, not an empty key."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'models').mkdir()
+            (root / 'models' / 'access_service.py').write_text("ORDERS_READ = 'payments.orders.read'\n")
+            controller = root / 'controllers.py'
+            controller.write_text(
+                "from .models.access_service import ORDERS_READ\n"
+                "class P:\n"
+                "    @requires_capability(ORDERS_READ)\n"
+                "    def list_orders(self): pass\n"
+            )
+            tree = ast.parse(controller.read_text())
+            constants = api_surface.resolvable_constants(controller, tree)
+            self.assertEqual(constants.get('ORDERS_READ'), 'payments.orders.read')
+            decorator = next(
+                node for node in ast.walk(tree)
+                if isinstance(node, ast.Call) and api_surface.decorator_name(node) == 'requires_capability'
+            )
+            self.assertEqual(api_surface.const_strings(decorator.args[0], constants), ['payments.orders.read'])
+
+    def test_an_imported_constant_keeps_its_local_alias(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'models').mkdir()
+            (root / 'models' / 'access_service.py').write_text("ORDERS_READ = 'payments.orders.read'\n")
+            controller = root / 'controllers.py'
+            controller.write_text("from .models.access_service import ORDERS_READ as READ_ORDERS\n")
+            constants = api_surface.resolvable_constants(controller, ast.parse(controller.read_text()))
+            self.assertEqual(constants.get('READ_ORDERS'), 'payments.orders.read')
+
+    def test_an_unresolvable_key_is_reported_not_silently_empty(self):
+        """A name that is not a constant stays out of the list; the route therefore fails the policy gate."""
+        tree = ast.parse("class P:\n    @requires_feature(UNDEFINED, operation='read')\n    def r(self): pass\n")
+        functions = {node.name: node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)}
+        self.assertEqual(api_surface.feature_metadata(functions['r'], {}), ([], 'read'))
+
 
 class TestRoutePathResolution(unittest.TestCase):
     """A route path may be a literal, a module constant or an f-string over constants; nothing is dropped silently."""

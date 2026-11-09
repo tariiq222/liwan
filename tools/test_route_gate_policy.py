@@ -324,9 +324,10 @@ class NestedPackageTests(unittest.TestCase):
         )
         self.assertEqual(len(routes), 1)
         # The gate is the model method's own top-level require_capability call, so the route is
-        # gated through a helper: capability_source is 'body' and the literal keys stay empty.
+        # gated through a helper: capability_source is 'body'. The key the helper enforces is
+        # reported too, so the published matrix equals the gate (issue #470).
         self.assertEqual((routes[0].has_capability, routes[0].capability_source), (True, 'body'))
-        self.assertEqual(routes[0].capability_keys, [])
+        self.assertEqual(routes[0].capability_keys, ['hr.shifts.read'])
         self.assertEqual(policy.route_problems(routes, NO_ALLOW), [])
 
     def test_service_trees_scan_nested_controller_and_model_modules(self):
