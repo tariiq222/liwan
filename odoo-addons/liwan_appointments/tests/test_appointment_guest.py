@@ -282,8 +282,9 @@ class TestAppointmentGuest(LiwanAppointmentsCase):
         # The budget is the token's own, on every route it opens: a write past it is the same 429, not a 422 about the body.
         self._error(self._call('POST', self.invited, '/cancel'), 429, 'rate_limited')
         self.assertEqual(self.invited.state, 'pending')
-        # The calendar's own budget is untouched by the booking one being spent, so the requester can still pick a time.
-        self.assertGreaterEqual(self._call('GET', self.invited, '/slots', **window).status_code, 200)
+        # The calendar's own budget is untouched by the booking one being spent, so the requester can still pick a time:
+        # the answer is a full 200, never the 429 the booking routes just gave.
+        self.assertEqual(self._call('GET', self.invited, '/slots', **window).status_code, 200)
         # Another booking's token is untouched by the first one's spending.
         other = self._invited(self.booking_type)
         self.assertEqual(self._call('GET', other).status_code, 200)

@@ -66,7 +66,8 @@ export function slotsByDay<Slot extends { start: string }>(slots: readonly Slot[
  * A day is never listed in part, so no day is read as unavailable only because an answer ended early.
  *
  * A `429` on a later page keeps the pages already read: the answer carries them and names the day it stopped at, which
- * the caller shows with its retry. Only a refused first page fails the read, because then there is nothing to show.
+ * the caller shows with its retry. A refusal with nothing to show still fails the read — no slot read yet, or any
+ * refusal that is not the server being busy — because there would be nothing to keep.
  */
 export async function collectSlots(
   readPage: (from: string, to: string) => Promise<AppointmentSlotList>,
