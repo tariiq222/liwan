@@ -8,7 +8,10 @@ from odoo.tests import tagged
 
 from .common import LiwanAppointmentsCase
 from odoo.addons.liwan_api.tests.common import set_probe_feature
-from odoo.addons.liwan_appointments.models.guest_limit import GUEST_READ_LIMIT
+from odoo.addons.liwan_appointments.models.guest_limit import (
+    GUEST_READ_LIMIT,
+    GUEST_SLOT_READ_LIMIT,
+)
 
 PUBLIC = '/api/v1/public/appointments/bookings'
 UTC_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
@@ -265,12 +268,12 @@ class TestAppointmentGuest(LiwanAppointmentsCase):
             for day_key in sorted({start[:10] for start in listed}):
                 self.assertEqual([start for start in listed if start[:10] == day_key], per_day[day_key], day_key)
 
-    def test_one_token_has_its_own_read_budget(self):
-        """#546: the edge limit counts addresses, not tokens; the token itself is bounded inside Odoo."""
+    def test_the_booking_routes_keep_their_own_read_budget(self):
+        """#546: the edge limit counts addresses, not tokens; the booking's own routes keep 30 reads and writes a minute."""
         window = self._window()
         for _index in range(GUEST_READ_LIMIT):
-            self.assertEqual(self._call('GET', self.invited, '/slots', **window).status_code, 200)
-        refused = self._call('GET', self.invited, '/slots', **window)
+            self.assertEqual(self._call('GET', self.invited).status_code, 200)
+        refused = self._call('GET', self.invited)
         self.assertEqual((refused.status_code, refused.json()['code']), (429, 'rate_limited'), refused.text)
         # The refusal keeps the contract envelope, not the 422 of a validation, so a client retries instead of fixing input.
         self.assertEqual(set(refused.json()), {'code', 'message'})
@@ -279,9 +282,49 @@ class TestAppointmentGuest(LiwanAppointmentsCase):
         # The budget is the token's own, on every route it opens: a write past it is the same 429, not a 422 about the body.
         self._error(self._call('POST', self.invited, '/cancel'), 429, 'rate_limited')
         self.assertEqual(self.invited.state, 'pending')
+        # The calendar's own budget is untouched by the booking one being spent, so the requester can still pick a time.
+        self.assertGreaterEqual(self._call('GET', self.invited, '/slots', **window).status_code, 200)
         # Another booking's token is untouched by the first one's spending.
         other = self._invited(self.booking_type)
-        self.assertEqual(self._call('GET', other, '/slots', **window).status_code, 200)
+        self.assertEqual(self._call('GET', other).status_code, 200)
+
+    def test_the_calendar_has_its_own_larger_read_budget(self):
+        """#546: a dense grid is answered a whole day at a time, so walking five weeks in a row must not lock the link."""
+        self._settings(min_notice_hours=0, horizon_days=60)
+        self.booking_type.write({'slot_duration': 5 / 60, 'inherits_company_deadline': False, 'own_deadline_hours': 0})
+        self._always_open(self.booking_type, self.combination)
+        self.env.flush_all()
+        today = datetime.now(UTC).date()
+        answers = 0
+        # Five successive weeks, each read the way the requester's page does: from its first day to its last, then again
+        # from the day an answer stopped at. The 30-a-minute booking budget would have stopped this inside the fifth week.
+        for week in range(5):
+            first = today + timedelta(days=1 + 7 * week)
+            last = first + timedelta(days=6)
+            day = first
+            while True:
+                response = self._call('GET', self.invited, '/slots', **{'from': day, 'to': last})
+                self.assertEqual(response.status_code, 200, response.text)
+                answers += 1
+                body = response.json()
+                self.assertLessEqual(body['total'], 500)
+                if not body['next_date']:
+                    break
+                day = date.fromisoformat(body['next_date'])
+        self.assertGreater(answers, GUEST_READ_LIMIT, 'five dense weeks cost more answers than the booking budget')
+        self.assertLessEqual(answers, GUEST_SLOT_READ_LIMIT, 'and stay inside the calendar budget')
+        # The booking itself still reads, on its own counter.
+        self.assertEqual(self._call('GET', self.invited).status_code, 200)
+        # The calendar budget is finite too: its remaining reads are spent, and the next one is the same 429 envelope.
+        window = {'from': today + timedelta(days=1), 'to': today + timedelta(days=1)}
+        while answers < GUEST_SLOT_READ_LIMIT:
+            self.assertEqual(self._call('GET', self.invited, '/slots', **window).status_code, 200)
+            answers += 1
+        refused = self._call('GET', self.invited, '/slots', **window)
+        self.assertEqual((refused.status_code, refused.json().get('code')), (429, 'rate_limited'), refused.text)
+        self.assertEqual(set(refused.json()), {'code', 'message'})
+        # And the booking's own budget is still whole: spending the calendar one costs it nothing.
+        self.assertEqual(self._call('GET', self.invited).status_code, 200)
 
     def test_a_slot_taken_by_another_booking_is_not_listed_and_not_bookable(self):
         other = self._invited(self.booking_type)

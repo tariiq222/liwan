@@ -15,7 +15,11 @@ from odoo.addons.liwan_appointments.controllers.records import (
     require_combination_links,
     slot_conflicts,
 )
-from odoo.addons.liwan_appointments.models.guest_limit import GUEST_READ_LIMIT
+from odoo.addons.liwan_appointments.models.guest_limit import (
+    COUNTER_BOOKING,
+    COUNTER_LIMITS,
+    COUNTER_SLOTS,
+)
 from odoo.addons.liwan_appointments.serializers.appointment_guest import (
     awaits_confirmation,
     dump_guest_booking,
@@ -40,22 +44,22 @@ TOKEN = 'access_token'
 BOOKING_PATH = '/api/v1/public/appointments/bookings/<int:booking_id>'
 
 
-def _guest_booking(booking_id, token):
-    """The booking behind a valid access token, after its per-token read budget is charged; every other case is the
-    same 404 (or 429 while the token is over budget)."""
+def _guest_booking(booking_id, token, counter=COUNTER_BOOKING):
+    """The booking behind a valid access token, after its per-token budget for ``counter`` is charged; every other case is
+    the same 404 (or 429 while that budget is spent)."""
     booking = request.env['liwan.appointment.guest']._liwan_booking(booking_id, token)
-    _charge_token(booking)
+    _charge_token(booking, counter)
     return booking
 
 
-def _charge_token(booking):
-    """Count this request against the booking's own minute budget: one leaked token cannot walk the company's calendar
+def _charge_token(booking, counter):
+    """Count this request against ``counter``'s own minute budget: one leaked token cannot walk the company's calendar
     from many addresses, and the address-counting edge limit cannot see that.
 
     The counter is written in the booking's own elevated environment, which the token check already opened: the public
     user holds no ACL on it."""
-    reads = booking.env['liwan.appointment.guest.limit']._liwan_count_read(booking, fields.Datetime.now())
-    if reads > GUEST_READ_LIMIT:
+    reads = booking.env['liwan.appointment.guest.limit']._liwan_count_read(booking, fields.Datetime.now(), counter)
+    if reads > COUNTER_LIMITS[counter]:
         raise ApiError(429, 'rate_limited', 'too many requests for this link; wait a minute')
 
 
@@ -106,7 +110,7 @@ class AppointmentGuestController(http.Controller):
     def list_slots(self, booking_id, **_):
         args = request.httprequest.args
         reject_unknown_fields(args, (TOKEN, 'from', 'to'))
-        booking = _guest_booking(booking_id, args.get(TOKEN))
+        booking = _guest_booking(booking_id, args.get(TOKEN), COUNTER_SLOTS)
         booking_type = booking.type_id
         if not booking_type.active:
             raise ApiError(422, 'invalid', 'the type of this booking is no longer offered')
