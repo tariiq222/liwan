@@ -66,6 +66,64 @@ class TestPayrollImmutability(PayrollCase):
         with self.assertRaises(AccessError):
             slip.with_user(self.officer).input_line_ids[0].write({'amount': 500})
 
+    def test_a_line_added_to_an_approved_payslip_is_refused(self):
+        """The net is summed from the lines, so a created line moves the figures as surely as an edited one."""
+        run = self._approved_run()
+        slip = run.slip_ids
+        net = slip._liwan_amounts()[slip.id]['net']
+        holder = slip.with_user(self.officer)
+        with self.assertRaises(AccessError):
+            holder.write({'line_ids': [(0, 0, {
+                'name': 'Extra', 'code': 'EXTRA', 'category_id': slip.line_ids[0].category_id.id,
+                'salary_rule_id': slip.line_ids[0].salary_rule_id.id, 'amount': 5000,
+            })]})
+        # The same create through the line model directly, outside the computed fields of the payslip.
+        sample = slip.line_ids[0]
+        with self.assertRaises(AccessError):
+            self.env['hr.payslip.line'].with_user(self.officer).create({
+                'slip_id': slip.id, 'name': 'Extra', 'code': 'EXTRA', 'category_id': sample.category_id.id,
+                'salary_rule_id': sample.salary_rule_id.id, 'employee_id': slip.employee_id.id,
+                'contract_id': slip.contract_id.id, 'amount': 5000, 'quantity': 1, 'rate': 100,
+            })
+        self.assertEqual(slip._liwan_amounts()[slip.id]['net'], net)
+        self.assertNotIn('EXTRA', {line.code for line in slip.line_ids})
+
+    def test_an_input_added_to_an_approved_payslip_is_refused(self):
+        run = self._approved_run()
+        slip = run.slip_ids
+        sample = slip.input_line_ids[0]
+        for vals in (
+            {'payslip_id': slip.id, 'name': sample.name, 'code': 'WV_EXTRA', 'contract_id': slip.contract_id.id},
+            {'payslip_id': slip.id, 'name': sample.name, 'code': sample.code, 'contract_id': slip.contract_id.id, 'amount': 5},
+        ):
+            with self.subTest(code=vals['code']), self.assertRaises(AccessError):
+                self.env['hr.payslip.input'].with_user(self.officer).create(vals)
+        with self.assertRaises(AccessError):
+            slip.with_user(self.officer).write({
+                'input_line_ids': [(0, 0, {
+                    'name': 'Extra', 'code': 'WV_EXTRA', 'contract_id': slip.contract_id.id, 'amount': 5,
+                })],
+            })
+        self.assertNotIn('WV_EXTRA', {line.code for line in slip.input_line_ids})
+
+    def test_a_line_added_to_a_payslip_of_an_editable_run_is_allowed(self):
+        """The guard freezes a fixed month only: a draft payslip still computes its lines."""
+        self._login(self.officer)
+        run = self.env['hr.payslip.run'].browse(self.api('POST', RUNS, json={'month': MONTH}).json()['id'])
+        self.assertEqual(run.liwan_state, 'draft')
+        slip = run.slip_ids
+        sample = slip.line_ids[:1]
+        if not sample:
+            self.env['hr.payslip'].with_user(self.officer).browse(slip.id).compute_sheet()
+            sample = slip.line_ids[:1]
+        self.assertTrue(sample)
+        line = self.env['hr.payslip.line'].with_user(self.officer).create({
+            'slip_id': slip.id, 'name': 'Extra', 'code': 'EXTRA', 'category_id': sample.category_id.id,
+            'salary_rule_id': sample.salary_rule_id.id, 'employee_id': slip.employee_id.id,
+            'contract_id': slip.contract_id.id, 'amount': 1, 'quantity': 1, 'rate': 100,
+        })
+        self.assertTrue(line.exists())
+
     def test_an_approved_run_cannot_go_back_to_draft(self):
         run = self._approved_run()
         holder = self.env['hr.payslip.run'].with_user(self.officer)

@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from markupsafe import Markup
 
-from odoo import fields, models
+from odoo import api, fields, models
 from odoo.exceptions import AccessError
 from odoo.tools.misc import format_amount
 
@@ -82,7 +82,11 @@ class HrPayslip(models.Model):
         )
 
     def _liwan_refuse_when_fixed(self):
-        """Refuse a change to the payslip or its lines once it is frozen (``AccessError``, never a silent skip)."""
+        """Refuse a change to the payslip or its lines once it is frozen (``AccessError``, never a silent skip).
+
+        The callers skip a superuser environment (``self.env.su``) by design: it is the migration and maintenance
+        environment, and no route reaches one, so the skip cannot be used to rewrite a month from the UI.
+        """
         if self.filtered(lambda slip: slip._liwan_is_fixed()):
             raise AccessError(
                 self.env._('An approved payslip is fixed: its figures and lines cannot be changed.'),
@@ -280,9 +284,26 @@ class HrPayslip(models.Model):
 
 
 class HrPayslipLine(models.Model):
-    """The computed lines of a payslip are frozen with it: an approved month is never rewritten line by line."""
+    """The computed lines of a payslip are frozen with it: an approved month is never rewritten line by line.
+
+    The net is summed from these lines, so a line added to a fixed payslip moves its figures as surely as an edit
+    to an existing one: ``create`` is refused for the same reason. The guards skip a superuser environment
+    (``self.env.su``): migrations and the maintenance scripts run there by design, and an authenticated user never
+    gets one, so the skip cannot be reached from a route.
+    """
 
     _inherit = 'hr.payslip.line'
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not self.env.su:
+            self._liwan_slips_of(vals_list)._liwan_refuse_when_fixed()
+        return super().create(vals_list)
+
+    def _liwan_slips_of(self, vals_list):
+        """The payslips ``vals_list`` attach lines to, so a create is refused before a line exists."""
+        slip_ids = {vals['slip_id'] for vals in vals_list if vals.get('slip_id')}
+        return self.env['hr.payslip'].browse(sorted(slip_ids))
 
     def write(self, vals):
         if not self.env.su:
@@ -296,9 +317,24 @@ class HrPayslipLine(models.Model):
 
 
 class HrPayslipInput(models.Model):
-    """The entered inputs of a payslip are frozen with it too: they are the pay data its lines come from."""
+    """The entered inputs of a payslip are frozen with it too: they are the pay data its lines come from.
+
+    The same superuser skip as the lines applies: ``self.env.su`` is a migration and maintenance environment,
+    never a browser session.
+    """
 
     _inherit = 'hr.payslip.input'
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not self.env.su:
+            self._liwan_slips_of(vals_list)._liwan_refuse_when_fixed()
+        return super().create(vals_list)
+
+    def _liwan_slips_of(self, vals_list):
+        """The payslips ``vals_list`` attach inputs to, so a create is refused before an input exists."""
+        slip_ids = {vals['payslip_id'] for vals in vals_list if vals.get('payslip_id')}
+        return self.env['hr.payslip'].browse(sorted(slip_ids))
 
     def write(self, vals):
         if not self.env.su:
