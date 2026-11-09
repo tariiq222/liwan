@@ -1,6 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """TikTok suggested questions and chat prompts: the mirrored model, its limits, its audit and its routes."""
-import json
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -60,10 +59,7 @@ class TestTikTokShortcuts(LiwanInboxCase):
         })
 
     def deliver(self, payload):
-        self.env['liwan.inbox.event'].create({
-            'channel_id': self.tiktok.id, 'owner_company_id': self.tiktok.owner_company_id.id,
-            'payload': json.dumps(payload),
-        })
+        self.store_event(self.tiktok, payload)
         later = fields.Datetime.now() + TIKTOK_ECHO_SETTLE + timedelta(seconds=1)
         with patch('odoo.fields.Datetime.now', return_value=later):
             self.env['liwan.inbox.event']._liwan_run_events()

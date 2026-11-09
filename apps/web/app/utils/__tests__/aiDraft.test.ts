@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { AiAuditRequestSchema } from '@liwan/contracts'
-import { aiApprovalAudit, projectBasicsFromAi, clearAiDraft, clearAiSessionState, forgetCreatedId, mayFinalizeCreate, parseCreatedId, prepareDraftHandoff, readAiDraft, readCreatedId, rememberCreatedId, withCreatedProject, withoutCreated } from '../aiDraft'
+import { projectBasicsFromAi, clearAiDraft, clearAiSessionState, forgetCreatedId, mayFinalizeCreate, parseCreatedId, prepareDraftHandoff, readAiDraft, readCreatedId, rememberCreatedId, withCreatedProject, withoutCreated } from '../aiDraft'
 const emptyBasics = () => ({name:'',description:'',objectives:[{goal:'',metric:'',target:''}],success_criteria:'',user_id:9,date_start:null,date_end:null})
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 
@@ -64,13 +63,7 @@ describe('readAiDraft / clearAiDraft', () => {
   })
 })
 
-describe('approval audit and return path', () => {
-  it('builds an audit row the contract accepts', () => {
-    const body = aiApprovalAudit(handoff, 42)
-    expect(AiAuditRequestSchema.safeParse(body).success).toBe(true)
-    expect(body).toMatchObject({ conversation_id: 'r_1', kind: 'draft', result: 'approved', http_status: 201, approved: { id: 42 }, attested: true })
-  })
-
+describe('return path', () => {
   it('accepts the /ai returnTo only when /ai is allowed and keeps its query', () => {
     expect(safeReturnTo('/ai?run=r_1&resume=c_2', '/projects', ['/projects', '/ai'])).toBe('/ai?run=r_1&resume=c_2')
     expect(safeReturnTo('/ai?run=r_1&resume=c_2', '/projects', ['/projects'])).toBe('/projects')
@@ -80,13 +73,6 @@ describe('approval audit and return path', () => {
   it('appends created to a returnTo with or without a query', () => {
     expect(withCreatedProject('/ai?run=r_1&resume=c_2', 7)).toBe('/ai?run=r_1&resume=c_2&created=7')
     expect(withCreatedProject('/ai', 7)).toBe('/ai?created=7')
-  })
-})
-
-describe('audit only for a handoff', () => {
-  it('produces no audit without a handoff', () => {
-    expect(aiApprovalAudit(null, 42)).toBeNull()
-    expect(aiApprovalAudit(handoff, 42)).toMatchObject({ approved: { id: 42 }, attested: true })
   })
 })
 

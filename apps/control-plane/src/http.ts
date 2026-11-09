@@ -1,3 +1,4 @@
+import { isSignupEndpoint, signupFromEnv, signupHttp } from './signup/http.js'
 import {requestRestorePublication,restorePublication} from './shared/restore-publication.js'
 import { accountCapabilities, vendorActorIssuer } from './admin-auth/grants.js'
 import { packageHttp } from './package-http.js'
@@ -79,13 +80,13 @@ function respond(res: ServerResponse, status: number, data: unknown): void {
   res.end(JSON.stringify(data))
 }
 
-async function bodyBytes(req: IncomingMessage): Promise<string> {
+async function bodyBytes(req: IncomingMessage, maxBytes = 65536): Promise<string> {
   const chunks: Buffer[] = []
   let size = 0
   for await (const chunk of req) {
     const bytes = Buffer.from(chunk)
     size += bytes.length
-    if (size > 65536) throw new ApiError(413, 'too_large', 'Request body is too large')
+    if (size > maxBytes) throw new ApiError(413, 'too_large', 'Request body is too large')
     chunks.push(bytes)
   }
   return Buffer.concat(chunks).toString('utf8')
@@ -321,6 +322,12 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
   const effect = config.internalEffect
   const setPassword: SetPassword | undefined = process.env.LIWAN_TENANCY_MODE === 'shared' && effect?.url && effect.ca
     ? odooSetPassword(internalEffectPasswordAdapter({ url: effect.url, key: effect.key, ca: effect.ca })) : undefined
+  const signupKey = config.customerCommercialServiceKey
+  const signupIssuer = config.customerCommercialIssuer
+  let signup: ReturnType<typeof signupFromEnv>
+  if (signupKey !== config.key && signupIssuer && signupIssuer !== config.installationId) {
+    try { signup = signupFromEnv(pool, signupKey) } catch { console.error('[control-plane] public signup configuration invalid') }
+  }
   let invitationsInFlight = 0
   const invitationAttempts = new Map<string, { count: number; expiresAt: number }>()
   let invitationCleanupAt = 0
@@ -363,6 +370,12 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
           const code = known ? (error as CommercialHttpError).code as keyof typeof INVITATION_MESSAGES : status === 400 ? 'invalid_invitation' : 'unavailable'
           return respond(res, status, { code, message: INVITATION_MESSAGES[code] })
         } finally { invitationsInFlight-- }
+      }
+      if (isSignupEndpoint(pathname)) {
+        const result = await signupHttp(pool, { issuer: signupIssuer, key: signupKey }, {
+          method, path, raw: signup ? await bodyBytes(req, 2048) : '', headers: req.headers,
+        }, signup)
+        return respond(res, result.status, result.data)
       }
       const raw = await bodyBytes(req)
       const adminResponse = await adminAuthHttp(pool, config, { webauthn: deps?.webauthn ?? defaultWebAuthn }, { method, pathname, path, raw, headers: req.headers, remoteAddress: req.socket.remoteAddress })

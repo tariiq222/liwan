@@ -19,9 +19,9 @@ Public TLS edge → guard:8080 → web:3000 OR Odoo:8069 / Odoo WS:8072.
 Nuxt BFF and SSR → guard:8080, NEVER directly to Odoo. Only edge publishes a port.
 Guard and Odoo/web listener networks must be unreachable from customers. An internal
 header secret is defense in depth, NOT a replacement for this network boundary.
-`Caddyfile` includes four rate zones using the actual pinned module in
+`Caddyfile` uses the pinned rate-limit module in
 `deploy/proxy/Dockerfile` (not the unmodified official Caddy image). Limits are per
-edge socket client IP: auth 20/min, API 300/min, Odoo/web 600/min. WS remains exempt
+edge socket client IP. Auth is 20/min, API 300/min, public signup 30/min, and Odoo/web 600/min. WS remains exempt
 from HTTP rate counting. Immutable static assets (`/_nuxt/*`, `/_i18n/*`,
 `/fonts/*`, `/favicon.ico`, `/robots.txt`) are exempt from the `liwan_web` zone so client
 asset requests do not exhaust the interactive web budget or cause 429 white-screens for
@@ -334,3 +334,31 @@ command line and prints no secret. `node --test deploy/shared` covers the relay 
 deployment: the relay's tenant hop, Caddy routing and volume permissions are only proven
 by a real shared deployment.
 
+
+## Public signup on the commercial host
+
+Add `deploy/docker-compose.shared-commercial.yml` after the shared overlay to
+expose `/register` on the prospect host. Include that host in Caddy's `DOMAIN`
+and set `LIWAN_PROSPECT_HOST` to the exact host in
+`NUXT_CUSTOMER_COMMERCIAL_PUBLIC_ORIGIN`. Use HTTPS. The overlay connects the
+web container to a named operator-provisioned private network
+(`LIWAN_COMMERCIAL_CONTROL_NETWORK`) that also carries the control-plane HTTPS
+ingress. Set `NUXT_CUSTOMER_COMMERCIAL_CONTROL_URL` to that ingress with a
+certificate trusted by the web container. Keep the guard and Nuxt listeners
+private. Caddy overwrites the signup source IP and the guard strips browser
+identity headers before forwarding.
+
+Set `LIWAN_PUBLIC_SIGNUP=true` for both Compose and the shared control API after configuring
+the customer-commercial issuer and signing key, a published public monthly
+14-day trial revision, a Liwan-specific Authentica key and approved SMS
+template, and SMTP. The SMS template must accept Liwan's OTP and the Authentica
+application must allow SMS without alternate-channel recipient fields. The
+same SMTP setup is needed by the commercial worker to issue the administrator
+invitation. The control API and web BFF share the customer-commercial signing
+key. Keep the Authentica key on the control API only. The delivery cap defaults
+to 100 per channel per rolling day and is configurable with
+`LIWAN_SIGNUP_DAILY_LIMIT`.
+
+The workspace follows normal commercial worker fulfillment and invitation
+delivery. Verify SMS arrival and email delivery with test recipients on an
+authorized acceptance deployment before opening signup.

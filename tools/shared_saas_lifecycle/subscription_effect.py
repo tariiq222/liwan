@@ -156,7 +156,7 @@ def collect(profile):
         owner = item['module']
         gates[key] = sorted(k for k, other in definitions.items()
                             if other['type'] == 'boolean' and other['module'] == owner and owner != 'liwan_platform')
-    return {'database': env.cr.dbname, 'root_company_id': root.id, 'commercial_revision_id': profile.commercial_revision_id or None,
+    return {'database': env.cr.dbname, 'root_company_id': root.id, 'status': profile.status, 'commercial_revision_id': profile.commercial_revision_id or None,
             'commercial_digest': profile.commercial_digest or None,
             'commercial_applied_at': str(profile.commercial_applied_at) if profile.commercial_applied_at else None,
             'commercial_valid_until': str(profile.commercial_valid_until) if getattr(profile, 'commercial_valid_until', None) else None,
@@ -297,12 +297,13 @@ def parse_output(stdout):
 
 
 def validate_observation(value):
-    keys = {'database', 'root_company_id', 'commercial_revision_id', 'commercial_digest', 'commercial_applied_at',
+    keys = {'database', 'root_company_id', 'status', 'commercial_revision_id', 'commercial_digest', 'commercial_applied_at',
             'commercial_valid_until', 'commercial_valid_until_revision', 'commercial_expiry_supported', 'features', 'modules', 'branches', 'usage', 'limit_gates'}
     if set(value) != keys:
         raise EffectError('observation_invalid')
     odoo_effect.validate_database(value['database'])
-    if type(value['root_company_id']) is not int or value['root_company_id'] < 1:
+    if (type(value['root_company_id']) is not int or value['root_company_id'] < 1
+            or value['status'] not in ('active', 'suspended')):
         raise EffectError('observation_invalid')
     validate_features(value['features'])
     for field in ('commercial_revision_id', 'commercial_digest', 'commercial_applied_at'):
@@ -528,15 +529,62 @@ class ComposeRunner(odoo_effect.Runner):
             odoo_effect.no_symlink(config['releaseBackupConfig'])
         self.request, self.config = request, config
         self.database = odoo_effect.validate_database(request['tenant']['database'])
+        self.restore = 'restore' in request
         self.root = odoo_effect.Path(config['stateDir'])
         self.base = ['docker', 'compose', '--project-name', config['projectName'], '--env-file',
                      config['envFile'], '--file', config['composeFile']]
         self.current_container = None
         self.child = None
         self.permit = permit or odoo_effect.permit
+        if self.restore:
+            self._bind_restore(request['restore'])
+
+    def _bind_restore(self, binding):
+        # The existing release verifier only attests the source helper. Until it
+        # can attest the restore topology, refuse before any Compose invocation.
+        if odoo_effect.release_routes_enabled():
+            raise EffectError('release_operation_blocked')
+        if not isinstance(binding, dict) or set(binding) != {'requestId', 'approvalId', 'backupId', 'digest', 'manifestSha256'}:
+            raise EffectError('restore_target_unverified')
+        for key in ('requestId', 'approvalId', 'backupId'):
+            _uuid(binding[key], 'restore_target_unverified')
+        for key in ('digest', 'manifestSha256'):
+            if not isinstance(binding[key], str) or not DIGEST_RE.fullmatch(binding[key]):
+                raise EffectError('restore_target_unverified')
+        completion = self.root / 'restore-effects' / (binding['requestId'] + '.complete')
+        self.classification = self.root / 'classifications' / (self.database + '.json')
+        for file in (completion, self.classification):
+            odoo_effect.no_symlink(file)
+            if not file.is_file() or file.stat().st_size > MAX_OUTPUT:
+                raise EffectError('restore_target_unverified')
+        proof = json.loads(completion.read_text())
+        expected = {key: binding[key] for key in ('approvalId', 'backupId', 'digest', 'manifestSha256')}
+        expected['targetDatabase'] = self.database
+        if any(proof.get(key) != value for key, value in expected.items()):
+            raise EffectError('restore_target_unverified')
+        self.base += ['--profile', 'restore']
 
     def database_exists(self):
-        return self.exists()
+        if not self.restore:
+            return self.exists()
+        sql = "SELECT count(*) FROM pg_database WHERE datname='" + self.database + "'"
+        result = self.command(self.base + ['exec', '-T', 'restore-db', 'psql', '-U', 'odoo',
+                                          '-d', 'postgres', '-At', '-c', sql]).strip()
+        if result not in ('0', '1'):
+            raise EffectError('database_observation_invalid')
+        return result == '1'
+
+    def _odoo_args(self, subcommand):
+        args = self.base + ['run', '--rm', '--no-deps', '-T', '--name', self.current_container]
+        if self.restore:
+            args += ['-v', str(self.classification) + ':/run/liwan/classification.json:ro',
+                     '-e', 'LIWAN_COMMERCIAL_CONFIG=/run/liwan/classification.json',
+                     '--entrypoint', '/usr/local/bin/liwan-odoo', 'restore-odoo', subcommand,
+                     '--db_host=restore-db', '--max-cron-threads=0']
+        else:
+            args += ['-e', 'LIWAN_COMMERCIAL_CONFIG=/run/liwan-runtime/classifications/' + self.database + '.json',
+                     '--entrypoint', '/usr/local/bin/liwan-odoo', 'odoo', subcommand]
+        return args + ['-d', self.database, '--no-http']
 
     def run_script(self, script, stage, mutate=False):
         if mutate:
@@ -546,12 +594,8 @@ class ComposeRunner(odoo_effect.Runner):
             raise EffectError('attempt_invalid')
         suffix = stage if mutate else stage + '-' + odoo_effect.secrets.token_hex(4)
         self.current_container = self.config['projectName'] + '-effect-' + attempt[:8] + '-' + suffix
-        args = self.base + ['run', '--rm', '--no-deps', '-T', '--name', self.current_container,
-            '-e', 'LIWAN_COMMERCIAL_CONFIG=/run/liwan-runtime/classifications/' + self.database + '.json',
-            '--entrypoint', '/usr/local/bin/liwan-odoo', 'odoo', 'shell', '-c', '/etc/odoo/odoo.conf',
-            '-d', self.database, '--no-http']
         try:
-            return self.command(args, stdin=script, timeout=180)
+            return self.command(self._odoo_args('shell'), stdin=script, timeout=180)
         finally:
             self.current_container = None
 
@@ -561,10 +605,7 @@ class ComposeRunner(odoo_effect.Runner):
         attempt = self.request['attemptId']
         self.current_container = self.config['projectName'] + '-effect-' + attempt[:8] + '-modules'
         try:
-            self.command(self.base + ['run', '--rm', '--no-deps', '-T', '--name', self.current_container,
-                '-e', 'LIWAN_COMMERCIAL_CONFIG=/run/liwan-runtime/classifications/' + self.database + '.json',
-                '--entrypoint', '/usr/local/bin/liwan-odoo', 'odoo', '-c', '/etc/odoo/odoo.conf', '-d', self.database,
-                '-i', ','.join(names), '--stop-after-init', '--no-http'], timeout=1500)
+            self.command(self._odoo_args('server') + ['-i', ','.join(names), '--stop-after-init'], timeout=1500)
         finally:
             self.current_container = None
 

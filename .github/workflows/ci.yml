@@ -484,9 +484,7 @@ jobs:
           stage: e2e-mock
           extra: ${{ matrix.shard }}/${{ matrix.total }}
 
-  # The real-Odoo Playwright specs on a scratch database seeded through Odoo (deploy/ci/e2e-odoo.sh). Slow, so a pull
-  # request runs it only for a change that reaches the surfaces its specs write through (tools/ci_scope.py
-  # E2E_ODOO_TRIGGERS); otherwise it waits for the push to main, the nightly run and a full dispatch.
+  # Browser journeys against scratch Odoo. Web and addon changes select this stage before merge (tools/ci_scope.py).
   e2e-odoo:
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'e2e-odoo')

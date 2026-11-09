@@ -72,10 +72,7 @@ class TestTemplateWebhookRouting(LiwanInboxCase):
 class TestTemplateEvents(LiwanInboxCase):
 
     def process(self, field, value, account_id=BUSINESS_ACCOUNT_ID, channel=None):
-        event = self.env['liwan.inbox.event'].create({
-            'channel_id': (channel or self.channel).id, 'owner_company_id': self.channel.owner_company_id.id,
-            'payload': json.dumps(wa.template_event(field, value, account_id)),
-        })
+        event = self.store_event(channel or self.channel, wa.template_event(field, value, account_id))
         self.env['liwan.inbox.event']._liwan_run_events()
         self.assertEqual(event.state, 'done', event.error)
 

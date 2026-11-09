@@ -98,6 +98,7 @@ PMO_AI_TOOLS = (
         'يجهّز مسودة مشروع تُفتح في صفحة الإنشاء الحقيقية؛ المستخدم يراجع ويرسل بنفسه',
         'Prepare a project draft that opens in the real create page; the user reviews and submits',
         draft_target='/projects/new',
+        draft_model='project.project',
         input_schema={
             'type': 'object',
             'properties': {

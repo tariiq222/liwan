@@ -129,11 +129,16 @@ class LiwanAiToolRegistry(models.AbstractModel):
             target = item.get('draft_target')
             if not isinstance(target, str) or not target.startswith('/'):
                 self._liwan_ai_error(name, 'draft_target must be an absolute page path')
+            # The record an approved draft creates lives in this model: the approval names it by id and the audit
+            # verifies the caller can read it (issue #556). Declared here because only the owning application knows it.
+            model = item.get('draft_model')
+            if not isinstance(model, str) or model not in self.env:
+                self._liwan_ai_error(name, 'draft_model must be a registered Odoo model')
             if item.get('input_map') or item.get('result_summary'):
                 self._liwan_ai_error(name, 'a draft tool has no input_map or result_summary')
             return
-        if item.get('draft_target') is not None:
-            self._liwan_ai_error(name, 'only a draft tool has a draft_target')
+        if item.get('draft_target') is not None or item.get('draft_model') is not None:
+            self._liwan_ai_error(name, 'only a draft tool has a draft_target or a draft_model')
         route = item.get('route')
         if not isinstance(route, dict) or route.get('method') not in ROUTE_METHODS or not str(route.get('path', '')).startswith('/api/v1/'):
             self._liwan_ai_error(name, 'route must be {method, path} under /api/v1/')
@@ -271,12 +276,17 @@ class LiwanAiToolRegistry(models.AbstractModel):
     @api.model
     def _liwan_ai_policy(self):
         """What the Nuxt server passes with every run: whose provider runs it, whether the tenant signed the current AI
-        acknowledgement (no run on any provider without it, spec 2026-11-04 §6.8), and what the run may spend."""
+        acknowledgement (no run on any provider without it, spec 2026-11-04 §6.8), and what the run may spend.
+
+        ``input_tokens_per_run`` is the tenant's own ceiling on the input tokens of one request (issue #554), in both
+        provider modes; null means no ceiling. The package's ``ai.output_tokens.per_run`` stays the platform run's cap."""
         entitlement = self.env['liwan.entitlement.service']
+        settings = self.env['liwan.ai.settings']._liwan_current()
         return {
-            'provider_mode': self.env['liwan.ai.settings']._liwan_current().provider_mode,
+            'provider_mode': settings.provider_mode,
             'consent_signed': bool(self.env['liwan.ai.consent']._liwan_valid()),
             'tokens_monthly': entitlement._liwan_limit_value('ai.tokens.monthly'),
             'tokens_used': self.env['liwan.ai.usage']._liwan_platform_tokens_used(),
             'output_tokens_per_run': entitlement._liwan_limit_value('ai.output_tokens.per_run'),
+            'input_tokens_per_run': settings.input_tokens_per_run or None,
         }

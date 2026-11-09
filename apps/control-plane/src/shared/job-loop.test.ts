@@ -34,3 +34,11 @@ it('finishes in-flight dispatch then honors shutdown before another claim', asyn
   await runSharedLoop({dispatch,wait:vi.fn(),isStopping:()=>stopping,isTransient:()=>false})
   expect(dispatch).toHaveBeenCalledTimes(1)
 })
+it('keeps the worker available after a restore waits for commercial reconciliation', async () => {
+  let ticks=0
+  const dispatch=vi.fn(async()=>({state:++ticks===1?'waiting_commercial_reconcile':'verified'}))
+  const wait=vi.fn(async()=>{})
+  await runSharedLoop({dispatch,wait,isStopping:()=>ticks===2,isTransient:()=>false})
+  expect(dispatch).toHaveBeenCalledTimes(2)
+  expect(wait.mock.calls).toEqual([[1000]])
+})

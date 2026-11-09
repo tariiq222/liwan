@@ -13,16 +13,16 @@ export const AiToolSchema = z.object({
   input_map: z.partialRecord(z.enum(['path', 'query', 'body']), z.record(z.string(), z.unknown())),
   result_summary: z.array(z.string()),
   draft_target: z.string().startsWith('/').nullable(),
+  /** The model an approved draft's record lives in; Odoo verifies the approval against it (issue #556). */
+  draft_model: z.string().regex(/^[a-z][a-z0-9_.]*$/).nullable(),
   /** Every write and draft waits for the user; a read waits only when the administrator set it to approval. */
   requires_approval: z.boolean(),
   /** A platform tool (such as `ai.search_knowledge`) belongs to no agent: it is read-only and offered to every agent. */
   platform: z.boolean(),
-}).strict().refine(tool => (tool.kind === 'draft') === (tool.route === null && tool.draft_target !== null), {
-  message: 'a draft tool has a draft_target and no route; other tools have a route',
+}).strict().refine(tool => (tool.kind === 'draft') === (tool.route === null && tool.draft_target !== null && tool.draft_model !== null), {
+  message: 'a draft tool has a draft_target, a draft_model and no route; other tools have a route and neither of the two',
 }).refine(tool => !tool.platform || tool.kind === 'read', { message: 'a platform tool is a read tool' })
 export type AiTool = z.infer<typeof AiToolSchema>
-/** A tool's agent is the application id its name starts with. */
-export const aiToolAgent = (name: string): string => name.slice(0, name.indexOf('.'))
 
 const AiTextSchema = z.object({ ar: z.string().min(1), en: z.string().min(1) }).strict()
 const AiAgentKeySchema = z.string().regex(/^[a-z][a-z0-9_]*$/)
@@ -58,6 +58,8 @@ export const AiPolicySchema = z.object({
   tokens_monthly: AiLimitValueSchema,
   tokens_used: z.number().int().nonnegative(),
   output_tokens_per_run: AiLimitValueSchema,
+  /** The tenant's own ceiling on the input tokens of one request (issue #554); null means no ceiling of its own. */
+  input_tokens_per_run: AiLimitValueSchema,
 }).strict()
 export type AiPolicy = z.infer<typeof AiPolicySchema>
 
@@ -92,11 +94,17 @@ export const AiAuditRequestSchema = z.object({
   http_status: z.number().int().min(100).max(599).nullable(),
   draft: z.record(z.string(), z.unknown()).nullable(),
   approved: z.record(z.string(), z.unknown()).nullable(),
-  attested: z.boolean(),
-}).strict().refine(body => body.result !== 'approved' || body.attested, { message: 'an approved draft needs attestation', path: ['attested'] })
+}).strict()
 export type AiAuditRequest = z.infer<typeof AiAuditRequestSchema>
 export const AiAuditReceiptSchema = z.object({ id: z.number().int().positive(), messages_used: z.number().int().nonnegative(), messages_limit: z.number().int().nonnegative().nullable() }).strict()
 export type AiAuditReceipt = z.infer<typeof AiAuditReceiptSchema>
+
+/**
+ * What an approved draft names: the record the real create page made (`POST /api/ai/runs/{id}/resume`, issue #556). A
+ * strict shape, so an approval cannot smuggle anything else into the audit row; Odoo still verifies the record itself.
+ */
+export const AiApprovedDraftSchema = z.object({ id: z.number().int().positive() }).strict()
+export type AiApprovedDraft = z.infer<typeof AiApprovedDraftSchema>
 
 export const AiRecordRefSchema = z.object({ type: z.string(), id: z.number().int(), label: z.string() }).strict()
 export type AiRecordRef = z.infer<typeof AiRecordRefSchema>
@@ -118,7 +126,7 @@ export const AiEventSchema = z.discriminatedUnion('event', [
   z.object({ event: z.literal('tool_request'), data: AiToolRequestSchema }),
   z.object({ event: z.literal('tool_result'), data: z.object({ call_id: z.string(), tool: z.string(), kind: AiToolKindSchema, ok: z.boolean(), summary_ar: z.string(), summary_en: z.string() }).strict() }),
   z.object({ event: z.literal('answer'), data: z.object({ text: z.string(), records: z.array(AiRecordRefSchema) }).strict() }),
-  z.object({ event: z.literal('limit_reached'), data: z.object({ limit: z.enum(['max_tool_calls', 'max_steps', 'timeout', 'messages_monthly', 'output_tokens']) }).strict() }),
+  z.object({ event: z.literal('limit_reached'), data: z.object({ limit: z.enum(['max_tool_calls', 'max_steps', 'timeout', 'messages_monthly', 'output_tokens', 'input_tokens']) }).strict() }),
   z.object({ event: z.literal('error'), data: z.object({ code: z.string(), message: z.string() }).strict() }),
   z.object({ event: z.literal('done'), data: z.object({ status: AiDoneStatusSchema }).strict() }),
 ])
@@ -151,7 +159,7 @@ export const AiModelUsageEventSchema = z.object({
 export type AiModelUsageEvent = z.infer<typeof AiModelUsageEventSchema>
 
 const AiUsageFields = {
-  conversation_id: z.string().min(1).max(64), kind: AiModelCallKindSchema, billing: AiBillingSchema, provider: AiProviderNameSchema, model: AiModelNameSchema,
+  conversation_id: z.string().min(1).max(64), call_id: AiCallIdSchema, kind: AiModelCallKindSchema, billing: AiBillingSchema, provider: AiProviderNameSchema, model: AiModelNameSchema,
   outcome: AiModelCallOutcomeSchema, input_tokens: AiTokenCountSchema, output_tokens: AiTokenCountSchema, called_at: z.iso.datetime({ offset: true }),
 }
 /** One provider attempt as `POST /api/v1/ai/usage` records it. */
@@ -248,10 +256,14 @@ const AiPersonSchema = z.object({ id: z.number().int().positive(), name: z.strin
 export const AiExternalSendSchema = z.enum(['draft_only', 'approve'])
 export const AI_MESSAGES_PER_USER_MAX = 100_000
 const AiMessagesPerUserSchema = z.number().int().min(0).max(AI_MESSAGES_PER_USER_MAX) // 0 means no cap per user
+/** The tenant's ceiling on the input tokens of one request (issue #554); 0 means no cap of its own. */
+export const AI_INPUT_TOKENS_PER_RUN_MAX = 2_000_000
+const AiInputTokensPerRunSchema = z.number().int().min(0).max(AI_INPUT_TOKENS_PER_RUN_MAX)
 
 export const AiSettingsSchema = z.object({
   provider_mode: AiProviderModeSchema,
   messages_per_user_monthly: AiMessagesPerUserSchema,
+  input_tokens_per_run: AiInputTokensPerRunSchema,
   external_send: AiExternalSendSchema,
   /** Whether the assistant may search company records (knowledge retrieval); applies only while the consent is valid. */
   knowledge_enabled: z.boolean(),
@@ -279,6 +291,7 @@ export type AiSettings = z.infer<typeof AiSettingsSchema>
 export const AiSettingsPatchSchema = z.object({
   provider_mode: AiProviderModeSchema.optional(),
   messages_per_user_monthly: AiMessagesPerUserSchema.optional(),
+  input_tokens_per_run: AiInputTokensPerRunSchema.optional(),
   external_send: AiExternalSendSchema.optional(),
   knowledge_enabled: z.boolean().optional(),
   revision: z.number().int().positive(),

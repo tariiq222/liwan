@@ -1,3 +1,4 @@
+import { isIP } from 'node:net'
 import http from 'node:http'
 import { createBodyAdmission, destroyUpstreamWhenCallerCloses, readBodyBytes } from '../../apps/web/server/utils/bufferAdmission.mjs'
 import { isReleaseAssetRequest, readAsset, validateAssetStore } from '../../apps/web/server/utils/releaseAssets.ts'
@@ -43,12 +44,18 @@ export function sessionCodec(keys, activeKid, now = () => Math.floor(Date.now() 
   }
 }
 /**
- * The LiwanOS public host (the prospect origin) belongs to no tenant: a customer whose first order is paid there has
- * no workspace yet. It is served by the web app only for the payment-done page, the payment return relay and the built
- * assets they need; any other path or method on that host stays refused, and an unknown host never reaches this branch.
- * Cookies and every identity header are dropped, the proxy token is injected here and never accepted from the client.
+ * The prospect origin belongs to no tenant. Only the listed public flows and built assets reach Nuxt.
+ * Caddy replaces the signup client address with the socket peer. The guard is on the private network.
  */
-const prospectRoutes = [[/^\/payment-done\/?$/, ['GET', 'HEAD']], [/^\/api\/commercial\/payment-callback$/, ['GET', 'POST']], [/^\/_nuxt\/[A-Za-z0-9._\-/]+$/, ['GET', 'HEAD']]]
+const signupApi = /^\/api\/commercial\/signup\/(?:start|verify-sms|send-email|verify-email)$/
+const prospectRoutes = [
+  [/^\/(?:payment-done|register)\/?$/, ['GET', 'HEAD']],
+  [/^\/api\/commercial\/payment-callback$/, ['GET', 'POST']],
+  [signupApi, ['POST']],
+  [/^\/_nuxt\/[A-Za-z0-9._\-/]+$/, ['GET', 'HEAD']],
+  [/^\/(?:fonts\/[A-Za-z0-9-]+\.woff2|favicon\.(?:ico|svg))$/, ['GET', 'HEAD']],
+  [/^\/_i18n\/[a-f0-9]{8,64}\/(?:ar|en)\/messages\.json$/, ['GET', 'HEAD']],
+]
 export function prospectPlan(req, prospectHost, token) {
   if (!prospectHost || req.headers.host?.toLowerCase() !== prospectHost.toLowerCase()) return null
   if (!token || token.length < 32) throw Error('invalid_proxy_token')
@@ -59,6 +66,11 @@ export function prospectPlan(req, prospectHost, token) {
   for (const key of url.searchParams.keys()) if (selectors.test(key)) throw Error('forbidden_selector')
   const headers = { ...req.headers }
   for (const key of Object.keys(headers)) if (forbidden.test(key)) delete headers[key]
+  if (signupApi.test(url.pathname)) {
+    const ip = req.headers['x-liwan-signup-client']
+    if (url.search || typeof ip !== 'string' || !isIP(ip)) throw Error('forbidden_route')
+    headers['x-liwan-signup-client'] = ip
+  }
   delete headers.authorization
   delete headers.cookie
   headers['x-liwan-proxy-token'] = token
@@ -275,8 +287,9 @@ export function createGuard({ registryPath, restoreRegistryPath = '', proxyToken
     let body
     let releaseBody = () => {}
     // H3/radix accepts one trailing slash on these BFF routes. Bound the same aliases.
-    const publicBodyLimit = !p.internal ? publicAuthBodyLimits[p.path.split('?')[0].replace(/\/$/, '')] : undefined
-    if ((p.odoo || p.path.startsWith('/api/auth/')) && !['GET', 'HEAD'].includes(req.method)) {
+    const publicPath = p.path.split('?')[0].replace(/\/$/, '')
+    const publicBodyLimit = p.prospect && signupApi.test(publicPath) ? 2048 : !p.internal ? publicAuthBodyLimits[publicPath] : undefined
+    if ((p.odoo || publicBodyLimit !== undefined || p.path.startsWith('/api/auth/')) && !['GET', 'HEAD'].includes(req.method)) {
       try {
         releaseBody = await (p.internal ? acquireInternalBody : acquireExternalBody)(req, res)
         body = await readBodyBytes(req, res, publicBodyLimit ?? 16 * 1024 * 1024)

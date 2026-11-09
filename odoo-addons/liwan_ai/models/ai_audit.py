@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import json
 import math
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
@@ -21,13 +21,16 @@ PER_USER_MESSAGES = 'ai.messages.per_user_monthly'
 AUDIT_RESULTS = ('ok', 'denied', 'failed', 'proposed', 'approved', 'rejected')
 DRAFT_RESULTS = ('proposed', 'approved', 'rejected')
 WIRE_KEYS = frozenset({
-    'conversation_id', 'kind', 'agent', 'tool_name', 'input', 'result', 'http_status', 'draft', 'approved', 'attested',
+    'conversation_id', 'kind', 'agent', 'tool_name', 'input', 'result', 'http_status', 'draft', 'approved',
 })
 SECRET_FRAGMENTS = ('password', 'passwd', 'token', 'secret', 'apikey', 'authorization', 'credential')
 NUL = '\x00'
 MAX_JSON_DEPTH = 8
 MAX_JSON_BYTES = 32 * 1024
 MAX_CONVERSATION_ID = 64
+# An approval without a recorded proposal of the same conversation and tool is trusted only this far back in time; see
+# `_liwan_ai_check_approved`.
+APPROVAL_FALLBACK_HOURS = 24
 CONVERSATION_ID_MESSAGE = (
     f'conversation_id must be a non-empty string of at most {MAX_CONVERSATION_ID} characters, without NUL'
 )
@@ -154,9 +157,6 @@ class LiwanAiAudit(models.Model):
         result = values.get('result')
         if not isinstance(result, str) or result not in AUDIT_RESULTS:
             invalid('result', f'result must be one of {AUDIT_RESULTS}')
-        attested = values.get('attested', False)
-        if not isinstance(attested, bool):
-            invalid('attested', 'attested must be a boolean')
         tool_name = values.get('tool_name')
         http_status = values.get('http_status')
         if http_status is not None and (not isinstance(http_status, int) or isinstance(http_status, bool) or not 100 <= http_status <= 599):
@@ -167,8 +167,6 @@ class LiwanAiAudit(models.Model):
             for field in ('agent', 'tool_name', 'input', 'draft', 'approved', 'http_status'):
                 if values.get(field) is not None:
                     invalid(field, f'a message audit has no {field}')
-            if attested:
-                invalid('attested', 'a message audit is not attested')
             if result != 'ok':
                 invalid('result', 'a message audit result is ok')
         else:
@@ -186,11 +184,11 @@ class LiwanAiAudit(models.Model):
             invalid('result', f'a draft result must be one of {DRAFT_RESULTS}')
         if kind != 'draft' and result in DRAFT_RESULTS:
             invalid('result', f'result {result} is only valid for a draft')
-        if result == 'approved' and not attested:
-            invalid('attested', 'an approved draft needs the user attestation')
         if result == 'approved' and not isinstance(values.get('approved'), dict):
             invalid('approved', 'an approved draft carries the approved payload')
         payload = {field: self._liwan_ai_json(field, values.get(field)) for field in ('input', 'draft', 'approved')}
+        if result == 'approved':
+            self._liwan_ai_check_approved(tool, payload['approved'], conversation_id, tool_name)
         if tool is not None:
             if not self.env['liwan.access.service']._liwan_has_capability(self.env.user, tool['capability']):
                 raise AccessError(self.env._('You do not have access to the tool %(tool)s.', tool=tool_name))
@@ -205,9 +203,74 @@ class LiwanAiAudit(models.Model):
             'tool_name': tool_name,
             'result': result,
             'http_status': http_status,
-            'attested_at': fields.Datetime.now() if attested else False,
+            # The server stamps the acknowledgement, never the caller (issue #556): an `approved` draft is approved by the
+            # session that recorded it, at this transaction's time.
+            'attested_at': fields.Datetime.now() if result == 'approved' else False,
             **payload,
         }
+
+    @api.model
+    def _liwan_ai_check_approved(self, tool, approved, conversation_id, tool_name):
+        """Refuse an approval of a record this session did not create for this draft.
+
+        Issue #556: the create page submits the real create route as the user, then the browser sends back only the new
+        id. That proves nothing on its own, so the audit checks, in the caller's own environment (Odoo's record rules
+        decide, never sudo), that the named record of the draft's model:
+
+        * was created by the caller (``create_uid``), so a record the superuser made, or a colleague's, never passes as
+          this session's own;
+        * was created no earlier than this draft was proposed, so an old record cannot be attached to a new draft. The
+          proposal is the ``draft``/``proposed`` audit row of the same conversation, caller and tool; without one (a
+          proposal whose audit write failed, or a direct ORM create) the cutoff is the last 24 hours, a bounded window
+          instead of an unbounded history. Times compare in the naive UTC the ORM stores;
+        * is still visible here: another company's record, a model the caller cannot read, or a record the rules hide is
+          refused as ``not_found``. A record that belongs to no company (a shared partner) passes the company clause.
+          A model that keeps no creation log cannot prove who made a record or when, so it never satisfies an approval.
+
+        All refusals carry ``field='approved'`` before the row is written, so the browser learns only that this id is not
+        one the approval covers.
+        """
+        model = tool['draft_model']
+        res_id = approved.get('id')
+        if not isinstance(res_id, int) or isinstance(res_id, bool) or res_id <= 0:
+            self._liwan_ai_invalid('approved', "an approved draft names the record it created as {'id': <positive int>}")
+        try:
+            record = self.env[model].search([('id', '=', res_id)])
+        except AccessError:
+            # No read access to the model at all: the caller cannot have created and reopened a record of it.
+            record = self.env[model].browse()
+        # A record that belongs to no company (a shared partner) passes; one of another company is not this session's.
+        foreign_company = bool(record) and 'company_id' in record._fields and record.company_id and record.company_id != self.env.company
+        if not record or foreign_company:
+            self._liwan_ai_invalid('approved', f'record {res_id} of {model} is not visible here', code='not_found')
+        # The creation log is the proof: a model that keeps none, a record whose creator is not the caller, or one created
+        # before this draft was proposed never satisfies an approval. `_log_access` leads because a model without it has no
+        # create_uid or create_date to read.
+        fresh = (
+            record._log_access
+            and record.create_uid == self.env.user
+            and record.create_date
+            and record.create_date >= self._liwan_ai_proposed_at(conversation_id, tool_name)
+        )
+        if not fresh:
+            self._liwan_ai_invalid('approved', f'record {res_id} of {model} was not created by this session for this draft', code='not_found')
+
+    @api.model
+    def _liwan_ai_proposed_at(self, conversation_id, tool_name):
+        """The earliest ``create_date`` a record an approval covers may have: this draft's proposal, else 24 hours ago.
+
+        Naive UTC on both sides, as the ORM stores ``create_date``; nothing here is tz-aware.
+        """
+        proposal = self.search([
+            ('conversation_id', '=', conversation_id),
+            ('user_id', '=', self.env.uid),
+            ('kind', '=', 'draft'),
+            ('result', '=', 'proposed'),
+            ('tool_name', '=', tool_name),
+        ], order='id desc', limit=1)
+        if proposal:
+            return proposal.create_date
+        return fields.Datetime.now() - timedelta(hours=APPROVAL_FALLBACK_HOURS)
 
     @api.model_create_multi
     def create(self, vals_list):

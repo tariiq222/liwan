@@ -52,6 +52,32 @@ published database/filestore binding, independently checks each physical
 database and filestore, and uses the worker-generated admin credentials.
 Requests are not automatically retried after errors.
 
+## Commercial acceptance
+
+With a local Mailpit image (`axllent/mailpit:latest`) and OpenSSL, pass
+`--commercial` to run one vendor-created paid customer instead of the
+two-tenant fixture. The script records the actual Mailpit image ID and only
+opens SMTP and mail capture on loopback. The payment provider is the simulator.
+
+```sh
+LIWAN_IMAGE_TAG=<matching-built-tag> \
+  node --import tsx tools/foundation_acceptance/provision_two_tenants.mjs --commercial
+```
+
+The signed vendor calls create the customer, quote, order, and simulator
+attempt. A real worker settles fulfillment, provisions Odoo, and sends the
+first administrator's invitation. The harness accepts the invitation through
+the public control API, tests that it cannot be reused, and signs into the
+tenant through the TLS edge with the email code captured by Mailpit. The
+operator then requests a backup, approves restoration into an independent
+PostgreSQL and Odoo pair, and asks the worker to publish the verified recovery
+route. The test checks the source and restored subscription revision and
+attachment bytes, as well as the recovered login page.
+
+This mode starts from a vendor-created customer. Public self-registration,
+the browser invitation form, and real payment processing have their own
+acceptance criteria.
+
 At success, failure or the first interrupt, the tool stops its control processes,
 captures Compose diagnostics and stops the Compose services. **Containers,
 volumes, databases, logs, generated credentials and runtime state are retained.**
@@ -72,10 +98,6 @@ node --test tools/foundation_acceptance/lib.test.mjs
 node --check tools/foundation_acceptance/provision_two_tenants.mjs
 ```
 
-This is not deployment/release approval. It does not cover the first-admin
-invitation, MFA, entitlement denial, fail-closed registry mutations, browser
-pages, backups/restores, live updates, capacity, Linux acceptance or `non_saas`.
-The old restore helper and output-suppression workaround were deliberately
-excluded: no current product publication path is proved by calling an internal
-library. Historical results
-remain pinned to their original source and are not results for this tool.
+These results are for the local shared stack. Browser pages beyond the recovered
+login route, live updates, capacity, Linux acceptance, and `non_saas` need
+separate evidence. Historical results stay pinned to their source and images.

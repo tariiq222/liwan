@@ -196,8 +196,8 @@ class TestWebSecurityHeaders(unittest.TestCase):
                 for item in obj:
                     collect(item)
         collect(adapted['apps']['http']['servers'])
-        self.assertEqual(set(zones), {'liwan_auth', 'liwan_api', 'liwan_public_appointments_ip',
-                                      'liwan_odoo', 'liwan_web'})
+        self.assertEqual(set(zones), {'liwan_auth', 'liwan_provider_hook', 'liwan_api',
+                                      'liwan_public_appointments_ip', 'liwan_odoo', 'liwan_web'})
         for name, zone in zones.items():
             with self.subTest(zone=name):
                 self.assertEqual(zone['key'], '{http.request.remote.host}',

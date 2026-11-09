@@ -5,12 +5,25 @@ import { createHmac } from 'node:crypto'
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createTiktokRelay } from './tiktok-relay.mjs'
+import { fileURLToPath } from 'node:url'
+import { createTiktokRelay, SIGNATURE_MAX_AGE_SECONDS } from './tiktok-relay.mjs'
 
 const NOW = 1_700_000_000
 const SECRET = 'test-only-tiktok-client-secret'
 const PROXY_TOKEN = 'test-only-relay-proxy-token-'.repeat(2)
 const MAX_BODY = 1024 * 1024
+const TIKTOK_ADAPTER = fileURLToPath(new URL('../../odoo-addons/liwan_inbox/adapters/tiktok.py', import.meta.url))
+
+/** The tenant's own window, read from the Python constant that enforces it (`SIGNATURE_MAX_AGE_RELAY` in
+ * `odoo-addons/liwan_inbox/adapters/tiktok.py`) so a change there cannot leave this stand-in tenant judging
+ * deliveries against a window the real one no longer uses. */
+function pythonConstant(source, name) {
+  const match = new RegExp(`^${name} = (\\d+)$`, 'm').exec(source)
+  assert.ok(match, `${name} is not a plain integer constant in ${TIKTOK_ADAPTER}`)
+  return Number(match[1])
+}
+const TENANT_WINDOW_SECONDS = pythonConstant(readFileSync(TIKTOK_ADAPTER, 'utf8'), 'SIGNATURE_MAX_AGE_RELAY')
+
 const targets = [
   { host: 'acme.example.test', tenantId: 'acme', database: 'liwan_scratch_acme', filestore: 'liwan_scratch_acme', enabled: true, registryRevision: 1 },
   { host: 'beta.example.test', tenantId: 'beta', database: 'liwan_scratch_beta', filestore: 'liwan_scratch_beta', enabled: true, registryRevision: 2 },
@@ -56,16 +69,20 @@ function signState(fields) {
 }
 
 /** A stand-in tenant origin that records exactly what the relay forwarded. */
-async function startTenant() {
+async function startTenant({ signatureAgeSeconds = null, clock = () => NOW } = {}) {
   const requests = []
   let status = 200
   let body = 'ok'
   const server = http.createServer(async (req, res) => {
     const chunks = []
     for await (const chunk of req) chunks.push(chunk)
-    requests.push({ method: req.method, url: req.url, headers: req.headers, body: Buffer.concat(chunks) })
-    res.writeHead(status, { 'content-type': 'application/json' })
-    res.end(body)
+    const raw = Buffer.concat(chunks)
+    requests.push({ method: req.method, url: req.url, headers: req.headers, body: raw })
+    // The tenant hop as `odoo-addons/liwan_inbox/adapters/tiktok.py: verify_signature` decides it: the same
+    // `{timestamp}.{raw}` HMAC and a symmetric window, applied to its own clock rather than the relay's.
+    const answer = signatureAgeSeconds === null || tenantAccepts(raw, req.headers['tiktok-signature'], clock(), signatureAgeSeconds)
+    res.writeHead(answer ? status : 403, { 'content-type': 'application/json' })
+    res.end(answer ? body : 'invalid_signature')
   })
   const port = await listen(server)
   return {
@@ -74,6 +91,14 @@ async function startTenant() {
     origin: () => `http://127.0.0.1:${port}`,
     close: () => close(server),
   }
+}
+
+/** The tenant's half of TikTok's signature check: the header's timestamp within a symmetric window. */
+function tenantAccepts(raw, header, now, windowSeconds) {
+  const match = /^t=(\d{1,12}),s=([0-9a-f]{64})$/.exec(typeof header === 'string' ? header : '')
+  if (!match || Math.abs(now - Number(match[1])) > windowSeconds) return false
+  const digest = createHmac('sha256', SECRET).update(`${match[1]}.`).update(raw).digest()
+  return digest.equals(Buffer.from(match[2], 'hex'))
 }
 
 async function startRelay({ tenant, dir, registry, bindings: seed = bindings, ...options }) {
@@ -111,8 +136,10 @@ const storedBindings = dir => JSON.parse(readFileSync(join(dir, 'bindings.json')
 
 async function fixture(options = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'tiktok-relay-'))
-  const tenant = await startTenant()
-  const { server, port } = await startRelay({ tenant, dir, ...options })
+  // `tenant` here is the stand-in tenant's own behaviour, not the server the relay dials.
+  const { tenant: tenantOptions, ...relayOptions } = options
+  const tenant = await startTenant(tenantOptions)
+  const { server, port } = await startRelay({ tenant, dir, ...relayOptions })
   return {
     dir,
     tenant,
@@ -124,6 +151,15 @@ async function fixture(options = {}) {
     },
   }
 }
+
+test('the first-hop window matches the Python constant the channel documents', () => {
+  // The relay's own replay window and the tenant's wider one are decided together (see the comments in both
+  // sources). The tenant's window is read from Python above, so this only has to keep the JS hop honest: a
+  // change to one without the other fails here instead of silently diverging.
+  const source = readFileSync(TIKTOK_ADAPTER, 'utf8')
+  assert.equal(SIGNATURE_MAX_AGE_SECONDS, pythonConstant(source, 'SIGNATURE_MAX_AGE'))
+  assert.ok(TENANT_WINDOW_SECONDS > SIGNATURE_MAX_AGE_SECONDS, 'the second hop admits a forward the first accepted')
+})
 
 test('a valid delivery reaches the tenant unchanged and the answer waits for it', async () => {
   const f = await fixture()
@@ -169,6 +205,44 @@ test('a signature dated in the future is refused like a stale one', async () => 
     assert.equal(f.tenant.requests.length, 0)
     const near = delivery('openid_acme', NOW + 5)
     assert.equal((await post(f.port, near.raw, near.signature)).status, 200)
+    assert.equal(f.tenant.requests.length, 1)
+  } finally { await f.close() }
+})
+
+test('both hops accept a delivery the relay forwards late, and the tenant still refuses one beyond its window', async () => {
+  // One delivery end to end through both real checks. TikTok signs at T0 and the relay receives it at T0, so the
+  // first hop sees a fresh timestamp; the forward then takes 6-12 seconds, and the tenant judges the same
+  // untouched timestamp against its own clock with its wider window. That delay used to be refused at the
+  // second hop while the first had already accepted it (A09-F4 / #499).
+  for (const delay of [6, 8, 12]) {
+    const signedAt = NOW
+    const f = await fixture({
+      now: () => signedAt,
+      tenant: { signatureAgeSeconds: TENANT_WINDOW_SECONDS, clock: () => signedAt + delay },
+    })
+    try {
+      const { raw, signature } = delivery('openid_acme', signedAt)
+      const response = await post(f.port, raw, signature)
+      assert.equal(response.status, 200, `a forward of ${delay}s is inside the tenant window`)
+      assert.equal(await response.text(), 'ok')
+      assert.equal(f.tenant.requests.length, 1, `the tenant received the ${delay}s-late delivery`)
+    } finally { await f.close() }
+  }
+})
+
+test('a delivery beyond the tenant window is refused by the tenant through the relay', async () => {
+  // The relay's own forward budget is ten seconds, so a tenant that sees more than thirty seconds has a wrong
+  // clock or a replay; the tenant's 403 is a settled answer the relay passes through unchanged.
+  const signedAt = NOW
+  const f = await fixture({
+    now: () => signedAt,
+    tenant: { signatureAgeSeconds: TENANT_WINDOW_SECONDS, clock: () => signedAt + TENANT_WINDOW_SECONDS + 1 },
+  })
+  try {
+    const { raw, signature } = delivery('openid_acme', signedAt)
+    const response = await post(f.port, raw, signature)
+    assert.equal(response.status, 403)
+    assert.equal(await response.text(), 'invalid_signature')
     assert.equal(f.tenant.requests.length, 1)
   } finally { await f.close() }
 })

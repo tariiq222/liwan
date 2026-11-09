@@ -1,5 +1,4 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-import json
 import time
 
 from odoo.tests import tagged
@@ -66,9 +65,7 @@ class TestCommerceParsing(LiwanInboxCase):
 class TestCommerceIngestion(LiwanInboxCase):
 
     def deliver(self, data):
-        self.env['liwan.inbox.event'].create({
-            'channel_id': self.channel.id, 'owner_company_id': self.channel.owner_company_id.id, 'payload': json.dumps(data),
-        })
+        self.store_event(self.channel, data)
         self.env['liwan.inbox.event']._liwan_run_events()
 
     def message(self, provider_id):

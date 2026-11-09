@@ -38,7 +38,8 @@ class TikTokHookController(http.Controller):
         signed = (
             bool(config) and bool(business_id)
             and tiktok.verify_signature(
-                config.client_secret, raw, request.httprequest.headers.get(tiktok.SIGNATURE_HEADER, ''), int(time.time()),
+                config.client_secret, raw, request.httprequest.headers.get(tiktok.SIGNATURE_HEADER, ''),
+                int(time.time()), max_age=tiktok.SIGNATURE_MAX_AGE_RELAY,
             )
         )
         channel = request.env['liwan.inbox.channel']
@@ -49,7 +50,5 @@ class TikTokHookController(http.Controller):
             ], limit=1)
         if not channel:
             reject_webhook()
-        request.env['liwan.inbox.event'].create([{
-            'channel_id': channel.id, 'owner_company_id': channel.owner_company_id.id, 'payload': raw.decode(),
-        }])
+        request.env['liwan.inbox.event']._liwan_store(channel, raw)
         return request.make_response('ok', headers=[('Content-Type', 'text/plain; charset=utf-8')])

@@ -38,6 +38,33 @@ class TestChannelsApi(LiwanInboxCase):
     def verify_token_query(self, token):
         return self.get(f'/api/v1/inbox/hooks/whatsapp?hub.mode=subscribe&hub.verify_token={token}&hub.challenge=9')
 
+    def test_the_callback_url_follows_the_pinned_public_origin_not_the_request_host(self):
+        # Provisioning pins `web.base.url` to the tenant's public https host.
+        self.env['ir.config_parameter'].sudo().set_param('web.base.url', 'https://acme.liwan.example/')
+        self.login(self.manager)
+        self.assertEqual(
+            self.get(f'/api/v1/inbox/channels/{self.channel.id}').json()['callback_url'],
+            'https://acme.liwan.example/api/v1/inbox/hooks/whatsapp',
+        )
+        self.env['ir.config_parameter'].sudo().set_param('web.base.url', 'http://plain.example.test')
+        self.assertEqual(
+            self.get(f'/api/v1/inbox/channels/{self.channel.id}').json()['callback_url'],
+            'https://plain.example.test/api/v1/inbox/hooks/whatsapp',
+            'an http origin is offered as https, the way the previous build did',
+        )
+
+    def test_a_missing_public_origin_is_a_stated_422_not_a_relative_hook_url(self):
+        # Provisioning pins `web.base.url`; a request served before it is set must say so, not hand the
+        # administrator a bare `/api/v1/...` path that no provider can call.
+        self.login(self.manager)
+        params = self.env['ir.config_parameter'].sudo()
+        params.set_param('web.base.url', '')
+        response = self.get(f'/api/v1/inbox/channels/{self.channel.id}')
+        self.assertError(response, 422, 'invalid')
+        body = response.json()
+        self.assertEqual(body['details']['reason'], 'inbox_public_base_missing')
+        self.assertNotIn('/api/v1/inbox/hooks', response.text)
+
     def test_create_returns_the_shape_without_secrets_and_stores_ciphertext(self):
         self.login(self.manager)
         result = self.api('POST', '/api/v1/inbox/channels', {**NEW_CHANNEL, 'department_id': self.department.id})
@@ -45,7 +72,9 @@ class TestChannelsApi(LiwanInboxCase):
         body = result.json()
         self.assertEqual(set(body), CHANNEL_KEYS)
         self.assertEqual((body['state'], body['has_access_token'], body['has_app_secret']), ('draft', True, True))
-        self.assertTrue(body['callback_url'].startswith('https://') and body['callback_url'].endswith('/api/v1/inbox/hooks/whatsapp'))
+        # The hook URL is the public origin provisioning pinned, never this request's own Host: a shared
+        # tenant's request Host is its database name and a dedicated install may answer on localhost.
+        self.assertEqual(body['callback_url'], 'https://liwan.test/api/v1/inbox/hooks/whatsapp')
         self.assertFalse(body['has_verify_token'])
         self.assertNotIn('x' * 20, result.text)
         self.env.cr.execute('SELECT access_token_enc, app_secret_enc FROM liwan_inbox_channel WHERE id = %s', [body['id']])

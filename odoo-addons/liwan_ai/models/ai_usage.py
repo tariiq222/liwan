@@ -2,6 +2,8 @@
 import re
 from datetime import datetime, timedelta, timezone
 
+from psycopg2.errors import UniqueViolation
+
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
@@ -19,8 +21,10 @@ USAGE_OUTCOMES = ('ok', 'failed', 'retried', 'aborted')
 # spec §6.5); the AI service names that last billing ``setup``.
 USAGE_BILLINGS = ('platform', 'tenant_key', 'setup')
 WIRE_KEYS = frozenset({
-    'conversation_id', 'kind', 'billing', 'provider', 'model', 'outcome', 'input_tokens', 'output_tokens', 'called_at',
+    'conversation_id', 'call_id', 'kind', 'billing', 'provider', 'model', 'outcome', 'input_tokens', 'output_tokens', 'called_at',
 })
+# The same provider attempt reported twice is the same row: the spool retries a batch whose answer it never saw.
+CALL_ID_PATTERN = re.compile(r'[0-9a-f]{16}')
 PROVIDER_PATTERN = re.compile(r'[a-z][a-z0-9_-]{0,31}')
 CONTROL_CHARACTERS = re.compile(r'[\x00-\x1f\x7f-\x9f]')
 MAX_MODEL_LENGTH = 128
@@ -73,6 +77,8 @@ class LiwanAiUsage(models.Model):
     user_id = fields.Many2one('res.users', required=True, index=True, ondelete='cascade',
                               default=lambda self: self.env.user)
     conversation_id = fields.Char(required=True, index=True)
+    # The provider's own id of the call (16 hex): the wire's identity of the row, so a re-sent batch adds nothing.
+    call_id = fields.Char(required=True)
     kind = fields.Selection([(kind, kind) for kind in USAGE_KINDS], required=True)
     billing = fields.Selection([(billing, billing) for billing in USAGE_BILLINGS], required=True)
     provider = fields.Char(required=True)
@@ -85,6 +91,8 @@ class LiwanAiUsage(models.Model):
 
     # The own-rows rule filters on user_id and orders by called_at; a monthly per-user sum reads the same.
     _user_called_at_idx = models.Index('(user_id, called_at)')
+    # One row per provider attempt of one user: a batch Odoo accepted before a timeout is never counted twice (issue #557).
+    _user_conversation_call_uniq = models.UniqueIndex('(user_id, conversation_id, call_id)')
 
     @api.model
     def _liwan_ai_prepare(self, values):
@@ -107,6 +115,9 @@ class LiwanAiUsage(models.Model):
         conversation_id = values['conversation_id']
         if not is_conversation_id(conversation_id):
             invalid('conversation_id', CONVERSATION_ID_MESSAGE)
+        call_id = values['call_id']
+        if not isinstance(call_id, str) or not CALL_ID_PATTERN.fullmatch(call_id):
+            invalid('call_id', 'call_id must be 16 lowercase hex characters')
         kind = values['kind']
         if not isinstance(kind, str) or kind not in USAGE_KINDS:
             invalid('kind', f'kind must be one of {USAGE_KINDS}')
@@ -138,6 +149,7 @@ class LiwanAiUsage(models.Model):
             'company_id': self.env.company.id,
             'user_id': self.env.user.id,
             'conversation_id': conversation_id,
+            'call_id': call_id,
             'kind': kind,
             'billing': billing,
             'provider': provider,
@@ -164,6 +176,12 @@ class LiwanAiUsage(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        """Record the attempts of a batch, each row once; a row this user already reported is not counted again.
+
+        The spool retries a batch whose answer it never saw, so the same attempt can arrive twice (issue #557). The unique
+        index on (user, conversation, call) is the guard: a refused insert rolls back only its own savepoint and the batch
+        answers success with the rows that already exist, so the retry is settled rather than repeated.
+        """
         self.env['liwan.entitlement.service'].require('ai.enabled')
         self.env['liwan.access.service']._liwan_require_capability(AI_USE)
         rows = []
@@ -173,4 +191,28 @@ class LiwanAiUsage(models.Model):
             except ValidationError as error:
                 error.liwan_index = index
                 raise
-        return super().create(rows)
+        created = []
+        for row in rows:
+            existing = self._liwan_ai_existing(row)
+            if existing:
+                created.append(existing.id)
+                continue
+            try:
+                with self.env.cr.savepoint():
+                    created.append(super().create([row]).id)
+            except UniqueViolation:
+                # A concurrent report of the same attempt won the insert: that row is the record of this attempt too.
+                existing = self._liwan_ai_existing(row)
+                if not existing:
+                    raise
+                created.append(existing.id)
+        return self.browse(created)
+
+    @api.model
+    def _liwan_ai_existing(self, row):
+        """The row this attempt already has, if any, within the same user and conversation."""
+        return self.search([
+            ('user_id', '=', row['user_id']),
+            ('conversation_id', '=', row['conversation_id']),
+            ('call_id', '=', row['call_id']),
+        ], limit=1)

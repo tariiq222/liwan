@@ -32,7 +32,7 @@ it('keeps a successful claimed effect when a later drain refuses its audit, with
   const tool: AiTool = {
     name: 'pmo.update_task_state', kind: 'write_light', description: { ar: 'حالة', en: 'state' }, input_schema: { type: 'object' },
     route: { method: 'POST', path: '/api/v1/tasks/{task_id}/transition' },
-    input_map: { path: { task_id: '$task_id' }, body: { state: '$state' } }, result_summary: ['id', 'state'], draft_target: null, requires_approval: false, platform: false,
+    input_map: { path: { task_id: '$task_id' }, body: { state: '$state' } }, result_summary: ['id', 'state'], draft_target: null, draft_model: null, requires_approval: false, platform: false,
   }
   const session = { byName: new Map([[tool.name, tool]]), blockedFields: new Set<string>(), tokenKey: tokenKeyFrom('test-secret-of-at-least-32-characters', { tenant: 't', user: '1' }) } as Partial<RunSession> as RunSession
   let auditFailed = false
