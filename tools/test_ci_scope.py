@@ -33,7 +33,8 @@ class StagesForTest(unittest.TestCase):
         self.assert_stages('tools/odoo_shards.py', ('static', 'odoo'))
         for path in ('tools/app_isolation.py', 'tools/arch_layers.json'):
             self.assert_stages(path, ('static', 'odoo-app-standalone', 'odoo-bridge'))
-        for path in ('README.md', 'apps/web/PRODUCT.md', 'docs/testing.md', 'docs/reports/x.png',
+        self.assert_stages('apps/web/PRODUCT.md', ('static', 'e2e-odoo'))
+        for path in ('README.md', 'docs/testing.md', 'docs/reports/x.png',
                      'e2e/tests/smoke.e2e.ts', 'e2e.config.ts', '.gitignore',
                      '.claude/settings.json', '.claude/agents/odoo-reviewer.md',
                      '.claude/scripts/session-start.sh'):
@@ -100,7 +101,7 @@ class StagesForTest(unittest.TestCase):
 
 class PullRequestTest(unittest.TestCase):
     """Deferred stages, the affected modules and the Odoo stages a pull request still runs."""
-    DEFERRED = ('upgrade', 'restore-drill', 'image', 'e2e-odoo')
+    DEFERRED = ('upgrade', 'restore-drill', 'image')
     ODOO = ('odoo', 'odoo-app-standalone', 'odoo-bridge')
     RELEASE = ['base_mod', 'app_a', 'app_b', 'a_b', 'solo']
     DEPENDS = {'base_mod': [], 'app_a': ['base_mod'], 'app_b': ['base_mod'], 'a_b': ['app_a', 'app_b'], 'solo': ['mail']}
@@ -128,52 +129,23 @@ class PullRequestTest(unittest.TestCase):
 
     def test_a_pull_request_keeps_the_other_stages_of_a_path(self):
         stages = ci_scope.pull_request_stages(['apps/web/app/a.vue'], None)
-        self.assertEqual(stages, ('static', 'control-plane', 'e2e-mock', 'rtl-stories'))
+        self.assertEqual(stages, ('static', 'control-plane', 'e2e-mock', 'e2e-odoo', 'rtl-stories'))
 
-    def test_a_change_reaching_the_journey_surfaces_keeps_e2e_odoo(self):
-        for path in ('apps/web/e2e/real-odoo-acceptance.spec.ts', 'apps/web/e2e/real-odoo-services.spec.ts',
-                     'deploy/ci/e2e-odoo.sh', 'tools/e2e_seed.py', 'apps/web/server/api/auth/login.post.ts',
-                     'apps/web/app/middleware/auth.global.ts', 'apps/web/app/pages/login.vue',
-                     'apps/web/app/pages/projects/[id]/index.vue', 'apps/web/app/pages/tasks/[id].vue',
-                     'apps/web/app/pages/account/index.vue',
-                     'apps/web/app/pages/hr/leave/index.vue', 'apps/web/app/pages/settings/team/users/index.vue',
-                     'apps/web/app/components/pmo/projects/tabs/Workspace.vue',
-                     'apps/web/app/components/access/roles/RoleForm.vue',
-                     'apps/web/app/composables/useTasks.ts', 'apps/web/app/composables/useProjectFinance.ts',
-                     'apps/web/app/composables/useAdminUsers.ts', 'apps/web/app/composables/useHrEmployees.ts',
-                     'apps/web/app/composables/useBus.ts', 'apps/web/app/composables/taskSort.ts',
-                     'odoo-addons/liwan_pmo/models/project_tools.py', 'odoo-addons/liwan_chat/models/chat_service.py',
-                     'odoo-addons/liwan_hr/models/hr_employee.py', 'odoo-addons/liwan_api/controllers/main.py',
-                     'odoo-addons/liwan_core/models/access.py'):
+    def test_web_addon_and_seed_changes_run_real_odoo_before_merge(self):
+        for path in ('apps/web/app/pages/documents/index.vue',
+                     'apps/web/server/api/v1/a.ts', 'apps/web/nuxt.config.ts',
+                     'apps/web/i18n/locales/ar/notifications.json', 'apps/web/PRODUCT.md',
+                     'odoo-addons/liwan_crm/models/a.py', 'odoo-addons/liwan_finance/models/a.py',
+                     'odoo-addons/README.txt', 'deploy/ci/e2e-odoo.sh', 'tools/e2e_seed.py'):
             with self.subTest(path=path):
-                self.assertTrue(ci_scope.keeps_e2e_odoo([path]))
                 stages = ci_scope.pull_request_stages([path], self.affected(path))
                 self.assertIn('e2e-odoo', stages)
-                self.assertFalse(set(stages) & set(self.DEFERRED) - {'e2e-odoo'})
 
-    def test_every_other_change_still_defers_e2e_odoo(self):
-        for path in ('apps/web/app/pages/crm/index.vue', 'apps/web/app/pages/documents/index.vue',
-                     'apps/web/app/components/inbox/List.vue', 'apps/web/app/composables/useDocuments.ts',
-                     'apps/web/app/composables/useHrPayslips.ts', 'apps/web/app/composables/useMeetings.ts',
-                     'apps/web/app/composables/useNotifications.ts', 'odoo-addons/liwan_notify/models/a.py',
-                     'apps/web/app/pages/meetings.vue', 'odoo-addons/liwan_crm/models/a.py',
-                     'odoo-addons/liwan_finance/models/a.py', 'odoo-addons/liwan_hr_ai/models/a.py',
-                     'apps/ai-service/a.py', '.github/workflows/ci.yml', 'deploy/ci/odoo.sh',
-                     'tools/ci_scope.py', 'docs/testing.md', 'docs/verification/a.md', 'plans/unmapped.txt'):
+    def test_docs_and_unrelated_application_changes_skip_real_odoo(self):
+        for path in ('docs/testing.md', 'docs/verification/a.md', 'tools/test_ci_scope.py',
+                     'tools/wt.py', 'apps/ai-service/a.py', 'apps/vendor-admin/app/a.vue'):
             with self.subTest(path=path):
-                self.assertFalse(ci_scope.keeps_e2e_odoo([path]))
                 self.assertNotIn('e2e-odoo', ci_scope.pull_request_stages([path], self.affected(path)))
-
-    def test_a_documentation_or_tooling_change_never_runs_the_browser_stage(self):
-        paths = ['docs/testing.md', 'REVIEW.md', 'tools/test_ci_scope.py', 'tools/ci_scope.py', 'tools/wt.py']
-        self.assertNotIn('e2e-odoo', ci_scope.pull_request_stages(paths, self.affected(*paths)))
-
-    def test_every_e2e_odoo_trigger_still_names_a_path_in_the_tree(self):
-        root = Path(ci_scope.__file__).resolve().parents[1]
-        for pattern in ci_scope.E2E_ODOO_TRIGGERS:
-            with self.subTest(pattern=pattern):
-                # A renamed page or composable would silently stop selecting the stage.
-                self.assertTrue(any(root.glob(pattern)), f'{pattern} names no path in the tree')
 
     def test_a_changed_addon_reaches_its_dependents_transitively(self):
         self.assertEqual(self.affected('odoo-addons/base_mod/models/a.py'), ['a_b', 'app_a', 'app_b', 'base_mod'])
@@ -204,9 +176,9 @@ class PullRequestTest(unittest.TestCase):
         stages = ci_scope.pull_request_stages(['odoo-addons/liwan_hr/a.py'], ['liwan_hr', 'liwan_hr_finance'])
         self.assertTrue(set(self.ODOO) <= set(stages))
 
-    def test_an_addon_change_selects_only_static_and_the_odoo_stages(self):
+    def test_an_addon_change_selects_only_static_odoo_and_real_odoo_e2e(self):
         stages = ci_scope.pull_request_stages(['odoo-addons/liwan_crm/a.py'], ['liwan_crm', 'liwan_crm_ai'])
-        self.assertEqual(set(stages), {'static', *self.ODOO})
+        self.assertEqual(set(stages), {'static', *self.ODOO, 'e2e-odoo'})
         web = ci_scope.pull_request_stages(['odoo-addons/liwan_crm/a.py', 'apps/web/app/a.vue'], ['liwan_crm'])
         self.assertIn('e2e-mock', web)
 
