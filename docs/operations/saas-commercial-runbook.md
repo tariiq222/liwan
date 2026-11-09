@@ -18,7 +18,7 @@
 | المكوّن | الدور | ملاحظات |
 |---|---|---|
 | `control-api` | واجهة التحكم (`apps/control-plane/src/http.ts` و`commercial/http.ts` تحت `/v1/commercial`) | مصدر الاتفاق التجاري والأسعار والإصدارات؛ طلبات الواجهة موقّعة عبر BFF |
-| `control-worker` | تنفيذ المهام (`src/worker-main.ts`، و`worker:shared` للمشترك `shared-worker-main.ts`) | في المصدر، `worker:shared` يهيئ المجدول التجاري ويستدعيه بعد دورات العامل؛ وجوده لا يثبت تشغيله في بيئة منشورة |
+| `control-worker` | تنفيذ المهام (`src/worker-main.ts`، و`worker:shared` للمشترك `shared-worker-main.ts`) | يشغّل [مدخل العامل المشترك](../../deploy/control-plane/run-shared-worker.sh) المجدول التجاري بعد دورات العامل |
 | `commercial_outbox` | جدول أحداث خارجة (`schema_013.sql`): `kind, aggregate_id, dedupe_key, status ∈ pending/done/failed` | فريد على (kind, aggregate_id, dedupe_key) لمنع التكرار |
 | reconfigure jobs | مهام تغيير الخدمة بعد الاتفاق/الدفع (`shared/job-*`)، وأثرها في `fulfillment_effects` (إيصال، `observed_digest`) | لا يُعلن «applied» قبل readback من Odoo |
 | محوّل Moyasar | `commercial/moyasar-adapter.ts`: فاتورة مستضافة + redirect، webhook، token، استرداد | الـwebhook يحمل `secret_token` مشتركًا (بلا HMAC)؛ يُعاد فحص الحالة من المزود قبل الاعتماد |
@@ -47,6 +47,23 @@
 | `LIWAN_MAIL_SMTP_USER`, `LIWAN_MAIL_SMTP_PASSWORD` | اعتماد SMTP اختياري (سر) |
 
 يوثق [سجل قبول الاستضافة والتجارة، السطر 45](../project-closure/saas-hosting-direction-status.md) اتصالًا حقيقيًا بوضع Moyasar التجريبي في 2026-10-04 لإنشاء فاتورة وقراءتها ورفض مفاتيح الوضع الخاطئ 3/3. هذا لا يثبت توفر المفاتيح الآن أو اكتمال الدفع أو قبول webhook عبر HTTPS عام. توفر staging وSMTP لم يُتحقق منه في هذا التحديث **[محجوب]**. مفاتيح الإنتاج لا تُستخدم في اختبار محلي أبدًا.
+
+### تشغيل العامل المشترك
+
+استخدم `deploy/control-plane/run-shared-worker.sh` كأمر التشغيل في مشرف الخدمات.
+يعمل في المقدمة ويتلقى إشارات الإيقاف مباشرة. استخدم إصدار Node من `.nvmrc`
+وثبّت الاعتماديات مع اعتماد التطوير `tsx` عبر `npm ci --include=dev --ignore-scripts`
+في نسخة الشيفرة التي سيشغّلها المشرف. اضبط
+`LIWAN_TENANCY_MODE=shared` واحقن إعدادات قاعدة التحكم وهوية الخدمة
+والمخزون وحالة المشغّل في بيئة العملية. اضبط `LIWAN_SHARED_RUNTIME_CONFIG`
+على ملف إعداد التشغيل المشترك و`LIWAN_TENANT_REGISTRY_PATH` على سجل المستأجرين،
+بمسارات مطلقة. يحتاج العامل إلى الوصول إلى Docker الخاص بالمكدس؛ تُمرَّر
+إعدادات قناة الدعوات الداخلية إلى الـAPI والعامل حسب
+[عقد TLS والأسرار](../../deploy/shared/README.md).
+
+رد `GET /healthz` برمز 200 من واجهة التحكم يثبت اتصالها بقاعدة التحكم.
+للتحقق من العامل، يشغّل [اختبار القبول المعزول](../../tools/foundation_acceptance/README.md)
+مدخل التشغيل نفسه ويراقب تجهيز مستأجرين حقيقيين حتى يصبحا نشطين.
 
 ## 3. حسابات لوحة تحكم ليوان
 

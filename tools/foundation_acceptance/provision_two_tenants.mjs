@@ -36,12 +36,14 @@ const project = `liwan-shared-found-${randomBytes(8).toString('hex')}`
 const domainSuffix = 'foundation.liwan.test'
 const stateDir = join(runDir, 'state')
 const registryDir = join(stateDir, 'registry')
+const restoreRegistryDir = join(stateDir, 'restore-registry')
 const logsDir = join(runDir, 'logs')
-for (const directory of [stateDir, registryDir, logsDir, join(runDir, 'operator')]) mkdirSync(directory, { recursive: true, mode: 0o700 })
+for (const directory of [stateDir, registryDir, restoreRegistryDir, logsDir, join(runDir, 'operator')]) mkdirSync(directory, { recursive: true, mode: 0o700 })
 // The runtime bind contains public classifications; its private parent protects host access.
 chmodSync(stateDir, 0o755)
 // Registry is intentionally non-secret and must be readable by guard/web runtime users.
 chmodSync(registryDir, 0o755)
+chmodSync(restoreRegistryDir, 0o755)
 const registryFile = join(registryDir, 'registry.json')
 writePrivate(registryFile, JSON.stringify({ schemaVersion: 1, snapshotRevision: 0, targets: [] }))
 chmodSync(registryFile, 0o644)
@@ -67,9 +69,9 @@ const command = (name, executable, args, options = {}) => {
   return result
 }
 const compose = args => command(`compose-${commands.length}`, 'docker', ['compose', '--project-name', project, '--env-file', join(runDir, 'compose.env'), '--file', join(runDir, 'compose.yml'), ...args])
-function startProcess(name, script, env) {
+function startProcess(name, executable, args, env) {
   const log = openSync(join(logsDir, `${name}.log`), 'wx', 0o600)
-  const child = spawn('npm', ['-w', 'apps/control-plane', 'run', script], { cwd: sourceRoot, env, detached: true, stdio: ['ignore', log, log] })
+  const child = spawn(executable, args, { cwd: sourceRoot, env, detached: true, stdio: ['ignore', log, log] })
   closeSync(log)
   child.on('error', () => { child.failed = true })
   child.on('exit', () => { child.finished = true })
@@ -123,7 +125,7 @@ try {
   if (subnets.length !== 5) throw new Error('no five isolated acceptance subnets available')
   const env = { ...baseEnv, LIWAN_IMAGE_TAG: tag, ODOO_COMMIT: readFileSync(join(sourceRoot, 'deploy/odoo/ODOO_COMMIT'), 'utf8').trim(), DB_NAME: '', DB_PASSWORD: dbPassword,
     LIWAN_SHARED_PROXY_TOKEN: secret(), LIWAN_SESSION_KEYS: JSON.stringify({ k1: secret() }), LIWAN_SESSION_ACTIVE_KID: 'k1',
-    LIWAN_TENANT_REGISTRY_DIR: registryDir, LIWAN_SHARED_ODOO_CONFIG: odooConfig,
+    LIWAN_TENANT_REGISTRY_DIR: registryDir, LIWAN_RESTORE_REGISTRY_DIR: restoreRegistryDir, LIWAN_SHARED_ODOO_CONFIG: odooConfig,
     LIWAN_EDGE_BIND: '127.0.0.1', LIWAN_EDGE_HTTPS_PORT: String(httpsPort), LIWAN_EDGE_HTTP_PORT: String(httpPort),
     FOUNDATION_CADDYFILE: join(sourceRoot, 'tools/shared_acceptance_live/acceptance.Caddyfile'), FOUNDATION_STATE_DIR: stateDir, FOUNDATION_DOMAIN_SUFFIX: domainSuffix,
     FOUNDATION_CONTROL_DB_PASSWORD: controlDbPassword, FOUNDATION_CONTROL_DB_PORT: String(controlDbPort),
@@ -144,10 +146,10 @@ try {
     CONTROL_HOST: '127.0.0.1', CONTROL_PORT: String(controlPort), ADMIN_SECRET_KEY: secret(), ADMIN_RP_ID: 'localhost', ADMIN_ORIGIN: `http://localhost:${controlPort}`, ADMIN_DEV_LOGIN_EMAIL: 'dev@foundation.test',
     LIWAN_TENANCY_MODE: 'shared', LIWAN_SHARED_RUNTIME_CONFIG: join(runDir, 'runtime.json'), LIWAN_TENANT_REGISTRY_PATH: registryFile,
     LIWAN_CLI_INVENTORY: join(runDir, 'inventory.json'), LIWAN_CLI_STATE_DIR: join(runDir, 'operator'), LIWAN_REPOSITORY_ROOT: sourceRoot }
-  const api = startProcess('control-api', 'dev', controlEnv)
-  await waitFor(async () => { assertRunning(api); return fetch(`http://127.0.0.1:${controlPort}/health`, { signal: AbortSignal.timeout(3000) }).then(response => response.status < 500, () => false) }, 'control API readiness')
+  const api = startProcess('control-api', 'npm', ['-w', 'apps/control-plane', 'run', 'dev'], controlEnv)
+  await waitFor(async () => { assertRunning(api); return fetch(`http://127.0.0.1:${controlPort}/healthz`, { signal: AbortSignal.timeout(3000) }).then(response => response.status === 200, () => false) }, 'control API readiness')
   record('control API answering on isolated loopback port', true)
-  const worker = startProcess('shared-worker', 'worker:shared', controlEnv)
+  const worker = startProcess('shared-worker', join(sourceRoot, 'deploy/control-plane/run-shared-worker.sh'), [], controlEnv)
   const admin = args => command('admin', 'npm', ['-w', 'apps/control-plane', 'run', 'admin', '--silent', '--', ...args], { cwd: sourceRoot, env: controlEnv })
   record('dev owner ensured by supported CLI', admin(['dev-owner', 'dev@foundation.test', 'Foundation Owner']).ok)
   let session
