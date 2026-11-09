@@ -39,7 +39,7 @@ def make_request(**over):
 
 
 def observation(**over):
-    value = {'database': DB, 'root_company_id': 1, 'commercial_revision_id': PREV, 'commercial_digest': 'c' * 64,
+    value = {'database': DB, 'root_company_id': 1, 'status': 'active', 'commercial_revision_id': PREV, 'commercial_digest': 'c' * 64,
              'commercial_applied_at': None, 'commercial_valid_until': None, 'commercial_expiry_supported': True, 'commercial_valid_until_revision': 0, 'features': {'users.limit': 3},
              'modules': ['liwan_api', 'liwan_core', 'liwan_platform'], 'branches': [],
              'usage': {'users.limit': 1, 'projects.max_projects': 0, 'storage.limit_mb': 0, 'branches.extra_limit': 0},
@@ -616,3 +616,37 @@ class RestoreRuntimeTests(unittest.TestCase):
             self.assertNotIn('restore-odoo',command.call_args.args[0])
             request['config']['unknown']=True
             with self.assertRaisesRegex(EffectError,'runtime_invalid'):se.ComposeRunner(request)
+
+    def test_restore_shell_and_install_use_only_restore_database_and_filestore(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            request = self.request(root)
+            request['restore'] = {'approvalId': TARGET, 'requestId': OP, 'backupId': PREV,
+                                  'digest': DIGEST, 'manifestSha256': 'c' * 64}
+            effects = root / 'restore-effects'
+            effects.mkdir()
+            completion = {key: val for key, val in request['restore'].items() if key != 'requestId'}
+            (effects / (OP + '.complete')).write_text(json.dumps(dict(completion, targetDatabase=DB)))
+            classification = root / 'classifications' / (DB + '.json')
+            classification.parent.mkdir()
+            classification.write_text(json.dumps({'database': DB}))
+            runner = se.ComposeRunner(request, permit=lambda _: None)
+            with mock.patch.object(runner, 'command', return_value='1') as command:
+                self.assertTrue(runner.database_exists())
+                exists = command.call_args.args[0]
+                runner.run_script('print(1)', 'observe')
+                observe = command.call_args.args[0]
+                runner.install_modules(['liwan_platform'])
+                install = command.call_args.args[0]
+            self.assertIn('restore-db', exists)
+            self.assertNotIn('db', exists)
+            for args in (observe, install):
+                self.assertIn('restore-odoo', args)
+                self.assertNotIn('odoo', args)
+                self.assertIn('--db_host=restore-db', args)
+                self.assertIn(str(classification) + ':/run/liwan/classification.json:ro', args)
+            self.assertEqual(observe[observe.index('restore-odoo') + 1], 'shell')
+            self.assertEqual(install[install.index('restore-odoo') + 1], 'server')
+            request['restore']['approvalId'] = OTHER
+            with self.assertRaisesRegex(EffectError, 'restore_target_unverified'):
+                se.ComposeRunner(request)

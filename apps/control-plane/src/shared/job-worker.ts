@@ -5,11 +5,11 @@ import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
 import type { SharedJob } from '@liwan/commercial-contracts/shared'
-import { transaction } from '../db.js'
+import { isTransientDatabaseError, transaction } from '../db.js'
 import { resolveProvisionTarget } from './onboarding.js'
 import { requireJobAuthority } from './job-store.js'
 import { bindJob, businessKey, payloadDigest, reconcileSharedJob, verifiedReceipt } from './provisioning.js'
-import { commercialRestoreGate, finalizeVerifiedRestore } from './shared-backup.js'
+import { commercialRestoreGate, finalizeVerifiedRestore, revalidateCommercialRestorePublication } from './shared-backup.js'
 import { runSubscriptionReconfigure, type SubscriptionAdapter } from './subscription-reconfigure.js'
 import { actorLabel } from '../admin-auth/grants.js'
 
@@ -111,21 +111,53 @@ export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFence
   const subscriptionCapable=Boolean(adapter.subscriptionRunner || adapter.observeSubscription || adapter.observeRestoreSubscription)
   const kind=subscriptionCapable?await pool.query("SELECT payload->>'operation' AS operation,* FROM shared_jobs WHERE id=$1",[id]):{rows:[] as any[]}
   if(kind.rows[0]?.operation==='reconfigure')return runSubscriptionReconfigure(pool,id,adapter.subscriptionRunner)
+  const finishCommercialRestore = async (job: Extract<SharedJob, { operation: 'restore' }>, row: {control_tenant_id:string;receipt:unknown}) => {
+    const queued = "id=$1 AND state='queued' AND journal->>'stage'='waiting_commercial_reconcile' AND receipt=$2::jsonb"
+    const identity = [id,JSON.stringify(row.receipt)]
+    const defer = async () => {
+      await pool.query(`UPDATE shared_jobs SET lease_until=clock_timestamp()+interval '30 seconds' WHERE ${queued}`,identity)
+      return {state:'waiting_commercial_reconcile'}
+    }
+    const quarantine = async () => {
+      const updated = await pool.query(`UPDATE shared_jobs SET state='needs_intervention',
+        journal=jsonb_set(journal,'{stage}','"needs_intervention"'),lease_until=NULL WHERE ${queued}`,identity)
+      return updated.rowCount ? {state:'needs_intervention',reason:'commercial_reconcile_failed'} : {state:'contended'}
+    }
+    try {
+      const target = await pool.query(`SELECT a.target_database,s.id AS subscription_id,s.revision::text AS subscription_revision
+        FROM shared_restore_approvals a LEFT JOIN subscriptions s ON s.tenant_id=a.control_tenant_id
+        WHERE a.id=$1 AND a.control_tenant_id=$2 AND a.consumed_at IS NOT NULL`,[job.approvalId,row.control_tenant_id])
+      const authority = target.rows[0]
+      if (!authority) return quarantine()
+      const database = authority.target_database
+      const gate = await commercialRestoreGate(pool,{tenant_id:row.control_tenant_id,restore_id:job.approvalId,target:{database,filestore:database,host:job.binding.tenantId+'.restore'},runner:adapter.observeRestoreSubscription})
+      if (gate.reason==='commercial_reconcile_failed' || gate.reason==='tenant_binding_mismatch') return quarantine()
+      if (!gate.ready) return gate.job_id ? {state:'waiting_commercial_reconcile'} : defer()
+      // Revalidate the durable receipt, operator, source binding and lifecycle after readback.
+      const completed = await transaction(pool, async client => {
+        const current = await client.query(`SELECT * FROM shared_jobs WHERE ${queued} FOR UPDATE`,identity)
+        if (!current.rowCount) throw Error('shared_job_not_claimable')
+        await requireWorkerAuthority(client,current.rows[0])
+        const binding = await resolveProvisionTarget(client,row.control_tenant_id,job)
+        reconcileSharedJob(job,binding,{...current.rows[0].journal,stage:'verified'},{state:'unknown'})
+        const snapshot = { subscription: authority.subscription_id ? {id:authority.subscription_id,revision:authority.subscription_revision} : null }
+        if (!await revalidateCommercialRestorePublication(client,row.control_tenant_id,snapshot)) return false
+        await client.query("UPDATE shared_jobs SET state='verified',journal=jsonb_set(journal,'{stage}','\"verified\"'),lease_until=NULL WHERE id=$1",[id])
+        return true
+      })
+      return completed ? {state:'verified',receipt:row.receipt} : defer()
+    } catch (error) {
+      if (isTransientDatabaseError(error)) throw error
+      const code = error instanceof Error ? error.message : ''
+      if (code==='shared_job_not_claimable') return {state:'contended'}
+      if (['commercial_authority_changed','shared_worker_stopping','observe_aborted'].includes(code)) return defer()
+      return quarantine()
+    }
+  }
   if(kind.rows[0]?.journal?.stage==='waiting_commercial_reconcile'){
     const row=kind.rows[0],job=bindJob(row.payload)
-    if(job.operation!=='restore' || row.state!=='queued')throw Error('shared_job_not_claimable')
-    const target=await pool.query('SELECT target_database FROM shared_restore_approvals WHERE id=$1',[job.approvalId])
-    const gate=await commercialRestoreGate(pool,{tenant_id:row.control_tenant_id,restore_id:job.approvalId,target:{database:target.rows[0].target_database,filestore:target.rows[0].target_database,host:job.binding.tenantId+'.restore'},runner:adapter.observeRestoreSubscription})
-    if(gate.ready){
-      // Effect and receipt were stored when the job was requeued; never re-claim or re-execute.
-      await pool.query("UPDATE shared_jobs SET state='verified',journal=jsonb_set(journal,'{stage}','\"verified\"'),lease_until=NULL WHERE id=$1 AND state='queued' AND receipt IS NOT NULL",[id])
-      return {state:'verified',receipt:row.receipt}
-    }
-    {
-    const failed=gate.job_id?await pool.query("SELECT 1 FROM shared_jobs WHERE id=$1 AND state='needs_intervention'",[gate.job_id]):null
-    if(failed?.rowCount){await pool.query("UPDATE shared_jobs SET state='needs_intervention' WHERE id=$1 AND state='queued'",[id]);return {state:'needs_intervention',reason:'commercial_reconcile_failed'}}
-    return {state:'waiting_commercial_reconcile'}
-    }
+    if(job.operation!=='restore' || row.state!=='queued' || !row.receipt)throw Error('shared_job_not_claimable')
+    return finishCommercialRestore(job,row)
   }
   const claim = await transaction(pool, async client => {
     const result = await client.query("SELECT * FROM shared_jobs WHERE id=$1 AND state='queued' AND (lease_until IS NULL OR lease_until<=clock_timestamp()) FOR UPDATE", [id])
@@ -207,27 +239,20 @@ export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFence
     observation = await adapter.observe(claim.job)
     const actor = { issuer: claim.row.issuer, actorUid: Number(claim.row.actor_uid) }
     if (subscriptionCapable && claim.job.operation === 'restore') {
-      // Approval consumption + audit commit first (idempotent); the commercial
-      // gate then runs outside any transaction, BEFORE the job is verified.
-      await owned(client => finalizeVerifiedRestore(client,claim.job,actor))
-      const approval = await pool.query('SELECT target_database FROM shared_restore_approvals WHERE id=$1',[claim.job.approvalId])
-      const database = approval.rows[0]?.target_database
-      const gate = database ? await commercialRestoreGate(pool,{tenant_id:claim.row.control_tenant_id,restore_id:claim.job.approvalId,target:{database,filestore:database,host:claim.job.binding.tenantId+'.restore'},runner:adapter.observeRestoreSubscription}) : { ready:true }
-      if (!gate.ready) {
-        await owned(async (client,row) => {
-          // Store the receipt (non-final: state stays queued) so the re-claim
-          // only flips state; the restore effect is never re-executed.
-          const verified = { schemaVersion:1,job:claim.job,attemptId:claim.attemptId,sequence:nextSequence(row.journal?.sequence ?? 0),stage:'verified' }
-          const currentTarget = await resolveProvisionTarget(client,claim.row.control_tenant_id,claim.job)
-          const receipt = verifiedReceipt(claim.job,currentTarget,verified,observation)
-          await client.query('INSERT INTO shared_job_events(job_id,attempt_id,fence,sequence,stage,evidence) VALUES($1,$2,$3,$4,$5,$6)', [id,claim.attemptId,claim.fence,verified.sequence,'verified',{observation,receipt}])
-          const updated = await client.query("UPDATE shared_jobs SET state='queued',journal=$1,receipt=$2,lease_until=NULL WHERE id=$3 AND attempt_id=$4 AND fence=$5 AND state='running' AND lease_until>clock_timestamp() RETURNING id",[{...verified,stage:'waiting_commercial_reconcile'},receipt,id,claim.attemptId,claim.fence])
-          if (!updated.rowCount) throw new Error('shared_lease_lost')
-        })
-        return { state:'waiting_commercial_reconcile' }
-      }
-      await assertOwned()
-      observation = await adapter.observe(claim.job)
+      const restore = claim.job
+      // Make physical completion durable before any isolated commercial read or
+      // repair. A retry can resume from this receipt without repeating the restore.
+      const physical = await owned(async (client,row) => {
+        const verified = { schemaVersion:1,job:restore,attemptId:claim.attemptId,sequence:nextSequence(row.journal?.sequence ?? 0),stage:'verified' }
+        const currentTarget = await resolveProvisionTarget(client,claim.row.control_tenant_id,restore)
+        const receipt = verifiedReceipt(restore,currentTarget,verified,observation)
+        await finalizeVerifiedRestore(client,restore,actor)
+        await client.query('INSERT INTO shared_job_events(job_id,attempt_id,fence,sequence,stage,evidence) VALUES($1,$2,$3,$4,$5,$6)', [id,claim.attemptId,claim.fence,verified.sequence,'verified',{observation,receipt}])
+        const updated = await client.query("UPDATE shared_jobs SET state='queued',journal=$1,receipt=$2,lease_until=NULL WHERE id=$3 AND attempt_id=$4 AND fence=$5 AND state='running' AND lease_until>clock_timestamp() RETURNING control_tenant_id,receipt",[{...verified,stage:'waiting_commercial_reconcile'},receipt,id,claim.attemptId,claim.fence])
+        if (!updated.rowCount) throw new Error('shared_lease_lost')
+        return updated.rows[0]
+      })
+      return finishCommercialRestore(restore,physical)
     }
     return await owned(async (client,row) => {
       const verified = { schemaVersion:1,job:claim.job,attemptId:claim.attemptId,sequence:nextSequence(row.journal?.sequence ?? 0),stage:'verified' }

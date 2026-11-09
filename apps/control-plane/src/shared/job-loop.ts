@@ -16,7 +16,8 @@ export async function runSharedLoop(deps: SharedLoopDependencies): Promise<void>
       await deps.wait(1000)
       continue
     }
-    if (!result || !['idle','contended','verified','needs_intervention'].includes(result.state)) throw new Error('shared_dispatch_result_invalid')
-    if (result.state === 'idle' || result.state === 'contended') await deps.wait(1000)
+    const waiting = ['idle','contended','waiting_commercial_reconcile']
+    if (!result || ![...waiting,'verified','needs_intervention'].includes(result.state)) throw new Error('shared_dispatch_result_invalid')
+    if (waiting.includes(result.state)) await deps.wait(1000)
   }
 }

@@ -71,7 +71,7 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
     await assertOwned()
     if(receipt.order_id!==claim.job.authority.order_id || receipt.database!==claim.job.binding.database || receipt.target_revision_id!==claim.job.authority.target_revision_id || receipt.observed_entitlement_digest!==claim.job.authority.entitlement.digest)throw Error('observed_mismatch')
     if(!claim.job.restore)await applyReceipt(pool,{order_id:claim.job.authority.order_id,receipt})
-    if((receipt as {commercial_expiry_supported?:boolean}).commercial_expiry_supported===true){
+    if(!claim.job.restore && (receipt as {commercial_expiry_supported?:boolean}).commercial_expiry_supported===true){
       await pool.query('UPDATE tenants SET commercial_expiry_supported=true WHERE id=$1 AND commercial_expiry_supported IS DISTINCT FROM true',[claim.job.controlTenantId])
     }
     // applyReceipt clears the target; completion checks ownership separately.
@@ -85,7 +85,7 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
     if(code!=='shared_lease_lost'){
       if(!claim.job.restore)await failFulfillment(pool,{order_id:claim.job.authority.order_id,code})
       await pool.query("UPDATE shared_jobs SET state='needs_intervention',lease_until=NULL,journal=$4 WHERE id=$1 AND attempt_id=$2 AND fence=$3 AND state='running'",[id,claim.attemptId,claim.fence,{stage:'needs_intervention',operation_id:claim.job.authority.operation_id,error_code:code}])
-      if(code==='tenant_upgrade_required'){
+      if(!claim.job.restore && code==='tenant_upgrade_required'){
         await pool.query('UPDATE tenants SET commercial_expiry_supported=false WHERE id=$1',[claim.job.controlTenantId])
       }
     }
