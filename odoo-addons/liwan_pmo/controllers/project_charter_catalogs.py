@@ -8,7 +8,7 @@ from odoo.http import request
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
-    parse_nonneg_int,
+    parse_page,
     require_capabilities,
     requires_feature,
 )
@@ -53,8 +53,7 @@ class ProjectCharterCatalogController(http.Controller):
             raise ApiError(422, 'invalid', "active must be '1', '0' or 'all'", field='active')
         if active in ('0', 'all') and not Model._liwan_can_manage_catalog():
             raise AccessError(request.env._("Only a settings manager can list inactive catalog values."))
-        limit = min(parse_nonneg_int(args.get('limit', 50), 'limit'), MAX_LIMIT)
-        offset = parse_nonneg_int(args.get('offset', 0), 'offset')
+        limit, offset = parse_page(args, maximum=MAX_LIMIT)
         domain = [('company_id', 'in', request.env.companies.ids)]
         q = args.get('q')
         if q:

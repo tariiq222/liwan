@@ -8,7 +8,7 @@ from .common import EMPLOYEE_MODEL, OFFBOARDING, ONBOARDING, _purpose_plan, _req
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
-    parse_nonneg_int,
+    parse_page,
     requires_feature,
 )
 from odoo.addons.liwan_hr.serializers.lifecycle.plan import (
@@ -25,8 +25,7 @@ ACTIVE_CHOICES = {'true': True, 'false': False, 'all': None}
 
 def _list_plans(area):
     args = request.httprequest.args
-    limit = min(parse_nonneg_int(args.get('limit', 50), 'limit'), MAX_LIMIT)
-    offset = parse_nonneg_int(args.get('offset', 0), 'offset')
+    limit, offset = parse_page(args, maximum=MAX_LIMIT)
     active = _parse_active(args.get('active'))
     domain = [
         ('res_model', '=', EMPLOYEE_MODEL),

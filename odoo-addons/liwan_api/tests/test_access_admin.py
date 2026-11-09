@@ -8,7 +8,11 @@ from odoo.tests.common import HOST, Opener
 from odoo.tools import mute_logger
 
 from .common import LiwanApiCase
-from odoo.addons.liwan_api.controllers.common import ApiError, parse_positive_int
+from odoo.addons.liwan_api.controllers.common import (
+    DEFAULT_PAGE_LIMIT,
+    ApiError,
+    parse_positive_int,
+)
 from odoo.addons.liwan_api.serializers.access import role_user_count, role_user_counts
 
 
@@ -86,6 +90,30 @@ class TestAccessAdminUsers(LiwanApiCase):
         filtered = self.api('GET', '/api/v1/admin/users?color=red')
         self.assertEqual((filtered.status_code, filtered.json()['code']), (400, 'unsupported_filter'))
         self.assertEqual(filtered.json()['field'], 'color')
+
+    def test_zero_limit_lists_the_default_page_of_users(self):
+        # #468: limit=0 reached search(limit=0), which Odoo treats as unlimited.
+        self._admin()
+        before = self.api('GET', '/api/v1/admin/users').json()['total']
+        new_test_user(
+            self.env, login='access_zero_limit_user', groups='base.group_user',
+            company_id=self.env.company.id,
+        )
+        # Share users are excluded from the admin list, so they must not count.
+        new_test_user(
+            self.env, login='access_zero_limit_portal', groups='base.group_portal',
+            company_id=self.env.company.id,
+        )
+        for index in range(DEFAULT_PAGE_LIMIT):
+            new_test_user(
+                self.env, login=f'access_zero_limit_{index:03d}', groups='base.group_user',
+                company_id=self.env.company.id,
+            )
+        body = self.api('GET', '/api/v1/admin/users?limit=0').json()
+        self.assertEqual(len(body['items']), DEFAULT_PAGE_LIMIT)
+        self.assertEqual(body['total'], before + DEFAULT_PAGE_LIMIT + 1)
+        # A missing limit is the same default page, not an unbounded list.
+        self.assertEqual(len(self.api('GET', '/api/v1/admin/users').json()['items']), DEFAULT_PAGE_LIMIT)
 
     def test_a_users_reader_role_opens_users_who_hold_roles(self):
         # #173: access.users.read alone could not read the roles of the users it lists.
@@ -351,6 +379,18 @@ class TestAccessAdminRoles(LiwanApiCase):
         self.assertFalse(permission['custom_role_allowed'])
         self.assertEqual(permission['scopes'], [{'kind': 'company', 'assignable': True}])
 
+    def test_zero_limit_lists_the_default_page_of_roles(self):
+        before = self.api('GET', '/api/v1/admin/roles').json()['total']
+        self.env['liwan.access.role'].create([
+            {'name_ar': f'دور حد الصفر {index:03d}', 'company_id': self.env.company.id}
+            for index in range(DEFAULT_PAGE_LIMIT + 1)
+        ])
+        body = self.api('GET', '/api/v1/admin/roles?limit=0').json()
+        self.assertEqual(len(body['items']), DEFAULT_PAGE_LIMIT)
+        self.assertEqual(body['total'], before + DEFAULT_PAGE_LIMIT + 1)
+        # A missing limit is the same default page, not an unbounded list.
+        self.assertEqual(len(self.api('GET', '/api/v1/admin/roles').json()['items']), DEFAULT_PAGE_LIMIT)
+
     def test_custom_role_lifecycle_version_and_protection(self):
         response = self.api('POST', '/api/v1/admin/roles', {
             'name': {'ar': 'قارئ المستخدمين', 'en': 'User reader'},
@@ -471,6 +511,18 @@ class TestAccessAdminAudit(LiwanApiCase):
         unknown = self.api('GET', '/api/v1/admin/access-log?unknown=1')
         self.assertEqual((unknown.status_code, unknown.json()['code']), (400, 'unsupported_filter'))
         self.assertEqual(self.api('DELETE', f'/api/v1/admin/access-log/{self.event.id}').status_code, 405)
+
+    def test_zero_limit_lists_the_default_page_of_events(self):
+        for index in range(DEFAULT_PAGE_LIMIT + 1):
+            self.env['liwan.access.audit']._liwan_log(
+                action='user.password_reset', target=self.employee, reason=f'zero limit {index:03d}',
+            )
+        self.authenticate('audit_api_admin', 'audit_api_admin_pass_123')
+        body = self.api('GET', '/api/v1/admin/access-log?limit=0').json()
+        self.assertEqual(len(body['items']), DEFAULT_PAGE_LIMIT)
+        self.assertGreater(body['total'], DEFAULT_PAGE_LIMIT)
+        # A missing limit is the same default page, not an unbounded list.
+        self.assertEqual(len(self.api('GET', '/api/v1/admin/access-log').json()['items']), DEFAULT_PAGE_LIMIT)
 
     def test_audit_date_filters(self):
         # #174: a bad date answered 500; a day names the whole day; an ISO datetime with Z is accepted.

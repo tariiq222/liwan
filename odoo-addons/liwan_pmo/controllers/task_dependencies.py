@@ -8,7 +8,7 @@ from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     declare_read_capability_scope,
-    parse_nonneg_int,
+    parse_page,
     requires_feature,
 )
 from odoo.addons.liwan_pmo.serializers.task import STATE_TO_API, dump_task_detail
@@ -60,8 +60,7 @@ class TaskDependencyController(http.Controller):
         unknown = set(args) - {'q', 'limit', 'offset'}
         if unknown:
             raise ApiError(400, 'unsupported_filter', f"unsupported query parameter {sorted(unknown)[0]!r}")
-        limit = min(parse_nonneg_int(args.get('limit', 50), 'limit'), 200)
-        offset = parse_nonneg_int(args.get('offset', 0), 'offset')
+        limit, offset = parse_page(args)
         domain = [
             ('active', '=', True),
             ('company_id', 'in', request.env.companies.ids),

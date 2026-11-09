@@ -4,6 +4,7 @@ from odoo.exceptions import AccessError
 from odoo.tests import new_test_user, tagged
 
 from .common import LiwanPmoCase
+from odoo.addons.liwan_api.controllers.common import DEFAULT_PAGE_LIMIT
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -177,6 +178,21 @@ class TestTaskLifecycle(LiwanPmoCase):
         self.assertNotIn(self.dependent.id, [item['id'] for item in body['items']])
         res = self.api('GET', f'/api/v1/tasks/{self.dependent.id}/dependencies/candidates?q=Overdue')
         self.assertEqual([item['id'] for item in res.json()['items']], [self.task_overdue.id])
+
+    def test_zero_limit_lists_the_default_page_of_dependency_candidates(self):
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        self.project.write({'allow_task_dependencies': True})
+        self.env['project.task'].create([
+            {'name': f'Zero limit candidate {index:03d}', 'project_id': self.project.id,
+             'company_id': self.env.company.id}
+            for index in range(DEFAULT_PAGE_LIMIT + 1)
+        ])
+        url = f'/api/v1/tasks/{self.dependent.id}/dependencies/candidates'
+        body = self.api('GET', f'{url}?limit=0').json()
+        self.assertEqual(len(body['items']), DEFAULT_PAGE_LIMIT)
+        self.assertGreater(body['total'], DEFAULT_PAGE_LIMIT)
+        # A missing limit is the same default page, not an unbounded list.
+        self.assertEqual(len(self.api('GET', url).json()['items']), DEFAULT_PAGE_LIMIT)
 
     def test_dependency_unblocks_waiting_task_when_prerequisite_closes(self):
         self.authenticate('api_mgr', 'api_mgr_pass_123')

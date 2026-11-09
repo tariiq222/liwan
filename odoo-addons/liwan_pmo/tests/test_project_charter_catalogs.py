@@ -3,6 +3,7 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
 from .common import LiwanPmoCase
+from odoo.addons.liwan_api.controllers.common import DEFAULT_PAGE_LIMIT
 
 CATALOG_KEYS = {'id', 'name', 'sequence', 'active'}
 TYPE_KEYS = CATALOG_KEYS | {'charter_steps'}
@@ -99,6 +100,20 @@ class TestProjectCharterCatalogApi(LiwanPmoCase):
         self.authenticate('api_emp', 'api_emp_pass_123')
         forbidden = self.api('PATCH', path, {'charter_steps': ['scope']})
         self.assertEqual(forbidden.status_code, 403)
+
+    def test_zero_limit_returns_the_default_catalog_page_not_every_value(self):
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        self.env['liwan.project.owning.unit'].create([
+            {'name': f'Zero limit unit {index:03d}'} for index in range(DEFAULT_PAGE_LIMIT + 1)
+        ])
+        body = self.api('GET', '/api/v1/project-charter/catalogs/owning-units?limit=0').json()
+        self.assertEqual(len(body['items']), DEFAULT_PAGE_LIMIT)
+        self.assertGreater(body['total'], DEFAULT_PAGE_LIMIT)
+        # A missing limit is the same default page, not an unbounded list.
+        self.assertEqual(
+            len(self.api('GET', '/api/v1/project-charter/catalogs/owning-units').json()['items']),
+            DEFAULT_PAGE_LIMIT,
+        )
 
     def test_delete_used_is_generic_conflict(self):
         self.authenticate('api_mgr', 'api_mgr_pass_123')

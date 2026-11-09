@@ -3,6 +3,7 @@ from odoo.http import root
 from odoo.tests import new_test_user, tagged
 from odoo.tests.common import HOST, Opener
 
+from odoo.addons.liwan_api.controllers.common import DEFAULT_PAGE_LIMIT
 from odoo.addons.liwan_api.tests.common import LiwanApiCase, set_probe_feature
 
 
@@ -97,6 +98,22 @@ class TestEmployeeAccounts(LiwanApiCase):
             self.assertEqual((response.status_code, response.json()['code']), (422, 'invalid'), query)
         unknown = self.api('GET', '/api/v1/admin/employee-accounts/candidates?color=red')
         self.assertEqual((unknown.status_code, unknown.json()['code']), (400, 'unsupported_filter'))
+
+    def test_zero_limit_lists_the_default_candidates_page(self):
+        # #468: this route shares parse_query with the admin lists, and limit=0 used to reach
+        # the raw SQL LIMIT and answer an empty page instead of the route default.
+        self._admin()
+        self.env['hr.employee'].create([
+            {'name': f'Zero limit candidate {index:03d}', 'work_email': f'zero.candidate.{index}@example.com',
+             'company_id': self.env.company.id}
+            for index in range(DEFAULT_PAGE_LIMIT + 1)
+        ])
+        body = self.api('GET', '/api/v1/admin/employee-accounts/candidates?q=Zero%20limit%20candidate&limit=0').json()
+        self.assertEqual(len(body['items']), DEFAULT_PAGE_LIMIT)
+        self.assertEqual(body['total'], DEFAULT_PAGE_LIMIT + 1)
+        # A missing limit is the same default page, not an unbounded list.
+        missing = self.api('GET', '/api/v1/admin/employee-accounts/candidates?q=Zero%20limit%20candidate').json()
+        self.assertEqual(len(missing['items']), DEFAULT_PAGE_LIMIT)
 
     def test_user_list_filters_by_department_and_reports_the_employee(self):
         self._admin()
