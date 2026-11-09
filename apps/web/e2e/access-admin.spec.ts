@@ -1,5 +1,5 @@
 import { test, expect, type Page, type APIRequestContext, type Browser } from '@playwright/test'
-import { acceptInvitation, MAIL_OUTBOX } from './support/mailOutbox'
+import { acceptInvitation, MAIL_OUTBOX, signInCode } from './support/mailOutbox'
 import { ACCEPTANCE_ORIGIN, openShell, signIn } from './support/realOdooSession'
 
 // Runs only on the isolated real-Odoo stack (deploy/ci/e2e-odoo.sh).
@@ -68,6 +68,28 @@ async function capabilityKeys(request: APIRequestContext, userId: number): Promi
 /** An empty context on the acceptance origin: `browser.newContext()` alone carries no baseURL for its requests. */
 function invitedContext(browser: Browser) {
   return browser.newContext({ baseURL: ACCEPTANCE_ORIGIN })
+}
+/**
+ * Signs an invited account in through the product's own two steps: its password, then the six-digit code the outbox
+ * caught. Only runs where `E2E_MAIL_OUTBOX` is set, because the code exists in the sent message and nowhere else.
+ *
+ * Unlike `signIn`'s remembered device (which only the fixture's own accounts hold), this is the path a person takes,
+ * so a journey that uses it proves the accounts this spec invited really do reach their pages.
+ */
+async function invitedSignIn(page: Page, login: string, password: string) {
+  await page.goto('/login')
+  await page.getByLabel('اسم المستخدم').fill(login)
+  await page.getByLabel('كلمة المرور', { exact: true }).fill(password)
+  await page.getByRole('button', { name: 'دخول', exact: true }).click()
+  await expect(page.getByTestId('login-send'), `the invited account must reach the code step: ${login}`).toBeVisible()
+  await page.getByTestId('login-send').click()
+  await expect(page.getByTestId('login-code')).toBeVisible()
+  await page.getByTestId('login-code').fill(await signInCode(login))
+  await page.getByTestId('login-remember').click()
+  await page.getByRole('button', { name: 'تحقق', exact: true }).click()
+  await expect(page, `the invited account ${login} must finish its sign-in`).not.toHaveURL(/\/login(?:\?|$)/)
+  // The shell is what a signed-in person gets; waiting for it keeps a journey's own `goto` from racing hydration.
+  await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
 }
 
 test('custom role is created through the Arabic editor and audited', async ({ page }) => {
@@ -326,18 +348,43 @@ test('account security page offers the reset link only after acceptance and reac
 })
 
 /**
- * The four journeys below originally drove two invited accounts' pages. An invited account cannot be signed in on this
- * stack: accepting the invitation writes a password and a mobile number, never a remembered device
- * (odoo-addons/liwan_core/models/access_service.py:960-965), and only `/api/auth/verify` with a code or
- * `/api/auth/device` with a seeded token finishes a sign-in (odoo-addons/liwan_api/controllers/auth.py:140-168). Each
- * journey therefore asserts what the access API proves without that session, and names the browser half it cannot run.
+ * The API half of the four invited-account journeys below, run with no invitee session at all.
+ *
+ * The role composition the access API reports is a property of the server that needs nobody's browser, so it stays in
+ * its own journey and runs on every build instead of only where an outbox exists. What genuinely needs a session —
+ * the pages an invited account reaches, its refused writes, and the generic-RPC closure for its own session — stays
+ * in those journeys and is skipped, by name, when the stack cannot issue that session.
  */
-test('system administrator and HR have separate real API access', async ({ page }) => {
+test('the access API composes capabilities without leaking them between roles', async ({ page }) => {
+  await signIn(page, 'admin')
+  const sysAdmin = await grantFixture(page.request, 'system_admin', 'sysadmin')
+  const hrManager = await grantFixture(page.request, 'hr_manager', 'hr')
+  // The built-in system administrator manages access and settings without implicitly granting HR write access, and
+  // the HR manager holds the HR write without the access administration.
+  const sysAdminKeys = await capabilityKeys(page.request, sysAdmin.user.id)
+  expect(sysAdminKeys).toContain('access.users.read')
+  expect(sysAdminKeys).not.toContain('hr.employees.manage')
+  const hrKeys = await capabilityKeys(page.request, hrManager.user.id)
+  expect(hrKeys).toContain('hr.employees.manage')
+  expect(hrKeys).not.toContain('access.users.read')
+})
+
+/**
+ * The four journeys below drive an account this spec invited through the access admin API. That account cannot be
+ * signed in on this stack: accepting the invitation writes a password and a mobile number, never a remembered device
+ * (odoo-addons/liwan_core/models/access_service.py:960-965), and only `/api/auth/verify` with a code or `/api/auth/device`
+ * with a seeded token finishes a sign-in (odoo-addons/liwan_api/controllers/auth.py:140-168). The stage seeds no mail
+ * outbox and the admin API has no route that hands another browser a device, so each journey keeps its whole API half
+ * here and its page half behind this one skip — no assertion dropped, nothing silently weakened.
+ */
+const NEEDS_INVITEE_SESSION = 'Needs a session for an account this spec invited: the stack seeds no remembered device for it'
+
+test('system administrator and HR have separate real API and page access', async ({ page, browser }) => {
   await signIn(page, 'admin')
   const admin = await grantFixture(page.request, 'system_admin', 'sysadmin')
   const hr = await grantFixture(page.request, 'hr_manager', 'hr')
   // The grants are read from the access API's own per-account detail (`dump_admin_user`), so proving they do not leak
-  // into each other needs no session of theirs.
+  // into each other never depends on a session of theirs.
   const adminDetail = await json(page.request, 'get', `/api/v1/admin/users/${admin.user.id}`)
   const adminKeys = adminDetail.capabilities.map((source: { key: string }) => source.key)
   expect(adminKeys).not.toContain('hr.employees.manage')
@@ -346,36 +393,59 @@ test('system administrator and HR have separate real API access', async ({ page 
   const hrKeys = hrDetail.capabilities.map((source: { key: string }) => source.key)
   expect(hrKeys).toContain('hr.employees.manage')
   expect(hrKeys).not.toContain('access.users.read')
-  // Neither account has accepted yet, which is why neither can be signed in here: an unopened invitation is `pending`
-  // (`odoo-addons/liwan_core/models/access_service.py:662-678`), and opening it still only sets a password.
+  // Neither account has accepted yet: an unopened invitation is `pending` (access_service.py:662-678), and opening it
+  // still only sets a password.
   expect(adminDetail.invitation?.state ?? null).toBe(MAIL_OUTBOX ? null : 'pending')
   expect(hrDetail.invitation?.state ?? null).toBe(MAIL_OUTBOX ? null : 'pending')
-  // Not run here: the page half of this journey — the invited administrator landing on /settings/team/users,
-  // `/hr/employees/<id>/access` redirecting to that user, and the HR page answering 403 on /api/v1/admin/users while
-  // hiding the users heading — needs those two sessions, which this stack cannot issue.
+  test.skip(!MAIL_OUTBOX, NEEDS_INVITEE_SESSION)
+  const adminContext = await invitedContext(browser)
+  const hrContext = await invitedContext(browser)
+  try {
+    const adminPage = await adminContext.newPage()
+    await invitedSignIn(adminPage, admin.login, TEST_PASSWORD)
+    // A freshly signed-in identity lands on the app root (`postLoginPath` for a loaded identity is `/`); the page the
+    // access role exists for is what has to open for it.
+    await adminPage.goto('/settings/team/users')
+    await expect(adminPage.getByRole('heading', { name: 'المستخدمون', exact: true })).toBeVisible()
+    expect((await json(adminPage.request, 'get', '/api/v1/me')).capabilities).not.toContain('hr.employees.manage')
+    expect((await adminPage.request.post('/api/v1/hr/employees', { data: { name: 'forbidden' } })).status()).toBe(403)
+    const candidates = await json(adminPage.request, 'get', '/api/v1/admin/employee-accounts/candidates')
+    expect(candidates).toHaveProperty('total')
+    await adminPage.goto(`/hr/employees/${admin.employee.id}/access`)
+    await expect(adminPage).toHaveURL(new RegExp(`/settings/team/users/${admin.user.id}(?:\\?|$)`))
+    const hrPage = await hrContext.newPage()
+    await invitedSignIn(hrPage, hr.login, TEST_PASSWORD)
+    // The HR manager's root is the app root; `/hr` is the directory the HR capability opens.
+    await hrPage.goto('/hr')
+    await expect(hrPage.getByRole('heading', { level: 1 })).toBeVisible()
+    expect((await hrPage.request.get('/api/v1/admin/users')).status()).toBe(403)
+    expect((await hrPage.request.post(`/api/v1/hr/employees/${hr.employee.id}/access`, { data: { role: 'admin' } })).status()).toBeGreaterThanOrEqual(400)
+    await hrPage.goto('/settings/team/users')
+    await expect(hrPage.getByRole('heading', { name: 'المستخدمون', exact: true })).toHaveCount(0)
+  } finally { await adminContext.close(); await hrContext.close() }
 })
 
-test('account disable stops the sign-in and leaves the employee intact', async ({ page, browser }) => {
+test('account disable invalidates an existing session and leaves employee intact', async ({ page, browser }) => {
   await signIn(page, 'admin')
   const fixture = await grantFixture(page.request, 'employee', 'member')
-  const detail = await json(page.request, 'get', `/api/v1/admin/users/${fixture.user.id}`)
-  const stopped = await json(page.request, 'post', `/api/v1/admin/users/${fixture.user.id}/disable`, { expected_version: detail.version })
-  expect(stopped.active).toBe(false)
-  const employee = await json(page.request, 'get', `/api/v1/hr/employees/${fixture.employee.id}`)
-  expect(employee.active).toBe(true)
+  test.skip(!MAIL_OUTBOX, NEEDS_INVITEE_SESSION)
   const context = await invitedContext(browser)
   try {
-    // Only once the invitation was opened is the password a real credential, so the refusal is the account's state
-    // and not a password nobody ever set: a disabled account cannot start a sign-in at all.
-    if (MAIL_OUTBOX) {
-      expect((await context.request.post('/api/auth/login', { data: { login: fixture.login, password: TEST_PASSWORD } })).status()).toBe(401)
-    }
-    expect((await context.request.get('/api/v1/me')).status()).toBe(401)
+    // The member's own session has to exist before the disable, or "the session it had is gone" proves nothing.
+    const memberPage = await context.newPage()
+    await invitedSignIn(memberPage, fixture.login, TEST_PASSWORD)
+    const detail = await json(page.request, 'get', `/api/v1/admin/users/${fixture.user.id}`)
+    const stopped = await json(page.request, 'post', `/api/v1/admin/users/${fixture.user.id}/disable`, { expected_version: detail.version })
+    expect(stopped.active).toBe(false)
+    const employee = await json(page.request, 'get', `/api/v1/hr/employees/${fixture.employee.id}`)
+    expect(employee.active).toBe(true)
+    // The refusal proves the disable reached the session the member already had: the API answers 401 (no session
+    // survives a disabled account), which is why the app sends that browser back to sign-in.
+    expect((await memberPage.request.get('/api/v1/me')).status()).toBe(401)
   } finally { await context.close() }
-  // Not run here: the "invalidates an existing session" half, which needs the member signed in before the disable.
 })
 
-test('custom read-only task access is enforced in the API and direct ORM', async ({ page }) => {
+test('custom read-only task access is enforced in the page and direct ORM', async ({ page, browser }) => {
   await signIn(page, 'admin')
   const role = await json(page.request, 'post', '/api/v1/admin/roles', {
     name: { ar: `قراءة المهام ${Date.now()}`, en: null }, description: '',
@@ -389,18 +459,47 @@ test('custom read-only task access is enforced in the API and direct ORM', async
   expect(await capabilityKeys(page.request, fixture.user.id)).toEqual(['pmo.projects.read', 'pmo.tasks.read'])
   const account = await json(page.request, 'get', `/api/v1/admin/users/${fixture.user.id}`)
   expect(account.assignments).toEqual([expect.objectContaining({ role: expect.objectContaining({ id: role.id }) })])
-  // Odoo's generic RPC is closed for every session, the administrator's included: a jsonrpc route answers 200 with a
-  // 404 error body, so the direct ORM write never runs.
-  const rpc = await page.request.post('/web/dataset/call_kw/project.task/write', {
-    data: { jsonrpc: '2.0', method: 'call', params: { model: 'project.task', method: 'write', args: [[task.id], { name: 'forbidden' }], kwargs: {} } },
-  })
-  expect((await rpc.json()).error.code).toBe(404)
-  // Not run here: the reader's own `can_write`/`can_approve`, the 403 on their PATCH, the read-only task page and the
-  // `['hr.employees.read']` re-grant all need the reader signed in, which needs their remembered device.
+  test.skip(!MAIL_OUTBOX, NEEDS_INVITEE_SESSION)
+  const context = await invitedContext(browser)
+  try {
+    const reader = await context.newPage()
+    await invitedSignIn(reader, fixture.login, TEST_PASSWORD)
+    const detail = await json(reader.request, 'get', `/api/v1/tasks/${task.id}`)
+    expect(detail.can_write).toBe(false)
+    expect(detail.can_approve).toBe(false)
+    expect((await reader.request.patch(`/api/v1/tasks/${task.id}`, { data: { name: 'forbidden' } })).status()).toBe(403)
+    // Odoo's generic RPC is closed for every session, the administrator's included: a jsonrpc route answers 200 with a
+    // 404 error body, so the direct ORM write never runs.
+    const rpc = await reader.request.post('/web/dataset/call_kw/project.task/write', {
+      data: { jsonrpc: '2.0', method: 'call', params: { model: 'project.task', method: 'write', args: [[task.id], { name: 'forbidden' }], kwargs: {} } },
+    })
+    expect((await rpc.json()).error.code).toBe(404)
+    await reader.goto(`/tasks/${task.id}`)
+    await expect(reader.getByTestId('task-title-input')).toHaveCount(0)
+    await expect(reader.locator('h1')).toHaveText(task.name)
+    await expect(reader.getByTestId('task-menu')).toHaveCount(0)
+    await expect(reader.getByRole('dialog')).toHaveCount(0)
+
+    // Re-granted the directory read alone, the same session follows the change on its next identity read.
+    const directoryRole = await json(page.request, 'post', '/api/v1/admin/roles', {
+      name: { ar: `دليل فقط ${Date.now()}`, en: null }, description: '', permissions: ['hr.employees.read'],
+    })
+    const adminMe = await json(page.request, 'get', '/api/v1/me')
+    const current = await json(page.request, 'get', `/api/v1/admin/users/${fixture.user.id}`)
+    await json(page.request, 'patch', `/api/v1/admin/users/${fixture.user.id}/access`, {
+      assignments: [{ role_id: directoryRole.id, scope: { kind: 'company', id: adminMe.company.id } }], expected_version: current.version,
+    })
+    expect((await json(reader.request, 'get', '/api/v1/me')).capabilities).toEqual(['hr.employees.read'])
+    await reader.goto('/account')
+    await expect(reader.getByRole('navigation').getByRole('link', { name: 'مهامي', exact: true })).toHaveCount(0)
+  } finally { await context.close() }
 })
 
-test('custom role save applies through the access API without a new login', async ({ page }) => {
+test('custom role save refreshes the actor Nuxt me request without focus', async ({ page, browser }) => {
   await signIn(page, 'admin')
+  const catalog = await json(page.request, 'get', '/api/v1/admin/permissions')
+  const directoryPermission = catalog.items.find((item: { key: string }) => item.key === 'hr.employees.read')
+  expect(directoryPermission).toBeTruthy()
   const extraRole = await json(page.request, 'post', '/api/v1/admin/roles', {
     name: { ar: `صلاحيات الممثل ${Date.now()}`, en: null }, description: '', permissions: ['access.audit.read'],
   })
@@ -419,8 +518,35 @@ test('custom role save applies through the access API without a new login', asyn
   expect(saved.assignments.map((assignment: { role: { id: number } }) => assignment.role.id).sort()).toEqual([extraRole.id, systemAdminRole.id].sort())
   const events = await json(page.request, 'get', `/api/v1/admin/access-log?target_type=user&target_id=${actor.user.id}&action=user.roles_changed`)
   expect(events.items, `no user.roles_changed audit event for user ${actor.user.id}`).not.toHaveLength(0)
-  const detail = await json(page.request, 'get', `/api/v1/admin/access-log/${events.items[0].id}`)
-  expect(detail.after.assignments.map((entry: { role_id: number }) => entry.role_id).sort()).toEqual([extraRole.id, systemAdminRole.id].sort())
-  // Not run here: the browser half (the actor's `/api/v1/me` refreshing after the save bar, without a window focus,
-  // and the navigation link appearing) needs the actor signed in, which needs their remembered device.
+  const audit = await json(page.request, 'get', `/api/v1/admin/access-log/${events.items[0].id}`)
+  expect(audit.after.assignments.map((entry: { role_id: number }) => entry.role_id).sort()).toEqual([extraRole.id, systemAdminRole.id].sort())
+  test.skip(!MAIL_OUTBOX, NEEDS_INVITEE_SESSION)
+  const context = await invitedContext(browser)
+  try {
+    const actorPage = await context.newPage()
+    await invitedSignIn(actorPage, actor.login, TEST_PASSWORD)
+    await actorPage.goto(`/settings/team/roles/${extraRole.id}/edit`)
+    await expect(actorPage.getByRole('heading', { name: 'تعديل الدور', exact: true })).toBeVisible()
+    await expect(actorPage.getByRole('navigation').getByRole('link', { name: 'الموظفين', exact: true })).toHaveCount(0)
+    // The role editor renders its permissions as one checkbox per catalog entry, named by the permission itself.
+    const directoryBox = actorPage.getByRole('checkbox', { name: directoryPermission.label.ar, exact: true })
+    await expect(directoryBox).toBeVisible()
+    // The page is the record editor itself, never a dialog over a list.
+    await expect(actorPage.getByRole('dialog')).toHaveCount(0)
+    // Granting the directory read to the actor's own extra role takes effect on the next identity read, with no
+    // window focus and no new sign-in: the navigation keeps the HR directory entry the grant adds.
+    const beforeGrant = await json(actorPage.request, 'get', '/api/v1/me')
+    expect(beforeGrant.capabilities).not.toContain('hr.employees.read')
+    const roleVersion = await json(actorPage.request, 'get', `/api/v1/admin/roles/${extraRole.id}`)
+    await json(page.request, 'patch', `/api/v1/admin/roles/${extraRole.id}`, {
+      name: roleVersion.name, description: roleVersion.description ?? '',
+      permissions: [...roleVersion.permissions, 'hr.employees.read'], expected_version: roleVersion.version,
+    })
+    await expect.poll(async () => (await json(actorPage.request, 'get', '/api/v1/me')).capabilities).toContain('hr.employees.read')
+    await actorPage.goto('/hr')
+    // The rail entry the grant adds is the HR application («الموظفين»), and the page it opens is the directory
+    // («دليل الموظفين»): both are unreachable without `hr.employees.read`.
+    await expect(actorPage.getByRole('navigation').getByRole('link', { name: 'الموظفين', exact: true })).toBeVisible()
+    await expect(actorPage.getByRole('heading', { level: 1, name: 'دليل الموظفين', exact: true })).toBeVisible()
+  } finally { await context.close() }
 })
