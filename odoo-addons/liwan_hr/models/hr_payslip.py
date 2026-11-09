@@ -99,10 +99,26 @@ class HrPayslip(models.Model):
                 self.env._('An approved payslip is fixed: its figures and lines cannot be changed.'),
             )
 
+    def _liwan_refuse_fixed_run(self, vals):
+        """Refuse moving a payslip into a run that can no longer change: that month was approved without it.
+
+        The run's own figures are summed from the payslips it holds, so adopting one moves a fixed month as surely
+        as editing a payslip already inside it.
+        """
+        run = self.env['hr.payslip.run'].browse(vals.get('payslip_run_id') or ())
+        if run and not run._liwan_is_editable():
+            self.env['liwan.hr.audit.event']._liwan_log_refused_write(
+                'run_write_refused', run, ('payslip_run_id',),
+            )
+            raise AccessError(
+                self.env._('An approved payroll run cannot receive a payslip: its figures are fixed.'),
+            )
+
     def write(self, vals):
         # Same superuser skip as the guard docstring records: migrations and maintenance run there by design.
         if not self.env.su:
             self._liwan_refuse_when_fixed(vals)
+            self._liwan_refuse_fixed_run(vals)
         return super().write(vals)
 
     def unlink(self):
@@ -322,8 +338,12 @@ class HrPayslipLine(models.Model):
 
     def write(self, vals):
         if not self.env.su:
-            self.slip_id._liwan_refuse_when_fixed(vals)
+            self._liwan_write_slips(vals)._liwan_refuse_when_fixed(vals)
         return super().write(vals)
+
+    def _liwan_write_slips(self, vals):
+        """The payslips this write changes: the current parent and the ``slip_id`` destination it moves to."""
+        return self.slip_id | self.env['hr.payslip'].browse(vals.get('slip_id') or ())
 
     def unlink(self):
         if not self.env.su:
@@ -353,8 +373,12 @@ class HrPayslipInput(models.Model):
 
     def write(self, vals):
         if not self.env.su:
-            self.payslip_id._liwan_refuse_when_fixed(vals)
+            self._liwan_write_slips(vals)._liwan_refuse_when_fixed(vals)
         return super().write(vals)
+
+    def _liwan_write_slips(self, vals):
+        """The payslips this write changes: the current parent and the ``payslip_id`` destination it moves to."""
+        return self.payslip_id | self.env['hr.payslip'].browse(vals.get('payslip_id') or ())
 
     def unlink(self):
         if not self.env.su:

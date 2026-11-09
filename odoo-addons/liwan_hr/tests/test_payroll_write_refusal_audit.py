@@ -8,6 +8,8 @@ from odoo.tests import tagged
 from .payroll_common import PayrollCase
 
 MONTH_START = date(2026, 11, 1)
+# A second month: one run per month, so the movable payslips live in their own draft run.
+NEXT_MONTH_START = date(2026, 12, 1)
 IBAN = 'SA0380000000608010167519'
 
 
@@ -162,6 +164,86 @@ class TestPayrollWriteRefusalAudit(PayrollCase):
         self.assertEqual((events[0]['res_model'], events[0]['res_id']), ('hr.payslip', slip.id))
         self.assertEqual(events[0]['create_uid'], self.officer.id)
         self.assertEqual(set(events[0]['changes']), {'liwan_paid_days'})
+
+    # --- moving a child into a frozen parent -----------------------------------------------------
+
+    def _draft_slips(self, employees=1):
+        """The payslips of a draft run of another month: editable donors for the move tests."""
+        for index in range(employees - 1):
+            staff = self.make_employee(f'Movable Worker {index}')
+            self.set_compensation(staff, 8000, iban=IBAN, gosi_registration_date=date(2020, 1, 1))
+        run = self.env['hr.payslip.run']._liwan_create_month(NEXT_MONTH_START)
+        self.assertEqual(run.liwan_state, 'draft')
+        return run, run.with_user(self.officer).slip_ids
+
+    def _movable_line(self, slip):
+        """A computed line of an editable payslip: computing a draft payslip is allowed, moving its line out is not."""
+        slip.compute_sheet()
+        return slip.line_ids[0]
+
+    def test_moving_a_line_into_an_approved_payslip_is_refused_and_audited(self):
+        """A line adopted by a fixed payslip moves its net, exactly like editing one already there."""
+        approved = self._approved_run()
+        target = approved.slip_ids
+        _run, slips = self._draft_slips()
+        donor = slips[:1]
+        line = self._movable_line(donor)
+        before_net = target._liwan_amounts()[target.id]['net']
+        self._assert_refused(
+            'payslip_write_refused', target, ('slip_id',),
+            lambda: line.with_user(self.officer).write({'slip_id': target.id}),
+        )
+        self.assertEqual(line.slip_id, donor)
+        self.assertEqual(target._liwan_amounts()[target.id]['net'], before_net)
+
+    def test_moving_an_input_into_an_approved_payslip_is_refused_and_audited(self):
+        approved = self._approved_run()
+        target = approved.slip_ids
+        _run, slips = self._draft_slips()
+        donor = slips[:1]
+        entered = donor.input_line_ids[:1]
+        self.assertTrue(entered)
+        self._assert_refused(
+            'payslip_write_refused', target, ('payslip_id',),
+            lambda: entered.with_user(self.officer).write({'payslip_id': target.id}),
+        )
+        self.assertEqual(entered.payslip_id, donor)
+
+    def test_moving_a_line_between_two_editable_payslips_is_allowed(self):
+        _run, slips = self._draft_slips(employees=2)
+        donor, receiver = slips[:2]
+        self.assertTrue(receiver)
+        line = self._movable_line(donor)
+        before = self._queued()
+        line.with_user(self.officer).write({'slip_id': receiver.id, 'amount': 1, 'quantity': 1, 'rate': 100})
+        self.assertEqual(line.slip_id, receiver)
+        self.assertEqual(self._queued(), before)
+
+    def test_moving_a_create_line_into_an_approved_payslip_is_refused(self):
+        """``create`` with a frozen parent was already refused; keep it pinned next to the move guard."""
+        approved = self._approved_run()
+        target = approved.slip_ids
+        line = target.line_ids[0]
+        before = self._queued()
+        with self.assertRaises(AccessError):
+            self.env['hr.payslip.line'].with_user(self.officer).create({
+                'slip_id': target.id, 'name': 'Moved in', 'code': 'MOVED_IN',
+                'category_id': line.category_id.id, 'salary_rule_id': line.salary_rule_id.id,
+                'employee_id': target.employee_id.id, 'contract_id': target.contract_id.id,
+                'amount': 1, 'quantity': 1, 'rate': 100,
+            })
+        self.assertEqual(self._queued() - before, 1)
+
+    def test_moving_a_payslip_into_an_approved_run_is_refused_and_audited(self):
+        """A run's figures are summed from its payslips: adopting one rewrites the approved month."""
+        approved = self._approved_run()
+        draft, slips = self._draft_slips()
+        movable = slips[:1]
+        self._assert_refused(
+            'run_write_refused', approved, ('payslip_run_id',),
+            lambda: movable.with_user(self.officer).write({'payslip_run_id': approved.id}),
+        )
+        self.assertEqual(movable.payslip_run_id, draft)
 
     # --- what must stay silent -------------------------------------------------------------------
 
