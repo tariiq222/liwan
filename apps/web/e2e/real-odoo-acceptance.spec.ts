@@ -1,28 +1,14 @@
 import { test, expect, type Page, type APIResponse } from '@playwright/test';
-import { readFileSync } from 'node:fs';
+import { ACCEPTANCE_ORIGIN, fixtures, openShell, signIn } from './support/realOdooSession';
 test.skip(process.env.E2E_REAL_ODOO !== '1', 'Explicit isolated real Odoo acceptance only');
-const ACCEPTANCE_ORIGIN = 'http://localhost:44300';
 test.beforeEach(async ({}, info) => { const origin = new URL(String(info.project.use.baseURL)); expect(origin.origin).toBe(ACCEPTANCE_ORIGIN); });
-const fixture = process.env.E2E_REAL_ODOO === '1' ? JSON.parse(readFileSync(new URL('../../../.superpowers/real-odoo/fixtures.json', import.meta.url), 'utf8')) : {};
+const fixture = process.env.E2E_REAL_ODOO === '1' ? fixtures() : ({} as ReturnType<typeof fixtures>);
 async function body(response: APIResponse, status = 200) { expect(response.status(), await response.text()).toBe(status); return response.json(); }
-// Every sign-in is two-step: the password step leaves a pre-session, then a code or a remembered device
-// finishes it. The fixture seeds one remembered device per acceptance account (no SMS provider exists on
-// a scratch stack, and only a code's hash is stored), so this drives the feature's own second path.
-async function login(page: Page, reader = false) {
-  // Start each sign-in from no remembered device, so a suite that shares a browser context never
-  // inherits the previous test's device (the app checks it before offering the code step).
-  await page.context().clearCookies({ name: 'liwan_device' });
-  const account = reader ? 'e2e_employee' : 'e2e_admin';
-  const password = reader ? (process.env.E2E_USER_EMPLOYEE_PASSWORD ?? process.env.E2E_EMPLOYEE_PASSWORD ?? 'liwan-e2e-employee-2026') : (process.env.E2E_USER_ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'liwan-e2e-admin-2026');
-  const token = fixture.device?.[reader ? 'reader' : 'admin'];
-  expect(token, 'the fixture must seed a remembered device').toBeTruthy();
-  // The stack's only origin (asserted in beforeEach), so the cookie reaches /api/auth/device.
-  await page.context().addCookies([{ name: 'liwan_device', value: token, url: ACCEPTANCE_ORIGIN, httpOnly: true, sameSite: 'Lax' }]);
-  const step = await (await page.request.post('/api/auth/login', { data: { login: account, password } })).json();
-  expect(step).toEqual({ ok: false, mfa: 'code' });
-  await body(await page.request.post('/api/auth/device', { data: {} }));
-}
-async function open(page: Page, path: string) { await page.goto(path); await expect(page.getByTestId('global-search-trigger')).toBeEnabled(); await expect(page.locator('main')).toBeVisible(); }
+// Every sign-in is two-step; ./support/realOdooSession drives the fixture's remembered-device path. The full form
+// walk (channel, code, remembered device) is proven by e2e/totp.spec.ts on the mock stack and by
+// liwan_api/tests/test_login_code_routes.py against real Odoo; the journey below pins the API contract it relies on.
+const login = (page: Page, reader = false) => signIn(page, reader ? 'reader' : 'admin');
+async function open(page: Page, path: string) { await openShell(page, path); await expect(page.locator('main')).toBeVisible(); }
 async function project(page: Page) { return body(await page.request.post('/api/v1/projects', { data: { name: `تحقق حقيقي ${Date.now()}`, date_end: '2030-12-31' } }), 201); }
 // A tenant picks the project tools it subscribes to; nothing optional is on by default, and finance stays off
 // until a company enables it for the project. The finance journeys opt in the way a customer does, and assert
@@ -38,8 +24,9 @@ async function projectWithTools(page: Page, tools: Record<string, boolean>) {
     return detail;
 }
 test('real login form rejects invalid credentials, then walks the two-step sign-in', async ({ page }) => {
+    const admin = fixture.accounts.admin;
     await page.goto('/login');
-    await page.getByLabel('اسم المستخدم').fill('e2e_admin');
+    await page.getByLabel('اسم المستخدم').fill(admin.login);
     await page.getByLabel('كلمة المرور').fill('invalid-scratch-password');
     let response = page.waitForResponse(r => r.url().endsWith('/api/auth/login') && r.request().method() === 'POST');
     await page.getByRole('button', { name: 'دخول', exact: true }).click();
@@ -49,8 +36,8 @@ test('real login form rejects invalid credentials, then walks the two-step sign-
     // The full form walk (channel, code, remembered device) is proven by e2e/totp.spec.ts on the mock
     // stack and by liwan_api/tests/test_login_code_routes.py against real Odoo; this journey pins the
     // contract the form relies on, without depending on which second step the scratch stack allows.
-    await page.getByLabel('كلمة المرور').fill(process.env.E2E_USER_ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'liwan-e2e-admin-2026');
-    const step = await page.request.post('/api/auth/login', { data: { login: 'e2e_admin', password: process.env.E2E_USER_ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'liwan-e2e-admin-2026' } });
+    await page.getByLabel('كلمة المرور').fill(admin.password);
+    const step = await page.request.post('/api/auth/login', { data: admin });
     expect(step.status()).toBe(200);
     expect(await step.json()).toEqual({ ok: false, mfa: 'code' });
     // The password step exposed no identity yet: /api/v1/me is refused for a pre-session.

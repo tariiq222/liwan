@@ -47,5 +47,11 @@ networks:
     ipam: { config: [{ subnet: "${FOUNDATION_NET_DB:?}" }] }
   control_database:
     ipam: { config: [{ subnet: "${FOUNDATION_NET_CONTROL:?}" }] }
+  relay_odoo:
+    ipam: { config: [{ subnet: "${FOUNDATION_NET_RELAY:?}" }] }
+  guard_restore:
+    ipam: { config: [{ subnet: "${FOUNDATION_NET_RESTORE_EDGE:?}" }] }
+  restore_database:
+    ipam: { config: [{ subnet: "${FOUNDATION_NET_RESTORE_DB:?}" }] }
 volumes:
   control_data: {}

@@ -66,12 +66,12 @@ describe.skipIf(!scratchUrl)('subscription recovery integration-fake',()=>{
     const binding=(await pool.query('SELECT * FROM shared_registry_bindings WHERE control_tenant_id=$1',[s.tenant])).rows[0]
     await pool.query("INSERT INTO shared_backups(id,control_tenant_id,tenant_id,database_name,filestore,snapshot,database_sha256,filestore_sha256,artifact_path,consistency,created_by) VALUES($1,$2,$3,$4,$4,'{}'::jsonb,$5,$5,'/tmp/fixture-backup','verified','integration-fake:7')",[backup,s.tenant,binding.tenant_id,binding.database_name,'c'.repeat(64)])
     await pool.query("INSERT INTO shared_restore_approvals(id,backup_id,control_tenant_id,target_database,reason,expires_at) VALUES($1,$2,$3,$4,'integration fixture',now()+interval '1 hour')",[restore,backup,s.tenant,target.database])
-    const observed=fakeObserveRunner({commercial_revision_id:s.previous,commercial_digest:'c'.repeat(64),branches:[]})
+    const observed=fakeObserveRunner({commercial_revision_id:s.previous,commercial_digest:'c'.repeat(64),branches:[],status:'active',commercial_valid_until:null})
     const a=await reconcileAfterRestore(pool,{tenant_id:s.tenant,restore_id:restore,target,runner:observed})
     const b=await reconcileAfterRestore(pool,{tenant_id:s.tenant,restore_id:restore,target,runner:observed})
     expect(a.ready).toBe(false);expect(a.job_id).toBe(b.job_id)
     const repair=(await pool.query('SELECT payload FROM shared_jobs WHERE id=$1',[a.job_id])).rows[0]
     expect(repair.payload.binding.database).toBe(target.database)
-    expect(await reconcileAfterRestore(pool,{tenant_id:s.tenant,restore_id:restore,target,runner:fakeObserveRunner({commercial_revision_id:s.target,commercial_digest:'a'.repeat(64),branches:[]})})).toEqual({ready:true})
+    expect(await reconcileAfterRestore(pool,{tenant_id:s.tenant,restore_id:restore,target,runner:fakeObserveRunner({commercial_revision_id:s.target,commercial_digest:'a'.repeat(64),branches:[],status:'active',commercial_valid_until:null})})).toEqual({ready:true})
   },60000)
 })

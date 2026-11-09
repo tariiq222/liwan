@@ -1,17 +1,9 @@
 import { test, expect } from '@playwright/test'
+import { ACCEPTANCE_ORIGIN, signIn } from './support/realOdooSession'
 
-// Needs a real Odoo: it logs in as admin and writes data, which the mock answers with 404. It is in no CI list until it has run on a
-// scratch Odoo (see docs/testing.md, section 3).
+// Runs only on the isolated real-Odoo stack (deploy/ci/e2e-odoo.sh).
 test.skip(process.env.E2E_REAL_ODOO !== '1', 'Explicit isolated real Odoo acceptance only')
-
-async function login(page) {
-  await page.goto('/login')
-  await page.getByLabel('اسم المستخدم').fill('admin')
-  await page.getByLabel('كلمة المرور').fill('admin')
-  await page.getByRole('button', { name: 'دخول' }).click()
-  // Login lands on the first section the user may open (accessPolicy.firstAllowedPath).
-  await expect(page).not.toHaveURL(/\/login(?:\?|$)/)
-}
+test.beforeEach(async ({}, info) => { expect(new URL(String(info.project.use.baseURL)).origin).toBe(ACCEPTANCE_ORIGIN) })
 
 async function createTask(page, name: string) {
   const projectsRes = await page.request.get('/api/v1/projects?minimal=1')
@@ -32,17 +24,24 @@ async function createTask(page, name: string) {
 // pointer events (page.mouse), since vue-draggable-plus (SortableJS) reacts
 // to pointer events, not the HTML5 drag protocol Playwright's dragTo emits.
 async function dragCard(page, fromLocator, toLocator) {
-  // Columns scroll internally (fixed board height), so the card may start
-  // outside the viewport; bring it into view before reading its box.
+  // The board scrolls horizontally and each column scrolls vertically, so both
+  // ends are brought into view before their boxes are read.
+  // The drop target is the column's own SortableJS list (its `liwan-thin-scroll`
+  // child), not the column box: the sticky header and the "no tasks" line are
+  // siblings of that list, so a release over them never lands on a list.
+  const list = toLocator.locator('.liwan-thin-scroll')
+  await toLocator.scrollIntoViewIfNeeded()
   await fromLocator.scrollIntoViewIfNeeded()
   const from = await fromLocator.boundingBox()
-  const to = await toLocator.boundingBox()
+  const to = await list.boundingBox()
   if (!from || !to) throw new Error('missing bounding box for drag')
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
   await page.mouse.down()
   const steps = 10
   const targetX = to.x + to.width / 2
-  const targetY = to.y + Math.min(40, to.height / 2)
+  // Just inside the list's top edge: a drop zone at any card count, and above
+  // the first card's content so the insertion point stays the list itself.
+  const targetY = to.y + Math.min(24, to.height / 2)
   for (let i = 1; i <= steps; i++) {
     await page.mouse.move(
       from.x + from.width / 2 + ((targetX - (from.x + from.width / 2)) * i) / steps,
@@ -54,12 +53,15 @@ async function dragCard(page, fromLocator, toLocator) {
 }
 
 test('board tab: drag between stages persists, and the keyboard menu moves a card too', async ({ page }) => {
-  await login(page)
+  await signIn(page)
   const name = `E2E board ${Date.now()}`
   const id = await createTask(page, name)
 
-  await page.goto('/tasks?view=board')
-  await expect(page.getByRole('heading', { name: 'مهامي' })).toBeVisible()
+  // `&group=stage` is required: TaskBoard groups by status unless
+  // `route.query.group === 'stage'`, and only stage columns make a drag a
+  // stage PATCH (`applyMove`); a status board POSTs a transition instead.
+  await page.goto('/tasks?view=board&group=stage')
+  await expect(page.getByRole('heading', { name: 'مهام المشاريع', exact: true })).toBeVisible()
 
   // The leading "بلا مرحلة" column always renders (Odoo assigns every new
   // task a default personal stage on create, so this doesn't hold the new
@@ -87,15 +89,15 @@ test('board tab: drag between stages persists, and the keyboard menu moves a car
 
   // Persists after reload.
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'مهامي' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'مهام المشاريع', exact: true })).toBeVisible()
   const reloadedTargetColumn = page.getByTestId('board-column').filter({ hasText: targetStageName })
   await expect(reloadedTargetColumn.getByTestId(`board-card-${id}`)).toBeVisible({ timeout: 10_000 })
 
-  // Keyboard fallback: the card menu (lucide trigger, aria-label) lists
-  // every stage under "نقل إلى…"; picking a third stage moves the card too.
+  // Keyboard fallback: the card menu (lucide trigger, aria-label) lists the
+  // stage names themselves on a stage board (moveTargets = sortedStages); picking
+  // a third stage moves the card through the same applyMove PATCH.
   card = page.getByTestId(`board-card-${id}`)
   await card.getByRole('button', { name: 'إجراءات المهمة', exact: true }).click()
-  await expect(page.getByText('نقل إلى…')).toBeVisible()
   const thirdStageColumn = stageColumns.nth(2)
   const thirdStageName = await thirdStageColumn.getByTestId('board-column-title').innerText()
   const patched = page.waitForResponse((r) => r.url().includes(`/api/v1/tasks/${id}`) && r.request().method() === 'PATCH')
@@ -110,9 +112,10 @@ test('board tab: drag between stages persists, and the keyboard menu moves a car
 })
 
 test('board tab: a folded stage renders collapsed with a count and expands on click', async ({ page }) => {
-  await login(page)
-  await page.goto('/tasks?view=board')
-  await expect(page.getByRole('heading', { name: 'مهامي' })).toBeVisible()
+  await signIn(page)
+  // Stage grouping is required: the default status board has no folded columns at all.
+  await page.goto('/tasks?view=board&group=stage')
+  await expect(page.getByRole('heading', { name: 'مهام المشاريع', exact: true })).toBeVisible()
 
   // The default personal stages seed "Done"/"Cancelled" (translated) as
   // folded; assert at least one column renders collapsed, with a visible

@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { migrate } from '../db.js'
+import { migrate, transaction } from '../db.js'
 import { publishOdooRestore, realRestoreHost } from '../shared/odoo-backup.js'
 import { publishRegistryMutation } from '../shared/registry-store.js'
 import { businessKey, payloadDigest } from '../shared/provisioning.js'
@@ -76,10 +76,10 @@ describe.skipIf(!url)('commercial restore publication (live PG, fake physical re
       await pool.query("INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent) VALUES($1,$2,$3,'change',$4,$5,'paid','applied',$6,'fixture',100,'SAR',2)", [order,customer,subscription,randomUUID(),applied,randomUUID()])
     }
     const observe = async () => ({ state:'present',verified:true,binding,businessKey:businessKey(restored),payloadDigest:payloadDigest(restored) })
-    let observed: Awaited<ReturnType<ObserveRunner>> = { commercial_revision_id:older,commercial_digest:'b'.repeat(64),branches:[] }
+    let observed: Awaited<ReturnType<ObserveRunner>> = { commercial_revision_id:older,commercial_digest:'b'.repeat(64),branches:[],status:'active',commercial_valid_until:null }
     const runner: ObserveRunner = async input => { expect(input.database).toBe(target); return observed }
     const reopen = () => publishOdooRestore(pool,runtime,actor,approval,observe,{runner})
-    return { tenant,approval,subscription,applied,target,order,runner,reopen, current: () => { observed={commercial_revision_id:applied,commercial_digest:'c'.repeat(64),branches:[]} } }
+    return { tenant,approval,subscription,applied,target,order,runner,reopen, current: () => { observed={commercial_revision_id:applied,commercial_digest:'c'.repeat(64),branches:[],status:'active',commercial_valid_until:null} } }
   }
 
   it('legacy restore reopens with existing behavior and no reconfigure', async () => {
@@ -106,6 +106,24 @@ describe.skipIf(!url)('commercial restore publication (live PG, fake physical re
     expect((await pool.query('SELECT applied_revision_id FROM subscriptions WHERE id=$1',[f.subscription])).rows[0].applied_revision_id).toBe(f.applied)
     expect((await pool.query('SELECT id FROM invoices WHERE subscription_id=$1',[f.subscription])).rows).toHaveLength(0)
     expect((await pool.query('SELECT id FROM commercial_branches WHERE subscription_id=$1',[f.subscription])).rows).toHaveLength(0)
+  })
+
+  it('locks the lifecycle snapshot at publication after successful readback', async () => {
+    const f = await fixture(true)
+    f.current()
+    const client = await pool.connect()
+    let prepared: Awaited<ReturnType<typeof backup.prepareCommercialRestorePublication>>
+    try {
+      prepared = await backup.prepareCommercialRestorePublication(pool,client,f.tenant,{
+        database:f.target,filestore:f.target,host:realRestoreHost(f.approval,runtime.domainSuffix),
+      },f.runner,f.approval)
+    } finally { client.release() }
+    expect(prepared.ready).toBe(true)
+    expect(await transaction(pool,c=>backup.revalidateCommercialRestorePublication(c,f.tenant,prepared.snapshot))).toBe(true)
+    // Suspend preserves applied entitlement, so an entitlement-only CAS would accept it.
+    await pool.query("UPDATE subscriptions SET state='suspended',revision=revision+1 WHERE id=$1",[f.subscription])
+    expect(await transaction(pool,c=>backup.revalidateCommercialRestorePublication(c,f.tenant,prepared.snapshot))).toBe(false)
+    await expect(f.reopen()).rejects.toMatchObject({code:'commercial_reconciliation_pending',status:409})
   })
 
   it('commercial restore fails closed when an observer is unavailable', async () => {
