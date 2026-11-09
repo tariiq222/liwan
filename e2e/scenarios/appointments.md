@@ -26,9 +26,10 @@ requester never may.
 The requester's link is a company policy, not an unbounded secret: it stays readable until
 `link_valid_days_after_end` days after the appointment ends (default 30), counted from the booking's creation while it
 still has no time, then every public route answers the same 404 and no requester data is returned; a staff invitation refuses to hand out an expired link rather than
-resurrect it. A public start must fall on the type's slot grid (a whole multiple of `slot_minutes` from the work
-day's beginning), and one token has its own minute read budget. Each slots answer names at most a month and lists at most 500 starts, cut on a whole-day
-boundary: it names `next_date`, the first day it left out (null when it lists the requested window whole), and never cuts
+resurrect it. A public start must fall on the type's slot grid (a whole minute, and a whole multiple of `slot_minutes`
+from the work day's beginning: a start that carries seconds is refused 422 like an off-grid one), and one token has its
+own minute read budget. Each slots answer names at most a month and lists at most 500 starts, cut on a whole-day
+boundary: it names `next_date`, the first day it left out (null when it lists the window whole), and never cuts
 a day in the middle, so a dense grid (a 5-minute slot around the clock) is read to the end across answers instead of
 leaving its last days unavailable. With `cancel_reason_required` on, the requester's cancel takes a `reason_id` from
 the company's active cancel-reason list, refused 422 without one. The self-booking policy is `invite_only` only: no

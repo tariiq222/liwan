@@ -127,16 +127,18 @@ def _slot_items_by_day(starts, duration, tz):
 
 
 def require_slot_alignment(start, booking_type):
-    """422 on ``start`` unless it falls on the type's slot grid: a whole multiple of ``slot_duration`` from the beginning of
-    one of the working-day intervals of that weekday, in the type's own calendar time zone.
+    """422 on ``start`` unless it falls on the type's slot grid: a whole minute, and a whole multiple of ``slot_duration``
+    from the beginning of one of the working-day intervals of that weekday, in the type's own calendar time zone.
 
-    The engine's slot search steps from each interval's start, so a start off the grid would create an uneven schedule and
-    overlap the slots it lists. A type with no slot duration, or a day the calendar does not work, accepts any start: the
-    engine's own fit check refuses the booking then.
+    The engine's slot search steps from each interval's start, so a start off the grid would create an uneven schedule that
+    overlaps it; it is refused rather than truncated. A type with no slot duration, or a day the calendar does not work,
+    accepts any start: the engine's own fit check refuses the booking then.
     """
     minutes = round(booking_type.slot_duration * 60)
     if minutes <= 0:
         return
+    if start.second or start.microsecond:
+        raise ApiError(422, 'invalid', 'must fall on a whole minute of this type', field='start')
     tz = _type_timezone(booking_type)
     local = pytz.UTC.localize(start).astimezone(tz).replace(tzinfo=None)
     minute_of_day = local.hour * 60 + local.minute

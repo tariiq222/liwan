@@ -568,6 +568,20 @@ class TestAppointmentGuest(LiwanAppointmentsCase):
         off_grid = (datetime.strptime(slot, UTC_FORMAT) + timedelta(minutes=7)).strftime(UTC_FORMAT)
         self._error(self._schedule(self.invited, off_grid), 422, 'invalid', 'start')
 
+    def test_a_start_with_seconds_is_refused_instead_of_truncated(self):
+        """#548: 08:00:59Z is not 08:00Z: the grid is read in whole minutes, so a second-bearing start answers the same 422."""
+        self._settings(min_notice_hours=0)
+        self._always_open(self.booking_type, self.combination)
+        slot = self._slots(self.invited)[0]
+        on_grid = datetime.strptime(slot, UTC_FORMAT)
+        for seconds in (1, 30, 59):
+            with self.subTest(seconds=seconds):
+                start = (on_grid + timedelta(seconds=seconds)).strftime(UTC_FORMAT)
+                self._error(self._schedule(self.invited, start), 422, 'invalid', 'start')
+        self.assertEqual(self.invited.state, 'pending')
+        # The whole-minute start the grid lists is still accepted, so the earlier refusals were about the seconds alone.
+        self.assertEqual(self._schedule(self.invited, slot).status_code, 200)
+
     # --- the token in the log (#543) ---
 
     def test_a_public_request_writes_no_token_to_the_request_log(self):
