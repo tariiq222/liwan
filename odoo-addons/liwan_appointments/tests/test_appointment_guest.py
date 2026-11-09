@@ -335,6 +335,17 @@ class TestAppointmentGuest(LiwanAppointmentsCase):
         self.assertNotIn(slot, listed)
         self._error(self._schedule(other, slot), 409, 'conflict')
 
+    def test_refused_requests_spend_the_token_budget_too(self):
+        """A taken slot answers 409 and rolls the booking change back, but the token still pays for the attempt."""
+        other = self._invited(self.booking_type)
+        slot = self._slots(self.invited)[0]
+        self.assertEqual(self._schedule(other, slot).status_code, 200)
+        # The slots listing above spent the calendar counter, so the booking counter of ``self.invited`` starts whole.
+        for _index in range(GUEST_READ_LIMIT):
+            self._error(self._schedule(self.invited, slot), 409, 'conflict')
+        self._error(self._schedule(self.invited, slot), 429, 'rate_limited')
+        self.assertFalse(self.invited.start, 'a refused change leaves the booking unscheduled')
+
     def test_a_pinned_booking_lists_the_slots_of_its_combination(self):
         second = self._create_combination(self.env.company, 'Room B')
         self.booking_type.combination_rel_ids = [(0, 0, {'combination_id': second.id})]
