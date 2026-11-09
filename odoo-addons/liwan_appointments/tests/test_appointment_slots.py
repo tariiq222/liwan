@@ -2,11 +2,18 @@
 from datetime import UTC, date, datetime, timedelta
 from unittest.mock import patch
 
+from freezegun import freeze_time
+
 from odoo.tests import tagged
 
 from .common import LiwanAppointmentsCase
 
 UTC_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
+# The instants the minimum-notice test pins the clock to: 08:30 and 16:30 Asia/Riyadh on the same day, so a 720-hour
+# notice ends at 08:30 and 16:30 on the last requested day, inside the calendar's 08:00-17:00 working day either way.
+# The answer is then the same whatever time the suite really runs at, which it was not before the clock was pinned.
+MORNING = datetime(2026, 11, 9, 5, 30, tzinfo=UTC)
+EVENING = datetime(2026, 11, 9, 13, 30, tzinfo=UTC)
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -56,14 +63,31 @@ class TestAppointmentSlots(LiwanAppointmentsCase):
         self.assertEqual((result.status_code, result.json()['field']), (422, 'combination_id'))
 
     def test_min_notice_drops_earlier_slots(self):
-        self.env['liwan.appointment.settings'].create({'company_id': self.env.company.id, 'min_notice_hours': 720})
+        """#546: a 30-day notice hides every earlier slot, whatever time of day the suite runs at.
+
+        The clock is pinned to a morning and an evening, and the calendar works 08:00-17:00 Asia/Riyadh, so the cutoff
+        lands inside the last requested working day both times. Before the pin, a run late in the afternoon put it past
+        the closing time and the answer was empty. The claim holds even if it did not: nothing at or after the notice is
+        listed, and the same window without the notice lists the earlier slots the notice took away.
+        """
+        settings = self.env['liwan.appointment.settings'].create({'company_id': self.env.company.id, 'min_notice_hours': 720})
         self.authenticate('appointments_booker', 'appointments_booker_pass_123')
-        cutoff = datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=720)
-        # 31 days at most per answer: the whole 30-day notice fits, the horizon does not add to it.
-        items = self._slots(0, 30).json()['items']
-        self.assertTrue(items)
-        for item in items:
-            self.assertGreaterEqual(datetime.strptime(item['start'], UTC_FORMAT), cutoff)
+        for instant in (MORNING, EVENING):
+            with self.subTest(now=instant.isoformat()), freeze_time(instant):
+                cutoff = instant.replace(tzinfo=None) + timedelta(hours=720)
+                # 31 days at most per answer: the whole 30-day notice fits, the horizon does not add to it.
+                with_notice = [item['start'] for item in self._slots(0, 30).json()['items']]
+                self.assertTrue(with_notice, 'the notice ends inside the last requested working day')
+                self.assertTrue(all(datetime.strptime(start, UTC_FORMAT) >= cutoff for start in with_notice), instant)
+                # The same window without the notice keeps the earlier slots, which is what the notice removes.
+                settings.min_notice_hours = 0
+                self.env.flush_all()
+                without_notice = [item['start'] for item in self._slots(0, 30).json()['items']]
+                settings.min_notice_hours = 720
+                self.env.flush_all()
+                self.assertTrue(without_notice, instant)
+                self.assertTrue(set(with_notice) < set(without_notice), instant)
+                self.assertTrue(any(datetime.strptime(start, UTC_FORMAT) < cutoff for start in without_notice), instant)
 
     def test_staff_slots_ignore_the_modification_deadline_and_follow_the_min_notice(self):
         """The engine is replaced by a fixed answer, so the test does not depend on working days or the clock."""
