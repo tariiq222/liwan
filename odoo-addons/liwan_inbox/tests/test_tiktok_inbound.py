@@ -275,6 +275,7 @@ class TestTikTokInbound(LiwanInboxCase):
         self.assertEqual(len(job), 1)
         self.assertEqual((job.state, job.owner_company_id), ('queued', self.tiktok.owner_company_id))
         self.assertFalse(self.env['liwan.inbox.conversation'].search_count([]))
-        # An import already queued reads the same messages: a second notice starts nothing and raises nothing.
-        self.assertEqual(self.deliver(tt.eu_notice()).state, 'done')
+        # An import already queued reads the same messages: a second notice is a replay, so it stores no event
+        # and starts nothing, and raises nothing.
+        self.assertFalse(self.deliver(tt.eu_notice()))
         self.assertEqual(len(Sync.search([('channel_id', '=', self.tiktok.id)])), 1)

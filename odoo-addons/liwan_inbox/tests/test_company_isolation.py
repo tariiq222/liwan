@@ -22,7 +22,7 @@ from odoo.addons.liwan_api.tests.common import (
 from odoo.addons.liwan_inbox.adapters import whatsapp
 from odoo.addons.liwan_inbox.models.constants import TIKTOK_FEATURE
 from odoo.addons.liwan_inbox.models.secret_box import KEY_ENV
-from odoo.addons.liwan_inbox.tests.common import ACCESS_TOKEN, APP_SECRET
+from odoo.addons.liwan_inbox.tests.common import ACCESS_TOKEN, APP_SECRET, store_event
 
 EXPECTED_GET_RECORD_ROUTES = 29
 PASSWORD = 'iso_inbox_nocap_pass_123'
@@ -354,7 +354,7 @@ class TestTikTokCompanyIsolation(CompanyIsolationCase):
         return {
             'channel': channel, 'conversation': conversation, 'message': message, 'shortcut': shortcut,
             'sync': channel._liwan_tiktok_queue_sync(),
-            'event': cls.store_event(channel, tt.receive_text(message_id=f'msg-iso-{business_id}')),
+            'event': store_event(env, channel, tt.receive_text(message_id=f'msg-iso-{business_id}')),
         }
 
     def test_tiktok_records_isolated(self):

@@ -185,5 +185,7 @@ class FlowCase(AutomationCase):
         channel = channel or self.channel
         event = self.store_event(channel, data)
         self.env['liwan.inbox.event']._liwan_run_events()
-        self.assertEqual(event.state, 'done', event.error)
+        # A replayed delivery is not stored again, so it has no event to check; its message is still the first one.
+        if event:
+            self.assertEqual(event.state, 'done', event.error)
         return self.env['liwan.inbox.message'].search([('provider_message_id', '=', provider_id)]) if provider_id else event

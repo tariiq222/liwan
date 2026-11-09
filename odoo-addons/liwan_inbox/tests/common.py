@@ -18,6 +18,20 @@ PHONE_ID = '100000000001'
 BUSINESS_ACCOUNT_ID = '200000000001'
 ACCESS_TOKEN = 'EAAB-access-token-0123456789'
 APP_SECRET = 'app-secret-0123456789abcdef'
+
+
+def store_event(env, channel, payload):
+    """Store one delivery of `channel` through the model's only writer, as a webhook arrives.
+
+    `payload` is a parsed envelope, or the text/bytes it was read from. A replay of a stored delivery
+    returns an empty recordset, exactly as the hook controllers see it.
+    """
+    raw = payload if isinstance(payload, bytes) else (
+        payload.encode() if isinstance(payload, str) else json.dumps(payload).encode()
+    )
+    return env['liwan.inbox.event']._liwan_store(channel, raw)
+
+
 # Every key of InboxMessageSchema (packages/contracts/src/inbox/index.ts).
 MESSAGE_KEYS = {
     'id', 'direction', 'kind', 'body', 'author', 'template', 'delivery_state', 'error', 'error_code', 'unconfirmed',
@@ -114,10 +128,7 @@ class LiwanInboxCase(LiwanApiCase):
         `payload` is a parsed envelope (or the raw text/bytes it was read from). A replay of a stored
         delivery returns an empty recordset, exactly as the hook controllers see it.
         """
-        raw = payload if isinstance(payload, bytes) else (
-            payload.encode() if isinstance(payload, str) else json.dumps(payload).encode()
-        )
-        return cls.env['liwan.inbox.event']._liwan_store(channel, raw)
+        return store_event(cls.env, channel, payload)
 
     @classmethod
     def make_template(cls, channel=None, **values):

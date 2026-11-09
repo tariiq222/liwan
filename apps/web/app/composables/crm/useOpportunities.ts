@@ -79,7 +79,6 @@ export function useCrmOpportunityOpening(recordId: MaybeRefOrGetter<number>, hyd
     reported.value = id
     seen.mutate()
   }, { immediate: true })
-  return seen
 }
 
 /** Calls per page of the record's call log. */

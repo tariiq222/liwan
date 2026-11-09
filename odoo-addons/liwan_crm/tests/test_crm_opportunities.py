@@ -323,14 +323,18 @@ class TestCrmOpportunities(LiwanCrmCase):
     # Gates
 
     def test_outsider_is_forbidden(self):
-        for method, path in (('GET', URL), ('POST', URL), ('GET', AUDIT_URL)):
+        lead = self.make_lead(self.agent)
+        for method, path in (('GET', URL), ('POST', URL), ('GET', AUDIT_URL), ('POST', f'{URL}/{lead.id}/seen')):
             response = self.as_user(self.outsider).api(method, path, json={} if method == 'POST' else None)
             self.assertEqual(response.status_code, 403, path)
 
     def test_closed_feature_refuses_every_route(self):
         lead = self.make_lead(self.agent)
         set_probe_feature(self, key='crm.enabled', enabled=False)
-        routes = (('GET', URL), ('POST', URL), ('GET', f'{URL}/{lead.id}'), ('PATCH', f'{URL}/{lead.id}'), ('GET', AUDIT_URL))
+        routes = (
+            ('GET', URL), ('POST', URL), ('GET', f'{URL}/{lead.id}'), ('PATCH', f'{URL}/{lead.id}'),
+            ('POST', f'{URL}/{lead.id}/seen'), ('GET', AUDIT_URL),
+        )
         for method, path in routes:
             response = self.as_agent().api(method, path, json={} if method in ('POST', 'PATCH') else None)
             self.assertEqual(response.status_code, 403, f'{method} {path}')

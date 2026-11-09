@@ -33,10 +33,15 @@ def account_event(field, value, account_id=BUSINESS_ACCOUNT_ID, time=EVENT_TIME)
 
 
 def process(case, channel, payload):
-    """Store `payload` as an event of `channel` and run the events cron; returns the event."""
+    """Store `payload` as an event of `channel` and run the events cron; returns the stored event.
+
+    A replay of an already stored delivery returns an empty recordset: it is not processed again, which is
+    exactly what the health tests assert when they deliver the same body twice.
+    """
     event = case.store_event(channel, payload)
     case.env['liwan.inbox.event']._liwan_run_events()
-    case.assertEqual(event.state, 'done', event.error)
+    if event:
+        case.assertEqual(event.state, 'done', event.error)
     return event
 
 
