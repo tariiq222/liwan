@@ -1,8 +1,14 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import logging
+
 from odoo import api, fields, models
 from odoo.exceptions import AccessError
 
+_logger = logging.getLogger(__name__)
+
 IMMUTABLE = 'audit_is_immutable'
+# Marks the postcommit callable a refusal queues, so the audit path is identifiable where it is registered.
+REFUSAL_HOOK = 'liwan_hr_refusal_audit'
 
 # Per audited model: (fields whose old and new values are recorded, fields recorded by name only).
 # The first list holds non-secret payroll policy only; wages, IBANs, settlement figures and a salary
@@ -33,6 +39,9 @@ TRACKED_FIELDS = {
     )),
     # The lifecycle of a pay month; the entered input amounts are named in the event, never valued.
     'hr.payslip.run': (('liwan_state', 'liwan_approved_by_id', 'liwan_approved_at'), ()),
+    # A refused write after approval (issue #520): the payslip reads no policy value into the trail, so its
+    # refusals carry the attempted field names only. A one2many name would be rendered through its comodel.
+    'hr.payslip': ((), ()),
     # A handed-out salary file: what kind, under which name, for which value date. Its content (IBANs, amounts)
     # and checksum are never recorded.
     'liwan.hr.payroll.file': (('kind', 'filename', 'value_date'), ()),
@@ -62,6 +71,9 @@ TRACKED_FIELDS = {
     ), ()),
 }
 
+# A refusal names the fields the caller tried to write and nothing else: the record still holds the values the
+# write was refused for, so a policy diff here would report a change that never happened.
+REFUSAL_ACTIONS = frozenset({'payslip_write_refused', 'run_write_refused'})
 # Warning actions are authorized by the warning itself (`_liwan_audit_authorized`): the HR officer who issues or
 # withdraws, the direct manager who issues when the company allows it, and the employee who answers their own
 # warning hold no single capability in common. Insurance enrollment and dependent actions use the same hook, since
@@ -83,6 +95,10 @@ ACTIONS = {
     'run_inputs_changed': ('hr.payslip.run', 'hr.payroll.manage'),
     'run_approved': ('hr.payslip.run', 'hr.payroll.approve'),
     'run_cancelled': ('hr.payslip.run', 'hr.payroll.manage'),
+    # A write the payroll guards refused after approval, recorded against the record it targeted: who tried to
+    # rewrite an approved month, and which fields. One action per audited model, like every other entry here.
+    'payslip_write_refused': ('hr.payslip', 'hr.payroll.manage'),
+    'run_write_refused': ('hr.payslip.run', 'hr.payroll.manage'),
     'payment_file_generated': ('liwan.hr.payroll.file', 'hr.payroll.read'),
     'warning_created': ('liwan.hr.warning', SELF_AUTHORIZED),
     'warning_issued': ('liwan.hr.warning', SELF_AUTHORIZED),
@@ -131,6 +147,8 @@ PAYROLL_ACTION_SELECTION = [
     ('run_inputs_changed', 'Payroll run inputs changed'),
     ('run_approved', 'Payroll run approved'),
     ('run_cancelled', 'Payroll run cancelled'),
+    ('payslip_write_refused', 'Payslip write refused'),
+    ('run_write_refused', 'Payroll run write refused'),
     ('payment_file_generated', 'Salary file generated'),
 ]
 WARNING_ACTION_SELECTION = [
@@ -249,8 +267,9 @@ class LiwanHrAuditEvent(models.Model):
             msg = 'audit_capability_missing'
             raise AccessError(msg)
         deleting = action in DELETE_ACTIONS
-        old = self._liwan_policy_snapshot(record) if deleting else before or {}
-        new = {} if deleting else self._liwan_policy_snapshot(record)
+        refused = action in REFUSAL_ACTIONS
+        old = self._liwan_policy_snapshot(record) if deleting else {} if refused else before or {}
+        new = self._liwan_policy_snapshot(record) if not (deleting or refused) else {}
         event = super().create([{
             'company_id': company.id, 'action': action, 'res_model': res_model, 'res_id': record.id,
         }])
@@ -273,6 +292,40 @@ class LiwanHrAuditEvent(models.Model):
             # here only, so no second entry point can attach a change to an event.
             models.Model.create(self.env['liwan.hr.audit.change'], rows)
         return event
+
+    @api.model
+    def _liwan_log_refused_write(self, action, record, names):
+        """Record ``action`` for a write the payroll guards are about to refuse.
+
+        The refusal raises, and the router's ``api_handler`` wraps the request in a savepoint, so an event written
+        here would disappear with the rollback. It is queued on ``postcommit`` instead: the request answers its
+        403 as a normal response, the transaction commits and the queue runs, writing the event on its own cursor
+        as the original user (the ACL grants that user create when they hold ``hr.payroll.manage``; no ``sudo()``).
+        A caller that still rolls back leaves no event. ``names`` are the fields the caller tried to write,
+        recorded by name only: their values are pay data (owner decisions D-8 and D-9).
+
+        A caller the trail cannot be written for -- no grant in the record's company, an anonymous session --
+        leaves the refusal unaudited rather than changing the refusal itself.
+        """
+        record.ensure_one()
+        if record.company_id not in self.env.companies or self.env.user._is_public():
+            return
+        registry, uid = self.env.registry, self.env.uid
+        model, record_id, company_id = record._name, record.id, record.company_id.id
+
+        def log():
+            try:
+                with registry.cursor() as event_cr:
+                    api.Environment(event_cr, uid, {'allowed_company_ids': [company_id]})[
+                        'liwan.hr.audit.event'
+                    ]._liwan_log(action, self.env[model].browse(record_id), names=names)
+            except Exception as error:  # noqa: BLE001 - the refusal must stand whatever the trail does
+                _logger.warning('payroll refusal not audited: %s %s', type(error).__name__, error)
+
+        # The marker rides on the queued callable so a test (and a support script) can tell one refusal's write
+        # from the other hooks a request queues (session saving, cache clearing).
+        setattr(log, REFUSAL_HOOK, action)
+        self.env.cr.postcommit.add(log)
 
 
 class LiwanHrAuditChange(models.Model):

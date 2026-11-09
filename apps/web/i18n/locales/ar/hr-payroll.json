@@ -522,7 +522,9 @@
         "run_inputs_changed": "تعديل مدخلات مسير",
         "run_approved": "اعتماد مسير",
         "run_cancelled": "إلغاء مسير",
-        "payment_file_generated": "إنشاء ملف رواتب"
+        "payment_file_generated": "إنشاء ملف رواتب",
+        "payslip_write_refused": "رُفض تعديل قسيمة",
+        "run_write_refused": "رُفض تعديل مسير"
       }
     }
   }

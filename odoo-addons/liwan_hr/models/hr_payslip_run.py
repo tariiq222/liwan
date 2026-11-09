@@ -90,6 +90,12 @@ class HrPayslipRun(models.Model):
         if any(run.liwan_state not in states for run in self):
             raise LiwanHrRule(TRANSITION_FORBIDDEN, message, status=403, details=details)
 
+    def _liwan_audit_refused_write(self, names):
+        """Record a refusal the run's guards are about to raise, so a direct write leaves a trail."""
+        Audit = self.env['liwan.hr.audit.event']
+        for run in self:
+            Audit._liwan_log_refused_write('run_write_refused', run, names)
+
     def _liwan_refuse_unlocking(self, vals):
         """Refuse any write that would make an approved month editable or delete it again.
 
@@ -103,10 +109,13 @@ class HrPayslipRun(models.Model):
             ('liwan_state' in vals and vals['liwan_state'] in EDITABLE_STATES)
             or vals.get('state') == 'draft'
         )
-        if unlocks and self.filtered(lambda run: not run._liwan_is_editable()):
-            raise AccessError(
-                self.env._('An approved payroll run cannot go back to an editable state.'),
-            )
+        if unlocks:
+            frozen = self.filtered(lambda run: not run._liwan_is_editable())
+            if frozen:
+                frozen._liwan_audit_refused_write(sorted(vals))
+                raise AccessError(
+                    self.env._('An approved payroll run cannot go back to an editable state.'),
+                )
 
     def _liwan_refuse_header_change(self, vals):
         """Refuse a change to the month, the company or the structure of a run that is no longer editable.
@@ -121,12 +130,15 @@ class HrPayslipRun(models.Model):
         if not changed:
             return
         frozen = self.filtered(lambda run: not run._liwan_is_editable())
-        if any(
-            run._fields[name].convert_to_cache(run[name], run)
-            != run._fields[name].convert_to_cache(vals[name], run)
-            for run in frozen
-            for name in changed
-        ):
+        refused = frozen.filtered(
+            lambda run: any(
+                run._fields[name].convert_to_cache(run[name], run)
+                != run._fields[name].convert_to_cache(vals[name], run)
+                for name in changed
+            ),
+        )
+        if refused:
+            refused._liwan_audit_refused_write(sorted(changed))
             raise AccessError(
                 self.env._('An approved payroll run keeps its month, company and structure: its figures are fixed.'),
             )
@@ -141,8 +153,11 @@ class HrPayslipRun(models.Model):
 
     def unlink(self):
         # Same superuser skip as the write: a migration environment may rewrite a month, a route may not.
-        if not self.env.su and self.filtered(lambda run: not run._liwan_is_editable()):
-            raise AccessError(self.env._('An approved payroll run cannot be deleted.'))
+        if not self.env.su:
+            frozen = self.filtered(lambda run: not run._liwan_is_editable())
+            if frozen:
+                frozen._liwan_audit_refused_write(('unlink',))
+                raise AccessError(self.env._('An approved payroll run cannot be deleted.'))
         return super().unlink()
 
     # --- who is paid -------------------------------------------------------------------------

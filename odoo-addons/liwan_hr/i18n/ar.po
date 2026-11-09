@@ -336,6 +336,16 @@ msgid "Payroll run cancelled"
 msgstr "أُلغي مسيّر الرواتب"
 
 #. module: liwan_hr
+#: model:ir.model.fields.selection,name:liwan_hr.selection__liwan_hr_audit_event__action__run_write_refused
+msgid "Payroll run write refused"
+msgstr "رُفض تعديل مسيّر الرواتب"
+
+#. module: liwan_hr
+#: model:ir.model.fields.selection,name:liwan_hr.selection__liwan_hr_audit_event__action__payslip_write_refused
+msgid "Payslip write refused"
+msgstr "رُفض تعديل قسيمة الراتب"
+
+#. module: liwan_hr
 #: model:ir.model.fields.selection,name:liwan_hr.selection__liwan_hr_audit_event__action__run_inputs_changed
 msgid "Payroll run inputs changed"
 msgstr "تغيّرت مدخلات مسيّر الرواتب"

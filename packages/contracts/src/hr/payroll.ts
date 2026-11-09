@@ -375,6 +375,7 @@ export const HR_PAYROLL_AUDIT_ACTIONS = [
   'bank_profile_created', 'bank_profile_changed', 'bank_profile_deleted', 'eos_case_changed',
   'settlement_saved', 'settlement_confirmed', 'compensation_changed',
   'run_inputs_changed', 'run_approved', 'run_cancelled', 'payment_file_generated',
+  'payslip_write_refused', 'run_write_refused',
 ] as const
 
 // Values are present only for non-secret policy fields; pay, IBAN and settlement fields carry the name alone.
