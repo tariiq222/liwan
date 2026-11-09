@@ -9,6 +9,23 @@ import { expireSharedLeases, runSharedJob, type SharedFencedAdapter } from './jo
 export async function dispatchSharedOnce(pool: Pool, adapter?: SharedFencedAdapter) {
   if (!adapter) throw new Error('shared_adapter_unavailable')
   await expireSharedLeases(pool)
+  if (adapter.subscriptionRunner) {
+    // An expired claim can precede the transaction that records both the
+    // start journal and the order's transition to applying. Put that order
+    // back through normal dispatch. A failed order can also lack a journal
+    // if the worker stopped while recording the refusal, so leave it isolated.
+    await pool.query(`UPDATE shared_jobs job SET state='queued'
+      FROM fulfillment_effects effect
+      JOIN orders purchase ON purchase.id=effect.order_id
+      JOIN subscriptions subscription ON subscription.id=purchase.subscription_id
+      JOIN tenants tenant ON tenant.id=subscription.tenant_id
+      WHERE effect.job_id=job.id AND tenant.id=job.control_tenant_id
+      AND tenant.commercial_mode='saas' AND tenant.operations_enabled=true
+      AND job.payload->>'operation'='reconfigure'
+      AND job.state='needs_intervention' AND job.attempt_id IS NOT NULL AND job.journal IS NULL
+      AND purchase.fulfillment_state='queued' AND purchase.payment_state IN ('paid','not_required')
+      AND NOT purchase.cancelled`)
+  }
   const next = await pool.query(`SELECT queued.id FROM shared_jobs queued
     JOIN tenants tenant ON tenant.id=queued.control_tenant_id
     JOIN shared_registry_bindings binding ON binding.control_tenant_id=queued.control_tenant_id
