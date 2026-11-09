@@ -65,17 +65,24 @@ function useCrmOpportunitySeen(id: MaybeRefOrGetter<number>) {
   })
 }
 
-/** Record the opening of one opportunity page, once per opened record and only after hydration.
+/** Record the opening of one opportunity page, once per opened record and only after hydration and a
+ * successful read.
  *
  * The detail GET never writes, so an SSR render, a prefetch and a link preview record nothing; the client
- * reports the record it actually opened once `useHydrated` turns true, and a refetch of the same record
- * reports nothing more.
+ * reports the record it actually opened once `useHydrated` turns true and the record query succeeded, and a
+ * refetch of the same record reports nothing more. A read the caller may not perform (403) or that found
+ * nothing (404) has no view to log, so it writes nothing: the log would grow a row for a record the caller
+ * could not read and its own POST would fail for the same reason.
  */
-export function useCrmOpportunityOpening(recordId: MaybeRefOrGetter<number>, hydrated: MaybeRefOrGetter<boolean>) {
+export function useCrmOpportunityOpening(
+  recordId: MaybeRefOrGetter<number>,
+  hydrated: MaybeRefOrGetter<boolean>,
+  loaded: MaybeRefOrGetter<boolean>,
+) {
   const seen = useCrmOpportunitySeen(recordId)
   const reported = ref<number | null>(null)
-  watch(() => [toValue(hydrated), toValue(recordId)] as const, ([ready, id]) => {
-    if (!ready || !Number.isSafeInteger(id) || id <= 0 || reported.value === id) return
+  watch(() => [toValue(hydrated), toValue(loaded), toValue(recordId)] as const, ([ready, open, id]) => {
+    if (!ready || !open || !Number.isSafeInteger(id) || id <= 0 || reported.value === id) return
     reported.value = id
     seen.mutate()
   }, { immediate: true })

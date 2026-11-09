@@ -42,9 +42,9 @@ const actions = useCrmOpportunityActions()
 const record = query.data
 const now = ref(Date.now())
 // The view log is the explicit POST this page sends once the record loads, never the GET above: a prefetch or
-// a link preview reads the record but records no opening.
+// a link preview reads the record but records no opening, and a read that failed records nothing either.
 const hydrated = useHydrated()
-useCrmOpportunityOpening(id, hydrated)
+useCrmOpportunityOpening(id, hydrated, computed(() => query.isSuccess.value))
 
 const pending = computed(() => record.value?.status === 'pending')
 const canAssign = computed(() => can('crm.leads.assign'))
