@@ -85,6 +85,38 @@ class TestEmployeeBankAccountAccess(PayrollCase):
             for leaked in (IBAN, STOCK_IBAN):
                 self.assertNotIn(leaked, res.text, path)
 
+    def test_an_hr_manager_without_payroll_creates_and_edits_an_employee(self):
+        """Closing the bank fields must not block the rest of the employee record.
+
+        The stock computed ``salary_distribution`` is stored, and a create or write recomputes it; the field access
+        it takes must not turn an ordinary employee create or edit into a refusal for an HR manager with no payroll
+        capability. The contract dates are a separate, deliberate payroll gate, so the HR-only create leaves them.
+        """
+        self._login(self.hr_manager)
+        created = self.api('POST', EMPLOYEES, json={'name': 'No Payroll Hire'})
+        self.assertEqual(created.status_code, 201, created.text)
+        employee_id = created.json()['id']
+        edited = self.api('PATCH', f'{EMPLOYEES}/{employee_id}', json={'name': 'No Payroll Hire Renamed'})
+        self.assertEqual(edited.status_code, 200, edited.text)
+        self.assertEqual(edited.json()['name'], 'No Payroll Hire Renamed')
+        record = self.env['hr.employee'].browse(employee_id)
+        self.assertEqual(record.name, 'No Payroll Hire Renamed')
+        # The capability that was closed is still closed on the record the HR manager just wrote.
+        with self.assertRaises(AccessError):
+            record.with_user(self.hr_manager).read(['salary_distribution'])
+
+    def test_an_hr_manager_without_payroll_edits_a_contracted_employee(self):
+        """The same edit against an employee that already carries a contract version and a bank account."""
+        self._login(self.hr_manager)
+        res = self.api('PATCH', f'{EMPLOYEES}/{self.worker.id}', json={'name': 'Bank Worker Renamed'})
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual(self.worker.name, 'Bank Worker Renamed')
+        # The stored distribution is untouched by the edit: the payroll reader still sees the one value.
+        self.assertEqual(
+            self.env['hr.employee'].browse(self.worker.id).sudo().salary_distribution,
+            self.worker.sudo().salary_distribution,
+        )
+
     def test_the_people_picker_carries_no_bank_account(self):
         if not self.env['ir.module.module'].search_count(
             [('name', '=', 'liwan_directory'), ('state', '=', 'installed')],
