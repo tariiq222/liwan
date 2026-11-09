@@ -37,9 +37,11 @@ assert.equal(git('status', '--porcelain', '--', 'apps/control-plane', 'deploy', 
   'the worker and Odoo runtime sources must be committed')
 assert.equal(git('diff', '--name-only', fixture.sourceCommit, sourceCommit, '--', 'deploy', 'odoo-addons', 'tools/shared_saas_lifecycle'), '',
   'reuse of Foundation images requires unchanged Odoo and deployment sources')
-assert.equal(result.passed, true)
 assert.equal(result.tenants.length, 1)
-assert.ok(result.restored, 'a successful Foundation commercial run is required')
+assert.ok(result.checks.some(check => check.ok && check.name === 'the invited first administrator signed into their own tenant through the TLS edge'),
+  'Foundation must complete the paid tenant activation and sign-in')
+assert.ok(result.checks.some(check => check.ok && check.name === 'services stopped and diagnostics captured; data retained'),
+  'Foundation must finish its teardown')
 assert.match(fixture.project, /^liwan-shared-found-[a-f0-9]{16}$/u)
 assert.equal(result.project, fixture.project)
 assert.equal(runtime.projectName, fixture.project)
@@ -209,6 +211,7 @@ async function waitForApplied(orderId) {
     await observe(async () => {
       assertWorker()
       observed = await control(orderId)
+      assert.ok(!['failed', 'needs_intervention'].includes(observed.fulfillment_state), 'the paid order failed during recovery')
       return observed.fulfillment_state === 'applied' && observed.job_state === 'verified'
     }, 'automatic recovery after the real 120-second lease', 165_000)
   } catch (error) {
@@ -373,6 +376,7 @@ async function checkCompensation() {
 
 let passed = false
 let started = false
+let cleaned = false
 let stopped = false
 try {
   started = true
@@ -392,6 +396,7 @@ try {
       await pool.query('DROP TRIGGER IF EXISTS e12_order_gate ON orders')
       await pool.query('DROP FUNCTION e12_order_gate()')
     }
+    cleaned = true
   } finally {
     await pool.end()
     try {
@@ -399,7 +404,7 @@ try {
       stopped = true
     } finally {
       writePrivate(join(evidenceDir, 'result.json'), JSON.stringify({
-        passed: passed && stopped, sourceCommit, fixtureCommit: fixture.sourceCommit, project: fixture.project,
+        passed: passed && cleaned && stopped, sourceCommit, fixtureCommit: fixture.sourceCommit, project: fixture.project,
         imageIdentities: result.imageIdentities, events,
       }, null, 2))
       console.log(`E12 evidence: ${evidenceDir}`)

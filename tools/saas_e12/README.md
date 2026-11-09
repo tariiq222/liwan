@@ -13,6 +13,9 @@ node --import tsx tools/saas_e12/recovery.mjs .scratch/saas-e12/<retained-run>
 ```
 
 The second command starts only that run's Odoo and two PostgreSQL services. It
+requires Foundation's paid activation and tenant sign-in checks to pass.
+Foundation's subsequent backup and restore checks cover E14 separately.
+The E12 harness
 uses the commercial quote and payment services with the simulator, and starts
 the foreground shared worker from the current commit. The fixture images can
 be reused across control-plane-only changes. The command takes several minutes
