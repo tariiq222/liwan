@@ -1,7 +1,7 @@
 import { createEventStream, getRouterParam } from 'h3'
 import { AiApprovedDraftSchema, AiRunStatusSchema } from '@liwan/contracts'
 import { audit, auditFailedEvent, doneEvent, executeTool, needsApproval, relay, resumeFailedEvent, settle, tryAudit } from '../../../../utils/ai/pump'
-import { logFailure, odooJson, serviceFetch } from '../../../../utils/ai/upstream'
+import { logFailure, serviceFetch } from '../../../../utils/ai/upstream'
 import { assertRunnable, runPolicy } from '../../../../utils/ai/policy'
 import { protectValue, restoreValue } from '../../../../utils/ai/outbound'
 import { modeForAgent, ownerFor, runSession } from '../../../../utils/ai/session'
@@ -14,6 +14,15 @@ type ResumeBody = { call_id?: string; decision?: 'approved' | 'rejected'; data?:
 const MAX_BODY = 32 * 1024
 
 const conflict = (message: string) => createError({ statusCode: 409, data: { code: 'conflict', message } })
+
+/**
+ * A tool kind the decision branches below do not answer. `pending.kind` narrows to `never` once they all apply, so a kind
+ * added to `AiToolKindSchema` fails the type check here instead of falling through to a path that would forward the
+ * browser's `body.data` to the service unvalidated.
+ */
+const unhandledKind = (kind: never): never => {
+  throw createError({ statusCode: 500, data: { code: 'internal', message: `unhandled tool kind ${String(kind)}` } })
+}
 
 /**
  * What an approved draft may carry: exactly `{id: <positive int>}`, the record the create page made (issue #556).
@@ -103,7 +112,7 @@ export default defineEventHandler(async (event) => {
     }
     result = { ...executed, decision: 'approved' }
   } else {
-    result = { ok: true, decision: 'approved', data: body.data ?? {} }
+    return unhandledKind(pending.kind)
   }
   let response: Response
   try {
