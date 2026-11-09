@@ -56,7 +56,7 @@ export async function executeTool(event: H3Event, session: RunSession, runId: st
   }
   const recorded = await tryAudit(event, {
     conversation_id: runId, kind, agent: call.agent, tool_name: tool.name, input,
-    result: result.ok ? 'ok' : status === 403 ? 'denied' : 'failed', http_status: status, draft: null, approved: null, attested: false,
+    result: result.ok ? 'ok' : status === 403 ? 'denied' : 'failed', http_status: status, draft: null, approved: null,
   }, options.signal)
   if (!recorded) options.onAuditFailed?.()
   return result
@@ -170,7 +170,7 @@ export async function pumpRun(event: H3Event, session: RunSession, stream: Event
         upgraded = true
       } else if (name === 'tool_request' && data.kind === 'draft') {
         const draft = restoreValue(data.input, session.tokenKey)
-        const recorded = await tryAudit(event, { conversation_id: runId, kind: 'draft', agent: data.agent, tool_name: data.tool, input: draft, result: 'proposed', http_status: null, draft, approved: null, attested: false })
+        const recorded = await tryAudit(event, { conversation_id: runId, kind: 'draft', agent: data.agent, tool_name: data.tool, input: draft, result: 'proposed', http_status: null, draft, approved: null })
         auditFailed ||= !recorded
       }
       await show(name, data)

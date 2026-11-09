@@ -145,11 +145,12 @@ async function enrollNewOrder(pool: Pool, orderId: string, runtime?: EnrollmentR
     const snapshot = (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [order.target_revision_id])).rows[0].snapshot
     const catalog = (await client.query(`SELECT r.catalog_version,e.solution FROM catalog_releases r JOIN catalog_entries e ON e.version=r.catalog_version
       WHERE r.id=$1 AND e.status='published' FOR SHARE OF r,e`, [snapshot.entitlement.catalog_release_id])).rows[0]
-    if (!catalog || !catalog.solution.tiers.some((t: {id:string;modules:string[]}) => t.id==='core' && t.modules.length===0)) throw Error('enrollment_base_catalog_missing')
+    if (!catalog || !catalog.solution.tiers.some((t: {id:string}) => t.id==='core')) throw Error('enrollment_base_catalog_missing')
     const requestId = customer.enrollment_request_id ?? randomUUID()
     await client.query('UPDATE customers SET enrollment_request_id=$2 WHERE id=$1', [customer.id,requestId])
     // Onboarding does not accept an arbitrary commercial policy. Pin the base
-    // catalog to the immutable subscription entitlement; reconfigure applies it later.
+    // catalog to the immutable subscription entitlement. The core tier includes
+    // mandatory applications; reconfigure applies the purchased entitlement later.
     return { input: { request_id: requestId, name: customer.name, admin_name: customer.admin_name ?? customer.name.slice(0,120), admin_login: customer.admin_login,
       catalog_version: catalog.catalog_version, catalog_tier: 'core', reason: `Enroll paid subscription ${sub.id}` }, customerId, subscriptionId: sub.id }
   })

@@ -1,22 +1,48 @@
 import { createEventStream, getRouterParam } from 'h3'
-import { AiRunStatusSchema } from '@liwan/contracts'
-import { auditFailedEvent, doneEvent, executeTool, needsApproval, relay, resumeFailedEvent, settle, tryAudit } from '../../../../utils/ai/pump'
+import { AiApprovedDraftSchema, AiRunStatusSchema } from '@liwan/contracts'
+import { audit, auditFailedEvent, doneEvent, executeTool, needsApproval, relay, resumeFailedEvent, settle, tryAudit } from '../../../../utils/ai/pump'
 import { logFailure, serviceFetch } from '../../../../utils/ai/upstream'
 import { assertRunnable, runPolicy } from '../../../../utils/ai/policy'
 import { protectValue, restoreValue } from '../../../../utils/ai/outbound'
 import { modeForAgent, ownerFor, runSession } from '../../../../utils/ai/session'
 import type { ToolResult } from '../../../../utils/ai/executor'
+import { boundedTenantJson } from '../../../../utils/tenantTransport'
 
 type ResumeBody = { call_id?: string; decision?: 'approved' | 'rejected'; data?: Record<string, unknown> }
 
+// A call id, a decision and the data a draft was approved with: 32 KiB, refused with a 413 before it is parsed (issue #479).
+const MAX_BODY = 32 * 1024
+
 const conflict = (message: string) => createError({ statusCode: 409, data: { code: 'conflict', message } })
+
+/**
+ * A tool kind the decision branches below do not answer. `pending.kind` narrows to `never` once they all apply, so a kind
+ * added to `AiToolKindSchema` fails the type check here instead of falling through to a path that would forward the
+ * browser's `body.data` to the service unvalidated.
+ */
+const unhandledKind = (kind: never): never => {
+  throw createError({ statusCode: 500, data: { code: 'internal', message: `unhandled tool kind ${String(kind)}` } })
+}
+
+/**
+ * What an approved draft may carry: exactly `{id: <positive int>}`, the record the create page made (issue #556).
+ * A shape the contract does not accept is a 422 before any audit row is written; whether the record exists, belongs to
+ * this company, was created by this session and after the draft was proposed is Odoo's answer, so the check runs where the
+ * record rules are.
+ */
+function approvedData(data: Record<string, unknown> | undefined): { id: number } {
+  const approved = AiApprovedDraftSchema.safeParse(data ?? {})
+  if (!approved.success) throw createError({ statusCode: 422, data: { code: 'invalid', message: 'an approved draft carries only the id of the record it created', field: 'data' } })
+  return approved.data
+}
 
 export default defineEventHandler(async (event) => {
   assertSameSiteJson(event)
   const id = getRouterParam(event, 'id') ?? event.context.params?.id
-  const body = await readBody<ResumeBody>(event)
+  const body = await boundedTenantJson<ResumeBody>(event, MAX_BODY)
   if (!id || !body?.call_id || (body.decision !== 'approved' && body.decision !== 'rejected')) throw createError({ statusCode: 422, data: { code: 'invalid', message: 'call_id and decision are required' } })
-  if (body.data !== undefined && (body.data === null || typeof body.data !== 'object' || Array.isArray(body.data))) throw createError({ statusCode: 422, data: { code: 'invalid', message: 'data must be an object', field: 'data' } })
+  // A decision carries data only when it approves a draft, and Odoo refuses an audit row it cannot verify (issue #556).
+  if (body.data !== undefined && (body.decision !== 'approved' || body.data === null || typeof body.data !== 'object' || Array.isArray(body.data))) throw createError({ statusCode: 422, data: { code: 'invalid', message: 'data must be an object, sent with an approval', field: 'data' } })
   const path = `/v1/runs/${encodeURIComponent(id)}`
   const statusResponse = await serviceFetch(event, 'GET', path, await ownerFor(event))
   if (statusResponse.status === 404) throw createError({ statusCode: 404, data: { code: 'not_found', message: 'run not found' } })
@@ -51,7 +77,24 @@ export default defineEventHandler(async (event) => {
     // Odoo accepts `rejected` for drafts only; a rejected write_light was never proposed to the audit.
     if (pending.kind === 'draft') {
       const draft = restoreValue(pending.input, session.tokenKey)
-      auditFailed = !await tryAudit(event, { conversation_id: id, kind: 'draft', agent: pending.agent, tool_name: pending.tool, input: draft, result: 'rejected', http_status: null, draft, approved: null, attested: false })
+      auditFailed = !await tryAudit(event, { conversation_id: id, kind: 'draft', agent: pending.agent, tool_name: pending.tool, input: draft, result: 'rejected', http_status: null, draft, approved: null })
+    }
+  } else if (pending.kind === 'draft') {
+    // A submitted draft is recorded here, never by the browser. The approval is recorded with the user's session: the call
+    // and the draft come from the service, and Odoo verifies in the same transaction that the id the create page submitted
+    // names a record this session can read, that this session created it, and that it was created at or after the moment the
+    // draft was proposed (issue #556); anything else comes back 422 and the run is never resumed as an approval.
+    const draft = restoreValue(pending.input, session.tokenKey)
+    const approved = approvedData(body.data)
+    result = { ok: true, decision: 'approved', data: approved }
+    try {
+      await audit(event, { conversation_id: id, kind: 'draft', agent: pending.agent, tool_name: pending.tool, input: draft, result: 'approved', http_status: 201, draft, approved })
+    } catch (error) {
+      // Odoo refused the approval itself (a forged or unreadable record): nothing was recorded, so this is the answer.
+      if ((error as { statusCode?: number }).statusCode === 422) throw error
+      // Anything else is bookkeeping: the record exists and the assistant still answers, with the fixed audit_failed event.
+      logFailure('audit failed', error)
+      auditFailed = true
     }
   } else if (pending.kind === 'write_light') {
     shield = null
@@ -70,7 +113,7 @@ export default defineEventHandler(async (event) => {
     }
     result = { ...executed, decision: 'approved' }
   } else {
-    result = { ok: true, decision: 'approved', data: body.data ?? {} }
+    return unhandledKind(pending.kind)
   }
   let response: Response
   try {

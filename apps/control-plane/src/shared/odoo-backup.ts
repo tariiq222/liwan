@@ -1,9 +1,9 @@
 import {createHash,randomUUID} from 'node:crypto'
 import {readFile,stat,mkdir,writeFile,rename} from 'node:fs/promises'
 import {join} from 'node:path'
-import type {Pool} from 'pg'
+import type {Pool,PoolClient} from 'pg'
 import {z} from 'zod'
-import {tenantBindingSchema,type SharedJob,type TenantBinding,sharedReceiptSchema} from '@liwan/commercial-contracts/shared'
+import {tenantBindingSchema,sharedJobSchema,sharedReconfigureJobSchema,type SharedJob,type TenantBinding,sharedReceiptSchema} from '@liwan/commercial-contracts/shared'
 import {transaction} from '../db.js'
 import {requireJobAuthority} from './job-store.js'
 import {REGISTRY_ADVISORY_LOCK,resolveRegistryBinding,registryTargetSchema,type RegistryActor} from './registry-store.js'
@@ -75,6 +75,51 @@ export async function resolveOdooBackupAuthority(pool:Pool,runtime:SharedRuntime
  if(options.starting && (a.consumed_at || new Date(a.expires_at).getTime()<=Date.now()))throw Error('shared_restore_approval_unavailable')
  return {...base,backupId:job.backup.backupId,approvalId:job.approvalId,targetDatabase:a.target_database as string,manifestSha256:a.manifest_sha256 as string,databaseSha256:a.database_sha256 as string,filestoreSha256:a.filestore_sha256 as string}
 }
+/** Require the exact consumed approval and durable physical receipt before
+ * using the isolated target in the commercial runner. */
+export async function resolveCommercialOdooRestore(client:PoolClient,runtime:SharedRuntimeConfig,input:{tenantId:string;approvalId?:string;database:string}){
+ if(!z.uuid().safeParse(input.approvalId).success)throw Error('shared_restore_approval_unavailable')
+ const found=await client.query(`SELECT t.source_binding,t.backup_id,m.manifest_sha256,j.payload,j.payload_digest,j.business_key,j.receipt,j.issuer,j.actor_uid
+  FROM shared_odoo_restore_targets t
+  JOIN shared_restore_approvals a ON a.id=t.approval_id AND a.control_tenant_id=t.control_tenant_id
+    AND a.target_database=t.target_database AND a.backup_id=t.backup_id
+  JOIN shared_odoo_backups m ON m.backup_id=t.backup_id
+  JOIN shared_jobs j ON j.control_tenant_id=t.control_tenant_id AND j.payload->>'approvalId'=a.id::text
+  WHERE a.id=$1 AND t.control_tenant_id=$2 AND t.target_database=$3 AND t.runtime_scope=$4 AND a.consumed_at IS NOT NULL
+    AND j.payload->>'operation'='restore' AND (j.state='verified' OR
+      (j.state='queued' AND j.journal->>'stage'='waiting_commercial_reconcile'))
+    AND j.receipt->>'status'='verified' AND j.receipt->>'payloadDigest'=j.payload_digest
+    AND NOT EXISTS(SELECT 1 FROM shared_registry_bindings b WHERE b.database_name=t.target_database OR b.filestore=t.target_database)
+  FOR SHARE OF t,a,j`,[input.approvalId,input.tenantId,input.database,runtime.projectName])
+ if(found.rowCount!==1)throw Error('shared_restore_approval_unavailable')
+ const row=found.rows[0],job=sharedJobSchema.parse(row.payload),receipt=sharedReceiptSchema.parse(row.receipt)
+ if(job.operation!=='restore' || job.backup.backupId!==row.backup_id || input.database===job.binding.database ||
+   receipt.operation!=='restore' || row.payload_digest!==payloadDigest(job) || receipt.businessKey!==businessKey(job) ||
+   row.business_key!==receipt.businessKey)throw Error('shared_restore_approval_unavailable')
+ const {enabled,...binding}=await resolveRegistryBinding(client,input.tenantId)
+ if(!enabled)throw Error('tenant_binding_mismatch')
+ assertSameBinding(binding,row.source_binding)
+ assertSameBinding(binding,job.binding)
+ assertSameBinding(binding,job.backup.binding)
+ assertSameBinding(binding,receipt.binding)
+ await requireJobAuthority(client,input.tenantId,{issuer:row.issuer,actorUid:Number(row.actor_uid)})
+ return {binding,host:realRestoreHost(job.approvalId,runtime.domainSuffix),restore:{
+  approvalId:job.approvalId,requestId:job.requestId,backupId:row.backup_id as string,
+  digest:row.payload_digest as string,manifestSha256:row.manifest_sha256 as string,
+ }}
+}
+
+export async function findVerifiedRestoreCommercialEffect(pool:Pool,controlTenantId:string,approvalId:string,database:string){
+ const result=await pool.query(`SELECT payload,receipt FROM shared_jobs WHERE control_tenant_id=$1 AND state='verified'
+  AND payload->>'operation'='reconfigure' AND payload->>'restore'='true' AND payload->>'restoreId'=$2
+  AND payload->'binding'->>'database'=$3 AND payload->'binding'->>'filestore'=$3 ORDER BY created_at DESC LIMIT 1`,[controlTenantId,approvalId,database])
+ if(!result.rowCount)return undefined
+ const {payload,receipt}=result.rows[0],job=sharedReconfigureJobSchema.parse(payload)
+ if(receipt?.database!==database || receipt.target_revision_id!==job.authority.target_revision_id ||
+   receipt.order_id!==job.authority.order_id || receipt.observed_entitlement_digest!==job.authority.entitlement.digest)throw Error('shared_restore_unverified')
+ return {revisionId:job.authority.target_revision_id,digest:job.authority.entitlement.digest}
+}
+
 export async function approveOdooRestore(pool:Pool,runtime:SharedRuntimeConfig,actor:RegistryActor,controlTenantId:string,input:unknown){
  const request=z.strictObject({backup_id:z.uuid(),reason:z.string().trim().min(3).max(1000)}).parse(input)
  z.uuid().parse(controlTenantId)
@@ -143,11 +188,12 @@ export async function publishOdooRestore(pool:Pool,runtime:SharedRuntimeConfig,a
  // Observe/reconcile the approved target, never the source registry database.
  // Enqueue commits independently so a 409 does not discard the repair work.
  const preflight=await pool.connect()
- let commercial:{ready:boolean;applied_revision_id:string|null}
+ let commercial:Awaited<ReturnType<typeof prepareCommercialRestorePublication>>
  try{
   await requireOdooRestorePublicationAuthority(preflight,row.control_tenant_id,actor)
   commercial=await prepareCommercialRestorePublication(pool,preflight,row.control_tenant_id,{database:row.target_database,filestore:row.target_database,host},options.runner,approvalId)
  }finally{preflight.release()}
+ if(commercial.reason==='commercial_reconcile_failed')throw new RegistryError('restore_publication_unverified')
  if(!commercial.ready)throw new RegistryError('commercial_reconciliation_pending')
  // Serialize only the small file publication, after external physical readback.
  await transaction(pool,async client=>{
@@ -158,7 +204,7 @@ export async function publishOdooRestore(pool:Pool,runtime:SharedRuntimeConfig,a
   assertSameBinding(sourceBinding,job.binding)
   const current=await client.query("SELECT 1 FROM shared_jobs WHERE payload_digest=$1 AND state='verified' AND receipt=$2::jsonb FOR SHARE",[row.payload_digest,JSON.stringify(receipt)])
   if(current.rowCount!==1)throw Error('shared_restore_unverified')
-  if(!await revalidateCommercialRestorePublication(client,row.control_tenant_id,commercial.applied_revision_id))throw new RegistryError('commercial_reconciliation_pending')
+  if(!await revalidateCommercialRestorePublication(client,row.control_tenant_id,commercial.snapshot))throw new RegistryError('commercial_reconciliation_pending')
   await writeRestoreRoute(runtime.stateDir,approvalId,host,row.target_database)
   await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)',[randomUUID(),actorLabel(actor),'shared_odoo_restore.route_published',approvalId,'Verified isolated restore route'])
  })

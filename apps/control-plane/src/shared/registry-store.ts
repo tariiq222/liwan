@@ -76,7 +76,7 @@ export async function publishRegistryMutation(pool: Pool, path: string, actor: R
     if(isCommercialEnrollmentActor(actor))await requireCommercialEnrollmentAuthority(client,actor,input.controlTenantId)
     const commercial = input.target.enabled
       ? await prepareCommercialRestorePublication(pool, client, input.controlTenantId, input.target, options.runner)
-      : { ready: true, applied_revision_id: null }
+      : { ready: true, snapshot: null }
     if (!commercial.ready) throw new RegistryError('commercial_reconciliation_pending')
     await client.query('BEGIN')
     await authorize(client, actor)
@@ -93,7 +93,7 @@ export async function publishRegistryMutation(pool: Pool, path: string, actor: R
     if (target.registryRevision !== (previous?.registryRevision ?? 0) + 1) throw new RegistryError('registry_revision_conflict')
     const reserved = await client.query('SELECT control_tenant_id FROM shared_registry_hosts WHERE host=$1', [target.host])
     if (reserved.rowCount && reserved.rows[0].control_tenant_id !== input.controlTenantId) throw new RegistryError('registry_host_reserved')
-    if (!await revalidateCommercialRestorePublication(client, input.controlTenantId, commercial.applied_revision_id)) throw new RegistryError('commercial_reconciliation_pending')
+    if (!await revalidateCommercialRestorePublication(client, input.controlTenantId, commercial.snapshot)) throw new RegistryError('commercial_reconciliation_pending')
     // Barrier precedes SQL writes/commit. Any subsequent failure requires explicit recovery.
     await beginPublication(path)
     if (previous) {

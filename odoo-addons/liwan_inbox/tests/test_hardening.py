@@ -128,13 +128,8 @@ class TestCronResilience(LiwanInboxCase):
         self.assertEqual((second.delivery_state, second.provider_message_id), ('sent', 'wamid.OK2'))
 
     def test_a_broken_event_keeps_its_attempt_counter_and_does_not_block_others(self):
-        broken = self.env['liwan.inbox.event'].create({
-            'channel_id': self.channel.id, 'owner_company_id': self.channel.owner_company_id.id, 'payload': '{}',
-        })
-        good = self.env['liwan.inbox.event'].create({
-            'channel_id': self.channel.id, 'owner_company_id': self.channel.owner_company_id.id,
-            'payload': json.dumps(wa.inbound_text()),
-        })
+        broken = self.store_event(self.channel, {})
+        good = self.store_event(self.channel, wa.inbound_text())
         real = whatsapp.parse_events
         calls = []
 
@@ -159,10 +154,7 @@ class TestCronResilience(LiwanInboxCase):
     def test_media_with_a_malformed_provider_answer_is_a_handled_failure(self):
         responses = [provider_response(200, {'mime_type': 'image/jpeg'})]
         with patch.object(requests, 'request', side_effect=responses):
-            self.env['liwan.inbox.event'].create({
-                'channel_id': self.channel.id, 'owner_company_id': self.channel.owner_company_id.id,
-                'payload': json.dumps(wa.inbound_media()),
-            })
+            self.store_event(self.channel, wa.inbound_media())
             self.env['liwan.inbox.event']._liwan_run_events()
         message = self.env['liwan.inbox.message'].search([('provider_message_id', '=', 'wamid.IMG1')])
         self.assertEqual((message.body, message.error), ('[image]', 'malformed provider response'))
@@ -296,10 +288,10 @@ class TestRetentionExtras(LiwanInboxCase):
             old._name, old.id, 'inbox.assigned', self.agent.partner_id, 'assigned',
             values={'liwan_inbox_conversation_id': old.id, 'liwan_inbox_contact_name': 'x'},
         )
-        Event = self.env['liwan.inbox.event']
-        values = {'channel_id': self.channel.id, 'owner_company_id': self.channel.owner_company_id.id, 'payload': '{}'}
-        stale = Event.create({**values, 'state': 'failed', 'attempts': 5})
-        fresh = Event.create({**values, 'state': 'failed'})
+        stale = self.store_event(self.channel, '{"stale": true}')
+        stale.write({'state': 'failed', 'attempts': 5})
+        fresh = self.store_event(self.channel, '{"fresh": true}')
+        fresh.write({'state': 'failed'})
         self.env.cr.execute("UPDATE liwan_inbox_event SET create_date = now() - interval '40 days' WHERE id = %s", [stale.id])
         stale.invalidate_recordset()
         self.env['liwan.inbox.conversation']._liwan_run_maintenance()
@@ -422,10 +414,7 @@ class TestTemplateRemovalAndMediaStreams(LiwanInboxCase):
             stream.raw.read.side_effect = failure
             answers = [provider_response(200, {'url': 'https://media.example/x', 'mime_type': 'image/jpeg'}), stream]
             with patch.object(requests, 'request', side_effect=answers):
-                self.env['liwan.inbox.event'].create({
-                    'channel_id': self.channel.id, 'owner_company_id': self.channel.owner_company_id.id,
-                    'payload': json.dumps(wa.inbound_media(provider_id=f'wamid.{type(failure).__name__}')),
-                })
+                self.store_event(self.channel, wa.inbound_media(provider_id=f'wamid.{type(failure).__name__}'))
                 self.env['liwan.inbox.event']._liwan_run_events()
             message = self.env['liwan.inbox.message'].search([('provider_message_id', '=', f'wamid.{type(failure).__name__}')])
             self.assertEqual((message.body, message.error), ('[image]', f'media download failed: {type(failure).__name__}'))

@@ -27,7 +27,7 @@ from liwan_ai_service.contracts import CORE_AGENT, AgentSpec, RunContext, RunReq
 from liwan_ai_service.embeddings import Embedder
 from liwan_ai_service.knowledge import KnowledgeStore
 from liwan_ai_service.memory import MemoryFull, MemoryStore
-from liwan_ai_service.prompts import system_prompt, tool_summary
+from liwan_ai_service.prompts import frame_record_text, system_prompt, tool_summary
 from liwan_ai_service.usage import RunModel, invoke_planned, tokens_of
 
 
@@ -43,6 +43,8 @@ class AgentState(TypedDict):
     outcome: str | None
     output_tokens: int  # what the provider reported for this request's plan calls
     max_output_tokens: int | None  # the policy's per-run cap (platform runs); None means no cap
+    input_tokens: int  # the summed input tokens the provider reported for this request's plan calls
+    max_input_tokens: int | None  # the tenant's per-run ceiling on input tokens (issue #554); None means no ceiling
     limit: str | None  # which limit stopped the run, when the graph itself decided it
     agents: list[dict[str, Any]]  # the specialists Odoo declared for this user and request
     agent: str  # the active agent: a specialist's key or ``core``
@@ -186,6 +188,8 @@ def request_state(request: RunRequest) -> dict[str, Any]:
         "outcome": None,
         "output_tokens": 0,
         "max_output_tokens": request.policy.max_output_tokens,
+        "input_tokens": 0,
+        "max_input_tokens": request.policy.max_input_tokens,
         "limit": None,
         "agents": [agent.model_dump() for agent in request.agents],
         "handoffs": 0,
@@ -264,6 +268,34 @@ def _error(call_id: str, code: str, message: str) -> ToolMessage:
     return ToolMessage(content=json.dumps({"ok": False, "error": {"code": code, "message": message}}, ensure_ascii=False), tool_call_id=call_id)
 
 
+def _carries_text(value: Any) -> bool:
+    """Whether a tool result holds any text at all: a count, a total and a bare status do not."""
+    if isinstance(value, str):
+        return True
+    if isinstance(value, dict):
+        return any(_carries_text(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_carries_text(item) for item in value)
+    return False
+
+
+def tool_message_content(result: ToolResult, tool: ToolSpec) -> str:
+    """What a tool result becomes in the model's context, its record text framed in the fixed delimiter (issue #555).
+
+    A read or a small change answers with record text — a knowledge passage, a task name, a project's rationale — that an
+    employee wrote and a colleague reads, so the payload reaches the model as one framed block. The whole JSON is framed
+    once rather than every string field: one delimiter pair covers all of the result's record text, the payload keeps its
+    shape inside the frame, and the prompt stays small. A result that carries no text at all (a finance summary's
+    numbers) stays bare, because framing would change the shape the model reads for nothing. A failure or a decision
+    keeps its own envelope, because it is the platform's answer; so does a draft's approval, whose data is the model's own
+    proposed payload, not an employee's record text.
+    """
+    if result.ok and result.data is not None:
+        payload = json.dumps(result.data, ensure_ascii=False)
+        return frame_record_text(payload) if tool.kind != "draft" and _carries_text(result.data) else payload
+    return json.dumps(result.model_dump(exclude_none=True), ensure_ascii=False)
+
+
 def interrupted_replies(messages: list) -> list[ToolMessage]:
     """Error replies for the tool calls of the last model message that never got one (a cancel or a crash cut the turn short).
 
@@ -313,6 +345,11 @@ def build_graph(checkpointer):
         cap = state.get("max_output_tokens")
         if cap is not None and state.get("output_tokens", 0) >= cap:
             return {"outcome": "limit_reached", "limit": "output_tokens"}
+        # The tenant's ceiling on input tokens (issue #554): every plan call sends the whole prompt and history, so the
+        # calls already made are what the next one costs again. A run that has spent its ceiling stops before spending more.
+        input_cap = state.get("max_input_tokens")
+        if input_cap is not None and state.get("input_tokens", 0) >= input_cap:
+            return {"outcome": "limit_reached", "limit": "input_tokens"}
         run_model: RunModel = config["configurable"][RUN_MODEL_KEY]
         current = state.get("agent", CORE_AGENT)
         visible = visible_tools(state["tools"], current)
@@ -329,12 +366,22 @@ def build_graph(checkpointer):
         deadline_at = config["configurable"].get(DEADLINE_KEY)
         tools = run_model.model.bind_tools([*_openai_tools(visible), *([handoff_tool(targets)] if targets else []), *memory_tools(state, config)])
         response = await invoke_planned(tools, [prompt, *history], run_model.identity, get_stream_writer(), deadline_at)
-        spent = tokens_of([response])[1]
+        used, spent = tokens_of([response])
         if spent is None and cap is not None:
             # The cap is checked between plan calls (a call that crosses it completes); a provider reporting no usage
             # cannot be capped at all, and that is logged rather than hidden.
             log.warning("a capped run's provider reported no output tokens; the per-run cap cannot count this call")
-        return {"messages": [response], "steps": state["steps"] + 1, "output_tokens": state.get("output_tokens", 0) + (spent or 0)}
+        if used is None and input_cap is not None:
+            log.warning("a capped run's provider reported no input tokens; the per-run input ceiling cannot count this call")
+        update: dict[str, Any] = {
+            "messages": [response], "steps": state["steps"] + 1, "output_tokens": state.get("output_tokens", 0) + (spent or 0),
+            "input_tokens": state.get("input_tokens", 0) + (used or 0),
+        }
+        if input_cap is not None and update["input_tokens"] >= input_cap:
+            # The call that reached the ceiling completes (its text has already streamed to the browser) and the run stops
+            # there, exactly as the output cap does: no further prompt is spent, and a tool request it carried is not made.
+            update.update({"outcome": "limit_reached", "limit": "input_tokens"})
+        return update
 
     def route_after_plan(state: AgentState) -> Literal["retrieve", "answer", "__end__"]:
         if state["outcome"] == "limit_reached":
@@ -447,8 +494,8 @@ def build_graph(checkpointer):
         }
         result = ToolResult.model_validate(interrupt(payload))
         # A successful result reaches the model as its bare data; a failure keeps the {ok, error|decision} envelope.
-        content = result.data if result.ok and result.data is not None else result.model_dump(exclude_none=True)
-        tool_message = ToolMessage(content=json.dumps(content, ensure_ascii=False), tool_call_id=first["id"])
+        # Record text is framed once, here, where the data enters the model's context (issue #555).
+        tool_message = ToolMessage(content=tool_message_content(result, tool), tool_call_id=first["id"])
         results = list(state["results"])
         if result.ok and result.data is not None and tool.kind == "read":
             results.append((tool.name, result.data))

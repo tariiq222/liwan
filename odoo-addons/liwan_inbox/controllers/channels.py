@@ -31,9 +31,27 @@ PATCH_FIELDS = {'name', 'department_id', 'state', 'access_token', 'app_secret', 
 SECRET_LIMITS = {'access_token': (16, 1024), 'app_secret': (16, 256)}
 
 
+def public_base():
+    """The public origin the tenant is reached at: the pinned `web.base.url`, never the request's own root.
+
+    Shared hosting hands Odoo the tenant database as the request Host (`proxy_mode=False`), and a dedicated
+    install may answer on `localhost`; either would produce a webhook URL Meta or TikTok can never reach. The
+    pinned parameter is set by provisioning and every `DOMAIN` change (`liwan_platform._liwan_set_public_origin`).
+    ``get_base_url`` is Odoo's own public accessor, which reads the parameter elevated for any caller.
+    """
+    base = (request.env['liwan.inbox.channel'].get_base_url() or '').strip().rstrip('/')
+    if not base:
+        # Without the pinned origin the hook URL would be a bare path that no provider can call, and the
+        # administrator would paste it and fail verification with no visible reason. Say so instead.
+        reject(
+            request.env._('Set the public base URL of this site before copying a webhook address.'),
+            reason='inbox_public_base_missing',
+        )
+    return base.replace('http://', 'https://', 1)
+
+
 def dump(channel):
-    base = request.httprequest.url_root.replace('http://', 'https://', 1).rstrip('/')
-    return dump_channel(channel, base + HOOK_PATHS[channel.kind])
+    return dump_channel(channel, public_base() + HOOK_PATHS[channel.kind])
 
 
 def parse_channel(payload, creating):

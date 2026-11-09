@@ -17,7 +17,7 @@ from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 MESSAGE = {
     'conversation_id': 'r_agents_01', 'kind': 'message', 'tool_name': None, 'input': None,
-    'result': 'ok', 'http_status': None, 'draft': None, 'approved': None, 'attested': False,
+    'result': 'ok', 'http_status': None, 'draft': None, 'approved': None,
 }
 EXTERNAL_TOOL = {
     **PROBE_TOOLS[1],

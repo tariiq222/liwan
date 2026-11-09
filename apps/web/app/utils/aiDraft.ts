@@ -1,4 +1,4 @@
-import { AiDraftHandoffSchema, AiDraftPayloadSchema, aiToolAgent, type AiAuditRequest, type AiDraftHandoff, type AiDraftPayload } from '@liwan/contracts'
+import { AiDraftHandoffSchema, AiDraftPayloadSchema, type AiDraftHandoff, type AiDraftPayload } from '@liwan/contracts'
 import type { ProjectBasicsDraft } from './projectBasics'
 
 const DRAFT_PREFIX = 'liwan:ai-draft:'
@@ -76,27 +76,6 @@ export function projectBasicsFromAi(payload: AiDraftPayload, base: ProjectBasics
   return { ...base, name: payload.name, description: payload.description ?? base.description,
     objectives: payload.objectives?.map(row => ({goal:row.goal,metric:row.metric ?? '',target:row.target ?? ''})) ?? base.objectives,
     success_criteria: payload.success_criteria ?? base.success_criteria, date_start: payload.date_start ?? base.date_start, date_end: payload.date_end ?? base.date_end }
-}
-
-/**
- * The audit row for a project created from an AI draft. Only a handoff yields one, and the only way to the final
- * create from a draft is the form whose attestation is required, so `attested` is true by construction.
- */
-export function aiApprovalAudit(handoff: AiDraftHandoff | null, createdId: number): AiAuditRequest | null {
-  if (!handoff) return null
-  return {
-    conversation_id: handoff.run_id,
-    kind: 'draft',
-    // The draft is submitted on its application's page: the agent that owns its tool.
-    agent: aiToolAgent(handoff.tool),
-    tool_name: handoff.tool,
-    input: handoff.payload,
-    result: 'approved',
-    http_status: 201,
-    draft: handoff.payload,
-    approved: { id: createdId },
-    attested: true,
-  }
 }
 
 /** `returnTo` with `created=<id>` appended, whether or not it already has a query. */

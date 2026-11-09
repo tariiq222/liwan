@@ -12,6 +12,7 @@ import { activateBranches, listBranches } from '../commercial/branches.js'
 import { transaction } from '../db.js'
 import { applyReceipt, processFulfillmentOutbox } from '../commercial/fulfillment.js'
 import { routesB } from '../commercial/routes-b.js'
+import { readKnownSource } from '../shared/catalog-source.js'
 
 const suite = url ? describe : describe.skip
 suite('commercial first enrollment on scratch PostgreSQL', () => {
@@ -29,11 +30,11 @@ suite('commercial first enrollment on scratch PostgreSQL', () => {
     config = { installationId: actor.issuer, key: 'scratch-key'.repeat(8), inventoryPath: '/unused', stateDir: root, repositoryRoot: fileURLToPath(new URL('../../../..', import.meta.url)), python: 'python3', sharedRuntimeConfigPath: join(root, 'runtime.json'), tenantRegistryPath: join(root, 'registry.json') }
   })
   afterAll(async () => { vi.unstubAllEnvs(); await pool.end() })
-  async function seed(admin = true, payment = 'paid') {
+  async function seed(admin = true, payment = 'paid', catalogReleaseId = release) {
     const customer = randomUUID(), subscription = randomUUID(), target = randomUUID(), order = randomUUID(), archive = randomUUID()
     await pool.query('INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,$2,$3,$4)', [customer, 'New customer', 'First admin', admin ? `${customer}@example.test` : null])
     await pool.query('INSERT INTO subscriptions(id,customer_id) VALUES($1,$2)', [subscription, customer])
-    const entitlement = { catalog_release_id: release, modules: ['liwan_core','liwan_platform','liwan_api'], features: { 'users.limit': 8 }, digest: 'a'.repeat(64), compiler_version: 1 }
+    const entitlement = { catalog_release_id: catalogReleaseId, modules: ['liwan_core','liwan_platform','liwan_api'], features: { 'users.limit': 8 }, digest: 'a'.repeat(64), compiler_version: 1 }
     await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,$3,$4)', [target, subscription, { entitlement, period_end: '2027-01-01',branch_archive_ids:[archive] }, randomUUID()])
     await pool.query('UPDATE subscriptions SET target_revision_id=$2,revision=revision+1 WHERE id=$1', [subscription, target])
     await pool.query("INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent) VALUES($1,$2,$3,'new',$4,$5,$6,'queued',$7,'test',100,'SAR',2)", [order, customer, subscription, randomUUID(), target, payment, randomUUID()])
@@ -208,5 +209,26 @@ suite('commercial first enrollment on scratch PostgreSQL', () => {
     const s = await seed(true, 'awaiting_payment')
     expect(await process()).toContainEqual({ order_id: s.order, reason: 'order_not_released' })
     expect((await pool.query('SELECT enrollment_request_id FROM customers WHERE id=$1', [s.customer])).rows[0].enrollment_request_id).toBeNull()
+  })
+  // Register the real release after the engine-fixture cases, which use the latest release.
+  it('queues paid enrollment from the current published release with its mandatory core modules', async () => {
+    const source = await readKnownSource(config.repositoryRoot)
+    const solution = JSON.parse(source.bytes.toString())
+    const version = `commercial-${randomUUID()}`
+    await pool.query("INSERT INTO catalog_entries(id,version,status,solution,source_sha256) VALUES($1,$2,'published',$3,$4)",
+      [randomUUID(), version, solution, source.sha256])
+    const registered = await client(pool)('POST', '/catalog/releases', { catalog_version: version, reason: 'Published catalog enrollment regression' })
+    expect(registered.status).toBe(201)
+
+    const { order, subscription } = await seed(true, 'paid', registered.body.id)
+    expect(await process()).toContainEqual({ order_id: order, reason: 'enrollment_pending' })
+    const jobs = (await pool.query('SELECT j.payload FROM shared_jobs j JOIN subscriptions s ON s.tenant_id=j.control_tenant_id WHERE s.id=$1', [subscription])).rows
+    expect(jobs).toEqual([{
+      payload: expect.objectContaining({
+        operation: 'provision',
+        catalog: { version, tier: 'core', sourceSha256: source.sha256 },
+        policy: expect.objectContaining({ modules: expect.arrayContaining(solution.tiers.find((tier: {id: string}) => tier.id === 'core').modules) }),
+      }),
+    }])
   })
 })

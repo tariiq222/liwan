@@ -242,11 +242,12 @@ class Runner:
         self.current_container = None
         self.child = None
 
-    def command(self, args, *, stdin='', timeout=90):
+    def command(self, args, *, stdin='', timeout=90, stdout_only=False):
         # Continuously drain into a bounded tail; installation logs cannot grow
         # Python memory or a temporary disk spool without limit.
         tail = bytearray()
-        self.child = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        stderr = subprocess.DEVNULL if stdout_only else subprocess.STDOUT
+        self.child = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr)
         child = self.child
         def drain():
             while True:

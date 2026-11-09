@@ -69,6 +69,14 @@ class TestAiToolRegistry(AiProbe, TransactionCase):
         draft.pop('draft_target')
         self._assert_rejected((draft,), 'draft_target')
 
+    def test_draft_tool_needs_the_model_its_record_lives_in(self):
+        draft = dict(PROBE_TOOLS[2])
+        draft.pop('draft_model')
+        self._assert_rejected((draft,), 'draft_model')
+        self._assert_rejected(({**PROBE_TOOLS[2], 'draft_model': 'no.such.model'},), 'draft_model')
+        # Only a draft tool names one.
+        self._assert_rejected(self._with(draft_model='res.partner'), 'draft_model')
+
     def test_input_map_may_only_reference_schema_properties(self):
         self._assert_rejected(
             self._with(input_map={'query': {'limit': '$page_size'}}), 'page_size',

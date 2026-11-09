@@ -10,13 +10,13 @@ from odoo.addons.liwan_api.tests.common import LiwanApiCase
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 ITEM = {
-    'conversation_id': 'r_test_01', 'kind': 'plan', 'billing': 'platform',
+    'conversation_id': 'r_test_01', 'call_id': '0f1e2d3c4b5a6978', 'kind': 'plan', 'billing': 'platform',
     'provider': 'acme-ai', 'model': 'acme-large-1',
     'outcome': 'ok', 'input_tokens': 120, 'output_tokens': 45, 'called_at': '2026-10-27T09:30:00+03:00',
 }
 MESSAGE = {
     'conversation_id': 'r_test_01', 'kind': 'message', 'tool_name': None, 'input': None,
-    'result': 'ok', 'http_status': None, 'draft': None, 'approved': None, 'attested': False,
+    'result': 'ok', 'http_status': None, 'draft': None, 'approved': None,
 }
 
 
@@ -43,6 +43,11 @@ class TestAiUsage(AiProbe, LiwanApiCase):
     def _post(self, *items):
         return self.api('POST', '/api/v1/ai/usage', {'items': list(items)})
 
+    @staticmethod
+    def _attempt(index):
+        """The same attempt with the index as its provider call id, so a batch holds distinct rows."""
+        return {**ITEM, 'call_id': f'{index:016x}'}
+
     def _assert_422(self, response, field, code=None):
         self.assertEqual(response.status_code, 422, response.text)
         self.assertEqual(response.json()['field'], field)
@@ -51,7 +56,7 @@ class TestAiUsage(AiProbe, LiwanApiCase):
         self.assertFalse(self.Usage.search([]))
 
     def test_batch_is_recorded_as_the_caller_with_the_exact_response_shape(self):
-        second = {**ITEM, 'kind': 'title', 'outcome': 'retried', 'called_at': '2026-10-27T06:31:00Z'}
+        second = {**ITEM, 'call_id': '1122334455667788', 'kind': 'title', 'outcome': 'retried', 'called_at': '2026-10-27T06:31:00Z'}
         response = self._post(ITEM, second)
         self.assertEqual(response.status_code, 200)
         body = response.json()
@@ -68,6 +73,46 @@ class TestAiUsage(AiProbe, LiwanApiCase):
         self.assertEqual(rows.company_id, self.employee.company_id)
         self.assertEqual(rows[0].tokens_reported, True)
         self.assertEqual(rows[0].called_at, datetime(2026, 10, 27, 6, 30))
+
+    def test_the_same_batch_twice_yields_one_set_of_rows_and_one_total(self):
+        """Issue #557: a batch Odoo accepted before a timeout is re-sent; it is one attempt, counted once."""
+        batch = [{**ITEM}, {**ITEM, 'call_id': '1122334455667788', 'kind': 'title'}]
+        first = self._post(*batch)
+        self.assertEqual(first.status_code, 200)
+        original_ids = [item['id'] for item in first.json()['items']]
+        self.assertEqual(self.Usage.search_count([]), 2)
+        self.assertEqual(sorted(self.Usage.search([])._ids), sorted(original_ids))
+
+        again = self._post(*batch)
+        self.assertEqual(again.status_code, 200)
+        # The retry answers success with the rows that already exist, in the same order.
+        self.assertEqual([item['id'] for item in again.json()['items']], original_ids)
+        self.assertEqual(again.json()['total'], 2)
+        self.assertEqual(self.Usage.search_count([]), 2)
+        # One total: the two attempts are counted once, whichever way the rows are summed.
+        self.assertEqual(sum(row.input_tokens + row.output_tokens for row in self.Usage.search([])), 2 * (120 + 45))
+
+    def test_a_repeated_attempt_in_one_batch_is_one_row(self):
+        response = self._post(ITEM, {**ITEM, 'outcome': 'failed', 'input_tokens': None, 'output_tokens': None})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['total'], 2)
+        self.assertEqual([item['id'] for item in response.json()['items']], [response.json()['items'][0]['id']] * 2)
+        self.assertEqual(self.Usage.search_count([]), 1)
+
+    def test_call_id_is_the_provider_attempt_and_is_strict(self):
+        for change, field in (
+            ({'call_id': 'XYZ'}, 'call_id'),
+            ({'call_id': '0F1E2D3C4B5A6978'}, 'call_id'),
+            ({'call_id': '0f1e2d3c4b5a697'}, 'call_id'),
+            ({'call_id': '0f1e2d3c4b5a6978a'}, 'call_id'),
+            ({'call_id': ''}, 'call_id'),
+            ({'call_id': None}, 'call_id'),
+            ({'call_id': 7}, 'call_id'),
+        ):
+            with self.subTest(change=change):
+                self._assert_422(self._post({**ITEM, **change}), f'items.0.{field}')
+        missing = {key: value for key, value in ITEM.items() if key != 'call_id'}
+        self._assert_422(self._post(missing), 'items.0.call_id')
 
     def test_null_tokens_are_not_reported(self):
         body = self._post({**ITEM, 'input_tokens': None, 'output_tokens': None}).json()
@@ -132,15 +177,15 @@ class TestAiUsage(AiProbe, LiwanApiCase):
 
     def test_item_count_and_shape(self):
         self._assert_422(self._post(), 'items')
-        self._assert_422(self._post(*[ITEM] * 65), 'items')
+        self._assert_422(self._post(*[self._attempt(index) for index in range(65)]), 'items')
         self._assert_422(self.api('POST', '/api/v1/ai/usage', {}), 'items')
         self._assert_422(self.api('POST', '/api/v1/ai/usage', {'items': ITEM}), 'items')
         self._assert_422(self._post(ITEM, 'x'), 'items.1')
         self._assert_422(self.api('POST', '/api/v1/ai/usage', {'items': [ITEM], 'extra': 1}), 'extra', 'unknown_field')
-        self.assertEqual(len(self._post(*[ITEM] * 64).json()['items']), 64)
+        self.assertEqual(len(self._post(*[self._attempt(index) for index in range(64)]).json()['items']), 64)
 
     def test_one_bad_item_rejects_the_whole_batch(self):
-        self._assert_422(self._post(ITEM, ITEM, {**ITEM, 'outcome': 'nope'}), 'items.2.outcome')
+        self._assert_422(self._post(ITEM, {**ITEM, 'call_id': '1122334455667788'}, {**ITEM, 'call_id': '2233445566778899', 'outcome': 'nope'}), 'items.2.outcome')
 
     def test_usage_is_recorded_when_the_message_limit_is_reached(self):
         self.assertEqual(self.api('POST', '/api/v1/ai/audit', MESSAGE).json()['messages_used'], 1)

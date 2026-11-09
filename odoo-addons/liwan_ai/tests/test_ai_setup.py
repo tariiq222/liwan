@@ -10,7 +10,7 @@ from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTE
 
 MESSAGE = {
     'conversation_id': 'r_setup_01', 'kind': 'setup', 'tool_name': None, 'input': None,
-    'result': 'ok', 'http_status': None, 'draft': None, 'approved': None, 'attested': False,
+    'result': 'ok', 'http_status': None, 'draft': None, 'approved': None,
 }
 
 

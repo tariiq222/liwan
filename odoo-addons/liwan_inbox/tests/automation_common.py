@@ -1,7 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Shared fixtures of the automation tests: a role that holds nothing but the automation capability, and inbound delivery."""
 import calendar
-import json
 from datetime import datetime, timedelta
 
 from odoo import Command, fields
@@ -67,9 +66,7 @@ class AutomationCase(LiwanInboxCase):
             data = wa.inbound_text(provider_id, wa_id=wa_id, body=body)
         moment = at or fields.Datetime.now()
         data['entry'][0]['changes'][0]['value']['messages'][0]['timestamp'] = str(calendar.timegm(moment.timetuple()))
-        event = self.env['liwan.inbox.event'].create({
-            'channel_id': channel.id, 'owner_company_id': channel.owner_company_id.id, 'payload': json.dumps(data),
-        })
+        event = self.store_event(channel, data)
         self.env['liwan.inbox.event']._liwan_run_events()
         return self.env['liwan.inbox.message'].search([('provider_message_id', '=', provider_id)]), event
 

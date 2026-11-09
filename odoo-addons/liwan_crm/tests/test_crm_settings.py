@@ -36,6 +36,7 @@ class TestCrmSettings(LiwanCrmCase):
         self.assertEqual(body['distribution_users'], [])
         self.assertEqual(values['visibility'], 'own')
         self.assertFalse(values['view_log_enabled'])
+        self.assertEqual(values['view_log_retention_months'], 12)
         self.assertFalse(values['discount_allowed'])
         self.assertEqual(values['discount_max_percent'], 0)
         self.assertEqual(values['price_above_list'], 'managers')
@@ -96,10 +97,18 @@ class TestCrmSettings(LiwanCrmCase):
         self.assertEqual(body['values']['visibility'], 'all')
         self.assertEqual(body['values']['followup_attempts'], 4)
         self.assertEqual(body['values']['followup_interval_hours'], 24)
-        again = self.api('PATCH', URL, {'revision': 1, 'values': {'view_log_enabled': True}}).json()
+        again = self.api('PATCH', URL, {'revision': 1, 'values': {'view_log_enabled': True, 'view_log_retention_months': 6}}).json()
         self.assertEqual(again['revision'], 2)
         self.assertEqual(again['values']['visibility'], 'all')
+        self.assertEqual(self.api('GET', URL).json()['values']['view_log_retention_months'], 6)
         self.assertTrue(self.api('GET', URL).json()['values']['view_log_enabled'])
+
+    def test_the_view_log_retention_is_bounded(self):
+        self.as_manager()
+        for months in (0, 61, True):
+            with self.subTest(months=months):
+                response = self.api('PATCH', URL, {'revision': 0, 'values': {'view_log_retention_months': months}})
+                self.assertEqual((response.status_code, response.json().get('field')), (422, 'view_log_retention_months'))
 
     def test_patch_with_stale_revision_is_409(self):
         self.as_manager()

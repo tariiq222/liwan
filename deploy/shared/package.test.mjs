@@ -32,7 +32,7 @@ test('rate module is present in actual proxy build recipe and exactly the declar
   assert.match(recipe, /github.com\/mholt\/caddy-ratelimit@v0\.1\.0/)
   assert.match(recipe, /http.handlers.rate_limit/)
   const config = read('Caddyfile')
-  const zones = ['liwan_auth', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo_image', 'liwan_odoo', 'liwan_web', 'liwan_tiktok']
+  const zones = ['liwan_auth', 'liwan_provider_hook', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo_image', 'liwan_odoo', 'liwan_web', 'liwan_tiktok']
   const declared = [...config.matchAll(/^\s*zone\s+(\S+)\s*\{/gm)].map(match => match[1])
   assert.equal(declared.length, zones.length)
   for (const name of zones) assert.equal(declared.filter(zone => zone === name).length, 1, name)

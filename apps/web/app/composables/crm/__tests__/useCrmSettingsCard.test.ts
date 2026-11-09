@@ -19,13 +19,13 @@ const { useCrmSettingsCard } = await import('../useCrmSettingsCard')
 
 const seed = (): CrmSettings => ({
   revision: 0,
-  values: { visibility: 'own', view_log_enabled: false, discount_allowed: false, discount_max_percent: 0 } as CrmSettings['values'],
+  values: { visibility: 'own', view_log_enabled: false, view_log_retention_months: 12, discount_allowed: false, discount_max_percent: 0 } as CrmSettings['values'],
   options: {} as CrmSettings['options'],
   distribution_users: [],
 })
 const privacy = (reload = async () => settings.value) => useCrmSettingsCard({
   settings: () => settings.value,
-  read: ({ visibility, view_log_enabled }) => ({ visibility, view_log_enabled }),
+  read: ({ visibility, view_log_enabled, view_log_retention_months }) => ({ visibility, view_log_enabled, view_log_retention_months }),
   toPatch: values => ({ values }),
   reload,
 })
@@ -107,7 +107,14 @@ describe('useCrmSettingsCard', () => {
     expect(a.state.value.conflict).toBe(false)
     expect(a.draft.value.visibility).toBe('all')
     await a.save()
-    expect(save).toHaveBeenLastCalledWith({ revision: 3, values: { visibility: 'all', view_log_enabled: false } })
+    expect(save).toHaveBeenLastCalledWith({ revision: 3, values: { visibility: 'all', view_log_enabled: false, view_log_retention_months: 12 } })
     expect(a.state.value.conflict).toBe(false)
+  })
+
+  it('saves the view log retention it read out of the settings', async () => {
+    const a = privacy()
+    a.draft.value.view_log_retention_months = 6
+    await a.save()
+    expect(save).toHaveBeenLastCalledWith({ revision: 0, values: { visibility: 'own', view_log_enabled: false, view_log_retention_months: 6 } })
   })
 })

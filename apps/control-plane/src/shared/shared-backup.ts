@@ -36,26 +36,33 @@ export async function commercialRestoreGate(pool: Pool, input: { tenant_id: stri
   return reconcileAfterRestore(pool, { tenant_id: input.tenant_id, restore_id: input.restore_id, target: input.target, runner: input.runner })
 }
 
+export type CommercialRestoreSnapshot = { subscription: { id: string; revision: string } | null }
+
 /** Preflight for operator-driven restore reopening. Runs before BEGIN so an
  * idempotently enqueued reconfigure survives a publication refusal. */
-export async function prepareCommercialRestorePublication(pool: Pool, client: PoolClient, tenantId: string, target: { database: string; filestore: string; host: string }, runner?: CommercialRestoreRunner, restoreId?: string): Promise<{ ready: boolean; applied_revision_id: string | null }> {
-  const result = await client.query(`SELECT id,
-    (SELECT a.id FROM shared_restore_approvals a WHERE a.control_tenant_id=tenants.id AND a.consumed_at IS NOT NULL
-      AND ($2::uuid IS NULL OR a.id=$2) AND a.target_database=$3 ORDER BY a.consumed_at DESC LIMIT 1) AS restore_id,
-    (SELECT applied_revision_id FROM subscriptions WHERE tenant_id=tenants.id AND applied_revision_id IS NOT NULL LIMIT 1) AS applied_revision_id
-    FROM tenants WHERE id=$1`, [tenantId, restoreId ?? null, target.database])
-  const row = result.rows[0]
-  if (!row?.restore_id || !row.applied_revision_id) return { ready: true, applied_revision_id: null }
-  const gate = await commercialRestoreGate(pool, { tenant_id: tenantId, restore_id: row.restore_id, target, runner })
-  return { ready: gate.ready, applied_revision_id: row.applied_revision_id }
+export async function prepareCommercialRestorePublication(pool: Pool, client: PoolClient, tenantId: string, target: { database: string; filestore: string; host: string }, runner?: CommercialRestoreRunner, restoreId?: string): Promise<CommercialRestoreGate & { snapshot: CommercialRestoreSnapshot | null }> {
+  const approval = await client.query(`SELECT id FROM shared_restore_approvals WHERE control_tenant_id=$1
+    AND ($2::uuid IS NULL OR id=$2) AND target_database=$3 AND consumed_at IS NOT NULL
+    ORDER BY consumed_at DESC LIMIT 1`, [tenantId, restoreId ?? null, target.database])
+  const id = approval.rows[0]?.id
+  if (!id) return { ready: !restoreId, snapshot: null }
+  const subscription = await client.query<{ id: string; revision: string }>('SELECT id,revision::text FROM subscriptions WHERE tenant_id=$1', [tenantId])
+  const snapshot = { subscription: subscription.rows[0] ?? null }
+  const gate = await commercialRestoreGate(pool, { tenant_id: tenantId, restore_id: id, target, runner })
+  return { ...gate, snapshot }
 }
 
-/** Hold the current commercial revision through publication. A payment/revision
- * change between physical readback and this lock invalidates that readback. */
-export async function revalidateCommercialRestorePublication(client: PoolClient, tenantId: string, expected: string | null): Promise<boolean> {
+/** Hold lifecycle and applied entitlement authority through publication. */
+export async function revalidateCommercialRestorePublication(client: PoolClient, tenantId: string, expected: CommercialRestoreSnapshot | null): Promise<boolean> {
   if (!expected) return true
-  const current = await client.query('SELECT applied_revision_id FROM subscriptions WHERE tenant_id=$1 FOR SHARE', [tenantId])
-  return current.rowCount === 1 && current.rows[0].applied_revision_id === expected
+  if (!expected.subscription) {
+    // Serialize against the FK's key-share lock when a subscription is attached
+    // to a tenant that had no subscription during the readback.
+    await client.query('SELECT id FROM tenants WHERE id=$1 FOR UPDATE', [tenantId])
+  }
+  const current = await client.query<{ id: string; revision: string }>('SELECT id,revision::text FROM subscriptions WHERE tenant_id=$1 FOR SHARE', [tenantId])
+  if (!expected.subscription) return current.rowCount === 0
+  return current.rowCount === 1 && current.rows[0].id === expected.subscription.id && current.rows[0].revision === expected.subscription.revision
 }
 
 function digest(value: string): string {

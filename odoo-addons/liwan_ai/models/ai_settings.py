@@ -6,6 +6,11 @@ PROVIDER_MODES = ('platform', 'tenant_key')
 # or send after the employee approves (spec 2026-11-04 §6.9).
 EXTERNAL_SEND_MODES = ('draft_only', 'approve')
 MAX_MESSAGES_PER_USER = 100_000
+# The ceiling on the input tokens one request of the assistant may send to a provider (issue #554). It counts every plan
+# call of that request, because each call carries the whole prompt and history to the model; a run whose next call would
+# start above it stops with `limit_reached` (`input_tokens`). 0 means no cap of the tenant's own.
+DEFAULT_INPUT_TOKENS_PER_RUN = 100_000
+MAX_INPUT_TOKENS_PER_RUN = 2_000_000
 
 
 class LiwanAiSettings(models.Model):
@@ -23,6 +28,9 @@ class LiwanAiSettings(models.Model):
     provider_mode = fields.Selection([(mode, mode) for mode in PROVIDER_MODES], required=True, default='platform')
     # 0 means no cap per user beyond the package's monthly messages.
     messages_per_user_monthly = fields.Integer(required=True, default=0)
+    # The tenant's own ceiling on the input tokens of one request (issue #554); 0 means no cap of its own. It applies in
+    # both provider modes, because the prompt that grows with the conversation costs the tenant either way.
+    input_tokens_per_run = fields.Integer(required=True, default=DEFAULT_INPUT_TOKENS_PER_RUN)
     external_send = fields.Selection([(mode, mode) for mode in EXTERNAL_SEND_MODES], required=True, default='draft_only')
     # Knowledge retrieval (spec 2026-11-04 §6.3): the indexer reads the declared sources only while this is on.
     knowledge_enabled = fields.Boolean(required=True, default=False)

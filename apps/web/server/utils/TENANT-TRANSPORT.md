@@ -5,6 +5,11 @@ address comes only from server runtime odooUrl; Host/token/revision come from
 fresh tenantRequest validation. No redirects are followed; 3xx except304 reject.
 No guard trust contract changed, no upstream authority registered as a tenant.
 
+One exception: the provider OAuth callback (`CALLBACK_REDIRECT_PATHS`) passes its in-app
+redirect through so the browser follows it after the connection is stored. It must be a
+302/303 whose `location` is a path under `/settings/apps/inbox`, so an upstream can never
+leave this app or open an arbitrary route.
+
 Request headers are allowlisted; response hop-by-hop headers are removed including
 Connection-nominated headers. Multi Set-Cookie is preserved with Headers.append.
 Status, binary bytes and HEAD/204/205/304 null bodies are preserved. Total outbound

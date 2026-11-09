@@ -115,6 +115,7 @@ export interface SmtpConfig {
   from: string;
   requireTls: boolean;
   timeoutMs?: number;
+  totalTimeoutMs?: number;
 }
 
 interface Reply {
@@ -148,6 +149,8 @@ export class SmtpMailAdapter implements MailAdapter {
       });
     };
     attach(socket);
+    const deadline = this.cfg.totalTimeoutMs === undefined ? undefined :
+      setTimeout(() => socket.destroy(new MailError("mail_timeout")), this.cfg.totalTimeoutMs);
 
     const readReply = (): Promise<Reply> =>
       new Promise((resolve, reject) => {
@@ -209,11 +212,12 @@ export class SmtpMailAdapter implements MailAdapter {
           socket.removeAllListeners("data");
           const plain = socket;
           const secure = tls.connect({ socket: plain, servername: net.isIP(this.cfg.host) ? undefined : this.cfg.host });
+          socket = secure;
           await new Promise<void>((res, rej) => {
             secure.once("secureConnect", () => res());
-            secure.once("error", (e) => rej(new MailError("mail_tls_error", e.message)));
+            secure.once("error", (e) => rej(e instanceof MailError ? e : new MailError("mail_tls_error", e.message)));
+            secure.once("close", () => rej(new MailError("mail_connection_closed")));
           });
-          socket = secure;
           buf = "";
           attach(socket);
           ehlo = await cmd(`EHLO ${ehloName}`, [250]);
@@ -249,6 +253,7 @@ export class SmtpMailAdapter implements MailAdapter {
       if (e instanceof MailError) throw e;
       throw new MailError("mail_send_failed", e instanceof Error ? e.message : String(e));
     } finally {
+      clearTimeout(deadline);
       socket.destroy();
     }
   }
@@ -260,7 +265,7 @@ class DisabledMailAdapter implements MailAdapter {
   }
 }
 
-export function mailAdapterFromEnv(env: Record<string, string | undefined>): MailAdapter {
+export function mailAdapterFromEnv(env: Record<string, string | undefined>, totalTimeoutMs?: number): MailAdapter {
   const mode = env.LIWAN_MAIL_MODE ?? "smtp";
   if (mode === "disabled") return new DisabledMailAdapter();
   if (mode !== "smtp") throw new MailError("mail_not_configured", "unknown LIWAN_MAIL_MODE");
@@ -275,5 +280,5 @@ export function mailAdapterFromEnv(env: Record<string, string | undefined>): Mai
   const user = env.LIWAN_MAIL_SMTP_USER || undefined;
   const password = env.LIWAN_MAIL_SMTP_PASSWORD || undefined;
   if ((user && !password) || (!user && password)) throw new MailError("mail_not_configured", "incomplete credentials");
-  return new SmtpMailAdapter({ host, port, user, password, from, requireTls });
+  return new SmtpMailAdapter({ host, port, user, password, from, requireTls, totalTimeoutMs });
 }
