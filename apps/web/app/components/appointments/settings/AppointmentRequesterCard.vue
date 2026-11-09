@@ -23,11 +23,13 @@ const { draft, state, save, revert, reload } = useSettingsForm<AppointmentSettin
 })
 const locked = computed(() => !hydrated.value || !props.canEdit || state.value.saving || state.value.reloading)
 const requirementItems = computed(() => (['required', 'optional', 'hidden'] as const).map(value => ({ value, label: t(`appointments.settings.requester.requirement.${value}`) })))
-// Open booking has no public creation flow yet, so it is shown but cannot be chosen.
+// Open booking has no public creation flow in the platform yet, so the server refuses to save it: the option is listed
+// for the tenant to see why, and cannot be chosen.
 const policyItems = computed(() => (['invite_only', 'open'] as const).map(value => ({
   value,
   label: t(`appointments.settings.requester.policy.${value}`),
-  disabled: value === 'open' && draft.value.self_booking_policy !== 'open',
+  disabled: value === 'open',
+  description: value === 'open' ? t('appointments.settings.requester.policy.openUnavailable') : undefined,
 })))
 const fieldKeys = ['phone_field', 'email_field', 'national_id_field', 'notes_field'] as const
 </script>

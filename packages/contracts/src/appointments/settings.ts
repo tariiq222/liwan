@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
 export const AppointmentFieldRequirementSchema = z.enum(['required', 'optional', 'hidden'])
+/** Who may book. Only `invite_only` is enforced: `open` needs a public booking page the platform does not have, so the
+ * server refuses to save it, and the UI shows it as unavailable (issue #550). */
 export const AppointmentSelfBookingPolicySchema = z.enum(['invite_only', 'open'])
 export const AppointmentSectorPresetSchema = z.enum(['general', 'clinic', 'services'])
 
@@ -9,6 +11,7 @@ const minNoticeHours = z.number().int().min(0).max(720)
 const horizonDays = z.number().int().min(1).max(365)
 const modificationDeadlineHours = z.number().int().min(0).max(720)
 const noShowGraceMinutes = z.number().int().min(0).max(1440)
+const linkValidDaysAfterEnd = z.number().int().min(0).max(3650)
 const referencePrefix = z.string().regex(/^[A-Z0-9-]{1,10}$/)
 
 /** GET /appointments/settings: the company's settings, or the defaults at revision 0 while none are saved. */
@@ -28,8 +31,10 @@ export const AppointmentSettingsSchema = z.object({
   no_show_grace_minutes: noShowGraceMinutes,
   walk_in_allowed: z.boolean(),
   visit_reason_field: AppointmentFieldRequirementSchema,
-  /** Binds the staff cancel route; the invited requester's cancel takes no reason yet. */
+  /** Binds the staff cancel route and the invited requester's. */
   cancel_reason_required: z.boolean(),
+  /** Days after the appointment ends that the requester's link stays readable; the default is 30. */
+  link_valid_days_after_end: linkValidDaysAfterEnd,
   reference_prefix: referencePrefix,
   sector_preset: AppointmentSectorPresetSchema,
   presets: z.array(AppointmentSectorPresetSchema),
@@ -57,6 +62,7 @@ export const AppointmentSettingsPatchSchema = z.object({
   walk_in_allowed: z.boolean(),
   visit_reason_field: AppointmentFieldRequirementSchema,
   cancel_reason_required: z.boolean(),
+  link_valid_days_after_end: linkValidDaysAfterEnd,
   reference_prefix: referencePrefix,
   preset: AppointmentSectorPresetSchema,
   revision: z.number().int().nonnegative(),

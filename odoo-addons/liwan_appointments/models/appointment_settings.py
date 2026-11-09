@@ -1,10 +1,14 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, fields, models
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, ValidationError
 
 SETTINGS_CAPABILITIES = ('appointments.bookings.read', 'appointments.bookings.write', 'appointments.bookings.manage')
 FIELD_REQUIREMENTS = (('required', 'Required'), ('optional', 'Optional'), ('hidden', 'Hidden'))
+# ``invite_only`` is the only policy any route enforces: the platform has no public self-booking page, so choosing
+# ``open`` would promise a capability that does not exist. The value stays in the selection so a stored row still reads
+# back, and the settings parser refuses to write it (issue #550).
 SELF_BOOKING_POLICIES = (('invite_only', 'Invite only'), ('open', 'Open'))
+ENFORCED_SELF_BOOKING_POLICIES = ('invite_only',)
 SECTOR_PRESETS = (('general', 'General'), ('clinic', 'Clinic'), ('services', 'Services'))
 # Inclusive (min, max) of every numeric setting; the database CHECKs and the API parser read this one table.
 INTEGER_RANGES = {
@@ -13,6 +17,7 @@ INTEGER_RANGES = {
     'horizon_days': (1, 365),
     'modification_deadline_hours': (0, 720),
     'no_show_grace_minutes': (0, 1440),
+    'link_valid_days_after_end': (0, 3650),
 }
 BOOLEAN_SETTINGS = ('requester_confirmation', 'attendance_tracking', 'auto_no_show', 'walk_in_allowed', 'cancel_reason_required')
 REFERENCE_PREFIX_PATTERN = r'[A-Z0-9-]{1,10}'
@@ -41,8 +46,15 @@ PRESETS = {
         'visit_reason_field': 'optional', 'cancel_reason_required': False,
     },
 }
+# How long the requester's link stays readable after the appointment ends (owner decision 2026-11-09). It is a
+# company policy, the same for every sector, so no preset carries it and applying a preset leaves it alone.
+LINK_VALID_DAYS_AFTER_END = 30
 # The booking reference prefix is the tenant's own identity, not a sector choice: presets leave it alone.
-DEFAULTS = {**PRESETS['general'], 'reference_prefix': 'APT'}
+DEFAULTS = {
+    **PRESETS['general'],
+    'reference_prefix': 'APT',
+    'link_valid_days_after_end': LINK_VALID_DAYS_AFTER_END,
+}
 
 
 def _range_check(name):
@@ -53,17 +65,19 @@ def _range_check(name):
 class LiwanAppointmentSettings(models.Model):
     """One company's appointment policy, shaped by the tenant from the Appointments settings.
 
-    Enforced now: ``default_slot_minutes`` and ``modification_deadline_hours`` are the defaults of a
-    new booking type's ``slot_duration`` and ``modifications_deadline``. Not enforced here:
-    ``min_notice_hours``, ``horizon_days``, the requester field policies, ``requester_confirmation``
-    and ``self_booking_policy`` are enforced by the booking routes (tickets 05-07), and the attendance
+    Enforced now: ``default_slot_minutes`` is the default of a new booking type's ``slot_duration``, and
+    ``modification_deadline_hours`` is the deadline of the company's types: a new type starts from it, and changing it
+    carries the new value to every type that still held the previous one. Not enforced here:
+    ``min_notice_hours``, ``horizon_days``, the requester field policies and ``requester_confirmation`` are enforced by
+    the booking routes (tickets 05-07), and the attendance
     settings (``attendance_tracking``, ``auto_no_show``, ``no_show_grace_minutes``, ``walk_in_allowed``,
     ``visit_reason_field``, ``cancel_reason_required``) by the booking routes and the no-show cron
-    (ticket 14); ``cancel_reason_required`` binds the staff cancel route only, because the invited
-    requester's page offers no reason list yet (ticket 11 follow-up). ``reference_prefix`` is read when a
-    booking is created. Existing bookings
-    and types are never changed. Applying a sector preset writes ``sector_preset`` (the last applied
-    preset) and every preset value in one save; a field sent with the preset overrides its value.
+    (ticket 14); ``cancel_reason_required`` binds the staff cancel route and the requester's. ``self_booking_policy``
+    has no route that implements ``open`` (issue #550), so only ``invite_only`` is accepted on write.
+    ``reference_prefix`` is read when a booking is created, and ``link_valid_days_after_end`` bounds how long the
+    requester's link stays readable after the appointment ends. Existing bookings are never changed. Applying a sector
+    preset writes ``sector_preset`` (the last applied preset) and every preset value in one save; a field sent with the
+    preset overrides its value.
     """
 
     _name = 'liwan.appointment.settings'
@@ -87,6 +101,7 @@ class LiwanAppointmentSettings(models.Model):
     walk_in_allowed = fields.Boolean(default=DEFAULTS['walk_in_allowed'])
     visit_reason_field = fields.Selection(FIELD_REQUIREMENTS, required=True, default=DEFAULTS['visit_reason_field'])
     cancel_reason_required = fields.Boolean(default=DEFAULTS['cancel_reason_required'])
+    link_valid_days_after_end = fields.Integer(required=True, default=DEFAULTS['link_valid_days_after_end'])
     reference_prefix = fields.Char(required=True, default=DEFAULTS['reference_prefix'])
     sector_preset = fields.Selection(SECTOR_PRESETS, required=True, default='general')
     revision = fields.Integer(required=True, default=1)
@@ -98,9 +113,20 @@ class LiwanAppointmentSettings(models.Model):
     _horizon_range = _range_check('horizon_days')
     _deadline_range = _range_check('modification_deadline_hours')
     _grace_range = _range_check('no_show_grace_minutes')
+    _link_validity_range = _range_check('link_valid_days_after_end')
     _prefix_format = models.Constraint(
         "CHECK(reference_prefix ~ '^%s$')" % REFERENCE_PREFIX_PATTERN, 'the reference prefix is 1 to 10 of A-Z, 0-9 and -',
     )
+
+    @api.constrains('self_booking_policy')
+    def _check_self_booking_policy(self):
+        """Refuse a policy no route implements (issue #550): ``open`` would promise a public booking page nobody serves."""
+        unsupported = {row.self_booking_policy for row in self} - set(ENFORCED_SELF_BOOKING_POLICIES)
+        if unsupported:
+            raise ValidationError(self.env._(
+                'self-booking policy %(policy)s needs a public booking page that does not exist yet.',
+                policy=', '.join(sorted(unsupported)),
+            ))
 
     @api.model
     def _liwan_require_current_company(self, *capabilities):
@@ -141,7 +167,10 @@ class LiwanAppointmentSettings(models.Model):
             self._liwan_require_current_company('appointments.bookings.manage')
             if any(vals.get('company_id') != self.env.company.id for vals in vals_list):
                 raise AccessError(self.env._('appointment settings belong to the current company'))
-        return super().create(vals_list)
+        rows = super().create(vals_list)
+        for row in rows:
+            row._liwan_sync_inherited_deadline(DEFAULTS['modification_deadline_hours'])
+        return rows
 
     def write(self, vals):
         if not self.env.is_superuser():
@@ -150,4 +179,24 @@ class LiwanAppointmentSettings(models.Model):
                 'company_id' in vals and vals['company_id'] != self.env.company.id
             ):
                 raise AccessError(self.env._('appointment settings belong to the current company'))
-        return super().write(vals)
+        previous = {row.id: row.modification_deadline_hours for row in self} if 'modification_deadline_hours' in vals else {}
+        result = super().write(vals)
+        for row in self:
+            if row.id in previous:
+                row._liwan_sync_inherited_deadline(previous[row.id])
+        return result
+
+    def _liwan_sync_inherited_deadline(self, previous_hours):
+        """Carry a new ``modification_deadline_hours`` to the types of this company that still hold the old setting value.
+
+        The setting is the deadline of every type that inherited it; a type someone set to another value keeps it. A type
+        set to exactly the old value by hand is indistinguishable from an inherited one, so it follows the setting too;
+        the settings hint says so.
+        """
+        self.ensure_one()
+        if self.modification_deadline_hours == previous_hours:
+            return
+        types = self.env['resource.booking.type'].with_context(active_test=False).search([
+            ('company_id', '=', self.company_id.id), ('modifications_deadline', '=', previous_hours),
+        ])
+        types.write({'modifications_deadline': self.modification_deadline_hours})

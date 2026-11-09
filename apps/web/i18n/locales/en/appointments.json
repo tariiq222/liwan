@@ -62,7 +62,8 @@
           "title": "The appointment could not be loaded",
           "body": "A temporary problem occurred. Try again shortly."
         }
-      }
+      },
+      "cancelReason": "Reason for cancelling"
     },
     "settings": {
       "title": "Appointment settings",
@@ -77,8 +78,8 @@
         "hint": "Sets the booking values and the requester fields together; adjust what you need in the next two cards.",
         "label": "Preset",
         "warning": "Applying replaces the values of the next two cards with the preset's own, even when it is the current preset.",
-      "apply": "Apply preset",
-      "applied": "Preset applied"
+        "apply": "Apply preset",
+        "applied": "Preset applied"
       },
       "booking": {
         "title": "Booking times",
@@ -98,17 +99,22 @@
         },
         "modification_deadline_hours": {
           "label": "Modification deadline (hours)",
-          "hint": "This long before the start, the requester can no longer change or cancel."
+          "hint": "Applies to the company's appointment types that still hold the previous value; a type whose deadline was changed by hand keeps it."
+        },
+        "link_valid_days_after_end": {
+          "label": "Booking link validity after the end (days)",
+          "hint": "This many days after the appointment ends, the link stops working and answers that the booking does not exist."
         }
       },
       "requester": {
         "title": "Requester",
         "hint": "What the requester is asked for and may do.",
         "selfBooking": "Who can book",
-        "selfBookingHint": "Invite only is what is available now; open booking needs a public booking page that is not built yet.",
+        "selfBookingHint": "Invite only is what is available now; open booking needs a public booking page that is not built yet, so it cannot be saved.",
         "policy": {
           "invite_only": "Invite only",
-          "open": "Open to everyone"
+          "open": "Open to everyone",
+          "openUnavailable": "Unavailable: needs a public booking page that is not built yet"
         },
         "confirmation": "Requester confirmation",
         "confirmationHint": "The appointment waits for the requester to confirm after booking.",

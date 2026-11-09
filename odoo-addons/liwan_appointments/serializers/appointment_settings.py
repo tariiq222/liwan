@@ -5,6 +5,7 @@ from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_appointments.models.appointment_settings import (
     BOOLEAN_SETTINGS,
     DEFAULTS,
+    ENFORCED_SELF_BOOKING_POLICIES,
     FIELD_REQUIREMENTS,
     INTEGER_RANGES,
     PRESETS,
@@ -18,6 +19,7 @@ WRITABLE_FIELDS = tuple(DEFAULTS)
 SETTING_FIELDS = (*WRITABLE_FIELDS, 'sector_preset')
 SELECTION_OPTIONS = {
     **{name: tuple(value for value, _label in FIELD_REQUIREMENTS) for name in (*REQUESTER_FIELDS, 'visit_reason_field')},
+    # The contract lists every policy value; the parser below accepts only the ones a route enforces.
     'self_booking_policy': tuple(value for value, _label in SELF_BOOKING_POLICIES),
 }
 PRESET_KEYS = [value for value, _label in SECTOR_PRESETS]
@@ -61,4 +63,11 @@ def _parse_value(name, value):
             raise ApiError(422, 'invalid', 'must be 1 to 10 of A-Z, 0-9 and -', field=name)
     elif value not in SELECTION_OPTIONS[name]:
         raise ApiError(422, 'invalid', 'choose one of: %s' % ', '.join(SELECTION_OPTIONS[name]), field=name)
+    elif name == 'self_booking_policy' and value not in ENFORCED_SELF_BOOKING_POLICIES:
+        raise ApiError(422, 'invalid', self_booking_refused_message(), field=name)
     return value
+
+
+def self_booking_refused_message():
+    """Why a self-booking policy outside the enforced ones cannot be saved: no route implements it yet."""
+    return 'open self-booking needs a public booking page that does not exist yet; keep invite only'

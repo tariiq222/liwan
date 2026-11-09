@@ -14,6 +14,7 @@ import {
   AppointmentInvitationSchema,
   AppointmentPublicBookingQuerySchema,
   AppointmentPublicBookingSchema,
+  AppointmentPublicCancelSchema,
   AppointmentPublicScheduleSchema,
   AppointmentPublicSlotQuerySchema,
   AppointmentPublicTokenSchema,
@@ -183,6 +184,7 @@ const SETTINGS = {
   walk_in_allowed: false,
   visit_reason_field: 'optional',
   cancel_reason_required: false,
+  link_valid_days_after_end: 30,
   reference_prefix: 'APT',
   sector_preset: 'general',
   presets: ['general', 'clinic', 'services'],
@@ -203,6 +205,7 @@ describe('AppointmentSettingsSchema', () => {
       { phone_field: 'maybe' }, { self_booking_policy: 'anyone' }, { sector_preset: 'bank' }, { revision: -1 },
       { no_show_grace_minutes: -1 }, { no_show_grace_minutes: 1441 }, { visit_reason_field: 'maybe' }, { walk_in_allowed: 'yes' },
       { reference_prefix: '' }, { reference_prefix: 'apt' }, { reference_prefix: 'ABCDEFGHIJK' }, { reference_prefix: 'A/B' },
+      { link_valid_days_after_end: -1 }, { link_valid_days_after_end: 3651 }, { link_valid_days_after_end: 1.5 },
     ]) {
       expect(() => AppointmentSettingsSchema.parse({ ...SETTINGS, ...bad })).toThrow()
     }
@@ -223,6 +226,8 @@ describe('AppointmentSettingsPatchSchema', () => {
     expect(() => AppointmentSettingsPatchSchema.parse({ revision: 0, horizon_days: 366 })).toThrow()
     expect(() => AppointmentSettingsPatchSchema.parse({ revision: 0, preset: 'bank' })).toThrow()
     expect(() => AppointmentSettingsPatchSchema.parse({ revision: 0, no_show_grace_minutes: 1441 })).toThrow()
+    expect(() => AppointmentSettingsPatchSchema.parse({ revision: 0, link_valid_days_after_end: 3651 })).toThrow()
+    expect(AppointmentSettingsPatchSchema.parse({ revision: 0, link_valid_days_after_end: 0 })).toEqual({ revision: 0, link_valid_days_after_end: 0 })
     expect(() => AppointmentSettingsPatchSchema.parse({ revision: 0, reference_prefix: 'a' })).toThrow()
     expect(AppointmentSettingsPatchSchema.parse({ revision: 0, reference_prefix: 'CLN-1', walk_in_allowed: true }))
       .toEqual({ revision: 0, reference_prefix: 'CLN-1', walk_in_allowed: true })
@@ -354,6 +359,8 @@ const PUBLIC_BOOKING = {
   last_bookable_date: '2026-12-29',
   awaits_confirmation: false,
   company_name: 'Clinic',
+  cancel_reason_required: false,
+  cancel_reasons: [],
   requester: { name: 'Sara Ali', phone: '+966500000001', email: null },
 }
 
@@ -365,6 +372,13 @@ describe('public appointment schemas', () => {
     expect(() => AppointmentPublicBookingSchema.parse({ ...PUBLIC_BOOKING, state: 'draft' })).toThrow()
   })
 
+  it('carries the cancel reasons only when the company requires one', () => {
+    const reasons = [{ id: 4, name: 'No longer needed' }]
+    const parsed = AppointmentPublicBookingSchema.parse({ ...PUBLIC_BOOKING, cancel_reason_required: true, cancel_reasons: reasons })
+    expect(parsed.cancel_reasons).toEqual(reasons)
+    expect(() => AppointmentPublicBookingSchema.parse({ ...PUBLIC_BOOKING, cancel_reasons: [{ id: 4, name: 'x', extra: 1 }] })).toThrow()
+  })
+
   it('every request carries a bounded access token and nothing else unknown', () => {
     expect(AppointmentPublicBookingQuerySchema.parse({ access_token: 'abc' })).toEqual({ access_token: 'abc' })
     expect(() => AppointmentPublicBookingQuerySchema.parse({})).toThrow()
@@ -374,6 +388,10 @@ describe('public appointment schemas', () => {
     expect(() => AppointmentPublicSlotQuerySchema.parse({ access_token: 'abc', from: '2026-10-30', to: '2026-11-05', combination_id: 3 })).toThrow()
     expect(AppointmentPublicScheduleSchema.parse({ access_token: 'abc', start: '2026-10-30T08:00:00Z' }).start).toBe('2026-10-30T08:00:00Z')
     expect(() => AppointmentPublicScheduleSchema.parse({ access_token: 'abc', start: '2026-10-30' })).toThrow()
+    expect(AppointmentPublicCancelSchema.parse({ access_token: 'abc', reason_id: 4 })).toEqual({ access_token: 'abc', reason_id: 4 })
+    expect(AppointmentPublicCancelSchema.parse({ access_token: 'abc' })).toEqual({ access_token: 'abc' })
+    expect(() => AppointmentPublicCancelSchema.parse({ access_token: 'abc', reason_id: 0 })).toThrow()
+    expect(() => AppointmentPublicCancelSchema.parse({ access_token: 'abc', note: 'x' })).toThrow()
   })
 
   it('the invitation is a path to the requester page, never a URL', () => {
