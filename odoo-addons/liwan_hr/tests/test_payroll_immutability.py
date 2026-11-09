@@ -124,6 +124,37 @@ class TestPayrollImmutability(PayrollCase):
         })
         self.assertTrue(line.exists())
 
+    def test_the_header_of_an_approved_run_cannot_be_rewritten(self):
+        run = self._approved_run()
+        holder = self.env['hr.payslip.run'].with_user(self.officer).browse(run.id)
+        other_company = self.env['res.company'].create({'name': 'Other Company'})
+        other_structure = self.env['hr.payroll.structure'].search([('id', '!=', run.struct_id.id)], limit=1)
+        for values in (
+            {'date_start': date(2026, 12, 1)}, {'date_end': date(2026, 12, 31)},
+            {'company_id': other_company.id}, {'struct_id': other_structure.id},
+            {'liwan_approved_by_id': self.officer.id},
+        ):
+            field_name = next(iter(values))
+            with self.subTest(field=field_name), self.assertRaises(AccessError):
+                holder.write(values)
+        self.assertEqual((run.date_start, run.liwan_state), (date(2026, 11, 1), 'approved'))
+        self.assertNotEqual(run.liwan_approved_by_id, self.officer)
+
+    def test_a_write_that_repeats_a_frozen_header_value_is_not_a_change(self):
+        """The guard refuses a change, not a write: a same-value write leaves the approved month as it was."""
+        run = self._approved_run()
+        holder = self.env['hr.payslip.run'].with_user(self.officer).browse(run.id)
+        holder.write({'date_start': run.date_start, 'struct_id': run.struct_id.id})
+        self.assertEqual(run.date_start, date(2026, 11, 1))
+
+    def test_the_header_of_an_editable_run_can_still_be_rewritten(self):
+        """The freeze is about the approved month, not a blanket lock: a draft run keeps editing its structure."""
+        self._login(self.officer)
+        run = self.env['hr.payslip.run'].browse(self.api('POST', RUNS, json={'month': MONTH}).json()['id'])
+        other = self.env['hr.payroll.structure'].search([('id', '!=', run.struct_id.id)], limit=1)
+        run.with_user(self.officer).write({'struct_id': other.id})
+        self.assertEqual(run.struct_id, other)
+
     def test_an_approved_run_cannot_go_back_to_draft(self):
         run = self._approved_run()
         holder = self.env['hr.payslip.run'].with_user(self.officer)

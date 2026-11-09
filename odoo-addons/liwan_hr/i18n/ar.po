@@ -658,6 +658,12 @@ msgstr "لا يمكن حذف مسيّر رواتب معتمد."
 
 #. module: liwan_hr
 #. odoo-python
+#: code:addons/liwan_hr/models/hr_payslip_run.py:0
+msgid "An approved payroll run keeps its month, company and structure: its figures are fixed."
+msgstr "يحتفظ مسيّر الرواتب المعتمد بشهره وشركته وهيكله: أرقامه ثابتة."
+
+#. module: liwan_hr
+#. odoo-python
 #: code:addons/liwan_hr/models/eos_settlement.py:0
 msgid ""
 "The final settlement of %(name)s is negative: the open deductions are "
