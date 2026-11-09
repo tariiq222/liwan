@@ -5,15 +5,23 @@ from odoo.exceptions import AccessError
 from odoo.addons.liwan_payments.models.access_service import PROVIDERS_MANAGE
 
 MANAGER_GROUP = 'liwan_payments.group_cap_payments_providers_manage'
+# The fields that authenticate the gateway itself. Stock cofines only the secret key to system
+# administrators and leaves the HMAC and API keys readable by any role holding the model's ACL
+# row, so that role could read the key that signs a payment notification and forge a settled
+# transaction. All three are system-only here, and the payments manager touches none of them
+# through the ORM (issue #512): it writes them through `_liwan_payments_set_credentials` and
+# reads only their presence, both elevated after a capability check, and the API only ever
+# reports whether each one is set.
+SECRET_FIELDS = ('paymob_secret_key', 'paymob_hmac_key', 'paymob_api_key')
 
 
 class PaymentProvider(models.Model):
     _inherit = 'payment.provider'
 
-    # Stock restricts this key to system administrators. The tenant's own payments manager
-    # enters it through LiwanOS, so the capability group joins the field group; the API only
-    # ever reports whether it is set.
-    paymob_secret_key = fields.Char(groups=f'base.group_system,{MANAGER_GROUP}')
+    # The secret key keeps stock's own definition (`groups='base.group_system'`). These two are
+    # narrowed to the same group: they sign and authenticate the gateway exactly as it does.
+    paymob_hmac_key = fields.Char(groups='base.group_system')
+    paymob_api_key = fields.Char(groups='base.group_system')
 
     def _liwan_payments_definition(self):
         """The registry definition of this provider's code, or an empty dict when LiwanOS does not offer it."""
@@ -21,9 +29,28 @@ class PaymentProvider(models.Model):
         return self.env['liwan.payments.provider.registry']._liwan_provider_map().get(self.code, {})
 
     def _liwan_payments_credentials_present(self):
-        """``{field: bool}`` for each credential field: whether the tenant has entered it."""
+        """``{field: bool}`` for each credential field: whether the tenant has entered it.
+
+        The three secret fields are system-only, so the presence check reads them elevated: the
+        answer is one boolean per key, never the value, and it is the only thing the API returns.
+        """
         self.ensure_one()
-        return {field: bool(self[field]) for field in self._liwan_payments_definition()['credential_fields']}
+        elevated = self.sudo()
+        return {field: bool(elevated[field]) for field in self._liwan_payments_definition()['credential_fields']}
+
+    def _liwan_payments_set_credentials(self, values):
+        """Store the gateway's keys after the caller's capability check.
+
+        The write is the only path into the three secret fields. It elevates because those fields
+        are system-only, and it is reachable only from the providers controller, which requires
+        ``payments.providers.manage`` and the current company before calling it (issue #512).
+        """
+        self.ensure_one()
+        self.env['liwan.access.service']._liwan_require_capability(PROVIDERS_MANAGE)
+        if self.company_id != self.env.company:
+            raise AccessError(self.env._("This gateway belongs to another company."))
+        self.sudo().write(values)
+        return True
 
     def _liwan_payments_configured(self):
         return all(self._liwan_payments_credentials_present().values())
@@ -84,9 +111,14 @@ class PaymentProvider(models.Model):
         The stock Paymob action names the merchant's gateway integrations after the mode (test or
         live), so it must run again after every mode, key or country change.
 
+        The stock code reads the gateway's keys to authenticate itself, and those fields are
+        system-only (issue #512), so the check runs elevated after the caller's capability is
+        verified by the controller. Nothing of the keys is returned or logged.
+
         :return: ``'synced'``, or ``'methods_missing'`` when the account lacks a payment method
             the provider needs (stock then leaves the account unprepared).
         """
         self.ensure_one()
-        notification = getattr(self, self._liwan_payments_definition()['sync_method'])()
+        elevated = self.sudo()
+        notification = getattr(elevated, elevated._liwan_payments_definition()['sync_method'])()
         return 'methods_missing' if notification['params'].get('type') == 'warning' else 'synced'

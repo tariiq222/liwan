@@ -2,8 +2,9 @@
 import json
 from unittest.mock import patch
 
-from odoo.exceptions import AccessError, ValidationError
-from odoo.tests import tagged
+from odoo import Command
+from odoo.exceptions import AccessError, UserError, ValidationError
+from odoo.tests import new_test_user, tagged
 from odoo.tools import mute_logger
 
 from .common import PAYMOB_CREDENTIALS, LiwanPaymentsCase
@@ -118,6 +119,62 @@ class TestPaymentProviders(LiwanPaymentsCase):
         with self.assertRaises(AccessError):
             self.paymob.with_user(self.employee).read(['paymob_secret_key'])
 
+    def test_the_payments_manager_cannot_read_any_gateway_secret(self):
+        """Issue #512: the role that manages gateways must not read the keys that authenticate them."""
+        self.paymob.sudo().write(PAYMOB_CREDENTIALS)
+        manager = self.env.ref('liwan_payments.group_cap_payments_providers_manage')
+        role = self.env['liwan.access.role'].create({
+            'key': 'providers_only', 'name_ar': 'بوابات', 'name_en': 'gateways', 'type': 'custom',
+            'permission_ids': [Command.set(
+                self.env['liwan.access.permission'].search([('key', '=', 'payments.providers.manage')]).ids,
+            )],
+        })
+        user = new_test_user(
+            self.env, login='providers_only', password='providers_only_pass_123',
+            name='Gateways only', groups='liwan_core.group_employee',
+        )
+        user.group_ids = [Command.link(manager.id)]
+        self.env['liwan.access.service']._liwan_replace_assignments(user, [
+            {'role_id': role.id, 'company_id': self.env.company.id},
+        ])
+        self.assertTrue(user.has_group('liwan_payments.group_cap_payments_providers_manage'))
+        provider = self.paymob.with_user(user)
+        for field in ('paymob_secret_key', 'paymob_hmac_key', 'paymob_api_key'):
+            with self.subTest(field=field), self.assertRaises(AccessError):
+                provider.read([field])
+            # Export goes through the ORM's own field read as well: a caller without export
+            # rights is refused with UserError, and one who has them hits the field's AccessError.
+            # Odoo's assertRaises cannot take a tuple containing AccessError, so the type is checked.
+            with self.subTest(field=field, export='export'):
+                try:
+                    provider.export_data([field])
+                except (AccessError, UserError):
+                    pass
+                else:
+                    self.fail(f'{field} was exported to a payments manager')
+
+    def test_the_presence_check_reports_booleans_without_reading_values(self):
+        """The only thing the API learns about a secret is whether it is set."""
+        self.paymob.sudo().write(PAYMOB_CREDENTIALS)
+        self.login_admin()
+        payload = self.api('GET', LIST).json()
+        credentials = payload['items'][0]['credentials']
+        self.assertTrue(all(isinstance(entry['present'], bool) for entry in credentials))
+        self.assert_no_secret_in(self.api('GET', LIST).text)
+
+    def test_setting_credentials_needs_the_capability_and_the_current_company(self):
+        values = {'paymob_hmac_key': 'new_hmac_never_read'}
+        before = self.fresh().sudo().paymob_hmac_key
+        with self.assertRaises(AccessError):
+            self.paymob.with_user(self.employee)._liwan_payments_set_credentials(values)
+        other = self.env['res.company'].create({'name': 'Payments company D'})
+        foreign = self.paymob.copy({'company_id': other.id})
+        with self.assertRaises(AccessError):
+            foreign.with_user(self.admin)._liwan_payments_set_credentials(values)
+        self.assertEqual(self.fresh().sudo().paymob_hmac_key, before, 'a refused call writes nothing')
+        self.paymob.with_user(self.admin)._liwan_payments_set_credentials(values)
+        self.assertEqual(self.fresh().sudo().paymob_hmac_key, 'new_hmac_never_read')
+
     def test_switching_on_needs_every_credential_then_checks_the_gateway(self):
         self.stub_sync()
         self.login_admin()
@@ -218,7 +275,9 @@ class TestPaymentProviders(LiwanPaymentsCase):
 
     def test_the_real_stock_sync_runs_as_the_manager_and_logs_no_key_or_token(self):
         provider = self.paymob.with_user(self.admin)
-        provider.write(PAYMOB_CREDENTIALS)
+        # The keys are system-only (issue #512): the manager writes them through the one elevated
+        # path the controller uses, exactly as the API does.
+        provider._liwan_payments_set_credentials(PAYMOB_CREDENTIALS)
         provider._liwan_payments_ensure_account_country()
         provider._liwan_payments_set_state('test')
         target = 'odoo.addons.payment.models.payment_provider.requests.request'
