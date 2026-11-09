@@ -52,9 +52,9 @@
     "msw": "2.15.0",
     "msw-storybook-addon": "3.0.3",
     "storybook": "10.6.5",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "vite": "8.3.5",
     "vitest": "4.1.12",
-    "vue-tsc": "^3.3.11"
+    "vue-tsc": "^3.3.14"
   }
 }

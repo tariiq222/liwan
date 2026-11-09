@@ -34,8 +34,8 @@
     "@playwright/test": "^1.64.1",
     "@types/node": "^22.20.1",
     "jiti": "2.7.0",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "vitest": "4.1.12",
-    "vue-tsc": "^3.3.11"
+    "vue-tsc": "^3.3.14"
   }
 }
