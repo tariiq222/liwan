@@ -14,7 +14,8 @@ import { createDebouncedFlush } from '@/lib/debouncedFlush'
 // a pending debounced edit from A must not survive to fire 800ms later
 // against B — see flush() below and the parent's :key="task.id", which is
 // belt-and-braces with this fix, not a replacement for it.
-const props = defineProps<{ modelValue: string; taskId: number; readonly?: boolean; ariaLabel?: string }>()
+// `autofocus` puts the caret at the end on mount (the editor opened by a click).
+const props = defineProps<{ modelValue: string; taskId: number; readonly?: boolean; ariaLabel?: string; autofocus?: boolean }>()
 const emit = defineEmits<{
   'update:modelValue': [{ html: string; taskId: number }]
   draft: [{ html: string; taskId: number }]
@@ -28,6 +29,7 @@ const buffer = createDebouncedFlush<{ html: string; taskId: number }>(800, (valu
 const editor = useEditor({
   content: props.modelValue,
   editable: !props.readonly,
+  autofocus: props.autofocus ? 'end' : false,
   extensions: [StarterKit.configure({ link: false }), Link.configure({ openOnClick: false })],
   editorProps: {
     attributes: {

@@ -248,7 +248,7 @@ another application) needs the owner's approval, recorded by the owner as an
   older branch. The 2026-10-17 direct-push exception is superseded by this PR workflow.
 - Use a task PR for an independent change; use one `<prefix>/tools-integrate-<slug>` candidate
   and one PR for a coupled batch, and do not submit both a batch and its constituent branches.
-- A PR stays **draft** while scope, local checks or prepublication inspection are incomplete.
+- A PR stays **draft** while scope, applicable local checks or prepublication inspection are incomplete.
   The required status-check policy is current-head `ci-result` only; review follows `REVIEW.md`.
 - The `ci` workflow runs on PRs, on pushes to `main` and nightly; the last two run all thirteen
   stages. Release tags, the full-run requirement and the live-protection checks are in
@@ -372,8 +372,9 @@ was only reachable there moves into LiwanOS (`/api/v1` and the Nuxt UI).
 
 ## Verification boundary
 
-Run focused checks appropriate to the changed layer, then the owning
-orchestrator runs broader gates once. Odoo addon checks run from
+Follow the [local verification policy](docs/testing.md#fast-local-loop).
+The orchestrator reviews the combined candidate and verifies its required GitHub checks.
+Local Odoo addon checks run from
 `/Users/tariq/code/odoo` against a fresh scratch database with the selected
 LiwanOS worktree's addons path. Web checks run from the selected worktree. Fresh
 test output proves that checked layer only; it is not production or DNS proof.
@@ -386,19 +387,13 @@ worktrees only after their content is preserved and no process is using them.
 
 ## Check commands
 
-Follow the focused-local / complete-CI verification policy in
+Select any local commands under the verification policy in
 [`docs/testing.md`](docs/testing.md#fast-local-loop).
 
 The Odoo scratch-database command block is in `docs/agents/odoo-rules.md`. CI is the GitHub Actions `ci` workflow
-(`.github/workflows/ci.yml`, thirteen stages, each a `deploy/ci/<stage>.sh` script runnable locally); see
-`docs/testing.md`. Fast local loop: `npm run check:fast`, `npm run test:odoo`,
-`npm run wt -- new <area>-<slug>`, `npm run hooks:install` (see `docs/testing.md`).
-Web checks and general commands:
-
-Use `npm test` (the repository tools, policy gates and the unit tests of contracts, shared UI, web and
-vendor-admin; see `package.json`), `npm -w apps/web run lint`
-(that is `vue-tsc --build --noEmit`) for the web type check, and
-`cd apps/web && npm run test:e2e` for Playwright. Do not type-check with
+(`.github/workflows/ci.yml`, thirteen stages, each a `deploy/ci/<stage>.sh` script runnable locally).
+See `docs/testing.md` for the test commands. The web type check runs via
+`npm -w apps/web run lint` (`vue-tsc --build --noEmit`). Do not type-check with
 `npx -w apps/web vue-tsc ...`: `npx` has no `-w` flag, so it silently runs
 from the repo root, checks nothing, and exits 0. Every `vue-tsc` invocation
 runs from `apps/web`. Employee fixtures are created through Odoo, never through the

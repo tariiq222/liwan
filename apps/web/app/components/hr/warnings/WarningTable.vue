@@ -20,7 +20,7 @@ const { t } = useI18n()
 
 const columns = computed<TableColumn<HrWarning>[]>(() => [
   { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
-  { accessorKey: 'employee', header: t('hrWarnings.columns.employee') },
+  { accessorKey: 'employee', header: t('hrWarnings.columns.employee'), meta: { title: true } },
   { accessorKey: 'type', header: t('hrWarnings.columns.type') },
   { accessorKey: 'date_issued', header: t('hrWarnings.columns.date') },
   { accessorKey: 'state', header: t('hrWarnings.columns.state'), meta: { class: { th: 'w-[150px]', td: 'w-[150px]' } } },

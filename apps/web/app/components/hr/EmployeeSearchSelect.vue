@@ -33,18 +33,22 @@ const more = computed(() => (results.data.value?.total ?? 0) > (results.data.val
 </script>
 
 <template>
-  <div class="grid gap-2">
-    <UInput v-model="search" class="w-full" icon="i-lucide-search" :placeholder="t('hr.employeePicker.search')" :aria-label="t('hr.employeePicker.search')" :disabled="props.disabled" :data-testid="props.testId ? `${props.testId}-search` : undefined" />
-    <USelect
-      :id="props.id"
-      class="w-full"
-      :model-value="props.modelValue ? String(props.modelValue) : undefined"
-      :items="items"
-      :placeholder="props.placeholder"
-      :disabled="props.disabled"
-      :data-testid="props.testId"
-      @update:model-value="emit('update:modelValue', $event && $event !== ALL ? Number($event) : null)"
-    />
-    <p v-if="more" class="text-xs text-muted">{{ t('hr.employeePicker.more') }}</p>
-  </div>
+  <USelectMenu
+    v-model:search-term="search"
+    ignore-filter
+    :id="props.id"
+    class="w-full"
+    value-key="value"
+    :model-value="props.modelValue ? String(props.modelValue) : undefined"
+    :items="items"
+    :placeholder="props.placeholder"
+    :search-input="{ placeholder: t('hr.employeePicker.search'), icon: 'i-lucide-search' }"
+    :disabled="props.disabled"
+    :data-testid="props.testId"
+    @update:model-value="emit('update:modelValue', $event && $event !== ALL ? Number($event) : null)"
+  >
+    <template v-if="more" #content-bottom>
+      <p class="border-t border-default px-3 py-2 text-xs text-muted">{{ t('hr.employeePicker.more') }}</p>
+    </template>
+  </USelectMenu>
 </template>

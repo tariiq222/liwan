@@ -35,8 +35,8 @@ async function createRelease() {
           <p class="text-sm leading-6 text-muted">{{ t('vendor.bundles.guide.why') }}</p>
         </div>
         <ol class="grid gap-2 text-sm sm:grid-cols-2" :aria-label="t('vendor.bundles.guide.steps')">
-          <li class="flex items-center gap-3 rounded-lg p-3 ring ring-primary" aria-current="step"><UBadge color="primary" variant="solid">1</UBadge><span class="font-medium">{{ t('vendor.bundles.guide.step1') }}</span></li>
-          <li class="flex items-center gap-3 rounded-lg p-3 ring ring-default text-muted"><UBadge color="neutral" variant="outline">2</UBadge><span>{{ t('vendor.bundles.guide.step2') }}</span></li>
+          <li class="flex items-center gap-3 rounded-control p-3 ring ring-primary" aria-current="step"><UBadge color="primary" variant="solid">1</UBadge><span class="font-medium">{{ t('vendor.bundles.guide.step1') }}</span></li>
+          <li class="flex items-center gap-3 rounded-control p-3 ring ring-default text-muted"><UBadge color="neutral" variant="outline">2</UBadge><span>{{ t('vendor.bundles.guide.step2') }}</span></li>
         </ol>
         <UAlert v-if="relError" color="error" variant="subtle" :title="t(commercialErrorKey(relError))" />
         <UFormField :label="t('vendor.pricing.fields.catalogVersion')" required :error="relAttempted && !relVersion.trim() ? t('vendor.pricing.required') : undefined"><UInput v-model="relVersion" dir="ltr" class="w-full" :disabled="!hydrated || relBusy" /></UFormField>

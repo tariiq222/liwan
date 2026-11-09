@@ -56,13 +56,9 @@ jobs:
       actions: read
     outputs:
       stages: ${{ steps.cache.outputs.stages }}
-      cached: ${{ steps.cache.outputs.cached }}
+      matrices: ${{ steps.cache.outputs.matrices }}
       base: ${{ steps.select.outputs.base }}
       odoo-modules: ${{ steps.select.outputs.odoo-modules }}
-      odoo-shards: ${{ steps.select.outputs.odoo-shards }}
-      e2e-mock-shards: ${{ steps.select.outputs.e2e-mock-shards }}
-      apps: ${{ steps.select.outputs.apps }}
-      bridges: ${{ steps.select.outputs.bridges }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -98,13 +94,13 @@ jobs:
           echo "odoo-modules=$modules" >> "$GITHUB_OUTPUT"
           echo "odoo-shards=$(python3 -B tools/odoo_shards.py matrix ${modules:+--modules "$modules"})" >> "$GITHUB_OUTPUT"
           echo "e2e-mock-shards=$(python3 -B tools/ci_stage_cache.py e2e-mock-shards)" >> "$GITHUB_OUTPUT"
+          echo "rtl-stories-shards=$(python3 -B tools/ci_stage_cache.py rtl-stories-shards)" >> "$GITHUB_OUTPUT"
           echo "apps=$(python3 -B tools/app_isolation.py matrix apps ${modules:+--modules "$modules"})" >> "$GITHUB_OUTPUT"
           echo "bridges=$(python3 -B tools/app_isolation.py matrix bridges ${modules:+--modules "$modules"})" >> "$GITHUB_OUTPUT"
           echo "Base $base, stages $stages"
-      # On a pull request or a merge-queue entry, a stage whose every job already passed on exactly these inputs
-      # (tools/ci_stage_cache.py) is left out of the stages to run, so ci-result does not expect it. static is
-      # never left out; every other event (push to main, nightly, dispatch) runs all the selected stages.
-      - name: Skip the stages that already passed
+      # Reuse successful jobs on identical inputs for PRs and merge groups. Keep each shard's
+      # original total so removing successful jobs never changes which tests the others run.
+      - name: Plan the jobs still required
         id: cache
         env:
           GH_TOKEN: ${{ github.token }}
@@ -113,24 +109,35 @@ jobs:
           ODOO_MODULES: ${{ steps.select.outputs.odoo-modules }}
           ODOO_SHARDS: ${{ steps.select.outputs.odoo-shards }}
           E2E_MOCK_SHARDS: ${{ steps.select.outputs.e2e-mock-shards }}
+          RTL_STORIES_SHARDS: ${{ steps.select.outputs.rtl-stories-shards }}
           APPS: ${{ steps.select.outputs.apps }}
           BRIDGES: ${{ steps.select.outputs.bridges }}
         run: |
           set -euo pipefail
-          cached='[]'
+          args=(--stages "$SELECTED" --odoo-shards "$ODOO_SHARDS"
+            --e2e-mock-shards "$E2E_MOCK_SHARDS" --rtl-stories-shards "$RTL_STORIES_SHARDS"
+            --apps "$APPS" --bridges "$BRIDGES" --odoo-modules "$ODOO_MODULES")
           if [ "$EVENT_NAME" = pull_request ] || [ "$EVENT_NAME" = merge_group ]; then
-            cached="$(python3 -B tools/ci_stage_cache.py cached --stages "$SELECTED" \
-              --odoo-shards "$ODOO_SHARDS" --e2e-mock-shards "$E2E_MOCK_SHARDS" --apps "$APPS" --bridges "$BRIDGES" --odoo-modules "$ODOO_MODULES")"
+            args+=(--reuse-passes)
           fi
-          echo "stages=$(jq -c --argjson cached "$cached" '. - $cached' <<< "$SELECTED")" >> "$GITHUB_OUTPUT"
-          echo "cached=$cached" >> "$GITHUB_OUTPUT"
-          echo "Cached (passed with these inputs): $cached"
+          plan="$(python3 -B tools/ci_stage_cache.py plan "${args[@]}")"
+          echo "stages=$(jq -ce '.stages' <<< "$plan")" >> "$GITHUB_OUTPUT"
+          echo "matrices=$(jq -ce '.matrices' <<< "$plan")" >> "$GITHUB_OUTPUT"
+          echo "Reused jobs (passed with these inputs): $(jq -c '.reused' <<< "$plan")"
 
+  # One job, one stage: the parts of deploy/ci/static.sh run in parallel as the matrix, and the job (so ci-result)
+  # passes only when every part passes; fail-fast is off so a red run reports every failing part. A documentation-only
+  # pull request runs its light checks in the policies part and nothing in the other two.
   static:
+    name: static (${{ matrix.part }})
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'static')
     runs-on: ubuntu-24.04
     timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [policies, tests, types]
     env:
       CI_BASE_REF: ${{ needs.scope.outputs.base }}
     steps:
@@ -147,18 +154,19 @@ jobs:
           echo "mode=$mode" >> "$GITHUB_OUTPUT"
           echo "Static checks: $mode"
       - name: Check documentation
-        if: steps.profile.outputs.mode == 'docs'
+        if: steps.profile.outputs.mode == 'docs' && matrix.part == 'policies'
         run: bash deploy/ci/lib/docs-static.sh
+      # Only the tests part drives Chromium (two web tests in npm test); the type check needs no Python.
       - uses: ./.github/actions/setup
         if: steps.profile.outputs.mode != 'docs'
         with:
-          playwright: 'true'
-          python: 'true'
+          playwright: ${{ matrix.part == 'tests' && 'true' || 'false' }}
+          python: ${{ matrix.part != 'types' && 'true' || 'false' }}
       - name: Python tools
-        if: steps.profile.outputs.mode != 'docs'
+        if: steps.profile.outputs.mode != 'docs' && matrix.part == 'policies'
         run: python -m pip install --quiet ruff==0.16.3 semgrep==1.170.0
-      - if: steps.profile.outputs.mode != 'docs'
-        run: deploy/ci/static.sh
+      - run: deploy/ci/static.sh ${{ matrix.part }}
+        if: steps.profile.outputs.mode != 'docs'
 
   ai-service:
     needs: scope
@@ -245,8 +253,7 @@ jobs:
     timeout-minutes: 40
     strategy:
       fail-fast: false
-      matrix:
-        shard: ${{ fromJSON(needs.scope.outputs.odoo-shards) }}
+      matrix: ${{ fromJSON(needs.scope.outputs.matrices)['odoo'] }}
     services:
       postgres:
         image: postgres:16
@@ -266,14 +273,14 @@ jobs:
         with:
           node: 'false'
           odoo: 'true'
-      - run: deploy/ci/odoo.sh --shard ${{ matrix.shard }}/${{ strategy.job-total }}
+      - run: deploy/ci/odoo.sh --shard ${{ matrix.shard }}/${{ matrix.total }}
         env:
           ODOO_TEST_MODULES: ${{ needs.scope.outputs.odoo-modules }}
       - uses: ./.github/actions/stage-pass
         if: success()
         with:
           stage: odoo
-          extra: ${{ matrix.shard }}/${{ strategy.job-total }}|${{ needs.scope.outputs.odoo-modules }}
+          extra: ${{ matrix.shard }}/${{ matrix.total }}|${{ needs.scope.outputs.odoo-modules }}
 
   # The rank-4 applications and rank-5 bridges of tools/arch_layers.json, packed into a few jobs by
   # tools/app_isolation.py matrix: each run installs only its part of the product on a fresh scratch database.
@@ -287,8 +294,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       fail-fast: false
-      matrix:
-        group: ${{ fromJSON(needs.scope.outputs.apps) }}
+      matrix: ${{ fromJSON(needs.scope.outputs.matrices)['odoo-app-standalone'] }}
     services:
       postgres:
         image: postgres:16
@@ -323,8 +329,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       fail-fast: false
-      matrix:
-        group: ${{ fromJSON(needs.scope.outputs.bridges) }}
+      matrix: ${{ fromJSON(needs.scope.outputs.matrices)['odoo-bridge'] }}
     services:
       postgres:
         image: postgres:16
@@ -453,14 +458,13 @@ jobs:
     timeout-minutes: 60
     strategy:
       fail-fast: false
-      matrix:
-        shard: ${{ fromJSON(needs.scope.outputs.e2e-mock-shards) }}
+      matrix: ${{ fromJSON(needs.scope.outputs.matrices)['e2e-mock'] }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
         with:
           playwright: 'true'
-      - run: deploy/ci/e2e-mock.sh --shard ${{ matrix.shard }}/${{ strategy.job-total }}
+      - run: deploy/ci/e2e-mock.sh --shard ${{ matrix.shard }}/${{ matrix.total }}
       - name: Upload the e2e-mock diagnostics
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -478,7 +482,7 @@ jobs:
         if: success()
         with:
           stage: e2e-mock
-          extra: ${{ matrix.shard }}/${{ strategy.job-total }}
+          extra: ${{ matrix.shard }}/${{ matrix.total }}
 
   # The real-Odoo Playwright specs on a scratch database seeded through Odoo (deploy/ci/e2e-odoo.sh). Slow, so a pull
   # request runs it only for a change that reaches the surfaces its specs write through (tools/ci_scope.py
@@ -523,21 +527,28 @@ jobs:
         with:
           stage: e2e-odoo
 
+  # One job per shard (tools/ci_stage_cache.py RTL_STORIES_SHARDS): each builds Storybook and runs its share of the
+  # story tests (deploy/ci/rtl-stories.sh --shard k/N). fail-fast is off so a red run reports every failing shard.
   rtl-stories:
+    name: rtl-stories (shard ${{ matrix.shard }})
     needs: scope
     if: contains(fromJSON(needs.scope.outputs.stages), 'rtl-stories')
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.scope.outputs.matrices)['rtl-stories'] }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
         with:
           playwright: 'true'
-      - run: deploy/ci/rtl-stories.sh
+      - run: deploy/ci/rtl-stories.sh --shard ${{ matrix.shard }}/${{ matrix.total }}
       - uses: ./.github/actions/stage-pass
         if: success()
         with:
           stage: rtl-stories
+          extra: ${{ matrix.shard }}/${{ matrix.total }}
 
   ci-result:
     # A draft still fails closed. It must not publish the required check, even if it finishes after a ready run.

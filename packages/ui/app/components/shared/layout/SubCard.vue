@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // An inner block inside a card or a form (a charter row, a follower, a stage): 12px radius (`rounded-control`),
-// a hairline ring and 12px padding. `tinted` is the secondary kind: a soft elevated fill and no ring. It is a plain
+// a 1.5px hairline border and 12px padding. `tinted` is the secondary kind: a soft elevated fill and no ring. It is a plain
 // box with no heading of its own; a titled block is SharedRecordSection.
 const props = withDefaults(defineProps<{
   tone?: 'default' | 'tinted'
@@ -15,7 +15,7 @@ const props = withDefaults(defineProps<{
     data-slot="sub-card"
     :data-tone="props.tone"
     class="min-w-0 rounded-control p-(--liwan-subcard-pad)"
-    :class="props.tone === 'tinted' ? 'bg-elevated/50' : 'ring ring-default'"
+    :class="props.tone === 'tinted' ? 'bg-elevated/50' : 'border-[1.5px] border-default'"
   >
     <slot />
   </component>

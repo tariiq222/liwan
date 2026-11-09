@@ -136,7 +136,7 @@ class LiwanFinanceZatca(models.AbstractModel):
             raise ApiError(422, 'invalid_state', 'ZATCA rejected the document; correct it and retry')
         elevated_move = self.sudo().with_context(lang='en_US').env['account.move'].browse(move.id)
         if retry:
-            elevated_move._retry_edi_documents_error()
+            self._liwan_retry_zatca_document(elevated_move)
         try:
             # The move-level action is the public wrapper; the document-level processor is private in stock.
             elevated_move.action_process_edi_web_services(with_commit=False)
@@ -152,3 +152,18 @@ class LiwanFinanceZatca(models.AbstractModel):
         )
         self.env['liwan.finance.audit.event']._liwan_log('zatca_submitted', move, outcome=state)
         return move
+
+    def _liwan_retry_zatca_document(self, move):
+        """Clear the stored failure of the ZATCA document of ``move``, leaving every other EDI format of the move untouched.
+
+        Stock's ``_retry_edi_documents_error`` writes ``error`` and ``blocking_level`` on **every** EDI document of the move
+        (``account_edi/models/account_move.py:367``), so a failure of another format would vanish from the work list and its
+        cron would retry it with nobody told why it had failed. The two lines of stock's ``l10n_sa_edi`` override
+        (``l10n_sa_edi/models/account_move.py:338``: clear the chain head so a blocked chain can be sent again, and detach
+        the attachments so the XML is regenerated) are therefore reproduced here instead of calling it: going through the
+        hook would also reach that all-formats write, which is exactly what this method exists to avoid.
+        """
+        documents = zatca_document(move)
+        move.filtered(lambda invoice: invoice.country_code == 'SA').write({'l10n_sa_edi_chain_head_id': False})
+        move._detach_attachments()
+        documents.write({'error': False, 'blocking_level': False})

@@ -227,6 +227,48 @@ class TestFinanceBankStatementFiles(LiwanFinanceOcaCase):
         self.assertEqual(self.api('POST', PREVIEW, json=self.body(OFX_V2.replace('SA0380000000608010167519', '608010167519'))).status_code, 200)
         self.assertEqual(self.api('POST', PREVIEW, json=self.body(camt)).status_code, 200)
 
+    def test_a_camt_file_with_a_half_up_amount_rounds_to_the_currency(self):
+        entries = [CAMT_ENTRY.format(amount='2.675', sign='DBIT', day='2026-10-25', ref='R1', text='Rounding')]
+        # 1000.00 - 2.68 (HALF-UP away from zero) is 997.32, so the file is consistent at the currency's precision.
+        camt = camt_file(entries, opening='1000.00', closing='997.32')
+        preview = self.api('POST', PREVIEW, json=self.body(camt)).json()
+        self.assertEqual([(line['amount'], line['duplicate']) for line in preview['lines']], [(-2.68, False)])
+        self.assertEqual((preview['balance_start'], preview['balance_end_real']), (1000.0, 997.32))
+        self.assertEqual(preview['summary']['total'], -2.68)
+        result = self.api('POST', IMPORT, json=self.body(camt))
+        self.assertEqual(result.status_code, 201, result.text)
+        statement = result.json()
+        self.assertEqual(statement['balance_end_real'], 997.32)
+        self.assertEqual([line['amount'] for line in statement['lines']], [-2.68])
+
+    def test_a_three_decimal_currency_keeps_its_amounts_and_flags_no_duplicate(self):
+        kwd = self.env.ref('base.KWD')
+        kwd.active = True
+        journal = self.env['account.journal'].create({
+            'name': 'Kuwaiti dinar bank', 'code': 'KWD1', 'type': 'bank',
+            'company_id': self.company.id, 'currency_id': kwd.id,
+        })
+        text = 'Date,Description,Amount\n2026-10-25,First line,10.004\n2026-10-25,Second line,10.005\n'
+        body = {
+            'journal_id': journal.id, 'content': text,
+            'mapping': {'date': 'Date', 'payment_ref': 'Description', 'amount': 'Amount'},
+        }
+        preview = self.api('POST', PREVIEW, json=body).json()
+        self.assertEqual([(line['amount'], line['duplicate']) for line in preview['lines']], [(10.004, False), (10.005, False)])
+        result = self.api('POST', IMPORT, json={**body, 'balance_start': 0, 'balance_end_real': 20.009})
+        self.assertEqual(result.status_code, 201, result.text)
+        self.assertEqual([line['amount'] for line in result.json()['lines']], [10.004, 10.005])
+        # The journal now holds 10.004 'First line'. A file line of 10.003 with the same day and reference is another
+        # transaction: at two decimals both are 10.00 and it would be dropped as a duplicate, at the currency's own
+        # precision they differ.
+        next_fils = 'Date,Description,Amount\n2026-10-25,First line,10.003\n'
+        lines = self.api('POST', PREVIEW, json={**body, 'content': next_fils}).json()['lines']
+        self.assertEqual([(line['amount'], line['duplicate']) for line in lines], [(10.003, False)])
+        # The same amount the journal already holds is still the duplicate it was.
+        repeat = 'Date,Description,Amount\n2026-10-25,First line,10.004\n'
+        lines = self.api('POST', PREVIEW, json={**body, 'content': repeat}).json()['lines']
+        self.assertEqual([(line['amount'], line['duplicate']) for line in lines], [(10.004, True)])
+
     def test_a_camt_file_with_no_balances_asks_the_caller_for_them(self):
         entries = [CAMT_ENTRY.format(amount='5.00', sign='CRDT', day='2026-10-25', ref='R1', text='One')]
         bare = camt_file(entries, opening=None, closing=None)

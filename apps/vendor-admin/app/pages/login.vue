@@ -62,7 +62,7 @@ const hydrated = useHydrated()
         <UButton type="button" variant="link" color="neutral" class="justify-center" :label="t('adminAuth.login.backToPasskey')" @click="setMode('passkey')" />
       </UForm>
 
-      <div v-if="devEnabled" data-slot="dev-login" class="grid gap-2 rounded-lg border border-dashed border-warning p-3">
+      <div v-if="devEnabled" data-slot="dev-login" class="grid gap-2 rounded-control border border-dashed border-warning p-3">
         <UButton type="button" color="warning" variant="soft" class="w-full justify-center" :disabled="!hydrated" :loading="pending" :label="t('adminAuth.login.devSignIn')" @click="signInWithDev" />
         <p class="text-center text-xs text-muted">
           {{ t('adminAuth.login.devHint') }}

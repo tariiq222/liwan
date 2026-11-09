@@ -3,8 +3,10 @@ import type { Task } from '@liwan/contracts'
 import type { TableColumn } from '@nuxt/ui'
 import type { RouteLocationRaw } from 'vue-router'
 import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
-import { deadlineTagView } from './taskDeadline'
+import { deadlineCellView } from './taskDeadline'
 import { taskAttributeFilterCount } from '@/composables/taskFilterParams'
+import type { TaskColumnId, TaskTableVariant } from '@/composables/taskColumns'
+import { useTaskColumns } from '@/composables/useTaskColumns'
 import { TASK_SORT_KEYS, taskSortFromParam, taskSortToParam } from '@/composables/taskSort'
 import type { TableSort } from '@liwan/ui/app/utils/dataTable'
 import { useTasks, type TaskListParams } from '@/composables/useTasks'
@@ -21,7 +23,7 @@ import StateMenu from './StateMenu.vue'
 const props = withDefaults(defineProps<{
   params: TaskListParams
   rowTo: (task: Task) => RouteLocationRaw
-  variant?: 'mine' | 'project'
+  variant?: TaskTableVariant
   /** False when the host cannot take new tasks (an archived project): the empty state then offers no create action. */
   canCreate?: boolean
 }>(), { variant: 'mine', canCreate: true })
@@ -53,47 +55,57 @@ const showCreateAction = computed(() => props.canCreate && can('pmo.tasks.create
 // with a floor, and the title absorbs the rest. A width sits on the header and the cell alike. Text columns truncate with an
 // ellipsis; a column holding a badge or a menu trigger (`fit`) never clips. Only the record number, priority and deadline
 // sort (the server cannot order by state or by the text columns): their server keys are TASK_SORT_KEYS.
+// SharedDataTable measures the fixed columns itself, so the table's minimum width follows the columns that are shown.
 const WIDTH = {
-  number: 'w-[48px] min-w-[48px] px-2',
+  record_number: 'w-[48px] min-w-[48px] px-2',
   title: 'min-w-[280px]',
   project: 'w-[16%] min-w-[140px]',
   state: 'w-[136px] min-w-[136px] px-2',
   priority: 'w-[132px] min-w-[132px] px-2',
-  deadline: 'w-[176px] min-w-[176px] px-2',
-  assignees: 'w-[104px] min-w-[104px]',
-  stage: 'w-[96px] min-w-[96px]',
+  deadline: 'w-[112px] min-w-[112px] px-2',
+  assignees: 'w-[176px] min-w-[176px]',
+  stage: 'w-[112px] min-w-[112px]',
 }
 function column(id: string, header: TableColumn<Task>['header'], width: string, fit = false): TableColumn<Task> {
   const cell = fit ? 'whitespace-nowrap' : 'max-w-0 overflow-hidden text-ellipsis whitespace-nowrap'
   const sortable = id in TASK_SORT_KEYS
   return { id, header, meta: { sortable, class: { th: `text-start ${width}`, td: `${cell} ${width}` } } as TableColumn<Task>['meta'] }
 }
-// Reading order (first column first): the record number as a muted `#` reference, task, project (the stage in a project's own list), state, priority, deadline,
-// assignee and the secondary stage (hidden on narrow containers).
+// Reading order (first column first): the record number as a muted `#` reference, task, project, stage, state, priority, deadline and
+// assignee. The record number and the stage are off until the person adds them from the toolbar's «الأعمدة» menu; the title is always shown.
+const columnsShown = useTaskColumns(props.variant).visible
 const numberHeader = () => recordNumberHeader(t)
-const columns = computed<TableColumn<Task>[]>(() => props.variant === 'project'
-  ? [
-      column('record_number', numberHeader, WIDTH.number, true), column('title', t('tasks.columns.title'), WIDTH.title), column('stage', t('tasks.columns.stage'), WIDTH.project),
-      column('state', t('tasks.columns.state'), WIDTH.state, true), column('priority', t('tasks.columns.priority'), WIDTH.priority, true),
-      column('deadline', t('tasks.columns.deadline'), WIDTH.deadline, true), column('assignees', t('tasks.columns.assignees'), WIDTH.assignees, true),
-    ]
-  : [
-      column('record_number', numberHeader, WIDTH.number, true), column('title', t('tasks.columns.title'), WIDTH.title), column('project', t('tasks.columns.project'), WIDTH.project),
-      column('state', t('tasks.columns.state'), WIDTH.state, true), column('priority', t('tasks.columns.priority'), WIDTH.priority, true),
-      column('deadline', t('tasks.columns.deadline'), WIDTH.deadline, true), column('assignees', t('tasks.columns.assignees'), WIDTH.assignees, true),
-      column('stage', t('tasks.columns.stage'), `hidden ${WIDTH.stage} @3xl:table-cell`),
-    ])
-// The table's minimum width is the sum of its columns (the title at its floor); below it the table scrolls sideways.
-const minWidthClass = computed(() => props.variant === 'project' ? '[&_table]:min-w-[max(100%,956px)]' : '[&_table]:min-w-[max(100%,1052px)]')
+const COLUMN_BUILDERS: Record<TaskColumnId, () => TableColumn<Task>> = {
+  record_number: () => column('record_number', numberHeader, WIDTH.record_number, true),
+  project: () => column('project', t('tasks.columns.project'), WIDTH.project),
+  stage: () => column('stage', t('tasks.columns.stage'), WIDTH.stage),
+  state: () => column('state', t('tasks.columns.state'), WIDTH.state, true),
+  priority: () => column('priority', t('tasks.columns.priority'), WIDTH.priority, true),
+  deadline: () => column('deadline', t('tasks.columns.deadline'), WIDTH.deadline, true),
+  assignees: () => column('assignees', t('tasks.columns.assignees'), WIDTH.assignees),
+}
+const titleColumn = () => column('title', t('tasks.columns.title'), WIDTH.title)
+const columns = computed<TableColumn<Task>[]>(() => {
+  const shown = columnsShown.value
+  return [
+    ...(shown.includes('record_number') ? [COLUMN_BUILDERS.record_number()] : []),
+    titleColumn(),
+    ...shown.filter(id => id !== 'record_number').map(id => COLUMN_BUILDERS[id]()),
+  ]
+})
 
 const sort = computed(() => taskSortFromParam(props.params.sort))
 const onSort = (value: TableSort | null) => emit('update:sort', taskSortToParam(value))
+
+// A deadline is plain text; only an unfinished task that is overdue or due within three days takes a colour.
+const DEADLINE_TONE_CLASS = { plain: 'text-default', soon: 'liwan-status-text-warning font-medium', overdue: 'text-(--status-danger-foreground) font-medium' } as const
+const assigneeNames = (task: Task) => task.assignees.map(person => person.name).join('، ')
 
 const stageName = (task: Task) => (props.variant === 'project' ? task.stage?.name : task.personal_stage?.name) ?? '—'
 </script>
 
 <template>
-  <div class="@container min-w-0 [&_table]:w-full [&_table]:table-fixed" :class="minWidthClass">
+  <div class="@container min-w-0 [&_table]:w-full [&_table]:table-fixed">
     <SharedDataTable
       bare
       :rows="items"
@@ -129,11 +141,18 @@ const stageName = (task: Task) => (props.variant === 'project' ? task.stage?.nam
         </div>
       </template>
       <template #project-cell="{ row }"><span :title="row.original.project?.name">{{ row.original.project?.name ?? '—' }}</span></template>
-      <template #assignees-cell="{ row }"><SharedPersonAvatar :people="row.original.assignees" /></template>
+      <template #assignees-cell="{ row }">
+        <span v-if="row.original.assignees.length" class="flex min-w-0 items-center gap-2" :title="assigneeNames(row.original)" data-testid="task-assignee">
+          <SharedPersonAvatar :people="row.original.assignees.slice(0, 1)" />
+          <span class="min-w-0 truncate">{{ row.original.assignees[0]!.name }}</span>
+          <span v-if="row.original.assignees.length > 1" class="shrink-0 text-xs tabular-nums text-muted">+{{ row.original.assignees.length - 1 }}</span>
+        </span>
+        <span v-else class="text-muted">—</span>
+      </template>
       <template #stage-cell="{ row }"><span :title="stageName(row.original)">{{ stageName(row.original) }}</span></template>
       <template #state-cell="{ row }"><StateMenu :task="row.original" /></template>
       <template #deadline-cell="{ row }">
-        <SharedStatusBadge v-if="hydrated && deadlineTagView(row.original, t)" v-bind="deadlineTagView(row.original, t)!" data-testid="deadline-badge" size="sm" :aria-label="`${deadlineTagView(row.original, t)!.label} ${deadlineTagView(row.original, t)!.title ?? ''}`.trim()" />
+        <span v-if="hydrated && deadlineCellView(row.original)" data-testid="deadline-badge" class="tabular-nums" :class="DEADLINE_TONE_CLASS[deadlineCellView(row.original)!.tone ?? 'plain']" :data-tone="deadlineCellView(row.original)!.tone ?? undefined">{{ deadlineCellView(row.original)!.text }}</span>
         <span v-else data-testid="deadline-badge" class="text-muted">—</span>
       </template>
       <template #priority-cell="{ row }"><PrioritySelect :task="row.original" variant="badge" /></template>
@@ -147,7 +166,7 @@ const stageName = (task: Task) => (props.variant === 'project' ? task.stage?.nam
                 <TaskDescriptionHint :excerpt="task.description_excerpt" />
               </div>
             </div>
-            <SharedStatusBadge v-if="hydrated && deadlineTagView(task, t)" v-bind="deadlineTagView(task, t)!" class="shrink-0" data-testid="deadline-badge" size="sm" :aria-label="`${deadlineTagView(task, t)!.label} ${deadlineTagView(task, t)!.title ?? ''}`.trim()" />
+            <span v-if="hydrated && deadlineCellView(task)" class="shrink-0 text-sm tabular-nums" :class="DEADLINE_TONE_CLASS[deadlineCellView(task)!.tone ?? 'plain']" :data-tone="deadlineCellView(task)!.tone ?? undefined" data-testid="deadline-badge">{{ deadlineCellView(task)!.text }}</span>
             <span v-else class="shrink-0 text-muted" data-testid="deadline-badge">—</span>
           </div>
           <p class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">

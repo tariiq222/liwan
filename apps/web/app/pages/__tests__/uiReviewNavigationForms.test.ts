@@ -14,9 +14,10 @@ import ts from 'typescript'
 import { createMemoryHistory, createRouter, type RouteLocationRaw } from 'vue-router'
 import { describe, expect, it, vi } from 'vitest'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
-import { activeProjectSection, activeGovernanceSection, projectIdFromPath } from '../../modules/pmo/projectRoutes'
+import { activeProjectSection, activeGovernanceSection, activePlanningSection, projectIdFromPath } from '../../modules/pmo/projectRoutes'
+import { projectActionPage } from '../../utils/projectHeaderAction'
+import { isProjectRecordPath } from '../../utils/projectRecordRoute'
 
-const projectTasks = 'projects/[id]/tasks.vue'
 const document = { id: 9, name: 'Title', body: '<p>Body</p>', attachment_ids: [] }
 
 async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<string, unknown> = {}) {
@@ -40,19 +41,21 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
     refDebounced: (value: unknown) => value, searchProviders: () => [], visibleCommands: () => [],
     _defineComponent: Vue.defineComponent, defineComponent: Vue.defineComponent,
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, reactive: Vue.reactive, projectSectionAvailable, formatCalendarDate,
+    definePageMeta: () => undefined,
     onMounted: () => undefined, useEventListener: () => undefined, useRowNavigation: () => undefined,
     useRoute: () => route, useRouter: () => router,
     useI18n: () => ({ t: (key: string) => key }),
     useAccess: () => ({ can: () => true }), useHydrated: () => Vue.ref(true), useKpiVisibility: () => ({ shown: Vue.ref(true) }),
     useToast: () => ({ add: vi.fn() }), usePageHeader: () => undefined,
-    projectRecordBack, archivedTags, safeReturnTo, projectIdFromPath, activeProjectSection, activeGovernanceSection, projectSectionLocation,
-    provideFrameOwnsHeading: () => undefined,
+    projectRecordBack, archivedTags, safeReturnTo, projectIdFromPath, activeProjectSection, activeGovernanceSection, activePlanningSection, projectActionPage, isProjectRecordPath, projectSectionLocation,
+    provideFrameOwnsHeading: () => undefined, provideFrameOwnsActions: () => undefined, useListOpening: () => Vue.ref(false),
+    useProjectArchive: () => ({ archive: async () => false, pending: Vue.ref(false) }),
     useEscapeBack: (target: unknown) => { escapeTargets.push(target) },
     projectTaskParams: () => ({}), projectTaskQuery: () => ({}),
     useProject: () => ({ data: Vue.ref({ ...projectDetail, id: 7, name: 'Example project' }), error: Vue.ref(null) }),
     useArchivedTasks: () => ({ data: Vue.ref({ pages: [] }), isLoading: Vue.ref(false) }),
     useRestoreTask: () => ({ mutate: vi.fn(), isPending: Vue.ref(false) }),
-    useMe: () => ({ me: Vue.ref(storyMe) }), useProjectWorkspaceMemory: () => ({ remember: () => undefined }), useApi: () => ({ $api: vi.fn() }),
+    useMe: () => ({ me: Vue.ref(storyMe) }), useProjectWorkspaceMemory: () => ({ remember: () => undefined }), useRecentRecords: () => ({ remember: () => undefined }), useApi: () => ({ $api: vi.fn() }),
     firstAllowedPath: () => '/projects', useNav: () => [],
     useQuery: () => ({ data: Vue.ref([{ id: 7, name: 'Example' }]), isLoading: Vue.ref(false), error: Vue.ref(null) }),
     ProjectRefSchema: { array: () => ({}) }, findSearchShortcut: () => undefined,
@@ -66,8 +69,10 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
     useUpdateDocument: () => ({ mutateAsync: update, isPending: Vue.ref(false) }),
     useSsrQuerySeed: () => undefined, navigateTo: navigate,
     ApiError: class ApiError extends Error {},
-    ProjectNotFoundState: {}, TaskBoard: {}, TaskTable: {}, TaskToolbar: {}, TaskKpiStrip: {}, FilterBar: {}, DocumentEditor: {},
-    projectStatusBadge: () => ({ tone: 'neutral', labelKey: '' }), badgeLabel: () => '', statusTag: () => ({ label: '' }), ProjectWorkspaceTabs: {}, ProjectPhaseStepper: {},
+    ProjectNotFoundState: {}, TaskBoard: {}, TaskTable: {}, TaskToolbar: {}, TaskArchivedTable: {}, ScheduleGantt: {},
+    projectTaskScope: () => 'open', projectTaskScopeQuery: () => ({}),
+    useProjectTimeline: () => ({ schedule: { data: Vue.ref(undefined), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: () => undefined }, baseline: Vue.ref(undefined), scale: Vue.ref('week'), scales: Vue.ref([]), rangeLabel: Vue.ref(''), gantt: Vue.ref(null) }), TaskKpiStrip: {}, FilterBar: {}, DocumentEditor: {},
+    projectStatusBadge: () => ({ tone: 'neutral', labelKey: '' }), badgeLabel: () => '', statusTag: () => ({ label: '' }), ProjectWorkspaceTabs: {}, ProjectWorkspaceActions: {}, ProjectPhaseStepper: {},
     ...overrides,
   }
   const component = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings))
@@ -95,14 +100,12 @@ async function propsFor(page: Awaited<ReturnType<typeof loadPage>>, name: string
 }
 
 describe('reviewed page navigation and form feedback', () => {
-  it('round-trips the project board, filters and hash through the archive link', async () => {
+  it('returns the archived page of a project to the list it was opened from, board, filters and hash included', async () => {
     const origin = '/projects/7/tasks?view=board&q=abc#board'
-    const list = await loadPage(projectTasks, origin)
-    const link = await propsFor(list, 'NuxtLink')
-    const archive = await loadPage('../components/pmo/tasks/TaskArchivedList.vue', link!.to as RouteLocationRaw)
+    const archive = await loadPage('../components/pmo/tasks/TaskArchivedList.vue', { path: '/tasks', query: { scope: 'archived', project_id: '7', returnTo: origin } })
     expect(archive.route.query.project_id).toBe('7')
     expect((await propsFor(archive, 'SharedListPage'))!['back-to']).toBe(origin)
-    list.stop(); archive.stop()
+    archive.stop()
   })
 
   it.each([undefined, 'https://evil.example', '//evil.example', '/settings/team/users'])('uses the project task fallback for an absent or unsafe archive return target %s', async returnTo => {
@@ -131,7 +134,8 @@ describe('reviewed page navigation and form feedback', () => {
     expect(back).toMatchObject({ to: '/projects', color: 'neutral', variant: 'link' })
     const nodes = await page.rendered()
     expect(nodes.filter(node => node.name === 'ProjectWorkspaceTabs')).toHaveLength(1)
-    expect(nodes.find(node => node.props['data-testid'] === 'project-workspace-settings')?.props.to).toMatchObject({ path: '/projects/7/settings' })
+    // The settings link moved into the header's ⋯ menu, which the actions component draws.
+    expect(nodes.find(node => node.name === 'ProjectWorkspaceActions')?.props.project).toMatchObject({ id: 7 })
     expect(page.html.match(/<h1\b/g)).toHaveLength(1)
     expect(page.html).toContain('Example project')
     page.stop()
@@ -149,11 +153,18 @@ describe('reviewed page navigation and form feedback', () => {
     page.stop()
   })
 
-  it.each(['/projects/7/tasks/9', '/projects/7/milestones/9/edit', '/projects/7/settings', '/projects/7/tasks'])('does not add a competing frame Back control on %s', async path => {
+  it.each(['/projects/7/milestones/9/edit', '/projects/7/settings', '/projects/7/tasks'])('does not add a competing frame Back control on %s', async path => {
     const page = await loadPage('projects/[id].vue', { path, query: { returnTo: '/search?q=Example' } })
     expect(await propsFor(page, 'UButton', props => props['data-testid'] === 'project-workspace-back')).toBeUndefined()
     expect(Vue.toValue(page.escapeTargets[0] as Vue.ComputedRef<string>)).toBeUndefined()
     expect(page.html.match(/<h1\b/g)).toHaveLength(1)
+    page.stop()
+  })
+
+  it('steps aside on a project record so the record draws its own header', async () => {
+    const page = await loadPage('projects/[id].vue', { path: '/projects/7/tasks/9', query: { returnTo: '/search?q=Example' } })
+    expect(await propsFor(page, 'SharedPageContainer', props => props['data-testid'] === 'project-workspace-frame')).toBeUndefined()
+    expect(await propsFor(page, 'UButton', props => props['data-testid'] === 'project-workspace-back')).toBeUndefined()
     page.stop()
   })
 

@@ -57,7 +57,7 @@ export function pmoPreviewData(path, url, { TASKS, CURRENCY }) {
   if (projectId !== MANAGE && projectId !== READONLY) return undefined
   const canManage = projectId === MANAGE
   const rest = section[2]
-  if (rest === 'milestones') return milestones
+  if (rest === 'milestones') return slice(milestones, url)
   if (rest === 'stakeholders') return slice(search(stakeholders, url, 'name'), url, { can_manage: canManage })
   if (/^stakeholders\/\d+$/.test(rest)) return stakeholders.find(item => item.id === Number(rest.split('/')[1]))
   if (rest === 'register') {

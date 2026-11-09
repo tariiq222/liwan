@@ -3,13 +3,14 @@ import type { Task } from '@liwan/contracts'
 import { statusPillAttrs } from '@liwan/ui/app/utils/statusPill'
 import { PRIORITY_LABEL_KEY, PRIORITY_ICON, PRIORITY_TONE } from '@/composables/taskState'
 import { useUpdateTask } from '@/composables/useTasks'
+import { plainSelectUi } from '@liwan/ui/app/utils/plainSelect'
 
 // Ruling: priority has four values, so this is a compact Select (not the
 // brief's star toggle). Owns its own optimistic mutation — useUpdateTask
 // already rolls back on error, so there is nothing else to wire up here.
-// `soft` suits a compact row; a form beside outlined fields passes `outline`. `badge` is the task table's cell: a
+// `soft` suits a compact row; a form beside outlined fields passes `outline`; a record's property passes `plain` (text that opens the list). `badge` is the task table's cell: a
 // tinted pill with a small icon per priority that looks read-only and still opens the same menu.
-const props = withDefaults(defineProps<{ task: Task; labelledby?: string; variant?: 'soft' | 'outline' | 'badge' }>(), { variant: 'soft' })
+const props = withDefaults(defineProps<{ task: Task; labelledby?: string; variant?: 'soft' | 'outline' | 'badge' | 'plain' }>(), { variant: 'soft' })
 
 const { t } = useI18n()
 const { mutate, isPending } = useUpdateTask()
@@ -54,8 +55,9 @@ function onChange(value: unknown) {
   <USelect
     v-else
     size="sm"
-    :variant="props.variant"
-    class="w-full"
+    :variant="props.variant === 'plain' ? 'none' : props.variant"
+    :ui="props.variant === 'plain' ? plainSelectUi : undefined"
+    :class="props.variant === 'plain' ? '' : 'w-full'"
     :items="items"
     :model-value="task.priority"
     :aria-label="t('tasks.columns.priority')"

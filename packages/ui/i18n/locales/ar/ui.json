@@ -8,7 +8,6 @@
     "create": "إنشاء",
     "discardAndLeave": "المغادرة بدون حفظ",
     "hideKpis": "إخفاء المؤشرات",
-    "kpis": "المؤشرات",
     "list": {
       "name": "الاسم",
       "add": "إضافة",
@@ -34,13 +33,16 @@
     "reloadFailed": "تعذّر تحميل القيم الحالية",
     "retry": "إعادة المحاولة",
     "revert": "تراجع",
+    "sectionsNav": "أقسام الصفحة",
     "saveBar": "حفظ تغييرات الصفحة",
     "saveChanges": "حفظ التغييرات",
     "saveFailed": "تعذّر الحفظ",
+    "saved": "تم الحفظ",
     "saveSomeFailed": "تعذّر حفظ بعض التغييرات. راجع البطاقة التي فيها الخطأ.",
     "selectDate": "اختر التاريخ",
     "showKpis": "إظهار المؤشرات",
     "stay": "البقاء في الصفحة",
+    "toggleKpis": "إخفاء/إظهار المؤشرات",
     "unsaved": "غير محفوظ",
     "unsavedChanges": "إذا غادرت الآن، لن تُحفظ التغييرات.",
     "unsavedChangesTitle": "تغييرات غير محفوظة",
@@ -57,23 +59,14 @@
     "notFound": "هذا السجل غير متاح أو لم يعد موجودًا."
   },
   "filterCard": {
+    "button": "فلاتر",
+    "popoverTitle": "الفلاتر",
     "clear": "مسح الفلاتر",
     "remove": "إزالة الفلتر",
     "title": "البحث والفلاتر"
   },
   "nav": {
-    "home": "يومي",
-    "modules": "الموديولات",
-    "railApps": "التطبيقات",
-    "railTools": "الأدوات",
-    "breadcrumb": "مسار الصفحة",
-    "apps": "التطبيقات",
-    "collapseContext": "طي القائمة الجانبية",
-    "expandContext": "توسيع القائمة الجانبية",
-    "keepContextOpen": "إبقاء القائمة الجانبية مفتوحة",
-    "quickActionsList": "إجراءات الصفحة",
-    "quickViews": "عروض وإجراءات سريعة",
-    "quickViewsList": "العروض السريعة"
+    "breadcrumb": "مسار الصفحة"
   },
   "states": {
     "bulkActions": "إجراءات على الصفوف المحددة",

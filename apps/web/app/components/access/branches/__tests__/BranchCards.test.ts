@@ -27,14 +27,14 @@ const card = Vue.defineComponent({
   },
 })
 const radio = Vue.defineComponent({
-  props: ['modelValue', 'items'], emits: ['update:modelValue'],
-  setup: (props, { emit }) => () => Vue.h('div', { 'data-selected': props.modelValue }, props.items.map((item: { value: string; description: string; disabled: boolean }) =>
+  props: ['modelValue', 'options'], emits: ['update:modelValue'],
+  setup: (props, { emit }) => () => Vue.h('div', { 'data-selected': props.modelValue }, props.options.map((item: { value: string; description: string; disabled: boolean }) =>
     Vue.h('button', { 'data-item': item.value, 'data-disabled': item.disabled, onClick: () => emit('update:modelValue', item.value) }, item.description))),
 })
 const passthrough = Vue.defineComponent({ inheritAttrs: false, setup(_, { attrs, slots }) { return () => Vue.h('div', attrs, slots.default?.()) } })
 const alertStub = Vue.defineComponent({ props: ['title'], setup: props => () => Vue.h('aside', props.title) })
 const switchStub = Vue.defineComponent({ props: ['modelValue'], emits: ['update:modelValue'], setup: (props, { emit }) => () => Vue.h('button', { 'data-switch': props.modelValue, onClick: () => emit('update:modelValue', !props.modelValue) }) })
-const stubs = { ...DEFAULT_STUBS, SharedSettingsCard: card, URadioGroup: radio, UAlert: alertStub, UFormField: passthrough, USwitch: switchStub }
+const stubs = { ...DEFAULT_STUBS, SharedSettingsCard: card, SharedOptionCards: radio, SharedSettingRow: passthrough, UAlert: alertStub, UFormField: passthrough, USwitch: switchStub }
 const textOf = (node: HostNode): string => (node.type === 'comment' ? '' : node.text ?? '') + node.children.map(textOf).join('')
 const settle = async () => { await new Promise(resolve => setTimeout(resolve)); await Vue.nextTick() }
 const t = (key: string, params?: Record<string, string>) => params ? `${key}|${params.roles}` : key

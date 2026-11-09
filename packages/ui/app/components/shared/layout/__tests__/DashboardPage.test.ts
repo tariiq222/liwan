@@ -108,7 +108,7 @@ describe('SharedDashboardPage', () => {
     expect(positions.every(position => position >= 0)).toBe(true)
     expect([...positions].sort((a, b) => a - b)).toEqual(positions)
     expect(html).toContain('liwan-card-grid')
-    expect(html).toContain('gap-(--liwan-gap-card)')
+    expect(html).toContain('liwan-kpi-grid')
     expect(html).not.toMatch(/\bgap-[356]\b/)
   })
 

@@ -1,42 +1,35 @@
-import type { BrowserContext } from '@playwright/test'
 import { expect, type Locator } from '@playwright/test'
 
+/**
+ * A sidebar branch row (a button with `aria-expanded`) opens `.liwan-side-branch` right under it. The branch's
+ * inline-start border is the guide line: it must sit on the centre of the parent's icon, span the whole branch,
+ * and the child icons must be indented past the parent icon.
+ */
 export async function expectAlignedGuide(parent: Locator) {
   const geometry = await parent.evaluate(el => {
-    const icon = el.querySelector('.liwan-quick-chip')!.getBoundingClientRect()
-    const row = el.getBoundingClientRect()
-    const connector = getComputedStyle(el, '::after')
-    const body = el.parentElement!.querySelector<HTMLElement>('.liwan-navigation-submenu')!
-    const rect = body.getBoundingClientRect()
-    const style = getComputedStyle(body)
-    const guide = getComputedStyle(body, '::before')
-    const pseudo = guide.content !== 'none' && guide.content !== 'normal'
-    const width = pseudo ? parseFloat(guide.width) : parseFloat(style.borderInlineStartWidth)
-    const inset = pseudo ? parseFloat(guide.insetInlineStart) : 0
-    const center = (icon.left + icon.right) / 2
-    const children = [...body.querySelectorAll('.liwan-quick-chip')].filter(child => child.closest('.liwan-navigation-submenu') === body).map(child => child.getBoundingClientRect())
-    const firstCenter = (children[0]!.left + children[0]!.right) / 2
+    const branch = el.nextElementSibling as HTMLElement
+    const rtl = getComputedStyle(branch).direction === 'rtl'
+    const icon = el.querySelector('[data-slot="icon"]')!.getBoundingClientRect()
+    const rect = branch.getBoundingClientRect()
+    const width = parseFloat(getComputedStyle(branch).borderInlineStartWidth)
+    const children = [...branch.querySelectorAll(':scope > .liwan-side-row [data-slot="icon"]')].map(child => child.getBoundingClientRect())
+    const first = children[0]!
     return {
-      center,
-      guideCenter: style.direction === 'rtl' ? rect.right - inset - width / 2 : rect.left + inset + width / 2,
-      guideTop: row.top + parseFloat(connector.top),
-      connectorCenter: style.direction === 'rtl' ? row.right - parseFloat(connector.insetInlineStart) - parseFloat(connector.width) / 2 : row.left + parseFloat(connector.insetInlineStart) + parseFloat(connector.width) / 2,
-      connectorGap: rect.top + parseFloat(guide.top) - (row.bottom - parseFloat(connector.bottom)),
-      guideBottom: rect.bottom - (pseudo ? parseFloat(guide.bottom) : 0),
-      iconTop: icon.top, iconBottom: icon.bottom, lastChildBottom: children.at(-1)!.bottom,
-      childIndent: Math.abs(center - firstCenter),
+      isBranch: branch.classList.contains('liwan-side-branch'),
+      width,
+      iconCenter: (icon.left + icon.right) / 2,
+      guideCenter: rtl ? rect.right - width / 2 : rect.left + width / 2,
+      branchTop: rect.top,
+      parentBottom: el.getBoundingClientRect().bottom,
+      lastChildBottom: Math.max(...children.map(child => child.bottom)),
+      branchBottom: rect.bottom,
+      indent: rtl ? icon.right - first.right : first.left - icon.left,
     }
   })
-  expect(Math.abs(geometry.guideCenter - geometry.center), 'guide must align with the parent icon centre').toBeLessThanOrEqual(1)
-  expect(Math.abs(geometry.connectorCenter - geometry.center), 'connector must align with the parent icon centre').toBeLessThanOrEqual(1)
-  expect(Math.abs(geometry.connectorGap), 'parent connector and child guide must meet').toBeLessThanOrEqual(1)
-  expect(geometry.guideTop).toBeLessThanOrEqual(geometry.iconBottom)
-  expect(geometry.guideTop).toBeGreaterThanOrEqual(geometry.iconTop)
-  expect(geometry.guideBottom).toBeGreaterThanOrEqual(geometry.lastChildBottom)
-  expect(geometry.childIndent).toBeCloseTo(20, 0)
-}
-
-/** The internal menu is hidden by default; specs about its contents start from the kept-open state. */
-export async function keepContextMenuOpen(context: BrowserContext, baseURL: string | undefined) {
-  await context.addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: baseURL! }])
+  expect(geometry.isBranch, 'the branch must follow its parent row').toBe(true)
+  expect(geometry.width).toBe(1)
+  expect(Math.abs(geometry.guideCenter - geometry.iconCenter), 'guide must align with the parent icon centre').toBeLessThanOrEqual(1)
+  expect(Math.abs(geometry.branchTop - geometry.parentBottom), 'branch must start under the parent row').toBeLessThanOrEqual(4)
+  expect(geometry.branchBottom).toBeGreaterThanOrEqual(geometry.lastChildBottom)
+  expect(geometry.indent, 'child icons are indented past the parent icon').toBeGreaterThan(8)
 }

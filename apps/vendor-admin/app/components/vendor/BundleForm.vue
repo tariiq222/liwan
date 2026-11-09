@@ -64,8 +64,8 @@ const dis = computed(() => !hydrated.value || props.busy)
     <SharedFormSection v-if="release" :title="t('vendor.pricing.sections.apps')" :description="t('vendor.pricing.bundle.appsHint')">
       <p v-if="attempted && errors.apps" class="text-sm text-error">{{ errors.apps }}</p>
       <p v-else-if="serverIssue('selections')" class="text-sm text-error">{{ serverIssue('selections') }}</p>
-      <div v-for="app in coreApps" :key="app.id" class="rounded-lg bg-elevated p-3"><p class="font-medium">{{ appName(app, locale) }}</p><p class="text-sm text-muted">{{ t('commercial.pricing.summary.included') }}</p></div>
-      <div v-for="app in selectableApps" :key="app.id" class="space-y-2 rounded-lg p-3 ring ring-default">
+      <div v-for="app in coreApps" :key="app.id" class="rounded-control bg-elevated p-3"><p class="font-medium">{{ appName(app, locale) }}</p><p class="text-sm text-muted">{{ t('commercial.pricing.summary.included') }}</p></div>
+      <div v-for="app in selectableApps" :key="app.id" class="space-y-2 rounded-control p-3 ring ring-default">
         <UCheckbox :model-value="draft.apps[app.id]?.selected ?? false" :label="appName(app, locale)" :disabled="dis" @update:model-value="toggleApp(app.id, $event === true)" />
         <div v-if="draft.apps[app.id]?.selected" class="ms-6 space-y-1">
           <p class="text-sm text-muted">{{ t('vendor.pricing.bundle.grantedFeatures') }}</p>

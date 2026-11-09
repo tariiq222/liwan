@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { enterFoundation, foundationOrigin, foundationTask } from './support/uxFoundations'
+import { projectMenuItem } from './support/projectMenu'
 
 test.describe.configure({ timeout: 60_000 })
 
@@ -51,7 +52,7 @@ test('a record click before search debounce carries the live search instead of t
 test('copy cancel returns to the source project and a copied record accepts that same bounded parent', async ({ page }) => {
   const source = '/projects/1?returnTo=%2Fprojects%3Fq%3Dreview'
   await enterFoundation(page, source)
-  await page.getByTestId('project-copy-link').click()
+  await (await projectMenuItem(page, 'نسخ المشروع')).click()
   await expect(page.getByRole('dialog')).toBeVisible()
   await page.getByRole('dialog').getByRole('button', { name: 'إغلاق', exact: true }).click()
   await expect.poll(() => new URL(page.url()).pathname).toBe('/projects/1')

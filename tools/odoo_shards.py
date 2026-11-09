@@ -1,22 +1,25 @@
 """Split the release modules into balanced Odoo test shards for the CI ``odoo`` stage.
 
     python3 -B tools/odoo_shards.py matrix [--modules a,b]   # JSON array of shard numbers, for the workflow matrix
-    python3 -B tools/odoo_shards.py tags 2/3 [--modules a,b] # --test-tags value of shard 2 of 3
+    python3 -B tools/odoo_shards.py tags 2/6 [--modules a,b] # --test-tags value of shard 2 of 6
     python3 -B tools/odoo_shards.py plan [N]          # every shard with its modules and test weight
     python3 -B tools/odoo_shards.py run [N]           # all N shards in parallel locally (deploy/ci/odoo.sh --shard k/N each)
 
 ``run`` needs the environment of ``deploy/ci/odoo.sh`` (ODOO_ROOT, ODOO_PYTHON, ODOO_PORT, PG*); shard k
 uses ODOO_PORT + k - 1 and its own scratch database. Logs go to a temporary directory it prints.
-Three local Odoo processes on one Postgres can be slow enough to hit the 12 s HTTP test timeout (finance
+Six local Odoo processes on one Postgres can be slow enough to hit the 12 s HTTP test timeout (finance
 report tests); a red local run under load is not proof of a defect, so re-run the failing shard alone.
 
-Every shard still installs the whole release module list; a shard only differs in the modules whose
-tests it runs. Weights are the ``def test_`` counts under ``odoo-addons/<module>/tests``, so no
-history file exists to go stale, times ``COST_FACTOR`` for a module whose tests are measurably slower
-per test; modules are assigned heaviest first to the lightest shard.
+Every shard still installs the whole release module list (about 17 s on the CI runner, so a shard costs
+little); a shard only differs in the modules whose tests it runs. A module is never split: the heaviest one
+(``liwan_finance``) fills a shard of its own and sets the longest run.
+
+Weights are the ``def test_`` counts under ``odoo-addons/<module>/tests``, so no history file exists to go
+stale, times ``COST_FACTOR`` for a module whose tests are measurably slower per test; modules are assigned
+heaviest first to the lightest shard.
 
 On a pull request ``--modules`` restricts the run to the affected modules (``tools/ci_scope.py``): only
-those are split, over as few shards as ``shard_count_for`` allows, so a small change does not queue three
+those are split, over as few shards as ``shard_count_for`` allows, so a small change does not queue six
 full jobs. Push, schedule and full runs pass no ``--modules`` and keep ``SHARD_COUNT`` shards over everything.
 """
 from __future__ import annotations
@@ -32,7 +35,7 @@ import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-SHARD_COUNT = 3
+SHARD_COUNT = 6
 # Seconds per test relative to the median module (about 0.43 s on the CI runner with the whole release installed),
 # for the modules that differ by more than 1.4x. Measured 2026-11-07: a serial full-release run logged the time of
 # each of its 5534 tests per module (locally: finance 498 s, hr 267 s, inbox 241 s, pmo 214 s of 2042 s), then the
@@ -83,12 +86,8 @@ def parse_modules(text: str) -> list[str]:
 
 
 def shard_count_for(affected_weight: int, total_weight: int) -> int:
-    """Shards for an affected subset: 1 up to a third of the release's test weight, 2 up to two thirds, else all."""
-    if 3 * affected_weight <= total_weight:
-        return 1
-    if 3 * affected_weight <= 2 * total_weight:
-        return 2
-    return SHARD_COUNT
+    """Shards for an affected subset: one per sixth of the release's test weight it fills (SHARD_COUNT at most)."""
+    return min(SHARD_COUNT, max(1, -(-SHARD_COUNT * affected_weight // total_weight)))
 
 
 def shard_numbers(modules: list[str] | None = None) -> list[int]:

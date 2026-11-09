@@ -25,7 +25,7 @@ class StagesForTest(unittest.TestCase):
     def test_every_rule_selects_its_stages(self):
         for path in ('.github/workflows/ci.yml', '.github/actions/setup/action.yml', 'tools/ci_scope.py',
                      'tools/catalog_check.py', 'tools/upgrade_baseline.py', 'tools/upgrade_log_guard.py',
-                     'deploy/ci/static.sh',
+                     'deploy/ci/odoo.sh',
                      'deploy/odoo/Dockerfile', 'odoo-addons/liwan_pmo/models/project.py',
                      'odoo-addons/liwan_pmo/README.md', 'packages/contracts/src/task.ts', 'package.json',
                      'package-lock.json', '.npmrc', '.nvmrc', '.dockerignore'):
@@ -39,7 +39,10 @@ class StagesForTest(unittest.TestCase):
                      '.claude/scripts/session-start.sh'):
             self.assert_stages(path, ('static',))
         self.assert_stages('ruff.toml', ('static', 'ai-service'))
+        for path in ('deploy/ci/static.sh', 'deploy/ci/lib/docs-static.sh'):
+            self.assert_stages(path, ('static',))
         self.assert_stages('apps/web/app/pages/index.vue', WEB)
+        self.assert_stages('apps/web/server/api/auth/login.post.ts', tuple(s for s in WEB if s != 'rtl-stories'))
         self.assert_stages('apps/vendor-admin/pages/index.vue', ('static', 'vendor-admin', 'image'))
         self.assert_stages('apps/control-plane/src/http.ts', ('static', 'control-plane'))
         self.assert_stages('apps/ai-service/src/app.py', ('static', 'ai-service', 'image'))
@@ -206,6 +209,24 @@ class PullRequestTest(unittest.TestCase):
         self.assertEqual(set(stages), {'static', *self.ODOO})
         web = ci_scope.pull_request_stages(['odoo-addons/liwan_crm/a.py', 'apps/web/app/a.vue'], ['liwan_crm'])
         self.assertIn('e2e-mock', web)
+
+    def test_an_odoo_only_change_never_selects_a_ui_stage(self):
+        ui = {'e2e-mock', 'rtl-stories', 'vendor-admin', 'control-plane', 'ai-service'}
+        for paths in (['odoo-addons/liwan_crm/models/a.py'],
+                      ['odoo-addons/liwan_crm/models/a.py', 'odoo-addons/liwan_crm/README.md', 'docs/a.md', 'tools/test_x.py'],
+                      ['odoo-addons/liwan_hr/models/a.py', 'odoo-addons/liwan_hr_finance/views/a.xml']):
+            with self.subTest(paths=paths):
+                stages = ci_scope.pull_request_stages(paths, ['liwan_hr', 'liwan_hr_finance'])
+                self.assertFalse(set(stages) & ui)
+
+    def test_a_server_only_web_change_skips_the_storybook_stage(self):
+        stages = ci_scope.pull_request_stages(['apps/web/server/api/v1/a.ts'], None)
+        self.assertNotIn('rtl-stories', stages)
+        self.assertIn('e2e-mock', stages)
+        self.assertIn('rtl-stories', ci_scope.pull_request_stages(['apps/web/server/api/v1/a.ts', 'apps/web/app/a.vue'], None))
+
+    def test_a_change_selection_without_pull_request_still_covers_every_stage_an_addon_reaches(self):
+        self.assertEqual(ci_scope.stages_for(['apps/web/server/api/v1/a.ts', 'odoo-addons/liwan_hr/a.py', 'packages/contracts/a.ts']), ALL)
 
     def test_a_bridge_only_change_selects_no_application_run(self):
         stages = ci_scope.pull_request_stages(['odoo-addons/liwan_hr_finance/a.py'], ['liwan_hr_finance'])

@@ -18,7 +18,7 @@ test('an order that is no longer pending shows its note and never posts an order
 test('branches are read only without branches.manage', async ({ page }) => {
  await open(page,'/subscription'); let intercepted=0
  await page.route('**/api/v1/me',async route=>{const response=await route.fetch();const value=await response.json();intercepted++;await route.fulfill({json:{...value,capabilities:['access.users.read']}})})
- await page.getByRole('link',{name:'الفروع',exact:true}).click(); await expect.poll(()=>intercepted).toBeGreaterThan(0)
+ await page.getByTestId('context-link-subscription-branches').click(); await expect.poll(()=>intercepted).toBeGreaterThan(0)
  await expect(page.getByRole('link',{name:'إضافة فرع'})).toHaveCount(0)
 })
 test('the new branch opens a closeable create panel and subscription pages fit the phone', async ({ page }) => {

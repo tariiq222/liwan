@@ -8,11 +8,10 @@ from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
     declare_read_capability_scope,
+    parse_page,
     requires_feature,
 )
 from odoo.addons.liwan_pmo.serializers.project_update import dump_update
-
-MAX_UPDATES = 50
 
 
 class ProjectUpdateController(http.Controller):
@@ -23,8 +22,16 @@ class ProjectUpdateController(http.Controller):
     def list_updates(self, project_id):
         declare_read_capability_scope('pmo.projects.read')
         project = get_visible_record('project.project', project_id)
-        updates = request.env['project.update'].search([('project_id', '=', project.id)], order='date desc, id desc', limit=MAX_UPDATES)
-        return [dump_update(u) for u in updates]
+        limit, offset = parse_page(request.httprequest.args)
+        domain = [('project_id', '=', project.id)]
+        Update = request.env['project.update']
+        return {
+            'items': [
+                dump_update(update)
+                for update in Update.search(domain, order='date desc, id desc', limit=limit, offset=offset)
+            ],
+            'total': Update.search_count(domain),
+        }
 
     @http.route('/api/v1/projects/<int:project_id>/updates', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

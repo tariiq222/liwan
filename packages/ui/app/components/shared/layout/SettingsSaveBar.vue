@@ -21,7 +21,7 @@ const busy = computed(() => !hydrated.value || saving.value)
 <template>
   <div
     v-if="shown"
-    class="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-full bg-inverted px-4 py-2 text-inverted shadow-lg"
+    class="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-surface bg-inverted px-4 py-2 text-inverted shadow-lg"
     role="region"
     :aria-label="t('app.saveBar')"
     data-testid="settings-save-bar"

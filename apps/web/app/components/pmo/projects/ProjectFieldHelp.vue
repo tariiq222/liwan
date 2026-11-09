@@ -74,7 +74,7 @@ function onKeydown(event: KeyboardEvent) {
       color="neutral"
       variant="ghost"
       square
-      class="inline-flex size-6 shrink-0 items-center justify-center rounded-sm text-muted hover:text-highlighted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      class="inline-flex size-6 shrink-0 items-center justify-center rounded-inner text-muted hover:text-highlighted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       data-testid="field-help"
       :disabled="!hydrated"
       :aria-label="label"

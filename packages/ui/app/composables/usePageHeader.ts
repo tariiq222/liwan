@@ -59,6 +59,22 @@ export function useFrameOwnsHeading(): Readonly<Ref<boolean>> {
   return inject(FRAME_OWNS_HEADING, NO_FRAME_HEADING)
 }
 
+const FRAME_OWNS_ACTIONS = Symbol('liwan-frame-owns-actions') as InjectionKey<Readonly<Ref<boolean>>>
+const NO_FRAME_ACTIONS = readonly(ref(false))
+
+/**
+ * A page frame can draw the primary action (and the KPI toggle) of the page inside it in its own header row.
+ * A list page with `hideHeader` then draws neither, so the page has one action row, not two. The frame says so
+ * from the route alone, not from its loaded record, so the list never shows its own button for a moment first.
+ */
+export function provideFrameOwnsActions(owned: Readonly<Ref<boolean>>) {
+  provide(FRAME_OWNS_ACTIONS, owned)
+}
+
+export function useFrameOwnsActions(): Readonly<Ref<boolean>> {
+  return inject(FRAME_OWNS_ACTIONS, NO_FRAME_ACTIONS)
+}
+
 /** The title the current route's page header registered, for the shell breadcrumb; null until one registers. */
 export function usePageHeaderTitle() {
   const route = useRoute()

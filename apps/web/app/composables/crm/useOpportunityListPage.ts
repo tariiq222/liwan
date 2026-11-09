@@ -2,7 +2,7 @@ import { CRM_LIST_PATH, opportunityListLocation } from '@/utils/crmOpportunity'
 import { useCrmTerms } from './useCrmTerms'
 
 // The heading, the create link and the two views of the opportunities list page; the page owns the SharedListPage shell
-// and CrmOpportunityList draws the card in it. The create link carries the list's state as its returnTo. The result is
+// and CrmOpportunityList draws the filter bar and the board or table in it. The create link carries the list's state as its returnTo. The result is
 // reactive so `v-bind` in the page template unwraps the computed values.
 export function useOpportunityListPage() {
   const route = useRoute()

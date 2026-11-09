@@ -1,4 +1,5 @@
 import type { AppManifest } from '../types'
+import { inboxAppCard } from './appCard'
 
 const manifest: AppManifest = {
   id: 'inbox',
@@ -35,7 +36,7 @@ const manifest: AppManifest = {
       { id: 'channels', labelKey: 'inbox.settings.groups.channels', parts: ['channels'] },
     ],
   },
-  sidebarPanel: { module: 'inbox', width: 'wide', load: () => import('../../components/inbox/InboxSidebarPanel.vue') },
+  appCard: inboxAppCard,
   contextLinks: () => [
     { id: 'inbox-conversations', labelKey: 'inbox.nav.conversations', icon: 'i-lucide-messages-square', to: '/inbox', capability: 'inbox.conversations.read' },
     { id: 'inbox-campaigns', labelKey: 'inbox.nav.campaigns', icon: 'i-lucide-megaphone', to: '/inbox/campaigns', capability: 'inbox.campaigns.manage', feature: 'inbox.campaigns' },

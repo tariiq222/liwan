@@ -66,12 +66,12 @@ function clear() {
         v-for="template in items"
         :key="template.id"
         :to="templatesRoute(props.channelId, route.query, `/${template.id}`)"
-        class="flex flex-col gap-1.5 px-(--liwan-card-pad) py-3 text-start transition-colors duration-150 hover:bg-(--liwan-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+        class="flex flex-col gap-1.5 px-(--liwan-card-pad) py-3 text-start transition-colors hover:bg-(--liwan-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
         :data-testid="`inbox-template-${template.id}`"
       >
         <span class="flex flex-wrap items-center justify-between gap-3">
           <span class="flex min-w-0 items-center gap-3">
-            <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"><UIcon name="i-lucide-file-text" class="size-5" aria-hidden="true" /></span>
+            <span class="flex size-9 shrink-0 items-center justify-center rounded-tile bg-primary/10 text-primary"><UIcon name="i-lucide-file-text" class="size-5" aria-hidden="true" /></span>
             <span class="min-w-0">
               <bdi dir="ltr" class="block truncate text-sm font-medium text-highlighted">{{ template.name }}</bdi>
               <span class="block truncate text-xs text-muted"><bdi dir="ltr">{{ template.language }}</bdi> · {{ template.body }}</span>

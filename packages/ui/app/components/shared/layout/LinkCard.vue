@@ -2,8 +2,8 @@
 import type { RouteLocationRaw } from 'vue-router'
 
 // A destination tile: an icon in a 40px round chip, a title and an optional one-line description. The whole tile is
-// the link (one focusable element), so it never nests another link or button. Hover lifts it 1px with a soft shadow and
-// a primary ring; the focus ring is the same primary ring. The link is named by the title alone; the description is its accessible description. `tone` colours the chip like SharedMetricTile.
+// the link (one focusable element), so it never nests another link or button. Hover lifts it 2px with a soft shadow and
+// an application-coloured border; the focus ring is the primary ring. The link is named by the title alone; the description is its accessible description. `tone` colours the chip like SharedMetricTile.
 const TONE_CHIP = {
   primary: 'bg-primary/10 text-primary',
   neutral: 'bg-elevated text-muted',
@@ -28,9 +28,9 @@ const id = useId()
     :data-tone="props.tone"
     :aria-labelledby="`${id}-title`"
     :aria-describedby="props.description ? `${id}-description` : undefined"
-    class="group flex min-w-0 items-center gap-3 rounded-card bg-default p-4 ring ring-default outline-none transition duration-150 hover:-translate-y-px hover:shadow-md hover:ring-primary focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+    class="liwan-card liwan-lift group flex min-w-0 items-center gap-3 rounded-card p-4 outline-none focus-visible:ring-2 focus-visible:ring-primary"
   >
-    <span class="flex size-10 shrink-0 items-center justify-center rounded-full" :class="TONE_CHIP[props.tone]" aria-hidden="true">
+    <span class="flex size-10 shrink-0 items-center justify-center rounded-control" :class="TONE_CHIP[props.tone]" aria-hidden="true">
       <UIcon :name="props.icon" class="size-5" />
     </span>
     <span class="grid min-w-0 flex-1 gap-0.5">

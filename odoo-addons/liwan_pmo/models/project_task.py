@@ -439,6 +439,20 @@ class ProjectTask(models.Model):
         # Context default_* and copy/batch must not manufacture a pending request.
         vals_list = [{**vals, **COMPLETION_PRISTINE} for vals in vals_list]
         marker = self.env.cr.precommit.data
+        # The insert references its project (a key-share lock on that row) and the completion pass
+        # after it locks the project for update: taking that lock first keeps two concurrent creates
+        # in one project from deadlocking on each other's key-share lock.
+        # Stock create fills default_project_id / default_parent_id after this point, so resolve them here.
+        context = self.env.context
+        parents = self.browse([
+            parent_id for vals in vals_list
+            if (parent_id := vals.get('parent_id') or context.get('default_parent_id'))
+        ])
+        projects = self.env['project.project'].browse([
+            project_id for vals in vals_list
+            if (project_id := vals.get('project_id') or context.get('default_project_id'))
+        ]) | parents.project_id
+        self._liwan_lock_projects_then_tasks(projects, self.browse())
         marker[TASK_CREATE_MARKER] = marker.get(TASK_CREATE_MARKER, 0) + 1
         try:
             tasks = super().create(vals_list)
@@ -584,7 +598,12 @@ class ProjectTask(models.Model):
             self.invalidate_recordset()
             self.mapped('project_id').invalidate_recordset()
         before = {task.id: task.user_ids.partner_id for task in self}
-        status_projects = self.project_id if COMPLETION_STATUS_FIELDS & set(vals) else None
+        status_projects = None
+        if COMPLETION_STATUS_FIELDS & set(vals):
+            status_projects = self.project_id | self.env['project.project'].browse(vals.get('project_id') or [])
+            # Project rows before the task rows the write below takes, in the project-then-task
+            # order of every completion path, so the completion pass after it cannot deadlock.
+            self._liwan_lock_projects_then_tasks(status_projects, self.browse())
         res = super().write(vals)
         if vals.get('state') == DONE_STATE:
             self._liwan_reject_unauthorized_done(self)
@@ -600,7 +619,7 @@ class ProjectTask(models.Model):
                         task._liwan_clear_completion_request(invalidate=True)
         self._liwan_notify('updated', extra_partners=before, changed_fields=vals)
         if status_projects is not None:
-            (status_projects | self.project_id)._liwan_sync_completion_status()
+            status_projects._liwan_sync_completion_status()
         return res
 
     def unlink(self):
@@ -611,6 +630,7 @@ class ProjectTask(models.Model):
         ):
             raise AccessError(self.env._("Tasks cannot be permanently deleted."))
         projects = self.project_id
+        self._liwan_lock_projects_then_tasks(projects, self.browse())
         res = super().unlink()
         projects._liwan_sync_completion_status()
         return res

@@ -6,11 +6,14 @@ from odoo.http import request
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
+    parse_page,
     requires_capability,
     requires_feature,
 )
 
-MAX_TAGS = 100
+# The datalist behind the tag picker. Its own page is 100 because the picker
+# searches as the user types, not a full record list.
+PICKER_PAGE_LIMIT = 100
 
 
 def dump_tag(tag):
@@ -24,9 +27,18 @@ class TagController(http.Controller):
     @requires_feature('pmo.enabled', operation='read')
     @requires_capability('pmo.projects.read', 'pmo.tasks.read', match='any')
     def list_tags(self, **_):
-        q = request.httprequest.args.get('q')
+        args = request.httprequest.args
+        limit, offset = parse_page(args, default=PICKER_PAGE_LIMIT)
+        q = args.get('q')
         domain = [('name', 'ilike', q)] if q else []
-        return [dump_tag(t) for t in request.env['project.tags'].search(domain, order='name, id', limit=MAX_TAGS)]
+        Tag = request.env['project.tags']
+        return {
+            'items': [
+                dump_tag(tag)
+                for tag in Tag.search(domain, order='name, id', limit=limit, offset=offset)
+            ],
+            'total': Tag.search_count(domain),
+        }
 
     @http.route('/api/v1/tags', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

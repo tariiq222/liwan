@@ -93,9 +93,10 @@ test.describe('Plan 5 pilot: the task lists', () => {
       await expect(page.getByTestId('project-workspace-tabs')).toHaveCount(1)
       const create = page.getByTestId('project-header-create')
       await expect(create).toHaveAttribute('data-shortcut-create', '')
-      await expect(page.locator('main [data-slot="page-header"]').getByTestId('project-header-create')).toBeVisible()
+      await expect(page.getByTestId('project-workspace-frame').getByTestId('project-header-create')).toBeVisible()
       await expect(rows(page)).toHaveCount(4)
-      await expect(page.getByRole('link', { name: 'المهام المؤرشفة' })).toBeVisible()
+      await expect(page.getByTestId('task-scope').getByRole('button', { name: 'مؤرشفة' })).toBeVisible()
+      await expect(page.getByRole('link', { name: 'المهام المؤرشفة' })).toHaveCount(0)
     })
 
     test('the project tab switches to the board with ?view=board and back, keeping its filters', async ({ page }) => {

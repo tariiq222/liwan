@@ -13,7 +13,7 @@ from odoo.addons.liwan_finance.serializers.statement_ofx import OfxError, parse_
 
 
 def single(text):
-    statements = parse_ofx(text)
+    statements = parse_ofx(text, 0.01)
     assert len(statements) == 1
     return statements[0]
 
@@ -52,6 +52,13 @@ class TestOfxReader(BaseCase):
         statement = single(card)
         self.assertEqual((statement['account_number'], statement['lines'][0]['amount']), ('4111', -12.5))
 
+    def test_amounts_are_rounded_to_the_currency_that_is_passed_in(self):
+        half_up = OFX_V2.replace('<TRNAMT>-10.50</TRNAMT>', '<TRNAMT>-2.675</TRNAMT>')
+        self.assertEqual(single(half_up)['lines'][2]['amount'], -2.68)
+        fils = OFX_V2.replace('<TRNAMT>-10.50</TRNAMT>', '<TRNAMT>-10.505</TRNAMT>')
+        self.assertEqual(parse_ofx(fils, 0.01)[0]['lines'][2]['amount'], -10.51)
+        self.assertEqual(parse_ofx(fils, 0.001)[0]['lines'][2]['amount'], -10.505)
+
     def test_unreadable_transactions_are_reported_by_number(self):
         broken = OFX_V2.replace('<DTPOSTED>20261026</DTPOSTED>', '<DTPOSTED>soon</DTPOSTED>').replace('<TRNAMT>-10.50</TRNAMT>', '<TRNAMT>0.00</TRNAMT>')
         statement = single(broken)
@@ -84,14 +91,14 @@ class TestOfxReader(BaseCase):
 
     def test_a_file_nested_too_deeply_is_refused(self):
         with self.assertRaisesRegex(OfxError, 'levels deep'):
-            parse_ofx('<OFX><STMTRS>' + '<PAYEE>' * 5000)
+            parse_ofx('<OFX><STMTRS>' + '<PAYEE>' * 5000, 0.01)
 
     def test_a_file_that_is_not_a_statement_is_refused(self):
         for text in ('Date,Amount\n2026-10-25,100\n', '<OFX></OFX>', '<OFX><BANKMSGSRSV1></BANKMSGSRSV1></OFX>'):
             with self.subTest(text=text[:20]), self.assertRaises(OfxError):
-                parse_ofx(text)
+                parse_ofx(text, 0.01)
         with self.assertRaisesRegex(OfxError, 'LEDGERBAL'):
-            parse_ofx(OFX_V2.replace('<BALAMT>279.50</BALAMT>', '<BALAMT>lots</BALAMT>'))
+            parse_ofx(OFX_V2.replace('<BALAMT>279.50</BALAMT>', '<BALAMT>lots</BALAMT>'), 0.01)
 
     def test_a_file_cannot_declare_entities(self):
         text = OFX_V2.replace('<OFX>', '<!DOCTYPE OFX [<!ENTITY x SYSTEM "file:///etc/passwd">]><OFX>', 1).replace('Bank fees</NAME>', '&x;</NAME>', 1)
@@ -119,7 +126,7 @@ class TestCamtMapping(BaseCase):
             ],
         }]
         text = '<Bal><Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp></Bal><Bal><Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp></Bal>'
-        [statement] = normalize_camt(text, 'SAR', 'SA03', statements)
+        [statement] = normalize_camt(text, 'SAR', 'SA03', statements, 0.01)
         self.assertEqual((statement['currency'], statement['balance_start'], statement['balance_end']), ('SAR', 1000.0, 1279.5))
         self.assertEqual(
             [(line['row'], line['date'], line['payment_ref']) for line in statement['lines']],
@@ -127,12 +134,23 @@ class TestCamtMapping(BaseCase):
         )
         self.assertEqual([(error['row'], error['field']) for error in statement['errors']], [(3, 'amount'), (4, 'date')])
         with self.assertRaises(CamtError):
-            normalize_camt(text, 'SAR', None, [])
+            normalize_camt(text, 'SAR', None, [], 0.01)
 
     def test_a_balance_the_file_does_not_state_is_none_not_zero(self):
         statements = [{'balance_start': 0.0, 'balance_end_real': 0.0, 'transactions': [{'date': '2026-10-25', 'amount': 5.0, 'payment_ref': 'x'}]}]
-        [none] = normalize_camt('<Document/>', 'SAR', None, statements)
+        [none] = normalize_camt('<Document/>', 'SAR', None, statements, 0.01)
         self.assertEqual((none['balance_start'], none['balance_end']), (None, None))
         closing_only = '<ns:Bal><ns:Tp><ns:CdOrPrtry><ns:Cd>CLBD</ns:Cd></ns:CdOrPrtry></ns:Tp></ns:Bal>'
-        [closing] = normalize_camt(closing_only, 'SAR', None, statements)
+        [closing] = normalize_camt(closing_only, 'SAR', None, statements, 0.01)
         self.assertEqual((closing['balance_start'], closing['balance_end']), (None, 0.0))
+
+    def test_the_lines_and_balances_are_rounded_to_the_currency_that_is_passed_in(self):
+        codes = '<Bal><Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp></Bal><Bal><Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp></Bal>'
+        statements = [{
+            'balance_start': 1000.0, 'balance_end_real': 997.325,
+            'transactions': [{'date': '2026-10-25', 'amount': -2.675, 'payment_ref': 'Rounding'}],
+        }]
+        [riyal] = normalize_camt(codes, 'SAR', None, statements, 0.01)
+        self.assertEqual((riyal['lines'][0]['amount'], riyal['balance_end']), (-2.68, 997.33))
+        [dinar] = normalize_camt(codes, 'KWD', None, statements, 0.001)
+        self.assertEqual((dinar['lines'][0]['amount'], dinar['balance_end']), (-2.675, 997.325))

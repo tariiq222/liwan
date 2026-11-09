@@ -1,7 +1,8 @@
 import { ProjectListSchema, TaskListSchema } from '@liwan/contracts'
+import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
 import { ATTENTION_ROWS_PER_PROVIDER } from '../../composables/nav/attentionModel'
-import { PROJECT_STATUS_LABEL_KEY } from '../../composables/projectStatus'
-import type { AppAttentionProvider } from '../types'
+import { PROJECT_ATTENTION_STATUSES, PROJECT_STATUS_LABEL_KEY } from '../../composables/projectStatus'
+import type { AppAttentionProvider, AppAttentionRow } from '../types'
 
 /** My project tasks whose deadline has passed, oldest deadline first. */
 export const overdueTasksAttention: AppAttentionProvider = {
@@ -19,6 +20,7 @@ export const overdueTasksAttention: AppAttentionProvider = {
       to: `/tasks/${task.id}`,
       caption: task.project?.name,
       tone: 'urgent' as const,
+      due: 'overdue' as const,
     }))
     const first = rows[0]
     return first ? [{ ...first, suggestion: t('tasks.attention.startOverdue') }, ...rows.slice(1)] : rows
@@ -41,12 +43,19 @@ export const openTasksAttention: AppAttentionProvider = {
       to: `/tasks/${task.id}`,
       caption: task.project?.name,
       tone: 'normal' as const,
+      due: dueOf(task.date_deadline),
     }))
   },
 }
 
-/** Statuses that need a look, worst first; a project the user cannot read never comes back from the list. */
-const RISK_STATUSES = ['off_track', 'at_risk'] as const
+/** How close a deadline is, in the user's own time zone; no deadline gives no chip. */
+function dueOf(deadline: string | null): AppAttentionRow['due'] {
+  if (!deadline) return undefined
+  const day = localIsoDay(new Date(deadline))
+  const today = localIsoDay(new Date())
+  if (day < today) return 'overdue'
+  return day === today ? 'today' : 'soon'
+}
 
 /** Projects off track, then at risk, among those I can read. */
 export const projectsAtRiskAttention: AppAttentionProvider = {
@@ -56,7 +65,7 @@ export const projectsAtRiskAttention: AppAttentionProvider = {
   capability: 'pmo.projects.read',
   queryKey: ['projects', 'attention', 'at-risk'],
   async load(api, t) {
-    const pages = await Promise.all(RISK_STATUSES.map(status => api('/api/v1/projects', { query: { status, limit: ATTENTION_ROWS_PER_PROVIDER }, schema: ProjectListSchema })))
+    const pages = await Promise.all(PROJECT_ATTENTION_STATUSES.map(status => api('/api/v1/projects', { query: { status, limit: ATTENTION_ROWS_PER_PROVIDER }, schema: ProjectListSchema })))
     return pages
       .flatMap(page => page.items)
       .slice(0, ATTENTION_ROWS_PER_PROVIDER)

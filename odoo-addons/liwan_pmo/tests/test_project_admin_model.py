@@ -135,7 +135,8 @@ class TestProjectAdminModel(LiwanPmoCase):
         self.assertTrue(self.project.active)
 
     def test_write_as_manager_rejects_non_whitelisted_field(self):
-        with self.assertRaises(ValueError):
+        """A field outside the whitelist is an access refusal, so the API answers 403 rather than 500."""
+        with self.assertRaises(AccessError):
             self.project.with_user(self.manager)._liwan_write_as_manager({'company_id': 1})
 
     # --- stages ------------------------------------------------------------

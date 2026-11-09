@@ -29,7 +29,7 @@ const hydrated = useHydrated()
   <SharedRecordSection :id="id" variant="panel" class="liwan-settings-anchor" data-slot="settings-list" :title="title" :description="description">
     <template v-if="!canEdit || $slots.actions" #actions>
       <slot name="actions" />
-      <UBadge v-if="!canEdit" color="neutral" variant="subtle" class="rounded-full" :label="t('app.viewOnly')" />
+      <UBadge v-if="!canEdit" color="neutral" variant="subtle" :label="t('app.viewOnly')" />
     </template>
     <SharedPageState :loading="props.loading" :error="props.error" :empty="false" @retry="$emit('retry')">
       <div class="grid gap-4">

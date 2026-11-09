@@ -20,55 +20,36 @@ async function beforeHydration(page: Page, path: string) {
   return resume
 }
 
-test.describe('Tasmim context sidebar', () => {
+test.describe('Tasmim sidebar', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
   test.beforeEach(async ({ page }) => { await login(page) })
 
-  test('collapse survives a reload and is server-rendered before hydration', async ({ page, context, baseURL }) => {
-    await context.addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: baseURL! }])
-    await page.goto('/tasks')
+  test('the sidebar is server-rendered at its full width before hydration and keeps it after', async ({ page }) => {
     const sidebar = page.getByTestId('application-navigation')
-    const toggle = page.getByTestId('context-sidebar-toggle')
-    await expect(toggle).toBeEnabled()
-    await expect(sidebar).toHaveAttribute('data-expanded', 'true')
-    await toggle.click()
-    await expect(sidebar).toHaveAttribute('data-expanded', 'false')
-    await expect(sidebar).toBeHidden()
-    expect((await context.cookies()).find(cookie => cookie.name === 'liwan-context-sidebar')?.value).toBe('closed')
-
     const hydrate = await beforeHydration(page, '/tasks')
-    await expect(sidebar).toHaveAttribute('data-expanded', 'false')
-    await expect(sidebar).toBeHidden()
+    await expect(sidebar).toBeVisible()
+    expect((await sidebar.boundingBox())!.width).toBe(264)
+    await expect(sidebar).toHaveAttribute('data-mode', 'app')
     hydrate()
     await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
-    await page.keyboard.press('BracketLeft')
-    await expect(sidebar).toHaveAttribute('data-expanded', 'true')
-    await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(230)
+    expect((await sidebar.boundingBox())!.width).toBe(264)
   })
 
-  test('[ toggles the sidebar by physical key, also on an Arabic layout, but not while typing', async ({ page }) => {
+  test('[ has no action: the sidebar neither folds nor stores a preference, also on an Arabic layout', async ({ page, context }) => {
     await page.goto('/tasks')
     const sidebar = page.getByTestId('application-navigation')
-    await expect(page.getByTestId('context-sidebar-toggle')).toBeEnabled()
-    const start = (await sidebar.getAttribute('data-expanded'))!
-    const flipped = start === 'true' ? 'false' : 'true'
+    await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
+    const start = (await sidebar.boundingBox())!
     await page.keyboard.press('BracketLeft')
-    await expect(sidebar).toHaveAttribute('data-expanded', flipped)
     // Arabic (101) layout: the same physical key types «ج».
     await page.evaluate(() => document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ج', code: 'BracketLeft', bubbles: true })))
-    await expect(sidebar).toHaveAttribute('data-expanded', start)
-    await page.evaluate(() => {
-      const input = document.createElement('input')
-      document.body.append(input)
-      input.focus()
-      input.dispatchEvent(new KeyboardEvent('keydown', { key: '[', code: 'BracketLeft', bubbles: true }))
-      input.remove()
-    })
-    await expect(sidebar).toHaveAttribute('data-expanded', start)
+    await page.waitForTimeout(300)
+    expect(await sidebar.boundingBox()).toEqual(start)
+    expect((await context.cookies()).find(cookie => cookie.name === 'liwan-context-sidebar')).toBeUndefined()
   })
 })
 
-test.describe('Tasmim header hydration', () => {
+test.describe('Tasmim top bar hydration', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
   test.beforeEach(async ({ page }) => { await login(page) })
 
@@ -77,7 +58,7 @@ test.describe('Tasmim header hydration', () => {
       const messages: string[] = []
       page.on('console', message => messages.push(message.text()))
       await page.goto(path)
-      await expect(page.getByTestId('shell-header').getByRole('button', { name: 'بحث', exact: true })).toBeEnabled()
+      await expect(page.getByTestId('shell-header').getByTestId('global-search-trigger')).toBeEnabled()
       await expect(page.locator('main h1')).toHaveCount(1)
       // The trail sits under the page title and is published by the shell after hydration (the project frame has its own).
       if (path === '/tasks') await expect(page.getByTestId('page-header-trail')).toHaveText('المشاريع')
@@ -90,7 +71,7 @@ test.describe('Tasmim mobile drawer', () => {
   test.use({ viewport: { width: 390, height: 844 } })
   test.beforeEach(async ({ page }) => { await login(page) })
 
-  test('menu waits for hydration, opens from the inline-start side and closes after navigation', async ({ page }) => {
+  test('the «المزيد» tab waits for hydration, opens from the inline-start side and closes after navigation', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     const hydrate = await beforeHydration(page, '/tasks')
     const trigger = page.getByTestId('mobile-navigation-trigger')
@@ -103,10 +84,10 @@ test.describe('Tasmim mobile drawer', () => {
     await expect(drawer).toBeVisible()
     const area = (await drawer.boundingBox())!
     expect(Math.abs(area.x + area.width - 390)).toBeLessThanOrEqual(1)
-    await drawer.getByRole('link', { name: 'يومي', exact: true }).click()
-    await expect(page).toHaveURL(/\/$/)
+    // The drawer holds the sidebar content: on /tasks the open application, with a back row to all applications.
+    await drawer.getByTestId('mobile-navigation-app-back').click()
+    await expect(page).toHaveURL(/\/apps$/)
     await expect(drawer).toBeHidden()
-    await expect(trigger).toHaveAttribute('aria-expanded', 'false')
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
   })
 })

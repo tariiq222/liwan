@@ -51,37 +51,63 @@
   },
   "home": {
     "empty": "لا توجد مساحات عمل متاحة لحسابك حاليًا.",
-    "nothingToday": "لا شيء لك اليوم. تصفّح التطبيقات لتبدأ.",
     "apps": "تطبيقاتك",
+    "appsSubtitle": "كل تطبيق بأرقامه الحية. اضغط وادخل.",
     "greeting": "أهلًا {name}",
+    "greetingMorning": "صباح الخير يا {name}",
+    "greetingEvening": "مساء الخير يا {name}",
+    "count": {
+      "tasks": "لا مهام | مهمة واحدة | مهمتان | {n} مهام | {n} مهمة | {n} مهمة",
+      "decisions": "لا قرارات | قرار واحد | قراران | {n} قرارات | {n} قرارًا | {n} قرار"
+    },
+    "summary": {
+      "one": "عندك {item} تنتظرك اليوم",
+      "two": "عندك {first} و{second} تنتظرك اليوم"
+    },
     "indicators": "مؤشراتي",
     "indicator": {
       "execute": "للتنفيذ",
       "decide": "للقرار",
       "follow": "للمتابعة"
     },
-    "quick": "الوصول السريع",
     "focus": "ابدأ بالأهم",
+    "focusSubtitle": "مرتبة حسب الاستعجال، من كل تطبيقاتك.",
     "focusEmpty": "لا شيء عاجل الآن.",
-    "viewAll": "عرض الكل"
+    "focusUrgent": "عاجل",
+    "focusAction": {
+      "execute": "افتح",
+      "decide": "راجع",
+      "follow": "التفاصيل"
+    },
+    "viewAll": "عرض الكل",
+    "rail": {
+      "previous": "السابق",
+      "next": "التالي"
+    },
+    "filter": {
+      "label": "تصفية التطبيقات",
+      "all": "الكل",
+      "sales": "المبيعات والعملاء",
+      "team": "الفريق والتشغيل"
+    },
+    "banner": {
+      "title": "لا شيء يستحق وقتك اليوم | شيء واحد يستحق وقتك اليوم | شيئان يستحقان وقتك اليوم | {n} أشياء تستحق وقتك اليوم | {n} شيئًا يستحق وقتك اليوم | {n} شيء يستحق وقتك اليوم",
+      "idle": "اسأل عن عملائك ومهامك واجتماعاتك"
+    },
+    "due": {
+      "overdue": "متأخرة",
+      "today": "اليوم",
+      "soon": "قريبًا"
+    }
   },
   "nav": {
-    "today": "اليوم",
     "tasks": "مهام المشاريع",
     "projects": "المشاريع",
-    "toggleNavigation": "فتح أو إغلاق التنقل",
     "header": "رأس التطبيق",
-    "context": "التنقل السياقي",
     "assistantSheet": {
-      "region": "لوحة المساعد",
-      "close": "إغلاق المساعد",
       "openFullPage": "فتح بملء الصفحة"
     },
-    "backToProjects": "العودة إلى المشاريع",
-    "projectWorkspace": "مساحة المشروع",
-    "archivedTasks": "المهام المؤرشفة",
     "projectSummary": "الملخص",
-    "projectPlanning": "المهام والخطة",
     "projectStakeholders": "أصحاب المصلحة",
     "projectRisks": "المخاطر والمشكلات",
     "projectChanges": "طلبات التغيير",
@@ -93,15 +119,11 @@
     "reports": "تقارير المشاريع",
     "goTo": "الانتقال إلى",
     "typeToNavigate": "اكتب للانتقال…",
-    "searchDescription": "ابحث عن صفحة أو مشروع وانتقل إليه مباشرة.",
-    "back": "رجوع",
-    "loading": "جارٍ التحميل…",
     "account": "الخدمة الذاتية",
     "logout": "تسجيل الخروج",
     "settings": "الإعدادات",
     "employees": "دليل الموظفين",
     "departments": "الهيكل التنظيمي",
-    "documents": "المستندات",
     "leave": "الإجازات",
     "recruitment": "التوظيف",
     "shifts": "الورديات",
@@ -114,15 +136,11 @@
     "insurance": "التأمين الطبي",
     "myInsurance": "تأميني",
     "payroll": "المسيّرات",
-    "myPayslips": "قسائمي",
     "users": "المستخدمون",
     "roles": "الأدوار والصلاحيات",
     "accessLog": "سجل الوصول",
-    "branding": "هوية الجهة",
     "projectSettings": "إعدادات المشروع",
     "hr": "الموارد البشرية",
-    "systemAdministration": "إدارة النظام",
-    "toggleSidebar": "فتح القائمة أو طيها",
     "chat": "المحادثات",
     "myTasks": "مهامي",
     "meetings": "الاجتماعات",
@@ -134,16 +152,15 @@
     "meetingCalendar": "التقويم",
     "meetingSeries": "الاجتماعات الدورية",
     "projectDashboard": "نظرة عامة على المشاريع",
-    "currentProject": "المشروع الحالي",
-    "projectsMenu": "قائمة المشاريع",
-    "returnToCurrentProject": "العودة إلى مشروع {name}",
     "newProject": "مشروع جديد",
     "newMeeting": "اجتماع جديد",
     "newConversation": "محادثة جديدة",
     "allProjects": "كل المشاريع",
+    "myProjectTasks": "مهامي",
+    "needsAttention": "تحتاج انتباه",
+    "recentProjects": "المفتوحة مؤخرًا",
     "myProjects": "مشاريعي",
     "projectTasks": "المهام",
-    "openMenu": "فتح القائمة",
     "navigation": "القائمة",
     "language": "اللغة",
     "goToShowAll": "عرض كل الصفحات ({count})",
@@ -155,7 +172,42 @@
     "viewAll": "عرض الكل",
     "listOf": "قائمة {name}",
     "overview": "نظرة عامة",
-    "crm": "إدارة العملاء"
+    "crm": "إدارة العملاء",
+    "home": "يومي",
+    "apps": "التطبيقات",
+    "quickActionsList": "إجراءات الصفحة",
+    "quickViews": "عروض وإجراءات سريعة",
+    "platformName": "منصة ليوان",
+    "platformCaption": "للشركات السعودية",
+    "sidebar": "القائمة الجانبية",
+    "coreApps": "التطبيقات الأساسية",
+    "footer": "روابط عامة",
+    "myApps": "تطبيقاتي",
+    "editApps": "تعديل",
+    "allApps": "كل التطبيقات",
+    "tools": "أدواتي",
+    "tabBar": "التنقل السريع",
+    "more": "المزيد",
+    "userMenu": {
+      "label": "قائمة المستخدم",
+      "services": "خدماتي",
+      "more": "المزيد",
+      "accountPassword": "حسابي وكلمة المرور",
+      "appearance": "المظهر",
+      "light": "فاتح",
+      "dark": "داكن"
+    },
+    "panel": {
+      "openAll": "افتح الكل",
+      "close": "إغلاق",
+      "loading": "جارٍ التحميل…",
+      "error": "تعذّر تحميل القائمة.",
+      "retry": "إعادة المحاولة",
+      "chatEmpty": "لا محادثات بعد.",
+      "tasksEmpty": "لا مهام مفتوحة. أحسنت!",
+      "meetingsEmpty": "لا اجتماعات قادمة.",
+      "noDeadline": "بلا موعد"
+    }
   },
   "auth": {
     "username": "اسم المستخدم",
@@ -299,7 +351,6 @@
     "providerFilter": "نطاق البحث",
     "description": "ابحث في الصفحات والمشاريع والمهام…",
     "close": "إغلاق البحث",
-    "tasks": "المهام",
     "actions": "إجراءات",
     "loading": "جارٍ البحث…",
     "error": "تعذّر البحث. اختر للمحاولة مجددًا.",
@@ -319,7 +370,6 @@
     "goTo": "الانتقال إلى {name}",
     "rows": "الصف التالي أو السابق",
     "open": "فتح الصف المحدد",
-    "sidebar": "طي القائمة الجانبية أو فتحها",
     "escape": "رجوع أو إغلاق",
     "help": "عرض الاختصارات"
   },
@@ -329,11 +379,54 @@
     "open": "فتح التطبيق"
   },
   "launcher": {
+    "title": "كل التطبيقات",
+    "subtitle": "ثبّت حتى {count} تطبيقات تظهر في قائمتك الجانبية.",
+    "included": {
+      "title": "الأساسية",
+      "subtitle": "مشمولة مع منصة ليوان."
+    },
+    "addon": {
+      "title": "الإضافية",
+      "subtitle": "تطبيقات متخصصة لشغلك."
+    },
+    "figures": {
+      "tasks": {
+        "open": "مفتوحة",
+        "overdue": "متأخرة"
+      },
+      "crm": {
+        "due": "تحتاج متابعة",
+        "today": "جديدة اليوم"
+      },
+      "inbox": {
+        "open": "محادثة مفتوحة",
+        "unassigned": "غير مسندة"
+      },
+      "chat": {
+        "unread": "غير مقروءة",
+        "channels": "قنوات"
+      },
+      "meetings": {
+        "upcoming": "اجتماعات قادمة",
+        "followup": "توصيات مفتوحة"
+      },
+      "projects": {
+        "count": "مشاريع",
+        "attention": "تحتاج متابعة"
+      }
+    },
     "open": "فتح التطبيق",
+    "openShort": "فتح",
     "pin": "تثبيت في الشريط",
     "unpin": "إزالة من الشريط",
     "pinLimit": "يمكنك تثبيت 6 تطبيقات كحد أقصى",
     "apps": {
+      "appointments": {
+        "description": "حجوزات عملائك في تقويم واحد."
+      },
+      "inbox": {
+        "description": "محادثات واتساب وتيك توك في صندوق واحد."
+      },
       "projects": {
         "description": "مساحة واحدة لمتابعة المشاريع وحالتها والخطوة التالية."
       },
@@ -364,7 +457,6 @@
       "crm": {
         "description": "متابعة العملاء المحتملين وصفقات البيع حتى الإغلاق."
       }
-    },
-    "actions": "إجراءات سريعة"
+    }
   }
 }

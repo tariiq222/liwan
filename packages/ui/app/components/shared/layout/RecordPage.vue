@@ -8,8 +8,9 @@ import type { PageHeaderTag } from '../../../utils/pageHeaderTag'
 import PageState from '../feedback/PageState.vue'
 
 /*
- * The record template (Tasmim spec §6, template 2): header with back link and actions, optional
- * operational summary, tabs, the main column and an optional supporting aside. The aside sits at the inline end on wide screens
+ * The record template (Tasmim spec §6, template 2): the open header (trail, app tile, title, tags, actions) whose last row is
+ * the underline tabs over the header's 1px divider, then the optional operational summary, the main column and an
+ * optional supporting aside. The aside sits at the inline end on wide screens
  * and after the main column on phones, so reading and focus order stay the DOM order. With `asideFirst` the aside is the
  * record's operational summary (the task properties): it comes first in the DOM, so a phone reads it before the content,
  * and wide screens still place it at the inline end.
@@ -45,9 +46,9 @@ const heading = computed(() => (ready.value ? props.title.trim() || t('states.un
       <template v-if="$slots.back" #back><slot name="back" /></template>
       <template v-if="$slots.tags" #tags><slot name="tags" /></template>
       <template v-if="ready && $slots.actions" #actions><slot name="actions" /></template>
+      <template v-if="ready && $slots.tabs" #tabs><div data-slot="record-tabs"><slot name="tabs" /></div></template>
     </PageHeader>
     <div v-if="ready && $slots.summary" data-slot="record-summary" class="min-w-0"><slot name="summary" /></div>
-    <div v-if="ready && $slots.tabs" data-slot="record-tabs"><slot name="tabs" /></div>
     <PageState v-if="props.error" :error="props.error" @retry="$emit('retry')" />
     <LoadingSkeleton v-if="props.loading && !preserve" variant="record" />
     <div v-else-if="!props.error || preserve" data-slot="record-body" class="grid gap-(--liwan-gap-card)" :class="{ 'lg:grid-cols-[minmax(0,1fr)_20rem]': $slots.aside }">

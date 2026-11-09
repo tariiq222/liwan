@@ -2,11 +2,6 @@
   "settings": {
     "title": "Settings",
     "forbidden": "This page is for administrators only",
-    "toc": {
-      "label": "On this page",
-      "filters": "Filters",
-      "list": "Results"
-    },
     "branding": {
       "color": "Document and report color",
       "saved": "Document color saved",
@@ -21,7 +16,7 @@
         "teal": "Teal",
         "amber": "Amber"
       },
-      "managedIdentity": "The company name and logo are edited on the Company profile page. Here you set the company color used in documents and reports such as invoices and printouts. It does not change the interface colors.",
+      "managedIdentity": "Name and logo are on the Company profile page. Here is the company colour for documents and reports only, not the interface.",
       "primaryHint": "Used in invoices, reports and printouts only. It does not change the interface colors."
     },
     "company": {
@@ -45,7 +40,7 @@
       "taglineHint": "A short line shown with the company name on documents.",
       "registry": "Commercial registration number",
       "vatRegistered": "Registered for VAT",
-      "vatRegisteredHint": "When on, the VAT number is required and the tax shows on orders, invoices and pay pages. Documents issued earlier keep what they were issued with.",
+      "vatRegisteredHint": "The VAT number becomes required and tax shows on orders, invoices and pay pages. Earlier documents stay as issued.",
       "vatManageHint": "Only the system administrator can change the VAT registration and number.",
       "vat": "VAT number",
       "vatHint": "A tax number in the format of the company's country.",
@@ -73,61 +68,62 @@
         "label": "Who can create projects",
         "managers": "Project managers and administrators",
         "employees": "All employees",
-        "hint": "Controls who may start new projects in this company."
+        "hint": "The people allowed to start a new project in the company."
       },
       "defaultStages": {
         "label": "Default stages for new projects",
-        "hint": "Copied into every new project. Existing projects are not affected."
+        "hint": "Copied into every new project; existing ones are not affected."
       },
       "saved": "Settings saved",
       "createRequirements": {
-        "hint": "These rules apply only when creating a project. Existing projects stay editable even if they are incomplete.",
+        "hint": "A project cannot be created until a manager is chosen.",
         "manager": "Require a project manager",
-        "endDate": "Require an end date"
+        "endDate": "Require an end date",
+        "endDateHint": "A project cannot be created until its end date is set."
       },
       "charterApproval": {
         "label": "Sponsor approval of the charter",
-        "hint": "When on, the project manager sends the charter to the sponsor and it is approved only with their consent."
+        "hint": "The manager sends the charter to the sponsor, and it is approved only with their consent."
       },
       "closeWithOpenTasks": {
         "label": "Closing a project with open tasks",
-        "hint": "Decides what happens when a project moves to the closed phase while it still has open tasks.",
+        "hint": "Choose whether closing is blocked or allowed after the manager confirms.",
         "block": "Block closing",
-        "allowWithWarning": "Allow with a warning the manager confirms"
+        "allowWithWarning": "Allow after the manager confirms"
       },
       "registerTransitions": {
         "label": "Risk and issue status changes",
-        "hint": "Decides whether a status moves one neighbouring step at a time or to any status.",
+        "hint": "A status moves to the next neighbouring status only, or straight to any status.",
         "sequence": "Step by step",
         "free": "Any status"
       },
       "changeControl": {
-        "label": "Project change control",
-        "hint": "Decides whether editing the scope and budget of a project in execution needs a change request approved by the sponsor. Any approved request that is not yet implemented unlocks the scope and budget fields until its implementation is recorded.",
+        "label": "Scope and budget change requests",
+        "hint": "Choose when an approved change request is needed to edit scope and budget during execution.",
         "off": "Off",
-        "offHint": "No change requests. An approved charter reopens when edited, if charter approval is on.",
+        "offHint": "No change requests. Editing an approved charter sends it back for review if charter approval is on.",
         "optional": "Optional",
-        "optionalHint": "Requests can be raised and decided, and nothing is blocked. An approved charter still returns to draft when edited, if charter approval is on, unless an approved request that is not yet implemented covers the edit.",
+        "optionalHint": "Requests are available and block nothing. An approved charter returns to draft when edited, unless a request is approved.",
         "required": "Required",
-        "requiredHint": "While executing, the charter scope and budget stay locked and the project cannot move back a phase and a new baseline cannot be taken, unless an approved change request that is not yet implemented exists."
+        "requiredHint": "Scope, budget, going back a phase and a new baseline are blocked unless an approved change request covers them."
       },
       "baselineGate": {
         "label": "Baseline before execution",
-        "hint": "Decides whether a project needs a baseline (the frozen plan) before it moves from planning to executing.",
+        "hint": "Choose when a baseline (the frozen plan) is required before execution starts.",
         "off": "Not asked",
-        "offHint": "The gate does not mention baselines.",
+        "offHint": "The project moves to execution without mentioning a baseline.",
         "warning": "Warning",
-        "warningHint": "The gate shows that no baseline was taken; the manager can confirm and move on.",
+        "warningHint": "The gate warns that no baseline exists; the manager confirms and continues.",
         "required": "Required",
-        "requiredHint": "The project cannot move to executing until a baseline is taken."
+        "requiredHint": "The project cannot move to execution until a baseline is approved."
       },
       "evmProgress": {
         "label": "Progress for earned value",
-        "hint": "Sets how a task's percent complete is counted when the project's earned value is measured.",
+        "hint": "How a task's percent complete is counted when earned value is measured.",
         "binary": "Done or not",
-        "binaryHint": "A done task is 100% and any other task 0%. No extra data entry.",
+        "binaryHint": "A done task is 100% and any other is 0%, with no extra entry.",
         "manual": "Percent entered by the assignee",
-        "manualHint": "The task assignee enters a percent complete from 0 to 100; a done task stays 100%."
+        "manualHint": "The assignee enters 0 to 100 percent; a done task stays at 100%."
       },
       "changeCategories": {
         "title": "Change request categories",
@@ -149,18 +145,20 @@
         "hint": "Options that installed applications add to projects."
       },
       "approval": {
-        "label": "Default completion approval",
-        "hint": "Copied onto new projects. Existing projects retain their current approval policy.",
+        "label": "Task completion approval",
+        "hint": "Applies to new projects only; existing ones stay as they are.",
         "none": "No approval",
         "projectManager": "Project manager"
       },
       "reminders": {
         "label": "Deadline reminders",
-        "enabled": "Send inbox reminders before the deadline",
+        "enabled": "Reminder before the deadline",
         "daysBefore": "Days before the deadline",
         "daysInvalid": "Enter a whole number from 0 to 30",
-        "digest": "Daily overdue digest for the project manager",
-        "hint": "Reminders apply to eligible current tasks according to their dates and status; they do not create tasks or dates."
+        "digest": "Daily overdue summary for the project manager",
+        "hint": "Covers current eligible tasks by their dates and status; it creates no new tasks.",
+        "enabledHint": "The reminder reaches the inbox before the task deadline.",
+        "daysBeforeHint": "How many days ahead of the deadline the reminder arrives."
       },
       "catalogs": {
         "title": "Shared reference lists",
@@ -212,20 +210,20 @@
       },
       "creation": {
         "title": "Project creation policy",
-        "hint": "Controls who can start a project and what must be entered at creation. These rules do not update existing projects."
+        "hint": "Rules for starting a new project. Existing projects are not changed."
       },
       "defaults": {
         "title": "Project defaults",
-        "hint": "Stages and task completion approval are copied into a project when it is created. Changing them does not update existing projects."
+        "hint": "Stages and completion approval are copied into each new project; existing ones are unchanged."
       },
       "tools": {
         "title": "Project tool policy",
-        "hint": "Applies to all existing and new projects in this company. Required gates need company-enabled tools.",
-        "enabled": "Enabled by company",
-        "optional": "Optional per project",
+        "hint": "Applies to every project. Enabled tools run in all projects; optional ones are chosen per project.",
+        "enabled": "On for everyone",
+        "optional": "Optional",
         "disabled": "Unavailable",
-        "governanceConflict": "Enable governance by company or remove required charter, change and baseline gates in the same save.",
-        "planningConflict": "Enable planning by company or remove the required baseline gate in the same save."
+        "governanceConflict": "Turn governance on, or switch off the charter, change and baseline requirements, in the same save.",
+        "planningConflict": "Turn planning on, or switch off the baseline requirement, in the same save."
       }
     },
     "appearance": {
@@ -244,7 +242,7 @@
       "title": "Maintenance scheduling",
       "preference": "Preferred maintenance window",
       "preferenceHint": "Save your weekly preference, then explicitly book each published release. Saving a preference does not schedule an update.",
-      "timezone": "IANA timezone",
+      "timezone": "Timezone",
       "weekday": "Day of week",
       "startTime": "Local start time",
       "duration": "Window duration (minutes)",
@@ -254,7 +252,7 @@
       "noBookings": "No maintenance is booked.",
       "deadline": "Finish by {date} ({zone})",
       "estimate": "Measured maintenance estimate: {seconds} seconds",
-      "sharedScope": "This maintenance affects a shared service. Its operator coordinates the window for all affected customers.",
+      "sharedScope": "It affects a shared service; the operator coordinates the window for all affected customers.",
       "security": "Security update",
       "deadlinePassed": "Deadline passed",
       "newBooking": "Book maintenance",

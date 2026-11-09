@@ -54,11 +54,11 @@ test.describe('Tasmim standalone page and print sheet', () => {
       await open(page, 'shared-standalonepage--print-in-shell', `locale:ar;appearance:${appearance}`)
       const sheet = page.locator('.liwan-print')
       await expect(page.getByTestId('shell-header')).toBeVisible()
-      await expect(page.getByTestId('module-rail')).toBeVisible()
+      await expect(page.getByTestId('application-navigation')).toBeVisible()
       if (appearance === 'dark') await expect(sheet).not.toHaveCSS('color', 'rgb(0, 0, 0)')
 
       await page.emulateMedia({ media: 'print' })
-      for (const id of ['shell-header', 'module-rail', 'application-navigation']) await expect(page.getByTestId(id)).toBeHidden()
+      for (const id of ['shell-header', 'application-navigation']) await expect(page.getByTestId(id)).toBeHidden()
       await expect(sheet.locator('.liwan-print-hide')).toBeHidden()
       await expect(sheet).toHaveCSS('color', 'rgb(0, 0, 0)')
       await expect(sheet).toHaveCSS('background-color', 'rgb(255, 255, 255)')
@@ -67,10 +67,14 @@ test.describe('Tasmim standalone page and print sheet', () => {
       for (const target of [page.locator('body'), page.getByTestId('shell-main')]) {
         await expect(target).toHaveCSS('background-color', 'rgb(255, 255, 255)')
       }
+      // The sidebar offset and the top bar are gone: the workspace spans the page from the origin. The main keeps its
+      // 1240px reading width, which a real sheet is narrower than.
+      const workspace = await boxOf(page.locator('.liwan-shell-workspace'))
+      expect(workspace.x).toBeCloseTo(0, 0)
+      expect(workspace.width).toBeGreaterThan(1400)
       const main = await boxOf(page.getByTestId('shell-main'))
-      expect(main.x).toBeCloseTo(0, 0)
       expect(main.y).toBeCloseTo(0, 0)
-      expect(main.width).toBeGreaterThan(1400)
+      expect(main.width).toBeGreaterThan(1200)
     })
   }
 
@@ -137,18 +141,19 @@ test.describe('Tasmim conversation template', () => {
   test.beforeAll(async () => { ({ base, close } = await startStorybookServer()) })
   test.afterAll(async () => { await close() })
 
-  test('desktop shows the thread or the empty state, never the list; info sits at the inline end', async ({ page }) => {
+  test('desktop shows the 360px list beside the thread or the empty state; info is a third column at the inline end', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await open(page, 'shared-conversationlayout--nothing-selected', 'locale:ar;appearance:light')
     await expect(page.locator('[data-template="conversation-empty"]')).toBeVisible()
-    await expect(page.locator('[data-template="conversation-list"]')).toHaveCount(0)
+    const list = await boxOf(page.locator('[data-template="conversation-list"]'))
+    expect(list.width).toBeCloseTo(360, 0)
     await open(page, 'shared-conversationlayout--info', 'locale:ar;appearance:light')
     const thread = await boxOf(page.locator('[data-template="conversation-thread"]'))
     const info = await boxOf(page.getByRole('complementary', { name: 'التفاصيل' }))
     expect(info.width).toBeLessThan(thread.width)
     expect(info.x).toBeLessThan(thread.x)
     const composer = await boxOf(page.locator('[data-template="conversation-composer"]'))
-    expect(composer.y + composer.height).toBeCloseTo(900, 0)
+    expect(composer.y + composer.height).toBeLessThanOrEqual(900)
   })
 
   test('a phone shows the list, then the thread, then info, one at a time', async ({ page }) => {

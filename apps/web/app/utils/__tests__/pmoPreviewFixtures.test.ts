@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  ProjectScheduleSchema, FinanceEntryListSchema, MilestoneSchema, ProjectCharterReferenceListSchema, ProjectRaciListSchema,
+  ProjectScheduleSchema, FinanceEntryListSchema, MilestoneListSchema, ProjectCharterReferenceListSchema, ProjectRaciListSchema,
   ProjectRegisterListSchema, ProjectStakeholderListSchema, TaskListSchema,
 } from '@liwan/contracts'
 // the preview module is plain ESM shared with the mock server, so its inferred types are cast loose below
@@ -21,12 +21,12 @@ const get = (path: string) => {
 
 describe('the PMO preview fixtures parse with the wire contracts', () => {
   it.each([
-    ['/api/v1/projects/2/milestones', MilestoneSchema.array(), 3],
+    ['/api/v1/projects/2/milestones', MilestoneListSchema, 3],
     ['/api/v1/projects/2/stakeholders', ProjectStakeholderListSchema, 3],
     ['/api/v1/projects/2/register', ProjectRegisterListSchema, 3],
     ['/api/v1/projects/2/raci', ProjectRaciListSchema, 3],
     ['/api/v1/projects/2/finance', FinanceEntryListSchema, 4],
-    ['/api/v1/projects/3/milestones', MilestoneSchema.array(), 3],
+    ['/api/v1/projects/3/milestones', MilestoneListSchema, 3],
     ['/api/v1/projects/3/stakeholders', ProjectStakeholderListSchema, 3],
     ['/api/v1/projects/3/register', ProjectRegisterListSchema, 3],
     ['/api/v1/projects/3/raci', ProjectRaciListSchema, 3],

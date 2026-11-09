@@ -1,10 +1,11 @@
 import type { ShellNavigationItem, ShellNavigationLink, ShellQuickItem } from '@liwan/ui/app/types/shell'
 import { canReach, canReachPath, type AccessIdentity } from '../../utils/accessPolicy'
-import { sidebarPanelFor } from '../../modules/surfaces'
 import { createLinkTo, type CreateActionRoute } from './createActions'
-import { contextLinksForModule, moduleContextLinks, visibleShellModules, type ShellContextLink } from './shellModules'
+import { contextLinksForModule, moduleContextLinks, sidebarMenuForModule, visibleShellModules, type ShellContextLink } from './shellModules'
 import { contextLinkTestId, groupSections, railModel } from './sidebarModel'
 import { quickViewsModel } from './quickViewsModel'
+import { flatSidebar } from './flatSidebar'
+import type { RecentRecord } from './recentRecords'
 import { normalizedPath } from '../../utils/routePath'
 
 export interface ApplicationNavigationInput {
@@ -12,6 +13,12 @@ export interface ApplicationNavigationInput {
   route: CreateActionRoute
   activeId: string | null
   contextLinks: readonly ShellContextLink[]
+  /** Build only this entry's menu (the open application); every entry when absent. */
+  only?: string
+  /** The numbers of a flat menu's rows that have arrived, by row id. */
+  sidebarCounts?: Readonly<Record<string, number | undefined>>
+  /** The records opened last, for a flat menu that lists them. */
+  recents?: readonly RecentRecord[]
   translate: (key: string, values?: Record<string, string>) => string
 }
 
@@ -31,19 +38,34 @@ export function applicationNavigation(input: ApplicationNavigationInput): ShellN
   const personal = input.route.path === '/account' || input.route.path.startsWith('/account/')
   const activeId = personal ? 'account' : input.activeId
   const rail = railModel(visibleShellModules(input.identity))
-  const entries = [...rail.top, ...rail.first, ...rail.applications, ...rail.last,
+  const entries = [...rail.core, ...rail.applications,
     ...(personal ? [{ id: 'account', labelKey: 'nav.account', icon: 'i-lucide-user-round', to: '/account' }] : []),
     ...rail.utility]
 
-  return entries.map(entry => {
+  return entries.filter(entry => input.only === undefined || entry.id === input.only).map(entry => {
     const active = entry.id === activeId
-    const item: ShellNavigationItem = { id: entry.id, label: t(entry.labelKey), icon: entry.icon, to: entry.to, active, sections: [], views: [], actions: [] }
+    const item: ShellNavigationItem = { id: entry.id, label: t(entry.labelKey), icon: entry.icon, to: entry.to, active, sections: [], actions: [] }
+    // The list presets the rows below fold into their own branches; none stays as a separate group.
+    let remainingViews: ShellQuickItem[] = []
     if (entry.id === 'apps' || entry.id === 'home') return item
     const route = active ? input.route : { path: entry.to, fullPath: entry.to, query: {}, params: {} }
     const currentPath = normalizedPath(route.path)
     const links = active ? input.contextLinks : contextLinksForModule(entry.id, input.identity, route.path)
-    const roots = links.filter(link => !link.pinned && !link.section)
     const createTo = (link: { id: string; to: ShellContextLink['to'] }) => createLinkTo(link, route)
+    const menu = sidebarMenuForModule(entry.id)
+    if (menu) {
+      const create = links.find(link => link.id === menu.create)
+      return {
+        ...item,
+        ...flatSidebar({
+          menu, route, canOpen: (capability, path) => canReach(input.identity, capability, path) && (!path || canReachPath(input.identity, path)),
+          // The application's own colour tile marks the create action as the menu's primary one.
+          create: create ? { id: create.id, label: t(create.labelKey), icon: create.icon, to: createTo(create), primary: true, app: entry.id } : null,
+          counts: input.sidebarCounts ?? {}, recents: input.recents ?? [], translate: t,
+        }),
+      }
+    }
+    const roots = links.filter(link => !link.pinned && !link.section)
     const quickFor = (path: string) => quickViewsModel({ path, query: normalizedPath(path) === currentPath ? route.query : {}, can: capability => canReach(input.identity, capability), createTo })
     const quick = quickFor(route.path)
     const quickItem = (link: { id: string; labelKey: string; icon: string; to: ShellQuickItem['to']; active?: boolean; primary?: boolean }): ShellQuickItem =>
@@ -115,7 +137,7 @@ export function applicationNavigation(input: ApplicationNavigationInput): ShellN
       seen.add(key)
       return true
     })
-    item.views = quick.views.map(quickItem)
+    remainingViews = quick.views.map(quickItem)
 
     function addPresets(row: ShellNavigationLink) {
       if (row.children?.length) { row.children.forEach(addPresets); return }
@@ -143,12 +165,12 @@ export function applicationNavigation(input: ApplicationNavigationInput): ShellN
         ...actions.map(child => ({ ...child, testId: `quick-action-${child.id}` })),
       ]
       row.active = row.active && !selectedPreset
-      item.views = item.views.filter(view => targetPath(view.to) !== path)
+      remainingViews = remainingViews.filter(view => targetPath(view.to) !== path)
       item.actions = item.actions.filter(action => action.primary || targetPath(action.to) !== path)
     }
     item.sections.forEach(section => section.items.forEach(addPresets))
     // A scoped list can have presets without a global navigation row (for example tasks inside a project).
-    const remainingPaths = new Set(item.views.map(view => targetPath(view.to)).filter((path): path is string => !!path))
+    const remainingPaths = new Set(remainingViews.map(view => targetPath(view.to)).filter((path): path is string => !!path))
     for (const path of remainingPaths) {
       if (!canReachPath(input.identity, path)) continue
       const row: ShellNavigationLink = { id: `list-${path}`, label: t('nav.quickViews'), icon: 'i-lucide-list-filter', to: path, active, testId: `context-list-${path}` }
@@ -165,8 +187,6 @@ export function applicationNavigation(input: ApplicationNavigationInput): ShellN
       }
       item.sections.forEach(section => clearUnfiltered(section.items))
     }
-    item.views = []
-    item.panel = active && !!sidebarPanelFor(entry.id)
     return item
   })
 }

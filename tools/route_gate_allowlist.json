@@ -28,7 +28,7 @@
       ]
     },
     {
-      "reason": "Public branding for the login page (auth='public'): no session, so no capability and no api_handler.",
+      "reason": "Public branding for the login page (auth='public'): no session, so no capability applies.",
       "routes": [
         "liwan_api/controllers/branding.py:branding"
       ]
@@ -197,14 +197,6 @@
         "liwan_api/controllers/auth.py:send_code",
         "liwan_api/controllers/auth.py:verify",
         "liwan_api/controllers/auth.py:remember_device"
-      ]
-    }
-  ],
-  "no_api_handler": [
-    {
-      "reason": "auth='public' branding read: serves the login page and has no session or error mapping to apply.",
-      "routes": [
-        "liwan_api/controllers/branding.py:branding"
       ]
     }
   ]

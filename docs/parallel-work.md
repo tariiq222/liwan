@@ -179,9 +179,10 @@ with current remote `main` too. A merged head with dirty files still contains
 undelivered work. A child sharing its parent's head is dependent work, not a
 second independent delivery.
 
-The task owner reports the files changed and focused verification. The
-orchestrator then runs the relevant final checks once, resolves shared-file
-conflicts, and records the resulting branch and runtime state. A passing local
+The task owner reports the files changed and verification evidence. The
+orchestrator resolves shared-file conflicts, verifies the combined candidate
+under the [local verification policy](testing.md#fast-local-loop), and records
+the resulting branch and runtime state. A passing local
 test, health endpoint, or UI observation proves only the checked layer; it does
 not prove deployment, DNS, or release approval.
 

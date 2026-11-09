@@ -16,7 +16,7 @@ const limits = computed(() => Object.entries(props.limits ?? {}).sort(([a], [b])
     <p class="text-sm text-muted">{{ t('vendor.pricing.summary.intro') }}</p>
     <p v-if="!apps.length" class="text-sm text-muted">{{ t('vendor.pricing.summary.noApps') }}</p>
     <ul v-else class="space-y-3">
-      <li v-for="app in apps" :key="app.id" class="rounded-lg p-3 ring ring-default">
+      <li v-for="app in apps" :key="app.id" class="rounded-control p-3 ring ring-default">
         <p class="font-medium">{{ app.name }}</p>
         <div v-if="app.features.length || app.locked.length" class="mt-2 flex flex-wrap gap-2">
           <UBadge v-for="f in app.features" :key="f" color="neutral" variant="subtle">{{ f }}</UBadge>

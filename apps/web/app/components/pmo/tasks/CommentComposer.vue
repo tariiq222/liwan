@@ -110,10 +110,8 @@ function onKeydown(e: KeyboardEvent) {
 <template>
   <SharedCommentComposer
     v-model="body"
-    class="mt-4 border-t border-default pt-3.5"
+    class="mt-2"
     :field-id="`task-comment-${props.taskId}`"
-    :label="t('tasks.activity.add')"
-    :help="t('tasks.activity.referenceHint')"
     :placeholder="t('tasks.activity.write')"
     :submit-label="t('tasks.activity.post')"
     :pending="isPending"
@@ -134,7 +132,7 @@ function onKeydown(e: KeyboardEvent) {
       <div
         v-if="menuOpen && trigger"
         data-testid="comment-suggestions"
-        class="mt-1 overflow-hidden rounded-md bg-default ring ring-default"
+        class="mt-1 overflow-hidden rounded-inner bg-default ring ring-default"
       >
         <p class="border-b border-default px-3 py-1.5 text-xs font-medium text-muted">{{ t(trigger.kind === 'person' ? 'tasks.activity.mentionPerson' : 'tasks.activity.referenceTask') }}</p>
         <ul v-if="suggestions.length" :id="listId" role="listbox" :aria-label="t(trigger.kind === 'person' ? 'tasks.activity.mentionPerson' : 'tasks.activity.referenceTask')" class="max-h-56 overflow-y-auto p-1">
@@ -144,7 +142,7 @@ function onKeydown(e: KeyboardEvent) {
             :key="`${item.kind}-${item.id}`"
             role="option"
             :aria-selected="index === activeIndex"
-            class="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm font-normal text-default"
+            class="flex cursor-pointer items-center gap-2 rounded-inner px-2 py-1.5 text-sm font-normal text-default"
             :class="index === activeIndex ? 'bg-elevated text-highlighted' : ''"
             @mousedown.prevent="pick(item)"
             @mousemove="activeIndex = index"

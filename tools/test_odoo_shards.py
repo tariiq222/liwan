@@ -33,10 +33,19 @@ class SplitTest(unittest.TestCase):
 
 class ShardCountTest(unittest.TestCase):
     def test_count_follows_the_share_of_the_total_weight(self):
-        cases = {0: 1, 100: 1, 300: 1, 301: 2, 600: 2, 601: 3, 900: 3}
+        share = 100  # the weight one shard carries
+        total = share * odoo_shards.SHARD_COUNT
+        cases = {0: 1, 1: 1, share: 1, share + 1: 2, 2 * share: 2, 2 * share + 1: 3,
+                 (odoo_shards.SHARD_COUNT - 1) * share + 1: odoo_shards.SHARD_COUNT, total: odoo_shards.SHARD_COUNT,
+                 10 * total: odoo_shards.SHARD_COUNT}
         for weight, count in cases.items():
             with self.subTest(weight=weight):
-                self.assertEqual(odoo_shards.shard_count_for(weight, 900), count)
+                self.assertEqual(odoo_shards.shard_count_for(weight, total), count)
+
+    def test_a_small_change_gets_few_shards(self):
+        total = sum(odoo_shards.weight(m) for m in odoo_shards.release_modules())
+        self.assertEqual(odoo_shards.shard_count_for(total // 12, total), 1)
+        self.assertLessEqual(odoo_shards.shard_count_for(total // 4, total), 2)
 
     def test_modules_never_get_more_shards_than_modules(self):
         heavy = max(odoo_shards.release_modules(), key=odoo_shards.weight)
@@ -46,7 +55,7 @@ class ShardCountTest(unittest.TestCase):
         self.assertEqual(odoo_shards.shard_numbers(), list(range(1, odoo_shards.SHARD_COUNT + 1)))
 
     def test_all_release_modules_need_every_shard(self):
-        self.assertEqual(odoo_shards.shard_numbers(odoo_shards.release_modules()), [1, 2, 3])
+        self.assertEqual(odoo_shards.shard_numbers(odoo_shards.release_modules()), list(range(1, odoo_shards.SHARD_COUNT + 1)))
 
 
 class AffectedTagsTest(unittest.TestCase):
@@ -95,9 +104,17 @@ class CostFactorTest(unittest.TestCase):
     def test_every_factor_names_a_release_module(self):
         self.assertLessEqual(set(odoo_shards.COST_FACTOR), set(odoo_shards.release_modules()))
 
-    def test_the_release_split_is_balanced_within_fifteen_percent(self):
+    def test_the_release_split_is_balanced_down_to_its_heaviest_module(self):
+        """No shard outweighs the larger of the heaviest module (never split) and the mean plus fifteen percent."""
         totals = [sum(odoo_shards.weight(m) for m in shard) for shard in odoo_shards.plan(odoo_shards.SHARD_COUNT)]
-        self.assertLess((max(totals) - min(totals)) / max(totals), 0.15)
+        heaviest = max(odoo_shards.weight(m) for m in odoo_shards.release_modules())
+        self.assertLessEqual(max(totals), max(heaviest, 1.15 * sum(totals) / len(totals)))
+        self.assertTrue(all(totals), 'every shard has work')
+
+    def test_the_heaviest_module_sits_alone_in_the_longest_shard(self):
+        shards = odoo_shards.plan(odoo_shards.SHARD_COUNT)
+        heaviest = max(odoo_shards.release_modules(), key=odoo_shards.weight)
+        self.assertEqual(next(shard for shard in shards if heaviest in shard), [heaviest])
 
     def test_the_modules_that_dominate_the_release_are_not_in_one_shard(self):
         heaviest = ('liwan_finance', 'liwan_hr', 'liwan_pmo')
@@ -123,9 +140,10 @@ class CommandTest(unittest.TestCase):
             self.assertEqual(self.output('tags', '%d/%d' % (k, count)), ','.join('/' + m for m in planned[k - 1]))
 
     def test_modules_narrow_the_matrix_and_the_tags(self):
-        self.assertEqual(json.loads(self.output('matrix', '--modules', 'liwan_hr,liwan_access_hr')), [1])
-        self.assertEqual(self.output('tags', '1/1', '--modules', 'liwan_hr,liwan_access_hr'),
-                         '/liwan_access_hr,/liwan_hr')
+        self.assertEqual(json.loads(self.output('matrix', '--modules', 'liwan_notify,liwan_access_hr')), [1])
+        self.assertEqual(self.output('tags', '1/1', '--modules', 'liwan_notify,liwan_access_hr'),
+                         '/liwan_access_hr,/liwan_notify')
+        self.assertEqual(json.loads(self.output('matrix', '--modules', 'liwan_hr,liwan_access_hr')), [1, 2])
 
     def test_invalid_count_and_missing_port_are_refused(self):
         with self.assertRaises(odoo_shards.ShardError):

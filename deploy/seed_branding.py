@@ -33,7 +33,7 @@ if sys.argv[1:] == ['--validate-email']:
 with open('/seed/branding.json', encoding='utf-8') as f:
     branding = json.load(f)
 
-primary_color = branding.get('primary_color', '#7843c6')
+primary_color = branding.get('primary_color', '#14102a')
 if not re.fullmatch(r'#[0-9a-fA-F]{6}', primary_color):
     sys.exit('branding.json: primary_color must be #rrggbb')
 

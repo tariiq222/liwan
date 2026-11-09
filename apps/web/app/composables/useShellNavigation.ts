@@ -1,4 +1,3 @@
-import { useMediaQuery } from '@vueuse/core'
 import { toValue, type MaybeRefOrGetter } from 'vue'
 // These names have one owner each under nav/; import for internal use only,
 // never re-export, or the auto-import namespace collision just moves here.
@@ -9,30 +8,9 @@ import {
   type ShellModule,
 } from './nav/shellModules'
 import { activeShellModule, contextModuleFor } from './nav/activeRoute'
-import { CONTEXT_SIDEBAR_COOKIE, contextSidebarState, type ContextSidebarCookie } from './nav/contextSidebarState'
-import { useAssistantSheet } from './useAssistantSheet'
-import { sidebarPanelFor } from '../modules/surfaces'
 import { effectiveActivePart, anchorOf } from './nav/settingsScroll'
 import { canReachPath, isNavPathActive, type AccessIdentity } from '../utils/accessPolicy'
 import { personalContextLinks } from './nav/personalModel'
-
-export function useContextSidebar() {
-  const cookie = useCookie<ContextSidebarCookie | null>(CONTEXT_SIDEBAR_COOKIE, {
-    default: () => null,
-    path: '/',
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 365,
-  })
-  // A docked sheet takes the room from 768px up; below it the sheet is a full-screen layer and the sidebar is not shown.
-  const desktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
-  const { shown } = useAssistantSheet()
-  const forced = computed(() => shown.value && desktop.value)
-  const route = useRoute()
-  const wide = useMediaQuery('(min-width: 1100px)', { ssrWidth: 1100 })
-  // Only a side panel (chat) opens by itself; a list of links stays folded and opens over the page.
-  const autoOpen = computed(() => wide.value && !!sidebarPanelFor(contextModuleFor(activeShellModule(route.path))))
-  return contextSidebarState(cookie, useHydrated(), autoOpen, forced)
-}
 
 export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
   const route = useRoute()
@@ -41,7 +19,7 @@ export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
   // The server never sees the URL hash, so the first client render must not either: a hydration pass that disagrees
   // with the server's markup leaves the stale attribute in the DOM.
   const hydrated = useHydrated()
-  // A page the identity may not open (the 403 page) belongs to no application: no application title, links or side panel.
+  // A page the identity may not open (the 403 page) belongs to no application: no application title or links.
   const activeModule = computed<ShellModule | null>(() => {
     const owner = activeShellModule(route.path)
     return owner && identityValue.value && !canReachPath(identityValue.value, route.path) ? null : owner
@@ -55,9 +33,6 @@ export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
     const linksModule = contextModuleFor(activeModule.value)
     if (!linksModule) return []
     const links = contextLinksForModule(linksModule, identityValue.value, route.path)
-      .map(link => route.path === '/projects' && link.id === 'projects'
-        ? { ...link, to: { path: '/projects', query: { ...route.query, mine: undefined, offset: undefined } } }
-        : link)
     const part = effectiveActivePart(route.path, links, activePart.value, hydrated.value ? route.hash : '')
     return links.map(link => ({ ...link, active: isContextLinkActive(route.path, link, part) }))
   })

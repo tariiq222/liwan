@@ -104,7 +104,9 @@ function withDocumentActions(item) {
   const draft = item.state === 'draft'
   const posted = item.state === 'posted'
   const zatca = posted ? item.zatca?.submission.state : null
-  const transitions = [...(draft ? [] : ['reset_to_draft']), ...(item.state === 'cancel' ? [] : ['cancel'])]
+  // ZATCA accepted the document: its content is final, so neither reset nor cancel is offered (the routes refuse both).
+  const final = zatca === 'accepted'
+  const transitions = final ? [] : [...(draft ? [] : ['reset_to_draft']), ...(item.state === 'cancel' ? [] : ['cancel'])]
   const blocked = posted && PAID_STATES.includes(item.payment_state) ? transitions : []
   const offered = [
     ...(draft ? ['edit', 'delete', 'post'] : []),

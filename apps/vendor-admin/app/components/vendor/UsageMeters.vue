@@ -16,7 +16,7 @@ const rows = computed(() => (props.usage?.metrics ?? []).map(m => ({ m, view: us
         <span v-if="usage.observed_at">{{ t('vendor.customers.usage.observedAt') }}: <time :datetime="usage.observed_at">{{ formatDateTime(usage.observed_at) }}</time></span>
       </p>
       <ul class="grid gap-3 sm:grid-cols-2">
-        <li v-for="{ m, view } in rows" :key="m.key" class="rounded-lg p-3 ring ring-default" data-testid="usage-meter">
+        <li v-for="{ m, view } in rows" :key="m.key" class="rounded-control p-3 ring ring-default" data-testid="usage-meter">
           <p class="text-sm text-muted">{{ usageMetricLabel(m, t, te) }}</p>
           <p v-if="view.available" class="font-semibold tabular-nums">{{ fmt(m.unit, view.used as number) }} <span class="font-normal text-muted">/ {{ m.limit === null ? t('vendor.pricing.limit.unlimited') : fmt(m.unit, m.limit) }}</span></p>
           <p v-else class="font-medium text-warning-800 dark:text-warning">{{ t('vendor.customers.usage.unavailable') }}<span v-if="m.reason" class="ms-1 text-xs font-normal text-muted">({{ t(`vendor.customers.usage.reasons.${m.reason}`) }})</span></p>
