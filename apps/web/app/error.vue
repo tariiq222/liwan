@@ -4,6 +4,8 @@ import { ar, en } from '@nuxt/ui/locale'
 import { createReusableTemplate } from '@vueuse/core'
 import { htmlAttrsFor } from '@/utils/appearance'
 import { firstAllowedPath } from '@/utils/accessPolicy'
+import SessionQueryProvider from '@/components/shell/SessionQueryProvider'
+import { useSessionQueryScope } from '@/lib/sessionQueryScope'
 
 // Nuxt renders this file instead of the app for unknown routes and uncaught
 // errors. A signed-in user gets the error inside the shell layout (rail, header, sidebar);
@@ -29,6 +31,8 @@ const hint = computed(() => (forbidden.value && !planCode.value ? t('errors.page
 const canRetry = computed(() => !forbidden.value && !notFound.value)
 // A signed-in user keeps the rail, header and sidebar around the error; sign-in and outage errors have no identity to build them from.
 const { me } = useMe()
+// This file replaces the app, so the shell's sidebar and top bar (which read counts through vue-query) need the session's query client here too.
+const queryOwner = useSessionQueryScope().current
 const productName = computed(() => branding.value?.name ?? t('app.productName'))
 
 useHead(() => ({
@@ -72,9 +76,11 @@ function goBack() {
       </section>
     </DefineBody>
     <!-- A signed-in user keeps the rail, header and sidebar around the error. -->
-    <NuxtLayout v-if="me" name="default">
-      <ReuseBody :heading="true" />
-    </NuxtLayout>
+    <SessionQueryProvider v-if="me" :key="queryOwner.generation" :owner="queryOwner">
+      <NuxtLayout name="default">
+        <ReuseBody :heading="true" />
+      </NuxtLayout>
+    </SessionQueryProvider>
     <SharedStandalonePage v-else :title="title">
       <ReuseBody :heading="false" />
     </SharedStandalonePage>

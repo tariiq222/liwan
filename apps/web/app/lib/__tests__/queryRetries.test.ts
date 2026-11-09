@@ -23,7 +23,7 @@ function plugin(hydrating = false, publicRoute = false) {
     useState: () => Vue.ref(null), useRouter: () => ({ currentRoute: Vue.ref({ meta: { access: publicRoute ? 'public' : undefined }, fullPath: '/pay/invoice/1' }) }),
     isPossibleSessionExpiry: (error: unknown) => error instanceof ApiError && error.status === 401,
     useMe: () => ({ me: Vue.ref(null), ownershipIdentity: Vue.ref(null), refresh: async () => { identityRefreshes++ } }), onTenantSuspension: () => {},
-    clearChatDrafts: () => {}, dropToastsWhileSuspended: () => {}, useToast: () => ({ toasts: Vue.ref([]) }),
+    keepBuiltInsOutOfIdTree: () => {}, clearChatDrafts: () => {}, dropToastsWhileSuspended: () => {}, useToast: () => ({ toasts: Vue.ref([]) }),
   }
   const source = readFileSync(new URL('../../plugins/vue-query.ts', import.meta.url), 'utf8')
     .replace(/^import[^\n]*\n/gm, '').replaceAll('import.meta.server', String(!hydrating)).replaceAll('import.meta.client', String(hydrating)).replace('export default', 'return')

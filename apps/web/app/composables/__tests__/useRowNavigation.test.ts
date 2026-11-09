@@ -73,7 +73,7 @@ async function mount(rows: FakeRow[], options: { shell?: boolean } = {}) {
   const container = ref({ querySelectorAll: () => rows } as unknown as HTMLElement)
   const app = hostRenderer.createApp(defineComponent({
     setup() {
-      // ShellHeader's handlers: the go handler always uses the key, even when no item has that letter.
+      // AppTopBar's handlers: the go handler always uses the key, even when no item has that letter.
       if (options.shell) useShellShortcuts({ go: () => true })
       useRowNavigation(container)
       return () => h('div')

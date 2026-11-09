@@ -1,17 +1,9 @@
 import { test, expect } from '@playwright/test'
+import { ACCEPTANCE_ORIGIN, signIn } from './support/realOdooSession'
 
-// Needs a real Odoo: it logs in as admin and writes data, which the mock answers with 404. It is in no CI list until it has run on a
-// scratch Odoo (see docs/testing.md, section 3).
+// Runs only on the isolated real-Odoo stack (deploy/ci/e2e-odoo.sh).
 test.skip(process.env.E2E_REAL_ODOO !== '1', 'Explicit isolated real Odoo acceptance only')
-
-async function login(page) {
-  await page.goto('/login')
-  await page.getByLabel('اسم المستخدم').fill('admin')
-  await page.getByLabel('كلمة المرور').fill('admin')
-  await page.getByRole('button', { name: 'دخول' }).click()
-  // Login lands on the first section the user may open (accessPolicy.firstAllowedPath).
-  await expect(page).not.toHaveURL(/\/login(?:\?|$)/)
-}
+test.beforeEach(async ({}, info) => { expect(new URL(String(info.project.use.baseURL)).origin).toBe(ACCEPTANCE_ORIGIN) })
 
 async function createTask(page, name: string) {
   const projects = await (await page.request.get('/api/v1/projects?minimal=1')).json()
@@ -20,7 +12,7 @@ async function createTask(page, name: string) {
 }
 
 test('task activity: post a comment and see a tracking entry after a state change', async ({ page }) => {
-  await login(page)
+  await signIn(page)
   const currentUser = await (await page.request.get('/api/v1/me')).json()
   const name = `E2E activity ${Date.now()}`
   const id = await createTask(page, name)
@@ -31,10 +23,10 @@ test('task activity: post a comment and see a tracking entry after a state chang
   // wait for the client-rendered detail body before interacting (SSR hydration race)
   await expect(page.locator('h1')).toHaveText(name)
 
-  const tabs = page.getByTestId('task-activity-tabs')
-  await tabs.getByRole('tab', { name: 'التعليقات', exact: true }).click()
-  const comments = page.getByTestId('task-comments-card')
-  const composer = comments.getByPlaceholder('اكتب تعليقًا…')
+  const activity = page.getByTestId('task-activity')
+  const filter = page.getByTestId('task-activity-filter')
+  await filter.getByRole('button', { name: 'التعليقات', exact: true }).click()
+  const composer = activity.getByPlaceholder(/^اكتب تعليقًا…/)
   await expect(composer).toBeVisible()
   const commentText = `تعليق تجريبي ${Date.now()}`
   await composer.fill(commentText)
@@ -43,8 +35,9 @@ test('task activity: post a comment and see a tracking entry after a state chang
   await commentPosted
   await expect(composer).toHaveValue('')
 
-  const timeline = comments.getByRole('list').first()
-  const firstEntry = timeline.locator('li').first()
+  // The feed runs oldest first, so the new comment is the last entry.
+  const timeline = activity.getByTestId('task-activity-feed')
+  const firstEntry = timeline.locator('li').last()
   await expect(firstEntry).toContainText(commentText)
   await expect(firstEntry).toContainText(currentUser.name)
 
@@ -55,8 +48,8 @@ test('task activity: post a comment and see a tracking entry after a state chang
   await page.getByRole('menuitem').first().click()
   await transitioned
   // Fresh isolated Odoo databases may retain the stock English field label.
-  await tabs.getByRole('tab', { name: 'السجل', exact: true }).click()
-  const log = page.getByTestId('task-activity-card')
+  await filter.getByRole('button', { name: 'السجل', exact: true }).click()
+  const log = activity.getByTestId('task-activity-feed')
   await expect(log.locator('li').filter({ hasText: /الحالة|State/ }).first()).toBeVisible()
-  await expect(log.getByPlaceholder('اكتب تعليقًا…')).toHaveCount(0)
+  await expect(log).not.toContainText(commentText)
 })

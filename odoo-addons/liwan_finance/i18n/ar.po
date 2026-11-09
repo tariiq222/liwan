@@ -1161,3 +1161,19 @@ msgstr "الشريك %(id)s غير موجود"
 #: code:addons/liwan_finance/controllers/finance_zakat.py:0
 msgid "liwan.finance.zakat.adjustment %(id)s does not exist"
 msgstr "تسوية الزكاة %(id)s غير موجود"
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/controllers/finance_invoices.py:0
+msgid "ZATCA accepted this document: its content cannot change. Issue a credit note instead."
+msgstr "قبلت زاتكا هذا المستند: لا يمكن تغيير محتواه. أصدر إشعارًا دائنًا بدلًا من ذلك."
+
+#. module: liwan_finance
+#. odoo-python
+#: code:addons/liwan_finance/controllers/finance_invoices.py:0
+msgid ""
+"ZATCA has not answered this document yet and it keeps its chain number: its "
+"content cannot change. Send it again to get the answer."
+msgstr ""
+"لم ترد زاتكا على هذا المستند بعد وما زال محتفظًا برقمه في السلسلة: لا يمكن "
+"تغيير محتواه. أعد إرساله لتحصل على الرد."

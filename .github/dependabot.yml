@@ -29,6 +29,10 @@ updates:
     open-pull-requests-limit: 3
     commit-message:
       prefix: 'build(ci)'
+    ignore:
+      # TypeScript 7 ships no JS compiler API, which vue-tsc and the test helpers (ts.transpileModule) rely on.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
     groups:
       # The first matching group wins. Keep compiler and Nuxt UI changes
       # independent of routine updates so their CI failures are attributable.

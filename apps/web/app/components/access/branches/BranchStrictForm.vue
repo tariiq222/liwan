@@ -23,9 +23,9 @@ const locked = computed(() => !hydrated.value || state.value.saving || state.val
     :id="`branch-strict-${scope}`" v-bind="state" :title="t(`access.branches.strict.${scope}.title`)"
     :description="t('access.branches.strict.description')" :can-edit="canEdit" @save="save" @revert="revert" @reload="reload"
   >
-    <UFormField orientation="horizontal" :label="t('access.branches.strict.label')" :name="`branch-strict-${scope}`" :description="t(`access.branches.strict.${scope}.hint`)">
+    <SharedSettingRow :label="t('access.branches.strict.label')" :name="`branch-strict-${scope}`" :description="t(`access.branches.strict.${scope}.hint`)">
       <USwitch v-model="draft.enabled" :disabled="locked || !canEdit" :aria-label="t(`access.branches.strict.${scope}.title`)" :data-testid="`branch-strict-${scope}`" />
-    </UFormField>
+    </SharedSettingRow>
     <UAlert v-if="state.dirty && !draft.enabled" color="warning" variant="subtle" :title="t('access.branches.strict.widens')" />
   </SharedSettingsCard>
 </template>

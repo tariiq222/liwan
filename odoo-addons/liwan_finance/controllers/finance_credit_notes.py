@@ -2,12 +2,13 @@
 from odoo import Command, http
 from odoo.http import request
 
-from .common import require_capability
 from .finance_invoices import _find_invoice, _lock_context
+from .idempotency import idempotent
 from .write_support import attempt, require_open_period
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
+    requires_capability,
     requires_feature,
 )
 from odoo.addons.liwan_finance.serializers.credit_note import parse_credit_note
@@ -32,12 +33,14 @@ class FinanceCreditNoteController(http.Controller):
     )
     @api_handler
     @requires_feature('finance.enabled', operation='write')
+    @requires_capability('finance.invoices.manage')
+    @idempotent
     def create_credit_note(self, invoice_id, **payload):
         """The draft credit note reversing a posted invoice, made by Odoo's public ``account.move.reversal`` wizard.
 
-        Posting the credit note reconciles it with the invoice and lowers its residual.
+        Posting the credit note reconciles it with the invoice and lowers its residual. A repeated ``Idempotency-Key``
+        answers with the first note instead of creating a second one.
         """
-        require_capability('finance.invoices.manage')
         invoice = _find_invoice(invoice_id, writable=True)
         parsed = parse_credit_note(payload)
         _require_creditable(invoice)

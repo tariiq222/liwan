@@ -3,12 +3,15 @@
 
 A bank exports its own layout, so the caller names the columns (``mapping``) after a preview that proposes them from
 the header. Rows are validated one by one and every problem is reported with its row number, so a file is accepted
-whole or not at all.
+whole or not at all. Amounts are rounded to the ``rounding`` of the journal currency, which the caller passes in: this
+module never reads a currency.
 """
 import csv
 import io
 import re
 from datetime import datetime
+
+from odoo.tools.float_utils import float_round
 
 from .parsing import parse_text
 from .statement_file import read_text, refuse
@@ -121,8 +124,12 @@ def parse_cell_amount(text, decimal):
     return -float(value) if negative else float(value)
 
 
-def parse_rows(rows, columns, date_format, decimal):
-    """``(lines, errors)``: the valid statement lines (row number first) and every row-level problem."""
+def parse_rows(rows, columns, date_format, decimal, rounding):
+    """``(lines, errors)``: the valid statement lines (row number first) and every row-level problem.
+
+    ``rounding`` is the journal currency's rounding factor, so a three-decimal currency keeps its fils and a
+    half-up case such as -2.675 becomes -2.68 rather than Python's half-even -2.67.
+    """
     lines, errors = [], []
     for number, row in rows:
         def cell(field):
@@ -145,8 +152,10 @@ def parse_rows(rows, columns, date_format, decimal):
         except ValueError:
             errors.append({'row': number, 'field': 'amount', 'message': 'not a number'})
             continue
+        # A file amount that is zero, or that rounds to zero in the journal currency, is not a statement line.
+        amount = float_round(amount, precision_rounding=rounding)
         if not amount:
             errors.append({'row': number, 'field': 'amount', 'message': 'the amount is zero'})
             continue
-        lines.append({'row': number, 'date': day, 'payment_ref': parse_text(reference[:255], 'payment_ref'), 'amount': round(amount, 2)})
+        lines.append({'row': number, 'date': day, 'payment_ref': parse_text(reference[:255], 'payment_ref'), 'amount': amount})
     return lines, errors

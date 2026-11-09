@@ -7,9 +7,9 @@ import { activeManifests } from '../../modules/manifests'
 import { normalizedPath } from '../../utils/routePath'
 import { LAUNCHER_MODULE_ID } from './activeRoute'
 import { partIsExact, settingsPageForPath, settingsPartPath, settingsPartTarget, settingsPages, type SettingsPage } from './settingsSections'
-import type { AppSettingsPart } from '../../modules/types'
+import type { AppSettingsPart, AppSidebarMenu } from '../../modules/types'
 import { CUSTOMER_COMMERCIAL_CAPABILITIES, deriveCustomerCapabilities } from '../../utils/customerCapabilities'
-import type { AppIcon, AppRailSlot } from '../../modules/types'
+import type { AppIcon } from '../../modules/types'
 
 // UIcon resolves these names from the local Lucide Iconify collection. Keep
 // the names in this shared model so every shell consumer renders the same icon
@@ -98,33 +98,23 @@ export interface ShellModuleDefinition {
   shortLabelKey?: string
   icon: AppIcon
   to: string
-  /** A base-system entry the rail always shows in this slot, whatever the user pins. */
-  fixed?: AppRailSlot
-  /** Drawn in its own colour in the rail. */
-  accent?: boolean
+  /** Position in the icon row of the free base-system applications; set on those only. */
+  core?: number
 }
 
 /** The start page of an application (`/apps/<id>`); it is not a manifest module, so no navigation item or capability belongs to it. */
 export const LAUNCHER_MODULE: ShellModuleDefinition = { id: LAUNCHER_MODULE_ID, labelKey: 'nav.apps', icon: 'i-lucide-layout-grid', to: '/' }
 
-/** The label key naming the open area in the drawer and sidebar heading: its module, «التطبيقات» on the launcher, else the product name. */
-export function areaLabelKey(definition: Pick<ShellModuleDefinition, 'labelKey'> | null | undefined, activeModule: ShellModule | null): string {
-  if (definition) return definition.labelKey
-  return activeModule === LAUNCHER_MODULE_ID ? LAUNCHER_MODULE.labelKey : 'app.productName'
-}
-
-/** Every rail module: home, the applications by manifest `order`, then settings (the rail places each by `fixed`). */
+/** Every rail module: home, the applications by manifest `order`, then settings (the rail places each by `core`). */
 export function shellModuleList(): ShellModuleDefinition[] {
   const applications = activeManifests().flatMap(manifest => manifest.rail).sort((a, b) => a.order - b.order)
   return [
     { id: 'home', labelKey: 'nav.home', icon: House, to: '/' },
-    ...applications.map(({ id, labelKey, shortLabelKey, icon, to, fixed, accent }) => ({ id, labelKey, shortLabelKey, icon, to, ...(fixed ? { fixed } : {}), ...(accent ? { accent } : {}) })),
-    // Settings is administration only: account and appearance live in the header.
+    ...applications.map(({ id, labelKey, shortLabelKey, icon, to, core }) => ({ id, labelKey, shortLabelKey, icon, to, ...(core ? { core } : {}) })),
+    // Settings is administration only: the account card is in the sidebar footer and the appearance button in the top bar.
     { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: SETTINGS_OVERVIEW_PATH },
   ]
 }
-/** The rail of the discovered manifests, for consumers that only look up a heading or icon. */
-export const shellModules: ShellModuleDefinition[] = shellModuleList()
 
 export function visibleShellModules(identity: AccessIdentity): ShellModuleDefinition[] {
   const nav = useNav(identity)
@@ -204,6 +194,11 @@ function resolveContextLinks(module: ShellModule, path: string | undefined, iden
   const owner = activeManifests().find(manifest => manifest.rail.some(entry => entry.id === module))
   if (owner) return owner.contextLinks?.(path) ?? []
   return module === 'settings' ? settingsContextLinks(path, identity) : []
+}
+
+/** The flat sidebar menu the application behind a rail module declares, or undefined for the generic context-link menu. */
+export function sidebarMenuForModule(module: ShellModule): AppSidebarMenu | undefined {
+  return activeManifests().find(manifest => manifest.rail.some(entry => entry.id === module))?.sidebar
 }
 
 /** A module's context links before capability filtering (the breadcrumb names the page the user is on). */

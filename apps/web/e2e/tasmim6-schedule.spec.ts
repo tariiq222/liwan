@@ -1,14 +1,15 @@
 import { test, expect } from '@playwright/test'
 import { login, open, DESKTOP, PHONE, rows, mobileRows, fitsWidth, expectFrameOwnsH1, typeThenOpen } from './support/tasmim6'
 
-test.describe('Plan 6a: schedule', () => {
+test.describe('Plan 6a: the timeline view of the project tasks', () => {
   test.beforeEach(async ({ page }) => { await login(page) })
   test.describe('desktop', () => {
     test.use({ viewport: DESKTOP })
-    test('the schedule is the timeline template inside the frame: one h1, a toolbar, the Gantt', async ({ page }) => {
-      await open(page, '/projects/2/schedule')
+    test('the timeline view sits in the tasks card inside the frame: one h1, the controls in the toolbar row, the Gantt', async ({ page }) => {
+      await open(page, '/projects/2/tasks?view=timeline')
       await expectFrameOwnsH1(page)
-      await expect(page.locator('[data-template="timeline-frame"]')).toHaveCount(1)
+      await expect(page.locator('[data-slot="timeline-controls"]')).toHaveCount(1)
+      await expect(page.locator('[data-template="timeline-frame"]')).toHaveCount(0)
       await expect(page.getByTestId('timeline-prev')).toBeEnabled()
       await expect(page.getByTestId('timeline-next')).toBeEnabled()
       await expect(page.getByTestId('timeline-today')).toBeEnabled()
@@ -17,7 +18,7 @@ test.describe('Plan 6a: schedule', () => {
       await expect(page.getByTestId('project-header-create')).toHaveAttribute('href', /\/projects\/2\/tasks\/new/)
     })
     test('the scale lives in the URL and survives reload', async ({ page }) => {
-      await open(page, '/projects/2/schedule')
+      await open(page, '/projects/2/tasks?view=timeline')
       const scale = page.getByTestId('timeline-scale')
       await expect(scale.getByRole('button', { name: 'أسبوعي' })).toHaveAttribute('aria-pressed', 'true')
       await scale.getByRole('button', { name: 'شهري' }).click()
@@ -26,14 +27,14 @@ test.describe('Plan 6a: schedule', () => {
       await expect(page.getByTestId('timeline-scale').getByRole('button', { name: 'شهري' })).toHaveAttribute('aria-pressed', 'true')
     })
     test('the toolbar buttons scroll the track without leaving the page', async ({ page }) => {
-      await open(page, '/projects/2/schedule?scale=week')
+      await open(page, '/projects/2/tasks?view=timeline&scale=week')
       await page.getByTestId('timeline-next').click()
       await page.getByTestId('timeline-prev').click()
       await page.getByTestId('timeline-today').click()
-      await expect(page).toHaveURL(/\/projects\/2\/schedule/)
+      await expect(page).toHaveURL(/\/projects\/2\/tasks\?.*view=timeline/)
     })
     test('a task bar link opens the same project task record for a manager and a viewer', async ({ page }) => {
-      await open(page, '/projects/2/schedule')
+      await open(page, '/projects/2/tasks?view=timeline')
       await expect(page.locator('.schedule-gantt-task').first()).toHaveAttribute('href', /\/projects\/2\/tasks\/\d+\?.*#schedule$/)
       // Management and task creation are independent capabilities: refresh actual client auth as a viewer.
       let authIntercepted = false
@@ -43,7 +44,7 @@ test.describe('Plan 6a: schedule', () => {
         authIntercepted = true
         await route.fulfill({ response, json: { ...me, capabilities: me.capabilities.filter((key: string) => key !== 'pmo.tasks.create') } })
       })
-      await page.evaluate(() => (window as unknown as { useNuxtApp: () => { $router: { push: (path: string) => Promise<unknown> } } }).useNuxtApp().$router.push('/projects/3/schedule'))
+      await page.evaluate(() => (window as unknown as { useNuxtApp: () => { $router: { push: (path: string) => Promise<unknown> } } }).useNuxtApp().$router.push('/projects/3/tasks?view=timeline'))
       expect(authIntercepted).toBe(true)
       await expect(page.locator('.schedule-gantt-task').first()).toHaveAttribute('href', /^\/projects\/3\/tasks\/\d+\?.*#schedule$/)
       await expect(page.getByTestId('project-header-create')).toHaveCount(0)
@@ -52,7 +53,7 @@ test.describe('Plan 6a: schedule', () => {
   test.describe('phone', () => {
     test.use({ viewport: PHONE })
     test('the toolbar wraps, the Gantt scrolls inside its own container and the page does not overflow', async ({ page }) => {
-      await open(page, '/projects/2/schedule?scale=month')
+      await open(page, '/projects/2/tasks?view=timeline&scale=month')
       await expect(page.getByTestId('timeline-prev')).toBeVisible()
       expect(await fitsWidth(page)).toBe(true)
     })

@@ -136,16 +136,20 @@ export function useFinanceInvoiceTransition() {
     $api(`/api/v1/finance/invoices/${id}/${action}`, { method: 'POST', body: {}, schema: FinanceInvoiceDetailSchema }))
 }
 
+/** The key stays with the form instance, so a retry after a lost answer replays the first note instead of creating a second one. */
 export function useCreateFinanceDebitNote() {
   const { $api } = useApi()
+  const key = crypto.randomUUID()
   return useInvoiceWrite(({ id, body }: { id: number; body: FinanceDebitNoteCreate }) =>
-    $api(`/api/v1/finance/invoices/${id}/debit-note`, { method: 'POST', body, schema: FinanceInvoiceDetailSchema }), input => input.id)
+    $api(`/api/v1/finance/invoices/${id}/debit-note`, { method: 'POST', body, headers: { 'Idempotency-Key': key }, schema: FinanceInvoiceDetailSchema }), input => input.id)
 }
 
+/** The key stays with the form instance, so a retry after a lost answer replays the first note instead of creating a second one. */
 export function useCreateFinanceCreditNote() {
   const { $api } = useApi()
+  const key = crypto.randomUUID()
   return useInvoiceWrite(({ id, body }: { id: number; body: FinanceCreditNoteCreate }) =>
-    $api(`/api/v1/finance/invoices/${id}/credit-note`, { method: 'POST', body, schema: FinanceInvoiceDetailSchema }), input => input.id)
+    $api(`/api/v1/finance/invoices/${id}/credit-note`, { method: 'POST', body, headers: { 'Idempotency-Key': key }, schema: FinanceInvoiceDetailSchema }), input => input.id)
 }
 
 /** The submission answer is a committed state even when ZATCA says no: the caller reads the record again either way. */

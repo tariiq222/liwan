@@ -1,7 +1,6 @@
 {
   "attachments": {
     "title": "Task attachments",
-    "loading": "Loading attachments…",
     "empty": "No attachments yet",
     "upload": "Upload file",
     "help": "PDF, PNG, JPEG, plain text, DOCX, or XLSX; up to 10 MB",

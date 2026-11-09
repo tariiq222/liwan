@@ -3,6 +3,7 @@ import { createSessionQueryScope, sessionQueryScopeKey, type SessionQueryOwner }
 import { clearChatDrafts } from '@/utils/chatDrafts'
 import { sessionIdentityKey, isPossibleSessionExpiry } from '@/utils/sessionExpiry'
 import { clearTenantSuspension, dropToastsWhileSuspended, isTenantSuspended, onTenantSuspension, SUSPENDED_LOGIN } from '@/utils/tenantSuspension'
+import { keepBuiltInsOutOfIdTree } from '@/lib/hydrationIds'
 import { restoreDehydratedErrors, serializeDehydratedErrors, settleServerQueries, retryQuery, isTransientQueryError, type SerializedDehydratedState } from '@/lib/vueQuerySsr'
 
 // Bus and access refresh depend on this app-local owner scope.
@@ -128,6 +129,8 @@ export default defineNuxtPlugin({
     nuxt.vueApp.mixin({
       serverPrefetch: () => settleServerQueries(queryScope.current.value.client),
     })
+    // Vue's own wrappers (Nuxt's client-only page <Transition>) must not join that id tree (lib/hydrationIds.ts).
+    keepBuiltInsOutOfIdTree(nuxt.vueApp)
     if (import.meta.server) {
       nuxt.hooks.hook('app:rendered', () => {
         vueQueryState.value = serializeDehydratedErrors(dehydrate(queryScope.current.value.client, {

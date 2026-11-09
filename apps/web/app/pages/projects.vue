@@ -6,6 +6,9 @@ const isCreateRoute = computed(() => (route.path.replace(/\/+$/, '') || '/') ===
 </script>
 
 <template>
-  <ProjectList v-if="isCreateRoute" />
-  <NuxtPage />
+  <!-- One root element: the page transition cannot animate a fragment. `contents` keeps the wrapper out of the layout. -->
+  <div class="contents">
+    <ProjectList v-if="isCreateRoute" />
+    <NuxtPage />
+  </div>
 </template>

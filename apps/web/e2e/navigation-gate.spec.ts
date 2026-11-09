@@ -63,7 +63,7 @@ test.describe('a list returns to where the reader left it', () => {
     expect(cleared.after, 'the query cache must actually be emptied for this to be a cold test').toBe(0)
     const listRequest = page.waitForRequest(request => new URL(request.url()).pathname === '/api/v1/tasks')
 
-    await page.getByRole('link', { name: 'العودة إلى المهام' }).click()
+    await page.getByTestId('task-detail-back').click()
     await page.waitForURL(/\/tasks(\?|$)/)
     await listRequest
     // Proof the list really was empty when the router asked where to scroll.
@@ -81,15 +81,15 @@ test.describe('back from an edit form returns to the record', () => {
   // page and resolves its backTo against a real vue-router.
   test('a stakeholder editor returns to its stakeholder, not the section list', async ({ page }) => {
     await page.goto('/projects/1/stakeholders/1/edit')
-    await expect(page.locator('main').first()).toBeVisible()
-    await page.locator('[data-slot="page-header"] a').first().click()
+    const trail = page.getByTestId('page-header-trail')
+    await trail.locator('a[href="/projects/1/stakeholders/1"]').click()
     await expect(page).toHaveURL(/\/projects\/1\/stakeholders\/1(\?|$)/)
   })
 
   test('a register entry editor returns to its entry, not the section list', async ({ page }) => {
     await page.goto('/projects/1/register/1/edit')
-    await expect(page.locator('main').first()).toBeVisible()
-    await page.locator('[data-slot="page-header"] a').first().click()
+    const trail = page.getByTestId('page-header-trail')
+    await trail.locator('a[href="/projects/1/register/1"]').click()
     await expect(page).toHaveURL(/\/projects\/1\/register\/1(\?|$)/)
   })
 })
@@ -160,7 +160,7 @@ test.describe('filters and permissions survive navigation', () => {
     await page.goto('/tasks?q=%D9%85%D9%87%D9%85%D8%A9')
     await expect(page.locator('tbody tr').first()).toBeVisible()
     await openFirstTask(page)
-    await page.getByRole('link', { name: 'العودة إلى المهام' }).click()
+    await page.getByTestId('task-detail-back').click()
     await page.waitForURL(/\/tasks(\?|$)/)
     expect(new URL(page.url()).searchParams.get('q'), 'the filter did not survive the round trip').toBe('مهمة')
   })
@@ -170,7 +170,7 @@ test.describe('filters and permissions survive navigation', () => {
     // lesser identity is asserted at unit level (projectWorkspaceFrame.test.ts);
     // here we prove the gate is wired to the record, not hardcoded on.
     await page.goto('/projects/1')
-    const settings = page.getByTestId('project-workspace-settings')
+    const settings = page.getByTestId('project-workspace-menu')
     const canManage = await page.evaluate(async () => {
       const res = await fetch('/api/v1/projects/1', { headers: { 'Content-Type': 'application/json' } })
       const body = await res.json().catch(() => null)

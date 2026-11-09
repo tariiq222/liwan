@@ -12,9 +12,9 @@
       "enabled": "Live"
     },
     "mode": {
-      "label": "Mode",
-      "hint": "Off takes no payments, Test tries the connection without real money, and Live takes your customers' real payments.",
-      "needsKeys": "To turn on Test or Live, enter all the keys and save them first.",
+      "label": "Operating mode",
+      "hint": "Off takes no payments, Test uses no real money, Live takes your customers' real payments.",
+      "needsKeys": "Enter and save all keys first to turn on Test or Live.",
       "changed": "The mode was changed",
       "failed": "The mode could not be changed",
       "liveTitle": "Turn on live payments?",
@@ -23,12 +23,12 @@
     },
     "country": {
       "label": "Gateway account country",
-      "hint": "It sets the payment currency of your gateway account.",
+      "hint": "Sets the payment currency of your gateway account.",
       "changed": "The account country was changed"
     },
     "credentials": {
       "title": "Account keys",
-      "hint": "Find them in your {gateway} dashboard. Keys are not shown again after saving; leave a field empty to keep its saved key.",
+      "hint": "Find them in your {gateway} dashboard. They are hidden after saving; leave a field empty to keep it.",
       "present": "Saved",
       "absent": "Not entered",
       "keep": "Leave empty to keep the saved key",
@@ -151,24 +151,24 @@
       "hint": "What applies to the orders your customers pay online.",
       "expiry": {
         "label": "Time to pay an unpaid order (minutes)",
-        "hint": "An order that is not paid within this time is cancelled automatically. Between {min} and {max} minutes; it applies to the current company.",
+        "hint": "An unpaid order is cancelled after this time, between {min} and {max} minutes, for the current company.",
         "invalid": "Enter a whole number between {min} and {max}."
       },
       "invoiceWhenPaid": {
         "label": "Invoice when paid",
-        "hint": "The order's invoice is created and posted as soon as its payment is confirmed. This choice applies to the whole account, not only to the current company."
+        "hint": "The invoice is created and posted once payment is confirmed. It applies to the whole account, not one company."
       },
       "saved": "The order settings were saved",
       "taxMode": {
         "label": "Tax in the price",
-        "hint": "Whether the price you set already contains the tax (the customer pays that price) or the tax is added on top. The tax shows to the customer as its own line either way. Applies to new orders of the current company.",
+        "hint": "Whether the price includes tax or tax is added on top. Tax shows as its own line, for new orders of the current company.",
         "included": "Price includes tax",
         "added": "Tax is added to the price",
-        "unregistered": "The company is not registered for VAT, so no tax is computed on its orders or shown to the customer. Turn registration on in the company profile to show it."
+        "unregistered": "The company is not VAT-registered, so no tax is added. Turn registration on in the company profile."
       },
       "systemAdminLinks": {
         "label": "Payment links for system administrators",
-        "hint": "Lets a system administrator create payment links for the company invoices even without the capability to read invoices. Off by default; when off the request is refused with a message that names the required capability."
+        "hint": "A system administrator can create a pay link without invoice-read permission. Off by default."
       }
     },
     "status": {

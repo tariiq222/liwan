@@ -33,7 +33,7 @@ const catalogs = computed(() => [
           :key="catalog.testId"
           :to="{ path: catalog.path, query: returnToQuery(route.fullPath) }"
           :data-testid="catalog.testId"
-          class="flex items-center justify-between gap-3 px-(--liwan-card-pad) py-3 text-sm font-medium text-highlighted transition-colors duration-150 hover:bg-(--liwan-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+          class="flex items-center justify-between gap-3 px-(--liwan-card-pad) py-3 text-sm font-medium text-highlighted transition-colors hover:bg-(--liwan-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
         >
           {{ catalog.label }}
           <UIcon name="i-lucide-chevron-right" class="size-4 text-muted rtl:rotate-180" aria-hidden="true" />

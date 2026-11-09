@@ -20,6 +20,7 @@ from odoo.addons.liwan_finance.serializers.invoice import WRITABLE_MOVE_TYPES
 from odoo.addons.liwan_finance.serializers.zatca import (
     ZATCA_FORMAT_CODE,
     dump_zatca_submission,
+    zatca_content_final,
     zatca_document,
 )
 
@@ -73,6 +74,9 @@ class LiwanFinanceActions(models.AbstractModel):
         ) else None
         payments = posted and bool(invoice.reconciled_payment_ids.filtered(lambda payment: payment.state not in LIVE_PAYMENT_EXCLUDED))
         transition = 'has_payments' if payments else locked if posted else None
+        # A document that carries a ZATCA chain index cannot change content (accepted, or waiting after a timeout):
+        # the index travels with it, so neither action is offered (the routes refuse them with 422 invalid).
+        final = posted and zatca_content_final(invoice)
         offers = []
         if draft:
             onboarding = self._liwan_zatca_posting_block(invoice)
@@ -81,9 +85,9 @@ class LiwanFinanceActions(models.AbstractModel):
                 ('delete', 'finance.invoices.manage', None),
                 ('post', 'finance.invoices.post', locked or onboarding),
             ]
-        else:
+        elif not final:
             offers.append(('reset_to_draft', 'finance.invoices.post', transition))
-        if invoice.state != 'cancel':
+        if invoice.state != 'cancel' and not final:
             offers.append(('cancel', 'finance.invoices.post', transition))
         if posted:
             offers += self._liwan_posted_invoice_offers(invoice)

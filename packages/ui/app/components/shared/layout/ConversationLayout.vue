@@ -1,15 +1,11 @@
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
 
-// The conversation template (Tasmim Plan 4), taken from chat/ChatWorkspace.vue.
-// From 768px the conversation list is the application's context-sidebar panel
-// (AppManifest.sidebarPanel), so this renders only the thread column (`header`,
-// `thread`, `composer`). An open info panel sits beside it from 1280px; below that it
-// uses the available region so the context sidebar cannot squeeze the composer.
-// Hide the selected thread while info takes that region; retain its history and reading offset.
-// With nothing selected it shows `empty`. Below 768px the `list` fills the page until
-// a conversation is selected; the thread then replaces it (its header carries the back
-// link to the list), and an open info panel replaces the thread.
+// The conversation frame: one 24px card with the conversation list on the inline-start (360px, narrowing to 260px on a tablet so the thread or info panel keeps room) and the thread
+// beside it (`header`, `thread`, `composer`; `empty` when nothing is selected). An open info panel sits in a third
+// 320px column from 1280px; below that it replaces the thread, which stays mounted (hidden) so its draft and
+// reading offset survive. Below 768px the list, the thread and the info panel replace one another: the list shows
+// until a conversation is selected. The page supplies the page header and the content of each slot.
 const props = withDefaults(defineProps<{
   hasSelection: boolean
   infoOpen?: boolean
@@ -21,35 +17,34 @@ const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
 const canSplitInfo = useMediaQuery('(min-width: 1280px)', { ssrWidth: 1024 })
 const showInfo = computed(() => props.hasSelection && props.infoOpen)
 const infoInAside = computed(() => showInfo.value && canSplitInfo.value)
-const showList = computed(() => !isDesktop.value && !props.hasSelection)
+const showList = computed(() => isDesktop.value || !props.hasSelection)
 const showThread = computed(() => (isDesktop.value || props.hasSelection) && (!showInfo.value || infoInAside.value))
+const columns = computed(() => !isDesktop.value ? 'grid-cols-1' : infoInAside.value ? 'grid-cols-[360px_minmax(0,1fr)_320px]' : 'grid-cols-[clamp(260px,34vw,360px)_minmax(0,1fr)]')
 </script>
 
 <template>
-  <SharedPageContainer data-template="conversation-layout" class="h-[calc(100svh_-_var(--shell-top,0px))] min-h-0 grid-rows-[minmax(0,1fr)]">
-    <div class="flex min-h-0 overflow-hidden bg-default">
-      <div v-if="showList" data-template="conversation-list" class="flex min-h-0 min-w-0 flex-1 flex-col">
-        <slot name="list" />
-      </div>
-      <section v-if="isDesktop || props.hasSelection" v-show="showThread" data-template="conversation-thread" class="flex min-h-0 min-w-0 flex-1 flex-col">
-        <template v-if="props.hasSelection">
-          <div v-if="$slots.header" data-template="conversation-header" class="shrink-0">
-            <slot name="header" />
-          </div>
-          <div data-template="conversation-messages" class="flex min-h-0 flex-1 flex-col">
-            <slot name="thread" />
-          </div>
-          <div v-if="$slots.composer" data-template="conversation-composer" class="shrink-0">
-            <slot name="composer" />
-          </div>
-        </template>
-        <div v-else data-template="conversation-empty" class="grid flex-1 place-items-center p-6">
-          <slot name="empty" />
-        </div>
-      </section>
-      <aside v-if="showInfo" data-template="conversation-info" :aria-label="t('states.details')" class="flex min-h-0 flex-col overflow-y-auto bg-default" :class="infoInAside ? 'w-80 shrink-0 md:border-s md:border-default' : 'min-w-0 flex-1'">
-        <slot name="info" :headingLevel="infoInAside ? 'h2' : 'h1'" />
-      </aside>
+  <div data-template="conversation-layout" class="grid h-[max(540px,calc(100svh-340px))] min-w-0 overflow-hidden rounded-surface border-[1.5px] border-default bg-default" :class="columns">
+    <div v-if="showList" data-template="conversation-list" class="flex min-h-0 min-w-0 flex-col" :class="{ 'border-e-[1.5px] border-default': isDesktop }">
+      <slot name="list" />
     </div>
-  </SharedPageContainer>
+    <section v-if="isDesktop || props.hasSelection" v-show="showThread" data-template="conversation-thread" class="flex min-h-0 min-w-0 flex-col">
+      <template v-if="props.hasSelection">
+        <div v-if="$slots.header" data-template="conversation-header" class="shrink-0">
+          <slot name="header" />
+        </div>
+        <div data-template="conversation-messages" class="flex min-h-0 flex-1 flex-col">
+          <slot name="thread" />
+        </div>
+        <div v-if="$slots.composer" data-template="conversation-composer" class="shrink-0">
+          <slot name="composer" />
+        </div>
+      </template>
+      <div v-else data-template="conversation-empty" class="grid flex-1 place-items-center p-6">
+        <slot name="empty" />
+      </div>
+    </section>
+    <aside v-if="showInfo" data-template="conversation-info" :aria-label="t('states.details')" class="flex min-h-0 min-w-0 flex-col overflow-y-auto bg-default" :class="{ 'border-s-[1.5px] border-default': infoInAside }">
+      <slot name="info" />
+    </aside>
+  </div>
 </template>

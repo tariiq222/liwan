@@ -6,6 +6,8 @@ import * as Vue from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { describe, expect, it } from 'vitest'
 import { projectIdFromPath } from '../../modules/pmo/projectRoutes'
+import { projectTaskScope, projectTaskScopeQuery } from '../../composables/taskScope'
+import { projectSectionAvailable } from '../../utils/projectTools'
 
 // A section page mounts even for an id its route can never resolve: <NuxtPage />
 // is unconditional and useProject is merely disabled, so each page decides for
@@ -58,7 +60,8 @@ function loadSetupState(rel: string, router: Router, project: ProjectState, erro
     usePageHeader: () => undefined,
     useTaskFilters: () => Vue.ref({}),
     // Real helpers: these decide the id the guards are built from.
-    projectIdFromPath,
+    projectIdFromPath, projectTaskScope, projectTaskScopeQuery, projectSectionAvailable,
+    useProjectTimeline: () => ({ schedule: { data: Vue.ref(undefined), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: () => undefined }, baseline: Vue.ref(undefined), scale: Vue.ref('week'), scales: Vue.ref([]), rangeLabel: Vue.ref(''), gantt: Vue.ref(null) }),
     safeReturnTo: (value: unknown, fallback: string) => (typeof value === 'string' ? value : fallback),
     ApiError: TestApiError,
     useProject: () => ({
@@ -162,6 +165,15 @@ describe('the task section presentation comes from the URL', () => {
     expect(guard<boolean>(table, 'isBoard')).toBe(false)
     const board = await stateAt('/projects/7/tasks?view=board', TASKS, { project: ACTIVE })
     expect(guard<boolean>(board, 'isBoard')).toBe(true)
+    const planned = { ...ACTIVE, tools: { planning: { enabled: true } } }
+    expect(guard<boolean>(await stateAt('/projects/7/tasks?view=timeline', TASKS, { project: planned }), 'isTimeline')).toBe(true)
+    // Without the planning tool there is no schedule to show: the view falls back to the table.
+    expect(guard<boolean>(await stateAt('/projects/7/tasks?view=timeline', TASKS, { project: { ...ACTIVE, tools: { planning: { enabled: false } } } as never }), 'isTimeline')).toBe(false)
+    expect(guard<boolean>(table, 'isTimeline')).toBe(false)
+    // Archived is a scope of the same list: it wins over a view and shows neither the board nor the timeline.
+    const archived = await stateAt('/projects/7/tasks?scope=archived&view=board', TASKS, { project: ACTIVE })
+    expect(guard<boolean>(archived, 'isArchived')).toBe(true)
+    expect(guard<boolean>(archived, 'isBoard')).toBe(false)
     // TaskBoard falls back to personal stages when stageSource is omitted, so
     // the project kind is what keeps a project board off personal columns.
     expect(guard<{ kind: string }>(board, 'stageSource')).toMatchObject({ kind: 'project' })

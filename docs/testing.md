@@ -180,15 +180,10 @@ and `merge_group` events; a merge-queue entry is selected from the queue base to
 
 - `upgrade`, `restore-drill` and `image` never run on a pull request. They run on the push to `main`, the
   nightly run and a full dispatch.
-- `e2e-odoo` runs on a pull request only when the change reaches a surface its running specs drive
-  (`E2E_ODOO_TRIGGERS` in `tools/ci_scope.py`): the stage script, its seed and the specs; sign-in and the server proxy;
-  the project, task and chat pages, components and composables; the account, access-administration and HR people
-  pages; and the Odoo addons behind them (`liwan_core`, `liwan_platform`, `liwan_api`, `liwan_directory`, `liwan_pmo`,
-  `liwan_tasks`, `liwan_chat`, `liwan_hr`, `liwan_pmo_finance`, `liwan_tasks_pmo`, `liwan_access_hr`). A documentation,
-  tooling-only or other-application change defers it to the push to `main`, the nightly run and a full dispatch.
-  `tools/test_ci_scope.py` pins both lists. A surface joins the triggers when a spec that drives it joins the stage.
-- A file under `odoo-addons/<addon>/` selects only `static` and the Odoo stages: `ai-service`, `control-plane`,
-  `vendor-admin`, `e2e-mock` and `rtl-stories` read no addon code, so they run for an addon change on `main`.
+- `e2e-odoo` runs before merge for changes under `apps/web/` or `odoo-addons/`, and when a shared input selects
+  it through `tools/ci_scope.py`. The stage's seed and runner also select it.
+- An addon file selects `static`, the Odoo stages with affected modules, and `e2e-odoo`. The other stages in the
+  addon rule run on the push to `main`.
 - A change limited to `apps/web/server/` does not select `rtl-stories`: the Storybook build imports no
   server file.
 - The `odoo` stages reach only the affected release modules: the addons changed under `odoo-addons/<addon>/`
@@ -226,18 +221,18 @@ dependencies or Chromium; only the `policies` part of `static` runs them. Deleti
 static profile. The job and required `ci-result` are the same. Pushes to `main`,
 scheduled runs, manual runs and merge groups always use the full static profile.
 
-### Stage pass cache
+### CI job pass cache
 
-In a pull request or merge-queue entry, a stage that already passed on exactly the same inputs is not run again.
-`static` is one job with a matrix of three parallel parts (`deploy/ci/static.sh policies|tests|types`;
-without an argument the script runs all three in order); the stage passes only when every part passes.
-Every stage job except `static` ends with `.github/actions/stage-pass`, which saves a key from
+In a pull request or merge-queue entry, an individual job that already passed on exactly the same inputs
+is omitted from the next run. `static` always runs with three parallel parts
+(`deploy/ci/static.sh policies|tests|types`; without an argument the script runs all three in order).
+Every other stage job ends with `.github/actions/stage-pass`, which saves a key from
 `python3 -B tools/ci_stage_cache.py key`: a hash of the tracked files the stage reads (the `RULES` of
-`tools/ci_scope.py`) and its matrix entry. The `scope` job leaves out every stage whose jobs all saved a key on the
-same ref; a matrix stage is skipped only when every entry has one, and a failed lookup skips nothing. A push to
-`main`, the nightly run and `workflow_dispatch` run every selected stage. `e2e-mock` is a matrix of
-`E2E_MOCK_SHARDS` and `rtl-stories` of `RTL_STORIES_SHARDS` (`tools/ci_stage_cache.py`; the `scope` job emits them as
-`e2e-mock-shards` and `rtl-stories-shards`); each is skipped only when every shard saved its `k/N` key.
+`tools/ci_scope.py`) and its matrix entry. The `scope` job trusts keys from the same ref only.
+It logs the reused jobs and sends GitHub the remaining matrix entries. A shard retains its original
+number and total: if only shard 4 of 6 is still required, it runs as `4/6`. A shared input change invalidates
+the keys of every job that reads it. When every job of a stage is reused, the stage is omitted.
+A failed cache lookup reuses nothing. Pushes to `main`, nightly runs and manual runs execute every selected job.
 
 ### Red `main` alert
 
@@ -387,7 +382,7 @@ How the stage runs (`deploy/ci/e2e-mock.sh`):
   viewport, and every other spec keeps the four-task fixture its counts assume.
 - A spec belongs in `ci-mock-specs.txt` only if it passes in that run. The gate is never edited to hide a failure.
 
-A spec that logs in as `admin` and writes real data cannot run on the mock (it answers 404 to a write). Such a journey
+A spec that signs in to Odoo and writes real data needs a scratch stack. Such a journey
 either runs in the `e2e-odoo` stage below or is covered by an addon test plus a mock spec, in which case it is deleted.
 The `E2E_REAL_ODOO` specs that have not yet passed on a scratch Odoo are named, with the reason, in
 `deploy/ci/e2e-odoo.sh` and in the latest record under `docs/verification/`; they are in no CI list until one scratch run proves them.
@@ -397,12 +392,12 @@ The `E2E_REAL_ODOO` specs that have not yet passed on a scratch Odoo are named, 
 `deploy/ci/e2e-odoo.sh` installs every release module on the scratch database `liwan_scratch_e2e`, seeds it through Odoo
 (`tools/e2e_seed.py`, then `apps/web/e2e/fixtures/real-odoo-acceptance.py`, which writes the fixture ids to
 `.superpowers/real-odoo/fixtures.json`), starts Odoo and a production Nuxt build on port 44300 and runs the specs named in
-`REAL_ODOO_SPECS` (`e2e/real-odoo-acceptance.spec.ts`, `e2e/real-odoo-services.spec.ts`) with `E2E_REAL_ODOO=1`. The twelve other
-`E2E_REAL_ODOO` specs fail on a clean scratch run (single-step `admin`/`admin` sign-in; the seed has `e2e_*` accounts and a two-step
-sign-in) and are excluded by name in the script until each is moved to the two-step sign-in. No model call or API key is
-involved, unlike `npm run e2e:odoo` (the agentic runner of "Isolated agentic e2e"), which stays the local exploration path. The stage
-runs on a pull request that touches `E2E_ODOO_TRIGGERS` (`tools/ci_scope.py`), and otherwise on the push to `main`, the nightly run and a
-full dispatch. A project starts with no optional tool enabled and finance stays off until a company enables it, so the finance journeys
+`REAL_ODOO_SPECS` (fourteen files, one per guarded `E2E_REAL_ODOO` spec) with `E2E_REAL_ODOO=1`. Every one of those files
+signs in through `apps/web/e2e/support/realOdooSession.ts`, which finishes the mandatory two-step sign-in with the remembered
+device the fixture seeds per account; no spec posts a single-step form and none carries its own credential fallback. Any
+explicit exclusion belongs in `EXCLUDED_REAL_ODOO_SPECS` with its reason.
+No model call or API key is involved, unlike `npm run e2e:odoo` (the agentic runner of "Isolated agentic e2e"), which stays the local exploration path. The stage
+runs on pull requests according to the scope above, on pushes to `main`, nightly and in a full dispatch. A project starts with no optional tool enabled and finance stays off until a company enables it, so the finance journeys
 create their project with `tool_preferences` and assert the tool answered as enabled — the same opt-in a customer performs.
 
 ### LiwanOS AI spec

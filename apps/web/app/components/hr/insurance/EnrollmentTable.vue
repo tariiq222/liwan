@@ -20,10 +20,10 @@ const { t } = useI18n()
 
 const columns = computed<TableColumn<HrInsuranceEnrollment>[]>(() => [
   { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
-  { accessorKey: 'employee', header: t('hrInsurance.columns.employee') },
+  { accessorKey: 'employee', header: t('hrInsurance.columns.employee'), meta: { title: true } },
   { accessorKey: 'plan', header: t('hrInsurance.columns.plan') },
   { accessorKey: 'date_from', header: t('hrInsurance.columns.coverage') },
-  { accessorKey: 'dependents_count', header: t('hrInsurance.columns.dependents'), meta: { class: { th: 'w-[110px]', td: 'w-[110px]' } } },
+  { accessorKey: 'dependents_count', header: t('hrInsurance.columns.dependents'), meta: { class: { th: 'w-[110px] max-[1365px]:hidden', td: 'w-[110px] max-[1365px]:hidden' } } },
   { accessorKey: 'state', header: t('hrInsurance.columns.state'), meta: { class: { th: 'w-[130px]', td: 'w-[130px]' } } },
 ])
 

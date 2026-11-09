@@ -10,174 +10,248 @@ async function open(page: Page, path: string) {
 // Run only against the isolated mock stack; this suite does not mutate business records.
 test.describe('unified application navigation', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
-  test.beforeEach(async ({ page, context, baseURL }) => {
-    await context.addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: baseURL! }])
+  test.beforeEach(async ({ page }) => {
     await login(page)
     await open(page, '/meetings')
   })
 
-  test('keeps the main application rail and only the current internal menu', async ({ page }) => {
+  test('the sidebar is in application mode: back row, the open application, its own links only', async ({ page }) => {
     const menu = page.getByTestId('application-navigation')
-    const rail = page.getByTestId('module-rail')
-    await expect(rail).toBeVisible()
-    await expect(menu).toBeVisible()
-    await expect(menu.getByRole('heading', { name: 'الاجتماعات', exact: true })).toBeVisible()
-    await expect(menu.locator('h2 button')).toHaveCount(0)
-    await expect(menu.getByRole('link', { name: 'الاجتماعات', exact: true })).toHaveCount(0)
+    await expect(menu).toHaveAttribute('data-mode', 'app')
+    await expect(menu.getByTestId('navigation-app-back')).toHaveAttribute('href', '/apps')
+    await expect(menu.getByTestId('navigation-app-block')).toHaveText('الاجتماعات')
+    // The pinned applications belong to the global mode; the organisation and the core icon row stay in both.
+    await expect(menu.getByTestId('navigation-app-projects')).toHaveCount(0)
+    await expect(menu.getByTestId('shell-org')).toBeVisible()
+    await expect(menu.getByTestId('core-app-meetings')).toHaveAttribute('aria-current', 'page')
     await expect(menu.getByRole('link', { name: 'عرض الكل', exact: true })).toBeVisible()
-    await expect(menu.locator('.liwan-navigation-app')).toHaveCount(0)
     const initial = page.url()
     await menu.getByTestId('context-link-meetings').click()
-    await expect(menu.getByRole('link', { name: 'مكتمل', exact: true })).not.toBeVisible()
+    await expect(menu.getByTestId('quick-view-done')).toHaveCount(0)
     await expect(menu.getByTestId('context-link-meeting-followup')).toBeVisible()
     expect(page.url()).toBe(initial)
     await menu.getByTestId('context-link-meetings').click()
-    await expect(menu.getByRole('link', { name: 'مكتمل', exact: true })).toBeVisible()
+    await expect(menu.getByTestId('quick-view-done')).toBeVisible()
     expect(page.url()).toBe(initial)
-    await rail.getByRole('link', { name: 'المشاريع', exact: true }).click()
-    await expect(page.getByTestId('navigation-submenu-projects')).toBeVisible()
-    await expect(page.getByTestId('navigation-submenu-meetings')).toHaveCount(0)
-    await expect(rail).toBeVisible()
+    await menu.getByTestId('navigation-app-back').click()
+    await expect(page).toHaveURL(/\/apps$/)
+    await expect(menu).toHaveAttribute('data-mode', 'global')
   })
 
-  test('child presets navigate, refresh reopens the route owner and the active child icon takes the brand ink, without a ring or dot', async ({ page }) => {
+  test('child presets navigate and a refresh reopens the branch that owns the route', async ({ page }) => {
     const menu = page.getByTestId('application-navigation')
-    await menu.getByRole('link', { name: 'مكتمل', exact: true }).click()
+    await menu.getByTestId('quick-view-done').click()
     await expect(page).toHaveURL(/\/meetings\?state=done$/)
     await page.reload()
-    await expect(page.getByTestId('navigation-submenu-meetings')).toBeVisible()
-    const chip = menu.getByRole('link', { name: 'مكتمل', exact: true }).locator('.liwan-quick-chip')
-    await expect(chip).toHaveCSS('box-shadow', 'none')
-    await expect(chip).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
-    // The brand ink of whichever mode the page is in, resolved through a probe that reads the token.
-    const [ink, token] = await chip.evaluate(el => {
-      const probe = el.appendChild(document.createElement('span'))
-      probe.style.color = 'var(--liwan-rail-active-ink)'
-      const resolved = getComputedStyle(probe).color
-      probe.remove()
-      return [getComputedStyle(el).color, resolved]
-    })
-    expect(ink).toBe(token)
-    expect(await chip.evaluate(el => getComputedStyle(el, '::before').content)).toBe('none')
+    await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
+    await expect(menu.getByTestId('submenu-meetings')).toBeVisible()
+    const done = menu.getByTestId('quick-view-done')
+    await expect(done).toHaveAttribute('data-active', 'true')
+    await expect(done).toHaveAttribute('aria-current', 'page')
+    await expect(done).toHaveCSS('font-weight', '600')
     expect(await fitsWidth(page)).toBe(true)
   })
-
 })
 
 test.describe('unified mobile navigation', () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
-  test('expanding apps keeps the drawer open, selecting a child closes it', async ({ page }) => {
+  test('expanding a branch keeps the drawer open, selecting a child closes it', async ({ page }) => {
     await login(page); await open(page, '/meetings')
+    await expect(page.getByTestId('application-navigation')).toBeHidden()
     await page.getByTestId('mobile-navigation-trigger').click()
     const drawer = page.locator('#mobile-navigation')
-    await page.getByTestId('mobile-navigation-app-projects').click()
     await expect(drawer).toBeVisible()
-    await expect(page.getByTestId('mobile-navigation-submenu-projects')).toBeVisible()
-    await expect(page.getByTestId('mobile-navigation-submenu-meetings')).toHaveCount(0)
-    await expect(page).toHaveURL(/\/meetings$/)
-    await page.getByTestId('mobile-navigation-app-meetings').click()
-    await expect(page.getByTestId('mobile-navigation-submenu-projects')).toHaveCount(0)
-    await drawer.getByRole('link', { name: 'مكتمل', exact: true }).click()
+    await expect(drawer.getByTestId('mobile-navigation-app-block')).toHaveText('الاجتماعات')
+    for (const link of await drawer.getByRole('link').all()) expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+    expect(await drawer.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+    const done = drawer.getByTestId('mobile-quick-view-done')
+    await expect(done).toBeVisible()
+    await drawer.getByTestId('mobile-context-link-meetings').click()
+    await expect(done).toHaveCount(0)
+    await expect(drawer).toBeVisible()
+    await drawer.getByTestId('mobile-context-link-meetings').click()
+    await done.click()
     await expect(page).toHaveURL(/\/meetings\?state=done$/)
     await expect(drawer).toBeHidden()
     expect(await fitsWidth(page)).toBe(true)
   })
+
+  test('the bottom tab bar replaces the sidebar and «المزيد» is lit on another application', async ({ page }) => {
+    await login(page); await open(page, '/meetings')
+    const bar = page.getByTestId('shell-tabbar')
+    await expect(bar).toBeVisible()
+    expect((await bar.boundingBox())!.height).toBeCloseTo(68, 0)
+    await expect(page.getByTestId('mobile-navigation-trigger')).toHaveAttribute('data-active', 'true')
+    await expect(bar.locator('a[data-active="true"]')).toHaveCount(0)
+    for (const tab of await bar.locator('a, button').all()) expect((await tab.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+    await bar.getByRole('link', { name: 'يومي', exact: true }).click()
+    await expect(page).toHaveURL(/\/$/)
+    await expect(bar.getByRole('link', { name: 'يومي', exact: true })).toHaveAttribute('data-active', 'true')
+    await expect(page.getByTestId('mobile-navigation-trigger')).not.toHaveAttribute('data-active', 'true')
+  })
 })
 
-test.describe('hidden application menu', () => {
+test.describe('sidebar modes and widths', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
+  test.beforeEach(async ({ page }) => { await login(page) })
 
-  test('takes no room, opens over the page from the rail, and can be kept open', async ({ page, context }) => {
-    await context.clearCookies({ name: 'liwan-context-sidebar' })
-    await login(page)
-    await open(page, '/my-tasks')
+  test('the day page shows the global mode: organisation, the core icons, pinned applications and all applications', async ({ page }) => {
+    await open(page, '/')
     const menu = page.getByTestId('application-navigation')
-    const main = page.locator('main').first()
-    await expect(menu).toBeHidden()
-    const start = (await main.boundingBox())!
-
-    await page.getByTestId('module-rail').getByRole('link', { name: 'مهامي', exact: true }).hover()
-    await expect(menu).toBeVisible()
-    await expect(menu).toHaveAttribute('data-overlay', 'true')
-    expect((await main.boundingBox())!.width).toBe(start.width)
-
-    await page.getByTestId('module-rail').getByRole('link', { name: 'الاجتماعات', exact: true }).hover()
-    await expect(menu).toHaveAttribute('aria-label', 'الاجتماعات')
-    await page.keyboard.press('Escape')
-
-    await page.getByTestId('module-rail').getByRole('link', { name: 'مهامي', exact: true }).hover()
-    await menu.hover()
-    await page.getByTestId('context-sidebar-toggle').click()
-    await expect(menu).not.toHaveAttribute('data-overlay', 'true')
-    await expect.poll(async () => (await menu.boundingBox())!.width).toBe(230)
-    await page.mouse.move(800, 500)
-    await expect(menu).toBeVisible()
-    await expect.poll(async () => (await main.boundingBox())!.width).toBeLessThan(start.width)
+    await expect(menu).toHaveAttribute('data-mode', 'global')
+    await expect(menu.getByTestId('shell-org')).toBeVisible()
+    await expect(menu.getByTestId('core-app-home')).toHaveAttribute('aria-current', 'page')
+    await expect(menu.getByTestId('navigation-app-home')).toHaveCount(0)
+    await expect(menu.getByTestId('navigation-app-tasks')).toHaveCount(0)
+    await expect(menu.getByTestId('navigation-app-projects')).toHaveAttribute('href', '/projects')
+    await expect(menu.getByTestId('side-section-action')).toHaveAttribute('href', '/apps')
+    await expect(menu.getByTestId('navigation-app-apps')).toHaveAttribute('href', '/apps')
+    await expect(menu.getByTestId('navigation-app-block')).toHaveCount(0)
+    // «كل التطبيقات» and the settings close the sidebar in both modes; the account is in the top bar.
+    await expect(menu.getByTestId('navigation-app-settings')).toBeVisible()
+    await expect(menu.getByTestId('navigation-app-apps')).toHaveCount(1)
+    await expect(menu.getByTestId('account-menu')).toHaveCount(0)
+    await menu.getByTestId('navigation-app-projects').click()
+    await expect(page).toHaveURL(/\/projects/)
+    await expect(menu).toHaveAttribute('data-mode', 'app')
   })
 
-  test('opens level with the hovered rail item and stays open on the way into it', async ({ page, context }) => {
-    await context.clearCookies({ name: 'liwan-context-sidebar' })
-    await login(page)
-    await open(page, '/my-tasks')
+  test('the sidebar is a fixed 264px column at the inline start', async ({ page }) => {
+    await open(page, '/projects')
     const menu = page.getByTestId('application-navigation')
-    const rail = page.getByTestId('module-rail')
-    const item = (name: string) => rail.getByRole('link', { name, exact: true })
-    const center = async (name: string) => {
-      const box = (await item(name).boundingBox())!
-      return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
-    }
-    const top = async (locator: typeof menu) => Math.round((await locator.boundingBox())!.y)
+    const box = (await menu.boundingBox())!
+    expect(box.width).toBe(264)
+    expect(box.y).toBe(0)
+    expect(box.height).toBe(900)
+    expect(box.x + box.width).toBe(1440)
+    await page.evaluate(() => window.scrollTo(0, 400))
+    expect((await menu.boundingBox())!.y).toBe(0)
+  })
 
-    await item('الاجتماعات').hover()
-    await expect(menu).toHaveAttribute('aria-label', 'الاجتماعات')
-    await expect.poll(() => top(menu)).toBe(await top(item('الاجتماعات')))
+  test('from 768px to 1099px the sidebar is an 84px icon column that keeps accessible names', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 900 })
+    await open(page, '/')
+    const menu = page.getByTestId('application-navigation')
+    expect((await menu.boundingBox())!.width).toBe(84)
+    const projects = menu.getByTestId('navigation-app-projects')
+    await expect(projects).toBeVisible()
+    await expect(projects).toHaveAccessibleName('المشاريع')
+    await expect(projects.locator('[data-slot="label"]')).toBeHidden()
+    await expect(menu.getByTestId('shell-org')).toBeHidden()
+    expect(await fitsWidth(page)).toBe(true)
+  })
 
-    // Moving along the rail swaps the menu and re-anchors it to the new item.
-    const projects = await center('المشاريع')
-    await page.mouse.move(projects.x, projects.y, { steps: 6 })
-    await expect(menu).toHaveAttribute('aria-label', 'المشاريع')
-    await expect.poll(() => top(menu)).toBe(await top(item('المشاريع')))
+  test('the icon-only strip names an item in a tooltip on hover and focus, and the expanded sidebar has none', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 900 })
+    await open(page, '/')
+    const menu = page.getByTestId('application-navigation')
+    await menu.getByTestId('navigation-app-projects').hover()
+    await expect(page.locator('[role="tooltip"]').filter({ hasText: 'المشاريع' })).toBeVisible()
+    // The row's aria-label already names it, so the open tooltip must not add a second, described-by name.
+    await page.waitForTimeout(200)
+    await expect(menu.getByTestId('navigation-app-projects')).not.toHaveAttribute('aria-describedby', /.+/)
+    await page.mouse.move(600, 500)
+    await expect(page.locator('[role="tooltip"]')).toHaveCount(0)
+    await menu.getByTestId('core-app-home').focus()
+    await page.keyboard.press('Tab')
+    await expect(page.locator('[role="tooltip"]')).toHaveCount(1)
+    await page.keyboard.press('Escape')
+    await expect(page.locator('[role="tooltip"]')).toHaveCount(0)
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await menu.getByTestId('navigation-app-projects').hover()
+    await page.waitForTimeout(600)
+    await expect(page.locator('[role="tooltip"]')).toHaveCount(0)
+  })
 
-    // A diagonal into the menu's last link crosses the rail items below without swapping the menu.
-    const meetings = await center('الاجتماعات')
-    await page.mouse.move(meetings.x, meetings.y, { steps: 6 })
-    await expect(menu).toHaveAttribute('aria-label', 'الاجتماعات')
-    await expect.poll(async () => (await menu.boundingBox())!.width).toBe(230)
-    const last = (await menu.getByRole('link').last().boundingBox())!
-    await page.mouse.move(last.x + last.width - 24, last.y + last.height / 2, { steps: 30 })
-    await expect(menu).toHaveAttribute('aria-label', 'الاجتماعات')
-    await expect(menu).toHaveAttribute('data-overlay', 'true')
-
-    // On a short screen a tall menu lifts only as far as the viewport needs.
-    await page.mouse.move(800, 500)
-    await expect(menu).toBeHidden()
-    await page.setViewportSize({ width: 1440, height: 600 })
-    await item('المحادثات').hover()
-    await expect(menu).toHaveAttribute('aria-label', 'المحادثات')
-    await expect.poll(async () => (await menu.boundingBox())!.width).toBe(230)
-    await expect.poll(async () => { const box = (await menu.boundingBox())!; return box.y + box.height }).toBeLessThanOrEqual(600)
-    expect(await top(menu)).toBeLessThanOrEqual(await top(item('المحادثات')))
+  test('under 768px there is no sidebar column and no sidebar-owned width', async ({ page }) => {
+    await page.setViewportSize({ width: 767, height: 900 })
+    await open(page, '/')
+    await expect(page.getByTestId('application-navigation')).toBeHidden()
+    await expect(page.getByTestId('shell-tabbar')).toBeVisible()
+    expect(await fitsWidth(page)).toBe(true)
   })
 })
 
-test.describe('folded card on a touch device', () => {
-  test.use({ viewport: { width: 1024, height: 900 }, isMobile: true, hasTouch: true })
-  test.beforeEach(async ({ page, context, baseURL }) => {
-    await context.addCookies([{ name: 'liwan-context-sidebar', value: 'open', url: baseURL! }])
+test.describe('top bar tools and slide-over panels', () => {
+  test.use({ viewport: { width: 1440, height: 900 } })
+  test.beforeEach(async ({ page }) => {
     await login(page)
-    await open(page, '/meetings')
+    await open(page, '/projects')
   })
 
-  test('collapsed navigation opens only one popup and keeps destinations reachable', async ({ page }) => {
-    await page.getByTestId('context-sidebar-toggle').click()
-    await expect(page.getByTestId('application-navigation')).toHaveAttribute('data-expanded', 'false')
-    await page.getByTestId('navigation-app-meetings').click()
-    await expect(page.getByTestId('navigation-submenu-meetings')).toBeVisible()
-    await page.getByTestId('module-rail').getByRole('link', { name: 'المشاريع', exact: true }).click()
-    await page.getByTestId('navigation-app-projects').click()
-    await expect(page.getByTestId('navigation-submenu-projects')).toBeVisible()
-    await expect(page.getByTestId('navigation-submenu-meetings')).toHaveCount(0)
+  test('the top bar is 68px high, flat and carries the search field and the tools', async ({ page }) => {
+    const bar = page.getByTestId('shell-header')
+    expect((await bar.boundingBox())!.height).toBeCloseTo(68, 0)
+    await expect(bar.getByTestId('global-search-trigger')).toBeVisible()
+    await expect(bar.getByTestId('app-switcher')).toHaveCount(0)
+    await expect(bar.getByTestId('theme-toggle')).toHaveCount(0)
+    await expect(bar.getByTestId('account-menu')).toBeVisible()
+    await expect(bar.getByTestId('notification-bell')).toBeVisible()
+    await expect(bar.getByTestId('assistant-button')).toBeVisible()
+    await expect(bar.locator('h1')).toHaveCount(0)
+  })
+
+  for (const panel of ['notifications', 'chat', 'tasks', 'meetings'] as const) {
+    const tool = panel === 'notifications' ? 'notification-bell' : `${panel}-tool`
+    test(`${panel}: opens under the bar, closes with Escape and returns focus to its button`, async ({ page }) => {
+      const button = page.getByTestId(tool)
+      const slide = page.getByTestId(`slide-over-${panel}`)
+      await expect(button).toBeEnabled()
+      await expect(button).toHaveAttribute('aria-expanded', 'false')
+      await button.click()
+      await expect(slide).toBeVisible()
+      await expect(button).toHaveAttribute('aria-expanded', 'true')
+      await expect(button).toHaveAttribute('aria-controls', `slide-over-${panel}`)
+      const box = (await slide.boundingBox())!
+      expect(box.width).toBeCloseTo(380, 0)
+      expect(box.y).toBeGreaterThanOrEqual(68)
+      // Not a modal: the page behind keeps working.
+      await expect(page.getByTestId('shell-main')).not.toHaveAttribute('inert')
+      await expect(slide.getByTestId(`slide-over-${panel}-all`)).toHaveAttribute('href', /^\/\w/)
+      await page.keyboard.press('Escape')
+      await expect(slide).toBeHidden()
+      await expect(button).toBeFocused()
+      await expect(button).toHaveAttribute('aria-expanded', 'false')
+    })
+  }
+
+  test('one panel at a time; a second click on the button, a click outside and the close button all close it', async ({ page }) => {
+    const bell = page.getByTestId('notification-bell')
+    const tasks = page.getByTestId('tasks-tool')
+    await bell.click()
+    await expect(page.getByTestId('slide-over-notifications')).toBeVisible()
+    await tasks.click()
+    await expect(page.getByTestId('slide-over-tasks')).toBeVisible()
+    await expect(page.getByTestId('slide-over-notifications')).toBeHidden()
+    await tasks.click()
+    await expect(page.getByTestId('slide-over-tasks')).toBeHidden()
+    await bell.click()
+    await page.getByTestId('shell-main').click({ position: { x: 20, y: 200 } })
+    await expect(page.getByTestId('slide-over-notifications')).toBeHidden()
+    await bell.click()
+    await page.getByTestId('slide-over-notifications-close').click()
+    await expect(page.getByTestId('slide-over-notifications')).toBeHidden()
+    await expect(bell).toBeFocused()
+  })
+
+  test('a route change closes the open panel and leaves focus on the page', async ({ page }) => {
+    await page.getByTestId('meetings-tool').click()
+    await expect(page.getByTestId('slide-over-meetings')).toBeVisible()
+    await page.getByTestId('application-navigation').getByTestId('context-link-project-dashboard').click()
+    await expect(page.getByTestId('slide-over-meetings')).toBeHidden()
+    await expect(page.getByTestId('meetings-tool')).not.toBeFocused()
+  })
+
+  test('the assistant panel opens from its button and keeps its content after closing', async ({ page }) => {
+    const button = page.getByTestId('assistant-button')
+    await button.click()
+    const panel = page.getByTestId('slide-over-assistant')
+    await expect(panel).toBeVisible()
+    await expect(button).toHaveAttribute('aria-expanded', 'true')
     await page.keyboard.press('Escape')
-    await expect(page.getByTestId('navigation-submenu-projects')).toHaveCount(0)
+    await expect(panel).toBeHidden()
+    await expect(button).toBeFocused()
+    // Mounted after the first open, only hidden.
+    await expect(panel).toHaveCount(1)
   })
 })

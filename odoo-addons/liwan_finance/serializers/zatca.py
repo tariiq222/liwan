@@ -103,6 +103,18 @@ def zatca_document(move):
     return move.edi_document_ids.filtered(lambda document: document.edi_format_id.code == ZATCA_FORMAT_CODE)[:1]
 
 
+def zatca_content_final(move):
+    """Whether a ZATCA document makes the content of ``move`` final: it carries a document **and** a chain index.
+
+    Stock assigns ``l10n_sa_chain_index`` on the first submission and keeps it on acceptance and on a submission that
+    timed out or was never answered, where the document waits in ``to_send`` (``l10n_sa_edi/models/account_edi_format.py``);
+    a definite answer that is not an acceptance clears it. A document still waiting after a timeout may therefore have
+    reached ZATCA under that index, so its content cannot change: stock hides its own reset button for exactly that
+    case (``l10n_sa_edi/models/account_move.py:175``), in every api mode.
+    """
+    return bool(move.l10n_sa_chain_index) and bool(zatca_document(move))
+
+
 def _local_message(lines):
     """Stock's own short text of a local failure; anything that looks like a dumped response is replaced."""
     text = ' '.join(lines)[:MAX_LOCAL_TEXT]

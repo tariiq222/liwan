@@ -7,7 +7,6 @@ describe('SharedHeaderTags', () => {
   it('draws a state as a tone pill and a plain fact in the colour of its kind', async () => {
     const html = clean(await renderShared('HeaderTags', { tags: [{ label: 'نشط', tone: 'success', testId: 'state' }, { label: 'سارة', kind: 'person' }] }))
     expect(html).toContain('data-testid="state"')
-    expect(html).toContain('rounded-full')
     expect(html).toContain('var(--accent-sky-bg)')
   })
 

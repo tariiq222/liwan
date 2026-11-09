@@ -7,8 +7,8 @@ import { storyContext } from '../support/context'
 
 const meta = {
   title: 'Ai/RunList',
-  render: () => ({ components: { AiRunList }, template: '<div class="h-[28rem] w-72 border border-default"><AiRunList /></div>' }),
-  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/modules/ai/manifest.ts:13') },
+  render: () => ({ components: { AiRunList }, template: '<div class="h-[28rem] w-80"><AiRunList /></div>' }),
+  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/ai/index.vue:265') },
 } satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>

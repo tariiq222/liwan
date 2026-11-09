@@ -1,26 +1,13 @@
 import { test, expect, type Page } from '@playwright/test'
+import { ACCEPTANCE_ORIGIN, fixtures, signIn } from './support/realOdooSession'
 
-// Needs a real Odoo: it logs in as admin and writes data, which the mock answers with 404. It is in no CI list until it has run on a
-// scratch Odoo (see docs/testing.md, section 3).
+// Runs only on the isolated real-Odoo stack (deploy/ci/e2e-odoo.sh).
 test.skip(process.env.E2E_REAL_ODOO !== '1', 'Explicit isolated real Odoo acceptance only')
+test.beforeEach(async ({}, info) => { expect(new URL(String(info.project.use.baseURL)).origin).toBe(ACCEPTANCE_ORIGIN) })
 
-// Needs two users the scratch fixture creates through Odoo: `staff` (employee role, an annual
-// balance of 21 days) and `hrmgr` (HR manager role), both in a Saudi company.
+// Every journey signs in through ./support/realOdooSession as one of the fixture's own accounts: `leave_staff` owns
+// the employee and its 21-day balance, `hr_manager` decides, and `leave_config` holds only the leave policy.
 test.describe.configure({ mode: 'serial' })
-
-const STAFF = { login: process.env.E2E_LEAVE_STAFF ?? 'staff', password: process.env.E2E_LEAVE_STAFF_PASSWORD ?? 'staff_pass_123' }
-const MANAGER = { login: process.env.E2E_LEAVE_MANAGER ?? 'hrmgr', password: process.env.E2E_LEAVE_MANAGER_PASSWORD ?? 'hrmgr_pass_123' }
-
-async function login(page: Page, user: { login: string; password: string }) {
-  await page.context().clearCookies()
-  await page.goto('/login')
-  // Controls stay disabled until hydration (useHydrated); wait for the real button.
-  await expect(page.getByRole('button', { name: 'دخول' })).toBeEnabled()
-  await page.getByLabel('اسم المستخدم').fill(user.login)
-  await page.getByLabel('كلمة المرور').fill(user.password)
-  await page.getByRole('button', { name: 'دخول' }).click()
-  await expect(page).not.toHaveURL(/\/login(?:\?|$)/)
-}
 
 const iso = (day: Date) => `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
 
@@ -54,18 +41,28 @@ function leaveRow(page: Page, id: number) {
   return page.getByRole('row').filter({ has: page.getByTestId(`hr-leave-row-${id}`) })
 }
 
-// The remaining days of the balance-holding type the test requests (the first one the employee holds).
-async function annualRemaining(page: Page, typeId?: number) {
-  const body = await (await page.request.get('/api/v1/hr/leave/balances')).json()
-  const items = body.items as Array<{ leave_type: { id: number }; remaining: number }>
-  return (typeId ? items.find(item => item.leave_type.id === typeId) : items[0])?.remaining
+// The fixture's own balance row: its dedicated leave type, read for its own employee, so a journey never drifts to a
+// stock Saudi type (or a persona's balance) that another configuration or journey changes. The API answers 403 when
+// the caller is not the fixture employee and holds no leave-manage capability, so this also pins who is signed in.
+async function fixtureBalance(page: Page) {
+  const employee = fixtures().leave_employee
+  const body = await (await page.request.get(`/api/v1/hr/leave/balances?employee_id=${employee}`)).json()
+  const items = body.items as Array<{ leave_type: { id: number; name: string }; pending: number; remaining: number }>
+  const mine = items.find(item => item.leave_type.id === fixtures().leave_type)
+  expect(mine, 'the fixture grants a balance on its dedicated leave type').toBeTruthy()
+  return mine!
+}
+
+// The remaining days of that one row.
+async function annualRemaining(page: Page) {
+  return (await fixtureBalance(page)).remaining
 }
 
 test('approved leave cancellation requires a manager decision, refusal permits resubmission, and balance changes once', async ({ page }) => {
-  await login(page, MANAGER)
+  await signIn(page, 'hr_manager')
   const policy = await (await page.request.get('/api/v1/hr/leave/settings')).json()
   if (policy.cancellation_policy !== 'manager_approval') expect((await page.request.patch('/api/v1/hr/leave/settings', { data: { cancellation_policy: 'manager_approval', revision: policy.revision } })).status()).toBe(200)
-  await login(page, STAFF)
+  await signIn(page, 'leave_staff')
   await page.goto('/account/leave')
   await expect(page.getByRole('heading', { level: 1, name: 'إجازاتي' })).toBeVisible()
   await expect(page.getByTestId('hr-leave-balances')).toBeVisible()
@@ -89,8 +86,7 @@ test('approved leave cancellation requires a manager decision, refusal permits r
   await expect(panel.getByText('نوع الإجازة مطلوب.')).toBeVisible()
 
   // Fill the form through the real controls: the type menu, then one day in next month's calendar.
-  const balances = (await (await page.request.get('/api/v1/hr/leave/balances')).json()).items as Array<{ leave_type: { id: number; name: string } }>
-  const annual = balances[0]!.leave_type
+  const annual = (await fixtureBalance(page)).leave_type
   await panel.getByTestId('hr-leave-type').click()
   await page.getByRole('option', { name: annual.name }).click()
   await panel.getByTestId('hr-leave-from').click()
@@ -117,7 +113,7 @@ test('approved leave cancellation requires a manager decision, refusal permits r
   await page.goto('/account/leave')
   const row = leaveRow(page, leave.id)
   await expect(row.getByTestId('hr-leave-state')).toHaveText('بانتظار الاعتماد')
-  expect(await annualRemaining(page, annual.id)).toBe(before - 1)
+  expect(await annualRemaining(page)).toBe(before - 1)
   await row.getByRole('link', { name: annual.name }).click()
   await expect(page).toHaveURL(new RegExp(`/account/leave/${leave.id}\\?returnTo=`))
   await page.reload()
@@ -129,12 +125,12 @@ test('approved leave cancellation requires a manager decision, refusal permits r
   expect(forbidden.status()).toBe(403)
 
   // An HR manager's Self-service remains their own list, even with a forged management scope.
-  await login(page, MANAGER)
+  await signIn(page, 'hr_manager')
   await page.goto('/account/leave?scope=all&employee_id=999')
   await expect(page.getByTestId('hr-leave-scope-pending')).toHaveCount(0)
   await expect(page.getByTestId(`hr-leave-row-${leave.id}`)).toHaveCount(0)
   // The manager approves from the pending queue.
-  await login(page, MANAGER)
+  await signIn(page, 'hr_manager')
   await page.goto('/hr/leave?scope=pending')
   await expect(page.getByTestId('hr-leave-scope-pending')).toBeVisible()
   await expect(page.getByTestId('hr-leave-allocate')).toBeVisible()
@@ -154,17 +150,17 @@ test('approved leave cancellation requires a manager decision, refusal permits r
   await expect(page).toHaveURL(/scope=all/)
 
   // The employee submits a cancellation while the leave and balance stay approved.
-  await login(page, STAFF)
+  await signIn(page, 'leave_staff')
   await page.goto(`/account/leave/${leave.id}`)
   await page.getByTestId('hr-leave-record-request-cancellation').click()
   await page.getByTestId('hr-leave-confirm-reason').fill('Plans changed')
   await page.getByTestId('inline-confirm-action').click()
   await expect(page.getByText('بانتظار اعتماد الإلغاء', { exact: true })).toBeVisible()
   expect((await (await page.request.get(`/api/v1/hr/leave/me/${leave.id}`)).json()).state).toBe('validate')
-  expect(await annualRemaining(page, annual.id)).toBe(before - 1)
+  expect(await annualRemaining(page)).toBe(before - 1)
 
   // The manager's cancellation queue has an independent URL filter, retained on refresh and back.
-  await login(page, MANAGER)
+  await signIn(page, 'hr_manager')
   await page.goto('/hr/leave?cancellation_state=pending')
   await page.reload()
   await leaveRow(page, leave.id).getByRole('link', { name: annual.name }).click()
@@ -175,7 +171,7 @@ test('approved leave cancellation requires a manager decision, refusal permits r
   await page.getByTestId('inline-confirm-action').click()
   await expect(page.getByText('طلب الإلغاء مرفوض', { exact: true })).toBeVisible()
 
-  await login(page, STAFF)
+  await signIn(page, 'leave_staff')
   await page.goto(`/account/leave/${leave.id}`)
   await expect(page.getByText('Team coverage required', { exact: true })).toBeVisible()
   await page.getByTestId('hr-leave-record-request-cancellation').click()
@@ -183,23 +179,23 @@ test('approved leave cancellation requires a manager decision, refusal permits r
   await page.getByTestId('inline-confirm-action').click()
   await expect(page.getByText('بانتظار اعتماد الإلغاء', { exact: true })).toBeVisible()
   await expect(page.getByTestId('hr-leave-record-approve-cancellation')).toHaveCount(0)
-  await login(page, MANAGER)
+  await signIn(page, 'hr_manager')
   await page.goto('/hr/leave?cancellation_state=pending')
   await leaveRow(page, leave.id).getByRole('link', { name: annual.name }).click()
   const cancelled = page.waitForResponse(response => response.url().endsWith(`/api/v1/hr/leave/requests/${leave.id}/cancellation/approve`))
   await page.getByTestId('hr-leave-record-approve-cancellation').click()
   await page.getByTestId('inline-confirm-action').click()
   expect((await cancelled).status()).toBe(200)
-  await login(page, STAFF)
+  await signIn(page, 'leave_staff')
   await page.goto('/account/leave')
   await expect(leaveRow(page, leave.id).getByTestId('hr-leave-state')).toHaveText('ملغاة')
   expect(await annualRemaining(page)).toBe(before)
 })
 
 test('an employee withdraws a request that is still waiting for a decision', async ({ page }) => {
-  await login(page, STAFF)
-  const started = await (await page.request.get('/api/v1/hr/leave/balances')).json() as { items: Array<{ leave_type: { id: number; name: string }; pending: number }> }
-  const annual = started.items[0]!.leave_type
+  await signIn(page, 'leave_staff')
+  const started = await fixtureBalance(page)
+  const annual = started.leave_type
   const day = await freeWorkingDay(page)
   const created = await page.request.post('/api/v1/hr/leave/requests', {
     data: { leave_type_id: annual.id, date_from: iso(day), date_to: iso(day) },
@@ -218,20 +214,20 @@ test('an employee withdraws a request that is still waiting for a decision', asy
   expect((await withdrawn).status()).toBe(200)
   // The request is gone and its day is no longer held against the balance.
   await expect(page.getByTestId(`hr-leave-row-${leave.id}`)).toHaveCount(0)
-  const after = await (await page.request.get('/api/v1/hr/leave/balances')).json() as { items: Array<{ pending: number }> }
-  expect(after.items[0]!.pending).toBe(started.items[0]!.pending)
+  const after = await fixtureBalance(page)
+  expect(after.pending).toBe(started.pending)
   const gone = await page.request.get(`/api/v1/hr/leave/requests/${leave.id}`)
   expect(gone.status()).toBe(404)
 })
 
 test('the grant panel is for leave managers only and grants a balance', async ({ page }) => {
   // An employee who opens the grant route directly gets the forbidden page, not the form.
-  await login(page, STAFF)
+  await signIn(page, 'leave_staff')
   await page.goto('/hr/leave/allocations/new')
   await expect(page.getByRole('heading', { level: 1, name: 'لا تملك صلاحية فتح هذه الصفحة' })).toBeVisible()
   await expect(page.getByTestId('hr-leave-allocation-form')).toHaveCount(0)
 
-  await login(page, MANAGER)
+  await signIn(page, 'hr_manager')
   await page.goto('/hr/leave')
   await page.getByTestId('hr-leave-allocate').click()
   await expect(page).toHaveURL(/\/hr\/leave\/allocations\/new(?:\?|$)/)
@@ -241,8 +237,11 @@ test('the grant panel is for leave managers only and grants a balance', async ({
   await expect(panel.getByText('الموظف مطلوب.')).toBeVisible()
   await panel.getByTestId('hr-allocation-employee').click()
   await page.getByRole('option', { name: 'سالم الموظف' }).click()
+  // The grant names the fixture's own type: another type's allocation validation can need a second step, so the
+  // first option of the menu is not a stable choice.
+  const grantType = (await fixtureBalance(page)).leave_type
   await panel.getByTestId('hr-allocation-type').click()
-  await page.getByRole('option').first().click()
+  await page.getByRole('option', { name: grantType.name }).click()
   await panel.locator('#hr-allocation-days').fill('5')
   const granted = page.waitForResponse(response => response.url().endsWith('/api/v1/hr/leave/allocations') && response.request().method() === 'POST')
   await panel.getByTestId('hr-allocation-submit').click()
@@ -261,29 +260,28 @@ test('the grant panel is for leave managers only and grants a balance', async ({
 
 
 test('company policies support direct employee and manager-only cancellation with a revision conflict in settings', async ({ page }) => {
-  await login(page, MANAGER)
+  await signIn(page, 'hr_manager')
   const original = await (await page.request.get('/api/v1/hr/leave/settings')).json()
   try {
     for (const policy of ['direct_employee', 'manager_only']) {
-      await login(page, MANAGER)
+      await signIn(page, 'hr_manager')
       const current = await (await page.request.get('/api/v1/hr/leave/settings')).json()
       const saved = await page.request.patch('/api/v1/hr/leave/settings', { data: { cancellation_policy: policy, revision: current.revision } })
       expect(saved.status()).toBe(200)
-      await login(page, STAFF)
-      const balances = (await (await page.request.get('/api/v1/hr/leave/balances')).json()).items
-      const kind = balances[0].leave_type
+      await signIn(page, 'leave_staff')
+      const kind = (await fixtureBalance(page)).leave_type
       const day = iso(await freeWorkingDay(page))
       const created = await page.request.post('/api/v1/hr/leave/requests', { data: { leave_type_id: kind.id, date_from: day, date_to: day } })
       expect(created.status()).toBe(201)
       const leave = await created.json()
-      await login(page, MANAGER)
+      await signIn(page, 'hr_manager')
       expect((await page.request.post(`/api/v1/hr/leave/requests/${leave.id}/approve`, { data: {} })).status()).toBe(200)
-      await login(page, STAFF)
+      await signIn(page, 'leave_staff')
       await page.goto(`/account/leave/${leave.id}`)
       await expect(page.getByTestId('hr-leave-record-request-cancellation')).toHaveCount(0)
       if (policy === 'manager_only') {
         await expect(page.getByTestId('hr-leave-record-cancel')).toHaveCount(0)
-        await login(page, MANAGER)
+        await signIn(page, 'hr_manager')
         await page.goto(`/hr/leave/${leave.id}`)
         await expect(page.getByTestId('hr-leave-record-cancel')).toHaveText('إلغاء بقرار المدير')
       }
@@ -297,7 +295,7 @@ test('company policies support direct employee and manager-only cancellation wit
         expect(result.cancellation.initiator.id).toBe(result.cancellation.reviewer.id)
       }
     }
-    await login(page, MANAGER)
+    await signIn(page, 'hr_manager')
     const unrelated: string[] = []
     page.on('request', request => { if (/\/hr\/(?:payroll|leave\/types|employees|leave\/balances)/.test(request.url())) unrelated.push(request.url()) })
     await page.goto('/settings/apps/hr#leave')
@@ -307,12 +305,16 @@ test('company policies support direct employee and manager-only cancellation wit
     await page.locator('#leave-cancellation-policy').click()
     await page.getByRole('option', { name: 'الموظف يطلب والمدير يعتمد (الافتراضي)' }).click()
     await page.getByTestId('settings-save-bar-save').click()
-    await expect(page.getByText('تغيّرت السياسة. احتُفظ بمسودتك؛ أعد تحميل أحدث سياسة قبل الحفظ.', { exact: true })).toBeVisible()
-    await page.getByRole('button', { name: 'إعادة تحميل السياسة' }).click()
+    // The stale revision answers 409 `conflict`: the card keeps the draft, shows the shared settings-conflict sentence
+    // (useSettingsForm.ts:35-38) and locks until the current values are loaded (SettingsCard.vue:83-85). Both the
+    // message and the reload action are asserted inside `#leave-policy`, so neither can resolve to another card.
+    const policyCard = page.locator('#leave-policy')
+    await expect(policyCard.getByRole('alert')).toContainText('غيّر شخص آخر هذه الإعدادات بعد فتحك الصفحة. حمّل القيم الحالية ثم أعد تعديلك.')
+    await policyCard.getByRole('button', { name: 'تحميل القيم الحالية', exact: true }).click()
     await expect(page.locator('#leave-cancellation-policy')).toContainText('الموظف يلغي مباشرة')
     expect(unrelated).toEqual([])
   } finally {
-    await login(page, MANAGER)
+    await signIn(page, 'hr_manager')
     const latest = await (await page.request.get('/api/v1/hr/leave/settings')).json()
     expect((await page.request.patch('/api/v1/hr/leave/settings', { data: { cancellation_policy: original.cancellation_policy, revision: latest.revision } })).status()).toBe(200)
   }
@@ -320,8 +322,7 @@ test('company policies support direct employee and manager-only cancellation wit
 
 
 test('a leave-config-only user saves policy without unrelated HR reads on a phone', async ({ page }) => {
-  const configUser = { login: process.env.E2E_LEAVE_CONFIG ?? 'leaveconfig', password: process.env.E2E_LEAVE_CONFIG_PASSWORD ?? 'leaveconfig_pass_123' }
-  await login(page, configUser)
+  await signIn(page, 'leave_config')
   const original = await (await page.request.get('/api/v1/hr/leave/settings')).json()
   const target = original.cancellation_policy === 'manager_only' ? { policy: 'direct_employee', label: 'الموظف يلغي مباشرة' } : { policy: 'manager_only', label: 'الإلغاء بقرار المدير فقط' }
   const unrelated: string[] = []

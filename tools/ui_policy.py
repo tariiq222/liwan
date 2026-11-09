@@ -46,14 +46,14 @@ LAYER_COMPONENTS = frozenset(
     ['shared/feedback/' + name + '.vue' for name in ('EmptyState', 'ErrorState', 'ForbiddenState', 'LoadingSkeleton', 'NotFoundState', 'PageState')]
     + ['shared/layout/' + name + '.vue' for name in (
         'BrandWordmark', 'ConversationLayout', 'CreatePanel', 'DashboardPage', 'FormSection', 'KpiStrip', 'KpiToggle', 'ListPage', 'PageContainer',
-        'PageHeader', 'ListCard', 'PropertiesPanel', 'PropertyRow', 'RecordPage', 'RecordSection', 'RouteTabs', 'SettingsCard', 'SettingsList', 'SettingsListRow', 'SettingsPage',
+        'PageHeader', 'ListCard', 'PropertiesPanel', 'PropertyRow', 'RecordPage', 'RecordSection', 'RecordWorkspace', 'RouteTabs', 'SettingRow', 'SettingsCard', 'SettingsSection', 'TimelineControls', 'SettingsList', 'SettingsListRow', 'SettingsPage',
         'SettingsSaveBar',
         'StandalonePage', 'SubCard', 'TimelineFrame', 'LinkCard', 'IdentityCard', 'HeaderTags')]
     + ['shared/data/' + name + '.vue' for name in (
         'ChartPanel', 'DataTable', 'FilterBar', 'FilterChip', 'FilterChoice', 'FilterField', 'MetricTile', 'Pagination',
         'PersonAvatar', 'Progress', 'RecordNumber', 'RowActions', 'SegmentedControl', 'StatusBadge', 'ViewSwitch', 'ListFooter')]
-    + ['shared/form/' + name + '.vue' for name in ('DateField', 'FileField', 'FormActions', 'InlineConfirm', 'RichText', 'UnsavedChanges')]
-    + ['shell/' + name + '.vue' for name in ('ModuleRail', 'ShellBreadcrumb', 'ShellContextSubList', 'ShellFrame', 'ShellNavigation', 'ShellQuickRow', 'ShellQuickViews')]
+    + ['shared/form/' + name + '.vue' for name in ('DateField', 'FileField', 'FormActions', 'InlineConfirm', 'InlineText', 'OptionCards', 'RichText', 'UnsavedChanges')]
+    + ['shell/' + name + '.vue' for name in ('ShellAccountCard', 'ShellAppTile', 'ShellBreadcrumb', 'ShellCoreApps', 'ShellFrame', 'ShellNavRow', 'ShellNavSection', 'ShellOrgCard', 'ShellPanelRow', 'ShellPanelStatus', 'ShellSidebar', 'ShellSlideOver', 'ShellTabBar', 'ShellTip', 'ShellToolButton', 'ShellTopBar')]
 )
 # Billing presentation shared by the customer subscription pages and the vendor console (@liwan/commercial-ui).
 COMMERCIAL_LAYER_COMPONENTS = frozenset(('shared/commerce/PriceBreakdown.vue', 'shared/data/InvoiceLines.vue'))
@@ -99,10 +99,10 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'operations/ProcessForm.vue', 'operations/RequestCreate.vue', 'operations/RequestRecord.vue', 'operations/RequestEdit.vue',
     'account/PersonalSummaryCard.vue', 'hr/LeaveList.vue', 'hr/LeaveRecord.vue',
     'work/WorkRow.vue',
-    'ai/AiSheet.vue', 'shell/AssistantButton.vue', 'shell/AssistantSheet.vue',
+    'ai/AiSheet.vue', 'shell/AssistantButton.vue', 'shell/AppUserMenu.vue',
     'shared/layout/PageHeader.vue', 'shared/feedback/PageState.vue', 'shared/layout/PageContainer.vue', 'shared/form/UnsavedChanges.vue',
     'shared/feedback/LoadingSkeleton.vue', 'shared/feedback/ErrorState.vue', 'shared/feedback/ForbiddenState.vue', 'shared/feedback/NotFoundState.vue',
-    'shared/layout/RecordPage.vue', 'shared/layout/PropertiesPanel.vue', 'shared/layout/PropertyRow.vue', 'shared/layout/RecordSection.vue',
+    'shared/layout/RecordPage.vue', 'shared/layout/RecordWorkspace.vue', 'shared/form/InlineText.vue', 'shared/layout/PropertiesPanel.vue', 'shared/layout/PropertyRow.vue', 'shared/layout/RecordSection.vue',
     'shared/data/StatusBadge.vue',
     'shared/layout/CreatePanel.vue',
     'shared/layout/StandalonePage.vue',
@@ -113,10 +113,10 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'shared/data/FilterBar.vue', 'shared/form/DateField.vue', 'shared/form/DescriptionEditor.vue', 'meetings/MeetingProjectFilter.vue',
     'meetings/MeetingPeopleFields.vue', 'meetings/MeetingEventList.vue', 'meetings/MeetingMinutesDocument.vue',
     'meetings/MeetingMinutesForm.vue', 'meetings/MeetingTimeline.vue', 'meetings/MeetingVersionList.vue',
-    'meetings/MeetingResolutionsTab.vue', 'meetings/MeetingAttachmentsTab.vue', 'meetings/MeetingRecordTabs.vue',
+    'meetings/MeetingResolutionsTab.vue', 'meetings/MeetingAttachmentsTab.vue',
     'shared/form/FileField.vue', 'pmo/projects/ProjectFieldHelp.vue',
     'pmo/tasks/PrioritySelect.vue', 'pmo/tasks/StateMenu.vue', 'shared/form/TagPicker.vue',
-    'pmo/projects/ProjectMenu.vue', 'shell/ShellFrame.vue', 'shell/ShellNavigation.vue', 'shell/ModuleRail.vue', 'shell/ShellQuickViews.vue', 'shell/ShellContextSubList.vue', 'shell/AppSidebar.vue', 'shell/ShellHeader.vue', 'shell/ShellBreadcrumb.vue', 'shell/MobileNavigation.vue', 'shell/AppAccountMenu.vue', 'shell/GlobalSearch.vue', 'chat/ChatAttachment.vue', 'pmo/tasks/TaskCard.vue',
+    'pmo/projects/ProjectMenu.vue', 'shell/ShellFrame.vue', 'shell/ShellSidebar.vue', 'shell/ShellTip.vue', 'shell/ShellNavSection.vue', 'shell/ShellNavRow.vue', 'shell/ShellAppTile.vue', 'shell/ShellOrgCard.vue', 'shell/ShellCoreApps.vue', 'shell/ShellAccountCard.vue', 'shell/ShellTopBar.vue', 'shell/ShellToolButton.vue', 'shell/ShellSlideOver.vue', 'shell/ShellPanelRow.vue', 'shell/ShellPanelStatus.vue', 'shell/ShellTabBar.vue', 'shell/AppSidebar.vue', 'shell/AppTopBar.vue', 'shell/ShellBreadcrumb.vue', 'shell/GlobalSearch.vue', 'chat/ChatAttachment.vue', 'pmo/tasks/TaskCard.vue',
     'pmo/projects/dashboard/DashboardChartPanel.vue', 'shared/data/DashboardChart.client.vue', 'charts/ChartContainer.vue',
     'pmo/projects/workspace/ProjectWorkspaceTabs.vue', 'pmo/projects/governance/RaciMatrix.vue',
     'shared/form/RichText.vue', 'shared/data/Pagination.vue', 'shared/data/MetricTile.vue', 'shared/form/InlineConfirm.vue',
@@ -129,10 +129,10 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'subscription/UsagePanel.vue', 'subscription/AutoRenewControl.vue',
     'subscription/BranchSummary.vue',
     'shared/data/ChartPanel.vue', 'shared/layout/DashboardPage.vue',
-    'shared/layout/TimelineFrame.vue', 'shared/layout/ConversationLayout.vue',
+    'shared/layout/TimelineFrame.vue', 'shared/layout/TimelineControls.vue', 'shared/layout/ConversationLayout.vue',
     'shared/data/InvoiceLines.vue', 'shared/data/PersonAvatar.vue', 'pmo/tasks/TaskKpiStrip.vue', 'pmo/projects/ProjectKpiStrip.vue',
     'settings/SettingsPreviewCard.vue', 'settings/SettingsPreviewList.vue', 'settings/SettingsPreviewRow.vue', 'settings/IntegrationConnections.vue', 'finance/governance/AuditPreview.vue',
-    'shared/layout/SettingsCard.vue', 'shared/layout/SettingsList.vue', 'shared/layout/SettingsListRow.vue', 'shared/layout/SettingsSaveBar.vue',
+    'shared/layout/SettingsCard.vue', 'shared/layout/SettingRow.vue', 'shared/layout/SettingsSection.vue', 'shared/form/OptionCards.vue', 'shared/layout/SettingsList.vue', 'shared/layout/SettingsListRow.vue', 'shared/layout/SettingsSaveBar.vue',
     'shared/layout/SubCard.vue', 'shared/layout/KpiStrip.vue', 'shared/data/Progress.vue', 'shared/layout/LinkCard.vue', 'shared/layout/IdentityCard.vue', 'shared/layout/HeaderTags.vue',
 ))
 STORY_CONTEXT = re.compile(r'''\bstoryContext\(\s*(['"])([^'"]+)\1''')
@@ -143,8 +143,10 @@ SCOPE = (*(root.rstrip('/') for root in SOURCE_ROOTS), *(root.rstrip('/') for ro
 THEME_OWNERS = {
     UI + 'assets/css/main.css',
     UI + 'assets/css/tokens.css',
+    UI + 'assets/css/app-identity.css',  # DESIGN.md §2: owner of per-app colours.
     UI + 'assets/css/components.css',
     UI + 'assets/css/shell.css',
+    UI + 'assets/css/layout.css',
     UI + 'app.config.ts',
 }
 RETIRED_CSS = {
@@ -188,16 +190,18 @@ REVIEWED_VERSIONS = {
     'zod': '^4.6.7',
     # Owner approval 2026-11-07 (Tariq, in chat), npm group bump PR #428: minor and patch updates only.
     'nuxt': '^4.6.4',
-    '@playwright/test': '^1.64.1',
     '@tailwindcss/vite': '^4.3.4',
-    '@tanstack/vue-query': '^5.105.3',
-    '@tiptap/extension-link': '^3.32.2',
-    '@tiptap/starter-kit': '^3.32.2',
-    '@tiptap/vue-3': '^3.32.2',
     '@unovis/ts': '^1.7.1',
     '@unovis/vue': '^1.7.1',
     'reka-ui': '^2.11.0',
     'tailwindcss': '^4.3.4',
+    # Owner approval 2026-11-09 (Tariq, in chat), Dependabot PRs #601 (without vue-tsc), #602, #603.
+    '@playwright/test': '^1.65.0',
+    '@tanstack/vue-query': '^5.106.1',
+    '@tiptap/extension-link': '^3.33.0',
+    '@tiptap/starter-kit': '^3.33.0',
+    '@tiptap/vue-3': '^3.33.0',
+    'vue': '^3.5.45',
 }
 
 
@@ -576,7 +580,7 @@ def whole_tree(current: dict[str, str]) -> bool:
     return APP + 'app.vue' in current
 
 
-# The theme inputs are the brand primary, the stone neutral, LiwanOS lavender/sand/ink,
+# The theme inputs are the brand primary, the stone neutral, LiwanOS ink and charcoal,
 # the official --ui-radius token, the Arabic font and the light/dark modes (DESIGN.md).
 ALLOWED_RECIPE_KEYS = frozenset((
     'colors', 'button', 'input', 'inputNumber', 'textarea', 'select', 'selectMenu', 'card', 'table', 'badge',
@@ -609,8 +613,8 @@ def theme_errors(current: dict[str, str]) -> list[str]:
         for token in REQUIRED_TOKENS:
             if token not in tokens:
                 errors.append(f'{UI}assets/css/tokens.css: missing theme input {token}')
-        if not re.search(r'--ui-radius:\s*0\.428571rem', tokens):
-            errors.append(f'{UI}assets/css/tokens.css: --ui-radius is the one official radius token (6px base: md 9px, lg 12px)')
+        if not re.search(r'--ui-radius:\s*0\.571429rem', tokens):
+            errors.append(f'{UI}assets/css/tokens.css: --ui-radius is the one official radius token (8px base: sm 8px, md 12px)')
     for token in RETIRED_TOKENS:
         if token in tokens:
             errors.append(f'{UI}assets/css/tokens.css: retired token {token}')
@@ -629,7 +633,7 @@ PAGE_SHELLS = ('SharedPageContainer', 'SharedCreatePanel', 'SharedSettingsPage',
                # Application-owned reusable pages compose the approved shared shells.
                'HrLeaveList', 'HrLeaveRecord', 'RequestCreate', 'RequestRecord', 'RequestEdit',
                # The Plan 4 page templates are shells themselves (each wraps SharedPageContainer).
-               'SharedListPage', 'SharedRecordPage', 'SharedDashboardPage', 'SharedTimelineFrame',
+               'SharedListPage', 'SharedRecordPage', 'SharedRecordWorkspace', 'SharedDashboardPage', 'SharedTimelineFrame',
                'SharedConversationLayout', 'SharedStandalonePage')
 # Route parents that render a list or <NuxtPage /> by route, plus the unshelled
 # roots. Each entry is a deliberate exception, not a backlog.
@@ -657,11 +661,11 @@ def page_shell_errors(current: dict[str, str]) -> list[str]:
         if AD_HOC_WIDTH.search(source):
             errors.append(path + ': ad-hoc page max-width; shell pages fill the workspace')
     if complete:
-        shell = current.get(UI + 'assets/css/shell.css', '')
-        if 'liwan-page-width-' in shell:
-            errors.append(f'{UI}assets/css/shell.css: retired page width band; shell pages fill the workspace')
-        if not AUTO_GRID.search(shell):
-            errors.append(f'{UI}assets/css/shell.css: missing the shared .liwan-auto-grid rule')
+        layout = current.get(UI + 'assets/css/layout.css', '')
+        if 'liwan-page-width-' in layout:
+            errors.append(f'{UI}assets/css/layout.css: retired page width band; shell pages fill the workspace')
+        if not AUTO_GRID.search(layout):
+            errors.append(f'{UI}assets/css/layout.css: missing the shared .liwan-auto-grid rule')
     if complete:
         status = current.get(UI + 'assets/css/components.css', '') + current.get(UI + 'assets/css/tokens.css', '')
         for token in STATUS_TOKENS:
@@ -695,7 +699,7 @@ def secret_render_errors(current: dict[str, str]) -> list[str]:
 # the raw UBreadcrumb; the header that mounts it may use <ShellBreadcrumb> only
 # (any case, kebab or Pascal).
 BREADCRUMB_OWNER = UI_COMPONENTS + 'shell/ShellBreadcrumb.vue'
-BREADCRUMB_HEADERS = (COMPONENTS + 'shell/ShellHeader.vue', VENDOR_ADMIN_COMPONENTS + 'AdminHeader.vue')
+BREADCRUMB_HEADERS = (COMPONENTS + 'shell/AppTopBar.vue', VENDOR_ADMIN_COMPONENTS + 'AdminHeader.vue')
 BREADCRUMB_TAG = re.compile(r'<(?:u|shell)-?breadcrumb\b', re.I)
 RAW_BREADCRUMB_TAG = re.compile(r'<u-?breadcrumb\b', re.I)
 
@@ -859,7 +863,7 @@ FILTER_CARD_TAG = re.compile(r'<(?:Lazy)?(?:Shared)?FilterCard\b|<(?:lazy-)?(?:s
 CONTRACT_TEMPLATES: tuple[str, ...] = tuple(component_file('shared/' + name + '.vue') for name in (
     'feedback/LoadingSkeleton', 'feedback/ErrorState', 'feedback/ForbiddenState', 'feedback/NotFoundState', 'feedback/EmptyState', 'feedback/PageState',
     'data/StatusBadge', 'data/FilterBar', 'data/InvoiceLines', 'layout/RouteTabs', 'layout/SettingsPage', 'layout/SettingsSaveBar',
-    'data/DataTable', 'data/ViewSwitch', 'layout/ListPage', 'layout/RecordPage', 'layout/PropertiesPanel', 'layout/PropertyRow', 'layout/RecordSection',
+    'data/DataTable', 'data/ViewSwitch', 'layout/ListPage', 'layout/RecordPage', 'layout/RecordWorkspace', 'layout/PropertiesPanel', 'layout/PropertyRow', 'layout/RecordSection',
     'layout/CreatePanel', 'layout/FormSection', 'form/UnsavedChanges',
     'layout/DashboardPage', 'data/ChartPanel', 'layout/TimelineFrame', 'layout/ConversationLayout', 'layout/StandalonePage',
 ))

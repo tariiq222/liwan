@@ -35,15 +35,12 @@ export const VISUAL_STORIES: string[] = [
   'shared-listpage--',
   'shared-viewswitch--',
   'shell-shellframe--',
-  'shell-shellheader--',
   'shell-shellbreadcrumb--',
-  'shell-appearancemenu--',
-  'shell-appaccountmenu--',
   'shell-globalsearch--',
-  'shell-shellnavigation--',
-  'shell-modulerail--',
   'shell-appsidebar--',
-  'shell-mobilenavigation--',
+  'shell-apptopbar--',
+  'shell-shelltabbar--',
+  'shell-shellslideover--',
   'shell-rownavigation--',
   'shared-statusbadge--',
   'task-taskcard--',
@@ -52,7 +49,7 @@ export const VISUAL_STORIES: string[] = [
 ]
 
 // Captured again at 390x844 (spec §9: mobile for shell and templates).
-export const VISUAL_MOBILE_STORIES: string[] = ['shell-shellframe--default', 'shell-mobilenavigation--open', 'shared-standalonepage--card', 'shared-dashboardpage--default', 'shared-recordpage--default', 'shared-timelineframe--', 'shared-conversationlayout--', 'shared-datatable--default', 'shared-listpage--default', 'shared-routetabs--workspace']
+export const VISUAL_MOBILE_STORIES: string[] = ['shell-shellframe--application', 'shell-appsidebar--drawer', 'shell-shelltabbar--', 'shared-standalonepage--card', 'shared-dashboardpage--default', 'shared-recordpage--default', 'shared-timelineframe--', 'shared-conversationlayout--', 'shared-datatable--default', 'shared-listpage--default', 'shared-routetabs--workspace']
 
 // Stories whose content is a portal dialog, captured full-page with a page-level axe pass (Tasmim Plan 3).
 export const VISUAL_DIALOG_STORIES: string[] = ['shell-globalsearch--palette-', 'shared-createpanel--']

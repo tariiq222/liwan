@@ -7,6 +7,8 @@ import { milestoneBadge } from '@/components/pmo/projects/milestoneState'
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { parsePositiveId } from '@/utils/routeParams'
 import { formatCalendarDate } from '@liwan/ui/app/composables/calendarDate'
+import { statusPillAttrs } from '@liwan/ui/app/utils/statusPill'
+import RecordBlock from '@/components/pmo/records/RecordBlock.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -57,43 +59,84 @@ async function deleteMilestone() {
     await router.replace(backTo.value)
   } catch (cause) { failed(cause) }
 }
+const taskPercent = computed(() => milestone.value?.task_count ? Math.round(milestone.value.done_task_count / milestone.value.task_count * 100) : 0)
+const title = computed(() => milestone.value?.name ?? t('projects.milestones.name'))
+// Projects › Alpha › Milestones › Kickoff. The list step carries the filters the milestone was opened from.
+const trail = computed(() => [
+  { label: t('nav.projects'), to: '/projects' },
+  ...(project.value ? [{ label: project.value.name, to: `/projects/${project.value.id}` }] : []),
+  { label: t('projects.tabs.milestones'), to: backTo.value, testId: 'milestone-detail-back' },
+  { label: title.value },
+])
+function rename(name: string) { void patch({ name }) }
+// The status chip is the status menu: mark the milestone reached, or open it again.
+const stateItems = computed(() => milestone.value
+  ? [[{ label: t(milestone.value.is_reached ? 'projects.milestones.reopen' : 'projects.milestones.markReached'), onSelect: () => patch({ is_reached: !milestone.value!.is_reached }) }]]
+  : [])
+const menuItems = computed(() => [
+  [{ label: t('app.edit'), icon: 'i-lucide-pencil', to: editTo.value }],
+  [{
+    label: milestone.value && milestone.value.task_count > 0 ? t('projects.milestones.deleteBlocked', { count: milestone.value.task_count }, milestone.value.task_count) : t('projects.milestones.delete'),
+    icon: 'i-lucide-trash-2',
+    color: 'error' as const,
+    disabled: !milestone.value || milestone.value.task_count > 0,
+    onSelect: () => { confirmingDelete.value = true },
+  }],
+])
 </script>
 
 <template>
-  <SharedRecordPage v-if="isRecord" :title="milestone?.name ?? t('projects.milestones.name')" :back-to="backTo" :back-label="t('projects.tabs.milestones')" :loading="(isLoading || projectLoading) && !milestone" :error="projectError || error" :keep-content="!!milestone && !notFound" @retry="retry">
+  <SharedRecordWorkspace
+    v-if="isRecord"
+    :title="title"
+    :trail="trail"
+    :back-to="backTo"
+    :loading="(isLoading || projectLoading) && !milestone"
+    :error="projectError || error"
+    :keep-content="!!milestone && !notFound"
+    @retry="retry"
+  >
+    <template v-if="milestone" #title>
+      <SharedInlineText :model-value="milestone.name" :label="t('projects.milestones.editName')" :editable="canManage && hydrated && !pending" input-test-id="milestone-title-input" input-class="w-[min(32rem,70vw)]" @save="rename" />
+    </template>
+    <template v-if="milestone && !notFound" #status>
+      <UDropdownMenu v-if="canManage" :items="stateItems" :content="{ align: 'start' }">
+        <button type="button" data-testid="milestone-state" v-bind="statusPillAttrs(milestoneBadge(milestone).tone, true)" class="min-w-25 justify-center disabled:opacity-60" :disabled="!hydrated || pending">{{ t(milestoneBadge(milestone).labelKey) }}</button>
+      </UDropdownMenu>
+      <SharedStatusBadge v-else data-testid="milestone-state" :tone="milestoneBadge(milestone).tone" :label="t(milestoneBadge(milestone).labelKey)" />
+    </template>
     <template v-if="canManage && milestone" #actions>
-      <UButton data-testid="milestone-detail-edit" :to="editTo" :disabled="!hydrated || pending">{{ t('app.edit') }}</UButton>
-      <UButton color="neutral" variant="outline" :disabled="!hydrated || pending" @click="patch({ is_reached: !milestone.is_reached })">{{ t(milestone.is_reached ? 'projects.milestones.reopen' : 'projects.milestones.markReached') }}</UButton>
-      <UButton color="error" variant="outline" :disabled="!hydrated || pending || milestone.task_count > 0" @click="confirmingDelete = true">{{ milestone.task_count > 0 ? t('projects.milestones.deleteBlocked', { count: milestone.task_count }, milestone.task_count) : t('projects.milestones.delete') }}</UButton>
+      <UDropdownMenu :items="menuItems" :content="{ align: 'end' }">
+        <UButton data-testid="milestone-detail-menu" color="neutral" variant="ghost" size="sm" square type="button" icon="i-lucide-ellipsis" :disabled="!hydrated || pending" :aria-label="t('projects.milestones.menu')" />
+      </UDropdownMenu>
     </template>
-    <SharedEmptyState v-if="notFound" bordered :title="t('projects.milestones.notFound')" />
-    <template v-else-if="milestone">
-      <UAlert v-if="mutationError" role="alert" color="error" variant="subtle" :title="mutationError" />
-      <SharedInlineConfirm v-if="confirmingDelete" :title="t('projects.milestones.deleteConfirm', { name: milestone.name })" :confirm-label="t('projects.milestones.delete')" :pending="pending" @cancel="confirmingDelete = false" @confirm="deleteMilestone" />
-      <SharedRecordSection variant="panel" :title="t('projects.milestones.checklistTitle')" :description="t('projects.milestones.checklistHint')">
-        <p v-if="!milestone.deliverables.length" class="text-sm text-muted">{{ t('projects.milestones.noDeliverables') }}</p>
-        <div v-else class="grid gap-3">
-          <USwitch v-for="(item, index) in milestone.deliverables" :key="index" :model-value="item.done" :label="item.name" :disabled="!hydrated || !canManage || pending || confirmingDelete" @update:model-value="value => toggleDeliverable(index, value)" />
-        </div>
-      </SharedRecordSection>
-      <SharedRecordSection variant="panel" :title="t('projects.milestones.tasks')" :description="t('projects.milestones.taskProgress', { percent: milestone.task_count ? Math.round(milestone.done_task_count / milestone.task_count * 100) : 0 })">
-        <div class="grid justify-items-start gap-3">
-          <p class="text-sm">{{ t('projects.milestones.tasksOf', { done: milestone.done_task_count, total: milestone.task_count }) }}</p>
-          <SharedProgress class="w-full" size="md" :value="milestone.task_count ? Math.round(milestone.done_task_count / milestone.task_count * 100) : 0" :label="t('projects.milestones.tasks')" />
-          <UButton color="neutral" variant="outline" :to="`/projects/${projectId}/tasks`">{{ t('projects.milestones.projectTasks') }}</UButton>
-        </div>
-      </SharedRecordSection>
+    <template #main>
+      <SharedEmptyState v-if="notFound" bordered :title="t('projects.milestones.notFound')" />
+      <template v-else-if="milestone">
+        <UAlert v-if="mutationError" role="alert" color="error" variant="subtle" :title="mutationError" />
+        <SharedInlineConfirm v-if="confirmingDelete" :title="t('projects.milestones.deleteConfirm', { name: milestone.name })" :confirm-label="t('projects.milestones.delete')" :pending="pending" @cancel="confirmingDelete = false" @confirm="deleteMilestone" />
+        <RecordBlock :title="t('projects.milestones.checklistTitle')" :count="milestone.deliverables.length ? t('tasks.deliverables.checklistOf', { done: milestone.deliverables.filter(item => item.done).length, total: milestone.deliverables.length }) : undefined">
+          <p v-if="!milestone.deliverables.length" class="text-sm text-muted">{{ t('projects.milestones.noDeliverables') }}</p>
+          <div v-else class="grid gap-3">
+            <USwitch v-for="(item, index) in milestone.deliverables" :key="index" :model-value="item.done" :label="item.name" :disabled="!hydrated || !canManage || pending || confirmingDelete" @update:model-value="value => toggleDeliverable(index, value)" />
+          </div>
+        </RecordBlock>
+        <RecordBlock :title="t('projects.milestones.tasks')" :count="`${taskPercent}%`">
+          <div class="grid justify-items-start gap-3">
+            <p class="text-sm">{{ t('projects.milestones.tasksOf', { done: milestone.done_task_count, total: milestone.task_count }) }}</p>
+            <SharedProgress class="w-full" size="md" :value="taskPercent" :label="t('projects.milestones.tasks')" />
+            <UButton color="neutral" variant="outline" size="sm" :to="`/projects/${projectId}/tasks`">{{ t('projects.milestones.projectTasks') }}</UButton>
+          </div>
+        </RecordBlock>
+      </template>
     </template>
-    <template v-if="milestone && !notFound" #summary>
-      <SharedPropertiesPanel>
-        <SharedPropertyRow :label="t('projects.milestones.state')">
-          <SharedStatusBadge :tone="milestoneBadge(milestone).tone" :label="t(milestoneBadge(milestone).labelKey)" />
-        </SharedPropertyRow>
+    <template v-if="milestone && !notFound" #aside>
+      <dl data-testid="milestone-properties" class="divide-y divide-default">
         <SharedPropertyRow :label="t('projects.milestones.startDate')" :value="formatCalendarDate(milestone.start_date)" />
         <SharedPropertyRow :label="t('projects.milestones.deadline')" :value="formatCalendarDate(milestone.deadline)" />
         <SharedPropertyRow v-if="milestone.reached_date" :label="t('projects.milestones.reached')" :value="formatCalendarDate(milestone.reached_date)" />
-      </SharedPropertiesPanel>
+      </dl>
     </template>
-  </SharedRecordPage>
+  </SharedRecordWorkspace>
   <NuxtPage />
 </template>

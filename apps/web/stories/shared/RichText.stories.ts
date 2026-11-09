@@ -7,12 +7,12 @@ const sample = '<h2>اعتماد نطاق المرحلة الأولى</h2><p>ا�
 const meta = {
   title: 'Shared/RichText',
   component: RichText,
-  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectUpdateList.vue:85', 'العارض الوحيد لـ HTML مخزّن. ينقّي المحتوى دائمًا (الوسم script في المثال يُحذف) ويطبّق تنسيقًا واحدًا.'),
+  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectUpdateList.vue:73', 'العارض الوحيد لـ HTML مخزّن. ينقّي المحتوى دائمًا (الوسم script في المثال يُحذف) ويطبّق تنسيقًا واحدًا.'),
   args: { html: sample, size: 'md' },
   render: args => ({
     components: { RichText },
     setup: () => ({ args }),
-    template: '<div class="max-w-2xl rounded-card ring ring-default bg-default p-5"><RichText v-bind="args" /></div>',
+    template: '<div class="liwan-card max-w-2xl rounded-card p-5"><RichText v-bind="args" /></div>',
   }),
 } satisfies Meta<typeof RichText>
 export default meta

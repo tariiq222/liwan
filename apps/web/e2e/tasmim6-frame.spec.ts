@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { DESKTOP, PHONE, login, open, rows, mobileRows, fitsWidth, expectFrameOwnsH1 } from './support/tasmim6'
+import { openProjectMenu, projectMenuItem, PROJECT_SETTINGS_ITEM } from './support/projectMenu'
 
 const SECTIONS: [string, string][] = [
   ['/projects/2', 'summary'], ['/projects/2/tasks', 'execution'], ['/projects/2/milestones', 'milestones'],
@@ -38,16 +39,17 @@ test.describe('Plan 6a: the project frame', () => {
     await expect(page.getByTestId('project-workspace-frame')).toBeHidden()
   })
 
-  test('project settings is a settings page inside the frame and marks the gear current', async ({ page }) => {
+  test('project settings is a settings page inside the frame and marks its menu item current', async ({ page }) => {
     await open(page, '/projects/2/settings')
     await expect(page.getByTestId('settings-layout')).toHaveCount(1)
     await expect(page.getByTestId('project-settings-page')).toBeVisible()
-    await expect(page.getByTestId('project-workspace-settings')).toHaveAttribute('aria-current', 'page')
+    await expect(await projectMenuItem(page, PROJECT_SETTINGS_ITEM)).toHaveAttribute('aria-current', 'page')
   })
 
-  test('a read-only viewer has no gear and no settings form', async ({ page }) => {
+  test('a read-only viewer has no settings item and no settings form', async ({ page }) => {
     await open(page, '/projects/3')
-    await expect(page.getByTestId('project-workspace-settings')).toHaveCount(0)
+    if (await page.getByTestId('project-workspace-menu').count()) await openProjectMenu(page)
+    await expect(page.getByRole('menuitem', { name: PROJECT_SETTINGS_ITEM })).toHaveCount(0)
     await open(page, '/projects/3/settings')
     await expect(page.getByTestId('project-settings-page')).toHaveCount(0)
   })

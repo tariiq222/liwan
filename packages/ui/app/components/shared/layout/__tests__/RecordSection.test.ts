@@ -8,19 +8,21 @@ const render = (props: Record<string, unknown>, actions = false) => renderShared
 })
 
 describe('SharedRecordSection variants', () => {
-  it('is flat by default: a page-section title (text-base) and no card', async () => {
+  it('is flat by default: a Rubik page-section title with the Sadu diamond and no card', async () => {
     const html = await render({})
     expect(html).toContain('data-variant="flat"')
-    expect(html).toContain('text-base font-semibold')
+    expect(html).toContain('font-display text-xl font-bold')
+    expect(html).toContain('liwan-sadu-diamond-mark')
     expect(html).not.toContain('rounded-card')
     expect(html).not.toContain('liwan-record-panel')
   })
 
-  it('panel is the card: ring, hairline under a text-sm title, card padding body', async () => {
+  it('panel is the card: 1.5px border, hairline under a text-sm title with the Sadu diamond, card padding body', async () => {
     const html = await render({ variant: 'panel' })
     expect(html).toContain('liwan-record-panel')
     expect(html).toContain('rounded-card')
-    expect(html).toContain('ring ring-default')
+    expect(html).toContain('liwan-card')
+    expect(html).toContain('liwan-sadu-diamond-mark')
     expect(html).toContain('border-b border-default')
     expect(html).toContain('px-(--liwan-card-pad) py-3')
     expect(html).toContain('p-(--liwan-card-pad)')
@@ -39,14 +41,14 @@ describe('SharedRecordSection variants', () => {
   it('tinted has a soft fill and no ring or header hairline', async () => {
     const html = await render({ variant: 'tinted' })
     expect(html).toContain('bg-elevated/40')
-    expect(html).not.toContain('ring-default')
+    expect(html).not.toMatch(/\bliwan-card(?![-\w])/)
     expect(html).not.toContain('border-b')
   })
 
   it('action has the primary tint, the primary hairline and the inline-start accent', async () => {
     const html = await render({ variant: 'action' }, true)
     expect(html).toContain('bg-primary/5')
-    expect(html).toContain('ring-primary/30')
+    expect(html).toContain('border-primary/30')
     expect(html).toContain('border-s-4 border-s-primary')
     expect(html.indexOf('Add')).toBeLessThan(html.indexOf('BODY'))
   })

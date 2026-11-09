@@ -3,14 +3,15 @@ import { login, open } from './support/tasmim6'
 
 test.beforeEach(async ({ page }) => { await login(page) })
 
-test('planning shares one primary section and keeps both view URLs on refresh', async ({ page }) => {
-  await open(page, '/projects/1/schedule?scale=month&projectListReturnTo=%2Fprojects%3Fq%3Dalpha')
-  await expect(page.getByTestId('project-tab-planning')).toHaveAttribute('aria-current', 'page')
-  await page.getByTestId('planning-tab-milestones').click()
-  await expect(page).toHaveURL(/\/projects\/1\/milestones/)
-  await expect(page.getByTestId('project-tab-planning')).toHaveAttribute('aria-current', 'page')
+test('the milestones stay under the tasks tab, keep their URL on refresh and lead back to the timeline view', async ({ page }) => {
+  await open(page, '/projects/1/milestones?projectListReturnTo=%2Fprojects%3Fq%3Dalpha')
+  await expect(page.getByTestId('project-tab-tasks')).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByTestId('planning-tab-milestones')).toHaveAttribute('aria-current', 'page')
   await page.reload()
   await expect(page.getByTestId('planning-tab-milestones')).toHaveAttribute('aria-current', 'page')
+  await page.getByTestId('planning-tab-timeline').click()
+  await expect(page).toHaveURL(/\/projects\/1\/tasks\?(.*&)?view=timeline/)
+  await expect(page.getByTestId('project-tab-tasks')).toHaveAttribute('aria-current', 'page')
   await expect(page.getByTestId('project-workspace-name')).toHaveText('مشروع ألفا')
 })
 

@@ -43,7 +43,7 @@ test.describe('Plan 6c: the conversation info body', () => {
     await mockChat(page)
     await open(page, '/chat/42/info')
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('محادثة تجريبية')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('المحادثة')
     const info = page.getByTestId('chat-info')
     for (const title of ['الاسم', 'الإشعارات', 'الأعضاء', 'المرفقات']) await expect(info.getByRole('heading', { name: title })).toBeVisible()
     await expect(info.getByText('سارة')).toBeVisible()

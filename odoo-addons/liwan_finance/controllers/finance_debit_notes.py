@@ -2,12 +2,13 @@
 from odoo import Command, http
 from odoo.http import request
 
-from .common import require_capability
 from .finance_invoices import _find_invoice, _lock_context
+from .idempotency import idempotent
 from .write_support import attempt, require_open_period
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
+    requires_capability,
     requires_feature,
 )
 from odoo.addons.liwan_finance.serializers.debit_note import parse_debit_note
@@ -34,9 +35,13 @@ class FinanceDebitNoteController(http.Controller):
     )
     @api_handler
     @requires_feature('finance.enabled', operation='write')
+    @requires_capability('finance.invoices.manage')
+    @idempotent
     def create_debit_note(self, invoice_id, **payload):
-        """The draft debit note of a posted invoice, made by Odoo's public ``account.debit.note`` wizard."""
-        require_capability('finance.invoices.manage')
+        """The draft debit note of a posted invoice, made by Odoo's public ``account.debit.note`` wizard.
+
+        A repeated ``Idempotency-Key`` answers with the first note instead of creating a second one.
+        """
         invoice = _find_invoice(invoice_id, writable=True)
         parsed = parse_debit_note(payload)
         _require_debitable(invoice)

@@ -40,7 +40,7 @@ test.describe('Plan 5 pilot: the project overview', () => {
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('مشروع ألفا')
       const headings = await page.locator('main h2').allTextContents()
-      expect(headings.map(text => text.trim())).toEqual(['تعريف المشروع', 'يحتاج انتباهك', 'آخر تحديث'])
+      expect(headings.map(text => text.trim())).toEqual(['آخر تحديث', 'التحديثات السابقة', 'تعريف المشروع', 'يحتاج انتباهك'])
       await expect(page.locator('[data-template="record"]')).toHaveCount(1)
       // The overview's own page header carries actions only; the name is the frame's.
       await expect(page.locator('[data-template="record"] [data-slot="page-header"]').getByRole('heading')).toHaveCount(0)
@@ -62,7 +62,7 @@ test.describe('Plan 5 pilot: the project overview', () => {
       // The overview has no properties panel: the facts live in the frame and the tiles.
       await expect(page.getByRole('complementary', { name: 'الخصائص' })).toHaveCount(0)
       // Status and manager live in the frame only: one project-status on the page.
-      await expect(page.getByTestId('project-status')).toHaveCount(1)
+      await expect(page.getByTestId('project-workspace-frame').getByTestId('project-status')).toHaveCount(1)
       await expect(page.getByTestId('project-overview').getByTestId('project-status-select')).toHaveCount(0)
     })
 
@@ -153,7 +153,8 @@ test.describe('Plan 5 pilot: the project overview', () => {
         await expect(page.locator('html')).toHaveAttribute('data-font-size', fontSize)
         const progress = await page.getByTestId('project-overview-progress').boundingBox()
         const latest = await page.getByTestId('project-overview-latest-update').boundingBox()
-        expect(latest!.y).toBeGreaterThanOrEqual(progress!.y + progress!.height - 1)
+        // The updates come first on the summary, above the tiles.
+        expect(progress!.y).toBeGreaterThanOrEqual(latest!.y + latest!.height - 1)
         expect(await fitsWidth(page)).toBe(true)
         await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
       })

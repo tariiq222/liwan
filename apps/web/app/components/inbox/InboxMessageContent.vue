@@ -61,10 +61,10 @@ const showBody = computed(() => !!props.message.body && !props.message.interacti
       <p class="whitespace-pre-wrap">{{ props.message.interactive.body }}</p>
       <p v-if="props.message.interactive.footer" class="text-xs text-muted">{{ props.message.interactive.footer }}</p>
       <ul v-if="props.message.interactive.type === 'buttons'" class="flex flex-wrap gap-1.5" :aria-label="t('inbox.thread.buttons')">
-        <li v-for="button in props.message.interactive.buttons" :key="button.id" class="rounded-full px-3 py-1 text-sm text-primary ring ring-default">{{ button.title }}</li>
+        <li v-for="button in props.message.interactive.buttons" :key="button.id" class="rounded-control px-3 py-1 text-sm text-primary ring ring-default">{{ button.title }}</li>
       </ul>
       <template v-else-if="props.message.interactive.type === 'list'">
-        <p class="inline-flex items-center gap-1.5 self-start rounded-full px-3 py-1 text-sm text-primary ring ring-default"><UIcon name="i-lucide-list" class="size-4" aria-hidden="true" />{{ props.message.interactive.button }}</p>
+        <p class="inline-flex items-center gap-1.5 self-start rounded-control px-3 py-1 text-sm text-primary ring ring-default"><UIcon name="i-lucide-list" class="size-4" aria-hidden="true" />{{ props.message.interactive.button }}</p>
         <section v-for="(section, index) in props.message.interactive.sections" :key="index" class="text-sm">
           <h4 v-if="section.title" class="text-xs font-medium text-muted">{{ section.title }}</h4>
           <ul class="mt-0.5 flex flex-col gap-0.5">
@@ -72,7 +72,7 @@ const showBody = computed(() => !!props.message.body && !props.message.interacti
           </ul>
         </section>
       </template>
-      <a v-else :href="props.message.interactive.url" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 self-start rounded-full px-3 py-1 text-sm text-primary ring ring-default">
+      <a v-else :href="props.message.interactive.url" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 self-start rounded-control px-3 py-1 text-sm text-primary ring ring-default">
         <UIcon name="i-lucide-external-link" class="size-4" aria-hidden="true" />{{ props.message.interactive.display_text }}
       </a>
     </SharedSubCard>
@@ -82,7 +82,7 @@ const showBody = computed(() => !!props.message.body && !props.message.interacti
     </SharedSubCard>
     <InboxCommerceMessage v-if="props.message.commerce" :message="props.message" :conversation-id="props.conversationId" :channel-id="props.channelId" :window-open="props.windowOpen" />
 
-    <p v-if="props.message.selected_option" class="inline-flex items-center gap-1.5 self-start rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary" data-testid="inbox-selected-option">
+    <p v-if="props.message.selected_option" class="inline-flex items-center gap-1.5 self-start rounded-control bg-primary/10 px-3 py-1 text-sm font-medium text-primary" data-testid="inbox-selected-option">
       <UIcon name="i-lucide-circle-check" class="size-4" aria-hidden="true" />{{ t('inbox.thread.selected', { title: props.message.selected_option.title }) }}
     </p>
     <p v-if="props.message.template?.header_text" dir="auto" class="font-semibold" data-testid="inbox-template-header">{{ props.message.template.header_text }}</p>
@@ -90,7 +90,7 @@ const showBody = computed(() => !!props.message.body && !props.message.interacti
     <p v-else-if="props.message.kind === 'unsupported' && !props.message.body" class="text-muted">{{ t('inbox.thread.unsupported') }}</p>
     <p v-if="props.message.template?.footer" dir="auto" class="text-xs text-muted" data-testid="inbox-template-footer">{{ props.message.template.footer }}</p>
     <ul v-if="props.message.template?.buttons.length" class="flex flex-wrap gap-1.5" :aria-label="t('inbox.thread.buttons')" data-testid="inbox-template-buttons">
-      <li v-for="(button, index) in props.message.template.buttons" :key="index" class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm text-primary ring ring-default"><UIcon v-if="button.type === 'flow'" name="i-lucide-file-pen-line" class="size-4" aria-hidden="true" />{{ button.text }}</li>
+      <li v-for="(button, index) in props.message.template.buttons" :key="index" class="inline-flex items-center gap-1.5 rounded-control px-3 py-1 text-sm text-primary ring ring-default"><UIcon v-if="button.type === 'flow'" name="i-lucide-file-pen-line" class="size-4" aria-hidden="true" />{{ button.text }}</li>
     </ul>
   </div>
 </template>

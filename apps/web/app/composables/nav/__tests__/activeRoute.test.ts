@@ -20,7 +20,7 @@ describe('shell route classification', () => {
     expect(activeShellModule('/notification-digests/12')).toBeNull()
   })
 
-  it('lights the start area on an application start page, and today on the root, with no context sidebar for either', () => {
+  it('lights the start area on an application start page, and today on the root, with no application links for either', () => {
     expect(activeShellModule('/apps/finance')).toBe('apps')
     expect(activeShellModule('/')).toBe('home')
     expect(activeShellModule('/Apps/finance')).toBe('apps')

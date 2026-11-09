@@ -28,11 +28,11 @@ const sendModes = computed(() => (['draft_only', 'approve'] as const).map(value 
 
 <template>
   <SharedSettingsCard id="policy" v-bind="state" :title="t('ai.settings.policy.title')" :description="t('ai.settings.policy.hint')" :can-edit="true" data-testid="ai-settings-policy" @save="save" @revert="revert" @reload="reload">
-    <UFormField orientation="horizontal" :label="t('ai.settings.policy.perUser.label')" name="messages_per_user_monthly" :description="t('ai.settings.policy.perUser.hint')">
+    <SharedSettingRow :label="t('ai.settings.policy.perUser.label')" name="messages_per_user_monthly" :description="t('ai.settings.policy.perUser.hint')">
       <UInputNumber id="ai-per-user" v-model="draft.messages_per_user_monthly" class="w-full" :min="0" :max="AI_MESSAGES_PER_USER_MAX" :disabled="locked" :aria-label="t('ai.settings.policy.perUser.label')" />
-    </UFormField>
-    <UFormField orientation="horizontal" :label="t('ai.settings.policy.external.label')" name="external_send" :description="t(`ai.settings.policy.external.${draft.external_send}Hint`)">
+    </SharedSettingRow>
+    <SharedSettingRow :label="t('ai.settings.policy.external.label')" name="external_send" :description="t(`ai.settings.policy.external.${draft.external_send}Hint`)">
       <USelect id="ai-external-send" v-model="draft.external_send" class="w-full" :items="sendModes" :disabled="locked" :aria-label="t('ai.settings.policy.external.label')" />
-    </UFormField>
+    </SharedSettingRow>
   </SharedSettingsCard>
 </template>

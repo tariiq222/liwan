@@ -5,6 +5,9 @@ import { visibleShellModules, type ShellModuleDefinition } from './shellModules'
 import { visibleCommands } from './paletteModel'
 import { appStartFor, type StartCard } from './appStartModel'
 
+/** Rail id of the assistant, which the launcher leaves to its own banner. */
+export const ASSISTANT_MODULE_ID = 'ai'
+
 export interface LauncherEntry {
   id: string
   labelKey: string
@@ -16,10 +19,10 @@ export interface LauncherEntry {
 
 /**
  * The applications the user may open, in rail order. The home page and settings are foundation pages rather than
- * applications, and the assistant sits beside «يومي» at the head of the rail, so none of them is a launcher card.
+ * applications, and the assistant has its own banner, so none of them is a launcher card.
  */
 export function reachableApplications(modules: readonly ShellModuleDefinition[]): ShellModuleDefinition[] {
-  return modules.filter(module => module.fixed !== 'top' && module.id !== 'home' && module.id !== 'settings')
+  return modules.filter(module => module.id !== ASSISTANT_MODULE_ID && module.id !== 'home' && module.id !== 'settings')
 }
 
 /** Existing application actions, filtered by feature and route permissions, never executed by the launcher. */
@@ -37,6 +40,6 @@ export function launcherEntries(identity: AccessIdentity, query: string, transla
         seen.add(action.to)
         return true
       }).slice(0, 3)
-      return { id: module.id, labelKey: module.labelKey, icon: module.icon, to: module.to, actions, pinnable: !module.fixed }
+      return { id: module.id, labelKey: module.labelKey, icon: module.icon, to: module.to, actions, pinnable: module.core === undefined }
     })
 }

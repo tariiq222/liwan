@@ -280,7 +280,7 @@ function setHistoryPage(page: number) {
       </UDropdownMenu>
     </template>
     <template #tabs>
-      <SharedRouteTabs data-testid="meeting-series-tabs" variant="pill" :items="tabLinks" :ariaLabel="t('meetingTimeline.sections')" />
+      <SharedRouteTabs data-testid="meeting-series-tabs" :items="tabLinks" :ariaLabel="t('meetingTimeline.sections')" />
     </template>
 
     <div v-if="query.data.value" class="grid min-w-0 gap-(--liwan-gap-card)">

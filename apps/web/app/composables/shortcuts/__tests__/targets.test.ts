@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { sidebarModel } from '../../nav/sidebarModel'
+import { pinnedCreateLinks } from '../../nav/sidebarModel'
 import { clickPageCreate, createShortcutTarget, focusListSearch } from '../targets'
 
 interface Double { tag: string; visible: boolean; disabled: boolean; ariaDisabled: boolean; children: Double[] }
@@ -57,7 +57,7 @@ describe('createShortcutTarget', () => {
     { id: 'new-project', labelKey: 'x', icon: {}, to: '/projects/new', pinned: true },
     { id: 'tasks', labelKey: 'y', icon: {}, to: '/tasks' },
   ] as never
-  const model = (path: string) => sidebarModel({ links, moduleLabelKey: null, path, panel: null, surface: 'desktop' }).createLinks
+  const model = (path: string) => pinnedCreateLinks(links, path)
   const resolve = (link: { to: unknown }) => ({ path: link.to as string, query: { returnTo: '/x' } })
 
   it('picks the first create link the sidebar shows', () => {
@@ -71,10 +71,5 @@ describe('createShortcutTarget', () => {
   it('is null when the target is the open page', () => {
     expect(createShortcutTarget([{ id: 'n', to: '/tasks/new' }], link => link.to as string, '/tasks/new')).toBeNull()
     expect(createShortcutTarget([{ id: 'n', to: '/tasks/new' }], () => '/tasks/new?returnTo=%2Ftasks', '/tasks/new')).toBeNull()
-  })
-
-  it('is null when a desktop panel replaces the create links', () => {
-    const panelled = sidebarModel({ links, moduleLabelKey: null, path: '/tasks', panel: { expanded: false }, surface: 'desktop' }).createLinks
-    expect(createShortcutTarget(panelled, resolve, '/tasks')).toBeNull()
   })
 })
