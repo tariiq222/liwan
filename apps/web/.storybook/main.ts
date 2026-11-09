@@ -65,7 +65,8 @@ function nuxtUiComponents(): Plugin {
       // components subpath is, and resolving it locates the same directory.
       const anchor = createRequire(import.meta.url).resolve('@nuxt/ui/components/Table.vue')
       const componentsDir = dirname(anchor)
-      const files = readdirSync(componentsDir).filter(file => file.endsWith('.vue'))
+      // UChart imports the optional peer @tanstack/charts, which LiwanOS does not install and no story uses.
+      const files = readdirSync(componentsDir).filter(file => file.endsWith('.vue') && file !== 'Chart.vue')
       const imports: string[] = []
       const entries: string[] = []
       files.forEach((file, index) => {
