@@ -19,9 +19,9 @@ Public TLS edge → guard:8080 → web:3000 OR Odoo:8069 / Odoo WS:8072.
 Nuxt BFF and SSR → guard:8080, NEVER directly to Odoo. Only edge publishes a port.
 Guard and Odoo/web listener networks must be unreachable from customers. An internal
 header secret is defense in depth, NOT a replacement for this network boundary.
-`Caddyfile` includes four rate zones using the actual pinned module in
+`Caddyfile` uses the pinned rate-limit module in
 `deploy/proxy/Dockerfile` (not the unmodified official Caddy image). Limits are per
-edge socket client IP: auth 20/min, API 300/min, Odoo/web 600/min. WS remains exempt
+edge socket client IP. Auth is 20/min, API 300/min, public signup 30/min, and Odoo/web 600/min. WS remains exempt
 from HTTP rate counting. Immutable static assets (`/_nuxt/*`, `/_i18n/*`,
 `/fonts/*`, `/favicon.ico`, `/robots.txt`) are exempt from the `liwan_web` zone so client
 asset requests do not exhaust the interactive web budget or cause 429 white-screens for
