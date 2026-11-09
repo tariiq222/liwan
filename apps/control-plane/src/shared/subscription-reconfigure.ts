@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { sharedReconfigureJobSchema, type SharedReconfigureJob } from '@liwan/commercial-contracts/shared'
 import { transaction } from '../db.js'
-import { applyReceipt, failFulfillment, type SubscriptionReceipt } from '../commercial/fulfillment.js'
+import { applyReceipt, failFulfillmentOn, type SubscriptionReceipt } from '../commercial/fulfillment.js'
 import type { ObserveRunner } from './subscription-reconcile.js'
 
 export type SubscriptionRunner = (input: {job:SharedReconfigureJob;action:'observe'|'reconfigure';attemptId:string;fence:number;assertOwned:()=>Promise<void>}) => Promise<unknown>
@@ -83,11 +83,16 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
   }catch(error){
     const code=error instanceof Error?error.message:'shared_effect_unverified'
     if(code!=='shared_lease_lost'){
-      if(!claim.job.restore)await failFulfillment(pool,{order_id:claim.job.authority.order_id,code})
-      await pool.query("UPDATE shared_jobs SET state='needs_intervention',lease_until=NULL,journal=$4 WHERE id=$1 AND attempt_id=$2 AND fence=$3 AND state='running'",[id,claim.attemptId,claim.fence,{stage:'needs_intervention',operation_id:claim.job.authority.operation_id,error_code:code}])
-      if(!claim.job.restore && code==='tenant_upgrade_required'){
-        await pool.query('UPDATE tenants SET commercial_expiry_supported=false WHERE id=$1',[claim.job.controlTenantId])
-      }
+      await transaction(pool,async client=>{
+        const refused=await client.query(`UPDATE shared_jobs SET state='needs_intervention',lease_until=NULL,journal=$4
+          WHERE id=$1 AND attempt_id=$2 AND fence=$3 AND state='running' AND lease_until>clock_timestamp() RETURNING id`,
+        [id,claim.attemptId,claim.fence,{stage:'needs_intervention',operation_id:claim.job.authority.operation_id,error_code:code}])
+        if(!refused.rowCount)throw Error('shared_lease_lost')
+        if(!claim.job.restore)await failFulfillmentOn(client,{order_id:claim.job.authority.order_id,code})
+        if(!claim.job.restore && code==='tenant_upgrade_required'){
+          await client.query('UPDATE tenants SET commercial_expiry_supported=false WHERE id=$1',[claim.job.controlTenantId])
+        }
+      })
     }
     throw error
   }
