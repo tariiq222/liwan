@@ -23,6 +23,15 @@ staff or the requester confirm it. Past a type's `modifications_deadline_hours` 
 of `appointments.bookings.manage` in the current company may still schedule or cancel it (staff routes); the
 requester never may.
 
+The requester's link is a company policy, not an unbounded secret: it stays readable until
+`link_valid_days_after_end` days after the appointment ends (default 30), then every public route answers the same
+404 and no requester data is returned; a staff invitation refuses to hand out an expired link rather than
+resurrect it. A public start must fall on the type's slot grid (a whole multiple of `slot_minutes` from the work
+day's beginning), and one token has its own minute read budget. Each slots answer names at most a month and lists
+at most 500 starts. With `cancel_reason_required` on, the requester's cancel takes a `reason_id` from the company's
+active cancel-reason list, refused 422 without one. The self-booking policy accepts only `invite_only`: `open` needs
+a public booking page the platform does not have, so a save that asks for it answers 422.
+
 Capability note: `appointments.bookings.read` is held by every employee, `write` adds to read, and
 `manage` adds write (dependencies are added automatically). The built-in role «مدير المواعيد»
 (`appointments_manager`) holds all three; vendor support holds all three. `system_admin` holds none by
@@ -45,7 +54,7 @@ Error note: API errors quoted below are the server messages. Feature off answers
 | APT-17 | Stale revision | custom role (appointments_manager) | Two managers read revision 3; the first saves; the second saves with revision 3 and gets 409 `conflict` «appointment settings changed; reload before saving» and nothing of the second is kept | `PATCH /api/v1/appointments/settings` | planned | partial run 2026-10-29, the unchecked part keeps this row planned: two managers read the same revision; second save 409 conflict «appointment settings changed; reload before saving»; nothing of it kept (unique-row race not run); Also the race of two first saves (unique company row) answers the same 409; two managers read the same revision; second save 409 conflict «appointment settings changed; reload before saving»; nothing of it kept (unique-row race not run); Also the race of two first saves (unique company row) answers the same 409 |
 | APT-19 | Settings with the feature off or a read-only tenant | custom role (appointments_manager) | GET still answers while retained read is allowed; PATCH answers 403 `feature_not_included` or `tenant_read_only` | `PATCH /api/v1/appointments/settings` `GET /api/v1/appointments/settings` | planned | exclusive phase (feature off / read-only tenant) |
 | APT-22 | Settings reading is not a customer page | custom role (appointments_manager) | There is no page for settings in the customer UI | `page /appointments` | gap | #276; Settings API exists with no settings section under `/settings/apps/appointments`; the constitution asks every app to expose its settings. Issue pending |
-| APT-23 | Sector policies are not yet enforced by booking routes | api | `min_notice_hours`, `horizon_days`, requester fields, confirmation and self-booking policy have no booking route to enforce them | `GET /api/v1/appointments/settings` | gap | #276; Model docstring: tickets 05-07. Issue pending |
+| APT-23 | Sector policies are enforced by the booking routes | api | `min_notice_hours`, `horizon_days`, requester fields and confirmation bind every booking route; `self_booking_policy` accepts only `invite_only` (no public booking page exists, so `open` is refused 422); `modification_deadline_hours` also reaches existing types still holding the previous value | `GET /api/v1/appointments/settings` `PATCH /api/v1/appointments/settings` | covered | #550, #551; Odoo tests `test_open_self_booking_cannot_be_saved`, `test_a_new_deadline_reaches_every_type_that_still_held_the_previous_one`, and the booking-route suites |
 
 ## Booking types (API)
 
