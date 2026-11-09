@@ -34,10 +34,25 @@ function odooShell(script: string) {
   return spawnSync(process.env.LIWAN_SCRATCH_ODOO_SHELL!, [DB!], { input: script, encoding: 'utf8', timeout: 900_000 }).stdout
 }
 async function session() {
-  const r = await fetch(`${ODOO}/web/session/authenticate`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+  const seeded = odooShell(`
+admin = env.ref('base.user_admin')
+_, token = env['liwan.login.device']._liwan_issue(admin, 'Packages acceptance')
+env.cr.commit()
+print('ACCEPT_DEVICE', token)
+`)
+  const token = seeded.match(/ACCEPT_DEVICE (\S+)/)?.[1]
+  if (!token) throw new Error('Could not seed the scratch admin remembered device')
+  const pending = await fetch(`${ODOO}/web/session/authenticate`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: { db: DB, login: 'admin', password: 'admin' }, id: 1 }) })
-  const cookie = (r.headers.get('set-cookie') ?? '').split(';')[0]
-  expect(cookie).toMatch(/^session_id=/)
+  const sessionCookie = (response: Response) => response.headers.getSetCookie().find(cookie => cookie.startsWith('session_id='))?.split(';')[0]
+  const pendingCookie = sessionCookie(pending)
+  expect(pendingCookie).toMatch(/^session_id=/)
+  const authenticated = await fetch(`${ODOO}/api/v1/auth/device`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: `${pendingCookie}; liwan_device=${token}` }, body: '{}',
+  })
+  expect(authenticated.status).toBe(200)
+  const cookie = sessionCookie(authenticated)
+  if (!cookie) throw new Error('Remembered-device login returned no session cookie')
   return cookie
 }
 async function odooApi(cookie: string, method: string, path: string, body?: unknown) {
@@ -51,22 +66,32 @@ suite('spec 3.6 acceptance: plans flip keys and limits on a tenant with every ap
   const vendor: any = { actor_id: '7', kind: 'vendor', customer_id: null, tenant_id: null, capabilities: ['vendor.subscriptions.manage', 'vendor.pricing.manage'] }
   const reason = 'Phase 3 acceptance'
   const solution = JSON.parse(readFileSync(`${repo}deploy/catalog/solutions/platform_v4.json`, 'utf8'))
+  // The production release sells CRM and Inbox. Make PMO and HR selectable in this fixture.
+  for (const tier of solution.tiers) {
+    if (tier.id === 'projects' || tier.id === 'people') tier.sellable = true
+  }
   // A tier must list modules (the parser refuses none). liwan_directory is a real release module (already in the
   // install closure of messaging/projects), so the effect accepts it and installs nothing extra.
-  solution.tiers.push({ id: 'probe', name: 'Probe', description: 'Registry probe (acceptance only).', modules: ['liwan_directory'], features: ['boolean:probe.enabled'] })
+  solution.tiers.push({ id: 'probe', name: 'Probe', description: 'Registry probe (acceptance only).', sellable: true, modules: ['liwan_directory'], features: ['boolean:probe.enabled'] })
   const state: Record<string, any> = {}
 
   async function publish(kind: 'bundles' | 'plans', body: Record<string, unknown>) {
     const created = await api('POST', `/${kind}`, body)
     expect(created.status, JSON.stringify(created.body)).toBe(201)
     const validated = await api('POST', `/${kind}/${created.body.id}/validate`, { edit_revision: 1, reason })
+    expect(validated.status, JSON.stringify(validated.body)).toBe(200)
     const published = await api('POST', `/${kind}/${created.body.id}/publish`, { edit_revision: validated.body.edit_revision, reason })
     expect(published.body.status).toBe('published')
     return published.body
   }
+  const bundle = (id: string, keys: string[], limits: Record<string, number> = {}) => publish('bundles', {
+    name: `${id} ${randomUUID()}`, description: id, audience: { kind: 'public' },
+    catalog_release_id: state.release.id, selections: [{ app_id: id, feature_keys: keys }],
+    domain_limits: limits, prices: [{ cadence: monthly, amount: money(0) }],
+  })
   const plan = (name: string, bundles: string[], users: number) => publish('plans', { name, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
-    prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: { 'ai.messages.monthly': null, 'ai.tool_calls.per_run': null }, included_bundle_revision_ids: bundles,
-    optional_bundle_revision_ids: [], included_extra_branches: 0, extra_branch_prices: [{ cadence: monthly, amount: money(5000) }], extra_branches_limit: 0, included_users: users, included_storage_mb: 1000, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }],
+    prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: { 'ai.messages.monthly': 500, 'ai.tokens.monthly': 2500000, 'ai.assist.monthly': 100, 'ai.tool_calls.per_run': 8, 'ai.output_tokens.per_run': 2000 }, included_bundle_revision_ids: bundles,
+    optional_bundle_revision_ids: [], included_extra_branches: 0, extra_branch_prices: [{ cadence: monthly, amount: money(5000) }], extra_branches_limit: 0, included_users: users, included_storage_mb: 1024, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400, user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }],
     policy_revision_id: POLICY, trial_days: 0, grace_days: 0, auto_suspend: true, auto_renew_allowed: true })
   /** Real collector pass over the real Odoo observation (a downgrade or reopen quote needs a fresh sample). */
   async function collect() {
@@ -114,8 +139,6 @@ suite('spec 3.6 acceptance: plans flip keys and limits on a tenant with every ap
     expect(probe).toMatchObject({ name_en: 'Probe', selectable: true })
     expect(probe.features.map((f: any) => f.key)).toEqual(['probe.enabled'])
     state.release = release
-    const bundle = (id: string, keys: string[], limits: Record<string, number> = {}) => publish('bundles', { name: `${id} ${randomUUID()}`, description: id, audience: { kind: 'public' },
-      catalog_release_id: release.id, selections: [{ app_id: id, feature_keys: keys }], domain_limits: limits, prices: [{ cadence: monthly, amount: money(0) }] })
     state.projects = await bundle('projects', ['pmo.enabled'], { 'projects.max_projects': 5 })
     state.people = await bundle('people', ['hr.enabled'])
     state.probe = await bundle('probe', ['probe.enabled'])
@@ -124,10 +147,10 @@ suite('spec 3.6 acceptance: plans flip keys and limits on a tenant with every ap
 
   it('1: a plan with two or more apps is applied to the tenant and the applied keys match the compiled ones', async () => {
     state.full = await plan(`Full ${randomUUID()}`, [state.projects.id, state.people.id, state.probe.id], 10)
-    state.fullUsers = 10; state.fullStorage = 1000
+    state.fullUsers = 10; state.fullStorage = 1024
     state.peopleOnly = await plan(`People ${randomUUID()}`, [state.people.id, state.probe.id], 10)
     state.small = await plan(`Small ${randomUUID()}`, [state.people.id, state.probe.id], 1)
-    state.smallUsers = 1; state.smallStorage = 1000
+    state.smallUsers = 1; state.smallStorage = 1024
     const policy = deriveSharedPolicy(solution, 'core')
     // The tenant has the test-only probe addon installed; provisioning compares installed addons with the policy closure.
     // Reconfigure refuses test-only addons in an entitlement, so the probe tier lists a real release module instead.
@@ -147,8 +170,83 @@ suite('spec 3.6 acceptance: plans flip keys and limits on a tenant with every ap
     expect(mismatched).toEqual([])
     expect(Object.keys(seen.features).sort()).toEqual(Object.keys(full.snapshot.entitlement.features).sort())
     const cookie = await session()
-    expect((await odooApi(cookie, 'POST', '/api/v1/projects', { name: 'Acceptance project', date_end: '2030-12-31' })).status).toBe(201)
+    const project = await odooApi(cookie, 'POST', '/api/v1/projects', { name: 'Acceptance project', date_end: '2030-12-31' })
+    expect(project.status).toBe(201)
+    expect(project.body.id).toEqual(expect.any(Number))
+    state.projectId = project.body.id
     console.log('ACCEPT_1', JSON.stringify({ apps: ['projects', 'people', 'probe'], keys: Object.keys(seen.features).length, mismatched: mismatched.length }))
+  })
+
+  it('E09: rejects a project limit below real usage and applies a limit equal to usage', async () => {
+    const projectsPlan = async (limit: number) => {
+      const projects = await bundle('projects', ['pmo.enabled'], { 'projects.max_projects': limit })
+      return plan(`Project limit ${limit} ${randomUUID()}`, [projects.id, state.people.id, state.probe.id], state.fullUsers)
+    }
+    const zero = await projectsPlan(0)
+    const one = await projectsPlan(1)
+    const cookie = await session()
+    const readProject = () => odooApi(cookie, 'GET', `/api/v1/projects/${state.projectId}`)
+    const readSubscription = async () => (await pool.query(
+      'SELECT revision, applied_revision_id, target_revision_id FROM subscriptions WHERE customer_id=$1', [state.customer],
+    )).rows[0]
+    const beforeProject = await readProject()
+    expect(beforeProject.status).toBe(200)
+    const attachmentContent = 'E09 project attachment'
+    const attachmentDigest = createHash('sha256').update(attachmentContent).digest('hex')
+    const seededAttachment = odooShell(`
+attachment = env['ir.attachment'].create({
+    'name': 'E09 project attachment.txt', 'res_model': 'project.project',
+    'res_id': ${state.projectId}, 'raw': ${JSON.stringify(attachmentContent)}.encode(),
+})
+env.cr.commit()
+print('E09_ATTACHMENT_ID', attachment.id)
+`)
+    const attachmentId = seededAttachment.match(/E09_ATTACHMENT_ID (\d+)/)?.[1]
+    expect(attachmentId).toBeDefined()
+    const readAttachment = () => odooShell(`
+import hashlib
+attachment = env['ir.attachment'].browse(${attachmentId}).exists()
+if attachment and attachment.res_model == 'project.project' and attachment.res_id == ${state.projectId}:
+    print('E09_ATTACHMENT_SHA256', hashlib.sha256(attachment.raw).hexdigest())
+`)
+    expect(readAttachment()).toContain(`E09_ATTACHMENT_SHA256 ${attachmentDigest}`)
+    const beforeSubscription = await readSubscription()
+    const before = observed()
+    expect(before.features).toMatchObject({ 'pmo.enabled': true, 'projects.max_projects': 5 })
+    expect(before.usage['projects.max_projects']).toBe(1)
+
+    expect((await collect()).recorded).toBeGreaterThanOrEqual(1)
+    const sample = (await pool.query(
+      'SELECT metrics, freshness FROM usage_snapshots WHERE tenant_id=$1 ORDER BY observed_at DESC,id DESC LIMIT 1', [state.tenant],
+    )).rows[0]
+    expect(sample).toMatchObject({ freshness: 'fresh', metrics: { 'projects.max_projects': 1 } })
+    const request = {
+      kind: 'change', plan_revision_id: zero.id, bundle_revision_ids: [], cadence: monthly,
+      requested_extra_branches: 0, requested_users: state.fullUsers, requested_storage_mb: state.fullStorage,
+    }
+    expect(await api('POST', '/quotes', { customer_id: state.customer, ...request })).toMatchObject({
+      status: 422, body: { code: 'downgrade_below_usage', field: 'projects.max_projects' },
+    })
+    expect(await readSubscription()).toEqual(beforeSubscription)
+    expect(await readProject()).toEqual(beforeProject)
+    expect(readAttachment()).toContain(`E09_ATTACHMENT_SHA256 ${attachmentDigest}`)
+    const unchanged = observed()
+    expect(unchanged).toMatchObject({
+      commercial_revision_id: before.commercial_revision_id, commercial_digest: before.commercial_digest,
+      features: before.features, usage: { 'projects.max_projects': 1 },
+    })
+
+    const accepted = await order('change', one.id)
+    expect(accepted.snapshot.entitlement.features).toMatchObject({ 'pmo.enabled': true, 'projects.max_projects': 1 })
+    await apply(accepted)
+    expect(await readSubscription()).toMatchObject({ applied_revision_id: accepted.order.target_revision_id, target_revision_id: null })
+    expect(observed()).toMatchObject({
+      commercial_revision_id: accepted.order.target_revision_id, commercial_digest: accepted.snapshot.entitlement.digest,
+      features: { 'pmo.enabled': true, 'projects.max_projects': 1 }, usage: { 'projects.max_projects': 1 },
+    })
+    expect(await readProject()).toEqual(beforeProject)
+    expect(readAttachment()).toContain(`E09_ATTACHMENT_SHA256 ${attachmentDigest}`)
+    console.log('ACCEPT_E09', JSON.stringify({ active_projects: 1, rejected_limit: 0, status: 422, code: 'downgrade_below_usage', applied_limit: 1 }))
   })
 
   it('2: downgrading to a plan without projects closes its routes with 403 and keeps its data', async () => {
