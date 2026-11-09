@@ -24,6 +24,7 @@ function fakePostgres(onIdle: (socket: Socket) => void, shutdownCode?: string): 
   return createServer((socket) => {
     let timer: NodeJS.Timeout | undefined
     socket.on('data', (data) => {
+      if (typeof data === 'string') throw new TypeError('Expected a binary PostgreSQL packet')
       if (data.length >= 8 && data.readInt32BE(4) === 196608) {
         socket.write(Buffer.concat([
           frame('R', Buffer.from([0, 0, 0, 0])),

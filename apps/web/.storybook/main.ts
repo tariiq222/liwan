@@ -69,6 +69,16 @@ function nuxtUiComponents(): Plugin {
       const imports: string[] = []
       const entries: string[] = []
       files.forEach((file, index) => {
+        // Chart is the only top-level component backed by the optional Charts peer.
+        // Eager registration would make that peer mandatory even without a chart story.
+        if (file === 'Chart.vue') {
+          try {
+            createRequire(anchor).resolve('@tanstack/charts/vue')
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'MODULE_NOT_FOUND') throw error
+            return
+          }
+        }
         const name = `c${index}`
         const tag = `U${file.slice(0, -'.vue'.length)}`
         imports.push(`import ${name} from ${JSON.stringify(`@nuxt/ui/components/${file}`)}`)
