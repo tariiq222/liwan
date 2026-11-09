@@ -379,10 +379,11 @@ The `E2E_REAL_ODOO` specs that have not yet passed on a scratch Odoo are named, 
 `deploy/ci/e2e-odoo.sh` installs every release module on the scratch database `liwan_scratch_e2e`, seeds it through Odoo
 (`tools/e2e_seed.py`, then `apps/web/e2e/fixtures/real-odoo-acceptance.py`, which writes the fixture ids to
 `.superpowers/real-odoo/fixtures.json`), starts Odoo and a production Nuxt build on port 44300 and runs the specs named in
-`REAL_ODOO_SPECS` (`e2e/real-odoo-acceptance.spec.ts`, `e2e/real-odoo-services.spec.ts`) with `E2E_REAL_ODOO=1`. The twelve other
-`E2E_REAL_ODOO` specs fail on a clean scratch run (single-step `admin`/`admin` sign-in; the seed has `e2e_*` accounts and a two-step
-sign-in) and are excluded by name in the script until each is moved to the two-step sign-in. No model call or API key is
-involved, unlike `npm run e2e:odoo` (the agentic runner of "Isolated agentic e2e"), which stays the local exploration path. The stage
+`REAL_ODOO_SPECS` (fourteen files, one per guarded `E2E_REAL_ODOO` spec) with `E2E_REAL_ODOO=1`. Every one of those files
+signs in through `apps/web/e2e/support/realOdooSession.ts`, which finishes the mandatory two-step sign-in with the remembered
+device the fixture seeds per account; no spec posts a single-step form and none carries its own credential fallback. A spec
+that stops passing goes back into `EXCLUDED_REAL_ODOO_SPECS` by name with the product reason it fails, never silently red.
+No model call or API key is involved, unlike `npm run e2e:odoo` (the agentic runner of "Isolated agentic e2e"), which stays the local exploration path. The stage
 runs on a pull request that touches `E2E_ODOO_TRIGGERS` (`tools/ci_scope.py`), and otherwise on the push to `main`, the nightly run and a
 full dispatch. A project starts with no optional tool enabled and finance stays off until a company enables it, so the finance journeys
 create their project with `tool_preferences` and assert the tool answered as enabled — the same opt-in a customer performs.

@@ -1,17 +1,9 @@
 import { test, expect, type Browser } from '@playwright/test'
+import { ACCEPTANCE_ORIGIN, signIn } from './support/realOdooSession'
 
-// Needs a real Odoo: it logs in as admin and writes data, which the mock answers with 404. It is in no CI list until it has run on a
-// scratch Odoo (see docs/testing.md, section 3).
+// Runs only on the isolated real-Odoo stack (deploy/ci/e2e-odoo.sh).
 test.skip(process.env.E2E_REAL_ODOO !== '1', 'Explicit isolated real Odoo acceptance only')
-
-async function login(page) {
-  await page.goto('/login')
-  await page.getByLabel('اسم المستخدم').fill('admin')
-  await page.getByLabel('كلمة المرور').fill('admin')
-  await page.getByRole('button', { name: 'دخول' }).click()
-  // Login lands on the first section the user may open (accessPolicy.firstAllowedPath).
-  await expect(page).not.toHaveURL(/\/login(?:\?|$)/)
-}
+test.beforeEach(async ({}, info) => { expect(new URL(String(info.project.use.baseURL)).origin).toBe(ACCEPTANCE_ORIGIN) })
 
 async function createTask(page, name: string) {
   const projects = await (await page.request.get('/api/v1/projects?minimal=1')).json()
@@ -29,8 +21,8 @@ test('a task rename from another session arrives over the bus, live, without a r
   const pageA = await contextA.newPage()
   const pageB = await contextB.newPage()
 
-  await login(pageA)
-  await login(pageB)
+  await signIn(pageA)
+  await signIn(pageB)
 
   const name = `E2E realtime ${Date.now()}`
   const id = await createTask(pageA, name)
@@ -84,8 +76,8 @@ test('a comment posted from another session arrives in the activity column, live
   const pageA = await contextA.newPage()
   const pageB = await contextB.newPage()
 
-  await login(pageA)
-  await login(pageB)
+  await signIn(pageA)
+  await signIn(pageB)
 
   const name = `E2E realtime comment ${Date.now()}`
   const id = await createTask(pageA, name)
