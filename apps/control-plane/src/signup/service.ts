@@ -7,6 +7,7 @@ import { startTrialOn } from '../commercial/trial.js'
 
 const minutes = (count: number) => count * 60_000
 const maxAttempts = 5
+const signupDeliveryLock = 1397969237
 const ok = { ok: true } as const
 type Channel = 'sms' | 'email'
 type SendCode = (destination: string, code: string) => Promise<void>
@@ -53,7 +54,7 @@ export class SignupService {
 
   // Hold across counts and insert so concurrent instances share the same delivery budget.
   private async lockDeliveries(client: PoolClient) {
-    await client.query('SELECT pg_advisory_xact_lock(1397969234)')
+    await client.query('SELECT pg_advisory_xact_lock($1)', [signupDeliveryLock])
   }
 
   private async reserveDelivery(client: PoolClient, channel: Channel, destination: string, ip: string, now: Date) {
