@@ -7,8 +7,6 @@ from odoo.exceptions import AccessError
 _logger = logging.getLogger(__name__)
 
 IMMUTABLE = 'audit_is_immutable'
-# Marks the postcommit callable a refusal queues, so the audit path is identifiable where it is registered.
-REFUSAL_HOOK = 'liwan_hr_refusal_audit'
 
 # Per audited model: (fields whose old and new values are recorded, fields recorded by name only).
 # The first list holds non-secret payroll policy only; wages, IBANs, settlement figures and a salary
@@ -312,19 +310,19 @@ class LiwanHrAuditEvent(models.Model):
             return
         registry, uid = self.env.registry, self.env.uid
         model, record_id, company_id = record._name, record.id, record.company_id.id
+        # Copy the names now: the caller's ``vals`` is a live dict the request may still mutate until commit.
+        names = tuple(sorted(names))
 
         def log():
             try:
                 with registry.cursor() as event_cr:
-                    api.Environment(event_cr, uid, {'allowed_company_ids': [company_id]})[
-                        'liwan.hr.audit.event'
-                    ]._liwan_log(action, self.env[model].browse(record_id), names=names)
+                    # The request's cursor has committed and is unusable here: resolve the record in the new
+                    # environment, whose registry and cursor are the ones this write runs on.
+                    env = api.Environment(event_cr, uid, {'allowed_company_ids': [company_id]})
+                    env['liwan.hr.audit.event']._liwan_log(action, env[model].browse(record_id), names=names)
             except Exception as error:  # noqa: BLE001 - the refusal must stand whatever the trail does
                 _logger.warning('payroll refusal not audited: %s %s', type(error).__name__, error)
 
-        # The marker rides on the queued callable so a test (and a support script) can tell one refusal's write
-        # from the other hooks a request queues (session saving, cache clearing).
-        setattr(log, REFUSAL_HOOK, action)
         self.env.cr.postcommit.add(log)
 
 

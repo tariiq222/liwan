@@ -6,7 +6,6 @@ from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
 from .payroll_common import PayrollCase
-from odoo.addons.liwan_hr.models.audit_event import REFUSAL_HOOK
 
 MONTH_START = date(2026, 11, 1)
 IBAN = 'SA0380000000608010167519'
@@ -16,10 +15,10 @@ IBAN = 'SA0380000000608010167519'
 class TestPayrollWriteRefusalAudit(PayrollCase):
     """A write the payroll guards refuse after approval leaves exactly one audit event (issue #520).
 
-    The refusal raises inside a savepoint, so the event is queued on the cursor's ``postcommit`` and written on
-    its own cursor once the request commits: the route answers its 403 as a normal response, so the queue runs.
-    The tests run the queue the way the commit would, then read the event through a second cursor, because the
-    test transaction's own snapshot predates that commit.
+    The refusal raises, so the event is queued on the cursor's ``postcommit`` and written on its own cursor once
+    the transaction commits: the route answers its 403 as a normal response, so the queue runs. These tests run
+    the queue the way that commit would, then read the event through a second cursor whose transaction starts
+    after it.
     """
 
     @classmethod
@@ -41,9 +40,9 @@ class TestPayrollWriteRefusalAudit(PayrollCase):
         self.assertEqual(run.liwan_state, 'approved')
         return run.with_user(self.officer)
 
-    def _queued(self, action):
-        """The refusals of ``action`` this transaction queued for its postcommit write."""
-        return sum(1 for func in self.env.cr.postcommit._funcs if getattr(func, REFUSAL_HOOK, None) == action)
+    def _queued(self):
+        """The cursor's postcommit queue length: other layers queue their own writes, so tests use its delta."""
+        return len(self.env.cr.postcommit)
 
     def _committed_events(self, action):
         """The events of ``action`` as a later transaction sees them, read before that cursor closes."""
@@ -65,10 +64,11 @@ class TestPayrollWriteRefusalAudit(PayrollCase):
             cursor.close()
 
     def _assert_refused(self, action, record, fields, attempt):
+        before = self._queued()
         with self.assertRaises(AccessError):
             attempt()
         # One queued write, not an event inside the refusal's own savepoint: that one the raise would roll back.
-        self.assertEqual(self._queued(action), 1, 'the refusal queued no audit write')
+        self.assertEqual(self._queued() - before, 1, 'the refusal queued no audit write')
         self.env.cr.postcommit.run()
         events = self._committed_events(action)
         self.assertEqual(len(events), 1, events)
@@ -134,15 +134,42 @@ class TestPayrollWriteRefusalAudit(PayrollCase):
         self._assert_refused('run_write_refused', run, ('unlink',), run.unlink)
         self.assertTrue(run.exists())
 
+    def test_the_refusal_survives_the_commit_and_is_read_by_a_later_transaction(self):
+        """The production sequence for a direct write: the raise, the commit, the queue, an independent cursor.
+
+        ``enter_registry_test_mode`` makes the registry hand out the test cursor the way a request's worker cursor
+        would, so running the queue here runs the hook the commit runs, and the event is read by a second cursor
+        whose transaction starts afterwards.
+
+        A route cannot be the vehicle for this: every payroll route that could reach a frozen payslip refuses in
+        ``_liwan_require_state`` with a 403 before the ORM guard runs (``_liwan_set_inputs``, ``_liwan_cancel``),
+        so the route path raises no ``AccessError`` from the model and queues no refusal event. The guard this
+        covers is the one a support script or a maintenance task meets when it writes through the ORM.
+        """
+        run = self._approved_run()
+        slip = run.slip_ids
+        self.env.flush_all()
+        with self.enter_registry_test_mode():
+            before = self._queued()
+            with self.assertRaises(AccessError):
+                slip.write({'liwan_paid_days': 1})
+            self.assertEqual(self._queued() - before, 1)
+            self.env.cr.postcommit.run()
+            events = self._committed_events('payslip_write_refused')
+        self.assertEqual(len(events), 1, events)
+        self.assertEqual((events[0]['res_model'], events[0]['res_id']), ('hr.payslip', slip.id))
+        self.assertEqual(events[0]['create_uid'], self.officer.id)
+        self.assertEqual(set(events[0]['changes']), {'liwan_paid_days'})
+
     # --- what must stay silent -------------------------------------------------------------------
 
     def test_a_permitted_write_of_an_editable_run_leaves_no_event(self):
         run = self.env['hr.payslip.run']._liwan_create_month(MONTH_START)
         self.assertEqual(run.liwan_state, 'draft')
         run.with_user(self.officer).write({'date_start': run.date_start})
+        before = self._queued()
         run.slip_ids.with_user(self.officer).write({'liwan_paid_days': 2})
-        self.assertEqual(self._queued('payslip_write_refused'), 0)
-        self.assertEqual(self._queued('run_write_refused'), 0)
+        self.assertEqual(self._queued(), before)
         self.assertFalse(self.Event.search_count([
             ('action', 'in', ('payslip_write_refused', 'run_write_refused')),
         ]))
@@ -152,10 +179,11 @@ class TestPayrollWriteRefusalAudit(PayrollCase):
         run = self._approved_run()
         logged = 0
         for entries in (1, 3):
+            before = self._queued()
             for index in range(entries):
                 with self.assertRaises(AccessError):
                     run.slip_ids.write({'liwan_paid_days': index + 1})
-            self.assertEqual(self._queued('payslip_write_refused'), entries)
+            self.assertEqual(self._queued() - before, entries)
             self.env.cr.postcommit.run()
             logged += entries
             self.assertEqual(len(self._committed_events('payslip_write_refused')), logged)

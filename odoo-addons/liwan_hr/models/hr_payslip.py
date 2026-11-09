@@ -93,8 +93,9 @@ class HrPayslip(models.Model):
         frozen = self.filtered(lambda slip: slip._liwan_is_fixed())
         if frozen:
             Audit = self.env['liwan.hr.audit.event']
+            attempted = tuple(sorted(names))
             for slip in frozen:
-                Audit._liwan_log_refused_write('payslip_write_refused', slip, names)
+                Audit._liwan_log_refused_write('payslip_write_refused', slip, attempted)
             raise AccessError(
                 self.env._('An approved payslip is fixed: its figures and lines cannot be changed.'),
             )
@@ -161,8 +162,7 @@ class HrPayslip(models.Model):
             ('contract_date_start', '!=', False),
         ])
         in_period = versions.filtered(lambda version: (
-            version.date_start
-            and version.date_start <= last_day
+            version.date_start <= last_day
             and (not version.date_end or version.date_end >= self.date_from)
         ))
         if not in_period:
