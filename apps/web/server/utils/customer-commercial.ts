@@ -5,7 +5,7 @@ import { MeSchema } from '@liwan/contracts'
 import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import { tenantRequest } from './tenantRequest'
 import { boundedTenantBody, tenantTransport, withTenantBody } from './tenantTransport'
-import { isProspectRequest, PROSPECT_TENANT } from './prospectHost'
+import { isProspectRequest, PROSPECT_TENANT, SIGNUP_API } from './prospectHost'
 import { deriveCustomerCapabilities, type CustomerCommercialCapability } from '../../app/utils/customerCapabilities'
 
 type CustomerConfig = {
@@ -262,6 +262,49 @@ export async function forwardCustomerRequest(event: H3Event): Promise<unknown> {
     }
     fail(503, 'commercial_unavailable', 'Subscription service is temporarily unavailable')
   }
+}
+
+/** Relays only this prospect's anonymous signup operation, with the edge-derived address signed in the body. */
+export async function forwardSignupRequest(event: H3Event): Promise<unknown> {
+  const config = useRuntimeConfig(event) as CustomerConfig
+  const incoming = getRequestURL(event)
+  const action = SIGNUP_API.exec(incoming.pathname)?.[1]
+  if (!action || incoming.search || !isProspectRequest({
+    host: getHeader(event, 'host'), proxyToken: getHeader(event, 'x-liwan-proxy-token'), pathname: incoming.pathname,
+  }, config)) fail(404, 'not_found', 'Not found')
+  const origin = new URL(config.customerCommercialPublicOrigin!).origin
+  if (getHeader(event, 'origin') !== origin) fail(403, 'forbidden', 'Origin denied')
+  const type = getHeader(event, 'content-type')?.split(';', 1)[0]?.trim().toLowerCase()
+  if (type !== 'application/json') fail(415, 'invalid', 'JSON is required')
+  const ip = getHeader(event, 'x-liwan-signup-client')
+  const key = config.customerCommercialServiceKey
+  const issuer = config.customerCommercialIssuer
+  if (!ip || !isIP(ip) || !key || key.length < 32 || !issuer) fail(503, 'unavailable', 'Signup is unavailable')
+
+  const raw = await withTenantBody(event, 'public', () => boundedTenantBody(event, 2048))
+  const body = raw?.toString('utf8')
+  if (!body) fail(422, 'invalid', 'JSON is required')
+  const target = new URL(`/v1/customer/signup/${action}`, customerControlBase(config))
+  const signed = signServiceRequest({
+    method: 'POST', path: target.pathname, body: `liwan-signup:${ip}\n${body}`, actor: 'anonymous', anonymous: true, issuer, key,
+  })
+  setResponseHeader(event, 'cache-control', 'no-store')
+  let response
+  try {
+    response = await $fetch.raw<{ code?: string }>(target.toString(), {
+      method: 'POST', body, headers: { ...signed, 'x-liwan-signup-client': ip, 'content-type': 'application/json' },
+      redirect: 'error', signal: AbortSignal.timeout(12_000), retry: 0, ignoreResponseError: true,
+    })
+  } catch { fail(503, 'unavailable', 'Signup is unavailable') }
+  if (!response.ok) {
+    const code = response._data?.code
+    if (code && ['invalid', 'invalid_code', 'rate_limited', 'trial_already_used', 'signup_expired'].includes(code)) {
+      fail(response.status, code, 'Signup request rejected')
+    }
+    fail(503, 'unavailable', 'Signup is unavailable')
+  }
+  setResponseStatus(event, response.status)
+  return response._data
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i

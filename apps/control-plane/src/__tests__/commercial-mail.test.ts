@@ -1,3 +1,4 @@
+import net from "node:net";
 import { describe, expect, it } from "vitest";
 import {
   MailError,
@@ -112,6 +113,30 @@ describe("env factory", () => {
     expect(isLocalCapture("localhost")).toBe(true);
     expect(isLocalCapture("smtp.example.com")).toBe(false);
   });
+});
+
+it("bounds an SMTP connection which stops responding during STARTTLS", async () => {
+  const sockets = new Set<net.Socket>();
+  const server = net.createServer(socket => {
+    sockets.add(socket);
+    socket.on("close", () => sockets.delete(socket));
+    socket.write("220 ready\r\n");
+    socket.on("data", data => {
+      if (data.toString().startsWith("EHLO")) socket.write("250-hello\r\n250 STARTTLS\r\n");
+      if (data.toString().startsWith("STARTTLS")) socket.write("220 start tls\r\n");
+    });
+  });
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const port = (server.address() as net.AddressInfo).port;
+    const adapter = new SmtpMailAdapter({ host: "127.0.0.1", port, requireTls: true, from: "n@x.test", totalTimeoutMs: 100 });
+    const send = adapter.send({ to: "a@x.test", subject: "Subject", text: "Text", message_id: "message" });
+    await expect(Promise.race([send, new Promise(resolve => setTimeout(() => resolve("hung"), 500))]))
+      .rejects.toMatchObject({ code: "mail_timeout" });
+  } finally {
+    for (const socket of sockets) socket.destroy();
+    await new Promise<void>(resolve => server.close(() => resolve()));
+  }
 });
 
 const SMTP = process.env.LIWAN_MAILPIT_SMTP_PORT;

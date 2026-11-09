@@ -334,3 +334,31 @@ command line and prints no secret. `node --test deploy/shared` covers the relay 
 deployment: the relay's tenant hop, Caddy routing and volume permissions are only proven
 by a real shared deployment.
 
+
+## Public signup on the commercial host
+
+Add `deploy/docker-compose.shared-commercial.yml` after the shared overlay to
+expose `/register` on the prospect host. Include that host in Caddy's `DOMAIN`
+and set `LIWAN_PROSPECT_HOST` to the exact host in
+`NUXT_CUSTOMER_COMMERCIAL_PUBLIC_ORIGIN`. Use HTTPS. The overlay connects the
+web container to a named operator-provisioned private network
+(`LIWAN_COMMERCIAL_CONTROL_NETWORK`) that also carries the control-plane HTTPS
+ingress. Set `NUXT_CUSTOMER_COMMERCIAL_CONTROL_URL` to that ingress with a
+certificate trusted by the web container. Keep the guard and Nuxt listeners
+private. Caddy overwrites the signup source IP and the guard strips browser
+identity headers before forwarding.
+
+Set `LIWAN_PUBLIC_SIGNUP=true` for both Compose and the shared control API after configuring
+the customer-commercial issuer and signing key, a published public monthly
+14-day trial revision, a Liwan-specific Authentica key and approved SMS
+template, and SMTP. The SMS template must accept Liwan's OTP and the Authentica
+application must allow SMS without alternate-channel recipient fields. The
+same SMTP setup is needed by the commercial worker to issue the administrator
+invitation. The control API and web BFF share the customer-commercial signing
+key. Keep the Authentica key on the control API only. The delivery cap defaults
+to 100 per channel per rolling day and is configurable with
+`LIWAN_SIGNUP_DAILY_LIMIT`.
+
+The workspace follows normal commercial worker fulfillment and invitation
+delivery. Verify SMS arrival and email delivery with test recipients on an
+authorized acceptance deployment before opening signup.

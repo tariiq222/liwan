@@ -66,6 +66,15 @@
 				window 1m
 				ipv6_prefix 64
 			}
+			zone liwan_signup {
+				match {
+					path /api/commercial/signup/*
+				}
+				key {client_ip}
+				events 30
+				window 1m
+				ipv6_prefix 64
+			}
 			zone liwan_web {
 				match {
 					not path /api/auth/* /api/v1/* /web/* /odoo/* /jsonrpc /xmlrpc/* /report/* /mail/* /bus/* /discuss/* /websocket /_nuxt/* /_i18n/* /fonts/* /favicon.ico /robots.txt
@@ -83,6 +92,7 @@
 			header_up -Forwarded
 			header_up -X-Liwan-Proxy-Token
 			header_up -X-Liwan-Tenant-Revision
+			header_up X-Liwan-Signup-Client {client_ip}
 		}
 	}
 }
