@@ -2,10 +2,13 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { Pool } from 'pg'
 import { randomUUID } from 'node:crypto'
 import type { SharedJob } from '@liwan/commercial-contracts/shared'
-import { migrate } from '../db.js'
+import { migrate, transaction } from '../db.js'
 import { businessKey, payloadDigest } from '../shared/provisioning.js'
 import { runSharedJob, type SharedFencedAdapter } from '../shared/job-worker.js'
 import { dispatchSharedOnce } from '../shared/job-dispatcher.js'
+import { pushCommercialExpiry } from '../commercial/trial.js'
+import { resolveCommercialOdooRestore } from '../shared/odoo-backup.js'
+import type { SharedRuntimeConfig } from '../shared/runtime-config.js'
 import { commercialRestoreGate } from '../shared/shared-backup.js'
 import type { ObserveRunner } from '../shared/subscription-reconcile.js'
 import { url } from './commercial-helpers.js'
@@ -49,8 +52,9 @@ describe.skipIf(!url)('shared restore waiting for commercial reconciliation', ()
     }
     await pool.query("INSERT INTO shared_jobs(id,control_tenant_id,business_key,payload,payload_digest,issuer,actor_uid,reason) VALUES($1,$2,$3,$4,$5,$6,7,'Waiting fixture')", [id, tenant, businessKey(job), job, payloadDigest(job), issuer])
     const applied = randomUUID(), older = randomUUID(), order = randomUUID()
+    const subscription = randomUUID()
     if (commercial) {
-      const customer = randomUUID(), subscription = randomUUID()
+      const customer = randomUUID()
       await pool.query("INSERT INTO customers(id,name,tenant_id) VALUES($1,'Waiting paid customer',$2)", [customer, tenant])
       await pool.query('INSERT INTO subscriptions(id,customer_id,tenant_id) VALUES($1,$2,$3)', [subscription, customer, tenant])
       await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,2,$3,$4)', [applied, subscription, { entitlement: { modules: ['liwan_platform'], features: { 'users.limit': 10 }, digest: 'c'.repeat(64), compiler_version: 1 } }, randomUUID()])
@@ -58,10 +62,12 @@ describe.skipIf(!url)('shared restore waiting for commercial reconciliation', ()
       await pool.query("INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent) VALUES($1,$2,$3,'change',$4,$5,'paid','applied',$6,'fixture',100,'SAR',2)", [order, customer, subscription, randomUUID(), applied, randomUUID()])
     }
     let restored = false, physicalRestores = 0
-    let observed: Awaited<ReturnType<ObserveRunner>> = { commercial_revision_id: older, commercial_digest: 'b'.repeat(64), branches: [] }
+    let observed: Awaited<ReturnType<ObserveRunner>> = { commercial_revision_id: older, commercial_digest: 'b'.repeat(64), branches: [], status: 'active', commercial_valid_until: null }
     const observeSubscription = vi.fn<ObserveRunner>(async input => {
       expect(input.database).toBe(restoredDatabase)
       expect(input.tenant_id).toBe(tenant)
+      expect(input).toHaveProperty('restore_id', approval)
+      expect(await state()).toMatchObject({ state: 'queued', receipt: { operation: 'restore', status: 'verified' } })
       return observed
     })
     const adapter: SharedFencedAdapter = {
@@ -70,9 +76,9 @@ describe.skipIf(!url)('shared restore waiting for commercial reconciliation', ()
       observeRestoreSubscription:observeSubscription,
     }
     const state = async () => (await pool.query('SELECT state,journal,receipt,lease_until FROM shared_jobs WHERE id=$1', [id])).rows[0]
-    return { id, job, tenant, approval, applied, order, restoredDatabase, adapter, observeSubscription, state,
+    return { id, job, tenant, approval, applied, order, subscription, restoredDatabase, adapter, observeSubscription, state,
       physicalRestores: () => physicalRestores,
-      current: () => { observed = { commercial_revision_id: applied, commercial_digest: 'c'.repeat(64), branches: [] } },
+      current: (expiry: string | null = null) => { observed = { commercial_revision_id: applied, commercial_digest: 'c'.repeat(64), branches: [], status: 'active', commercial_valid_until: expiry } },
     }
   }
 
@@ -130,6 +136,85 @@ describe.skipIf(!url)('shared restore waiting for commercial reconciliation', ()
     expect(f.adapter.subscriptionRunner).toHaveBeenCalledTimes(1)
     expect((await pool.query('SELECT consumed_at FROM shared_restore_approvals WHERE id=$1', [f.approval])).rows[0].consumed_at).not.toBeNull()
   }, 60000)
+
+  it('requires physical receipt and exact tenant, approval, target and runtime scope for Compose authority', async () => {
+    const f = await fixture(true)
+    const backup = f.job.backup
+    const backupJob = { schemaVersion: 1, operation: 'backup', requestId: backup.backupId, binding: f.job.binding } as const
+    const jobId = randomUUID()
+    await pool.query("INSERT INTO shared_jobs(id,control_tenant_id,business_key,payload,payload_digest,issuer,actor_uid,reason) VALUES($1,$2,$3,$4,$5,$6,7,'Authority fixture')",
+      [jobId, f.tenant, businessKey(backupJob), backupJob, payloadDigest(backupJob), issuer])
+    await pool.query("INSERT INTO shared_odoo_backups(backup_id,job_id,format,manifest_sha256,source_registry_revision) VALUES($1,$2,'odoo-pg-filestore-v1',$3,1)",
+      [backup.backupId, jobId, 'd'.repeat(64)])
+    const runtime: SharedRuntimeConfig = {
+      schemaVersion: 1, projectName: 'liwan-saas-restore-test', domainSuffix: 'isolated.test',
+      composeFile: '/unused/compose.yml', envFile: '/unused/runtime.env', stateDir: '/unused',
+    }
+    await pool.query('INSERT INTO shared_odoo_restore_targets(approval_id,backup_id,control_tenant_id,target_database,source_binding,runtime_scope) VALUES($1,$2,$3,$4,$5,$6)',
+      [f.approval, backup.backupId, f.tenant, f.restoredDatabase, f.job.binding, runtime.projectName])
+    const identity = { tenantId: f.tenant, approvalId: f.approval, database: f.restoredDatabase }
+    const resolve = (input = identity, scope = runtime) => transaction(pool, client => resolveCommercialOdooRestore(client, scope, input))
+    await expect(resolve()).rejects.toThrow('shared_restore_approval_unavailable')
+    await runSharedJob(pool, f.id, f.adapter)
+    await expect(resolve()).resolves.toMatchObject({ binding: f.job.binding, restore: {
+      approvalId: f.approval, backupId: backup.backupId, requestId: f.job.requestId, digest: payloadDigest(f.job),
+    } })
+    for (const foreign of [
+      { ...identity, tenantId: randomUUID() }, { ...identity, approvalId: randomUUID() },
+      { ...identity, database: f.job.binding.database },
+    ]) await expect(resolve(foreign)).rejects.toThrow('shared_restore_approval_unavailable')
+    await expect(resolve(identity, { ...runtime, projectName: 'liwan-saas-foreign' }))
+      .rejects.toThrow('shared_restore_approval_unavailable')
+    await pool.query('UPDATE shared_registry_bindings SET registry_revision=2 WHERE control_tenant_id=$1', [f.tenant])
+    await expect(resolve()).rejects.toThrow('tenant_binding_mismatch')
+  })
+
+  it('keeps a suspended subscription with an active archived profile unpublished despite matching entitlement', async () => {
+    const f = await fixture(true)
+    f.current()
+    await pool.query("UPDATE subscriptions SET state='suspended',revision=revision+1 WHERE id=$1", [f.subscription])
+    expect(await runSharedJob(pool, f.id, f.adapter)).toMatchObject({ state: 'waiting_commercial_reconcile' })
+    expect(await f.state()).toMatchObject({ state: 'queued', lease_until: expect.any(Date) })
+  })
+
+  it('keeps a restored profile with an obsolete expiry unpublished despite matching entitlement', async () => {
+    const f = await fixture(true)
+    f.current('2030-01-01')
+    await transaction(pool, client => pushCommercialExpiry(client, f.subscription, '2030-02-01'))
+    expect(await runSharedJob(pool, f.id, f.adapter)).toMatchObject({ state: 'waiting_commercial_reconcile' })
+    expect(await f.state()).toMatchObject({ state: 'queued', lease_until: expect.any(Date) })
+  })
+
+  it('backs off a concurrent suspension without stopping the dispatcher', async () => {
+    const f = await fixture(true)
+    f.current()
+    const runner = f.adapter.observeRestoreSubscription!
+    f.adapter.observeRestoreSubscription = async input => {
+      const observed = await runner(input)
+      await pool.query("UPDATE subscriptions SET state='suspended',revision=revision+1 WHERE id=$1", [f.subscription])
+      return observed
+    }
+    expect(await runSharedJob(pool, f.id, f.adapter)).toMatchObject({ state: 'waiting_commercial_reconcile' })
+    expect(await f.state()).toMatchObject({ state: 'queued', lease_until: expect.any(Date) })
+  })
+
+  it('quarantines a permanently invalid observer while retaining the physical receipt', async () => {
+    const f = await fixture(true)
+    f.adapter.observeRestoreSubscription = async () => { throw Error('tenant_binding_mismatch') }
+    expect(await runSharedJob(pool, f.id, f.adapter)).toMatchObject({ state: 'needs_intervention' })
+    expect(await f.state()).toMatchObject({ state: 'needs_intervention',
+      receipt: { operation: 'restore', status: 'verified' } })
+  })
+
+  it('quarantines continued mismatch after the exact commercial repair was verified', async () => {
+    const f = await fixture(true)
+    await runSharedJob(pool, f.id, f.adapter)
+    const repair = (await pool.query("SELECT id FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'operation'='reconfigure'", [f.tenant])).rows[0]
+    f.adapter.subscriptionRunner = async () => ({ order_id: f.order, database: f.restoredDatabase,
+      target_revision_id: f.applied, observed_entitlement_digest: 'c'.repeat(64) })
+    await runSharedJob(pool, repair.id, f.adapter)
+    expect(await runSharedJob(pool, f.id, f.adapter)).toMatchObject({ state: 'needs_intervention', reason: 'commercial_reconcile_failed' })
+  })
 
   it('never substitutes a source observer when isolated commercial observation is unavailable', async()=>{
     const f=await fixture(true)

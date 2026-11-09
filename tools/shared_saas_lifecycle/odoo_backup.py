@@ -149,6 +149,50 @@ def read_inventory(connect, database):
 
 
 
+def read_odoo_readiness(config, database, *, restore):
+    """Use the running worker's tenant-bound public route with no session."""
+    from http.client import HTTPConnection
+
+    if (config.get('dbfilter') != '^%h$'
+            or config.get('db_host') != ('restore-db' if restore else 'db')):
+        raise ValueError('odoo_route_unverified')
+    client = HTTPConnection('127.0.0.1', 8069, timeout=25)
+    try:
+        client.request('GET', '/api/v1/branding', headers={'Host': database})
+        response = client.getresponse()
+        if response.status != 200:
+            raise ValueError('odoo_route_unverified')
+        payload = json.loads(response.read(MAX_OUTPUT + 1))
+        if (not isinstance(payload, dict) or not isinstance(payload.get('name'), str)
+                or not isinstance(payload.get('primary_color'), str)):
+            raise ValueError('odoo_route_unverified')
+    finally:
+        client.close()
+    return {'database': database}
+
+
+def restore_inventory_matches(original, current, commercial=None):
+    if commercial is None:
+        return current == original
+    before, after = original['profile'][0], current['profile'][0]
+    if (after.get('commercial_revision_id') != commercial['revisionId']
+            or after.get('commercial_digest') != commercial['digest']):
+        return False
+    changed = {'commercial_revision_id', 'commercial_digest', 'commercial_applied_at',
+               'features', 'retained_read_features', 'policy_revision', 'write_uid', 'write_date'}
+    if ({k: v for k, v in before.items() if k not in changed}
+            != {k: v for k, v in after.items() if k not in changed}):
+        return False
+    if after['policy_revision'] < before['policy_revision']:
+        return False
+    if any(current[key] != original[key] for key in ('projects', 'tasks')):
+        return False
+    # Subscription installation can add module and attachment rows. Every
+    # backed-up module and attachment must still match its original entry.
+    return all(set(map(tuple, original[key])) <= set(map(tuple, current[key]))
+               for key in ('modules', 'attachments', 'databaseAttachments'))
+
+
 class BackupRunner(Runner):
     def __init__(self, request):
         super().__init__(request)
@@ -173,7 +217,8 @@ class BackupRunner(Runner):
 
     def helper(self, service, stage, script):
         try:
-            return self.command(self.helper_args(service, stage, script), timeout=180)
+            # Compose emits progress on stderr independently of the helper's JSON.
+            return self.command(self.helper_args(service, stage, script), timeout=180, stdout_only=True)
         finally:
             self.current_container = None
 
@@ -260,14 +305,21 @@ print('{}')
 '''
         self.helper(service, 'check-files', 'database=' + repr(database) + '\nattachments=' + repr(inventory['attachments']) + '\n' + script)
 
-    def authenticate(self, service, database, credential):
-        no_symlink(credential)
-        credentials = json.loads(credential.read_text())
-        payload = {'jsonrpc':'2.0','method':'call','params':{'db':database,'login':credentials['login'],'password':credentials['password']},'id':1}
-        script = 'import json,urllib.request\npayload=' + repr(json.dumps(payload)) + '\n'
-        script += 'req=urllib.request.Request("http://127.0.0.1:8069/web/session/authenticate",data=payload.encode(),headers={"Content-Type":"application/json","Host":' + repr(database) + '})\n'
-        script += 'r=json.load(urllib.request.urlopen(req,timeout=25));assert isinstance(r.get("result",{}).get("uid"),int) and r["result"]["uid"]>1;print("{}")\n'
-        self.command(self.base + ['exec','-T',service,'/opt/venv/bin/python','-'],stdin=script,timeout=40)
+    def verify_odoo_readiness(self, service, database):
+        database = validate_database(database)
+        if service not in ('odoo', 'restore-odoo'):
+            raise EffectError('service_unavailable')
+        # The exact Host dbfilter selects the intended registry. Branding reads
+        # its tenant profile and root company on the running Odoo process.
+        script = ('import configparser,json\nMAX_OUTPUT='+str(MAX_OUTPUT)+'\n'
+                  + inspect.getsource(read_odoo_readiness)
+                  + "\nconfig=configparser.ConfigParser(interpolation=None)\n"
+                    "config.read('/etc/odoo/odoo.conf')\n"
+                  + f"print(json.dumps(read_odoo_readiness(config['options'], {database!r}, restore={service == 'restore-odoo'})))\n")
+        response = self.command(self.base + ['exec', '-T', service, '/opt/venv/bin/python', '-'],
+                                stdin=script, timeout=40, stdout_only=True)
+        if json.loads(response) != {'database': database}:
+            raise EffectError('restore_readback_mismatch')
 
     def wait_healthy(self, service):
         for _ in range(60):
@@ -282,8 +334,7 @@ print('{}')
         no_symlink(registry)
         for target in json.loads(registry.read_text())['targets']:
             if target['enabled']:
-                database = validate_database(target['database'])
-                self.authenticate('odoo',database,self.root/'credentials'/(database+'.json'))
+                self.verify_odoo_readiness('odoo', target['database'])
 
     def read_artifact(self):
         no_symlink(self.artifact / 'manifest.json')
@@ -394,7 +445,7 @@ with tarfile.open(fileobj=sys.stdout.buffer,mode='w|') as out:
         permit('reserve')
         reservations=self.root/'restore-effects';reservations.mkdir(mode=0o700,exist_ok=True);no_symlink(reservations)
         reserve(reservations/(self.target+'.json'),{'approvalId':self.authority['approvalId'],'backupId':self.backup_id,'digest':self.request['payloadDigest'],'attemptId':self.request['attemptId'],'fence':self.request['fence']})
-        # The inherited source password is preserved. Target classification is new.
+        # The archive restores account state unchanged. The target classification is new.
         classification=self.root/'classifications'/(self.target+'.json')
         reserve(classification,{'schema_version':1,'database':self.target,'commercial_mode':'saas','entitlement_source':'control_plane','expected_valid_until':None,'valid_until_action':'preserve'})
         classification.chmod(0o644)
@@ -428,12 +479,12 @@ with tempfile.TemporaryFile() as source:
         permit('complete')
         reserve(self.complete_path,{'approvalId':self.authority['approvalId'],'backupId':self.backup_id,'targetDatabase':self.target,'digest':self.request['payloadDigest'],'attemptId':self.request['attemptId'],'fence':self.request['fence'],'manifestSha256':self.authority['manifestSha256']})
 
-    def verify_restore(self,manifest):
+    def verify_restore(self,manifest,commercial=None):
         inventory=self.inventory('restore-odoo',self.target)
-        if inventory!=manifest['inventory']:
+        if not restore_inventory_matches(manifest['inventory'],inventory,commercial):
             raise EffectError('restore_readback_mismatch')
         self.check_files('restore-odoo',self.target,inventory)
-        self.authenticate('restore-odoo',self.target,self.credential)
+        self.verify_odoo_readiness('restore-odoo', self.target)
 
     def apply(self):
         self.preflight()
@@ -464,7 +515,7 @@ with tempfile.TemporaryFile() as source:
         if any(completion.get(k)!=v for k,v in expected.items()):return {'state':'partial'}
         # Effects ran by now: a writer here is not a retryable pre-gate refusal.
         self.assert_no_effect_containers(code='runtime_writer_after_effect')
-        manifest=self.read_artifact();self.verify_restore(manifest)
+        manifest=self.read_artifact();self.verify_restore(manifest,self.request.get('commercial'))
         return verified_observation(self.request,True)
 
 
