@@ -3,6 +3,7 @@ import hashlib
 import io
 import json
 import re
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -48,6 +49,14 @@ class BackupBoundaryTests(unittest.TestCase):
             self.assertTrue((runner.root/'runtime-gate'/'owner.json').exists())
             with self.assertRaises(odoo_effect.EffectError):
                 odoo_effect.RuntimeGate(runner.root,{'attemptId':'second'}).acquire()
+
+    def test_reads_structured_helper_output_with_compose_progress_on_stderr(self):
+        runner = object.__new__(odoo_backup.BackupRunner)
+        def command_args(*_):
+            return [sys.executable, '-c',
+                    "import sys; print(' Container scratch-helper Creating', file=sys.stderr); print('{\"projects\": 2}')"]
+        runner.helper_args = command_args
+        self.assertEqual(json.loads(runner.helper('odoo', 'inventory', '')), {'projects': 2})
 
     def test_capture_checks_writers_before_stopping_odoo(self):
         self.assertTrue(odoo_backup)

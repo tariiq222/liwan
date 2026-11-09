@@ -217,7 +217,8 @@ class BackupRunner(Runner):
 
     def helper(self, service, stage, script):
         try:
-            return self.command(self.helper_args(service, stage, script), timeout=180)
+            # Compose emits progress on stderr independently of the helper's JSON.
+            return self.command(self.helper_args(service, stage, script), timeout=180, stdout_only=True)
         finally:
             self.current_container = None
 
@@ -316,7 +317,7 @@ print('{}')
                     "config.read('/etc/odoo/odoo.conf')\n"
                   + f"print(json.dumps(read_odoo_readiness(config['options'], {database!r}, restore={service == 'restore-odoo'})))\n")
         response = self.command(self.base + ['exec', '-T', service, '/opt/venv/bin/python', '-'],
-                                stdin=script, timeout=40)
+                                stdin=script, timeout=40, stdout_only=True)
         if json.loads(response) != {'database': database}:
             raise EffectError('restore_readback_mismatch')
 
