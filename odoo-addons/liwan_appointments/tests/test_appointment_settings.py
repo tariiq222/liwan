@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import UTC, datetime, timedelta
+
 from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
@@ -10,6 +12,8 @@ from odoo.addons.liwan_appointments.models.appointment_settings import (
 )
 
 URL = '/api/v1/appointments/settings'
+BOOKINGS = '/api/v1/appointments/bookings'
+UTC_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 DEFAULT_BODY = {**DEFAULTS, 'sector_preset': 'general', 'presets': ['general', 'clinic', 'services'], 'revision': 0}
 
 
@@ -49,11 +53,22 @@ class TestAppointmentSettings(LiwanAppointmentsCase):
         self.assertEqual(first.json(), {
             **DEFAULT_BODY, 'horizon_days': 10, 'phone_field': 'optional', 'requester_confirmation': True, 'revision': 1,
         })
-        second = self.api('PATCH', URL, {'self_booking_policy': 'open', 'revision': 1})
+        second = self.api('PATCH', URL, {'phone_field': 'hidden', 'revision': 1})
         self.assertEqual(second.status_code, 200, second.text)
         body = second.json()
-        self.assertEqual((body['revision'], body['horizon_days'], body['self_booking_policy']), (2, 10, 'open'))
+        self.assertEqual((body['revision'], body['horizon_days'], body['phone_field']), (2, 10, 'hidden'))
         self.assertEqual(self.api('GET', URL).json(), body)
+
+    def test_self_booking_offers_only_the_policy_a_route_serves(self):
+        """#550: `open` is not a value of the setting at all, so no write can promise a page nobody serves."""
+        self._as_manager()
+        refused = self.api('PATCH', URL, {'self_booking_policy': 'open', 'revision': 0})
+        self.assertEqual((refused.status_code, refused.json()['code'], refused.json()['field']), (422, 'invalid', 'self_booking_policy'), refused.text)
+        self.assertEqual(refused.json()['message'], 'choose one of: invite_only')
+        self.assertFalse(self.env['liwan.appointment.settings'].search([]))
+        saved = self.api('PATCH', URL, {'self_booking_policy': 'invite_only', 'revision': 0})
+        self.assertEqual((saved.status_code, saved.json()['self_booking_policy']), (200, 'invite_only'), saved.text)
+        self.assertEqual(self.env['liwan.appointment.settings']._fields['self_booking_policy'].selection, (('invite_only', 'Invite only'),))
 
     def test_preset_sets_every_value_and_explicit_field_overrides(self):
         self._as_manager()
@@ -119,6 +134,7 @@ class TestAppointmentSettings(LiwanAppointmentsCase):
             self.assertNotIn('reference_prefix', values, preset)
 
     def test_a_new_type_defaults_from_the_company_settings(self):
+        """#551: the slot length is the type's default; the deadline is inherited, never copied."""
         types = self.env['resource.booking.type']
         without = types.create({'name': 'Before settings'})
         self.assertEqual((without.slot_duration, without.modifications_deadline), (0.5, 24))
@@ -127,10 +143,100 @@ class TestAppointmentSettings(LiwanAppointmentsCase):
         })
         configured = types.create({'name': 'After settings'})
         self.assertEqual((configured.slot_duration, configured.modifications_deadline), (0.25, 48))
-        explicit = types.create({'name': 'Explicit', 'slot_duration': 1.0, 'modifications_deadline': 2})
+        self.assertTrue(configured.inherits_company_deadline)
+        explicit = types.create({'name': 'Explicit', 'slot_duration': 1.0, 'own_deadline_hours': 2, 'inherits_company_deadline': False})
         self.assertEqual((explicit.slot_duration, explicit.modifications_deadline), (1.0, 2))
         settings.default_slot_minutes = 60
         self.assertEqual((configured.slot_duration, without.slot_duration), (0.25, 0.5))
+
+    def test_an_inheriting_type_follows_the_company_deadline_and_an_override_is_kept(self):
+        """#551: one source of truth, resolved on read; no row is rewritten when the company policy moves."""
+        types = self.env['resource.booking.type']
+        settings = self.env['liwan.appointment.settings'].create({
+            'company_id': self.env.company.id, 'modification_deadline_hours': 24,
+        })
+        inherited = types.create({'name': 'Inherited deadline'})
+        hand_set = types.create({'name': 'Hand-set deadline'})
+        # A hand set value that happens to equal the company value is still the type's own, and stays put.
+        same_value = types.create({'name': 'Same value by hand'})
+        hand_set.write({'own_deadline_hours': 6, 'inherits_company_deadline': False})
+        same_value.write({'own_deadline_hours': 24, 'inherits_company_deadline': False})
+        self.env.flush_all()
+        self.assertEqual(
+            (inherited.modifications_deadline, hand_set.modifications_deadline, same_value.modifications_deadline),
+            (24, 6, 24),
+        )
+        settings.modification_deadline_hours = 72
+        self.env.flush_all()
+        self.assertEqual(
+            (inherited.modifications_deadline, hand_set.modifications_deadline, same_value.modifications_deadline),
+            (72, 6, 24),
+        )
+        self.assertEqual(
+            (inherited.own_deadline_hours, hand_set.own_deadline_hours, same_value.own_deadline_hours), (0.0, 6.0, 24.0),
+        )
+        # A later type inherits the current value, and a later change follows it again.
+        later = types.create({'name': 'Later deadline'})
+        settings.modification_deadline_hours = 8
+        self.env.flush_all()
+        self.assertEqual((inherited.modifications_deadline, later.modifications_deadline), (8, 8))
+        # Returning a type to the company value is its own explicit state, not a value that matches by accident.
+        hand_set.write({'inherits_company_deadline': True, 'own_deadline_hours': 0})
+        self.env.flush_all()
+        self.assertEqual((hand_set.modifications_deadline, hand_set.own_deadline_hours), (8, 0.0))
+
+    def test_an_archived_type_follows_the_company_deadline_too(self):
+        """#551: inheritance is a state, so an archived type needs no rewrite either."""
+        types = self.env['resource.booking.type']
+        archived = types.create({'name': 'Retired', 'active': False})
+        settings = self.env['liwan.appointment.settings'].create({
+            'company_id': self.env.company.id, 'modification_deadline_hours': 12,
+        })
+        self.env.flush_all()
+        self.assertEqual(archived.modifications_deadline, 12)
+        settings.modification_deadline_hours = 30
+        self.env.flush_all()
+        self.assertEqual(archived.modifications_deadline, 30)
+
+    def test_the_deadline_setting_decides_a_cancel_at_forty_eight_hours(self):
+        """#551 acceptance: after the setting moves to 72 hours, a cancel 48 hours ahead is refused; at 24 it passed."""
+        self.env['liwan.appointment.settings'].create({
+            'company_id': self.env.company.id, 'min_notice_hours': 0, 'modification_deadline_hours': 24,
+        })
+        start = (datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=48)).replace(
+            hour=10, minute=0, second=0, microsecond=0,
+        )
+        combination = self._create_combination(self.env.company, 'Deadline room')
+        self._always_open(self.booking_type, combination)
+        # The booker holds write but not manage, so the deadline binds them (a manager may always cancel).
+        self.authenticate('appointments_booker', 'appointments_booker_pass_123')
+        # At the 24-hour setting the same slot may be cancelled 48 hours ahead; cancelling frees the room.
+        first = self._create_booking(self.booking_type, combination, self.employee.partner_id)
+        first.write({'start': start, 'combination_id': combination.id, 'combination_auto_assign': False})
+        self.env.flush_all()
+        allowed = self.api('POST', '%s/%d/cancel' % (BOOKINGS, first.id))
+        self.assertEqual((allowed.status_code, allowed.json()['state']), (200, 'canceled'), allowed.text)
+        second = self._create_booking(self.booking_type, combination, self.employee.partner_id)
+        second.write({'start': start, 'combination_id': combination.id, 'combination_auto_assign': False})
+        self.env.flush_all()
+        settings = self.env['liwan.appointment.settings'].search([('company_id', '=', self.env.company.id)])
+        settings.modification_deadline_hours = 72
+        self.env.flush_all()
+        self.assertEqual(self.booking_type.modifications_deadline, 72)
+        refused = self.api('POST', '%s/%d/cancel' % (BOOKINGS, second.id))
+        self.assertEqual((refused.status_code, refused.json()['code']), (422, 'invalid'), refused.text)
+        self.assertNotEqual(second.state, 'canceled')
+
+    def test_the_link_validity_defaults_and_saves(self):
+        """#542: the read validity of the booking link is a company setting whose default is 30 days."""
+        self._as_manager()
+        self.assertEqual(self.api('GET', URL).json()['link_valid_days_after_end'], 30)
+        saved = self.api('PATCH', URL, {'link_valid_days_after_end': 7, 'revision': 0})
+        self.assertEqual((saved.status_code, saved.json()['link_valid_days_after_end']), (200, 7), saved.text)
+        self.assertEqual(self.api('GET', URL).json()['link_valid_days_after_end'], 7)
+        for bad in (-1, 3651, 1.5, '7', True):
+            refused = self.api('PATCH', URL, {'link_valid_days_after_end': bad, 'revision': 1})
+            self.assertEqual((refused.status_code, refused.json()['field']), (422, 'link_valid_days_after_end'), bad)
 
     def test_type_defaults_follow_the_current_company_only(self):
         other = self.env['res.company'].create({'name': 'Other defaults company'})

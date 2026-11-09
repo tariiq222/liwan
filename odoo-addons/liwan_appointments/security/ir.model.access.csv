@@ -18,3 +18,4 @@ access_appointment_reason_book,liwan.appointment.reason.book,model_liwan_appoint
 access_appointment_reason_manage,liwan.appointment.reason.manage,model_liwan_appointment_reason,group_cap_appointments_bookings_manage,1,1,1,0
 access_resource_resource_manage,resource.resource.manage,resource.model_resource_resource,group_cap_appointments_bookings_manage,1,1,1,0
 access_res_partner_book,res.partner.book,base.model_res_partner,group_cap_appointments_bookings_write,0,0,1,0
+access_appointment_guest_limit_system,liwan.appointment.guest.limit system,model_liwan_appointment_guest_limit,base.group_system,1,1,1,1

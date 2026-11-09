@@ -9,9 +9,15 @@ export const AppointmentSlotSchema = z.object({
   stop: utcTimestamp,
 }).strict()
 
+/**
+ * A slots answer: the free starts of the days it could list, and `next_date`, the first day of the type's calendar it left
+ * out because the whole day would have passed the server's limit (`null` when it lists the requested window whole). A day
+ * is never cut in the middle, so a client asks again from `next_date` instead of reading the rest of the window as taken.
+ */
 export const AppointmentSlotListSchema = z.object({
   items: z.array(AppointmentSlotSchema),
   total: z.number().int().nonnegative(),
+  next_date: isoDate.nullable(),
 }).strict()
 
 /** Query of GET /appointments/types/{id}/slots: inclusive dates; `to` may not pass the company's booking horizon. */

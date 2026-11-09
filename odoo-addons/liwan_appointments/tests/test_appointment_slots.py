@@ -1,12 +1,19 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import patch
+
+from freezegun import freeze_time
 
 from odoo.tests import tagged
 
 from .common import LiwanAppointmentsCase
 
 UTC_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
+# The instants the minimum-notice test pins the clock to: 08:30 and 16:30 Asia/Riyadh on the same day, so a 720-hour
+# notice ends at 08:30 and 16:30 on the last requested day, inside the calendar's 08:00-17:00 working day either way.
+# The answer is then the same whatever time the suite really runs at, which it was not before the clock was pinned.
+MORNING = datetime(2026, 11, 9, 5, 30, tzinfo=UTC)
+EVENING = datetime(2026, 11, 9, 13, 30, tzinfo=UTC)
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -26,6 +33,7 @@ class TestAppointmentSlots(LiwanAppointmentsCase):
         body = result.json()
         self.assertGreater(body['total'], 0)
         self.assertEqual(body['total'], len(body['items']))
+        self.assertIsNone(body['next_date'], 'the whole week fits one answer')
         earliest = datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=self.booking_type.modifications_deadline)
         for item in body['items']:
             self.assertEqual(set(item), {'start', 'stop'})
@@ -55,18 +63,36 @@ class TestAppointmentSlots(LiwanAppointmentsCase):
         self.assertEqual((result.status_code, result.json()['field']), (422, 'combination_id'))
 
     def test_min_notice_drops_earlier_slots(self):
-        self.env['liwan.appointment.settings'].create({'company_id': self.env.company.id, 'min_notice_hours': 720})
+        """#546: a 30-day notice hides every earlier slot, whatever time of day the suite runs at.
+
+        The clock is pinned to a morning and an evening, and the calendar works 08:00-17:00 Asia/Riyadh, so the cutoff
+        lands inside the last requested working day both times. Before the pin, a run late in the afternoon put it past
+        the closing time and the answer was empty. The claim holds even if it did not: nothing at or after the notice is
+        listed, and the same window without the notice lists the earlier slots the notice took away.
+        """
+        settings = self.env['liwan.appointment.settings'].create({'company_id': self.env.company.id, 'min_notice_hours': 720})
         self.authenticate('appointments_booker', 'appointments_booker_pass_123')
-        cutoff = datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=720)
-        items = self._slots(0, 45).json()['items']
-        self.assertTrue(items)
-        for item in items:
-            self.assertGreaterEqual(datetime.strptime(item['start'], UTC_FORMAT), cutoff)
+        for instant in (MORNING, EVENING):
+            with self.subTest(now=instant.isoformat()), freeze_time(instant):
+                cutoff = instant.replace(tzinfo=None) + timedelta(hours=720)
+                # 31 days at most per answer: the whole 30-day notice fits, the horizon does not add to it.
+                with_notice = [item['start'] for item in self._slots(0, 30).json()['items']]
+                self.assertTrue(with_notice, 'the notice ends inside the last requested working day')
+                self.assertTrue(all(datetime.strptime(start, UTC_FORMAT) >= cutoff for start in with_notice), instant)
+                # The same window without the notice keeps the earlier slots, which is what the notice removes.
+                settings.min_notice_hours = 0
+                self.env.flush_all()
+                without_notice = [item['start'] for item in self._slots(0, 30).json()['items']]
+                settings.min_notice_hours = 720
+                self.env.flush_all()
+                self.assertTrue(without_notice, instant)
+                self.assertTrue(set(with_notice) < set(without_notice), instant)
+                self.assertTrue(any(datetime.strptime(start, UTC_FORMAT) < cutoff for start in without_notice), instant)
 
     def test_staff_slots_ignore_the_modification_deadline_and_follow_the_min_notice(self):
         """The engine is replaced by a fixed answer, so the test does not depend on working days or the clock."""
         self.env['liwan.appointment.settings'].create({'company_id': self.env.company.id, 'min_notice_hours': 2})
-        self.booking_type.modifications_deadline = 24
+        self.booking_type.write({'inherits_company_deadline': False, 'own_deadline_hours': 24})
         now = datetime.now(UTC)
         soon, later = now + timedelta(hours=1), now + timedelta(hours=3)
         seen = []
@@ -96,6 +122,41 @@ class TestAppointmentSlots(LiwanAppointmentsCase):
         items = self._slots(0, 5).json()['items']
         self.assertTrue(items)
         self.assertTrue(all(datetime.strptime(item['start'], UTC_FORMAT) <= latest for item in items))
+
+    def test_a_dense_grid_is_reachable_across_answers_and_no_day_is_cut(self):
+        """#546: a 5-minute grid over a week passes the per-answer limit, so whole days are paged, never truncated mid-day."""
+        self.env['liwan.appointment.settings'].create({'company_id': self.env.company.id, 'min_notice_hours': 0})
+        self.booking_type.write({'slot_duration': 5 / 60})
+        self._always_open(self.booking_type, self.combination)
+        self.authenticate('appointments_booker', 'appointments_booker_pass_123')
+        today = datetime.now(UTC).date()
+        days = [str(today + timedelta(days=offset)) for offset in range(2, 9)]
+        pages, paged, next_date = [], [], None
+        for _page in range(8):
+            first = 2 if next_date is None else (next_date - today).days
+            body = self._slots(first, 8).json()
+            pages.append(body)
+            self.assertEqual(body['total'], len(body['items']))
+            self.assertLessEqual(body['total'], 500)
+            paged.extend(item['start'] for item in body['items'])
+            next_date = date.fromisoformat(body['next_date']) if body['next_date'] else None
+            if next_date is None:
+                break
+        self.assertIsNone(next_date, 'the whole week is reachable')
+        self.assertGreater(len(pages), 1, 'the per-answer cap is reachable on a 5-minute grid')
+        # The uncapped answer of the same week is the reference: paging must list exactly it.
+        with patch('odoo.addons.liwan_appointments.serializers.appointment_slot.MAX_SLOT_ITEMS', 10 ** 6):
+            uncapped = [item['start'] for item in self._slots(2, 8).json()['items']]
+        self.assertEqual(paged, uncapped, 'no slot is lost, repeated or reordered across the answers')
+        self.assertTrue(set(days) <= {start[:10] for start in paged})
+        # Each answer lists whole days: every day it names is listed exactly as the uncapped answer lists that day.
+        per_day = {}
+        for start in uncapped:
+            per_day.setdefault(start[:10], []).append(start)
+        for body in pages:
+            listed = [item['start'] for item in body['items']]
+            for day in sorted({start[:10] for start in listed}):
+                self.assertEqual([start for start in listed if start[:10] == day], per_day[day], day)
 
     def test_bad_dates_are_422(self):
         self.authenticate('appointments_booker', 'appointments_booker_pass_123')

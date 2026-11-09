@@ -23,14 +23,30 @@ staff or the requester confirm it. Past a type's `modifications_deadline_hours` 
 of `appointments.bookings.manage` in the current company may still schedule or cancel it (staff routes); the
 requester never may.
 
+The requester's link is a company policy, not an unbounded secret: it stays readable until
+`link_valid_days_after_end` days after the appointment ends (default 30), counted from the booking's creation while it
+still has no time, then every public route answers the same 404 and no requester data is returned; a staff invitation refuses to hand out an expired link rather than
+resurrect it. A public start must fall on the type's slot grid (a whole minute, and a whole multiple of `slot_minutes`
+from the work day's beginning: a start that carries seconds is refused 422 like an off-grid one), and one token carries
+two minute budgets of its own: 30 reads and writes of the booking, and 240 reads of its free slots. The calendar's budget
+is the larger one because each slots answer names at most a month and lists at most 500 starts, cut on a whole-day
+boundary: it names `next_date`, the first day it left out (null when it lists the window whole), and never cuts a day in
+the middle, so a dense grid (a 5-minute slot around the clock) is read to the end across answers instead of leaving its
+last days unavailable. Spending one budget never spends the other. With `cancel_reason_required` on, the requester's
+cancel takes a `reason_id` from the company's active cancel-reason list, refused 422 without one. The self-booking policy is `invite_only` only: no
+route serves a public booking page, so `open` is not a value of the setting and a save that sends it answers 422.
+
 Capability note: `appointments.bookings.read` is held by every employee, `write` adds to read, and
 `manage` adds write (dependencies are added automatically). The built-in role «مدير المواعيد»
 (`appointments_manager`) holds all three; vendor support holds all three. `system_admin` holds none by
 itself. The feature switch is `appointments.enabled`.
 
-Error note: API errors quoted below are the server messages. Feature off answers 403
-`feature_not_included` «this feature is not included»; a read-only or suspended tenant answers 403
-`tenant_read_only` or `tenant_suspended` on writes.
+Error note: API errors quoted below are the server messages, always in the `{code, message}` envelope with a real
+status. Feature off answers 403 `feature_not_included` «this feature is not included»; a read-only or suspended tenant
+answers 403 `tenant_read_only` or `tenant_suspended` on writes; a public booking token past one of its minute budgets
+answers 429 `rate_limited` «too many requests for this link; wait a minute» on the routes that budget covers (the booking's
+own 30 on its view, schedule, confirm and cancel; the calendar's 240 on its free slots), rather than the 422 of a
+validation. A client keeps the slots pages it already read when a later one is refused, and offers to retry the rest.
 
 ## Appointment types page
 
@@ -45,7 +61,7 @@ Error note: API errors quoted below are the server messages. Feature off answers
 | APT-17 | Stale revision | custom role (appointments_manager) | Two managers read revision 3; the first saves; the second saves with revision 3 and gets 409 `conflict` «appointment settings changed; reload before saving» and nothing of the second is kept | `PATCH /api/v1/appointments/settings` | planned | partial run 2026-10-29, the unchecked part keeps this row planned: two managers read the same revision; second save 409 conflict «appointment settings changed; reload before saving»; nothing of it kept (unique-row race not run); Also the race of two first saves (unique company row) answers the same 409; two managers read the same revision; second save 409 conflict «appointment settings changed; reload before saving»; nothing of it kept (unique-row race not run); Also the race of two first saves (unique company row) answers the same 409 |
 | APT-19 | Settings with the feature off or a read-only tenant | custom role (appointments_manager) | GET still answers while retained read is allowed; PATCH answers 403 `feature_not_included` or `tenant_read_only` | `PATCH /api/v1/appointments/settings` `GET /api/v1/appointments/settings` | planned | exclusive phase (feature off / read-only tenant) |
 | APT-22 | Settings reading is not a customer page | custom role (appointments_manager) | There is no page for settings in the customer UI | `page /appointments` | gap | #276; Settings API exists with no settings section under `/settings/apps/appointments`; the constitution asks every app to expose its settings. Issue pending |
-| APT-23 | Sector policies are not yet enforced by booking routes | api | `min_notice_hours`, `horizon_days`, requester fields, confirmation and self-booking policy have no booking route to enforce them | `GET /api/v1/appointments/settings` | gap | #276; Model docstring: tickets 05-07. Issue pending |
+| APT-23 | Sector policies are enforced by the booking routes | api | `min_notice_hours`, `horizon_days`, requester fields and confirmation bind every booking route; `self_booking_policy` is `invite_only` only (no public booking page exists, so `open` is refused 422); a change to `modification_deadline_hours` reaches every type that follows the company at once, and a type with its own deadline keeps it | `GET /api/v1/appointments/settings` `PATCH /api/v1/appointments/settings` | covered | #550, #551; Odoo tests `test_self_booking_offers_only_the_policy_a_route_serves`, `test_an_inheriting_type_follows_the_company_deadline_and_an_override_is_kept`, and the booking-route suites |
 
 ## Booking types (API)
 
@@ -58,6 +74,7 @@ Error note: API errors quoted below are the server messages. Feature off answers
 | ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | APT-33 | Booking staff list the free slots | custom role (appointments.bookings.write) | `?from=YYYY-MM-DD&to=YYYY-MM-DD` answers `{items, total}` of `{start, stop}` UTC strings (`...Z`), sorted; only starts at least `min_notice_hours` ahead and within `horizon_days` are listed; a slot taken by any booking of the company is not listed | `GET /api/v1/appointments/types/<id>/slots` `cap appointments.bookings.write` | fail | #287; slots listed as UTC Z sorted and a booked slot is hidden, but the staff list also applies the type deadline as notice: with deadline 24 today has 0 slots, with 0 it has 16 although min_notice is 2 and POST accepts such a start (finding); Days are the type calendar's timezone |
+| APT-34 | A dense slot grid is read to the end across answers | custom role (appointments.bookings.write) | On a 5-minute grid around the clock, one week's answer stops at a whole-day boundary and names `next_date`; asking again from there reaches the last day, so no day is listed as unavailable and no slot is lost or repeated | `GET /api/v1/appointments/types/<id>/slots` `cap appointments.bookings.write` | covered | #546; Odoo test `test_a_dense_grid_is_reachable_across_answers_and_no_day_is_cut`; the requester's picker follows `next_date` (web `collectSlots`, `appointments-book-mocked` booking 10) |
 
 ## Resources and combinations (API)
 

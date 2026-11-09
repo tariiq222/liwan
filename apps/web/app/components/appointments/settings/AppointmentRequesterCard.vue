@@ -5,7 +5,7 @@ import { useSaveAppointmentSettings } from '@/composables/appointments/useAppoin
 import { useSettingsForm } from '@/composables/settings/useSettingsForm'
 
 // What the requester is asked for and may do: which contact fields are required, optional or hidden, whether the
-// appointment waits for the requester's confirmation, and whether anyone may book or only invited requesters.
+// appointment waits for the requester's confirmation, and the self-booking policy (by invitation only, issue #550).
 const props = defineProps<{ settings: AppointmentSettings; canEdit: boolean; reloadSettings: () => Promise<AppointmentSettings> }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -23,19 +23,15 @@ const { draft, state, save, revert, reload } = useSettingsForm<AppointmentSettin
 })
 const locked = computed(() => !hydrated.value || !props.canEdit || state.value.saving || state.value.reloading)
 const requirementItems = computed(() => (['required', 'optional', 'hidden'] as const).map(value => ({ value, label: t(`appointments.settings.requester.requirement.${value}`) })))
-// Open booking has no public creation flow yet, so it is shown but cannot be chosen.
-const policyItems = computed(() => (['invite_only', 'open'] as const).map(value => ({
-  value,
-  label: t(`appointments.settings.requester.policy.${value}`),
-  disabled: value === 'open' && draft.value.self_booking_policy !== 'open',
-})))
+// Booking is by invitation only: the page states the policy instead of offering a choice the product does not serve (#550).
+const policyLabel = computed(() => t('appointments.settings.requester.policy.invite_only'))
 const fieldKeys = ['phone_field', 'email_field', 'national_id_field', 'notes_field'] as const
 </script>
 
 <template>
   <SharedSettingsCard id="requester" v-bind="state" :title="t('appointments.settings.requester.title')" :description="t('appointments.settings.requester.hint')" :can-edit="canEdit" data-testid="appointments-requester" @save="save" @revert="revert" @reload="reload">
-    <SharedSettingRow :label="t('appointments.settings.requester.selfBooking')" name="self_booking_policy" :description="t('appointments.settings.requester.selfBookingHint')">
-      <USelect id="appointments-self-booking" v-model="draft.self_booking_policy" class="w-full" :items="policyItems" :disabled="locked" />
+    <SharedSettingRow :label="t('appointments.settings.requester.selfBooking')" :description="t('appointments.settings.requester.selfBookingHint')">
+      <span id="appointments-self-booking" class="text-sm font-medium" data-testid="appointments-self-booking-policy">{{ policyLabel }}</span>
     </SharedSettingRow>
     <SharedSettingRow :label="t('appointments.settings.requester.confirmation')" :description="t('appointments.settings.requester.confirmationHint')">
       <USwitch id="appointments-confirmation" v-model="draft.requester_confirmation" :disabled="locked" :aria-label="t('appointments.settings.requester.confirmation')" />

@@ -6,14 +6,14 @@ const settings: AppointmentSettings = {
   default_slot_minutes: 30, min_notice_hours: 2, horizon_days: 60, modification_deadline_hours: 24,
   requester_confirmation: false, phone_field: 'required', email_field: 'optional', national_id_field: 'hidden', notes_field: 'optional',
   self_booking_policy: 'invite_only', attendance_tracking: true, auto_no_show: true, no_show_grace_minutes: 30, walk_in_allowed: false,
-  visit_reason_field: 'optional', cancel_reason_required: false, reference_prefix: 'APT', sector_preset: 'general', presets: ['general', 'clinic', 'services'], revision: 4,
+  visit_reason_field: 'optional', cancel_reason_required: false, link_valid_days_after_end: 30, reference_prefix: 'APT', sector_preset: 'general', presets: ['general', 'clinic', 'services'], revision: 4,
 }
 
 describe('appointment settings drafts', () => {
   it('splits the settings between the booking and requester cards', () => {
-    expect(bookingDraft(settings)).toEqual({ default_slot_minutes: 30, min_notice_hours: 2, horizon_days: 60, modification_deadline_hours: 24 })
+    expect(bookingDraft(settings)).toEqual({ default_slot_minutes: 30, min_notice_hours: 2, horizon_days: 60, modification_deadline_hours: 24, link_valid_days_after_end: 30 })
     expect(requesterDraft(settings)).toEqual({
-      requester_confirmation: false, self_booking_policy: 'invite_only', phone_field: 'required', email_field: 'optional', national_id_field: 'hidden', notes_field: 'optional',
+      requester_confirmation: false, phone_field: 'required', email_field: 'optional', national_id_field: 'hidden', notes_field: 'optional',
     })
   })
 

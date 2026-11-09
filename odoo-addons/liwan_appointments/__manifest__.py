@@ -2,7 +2,7 @@
 {
     'name': 'liwan Appointments',
     'summary': 'liwan platform: the Appointments application — /api/v1/appointments',
-    'version': '19.0.1.3.0',
+    'version': '19.0.1.6.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -23,4 +23,7 @@
     ],
     'installable': True,
     'application': False,
+    # The requester's access token travels in the query string, and werkzeug writes the whole request line at info level
+    # (#543): the hook installs a masking filter on that logger before any request is served.
+    'post_load': 'post_load',
 }

@@ -7,7 +7,9 @@ test.skip(process.env.E2E_PROJECT_POPUPS !== '1', MOCK_STACK_ONLY)
 // The invited requester's booking page against appointments-mock-routes.mjs. The page is public: these tests never sign in.
 // The mock serves bookings 1 (pending), 2 (scheduled, the company asks the requester to confirm), 3 (confirmed), 4 (confirmed
 // and past its change deadline), 6 (pending, one slot is taken when chosen), 7 (no free slot in the first week) and
-// 8 (pending, the company asks the requester to confirm), all with the access token `tok-<id>`; booking 5 answers 429.
+// 8 (pending, the company asks the requester to confirm) and 9 (confirmed, the company requires a cancel reason), all with
+// the access token `tok-<id>`; booking 5 answers 429, booking 10 offers a 5-minute grid around the clock, and booking 11
+// answers its second slots page as 429.
 // Slots are 07:00Z, 07:30Z and 09:00Z on every day from tomorrow, which read 10:00, 10:30 and 12:00 in Riyadh.
 test.use({ timezoneId: 'Asia/Riyadh' })
 
@@ -100,6 +102,32 @@ test.describe('the booking page', () => {
     await expect(slot(page, /^10:00/)).toBeVisible()
   })
 
+  test('a dense grid whose answer stops early is read to the end, so its last days are not shown as unavailable', async ({ page }) => {
+    const windows: string[] = []
+    page.on('request', request => { if (new URL(request.url()).pathname.endsWith('/slots')) windows.push(new URL(request.url()).searchParams.get('from')!) })
+    await openBooking(page, 10)
+    // The week's last day offers a time, although one answer of 500 starts cannot hold the whole grid.
+    const days = freeDays(page)
+    await expect(days.last()).toBeEnabled()
+    await days.last().click()
+    await expect(page.getByTestId('book-slots')).toBeVisible()
+    expect(windows.length).toBeGreaterThan(1)
+    // Every follow-up request starts at a day of the type's calendar, never in the middle of one.
+    expect(windows.every(from => /^\d{4}-\d{2}-\d{2}$/.test(from))).toBe(true)
+  })
+
+  test('a busy page keeps the slots already listed and offers to retry the rest', async ({ page }) => {
+    const withoutRefusals = trackRefusedRequests(page, `${PUBLIC}/bookings/11`)
+    await openBooking(page, 11)
+    await expect(page.getByTestId('book-slots-partial')).toContainText('تعذّر تحميل بقية الأيام')
+    // The times of the day it did read are still bookable.
+    await expect(slot(page, /^10:00/)).toBeVisible()
+    await freeDays(page).first().click()
+    await slot(page, /^10:00/).click()
+    await expect(submit(page)).toBeEnabled()
+    errors = withoutRefusals(errors)
+  })
+
   test('never goes past the last day the company takes bookings', async ({ page }) => {
     const windows: string[] = []
     page.on('request', request => { if (new URL(request.url()).pathname.endsWith('/slots')) windows.push(new URL(request.url()).searchParams.get('to')!) })
@@ -179,6 +207,19 @@ test.describe('the booking page', () => {
     await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
     await expect(page.getByTestId('book-canceled')).toBeVisible()
     expect(reads).toEqual([])
+  })
+
+  test('a company that requires a cancel reason lists them and refuses a cancel without one', async ({ page }) => {
+    await page.goto(BOOK(9))
+    await expect(page.getByTestId('book-cancel')).toBeVisible()
+    await page.getByTestId('book-cancel').click()
+    await expect(page.getByTestId('book-cancel-reason')).toBeVisible()
+    // The confirm action waits for a reason: it cannot cancel without one.
+    await expect(page.getByTestId('inline-confirm-action')).toBeDisabled()
+    await page.getByRole('radio', { name: 'تغيّر ظرفي' }).click()
+    await expect(page.getByTestId('inline-confirm-action')).toBeEnabled()
+    await page.getByTestId('inline-confirm-action').click()
+    await expect(page.getByTestId('book-canceled')).toContainText('تم إلغاء الموعد')
   })
 
   test('a booking past its change deadline says why and offers no action', async ({ page }) => {

@@ -123,6 +123,18 @@ class TestAppointmentBookings(LiwanAppointmentsCase):
         self.assertEqual(self._create({**self._sara(), 'start': start}).status_code, 200)
         self._error(self._create({**self._sara(), 'start': start}), 409, 'conflict')
 
+    def test_a_start_with_seconds_is_refused_by_the_staff_routes_too(self):
+        """#548: the staff create and schedule routes share the alignment check, so 08:00:59Z never becomes 08:00Z."""
+        self._settings(min_notice_hours=0)
+        self._always_open(self.booking_type, self.combination)
+        self._login()
+        start = datetime.strptime(self._slots()[0], UTC_FORMAT) + timedelta(seconds=59)
+        self._error(self._create({**self._sara(), 'start': start.strftime(UTC_FORMAT)}), 422, 'invalid', 'start')
+        pending = self._create(self._sara()).json()
+        path = '%s/%d/schedule' % (BOOKINGS, pending['id'])
+        self._error(self.api('POST', path, json={'start': start.strftime(UTC_FORMAT)}), 422, 'invalid', 'start')
+        self.assertEqual(self.api('GET', '%s/%d' % (BOOKINGS, pending['id'])).json()['state'], 'pending')
+
     def test_min_notice_and_horizon_are_enforced_on_start(self):
         self._settings(min_notice_hours=48, horizon_days=10)
         self._login()
@@ -332,7 +344,7 @@ class TestAppointmentBookings(LiwanAppointmentsCase):
         # book first, then widen the deadline so the booking is inside it
         start = self._slots()[0]
         booking = self._create({**self._sara(), 'start': start}).json()
-        self.booking_type.modifications_deadline = 24 * 30
+        self.booking_type.write({'inherits_company_deadline': False, 'own_deadline_hours': 24 * 30})
         self.env.flush_all()
         self.assertFalse(self.api('GET', '%s/%d' % (BOOKINGS, booking['id'])).json()['is_modifiable'])
         for action, body in (('schedule', {'start': near}), ('cancel', None)):
@@ -364,7 +376,7 @@ class TestAppointmentBookings(LiwanAppointmentsCase):
         user.company_id = main
         self.assertTrue(user.has_group('resource_booking.group_manager'))
         booking = self._scheduled()
-        self.booking_type.modifications_deadline = 24 * 30
+        self.booking_type.write({'inherits_company_deadline': False, 'own_deadline_hours': 24 * 30})
         self.env.flush_all()
         self.authenticate('appointments_split', 'appointments_split_pass_123')
         self.assertFalse(self.api('GET', '%s/%d' % (BOOKINGS, booking['id'])).json()['is_modifiable'])

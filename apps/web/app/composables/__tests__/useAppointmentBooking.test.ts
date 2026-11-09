@@ -13,7 +13,7 @@ vi.mock('@tanstack/vue-query', async original => ({
 
 const link = { id: 42, token: 'tok-42' }
 
-type QueryOptions = { queryKey: { value: unknown }; enabled?: { value: boolean }; queryFn: (context: { queryKey: unknown; signal: AbortSignal }) => Promise<unknown>; retry: boolean; staleTime?: number }
+type QueryOptions = { queryKey: { value: unknown }; enabled?: { value: boolean }; queryFn: (context: { queryKey: unknown; signal: AbortSignal }) => Promise<unknown>; retry: boolean; staleTime?: number; refetchOnWindowFocus?: boolean }
 
 function readBooking(params: Record<string, string>, query: Record<string, unknown>) {
   vi.stubGlobal('useRoute', () => ({ params, query }))
@@ -61,7 +61,9 @@ describe('useGuestSlots', () => {
     const slots = useGuestSlots(ref(link), ref({ from: '2026-10-30', to: '2026-11-05' })) as unknown as QueryOptions
     expect(slots.retry).toBe(false)
     expect(slots.queryKey.value).toEqual(bookingKeys.slots(link, '2026-10-30', '2026-11-05'))
-    mocks.api.mockResolvedValue({})
+    // Returning to the tab must not re-read a week of answers: the picker's own retry is the only way to ask again.
+    expect(slots.refetchOnWindowFocus).toBe(false)
+    mocks.api.mockResolvedValue({ items: [], total: 0, next_date: null })
     const signal = new AbortController().signal
     await slots.queryFn({ queryKey: slots.queryKey.value, signal })
     expect(mocks.api).toHaveBeenCalledWith('/api/v1/public/appointments/bookings/42/slots', {
@@ -69,6 +71,40 @@ describe('useGuestSlots', () => {
       signal,
       schema: AppointmentSlotListSchema,
     })
+  })
+
+  it('keeps the pages already read when a later one is refused as busy', async () => {
+    vi.stubGlobal('useApi', () => ({ $api: mocks.api }))
+    const slots = useGuestSlots(ref(link), ref({ from: '2026-10-30', to: '2026-11-05' })) as unknown as QueryOptions
+    mocks.api
+      .mockResolvedValueOnce({ items: [{ start: '2026-10-30T07:00:00Z', stop: '2026-10-30T07:30:00Z' }], total: 1, next_date: '2026-11-01' })
+      .mockRejectedValueOnce({ status: 429 })
+    const answer = await slots.queryFn({ queryKey: slots.queryKey.value, signal: new AbortController().signal }) as { items: unknown[]; total: number; next_date: string | null }
+    expect(answer.items).toHaveLength(1)
+    expect(answer.total).toBe(1)
+    expect(answer.next_date).toBe('2026-11-01')
+  })
+
+  it('reads the days after a stopped answer, so a dense grid is not read as unavailable', async () => {
+    vi.stubGlobal('useApi', () => ({ $api: mocks.api }))
+    const slots = useGuestSlots(ref(link), ref({ from: '2026-10-30', to: '2026-11-05' })) as unknown as QueryOptions
+    mocks.api
+      .mockResolvedValueOnce({ items: [{ start: '2026-10-30T07:00:00Z', stop: '2026-10-30T07:30:00Z' }], total: 1, next_date: '2026-11-01' })
+      .mockResolvedValueOnce({ items: [{ start: '2026-11-01T07:00:00Z', stop: '2026-11-01T07:30:00Z' }], total: 1, next_date: '2026-11-04' })
+      .mockResolvedValueOnce({ items: [{ start: '2026-11-04T07:00:00Z', stop: '2026-11-04T07:30:00Z' }], total: 1, next_date: null })
+    const answer = await slots.queryFn({ queryKey: slots.queryKey.value, signal: new AbortController().signal }) as { items: unknown[]; total: number; next_date: string | null }
+    expect(mocks.api.mock.calls.map(call => call[1].query.from)).toEqual(['2026-10-30', '2026-11-01', '2026-11-04'])
+    expect(answer.items).toHaveLength(3)
+    expect(answer.total).toBe(3)
+    expect(answer.next_date).toBeNull()
+  })
+
+  it('stops at an answer that does not move the window forward, instead of asking for ever', async () => {
+    vi.stubGlobal('useApi', () => ({ $api: mocks.api }))
+    const slots = useGuestSlots(ref(link), ref({ from: '2026-10-30', to: '2026-11-05' })) as unknown as QueryOptions
+    mocks.api.mockResolvedValue({ items: [], total: 0, next_date: '2026-10-30' })
+    await slots.queryFn({ queryKey: slots.queryKey.value, signal: new AbortController().signal })
+    expect(mocks.api).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -90,13 +126,20 @@ describe('useGuestActions', () => {
     })
   })
 
-  it('posts only the token to the confirm and cancel routes', async () => {
+  it('posts only the token to the confirm route', async () => {
     mocks.api.mockResolvedValue({})
-    const { confirm, cancel } = actions()
+    const { confirm } = actions()
     await confirm.mutationFn({ link })
+    expect(mocks.api).toHaveBeenCalledWith('/api/v1/public/appointments/bookings/42/confirm', { method: 'POST', body: { access_token: 'tok-42' }, schema: AppointmentPublicBookingSchema })
+  })
+
+  it('posts the token alone, or the token and the reason, to the cancel route', async () => {
+    mocks.api.mockResolvedValue({})
+    const { cancel } = actions()
     await cancel.mutationFn({ link })
-    expect(mocks.api).toHaveBeenNthCalledWith(1, '/api/v1/public/appointments/bookings/42/confirm', { method: 'POST', body: { access_token: 'tok-42' }, schema: AppointmentPublicBookingSchema })
-    expect(mocks.api).toHaveBeenNthCalledWith(2, '/api/v1/public/appointments/bookings/42/cancel', { method: 'POST', body: { access_token: 'tok-42' }, schema: AppointmentPublicBookingSchema })
+    await cancel.mutationFn({ link, reasonId: 4 })
+    expect(mocks.api).toHaveBeenNthCalledWith(1, '/api/v1/public/appointments/bookings/42/cancel', { method: 'POST', body: { access_token: 'tok-42' }, schema: AppointmentPublicBookingSchema })
+    expect(mocks.api).toHaveBeenNthCalledWith(2, '/api/v1/public/appointments/bookings/42/cancel', { method: 'POST', body: { access_token: 'tok-42', reason_id: 4 }, schema: AppointmentPublicBookingSchema })
   })
 
   it('puts each answer into the booking\'s cache entry instead of reading it again', () => {

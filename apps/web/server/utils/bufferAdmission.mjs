@@ -1,17 +1,24 @@
 import { ServerResponse } from 'node:http'
 
-/** Fixed operator memory budget, independent of tenant count and Odoo workers. */
-const BUFFER_TIMEOUT = 15_000
-/** Unauthenticated traffic (login, MFA, branding) has its own small pool so it can never
+/**
+ * Fixed operator memory budget, independent of tenant count and Odoo workers.
+ * Unauthenticated traffic (login, MFA, branding) has its own small pool so it can never
  * consume the credits that verified sessions depend on. Allowlisted heavy routes (reports,
- * payroll, PDFs) hold credits far longer, so they get a third small pool for the same reason. */
-const POOL_LIMITS = {
+ * payroll, PDFs) hold credits far longer, so they get a third small pool for the same reason.
+ * The invited requester's booking-link routes get a fourth: they are the one public surface a
+ * visitor can reach on a page that retries, so they must not starve sign-in.
+ */
+export const POOL_LIMITS = {
   session: { active: 4, queued: 64 },
   public: { active: 2, queued: 16 },
+  booking: { active: 2, queued: 16 },
   heavy: { active: 2, queued: 8 },
 }
 /** Credits that can be held at once by heavy work; it bounds how many heavy requests can run or wait for a gate. */
 export const HEAVY_CREDITS = POOL_LIMITS.heavy.active
+
+/** How long a caller may wait for a credit of its pool before it is refused. */
+const BUFFER_TIMEOUT = 15_000
 
 const bufferAdmissionFailure = () => Object.assign(Error('tenant_upstream_unavailable'), {
   statusCode: 502,
@@ -74,7 +81,6 @@ function createAdmission(skipBodyless, pool, waitMs) {
  * @param {AdmissionPool} pool
  * @param {number} [waitMs] */
 export function createBodyAdmission(pool, waitMs = BUFFER_TIMEOUT) { return createAdmission(true, pool, waitMs) }
-
 /** Response buffers belong to both the operation and its actual HTTP output.
  * H3's native Response sender can settle before ServerResponse drains.
  * @param {AdmissionPool} pool

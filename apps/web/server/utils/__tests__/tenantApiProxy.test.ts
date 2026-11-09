@@ -5,7 +5,8 @@ import { join } from 'node:path'
 
 const proxyMock = vi.hoisted(() => vi.fn().mockResolvedValue(new Response('{}')))
 const transport = vi.hoisted(() => vi.fn().mockResolvedValue(new Response('{}')))
-vi.mock('../tenantTransport', () => ({ tenantTransport: transport, legacyTenantResponse: proxyMock, MAX_PUBLIC_MFA_BODY: 1024, MAX_PUBLIC_HOOK_BODY: 1024 * 1024, boundedTenantBody: async () => undefined, withTenantBody: async (_event: unknown, _scope: unknown, run: () => unknown) => run(), withTenantResponse: async (_event: unknown, _scope: unknown, run: () => unknown) => run(), withUpstreamSlot: async (run: (signal: AbortSignal) => unknown) => run(new AbortController().signal) }))
+const scopes = vi.hoisted(() => [] as unknown[])
+vi.mock('../tenantTransport', () => ({ tenantTransport: transport, legacyTenantResponse: proxyMock, MAX_PUBLIC_MFA_BODY: 1024, MAX_PUBLIC_HOOK_BODY: 1024 * 1024, boundedTenantBody: async () => undefined, withTenantBody: async (_event: unknown, scope: unknown, run: () => unknown) => { scopes.push(scope); return run() }, withTenantResponse: async (_event: unknown, _scope: unknown, run: () => unknown) => run(), withUpstreamSlot: async (run: (signal: AbortSignal) => unknown) => run(new AbortController().signal) }))
 vi.mock('../apiSessionAdmission', () => ({ requireApiSession: async (event: { node: { req: { headers: { cookie?: string } } } }) => { if (!event.node.req.headers.cookie) { const error = Object.assign(new Error('session_required'), { statusCode: 401, data: { code: 'session_required' } }); throw error } } }))
 vi.mock('h3', async importOriginal => ({ ...await importOriginal<typeof import('h3')>(), sendWebResponse: vi.fn(), sendProxy: (...args: unknown[]) => proxyMock(...args), getProxyRequestHeaders: () => ({}) }))
 
@@ -149,5 +150,15 @@ describe('public API namespace', () => {
     const { handler } = await setup()
     await expect(handler(sharedEvent('/api/v1/publicity', 'GET') as never)).rejects.toMatchObject({ statusCode: 401 })
     expect(transport).not.toHaveBeenCalled()
+  })
+
+  it('gives the booking-link routes their own admission pool, apart from the rest of the public surface', async () => {
+    scopes.length = 0
+    const { handler } = await setup()
+    await handler(sharedEvent('/api/v1/public/appointments/bookings/7?access_token=t', 'GET') as never)
+    await handler(sharedEvent('/api/v1/public/appointments/bookings/7/slots', 'GET') as never)
+    await handler(sharedEvent('/api/v1/public/payments/invoices/7?access_token=t', 'GET') as never)
+    await handler(sharedEvent('/api/v1/branding', 'GET') as never)
+    expect(scopes).toEqual(['booking', 'booking', 'public', 'public'])
   })
 })

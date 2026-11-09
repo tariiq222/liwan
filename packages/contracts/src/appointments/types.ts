@@ -7,13 +7,18 @@ const slotMinutes = z.number().int().min(5).max(480)
 const modificationsDeadlineHours = z.number().int().min(0).max(720)
 const id = z.number().int().positive()
 
-/** One booking type. Minutes and hours are the wire units; the engine stores hours as floats. */
+/**
+ * One booking type. Minutes and hours are the wire units; the engine stores hours as floats.
+ * `modifications_deadline_hours` is the deadline the routes enforce (the type's own, or its company's setting);
+ * `own_deadline_hours` is null while the type follows the company (issue #551).
+ */
 export const AppointmentTypeSchema = z.object({
   id,
   name: z.string(),
   duration_minutes: durationMinutes,
   slot_minutes: slotMinutes,
   modifications_deadline_hours: modificationsDeadlineHours,
+  own_deadline_hours: modificationsDeadlineHours.nullable(),
   location: z.string().nullable(),
   videocall_location: z.string().nullable(),
   resource_calendar_id: id,
@@ -27,14 +32,15 @@ export const AppointmentTypeListSchema = z.object({
 }).strict()
 
 /**
- * POST /appointments/types: `name` is required. An omitted slot length and deadline take the company
- * settings' defaults, an omitted calendar the company's own; `combination_ids` keeps the order sent.
+ * POST /appointments/types: `name` is required. An omitted slot length takes the company settings' default and an
+ * omitted `own_deadline_hours` makes the type follow the company's modification deadline; an omitted calendar is the
+ * company's own; `combination_ids` keeps the order sent.
  */
 export const AppointmentTypeCreateSchema = z.object({
   name,
   duration_minutes: durationMinutes,
   slot_minutes: slotMinutes,
-  modifications_deadline_hours: modificationsDeadlineHours,
+  own_deadline_hours: modificationsDeadlineHours.nullable(),
   location: optionalText,
   videocall_location: optionalText,
   resource_calendar_id: id,

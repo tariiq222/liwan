@@ -4,7 +4,9 @@ from odoo.exceptions import AccessError
 
 SETTINGS_CAPABILITIES = ('appointments.bookings.read', 'appointments.bookings.write', 'appointments.bookings.manage')
 FIELD_REQUIREMENTS = (('required', 'Required'), ('optional', 'Optional'), ('hidden', 'Hidden'))
-SELF_BOOKING_POLICIES = (('invite_only', 'Invite only'), ('open', 'Open'))
+# ``invite_only`` is the only value: the platform has no public self-booking page, so the field offers no policy that
+# would promise one. It is kept as an explicit, readable setting rather than dropped (issue #550).
+SELF_BOOKING_POLICIES = (('invite_only', 'Invite only'),)
 SECTOR_PRESETS = (('general', 'General'), ('clinic', 'Clinic'), ('services', 'Services'))
 # Inclusive (min, max) of every numeric setting; the database CHECKs and the API parser read this one table.
 INTEGER_RANGES = {
@@ -13,6 +15,7 @@ INTEGER_RANGES = {
     'horizon_days': (1, 365),
     'modification_deadline_hours': (0, 720),
     'no_show_grace_minutes': (0, 1440),
+    'link_valid_days_after_end': (0, 3650),
 }
 BOOLEAN_SETTINGS = ('requester_confirmation', 'attendance_tracking', 'auto_no_show', 'walk_in_allowed', 'cancel_reason_required')
 REFERENCE_PREFIX_PATTERN = r'[A-Z0-9-]{1,10}'
@@ -41,8 +44,15 @@ PRESETS = {
         'visit_reason_field': 'optional', 'cancel_reason_required': False,
     },
 }
+# How long the requester's link stays readable after the appointment ends (owner decision 2026-11-09). It is a
+# company policy, the same for every sector, so no preset carries it and applying a preset leaves it alone.
+LINK_VALID_DAYS_AFTER_END = 30
 # The booking reference prefix is the tenant's own identity, not a sector choice: presets leave it alone.
-DEFAULTS = {**PRESETS['general'], 'reference_prefix': 'APT'}
+DEFAULTS = {
+    **PRESETS['general'],
+    'reference_prefix': 'APT',
+    'link_valid_days_after_end': LINK_VALID_DAYS_AFTER_END,
+}
 
 
 def _range_check(name):
@@ -53,17 +63,21 @@ def _range_check(name):
 class LiwanAppointmentSettings(models.Model):
     """One company's appointment policy, shaped by the tenant from the Appointments settings.
 
-    Enforced now: ``default_slot_minutes`` and ``modification_deadline_hours`` are the defaults of a
-    new booking type's ``slot_duration`` and ``modifications_deadline``. Not enforced here:
-    ``min_notice_hours``, ``horizon_days``, the requester field policies, ``requester_confirmation``
-    and ``self_booking_policy`` are enforced by the booking routes (tickets 05-07), and the attendance
+    Enforced now: ``default_slot_minutes`` is the default of a new booking type's ``slot_duration``; and
+    ``modification_deadline_hours`` is the company's modification deadline: a booking type that follows the company
+    deadline (``inherits_company_deadline``, the default) reads this value wherever the deadline is enforced or
+    serialized, so a change here reaches every inheriting type at once without rewriting any row, and a type with its own
+    deadline keeps it. Not enforced here:
+    ``min_notice_hours``, ``horizon_days``, the requester field policies and ``requester_confirmation`` are enforced by
+    the booking routes (tickets 05-07), and the attendance
     settings (``attendance_tracking``, ``auto_no_show``, ``no_show_grace_minutes``, ``walk_in_allowed``,
     ``visit_reason_field``, ``cancel_reason_required``) by the booking routes and the no-show cron
-    (ticket 14); ``cancel_reason_required`` binds the staff cancel route only, because the invited
-    requester's page offers no reason list yet (ticket 11 follow-up). ``reference_prefix`` is read when a
-    booking is created. Existing bookings
-    and types are never changed. Applying a sector preset writes ``sector_preset`` (the last applied
-    preset) and every preset value in one save; a field sent with the preset overrides its value.
+    (ticket 14); ``cancel_reason_required`` binds the staff cancel route and the requester's. ``self_booking_policy``
+    is ``invite_only`` only: no route implements a public self-booking page (issue #550).
+    ``reference_prefix`` is read when a booking is created, and ``link_valid_days_after_end`` bounds how long the
+    requester's link stays readable after the appointment ends, or after the booking was created while it has no time. Existing bookings are never changed. Applying a sector
+    preset writes ``sector_preset`` (the last applied preset) and every preset value in one save; a field sent with the
+    preset overrides its value.
     """
 
     _name = 'liwan.appointment.settings'
@@ -87,6 +101,12 @@ class LiwanAppointmentSettings(models.Model):
     walk_in_allowed = fields.Boolean(default=DEFAULTS['walk_in_allowed'])
     visit_reason_field = fields.Selection(FIELD_REQUIREMENTS, required=True, default=DEFAULTS['visit_reason_field'])
     cancel_reason_required = fields.Boolean(default=DEFAULTS['cancel_reason_required'])
+    link_valid_days_after_end = fields.Integer(
+        required=True, default=DEFAULTS['link_valid_days_after_end'],
+        string='Booking link validity (days)',
+        help='How many days after the appointment ends the requester\'s link stays readable. A booking that was invited '
+             'but never scheduled counts from its creation instead.',
+    )
     reference_prefix = fields.Char(required=True, default=DEFAULTS['reference_prefix'])
     sector_preset = fields.Selection(SECTOR_PRESETS, required=True, default='general')
     revision = fields.Integer(required=True, default=1)
@@ -98,6 +118,7 @@ class LiwanAppointmentSettings(models.Model):
     _horizon_range = _range_check('horizon_days')
     _deadline_range = _range_check('modification_deadline_hours')
     _grace_range = _range_check('no_show_grace_minutes')
+    _link_validity_range = _range_check('link_valid_days_after_end')
     _prefix_format = models.Constraint(
         "CHECK(reference_prefix ~ '^%s$')" % REFERENCE_PREFIX_PATTERN, 'the reference prefix is 1 to 10 of A-Z, 0-9 and -',
     )
@@ -116,13 +137,14 @@ class LiwanAppointmentSettings(models.Model):
 
     @api.model
     def _liwan_type_defaults(self):
-        """The ``resource.booking.type`` defaults of the current company, from its settings or the declared defaults."""
+        """The ``resource.booking.type`` defaults of the current company, from its settings or the declared defaults.
+
+        Only the slot length is a default of a new type. The modification deadline is not: the type follows the company
+        policy by default, and the deadline is resolved when it is read (issue #551).
+        """
         row = self.search([('company_id', '=', self.env.company.id)], limit=1)
         values = row or DEFAULTS
-        return {
-            'slot_duration': values['default_slot_minutes'] / 60,
-            'modifications_deadline': values['modification_deadline_hours'],
-        }
+        return {'slot_duration': values['default_slot_minutes'] / 60}
 
     def check_access(self, operation):
         # Odoo search checks this public hook before applying record rules.
@@ -150,4 +172,9 @@ class LiwanAppointmentSettings(models.Model):
                 'company_id' in vals and vals['company_id'] != self.env.company.id
             ):
                 raise AccessError(self.env._('appointment settings belong to the current company'))
-        return super().write(vals)
+        result = super().write(vals)
+        if 'modification_deadline_hours' in vals:
+            # A type's deadline is resolved on read and kept in the transaction cache; the company policy changing must not
+            # leave the previous value behind in the same transaction, so only that cache goes (no row is rewritten).
+            self.env['resource.booking.type'].invalidate_model(['modifications_deadline'])
+        return result

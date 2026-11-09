@@ -24,6 +24,9 @@ const hasNext = computed(() => addDays(windowStart.value, BOOK_WINDOW_DAYS) <= p
 
 const slots = useGuestSlots(computed(() => props.link), range)
 const byDay = computed(() => slotsByDay(slots.data.value?.items ?? []))
+// The answer stopped at `next_date` (the server's per-answer limit, or a busy refusal on a later page), so the days after it
+// are not read yet: they are offered through the retry rather than listed as unavailable.
+const partial = computed(() => slots.data.value?.next_date != null)
 // A slot can fall on a neighbouring day of the requester's own calendar (their time zone is not the company's): its day is listed too.
 const dayChoices = computed(() => [...new Set([...days.value, ...byDay.value.keys()])].sort())
 const chosenDay = ref<string>()
@@ -58,6 +61,11 @@ function move(direction: 1 | -1) {
     </div>
     <UAlert v-else-if="!byDay.size" role="status" color="neutral" variant="subtle" icon="i-lucide-calendar-x" :title="t('appointments.book.picker.empty')" data-testid="book-slots-empty" />
     <template v-else>
+      <UAlert v-if="partial" role="status" color="warning" variant="subtle" icon="i-lucide-cloud-off" :title="t('appointments.book.picker.partial')" data-testid="book-slots-partial">
+        <template #actions>
+          <UButton type="button" color="neutral" variant="outline" icon="i-lucide-refresh-cw" :label="t('appointments.book.retry')" @click="() => slots.refetch()" />
+        </template>
+      </UAlert>
       <div role="group" :aria-label="t('appointments.book.picker.day')" class="flex flex-wrap gap-2">
         <UButton
           v-for="day in dayChoices"

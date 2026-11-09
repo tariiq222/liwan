@@ -7,7 +7,7 @@ bookings, resource users, notes, the national id or any partner id.
 """
 from datetime import UTC
 
-from odoo.addons.liwan_api.controllers.common import ApiError
+from odoo.addons.liwan_api.controllers.common import ApiError, parse_positive_int
 from odoo.addons.liwan_appointments.serializers.appointment_booking import (
     MINUTES_PER_HOUR,
     parse_start,
@@ -34,6 +34,19 @@ def parse_guest_start(payload, settings, now):
     return parse_start(payload['start'], settings, now)
 
 
+def parse_guest_cancel(payload, settings):
+    """The ``reason_id`` of a cancel body (after ``reject_unknown_fields``) as an id or None.
+
+    The company's ``cancel_reason_required`` binds this route too: with it on, a cancel that names no reason is refused.
+    """
+    reason_id = payload.get('reason_id')
+    if reason_id is None:
+        if settings['cancel_reason_required']:
+            raise ApiError(422, 'invalid', 'field is required', field='reason_id')
+        return {'reason_id': None}
+    return {'reason_id': parse_positive_int(reason_id, 'reason_id')}
+
+
 def is_modifiable(booking, now):
     """Whether the requester may still change the booking: no manager bypass applies to them."""
     return not booking.meeting_id or within_deadline(booking, now)
@@ -46,14 +59,17 @@ def awaits_confirmation(booking):
     return booking.state == 'scheduled' and not booking._liwan_confirms_on_schedule()
 
 
-def dump_guest_booking(booking, settings, now):
+def dump_guest_booking(booking, settings, cancel_reasons, now):
     """The requester's view of the booking; ``booking`` is elevated, so everything shown is listed here.
 
     ``now`` is a naive UTC datetime. ``first_bookable_date`` and ``last_bookable_date`` are the calendar days of the
     type that a slots request may name, and ``awaits_confirmation`` whether the page should offer the confirm action.
+    ``cancel_reasons`` is the company's active cancel-reason list (``{id, name}``), shown while the company requires one
+    and empty otherwise; ``cancel_reason_required`` says whether a cancel must name one of them.
     """
     requester = booking.partner_ids[:1]
     aware_now = now.replace(tzinfo=UTC)
+    requires_reason = bool(settings['cancel_reason_required'])
     return {
         'id': booking.id,
         'state': booking.state,
@@ -67,6 +83,8 @@ def dump_guest_booking(booking, settings, now):
         'last_bookable_date': last_bookable_date(booking.type_id, settings, aware_now).isoformat(),
         'awaits_confirmation': awaits_confirmation(booking),
         'company_name': booking.type_id.company_id.name,
+        'cancel_reason_required': requires_reason,
+        'cancel_reasons': cancel_reasons if requires_reason else [],
         'requester': {
             'name': requester.name or '',
             'phone': (requester.phone or None) if settings['phone_field'] != 'hidden' else None,

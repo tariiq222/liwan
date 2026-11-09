@@ -77,7 +77,7 @@ class TestAppointmentAttendance(LiwanAppointmentsCase):
         })
 
     def test_moving_a_booking_clears_its_outcome_unless_its_visit_has_begun(self):
-        later = fields.Datetime.now().replace(second=0, microsecond=0) + timedelta(days=3)
+        later = (fields.Datetime.now().replace(minute=0, second=0, microsecond=0) + timedelta(days=3))
         for outcome in ('arrived', 'no_show'):
             booking = self._booking_at(self._ago(hours=2), attendance=outcome)
             self._always_open(booking.type_id, booking.combination_id)

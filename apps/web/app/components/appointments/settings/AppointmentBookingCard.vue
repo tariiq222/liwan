@@ -4,8 +4,8 @@ import { APPOINTMENT_RANGES, bookingDraft, bookingDraftValid, isInRange, setting
 import { useSaveAppointmentSettings } from '@/composables/appointments/useAppointmentSettings'
 import { useSettingsForm } from '@/composables/settings/useSettingsForm'
 
-// The timing rules of a booking: the length a new type starts with, the notice and horizon every booking route keeps, and
-// how long before the start a requester may still change it.
+// The timing rules of a booking: the length a new type starts with, the notice and horizon every booking route keeps, how
+// long before the start a requester may still change it, and how long after the appointment ends their link stays usable.
 const props = defineProps<{ settings: AppointmentSettings; canEdit: boolean; reloadSettings: () => Promise<AppointmentSettings> }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -22,7 +22,7 @@ const { draft, state, save, revert, reload } = useSettingsForm<AppointmentSettin
   reload: () => props.reloadSettings(),
 })
 const locked = computed(() => !hydrated.value || !props.canEdit || state.value.saving || state.value.reloading)
-const fields = ['default_slot_minutes', 'min_notice_hours', 'horizon_days', 'modification_deadline_hours'] as const
+const fields = ['default_slot_minutes', 'min_notice_hours', 'horizon_days', 'modification_deadline_hours', 'link_valid_days_after_end'] as const
 const errorOf = (key: (typeof fields)[number]) => isInRange(draft.value[key], APPOINTMENT_RANGES[key])
   ? undefined
   : t('appointments.settings.booking.invalid', APPOINTMENT_RANGES[key])

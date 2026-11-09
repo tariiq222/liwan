@@ -1,4 +1,4 @@
-import type { AppointmentPublicBooking } from '@liwan/contracts'
+import type { AppointmentPublicBooking, AppointmentSlot, AppointmentSlotList } from '@liwan/contracts'
 
 /** The booking and access token a booking-page address names. */
 export interface BookingLink {
@@ -58,6 +58,37 @@ export function slotsByDay<Slot extends { start: string }>(slots: readonly Slot[
     days.set(day, [...(days.get(day) ?? []), slot])
   }
   return days
+}
+
+/**
+ * Every free slot from `from` to `to`: the dense grid of an always-open calendar fills the server's per-answer limit
+ * before the last day, so an answer names `next_date` (the first whole day it left out) and the read continues there.
+ * A day is never listed in part, so no day is read as unavailable only because an answer ended early.
+ *
+ * A `429` on a later page keeps the pages already read: the answer carries them and names the day it stopped at, which
+ * the caller shows with its retry. A refusal with nothing to show still fails the read — no slot read yet, or any
+ * refusal that is not the server being busy — because there would be nothing to keep.
+ */
+export async function collectSlots(
+  readPage: (from: string, to: string) => Promise<AppointmentSlotList>,
+  from: string,
+  to: string,
+): Promise<AppointmentSlotList> {
+  const items: AppointmentSlot[] = []
+  let day: string | undefined = from
+  while (day !== undefined) {
+    let page: AppointmentSlotList
+    try {
+      page = await readPage(day, to)
+    } catch (error) {
+      if (!items.length || refusalStatus(error) !== 429) throw error
+      return { items, total: items.length, next_date: day }
+    }
+    items.push(...page.items)
+    // A next date that does not move forward would repeat the same request: the window is complete then.
+    day = page.next_date !== null && page.next_date > day ? page.next_date : undefined
+  }
+  return { items, total: items.length, next_date: null }
 }
 
 const latin = { calendar: 'gregory', numberingSystem: 'latn' } as const

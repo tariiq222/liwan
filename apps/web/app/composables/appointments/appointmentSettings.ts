@@ -9,10 +9,13 @@ export const APPOINTMENT_RANGES = {
   min_notice_hours: { min: 0, max: 720 },
   horizon_days: { min: 1, max: 365 },
   modification_deadline_hours: { min: 0, max: 720 },
+  link_valid_days_after_end: { min: 0, max: 3650 },
 } as const
 
-export const BOOKING_KEYS = ['default_slot_minutes', 'min_notice_hours', 'horizon_days', 'modification_deadline_hours'] as const
-export const REQUESTER_KEYS = ['requester_confirmation', 'self_booking_policy', 'phone_field', 'email_field', 'national_id_field', 'notes_field'] as const
+export const BOOKING_KEYS = ['default_slot_minutes', 'min_notice_hours', 'horizon_days', 'modification_deadline_hours', 'link_valid_days_after_end'] as const
+// Booking is by invitation only, so the requester card edits what is asked and whether a confirmation is needed, not a
+// policy with one value (#550).
+export const REQUESTER_KEYS = ['requester_confirmation', 'phone_field', 'email_field', 'national_id_field', 'notes_field'] as const
 
 export type BookingDraft = Pick<AppointmentSettings, (typeof BOOKING_KEYS)[number]>
 export type RequesterDraft = Pick<AppointmentSettings, (typeof REQUESTER_KEYS)[number]>

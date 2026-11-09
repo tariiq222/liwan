@@ -21,8 +21,13 @@ const scheduledAt = computed(() => (booking.value?.start ? formatMoment(booking.
 const stateTone = { pending: 'warning', scheduled: 'info', confirmed: 'success', canceled: 'destructive' } as const
 
 const confirmingCancel = ref(false)
+// The reason the requester picks when the company requires one; the confirm action waits for it then.
+const cancelReason = ref<number>()
 const actionError = ref<string | null>(null)
 const working = computed(() => actions.schedule.isPending.value || actions.confirm.isPending.value || actions.cancel.isPending.value)
+const reasonItems = computed(() => (booking.value?.cancel_reasons ?? []).map(reason => ({ value: reason.id, label: reason.name })))
+const needsReason = computed(() => Boolean(booking.value?.cancel_reason_required) && reasonItems.value.length > 0)
+const canConfirmCancel = computed(() => !needsReason.value || cancelReason.value !== undefined)
 
 // Why a call was refused, in the requester's words: the time was just taken (409), or the booking no longer allows it (422).
 function failureText(cause: unknown): string {
@@ -48,7 +53,7 @@ async function run(call: () => Promise<unknown>) {
 
 const schedule = (start: string) => run(() => actions.schedule.mutateAsync({ link: link.value!, start }))
 const confirm = () => run(() => actions.confirm.mutateAsync({ link: link.value! }))
-const cancel = () => run(() => actions.cancel.mutateAsync({ link: link.value! }))
+const cancel = () => run(() => actions.cancel.mutateAsync({ link: link.value!, reasonId: cancelReason.value }))
 </script>
 
 <template>
@@ -96,9 +101,19 @@ const cancel = () => run(() => actions.cancel.mutateAsync({ link: link.value! })
           :confirm-label="t('appointments.book.cancelConfirm')"
           :cancel-label="t('appointments.book.keep')"
           :pending="actions.cancel.isPending.value"
+          :disabled="!hydrated || !canConfirmCancel"
           @cancel="confirmingCancel = false"
           @confirm="cancel"
-        />
+        >
+          <URadioGroup
+            v-if="needsReason"
+            v-model="cancelReason"
+            :items="reasonItems"
+            :legend="t('appointments.book.cancelReason')"
+            :disabled="actions.cancel.isPending.value"
+            data-testid="book-cancel-reason"
+          />
+        </SharedInlineConfirm>
         <UButton v-else type="button" color="error" variant="ghost" class="w-full justify-center" icon="i-lucide-calendar-x" :disabled="!hydrated || working" :label="t('appointments.book.cancel')" data-testid="book-cancel" @click="confirmingCancel = true" />
       </template>
     </div>
