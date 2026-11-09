@@ -46,6 +46,9 @@ export function useGuestSlots(link: Ref<BookingLink>, range: Ref<{ from: string;
       }),
       range.value!.from, range.value!.to,
     ),
+    // A week of a dense grid costs up to seven reads of the booking's budget, so returning to the tab does not re-read it:
+    // the picker's own refetch is the only way to ask again.
+    refetchOnWindowFocus: false,
     retry: false,
   })
 }

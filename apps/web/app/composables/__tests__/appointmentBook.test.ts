@@ -101,6 +101,30 @@ describe('collectSlots', () => {
     await collectSlots(read, '2026-10-30', '2026-11-05')
     expect(read).toHaveBeenCalledTimes(1)
   })
+
+  it('keeps the pages already read when a later one is refused as busy, and names the day it stopped at', async () => {
+    const read = vi.fn()
+      .mockResolvedValueOnce({ items: [slot('2026-10-30T07:00:00Z')], total: 1, next_date: '2026-11-01' })
+      .mockResolvedValueOnce({ items: [slot('2026-11-01T07:00:00Z')], total: 1, next_date: '2026-11-03' })
+      .mockRejectedValueOnce({ status: 429 })
+    const answer = await collectSlots(read, '2026-10-30', '2026-11-05')
+    expect(read).toHaveBeenCalledTimes(3)
+    expect(answer.items.map(item => item.start)).toEqual(['2026-10-30T07:00:00Z', '2026-11-01T07:00:00Z'])
+    expect(answer.total).toBe(2)
+    expect(answer.next_date).toBe('2026-11-03')
+  })
+
+  it('still fails when the first page is refused, because there is nothing to keep', async () => {
+    const read = vi.fn().mockRejectedValue({ status: 429 })
+    await expect(collectSlots(read, '2026-10-30', '2026-11-05')).rejects.toEqual({ status: 429 })
+  })
+
+  it('fails on any other refusal, even after some pages were read', async () => {
+    const read = vi.fn()
+      .mockResolvedValueOnce({ items: [slot('2026-10-30T07:00:00Z')], total: 1, next_date: '2026-11-01' })
+      .mockRejectedValueOnce({ status: 404 })
+    await expect(collectSlots(read, '2026-10-30', '2026-11-05')).rejects.toEqual({ status: 404 })
+  })
 })
 
 describe('formatting', () => {

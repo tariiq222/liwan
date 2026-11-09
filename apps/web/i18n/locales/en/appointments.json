@@ -30,7 +30,8 @@
         "day": "Day",
         "time": "Time",
         "empty": "No times are available in this period. Try the next week.",
-        "failed": "The available times could not be loaded"
+        "failed": "The available times could not be loaded",
+        "partial": "The remaining days could not be loaded just now. The days shown are available, and you can try again."
       },
       "errors": {
         "taken": "This time was just taken. Pick another time.",

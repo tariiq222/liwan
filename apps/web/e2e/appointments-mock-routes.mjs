@@ -12,6 +12,8 @@ const BOOKING_PATH = /^\/api\/v1\/public\/appointments\/bookings\/(\d+)(?:\/(slo
 // Inside the public namespace on purpose: the edge refuses any other API path without a session, and these specs have none.
 const RESET_PATH = '/api/v1/public/appointments/__mock/reset'
 const BUSY_BOOKING = 5
+// A booking whose second slots page answers 429, so the picker shows the first page and offers to retry the rest.
+const PARTIAL_BOOKING = 11
 const HORIZON_DAYS = 30
 const SLOT_TIMES = ['07:00:00Z', '07:30:00Z', '09:00:00Z']
 const SLOT_MINUTES = 30
@@ -56,6 +58,7 @@ const freshBookings = () => new Map([
   [8, booking(8)],
   [9, booking(9, { ...scheduled('confirmed'), cancel_reason_required: true, cancel_reasons: CANCEL_REASONS })],
   [10, booking(10, { duration_minutes: 5 })],
+  [11, booking(11)],
 ])
 // The bookings of the company that asks the requester to confirm.
 const ASKS_TO_CONFIRM = new Set([2, 8])
@@ -128,6 +131,8 @@ function listSlots(id, query) {
   if (!isDay(query.get('from'))) return refusal(422, 'invalid', 'must be a date as YYYY-MM-DD', 'from')
   if (!isDay(query.get('to'))) return refusal(422, 'invalid', 'must be a date as YYYY-MM-DD', 'to')
   if (query.get('to') > dayString(HORIZON_DAYS)) return refusal(422, 'invalid', 'to is beyond the booking horizon', 'to')
+  // One booking answers its second page as busy: a client keeps the first page and offers to retry the rest.
+  if (id === PARTIAL_BOOKING && query.get('from') > dayString(FIRST_SLOT_DAY.default)) return refusal(429, 'rate_limited', 'too many requests')
   const { items, nextDate } = freeSlots(id, query.get('from'), query.get('to'))
   return { status: 200, body: { items, total: items.length, next_date: nextDate } }
 }

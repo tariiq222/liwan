@@ -27,12 +27,13 @@ The requester's link is a company policy, not an unbounded secret: it stays read
 `link_valid_days_after_end` days after the appointment ends (default 30), counted from the booking's creation while it
 still has no time, then every public route answers the same 404 and no requester data is returned; a staff invitation refuses to hand out an expired link rather than
 resurrect it. A public start must fall on the type's slot grid (a whole minute, and a whole multiple of `slot_minutes`
-from the work day's beginning: a start that carries seconds is refused 422 like an off-grid one), and one token has its
-own minute read budget. Each slots answer names at most a month and lists at most 500 starts, cut on a whole-day
-boundary: it names `next_date`, the first day it left out (null when it lists the window whole), and never cuts
-a day in the middle, so a dense grid (a 5-minute slot around the clock) is read to the end across answers instead of
-leaving its last days unavailable. With `cancel_reason_required` on, the requester's cancel takes a `reason_id` from
-the company's active cancel-reason list, refused 422 without one. The self-booking policy is `invite_only` only: no
+from the work day's beginning: a start that carries seconds is refused 422 like an off-grid one), and one token carries
+two minute budgets of its own: 30 reads and writes of the booking, and 240 reads of its free slots. The calendar's budget
+is the larger one because each slots answer names at most a month and lists at most 500 starts, cut on a whole-day
+boundary: it names `next_date`, the first day it left out (null when it lists the window whole), and never cuts a day in
+the middle, so a dense grid (a 5-minute slot around the clock) is read to the end across answers instead of leaving its
+last days unavailable. Spending one budget never spends the other. With `cancel_reason_required` on, the requester's
+cancel takes a `reason_id` from the company's active cancel-reason list, refused 422 without one. The self-booking policy is `invite_only` only: no
 route serves a public booking page, so `open` is not a value of the setting and a save that sends it answers 422.
 
 Capability note: `appointments.bookings.read` is held by every employee, `write` adds to read, and
@@ -42,9 +43,10 @@ itself. The feature switch is `appointments.enabled`.
 
 Error note: API errors quoted below are the server messages, always in the `{code, message}` envelope with a real
 status. Feature off answers 403 `feature_not_included` «this feature is not included»; a read-only or suspended tenant
-answers 403 `tenant_read_only` or `tenant_suspended` on writes; a public booking token past its minute read budget
-answers 429 `rate_limited` «too many requests for this link; wait a minute» on every route it opens, rather than the 422
-of a validation.
+answers 403 `tenant_read_only` or `tenant_suspended` on writes; a public booking token past one of its minute budgets
+answers 429 `rate_limited` «too many requests for this link; wait a minute» on the routes that budget covers (the booking's
+own 30 on its view, schedule, confirm and cancel; the calendar's 240 on its free slots), rather than the 422 of a
+validation. A client keeps the slots pages it already read when a later one is refused, and offers to retry the rest.
 
 ## Appointment types page
 
