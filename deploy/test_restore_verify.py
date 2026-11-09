@@ -3,6 +3,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from deploy import restore_verify as rv
 
@@ -10,6 +11,9 @@ from deploy import restore_verify as rv
 class Completed:
     def __init__(self, returncode=0, stdout=''):
         self.returncode, self.stdout = returncode, stdout
+
+
+MODULES_ANSWER = 'liwan_api\nliwan_core\nliwan_hr\n'
 
 
 def make_backup(root: Path, files=('ab/abcdef',)) -> Path:
@@ -32,6 +36,11 @@ class TestRestoreVerify(unittest.TestCase):
             tool = self.tmp / name
             tool.write_text('')
             self.tools[name] = str(tool)
+        # The release module list is a separate concern: these tests pin the verification logic.
+        self.expected = ['liwan_api', 'liwan_core', 'liwan_hr']
+        patcher = mock.patch.object(rv, 'expected_modules', return_value=self.expected)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def run_verify(self, backup, psql_answers, target_db='liwan_restore_scratch', pg_user='odoo', failing=None):
         answers = iter(psql_answers)
@@ -61,7 +70,7 @@ class TestRestoreVerify(unittest.TestCase):
 
     def test_creates_with_the_tenant_recipe_then_closes_to_public_before_pg_restore(self):
         backup = make_backup(self.tmp)
-        self.run_verify(backup, ['5\n', '0\n', 'ab/abcdef\n'])
+        self.run_verify(backup, [MODULES_ANSWER, '0\n', 'ab/abcdef\n'])
         names = [Path(argv[0]).name for argv, _ in self.calls]
         self.assertEqual(names[:3], ['psql', 'psql', 'pg_restore'])
         self.assertIn('--no-acl', self.calls[2][0])
@@ -105,7 +114,7 @@ class TestRestoreVerify(unittest.TestCase):
 
     def test_passes_when_modules_installed_and_attachments_present(self):
         backup = make_backup(self.tmp)
-        result = self.run_verify(backup, ['5\n', '0\n', 'ab/abcdef\n'])
+        result = self.run_verify(backup, [MODULES_ANSWER, '0\n', 'ab/abcdef\n'])
         self.assertTrue(result['restore_verified'])
         self.assertEqual(result['checks']['missing_attachment_files'], [])
         written = json.loads((backup / 'restore-verification.json').read_text())
@@ -114,13 +123,39 @@ class TestRestoreVerify(unittest.TestCase):
 
     def test_fails_when_an_attachment_file_is_missing(self):
         backup = make_backup(self.tmp)
-        result = self.run_verify(backup, ['5\n', '0\n', 'ab/abcdef\ncd/missing\n'])
+        result = self.run_verify(backup, [MODULES_ANSWER, '0\n', 'ab/abcdef\ncd/missing\n'])
         self.assertFalse(result['restore_verified'])
         self.assertEqual(result['checks']['missing_attachment_files'], ['cd/missing'])
 
     def test_fails_when_a_module_is_stuck(self):
         backup = make_backup(self.tmp)
-        self.assertFalse(self.run_verify(backup, ['5\n', '2\n', 'ab/abcdef\n'])['restore_verified'])
+        self.assertFalse(self.run_verify(backup, [MODULES_ANSWER, '2\n', 'ab/abcdef\n'])['restore_verified'])
+
+    def test_fails_when_an_expected_release_module_is_missing(self):
+        """One installed liwan module is not a verified restore (issue #465)."""
+        backup = make_backup(self.tmp)
+        result = self.run_verify(backup, ['liwan_api\n', '0\n', 'ab/abcdef\n'])
+        self.assertFalse(result['restore_verified'])
+        self.assertEqual(result['checks']['missing_modules'], ['liwan_core', 'liwan_hr'])
+        self.assertEqual(result['checks']['liwan_modules_expected'], 3)
+
+    def test_restores_in_one_transaction(self):
+        """A dump cut short must leave no half-written database behind (issue #465)."""
+        backup = make_backup(self.tmp)
+        self.run_verify(backup, [MODULES_ANSWER, '0\n', 'ab/abcdef\n'])
+        pg_restore_argv = next(argv for argv, _ in self.calls if Path(argv[0]).name == 'pg_restore')
+        self.assertIn('--single-transaction', pg_restore_argv)
+
+    def test_an_empty_expected_list_never_verifies(self):
+        backup = make_backup(self.tmp)
+        with mock.patch.object(rv, 'expected_modules', return_value=[]):
+            self.assertFalse(self.run_verify(backup, [MODULES_ANSWER, '0\n', 'ab/abcdef\n'])['restore_verified'])
+
+    def test_an_unreadable_release_list_fails_the_restore(self):
+        backup = make_backup(self.tmp)
+        with mock.patch.object(rv, 'expected_modules', side_effect=rv.RestoreError('missing catalog')):
+            with self.assertRaises(rv.RestoreError):
+                self.run_verify(backup, [MODULES_ANSWER, '0\n', 'ab/abcdef\n'])
 
 
 if __name__ == '__main__':

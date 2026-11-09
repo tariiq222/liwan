@@ -36,6 +36,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import signal
 import socket
@@ -50,6 +51,40 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FORBIDDEN_DB = {'odoo19', 'production', 'prod', 'postgres', 'template0', 'template1'}
+# The same boundary `deploy/backup.py` and `deploy/restore_verify.py` apply: a live-looking segment
+# anywhere in the name is refused, not only a name that is exactly one of the six.
+FORBIDDEN_DB_RE = re.compile(r'(?:^|_)(odoo19|production|prod|postgres|template0|template1)(?:_|$)', re.IGNORECASE)
+DB_NAME_RE = re.compile(r'^[A-Za-z][A-Za-z0-9_]*$')
+# A drill database is one this repository owns and may drop: a `liwan_` prefix and a
+# `_scratch` segment with something of its own before it. A copy of a live tenant cannot
+# pass by carrying `scratch` somewhere in the middle of an unrelated name.
+DRILL_NAME_RE = re.compile(r'^liwan_[a-z0-9_]*[a-z0-9]_scratch(?:_[a-z0-9_]+)?$', re.IGNORECASE)
+
+
+class DrillError(RuntimeError):
+    """The drill refused to run: an unsafe database name, or a step that could not complete."""
+
+
+def validate_db_name(name: str, what: str = 'database') -> str:
+    """A drill-owned database name, or :class:`DrillError`.
+
+    ``dropdb`` runs against this name twice, once before the seed and once while the failure is
+    simulated, so the guard is the only thing between a mistyped ``--db`` and a deleted tenant:
+    a name must be a plain identifier, must carry no live-looking segment, and must match
+    :data:`DRILL_NAME_RE` (``liwan_<something>_scratch``, optionally with trailing words).
+    """
+    if (
+        not isinstance(name, str)
+        or not DB_NAME_RE.match(name)
+        or FORBIDDEN_DB_RE.search(name)
+        or not DRILL_NAME_RE.match(name)
+    ):
+        raise DrillError(
+            f'{what} {name!r} is not a drill database: the drill only creates and drops '
+            'liwan_<name>_scratch databases, never a live one'
+        )
+    return name
+
 
 SEED_SCRIPT = '''
 import os
@@ -153,10 +188,6 @@ print("DRILL_VERIFY_COUNTS=" + __import__("json").dumps(counts))  # noqa: T201
 '''
 
 
-class DrillError(RuntimeError):
-    pass
-
-
 def log(msg: str) -> None:
     ts = datetime.now(timezone.utc).strftime('%H:%M:%S')
     print(f'[{ts}] {msg}', file=sys.stderr, flush=True)
@@ -217,9 +248,31 @@ def pg_env(cfg: DrillConfig) -> dict:
 
 
 def dropdb(cfg: DrillConfig, name: str) -> None:
-    if name in FORBIDDEN_DB:
-        raise DrillError(f'refusing to drop forbidden database name {name!r}')
+    validate_db_name(name, 'database to drop')
     run(['dropdb', '-h', cfg.pg_host, '-U', cfg.pg_user, '--if-exists', name], env=pg_env(cfg), check=False)
+
+
+def require_absent(cfg: DrillConfig, name: str) -> None:
+    """Refuse to start on a database that already exists.
+
+    The drill drops its `--db` while it simulates the failure, so a name that already holds
+    data is never the drill's own: it is refused before the seed rather than deleted (issue
+    #463). A scratch name that exists is a leftover from an interrupted run and is dropped by
+    the caller's own explicit step, never silently here.
+    """
+    validate_db_name(name, 'database to check')
+    done = run(
+        ['psql', '-h', cfg.pg_host, '-U', cfg.pg_user, '-d', 'postgres', '-At',
+         '-c', f"SELECT 1 FROM pg_database WHERE datname = '{name}'"],
+        env=pg_env(cfg), capture_output=True, text=True, check=False,
+    )
+    if done.returncode != 0:
+        raise DrillError(f'could not check whether {name!r} exists: {done.stderr.strip()[-300:]}')
+    if done.stdout.strip():
+        raise DrillError(
+            f'database {name!r} already exists: the drill only drops a database it created itself, '
+            'drop the leftover scratch database explicitly to rerun'
+        )
 
 
 def odoo_bin(cfg: DrillConfig) -> Path:
@@ -327,8 +380,8 @@ def run_drill(cfg: DrillConfig) -> dict:
     if backup_dir.exists():
         shutil.rmtree(backup_dir)
 
-    dropdb(cfg, cfg.db)
-    dropdb(cfg, cfg.restored_db)
+    require_absent(cfg, cfg.db)
+    require_absent(cfg, cfg.restored_db)
 
     classification_path = cfg.work_dir / 'classification.json'
     run(
@@ -478,8 +531,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
-    if args.db in FORBIDDEN_DB or args.restored_db in FORBIDDEN_DB:
-        print('refusing forbidden database name', file=sys.stderr)
+    try:
+        validate_db_name(args.db, '--db')
+        validate_db_name(args.restored_db, '--restored-db')
+    except DrillError as error:
+        print(error, file=sys.stderr)
         return 2
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
