@@ -81,13 +81,20 @@ class HrPayslip(models.Model):
             self.payslip_run_id and not self.payslip_run_id._liwan_is_editable(),
         )
 
-    def _liwan_refuse_when_fixed(self):
+    def _liwan_refuse_when_fixed(self, names=()):
         """Refuse a change to the payslip or its lines once it is frozen (``AccessError``, never a silent skip).
+
+        The refusal is recorded on the audit trail before it is raised (``_liwan_log_refused_write``): a direct
+        write that never reached the routes still leaves who tried, on which payslip, and which fields.
 
         The callers skip a superuser environment (``self.env.su``) by design: it is the migration and maintenance
         environment, and no route reaches one, so the skip cannot be used to rewrite a month from the UI.
         """
-        if self.filtered(lambda slip: slip._liwan_is_fixed()):
+        frozen = self.filtered(lambda slip: slip._liwan_is_fixed())
+        if frozen:
+            Audit = self.env['liwan.hr.audit.event']
+            for slip in frozen:
+                Audit._liwan_log_refused_write('payslip_write_refused', slip, names)
             raise AccessError(
                 self.env._('An approved payslip is fixed: its figures and lines cannot be changed.'),
             )
@@ -95,12 +102,12 @@ class HrPayslip(models.Model):
     def write(self, vals):
         # Same superuser skip as the guard docstring records: migrations and maintenance run there by design.
         if not self.env.su:
-            self._liwan_refuse_when_fixed()
+            self._liwan_refuse_when_fixed(vals)
         return super().write(vals)
 
     def unlink(self):
         if not self.env.su:
-            self._liwan_refuse_when_fixed()
+            self._liwan_refuse_when_fixed(('unlink',))
         return super().unlink()
 
     def _liwan_refuse_saudi_rules_outside(self):
@@ -132,25 +139,33 @@ class HrPayslip(models.Model):
         return super().compute_sheet()
 
     def _liwan_period_version(self):
-        """The contract version in force for the payslip period: the one governing the last day it pays for.
+        """The contract version governing the last contracted day the payslip pays for.
 
         The payslip carries this single version, so a mid-month version change never doubles the basic. A candidate
         is a version whose effective window (``date_start``/``date_end``, the dates the payroll engine itself uses)
-        overlaps the payslip period and is in force on its last paid day; the latest one to start governs the tail.
-        The windows of an employee's versions do not overlap, so that version is unique. A version that starts after
-        the period, or one that ended before it, leaves no candidate and is refused as ``contract_missing`` instead
-        of falling back to another version: that fallback picked a version that paid zero days and let an unpaid
-        month through.
+        overlaps the paid period, ``date_from`` to the last paid day; the latest one to start governs the tail. A
+        contract that ends inside the month is therefore still paid for the days it covered, and the calculator
+        prorates it through ``contract_date_end``: judging by the last paid day alone refused such a month as
+        ``contract_missing`` and blocked the whole run. A version that starts after the period, or one that ended
+        before it, leaves no candidate and is refused as ``contract_missing`` instead of falling back to another
+        version: that fallback picked a version that paid zero days and let an unpaid month through.
+
+        The search reads the employee's own versions and filters the effective window in Python. Stock computes
+        ``date_end`` from the employee's whole version history, so searching on it makes the ORM load the versions
+        of every company in ``env.companies`` for every payslip of a run.
         """
         self.ensure_one()
         last_day = min(day for day in (self.date_to, self.employee_id.departure_date) if day)
-        in_force = self.env['hr.version'].search([
+        versions = self.env['hr.version'].search([
             ('employee_id', '=', self.employee_id.id),
             ('contract_date_start', '!=', False),
-            ('date_start', '<=', last_day),
-            '|', ('date_end', '=', False), ('date_end', '>=', last_day),
         ])
-        if not in_force:
+        in_period = versions.filtered(lambda version: (
+            version.date_start
+            and version.date_start <= last_day
+            and (not version.date_end or version.date_end >= self.date_from)
+        ))
+        if not in_period:
             code = 'contract_missing'
             raise LiwanHrRule(
                 code,
@@ -161,7 +176,7 @@ class HrPayslip(models.Model):
                 field='employee_id',
                 details={'employee_id': self.employee_id.id, 'date': last_day.isoformat()},
             )
-        return max(in_force, key=lambda version: (version.date_start, version.id))
+        return max(in_period, key=lambda version: (version.date_start, version.id))
 
     def _liwan_mail_final_payslips(self):
         """Mail the payslip of an employee whose service ended with this month to the personal email on record.
@@ -298,7 +313,7 @@ class HrPayslipLine(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         if not self.env.su:
-            self._liwan_slips_of(vals_list)._liwan_refuse_when_fixed()
+            self._liwan_slips_of(vals_list)._liwan_refuse_when_fixed(('create',))
         return super().create(vals_list)
 
     def _liwan_slips_of(self, vals_list):
@@ -308,12 +323,12 @@ class HrPayslipLine(models.Model):
 
     def write(self, vals):
         if not self.env.su:
-            self.slip_id._liwan_refuse_when_fixed()
+            self.slip_id._liwan_refuse_when_fixed(vals)
         return super().write(vals)
 
     def unlink(self):
         if not self.env.su:
-            self.slip_id._liwan_refuse_when_fixed()
+            self.slip_id._liwan_refuse_when_fixed(('unlink',))
         return super().unlink()
 
 
@@ -329,7 +344,7 @@ class HrPayslipInput(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         if not self.env.su:
-            self._liwan_slips_of(vals_list)._liwan_refuse_when_fixed()
+            self._liwan_slips_of(vals_list)._liwan_refuse_when_fixed(('create',))
         return super().create(vals_list)
 
     def _liwan_slips_of(self, vals_list):
@@ -339,10 +354,10 @@ class HrPayslipInput(models.Model):
 
     def write(self, vals):
         if not self.env.su:
-            self.payslip_id._liwan_refuse_when_fixed()
+            self.payslip_id._liwan_refuse_when_fixed(vals)
         return super().write(vals)
 
     def unlink(self):
         if not self.env.su:
-            self.payslip_id._liwan_refuse_when_fixed()
+            self.payslip_id._liwan_refuse_when_fixed(('unlink',))
         return super().unlink()

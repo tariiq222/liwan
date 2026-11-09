@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import date
+from unittest.mock import patch
 
 from odoo.tests import tagged
 
@@ -244,3 +245,67 @@ class TestPayrollCompute(PayrollCase):
         payslip = self._payslip(employee)
         self.assertEqual(payslip.contract_id, employee.version_id)
         self.assertEqual(self._lines(payslip)['BASIC'], 9000)
+
+    def test_a_contract_ending_mid_month_pays_the_days_it_covered(self):
+        """The month is still owed for the days the contract ran: a mid-month end is prorated, never refused."""
+        employee = self.make_employee('Ends Mid Month', start=date(2024, 1, 1))
+        employee.version_id.write({'contract_date_end': date(2026, 11, 15)})
+        self.assertFalse(employee.departure_date)
+        self.set_compensation(employee, 9000, gosi_registration_date=date(2020, 1, 1))
+        payslip = self._payslip(employee)
+        self.assertEqual(payslip.contract_id, employee.version_id)
+        self.assertEqual(payslip.liwan_paid_days, 15)
+        # 15 of the 30-capped divisor: 9000 * 15 / 30. The old last-paid-day rule refused the whole run instead.
+        self.assertEqual(self._lines(payslip)['BASIC'], 4500.00)
+
+    def test_a_contract_ending_mid_month_yields_to_the_version_after_it(self):
+        """With a renewal recorded for the rest of the month, the later start still governs the tail."""
+        employee = self.make_employee('Ends Then Renewed', start=date(2024, 1, 1))
+        employee.version_id.write({'contract_date_end': date(2026, 11, 10)})
+        renewal = self.env['hr.version'].create({
+            'employee_id': employee.id, 'date_version': date(2026, 11, 11),
+            'contract_date_start': date(2026, 11, 11),
+            'country_id': self.env.ref('base.sa').id,
+        })
+        self.set_compensation(employee, 9000, gosi_registration_date=date(2020, 1, 1))
+        payslip = self._payslip(employee)
+        self.assertEqual(payslip.contract_id, renewal)
+        self.assertEqual(payslip.liwan_paid_days, 20)
+
+    def test_a_contract_ending_before_the_month_is_still_refused(self):
+        """A contract that ended before the period overlaps no paid day: no version, no silent zero."""
+        employee = self.make_employee('Ended In October', start=date(2024, 1, 1))
+        employee.version_id.write({'contract_date_end': date(2026, 10, 31)})
+        self.set_compensation(employee, 9000, gosi_registration_date=date(2020, 1, 1))
+        with self.assertRaises(LiwanHrRule) as refused:
+            self._payslip(employee)
+        self.assertEqual(refused.exception.code, 'contract_missing')
+
+    def test_the_period_version_reads_the_employees_own_versions_only(self):
+        """The selection searches this employee's versions, never the computed ``date_end``.
+
+        Stock derives ``hr.version.date_end`` from the employee's whole version history, and its search handler
+        loads the versions of every company in ``env.companies``: a domain on it made one payroll run load the
+        versions of the whole directory once per payslip. The guard therefore never names it.
+        """
+        employee = self.make_employee('Query Pin', start=date(2024, 1, 1))
+        self.set_compensation(employee, 9000, gosi_registration_date=date(2020, 1, 1))
+        payslip = self._payslip(employee)
+        Version = self.env['hr.version']
+        domains = []
+        real_search = type(Version)._search
+
+        def recording(recordset, domain, *args, **kwargs):
+            if recordset._name == Version._name:
+                domains.append(domain)
+            return real_search(recordset, domain, *args, **kwargs)
+
+        with patch.object(type(Version), '_search', recording):
+            payslip._liwan_period_version()
+        self.assertEqual(len(domains), 1, domains)
+        named = repr(domains[0])
+        self.assertIn('employee_id', named)
+        self.assertIn('contract_date_start', named)
+        # A domain on the computed date_end (or on company_id) is the directory-wide read this guard removed.
+        self.assertNotIn('date_end', named)
+        self.assertNotIn('company_id', named)
