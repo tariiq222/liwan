@@ -5,6 +5,7 @@ from . import (
     appointment_service,
     appointment_settings,
     feature_registry,
+    guest_limit,
     guest_service,
     res_company,
     resource_booking,

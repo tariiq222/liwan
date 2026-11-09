@@ -8,16 +8,33 @@ from odoo.addons.liwan_api.controllers.common import ApiError, parse_positive_in
 
 ISO_DATE = re.compile(r'\d{4}-\d{2}-\d{2}')
 UTC_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
+# The longest window one slots request may name. A full booking horizon (up to 365 days) in one answer would hand out the
+# company's whole occupancy and make every request a long calendar search; a month is what a page ever asks for, and the
+# requester's page already moves a week at a time.
+MAX_SLOT_WINDOW_DAYS = 31
+# The window a public slots request gets when it names none: the week the requester's page shows.
+PUBLIC_DEFAULT_WINDOW_DAYS = 7
+# The most slots one answer lists. A short slot of a long day could still be thousands, and a page draws a day at a
+# time; the answer keeps the earliest slots of the window in start order.
+MAX_SLOT_ITEMS = 500
 
 
-def parse_slot_query(args, today, horizon_days):
+def parse_slot_query(args, today, horizon_days, *, max_window_days=MAX_SLOT_WINDOW_DAYS, default_window_days=None):
     """Validate ``from``/``to`` (inclusive YYYY-MM-DD) and the optional ``combination_id`` of a slots request.
 
-    ``to`` may not pass ``today`` plus the company's booking horizon.
+    A request without ``from``/``to`` is refused unless ``default_window_days`` gives it a window, which then starts
+    today. ``to`` may not pass ``today`` plus the company's booking horizon, and the range (when ``max_window_days`` is
+    not 0) may not be longer than that many days.
     """
-    first, last = (parse_iso_date(args.get(name), name) for name in ('from', 'to'))
+    if default_window_days and 'from' not in args and 'to' not in args:
+        first, last = today, today + timedelta(days=default_window_days - 1)
+    else:
+        first = parse_iso_date(args.get('from'), 'from')
+        last = parse_iso_date(args.get('to'), 'to')
     if last < first:
         raise ApiError(422, 'invalid', 'to must not be before from', field='to')
+    if max_window_days and (last - first).days + 1 > max_window_days:
+        raise ApiError(422, 'invalid', 'ask for at most %d days at a time' % max_window_days, field='to')
     if last > today + timedelta(days=horizon_days):
         raise ApiError(422, 'invalid', 'to is beyond the %d-day booking horizon' % horizon_days, field='to')
     combination_id = parse_positive_int(args['combination_id'], 'combination_id') if 'combination_id' in args else None
@@ -39,9 +56,10 @@ def dump_slot(start, stop):
     return {'start': start.strftime(UTC_FORMAT), 'stop': stop.strftime(UTC_FORMAT)}
 
 
-def parse_type_slot_query(booking_type, args, settings, now):
+def parse_type_slot_query(booking_type, args, settings, now, *, max_window_days=MAX_SLOT_WINDOW_DAYS, default_window_days=None):
     """``parse_slot_query`` with today taken in the type's calendar timezone; ``now`` is timezone-aware."""
-    return parse_slot_query(args, type_today(booking_type, now), settings['horizon_days'])
+    return parse_slot_query(args, type_today(booking_type, now), settings['horizon_days'],
+                            max_window_days=max_window_days, default_window_days=default_window_days)
 
 
 def type_today(booking_type, now):
@@ -80,7 +98,30 @@ def type_slot_items(booking_type, combination, first, last, settings, now, origi
     latest = now + timedelta(days=settings['horizon_days'])
     duration = timedelta(hours=booking.duration)
     starts = sorted(start.astimezone(UTC) for day_slots in slots.values() for start in day_slots)
-    return [dump_slot(start, start + duration) for start in starts if earliest <= start <= latest]
+    bounded = [start for start in starts if earliest <= start <= latest]
+    return [dump_slot(start, start + duration) for start in bounded[:MAX_SLOT_ITEMS]]
+
+
+def require_slot_alignment(start, booking_type):
+    """422 on ``start`` unless it falls on the type's slot grid: a whole multiple of ``slot_duration`` from the beginning of
+    one of the working-day intervals of that weekday, in the type's own calendar time zone.
+
+    The engine's slot search steps from each interval's start, so a start off the grid would create an uneven schedule and
+    overlap the slots it lists. A type with no slot duration, or a day the calendar does not work, accepts any start: the
+    engine's own fit check refuses the booking then.
+    """
+    minutes = round(booking_type.slot_duration * 60)
+    if minutes <= 0:
+        return
+    tz = _type_timezone(booking_type)
+    local = pytz.UTC.localize(start).astimezone(tz).replace(tzinfo=None)
+    minute_of_day = local.hour * 60 + local.minute
+    starts = [
+        round(attendance.hour_from * 60) for attendance in booking_type.resource_calendar_id.attendance_ids
+        if attendance.dayofweek == str(local.weekday())
+    ]
+    if starts and not any(minute_of_day >= low and (minute_of_day - low) % minutes == 0 for low in starts):
+        raise ApiError(422, 'invalid', 'must fall on a %d-minute slot of this type' % minutes, field='start')
 
 
 def _type_timezone(booking_type):

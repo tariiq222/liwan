@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import logging
 import re
 from datetime import UTC, date, datetime, timedelta
 
@@ -6,12 +7,13 @@ from odoo.tests import tagged
 
 from .common import LiwanAppointmentsCase
 from odoo.addons.liwan_api.tests.common import set_probe_feature
+from odoo.addons.liwan_appointments.models.guest_limit import GUEST_READ_LIMIT
 
 PUBLIC = '/api/v1/public/appointments/bookings'
 UTC_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 GUEST_KEYS = {
     'id', 'state', 'type_name', 'duration_minutes', 'location', 'start', 'stop', 'is_modifiable', 'first_bookable_date', 'last_bookable_date',
-    'awaits_confirmation', 'company_name', 'requester',
+    'awaits_confirmation', 'company_name', 'cancel_reason_required', 'cancel_reasons', 'requester',
 }
 REQUESTER_KEYS = {'name', 'phone', 'email'}
 NATIONAL_ID = '1098765432'
@@ -130,13 +132,14 @@ class TestAppointmentGuest(LiwanAppointmentsCase):
         self.assertEqual(len({response.json()['message'] for response in responses}), 1)
         self.assertEqual(self.invited.state, 'pending')
 
-    def test_a_token_of_another_company_booking_serves_that_booking_only(self):
+    def test_a_token_serves_only_a_booking_of_this_tenant(self):
+        """#547: the elevated read keeps the tenant boundary, so a link of another company tree is not served."""
         _other, foreign_type, _combination, _booking = self._foreign_company_records()
         foreign = self._invited(foreign_type)
-        body = self._call('GET', foreign).json()
-        self.assertEqual((body['id'], body['company_name']), (foreign.id, 'Other appointments company'))
+        self._error(self._call('GET', foreign), 404, 'not_found')
+        self.assertEqual(self._call('GET', self.invited).status_code, 200)
         self._error(self._call('GET', self.invited, token=foreign.access_token), 404, 'not_found')
-        self._error(self._call('GET', foreign, token=self.invited.access_token), 404, 'not_found')
+        self._error(self._call('POST', foreign, '/cancel'), 404, 'not_found')
 
     def test_a_closed_feature_refuses_every_route(self):
         set_probe_feature(self, key='appointments.enabled', enabled=False)
@@ -176,6 +179,37 @@ class TestAppointmentGuest(LiwanAppointmentsCase):
             self._call('GET', self.invited, '/slots', combination_id=self.combination.id, **self._window()),
             422, 'unknown_field', 'combination_id',
         )
+
+    def test_a_slots_window_is_bounded_to_a_month(self):
+        """#546: the whole booking horizon in one answer would hand out the company's occupancy."""
+        first = self._window(2, 2)['from']
+        last = first + timedelta(days=30)
+        self.assertEqual(self._call('GET', self.invited, '/slots', **{'from': first, 'to': last}).status_code, 200)
+        refused = self._call('GET', self.invited, '/slots', **{'from': first, 'to': last + timedelta(days=1)})
+        self._error(refused, 422, 'invalid', 'to')
+
+    def test_every_slots_answer_is_bounded_and_in_start_order(self):
+        """#546: the horizon may reach 365 days; one answer still lists at most the bounded window."""
+        self._settings(horizon_days=365, min_notice_hours=0)
+        today = datetime.now(UTC).date()
+        for first, last in ((today, today + timedelta(days=30)), (today + timedelta(days=2), today + timedelta(days=9))):
+            body = self._call('GET', self.invited, '/slots', **{'from': first, 'to': last}).json()
+            self.assertEqual(body['total'], len(body['items']))
+            starts = [item['start'] for item in body['items']]
+            self.assertEqual(starts, sorted(starts))
+            self.assertLessEqual(len(starts), 500)
+            self.assertTrue(all(datetime.strptime(value, UTC_FORMAT).date() <= last for value in starts))
+
+    def test_one_token_has_its_own_read_budget(self):
+        """#546: the edge limit counts addresses, not tokens; the token itself is bounded inside Odoo."""
+        window = self._window()
+        for _index in range(GUEST_READ_LIMIT):
+            self.assertEqual(self._call('GET', self.invited, '/slots', **window).status_code, 200)
+        refused = self._call('GET', self.invited, '/slots', **window)
+        self.assertEqual((refused.status_code, refused.json()['code']), (429, 'rate_limited'), refused.text)
+        # Another booking's token is untouched by the first one's spending.
+        other = self._invited(self.booking_type)
+        self.assertEqual(self._call('GET', other, '/slots', **window).status_code, 200)
 
     def test_a_slot_taken_by_another_booking_is_not_listed_and_not_bookable(self):
         other = self._invited(self.booking_type)
@@ -326,6 +360,128 @@ class TestAppointmentGuest(LiwanAppointmentsCase):
         self._error(self._call('POST', self.invited, '/confirm'), 422, 'invalid')
         self._error(self._call('POST', self.invited, '/cancel'), 422, 'invalid')
         self.assertEqual(self.invited.state, 'scheduled')
+
+    # --- the link's lifetime (#542) ---
+
+    def _past_booking(self, days_ago):
+        """A confirmed booking of ``days_ago`` days, with its token, fitted to an always-open calendar."""
+        combination = self._create_combination(self.env.company, 'Past room %s' % days_ago)
+        self._always_open(self.booking_type, combination)
+        booking = self._invited(self.booking_type, combination_id=combination.id, combination_auto_assign=False)
+        start = (datetime.now(UTC).replace(tzinfo=None) - timedelta(days=days_ago)).replace(minute=0, second=0, microsecond=0)
+        booking.write({'start': start})
+        self.env.flush_all()
+        return booking
+
+    def test_a_link_works_until_its_validity_ends_and_answers_not_found_after(self):
+        """#542: past ``link_valid_days_after_end`` the public read is the same 404 and shows no requester data."""
+        self._settings(link_valid_days_after_end=30)
+        recent = self._past_booking(10)
+        old = self._past_booking(40)
+        self.assertEqual(self._call('GET', recent).status_code, 200)
+        expired = self._call('GET', old)
+        self._error(expired, 404, 'not_found')
+        for secret in ('sara.guest@example.com', '+966500000009', 'Sara Guest'):
+            self.assertNotIn(secret, expired.text)
+        self.assertEqual(self._call('GET', old, '/slots', **self._window(2, 9)).status_code, 404)
+        self._error(self._call('POST', old, '/cancel'), 404, 'not_found')
+
+    def test_the_setting_moves_the_expiry(self):
+        """#542: the validity is the company's setting, so a longer one keeps the same link readable."""
+        self._settings(link_valid_days_after_end=60)
+        old = self._past_booking(40)
+        self.assertEqual(self._call('GET', old).status_code, 200)
+        self.env['liwan.appointment.settings'].search([('company_id', '=', self.env.company.id)]).link_valid_days_after_end = 7
+        self.env.flush_all()
+        self._error(self._call('GET', old), 404, 'not_found')
+
+    def test_the_invitation_refuses_a_link_whose_validity_ended(self):
+        """#542: nothing resurrects an expired link, because the validity is a privacy window from the appointment's end.
+        Staff who need to reach the requester raise the setting; the route says so instead of handing out a dead link."""
+        self._settings(link_valid_days_after_end=1)
+        old = self._past_booking(10)
+        token = old.access_token
+        self._error(self._call('GET', old, token=token), 404, 'not_found')
+        self.authenticate('appointments_booker', 'appointments_booker_pass_123')
+        refused = self.api('POST', '/api/v1/appointments/bookings/%d/invitation' % old.id)
+        self.assertEqual((refused.status_code, refused.json()['code']), (422, 'invalid'), refused.text)
+        self.assertNotIn('access_token=', refused.text)
+        self.assertEqual(old.access_token, token)
+        # Raising the window makes the same link readable again: the policy, not a token lifetime, decides.
+        self.env['liwan.appointment.settings'].search([('company_id', '=', self.env.company.id)]).link_valid_days_after_end = 30
+        self.env.flush_all()
+        self.logout()
+        self.assertEqual(self._call('GET', old, token=token).status_code, 200)
+
+    # --- cancel reason (#548) ---
+
+    def test_a_cancel_requires_the_reason_the_company_asks_for(self):
+        self._settings(cancel_reason_required=True)
+        reason = self.env['liwan.appointment.reason'].create({
+            'company_id': self.env.company.id, 'kind': 'cancel', 'name': 'No longer needed',
+        })
+        body = self._call('GET', self.invited).json()
+        self.assertTrue(body['cancel_reason_required'])
+        self.assertEqual([item['id'] for item in body['cancel_reasons']], [reason.id])
+        self._schedule(self.invited)
+        self._error(self._call('POST', self.invited, '/cancel'), 422, 'invalid', 'reason_id')
+        self.assertEqual(self._call('POST', self.invited, '/cancel', reason_id=reason.id).status_code, 200)
+        self.assertEqual(self.invited.liwan_cancel_reason_id, reason)
+
+    def test_a_cancel_names_no_reason_unless_the_company_asks_for_one(self):
+        reason = self.env['liwan.appointment.reason'].create({
+            'company_id': self.env.company.id, 'kind': 'cancel', 'name': 'Secretly required',
+        })
+        body = self._call('GET', self.invited).json()
+        self.assertFalse(body['cancel_reason_required'])
+        self.assertEqual(body['cancel_reasons'], [])
+        self._schedule(self.invited)
+        self.assertEqual(self._call('POST', self.invited, '/cancel', reason_id=reason.id).status_code, 200)
+        self.assertEqual(self.invited.liwan_cancel_reason_id, reason)
+
+    def test_an_unknown_or_archived_cancel_reason_is_refused(self):
+        self._settings(cancel_reason_required=True)
+        archived = self.env['liwan.appointment.reason'].create({
+            'company_id': self.env.company.id, 'kind': 'cancel', 'name': 'Retired', 'active': False,
+        })
+        self._schedule(self.invited)
+        self._error(self._call('POST', self.invited, '/cancel', reason_id=archived.id), 422, 'invalid', 'reason_id')
+        self._error(self._call('POST', self.invited, '/cancel', reason_id=999999), 422, 'invalid', 'reason_id')
+        self.assertEqual(self.invited.state, 'confirmed')
+
+    # --- the slot grid (#548) ---
+
+    def test_a_start_off_the_slot_grid_is_refused(self):
+        """#548: a start must be a whole multiple of the type's slot duration from the work day's beginning."""
+        self._settings(min_notice_hours=0)
+        self._always_open(self.booking_type, self.combination)
+        slot = self._slots(self.invited)[0]
+        self.assertEqual(self._schedule(self.invited, slot).status_code, 200)
+        off_grid = (datetime.strptime(slot, UTC_FORMAT) + timedelta(minutes=7)).strftime(UTC_FORMAT)
+        self._error(self._schedule(self.invited, off_grid), 422, 'invalid', 'start')
+
+    # --- the token in the log (#543) ---
+
+    def test_a_public_request_writes_no_token_to_the_request_log(self):
+        """#543 acceptance: the request line reaches the werkzeug log with the token masked, never in clear."""
+        records = []
+
+        class Capture(logging.Handler):
+            def emit(self, record):
+                records.append(record)
+
+        logger = logging.getLogger('werkzeug')
+        handler = Capture()
+        logger.addHandler(handler)
+        self.addCleanup(logger.removeHandler, handler)
+        token = self.invited.access_token
+        response = self._call('GET', self.invited)
+        self.assertEqual(response.status_code, 200, response.text)
+        lines = [record.getMessage() for record in records if '/api/v1/public/appointments/' in record.getMessage()]
+        self.assertTrue(lines)
+        for line in lines:
+            self.assertNotIn(token, line)
+            self.assertIn('access_token=***', line)
 
     # --- invitation (staff) ---
 

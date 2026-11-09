@@ -58,7 +58,8 @@ class TestAppointmentSlots(LiwanAppointmentsCase):
         self.env['liwan.appointment.settings'].create({'company_id': self.env.company.id, 'min_notice_hours': 720})
         self.authenticate('appointments_booker', 'appointments_booker_pass_123')
         cutoff = datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=720)
-        items = self._slots(0, 45).json()['items']
+        # 31 days at most per answer: the whole 30-day notice fits, the horizon does not add to it.
+        items = self._slots(0, 30).json()['items']
         self.assertTrue(items)
         for item in items:
             self.assertGreaterEqual(datetime.strptime(item['start'], UTC_FORMAT), cutoff)

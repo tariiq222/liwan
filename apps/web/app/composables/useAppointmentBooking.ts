@@ -42,12 +42,13 @@ export function useGuestSlots(link: Ref<BookingLink>, range: Ref<{ from: string;
 
 /**
  * The three things the requester can do. Each answers the booking as it now stands, which replaces the cached one.
- * A schedule, done or refused as taken (409), also drops the cached slots, which are then out of date.
+ * A schedule, done or refused as taken (409), also drops the cached slots, which are then out of date. Cancelling takes
+ * the reason the company requires, when it requires one.
  */
 export function useGuestActions() {
   const { $api } = useApi()
   const client = useQueryClient()
-  const post = (link: BookingLink, action: string, body: Record<string, string> = {}) =>
+  const post = (link: BookingLink, action: string, body: Record<string, unknown> = {}) =>
     $api(`${bookingPath(link)}/${action}`, { method: 'POST', body: { access_token: link.token, ...body }, schema: AppointmentPublicBookingSchema })
   const remember = (booking: unknown, { link }: { link: BookingLink }) => client.setQueryData(bookingKeys.record(link), booking)
   const dropSlots = (link: BookingLink) => client.invalidateQueries({ queryKey: bookingKeys.slots(link) })
@@ -58,6 +59,9 @@ export function useGuestActions() {
       onError: (error, { link }) => { if (refusalStatus(error) === 409) void dropSlots(link) },
     }),
     confirm: useMutation({ mutationFn: ({ link }: { link: BookingLink }) => post(link, 'confirm'), onSuccess: remember }),
-    cancel: useMutation({ mutationFn: ({ link }: { link: BookingLink }) => post(link, 'cancel'), onSuccess: remember }),
+    cancel: useMutation({
+      mutationFn: ({ link, reasonId }: { link: BookingLink; reasonId?: number }) => post(link, 'cancel', reasonId ? { reason_id: reasonId } : {}),
+      onSuccess: remember,
+    }),
   }
 }

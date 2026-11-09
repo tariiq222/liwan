@@ -90,13 +90,20 @@ describe('useGuestActions', () => {
     })
   })
 
-  it('posts only the token to the confirm and cancel routes', async () => {
+  it('posts only the token to the confirm route', async () => {
     mocks.api.mockResolvedValue({})
-    const { confirm, cancel } = actions()
+    const { confirm } = actions()
     await confirm.mutationFn({ link })
+    expect(mocks.api).toHaveBeenCalledWith('/api/v1/public/appointments/bookings/42/confirm', { method: 'POST', body: { access_token: 'tok-42' }, schema: AppointmentPublicBookingSchema })
+  })
+
+  it('posts the token alone, or the token and the reason, to the cancel route', async () => {
+    mocks.api.mockResolvedValue({})
+    const { cancel } = actions()
     await cancel.mutationFn({ link })
-    expect(mocks.api).toHaveBeenNthCalledWith(1, '/api/v1/public/appointments/bookings/42/confirm', { method: 'POST', body: { access_token: 'tok-42' }, schema: AppointmentPublicBookingSchema })
-    expect(mocks.api).toHaveBeenNthCalledWith(2, '/api/v1/public/appointments/bookings/42/cancel', { method: 'POST', body: { access_token: 'tok-42' }, schema: AppointmentPublicBookingSchema })
+    await cancel.mutationFn({ link, reasonId: 4 })
+    expect(mocks.api).toHaveBeenNthCalledWith(1, '/api/v1/public/appointments/bookings/42/cancel', { method: 'POST', body: { access_token: 'tok-42' }, schema: AppointmentPublicBookingSchema })
+    expect(mocks.api).toHaveBeenNthCalledWith(2, '/api/v1/public/appointments/bookings/42/cancel', { method: 'POST', body: { access_token: 'tok-42', reason_id: 4 }, schema: AppointmentPublicBookingSchema })
   })
 
   it('puts each answer into the booking\'s cache entry instead of reading it again', () => {

@@ -9,12 +9,19 @@ export const AppointmentInvitationSchema = z.object({
   path: z.string().regex(/^\/book\/\d+\?access_token=[^&#\s]+$/),
 }).strict()
 
+/** One cancel reason the requester may name when the company requires one. */
+export const AppointmentPublicCancelReasonSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string(),
+}).strict()
+
 /**
  * A booking as the invited requester sees it (GET /public/appointments/bookings/{id}): the requester's own name,
  * phone and email only, each null while the company hides that field. Never a partner id, the national id, notes
  * or any resource user. `first_bookable_date` and `last_bookable_date` are the days a slots request may name, in the
  * type's calendar: its today and that day plus the booking horizon. `awaits_confirmation` says the requester is asked to
- * confirm the scheduled time.
+ * confirm the scheduled time. `cancel_reason_required` says a cancel must name one of `cancel_reasons` (empty when the
+ * company does not require one).
  */
 export const AppointmentPublicBookingSchema = z.object({
   id: z.number().int().positive(),
@@ -29,6 +36,8 @@ export const AppointmentPublicBookingSchema = z.object({
   last_bookable_date: isoDate,
   awaits_confirmation: z.boolean(),
   company_name: z.string(),
+  cancel_reason_required: z.boolean(),
+  cancel_reasons: z.array(AppointmentPublicCancelReasonSchema),
   requester: z.object({
     name: z.string(),
     phone: z.string().nullable(),
@@ -54,10 +63,16 @@ export const AppointmentPublicScheduleSchema = z.object({
   start: utcTimestamp,
 }).strict()
 
-/** Body of POST /public/appointments/bookings/{id}/confirm and /cancel. */
+/** Body of POST /public/appointments/bookings/{id}/confirm. */
 export const AppointmentPublicTokenSchema = z.object({
   access_token: accessToken,
 }).strict()
+
+/** Body of POST /public/appointments/bookings/{id}/cancel: the reason is required while the company asks for one. */
+export const AppointmentPublicCancelSchema = z.object({
+  access_token: accessToken,
+  reason_id: z.number().int().positive(),
+}).partial().required({ access_token: true }).strict()
 
 export type AppointmentInvitation = z.infer<typeof AppointmentInvitationSchema>
 export type AppointmentPublicBooking = z.infer<typeof AppointmentPublicBookingSchema>
@@ -65,3 +80,5 @@ export type AppointmentPublicBookingQuery = z.infer<typeof AppointmentPublicBook
 export type AppointmentPublicSlotQuery = z.infer<typeof AppointmentPublicSlotQuerySchema>
 export type AppointmentPublicSchedule = z.infer<typeof AppointmentPublicScheduleSchema>
 export type AppointmentPublicToken = z.infer<typeof AppointmentPublicTokenSchema>
+export type AppointmentPublicCancel = z.infer<typeof AppointmentPublicCancelSchema>
+export type AppointmentPublicCancelReason = z.infer<typeof AppointmentPublicCancelReasonSchema>

@@ -45,6 +45,9 @@ from odoo.addons.liwan_appointments.serializers.appointment_booking import (
 from odoo.addons.liwan_appointments.serializers.appointment_settings import (
     dump_settings,
 )
+from odoo.addons.liwan_appointments.serializers.appointment_slot import (
+    require_slot_alignment,
+)
 from odoo.addons.liwan_appointments.serializers.payload import reject_unknown
 
 BOOKING = 'resource.booking'
@@ -110,6 +113,8 @@ class AppointmentBookingController(http.Controller):
         }
         if parsed['start']:
             require_combination_links(booking_type)
+            if not parsed['walk_in']:
+                require_slot_alignment(parsed['start'], booking_type)
             values['start'] = parsed['start']
             if parsed['walk_in']:
                 values.update(liwan_walk_in=True, liwan_attendance='arrived' if settings['attendance_tracking'] else False)
@@ -134,6 +139,7 @@ class AppointmentBookingController(http.Controller):
         require_open_booking(booking)
         self._require_modifiable(booking, 'start')
         require_combination_links(booking.type_id)
+        require_slot_alignment(parsed['start'], booking.type_id)
         combination = offered_combination(booking.type_id, parsed['combination_id'])
         with slot_conflicts():
             booking.write({'start': parsed['start'], **self._combination_values(combination)})
@@ -201,12 +207,15 @@ class AppointmentBookingController(http.Controller):
     def invite_booking(self, booking_id, **payload):
         """The requester's page path, with the booking's access token (made when missing).
 
-        The answer is a path, not a URL: the browser that shows it knows the tenant's public origin.
-        Sending it is not done here.
+        The answer is a path, not a URL: the browser that shows it knows the tenant's public origin. Sending it is not
+        done here. A link past its read validity is not handed out again: the window is the company's privacy policy from
+        the appointment's end, so the route answers 422 and the manager raises ``link_valid_days_after_end`` instead.
         """
         reject_unknown(payload, ())
         booking = get_company_booking(booking_id)
         require_open_booking(booking)
+        if request.env['liwan.appointment.guest']._liwan_link_expired(booking, fields.Datetime.now()):
+            raise ApiError(422, 'invalid', 'the link validity of this booking has ended; raise the setting to share it again')
         return {'path': booking.get_portal_url()}
 
     @staticmethod
