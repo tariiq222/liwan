@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { ACCEPTANCE_ORIGIN, openShell, signIn } from './support/realOdooSession'
+import { ACCEPTANCE_ORIGIN, account, openShell, signIn } from './support/realOdooSession'
 
 // Runs only on the isolated real-Odoo stack (deploy/ci/e2e-odoo.sh).
 test.skip(process.env.E2E_REAL_ODOO !== '1', 'Explicit isolated real Odoo acceptance only')
@@ -17,16 +17,21 @@ test('the saved appearance belongs to the signed-in user, not the browser', asyn
   await expect(page.locator('html')).toHaveCSS('font-size', '18px')
 
   await page.goto('/account/settings')
+  // Sign-out ends the session on the server and lands on the sign-in page. The 401 below proves the session really
+  // ended; the URL and the visible form prove the app acted on it instead of keeping the previous identity.
   const signOut = page.waitForResponse(response => (
     response.url().endsWith('/api/auth/logout') && response.request().method() === 'POST'
   ))
   await page.getByRole('button', { name: 'تسجيل الخروج' }).click()
   expect((await signOut).status()).toBe(204)
+  await expect(page).toHaveURL(/\/login(?:\?|$)/)
+  await expect(page.getByLabel('اسم المستخدم'), 'the sign-in form is what sign-out leaves behind').toBeVisible()
+  // The shell painted the outgoing account's name over the sign-in page while the loop ran; the login page shows
+  // neither the name nor the login it just left.
+  await expect(page.getByText('E2E Admin', { exact: false }), 'no stale identity is painted').toHaveCount(0)
+  await expect(page.getByText(account('admin').login, { exact: false }), 'no stale login is painted').toHaveCount(0)
   expect((await page.request.get('/api/v1/me')).status(), 'sign-out ends the server session').toBe(401)
 
-  // The scratch run verified the server logout above. The current UI lands on /, so
-  // this preference journey opens the login route before switching to the second user.
-  await page.goto('/login')
   await signIn(page, 'staff1')
   // Another user on the same browser starts from their own (default) preference. `signIn` empties the whole cookie
   // jar before it starts, so put the browser-level copy the first user left behind back: the second user's own saved
