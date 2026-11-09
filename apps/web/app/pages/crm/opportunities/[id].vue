@@ -8,7 +8,7 @@ import CrmOpportunityLostForm from '@/components/crm/opportunity/CrmOpportunityL
 import CrmOpportunitySaleForm, { type CrmSaleDraft } from '@/components/crm/opportunity/CrmOpportunitySaleForm.vue'
 import { useCrmLostReasonChoices, useCrmOutcomeChoices, useCrmPackageChoices, useCrmStageChoices } from '@/composables/crm/useCrmLists'
 import { useCrmTerms } from '@/composables/crm/useCrmTerms'
-import { useCrmCalls, useCrmOpportunity, useCrmOpportunityActions } from '@/composables/crm/useOpportunities'
+import { useCrmCalls, useCrmOpportunity, useCrmOpportunityActions, useCrmOpportunityOpening } from '@/composables/crm/useOpportunities'
 import { owningListBack } from '@/utils/recordListOrigin'
 import { crmErrorMessage } from '@/utils/crmErrors'
 import { ApiError } from '@/composables/useApi'
@@ -41,6 +41,10 @@ const manualLostReasons = computed(() => (lostReasons.data.value?.items ?? []).f
 const actions = useCrmOpportunityActions()
 const record = query.data
 const now = ref(Date.now())
+// The view log is the explicit POST this page sends once the record loads, never the GET above: a prefetch or
+// a link preview reads the record but records no opening.
+const hydrated = useHydrated()
+useCrmOpportunityOpening(id, hydrated)
 
 const pending = computed(() => record.value?.status === 'pending')
 const canAssign = computed(() => can('crm.leads.assign'))
@@ -185,7 +189,6 @@ async function assign() {
   toast.add({ title: t('crm.opportunities.record.assigned'), color: 'success' })
 }
 
-const hydrated = useHydrated()
 // Disabled until hydrated, so a first click on the server-rendered page is never lost.
 const busy = computed(() => !hydrated.value || Object.values(actions).some(action => action.isPending.value))
 const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).map(stage => ({ value: stage.id, label: stage.name })))

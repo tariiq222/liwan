@@ -7,7 +7,7 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const { draft, state, save, revert, reload } = useCrmSettingsCard({
   settings: () => props.settings,
-  read: ({ visibility, view_log_enabled }) => ({ visibility, view_log_enabled }),
+  read: ({ visibility, view_log_enabled, view_log_retention_months }) => ({ visibility, view_log_enabled, view_log_retention_months }),
   toPatch: values => ({ values }),
   reload: () => props.reloadSettings(),
 })
@@ -29,6 +29,15 @@ const visibilityHint = computed(() => ({
     </UFormField>
     <UFormField orientation="horizontal" :label="t('crm.settings.privacy.viewLog')" :description="t('crm.settings.privacy.viewLogHint')">
       <USwitch v-model="draft.view_log_enabled" :disabled="locked" :aria-label="t('crm.settings.privacy.viewLog')" />
+    </UFormField>
+    <UFormField
+      v-if="draft.view_log_enabled"
+      orientation="horizontal"
+      :label="t('crm.settings.privacy.viewLogRetention')"
+      :description="t('crm.settings.privacy.viewLogRetentionHint')"
+      name="view_log_retention_months"
+    >
+      <UInput id="view-log-retention" v-model.number="draft.view_log_retention_months" type="number" min="1" max="60" class="w-24" :disabled="locked" />
     </UFormField>
   </SharedSettingsCard>
 </template>

@@ -1,4 +1,4 @@
-import { computed, toValue, type MaybeRefOrGetter } from 'vue'
+import { computed, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/vue-query'
 import {
   CrmCallListSchema,
@@ -53,6 +53,33 @@ export function useCrmOpportunity(id: MaybeRefOrGetter<number>) {
     enabled: computed(() => toValue(id) > 0 && can('crm.leads.read')),
     queryFn: ({ queryKey, signal }) => $api(`/api/v1/crm/opportunities/${queryKey[3]}`, { signal, schema: CrmOpportunitySchema }),
   })
+}
+
+/** Record this opening in the company's audit trail. A named action, not a read: the log is personal data
+ * the company keeps only for its stated retention, so a prefetch or a preview never writes one. The route
+ * answers 204, so nothing is parsed back. */
+function useCrmOpportunitySeen(id: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: () => $api(`/api/v1/crm/opportunities/${toValue(id)}/seen`, { method: 'POST', body: {} }),
+  })
+}
+
+/** Record the opening of one opportunity page, once per opened record and only after hydration.
+ *
+ * The detail GET never writes, so an SSR render, a prefetch and a link preview record nothing; the client
+ * reports the record it actually opened once `useHydrated` turns true, and a refetch of the same record
+ * reports nothing more.
+ */
+export function useCrmOpportunityOpening(recordId: MaybeRefOrGetter<number>, hydrated: MaybeRefOrGetter<boolean>) {
+  const seen = useCrmOpportunitySeen(recordId)
+  const reported = ref<number | null>(null)
+  watch(() => [toValue(hydrated), toValue(recordId)] as const, ([ready, id]) => {
+    if (!ready || !Number.isSafeInteger(id) || id <= 0 || reported.value === id) return
+    reported.value = id
+    seen.mutate()
+  }, { immediate: true })
+  return seen
 }
 
 /** Calls per page of the record's call log. */

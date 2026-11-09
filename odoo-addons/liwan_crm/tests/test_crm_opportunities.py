@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import datetime
+
 from psycopg2 import IntegrityError
 
 from odoo import Command
@@ -267,19 +269,52 @@ class TestCrmOpportunities(LiwanCrmCase):
 
     # View log
 
-    def test_view_log_is_written_only_when_enabled(self):
+    def test_a_read_never_writes_the_view_log(self):
+        # A9-F10: the opening is recorded by the explicit POST below, never by the GET, so a preview or a
+        # prefetch (which reads the record) cannot grow the personal-data table.
         lead = self.make_lead(self.agent)
         Log = self.env['liwan.crm.view.log']
-        self.assertEqual(self.as_agent().api('GET', f'{URL}/{lead.id}').status_code, 200)
-        self.assertFalse(Log.search([('lead_id', '=', lead.id)]))
         self.set_visibility('own', view_log_enabled=True)
         self.assertEqual(self.as_agent().api('GET', f'{URL}/{lead.id}').status_code, 200)
+        self.assertEqual(self.as_agent().api('GET', f'{URL}/{lead.id}').status_code, 200)
+        self.assertFalse(Log.search([('lead_id', '=', lead.id)]))
+
+    def test_the_seen_route_records_the_opening_only_when_enabled(self):
+        lead = self.make_lead(self.agent)
+        Log = self.env['liwan.crm.view.log']
+        self.assertEqual(self.as_agent().api('POST', f'{URL}/{lead.id}/seen', {}).status_code, 204)
+        self.assertFalse(Log.search([('lead_id', '=', lead.id)]))
+        self.set_visibility('own', view_log_enabled=True)
+        self.assertEqual(self.as_agent().api('POST', f'{URL}/{lead.id}/seen', {}).status_code, 204)
         row = Log.search([('lead_id', '=', lead.id)])
         self.assertEqual((row.user_id, row.company_id), (self.agent, self.company))
         body = self.as_manager().api('GET', AUDIT_URL).json()
         self.assertEqual(body['total'], 1)
         self.assertEqual(set(body['items'][0]), {'id', 'user', 'opportunity_id', 'viewed_at'})
         self.assertEqual(body['items'][0]['opportunity_id'], lead.id)
+
+    def test_the_seen_route_requires_reading_the_opportunity(self):
+        lead = self.make_lead(self.agent)
+        self.set_visibility('own', view_log_enabled=True)
+        self.assertEqual(self.as_user(self.outsider).api('POST', f'{URL}/{lead.id}/seen', {}).status_code, 403)
+        other = self.make_lead(self.agent2)
+        self.assertEqual(self.as_agent().api('POST', f'{URL}/{other.id}/seen', {}).status_code, 404)
+        self.assertFalse(self.env['liwan.crm.view.log'].search([('lead_id', 'in', (lead | other).ids)]))
+
+    def test_the_prune_cron_deletes_rows_past_the_company_retention(self):
+        lead = self.make_lead(self.agent)
+        Log = self.env['liwan.crm.view.log']
+        self.set_visibility('own', view_log_enabled=True, view_log_retention_months=12)
+        fresh = Log.create({'company_id': self.company.id, 'user_id': self.agent.id, 'lead_id': lead.id,
+                            'viewed_at': datetime(2025, 6, 1)})
+        old = Log.create({'company_id': self.company.id, 'user_id': self.agent.id, 'lead_id': lead.id,
+                          'viewed_at': datetime(2024, 1, 1)})
+        Log._liwan_prune(now=datetime(2026, 6, 1))
+        self.assertEqual(Log.search([('lead_id', '=', lead.id)]), fresh)
+        self.assertFalse(old.exists())
+        self.set_settings(view_log_retention_months=1)
+        Log._liwan_prune(now=datetime(2026, 6, 1))
+        self.assertFalse(Log.search([('lead_id', '=', lead.id)]))
 
     def test_view_log_is_readable_only_with_audit_read(self):
         self.assertEqual(self.as_agent().api('GET', AUDIT_URL).status_code, 403)

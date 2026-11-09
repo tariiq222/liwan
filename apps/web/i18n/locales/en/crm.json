@@ -99,7 +99,9 @@
         "all": "Everyone",
         "allHint": "Every CRM agent sees all opportunities; editing stays with the owner.",
         "viewLog": "View log",
-        "viewLogHint": "Every opening of a customer record is logged and managers can read it."
+        "viewLogHint": "Every opening of a customer record is logged and managers can read it.",
+        "viewLogRetention": "How long to keep it (months)",
+        "viewLogRetentionHint": "The viewing log holds personal data; older rows are deleted."
       },
       "pricing": {
         "title": "Pricing",
