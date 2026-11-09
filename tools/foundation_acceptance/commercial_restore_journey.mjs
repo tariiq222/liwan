@@ -77,4 +77,5 @@ print('E14_READBACK', profile.commercial_revision_id, profile.commercial_digest,
     readback('restore-odoo', target.database) && readback('odoo', tenant.database))
   const loginPage = await edge(targetHost, '/login')
   record('restored host serves its login page through the isolated TLS edge', loginPage.status === 200)
+  return { backupId: backup.backupId, approvalId: approval.approval_id, host: targetHost, database: target.database, attachmentSha256: sha, appliedRevision: fixture[2] }
 }

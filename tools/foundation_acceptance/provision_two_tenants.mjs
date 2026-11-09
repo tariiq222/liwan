@@ -59,6 +59,7 @@ const imageIdentities = {}
 let interrupted = false
 let composeReady = false
 let mailContainer
+let restored
 let exitCode = 1
 const started = Date.now()
 const record = (name, ok) => {
@@ -139,13 +140,17 @@ try {
   const env = { ...baseEnv, LIWAN_IMAGE_TAG: tag, ODOO_COMMIT: readFileSync(join(sourceRoot, 'deploy/odoo/ODOO_COMMIT'), 'utf8').trim(), DB_NAME: '', DB_PASSWORD: dbPassword,
     LIWAN_SHARED_PROXY_TOKEN: secret(), LIWAN_SESSION_KEYS: JSON.stringify({ k1: secret() }), LIWAN_SESSION_ACTIVE_KID: 'k1',
     LIWAN_TENANT_REGISTRY_DIR: registryDir, LIWAN_RESTORE_REGISTRY_DIR: restoreRegistryDir, LIWAN_SHARED_ODOO_CONFIG: odooConfig,
-    ...(commercial ? { LIWAN_RESTORE_ODOO_CONFIG: restoreOdooConfig } : {}),
+    ...(commercial ? {
+      LIWAN_RESTORE_ODOO_CONFIG: restoreOdooConfig,
+      LIWAN_RESTORE_DOMAIN: domainSuffix,
+      LIWAN_RESTORE_ALLOW: 'private_ranges 127.0.0.1 ::1',
+    } : {}),
     LIWAN_EDGE_BIND: '127.0.0.1', LIWAN_EDGE_HTTPS_PORT: String(httpsPort), LIWAN_EDGE_HTTP_PORT: String(httpPort),
     FOUNDATION_CADDYFILE: join(sourceRoot, 'tools/shared_acceptance_live/acceptance.Caddyfile'), FOUNDATION_STATE_DIR: stateDir, FOUNDATION_DOMAIN_SUFFIX: domainSuffix,
     FOUNDATION_CONTROL_DB_PASSWORD: controlDbPassword, FOUNDATION_CONTROL_DB_PORT: String(controlDbPort),
     ...Object.fromEntries(['EDGE', 'WEB', 'ODOO', 'DB', 'CONTROL'].map((key, index) => [`FOUNDATION_NET_${key}`, subnets[index]])),
   }
-  const rendered = command('render', 'docker', ['compose', '-f', 'docker-compose.yml', '-f', 'docker-compose.shared.yml', '-f', join(toolDir, 'stack.override.yml'), '--project-name', project, 'config'], { cwd: join(sourceRoot, 'deploy'), env })
+  const rendered = command('render', 'docker', ['compose', '-f', 'docker-compose.yml', '-f', 'docker-compose.shared.yml', '-f', join(toolDir, 'stack.override.yml'), '--project-name', project, ...(commercial ? ['--profile', 'restore'] : []), 'config'], { cwd: join(sourceRoot, 'deploy'), env })
   if (!rendered.ok) throw new Error('Compose render failed')
   writePrivate(join(runDir, 'compose.yml'), rendered.stdout)
   writePrivate(join(runDir, 'compose.env'), '')
@@ -237,7 +242,7 @@ try {
     const tenant = await commercialJourney({ send, stepUp, version, readOrder, edge, controlOrigin: `http://127.0.0.1:${controlPort}`, mailOrigin, record })
     tenants.push(tenant)
     record('isolated restore services healthy', compose(['up', '--detach', '--no-build', '--pull', 'never', '--wait', '--wait-timeout', '300', 'restore-db', 'restore-odoo']).ok)
-    await commercialRestoreJourney({ send, stepUp, compose, tenant, edge, record, domainSuffix })
+    restored = await commercialRestoreJourney({ send, stepUp, compose, tenant, edge, record, domainSuffix })
   } else {
     const profiles = []
     const cookies = []
@@ -299,7 +304,7 @@ try {
     if (!retained.ok) exitCode = 1
   }
   if (interrupted) exitCode = 130
-  writePrivate(join(runDir, 'result.json'), JSON.stringify({ sourceCommit, imageTag: tag, imageIdentities, project, passed: exitCode === 0, exitCode, durationSeconds: Math.round((Date.now() - started) / 1000), checks, commands, tenants: tenants.map(({ id, host, database, filestore }) => ({ id, host, database, filestore })), evidence: commercial ? 'local simulator, SMTP invitation, API edge and commercial restore; see individual checks' : 'local API edge only; no browser/invitation/restore/deployment proof', retention: 'containers, volumes, databases, logs and state preserved' }, null, 2))
+  writePrivate(join(runDir, 'result.json'), JSON.stringify({ sourceCommit, imageTag: tag, imageIdentities, project, passed: exitCode === 0, exitCode, durationSeconds: Math.round((Date.now() - started) / 1000), checks, commands, tenants: tenants.map(({ id, host, database, filestore }) => ({ id, host, database, filestore })), restored, evidence: commercial ? 'local simulator, SMTP invitation, API edge and commercial restore; see individual checks' : 'local API edge only; no browser/invitation/restore/deployment proof', retention: 'containers, volumes, databases, logs and state preserved' }, null, 2))
   console.log(`result: ${join(runDir, 'result.json')}\nresources retained under Compose project ${project}`)
   process.exitCode = exitCode
 }

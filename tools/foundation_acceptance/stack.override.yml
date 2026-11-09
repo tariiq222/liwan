@@ -7,7 +7,7 @@ services:
       - ./shared/Caddyfile:/etc/caddy/production.Caddyfile:ro
       - caddy_data:/data
     environment:
-      DOMAIN: "*.${FOUNDATION_DOMAIN_SUFFIX:?}, *.restore.${FOUNDATION_DOMAIN_SUFFIX:?}"
+      DOMAIN: "*.${FOUNDATION_DOMAIN_SUFFIX:?}"
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:2019/config/ | grep -q '${FOUNDATION_DOMAIN_SUFFIX}' && caddy list-modules | grep -q '^http.handlers.rate_limit$'"]
       interval: 3s
