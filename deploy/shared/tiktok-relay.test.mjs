@@ -5,14 +5,25 @@ import { createHmac } from 'node:crypto'
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createTiktokRelay } from './tiktok-relay.mjs'
+import { fileURLToPath } from 'node:url'
+import { createTiktokRelay, SIGNATURE_MAX_AGE_SECONDS } from './tiktok-relay.mjs'
 
 const NOW = 1_700_000_000
 const SECRET = 'test-only-tiktok-client-secret'
 const PROXY_TOKEN = 'test-only-relay-proxy-token-'.repeat(2)
 const MAX_BODY = 1024 * 1024
-/** The tenant's own window, `SIGNATURE_MAX_AGE_RELAY` in `odoo-addons/liwan_inbox/adapters/tiktok.py`. */
-const TENANT_WINDOW_SECONDS = 30
+const TIKTOK_ADAPTER = fileURLToPath(new URL('../../odoo-addons/liwan_inbox/adapters/tiktok.py', import.meta.url))
+
+/** The tenant's own window, read from the Python constant that enforces it (`SIGNATURE_MAX_AGE_RELAY` in
+ * `odoo-addons/liwan_inbox/adapters/tiktok.py`) so a change there cannot leave this stand-in tenant judging
+ * deliveries against a window the real one no longer uses. */
+function pythonConstant(source, name) {
+  const match = new RegExp(`^${name} = (\\d+)$`, 'm').exec(source)
+  assert.ok(match, `${name} is not a plain integer constant in ${TIKTOK_ADAPTER}`)
+  return Number(match[1])
+}
+const TENANT_WINDOW_SECONDS = pythonConstant(readFileSync(TIKTOK_ADAPTER, 'utf8'), 'SIGNATURE_MAX_AGE_RELAY')
+
 const targets = [
   { host: 'acme.example.test', tenantId: 'acme', database: 'liwan_scratch_acme', filestore: 'liwan_scratch_acme', enabled: true, registryRevision: 1 },
   { host: 'beta.example.test', tenantId: 'beta', database: 'liwan_scratch_beta', filestore: 'liwan_scratch_beta', enabled: true, registryRevision: 2 },
@@ -140,6 +151,15 @@ async function fixture(options = {}) {
     },
   }
 }
+
+test('the first-hop window matches the Python constant the channel documents', () => {
+  // The relay's own replay window and the tenant's wider one are decided together (see the comments in both
+  // sources). The tenant's window is read from Python above, so this only has to keep the JS hop honest: a
+  // change to one without the other fails here instead of silently diverging.
+  const source = readFileSync(TIKTOK_ADAPTER, 'utf8')
+  assert.equal(SIGNATURE_MAX_AGE_SECONDS, pythonConstant(source, 'SIGNATURE_MAX_AGE'))
+  assert.ok(TENANT_WINDOW_SECONDS > SIGNATURE_MAX_AGE_SECONDS, 'the second hop admits a forward the first accepted')
+})
 
 test('a valid delivery reaches the tenant unchanged and the answer waits for it', async () => {
   const f = await fixture()
