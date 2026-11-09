@@ -226,18 +226,18 @@ dependencies or Chromium; only the `policies` part of `static` runs them. Deleti
 static profile. The job and required `ci-result` are the same. Pushes to `main`,
 scheduled runs, manual runs and merge groups always use the full static profile.
 
-### Stage pass cache
+### CI job pass cache
 
-In a pull request or merge-queue entry, a stage that already passed on exactly the same inputs is not run again.
-`static` is one job with a matrix of three parallel parts (`deploy/ci/static.sh policies|tests|types`;
-without an argument the script runs all three in order); the stage passes only when every part passes.
-Every stage job except `static` ends with `.github/actions/stage-pass`, which saves a key from
+In a pull request or merge-queue entry, an individual job that already passed on exactly the same inputs
+is omitted from the next run. `static` always runs with three parallel parts
+(`deploy/ci/static.sh policies|tests|types`; without an argument the script runs all three in order).
+Every other stage job ends with `.github/actions/stage-pass`, which saves a key from
 `python3 -B tools/ci_stage_cache.py key`: a hash of the tracked files the stage reads (the `RULES` of
-`tools/ci_scope.py`) and its matrix entry. The `scope` job leaves out every stage whose jobs all saved a key on the
-same ref; a matrix stage is skipped only when every entry has one, and a failed lookup skips nothing. A push to
-`main`, the nightly run and `workflow_dispatch` run every selected stage. `e2e-mock` is a matrix of
-`E2E_MOCK_SHARDS` and `rtl-stories` of `RTL_STORIES_SHARDS` (`tools/ci_stage_cache.py`; the `scope` job emits them as
-`e2e-mock-shards` and `rtl-stories-shards`); each is skipped only when every shard saved its `k/N` key.
+`tools/ci_scope.py`) and its matrix entry. The `scope` job trusts keys from the same ref only.
+It logs the reused jobs and sends GitHub the remaining matrix entries. A shard retains its original
+number and total: if only shard 4 of 6 is still required, it runs as `4/6`. A shared input change invalidates
+the keys of every job that reads it. When every job of a stage is reused, the stage is omitted.
+A failed cache lookup reuses nothing. Pushes to `main`, nightly runs and manual runs execute every selected job.
 
 ### Red `main` alert
 
