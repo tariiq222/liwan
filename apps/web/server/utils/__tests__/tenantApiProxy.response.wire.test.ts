@@ -58,6 +58,14 @@ async function fixture(mode: 'shared' | 'dedicated' | 'legacy') {
       return
     }
     if (req.url === '/api/v1/redirect') { res.writeHead(302, { location: '/api/v1/escaped' }); res.end(); return }
+    if (req.url?.startsWith('/api/v1/inbox/tiktok/callback')) {
+      // The provider OAuth callback: Odoo answers an in-app redirect after it stored the tokens.
+      const location = req.url.includes('offsite=1') ? '//evil.example/steal'
+        : req.url.includes('foreign=1') ? 'https://evil.example/steal'
+          : req.url.includes('elsewhere=1') ? '/api/v1/escaped'
+            : '/settings/apps/inbox/channels/12'
+      res.writeHead(302, { location, 'cache-control': 'no-store' }); res.end(); return
+    }
     if (req.url === '/api/v1/gzip') {
       const body = gzipSync(Buffer.from('{"decoded":true}'))
       res.writeHead(200, { 'content-encoding': 'gzip', 'content-length': String(body.length) }); res.end(body); return
@@ -315,6 +323,23 @@ it.each(['/api/v1/oversize', '/api/v1/redirect'])('legacy rejects unsafe or over
     expect(response.bytes).toBeLessThan(1024)
     expect(wire.upstreamCalls).not.toContain('/api/v1/escaped')
     expect((await wire.begin('/api/v1/health').result).status).toBe(200)
+  } finally { await wire.close() }
+}, 15000)
+
+it.each(['shared', 'dedicated', 'legacy'] as const)('%s forwards the OAuth callback redirect to the browser, and refuses one to another origin or route', async mode => {
+  const wire = await fixture(mode)
+  try {
+    const settled = await wire.begin('/api/v1/inbox/tiktok/callback?code=auth-code-1').result
+    expect(settled.status).toBe(302)
+    expect((await wire.begin('/api/v1/inbox/tiktok/callback?code=auth-code-1').headers).headers.location).toBe('/settings/apps/inbox/channels/12')
+    // A redirect to another origin, to a protocol-relative address, or to any other route stays a failure.
+    for (const query of ['offsite=1', 'foreign=1', 'elsewhere=1']) {
+      const refused = await wire.begin(`/api/v1/inbox/tiktok/callback?code=auth-code-1&${query}`).result
+      expect(refused.status, query).toBe(502)
+      expect(ApiErrorSchema.parse((refused.body as { data: unknown }).data).code).toBe('tenant_upstream_unavailable')
+    }
+    // A redirect on another path is still refused.
+    expect((await wire.begin('/api/v1/redirect').result).status).toBe(502)
   } finally { await wire.close() }
 }, 15000)
 
