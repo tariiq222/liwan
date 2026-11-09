@@ -27,7 +27,15 @@ SCOPES = (
     'message.list.manage',
 )
 SIGNATURE_HEADER = 'Tiktok-Signature'
+# TikTok signs `{timestamp}.{raw body}`. The relay receives the delivery directly from TikTok and refuses one
+# older than this strict window (deploy/shared/tiktok-relay.mjs, SIGNATURE_MAX_AGE_SECONDS).
 SIGNATURE_MAX_AGE = 5
+# The tenant is the second hop: it trusts the relay's verification, not its own clock against TikTok's. The
+# forward alone has a 10s budget (deploy/shared/tiktok-relay.mjs FORWARD_TIMEOUT_MS) and the two hosts' clocks
+# differ by seconds, so re-checking the original timestamp against the relay's own window would refuse valid
+# deliveries (issue A09-F4). The wider window is what a replay could reuse, and `liwan.inbox.event`'s dedupe
+# key is what makes such a replay a single stored delivery, so the two limits are decided together.
+SIGNATURE_MAX_AGE_RELAY = 30
 IMAGE_MIMETYPES = frozenset({'image/jpeg', 'image/png'})
 IMAGE_MAX_BYTES = 3 * 1024 * 1024
 TEXT_MAX = 6000
@@ -167,11 +175,13 @@ def app_config(environ):
     return AppConfig(*values) if all(values) else None
 
 
-def verify_signature(secret, raw, header, now):
-    """True when `header` ("t=<unix s>,s=<hex>") signs `raw` and is within `SIGNATURE_MAX_AGE` seconds of `now`.
+def verify_signature(secret, raw, header, now, max_age=SIGNATURE_MAX_AGE):
+    """True when `header` ("t=<unix s>,s=<hex>") signs `raw` and is within ``max_age`` seconds of `now`.
 
     The window is symmetric: a timestamp dated in the future is refused like a stale one, because
-    it would otherwise escape the replay window as the clock advances.
+    it would otherwise escape the replay window as the clock advances. The relay uses the strict
+    ``SIGNATURE_MAX_AGE``; the tenant, which trusts the relay's verification, the wider
+    ``SIGNATURE_MAX_AGE_RELAY``.
     """
     parts = {}
     for part in (header or '').split(','):
@@ -192,7 +202,7 @@ def verify_signature(secret, raw, header, now):
     digest = hmac.new(secret.encode(), b'%d.' % timestamp + raw, hashlib.sha256).hexdigest()
     if not hmac.compare_digest(digest, signature):
         return False
-    return abs(now - timestamp) <= SIGNATURE_MAX_AGE
+    return abs(now - timestamp) <= max_age
 
 
 def authorize_url(config, state):

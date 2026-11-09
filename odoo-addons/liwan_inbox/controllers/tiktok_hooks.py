@@ -38,7 +38,8 @@ class TikTokHookController(http.Controller):
         signed = (
             bool(config) and bool(business_id)
             and tiktok.verify_signature(
-                config.client_secret, raw, request.httprequest.headers.get(tiktok.SIGNATURE_HEADER, ''), int(time.time()),
+                config.client_secret, raw, request.httprequest.headers.get(tiktok.SIGNATURE_HEADER, ''),
+                int(time.time()), max_age=tiktok.SIGNATURE_MAX_AGE_RELAY,
             )
         )
         channel = request.env['liwan.inbox.channel']

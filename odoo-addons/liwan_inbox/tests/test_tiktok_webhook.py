@@ -67,17 +67,27 @@ class TestTikTokWebhook(LiwanInboxCase):
         self.assertEqual(bad_signature.content, missing.content)
         self.assertFalse(self.events())
 
-    def test_the_signature_window_is_five_seconds(self):
-        self.assertError(self.post(tt.receive_text(), now=int(time.time()) - 6), 403, 'forbidden')
+    def test_the_tenant_window_accepts_a_delivery_the_relay_forwarded_late(self):
+        # The relay already verified the delivery with its own five-second window; the tenant is the
+        # second hop and trusts that verification, so a delivery 6-8s old (the forward alone may take
+        # ten) must still be accepted rather than refused as a replay by a second clock (A09-F4).
+        # Each delivery is its own message: the dedupe key stores each once, so all three are accepted.
+        for offset in (6, 8, 12):
+            with self.subTest(offset=offset):
+                self.assertEqual(self.post(tt.receive_text(message_id=f'msg-late-{offset}'), now=int(time.time()) - offset).status_code, 200)
+        self.assertEqual(len(self.events()), 3)
+
+    def test_the_tenant_still_refuses_a_delivery_beyond_its_relay_window(self):
+        self.assertError(self.post(tt.receive_text(), now=int(time.time()) - 31), 403, 'forbidden')
         self.assertFalse(self.events())
-        self.assertEqual(self.post(tt.receive_text(), now=int(time.time()) - 4).status_code, 200)
-        self.assertEqual(len(self.events()), 1)
 
     def test_a_delivery_replayed_to_the_tenant_is_stored_once(self):
-        # The dedupe key bounds a replay: the same signed delivery twice leaves one event and one side effect.
+        # The tenant's wider window is bounded by the event dedupe key: the same signed delivery twice
+        # leaves one event and one side effect, whatever the timestamp.
         raw = json.dumps(tt.receive_text()).encode()
-        self.assertEqual(self.post(None, raw=raw).status_code, 200)
-        self.assertEqual(self.post(None, raw=raw).status_code, 200)
+        now = int(time.time())
+        self.assertEqual(self.post(None, raw=raw, now=now - 8).status_code, 200)
+        self.assertEqual(self.post(None, raw=raw, now=now - 8).status_code, 200)
         self.assertEqual(len(self.events()), 1)
 
     def test_a_disabled_channel_receives_nothing(self):
