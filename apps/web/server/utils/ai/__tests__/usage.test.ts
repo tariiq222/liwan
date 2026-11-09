@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { H3Event } from 'h3'
 import { AiUsageBatchSchema } from '@liwan/contracts'
-import { createUsageLedger, retryPending } from '../usage'
+import { createUsageLedger } from '../usage'
 
 const odooJson = vi.hoisted(() => vi.fn())
 vi.mock('../upstream', async importOriginal => ({ ...await importOriginal<typeof import('../upstream')>(), odooJson }))
@@ -11,6 +11,8 @@ const usageEvent = (id: string, extra: Record<string, unknown> = {}) => ({ call_
 /** Each test reports as its own session, because the spool is per session and one test must never retry another's rows. */
 const ledgerEvent = (session: string) => ({ node: { req: { headers: { cookie: `session_id=${session}` } } } }) as unknown as H3Event
 const event = ledgerEvent('plain')
+/** A flush that observed nothing is the retry trigger for the rows an earlier refused report left behind. */
+const retried = (session: H3Event) => createUsageLedger().flush(session, 'r_retry')
 const sent = () => odooJson.mock.calls.map(([, , , options]) => options as { body: { items: Record<string, unknown>[] }; signal: unknown })
 const logged = (spy: { mock: { calls: unknown[][] } }) => spy.mock.calls.map(call => call[0])
 
@@ -75,7 +77,7 @@ describe('usage ledger', () => {
     expect(sent()[0]!.body.items.map(item => item.call_id)).toEqual(['0000000000000000', '0000000000000001'])
 
     advance(RETRY_AFTER_MS + 1)
-    await retryPending(session)
+    await retried(session)
     // The retry repeats the same attempts: Odoo answers success and records the two rows it already holds.
     expect(sent()[1]!.body.items.map(item => item.call_id)).toEqual(['0000000000000000', '0000000000000001'])
     expect(sent()[1]!.body.items).toEqual(sent()[0]!.body.items)
@@ -195,8 +197,8 @@ describe('usage spool', () => {
     expect(sent().map(conversations)).toEqual([['r_a'], ['r_b'], ['r_a', 'r_c']])
     expect(sent()[2]!.signal).toBeNull()
 
-    // Everything was accepted: the explicit retry has nothing left to report.
-    await retryPending(session)
+    // Everything was accepted: a flush that observed nothing has nothing left to report.
+    await retried(session)
     expect(sent()).toHaveLength(3)
   })
 
@@ -216,8 +218,8 @@ describe('usage spool', () => {
 
     // The rows survived their session: both are reported in full once a session may report again.
     advance(RETRY_AFTER_MS + 1)
-    await retryPending(timedOut)
-    await retryPending(ended)
+    await retried(timedOut)
+    await retried(ended)
     expect(sent().slice(2).map(call => call.body.items.length)).toEqual([2, 3])
     expect(sent().slice(2).flatMap(call => call.body.items).every(item => item.outcome === 'ok')).toBe(true)
   })
@@ -235,7 +237,7 @@ describe('usage spool', () => {
     advance(RETRY_AFTER_MS + 1)
     odooJson.mockResolvedValue({ status: 200, body: { items: [], total: 0 } })
     const before = sent().length
-    for (const session of sessions) await retryPending(session)
+    for (const session of sessions) await retried(session)
     const reported = sent().slice(before).flatMap(call => call.body.items)
     expect(reported).toHaveLength(2048)
     expect(sent().slice(before).every(call => call.body.items.length <= 64)).toBe(true)
@@ -264,7 +266,7 @@ describe('usage spool', () => {
     spy.mockClear()
     odooJson.mockResolvedValue({ status: 200, body: { items: [], total: 0 } })
     advance(RETRY_AFTER_MS + 1)
-    await retryPending(quiet)
+    await retried(quiet)
     expect(sent().at(-1)!.body.items.map(item => item.conversation_id)).toEqual(['r_quiet', 'r_quiet'])
     expect(spy).not.toHaveBeenCalled()
   })
@@ -281,7 +283,7 @@ describe('usage spool', () => {
 
     // Nothing was spooled, so no later session reports those rows as its own.
     advance(RETRY_AFTER_MS + 1)
-    await retryPending(ledgerEvent('someone-else'))
+    await retried(ledgerEvent('someone-else'))
     expect(odooJson).not.toHaveBeenCalled()
   })
 
@@ -292,7 +294,7 @@ describe('usage spool', () => {
     await ledgerOf(2).flush(session, 'r_aged')
     spy.mockClear()
     advance(60 * 60 * 1000 + 1)
-    await retryPending(session)
+    await retried(session)
     expect(logged(spy)).toEqual([expect.stringMatching(/^\[liwan-ai] expired \d+ usage rows unaccepted for 60 minutes: UsageSpoolExpired$/)])
     expect(odooJson).toHaveBeenCalledTimes(1)
     expect(JSON.stringify(spy.mock.calls)).not.toMatch(/openrouter|r_aged/)
@@ -309,7 +311,7 @@ describe('usage spool', () => {
     await ledgerOf(1, 1).flush(other, 'r_other')
     expect(sent().map(conversations)).toEqual([['r_mine'], ['r_other']])
 
-    await retryPending(mine)
+    await retried(mine)
     expect(sent().slice(2).map(conversations)).toEqual([['r_mine']])
   })
 

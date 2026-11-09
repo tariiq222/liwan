@@ -131,13 +131,12 @@ async function sendSpooled(event: H3Event, session: string): Promise<void> {
 const reporting = new Map<string, Promise<void>>()
 
 /**
- * Reports now what this request's session still holds and is due. Every `flush` calls it, which makes the next flush of any
- * ledger the retry trigger for rows an earlier refused report left behind once their retry window passed; the server bootstrap
- * or a maintenance call may use it on its own. A retry needs a request that still carries the reporting session's cookie (a usage
- * row is billed to the session that sends it), so no timer can do it alone. Serialized per session, and it never throws: a
- * failure stays spooled for the next attempt.
+ * Reports now what this request's session still holds and is due. Module-private: every `flush` calls it, so the next flush of
+ * any ledger is the retry trigger for rows an earlier refused report left behind once their retry window passed. A retry needs a
+ * request that still carries the reporting session's cookie (a usage row is billed to the session that sends it), so no timer
+ * can do it alone. Serialized per session, and it never throws: a failure stays spooled for the next attempt.
  */
-export function retryPending(event: H3Event): Promise<void> {
+function retryPending(event: H3Event): Promise<void> {
   const session = sessionKey(event)
   // A request with no session gives the rows no owner to be reported under, so it neither sends nor waits.
   if (!session) return Promise.resolve()
@@ -196,11 +195,10 @@ export function createUsageLedger() {
 
   /**
    * Hands this run's attempts to the process spool once per ledger, in order, then reports what the spool holds for this
-   * session. A batch Odoo refuses (a non-200, a timeout, a dead connection) stays spooled for the next flush of any ledger or an
-   * explicit `retryPending`, instead of dying with the session that observed it. A run whose request carried no session cookie
-   * has no owner for its rows: they are dropped and logged by count, never spooled under an empty key (issue #557). The call is
-   * shielded from the browser (`signal: null`) and runs after the browser stream closed, so a slow or failing report never
-   * holds the UI busy.
+   * session. A batch Odoo refuses (a non-200, a timeout, a dead connection) stays spooled for the next flush of any ledger,
+   * instead of dying with the session that observed it. A run whose request carried no session cookie has no owner for its
+   * rows: they are dropped and logged by count, never spooled under an empty key (issue #557). The call is shielded from the
+   * browser (`signal: null`) and runs after the browser stream closed, so a slow or failing report never holds the UI busy.
    *
    * Residual limit, stated rather than hidden: the report still runs as the user, so a session that ended mid-run (logout
    * elsewhere, revoked `ai.use`) is refused with 401/403. Those rows are never sent under another session, because Odoo would
