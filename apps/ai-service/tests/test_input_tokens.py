@@ -124,13 +124,18 @@ async def run_paused_on_a_read(client, policy):
     return events[0][1]["run_id"]
 
 
-async def test_a_ceiling_lowered_while_the_run_waited_stops_the_resumed_run():
-    """A ceiling set after the pause applies to the rest of the run: the tokens already spent are over it, so no call is made."""
+@pytest.mark.parametrize("cap", [1000, 0])
+async def test_a_ceiling_lowered_while_the_run_waited_stops_the_resumed_run(cap):
+    """A ceiling set after the pause applies to the rest of the run: the tokens already spent are over it, so no call is made.
+
+    Zero is that same refusal and not "unlimited" (the contract says null is no ceiling and 0 refuses even the first call);
+    Odoo sends null for a setting of 0, so a resume policy of 0 is a direct caller's ceiling of its own.
+    """
     client, model = make_client([PAUSED])
     async with client:
         run_id = await run_paused_on_a_read(client, {})
         resumed = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={
-            "call_id": "c_1", "policy": {**PLATFORM_POLICY, "max_input_tokens": 1000}, "result": ROWS,
+            "call_id": "c_1", "policy": {**PLATFORM_POLICY, "max_input_tokens": cap}, "result": ROWS,
         }, headers=HEADERS)).text)
         assert ("limit_reached", {"limit": "input_tokens"}) in resumed and resumed[-1][1] == {"status": "limit_reached"}
         assert len(model.calls) == 1  # the stale no-ceiling checkpoint does not spend another prompt
@@ -142,7 +147,8 @@ async def test_a_ceiling_raised_or_cleared_while_the_run_waited_lets_the_resumed
     """The ceiling is the resume policy's, not the checkpoint's.
 
     The run started under a 6000 ceiling, paused after spending 5000, and its next call spends 5000 more: under the
-    checkpointed 6000 the resumed run would stop at 10000, so only the raised (or cleared) ceiling lets it answer.
+    checkpointed 6000 the resumed run would stop at 10000, so only the raised (or cleared) ceiling lets it answer. A
+    cleared ceiling is null, never 0: 0 is a ceiling that refuses the next call (see the lowered case above).
     """
     client, model = make_client([PAUSED, ai_usage(ai_text("عندك مهمة واحدة"), 5000, 8)])
     async with client:

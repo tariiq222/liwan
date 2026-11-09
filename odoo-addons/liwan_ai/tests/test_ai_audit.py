@@ -49,6 +49,9 @@ def stamp_creator(env, record, user, created_at=None):
     the new values.
     """
     env.flush_all()
+    # Backdating a log-access column is not writable through the ORM (write() discards create_uid/create_date), so plain
+    # SQL on the record's own table is the only way, as liwan_crm/tests/test_crm_dashboard.py and
+    # liwan_finance/tests/test_finance_audit.py already do for create_date; test-only, never product code.
     env.cr.execute(
         f'UPDATE {record._table} SET create_uid = %s, create_date = %s WHERE id = %s',
         [user.id, created_at or fields.Datetime.now(), record.id],
