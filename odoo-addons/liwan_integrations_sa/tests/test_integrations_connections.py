@@ -23,6 +23,33 @@ class TestIntegrationConnections(LiwanIntegrationsCase):
             self.assertEqual(links.mapped('kind'), ['zatca'], company.name)
             self.assertEqual(links.state, 'not_configured')
 
+    def test_a_company_made_after_install_has_its_connection_rows_at_once(self):
+        # A9-F11: no upgrade step is needed for a company (or branch) created later; the create hook seeds it.
+        Connection = self.env['liwan.integration.connection']
+        company = self.env['res.company'].create({'name': 'Integrations company D'})
+        links = Connection.search([('company_id', '=', company.id)])
+        self.assertEqual(links.mapped('kind'), ['zatca'])
+        self.assertEqual(links.state, 'not_configured')
+        # The hook is idempotent: a second seeding pass adds nothing.
+        Connection._liwan_ensure_default_connections(company)
+        self.assertEqual(len(Connection.search([('company_id', '=', company.id)])), 1)
+
+    def test_the_new_company_seed_needs_no_integrations_capability(self):
+        # Core res.company.create admits only a Settings administrator (base.group_system), who does not
+        # necessarily hold integrations.manage; the seed must not depend on that capability, or a second
+        # company would still open an empty page.
+        creator = new_test_user(
+            self.env, login='integrations_creator', password='integrations_creator_pass_123',
+            name='Integrations creator', groups='base.group_system',
+        )
+        keys = self.env['liwan.access.service']._liwan_capability_keys(creator)
+        self.assertNotIn('integrations.manage', keys)
+        company = self.env['res.company'].with_user(creator).create({'name': 'Integrations company E'})
+        self.assertEqual(
+            self.env['liwan.integration.connection'].search([('company_id', '=', company.id)]).mapped('kind'),
+            ['zatca'],
+        )
+
     def test_admin_reads_the_whitelisted_shape(self):
         self.authenticate('integrations_admin', 'integrations_admin_pass_123')
         result = self.api('GET', '/api/v1/integrations/connections')
@@ -87,16 +114,23 @@ class TestIntegrationConnections(LiwanIntegrationsCase):
         self.admin.company_ids = [(4, other.id)]
         with self.assertRaises(AccessError), self.env.cr.savepoint():
             Connection.with_context(allowed_company_ids=[other.id])._liwan_set_connection_state(
-                other, 'zatca', 'ZATCA', 'pending', 'Membership grants no capability',
+                other, 'bank', 'Alinma', 'pending', 'Membership grants no capability',
             )
         self.env['liwan.access.assignment'].create({
             'user_id': self.admin.id, 'role_id': self.env.ref('liwan_core.role_system_admin').id,
             'company_id': other.id,
         })
-        created = Connection.with_context(allowed_company_ids=[other.id])._liwan_set_connection_state(
+        # The ZATCA row a new company already has is updated in place; a link of another kind is created.
+        seeded = Connection.with_context(allowed_company_ids=[other.id])._liwan_set_connection_state(
             other, 'zatca', 'ZATCA', 'pending', '1 of 2 journals',
         )
-        self.assertEqual((created.company_id, created.state, created.status_message), (other, 'pending', '1 of 2 journals'))
+        self.assertEqual(
+            (seeded.company_id, seeded.state, seeded.status_message), (other, 'pending', '1 of 2 journals'),
+        )
+        created = Connection.with_context(allowed_company_ids=[other.id])._liwan_set_connection_state(
+            other, 'bank', 'Alinma', 'connected', 'Sandbox ready',
+        )
+        self.assertEqual((created.company_id, created.kind, created.provider), (other, 'bank', 'Alinma'))
 
     def test_set_connection_state_adds_no_elevation(self):
         with self.assertRaises(AccessError):
