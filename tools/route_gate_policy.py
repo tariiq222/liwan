@@ -301,11 +301,25 @@ class Gates:
         if not readers:
             return None
         body = statement.body if isinstance(statement, ast.If) else [ast.Raise(exc=None)]
-        if isinstance(statement, ast.Assert) or any(_refuses(n) for stmt in body for n in ast.walk(stmt)):
-            constants = self.constants(func.path)
-            keys = [k for c in readers for k in (_literal_keys(c, constants) or self._reached_keys(c, func, local))]
-            return keys, 'all'
-        return None
+        if not (isinstance(statement, ast.Assert) or any(_refuses(n) for stmt in body for n in ast.walk(stmt))):
+            return None
+        # The refusal must depend on the reader alone. `if state in MANAGER_STATES and not
+        # can_approve(): raise` refuses for one state, not for the route's own call, so its key
+        # is not the route's requirement (issue #470 review). Keys stay empty; the gate stands.
+        if not _test_is_readers_only(statement.test, readers):
+            return [], 'all'
+        constants = self.constants(func.path)
+        keys: list[str] = []
+        for call in readers:
+            # A reader's own key is named in its arguments. `_liwan_can_manage()` matches the
+            # reader naming rule but takes no key of its own; its key is inside the reader it
+            # calls, so an argument-less call falls through to that resolution.
+            own = _literal_keys(call, constants)
+            found = own or self._reached_keys(call, func, local)
+            for key in found:
+                if key not in keys:
+                    keys.append(key)
+        return keys, 'all'
 
     def _reached_keys(self, call: ast.Call, func: Func, local: dict[str, str]) -> list[str]:
         """The keys of the gate a helper call reaches, for a controller that wraps its check.
@@ -332,6 +346,12 @@ class Gates:
             for key in self.function_keys(candidate):
                 if key not in keys:
                     keys.append(key)
+        if len(candidates) > 1 and len(keys) > 1:
+            # Several applications define the same helper, each naming its own capability
+            # (``_liwan_can_write`` is PMO's rule, overridden by Tasks for a personal task).
+            # The route needs one of them, not all: publishing them as a conjunctive
+            # requirement would be a rule the code never enforces (issue #470 review).
+            return []
         # A method on a service object (``convert._require('tasks.tasks.read')``) is also a
         # forwarding wrapper: the key is named at this call site, and the index does not type
         # the receiver to reach its definition.
@@ -488,6 +508,28 @@ def _unconditional_calls(expression: ast.expr):
 
 def _literal_keys(call: ast.Call, constants: dict[str, str | tuple[str, ...]] | None = None) -> list[str]:
     return [k for arg in call.args for k in const_strings(api_surface._unstar(arg), constants)]
+
+
+def _test_is_readers_only(test: ast.expr, readers: list[ast.Call]) -> bool:
+    """Whether ``test`` refuses on a reader alone, with no other condition deciding it.
+
+    ``if not can_approve(): raise`` is the reader's own verdict. ``if state in MANAGER_STATES
+    and not can_approve(): raise`` is a branch of a larger rule: the capability applies to some
+    inputs only, so publishing it as the route's requirement would be wrong (issue #470 review).
+    A boolean operator or a comparison in the test means the reader is one condition among
+    others, and the keys stay empty while the gate itself still counts.
+    """
+    if not readers:
+        return False
+    reader_ids = {id(call) for call in readers}
+    for node in ast.walk(test):
+        if isinstance(node, ast.Call):
+            if id(node) not in reader_ids:
+                return False
+            continue
+        if isinstance(node, (ast.BoolOp, ast.Compare)):
+            return False
+    return True
 
 
 def _refuses(node: ast.AST) -> bool:

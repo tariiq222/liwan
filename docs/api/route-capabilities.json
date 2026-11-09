@@ -629,10 +629,7 @@
     "DELETE /api/v1/tasks/{task_id}/attachments/{attachment_id}": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [
-        "pmo.tasks.write",
-        "tasks.tasks.write"
-      ],
+      "capability_keys": [],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -7463,10 +7460,7 @@
     "PATCH /api/v1/tasks/{task_id}": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [
-        "pmo.tasks.write",
-        "tasks.tasks.write"
-      ],
+      "capability_keys": [],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -12097,10 +12091,7 @@
     "POST /api/v1/tasks/{task_id}/attachments": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [
-        "pmo.tasks.write",
-        "tasks.tasks.write"
-      ],
+      "capability_keys": [],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -12124,9 +12115,7 @@
     "POST /api/v1/tasks/{task_id}/completion/accept": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [
-        "pmo.tasks.approve"
-      ],
+      "capability_keys": [],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -12162,10 +12151,7 @@
     "POST /api/v1/tasks/{task_id}/completion/withdraw": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [
-        "pmo.tasks.write",
-        "tasks.tasks.write"
-      ],
+      "capability_keys": [],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -12177,9 +12163,7 @@
     "POST /api/v1/tasks/{task_id}/transition": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [
-        "pmo.tasks.approve"
-      ],
+      "capability_keys": [],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [

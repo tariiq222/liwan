@@ -205,6 +205,66 @@ class TestHelperCapabilityKeys(unittest.TestCase):
         route = self.routes(source, models)['targets']
         self.assertEqual(route.capability_keys, ['tasks.tasks.read'])
 
+    def test_a_capability_from_a_conditional_branch_is_not_published(self):
+        """``if state in MANAGER_STATES and not can_approve(): raise`` is not the route's rule."""
+        source = (
+            "class P:\n"
+            "    @route('/api/v1/e', type='json2', auth='user', methods=['POST'], readonly=False)\n"
+            "    @api_handler\n"
+            "    @requires_feature('pmo.enabled')\n"
+            "    def transition(self, task_id):\n"
+            "        task = get_visible_record('project.task', task_id)\n"
+            "        return task._liwan_transition(DONE_STATE)\n"
+        )
+        models = {route_gate_policy.ADDONS / 'liwan_pmo' / 'models' / 'task_transitions.py': ast.parse(
+            "MANAGER_STATES = ('03_approved',)\n"
+            "DONE_STATE = '1_done'\n"
+            "class Task:\n"
+            "    _name = 'project.task'\n"
+            "    def _liwan_transition(self, state):\n"
+            "        self._liwan_check_transition_allowed(state)\n"
+            "    def _liwan_check_transition_allowed(self, state):\n"
+            "        if state in MANAGER_STATES and not self._liwan_can_approve():\n"
+            "            raise AccessError('no')\n"
+            "    def _liwan_can_approve(self):\n"
+            "        return self.env['liwan.access.service']._liwan_has_capability(self.env.user, 'pmo.tasks.approve')\n"
+        )}
+        route = self.routes(source, models)['transition']
+        self.assertTrue(route.has_capability, 'the refusal still counts as a gate')
+        self.assertEqual(route.capability_keys, [], 'a state-conditional check is not the route requirement')
+
+    def test_a_helper_with_two_implementations_publishes_no_conjunctive_key(self):
+        """Two addons overrode ``_liwan_can_write`` with different keys; the route needs one, not both."""
+        source = (
+            "class P:\n"
+            "    @route('/api/v1/f', type='json2', auth='user', methods=['PATCH'], readonly=False)\n"
+            "    @api_handler\n"
+            "    @requires_feature('pmo.enabled')\n"
+            "    def patch_task(self, task_id):\n"
+            "        task = get_visible_record('project.task', task_id)\n"
+            "        task._liwan_check_write()\n"
+            "        return {'ok': True}\n"
+        )
+        models = {
+            route_gate_policy.ADDONS / 'liwan_pmo' / 'models' / 'project_task.py': ast.parse(
+                "class Task:\n"
+                "    _name = 'project.task'\n"
+                "    def _liwan_check_write(self):\n"
+                "        if not self.env['liwan.access.service']._liwan_has_capability(self.env.user, 'pmo.tasks.write'):\n"
+                "            raise AccessError('no')\n"
+            ),
+            route_gate_policy.ADDONS / 'liwan_tasks_pmo' / 'models' / 'project_task_personal.py': ast.parse(
+                "class TaskPersonal:\n"
+                "    _inherit = 'project.task'\n"
+                "    def _liwan_check_write(self):\n"
+                "        if not self.env['liwan.access.service']._liwan_has_capability(self.env.user, 'tasks.tasks.write'):\n"
+                "            raise AccessError('no')\n"
+            ),
+        }
+        route = self.routes(source, models)['patch_task']
+        self.assertTrue(route.has_capability)
+        self.assertEqual(route.capability_keys, [], 'neither key alone is the requirement')
+
 
 class TestRoutePathResolution(unittest.TestCase):
     """A route path may be a literal, a module constant or an f-string over constants; nothing is dropped silently."""
