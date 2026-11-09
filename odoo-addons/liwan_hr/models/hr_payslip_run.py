@@ -140,6 +140,7 @@ class HrPayslipRun(models.Model):
         return super().write(vals)
 
     def unlink(self):
+        # Same superuser skip as the write: a migration environment may rewrite a month, a route may not.
         if not self.env.su and self.filtered(lambda run: not run._liwan_is_editable()):
             raise AccessError(self.env._('An approved payroll run cannot be deleted.'))
         return super().unlink()

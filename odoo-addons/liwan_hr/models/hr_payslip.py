@@ -93,6 +93,7 @@ class HrPayslip(models.Model):
             )
 
     def write(self, vals):
+        # Same superuser skip as the guard docstring records: migrations and maintenance run there by design.
         if not self.env.su:
             self._liwan_refuse_when_fixed()
         return super().write(vals)
