@@ -125,7 +125,12 @@ class LiwanCrmFollowup(models.AbstractModel):
 
     @api.model
     def _liwan_release_due_follow_ups(self, company, now):
-        """A due follow-up whose agent can no longer work goes back to the distribution."""
+        """A due follow-up whose agent can no longer work goes back to the distribution.
+
+        In manual mode no agent takes it, so nothing would ring: the opportunity would leave the bell's scope
+        (`user_id != False`) and wait unseen. The holders of ``crm.leads.assign`` are told instead, the same
+        ``crm.needs_manager`` bell the follow-up engine sends when attempts are exhausted.
+        """
         service = self.env['liwan.access.service']
         released = self._liwan_due_follow_ups(company, now).filtered(
             lambda lead: not lead.user_id.active or not service._liwan_has_capability(
@@ -136,6 +141,8 @@ class LiwanCrmFollowup(models.AbstractModel):
             with self._liwan_isolated(f'release of opportunity {lead.id}'):
                 lead._liwan_release_agent()
                 self.env['liwan.crm.distribution']._liwan_assign(lead)
+                if not lead.user_id:
+                    lead._liwan_notify_managers()
 
     @api.model
     def _liwan_ring_due_follow_ups(self, company, now):
