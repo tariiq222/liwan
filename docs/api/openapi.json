@@ -6596,6 +6596,30 @@
           "awaits_confirmation": {
             "type": "boolean"
           },
+          "cancel_reason_required": {
+            "type": "boolean"
+          },
+          "cancel_reasons": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
           "company_name": {
             "type": "string"
           },
@@ -6700,7 +6724,48 @@
           "last_bookable_date",
           "awaits_confirmation",
           "company_name",
+          "cancel_reason_required",
+          "cancel_reasons",
           "requester"
+        ],
+        "type": "object"
+      },
+      "AppointmentPublicCancelReasonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "AppointmentPublicCancelSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "access_token": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "reason_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "access_token"
         ],
         "type": "object"
       },
@@ -7142,8 +7207,7 @@
       "AppointmentSelfBookingPolicySchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
-          "invite_only",
-          "open"
+          "invite_only"
         ],
         "type": "string"
       },
@@ -7176,6 +7240,11 @@
           "horizon_days": {
             "maximum": 365,
             "minimum": 1,
+            "type": "integer"
+          },
+          "link_valid_days_after_end": {
+            "maximum": 3650,
+            "minimum": 0,
             "type": "integer"
           },
           "min_notice_hours": {
@@ -7239,8 +7308,7 @@
           },
           "self_booking_policy": {
             "enum": [
-              "invite_only",
-              "open"
+              "invite_only"
             ],
             "type": "string"
           },
@@ -7290,6 +7358,11 @@
           "horizon_days": {
             "maximum": 365,
             "minimum": 1,
+            "type": "integer"
+          },
+          "link_valid_days_after_end": {
+            "maximum": 3650,
+            "minimum": 0,
             "type": "integer"
           },
           "min_notice_hours": {
@@ -7364,8 +7437,7 @@
           },
           "self_booking_policy": {
             "enum": [
-              "invite_only",
-              "open"
+              "invite_only"
             ],
             "type": "string"
           },
@@ -7398,6 +7470,7 @@
           "walk_in_allowed",
           "visit_reason_field",
           "cancel_reason_required",
+          "link_valid_days_after_end",
           "reference_prefix",
           "sector_preset",
           "presets",
@@ -7430,6 +7503,17 @@
             },
             "type": "array"
           },
+          "next_date": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "total": {
             "maximum": 9007199254740991,
             "minimum": 0,
@@ -7438,7 +7522,8 @@
         },
         "required": [
           "items",
-          "total"
+          "total",
+          "next_date"
         ],
         "type": "object"
       },
@@ -7513,15 +7598,22 @@
               }
             ]
           },
-          "modifications_deadline_hours": {
-            "maximum": 720,
-            "minimum": 0,
-            "type": "integer"
-          },
           "name": {
             "maxLength": 255,
             "minLength": 1,
             "type": "string"
+          },
+          "own_deadline_hours": {
+            "anyOf": [
+              {
+                "maximum": 720,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "resource_calendar_id": {
             "exclusiveMinimum": 0,
@@ -7593,6 +7685,18 @@
                 "name": {
                   "type": "string"
                 },
+                "own_deadline_hours": {
+                  "anyOf": [
+                    {
+                      "maximum": 720,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "resource_calendar_id": {
                   "exclusiveMinimum": 0,
                   "maximum": 9007199254740991,
@@ -7616,6 +7720,7 @@
                 "duration_minutes",
                 "slot_minutes",
                 "modifications_deadline_hours",
+                "own_deadline_hours",
                 "location",
                 "videocall_location",
                 "resource_calendar_id",
@@ -7666,15 +7771,22 @@
               }
             ]
           },
-          "modifications_deadline_hours": {
-            "maximum": 720,
-            "minimum": 0,
-            "type": "integer"
-          },
           "name": {
             "maxLength": 255,
             "minLength": 1,
             "type": "string"
+          },
+          "own_deadline_hours": {
+            "anyOf": [
+              {
+                "maximum": 720,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "resource_calendar_id": {
             "exclusiveMinimum": 0,
@@ -7918,6 +8030,18 @@
           "name": {
             "type": "string"
           },
+          "own_deadline_hours": {
+            "anyOf": [
+              {
+                "maximum": 720,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "resource_calendar_id": {
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
@@ -7941,6 +8065,7 @@
           "duration_minutes",
           "slot_minutes",
           "modifications_deadline_hours",
+          "own_deadline_hours",
           "location",
           "videocall_location",
           "resource_calendar_id",
@@ -43838,6 +43963,142 @@
         ],
         "type": "object"
       },
+      "HrMyPayslipSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "company": {
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object"
+          },
+          "currency": {
+            "maxLength": 3,
+            "minLength": 3,
+            "type": "string"
+          },
+          "deductions": {
+            "type": "number"
+          },
+          "department": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "employee": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "gross": {
+            "type": "number"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "amount": {
+                  "type": "number"
+                },
+                "category": {
+                  "type": "string"
+                },
+                "code": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "name",
+                "category",
+                "amount"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "month": {
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "type": "string"
+          },
+          "net": {
+            "type": "number"
+          },
+          "number": {
+            "type": "string"
+          },
+          "paid_days": {
+            "type": "number"
+          },
+          "state": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "month",
+          "state",
+          "employee",
+          "department",
+          "paid_days",
+          "lines",
+          "gross",
+          "deductions",
+          "net",
+          "currency",
+          "company"
+        ],
+        "type": "object"
+      },
       "HrMyPayslipSummarySchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -44093,7 +44354,9 @@
                     "run_inputs_changed",
                     "run_approved",
                     "run_cancelled",
-                    "payment_file_generated"
+                    "payment_file_generated",
+                    "payslip_write_refused",
+                    "run_write_refused"
                   ],
                   "type": "string"
                 },
@@ -44209,7 +44472,9 @@
               "run_inputs_changed",
               "run_approved",
               "run_cancelled",
-              "payment_file_generated"
+              "payment_file_generated",
+              "payslip_write_refused",
+              "run_write_refused"
             ],
             "type": "string"
           },
@@ -141946,7 +142211,7 @@
           ],
           "feature_operation": "read",
           "handler": "get_booking",
-          "readonly": true,
+          "readonly": false,
           "route_type": "json2"
         }
       }
@@ -142106,7 +142371,7 @@
           ],
           "feature_operation": "read",
           "handler": "list_slots",
-          "readonly": true,
+          "readonly": false,
           "route_type": "json2"
         }
       }
