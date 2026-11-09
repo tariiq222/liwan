@@ -24,8 +24,8 @@ of `appointments.bookings.manage` in the current company may still schedule or c
 requester never may.
 
 The requester's link is a company policy, not an unbounded secret: it stays readable until
-`link_valid_days_after_end` days after the appointment ends (default 30), then every public route answers the same
-404 and no requester data is returned; a staff invitation refuses to hand out an expired link rather than
+`link_valid_days_after_end` days after the appointment ends (default 30), counted from the booking's creation while it
+still has no time, then every public route answers the same 404 and no requester data is returned; a staff invitation refuses to hand out an expired link rather than
 resurrect it. A public start must fall on the type's slot grid (a whole multiple of `slot_minutes` from the work
 day's beginning), and one token has its own minute read budget. Each slots answer names at most a month and lists
 at most 500 starts. With `cancel_reason_required` on, the requester's cancel takes a `reason_id` from the company's

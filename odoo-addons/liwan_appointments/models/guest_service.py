@@ -17,8 +17,8 @@ class LiwanAppointmentGuest(models.AbstractModel):
     the same not-found. The record comes back elevated and pinned to the booking's company, so what a
     public route reads and writes through it needs no further elevation; the routes decide what is shown.
     The link also stops being readable a company-configured number of days after the appointment ends
-    (``link_valid_days_after_end``, 30 by default), so a link that leaked into a screenshot or an archived
-    mail cannot keep showing the requester's phone and email for ever.
+    (``link_valid_days_after_end``, 30 by default), or after it was created while it still has no time, so a link that
+    leaked into a screenshot or an archived mail cannot keep showing the requester's phone and email for ever.
     """
 
     _name = 'liwan.appointment.guest'
@@ -64,17 +64,20 @@ class LiwanAppointmentGuest(models.AbstractModel):
 
     @api.model
     def _liwan_link_expired(self, booking, now):
-        """Whether the requester's link stopped being readable: ``now`` is later than ``booking.stop`` plus the company's
-        ``link_valid_days_after_end``.
+        """Whether the requester's link stopped being readable: ``now`` is later than the reference time plus the
+        company's ``link_valid_days_after_end``.
 
-        A booking that has no time yet has no end to count from, so its link stays readable until the company rotates it.
-        ``now`` is a naive UTC datetime like ``booking.stop``; ``booking`` may come from any environment, since the settings
-        it reads are narrowed to its own company.
+        The reference is the appointment's end, or, for a booking that has no time yet (a pending invitation nobody
+        scheduled), its creation: an invitation that was never used stops showing the requester's contact details
+        after the same policy instead of staying readable for ever.
+        ``now`` is a naive UTC datetime like ``booking.stop``; ``booking`` may come from any environment, since the
+        settings it reads are narrowed to its own company.
         """
-        if not booking.stop:
+        reference = booking.stop or booking.create_date
+        if not reference:
             return False
         settings = booking.env['liwan.appointment.settings'].search(
             [('company_id', '=', booking.type_id.company_id.id)], limit=1,
         )
         days = settings.link_valid_days_after_end if settings else DEFAULTS['link_valid_days_after_end']
-        return booking.stop < now - timedelta(days=days)
+        return reference < now - timedelta(days=days)

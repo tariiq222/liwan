@@ -75,7 +75,7 @@ class LiwanAppointmentSettings(models.Model):
     (ticket 14); ``cancel_reason_required`` binds the staff cancel route and the requester's. ``self_booking_policy``
     is ``invite_only`` only: no route implements a public self-booking page (issue #550).
     ``reference_prefix`` is read when a booking is created, and ``link_valid_days_after_end`` bounds how long the
-    requester's link stays readable after the appointment ends. Existing bookings are never changed. Applying a sector
+    requester's link stays readable after the appointment ends, or after the booking was created while it has no time. Existing bookings are never changed. Applying a sector
     preset writes ``sector_preset`` (the last applied preset) and every preset value in one save; a field sent with the
     preset overrides its value.
     """
@@ -101,7 +101,12 @@ class LiwanAppointmentSettings(models.Model):
     walk_in_allowed = fields.Boolean(default=DEFAULTS['walk_in_allowed'])
     visit_reason_field = fields.Selection(FIELD_REQUIREMENTS, required=True, default=DEFAULTS['visit_reason_field'])
     cancel_reason_required = fields.Boolean(default=DEFAULTS['cancel_reason_required'])
-    link_valid_days_after_end = fields.Integer(required=True, default=DEFAULTS['link_valid_days_after_end'])
+    link_valid_days_after_end = fields.Integer(
+        required=True, default=DEFAULTS['link_valid_days_after_end'],
+        string='Booking link validity (days)',
+        help='How many days after the appointment ends the requester\'s link stays readable. A booking that was invited '
+             'but never scheduled counts from its creation instead.',
+    )
     reference_prefix = fields.Char(required=True, default=DEFAULTS['reference_prefix'])
     sector_preset = fields.Selection(SECTOR_PRESETS, required=True, default='general')
     revision = fields.Integer(required=True, default=1)

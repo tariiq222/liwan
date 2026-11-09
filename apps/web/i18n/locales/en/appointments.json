@@ -103,7 +103,7 @@
         },
         "link_valid_days_after_end": {
           "label": "Booking link validity after the end (days)",
-          "hint": "This many days after the appointment ends, the link stops working and answers that the booking does not exist."
+          "hint": "This many days after the appointment ends, the link stops working and answers that the booking does not exist. A booking invited without a time counts from its creation."
         }
       },
       "requester": {

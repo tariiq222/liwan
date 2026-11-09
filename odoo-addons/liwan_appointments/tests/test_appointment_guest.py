@@ -395,6 +395,42 @@ class TestAppointmentGuest(LiwanAppointmentsCase):
         self.env.flush_all()
         self._error(self._call('GET', old), 404, 'not_found')
 
+    def _pending_at(self, created_days_ago):
+        """An invited booking that was never scheduled, created ``created_days_ago`` days ago."""
+        booking = self._invited(self.booking_type)
+        self.env.flush_all()
+        self.env.cr.execute(
+            'UPDATE resource_booking SET create_date = %s WHERE id = %s',
+            (datetime.now(UTC).replace(tzinfo=None) - timedelta(days=created_days_ago), booking.id),
+        )
+        booking.invalidate_recordset()
+        return booking
+
+    def test_a_booking_without_a_time_expires_from_its_creation(self):
+        """#542: an invitation nobody scheduled counts the validity from its creation, so it does not read for ever."""
+        self._settings(link_valid_days_after_end=30)
+        recent = self._pending_at(10)
+        old = self._pending_at(40)
+        self.assertFalse(recent.stop)
+        self.assertFalse(old.stop)
+        self.assertEqual(self._call('GET', recent).status_code, 200)
+        self._error(self._call('GET', old), 404, 'not_found')
+        self.assertEqual(self._call('GET', old, '/slots', **self._window(2, 9)).status_code, 404)
+        self._error(self._call('POST', old, '/schedule', start='2030-01-01T08:00:00Z'), 404, 'not_found')
+
+    def test_a_booking_without_a_time_keeps_reading_inside_its_validity(self):
+        """#542: the same policy decides, so a row created inside the window still reads and schedules."""
+        self._settings(link_valid_days_after_end=1, min_notice_hours=0)
+        self._always_open(self.booking_type, self.combination)
+        fresh = self._pending_at(0)
+        self.assertEqual(self._call('GET', fresh).status_code, 200)
+        slot = self._slots(fresh)[0]
+        self.assertEqual(self._schedule(fresh, slot).status_code, 200)
+        # Once scheduled the end of the appointment decides: a start inside the window keeps the link, one past it does not.
+        fresh.write({'start': datetime.now(UTC).replace(tzinfo=None) - timedelta(days=3)})
+        self.env.flush_all()
+        self._error(self._call('GET', fresh), 404, 'not_found')
+
     def test_the_invitation_refuses_a_link_whose_validity_ended(self):
         """#542: nothing resurrects an expired link, because the validity is a privacy window from the appointment's end.
         Staff who need to reach the requester raise the setting; the route says so instead of handing out a dead link."""

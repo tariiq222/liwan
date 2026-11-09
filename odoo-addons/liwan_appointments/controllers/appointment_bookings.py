@@ -209,7 +209,8 @@ class AppointmentBookingController(http.Controller):
 
         The answer is a path, not a URL: the browser that shows it knows the tenant's public origin. Sending it is not
         done here. A link past its read validity is not handed out again: the window is the company's privacy policy from
-        the appointment's end, so the route answers 422 and the manager raises ``link_valid_days_after_end`` instead.
+        the appointment's end, or from the booking's creation while it has no time, so the route answers 422 and the
+        manager raises ``link_valid_days_after_end`` instead.
         """
         reject_unknown(payload, ())
         booking = get_company_booking(booking_id)
