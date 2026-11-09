@@ -232,6 +232,7 @@ try {
   record('empty-registry edge fails closed', (await edge(`unknown.${domainSuffix}`, '/api/v1/me')).status === 403)
   if (commercial) {
     const readOrder = async id => {
+      assertRunning(worker)
       if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error('invalid test order id')
       const result = compose(['exec', '-T', 'control-db', 'psql', '-U', 'foundation', '-d', 'liwan_control_scratch_foundation', '-Atc',
         `SELECT row_to_json(r) FROM (SELECT o.payment_state,o.fulfillment_state,s.state,s.tenant_id,s.applied_revision_id,b.host,b.database_name,b.filestore FROM orders o
@@ -242,7 +243,11 @@ try {
     const tenant = await commercialJourney({ send, stepUp, version, readOrder, edge, controlOrigin: `http://127.0.0.1:${controlPort}`, mailOrigin, record })
     tenants.push(tenant)
     record('isolated restore services healthy', compose(['up', '--detach', '--no-build', '--pull', 'never', '--wait', '--wait-timeout', '300', 'restore-db', 'restore-odoo']).ok)
-    restored = await commercialRestoreJourney({ send, stepUp, compose, tenant, edge, record, domainSuffix })
+    const restoreRequest = (...args) => {
+      assertRunning(worker)
+      return send(...args)
+    }
+    restored = await commercialRestoreJourney({ send: restoreRequest, stepUp, compose, tenant, edge, record, domainSuffix })
   } else {
     const profiles = []
     const cookies = []

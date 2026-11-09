@@ -74,12 +74,14 @@ export async function commercialJourney({ send, stepUp, version, readOrder, edge
   await waitFor(async () => {
     const response = await fetch(new URL('/api/v1/messages', mailOrigin), { signal: AbortSignal.timeout(3000) })
     assert.equal(response.status, 200)
-    mail = (await response.json()).messages.find(message => message.To.some(to => to.Address === login))
+    mail = (await response.json()).messages.find(message => message.Subject.includes('Invitation to join') && message.To.some(to => to.Address === login))
     return Boolean(mail)
   }, 'first administrator invitation')
   const message = await fetch(new URL(`/api/v1/message/${mail.ID}`, mailOrigin), { signal: AbortSignal.timeout(3000) })
   assert.equal(message.status, 200)
-  const url = new URL((await message.json()).Text.match(/https:\/\/[^\s<>]+\/invite\/accept\?token=[A-Za-z0-9_-]+/u)?.[0] ?? '')
+  const invitationLink = (await message.json()).Text.match(/https:\/\/[^\s<>]+\/invite\/accept\?token=[A-Za-z0-9_-]+/u)?.[0]
+  assert.ok(invitationLink, 'captured invitation contains an acceptance link')
+  const url = new URL(invitationLink)
   assert.equal(url.origin, `https://${active.host}`)
   const token = url.searchParams.get('token')
   assert.ok(token)
@@ -102,7 +104,7 @@ export async function commercialJourney({ send, stepUp, version, readOrder, edge
   await waitFor(async () => {
     const response = await fetch(new URL('/api/v1/messages', mailOrigin), { signal: AbortSignal.timeout(3000) })
     assert.equal(response.status, 200)
-    const newest = (await response.json()).messages.find(item => item.ID !== mail.ID && item.To.some(to => to.Address === login))
+    const newest = (await response.json()).messages.find(item => item.Subject.includes('LiwanOS sign-in code') && item.To.some(to => to.Address === login))
     if (!newest) return false
     const result = await fetch(new URL(`/api/v1/message/${newest.ID}`, mailOrigin), { signal: AbortSignal.timeout(3000) })
     assert.equal(result.status, 200)
