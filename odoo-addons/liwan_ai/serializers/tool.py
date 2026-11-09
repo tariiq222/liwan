@@ -13,6 +13,8 @@ def dump_tool(item):
         'input_map': item.get('input_map') or {},
         'result_summary': list(item.get('result_summary') or []),
         'draft_target': item.get('draft_target'),
+        # The model an approved draft's record lives in: the server verifies the approval against it.
+        'draft_model': item.get('draft_model'),
         # A platform tool belongs to no agent (the knowledge search): every ordinary conversation offers it.
         'platform': bool(item.get('platform')),
         # A write always waits for the user (platform constant); a read waits only in the administrator's approval mode.

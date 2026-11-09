@@ -82,6 +82,8 @@ PROBE_TOOLS = (
         'capability': CREATE_CAP,
         'feature_key': PROBE_FEATURE,
         'draft_target': '/things/new',
+        # The model an approved draft's record lives in, which the audit verifies the approval against.
+        'draft_model': 'res.partner',
         'input_schema': {
             'type': 'object',
             'properties': {'name': {'type': 'string'}},

@@ -7,10 +7,15 @@ import { runLocale } from '../../../utils/ai/runLocale'
 import { assertRunnable, runPolicy } from '../../../utils/ai/policy'
 import { protectText } from '../../../utils/ai/outbound'
 import { conversationMode, runSession } from '../../../utils/ai/session'
+import { boundedTenantJson } from '../../../utils/tenantTransport'
+
+// One message (the contract allows 8000 characters) plus the run id and the page context around it: 64 KiB is generous,
+// and the body is refused with a 413 before it is parsed (issue #479).
+const MAX_BODY = 64 * 1024
 
 export default defineEventHandler(async (event) => {
   assertSameSiteJson(event)
-  const parsed = AiStartRequestSchema.safeParse(await readBody(event))
+  const parsed = AiStartRequestSchema.safeParse(await boundedTenantJson<Record<string, unknown>>(event, MAX_BODY))
   if (!parsed.success) throw createError({ statusCode: 422, data: { code: 'invalid', message: 'invalid request', field: String(parsed.error.issues[0]?.path[0] ?? 'body') } })
   const { message, run_id: continued, context, mode } = parsed.data
   // A continued conversation keeps the mode it started in, whatever the browser sends (Odoo refuses a mismatch anyway).
@@ -24,7 +29,7 @@ export default defineEventHandler(async (event) => {
   // This server names a new run, so its first `message` audit already carries the run id and the message is still counted before the service is reached.
   const runId = continued ?? `r_${randomBytes(12).toString('hex')}`
   // A setup or help message spends the vendor's assistance budget, never the package's messages; its audit kind is its mode.
-  await audit(event, { conversation_id: runId, kind: session.mode === 'assistant' ? 'message' : session.mode, tool_name: null, input: null, result: 'ok', http_status: null, draft: null, approved: null, attested: false })
+  await audit(event, { conversation_id: runId, kind: session.mode === 'assistant' ? 'message' : session.mode, tool_name: null, input: null, result: 'ok', http_status: null, draft: null, approved: null })
   const locale = runLocale(getCookie(event, 'liwan-locale'))
   const response = await serviceFetch(event, 'POST', '/v1/runs', session.owner, {
     tenant: session.owner.tenant, user_ref: session.owner.user, locale, message: outbound,

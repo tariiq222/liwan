@@ -19,7 +19,7 @@ READ_TOOL = {
     "route": {"method": "GET", "path": "/api/v1/tasks"},
     "input_map": {"query": {"filter": "mine", "limit": "$limit"}},
     "result_summary": ["items[].id", "items[].name", "total"],
-    "draft_target": None,
+    "draft_target": None, "draft_model": None,
 }
 DRAFT_TOOL = {
     "name": "pmo.draft_project",
@@ -29,7 +29,7 @@ DRAFT_TOOL = {
     "route": None,
     "input_map": {},
     "result_summary": [],
-    "draft_target": "/projects/new",
+    "draft_target": "/projects/new", "draft_model": "project.project",
 }
 
 
@@ -48,6 +48,7 @@ def test_run_request_accepts_the_contract_shape():
     assert [tool.name for tool in request.tools] == ["pmo.list_my_tasks", "pmo.draft_project"]
     assert request.tools[0].route.method == "GET"
     assert request.tools[1].draft_target == "/projects/new"
+    assert request.tools[1].draft_model == "project.project"
     assert request.limits.max_tool_calls == 8
 
 
@@ -58,11 +59,15 @@ def test_tool_kind_and_name_are_validated():
         ToolSpec.model_validate({**READ_TOOL, "name": "ListMyTasks"})
 
 
-def test_read_tool_needs_a_route_and_draft_needs_a_target():
+def test_read_tool_needs_a_route_and_draft_needs_a_target_and_a_model():
     with pytest.raises(ValidationError):
         ToolSpec.model_validate({**READ_TOOL, "route": None})
     with pytest.raises(ValidationError):
         ToolSpec.model_validate({**DRAFT_TOOL, "draft_target": None})
+    with pytest.raises(ValidationError):
+        ToolSpec.model_validate({**DRAFT_TOOL, "draft_model": None})
+    with pytest.raises(ValidationError):
+        ToolSpec.model_validate({**READ_TOOL, "draft_model": "project.project"})
 
 
 def test_locale_is_ar_or_en_and_message_is_bounded():
