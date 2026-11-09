@@ -551,7 +551,9 @@
     "DELETE /api/v1/projects/{project_id}/followers/{user_id}": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "pmo.projects.manage"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -563,7 +565,9 @@
     "DELETE /api/v1/projects/{project_id}/milestones/{mid}": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "pmo.projects.manage"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -599,7 +603,9 @@
     "DELETE /api/v1/projects/{project_id}/stages/{stage_id}": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "pmo.projects.manage"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -623,7 +629,10 @@
     "DELETE /api/v1/tasks/{task_id}/attachments/{attachment_id}": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "pmo.tasks.write",
+        "tasks.tasks.write"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -5568,7 +5577,9 @@
     "GET /api/v1/settings/projects": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "pmo.settings.manage"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -5580,7 +5591,9 @@
     "GET /api/v1/settings/projects/create-defaults": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "pmo.projects.create"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -7276,7 +7289,9 @@
     "PATCH /api/v1/projects/{project_id}": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "pmo.projects.manage"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -7331,7 +7346,9 @@
     "PATCH /api/v1/projects/{project_id}/milestones/{mid}": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "pmo.projects.manage"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -7379,7 +7396,9 @@
     "PATCH /api/v1/projects/{project_id}/stages/{stage_id}": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "pmo.projects.manage"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -7444,7 +7463,10 @@
     "PATCH /api/v1/tasks/{task_id}": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "pmo.tasks.write",
+        "tasks.tasks.write"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -11583,7 +11605,9 @@
     "POST /api/v1/projects": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "pmo.projects.create"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -11596,7 +11620,7 @@
       "addon": "liwan_pmo",
       "auth": "user",
       "capability_keys": [
-        "hr.employees.archive"
+        "pmo.projects.manage"
       ],
       "capability_match": "all",
       "capability_source": "body",
@@ -11790,7 +11814,9 @@
     "POST /api/v1/projects/{project_id}/followers": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "pmo.projects.manage"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -11802,7 +11828,9 @@
     "POST /api/v1/projects/{project_id}/milestones": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "pmo.projects.manage"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -11814,7 +11842,9 @@
     "POST /api/v1/projects/{project_id}/phase": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "pmo.projects.manage"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -11850,7 +11880,9 @@
     "POST /api/v1/projects/{project_id}/stages": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "pmo.projects.manage"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -11874,7 +11906,9 @@
     "POST /api/v1/projects/{project_id}/status": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "pmo.projects.manage"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -11887,7 +11921,7 @@
       "addon": "liwan_pmo",
       "auth": "user",
       "capability_keys": [
-        "hr.employees.archive"
+        "pmo.projects.manage"
       ],
       "capability_match": "all",
       "capability_source": "body",
@@ -11900,7 +11934,9 @@
     "POST /api/v1/projects/{project_id}/updates": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "pmo.projects.manage"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -12062,9 +12098,7 @@
     "POST /api/v1/tasks/{task_id}/archive": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [
-        "hr.employees.archive"
-      ],
+      "capability_keys": [],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -12076,7 +12110,10 @@
     "POST /api/v1/tasks/{task_id}/attachments": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "pmo.tasks.write",
+        "tasks.tasks.write"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -12100,7 +12137,9 @@
     "POST /api/v1/tasks/{task_id}/completion/accept": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "1_done"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -12136,7 +12175,10 @@
     "POST /api/v1/tasks/{task_id}/completion/withdraw": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "pmo.tasks.write",
+        "tasks.tasks.write"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -12148,7 +12190,9 @@
     "POST /api/v1/tasks/{task_id}/transition": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "pmo.tasks.approve"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [
@@ -12292,7 +12336,9 @@
     "PUT /api/v1/projects/{project_id}/stages/order": {
       "addon": "liwan_pmo",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "pmo.projects.manage"
+      ],
       "capability_match": "all",
       "capability_source": "body",
       "feature_keys": [

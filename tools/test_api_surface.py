@@ -98,6 +98,62 @@ class TestFeatureMetadata(unittest.TestCase):
         self.assertEqual(api_surface.feature_metadata(functions['r'], {}), ([], 'read'))
 
 
+class TestHelperCapabilityKeys(unittest.TestCase):
+    """A route gated through a helper publishes the key the helper enforces, and nothing from another app.
+
+    Review of issue #470: the archive helpers exist on several models, so an untyped receiver used
+    to publish HR's archive capability under a project route. These tests pin both halves: the
+    receiver's own reader call supplies a precise key, and an untypable receiver supplies none.
+    """
+
+    def routes(self, source, models=None):
+        path = route_gate_policy.ADDONS / 'liwan_hr' / 'controllers' / 'probe_keys.py'
+        trees = {path: ast.parse(source)}
+        return {r.handler: r for r in route_gate_policy.extract_routes(trees, models or {})}
+
+    def test_a_gate_through_a_helper_publishes_the_helpers_own_reader_key(self):
+        source = (
+            "class P:\n"
+            "    @route('/api/v1/a', type='json2', auth='user', methods=['POST'], readonly=False)\n"
+            "    @api_handler\n"
+            "    @requires_feature('pmo.enabled')\n"
+            "    def archive_thing(self):\n"
+            "        record = get_visible_record('project.project', 1)\n"
+            "        return record._liwan_archive()\n"
+        )
+        models = {route_gate_policy.ADDONS / 'liwan_pmo' / 'models' / 'project_project.py': ast.parse(
+            "class Project:\n"
+            "    _name = 'project.project'\n"
+            "    def _liwan_archive(self):\n"
+            "        self._liwan_check_manage()\n"
+            "    def _liwan_check_manage(self):\n"
+            "        if not self.env['liwan.access.service']._liwan_has_capability(self.env.user, 'pmo.projects.manage'):\n"
+            "            raise AccessError('no')\n"
+        )}
+        route = self.routes(source, models)['archive_thing']
+        self.assertTrue(route.has_capability)
+        self.assertEqual(route.capability_keys, ['pmo.projects.manage'])
+
+    def test_an_untypable_receiver_contributes_no_key_from_another_application(self):
+        source = (
+            "class P:\n"
+            "    @route('/api/v1/b', type='json2', auth='user', methods=['POST'], readonly=False)\n"
+            "    @api_handler\n"
+            "    @requires_feature('pmo.enabled')\n"
+            "    def archive_thing(self):\n"
+            "        return make_record()._liwan_archive()\n"
+        )
+        models = {route_gate_policy.ADDONS / 'liwan_hr' / 'models' / 'hr_employee.py': ast.parse(
+            "class Employee:\n"
+            "    _name = 'hr.employee'\n"
+            "    def _liwan_archive(self):\n"
+            "        self.env['liwan.access.service']._liwan_require_capability('hr.employees.archive')\n"
+        )}
+        route = self.routes(source, models)['archive_thing']
+        self.assertTrue(route.has_capability, 'the helper still counts as a gate')
+        self.assertEqual(route.capability_keys, [], 'but its key is not this route\'s requirement')
+
+
 class TestRoutePathResolution(unittest.TestCase):
     """A route path may be a literal, a module constant or an f-string over constants; nothing is dropped silently."""
 

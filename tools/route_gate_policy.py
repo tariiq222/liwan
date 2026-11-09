@@ -61,7 +61,7 @@ ORM_METHODS = frozenset({
 ORM_PREFIXES = ('action_', '_compute_', '_onchange_', '_inverse_', '_search_', '_cron')
 # Calls that keep the receiver's model: `request.env['x'].sudo().m()` is still model x.
 RECEIVER_PASSTHROUGH = frozenset({'sudo', 'with_context', 'with_user', 'with_company', 'with_env', 'browse', 'exists'})
-RECORD_GETTERS = frozenset({'get_record'})
+RECORD_GETTERS = frozenset({'get_record', 'get_visible_record'})
 CONSTANT_NAME = re.compile(r'[A-Z][A-Z0-9_]*')
 # Decorator order, outermost first; a decorator not listed is unconstrained.
 DECORATOR_ORDER = (('route',), ('api_handler',), FEATURE_DECORATORS, (CAPABILITY_DECORATOR,))
@@ -301,7 +301,13 @@ class Gates:
         ``self._require_manage()`` carries no key of its own; the capability it enforces is
         named in the function it calls. Reading that keeps the documented matrix equal to the
         gate the controller applies (issue #470), and an unresolvable chain stays empty.
+
+        An untyped receiver (a helper called on a record expression whose model the index cannot
+        tell) publishes no key: the same method name exists on several models, and taking every
+        definition's key would present another application's requirement as this route's.
         """
+        if self._ambiguous(call, func, local):
+            return []
         candidates, _ = self._candidates(call, func, local)
         keys: list[str] = []
         for candidate in candidates:
@@ -314,8 +320,29 @@ class Gates:
         key = id(func.node)
         if key not in self._key_memo:
             self._key_memo[key] = []
-            self._key_memo[key] = self.scan(func)[1]
+            keys = self.scan(func)[1]
+            if not keys:
+                keys = self._reader_keys(func)
+            self._key_memo[key] = keys
         return self._key_memo[key]
+
+    def _reader_keys(self, func: Func) -> list[str]:
+        """The literal keys of the capability readers a gate function calls itself.
+
+        ``_liwan_can_manage`` answers a boolean and names its key inside the reader call
+        (``_liwan_has_capability(user, 'pmo.projects.manage')``), so a route gated through it
+        has a precise requirement without looking at any other model (issue #470 review).
+        """
+        constants = self.constants(func.path)
+        keys: list[str] = []
+        local = _local_models(func.node)
+        for call in _calls(func.node):
+            if not self._is_reader_call(call, func, local):
+                continue
+            for key in _literal_keys(call, constants):
+                if key not in keys:
+                    keys.append(key)
+        return keys
 
     def _is_reader_call(self, call: ast.Call, func: Func, local: dict[str, str]) -> bool:
         """A reader by name, or a resolved function that calls one directly."""
@@ -360,6 +387,21 @@ class Gates:
         if name.startswith('_liwan_'):  # a record of unknown model: LiwanOS's own names, if any definition gates
             return [f for methods in self.index.by_model.values() for f in methods.get(name, [])], False
         return [], False
+
+    def _ambiguous(self, call: ast.Call, func: Func, local: dict[str, str]) -> bool:
+        """Whether a call's receiver cannot be typed, so its keys say nothing about this route.
+
+        ``get_visible_record(...)._liwan_archive()`` names a helper that several applications
+        define; taking the gate from every definition would publish another application's
+        capability (HR's archive key under a PMO route). Such a call still counts as a gate —
+        the helper does refuse — but it contributes no key to the matrix (issue #470 review).
+        """
+        if not isinstance(call.func, ast.Attribute):
+            return False
+        receiver = call.func.value
+        if isinstance(receiver, ast.Name) and receiver.id in ('self', 'cls'):
+            return False
+        return _receiver_model(receiver, local) is None and call_name(call).startswith('_liwan_')
 
 
 def _top_level(body: list[ast.stmt]):
