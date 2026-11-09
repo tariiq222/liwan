@@ -7,7 +7,8 @@ test.skip(process.env.E2E_PROJECT_POPUPS !== '1', MOCK_STACK_ONLY)
 // The invited requester's booking page against appointments-mock-routes.mjs. The page is public: these tests never sign in.
 // The mock serves bookings 1 (pending), 2 (scheduled, the company asks the requester to confirm), 3 (confirmed), 4 (confirmed
 // and past its change deadline), 6 (pending, one slot is taken when chosen), 7 (no free slot in the first week) and
-// 8 (pending, the company asks the requester to confirm), all with the access token `tok-<id>`; booking 5 answers 429.
+// 8 (pending, the company asks the requester to confirm) and 9 (confirmed, the company requires a cancel reason), all with
+// the access token `tok-<id>`; booking 5 answers 429.
 // Slots are 07:00Z, 07:30Z and 09:00Z on every day from tomorrow, which read 10:00, 10:30 and 12:00 in Riyadh.
 test.use({ timezoneId: 'Asia/Riyadh' })
 
@@ -179,6 +180,19 @@ test.describe('the booking page', () => {
     await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
     await expect(page.getByTestId('book-canceled')).toBeVisible()
     expect(reads).toEqual([])
+  })
+
+  test('a company that requires a cancel reason lists them and refuses a cancel without one', async ({ page }) => {
+    await page.goto(BOOK(9))
+    await expect(page.getByTestId('book-cancel')).toBeVisible()
+    await page.getByTestId('book-cancel').click()
+    await expect(page.getByTestId('book-cancel-reason')).toBeVisible()
+    // The confirm action waits for a reason: it cannot cancel without one.
+    await expect(page.getByTestId('inline-confirm-action')).toBeDisabled()
+    await page.getByRole('radio', { name: 'تغيّر ظرفي' }).click()
+    await expect(page.getByTestId('inline-confirm-action')).toBeEnabled()
+    await page.getByTestId('inline-confirm-action').click()
+    await expect(page.getByTestId('book-canceled')).toContainText('تم إلغاء الموعد')
   })
 
   test('a booking past its change deadline says why and offers no action', async ({ page }) => {

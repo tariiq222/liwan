@@ -6,7 +6,7 @@ import { requireApiSession } from '../../../utils/apiSessionAdmission'
 import { canonicalApiPath } from '../../../utils/apiPath'
 import { heavyRouteKind } from '../../../utils/heavyRoutes'
 import { HEAVY_TIMEOUT } from '../../../utils/upstreamDeadlines'
-import { forwardPublicApi, isPublicApiPath, MAX_PUBLIC_API_BODY, PUBLIC_API_METHODS, PUBLIC_API_NAMESPACE_METHODS, PUBLIC_BODY_LIMITS } from '../../../utils/publicApi'
+import { forwardPublicApi, isBookingApiPath, isPublicApiPath, MAX_PUBLIC_API_BODY, PUBLIC_API_METHODS, PUBLIC_API_NAMESPACE_METHODS, PUBLIC_BODY_LIMITS } from '../../../utils/publicApi'
 
 // Routes only this server may call (Nuxt writes them to Odoo directly, never through this proxy): a browser must not forge them.
 // The provider usage ledger is one: its rows come from the AI service's own stream.
@@ -50,11 +50,13 @@ export default defineEventHandler(async (event) => {
     })
   }
   // Body credits are separate from Odoo work slots and retained through dispatch.
-  // Public routes skip session admission, so they draw on the separate public pool.
+  // Public routes skip session admission, so they draw on their own pool: the booking-link
+  // routes on `booking`, the rest of the public surface on `public`, so neither can starve the
+  // other nor sign-in.
   // Allowlisted heavy routes (never public) get their own pool, a longer deadline and, for writes, a write gate.
   const heavyKind = publicMethods ? null : heavyRouteKind(event.method, apiPath)
   const heavy = heavyKind ? { timeoutMs: HEAVY_TIMEOUT, write: heavyKind === 'write' } : undefined
-  const scope = publicMethods ? 'public' : heavy ? 'heavy' : 'session'
+  const scope = publicMethods ? (isBookingApiPath(apiPath) ? 'booking' : 'public') : heavy ? 'heavy' : 'session'
   return withTenantBody(event, scope, async () => {
     const body = await boundedTenantBody(event, PUBLIC_BODY_LIMITS.get(apiPath) ?? (publicNamespace ? MAX_PUBLIC_API_BODY : undefined))
     if (publicNamespace) return withTenantResponse(event, scope, async () => sendWebResponse(event, await forwardPublicApi(event, odooUrl, path, { method: event.method, body })))

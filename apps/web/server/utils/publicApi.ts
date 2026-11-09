@@ -12,6 +12,9 @@ import { withUiLocale } from './uiLocale'
  */
 export const PUBLIC_API_NAMESPACE = '/api/v1/public/'
 export const PUBLIC_API_NAMESPACE_METHODS = ['GET', 'HEAD', 'POST'] as const
+/** The invited requester's booking-link routes: the one public surface a visitor can open on a page that retries,
+ * so they take their own admission pool instead of the shared public one (sign-in must never queue behind them). */
+export const BOOKING_API_PREFIX = '/api/v1/public/appointments/'
 /** Public JSON bodies are small forms: a token and a few ids. */
 export const MAX_PUBLIC_API_BODY = 16 * 1024
 
@@ -39,6 +42,11 @@ export const PUBLIC_BODY_LIMITS = new Map<string, number>([
 
 export function isPublicApiPath(apiPath: string): boolean {
   return apiPath.startsWith(PUBLIC_API_NAMESPACE)
+}
+
+/** Whether a public path is one of the invited requester's booking-link routes, which draw on the `booking` pool. */
+export function isBookingApiPath(apiPath: string): boolean {
+  return apiPath.startsWith(BOOKING_API_PREFIX)
 }
 
 /** Forward one public request to Odoo with no cookie either way. `path` is canonical and may carry a query. */

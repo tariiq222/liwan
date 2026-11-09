@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events'
 import { afterEach, expect, it } from 'vitest'
 import type { H3Event } from 'h3'
+import { POOL_LIMITS } from '../bufferAdmission.mjs'
 import { withTenantBody, withTenantResponse, type AdmissionScope } from '../tenantTransport'
 
 const gates: Array<() => void> = []
@@ -28,12 +29,18 @@ function hold(scope: AdmissionScope, kind: 'body' | 'response' = 'body') {
   return { inside, done }
 }
 const settledWithin = (promise: Promise<unknown>) => Promise.race([promise.then(() => true), new Promise<boolean>(resolve => setTimeout(() => resolve(false), 200))])
+/** Fill a pool to its limit (and its queue) so the next caller of it is refused. */
+async function saturate(scope: AdmissionScope) {
+  const { active, queued } = POOL_LIMITS[scope]
+  const saturated = Array.from({ length: active + queued }, () => hold(scope))
+  await Promise.all(saturated.slice(0, active).map(holder => holder.inside))
+  // Every credit and queue place is taken: further work of this scope is refused, not queued.
+  await expect(withTenantBody(event(), scope, async () => {})).rejects.toMatchObject({ statusCode: 502 })
+  return saturated
+}
 
 it('lets authenticated bodies and responses proceed while the public pool is saturated', async () => {
-  const publicHolders = Array.from({ length: 2 + 16 }, () => hold('public'))
-  await Promise.all(publicHolders.slice(0, 2).map(holder => holder.inside))
-  // Public pool is full (2 active, 16 queued): further public work is refused, not queued.
-  await expect(withTenantBody(event(), 'public', async () => {})).rejects.toMatchObject({ statusCode: 502 })
+  await saturate('public')
   for (const kind of ['body', 'response'] as const) {
     const authenticated = hold('session', kind)
     expect(await settledWithin(authenticated.inside)).toBe(true)
@@ -41,20 +48,24 @@ it('lets authenticated bodies and responses proceed while the public pool is sat
 })
 
 it('lets public traffic proceed while the authenticated pool is saturated', async () => {
-  const sessionHolders = Array.from({ length: 4 + 64 }, () => hold('session'))
-  await Promise.all(sessionHolders.slice(0, 4).map(holder => holder.inside))
-  await expect(withTenantBody(event(), 'session', async () => {})).rejects.toMatchObject({ statusCode: 502 })
+  await saturate('session')
+  for (const scope of ['public', 'booking'] as const) {
+    for (const kind of ['body', 'response'] as const) {
+      expect(await settledWithin(hold(scope, kind).inside)).toBe(true)
+    }
+  }
+})
+
+it('lets sign-in proceed while the booking pool is saturated, and the reverse', async () => {
+  // A full booking pool (two visitors on a booking page) never queues a sign-in call.
+  await saturate('booking')
   for (const kind of ['body', 'response'] as const) {
-    const publicRequest = hold('public', kind)
-    expect(await settledWithin(publicRequest.inside)).toBe(true)
+    expect(await settledWithin(hold('public', kind).inside)).toBe(true)
   }
 })
 
 it('lets session and public traffic proceed while the heavy pool is saturated', async () => {
-  const heavyHolders = Array.from({ length: 2 + 8 }, () => hold('heavy'))
-  await Promise.all(heavyHolders.slice(0, 2).map(holder => holder.inside))
-  // Heavy pool is full (2 active, 8 queued): further heavy work is refused, not queued.
-  await expect(withTenantBody(event(), 'heavy', async () => {})).rejects.toMatchObject({ statusCode: 502 })
+  await saturate('heavy')
   for (const scope of ['session', 'public'] as const) {
     for (const kind of ['body', 'response'] as const) {
       expect(await settledWithin(hold(scope, kind).inside)).toBe(true)
@@ -63,9 +74,7 @@ it('lets session and public traffic proceed while the heavy pool is saturated', 
 })
 
 it('lets heavy traffic proceed while the session pool is saturated', async () => {
-  const sessionHolders = Array.from({ length: 4 + 64 }, () => hold('session'))
-  await Promise.all(sessionHolders.slice(0, 4).map(holder => holder.inside))
-  await expect(withTenantBody(event(), 'session', async () => {})).rejects.toMatchObject({ statusCode: 502 })
+  await saturate('session')
   for (const kind of ['body', 'response'] as const) {
     expect(await settledWithin(hold('heavy', kind).inside)).toBe(true)
   }

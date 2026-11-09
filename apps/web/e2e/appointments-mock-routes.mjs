@@ -31,6 +31,8 @@ const booking = (id, extra = {}) => ({
   stop: null,
   is_modifiable: true,
   company_name: 'ليوان',
+  cancel_reason_required: false,
+  cancel_reasons: [],
   requester: { name: 'سارة العتيبي', phone: '+966500000009', email: 'sara@example.com' },
   ...extra,
 })
@@ -38,6 +40,8 @@ const scheduled = (state, extra = {}) => {
   const start = stamp(dayString(3), '07:00:00Z')
   return { state, start, stop: addMinutes(start, SLOT_MINUTES), ...extra }
 }
+// The reasons a company that requires one offers on its requester page.
+const CANCEL_REASONS = [{ id: 41, name: 'لم أعد بحاجة للموعد' }, { id: 42, name: 'تغيّر ظرفي' }]
 const freshBookings = () => new Map([
   [1, booking(1)],
   [2, booking(2, scheduled('scheduled'))],
@@ -46,6 +50,7 @@ const freshBookings = () => new Map([
   [6, booking(6)],
   [7, booking(7)],
   [8, booking(8)],
+  [9, booking(9, { ...scheduled('confirmed'), cancel_reason_required: true, cancel_reasons: CANCEL_REASONS })],
 ])
 // The bookings of the company that asks the requester to confirm.
 const ASKS_TO_CONFIRM = new Set([2, 8])
@@ -112,8 +117,9 @@ function confirm(found) {
   return { status: 200, body: dump(next) }
 }
 
-function cancel(found) {
+function cancel(found, body) {
   if (!found.is_modifiable) return refusal(422, 'invalid', 'the change deadline has passed')
+  if (found.cancel_reason_required && !CANCEL_REASONS.some(reason => reason.id === body.reason_id)) return refusal(422, 'invalid', 'field is required', 'reason_id')
   canceled.add(found.id)
   return { status: 200, body: dump({ ...found, state: 'canceled' }) }
 }
@@ -144,7 +150,7 @@ export async function handlePublicAppointments(req, res, path, url, { json, read
       slots: () => listSlots(id, url.searchParams),
       schedule: () => schedule(found.found, body),
       confirm: () => confirm(found.found),
-      cancel: () => cancel(found.found),
+      cancel: () => cancel(found.found, body),
     }[action]())
   json(res, answer.status, answer.body)
   return true
