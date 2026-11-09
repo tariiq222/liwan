@@ -134,6 +134,10 @@ function assertWorker() {
   if (worker?.startError) throw worker.startError
   assert.ok(worker?.pid && worker.exitCode === null && worker.signalCode === null, 'shared worker must be running')
 }
+function workerTicks() {
+  assertWorker()
+  return [...readFileSync(join(evidenceDir, `worker-${launch}.log`), 'utf8').matchAll(/"event":"commercial_scheduler_tick"/gu)].length
+}
 async function killWorker() {
   if (!worker) return
   const child = worker
@@ -256,7 +260,31 @@ async function interruptAt(stage) {
     await pool.query('DROP TRIGGER IF EXISTS e12_order_gate ON orders')
   }
 
-  startWorker()
+  if (stage === 'applying') {
+    // An operator pause must still hold after expiry of an unstarted claim.
+    await pool.query('UPDATE tenants SET operations_enabled=false WHERE id=$1', [tenant.id])
+    try {
+      startWorker()
+      await observe(async () => {
+        assertWorker()
+        return (await control(order.id)).job_state === 'needs_intervention'
+      }, 'lease expiry while tenant operations are paused', 165_000)
+      const ticksAtExpiry = workerTicks()
+      await observe(() => workerTicks() > ticksAtExpiry, 'a full reconciliation tick while the tenant remains paused')
+      const paused = await control(order.id)
+      assert.equal(paused.job_state, 'needs_intervention')
+      assert.equal(paused.expired_attempts, 1)
+      assert.equal(paused.attempt_id, cut.attempt_id)
+      assert.equal(paused.fulfillment_state, 'queued')
+      assert.equal(paused.receipt, null)
+      assert.deepEqual(physical(), before)
+      record('expired claim left the paused tenant unchanged', { control: paused, physical: before })
+    } finally {
+      await pool.query('UPDATE tenants SET operations_enabled=true WHERE id=$1', [tenant.id])
+    }
+  } else {
+    startWorker()
+  }
   const recovered = await waitForApplied(order.id)
   assert.notEqual(recovered.attempt_id, cut.attempt_id)
   assert.ok(recovered.fence > cut.fence)
@@ -327,13 +355,14 @@ async function checkCompensation() {
     })
     assert.deepEqual(physical(), before)
     await killWorker()
+    // Model a separate crash gap before the refusal journal is persisted.
+    // Keep the already committed failed order and credit note intact.
+    await pool.query('UPDATE shared_jobs SET journal=NULL WHERE id=$1', [failed.job_id])
+    const missingJournal = await control(order.id)
     startWorker()
-    await observe(() => {
-      assertWorker()
-      return readFileSync(join(evidenceDir, `worker-${launch}.log`), 'utf8').includes('commercial_scheduler_tick')
-    }, 'shared worker completed a reconciliation tick after compensation')
+    await observe(() => workerTicks() > 0, 'shared worker completed a reconciliation tick after compensation')
     assert.equal((await deliver()).outcome, 'duplicate')
-    assert.deepEqual(await control(order.id), failed)
+    assert.deepEqual(await control(order.id), missingJournal)
     assert.deepEqual(physical(), before)
     record('paid rollback left exactly one full pending credit note after restart and redelivery', { credit, control: failed, physical: before })
   } finally {

@@ -23,11 +23,15 @@ because it waits for the two real worker leases.
   before sending SIGKILL. It compares the physical row version, receipt and
   billing after recovery and simulator redelivery.
 - A second paid change pauses before `applying`. Odoo still carries the prior
-  policy when the worker is killed. The restarted worker must recover the same
-  operation, write one policy revision and commit one receipt.
+  policy when the worker is killed. The restarted worker must honor an
+  operator pause through lease expiry. Once operations are re-enabled, it
+  must recover the same operation, write one policy revision and commit one
+  receipt.
 - A final paid change deliberately rolls back its target Odoo write. The test
   requires one full pending credit note and no successful application after
-  restarting the worker and redelivering the simulated payment.
+  restarting the worker and redelivering the simulated payment. The restart
+  uses a deliberately missing journal to check that the already committed
+  failed order is never sent back to Odoo.
 
 The tool stops the shared worker and its Compose services and keeps the
 databases and private evidence. Find `result.json` and worker logs in the
