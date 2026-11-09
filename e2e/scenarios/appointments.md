@@ -37,9 +37,11 @@ Capability note: `appointments.bookings.read` is held by every employee, `write`
 (`appointments_manager`) holds all three; vendor support holds all three. `system_admin` holds none by
 itself. The feature switch is `appointments.enabled`.
 
-Error note: API errors quoted below are the server messages. Feature off answers 403
-`feature_not_included` «this feature is not included»; a read-only or suspended tenant answers 403
-`tenant_read_only` or `tenant_suspended` on writes.
+Error note: API errors quoted below are the server messages, always in the `{code, message}` envelope with a real
+status. Feature off answers 403 `feature_not_included` «this feature is not included»; a read-only or suspended tenant
+answers 403 `tenant_read_only` or `tenant_suspended` on writes; a public booking token past its minute read budget
+answers 429 `rate_limited` «too many requests for this link; wait a minute» on every route it opens, rather than the 422
+of a validation.
 
 ## Appointment types page
 

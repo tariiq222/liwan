@@ -141,6 +141,33 @@ class TestAppointmentGuest(LiwanAppointmentsCase):
         self._error(self._call('GET', self.invited, token=foreign.access_token), 404, 'not_found')
         self._error(self._call('POST', foreign, '/cancel'), 404, 'not_found')
 
+    def test_every_public_route_of_another_company_tree_is_the_same_404(self):
+        """#547 acceptance: no route of a booking outside the tenant answers anything but the shared 404, setup included."""
+        _other, foreign_type, _combination, _booking = self._foreign_company_records()
+        foreign = self._invited(foreign_type)
+        # The foreign company has settings of its own; reading them is part of the slots, schedule and cancel setup, so a
+        # refusal that came after them would fail differently (a 403 from the settings record rule) or leak the policy.
+        self.env['liwan.appointment.settings'].create({
+            'company_id': foreign_type.company_id.id, 'cancel_reason_required': True, 'min_notice_hours': 0,
+        })
+        self.env.flush_all()
+        messages = set()
+        for method, suffix, extra in (
+            ('GET', '', {}),
+            ('GET', '/slots', self._window()),
+            ('POST', '/schedule', {'start': '2030-01-01T08:00:00Z'}),
+            ('POST', '/confirm', {}),
+            ('POST', '/cancel', {}),
+        ):
+            with self.subTest(suffix=suffix):
+                response = self._call(method, foreign, suffix, **extra)
+                self._error(response, 404, 'not_found')
+                messages.add(response.json()['message'])
+                self.assertNotIn('set-cookie', {key.lower() for key in response.headers})
+        self.assertEqual(len(messages), 1, messages)
+        # A token of this tenant's booking does not unlock the foreign id either.
+        self._error(self._call('GET', foreign, token=self.invited.access_token), 404, 'not_found')
+
     def test_a_closed_feature_refuses_every_route(self):
         set_probe_feature(self, key='appointments.enabled', enabled=False)
         for method, suffix, extra in (
@@ -207,6 +234,13 @@ class TestAppointmentGuest(LiwanAppointmentsCase):
             self.assertEqual(self._call('GET', self.invited, '/slots', **window).status_code, 200)
         refused = self._call('GET', self.invited, '/slots', **window)
         self.assertEqual((refused.status_code, refused.json()['code']), (429, 'rate_limited'), refused.text)
+        # The refusal keeps the contract envelope, not the 422 of a validation, so a client retries instead of fixing input.
+        self.assertEqual(set(refused.json()), {'code', 'message'})
+        self.assertIsInstance(refused.json()['message'], str)
+        self.assertTrue(refused.json()['message'])
+        # The budget is the token's own, on every route it opens: a write past it is the same 429, not a 422 about the body.
+        self._error(self._call('POST', self.invited, '/cancel'), 429, 'rate_limited')
+        self.assertEqual(self.invited.state, 'pending')
         # Another booking's token is untouched by the first one's spending.
         other = self._invited(self.booking_type)
         self.assertEqual(self._call('GET', other, '/slots', **window).status_code, 200)
@@ -449,7 +483,7 @@ class TestAppointmentGuest(LiwanAppointmentsCase):
         self.logout()
         self.assertEqual(self._call('GET', old, token=token).status_code, 200)
 
-    # --- cancel reason (#548) ---
+    # --- cancel reason (#549) ---
 
     def test_a_cancel_requires_the_reason_the_company_asks_for(self):
         self._settings(cancel_reason_required=True)
