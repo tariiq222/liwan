@@ -134,6 +134,7 @@ class TestAppointmentSettings(LiwanAppointmentsCase):
             self.assertNotIn('reference_prefix', values, preset)
 
     def test_a_new_type_defaults_from_the_company_settings(self):
+        """#551: the slot length is the type's default; the deadline is inherited, never copied."""
         types = self.env['resource.booking.type']
         without = types.create({'name': 'Before settings'})
         self.assertEqual((without.slot_duration, without.modifications_deadline), (0.5, 24))
@@ -142,27 +143,60 @@ class TestAppointmentSettings(LiwanAppointmentsCase):
         })
         configured = types.create({'name': 'After settings'})
         self.assertEqual((configured.slot_duration, configured.modifications_deadline), (0.25, 48))
-        explicit = types.create({'name': 'Explicit', 'slot_duration': 1.0, 'modifications_deadline': 2})
+        self.assertTrue(configured.inherits_company_deadline)
+        explicit = types.create({'name': 'Explicit', 'slot_duration': 1.0, 'own_deadline_hours': 2, 'inherits_company_deadline': False})
         self.assertEqual((explicit.slot_duration, explicit.modifications_deadline), (1.0, 2))
         settings.default_slot_minutes = 60
         self.assertEqual((configured.slot_duration, without.slot_duration), (0.25, 0.5))
 
-    def test_a_new_deadline_reaches_every_type_that_still_held_the_previous_one(self):
-        """#551: the setting is the company policy, not only the default of the next type."""
+    def test_an_inheriting_type_follows_the_company_deadline_and_an_override_is_kept(self):
+        """#551: one source of truth, resolved on read; no row is rewritten when the company policy moves."""
         types = self.env['resource.booking.type']
-        inherited = types.create({'name': 'Inherited deadline'})
-        hand_set = types.create({'name': 'Hand-set deadline', 'modifications_deadline': 6})
-        self.assertEqual((inherited.modifications_deadline, hand_set.modifications_deadline), (24, 6))
         settings = self.env['liwan.appointment.settings'].create({
-            'company_id': self.env.company.id, 'modification_deadline_hours': 72,
+            'company_id': self.env.company.id, 'modification_deadline_hours': 24,
         })
+        inherited = types.create({'name': 'Inherited deadline'})
+        hand_set = types.create({'name': 'Hand-set deadline'})
+        # A hand set value that happens to equal the company value is still the type's own, and stays put.
+        same_value = types.create({'name': 'Same value by hand'})
+        hand_set.write({'own_deadline_hours': 6, 'inherits_company_deadline': False})
+        same_value.write({'own_deadline_hours': 24, 'inherits_company_deadline': False})
         self.env.flush_all()
-        self.assertEqual((inherited.modifications_deadline, hand_set.modifications_deadline), (72, 6))
-        # A type created while the setting is 72 inherits 72, and a later change follows it again.
+        self.assertEqual(
+            (inherited.modifications_deadline, hand_set.modifications_deadline, same_value.modifications_deadline),
+            (24, 6, 24),
+        )
+        settings.modification_deadline_hours = 72
+        self.env.flush_all()
+        self.assertEqual(
+            (inherited.modifications_deadline, hand_set.modifications_deadline, same_value.modifications_deadline),
+            (72, 6, 24),
+        )
+        self.assertEqual(
+            (inherited.own_deadline_hours, hand_set.own_deadline_hours, same_value.own_deadline_hours), (0.0, 6.0, 24.0),
+        )
+        # A later type inherits the current value, and a later change follows it again.
         later = types.create({'name': 'Later deadline'})
         settings.modification_deadline_hours = 8
         self.env.flush_all()
-        self.assertEqual((inherited.modifications_deadline, later.modifications_deadline, hand_set.modifications_deadline), (8, 8, 6))
+        self.assertEqual((inherited.modifications_deadline, later.modifications_deadline), (8, 8))
+        # Returning a type to the company value is its own explicit state, not a value that matches by accident.
+        hand_set.write({'inherits_company_deadline': True, 'own_deadline_hours': 0})
+        self.env.flush_all()
+        self.assertEqual((hand_set.modifications_deadline, hand_set.own_deadline_hours), (8, 0.0))
+
+    def test_an_archived_type_follows_the_company_deadline_too(self):
+        """#551: inheritance is a state, so an archived type needs no rewrite either."""
+        types = self.env['resource.booking.type']
+        archived = types.create({'name': 'Retired', 'active': False})
+        settings = self.env['liwan.appointment.settings'].create({
+            'company_id': self.env.company.id, 'modification_deadline_hours': 12,
+        })
+        self.env.flush_all()
+        self.assertEqual(archived.modifications_deadline, 12)
+        settings.modification_deadline_hours = 30
+        self.env.flush_all()
+        self.assertEqual(archived.modifications_deadline, 30)
 
     def test_the_deadline_setting_decides_a_cancel_at_forty_eight_hours(self):
         """#551 acceptance: after the setting moves to 72 hours, a cancel 48 hours ahead is refused; at 24 it passed."""

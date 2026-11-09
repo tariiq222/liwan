@@ -99,7 +99,7 @@
         },
         "modification_deadline_hours": {
           "label": "Modification deadline (hours)",
-          "hint": "Applies to the company's appointment types that still hold the previous value; a type whose deadline was changed by hand keeps it."
+          "hint": "The change deadline of every appointment type that follows the company, including running bookings, so a raised deadline applies at once. A type with its own deadline keeps it."
         },
         "link_valid_days_after_end": {
           "label": "Booking link validity after the end (days)",

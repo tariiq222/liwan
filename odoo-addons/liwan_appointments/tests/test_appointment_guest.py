@@ -293,7 +293,7 @@ class TestAppointmentGuest(LiwanAppointmentsCase):
         self._error(self._call('POST', self.invited, '/schedule'), 422, 'invalid', 'start')
 
     def test_the_requester_cannot_pick_a_start_that_locks_them_out(self):
-        self.booking_type.modifications_deadline = 48
+        self.booking_type.write({'inherits_company_deadline': False, 'own_deadline_hours': 48})
         self.env.flush_all()
         soon = (datetime.now(UTC) + timedelta(hours=30)).strftime(UTC_FORMAT)
         self._error(self._schedule(self.invited, soon), 422, 'invalid', 'start')
@@ -350,7 +350,7 @@ class TestAppointmentGuest(LiwanAppointmentsCase):
         first, later = self._slots(self.invited, count=2)
         self._schedule(self.invited, first)
         # The engine lets an elevated caller modify past the deadline; the requester never gets that.
-        self.invited.type_id.modifications_deadline = 24 * 30
+        self.invited.type_id.write({'inherits_company_deadline': False, 'own_deadline_hours': 24 * 30})
         self.env.flush_all()
         self.env.invalidate_all()
         self.assertTrue(self.invited.is_overdue)

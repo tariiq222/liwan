@@ -2,7 +2,7 @@
 {
     'name': 'liwan Appointments',
     'summary': 'liwan platform: the Appointments application — /api/v1/appointments',
-    'version': '19.0.1.4.0',
+    'version': '19.0.1.5.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

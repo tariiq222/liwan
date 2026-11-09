@@ -82,10 +82,12 @@ def type_slot_items(booking_type, combination, first, last, settings, now, origi
 
     The engine's slot search also hides everything inside the type's modification deadline. A requester must keep to
     it; a staff member booking for them does not (``parse_start`` accepts those starts), so staff pass
-    ``honour_deadline=False`` and the search runs on an unsaved copy of the type with no deadline.
+    ``honour_deadline=False`` and the search runs on an unsaved copy of the type that follows no deadline.
     """
     tz = _type_timezone(booking_type)
-    searched_type = booking_type if honour_deadline else booking_type.new({'modifications_deadline': 0}, origin=booking_type)
+    searched_type = booking_type if honour_deadline else booking_type.new(
+        {'inherits_company_deadline': False, 'own_deadline_hours': 0}, origin=booking_type,
+    )
     # The engine's public slot search on an unsaved booking, anchored to the type's calendar days.
     booking = booking_type.env['resource.booking'].new({
         'type_id': searched_type.id, 'combination_id': combination.id or False,

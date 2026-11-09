@@ -44,6 +44,7 @@ const TYPE = {
   duration_minutes: 30,
   slot_minutes: 30,
   modifications_deadline_hours: 24,
+  own_deadline_hours: null,
   location: null,
   videocall_location: 'https://meet.example.com/x',
   resource_calendar_id: 3,
@@ -63,6 +64,7 @@ describe('AppointmentTypeSchema', () => {
     expect(() => AppointmentTypeSchema.parse(withoutName)).toThrow()
     for (const bad of [
       { id: 0 }, { duration_minutes: 0 }, { slot_minutes: 4 }, { modifications_deadline_hours: 721 },
+      { own_deadline_hours: 721 }, { own_deadline_hours: -1 },
       { resource_calendar_id: 0 }, { combination_ids: [0] }, { active: 'yes' },
     ]) {
       expect(() => AppointmentTypeSchema.parse({ ...TYPE, ...bad })).toThrow()
@@ -82,7 +84,7 @@ describe('AppointmentTypeCreateSchema and AppointmentTypePatchSchema', () => {
   it('create requires a name and accepts the writable fields, never `active` or a company', () => {
     expect(AppointmentTypeCreateSchema.parse({ name: 'Visit' })).toEqual({ name: 'Visit' })
     expect(AppointmentTypeCreateSchema.parse({
-      name: 'Visit', duration_minutes: 45, slot_minutes: 15, modifications_deadline_hours: 6, location: null,
+      name: 'Visit', duration_minutes: 45, slot_minutes: 15, own_deadline_hours: 6, location: null,
       videocall_location: 'x', resource_calendar_id: 2, combination_ids: [1, 2],
     }).combination_ids).toEqual([1, 2])
     expect(() => AppointmentTypeCreateSchema.parse({})).toThrow()
@@ -95,6 +97,7 @@ describe('AppointmentTypeCreateSchema and AppointmentTypePatchSchema', () => {
   it('patch accepts any subset, including none, and stays strict', () => {
     expect(AppointmentTypePatchSchema.parse({})).toEqual({})
     expect(AppointmentTypePatchSchema.parse({ location: null, slot_minutes: 10 })).toEqual({ location: null, slot_minutes: 10 })
+    expect(AppointmentTypePatchSchema.parse({ own_deadline_hours: null })).toEqual({ own_deadline_hours: null })
     expect(() => AppointmentTypePatchSchema.parse({ id: 1 })).toThrow()
     expect(() => AppointmentTypePatchSchema.parse({ slot_minutes: 481 })).toThrow()
   })

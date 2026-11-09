@@ -22,7 +22,7 @@ class TestAppointmentTypes(LiwanAppointmentsCase):
         item = next((row for row in body['items'] if row['id'] == self.booking_type.id), None)
         self.assertEqual(item, {
             'id': self.booking_type.id, 'name': 'Consultation', 'duration_minutes': 30, 'slot_minutes': 30,
-            'modifications_deadline_hours': 24, 'location': None, 'videocall_location': None,
+            'modifications_deadline_hours': 24, 'own_deadline_hours': None, 'location': None, 'videocall_location': None,
             'resource_calendar_id': self.booking_type.resource_calendar_id.id,
             'combination_ids': [self.combination.id], 'active': True,
         }, body)
@@ -73,26 +73,48 @@ class TestAppointmentTypes(LiwanAppointmentsCase):
     def test_manage_creates_a_type_in_the_current_company_with_minutes_and_combinations(self):
         self._manager()
         result = self.api('POST', TYPES, json={
-            'name': 'Long visit', 'duration_minutes': 45, 'slot_minutes': 15, 'modifications_deadline_hours': 6,
+            'name': 'Long visit', 'duration_minutes': 45, 'slot_minutes': 15, 'own_deadline_hours': 6,
             'location': 'Clinic', 'videocall_location': 'https://meet.example.com/x',
             'combination_ids': [self.combination.id],
         })
         self.assertEqual(result.status_code, 200, result.text)
         body = result.json()
         created = self.env['resource.booking.type'].browse(body['id'])
-        self.assertEqual((created.company_id, created.duration, created.slot_duration, created.modifications_deadline),
-                         (self.env.company, 0.75, 0.25, 6))
+        self.assertEqual(
+            (created.company_id, created.duration, created.slot_duration, created.modifications_deadline),
+            (self.env.company, 0.75, 0.25, 6),
+        )
+        self.assertFalse(created.inherits_company_deadline)
+        self.assertEqual(body['own_deadline_hours'], 6)
         self.assertEqual((body['duration_minutes'], body['slot_minutes'], body['location'], body['combination_ids']),
                          (45, 15, 'Clinic', [self.combination.id]))
         self.assertEqual(body['resource_calendar_id'], self.env.company.resource_calendar_id.id)
 
-    def test_a_new_type_takes_its_slot_and_deadline_from_the_settings(self):
+    def test_a_new_type_takes_its_slot_and_inherits_the_company_deadline(self):
+        """#551: the slot length is a default; the deadline is inherited and reported as the resolved company value."""
         self.env['liwan.appointment.settings'].create({
             'company_id': self.env.company.id, 'default_slot_minutes': 20, 'modification_deadline_hours': 5,
         })
         self._manager()
         body = self.api('POST', TYPES, json={'name': 'Defaults'}).json()
         self.assertEqual((body['duration_minutes'], body['slot_minutes'], body['modifications_deadline_hours']), (30, 20, 5))
+        self.assertIsNone(body['own_deadline_hours'])
+
+    def test_a_type_returns_to_the_company_deadline_and_keeps_its_own(self):
+        """#551: null makes the type follow the company again; a value gives it its own deadline."""
+        self.env['liwan.appointment.settings'].create({
+            'company_id': self.env.company.id, 'modification_deadline_hours': 12,
+        })
+        self._manager()
+        path = '%s/%d' % (TYPES, self.booking_type.id)
+        own = self.api('PATCH', path, json={'own_deadline_hours': 30}).json()
+        self.assertEqual((own['own_deadline_hours'], own['modifications_deadline_hours']), (30, 30))
+        company = self.api('PATCH', path, json={'own_deadline_hours': None}).json()
+        self.assertEqual((company['own_deadline_hours'], company['modifications_deadline_hours']), (None, 12))
+        # The company value moving again reaches the inheriting type without touching it.
+        self.env['liwan.appointment.settings'].search([('company_id', '=', self.env.company.id)]).modification_deadline_hours = 48
+        self.env.flush_all()
+        self.assertEqual(self.api('GET', path).json()['modifications_deadline_hours'], 48)
 
     def test_patch_updates_fields_and_replaces_the_combination_set_in_order(self):
         second = self._create_combination(self.env.company, 'Room B')
@@ -130,7 +152,9 @@ class TestAppointmentTypes(LiwanAppointmentsCase):
             ('POST', TYPES, {'name': 'X', 'duration_minutes': 0}, 'duration_minutes'),
             ('POST', TYPES, {'name': 'X', 'duration_minutes': 1.5}, 'duration_minutes'),
             ('POST', TYPES, {'name': 'X', 'slot_minutes': 4}, 'slot_minutes'),
-            ('POST', TYPES, {'name': 'X', 'modifications_deadline_hours': 721}, 'modifications_deadline_hours'),
+            ('POST', TYPES, {'name': 'X', 'own_deadline_hours': 721}, 'own_deadline_hours'),
+            ('POST', TYPES, {'name': 'X', 'own_deadline_hours': 1.5}, 'own_deadline_hours'),
+            ('POST', TYPES, {'name': 'X', 'modifications_deadline_hours': 6}, 'modifications_deadline_hours'),
             ('POST', TYPES, {'name': 'X', 'active': False}, 'active'),
             ('POST', TYPES, {'name': 'X', 'company_id': 1}, 'company_id'),
             ('PATCH', path, {'combination_ids': [foreign_combination.id]}, 'combination_ids'),

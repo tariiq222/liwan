@@ -332,7 +332,7 @@ class TestAppointmentBookings(LiwanAppointmentsCase):
         # book first, then widen the deadline so the booking is inside it
         start = self._slots()[0]
         booking = self._create({**self._sara(), 'start': start}).json()
-        self.booking_type.modifications_deadline = 24 * 30
+        self.booking_type.write({'inherits_company_deadline': False, 'own_deadline_hours': 24 * 30})
         self.env.flush_all()
         self.assertFalse(self.api('GET', '%s/%d' % (BOOKINGS, booking['id'])).json()['is_modifiable'])
         for action, body in (('schedule', {'start': near}), ('cancel', None)):
@@ -364,7 +364,7 @@ class TestAppointmentBookings(LiwanAppointmentsCase):
         user.company_id = main
         self.assertTrue(user.has_group('resource_booking.group_manager'))
         booking = self._scheduled()
-        self.booking_type.modifications_deadline = 24 * 30
+        self.booking_type.write({'inherits_company_deadline': False, 'own_deadline_hours': 24 * 30})
         self.env.flush_all()
         self.authenticate('appointments_split', 'appointments_split_pass_123')
         self.assertFalse(self.api('GET', '%s/%d' % (BOOKINGS, booking['id'])).json()['is_modifiable'])

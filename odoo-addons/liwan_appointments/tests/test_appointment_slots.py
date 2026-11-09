@@ -67,7 +67,7 @@ class TestAppointmentSlots(LiwanAppointmentsCase):
     def test_staff_slots_ignore_the_modification_deadline_and_follow_the_min_notice(self):
         """The engine is replaced by a fixed answer, so the test does not depend on working days or the clock."""
         self.env['liwan.appointment.settings'].create({'company_id': self.env.company.id, 'min_notice_hours': 2})
-        self.booking_type.modifications_deadline = 24
+        self.booking_type.write({'inherits_company_deadline': False, 'own_deadline_hours': 24})
         now = datetime.now(UTC)
         soon, later = now + timedelta(hours=1), now + timedelta(hours=3)
         seen = []

@@ -65,9 +65,11 @@ def _range_check(name):
 class LiwanAppointmentSettings(models.Model):
     """One company's appointment policy, shaped by the tenant from the Appointments settings.
 
-    Enforced now: ``default_slot_minutes`` is the default of a new booking type's ``slot_duration``, and
-    ``modification_deadline_hours`` is the deadline of the company's types: a new type starts from it, and changing it
-    carries the new value to every type that still held the previous one. Not enforced here:
+    Enforced now: ``default_slot_minutes`` is the default of a new booking type's ``slot_duration``; and
+    ``modification_deadline_hours`` is the company's modification deadline: a booking type that follows the company
+    deadline (``inherits_company_deadline``, the default) reads this value wherever the deadline is enforced or
+    serialized, so a change here reaches every inheriting type at once without rewriting any row, and a type with its own
+    deadline keeps it. Not enforced here:
     ``min_notice_hours``, ``horizon_days``, the requester field policies and ``requester_confirmation`` are enforced by
     the booking routes (tickets 05-07), and the attendance
     settings (``attendance_tracking``, ``auto_no_show``, ``no_show_grace_minutes``, ``walk_in_allowed``,
@@ -142,13 +144,14 @@ class LiwanAppointmentSettings(models.Model):
 
     @api.model
     def _liwan_type_defaults(self):
-        """The ``resource.booking.type`` defaults of the current company, from its settings or the declared defaults."""
+        """The ``resource.booking.type`` defaults of the current company, from its settings or the declared defaults.
+
+        Only the slot length is a default of a new type. The modification deadline is not: the type follows the company
+        policy by default, and the deadline is resolved when it is read (issue #551).
+        """
         row = self.search([('company_id', '=', self.env.company.id)], limit=1)
         values = row or DEFAULTS
-        return {
-            'slot_duration': values['default_slot_minutes'] / 60,
-            'modifications_deadline': values['modification_deadline_hours'],
-        }
+        return {'slot_duration': values['default_slot_minutes'] / 60}
 
     def check_access(self, operation):
         # Odoo search checks this public hook before applying record rules.
@@ -167,10 +170,7 @@ class LiwanAppointmentSettings(models.Model):
             self._liwan_require_current_company('appointments.bookings.manage')
             if any(vals.get('company_id') != self.env.company.id for vals in vals_list):
                 raise AccessError(self.env._('appointment settings belong to the current company'))
-        rows = super().create(vals_list)
-        for row in rows:
-            row._liwan_sync_inherited_deadline(DEFAULTS['modification_deadline_hours'])
-        return rows
+        return super().create(vals_list)
 
     def write(self, vals):
         if not self.env.is_superuser():
@@ -179,24 +179,9 @@ class LiwanAppointmentSettings(models.Model):
                 'company_id' in vals and vals['company_id'] != self.env.company.id
             ):
                 raise AccessError(self.env._('appointment settings belong to the current company'))
-        previous = {row.id: row.modification_deadline_hours for row in self} if 'modification_deadline_hours' in vals else {}
         result = super().write(vals)
-        for row in self:
-            if row.id in previous:
-                row._liwan_sync_inherited_deadline(previous[row.id])
+        if 'modification_deadline_hours' in vals:
+            # A type's deadline is resolved on read and kept in the transaction cache; the company policy changing must not
+            # leave the previous value behind in the same transaction, so only that cache goes (no row is rewritten).
+            self.env['resource.booking.type'].invalidate_model(['modifications_deadline'])
         return result
-
-    def _liwan_sync_inherited_deadline(self, previous_hours):
-        """Carry a new ``modification_deadline_hours`` to the types of this company that still hold the old setting value.
-
-        The setting is the deadline of every type that inherited it; a type someone set to another value keeps it. A type
-        set to exactly the old value by hand is indistinguishable from an inherited one, so it follows the setting too;
-        the settings hint says so.
-        """
-        self.ensure_one()
-        if self.modification_deadline_hours == previous_hours:
-            return
-        types = self.env['resource.booking.type'].with_context(active_test=False).search([
-            ('company_id', '=', self.company_id.id), ('modifications_deadline', '=', previous_hours),
-        ])
-        types.write({'modifications_deadline': self.modification_deadline_hours})
