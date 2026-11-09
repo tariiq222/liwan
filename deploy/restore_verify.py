@@ -19,12 +19,35 @@ from pathlib import Path
 
 FORBIDDEN_DB_RE = re.compile(r'(?:^|_)(odoo19|production|prod|postgres|template0|template1)(?:_|$)', re.IGNORECASE)
 DB_NAME_RE = re.compile(r'^[A-Za-z][A-Za-z0-9_]*$')
-SQL_INSTALLED = "SELECT count(*) FROM ir_module_module WHERE name LIKE 'liwan\\_%' AND state = 'installed'"
+SQL_INSTALLED_NAMES = "SELECT name FROM ir_module_module WHERE name LIKE 'liwan\\_%' AND state = 'installed' ORDER BY name"
 SQL_STUCK = "SELECT count(*) FROM ir_module_module WHERE state IN ('to upgrade', 'to install', 'to remove')"
 SQL_ATTACHMENTS = 'SELECT DISTINCT store_fname FROM ir_attachment WHERE store_fname IS NOT NULL ORDER BY 1'
 
 
 RELEASE_POSTGRES = Path(__file__).resolve().parent / 'releases' / 'postgres.py'
+
+
+def expected_modules() -> list[str]:
+    """The release modules a complete restore must show installed.
+
+    ``tools/catalog_check.py --release-modules`` is the one list the release, the upgrade and
+    the restore stage share; reading it here is what turns "one liwan module is installed" into
+    "every module this release installs is installed" (issue #465). An unreadable catalog is a
+    failed check, never a skipped one.
+    """
+    catalog = Path(__file__).resolve().parent.parent / 'tools' / 'catalog_check.py'
+    if not catalog.is_file():
+        raise RestoreError('the release module list is unavailable: tools/catalog_check.py is missing')
+    done = subprocess.run(
+        [sys.executable, '-B', str(catalog), '--release-modules'],
+        capture_output=True, text=True, check=False, shell=False,
+    )
+    if done.returncode != 0:
+        raise RestoreError(f'the release module list could not be read: {done.stderr.strip()[-300:]}')
+    modules = sorted(name.strip() for name in done.stdout.split(',') if name.strip())
+    if not modules:
+        raise RestoreError('the release module list is empty: a restore cannot be verified against it')
+    return modules
 
 
 class RestoreError(Exception):
@@ -103,24 +126,31 @@ def perform_restore(*, backup_dir, target_db, target_filestore, pg_restore, psql
     run(admin, input=create)
     run(admin, input=isolation)
     # Source grants may reference tenant runtime roles absent from the isolated scratch host.
-    run([tools['pg_restore'], *conn, '--no-owner', '--no-acl', '--exit-on-error', '-d', db, str(dump)])
+    # One transaction per restore: a dump cut short leaves no half-written database behind, so a
+    # later check can never read a partially applied schema as a verified restore (issue #465).
+    run([tools['pg_restore'], *conn, '--no-owner', '--no-acl', '--exit-on-error',
+         '--single-transaction', '-d', db, str(dump)])
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(str(store), str(destination), symlinks=True)
 
     def query(sql):
         return run([tools['psql'], *conn, '-d', db, '-At', '-v', 'ON_ERROR_STOP=1', '-c', sql])
 
-    installed = int(query(SQL_INSTALLED).strip() or 0)
+    installed_names = [line for line in query(SQL_INSTALLED_NAMES).splitlines() if line]
+    expected = expected_modules()
+    missing_modules = sorted(set(expected) - set(installed_names))
     stuck = int(query(SQL_STUCK).strip() or 0)
     referenced = [line for line in query(SQL_ATTACHMENTS).splitlines() if line]
     missing = [name for name in referenced if not (destination / name).is_file()]
     result = {
-        'restore_verified': installed > 0 and stuck == 0 and not missing,
+        'restore_verified': bool(expected) and not missing_modules and stuck == 0 and not missing,
         'verified_at': datetime.now(timezone.utc).isoformat(),
         'restored_into': db,
         'source_manifest': json.loads(manifest.read_text(encoding='utf-8')),
         'checks': {
-            'liwan_modules_installed': installed,
+            'liwan_modules_installed': len(installed_names),
+            'liwan_modules_expected': len(expected),
+            'missing_modules': missing_modules,
             'modules_stuck_mid_transition': stuck,
             'attachment_files_referenced': len(referenced),
             'missing_attachment_files': missing,
