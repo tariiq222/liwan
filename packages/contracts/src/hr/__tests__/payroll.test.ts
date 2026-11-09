@@ -36,6 +36,7 @@ import {
   HrPayrollSettingsPatchSchema,
   HrPayrollSettingsSchema,
   HrPayslipInputsPatchSchema,
+  HrMyPayslipSchema,
   HrPayslipRowListSchema,
   HrPayslipRowSchema,
   HrPayslipSchema,
@@ -181,6 +182,20 @@ describe('payslip schemas', () => {
     expect(HrPayslipInputsPatchSchema.safeParse({ salary: 1 }).success).toBe(false)
     expect(HrPayslipRowSchema.safeParse({ ...ROW, iban: 'SA' }).success).toBe(false)
     expect(HrPayslipSchema.safeParse({ ...PAYSLIP, lines: [{ code: 'A', name: 'x', amount: 1 }] }).success).toBe(false)
+  })
+
+  it('accepts the self-service payslip without the employer share and the tax number', () => {
+    const { gosi_employer: _share, ...own } = PAYSLIP
+    const MY_PAYSLIP = { ...own, company: { name: 'شركة' } }
+    expect(HrMyPayslipSchema.parse(MY_PAYSLIP)).toEqual(MY_PAYSLIP)
+    // The employer figures are what the payroll area reads: the own shape refuses them as unknown keys.
+    expect(HrMyPayslipSchema.safeParse(PAYSLIP).success).toBe(false)
+    expect(HrMyPayslipSchema.safeParse({ ...MY_PAYSLIP, gosi_employer: 1200 }).success).toBe(false)
+    expect(HrMyPayslipSchema.safeParse({ ...MY_PAYSLIP, company: { name: 'شركة', vat: '' } }).success).toBe(false)
+    expect(HrMyPayslipSchema.safeParse({ ...MY_PAYSLIP, company: {} }).success).toBe(false)
+    // Two shapes, not a widened one: the payroll-area shape still requires the employer figures.
+    expect(HrPayslipSchema.safeParse({ ...PAYSLIP, gosi_employer: undefined }).success).toBe(false)
+    expect(HrPayslipSchema.safeParse({ ...PAYSLIP, company: { name: 'شركة' } }).success).toBe(false)
   })
 })
 

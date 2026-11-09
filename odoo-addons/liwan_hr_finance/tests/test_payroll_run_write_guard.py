@@ -12,6 +12,10 @@ PAID_MONTH = '2026-09'
 PAY_DAY = '2026-12-01'
 # ``finance.entries.post`` requires the rest of its family; the poster holds no payroll management.
 POSTING = ('finance.entries.read', 'finance.entries.manage', 'finance.entries.post')
+# ``finance.payments.manage`` requires its own family; the payer holds no payroll management either.
+PAYING = ('finance.invoices.read', 'finance.payments.read', 'finance.payments.manage')
+# The payroll reader every finance step needs; none of them holds payroll management.
+PAYROLL_READ = ('hr.payroll.read', 'hr.employees.read')
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -28,6 +32,7 @@ class TestPayrollRunWriteGuard(PayrollFinanceCase):
         cls.employee = cls.make_employee('Guard Worker', cls.dept)
         cls.full_settings()
         cls.guard_poster = cls.user_with('guard_poster', list(POSTING))
+        cls.guard_payer = cls.user_with('guard_payer', [*PAYROLL_READ, *PAYING])
         cls.route_poster = cls.user_with('guard_route_poster', [
             'hr.payroll.read', 'hr.employees.read', *POSTING,
         ])
@@ -60,6 +65,29 @@ class TestPayrollRunWriteGuard(PayrollFinanceCase):
 
     def test_post_route_still_posts_a_run(self):
         self._posted_run(POSTED_MONTH)
+
+    def test_the_forward_steps_of_the_finance_bridge_still_write_the_run(self):
+        """The posting and payment the finance bridge performs must survive the model freeze.
+
+        Posting writes ``liwan_move_id`` and advances ``liwan_state`` to ``posted``; paying writes
+        ``liwan_payment_id`` and advances it to ``paid``. Those are forward steps on an approved run, and the
+        freeze refuses only the header the figures came from, so both must still land.
+        """
+        run = self._posted_run(POSTED_MONTH)
+        self.assertEqual(run.liwan_state, 'posted')
+        self.assertTrue(run.liwan_move_id)
+        self.login_as(self.guard_payer)
+        paid = self.api('POST', f'{RUNS}/{run.id}/payment', json={'journal_id': self.bank.id, 'date': PAY_DAY})
+        self.assertEqual(paid.status_code, 200, paid.text)
+        self.assertEqual(run.liwan_state, 'paid')
+        self.assertTrue(run.liwan_payment_id)
+
+    def test_the_approval_write_on_a_computed_run_is_allowed(self):
+        """Approval itself is a write that turns the run from computed to approved and stamps the approver."""
+        run = self.env['hr.payslip.run'].browse(self._approved_run([self.employee], PAID_MONTH)['id'])
+        self.assertEqual(run.liwan_state, 'approved')
+        self.assertEqual(run.liwan_approved_by_id, self.payroll_approver)
+        self.assertTrue(run.liwan_approved_at)
 
     def test_forged_post_with_an_unrelated_entry_is_refused(self):
         run = self.env['hr.payslip.run'].browse(self._approved_run([self.employee], POSTED_MONTH)['id'])

@@ -26,6 +26,7 @@ class LiwanHrPayslipPayment(models.Model):
     iban = fields.Char(string='Paid IBAN', readonly=True)
     bank_code = fields.Char(string='Paid bank code', readonly=True)
     identification = fields.Char(string='Paid identification number', readonly=True)
+    gosi_number = fields.Char(string='Paid GOSI number', readonly=True)
 
     _payslip_unique = models.Constraint('UNIQUE(payslip_id)', 'a payslip has one payment snapshot')
 
@@ -36,7 +37,7 @@ class LiwanHrPayslipPayment(models.Model):
 
     @api.model
     def _liwan_snapshot(self, payslips):
-        """Store, for each of ``payslips``, the IBAN, bank code and identification number it is paid to now."""
+        """Store, for each of ``payslips``, the IBAN, bank code, identification and GOSI numbers it is paid with now."""
         compensations = self.env['liwan.hr.compensation'].search([('employee_id', 'in', payslips.employee_id.ids)])
         by_employee = {record.employee_id.id: record for record in compensations}
         empty = self.env['liwan.hr.compensation']
@@ -45,4 +46,5 @@ class LiwanHrPayslipPayment(models.Model):
             'iban': by_employee.get(payslip.employee_id.id, empty).iban,
             'bank_code': by_employee.get(payslip.employee_id.id, empty).bank_id.bic,
             'identification': payslip.employee_id.current_version_id.identification_id,
+            'gosi_number': by_employee.get(payslip.employee_id.id, empty).gosi_number,
         } for payslip in payslips])

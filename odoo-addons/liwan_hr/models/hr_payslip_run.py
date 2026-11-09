@@ -4,13 +4,17 @@ from decimal import Decimal
 from dateutil.relativedelta import relativedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import AccessError, ValidationError
 
 from .hr_payslip import AMOUNT_KEYS, INPUT_CODES, RULE_VALUE_KEYS
 from .payroll_math import money
 from odoo.addons.liwan_hr.rules import LiwanHrRule
 
 EDITABLE_STATES = ('draft', 'computed')
+# The run header the approved payslips were computed from: frozen with them, never rewritten after approval.
+FIXED_RUN_FIELDS = frozenset({
+    'date_start', 'date_end', 'company_id', 'struct_id', 'liwan_approved_by_id', 'liwan_approved_at',
+})
 DUPLICATE = 'duplicate'
 STRUCTURE_MISSING = 'structure_missing'
 TRANSITION_FORBIDDEN = 'transition_forbidden'
@@ -85,6 +89,76 @@ class HrPayslipRun(models.Model):
         """Refuse a transition from any other lifecycle state (403 ``transition_forbidden``)."""
         if any(run.liwan_state not in states for run in self):
             raise LiwanHrRule(TRANSITION_FORBIDDEN, message, status=403, details=details)
+
+    def _liwan_audit_refused_write(self, names):
+        """Record a refusal the run's guards are about to raise, so a direct write leaves a trail."""
+        Audit = self.env['liwan.hr.audit.event']
+        for run in self:
+            Audit._liwan_log_refused_write('run_write_refused', run, names)
+
+    def _liwan_refuse_unlocking(self, vals):
+        """Refuse any write that would make an approved month editable or delete it again.
+
+        The routes already refuse it before they reach the ORM; this guard covers every other path
+        (a support script, a data fix, the scripting console), so approval is one way for the whole
+        model and never a route-level convention. A later state a bridge adds (posted, paid) advances
+        forward and is not an unlock; only the editable states the payroll section owns are, and the
+        engine's own ``state`` back to ``draft`` is the same unlock one layer down.
+        """
+        unlocks = (
+            ('liwan_state' in vals and vals['liwan_state'] in EDITABLE_STATES)
+            or vals.get('state') == 'draft'
+        )
+        if unlocks:
+            frozen = self.filtered(lambda run: not run._liwan_is_editable())
+            if frozen:
+                frozen._liwan_audit_refused_write(vals)
+                raise AccessError(
+                    self.env._('An approved payroll run cannot go back to an editable state.'),
+                )
+
+    def _liwan_refuse_header_change(self, vals):
+        """Refuse a change to the month, the company or the structure of a run that is no longer editable.
+
+        Those fields are what the approved payslips were computed from, so rewriting one leaves a fixed month
+        describing another: a run moved to another month, company or structure while its figures stay behind. A
+        write that repeats the stored value changes nothing and passes. The accounting steps the finance bridge adds
+        write only its own fields (``liwan_move_id``, ``liwan_payment_id``) and advance ``liwan_state`` forward, so
+        they pass this guard untouched.
+        """
+        changed = FIXED_RUN_FIELDS & set(vals)
+        if not changed:
+            return
+        frozen = self.filtered(lambda run: not run._liwan_is_editable())
+        refused = frozen.filtered(
+            lambda run: any(
+                run._fields[name].convert_to_cache(run[name], run)
+                != run._fields[name].convert_to_cache(vals[name], run)
+                for name in changed
+            ),
+        )
+        if refused:
+            refused._liwan_audit_refused_write(changed)
+            raise AccessError(
+                self.env._('An approved payroll run keeps its month, company and structure: its figures are fixed.'),
+            )
+
+    def write(self, vals):
+        # ``self.env.su`` is the migration and maintenance environment, so the guards below skip it by design;
+        # no route reaches one (they all run in the caller's environment), so the skip is not reachable there.
+        if not self.env.su:
+            self._liwan_refuse_unlocking(vals)
+            self._liwan_refuse_header_change(vals)
+        return super().write(vals)
+
+    def unlink(self):
+        # Same superuser skip as the write: a migration environment may rewrite a month, a route may not.
+        if not self.env.su:
+            frozen = self.filtered(lambda run: not run._liwan_is_editable())
+            if frozen:
+                frozen._liwan_audit_refused_write(('unlink',))
+                raise AccessError(self.env._('An approved payroll run cannot be deleted.'))
+        return super().unlink()
 
     # --- who is paid -------------------------------------------------------------------------
 

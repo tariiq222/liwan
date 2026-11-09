@@ -13,5 +13,7 @@
   "run_inputs_changed",
   "run_approved",
   "run_cancelled",
-  "payment_file_generated"
+  "payment_file_generated",
+  "payslip_write_refused",
+  "run_write_refused"
 ]

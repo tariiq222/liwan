@@ -336,6 +336,16 @@ msgid "Payroll run cancelled"
 msgstr "أُلغي مسيّر الرواتب"
 
 #. module: liwan_hr
+#: model:ir.model.fields.selection,name:liwan_hr.selection__liwan_hr_audit_event__action__run_write_refused
+msgid "Payroll run write refused"
+msgstr "رُفض تعديل مسيّر الرواتب"
+
+#. module: liwan_hr
+#: model:ir.model.fields.selection,name:liwan_hr.selection__liwan_hr_audit_event__action__payslip_write_refused
+msgid "Payslip write refused"
+msgstr "رُفض تعديل قسيمة الراتب"
+
+#. module: liwan_hr
 #: model:ir.model.fields.selection,name:liwan_hr.selection__liwan_hr_audit_event__action__run_inputs_changed
 msgid "Payroll run inputs changed"
 msgstr "تغيّرت مدخلات مسيّر الرواتب"
@@ -629,3 +639,50 @@ msgstr "الأجر الخاضع للتأمينات"
 #: model:hr.salary.rule,name:liwan_hr.rule_net
 msgid "Net"
 msgstr "الصافي"
+
+#. module: liwan_hr
+#. odoo-python
+#: code:addons/liwan_hr/models/hr_payslip.py:0
+msgid "An approved payslip is fixed: its figures and lines cannot be changed."
+msgstr "القسيمة المعتمدة ثابتة: لا يمكن تغيير أرقامها أو سطورها."
+
+#. module: liwan_hr
+#. odoo-python
+#: code:addons/liwan_hr/models/hr_payslip.py:0
+msgid ""
+"%(name)s has no contract version in force on %(day)s: check the contract "
+"start and end dates."
+msgstr "لا توجد نسخة عقد سارية لـ%(name)s في %(day)s: تحقق من تاريخي بدء العقد ونهايته."
+
+#. module: liwan_hr
+#. odoo-python
+#: code:addons/liwan_hr/models/hr_payslip_run.py:0
+msgid "An approved payroll run cannot go back to an editable state."
+msgstr "لا يمكن إعادة مسيّر رواتب معتمد إلى حالة قابلة للتعديل."
+
+#. module: liwan_hr
+#. odoo-python
+#: code:addons/liwan_hr/models/hr_payslip_run.py:0
+msgid "An approved payroll run cannot be deleted."
+msgstr "لا يمكن حذف مسيّر رواتب معتمد."
+
+#. module: liwan_hr
+#. odoo-python
+#: code:addons/liwan_hr/models/hr_payslip_run.py:0
+msgid "An approved payroll run keeps its month, company and structure: its figures are fixed."
+msgstr "يحتفظ مسيّر الرواتب المعتمد بشهره وشركته وهيكله: أرقامه ثابتة."
+
+#. module: liwan_hr
+#. odoo-python
+#: code:addons/liwan_hr/models/eos_settlement.py:0
+msgid ""
+"The final settlement of %(name)s is negative: the open deductions are "
+"larger than the award and the leave encashment. Reduce the deductions."
+msgstr ""
+"التسوية النهائية لـ%(name)s سالبة: الاستقطاعات المفتوحة أكبر من مكافأة نهاية الخدمة وبدل "
+"الإجازات. خفّض الاستقطاعات."
+
+#. module: liwan_hr
+#: model:ir.model.fields,field_description:liwan_hr.field_liwan_hr_payslip_payment__gosi_number
+msgid "Paid GOSI number"
+msgstr "رقم التأمينات المسجَّل عند الاعتماد"

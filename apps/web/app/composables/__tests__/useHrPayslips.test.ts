@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { HrMyPayslipSchema, HrPayslipSchema } from '@liwan/contracts'
 import { fetchMyHrPayslip, fetchMyHrPayslips, hrMyPayslipKeys } from '../useHrPayslips'
 
 describe('hrMyPayslipKeys', () => {
@@ -19,5 +20,17 @@ describe('own payslip requests', () => {
     const api = vi.fn().mockResolvedValue({})
     await fetchMyHrPayslip(api, 7)
     expect(api).toHaveBeenCalledWith('/api/v1/hr/payroll/payslips/mine/7', { schema: expect.anything() })
+  })
+
+  it('parses the own payslip with the shape without the employer figures', async () => {
+    // The self-service route sends no employer GOSI share and no company tax number, so the payroll-area
+    // shape refuses its body while the own shape accepts it: the two must not be the same parser.
+    const own = { id: 7, number: 'SLIP/7', month: '2026-10', state: 'done', employee: { id: 3, name: 'ليلى' }, department: null, paid_days: 30, lines: [{ code: 'BASIC', name: 'الأساسي', category: 'BASIC', amount: 8000 }], gross: 10000, deductions: 900, net: 9100, currency: 'SAR', company: { name: 'شركة' } }
+    const api = vi.fn().mockResolvedValue(own)
+    const response = await fetchMyHrPayslip(api, 7)
+    const { schema } = api.mock.calls[0]![1] as { schema: typeof HrMyPayslipSchema }
+    expect(schema).toBe(HrMyPayslipSchema)
+    expect(HrPayslipSchema.safeParse(response).success).toBe(false)
+    expect(HrMyPayslipSchema.safeParse(response).success).toBe(true)
   })
 })

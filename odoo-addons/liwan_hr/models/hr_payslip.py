@@ -3,7 +3,8 @@ from decimal import Decimal
 
 from markupsafe import Markup
 
-from odoo import fields, models
+from odoo import api, fields, models
+from odoo.exceptions import AccessError
 from odoo.tools.misc import format_amount
 
 from .payroll_math import money
@@ -70,6 +71,61 @@ class HrPayslip(models.Model):
             return values
         return {**values, **self.env['liwan.hr.payroll.calculator']._liwan_payslip_values(self)}
 
+    def _liwan_is_fixed(self):
+        """Whether the payslip is frozen: approved (the engine's ``done``) or in a run that is no longer editable.
+
+        The routes refuse a change before it reaches the ORM; this one definition lets the model refuse every
+        other path too, so a support script or a maintenance task cannot rewrite an approved month.
+        """
+        return self.state == 'done' or bool(
+            self.payslip_run_id and not self.payslip_run_id._liwan_is_editable(),
+        )
+
+    def _liwan_refuse_when_fixed(self, names=()):
+        """Refuse a change to the payslip or its lines once it is frozen (``AccessError``, never a silent skip).
+
+        The refusal is recorded on the audit trail before it is raised (``_liwan_log_refused_write``): a direct
+        write that never reached the routes still leaves who tried, on which payslip, and which fields.
+
+        The callers skip a superuser environment (``self.env.su``) by design: it is the migration and maintenance
+        environment, and no route reaches one, so the skip cannot be used to rewrite a month from the UI.
+        """
+        frozen = self.filtered(lambda slip: slip._liwan_is_fixed())
+        if frozen:
+            Audit = self.env['liwan.hr.audit.event']
+            for slip in frozen:
+                Audit._liwan_log_refused_write('payslip_write_refused', slip, names)
+            raise AccessError(
+                self.env._('An approved payslip is fixed: its figures and lines cannot be changed.'),
+            )
+
+    def _liwan_refuse_fixed_run(self, vals):
+        """Refuse moving a payslip into a run that can no longer change: that month was approved without it.
+
+        The run's own figures are summed from the payslips it holds, so adopting one moves a fixed month as surely
+        as editing a payslip already inside it.
+        """
+        run = self.env['hr.payslip.run'].browse(vals.get('payslip_run_id') or ())
+        if run and not run._liwan_is_editable():
+            self.env['liwan.hr.audit.event']._liwan_log_refused_write(
+                'run_write_refused', run, ('payslip_run_id',),
+            )
+            raise AccessError(
+                self.env._('An approved payroll run cannot receive a payslip: its figures are fixed.'),
+            )
+
+    def write(self, vals):
+        # Same superuser skip as the guard docstring records: migrations and maintenance run there by design.
+        if not self.env.su:
+            self._liwan_refuse_when_fixed(vals)
+            self._liwan_refuse_fixed_run(vals)
+        return super().write(vals)
+
+    def unlink(self):
+        if not self.env.su:
+            self._liwan_refuse_when_fixed(('unlink',))
+        return super().unlink()
+
     def _liwan_refuse_saudi_rules_outside(self):
         """Refuse a structure that uses the Saudi rules but is not the company's: they would read zeros."""
         saudi_rule = self.env.ref('liwan_hr.rule_net')
@@ -99,15 +155,43 @@ class HrPayslip(models.Model):
         return super().compute_sheet()
 
     def _liwan_period_version(self):
-        """The employee version in force on the last paid day of the period.
+        """The contract version governing the last contracted day the payslip pays for.
 
-        The payslip carries this single version, so a mid-month version change never doubles the basic.
+        The payslip carries this single version, so a mid-month version change never doubles the basic. A candidate
+        is a version whose effective window (``date_start``/``date_end``, the dates the payroll engine itself uses)
+        overlaps the paid period, ``date_from`` to the last paid day; the latest one to start governs the tail. A
+        contract that ends inside the month is therefore still paid for the days it covered, and the calculator
+        prorates it through ``contract_date_end``: judging by the last paid day alone refused such a month as
+        ``contract_missing`` and blocked the whole run. A version that starts after the period, or one that ended
+        before it, leaves no candidate and is refused as ``contract_missing`` instead of falling back to another
+        version: that fallback picked a version that paid zero days and let an unpaid month through.
+
+        The search reads the employee's own versions and filters the effective window in Python. Stock computes
+        ``date_end`` from the employee's whole version history, so searching on it makes the ORM load the versions
+        of every company in ``env.companies`` for every payslip of a run.
         """
         self.ensure_one()
         last_day = min(day for day in (self.date_to, self.employee_id.departure_date) if day)
-        versions = self.env['hr.version'].search([('employee_id', '=', self.employee_id.id)], order='date_version')
-        in_force = versions.filtered(lambda version: version.date_version <= last_day)
-        return in_force[-1:] or versions[:1]
+        versions = self.env['hr.version'].search([
+            ('employee_id', '=', self.employee_id.id),
+            ('contract_date_start', '!=', False),
+        ])
+        in_period = versions.filtered(lambda version: (
+            version.date_start <= last_day
+            and (not version.date_end or version.date_end >= self.date_from)
+        ))
+        if not in_period:
+            code = 'contract_missing'
+            raise LiwanHrRule(
+                code,
+                self.env._(
+                    '%(name)s has no contract version in force on %(day)s: check the contract start and end dates.',
+                    name=self.employee_id.name, day=last_day.isoformat(),
+                ),
+                field='employee_id',
+                details={'employee_id': self.employee_id.id, 'date': last_day.isoformat()},
+            )
+        return max(in_period, key=lambda version: (version.date_start, version.id))
 
     def _liwan_mail_final_payslips(self):
         """Mail the payslip of an employee whose service ended with this month to the personal email on record.
@@ -228,3 +312,75 @@ class HrPayslip(models.Model):
             slip.id for slip in self
             if not with_iban[slip.id] and (slip.state == 'draft' or amounts[slip.id]['net'] > 0)
         }
+
+
+class HrPayslipLine(models.Model):
+    """The computed lines of a payslip are frozen with it: an approved month is never rewritten line by line.
+
+    The net is summed from these lines, so a line added to a fixed payslip moves its figures as surely as an edit
+    to an existing one: ``create`` is refused for the same reason. The guards skip a superuser environment
+    (``self.env.su``): migrations and the maintenance scripts run there by design, and an authenticated user never
+    gets one, so the skip cannot be reached from a route.
+    """
+
+    _inherit = 'hr.payslip.line'
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not self.env.su:
+            self._liwan_slips_of(vals_list)._liwan_refuse_when_fixed(('create',))
+        return super().create(vals_list)
+
+    def _liwan_slips_of(self, vals_list):
+        """The payslips ``vals_list`` attach lines to, so a create is refused before a line exists."""
+        slip_ids = {vals['slip_id'] for vals in vals_list if vals.get('slip_id')}
+        return self.env['hr.payslip'].browse(sorted(slip_ids))
+
+    def write(self, vals):
+        if not self.env.su:
+            self._liwan_write_slips(vals)._liwan_refuse_when_fixed(vals)
+        return super().write(vals)
+
+    def _liwan_write_slips(self, vals):
+        """The payslips this write changes: the current parent and the ``slip_id`` destination it moves to."""
+        return self.slip_id | self.env['hr.payslip'].browse(vals.get('slip_id') or ())
+
+    def unlink(self):
+        if not self.env.su:
+            self.slip_id._liwan_refuse_when_fixed(('unlink',))
+        return super().unlink()
+
+
+class HrPayslipInput(models.Model):
+    """The entered inputs of a payslip are frozen with it too: they are the pay data its lines come from.
+
+    The same superuser skip as the lines applies: ``self.env.su`` is a migration and maintenance environment,
+    never a browser session.
+    """
+
+    _inherit = 'hr.payslip.input'
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not self.env.su:
+            self._liwan_slips_of(vals_list)._liwan_refuse_when_fixed(('create',))
+        return super().create(vals_list)
+
+    def _liwan_slips_of(self, vals_list):
+        """The payslips ``vals_list`` attach inputs to, so a create is refused before an input exists."""
+        slip_ids = {vals['payslip_id'] for vals in vals_list if vals.get('payslip_id')}
+        return self.env['hr.payslip'].browse(sorted(slip_ids))
+
+    def write(self, vals):
+        if not self.env.su:
+            self._liwan_write_slips(vals)._liwan_refuse_when_fixed(vals)
+        return super().write(vals)
+
+    def _liwan_write_slips(self, vals):
+        """The payslips this write changes: the current parent and the ``payslip_id`` destination it moves to."""
+        return self.payslip_id | self.env['hr.payslip'].browse(vals.get('payslip_id') or ())
+
+    def unlink(self):
+        if not self.env.su:
+            self.payslip_id._liwan_refuse_when_fixed(('unlink',))
+        return super().unlink()

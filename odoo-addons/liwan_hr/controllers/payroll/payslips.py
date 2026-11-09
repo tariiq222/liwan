@@ -13,6 +13,7 @@ from odoo.addons.liwan_api.controllers.common import (
 from odoo.addons.liwan_hr.controllers.assets.common import own_employee
 from odoo.addons.liwan_hr.controllers.common import hr_rule_handler
 from odoo.addons.liwan_hr.serializers.payroll.payslip import (
+    dump_my_payslip,
     dump_my_payslip_summary,
     dump_payslip,
 )
@@ -66,4 +67,4 @@ class HrPayrollPayslipController(http.Controller):
         payslip = request.env['hr.payslip'].search([*_my_payslips_domain(), ('id', '=', payslip_id)], limit=1)
         if not payslip:
             raise MissingError(request.env._('hr.payslip %(id)s does not exist', id=payslip_id))
-        return dump_payslip(payslip)
+        return dump_my_payslip(payslip)

@@ -17,6 +17,23 @@ EMPLOYEE_SCOPE_ERROR = 'employee is outside the current company'
 INVALID_FIELD_CODE = 'invalid_field'
 ACCESS_USER_CREATE_MARKER = 'liwan_core.access_user_create_depth'
 ACCESS_USER_WRITE_MARKER = 'liwan_core.access_user_write'
+# The stock employee bank-account block: salary payment data, so it sits behind the payroll capability only.
+# Stock gates these fields on hr.group_hr_user, which the employee management capability implies without any
+# payroll right; this addon closes them there, on the field-access hook Odoo documents for exactly this.
+PAYROLL_ONLY_EMPLOYEE_FIELDS = frozenset({
+    'bank_account_ids',
+    'primary_bank_account_id',
+    'is_trusted_bank_account',
+    'has_multiple_bank_accounts',
+    'salary_distribution',
+})
+
+
+def _liwan_payroll_field_allowed(env):
+    """Whether the caller holds the payroll read capability: the single grant of the employer-side pay data."""
+    return env.su or env['liwan.access.service']._liwan_has_operation_capability(env.user, 'hr.payroll.read')
+
+
 # Every model that records what an employee did or was paid; an employee with a row in any of them
 # is archived, never deleted. A version beyond the one every employee is created with counts too.
 # A shift assignment counts once it has a date: the open-ended row without dates is the one the
@@ -106,6 +123,19 @@ class LiwanHrEmployee(models.Model):
                 raise AccessError(EMPLOYEE_WRITE_ERROR)
             self._liwan_validate_scope(read_capability='hr.employees.read')
         return super().check_access(operation)
+
+    @api.model
+    def _has_field_access(self, field, operation):
+        """Keep the stock employee bank accounts behind the payroll capability for every caller.
+
+        Stock grants these fields to hr.group_hr_user, which the employee management capability implies, so an HR
+        manager without any payroll right would read an employee's salary IBANs. The payroll read capability is
+        the only grant here: the compensation record stays the single source of what payroll pays to, and this
+        override keeps the stock field from being a second one.
+        """
+        if field.name in PAYROLL_ONLY_EMPLOYEE_FIELDS:
+            return _liwan_payroll_field_allowed(self.env)
+        return super()._has_field_access(field, operation)
 
     def _liwan_has_capability(self, capability):
         service = self.env['liwan.access.service']

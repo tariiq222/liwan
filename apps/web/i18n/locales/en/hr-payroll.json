@@ -522,7 +522,9 @@
         "run_inputs_changed": "Run inputs changed",
         "run_approved": "Run approved",
         "run_cancelled": "Run cancelled",
-        "payment_file_generated": "Payment file generated"
+        "payment_file_generated": "Payment file generated",
+        "payslip_write_refused": "Payslip write refused",
+        "run_write_refused": "Payroll run write refused"
       }
     }
   }

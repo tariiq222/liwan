@@ -1,0 +1,273 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import date
+
+from odoo import api
+from odoo.exceptions import AccessError
+from odoo.tests import tagged
+
+from .payroll_common import PayrollCase
+
+MONTH_START = date(2026, 11, 1)
+# A second month: one run per month, so the movable payslips live in their own draft run.
+NEXT_MONTH_START = date(2026, 12, 1)
+IBAN = 'SA0380000000608010167519'
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestPayrollWriteRefusalAudit(PayrollCase):
+    """A write the payroll guards refuse after approval leaves exactly one audit event (issue #520).
+
+    The refusal raises, so the event is queued on the cursor's ``postcommit`` and written on its own cursor once
+    the transaction commits. These tests run that queue and read the event back through a second cursor. Under
+    ``HttpCase`` the registry hands out ``TestCursor`` instances over the one connection, so this proves the
+    queued hook writes the event and that another cursor sees it; the separate real transaction a worker commits
+    is Odoo's own path (``service_model.retrying`` -> ``cr.commit()`` -> ``postcommit.run()``), not exercised here.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.officer = cls.payroll_user(cls, 'refusal_officer', ['hr.payroll.read', 'hr.payroll.manage', 'hr.employees.read'])
+        cls.approver = cls.payroll_user(cls, 'refusal_approver', ['hr.payroll.read', 'hr.payroll.approve', 'hr.employees.read'])
+        cls.worker = cls.make_employee(cls, 'Refusal Worker')
+        cls.set_compensation(
+            cls, cls.worker, 10000, 2500, 1000, iban=IBAN, gosi_registration_date=date(2020, 1, 1),
+        )
+        cls.Event = cls.env['liwan.hr.audit.event']
+
+    def _approved_run(self):
+        """One run approved through the section's own path, so its payslips are frozen exactly as in production."""
+        run = self.env['hr.payslip.run']._liwan_create_month(MONTH_START)
+        run._liwan_compute()
+        run.with_user(self.approver)._liwan_approve()
+        self.assertEqual(run.liwan_state, 'approved')
+        return run.with_user(self.officer)
+
+    def _queued(self):
+        """The cursor's postcommit queue length: other layers queue their own writes, so tests use its delta."""
+        return len(self.env.cr.postcommit)
+
+    def _committed_events(self, action):
+        """The events of ``action`` read back through a second cursor, before that cursor closes."""
+        self.env.flush_all()
+        cursor = self.registry.cursor()
+        try:
+            env = api.Environment(cursor, api.SUPERUSER_ID, {'allowed_company_ids': [self.env.company.id]})
+            return [
+                {
+                    'res_model': event.res_model,
+                    'res_id': event.res_id,
+                    'create_uid': event.create_uid.id,
+                    'changes': {change.field_name: (change.old_value, change.new_value) for change in event.change_ids},
+                }
+                for event in env['liwan.hr.audit.event'].search([('action', '=', action)], order='id')
+            ]
+        finally:
+            cursor.rollback()
+            cursor.close()
+
+    def _assert_refused(self, action, record, fields, attempt):
+        before = self._queued()
+        with self.assertRaises(AccessError):
+            attempt()
+        # One queued write, not an event inside the refusal's own savepoint: that one the raise would roll back.
+        self.assertEqual(self._queued() - before, 1, 'the refusal queued no audit write')
+        self.env.cr.postcommit.run()
+        events = self._committed_events(action)
+        self.assertEqual(len(events), 1, events)
+        event = events[0]
+        self.assertEqual((event['res_model'], event['res_id']), (record._name, record.id))
+        self.assertEqual(event['create_uid'], self.officer.id)
+        self.assertEqual(set(event['changes']), set(fields))
+        self.assertFalse(
+            [value for pair in event['changes'].values() for value in pair if value], 'a value reached the trail',
+        )
+
+    # --- the frozen records ---------------------------------------------------------------------
+
+    def test_a_refused_line_write_of_an_approved_run_leaves_one_event(self):
+        run = self._approved_run()
+        slip = run.slip_ids
+        line = slip.line_ids[0]
+        self._assert_refused(
+            'payslip_write_refused', slip, ('total',),
+            lambda: line.write({'total': 99999}),
+        )
+        self.assertNotEqual(line.total, 99999)
+
+    def test_a_refused_payslip_write_of_an_approved_run_leaves_one_event(self):
+        run = self._approved_run()
+        slip = run.slip_ids
+        before = slip.liwan_paid_days
+        self._assert_refused(
+            'payslip_write_refused', slip, ('liwan_paid_days',),
+            lambda: slip.write({'liwan_paid_days': 1}),
+        )
+        self.assertEqual(slip.liwan_paid_days, before)
+
+    def test_a_refused_input_write_of_an_approved_run_leaves_one_event(self):
+        run = self._approved_run()
+        slip = run.slip_ids
+        entered = slip.input_line_ids[0]
+        before = entered.amount
+        self._assert_refused(
+            'payslip_write_refused', slip, ('amount',),
+            lambda: entered.write({'amount': 500}),
+        )
+        self.assertEqual(entered.amount, before)
+
+    def test_a_refused_run_header_write_of_an_approved_run_leaves_one_event(self):
+        run = self._approved_run()
+        self._assert_refused(
+            'run_write_refused', run, ('date_start',),
+            lambda: run.write({'date_start': date(2026, 12, 1)}),
+        )
+        self.assertEqual(run.date_start, MONTH_START)
+
+    def test_a_refused_run_unlock_of_an_approved_run_leaves_one_event(self):
+        run = self._approved_run()
+        self._assert_refused(
+            'run_write_refused', run, ('liwan_state',),
+            lambda: run.write({'liwan_state': 'draft'}),
+        )
+        self.assertEqual(run.liwan_state, 'approved')
+
+    def test_a_refused_delete_of_an_approved_run_leaves_one_event(self):
+        run = self._approved_run()
+        self._assert_refused('run_write_refused', run, ('unlink',), run.unlink)
+        self.assertTrue(run.exists())
+
+    def test_the_queued_refusal_write_is_visible_to_another_cursor(self):
+        """The refusal queues its event; running that queue makes the event visible to a second cursor.
+
+        ``HttpCase`` already runs in registry test mode, so ``registry.cursor()`` hands out a ``TestCursor`` over
+        the same connection (its ``commit`` only releases a savepoint). This therefore proves the queued hook
+        writes the event and that another cursor reads it back, not that a separate transaction committed; the
+        independent-cursor path in production is Odoo's own commit sequence (``service_model.retrying`` ->
+        ``cr.commit()`` -> ``postcommit.run()``).
+
+        A route cannot be the vehicle for this: every payroll route that could reach a frozen payslip refuses in
+        ``_liwan_require_state`` with a 403 before the ORM guard runs (``_liwan_set_inputs``, ``_liwan_cancel``),
+        so the route path raises no ``AccessError`` from the model and queues no refusal event. The guard this
+        covers is the one a support script or a maintenance task meets when it writes through the ORM.
+        """
+        run = self._approved_run()
+        slip = run.slip_ids
+        self.env.flush_all()
+        before = self._queued()
+        with self.assertRaises(AccessError):
+            slip.write({'liwan_paid_days': 1})
+        self.assertEqual(self._queued() - before, 1)
+        self.env.cr.postcommit.run()
+        events = self._committed_events('payslip_write_refused')
+        self.assertEqual(len(events), 1, events)
+        self.assertEqual((events[0]['res_model'], events[0]['res_id']), ('hr.payslip', slip.id))
+        self.assertEqual(events[0]['create_uid'], self.officer.id)
+        self.assertEqual(set(events[0]['changes']), {'liwan_paid_days'})
+
+    # --- moving a child into a frozen parent -----------------------------------------------------
+
+    def _draft_slips(self, employees=1):
+        """The payslips of a draft run of another month: editable donors for the move tests."""
+        for index in range(employees - 1):
+            staff = self.make_employee(f'Movable Worker {index}')
+            self.set_compensation(staff, 8000, iban=IBAN, gosi_registration_date=date(2020, 1, 1))
+        run = self.env['hr.payslip.run']._liwan_create_month(NEXT_MONTH_START)
+        self.assertEqual(run.liwan_state, 'draft')
+        return run, run.with_user(self.officer).slip_ids
+
+    def _movable_line(self, slip):
+        """A computed line of an editable payslip: computing a draft payslip is allowed, moving its line out is not."""
+        slip.compute_sheet()
+        return slip.line_ids[0]
+
+    def test_moving_a_line_into_an_approved_payslip_is_refused_and_audited(self):
+        """A line adopted by a fixed payslip moves its net, exactly like editing one already there."""
+        approved = self._approved_run()
+        target = approved.slip_ids
+        _run, slips = self._draft_slips()
+        donor = slips[:1]
+        line = self._movable_line(donor)
+        before_net = target._liwan_amounts()[target.id]['net']
+        self._assert_refused(
+            'payslip_write_refused', target, ('slip_id',),
+            lambda: line.with_user(self.officer).write({'slip_id': target.id}),
+        )
+        self.assertEqual(line.slip_id, donor)
+        self.assertEqual(target._liwan_amounts()[target.id]['net'], before_net)
+
+    def test_moving_an_input_into_an_approved_payslip_is_refused_and_audited(self):
+        approved = self._approved_run()
+        target = approved.slip_ids
+        _run, slips = self._draft_slips()
+        donor = slips[:1]
+        entered = donor.input_line_ids[:1]
+        self.assertTrue(entered)
+        self._assert_refused(
+            'payslip_write_refused', target, ('payslip_id',),
+            lambda: entered.with_user(self.officer).write({'payslip_id': target.id}),
+        )
+        self.assertEqual(entered.payslip_id, donor)
+
+    def test_moving_a_line_between_two_editable_payslips_is_allowed(self):
+        _run, slips = self._draft_slips(employees=2)
+        donor, receiver = slips[:2]
+        self.assertTrue(receiver)
+        line = self._movable_line(donor)
+        before = self._queued()
+        line.with_user(self.officer).write({'slip_id': receiver.id, 'amount': 1, 'quantity': 1, 'rate': 100})
+        self.assertEqual(line.slip_id, receiver)
+        self.assertEqual(self._queued(), before)
+
+    def test_moving_a_create_line_into_an_approved_payslip_is_refused(self):
+        """``create`` with a frozen parent was already refused; keep it pinned next to the move guard."""
+        approved = self._approved_run()
+        target = approved.slip_ids
+        line = target.line_ids[0]
+        before = self._queued()
+        with self.assertRaises(AccessError):
+            self.env['hr.payslip.line'].with_user(self.officer).create({
+                'slip_id': target.id, 'name': 'Moved in', 'code': 'MOVED_IN',
+                'category_id': line.category_id.id, 'salary_rule_id': line.salary_rule_id.id,
+                'employee_id': target.employee_id.id, 'contract_id': target.contract_id.id,
+                'amount': 1, 'quantity': 1, 'rate': 100,
+            })
+        self.assertEqual(self._queued() - before, 1)
+
+    def test_moving_a_payslip_into_an_approved_run_is_refused_and_audited(self):
+        """A run's figures are summed from its payslips: adopting one rewrites the approved month."""
+        approved = self._approved_run()
+        draft, slips = self._draft_slips()
+        movable = slips[:1]
+        self._assert_refused(
+            'run_write_refused', approved, ('payslip_run_id',),
+            lambda: movable.with_user(self.officer).write({'payslip_run_id': approved.id}),
+        )
+        self.assertEqual(movable.payslip_run_id, draft)
+
+    # --- what must stay silent -------------------------------------------------------------------
+
+    def test_a_permitted_write_of_an_editable_run_leaves_no_event(self):
+        run = self.env['hr.payslip.run']._liwan_create_month(MONTH_START)
+        self.assertEqual(run.liwan_state, 'draft')
+        run.with_user(self.officer).write({'date_start': run.date_start})
+        before = self._queued()
+        run.slip_ids.with_user(self.officer).write({'liwan_paid_days': 2})
+        self.assertEqual(self._queued(), before)
+        self.assertFalse(self.Event.search_count([
+            ('action', 'in', ('payslip_write_refused', 'run_write_refused')),
+        ]))
+
+    def test_each_refused_write_logs_its_own_event(self):
+        """Two attempts in one transaction are two facts, and one attempt is never logged twice."""
+        run = self._approved_run()
+        logged = 0
+        for entries in (1, 3):
+            before = self._queued()
+            for index in range(entries):
+                with self.assertRaises(AccessError):
+                    run.slip_ids.write({'liwan_paid_days': index + 1})
+            self.assertEqual(self._queued() - before, entries)
+            self.env.cr.postcommit.run()
+            logged += entries
+            self.assertEqual(len(self._committed_events('payslip_write_refused')), logged)
