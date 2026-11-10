@@ -16,7 +16,7 @@ const iso = (column: string) => `to_char(${column} AT TIME ZONE 'UTC','YYYY-MM-D
 // The latest unresolved order mirrors the customers list: stalled means failed, or still queued/applying after STALLED_HOURS.
 const subjectsSql = `WITH latest AS (
   SELECT c.id AS customer_id, c.name, c.tenant_id, c.commercial_setup_required, c.created_at AS customer_created_at,
-    s.id AS subscription_id, s.state, s.renewal_at, o.fulfillment_state, o.created_at AS order_created_at
+    s.id AS subscription_id, s.state, s.renewal_at, s.billing_blocked_at, o.fulfillment_state, o.created_at AS order_created_at
   FROM customers c
   LEFT JOIN subscriptions s ON s.customer_id=c.id
   LEFT JOIN LATERAL (
@@ -29,6 +29,8 @@ const subjectsSql = `WITH latest AS (
     OR (fulfillment_state IN ('queued','applying') AND order_created_at < now() - make_interval(hours => $1::int))
 ), setup AS (
   SELECT * FROM latest WHERE commercial_setup_required OR subscription_id IS NULL
+), blocked AS (
+  SELECT * FROM latest WHERE billing_blocked_at IS NOT NULL AND state IN ('active','past_due')
 ), renewing AS (
   SELECT * FROM latest WHERE ${renewalDue}
 ), overdue AS (
@@ -44,11 +46,12 @@ const subjectsSql = `WITH latest AS (
   ORDER BY op.tenant_id, op.created_at DESC, op.id
 ), subjects AS (
   SELECT 1 AS rank,'past_due' AS kind, customer_id, tenant_id, NULL::uuid AS operation_id, invoice_id, name, ${iso('due_at')} AS since, NULL::text AS detail, due_at AS sort_at FROM overdue WHERE $3::boolean
-  UNION ALL SELECT 2,'stalled_activation', customer_id, tenant_id, NULL, NULL, name, ${iso('order_created_at')}, fulfillment_state, order_created_at FROM stalled
-  UNION ALL SELECT 3,'operation_failed', customer_id, tenant_id, id, NULL, name, ${iso('updated_at')}, type, updated_at FROM failed_ops
-  UNION ALL SELECT 4,'setup_required', customer_id, tenant_id, NULL, NULL, name, ${iso('customer_created_at')}, NULL, customer_created_at FROM setup
-  UNION ALL SELECT 5,'renewal_missed', customer_id, tenant_id, NULL, NULL, name, ${iso(renewalInstant)}, NULL, ${renewalInstant} FROM renewing WHERE renewal_at < ${businessToday}
-  UNION ALL SELECT 6,'renewal_soon', customer_id, tenant_id, NULL, NULL, name, ${iso(renewalInstant)}, NULL, ${renewalInstant} FROM renewing WHERE renewal_at >= ${businessToday}
+  UNION ALL SELECT 2,'billing_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('billing_blocked_at')}, NULL, billing_blocked_at FROM blocked
+  UNION ALL SELECT 3,'stalled_activation', customer_id, tenant_id, NULL, NULL, name, ${iso('order_created_at')}, fulfillment_state, order_created_at FROM stalled
+  UNION ALL SELECT 4,'operation_failed', customer_id, tenant_id, id, NULL, name, ${iso('updated_at')}, type, updated_at FROM failed_ops
+  UNION ALL SELECT 5,'setup_required', customer_id, tenant_id, NULL, NULL, name, ${iso('customer_created_at')}, NULL, customer_created_at FROM setup
+  UNION ALL SELECT 6,'renewal_missed', customer_id, tenant_id, NULL, NULL, name, ${iso(renewalInstant)}, NULL, ${renewalInstant} FROM renewing WHERE renewal_at < ${businessToday}
+  UNION ALL SELECT 7,'renewal_soon', customer_id, tenant_id, NULL, NULL, name, ${iso(renewalInstant)}, NULL, ${renewalInstant} FROM renewing WHERE renewal_at >= ${businessToday}
 )`
 
 const countsSql = `SELECT

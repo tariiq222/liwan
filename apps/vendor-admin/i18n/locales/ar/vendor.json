@@ -65,6 +65,7 @@
       "duration": "أقل من يوم | يوم واحد | يومان | {count} أيام | {count} يومًا | {count} يوم",
       "kinds": {
         "past_due": "متأخر في السداد منذ {duration}",
+        "billing_blocked": "تعذّر إصدار الفاتورة منذ {duration}: لا عنوان عودة صالح للدفع",
         "stalled_failed": "فشل التفعيل ويحتاج تدخلك",
         "stalled_waiting": "التفعيل متعثر منذ {duration}",
         "operation_failed": "فشلت عملية: {operation}",
@@ -74,6 +75,7 @@
       },
       "actions": {
         "past_due": "افتح الفاتورة",
+        "billing_blocked": "افتح الاشتراك",
         "stalled_activation": "افتح مساحة العمل",
         "operation_failed": "افتح العملية",
         "setup_required": "افتح الاشتراك",

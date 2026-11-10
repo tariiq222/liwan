@@ -65,6 +65,7 @@
       "duration": "less than a day | one day | {count} days",
       "kinds": {
         "past_due": "Overdue for {duration}",
+        "billing_blocked": "Invoice cannot be issued for {duration}: no valid payment return address",
         "stalled_failed": "Activation failed and needs you",
         "stalled_waiting": "Activation stalled for {duration}",
         "operation_failed": "Operation failed: {operation}",
@@ -74,6 +75,7 @@
       },
       "actions": {
         "past_due": "Open the invoice",
+        "billing_blocked": "Open the subscription",
         "stalled_activation": "Open the workspace",
         "operation_failed": "Open the operation",
         "setup_required": "Open the subscription",

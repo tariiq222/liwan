@@ -15,7 +15,7 @@ suite('vendor attention list on PostgreSQL', () => {
   let pool: Pool
   let databaseCreated = false
   const tag = `at${randomUUID().slice(0, 8)}`
-  const id = { overdue: randomUUID(), stalled: randomUUID(), setup: randomUUID(), renewing: randomUUID(), missed: randomUUID(), calm: randomUUID(), failedOp: randomUUID(), recovered: randomUUID() }
+  const id = { overdue: randomUUID(), blocked: randomUUID(), stalled: randomUUID(), setup: randomUUID(), renewing: randomUUID(), missed: randomUUID(), calm: randomUUID(), failedOp: randomUUID(), recovered: randomUUID() }
   const tenants = { overdue: randomUUID(), failedOp: randomUUID(), recovered: randomUUID() }
   const operationId = randomUUID()
 
@@ -50,13 +50,15 @@ suite('vendor attention list on PostgreSQL', () => {
     pool = new Pool({ connectionString: withDb(dbName) })
     await migrate(pool)
     await tenant(tenants.overdue, `${tag} overdue`); await tenant(tenants.failedOp, `${tag} failed op`); await tenant(tenants.recovered, `${tag} recovered`)
-    for (const [key, name] of [['overdue', 'overdue'], ['stalled', 'stalled'], ['setup', 'setup'], ['renewing', 'renewing'], ['missed', 'missed'], ['calm', 'calm']] as const)
+    for (const [key, name] of [['overdue', 'overdue'], ['blocked', 'blocked'], ['stalled', 'stalled'], ['setup', 'setup'], ['renewing', 'renewing'], ['missed', 'missed'], ['calm', 'calm']] as const)
       await pool.query('INSERT INTO customers(id,name,tenant_id,commercial_setup_required) VALUES($1,$2,$3,$4)', [id[key], `${tag} ${name}`, key === 'overdue' ? tenants.overdue : null, key === 'setup'])
     const overdue = await subscription(id.overdue, 'past_due', null, tenants.overdue)
     await pool.query("INSERT INTO invoices(id,customer_id,subscription_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,issued_at,due_at) VALUES($1,$2,$3,'renewal','issued','SAR',2,100,15,115,'2026-01-01','2026-02-01',now() - interval '20 days',now() - interval '12 days')",
       [randomUUID(), id.overdue, overdue.sub])
     await pool.query("INSERT INTO invoices(id,customer_id,subscription_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,issued_at,due_at) VALUES($1,$2,$3,'renewal','issued','SAR',2,100,15,115,'2026-02-01','2026-03-01',now() - interval '5 days',now() - interval '2 days')",
       [randomUUID(), id.overdue, overdue.sub])
+    const blocked = await subscription(id.blocked, 'past_due', new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10))
+    await pool.query("UPDATE subscriptions SET billing_blocked_at=now() - interval '2 days' WHERE id=$1", [blocked.sub])
     await order(id.stalled, await subscription(id.stalled, 'pending', null), 'applying', 48)
     await subscription(id.renewing, 'active', new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10))
     await subscription(id.missed, 'active', new Date(Date.now() - 4 * 86_400_000).toISOString().slice(0, 10))
@@ -76,13 +78,15 @@ suite('vendor attention list on PostgreSQL', () => {
   it('lists each kind once per customer, most urgent first, naming the exact record', async () => {
     const { items } = await get(BILLING)
     expect(mine(items).map(i => [i.kind, i.name.slice(tag.length + 1)])).toEqual([
-      ['past_due', 'overdue'], ['stalled_activation', 'stalled'], ['operation_failed', 'failed op'], ['setup_required', 'setup'], ['renewal_missed', 'missed'], ['renewal_soon', 'renewing'],
+      ['past_due', 'overdue'], ['billing_blocked', 'blocked'], ['stalled_activation', 'stalled'], ['operation_failed', 'failed op'], ['setup_required', 'setup'], ['renewal_missed', 'missed'], ['renewal_soon', 'renewing'],
     ])
     const byKind = Object.fromEntries(mine(items).map(i => [i.kind, i]))
     expect(byKind.past_due).toMatchObject({ customer_id: id.overdue, tenant_id: tenants.overdue, operation_id: null })
     expect(byKind.past_due!.invoice_id).not.toBeNull()
     expect(Date.now() - Date.parse(byKind.past_due!.since)).toBeGreaterThan(11 * 86_400_000)
     expect(Date.now() - Date.parse(byKind.past_due!.since)).toBeLessThan(13 * 86_400_000)
+    expect(byKind.billing_blocked).toMatchObject({ customer_id: id.blocked, invoice_id: null, detail: null })
+    expect(Date.now() - Date.parse(byKind.billing_blocked!.since)).toBeGreaterThan(1.9 * 86_400_000)
     expect(byKind.stalled_activation).toMatchObject({ customer_id: id.stalled, detail: 'applying' })
     expect(byKind.operation_failed).toMatchObject({ operation_id: operationId, tenant_id: tenants.failedOp, customer_id: null, detail: 'upgrade' })
     expect(byKind.setup_required).toMatchObject({ customer_id: id.setup })
@@ -91,6 +95,7 @@ suite('vendor attention list on PostgreSQL', () => {
   it('hides overdue invoices from callers without billing access', async () => {
     const { items } = await get(['vendor.read'])
     expect(mine(items).map(i => i.kind)).not.toContain('past_due')
+    expect(mine(items).map(i => i.kind)).toContain('billing_blocked')
     expect(mine(items).every(i => i.invoice_id === null)).toBe(true)
     expect((await get(['vendor.read'])).counts.past_due).toBeNull()
   })
@@ -99,8 +104,8 @@ suite('vendor attention list on PostgreSQL', () => {
     await pool.query("INSERT INTO customers(id,name,commercial_setup_required) SELECT gen_random_uuid(), $1 || ' bulk ' || n, true FROM generate_series(1,25) n", [tag])
     const r = await get(BILLING)
     expect(r.items).toHaveLength(20)
-    expect(r.total).toBe(6 + 25)
-    expect(r.items.slice(0, 3).map(i => i.kind)).toEqual(['past_due', 'stalled_activation', 'operation_failed'])
+    expect(r.total).toBe(7 + 25)
+    expect(r.items.slice(0, 4).map(i => i.kind)).toEqual(['past_due', 'billing_blocked', 'stalled_activation', 'operation_failed'])
     expect(r.counts.past_due).toBe(1)
     expect(r.counts.stalled).toBeGreaterThanOrEqual(1)
     expect(r.counts.renewals).toBeGreaterThanOrEqual(1)

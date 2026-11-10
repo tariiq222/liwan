@@ -31,9 +31,10 @@ export async function onRenewalPaid(client: PoolClient, order_id: string) {
 }
 
 /**
- * Generates every due renewal. Each customer's return origin is resolved before anything is written, so a
- * customer without a usable one is skipped untouched (it is picked up again once fixed) while the rest are
- * processed; the run then fails with `return_url_forbidden` so the skip is never silent.
+ * Generates every due renewal. Each customer's return origin is resolved before anything is invoiced, so a
+ * customer without a usable one is skipped (it is picked up again once fixed) while the rest are processed. The
+ * skipped subscription is marked billing-blocked, which the vendor attention list shows until its origin works
+ * again, and the run then fails with `return_url_forbidden` so the skip is never silent.
  */
 export async function generateRenewals(pool: Pool, { now = new Date(), adapter, returnOrigin, subscription_id }: {
   now?: Date; adapter: PaymentAdapter; returnOrigin: ReturnOrigin; subscription_id?: string
@@ -48,9 +49,11 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
     try { origin = await returnOrigin(candidate.customer_id) }
     catch (error) {
       if ((error as { code?: string }).code !== 'return_url_forbidden') throw error
+      await pool.query('UPDATE subscriptions SET billing_blocked_at=COALESCE(billing_blocked_at,now()) WHERE id=$1', [candidate.id])
       unusableOrigins++
       continue
     }
+    await pool.query('UPDATE subscriptions SET billing_blocked_at=NULL WHERE id=$1 AND billing_blocked_at IS NOT NULL', [candidate.id])
     const result = await transaction(pool, async client => {
       const sub = (await client.query('SELECT * FROM subscriptions WHERE id=$1 FOR UPDATE', [candidate.id])).rows[0]
       if (!['active','past_due'].includes(sub.state) || !sub.applied_revision_id || !sub.renewal_at || date(sub.renewal_at)>today) return null

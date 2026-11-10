@@ -9,6 +9,7 @@ describe('attentionPresentation', () => {
   it('opens the exact place for every kind', () => {
     expect(attentionPresentation(item({ kind: 'past_due', invoice_id: 'i1' })).to).toEqual({ path: '/invoices/i1' })
     expect(attentionPresentation(item({ kind: 'past_due' })).to).toEqual({ path: '/customers/c1', query: { tab: 'invoices' } })
+    expect(attentionPresentation(item({ kind: 'billing_blocked' })).to).toEqual({ path: '/customers/c1', query: { tab: 'subscription' } })
     expect(attentionPresentation(item({ kind: 'stalled_activation' })).to).toEqual({ path: '/customers/c1', query: { tab: 'workspace' } })
     expect(attentionPresentation(item({ kind: 'setup_required' })).to).toEqual({ path: '/customers/c1', query: { tab: 'subscription' } })
     expect(attentionPresentation(item({ kind: 'renewal_soon' })).to).toEqual({ path: '/customers/c1', query: { tab: 'subscription' } })
@@ -24,6 +25,7 @@ describe('attentionPresentation', () => {
 describe('attentionMessage', () => {
   it('counts overdue and waiting days from `since`', () => {
     expect(attentionMessage(item({ kind: 'past_due' }), now)).toEqual({ key: 'past_due', days: 12, operation: null })
+    expect(attentionMessage(item({ kind: 'billing_blocked' }), now)).toEqual({ key: 'billing_blocked', days: 12, operation: null })
     expect(attentionMessage(item({ kind: 'stalled_activation', detail: 'applying', since: '2026-10-14T12:00:00Z' }), now)).toMatchObject({ key: 'stalled_waiting', days: 2 })
   })
   it('says a failed activation failed instead of counting days', () => {

@@ -31,6 +31,8 @@ export function attentionPresentation(item: AttentionItem): AttentionPresentatio
   switch (item.kind) {
     case 'past_due':
       return { to: item.invoice_id ? { path: `/invoices/${item.invoice_id}` } : customerTab(item, 'invoices'), tone: 'destructive', icon: 'i-lucide-alarm-clock', actionKey: action(item.kind) }
+    case 'billing_blocked':
+      return { to: customerTab(item, 'subscription'), tone: 'destructive', icon: 'i-lucide-credit-card', actionKey: action(item.kind) }
     case 'stalled_activation':
       return { to: customerTab(item, 'workspace'), tone: 'destructive', icon: 'i-lucide-hourglass', actionKey: action(item.kind) }
     case 'operation_failed':
@@ -50,6 +52,7 @@ const FAILED_FULFILLMENT = ['failed', 'needs_intervention']
 export function attentionMessage(item: AttentionItem, now: Date): { key: string, days: number | null, operation: string | null } {
   switch (item.kind) {
     case 'past_due': return { key: 'past_due', days: Math.max(0, daysBetween(item.since, now)), operation: null }
+    case 'billing_blocked': return { key: 'billing_blocked', days: Math.max(0, daysBetween(item.since, now)), operation: null }
     case 'stalled_activation':
       return FAILED_FULFILLMENT.includes(item.detail ?? '')
         ? { key: 'stalled_failed', days: null, operation: null }

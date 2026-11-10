@@ -8,6 +8,7 @@ import { routesB } from '../commercial/routes-b.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { getSubscription } from '../commercial/subscriptions.js'
 import { expireTrials } from '../commercial/trial-expiry.js'
+import { generateRenewals } from '../commercial/renewals.js'
 import { commercialValidUntil } from '../commercial/fulfillment.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { sendTrialNotices } from '../commercial/trial-notices.js'
@@ -112,10 +113,28 @@ suite('commercial trial', () => {
     expect((await getSubscription(pool, c.id)).state).toBe('trialing')
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(0)
   })
-  it('rejects an unusable return origin before ending any trial', async () => {
+  it('ends a trial whose customer has no usable return origin, marks it billing-blocked and invoices it once the origin works', async () => {
     const c = await trialAt(now, -1)
-    await expect(expireTrials(pool, { now, adapter: new SimulatorAdapter(), returnOrigin: fixedReturnOrigin('http://billing.example.com') })).rejects.toMatchObject({ status: 422, code: 'return_url_forbidden' })
-    expect((await getSubscription(pool, c.id)).state).toBe('trialing')
+    const adapter = new SimulatorAdapter()
+    await expect(expireTrials(pool, { now, adapter, returnOrigin: fixedReturnOrigin('http://billing.example.com'), subscription_id: (await getSubscription(pool, c.id)).id }))
+      .rejects.toMatchObject({ status: 422, code: 'return_url_forbidden' })
+    const blocked = async () => (await pool.query('SELECT state,billing_blocked_at FROM subscriptions WHERE customer_id=$1', [c.id])).rows[0]
+    expect(await blocked()).toMatchObject({ state: 'past_due', billing_blocked_at: expect.any(Date) })
+    expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(0)
+    const since = (await blocked()).billing_blocked_at
+    // Another blocked run keeps the original time; a run with a usable origin invoices and clears the block.
+    await expect(generateRenewals(pool, { now, adapter, returnOrigin: fixedReturnOrigin('http://billing.example.com'), subscription_id: (await getSubscription(pool, c.id)).id })).rejects.toMatchObject({ code: 'return_url_forbidden' })
+    expect((await blocked()).billing_blocked_at).toEqual(since)
+    await generateRenewals(pool, { now, adapter, returnOrigin: fixedReturnOrigin('https://liwan.test'), subscription_id: (await getSubscription(pool, c.id)).id })
+    expect(await blocked()).toMatchObject({ state: 'past_due', billing_blocked_at: null })
+    expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(1)
+  })
+  it('marks an active subscription billing-blocked when its renewal has no usable return origin', async () => {
+    const c = await trialAt(now, 3)
+    const sub = await getSubscription(pool, c.id)
+    await pool.query("UPDATE subscriptions SET state='active',trial_ends_at=NULL,renewal_at=$2,revision=revision+1 WHERE id=$1", [sub.id, riyadhDate(now)])
+    await expect(generateRenewals(pool, { now, adapter: new SimulatorAdapter(), returnOrigin: fixedReturnOrigin('http://billing.example.com'), subscription_id: sub.id })).rejects.toMatchObject({ code: 'return_url_forbidden' })
+    expect((await pool.query('SELECT state,billing_blocked_at FROM subscriptions WHERE id=$1', [sub.id])).rows[0]).toMatchObject({ state: 'active', billing_blocked_at: expect.any(Date) })
   })
   it('is idempotent across a repeated run', async () => {
     const c = await trialAt(now, -1)

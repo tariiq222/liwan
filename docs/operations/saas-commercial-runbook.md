@@ -199,6 +199,7 @@ npm -w apps/vendor-admin run dev -- --port 3100
 - قبل أي تشغيل جماعي: تحقق الساعة، وأن المزود في الوضع الصحيح، وعدم وجود `renewals` عالقة بـ`charging`.
 - تتبّع الحالات: `invoiced → charging → paid | past_due | suspended | failed`. لا يُعاد تشغيل التجديد لفترة سبق إصدار فاتورتها.
 - في المصدر، `npm -w apps/control-plane run worker:shared` يشغّل `shared-worker-main.ts`، الذي يستدعي `createCommercialScheduler().tick()` بعد كل دورة للعامل. يشغّل مسار الفوترة كل `LIWAN_COMMERCIAL_BILLING_INTERVAL_SEC` ثانية (الافتراضي 3600)، ويُنشئ التجديدات فقط عند توفر مهايئ الدفع. هذه آلية مصدر، وليست دليلًا على أن عاملًا يعمل في staging أو production؛ الدليل الوحيد على تشغيله هو تكرار `commercial_scheduler_tick` في سجله (انظر §2).
+- عميل لا عنوان عودة دفع صالح له (`return_url_forbidden`) لا يُترك على حاله: تنتهي تجربته إلى `past_due` دائمًا، ويوسَم اشتراكه (`billing_blocked_at`) فيظهر في «اليوم» بنوع `billing_blocked`، وتفشل الدورة بـ`return_url_forbidden` فتُسجَّل في سجل العامل. أصلح `LIWAN_PAYMENT_RETURN_ORIGINS` أو ربط المضيف؛ في الدورة التالية تصدر الفاتورة ويزول الوسم.
 - يوجد أيضًا `POST /v1/commercial/renewals/run`؛ يتطلب `vendor.billing.manage` وتأكيد step-up حديثًا، ويرفض تمرير `now` في production. وجود المسار لا يجيز تشغيلًا يدويًا؛ لا يُستخدم قبل قبول الإجراء في بيئته المقصودة.
 
 ### 4.5 past_due والتعليق وفق سياسة الباقة [قبول تشغيلي غير متحقق] [غير مختبر]
