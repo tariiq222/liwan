@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool } from 'pg'
 import { CommercialError, compileEntitlements, computeQuote } from '@liwan/commercial-contracts/server'
-import { addCadence, riyadhDate, quotePreviewRequestSchema, quoteRequestSchema, quoteSchema, type CustomerTermsRevision, type Quote } from '@liwan/commercial-contracts'
+import { addCadence, daysBetween, riyadhDate, quotePreviewRequestSchema, quoteRequestSchema, quoteSchema, type CustomerTermsRevision, type Quote } from '@liwan/commercial-contracts'
 import type { PoolClient } from 'pg'
 import { transaction } from '../db.js'
 import { CommercialHttpError, toIssue } from './lifecycle.js'
@@ -100,7 +100,7 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
     if (!fee || Number(fee.onboarding_fee_minor) <= 0) throw bad('onboarding_unavailable', 'onboarding')
     onboarding = { amount: { currency: fee.onboarding_currency, exponent: Number(fee.onboarding_exponent), minor: Number(fee.onboarding_fee_minor) } }
   }
-  let current: any, applied: any
+  let current: any, applied: any, prorationCycleDays: number | undefined
   const effective = process.env.NODE_ENV !== 'production' && input.effective_date ? input.effective_date : riyadhDate(now)
   let period = { start: effective, end: addCadence(effective, input.cadence, 1) }
   if (input.kind === 'change') {
@@ -109,6 +109,8 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
     if (!applied) throw bad('subscription_required', 'kind', 409)
     if (JSON.stringify(applied.cadence) !== JSON.stringify(input.cadence)) throw bad('cadence_change_unsupported', 'cadence')
     period = await appliedPeriod(client, s, applied)
+    if (s.state === 'trialing' && s.trial_ends_at)
+      prorationCycleDays = daysBetween(period.end, addCadence(period.end, input.cadence, 1))
     // A trial that lapsed and has not been locked yet is commercially on the free base: a change is priced from there, so the
     // customer pays for every application and quantity the base does not include.
     const lapse = await unresolvedLapse(client, s)
@@ -144,6 +146,7 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
   })
   try {
     const quote = computeQuote({ ...sources, kind: input.kind, cadence: input.cadence, requested_extra_branches: extraBranches,
+      proration_cycle_days: prorationCycleDays,
       requested_users: input.requested_users, requested_storage_mb: input.requested_storage_mb,
       current, effective_date: effective, period, ids: { id: randomUUID(), customer_id: value.customer_id, subscription_id: s?.id ?? null, expected_subscription_revision: s?.revision ?? 0 },
       expires_at: new Date(now.getTime() + TTL_MS).toISOString(), entitlement_digest: entitlement.digest, onboarding })
@@ -171,7 +174,9 @@ export function createQuoteForCustomer(pool: Pool, value: QuoteInput, now = new 
  * lapsed onto the free base and whose lock is not applied yet: its snapshot still carries the trial's elapsed period, while
  * the subscription already lives in the free-base cycle (`trial_lapses.period_start` to `renewal_at`).
  */
-export async function appliedPeriod(client: Pick<PoolClient, 'query'>, subscription: { id: string; applied_revision_id: string; renewal_at: unknown }, applied: { period_start: string; period_end: string }) {
+export async function appliedPeriod(client: Pick<PoolClient, 'query'>, subscription: { id: string; applied_revision_id: string; renewal_at: unknown; state: string; trial_ends_at: Date | null }, applied: { period_start: string; period_end: string }) {
+  if (subscription.state === 'trialing' && subscription.trial_ends_at)
+    return { start: applied.period_start, end: riyadhDate(subscription.trial_ends_at) }
   const lapse = await unresolvedLapse(client, subscription)
   if (!lapse || !subscription.renewal_at) return { start: applied.period_start, end: applied.period_end }
   return { start: lapse.period_start, end: riyadhDate(subscription.renewal_at instanceof Date ? subscription.renewal_at : new Date(`${subscription.renewal_at}T00:00:00+03:00`)) }

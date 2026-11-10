@@ -24,6 +24,7 @@ import { isPayrollConflict } from '@/utils/payrollErrors'
 // accounting part exists only when the finance bridge answers: a 404 or 403 from its settings route hides it, with no
 // guess about installed addons. Changing it needs `finance.setup.manage`, and the cost centers `finance.analytic.manage`.
 const { t } = useI18n()
+const hydrated = useHydrated()
 const { can } = useAccess()
 const { parts, shows, tabItems, inTab } = useSettingsPage('hr')
 const leaveSettings = useHrLeaveSettings(() => shows('leave'))
@@ -176,7 +177,7 @@ function retry() {
       <BankProfileForm :profiles="bankProfiles.data.value?.items ?? []" :can-edit="canConfig" :reload-profiles="reloadBankProfiles" />
       <SharedFormSection panel :title="t('hrPayroll.eosCases.title')" :description="t('hrPayroll.eosCases.hint')">
         <UAlert v-if="eosFailureMessage" role="alert" color="error" variant="subtle" :title="t('hrPayroll.eosCases.saveError')" :description="eosFailureMessage" />
-        <UButton v-if="eosConflict" color="neutral" variant="outline" :label="t('hrPayroll.revision.reload')" :loading="eosReloading" :disabled="eosReloading" data-testid="hr-eos-cases-reload" @click="reloadEosCases" />
+        <UButton v-if="eosConflict" color="neutral" variant="outline" :label="t('hrPayroll.revision.reload')" :loading="eosReloading" :disabled="!hydrated || eosReloading" data-testid="hr-eos-cases-reload" @click="reloadEosCases" />
         <UAlert v-if="eosReloadFailure" role="alert" color="error" variant="subtle" :title="t('hrPayroll.revision.reloadError')" />
         <EosCaseMapTable :mappings="eosCases.data.value?.items ?? []" :can-edit="canConfig" :saving="savingReasons" :drafts="eosDrafts" :locked="eosConflict || eosReloading" @change="changeEosCase" />
       </SharedFormSection>

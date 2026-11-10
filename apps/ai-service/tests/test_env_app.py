@@ -8,7 +8,7 @@ from liwan_ai_service.control import MemoryControlState
 from liwan_ai_service.service import EnvApp
 from liwan_ai_service.settings import PLATFORM_PROVIDER_FILE
 from liwan_ai_service.tenant_state import TenantStates
-from tests.platform_file import platform_env
+from tests.platform_file import platform_env, write_platform_file
 
 
 async def test_env_app_runs_its_lifespan_and_serves(monkeypatch):
@@ -206,7 +206,7 @@ async def test_a_missing_platform_file_stops_the_start_naming_the_variable_and_t
 
 async def test_an_invalid_platform_file_names_the_field_and_never_a_value(monkeypatch, tmp_path):
     path = tmp_path / "p.json"
-    path.write_text('{"provider": "openai", "model": "m", "api_key": "sk-secret-value", "revision": 0}')
+    write_platform_file(path, "openai", "m", api_key="sk-secret-value", revision=0)
     monkeypatch.setenv(PLATFORM_PROVIDER_FILE, str(path))
     monkeypatch.setenv("AI_ALLOW_MEMORY_STATE", "true")
     monkeypatch.setenv("AI_DEV_INSECURE", "true")

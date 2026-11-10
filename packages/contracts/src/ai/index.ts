@@ -137,7 +137,7 @@ export type AiEvent = z.infer<typeof AiEventSchema>
  * `AiEventSchema`, which is the browser stream); the Nuxt server then reports the pairs to Odoo in batches.
  */
 export const AI_USAGE_BATCH_MAX = 64
-export const AiModelCallKindSchema = z.enum(['plan', 'title'])
+export const AiModelCallKindSchema = z.enum(['plan', 'title', 'route', 'summary'])
 /** What kind of task a call served; the same four values as the AI service's `Capability` and Odoo's `USAGE_CAPABILITIES`. */
 export const AiCapabilitySchema = z.enum(['quick', 'standard', 'analysis', 'writing'])
 export type AiCapability = z.infer<typeof AiCapabilitySchema>

@@ -16,6 +16,7 @@ const CODE_KEYS = {
   zatca_local_error: 'zatcaLocalError',
   zatca_unauthorized: 'zatcaUnauthorized',
   zatca_mode_not_allowed: 'zatcaModeNotAllowed',
+  retry_too_soon: 'retryTooSoon',
   amount_exceeds_residual: 'amountExceedsResidual',
   journal_currency_mismatch: 'journalCurrencyMismatch',
   no_journal: 'noJournal',

@@ -33,3 +33,20 @@ def test_a_pinned_model_serves_every_capability_under_its_own_identity():
     for capability in ("quick", "standard", "analysis", "writing"):
         served = models.for_capability(capability)
         assert (served.identity.model, served.identity.capability, served.identity.billing) == ("fast", "quick", "setup")
+
+
+def test_only_a_map_with_two_distinct_models_can_route():
+    base, deep = run_model("base"), run_model("deep", "analysis")
+    assert not RunModels(base).can_route
+    assert RunModels(base, {"analysis": deep}).can_route
+    assert not RunModels(base, {"analysis": RunModel(base.model, deep.identity)}).can_route  # the same model object under another identity
+    assert not RunModels.pinned(base).can_route
+    assert not RunModels(base, dict.fromkeys(("quick", "standard", "analysis", "writing"), deep)).can_route  # the default is unreachable
+
+
+def test_the_default_can_serve_under_any_capability_even_one_that_is_mapped():
+    base = run_model("base")
+    models = RunModels(base, {"analysis": run_model("deep", "analysis")})
+    served = models.default_as("analysis")
+    assert served.model is base.model
+    assert (served.identity.model, served.identity.capability) == ("base", "analysis")

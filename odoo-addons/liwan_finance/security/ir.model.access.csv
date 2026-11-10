@@ -26,6 +26,7 @@ access_finance_idempotency_invoices,finance idempotency invoices: liwan.finance.
 access_finance_idempotency_payments,finance idempotency payments: liwan.finance.idempotency,model_liwan_finance_idempotency,group_cap_finance_payments_manage,1,1,1,1
 access_finance_idempotency_entries,finance idempotency entries: liwan.finance.idempotency,model_liwan_finance_idempotency,group_cap_finance_entries_manage,1,1,1,1
 access_finance_idempotency_bank,finance idempotency bank: liwan.finance.idempotency,model_liwan_finance_idempotency,group_cap_finance_bank_manage,1,1,1,1
+access_finance_idempotency_zatca_submit,finance idempotency zatca submit: liwan.finance.idempotency,model_liwan_finance_idempotency,group_cap_finance_zatca_submit,1,1,1,1
 access_finance_zakat_manage_finance_zakat_adjustment,finance zakat manage: liwan.finance.zakat.adjustment,model_liwan_finance_zakat_adjustment,group_cap_finance_zakat_manage,1,1,1,1
 access_finance_audit_zakat_manage_event,finance audit zakat manage: liwan.finance.audit.event,model_liwan_finance_audit_event,group_cap_finance_zakat_manage,0,0,1,0
 access_finance_zakat_review_finance_zakat_review,finance zakat review: liwan.finance.zakat.review,model_liwan_finance_zakat_review,group_cap_finance_zakat_review,1,0,1,0

@@ -450,7 +450,8 @@ class TestPayrollAccountingRace(TransactionCase):
                 ]))
                 super(PayrollMove, moves.with_context(force_delete=True)).unlink()
             if run:
-                run.slip_ids.write({'state': 'draft'})
+                # The engine refuses to delete a payslip that is not draft; its own reset action lifts that.
+                run.slip_ids.action_payslip_draft()
                 Model.unlink(run.slip_ids)
                 Model.unlink(run)
             employee = env['hr.employee'].browse(fixture.employee_id).exists()

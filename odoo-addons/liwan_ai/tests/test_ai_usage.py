@@ -135,6 +135,13 @@ class TestAiUsage(AiProbe, LiwanApiCase):
                 self._assert_422(self._post({**ITEM, **change}), f'items.0.{field}', 'invalid')
         self.assertEqual(self._post({**ITEM, 'cost': None, 'charge': None}).status_code, 200)
 
+    def test_every_call_kind_is_stored_and_returned(self):
+        for index, kind in enumerate(('plan', 'title', 'route', 'summary')):
+            with self.subTest(kind=kind):
+                body = self._post({**ITEM, 'kind': kind, 'call_id': f'{index + 1:016x}'}).json()
+                self.assertEqual(body['items'][0]['kind'], kind)
+                self.assertEqual(self.Usage.browse(body['items'][0]['id']).kind, kind)
+
     def test_the_capability_is_stored_and_returned(self):
         for index, capability in enumerate(('quick', 'standard', 'analysis', 'writing')):
             with self.subTest(capability=capability):

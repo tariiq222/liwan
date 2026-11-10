@@ -6,7 +6,7 @@ The ``ai`` container has no route of its own: every provider call leaves through
 * ``check_base_url`` refuses a base URL that could never be a public provider endpoint, when the key is saved;
 * ``TenantEgress`` writes the host a tenant's key needs into a directory shared with ``ai-egress`` (one file per tenant
   database, ``<database>.hosts``, one hostname per line), whenever a key is saved or removed and once at startup. The
-  platform provider's public host goes there too, as ``platform.hosts`` (spec 2026-11-04 §6.13).
+  platform providers' public hosts go there too, together, as ``platform.hosts`` (specs 2026-11-04 §6.13 and 2026-11-10 §5.5).
 
 ``ai-egress`` allows CONNECT to port 443 for those hosts only while they resolve to public addresses, so the proxy stays
 the authority at connect time (DNS rebinding included); the check here is the early, readable refusal. Inside an
@@ -23,6 +23,7 @@ import re
 import socket
 import tempfile
 from collections import defaultdict
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -115,6 +116,11 @@ def platform_host(provider: str, base_url: str | None) -> str | None:
     return REGISTRY[provider].host
 
 
+def platform_hosts(providers: Iterable[tuple[str, str | None]]) -> tuple[str, ...]:
+    """The public hosts of the platform's providers (each a ``(provider, base_url)``), sorted and unique; an internal endpoint adds none."""
+    return tuple(sorted({host for provider, base_url in providers if (host := platform_host(provider, base_url)) is not None}))
+
+
 class TenantEgress:
     """The hosts tenants' keys need, published for ``ai-egress`` (read-only there) as one file per tenant database.
 
@@ -134,26 +140,26 @@ class TenantEgress:
         """Make ``host`` the one host ``database``'s key needs; None withdraws it (the key was removed)."""
         if database == PLATFORM_HOSTS:
             raise ValueError(f"{PLATFORM_HOSTS!r} is reserved for the platform provider")
-        await self._publish(database, host)
+        await self._publish(database, [] if host is None else [host])
 
-    async def publish_platform(self, host: str | None) -> None:
-        """Make ``host`` the one host the platform provider needs; None withdraws it (an internal endpoint)."""
-        await self._publish(PLATFORM_HOSTS, host)
+    async def publish_platform(self, hosts: Sequence[str]) -> None:
+        """Make ``hosts`` the hosts the platform providers need; none withdraws the file (only internal endpoints)."""
+        await self._publish(PLATFORM_HOSTS, hosts)
 
-    async def _publish(self, name: str, host: str | None) -> None:
+    async def _publish(self, name: str, hosts: Sequence[str]) -> None:
         if self.directory is not None:
-            await asyncio.to_thread(self._write, name, host)
+            await asyncio.to_thread(self._write, name, hosts)
 
-    def _write(self, database: str, host: str | None) -> None:
+    def _write(self, database: str, hosts: Sequence[str]) -> None:
         target = self.directory / f"{database}.hosts"
-        if host is None:
+        if not hosts:
             target.unlink(missing_ok=True)
             return
         # A dot-prefixed name no ``*.hosts`` glob matches, unique per write.
         handle, staged = tempfile.mkstemp(dir=self.directory, prefix=f".{database}.", suffix=".tmp")
         try:
             with os.fdopen(handle, "w", encoding="ascii") as file:
-                file.write(f"{host}\n")
+                file.write("".join(f"{host}\n" for host in hosts))
             os.chmod(staged, 0o644)  # ai-egress runs as another user
             os.replace(staged, target)
         except BaseException:

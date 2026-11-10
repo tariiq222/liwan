@@ -28,6 +28,9 @@ export function refusalStatus(error: unknown): number | null {
 /** Whether a failed read says the link names no booking: a wrong token, a wrong id, a canceled booking and an expired link all answer 404. */
 export const isInvalidBookingLink = (error: unknown): boolean => refusalStatus(error) === 404
 
+/** Whether a failed call means "try again shortly": 429 is the rate limit, 502 is the shared edge's admission buffer giving up after its wait. */
+export const isBusyRefusal = (error: unknown): boolean => [429, 502].includes(refusalStatus(error) ?? 0)
+
 /** Whether the booking still lets the requester act: neither canceled nor past its change deadline. */
 export function canChange(booking: AppointmentPublicBooking): boolean {
   return booking.state !== 'canceled' && booking.is_modifiable

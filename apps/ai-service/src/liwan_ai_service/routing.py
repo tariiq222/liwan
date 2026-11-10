@@ -28,4 +28,13 @@ class RunModels:
         mapped = self.by_capability.get(capability)
         if mapped is not None:
             return mapped
+        return self.default_as(capability)
+
+    @property
+    def can_route(self) -> bool:
+        """Whether classifying a message could change the outcome: at least two distinct models serve the capabilities."""
+        return len({id(self.for_capability(capability).model) for capability in get_args(Capability)}) >= 2
+
+    def default_as(self, capability: str) -> RunModel:
+        """The default model reporting ``capability``: what serves it when it has no entry, and a message that fell back to the default."""
         return replace(self.default, identity=replace(self.default.identity, capability=capability))

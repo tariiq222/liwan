@@ -7,7 +7,7 @@ from odoo.http import request
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
     api_handler,
-    parse_nonneg_int,
+    parse_page,
     require_capabilities,
     requires_feature,
 )
@@ -17,7 +17,6 @@ from odoo.addons.liwan_pmo.serializers.task import (
     task_counts,
 )
 
-MAX_LIMIT = 200
 ARCHIVE_ORDER = 'write_date desc, id desc'
 
 
@@ -57,8 +56,7 @@ class TaskArchiveController(http.Controller):
         if unknown:
             raise ApiError(400, 'unsupported_filter', f"unsupported query parameter {sorted(unknown)[0]!r}")
         # Paging is validated first, so a bad limit or offset is a 422 whatever scope was passed.
-        limit = parse_nonneg_int(args.get('limit', 50), 'limit')
-        offset = parse_nonneg_int(args.get('offset', 0), 'offset')
+        limit, offset = parse_page(args)
         filter_ = args.get('filter')
         if filter_ not in (None, 'mine'):
             raise ApiError(400, 'unsupported_filter', "filter must be 'mine'")
@@ -107,13 +105,9 @@ class TaskArchiveController(http.Controller):
         eligibility = archive_eligibility_domain(
             request.env['liwan.access.service'], request.env.user,
         )
-        page_limit = min(limit, MAX_LIMIT)
         eligible = domain & eligibility
         total = Task.search_count(eligible)
-        # `limit=0` is a valid request for the total alone, with no items.
-        if not page_limit:
-            return {'items': [], 'total': total}
-        tasks = Task.search(eligible, order=ARCHIVE_ORDER, limit=page_limit, offset=offset)
+        tasks = Task.search(eligible, order=ARCHIVE_ORDER, limit=limit, offset=offset)
         counts = task_counts(tasks)
         return {'items': [dump_task(task, counts=counts) for task in tasks], 'total': total}
 

@@ -1,4 +1,5 @@
-import { appendResponseHeader, createError, getHeader, getRequestHeader, getRequestProtocol, type H3Event } from 'h3'
+import { createError, getHeader, type H3Event } from 'h3'
+import { authCookiesAreSecure, forwardAuthCookies } from '../../utils/authCookies'
 import { authUpstreamHeaders } from '../../utils/authUpstreamHeaders'
 import { tenantRequest } from '../../utils/tenantRequest'
 import { boundedTenantJson, tenantTransport, withTenantBody, withUpstreamSlot } from '../../utils/tenantTransport'
@@ -27,10 +28,11 @@ export async function authStep(
     const sent = options.build ? options.build(await boundedTenantJson<Record<string, unknown>>(event, MAX_STEP_BODY)) : undefined
     const body = sent === undefined ? undefined : JSON.stringify(sent)
     const config = useRuntimeConfig(event)
+    const identityHeaders = authUpstreamHeaders(event, config.authProxyClientIpHeader)
     const headers: Record<string, string> = {
       cookie: getHeader(event, 'cookie') ?? '',
       ...uiLocaleHeaders(event),
-      ...authUpstreamHeaders(event, config.authProxyClientIpHeader),
+      ...identityHeaders,
     }
     if (body !== undefined) headers['content-type'] = 'application/json'
     const bound = Boolean(tenantRequest(event) || process.env.LIWAN_RELEASE_ROUTES_DIR)
@@ -39,12 +41,7 @@ export async function authStep(
       : init => withUpstreamSlot(signal => fetch(`${config.odooUrl}${path}`, { ...init, signal }), event)
     const upstream = await send({ method: options.method, headers, body })
 
-    // Odoo answers this hop over plain http and marks the cookie accordingly; when the browser reached us over
-    // https (directly or through Caddy) it must carry Secure — the same rule the password step applies.
-    const https = getRequestProtocol(event) === 'https' || getRequestHeader(event, 'x-forwarded-proto') === 'https'
-    for (const cookie of upstream.headers.getSetCookie()) {
-      appendResponseHeader(event, 'set-cookie', https && !/;\s*secure\b/i.test(cookie) ? `${cookie}; Secure` : cookie)
-    }
+    forwardAuthCookies(event, upstream.headers, authCookiesAreSecure(event, identityHeaders))
 
     const text = await upstream.text()
     let answer: unknown = null
