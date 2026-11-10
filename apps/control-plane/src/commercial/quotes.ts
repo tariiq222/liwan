@@ -129,7 +129,7 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
     applied = (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [s.applied_revision_id])).rows[0]?.snapshot
     if (!applied) throw bad('subscription_required', 'kind', 409)
     if (JSON.stringify(applied.cadence) !== JSON.stringify(input.cadence)) throw bad('cadence_change_unsupported', 'cadence')
-    period = { start: applied.period_start, end: applied.period_end }
+    period = await appliedPeriod(client, s, applied)
     current = applied.pricing
     if (!current) {
       const old = (await client.query('SELECT payload FROM commercial_quotes WHERE id=$1', [applied.quote_id])).rows[0]?.payload
@@ -173,6 +173,18 @@ export function buildQuoteOn(client: PoolClient, value: QuoteInput, now: Date): 
 }
 export function createQuoteForCustomer(pool: Pool, value: QuoteInput, now = new Date()): Promise<Quote> {
   return transaction(pool, client => quoteForCustomerOn(client, value, now, true))
+}
+
+/**
+ * The billing period a change is priced and recorded against. It is the applied snapshot's own, except for a trial that
+ * lapsed onto the free base and has not been lowered yet: its snapshot still carries the trial's elapsed period, while
+ * the subscription already lives in the free-base cycle (`trial_lapses.period_start` to `renewal_at`).
+ */
+export async function appliedPeriod(client: Pick<PoolClient, 'query'>, subscription: { id: string; applied_revision_id: string; renewal_at: unknown }, applied: { period_start: string; period_end: string }) {
+  const lapse = (await client.query("SELECT period_start::text AS period_start FROM trial_lapses WHERE subscription_id=$1 AND trial_revision_id=$2 AND state IN ('pending','ordered')",
+    [subscription.id, subscription.applied_revision_id])).rows[0]
+  if (!lapse || !subscription.renewal_at) return { start: applied.period_start, end: applied.period_end }
+  return { start: lapse.period_start as string, end: riyadhDate(subscription.renewal_at instanceof Date ? subscription.renewal_at : new Date(`${subscription.renewal_at}T00:00:00+03:00`)) }
 }
 
 export function pricingBaseline(quote: Quote, included: { extra_branches: number; users: number; storage_mb: number }) {

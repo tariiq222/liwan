@@ -6,7 +6,7 @@ import { compileEntitlements } from '@liwan/commercial-contracts/server'
 import { transaction } from '../db.js'
 import { CommercialHttpError, digestOf, iso } from './lifecycle.js'
 import { requireCapability } from './authorization.js'
-import { loadQuoteSources, pricingBaseline } from './quotes.js'
+import { appliedPeriod, loadQuoteSources, pricingBaseline } from './quotes.js'
 import { issueInvoiceFromQuote } from './invoices.js'
 import { enqueueOutbox } from './outbox.js'
 import { lookup } from './payments.js'
@@ -209,8 +209,9 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
     tenant_id: customer.tenant_id, subscription_id: subscription.id,
     previous: previous.entitlement?.features ?? {}, target: entitlement.features,
   })
-  const periodStart = previous ? previous.period_start : quote.effective_date
-  const periodEnd = previous ? previous.period_end : quote.next_renewal_at
+  const period = previous ? await appliedPeriod(client, subscription, previous) : null
+  const periodStart = period ? period.start : quote.effective_date
+  const periodEnd = period ? period.end : quote.next_renewal_at
   const included = sources.terms?.included_extra_branches ?? sources.plan.included_extra_branches
   const snapshot = {
     customer_id: customer.id, tenant_id: customer.tenant_id ?? customer.id,

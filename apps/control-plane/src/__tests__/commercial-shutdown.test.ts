@@ -46,7 +46,8 @@ describe('worker shutdown during a scheduler tick', () => {
     const { pool, calls } = recordingPool(sql => {
       if (sql.includes('FROM subscriptions s')) return { rows: [row('s1'), row('s2')] }
       if (sql.includes('INSERT INTO commercial_outbox')) return { rows: [{ id: 'new' }] }
-      if (sql.includes('SELECT id FROM commercial_outbox')) return { rows: [{ id: 'outbox-1' }] }
+      if (sql.includes('SELECT id,status FROM commercial_outbox')) return { rows: [{ id: 'outbox-1', status: 'pending' }] }
+      if (sql.includes("SET next_attempt_at = now() + interval '5 minutes' WHERE id=$1")) return { rows: [{ id: 'outbox-1' }], rowCount: 1 }
       return { rows: [] }
     })
     const { mail, sent } = abortingMail(controller)

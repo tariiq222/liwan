@@ -3,7 +3,7 @@ import type { Pool } from 'pg'
 import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
 import { commercialExpiryDate } from './fulfillment.js'
-import { pushCommercialExpiry } from './trial.js'
+import { pushCommercialExpiry } from './expiry-push.js'
 
 export type TenantStatus = 'active' | 'suspended'
 /** Writes the tenant's Odoo profile status (the shared worker's Odoo adapter); resolves once Odoo confirmed it. */

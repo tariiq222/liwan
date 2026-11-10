@@ -57,6 +57,12 @@ const subjectsSql = `WITH latest AS (
   ORDER BY r.aggregate_id, r.processed_at DESC
 ), blocked AS (
   SELECT * FROM latest WHERE billing_blocked_at IS NOT NULL AND state IN ('active','past_due')
+), lowering AS (
+  -- A trial that lapsed onto the free base but could not be lowered yet: the tenant is usable (its hard expiry is already
+  -- cleared); \`reason\` is the machine reason of the last attempt.
+  SELECT c.id AS customer_id, c.name, c.tenant_id, l.lapsed_at, l.reason FROM trial_lapses l
+  JOIN subscriptions s ON s.id=l.subscription_id JOIN customers c ON c.id=s.customer_id
+  WHERE l.state='pending' AND l.reason IS NOT NULL
 ), renewing AS (
   SELECT * FROM latest WHERE ${renewalDue}
 ), overdue AS (
@@ -74,6 +80,7 @@ const subjectsSql = `WITH latest AS (
   SELECT 1 AS rank,'past_due' AS kind, customer_id, tenant_id, NULL::uuid AS operation_id, invoice_id, name, ${iso('due_at')} AS since, NULL::text AS detail, due_at AS sort_at FROM overdue WHERE $3::boolean
   UNION ALL SELECT 2,'refund_rejected', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE $3::boolean
   UNION ALL SELECT 3,'billing_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('billing_blocked_at')}, NULL, billing_blocked_at FROM blocked
+  UNION ALL SELECT 3,'free_base_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('lapsed_at')}, reason, lapsed_at FROM lowering
   UNION ALL SELECT 4,'stalled_activation', customer_id, tenant_id, NULL, NULL, name, ${iso('order_created_at')}, fulfillment_state, order_created_at FROM stalled
   UNION ALL SELECT 5,'operation_failed', customer_id, tenant_id, id, NULL, name, ${iso('updated_at')}, type, updated_at FROM failed_ops
   UNION ALL SELECT 6,'setup_required', customer_id, tenant_id, NULL, NULL, name, ${iso('customer_created_at')}, NULL, customer_created_at FROM setup
