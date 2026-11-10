@@ -139,12 +139,15 @@ it('rejects a foreign effect readback instead of persisting a verified receipt',
   expect(f.row.receipt).toBeUndefined(); expect(f.row.state).toBe('needs_intervention')
 })
 it('expires shared leases to intervention, never back to queued, except an idempotent AI push', async () => {
-  const query=vi.fn(async(sql:string)=>({rowCount:sql.includes('requeued')?1:2,rows:[]}))
+  const query=vi.fn(async(sql:string)=>({rowCount:sql.includes('requeued')?1:sql.includes('WITH failed')?0:2,rows:[]}))
   expect(await expireSharedLeases({query} as unknown as Pool)).toBe(3)
-  const requeue=query.mock.calls[0]?.[0] as string
+  const failedPush=query.mock.calls[0]?.[0] as string
+  expect(failedPush).toContain("state='failed'")
+  expect(failedPush).toContain("journal->>'stage'='started'")
+  const requeue=query.mock.calls[1]?.[0] as string
   expect(requeue).toContain("state='queued'")
   expect(requeue).toContain("ai_push'='true'")
-  const sql=query.mock.calls[1]?.[0] as string
+  const sql=query.mock.calls[2]?.[0] as string
   expect(sql).toContain("state='needs_intervention'")
   expect(sql).toContain('fence=fence+1')
   expect(sql).toContain('lease_until<=clock_timestamp()')

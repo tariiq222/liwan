@@ -12,6 +12,7 @@ import { bindJob, businessKey, payloadDigest, reconcileSharedJob, verifiedReceip
 import { commercialRestoreGate, finalizeVerifiedRestore, revalidateCommercialRestorePublication } from './shared-backup.js'
 import { runSubscriptionReconfigure, type SubscriptionAdapter } from './subscription-reconfigure.js'
 import { actorLabel } from '../admin-auth/grants.js'
+import { pushAiEntitlement } from '../commercial/ai-ledger.js'
 
 /** The physical adapter must atomically enforce fence validity at each mutation.
  * A caller-provided callback or a preflight lease check alone is NOT sufficient.
@@ -47,8 +48,32 @@ function nextSequence(sequence: number): number {
 export async function expireSharedLeases(pool: Pool): Promise<number> {
   // The transition and its audit succeed or roll back together. Preserve the
   // last intent journal so read-only recovery can reconcile a crashed effect.
-  // An AI balance push is idempotent (it delivers the live values) and carries no order, so an expired one goes back to the
-  // queue instead of being quarantined: it can never sit in needs_intervention and block the tenant.
+  // An AI balance push is idempotent (it delivers the live values) and carries no order, so it is never quarantined:
+  // it can never sit in needs_intervention and block the tenant. What happens to it depends on how far it got.
+  //  - Started (journal.stage='started'): its tenant effect may still be running (the child outlives a dead worker for up
+  //    to the effect's own 180 s apply timeout), and a late finish would overwrite newer values with the ones it captured.
+  //    It is failed, never re-run, and one fresh push is queued but held back (lease_until) past that timeout, so the
+  //    two attempts cannot overlap. A healthy worker renews its lease every 15 s, so this is only a dead or hung worker.
+  //  - Not started (the claim committed and the worker stopped before the journal): nothing ran, so it is requeued.
+  const failedPushes = await pool.query(`WITH failed AS (
+    UPDATE shared_jobs SET state='failed',fence=fence+1,lease_until=NULL,journal=COALESCE(journal,'{}'::jsonb)||'{"error_code":"ai_push_lease_expired"}'::jsonb
+    WHERE state='running' AND lease_until<=clock_timestamp() AND payload->'authority'->>'ai_push'='true' AND journal->>'stage'='started'
+    RETURNING id,control_tenant_id,attempt_id,fence
+  ), audited AS (
+    INSERT INTO audit_events(id,actor,action,subject,reason)
+    SELECT gen_random_uuid(),'shared-worker','shared_job.lease_expired_failed',id::text,
+      'Lease expired; failed started AI push attempt ' || attempt_id::text || ' at fence ' || fence::text
+    FROM failed RETURNING 1
+  ) SELECT id,control_tenant_id FROM failed`)
+  for (const row of failedPushes.rows) {
+    console.error(`[control-plane] AI balance push ${row.id} for tenant ${row.control_tenant_id} failed: ai_push_lease_expired; queueing a fresh push`)
+    await transaction(pool, async client => {
+      const customer = (await client.query('SELECT customer_id FROM subscriptions WHERE tenant_id=$1', [row.control_tenant_id])).rows[0]?.customer_id
+      if (customer && await pushAiEntitlement(client, customer))
+        await client.query(`UPDATE shared_jobs SET lease_until=clock_timestamp()+interval '200 seconds' WHERE control_tenant_id=$1 AND state='queued'
+          AND payload->'authority'->>'ai_push'='true' AND lease_until IS NULL`, [row.control_tenant_id])
+    })
+  }
   const requeued = await pool.query(`WITH requeued AS (
     UPDATE shared_jobs SET state='queued',fence=fence+1,lease_until=NULL
     WHERE state='running' AND lease_until<=clock_timestamp() AND payload->'authority'->>'ai_push'='true'
@@ -65,7 +90,7 @@ export async function expireSharedLeases(pool: Pool): Promise<number> {
     SELECT gen_random_uuid(),'shared-worker','shared_job.lease_expired',id::text,
       'Lease expired; quarantined attempt ' || attempt_id::text || ' at fence ' || fence::text
     FROM expired`)
-  return (requeued.rowCount ?? 0) + (result.rowCount ?? 0)
+  return failedPushes.rows.length + (requeued.rowCount ?? 0) + (result.rowCount ?? 0)
 }
 export async function recoverSharedJob(pool: Pool, id: string, actor: { issuer: string; actorUid: number }, reason: string, adapter?: SharedFencedAdapter, onVerified?: (client: PoolClient) => Promise<void>) {
   if (!adapter) throw new Error('shared_adapter_unavailable')

@@ -551,6 +551,29 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
       expect(await stuck(id)).toBe(0)
     })
 
+    it('an AI push that had started when its lease expired is failed, never re-run, and a fresh push is held back past the effect timeout', async () => {
+      const { id, o } = await appliedTopup()
+      await patchSettings({ trial_allowance_minor: 1000 })
+      const push = await jobId(o.id, true)
+      await pool.query(`UPDATE shared_jobs SET state='running',attempt_id=gen_random_uuid(),fence=fence+1,lease_until=clock_timestamp()-interval '1 second',journal='{"stage":"started"}'::jsonb WHERE id=$1`, [push])
+      const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+      await expireSharedLeases(pool)
+      expect(log).toHaveBeenCalledWith(expect.stringContaining(`AI balance push ${push} for tenant`))
+      log.mockRestore()
+      expect((await pool.query('SELECT state,journal->>\'error_code\' AS code FROM shared_jobs WHERE id=$1', [push])).rows[0]).toEqual({ state: 'failed', code: 'ai_push_lease_expired' })
+      expect(await stuck(id)).toBe(0)
+      const fresh = (await pool.query(`SELECT j.id,j.lease_until > clock_timestamp() + interval '150 seconds' AS held FROM shared_jobs j JOIN customers c ON c.tenant_id=j.control_tenant_id WHERE c.id=$1 AND j.state='queued'`, [id])).rows
+      expect(fresh).toHaveLength(1)
+      expect(fresh[0].held).toBe(true)
+      expect(fresh[0].id).not.toBe(push)
+      // The held push and a following paid order both still run (the claim itself does not read the hold; the dispatcher does).
+      const change = await paidChange(id)
+      await processFulfillmentOutbox(pool, { limit: 1000 })
+      await runSubscriptionReconfigure(pool, (await jobId(change.id, false))!, runner)
+      await runSubscriptionReconfigure(pool, fresh[0].id, runner)
+      expect(await stuck(id)).toBe(0)
+    })
+
     describe('restore reconcile', () => {
       /** An approved restore target for the tenant, so a restore reconcile job can run. */
       async function approvedRestore(id: string) {
