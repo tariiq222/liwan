@@ -89,6 +89,10 @@ updating the definition does not implement or authorize them automatically.
 - Operations: request, pending-approval, monitoring and process-settings routes.
 - AI: `/ai` workspace backed by the configured LiwanOS AI service; provider, model and API-key configuration is held by that service.
 - HR: employees, departments/org, department and own-employee document-library contexts through `liwan_documents_hr`, leave, recruitment, shifts, onboarding/offboarding, assets and payroll. Payroll belongs to `liwan_hr`, uses dedicated `hr.payroll.*` capabilities and the `hr.payroll` sub-feature, and retains the [open payroll release gates](../../docs/WORKSPACE.md#الرواتب-السعودية-بوابات-الإطلاق-المفتوحة).
+- Compensation edits apply prospectively to payroll calculations. Locked payroll months
+  retain their approved results and are excluded from recalculation. Compensation audit
+  events record the names of sensitive salary and employee bank fields that changed.
+  The values stay out of general audit logs.
 - Approved leave cancellation uses a company policy: manager approval by default, direct employee cancellation or manager-only cancellation. A pending cancellation preserves the approved leave and balance until the decision. See the [approved workflow](../../docs/superpowers/specs/2026-10-23-approved-leave-cancellation-design.md); implementation and passing checks do not establish deployment.
 - Self-service: `/account` aggregates permission-filtered personal contributions from applications; profile, leave, employee requests, pay, assets, documents, schedule and personal settings use canonical `/account/*` routes.
 - Settings: users, roles, access log, institution branding (one document colour for invoices, reports and printouts; it never themes the interface, which keeps the fixed LiwanOS palette; ignore the backend's legacy `secondary_color` field; name and logo require `settings.company.manage` in LiwanOS).
