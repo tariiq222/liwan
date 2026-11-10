@@ -2,6 +2,7 @@ import http from 'node:http'
 import https from 'node:https'
 import { createError, getHeader, type H3Event } from 'h3'
 import { createBodyAdmission, createResponseAdmission, HEAVY_CREDITS, readBodyBytes } from './bufferAdmission.mjs'
+import { BEARER_KEY, isServiceAuthorizedRequest } from './serviceAuthorization'
 import { tenantUpstreamHeaders } from './tenantRequest'
 import { uiLocaleHeaders } from './uiLocale'
 import { HEAVY_TIMEOUT, UPSTREAM_TIMEOUT } from './upstreamDeadlines'
@@ -280,10 +281,14 @@ export async function legacyTenantResponse(event: H3Event, configuredUpstream: s
  * Bounded buffering deliberately replaces streaming: max16MiB request/32MiB response,
  * 15s total deadline (the heavy budget's deadline for an allowlisted heavy route). This supports current JSON attachments, not unbounded exports.
  * By default the call is destroyed when the browser disconnects; `ignoreClientClose` is only for a step that must finish
- * once begun (a claimed AI write) and keeps just the deadline and the optional `signal`. */
-export async function tenantTransport(event: H3Event, configuredUpstream: string, path: string, options: { method?: string; body?: string | Buffer; headers?: Record<string, string>; signal?: AbortSignal; ignoreClientClose?: boolean; heavy?: HeavyBudget } = {}): Promise<Response> {
+ * once begun (a claimed AI write) and keeps just the deadline and the optional `signal`.
+ * `authorization` is the server-held credential of the one request allowed to carry it (the AI usage report): any other
+ * method or path is refused outright, so a caller cannot widen where the key goes. A browser's own `Authorization` header
+ * is never read here: only this explicit option reaches the upstream. */
+export async function tenantTransport(event: H3Event, configuredUpstream: string, path: string, options: { method?: string; body?: string | Buffer; headers?: Record<string, string>; authorization?: string; signal?: AbortSignal; ignoreClientClose?: boolean; heavy?: HeavyBudget } = {}): Promise<Response> {
   const binding = tenantUpstreamHeaders(event)
   if (!binding.host) throw failure()
+  if (options.authorization !== undefined && (!isServiceAuthorizedRequest(options.method, path) || !BEARER_KEY.test(options.authorization))) throw failure()
   const base = operatorUpstream(configuredUpstream, path)
   const body = options.body
   if (body && Buffer.byteLength(body) > MAX_REQUEST) throw payloadTooLarge()
@@ -300,8 +305,10 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
   const signatureHeader = HOOK_SIGNATURE_HEADERS.get(path.split('?')[0] ?? path)
   const signature = signatureHeader ? getHeader(event, signatureHeader) : undefined
   if (signatureHeader && signature) headers[signatureHeader] = signature
-  const cookie = options.headers?.cookie ?? getHeader(event, 'cookie')
+  // A service-authorized request is the server's own call: the user's session cookie must not ride along with the key.
+  const cookie = options.authorization !== undefined ? undefined : (options.headers?.cookie ?? getHeader(event, 'cookie'))
   if (cookie) headers.cookie = cookie
+  if (options.authorization !== undefined) headers.authorization = options.authorization
   Object.assign(headers, uiLocaleHeaders(event))
   if (body) headers['content-length'] = String(Buffer.byteLength(body))
   const cancellation = clientCancellation(event, options)

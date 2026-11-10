@@ -13,7 +13,7 @@ import { forwardPublicApi, isBookingApiPath, isPublicApiPath, MAX_PUBLIC_API_BOD
 // (a message, a tool call, a draft's proposal or approval) is written by this server, and an approval carries the
 // acknowledgement the server stamps, so a client that could reach the route could count messages or claim an approval it
 // never made (issue #556).
-const SERVER_ONLY_API_PATHS = new Set(['/api/v1/ai/usage', '/api/v1/ai/audit'])
+const SERVER_ONLY_API_PATHS = new Set(['/api/v1/ai/usage', '/api/v1/ai/usage/service', '/api/v1/ai/audit'])
 
 // SSR and browser calls to /api/v1/** both land here. The target is read from
 // runtime config per request, so the container's NUXT_ODOO_URL applies at boot

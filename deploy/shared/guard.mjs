@@ -4,6 +4,7 @@ import { createBodyAdmission, destroyUpstreamWhenCallerCloses, readBodyBytes } f
 import { isReleaseAssetRequest, readAsset, validateAssetStore } from '../../apps/web/server/utils/releaseAssets.ts'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { readTenantRegistry } from '../../apps/web/server/utils/tenantRegistry.ts'
+import { BEARER_KEY, isServiceAuthorizedRequest } from '../../apps/web/server/utils/serviceAuthorization.ts'
 import { isRestoreHost, resolveTenantHost } from '../../apps/web/server/utils/tenantHostResolver.ts'
 import { createReleaseLease, readReleaseRoute } from '../../apps/web/server/utils/releaseRouting.ts'
 import { readdirSync, existsSync, readFileSync } from 'node:fs'
@@ -154,6 +155,10 @@ export function requestPlan(req, registry, token, codec) {
   const headers = { ...req.headers }
   for (const key of Object.keys(headers)) if (forbidden.test(key) && (odoo || !browserHeaders.has(key))) delete headers[key]
   delete headers.authorization
+  // The AI usage report is the one request that carries a credential: the recorder key the Nuxt server holds (issue #557).
+  // Only the trusted hop (the proxy token) on the exact target can pass it; a browser's header on any path was removed above.
+  const serviceKey = req.headers.authorization
+  if (internal && odoo && isServiceAuthorizedRequest(req.method, req.url) && typeof serviceKey === 'string' && BEARER_KEY.test(serviceKey)) headers.authorization = serviceKey
   if (internal && uiLocale(req.headers[UI_LOCALE_HEADER])) headers[UI_LOCALE_HEADER] = req.headers[UI_LOCALE_HEADER]
   const cookies = (headers.cookie ?? '').split(';').map(v => v.trim()).filter(Boolean)
   const sessions = cookies.filter(v => v.startsWith('session_id='))
