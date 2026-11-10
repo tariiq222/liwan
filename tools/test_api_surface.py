@@ -329,6 +329,43 @@ class TestCapabilityMatrix(unittest.TestCase):
         self.assertEqual((open_route['capability_source'], open_route['no_capability_reason']), ('none', 'own data only'))
 
 
+class TestAuthDocumentation(unittest.TestCase):
+    """Each route's declared security matches the auth method it really uses."""
+
+    def operation(self, auth):
+        route = {
+            'addon': 'liwan_x', 'controller': 'C', 'handler': 'h', 'paths': ['/api/v1/x'], 'methods': ['POST'],
+            'auth': auth, 'http_type': 'json2', 'summary': '', 'readonly': False, 'api_handler': True,
+            'feature_keys': [], 'feature_operation': None,
+        }
+        document = api_surface.build_document([route], {})
+        return document['paths']['/api/v1/x']['post'], document['components']['securitySchemes']
+
+    def test_user_route_requires_the_session_cookie(self):
+        operation, schemes = self.operation('user')
+        self.assertEqual(operation['security'], [{'sessionCookie': []}])
+        self.assertEqual(schemes['sessionCookie']['in'], 'cookie')
+
+    def test_bearer_route_requires_a_bearer_key_not_a_cookie(self):
+        operation, schemes = self.operation('bearer')
+        self.assertEqual(operation['security'], [{'bearerAuth': []}])
+        self.assertEqual((schemes['bearerAuth']['type'], schemes['bearerAuth']['scheme']), ('http', 'bearer'))
+
+    def test_public_route_declares_no_security(self):
+        operation, _ = self.operation('public')
+        self.assertEqual(operation['security'], [])
+        self.assertNotIn('description', operation)
+
+    def test_webhook_route_declares_no_cookie_and_says_what_authorizes_it(self):
+        operation, _ = self.operation('inbox_hook')
+        self.assertEqual(operation['security'], [])
+        self.assertIn('signed delivery', operation['description'])
+
+    def test_an_unknown_auth_value_stops_the_generator(self):
+        with self.assertRaises(SystemExit):
+            self.operation('mystery')
+
+
 class NestedPackageTests(unittest.TestCase):
     """A controller module inside a nested area package (spec §8.7) is parsed like a flat one."""
 
