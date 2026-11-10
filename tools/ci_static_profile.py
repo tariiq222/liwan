@@ -1,4 +1,4 @@
-"""Select the cheaper static check only for a proven Markdown-only PR diff."""
+"""Select the cheaper static check only for a proven documentation-only PR diff."""
 from __future__ import annotations
 
 import argparse
@@ -8,12 +8,21 @@ import sys
 
 # The UI policy reads the design system, and API artifacts have their own gate.
 FULL_DOC_TREES = (b'docs/api/', b'docs/design-system/')
+# Root instruction documents: no build, test or tool reads them as input, and the light profile's
+# tools/docs_policy.py checks the ones it lists as fully as the full profile does.
+ROOT_DOCS = (b'AGENTS.md', b'CLAUDE.md', b'DESIGN.md', b'README.md', b'REVIEW.md')
 MAX_DOC_BYTES = 1024 * 1024
 BINARY_CONTROL = re.compile(rb'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
 
 
 def git(*args: str) -> bytes:
     return subprocess.check_output(['git', *args], stderr=subprocess.PIPE)
+
+
+def is_prose_path(path: bytes) -> bool:
+    if path in ROOT_DOCS:
+        return True
+    return path.startswith(b'docs/') and path.endswith(b'.md') and not path.startswith(FULL_DOC_TREES)
 
 
 def is_prose_blob(object_id: bytes) -> bool:
@@ -36,8 +45,7 @@ def static_profile(base: str) -> str:
         objects = set()
         for header, path in zip(raw[::2], raw[1::2]):
             old_mode, new_mode, old_oid, new_oid, status = header.split()
-            if (not path.startswith(b'docs/') or not path.endswith(b'.md')
-                    or path.startswith(FULL_DOC_TREES) or new_mode != b'100644'
+            if (not is_prose_path(path) or new_mode != b'100644'
                     or (old_mode, status) not in ((b':000000', b'A'), (b':100644', b'M'))):
                 return 'full'
 

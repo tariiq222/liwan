@@ -253,7 +253,8 @@ workflow creates it automatically.
 
 ### Documentation-only static checks
 
-A pull request that only adds or edits ordinary Markdown under `docs/` uses the
+A pull request that only adds or edits ordinary Markdown under `docs/` or the root
+instruction documents (`AGENTS.md`, `CLAUDE.md`, `DESIGN.md`, `README.md`, `REVIEW.md`) uses the
 light static profile if the changed files are valid UTF-8 and at most 1 MiB each.
 It checks new relative links in changed Markdown, the owning instruction
 documents' references, Git and

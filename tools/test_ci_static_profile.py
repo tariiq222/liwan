@@ -47,6 +47,33 @@ class StaticProfileTest(unittest.TestCase):
         self.commit()
         self.assertEqual(self.profile(), 'docs')
 
+    def test_root_instruction_documents_use_docs_profile(self):
+        for path in ('AGENTS.md', 'CLAUDE.md', 'DESIGN.md', 'README.md', 'REVIEW.md'):
+            with self.subTest(path=path):
+                self.git('checkout', '--quiet', '--detach', self.base)
+                self.write(path, b'# Rules\n')
+                self.write('docs/testing.md', b'updated\n')
+                self.commit()
+                self.assertEqual(self.profile(), 'docs')
+
+    def test_root_instruction_document_alone_uses_docs_profile(self):
+        self.write('AGENTS.md', b'# Rules\n')
+        self.commit()
+        self.assertEqual(self.profile(), 'docs')
+
+    def test_root_instruction_document_deletion_uses_full_profile(self):
+        self.write('REVIEW.md', b'# Review\n')
+        self.commit()
+        base = self.git('rev-parse', 'HEAD').strip()
+        self.git('rm', '-q', 'REVIEW.md')
+        self.commit()
+        self.assertEqual(self.profile(base), 'full')
+
+    def test_nested_instruction_document_uses_full_profile(self):
+        self.write('apps/web/AGENTS.md', b'# Web rules\n')
+        self.commit()
+        self.assertEqual(self.profile(), 'full')
+
     def test_mixed_change_including_application_code_uses_full_profile(self):
         self.write('docs/testing.md', b'updated\n')
         self.write('apps/web/example.ts', b'export const value = 1\n')
