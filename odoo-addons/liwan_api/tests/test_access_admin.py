@@ -155,7 +155,7 @@ class TestAccessAdminUsers(LiwanApiCase):
 
         accepted = self._accept(created['id'], 'target_password_123')
         self.assertEqual(accepted.status_code, 200, accepted.text)
-        self.assertEqual(accepted.json(), {'login': 'access.target@example.com'})
+        self.assertEqual(accepted.json(), {'login': 'access.target@example.com', 'read_only': False})
         old_session = self.authenticate('access.target@example.com', 'target_password_123')
         root.session_store.save(old_session)
         self._admin()
