@@ -42,7 +42,7 @@ export async function resumeSubscription(pool: Pool, input: { subscription_id: s
     if (!row) throw new CommercialHttpError('subscription_not_suspended', 409)
     const graceDays = Math.max(1, Number(row.grace_days ?? 0))
     // A suspended trial keeps its original clock and goes through the ordinary expiry transition.
-    const next = row.overdue ? 'past_due' : row.suspended_from === 'trialing' ? 'trialing' : 'active'
+    const next = row.suspended_from === 'trialing' ? 'trialing' : row.overdue ? 'past_due' : 'active'
     await client.query(`UPDATE subscriptions SET state=$2,manual_suspension=false,suspended_from=NULL,
       grace_ends_at=CASE WHEN $2='past_due' THEN now() + make_interval(days => $3::int) ELSE NULL END,revision=revision+1 WHERE id=$1`,
     [input.subscription_id, next, graceDays])
@@ -105,7 +105,8 @@ export async function syncTenantStatus(pool: Pool, input: { runner: TenantStatus
   for (const row of due) {
     if (Date.now() - started >= budget || await input.busy?.()) break
     const outcome = await pushUnderLock(pool, row, input.runner).catch(async error => {
-      await pool.query(`UPDATE subscriptions SET tenant_status_failures=tenant_status_failures+1,tenant_status_next_at=${BACKOFF_SQL} WHERE id=$1`, [row.id])
+      await pool.query(`UPDATE subscriptions SET tenant_status_failures=tenant_status_failures+1,tenant_status_next_at=${BACKOFF_SQL} WHERE id=$1
+        AND tenant_status_pushed IS DISTINCT FROM ${tenantStatusSql('subscriptions')}`, [row.id])
       input.log?.(`tenant status ${row.wanted} not pushed for subscription ${row.id}`, error)
       return 'failed' as const
     })

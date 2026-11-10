@@ -47,7 +47,7 @@ export async function createBranchQuote(pool: Pool, customerId: string, raw: str
   const current = view.applied
   const count = await requestedExtraBranches(pool,{subscription_id:view.id,add:input.add.length,archive:input.archive,restore:input.restore})
   const bought = { users: Number(current.entitlement.features['users.limit']), storage_mb: Number(current.entitlement.features['storage.limit_mb']) }
-  const quote = await createQuoteForCustomer(pool,{customer_id:customerId,request:{kind:'change',plan_revision_id:current.plan_revision_id,bundle_revision_ids:current.bundle_revision_ids,terms_revision_id:current.terms_revision_id,cadence:current.cadence,requested_extra_branches:count,requested_users:bought.users,requested_storage_mb:bought.storage_mb,expected_subscription_revision:view.revision}})
+  const quote = await createQuoteForCustomer(pool,{customer_id:customerId,branchArchiveIds:input.archive,request:{kind:'change',plan_revision_id:current.plan_revision_id,bundle_revision_ids:current.bundle_revision_ids,terms_revision_id:current.terms_revision_id,cadence:current.cadence,requested_extra_branches:count,requested_users:bought.users,requested_storage_mb:bought.storage_mb,expected_subscription_revision:view.revision}})
   await pool.query('INSERT INTO branch_quote_requests(quote_id,subscription_id,adds,archive,restore,quoted_paid) VALUES($1,$2,$3,$4,$5,$6)',[quote.id,view.id,JSON.stringify(input.add),JSON.stringify(input.archive),JSON.stringify(input.restore),Math.max(0,count-current.included_extra_branches)])
   return quote
 }

@@ -12,12 +12,14 @@ import { applyDunning, generateRenewals } from '../commercial/renewals.js'
 import { applyReceipt, processFulfillmentOutbox } from '../commercial/fulfillment.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { acceptQuoteOn } from '../commercial/orders.js'
+import { collectUsage } from '../commercial/usage-collector.js'
 import { recordUsage } from '../commercial/usage.js'
 import { resumeSubscription, suspendSubscription, syncTenantStatus } from '../commercial/suspension.js'
 import { getSubscription } from '../commercial/subscriptions.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { sendTrialNotices } from '../commercial/trial-notices.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
+import { pushCommercialExpiry } from '../commercial/expiry-push.js'
 import { transaction } from '../db.js'
 import { digestOf } from '../commercial/lifecycle.js'
 import { createPaymentAttempt, handleProviderEvent } from '../commercial/payments.js'
@@ -97,7 +99,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     await enqueued(orderId)
     const job = (await pool.query("SELECT payload FROM shared_jobs WHERE control_tenant_id=$1 AND payload->'authority'->>'order_id'=$2", [tenant, orderId])).rows[0].payload
     const receipt = { order_id: orderId, tenant_id: job.binding.database, database: job.binding.database, target_revision_id: job.authority.target_revision_id,
-      observed_entitlement_digest: job.authority.entitlement.digest, observed_at: new Date().toISOString(), branch_bindings: [], modules_installed: [] }
+      observed_entitlement_digest: job.authority.entitlement.digest, observed_at: beforeEnd.toISOString(), branch_bindings: [], modules_installed: [] }
     return { job, receipt }
   }
   const lapseOrder = async (subscription: string) => (await pool.query("SELECT * FROM orders WHERE subscription_id=$1 AND idempotency_key LIKE $2 ORDER BY created_at DESC,id LIMIT 1", [subscription, `trial-lapse:${subscription}:%`])).rows[0]
@@ -117,7 +119,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
   }
   const failingRunner = (code: string) => async () => { throw new Error(code) }
   const okRunner = async ({ job }: { job: any }) => ({ order_id: job.authority.order_id, tenant_id: job.binding.database, database: job.binding.database,
-    target_revision_id: job.authority.target_revision_id, observed_entitlement_digest: job.authority.entitlement.digest, observed_at: new Date().toISOString(), branch_bindings: [], modules_installed: [] })
+    target_revision_id: job.authority.target_revision_id, observed_entitlement_digest: job.authority.entitlement.digest, observed_at: beforeEnd.toISOString(), branch_bindings: [], modules_installed: [] })
   /** Enqueues the order's job and runs it with `runner`, as the shared worker would. */
   async function runJob(orderId: string, runner: any) {
     await enqueued(orderId)
@@ -195,6 +197,26 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     expect((await getSubscription(pool, f.customer)).applied?.bundle_revision_ids).toEqual([secondBundle.id])
   })
 
+  it('verifies a late paid order against the exact fallback and carries its AI balance through the lock', async () => {
+    const f = await endedTrial()
+    const purchase = await change(f, { requested_users: 5, ai_topup_minor: 2500 }, beforeEnd)
+    await lapse(f)
+    const lateRunner = async (input: Parameters<typeof okRunner>[0]) => {
+      const authority = input.job.authority
+      expect(authority.post_trial_features).toMatchObject({ 'users.limit': 5, 'pmo.enabled': false })
+      expect(authority.post_trial_features['ai.balance.granted']).toBeGreaterThan(0)
+      expect(authority.post_trial_features['ai.balance.granted']).toBe(authority.entitlement.features['ai.balance.granted'])
+      return { ...await okRunner(input), observed_at: now.toISOString(), observed_entitlement_digest: authority.post_trial_digest }
+    }
+    expect(await runJob(purchase.order.id, lateRunner)).toMatchObject({ state: 'verified' })
+    expect((await getSubscription(pool, f.customer)).applied?.entitlement.features['pmo.enabled']).toBe(true)
+    await lower(f)
+    const order = await lapseOrder(f.subscription)
+    const { job } = await pushed(f.tenant, order.id)
+    expect(job.authority.entitlement.features['ai.balance.granted']).toBeGreaterThan(0)
+    expect(job.authority.entitlement.features['users.limit']).toBe(5)
+  })
+
   it('charges the unpaid whole configuration and only the remaining paid-unit days on early convert (L4)', async () => {
     const f = await endedTrial()
     const bought = await change(f, { requested_users: 5 }, beforeEnd)
@@ -210,10 +232,16 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
   it('cancels an unpaid order so the lock can proceed; a late paid receipt does not reopen the trial (L5)', async () => {
     const f = await endedTrial()
     const pending = await change(f, { requested_users: 5 }, beforeEnd, false)
+    const attempt = await createPaymentAttempt(pool, { order_id: pending.order.id, customer_id: f.customer, adapter, returnOrigin: origin })
     await lapse(f)
     await lock(f)
     expect((await pool.query('SELECT cancelled,automatic_refund FROM orders WHERE id=$1', [pending.order.id])).rows[0])
       .toEqual({ cancelled: true, automatic_refund: true })
+    adapter.settle(attempt.provider_ref, 'succeeded')
+    await handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(attempt.provider_ref), headers: {}, adapter })
+    await processRefundOutbox(pool, adapter)
+    expect((await pool.query('SELECT payment_state FROM orders WHERE id=$1', [pending.order.id])).rows[0].payment_state).toBe('refunded')
+    expect((await getSubscription(pool, f.customer)).trial_outcome).toBe('free_base')
   })
 
   it('makes a paid undeliverable order whole once after bounded retries (L9)', async () => {
@@ -244,7 +272,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     expect((await getSubscription(pool, f.customer)).trial_outcome).toBe('free_base')
   })
 
-  it('requeues a system job that may have written and retires a stale unapplied date push (T8)', async () => {
+  it('requeues a system job that may have written (T8)', async () => {
     const f = await endedTrial()
     await lapse(f)
     await lower(f)
@@ -257,6 +285,32 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     expect(await lapseRow(f.subscription)).toMatchObject({ state: 'done' })
   })
 
+  it('retires a stale system date push once the target revision moves (T8)', async () => {
+    const f = await endedTrial()
+    await transaction(pool, tx => pushCommercialExpiry(tx, f.subscription, new Date('2026-11-19T09:00:00Z')))
+    const dateJob = (await pool.query("SELECT id FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'origin'='trial-end'", [f.tenant])).rows[0]
+    const bought = await change(f, { requested_users: 5 }, beforeEnd)
+    expect(await runJob(bought.order.id, okRunner)).toMatchObject({ state: 'verified' })
+    await expect(runSubscriptionReconfigure(pool, dateJob.id, okRunner)).rejects.toThrow('stale_target')
+    await recoverCommercialSystemJobs(pool, now)
+    expect((await pool.query('SELECT state FROM shared_jobs WHERE id=$1', [dateJob.id])).rows[0].state).toBe('failed')
+    await lapse(f)
+    await lock(f)
+  })
+
+  it('releases a failed zero-due trial order without issuing a refund', async () => {
+    const f = await endedTrial()
+    const free = await change(f, {}, beforeEnd)
+    expect(free.quote.due_now.minor).toBe(0)
+    await lapse(f)
+    await pool.query("UPDATE orders SET fulfillment_state='failed',fulfillment_retries=3 WHERE id=$1", [free.order.id])
+    await recoverPaidFulfillment(pool, now)
+    expect((await pool.query('SELECT payment_state,cancelled FROM orders WHERE id=$1', [free.order.id])).rows[0])
+      .toEqual({ payment_state: 'not_required', cancelled: true })
+    expect((await pool.query("SELECT id FROM commercial_outbox WHERE aggregate_id=$1 AND kind='reconcile.refund'", [free.order.id])).rowCount).toBe(0)
+    await lock(f)
+  })
+
   it('returns an unpaid kept subset to free base after first invoice grace (T9)', async () => {
     const f = await endedTrial()
     const paid = await change(f, { requested_users: 5 }, beforeEnd)
@@ -265,7 +319,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     await lock(f)
     const [first] = await generateRenewals(pool, { now, subscription_id: f.subscription, adapter, returnOrigin: origin })
     await pool.query("UPDATE payment_attempts SET status='failed' WHERE order_id=$1", [first!.id])
-    const deadline = new Date(now.getTime() + 8 * 86_400_000)
+    const deadline = new Date(Math.max(now.getTime(), Date.now()) + 8 * 86_400_000)
     await applyDunning(pool, { now: deadline })
     expect(await lapseRow(f.subscription)).toMatchObject({ state: 'pending', force_empty: true })
     expect((await pool.query('SELECT status FROM invoices WHERE order_id=$1', [first!.id])).rows[0].status).toBe('void')
@@ -296,6 +350,26 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     expect(await lapse(f)).toMatchObject({ deferred: [f.subscription] })
     expect(await row(f.subscription)).toEqual(original)
     expect(await lapseRow(f.subscription)).toBeUndefined()
+  })
+
+  it('installs the fallback for an existing trial before its capability flags unlock lapse', async () => {
+    const f = await endedTrial()
+    await pool.query('UPDATE tenants SET post_trial_supported=NULL,excess_supported=NULL WHERE id=$1', [f.tenant])
+    const binding = (await pool.query('SELECT database_name FROM shared_registry_bindings WHERE control_tenant_id=$1', [f.tenant])).rows[0]
+    const usage = { 'users.limit': 3, 'storage.limit_mb': 0, 'branches.extra_limit': 0 }
+    await collectUsage(pool, { limit: 100, runner: async input => input.tenant_id === f.tenant ? {
+      database: binding.database_name, observed_at: new Date().toISOString(), usage,
+      limit_gates: Object.fromEntries(Object.keys(usage).map(key => [key, []])),
+      post_trial_supported: true, excess_supported: true, storage_bytes: 20480 * 1024 * 1024 + 17,
+    } : null })
+    expect(await lapse(f)).toMatchObject({ deferred: [f.subscription] })
+    expect(await trialEndPreview(pool, f.customer)).toMatchObject({ excess: { storage_bytes: 17, source: 'usage_snapshot' } })
+    const job = (await pool.query("SELECT id,payload FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'origin'='trial-end'", [f.tenant])).rows[0]
+    expect(job.payload.authority.post_trial_features['pmo.enabled']).toBe(false)
+    await runSubscriptionReconfigure(pool, job.id, async input => ({
+      ...await okRunner(input), post_trial_supported: true, excess_supported: true,
+    }))
+    expect(await lapse(f)).toMatchObject({ lapsed: [f.subscription] })
   })
 
   it('rolls back expiry and its lapse together if the transaction crashes (T12)', async () => {

@@ -100,7 +100,7 @@ export async function extendTrial(pool: Pool, input: { subscription_id: string; 
   })
 }
 
-export async function endTrial(pool: Pool, input: { subscription_id: string; reason: string; actor: string; now: Date; adapter: PaymentAdapter; returnOrigin: ReturnOrigin }) {
+export async function endTrial(pool: Pool, input: { subscription_id: string; reason: string; actor: string; now: Date }) {
   const owner = (await pool.query('SELECT customer_id,state,applied_revision_id FROM subscriptions WHERE id=$1', [input.subscription_id])).rows[0]
   if (!owner || owner.state !== 'trialing') throw new CommercialHttpError('trial_not_active', 409)
   // The first invoice is built from the applied snapshot: ending a trial whose workspace is not active yet would leave a past-due subscription with nothing to pay.

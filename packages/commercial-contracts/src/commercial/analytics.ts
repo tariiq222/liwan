@@ -43,6 +43,7 @@ export const analyticsFiguresSchema = z.strictObject({
   customers: z.strictObject({
     active: figure(count), new: figure(count), churned: figure(count),
     churn_rate_by_count: figure(ratio), churn_rate_by_revenue: figure(ratio), trial_conversion_rate: figure(ratio),
+    trial_outcomes: z.strictObject({ converted: count, kept_subset: count, free_base: count }).optional(),
   }),
   operations: z.strictObject({ avg_hours_to_ready: figure(z.number().min(0)) }),
 })

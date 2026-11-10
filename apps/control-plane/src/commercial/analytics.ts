@@ -98,20 +98,23 @@ async function collection(db: Ask, unit: Money, period: Period) {
   }
 }
 
-async function trialConversion(db: Ask, period: Period, now: Date): Promise<AnalyticsFigure<number>> {
+async function trialConversion(db: Ask, period: Period, now: Date) {
   const { start, end } = periodBounds(period)
-  // A trial that lapsed onto the free base has no end date any more (the lapse clears it); the lapse row dates its end.
   const row = (await db.query(
-    `SELECT count(*) AS ended,
-            count(*) FILTER (WHERE EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id = t.id AND i.status = 'paid'
-                                              AND i.subtotal_minor > 0 AND i.paid_at >= t.ended_at)) AS converted
-       FROM (SELECT s.id, COALESCE(s.trial_ended_at,s.trial_ends_at) AS ended_at FROM subscriptions s
-              WHERE COALESCE(s.trial_ended_at,s.trial_ends_at) >= $1 AND COALESCE(s.trial_ended_at,s.trial_ends_at) < LEAST($2::timestamptz, $3::timestamptz)
-             UNION ALL
-             SELECT l.subscription_id, l.ended_at FROM trial_lapses l
-              WHERE l.ended_at >= $1 AND l.ended_at < LEAST($2::timestamptz, $3::timestamptz)) t`,
+    `WITH ended AS (
+       SELECT s.id,COALESCE(l.ended_at,s.trial_ended_at,s.trial_ends_at) AS ended_at,s.trial_outcome
+       FROM subscriptions s LEFT JOIN trial_lapses l ON l.subscription_id=s.id
+     )
+     SELECT count(*) AS ended,
+       count(*) FILTER (WHERE EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id=t.id AND i.status='paid'
+         AND i.subtotal_minor>0 AND i.paid_at>=t.ended_at)) AS paid,
+       count(*) FILTER (WHERE t.trial_outcome='converted') AS converted,
+       count(*) FILTER (WHERE t.trial_outcome='kept_subset') AS kept_subset,
+       count(*) FILTER (WHERE t.trial_outcome='free_base') AS free_base
+     FROM ended t WHERE t.ended_at >= $1 AND t.ended_at < LEAST($2::timestamptz,$3::timestamptz)`,
     [new Date(start), new Date(end), now])).rows[0]
-  return orNoData(ratio(num(row.converted), num(row.ended)))
+  return { trial_conversion_rate: orNoData(ratio(num(row.paid), num(row.ended))),
+    trial_outcomes: { converted: num(row.converted), kept_subset: num(row.kept_subset), free_base: num(row.free_base) } }
 }
 
 async function hoursToReady(db: Ask, period: Period): Promise<AnalyticsFigure<number>> {
@@ -143,7 +146,7 @@ async function figuresFor(db: Ask, book: Book, unit: Money, period: Period, now:
     collection: await collection(db, unit, period),
     customers: {
       active: stock ? available(stock.customers) : historyLost, new: available(movement.new_customers), churned: lost,
-      churn_rate_by_count: lost, churn_rate_by_revenue: lost, trial_conversion_rate: await trialConversion(db, period, now),
+      churn_rate_by_count: lost, churn_rate_by_revenue: lost, ...await trialConversion(db, period, now),
     },
     operations: { avg_hours_to_ready: await hoursToReady(db, period) },
   }

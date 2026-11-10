@@ -62,7 +62,12 @@ export const sharedReconfigureJobSchema = z.strictObject({
     ai_expected_post_trial_digest: digest.optional(),
   }),
   restore: z.boolean().optional(), restoreId: z.uuid().optional(), origin: z.literal('trial-end').optional(),
-})
+}).refine(job => {
+  const a = job.authority
+  const fallback = [a.post_trial_features, a.post_trial_modules, a.post_trial_digest]
+  if (a.trial_ends_at) return fallback.every(value => value !== undefined) && !a.ai_push && !a.ai_expected_post_trial_digest
+  return fallback.every(value => value === undefined) && (a.ai_expected_post_trial_digest === undefined || a.ai_push === true)
+}, { message: 'Incomplete or unauthorized trial fallback' })
 export type SharedReconfigureJob = z.infer<typeof sharedReconfigureJobSchema>
 export const sharedQueuedJobSchema = z.union([sharedJobSchema, sharedReconfigureJobSchema])
 export const sharedJournalSchema = z.strictObject({

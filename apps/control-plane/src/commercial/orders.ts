@@ -213,12 +213,12 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
   if (!quote.terms_revision_id) sources.terms = null
   const previous = subscription.applied_revision_id ? (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [subscription.applied_revision_id])).rows[0]?.snapshot : null
   const entitlement = compilePurchasedEntitlement({ ...sources, quantities: { users: quote.requested_users, storage_mb: quote.requested_storage_mb },
-    extraBranches: previous?.trial_end ? Math.max(quote.requested_extra_branches, previous.included_extra_branches) : undefined })
+    extraBranches: previous?.trial_end ? Math.max(quote.requested_extra_branches, sources.terms?.included_extra_branches ?? sources.plan.included_extra_branches) : undefined })
   if (entitlement.digest !== quote.entitlement_digest) throw new CommercialHttpError('revision_conflict', 409)
   const revisionId = randomUUID()
   if (previous) await assertDowngradeFitsUsage(client, {
     tenant_id: customer.tenant_id, subscription_id: subscription.id,
-    previous: previous.entitlement?.features ?? {}, target: entitlement.features,
+    previous: previous.entitlement?.features ?? {}, target: entitlement.features, branchArchiveIds: branchRequest?.archive, now,
   })
   const period = previous ? appliedPeriod(subscription, previous) : null
   const periodStart = period ? period.start : quote.effective_date

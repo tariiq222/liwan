@@ -84,7 +84,7 @@ export async function getQuote(pool: Pool, id: string): Promise<Quote> {
 }
 export { planIssues }
 
-type QuoteInput = { customer_id: string; request: unknown; previewTerms?: CustomerTermsRevision }
+type QuoteInput = { customer_id: string; request: unknown; previewTerms?: CustomerTermsRevision; branchArchiveIds?: string[] }
 async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Date, persist: boolean): Promise<Quote> {
   const input = quoteRequestSchema.parse(value.request)
   const customer = await client.query('SELECT * FROM customers WHERE id=$1', [value.customer_id])
@@ -131,10 +131,10 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
   const ai_topup = input.ai_topup_minor === undefined ? null : await resolveTopupAmount(client, value.customer_id, input.ai_topup_minor, sources.plan)
   const entitlement = compileOrRefuse(() => compilePurchasedEntitlement({ ...sources,
     quantities: { users: input.requested_users, storage_mb: input.requested_storage_mb },
-    extraBranches: applied?.trial_end ? Math.max(input.requested_extra_branches, applied.included_extra_branches) : undefined }))
+    extraBranches: applied?.trial_end ? Math.max(input.requested_extra_branches, sources.terms?.included_extra_branches ?? sources.plan.included_extra_branches) : undefined }))
   if (input.kind === 'change') await assertDowngradeFitsUsage(client, {
     tenant_id: customer.rows[0].tenant_id, subscription_id: s.id,
-    previous: applied.entitlement?.features ?? {}, target: entitlement.features, now,
+    previous: applied.entitlement?.features ?? {}, target: entitlement.features, branchArchiveIds: value.branchArchiveIds, now,
   })
   try {
     const quote = computeQuote({ ...sources, kind: input.kind, cadence: input.cadence, requested_extra_branches: input.requested_extra_branches,
@@ -161,11 +161,7 @@ export function createQuoteForCustomer(pool: Pool, value: QuoteInput, now = new 
   return transaction(pool, client => quoteForCustomerOn(client, value, now, true))
 }
 
-/**
- * The billing period a change is priced and recorded against. It is the applied snapshot's own, except for a trial that
- * lapsed onto the free base and whose lock is not applied yet: its snapshot still carries the trial's elapsed period, while
- * the subscription already lives in the free-base cycle (`trial_lapses.period_start` to `renewal_at`).
- */
+/** Trial dates can be extended without mutating the last applied revision. */
 export function appliedPeriod(subscription: { state: string; trial_ends_at: Date | null }, applied: { period_start: string; period_end: string }) {
   return { start: applied.period_start, end: subscription.state === 'trialing' && subscription.trial_ends_at
     ? riyadhDate(subscription.trial_ends_at) : applied.period_end }

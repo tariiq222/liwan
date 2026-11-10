@@ -11,6 +11,7 @@ describe('attentionPresentation', () => {
     expect(attentionPresentation(item({ kind: 'past_due' })).to).toEqual({ path: '/customers/c1', query: { tab: 'invoices' } })
     expect(attentionPresentation(item({ kind: 'refund_rejected', invoice_id: 'i9' })).to).toEqual({ path: '/invoices/i9' })
     expect(attentionPresentation(item({ kind: 'refund_rejected' })).to).toEqual({ path: '/customers/c1', query: { tab: 'invoices' } })
+    expect(attentionPresentation(item({ kind: 'suspension_undelivered' })).to).toEqual({ path: '/customers/c1', query: { tab: 'subscription' } })
     expect(attentionPresentation(item({ kind: 'billing_blocked' })).to).toEqual({ path: '/customers/c1', query: { tab: 'subscription' } })
     expect(attentionPresentation(item({ kind: 'stalled_activation' })).to).toEqual({ path: '/customers/c1', query: { tab: 'workspace' } })
     expect(attentionPresentation(item({ kind: 'setup_required' })).to).toEqual({ path: '/customers/c1', query: { tab: 'subscription' } })

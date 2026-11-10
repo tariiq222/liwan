@@ -152,9 +152,11 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
     await assertOwned()
     const authority = claim.job.authority
     const digest = receipt.observed_entitlement_digest
-    const postTrial = (authority.ai_push && digest === authority.ai_expected_post_trial_digest) || authority.trial_ends_at && Date.parse(authority.trial_ends_at) <= Date.now() && digest === authority.post_trial_digest
+    const cutoffPassed = authority.trial_ends_at && Date.parse(authority.trial_ends_at) <= Date.parse(receipt.observed_at)
+    const expected = cutoffPassed ? authority.post_trial_digest : authority.entitlement.digest
+    const aiFallback = authority.ai_push && digest === authority.ai_expected_post_trial_digest
     if(receipt.order_id!==authority.order_id || receipt.database!==claim.job.binding.database || receipt.target_revision_id!==authority.target_revision_id
-      || (digest!==authority.entitlement.digest && !postTrial)) throw Error('observed_mismatch')
+      || (digest!==expected && !aiFallback)) throw Error('observed_mismatch')
     if(!claim.job.restore && !authority.ai_push)await applyReceipt(pool,{order_id:authority.order_id,receipt,verifiedDigest:digest})
     if(!claim.job.restore && !authority.ai_push) {
       const support = receipt as {commercial_expiry_supported?: boolean; post_trial_supported?: boolean; excess_supported?: boolean}

@@ -95,7 +95,7 @@ async function attempt(pool: Pool, id: string, now: Date): Promise<string | unde
     const snapshot = (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [sub.applied_revision_id])).rows[0].snapshot
     const lock = await keptAtTrialEnd(client, { subscription: sub, snapshot, start: lapse.start, cutoff: lapse.ended_at, forceEmpty: lapse.force_empty })
     const orderId = await orderTrialLock(client, { subscription: sub, snapshot, lock, attempt: lapse.order_seq + 1 })
-    await client.query(`UPDATE trial_lapses SET state='ordered',order_id=$2,trial_revision_id=$3,kept=$4,reason=NULL,
+    await client.query(`UPDATE trial_lapses SET state='ordered',order_id=$2,trial_revision_id=CASE WHEN force_empty THEN trial_revision_id ELSE $3 END,kept=$4,reason=NULL,
       order_seq=order_seq+1,next_attempt_at=$5 WHERE subscription_id=$1`, [id, orderId, sub.applied_revision_id, JSON.stringify(lock.ledger), now])
   })
 }

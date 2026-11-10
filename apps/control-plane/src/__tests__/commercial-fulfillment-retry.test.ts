@@ -3,6 +3,7 @@ import { Pool } from 'pg'
 import { randomUUID } from 'node:crypto'
 import { url, setup, client } from './commercial-helpers.js'
 import { failEnqueueTerminally, failFulfillment, failFulfillmentOn, processFulfillmentOutbox } from '../commercial/fulfillment.js'
+import { recoverPaidFulfillment } from '../commercial/paid-fulfillment-recovery.js'
 import { completeOutbox, deferOutbox, failOutbox } from '../commercial/outbox.js'
 
 const suite = url ? describe : describe.skip
@@ -63,6 +64,7 @@ suite('fulfillment enqueue retry on scratch PostgreSQL', () => {
     await pool.query('UPDATE commercial_outbox SET attempts=9 WHERE aggregate_id=$1', [s.order])
     await run()
     expect(await orderState(s.order)).toBe('failed')
+    await recoverPaidFulfillment(pool)
     expect(await invoiceStatus(s.order)).toBe('credit_pending')
     expect(await notes(s.order)).toEqual([{ status: 'pending' }])
     expect(await row(s.order)).toMatchObject({ status: 'failed', payload: { error: 'retries_exhausted: shared_adapter_unavailable' } })
@@ -72,6 +74,7 @@ suite('fulfillment enqueue retry on scratch PostgreSQL', () => {
     const s = await seed({ catalogRelease: randomUUID() })
     expect(await run()).toContainEqual({ order_id: s.order, reason: 'enrollment_base_catalog_missing' })
     expect(await orderState(s.order)).toBe('failed')
+    await recoverPaidFulfillment(pool)
     expect(await invoiceStatus(s.order)).toBe('credit_pending')
     expect(await notes(s.order)).toHaveLength(1)
     expect(await row(s.order)).toMatchObject({ status: 'failed', attempts: 0 })
@@ -99,6 +102,7 @@ suite('fulfillment enqueue retry on scratch PostgreSQL', () => {
     const s = await seed()
     await failFulfillment(pool, { order_id: s.order, code: 'idempotency_conflict' })
     await failFulfillment(pool, { order_id: s.order, code: 'idempotency_conflict' })
+    await recoverPaidFulfillment(pool)
     expect(await notes(s.order)).toHaveLength(1)
     // An order already in needs_intervention is left as it is instead of throwing.
     const t = await seed()
@@ -139,6 +143,7 @@ suite('fulfillment enqueue retry on scratch PostgreSQL', () => {
     const sameClaim = { connect: pool.connect.bind(pool), query: (sql: string, params?: unknown[]) => /^\s*WITH due AS/.test(sql) ? Promise.resolve({ rows: [claimed] }) : pool.query(sql, params as any[]) } as unknown as Pool
     await Promise.all([processFulfillmentOutbox(sameClaim, { enrollment }), processFulfillmentOutbox(sameClaim, { enrollment })])
     expect(await orderState(s.order)).toBe('failed')
+    await recoverPaidFulfillment(pool)
     expect(await notes(s.order)).toHaveLength(1)
     expect(await row(s.order)).toMatchObject({ status: 'failed' })
     expect((await pool.query("SELECT count(*)::int AS n FROM shared_jobs j JOIN subscriptions s ON s.tenant_id=j.control_tenant_id WHERE s.id=$1", [s.subscription])).rows[0].n).toBe(0)
@@ -160,6 +165,7 @@ suite('fulfillment enqueue retry on scratch PostgreSQL', () => {
       await a.query('COMMIT')
       await b
     } finally { a.release() }
+    await recoverPaidFulfillment(pool)
     expect(await notes(s.order)).toHaveLength(1)
     expect(await orderState(s.order)).toBe('failed')
     expect(await row(s.order)).toMatchObject({ status: 'failed' })

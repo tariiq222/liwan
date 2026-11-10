@@ -25,16 +25,11 @@ export function owesAtRenewal(pricing: Pricing | undefined | null): boolean {
     + pricing.paid_users * pricing.user_unit_minor + pricing.paid_storage_gb * pricing.storage_unit_minor > 0
 }
 
-/**
- * The effective commercial baseline of a subscription is the free base from the moment its trial lapses, but its APPLIED
- * snapshot stays the paid trial configuration until the lock order applies. This is the one definition of that window:
- * an unresolved lapse (`pending` or `ordered`: the lock is not applied yet) whose trial revision is still the applied one. Quotes, renewals and dunning
- * all ask here instead of reading the snapshot's own pricing, so none of them bills or prices the trial configuration.
- */
+/** A recorded lapse blocks pricing and renewals until the lock receipt settles it. */
 export const holdsTrialAfterLapseSql = (subscription: string) => `EXISTS (SELECT 1 FROM trial_lapses tl WHERE tl.subscription_id=${subscription}.id
   AND tl.state IN ('pending','ordered'))`
 
-export async function unresolvedLapse(client: Pick<PoolClient, 'query'>, subscription: { id: string; applied_revision_id: string }): Promise<{ period_start: string } | null> {
+export async function unresolvedLapse(client: Pick<PoolClient, 'query'>, subscription: { id: string }): Promise<{ period_start: string } | null> {
   const lapse = (await client.query("SELECT period_start::text AS period_start FROM trial_lapses WHERE subscription_id=$1 AND state IN ('pending','ordered')",
     [subscription.id])).rows[0]
   return lapse ?? null
@@ -83,7 +78,7 @@ export async function keptAtTrialEnd(client: Pick<PoolClient, 'query'>, input: {
   const full = computeQuote(quoteInput)
   const pricing = pricingBaseline(full, { extra_branches: included, users: plan.included_users, storage_mb: plan.included_storage_mb })
   const quote = computeQuote({ ...quoteInput, paid_through: ledger.paid_through })
-  return { quote, entitlement, pricing, start, end, ledger, included, liveBranches: branches.live as number }
+  return { quote, full, entitlement, pricing, start, end, ledger, included, liveBranches: branches.live as number }
 }
 
 /** The catalog limit is a sales ceiling. An applied post-trial entitlement grants the purchased capacity. */
@@ -108,7 +103,8 @@ export async function orderTrialLock(client: PoolClient, input: {
     extra_branch_count: lock.liveBranches, entitlement, quote_id: quote.id, trial_end: true, pricing: lock.pricing }
   const revisionId = randomUUID()
   const orderId = randomUUID()
-  const lockQuote = { ...quote, due_now: { ...quote.due_now, minor: 0 } }
+  const lockQuote = { ...lock.full, due_now: { ...quote.due_now, minor: 0 },
+    lines: lock.full.lines.filter(line => line.key !== 'tax:now').map(line => ({ ...line, timing: 'renewal' as const })) }
   lockQuote.digest = digestOf({ ...lockQuote, digest: undefined })
   await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)',
     [quote.id, subscription.customer_id, JSON.stringify(lockQuote), lockQuote.digest, quote.expires_at])

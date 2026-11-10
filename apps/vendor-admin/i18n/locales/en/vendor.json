@@ -70,7 +70,7 @@
         "free_base_blocked": "The trial ended {duration} ago but locking onto the free base is blocked ({operation}); the company is not locked",
         "trial_end_overdue": "The trial ended {duration} ago but its end has not run: the paid applications are still open and new orders are refused until it does",
         "renewal_failed": "The renewal could not be generated ({operation}); other renewals are not affected",
-        "suspension_undelivered": "The suspension has not reached the workspace after {duration}. Delivery retries continue.",
+        "suspension_undelivered": "The suspension has not reached the workspace. Delivery retries continue.",
         "stalled_failed": "Activation failed and needs you",
         "stalled_waiting": "Activation stalled for {duration}",
         "operation_failed": "Operation failed: {operation}",

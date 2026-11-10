@@ -26,6 +26,7 @@ ALTER TABLE subscriptions ADD COLUMN renewal_failure text, ADD COLUMN renewal_fa
   ADD COLUMN trial_paid_through jsonb, ADD COLUMN trial_ended_at timestamptz;
 ALTER TABLE tenants ADD COLUMN post_trial_supported boolean, ADD COLUMN excess_supported boolean;
 ALTER TABLE commercial_branches ADD COLUMN read_only boolean NOT NULL DEFAULT false;
+ALTER TABLE usage_snapshots ADD COLUMN excess jsonb;
 UPDATE subscriptions SET suspended_from='trialing',revision=revision+1
   WHERE state='suspended' AND manual_suspension AND trial_ends_at IS NOT NULL
     AND NOT EXISTS (SELECT 1 FROM renewals WHERE subscription_id=subscriptions.id);

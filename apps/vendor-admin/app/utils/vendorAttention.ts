@@ -67,7 +67,7 @@ export function attentionMessage(item: AttentionItem, now: Date): { key: string,
     case 'free_base_blocked': return { key: 'free_base_blocked', days: Math.max(0, daysBetween(item.since, now)), operation: item.detail }
     case 'trial_end_overdue': return { key: 'trial_end_overdue', days: Math.max(0, daysBetween(item.since, now)), operation: null }
     case 'renewal_failed': return { key: 'renewal_failed', days: null, operation: item.detail }
-    case 'suspension_undelivered': return { key: 'suspension_undelivered', days: Math.max(0, daysBetween(item.since, now)), operation: item.detail }
+    case 'suspension_undelivered': return { key: 'suspension_undelivered', days: null, operation: item.detail }
     case 'stalled_activation':
       return FAILED_FULFILLMENT.includes(item.detail ?? '')
         ? { key: 'stalled_failed', days: null, operation: null }

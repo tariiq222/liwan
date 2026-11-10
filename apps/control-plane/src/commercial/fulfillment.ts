@@ -75,7 +75,7 @@ export async function applyReceipt(pool: Pool, input: { order_id: string; receip
     await client.query(`UPDATE subscriptions SET applied_revision_id=$2,target_revision_id=NULL,
       state=CASE WHEN manual_suspension THEN state WHEN state='trialing' AND $3<>'renewal' THEN 'trialing' WHEN $3='change' AND trial_ends_at>now() THEN 'trialing' WHEN $3='change' THEN 'active' WHEN trial_ends_at>now() THEN 'trialing' ELSE 'active' END,
       trial_paid_through=CASE WHEN $3='renewal' THEN NULL ELSE trial_paid_through END,
-      trial_ends_at=CASE WHEN $3='renewal' OR ($3='change' AND state<>'trialing' AND trial_ends_at<=now()) THEN NULL ELSE trial_ends_at END,
+      trial_ends_at=CASE WHEN $3='renewal' THEN NULL ELSE trial_ends_at END,
       renewal_at=CASE WHEN applied_revision_id IS NULL OR $3='renewal' THEN COALESCE((SELECT period_end FROM renewals WHERE order_id=$5),$4::date,renewal_at) ELSE renewal_at END,
       revision=revision+1 WHERE id=$1`, [order.subscription_id, order.target_revision_id, order.kind, order.snapshot.period_end??null, order.id])
     if(!order.applied_revision_id){
@@ -223,7 +223,7 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
         const pending=await client.query("SELECT id FROM commercial_outbox WHERE id=$1 AND status='pending' FOR UPDATE",[row.id])
         if(!pending.rowCount)return null
         const found=await client.query(`SELECT o.*,s.tenant_id,s.applied_revision_id,s.target_revision_id AS subscription_target,
-          s.trial_ends_at,s.state AS subscription_state,s.revision,s.commercial_expiry_revision,r.snapshot,
+          s.trial_ends_at,s.state AS subscription_state,s.suspended_from,s.revision,s.commercial_expiry_revision,r.snapshot,
           (SELECT ended_at FROM trial_lapses WHERE subscription_id=s.id AND state='pending') AS lapsed_at
           FROM orders o JOIN subscriptions s ON s.id=o.subscription_id JOIN subscription_revisions r ON r.id=o.target_revision_id
           WHERE o.id=$1 FOR UPDATE OF o,s`,[row.aggregate_id])
@@ -279,7 +279,7 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
         const expiryRevision = Number(order.commercial_expiry_revision) + 1
         await client.query('UPDATE subscriptions SET commercial_expiry_revision=$2,revision=revision+1 WHERE id=$1', [order.subscription_id, expiryRevision])
         const lock = String(order.idempotency_key).startsWith('trial-lapse:')
-        const trialCutoff = order.kind !== 'renewal' && !lock && (order.subscription_state === 'trialing' || order.lapsed_at)
+        const trialCutoff = order.kind !== 'renewal' && !lock && (order.subscription_state === 'trialing' || order.suspended_from === 'trialing' || order.lapsed_at)
           ? new Date(order.lapsed_at ?? order.trial_ends_at) : null
         const trialPolicy = trialCutoff ? await trialAuthority(client, { ...order, id: order.subscription_id }, order.snapshot, trialCutoff)
           : { trial_ends_at: null, ...(lock ? { excess_settle: true as const } : {}) }

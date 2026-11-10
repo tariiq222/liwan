@@ -1,11 +1,21 @@
 import type { Pool } from 'pg'
+import { z } from 'zod'
+import { transaction } from '../db.js'
+import { pushCommercialExpiry } from './expiry-push.js'
 import { AI_ENTITLEMENT_KEYS } from '@liwan/commercial-contracts'
 import { recordUsage } from './usage.js'
 import { sweepAi } from './ai-ledger.js'
 import { tenantStatusSql } from './suspension.js'
 
+const observedLifecycle = z.object({
+  post_trial_supported: z.boolean().optional(), excess_supported: z.boolean().optional(),
+  storage_bytes: z.number().int().nonnegative().optional(),
+  excess: z.record(z.string(), z.number().int().nonnegative()).optional(),
+  branches: z.array(z.object({ branch_id: z.uuid(), read_only: z.boolean().optional() })).optional(),
+})
+
 /** `ai` is the three derived AI values the tenant holds, when its profile carries them (an older tenant does not). */
-export type UsageObservation = { database: string; observed_at: string; usage: Record<string, number>; limit_gates: Record<string, string[]>; ai?: Record<string, number> }
+export type UsageObservation = { database: string; observed_at: string; usage: Record<string, number>; limit_gates: Record<string, string[]>; ai?: Record<string, number>; lifecycle?: z.infer<typeof observedLifecycle> }
 /** The runner must stop its work when SIGNAL aborts; its raw result is validated by acceptObservation. */
 export type UsageObserveRunner = (input: { tenant_id: string; database: string; signal?: AbortSignal }) => Promise<unknown>
 
@@ -44,10 +54,15 @@ export function acceptObservation(observed: unknown, database: string, now: Date
   if (!gateEntries.every(([, list]) => Array.isArray(list) && list.length <= 64 && list.every(g => typeof g === 'string' && LIMIT_KEY.test(g)))) return null
   const ai = observedAi(value.features)
   if (ai === null) return null
+  const hasLifecycle = 'post_trial_supported' in value || 'excess_supported' in value || 'storage_bytes' in value
+  const lifecycle = observedLifecycle.safeParse(hasLifecycle ? value : {})
+  if (!lifecycle.success) return null
   return {
+    ...(hasLifecycle ? { lifecycle: lifecycle.data } : {}),
     database, observed_at: value.observed_at,
     ...(ai ? { ai } : {}),
-    usage: Object.fromEntries(entries) as Record<string, number>,
+    usage: { ...Object.fromEntries(entries) as Record<string, number>,
+      ...(lifecycle.data.storage_bytes !== undefined ? { attachment_bytes: lifecycle.data.storage_bytes } : {}) },
     limit_gates: Object.fromEntries(gateEntries.map(([key, list]) => [key, [...(list as string[])]])),
   }
 }
@@ -71,6 +86,33 @@ async function withDeadline<T>(work: (signal: AbortSignal) => Promise<T>, ms: nu
   if (stop?.aborted) onStop(); else stop?.addEventListener('abort', onStop, { once: true })
   const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => { controller.abort(); reject(Error('observe_timeout')) }, ms) })
   try { return await Promise.race([work(controller.signal), timeout, stopped]) } finally { clearTimeout(timer); stop?.removeEventListener('abort', onStop) }
+}
+
+async function recordLifecycle(pool: Pool, target: { tenant_id: string; database_name: string; registry_revision: string }, observed: NonNullable<UsageObservation['lifecycle']>) {
+  await transaction(pool, async client => {
+    const subscription = (await client.query('SELECT * FROM subscriptions WHERE tenant_id=$1 FOR UPDATE', [target.tenant_id])).rows[0]
+    const bound = await client.query(`SELECT 1 FROM shared_registry_bindings WHERE control_tenant_id=$1 AND enabled
+      AND database_name=$2 AND registry_revision=$3 FOR SHARE`, [target.tenant_id, target.database_name, target.registry_revision])
+    if (!bound.rowCount) return
+    const trialing = subscription?.state === 'trialing' || subscription?.suspended_from === 'trialing'
+    const ready = observed.post_trial_supported === true && observed.excess_supported === true
+    if (trialing && ready && subscription.trial_ends_at && subscription.applied_revision_id && !subscription.target_revision_id) {
+      const tenant = (await client.query('SELECT post_trial_supported,excess_supported FROM tenants WHERE id=$1 FOR SHARE', [target.tenant_id])).rows[0]
+      const job = await client.query(`SELECT 1 FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'origin'='trial-end'
+        AND state IN ('queued','running','needs_intervention')`, [target.tenant_id])
+      // Existing trials need an actual fallback delivery before CP can enable their lapse. A capability-only
+      // observation never counts as that delivery. The receipt flips the flags after the host verified it.
+      if ((!tenant?.post_trial_supported || !tenant?.excess_supported) && !job.rowCount)
+        await pushCommercialExpiry(client, subscription.id, subscription.trial_ends_at)
+    }
+    if (!trialing || !ready) await client.query(`UPDATE tenants SET post_trial_supported=COALESCE($2,post_trial_supported),
+      excess_supported=COALESCE($3,excess_supported) WHERE id=$1`,
+    [target.tenant_id, observed.post_trial_supported, observed.excess_supported])
+    const branches = observed.branches?.filter(branch => branch.read_only !== undefined)
+    if (subscription && branches?.length) await client.query(`UPDATE commercial_branches b SET read_only=v.read_only
+      FROM jsonb_to_recordset($2::jsonb) v(branch_id uuid,read_only boolean)
+      WHERE b.subscription_id=$1 AND b.id=v.branch_id`, [subscription.id, JSON.stringify(branches)])
+  })
 }
 
 /** Persist Odoo's observed usage for every shared tenant that can still be used (any state but suspended, operations enabled), the
@@ -116,8 +158,10 @@ export async function collectUsage(pool: Pool, input: { runner: UsageObserveRunn
           const still = await pool.query('SELECT 1 FROM shared_registry_bindings WHERE control_tenant_id=$1 AND enabled=true AND database_name=$2 AND registry_revision=$3',
             [target.tenant_id, target.database_name, target.registry_revision])
           if (!still.rowCount) { result.skipped++; continue }
-          await recordUsage(pool, { tenant_id: target.tenant_id, observed_at: new Date(observed.observed_at), metrics: observed.usage, limit_gates: observed.limit_gates, source: 'odoo.observe' })
+          await recordUsage(pool, { tenant_id: target.tenant_id, observed_at: new Date(observed.observed_at), metrics: observed.usage, limit_gates: observed.limit_gates, excess: observed.lifecycle?.excess, source: 'odoo.observe' })
           result.recorded++
+          if (observed.lifecycle) await recordLifecycle(pool, target, observed.lifecycle).catch(error =>
+            log(`tenant ${target.tenant_id}: trial capability: ${error instanceof Error ? error.message : 'observation_failed'}`))
           // The level-triggered check: what the tenant holds against the ledger. A failure here must not lose the sample.
           if (observed.ai) await sweepAi(pool, target, observed.ai, log).catch(error => log(`tenant ${target.tenant_id}: ai sweep: ${error instanceof Error ? error.message : 'sweep_failed'}`))
         } catch (error) {

@@ -21,7 +21,7 @@ function closed(gates: string[], features: Features): boolean {
  * branches (never skipped by gates, lowered or not) and needs no usage sample. */
 export async function assertDowngradeFitsUsage(client: Pick<PoolClient, 'query'>, input: {
   tenant_id: string | null; subscription_id: string; previous: Features; target: Features
-  now?: Date
+  branchArchiveIds?: string[]; now?: Date
 }) {
   if (input.tenant_id) await client.query('SELECT id FROM tenants WHERE id=$1 FOR SHARE', [input.tenant_id])
   const row = input.tenant_id ? (await client.query('SELECT observed_at,metrics,freshness,limit_gates FROM usage_snapshots WHERE tenant_id=$1 ORDER BY observed_at DESC,id DESC LIMIT 1 FOR SHARE', [input.tenant_id])).rows[0] : null
@@ -41,7 +41,9 @@ export async function assertDowngradeFitsUsage(client: Pick<PoolClient, 'query'>
   })
   const branchLimit = input.target[BRANCH_LIMIT]
   if (typeof branchLimit === 'number') {
-    const count = (await client.query("SELECT count(*)::int AS n FROM commercial_branches WHERE subscription_id=$1 AND kind='extra' AND state IN ('active','pending') AND NOT read_only", [input.subscription_id])).rows[0].n
+    const count = (await client.query(`SELECT count(*)::int AS n FROM commercial_branches
+      WHERE subscription_id=$1 AND kind='extra' AND state IN ('active','pending') AND NOT read_only AND NOT (id=ANY($2::uuid[]))`,
+    [input.subscription_id, input.branchArchiveIds ?? []])).rows[0].n
     if (count > branchLimit) throw new CommercialHttpError('downgrade_below_usage', 422, BRANCH_LIMIT)
   }
   if (!lowering.length) return
@@ -96,12 +98,12 @@ export async function getUsage(pool: Pool, input: { tenant_id: string; limits: R
   return { tenant_id: input.tenant_id, policy_revision_id: policy, ...usageOf(r.rows[0], input.limits, now) }
 }
 
-export async function recordUsage(pool: Pool, input: { tenant_id: string; observed_at: Date; metrics: Record<string, number | null>; limit_gates?: Record<string, string[]>; source: string }): Promise<void> {
+export async function recordUsage(pool: Pool, input: { tenant_id: string; observed_at: Date; metrics: Record<string, number | null>; limit_gates?: Record<string, string[]>; excess?: Record<string, number>; source: string }): Promise<void> {
   await transaction(pool, async client => {
     // Serializes ingestion with the transactional downgrade check, including the first sample.
     await client.query('SELECT id FROM tenants WHERE id=$1 FOR UPDATE', [input.tenant_id])
     await client.query(
-      `INSERT INTO usage_snapshots(tenant_id, observed_at, freshness, metrics, limit_gates, source) VALUES($1,$2,'fresh',$3::jsonb,$4::jsonb,$5)`,
-      [input.tenant_id, input.observed_at, JSON.stringify(input.metrics), input.limit_gates ? JSON.stringify(input.limit_gates) : null, input.source])
+      `INSERT INTO usage_snapshots(tenant_id, observed_at, freshness, metrics, limit_gates, source, excess) VALUES($1,$2,'fresh',$3::jsonb,$4::jsonb,$5,$6::jsonb)`,
+      [input.tenant_id, input.observed_at, JSON.stringify(input.metrics), input.limit_gates ? JSON.stringify(input.limit_gates) : null, input.source, input.excess ? JSON.stringify(input.excess) : null])
   })
 }

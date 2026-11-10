@@ -140,12 +140,10 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
       }
       if (lastBilling === undefined || now - lastBilling >= billingMs) {
         lastBilling = now
-        if (o.paymentAdapter) {
-          const adapter = o.paymentAdapter
-          await job('trial-expiry', () => expireTrials(pool, { now: new Date(now), adapter, returnOrigin }))
-          await job('trial-lapse', () => processTrialLapses(pool, { now: new Date(now), adapter }))
-          await job('renewals', () => generateRenewals(pool, { now: new Date(now), adapter, returnOrigin }))
-        }
+        await job('trial-expiry', () => expireTrials(pool, { now: new Date(now) }))
+        const adapter = o.paymentAdapter
+        await job('trial-lapse', () => processTrialLapses(pool, { now: new Date(now), adapter }))
+        if (adapter) await job('renewals', () => generateRenewals(pool, { now: new Date(now), adapter, returnOrigin }))
         await job('dunning', () => applyDunning(pool, { now: new Date(now) }))
         await job('refunds', () => processRefundOutbox(pool, o.paymentAdapter))
       }

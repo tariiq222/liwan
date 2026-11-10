@@ -108,8 +108,8 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
       [randomUUID(),sub.customer_id,sub.id,quote.id,sub.applied_revision_id,quote.due_now.minor ? 'awaiting_payment':'not_required',
         quote.due_now.minor ? 'not_started':'queued',`${start}T00:00:00+03:00`,key,digestOf({subscription_id:sub.id,period_start:start,quote_digest:quote.digest}),quote.due_now.minor,quote.due_now.currency,quote.due_now.exponent])).rows[0]
       const order = orderView(row)
-      const immediate = sub.trial_outcome === 'kept_subset' && pricing.base_minor === 0
-        && (await client.query("SELECT 1 FROM trial_lapses WHERE subscription_id=$1 AND state='done' AND period_start=$2", [sub.id, start])).rowCount
+      const immediate = sub.trial_ends_at !== null && sub.trial_outcome === 'converted'
+        || (await client.query("SELECT 1 FROM trial_lapses WHERE subscription_id=$1 AND state='done' AND period_start=$2", [sub.id, start])).rowCount
       const invoice = await issueInvoiceFromQuote(client, { order, quote, dueDays: immediate ? 0 : undefined })
       await client.query('UPDATE renewals SET order_id=$2,invoice_id=$3 WHERE id=$1', [renewalId,order.id,invoice?.id ?? null])
       if (!invoice) {

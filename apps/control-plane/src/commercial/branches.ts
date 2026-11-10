@@ -13,14 +13,14 @@ const toBranch = (r: any): Branch => ({
   activated_at: r.activated_at ? String(iso(r.activated_at)) : null, archived_at: r.archived_at ? String(iso(r.archived_at)) : null,
 })
 
-async function allowances(db: Db, subscription_id: string): Promise<{ free: number; limit: number | null }> {
+async function allowances(db: Db, subscription_id: string): Promise<{ free: number; limit: number | null; paid?: number }> {
   const r = await db.query(
     `SELECT rv.snapshot FROM subscriptions s JOIN subscription_revisions rv ON rv.id=COALESCE(s.applied_revision_id,s.target_revision_id) WHERE s.id=$1`, [subscription_id])
   if (!r.rowCount) return { free: 0, limit: null }
   const snap = r.rows[0].snapshot ?? {}
   const free = Number(snap.included_extra_branches ?? 0)
   const lim = snap.entitlement?.features?.['branches.extra_limit'] ?? snap.entitlements?.features?.['branches.extra_limit']
-  return { free: Number.isFinite(free) ? Math.max(0, free) : 0, limit: typeof lim === 'number' ? lim : null }
+  return { free: Number.isFinite(free) ? Math.max(0, free) : 0, limit: typeof lim === 'number' ? lim : null, paid: snap.trial_end ? Number(snap.pricing?.paid_extra_branches ?? 0) : undefined }
 }
 
 async function subscriptionBranches(db: Db, subscription_id: string): Promise<any[]> {
@@ -31,11 +31,11 @@ async function subscriptionBranches(db: Db, subscription_id: string): Promise<an
 
 export async function listBranches(pool: Db, subscription_id: string): Promise<BranchSummary> {
   const rows = await subscriptionBranches(pool, subscription_id)
-  const { free, limit } = await allowances(pool, subscription_id)
-  const counts = branchBillingCounts(rows, free)
+  const { free, limit, paid } = await allowances(pool, subscription_id)
+  const counts = branchBillingCounts(rows.filter(row => !row.read_only), free)
   return {
     items: rows.map(toBranch), total: rows.length, hq: 1,
-    free_extra_used: counts.free_used, free_extra_allowed: free, paid: counts.paid, limit,
+    free_extra_used: counts.free_used, free_extra_allowed: free, paid: paid ?? counts.paid, limit,
   }
 }
 
@@ -66,7 +66,13 @@ export async function requestedExtraBranches(pool: Db, input: { subscription_id:
   const current = rows.filter(b => b.kind === 'extra' && (b.state === 'active' || b.state === 'pending')).length
   const pricing = sub?.snapshot?.pricing
   const billed = pricing ? Number(sub.snapshot.included_extra_branches ?? 0) + Number(pricing.paid_extra_branches ?? 0) : current
-  return input.add || restoring.length ? Math.min(current, billed) + input.add + restoring.length : Math.min(current - archiving, billed)
+  const activations = input.add + restoring.length
+  if (!sub?.snapshot?.trial_end) {
+    const projected = current - archiving + activations
+    return projected > current ? projected : Math.min(projected, billed)
+  }
+  const full = rows.filter(b => b.kind === 'extra' && ['active','pending'].includes(b.state) && !b.read_only).length
+  return activations ? Math.min(full, billed) + activations : Math.min(current - archiving, billed)
 }
 
 export async function reserveBranchesForOrder(client: PoolClient, input: {

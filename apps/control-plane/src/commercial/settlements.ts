@@ -81,7 +81,7 @@ async function refundUndelivered(pool: Pool, adapter: PaymentAdapter, row: { id:
     await transaction(pool, async client => {
       const invoice = (await client.query('SELECT * FROM invoices WHERE id=$1 FOR UPDATE', [attempt.invoice_id])).rows[0]
       const note = (await client.query(`SELECT id FROM invoice_adjustments WHERE invoice_id=$1 AND kind='credit_note'
-        AND status='pending' AND origin='system' AND amount_minor=$2 ORDER BY created_at,id LIMIT 1 FOR UPDATE`, [invoice.id, total])).rows[0]
+        AND status='pending' AND origin='system' AND created_by='commercial-fulfillment' ORDER BY created_at DESC,id LIMIT 1 FOR UPDATE`, [invoice.id])).rows[0]
       if (note) {
         await client.query(`UPDATE invoice_adjustments SET status='refunded',refund_reference=$2,refunded_by='system',refunded_at=now()
           WHERE id=$1`, [note.id, payment.payment_id])
@@ -175,13 +175,17 @@ export async function recordFulfillmentFailure(client: PoolClient, { order_id, r
   order_id: string; reason: string; actor: CommercialActor | string
 }) {
   if (reason.trim().length < 3) throw new Error('reason_required')
-  const invoices = await client.query("UPDATE invoices SET status='credit_pending' WHERE order_id=$1 AND status='paid' RETURNING *", [order_id])
+  const invoices = await client.query("SELECT * FROM invoices WHERE order_id=$1 AND status IN ('paid','credit_pending') FOR UPDATE", [order_id])
   const ids: string[] = []
   for (const invoice of invoices.rows) {
+    const credited = Number((await client.query(`SELECT ${creditedMinorSql('$1')} AS amount`, [invoice.id])).rows[0].amount)
+    const remaining = Number(invoice.total_minor) - credited
+    if (remaining <= 0) continue
     const id = randomUUID()
+    await client.query("UPDATE invoices SET status='credit_pending' WHERE id=$1 AND status='paid'", [invoice.id])
     await client.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin)
       VALUES($1,$2,$3,'credit_note',$4,$5,$6,$7,'pending',$8,'system')`,
-    [id,invoice.id,invoice.customer_id,reason,invoice.total_minor,invoice.currency,invoice.exponent,
+    [id,invoice.id,invoice.customer_id,reason,remaining,invoice.currency,invoice.exponent,
       typeof actor === 'string' ? actor : actorLabel(actor)])
     ids.push(id)
   }
