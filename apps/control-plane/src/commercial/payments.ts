@@ -97,7 +97,7 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
     await client.query("UPDATE invoices SET status='paid',paid_at=COALESCE(paid_at,now()) WHERE id=$1 AND status='issued'", [attempt.invoice_id])
     if (next.reconcile) {
       await enqueueOutbox(client, { kind: 'reconcile.refund', aggregate_id: order.id, dedupe_key: event.event_id,
-        payload: { order_id: order.id, attempt_id: attempt.id, payment_id: event.payment_id, event_id: event.event_id } })
+        payload: { order_id: order.id, attempt_id: attempt.id, payment_id: event.payment_id, event_id: event.event_id, automatic: order.automatic_refund === true } })
     } else {
       // An AI top-up joins the ledger in the same transaction that settles its payment, before fulfilment is queued.
       if (await recordPaidTopup(client, order) === 'over_cap') {

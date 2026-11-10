@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import fields, models
 
+from .read_only_guard import SETTLE_MARKER
+
 
 class LiwanTenantBranch(models.Model):
     _name = 'liwan.tenant.branch'
@@ -18,6 +20,14 @@ class LiwanTenantBranch(models.Model):
         [('active', 'Active'), ('archived', 'Archived')],
         default='active', required=True,
     )
+    # A branch above the purchased `branches.extra_limit` stays active and readable but takes no writes
+    # (`read_only_guard`). `seat_choice` is who decided: the settle, or the customer who picked it, and
+    # `restore_priority` is the customer's order for reopening branches when capacity grows (0 = not set).
+    read_only = fields.Boolean(default=False, required=True, copy=False)
+    seat_choice = fields.Selection(
+        [('auto', 'Automatic'), ('customer', 'Customer')], default='auto', required=True, copy=False,
+    )
+    restore_priority = fields.Integer(default=0, required=True, copy=False)
 
     _branch_uid_unique = models.Constraint(
         'UNIQUE(branch_uid)', 'liwan branch uid must be unique',
@@ -25,3 +35,13 @@ class LiwanTenantBranch(models.Model):
     _company_unique = models.Constraint(
         'UNIQUE(company_id)', 'a company can be bound to one liwan branch',
     )
+    _restore_priority_positive = models.Constraint(
+        'CHECK(restore_priority >= 0)', 'liwan branch restore priority cannot be negative',
+    )
+
+    def write(self, vals):
+        result = super().write(vals)
+        if 'state' in vals and not self.env.cr.precommit.data.get(SETTLE_MARKER):
+            # An archived branch frees its seat: the next read-only branch reopens.
+            self.env['liwan.entitlement.service']._liwan_settle_branches()
+        return result

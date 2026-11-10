@@ -17,11 +17,17 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   `not_found`, and 422 `invalid`. Never use `type='http'` for JSON or
   `auth='bearer'` for browser traffic. Never use `sudo()` to dodge an access
   error; fix the group or record rule.
-  The one exception is the public namespace `/api/v1/public/` (owner decision D3, 2026-10-28):
+  The public namespace `/api/v1/public/` is a documented exception (owner decision D3, 2026-10-28):
   routes for anonymous visitors, `auth='public'` and `save_session=False`, authorized by a
   per-document access token or a gateway signature, never by a session (the Nuxt proxy
   forwards them without cookies); gateway callbacks there may be `type='http'`. Each is
   listed with its reason in `tools/route_gate_allowlist.json`.
+  The existing Inbox callbacks are a separate exception (owner decision 2026-11-10).
+  `GET` and `POST` on `/api/v1/inbox/hooks/whatsapp` and `POST` on
+  `/api/v1/inbox/hooks/tiktok` use `type='http'`, `auth='inbox_hook'` and `save_session=False`.
+  WhatsApp `GET` checks the provider verification token. Both `POST` operations verify the
+  provider signature. The callbacks run as the dedicated hook identity without session
+  authentication. The allowlist records the reason for each callback.
 - An application registers its capabilities by extending `liwan.access.service`
   through `super()`: `_liwan_capability_definitions` (with `owner` set to the
   addon), `_liwan_permission_dependencies`, `_liwan_builtin_role_grants`, and when

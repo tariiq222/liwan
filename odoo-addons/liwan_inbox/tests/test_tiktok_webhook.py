@@ -56,6 +56,16 @@ class TestTikTokWebhook(LiwanInboxCase):
         self.assertEqual((len(event), event.state, event.payload.encode()), (1, 'pending', raw))
         self.assertEqual(event.owner_company_id, self.tiktok.owner_company_id)
 
+    def test_a_read_only_branch_records_only_a_signed_delivery(self):
+        self.env['liwan.tenant.branch'].create({
+            'branch_uid': 'tiktok-ro', 'company_id': self.tiktok.owner_company_id.id,
+            'operation_id': 'tiktok-hook', 'read_only': True,
+        })
+        self.assertError(self.post(tt.receive_text(), secret='another-secret'), 403, 'forbidden')
+        self.assertFalse(self.events())
+        self.assertEqual(self.post(tt.receive_text()).status_code, 200)
+        self.assertEqual(len(self.events()), 1)
+
     def test_a_bad_signature_and_an_unknown_business_answer_the_same_403(self):
         bad_signature = self.post(tt.receive_text(), secret='another-secret')
         unknown = self.post(tt.envelope('im_receive_msg', tt.message('text', {'body': 'Hi'}),

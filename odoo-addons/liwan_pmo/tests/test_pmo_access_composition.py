@@ -3,6 +3,8 @@ from odoo.exceptions import ValidationError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
 from odoo.addons.liwan_api.serializers.access import dump_permission
+from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
+from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 from odoo.addons.liwan_pmo.models.access_service import (
     EMPLOYEE_PMO_PERMISSIONS,
     PMO_PERMISSIONS,
@@ -10,10 +12,7 @@ from odoo.addons.liwan_pmo.models.access_service import (
 )
 
 
-@tagged('liwan', 'liwan_access')
-class TestPmoAccessComposition(TransactionCase):
-    """liwan_pmo owns the eight PMO capabilities (spec 3.2, ruling R-B); it runs
-    at install, so it also proves the hooks work without liwan_hr or liwan_meetings."""
+class PmoAccessCompositionCase(TransactionCase):
 
     @classmethod
     def setUpClass(cls):
@@ -31,6 +30,11 @@ class TestPmoAccessComposition(TransactionCase):
         })
         cls.owned_task = cls.env['project.task'].create({'name': 'Owned', 'project_id': cls.owned.id})
         cls.foreign_task = cls.env['project.task'].create({'name': 'Foreign', 'project_id': cls.foreign.id})
+
+
+@tagged('liwan', 'liwan_access')
+class TestPmoAccessComposition(PmoAccessCompositionCase):
+    """PMO owns its eight capabilities and registers them without other applications."""
 
     def _keys(self, role_xmlid):
         return set(self.env.ref(role_xmlid).permission_ids.mapped('key'))
@@ -64,20 +68,6 @@ class TestPmoAccessComposition(TransactionCase):
         )
         vendor = self.env.ref('liwan_core.group_vendor_support')
         self.assertIn(self.env.ref('liwan_pmo.group_pmo_manager'), vendor.all_implied_ids)
-
-    def test_project_owner_grant_needs_the_pmo_hook(self):
-        held = self.service._liwan_capability_keys(self.owner)
-        self.assertNotIn('pmo.projects.manage', held)
-        self.assertNotIn('pmo.tasks.approve', held)
-        for key in ('pmo.projects.manage', 'pmo.tasks.write', 'pmo.tasks.approve'):
-            self.assertTrue(self.service._liwan_has_capability(self.owner, key, record=self.owned_task), key)
-            self.assertTrue(self.service._liwan_has_capability(self.owner, key, record=self.owned), key)
-        for key in ('pmo.projects.manage', 'pmo.tasks.approve'):
-            self.assertFalse(self.service._liwan_has_capability(self.owner, key, record=self.foreign_task), key)
-        self.assertFalse(self.service._liwan_has_capability(self.owner, 'pmo.settings.manage', record=self.owned))
-        identity = self.service._liwan_identity(self.owner)
-        self.assertIn('project_owner', {role['key'] for role in identity['roles']})
-        self.assertTrue({'pmo.projects.manage', 'pmo.tasks.write', 'pmo.tasks.approve'} <= set(identity['capabilities']))
 
     def test_pmo_registers_the_project_scope_kind(self):
         kinds = self.service._liwan_scope_kind_map()
@@ -122,3 +112,38 @@ class TestPmoAccessComposition(TransactionCase):
         self.assertTrue(self.service._liwan_capability_keys(odoo_group) >= PMO_PERMISSIONS)
         self.assertTrue(self.service._liwan_capability_keys(self.other) >= EMPLOYEE_PMO_PERMISSIONS)
         self.assertIn('pmo_manager', self.service._liwan_legacy_admin_roles())
+
+
+@tagged('post_install', '-at_install', 'liwan', 'liwan_access')
+class TestPmoContextualAccessComposition(PmoAccessCompositionCase):
+    """Task access checks need every installed extension referenced by persisted rules on upgrade."""
+
+    def test_project_owner_grant_needs_the_pmo_hook(self):
+        held = self.service._liwan_capability_keys(self.owner)
+        self.assertNotIn('pmo.projects.manage', held)
+        self.assertNotIn('pmo.tasks.approve', held)
+        for key in ('pmo.projects.manage', 'pmo.tasks.write', 'pmo.tasks.approve'):
+            self.assertTrue(self.service._liwan_has_capability(self.owner, key, record=self.owned_task), key)
+            self.assertTrue(self.service._liwan_has_capability(self.owner, key, record=self.owned), key)
+        for key in ('pmo.projects.manage', 'pmo.tasks.approve'):
+            self.assertFalse(self.service._liwan_has_capability(self.owner, key, record=self.foreign_task), key)
+        self.assertFalse(self.service._liwan_has_capability(self.owner, 'pmo.settings.manage', record=self.owned))
+        identity = self.service._liwan_identity(self.owner)
+        self.assertIn('project_owner', {role['key'] for role in identity['roles']})
+        self.assertTrue({'pmo.projects.manage', 'pmo.tasks.write', 'pmo.tasks.approve'} <= set(identity['capabilities']))
+
+    def test_a_milestone_in_a_read_only_branch_keeps_its_details(self):
+        profile = self.env['liwan.entitlement.service']._liwan_profile().with_context(**{OPERATOR_CONTEXT: True})
+        company_id = profile._liwan_apply_branches(
+            'pmo-branch-op', 'pmo-rev', [{'branch_id': 'pmo-seat-branch', 'name': 'PMO branch'}],
+        )[0]['odoo_company_id']
+        project = self.env['project.project'].create({
+            'name': 'Branch planning', 'company_id': company_id, 'allow_milestones': True,
+        })
+        milestone = self.env['project.milestone'].create({'name': 'Original', 'project_id': project.id})
+        branch = self.env['liwan.tenant.branch'].search([('company_id', '=', company_id)])
+        self.env['liwan.entitlement.service']._liwan_apply_flags(branch, {'read_only': True})
+        with self.assertRaises(LiwanAccessRule) as caught:
+            milestone.with_user(self.owner).sudo().write({'name': 'Edited'})
+        self.assertEqual(caught.exception.code, 'branch_read_only')
+        self.assertEqual(milestone.name, 'Original')

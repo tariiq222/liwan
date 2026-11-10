@@ -281,8 +281,8 @@ suite('a plan whose total is zero', () => {
     expect(edited).toMatchObject({ status: 422, body: { code: 'storage_step_misaligned', field: 'storage_step_threshold_mb' } })
   })
 
-  it('refuses a trial on a plan that costs nothing', async () => {
-    // B: a free plan with a trial could only end in past_due, whose Odoo expiry makes a free tenant read-only.
+  it('accepts a trial on a plan that costs nothing: it ends on the free base', async () => {
+    // Owner decision 2026-11-09 (issue 491): the trial of the paid applications ends on the free base, not past_due.
     const draft = await api('POST', '/plans', { name: `Free trial ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
       prices: [{ cadence: monthly, amount: money(0) }], platform_limits: AI_LIMITS, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
       included_extra_branches: 1, extra_branch_prices: [{ cadence: monthly, amount: money(0) }], extra_branches_limit: null,
@@ -291,8 +291,7 @@ suite('a plan whose total is zero', () => {
       policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000002', trial_days: 14, grace_days: 7, auto_suspend: true, auto_renew_allowed: true })
     expect(draft.status, JSON.stringify(draft.body)).toBe(201)
     const validated = await api('POST', `/plans/${draft.body.id}/validate`, { edit_revision: 1, reason: 'Free trial acceptance' })
-    expect(validated.status).toBe(422)
-    expect(validated.body.issues.map((i: { code: string }) => i.code)).toContain('trial_on_free_plan')
+    expect(validated.status, JSON.stringify(validated.body)).toBe(200)
   })
 
   it('renews with no invoice and never becomes past_due or suspended', async () => {

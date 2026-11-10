@@ -51,6 +51,21 @@ class TestTaskAttachments(LiwanPmoCase):
         self.assertEqual(deleted.status_code, 204)
         self.assertEqual(self.api('GET', f'/api/v1/tasks/{self.task_overdue.id}/attachments').json(), {'items': [], 'total': 0})
 
+    def test_storage_excess_keeps_list_and_authorized_delete_but_denies_download(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        uploaded = self._upload()
+        self.assertEqual(uploaded.status_code, 201)
+        item = uploaded.json()
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({
+            'features': {**profile.features, 'storage.limit_mb': 0},
+        })
+        root = f'/api/v1/tasks/{self.task_overdue.id}/attachments'
+        self.assertEqual(self.api('GET', root).json()['items'][0]['name'], item['name'])
+        response = self.api('GET', item['url'])
+        self.assertEqual((response.status_code, response.json().get('code')), (403, 'storage_excess_blocked'))
+        self.assertEqual(self.api('DELETE', f"{root}/{item['id']}").status_code, 204)
+
     def test_real_allowed_bytes_are_detected_instead_of_trusting_filename_or_hint(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         cases = [

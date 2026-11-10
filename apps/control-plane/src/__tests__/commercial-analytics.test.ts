@@ -9,7 +9,7 @@ import { getAnalytics } from '../commercial/analytics.js'
 import { bookAt, monthEnds, periodBounds, previousPeriod, recurringOf, riyadhDay, settleTrials, toTimelines, type AppliedOrder } from '../commercial/analytics-model.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
-if (url && new URL(url).pathname !== '/liwan_control_scratch_analytics') throw new Error('analytics tests require their own scratch DB')
+if (url && !/^\/liwan_control_scratch_analytics[a-z0-9]*$/.test(new URL(url).pathname)) throw new Error('analytics tests require their own scratch DB')
 const suite = url ? describe : describe.skip
 const now = new Date('2026-10-15T12:00:00Z')
 const period = { from: '2026-10-01', to: '2026-10-15' }
@@ -137,6 +137,32 @@ suite('live PostgreSQL vendor analytics', () => {
       expect(data.trend[10]).toMatchObject({ month: '2026-09', customers: { available: true, value: 4 } })
       expect(minor(data.trend[10]!.mrr)).toBe(30300)
       expect(minor(data.trend[8]!.mrr)).toBe(20200)
+      await solo.query('ROLLBACK')
+    } finally { await solo.end() }
+  })
+
+  it('books a lapsed trial from its boundary with only what the lock keeps, not the trial apps a paid upgrade carried', async () => {
+    const solo = new Pool({ connectionString: url, max: 1 })
+    try {
+      await solo.query('BEGIN')
+      const before = await getAnalytics(solo, period, now)
+      const lapsed = await seedCustomer(solo, { name: 'K lapsed', state: 'active', steps: [
+        { at: '2026-09-20T09:00:00Z', plan_revision_id: p1, base_minor: 0 },
+        // One user bought while a 19,900 bundle was only being trialed: the upgrade's snapshot still prices that bundle.
+        { at: '2026-09-25T09:00:00Z', plan_revision_id: p1, base_minor: 2900, bundle_minor: { trialed: 19900 } },
+        { at: '2026-10-09T09:00:00Z', plan_revision_id: p1, base_minor: 2900 }] })
+      const trialRevision = (await solo.query('SELECT target_revision_id FROM orders WHERE id=$1', [lapsed.orders[0]!.id])).rows[0].target_revision_id
+      await solo.query(`INSERT INTO trial_lapses(subscription_id,trial_revision_id,period_start,lapsed_at,ended_at,state)
+        VALUES($1,$2,'2026-10-05','2026-10-05T00:05:00Z','2026-10-05T00:00:00Z','done')`, [lapsed.subscription_id, trialRevision])
+      const after = await getAnalytics(solo, period, now)
+      // Only the lock's 2,900 is recurring, and it is booked at the trial boundary (October 5), inside the period, as new revenue.
+      expect(minor(after.current.revenue.mrr) - minor(before.current.revenue.mrr)).toBe(2900)
+      expect(minor(after.current.revenue.new_mrr) - minor(before.current.revenue.new_mrr)).toBe(2900)
+      expect(minor(after.current.revenue.expansion_mrr)).toBe(minor(before.current.revenue.expansion_mrr))
+      expect(minor(after.current.revenue.contraction_mrr)).toBe(minor(before.current.revenue.contraction_mrr))
+      // Nothing was booked on the upgrade date (September 25) from the unpaid bundle.
+      expect(minor(after.previous.revenue.new_mrr)).toBe(minor(before.previous.revenue.new_mrr))
+      expect(minor(after.trend[11]!.mrr) - minor(before.trend[11]!.mrr)).toBe(2900)
       await solo.query('ROLLBACK')
     } finally { await solo.end() }
   })

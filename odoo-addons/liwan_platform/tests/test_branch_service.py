@@ -93,6 +93,79 @@ class TestBranchService(TransactionCase):
         self._op()._liwan_restore_branch('op-3', 'b1')
         self.assertEqual(branch.state, 'active')
 
+    def test_paid_restore_reserves_the_freed_seat_before_automatic_reopening(self):
+        self._apply(['full', 'extra', 'archived'])
+        # The restored branch was provisioned before its archive operation.
+        self.env.flush_all()
+        self._op()._liwan_archive_branch('prepare', 'archived')
+        self._set_limit(1)
+        Branch = self.env['liwan.tenant.branch']
+        full, extra, archived = [Branch.search([('branch_uid', '=', uid)]) for uid in ('full', 'extra', 'archived')]
+        self.assertEqual((full.read_only, extra.read_only, archived.state), (False, True, 'archived'))
+
+        operator = self._op()
+        defer = operator._liwan_defer_branch_reopening
+        with defer():
+            self._set_limit(1)
+            self.env.cr.precommit.add(lambda: None)
+            self.env.cr.flush()
+            with defer():
+                operator._liwan_archive_branch('swap', 'full')
+            operator._liwan_restore_branch('swap', 'archived')
+
+        self.assertEqual((full.state, archived.state, archived.read_only, extra.read_only), ('archived', 'active', False, True))
+
+    def test_paid_restore_of_an_automatic_read_only_branch_beats_an_earlier_competitor(self):
+        self._apply(['full', 'early', 'late'])
+        self.env.flush_all()
+        self._set_limit(1)
+        Branch = self.env['liwan.tenant.branch']
+        full, early, late = [Branch.search([('branch_uid', '=', uid)]) for uid in ('full', 'early', 'late')]
+        self.assertEqual((early.read_only, late.read_only, late.seat_choice), (True, True, 'auto'))
+        operator = self._op()
+        operator._liwan_archive_branch('archive', 'late')
+        defer = operator._liwan_defer_branch_reopening
+        with defer():
+            self._set_limit(2)
+            operator._liwan_restore_branch('restore', 'late')
+        self.assertEqual((late.state, late.read_only), ('active', False))
+        self.assertEqual((full.read_only, early.read_only), (False, True))
+
+    def test_paid_restore_makes_a_customer_read_only_branch_full(self):
+        self._apply(['full', 'chosen'])
+        self.env.flush_all()
+        chosen = self.env['liwan.tenant.branch'].search([('branch_uid', '=', 'chosen')])
+        chosen.write({'read_only': True, 'seat_choice': 'customer'})
+        self._op()._liwan_archive_branch('archive', 'chosen')
+        self._op()._liwan_restore_branch('restore', 'chosen')
+        self.assertEqual((chosen.state, chosen.read_only, chosen.seat_choice), ('active', False, 'auto'))
+
+    def test_paid_new_branch_uses_the_purchased_seat_before_automatic_reopening(self):
+        self._apply(['full', 'extra'])
+        self._set_limit(1)
+        operator = self._op()
+        defer = operator._liwan_defer_branch_reopening
+        with defer():
+            self._set_limit(2)
+            self._apply(['purchased'], 'purchase')
+        Branch = self.env['liwan.tenant.branch']
+        self.assertFalse(Branch.search([('branch_uid', '=', 'purchased')]).read_only)
+        self.assertTrue(Branch.search([('branch_uid', '=', 'extra')]).read_only)
+
+    def test_failed_branch_batch_rolls_back_and_releases_the_reopening_deferral(self):
+        self._apply(['full', 'extra'])
+        self._set_limit(1)
+        operator = self._op()
+        with self.assertRaisesRegex(ValidationError, 'branch_not_found'):
+            with operator._liwan_defer_branch_reopening():
+                operator._liwan_archive_branch('broken', 'full')
+                operator._liwan_restore_branch('broken', 'missing')
+        Branch = self.env['liwan.tenant.branch']
+        full, extra = [Branch.search([('branch_uid', '=', uid)]) for uid in ('full', 'extra')]
+        self.assertEqual((full.state, extra.read_only), ('active', True))
+        operator._liwan_archive_branch('regular', 'full')
+        self.assertFalse(extra.read_only)
+
     def test_restore_of_unknown_branch_and_non_operator_refused(self):
         with self.assertRaisesRegex(ValidationError, 'branch_not_found'):
             self._op()._liwan_restore_branch('op', 'missing')

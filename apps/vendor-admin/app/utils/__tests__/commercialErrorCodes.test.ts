@@ -26,7 +26,7 @@ const GENERIC = 'vendor.pricing.errors.generic'
  * Plan and bundle *issue* codes reach the same `commercialErrorKey` path as route refusals (the plan form shows them
  * from `LifecyclePanel`), so they must be mapped too — a code the console cannot name renders "generic".
  */
-const PLAN_ISSUE_CODES = ['trial_on_free_plan', 'storage_step_misaligned', 'storage_step_invalid', 'platform_limit_derived',
+const PLAN_ISSUE_CODES = ['storage_step_misaligned', 'storage_step_invalid', 'platform_limit_derived',
   'price_missing', 'branch_price_missing', 'unit_price_missing', 'branch_limit_invalid', 'storage_minimum_not_whole_gb']
 
 describe('commercial error codes', () => {

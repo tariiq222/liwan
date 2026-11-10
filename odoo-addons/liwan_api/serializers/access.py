@@ -123,6 +123,9 @@ def dump_admin_user(user, extra=None, detail=False, actor=None):
         'login': user.login,
         'active': bool(user.active),
         'protected': protected,
+        'read_only': bool(user.liwan_read_only),
+        'seat_choice': user.liwan_seat_choice,
+        'seat_priority': user.liwan_seat_priority,
         'mobile': user.liwan_mobile or None,
         'invitation': None,
         'assignments': [assignment_ref(item) for item in assignments],
@@ -140,6 +143,11 @@ def dump_admin_user(user, extra=None, detail=False, actor=None):
                 actions.append('send_reset_link')
             if service._liwan_has_capability(actor, 'access.users.grant') and pending:
                 actions.extend(['resend_invitation', 'edit_invitation', 'cancel_invitation'])
+            if (
+                service._liwan_has_capability(actor, 'access.users.grant') and user != actor and user.active
+                and not user.share and not pending
+            ):
+                actions.append('set_seat')
             if service._liwan_has_capability(actor, 'access.users.disable') and user != actor:
                 actions.append('disable' if user.active else 'reactivate')
         result.update({

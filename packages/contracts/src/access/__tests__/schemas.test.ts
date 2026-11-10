@@ -116,6 +116,9 @@ const USER_SUMMARY = {
   employee: EMPLOYEE,
   active: true,
   protected: false,
+  read_only: false,
+  seat_choice: 'auto',
+  seat_priority: 0,
   assignments: [ASSIGNMENT],
   version: 'u18-a3-v7',
 }
@@ -344,8 +347,8 @@ describe('admin input schemas and fail-closed security fields', () => {
   })
 
   it('reports seat usage with a nullable limit', () => {
-    expect(SeatUsageSchema.parse({ used: 7, limit: 10 })).toEqual({ used: 7, limit: 10 })
-    expect(SeatUsageSchema.parse({ used: 7, limit: null }).limit).toBeNull()
+    expect(SeatUsageSchema.parse({ used: 7, limit: 10, read_only: 2 })).toEqual({ used: 7, limit: 10, read_only: 2 })
+    expect(SeatUsageSchema.parse({ used: 7, limit: null, read_only: 0 }).limit).toBeNull()
     expect(() => SeatUsageSchema.parse({ used: 7 })).toThrow()
   })
 
@@ -380,6 +383,7 @@ describe('admin input schemas and fail-closed security fields', () => {
       'user.reactivated',
       'user.password_reset',
       'user.mobile_set',
+      'user.seat_changed',
       'user.reset_link_requested',
       'user.second_step_reset',
       'user.branch_roles_changed',

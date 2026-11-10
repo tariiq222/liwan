@@ -2,7 +2,8 @@
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { accessBadge, invitationStatus } from '@/components/access/accessBadge'
 import { accessErrorMessage } from '@/utils/accessErrors'
-import { adminUserMutationKey } from '@/composables/useAdminUsers'
+import { adminUserMutationKey, useSetAdminUserSeat } from '@/composables/useAdminUsers'
+import { MAX_SEAT_PRIORITY } from '@liwan/contracts'
 import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import { useIsMutating } from '@tanstack/vue-query'
 import CapabilityGroups from '@/components/access/users/CapabilityGroups.vue'
@@ -11,6 +12,8 @@ const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
 const { can } = useAccess()
+const { me } = useMe()
+const actorScope = computed(() => me.value ? `${me.value.id}:${me.value.company.id}` : null)
 const hydrated = useHydrated()
 const id = computed(() => Number(route.params.userId))
 const validId = computed(() => Number.isSafeInteger(id.value) && id.value > 0)
@@ -29,6 +32,40 @@ const resendInvitation = useResendAdminUserInvitation()
 const changeInvitationLogin = useChangeAdminUserInvitationLogin()
 const cancelInvitation = useCancelAdminUserInvitation()
 const mutating = useIsMutating({ mutationKey: adminUserMutationKey })
+const setSeat = useSetAdminUserSeat()
+const seatEditable = computed(() => me.value?.read_only === false && query.data.value?.allowed_actions.includes('set_seat'))
+const seatDraft = ref<{ id: number; version: string; originalReadOnly: boolean; originalPriority: number; actorScope: string | null } | null>(null)
+const draftReadOnly = ref(false)
+const draftPriority = ref<number | undefined>(0)
+const seatError = ref('')
+const priorityValid = computed(() => draftPriority.value !== undefined && Number.isInteger(draftPriority.value) && draftPriority.value >= 0 && draftPriority.value <= MAX_SEAT_PRIORITY)
+const seatDirty = computed(() => !!seatDraft.value && (
+  draftReadOnly.value !== seatDraft.value.originalReadOnly || draftPriority.value !== seatDraft.value.originalPriority
+))
+function startSeatEdit() {
+  const user = query.data.value
+  if (!user || !seatEditable.value || !hydrated.value) return
+  seatError.value = ''
+  seatDraft.value = { id: user.id, version: user.version, originalReadOnly: user.read_only, originalPriority: user.seat_priority, actorScope: actorScope.value }
+  draftReadOnly.value = user.read_only
+  draftPriority.value = user.seat_priority
+}
+async function saveSeat() {
+  const draft = seatDraft.value
+  const priority = draftPriority.value
+  if (!draft || draft.id !== id.value || draft.actorScope !== actorScope.value || !seatEditable.value || !hydrated.value || mutating.value || !seatDirty.value || !priorityValid.value || priority === undefined) return
+  seatError.value = ''
+  try {
+    await setSeat.mutateAsync({ id: draft.id, body: {
+      expected_version: draft.version,
+      ...(draftReadOnly.value !== draft.originalReadOnly ? { read_only: draftReadOnly.value } : {}),
+      ...(priority !== draft.originalPriority ? { priority } : {}),
+    } })
+    if (seatDraft.value === draft) seatDraft.value = null
+  } catch (error) {
+    if (seatDraft.value === draft) seatError.value = accessErrorMessage(error, t)
+  }
+}
 const invitation = computed(() => invitationStatus(query.data.value?.invitation))
 const canInvite = (action: 'resend_invitation' | 'edit_invitation' | 'cancel_invitation') => !!query.data.value && !query.data.value.protected && (query.data.value.allowed_actions as string[]).includes(action)
 const editingLogin = ref(false)
@@ -37,11 +74,13 @@ const loginDraft = ref('')
 const loginDraftInvalid = computed(() => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginDraft.value.trim()))
 const invitationSuccess = ref('')
 const invitationError = ref('')
-watch(id, () => {
+watch([id, actorScope], () => {
   editingLogin.value = false
   confirmingCancel.value = false
   invitationSuccess.value = ''
   invitationError.value = ''
+  seatDraft.value = null
+  seatError.value = ''
 })
 async function runInvitation(action: () => Promise<unknown>, success: string) {
   invitationError.value = ''
@@ -105,6 +144,25 @@ const tabs = computed(() => {
           <template #badge><SharedStatusBadge size="sm" :tone="badge.tone" :label="t(badge.labelKey)" :icon="badge.icon" /></template>
           <template #subtitle><bdi dir="ltr">{{ query.data.value.login }}</bdi><template v-if="query.data.value.employee !== undefined"> · {{ query.data.value.employee?.name ?? t('access.users.noEmployee') }}</template></template>
         </SharedIdentityCard>
+        <SharedRecordSection v-if="query.data.value.active && !query.data.value.protected && !invitation" id="seat" variant="panel" :title="t('access.seats.userTitle')">
+          <SharedPropertiesPanel>
+            <SharedPropertyRow :label="t('access.seats.state')" :value="t(query.data.value.read_only ? 'access.seats.readOnly' : 'access.seats.full')" />
+            <SharedPropertyRow :label="t('access.seats.priority')" :value="query.data.value.seat_priority || null" />
+          </SharedPropertiesPanel>
+          <UButton v-if="seatEditable && !seatDraft" class="mt-3" color="neutral" variant="outline" :disabled="!hydrated || mutating > 0" @click="startSeatEdit">{{ t('access.seats.edit') }}</UButton>
+          <form v-if="seatEditable && seatDraft" class="mt-3 grid gap-(--liwan-gap-card)" @submit.prevent="saveSeat">
+            <UCheckbox v-model="draftReadOnly" :label="t('access.seats.markReadOnly')" :description="t('access.seats.userReadOnlyHint')" :disabled="!hydrated || mutating > 0" />
+            <UFormField :label="t('access.seats.priority')" :help="t('access.seats.priorityHint')" :error="priorityValid ? undefined : t('access.seats.priorityInvalid')" name="seat-priority">
+              <UInputNumber v-model="draftPriority" :min="0" :max="MAX_SEAT_PRIORITY" :disabled="!hydrated || mutating > 0" />
+            </UFormField>
+            <UAlert v-if="seatError" role="alert" color="error" variant="subtle" :title="seatError" />
+            <SharedFormActions>
+              <UButton type="submit" :loading="setSeat.isPending.value" :disabled="!hydrated || mutating > 0 || !seatDirty || !priorityValid">{{ t('access.seats.save') }}</UButton>
+              <UButton type="button" color="neutral" variant="outline" :disabled="mutating > 0" @click="seatDraft = null">{{ t('app.cancel') }}</UButton>
+            </SharedFormActions>
+          </form>
+          <SharedUnsavedChanges :dirty="seatDirty" />
+        </SharedRecordSection>
         <SharedRecordSection v-if="invitation || invitationSuccess" id="invitation" variant="panel" :title="t('access.users.invitation')">
           <div class="grid gap-4">
             <template v-if="invitation && query.data.value.invitation">

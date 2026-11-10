@@ -6,6 +6,7 @@ import {
   AdminUserListSchema,
   GrantAccountInputSchema,
   InvitationLoginInputSchema,
+  SeatChangeInputSchema,
   SeatUsageSchema,
   UpdateUserAccessInputSchema,
   VersionOnlyInputSchema,
@@ -13,6 +14,7 @@ import {
   type AdminUserList,
   type GrantAccountInput,
   type InvitationLoginInput,
+  type SeatChangeInput,
   type UpdateUserAccessInput,
   type VersionOnlyInput,
 } from '@liwan/contracts'
@@ -194,6 +196,13 @@ export function useGrantAdminAccount() {
     const input = GrantAccountInputSchema.parse(body)
     return $api('/api/v1/admin/users', { method: 'POST', body: input, schema: AdminUserDetailSchema })
   })
+}
+
+export function useSetAdminUserSeat() {
+  const { $api } = useApi()
+  return useSecureAdminUserMutation<{ id: number; body: SeatChangeInput }>(({ id, body }) =>
+    $api(`/api/v1/admin/users/${id}/seat`, { method: 'PATCH', body: SeatChangeInputSchema.parse(body), schema: AdminUserDetailSchema }),
+  )
 }
 
 export function useUpdateAdminUserAccess() {

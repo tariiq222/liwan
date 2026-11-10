@@ -217,7 +217,7 @@ async function cancelPendingOrder() {
               <UButton v-else-if="canSuspend" color="error" variant="outline" size="sm" icon="i-lucide-pause" :disabled="!hydrated" data-testid="suspend-subscription" @click="suspensionAction = 'suspend'">{{ t('vendor.customers.suspension.suspend') }}</UButton>
               <UButton v-else color="neutral" variant="outline" size="sm" icon="i-lucide-play" :disabled="!hydrated" data-testid="resume-subscription" @click="suspensionAction = 'resume'">{{ t('vendor.customers.suspension.resume') }}</UButton>
             </div>
-            <VendorTrialPanel v-if="view?.state === 'trialing'" :subscription="view" class="mt-4" @done="async () => { await refresh(); await refreshExtra() }" />
+            <VendorTrialPanel v-if="view && (view.state === 'trialing' || view.trial_reopenable)" :subscription="view" class="mt-4" @done="async () => { await refresh(); await refreshExtra() }" />
             <p v-if="view?.pending_order && can('vendor.subscriptions.manage')" class="mt-3 text-sm text-muted">{{ t('vendor.customers.changeBlocked') }}</p>
             <UAlert v-if="cancelFailure" class="mt-3" color="error" variant="subtle" :title="cancelFailure" />
             <UAlert v-if="extra?.full.failed" class="mt-3" color="error" variant="subtle" :title="t('vendor.customers.cancelOrder.refreshFailed')"><template #actions><UButton color="neutral" variant="outline" :disabled="!hydrated || cancelBusy" @click="refreshCancellationState">{{ t('app.retry') }}</UButton></template></UAlert>

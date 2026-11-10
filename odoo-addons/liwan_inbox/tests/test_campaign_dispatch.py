@@ -177,6 +177,16 @@ class TestCampaignDispatch(CampaignCase):
         self.run_campaigns()
         self.assertEqual((campaign.state, self.recipient_of(campaign, contact).state), ('running', 'queued'))
 
+    def test_a_scheduled_campaign_runs_after_its_launcher_loses_a_full_seat(self):
+        contact = self.make_contact()
+        campaign = self.make_campaign(scheduled_at=fields.Datetime.now() + timedelta(hours=2))
+        campaign.with_user(self.campaigns_only).action_launch()
+        self.assertEqual(campaign.launched_by_id, self.campaigns_only)
+        self.env['liwan.entitlement.service']._liwan_apply_flags(self.campaigns_only, {'liwan_read_only': True})
+        campaign.scheduled_at = fields.Datetime.now() - timedelta(minutes=1)
+        self.run_campaigns()
+        self.assertEqual((campaign.state, self.recipient_of(campaign, contact).state), ('running', 'queued'))
+
     def test_only_a_bounded_number_of_messages_is_in_flight(self):
         for _ in range(5):
             self.make_contact()

@@ -2,23 +2,25 @@ import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { branchBillingCounts, type Branch, type BranchSummary } from '@liwan/commercial-contracts'
 import { CommercialHttpError, iso } from './lifecycle.js'
+import { unresolvedLapse } from './free-base.js'
 
 type Db = Pool | PoolClient
 
 const toBranch = (r: any): Branch => ({
   id: r.id, subscription_id: r.subscription_id, tenant_id: r.tenant_id ?? '', name: r.name, kind: r.kind,
   billing: r.billing, state: r.state, odoo_company_id: r.odoo_company_id ?? null, order_id: r.order_id ?? null,
+  read_only: r.read_only === true,
   activated_at: r.activated_at ? String(iso(r.activated_at)) : null, archived_at: r.archived_at ? String(iso(r.archived_at)) : null,
 })
 
-async function allowances(db: Db, subscription_id: string): Promise<{ free: number; limit: number | null }> {
+async function allowances(db: Db, subscription_id: string): Promise<{ free: number; limit: number | null; paid?: number }> {
   const r = await db.query(
     `SELECT rv.snapshot FROM subscriptions s JOIN subscription_revisions rv ON rv.id=COALESCE(s.applied_revision_id,s.target_revision_id) WHERE s.id=$1`, [subscription_id])
   if (!r.rowCount) return { free: 0, limit: null }
   const snap = r.rows[0].snapshot ?? {}
   const free = Number(snap.included_extra_branches ?? 0)
   const lim = snap.entitlement?.features?.['branches.extra_limit'] ?? snap.entitlements?.features?.['branches.extra_limit']
-  return { free: Number.isFinite(free) ? Math.max(0, free) : 0, limit: typeof lim === 'number' ? lim : null }
+  return { free: Number.isFinite(free) ? Math.max(0, free) : 0, limit: typeof lim === 'number' ? lim : null, paid: snap.trial_end ? Number(snap.pricing?.paid_extra_branches ?? 0) : undefined }
 }
 
 async function subscriptionBranches(db: Db, subscription_id: string): Promise<any[]> {
@@ -27,17 +29,33 @@ async function subscriptionBranches(db: Db, subscription_id: string): Promise<an
   return r.rows
 }
 
+/**
+ * The branches a subscription is billed for: a read-only branch (kept above the limit after a trial) is not billed and holds no
+ * capacity. The quote, the reservation and the restore all count this one population, so a quote can never disagree with its order.
+ */
+const billedBranches = (rows: any[]): any[] => rows.filter(row => !row.read_only)
+const billedExtras = (rows: any[]): any[] => billedBranches(rows).filter(b => b.kind === 'extra' && (b.state === 'active' || b.state === 'pending'))
+
 export async function listBranches(pool: Db, subscription_id: string): Promise<BranchSummary> {
   const rows = await subscriptionBranches(pool, subscription_id)
-  const { free, limit } = await allowances(pool, subscription_id)
-  const counts = branchBillingCounts(rows, free)
+  const { free, limit, paid } = await allowances(pool, subscription_id)
+  const counts = branchBillingCounts(billedBranches(rows), free)
   return {
     items: rows.map(toBranch), total: rows.length, hq: 1,
-    free_extra_used: counts.free_used, free_extra_allowed: free, paid: counts.paid, limit,
+    free_extra_used: counts.free_used, free_extra_allowed: free, paid: paid ?? counts.paid, limit,
   }
 }
 
+/** Active or pending extra branches: the real set, whatever the subscription is billed for. */
+export async function extraBranchCount(db: Db, subscription_id: string): Promise<number> {
+  return (await db.query("SELECT count(*)::int AS n FROM commercial_branches WHERE subscription_id=$1 AND kind='extra' AND state IN ('active','pending')", [subscription_id])).rows[0].n
+}
+
 export async function requestedExtraBranches(pool: Db, input: { subscription_id: string; add: number; archive: string[]; restore?: string[] }): Promise<number> {
+  // Between the lapse and the applied lock the customer's applied configuration is still the paid trial, which a branch change
+  // would be priced and recorded against. It waits for the lock, whose zero-value order is already on its way.
+  const sub = (await pool.query('SELECT s.id,s.applied_revision_id,r.snapshot FROM subscriptions s LEFT JOIN subscription_revisions r ON r.id=s.applied_revision_id WHERE s.id=$1', [input.subscription_id])).rows[0]
+  if (sub?.applied_revision_id && await unresolvedLapse(pool, sub)) throw new CommercialHttpError('lock_pending', 409, 'subscription_id')
   const rows = await subscriptionBranches(pool, input.subscription_id)
   const restoring = [...new Set(input.restore ?? [])]
   for (const id of restoring) {
@@ -51,9 +69,17 @@ export async function requestedExtraBranches(pool: Db, input: { subscription_id:
     const b = rows.find(x => x.id === id)
     if (!b || b.kind !== 'extra') throw new CommercialHttpError('branch_not_found', 404, 'archive')
   }
-  const archiving = rows.filter(b => b.kind === 'extra' && (b.state === 'active' || b.state === 'pending') && new Set(input.archive).has(b.id)).length
-  const current = rows.filter(b => b.kind === 'extra' && (b.state === 'active' || b.state === 'pending')).length
-  return current + input.add - archiving + restoring.length
+  const billedNow = billedExtras(rows)
+  const archiving = billedNow.filter(b => new Set(input.archive).has(b.id)).length
+  const current = billedNow.length
+  const pricing = sub?.snapshot?.pricing
+  const billed = pricing ? Number(sub.snapshot.included_extra_branches ?? 0) + Number(pricing.paid_extra_branches ?? 0) : current
+  const activations = input.add + restoring.length
+  if (!sub?.snapshot?.trial_end) {
+    const projected = current - archiving + activations
+    return projected > current ? projected : Math.min(projected, billed)
+  }
+  return activations ? Math.min(current, billed) + activations : Math.min(current - archiving, billed)
 }
 
 export async function reserveBranchesForOrder(client: PoolClient, input: {
@@ -62,7 +88,7 @@ export async function reserveBranchesForOrder(client: PoolClient, input: {
   await client.query('SELECT id FROM subscriptions WHERE id=$1 FOR UPDATE', [input.subscription_id])
   const { free } = await allowances(client, input.subscription_id)
   const existing = await subscriptionBranches(client, input.subscription_id)
-  let used = branchBillingCounts(existing, free).free_used
+  let used = branchBillingCounts(billedBranches(existing), free).free_used
   const created: Branch[] = []
   for (const add of input.adds) {
     const billing = used < free ? 'free_extra' : 'paid'
@@ -78,7 +104,7 @@ export async function reserveBranchesForOrder(client: PoolClient, input: {
       throw e
     }
   }
-  const after = branchBillingCounts(await subscriptionBranches(client, input.subscription_id), free)
+  const after = branchBillingCounts(billedBranches(await subscriptionBranches(client, input.subscription_id)), free)
   if (after.paid !== input.quoted_paid) throw new CommercialHttpError('requote_required', 409)
   return created
 }
@@ -99,14 +125,14 @@ export async function archiveBranches(client: PoolClient, input: { subscription_
 export async function restoreBranchesForOrder(client: PoolClient, input: { order_id: string; subscription_id: string; ids: string[]; quoted_paid: number; operation_id: string }): Promise<Branch[]> {
   await client.query('SELECT id FROM subscriptions WHERE id=$1 FOR UPDATE', [input.subscription_id])
   const { free } = await allowances(client, input.subscription_id)
-  let used = branchBillingCounts(await subscriptionBranches(client, input.subscription_id), free).free_used
+  let used = branchBillingCounts(billedBranches(await subscriptionBranches(client, input.subscription_id)), free).free_used
   const restored: Branch[] = []
   for (const id of input.ids) {
     const billing = used < free ? 'free_extra' : 'paid'
     if (billing === 'free_extra') used++
     try {
       const r = await client.query(
-        `UPDATE commercial_branches SET state='pending', archived_at=NULL, order_id=$3, operation_id=$4, billing=$5
+        `UPDATE commercial_branches SET state='pending', read_only=false, archived_at=NULL, order_id=$3, operation_id=$4, billing=$5
          WHERE id=$1 AND subscription_id=$2 AND kind='extra' AND state='archived' AND odoo_company_id IS NOT NULL RETURNING *`,
         [id, input.subscription_id, input.order_id, input.operation_id, billing])
       if (!r.rowCount) throw new CommercialHttpError('branch_not_archived', 409, 'restore')
@@ -116,7 +142,7 @@ export async function restoreBranchesForOrder(client: PoolClient, input: { order
       throw e
     }
   }
-  const after = branchBillingCounts(await subscriptionBranches(client, input.subscription_id), free)
+  const after = branchBillingCounts(billedBranches(await subscriptionBranches(client, input.subscription_id)), free)
   if (after.paid !== input.quoted_paid) throw new CommercialHttpError('requote_required', 409)
   return restored
 }

@@ -275,9 +275,12 @@ class ResCompany(models.Model):
         return {spec['name'] for spec in self._liwan_company_profile_extension_specs()}
 
     @api.model
+    def _liwan_company_partner_ids(self, partner_ids=None):
+        # Storage classification must include archived and other companies. Only partner ids are returned.
+        companies_sudo = self.sudo().with_context(active_test=False)
+        domain = [] if partner_ids is None else [('partner_id', 'in', partner_ids)]
+        return set(companies_sudo.search_fetch(domain, ['partner_id']).partner_id.ids)
+
+    @api.model
     def _liwan_has_company_partner(self, partner_ids):
-        # Read-only security classification across record rules, never a write or data response.
-        # A hidden or archived company must not turn its partner into an editable contact.
-        return bool(self.sudo().with_context(active_test=False).search_count([
-            ('partner_id', 'in', partner_ids),
-        ], limit=1))
+        return bool(self._liwan_company_partner_ids(partner_ids))

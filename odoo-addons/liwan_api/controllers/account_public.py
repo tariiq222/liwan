@@ -41,7 +41,7 @@ class AccountPublicController(http.Controller):
         user = request.env['liwan.access.service']._liwan_accept_invitation(
             _text(payload, 'token'), payload['mobile'], payload['password'],
         )
-        return {'login': user.login}
+        return {'login': user.login, 'read_only': bool(user.liwan_read_only)}
 
     @http.route(
         '/api/v1/public/account/password/forgot', type='json2', auth='public', methods=['POST'],

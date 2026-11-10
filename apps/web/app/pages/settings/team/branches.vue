@@ -2,22 +2,63 @@
 import BranchPresetCard from '@/components/access/branches/BranchPresetCard.vue'
 import BranchPolicyCard from '@/components/access/branches/BranchPolicyCard.vue'
 import { ApiError } from '@/composables/useApi'
-import { useBranchPolicy } from '@/composables/useBranchAccess'
+import { useBranchPolicy, useBranchSeats, useSetBranchSeat } from '@/composables/useBranchAccess'
 import { useCreateBranch } from '@/composables/useCreateBranch'
+import { MAX_SEAT_PRIORITY, type BranchSeat } from '@liwan/contracts'
+import { accessErrorMessage } from '@/utils/accessErrors'
 
 const { t } = useI18n()
 const { can } = useAccess()
 const { me } = useMe()
 const identity = computed(() => me.value ? `${me.value.id}:${me.value.company.id}` : null)
-const canCreate = computed(() => can('settings.company.manage'))
+const canSeeSeats = computed(() => can('settings.company.manage'))
+const canCreate = computed(() => canSeeSeats.value && me.value?.read_only === false)
 // Owner decision 2026-10-29, option c: in SaaS a branch is bought, and the paid order creates it.
 const purchaseOnly = computed(() => me.value?.commercial?.mode === 'saas')
 const hydrated = useHydrated()
+const branchSeats = useBranchSeats(canSeeSeats)
+const setBranchSeat = useSetBranchSeat()
+const branchSeatRefused = computed(() => branchSeats.error.value instanceof ApiError && branchSeats.error.value.status === 403)
+const branchSeatDraft = ref<{ id: number; originalReadOnly: boolean; originalPriority: number; identity: string | null } | null>(null)
+const draftReadOnly = ref(false)
+const draftPriority = ref<number | undefined>(0)
+const branchSeatError = ref('')
+const priorityValid = computed(() => draftPriority.value !== undefined && Number.isInteger(draftPriority.value) && draftPriority.value >= 0 && draftPriority.value <= MAX_SEAT_PRIORITY)
+const branchSeatDirty = computed(() => !!branchSeatDraft.value && (
+  draftReadOnly.value !== branchSeatDraft.value.originalReadOnly || draftPriority.value !== branchSeatDraft.value.originalPriority
+))
+function startBranchSeatEdit(branch: BranchSeat) {
+  if (!canCreate.value || !hydrated.value || setBranchSeat.isPending.value) return
+  branchSeatError.value = ''
+  branchSeatDraft.value = { id: branch.id, originalReadOnly: branch.read_only, originalPriority: branch.restore_priority, identity: identity.value }
+  draftReadOnly.value = branch.read_only
+  draftPriority.value = branch.restore_priority
+}
+async function saveBranchSeat() {
+  const draft = branchSeatDraft.value
+  const priority = draftPriority.value
+  if (!draft || draft.identity !== identity.value || !canCreate.value || !hydrated.value || setBranchSeat.isPending.value || !branchSeatDirty.value || !priorityValid.value || priority === undefined) return
+  branchSeatError.value = ''
+  try {
+    await setBranchSeat.mutateAsync({ id: draft.id, body: {
+      ...(draftReadOnly.value !== draft.originalReadOnly ? { read_only: draftReadOnly.value } : {}),
+      ...(priority !== draft.originalPriority ? { priority } : {}),
+    } })
+    if (branchSeatDraft.value === draft) branchSeatDraft.value = null
+  } catch (error) {
+    if (branchSeatDraft.value === draft) branchSeatError.value = accessErrorMessage(error, t)
+  }
+}
+watch(identity, () => {
+  branchSeatDraft.value = null
+  branchSeatError.value = ''
+})
+
 const create = useCreateBranch()
 const branchName = ref('')
 const createFailure = ref('')
 const created = ref(false)
-const canSubmit = computed(() => hydrated.value && !create.isPending.value && branchName.value.trim().length > 0)
+const canSubmit = computed(() => canCreate.value && hydrated.value && !create.isPending.value && branchName.value.trim().length > 0)
 async function submitBranch() {
   if (!canSubmit.value) return
   createFailure.value = ''
@@ -43,6 +84,39 @@ async function reloadPolicy() {
 <template>
   <SharedSettingsPage>
     <SharedPageHeader :title="t('access.branches.title')" back-to="/settings/team" />
+    <SharedRecordSection v-if="canSeeSeats && !branchSeatRefused" id="branch-seats" variant="panel" :title="t('access.seats.branchTitle')">
+      <SharedPageState :loading="branchSeats.isLoading.value" :error="branchSeats.error.value" @retry="branchSeats.refetch()">
+        <div v-if="branchSeats.data.value" class="grid gap-(--liwan-gap-card)">
+          <p class="text-sm text-muted">
+            {{ t('access.seats.branchUsage', { full: branchSeats.data.value.total - branchSeats.data.value.read_only, limit: branchSeats.data.value.limit ?? t('access.seats.unlimited') }) }}
+          </p>
+          <p v-if="!branchSeats.data.value.items.length" class="text-sm text-muted">{{ t('access.seats.noBranches') }}</p>
+          <ul v-else class="grid gap-(--liwan-gap-card)">
+            <SharedSubCard v-for="branch in branchSeats.data.value.items" :key="branch.id" as="li">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex min-w-0 flex-wrap items-center gap-2">
+                  <span class="font-medium">{{ branch.name }}</span>
+                  <SharedStatusBadge :tone="branch.read_only ? 'warning' : 'success'" :label="t(branch.read_only ? 'access.seats.readOnly' : 'access.seats.full')" />
+                </div>
+                <UButton v-if="canCreate && branchSeatDraft?.id !== branch.id" size="sm" color="neutral" variant="outline" :disabled="!hydrated || !!branchSeatDraft || setBranchSeat.isPending.value" @click="startBranchSeatEdit(branch)">{{ t('access.seats.edit') }}</UButton>
+              </div>
+              <form v-if="canCreate && branchSeatDraft?.id === branch.id" class="mt-3 grid gap-(--liwan-gap-card)" @submit.prevent="saveBranchSeat">
+                <UCheckbox v-model="draftReadOnly" :label="t('access.seats.markReadOnly')" :description="t('access.seats.branchReadOnlyHint')" :disabled="!hydrated || setBranchSeat.isPending.value" />
+                <UFormField :label="t('access.seats.priority')" :help="t('access.seats.priorityHint')" :error="priorityValid ? undefined : t('access.seats.priorityInvalid')" name="branch-seat-priority">
+                  <UInputNumber v-model="draftPriority" :min="0" :max="MAX_SEAT_PRIORITY" :disabled="!hydrated || setBranchSeat.isPending.value" />
+                </UFormField>
+                <UAlert v-if="branchSeatError" role="alert" color="error" variant="subtle" :title="branchSeatError" />
+                <SharedFormActions>
+                  <UButton type="submit" :loading="setBranchSeat.isPending.value" :disabled="!hydrated || setBranchSeat.isPending.value || !branchSeatDirty || !priorityValid">{{ t('access.seats.save') }}</UButton>
+                  <UButton type="button" color="neutral" variant="outline" :disabled="setBranchSeat.isPending.value" @click="branchSeatDraft = null">{{ t('app.cancel') }}</UButton>
+                </SharedFormActions>
+              </form>
+            </SharedSubCard>
+          </ul>
+        </div>
+      </SharedPageState>
+      <SharedUnsavedChanges :dirty="branchSeatDirty" />
+    </SharedRecordSection>
     <SharedRecordSection v-if="canCreate && purchaseOnly" variant="panel" data-testid="branch-purchase" :title="t('access.branches.create.title')" :description="t('access.branches.create.purchaseDescription')">
       <UButton to="/subscription/branches/new" icon="i-lucide-plus" :disabled="!hydrated">{{ t('access.branches.create.purchase') }}</UButton>
     </SharedRecordSection>

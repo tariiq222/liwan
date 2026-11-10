@@ -53,3 +53,9 @@ class LiwanPmoEntitlementService(models.AbstractModel):
             'projects.title',
             'tasks.title',
         })
+
+    @api.model
+    def _liwan_read_only_allowances(self):
+        # The first read of `/me/personal-stages` seeds the caller's own personal stages.
+        allowances = super()._liwan_read_only_allowances()
+        return {**allowances, 'own': allowances['own'] | {'project.task.type'}}

@@ -98,8 +98,7 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
       return {status:200,data:await extendTrial(pool,{subscription_id:trial[1],days:body.days,reason:body.reason,actor:principal.actor_id})}
     }
     const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
-    const payment=needPayment(runtime)
-    return {status:200,data:await endTrial(pool,{subscription_id:trial[1],reason:body.reason,actor:principal.actor_id,now:new Date(),adapter:payment.adapter,returnOrigin:payment.returnOrigin})}
+    return {status:200,data:await endTrial(pool,{subscription_id:trial[1],reason:body.reason,actor:principal.actor_id,now:new Date()})}
   }
   const suspension=/^\/subscriptions\/([^/]+)\/(suspend|resume)$/.exec(path)
   if(m==='POST'&&suspension){

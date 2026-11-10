@@ -9,4 +9,5 @@ from . import (
     company,
     maintenance,
     me,
+    storage,
 )

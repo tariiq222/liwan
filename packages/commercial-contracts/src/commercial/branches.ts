@@ -6,7 +6,7 @@ export const branchStateSchema = z.enum(['pending', 'active', 'archived', 'faile
 export const branchSchema = z.strictObject({
   id: z.uuid(), subscription_id: z.string().min(1), tenant_id: z.string().min(1),
   name: z.string().trim().min(1).max(200), kind: branchKindSchema, billing: branchBillingSchema,
-  state: branchStateSchema, odoo_company_id: z.number().int().positive().nullable(),
+  state: branchStateSchema, read_only: z.boolean().optional(), odoo_company_id: z.number().int().positive().nullable(),
   order_id: z.string().nullable(), activated_at: z.string().nullable(), archived_at: z.string().nullable(),
 })
 export const branchSummarySchema = z.strictObject({

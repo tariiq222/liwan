@@ -35,6 +35,14 @@ export function attentionPresentation(item: AttentionItem): AttentionPresentatio
       return { to: item.invoice_id ? { path: `/invoices/${item.invoice_id}` } : customerTab(item, 'invoices'), tone: 'destructive', icon: 'i-lucide-undo-2', actionKey: action(item.kind) }
     case 'billing_blocked':
       return { to: customerTab(item, 'subscription'), tone: 'destructive', icon: 'i-lucide-credit-card', actionKey: action(item.kind) }
+    case 'free_base_blocked':
+      return { to: customerTab(item, 'subscription'), tone: 'warning', icon: 'i-lucide-arrow-down-to-line', actionKey: action(item.kind) }
+    case 'trial_end_overdue':
+      return { to: customerTab(item, 'subscription'), tone: 'destructive', icon: 'i-lucide-timer-off', actionKey: action(item.kind) }
+    case 'renewal_failed':
+      return { to: customerTab(item, 'subscription'), tone: 'destructive', icon: 'i-lucide-refresh-cw-off', actionKey: action(item.kind) }
+    case 'suspension_undelivered':
+      return { to: customerTab(item, 'subscription'), tone: 'info', icon: 'i-lucide-gauge', actionKey: action(item.kind) }
     case 'stalled_activation':
       return { to: customerTab(item, 'workspace'), tone: 'destructive', icon: 'i-lucide-hourglass', actionKey: action(item.kind) }
     case 'operation_failed':
@@ -56,6 +64,10 @@ export function attentionMessage(item: AttentionItem, now: Date): { key: string,
     case 'past_due': return { key: 'past_due', days: Math.max(0, daysBetween(item.since, now)), operation: null }
     case 'refund_rejected': return { key: 'refund_rejected', days: null, operation: item.detail }
     case 'billing_blocked': return { key: 'billing_blocked', days: Math.max(0, daysBetween(item.since, now)), operation: null }
+    case 'free_base_blocked': return { key: 'free_base_blocked', days: Math.max(0, daysBetween(item.since, now)), operation: item.detail }
+    case 'trial_end_overdue': return { key: 'trial_end_overdue', days: Math.max(0, daysBetween(item.since, now)), operation: null }
+    case 'renewal_failed': return { key: 'renewal_failed', days: null, operation: item.detail }
+    case 'suspension_undelivered': return { key: 'suspension_undelivered', days: null, operation: item.detail }
     case 'stalled_activation':
       return FAILED_FULFILLMENT.includes(item.detail ?? '')
         ? { key: 'stalled_failed', days: null, operation: null }

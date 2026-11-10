@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Branch, Quote } from '@liwan/commercial-contracts'
-import { latestOnly, QUOTE_IS_EXPIRED, safeIdemAction, safePaymentRedirect } from '@/utils/subscription'
+import { latestOnly, QUOTE_IS_EXPIRED, refusalCode, refusalKey, safeIdemAction, safePaymentRedirect } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('subscription.read'))
@@ -15,15 +15,17 @@ const archiveBusy = ref(false); const archiveFailed = ref<string | null>(null)
 const archiveAction = computed(() => safeIdemAction(`branch-${archiving.value?.kind ?? 'archive'}`, quoteSubscription.value, quoteRevision.value, archiving.value?.branch.id ?? ''))
 // A refused restore says why (name taken, extra-branch limit); anything else is the generic failure.
 const REFUSALS = ['branch_name_taken', 'branch_limit_exceeded', 'branch_not_archived']
+const trialBlock = computed(() => archiveFailed.value === 'lock_pending' || archiveFailed.value === 'trial_ending')
+const failureMessage = computed(() => t(refusalKey(archiveFailed.value) ?? `subscription.branches.refusals.${archiveFailed.value}`))
 function failureKey(cause: unknown): string {
-  const e = cause as { data?: { code?: unknown; data?: { code?: unknown } } } | null
-  const code = e?.data?.code ?? e?.data?.data?.code
-  return typeof code === 'string' && REFUSALS.includes(code) ? code : 'failed'
+  const code = refusalCode(cause)
+  return code && (REFUSALS.includes(code) || code === 'lock_pending' || code === 'trial_ending') ? code : 'failed'
 }
 // Quotes are asked one after another as the customer picks branches: only the newest answer may fill the confirmation,
 // or a late quote for branch A would sit under a confirmation that names branch B.
 const quoteTickets = latestOnly()
 async function openChange(kind: BranchChange['kind'], branch: Branch) {
+  if (!hydrated.value || !can('branches.manage')) return
   const ticket = quoteTickets.next()
   archiving.value = { kind, branch }; quote.value = null; archiveFailed.value = null; archiveBusy.value = true
   try {
@@ -36,7 +38,7 @@ async function openChange(kind: BranchChange['kind'], branch: Branch) {
 }
 function closeArchive() { quoteTickets.cancel(); archiveBusy.value = false; archiving.value = null; quote.value = null; archiveFailed.value = null }
 async function archiveBranch() {
-  if (archiveBusy.value || !archiving.value || !quote.value) return
+  if (!hydrated.value || !can('branches.manage') || archiveBusy.value || !archiving.value || !quote.value) return
   if (QUOTE_IS_EXPIRED(quote.value)) { await openChange(archiving.value.kind, archiving.value.branch); return }
   archiveBusy.value = true; archiveFailed.value = null
   try {
@@ -63,8 +65,9 @@ async function archiveBranch() {
       <SharedInlineConfirm v-if="archiving" :title="t(`subscription.branches.${archiving.kind}.title`, { name: archiving.branch.name })" :description="t(`subscription.branches.${archiving.kind}.description`)" :confirm-label="t(`subscription.branches.${archiving.kind}.action`)" :color="archiving.kind === 'archive' ? 'error' : 'primary'" :pending="archiveBusy" :disabled="!quote" @confirm="archiveBranch" @cancel="closeArchive">
         <SharedCommercePriceBreakdown :quote="quote" :pending="archiveBusy" class="mt-3" />
         <div v-if="archiveFailed" class="mt-3 flex flex-wrap items-center gap-2">
-          <p class="text-sm" role="alert">{{ t(`subscription.branches.refusals.${archiveFailed}`) }}</p>
-          <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="archiveBusy" @click="openChange(archiving.kind, archiving.branch)">{{ t('subscription.branches.archive.retry') }}</UButton>
+          <p class="text-sm" role="alert">{{ failureMessage }}</p>
+          <UButton v-if="trialBlock" to="/subscription#trial-end" size="sm" color="neutral" variant="outline">{{ t('subscription.trialEnd.openRecovery') }}</UButton>
+          <UButton v-else type="button" color="neutral" variant="outline" size="sm" :disabled="archiveBusy" @click="openChange(archiving.kind, archiving.branch)">{{ t('subscription.branches.archive.retry') }}</UButton>
         </div>
       </SharedInlineConfirm>
     </template>

@@ -20,6 +20,8 @@ class ProjectChildVisibility(models.AbstractModel):
     _liwan_allow_archived_projects = False
     _liwan_governance_task_mode = None
 
+    _liwan_read_only_company_path = 'project_id.company_id'
+
     def read(self, fields=None, load='_classic_read'):
         return super().read(tool_read_fields(self, fields), load=load)
 

@@ -5,6 +5,7 @@ import { routesB } from '../commercial/routes-b.js'
 import { CommercialHttpError } from '../commercial/lifecycle.js'
 import { onRenewalPaid } from '../commercial/renewals.js'
 import { resumeSubscription, suspendSubscription, syncTenantStatus } from '../commercial/suspension.js'
+import { attention } from '../commercial/attention.js'
 import { setup, url } from './commercial-helpers.js'
 
 const suite = url ? describe : describe.skip
@@ -32,6 +33,34 @@ suite('subscription suspension reaches the tenant', () => {
     return routesB(pool, { method: 'POST', pathname, raw: JSON.stringify(body), issuer: 'test', actor: 7, capabilities: ['vendor.subscriptions.manage'], stepUpFresh: true, ...over } as never, new URL(pathname, 'http://localhost'))
   }
 
+  it('alerts after the fifth failed delivery and clears only when the retry reaches the tenant (#445)', async () => {
+    const s = await subscription('active')
+    await suspendSubscription(pool, { subscription_id: s.id, reason, actor: '7' })
+    const alerts = async () => (await attention(pool, true)).items.filter(item => item.kind === 'suspension_undelivered' && item.customer_id === s.customer)
+    await pool.query('UPDATE subscriptions SET tenant_status_failures=4 WHERE id=$1', [s.id])
+    expect(await alerts()).toHaveLength(0)
+    const runner = async () => { throw Error('temporary failure') }
+    expect(await syncTenantStatus(pool, { runner })).toMatchObject({ failed: [s.id] })
+    expect(await alerts()).toMatchObject([{ detail: '5' }])
+    await pool.query('UPDATE subscriptions SET tenant_status_next_at=NULL WHERE id=$1', [s.id])
+    expect(await syncTenantStatus(pool, { runner: async () => {} })).toMatchObject({ pushed: [s.id] })
+    expect(await alerts()).toHaveLength(0)
+  })
+
+  it('also alerts on age before any attempt, for automatic suspension, and clears on reversal (#445)', async () => {
+    const s = await subscription('past_due')
+    await pool.query("UPDATE subscriptions SET state='suspended',revision=revision+1 WHERE id=$1", [s.id])
+    const alerts = async () => (await attention(pool, true)).items.filter(item => item.kind === 'suspension_undelivered' && item.customer_id === s.customer)
+    expect(await alerts()).toHaveLength(0)
+    // The clock is trigger-maintained; in the fixture only, inject an old request without moving commercial revision.
+    await pool.query('ALTER TABLE subscriptions DISABLE TRIGGER a_track_suspension_delivery')
+    try { await pool.query("UPDATE subscriptions SET suspension_pending_since=now()-interval '2 hours' WHERE id=$1", [s.id]) }
+    finally { await pool.query('ALTER TABLE subscriptions ENABLE TRIGGER a_track_suspension_delivery') }
+    expect(await alerts()).toMatchObject([{ detail: '0' }])
+    await resumeSubscription(pool, { subscription_id: s.id, reason, actor: '7' })
+    expect(await alerts()).toHaveLength(0)
+  })
+
   describe('vendor action', () => {
     it.each(['active', 'past_due', 'trialing'])('suspends a %s subscription, audits it and marks it as ordered by the vendor', async state => {
       const s = await subscription(state)
@@ -51,7 +80,7 @@ suite('subscription suspension reaches the tenant', () => {
       expect(await row(s.id)).toMatchObject({ state: 'active', manual_suspension: false, grace_ends_at: null })
       expect((await pool.query("SELECT 1 FROM audit_events WHERE action='subscription.resumed' AND subject=$1", [s.id])).rowCount).toBe(1)
     })
-    it('resumes a running trial as a trial, and an ended one as active', async () => {
+    it('resumes trials as trialing even after their deadline', async () => {
       const running = await subscription('trialing'), ended = await subscription('trialing')
       await pool.query("UPDATE subscriptions SET trial_ends_at=now() + interval '5 days',revision=revision+1 WHERE id=$1", [running.id])
       await pool.query("UPDATE subscriptions SET trial_ends_at=now() - interval '1 day',revision=revision+1 WHERE id=$1", [ended.id])
@@ -60,7 +89,7 @@ suite('subscription suspension reaches the tenant', () => {
         await resumeSubscription(pool, { subscription_id: s.id, reason, actor: '7' })
       }
       expect((await row(running.id)).state).toBe('trialing')
-      expect((await row(ended.id)).state).toBe('active')
+      expect((await row(ended.id)).state).toBe('trialing')
     })
     it('resumes to past due with a fresh grace period while an invoice is overdue, so dunning does not stop it again at once', async () => {
       const s = await subscription('active')

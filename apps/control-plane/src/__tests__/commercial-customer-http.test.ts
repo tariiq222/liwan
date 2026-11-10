@@ -59,6 +59,12 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
     expect(response.status).toBe(400);expect(await response.json()).toMatchObject({code:'forbidden_field',field})
   })
   it('requires the endpoint capability',async()=>{expect((await call('/v1/customer/invoices',{capabilities:[]})).status).toBe(403)})
+  it('requires separate read and manage capabilities for the signed trial endpoints', async () => {
+    expect((await call('/v1/customer/trial/end-preview', { capabilities: [] })).status).toBe(403)
+    expect((await call('/v1/customer/trial/retry', { body: {}, capabilities: ['subscription.read'] })).status).toBe(403)
+    expect((await call('/v1/customer/trial/retry', { body: { customer_id: ownCustomer }, capabilities: ['subscription.manage'] })).status).toBe(400)
+    expect((await call('/v1/customer/trial/end-preview', { capabilities: ['subscription.read'] })).status).toBe(404)
+  })
   it('resolves a shared web registry tenant id through its enabled binding only',async()=>{
     const slug=`t${tenant.replaceAll('-','')}`
     expect((await call(`/v1/customer/invoices/${ownInvoice}`,{tenantId:slug})).status).toBe(404)

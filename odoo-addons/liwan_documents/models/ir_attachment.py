@@ -3,6 +3,8 @@ from odoo import api, fields, models
 from odoo.exceptions import AccessError
 
 from .dms_policy import require_file, require_resource_mutation
+from odoo.addons.liwan_platform.models.entitlement_service_storage import STORAGE_FLAG
+from odoo.addons.liwan_platform.models.read_only_guard import SETTLE_MARKER
 
 
 class IrAttachment(models.Model):
@@ -17,6 +19,13 @@ class IrAttachment(models.Model):
         if self.res_model == 'liwan.document' and self.res_id:
             return self.env['liwan.document'].browse(self.res_id)
         return self.env['liwan.document'].browse()
+
+    def _liwan_storage_record_ref(self):
+        document = self._liwan_document()
+        if document:
+            self._liwan_require_document_file()
+            return {'kind': 'document', 'id': document.id}
+        return super()._liwan_storage_record_ref()
 
     @api.model_create_multi
     def create(self, values):
@@ -73,8 +82,15 @@ class IrAttachment(models.Model):
         self._liwan_require_attachment_read()
         return super().export_data(fields_to_export)
 
+    def _liwan_storage_settlement_write(self, values):
+        """True for the storage settle's own flag write: sudo, under its marker, touching only the flag."""
+        return (
+            self.env.su and set(values) == {STORAGE_FLAG}
+            and bool(self.env.cr.precommit.data.get(SETTLE_MARKER))
+        )
+
     def write(self, values):
-        if not self.env.user._is_superuser():
+        if not self.env.user._is_superuser() and not self._liwan_storage_settlement_write(values):
             for attachment in self:
                 document = attachment._liwan_document()
                 if document or values.get('res_model') == 'liwan.document':

@@ -3,8 +3,11 @@ import { spawn } from 'node:child_process'
 import { createCommercialScheduler } from '../commercial/scheduler.js'
 import { sendInvitationOutbox } from '../commercial/invitations.js'
 import { sendTrialNotices } from '../commercial/trial-notices.js'
+import { trialEndPreview } from '../commercial/trial-preview.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
 import type { MailAdapter, MailMessage } from '../commercial/mail-adapter.js'
+
+vi.mock('../commercial/trial-preview.js', () => ({ trialEndPreview: vi.fn() }))
 
 type Call = { sql: string; params: unknown[] }
 const recordingPool = (answer: (sql: string, params: unknown[]) => { rows: unknown[]; rowCount?: number }) => {
@@ -16,6 +19,39 @@ const abortingMail = (controller: AbortController) => {
   const sent: MailMessage[] = []
   const mail: MailAdapter = { async send(m) { sent.push(m); controller.abort(); return { accepted: true, provider_message_id: `p-${m.message_id}` } } }
   return { mail, sent }
+}
+
+const recoveryScan = (sql: string) => sql.startsWith('SELECT id,subscription_id FROM orders o WHERE')
+  && sql.includes('fulfillment_retry_at')
+const noticeNow = new Date('2026-11-10T09:00:00Z')
+const noticeEnd = new Date(noticeNow.getTime() + 86_400_000)
+const noticeLease = '2026-11-10 09:05:00.123456+00'
+const noticePreview: Awaited<ReturnType<typeof trialEndPreview>> = {
+  status: 'trialing', trial_ends_at: noticeEnd.toISOString(), outcome: null,
+  kept: { bundle_revision_ids: [], paid_users: 0, paid_storage_gb: 0, paid_extra_branches: 0 },
+  locked_bundle_revision_ids: [], limits: { users: 3, storage_mb: 1024, extra_branches: 0 },
+  excess: { users: null, storage_bytes: null, extra_branches: null, sampled_at: null, source: 'unavailable', item_details: 'unavailable' },
+  first_invoice: null, next_attempt_at: null,
+}
+
+function noticeFixture(controller: AbortController, stopAfter?: 'lease' | 'preview' | 'preview-error') {
+  const row = (id: string) => ({ id, trial_ends_at: noticeEnd, customer_id: 'c', trial_days: 14,
+    snapshot: { quote_id: 'q', terms_revision_id: 'negotiated' }, admin_login: `${id}@x.test` })
+  vi.mocked(trialEndPreview).mockReset().mockImplementation(async () => {
+    if (stopAfter !== undefined && stopAfter !== 'lease') controller.abort()
+    if (stopAfter === 'preview-error') throw new Error('preview interrupted')
+    return noticePreview
+  })
+  return recordingPool(sql => {
+    if (sql.includes('FROM subscriptions s')) return { rows: [row('s1'), row('s2')] }
+    if (sql.includes('INSERT INTO commercial_outbox')) return { rows: [{ id: 'new' }] }
+    if (sql.includes('SELECT id,status FROM commercial_outbox')) return { rows: [{ id: 'outbox-1', status: 'pending' }] }
+    if (sql.includes("SET next_attempt_at = now() + interval '5 minutes' WHERE id=$1")) {
+      if (stopAfter === 'lease') controller.abort()
+      return { rows: [{ lease_until: noticeLease }], rowCount: 1 }
+    }
+    return { rows: [] }
+  })
 }
 
 describe('worker shutdown during a scheduler tick', () => {
@@ -40,33 +76,38 @@ describe('worker shutdown during a scheduler tick', () => {
 
   it('queues and sends no further trial notice after the signal', async () => {
     const controller = new AbortController()
-    const now = new Date('2026-11-10T09:00:00Z')
-    const row = (id: string) => ({ id, trial_ends_at: new Date(now.getTime() + 86_400_000), customer_id: 'c', trial_days: 14,
-      snapshot: { quote_id: 'q' }, admin_login: `${id}@x.test` })
-    const { pool, calls } = recordingPool(sql => {
-      if (sql.includes('FROM subscriptions s')) return { rows: [row('s1'), row('s2')] }
-      if (sql.includes('INSERT INTO commercial_outbox')) return { rows: [{ id: 'new' }] }
-      if (sql.includes('SELECT id FROM commercial_outbox')) return { rows: [{ id: 'outbox-1' }] }
-      return { rows: [] }
-    })
+    const { pool, calls } = noticeFixture(controller)
     const { mail, sent } = abortingMail(controller)
-    await sendTrialNotices(pool as never, { now, mail, signal: controller.signal })
+    await sendTrialNotices(pool as never, { now: noticeNow, mail, signal: controller.signal })
     expect(sent).toHaveLength(1)
     expect(calls.filter(c => c.sql.includes('INSERT INTO commercial_outbox'))).toHaveLength(1)
+  })
+
+  it.each(['lease', 'preview', 'preview-error'] as const)('releases the unsent notice when shutdown arrives during %s', async stopAfter => {
+    const controller = new AbortController()
+    const { pool, calls } = noticeFixture(controller, stopAfter)
+    const { mail, sent } = abortingMail(controller)
+    expect(await sendTrialNotices(pool as never, { now: noticeNow, mail, signal: controller.signal })).toBe(0)
+    expect(sent).toEqual([])
+    const releases = calls.filter(c => c.sql.includes('SET next_attempt_at = now() WHERE'))
+    expect(releases.map(c => c.params)).toEqual([['outbox-1', noticeLease]])
+    expect(releases[0].sql).toContain('AND next_attempt_at=$2::timestamptz')
+    expect(calls.filter(c => c.sql.includes("status='done'"))).toEqual([])
+    expect(vi.mocked(trialEndPreview)).toHaveBeenCalledTimes(stopAfter === 'lease' ? 0 : 1)
   })
 
   it('starts no job in a tick once the signal is set, and none after the job in flight', async () => {
     vi.spyOn(console, 'debug').mockImplementation(() => {})
     const controller = new AbortController()
     const { pool, calls } = recordingPool(sql => {
-      if (sql.includes('FOR UPDATE SKIP LOCKED')) controller.abort() // the signal arrives while the first job runs
+      if (recoveryScan(sql)) controller.abort() // the signal arrives during the actual first job
       return { rows: [] }
     })
     const scheduler = createCommercialScheduler({ pool: pool as never, config: {} as never, env: {}, log: () => {}, signal: controller.signal,
       mailAdapter: { async send() { throw new Error('no mail may be sent') } } })
     await scheduler.tick()
     expect(calls).toHaveLength(1)
-    expect(calls[0].sql).toContain('FOR UPDATE SKIP LOCKED')
+    expect(recoveryScan(calls[0].sql)).toBe(true)
 
     calls.length = 0
     await scheduler.tick() // already aborted: nothing starts at all
@@ -85,8 +126,11 @@ describe('worker shutdown during a scheduler tick', () => {
     await scheduler.tick()
     const released = calls.filter(c => c.sql.includes('SET next_attempt_at = now() WHERE')).map(c => c.params[0])
     expect(released).toEqual(['row-a', 'row-b'])
-    // Nothing else ran for the batch: only the claim(s) and the two releases.
-    expect(calls.filter(c => !c.sql.includes('FOR UPDATE SKIP LOCKED') && !c.sql.includes('SET next_attempt_at = now() WHERE'))).toEqual([])
+    // The first job did its read-only recovery scan; the stopped batch only claimed and released.
+    expect(recoveryScan(calls[0].sql)).toBe(true)
+    expect(calls.filter(c => !c.sql.includes('FOR UPDATE SKIP LOCKED') && !c.sql.includes('SET next_attempt_at = now() WHERE'))).toEqual([calls[0]])
+    const stoppedClaim = calls.findIndex(c => c.sql.includes('FOR UPDATE SKIP LOCKED') && (c.params[0] as string[]).includes(kind))
+    expect(calls.slice(stoppedClaim + 1).map(c => c.params[0])).toEqual(['row-a', 'row-b'])
   })
 })
 

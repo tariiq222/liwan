@@ -1,14 +1,17 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import logging
 import re
+from contextlib import contextmanager
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 
+from .entitlement_service_seats import DEFER_BRANCH_REOPENING
 from odoo.addons.liwan_platform.commercial_config import SOURCES, load_classification
 from odoo.addons.liwan_platform.models.entitlement_service import (
     OPERATOR_CONTEXT,
     POLICY_FIELDS,
+    TRIAL_POLICY_FIELDS,
 )
 
 _logger = logging.getLogger(__name__)
@@ -68,6 +71,10 @@ class LiwanTenantProfile(models.Model):
     commercial_valid_until = fields.Date()
     # Monotonic writer revision: a late job may not overwrite a newer expiry.
     commercial_valid_until_revision = fields.Integer(default=0, required=True)
+    trial_ends_at = fields.Datetime()
+    post_trial_features = fields.Json()
+    post_trial_modules = fields.Json()
+    post_trial_digest = fields.Char()
     features = fields.Json()
     retained_read_features = fields.Json()
     terminology = fields.Json()
@@ -303,6 +310,8 @@ class LiwanTenantProfile(models.Model):
         if not self.env.su:
             raise AccessError(self.env._('A trusted local operator is required.'))
         vals = dict(vals_list[0])
+        if TRIAL_POLICY_FIELDS.intersection(vals):
+            raise ValidationError(self.env._('Apply the trial policy after the tenant has been initialized.'))
         classification = load_classification(self.env.cr.dbname, fields.Date.to_date(vals.get('valid_until')))
         for key in ('commercial_mode', 'entitlement_source'):
             if key in vals and vals[key] != classification[key]:
@@ -336,6 +345,8 @@ class LiwanTenantProfile(models.Model):
             raise ValidationError(self.env._('liwan tenant profile is a singleton.'))
         service = self.env['liwan.entitlement.service']
         next_vals = dict(vals)
+        if TRIAL_POLICY_FIELDS.intersection(vals):
+            self._liwan_validate_trial_policy(next_vals, service)
         if 'status' in next_vals and next_vals['status'] not in ('active', 'suspended'):
             raise ValidationError(self.env._('liwan_platform: status must be active or suspended'))
         if 'features' in next_vals:
@@ -366,12 +377,103 @@ class LiwanTenantProfile(models.Model):
             raise ValidationError(self.env._('liwan_platform: revisions cannot be negative'))
         if 'quota_revision' in next_vals and next_vals['quota_revision'] < 0:
             raise ValidationError(self.env._('liwan_platform: revisions cannot be negative'))
-        return super().write(next_vals)
+        storage_policy_changed = 'features' in next_vals or bool(TRIAL_POLICY_FIELDS.intersection(next_vals))
+        if storage_policy_changed:
+            service._liwan_invalidate_storage_plan()
+        result = super().write(next_vals)
+        if storage_policy_changed:
+            service._liwan_invalidate_storage_plan()
+        if 'features' in next_vals:
+            service._liwan_settle_excess()
+        return result
+
+    def _liwan_validate_trial_policy(self, vals, service):
+        self.ensure_one()
+        try:
+            deadline = fields.Datetime.to_datetime(vals.get('trial_ends_at', self.trial_ends_at))
+        except (TypeError, ValueError) as error:
+            raise ValidationError(self.env._('The trial deadline must be a UTC date and time.')) from error
+        revision = vals.get('commercial_valid_until_revision', self.commercial_valid_until_revision)
+        if type(revision) is not int or revision < self.commercial_valid_until_revision:
+            raise ValidationError(self.env._('The trial policy writer revision is stale.'))
+        keys = ('post_trial_features', 'post_trial_modules', 'post_trial_digest')
+        features = vals.get('post_trial_features', self.post_trial_features)
+        modules = vals.get('post_trial_modules', self.post_trial_modules or [])
+        digest = vals.get('post_trial_digest', self.post_trial_digest)
+        if not deadline:
+            if any(vals.get(key) for key in keys):
+                raise ValidationError(self.env._('A trial fallback requires a deadline.'))
+            if 'trial_ends_at' in vals:
+                vals.update(dict.fromkeys(keys, False))
+            return
+
+        if self.commercial_mode != 'saas':
+            raise ValidationError(self.env._('Only a SaaS tenant can have a trial policy.'))
+        if deadline != self.trial_ends_at and deadline > service._liwan_trial_now() and self.commercial_revision_id:
+            target = vals.get('commercial_revision_id', self.commercial_revision_id)
+            active_trial = self.trial_ends_at and not service._liwan_post_trial_due(self)
+            if target == self.commercial_revision_id and (not active_trial or revision <= self.commercial_valid_until_revision):
+                raise ValidationError(self.env._('Reopening an expired trial requires a new commercial revision.'))
+            if not active_trial and (not target or 'features' not in vals or 'commercial_digest' not in vals):
+                raise ValidationError(self.env._('Reopening an expired trial requires a complete commercial target.'))
+
+        if (
+            not isinstance(features, dict) or 'branches.extra_limit' not in features
+            or not isinstance(modules, list) or len(modules) > 256
+            or not all(isinstance(module, str) and re.fullmatch(r'(?:liwan|customer)_[a-z0-9_]+', module) for module in modules)
+            or len(set(modules)) != len(modules)
+            or not isinstance(digest, str) or not re.fullmatch(r'[a-f0-9]{64}', digest)
+        ):
+            raise ValidationError(self.env._('A trial requires a complete fallback entitlement and digest.'))
+        vals['post_trial_features'] = service._liwan_validate_features(
+            service._liwan_close_unlisted_features(features),
+        )
+        vals['commercial_valid_until'] = False
+
+    def _liwan_apply_post_trial(self):
+        self._liwan_require_operator()
+        service = self.env['liwan.entitlement.service']
+        self._liwan_lock()
+        if not service._liwan_post_trial_due(self):
+            return False
+        self.write({
+            'features': service._liwan_close_unlisted_features(service._liwan_features_payload(self)),
+            'retained_read_features': list(service._liwan_retained(self)),
+            'commercial_digest': self.post_trial_digest,
+            'commercial_valid_until': False,
+            'trial_ends_at': False,
+        })
+        return True
+
+    @api.model
+    def _liwan_cron_apply_post_trial(self):
+        service = self.env['liwan.entitlement.service']
+        due = self.search([('trial_ends_at', '<=', service._liwan_trial_now())], limit=1)
+        if due:
+            due.with_context(**{OPERATOR_CONTEXT: True})._liwan_apply_post_trial()
 
     def _liwan_require_operator(self):
         self.ensure_one()
         if not (self.env.su and self.env.context.get(OPERATOR_CONTEXT)):
             raise AccessError(self.env._('A trusted local operator is required.'))
+
+    @contextmanager
+    def _liwan_defer_branch_reopening(self):
+        """Reserve full seats for ordered branches before reopening automatic excess."""
+        self._liwan_require_operator()
+        cr = self.env.cr
+        if DEFER_BRANCH_REOPENING in cr.cache:
+            yield
+            return
+        with cr.savepoint():
+            self._liwan_lock()
+            # Mid-operation flushes can run and clear precommit callbacks.
+            cr.cache[DEFER_BRANCH_REOPENING] = True
+            try:
+                yield
+            finally:
+                cr.cache.pop(DEFER_BRANCH_REOPENING)
+            self.env['liwan.entitlement.service']._liwan_settle_branches()
 
     def _liwan_grant_opened_admin_roles(self, login, roles_before):
         """Give the enrolment administrator the roles a policy change newly opened.
@@ -449,7 +551,7 @@ class LiwanTenantProfile(models.Model):
                 raise ValidationError(msg)
         new_uids = [uid for uid in requested if uid not in by_uid]
         if new_uids:
-            active_count = Branch.search_count([('state', '=', 'active')])
+            active_count = self.env['liwan.entitlement.service']._liwan_count_full_branches()
             self.env['liwan.entitlement.service'].require_within_limit(
                 'branches.extra_limit', active_count + len(new_uids),
             )
@@ -486,7 +588,8 @@ class LiwanTenantProfile(models.Model):
         """Bring an archived branch back: same company and data, active again.
 
         Operator-only and idempotent; an active branch is left as it is, and the
-        extra-branch limit is checked before the company is reactivated.
+        extra-branch limit is checked before the company is reactivated. A branch
+        the settle made read-only is made full again; a customer's choice is kept.
         """
         self._liwan_require_operator()
         self._liwan_lock()
@@ -496,12 +599,17 @@ class LiwanTenantProfile(models.Model):
             raise ValidationError(msg)
         if branch.state == 'active':
             return branch.company_id
-        active_count = self.env['liwan.tenant.branch'].search_count([('state', '=', 'active')])
+        active_count = self.env['liwan.entitlement.service']._liwan_count_full_branches()
         self.env['liwan.entitlement.service'].require_within_limit(
             'branches.extra_limit', active_count + 1,
         )
         branch.company_id.write({'active': True})
         branch.write({'state': 'active', 'operation_id': operation_id})
+        if branch.read_only:
+            # The purchased seat is the restored branch's own, so an older read-only choice does not outlive the restore.
+            self.env['liwan.entitlement.service']._liwan_apply_flags(
+                branch, {'read_only': False, 'seat_choice': 'auto'},
+            )
         return branch.company_id
 
     def _liwan_bind_user_to_branch(self, user, branch_uid):

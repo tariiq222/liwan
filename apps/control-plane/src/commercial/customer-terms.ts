@@ -5,7 +5,7 @@ import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
 import { requireVendor } from './authorization.js'
 
-export async function loadCustomerTerms(client: Pool | PoolClient, customerId: string, revisionId?: string | null) {
+export async function loadCustomerTerms(client: Pick<PoolClient, 'query'>, customerId: string, revisionId?: string | null) {
   const r = revisionId
     ? await client.query('SELECT * FROM customer_terms_revisions WHERE id=$1 AND customer_id=$2', [revisionId, customerId])
     : await client.query('SELECT * FROM customer_terms_revisions WHERE customer_id=$1 ORDER BY created_at DESC,id DESC LIMIT 1', [customerId])

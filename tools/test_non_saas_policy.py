@@ -27,6 +27,7 @@ def load_service():
     odoo = types.ModuleType('odoo')
     odoo.SUPERUSER_ID = 1
     odoo.api = types.SimpleNamespace(model=lambda method: method)
+    odoo.fields = types.SimpleNamespace()
     odoo.models = types.SimpleNamespace(AbstractModel=object)
     exceptions = types.ModuleType('odoo.exceptions')
     for name in ('AccessDenied', 'AccessError', 'UserError', 'ValidationError'):
@@ -56,7 +57,8 @@ class TestNonSaasPolicy(unittest.TestCase):
         # DB invariants enforce this pair and forbid a non-SaaS cutoff.
         self.profile = types.SimpleNamespace(
             commercial_mode='non_saas', entitlement_source='local_policy',
-            status='active', valid_until=False, support_access_enabled=False,
+            status='active', valid_until=False, commercial_valid_until=False,
+            trial_ends_at=False, support_access_enabled=False,
             features={'pmo.enabled': True, 'hr.enabled': False, 'users.limit': 2},
             retained_read_features=['hr.enabled'],
         )

@@ -21,6 +21,10 @@ from odoo.addons.liwan_inbox.controllers.hooks import (
     reject_webhook,
 )
 from odoo.addons.liwan_inbox.models.constants import TIKTOK_FEATURE
+from odoo.addons.liwan_platform.models.read_only_guard import (
+    INBOUND_EVENT_CONTEXT,
+    INBOUND_EVENT_TOKEN,
+)
 
 
 class TikTokHookController(http.Controller):
@@ -50,5 +54,7 @@ class TikTokHookController(http.Controller):
             ], limit=1)
         if not channel:
             reject_webhook()
-        request.env['liwan.inbox.event']._liwan_store(channel, raw)
+        request.env['liwan.inbox.event'].with_context(**{INBOUND_EVENT_CONTEXT: INBOUND_EVENT_TOKEN})._liwan_store(
+            channel, raw,
+        )
         return request.make_response('ok', headers=[('Content-Type', 'text/plain; charset=utf-8')])

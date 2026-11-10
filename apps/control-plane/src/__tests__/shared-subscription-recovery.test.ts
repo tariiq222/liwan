@@ -72,6 +72,8 @@ describe.skipIf(!scratchUrl)('subscription recovery integration-fake',()=>{
     expect(a.ready).toBe(false);expect(a.job_id).toBe(b.job_id)
     const repair=(await pool.query('SELECT payload FROM shared_jobs WHERE id=$1',[a.job_id])).rows[0]
     expect(repair.payload.binding.database).toBe(target.database)
+    // An older backup may hold more users or storage than the current revision allows: the repair settles the excess.
+    expect(repair.payload.authority.excess_settle).toBe(true)
     expect(await reconcileAfterRestore(pool,{tenant_id:s.tenant,restore_id:restore,target,runner:fakeObserveRunner({commercial_revision_id:s.target,commercial_digest:'a'.repeat(64),branches:[],status:'active',commercial_valid_until:null})})).toEqual({ready:true})
   },60000)
 })

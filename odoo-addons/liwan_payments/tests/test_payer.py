@@ -33,6 +33,15 @@ class TestPayer(LiwanPayerCase):
         body = {'access_token': invoice.access_token, 'provider_id': self.paymob.id, 'payment_method_id': self.card.id}
         return self.api('POST', self.start_url(invoice), json={**body, **overrides})
 
+    def test_starting_a_payment_in_a_read_only_branch_is_refused_cleanly(self):
+        self.env['liwan.tenant.branch'].create({
+            'branch_uid': 'pay-start-ro', 'company_id': self.invoice.company_id.id, 'operation_id': 'op-pay', 'read_only': True,
+        })
+        self.assertEqual(self.api('GET', self.summary_url()).status_code, 200)
+        response = self.start()
+        self.assertEqual((response.status_code, response.json()['code']), (403, 'branch_read_only'), response.text)
+        self.assertIn('للقراءة فقط', response.json()['message'])
+
     def test_the_summary_shows_the_invoice_and_its_payment_options_only(self):
         response = self.api('GET', self.summary_url())
         self.assertEqual(response.status_code, 200)

@@ -8,6 +8,7 @@ from . import (
     crm_stage,
     dashboard,
     distribution,
+    entitlement_service,
     feature_registry,
     followup,
     import_batch,

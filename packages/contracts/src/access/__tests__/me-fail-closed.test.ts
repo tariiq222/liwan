@@ -27,6 +27,11 @@ describe('Me access extensions fail closed', () => {
     expect(() => MeSchema.parse({ ...BASE_ME, mobile: '0500000001' })).toThrow()
   })
 
+  it('carries whether the account is read-only and defaults to writable on a server that omits it', () => {
+    expect(MeSchema.parse(BASE_ME).read_only).toBe(false)
+    expect(MeSchema.parse({ ...BASE_ME, read_only: true }).read_only).toBe(true)
+  })
+
   it('rejects malformed capability keys instead of treating them as authority', () => {
     for (const key of ['access.users read', 'ACCESS.users.read', 'access', 'access..read']) {
       expect(() => MeSchema.parse({ ...BASE_ME, capabilities: ['access.users.read', key] })).toThrow()

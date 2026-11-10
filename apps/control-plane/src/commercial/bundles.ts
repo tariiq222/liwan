@@ -56,8 +56,8 @@ export function bundleIssues(row: Row, release: CatalogRelease): { code: string;
   try { compileEntitlements({ release, plan, bundles: [rev], terms: null, quantities: { users: 1, storage_mb: 0 } }) } catch (e) { issues.push(toIssue(e)) }
   return issues
 }
-export async function loadRelease(client: Pool | PoolClient, id: string): Promise<CatalogRelease> {
-  const r = await getRelease(client as Pool, id) as unknown as CatalogRelease
+export async function loadRelease(client: Pick<PoolClient, 'query'>, id: string): Promise<CatalogRelease> {
+  const r = await getRelease(client, id) as unknown as CatalogRelease
   return r
 }
 function audienceCustomer(a: { kind: string; customer_id?: string }) { return a.kind === 'customer' ? a.customer_id! : null }
