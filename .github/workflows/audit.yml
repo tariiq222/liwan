@@ -1,8 +1,10 @@
 name: audit
 
-# Daily npm advisory check of main. A new advisory against an unchanged dependency set
+# Daily checks of main. A new advisory against an unchanged dependency set
 # fails this run (GitHub notifies the owner) without blocking unrelated pull requests;
 # pull requests that change dependencies are gated by the ci `static` stage.
+# The secret scan reads every tracked file of the tree, so a secret that predates a rule change
+# or sits where no pull request touched is found here.
 on:
   schedule:
     - cron: '0 3 * * *'
@@ -21,3 +23,10 @@ jobs:
         with:
           node-version-file: .nvmrc
       - run: npm run check:audit
+
+  secret-scan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: python3 -B tools/secret_guard.py

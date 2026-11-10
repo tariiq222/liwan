@@ -1,11 +1,22 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import os
+import tempfile
 import unittest
+from pathlib import Path
+from unittest import mock
 
+import secret_guard
 from secret_guard import (
     find_credential_fallbacks,
     find_forbidden_paths,
+    find_provider_tokens,
     find_secret_lines,
+    find_wide_fallbacks,
+    scan_tree,
 )
+
+# Spelled in pieces so this file does not hold a token-shaped literal itself.
+REAL_SHAPED_TOKEN = 'gh' + 'p_' + 'A1b2C3d4' * 5
 
 
 class TestSecretGuard(unittest.TestCase):
@@ -90,6 +101,80 @@ class TestSecretGuard(unittest.TestCase):
         self.assertEqual(find_credential_fallbacks(text, 'deploy/x.test.mjs'), [])
         self.assertEqual(find_credential_fallbacks(text, 'deploy/releases/test_guard.mjs'), [])
         self.assertEqual(find_credential_fallbacks(text, 'deploy/x.mjs'), [1])
+
+
+class TestWholeTree(unittest.TestCase):
+    """The roots outside deploy/ and .github/ (apps, packages, odoo-addons, tools) are scanned too."""
+
+    def scan(self, files, exceptions=None):
+        with tempfile.TemporaryDirectory() as root:
+            for name, text in files.items():
+                path = Path(root, name)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text, encoding='utf-8')
+            previous = os.getcwd()
+            os.chdir(root)
+            try:
+                with mock.patch.object(secret_guard, 'LITERAL_EXCEPTIONS', exceptions or {}):
+                    return scan_tree(sorted(files))
+            finally:
+                os.chdir(previous)
+
+    def test_a_provider_token_in_every_new_root_is_found(self):
+        for path in ('odoo-addons/liwan_x/models/m.py', 'apps/web/server/api/t.ts', 'packages/ui/a.vue', 'tools/x.mjs'):
+            with self.subTest(path=path):
+                problems = self.scan({path: f'const k = "{REAL_SHAPED_TOKEN}"\n'})
+                self.assertEqual(problems, [f'provider token or private key: {path}:1'])
+
+    def test_a_private_key_block_is_found(self):
+        block = '-----BEGIN ' + 'RSA PRIVATE KEY-----'
+        self.assertEqual(find_provider_tokens(block + '\n', 'apps/a/b.py'), [1])
+
+    def test_a_self_described_token_is_only_accepted_in_a_test_file(self):
+        fixture = 'sk-' + 'vendor-secret-' + 'x' * 24
+        self.assertEqual(find_provider_tokens(f"KEY = '{fixture}'", 'apps/control-plane/src/__tests__/a.test.ts'), [])
+        self.assertEqual(find_provider_tokens(f"KEY = '{fixture}'", 'apps/control-plane/src/a.ts'), [1])
+
+    def test_a_credential_that_falls_back_to_a_literal_is_found_in_python_and_typescript(self):
+        text = (
+            "password = os.environ.get('SERVICE_PASSWORD') or 'hunter2hunter2'\n"
+            "token = os.environ.get('SERVICE_TOKEN', 'hunter2hunter2')\n"
+            "const apiKey = process.env.API_KEY ?? 'hunter2hunter2'\n"
+        )
+        self.assertEqual(find_wide_fallbacks(text, 'odoo-addons/x/y.py'), [1, 2, 3])
+        self.assertEqual(self.scan({'apps/web/server/a.ts': text}), [
+            'credential fallback literal: apps/web/server/a.ts:1',
+            'credential fallback literal: apps/web/server/a.ts:2',
+            'credential fallback literal: apps/web/server/a.ts:3',
+        ])
+
+    def test_ordinary_code_and_test_fixtures_are_not_secrets(self):
+        text = (
+            "password = request.params['password']\n"
+            "if not (token.startswith('/')) or '://' in token:\n"
+            "token = os.environ.get('SERVICE_TOKEN') or ''\n"
+            "token = os.environ.get('SERVICE_TOKEN', '')\n"
+            "password = 'Plain-Fixture-Password'\n"
+        )
+        self.assertEqual(find_wide_fallbacks(text, 'odoo-addons/x/tests/test_y.py'), [])
+
+    def test_a_literal_secret_in_a_new_root_config_file_is_found(self):
+        problems = self.scan({'apps/ai-service/pyproject.toml': 'api_key = "hunter2hunter2"\n'})
+        self.assertEqual(problems, ['literal secret: apps/ai-service/pyproject.toml:1'])
+
+    def test_an_exception_skips_the_literal_rules_but_not_the_token_rule(self):
+        exceptions = {'apps/web/e2e/*': 'test accounts of the scratch database'}
+        quiet = {'apps/web/e2e/a.spec.ts': "x = process.env.E2E_PASSWORD ?? 'hunter2hunter2'\n"}
+        self.assertEqual(self.scan(quiet, exceptions), [])
+        loud = {'apps/web/e2e/a.spec.ts': f'const k = "{REAL_SHAPED_TOKEN}"\n'}
+        self.assertEqual(self.scan(loud, exceptions), ['provider token or private key: apps/web/e2e/a.spec.ts:1'])
+
+    def test_an_exception_that_matches_no_file_is_stale(self):
+        problems = self.scan({'apps/a/b.py': 'x = 1\n'}, {'apps/gone/*': 'removed'})
+        self.assertEqual(problems, ['stale literal exception (matches no scanned file): apps/gone/*'])
+
+    def test_every_real_exception_states_a_reason(self):
+        self.assertTrue(all(reason.strip() for reason in secret_guard.LITERAL_EXCEPTIONS.values()))
 
 
 if __name__ == '__main__':
