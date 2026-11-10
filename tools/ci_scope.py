@@ -50,7 +50,8 @@ ODOO_STAGES = ('odoo', *ISOLATION_STAGES)
 DEFERRED_STAGES = ('upgrade', 'restore-drill', 'image')
 # A pull request still builds and scans the images when it changes what decides how they build: a Dockerfile, a
 # Compose file, `.dockerignore`, the image stage script, or a package lock the Dockerfiles install from.
-IMAGE_BUILD_INPUTS = ('deploy/ci/image.sh', 'deploy/odoo/requirements-python312-linux.txt', 'apps/ai-service/requirements*.txt')
+IMAGE_BUILD_INPUTS = ('deploy/ci/image.sh', 'deploy/odoo/requirements-python312-linux.txt',
+                      'apps/ai-service/requirements.txt', 'apps/ai-service/requirements-build.txt')
 # The web and vendor-admin images build from these packages, so `image` is selected with them.
 SHARED_PACKAGE_STAGES = ('control-plane', 'vendor-admin', 'image', 'e2e-mock', 'e2e-odoo', 'rtl-stories')
 UNMAPPED = '(no rule: all stages)'

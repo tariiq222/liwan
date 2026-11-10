@@ -131,7 +131,8 @@ class PullRequestTest(unittest.TestCase):
         for path in ('deploy/proxy/Dockerfile', 'apps/web/Dockerfile', 'apps/ai-service/Dockerfile', 'deploy/odoo/Dockerfile',
                      'deploy/Dockerfile.guard', 'deploy/docker-compose.yml', 'deploy/docker-compose.production.yml',
                      'deploy/shared/compose.shared.yml', '.dockerignore', 'apps/web/.dockerignore', 'deploy/ci/image.sh',
-                     'apps/ai-service/requirements.txt', 'deploy/odoo/requirements-python312-linux.txt'):
+                     'apps/ai-service/requirements.txt', 'apps/ai-service/requirements-build.txt',
+                     'deploy/odoo/requirements-python312-linux.txt'):
             with self.subTest(path=path):
                 stages = ci_scope.pull_request_stages([path], self.affected(path))
                 self.assertIn('image', stages)
@@ -139,9 +140,15 @@ class PullRequestTest(unittest.TestCase):
 
     def test_other_deploy_files_do_not_pull_the_image_stage_into_a_pull_request(self):
         for path in ('deploy/ci/odoo.sh', 'deploy/provision.sh', 'deploy/security/odoo_secure.py', 'apps/ai-service/pyproject.toml',
-                     'apps/web/app/a.vue', 'docs/DockerNotes.md'):
+                     'apps/web/app/a.vue', 'docs/DockerNotes.md', 'apps/ai-service/requirements-dev.txt',
+                     'apps/ai-service/requirements-audit.txt', 'apps/ai-service/requirements-build.in'):
             with self.subTest(path=path):
                 self.assertNotIn('image', ci_scope.pull_request_stages([path], self.affected(path)))
+
+    def test_ci_result_names_exactly_the_deferred_stages(self):
+        workflow = (Path(ci_scope.__file__).resolve().parents[1] / '.github/workflows/ci.yml').read_text()
+        listed = ', '.join('"%s"' % stage for stage in ci_scope.DEFERRED_STAGES)
+        self.assertIn('| ["%s"]' % '", "'.join(ci_scope.DEFERRED_STAGES), workflow, listed)
 
     def test_a_dockerfile_change_in_a_mixed_pull_request_keeps_the_stage_order(self):
         paths = ['apps/web/app/a.vue', 'deploy/proxy/Dockerfile']
