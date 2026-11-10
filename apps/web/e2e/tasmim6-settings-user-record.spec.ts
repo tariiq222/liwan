@@ -70,6 +70,46 @@ test.describe('Plan 6d: the user record', () => {
       expect(saves).toBe(1)
     })
 
+    test('storage metadata filters by blocked state and links only to registered owners', async ({ page }) => {
+      const items = [
+        { id: 1, name: 'ملف المشروع.pdf', size_bytes: 1048576, created_at: '2026-11-10T14:00:00Z', blocked: true, record: { kind: 'document', id: 91 } },
+        { id: 2, name: 'مرفق متاح.pdf', size_bytes: 2048, created_at: null, blocked: false, record: { kind: 'unregistered-owner', id: 92 } },
+      ]
+      const received: Array<string | null> = []
+      await page.route('**/api/v1/me', async route => {
+        const response = await route.fetch()
+        const me = await response.json()
+        await route.fulfill({ json: {
+          ...me, capabilities: [...new Set([...me.capabilities, 'documents.items.read', 'settings.company.manage', 'settings.branding.manage'])],
+          commercial: { schema_version: 1, mode: 'saas', self_service_available: false },
+        } })
+      })
+      await page.route(/\/api\/v1\/settings\/storage(?:\?|$)/, route => {
+        expect(route.request().method()).toBe('GET')
+        const query = new URL(route.request().url()).searchParams
+        expect(query.get('limit')).toBe('25')
+        const blocked = query.get('blocked')
+        received.push(blocked)
+        const list = blocked === 'true' ? items.filter(item => item.blocked) : items
+        return route.fulfill({ json: { items: list, total: list.length, summary: { limit_mb: 4, used_bytes: 5242880, blocked_bytes: 1048576 } } })
+      })
+      await openClientSide(page, '/settings/system/storage')
+      const inventory = page.getByTestId('storage-inventory')
+      await expect(inventory.getByTestId('storage-summary')).toContainText('تشمل هذه الإجماليات المؤسسة كاملة.')
+      await expect(inventory.getByRole('link', { name: 'افتح السجل المرتبط' })).toHaveAttribute('href', '/documents/91')
+      await expect(inventory).toContainText('رابط السجل غير متاح')
+      await expect(page.getByRole('link', { name: 'اشترِ مساحة تخزين' })).toHaveAttribute('href', '/subscription/change')
+      await inventory.getByRole('button', { name: 'المحجوبة', exact: true }).click()
+      await expect(page).toHaveURL(/blocked=true/)
+      await expect(inventory).toContainText('ملف المشروع.pdf')
+      await expect(inventory).not.toContainText('مرفق متاح.pdf')
+      expect(received).toContain('true')
+      for (const width of [768, 390]) {
+        await page.setViewportSize({ width, height: 844 })
+        await expect.poll(() => fitsWidth(page), { message: `storage layout at ${width}px` }).toBe(true)
+      }
+    })
+
     test('the back link returns to the list with its filters', async ({ page }) => {
       await openClientSide(page, '/settings/team/users/11?q=sara&offset=25')
       await page.getByRole('link', { name: 'رجوع' }).first().click()

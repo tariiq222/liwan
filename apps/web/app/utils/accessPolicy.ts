@@ -122,7 +122,8 @@ export function requiredCapabilityForPath(path: string): string | null {
   if (path === '/settings/team/users/new') return 'access.users.grant'
   if (/^\/settings\/team\/users\/[^/]+\/(access|branches)$/.test(path)) return 'access.users.assign_roles'
   if (/^\/settings\/team\/roles\/(new|[^/]+\/edit)$/.test(path)) return 'access.roles.manage'
-  return destinations().find(([target]) => isNavPathActive(path, target))?.[1] ?? null
+  const targets = destinations()
+  return (targets.find(([target]) => target === path) ?? targets.find(([target]) => isNavPathActive(path, target)))?.[1] ?? null
 }
 /** The cards of a settings page when `path` is that page itself: it opens for anyone who may see one of them. */
 function settingsCardsOpeningPage(path: string): string[] | null {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { appSettingsPages, partIsExact, settingsActiveGroup, settingsPageForPath, settingsPages, settingsPartGroup, settingsPartPath, settingsPartTarget, visibleSettingsGroups } from '../settingsSections'
 import { isContextLinkActive } from '../../useShellNavigation'
+import { canReachPath } from '../../../utils/accessPolicy'
 import { appManifests, withManifests } from '../../../modules/manifests'
 import type { AppManifest } from '../../../modules/types'
 
@@ -16,10 +17,20 @@ describe('settings pages', () => {
     expect(page('company').to).toBe('/settings/company')
     expect(page('company').parts.map(part => part.id)).toEqual(['profile', 'address', 'contact', 'branding'])
     expect(page('system').to).toBe('/settings/system')
-    expect(page('system').parts.map(part => part.id)).toEqual(['integrations', 'maintenance'])
+    expect(page('system').parts.map(part => part.id)).toEqual(['integrations', 'maintenance', 'storage'])
     expect(page('company').parts.every(part => part.to === undefined)).toBe(true)
     expect(page('team').to).toBe('/settings/team')
     expect(page('team').parts.map(part => part.within)).toEqual(['/settings/team/users', '/settings/team/roles', '/settings/team/branches', '/settings/team/access-log'])
+  })
+  it('registers the storage page as a company-administration system part', () => {
+    const path = '/settings/system/storage'
+    expect(settingsPageForPath(path)?.id).toBe('system')
+    expect(settingsPartPath(page('system'), part('system', 'storage'))).toBe(path)
+    const integrationReader = { capabilities: ['integrations.read'] }
+    expect(canReachPath(integrationReader, '/settings/system')).toBe(true)
+    expect(canReachPath(integrationReader, path)).toBe(false)
+    expect(canReachPath({ capabilities: ['settings.company.read'] }, path)).toBe(false)
+    expect(canReachPath({ capabilities: ['settings.company.manage'] }, path)).toBe(true)
   })
   it('keep billing as pages of their own', () => {
     expect(page('billing').parts.map(part => part.to)).toEqual(['/subscription', '/subscription/change', '/subscription/status', '/subscription/branches', '/subscription/invoices'])

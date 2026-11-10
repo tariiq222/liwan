@@ -98,6 +98,7 @@ definePageMeta({ middleware: 'customer-commercial' })
           :bundle-names="data.bundleNames"
           :can-manage-team="canAccess('access.users.read')"
           :can-open-documents="canAccess('documents.items.read')"
+          :can-open-storage="canAccess('settings.company.manage')"
           :can-read-branches="allowed"
           :can-read-billing="can('billing.read')"
         >
