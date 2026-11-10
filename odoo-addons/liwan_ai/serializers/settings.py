@@ -51,8 +51,6 @@ def dump_settings(env):
             'messages_limit': entitlement._liwan_limit_value('ai.messages.monthly'),
             'assist_used': audit._liwan_ai_count_messages(kinds=ASSIST_KINDS),
             'assist_limit': entitlement._liwan_limit_value('ai.assist.monthly'),
-            'tokens_used': env['liwan.ai.usage']._liwan_platform_tokens_used(),
-            'tokens_limit': entitlement._liwan_limit_value('ai.tokens.monthly'),
             'output_tokens_per_run': entitlement._liwan_limit_value('ai.output_tokens.per_run'),
         },
     }

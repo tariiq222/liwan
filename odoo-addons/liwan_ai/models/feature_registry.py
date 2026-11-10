@@ -11,7 +11,9 @@ class LiwanAiFeatureRegistry(models.AbstractModel):
             {'key': 'ai.enabled', 'type': 'boolean', 'owner': 'liwan_ai', 'module': 'liwan_ai'},
             {'key': 'ai.messages.monthly', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai'},
             {'key': 'ai.tool_calls.per_run', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai'},
-            # Platform-provider runs only: a tenant on its own key pays its provider and keeps the message limit alone.
+            # Retired by the prepaid balance (spec 2026-11-10 §5.4): nothing enforces it. It stays registered only because the
+            # control plane still delivers it with the plan revisions pinned for existing tenants, and `_liwan_validate_features`
+            # refuses a delivered key with no registered owner. Remove it in the change that stops delivering it.
             {'key': 'ai.tokens.monthly', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai'},
             # The prepaid balance (spec 2026-11-10 §5): the cumulative top-ups, and the free allowance per trial window and per
             # month after the trial, all in cost units. The control plane derives them from its top-up ledger and vendor settings and

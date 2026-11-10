@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from odoo.tests import new_test_user, tagged
 
@@ -177,14 +177,6 @@ class TestAiSettings(AiProbe, LiwanApiCase):
         self.assertEqual(consent.revoked_by_id, self.manager)
         with self.assertRaises(Exception):
             consent.write({'text_version': 'other'})
-
-    def test_platform_tokens_count_this_month_only_and_never_the_tenant_key(self):
-        Usage = self.env['liwan.ai.usage']
-        last_month = self.env['liwan.ai.audit']._liwan_ai_month_start() - timedelta(seconds=1)
-        self._raw_usage('platform', 100, None)
-        self._raw_usage('tenant_key', 40, None)
-        self._raw_usage('platform', 7, last_month)
-        self.assertEqual(Usage._liwan_platform_tokens_used(), 100)
 
     def test_the_retired_token_limit_no_longer_stops_a_platform_run(self):
         # The balance replaced the monthly token limit (spec 2026-11-10 §5.4): the key stays registered, nothing enforces it.

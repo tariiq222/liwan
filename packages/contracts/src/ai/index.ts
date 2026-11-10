@@ -340,8 +340,6 @@ export const AiSettingsSchema = z.object({
     /** The free agents' (setup and help) messages against their one monthly budget. */
     assist_used: z.number().int().nonnegative(),
     assist_limit: AiLimitValueSchema,
-    tokens_used: z.number().int().nonnegative(),
-    tokens_limit: AiLimitValueSchema,
     output_tokens_per_run: AiLimitValueSchema,
   }).strict(),
 }).strict()

@@ -232,19 +232,6 @@ class LiwanAiUsage(models.Model):
             'called_at': called_at.replace(tzinfo=None),
         }
 
-    @api.model
-    def _liwan_platform_tokens_used(self):
-        """Input plus output tokens of the platform-billed calls of the whole tenant since the start of this month (billing timezone).
-
-        Plain SQL like the monthly message count: the limit is the tenant's, so it spans every company and user.
-        """
-        self.env.cr.execute(
-            "SELECT COALESCE(SUM(input_tokens + output_tokens), 0) FROM liwan_ai_usage"
-            " WHERE billing = 'platform' AND called_at >= %s",
-            [self.env['liwan.ai.audit']._liwan_ai_month_start()],
-        )
-        return self.env.cr.fetchone()[0]
-
     @api.model_create_multi
     def create(self, vals_list):
         """Record the attempts of a batch as the signed-in user, each row once (the browser-session path)."""

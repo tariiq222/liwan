@@ -189,10 +189,11 @@ describe('LiwanOS AI usage contracts', () => {
     const settings = {
       provider_mode: 'platform', messages_per_user_monthly: 0, input_tokens_per_run: 100000, monthly_spend_ceiling: 0, external_send: 'draft_only', knowledge_enabled: false, revision: 1,
       consent: { required_version: '2026-11-05-draft', text_ar: 'نص', text_en: 'text', text_hash: 'a'.repeat(64), signed: null },
-      usage: { month: '2026-11', messages_used: 3, messages_limit: null, assist_used: 4, assist_limit: 300, tokens_used: 120, tokens_limit: 2000000, output_tokens_per_run: 8000 },
+      usage: { month: '2026-11', messages_used: 3, messages_limit: null, assist_used: 4, assist_limit: 300, output_tokens_per_run: 8000 },
     }
-    expect(AiSettingsSchema.parse(settings).usage.tokens_limit).toBe(2000000)
     expect(AiSettingsSchema.parse(settings).usage.assist_limit).toBe(300)
+    // The retired token limit is gone from the usage block, not carried as a limit nobody enforces.
+    expect(() => AiSettingsSchema.parse({ ...settings, usage: { ...settings.usage, tokens_limit: 2000000 } })).toThrow()
     expect(() => AiSettingsSchema.parse({ ...settings, provider_mode: 'free' })).toThrow()
     expect(() => AiSettingsPatchSchema.parse({ provider_mode: 'tenant_key', revision: 0 })).toThrow()
     expect(() => AiSettingsSchema.parse({ ...settings, knowledge_enabled: undefined })).toThrow()

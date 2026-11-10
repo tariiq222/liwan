@@ -168,7 +168,7 @@ const AI_SETTINGS = {
     text_en: 'Draft pending legal review.\n\nAI use acknowledgement and liability disclaimer.',
     text_hash: 'a'.repeat(64), signed: null,
   },
-  usage: { month: '2026-11', messages_used: 0, messages_limit: 500, assist_used: 0, assist_limit: 300, tokens_used: 1620000, tokens_limit: 2000000, output_tokens_per_run: 8000, input_tokens_per_run: 100000 },
+  usage: { month: '2026-11', messages_used: 0, messages_limit: 500, assist_used: 0, assist_limit: 300, output_tokens_per_run: 8000, input_tokens_per_run: 100000 },
 }
 
 // Charter approval fixtures. Their charters live in CHARTER_STATE (project id -> charter + write token) so the
