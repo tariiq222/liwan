@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { Pool } from 'pg'
+import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
 import { ABANDONABLE_OPERATIONS } from '@liwan/commercial-contracts'
 import { sharedObservationSchema } from '@liwan/commercial-contracts/shared'
@@ -57,33 +57,57 @@ export async function requestSharedJobAbandon(pool: Pool, controlTenantId: strin
   })
 }
 
-type Outcome = { state: 'abandoned' | 'effect_present' }
+type Request = { job_id: string; reason: string }
+type Outcome = { state: 'abandoned' | 'effect_present'; recorded: boolean }
+
+/**
+ * Stores a request's outcome and its audit event together. Only the transaction that moves the request out of
+ * `pending` writes the audit event, so a replayed pass can never add a second one.
+ */
+async function recordOutcome(client: PoolClient, request: Request, state: 'abandoned' | 'effect_present' | 'failed', error: string | null) {
+  const done = await client.query("UPDATE shared_job_abandonments SET state=$2,error=$3,completed_at=clock_timestamp() WHERE job_id=$1 AND state='pending' RETURNING job_id", [request.job_id, state, error])
+  if (!done.rowCount) return
+  const detail = error ? `${state}: ${error}` : state
+  await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(), 'shared-worker', state === 'abandoned' ? 'shared_job.abandoned' : 'shared_job.abandon_refused', request.job_id, `${detail}; requested: ${request.reason}`.slice(0, 1000)])
+}
 
 /**
  * The worker's side of one request. The effect is observed outside any transaction; the job is then locked again and
  * must be exactly as it was observed (same attempt, same fence, still needs_intervention) before it is closed, so a
  * job that moved meanwhile is never abandoned on a stale observation. Only an `absent` observation closes the job:
  * `present` means the effect exists (recover is the right action), and `partial` or `unknown` is not proof of absence.
+ * The closure and the request's outcome are one transaction, so a worker that stops cannot leave a closed job behind
+ * a pending request. A job already `failed` under a still-pending request is that same closure (abandoning is the only
+ * way a job becomes `failed`, and a request is only accepted for a job that is still stuck): the request is completed
+ * as abandoned, without observing again.
  */
-async function abandonOne(pool: Pool, jobId: string, actor: RegistryActor, adapter: SharedFencedAdapter): Promise<Outcome> {
-  const inspect = async (client: import('pg').PoolClient) => {
-    const result = await client.query("SELECT * FROM shared_jobs WHERE id=$1 AND state='needs_intervention' FOR UPDATE", [jobId])
-    if (!result.rowCount) throw new Error('shared_job_not_abandonable')
+async function abandonOne(pool: Pool, request: Request, actor: RegistryActor, adapter: SharedFencedAdapter): Promise<Outcome> {
+  const inspect = async (client: PoolClient) => {
+    const result = await client.query('SELECT * FROM shared_jobs WHERE id=$1 FOR UPDATE', [request.job_id])
     const row = result.rows[0]
+    if (row?.state === 'failed') {
+      await recordOutcome(client, request, 'abandoned', null)
+      return { row, closed: true as const }
+    }
+    if (row?.state !== 'needs_intervention') throw new Error('shared_job_not_abandonable')
     await requireJobAuthority(client, row.control_tenant_id, actor)
     if (!isAbandonableOperation(row.payload?.operation)) throw new UnsupportedAbandonOperation(row.payload?.operation)
-    return { row, job: bindJob(row.payload) }
+    return { row, closed: false as const, job: bindJob(row.payload) }
   }
   const before = await transaction(pool, inspect)
+  if (before.closed) return { state: 'abandoned', recorded: true }
   const observation = sharedObservationSchema.parse(await adapter.observe(before.job))
-  if (observation.state === 'present') return { state: 'effect_present' }
+  if (observation.state === 'present') return { state: 'effect_present', recorded: false }
   if (observation.state !== 'absent') throw new Error(`effect_not_proven_absent:${observation.state}`)
   return transaction(pool, async client => {
-    const { row } = await inspect(client)
+    const current = await inspect(client)
+    if (current.closed) return { state: 'abandoned', recorded: true }
+    const { row } = current
     if (row.attempt_id !== before.row.attempt_id || Number(row.fence) !== Number(before.row.fence)) throw new Error('shared_lease_lost')
-    const closed = await client.query("UPDATE shared_jobs SET state='failed',lease_until=NULL WHERE id=$1 AND fence=$2 AND state='needs_intervention' RETURNING id", [jobId, row.fence])
+    const closed = await client.query("UPDATE shared_jobs SET state='failed',lease_until=NULL WHERE id=$1 AND fence=$2 AND state='needs_intervention' RETURNING id", [request.job_id, row.fence])
     if (!closed.rowCount) throw new Error('shared_lease_lost')
-    return { state: 'abandoned' }
+    await recordOutcome(client, request, 'abandoned', null)
+    return { state: 'abandoned', recorded: true }
   })
 }
 
@@ -96,20 +120,15 @@ export async function processJobAbandonments(pool: Pool, adapter: SharedFencedAd
     ORDER BY requested_at,job_id LIMIT $1`, [ABANDON_BATCH])).rows
   for (const row of due) {
     const actor = { issuer: row.issuer as string, actorUid: Number(row.actor_uid) }
-    let state: 'abandoned' | 'effect_present' | 'failed', error: string | null = null
     try {
-      state = (await abandonOne(pool, row.job_id, actor, adapter)).state
+      const outcome = await abandonOne(pool, row, actor, adapter)
+      if (!outcome.recorded) await transaction(pool, client => recordOutcome(client, row, outcome.state, null))
     } catch (e) {
       if (isTransientDatabaseError(e) || (e instanceof Error && e.message === 'shared_worker_stopping')) throw e
-      state = 'failed'
-      error = (e instanceof Error ? e.message : 'abandon_failed').slice(0, 200)
       input.log?.(`shared job abandon ${row.job_id} failed`, e)
+      const error = (e instanceof Error ? e.message : 'abandon_failed').slice(0, 200)
+      await transaction(pool, client => recordOutcome(client, row, 'failed', error))
     }
-    await transaction(pool, async client => {
-      await client.query("UPDATE shared_job_abandonments SET state=$2,error=$3,completed_at=clock_timestamp() WHERE job_id=$1 AND state='pending'", [row.job_id, state, error])
-      const detail = error ? `${state}: ${error}` : state
-      await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(), 'shared-worker', state === 'abandoned' ? 'shared_job.abandoned' : 'shared_job.abandon_refused', row.job_id, `${detail}; requested: ${row.reason}`.slice(0, 1000)])
-    })
   }
   return due.length
 }

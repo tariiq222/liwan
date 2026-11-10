@@ -115,6 +115,40 @@ else describe('shared job abandon', () => {
     expect(await jobState(id)).toBe('needs_intervention')
     await settle()
   })
+  /** Makes the next audit event of this action fail the way a lost connection does, then removes the fault. */
+  async function withAuditFault<T>(action: string, run: () => Promise<T>) {
+    await pool.query(`CREATE OR REPLACE FUNCTION abandon_test_fault() RETURNS trigger AS $$ BEGIN
+      IF NEW.action = '${action}' THEN RAISE EXCEPTION 'simulated connection loss' USING ERRCODE = '08006'; END IF; RETURN NEW; END $$ LANGUAGE plpgsql`)
+    await pool.query('CREATE TRIGGER abandon_test_fault BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION abandon_test_fault()')
+    try { return await run() } finally { await pool.query('DROP TRIGGER abandon_test_fault ON audit_events') }
+  }
+  const auditActions = async (id: string) => (await pool.query("SELECT action FROM audit_events WHERE subject=$1 AND action LIKE 'shared_job.abandon%' ORDER BY created_at", [id])).rows.map(r => r.action)
+  it('writes the outcome in the same transaction as the closure: a failure after closing leaves nothing half done', async () => {
+    const id = await crashedJob()
+    await requestSharedJobAbandon(pool, tenant, id, operator, reason)
+    await withAuditFault('shared_job.abandoned', async () => {
+      await expect(processJobAbandonments(pool, absent)).rejects.toThrow('simulated connection loss')
+    })
+    expect(await jobState(id)).toBe('needs_intervention')
+    expect(await abandonment(id)).toMatchObject({ state: 'pending' })
+    expect(await processJobAbandonments(pool, absent)).toBe(1)
+    expect(await abandonment(id)).toMatchObject({ state: 'abandoned', error: null })
+    expect(await jobState(id)).toBe('failed')
+    expect(await auditActions(id)).toEqual(['shared_job.abandon_requested', 'shared_job.abandoned'])
+    await settle()
+  })
+  it('recognises a request whose job its own closure already failed as done, never as refused', async () => {
+    const id = await crashedJob()
+    await requestSharedJobAbandon(pool, tenant, id, operator, reason)
+    // The state a worker that stopped between closing the job and recording the outcome left behind.
+    await pool.query("UPDATE shared_jobs SET state='failed',lease_until=NULL WHERE id=$1", [id])
+    expect(await processJobAbandonments(pool, absent)).toBe(1)
+    expect(await abandonment(id)).toMatchObject({ state: 'abandoned', error: null })
+    expect(await auditActions(id)).toEqual(['shared_job.abandon_requested', 'shared_job.abandoned'])
+    expect(await processJobAbandonments(pool, absent)).toBe(0)
+    expect(await auditActions(id)).toHaveLength(2)
+    await settle()
+  })
   it('refuses a job that is not stuck, a foreign tenant, an unknown job and an operator without the grant', async () => {
     const queued = (await enqueueSharedJob(pool, tenant, operator, { schemaVersion: 1, operation: 'backup', requestId: randomUUID() }, 'Queued backup')).id
     await expect(requestSharedJobAbandon(pool, tenant, queued, operator, reason)).rejects.toThrow('shared_job_not_abandonable')
