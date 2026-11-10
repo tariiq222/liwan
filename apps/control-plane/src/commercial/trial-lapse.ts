@@ -125,12 +125,15 @@ async function attempt(pool: Pool, lapse: Lapse, now: Date, adapter?: PaymentAda
   }
   if (sub.target_revision_id) {
     const pending = (await pool.query('SELECT * FROM orders WHERE subscription_id=$1 AND target_revision_id=$2', [sub.id, sub.target_revision_id])).rows[0]
-    // Only an order accepted before the trial ended, still unpaid, is cancelled with the trial, and only by the first step.
-    // Anything the customer starts afterwards (or at all, once on the base) is theirs: it is never touched, only waited for.
+    // In the first step (the lock has not been placed yet) ANY unpaid, not-started order is cancelled so the lock can proceed:
+    // otherwise a customer could hold an unpaid order on purpose and keep the paid applications writable. The customer
+    // orders again once the lock is on. Once on the base (limits_pending) an order the customer starts is never touched,
+    // only waited for.
     const staleUnpaid = lapse.state === 'pending' && pending && !pending.cancelled && pending.kind !== 'renewal' && pending.fulfillment_state === 'not_started'
-      && ['awaiting_payment', 'failed'].includes(pending.payment_state) && new Date(pending.created_at).getTime() < new Date(lapse.lapsed_at).getTime()
+      && ['awaiting_payment', 'failed'].includes(pending.payment_state)
     if (staleUnpaid) {
       try { await cancelOrder(pool, { order_id: pending.id, principal: SYSTEM_PRINCIPAL, reason: 'Trial ended with the order unpaid', adapter }) }
+      // A live provider attempt that cannot be cancelled keeps the order: the vendor sees why (free_base_blocked) while the hourly retry continues.
       catch (error) { return blocked(pool, lapse, now, `pending_order_not_cancelled:${(error as { code?: string }).code ?? 'error'}`) }
     } else if (lapse.state === 'pending' && now.getTime() - new Date(lapse.lapsed_at).getTime() > FREE_BASE_ORDER_WAIT_DAYS * 86_400_000) {
       return blocked(pool, lapse, now, 'order_in_flight')

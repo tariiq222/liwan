@@ -585,6 +585,42 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       expect((await attention(pool, true)).items.filter(i => i.customer_id === f.customer)).toEqual([])
     })
 
+    it('before the lock is placed any unpaid order is cancelled so the lock proceeds; a live attempt that cannot be cancelled is shown to the vendor', async () => {
+      const f = await endedTrial({ requested_users: 10 })
+      await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+      // The customer accepts an upgrade after the lapse and never pays: it must not hold the lock back.
+      await freshUsage(f, at(0))
+      const sub = await getSubscription(pool, f.customer)
+      const quote = await createQuoteForCustomer(pool, { customer_id: f.customer, request: { ...request(), kind: 'change', requested_users: 11, subscription_id: sub.id, expected_subscription_revision: sub.revision } }, now)
+      const { order: held } = await acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: sub.revision, idempotency_key: randomUUID() }, vendor)
+      expect(held.payment_state).toBe('awaiting_payment')
+      await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
+      expect((await pool.query('SELECT cancelled FROM orders WHERE id=$1', [held.id])).rows[0].cancelled).toBe(true)
+      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'ordered' })
+      expect((await lapseOrder(f.subscription)).fulfillment_state).toBe('queued')
+      // Another customer: the unpaid order has a live hosted attempt the provider cannot be asked to cancel.
+      const g = await endedTrial({ requested_users: 10 })
+      await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: g.subscription })
+      await freshUsage(g, at(0))
+      const gsub = await getSubscription(pool, g.customer)
+      const gquote = await createQuoteForCustomer(pool, { customer_id: g.customer, request: { ...request(), kind: 'change', requested_users: 11, subscription_id: gsub.id, expected_subscription_revision: gsub.revision } }, now)
+      const { order: stuck } = await acceptQuote(pool, { quote_id: gquote.id, expected_subscription_revision: gsub.revision, idempotency_key: randomUUID() }, vendor)
+      await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,provider_ref,amount_minor,currency,exponent,status)
+        SELECT $1,$2,id,'simulator','simulator',$2::uuid::text,$3,total_minor,currency,exponent,'redirected' FROM invoices WHERE order_id=$2`, [randomUUID(), stuck.id, `sim_inv_deadbeef_${Math.floor(Math.random() * 1e6)}`])
+      await processTrialLapses(pool, { now, subscription_id: g.subscription })
+      expect((await pool.query('SELECT cancelled FROM orders WHERE id=$1', [stuck.id])).rows[0].cancelled).toBe(false)
+      expect(await lapseRow(g.subscription)).toMatchObject({ state: 'pending', reason: 'pending_order_not_cancelled:payment_reconciliation_required' })
+      await pool.query("UPDATE trial_lapses SET state='superseded' WHERE subscription_id<>$1", [g.subscription])
+      expect((await attention(pool, true)).items.filter(i => i.customer_id === g.customer)).toContainEqual(expect.objectContaining({ kind: 'free_base_blocked', detail: 'pending_order_not_cancelled:payment_reconciliation_required' }))
+    })
+
+    it('says plainly that kept extra branches are free only until the next branch purchase', () => {
+      const text = overLimitText([{ key: 'branches.extra', used: 3, free: 1 }])
+      expect(text).toContain('تبقى فعّالة دون رسوم إلى أن تشتري فرعًا جديدًا')
+      expect(text).toContain('every active branch above the number included in your plan is priced')
+      expect(overLimitText([{ key: 'users.limit', used: 9, free: 3 }])).not.toContain('branch')
+    })
+
     it('an order the customer starts on the free base is never cancelled by a retry, and the attention item clears when it is applied', async () => {
       const f = await endedTrial({ requested_users: 10 })
       await locked(f)
