@@ -11,6 +11,7 @@ from odoo.addons.liwan_hr.models.hr_version import (
     PAYROLL_OFFBOARDING_GROUPS,
 )
 from odoo.addons.liwan_hr.rules import LiwanHrRule
+from odoo.addons.liwan_platform.models.read_only_guard import assert_writable
 
 EMPLOYEE_WRITE_ERROR = 'employee management capability is required'
 EMPLOYEE_SCOPE_ERROR = 'employee is outside the current company'
@@ -344,9 +345,15 @@ class LiwanHrEmployee(models.Model):
     def _liwan_before_archive(self):
         """Extension point run inside the archive savepoint, before the rows are deactivated."""
 
+    def _liwan_assert_lifecycle_writable(self, active):
+        """The archive SQL below skips the ORM write fence; apply it to both rows it changes."""
+        for records in (self, self.mapped('resource_id')):
+            assert_writable(records, 'write', {'active': active})
+
     def _liwan_archive(self):
         self._liwan_require_capability('hr.employees.archive')
         self._liwan_validate_scope()
+        self._liwan_assert_lifecycle_writable(False)
         with self.env.cr.savepoint():
             for blocker in self._liwan_exit_blockers():
                 raise LiwanHrRule(
@@ -376,6 +383,7 @@ class LiwanHrEmployee(models.Model):
     def _liwan_unarchive(self):
         self._liwan_require_capability('hr.employees.archive')
         self._liwan_validate_scope()
+        self._liwan_assert_lifecycle_writable(True)
         with self.env.cr.savepoint():
             resource_ids = self.mapped('resource_id').ids
             self.env.cr.execute(
