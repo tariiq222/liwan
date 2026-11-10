@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
 
+from .res_company import ZATCA_ENVIRONMENT_PERMISSION
+
 FINANCE_PERMISSIONS = frozenset({
     'finance.invoices.read', 'finance.payments.read',
     'finance.accounts.read', 'finance.accounts.manage', 'finance.journals.read', 'finance.journals.manage',
@@ -38,6 +40,7 @@ FINANCE_PERMISSION_DEPENDENCIES = {
     'finance.assets.manage': {'finance.assets.read'},
     'finance.zatca.read': {'finance.invoices.read'},
     'finance.zatca.manage': {'finance.zatca.read'},
+    ZATCA_ENVIRONMENT_PERMISSION: {'finance.zatca.read'},
     'finance.zatca.submit': {'finance.zatca.read'},
     'finance.analytic.manage': {'finance.analytic.read'},
     'finance.budgets.manage': {'finance.budgets.read'},
@@ -94,7 +97,7 @@ class LiwanFinanceAccessService(models.AbstractModel):
     @api.model
     def _liwan_capability_definitions(self):
         return super()._liwan_capability_definitions() + tuple(
-            {'key': key, 'owner': 'liwan_finance'} for key in sorted(FINANCE_PERMISSIONS)
+            {'key': key, 'owner': 'liwan_finance'} for key in sorted(FINANCE_PERMISSIONS | {ZATCA_ENVIRONMENT_PERMISSION})
         )
 
     @api.model

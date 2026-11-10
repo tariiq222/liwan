@@ -15,6 +15,7 @@ from odoo.addons.liwan_finance.models.access_service import (
     FINANCE_AUDITOR_PERMISSIONS,
     FINANCE_PERMISSIONS,
 )
+from odoo.addons.liwan_finance.models.res_company import ZATCA_ENVIRONMENT_PERMISSION
 
 ROUTES = (
     '/api/v1/finance/invoices',
@@ -29,13 +30,12 @@ class TestFinanceAccessComposition(TransactionCase):
     """liwan_finance owns its capabilities, groups and role (spec R2) and runs at install."""
 
     def test_owns_its_capabilities_and_their_groups(self):
+        # The ZATCA environment capability is owned here but held by no built-in role (policy D2).
+        owned = FINANCE_PERMISSIONS | {ZATCA_ENVIRONMENT_PERMISSION}
         catalog = self.env['liwan.access.service']._liwan_capability_map()
-        self.assertEqual(
-            {key for key, item in catalog.items() if item['owner'] == 'liwan_finance'},
-            set(FINANCE_PERMISSIONS),
-        )
-        permissions = self.env['liwan.access.permission'].search([('key', 'in', sorted(FINANCE_PERMISSIONS))])
-        self.assertEqual(len(permissions), len(FINANCE_PERMISSIONS))
+        self.assertEqual({key for key, item in catalog.items() if item['owner'] == 'liwan_finance'}, owned)
+        permissions = self.env['liwan.access.permission'].search([('key', 'in', sorted(owned))])
+        self.assertEqual(len(permissions), len(owned))
         for permission in permissions:
             self.assertTrue(permission.group_xmlid.startswith('liwan_finance.group_cap_finance_'), permission.key)
             self.assertTrue(self.env.ref(permission.group_xmlid, raise_if_not_found=False), permission.key)

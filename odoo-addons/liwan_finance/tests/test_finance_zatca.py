@@ -1,21 +1,26 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import json
 import re
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from odoo import fields
 from odoo.tests import tagged
 
 from .common import MANAGER_LOGIN, MANAGER_PASSWORD, LiwanFinanceCase
 from .write_common import INVOICES, LiwanFinanceWriteCase
 from odoo.addons.liwan_finance.serializers.setup import dump_setup
-from odoo.addons.liwan_finance.serializers.zatca import dump_zatca_readiness
+from odoo.addons.liwan_finance.serializers.zatca import (
+    dump_zatca_journal,
+    dump_zatca_readiness,
+)
 
 SECRET_KEY = re.compile(r'secret|token|password|csr|certificate|csid|credential|otp|^key$|private', re.IGNORECASE)
 # The only key naming a secret holds a boolean: whether the private key exists.
 PRESENCE_FLAGS = {'private_key_present'}
 SECRET_VALUE = 'TOP-SECRET-MATERIAL'
-JOURNAL_KEYS = {'journal', 'onboarded', 'state'}
+JOURNAL_KEYS = {'journal', 'onboarded', 'state', 'expires_at', 'expiry_warning_days'}
 ZATCA_KEYS = {'api_mode', 'private_key_present', 'journals', 'onboarded'}
 
 
@@ -35,7 +40,7 @@ def fake_journal(journal_id, ready, checks_passed):
         id=journal_id, name=f'Journal {journal_id}',
         l10n_sa_compliance_checks_passed=checks_passed,
         l10n_sa_production_csid_json=SECRET_VALUE, l10n_sa_compliance_csid_json=SECRET_VALUE,
-        l10n_sa_csr=SECRET_VALUE,
+        l10n_sa_csr=SECRET_VALUE, l10n_sa_production_csid_validity=False,
         _l10n_sa_ready_to_submit_einvoices=lambda: SECRET_VALUE if ready else False,
     )
 
@@ -77,6 +82,19 @@ class TestFinanceZatcaReadiness(LiwanFinanceCase):
         self.assertEqual((zatca['api_mode'], zatca['private_key_present'], zatca['onboarded']), ('sandbox', True, False))
         for row in zatca['journals']:
             self.assertEqual(set(row), JOURNAL_KEYS)
+
+    def test_expiry_warnings_follow_the_issued_certificate_dates(self):
+        now = datetime(2026, 11, 10, 9, 0)
+        with patch.object(fields.Datetime, 'now', return_value=now):
+            for hours, warning in ((24 * 31, None), (24 * 30, 30), (24 * 7, 7), (24, 1), (0, 0), (-1, 0)):
+                journal = fake_journal(1, ready=True, checks_passed=True)
+                expiry = now + timedelta(hours=hours)
+                journal.l10n_sa_production_csid_validity = expiry
+                self.assertEqual(dump_zatca_journal(journal)['expiry_warning_days'], warning)
+                self.assertEqual(dump_zatca_journal(journal)['expires_at'], expiry.isoformat() + 'Z')
+            reset = fake_journal(2, ready=False, checks_passed=False)
+            reset.l10n_sa_production_csid_validity = now
+            self.assertIsNone(dump_zatca_journal(reset)['expires_at'])
 
     def test_the_company_is_onboarded_only_with_a_key_and_every_journal_onboarded(self):
         ready = [fake_journal(1, True, True)]

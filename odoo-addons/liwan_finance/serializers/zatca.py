@@ -9,6 +9,8 @@ import re
 from collections import Counter
 from datetime import timedelta
 
+from odoo import fields
+
 from odoo.addons.liwan_api.serializers.common import iso
 
 MAX_ITEMS = 20
@@ -25,6 +27,8 @@ UNAUTHORIZED_STATUSES = frozenset({'401', '403'})
 MAX_LOCAL_TEXT = 200
 STATUS_MARKER = re.compile(r'\[(\d{3})\]')
 ZATCA_FORMAT_CODE = 'sa_zatca'
+EXPIRY_WARNING_DAYS = (1, 7, 30)
+REPORTING_WARNING_HOURS = 12
 # Stock logs one alert box per submission in the chatter; its warning lines read "<b>CODE</b> : message".
 ALERT = re.compile(r"class=[\"']alert alert-(\w+)")
 CODED_LINE = re.compile(r'^(?:\[\d+\]\s*)?([A-Z][A-Za-z0-9-]*-[A-Za-z0-9-]+)\s*:\s*(.+)$')
@@ -56,10 +60,19 @@ def _journal_state(journal):
 
 def dump_zatca_journal(journal):
     state = _journal_state(journal)
+    expiry = journal.l10n_sa_production_csid_validity if state == 'onboarded' else None
+    warning = None
+    if expiry:
+        remaining = expiry - fields.Datetime.now()
+        warning = 0 if remaining <= timedelta() else next(
+            (days for days in EXPIRY_WARNING_DAYS if remaining <= timedelta(days=days)), None,
+        )
     return {
         'journal': {'id': journal.id, 'name': journal.name},
         'onboarded': state == 'onboarded',
         'state': state,
+        'expires_at': iso(expiry),
+        'expiry_warning_days': warning,
     }
 
 
@@ -99,6 +112,16 @@ def dump_zatca_backlog(company):
         'to_send': by_level.get(False, 0), 'retry': by_level.get('warning', 0) + by_level.get('info', 0),
         'rejected': kinds['rejected'], 'blocked': kinds['blocked'],
     }
+
+
+def dump_zatca_overdue_reporting(company):
+    cutoff = fields.Datetime.now() - timedelta(hours=REPORTING_WARNING_HOURS)
+    # Stock ``_l10n_sa_is_simplified``: the commercial partner of the customer is a person (not ``is_company``).
+    # ``commercial_partner_id`` is stored, so one count replaces loading every waiting document.
+    return company.env['account.edi.document'].search_count([
+        *waiting_domain(company), ('move_id.l10n_sa_confirmation_datetime', '<', cutoff),
+        ('move_id.partner_id.commercial_partner_id.is_company', '=', False),
+    ])
 
 
 def zatca_state(document):

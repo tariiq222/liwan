@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Stock marks the record noupdate. Change only the cadence through the public model write. -->
+    <function model="ir.cron" name="write">
+        <value eval="[ref('account_edi.ir_cron_edi_network')]"/>
+        <value eval="{'interval_number': 1, 'interval_type': 'hours'}"/>
+    </function>
+</odoo>

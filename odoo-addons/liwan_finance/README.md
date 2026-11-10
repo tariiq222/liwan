@@ -558,26 +558,30 @@ override its access methods. The Saudi company needs a complete identity first (
 registry; the seller's commercial-registration identification and building number are what ZATCA warns about
 otherwise.
 
-**Sandbox only; a release blocker.** Onboarding is sandbox-only in this phase, so **production invoicing for real
-tenants is a release blocker until the simulation/production policy is approved.** The company api mode itself is
-confined: a `res.company` constraint (`models/res_company.py`) refuses any `l10n_sa_api_mode` but `sandbox`, because
-the stock EDI cron sends every pending document in the company's own mode (the shared cron is left active; see below). Onboarding,
-submit and retry also refuse a non-sandbox mode with 422 `zatca_mode_not_allowed` before anything is elevated or sent.
-There is no route that changes the mode.
+**Developer sandbox only.** Simulation and production remain release-gated. The company model
+refuses unsupported values before stock changes certificates or the hash. The native wizard and
+Saudi EDI post callback check the same company fence. `POST /zatca/mode` requires the independent
+`finance.zatca.environment` permission and the exact target name. It can confirm the current sandbox
+without resetting a journal. It returns separate release refusals for simulation and production.
+See the [release policy](../../docs/superpowers/specs/2026-10-20-zatca-production-policy.md) and
+[recovery runbook](../../docs/operations/zatca-recovery.md).
 
-- `GET /zatca/status`: `{api_mode, private_key_present, journals: [{journal, onboarded, state}], onboarded, backlog}`.
+- `GET /zatca/status`: `{api_mode, private_key_present, journals: [{journal, onboarded, state, expires_at, expiry_warning_days}], onboarded, backlog, overdue_reporting}`.
   `state` is `not_started`, `compliance_checked` or `onboarded`. `backlog` counts the posted ZATCA documents of the
   current company still waiting (read in the caller's environment, no `sudo()`): `to_send` (no attempt blocked yet),
   `retry` (blocked with a warning or info level: no verdict, the cron tries again), `rejected` (error with ZATCA validation codes) and
-  `blocked` (error before any verdict: signing, certificate, chain head). The setup `zatca` block has no backlog.
+  `blocked` (error before any verdict, including signing, certificate or chain-head failure). `overdue_reporting`
+  counts waiting simplified documents issued more than 12 hours earlier. The setup `zatca` block contains
+  journal readiness without the backlog. Expiry warning thresholds are 30, 7 and 1 day, with 0 for expiry.
 - `POST /zatca/journals/<id>/onboard {otp}`: `otp` is the six-digit one-time password of the Fatoora portal (the
   sandbox accepts `123345`). It runs the stock `l10n_sa_edi.otp.wizard` (key and CSR when missing, compliance CSID,
   the six compliance checks, production CSID) for one sales journal of the current company, then updates the
   integrations connection (`connected` when every sales journal is onboarded, else `pending`). Onboarding again is the
   re-onboarding; there is no reset route. Answer: the journal row. A failure is 502 `zatca_unavailable` (ZATCA could not
   be reached: connection errors, timeouts, or any HTTP status stock did not interpret other than 400, including 401;
-  the generic message never carries the raw answer) or 422 `zatca_rejected` (ZATCA's 400 answer, or stock's own short
-  message; that text is echoed, length-capped). The stock wizard runs in English whatever the caller's language. A failure rolls the whole request back, so a previously working onboarding survives a wrong OTP.
+  the generic message never carries the raw answer) or 422 `zatca_rejected` with a sanitized message.
+  The Liwan request uses an in-memory stock wizard so its OTP does not persist. A failure rolls back the request
+  and preserves a previously working onboarding.
   Stock folds every failure into one text, so the 502/422 split reads that text (a `[NNN]` status marker other than
   400, or connection-error words); a transport failure during the compliance checks is indistinguishable from a rejection and answers 422.
 - `GET /invoices/<id>/zatca` and the `submission` block of the invoice detail `zatca`:
@@ -610,8 +614,8 @@ Error codes: `zatca_unavailable` 502, `zatca_rejected` 422, `zatca_local_error` 
 **The cron.** `account_edi.ir_cron_edi_network` ("EDI: Perform web services operations") ships inactive
 (`noupdate`, `active=False`, every 1 day) in stock `account_edi`. Creating an EDI format whose `_needs_web_services()` is
 true activates it (`account.edi.format.create`); `l10n_sa_edi` creates `sa_zatca`, which needs web services, so
-installing it leaves the cron active (`tests/test_finance_zatca_flow.py` pins `active` and the 1-day interval).
-Posting or retrying a document also triggers the cron right away (`_trigger()`), so the day interval is only the
+installing it leaves the cron active. Liwan Finance sets the shared stock fallback to one hour.
+Posting or retrying a document also triggers the cron right away (`_trigger()`), so the hourly interval is only the
 fallback. The cron skips documents blocked with `error` (the `rejected` and `blocked` backlog); `retry` and `to_send`
 ones are sent again in the company's own api mode, which the company constraint confines to `sandbox`.
 
