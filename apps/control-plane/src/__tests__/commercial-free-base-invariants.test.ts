@@ -381,4 +381,41 @@ suite('free base invariants (issue 491)', () => {
     }
   })
 
+
+  describe('F2: money paid is never invoiced again', () => {
+    it('inside the window no order is accepted (lock_pending); after the lock the same upgrade is an ordinary paid change', async () => {
+      const f = await endedTrial()
+      await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+      const quote = await quoteChange(f, { requested_users: 4 }, now, [bundle.id])
+      expect(quote.due_now.minor).toBeGreaterThan(0)
+      const sub = await getSubscription(pool, f.customer)
+      await expect(acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: sub.revision, idempotency_key: randomUUID() }, vendor)).rejects.toMatchObject({ code: 'lock_pending', status: 409 })
+      await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
+      await applyOrder(f, (await lapseOrders(f.subscription)).at(-1).id)
+      await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
+      await freshUsage(f, now)
+      const after = await quoteChange(f, { requested_users: 4 }, now, [bundle.id])
+      await payAndApply(f, await accept(f, after))
+      expect(await row(f.subscription)).toMatchObject({ state: 'active' })
+      for (const key of PAID_KEYS) expect((await applied(f.subscription)).entitlement.features[key], key).toBe(true)
+    })
+    it('a paid order accepted before the end and applied after it: the first invoice is exactly the quoted renewal, dated from the trial end', async () => {
+      const f = await endedTrial()
+      const quote = await quoteChange(f, { requested_users: 4 }, new Date(now.getTime() - 5 * day), [bundle.id])
+      const order = await accept(f, quote)
+      await pool.query("UPDATE orders SET payment_state='paid',fulfillment_state='queued' WHERE id=$1", [order.id])
+      await pool.query("INSERT INTO commercial_outbox(id,kind,aggregate_id,dedupe_key,payload) VALUES($1,'fulfillment.enqueue',$2,$3,$4) ON CONFLICT DO NOTHING", [randomUUID(), order.id, order.target_revision_id, JSON.stringify({ order_id: order.id })])
+      await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+      await applyOrder(f, order.id)
+      await processTrialLapses(pool, { now: at(1), adapter, subscription_id: f.subscription })
+      const invoices = (await pool.query("SELECT total_minor,period_start::text AS period_start FROM invoices WHERE subscription_id=$1 AND kind='renewal'", [f.subscription])).rows
+      expect(invoices).toHaveLength(0)
+      const generated = await generateRenewals(pool, { now: at(2), adapter, returnOrigin: origin, subscription_id: f.subscription })
+      expect(generated).toHaveLength(1)
+      expect(generated[0]!.due_now.minor).toBe(quote.next_renewal.minor)
+      const invoice = (await pool.query("SELECT period_start::text AS period_start FROM invoices WHERE order_id=$1", [generated[0]!.id])).rows[0]
+      expect(invoice.period_start).toBe('2026-11-19')
+    })
+  })
+
 })

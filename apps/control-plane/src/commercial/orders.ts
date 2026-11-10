@@ -8,7 +8,7 @@ import { CommercialHttpError, digestOf, iso } from './lifecycle.js'
 import { requireCapability } from './authorization.js'
 import { appliedPeriod } from './quotes.js'
 import { loadQuoteSources, pricingBaseline } from './quote-sources.js'
-import { carryHeldCeilings } from './free-base.js'
+import { carryHeldCeilings, unresolvedLapse } from './free-base.js'
 import { issueInvoiceFromQuote } from './invoices.js'
 import { enqueueOutbox } from './outbox.js'
 import { lookup } from './payments.js'
@@ -199,6 +199,10 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
   if (subscription.target_revision_id || pending.rowCount) throw new CommercialHttpError('subscription_change_pending', 409)
   // Once the trial end date has passed and the lapse has not run yet, no new order is accepted: otherwise an order could keep
   // arriving against the trial configuration and the wait for the lapse would never end.
+  // Between the lapse and the lock order's receipt the applied revision is still the paid trial: an order accepted now would be
+  // priced for the free-base period and then collide with the lock (or with a conversion that bills the same period again). The
+  // customer upgrades right after the lock, which is minutes in the normal case and visible to the vendor when it is blocked.
+  if (subscription.applied_revision_id && await unresolvedLapse(client, subscription)) throw new CommercialHttpError('lock_pending', 409, 'subscription_id')
   if (subscription.state === 'trialing' && subscription.trial_ends_at && subscription.applied_revision_id && new Date(subscription.trial_ends_at).getTime() <= now.getTime()) throw new CommercialHttpError('trial_ending', 409)
   if (new Date(quote.expires_at).getTime() <= now.getTime()) throw new CommercialHttpError('quote_expired', 422)
   const branchRequest = (await client.query('SELECT * FROM branch_quote_requests WHERE quote_id=$1', [quote.id])).rows[0]
