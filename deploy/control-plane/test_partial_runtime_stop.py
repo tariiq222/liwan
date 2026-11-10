@@ -27,7 +27,7 @@ NODE22 = Path('/opt/homebrew/opt/node@22/bin/node')
 SCRIPTS = ('run-local.sh', 'local-process.sh', 'status-local.sh', 'stop-local.sh',
            'process_lock.py', 'startup_handoff.py', 'begin_generation.py',
            'recover_generation.py', 'resource_guard.py', 'runtime-trap.sh',
-           'runtime-trap-cleanup.sh')
+           'runtime-trap-cleanup.sh', 'runtime-tenancy.sh')
 
 DOCKER_PY = r'''import json, sys, os
 args = sys.argv[1:]

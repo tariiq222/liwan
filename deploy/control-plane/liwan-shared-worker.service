@@ -1,0 +1,68 @@
+# systemd unit for the shared control-plane worker (src/shared-worker-main.ts).
+#
+# This process is the only one that runs the commercial scheduler and pushes tenant
+# status to Odoo, so a shared deployment that omits it never applies a suspension or
+# a renewal. It is deliberately NOT a service in deploy/docker-compose.shared.yml:
+# the control plane runs natively next to the Docker socket it drives, and the guard
+# image contains neither the control-plane code nor its Node/tsx dependencies, its
+# Python or a docker client. See docs/operations/saas-commercial-runbook.md.
+#
+# Example, not an installer. Adjust the /opt/liwan/current prefix and the account to
+# the host; keep the shape. Install:
+#   install -m 0644 deploy/control-plane/liwan-shared-worker.service /etc/systemd/system/
+#   systemctl daemon-reload
+#   systemctl enable --now liwan-shared-worker
+#
+# Prerequisites this unit does not create:
+#   * a `liwan-worker` account that is a member of the docker group (never root);
+#   * /etc/liwan/shared-worker.env, operator-owned, mode 0600, plain KEY=value lines
+#     (systemd does not accept the `export` keyword init-local.sh writes into a local
+#     runtime.env). Values never go in this unit file.
+#   * a PATH entry containing Node 22 and the docker client.
+#
+# Required in that EnvironmentFile (getConfig() calls required() on each):
+#   LIWAN_TENANCY_MODE=shared          run-shared-worker.sh refuses anything else
+#   LIWAN_SHARED_RUNTIME_CONFIG        absolute
+#   LIWAN_TENANT_REGISTRY_PATH         absolute
+#   CONTROL_DATABASE_URL
+#   CONTROL_INSTALLATION_ID            must equal CONTROL_SERVICE_KEY's issuer
+#   CONTROL_SERVICE_KEY                at least 32 bytes
+#   LIWAN_CLI_INVENTORY                absolute
+#   LIWAN_CLI_STATE_DIR                absolute
+#   LIWAN_REPOSITORY_ROOT              absolute; the effect children run from here
+# Optional: LIWAN_CLI_PYTHON (default `python3`, must be able to import
+# tools.shared_saas_lifecycle), LIWAN_MANAGED_INVENTORY, the INTERNAL_EFFECT_* channel,
+# LIWAN_PAYMENT_* / MOYASAR_* and LIWAN_MAIL_* (unset payment or mail adapter is logged
+# and the scheduler keeps the jobs that do not need them).
+#
+# Docker: the worker runs tools/shared_saas_lifecycle effects through a docker client
+# (docker inspect/ps/compose/kill). On a host whose Docker is socket-activated, replace
+# Requires=docker.service with After=docker.socket and the matching Wants=.
+[Unit]
+Description=Liwan shared control-plane worker (commercial scheduler)
+Documentation=file:///opt/liwan/current/docs/operations/saas-commercial-runbook.md
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=liwan-worker
+Group=liwan-worker
+WorkingDirectory=/opt/liwan/current
+EnvironmentFile=/etc/liwan/shared-worker.env
+# run-shared-worker.sh refuses to start unless LIWAN_TENANCY_MODE=shared and both
+# shared paths are set, then execs `node --import tsx src/shared-worker-main.ts` in the
+# foreground, so SIGTERM reaches the worker itself and not a shell.
+ExecStart=/opt/liwan/current/deploy/control-plane/run-shared-worker.sh
+Restart=on-failure
+RestartSec=10
+KillSignal=SIGTERM
+# The worker aborts on SIGTERM, waits for an in-flight usage run and closes the pool;
+# one tenant status effect has a 180 s bound of its own.
+TimeoutStopSec=300
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

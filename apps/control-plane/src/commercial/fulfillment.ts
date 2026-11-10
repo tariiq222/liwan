@@ -199,12 +199,14 @@ async function handleEnqueueFailure(pool: Pool, row: OutboxRow, code: string) {
   return result
 }
 
-export async function processFulfillmentOutbox(pool: Pool, options: { limit?: number; enrollment?: EnrollmentRuntime } = {}) {
+export async function processFulfillmentOutbox(pool: Pool, options: { limit?: number; enrollment?: EnrollmentRuntime; signal?: AbortSignal } = {}) {
   const limit=options.limit??20
   if (!Number.isSafeInteger(limit) || limit<1 || limit>1000) throw Error('limit_invalid')
   const rows=await claimOutbox(pool,['fulfillment.enqueue'],limit)
   const results: {order_id:string;job_id?:string;reason?:string}[]=[]
   for (const row of rows) {
+    // Worker shutdown: the order in flight finishes; every other claimed row gives its lease back.
+    if (options.signal?.aborted) { await releaseOutbox(pool,row.id); continue }
     try {
       const enrollment=await enrollNewOrder(pool,row.aggregate_id,options.enrollment)
       const result=await transaction(pool,async client=>{
