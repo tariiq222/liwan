@@ -31,6 +31,7 @@ SETTLE_MARKER = 'liwan_platform.settle_excess'
 SETTLE_FIELDS = {
     'res.users': frozenset({'liwan_read_only', 'liwan_seat_choice'}),
     'liwan.tenant.branch': frozenset({'read_only', 'seat_choice'}),
+    'ir.attachment': frozenset({'liwan_storage_blocked'}),
 }
 
 # Rows the system writes about the session itself or about a sign-in: a plain read triggers them, and the
@@ -225,7 +226,9 @@ def assert_writable(records, operation, vals=None, vals_list=None):
         return
     # A create checks the identity before the insert; the second call, with the new rows, only asks about the company.
     identity_checked = operation == 'create' and bool(records)
-    if not identity_checked and env.user.liwan_read_only:
+    service = env['liwan.entitlement.service']
+    due = service._liwan_post_trial_due()
+    if not identity_checked and service._liwan_actor_read_only(env.user, trial_due=due):
         if not _registered_allowance(records, vals, vals_list):
             _refuse('user_read_only')
         return
@@ -237,5 +240,9 @@ def assert_writable(records, operation, vals=None, vals_list=None):
     parent_fields = PARENT_REFERENCES.get(model, ())
     if vals_list or keys.intersection(parent_fields):
         companies |= _parent_companies(records, vals=vals, vals_list=vals_list)
-    if companies.filtered('liwan_read_only') and not _registered_allowance(records, vals, vals_list):
+    restricted = companies.filtered('liwan_read_only')
+    if due and companies:
+        demote, reopen = service._liwan_branch_flag_changes()
+        restricted = (restricted | (companies & demote.company_id)) - reopen.company_id
+    if restricted and not _registered_allowance(records, vals, vals_list):
         _refuse('branch_read_only')

@@ -3,13 +3,14 @@ import re
 import uuid
 from datetime import datetime, timezone
 
-from odoo import SUPERUSER_ID, api, models
+from odoo import SUPERUSER_ID, api, fields, models
 from odoo.exceptions import AccessDenied, AccessError, UserError, ValidationError
 from odoo.http import request
 
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
-POLICY_FIELDS = frozenset({
+TRIAL_POLICY_FIELDS = frozenset({'trial_ends_at', 'post_trial_features', 'post_trial_modules', 'post_trial_digest'})
+POLICY_FIELDS = TRIAL_POLICY_FIELDS | frozenset({
     'solution', 'tier', 'status', 'valid_until', 'commercial_valid_until', 'commercial_valid_until_revision', 'features',
     'retained_read_features', 'terminology', 'policy_revision',
     'quota_revision', 'support_access_enabled', 'commercial_mode', 'entitlement_source',
@@ -17,6 +18,7 @@ POLICY_FIELDS = frozenset({
 })
 NOTIFICATION_READ_PATH = re.compile(r'/api/v1/notifications/\d+/read')
 OPERATOR_CONTEXT = 'liwan_platform.operator_policy'
+PROFILE_CACHE_KEY = 'liwan_platform.tenant_profile_id'
 TERMINOLOGY_LOCALES = ('ar', 'en')
 TERMINOLOGY_MAX_KEYS = 64
 TERMINOLOGY_MAX_CHARS = 120
@@ -43,11 +45,18 @@ class LiwanEntitlementService(models.AbstractModel):
 
     @api.model
     def _liwan_profile(self):
-        profiles = self.env['liwan.tenant.profile'].sudo().search([], limit=2)
+        Profile = self.env['liwan.tenant.profile'].sudo()
+        cache = self.env.cr.cache
+        if PROFILE_CACHE_KEY in cache:
+            return Profile.browse(cache[PROFILE_CACHE_KEY])
+        profiles = Profile.search([], limit=2)
         if len(profiles) != 1:
             raise UserError(self.env._(
                 'liwan_platform: tenant profile is missing or not a singleton.',
             ))
+        # The singleton cannot be deleted. Cache its identity only, never its policy or clock.
+        if self.env.registry.ready:
+            cache[PROFILE_CACHE_KEY] = profiles.id
         return profiles
 
     @api.model
@@ -62,8 +71,8 @@ class LiwanEntitlementService(models.AbstractModel):
         valid_until = profile.valid_until
         if valid_until and valid_until < self._liwan_utc_today():
             return 'expired'
-        commercial_until = getattr(profile, 'commercial_valid_until', None)
-        if commercial_until and commercial_until < self._liwan_utc_today():
+        commercial_until = profile.commercial_valid_until
+        if not profile.trial_ends_at and commercial_until and commercial_until < self._liwan_utc_today():
             return 'expired'
         return 'active'
 
@@ -137,9 +146,29 @@ class LiwanEntitlementService(models.AbstractModel):
         return self._liwan_registry()._liwan_installed_module_ids()
 
     @api.model
+    def _liwan_trial_now(self):
+        return fields.Datetime.now()
+
+    @api.model
+    def _liwan_post_trial_due(self, profile=None):
+        if profile is None and not self.env.registry.ready:
+            return False
+        profile = profile or self._liwan_profile()
+        return bool(profile.trial_ends_at and self._liwan_trial_now() >= profile.trial_ends_at)
+
+    @api.model
+    def _liwan_post_trial_payload(self, profile):
+        live = profile.features or {}
+        balance = {
+            key: value for key, value in live.items()
+            if key.startswith(('ai.balance.', 'ai.allowance.'))
+        }
+        return {**profile.post_trial_features, **balance}
+
+    @api.model
     def _liwan_features_payload(self, profile=None):
         profile = profile or self._liwan_profile()
-        payload = profile.features or {}
+        payload = self._liwan_post_trial_payload(profile) if self._liwan_post_trial_due(profile) else profile.features or {}
         if not isinstance(payload, dict):
             code = 'tenant_configuration_invalid'
             raise LiwanAccessRule(code, 'tenant features payload is invalid', status=503)
@@ -152,6 +181,8 @@ class LiwanEntitlementService(models.AbstractModel):
         if not isinstance(retained, list):
             code = 'tenant_configuration_invalid'
             raise LiwanAccessRule(code, 'tenant retained-read payload is invalid', status=503)
+        if self._liwan_post_trial_due(profile):
+            retained = self._liwan_merge_retained(retained, profile.features)
         return tuple(retained)
 
     @api.model
@@ -364,6 +395,7 @@ class LiwanEntitlementService(models.AbstractModel):
 
     @api.model
     def _liwan_count_storage_bytes(self):
+        self.env['ir.attachment'].flush_model(['type', 'file_size'])
         self.env.cr.execute(
             """
                 SELECT COALESCE(SUM(file_size), 0)

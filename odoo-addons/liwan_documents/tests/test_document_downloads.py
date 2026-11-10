@@ -112,6 +112,20 @@ class TestDocumentDownloads(DocumentHttpCase):
         self.assertEqual(response.headers.get('X-Content-Type-Options'), 'nosniff')
         self.assertIn('attachment;', response.headers.get('Content-Disposition', ''))
 
+    def test_storage_excess_denies_dms_download_while_metadata_stays_readable(self):
+        self.authenticate('docs_manager', 'docs_manager')
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({
+            'features': {**profile.features, 'storage.limit_mb': 0},
+        })
+        root = f'/api/v1/documents/{self.document.id}/files'
+        listing = self.url_open(root)
+        self.assertEqual(listing.status_code, 200)
+        self.assertIn('download.txt', listing.text)
+        response = self.url_open(f'{root}/{self.file.id}/download')
+        self.assertEqual((response.status_code, response.json().get('code')), (403, 'storage_excess_blocked'))
+        self.assertNotIn(b'private download bytes', response.content)
+
     def test_arabic_file_name_keeps_a_readable_ascii_fallback(self):
         self.authenticate('docs_manager', 'docs_manager')
         arabic = self.env['dms.file'].create({

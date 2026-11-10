@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import re
+from datetime import timedelta
 
+from odoo import fields
 from odoo.fields import Command
 from odoo.tests import get_db_name, new_test_user, tagged
 
@@ -91,6 +93,26 @@ class TestReadOnlyUserApi(LiwanApiCase):
         # Odoo queues its security notice to the person's own address; the fence lets that one mail through.
         self.assertGreater(self.env['mail.mail'].search_count([('email_to', 'ilike', 'api_emp@example.test')]), mails)
         self.assertEqual(self.api('GET', '/api/v1/me').status_code, 200)
+
+    def test_me_reports_cronless_trial_read_only_before_the_account_flag_is_written(self):
+        actor = new_test_user(
+            self.env, login='cronless_api_emp', password='cronless_api_pass_123', groups='liwan_core.group_employee',
+        )
+        self.profile.with_context(**{OPERATOR_CONTEXT: True}).write({
+            'trial_ends_at': fields.Datetime.now() - timedelta(minutes=1),
+            'post_trial_features': {**self.profile.features, 'users.limit': 0},
+            'post_trial_modules': [],
+            'post_trial_digest': 'b' * 64,
+            'commercial_revision_id': 'trial-cronless-api',
+            'commercial_digest': 'a' * 64,
+            'commercial_valid_until_revision': 1,
+        })
+        self.assertFalse(actor.liwan_read_only)
+        self.authenticate('cronless_api_emp', 'cronless_api_pass_123')
+        me = self.api('GET', '/api/v1/me')
+        self.assertEqual((me.status_code, me.json().get('read_only')), (200, True))
+        self.assertTrue(self.profile.trial_ends_at)
+        self.assertFalse(actor.liwan_read_only)
 
     def test_an_administrator_who_is_read_only_cannot_write(self):
         self.service._liwan_apply_flags(self.admin, {'liwan_read_only': True})
