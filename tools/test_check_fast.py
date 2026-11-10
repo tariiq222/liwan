@@ -29,7 +29,7 @@ class TestCheckFast(unittest.TestCase):
         self.assertEqual(set(names(['odoo-addons/liwan_hr/a.py'])) - set(names([])), {'ruff'})
 
     def test_api_surface_runs_for_its_tool_and_generated_files_only(self):
-        for path in ('tools/api_surface.py', 'docs/api/openapi.json'):
+        for path in ('tools/api_surface.py', 'tools/contracts_jsonschema.mjs', 'docs/api/openapi.json'):
             self.assertIn('api_surface', names([path]))
         self.assertNotIn('api_surface', names(['odoo-addons/liwan_hr/a.py', 'apps/web/app/a.vue', 'tools/x.py']))
         self.assertEqual(dict(plan(['docs/api/openapi.json'], 'main'))['api_surface'],
