@@ -4,9 +4,36 @@ The isolated agent service of LiwanOS AI (spec: `docs/superpowers/specs/2026-10-
 It holds no LiwanOS credential: it receives a message and the caller's tool catalog, decides, and
 stops at every tool with an `interrupt`; the Nuxt server executes tools and resumes it.
 
+## Dependencies
+
+`pyproject.toml` declares ranges; the versions that ship are pinned with hashes in `requirements.txt` (the image), `requirements-dev.txt`
+(CI and local development: the same set plus the dev extra), `requirements-build.txt` (the build backend, kept out of the image) and
+`requirements-audit.txt` (pip-audit). The image and the `ai-service` stage install them with `--require-hashes`, so a rebuild at any
+later time gets the same packages. Run `deploy/ci/lib/ai-service-audit.sh` to audit them against the PyPI advisory database.
+
+Policy: a known vulnerability in `requirements-dev.txt` fails the `ai-service` stage and the daily `audit` workflow. The only way to
+tolerate one is a line `<advisory id> <reason and review date>` in `pip-audit-ignore.txt`; a line without a reason fails, and a line
+is removed when the package is upgraded.
+
+The lock is for Linux (the image and CI). `requirements.txt` pins exactly the versions the last successful main image build installed
+before this lock existed (ci run 42738750098); the dev, build and audit locks were resolved on 2026-11-10 with those as constraints.
+
+Changing a dependency version is a deliberate, owner-approved change under `docs/UPDATE_POLICY.md`, never a side effect.
+The commands below are reproducible: each output file already exists, and `uv pip compile` keeps the versions it pins there and
+changes only what a new or edited requirement needs. Do not pass `--upgrade` or `--exclude-newer` without the approval. Run them
+from this folder:
+
+    C="uv pip compile --python-platform linux --python-version 3.12 --generate-hashes --no-header --quiet"
+    $C pyproject.toml -o requirements.txt
+    $C pyproject.toml --extra dev -o requirements-dev.txt
+    $C requirements-build.in -o requirements-build.txt
+    $C requirements-audit.in -o requirements-audit.txt
+
 ## Run locally
 
-    python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
+    python3 -m venv .venv
+    .venv/bin/pip install --require-hashes -r requirements-build.txt -r requirements-dev.txt
+    .venv/bin/pip install --no-deps --no-build-isolation -e .
     # Operator bootstraps, once each, against empty databases, before starting any runtime:
     # 1. release control state in the service database
     AI_DATABASE_URL=postgresql://localhost/liwan_ai_dev \

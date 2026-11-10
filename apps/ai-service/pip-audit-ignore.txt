@@ -1,0 +1,2 @@
+# Known vulnerabilities that deploy/ci/lib/ai-service-audit.sh tolerates. One per line: <advisory id> <reason and review date>.
+# A line without a reason fails the audit. The set only shrinks: remove a line when the package is upgraded.

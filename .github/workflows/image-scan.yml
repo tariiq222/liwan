@@ -2,6 +2,7 @@ name: image-scan
 
 # Daily image build and Trivy scan of main. A new CRITICAL advisory against an unchanged base image
 # fails this run (GitHub notifies the owner) before it fails every pull request that selects the ci `image` stage.
+# Each run keeps the CycloneDX SBOM of every image it built as the `image-sbom` artifact.
 on:
   schedule:
     - cron: '0 2 * * *'
@@ -17,6 +18,7 @@ env:
   PGUSER: odoo
   PGPASSWORD: odoo
   ODOO_PORT: '8169'
+  LIWAN_SBOM_DIR: ${{ github.workspace }}/sbom
 
 jobs:
   image:
@@ -38,3 +40,11 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: deploy/ci/image.sh
+      - name: Upload the image SBOMs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: image-sbom
+          path: sbom/
+          if-no-files-found: warn
+          retention-days: 30

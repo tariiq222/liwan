@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # CI stage: build every production image; install the release in the Odoo one and assert it is hardened;
-# smoke-check the others without external services; scan every image for vulnerabilities; record each image digest.
+# smoke-check the others without external services; scan and write an SBOM for every image; record each image digest.
 # The Postgres service container is published on the runner, so the containers use the host network.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -139,10 +139,13 @@ ALL_IMAGES=("$IMAGE" "$(tag_of web)" "$(tag_of vendor-admin)" "$(tag_of ai-servi
 # lives in an owned volume so it downloads once). Findings with no fix available are ignored. Every HIGH and
 # CRITICAL finding is listed on stderr; stdout carries "<critical> <high>". A scanner error (database download,
 # timeout, unreadable report) is a failure with its own message, never a pass.
+trivy_run() {
+  docker run --rm --name "$(container_of trivy)" -v /var/run/docker.sock:/var/run/docker.sock \
+    -v "$TRIVY_CACHE:/root/.cache/trivy" "$TRIVY_IMAGE" "$@"
+}
 scan_image() {
   local tag="$1" report="$IMAGE_ROOT/trivy.json"
-  docker run --rm --name "$(container_of trivy)" -v /var/run/docker.sock:/var/run/docker.sock \
-    -v "$TRIVY_CACHE:/root/.cache/trivy" "$TRIVY_IMAGE" image --quiet --scanners vuln --timeout 15m \
+  trivy_run image --quiet --scanners vuln --timeout 15m \
     --format json --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 "$tag" > "$report" \
     || { echo "$tag scan failed: trivy exited with an error (vulnerability database download or scan error)" >&2; return 1; }
   python3 - "$report" "$tag" <<'PY' || { echo "$tag scan failed: unreadable trivy report" >&2; return 1; }
@@ -163,6 +166,21 @@ print(counts['CRITICAL'], counts['HIGH'])
 PY
 }
 
+# A CycloneDX SBOM of one image (its packages and their licenses; no vulnerability data, the scan above owns that).
+# A generator error is a failure, never an empty file.
+write_sbom() {
+  local tag="$1" file
+  file="$SBOM_DIR/${tag%%:*}.cdx.json"
+  trivy_run image --quiet --scanners license --format cyclonedx "$tag" > "$file" \
+    && python3 -c 'import json, sys; assert json.load(open(sys.argv[1])).get("bomFormat") == "CycloneDX"' "$file" \
+    || { echo "$tag sbom failed: trivy could not produce a CycloneDX document" >&2; return 1; }
+}
+# One document per image lands in LIWAN_SBOM_DIR, which the workflow running this stage uploads.
+SBOM_DIR="${LIWAN_SBOM_DIR:-$IMAGE_ROOT/sbom}"
+mkdir -p "$SBOM_DIR"
+sbom_failed=0
+for image in "${ALL_IMAGES[@]}"; do write_sbom "$image" || sbom_failed=1; done
+
 # CRITICAL findings with a fix fail the stage; HIGH ones are reported only. Scan every image before failing.
 scan_failed=0
 scan_rows=""
@@ -180,13 +198,16 @@ for image in "${ALL_IMAGES[@]}"; do
   fi
 done
 
-# Record every image's tag and content digest, and the scan counts.
+# Record every image's tag, its content digest (the image ID), its registry digest where it has one, and the scan counts.
+# The CI images are built here and never pushed, so they have no RepoDigest: that is stated, not left blank.
+repo_digest() { docker image inspect --format '{{if .RepoDigests}}{{index .RepoDigests 0}}{{else}}not published{{end}}' "$1"; }
 summary() {
-  printf '| Image | Digest |\n| --- | --- |\n'
+  printf '| Image | Content digest (image ID) | Registry digest | SBOM |\n| --- | --- | --- | --- |\n'
   for image in "${ALL_IMAGES[@]}"; do
-    printf '| %s | %s |\n' "$image" "$(docker image inspect --format '{{.Id}}' "$image")"
+    printf '| %s | %s | %s | %s |\n' "$image" "$(docker image inspect --format '{{.Id}}' "$image")" "$(repo_digest "$image")" "${image%%:*}.cdx.json"
   done
   printf '\nVulnerability scan (Trivy 0.75.0, fixable findings only):\n\n| Scanned image | CRITICAL | HIGH |\n| --- | --- | --- |\n%s' "$scan_rows"
 }
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then summary >> "$GITHUB_STEP_SUMMARY"; else summary; fi
+[ "$sbom_failed" -eq 0 ] || { echo "image sbom failed: see above" >&2; exit 1; }
 [ "$scan_failed" -eq 0 ] || { echo "image scan failed: a CRITICAL fixable vulnerability or a scanner error (see above)" >&2; exit 1; }
