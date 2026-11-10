@@ -56,8 +56,15 @@ async function settleOrdered(pool: Pool, lapse: Lapse, now: Date) {
     const job = (await client.query(`SELECT id,state,journal->>'error_code' AS code FROM shared_jobs
       WHERE payload->>'operation'='reconfigure' AND payload->'authority'->>'order_id'=$1 FOR UPDATE`, [order.id])).rows[0]
     const code = job?.code ?? 'fulfillment_failed'
-    // Only a refusal that happened before any write closes the job: anything else may have touched Odoo and stays for an operator.
-    if (job?.state === 'needs_intervention' && (PRE_WRITE_REFUSALS as readonly string[]).includes(code))
+    // A refusal before any write (or no job at all) leaves Odoo untouched: the job is closed and the order released. Any
+    // other failure may have written to Odoo and the job stays stuck, so the order and the target stay exactly as they are
+    // (nothing is ordered behind a stuck job); the reason is shown to the vendor and the operator resolves the job.
+    const untouched = !job || job.state === 'failed' || (PRE_WRITE_REFUSALS as readonly string[]).includes(code)
+    if (!untouched) {
+      await client.query('UPDATE trial_lapses SET reason=$2,next_attempt_at=$3 WHERE subscription_id=$1', [lapse.subscription_id, code.slice(0, 200), new Date(now.getTime() + 3_600_000)])
+      return
+    }
+    if (job?.state === 'needs_intervention')
       await client.query("UPDATE shared_jobs SET state='failed',lease_until=NULL WHERE id=$1 AND state='needs_intervention'", [job.id])
     await client.query('UPDATE orders SET cancelled=true WHERE id=$1', [order.id])
     await client.query('UPDATE subscriptions SET target_revision_id=NULL,revision=revision+1 WHERE id=$1 AND target_revision_id=$2', [sub.id, order.target_revision_id])

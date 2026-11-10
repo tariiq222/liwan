@@ -62,7 +62,7 @@ const subjectsSql = `WITH latest AS (
   -- cleared); \`reason\` is the machine reason of the last attempt.
   SELECT c.id AS customer_id, c.name, c.tenant_id, l.lapsed_at, l.reason FROM trial_lapses l
   JOIN subscriptions s ON s.id=l.subscription_id JOIN customers c ON c.id=s.customer_id
-  WHERE l.state='pending' AND l.reason IS NOT NULL
+  WHERE l.state IN ('pending','ordered') AND l.reason IS NOT NULL
 ), renewing AS (
   SELECT * FROM latest WHERE ${renewalDue}
 ), overdue AS (
