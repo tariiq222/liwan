@@ -8,12 +8,13 @@ let upstream: http.Server
 let app: http.Server
 let base: string
 let odooUrl: string
+let configuredHeader = ''
 let calls: { path: string, method: string, headers: http.IncomingHttpHeaders, body: string }[] = []
 let answer: { status: number, body: unknown } = { status: 200, body: {} }
 
 beforeAll(async () => {
   for (const [name, value] of Object.entries({ appendResponseHeader, createError, defineEventHandler, getHeader, getRequestHeader, getRequestProtocol })) vi.stubGlobal(name, value)
-  vi.stubGlobal('useRuntimeConfig', () => ({ odooUrl, odooDb: 'scratch_two_step', authProxyClientIpHeader: '' }))
+  vi.stubGlobal('useRuntimeConfig', () => ({ odooUrl, odooDb: 'scratch_two_step', authProxyClientIpHeader: configuredHeader }))
   const { assertSameSiteJson } = await import('../../../utils/same-site')
   vi.stubGlobal('assertSameSiteJson', assertSameSiteJson)
 
@@ -22,7 +23,10 @@ beforeAll(async () => {
     for await (const chunk of req) chunks.push(Buffer.from(chunk))
     calls.push({ path: req.url!, method: req.method!, headers: req.headers, body: Buffer.concat(chunks).toString() })
     res.setHeader('content-type', 'application/json')
-    res.setHeader('set-cookie', 'liwan_device=synthetic-token; HttpOnly; Path=/api/auth; SameSite=Lax')
+    res.setHeader('set-cookie', [
+      'liwan_device=synthetic-token; HttpOnly; Path=/api/auth; SameSite=Lax',
+      'already_secure=synthetic; sEcUrE; Path=/',
+    ])
     res.writeHead(answer.status)
     res.end(JSON.stringify(answer.body))
   })
@@ -44,6 +48,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   calls = []
+  configuredHeader = ''
   answer = { status: 200, body: {} }
   vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated')
 })
@@ -108,11 +113,14 @@ describe('the second sign-in step on the wire', () => {
   it('forwards a Set-Cookie from Odoo, and adds Secure only when the browser reached us over https', async () => {
     answer = { status: 200, body: {} }
     const plain = await request('/device')
-    expect(plain.headers.getSetCookie()).toEqual(['liwan_device=synthetic-token; HttpOnly; Path=/api/auth; SameSite=Lax'])
-    const secure = await request('/device', { headers: { 'x-forwarded-proto': 'https' } })
-    expect(secure.headers.getSetCookie()).toEqual(['liwan_device=synthetic-token; HttpOnly; Path=/api/auth; SameSite=Lax; Secure'])
-    // A cookie Odoo already marked Secure is never doubled.
-    expect(secure.headers.getSetCookie()[0]!.match(/secure/gi)).toHaveLength(1)
+    expect(plain.headers.getSetCookie()).toEqual(['liwan_device=synthetic-token; HttpOnly; Path=/api/auth; SameSite=Lax', 'already_secure=synthetic; sEcUrE; Path=/'])
+    configuredHeader = 'x-liwan-client-ip'
+    const secure = await request('/device', { headers: {
+      'x-liwan-client-ip': '203.0.113.7',
+      'x-liwan-client-host': 'liwan.example.test',
+      'x-liwan-client-proto': 'https',
+    } })
+    expect(secure.headers.getSetCookie()).toEqual(['liwan_device=synthetic-token; HttpOnly; Path=/api/auth; SameSite=Lax; Secure', 'already_secure=synthetic; sEcUrE; Path=/'])
   })
 
   it('passes the machine code and the cooldown seconds, never Odoo prose', async () => {
