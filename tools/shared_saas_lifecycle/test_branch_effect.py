@@ -4,7 +4,7 @@ import ast
 import unittest
 
 from tools.shared_saas_lifecycle import subscription_effect as se
-from tools.shared_saas_lifecycle.test_subscription_effect import B1, B2, DB, make_request
+from tools.shared_saas_lifecycle.test_subscription_effect import B1, B2, DB, applied_state, make_request
 
 
 class ScriptContentTests(unittest.TestCase):
@@ -53,9 +53,8 @@ class ScriptContentTests(unittest.TestCase):
 
     def test_verify_requires_the_restored_branch_to_be_active(self):
         request = make_request(branches={'apply': [], 'archive': [], 'restore': [B2]})
-        observed = {'commercial_revision_id': request['target_revision_id'], 'commercial_digest': request['entitlement']['digest'],
-                    'features': dict(request['entitlement']['features']),
-                    'branches': [{'branch_id': B2, 'state': 'archived', 'odoo_company_id': 9, 'active': False, 'parent_is_root': True}]}
+        observed = applied_state(request)
+        observed['branches'] = [{'branch_id': B2, 'state': 'archived', 'odoo_company_id': 9, 'active': False, 'parent_is_root': True}]
         self.assertFalse(se.verify(request, observed))
         observed['branches'][0].update(state='active', active=True)
         self.assertTrue(se.verify(request, observed))
