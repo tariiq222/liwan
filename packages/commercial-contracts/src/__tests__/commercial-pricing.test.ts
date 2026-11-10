@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addCadence, daysBetween, periodBounds, remainingDays, vat, paidExtraBranches, paidUnits, prorateMinor, riyadhDate, CommercialError, planRevisionSchema, quoteRequestSchema } from '../commercial/index.js'
+import { addCadence, daysBetween, periodBounds, remainingDays, vat, paidExtraBranches, paidUnits, prorateMinor, prorateOverCycleMinor, riyadhDate, CommercialError, planRevisionSchema, quoteRequestSchema } from '../commercial/index.js'
 import { M, plan, sar } from './fixtures.js'
 
 describe('commercial calendar and pricing math', () => {
@@ -17,6 +17,10 @@ describe('commercial calendar and pricing math', () => {
     expect(prorateMinor({ cycleMinor: 1, remainingDays: 1, cycleDays: 2 })).toBe(1)
     expect(prorateMinor({ cycleMinor: 100, remainingDays: 31, cycleDays: 31 })).toBe(100)
     expect(() => prorateMinor({ cycleMinor: 50000, remainingDays: 32, cycleDays: 31 })).toThrow('invalid_billing_period')
+    // The over-cycle variant is one formula: it only lifts the upper bound.
+    expect(prorateOverCycleMinor({ cycleMinor: 20000, remainingDays: 40, cycleDays: 30 })).toBe(26667)
+    expect(prorateOverCycleMinor({ cycleMinor: 20000, remainingDays: 15, cycleDays: 31 })).toBe(prorateMinor({ cycleMinor: 20000, remainingDays: 15, cycleDays: 31 }))
+    expect(() => prorateOverCycleMinor({ cycleMinor: 20000, remainingDays: 40, cycleDays: 0 })).toThrow('invalid_billing_period')
     expect(() => prorateMinor({ cycleMinor: 50000, remainingDays: -1, cycleDays: 31 })).toThrow('invalid_billing_period')
     expect(() => prorateMinor({ cycleMinor: 50000, remainingDays: 1, cycleDays: 0 })).toThrow('invalid_billing_period')
     expect(() => prorateMinor({ cycleMinor: -5, remainingDays: 1, cycleDays: 31 })).toThrow('invalid_billing_period')

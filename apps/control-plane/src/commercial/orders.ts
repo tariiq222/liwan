@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import type { Pool, PoolClient } from 'pg'
-import { acceptQuoteRequestSchema, orderSchema, initialOrderStates, quoteSchema, addCadence, type AcceptQuoteRequest, type Principal, type Quote } from '@liwan/commercial-contracts'
+import { acceptQuoteRequestSchema, orderSchema, initialOrderStates, quoteSchema, addCadence, riyadhDate, type AcceptQuoteRequest, type Principal, type Quote } from '@liwan/commercial-contracts'
 import { compileEntitlements } from '@liwan/commercial-contracts/server'
 import { transaction } from '../db.js'
 import { CommercialHttpError, digestOf, iso } from './lifecycle.js'
@@ -210,7 +210,8 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
     previous: previous.entitlement?.features ?? {}, target: entitlement.features,
   })
   const periodStart = previous ? previous.period_start : quote.effective_date
-  const periodEnd = previous ? previous.period_end : quote.next_renewal_at
+  // While trialing, the period ends where the trial does: a vendor extension moves `trial_ends_at`, never the applied revision.
+  const periodEnd = previous ? (subscription.state === 'trialing' && subscription.trial_ends_at ? riyadhDate(subscription.trial_ends_at) : previous.period_end) : quote.next_renewal_at
   const included = sources.terms?.included_extra_branches ?? sources.plan.included_extra_branches
   const snapshot = {
     customer_id: customer.id, tenant_id: customer.tenant_id ?? customer.id,
