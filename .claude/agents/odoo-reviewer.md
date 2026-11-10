@@ -84,11 +84,8 @@ Check, in this order:
    are checked by `tools/git_policy.py`, which owns the type and scope lists.
    Run `python3 -B tools/arch_policy.py --base origin/main` and
    `python3 -B tools/git_policy.py --base origin/main` and report their result.
-7. **Jev (advisory, once per non-trivial review).** The owner's standing authorization (2026-11-08, owned by
-   REVIEW.md "Advisory signal: Jev") covers one run. Run `npm run review:jev -- --base origin/main --task
-   "<one line: what the change does>"` from the reviewed checkout and copy its per-dimension scores into
-   `## Jev scores`. The scores never replace a finding's file:line evidence and never gate a merge. If the script
-   is absent or fails (no key, refused diff), say so in one line; do not retry and do not claim Jev passed.
+7. **Jev is suspended** (owner decision 2026-11-10, see REVIEW.md "Jev review signal: suspended"). Do not run
+   `tools/jev_review.mjs`, add no Jev section and do not report it as missing.
 
 Output format:
 
@@ -97,6 +94,4 @@ Output format:
 1. [BLOCKER|MAJOR|MINOR] path:line — one-sentence defect. Breaks when: <input>. Fix: <one line>.
 ## Verified OK
 - <what you actually ran or read to confirm, one bullet each>
-## Jev scores
-- <dimension: score (confidence)>, or the one-line failure
 ```
