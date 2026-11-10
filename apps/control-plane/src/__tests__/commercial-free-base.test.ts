@@ -791,5 +791,26 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       expect(await applyDunning(pool, { now: new Date(now.getTime() + 30 * day) })).not.toContainEqual(expect.objectContaining({ subscription_id: f.subscription }))
       expect(await row(f.subscription)).toMatchObject({ state: 'active' })
     })
+    it('C: ending the trial on conversion is one transaction; a scheduler run or a crash between the steps cannot lapse it', async () => {
+      const proxied = (hook: () => Promise<void>) => new Proxy(pool, { get: (target, prop) => {
+        if (prop === 'query') return async (sql: any, ...rest: any[]) => { if (typeof sql === 'string' && sql.includes("state='trialing' AND applied_revision_id IS NOT NULL")) await hook(); return (target.query as any)(sql, ...rest) }
+        const value = (target as any)[prop]
+        return typeof value === 'function' ? value.bind(target) : value
+      } }) as unknown as Pool
+      for (const mode of ['scheduler', 'crash'] as const) {
+        const f = await endedTrial()
+        await pool.query('UPDATE subscriptions SET trial_ends_at=$2,revision=revision+1 WHERE id=$1', [f.subscription, new Date(now.getTime() + 5 * day)])
+        const hook = mode === 'scheduler'
+          ? async () => { await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription }) }
+          : async () => { throw new Error('process died') }
+        await convertTrial(proxied(hook), { customer_id: f.customer, now, adapter, returnOrigin: origin }).catch(() => undefined)
+        // The scheduler runs afterwards (as it would on its next tick): it must find nothing to lapse.
+        expect((await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })).lapsed, mode).toEqual([])
+        expect(await lapseRow(f.subscription), mode).toBeUndefined()
+        expect(await row(f.subscription), mode).toMatchObject({ state: 'past_due' })
+        await generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+        expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [f.customer])).rows[0].n, mode).toBe(1)
+      }
+    })
   })
 })

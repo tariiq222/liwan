@@ -6,7 +6,8 @@ import { CommercialHttpError, digestOf } from './lifecycle.js'
 import { acceptQuoteOn, orderView } from './orders.js'
 import { buildQuoteOn } from './quotes.js'
 import { trialEndsAt } from './renewals.js'
-import { expireTrials } from './trial-expiry.js'
+import { endTrialOn, expireTrials } from './trial-expiry.js'
+import { generateRenewals } from './renewals.js'
 import { enqueueReconfigureJob } from '../shared/job-store.js'
 import { commercialExpiryDate } from './fulfillment.js'
 import { paymentAttemptView } from './payments.js'
@@ -60,21 +61,25 @@ export async function startTrialOn(client: PoolClient, input: TrialInput) {
   return accepted
 }
 
-/** Customer conversion: end the trial now and return the first invoice's hosted attempt. */
+/** Customer conversion: end the trial now, in one transaction, and return the first invoice's hosted attempt. */
 export async function convertTrial(pool: Pool, input: { customer_id: string; now: Date; adapter: Parameters<typeof expireTrials>[1]['adapter']; returnOrigin: ReturnOrigin }) {
   await input.returnOrigin(input.customer_id) // an unusable origin refuses before any write
   const sub = (await pool.query('SELECT * FROM subscriptions WHERE customer_id=$1', [input.customer_id])).rows[0]
   if (!sub || sub.state !== 'trialing') throw new CommercialHttpError('trial_not_active', 409)
   if (!sub.applied_revision_id) throw new CommercialHttpError('trial_not_applied', 409)
+  // The end date and the move out of `trialing` are one commit: the intent to pay is the state itself, so a scheduler run or a
+  // crash between the two can never lapse the trial onto the free base and lock what the customer chose to buy.
   await transaction(pool, async client => {
     const updated = await client.query("UPDATE subscriptions SET trial_ends_at=$2,revision=revision+1 WHERE id=$1 AND state='trialing' RETURNING id", [sub.id, input.now])
     if (!updated.rowCount) throw new CommercialHttpError('trial_not_active', 409)
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
       [randomUUID(), `customer:${input.customer_id}`, 'trial.converted', sub.id, 'Customer converted the trial', JSON.stringify({ converted_at: input.now.toISOString() })])
     await pushCommercialExpiry(client, sub.id, null)
+    if (await endTrialOn(client, sub.id, { now: input.now, convert: true }) !== 'expired') throw new CommercialHttpError('trial_not_active', 409)
   })
-  await expireTrials(pool, { now: input.now, adapter: input.adapter, returnOrigin: input.returnOrigin, subscription_id: sub.id, convert: true })
-  // The expiry run may also create other due renewals: read this subscription's own first order, never index 0.
+  // The first invoice is generated after the commit; a crash before it leaves a past_due subscription the renewal run picks up.
+  await generateRenewals(pool, { now: input.now, adapter: input.adapter, returnOrigin: input.returnOrigin, subscription_id: sub.id })
+  // The renewal run may also create other due renewals: read this subscription's own first order, never index 0.
   const row = (await pool.query(`SELECT o.* FROM orders o JOIN renewals r ON r.order_id=o.id
     WHERE r.subscription_id=$1 ORDER BY r.created_at DESC,o.id DESC LIMIT 1`, [sub.id])).rows[0]
   const order = row ? orderView(row) : null
