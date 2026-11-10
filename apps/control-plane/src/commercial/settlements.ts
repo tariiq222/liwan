@@ -12,19 +12,35 @@ import { claimOutbox, completeOutbox, deferOutbox } from './outbox.js'
 import { creditedMinorSql, DUPLICATE_PAYMENT_REASON } from './refund-credit.js'
 import { markTopupRefunded } from './ai-ledger.js'
 
+/** Refunds the provider cannot do for this payment: retrying changes nothing, so the row goes to the operator at once. */
+const NON_RETRYABLE_REFUND = ['provider_refund_unavailable', 'provider_refund_payment_mismatch']
+/** Tries of one automatic provider refund (1, 2, 4, 8, 16 minute backoff between them) before the operator takes over. */
+const AUTOMATIC_REFUND_ATTEMPTS = 6
+const MANUAL_REVIEW_REASON = 'payment after cancellation — manual review'
+
 export async function processRefundOutbox(pool: Pool, adapter?: PaymentAdapter): Promise<number> {
   let automatic = 0
-  if (adapter) for (const row of await claimOutbox(pool, ['reconcile.refund'], 20, { automatic: true })) {
+  for (const row of await claimOutbox(pool, ['reconcile.refund'], 20, { automatic: true })) {
     try {
-      await refundUndelivered(pool, adapter, row)
+      if (!adapter) await handOffAutomaticRefund(pool, row, 'provider_refund_unavailable')
+      else await refundUndelivered(pool, adapter, row)
       automatic++
     } catch (error) {
-      await deferOutbox(pool, row.id, error instanceof Error ? error.message : 'provider_refund_failed')
+      const code = error instanceof Error ? error.message : 'provider_refund_failed'
+      try {
+        if (NON_RETRYABLE_REFUND.includes(code) || row.attempts + 1 >= AUTOMATIC_REFUND_ATTEMPTS) {
+          await handOffAutomaticRefund(pool, row, code)
+          automatic++
+        } else await deferOutbox(pool, row.id, code)
+      } catch (handOffError) {
+        console.error(`[settlements] automatic refund ${row.id} could not be handed to the operator`, handOffError)
+        await deferOutbox(pool, row.id, code)
+      }
     }
   }
   return automatic + await transaction(pool, async client => {
     const rows = (await client.query("SELECT * FROM commercial_outbox WHERE kind IN ('reconcile.refund','payment.intervention') AND status='pending' AND payload->>'automatic' IS DISTINCT FROM 'true' ORDER BY created_at,id FOR UPDATE SKIP LOCKED")).rows
-    const reason = 'payment after cancellation — manual review'
+    const reason = MANUAL_REVIEW_REASON
     for (const row of rows) {
       let rejected: string | null = null
       if (row.kind === 'payment.intervention') rejected = await creditRefundedAfterFulfillment(client, row.payload)
@@ -47,6 +63,29 @@ export async function processRefundOutbox(pool: Pool, adapter?: PaymentAdapter):
 }
 
 const AUTOMATIC_CREDIT = 'Payment returned after an undelivered trial order'
+
+/**
+ * An automatic refund that cannot finish (no adapter, a payment the provider cannot refund, retries used up) becomes the
+ * manual review the operator already works: one pending credit note for what the attempt paid and is not yet credited
+ * (an undelivered order already has its fulfilment note, so it gets none more), and the row closed as failed with its
+ * reason. The row keeps its payload, which trial recovery reads as proof. Recording the refund on the note settles the order.
+ */
+async function handOffAutomaticRefund(pool: Pool, row: { id: string; kind: string; aggregate_id: string; payload: unknown }, reason: string) {
+  await transaction(pool, async client => {
+    const pending = (await client.query("SELECT 1 FROM commercial_outbox WHERE id=$1 AND status='pending' FOR UPDATE", [row.id])).rowCount
+    if (!pending) return
+    const attemptId = (row.payload as { attempt_id?: string }).attempt_id
+    const attempt = typeof attemptId === 'string' && z.uuid().safeParse(attemptId).success ? (await client.query(`SELECT a.* FROM payment_attempts a
+      JOIN orders o ON o.id=a.order_id WHERE a.id=$1 AND o.id::text=$2 AND o.payment_state='refund_pending' AND o.paid_attempt_id=a.id`, [attemptId, row.aggregate_id])).rows[0] : undefined
+    if (attempt) {
+      const invoice = (await client.query('SELECT id,customer_id FROM invoices WHERE id=$1 FOR UPDATE', [attempt.invoice_id])).rows[0]
+      const credited = Number((await client.query(`SELECT ${creditedMinorSql('$1')} AS amount`, [invoice.id])).rows[0].amount)
+      if (credited < Number(attempt.amount_minor))
+        await insertSystemCreditNote(client, invoice, MANUAL_REVIEW_REASON, { minor: Number(attempt.amount_minor) - credited, currency: attempt.currency, exponent: attempt.exponent })
+    }
+    await rejectOutboxRow(client, { id: row.id, kind: row.kind, aggregate_id: row.aggregate_id }, reason)
+  })
+}
 
 /** Confirm the original payment first. An interrupted refund is reconciled by cumulative provider amount. */
 async function refundUndelivered(pool: Pool, adapter: PaymentAdapter, row: { id: string; aggregate_id: string; payload: unknown }) {
@@ -82,9 +121,12 @@ async function refundUndelivered(pool: Pool, adapter: PaymentAdapter, row: { id:
       const invoice = (await client.query('SELECT * FROM invoices WHERE id=$1 FOR UPDATE', [attempt.invoice_id])).rows[0]
       const note = (await client.query(`SELECT id FROM invoice_adjustments WHERE invoice_id=$1 AND kind='credit_note'
         AND status='pending' AND origin='system' AND created_by='commercial-fulfillment' ORDER BY created_at DESC,id LIMIT 1 FOR UPDATE`, [invoice.id])).rows[0]
-      if (note) {
+      // The customer's own pending refund request for the whole invoice is this same money: close it instead of leaving it to be paid twice.
+      const vendorNote = note ? undefined : (await client.query(`SELECT id FROM invoice_adjustments WHERE invoice_id=$1 AND kind='credit_note'
+        AND status='pending' AND origin='vendor' AND amount_minor=$2 ORDER BY created_at,id LIMIT 1 FOR UPDATE`, [invoice.id, invoice.total_minor])).rows[0]
+      if (note || vendorNote) {
         await client.query(`UPDATE invoice_adjustments SET status='refunded',refund_reference=$2,refunded_by='system',refunded_at=now()
-          WHERE id=$1`, [note.id, payment.payment_id])
+          WHERE id=$1`, [(note ?? vendorNote).id, payment.payment_id])
       } else {
         const credited = Number((await client.query(`SELECT ${creditedMinorSql('$1')} AS amount`, [invoice.id])).rows[0].amount)
         if (credited < total) await client.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,
@@ -231,7 +273,7 @@ async function recordRefund(pool: Pool, { adjustment_id, actor, request }: { adj
     // payment after cancellation, a failed fulfilment) never had a window.
     const updated = (await client.query("UPDATE invoice_adjustments SET status='refunded',refund_reference=$2,refunded_by=$3,refunded_at=now() WHERE id=$1 RETURNING *",
       [note.id, request.external_reference, actorLabel(actor)])).rows[0]
-    if (updated.origin === 'system' && updated.created_by === 'commercial-fulfillment') await settleUndeliveredOrder(client, note.invoice_id)
+    if (updated.origin === 'system' && (updated.created_by === 'commercial-fulfillment' || updated.reason === MANUAL_REVIEW_REASON)) await settleUndeliveredOrder(client, note.invoice_id)
     await audit(client, actor, 'invoice.credit_refunded', note.id, request.reason,
       { invoice_id: note.invoice_id, external_reference: request.external_reference, amount_minor: Number(note.amount_minor), currency: note.currency })
     return adjustmentView(updated)
@@ -239,8 +281,9 @@ async function recordRefund(pool: Pool, { adjustment_id, actor, request }: { adj
 }
 
 /**
- * A fulfilment-failure note refunded by hand (a bank transfer has no provider refund) finishes the order the recovery
- * left in refund_pending, and closes its automatic outbox row, once the invoice is credited in full.
+ * A fulfilment-failure or payment-after-cancellation note refunded by hand (a bank transfer, or an automatic refund the
+ * provider could not do) finishes the order left in refund_pending, and closes its automatic outbox row if it is still
+ * pending, once the invoice is credited in full.
  */
 async function settleUndeliveredOrder(client: PoolClient, invoiceId: string) {
   const settled = (await client.query(`UPDATE orders o SET payment_state='refunded' FROM invoices i
