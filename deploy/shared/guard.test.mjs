@@ -279,8 +279,8 @@ test('a publication barrier answers 503 with a machine-readable code, not a boun
     code: 'tenant_registry_unavailable',
     message: 'The tenant registry is not currently published. The service is unavailable, not refusing this tenant.',
   })
-  // Unavailable is not a boundary refusal: the audit stays for refusals only.
-  assert.deepEqual(lines, [])
+  // The stuck barrier is logged once with its own reason code, so a monitor can tell it from a tenant refusal.
+  assert.deepEqual(lines.map(line => JSON.parse(line)), [{ event: 'tenant_boundary_rejected', reason: 'tenant_registry_unavailable', method: 'GET', path: '/api/v1/me', host: targets[0].host }])
   // The barrier is not a per-host decision: every host is unavailable, not refused.
   for (const host of [targets[1].host, 'unknown.example.test']) assert.equal((await call(url, '/api/v1/me', { host })).status, 503)
   rmSync(`${path}.pending`)
