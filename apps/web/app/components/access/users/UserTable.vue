@@ -69,7 +69,10 @@ const columns = computed<TableColumn<AdminUserSummary>[]>(() => [
       </div>
       <span v-else class="text-muted">{{ t('access.users.noRoles') }}</span>
     </template>
-    <template #active-cell="{ row }"><SharedStatusBadge :tone="badge(row.original).tone" :label="t(badge(row.original).labelKey)" :icon="badge(row.original).icon" /></template>
+    <template #active-cell="{ row }">
+      <SharedStatusBadge v-if="row.original.active && row.original.read_only" tone="warning" :label="t('access.seats.readOnly')" />
+      <SharedStatusBadge v-else :tone="badge(row.original).tone" :label="t(badge(row.original).labelKey)" :icon="badge(row.original).icon" />
+    </template>
     <template #actions-cell="{ row }">
       <div class="flex justify-end"><SharedRowActions :actions="actionsFor(row.original)" :label="t('access.users.rowActions', { name: row.original.name })" /></div>
     </template>
@@ -82,7 +85,8 @@ const columns = computed<TableColumn<AdminUserSummary>[]>(() => [
             <NuxtLink :to="userTo(row)" class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.name }}</NuxtLink>
           </div>
         </div>
-        <SharedStatusBadge :tone="badge(row).tone" :label="t(badge(row).labelKey)" :icon="badge(row).icon" />
+        <SharedStatusBadge v-if="row.active && row.read_only" tone="warning" :label="t('access.seats.readOnly')" />
+        <SharedStatusBadge v-else :tone="badge(row).tone" :label="t(badge(row).labelKey)" :icon="badge(row).icon" />
       </div>
       <dl class="mt-3 grid grid-cols-1 gap-2 text-xs text-muted">
         <div><dt>{{ t('access.users.columns.loginName') }}</dt><dd dir="ltr">{{ row.login }}</dd></div>

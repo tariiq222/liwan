@@ -5,9 +5,12 @@ import inspect
 import io
 import json
 import signal
+import sys
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 from tools.shared_saas_lifecycle import subscription_effect as se
@@ -95,6 +98,8 @@ def applied_state(request, **over):
                  'active': True, 'parent_is_root': True} for i, b in enumerate(request['branches']['apply'])]
     base = dict(commercial_valid_until=request.get('commercial_valid_until'),
                 commercial_valid_until_revision=request.get('commercial_valid_until_revision', 0))
+    if over.get('excess_supported') is True:
+        base['excess_settled'] = True
     base.update(over)
     return observation(commercial_revision_id=TARGET, commercial_digest=ent['digest'],
                        features=dict(ent['features']), branches=branches,
@@ -255,6 +260,7 @@ class ReconfigureTests(Base):
 
     def test_ai_push_is_refused_unless_the_tenant_is_on_the_target_revision_with_its_digest(self):
         for label, state in [('no revision', observation(commercial_revision_id=None, commercial_digest=None)),
+                             ('target without digest', observation(commercial_revision_id=TARGET, commercial_digest=None)),
                              ('another revision', observation(commercial_revision_id=PREV)),
                              ('the target with another digest', observation(commercial_revision_id=TARGET, commercial_digest='c' * 64))]:
             runner = FakeRunner(state)
@@ -266,8 +272,9 @@ class ReconfigureTests(Base):
     def test_ai_push_on_the_target_revision_rewrites_only_the_ai_keys_and_carries_the_guard(self):
         request = self.ai_request()
         held = dict(request['entitlement']['features'], **{'ai.balance.granted': 1, 'ai.allowance.trial': 1})
-        runner = FakeRunner(observation(commercial_revision_id=TARGET, commercial_digest=DIGEST, features=held),
-                            apply_state=observation(commercial_revision_id=TARGET, commercial_digest=DIGEST, features=request['entitlement']['features']))
+        runner = FakeRunner(observation(commercial_revision_id=TARGET, commercial_digest=DIGEST, features=held,
+                                        modules=request['entitlement']['modules']),
+                            apply_state=applied_state(request))
         self.effect(runner).reconfigure(request)
         self.assertEqual(runner.applies, 1)
         script = next(script for stage, _, script in runner.scripts if stage == 'apply')
@@ -307,6 +314,21 @@ class ReconfigureTests(Base):
             self.assertEqual(str(ctx.exception), 'downgrade_below_usage')
             self.assertEqual((runner.applies, runner.installed), (0, []))
         self.assertFalse(self.dir.exists())
+
+    def test_restore_reconcile_with_excess_settles_instead_of_refusing(self):
+        # An older backup restores 8 users under a revision whose limit is now 5.
+        seen = observation(features={'users.limit': 10}, usage={**observation()['usage'], 'users.limit': 8},
+                           excess_supported=True)
+        request = make_request()
+        request['entitlement']['features']['users.limit'] = 5
+        with self.assertRaisesRegex(EffectError, 'downgrade_below_usage'):
+            self.effect(FakeRunner(seen)).reconfigure(request)
+        request['excess_settle'] = True
+        runner = FakeRunner(seen, apply_state=applied_state(request, excess_supported=True,
+                                                            excess={'users.limit': 3, 'branches.extra_limit': 0}))
+        receipt = self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.applies, 1)
+        self.assertIs(receipt.get('excess_supported'), True)
 
     def test_limit_equal_to_usage_is_accepted(self):
         request = make_request()
@@ -708,6 +730,356 @@ class RestoreRuntimeTests(unittest.TestCase):
                 se.ComposeRunner(request)
 
 
+class TrialEndEffectTests(Base):
+    def execute_apply(self, request, *, current=PREV, digest='c' * 64, pending=None):
+        """Execute the generated Odoo code against an isolated protocol double, including write ordering."""
+        events = []
+        clock = datetime(2026, 1, 2)
+
+        class Profile:
+            commercial_revision_id = current
+            commercial_digest = digest
+            commercial_valid_until_revision = 0
+            features = {'users.limit': 10, 'pmo.enabled': False, 'ai.balance.granted': 1}
+            trial_ends_at = None
+            post_trial_features = pending or {}
+            post_trial_modules = []
+            post_trial_digest = None
+
+            def _liwan_lock(self):
+                return self
+
+            def with_context(self, **_context):
+                return self
+
+            def write(self, values):
+                events.append('write')
+                for key, value in values.items():
+                    setattr(self, key, value)
+
+            def _liwan_grant_opened_admin_roles(self, _login, before):
+                events.append(('roles', tuple(service._liwan_entitled_admin_roles()), tuple(before)))
+                return True
+
+            def _liwan_apply_post_trial(self):
+                if self.trial_ends_at and self.trial_ends_at <= clock:
+                    self.features = dict(self.post_trial_features)
+                    self.commercial_digest = self.post_trial_digest
+                    self.trial_ends_at = False
+                    events.append('materialized')
+                    service._liwan_settle_excess()
+
+            def _liwan_apply_branches(self, *_args):
+                if self.trial_ends_at and self.trial_ends_at <= clock:
+                    raise RuntimeError('unsettled_due_branch_quota')
+                events.append('branches')
+
+        profile = Profile()
+        service = SimpleNamespace(
+            _liwan_entitled_admin_roles=lambda: ['pmo'] if profile.features.get('pmo.enabled') else [],
+            _liwan_close_unlisted_features=lambda values: dict(values),
+            _liwan_settle_excess=lambda: events.append('settled'),
+        )
+
+        class Env:
+            su = True
+            cr = SimpleNamespace(dbname=DB, commit=lambda: events.append('commit'), rollback=lambda: events.append('rollback'))
+            registry = SimpleNamespace(signal_changes=lambda: events.append('signal'))
+
+            def __getitem__(self, model):
+                if model == 'liwan.entitlement.service':
+                    return service
+                raise AssertionError(model)
+
+        fields = SimpleNamespace(Datetime=SimpleNamespace(now=lambda: clock), Date=SimpleNamespace(to_date=lambda value: value))
+        namespace = {'env': Env()}
+        values = _script_values(se.build_apply_script(request))
+        exec(se._prefix(values) + se._COMMON, namespace)
+        namespace['read_profile'] = lambda: profile
+        with mock.patch.dict(sys.modules, {'odoo': SimpleNamespace(fields=fields),
+                                           'odoo.addons.liwan_platform.models.entitlement_service': SimpleNamespace(OPERATOR_CONTEXT='operator')}):
+            exec(se._APPLY_BODY, namespace)
+        return namespace['result'], profile, events
+
+    def request(self, **over):
+        return make_request(**{
+            'trial_ends_at': '2026-12-01T00:00:00Z',
+            'post_trial_features': {'users.limit': 3, 'storage.limit_mb': 20, 'branches.extra_limit': 0},
+            'post_trial_modules': ['liwan_core', 'liwan_platform', 'liwan_api'],
+            'post_trial_digest': 'd' * 64, **over,
+        })
+
+    def test_system_settle_accepts_excess_platform_capacity(self):
+        request = make_request(excess_settle=True)
+        seen = observation(excess_supported=True, features=LOWERABLE,
+                           usage={'users.limit': 30, 'storage.limit_mb': 300, 'branches.extra_limit': 3},
+                           branches=[dict(OptionalTrialEndKeysTest.BRANCH, branch_id=str(i)) for i in range(3)])
+        se.check_downgrade(request, seen)
+
+    def test_system_settle_requires_observed_capability(self):
+        with self.assertRaisesRegex(EffectError, 'tenant_upgrade_required'):
+            se.check_downgrade(make_request(excess_settle=True), observation())
+
+    def test_system_settle_never_bypasses_application_limits(self):
+        seen = observation(excess_supported=True, features={**LOWERABLE, 'pmo.enabled': True},
+                           usage={'users.limit': 30, 'storage.limit_mb': 300,
+                                  'branches.extra_limit': 3, 'projects.max_projects': 21})
+        with self.assertRaisesRegex(EffectError, 'downgrade_below_usage'):
+            se.check_downgrade(make_request(excess_settle=True), seen)
+
+    def test_customer_downgrade_counts_only_full_branches(self):
+        request = make_request()
+        request['entitlement']['features']['branches.extra_limit'] = 0
+        se.check_downgrade(request, observation(branches=[dict(OptionalTrialEndKeysTest.BRANCH, read_only=True)]))
+        with self.assertRaisesRegex(EffectError, 'downgrade_below_usage'):
+            se.check_downgrade(request, observation(branches=[OptionalTrialEndKeysTest.BRANCH]))
+
+    def test_reapplying_a_retained_read_only_branch_takes_no_seat(self):
+        request = make_request()
+        request['entitlement']['features']['branches.extra_limit'] = 0
+        request['branches']['apply'] = [{'branch_id': B1, 'name': 'Branch'}]
+        se.check_downgrade(request, observation(branches=[dict(OptionalTrialEndKeysTest.BRANCH, read_only=True)]))
+        with self.assertRaisesRegex(EffectError, 'downgrade_below_usage'):
+            se.check_downgrade(request, observation(branches=[OptionalTrialEndKeysTest.BRANCH]))
+        with self.assertRaisesRegex(EffectError, 'downgrade_below_usage'):
+            se.check_downgrade(request, observation(branches=[]))
+
+    def test_apply_payload_carries_expiry_and_settlement(self):
+        request = self.request(excess_settle=True)
+        values = _script_values(se.build_apply_script(request))
+        for key in ('trial_ends_at', 'post_trial_features', 'post_trial_modules', 'post_trial_digest', 'excess_settle'):
+            self.assertEqual(values.get(key), request[key], key)
+
+    def test_applied_revision_does_not_skip_a_changed_trial_policy(self):
+        request = self.request()
+        seen = applied_state(request, post_trial_supported=True, trial_ends_at='2026-11-30T00:00:00Z',
+                             post_trial_features=request['post_trial_features'], post_trial_modules=request['post_trial_modules'],
+                             post_trial_digest=request['post_trial_digest'])
+        self.assertFalse(se.verify(request, seen))
+        seen['trial_ends_at'] = request['trial_ends_at']
+        self.assertTrue(se.verify(request, seen))
+        seen['post_trial_digest'] = 'e' * 64
+        self.assertFalse(se.verify(request, seen))
+
+    def test_trial_policy_accepts_only_closed_unlisted_feature_defaults(self):
+        request = self.request()
+        seen = applied_state(request, post_trial_supported=True, trial_ends_at=request['trial_ends_at'],
+                             post_trial_features={**request['post_trial_features'], 'ai.messages.monthly': 0, 'crm.enabled': False},
+                             post_trial_modules=request['post_trial_modules'], post_trial_digest=request['post_trial_digest'])
+        self.assertTrue(se.verify(request, seen, now='2026-11-01T00:00:00Z'))
+        for key, value in [('crm.enabled', True), ('ai.messages.monthly', 1), ('users.limit', True)]:
+            with self.subTest(key=key):
+                invalid = {**seen, 'post_trial_features': {**seen['post_trial_features'], key: value}}
+                self.assertFalse(se.verify(request, invalid, now='2026-11-01T00:00:00Z'))
+
+    def test_trial_policy_requires_supported_tenant_before_mutation(self):
+        request = self.request()
+        runner = FakeRunner(observation(), apply_state=applied_state(request))
+        with self.assertRaisesRegex(EffectError, 'tenant_upgrade_required'):
+            self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.applies, 0)
+        self.assertEqual(runner.installed, [])
+
+    def test_receipt_reports_capabilities_and_read_only_branches(self):
+        request = make_request()
+        seen = applied_state(request, post_trial_supported=True, excess_supported=True,
+                             excess={'users.limit': 2, 'branches.extra_limit': 1})
+        seen['branches'] = [dict(OptionalTrialEndKeysTest.BRANCH, read_only=True)]
+        receipt = self.effect(FakeRunner(seen)).reconfigure(request)
+        self.assertIs(receipt.get('post_trial_supported'), True)
+        self.assertIs(receipt.get('excess_supported'), True)
+        self.assertEqual(receipt.get('excess'), seen['excess'])
+        self.assertEqual(receipt.get('branch_read_only'), [{'branch_id': B1, 'read_only': True}])
+
+    def test_late_apply_verifies_only_exact_post_trial_target(self):
+        request = self.request(trial_ends_at='2026-01-01T00:00:00Z')
+        seen = applied_state(request, post_trial_supported=True, excess_supported=True,
+                             excess={'users.limit': 0, 'branches.extra_limit': 0})
+        seen.update(commercial_digest=request['post_trial_digest'], features=request['post_trial_features'], trial_ends_at=None)
+        self.assertTrue(se.verify(request, seen, now='2026-01-02T00:00:00Z'))
+        seen['commercial_digest'] = 'e' * 64
+        self.assertFalse(se.verify(request, seen, now='2026-01-02T00:00:00Z'))
+        seen['commercial_digest'] = request['post_trial_digest']
+        self.assertFalse(se.verify(request, seen, now='2025-12-31T00:00:00Z'))
+
+    def test_equivalent_trial_instants_do_not_reapply(self):
+        request = self.request(trial_ends_at='2026-12-01T03:00:00+03:00')
+        seen = applied_state(request, post_trial_supported=True, trial_ends_at='2026-12-01T00:00:00Z',
+                             post_trial_features=request['post_trial_features'], post_trial_modules=request['post_trial_modules'],
+                             post_trial_digest=request['post_trial_digest'])
+        self.assertTrue(se.verify(request, seen, now='2026-11-01T00:00:00Z'))
+
+    def test_matching_revision_without_settlement_is_not_a_receipt(self):
+        request = make_request(excess_settle=True)
+        seen = applied_state(request, excess_supported=True, excess={'users.limit': 0, 'branches.extra_limit': 0})
+        seen['usage']['users.limit'] = 11
+        self.assertFalse(se.verify(request, seen))
+        seen['usage']['users.limit'] = 10
+        self.assertTrue(se.verify(request, seen))
+        seen['modules'].remove('liwan_pmo')
+        self.assertFalse(se.verify(request, seen))
+
+    def test_expired_fallback_still_requires_materialization(self):
+        request = self.request(trial_ends_at='2026-01-01T00:00:00Z')
+        seen = applied_state(request, post_trial_supported=True, excess_supported=True,
+                             excess={'users.limit': 0, 'branches.extra_limit': 0})
+        seen.update(commercial_digest=request['post_trial_digest'], features=request['post_trial_features'],
+                    trial_ends_at=request['trial_ends_at'])
+        self.assertFalse(se.verify(request, seen, now='2026-01-02T00:00:00Z'))
+        seen['trial_ends_at'] = None
+        self.assertTrue(se.verify(request, seen, now='2026-01-02T00:00:00Z'))
+
+    def test_null_trial_clear_is_noop_on_an_older_tenant(self):
+        request = make_request(trial_ends_at=None)
+        runner = FakeRunner(observation(), apply_state=applied_state(request))
+        self.effect(runner).reconfigure(request)
+        values = _script_values(next(script for stage, _mutate, script in runner.scripts if stage == 'apply'))
+        self.assertNotIn('trial_ends_at', values)
+
+    def test_generated_apply_grants_only_after_the_effective_policy_write(self):
+        request = make_request(admin_login='owner@example.test')
+        request['entitlement']['features']['pmo.enabled'] = True
+        result, _profile, events = self.execute_apply(request)
+        self.assertEqual(result, {'applied': True})
+        self.assertIn(('roles', ('pmo',), ()), events)
+        self.assertLess(events.index('write'), events.index(('roles', ('pmo',), ())))
+
+    def test_generated_late_apply_settles_before_paid_branch_binding(self):
+        request = self.request(trial_ends_at='2026-01-01T00:00:00Z', excess_settle=True,
+                               branches={'apply': [{'branch_id': B1, 'name': 'Paid branch'}], 'archive': []})
+        result, profile, events = self.execute_apply(request)
+        self.assertEqual(result, {'applied': True})
+        self.assertEqual(profile.features, request['post_trial_features'])
+        self.assertLess(events.index('materialized'), events.index('branches'))
+        self.assertLess(events.index('settled'), events.index('branches'))
+        self.assertLess(events.index('branches'), events.index('commit'))
+
+    def test_generated_ai_delivery_updates_pending_policy_without_reopening_apps(self):
+        request = make_request(previous_revision_id=TARGET, ai_push=True)
+        request['entitlement']['features']['ai.balance.granted'] = 8
+        pending = {'pmo.enabled': False, 'ai.balance.granted': 1}
+        result, profile, _events = self.execute_apply(request, current=TARGET, digest=DIGEST, pending=pending)
+        self.assertEqual(result, {'applied': True})
+        self.assertEqual(profile.features['ai.balance.granted'], 8)
+        self.assertEqual(profile.post_trial_features, {'pmo.enabled': False, 'ai.balance.granted': 8})
+
+    def test_ai_delivery_on_materialized_policy_preserves_locked_apps(self):
+        request = make_request(previous_revision_id=TARGET, ai_push=True, ai_expected_post_trial_digest='d' * 64)
+        request['entitlement']['features'].update({'ai.balance.granted': 8, 'pmo.enabled': True})
+        result, profile, events = self.execute_apply(request, current=TARGET, digest='d' * 64)
+        self.assertEqual(result, {'applied': True})
+        self.assertFalse(profile.features['pmo.enabled'])
+        self.assertEqual(profile.commercial_digest, 'd' * 64)
+        self.assertEqual(profile.features['ai.balance.granted'], 8)
+        self.assertIn('commit', events)
+
+    def test_late_apply_checks_the_effective_application_limit_before_install(self):
+        request = self.request(trial_ends_at='2025-12-31T00:00:00Z')
+        request['post_trial_features'].update({'pmo.enabled': True, 'projects.max_projects': 1})
+        seen = observation(post_trial_supported=True, excess_supported=True,
+                           features={'pmo.enabled': True, 'projects.max_projects': 5, 'users.limit': 10})
+        seen['usage']['projects.max_projects'] = 2
+        runner = FakeRunner(seen)
+        with self.assertRaisesRegex(EffectError, 'downgrade_below_usage'):
+            self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.applies, 0)
+        self.assertEqual(runner.installed, [])
+
+    def test_empty_or_non_integer_ai_ledger_is_refused(self):
+        for values in ({}, {'ai.balance.granted': True}):
+            request = make_request(ai_push=True)
+            request['entitlement']['features'] = values
+            with self.subTest(values=values), self.assertRaisesRegex(EffectError, 'input_invalid'):
+                se.validate_reconfigure(request)
+
+    def test_new_trial_policy_must_be_complete_before_module_install(self):
+        request = make_request(trial_ends_at='2026-12-01T00:00:00Z')
+        runner = FakeRunner(observation(post_trial_supported=True, excess_supported=True))
+        with self.assertRaisesRegex(EffectError, 'input_invalid'):
+            self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.applies, 0)
+        self.assertEqual(runner.installed, [])
+
+    def test_unsettled_storage_cannot_be_acknowledged_even_when_full_seats_fit(self):
+        request = make_request(excess_settle=True)
+        seen = applied_state(request, excess_supported=True, excess_settled=False,
+                             excess={'users.limit': 0, 'branches.extra_limit': 0, 'storage.limit_mb': 20})
+        self.assertFalse(se.verify(request, seen))
+        seen['excess_settled'] = True
+        self.assertTrue(se.verify(request, seen))
+
+    def test_storage_bytes_are_exact_and_safely_typed(self):
+        for field in ('storage_bytes', 'blocked_storage_bytes'):
+            seen = observation(**{field: 1048577})
+            self.assertEqual(se.validate_observation(seen)[field], 1048577)
+            for invalid in (True, -1, 1.5, 9007199254740992):
+                with self.subTest(field=field, invalid=invalid), self.assertRaisesRegex(EffectError, 'observation_invalid'):
+                    se.validate_observation(observation(**{field: invalid}))
+
+    def test_settlement_preserves_the_proven_last_admin_floor_only(self):
+        request = make_request(excess_settle=True)
+        request['entitlement']['features']['users.limit'] = 0
+        seen = applied_state(request, excess_supported=True, excess_settled=True,
+                             excess={'users.limit': 3, 'branches.extra_limit': 0, 'storage.limit_mb': 0})
+        self.assertTrue(se.verify(request, seen))
+        seen['usage']['users.limit'] = 2
+        self.assertFalse(se.verify(request, seen))
+
+    def recovery_request(self):
+        return make_request(excess_settle=True, trial_ends_at=None, recoverable_predecessors=[
+            {'revision_id': OTHER, 'digest': 'e' * 64},
+            {'revision_id': B1, 'digest': 'f' * 64},
+        ])
+
+    def test_recovery_accepts_any_exact_authorized_unacknowledged_ancestor(self):
+        request = self.recovery_request()
+        after = applied_state(request, post_trial_supported=True, excess_supported=True,
+                              excess={'users.limit': 0, 'branches.extra_limit': 0})
+        before = observation(commercial_revision_id=OTHER, commercial_digest='e' * 64,
+                             post_trial_supported=True, excess_supported=True)
+        runner = FakeRunner(before, apply_state=after)
+        self.assertEqual(self.effect(runner).reconfigure(request)['target_revision_id'], TARGET)
+        self.assertEqual(runner.applies, 1)
+        self.assertEqual(_script_values(next(script for stage, _, script in runner.scripts if stage == 'apply'))['recoverable_predecessors'], request['recoverable_predecessors'])
+
+    def test_recovery_accepts_both_recorded_digests_for_one_revision(self):
+        first = {'revision_id': OTHER, 'digest': 'e' * 64}
+        second = {'revision_id': OTHER, 'digest': 'f' * 64}
+        request = {**self.recovery_request(), 'recoverable_predecessors': [first, second]}
+        self.assertEqual(se.validate_reconfigure(request), request)
+        for digest in (first['digest'], second['digest']):
+            with self.subTest(digest=digest):
+                result, profile, _events = self.execute_apply(request, current=OTHER, digest=digest)
+                self.assertEqual(result, {'applied': True})
+                self.assertEqual(profile.commercial_revision_id, TARGET)
+        with self.assertRaises(EffectError):
+            se.validate_reconfigure({**request, 'recoverable_predecessors': [first, first]})
+
+    def test_recovery_never_accepts_an_unrelated_revision_or_wrong_digest(self):
+        for revision, digest in ((B2, 'e' * 64), (OTHER, 'f' * 64)):
+            runner = FakeRunner(observation(commercial_revision_id=revision, commercial_digest=digest,
+                                           post_trial_supported=True, excess_supported=True))
+            with self.subTest(revision=revision, digest=digest), self.assertRaisesRegex(EffectError, 'stale_target'):
+                self.effect(runner).reconfigure(self.recovery_request())
+            self.assertEqual(runner.applies, 0)
+
+    def test_locked_apply_rechecks_authorized_predecessor_pair(self):
+        result, profile, _events = self.execute_apply(self.recovery_request(), current=OTHER, digest='e' * 64)
+        self.assertEqual(result, {'applied': True})
+        self.assertEqual(profile.commercial_revision_id, TARGET)
+        result, _profile, events = self.execute_apply(self.recovery_request(), current=OTHER, digest='f' * 64)
+        self.assertEqual(result, {'error_code': 'stale_target'})
+        self.assertNotIn('commit', events)
+
+    def test_recovery_lineage_is_only_accepted_for_system_settlement(self):
+        for over in ({'excess_settle': False}, {'trial_ends_at': '2026-12-01T00:00:00Z'},
+                     {'ai_push': True}, {'restore': {}}, {'post_trial_features': {}},
+                     {'recoverable_predecessors': [{'revision_id': OTHER, 'digest': 'bad'}]},
+                     {'recoverable_predecessors': [{'revision_id': TARGET, 'digest': DIGEST}]}):
+            with self.subTest(over=over), self.assertRaises(EffectError):
+                se.validate_reconfigure({**self.recovery_request(), **over})
+
+
 class OptionalTrialEndKeysTest(unittest.TestCase):
     """New optional keys are type-checked when present and ignored otherwise."""
 
@@ -764,15 +1136,16 @@ class OptionalTrialEndKeysTest(unittest.TestCase):
     def test_request_still_ignores_other_unknown_keys(self):
         se.validate_reconfigure(make_request(unrelated_key=object()))
 
-    def test_new_keys_change_neither_apply_script_nor_verify(self):
+    def test_new_keys_are_applied_and_verified(self):
         plain, extended = make_request(), make_request(**self.VALID_REQUEST)
-        self.assertEqual(se.build_apply_script(plain), se.build_apply_script(extended))
+        self.assertNotEqual(se.build_apply_script(plain), se.build_apply_script(extended))
         matching = observation(commercial_revision_id=TARGET, commercial_digest=DIGEST,
-                               features=plain['entitlement']['features'])
-        for seen in (matching, observation()):
-            with self.subTest(matches=seen is matching):
-                self.assertEqual(se.verify(plain, seen), se.verify(extended, seen))
-        self.assertTrue(se.verify(extended, matching))
+                               features=plain['entitlement']['features'], modules=plain['entitlement']['modules'],
+                               excess_supported=True, excess_settled=True, excess={'users.limit': 0, 'branches.extra_limit': 0})
+        self.assertTrue(se.verify(plain, matching))
+        self.assertFalse(se.verify(extended, matching))
+        matching.update({key: value for key, value in self.VALID_REQUEST.items() if key != 'excess_settle'})
+        self.assertTrue(se.verify(extended, matching, now='2026-11-01T00:00:00Z'))
 
     def test_observation_accepts_each_valid_key(self):
         for over in ({'post_trial_supported': True}, {'excess_supported': False},

@@ -1,4 +1,4 @@
-# 19.0.1.8.0
+# 19.0.1.11.0
 
 `liwan.tenant.profile` gains the nullable `ai_trial_start` and `ai_trial_end` (the AI assistant's trial period) and a check
 that both are null or the end is later than the start. Null on both means no trial, which is what every existing tenant

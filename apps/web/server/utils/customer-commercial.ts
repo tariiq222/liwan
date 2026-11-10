@@ -62,6 +62,8 @@ const ROUTES: Route[] = [
   { method: 'POST', pattern: /^quotes$/ },
   { method: 'POST', pattern: /^trial$/ },
   { method: 'POST', pattern: /^trial\/convert$/ },
+  { method: 'GET', pattern: /^trial\/end-preview$/ },
+  { method: 'POST', pattern: /^trial\/retry$/ },
   { method: 'POST', pattern: /^preview$/ },
   { method: 'POST', pattern: /^orders$/ },
   { method: 'GET', pattern: /^orders\/[A-Za-z0-9_-]{1,128}$/ },
@@ -78,7 +80,7 @@ const ROUTES: Route[] = [
 ]
 /** Capability each route needs (authoritative check also repeats in the control plane). */
 const NEEDS: Array<[RegExp, string, CustomerCommercialCapability]> = [
-  [/^quotes$|^orders|^auto-renew$|^trial(\/convert)?$/, 'POST', 'subscription.manage'],
+  [/^quotes$|^orders|^auto-renew$|^trial(\/(convert|retry))?$/, 'POST', 'subscription.manage'],
   [/^preview$/, 'POST', 'subscription.read'],
   [/^branch-quotes$/, 'POST', 'branches.manage'],
   [/^invoices/, 'GET', 'billing.read'],
@@ -194,7 +196,7 @@ function boundTenantId(tenant: ReturnType<typeof tenantRequest>, config: Custome
   return tenant ? tenant.tenantId : config.customerCommercialTenantId
 }
 
-export async function customerPrincipal(event: H3Event, config: CustomerConfig): Promise<CustomerPrincipal> {
+export async function customerPrincipal(event: H3Event, config: CustomerConfig, write = false): Promise<CustomerPrincipal> {
   const cookie = getHeader(event, 'cookie')
   if (!cookie) fail(401, 'unauthorized', 'A signed-in company session is required')
   const tenant = tenantRequest(event)
@@ -215,6 +217,7 @@ export async function customerPrincipal(event: H3Event, config: CustomerConfig):
   }
   const parsed = MeSchema.safeParse(me)
   if (!parsed.success) fail(401, 'unauthorized', 'The company session is not valid')
+  if (write && parsed.data.read_only) fail(403, 'user_read_only', 'This account has read-only access')
   return { actor_id: String(parsed.data.id), kind: 'customer', tenant_id: String(tenantId), capabilities: deriveCustomerCapabilities(parsed.data.capabilities) }
 }
 
@@ -232,7 +235,8 @@ export async function forwardCustomerRequest(event: H3Event): Promise<unknown> {
   if (isMutation) assertCustomerMutationOrigin(event, config)
   else ensureCsrfCookie(event)
 
-  const principal = await customerPrincipal(event, config)
+  const write = isMutation && route.upstream !== '/v1/customer/preview'
+  const principal = await customerPrincipal(event, config, write)
   if (!principal.capabilities.includes(route.needs)) fail(403, 'forbidden', 'You do not have access to this subscription action')
 
   let rawBody: string | undefined

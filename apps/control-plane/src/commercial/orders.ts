@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import type { Pool, PoolClient } from 'pg'
-import { acceptQuoteRequestSchema, orderSchema, initialOrderStates, quoteSchema, addCadence, riyadhDate, type AcceptQuoteRequest, type Principal, type Quote } from '@liwan/commercial-contracts'
+import { acceptQuoteRequestSchema, orderSchema, initialOrderStates, quoteSchema, addCadence, type AcceptQuoteRequest, type Principal, type Quote } from '@liwan/commercial-contracts'
 import { compileEntitlements } from '@liwan/commercial-contracts/server'
 import { transaction } from '../db.js'
 import { CommercialHttpError, digestOf, iso } from './lifecycle.js'
 import { requireCapability } from './authorization.js'
-import { loadQuoteSources, pricingBaseline } from './quotes.js'
+import { appliedPeriod } from './quotes.js'
+import { loadQuoteSources, pricingBaseline } from './quote-sources.js'
+import { compilePurchasedEntitlement, unresolvedLapse } from './free-base.js'
 import { issueInvoiceFromQuote } from './invoices.js'
 import { enqueueOutbox } from './outbox.js'
 import { lookup } from './payments.js'
@@ -81,7 +83,7 @@ async function lockOrder(client: PoolClient, input: { order_id: string; principa
 }
 
 async function settleCancellation(client: PoolClient, order: Record<string, any>, principal: Principal, reason: string) {
-  const updated = (await client.query('UPDATE orders SET cancelled=true WHERE id=$1 RETURNING *', [order.id])).rows[0]
+  const updated = (await client.query('UPDATE orders SET cancelled=true,automatic_refund=$2 WHERE id=$1 RETURNING *', [order.id, principal.actor_id === 'system:trial-expiry'])).rows[0]
   await client.query('UPDATE subscriptions SET target_revision_id=NULL,revision=revision+1 WHERE id=$1 AND target_revision_id=$2', [order.subscription_id,order.target_revision_id])
   // Retain immutable purchase evidence while releasing unfulfilled reservations
   // and preventing dunning from collecting the canceled purchase invoice.
@@ -190,28 +192,37 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
     if (quote.subscription_id || input.expected_subscription_revision !== 0) throw new CommercialHttpError('revision_conflict', 409)
     subscription = (await client.query('INSERT INTO subscriptions(id,customer_id,tenant_id) VALUES($1,$2,$3) RETURNING *', [randomUUID(), customer.id, customer.tenant_id])).rows[0]
   }
+  // Between the lapse and the lock order's receipt the applied revision is still the paid trial: an order accepted now would be
+  // priced for the free-base period and then collide with the lock (or with a conversion that bills the same period again). The
+  // customer upgrades right after the lock, which is minutes in the normal case and visible to the vendor when it is blocked.
+  if (subscription.manual_suspension) throw new CommercialHttpError('subscription_suspended', 409)
+  if (subscription.applied_revision_id && await unresolvedLapse(client, subscription)) throw new CommercialHttpError('lock_pending', 409, 'subscription_id')
+  if (subscription.state === 'trialing' && subscription.trial_ends_at && subscription.applied_revision_id && new Date(subscription.trial_ends_at).getTime() <= now.getTime()) throw new CommercialHttpError('trial_ending', 409)
   if (subscription.revision !== input.expected_subscription_revision || quote.expected_subscription_revision !== subscription.revision || (quote.subscription_id && quote.subscription_id !== subscription.id)) throw new CommercialHttpError('revision_conflict', 409)
   // A hosted attempt may settle later. Keep its accepted target authoritative
   // until the prior order is applied or explicitly cancelled.
   const pending = await client.query("SELECT 1 FROM orders WHERE subscription_id=$1 AND NOT cancelled AND fulfillment_state<>'applied' LIMIT 1", [subscription.id])
   if (subscription.target_revision_id || pending.rowCount) throw new CommercialHttpError('subscription_change_pending', 409)
+  // Once the trial end date has passed and the lapse has not run yet, no new order is accepted: otherwise an order could keep
+  // arriving against the trial configuration and the wait for the lapse would never end.
   if (new Date(quote.expires_at).getTime() <= now.getTime()) throw new CommercialHttpError('quote_expired', 422)
   const branchRequest = (await client.query('SELECT * FROM branch_quote_requests WHERE quote_id=$1', [quote.id])).rows[0]
   const kind = branchRequest ? (branchRequest.adds.length ? 'branch_add' : branchRequest.restore.length ? 'branch_restore' : 'branch_archive') : quote.subscription_id && subscription.applied_revision_id ? 'change' : 'new'
   const sources = await loadQuoteSources(client, customer.id, quote, kind === 'new')
   // Null terms in a persisted quote means no terms, not the newest later revision.
   if (!quote.terms_revision_id) sources.terms = null
-  const entitlement = compileEntitlements({ ...sources, quantities: { users: quote.requested_users, storage_mb: quote.requested_storage_mb } })
+  const previous = subscription.applied_revision_id ? (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [subscription.applied_revision_id])).rows[0]?.snapshot : null
+  const entitlement = compilePurchasedEntitlement({ ...sources, quantities: { users: quote.requested_users, storage_mb: quote.requested_storage_mb },
+    extraBranches: previous?.trial_end ? Math.max(quote.requested_extra_branches, sources.terms?.included_extra_branches ?? sources.plan.included_extra_branches) : undefined })
   if (entitlement.digest !== quote.entitlement_digest) throw new CommercialHttpError('revision_conflict', 409)
   const revisionId = randomUUID()
-  const previous = subscription.applied_revision_id ? (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [subscription.applied_revision_id])).rows[0]?.snapshot : null
   if (previous) await assertDowngradeFitsUsage(client, {
     tenant_id: customer.tenant_id, subscription_id: subscription.id,
-    previous: previous.entitlement?.features ?? {}, target: entitlement.features,
+    previous: previous.entitlement?.features ?? {}, target: entitlement.features, branchArchiveIds: branchRequest?.archive, now,
   })
-  const periodStart = previous ? previous.period_start : quote.effective_date
-  // While trialing, the period ends where the trial does: a vendor extension moves `trial_ends_at`, never the applied revision.
-  const periodEnd = previous ? (subscription.state === 'trialing' && subscription.trial_ends_at ? riyadhDate(subscription.trial_ends_at) : previous.period_end) : quote.next_renewal_at
+  const period = previous ? appliedPeriod(subscription, previous) : null
+  const periodStart = period ? period.start : quote.effective_date
+  const periodEnd = period ? period.end : quote.next_renewal_at
   const included = sources.terms?.included_extra_branches ?? sources.plan.included_extra_branches
   const snapshot = {
     customer_id: customer.id, tenant_id: customer.tenant_id ?? customer.id,
@@ -220,7 +231,8 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
     term_start: previous?.term_start ?? periodStart,
     term_end: previous?.term_end ?? addCadence(periodStart, { unit: 'month', count: sources.terms?.term_months ?? sources.plan.term_months }, 1),
     period_start: periodStart, period_end: periodEnd, included_extra_branches: included, extra_branch_count: quote.requested_extra_branches,
-    entitlement, quote_id: quote.id, pricing: pricingBaseline(quote, { extra_branches: included, users: sources.plan.included_users, storage_mb: sources.plan.included_storage_mb }),
+    entitlement, quote_id: quote.id, ...(previous?.trial_end ? { trial_end: true } : {}),
+    pricing: pricingBaseline(quote, { extra_branches: included, users: sources.plan.included_users, storage_mb: sources.plan.included_storage_mb }),
     ...(branchRequest ? { branch_archive_ids: branchRequest.archive, ...(branchRequest.restore.length ? { branch_restore_ids: branchRequest.restore } : {}) } : {}),
   }
   await client.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,$3,$4,$5)', [revisionId, subscription.id, subscription.revision + 1, JSON.stringify(snapshot), quote.id])

@@ -24,7 +24,7 @@ describe('useAccountPublic', () => {
   })
 
   it('accepts an invitation with the mobile number and password, and returns the login', async () => {
-    api.mockResolvedValue({ login: 'sara@example.com' })
+    api.mockResolvedValue({ login: 'sara@example.com', read_only: false })
     const login = await account().acceptInvitation({ token: 'tok', mobile: '+966500000001', password: 'twelve-chars!' })
     expect(login).toBe('sara@example.com')
     expect(api).toHaveBeenCalledWith('/api/v1/public/account/invitation/accept', expect.objectContaining({ method: 'POST', body: { token: 'tok', mobile: '+966500000001', password: 'twelve-chars!' } }))

@@ -3,6 +3,7 @@ import {
   AccountLoginSchema,
   AccountTokenCheckSchema,
   ForgotPasswordInputSchema,
+  InvitationAcceptedSchema,
   TokenPasswordResetInputSchema,
   type AcceptInvitationInput,
   type AccountTokenPurpose,
@@ -42,7 +43,7 @@ export function useAccountPublic() {
     /** Sets the holder's mobile number and password and signs them in; answers with the login. */
     async acceptInvitation(body: AcceptInvitationInput): Promise<string> {
       const input = AcceptInvitationInputSchema.parse(body)
-      return (await $api(`${PUBLIC_ACCOUNT}/invitation/accept`, { method: 'POST', body: input, schema: AccountLoginSchema })).login
+      return (await $api(`${PUBLIC_ACCOUNT}/invitation/accept`, { method: 'POST', body: input, schema: InvitationAcceptedSchema })).login
     },
     /** Always answers the same way, whether or not an account has this email. */
     async requestPasswordReset(body: ForgotPasswordInput): Promise<void> {

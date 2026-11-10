@@ -66,6 +66,8 @@ export const MeSchema = z.object({
   capabilities: z.array(CapabilitySchema).optional().default([]),
   access_policy_version: z.number().int().nonnegative().optional().default(0),
   company: z.object({ id: z.number().int().positive(), name: z.string() }),
+  /** True when the account is above the purchased seats: it reads and exports everything but takes no writes. */
+  read_only: z.boolean().optional().default(false),
   appearance: MeAppearanceSchema.optional(),
   modules: z.array(LiwanModuleIdSchema).optional().default([]),
   entitlements: z.record(z.string(), z.union([z.boolean(), z.number().int().nonnegative().nullable()])).optional().default({}),

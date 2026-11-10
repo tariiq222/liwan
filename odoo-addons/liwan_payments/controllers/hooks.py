@@ -7,6 +7,10 @@ from odoo import http
 from odoo.http import request
 
 from odoo.addons.liwan_payments.models.payment_transaction import PROCESSED, Collector
+from odoo.addons.liwan_platform.models.read_only_guard import (
+    INBOUND_EVENT_CONTEXT,
+    INBOUND_EVENT_TOKEN,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -23,7 +27,8 @@ class GatewayCallbackController(http.Controller):
     stock provider controller is reached through the routing map, so its signature check and
     ``_process`` run as stock wrote them, overrides included; no stock method body is copied.
     There is no feature gate: a tenant that switches payments off still records the money that
-    is already on its way.
+    is already on its way, and so does a read-only branch (the context key lifts the branch fence for
+    this request only).
     """
 
     @http.route(
@@ -40,7 +45,7 @@ class GatewayCallbackController(http.Controller):
         rule, args = request.env['ir.http']._match(stock_path)
         params = {**request.httprequest.args.to_dict(), **request.httprequest.form.to_dict()}
         processed = Collector()
-        request.update_context(**{PROCESSED: processed})
+        request.update_context(**{PROCESSED: processed, INBOUND_EVENT_CONTEXT: INBOUND_EVENT_TOKEN})
         try:
             # In a savepoint: what the stock endpoint wrote before it refused must not be committed with the refusal.
             with request.env.cr.savepoint():

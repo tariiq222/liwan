@@ -1,4 +1,4 @@
-import { daysBetween, MAX_USERS, riyadhDate, type Invoice, type Money, type Order, type Quote, type SubscriptionDisplayState, type UsageMetric, type UsageSnapshot } from '@liwan/commercial-contracts'
+import { daysBetween, MAX_USERS, riyadhDate, type Invoice, type Money, type Order, type Quote, type SubscriptionDisplayState, type SubscriptionState, type SubscriptionView, type TrialEndPreview, type UsageMetric, type UsageSnapshot } from '@liwan/commercial-contracts'
 
 import { invoiceLineQuantities, type InvoiceLineView } from '@liwan/commercial-ui/app/utils/invoiceLines'
 import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
@@ -43,9 +43,30 @@ export function refusalKey(code: unknown): string | null {
   // Release 1: the server refuses a quote above MAX_USERS; the customer is told the cap and who to contact.
   if (code === 'users_limit_exceeded') return 'subscription.change.usersCapNote'
   if (code === 'storage_step_invalid') return 'subscription.change.storageStepInvalid'
+  if (code === 'trial_ending' || code === 'lock_pending') return `subscription.trialEnd.details.${code}`
   return code === 'tenant_upgrade_required' || code === 'tenant_binding_unavailable' || code === 'trial_order_unavailable'
     ? `subscription.trial.${code === 'tenant_upgrade_required' ? 'upgradeRequired' : 'notConfigured'}`
     : null
+}
+
+/** The trial-end preview exists while a trial runs, after it settles, and during an unresolved lapse (trial_ends_at is already cleared then). */
+export function hasTrialPreview(sub: SubscriptionView | null) {
+  return Boolean(sub?.applied && (sub.trial_ends_at || sub.trial_outcome || sub.trial_lapse_pending))
+}
+
+export function trialEndActions(status: TrialEndPreview['status'] | null, state: SubscriptionState | null, canManage: boolean) {
+  return {
+    blocked: state === 'suspended' || status === 'trial_ending' || status === 'lock_pending',
+    canConvert: canManage && state === 'trialing' && (status === null || status === 'trialing' || status === 'trial_ending'),
+    canRetry: canManage && state !== 'suspended' && status === 'lock_pending',
+  }
+}
+
+/** Old or unavailable catalog revisions have no display name. Keep their IDs out of customer-facing text. */
+export function trialBundleNames(bundles: ReadonlyArray<Record<string, unknown>>): Record<string, string> {
+  return Object.fromEntries(bundles.flatMap(bundle =>
+    typeof bundle.id === 'string' && typeof bundle.name === 'string' ? [[bundle.id, bundle.name]] : [],
+  ))
 }
 
 /** The commercial facts of a quote, ignoring its identity and expiry, so a re-quote of the
@@ -253,14 +274,16 @@ export function subscriptionInvoiceView(invoice: Invoice, t: (key: string) => st
   }
 }
 
-export type OrderOutcome = 'applied' | 'cancelled' | 'awaiting_payment' | 'payment_failed' | 'processing' | 'activation_failed' | 'refund'
+export type OrderOutcome = 'applied' | 'cancelled' | 'awaiting_payment' | 'payment_failed' | 'processing' | 'recovering' | 'activation_failed' | 'refund'
 
 /** What the customer should see for an order, whether it is still open or already closed. */
 export function orderOutcome(order: Pick<Order, 'payment_state' | 'fulfillment_state'> & { cancelled?: boolean }): OrderOutcome {
   // A refund can follow activation and leaves fulfillment_state as it was, so the payment outcome wins.
   if (order.payment_state === 'refund_pending' || order.payment_state === 'refunded') return 'refund'
   if (order.fulfillment_state === 'applied') return 'applied'
-  if (order.fulfillment_state === 'failed' || order.fulfillment_state === 'needs_intervention') return 'activation_failed'
+  if (order.fulfillment_state === 'failed' || order.fulfillment_state === 'needs_intervention') {
+    return order.payment_state === 'paid' && !order.cancelled ? 'recovering' : 'activation_failed'
+  }
   if (order.cancelled) return 'cancelled'
   if (order.payment_state === 'failed') return 'payment_failed'
   if (order.payment_state === 'awaiting_payment') return 'awaiting_payment'

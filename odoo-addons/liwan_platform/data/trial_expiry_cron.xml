@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="ir_cron_apply_post_trial" model="ir.cron">
+        <field name="name">Apply the tenant's post-trial policy</field>
+        <field name="model_id" ref="model_liwan_tenant_profile"/>
+        <field name="state">code</field>
+        <field name="code">model._liwan_cron_apply_post_trial()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">5</field>
+        <field name="interval_type">minutes</field>
+    </record>
+</odoo>

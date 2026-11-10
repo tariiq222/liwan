@@ -634,6 +634,40 @@ class TestCollect(unittest.TestCase):
             },
         )
 
+    def test_commercial_imports_use_narrow_server_paths(self):
+        self.layers['ranks'] = {}
+        helper = 'apps/web/server/utils/customer-commercial.ts'
+        self.layers['commercial'] = {'pages': {}, 'allowed': [
+            'apps/web/server/api/commercial/', 'apps/web/server/api/invitations/', helper,
+        ]}
+        self.write(helper, "import type { Q } from '@liwan/commercial-contracts'\n")
+        self.write('apps/web/server/api/commercial/ok.ts', "export { x } from '../../utils/customer-commercial'\n")
+        self.write('apps/web/server/api/invitations/ok.ts', "import { x } from '#server/utils/customer-commercial'\n")
+        self.write('apps/web/server/utils/customer-commercial.ts.sibling.ts',
+                   "import type { Q } from '@liwan/commercial-contracts'\n")
+        self.write('apps/web/server/api/commercial-preview/bad.ts',
+                   "import { x } from '../../utils/customer-commercial'\n")
+        self.write('apps/web/server/api/tasks/relative.ts', "import('../../utils/customer-commercial.ts')\n")
+        self.write('apps/web/server/api/tasks/aliases.ts',
+                   "import { x } from '~~/server/utils/customer-commercial'\n"
+                   "import { y } from '@@/server/utils/customer-commercial.js'\n"
+                   "import { z } from '#server/utils/customer-commercial'\n")
+        self.write('apps/web/app/middleware/customer-commercial.ts', 'export default () => {}\n')
+        self.write('apps/web/app/utils/middleware.ts', "import m from '~/middleware/customer-commercial'\n"
+                   "// import { x } from '#server/utils/customer-commercial'\n")
+        self.write('apps/web/app/utils/server-helper.ts', "import { x } from '@/../server/utils/customer-commercial'\n")
+
+        violations, hard = collect(self.root, self.layers)
+
+        self.assertEqual(hard, [])
+        self.assertEqual(violations['R5'], {
+            'commercial import apps/web/app/utils/server-helper.ts': 1,
+            'commercial import apps/web/server/api/commercial-preview/bad.ts': 1,
+            'commercial import apps/web/server/api/tasks/aliases.ts': 3,
+            'commercial import apps/web/server/api/tasks/relative.ts': 1,
+            'commercial import apps/web/server/utils/customer-commercial.ts.sibling.ts': 1,
+        })
+
     def test_a_gated_page_must_declare_the_middleware_in_define_page_meta(self):
         self.clean_tree()
         lacking = {
@@ -1054,6 +1088,25 @@ class TestLayersRatchet(BaseRefCase):
         layers['commercial']['allowed'].remove('apps/web/server/')
         self.write_layers()
         self.assertEqual(self.problems(), [])
+
+    def test_replacing_commercial_directory_with_narrower_paths_needs_no_trailer(self):
+        self.layers['commercial']['allowed'].remove('apps/web/server/')
+        self.layers['commercial']['allowed'] += [
+            'apps/web/server/api/commercial/', 'apps/web/server/api/invitations/',
+            'apps/web/server/utils/customer-commercial.ts',
+        ]
+        self.commit_layers()
+        self.assertEqual(self.problems(), [])
+
+    def test_narrow_commercial_allowance_cannot_be_widened_without_a_trailer(self):
+        narrow = {'commercial': {'allowed': [
+            'apps/web/server/api/commercial/', 'apps/web/server/utils/customer-commercial.ts',
+        ]}}
+        for path in ('apps/web/server/api/', 'apps/web/server/api/commercial-preview/',
+                     'apps/web/server/utils/customer-commercial.ts.sibling.ts'):
+            with self.subTest(path=path):
+                wider = {'commercial': {'allowed': [*narrow['commercial']['allowed'], path]}}
+                self.assertEqual(layers_weakened(narrow, wider, self.root), [f'commercial allowed list grew: {path}'])
 
     def test_removing_an_addon_whose_directory_is_gone_is_not_reported(self):
         del self.layers['ranks']['liwan_b']

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { cadenceSchema, entitlementSnapshotSchema, revisionIdSchema } from './schemas.js'
+import { cadenceSchema, entitlementSnapshotSchema, quoteSchema, revisionIdSchema } from './schemas.js'
 import { orderSchema, type Order } from './orders.js'
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -16,6 +16,7 @@ export const subscriptionRevisionSchema = z.strictObject({
   included_extra_branches: z.number().int().min(0), extra_branch_count: z.number().int().min(0),
   entitlement: entitlementSnapshotSchema, quote_id: z.string().min(1), created_at: z.string(),
 })
+export const trialOutcomeSchema = z.enum(['converted', 'kept_subset', 'free_base'])
 export const subscriptionViewSchema = z.strictObject({
   id: z.string().min(1), customer_id: z.string().min(1), tenant_id: z.string().nullable(),
   state: subscriptionStateSchema,
@@ -27,7 +28,29 @@ export const subscriptionViewSchema = z.strictObject({
   renewal_at: isoDate.nullable(),
   auto_renew: z.strictObject({ enabled: z.boolean(), consent_at: z.string().nullable(), token_ref_present: z.boolean() }),
   trial_ends_at: z.string().nullable(), grace_ends_at: z.string().nullable(),
+  trial_outcome: trialOutcomeSchema.nullable().optional(),
+  trial_reopenable: z.boolean().optional(),
+  // The trial ended but its lock settlement (pending/ordered lapse) has not finished; trial_ends_at is already cleared.
+  trial_lapse_pending: z.boolean().optional(),
 })
+
+const quantity = z.number().int().nonnegative()
+export const trialEndPreviewSchema = z.strictObject({
+  status: z.enum(['trialing', 'trial_ending', 'lock_pending', 'settled']),
+  trial_ends_at: z.string(),
+  outcome: trialOutcomeSchema.nullable(),
+  kept: z.strictObject({ bundle_revision_ids: z.array(revisionIdSchema), paid_users: quantity, paid_storage_gb: quantity, paid_extra_branches: quantity }),
+  locked_bundle_revision_ids: z.array(revisionIdSchema),
+  limits: z.strictObject({ users: quantity, storage_mb: quantity, extra_branches: quantity }),
+  excess: z.strictObject({
+    users: quantity.nullable(), storage_bytes: quantity.nullable(), extra_branches: quantity.nullable(),
+    sampled_at: z.string().nullable(), source: z.enum(['usage_snapshot','unavailable']),
+    item_details: z.literal('unavailable'),
+  }),
+  first_invoice: quoteSchema.nullable(),
+  next_attempt_at: z.string().nullable(),
+})
+export type TrialEndPreview = z.infer<typeof trialEndPreviewSchema>
 
 export type SubscriptionState = z.infer<typeof subscriptionStateSchema>
 export type SubscriptionRevision = z.infer<typeof subscriptionRevisionSchema>

@@ -25,6 +25,7 @@ class _Fence:
     status = 'active'
     valid_until = False
     commercial_valid_until = False
+    trial_ends_at = False
 
     def __init__(self):
         self.features = {PROJECTS_LIMIT: None}

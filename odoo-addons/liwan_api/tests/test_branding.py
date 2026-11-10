@@ -7,6 +7,8 @@ from PIL import Image
 from odoo.exceptions import AccessError
 from odoo.tests import HttpCase, new_test_user, tagged
 
+from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
+
 
 @tagged('post_install', '-at_install', 'liwan')
 class TestBrandingEndpoint(HttpCase):
@@ -26,6 +28,22 @@ class TestBrandingEndpoint(HttpCase):
         self.assertEqual(body['primary_color'], '#0055ff')
         self.assertEqual(body['font'], 'IBM_Plex_Sans_Arabic')
         self.assertRegex(body['logo_url'], rf'^/web/binary/company_logo\?company={company.id}&v=.+$')
+
+    def test_branding_and_company_logo_stay_available_with_exhausted_storage(self):
+        profile = self.env.ref('liwan_platform.tenant_profile').with_context(**{OPERATOR_CONTEXT: True})
+        profile._liwan_initialize_legacy_policy(self.env['liwan.entitlement.service']._liwan_installed_modules())
+        company = profile.root_company_id
+        company.logo = image_base64('PNG')
+        profile.write({'features': {**profile.features, 'storage.limit_mb': 0}})
+
+        branding = self.url_open('/api/v1/branding')
+        self.assertEqual(branding.status_code, 200, branding.text)
+        logo_url = branding.json()['logo_url']
+        self.assertRegex(logo_url, rf'^/web/binary/company_logo\?company={company.id}&v=.+$')
+        logo = self.url_open(logo_url)
+        self.assertEqual(logo.status_code, 200)
+        self.assertTrue(logo.content)
+        self.assertTrue(logo.headers.get('Content-Type', '').startswith('image/'))
 
     def test_branding_has_no_logo_url_without_a_company_logo(self):
         company = self.env.ref('base.main_company')

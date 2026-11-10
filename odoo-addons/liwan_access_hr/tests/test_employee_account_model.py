@@ -218,6 +218,22 @@ class TestEmployeeAccountModel(TransactionCase):
         self.assertFalse(foreign.user_id)
         self.assertFalse(foreign.resource_id.user_id)
 
+    def test_link_is_refused_in_a_read_only_branch(self):
+        employee = self._employee('Fenced Link', 'fenced.link@example.com')
+        branch = self.env['liwan.tenant.branch'].create({
+            'branch_uid': 'link-ro-branch', 'company_id': self.company.id,
+            'operation_id': 'op-link', 'read_only': True,
+        })
+        with self.assertRaises(LiwanAccessRule) as error, self.cr.savepoint():
+            self.admin_service._liwan_link_employee(employee.id, self.employee_user.id)
+        self.assertEqual(error.exception.code, 'branch_read_only')
+        employee.invalidate_recordset(['user_id'])
+        self.assertFalse(employee.user_id)
+        self.assertFalse(employee.resource_id.user_id)
+        branch.write({'read_only': False})
+        self.admin_service._liwan_link_employee(employee.id, self.employee_user.id)
+        self.assertEqual(employee.user_id, self.employee_user)
+
     def test_hr_manager_cannot_link_account_through_generic_orm(self):
         with self.assertRaises(LiwanHrRule):
             self.env['hr.employee'].with_user(self.hr_manager).create({

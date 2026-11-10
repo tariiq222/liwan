@@ -47,7 +47,7 @@ export function invoiceDueDays(env: Record<string, string | undefined> = process
 
 export async function issueInvoiceFromQuote(
   client: PoolClient,
-  { order, quote }: { order: { id: string; customer_id: string; subscription_id: string; kind: string }; quote: Quote },
+  { order, quote, dueDays = invoiceDueDays() }: { order: { id: string; customer_id: string; subscription_id: string; kind: string }; quote: Quote; dueDays?: number },
 ): Promise<InvoiceView | null> {
   if (quote.due_now.minor === 0) return null
   const now = quote.lines.filter(l => l.timing === 'now')
@@ -64,7 +64,7 @@ export async function issueInvoiceFromQuote(
     `INSERT INTO invoices(id, customer_id, subscription_id, order_id, kind, status, currency, exponent,
        subtotal_minor, tax_minor, total_minor, period_start, period_end, due_at)
      VALUES($1,$2,$3,$4,$5,'issued',$6,$7,$8,$9,$10,$11,$12, now() + make_interval(days => $13)) RETURNING *`,
-    [id, order.customer_id, order.subscription_id, order.id, kind, currency, exponent, subtotal, tax, total, periodStart, periodEnd, invoiceDueDays()],
+    [id, order.customer_id, order.subscription_id, order.id, kind, currency, exponent, subtotal, tax, total, periodStart, periodEnd, dueDays],
   )
   const lines: any[] = []
   for (let i = 0; i < now.length; i++) {

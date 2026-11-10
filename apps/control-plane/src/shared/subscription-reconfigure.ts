@@ -5,6 +5,7 @@ import { sharedReconfigureJobSchema, type SharedReconfigureJob } from '@liwan/co
 import { transaction } from '../db.js'
 import { applyReceipt, failFulfillmentOn, type SubscriptionReceipt } from '../commercial/fulfillment.js'
 import { deliveredEntitlement, observeTenantNext, pushAiIfStale } from '../commercial/ai-ledger.js'
+import { PRE_WRITE_REFUSALS, recoverableTrialPredecessors } from './commercial-recovery.js'
 import { findBlockingJob, lockTenantJobs } from './job-store.js'
 import type { ObserveRunner } from './subscription-reconcile.js'
 
@@ -44,7 +45,7 @@ async function assertAiPushAuthority(client:PoolClient,job:SharedReconfigureJob)
   const snapshot=row.snapshot.entitlement
   if(snapshot?.digest!==authority.entitlement.digest)throw Error('observed_mismatch')
   if(!sameExceptAi(snapshot,authority.entitlement))throw Error('ai_push_invalid')
-  if(authority.branches.apply.length || authority.branches.archive.length || authority.branches.restore?.length || Object.hasOwn(authority,'commercial_valid_until') || Object.hasOwn(authority,'commercial_valid_until_revision'))throw Error('ai_push_invalid')
+  if(authority.trial_ends_at !== undefined || authority.post_trial_features || authority.post_trial_modules || authority.post_trial_digest || authority.excess_settle || authority.branches.apply.length || authority.branches.archive.length || authority.branches.restore?.length || Object.hasOwn(authority,'commercial_valid_until') || Object.hasOwn(authority,'commercial_valid_until_revision'))throw Error('ai_push_invalid')
   await assertCurrentBinding(client,job)
 }
 /**
@@ -55,7 +56,20 @@ async function assertAiPushAuthority(client:PoolClient,job:SharedReconfigureJob)
 async function withLiveAiFeatures(client:PoolClient,job:SharedReconfigureJob):Promise<SharedReconfigureJob> {
   const customer=(await client.query('SELECT customer_id FROM orders WHERE id=$1',[job.authority.order_id])).rows[0]?.customer_id
   if(!customer)return job
-  return {...job,authority:{...job.authority,entitlement:await deliveredEntitlement(client,customer,job.authority.entitlement)}}
+  const authority = { ...job.authority, entitlement: await deliveredEntitlement(client, customer, job.authority.entitlement) }
+  if (authority.post_trial_features) {
+    authority.post_trial_features = (await deliveredEntitlement(client, customer, { features: authority.post_trial_features })).features
+  }
+  if (authority.ai_push) {
+    const fallback = (await client.query(`SELECT payload->'authority' AS authority FROM shared_jobs
+      WHERE control_tenant_id=$1 AND state='verified' AND COALESCE(payload->>'restore','false')='false'
+        AND payload->'authority'->>'target_revision_id'=$2 AND (payload->'authority') ? 'trial_ends_at'
+      ORDER BY (payload->'authority'->>'commercial_valid_until_revision')::bigint DESC NULLS LAST,created_at DESC,id DESC LIMIT 1`,
+    [job.controlTenantId, authority.target_revision_id])).rows[0]?.authority
+    if (fallback?.post_trial_digest && fallback.trial_ends_at && Date.parse(fallback.trial_ends_at) <= Date.now())
+      authority.ai_expected_post_trial_digest = fallback.post_trial_digest
+  }
+  return { ...job, authority }
 }
 export async function assertReconfigureAuthority(client:PoolClient,job:SharedReconfigureJob) {
   if(job.authority.ai_push)return assertAiPushAuthority(client,job)
@@ -73,6 +87,31 @@ export async function assertReconfigureAuthority(client:PoolClient,job:SharedRec
   const renewalOfApplied = row.target_revision_id === null && row.applied_revision_id === job.authority.target_revision_id
   if((job.restore || row.fulfillment_state==='applied' || renewalOfApplied ? row.applied_revision_id : row.target_revision_id)!==job.authority.target_revision_id)throw Error('stale_target')
   if(row.snapshot.entitlement?.digest!==job.authority.entitlement.digest)throw Error('observed_mismatch')
+  const predecessors = job.authority.recoverable_predecessors
+  if (predecessors) {
+    if (job.origin !== 'trial-end' || job.restore || job.authority.excess_settle !== true || job.authority.trial_ends_at !== null)
+      throw Error('recovery_predecessor_invalid')
+    const a = job.authority
+    if (row.fulfillment_state === 'applied') {
+      // CP may have committed the receipt before the shared job's last journal write. Only the
+      // exact persisted authority and receipt for this still-applied revision can finish that replay.
+      const replay = await client.query(`SELECT 1 FROM fulfillment_effects e JOIN shared_jobs j ON j.id=e.job_id
+        WHERE e.order_id=$1 AND e.operation_id=$2 AND e.observed_digest=$3 AND e.applied_at IS NOT NULL
+          AND e.receipt->>'order_id'=$1::text AND e.receipt->>'database'=$4 AND e.receipt->>'target_revision_id'=$5
+          AND e.receipt->>'observed_entitlement_digest'=$3
+          AND j.control_tenant_id=$6 AND j.payload#>>'{authority,order_id}'=$1::text
+          AND j.payload#>>'{authority,operation_id}'=$2 AND j.payload#>>'{authority,target_revision_id}'=$5
+          AND j.payload#>>'{authority,entitlement,digest}'=$3
+          AND j.payload#>'{authority,recoverable_predecessors}'=$7::jsonb`,
+      [a.order_id, a.operation_id, a.entitlement.digest, job.binding.database, a.target_revision_id,
+        job.controlTenantId, JSON.stringify(predecessors)])
+      if (!replay.rowCount) throw Error('recovery_predecessor_invalid')
+    } else {
+      const allowed = await recoverableTrialPredecessors(client, a.order_id)
+      if (!predecessors.every(v => allowed.some(p => p.revision_id === v.revision_id && p.digest === v.digest)))
+        throw Error('recovery_predecessor_invalid')
+    }
+  }
   if(job.restore){
     const approved=await client.query(`SELECT 1 FROM shared_restore_approvals a LEFT JOIN shared_jobs j ON j.payload->>'approvalId'=a.id::text
       WHERE (a.id=$1 OR j.id=$1) AND a.control_tenant_id=$2 AND a.target_database=$3`,[job.restoreId,job.controlTenantId,job.binding.database])
@@ -127,20 +166,33 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
     return action(client)
   })
   const assertOwned=()=>owned(async client=>{await client.query("UPDATE shared_jobs SET lease_until=clock_timestamp()+interval '120 seconds' WHERE id=$1",[id])})
+  let effectReturned = false
   try {
     await assertOwned()
     await owned(async client=>{
-      await client.query("UPDATE shared_jobs SET journal=$2 WHERE id=$1",[id,{stage:'started',operation_id:claim.job.authority.operation_id,attemptId:claim.attemptId}])
+      await client.query(`UPDATE shared_jobs SET journal=$2::jsonb || jsonb_build_object('may_have_written',
+        COALESCE(journal->>'may_have_written'='true' OR journal->>'stage'='started',false)) WHERE id=$1`,
+      [id,{stage:'started',operation_id:claim.job.authority.operation_id,attemptId:claim.attemptId}])
       if(!claim.job.restore && !claim.job.authority.ai_push)await client.query("UPDATE orders SET fulfillment_state='applying' WHERE id=$1 AND fulfillment_state='queued'",[claim.job.authority.order_id])
     })
     // Python always observes first. Same immutable operation_id returns the
     // existing receipt after a crash; it never duplicates modules/branches.
     const receipt=await runner({...claim,action:'reconfigure',assertOwned}) as SubscriptionReceipt
+    effectReturned = true
     await assertOwned()
-    if(receipt.order_id!==claim.job.authority.order_id || receipt.database!==claim.job.binding.database || receipt.target_revision_id!==claim.job.authority.target_revision_id || receipt.observed_entitlement_digest!==claim.job.authority.entitlement.digest)throw Error('observed_mismatch')
-    if(!claim.job.restore && !claim.job.authority.ai_push)await applyReceipt(pool,{order_id:claim.job.authority.order_id,receipt})
-    if(!claim.job.restore && !claim.job.authority.ai_push && (receipt as {commercial_expiry_supported?:boolean}).commercial_expiry_supported===true){
-      await pool.query('UPDATE tenants SET commercial_expiry_supported=true WHERE id=$1 AND commercial_expiry_supported IS DISTINCT FROM true',[claim.job.controlTenantId])
+    const authority = claim.job.authority
+    const digest = receipt.observed_entitlement_digest
+    const cutoffPassed = authority.trial_ends_at && Date.parse(authority.trial_ends_at) <= Date.parse(receipt.observed_at)
+    const expected = cutoffPassed ? authority.post_trial_digest : authority.entitlement.digest
+    const aiFallback = authority.ai_push && digest === authority.ai_expected_post_trial_digest
+    if(receipt.order_id!==authority.order_id || receipt.database!==claim.job.binding.database || receipt.target_revision_id!==authority.target_revision_id
+      || (digest!==expected && !aiFallback)) throw Error('observed_mismatch')
+    if(!claim.job.restore && !authority.ai_push)await applyReceipt(pool,{order_id:authority.order_id,receipt,verifiedDigest:digest})
+    if(!claim.job.restore && !authority.ai_push) {
+      const support = receipt as {commercial_expiry_supported?: boolean; post_trial_supported?: boolean; excess_supported?: boolean}
+      await pool.query(`UPDATE tenants SET commercial_expiry_supported=COALESCE($2,commercial_expiry_supported),
+        post_trial_supported=COALESCE($3,post_trial_supported),excess_supported=COALESCE($4,excess_supported) WHERE id=$1`,
+      [claim.job.controlTenantId, support.commercial_expiry_supported, support.post_trial_supported, support.excess_supported])
     }
     // applyReceipt clears the target; completion checks ownership separately.
     await transaction(pool,async client=>{
@@ -163,9 +215,10 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
         const terminal=claim.job.authority.ai_push?'failed':'needs_intervention'
         if(claim.job.authority.ai_push)console.error('[control-plane] AI balance push %s for tenant %s failed: %s',id,claim.job.controlTenantId,code)
         if(claim.job.authority.ai_push)await observeTenantNext(client,claim.job.controlTenantId)
-        const refused=await client.query(`UPDATE shared_jobs SET state=$5,lease_until=NULL,journal=$4
+        const refused=await client.query(`UPDATE shared_jobs SET state=$5,lease_until=NULL,
+          journal=$4::jsonb || jsonb_build_object('may_have_written',COALESCE(journal->>'may_have_written'='true',false) OR $6::boolean)
           WHERE id=$1 AND attempt_id=$2 AND fence=$3 AND state='running' AND lease_until>clock_timestamp() RETURNING id`,
-        [id,claim.attemptId,claim.fence,{stage:terminal,operation_id:claim.job.authority.operation_id,error_code:code},terminal])
+        [id,claim.attemptId,claim.fence,{stage:terminal,operation_id:claim.job.authority.operation_id,error_code:code},terminal,effectReturned || !PRE_WRITE_REFUSALS.includes(code)])
         if(!refused.rowCount)throw Error('shared_lease_lost')
         if(!claim.job.restore && !claim.job.authority.ai_push)await failFulfillmentOn(client,{order_id:claim.job.authority.order_id,code})
         if(!claim.job.restore && code==='tenant_upgrade_required'){

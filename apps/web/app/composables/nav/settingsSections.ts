@@ -37,6 +37,7 @@ const SYSTEM: SettingsPage = {
   parts: [
     { id: 'integrations', labelKey: 'integrations.nav', icon: 'i-lucide-plug-zap', capability: 'integrations.read' },
     { id: 'maintenance', labelKey: 'settings.maintenance.title', icon: 'i-lucide-calendar-clock', capability: 'settings.maintenance.manage' },
+    { id: 'storage', labelKey: 'settings.storage.title', icon: 'i-lucide-hard-drive', capability: 'settings.company.manage', within: '/settings/system/storage' },
   ],
 }
 // The customer's subscription lives at /subscription (the approved SaaS commercial spec, 2026-10-02): the settings shell

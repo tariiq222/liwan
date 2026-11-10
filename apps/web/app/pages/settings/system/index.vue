@@ -21,6 +21,9 @@ async function reloadSnapshot() {
     <SharedForbiddenState v-if="!parts.length" :description="t('settings.forbidden')" />
     <template v-else>
       <IntegrationConnections v-if="shows('integrations')" />
+      <SharedRecordSection v-if="shows('storage')" id="storage" variant="panel" :title="t('settings.storage.title')" :description="t('settings.storage.description')">
+        <UButton to="/settings/system/storage" color="neutral" variant="outline">{{ t('settings.storage.open') }}</UButton>
+      </SharedRecordSection>
       <SharedPageState v-if="shows('maintenance')" :loading="isLoading" :error="error" @retry="refetch()">
         <MaintenanceSettings v-if="data" :snapshot="data" :reload="reloadSnapshot" :save-preference="value => preference.mutateAsync(value)" :book="value => booking.mutateAsync(value)" :update-booking="(id, value) => update.mutateAsync({ id, value })" />
       </SharedPageState>

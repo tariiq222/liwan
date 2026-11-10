@@ -186,7 +186,9 @@ class TestAccountInvitationRoutes(LiwanApiCase):
         accepted = self.api('POST', f'{PUBLIC}/invitation/accept', {
             'token': raw, 'mobile': MOBILE, 'password': PASSWORD,
         })
-        self.assertEqual((accepted.status_code, accepted.json()), (200, {'login': 'invitee.api@example.com'}))
+        self.assertEqual(
+            (accepted.status_code, accepted.json()), (200, {'login': 'invitee.api@example.com', 'read_only': False}),
+        )
         self.assertNotIn('session_id', accepted.cookies)
         again = self.api('POST', f'{PUBLIC}/invitation/accept', {
             'token': raw, 'mobile': MOBILE, 'password': PASSWORD,

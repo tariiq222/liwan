@@ -8,6 +8,8 @@ const { t } = useI18n(); const { can } = useVendorContext(); const api = useVend
 const action = ref<'extend' | 'end' | null>(null); const days = ref('7'); const reason = ref('')
 const busy = ref(false); const failure = ref<string | undefined>()
 const daysLeft = computed(() => props.subscription.trial_ends_at ? daysBetween(riyadhDate(new Date()), riyadhDate(new Date(props.subscription.trial_ends_at))) : null)
+const reopening = computed(() => props.subscription.trial_reopenable || Boolean(props.subscription.trial_ends_at && Date.parse(props.subscription.trial_ends_at) <= Date.now()))
+const actionKey = computed(() => action.value === 'extend' && reopening.value ? 'reopen' : action.value)
 const dayCount = computed(() => { const n = Number(days.value.replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))); return Number.isInteger(n) && n >= 1 && n <= 365 ? n : null })
 const valid = computed(() => reason.value.trim().length >= 3 && (action.value !== 'extend' || dayCount.value !== null))
 const blocked = computed(() => !hydrated.value || busy.value || !can('vendor.subscriptions.manage'))
@@ -32,12 +34,12 @@ async function perform() {
     <UAlert v-if="failure" class="mt-3" color="error" variant="subtle" :title="failure" />
     <template v-if="!action">
       <div class="mt-4 flex flex-wrap gap-2">
-        <UButton color="neutral" variant="outline" :disabled="blocked" @click="choose('extend')">{{ t('vendor.customers.trial.extend') }}</UButton>
-        <UButton color="error" variant="outline" :disabled="blocked" @click="choose('end')">{{ t('vendor.customers.trial.end') }}</UButton>
+        <UButton color="neutral" variant="outline" :disabled="blocked" @click="choose('extend')">{{ t(reopening ? 'vendor.customers.trial.reopen' : 'vendor.customers.trial.extend') }}</UButton>
+        <UButton v-if="subscription.state === 'trialing' && !reopening" color="error" variant="outline" :disabled="blocked" @click="choose('end')">{{ t('vendor.customers.trial.end') }}</UButton>
       </div>
       <p v-if="!can('vendor.subscriptions.manage')" class="mt-2 text-sm text-muted">{{ t('vendor.customers.trial.readOnly') }}</p>
     </template>
-    <SharedInlineConfirm v-else :title="t(`vendor.customers.trial.${action}`)" :description="t(`vendor.customers.trial.${action}Hint`)" :confirm-label="t(`vendor.customers.trial.${action}`)" :pending="busy" :disabled="blocked || !valid" @confirm="perform" @cancel="action = null; reason = ''; failure = undefined">
+    <SharedInlineConfirm v-else :title="t(`vendor.customers.trial.${actionKey}`)" :description="t(`vendor.customers.trial.${actionKey}Hint`)" :confirm-label="t(`vendor.customers.trial.${actionKey}`)" :pending="busy" :disabled="blocked || !valid" @confirm="perform" @cancel="action = null; reason = ''; failure = undefined">
       <div class="mt-3 space-y-4">
         <UFormField v-if="action === 'extend'" :label="t('vendor.customers.trial.days')" required><UInput v-model="days" inputmode="numeric" dir="ltr" class="w-full sm:w-40" :disabled="blocked" /></UFormField>
         <UFormField :label="t('vendor.customers.trial.reason')" required><UTextarea v-model="reason" :maxlength="1000" class="w-full" :disabled="blocked" /></UFormField>

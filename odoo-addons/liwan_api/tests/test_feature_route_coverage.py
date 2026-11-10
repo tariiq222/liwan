@@ -15,6 +15,8 @@ BASE_PATH_PREFIXES = (
     '/api/v1/auth/',
     '/api/v1/admin/',
 )
+# This platform reader remains available when application features close.
+PLATFORM_READ_CAPABILITIES = {'/api/v1/settings/storage': ('settings.company.manage',)}
 # Mixed-owner writes keep controller-level resource checks instead of a
 # single feature key. Reads still declare keys.
 NOTIFICATION_WRITE_ENDPOINTS = frozenset({
@@ -60,6 +62,12 @@ class TestFeatureRouteCoverage(TransactionCase):
                 if str(item) in BASE_PATHS or any(str(item).startswith(prefix) for prefix in BASE_PATH_PREFIXES):
                     continue
                 if str(item) in NOTIFICATION_WRITE_ENDPOINTS:
+                    continue
+                if str(item) in PLATFORM_READ_CAPABILITIES:
+                    self.assertEqual(set(methods), {'GET'}, item)
+                    self.assertTrue(routing.get('readonly'), item)
+                    self.assertEqual(self._endpoint_attr(endpoint, '_liwan_capability_keys'),
+                                     PLATFORM_READ_CAPABILITIES[str(item)], item)
                     continue
                 keys = self._endpoint_attr(endpoint, '_liwan_feature_keys')
                 operation = self._endpoint_attr(endpoint, '_liwan_feature_operation')

@@ -675,6 +675,18 @@
       "handler": "policy",
       "no_capability_reason": null
     },
+    "GET /api/v1/admin/branches": {
+      "addon": "liwan_api",
+      "auth": "user",
+      "capability_keys": [
+        "settings.company.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "list_branches",
+      "no_capability_reason": null
+    },
     "GET /api/v1/admin/branding": {
       "addon": "liwan_api",
       "auth": "user",
@@ -5621,6 +5633,18 @@
       "handler": "get_project_create_defaults",
       "no_capability_reason": null
     },
+    "GET /api/v1/settings/storage": {
+      "addon": "liwan_api",
+      "auth": "user",
+      "capability_keys": [
+        "settings.company.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "list_storage",
+      "no_capability_reason": null
+    },
     "GET /api/v1/tags": {
       "addon": "liwan_pmo",
       "auth": "user",
@@ -5804,6 +5828,18 @@
       "handler": "apply_preset",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/admin/branches/{branch_id}/seat": {
+      "addon": "liwan_api",
+      "auth": "user",
+      "capability_keys": [
+        "settings.company.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [],
+      "handler": "update_branch_seat",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/admin/branding": {
       "addon": "liwan_api",
       "auth": "user",
@@ -5893,6 +5929,18 @@
       "capability_source": "body",
       "feature_keys": [],
       "handler": "edit_invitation",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/admin/users/{user_id}/seat": {
+      "addon": "liwan_api",
+      "auth": "user",
+      "capability_keys": [
+        "access.users.grant"
+      ],
+      "capability_match": "all",
+      "capability_source": "body",
+      "feature_keys": [],
+      "handler": "seat",
       "no_capability_reason": null
     },
     "PATCH /api/v1/ai/agents/{key}": {

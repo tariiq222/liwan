@@ -47,10 +47,16 @@ file the tool does not scan).
      `tools/arch_layers.json` / `tools/arch_baseline.json`.
    - A new `sudo()` outside the documented cases, or `sudo()` used to avoid an access error.
    - A route that is not `type='json2'`, `auth='user'` with `@api_handler`, or that skips its
-     feature gate (`requires_feature` / `requires_registered_feature`). The one documented exception
-     is the public namespace `/api/v1/public/`: `auth='public'`, `save_session=False`, authorized by a
-     per-document access token or a gateway signature (never a session), listed with its reason in
-     `tools/route_gate_allowlist.json`; gateway callbacks there may be `type='http'`.
+     feature gate (`requires_feature` / `requires_registered_feature`), outside the documented
+     exceptions. The public namespace `/api/v1/public/` uses `auth='public'` and `save_session=False`.
+     A per-document access token or gateway signature authorizes the request without a session,
+     and gateway callbacks there may use `type='http'`.
+     The existing Inbox callbacks are a separate exception. `GET` and `POST` on
+     `/api/v1/inbox/hooks/whatsapp` and `POST` on `/api/v1/inbox/hooks/tiktok` use `type='http'`,
+     `auth='inbox_hook'` and `save_session=False`. WhatsApp `GET` checks the provider verification token.
+     Both `POST` operations verify the provider signature. These callbacks use the dedicated hook
+     identity without session authentication. Each exception is listed with its reason in
+     `tools/route_gate_allowlist.json`.
    - A write path with no capability check, or one that ignores current-company or record visibility.
    - A raw `read()` result sent to the client instead of a whitelisting serializer.
    - A schema change without its version bump and migration directory in the same commit.

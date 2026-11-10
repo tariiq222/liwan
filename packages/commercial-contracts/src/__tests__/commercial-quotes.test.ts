@@ -207,3 +207,16 @@ describe('computeQuote during a trial (L6)', () => {
     expect(err(() => buy(M, '2026-11-09', 30))).toBe('invalid_billing_period')
   })
 })
+
+it('prices only unpaid unit-days in the first cycle after early conversion (L4)', () => {
+  const metered = plan({ included_users: 3, user_prices: [{ cadence: M, amount: sar(3100) }] })
+  const q = computeQuote(base({
+    plan: metered, requested_extra_branches: 1, requested_users: 6,
+    period: { start: '2027-10-01', end: '2027-11-01' }, effective_date: '2027-10-01',
+    paid_through: { users: [{ quantity: 1, through: '2027-10-11' }, { quantity: 1, through: '2027-10-21' }] },
+  }))
+  expect(q.lines.find(l => l.key === 'base')?.amount.minor).toBe(50000)
+  expect(q.lines.find(l => l.key === 'users')?.amount.minor).toBe(6300)
+  expect(q.due_now.minor).toBe(64745)
+  expect(q.next_renewal.minor).toBe(68195)
+})

@@ -9,6 +9,8 @@ export interface Step {
   cadence?: { unit: 'month' | 'year', count: number }
   paid_extra_branches?: number
   branch_unit_minor?: number
+  /** Recurring price per bundle revision in the snapshot's pricing. */
+  bundle_minor?: Record<string, number>
   kind?: 'new' | 'change' | 'renewal'
   fulfillment_state?: 'applied' | 'queued' | 'applying' | 'failed' | 'needs_intervention'
   currency?: string
@@ -52,7 +54,7 @@ export async function seedCustomer(pool: Pool, input: Customer): Promise<Seeded>
     const snapshot = {
       plan_revision_id: step.plan_revision_id, cadence: step.cadence ?? { unit: 'month', count: 1 },
       entitlement: { features: input.features ?? {} },
-      pricing: { base_minor: step.base_minor, bundle_minor: {}, paid_extra_branches: step.paid_extra_branches ?? 0, branch_unit_minor: step.branch_unit_minor ?? 0 },
+      pricing: { base_minor: step.base_minor, bundle_minor: step.bundle_minor ?? {}, paid_extra_branches: step.paid_extra_branches ?? 0, branch_unit_minor: step.branch_unit_minor ?? 0 },
     }
     const quote = randomUUID(), order = randomUUID()
     await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id,created_at) VALUES($1,$2,$3,$4,$5,$6)', [revisions[index], subscription_id, index + 1, JSON.stringify(snapshot), quote, step.at])

@@ -40,14 +40,18 @@ async function liveSubscriptions(db: Ask): Promise<Live[]> {
 /** Every applied order of every subscription, whatever its state today, priced from its revision. Orders in other currencies than the book's are dropped and counted. */
 async function loadBook(db: Ask): Promise<Book> {
   const rows = (await db.query(
-    `SELECT o.subscription_id, s.state, s.trial_ends_at, o.currency, o.exponent, COALESCE(fe.applied_at, o.effective_at, o.created_at) AS applied_at,
+    `SELECT o.subscription_id, s.state, COALESCE(s.trial_ends_at, lapse.ended_at) AS trial_ends_at, o.currency, o.exponent, COALESCE(fe.applied_at, o.effective_at, o.created_at) AS applied_at,
             r.snapshot->'pricing' AS pricing, r.snapshot->'cadence' AS cadence, p.plan_id, p.name AS plan_name
        FROM orders o
        JOIN subscriptions s ON s.id = o.subscription_id
        JOIN subscription_revisions r ON r.id = o.target_revision_id
        JOIN plan_revisions p ON p.id = (r.snapshot->>'plan_revision_id')::uuid
        LEFT JOIN fulfillment_effects fe ON fe.order_id = o.id
+       LEFT JOIN trial_lapses lapse ON lapse.subscription_id = o.subscription_id AND lapse.state <> 'superseded'
       WHERE o.fulfillment_state = 'applied' AND NOT o.cancelled AND r.snapshot->'pricing' IS NOT NULL
+        -- A trial that lapsed never billed what it was configured with, paid upgrades included (their snapshot still holds the unpaid
+        -- trial apps): what was applied up to the lapse is not revenue. The lock order carries the kept items and is booked from the trial boundary.
+        AND NOT EXISTS (SELECT 1 FROM trial_lapses l WHERE l.subscription_id = o.subscription_id AND COALESCE(fe.applied_at, o.effective_at, o.created_at) <= l.lapsed_at)
       ORDER BY o.subscription_id, r.revision`)).rows
   const tally = new Map<string, { n: number, exponent: number }>()
   for (const row of rows) tally.set(row.currency, { n: (tally.get(row.currency)?.n ?? 0) + 1, exponent: row.exponent })
@@ -96,15 +100,23 @@ async function collection(db: Ask, unit: Money, period: Period) {
   }
 }
 
-async function trialConversion(db: Ask, period: Period, now: Date): Promise<AnalyticsFigure<number>> {
+async function trialConversion(db: Ask, period: Period, now: Date) {
   const { start, end } = periodBounds(period)
   const row = (await db.query(
-    `SELECT count(*) AS ended,
-            count(*) FILTER (WHERE EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id = s.id AND i.status = 'paid'
-                                              AND i.subtotal_minor > 0 AND i.paid_at >= s.trial_ends_at)) AS converted
-       FROM subscriptions s WHERE s.trial_ends_at >= $1 AND s.trial_ends_at < LEAST($2::timestamptz, $3::timestamptz)`,
+    `WITH ended AS (
+       SELECT s.id,COALESCE(l.ended_at,s.trial_ended_at,s.trial_ends_at) AS ended_at,s.trial_outcome
+       FROM subscriptions s LEFT JOIN trial_lapses l ON l.subscription_id=s.id AND l.state<>'superseded'
+     )
+     SELECT count(*) AS ended,
+       count(*) FILTER (WHERE EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id=t.id AND i.status='paid'
+         AND i.subtotal_minor>0 AND i.paid_at>=t.ended_at)) AS paid,
+       count(*) FILTER (WHERE t.trial_outcome='converted') AS converted,
+       count(*) FILTER (WHERE t.trial_outcome='kept_subset') AS kept_subset,
+       count(*) FILTER (WHERE t.trial_outcome='free_base') AS free_base
+     FROM ended t WHERE t.ended_at >= $1 AND t.ended_at < LEAST($2::timestamptz,$3::timestamptz)`,
     [new Date(start), new Date(end), now])).rows[0]
-  return orNoData(ratio(num(row.converted), num(row.ended)))
+  return { trial_conversion_rate: orNoData(ratio(num(row.paid), num(row.ended))),
+    trial_outcomes: { converted: num(row.converted), kept_subset: num(row.kept_subset), free_base: num(row.free_base) } }
 }
 
 async function hoursToReady(db: Ask, period: Period): Promise<AnalyticsFigure<number>> {
@@ -136,7 +148,7 @@ async function figuresFor(db: Ask, book: Book, unit: Money, period: Period, now:
     collection: await collection(db, unit, period),
     customers: {
       active: stock ? available(stock.customers) : historyLost, new: available(movement.new_customers), churned: lost,
-      churn_rate_by_count: lost, churn_rate_by_revenue: lost, trial_conversion_rate: await trialConversion(db, period, now),
+      churn_rate_by_count: lost, churn_rate_by_revenue: lost, ...await trialConversion(db, period, now),
     },
     operations: { avg_hours_to_ready: await hoursToReady(db, period) },
   }

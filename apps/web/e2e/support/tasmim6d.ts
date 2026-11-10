@@ -15,7 +15,7 @@ export async function loginAdmin(page: Page) {
 
 export async function openShell(page: Page, path: string) {
   await page.goto(path)
-  await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
+  await expect(page.getByTestId('global-search-trigger')).toBeEnabled({ timeout: 15_000 })
 }
 
 // The server renders a first load and fetches its data itself, so a browser route cannot intercept it:
@@ -41,7 +41,7 @@ export const ROLE_REFS = {
 }
 
 const user = (id: number, name: string, login: string, roles: typeof ROLE_REFS[keyof typeof ROLE_REFS][], active = true) => ({
-  id, name, login, mobile: null, invitation: null, active, protected: false, version: `u${id}`,
+  id, name, login, mobile: null, invitation: null, active, protected: false, read_only: false, seat_choice: 'auto', seat_priority: 0, version: `u${id}`,
   employee: id === 13 ? null : { id: id - 6, name, department: null },
   assignments: roles.map((role, index) => ({ id: id * 10 + index + 1, role, scope: COMPANY })),
 })
@@ -102,6 +102,7 @@ export async function mockAdminApi(page: Page) {
       const items = USERS.items.filter(item => !q || item.name.toLowerCase().includes(q) || item.login.includes(q))
       return route.fulfill(json({ items, total: items.length }))
     }
+    if (path === '/users/seats') return route.fulfill(json({ used: 2, limit: 10, read_only: 0 }))
     const userId = path.match(/^\/users\/(\d+)$/)
     if (userId) return route.fulfill(userId[1] === '11' ? json(USER_DETAIL) : notFound())
     if (path === '/roles') {

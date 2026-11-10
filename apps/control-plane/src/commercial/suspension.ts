@@ -3,11 +3,11 @@ import type { Pool } from 'pg'
 import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
 import { commercialExpiryDate } from './fulfillment.js'
-import { pushCommercialExpiry } from './trial.js'
+import { pushCommercialExpiry } from './expiry-push.js'
 
 export type TenantStatus = 'active' | 'suspended'
 /** The tenant status a subscription asks for: only `suspended` stops the tenant; every other state (cancelled included) lets it in. */
-export const tenantStatusSql = (alias: string) => `CASE WHEN ${alias}.state='suspended' THEN 'suspended' ELSE 'active' END`
+export const tenantStatusSql = (alias: string) => `CASE WHEN (${alias}.state='suspended' OR ${alias}.manual_suspension) THEN 'suspended' ELSE 'active' END`
 /** Writes the tenant's Odoo profile status (the shared worker's Odoo adapter); resolves once Odoo confirmed it. */
 export type TenantStatusRunner = (input: { tenant_id: string; status: TenantStatus }) => Promise<unknown>
 
@@ -22,7 +22,7 @@ async function audited(client: { query: Pool['query'] }, input: { subscription_i
 /** Vendor action: stop the tenant now. A payment does not lift it; only `resumeSubscription` does. */
 export async function suspendSubscription(pool: Pool, input: { subscription_id: string; reason: string; actor: string }) {
   await transaction(pool, async client => {
-    const updated = await client.query(`UPDATE subscriptions SET state='suspended',manual_suspension=true,revision=revision+1
+    const updated = await client.query(`UPDATE subscriptions SET suspended_from=state,state='suspended',manual_suspension=true,revision=revision+1
       WHERE id=$1 AND state = ANY($2::text[]) RETURNING id`, [input.subscription_id, SUSPENDABLE])
     if (!updated.rowCount) throw new CommercialHttpError('subscription_not_suspendable', 409)
     await audited(client, { ...input, action: 'subscription.suspended' })
@@ -35,15 +35,15 @@ export async function suspendSubscription(pool: Pool, input: { subscription_id: 
  */
 export async function resumeSubscription(pool: Pool, input: { subscription_id: string; reason: string; actor: string }) {
   await transaction(pool, async client => {
-    const row = (await client.query(`SELECT s.id,p.grace_days,(s.trial_ends_at > now()) AS trial_running,s.trial_ends_at IS NOT NULL AS has_expiry,EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id=s.id AND i.status='issued' AND i.due_at < now()) AS overdue
+    const row = (await client.query(`SELECT s.id,p.grace_days,s.suspended_from,s.trial_ends_at IS NOT NULL AND s.trial_outcome IS NULL AS has_expiry,EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id=s.id AND i.status='issued' AND i.due_at < now()) AS overdue
       FROM subscriptions s LEFT JOIN subscription_revisions sr ON sr.id=s.applied_revision_id
       LEFT JOIN plan_revisions p ON p.id=(sr.snapshot->>'plan_revision_id')::uuid
       WHERE s.id=$1 AND s.state='suspended' FOR UPDATE OF s`, [input.subscription_id])).rows[0]
     if (!row) throw new CommercialHttpError('subscription_not_suspended', 409)
     const graceDays = Math.max(1, Number(row.grace_days ?? 0))
-    // A trial that is still running resumes as a trial, so ending or converting it keeps working.
-    const next = row.overdue ? 'past_due' : row.trial_running ? 'trialing' : 'active'
-    await client.query(`UPDATE subscriptions SET state=$2,manual_suspension=false,
+    // A suspended trial keeps its original clock and goes through the ordinary expiry transition.
+    const next = row.suspended_from === 'trialing' ? 'trialing' : row.overdue ? 'past_due' : 'active'
+    await client.query(`UPDATE subscriptions SET state=$2,manual_suspension=false,suspended_from=NULL,
       grace_ends_at=CASE WHEN $2='past_due' THEN now() + make_interval(days => $3::int) ELSE NULL END,revision=revision+1 WHERE id=$1`,
     [input.subscription_id, next, graceDays])
     // A trial's Odoo expiry (trial end plus grace) keeps the tenant read-only once it has passed, so the fresh grace period
@@ -105,7 +105,8 @@ export async function syncTenantStatus(pool: Pool, input: { runner: TenantStatus
   for (const row of due) {
     if (Date.now() - started >= budget || await input.busy?.()) break
     const outcome = await pushUnderLock(pool, row, input.runner).catch(async error => {
-      await pool.query(`UPDATE subscriptions SET tenant_status_failures=tenant_status_failures+1,tenant_status_next_at=${BACKOFF_SQL} WHERE id=$1`, [row.id])
+      await pool.query(`UPDATE subscriptions SET tenant_status_failures=tenant_status_failures+1,tenant_status_next_at=${BACKOFF_SQL} WHERE id=$1
+        AND tenant_status_pushed IS DISTINCT FROM ${tenantStatusSql('subscriptions')}`, [row.id])
       input.log?.(`tenant status ${row.wanted} not pushed for subscription ${row.id}`, error)
       return 'failed' as const
     })

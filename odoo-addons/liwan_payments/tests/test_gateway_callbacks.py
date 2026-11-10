@@ -59,6 +59,18 @@ class TestGatewayCallbacks(LiwanPayerCase):
         self.env.invalidate_all()
         self.assertEqual(len(self.env['account.payment'].search([('payment_transaction_id', '=', self.tx.id)])), 1)
 
+    def test_a_read_only_branch_still_records_a_signed_callback(self):
+        """Money already on its way is recorded whatever the state of the branch it was paid to."""
+        self.env['liwan.tenant.branch'].create({
+            'branch_uid': 'pay-ro', 'company_id': self.invoice.company_id.id, 'operation_id': 'op-pay', 'read_only': True,
+        })
+        self.assertTrue(self.invoice.company_id.liwan_read_only)
+        payload = self.payload()
+        self.assertEqual(self.post_webhook(payload, self.signature(payload)).status_code, 200)
+        self.env.invalidate_all()
+        self.assertEqual((self.tx.state, self.tx.is_post_processed), ('done', True))
+        self.assertTrue(self.tx.payment_id)
+
     @mute_logger('odoo.addons.liwan_payments.controllers.hooks')
     def test_a_failed_post_processing_keeps_a_retry_after_the_last_gateway_is_off(self):
         cron = self.env.ref('payment.cron_post_process_payment_tx')

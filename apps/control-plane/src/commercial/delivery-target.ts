@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { PoolClient } from 'pg'
+import type { SharedReconfigureJob } from '@liwan/commercial-contracts/shared'
 import { enqueueReconfigureJob } from '../shared/job-store.js'
 
 /**
@@ -26,11 +27,13 @@ export async function appliedDeliveryTarget(client: Pick<PoolClient, 'query'>, s
  */
 export async function enqueueAppliedDelivery(client: PoolClient, target: NonNullable<Awaited<ReturnType<typeof appliedDeliveryTarget>>> & { binding: Record<string, any>; order: { id: string } },
   entitlement: { modules: unknown; features: Record<string, unknown>; digest: string; compiler_version: unknown },
-  expiry: { commercial_valid_until: string | null; commercial_valid_until_revision: number } | null, unique: boolean, aiPush = false) {
+  expiry: Pick<SharedReconfigureJob['authority'], 'commercial_valid_until' | 'commercial_valid_until_revision' |
+    'trial_ends_at' | 'post_trial_features' | 'post_trial_modules' | 'post_trial_digest'> | null,
+  unique: boolean, aiPush = false, origin?: SharedReconfigureJob['origin']) {
   const { row, binding, order } = target
   const operation_id = randomUUID()
   await enqueueReconfigureJob(client, { schemaVersion: 1, operation: 'reconfigure', requestId: operation_id,
-    controlTenantId: row.tenant_id, host: binding.host,
+    controlTenantId: row.tenant_id, ...(origin ? { origin } : {}), host: binding.host,
     binding: { tenantId: binding.tenant_id, database: binding.database_name, filestore: binding.filestore, registryRevision: Number(binding.registry_revision) },
     authority: { order_id: order.id, operation_id, previous_revision_id: row.applied_revision_id, target_revision_id: row.applied_revision_id,
       entitlement,
