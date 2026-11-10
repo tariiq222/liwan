@@ -228,9 +228,12 @@ substitution.
 
 ## Manual backup (`deploy/backup.py`)
 
-Opt-in candidate copy only. Produces `database.dump` (pg_dump `-Fc`), a
-`filestore/` copy, and `manifest.json` with `consistency: "UNVERIFIED"` and
-`recovery_ready: false`, or fails without a success manifest.
+Opt-in candidate copy only. Produces `database.dump` (pg_dump `-Fc
+--serializable-deferrable`), a `filestore/` copy, and `manifest.json` with
+`consistency: "UNVERIFIED"` and `recovery_ready: false`, or fails without a
+success manifest. `--serializable-deferrable` makes the dump one snapshot of
+the database; the filestore is still copied separately and the result stays
+`UNVERIFIED`.
 
 This is **not** a consistent backup and **not** recovery-ready. A closed HTTP
 port (`connect_ex != 0`) is not proof that Odoo, cron, remote writers, or
@@ -266,6 +269,46 @@ are declined.
 4. Filestore path must be `<data_dir>/filestore/<db_name>`.
 5. Output directory must not already exist (no overwrite/delete).
 6. No password flag. Do not put secrets on the argv list.
+
+### What the manifest pins
+
+The manifest records the bytes it copied, computed on the copy in the output
+directory:
+
+| Field | Meaning |
+| --- | --- |
+| `database_dump_sha256` | SHA-256 of `database.dump` |
+| `filestore_sha256` | tree digest of `filestore/` |
+| `filestore_file_count` | number of regular files under `filestore/` |
+
+The tree digest is the SHA-256 of one `sha256sum` line per regular file,
+`<file sha256>  <relative path>`, in sorted path order. It changes when a
+file's bytes or name change, or a file is added or removed. Empty directories
+and file metadata are not part of it. To reproduce it by hand, from inside the
+filestore directory:
+
+```sh
+find . -type f | sed 's|^\./||' | LC_ALL=C sort | while read -r f; do echo "$(shasum -a 256 "$f" | cut -d' ' -f1)  $f"; done | shasum -a 256
+```
+
+A manifest without these three fields is not a backup manifest and is refused
+by `restore_verify.py`.
+
+The filestore must hold only regular files and directories. A symlink (to a
+file, to a directory, or dangling), a special file (fifo, socket, device) or a
+filestore path that is itself a symlink is refused before anything is copied:
+a restore cannot reproduce it, and a link can point outside the copy. The copy
+never carries links. `restore_verify.py` refuses the same entries in a backup
+directory and refuses a symlinked `database.dump`.
+
+### Verifying the copy
+
+`restore_verify.py` compares `database.dump` and `filestore/` with the
+manifest before it can report `restore_verified: true`. A mismatch is listed
+in `checks.backup_integrity_mismatches` (`database_dump_sha256`,
+`filestore_sha256`, `filestore_file_count`), the file counts are in
+`checks.filestore_files_expected` and `checks.filestore_files_actual`, and
+`restore_verified` is `false`.
 
 The manifest never sets `writer_stop_verified`, `consistency_verified`, or
 `live_consistent`. `recovery_ready` is always false.

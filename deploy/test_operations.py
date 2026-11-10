@@ -5,8 +5,10 @@ These tests must not contact PostgreSQL, Docker, or a live Odoo/Nuxt process.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -651,6 +653,114 @@ class TestBackupFailClosed(unittest.TestCase):
         self.assertNotIn('stop', actions)
         with self.assertRaises(SystemExit):
             parser.parse_args(['restore'])
+
+
+def _sha256(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+class BackupCase(unittest.TestCase):
+    """A scratch data dir with a filestore, a fake pg_dump and a private lock directory."""
+
+    DB = 'customerdb'
+
+    def setUp(self) -> None:
+        self.root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.root, True)
+        self.filestore = self.root / 'data' / 'filestore' / self.DB
+        _touch(self.filestore / 'ab' / 'one', 'x')
+        _touch(self.filestore / 'cd' / 'two', 'yy')
+        self.pg_dump = self.root / 'pg_dump'
+        _touch(self.pg_dump, 'x')
+        self.pg_dump.chmod(0o755)
+        self.argvs: list[list[str]] = []
+
+    def dump_runner(self, argv, **kwargs):
+        self.argvs.append(argv)
+        Path(argv[argv.index('-f') + 1]).write_bytes(b'dump')
+        return FakeCompleted(0)
+
+    def backup(self, name: str, *, db: str | None = None, runner=None, **extra) -> Path:
+        db = db or self.DB
+        store = self.filestore.parent / db
+        return backup.perform_backup(
+            opt_in=backup.OPT_IN_TOKEN,
+            acknowledge_unverified=backup.UNVERIFIED_TOKEN,
+            db_name=db,
+            filestore=str(store),
+            output_dir=str(self.root / name),
+            pg_dump=str(self.pg_dump),
+            runner=runner or self.dump_runner,
+            **extra,
+        )
+
+
+class TestBackupIntegrity(BackupCase):
+    def test_manifest_pins_the_dump_and_the_filestore(self) -> None:
+        payload = json.loads(self.backup('out').read_text(encoding='utf-8'))
+        lines = f'{_sha256(b"x")}  ab/one\n{_sha256(b"yy")}  cd/two\n'
+        self.assertEqual(payload['database_dump_sha256'], _sha256(b'dump'))
+        self.assertEqual(payload['filestore_sha256'], _sha256(lines.encode()))
+        self.assertEqual(payload['filestore_file_count'], 2)
+        self.assertEqual(payload['consistency'], 'UNVERIFIED')
+
+    def test_pg_dump_takes_a_serializable_deferrable_snapshot(self) -> None:
+        self.backup('out')
+        self.assertIn('--serializable-deferrable', self.argvs[0])
+
+    def test_the_digest_follows_the_content_and_the_names(self) -> None:
+        before = backup.filestore_digest(self.filestore)
+        _touch(self.filestore / 'ab' / 'one', 'z')
+        changed = backup.filestore_digest(self.filestore)
+        self.assertNotEqual(before[0], changed[0])
+        self.assertEqual(before[1], changed[1])
+        (self.filestore / 'ab' / 'one').rename(self.filestore / 'ab' / 'renamed')
+        self.assertNotEqual(changed[0], backup.filestore_digest(self.filestore)[0])
+        self.assertEqual(backup.filestore_digest(self.filestore)[1], 2)
+
+    def test_an_empty_filestore_has_a_digest_and_a_zero_count(self) -> None:
+        empty = self.root / 'empty'
+        empty.mkdir()
+        self.assertEqual(backup.filestore_digest(empty), (_sha256(b''), 0))
+
+    def assert_refused_before_any_work(self, message: str) -> None:
+        with self.assertRaisesRegex(backup.BackupError, message):
+            self.backup('out')
+        self.assertEqual(self.argvs, [])
+        self.assertFalse((self.root / 'out').exists())
+
+    def test_a_symlinked_file_is_refused(self) -> None:
+        (self.filestore / 'ab' / 'escape').symlink_to('/etc/hosts')
+        self.assert_refused_before_any_work('symlink')
+
+    def test_a_dangling_symlink_is_refused(self) -> None:
+        (self.filestore / 'ab' / 'dangling').symlink_to(self.root / 'missing')
+        self.assert_refused_before_any_work('symlink')
+
+    def test_a_symlinked_directory_is_refused(self) -> None:
+        (self.filestore / 'outside').symlink_to(self.root, target_is_directory=True)
+        self.assert_refused_before_any_work('symlink')
+
+    def test_a_special_file_is_refused(self) -> None:
+        os.mkfifo(self.filestore / 'ab' / 'pipe')
+        self.assert_refused_before_any_work('special file')
+
+    def test_a_symlinked_filestore_root_is_refused(self) -> None:
+        moved = self.root / 'elsewhere' / self.DB
+        moved.parent.mkdir()
+        self.filestore.rename(moved)
+        self.filestore.symlink_to(moved, target_is_directory=True)
+        self.assert_refused_before_any_work('must not be a symlink')
+
+    def test_the_filestore_copy_is_not_asked_to_carry_links(self) -> None:
+        seen = {}
+
+        def copier(source, destination, **kwargs):
+            seen.update(kwargs)
+            return shutil.copytree(source, destination, **kwargs)
+
+        self.backup('out', copier=copier)
+        self.assertFalse(seen.get('symlinks', False))
 
 
 class TestHelpAndChecksFragment(unittest.TestCase):

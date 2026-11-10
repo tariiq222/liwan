@@ -5,10 +5,16 @@ This is not a scheduler, restorer, process manager, or recovery tool. It does
 not stop services or inspect database sessions. A closed HTTP port is not
 quiescence. Every successful run writes consistency='UNVERIFIED' and
 recovery_ready=false. The result is not recovery-ready.
+
+The manifest pins the bytes it copied: the SHA-256 of ``database.dump`` and a
+tree digest plus file count of the filestore copy, so ``restore_verify.py`` can
+tell a dump or an attachment that changed after the copy. The filestore must
+hold only regular files and directories; a symlink or special file is refused.
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -26,6 +32,10 @@ if TYPE_CHECKING:
 OPT_IN_TOKEN = 'MANUAL_BACKUP_OPT_IN'
 UNVERIFIED_TOKEN = 'CANDIDATE_BACKUP_UNVERIFIED'
 CONSISTENCY_UNVERIFIED = 'UNVERIFIED'
+DUMP_NAME = 'database.dump'
+FILESTORE_NAME = 'filestore'
+HASH_BLOCK_BYTES = 1024 * 1024
+SHA256_RE = re.compile(r'[a-f0-9]{64}')
 FORBIDDEN_DB_EXACT = frozenset({
     'odoo19',
     'production',
@@ -117,12 +127,63 @@ def validate_existing_file(path_str: str, *, what: str) -> Path:
 
 
 def validate_filestore(path_str: str, db_name: str) -> Path:
+    if Path(path_str).is_symlink():
+        fail('filestore path must not be a symlink')
     filestore = validate_existing_dir(path_str, what='filestore')
     if filestore.name != db_name:
         fail('filestore directory basename must match the database name')
     if filestore.parent.name != 'filestore':
         fail('filestore path must be <data_dir>/filestore/<db_name>')
+    filestore_files(filestore)
     return filestore
+
+
+def _unreadable_directory(error: OSError) -> NoReturn:
+    fail(f'filestore directory cannot be read: {error.filename}: {error.strerror}')
+
+
+def filestore_files(root: Path) -> list[str]:
+    """Relative POSIX paths of every regular file under ``root``, sorted.
+
+    A symlink (even a dangling one or one to a directory) and a special file (fifo, socket,
+    device) are refused: a restore cannot reproduce them, and a link can point outside the
+    copy, so the digest of such a tree would not describe what a restore reads.
+    """
+    files: list[str] = []
+    for directory, subdirectories, names in os.walk(root, onerror=_unreadable_directory):
+        for name in (*subdirectories, *names):
+            path = Path(directory, name)
+            relative = path.relative_to(root).as_posix()
+            if path.is_symlink():
+                fail(f'filestore holds a symlink, which a restore cannot reproduce: {relative}')
+            if not (path.is_dir() or path.is_file()):
+                fail(f'filestore holds a special file, which a restore cannot reproduce: {relative}')
+        files.extend(Path(directory, name).relative_to(root).as_posix() for name in names)
+    return sorted(files)
+
+
+def sha256_file(path: Path) -> str:
+    """The SHA-256 of a file's bytes, streamed so a large dump is never held in memory."""
+    digest = hashlib.sha256()
+    with path.open('rb') as stream:
+        while block := stream.read(HASH_BLOCK_BYTES):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def filestore_digest(root: Path) -> tuple[str, int]:
+    """The tree digest and file count of a filestore: one fact, computed one way.
+
+    The digest is the SHA-256 of one line per regular file, ``<file sha256>  <relative path>``,
+    in sorted path order (the ``sha256sum`` line format). It changes when a file's
+    bytes, name or place change, or a file is added or removed; empty directories and file
+    metadata are not part of it. A symlink or special file raises :class:`BackupError`.
+    """
+    files = filestore_files(root)
+    tree = hashlib.sha256()
+    for relative in files:
+        tree.update(f'{sha256_file(root / relative)}  '.encode('ascii') + os.fsencode(relative) + b'\n')
+    return tree.hexdigest(), len(files)
 
 
 def parse_host_port(raw: str, *, flag: str) -> tuple[str, int]:
@@ -185,7 +246,7 @@ def build_pg_dump_argv(
     out = Path(output_file)
     if not out.is_absolute():
         fail('pg_dump output path must be absolute')
-    argv = [str(dump_bin), '-Fc', '--no-password', '-d', db, '-f', str(out)]
+    argv = [str(dump_bin), '-Fc', '--serializable-deferrable', '--no-password', '-d', db, '-f', str(out)]
     if pg_host:
         argv.extend(['-h', pg_host])
     if pg_port:
@@ -209,16 +270,20 @@ def candidate_manifest_payload(
     *,
     db: str,
     store: Path,
-    dump_name: str,
-    filestore_name: str,
+    backup_dir: Path,
     http_observation: dict[str, str] | None,
 ) -> dict[str, object]:
+    """The manifest of the copy in ``backup_dir``: what it holds and the digests of its bytes."""
+    filestore_sha256, filestore_file_count = filestore_digest(backup_dir / FILESTORE_NAME)
     payload: dict[str, object] = {
         'created_at': datetime.now(timezone.utc).isoformat(),
         'db_name': db,
         'filestore_source': str(store),
-        'database_dump': dump_name,
-        'filestore_copy': filestore_name,
+        'database_dump': DUMP_NAME,
+        'database_dump_sha256': sha256_file(backup_dir / DUMP_NAME),
+        'filestore_copy': FILESTORE_NAME,
+        'filestore_sha256': filestore_sha256,
+        'filestore_file_count': filestore_file_count,
         'opt_in': OPT_IN_TOKEN,
         'acknowledge_unverified': UNVERIFIED_TOKEN,
         'consistency': CONSISTENCY_UNVERIFIED,
@@ -287,8 +352,8 @@ def perform_backup(
         fail('output directory parent must already exist')
     destination.mkdir(parents=False)
 
-    dump_path = destination / 'database.dump'
-    filestore_dest = destination / 'filestore'
+    dump_path = destination / DUMP_NAME
+    filestore_dest = destination / FILESTORE_NAME
     argv = build_pg_dump_argv(
         pg_dump=pg_dump,
         db_name=db,
@@ -298,17 +363,18 @@ def perform_backup(
         pg_user=pg_user,
     )
     completed = runner(argv, cwd=str(destination), env=os.environ, shell=False, check=False)
-    if completed.returncode != 0 or not dump_path.is_file():
+    if completed.returncode != 0 or not dump_path.is_file() or dump_path.is_symlink():
         fail('pg_dump failed; no success manifest written')
-    copier(str(store), str(filestore_dest), symlinks=True)
+    # The source tree held no symlink when it was validated, so none is carried: a link that
+    # appeared since is followed and stored as a regular file, never copied as a link.
+    copier(str(store), str(filestore_dest))
     if not filestore_dest.is_dir():
         fail('filestore copy failed; no success manifest written')
 
     payload = candidate_manifest_payload(
         db=db,
         store=store,
-        dump_name=dump_path.name,
-        filestore_name=filestore_dest.name,
+        backup_dir=destination,
         http_observation=http_observation,
     )
     if payload['consistency'] != CONSISTENCY_UNVERIFIED or payload['recovery_ready'] is not False:
