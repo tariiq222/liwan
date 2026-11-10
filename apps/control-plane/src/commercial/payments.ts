@@ -117,6 +117,14 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
  * or out-of-order event never stores it twice. The token goes to `subscriptions.provider_token_ref` and nowhere else:
  * not the event table, the audit trail, a log line or any response.
  */
+/** The provider that issued a subscription's stored token: the one whose succeeded attempt carried the consent. Null when no attempt says. */
+export async function tokenProvider(client: Pick<PoolClient, 'query'>, subscriptionId: string, exceptAttempt?: string): Promise<string | null> {
+  const row = (await client.query(`SELECT a.provider FROM payment_attempts a JOIN orders o ON o.id=a.order_id
+    WHERE o.subscription_id=$1 AND a.save_payment_method AND a.status='succeeded' AND ($2::uuid IS NULL OR a.id<>$2)
+    ORDER BY a.succeeded_at DESC NULLS LAST,a.created_at DESC LIMIT 1`, [subscriptionId, exceptAttempt ?? null])).rows[0]
+  return row?.provider ?? null
+}
+
 async function keepPaymentMethod(client: PoolClient, order: any, attempt: any, event: ProviderEvent) {
   if (!attempt.save_payment_method) return
   const token = event.payment_method_token
@@ -126,11 +134,13 @@ async function keepPaymentMethod(client: PoolClient, order: any, attempt: any, e
     return
   }
   const previous = (await client.query('SELECT provider_token_ref FROM subscriptions WHERE id=$1 FOR UPDATE', [order.subscription_id])).rows[0]?.provider_token_ref as string | null
+  const previousProvider = previous ? await tokenProvider(client, order.subscription_id, attempt.id) : null
   // The consent counts from the payment that carried it, and the method it replaces is forgotten at the provider.
   await client.query(`UPDATE subscriptions SET provider_token_ref=$2,auto_renew_enabled=true,auto_renew_consent_at=now(),revision=revision+1 WHERE id=$1`,
     [order.subscription_id, token])
+  // The old method goes to the provider that issued it; when no attempt says which, the new one is the best evidence there is.
   if (previous && previous !== token)
-    await client.query('INSERT INTO token_revocations(id,subscription_id,provider,token) VALUES($1,$2,$3,$4)', [randomUUID(), order.subscription_id, attempt.provider, previous])
+    await client.query('INSERT INTO token_revocations(id,subscription_id,provider,token) VALUES($1,$2,$3,$4)', [randomUUID(), order.subscription_id, previousProvider ?? attempt.provider, previous])
   await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
     [randomUUID(), `customer:${order.customer_id}`, 'subscription.auto_renew_enabled', order.subscription_id, 'Customer consented to keep the payment method for automatic renewal',
       JSON.stringify({ attempt_id: attempt.id, consented_by: attempt.save_payment_method_actor, consent_requested_at: attempt.save_payment_method_consent_at })])
@@ -263,7 +273,7 @@ const MISSING_CHARGE_GRACE_MS = 60 * 60_000
 async function closeMissingTokenCharge(pool: Pool, row: any): Promise<boolean> {
   // Before the charge response arrived the reference is only our own order id, which proves nothing by itself:
   // wait out a grace period (the response may simply have been lost) before declaring it missing.
-  const unproven = !row.provider_ref || row.provider_ref === row.order_id
+  const unproven = !row.provider_ref || row.provider_ref === row.order_id || row.provider_ref === row.id
   if (unproven && Date.now() - new Date(row.created_at).getTime() < MISSING_CHARGE_GRACE_MS) return false
   return transaction(pool, async client => {
     const closed = await client.query("UPDATE payment_attempts SET status='failed',updated_at=now() WHERE id=$1 AND status IN ('created','redirected','pending','unknown') RETURNING id", [row.id])

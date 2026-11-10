@@ -195,7 +195,7 @@ export class SimulatorAdapter implements PaymentAdapter {
     if (prior) return prior
     if (!(await this.getToken(i.token)).active) throw new PaymentError('provider_error', 'token not active')
     const ev: ProviderEvent = {
-      provider: 'simulator', event_id: `sim_charge_${i.given_id}`, provider_ref: `sim_pay_${i.given_id}`, payment_id: `sim_pay_${i.given_id}`,
+      provider: 'simulator', event_id: `sim_charge_${i.given_id}`, provider_ref: i.given_id, payment_id: i.given_id,
       attempt_id: null, merchant_account: this.merchantAccount, live: false, status: 'succeeded', amount: i.amount,
       occurred_at: new Date(0).toISOString(), raw_type: 'payment_paid', simulated: true,
     }

@@ -20,7 +20,7 @@ import { getRelease } from './catalog-releases.js'
 import { bankTransferInstructions } from './bank-transfer.js'
 import { listBranches, requestedExtraBranches } from './branches.js'
 import { getUsage } from './usage.js'
-import { createPaymentAttempt, verifyReturnedAttempt } from './payments.js'
+import { createPaymentAttempt, tokenProvider, verifyReturnedAttempt } from './payments.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import type { ReturnOrigin } from './return-origin.js'
 export type PaymentRuntime = {adapter: PaymentAdapter | null; returnOrigin: ReturnOrigin | null}
@@ -172,7 +172,13 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
       // The method is forgotten with the consent: nothing is charged after this, and a new opt-in needs a new consent. The
       // provider is told by the worker from the row written here, so a crash cannot leave the method behind.
       await client.query('UPDATE subscriptions SET auto_renew_enabled=false,auto_renew_consent_at=NULL,provider_token_ref=NULL,revision=revision+1 WHERE id=$1',[s.id])
-      if(s.provider_token_ref)await client.query('INSERT INTO token_revocations(id,subscription_id,provider,token) VALUES($1,$2,$3,$4)',[randomUUID(),s.id,runtime?.adapter?.provider??'unknown',s.provider_token_ref])
+      if(s.provider_token_ref){
+        // Taken from the attempt that stored the token, never from whether this process has a payment runtime; a token no
+        // attempt accounts for is refused loudly rather than queued for a provider nobody will ask.
+        const provider=await tokenProvider(client,s.id)
+        if(!provider)throw new CommercialHttpError('payment_method_provider_unknown',409)
+        await client.query('INSERT INTO token_revocations(id,subscription_id,provider,token) VALUES($1,$2,$3,$4)',[randomUUID(),s.id,provider,s.provider_token_ref])
+      }
       await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',[randomUUID(),`customer:${customerId}`,'subscription.auto_renew_disabled',s.id,'Customer turned automatic renewal off',JSON.stringify({turned_off_by:principal.actor_id})])
     })
     return {status:200,data:await getSubscription(pool,customerId)}

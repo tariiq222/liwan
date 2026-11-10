@@ -6,7 +6,7 @@ import type { Principal } from '@liwan/commercial-contracts'
 import { createApp } from '../http.js'
 import { client, money, monthly, setup, url } from './commercial-helpers.js'
 import { convertTrial, startTrial } from '../commercial/trial.js'
-import { applyConfirmedEvent, createPaymentAttempt, verifyReturnedAttempt } from '../commercial/payments.js'
+import { applyConfirmedEvent, createPaymentAttempt, reconcileUnknownAttempts, verifyReturnedAttempt } from '../commercial/payments.js'
 import { applyDunning, generateRenewals } from '../commercial/renewals.js'
 import { renewalNoticeKey, sendRenewalNotices } from '../commercial/renewal-notices.js'
 import { getSubscription } from '../commercial/subscriptions.js'
@@ -15,7 +15,7 @@ import { fixedReturnOrigin } from '../commercial/return-origin.js'
 import { processTokenRevocations } from '../commercial/token-revocations.js'
 import { RENEWAL_NOTICE_DAYS } from '../commercial/notice-timings.js'
 import { owesAtRenewal } from '../commercial/free-base.js'
-import type { PaymentAdapter } from '../commercial/payment-adapter.js'
+import { PaymentError, type PaymentAdapter } from '../commercial/payment-adapter.js'
 
 const suite = url ? describe : describe.skip
 suite('automatic renewal on a stored payment method (issue 492)', () => {
@@ -147,11 +147,19 @@ suite('automatic renewal on a stored payment method (issue 492)', () => {
     await pool.query("UPDATE subscriptions SET state='active',renewal_at='2026-11-19',provider_token_ref=$2,auto_renew_consent_at='2026-11-01T00:00:00Z',revision=revision+1 WHERE id=$1", [f.subscription.id, token])
     return { ...f, token }
   }
+  /** What the next renewal charges: the quote the subscription was last priced with. */
+  async function renewalAmount(f: { subscription: { id: string } }) {
+    const quote = (await pool.query("SELECT q.payload FROM commercial_quotes q JOIN subscription_revisions r ON r.quote_id=q.id JOIN subscriptions s ON s.applied_revision_id=r.id WHERE s.id=$1", [f.subscription.id])).rows[0].payload
+    return quote.next_renewal as { minor: number; currency: string; exponent: number }
+  }
   /** The renewal notice for 19 Nov, delivered at `sentAt` (nine days before by default), or in a state that is not a delivery. */
-  async function notice(f: { subscription: { id: string } }, sentAt: string | null, status: 'done' | 'failed' = 'done') {
+  async function notice(f: { subscription: { id: string } }, sentAt: string | null, status: 'done' | 'failed' = 'done', amount?: { minor: number; currency: string }) {
     await pool.query("DELETE FROM commercial_outbox WHERE kind='renewal.notice' AND aggregate_id=$1", [f.subscription.id])
+    await addNotice(f, sentAt, status, amount ?? await renewalAmount(f))
+  }
+  async function addNotice(f: { subscription: { id: string } }, sentAt: string | null, status: 'done' | 'failed', amount: { minor: number; currency: string }) {
     await pool.query("INSERT INTO commercial_outbox(id,kind,aggregate_id,dedupe_key,status,payload) VALUES($1,'renewal.notice',$2,$3,$4,$5)",
-      [randomUUID(), f.subscription.id, renewalNoticeKey(f.subscription.id, '2026-11-19'), status, sentAt ? { sent_at: sentAt } : {}])
+      [randomUUID(), f.subscription.id, renewalNoticeKey(f.subscription.id, '2026-11-19', amount), status, sentAt ? { sent_at: sentAt } : {}])
   }
   const NOTICE_OK = '2026-11-10T09:00:00.000Z'
   const tokenCharges = async (f: { subscription: { id: string } }) => (await pool.query("SELECT count(*)::int AS n FROM payment_attempts a JOIN orders o ON o.id=a.order_id WHERE o.subscription_id=$1 AND o.kind='renewal' AND a.token_charge", [f.subscription.id])).rows[0].n
@@ -218,8 +226,19 @@ suite('automatic renewal on a stored payment method (issue 492)', () => {
     it('a notice for another renewal date does not count', async () => {
       const f = await dueWithToken('sim_tok_0a0b0c0d_27')
       await notice(f, NOTICE_OK)
-      await pool.query("UPDATE commercial_outbox SET dedupe_key=$2 WHERE kind='renewal.notice' AND aggregate_id=$1", [f.subscription.id, renewalNoticeKey(f.subscription.id, '2026-10-19')])
+      await pool.query("UPDATE commercial_outbox SET dedupe_key=$2 WHERE kind='renewal.notice' AND aggregate_id=$1", [f.subscription.id, renewalNoticeKey(f.subscription.id, '2026-10-19', await renewalAmount(f))])
       await hosted(f)
+    })
+    it('a notice for a different amount does not cover this charge; a fresh qualifying notice for the new amount does', async () => {
+      const f = await dueWithToken('sim_tok_0a0b0c0d_29')
+      const amount = await renewalAmount(f)
+      await notice(f, NOTICE_OK, 'done', { ...amount, minor: amount.minor - 5000 })
+      await hosted(f)
+      const g = await dueWithToken('sim_tok_0a0b0c0d_30')
+      await notice(g, NOTICE_OK, 'done', { ...amount, minor: amount.minor - 5000 })
+      await addNotice(g, NOTICE_OK, 'done', amount)
+      await generateRenewals(pool, { now, adapter: new SimulatorAdapter(), returnOrigin: origin, subscription_id: g.subscription.id })
+      expect(await tokenCharges(g)).toBe(1)
     })
     it('turn-off racing the charge: the state is read again inside the charge transaction', async () => {
       const f = await dueWithToken('sim_tok_0a0b0c0d_28')
@@ -234,6 +253,93 @@ suite('automatic renewal on a stored payment method (issue 492)', () => {
       await generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription.id })
       expect(charge).not.toHaveBeenCalled()
       expect(await tokenCharges(f)).toBe(0)
+    })
+  })
+
+  describe('the provider charge is outside the transaction and always has a record', () => {
+    const ready = async (token: string) => {
+      const f = await dueWithToken(token); await notice(f, NOTICE_OK)
+      return { f, adapter: new SimulatorAdapter(), before: await paidOrders(f) }
+    }
+    const attemptOf = async (f: { subscription: { id: string } }) => (await pool.query("SELECT a.* FROM payment_attempts a JOIN orders o ON o.id=a.order_id WHERE o.subscription_id=$1 AND o.kind='renewal' AND a.token_charge ORDER BY a.created_at DESC LIMIT 1", [f.subscription.id])).rows[0]
+    const paidOrders = async (f: { subscription: { id: string } }) => (await pool.query("SELECT count(*)::int AS n FROM orders WHERE subscription_id=$1 AND kind='renewal' AND payment_state='paid'", [f.subscription.id])).rows[0].n
+    it('commits the attempt before the provider is called, and keys the charge by that attempt', async () => {
+      const { f, adapter, before } = await ready('sim_tok_0a0b0c0d_51')
+      const original = adapter.chargeToken.bind(adapter)
+      let seen: any, lockFree = false
+      vi.spyOn(adapter, 'chargeToken').mockImplementation(async input => {
+        // From another connection: only a committed row is visible, and the subscription row is not locked.
+        seen = (await pool.query("SELECT id,status,provider_ref,token_charge FROM payment_attempts WHERE id=$1", [input.given_id])).rows[0]
+        const client = await pool.connect()
+        try { await client.query('BEGIN'); await client.query("SET LOCAL lock_timeout='500ms'"); await client.query('SELECT 1 FROM subscriptions WHERE id=$1 FOR UPDATE', [f.subscription.id]); lockFree = true; await client.query('ROLLBACK') }
+        catch { await client.query('ROLLBACK') } finally { client.release() }
+        return original(input)
+      })
+      await generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription.id })
+      expect(seen).toMatchObject({ status: 'created', token_charge: true })
+      expect(seen.provider_ref).toBe(seen.id)
+      expect(lockFree).toBe(true)
+    })
+    it('provider charged but the answer was lost (process death): the attempt is reconciled and the invoice is paid once', async () => {
+      const { f, adapter, before } = await ready('sim_tok_0a0b0c0d_52')
+      const original = adapter.chargeToken.bind(adapter)
+      vi.spyOn(adapter, 'chargeToken').mockImplementation(async input => { await original(input); throw new PaymentError('timeout', 'died after the charge') })
+      await generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription.id })
+      expect((await attemptOf(f)).status).toBe('unknown')
+      expect(await paidOrders(f)).toBe(before)
+      // A worker that died before even recording `unknown` leaves `created`; the reconciler takes it after its grace.
+      await pool.query("UPDATE payment_attempts SET status='created' WHERE id=$1", [(await attemptOf(f)).id])
+      const later = () => ({ clock: () => Date.now() + 10 * 60_000, limit: 100 })
+      await reconcileUnknownAttempts(pool, adapter, later())
+      expect(await paidOrders(f)).toBe(before + 1)
+      expect((await sub(f.subscription.id)).state).toBe('active')
+      await reconcileUnknownAttempts(pool, adapter, later())
+      await generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription.id })
+      expect(await paidOrders(f)).toBe(before + 1)
+      expect((await pool.query("SELECT count(*)::int AS n FROM payment_attempts a JOIN orders o ON o.id=a.order_id WHERE o.subscription_id=$1 AND o.kind='renewal' AND a.token_charge", [f.subscription.id])).rows[0].n).toBe(1)
+    })
+    it('the provider webhook finds the attempt and settles it', async () => {
+      const { f, adapter, before } = await ready('sim_tok_0a0b0c0d_53')
+      await generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription.id })
+      const attempt = await attemptOf(f)
+      expect(await applyConfirmedEvent(pool, await adapter.lookupPayment(attempt.provider_ref))).toBe('accepted')
+      expect(await paidOrders(f)).toBe(before + 1)
+    })
+    it('a provider timeout with no charge leaves the attempt unknown and is never charged again blindly', async () => {
+      const { f, adapter, before } = await ready('sim_tok_0a0b0c0d_54')
+      const charge = vi.spyOn(adapter, 'chargeToken').mockRejectedValue(new PaymentError('timeout', 'no answer'))
+      await generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription.id })
+      expect((await attemptOf(f)).status).toBe('unknown')
+      const outcome = await reconcileUnknownAttempts(pool, adapter, { limit: 100 })
+      const id = (await attemptOf(f)).id
+      expect(outcome.find(r => r.id === id)?.outcome).toBe('unknown')
+      expect((await attemptOf(f)).status).toBe('unknown')
+      await generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription.id })
+      expect(charge).toHaveBeenCalledTimes(1)
+      expect(await paidOrders(f)).toBe(before)
+    })
+    it('a replayed run, and the same idempotency key, never charge twice', async () => {
+      const { f, adapter, before } = await ready('sim_tok_0a0b0c0d_55')
+      const charge = vi.spyOn(adapter, 'chargeToken')
+      await Promise.all([1, 2, 3].map(() => generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription.id })))
+      await generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription.id })
+      expect(charge).toHaveBeenCalledTimes(1)
+      const first = await adapter.chargeToken({ given_id: (await attemptOf(f)).id, token: f.token, amount: money(1), description: 'again', callback_url: 'https://liwan.test/x' })
+      expect(first.payment_id).toBe((await attemptOf(f)).id)
+    })
+    it('turn-off during the provider call is not blocked, does not cancel that charge, and holds for the next period', async () => {
+      const { f, adapter, before } = await ready('sim_tok_0a0b0c0d_56')
+      const original = adapter.chargeToken.bind(adapter)
+      vi.spyOn(adapter, 'chargeToken').mockImplementation(async input => {
+        await pool.query('UPDATE subscriptions SET auto_renew_enabled=false,auto_renew_consent_at=NULL,provider_token_ref=NULL,revision=revision+1 WHERE id=$1', [f.subscription.id])
+        return original(input)
+      })
+      await generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription.id })
+      await verifyReturnedAttempt(pool, { attempt_id: (await attemptOf(f)).id, customer_id: f.customer, adapter }).catch(() => {})
+      await pool.query("UPDATE payment_attempts SET updated_at=now()-interval '10 seconds' WHERE id=$1", [(await attemptOf(f)).id])
+      await verifyReturnedAttempt(pool, { attempt_id: (await attemptOf(f)).id, customer_id: f.customer, adapter })
+      expect(await paidOrders(f)).toBe(before + 1)
+      expect(await sub(f.subscription.id)).toMatchObject({ auto_renew_enabled: false, provider_token_ref: null })
     })
   })
 
@@ -346,6 +452,11 @@ suite('automatic renewal on a stored payment method (issue 492)', () => {
       const mine = m.sent.filter(x => x.to === `${f.customer}@example.test`)
       expect(mine).toHaveLength(1)
       expect(mine[0]!.text).toContain('2026-11-27')
+      // The amount and currency that will be charged, in both languages.
+      const amount = await renewalAmount(f)
+      const figure = `${(amount.minor / 10 ** amount.exponent).toFixed(amount.exponent)} ${amount.currency}`
+      expect(mine[0]!.text.match(new RegExp(figure.replace('.', '\\.'), 'g'))).toHaveLength(2)
+      expect(mine[0]!.text).toContain('renews automatically')
       expect(mine[0]!.text).not.toContain(f.token)
     })
     it('is not sent after the customer turned it off', async () => {
@@ -394,6 +505,35 @@ suite('automatic renewal on a stored payment method (issue 492)', () => {
       expect((await call(f.tenant, '/v1/customer/auto-renew', { enabled: false })).status).toBe(200)
       expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='subscription.auto_renew_disabled' AND subject=$1", [f.subscription.id])).rows[0].n).toBe(1)
       expect((await call(f.tenant, '/v1/customer/auto-renew', { enabled: true, consent: true })).status).toBe(422)
+    })
+    it('queues the revocation for the provider that issued the token, even when this process has no payment runtime', async () => {
+      const f = await dueWithToken('sim_tok_0a0b0c0d_61')
+      const saved = process.env.LIWAN_PAYMENT_PROVIDER
+      delete process.env.LIWAN_PAYMENT_PROVIDER
+      const bare = createApp(pool, config).listen(0, '127.0.0.1')
+      await new Promise<void>(resolve => bare.once('listening', resolve))
+      const address = bare.address(); if (!address || typeof address === 'string') throw Error('missing address')
+      try {
+        const raw = JSON.stringify({ enabled: false }), path = '/v1/customer/auto-renew'
+        const principal = { actor_id: '7', kind: 'customer', tenant_id: f.tenant, capabilities: ['subscription.manage'] }
+        const header = Buffer.from(JSON.stringify(principal)).toString('base64')
+        const signed = signServiceRequest({ method: 'POST', path, body: `liwan-principal:${header}\n${raw}`, actor: 7, issuer: config.customerCommercialIssuer, key: config.customerCommercialServiceKey })
+        const response = await fetch(`http://127.0.0.1:${address.port}${path}`, { method: 'POST', headers: { ...signed, 'x-liwan-principal': header, 'content-type': 'application/json' }, body: raw })
+        expect(response.status).toBe(200)
+      } finally { await new Promise<void>(resolve => bare.close(() => resolve())); if (saved !== undefined) process.env.LIWAN_PAYMENT_PROVIDER = saved }
+      expect((await pool.query('SELECT provider FROM token_revocations WHERE subscription_id=$1', [f.subscription.id])).rows[0].provider).toBe('simulator')
+      const worker = new SimulatorAdapter(); const revoke = vi.spyOn(worker, 'deleteToken')
+      await processTokenRevocations(pool, worker)
+      expect(revoke).toHaveBeenCalledWith(f.token)
+    })
+    it('refuses a turn-off it cannot route to a provider, and keeps the token', async () => {
+      const f = await converted()
+      await pool.query("UPDATE subscriptions SET auto_renew_enabled=true,auto_renew_consent_at=now(),provider_token_ref='sim_tok_0a0b0c0d_62',revision=revision+1 WHERE id=$1", [f.subscription.id])
+      const response = await call(f.tenant, '/v1/customer/auto-renew', { enabled: false })
+      expect(response.status).toBe(409)
+      expect((await response.json()).code).toBe('payment_method_provider_unknown')
+      expect((await sub(f.subscription.id)).provider_token_ref).toBe('sim_tok_0a0b0c0d_62')
+      expect((await pool.query('SELECT count(*)::int AS n FROM token_revocations WHERE subscription_id=$1', [f.subscription.id])).rows[0].n).toBe(0)
     })
     it('needs the subscription capability', async () => {
       const f = await dueWithToken('sim_tok_0a0b0c0d_5')

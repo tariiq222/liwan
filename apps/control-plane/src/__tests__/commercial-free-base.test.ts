@@ -75,8 +75,16 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
   }
   const row = async (id: string) => (await pool.query('SELECT * FROM subscriptions WHERE id=$1', [id])).rows[0]
   /** What the shared worker would push to Odoo for the order, and the receipt it would return. */
+  /** Runs the fulfillment outbox until this order's job exists (other suites leave pending rows ahead of it). */
+  async function enqueued(orderId: string) {
+    for (let pass = 0; pass < 20; pass++) {
+      await processFulfillmentOutbox(pool, { limit: 100 })
+      if ((await pool.query('SELECT 1 FROM fulfillment_effects WHERE order_id=$1 AND job_id IS NOT NULL', [orderId])).rowCount) return
+    }
+    throw new Error('order job was never enqueued')
+  }
   async function pushed(tenant: string, orderId: string) {
-    await processFulfillmentOutbox(pool, { limit: 100 })
+    await enqueued(orderId)
     const job = (await pool.query("SELECT payload FROM shared_jobs WHERE control_tenant_id=$1 AND payload->'authority'->>'order_id'=$2", [tenant, orderId])).rows[0].payload
     const receipt = { order_id: orderId, tenant_id: job.binding.database, database: job.binding.database, target_revision_id: job.authority.target_revision_id,
       observed_entitlement_digest: job.authority.entitlement.digest, observed_at: new Date().toISOString(), branch_bindings: [], modules_installed: [] }
@@ -102,7 +110,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     target_revision_id: job.authority.target_revision_id, observed_entitlement_digest: job.authority.entitlement.digest, observed_at: new Date().toISOString(), branch_bindings: [], modules_installed: [] })
   /** Enqueues the order's job and runs it with `runner`, as the shared worker would. */
   async function runJob(orderId: string, runner: any) {
-    await processFulfillmentOutbox(pool, { limit: 100 })
+    await enqueued(orderId)
     const jobId = (await pool.query('SELECT job_id FROM fulfillment_effects WHERE order_id=$1', [orderId])).rows[0].job_id
     return runSubscriptionReconfigure(pool, jobId, runner).catch(e => e)
   }
@@ -256,16 +264,22 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       const accepted = await acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: sub.revision, idempotency_key: randomUUID() }, vendor)
       expect(accepted.order.kind).toBe('change')
     })
-    it('a failure that may have written to Odoo keeps its job for an operator, but still releases the customer', async () => {
+    it('a failure that may have written to Odoo keeps order, target and job as they are and tells the vendor; nothing is ordered behind it', async () => {
       const f = await endedTrial()
       await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
       await lower(f)
       const order = await lapseOrder(f.subscription)
       await runJob(order.id, failingRunner('observed_mismatch'))
       await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
-      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'pending', reason: 'observed_mismatch' })
-      expect((await row(f.subscription)).target_revision_id).toBeNull()
+      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'ordered', reason: 'observed_mismatch', order_id: order.id, attempts: 0 })
+      expect((await pool.query('SELECT cancelled FROM orders WHERE id=$1', [order.id])).rows[0].cancelled).toBe(false)
+      expect((await row(f.subscription)).target_revision_id).toBe(order.target_revision_id)
       expect((await pool.query("SELECT state FROM shared_jobs WHERE payload->'authority'->>'order_id'=$1", [order.id])).rows[0].state).toBe('needs_intervention')
+      const items = (await attention(pool, true)).items.filter(i => i.customer_id === f.customer)
+      expect(items).toContainEqual(expect.objectContaining({ kind: 'free_base_blocked', detail: 'observed_mismatch' }))
+      // Backoff passes and the pass runs again: still no second order.
+      await processTrialLapses(pool, { now: new Date(now.getTime() + 30 * 3_600_000), adapter, subscription_id: f.subscription })
+      expect((await pool.query("SELECT count(*)::int AS n FROM orders WHERE subscription_id=$1 AND idempotency_key LIKE 'trial-lapse:%'", [f.subscription])).rows[0].n).toBe(1)
     })
   })
 
@@ -287,6 +301,8 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     const sent: string[] = []
     await sendTrialNotices(pool, { now, mail: { send: async (m: { text: string }) => { sent.push(m.text) } } as any })
     expect(sent.some(text => text.includes('القاعدة المجانية') && !text.includes('أول فاتورة'))).toBe(true)
+    // Both languages, generic about the paid applications, and honest about an unpaid upgrade order.
+    expect(sent.some(text => text.includes('يُلغى') && text.includes('is cancelled') && text.includes('free base') && !text.includes('read'))).toBe(true)
   })
 
   it('sends a trial notice once even when two workers run at the same time, and a failing send does not stop the others', async () => {

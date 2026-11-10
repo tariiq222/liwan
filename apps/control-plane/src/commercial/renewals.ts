@@ -135,40 +135,47 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
 }
 
 /**
- * Charges the subscription's stored payment method for a renewal, or reports that it must not (false). The decision and
- * the provider call share one transaction holding the subscription row, so a customer turning auto-renew off waits for a
- * charge in progress and a turn-off that committed first is seen here: consent, enabled flag and token are read again
- * right before `chargeToken`. The notice must have gone out for this exact renewal date, early enough and after the
- * consent (`renewalNoticeCovers`); otherwise nothing is charged. An uncertain charge is parked `unknown` for the
- * reconciler and never retried blindly.
+ * Charges the subscription's stored payment method for a renewal, or reports that it must not (false).
+ *
+ * Three steps, so the provider is never called inside a transaction and a charge can never exist without a record:
+ * 1. a short transaction under the subscription row lock reads consent, enabled flag and token again, checks the notice
+ *    (delivered for this date, in time, after the consent, for this very amount), inserts the `token_charge` attempt
+ *    (`created`, its own id as the provider reference) and commits;
+ * 2. the provider is called outside any transaction, with the attempt id as the idempotency key (`given_id`), so a
+ *    repeated call cannot charge twice;
+ * 3. the outcome is recorded. A crash or a lost answer leaves the attempt `created` or `unknown`, which the reconciler
+ *    looks up by that same reference, and the provider's webhook finds the attempt; the invoice is paid once.
+ * A customer turning auto-renew off after step 1 does not cancel this one charge; it is honored for the next period.
  */
 async function chargeStoredMethod(pool: Pool, input: { adapter: PaymentAdapter; order: { id: string }; invoice: { id: string; total: { minor: number; currency: string; exponent: number } }; subscriptionId: string; renewalDate: string; origin: string }) {
   const { adapter, order, invoice } = input
-  return transaction(pool, async client => {
+  const reserved = await transaction(pool, async client => {
     const sub = (await client.query('SELECT * FROM subscriptions WHERE id=$1 FOR UPDATE', [input.subscriptionId])).rows[0]
-    if (!sub.auto_renew_enabled || !sub.auto_renew_consent_at || !sub.provider_token_ref) return false
+    if (!sub.auto_renew_enabled || !sub.auto_renew_consent_at || !sub.provider_token_ref) return null
     const notice = (await client.query("SELECT payload->>'sent_at' AS sent_at FROM commercial_outbox WHERE kind='renewal.notice' AND aggregate_id=$1 AND dedupe_key=$2 AND status='done'",
-      [sub.id, renewalNoticeKey(sub.id, input.renewalDate)])).rows[0]
+      [sub.id, renewalNoticeKey(sub.id, input.renewalDate, invoice.total)])).rows[0]
     if (!renewalNoticeCovers(notice?.sent_at ?? null, sub.auto_renew_consent_at, input.renewalDate)) {
       await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
-        [randomUUID(), 'system', 'renewal.token_charge_skipped', sub.id, 'No timely renewal notice for this date: the invoice is paid by the customer', JSON.stringify({ renewal_date: input.renewalDate })])
-      return false
+        [randomUUID(), 'system', 'renewal.token_charge_skipped', sub.id, 'No timely renewal notice for this date and amount: the invoice is paid by the customer', JSON.stringify({ renewal_date: input.renewalDate })])
+      return null
     }
     const attemptId = randomUUID()
     await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,merchant_ref,provider_ref,amount_minor,currency,exponent,token_charge)
-      VALUES($1,$2,$3,$4,$5,$2::uuid::text,$2::uuid::text,$6,$7,$8,true)`, [attemptId,order.id,invoice.id,adapter.provider,adapter.mode,invoice.total.minor,invoice.total.currency,invoice.total.exponent])
+      VALUES($1::uuid,$2,$3,$4,$5,$6,$1::uuid::text,$7,$8,$9,true)`, [attemptId,order.id,invoice.id,adapter.provider,adapter.mode,order.id,invoice.total.minor,invoice.total.currency,invoice.total.exponent])
     await client.query("UPDATE renewals SET status='charging' WHERE order_id=$1", [order.id])
-    try {
-      const event = await adapter.chargeToken({given_id:order.id,token:sub.provider_token_ref,amount:invoice.total,
-        description:`LiwanOS renewal ${order.id}`,callback_url:paymentReturnUrls(input.origin,attemptId)})
-      // A charge response only identifies the attempt; settlement requires provider lookup.
-      await client.query("UPDATE payment_attempts SET provider_ref=$2,status=CASE WHEN status='created' THEN 'pending' ELSE status END,updated_at=now() WHERE id=$1", [attemptId,event.provider_ref])
-    } catch {
-      await client.query("UPDATE payment_attempts SET status='unknown',updated_at=now() WHERE id=$1 AND status='created'", [attemptId])
-      // The committed invoice/order survive; uncertain charges must be reconciled, never blindly retried.
-    }
-    return true
+    return { attemptId, token: sub.provider_token_ref as string }
   })
+  if (!reserved) return false
+  try {
+    const event = await adapter.chargeToken({given_id:reserved.attemptId,token:reserved.token,amount:invoice.total,
+      description:`LiwanOS renewal ${order.id}`,callback_url:paymentReturnUrls(input.origin,reserved.attemptId)})
+    // A charge response only identifies the attempt; settlement requires provider lookup.
+    await pool.query("UPDATE payment_attempts SET provider_ref=$2,status=CASE WHEN status='created' THEN 'pending' ELSE status END,updated_at=now() WHERE id=$1", [reserved.attemptId,event.provider_ref])
+  } catch {
+    await pool.query("UPDATE payment_attempts SET status='unknown',updated_at=now() WHERE id=$1 AND status='created'", [reserved.attemptId])
+    // The committed invoice/order survive; uncertain charges must be reconciled, never blindly retried.
+  }
+  return true
 }
 
 export async function applyDunning(pool: Pool, { now = new Date() }: { now?: Date } = {}) {

@@ -5,8 +5,13 @@ import { completeOutbox, enqueueOutbox, failOutbox, leaseOutboxRow } from './out
 import { RENEWAL_NOTICE_DAYS } from './notice-timings.js'
 import { owesAtRenewal } from './free-base.js'
 
-/** The outbox key of the notice for one subscription and renewal date. */
-export const renewalNoticeKey = (subscriptionId: string, renewalDate: string) => `renewal-notice:${subscriptionId}:${renewalDate}`
+/**
+ * The outbox key of the notice for one subscription, renewal date and amount. The amount is part of the key: a notice
+ * covers a charge of exactly that amount, so an upgrade between the notice and the renewal makes a new notice due and the
+ * old one never covers the new amount.
+ */
+export const renewalNoticeKey = (subscriptionId: string, renewalDate: string, amount: { minor: number; currency: string }) =>
+  `renewal-notice:${subscriptionId}:${renewalDate}:${amount.currency}${amount.minor}`
 
 /**
  * Whether a stored method may be charged on `renewalDate`: the notice for exactly that date was really sent (`sentAt` is
@@ -40,7 +45,11 @@ export async function sendRenewalNotices(pool: Pool, input: { now: Date; mail: M
     if (input.signal?.aborted) return sent
     if (!owesAtRenewal(row.snapshot.pricing)) continue
     const renewalAt = riyadhDate(row.renewal_at instanceof Date ? row.renewal_at : new Date(`${row.renewal_at}T00:00:00+03:00`))
-    const dedupe = renewalNoticeKey(row.id, renewalAt)
+    // The notice states the amount that will be charged; without a known amount there is nothing true to tell.
+    const quote = (await pool.query('SELECT payload FROM commercial_quotes WHERE id=$1', [row.snapshot.quote_id])).rows[0]?.payload
+    const amount = quote?.next_renewal as { minor: number; currency: string; exponent: number } | undefined
+    if (!amount) continue
+    const dedupe = renewalNoticeKey(row.id, renewalAt, amount)
     const inserted = await enqueueOutbox(pool, { kind: 'renewal.notice', aggregate_id: row.id, dedupe_key: dedupe,
       payload: { subscription_id: row.id, renewal_at: renewalAt } })
     const outbox = (await pool.query("SELECT id,status FROM commercial_outbox WHERE kind='renewal.notice' AND aggregate_id=$1 AND dedupe_key=$2", [row.id, dedupe])).rows[0]
@@ -51,13 +60,11 @@ export async function sendRenewalNotices(pool: Pool, input: { now: Date; mail: M
     // Nobody to tell is not a notice: the row fails, and the method is not charged for this date.
     if (!row.admin_login) { await failOutbox(pool, outbox.id, 'no_recipient'); continue }
     sent++
-    const quote = (await pool.query('SELECT payload FROM commercial_quotes WHERE id=$1', [row.snapshot.quote_id])).rows[0]?.payload
-    const amount = quote?.next_renewal
     const daysLeft = daysBetween(today, renewalAt)
     try {
-      const text = `سيُجدَّد اشتراكك تلقائيًا في ${renewalAt} (بعد ${daysLeft} يومًا)`
-        + (amount ? ` وسيُخصم ${(amount.minor / 10 ** amount.exponent).toFixed(amount.exponent)} ${amount.currency} من وسيلة الدفع المحفوظة.` : ' من وسيلة الدفع المحفوظة.')
-        + ' يمكنك إيقاف التجديد التلقائي في أي وقت من صفحة الاشتراك قبل هذا التاريخ.'
+      const figure = `${(amount.minor / 10 ** amount.exponent).toFixed(amount.exponent)} ${amount.currency}`
+      const text = `سيُجدَّد اشتراكك تلقائيًا في ${renewalAt} (بعد ${daysLeft} يومًا)، وسيُخصم ${figure} من وسيلة الدفع المحفوظة. يمكنك إيقاف التجديد التلقائي قبل هذا التاريخ من صفحة الاشتراك؛ الإيقاف بعد بدء الخصم يسري من الدورة التالية.\n`
+        + `Your subscription renews automatically on ${renewalAt} (in ${daysLeft} days) and ${figure} will be charged to the saved payment method. You can turn auto-renew off on the subscription page before that date; turning it off after the charge has started applies from the next period.`
       await input.mail.send({ to: row.admin_login, subject: 'تجديد اشتراكك في LiwanOS قريبًا', text, message_id: `renewal-${row.id}-${dedupe}@liwan` })
       // The delivery time is what lets the renewal charge the stored method.
       await pool.query("UPDATE commercial_outbox SET payload=payload||jsonb_build_object('sent_at',$2::text) WHERE id=$1", [outbox.id, input.now.toISOString()])
