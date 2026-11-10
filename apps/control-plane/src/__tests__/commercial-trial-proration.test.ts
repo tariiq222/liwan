@@ -47,7 +47,7 @@ suite('trial purchases are pro-rated by cadence days (spec 0a: L6, L7)', () => {
   /** A customer whose trial started on 2026-10-25 and whose workspace is active. */
   async function trialing(cadence: typeof monthly | typeof yearly) {
     const id = randomUUID(), tenant = randomUUID()
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Trial customer','saas','dedicated_managed',$2,true)", [tenant, `trial-${tenant}`])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled,post_trial_supported,excess_supported) VALUES($1,'Trial customer','saas','dedicated_managed',$2,true,true,true)", [tenant, `trial-${tenant}`])
     await pool.query('INSERT INTO customers(id,name,tenant_id,admin_login) VALUES($1,$2,$3,$4)', [id, 'Trial customer', tenant, `${id}@example.test`])
     const slug = `t${tenant.replaceAll('-', '')}`
     await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)', [tenant, slug, `${slug}.trial.test`, `liwan_scratch_${slug.slice(1)}`])

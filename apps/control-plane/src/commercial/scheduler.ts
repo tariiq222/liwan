@@ -12,7 +12,8 @@ import { syncTenantStatus, type TenantStatusRunner } from './suspension.js'
 import { returnOriginFromEnv, unusableReturnOrigin } from './return-origin.js'
 import { sendTrialNotices } from './trial-notices.js'
 import { sendOverLimitNotices } from './over-limit-notices.js'
-import * as settlements from './settlements.js'
+import { processRefundOutbox } from './settlements.js'
+import { recoverPaidFulfillment } from './paid-fulfillment-recovery.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import type { MailAdapter } from './mail-adapter.js'
 import { existsSync } from 'node:fs'
@@ -68,7 +69,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
   let lockSkipLogged = false
   const USAGE_RETRY_MS = 30_000
   let usageRun: Promise<void> | undefined
-  const billingMs = posInt(env.LIWAN_COMMERCIAL_BILLING_INTERVAL_SEC, 3600) * 1000
+  const billingMs = posInt(env.LIWAN_COMMERCIAL_BILLING_INTERVAL_SEC, 300) * 1000
   // Payment returns and invitation links both resolve one origin per customer (the tenant's own host in shared mode).
   const returnOrigin = returnOriginFromEnv(pool, env) ?? unusableReturnOrigin
   let ticks = 0
@@ -88,6 +89,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
     async tick(): Promise<void> {
       ticks++
       jobCounts = {}
+      await job('paid-fulfillment-recovery', () => recoverPaidFulfillment(pool, new Date(clock())))
       await job('fulfillment', () => processFulfillmentOutbox(pool, { limit: 20, enrollment: { config }, signal: o.signal }))
       await job('invitation.issue', async () => {
         for (const row of await claimOutbox(pool, ['invitation.issue'], 20)) {
@@ -145,8 +147,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
           await job('renewals', () => generateRenewals(pool, { now: new Date(now), adapter, returnOrigin }))
         }
         await job('dunning', () => applyDunning(pool, { now: new Date(now) }))
-        const refund = (settlements as Record<string, unknown>).processRefundOutbox
-        if (typeof refund === 'function') await job('refunds', () => (refund as (p: Pool) => Promise<unknown>)(pool))
+        await job('refunds', () => processRefundOutbox(pool, o.paymentAdapter))
       }
       console.debug(JSON.stringify({ event: 'commercial_scheduler_tick', tick: ticks, jobs: jobCounts }))
     },

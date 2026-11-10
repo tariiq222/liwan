@@ -1,6 +1,7 @@
 import { actorHoldsSql } from '../admin-auth/grants.js'
 import type { Pool } from 'pg'
 import { commercialProvisionAuthoritySql } from './commercial-enrollment-authority.js'
+import { recoverCommercialSystemJobs } from './commercial-recovery.js'
 import { expireSharedLeases, runSharedJob, type SharedFencedAdapter } from './job-worker.js'
 
 /** Single scheduler tick. Selecting an ID is not claiming it: runSharedJob owns
@@ -10,6 +11,7 @@ export async function dispatchSharedOnce(pool: Pool, adapter?: SharedFencedAdapt
   if (!adapter) throw new Error('shared_adapter_unavailable')
   await expireSharedLeases(pool)
   if (adapter.subscriptionRunner) {
+    await recoverCommercialSystemJobs(pool)
     // An expired claim can precede the transaction that records both the
     // start journal and the order's transition to applying. Put that order
     // back through normal dispatch. A failed order can also lack a journal

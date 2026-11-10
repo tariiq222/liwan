@@ -8,12 +8,21 @@ import { adjustmentView } from './invoices.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import { actorLabel } from '../admin-auth/grants.js'
 import { billingSettings } from './billing-settings.js'
+import { claimOutbox, completeOutbox, deferOutbox } from './outbox.js'
 import { creditedMinorSql, DUPLICATE_PAYMENT_REASON } from './refund-credit.js'
 
-/** Late payment is a manual credit review, never an automatic provider refund. */
-export async function processRefundOutbox(pool: Pool, _adapter?: PaymentAdapter): Promise<number> {
-  return transaction(pool, async client => {
-    const rows = (await client.query("SELECT * FROM commercial_outbox WHERE kind IN ('reconcile.refund','payment.intervention') AND status='pending' ORDER BY created_at,id FOR UPDATE SKIP LOCKED")).rows
+export async function processRefundOutbox(pool: Pool, adapter?: PaymentAdapter): Promise<number> {
+  let automatic = 0
+  if (adapter) for (const row of await claimOutbox(pool, ['reconcile.refund'], 20, { automatic: true })) {
+    try {
+      await refundUndelivered(pool, adapter, row)
+      automatic++
+    } catch (error) {
+      await deferOutbox(pool, row.id, error instanceof Error ? error.message : 'provider_refund_failed')
+    }
+  }
+  return automatic + await transaction(pool, async client => {
+    const rows = (await client.query("SELECT * FROM commercial_outbox WHERE kind IN ('reconcile.refund','payment.intervention') AND status='pending' AND payload->>'automatic' IS DISTINCT FROM 'true' ORDER BY created_at,id FOR UPDATE SKIP LOCKED")).rows
     const reason = 'payment after cancellation — manual review'
     for (const row of rows) {
       let rejected: string | null = null
@@ -34,6 +43,63 @@ export async function processRefundOutbox(pool: Pool, _adapter?: PaymentAdapter)
     }
     return rows.length
   })
+}
+
+const AUTOMATIC_CREDIT = 'Payment returned after an undelivered trial order'
+
+/** Confirm the original payment first. An interrupted refund is reconciled by cumulative provider amount. */
+async function refundUndelivered(pool: Pool, adapter: PaymentAdapter, row: { id: string; aggregate_id: string; payload: unknown }) {
+  const payload = row.payload as { attempt_id?: string; payment_id?: string }
+  const lock = await pool.connect()
+  let owned = false
+  try {
+    owned = (await lock.query('SELECT pg_try_advisory_lock(hashtextextended($1,0)) AS held', [`commercial-refund:${row.aggregate_id}`])).rows[0].held
+    if (!owned) return
+    const attempt = (await lock.query(`SELECT a.*,o.payment_state,i.customer_id,i.total_minor
+      FROM payment_attempts a JOIN orders o ON o.id=a.order_id JOIN invoices i ON i.id=a.invoice_id
+      WHERE a.id=$1 AND a.order_id::text=$2 AND o.paid_attempt_id=a.id AND o.fulfillment_state<>'applied'`,
+    [payload.attempt_id ?? null, row.aggregate_id])).rows[0]
+    if (!attempt || !['refund_pending','refunded'].includes(attempt.payment_state)) throw Error('refund_attempt_unavailable')
+    if (attempt.provider !== adapter.provider || attempt.mode !== adapter.mode || !attempt.provider_ref) throw Error('provider_refund_unavailable')
+    const read = () => attempt.token_charge ? adapter.lookupPayment?.(attempt.provider_ref) : adapter.lookupAttempt(attempt.provider_ref)
+    const payment = await read()
+    const total = Number(attempt.amount_minor)
+    if (!payment?.payment_id || !['succeeded','refunded'].includes(payment.status)
+      || payment.amount.minor !== total || payment.amount.currency !== attempt.currency || payment.amount.exponent !== attempt.exponent
+      || payment.merchant_account !== adapter.merchantAccount || payment.live !== (adapter.mode === 'live')
+      || (payload.payment_id && payload.payment_id !== payment.payment_id)) throw Error('provider_refund_payment_mismatch')
+    const returned = payment.refunded?.minor ?? (payment.status === 'refunded' ? null : 0)
+    if (returned === null || returned < 0 || returned > total) throw Error('provider_refund_amount_unverified')
+    if (returned < total) {
+      const result = await adapter.refund(payment.payment_id, { minor: total - returned, currency: attempt.currency, exponent: attempt.exponent })
+      const confirmed = await read()
+      if (result.payment_id !== payment.payment_id || confirmed?.payment_id !== payment.payment_id || confirmed.refunded?.minor !== total
+        || confirmed.refunded.currency !== attempt.currency || confirmed.refunded.exponent !== attempt.exponent)
+        throw Error('provider_refund_unverified')
+    }
+    await transaction(pool, async client => {
+      const invoice = (await client.query('SELECT * FROM invoices WHERE id=$1 FOR UPDATE', [attempt.invoice_id])).rows[0]
+      const note = (await client.query(`SELECT id FROM invoice_adjustments WHERE invoice_id=$1 AND kind='credit_note'
+        AND status='pending' AND origin='system' AND amount_minor=$2 ORDER BY created_at,id LIMIT 1 FOR UPDATE`, [invoice.id, total])).rows[0]
+      if (note) {
+        await client.query(`UPDATE invoice_adjustments SET status='refunded',refund_reference=$2,refunded_by='system',refunded_at=now()
+          WHERE id=$1`, [note.id, payment.payment_id])
+      } else {
+        const credited = Number((await client.query(`SELECT ${creditedMinorSql('$1')} AS amount`, [invoice.id])).rows[0].amount)
+        if (credited < total) await client.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,
+          status,created_by,origin,refund_reference,refunded_at,refunded_by)
+          VALUES($1,$2,$3,'credit_note',$4,$5,$6,$7,'refunded','system','system',$8,now(),'system')`,
+        [randomUUID(), invoice.id, invoice.customer_id, AUTOMATIC_CREDIT, total - credited, attempt.currency, attempt.exponent, payment.payment_id])
+      }
+      await client.query("UPDATE orders SET payment_state='refunded' WHERE id::text=$1 AND payment_state='refund_pending'", [row.aggregate_id])
+      await completeOutbox(client, row.id)
+    })
+  } finally {
+    let broken = false
+    if (owned) try { await lock.query('SELECT pg_advisory_unlock(hashtextextended($1,0))', [`commercial-refund:${row.aggregate_id}`]) }
+    catch { broken = true }
+    lock.release(broken || undefined)
+  }
 }
 
 /**

@@ -26,7 +26,7 @@ suite('commercial trial', () => {
   async function newCustomer(bind = true) {
     customer = randomUUID()
     const ownTenant = randomUUID()
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Trial customer','saas','dedicated_managed',$2,true)", [ownTenant, `trial-${ownTenant}`])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled,post_trial_supported,excess_supported) VALUES($1,'Trial customer','saas','dedicated_managed',$2,true,true,true)", [ownTenant, `trial-${ownTenant}`])
     await pool.query('INSERT INTO customers(id,name,tenant_id,admin_login) VALUES($1,$2,$3,$4)', [customer, 'Trial customer', ownTenant, `${customer}@example.test`])
     if (bind) {
       const slug = `t${ownTenant.replaceAll('-', '')}`
@@ -318,7 +318,7 @@ suite('commercial trial', () => {
   it('refuses a trial on a tenant known to lack the expiry field', async () => {
     const c = await newCustomer()
     const tenant = (await pool.query('SELECT tenant_id FROM customers WHERE id=$1', [c.id])).rows[0].tenant_id
-    await pool.query('UPDATE tenants SET commercial_expiry_supported=false WHERE id=$1', [tenant])
+    await pool.query('UPDATE tenants SET post_trial_supported=false WHERE id=$1', [tenant])
     await expect(startTrial(pool, { customer_id: c.id, request: request(), principal: c.principal, now }))
       .rejects.toMatchObject({ code: 'tenant_upgrade_required' })
   })

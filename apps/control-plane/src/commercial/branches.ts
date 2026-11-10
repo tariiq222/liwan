@@ -9,6 +9,7 @@ type Db = Pool | PoolClient
 const toBranch = (r: any): Branch => ({
   id: r.id, subscription_id: r.subscription_id, tenant_id: r.tenant_id ?? '', name: r.name, kind: r.kind,
   billing: r.billing, state: r.state, odoo_company_id: r.odoo_company_id ?? null, order_id: r.order_id ?? null,
+  read_only: r.read_only === true,
   activated_at: r.activated_at ? String(iso(r.activated_at)) : null, archived_at: r.archived_at ? String(iso(r.archived_at)) : null,
 })
 
@@ -43,19 +44,6 @@ export async function extraBranchCount(db: Db, subscription_id: string): Promise
   return (await db.query("SELECT count(*)::int AS n FROM commercial_branches WHERE subscription_id=$1 AND kind='extra' AND state IN ('active','pending')", [subscription_id])).rows[0].n
 }
 
-/**
- * The number of extra branches a request is PRICED at: the one rule for add, archive, restore and any other change. A request
- * above the real set activates a branch, which is a purchase: every active extra branch above the included ones is priced.
- * Anything else buys nothing, so it can never raise the bill, whatever count the client echoes back: it is priced at what the
- * subscription is billed now, capped by what is asked. Branches kept free from the trial (more active than billed) therefore
- * stay free until the customer buys one.
- */
-export const pricedBranchCount = (requested: number, real: number, billed: number) => requested > real ? requested : Math.min(requested, billed)
-
-/**
- * What a branch change is priced at (see `pricedBranchCount`), from the branches as they are after the change. A change that
- * activates a branch (add, restore) is a purchase; archive-only is priced at what is billed now, capped by what is left.
- */
 export async function requestedExtraBranches(pool: Db, input: { subscription_id: string; add: number; archive: string[]; restore?: string[] }): Promise<number> {
   // Between the lapse and the applied lock the customer's applied configuration is still the paid trial, which a branch change
   // would be priced and recorded against. It waits for the lock, whose zero-value order is already on its way.
@@ -78,7 +66,7 @@ export async function requestedExtraBranches(pool: Db, input: { subscription_id:
   const current = rows.filter(b => b.kind === 'extra' && (b.state === 'active' || b.state === 'pending')).length
   const pricing = sub?.snapshot?.pricing
   const billed = pricing ? Number(sub.snapshot.included_extra_branches ?? 0) + Number(pricing.paid_extra_branches ?? 0) : current
-  return pricedBranchCount(current + input.add - archiving + restoring.length, current, billed)
+  return input.add || restoring.length ? Math.min(current, billed) + input.add + restoring.length : Math.min(current - archiving, billed)
 }
 
 export async function reserveBranchesForOrder(client: PoolClient, input: {
@@ -103,7 +91,7 @@ export async function reserveBranchesForOrder(client: PoolClient, input: {
       throw e
     }
   }
-  const after = branchBillingCounts(await subscriptionBranches(client, input.subscription_id), free)
+  const after = branchBillingCounts((await subscriptionBranches(client, input.subscription_id)).filter(branch => !branch.read_only), free)
   if (after.paid !== input.quoted_paid) throw new CommercialHttpError('requote_required', 409)
   return created
 }
@@ -131,7 +119,7 @@ export async function restoreBranchesForOrder(client: PoolClient, input: { order
     if (billing === 'free_extra') used++
     try {
       const r = await client.query(
-        `UPDATE commercial_branches SET state='pending', archived_at=NULL, order_id=$3, operation_id=$4, billing=$5
+        `UPDATE commercial_branches SET state='pending', read_only=false, archived_at=NULL, order_id=$3, operation_id=$4, billing=$5
          WHERE id=$1 AND subscription_id=$2 AND kind='extra' AND state='archived' AND odoo_company_id IS NOT NULL RETURNING *`,
         [id, input.subscription_id, input.order_id, input.operation_id, billing])
       if (!r.rowCount) throw new CommercialHttpError('branch_not_archived', 409, 'restore')
@@ -141,7 +129,7 @@ export async function restoreBranchesForOrder(client: PoolClient, input: { order
       throw e
     }
   }
-  const after = branchBillingCounts(await subscriptionBranches(client, input.subscription_id), free)
+  const after = branchBillingCounts((await subscriptionBranches(client, input.subscription_id)).filter(branch => !branch.read_only), free)
   if (after.paid !== input.quoted_paid) throw new CommercialHttpError('requote_required', 409)
   return restored
 }

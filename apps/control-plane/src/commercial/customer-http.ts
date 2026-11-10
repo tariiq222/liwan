@@ -18,7 +18,8 @@ import { bundleWire } from './bundles.js'
 import { getRelease } from './catalog-releases.js'
 import { bankTransferInstructions } from './bank-transfer.js'
 import { listBranches, requestedExtraBranches } from './branches.js'
-import { purchasedLimits } from './free-base.js'
+import { trialEndPreview } from './trial-preview.js'
+import { retryTrialLapse } from './trial-lapse.js'
 import { getUsage } from './usage.js'
 import { createPaymentAttempt, verifyReturnedAttempt } from './payments.js'
 import type { PaymentAdapter } from './payment-adapter.js'
@@ -44,7 +45,7 @@ export async function createBranchQuote(pool: Pool, customerId: string, raw: str
   if (!view.applied) throw new CommercialHttpError('subscription_required',409)
   const current = view.applied
   const count = await requestedExtraBranches(pool,{subscription_id:view.id,add:input.add.length,archive:input.archive,restore:input.restore})
-  const bought = await purchasedLimits(pool,view.id)
+  const bought = { users: Number(current.entitlement.features['users.limit']), storage_mb: Number(current.entitlement.features['storage.limit_mb']) }
   const quote = await createQuoteForCustomer(pool,{customer_id:customerId,request:{kind:'change',plan_revision_id:current.plan_revision_id,bundle_revision_ids:current.bundle_revision_ids,terms_revision_id:current.terms_revision_id,cadence:current.cadence,requested_extra_branches:count,requested_users:bought.users,requested_storage_mb:bought.storage_mb,expected_subscription_revision:view.revision}})
   await pool.query('INSERT INTO branch_quote_requests(quote_id,subscription_id,adds,archive,restore,quoted_paid) VALUES($1,$2,$3,$4,$5,$6)',[quote.id,view.id,JSON.stringify(input.add),JSON.stringify(input.archive),JSON.stringify(input.restore),Math.max(0,count-current.included_extra_branches)])
   return quote
@@ -111,6 +112,16 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   const path=url.pathname.slice('/v1/customer'.length),m=input.method,customerId=principal.customer_id!
   if (m==='GET' && path==='/subscription') {requireCapability(principal,'subscription.read');return {status:200,data:await getSubscription(pool,customerId)}}
   if (m==='GET' && path==='/catalog') {requireCapability(principal,'subscription.read');return {status:200,data:await customerCatalog(pool,customerId)}}
+  if (m==='GET' && path==='/trial/end-preview') {
+    requireCapability(principal,'subscription.read')
+    return {status:200,data:await trialEndPreview(pool, customerId)}
+  }
+  if (m==='POST' && path==='/trial/retry') {
+    requireCapability(principal,'subscription.manage')
+    parseBody(input.raw,z.strictObject({}))
+    await retryTrialLapse(pool,{customer_id:customerId,now:new Date(),adapter:runtime?.adapter ?? undefined})
+    return {status:200,data:await trialEndPreview(pool, customerId)}
+  }
   if (m==='POST' && path==='/trial/convert') {requireCapability(principal,'subscription.manage');const payment=needPayment(runtime);return {status:201,data:await convertTrial(pool,{customer_id:customerId,now:new Date(),adapter:payment.adapter,returnOrigin:payment.returnOrigin})}}
   if (m==='POST' && path==='/trial') {requireCapability(principal,'subscription.manage');return {status:201,data:await startTrial(pool,{customer_id:customerId,request:parseBody(input.raw,quoteRequestSchema.omit({subscription_id:true})),principal})}}
   if (m==='POST' && path==='/quotes') {requireCapability(principal,'subscription.manage');return {status:201,data:await createQuoteForCustomer(pool,{customer_id:customerId,request:{...parseBody(input.raw,quoteRequestSchema),effective_date:undefined}})}}

@@ -3,7 +3,7 @@ import type { Pool, PoolClient } from 'pg'
 import { addCadence, riyadhDate } from '@liwan/commercial-contracts'
 import { computeQuote } from '@liwan/commercial-contracts/server'
 import { transaction } from '../db.js'
-import { loadQuoteSources } from './quote-sources.js'
+import { loadQuoteSources, pricingOf } from './quote-sources.js'
 import { policyWire } from './policies.js'
 import { issueInvoiceFromQuote } from './invoices.js'
 import { orderView } from './orders.js'
@@ -12,19 +12,8 @@ import { createPaymentAttempt, paymentReturnUrls } from './payments.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { enqueueOutbox } from './outbox.js'
 import type { PaymentAdapter } from './payment-adapter.js'
+import { rearmUnpaidTrialLock } from './trial-lapse.js'
 import { holdsTrialAfterLapseSql, owesAtRenewal } from './free-base.js'
-
-/**
- * What the subscription PURCHASED, from the pricing baseline its accepted quote recorded (included plus paid units), never from
- * the entitlement: a limit the entitlement holds as a ceiling pinned at usage is not a purchase and is never billed. A snapshot
- * that records no pricing falls back to its entitlement limits.
- */
-function purchasedOf(snapshot: Record<string, any>, plan: { included_users: number; included_storage_mb: number }) {
-  const pricing = snapshot.pricing
-  if (pricing) return { users: plan.included_users + Number(pricing.paid_users ?? 0), storage_mb: plan.included_storage_mb + Number(pricing.paid_storage_gb ?? 0) * 1024 }
-  const limits = snapshot.entitlement?.features ?? {}
-  return { users: Number(limits['users.limit'] ?? 0), storage_mb: Number(limits['storage.limit_mb'] ?? 0) }
-}
 
 const date = (v: any): string => v instanceof Date ? riyadhDate(v) : String(v).slice(0,10)
 export function trialEndsAt(days: number, at: Date | string = new Date()): string {
@@ -57,7 +46,7 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
   // `owes`: the applied pricing owes something at renewal. A renewal that owes nothing needs no return origin and is never billing-blocked.
   const candidates = (await pool.query(`SELECT s.id,s.customer_id,EXISTS (SELECT 1 FROM renewals r WHERE r.subscription_id=s.id
       AND r.period_start=s.renewal_at AND r.kind='renewal') AS has_renewal,sr.snapshot->'pricing' AS pricing
-    FROM subscriptions s JOIN subscription_revisions sr ON sr.id=s.applied_revision_id WHERE s.state IN ('active','past_due')
+    FROM subscriptions s JOIN subscription_revisions sr ON sr.id=s.applied_revision_id WHERE s.state IN ('active','past_due') AND NOT s.manual_suspension
     AND s.applied_revision_id IS NOT NULL AND s.renewal_at <= $1::date AND ($2::uuid IS NULL OR s.id=$2)
     AND NOT ${holdsTrialAfterLapseSql('s')} ORDER BY s.id`, [today, subscription_id ?? null])).rows
   // A subscription that is no longer a candidate (suspended, cancelled, changed, or already renewed) has nothing left to fail.
@@ -88,7 +77,7 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
     }
     const result = await transaction(pool, async client => {
       const sub = (await client.query('SELECT * FROM subscriptions WHERE id=$1 FOR UPDATE', [candidate.id])).rows[0]
-      if (!['active','past_due'].includes(sub.state) || !sub.applied_revision_id || !sub.renewal_at || date(sub.renewal_at)>today) return null
+      if (sub.manual_suspension || sub.target_revision_id || !['active','past_due'].includes(sub.state) || !sub.applied_revision_id || !sub.renewal_at || date(sub.renewal_at)>today) return null
       // A lapsed trial still holds its paid snapshot until the lock applies: its renewal is the free base's, and that is
       // generated once the lock is applied. The trial configuration is never invoiced.
       if ((await client.query(`SELECT ${holdsTrialAfterLapseSql('s')} AS held FROM subscriptions s WHERE s.id=$1`, [sub.id])).rows[0].held) return null
@@ -104,9 +93,11 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
       const policy = (await client.query('SELECT * FROM pricing_policy_revisions WHERE id=$1', [snapshot.policy_revision_id])).rows[0]
       if (!policy) throw new Error('pinned_policy_missing')
       sources.policy = policyWire(policy)
-      const bought = purchasedOf(snapshot, sources.plan)
-      const quote = computeQuote({ ...sources,kind:'new',cadence:snapshot.cadence,requested_extra_branches:snapshot.free_base ? Math.min(snapshot.extra_branch_count, sources.plan.included_extra_branches) : snapshot.extra_branch_count,
-        requested_users: bought.users, requested_storage_mb: bought.storage_mb,
+      const pricing = await pricingOf(client, snapshot)
+      const quote = computeQuote({ ...sources,kind:'new',cadence:snapshot.cadence,
+        requested_extra_branches: Number(snapshot.included_extra_branches) + pricing.paid_extra_branches,
+        requested_users: sources.plan.included_users + pricing.paid_users, requested_storage_mb: sources.plan.included_storage_mb + pricing.paid_storage_gb * 1024,
+        paid_through: sub.trial_paid_through ?? undefined,
         effective_date:start,period:{start,end},ids:{ id:randomUUID(),customer_id:sub.customer_id,subscription_id:sub.id,expected_subscription_revision:sub.revision },
         expires_at:new Date(now.getTime()+30*60_000).toISOString(),entitlement_digest:snapshot.entitlement.digest })
       await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [quote.id,sub.customer_id,JSON.stringify(quote),quote.digest,quote.expires_at])
@@ -117,7 +108,9 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
       [randomUUID(),sub.customer_id,sub.id,quote.id,sub.applied_revision_id,quote.due_now.minor ? 'awaiting_payment':'not_required',
         quote.due_now.minor ? 'not_started':'queued',`${start}T00:00:00+03:00`,key,digestOf({subscription_id:sub.id,period_start:start,quote_digest:quote.digest}),quote.due_now.minor,quote.due_now.currency,quote.due_now.exponent])).rows[0]
       const order = orderView(row)
-      const invoice = await issueInvoiceFromQuote(client, {order,quote})
+      const immediate = sub.trial_outcome === 'kept_subset' && pricing.base_minor === 0
+        && (await client.query("SELECT 1 FROM trial_lapses WHERE subscription_id=$1 AND state='done' AND period_start=$2", [sub.id, start])).rowCount
+      const invoice = await issueInvoiceFromQuote(client, { order, quote, dueDays: immediate ? 0 : undefined })
       await client.query('UPDATE renewals SET order_id=$2,invoice_id=$3 WHERE id=$1', [renewalId,order.id,invoice?.id ?? null])
       if (!invoice) {
         await onRenewalPaid(client, order.id)
@@ -186,25 +179,33 @@ async function recordRenewalFailure(pool: Pool, subscriptionId: string, error: u
 }
 
 export async function applyDunning(pool: Pool, { now = new Date() }: { now?: Date } = {}) {
-  return transaction(pool, async client => {
-    const rows = (await client.query(`SELECT s.*,sr.snapshot,p.grace_days,p.auto_suspend FROM subscriptions s
-      JOIN subscription_revisions sr ON sr.id=s.applied_revision_id
-      JOIN plan_revisions p ON p.id=(sr.snapshot->>'plan_revision_id')::uuid
-      WHERE s.state IN ('active','past_due') AND NOT ${holdsTrialAfterLapseSql('s')} AND EXISTS (
-        SELECT 1 FROM invoices i WHERE i.subscription_id=s.id AND i.status='issued' AND i.due_at < $1)
-      ORDER BY s.id FOR UPDATE OF s`, [now])).rows
-    const results: { subscription_id: string; state: string }[] = []
-    for (const row of rows) {
-      // A subscription whose pricing owes nothing is on the free base (or a free plan): an unpaid upgrade invoice never
-      // lapses it, because the base stays usable and only the paid applications it asks for stay closed.
-      if (!owesAtRenewal(row.snapshot.pricing)) continue
-      const due = (await client.query("SELECT min(due_at) AS due_at FROM invoices WHERE subscription_id=$1 AND status='issued' AND due_at<$2", [row.id,now])).rows[0].due_at
-      const grace = row.grace_ends_at ?? new Date(new Date(due).getTime()+Number(row.grace_days)*86_400_000)
-      const state = row.auto_suspend && new Date(grace).getTime() <= now.getTime() ? 'suspended' : 'past_due'
-      if (row.state !== state || !row.grace_ends_at) await client.query('UPDATE subscriptions SET state=$2,grace_ends_at=$3,revision=revision+1 WHERE id=$1', [row.id,state,grace])
-      await client.query('UPDATE renewals SET status=$2 WHERE subscription_id=$1 AND status IN (\'invoiced\',\'charging\',\'past_due\')', [row.id,state])
-      results.push({subscription_id:row.id,state})
-    }
-    return results
-  })
+  const due = (await pool.query(`SELECT s.id FROM subscriptions s WHERE s.state IN ('active','past_due')
+    AND NOT s.manual_suspension AND NOT ${holdsTrialAfterLapseSql('s')}
+    AND EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id=s.id AND i.status='issued' AND i.due_at < $1)
+    ORDER BY s.id`, [now])).rows
+  const results: { subscription_id: string; state: string }[] = []
+  for (const { id } of due) {
+    try {
+      const state = await transaction(pool, async client => {
+        const row = (await client.query(`SELECT s.*,sr.snapshot,p.grace_days,p.auto_suspend FROM subscriptions s
+          JOIN subscription_revisions sr ON sr.id=s.applied_revision_id
+          JOIN plan_revisions p ON p.id=(sr.snapshot->>'plan_revision_id')::uuid
+          WHERE s.id=$1 AND s.state IN ('active','past_due') AND NOT s.manual_suspension
+          AND NOT ${holdsTrialAfterLapseSql('s')} FOR UPDATE OF s SKIP LOCKED`, [id])).rows[0]
+        if (!row || !owesAtRenewal(row.snapshot.pricing)) return
+        const due = (await client.query("SELECT min(due_at) AS due_at FROM invoices WHERE subscription_id=$1 AND status='issued' AND due_at<$2", [id, now])).rows[0].due_at
+        if (!due) return
+        const grace = row.grace_ends_at ?? new Date(new Date(due).getTime() + Number(row.grace_days) * 86_400_000)
+        const elapsed = new Date(grace).getTime() <= now.getTime()
+        if (elapsed && row.snapshot.pricing?.base_minor === 0 && await rearmUnpaidTrialLock(client, id, now)) return row.state as string
+        const next = row.auto_suspend && elapsed ? 'suspended' : 'past_due'
+        if (row.state !== next || !row.grace_ends_at)
+          await client.query('UPDATE subscriptions SET state=$2,grace_ends_at=$3,revision=revision+1 WHERE id=$1', [id, next, grace])
+        await client.query("UPDATE renewals SET status=$2 WHERE subscription_id=$1 AND status IN ('invoiced','charging','past_due')", [id, next])
+        return next
+      })
+      if (state) results.push({ subscription_id: id, state })
+    } catch (error) { await recordRenewalFailure(pool, id, error) }
+  }
+  return results
 }

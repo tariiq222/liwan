@@ -46,3 +46,12 @@ export function pricingBaseline(quote: Quote, included: { extra_branches: number
     user_unit_minor: users && users.quantity ? users.amount.minor / users.quantity : 0,
     storage_unit_minor: storage && storage.quantity ? storage.amount.minor / storage.quantity : 0 }
 }
+
+/** Reconstruct the same pricing baseline for revisions written before it was stored in the snapshot. */
+export async function pricingOf(client: Pick<PoolClient, 'query'>, snapshot: Record<string, any>) {
+  if (snapshot.pricing) return snapshot.pricing as ReturnType<typeof pricingBaseline>
+  const quote = (await client.query('SELECT payload FROM commercial_quotes WHERE id=$1', [snapshot.quote_id])).rows[0]?.payload
+  const plan = (await client.query('SELECT included_users,included_storage_mb FROM plan_revisions WHERE id=$1', [snapshot.plan_revision_id])).rows[0]
+  if (!quote || !plan) throw bad('baseline_missing', 'subscription_id', 409)
+  return pricingBaseline(quote, { extra_branches: snapshot.included_extra_branches, users: plan.included_users, storage_mb: plan.included_storage_mb })
+}

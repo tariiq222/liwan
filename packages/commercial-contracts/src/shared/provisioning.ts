@@ -51,8 +51,13 @@ export const sharedReconfigureJobSchema = z.strictObject({
     // cutoff `valid_until` stays untouched. Optional so older jobs still parse.
     commercial_valid_until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
     commercial_valid_until_revision: z.number().int().nonnegative().optional(),
+    trial_ends_at: z.iso.datetime({ offset: true }).nullable().optional(),
+    post_trial_features: z.record(z.string(), z.union([z.boolean(), z.number().int().nonnegative(), z.null()])).optional(),
+    post_trial_modules: sharedPolicySchema.shape.modules.optional(),
+    post_trial_digest: digest.optional(),
+    excess_settle: z.literal(true).optional(),
   }),
-  restore: z.boolean().optional(), restoreId: z.uuid().optional(),
+  restore: z.boolean().optional(), restoreId: z.uuid().optional(), origin: z.literal('trial-end').optional(),
 })
 export type SharedReconfigureJob = z.infer<typeof sharedReconfigureJobSchema>
 export const sharedQueuedJobSchema = z.union([sharedJobSchema, sharedReconfigureJobSchema])

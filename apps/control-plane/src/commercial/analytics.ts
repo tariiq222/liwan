@@ -49,7 +49,7 @@ async function loadBook(db: Ask): Promise<Book> {
        LEFT JOIN fulfillment_effects fe ON fe.order_id = o.id
       WHERE o.fulfillment_state = 'applied' AND NOT o.cancelled AND r.snapshot->'pricing' IS NOT NULL
         -- A trial that lapsed onto the free base never billed: what was applied up to the lapse is not revenue, even before the base is.
-        AND NOT EXISTS (SELECT 1 FROM trial_lapses l WHERE l.subscription_id = o.subscription_id AND COALESCE(fe.applied_at, o.effective_at, o.created_at) <= l.lapsed_at)
+        AND (o.due_now_minor > 0 OR NOT EXISTS (SELECT 1 FROM trial_lapses l WHERE l.subscription_id = o.subscription_id AND COALESCE(fe.applied_at, o.effective_at, o.created_at) <= l.lapsed_at))
       ORDER BY o.subscription_id, r.revision`)).rows
   const tally = new Map<string, { n: number, exponent: number }>()
   for (const row of rows) tally.set(row.currency, { n: (tally.get(row.currency)?.n ?? 0) + 1, exponent: row.exponent })
@@ -105,11 +105,11 @@ async function trialConversion(db: Ask, period: Period, now: Date): Promise<Anal
     `SELECT count(*) AS ended,
             count(*) FILTER (WHERE EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id = t.id AND i.status = 'paid'
                                               AND i.subtotal_minor > 0 AND i.paid_at >= t.ended_at)) AS converted
-       FROM (SELECT s.id, s.trial_ends_at AS ended_at FROM subscriptions s
-              WHERE s.trial_ends_at >= $1 AND s.trial_ends_at < LEAST($2::timestamptz, $3::timestamptz)
+       FROM (SELECT s.id, COALESCE(s.trial_ended_at,s.trial_ends_at) AS ended_at FROM subscriptions s
+              WHERE COALESCE(s.trial_ended_at,s.trial_ends_at) >= $1 AND COALESCE(s.trial_ended_at,s.trial_ends_at) < LEAST($2::timestamptz, $3::timestamptz)
              UNION ALL
-             SELECT l.subscription_id, l.lapsed_at FROM trial_lapses l
-              WHERE l.lapsed_at >= $1 AND l.lapsed_at < LEAST($2::timestamptz, $3::timestamptz)) t`,
+             SELECT l.subscription_id, l.ended_at FROM trial_lapses l
+              WHERE l.ended_at >= $1 AND l.ended_at < LEAST($2::timestamptz, $3::timestamptz)) t`,
     [new Date(start), new Date(end), now])).rows[0]
   return orNoData(ratio(num(row.converted), num(row.ended)))
 }

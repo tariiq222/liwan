@@ -20,7 +20,7 @@ async function audited(client: { query: Pool['query'] }, input: { subscription_i
 /** Vendor action: stop the tenant now. A payment does not lift it; only `resumeSubscription` does. */
 export async function suspendSubscription(pool: Pool, input: { subscription_id: string; reason: string; actor: string }) {
   await transaction(pool, async client => {
-    const updated = await client.query(`UPDATE subscriptions SET state='suspended',manual_suspension=true,revision=revision+1
+    const updated = await client.query(`UPDATE subscriptions SET suspended_from=state,state='suspended',manual_suspension=true,revision=revision+1
       WHERE id=$1 AND state = ANY($2::text[]) RETURNING id`, [input.subscription_id, SUSPENDABLE])
     if (!updated.rowCount) throw new CommercialHttpError('subscription_not_suspendable', 409)
     await audited(client, { ...input, action: 'subscription.suspended' })
@@ -33,15 +33,15 @@ export async function suspendSubscription(pool: Pool, input: { subscription_id: 
  */
 export async function resumeSubscription(pool: Pool, input: { subscription_id: string; reason: string; actor: string }) {
   await transaction(pool, async client => {
-    const row = (await client.query(`SELECT s.id,p.grace_days,(s.trial_ends_at > now()) AS trial_running,s.trial_ends_at IS NOT NULL AS has_expiry,EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id=s.id AND i.status='issued' AND i.due_at < now()) AS overdue
+    const row = (await client.query(`SELECT s.id,p.grace_days,s.suspended_from,s.trial_ends_at IS NOT NULL AS has_expiry,EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id=s.id AND i.status='issued' AND i.due_at < now()) AS overdue
       FROM subscriptions s LEFT JOIN subscription_revisions sr ON sr.id=s.applied_revision_id
       LEFT JOIN plan_revisions p ON p.id=(sr.snapshot->>'plan_revision_id')::uuid
       WHERE s.id=$1 AND s.state='suspended' FOR UPDATE OF s`, [input.subscription_id])).rows[0]
     if (!row) throw new CommercialHttpError('subscription_not_suspended', 409)
     const graceDays = Math.max(1, Number(row.grace_days ?? 0))
-    // A trial that is still running resumes as a trial, so ending or converting it keeps working.
-    const next = row.overdue ? 'past_due' : row.trial_running ? 'trialing' : 'active'
-    await client.query(`UPDATE subscriptions SET state=$2,manual_suspension=false,
+    // A suspended trial keeps its original clock and goes through the ordinary expiry transition.
+    const next = row.overdue ? 'past_due' : row.suspended_from === 'trialing' ? 'trialing' : 'active'
+    await client.query(`UPDATE subscriptions SET state=$2,manual_suspension=false,suspended_from=NULL,
       grace_ends_at=CASE WHEN $2='past_due' THEN now() + make_interval(days => $3::int) ELSE NULL END,revision=revision+1 WHERE id=$1`,
     [input.subscription_id, next, graceDays])
     // A trial's Odoo expiry (trial end plus grace) keeps the tenant read-only once it has passed, so the fresh grace period
@@ -67,7 +67,7 @@ async function pushUnderLock(pool: Pool, row: { id: string; tenant_id: string },
   try {
     locked = (await client.query('SELECT pg_try_advisory_lock(hashtextextended($1,0)) AS ok', [`tenant-status:${row.tenant_id}`])).rows[0].ok === true
     if (!locked) return null
-    const current = (await client.query(`SELECT CASE WHEN state='suspended' THEN 'suspended' ELSE 'active' END AS wanted,tenant_status_pushed AS pushed
+    const current = (await client.query(`SELECT CASE WHEN (state='suspended' OR manual_suspension) THEN 'suspended' ELSE 'active' END AS wanted,tenant_status_pushed AS pushed
       FROM subscriptions WHERE id=$1 AND tenant_id IS NOT NULL`, [row.id])).rows[0] as { wanted: TenantStatus; pushed: TenantStatus | null } | undefined
     if (!current || current.pushed === current.wanted) return 'skipped'
     await runner({ tenant_id: row.tenant_id, status: current.wanted })
@@ -94,9 +94,9 @@ const BACKOFF_SQL = "now() + LEAST(power(2, tenant_status_failures), 60) * inter
  */
 export async function syncTenantStatus(pool: Pool, input: { runner: TenantStatusRunner; limit?: number; budgetMs?: number; busy?: () => Promise<boolean>; log?: (message: string, error?: unknown) => void }) {
   const started = Date.now(), budget = input.budgetMs ?? 90_000
-  const due = (await pool.query(`SELECT s.id,s.tenant_id,CASE WHEN s.state='suspended' THEN 'suspended' ELSE 'active' END AS wanted FROM subscriptions s
+  const due = (await pool.query(`SELECT s.id,s.tenant_id,CASE WHEN (s.state='suspended' OR s.manual_suspension) THEN 'suspended' ELSE 'active' END AS wanted FROM subscriptions s
     JOIN shared_registry_bindings b ON b.control_tenant_id=s.tenant_id AND b.enabled=true
-    WHERE s.tenant_status_pushed IS DISTINCT FROM CASE WHEN s.state='suspended' THEN 'suspended' ELSE 'active' END
+    WHERE s.tenant_status_pushed IS DISTINCT FROM CASE WHEN (s.state='suspended' OR s.manual_suspension) THEN 'suspended' ELSE 'active' END
       AND (s.tenant_status_next_at IS NULL OR s.tenant_status_next_at <= now())
     ORDER BY s.tenant_status_next_at NULLS FIRST, s.id LIMIT $1`, [input.limit ?? 5])).rows as { id: string; tenant_id: string; wanted: TenantStatus }[]
   const pushed: string[] = [], failed: string[] = []

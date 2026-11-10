@@ -1,13 +1,12 @@
 import type { Pool } from 'pg'
 import { ATTENTION_LIMIT, attentionSchema } from '@liwan/commercial-contracts'
 import { creditedMinorSql } from './refund-credit.js'
-import { EXPIRY_CLEARING_REASON, expiryClearingJob } from './expiry-push.js'
 import { holdsTrialAfterLapseSql, owesAtRenewalSql } from './free-base.js'
 
 export const RENEWAL_WINDOW_DAYS = 7
 export const STALLED_HOURS = 24
-/** The billing scheduler runs hourly: a trial end older than two intervals has been missed, not just not reached yet. */
-const TRIAL_END_OVERDUE_HOURS = 2
+/** Two normal lapse scans without a state change. */
+const TRIAL_END_OVERDUE_MINUTES = 10
 /** Renewal dates are calendar dates of the business, so "today" and the renewal instant are read in this zone, never the session's. */
 export const BUSINESS_TIME_ZONE = 'Asia/Riyadh'
 
@@ -63,21 +62,9 @@ const subjectsSql = `WITH latest AS (
 ), blocked AS (
   SELECT * FROM latest WHERE billing_blocked_at IS NOT NULL AND state IN ('active','past_due')
 ), lock_blocked AS (
-  -- A trial that lapsed onto the free base whose lock is not applied yet: the tenant is usable (its hard expiry is already
-  -- cleared); reason is the machine reason of the last attempt. It clears the moment the customer's own order is applied.
-  -- Until the lock is applied the trial's hard expiry in Odoo must also be cleared, or Odoo locks the WHOLE company after the
-  -- grace period: a clearing job that needs intervention (or was closed after a refusal) is shown from the job itself, so it
-  -- disappears the moment the job is verified.
-  SELECT c.id AS customer_id, c.name, c.tenant_id, l.lapsed_at, COALESCE(l.reason, stuck.reason) AS reason FROM trial_lapses l
-  JOIN subscriptions s ON s.id=l.subscription_id AND s.applied_revision_id=l.trial_revision_id JOIN customers c ON c.id=s.customer_id
-  LEFT JOIN LATERAL (
-    SELECT '${EXPIRY_CLEARING_REASON}:' || COALESCE(latest_job.journal->>'error_code', latest_job.state) AS reason FROM (
-      SELECT j.state, j.journal FROM shared_jobs j
-      WHERE l.state IN ('pending','ordered') AND ${expiryClearingJob('j', 's.tenant_id', 'l.trial_revision_id')}
-      ORDER BY j.created_at DESC, j.id DESC LIMIT 1
-    ) latest_job WHERE latest_job.state IN ('needs_intervention','failed')
-  ) stuck ON true
-  WHERE l.state IN ('pending','ordered') AND COALESCE(l.reason, stuck.reason) IS NOT NULL
+  SELECT c.id AS customer_id, c.name, c.tenant_id, l.lapsed_at, l.reason FROM trial_lapses l
+  JOIN subscriptions s ON s.id=l.subscription_id JOIN customers c ON c.id=s.customer_id
+  WHERE l.state IN ('pending','ordered') AND l.reason IS NOT NULL
 ), renewal_failures AS (
   -- A renewal that failed for this subscription alone (the others kept renewing): the machine reason of the last failure.
   SELECT c.id AS customer_id, c.name, c.tenant_id, s.renewal_failed_at, s.renewal_failure FROM subscriptions s JOIN customers c ON c.id=s.customer_id
@@ -86,18 +73,13 @@ const subjectsSql = `WITH latest AS (
   -- A trial whose end date is older than one scheduler interval and whose end has not run: new orders are closed
   -- (trial_ending) until it does, and the paid applications are still writable, so it must not wait unseen.
   SELECT c.id AS customer_id, c.name, c.tenant_id, s.trial_ends_at FROM subscriptions s JOIN customers c ON c.id=s.customer_id
-  WHERE s.state='trialing' AND s.applied_revision_id IS NOT NULL AND s.trial_ends_at < now() - make_interval(hours => ${TRIAL_END_OVERDUE_HOURS})
-), holding AS (
-  -- The calm, persistent state after the lock: the customer keeps users or storage above what the plan includes (the explicit
-  -- held marker) or extra branches above the included ones, free until they name a quantity or buy a branch. Nothing here needs
-  -- the vendor now; it is the list to follow up commercially. detail says what is held, and the item goes when nothing is.
-  SELECT c.id AS customer_id, c.name, c.tenant_id, l.lapsed_at,
-    concat_ws(',', (SELECT string_agg(e.key||':'||(e.value->>'held')||'>'||(e.value->>'target'), ',' ORDER BY e.key) FROM jsonb_each(COALESCE(r.snapshot->'held_ceilings','{}'::jsonb)) AS e WHERE e.key IN ('users.limit','storage.limit_mb')),
-      CASE WHEN b.n > (r.snapshot->>'included_extra_branches')::int THEN 'branches.extra:'||b.n||'>'||(r.snapshot->>'included_extra_branches') END) AS detail
-  FROM trial_lapses l JOIN subscriptions s ON s.id=l.subscription_id JOIN customers c ON c.id=s.customer_id
-  JOIN subscription_revisions r ON r.id=s.applied_revision_id
-  CROSS JOIN LATERAL (SELECT count(*)::int AS n FROM commercial_branches cb WHERE cb.subscription_id=s.id AND cb.kind='extra' AND cb.state IN ('active','pending')) b
-  WHERE l.state='done'
+  WHERE s.state='trialing' AND s.applied_revision_id IS NOT NULL AND s.trial_ends_at < now() - make_interval(mins => ${TRIAL_END_OVERDUE_MINUTES})
+), suspension_undelivered AS (
+  SELECT c.id AS customer_id,c.name,c.tenant_id,s.suspension_pending_since,s.tenant_status_failures
+  FROM subscriptions s JOIN customers c ON c.id=s.customer_id
+  WHERE (s.state='suspended' OR s.manual_suspension) AND s.tenant_status_pushed IS DISTINCT FROM 'suspended'
+    AND s.suspension_pending_since IS NOT NULL
+    AND (s.tenant_status_failures >= 5 OR s.suspension_pending_since <= now() - interval '2 hours')
 ), renewing AS (
   SELECT * FROM latest WHERE ${renewalDue}
 ), overdue AS (
@@ -114,11 +96,12 @@ const subjectsSql = `WITH latest AS (
 ), subjects AS (
   SELECT 1 AS rank,'past_due' AS kind, customer_id, tenant_id, NULL::uuid AS operation_id, invoice_id, name, ${iso('due_at')} AS since, NULL::text AS detail, due_at AS sort_at FROM overdue WHERE $3::boolean
   UNION ALL SELECT 2,'refund_rejected', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE $3::boolean
+  UNION ALL SELECT 2,'suspension_undelivered', customer_id, tenant_id, NULL, NULL, name,
+    ${iso('suspension_pending_since')}, tenant_status_failures::text, suspension_pending_since FROM suspension_undelivered
   UNION ALL SELECT 3,'billing_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('billing_blocked_at')}, NULL, billing_blocked_at FROM blocked
   UNION ALL SELECT 3,'free_base_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('lapsed_at')}, reason, lapsed_at FROM lock_blocked
   UNION ALL SELECT 3,'trial_end_overdue', customer_id, tenant_id, NULL, NULL, name, ${iso('trial_ends_at')}, NULL, trial_ends_at FROM trial_overdue
   UNION ALL SELECT 3,'renewal_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('renewal_failed_at')}, renewal_failure, renewal_failed_at FROM renewal_failures
-  UNION ALL SELECT 9,'free_base_holding', customer_id, tenant_id, NULL, NULL, name, ${iso('lapsed_at')}, detail, lapsed_at FROM holding WHERE detail <> ''
   UNION ALL SELECT 4,'stalled_activation', customer_id, tenant_id, NULL, NULL, name, ${iso('order_created_at')}, fulfillment_state, order_created_at FROM stalled
   UNION ALL SELECT 5,'operation_failed', customer_id, tenant_id, id, NULL, name, ${iso('updated_at')}, type, updated_at FROM failed_ops
   UNION ALL SELECT 6,'setup_required', customer_id, tenant_id, NULL, NULL, name, ${iso('customer_created_at')}, NULL, customer_created_at FROM setup

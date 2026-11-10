@@ -6,11 +6,10 @@ import { CommercialHttpError, digestOf } from './lifecycle.js'
 import { acceptQuoteOn, orderView } from './orders.js'
 import { buildQuoteOn } from './quotes.js'
 import { trialEndsAt } from './renewals.js'
-import { endTrialOn, expireTrials } from './trial-expiry.js'
+import { endTrialOn } from './trial-expiry.js'
 import { generateRenewals } from './renewals.js'
-import { enqueueReconfigureJob } from '../shared/job-store.js'
-import { commercialExpiryDate } from './fulfillment.js'
 import { paymentAttemptView } from './payments.js'
+import type { PaymentAdapter } from './payment-adapter.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { getSubscription } from './subscriptions.js'
 import { pushCommercialExpiry } from './expiry-push.js'
@@ -42,8 +41,8 @@ export async function startTrialOn(client: PoolClient, input: TrialInput) {
   if (customer.trial_used_at) throw new CommercialHttpError('trial_already_used', 409)
   const existing = (await client.query('SELECT * FROM subscriptions WHERE customer_id=$1 FOR UPDATE', [input.customer_id])).rows[0]
   if (existing?.applied_revision_id) throw new CommercialHttpError('trial_not_available', 409)
-  const capability = (await client.query('SELECT commercial_expiry_supported FROM tenants WHERE id=$1', [customer.tenant_id])).rows[0]
-  if (capability?.commercial_expiry_supported === false) throw new CommercialHttpError('tenant_upgrade_required', 409)
+  const capability = (await client.query('SELECT post_trial_supported,excess_supported FROM tenants WHERE id=$1', [customer.tenant_id])).rows[0]
+  if (customer.tenant_id && (capability?.post_trial_supported !== true || capability?.excess_supported !== true)) throw new CommercialHttpError('tenant_upgrade_required', 409)
   const plan = (await client.query('SELECT trial_days FROM plan_revisions WHERE id=$1 FOR SHARE', [request.plan_revision_id])).rows[0]
   if (!plan) throw new CommercialHttpError('plan_missing', 404)
   if (!plan.trial_days) throw new CommercialHttpError('trial_disabled', 422)
@@ -61,7 +60,7 @@ export async function startTrialOn(client: PoolClient, input: TrialInput) {
 }
 
 /** Customer conversion: end the trial now, in one transaction, and return the first invoice's hosted attempt. */
-export async function convertTrial(pool: Pool, input: { customer_id: string; now: Date; adapter: Parameters<typeof expireTrials>[1]['adapter']; returnOrigin: ReturnOrigin }) {
+export async function convertTrial(pool: Pool, input: { customer_id: string; now: Date; adapter: PaymentAdapter; returnOrigin: ReturnOrigin }) {
   await input.returnOrigin(input.customer_id) // an unusable origin refuses before any write
   const sub = (await pool.query('SELECT * FROM subscriptions WHERE customer_id=$1', [input.customer_id])).rows[0]
   if (!sub || sub.state !== 'trialing') throw new CommercialHttpError('trial_not_active', 409)
@@ -69,12 +68,13 @@ export async function convertTrial(pool: Pool, input: { customer_id: string; now
   // The end date and the move out of `trialing` are one commit: the intent to pay is the state itself, so a scheduler run or a
   // crash between the two can never lapse the trial onto the free base and lock what the customer chose to buy.
   await transaction(pool, async client => {
-    const updated = await client.query("UPDATE subscriptions SET trial_ends_at=$2,revision=revision+1 WHERE id=$1 AND state='trialing' RETURNING id", [sub.id, input.now])
-    if (!updated.rowCount) throw new CommercialHttpError('trial_not_active', 409)
+    const ended = await endTrialOn(client, sub.id, { now: input.now, convert: true })
+    if (ended === 'deferred') throw new CommercialHttpError('tenant_upgrade_required', 409)
+    if (ended !== 'expired') throw new CommercialHttpError('trial_not_active', 409)
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
       [randomUUID(), `customer:${input.customer_id}`, 'trial.converted', sub.id, 'Customer converted the trial', JSON.stringify({ converted_at: input.now.toISOString() })])
-    await pushCommercialExpiry(client, sub.id, null)
-    if (await endTrialOn(client, sub.id, { now: input.now, convert: true }) !== 'expired') throw new CommercialHttpError('trial_not_active', 409)
+    await pushCommercialExpiry(client, sub.id, input.now.toISOString())
+
   })
   // The first invoice is generated after the commit; a crash before it leaves a past_due subscription the renewal run picks up.
   await generateRenewals(pool, { now: input.now, adapter: input.adapter, returnOrigin: input.returnOrigin, subscription_id: sub.id })
@@ -94,29 +94,24 @@ export async function extendTrial(pool: Pool, input: { subscription_id: string; 
     if (!updated.rowCount) throw new CommercialHttpError('trial_not_active', 409)
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
       [randomUUID(), input.actor, 'trial.extended', input.subscription_id, input.reason, JSON.stringify({ days: input.days })])
-    const plan = (await client.query(`SELECT p.grace_days FROM plan_revisions p JOIN subscriptions s ON s.id=$1
-      WHERE p.id=((SELECT snapshot FROM subscription_revisions WHERE id=s.applied_revision_id)->>'plan_revision_id')::uuid`, [input.subscription_id])).rows[0]
-    await pushCommercialExpiry(client, input.subscription_id, commercialExpiryDate(updated.rows[0].trial_ends_at, Number(plan?.grace_days ?? 0)))
+    await pushCommercialExpiry(client, input.subscription_id, updated.rows[0].trial_ends_at)
     return { customer_id: updated.rows[0].customer_id as string, trial_ends_at: updated.rows[0].trial_ends_at }
   })
 }
 
-export async function endTrial(pool: Pool, input: { subscription_id: string; reason: string; actor: string; now: Date; adapter: Parameters<typeof expireTrials>[1]['adapter']; returnOrigin: ReturnOrigin }) {
+export async function endTrial(pool: Pool, input: { subscription_id: string; reason: string; actor: string; now: Date; adapter: PaymentAdapter; returnOrigin: ReturnOrigin }) {
   const owner = (await pool.query('SELECT customer_id,state,applied_revision_id FROM subscriptions WHERE id=$1', [input.subscription_id])).rows[0]
   if (!owner || owner.state !== 'trialing') throw new CommercialHttpError('trial_not_active', 409)
   // The first invoice is built from the applied snapshot: ending a trial whose workspace is not active yet would leave a past-due subscription with nothing to pay.
   if (!owner.applied_revision_id) throw new CommercialHttpError('trial_not_applied', 409)
-  await input.returnOrigin(owner.customer_id) // an unusable origin refuses before any write
-  const ended = await transaction(pool, async client => {
-    const updated = await client.query("UPDATE subscriptions SET trial_ends_at=$2,revision=revision+1 WHERE id=$1 AND state='trialing' RETURNING customer_id", [input.subscription_id, input.now])
-    if (!updated.rowCount) throw new CommercialHttpError('trial_not_active', 409)
+  await transaction(pool, async client => {
+    const ended = await endTrialOn(client, input.subscription_id, { now: input.now, convert: false, early: true })
+    if (ended === 'deferred') throw new CommercialHttpError('tenant_upgrade_required', 409)
+    if (ended !== 'lapsed') throw new CommercialHttpError('trial_not_active', 409)
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
       [randomUUID(), input.actor, 'trial.ended', input.subscription_id, input.reason, JSON.stringify({ ended_at: input.now.toISOString() })])
-    return updated.rows[0].customer_id as string
   })
-  // The one decision (lapse onto the free base, or invoice) is `endTrialOn`'s; a trial that ends in an invoice has the vendor's early end clear its hard expiry there.
-  await expireTrials(pool, { now: input.now, adapter: input.adapter, returnOrigin: input.returnOrigin, subscription_id: input.subscription_id, clearExpiry: true })
-  return { customer_id: ended }
+  return { customer_id: owner.customer_id as string }
 }
 
 /** Recompute the digest after changing only the trial amount and the first renewal date. */

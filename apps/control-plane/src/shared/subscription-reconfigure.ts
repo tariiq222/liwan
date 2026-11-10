@@ -69,10 +69,17 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
     // existing receipt after a crash; it never duplicates modules/branches.
     const receipt=await runner({...claim,action:'reconfigure',assertOwned}) as SubscriptionReceipt
     await assertOwned()
-    if(receipt.order_id!==claim.job.authority.order_id || receipt.database!==claim.job.binding.database || receipt.target_revision_id!==claim.job.authority.target_revision_id || receipt.observed_entitlement_digest!==claim.job.authority.entitlement.digest)throw Error('observed_mismatch')
-    if(!claim.job.restore)await applyReceipt(pool,{order_id:claim.job.authority.order_id,receipt})
-    if(!claim.job.restore && (receipt as {commercial_expiry_supported?:boolean}).commercial_expiry_supported===true){
-      await pool.query('UPDATE tenants SET commercial_expiry_supported=true WHERE id=$1 AND commercial_expiry_supported IS DISTINCT FROM true',[claim.job.controlTenantId])
+    const authority = claim.job.authority
+    const digest = receipt.observed_entitlement_digest
+    const postTrial = authority.trial_ends_at && Date.parse(authority.trial_ends_at) <= Date.now() && digest === authority.post_trial_digest
+    if(receipt.order_id!==authority.order_id || receipt.database!==claim.job.binding.database || receipt.target_revision_id!==authority.target_revision_id
+      || (digest!==authority.entitlement.digest && !postTrial)) throw Error('observed_mismatch')
+    if(!claim.job.restore)await applyReceipt(pool,{order_id:authority.order_id,receipt,verifiedDigest:digest})
+    if(!claim.job.restore) {
+      const support = receipt as {commercial_expiry_supported?: boolean; post_trial_supported?: boolean; excess_supported?: boolean}
+      await pool.query(`UPDATE tenants SET commercial_expiry_supported=COALESCE($2,commercial_expiry_supported),
+        post_trial_supported=COALESCE($3,post_trial_supported),excess_supported=COALESCE($4,excess_supported) WHERE id=$1`,
+      [claim.job.controlTenantId, support.commercial_expiry_supported, support.post_trial_supported, support.excess_supported])
     }
     // applyReceipt clears the target; completion checks ownership separately.
     await transaction(pool,async client=>{

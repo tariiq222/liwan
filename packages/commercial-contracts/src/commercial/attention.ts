@@ -2,10 +2,10 @@ import { z } from 'zod'
 
 /** The vendor "today" list: concrete things that need the vendor's action, most urgent first. */
 export const ATTENTION_LIMIT = 20
-export const attentionKinds = ['past_due', 'refund_rejected', 'billing_blocked', 'free_base_blocked', 'renewal_failed', 'trial_end_overdue', 'free_base_holding', 'stalled_activation', 'operation_failed', 'setup_required', 'renewal_missed', 'renewal_soon'] as const
+export const attentionKinds = ['past_due', 'refund_rejected', 'billing_blocked', 'free_base_blocked', 'renewal_failed', 'trial_end_overdue', 'suspension_undelivered', 'stalled_activation', 'operation_failed', 'setup_required', 'renewal_missed', 'renewal_soon'] as const
 export const attentionKindSchema = z.enum(attentionKinds)
 
-/** `refund_rejected` is a provider refund the refund worker could not turn into a credit note (money already left; `detail` is the machine reason) and stays until a credit note for that attempt exists. `billing_blocked` is a subscription whose invoice cannot be issued because its customer has no usable payment return origin. `free_base_holding` is a trial that ended above the free quantities: the paid applications are locked, nothing is deleted or lowered, and the customer keeps the users, storage or extra branches above the included ones free until they name a quantity or buy a branch (`detail` says what is held; informational and persistent). `trial_end_overdue` is a trial whose end date passed more than two scheduler intervals ago without the end running: new orders answer `trial_ending` until it does. `renewal_failed` is a subscription whose renewal could not be generated (`detail` is the machine reason; the other subscriptions kept renewing) until one is generated. `free_base_blocked` is a trial that lapsed onto the free base whose paid applications could not be locked yet (the tenant is usable; `detail` is the machine reason of the last attempt). `detail` is a machine value (order fulfillment state, operation type or lowering reason), translated by the client. `since` is when the situation began (the renewal date, as the start of that day in the business time zone, for the renewal kinds). */
+/** `detail` is the machine reason (or number of failed suspension deliveries); `since` starts the condition. */
 export const attentionItemSchema = z.strictObject({
   kind: attentionKindSchema,
   customer_id: z.uuid().nullable(),

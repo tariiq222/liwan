@@ -1,16 +1,18 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { transaction } from '../db.js'
-import { nextOrderState, type EffectReceipt } from '@liwan/commercial-contracts'
+import { nextOrderState, riyadhDate, type EffectReceipt } from '@liwan/commercial-contracts'
 import { activateBranches, archiveBranches, listBranches } from './branches.js'
 import { claimOutbox, completeOutbox, deferOutbox, failOutbox, releaseOutbox, type OutboxRow } from './outbox.js'
-import { recordFulfillmentFailure } from './settlements.js'
+import { schedulePaidRecovery } from './paid-fulfillment-recovery.js'
 import { enqueueReconfigureJob } from '../shared/job-store.js'
 import type { Config } from '../config.js'
 import type { RegistryActor } from '../shared/registry-store.js'
 import { onboardSharedTenant } from '../shared/onboarding.js'
 import { commercialEnrollmentActor } from '../shared/commercial-enrollment-authority.js'
 import { enqueueOutbox } from './outbox.js'
+import type { SharedReconfigureJob } from '@liwan/commercial-contracts/shared'
+import { keptAtTrialEnd } from './free-base.js'
 import { hasReachableManager } from './orders.js'
 
 /** The Odoo hard expiry: trial end plus the plan's grace, on the UTC calendar Odoo compares. */
@@ -30,18 +32,15 @@ export async function commercialValidUntil(client: Pool | PoolClient, order: Rec
   return commercialExpiryDate(order.trial_ends_at, Number(plan.rows[0]?.grace_days ?? 0))
 }
 
-/** The immutable authority sent to Odoo; operation_id survives worker retries. */
-export type FulfillmentAuthority = {
-  order_id: string
-  operation_id: string
-  previous_revision_id: string | null
-  target_revision_id: string
-  entitlement: { modules: string[]; features: Record<string, unknown>; digest: string; compiler_version: string }
-  branches: { apply: { branch_id: string; name: string }[]; archive: string[]; restore?: string[] }
-  commercial_valid_until: string | null
-  commercial_valid_until_revision: number
+export type FulfillmentAuthority = SharedReconfigureJob['authority']
+
+export async function trialAuthority(client: PoolClient, subscription: Record<string, any>, snapshot: Record<string, any>, cutoff: Date) {
+  const { entitlement } = await keptAtTrialEnd(client, { subscription, snapshot, cutoff, start: riyadhDate(cutoff) })
+  return { trial_ends_at: cutoff.toISOString(), post_trial_features: entitlement.features,
+    post_trial_modules: entitlement.modules, post_trial_digest: entitlement.digest }
 }
-export type SubscriptionReceipt = EffectReceipt & { database?: string; modules_installed?: string[]; root_company_id?: number; archived_branch_ids?: string[]; roles_not_granted?: boolean; roles_not_granted_reason?: 'no_admin_login' | 'admin_not_found' | 'roles_missing' }
+
+export type SubscriptionReceipt = EffectReceipt & { database?: string; modules_installed?: string[]; root_company_id?: number; archived_branch_ids?: string[]; branch_read_only?: { branch_id: string; read_only: boolean }[]; roles_not_granted?: boolean; roles_not_granted_reason?: 'no_admin_login' | 'admin_not_found' | 'roles_missing' }
 
 /** Needs a human to read Odoo back: no credit note, the operator settles the money. */
 const INTERVENTION_CODES = ['stale_target', 'observed_mismatch', 'provision_needs_intervention']
@@ -55,7 +54,7 @@ export const FULFILLMENT_MAX_ATTEMPTS = 10
  * subscription is `trialing` it only changes what is applied, and the transition out of the trial belongs to `endTrialOn` (lapse
  * or conversion), so an order applying after the end date but before that runs cannot turn the trial into a paid subscription.
  */
-export async function applyReceipt(pool: Pool, input: { order_id: string; receipt: SubscriptionReceipt }) {
+export async function applyReceipt(pool: Pool, input: { order_id: string; receipt: SubscriptionReceipt; verifiedDigest?: string }) {
   try { return await transaction(pool, async client => {
     const result = await client.query(`SELECT o.*,s.tenant_id,s.applied_revision_id,s.target_revision_id AS subscription_target,
       r.snapshot FROM orders o JOIN subscriptions s ON s.id=o.subscription_id
@@ -64,7 +63,7 @@ export async function applyReceipt(pool: Pool, input: { order_id: string; receip
     if (!order) throw new Error('order_not_found')
     if (!order.tenant_id) throw new Error('tenant_required')
     const receipt = input.receipt
-    if (receipt.order_id !== order.id || receipt.target_revision_id !== order.target_revision_id || receipt.observed_entitlement_digest !== order.snapshot.entitlement.digest) throw new Error('observed_mismatch')
+    if (receipt.order_id !== order.id || receipt.target_revision_id !== order.target_revision_id || receipt.observed_entitlement_digest !== (input.verifiedDigest ?? order.snapshot.entitlement.digest)) throw new Error('observed_mismatch')
     if (order.fulfillment_state === 'applied') return { applied: true, replay: true }
     if (order.subscription_target !== order.target_revision_id && !(order.kind==='renewal' && !order.subscription_target && order.applied_revision_id===order.target_revision_id)) throw new Error('stale_target')
     // A recovered receipt may arrive before a worker persisted its started state.
@@ -73,6 +72,7 @@ export async function applyReceipt(pool: Pool, input: { order_id: string; receip
     await client.query('UPDATE orders SET fulfillment_state=$2 WHERE id=$1', [order.id, next.fulfillment_state])
     await client.query(`UPDATE subscriptions SET applied_revision_id=$2,target_revision_id=NULL,
       state=CASE WHEN manual_suspension THEN state WHEN state='trialing' AND $3<>'renewal' THEN 'trialing' WHEN $3='change' AND trial_ends_at>now() THEN 'trialing' WHEN $3='change' THEN 'active' WHEN trial_ends_at>now() THEN 'trialing' ELSE 'active' END,
+      trial_paid_through=CASE WHEN $3='renewal' THEN NULL ELSE trial_paid_through END,
       trial_ends_at=CASE WHEN $3='renewal' OR ($3='change' AND state<>'trialing' AND trial_ends_at<=now()) THEN NULL ELSE trial_ends_at END,
       renewal_at=CASE WHEN applied_revision_id IS NULL OR $3='renewal' THEN COALESCE((SELECT period_end FROM renewals WHERE order_id=$5),$4::date,renewal_at) ELSE renewal_at END,
       revision=revision+1 WHERE id=$1`, [order.subscription_id, order.target_revision_id, order.kind, order.snapshot.period_end??null, order.id])
@@ -86,6 +86,9 @@ export async function applyReceipt(pool: Pool, input: { order_id: string; receip
     }
     await activateBranches(client, { order_id: order.id, bindings: receipt.branch_bindings })
     await archiveBranches(client,{subscription_id:order.subscription_id,ids:order.snapshot.branch_archive_ids??order.snapshot.branches?.archive??[]})
+    if (receipt.branch_read_only?.length) await client.query(`UPDATE commercial_branches b SET read_only=v.read_only
+      FROM jsonb_to_recordset($2::jsonb) v(branch_id uuid,read_only boolean)
+      WHERE b.subscription_id=$1 AND b.id=v.branch_id`, [order.subscription_id, JSON.stringify(receipt.branch_read_only)])
     const effect=await client.query('SELECT operation_id FROM fulfillment_effects WHERE order_id=$1',[order.id])
     if(!effect.rowCount)throw Error('fulfillment_operation_missing')
     await client.query(`INSERT INTO fulfillment_effects(id,order_id,operation_id,receipt,observed_digest,applied_at)
@@ -112,7 +115,7 @@ export async function failFulfillmentOn(client: PoolClient, input: { order_id: s
   const type = INTERVENTION_CODES.includes(input.code) ? 'fulfillment_needs_intervention' : 'fulfillment_failed'
   const next = nextOrderState(started, { type })
   await client.query('UPDATE orders SET fulfillment_state=$2 WHERE id=$1', [order.id, next.fulfillment_state])
-  if(type==='fulfillment_failed' && order.payment_state==='paid')await recordFulfillmentFailure(client,{order_id:order.id,reason:input.code,actor:'commercial-fulfillment'})
+  if (order.payment_state === 'paid') await schedulePaidRecovery(client, order, input.code)
 }
 
 /** Worker-only runtime configuration; omit actor to use paid-subscription service authority.
@@ -218,7 +221,8 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
         const pending=await client.query("SELECT id FROM commercial_outbox WHERE id=$1 AND status='pending' FOR UPDATE",[row.id])
         if(!pending.rowCount)return null
         const found=await client.query(`SELECT o.*,s.tenant_id,s.applied_revision_id,s.target_revision_id AS subscription_target,
-          s.trial_ends_at,s.commercial_expiry_revision,r.snapshot
+          s.trial_ends_at,s.state AS subscription_state,s.revision,s.commercial_expiry_revision,r.snapshot,
+          (SELECT ended_at FROM trial_lapses WHERE subscription_id=s.id AND state='pending') AS lapsed_at
           FROM orders o JOIN subscriptions s ON s.id=o.subscription_id JOIN subscription_revisions r ON r.id=o.target_revision_id
           WHERE o.id=$1 FOR UPDATE OF o,s`,[row.aggregate_id])
         const order=found.rows[0]
@@ -254,7 +258,7 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
           // or reconfigure business-key replay is needed, only paid period rollover.
           const renewal=await client.query('SELECT period_end FROM renewals WHERE order_id=$1 FOR UPDATE',[order.id])
           if(!renewal.rowCount)throw Error('renewal_missing')
-          await client.query('UPDATE subscriptions SET renewal_at=GREATEST(renewal_at,$2::date),revision=revision+1 WHERE id=$1',[order.subscription_id,renewal.rows[0].period_end])
+          await client.query('UPDATE subscriptions SET renewal_at=GREATEST(renewal_at,$2::date),trial_paid_through=NULL,revision=revision+1 WHERE id=$1',[order.subscription_id,renewal.rows[0].period_end])
           await client.query("UPDATE orders SET fulfillment_state='applied' WHERE id=$1",[order.id])
           await completeOutbox(client,row.id)
           return {order_id:order.id as string}
@@ -272,15 +276,20 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
         const ordered=branches.items.filter(x=>x.order_id===order.id && x.state==='pending')
         const expiryRevision = Number(order.commercial_expiry_revision) + 1
         await client.query('UPDATE subscriptions SET commercial_expiry_revision=$2,revision=revision+1 WHERE id=$1', [order.subscription_id, expiryRevision])
+        const lock = String(order.idempotency_key).startsWith('trial-lapse:')
+        const trialCutoff = order.kind !== 'renewal' && !lock && (order.subscription_state === 'trialing' || order.lapsed_at)
+          ? new Date(order.lapsed_at ?? order.trial_ends_at) : null
+        const trialPolicy = trialCutoff ? await trialAuthority(client, { ...order, id: order.subscription_id }, order.snapshot, trialCutoff)
+          : { trial_ends_at: null, ...(lock ? { excess_settle: true as const } : {}) }
         const authority:FulfillmentAuthority={order_id:order.id,operation_id:effect.rows[0].operation_id,previous_revision_id:order.applied_revision_id,
           target_revision_id:order.target_revision_id,entitlement:{modules:order.snapshot.entitlement.modules,features:order.snapshot.entitlement.features,
             digest:order.snapshot.entitlement.digest,compiler_version:order.snapshot.entitlement.compiler_version},
           branches:{apply:ordered.filter(x=>x.odoo_company_id===null).map(x=>({branch_id:x.id,name:x.name})),archive:order.snapshot.branch_archive_ids??order.snapshot.branches?.archive??[],
             ...(ordered.some(x=>x.odoo_company_id!==null)?{restore:ordered.filter(x=>x.odoo_company_id!==null).map(x=>x.id)}:{})},
-          commercial_valid_until: await commercialValidUntil(client, order),
+          ...trialPolicy, commercial_valid_until: null,
           commercial_valid_until_revision: expiryRevision}
         const job=await enqueueReconfigureJob(client,{schemaVersion:1,operation:'reconfigure',requestId:authority.operation_id,controlTenantId:order.tenant_id,
-          host:b.host,binding:{tenantId:b.tenant_id,database:b.database_name,filestore:b.filestore,registryRevision:Number(b.registry_revision)},authority})
+          ...(lock ? { origin: 'trial-end' as const } : {}), host:b.host,binding:{tenantId:b.tenant_id,database:b.database_name,filestore:b.filestore,registryRevision:Number(b.registry_revision)},authority})
         await client.query('UPDATE fulfillment_effects SET job_id=$2 WHERE order_id=$1',[order.id,job.id])
         await client.query("UPDATE orders SET fulfillment_state='queued' WHERE id=$1 AND fulfillment_state='not_started'",[order.id])
         await completeOutbox(client,row.id)

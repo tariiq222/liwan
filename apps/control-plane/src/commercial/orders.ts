@@ -8,7 +8,7 @@ import { CommercialHttpError, digestOf, iso } from './lifecycle.js'
 import { requireCapability } from './authorization.js'
 import { appliedPeriod } from './quotes.js'
 import { loadQuoteSources, pricingBaseline } from './quote-sources.js'
-import { carryHeldCeilings, unresolvedLapse } from './free-base.js'
+import { compilePurchasedEntitlement, unresolvedLapse } from './free-base.js'
 import { issueInvoiceFromQuote } from './invoices.js'
 import { enqueueOutbox } from './outbox.js'
 import { lookup } from './payments.js'
@@ -83,7 +83,7 @@ async function lockOrder(client: PoolClient, input: { order_id: string; principa
 }
 
 async function settleCancellation(client: PoolClient, order: Record<string, any>, principal: Principal, reason: string) {
-  const updated = (await client.query('UPDATE orders SET cancelled=true WHERE id=$1 RETURNING *', [order.id])).rows[0]
+  const updated = (await client.query('UPDATE orders SET cancelled=true,automatic_refund=$2 WHERE id=$1 RETURNING *', [order.id, principal.actor_id === 'system:trial-expiry'])).rows[0]
   await client.query('UPDATE subscriptions SET target_revision_id=NULL,revision=revision+1 WHERE id=$1 AND target_revision_id=$2', [order.subscription_id,order.target_revision_id])
   // Retain immutable purchase evidence while releasing unfulfilled reservations
   // and preventing dunning from collecting the canceled purchase invoice.
@@ -195,6 +195,7 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
   // Between the lapse and the lock order's receipt the applied revision is still the paid trial: an order accepted now would be
   // priced for the free-base period and then collide with the lock (or with a conversion that bills the same period again). The
   // customer upgrades right after the lock, which is minutes in the normal case and visible to the vendor when it is blocked.
+  if (subscription.manual_suspension) throw new CommercialHttpError('subscription_suspended', 409)
   if (subscription.applied_revision_id && await unresolvedLapse(client, subscription)) throw new CommercialHttpError('lock_pending', 409, 'subscription_id')
   if (subscription.state === 'trialing' && subscription.trial_ends_at && subscription.applied_revision_id && new Date(subscription.trial_ends_at).getTime() <= now.getTime()) throw new CommercialHttpError('trial_ending', 409)
   if (subscription.revision !== input.expected_subscription_revision || quote.expected_subscription_revision !== subscription.revision || (quote.subscription_id && quote.subscription_id !== subscription.id)) throw new CommercialHttpError('revision_conflict', 409)
@@ -211,14 +212,15 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
   // Null terms in a persisted quote means no terms, not the newest later revision.
   if (!quote.terms_revision_id) sources.terms = null
   const previous = subscription.applied_revision_id ? (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [subscription.applied_revision_id])).rows[0]?.snapshot : null
-  const { entitlement, held: heldCeilings } = carryHeldCeilings(compileEntitlements({ ...sources, quantities: { users: quote.requested_users, storage_mb: quote.requested_storage_mb } }), previous, { users: quote.requested_users, storage_mb: quote.requested_storage_mb })
+  const entitlement = compilePurchasedEntitlement({ ...sources, quantities: { users: quote.requested_users, storage_mb: quote.requested_storage_mb },
+    extraBranches: previous?.trial_end ? Math.max(quote.requested_extra_branches, previous.included_extra_branches) : undefined })
   if (entitlement.digest !== quote.entitlement_digest) throw new CommercialHttpError('revision_conflict', 409)
   const revisionId = randomUUID()
   if (previous) await assertDowngradeFitsUsage(client, {
     tenant_id: customer.tenant_id, subscription_id: subscription.id,
     previous: previous.entitlement?.features ?? {}, target: entitlement.features,
   })
-  const period = previous ? await appliedPeriod(client, subscription, previous) : null
+  const period = previous ? appliedPeriod(subscription, previous) : null
   const periodStart = period ? period.start : quote.effective_date
   const periodEnd = period ? period.end : quote.next_renewal_at
   const included = sources.terms?.included_extra_branches ?? sources.plan.included_extra_branches
@@ -229,7 +231,7 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
     term_start: previous?.term_start ?? periodStart,
     term_end: previous?.term_end ?? addCadence(periodStart, { unit: 'month', count: sources.terms?.term_months ?? sources.plan.term_months }, 1),
     period_start: periodStart, period_end: periodEnd, included_extra_branches: included, extra_branch_count: quote.requested_extra_branches,
-    entitlement, quote_id: quote.id, ...(Object.keys(heldCeilings).length ? { held_ceilings: heldCeilings } : {}),
+    entitlement, quote_id: quote.id, ...(previous?.trial_end ? { trial_end: true } : {}),
     pricing: pricingBaseline(quote, { extra_branches: included, users: sources.plan.included_users, storage_mb: sources.plan.included_storage_mb }),
     ...(branchRequest ? { branch_archive_ids: branchRequest.archive, ...(branchRequest.restore.length ? { branch_restore_ids: branchRequest.restore } : {}) } : {}),
   }

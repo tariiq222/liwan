@@ -1,22 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import type { PoolClient } from 'pg'
+import { trialAuthority } from './fulfillment.js'
 import { CommercialHttpError } from './lifecycle.js'
 import { enqueueReconfigureJob } from '../shared/job-store.js'
 
-/** Prefix of the vendor-visible reason while the hard expiry of a lapsed trial is not cleared in Odoo yet (`expiry_clearing:<code>`). */
-export const EXPIRY_CLEARING_REASON = 'expiry_clearing'
-
-/**
- * SQL condition (on `job`, a `shared_jobs` row) for the reconfigure job that clears the hard expiry of one applied revision:
- * the one `pushCommercialExpiry(.., null)` enqueues. `tenant` and `revision` are SQL expressions. Its state is the single
- * source of truth for whether the expiry is cleared, so the attention list and the lapse retry both read it from here.
- */
-export const expiryClearingJob = (job: string, tenant: string, revision: string) =>
-  `${job}.control_tenant_id=${tenant} AND ${job}.payload->>'operation'='reconfigure' AND COALESCE(${job}.payload->>'restore','false')<>'true'
-    AND ${job}.payload->'authority'->'commercial_valid_until'='null'::jsonb AND ${job}.payload->'authority'->>'target_revision_id'=${revision}::text`
-
 /** Push the trial's Odoo hard expiry on every trial-date mutation, not only at fulfilment. */
-export async function pushCommercialExpiry(client: PoolClient, subscription_id: string, value: string | null) {
+export async function pushCommercialExpiry(client: PoolClient, subscription_id: string, value: string | Date | null) {
   const row = (await client.query(`SELECT s.*,r.snapshot
     FROM subscriptions s JOIN subscription_revisions r ON r.id=s.applied_revision_id
     WHERE s.id=$1`, [subscription_id])).rows[0]
@@ -32,11 +21,12 @@ export async function pushCommercialExpiry(client: PoolClient, subscription_id: 
   const revision = Number(row.commercial_expiry_revision) + 1
   await client.query('UPDATE subscriptions SET commercial_expiry_revision=$2,revision=revision+1 WHERE id=$1', [subscription_id, revision])
   const operation_id = randomUUID()
+  const policy = value ? await trialAuthority(client, row, row.snapshot, new Date(value)) : { trial_ends_at: null }
   await enqueueReconfigureJob(client, { schemaVersion: 1, operation: 'reconfigure', requestId: operation_id,
-    controlTenantId: row.tenant_id, host: binding.host,
+    controlTenantId: row.tenant_id, origin: 'trial-end', host: binding.host,
     binding: { tenantId: binding.tenant_id, database: binding.database_name, filestore: binding.filestore, registryRevision: Number(binding.registry_revision) },
     authority: { order_id: order.id, operation_id, previous_revision_id: row.applied_revision_id, target_revision_id: row.applied_revision_id,
       entitlement: { modules: row.snapshot.entitlement.modules, features: row.snapshot.entitlement.features,
         digest: row.snapshot.entitlement.digest, compiler_version: row.snapshot.entitlement.compiler_version },
-      branches: { apply: [], archive: [] }, commercial_valid_until: value, commercial_valid_until_revision: revision } })
+      branches: { apply: [], archive: [] }, ...policy, commercial_valid_until: null, commercial_valid_until_revision: revision } })
 }

@@ -2,7 +2,7 @@ import type { Pool } from 'pg'
 import { daysBetween, riyadhDate } from '@liwan/commercial-contracts'
 import type { MailAdapter } from './mail-adapter.js'
 import { completeOutbox, enqueueOutbox, failOutbox, leaseOutboxRow } from './outbox.js'
-import { freeBaseOf } from './free-base.js'
+import { trialEndPreview } from './trial-preview.js'
 import { TRIAL_NOTICE_DAYS } from './notice-timings.js'
 
 /**
@@ -48,16 +48,12 @@ async function noticesOf(pool: Pool, row: Record<string, any>, input: { now: Dat
     sent++
     if (!row.admin_login) { await completeOutbox(pool, existing.id); continue }
     try {
-      // On a plan with a free base nothing is invoiced when the trial ends: the notice says what locks instead of an amount.
-      const onFreeBase = await freeBaseOf(pool, { subscription: row, snapshot: row.snapshot, start: trialEnds })
-      const quote = (await pool.query('SELECT payload FROM commercial_quotes WHERE id=$1', [row.snapshot.quote_id])).rows[0]?.payload
-      const amount = onFreeBase ? null : quote?.next_renewal
-      const ar = `تنتهي تجربتك في ${trialEnds} (${daysLeft} يومًا متبقيًا).`
-        + (onFreeBase ? ' بعدها تنتقل شركتك إلى القاعدة المجانية، وتُقفل التطبيقات المدفوعة فورًا للقراءة والتصدير فقط حتى تشترك فيها. إن كان استخدامك يتجاوز حدود القاعدة (مستخدمون أو تخزين أو فروع) تبقى بياناتك ومستخدموك كما هي دون حذف أو أرشفة، ويُمنع فقط إضافة المزيد، وسنخبرك بما يتجاوز. أي طلب ترقية لم تدفعه حتى ذلك الوقت يُلغى، ويمكنك طلب ترقية جديدة في أي وقت.' : '')
-        + (amount ? ` قيمة أول فاتورة بعد التجربة: ${(amount.minor / 10 ** amount.exponent).toFixed(amount.exponent)} ${amount.currency}.` : '')
-      const en = `Your trial ends on ${trialEnds} (${daysLeft} days left).`
-        + (onFreeBase ? ' After that your company moves to the free base and the paid applications are locked immediately to read and export only until you subscribe to them. If your usage is above the free base limits (users, storage or branches), your users and data stay as they are and nothing is deleted or archived; only adding more is prevented, and we will tell you what exceeds. Any upgrade order you have not paid by then is cancelled, and you can request a new upgrade at any time.' : '')
-        + (amount ? ` The first invoice after the trial is ${(amount.minor / 10 ** amount.exponent).toFixed(amount.exponent)} ${amount.currency}.` : '')
+      const preview = await trialEndPreview(pool, row.customer_id, input.now)
+      const amount = preview.first_invoice?.due_now
+      const bill = amount ? `${(amount.minor / 10 ** amount.exponent).toFixed(amount.exponent)} ${amount.currency}` : '0'
+      const limits = preview.limits
+      const ar = `تنتهي تجربتك في ${trialEnds} (${daysLeft} يومًا متبقيًا). تبقى المزايا المضمنة والمشتراة. تُقفل التطبيقات الأخرى للقراءة والتصدير فقط. الحدود التالية: ${limits.users} مستخدم، ${limits.storage_mb} ميبيبايت، ${limits.extra_branches} فرع إضافي. قيمة أول فاتورة: ${bill}. راجع صفحة الاشتراك لمعرفة الاستخدام الزائد وصدّر الملفات التي تحتاجها قبل انتهاء التجربة.`
+      const en = `Your trial ends on ${trialEnds} (${daysLeft} days left). Included and purchased features remain. Other trial apps become read and export only. New limits: ${limits.users} users, ${limits.storage_mb} MiB, ${limits.extra_branches} extra branches. First invoice: ${bill}. Check Subscription for excess usage and export files you need before the trial ends.`
       const text = `${ar}\n${en}`
       await input.mail.send({ to: row.admin_login, subject: 'تجربتك في LiwanOS على وشك الانتهاء', text, message_id: `trial-${row.id}-${dedupe}@liwan` })
       await completeOutbox(pool, existing.id)

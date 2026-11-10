@@ -41,7 +41,7 @@ export async function assertDowngradeFitsUsage(client: Pick<PoolClient, 'query'>
   })
   const branchLimit = input.target[BRANCH_LIMIT]
   if (typeof branchLimit === 'number') {
-    const count = (await client.query("SELECT count(*)::int AS n FROM commercial_branches WHERE subscription_id=$1 AND kind='extra' AND state IN ('active','pending')", [input.subscription_id])).rows[0].n
+    const count = (await client.query("SELECT count(*)::int AS n FROM commercial_branches WHERE subscription_id=$1 AND kind='extra' AND state IN ('active','pending') AND NOT read_only", [input.subscription_id])).rows[0].n
     if (count > branchLimit) throw new CommercialHttpError('downgrade_below_usage', 422, BRANCH_LIMIT)
   }
   if (!lowering.length) return

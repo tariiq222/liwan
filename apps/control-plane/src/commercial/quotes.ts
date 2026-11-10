@@ -6,12 +6,11 @@ import type { PoolClient } from 'pg'
 import { transaction } from '../db.js'
 import { CommercialHttpError, toIssue } from './lifecycle.js'
 import { bundleRevision, loadRelease } from './bundles.js'
-import { loadQuoteSources, pricingBaseline } from './quote-sources.js'
+import { loadQuoteSources, pricingOf } from './quote-sources.js'
 import { planIssues, planRevision } from './plans.js'
 import { getPolicy } from './policies.js'
 import { assertDowngradeFitsUsage } from './usage.js'
-import { extraBranchCount, pricedBranchCount } from './branches.js'
-import { carryHeldCeilings, freeBaseOf, freeBasePricing, unresolvedLapse } from './free-base.js'
+import { compilePurchasedEntitlement, unresolvedLapse } from './free-base.js'
 
 const TTL_MS = 30 * 60 * 1000
 const bad = (code: string, field: string, status = 422) => new CommercialHttpError(code, status, field, [{ code, field }])
@@ -108,23 +107,15 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
     applied = (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [s.applied_revision_id])).rows[0]?.snapshot
     if (!applied) throw bad('subscription_required', 'kind', 409)
     if (JSON.stringify(applied.cadence) !== JSON.stringify(input.cadence)) throw bad('cadence_change_unsupported', 'cadence')
-    period = await appliedPeriod(client, s, applied)
+    period = appliedPeriod(s, applied)
     if (s.state === 'trialing' && s.trial_ends_at)
       prorationCycleDays = daysBetween(period.end, addCadence(period.end, input.cadence, 1))
-    // A trial that lapsed and has not been locked yet is commercially on the free base: a change is priced from there, so the
-    // customer pays for every application and quantity the base does not include.
-    const lapse = await unresolvedLapse(client, s)
-    if (lapse) {
-      const free = await freeBaseOf(client, { subscription: s, snapshot: applied, start: lapse.period_start })
-      if (!free) throw bad('free_base_unavailable', 'subscription_id', 409)
-      current = await freeBasePricing(client, applied, free)
-    } else current = applied.pricing
-    if (!current) {
-      const old = (await client.query('SELECT payload FROM commercial_quotes WHERE id=$1', [applied.quote_id])).rows[0]?.payload
-      if (!old) throw bad('baseline_missing', 'subscription_id', 409)
-      const pinned = (await client.query('SELECT included_users, included_storage_mb FROM plan_revisions WHERE id=$1', [applied.plan_revision_id])).rows[0]
-      current = pricingBaseline(old, { extra_branches: applied.included_extra_branches, users: pinned?.included_users ?? 0, storage_mb: pinned?.included_storage_mb ?? 0 })
-    }
+    if (await unresolvedLapse(client, s)) throw bad('lock_pending', 'subscription_id', 409)
+    if (s.state === 'trialing' && s.trial_ends_at && new Date(s.trial_ends_at).getTime() <= now.getTime())
+      throw bad('trial_ending', 'subscription_id', 409)
+    if (s.manual_suspension) throw bad('subscription_suspended', 'subscription_id', 409)
+    current = await pricingOf(client, applied)
+
   }
   // A change against the subscription's own pinned revision stays quotable after that
   // revision is withdrawn from new sales; only a new sale requires a sellable plan.
@@ -134,18 +125,15 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
     if (value.previewTerms.customer_id !== value.customer_id) throw bad('not_found', 'customer_id', 404)
     sources.terms = value.previewTerms
   }
-  const held = input.kind === 'change' ? applied : null
-  // A change that does not add a branch carries the kept branches as kept, whatever count the client echoes back.
-  const extraBranches = input.kind === 'change'
-    ? pricedBranchCount(input.requested_extra_branches, await extraBranchCount(client, s.id), Number(applied.included_extra_branches ?? 0) + Number(current.paid_extra_branches ?? 0))
-    : input.requested_extra_branches
-  const { entitlement } = carryHeldCeilings(compileOrRefuse(() => compileEntitlements({ ...sources, quantities: { users: input.requested_users, storage_mb: input.requested_storage_mb } })), held, { users: input.requested_users, storage_mb: input.requested_storage_mb })
+  const entitlement = compileOrRefuse(() => compilePurchasedEntitlement({ ...sources,
+    quantities: { users: input.requested_users, storage_mb: input.requested_storage_mb },
+    extraBranches: applied?.trial_end ? Math.max(input.requested_extra_branches, applied.included_extra_branches) : undefined }))
   if (input.kind === 'change') await assertDowngradeFitsUsage(client, {
     tenant_id: customer.rows[0].tenant_id, subscription_id: s.id,
     previous: applied.entitlement?.features ?? {}, target: entitlement.features, now,
   })
   try {
-    const quote = computeQuote({ ...sources, kind: input.kind, cadence: input.cadence, requested_extra_branches: extraBranches,
+    const quote = computeQuote({ ...sources, kind: input.kind, cadence: input.cadence, requested_extra_branches: input.requested_extra_branches,
       proration_cycle_days: prorationCycleDays,
       requested_users: input.requested_users, requested_storage_mb: input.requested_storage_mb,
       current, effective_date: effective, period, ids: { id: randomUUID(), customer_id: value.customer_id, subscription_id: s?.id ?? null, expected_subscription_revision: s?.revision ?? 0 },
@@ -174,11 +162,7 @@ export function createQuoteForCustomer(pool: Pool, value: QuoteInput, now = new 
  * lapsed onto the free base and whose lock is not applied yet: its snapshot still carries the trial's elapsed period, while
  * the subscription already lives in the free-base cycle (`trial_lapses.period_start` to `renewal_at`).
  */
-export async function appliedPeriod(client: Pick<PoolClient, 'query'>, subscription: { id: string; applied_revision_id: string; renewal_at: unknown; state: string; trial_ends_at: Date | null }, applied: { period_start: string; period_end: string }) {
-  if (subscription.state === 'trialing' && subscription.trial_ends_at)
-    return { start: applied.period_start, end: riyadhDate(subscription.trial_ends_at) }
-  const lapse = await unresolvedLapse(client, subscription)
-  if (!lapse || !subscription.renewal_at) return { start: applied.period_start, end: applied.period_end }
-  return { start: lapse.period_start, end: riyadhDate(subscription.renewal_at instanceof Date ? subscription.renewal_at : new Date(`${subscription.renewal_at}T00:00:00+03:00`)) }
+export function appliedPeriod(subscription: { state: string; trial_ends_at: Date | null }, applied: { period_start: string; period_end: string }) {
+  return { start: applied.period_start, end: subscription.state === 'trialing' && subscription.trial_ends_at
+    ? riyadhDate(subscription.trial_ends_at) : applied.period_end }
 }
-
