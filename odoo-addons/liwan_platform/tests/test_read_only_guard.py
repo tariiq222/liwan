@@ -220,3 +220,59 @@ class TestSeatToggleConcurrency(TransactionCase):
                 self.assertLessEqual(env['liwan.entitlement.service']._liwan_count_users(), base + 1)
         finally:
             self._cleanup(user_ids, base)
+
+
+@tagged('post_install', '-at_install', 'liwan', 'liwan_seat_concurrency')
+class TestAcceptanceConcurrency(TransactionCase):
+    """Two invitees accepting while one full seat is free: one takes it, the limit holds."""
+
+    def _fixture(self):
+        if not self.env.cr.dbname.startswith('liwan_scratch_'):
+            self.fail('Committed concurrency fixtures require a liwan_scratch_ database.')
+        with self.registry.cursor() as cursor:
+            env = api.Environment(cursor, SUPERUSER_ID, {OPERATOR_CONTEXT: True})
+            profile = env['liwan.entitlement.service']._liwan_profile()
+            profile._liwan_initialize_legacy_policy(env['liwan.feature.registry']._liwan_installed_module_ids())
+            service = env['liwan.entitlement.service']
+            base = service._liwan_count_users()
+            profile.write({'features': {**profile.features, 'users.limit': base + 2}})
+            access = env['liwan.access.service']
+            invitees = [access._liwan_create_invitee(f'Race {name}', f'accept_race_{name}@example.com', False) for name in 'ab']
+            tokens = [access._liwan_tokens()._liwan_issue(user, 'invite')[1] for user in invitees]
+            profile.write({'features': {**profile.features, 'users.limit': base + 1}})
+            result = [user.id for user in invitees], tokens, base
+            cursor.commit()
+            return result
+
+    def _cleanup(self, user_ids):
+        with self.registry.cursor() as cursor:
+            env = api.Environment(cursor, SUPERUSER_ID, {OPERATOR_CONTEXT: True})
+            users = env['res.users'].with_context(active_test=False).browse(user_ids)
+            partners = users.partner_id
+            users.unlink()
+            partners.unlink()
+            profile = env['liwan.entitlement.service']._liwan_profile()
+            profile.write({'features': {**profile.features, 'users.limit': None}})
+            cursor.commit()
+
+    def test_concurrent_acceptances_cannot_both_take_the_last_full_seat(self):
+        user_ids, tokens, base = self._fixture()
+        try:
+            with mute_logger('odoo.sql_db'), self.registry.cursor() as cursor_b:
+                env_b = api.Environment(cursor_b, SUPERUSER_ID, {})
+                env_b['res.users'].with_context(active_test=False).browse(user_ids).mapped('liwan_read_only')
+                with self.registry.cursor() as cursor_a:
+                    env_a = api.Environment(cursor_a, SUPERUSER_ID, {})
+                    env_a['liwan.access.service']._liwan_accept_invitation(tokens[0], '+966500000081', 'accepted_race_123')
+                    cursor_a.commit()
+                # B's snapshot predates A's commit: its acceptance fails to serialize, or finds the seat taken.
+                try:
+                    env_b['liwan.access.service']._liwan_accept_invitation(tokens[1], '+966500000082', 'accepted_race_123')
+                except SerializationFailure:
+                    pass
+            with self.registry.cursor() as cursor:
+                env = api.Environment(cursor, SUPERUSER_ID, {})
+                self.assertEqual(env['liwan.entitlement.service']._liwan_count_users(), base + 1)
+                self.assertFalse(env['res.users'].with_context(active_test=False).browse(user_ids[0]).liwan_read_only)
+        finally:
+            self._cleanup(user_ids)

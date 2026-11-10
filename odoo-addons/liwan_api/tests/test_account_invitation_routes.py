@@ -91,17 +91,14 @@ class TestAccountInvitationRoutes(LiwanApiCase):
         denied = self.api('GET', '/api/v1/admin/users/seats')
         self.assertEqual((denied.status_code, denied.json()['code']), (403, 'forbidden'))
 
-    def test_a_pending_invitation_holds_no_seat_at_the_limit(self):
-        """The seat is claimed at acceptance (read-only when none is free), so inviting at the limit is allowed."""
+    def test_create_at_limit_refused(self):
         used = self.env['liwan.entitlement.service']._liwan_count_users()
-        service_class = type(self.env['liwan.entitlement.service'])
-        original = service_class._liwan_limit_value
-        self.patch(service_class, '_liwan_limit_value', lambda model, key: used if key == 'users.limit' else original(model, key))
-        seats = self.api('GET', '/api/v1/admin/users/seats').json()
-        self.assertEqual((seats['limit'], seats['used']), (used, used))
+        self.patch(type(self.env['liwan.entitlement.service']), '_liwan_limit_value', lambda model, key: used)
+        self.assertEqual(self.api('GET', '/api/v1/admin/users/seats').json()['limit'], used)
         response = self._create()
-        self.assertEqual(response.status_code, 201, response.text)
-        self.assertEqual(self.env['liwan.entitlement.service']._liwan_count_users(), used)
+        self.assertEqual((response.status_code, response.json()['code']), (403, 'feature_not_included'))
+        self.assertEqual(response.json()['details']['reason'], 'limit')
+        self.assertEqual(self.sent, [])
 
     def test_resend_edit_cancel_routes(self):
         created = self._create().json()

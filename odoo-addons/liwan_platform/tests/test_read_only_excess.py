@@ -89,26 +89,47 @@ class TestExcessUsersAreReadOnly(ExcessCase):
         self.assertEqual([user.liwan_read_only for user in users], [False, True, False, False])
         self.assertEqual(self.service._liwan_count_users(), base + 3)
 
-    def test_service_accounts_and_pending_invitees_hold_no_seat(self):
-        before = self.service._liwan_count_users()
+    def _invite(self, admin, login):
+        return self.access.with_user(admin)._liwan_invite_account(
+            login, f'{login}@example.com',
+            [{'role_id': self.env.ref(ASSIGNMENT_ROLE).id, 'scope': {'kind': 'company', 'id': self.env.company.id}}],
+        )
+
+    def test_service_accounts_hold_no_seat(self):
         eligible = set(self.service._liwan_seat_users().ids)
         for xmlid in ('liwan_ai.user_ai_usage', 'liwan_ai.user_ai_indexer'):
             account = self.env.ref(xmlid, raise_if_not_found=False)
             if account:
                 self.assertNotIn(account.id, eligible)
+
+    def test_a_pending_invitation_holds_a_seat_for_the_check_but_is_no_full_seat(self):
         admin = new_test_user(self.env, login='excess_inviter', groups='liwan_core.group_access_admin')
-        self._set_limit('users.limit', before + 1)
-        invitee = self.access.with_user(admin)._liwan_invite_account(
-            'Pending Invitee', 'pending.invitee@example.com',
-            [{'role_id': self.env.ref(ASSIGNMENT_ROLE).id, 'scope': {'kind': 'company', 'id': self.env.company.id}}],
-        )
-        self.assertEqual(self.service._liwan_count_users(), before + 1)
+        full = self.service._liwan_count_users()
+        self._set_limit('users.limit', full + 1)
+        invitee = self._invite(admin, 'pending.invitee')
+        self.assertEqual((self.service._liwan_count_users(), self.service._liwan_count_held_seats()), (full, full + 1))
         self.assertNotIn(invitee.id, self.service._liwan_seat_users().ids)
-        # The inviter took the one free seat; the invitee accepts into none and becomes read-only.
+        # Read-only accounts only come from a limit decrease: a second invitation past the limit is refused.
+        with self.assertRaises(LiwanAccessRule) as caught:
+            self._invite(admin, 'second.invitee')
+        self.assertEqual(caught.exception.details['reason'], 'limit')
+        # The limit drops meanwhile: the invitee is not demoted by the settle and accepts into no free seat.
+        self._set_limit('users.limit', full)
+        self.assertFalse(invitee.liwan_read_only)
         _token, raw = self.access._liwan_tokens()._liwan_issue(invitee, 'invite')
         self.access._liwan_accept_invitation(raw, '+966500000091', 'accepted_password_123')
         self.assertTrue(invitee.liwan_read_only)
-        self.assertEqual(self.service._liwan_count_users(), before + 1)
+        self.assertEqual(self.service._liwan_count_users(), full)
+
+    def test_inviting_a_cancelled_invitation_again_needs_a_free_seat(self):
+        admin = new_test_user(self.env, login='excess_reinviter', groups='liwan_core.group_access_admin')
+        full = self.service._liwan_count_users()
+        self._set_limit('users.limit', full + 1)
+        invitee = self._invite(admin, 'cancelled.invitee')
+        self.access.with_user(admin)._liwan_cancel_invitation(invitee, self.access._liwan_user_version(invitee))
+        self._invite(admin, 'filler.invitee')
+        with self.assertRaises(LiwanAccessRule):
+            self._invite(admin, 'cancelled.invitee')
 
     def test_an_invitee_accepting_into_a_free_seat_becomes_full(self):
         before = self.service._liwan_count_users()

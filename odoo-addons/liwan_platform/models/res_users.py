@@ -34,26 +34,35 @@ class LiwanPlatformResUsers(models.Model):
     def _liwan_user_quota_delta(self, vals_list=None, records=None, write_vals=None):
         service = self.env['liwan.entitlement.service']
         delta = 0
-        if vals_list and not self.env.context.get(INVITEE_CONTEXT):
-            for vals in vals_list:
-                if vals.get('active', True) and not vals.get('share', False) and not vals.get('liwan_read_only'):
+        invitations = 0
+        for vals in vals_list or ():
+            if vals.get('active', True) and not vals.get('share', False):
+                if self.env.context.get(INVITEE_CONTEXT):
+                    invitations += 1
+                elif not vals.get('liwan_read_only'):
                     delta += 1
         if records is not None and write_vals and SEAT_KEYS & set(write_vals):
             held_ids = set(service._liwan_full_seat_ids())
             awaiting = self.env['liwan.access.service']._liwan_awaiting_users(records)
             excluded = set(service._liwan_excluded_user_ids())
             for user in records:
+                active = write_vals.get('active', user.active)
+                share = write_vals.get('share', user.share)
+                if user.id in awaiting:
+                    # An invitation holds a seat for the check while it is pending (it is claimed again, as a full seat,
+                    # at acceptance); a cancelled one that is invited again must fit like a new one.
+                    invitations += int(bool(active and not share and not user.active and user.id not in excluded))
+                    continue
                 counted = (
-                    write_vals.get('active', user.active)
-                    and not write_vals.get('share', user.share)
-                    and not write_vals.get('liwan_read_only', user.liwan_read_only)
+                    active and not share and not write_vals.get('liwan_read_only', user.liwan_read_only)
                     and user.id not in excluded
-                    # An invitee who has not accepted claims their seat at acceptance, not here.
-                    and user.id not in awaiting
                 )
                 delta += int(bool(counted)) - int(user.id in held_ids)
-        if delta and not self.env.cr.precommit.data.get(SETTLE_MARKER):
-            service._liwan_claim_users(delta)
+        if not self.env.cr.precommit.data.get(SETTLE_MARKER):
+            if delta:
+                service._liwan_claim_users(delta)
+            if invitations:
+                service._liwan_claim_invitations(invitations)
         return delta
 
     def _liwan_assert_grant_holder_survives(self):

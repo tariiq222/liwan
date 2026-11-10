@@ -20,19 +20,39 @@ class LiwanEntitlementSeats(models.AbstractModel):
     _inherit = 'liwan.entitlement.service'
 
     @api.model
-    def _liwan_seat_users(self):
-        """The accounts that can hold a seat, read-only ones included.
+    def _liwan_seat_candidates(self):
+        """``(users, pending)``: the accounts that can hold a seat, and the invitees among them who have not accepted yet.
 
         Active internal accounts, not the superuser, vendor support or a service account
-        (``_liwan_excluded_user_ids``), and not an invitee who has not accepted yet: that one claims a seat
-        when the invitation is accepted.
+        (``_liwan_excluded_user_ids``). A pending invitee claims a full seat only when the invitation is accepted.
         """
         # Read for the tenant, not as the caller: the public acceptance route and a branch administrator hold
         # no `res.users` read, and the answer is only ids the seat arithmetic needs.
         users = self.env['res.users'].sudo().search([
             ('share', '=', False), ('id', 'not in', list(self._liwan_excluded_user_ids())),
         ])
-        return users - users.browse(list(self.env['liwan.access.service']._liwan_awaiting_users(users)))
+        pending = users.browse(list(self.env['liwan.access.service']._liwan_awaiting_users(users)))
+        return users - pending, pending
+
+    @api.model
+    def _liwan_seat_users(self):
+        """The accounts that can hold a seat, read-only ones included, pending invitees excluded."""
+        return self._liwan_seat_candidates()[0]
+
+    @api.model
+    def _liwan_count_held_seats(self):
+        """Full seats plus pending invitations: what a new invitation has to fit under ``users.limit``.
+
+        Read-only accounts above the limit only ever come from a limit decrease, never from inviting past it.
+        """
+        users, pending = self._liwan_seat_candidates()
+        return len(users.filtered(lambda user: not user.liwan_read_only)) + len(pending)
+
+    @api.model
+    def _liwan_claim_invitations(self, count):
+        """Refuse COUNT new invitations that do not fit under ``users.limit`` beside the full seats and the pending ones."""
+        self._liwan_profile()._liwan_lock()
+        return self._liwan_claim(USER_LIMIT, self._liwan_count_held_seats(), count)
 
     @api.model
     def _liwan_full_seat_ids(self):

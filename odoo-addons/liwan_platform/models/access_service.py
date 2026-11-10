@@ -27,10 +27,12 @@ class LiwanPlatformAccessService(models.AbstractModel):
     def _liwan_acceptance_seat_vals(self):
         """Read-only flags for an invitee who accepts while every full seat is taken.
 
-        The profile row lock serializes concurrent acceptances, so each one counts the seats the previous one took.
+        The accepting account takes its seat without a claim, so the profile row is updated here, before the
+        count: a concurrent acceptance whose snapshot predates the winner's commit then fails to serialize
+        (and is retried) instead of counting a stale free seat, as a seat claim does.
         """
         entitlement = self.env['liwan.entitlement.service']
-        entitlement._liwan_profile()._liwan_lock()
+        entitlement._liwan_profile()._liwan_bump_quota_revision()
         limit = entitlement._liwan_limit_value('users.limit')
         if limit is None or entitlement._liwan_count_users() < limit:
             return {}

@@ -142,7 +142,7 @@ class AccessAdminUsersController(http.Controller):
         request.env['liwan.access.service']._liwan_require_capability('access.users.grant')
         entitlement = request.env['liwan.entitlement.service']
         return {
-            'used': entitlement._liwan_count_users(),
+            'used': entitlement._liwan_count_held_seats(),
             'limit': entitlement._liwan_limit_value('users.limit'),
             'read_only': entitlement._liwan_excess_counts()['users.limit'],
         }
