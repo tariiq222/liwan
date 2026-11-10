@@ -37,7 +37,7 @@ it('keeps lock and pending barrier after a real publisher process crash', async 
   const child = spawn(process.execPath, ['--input-type=module', '-e', `
     import { withPublicationLock, beginPublication } from ${JSON.stringify(moduleUrl)};
     await withPublicationLock(process.argv[1], async () => {
-      await beginPublication(process.argv[1]); process.send('ready');
+      await beginPublication(process.argv[1], 1); process.send('ready');
       setInterval(() => {}, 1000); await new Promise(() => {});
     });
   `, path], { stdio: ['ignore', 'ignore', 'pipe', 'ipc'] })
@@ -65,7 +65,7 @@ it('keeps lock and pending barrier after a real publisher process crash', async 
 it('releases live-process ownership after publication fails without removing the pending barrier', async () => {
   const path = join(await mkdtemp(join(tmpdir(), 'liwan-publish-failure-')), 'registry.json')
   await expect(withPublicationLock(path, async () => {
-    await beginPublication(path)
+    await beginPublication(path, 1)
     await completePublication(path, { invalid: 1n })
   })).rejects.toThrow()
   await access(`${path}.pending`)
@@ -84,7 +84,7 @@ it('excludes a competing publisher after rename but before clearing the barrier'
     if (target === path) { renamed(); await paused }
   })
   const active = withPublicationLock(path, async () => {
-    await beginPublication(path)
+    await beginPublication(path, 1)
     await completePublication(path, { revision: 2 })
   })
   try {
@@ -100,24 +100,33 @@ it('excludes a competing publisher after rename but before clearing the barrier'
 it('persists a barrier before replacing the snapshot and clears it only after publication', async () => {
   const path = join(await mkdtemp(join(tmpdir(), 'liwan-publish-')), 'registry.json')
   await writeFile(path, 'old')
-  await beginPublication(path)
+  await beginPublication(path, 1)
   expect(await readFile(path, 'utf8')).toBe('old')
   await access(`${path}.pending`)
   await completePublication(path, { revision: 2 })
   expect(JSON.parse(await readFile(path, 'utf8'))).toEqual({ revision: 2 })
   await expect(access(`${path}.pending`)).rejects.toThrow()
 })
+it('records the revision being published in the barrier and refuses an invalid one without creating it', async () => {
+  const path = join(await mkdtemp(join(tmpdir(), 'liwan-publish-')), 'registry.json')
+  for (const revision of [0, -1, 1.5, Number.NaN, Number.MAX_SAFE_INTEGER + 1]) {
+    await expect(beginPublication(path, revision)).rejects.toThrow('registry_revision_invalid')
+    await expect(access(`${path}.pending`)).rejects.toThrow()
+  }
+  await beginPublication(path, 7)
+  expect(JSON.parse(await readFile(`${path}.pending`, 'utf8'))).toEqual({ snapshotRevision: 7 })
+})
 it('retains the barrier on snapshot serialization failure', async () => {
   const path = join(await mkdtemp(join(tmpdir(), 'liwan-publish-')), 'registry.json')
   await writeFile(path, 'old')
-  await beginPublication(path)
+  await beginPublication(path, 1)
   await expect(completePublication(path, { revision: 2n })).rejects.toThrow()
   await access(`${path}.pending`)
   expect(await readFile(path, 'utf8')).toBe('old')
 })
 it('refuses a second mutation while previous publication is unresolved', async () => {
   const path = join(await mkdtemp(join(tmpdir(), 'liwan-publish-')), 'registry.json')
-  await beginPublication(path)
-  await expect(beginPublication(path)).rejects.toThrow()
+  await beginPublication(path, 1)
+  await expect(beginPublication(path, 1)).rejects.toThrow()
   await access(`${path}.pending`)
 })

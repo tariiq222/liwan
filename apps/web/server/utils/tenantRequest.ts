@@ -35,8 +35,10 @@ export function tenantRequest(event: H3Event) {
     if (!tenant && name && isRestoreHost(name)) {
       // Restore hosts live in the control plane's separate restore registry, which only restore hosts consult. The
       // guard has already refused a restore registry that is broken or clashes with the tenant registry; a missing
-      // path or file refuses here.
-      snapshot = readTenantRegistrySnapshot(process.env.LIWAN_RESTORE_REGISTRY_PATH ?? '', previous?.snapshot)
+      // path or file refuses here. That is a boundary refusal (403), never a tenant-registry outage: a restore host
+      // is an optional surface and must not turn every tenant request into a 503.
+      try { snapshot = readTenantRegistrySnapshot(process.env.LIWAN_RESTORE_REGISTRY_PATH ?? '', previous?.snapshot) }
+      catch { throw new Error('restore_registry_unavailable') }
       tenant = snapshot.hosts[name]
     }
     if (!tenant?.enabled || getHeader(event, 'x-liwan-tenant-revision') !== String(tenant.registryRevision)) throw Error()
@@ -45,7 +47,18 @@ export function tenantRequest(event: H3Event) {
     if (previous && (previous.snapshot.path !== snapshot.path || Object.keys(previous.tenant).some(key => previous.tenant[key as keyof TenantHostTarget] !== tenant[key as keyof TenantHostTarget]))) throw Error()
     snapshots.set(event, { snapshot, tenant })
     return { tenantId: tenant.tenantId, database: tenant.database, filestore: tenant.filestore, registryRevision: tenant.registryRevision, host: host! }
-  } catch { throw createError({ statusCode: 403, message: 'tenant_boundary_rejected' }) }
+  } catch (error) {
+    // A registry that is not published (a `.pending` barrier, an unreadable or replaced file) is an
+    // unavailable service, not a boundary refusal; the machine-readable code mirrors the guard body.
+    if ((error as { code?: string })?.code === 'tenant_registry_unavailable') {
+      throw createError({
+        statusCode: 503,
+        message: 'tenant_registry_unavailable',
+        data: { code: 'tenant_registry_unavailable', message: 'The tenant registry is not currently published. The service is unavailable, not refusing this tenant.' },
+      })
+    }
+    throw createError({ statusCode: 403, message: 'tenant_boundary_rejected' })
+  }
 }
 export function tenantUpstreamHeaders(event: H3Event): Record<string, string> {
   const tenant = tenantRequest(event)

@@ -228,9 +228,12 @@ substitution.
 
 ## Manual backup (`deploy/backup.py`)
 
-Opt-in candidate copy only. Produces `database.dump` (pg_dump `-Fc`), a
-`filestore/` copy, and `manifest.json` with `consistency: "UNVERIFIED"` and
-`recovery_ready: false`, or fails without a success manifest.
+Opt-in candidate copy only. Produces `database.dump` (pg_dump `-Fc
+--serializable-deferrable`), a `filestore/` copy, and `manifest.json` with
+`consistency: "UNVERIFIED"` and `recovery_ready: false`, or fails without a
+success manifest. `--serializable-deferrable` makes the dump one snapshot of
+the database; the filestore is still copied separately and the result stays
+`UNVERIFIED`.
 
 This is **not** a consistent backup and **not** recovery-ready. A closed HTTP
 port (`connect_ex != 0`) is not proof that Odoo, cron, remote writers, or
@@ -250,7 +253,8 @@ python3 deploy/backup.py \
   --pg-user tariq
 ```
 
-Optional `--observe-http-port HOST:PORT` records TCP reachability. If that port
+Optional `--lock-dir DIR` moves the lock file directory (see "One backup per
+database" below). Optional `--observe-http-port HOST:PORT` records TCP reachability. If that port
 accepts connections, the candidate copy is refused. If it does not accept
 connections, the manifest still stays `UNVERIFIED`. `--verify-port`,
 `--pid-file`, `--consistent`, `--quiesced`, `--assume-stopped`, and `--live`
@@ -266,6 +270,70 @@ are declined.
 4. Filestore path must be `<data_dir>/filestore/<db_name>`.
 5. Output directory must not already exist (no overwrite/delete).
 6. No password flag. Do not put secrets on the argv list.
+
+### What the manifest pins
+
+The manifest records the bytes it copied, computed on the copy in the output
+directory:
+
+| Field | Meaning |
+| --- | --- |
+| `database_dump_sha256` | SHA-256 of `database.dump` |
+| `filestore_sha256` | tree digest of `filestore/` |
+| `filestore_file_count` | number of regular files under `filestore/` |
+
+The tree digest is the SHA-256 of one `sha256sum` line per regular file,
+`<file sha256>  <relative path>`, in sorted path order. It changes when a
+file's bytes or name change, or a file is added or removed. Empty directories
+and file metadata are not part of it. To reproduce it by hand, from inside the
+filestore directory:
+
+```sh
+find . -type f | sed 's|^\./||' | LC_ALL=C sort | while read -r f; do echo "$(shasum -a 256 "$f" | cut -d' ' -f1)  $f"; done | shasum -a 256
+```
+
+A manifest without these three fields is not a backup manifest and is refused
+by `restore_verify.py`.
+
+The filestore must hold only regular files and directories. A symlink (to a
+file, to a directory, or dangling), a special file (fifo, socket, device) or a
+filestore path that is itself a symlink is refused before anything is copied:
+a restore cannot reproduce it, and a link can point outside the copy. The copy
+never carries links. `restore_verify.py` refuses the same entries in a backup
+directory and refuses a symlinked `database.dump`.
+
+### One backup per database
+
+A run takes a non-blocking `flock` on `<db_name>.lock` and holds it until it
+exits, on every path including failure. A second run for the same database,
+whatever its output directory, is refused at once with `another backup of
+database <db_name> is already running` and exit code 2. Runs for different
+databases do not wait on each other. The lock is released if the process dies.
+
+The lock file lives in `liwan-backup-locks/` under the system temporary
+directory, created `0700`; it is refused unless the current user owns it. Two
+users, or a service with a private `/tmp`, do not share that directory: give
+every caller the same absolute `--lock-dir`.
+
+A shared `--lock-dir` must be an existing directory on a local filesystem that
+every caller can create files in (for example a group-writable directory with
+the sticky bit). The lock file is created `0644`, whatever the umask, and is
+opened read-only, because `flock` needs no write access; the file holds no
+data. So the first caller creates it and every other user can lock it later,
+whoever created it. Callers need read access to the file: if another user
+left it unreadable, or replaced it with a symlink, a FIFO or any non-regular
+file, the run stops with `cannot open the backup lock` or `is not a regular
+file` instead of waiting. NFS is not supported for the lock directory, since
+an exclusive `flock` on NFS needs a file opened for writing.
+
+### Verifying the copy
+
+`restore_verify.py` compares `database.dump` and `filestore/` with the
+manifest before it can report `restore_verified: true`. A mismatch is listed
+in `checks.backup_integrity_mismatches` (`database_dump_sha256`,
+`filestore_sha256`, `filestore_file_count`), the file counts are in
+`checks.filestore_files_expected` and `checks.filestore_files_actual`, and
+`restore_verified` is `false`.
 
 The manifest never sets `writer_stop_verified`, `consistency_verified`, or
 `live_consistent`. `recovery_ready` is always false.
@@ -439,7 +507,8 @@ no-overwrite condition against the selected provider before scheduling captures.
 `deploy/restore_drill.py` authenticates the newest manifest for one tenant before
 downloading its artifact, then restores it
 into a **new scratch database** through `deploy/restore_verify.py` (same checks: Liwan
-modules installed, none stuck mid-transition, every referenced attachment present),
+modules installed, none stuck mid-transition, every referenced attachment present, and
+the dump and filestore matching the digests in the artifact's own `manifest.json`),
 measures the backup's age at drill start against the 1-hour RPO and the elapsed
 restore time against the 4-hour RTO, and writes an atomic record. Both budgets must
 pass for a verified result. The status command also requires a record that finished

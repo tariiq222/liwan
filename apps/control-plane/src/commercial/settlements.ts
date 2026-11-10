@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
+import { z } from 'zod'
 import { transaction } from '../db.js'
 import { daysBetween, riyadhDate, type RefundCreditNoteRequest } from '@liwan/commercial-contracts'
 import { audit, CommercialHttpError, type CommercialActor } from './lifecycle.js'
@@ -7,38 +8,99 @@ import { adjustmentView } from './invoices.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import { actorLabel } from '../admin-auth/grants.js'
 import { billingSettings } from './billing-settings.js'
+import { creditedMinorSql, DUPLICATE_PAYMENT_REASON } from './refund-credit.js'
 
 /** Late payment is a manual credit review, never an automatic provider refund. */
 export async function processRefundOutbox(pool: Pool, _adapter?: PaymentAdapter): Promise<number> {
   return transaction(pool, async client => {
-    const rows = (await client.query("SELECT * FROM commercial_outbox WHERE kind='reconcile.refund' AND status='pending' ORDER BY created_at,id FOR UPDATE SKIP LOCKED")).rows
+    const rows = (await client.query("SELECT * FROM commercial_outbox WHERE kind IN ('reconcile.refund','payment.intervention') AND status='pending' ORDER BY created_at,id FOR UPDATE SKIP LOCKED")).rows
     const reason = 'payment after cancellation — manual review'
     for (const row of rows) {
-      if (row.payload?.duplicate) { await creditDuplicatePayment(client, row.payload.attempt_id); await client.query("UPDATE commercial_outbox SET status='done',processed_at=now() WHERE id=$1", [row.id]); continue }
-      // Lock invoices too: separate event ids can refer to the same invoice.
-      const invoices = (await client.query('SELECT * FROM invoices WHERE order_id=$1 ORDER BY id FOR UPDATE', [row.aggregate_id])).rows
-      for (const invoice of invoices) {
-        const existing = await client.query('SELECT id FROM invoice_adjustments WHERE invoice_id=$1 AND reason=$2', [invoice.id,reason])
-        if (!existing.rowCount) await client.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin)
-          VALUES($1,$2,$3,'credit_note',$4,$5,$6,$7,'pending','system','system')`,
-        [randomUUID(),invoice.id,invoice.customer_id,reason,invoice.total_minor,invoice.currency,invoice.exponent])
+      let rejected: string | null = null
+      if (row.kind === 'payment.intervention') rejected = await creditRefundedAfterFulfillment(client, row.payload)
+      else if (row.payload?.duplicate) rejected = await creditDuplicatePayment(client, row.payload.attempt_id)
+      else {
+        // Lock invoices too: separate event ids can refer to the same invoice.
+        const invoices = (await client.query('SELECT * FROM invoices WHERE order_id=$1 ORDER BY id FOR UPDATE', [row.aggregate_id])).rows
+        for (const invoice of invoices) {
+          const existing = await client.query('SELECT id FROM invoice_adjustments WHERE invoice_id=$1 AND reason=$2', [invoice.id,reason])
+          if (!existing.rowCount) await client.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin)
+            VALUES($1,$2,$3,'credit_note',$4,$5,$6,$7,'pending','system','system')`,
+          [randomUUID(),invoice.id,invoice.customer_id,reason,invoice.total_minor,invoice.currency,invoice.exponent])
+        }
       }
-      await client.query("UPDATE commercial_outbox SET status='done',processed_at=now() WHERE id=$1", [row.id])
+      if (rejected) await rejectOutboxRow(client, row, rejected)
+      else await client.query("UPDATE commercial_outbox SET status='done',processed_at=now() WHERE id=$1", [row.id])
     }
     return rows.length
   })
 }
 
-/** A second successful charge for an order that was already paid: one pending credit note for that attempt's amount. */
-async function creditDuplicatePayment(client: PoolClient, attemptId: string) {
-  const attempt = (await client.query('SELECT * FROM payment_attempts WHERE id=$1', [attemptId])).rows[0]
-  if (!attempt) return
-  const invoice = (await client.query('SELECT customer_id FROM invoices WHERE id=$1 FOR UPDATE', [attempt.invoice_id])).rows[0]
-  const reason = `duplicate payment — manual review (attempt ${attempt.id})`
+/**
+ * A row that cannot become a credit note (a missing attempt, a refund above what was paid) is closed as failed with its
+ * reason on the row, in the audit trail the operator reads and in the log, and the rest of the batch goes on: one bad row
+ * must never stall every refund behind it.
+ */
+async function rejectOutboxRow(client: PoolClient, row: { id: string; kind: string; aggregate_id: string }, reason: string) {
+  await client.query("UPDATE commercial_outbox SET status='failed',processed_at=now(),payload=payload || jsonb_build_object('error',$2::text) WHERE id=$1", [row.id, reason])
+  await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
+    [randomUUID(), 'system', 'payment.refund_rejected', row.aggregate_id, reason, JSON.stringify({ outbox_id: row.id, kind: row.kind })])
+  console.error(`[settlements] refund outbox row ${row.id} (${row.kind}) rejected: ${reason}`)
+}
+
+/** The reason prefix of the credit notes the worker writes for a provider refund after fulfillment. */
+export const PROVIDER_REFUND_REASON = 'payment refunded after fulfillment — manual review'
+
+/** Writes one pending system credit note on an invoice. */
+async function insertSystemCreditNote(client: PoolClient, invoice: { id: string; customer_id: string }, reason: string, amount: { minor: number | string; currency: string; exponent: number }) {
+  await client.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin) VALUES($1,$2,$3,'credit_note',$4,$5,$6,$7,'pending','system','system')`,
+    [randomUUID(), invoice.id, invoice.customer_id, reason, amount.minor, amount.currency, amount.exponent])
+}
+
+/** A second successful charge for an order that was already paid: one pending credit note for that attempt, unless it has one. */
+async function creditDuplicatePayment(client: PoolClient, attemptId: unknown): Promise<string | null> {
+  const attempt = await lockAttempt(client, attemptId)
+  if (typeof attempt === 'string') return attempt
+  const reason = `${DUPLICATE_PAYMENT_REASON} (attempt ${attempt.id})`
   const existing = await client.query('SELECT id FROM invoice_adjustments WHERE invoice_id=$1 AND reason=$2', [attempt.invoice_id, reason])
-  if (!existing.rowCount) await client.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin)
-    VALUES($1,$2,$3,'credit_note',$4,$5,$6,$7,'pending','system','system')`,
-  [randomUUID(), attempt.invoice_id, invoice.customer_id, reason, attempt.amount_minor, attempt.currency, attempt.exponent])
+  if (!existing.rowCount) await insertSystemCreditNote(client, attempt.invoice, reason, { minor: attempt.amount_minor, currency: attempt.currency, exponent: attempt.exponent })
+  return null
+}
+
+/** The attempt and its locked invoice, or the reason the row is malformed. */
+async function lockAttempt(client: PoolClient, attemptId: unknown) {
+  if (typeof attemptId !== 'string' || !z.uuid().safeParse(attemptId).success) return 'attempt_id_missing'
+  const attempt = (await client.query('SELECT * FROM payment_attempts WHERE id=$1', [attemptId])).rows[0]
+  if (!attempt) return 'payment_attempt_missing'
+  const invoice = (await client.query('SELECT id,customer_id FROM invoices WHERE id=$1 FOR UPDATE', [attempt.invoice_id])).rows[0]
+  return { ...attempt, invoice } as Record<string, any> & { invoice: { id: string; customer_id: string } }
+}
+
+/**
+ * The provider refunded a payment after the order was fulfilled: the money is gone but the subscription stays applied.
+ * The event carries the provider's cumulative refunded figure, and the note is only the part not credited yet, so a
+ * replay credits nothing and each further partial refund credits its own part. A figure above what the attempt paid, or
+ * in another currency, is rejected for the operator instead of crediting money that was never taken. The pending note
+ * puts the invoice in the vendor's `credit_pending` list; the operator records the provider's refund reference on it.
+ */
+async function creditRefundedAfterFulfillment(client: PoolClient, payload: any): Promise<string | null> {
+  const attempt = await lockAttempt(client, payload?.attempt_id)
+  if (typeof attempt === 'string') return attempt
+  const refunded = payload.refunded
+  if (!refunded || !Number.isSafeInteger(refunded.minor) || refunded.minor <= 0) return 'refund_amount_missing'
+  if (refunded.currency !== attempt.currency || refunded.exponent !== attempt.exponent) return 'refund_currency_mismatch'
+  if (refunded.minor > Number(attempt.amount_minor)) return 'refund_exceeds_payment'
+  const reason = `${PROVIDER_REFUND_REASON} (attempt ${attempt.id})`
+  // Every credit note of the invoice counts, the vendor's own included: when the operator refunded this money through
+  // `requestInvoiceRefund` first, the provider's event is that same money and adds nothing. Only a note for a duplicate
+  // charge is other money (a different attempt's payment).
+  const credited = Number((await client.query(`SELECT ${creditedMinorSql('$1')} AS total`, [attempt.invoice_id])).rows[0].total)
+  const part = refunded.minor - credited
+  if (part > 0) {
+    await insertSystemCreditNote(client, attempt.invoice, reason, { minor: part, currency: attempt.currency, exponent: attempt.exponent })
+    await client.query("UPDATE invoices SET status='credit_pending' WHERE id=$1 AND status='paid'", [attempt.invoice_id])
+  }
+  return null
 }
 
 /** Caller owns the transaction. Paid invoices and their lines are never erased. */
@@ -82,8 +144,9 @@ async function recordRefund(pool: Pool, { adjustment_id, actor, request }: { adj
     // A refund must return the whole invoice, and an invoice is refunded at most once. Checked before any write.
     const invoice = (await client.query('SELECT total_minor,currency,exponent FROM invoices WHERE id=$1 FOR SHARE', [note.invoice_id])).rows[0]
     if (!invoice) throw new CommercialHttpError('not_found', 404)
-    if (Number(note.amount_minor) !== Number(invoice.total_minor) || note.currency !== invoice.currency)
-      throw new CommercialHttpError('refund_not_full', 409)
+    // A customer-requested refund returns the whole invoice; a system note carries what the provider refunded or charged twice, which may be a part.
+    const wrongAmount = note.origin === 'vendor' ? Number(note.amount_minor) !== Number(invoice.total_minor) : Number(note.amount_minor) > Number(invoice.total_minor)
+    if (wrongAmount || note.currency !== invoice.currency) throw new CommercialHttpError('refund_not_full', 409)
     // A4: the customer-requested refund is once per invoice; a system note is keyed by its own charge, so each of those
     // may be refunded once without blocking another. Scoping the rule to the vendor origin is what keeps a second
     // duplicate from being stranded. The unique index says the same thing; this is the readable refusal.
@@ -121,6 +184,15 @@ export async function requestInvoiceRefund(pool: Pool, { invoice_id, actor, reas
     // settlement path (invoice, then note) so neither can deadlock with a concurrent refund.
     const invoice = (await client.query('SELECT * FROM invoices WHERE id=$1 FOR UPDATE', [invoice_id])).rows[0]
     if (!invoice) throw new CommercialHttpError('not_found', 404)
+    // The provider may have refunded this money first: its note is the obligation, so the operator attaches to it (and
+    // records the provider's reference on it) instead of opening a second one for the same refund.
+    const providerNotes = (await client.query(`SELECT * FROM invoice_adjustments WHERE invoice_id=$1 AND kind='credit_note' AND origin='system'
+      AND status<>'void' AND reason LIKE $2 ORDER BY created_at,id`, [invoice_id, `${PROVIDER_REFUND_REASON}%`])).rows
+    if (providerNotes.length) {
+      const open = providerNotes.find(note => note.status === 'pending')
+      if (!open) throw new CommercialHttpError('refund_already_requested', 409)
+      return adjustmentView(open)
+    }
     if (invoice.status !== 'paid') throw new CommercialHttpError('invoice_not_paid', 409)
     const already = await client.query("SELECT 1 FROM invoice_adjustments WHERE invoice_id=$1 AND origin='vendor' AND kind='credit_note' AND status<>'void'", [invoice_id])
     if (already.rowCount) throw new CommercialHttpError('refund_already_requested', 409)

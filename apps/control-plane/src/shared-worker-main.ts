@@ -6,18 +6,19 @@ import { createOdooAdapter,reconcileOdooOnboardings } from './shared/odoo-adapte
 import { sharedOnboardingEnabled } from './shared/onboarding.js'
 import { createCommercialScheduler } from './commercial/scheduler.js'
 import { paymentAdapterFromEnv } from './commercial/payment-adapter.js'
-import { mailAdapterFromEnv } from './commercial/mail-adapter.js'
+import { mailAdapterFromEnv,SCHEDULED_MAIL_SEND_TIMEOUT_MS } from './commercial/mail-adapter.js'
 import { createAdminPasswordRunner } from './shared/admin-password-runner.js'
 import { loadSharedRuntimeConfig } from './shared/runtime-config.js'
 import { startInternalEffectServer } from './shared/internal-effect-server.js'
 import { runSharedWorker } from './shared/job-runner.js'
+import { processJobRecoveries } from './shared/job-recovery.js'
+import { onShutdownSignal } from './shutdown.js'
 const config=getConfig()
 if(!await sharedOnboardingEnabled(config))throw Error('shared_adapter_unavailable')
 const pool=new Pool({connectionString:config.databaseUrl,max:8})
 attachPoolErrorHandler(pool)
 const controller=new AbortController()
-process.once('SIGTERM',()=>controller.abort())
-process.once('SIGINT',()=>controller.abort())
+onShutdownSignal(()=>controller.abort())
 let scheduler:ReturnType<typeof createCommercialScheduler>|undefined
 try{
   await migrate(pool)
@@ -25,7 +26,7 @@ try{
   let paymentAdapter:ReturnType<typeof paymentAdapterFromEnv>|undefined
   let mailAdapter:ReturnType<typeof mailAdapterFromEnv>|undefined
   try{paymentAdapter=paymentAdapterFromEnv(process.env)}catch(e){console.error('commercial payment adapter unavailable:',e instanceof Error?e.message:e)}
-  try{mailAdapter=mailAdapterFromEnv(process.env)}catch(e){console.error('commercial mail adapter unavailable:',e instanceof Error?e.message:e)}
+  try{mailAdapter=mailAdapterFromEnv(process.env,SCHEDULED_MAIL_SEND_TIMEOUT_MS)}catch(e){console.error('commercial mail adapter unavailable:',e instanceof Error?e.message:e)}
   const effect=config.internalEffect
   // The password effect runs here because only the worker may reach Docker; control-api calls it over authenticated HTTPS.
   try{
@@ -41,5 +42,5 @@ try{
     }
   }catch{console.error('internal_effect_unavailable','start_failed')}
   scheduler=createCommercialScheduler({pool,config,env:process.env,paymentAdapter,mailAdapter,subscriptionRunner:adapter.subscriptionRunner,usageRunner:adapter.observeUsage,tenantStatusRunner:adapter.setTenantStatus,signal:controller.signal})
-  await runSharedWorker({pool,adapter,signal:controller.signal,afterDispatch:async()=>{await reconcileOdooOnboardings(pool,config,adapter);await scheduler!.tick();await dispatchRestorePublication(pool,loadSharedRuntimeConfig(config.sharedRuntimeConfigPath!),adapter,{runner:adapter.observeRestoreSubscription})}})
+  await runSharedWorker({pool,adapter,signal:controller.signal,afterDispatch:async()=>{if(controller.signal.aborted)return;await processJobRecoveries(pool,adapter,{log:(message,error)=>console.error(message,error instanceof Error?error.message:error)});await reconcileOdooOnboardings(pool,config,adapter);await scheduler!.tick();if(controller.signal.aborted)return;await dispatchRestorePublication(pool,loadSharedRuntimeConfig(config.sharedRuntimeConfigPath!),adapter,{runner:adapter.observeRestoreSubscription})}})
 }finally{await scheduler?.usageIdle().catch(()=>{});await pool.end()}

@@ -42,6 +42,11 @@ function money(amount: unknown, currency: unknown): Money {
   return { currency: c, exponent: exponentFor(c), minor: amount as number }
 }
 
+/** The provider's cumulative refunded figure of a payment object, when it carries one. */
+function refundedOf(p: Json): { refunded: Money } | {} {
+  return Number.isInteger(p.refunded) && p.refunded > 0 ? { refunded: money(p.refunded, p.currency) } : {}
+}
+
 export class MoyasarAdapter implements PaymentAdapter {
   readonly provider = 'moyasar'
   readonly mode: 'test' | 'live'
@@ -127,7 +132,7 @@ export class MoyasarAdapter implements PaymentAdapter {
       payment_id: d.id,
       attempt_id: typeof d.metadata?.attempt_id === 'string' ? d.metadata.attempt_id : null,
       merchant_account: p.account_name, live: p.live, status,
-      amount: money(d.amount, d.currency),
+      amount: money(d.amount, d.currency), ...refundedOf(d),
       occurred_at: typeof p.created_at === 'string' ? p.created_at : new Date().toISOString(),
       raw_type: p.type,
     }
@@ -143,7 +148,7 @@ export class MoyasarAdapter implements PaymentAdapter {
       attempt_id: typeof inv.metadata?.attempt_id === 'string' ? inv.metadata.attempt_id : null,
       merchant_account: this.cfg.merchantAccount, live: this.cfg.expectLive,
       status: OBJECT_STATUS[String(inv.status)] ?? 'pending',
-      amount: money(inv.amount, inv.currency),
+      amount: money(inv.amount, inv.currency), ...refundedOf({ refunded: pay?.refunded, currency: inv.currency }),
       occurred_at: String(inv.updated_at ?? inv.created_at ?? new Date().toISOString()),
       raw_type: `invoice_${inv.status}`,
     }
@@ -156,7 +161,7 @@ export class MoyasarAdapter implements PaymentAdapter {
       attempt_id: typeof p.metadata?.attempt_id === 'string' ? p.metadata.attempt_id : null,
       merchant_account: this.cfg.merchantAccount, live: this.cfg.expectLive,
       status: OBJECT_STATUS[String(p.status)] ?? 'pending',
-      amount: money(p.amount, p.currency),
+      amount: money(p.amount, p.currency), ...refundedOf(p),
       occurred_at: String(p.updated_at ?? p.created_at ?? new Date().toISOString()),
       raw_type: `payment_${p.status}`,
     }

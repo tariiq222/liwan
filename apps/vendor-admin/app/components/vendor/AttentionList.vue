@@ -7,7 +7,8 @@ const NuxtLink = resolveComponent('NuxtLink')
 const duration = (days: number) => t('vendor.today.duration', { count: days }, days)
 function sentence(item: AttentionItem) {
   const m = attentionMessage(item, props.now)
-  const operation = m.operation ? (te(`vendor.operations.types.${m.operation}`) ? t(`vendor.operations.types.${m.operation}`) : m.operation) : ''
+  const detailKey = [`vendor.operations.types.${m.operation}`, `vendor.today.refundReasons.${m.operation}`].find(key => te(key))
+  const operation = m.operation ? (detailKey ? t(detailKey) : m.operation) : ''
   return t(`vendor.today.kinds.${m.key}`, { duration: m.days === null ? '' : duration(m.days), operation })
 }
 const rows = computed(() => props.items.map((item, index) => ({ item, index, view: attentionPresentation(item) })))

@@ -29,7 +29,7 @@ TLS العام، السعة والإنتاج تبقى بوابات لاحقة. �
 | API المشترك | نشر سجل وأوامر تجهيز مؤصلة من الكتالوج مع منع binding من المتصل | الواجهة لا تجمعها في رحلة عميل | `apps/control-plane/src/http.ts:278`؛ `apps/control-plane/src/shared/job-store.ts:33` و`:49` |
 | العامل | `worker-main.ts` يستدعي العامل القديم؛ توجد دالة تركيب لعامل shared | لا توجد نقطة تشغيل موصولة بمحوّل Odoo حقيقي | `apps/control-plane/src/worker-main.ts:4`؛ `apps/control-plane/src/shared/job-runner.ts:7` |
 | تنفيذ الأثر | محوّل مرجعي بجداول `shared_*` وموانع إعادة التنفيذ | لا ينشئ Odoo ووحداته ومسؤوله | `apps/control-plane/src/shared/fenced-adapter.ts:12` و`:50` |
-| جاهزية المسؤول | ربط login بطلب التجهيز داخل `shared_admin` | لا يثبت وجود `res.users` أو نجاح الدخول | `apps/control-plane/src/shared/provision-readiness.ts:20` و`:52` |
+| جاهزية المسؤول | كان ربط login بطلب التجهيز داخل `shared_admin` وفحصه في `provision-readiness.ts`؛ حُذف الملف لأنه لم يُستدعَ في الإنتاج، والتفعيل الفعلي في `reconcileOdooOnboardings` | لا يثبت وجود `res.users` أو نجاح الدخول | `apps/control-plane/src/shared/odoo-adapter.ts` (`reconcileOdooOnboardings`) |
 | النسخ | لقطة جداول المحوّل المرجعي وملف JSON بعلامة `FILESTORE_*` | ليست dump لقاعدة Odoo أو نسخة مرفقاتها | `apps/control-plane/src/shared/shared-backup.ts:113` و`:143` |
 | أدوات النسخ الأقدم | أدوات dump واستعادة إلى scratch مع فحص مراجع الملفات | الالتقاط معلن `UNVERIFIED` ولا يوقف الكتّاب؛ ليس بديلًا عن إثبات الاتساق | `deploy/backup.py:2`؛ `deploy/restore_verify.py:51` |
 

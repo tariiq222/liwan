@@ -10,7 +10,12 @@ import shlex
 from pathlib import Path
 from typing import Callable
 
+# A dedicated generation records 9 names. A shared-tenancy generation adds the
+# commercial-scheduler process (`shared-worker`), so its record set has 12. Only
+# those two shapes are a complete generation; a mixture is damage, not a variant.
 NAMES = ('runtime.pid', 'runtime.start', 'api.pid', 'api.start', 'api.generation', 'worker.pid', 'worker.start', 'worker.generation', 'generation')
+SHARED_NAMES = NAMES + ('shared-worker.pid', 'shared-worker.start', 'shared-worker.generation')
+RECORD_SETS = (NAMES, SHARED_NAMES)
 GEN_RE = re.compile(r'^[a-f0-9]{32}$')
 
 
@@ -50,6 +55,7 @@ def _runtime_artifacts(root: Path) -> tuple[Path, ...]:
         root / 'node_modules/tsx/dist/cli.mjs',
         root / 'apps/control-plane/src/main.ts',
         root / 'apps/control-plane/src/worker-main.ts',
+        root / 'apps/control-plane/src/shared-worker-main.ts',
     )
 
 
@@ -178,23 +184,26 @@ def _validate(state: Path, pid_probe: Callable[[int], bool], listener_check: Cal
     if state.is_symlink() or not state.is_dir():
         raise ValueError('invalid_process_directory')
     entries = list(state.iterdir())
-    if {p.name for p in entries} != set(NAMES):
+    present = {p.name for p in entries}
+    names = next((record_set for record_set in RECORD_SETS if present == set(record_set)), None)
+    if names is None:
         raise ValueError('incomplete_or_unexpected_records')
     data: dict[str, bytes] = {}
-    for name in NAMES:
+    for name in names:
         path = state / name
         if path.is_symlink() or not path.is_file():
             raise ValueError('invalid_record_type')
         data[name] = path.read_bytes()
+    processes = [n for n in ('runtime', 'api', 'worker', 'shared-worker') if f'{n}.pid' in names]
     try:
         generation = data['generation'].decode().strip()
         if not GEN_RE.fullmatch(generation):
             raise ValueError
-        if data['api.generation'].decode().strip() != generation or data['worker.generation'].decode().strip() != generation:
+        if any(data[f'{n}.generation'].decode().strip() != generation for n in processes if n != 'runtime'):
             raise ValueError
-        pids = [int(data[f'{n}.pid'].decode().strip()) for n in ('runtime', 'api', 'worker')]
-        starts = [data[f'{n}.start'].decode().strip() for n in ('runtime', 'api', 'worker')]
-        if len(set(pids)) != 3 or any(pid <= 1 for pid in pids) or not all(starts):
+        pids = [int(data[f'{n}.pid'].decode().strip()) for n in processes]
+        starts = [data[f'{n}.start'].decode().strip() for n in processes]
+        if len(set(pids)) != len(processes) or any(pid <= 1 for pid in pids) or not all(starts):
             raise ValueError
     except (UnicodeDecodeError, ValueError):
         raise ValueError('invalid_or_mixed_generation') from None

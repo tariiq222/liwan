@@ -1,7 +1,7 @@
 import type { Pool } from 'pg'
 import type { Config } from '../config.js'
 import { processFulfillmentOutbox } from './fulfillment.js'
-import { claimOutbox, completeOutbox, failOutbox } from './outbox.js'
+import { claimOutbox, completeOutbox, failOutbox, releaseOutbox } from './outbox.js'
 import { onSubscriptionActivated, sendInvitationOutbox } from './invitations.js'
 import { reconcileUnknownAttempts } from './payments.js'
 import { recoverInterrupted } from '../shared/subscription-reconcile.js'
@@ -26,7 +26,7 @@ export type CommercialSchedulerOptions = {
   usageRunner?: UsageObserveRunner
   /** Pushes a tenant's suspended or active status to Odoo; without it a suspension changes the control plane only. */
   tenantStatusRunner?: TenantStatusRunner
-  /** Worker shutdown: stops the background usage run before its next target. */
+  /** Worker shutdown: stops the background usage run before its next target, and starts no further job or mail in a tick. */
   signal?: AbortSignal
   log?: (message: string, err?: unknown) => void
 }
@@ -72,7 +72,9 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
   let ticks = 0
   let lastBilling: number | undefined
   let jobCounts: Record<string, { runs: number; failures: number }> = {}
+  // After the worker shutdown signal no new job starts, so a stop waits for the job in flight only.
   const job = async (name: string, fn: () => Promise<unknown>) => {
+    if (o.signal?.aborted) return
     const counts = jobCounts[name] ??= { runs: 0, failures: 0 }
     counts.runs++
     try { await fn() } catch (e) { counts.failures++; try { log(`${name} failed`, e) } catch { /* never throw */ } }
@@ -84,9 +86,10 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
     async tick(): Promise<void> {
       ticks++
       jobCounts = {}
-      await job('fulfillment', () => processFulfillmentOutbox(pool, { limit: 20, enrollment: { config } }))
+      await job('fulfillment', () => processFulfillmentOutbox(pool, { limit: 20, enrollment: { config }, signal: o.signal }))
       await job('invitation.issue', async () => {
         for (const row of await claimOutbox(pool, ['invitation.issue'], 20)) {
+          if (o.signal?.aborted) { await releaseOutbox(pool, row.id); continue }
           try {
             await onSubscriptionActivated(pool, (row.payload as { subscription_id: string }).subscription_id)
             await completeOutbox(pool, row.id)
@@ -95,8 +98,8 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
       })
       if (o.mailAdapter) {
         const mail = o.mailAdapter
-        await job('invitation.send', () => sendInvitationOutbox(pool, { mail, returnOrigin, smtpHost: env.LIWAN_MAIL_SMTP_HOST }))
-        await job('trial-notices', () => sendTrialNotices(pool, { now: new Date(clock()), mail }))
+        await job('invitation.send', () => sendInvitationOutbox(pool, { mail, returnOrigin, smtpHost: env.LIWAN_MAIL_SMTP_HOST, signal: o.signal }))
+        await job('trial-notices', () => sendTrialNotices(pool, { now: new Date(clock()), mail, signal: o.signal }))
       }
       if (ticks % reconcileEvery === 0) {
         if (o.paymentAdapter) {
