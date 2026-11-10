@@ -38,6 +38,19 @@ async function blocked(pool: Pool, lapse: Lapse, now: Date, reason: string) {
     [lapse.subscription_id, reason.slice(0, 200), later(now, RETRY_HOURS)])
 }
 
+/**
+ * An error nobody expected must not leave the window open unseen: the lapse gets the stable reason `unexpected_error` (which the
+ * vendor attention list shows) and is retried on the usual cadence, and the message is kept in the audit trail and the log, never
+ * swallowed. It is still rethrown after the other lapses so the job reports it.
+ */
+async function recordLapseFailure(pool: Pool, lapse: Lapse, now: Date, error: unknown) {
+  const message = error instanceof Error ? error.message : String(error)
+  console.error(JSON.stringify({ event: 'commercial_trial_lapse_failed', subscription_id: lapse.subscription_id, error: message.slice(0, 500) }))
+  await pool.query("UPDATE trial_lapses SET reason='unexpected_error',attempts=attempts+1,next_attempt_at=$2 WHERE subscription_id=$1 AND state IN ('pending','ordered')", [lapse.subscription_id, later(now, RETRY_HOURS)])
+  await pool.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
+    [randomUUID(), 'system:trial-expiry', 'trial.lapse_failed', lapse.subscription_id, message.slice(0, 500), JSON.stringify({ state: lapse.state })])
+}
+
 /** Runs every lapse that is due. One that fails never stops the others; the first failure is rethrown after them. */
 export async function processTrialLapses(pool: Pool, input: { now: Date; adapter?: PaymentAdapter; subscription_id?: string }) {
   const due = (await pool.query(`SELECT subscription_id,trial_revision_id,period_start::text AS period_start,lapsed_at,state,order_id,attempts,order_seq
@@ -46,7 +59,7 @@ export async function processTrialLapses(pool: Pool, input: { now: Date; adapter
   const failures: unknown[] = []
   for (const lapse of due) {
     try { await (lapse.state === 'ordered' ? settleOrdered(pool, lapse, input.now) : attempt(pool, lapse, input.now, input.adapter)) }
-    catch (error) { failures.push(error) }
+    catch (error) { await recordLapseFailure(pool, lapse, input.now, error); failures.push(error) }
   }
   if (failures.length) throw failures[0]
   return due.length

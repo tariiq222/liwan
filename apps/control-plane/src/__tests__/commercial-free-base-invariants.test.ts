@@ -18,6 +18,7 @@ import { fixedReturnOrigin } from '../commercial/return-origin.js'
 import { applyDunning } from '../commercial/renewals.js'
 import { attention, STALLED_HOURS } from '../commercial/attention.js'
 import { createCommercialScheduler } from '../commercial/scheduler.js'
+import { runSubscriptionReconfigure } from '../shared/subscription-reconfigure.js'
 import type { Config } from '../config.js'
 import { syncTenantStatus } from '../commercial/suspension.js'
 
@@ -493,6 +494,57 @@ suite('free base invariants (issue 491)', () => {
       const sub = await getSubscription(pool, f.customer)
       await expect(acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: sub.revision, idempotency_key: randomUUID() }, vendor)).rejects.toMatchObject({ code: 'trial_ending', status: 409 })
       await pool.query("UPDATE subscriptions SET trial_ends_at=now() + interval '30 days',revision=revision+1 WHERE id=$1", [f.subscription])
+    })
+  })
+
+
+  describe('G2: every state in which the window is open has a vendor-visible item', () => {
+    const blockedItems = async (f: F) => {
+      await pool.query("UPDATE trial_lapses SET state='superseded' WHERE subscription_id<>$1", [f.subscription])
+      return (await attention(pool, true)).items.filter(i => i.customer_id === f.customer && i.kind === 'free_base_blocked').map(i => i.detail)
+    }
+    const failJob = async (f: F, orderId: string, code: string) => {
+      await pushed(f.tenant, orderId)
+      const jobId = (await pool.query('SELECT job_id FROM fulfillment_effects WHERE order_id=$1', [orderId])).rows[0].job_id
+      await runSubscriptionReconfigure(pool, jobId, async () => { throw new Error(code) }).catch(() => undefined)
+    }
+    const editSnapshot = async (f: F, expression: string) => {
+      await pool.query('ALTER TABLE subscription_revisions DISABLE TRIGGER USER')
+      await pool.query(`UPDATE subscription_revisions SET snapshot=${expression} WHERE id=(SELECT applied_revision_id FROM subscriptions WHERE id=$1)`, [f.subscription])
+      await pool.query('ALTER TABLE subscription_revisions ENABLE TRIGGER USER')
+    }
+    it('row 1: a lock order that failed after it may have written', async () => {
+      const f = await endedTrial()
+      await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+      await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
+      await failJob(f, (await lapseOrders(f.subscription)).at(-1).id, 'observed_mismatch')
+      await processTrialLapses(pool, { now: at(1), adapter, subscription_id: f.subscription })
+      expect(await blockedItems(f)).toContain('observed_mismatch')
+    })
+    it('row 2: an expiry-clearing job that is stuck', async () => {
+      const f = await endedTrial()
+      await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+      const job = (await pool.query("SELECT id FROM shared_jobs WHERE control_tenant_id=$1 AND payload->'authority'->'commercial_valid_until'='null'::jsonb", [f.tenant])).rows[0]
+      await runSubscriptionReconfigure(pool, job.id, async () => { throw new Error('observed_mismatch') }).catch(() => undefined)
+      expect(await blockedItems(f)).toContain('expiry_clearing:observed_mismatch')
+    })
+    it('row 3: the free base cannot be derived', async () => {
+      const f = await endedTrial()
+      await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+      await editSnapshot(f, "jsonb_set(snapshot,'{terms_revision_id}',to_jsonb(gen_random_uuid()::text))")
+      await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
+      expect(await blockedItems(f)).toContain('free_base_unavailable')
+    })
+    it('row 4: an unexpected error is recorded, never swallowed, and does not stop the others', async () => {
+      const broken = await endedTrial(), healthy = await endedTrial()
+      for (const f of [broken, healthy]) await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+      await editSnapshot(broken, "jsonb_set(snapshot,'{entitlement,catalog_release_id}','\"not-a-uuid\"')")
+      await expect(processTrialLapses(pool, { now, adapter })).rejects.toThrow()
+      expect(await lapseOrders(healthy.subscription)).toHaveLength(1)
+      expect(await lapseRow(broken.subscription)).toMatchObject({ state: 'pending', reason: 'unexpected_error', attempts: 1 })
+      expect(await blockedItems(broken)).toContain('unexpected_error')
+      const audited = await pool.query("SELECT reason FROM audit_events WHERE action='trial.lapse_failed' AND subject=$1", [broken.subscription])
+      expect(audited.rows[0].reason).toMatch(/invalid input syntax for type uuid/)
     })
   })
 
