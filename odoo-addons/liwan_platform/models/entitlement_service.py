@@ -109,7 +109,9 @@ class LiwanEntitlementService(models.AbstractModel):
     @api.model
     def _liwan_api_write_allowed(self, path):
         # Clearing the notification bell is the recipient's own read state, not a business write.
-        return path in {'/api/v1/me/password', '/api/v1/auth/totp', '/api/v1/notifications/read-all'} \
+        return path in {
+            '/api/v1/me/password', '/api/v1/me/mobile', '/api/v1/auth/totp', '/api/v1/notifications/read-all',
+        } \
             or bool(NOTIFICATION_READ_PATH.fullmatch(path))
 
     @api.model
@@ -324,7 +326,7 @@ class LiwanEntitlementService(models.AbstractModel):
         profile._liwan_bump_quota_revision()
         Branch = self.env['liwan.tenant.branch'].sudo()
         self.require_within_limit(
-            'branches.extra_limit', Branch.search_count([('state', '=', 'active')]) + 1,
+            'branches.extra_limit', self._liwan_count_full_branches() + 1,
         )
         # Created as the superuser identity, not just an elevated environment: installed applications bootstrap a new
         # company's structural resources (for example the document library) only for the actual superuser.
@@ -341,15 +343,8 @@ class LiwanEntitlementService(models.AbstractModel):
 
     @api.model
     def _liwan_count_users(self):
-        excluded = self._liwan_excluded_user_ids()
-        self.env.cr.execute(
-            '''
-                SELECT count(*) FROM res_users
-                 WHERE active AND NOT share AND id != ALL(%s)
-            ''',
-            [list(excluded)],
-        )
-        return self.env.cr.fetchone()[0]
+        """Full seats: active internal accounts that are not read-only (see ``_liwan_full_seat_ids``)."""
+        return len(self._liwan_full_seat_ids())
 
     @api.model
     def _liwan_count_usage(self, limit_key):
@@ -364,7 +359,7 @@ class LiwanEntitlementService(models.AbstractModel):
         if limit_key == 'storage.limit_mb':
             return -(-int(self._liwan_count_storage_bytes()) // 1048576)
         if limit_key == 'branches.extra_limit':
-            return self.env['liwan.tenant.branch'].search_count([('state', '=', 'active')])
+            return self._liwan_count_full_branches()
         return 0
 
     @api.model
@@ -391,6 +386,9 @@ class LiwanEntitlementService(models.AbstractModel):
 
     @api.model
     def _liwan_claim_users(self, delta):
+        if delta > 0:
+            # Lock before counting: concurrent claims must see each other's committed seat.
+            self._liwan_profile()._liwan_lock()
         return self._liwan_claim('users.limit', self._liwan_count_users(), delta)
 
     @api.model

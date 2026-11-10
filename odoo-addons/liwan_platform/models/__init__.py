@@ -1,7 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from . import (
+    access_service,
     base,
     entitlement_service,
+    entitlement_service_seats,
     feature_registry,
     ir_attachment,
     ir_binary,
@@ -11,6 +13,7 @@ from . import (
     maintenance_authority,
     maintenance_event,
     module_load_guard,
+    read_only_guard,
     res_company,
     res_users,
     tenant_branch,

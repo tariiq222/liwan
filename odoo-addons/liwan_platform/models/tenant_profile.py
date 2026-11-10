@@ -366,7 +366,10 @@ class LiwanTenantProfile(models.Model):
             raise ValidationError(self.env._('liwan_platform: revisions cannot be negative'))
         if 'quota_revision' in next_vals and next_vals['quota_revision'] < 0:
             raise ValidationError(self.env._('liwan_platform: revisions cannot be negative'))
-        return super().write(next_vals)
+        result = super().write(next_vals)
+        if 'features' in next_vals:
+            service._liwan_settle_excess()
+        return result
 
     def _liwan_require_operator(self):
         self.ensure_one()
@@ -449,7 +452,7 @@ class LiwanTenantProfile(models.Model):
                 raise ValidationError(msg)
         new_uids = [uid for uid in requested if uid not in by_uid]
         if new_uids:
-            active_count = Branch.search_count([('state', '=', 'active')])
+            active_count = self.env['liwan.entitlement.service']._liwan_count_full_branches()
             self.env['liwan.entitlement.service'].require_within_limit(
                 'branches.extra_limit', active_count + len(new_uids),
             )
@@ -496,7 +499,7 @@ class LiwanTenantProfile(models.Model):
             raise ValidationError(msg)
         if branch.state == 'active':
             return branch.company_id
-        active_count = self.env['liwan.tenant.branch'].search_count([('state', '=', 'active')])
+        active_count = self.env['liwan.entitlement.service']._liwan_count_full_branches()
         self.env['liwan.entitlement.service'].require_within_limit(
             'branches.extra_limit', active_count + 1,
         )

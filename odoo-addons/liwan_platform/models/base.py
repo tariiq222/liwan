@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
 
+from .read_only_guard import assert_writable
+
 # Set by api_handler on a writing /api/v1 request: the text values the caller sent. An edit made in the UI is
 # one name for everyone, so a translated field written with one of those texts is stored for every installed
 # language. Text the server writes itself (seeded translations, presets) is not in the list and stays as written.
@@ -11,16 +13,23 @@ class LiwanBase(models.AbstractModel):
     _inherit = 'base'
 
     def write(self, vals):
+        assert_writable(self, 'write', vals)
         result = super().write(vals)
         self._liwan_mirror_translations(vals)
         return result
 
     @api.model_create_multi
     def create(self, vals_list):
+        assert_writable(self.browse(), 'create', vals_list=vals_list)
         records = super().create(vals_list)
+        assert_writable(records, 'create')
         for record, vals in zip(records, vals_list, strict=True):
             record._liwan_mirror_translations(vals)
         return records
+
+    def unlink(self):
+        assert_writable(self, 'unlink')
+        return super().unlink()
 
     def _liwan_mirror_translations(self, vals):
         """Store each translated text the caller sent under every other installed language.

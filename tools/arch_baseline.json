@@ -26,7 +26,7 @@
     "sql odoo-addons/liwan_core/models/res_users.py": 2,
     "sql odoo-addons/liwan_hr/models/hr_department.py": 5,
     "sql odoo-addons/liwan_hr/models/hr_employee.py": 11,
-    "sql odoo-addons/liwan_platform/models/entitlement_service.py": 4,
+    "sql odoo-addons/liwan_platform/models/entitlement_service.py": 3,
     "sql odoo-addons/liwan_platform/models/tenant_profile.py": 1,
     "sql odoo-addons/liwan_pmo/models/entitlement_service.py": 1,
     "sql odoo-addons/liwan_pmo/models/project_project.py": 2,
