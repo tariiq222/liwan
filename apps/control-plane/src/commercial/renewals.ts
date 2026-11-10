@@ -33,8 +33,8 @@ export async function onRenewalPaid(client: PoolClient, order_id: string) {
 /**
  * Generates every due renewal. Each customer's return origin is resolved before anything is invoiced, so a
  * customer without a usable one is skipped (it is picked up again once fixed) while the rest are processed. The
- * skipped subscription is marked billing-blocked, which the vendor attention list shows until its origin works
- * again, and the run then fails with `return_url_forbidden` so the skip is never silent.
+ * skipped subscription is marked billing-blocked, which the vendor attention list shows until an order is generated
+ * for it, and the run then fails with `return_url_forbidden` so the skip is never silent.
  */
 export async function generateRenewals(pool: Pool, { now = new Date(), adapter, returnOrigin, subscription_id }: {
   now?: Date; adapter: PaymentAdapter; returnOrigin: ReturnOrigin; subscription_id?: string
@@ -53,7 +53,6 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
       unusableOrigins++
       continue
     }
-    await pool.query('UPDATE subscriptions SET billing_blocked_at=NULL WHERE id=$1 AND billing_blocked_at IS NOT NULL', [candidate.id])
     const result = await transaction(pool, async client => {
       const sub = (await client.query('SELECT * FROM subscriptions WHERE id=$1 FOR UPDATE', [candidate.id])).rows[0]
       if (!['active','past_due'].includes(sub.state) || !sub.applied_revision_id || !sub.renewal_at || date(sub.renewal_at)>today) return null
@@ -89,6 +88,9 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
         await enqueueOutbox(client,{kind:'fulfillment.enqueue',aggregate_id:order.id,dedupe_key:order.target_revision_id,
           payload:{order_id:order.id,subscription_id:sub.id,target_revision_id:order.target_revision_id}})
       }
+      // The block ends with the order it was blocking, in the same transaction: a run that fails or finds nothing to
+      // generate leaves the flag for the vendor.
+      await client.query('UPDATE subscriptions SET billing_blocked_at=NULL WHERE id=$1 AND billing_blocked_at IS NOT NULL', [sub.id])
       return { order,sub,invoice }
     })
     if (!result) continue

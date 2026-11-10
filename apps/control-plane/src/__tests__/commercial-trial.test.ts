@@ -129,6 +129,27 @@ suite('commercial trial', () => {
     expect(await blocked()).toMatchObject({ state: 'past_due', billing_blocked_at: null })
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(1)
   })
+  it('keeps the billing block when the run finds a usable origin but generates no order', async () => {
+    const c = await trialAt(now, -1)
+    const sub = await getSubscription(pool, c.id)
+    const adapter = new SimulatorAdapter()
+    await expect(expireTrials(pool, { now, adapter, returnOrigin: fixedReturnOrigin('http://billing.example.com'), subscription_id: sub.id })).rejects.toMatchObject({ code: 'return_url_forbidden' })
+    const blockedAt = async () => (await pool.query('SELECT billing_blocked_at FROM subscriptions WHERE id=$1', [sub.id])).rows[0].billing_blocked_at
+    expect(await blockedAt()).toBeInstanceOf(Date)
+    // The pinned policy is gone: the transaction fails after the origin resolved, so no order exists and the flag stays.
+    const policy = (await pool.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [sub.applied?.id])).rows[0].snapshot.policy_revision_id
+    await pool.query('ALTER TABLE subscription_revisions DISABLE TRIGGER USER')
+    await pool.query("UPDATE subscription_revisions SET snapshot=jsonb_set(snapshot,'{policy_revision_id}',to_jsonb($2::text)) WHERE id=$1", [sub.applied?.id, randomUUID()])
+    await expect(generateRenewals(pool, { now, adapter, returnOrigin: fixedReturnOrigin('https://liwan.test'), subscription_id: sub.id })).rejects.toThrow('pinned_policy_missing')
+    expect(await blockedAt()).toBeInstanceOf(Date)
+    expect((await pool.query('SELECT count(*)::int AS n FROM renewals WHERE subscription_id=$1', [sub.id])).rows[0].n).toBe(0)
+    await pool.query("UPDATE subscription_revisions SET snapshot=jsonb_set(snapshot,'{policy_revision_id}',to_jsonb($2::text)) WHERE id=$1", [sub.applied?.id, policy])
+    await pool.query('ALTER TABLE subscription_revisions ENABLE TRIGGER USER')
+    // Once an order really is generated, the flag goes with it.
+    await generateRenewals(pool, { now, adapter, returnOrigin: fixedReturnOrigin('https://liwan.test'), subscription_id: sub.id })
+    expect(await blockedAt()).toBeNull()
+    expect((await pool.query('SELECT count(*)::int AS n FROM renewals WHERE subscription_id=$1', [sub.id])).rows[0].n).toBe(1)
+  })
   it('marks an active subscription billing-blocked when its renewal has no usable return origin', async () => {
     const c = await trialAt(now, 3)
     const sub = await getSubscription(pool, c.id)
