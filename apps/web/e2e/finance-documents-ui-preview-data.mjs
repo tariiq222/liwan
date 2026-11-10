@@ -34,7 +34,7 @@ const line = (id, name, quantity, price, discount = 0, taxed = true) => {
   return { id, name, account: { id: 40, name: 'إيرادات المبيعات' }, quantity, price_unit: price, discount, taxes: taxed ? [{ id: 1, name: 'ضريبة القيمة المضافة 15%' }] : [], price_subtotal: subtotal, price_total: taxed ? subtotal * 1.15 : subtotal, analytic_distribution: [], asset_profile: null, asset: null }
 }
 
-const submission = (state, extra = {}) => ({ state, mode: state === 'not_applicable' ? null : 'clearance', errors: [], warnings: [], qr_present: state === 'accepted', ...extra })
+const submission = (state, extra = {}) => ({ state, mode: state === 'not_applicable' ? null : 'clearance', errors: [], warnings: [], qr_present: state === 'accepted', retry_count: 0, last_attempt_at: null, next_retry_at: null, ...extra })
 
 function document(id, moveType, state, paymentState, partner, lines, extra = {}) {
   const untaxed = lines.reduce((sum, item) => sum + item.price_subtotal, 0)

@@ -9,6 +9,7 @@ from . import (
     budget_guard,
     cash_flow_report,
     closing_service,
+    edi_document,
     feature_registry,
     idempotency,
     mis_report,

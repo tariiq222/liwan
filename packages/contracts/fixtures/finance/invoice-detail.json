@@ -77,8 +77,11 @@
     "qr_code": null,
     "submission": {
       "errors": [],
+      "last_attempt_at": null,
       "mode": null,
+      "next_retry_at": null,
       "qr_present": false,
+      "retry_count": 0,
       "state": "not_applicable",
       "warnings": []
     }

@@ -8,7 +8,7 @@ const locale = (code: string) => JSON.parse(readFileSync(resolve(import.meta.dir
 
 describe('API error codes', () => {
   it('every explained code has a message in both languages', () => {
-    for (const code of ['not_draft', 'not_posted', 'has_payments', 'invalid_state', 'period_locked', 'missing_exchange_rate', 'pdf_unavailable', 'zatca_not_onboarded', 'zatca_not_applicable', 'zatca_rejected', 'zatca_unavailable', 'zatca_local_error', 'zatca_unauthorized', 'zatca_mode_not_allowed', 'amount_exceeds_residual', 'journal_currency_mismatch']) {
+    for (const code of ['not_draft', 'not_posted', 'has_payments', 'invalid_state', 'period_locked', 'missing_exchange_rate', 'pdf_unavailable', 'zatca_not_onboarded', 'zatca_not_applicable', 'zatca_rejected', 'zatca_unavailable', 'zatca_local_error', 'zatca_unauthorized', 'zatca_mode_not_allowed', 'retry_too_soon', 'amount_exceeds_residual', 'journal_currency_mismatch']) {
       const key = financeErrorKey(code)
       expect(key, code).not.toBeNull()
       const name = key!.replace('financeDocuments.errors.', '')
@@ -22,7 +22,7 @@ describe('API error codes', () => {
   })
 
   it('reads the submission a failed ZATCA call carries', () => {
-    const submission = { state: 'rejected', mode: 'clearance', errors: [{ code: 'BR-1', message: 'bad' }], warnings: [], qr_present: false }
+    const submission = { state: 'rejected', mode: 'clearance', errors: [{ code: 'BR-1', message: 'bad' }], warnings: [], qr_present: false, retry_count: 0, last_attempt_at: null, next_retry_at: null }
     expect(zatcaSubmissionFromDetails({ submission })?.errors[0]?.code).toBe('BR-1')
     expect(zatcaSubmissionFromDetails({ submission: { state: 'weird' } })).toBeNull()
     expect(zatcaSubmissionFromDetails(undefined)).toBeNull()

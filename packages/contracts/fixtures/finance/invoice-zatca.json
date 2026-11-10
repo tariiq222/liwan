@@ -5,8 +5,11 @@
       "message": "The invoice could not be processed here; check the journal onboarding and the invoice data"
     }
   ],
+  "last_attempt_at": null,
   "mode": "clearance",
+  "next_retry_at": null,
   "qr_present": false,
+  "retry_count": 0,
   "state": "blocked",
   "warnings": []
 }
