@@ -235,7 +235,9 @@ class TestMeCommercial(LiwanApiCase):
     def test_missing_profile_does_not_guess_commercial_mode(self):
         service = type(self.env['liwan.entitlement.service'])
         with patch.object(service, '_liwan_profile', side_effect=UserError('missing profile')):
-            self.assertNotIn('commercial', dump_me(self.employee))
+            body = dump_me(self.employee)
+            self.assertNotIn('commercial', body)
+            self.assertTrue(body['read_only'])
 
     def test_profile_unavailable_during_serialization_over_http(self):
         self.authenticate('api_emp', 'api_emp_pass_123')

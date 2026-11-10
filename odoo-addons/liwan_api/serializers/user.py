@@ -24,6 +24,11 @@ def dump_me(user):
     service = user.env['liwan.access.service']
     identity = service._liwan_identity(user)
     platform = dump_platform(user)
+    try:
+        read_only = user.env['liwan.entitlement.service']._liwan_actor_read_only(user)
+    except UserError:
+        # If the profile cannot be read, the commercial proxy must not authorize writes.
+        read_only = True
     return {
         'id': user.id,
         'name': user.name,
@@ -43,7 +48,7 @@ def dump_me(user):
         'access_policy_version': identity['version'],
         'company': {'id': user.env.company.id, 'name': user.env.company.name},
         # The account is above the purchased seats: it reads and exports everything but takes no writes.
-        'read_only': user.env['liwan.entitlement.service']._liwan_actor_read_only(user),
+        'read_only': read_only,
         'appearance': dump_appearance(user),
         'modules': platform['modules'],
         'entitlements': platform['entitlements'],
