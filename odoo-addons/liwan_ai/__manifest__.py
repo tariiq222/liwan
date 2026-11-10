@@ -2,7 +2,7 @@
 {
     'name': 'liwan AI',
     'summary': 'liwan platform: the LiwanOS AI tool registry, audit log, usage ledger, settings, consent and /api/v1/ai routes',
-    'version': '19.0.1.12.0',
+    'version': '19.0.1.13.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

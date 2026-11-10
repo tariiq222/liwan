@@ -1,7 +1,8 @@
-"""The one conversation graph: plan → request one tool (interrupt) → plan … → answer.
+"""The one conversation graph: route → plan → request one tool (interrupt) → plan … → answer.
 
 The graph executes nothing. A tool request is an ``interrupt`` whose value is the
-request payload; the caller resumes with a ``ToolResult``. Limits come from the
+request payload; the caller resumes with a ``ToolResult``. ``route`` classifies a new user message once; a resume re-enters
+at the interrupted ``request_tool``, so it never classifies again. Limits come from the
 run request and stop the graph with ``outcome = 'limit_reached'``.
 
 One agent is active at a time (spec 2026-11-04 §6.5): the coordinator ``core`` or a specialist. A specialist sees its
@@ -10,6 +11,7 @@ request over with the in-graph ``liwan_handoff`` tool, which runs here, is never
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
@@ -25,11 +27,14 @@ from langgraph.types import interrupt
 
 from liwan_ai_service.contracts import CORE_AGENT, AgentSpec, RunContext, RunRequest, ToolResult, ToolSpec, encode_tool_name
 from liwan_ai_service.embeddings import Embedder
+from liwan_ai_service.errors import is_transient_provider_error
 from liwan_ai_service.knowledge import KnowledgeStore
 from liwan_ai_service.memory import MemoryFull, MemoryStore
+from liwan_ai_service.portable_history import portable_history
 from liwan_ai_service.prompts import frame_record_text, system_prompt, tool_summary
+from liwan_ai_service.router import DEFAULT_CAPABILITY, ROUTE_TIMEOUT_SECONDS, parse_capability, route_messages
 from liwan_ai_service.routing import RunModels
-from liwan_ai_service.usage import invoke_planned, tokens_of
+from liwan_ai_service.usage import Emit, invoke_planned, invoke_route, tokens_of
 
 
 class AgentState(TypedDict):
@@ -51,7 +56,8 @@ class AgentState(TypedDict):
     agent: str  # the active agent: a specialist's key or ``core``
     handoffs: int  # hand-overs made for this request
     company: str | None  # the user's current company: whose approved notes the prompt carries
-    capability: str  # the kind of task this request's plan calls serve; the model is picked from it, never stored
+    capability: str  # the kind of task this message's plan calls serve, set by ``route``; the model is picked from it, never stored
+    on_default_model: bool  # a routed model failed transiently for this message: its remaining plan calls run on the default model
     knowledge: dict[str, list[dict[str, Any]]]  # the references found for the pending knowledge search: {call_id: refs}, never text
 
 
@@ -195,7 +201,8 @@ def request_state(request: RunRequest) -> dict[str, Any]:
         "limit": None,
         "agents": [agent.model_dump() for agent in request.agents],
         "handoffs": 0,
-        "capability": "standard",
+        "capability": DEFAULT_CAPABILITY,
+        "on_default_model": False,
         "company": request.company,
         "knowledge": {},
     }
@@ -206,11 +213,14 @@ def initial_state(request: RunRequest) -> dict[str, Any]:
 
 
 def continued_state(request: RunRequest, previous: dict[str, Any]) -> dict[str, Any]:
-    """A new message in an existing run keeps the agent it was talking to, while that agent is still offered."""
+    """A new message in an existing run keeps the agent it was talking to, while that agent is still offered.
+
+    The capability of the previous message is kept for ``route`` to read as a hint; ``route`` replaces it before any plan call.
+    """
     agent = previous.get("agent", CORE_AGENT)
     if agent != CORE_AGENT and agent not in {spec.key for spec in request.agents}:
         agent = start_agent(request)
-    return {**request_state(request), "agent": agent}
+    return {**request_state(request), "agent": agent, "capability": previous.get("capability", DEFAULT_CAPABILITY)}
 
 
 DEADLINE_KEY = "__deadline_at"  # a dunder key stays out of the checkpoint metadata
@@ -339,8 +349,55 @@ async def knowledge_candidates(query: str, run_knowledge: RunKnowledge | None) -
         return None
 
 
+async def invoke_with_fallback(
+    run_models: RunModels, capability: str, on_default_model: bool, tool_defs: list[dict[str, Any]], messages: list, emit: Emit,
+    deadline_at: float | None,
+) -> tuple[AIMessage, bool]:
+    """The plan call, and whether the default model served it because the routed one failed.
+
+    While ``on_default_model`` the default model serves directly, reporting ``capability``. Otherwise a routed model (not the
+    default) that fails with a transient provider error after its retries gets one more attempt on the default model, reported
+    as its own call and bounded by the time left before ``deadline_at`` (none left: the original error propagates). Any other
+    failure propagates.
+    """
+    default = run_models.default_as(capability)
+    if on_default_model:
+        return await invoke_planned(default.model.bind_tools(tool_defs), messages, default.identity, emit, deadline_at), True
+    routed = run_models.for_capability(capability)
+    try:
+        return await invoke_planned(routed.model.bind_tools(tool_defs), messages, routed.identity, emit, deadline_at), False
+    except Exception as error:
+        remaining = None if deadline_at is None else deadline_at - asyncio.get_running_loop().time()
+        if routed.model is default.model or not is_transient_provider_error(error) or (remaining is not None and remaining <= 0):
+            raise
+        log.warning("%s model failed (%s); trying the default model once", capability, type(error).__name__)
+        async with asyncio.timeout(remaining):
+            response = await invoke_planned(default.model.bind_tools(tool_defs), messages, default.identity, emit, deadline_at, attempts=1)
+        return response, True
+
+
 def build_graph(checkpointer):
     """One compiled graph per tenant state; each request brings its own models through ``RUN_MODELS_KEY``."""
+
+    async def route(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
+        """Decide the capability of the new user message once, and clear any fallback to the default model from the previous one.
+
+        It can never fail the run: any problem selects ``standard``. No model is called when the request's models cannot differ
+        by capability. The call is outside ``max_steps`` and the per-run token caps on purpose, bounded by its timeout and one attempt.
+        """
+        run_models: RunModels = config["configurable"][RUN_MODELS_KEY]
+        if not run_models.can_route:
+            return {"capability": DEFAULT_CAPABILITY, "on_default_model": False}
+        message = next(m for m in reversed(state["messages"]) if isinstance(m, HumanMessage))
+        quick = run_models.for_capability("quick")
+        request = route_messages(text_of(message.content), state.get("agent", CORE_AGENT), state.get("capability", DEFAULT_CAPABILITY))
+        try:
+            reply = await invoke_route(quick.model, request, quick.identity, get_stream_writer(), ROUTE_TIMEOUT_SECONDS,
+                                       config["configurable"].get(DEADLINE_KEY))
+        except Exception as error:  # noqa: BLE001 - classification is best effort; the cause is logged by class only, never its text
+            log.warning("classification failed: %s", type(error).__name__)
+            return {"capability": DEFAULT_CAPABILITY, "on_default_model": False}
+        return {"capability": parse_capability(text_of(reply.content)), "on_default_model": False}
 
     async def plan(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
         if state["steps"] >= state["limits"]["max_steps"]:
@@ -353,7 +410,6 @@ def build_graph(checkpointer):
         input_cap = state.get("max_input_tokens")
         if input_cap is not None and state.get("input_tokens", 0) >= input_cap:
             return {"outcome": "limit_reached", "limit": "input_tokens"}
-        run_model = config["configurable"][RUN_MODELS_KEY].for_capability(state.get("capability", "standard"))
         current = state.get("agent", CORE_AGENT)
         visible = visible_tools(state["tools"], current)
         specs = [ToolSpec.model_validate(tool) for tool in visible]
@@ -365,10 +421,13 @@ def build_graph(checkpointer):
         prompt = SystemMessage(system_prompt(
             state["locale"], specs, context, agents.get(current), [agents[key] for key in targets if key in agents], notes,
         ))
-        history = [message for message in state["messages"] if not isinstance(message, SystemMessage)]
-        deadline_at = config["configurable"].get(DEADLINE_KEY)
-        tools = run_model.model.bind_tools([*_openai_tools(visible), *([handoff_tool(targets)] if targets else []), *memory_tools(state, config)])
-        response = await invoke_planned(tools, [prompt, *history], run_model.identity, get_stream_writer(), deadline_at)
+        # The model sees a provider-neutral copy of the history; the guards above read the stored messages.
+        history = portable_history([message for message in state["messages"] if not isinstance(message, SystemMessage)])
+        tool_defs = [*_openai_tools(visible), *([handoff_tool(targets)] if targets else []), *memory_tools(state, config)]
+        response, on_default = await invoke_with_fallback(
+            config["configurable"][RUN_MODELS_KEY], state.get("capability", DEFAULT_CAPABILITY), state.get("on_default_model", False),
+            tool_defs, [prompt, *history], get_stream_writer(), config["configurable"].get(DEADLINE_KEY),
+        )
         used, spent = tokens_of([response])
         if spent is None and cap is not None:
             # The cap is checked between plan calls (a call that crosses it completes); a provider reporting no usage
@@ -380,6 +439,8 @@ def build_graph(checkpointer):
             "messages": [response], "steps": state["steps"] + 1, "output_tokens": state.get("output_tokens", 0) + (spent or 0),
             "input_tokens": state.get("input_tokens", 0) + (used or 0),
         }
+        if on_default and not state.get("on_default_model", False):
+            update["on_default_model"] = True  # the fallback served this call: the rest of the message stays on the default
         if input_cap is not None and update["input_tokens"] >= input_cap:
             # The call that reached the ceiling completes (its text has already streamed to the browser) and the run stops
             # there, exactly as the output cap does: no further prompt is spent, and a tool request it carried is not made.
@@ -511,11 +572,13 @@ def build_graph(checkpointer):
         return {"outcome": "answer"}
 
     builder = StateGraph(AgentState)
+    builder.add_node("route", route)
     builder.add_node("plan", plan)
     builder.add_node("retrieve", retrieve)
     builder.add_node("request_tool", request_tool)
     builder.add_node("answer", answer)
-    builder.add_edge(START, "plan")
+    builder.add_edge(START, "route")
+    builder.add_edge("route", "plan")
     builder.add_conditional_edges("plan", route_after_plan, {"retrieve": "retrieve", "answer": "answer", END: END})
     builder.add_conditional_edges("retrieve", route_after_retrieve, {"request_tool": "request_tool", "plan": "plan"})
     builder.add_conditional_edges("request_tool", route_after_tool, {"plan": "plan", END: END})
