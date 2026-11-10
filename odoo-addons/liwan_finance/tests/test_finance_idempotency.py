@@ -1,4 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import re
+from pathlib import Path
+
 from odoo.tests import tagged
 
 from .write_common import INVOICES, PASSWORD, PAYMENTS, LiwanFinanceWriteCase
@@ -102,3 +105,18 @@ class TestFinanceIdempotency(LiwanFinanceWriteCase):
         before = self.count('account.payment')
         self.assertEqual(self.send(f'{PAYMENTS}/standalone', self.receipt(), 'expiring-key-1').status_code, 201)
         self.assertEqual(self.count('account.payment') - before, 1)
+
+    def test_every_idempotent_route_capability_group_can_use_the_key_store(self):
+        """A route that replays by ``Idempotency-Key`` reads and writes the store as the caller, so its capability's group needs the ACL."""
+        controllers = Path(__file__).resolve().parents[1] / 'controllers'
+        capabilities = set()
+        for source in controllers.glob('*.py'):
+            capabilities.update(re.findall(r"@requires_capability\('([\w.]+)'\)\s+@idempotent", source.read_text()))
+        self.assertIn('finance.zatca.submit', capabilities)
+        store = self.env['ir.model']._get('liwan.finance.idempotency')
+        for key in sorted(capabilities):
+            with self.subTest(capability=key):
+                permission = self.env['liwan.access.permission'].search([('key', '=', key)])
+                group = self.env.ref(permission.group_xmlid)
+                grants = self.env['ir.model.access'].search([('model_id', '=', store.id), ('group_id', '=', group.id)])
+                self.assertTrue(any(grant.perm_read and grant.perm_create and grant.perm_unlink for grant in grants))

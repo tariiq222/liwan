@@ -1,3 +1,4 @@
+import { useNow } from '@vueuse/core'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { statusTag, type PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import { ApiError } from '@/composables/useApi'
@@ -16,6 +17,7 @@ import { financeErrorMessage } from '../financeErrors'
 import { financeErrorKey, zatcaSubmissionFromDetails } from './invoiceErrors'
 import { INVOICE_KINDS, invoiceKindOf, invoiceRecordPath, invoiceTitle, reversedMoveType, type FinanceMoveType } from './invoiceKinds'
 import { INVOICE_STATE_TONE, PAYMENT_STATE_TONE, ZATCA_STATE_TONE } from './invoiceTones'
+import { zatcaRetryWaitSeconds } from './zatcaRetryWait'
 
 export type Confirmation = 'delete' | 'cancel' | 'reset' | 'debit' | 'credit' | null
 
@@ -112,11 +114,15 @@ export function useInvoiceRecord(moveType: FinanceMoveType) {
     })
     if (done && created) await navigateTo({ path: invoiceRecordPath(created.move_type, created.id), query: { returnTo: backTo.value } })
   }
-  const sendToZatca = (retry: boolean) => attempt(() => zatcaSubmit.mutateAsync({ id: id.value, retry }))
+  const sendToZatca = (retry: boolean) => attempt(() => zatcaSubmit.mutateAsync({ id: id.value, retry, retryCount: invoice.value?.zatca?.submission.retry_count ?? 0 }))
+  // The server spaces the manual retries; the send and retry buttons stay disabled until its next_retry_at, and the server still refuses an early press.
+  const clock = useNow({ interval: 1000 })
+  const retryWait = computed(() => invoice.value?.zatca ? zatcaRetryWaitSeconds(invoice.value.zatca.submission, clock.value.getTime()) : 0)
 
   const menu = computed(() => {
-    const set = actions.value
-    if (!set) return []
+    const served = actions.value
+    if (!served) return []
+    const set = retryWait.value > 0 ? { ...served, can: (action: Parameters<typeof served.can>[0]) => action !== 'zatca_retry' && action !== 'zatca_submit' && served.can(action) } : served
     return offeredMenuItems(set, [
       ['debit_note', { label: t('financeDocuments.actions.debitNote'), icon: 'i-lucide-file-plus-2', onSelect: () => { confirming.value = 'debit' } }],
       ['credit_note', { label: t('financeDocuments.actions.creditNote'), icon: 'i-lucide-file-minus-2', onSelect: () => { confirming.value = 'credit' } }],

@@ -27,7 +27,7 @@ describe('leave settings permission isolation',()=>{
     let enabled:any
     const bindings={_defineComponent:Vue.defineComponent,ref:Vue.ref,computed:Vue.computed,
       LeaveSettingsForm:{},LeaveApprovalCard:{},ShiftSettingsForm:{},WarningSettingsForm:{},WarningTypesCard:{},InsuranceSettingsForm:{},InsuranceProvidersCard:{},EosCaseMapTable:{},PayrollCostCenterTable:{},PayrollFinanceSettingsForm:{},BankProfileForm:{},BranchStrictCard:{},GosiRateTable:{},PayrollGeneralSettingsForm:{},
-      useI18n:()=>({t:String}),useAccess:()=>({can}),useSettingsPage:()=>({parts:Vue.ref([{id:'leave'}]),shows:(id:string)=>id==='leave'}),
+      useI18n:()=>({t:String}),useHydrated:()=>Vue.ref(true),useAccess:()=>({can}),useSettingsPage:()=>({parts:Vue.ref([{id:'leave'}]),shows:(id:string)=>id==='leave'}),
       useHrLeaveSettings:(value:any)=>{enabled=value;return idle()},useHrShiftSettings:idle,useHrWarningSettings:idle,useHrWarningTypes:idle,useHrInsuranceSettings:idle,useHrInsuranceProviders:idle,useHrLeaveApprovalProcess:idle,
       useHrPayrollSettings,useHrPayrollStructures,useHrGosiRates,useHrBankProfiles,useHrEosCases,useHrPayrollFinanceSettings,useHrLeaveTypes,
       useHrPayrollFinanceLookups:()=>({accounts:idle(),journals:idle(),analyticAccounts:idle()}),useHrPayrollCostCenters:idle,

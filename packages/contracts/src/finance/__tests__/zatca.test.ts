@@ -13,6 +13,9 @@ const SUBMISSION = {
   errors: [{ code: 'BR-KSA-F-06-C01', message: 'The invoice type code is not valid' }],
   warnings: [],
   qr_present: false,
+  retry_count: 0,
+  last_attempt_at: null,
+  next_retry_at: null,
 }
 
 const BACKLOG = { to_send: 3, retry: 1, rejected: 2, blocked: 0 }
@@ -43,7 +46,7 @@ describe('finance ZATCA contracts', () => {
       const local = { ...SUBMISSION, state, errors: [{ code: null, message: 'local' }] }
       expect(FinanceZatcaSubmissionSchema.parse(local)).toEqual(local)
     }
-    const none = { state: 'not_applicable', mode: null, errors: [], warnings: [], qr_present: false }
+    const none = { state: 'not_applicable', mode: null, errors: [], warnings: [], qr_present: false, retry_count: 0, last_attempt_at: null, next_retry_at: null }
     expect(FinanceZatcaSubmissionSchema.parse(none)).toEqual(none)
   })
 
@@ -52,6 +55,16 @@ describe('finance ZATCA contracts', () => {
     expect(() => FinanceZatcaSubmissionSchema.parse({ ...SUBMISSION, mode: 'prod' })).toThrow()
     expect(() => FinanceZatcaSubmissionSchema.parse({ ...SUBMISSION, csid: 'x' })).toThrow()
     expect(() => FinanceZatcaSubmissionSchema.parse({ ...SUBMISSION, errors: [{ code: null, message: 'x', raw: 1 }] })).toThrow()
+  })
+
+  it('carries the retry count and the times of the spaced manual retry', () => {
+    const spaced = { ...SUBMISSION, state: 'retry', retry_count: 2, last_attempt_at: '2026-09-11T08:00:00Z', next_retry_at: '2026-09-11T08:05:00Z' }
+    expect(FinanceZatcaSubmissionSchema.parse(spaced)).toEqual(spaced)
+    expect(() => FinanceZatcaSubmissionSchema.parse({ ...spaced, retry_count: -1 })).toThrow()
+    expect(() => FinanceZatcaSubmissionSchema.parse({ ...spaced, next_retry_at: 'soon' })).toThrow()
+    const { retry_count: _count, ...without } = spaced
+    expect(() => FinanceZatcaSubmissionSchema.parse(without)).toThrow()
+    expect(FinanceZatcaErrorCodeSchema.options).toContain('retry_too_soon')
   })
 
   it('validates the onboarding body: a six-digit OTP and nothing else', () => {
