@@ -7,6 +7,7 @@ import { transaction } from '../db.js'
 import { CommercialHttpError, digestOf, iso } from './lifecycle.js'
 import { requireCapability } from './authorization.js'
 import { appliedPeriod, loadQuoteSources, pricingBaseline } from './quotes.js'
+import { carryHeldCeilings } from './free-base.js'
 import { issueInvoiceFromQuote } from './invoices.js'
 import { enqueueOutbox } from './outbox.js'
 import { lookup } from './payments.js'
@@ -201,10 +202,10 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
   const sources = await loadQuoteSources(client, customer.id, quote, kind === 'new')
   // Null terms in a persisted quote means no terms, not the newest later revision.
   if (!quote.terms_revision_id) sources.terms = null
-  const entitlement = compileEntitlements({ ...sources, quantities: { users: quote.requested_users, storage_mb: quote.requested_storage_mb } })
+  const previous = subscription.applied_revision_id ? (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [subscription.applied_revision_id])).rows[0]?.snapshot : null
+  const entitlement = carryHeldCeilings(compileEntitlements({ ...sources, quantities: { users: quote.requested_users, storage_mb: quote.requested_storage_mb } }), previous)
   if (entitlement.digest !== quote.entitlement_digest) throw new CommercialHttpError('revision_conflict', 409)
   const revisionId = randomUUID()
-  const previous = subscription.applied_revision_id ? (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [subscription.applied_revision_id])).rows[0]?.snapshot : null
   if (previous) await assertDowngradeFitsUsage(client, {
     tenant_id: customer.tenant_id, subscription_id: subscription.id,
     previous: previous.entitlement?.features ?? {}, target: entitlement.features,

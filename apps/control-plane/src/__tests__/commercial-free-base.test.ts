@@ -812,5 +812,37 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
         expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [f.customer])).rows[0].n, mode).toBe(1)
       }
     })
+    it('D: a storage ceiling pinned at off-step usage stays a ceiling: branch add, archive and restore quote and accept', async () => {
+      const f = await endedTrial({ requested_storage_mb: 30720 })
+      await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+      await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
+      const first = await lapseOrder(f.subscription)
+      await applyReceipt(pool, { order_id: first.id, receipt: (await pushed(f.tenant, first.id)).receipt })
+      await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
+      await freshUsage(f, new Date(now.getTime() + 3_600_000), { 'storage.limit_mb': 25000 })
+      await processTrialLapses(pool, { now: new Date(now.getTime() + 3_600_000), adapter, subscription_id: f.subscription })
+      const second = await lapseOrder(f.subscription)
+      await applyReceipt(pool, { order_id: second.id, receipt: (await pushed(f.tenant, second.id)).receipt })
+      const held = (await pool.query('SELECT snapshot FROM subscription_revisions WHERE id=(SELECT applied_revision_id FROM subscriptions WHERE id=$1)', [f.subscription])).rows[0].snapshot
+      expect(held.entitlement.features['storage.limit_mb']).toBe(25000)
+      const active = randomUUID(), archived = randomUUID()
+      await pool.query("INSERT INTO commercial_branches(id,subscription_id,tenant_id,name,kind,billing,state) VALUES($1,$2,$3,'active one','extra','paid','active')", [active, f.subscription, f.tenant])
+      await pool.query("INSERT INTO commercial_branches(id,subscription_id,tenant_id,name,kind,billing,state,odoo_company_id) VALUES($1,$2,$3,'archived one','extra','paid','archived',77)", [archived, f.subscription, f.tenant])
+      vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(now)
+      try {
+        for (const body of [{ add: [{ name: 'new one' }] }, { archive: [active] }, { restore: [archived] }]) {
+          const quote = await createBranchQuote(pool, f.customer, JSON.stringify(body))
+          expect(quote.requested_storage_mb, JSON.stringify(body)).toBe(20480)
+          expect(quote.lines.filter(l => l.kind === 'storage' && l.amount.minor > 0), JSON.stringify(body)).toEqual([])
+          const sub = await getSubscription(pool, f.customer)
+          const { order } = await acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: sub.revision, idempotency_key: randomUUID() }, vendor)
+          const target = (await pool.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [order.target_revision_id])).rows[0].snapshot
+          expect(target.entitlement.features['storage.limit_mb'], JSON.stringify(body)).toBe(25000)
+          await pool.query("UPDATE orders SET cancelled=true WHERE id=$1", [order.id])
+          await pool.query('UPDATE subscriptions SET target_revision_id=NULL,revision=revision+1 WHERE id=$1', [f.subscription])
+          await pool.query("UPDATE commercial_branches SET state=CASE WHEN id=$2 THEN 'archived' ELSE state END WHERE subscription_id=$1 AND id=$2", [f.subscription, archived])
+        }
+      } finally { vi.useRealTimers() }
+    })
   })
 })

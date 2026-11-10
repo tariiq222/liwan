@@ -79,6 +79,34 @@ export function freeBaseAtCeilings(free: FreeBase, ceilings: ReadonlyMap<string,
   return sealEntitlement({ catalog_release_id: free.entitlement.catalog_release_id, modules: free.entitlement.modules, features })
 }
 
+const HELD_LIMITS = [['users.limit', 'included_users'], ['storage.limit_mb', 'included_storage_mb']] as const
+
+/**
+ * What a change request really buys. A free-base snapshot may hold a limit above the plan's included quantity only as a
+ * temporary ceiling pinned at usage, never as something purchased. A request that merely repeats that ceiling (the customer's
+ * branch changes echo the entitlement they hold) asks for no purchase: it is priced and compiled at the included quantity,
+ * and the ceiling is carried unchanged by `carryHeldCeilings`.
+ */
+export function purchasedQuantities(previous: Record<string, any> | null, plan: { included_users: number; included_storage_mb: number }, requested: { users: number; storage_mb: number }) {
+  if (!previous?.free_base) return requested
+  const features = previous.entitlement.features
+  const quantity = (key: string, included: number, wanted: number) => typeof features[key] === 'number' && features[key] > included && wanted === features[key] ? included : wanted
+  return { users: quantity('users.limit', plan.included_users, requested.users), storage_mb: quantity('storage.limit_mb', plan.included_storage_mb, requested.storage_mb) }
+}
+
+/** A ceiling the free base holds above what the new quantities give stays until the lapse worker lowers it (usage fits). */
+export function carryHeldCeilings(entitlement: FreeBase['entitlement'], previous: Record<string, any> | null): FreeBase['entitlement'] {
+  if (!previous?.free_base) return entitlement
+  const held = previous.entitlement.features as Record<string, boolean | number | null>
+  const features = { ...entitlement.features } as Record<string, boolean | number | null>
+  let carried = false
+  for (const [key] of HELD_LIMITS) {
+    const value = features[key], ceiling = held[key]
+    if (typeof value === 'number' && typeof ceiling === 'number' && ceiling > value) { features[key] = ceiling; carried = true }
+  }
+  return carried ? sealEntitlement({ catalog_release_id: entitlement.catalog_release_id, modules: entitlement.modules, features }) : entitlement
+}
+
 /** The pricing baseline of the free base: what a change is priced from while the subscription is (or is about to be) on it. */
 export async function freeBasePricing(client: Pick<PoolClient, 'query'>, snapshot: Record<string, any>, free: FreeBase) {
   const plan = (await client.query('SELECT included_users,included_storage_mb FROM plan_revisions WHERE id=$1', [snapshot.plan_revision_id])).rows[0]
