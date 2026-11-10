@@ -52,6 +52,17 @@ class TestHealthWebhook(LiwanInboxCase):
     def alerts(self, channel=None):
         return self.env['liwan.inbox.channel.alert'].search([('channel_id', '=', (channel or self.channel).id)])
 
+    def test_a_read_only_branch_still_stores_a_signed_delivery(self):
+        """The raw event carries its owner company, not a `company_id`, so the branch fence never meets the hook identity."""
+        self.env['liwan.tenant.branch'].create({
+            'branch_uid': 'inbox-ro', 'company_id': self.channel.owner_company_id.id, 'operation_id': 'op-inbox',
+            'read_only': True,
+        })
+        self.assertTrue(self.channel.owner_company_id.liwan_read_only)
+        stored = self.env['liwan.inbox.event'].search_count([('channel_id', '=', self.channel.id)])
+        self.assertEqual(self.post(account_event('account_update', FIELDS['account_update'])).status_code, 200)
+        self.assertEqual(self.env['liwan.inbox.event'].search_count([('channel_id', '=', self.channel.id)]), stored + 1)
+
     def test_every_health_field_is_routed_by_the_account_id_and_signed_by_the_channel_secret(self):
         for field, value in FIELDS.items():
             payload = account_event(field, value)
