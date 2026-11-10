@@ -7,10 +7,10 @@ import type { Pool } from 'pg'
 const SHARED_FIELDS = `j.id,j.control_tenant_id AS tenant_id,
   CASE WHEN j.payload->>'operation' IN ('provision','backup','restore') THEN j.payload->>'operation' ELSE 'unknown' END AS type,
   j.state AS status,
-  CASE WHEN j.state IN ('verified','needs_intervention','queued') THEN j.state ELSE COALESCE(e.stage,j.state) END AS stage,
+  CASE WHEN j.state IN ('verified','needs_intervention','queued','failed') THEN j.state ELSE COALESCE(e.stage,j.state) END AS stage,
   (j.payload->>'requestId')::uuid AS request_id,
   CASE j.state WHEN 'needs_intervention' THEN 'shared_execution_needs_attention'
-    WHEN 'verified' THEN 'shared_execution_verified' ELSE 'shared_execution_pending' END AS reason,
+    WHEN 'verified' THEN 'shared_execution_verified' WHEN 'failed' THEN 'shared_execution_abandoned' ELSE 'shared_execution_pending' END AS reason,
   NULL::jsonb AS result,j.created_at,NULL::timestamptz AS updated_at,'shared'::text AS source,e.created_at AS last_event_at`
 const SHARED_FROM = `shared_jobs j LEFT JOIN LATERAL (
   SELECT stage,created_at FROM shared_job_events WHERE job_id=j.id ORDER BY sequence DESC LIMIT 1
@@ -60,6 +60,7 @@ export async function sharedOperationDetail(pool: Pool, id: string) {
     CASE stage WHEN 'prepared' THEN 'running' WHEN 'started' THEN 'running' ELSE stage END AS status,
     created_at AS at FROM shared_job_events WHERE job_id=$1 ORDER BY sequence`, [id])
   const row=result.rows[0]
+  const abandoned = await pool.query('SELECT state,error,requested_at FROM shared_job_abandonments WHERE job_id=$1', [id])
   let publication
   if(row.type==='restore' && row.status==='verified'){
     const detail=await pool.query(`SELECT j.payload->>'approvalId' AS "approvalId",COALESCE(p.status,'not_requested') AS status,p.code,p.host
@@ -68,5 +69,5 @@ export async function sharedOperationDetail(pool: Pool, id: string) {
     const parsed=restorePublicationSchema.safeParse(detail.rows[0])
     if(parsed.success)publication=parsed.data
   }
-  return { ...(await withTenantLabels(pool, [row]))[0], events: events.rows, ...(publication?{restore_publication:publication}:{}) }
+  return { ...(await withTenantLabels(pool, [row]))[0], events: events.rows, abandonment: abandoned.rows[0] ? { ...abandoned.rows[0], requested_at: abandoned.rows[0].requested_at.toISOString() } : null, ...(publication?{restore_publication:publication}:{}) }
 }

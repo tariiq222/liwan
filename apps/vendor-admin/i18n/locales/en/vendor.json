@@ -292,7 +292,21 @@
       "reasons": {
         "shared_execution_pending": "The operation is queued or running.",
         "shared_execution_verified": "The operation execution was verified.",
-        "shared_execution_needs_attention": "An operator must review this operation before continuing changes."
+        "shared_execution_needs_attention": "An operator must review this operation before continuing changes.",
+        "shared_execution_abandoned": "The operation was abandoned by an operator and closed as failed."
+      },
+      "abandon": {
+        "title": "Abandon this operation",
+        "hint": "Use this only when the operation did not take effect in the workspace. The system checks again before closing it: if the effect exists it is refused, and nothing is retried. Closing it lifts the block on the workspace.",
+        "action": "Abandon operation",
+        "confirm": "Close this operation as failed. This cannot be undone and the workspace block is lifted.",
+        "reason": "Reason for abandoning",
+        "states": {
+          "pending": "Abandon request is being checked against the workspace.",
+          "abandoned": "The operation was closed as failed and the workspace is unblocked.",
+          "effect_present": "Refused: the effect exists in the workspace. Recover the operation instead.",
+          "failed": "The check could not confirm the effect is absent, so the operation was not closed."
+        }
       },
       "operationId": "Operation ID",
       "workspaceId": "Workspace ID",

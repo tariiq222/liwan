@@ -11,6 +11,7 @@ import { OPERATION_STATUS_FILTERS, operationFilterLabelKey, operationStatusFilte
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import * as clients from '../../utils/vendorClients'
 import { isNotAvailable } from '../../utils/vendorSubscriptions'
+import { canAbandonJob } from '../../utils/sharedJobAbandon'
 import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
 
 async function page(name: string, data: unknown, source?: string, query: Record<string, string> = {}) {
@@ -26,7 +27,7 @@ async function page(name: string, data: unknown, source?: string, query: Record<
   const messages = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../../i18n/locales/en/vendor.json'), 'utf8'))
   const t = (key: string) => key.split('.').reduce((obj: unknown, key) => (obj as Record<string, unknown> | undefined)?.[key], messages) ?? key
   const bindings = {
-    formatLiwanDateTime, ...clients, isNotAvailable,
+    formatLiwanDateTime, ...clients, isNotAvailable, canAbandonJob,
     useVendorSubscriptions: () => ({ listClients: (query: Record<string, unknown>) => request('commercial/clients', { query }) }),
     invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge,
     _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
@@ -76,6 +77,28 @@ it.each(['verified','needs_intervention'])('loads shared %s detail explicitly, t
   expect(detail.html).not.toContain('shared_execution_verified'); expect(detail.html).not.toContain('Retry operation')
   expect(detail.captured.find(c => c.name === 'SharedRecordPage')?.props.title).toContain('Set up customer workspace')
   expect(detail.captured.find(node => node.name === 'UAlert' && String(node.props.description).includes('readiness'))).toBeDefined()
+})
+it('offers abandon for a stuck backup, sends the confirmation with the job id, and refreshes', async () => {
+  const stuck = { ...operation, type: 'backup', status: 'needs_intervention', stage: 'needs_intervention', reason: 'shared_execution_needs_attention', abandonment: null }
+  const detail = await page('operations/[id].vue', stuck, 'shared')
+  expect(detail.state.abandonAllowed.value).toBe(true)
+  expect(detail.captured.find(node => node.props['data-testid'] === 'operation-abandon')?.props.title).toBe('Abandon this operation')
+  expect(detail.html).toContain('Abandon operation')
+  detail.state.abandonReason.value = '  The backup never started on the host  '
+  await detail.state.abandonJob()
+  expect(detail.request).toHaveBeenCalledWith('shared/tenants/tenant-id/jobs/job-id/abandon', { method: 'POST', body: { reason: 'The backup never started on the host', confirm_job_id: 'job-id' } })
+})
+it('does not send an abandon request without a reason, and offers none for provision or a pending request', async () => {
+  const stuck = { ...operation, type: 'backup', status: 'needs_intervention', stage: 'needs_intervention', abandonment: null }
+  const empty = await page('operations/[id].vue', stuck, 'shared')
+  empty.request.mockClear()
+  await empty.state.abandonJob()
+  expect(empty.request).not.toHaveBeenCalled()
+  expect((await page('operations/[id].vue', { ...stuck, type: 'provision' }, 'shared')).state.abandonAllowed.value).toBe(false)
+  const pending = await page('operations/[id].vue', { ...stuck, abandonment: { state: 'pending', error: null, requested_at: '2026-11-10T00:00:00Z' } }, 'shared')
+  expect(pending.state.abandonAllowed.value).toBe(false)
+  expect(pending.state.isActive.value).toBe(true)
+  expect(pending.html).toContain('being checked')
 })
 it('preserves legacy failed read-operation retry and active polling', async () => {
   const legacy = await page('operations/[id].vue', { ...operation, source: undefined, type: 'health', status: 'failed' })
