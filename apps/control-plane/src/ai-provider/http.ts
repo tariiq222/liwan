@@ -201,12 +201,22 @@ async function validated(request: z.infer<typeof aiProviderSaveSchema>, stored: 
   // endpoint changed (which resets its test result), must reach a priced model whose last test saw token counts (spec 2026-11-10 §4).
   // A route unchanged from the stored configuration is accepted as it is: a configuration carried forward from the single-provider
   // table keeps its unpriced default (its calls are not charged) until the vendor switches the default to a model that passes.
+  // The one exception is a routed model that is unpriced in the stored configuration and stays as stored. A routed model that had a complete
+  // price pair keeps one (it may go up, down or to zero, but never away: its calls would become free without a word), and a partial pair is
+  // never accepted. The cached-input price is optional on its own, so removing it is allowed.
   const storedRoutes = new Set(routeRows(stored?.routes ?? {}).map(row => row.join('|')))
+  const pair = (model: { inputPrice: string | null; outputPrice: string | null } | undefined) => (model ? Number(model.inputPrice !== null) + Number(model.outputPrice !== null) : 0)
   for (const row of routeRows(request.routes)) {
     const model = modelsById.get(row[2])!
-    if (storedRoutes.has(row.join('|')) && model.keepUsageReported) continue
-    if (model.inputPrice === null || model.outputPrice === null) throw fail(422, 'model_not_priced')
-    if (!model.keepUsageReported || !storedModels.get(row[2])?.usageReported) throw fail(422, 'model_not_tested')
+    const storedModel = storedModels.get(row[2])
+    if (pair(model) === 1) throw fail(422, 'model_price_required')
+    if (storedRoutes.has(row.join('|')) && model.keepUsageReported) {
+      if (pair(storedModel) === 2 && pair(model) !== 2) throw fail(422, 'model_price_required')
+      if (pair(storedModel) !== 2 && pair(model) === 2 && !storedModel?.usageReported) throw fail(422, 'model_not_tested')
+      continue
+    }
+    if (pair(model) !== 2) throw fail(422, 'model_not_priced')
+    if (!model.keepUsageReported || !storedModel?.usageReported) throw fail(422, 'model_not_tested')
   }
   return { providers, keys, models, keyChanges }
 }

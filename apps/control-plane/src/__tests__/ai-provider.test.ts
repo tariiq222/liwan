@@ -384,7 +384,8 @@ suite('live PostgreSQL platform provider routes', () => {
     await call('PATCH', '', config1())
     expect((await call('PATCH', '', config1({ default: 'mid' }, { providers: { oai: { preset: 'openai' } } }))).body.code).toBe('model_not_tested')
     const unpriced = { models: { mid: { provider: 'oai', model: 'gpt-4o', input_price: '2.5' } } }
-    expect((await call('PATCH', '', config1({ default: 'mid' }, { ...unpriced, providers: { oai: { preset: 'openai' } } }))).body.code).toBe('model_not_priced')
+    expect((await call('PATCH', '', config1({ default: 'mid' }, { ...unpriced, providers: { oai: { preset: 'openai' } } }))).body.code).toBe('model_price_required')
+    expect((await call('PATCH', '', config1({ default: 'mid' }, { providers: { oai: { preset: 'openai' } }, models: { mid: { provider: 'oai', model: 'gpt-4o' } } }))).body.code).toBe('model_not_priced')
     expect((await call('PATCH', '', config1({ default: 'ghost' }))).body.code).toBe('unknown_model')
     expect((await call('PATCH', '', config1({}, { models: { mid: { provider: 'nope', model: 'gpt-4o' } } }))).body.code).toBe('unknown_provider')
     expect((await call('GET', '')).body.setting.revision).toBe(1)  // nothing above changed anything
@@ -828,6 +829,24 @@ suite('live PostgreSQL platform provider routes', () => {
     expect((await call('PATCH', '', sameEndpoint)).status).toBe(200)
     const otherEndpoint = { ...sameEndpoint, providers: { c: { preset: 'custom', base_url: 'https://other.example.com/v1', api_key: KEY } } }
     expect((await call('PATCH', '', otherEndpoint)).body.code).toBe('model_not_priced')
+  })
+
+  it('never lets a save take the price away from a routed priced model, but lets prices change and the cached-input price go', async () => {
+    await routedSave({ default: 'mid' }, { models: { mid: { provider: 'oai', model: 'gpt-4o', input_price: '2.5', cached_input_price: '1', output_price: '10' } } })
+    const keep = (model: object) => call('PATCH', '', config1({ default: 'mid' }, { providers: { oai: { preset: 'openai' } }, models: { mid: { provider: 'oai', model: 'gpt-4o', ...model } } }))
+    expect((await keep({})).body.code).toBe('model_price_required')                                   // both gone
+    expect((await keep({ input_price: '2.5' })).body.code).toBe('model_price_required')               // only the output gone
+    expect((await keep({ output_price: '10' })).body.code).toBe('model_price_required')               // only the input gone
+    expect((await call('GET', '')).body.setting.models.mid).toMatchObject({ input_price: '2.5', output_price: '10' })
+    expect((await keep({ input_price: '2.5', output_price: '10' })).status).toBe(200)                // the cached-input price may go
+    const cheaper = await keep({ input_price: '0', output_price: '12.5' })                           // zero is a price
+    expect(cheaper.body.setting.models.mid).toMatchObject({ input_price: '0', output_price: '12.5', usage_reported: true })
+  })
+
+  it('refuses a partial price on any routed model, including the untouched migrated one', async () => {
+    await migratedState()
+    expect((await call('PATCH', '', second({}, { main: { provider: 'oai', model: 'gpt-4o', input_price: '1' } }))).body.code).toBe('model_price_required')
+    expect((await call('PATCH', '', second({}))).status).toBe(200)  // as stored: unpriced, accepted
   })
 
   it('carries the single provider of the old table forward as provider and model "main" on the default route, and leaves no old table', async () => {

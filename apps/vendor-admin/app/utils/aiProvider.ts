@@ -91,7 +91,7 @@ export function idProblem(ids: string[], id: string): 'invalid' | 'duplicate' | 
   return ids.filter(other => other === id).length > 1 ? 'duplicate' : null
 }
 
-export type Blocker = 'noProviders' | 'providerId' | 'providerKey' | 'providerEndpoint' | 'modelId' | 'modelName' | 'modelProvider' | 'price' | 'margin'
+export type Blocker = 'routedPrice' | 'noProviders' | 'providerId' | 'providerKey' | 'providerEndpoint' | 'modelId' | 'modelName' | 'modelProvider' | 'price' | 'margin'
 /** What stops a save before it is sent; the first one is shown next to the button. */
 export function saveBlockers(draft: ConfigDraft, setting: Setting | null, presets: AiProviderPreset[]): Blocker[] {
   const found = new Set<Blocker>()
@@ -111,6 +111,13 @@ export function saveBlockers(draft: ConfigDraft, setting: Setting | null, preset
     if (!model.model.trim()) found.add('modelName')
     if (!providerIds.includes(model.provider)) found.add('modelProvider')
     if (![model.input_price, model.cached_input_price, model.output_price].every(priceValid)) found.add('price')
+  }
+  // A routed model keeps a complete price pair once it had one, and never has half of one (the server's `model_price_required`).
+  const routed = new Set([draft.routes.default, ...Object.values(draft.routes.cells)].filter(Boolean))
+  for (const model of draft.models.filter(m => routed.has(m.id))) {
+    const filled = Number(priceFilled(model.input_price)) + Number(priceFilled(model.output_price))
+    const stored = setting?.models[model.id]
+    if (filled === 1 || (stored?.input_price != null && stored.output_price != null && filled !== 2)) found.add('routedPrice')
   }
   if (marginBps(draft.margin_percent) === null) found.add('margin')
   return [...found]
@@ -155,13 +162,13 @@ export const configDirty = (draft: ConfigDraft, setting: Setting | null) =>
 
 const CODES = new Set([
   'invalid', 'invalid_preset', 'invalid_base_url', 'invalid_base_url_port', 'invalid_stream_usage', 'api_key_required', 'api_key_not_allowed', 'secret_key_unavailable', 'provider_file_unavailable',
-  'unknown_provider', 'unknown_model', 'model_not_priced', 'model_not_tested', 'default_required',
+  'unknown_provider', 'unknown_model', 'model_not_priced', 'model_not_tested', 'model_price_required', 'default_required',
   'provider_unauthorized', 'provider_endpoint_refused', 'provider_unreachable', 'provider_timeout', 'provider_rate_limited', 'provider_error', 'provider_invalid_response', 'forbidden', 'step_up_required',
 ])
 export type Section = 'providers' | 'models' | 'routes' | 'general'
 const SECTION_OF: Record<string, Section> = {
   invalid_preset: 'providers', invalid_base_url: 'providers', invalid_base_url_port: 'providers', invalid_stream_usage: 'providers', api_key_required: 'providers', api_key_not_allowed: 'providers',
-  unknown_provider: 'models', model_not_priced: 'routes', model_not_tested: 'routes', unknown_model: 'routes', default_required: 'routes',
+  unknown_provider: 'models', model_price_required: 'models', model_not_priced: 'routes', model_not_tested: 'routes', unknown_model: 'routes', default_required: 'routes',
 }
 
 function codeOf(error: unknown): string | undefined {

@@ -139,7 +139,7 @@ describe('what stops a save', () => {
     bad.providers.push({ id: 'Bad Id', preset: 'custom', base_url: '', api_key: '', stream_usage: false })
     bad.models.push({ id: 'mid', provider: 'ghost', model: '', input_price: '0.000001', cached_input_price: '', output_price: '' })
     bad.margin_percent = 'x'
-    expect(saveBlockers(bad, setting(), presets).sort()).toEqual(['margin', 'modelId', 'modelName', 'modelProvider', 'price', 'providerEndpoint', 'providerId', 'providerKey'].sort())
+    expect(saveBlockers(bad, setting(), presets).sort()).toEqual(['margin', 'modelId', 'modelName', 'modelProvider', 'price', 'providerEndpoint', 'providerId', 'providerKey', 'routedPrice'].sort())
   })
   it('needs a key for a new provider but not for a saved one', () => {
     const draft = base()
@@ -147,6 +147,27 @@ describe('what stops a save', () => {
     expect(saveBlockers(draft, setting(), presets)).toEqual(['providerKey'])
     draft.providers[1]!.api_key = 'sk-12345678'
     expect(saveBlockers(draft, setting(), presets)).toEqual([])
+  })
+})
+
+describe('prices of a routed model', () => {
+  it('keeps a complete pair once it had one, never has half of one, and may change or be zero; the cached-input price is optional', () => {
+    const base = () => draftFromSetting(setting())  // mid is routed and priced 2.5 / 10; local is routed and priced 0.1 / 0.2
+    const mid = (d: ConfigDraft) => d.models.find(m => m.id === 'mid')!
+    expect(saveBlockers(base(), setting(), presets)).toEqual([])
+    const cleared = base(); mid(cleared).input_price = ''; mid(cleared).output_price = ''
+    expect(saveBlockers(cleared, setting(), presets)).toEqual(['routedPrice'])
+    const half = base(); mid(half).output_price = ''
+    expect(saveBlockers(half, setting(), presets)).toEqual(['routedPrice'])
+    const changed = base(); mid(changed).input_price = '0'; mid(changed).output_price = '99'; mid(changed).cached_input_price = ''
+    expect(saveBlockers(changed, setting(), presets)).toEqual([])
+    const unrouted = base(); unrouted.routes.default = 'local'; unrouted.routes.cells['balanced.quick'] = ''; mid(unrouted).input_price = ''; mid(unrouted).output_price = ''
+    expect(saveBlockers(unrouted, setting(), presets)).toEqual([])  // a model no route uses may lose its price
+  })
+  it('lets a stored unpriced routed model stay as it is', () => {
+    const s = setting(); s.models.mid!.input_price = null; s.models.mid!.output_price = null
+    expect(saveBlockers(draftFromSetting(s), s, presets)).toEqual([])
+    expect(aiProviderErrorSection({ data: { code: 'model_price_required' } })).toBe('models')
   })
 })
 

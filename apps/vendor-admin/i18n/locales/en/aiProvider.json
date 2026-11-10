@@ -124,7 +124,8 @@
         "modelName": "A model needs the name it has at its provider.",
         "modelProvider": "A model points to a provider that is not in the list.",
         "price": "A price is not valid.",
-        "margin": "The margin is not valid."
+        "margin": "The margin is not valid.",
+        "routedPrice": "A routed model must keep both its input and output price."
       }
     },
     "idProblem": {
@@ -170,7 +171,8 @@
       "invalid_stream_usage": "The token-count option cannot be changed for this provider.",
       "provider_endpoint_refused": "This address is not allowed: it is, or resolves to, a private or internal address.",
       "invalid_base_url_port": "A public endpoint must use port 443 (the default, no port in the address): the AI egress proxy opens no other port.",
-      "default_required": "A default model is required once one has been delivered. Choose one so the AI service keeps getting updates."
+      "default_required": "A default model is required once one has been delivered. Choose one so the AI service keeps getting updates.",
+      "model_price_required": "A routed model must keep both its input and output price, or its calls would stop being charged."
     }
   }
 }
