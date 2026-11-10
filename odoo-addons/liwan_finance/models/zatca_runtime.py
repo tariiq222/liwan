@@ -10,30 +10,41 @@ from .res_company import SANDBOX_API_MODE
 from odoo.addons.liwan_finance.serializers.zatca import ZATCA_FORMAT_CODE
 
 STOCK_JOURNAL_LOGGER = 'odoo.addons.l10n_sa_edi.models.account_journal'
-_SUPPRESS_CSID_PAYLOAD = ContextVar('liwan_finance.zatca.suppress_csid_payload', default=False)
+_REDACT_GATEWAY_PAYLOAD = ContextVar('liwan_finance.zatca.redact_gateway_payload', default=False)
+_COMPLIANCE_LOG_FORMATS = {
+    'ZATCA_ERROR: Compliance API returned an error for journal=%s (id=%s, company_id=%s, file=%s, error=%s)':
+        'ZATCA_ERROR: Compliance API returned an error for journal=%s (id=%s, company_id=%s, file=%s)',
+    ('ZATCA_ERROR: Compliance validation failed for journal=%s '
+     '(id=%s, company_id=%s, file=%s, status=%s, error_messages=%s)'):
+        'ZATCA_ERROR: Compliance validation failed for journal=%s (id=%s, company_id=%s, file=%s)',
+}
 
 
-class _CsidPayloadFilter(logging.Filter):
+class _GatewayPayloadFilter(logging.Filter):
     def filter(self, record):
-        # Stock account_journal.py:_l10n_sa_get_csid_error can log a rejected CSID response,
-        # including an OTP echoed by the gateway. Preserve its diagnostic without the raw arguments.
-        if (_SUPPRESS_CSID_PAYLOAD.get() and record.funcName == '_l10n_sa_get_csid_error'
-                and record.msg == 'Failed to obtain CSID: %s'):
+        if not _REDACT_GATEWAY_PAYLOAD.get():
+            return True
+        # Stock logs these gateway-supplied values during onboarding. Keep local diagnostics,
+        # never the echoed credentials or untrusted validation status and messages.
+        if record.funcName == '_l10n_sa_get_csid_error' and record.msg == 'Failed to obtain CSID: %s':
             record.msg = 'Failed to obtain ZATCA CSID (response details withheld)'
             record.args = ()
+        elif record.funcName == '_l10n_sa_run_compliance_checks' and record.msg in _COMPLIANCE_LOG_FORMATS:
+            record.msg = _COMPLIANCE_LOG_FORMATS[record.msg]
+            record.args = record.args[:4]
         return True
 
 
-logging.getLogger(STOCK_JOURNAL_LOGGER).addFilter(_CsidPayloadFilter())
+logging.getLogger(STOCK_JOURNAL_LOGGER).addFilter(_GatewayPayloadFilter())
 
 
 @contextmanager
-def _omit_csid_log_payload():
-    token = _SUPPRESS_CSID_PAYLOAD.set(True)
+def _omit_gateway_log_payloads():
+    token = _REDACT_GATEWAY_PAYLOAD.set(True)
     try:
         yield
     finally:
-        _SUPPRESS_CSID_PAYLOAD.reset(token)
+        _REDACT_GATEWAY_PAYLOAD.reset(token)
 
 
 class AccountEdiFormat(models.Model):
@@ -55,7 +66,7 @@ class AccountEdiFormat(models.Model):
                 return {invoice: {'error': self.env._('Another ZATCA operation is running for this company.'), 'blocking_level': 'warning'}}
             if company._liwan_zatca_runtime_mode() != SANDBOX_API_MODE:
                 return {invoice: {'error': self.env._('This ZATCA environment has not been released.'), 'blocking_level': 'error'}}
-            with _omit_csid_log_payload():
+            with _omit_gateway_log_payloads():
                 return post(invoice)
 
         return {**callbacks, 'post': guarded_post}
@@ -73,5 +84,5 @@ class ZatcaOtpWizard(models.TransientModel):
             raise UserError(self.env._('Another ZATCA operation is running for this company.'))
         if company._liwan_zatca_runtime_mode() != SANDBOX_API_MODE:
             raise UserError(self.env._('This ZATCA environment has not been released.'))
-        with _omit_csid_log_payload():
+        with _omit_gateway_log_payloads():
             return super().validate()

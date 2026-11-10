@@ -3,15 +3,16 @@ import logging
 from contextvars import Context
 from unittest.mock import patch
 
-from odoo import SUPERUSER_ID, api, sql_db
+from odoo import SUPERUSER_ID, Command, api, sql_db
 from odoo.exceptions import UserError, ValidationError
-from odoo.tests import tagged
+from odoo.tests import new_test_user, tagged
 
 from .write_common import PASSWORD, LiwanFinanceWriteCase
 from odoo.addons.liwan_finance.models.zatca_runtime import (
     STOCK_JOURNAL_LOGGER,
-    _omit_csid_log_payload,
+    _omit_gateway_log_payloads,
 )
+from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 MODE_URL = '/api/v1/finance/zatca/mode'
 
@@ -43,6 +44,24 @@ class TestZatcaEnvironment(LiwanFinanceWriteCase):
         self.assertEqual(replay.json(), {'api_mode': 'sandbox', 'changed': False})
         self.assertEqual(self.company.l10n_sa_api_mode, 'sandbox')
         self.assertEqual(self.other_company.l10n_sa_api_mode, 'sandbox')
+
+    def test_vendor_support_cannot_request_an_environment_even_with_the_effective_permission(self):
+        self.env.ref('liwan_platform.tenant_profile').with_context(**{OPERATOR_CONTEXT: True}).write({
+            'support_access_enabled': True,
+        })
+        support = new_test_user(
+            self.env, login='finance_environment_vendor_support', password=PASSWORD,
+            groups='liwan_core.group_vendor_support', company_id=self.company.id,
+            company_ids=[Command.set(self.company.ids)],
+        )
+        effective = self.env['liwan.access.service'].with_user(support).with_company(self.company)
+        self.assertIn('finance.zatca.environment', effective._liwan_capability_keys())
+        self.authenticate(support.login, PASSWORD)
+        self.assertEqual(self.api('GET', '/api/v1/finance/zatca/status').status_code, 200)
+        with patch.object(type(self.company), '_liwan_try_lock_zatca', autospec=True) as lock:
+            result = self.api('POST', MODE_URL, json={'mode': 'sandbox', 'confirmation': 'SANDBOX'})
+            self.assertRefused(result, 403, 'forbidden')
+            lock.assert_not_called()
 
     def test_stock_company_noop_keeps_journal_credentials_and_disallows_other_modes(self):
         journal = self._journal(self.company, 'sale')
@@ -108,7 +127,7 @@ class TestZatcaEnvironment(LiwanFinanceWriteCase):
             logger.warning('Failed to obtain CSID: %s', payload)
 
         with self.assertLogs(STOCK_JOURNAL_LOGGER, 'WARNING') as logs:
-            with self.assertRaises(RuntimeError), _omit_csid_log_payload():
+            with self.assertRaises(RuntimeError), _omit_gateway_log_payloads():
                 _l10n_sa_get_csid_error('sensitive fixture')
                 Context().run(_l10n_sa_get_csid_error, 'different context')
                 logger.warning('unrelated stock diagnostic')

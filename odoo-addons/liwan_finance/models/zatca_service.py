@@ -73,6 +73,9 @@ class LiwanFinanceZatca(models.AbstractModel):
     @api.model
     def _liwan_request_environment(self, mode):
         """Validate the current-company request without allowing an unreleased environment."""
+        # Core grants all effective capabilities to support users. Environment decisions belong to the customer.
+        if self.env.user.has_group('liwan_core.group_vendor_support'):
+            raise ApiError(403, 'forbidden', 'vendor support cannot request a ZATCA environment change')
         self.env['liwan.access.service']._liwan_require_capability(ZATCA_ENVIRONMENT_PERMISSION)
         company = self.env.company
         if (company.account_fiscal_country_id or company.country_id).code != SAUDI_COUNTRY_CODE:

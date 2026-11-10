@@ -184,6 +184,23 @@ class TestFinanceZatcaOnboarding(LiwanZatcaCase):
         self.assertRefused(result, 422, 'zatca_rejected')
         self.assertFalse(self.sale_journal._l10n_sa_ready_to_submit_einvoices())
 
+    def test_failed_compliance_does_not_log_gateway_response_material(self):
+        sentinel = 'COMPLIANCE-ECHO-SENSITIVE-FIXTURE'
+        for expected, failure in (
+            ('Compliance API returned an error', lambda _body: reply(503, None, text=sentinel)),
+            ('Compliance validation failed', answer(200, {
+                'validationResults': results('ERROR', errors=[{**ERROR, 'message': sentinel}]),
+            })),
+        ):
+            with self.subTest(expected=expected):
+                self.zatca.answers['compliance/invoices'] = failure
+                with self.assertLogs('odoo.addons.l10n_sa_edi.models.account_journal', 'WARNING') as logs:
+                    result = self.onboard()
+                self.assertRefused(result, 422, 'zatca_rejected')
+                self.assertNotIn(sentinel, result.text)
+                self.assertIn(expected, '\n'.join(logs.output))
+                self.assertNotIn(sentinel, '\n'.join(logs.output))
+
     def test_a_failed_re_onboarding_keeps_the_working_onboarding(self):
         self.onboarded_journal()
         self.zatca.answers['compliance'] = answer(400, {'errors': [{'code': 'Invalid-OTP', 'message': 'Invalid OTP'}]})
