@@ -332,8 +332,9 @@ class TestCapabilityMatrix(unittest.TestCase):
 class TestAuthDocumentation(unittest.TestCase):
     """Each route's declared security matches the auth method it really uses."""
 
-    def operation(self, auth):
+    def operation(self, auth, docstring=''):
         route = {
+            'docstring': docstring,
             'addon': 'liwan_x', 'controller': 'C', 'handler': 'h', 'paths': ['/api/v1/x'], 'methods': ['POST'],
             'auth': auth, 'http_type': 'json2', 'summary': '', 'readonly': False, 'api_handler': True,
             'feature_keys': [], 'feature_operation': None,
@@ -359,7 +360,12 @@ class TestAuthDocumentation(unittest.TestCase):
     def test_webhook_route_declares_no_cookie_and_says_what_authorizes_it(self):
         operation, _ = self.operation('inbox_hook')
         self.assertEqual(operation['security'], [])
-        self.assertIn('signed delivery', operation['description'])
+        self.assertEqual(operation['description'], api_surface.WEBHOOK_AUTH_FALLBACK)
+
+    def test_webhook_route_publishes_its_own_docstring_instead_of_the_fallback(self):
+        operation, _ = self.operation(
+            'inbox_hook', 'Answer the verification handshake.\nChecks the stored token.\n\nInternal detail.')
+        self.assertEqual(operation['description'], 'Answer the verification handshake. Checks the stored token.')
 
     def test_an_unknown_auth_value_stops_the_generator(self):
         with self.assertRaises(SystemExit):

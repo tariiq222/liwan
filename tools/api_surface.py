@@ -280,6 +280,7 @@ def extract_routes(trees: dict[Path, ast.Module] | None = None) -> list[dict]:
                         "file": str(py.relative_to(REPO)),
                         "controller": cls.name,
                         "handler": fn.name,
+                        "docstring": docstring,
                         "summary": docstring.strip().splitlines()[0] if docstring.strip() else None,
                         "paths": paths,
                         "http_type": kw_const(route, "type"),
@@ -337,6 +338,8 @@ def namespace_hint(path: str) -> str | None:
     return None
 
 
+WEBHOOK_AUTH_FALLBACK = "Authorized by the provider's webhook protocol, not by a LiwanOS session."
+
 # What each route `auth` value really requires. `security` is the OpenAPI requirement list;
 # `description` is added to the operation when the requirement is not a declared scheme.
 AUTH_REQUIREMENTS = {
@@ -345,10 +348,20 @@ AUTH_REQUIREMENTS = {
     "public": {"security": [], "description": None},
     "inbox_hook": {
         "security": [],
-        "description": "Provider webhook (machine to machine, no session). Authorized by the "
-                       "provider's signed delivery, not by a cookie or API key; a bad signature answers 403.",
+        "description": WEBHOOK_AUTH_FALLBACK,
+        "documented_by_handler": True,
     },
 }
+
+
+def route_description(route: dict) -> str | None:
+    """The handler's own docstring (first paragraph) when its auth says the handler documents itself."""
+    requirement = auth_requirement(route)
+    if requirement.get("documented_by_handler"):
+        paragraph = (route.get("docstring") or "").strip().split("\n\n")[0]
+        if paragraph:
+            return " ".join(paragraph.split())
+    return requirement["description"]
 
 
 def auth_requirement(route: dict) -> dict:
@@ -399,8 +412,9 @@ def build_document(routes: list[dict], contract_schemas: dict) -> dict:
                         operation["responses"]["404"] = {"$ref": "#/components/responses/NotFound"}
                 else:
                     operation["security"] = requirement["security"]
-                if requirement["description"]:
-                    operation["description"] = requirement["description"]
+                description = route_description(route)
+                if description:
+                    operation["description"] = description
                 entry[method.lower()] = operation
 
     components = {
