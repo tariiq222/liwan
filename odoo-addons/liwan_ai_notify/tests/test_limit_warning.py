@@ -81,36 +81,37 @@ class TestAiLimitWarning(AiProbe, LiwanApiCase):
     def _balance_bells(self):
         return [item['title'] for item in self._bell(self.manager) if item['kind'] == 'ai.limit_warning']
 
-    def test_the_balance_warns_once_below_a_fifth_and_once_at_zero(self):
-        self._set_feature('ai.balance.granted', 1000)
-        self._record(700)
+    def test_the_balance_warns_once_below_a_fifth_and_once_it_cannot_pay_a_run(self):
+        self._set_feature('ai.balance.granted', 100_000)
+        self._record(70_000)
         self.assertEqual(self._balance_bells(), [])
-        self._record(150)
+        self._record(15_000)
         self.assertEqual(len(self._balance_bells()), 1)
         self.assertIn('20%', self._balance_bells()[0])
-        self._record(10)
+        self._record(1_000)
         self.assertEqual(len(self._balance_bells()), 1)
-        self._record(200)
+        # 4,000 units remain: above zero, but below the reserve a new paid run needs, so the assistant has stopped.
+        self._record(10_000)
         bells = self._balance_bells()
         self.assertEqual(len(bells), 2)
         self.assertTrue(any('نفد' in title for title in bells))
-        self._record(50)
+        self._record(4_000)
         self.assertEqual(len(self._balance_bells()), 2)
         self.assertEqual(self._bell(self.employee), [])
 
     def test_a_top_up_arms_both_warnings_again(self):
-        self._set_feature('ai.balance.granted', 1000)
-        self._record(1000)
+        self._set_feature('ai.balance.granted', 100_000)
+        self._record(100_000)
         self.assertEqual(len(self._balance_bells()), 1)
-        self._set_feature('ai.balance.granted', 5000)
-        self._record(3900)
+        self._set_feature('ai.balance.granted', 500_000)
+        self._record(390_000)
         self.assertEqual(len(self._balance_bells()), 2)
-        self._record(100)
+        self._record(10_000)
         self.assertEqual(len(self._balance_bells()), 3)
-        self._set_feature('ai.balance.granted', 9000)
-        self._record(3500)
+        self._set_feature('ai.balance.granted', 900_000)
+        self._record(350_000)
         self.assertEqual(len(self._balance_bells()), 4)
-        self._record(50)
+        self._record(5_000)
         self.assertEqual(len(self._balance_bells()), 4)
 
     def test_a_tenant_without_a_balance_and_the_tenant_key_never_warn_about_the_balance(self):

@@ -44,8 +44,9 @@ class LiwanAiBalance(models.AbstractModel):
     def _liwan_ai_granted(self):
         """The cumulative top-ups of the tenant, or ``None`` when it has no balance (never blocked).
 
-        A ``non_saas`` installation has none whatever its policy holds: the operator pays its own provider. In ``saas`` a missing
-        or zero total means nothing was bought.
+        A ``non_saas`` installation has none whatever its policy holds: the operator pays its own provider. In ``saas`` a policy that
+        has not been initialised yields ``None`` (never blocked); an initialised policy that omits the key or holds zero yields 0,
+        so nothing was bought and only the free allowance pays.
         """
         entitlement = self.env['liwan.entitlement.service']
         if entitlement._liwan_profile().commercial_mode == 'non_saas':

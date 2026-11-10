@@ -9,6 +9,7 @@ from odoo import api, fields, models
 from odoo.tools import html2plaintext
 
 from odoo.addons.liwan_ai.models.access_service import AI_SETTINGS_MANAGE
+from odoo.addons.liwan_ai.models.ai_balance import RUN_RESERVE
 from odoo.addons.liwan_ai.models.tool_registry import ASSIST_KINDS
 from odoo.addons.liwan_api.serializers.common import iso
 
@@ -119,18 +120,19 @@ class LiwanAiLimitUsage(models.Model):
 
     @api.model
     def _liwan_cron_warn_balance(self):
-        """Warn once when the balance falls below 20% of the granted total, and once when it reaches zero.
+        """Warn once when the balance falls below 20% of the granted total, and once when it can no longer pay a run.
 
         A cron runs it, because the usage recorder that deducts the charges cannot read the managers it would tell (it holds one
         capability and nothing else) and nothing here may be elevated. Each warning is keyed by the granted total it was judged
         against, so a top-up (a larger total) arms both again; running it again changes nothing until the balance crosses a
-        threshold. A tenant without a balance never warns.
+        threshold. A tenant without a balance never warns. "Empty" is judged against ``RUN_RESERVE``, the amount every new paid run
+        must find (``liwan.ai.balance._liwan_ai_blocked``): below it the paid assistant stops although a few units may remain.
         """
         state = self.env['liwan.ai.balance']._liwan_ai_balance_state()
         granted, left = state['balance_granted'], state['balance_left']
         if not granted:
             return
-        if left <= 0:
+        if left < RUN_RESERVE:
             self.env['liwan.ai.audit']._liwan_deliver_warnings(['balance_empty'], period=granted)
         elif left < BALANCE_LOW_RATIO * granted:
             self.env['liwan.ai.audit']._liwan_deliver_warnings(['balance_low'], period=granted)
