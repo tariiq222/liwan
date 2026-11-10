@@ -458,4 +458,21 @@ suite('free base invariants (issue 491)', () => {
     })
   })
 
+
+  describe('F5: a trial whose end the scheduler has not processed is visible, and acceptance says why it is closed', () => {
+    it('listed once the end date is older than one scheduler interval, with a stable error code for new orders', async () => {
+      const f = await endedTrial()
+      const quote = await quoteChange(f, { requested_users: 4 }, new Date(now.getTime() - 5 * day), [bundle.id])
+      const listed = async () => (await attention(pool, true)).items.filter(i => i.customer_id === f.customer).map(i => i.kind)
+      await pool.query("UPDATE subscriptions SET trial_ends_at=now() - interval '30 minutes',revision=revision+1 WHERE id=$1", [f.subscription])
+      expect(await listed(), 'within one interval nothing is wrong yet').not.toContain('trial_end_overdue')
+      await pool.query("UPDATE subscriptions SET trial_ends_at=now() - interval '3 hours',revision=revision+1 WHERE id=$1", [f.subscription])
+      await pool.query("UPDATE trial_lapses SET state='superseded' WHERE subscription_id<>$1", [f.subscription])
+      expect(await listed()).toContain('trial_end_overdue')
+      const sub = await getSubscription(pool, f.customer)
+      await expect(acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: sub.revision, idempotency_key: randomUUID() }, vendor)).rejects.toMatchObject({ code: 'trial_ending', status: 409 })
+      await pool.query("UPDATE subscriptions SET trial_ends_at=now() + interval '30 days',revision=revision+1 WHERE id=$1", [f.subscription])
+    })
+  })
+
 })

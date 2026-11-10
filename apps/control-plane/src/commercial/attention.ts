@@ -6,6 +6,8 @@ import { holdsTrialAfterLapseSql, owesAtRenewalSql } from './free-base.js'
 
 export const RENEWAL_WINDOW_DAYS = 7
 export const STALLED_HOURS = 24
+/** The billing scheduler runs hourly: a trial end older than two intervals has been missed, not just not reached yet. */
+const TRIAL_END_OVERDUE_HOURS = 2
 /** Renewal dates are calendar dates of the business, so "today" and the renewal instant are read in this zone, never the session's. */
 export const BUSINESS_TIME_ZONE = 'Asia/Riyadh'
 
@@ -80,6 +82,11 @@ const subjectsSql = `WITH latest AS (
   -- A renewal that failed for this subscription alone (the others kept renewing): the machine reason of the last failure.
   SELECT c.id AS customer_id, c.name, c.tenant_id, s.renewal_failed_at, s.renewal_failure FROM subscriptions s JOIN customers c ON c.id=s.customer_id
   WHERE s.renewal_failure IS NOT NULL
+), trial_overdue AS (
+  -- A trial whose end date is older than one scheduler interval and whose end has not run: new orders are closed
+  -- (trial_ending) until it does, and the paid applications are still writable, so it must not wait unseen.
+  SELECT c.id AS customer_id, c.name, c.tenant_id, s.trial_ends_at FROM subscriptions s JOIN customers c ON c.id=s.customer_id
+  WHERE s.state='trialing' AND s.applied_revision_id IS NOT NULL AND s.trial_ends_at < now() - make_interval(hours => ${TRIAL_END_OVERDUE_HOURS})
 ), holding AS (
   -- The calm, persistent state after the lock: the customer keeps users or storage above what the plan includes (the explicit
   -- held marker) or extra branches above the included ones, free until they name a quantity or buy a branch. Nothing here needs
@@ -109,6 +116,7 @@ const subjectsSql = `WITH latest AS (
   UNION ALL SELECT 2,'refund_rejected', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE $3::boolean
   UNION ALL SELECT 3,'billing_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('billing_blocked_at')}, NULL, billing_blocked_at FROM blocked
   UNION ALL SELECT 3,'free_base_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('lapsed_at')}, reason, lapsed_at FROM lock_blocked
+  UNION ALL SELECT 3,'trial_end_overdue', customer_id, tenant_id, NULL, NULL, name, ${iso('trial_ends_at')}, NULL, trial_ends_at FROM trial_overdue
   UNION ALL SELECT 3,'renewal_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('renewal_failed_at')}, renewal_failure, renewal_failed_at FROM renewal_failures
   UNION ALL SELECT 9,'free_base_holding', customer_id, tenant_id, NULL, NULL, name, ${iso('lapsed_at')}, detail, lapsed_at FROM holding WHERE detail <> ''
   UNION ALL SELECT 4,'stalled_activation', customer_id, tenant_id, NULL, NULL, name, ${iso('order_created_at')}, fulfillment_state, order_created_at FROM stalled

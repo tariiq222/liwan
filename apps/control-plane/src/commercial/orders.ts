@@ -192,6 +192,11 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
     if (quote.subscription_id || input.expected_subscription_revision !== 0) throw new CommercialHttpError('revision_conflict', 409)
     subscription = (await client.query('INSERT INTO subscriptions(id,customer_id,tenant_id) VALUES($1,$2,$3) RETURNING *', [randomUUID(), customer.id, customer.tenant_id])).rows[0]
   }
+  // Between the lapse and the lock order's receipt the applied revision is still the paid trial: an order accepted now would be
+  // priced for the free-base period and then collide with the lock (or with a conversion that bills the same period again). The
+  // customer upgrades right after the lock, which is minutes in the normal case and visible to the vendor when it is blocked.
+  if (subscription.applied_revision_id && await unresolvedLapse(client, subscription)) throw new CommercialHttpError('lock_pending', 409, 'subscription_id')
+  if (subscription.state === 'trialing' && subscription.trial_ends_at && subscription.applied_revision_id && new Date(subscription.trial_ends_at).getTime() <= now.getTime()) throw new CommercialHttpError('trial_ending', 409)
   if (subscription.revision !== input.expected_subscription_revision || quote.expected_subscription_revision !== subscription.revision || (quote.subscription_id && quote.subscription_id !== subscription.id)) throw new CommercialHttpError('revision_conflict', 409)
   // A hosted attempt may settle later. Keep its accepted target authoritative
   // until the prior order is applied or explicitly cancelled.
@@ -199,11 +204,6 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
   if (subscription.target_revision_id || pending.rowCount) throw new CommercialHttpError('subscription_change_pending', 409)
   // Once the trial end date has passed and the lapse has not run yet, no new order is accepted: otherwise an order could keep
   // arriving against the trial configuration and the wait for the lapse would never end.
-  // Between the lapse and the lock order's receipt the applied revision is still the paid trial: an order accepted now would be
-  // priced for the free-base period and then collide with the lock (or with a conversion that bills the same period again). The
-  // customer upgrades right after the lock, which is minutes in the normal case and visible to the vendor when it is blocked.
-  if (subscription.applied_revision_id && await unresolvedLapse(client, subscription)) throw new CommercialHttpError('lock_pending', 409, 'subscription_id')
-  if (subscription.state === 'trialing' && subscription.trial_ends_at && subscription.applied_revision_id && new Date(subscription.trial_ends_at).getTime() <= now.getTime()) throw new CommercialHttpError('trial_ending', 409)
   if (new Date(quote.expires_at).getTime() <= now.getTime()) throw new CommercialHttpError('quote_expired', 422)
   const branchRequest = (await client.query('SELECT * FROM branch_quote_requests WHERE quote_id=$1', [quote.id])).rows[0]
   const kind = branchRequest ? (branchRequest.adds.length ? 'branch_add' : branchRequest.restore.length ? 'branch_restore' : 'branch_archive') : quote.subscription_id && subscription.applied_revision_id ? 'change' : 'new'
