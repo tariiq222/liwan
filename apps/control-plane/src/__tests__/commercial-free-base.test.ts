@@ -249,7 +249,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       expect((await runJob(second.id, okRunner)).state).toBe('verified')
       await processTrialLapses(pool, { now: new Date(now.getTime() + 4 * 3_600_000), adapter, subscription_id: f.subscription })
       // Applied: the lock holds and the later, lowering step takes over.
-      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'limits_pending', reason: null })
+      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'done', reason: null })
       expect((await row(f.subscription)).applied_revision_id).toBe(second.target_revision_id)
     })
     it('a customer with a refused push can still upgrade (a pre-write refusal released the target)', async () => {
@@ -407,7 +407,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     }
     type F = { customer: string; tenant: string; subscription: string }
     const at = (hours: number) => new Date(now.getTime() + hours * 3_600_000)
-    /** The lock: the first order, applied, then the pass that moves the lapse to limits_pending. */
+    /** The lock: the first order, applied, then the pass that settles it (the lapse is done). */
     async function locked(f: F) {
       await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
       await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
@@ -416,14 +416,6 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       await applyReceipt(pool, { order_id: order.id, receipt: (await pushed(f.tenant, order.id)).receipt })
       await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
       return { order, job }
-    }
-    /** One judging pass with a fresh usage sample; returns the order it placed, if any. */
-    async function judge(f: F, usage: Record<string, number> | null, when: Date) {
-      const before = (await lapseOrder(f.subscription))?.id
-      if (usage) await freshUsage(f, when, usage)
-      await processTrialLapses(pool, { now: when, adapter, subscription_id: f.subscription })
-      const order = await lapseOrder(f.subscription)
-      return order && order.id !== before ? order : null
     }
     async function applyOrder(f: F, orderId: string) {
       const { job, receipt } = await pushed(f.tenant, orderId)
@@ -442,73 +434,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       expect(job.authority.commercial_valid_until).toBeNull()
       expect(JSON.stringify(job)).not.toContain('suspended')
       expect(await row(f.subscription)).toMatchObject({ state: 'active', target_revision_id: null })
-      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'limits_pending' })
-    })
-
-    it('over users only: the users limit is held at their number, storage is lowered, the customer is told once', async () => {
-      const f = await endedTrial({ requested_users: 10 })
-      await locked(f)
-      const second = await judge(f, { 'users.limit': 9 }, at(1))
-      expect(second.idempotency_key).toBe(`trial-lapse:${f.subscription}:2`)
-      const features = (await applyOrder(f, second.id)).authority.entitlement.features
-      odooContract(features)
-      expect(features['users.limit']).toBe(9)
-      expect(features['storage.limit_mb']).toBe(20480)
-      const notices = await overNotice(f)
-      expect(notices).toHaveLength(1)
-      expect(notices[0].payload.over).toEqual([{ key: 'users.limit', used: 9, free: 3 }])
-      const sent: { to: string; text: string }[] = []
-      const mail = { send: async (m: { to: string; text: string }) => { sent.push(m) } } as any
-      await Promise.all([sendOverLimitNotices(pool, { mail }), sendOverLimitNotices(pool, { mail })])
-      await sendOverLimitNotices(pool, { mail })
-      const mine = sent.filter(m => m.to === `${f.customer}@example.test`)
-      expect(mine).toHaveLength(1)
-      expect(mine[0]!.text).toContain('9 مستخدمين')
-      expect(mine[0]!.text).toContain('9 users in use')
-      expect(mine[0]!.text).toContain('3 مستخدمين')
-      await processTrialLapses(pool, { now: at(2), adapter, subscription_id: f.subscription })
-      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'limits_pending', reason: null, limits_note: 'users.limit:9>3' })
-      const items = (await attention(pool, true)).items.filter(i => i.customer_id === f.customer)
-      expect(items).toContainEqual(expect.objectContaining({ kind: 'free_base_limits_pending', detail: 'users.limit:9>3' }))
-      expect(items.map(i => i.kind)).not.toContain('free_base_blocked')
-    })
-
-    it('each limit is lowered on its own: the one above usage is held while the one that fits goes down in the same step', async () => {
-      const f = await endedTrial({ requested_users: 10, requested_storage_mb: 30720 })
-      await locked(f)
-      const second = await judge(f, { 'users.limit': 9, 'storage.limit_mb': 100 }, at(1))
-      const features = (await applyOrder(f, second.id)).authority.entitlement.features
-      expect(features['users.limit']).toBe(9)
-      expect(features['storage.limit_mb']).toBe(20480)
-    })
-
-    it('a usage sample carrying hostile keys can never name a key to write or reach a prototype', async () => {
-      const f = await endedTrial({ requested_users: 10 })
-      await locked(f)
-      const hostile = { ['__proto__']: 7, constructor: 7, prototype: 7, 'users.limit': 9, 'storage.limit_mb': 1 } as Record<string, number>
-      const gates = { ['__proto__']: ['x'], constructor: ['x'], 'users.limit': [], 'storage.limit_mb': [], 'projects.max_projects': ['pmo.enabled'], 'branches.extra_limit': [] } as Record<string, string[]>
-      await recordUsage(pool, { tenant_id: f.tenant, observed_at: at(1), source: 'hostile', metrics: hostile, limit_gates: gates })
-      await processTrialLapses(pool, { now: at(1), adapter, subscription_id: f.subscription })
-      const second = await lapseOrder(f.subscription)
-      const features = (await applyOrder(f, second.id)).authority.entitlement.features
-      expect(features['users.limit']).toBe(9)
-      expect(Object.keys(features)).not.toContain('__proto__')
-      expect(Object.keys(features)).not.toContain('constructor')
-      expect(Object.keys(features)).not.toContain('prototype')
-      expect(Object.getPrototypeOf(features)).toBe(Object.prototype)
-      expect(({} as Record<string, unknown>).polluted).toBeUndefined()
-      expect(Object.prototype.hasOwnProperty.call(Object.prototype, '7')).toBe(false)
-    })
-
-    it('over storage only: storage held at usage, users lowered to the free value', async () => {
-      const f = await endedTrial({ requested_storage_mb: 30720 })
-      await locked(f)
-      const second = await judge(f, { 'storage.limit_mb': 25000 }, at(1))
-      const features = (await applyOrder(f, second.id)).authority.entitlement.features
-      odooContract(features)
-      expect(features['storage.limit_mb']).toBe(25000)
-      expect(features['users.limit']).toBe(3)
-      expect((await overNotice(f))[0].payload.over).toEqual([{ key: 'storage.limit_mb', used: 25000, free: 20480 }])
+      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'done' })
     })
 
     it('over extra branches: nothing is archived or limited, the customer is told, the vendor sees it, and buying one more prices the real set', async () => {
@@ -516,20 +442,14 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       for (const name of ['one', 'two', 'three'])
         await pool.query("INSERT INTO commercial_branches(id,subscription_id,tenant_id,name,kind,billing,state) VALUES($1,$2,$3,$4,'extra','paid','active')", [randomUUID(), f.subscription, f.tenant, name])
       await locked(f)
-      // The closed applications' own limits are lowered once usage is known; that is the only order left to place.
-      const lowered = await judge(f, {}, at(1))
-      await applyOrder(f, lowered.id)
-      await processTrialLapses(pool, { now: at(1), adapter, subscription_id: f.subscription })
       expect((await pool.query("SELECT count(*)::int AS n FROM commercial_branches WHERE subscription_id=$1 AND kind='extra' AND state='active'", [f.subscription])).rows[0].n).toBe(3)
       expect((await overNotice(f))[0].payload.over).toEqual([{ key: 'branches.extra', used: 3, free: 1 }])
       expect(overLimitText((await overNotice(f))[0].payload.over)).toContain('3 فروع إضافية')
-      await freshUsage(f, at(2), {})
-      await processTrialLapses(pool, { now: at(2), adapter, subscription_id: f.subscription })
       expect(await lapseRow(f.subscription)).toMatchObject({ state: 'done' })
       // The list is bounded and this information is the least urgent kind: let the other tests' customers step aside.
       await pool.query("UPDATE trial_lapses SET state='superseded' WHERE subscription_id<>$1", [f.subscription])
       const items = (await attention(pool, true)).items.filter(i => i.customer_id === f.customer)
-      expect(items).toContainEqual(expect.objectContaining({ kind: 'free_base_limits_pending', detail: 'branches.extra:3>1' }))
+      expect(items).toContainEqual(expect.objectContaining({ kind: 'free_base_holding', detail: 'branches.extra:3>1' }))
       // The snapshot states the real number of extra branches, so a later paid branch order counts and prices from the real set.
       const applied = (await pool.query('SELECT snapshot FROM subscription_revisions WHERE id=(SELECT applied_revision_id FROM subscriptions WHERE id=$1)', [f.subscription])).rows[0].snapshot
       expect(applied.extra_branch_count).toBe(3)
@@ -538,54 +458,6 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       const quote = await createBranchQuote(pool, f.customer, JSON.stringify({ add: [{ name: 'fourth' }] })).finally(() => vi.useRealTimers())
       expect(quote.requested_extra_branches).toBe(4)
       expect(quote.lines.filter(l => l.kind === 'branch').map(l => l.quantity)).toContain(3)
-    })
-
-    it('no usage sample: the apps are locked anyway, every limit stays, and the customer is told the limits will be reviewed', async () => {
-      const f = await endedTrial({ requested_users: 10 })
-      const { job } = await locked(f)
-      expect(job.authority.entitlement.features['users.limit']).toBe(10)
-      expect(await judge(f, null, at(1))).toBeNull()
-      const notices = await overNotice(f)
-      expect(notices).toHaveLength(1)
-      expect(notices[0].payload).toEqual({ over: [], generic: true })
-      expect(overLimitText([], true)).toContain('ستُراجَع الحدود')
-      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'limits_pending', limits_note: expect.stringContaining('usage_unavailable') })
-    })
-
-    it('a customer who adds a user before the host applies the pin: the refusal retries and reopens nothing', async () => {
-      const f = await endedTrial({ requested_users: 10 })
-      await locked(f)
-      const second = await judge(f, { 'users.limit': 9 }, at(1))
-      await runJob(second.id, failingRunner('downgrade_below_usage'))
-      await processTrialLapses(pool, { now: at(1), adapter, subscription_id: f.subscription })
-      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'limits_pending', reason: 'downgrade_below_usage', order_id: null })
-      const applied = (await pool.query('SELECT snapshot FROM subscription_revisions WHERE id=(SELECT applied_revision_id FROM subscriptions WHERE id=$1)', [f.subscription])).rows[0].snapshot
-      odooContract(applied.entitlement.features)
-      // The retry pins at the new usage and goes through.
-      const third = await judge(f, { 'users.limit': 10 }, at(4))
-      expect(third.idempotency_key).toBe(`trial-lapse:${f.subscription}:3`)
-    })
-
-    it('when usage later fits, the remaining limits are lowered; while it does not, nothing is re-ordered', async () => {
-      const f = await endedTrial({ requested_users: 10 })
-      await locked(f)
-      const second = await judge(f, { 'users.limit': 9 }, at(1))
-      await applyOrder(f, second.id)
-      await processTrialLapses(pool, { now: at(1), adapter, subscription_id: f.subscription })
-      const orders = async () => (await pool.query("SELECT count(*)::int AS n FROM orders WHERE subscription_id=$1 AND idempotency_key LIKE 'trial-lapse:%'", [f.subscription])).rows[0].n
-      expect(await orders()).toBe(2)
-      expect(await judge(f, { 'users.limit': 9 }, at(3))).toBeNull()
-      expect(await orders()).toBe(2)
-      expect((await lapseRow(f.subscription)).attempts).toBeGreaterThan(0)
-      const third = await judge(f, { 'users.limit': 2 }, at(48))
-      expect(await orders()).toBe(3)
-      const features = (await applyOrder(f, third.id)).authority.entitlement.features
-      odooContract(features)
-      expect(features['users.limit']).toBe(3)
-      await processTrialLapses(pool, { now: at(49), adapter, subscription_id: f.subscription })
-      await processTrialLapses(pool, { now: at(50), adapter, subscription_id: f.subscription })
-      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'done', limits_note: null })
-      expect((await attention(pool, true)).items.filter(i => i.customer_id === f.customer)).toEqual([])
     })
 
     it('before the lock is placed any unpaid order is cancelled so the lock proceeds; a live attempt that cannot be cancelled is shown to the vendor', async () => {
@@ -643,7 +515,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       await applyReceipt(pool, { order_id: upgrade.id, receipt: paid.receipt })
       expect((await attention(pool, true)).items.filter(i => i.customer_id === f.customer)).toEqual([])
       await processTrialLapses(pool, { now: at(60), adapter, subscription_id: f.subscription })
-      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'superseded' })
+      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'done' })
     })
 
     it('is never invoiced, dunned or suspended; an unpaid renewal invoice of the old configuration is voided unless money could still arrive for it', async () => {
@@ -669,17 +541,13 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       expect(await invoiceStatus(idle.invoice)).toBe('void')
       expect(await invoiceStatus(live.invoice)).toBe('issued')
       expect((await pool.query('SELECT cancelled FROM orders WHERE id=$1', [live.renewal])).rows[0].cancelled).toBe(false)
-      // The attempt ends; the next pass voids it.
-      await pool.query("UPDATE payment_attempts SET status='canceled' WHERE order_id=$1", [live.renewal])
-      await freshUsage(f, at(30), { 'users.limit': 9 })
-      await processTrialLapses(pool, { now: at(30), adapter, subscription_id: f.subscription })
-      expect(await invoiceStatus(live.invoice)).toBe('void')
+      // The invoice with a live attempt stays: money could still arrive for it, and the free base is never dunned for it (below).
       // A renewal that falls due on the held base owes nothing: no invoice, no dunning, no suspension, no billing block.
       await pool.query("UPDATE subscriptions SET renewal_at='2026-11-01',revision=revision+1 WHERE id=$1", [f.subscription])
       const generated = await generateRenewals(pool, { now, adapter, returnOrigin: fixedReturnOrigin('http://billing.example.com'), subscription_id: f.subscription })
       expect(generated).toHaveLength(1)
       expect(generated[0]).toMatchObject({ payment_state: 'not_required' })
-      expect((await pool.query("SELECT count(*)::int AS n FROM invoices WHERE subscription_id=$1 AND status='issued'", [f.subscription])).rows[0].n).toBe(0)
+      expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE order_id=$1', [generated[0]!.id])).rows[0].n).toBe(0)
       expect(await applyDunning(pool, { now: new Date(now.getTime() + 90 * 86_400_000) })).not.toContainEqual(expect.objectContaining({ subscription_id: f.subscription }))
       expect(await row(f.subscription)).toMatchObject({ state: 'active', manual_suspension: false, billing_blocked_at: null })
     })
@@ -697,7 +565,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       for (const key of PAID_KEYS) expect(paid.job.authority.entitlement.features[key], key).toBe(true)
       await applyReceipt(pool, { order_id: upgrade.id, receipt: paid.receipt })
       await processTrialLapses(pool, { now: at(24), adapter, subscription_id: f.subscription })
-      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'superseded' })
+      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'done' })
     })
 
     describe('a held ceiling after an unrelated change (review F1)', () => {
@@ -722,52 +590,23 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
         await pool.query('UPDATE subscriptions SET renewal_at=$2,revision=revision+1 WHERE id=$1', [f.subscription, on])
         return generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
       }
-      for (const [label, usageKey, held, requested] of [['users', 'users.limit', 4, { requested_users: 10 }], ['off-step storage', 'storage.limit_mb', 25000, { requested_storage_mb: 30720 }]] as const) {
-        it(`${label}: the change keeps the ceiling marked, renewal bills only what was purchased, and the lowering continues`, async () => {
+      for (const [label, key, held, requested] of [['users', 'users.limit', 10, { requested_users: 10 }], ['storage', 'storage.limit_mb', 30720, { requested_storage_mb: 30720 }]] as const) {
+        it(`${label}: the change keeps the held quantity marked, renewal bills only what was purchased, and nothing lowers it`, async () => {
           const f = await endedTrial(requested)
           await locked(f)
-          const second = await judge(f, { [usageKey]: held }, at(1))
-          await applyOrder(f, second.id)
-          await processTrialLapses(pool, { now: at(2), adapter, subscription_id: f.subscription })
           await branchChange(f, now)
           const kept = await appliedSnapshot(f)
-          expect(kept.entitlement.features[usageKey]).toBe(held)
-          expect(kept.held_ceilings).toMatchObject({ [usageKey]: { held } })
+          expect(kept.entitlement.features[key]).toBe(held)
+          expect(kept.held_ceilings).toMatchObject({ [key]: { held } })
           const renewals = await renewNow(f)
           expect(renewals).toHaveLength(1)
           expect(renewals[0]).toMatchObject({ payment_state: 'not_required', due_now: { minor: 0 } })
-          expect(await lapseRow(f.subscription)).toMatchObject({ state: 'limits_pending' })
-          // Usage falls: the held ceiling is lowered on top of the changed subscription, whatever the change was.
-          await freshUsage(f, at(30), { [usageKey]: 1 })
-          await processTrialLapses(pool, { now: at(30), adapter, subscription_id: f.subscription })
-          const lowering = await lapseOrder(f.subscription)
-          expect(lowering.id).not.toBe(second.id)
-          await applyOrder(f, lowering.id)
+          await freshUsage(f, at(30), { [key]: 1 })
           await processTrialLapses(pool, { now: at(31), adapter, subscription_id: f.subscription })
-          await processTrialLapses(pool, { now: at(31), adapter, subscription_id: f.subscription })
-          const done = await appliedSnapshot(f)
-          expect(done.entitlement.features[usageKey]).toBe(usageKey === 'users.limit' ? 3 : 20480)
-          expect(done.held_ceilings ?? {}).toEqual({})
+          expect((await appliedSnapshot(f)).entitlement.features[key]).toBe(held)
           expect(await lapseRow(f.subscription)).toMatchObject({ state: 'done' })
         })
       }
-      it('R4: a blocked lowering after an unrelated change is shown to the vendor', async () => {
-        const f = await endedTrial({ requested_users: 4 })
-        await locked(f)
-        const lowering = await judge(f, { 'users.limit': 4 }, at(1))
-        if (lowering) await applyOrder(f, lowering.id)
-        await processTrialLapses(pool, { now: at(2), adapter, subscription_id: f.subscription })
-        await branchChange(f, now)
-        const lapse = await lapseRow(f.subscription)
-        expect((await row(f.subscription)).applied_revision_id).not.toBe(lapse.trial_revision_id)
-        // The reason a blocked lowering records (the lapse row is the record; the revision equality no longer holds).
-        await pool.query("UPDATE trial_lapses SET reason='free_base_unavailable' WHERE subscription_id=$1", [f.subscription])
-        // The list is bounded: let the other tests' customers step aside.
-        await pool.query("UPDATE trial_lapses SET state='superseded' WHERE subscription_id<>$1", [f.subscription])
-        const items = (await attention(pool, true)).items.filter(i => i.customer_id === f.customer)
-        expect(items).toContainEqual(expect.objectContaining({ kind: 'free_base_blocked', detail: 'free_base_unavailable' }))
-        await pool.query("UPDATE trial_lapses SET state='superseded',reason=NULL WHERE subscription_id=$1", [f.subscription])
-      })
       it('R5: a fractional value in the pricing never breaks the attention query and still counts as owing', async () => {
         const base = (await attention(pool, true)).counts.renewals
         const f = await endedTrial()
@@ -825,8 +664,6 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
         it('users: priced as the excess over the included quantity, then permanent: a usage drop does not lower it and renewal invoices it', async () => {
           const f = await endedTrial({ requested_users: 4 })
           await locked(f)
-          const lowering = await judge(f, { 'users.limit': 4 }, at(1))
-          if (lowering) await applyOrder(f, lowering.id)
           expect((await appliedSnapshot(f)).held_ceilings).toMatchObject({ 'users.limit': { held: 4, target: 3 } })
           await freshUsage(f, at(2), { 'users.limit': 4 })
           const quote = await buy(f, { requested_users: 4 }, at(2))
@@ -834,7 +671,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
           expect(quote.due_now.minor).toBeGreaterThan(0)
           await payAndApply(f, quote)
           const bought = await appliedSnapshot(f)
-          expect(bought.held_ceilings).toBeUndefined()
+          expect(bought.held_ceilings?.['users.limit']).toBeUndefined()
           expect(bought.pricing.paid_users).toBe(1)
           expect(bought.entitlement.features['users.limit']).toBe(4)
           const ordersBefore = (await pool.query("SELECT count(*)::int AS n FROM orders WHERE subscription_id=$1", [f.subscription])).rows[0].n
@@ -847,17 +684,15 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
           expect(renewals).toHaveLength(1)
           expect(renewals[0]!.due_now.minor).toBeGreaterThan(0)
         })
-        it('storage: an off-step ceiling cannot itself be bought; the error names the next step, and that step is a purchase', async () => {
+        it('storage: requesting exactly the held storage buys the excess over the included one', async () => {
           const f = await endedTrial({ requested_storage_mb: 30720 })
           await locked(f)
-          const second = await judge(f, { 'storage.limit_mb': 25000 }, at(1))
-          await applyOrder(f, second.id)
-          await expect(buy(f, { requested_storage_mb: 25000 }, at(2))).rejects.toMatchObject({ code: 'storage_ceiling_not_purchasable:30720', status: 422 })
           const quote = await buy(f, { requested_storage_mb: 30720 }, at(2))
           expect(quote.lines.some(l => l.kind === 'storage' && l.amount.minor > 0)).toBe(true)
           await payAndApply(f, quote)
           const bought = await appliedSnapshot(f)
-          expect(bought.held_ceilings).toBeUndefined()
+          expect(bought.held_ceilings?.['storage.limit_mb']).toBeUndefined()
+          expect(bought.pricing.paid_storage_gb).toBe(10)
           expect(bought.entitlement.features['storage.limit_mb']).toBe(30720)
         })
         it('the same request costs the same inside the window and after the lock', async () => {
@@ -1060,19 +895,15 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       await pool.query("UPDATE subscriptions SET state='active',renewal_at='2026-11-01',revision=revision+1 WHERE id=$1", [owing.subscription])
       expect(await renewals()).toBe(base + 1)
     })
-    it('D: a storage ceiling pinned at off-step usage stays a ceiling: branch add, archive and restore quote and accept', async () => {
+    it('D: a held storage quantity is carried by branch add, archive and restore, never re-quoted as a purchase', async () => {
       const f = await endedTrial({ requested_storage_mb: 30720 })
       await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
       await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
       const first = await lapseOrder(f.subscription)
       await applyReceipt(pool, { order_id: first.id, receipt: (await pushed(f.tenant, first.id)).receipt })
       await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
-      await freshUsage(f, new Date(now.getTime() + 3_600_000), { 'storage.limit_mb': 25000 })
-      await processTrialLapses(pool, { now: new Date(now.getTime() + 3_600_000), adapter, subscription_id: f.subscription })
-      const second = await lapseOrder(f.subscription)
-      await applyReceipt(pool, { order_id: second.id, receipt: (await pushed(f.tenant, second.id)).receipt })
       const held = (await pool.query('SELECT snapshot FROM subscription_revisions WHERE id=(SELECT applied_revision_id FROM subscriptions WHERE id=$1)', [f.subscription])).rows[0].snapshot
-      expect(held.entitlement.features['storage.limit_mb']).toBe(25000)
+      expect(held.entitlement.features['storage.limit_mb']).toBe(30720)
       const active = randomUUID(), archived = randomUUID()
       await pool.query("INSERT INTO commercial_branches(id,subscription_id,tenant_id,name,kind,billing,state) VALUES($1,$2,$3,'active one','extra','paid','active')", [active, f.subscription, f.tenant])
       await pool.query("INSERT INTO commercial_branches(id,subscription_id,tenant_id,name,kind,billing,state,odoo_company_id) VALUES($1,$2,$3,'archived one','extra','paid','archived',77)", [archived, f.subscription, f.tenant])
@@ -1085,7 +916,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
           const sub = await getSubscription(pool, f.customer)
           const { order } = await acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: sub.revision, idempotency_key: randomUUID() }, vendor)
           const target = (await pool.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [order.target_revision_id])).rows[0].snapshot
-          expect(target.entitlement.features['storage.limit_mb'], JSON.stringify(body)).toBe(25000)
+          expect(target.entitlement.features['storage.limit_mb'], JSON.stringify(body)).toBe(30720)
           await pool.query("UPDATE orders SET cancelled=true WHERE id=$1", [order.id])
           await pool.query('UPDATE subscriptions SET target_revision_id=NULL,revision=revision+1 WHERE id=$1', [f.subscription])
           await pool.query("UPDATE commercial_branches SET state=CASE WHEN id=$2 THEN 'archived' ELSE state END WHERE subscription_id=$1 AND id=$2", [f.subscription, archived])

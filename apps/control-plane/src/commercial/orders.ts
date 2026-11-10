@@ -197,6 +197,9 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
   // until the prior order is applied or explicitly cancelled.
   const pending = await client.query("SELECT 1 FROM orders WHERE subscription_id=$1 AND NOT cancelled AND fulfillment_state<>'applied' LIMIT 1", [subscription.id])
   if (subscription.target_revision_id || pending.rowCount) throw new CommercialHttpError('subscription_change_pending', 409)
+  // Once the trial end date has passed and the lapse has not run yet, no new order is accepted: otherwise an order could keep
+  // arriving against the trial configuration and the wait for the lapse would never end.
+  if (subscription.state === 'trialing' && subscription.trial_ends_at && subscription.applied_revision_id && new Date(subscription.trial_ends_at).getTime() <= now.getTime()) throw new CommercialHttpError('trial_ending', 409)
   if (new Date(quote.expires_at).getTime() <= now.getTime()) throw new CommercialHttpError('quote_expired', 422)
   const branchRequest = (await client.query('SELECT * FROM branch_quote_requests WHERE quote_id=$1', [quote.id])).rows[0]
   const kind = branchRequest ? (branchRequest.adds.length ? 'branch_add' : branchRequest.restore.length ? 'branch_restore' : 'branch_archive') : quote.subscription_id && subscription.applied_revision_id ? 'change' : 'new'

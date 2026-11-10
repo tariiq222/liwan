@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool } from 'pg'
 import { CommercialError, compileEntitlements, computeQuote } from '@liwan/commercial-contracts/server'
-import { fitsStorageSteps } from '@liwan/commercial-contracts'
 import { addCadence, riyadhDate, quotePreviewRequestSchema, quoteRequestSchema, quoteSchema, type CustomerTermsRevision, type Quote } from '@liwan/commercial-contracts'
 import type { PoolClient } from 'pg'
 import { transaction } from '../db.js'
@@ -11,7 +10,7 @@ import { loadQuoteSources, pricingBaseline } from './quote-sources.js'
 import { planIssues, planRevision } from './plans.js'
 import { getPolicy } from './policies.js'
 import { assertDowngradeFitsUsage } from './usage.js'
-import { carryHeldCeilings, freeBaseOf, freeBasePricing, heldCeilingsOf, nextStorageStepMb, unresolvedLapse } from './free-base.js'
+import { carryHeldCeilings, freeBaseOf, freeBasePricing, unresolvedLapse } from './free-base.js'
 
 const TTL_MS = 30 * 60 * 1000
 const bad = (code: string, field: string, status = 422) => new CommercialHttpError(code, status, field, [{ code, field }])
@@ -133,11 +132,6 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
     sources.terms = value.previewTerms
   }
   const held = input.kind === 'change' ? applied : null
-  // A held storage ceiling pinned at off-step usage cannot itself be bought: the steps apply. Say what can be bought.
-  const heldStorage = heldCeilingsOf(held)['storage.limit_mb']
-  if (heldStorage && input.requested_storage_mb === held.entitlement.features['storage.limit_mb']
-    && !fitsStorageSteps(input.requested_storage_mb - sources.plan.included_storage_mb, sources.plan))
-    throw bad(`storage_ceiling_not_purchasable:${sources.plan.included_storage_mb + nextStorageStepMb(input.requested_storage_mb - sources.plan.included_storage_mb, sources.plan)}`, 'requested_storage_mb')
   const { entitlement } = carryHeldCeilings(compileOrRefuse(() => compileEntitlements({ ...sources, quantities: { users: input.requested_users, storage_mb: input.requested_storage_mb } })), held)
   if (input.kind === 'change') await assertDowngradeFitsUsage(client, {
     tenant_id: customer.rows[0].tenant_id, subscription_id: s.id,

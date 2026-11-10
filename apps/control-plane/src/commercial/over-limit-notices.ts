@@ -12,20 +12,18 @@ const LABELS: Record<string, { ar: (n: number) => string; en: (n: number) => str
 }
 const label = (key: string, n: number, lang: 'ar' | 'en') => LABELS[key]?.[lang](n) ?? `${key}: ${n}`
 
-/** The text of the notice: what exceeds the free base, what that means, and that nothing is deleted. Exported for tests. */
-export function overLimitText(over: OverLimit[], generic = false): string {
-  if (generic) return 'انتهت تجربتك وانتقلت شركتك إلى القاعدة المجانية. التطبيقات المدفوعة مقفلة للقراءة والتصدير فقط. لم نتمكن بعد من قراءة استخدامك، لذا ستُراجَع الحدود حين يتوفر، ولم يُحذف أو يُؤرشف أي شيء من مستخدميك أو بياناتك. يمكنك الاشتراك في أي وقت لإعادة فتح التطبيقات.\n'
-    + 'Your trial ended and your company moved to the free base. The paid applications are locked to read and export only. We could not read your usage yet, so the limits will be reviewed once it is available; nothing of your users or data was deleted or archived. You can subscribe at any time to reopen the applications.'
+/** The text of the notice: what the customer keeps above the free base, what that means, and that nothing is lowered or deleted. Exported for tests. */
+export function overLimitText(over: OverLimit[]): string {
   const ar = over.map(o => `${label(o.key, o.used, 'ar')} والقاعدة المجانية تشمل ${label(o.key, o.free, 'ar')}`).join('؛ ')
-  const en = over.map(o => `${label(o.key, o.used, 'en')} in use, the free base includes ${label(o.key, o.free, 'en')}`).join('; ')
+  const en = over.map(o => `${label(o.key, o.used, 'en')} kept, the free base includes ${label(o.key, o.free, 'en')}`).join('; ')
   const branchesNoteAr = over.some(o => o.key === 'branches.extra') ? ' الفروع الإضافية التي أنشأتها خلال التجربة تبقى فعّالة دون رسوم إلى أن تشتري فرعًا جديدًا، وعندها يُسعَّر كل فرع فعّال فوق عدد الفروع المضمَّن في باقتك.' : ''
   const branchesNoteEn = over.some(o => o.key === 'branches.extra') ? ' The extra branches you created during the trial stay active at no charge until you next buy a branch; from then on every active branch above the number included in your plan is priced.' : ''
-  return `انتهت تجربتك وانتقلت شركتك إلى القاعدة المجانية، واستخدامك يتجاوز حدودها: ${ar}. التطبيقات المدفوعة مقفلة للقراءة والتصدير فقط. لم يُحذف أو يُؤرشف أي شيء من مستخدميك أو بياناتك، ويُمنع فقط إضافة المزيد فوق الحد.${branchesNoteAr} تُخفَّض الحدود تلقائيًا حين يعود استخدامك ضمنها، ويمكنك الاشتراك في أي وقت لإعادة فتح التطبيقات.\n`
-    + `Your trial ended and your company moved to the free base, but your usage is above its limits: ${en}. The paid applications are locked to read and export only. Nothing of your users or data was deleted or archived; only adding more above the limit is prevented.${branchesNoteEn} The limits are lowered automatically once your usage fits, and you can subscribe at any time to reopen the applications.`
+  return `انتهت تجربتك وانتقلت شركتك إلى القاعدة المجانية، وتحتفظ بما يتجاوز حدودها: ${ar}. التطبيقات المدفوعة مقفلة للقراءة والتصدير فقط. لم يُحذف أو يُؤرشف أو يُخفَّض أي شيء من مستخدميك أو بياناتك، ويبقى ما تحتفظ به معك دون رسوم إلى أن تطلب أنت كمية بنفسك.${branchesNoteAr} يمكنك الاشتراك في أي وقت لإعادة فتح التطبيقات.\n`
+    + `Your trial ended and your company moved to the free base, and you keep more than it includes: ${en}. The paid applications are locked to read and export only. Nothing of your users or data was deleted, archived or lowered; what you keep stays with you at no charge until you request a quantity yourself.${branchesNoteEn} You can subscribe at any time to reopen the applications.`
 }
 
 /**
- * Sends the over-limit notice queued with the lowering. One email per subscription (the outbox key), leased so two workers
+ * Sends the notice queued when the lock applies. One email per subscription (the outbox key), leased so two workers
  * send it once; a send that fails is deferred and retried, and a customer with no address fails the row loudly.
  */
 export async function sendOverLimitNotices(pool: Pool, input: { mail: MailAdapter; signal?: AbortSignal }): Promise<number> {
@@ -37,7 +35,7 @@ export async function sendOverLimitNotices(pool: Pool, input: { mail: MailAdapte
     if (!await leaseOutboxRow(pool, row.id)) continue
     if (!row.admin_login) { await failOutbox(pool, row.id, 'no_recipient'); continue }
     try {
-      await input.mail.send({ to: row.admin_login, subject: 'انتقلت شركتك إلى القاعدة المجانية واستخدامك يتجاوز حدودها', text: overLimitText(row.payload.over as OverLimit[], row.payload.generic === true), message_id: `over-limit-${row.id}@liwan` })
+      await input.mail.send({ to: row.admin_login, subject: 'انتقلت شركتك إلى القاعدة المجانية واستخدامك يتجاوز حدودها', text: overLimitText(row.payload.over as OverLimit[]), message_id: `over-limit-${row.id}@liwan` })
       await completeOutbox(pool, row.id)
       sent++
     } catch (error) { await deferOutbox(pool, row.id, error instanceof Error ? error.message.slice(0, 200) : 'over_limit_notice_failed') }

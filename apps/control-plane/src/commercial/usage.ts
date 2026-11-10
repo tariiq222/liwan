@@ -55,31 +55,6 @@ export async function assertDowngradeFitsUsage(client: Pick<PoolClient, 'query'>
   }
 }
 
-/**
- * What a fall to the free limits would meet today, read from the latest stored usage sample (the same source and the same
- * rule as `assertDowngradeFitsUsage`, but it reports instead of refusing). `over` lists every lowered limit the tenant
- * already exceeds; `unavailable` lists every lowered limit that cannot be judged because there is no fresh sample or the
- * sample lacks that key or its gates. `skipSample` reads no sample at all, so every lowered limit is unavailable (the first lock
- * never depends on usage). A limit whose application the target closes is never judged, as in the host tool.
- */
-export async function usageAgainstFreeLimits(client: Pick<PoolClient, 'query'>, input: { tenant_id: string | null; previous: Features; target: Features; now: Date; skipSample?: boolean }) {
-  const row = input.tenant_id && !input.skipSample ? (await client.query('SELECT observed_at,metrics,freshness,limit_gates FROM usage_snapshots WHERE tenant_id=$1 ORDER BY observed_at DESC,id DESC LIMIT 1', [input.tenant_id])).rows[0] : null
-  const fresh = Boolean(row) && row.freshness === 'fresh' && input.now.getTime() - new Date(row.observed_at).getTime() <= FRESH_MS
-  const over: { key: string; used: number; free: number }[] = [], unavailable: string[] = []
-  for (const key of Object.keys(input.target).sort()) {
-    const free = input.target[key]
-    if (typeof free !== 'number' || key === BRANCH_LIMIT) continue
-    const before = input.previous[key]
-    if (!(before === undefined || before === null || (typeof before === 'number' && free < before))) continue
-    const gates = row?.limit_gates?.[key]
-    if (Array.isArray(gates) && closed(gates, input.target)) continue
-    const used = row?.metrics?.[key]
-    if (!fresh || !Array.isArray(gates) || typeof used !== 'number' || !Number.isFinite(used) || used < 0) unavailable.push(key)
-    else if (used > free) over.push({ key, used, free })
-  }
-  return { over, unavailable }
-}
-
 const UNITS: Record<string, UsageMetric['unit']> = {
   'users.limit': 'users', 'storage.limit_mb': 'mebibytes', [BRANCH_LIMIT]: 'extra_branches',
   users: 'users', projects: 'projects', attachment_bytes: 'attachment_bytes', extra_branches: 'extra_branches',
