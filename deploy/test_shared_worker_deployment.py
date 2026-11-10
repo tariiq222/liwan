@@ -35,6 +35,7 @@ TENANCY = CONTROL / 'runtime-tenancy.sh'
 UNIT = CONTROL / 'liwan-shared-worker.service'
 ENTRYPOINT = CONTROL / 'run-shared-worker.sh'
 WORKER_MAIN = ROOT / 'apps' / 'control-plane' / 'src' / 'shared-worker-main.ts'
+MAIL_ADAPTER = ROOT / 'apps' / 'control-plane' / 'src' / 'commercial' / 'mail-adapter.ts'
 RUNBOOK = ROOT / 'docs' / 'operations' / 'saas-commercial-runbook.md'
 NODE_BIN = '/opt/homebrew/opt/node@22/bin'  # only interpolated into argv strings; never executed
 
@@ -185,6 +186,22 @@ class LocalProcessSharedWorker(unittest.TestCase):
         # same private runtime.env the child would be started from.
         self.assertIn('source "$(dirname "$0")/runtime-tenancy.sh"', self.source)
         self.assertIn('. "$HOME_DIR/runtime.env"', TENANCY.read_text(encoding='utf-8'))
+
+    def test_shared_worker_stop_budget_is_derived_from_the_scheduled_mail_bound(self):
+        # A stop waits for the mail in flight; its bound lives in TypeScript and the stop
+        # budget in bash, so this keeps the two numbers one decision.
+        bound_ms = re.search(r'export const SCHEDULED_MAIL_SEND_TIMEOUT_MS = ([\d_]+);',
+                             MAIL_ADAPTER.read_text(encoding='utf-8'))
+        self.assertIsNotNone(bound_ms, 'the scheduled mail bound must be a named constant')
+        inflight = re.search(r'^SHARED_WORKER_INFLIGHT_SECONDS=(\d+)$', self.source, re.MULTILINE)
+        self.assertIsNotNone(inflight)
+        self.assertEqual(int(inflight.group(1)) * 1000, int(bound_ms.group(1).replace('_', '')))
+        script = (f'STOP_SECONDS=30\n{inflight.group(0)}\n'
+                  f'{_between(self.source, "stop_budget() {", "fi; }")}\n'
+                  'printf "%s %s %s" "$(stop_budget shared-worker)" "$(stop_budget worker)" "$(stop_budget api)"')
+        result = _bash(script, _clean_env())
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, f'{int(inflight.group(1)) + 30} 30 30')
 
     def test_generation_records_include_the_shared_worker(self):
         records = _between(self.source, 'RECORD_NAMES=(', ')')

@@ -15,6 +15,15 @@ if [[ -z "${LIWAN_PROCESS_LOCK_FD:-}" ]]; then exec python3 "$(dirname "$0")/pro
 proc_start() { ps -p "$1" -o lstart= 2>/dev/null | xargs || true; }
 expected() { case "$1" in api) printf '%s' "$NODE_BIN/node $ROOT/node_modules/tsx/dist/cli.mjs $ROOT/apps/control-plane/src/main.ts";; worker) printf '%s' "$NODE_BIN/node $ROOT/node_modules/tsx/dist/cli.mjs $ROOT/apps/control-plane/src/worker-main.ts";; shared-worker) printf '%s' "$NODE_BIN/node $ROOT/node_modules/tsx/dist/cli.mjs $ROOT/apps/control-plane/src/shared-worker-main.ts";; runtime) printf '%s' "bash $ROOT/deploy/control-plane/run-local.sh";; esac; }
 source "$(dirname "$0")/runtime-tenancy.sh"
+# Seconds a child gets to exit after SIGTERM before the stop is reported as timed out
+# (nothing is ever killed). The variable exists so tests and operators can shorten it.
+STOP_SECONDS="${LIWAN_STOP_SECONDS:-30}"
+[[ "$STOP_SECONDS" =~ ^[1-9][0-9]*$ ]] || { printf 'LIWAN_STOP_SECONDS must be a positive integer.\n' >&2; exit 2; }
+# A shared-worker stop waits for the scheduled mail in flight, which ends within
+# SCHEDULED_MAIL_SEND_TIMEOUT_MS (apps/control-plane/src/commercial/mail-adapter.ts, 60 s);
+# the scheduler starts no further message after SIGTERM. A deployment test keeps both equal.
+SHARED_WORKER_INFLIGHT_SECONDS=60
+stop_budget() { if [[ "$1" == shared-worker ]]; then printf '%s' "$((SHARED_WORKER_INFLIGHT_SECONDS + STOP_SECONDS))"; else printf '%s' "$STOP_SECONDS"; fi; }
 command_matches() {
  local name="$1" command="$2" expected_command index
  local -a actual expected_argv
@@ -160,14 +169,22 @@ archive_record_set() {
  printf '%s' "$archive"
 }
 
-stop_one() {
+# SIGTERM one exactly owned child and wait for it to exit within its stop budget. Its
+# records are left for the caller: a stop that times out must never leave a record set
+# with some children already deleted, because the next stop refuses an incomplete set.
+terminate_owner() {
  python3 "$(dirname "$0")/process_lock.py" --check >/dev/null || { printf 'Lifecycle lock capability is invalid.\n' >&2; return 12; }
  local n="$1" pid start
+ valid "$n" || { printf 'Exact process identity mismatch for %s; refusing signal.\n' "$n" >&2; return 10; }
+ pid="$(<"$state/$n.pid")"; start="$(<"$state/$n.start")"; command kill -TERM "$pid" 2>/dev/null || [[ "$(proc_start "$pid")" != "$start" ]] || return 10
+ for _ in $(seq 1 "$(stop_budget "$n")"); do if ! kill -0 "$pid" 2>/dev/null || [[ "$(proc_start "$pid")" != "$start" ]]; then return 0; fi; sleep 1; done
+ printf 'Stop timeout for %s; owner records retained.\n' "$n" >&2; return 11
+}
+stop_one() {
+ local n="$1"
  if [[ -e "$state/$n.pid" || -e "$state/$n.start" ]]; then
-   valid "$n" || { printf 'Exact process identity mismatch for %s; refusing signal.\n' "$n" >&2; return 10; }
-   pid="$(<"$state/$n.pid")"; start="$(<"$state/$n.start")"; command kill -TERM "$pid" 2>/dev/null || [[ "$(proc_start "$pid")" != "$start" ]] || return 10
-   for _ in $(seq 1 30); do if ! kill -0 "$pid" 2>/dev/null || [[ "$(proc_start "$pid")" != "$start" ]]; then rm -f "$state/$n.pid" "$state/$n.start" "$state/$n.generation"; return 0; fi; sleep 1; done
-   printf 'Stop timeout for %s; owner records retained.\n' "$n" >&2; return 11
+   terminate_owner "$n" || return $?
+   rm -f "$state/$n.pid" "$state/$n.start" "$state/$n.generation"
  fi
 }
 case "$mode" in
@@ -191,14 +208,14 @@ case "$mode" in
       fi
       if [[ "$mixed" == 1 ]]; then archive="$(archive_record_set "$(<"$state/generation")")" || exit 10; fi
       for n in api worker shared-worker; do
-        [[ "$(owner_state "$n")" == live ]] && { stop_one "$n" || exit $?; }
+        [[ "$(owner_state "$n")" == live ]] && { terminate_owner "$n" || exit $?; }
       done
       if [[ "$(owner_state runtime)" == live ]]; then
         pid="$(<"$state/runtime.pid")"; start="$(<"$state/runtime.start")"
         printf '%s %s\n' "$pid" "$(<"$state/generation")" > "$state/stop-handoff"
         chmod 600 "$state/stop-handoff"
         command kill -TERM "$pid" 2>/dev/null || [[ "$(proc_start "$pid")" != "$start" ]] || exit 10
-        for _ in $(seq 1 30); do if ! kill -0 "$pid" 2>/dev/null || [[ "$(proc_start "$pid")" != "$start" ]]; then break; fi; sleep 1; done
+        for _ in $(seq 1 "$STOP_SECONDS"); do if ! kill -0 "$pid" 2>/dev/null || [[ "$(proc_start "$pid")" != "$start" ]]; then break; fi; sleep 1; done
         [[ "$(proc_start "$pid")" != "$start" ]] || { printf 'Stop timeout for runtime; owner records retained.\n' >&2; exit 11; }
       fi
       rm -f "$state/runtime.pid" "$state/runtime.start" "$state/stop-handoff" "$state/generation" \

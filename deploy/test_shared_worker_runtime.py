@@ -98,6 +98,8 @@ const entry = process.argv[2] || 'unknown';
 // Distinguish the three entrypoints; the shared worker is checked on its own.
 const name = entry.includes('shared-worker-main') ? 'shared-worker'
   : entry.includes('worker-main') ? 'worker' : 'api';
+// A stuck child: the test names the entrypoint that must outlive SIGTERM.
+if (process.env.LIWAN_TEST_IGNORE_TERM === name) process.on('SIGTERM', () => {});
 fs.writeFileSync(`${home}/entry-${name}.json`, JSON.stringify({
   pid: process.pid, ppid: process.ppid, argv: process.argv,
   tenancy: process.env.LIWAN_TENANCY_MODE ?? null,
@@ -242,9 +244,9 @@ class SharedModeRuntime(unittest.TestCase):
             time.sleep(.05)
         self.fail(f'{names} did not record their identity within {timeout}s')
 
-    def run_script(self, name, timeout=60):
+    def run_script(self, name, timeout=60, env=None):
         return subprocess.run(['bash', str(self.root / 'deploy/control-plane' / name)],
-                              cwd=str(self.root), env=self.env(),
+                              cwd=str(self.root), env={**self.env(), **(env or {})},
                               capture_output=True, text=True, timeout=timeout)
 
     def run_local_process(self, *args, timeout=30):
@@ -330,6 +332,37 @@ class SharedModeRuntime(unittest.TestCase):
         # The damaged runtime can still be stopped, which removes every record.
         self.assertEqual(self.run_script('stop-local.sh').returncode, 0)
         supervisor.wait(timeout=10)
+        self.assertEqual(list((self.home / 'processes').iterdir()), [])
+
+    def test_a_child_that_misses_its_stop_deadline_leaves_the_records_whole(self):
+        # A slow child (a mail batch, a provisioning job) can outlive the SIGTERM deadline.
+        # The stop reports the timeout and keeps the complete record set, so the next
+        # stop still sees every owner instead of refusing a half-deleted set.
+        self.runtime_env.write_text(
+            'export LIWAN_TENANCY_MODE=shared\nexport LIWAN_TEST_IGNORE_TERM=worker\n'
+            f'export LIWAN_SHARED_RUNTIME_CONFIG={self.base / "shared-runtime.json"}\n'
+            f'export LIWAN_TENANT_REGISTRY_PATH={self.base / "registry.json"}\n')
+        supervisor, _ = self.start_runtime()
+        self.wait_for_entries('api', 'worker', 'shared-worker')
+        api, worker, shared = self.entry('api'), self.entry('worker'), self.entry('shared-worker')
+        before = self.records()
+
+        first = self.run_script('stop-local.sh', env={'LIWAN_STOP_SECONDS': '2'})
+        self.assertEqual(first.returncode, 11, first.stdout + first.stderr[-2000:])
+        self.assertIn('Stop timeout for worker; owner records retained', first.stderr)
+        self.assertEqual(self.records(), before, 'a timed-out stop must not delete any record')
+        self.assertTrue(self._alive(worker['pid']) and self._alive(shared['pid']))
+        self.assertIsNone(supervisor.poll(), 'the supervisor keeps running after a timed-out stop')
+
+        # The stuck child finally dies; the same stop now completes the whole runtime.
+        os.kill(worker['pid'], 9)
+        second = self.run_script('stop-local.sh', env={'LIWAN_STOP_SECONDS': '2'})
+        self.assertEqual(second.returncode, 0, second.stdout + second.stderr[-2000:])
+        supervisor.wait(timeout=10)
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline and any(self._alive(r['pid']) for r in (api, shared)):
+            time.sleep(.05)
+        self.assertFalse(any(self._alive(r['pid']) for r in (api, worker, shared)))
         self.assertEqual(list((self.home / 'processes').iterdir()), [])
 
     def test_dedicated_mode_starts_exactly_api_and_worker(self):
