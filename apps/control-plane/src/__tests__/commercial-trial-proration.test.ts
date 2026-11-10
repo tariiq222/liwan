@@ -3,9 +3,12 @@ import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
 import type { Principal } from '@liwan/commercial-contracts'
 import { client, money, setup, url } from './commercial-helpers.js'
+import { transaction } from '../db.js'
+import { digestOf } from '../commercial/lifecycle.js'
+import { acceptQuoteOn } from '../commercial/orders.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { getSubscription } from '../commercial/subscriptions.js'
-import { startTrial } from '../commercial/trial.js'
+import { extendTrial, startTrial } from '../commercial/trial.js'
 
 const monthly = { unit: 'month' as const, count: 1 }
 const yearly = { unit: 'year' as const, count: 1 }
@@ -13,7 +16,7 @@ const at = (iso: string) => new Date(`${iso}T09:00:00Z`)
 
 const suite = url ? describe : describe.skip
 // A 14-day trial started 2026-10-25 ends 2026-11-08. The cycle after it is 30 days monthly, 365 days yearly.
-suite('trial purchases are pro-rated by cadence days (spec 0a: L6)', () => {
+suite('trial purchases are pro-rated by cadence days (spec 0a: L6, L7)', () => {
   const pool = new Pool({ connectionString: url, max: 4 })
   const api = client(pool)
   const reason = 'Trial proration'
@@ -85,5 +88,31 @@ suite('trial purchases are pro-rated by cadence days (spec 0a: L6)', () => {
     await pool.query("UPDATE subscriptions SET state='active',trial_ends_at=NULL,revision=revision+1 WHERE customer_id=$1", [c.id])
     // The applied period is 2026-10-25 -> 2026-11-08 (14 days); 13 days remain on 2026-10-26.
     expect(usersDelta(await changeQuote(c.id, monthly, at('2026-10-26')))).toBe(18571)
+  })
+
+  it('an extended trial stays quotable after its original end date, priced to the new end', async () => {
+    const c = await trialing(monthly)
+    await extendTrial(pool, { subscription_id: (await getSubscription(pool, c.id)).id, days: 7, reason: 'vendor grant', actor: 'vendor' })
+    // Trial now ends 2026-11-15, the cycle after it is 30 days: 5 days left on 2026-11-10 -> 20000 * 5 / 30.
+    const quote = await changeQuote(c.id, monthly, at('2026-11-10'))
+    expect(usersDelta(quote)).toBe(3333)
+    expect(quote.next_renewal_at).toBe('2026-11-15')
+    // The old end date itself is priced to the new end as well: 7 days left.
+    expect(usersDelta(await changeQuote(c.id, monthly, at('2026-11-08')))).toBe(4667)
+  })
+  it('writes the derived period end into the accepted snapshot and leaves the applied revision unchanged', async () => {
+    const c = await trialing(monthly)
+    const sub = (await pool.query('SELECT id,applied_revision_id FROM subscriptions WHERE customer_id=$1', [c.id])).rows[0]
+    const appliedBefore = (await pool.query('SELECT id,snapshot FROM subscription_revisions WHERE id=$1', [sub.applied_revision_id])).rows[0]
+    expect(appliedBefore.snapshot.period_end).toBe('2026-11-08')
+    await extendTrial(pool, { subscription_id: sub.id, days: 7, reason: 'vendor grant', actor: 'vendor' })
+    const quote = await changeQuote(c.id, monthly, at('2026-11-10'))
+    const input = { quote_id: quote.id, expected_subscription_revision: quote.expected_subscription_revision, idempotency_key: randomUUID() }
+    const { order } = await transaction(pool, tx => acceptQuoteOn(tx, input as any, digestOf(input), quote, c.owner, at('2026-11-10')))
+    const target = (await pool.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [order.target_revision_id])).rows[0].snapshot
+    expect(target.period_end).toBe('2026-11-15')
+    expect(target.period_start).toBe('2026-10-25')
+    const appliedAfter = (await pool.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [sub.applied_revision_id])).rows[0]
+    expect(appliedAfter.snapshot).toEqual(appliedBefore.snapshot)
   })
 })

@@ -130,8 +130,12 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
     if (!applied) throw bad('subscription_required', 'kind', 409)
     if (JSON.stringify(applied.cadence) !== JSON.stringify(input.cadence)) throw bad('cadence_change_unsupported', 'cadence')
     period = { start: applied.period_start, end: applied.period_end }
-    // While trialing, a purchase is priced at the daily rate of the cycle that follows the trial, not per trial day.
-    if (s.state === 'trialing') prorationCycleDays = daysBetween(period.end, addCadence(period.end, input.cadence, 1))
+    // While trialing, the period ends where the trial does (a vendor extension moves `trial_ends_at`, never the immutable
+    // applied revision), and a purchase is priced at the daily rate of the cycle that follows the trial.
+    if (s.state === 'trialing' && s.trial_ends_at) {
+      period = { start: applied.period_start, end: riyadhDate(s.trial_ends_at) }
+      prorationCycleDays = daysBetween(period.end, addCadence(period.end, input.cadence, 1))
+    }
     current = applied.pricing
     if (!current) {
       const old = (await client.query('SELECT payload FROM commercial_quotes WHERE id=$1', [applied.quote_id])).rows[0]?.payload
@@ -155,8 +159,9 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
   })
   try {
     const quote = computeQuote({ ...sources, kind: input.kind, cadence: input.cadence, requested_extra_branches: input.requested_extra_branches,
+      proration_cycle_days: prorationCycleDays,
       requested_users: input.requested_users, requested_storage_mb: input.requested_storage_mb,
-      current, effective_date: effective, period, proration_cycle_days: prorationCycleDays, ids: { id: randomUUID(), customer_id: value.customer_id, subscription_id: s?.id ?? null, expected_subscription_revision: s?.revision ?? 0 },
+      current, effective_date: effective, period, ids: { id: randomUUID(), customer_id: value.customer_id, subscription_id: s?.id ?? null, expected_subscription_revision: s?.revision ?? 0 },
       expires_at: new Date(now.getTime() + TTL_MS).toISOString(), entitlement_digest: entitlement.digest, onboarding })
     if (persist && !value.previewTerms) await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [quote.id, value.customer_id, JSON.stringify(quote), quote.digest, quote.expires_at])
     return quoteSchema.parse(quote)
