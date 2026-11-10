@@ -139,6 +139,22 @@ class TestTrialStorage(ExcessCase):
         self.assertTrue(all(files.mapped('liwan_storage_blocked')))
         self.assertTrue(self.service._liwan_excess_is_settled())
 
+    def test_storage_blocks_a_file_whose_creator_was_deleted(self):
+        creator = new_test_user(self.env, login='storage_deleted_creator', groups='liwan_core.group_employee')
+        attachment = self._write_as(creator).with_env(self.env)
+        self.assertEqual(attachment.create_uid, creator)
+        creator.unlink()
+        attachment.invalidate_recordset(['create_uid'])
+        self.assertFalse(attachment.create_uid)
+
+        self._set_limit('storage.limit_mb', 0)
+        self.assertTrue(attachment.liwan_storage_blocked)
+        self.assertEqual(attachment.read(['file_size'])[0]['file_size'], 10)
+        with self.assertRaises(LiwanAccessRule) as caught:
+            attachment.raw
+        self.assertEqual(caught.exception.code, 'storage_excess_blocked')
+        self.assertTrue(self.service._liwan_excess_is_settled())
+
     def test_storage_proof_checks_flags_before_advertising_settlement(self):
         limit, files = self._files()
         self._set_limit('storage.limit_mb', limit)

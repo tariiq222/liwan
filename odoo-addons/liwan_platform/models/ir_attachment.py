@@ -55,7 +55,7 @@ class LiwanPlatformIrAttachment(models.Model):
     def _liwan_generated_asset(self, values, owner):
         url = values.get('url')
         return (
-            owner._is_superuser() and values.get('type', 'binary') == 'binary'
+            bool(owner) and owner._is_superuser() and values.get('type', 'binary') == 'binary'
             and values.get('res_model') == 'ir.ui.view' and not values.get('res_id') and not values.get('res_field')
             and values.get('public') is True and values.get('mimetype') in ASSET_MIMETYPES
             and isinstance(url, str) and url.startswith('/web/assets/')
@@ -65,11 +65,13 @@ class LiwanPlatformIrAttachment(models.Model):
         self.ensure_one()
         if self.res_model == 'res.partner' and self.res_field in COMPANY_IMAGES and self.res_id in company_partners:
             return True
+        # The native creator link can be cleared while its file remains.
+        owner = self.create_uid
         # Odoo reads language flags when constructing even a maintenance shell's environment.
         if self.res_model == 'res.lang' and self.res_id and self.res_field == 'flag_image':
-            return self.create_uid._is_superuser()
+            return bool(owner) and owner._is_superuser()
         asset_fields = ('type', 'res_model', 'res_id', 'res_field', 'public', 'mimetype', 'url')
-        return self._liwan_generated_asset({field: self[field] for field in asset_fields}, self.create_uid)
+        return self._liwan_generated_asset({field: self[field] for field in asset_fields}, owner)
 
     def _liwan_assert_storage_readable(self):
         # Module loading can read stock attachments before the platform schema and singleton exist.
