@@ -26,9 +26,8 @@ import { migrate } from '../db.js'
 import { publishRegistryMutation, REGISTRY_ADVISORY_LOCK } from '../shared/registry-store.js'
 import { enqueueSharedJob } from '../shared/job-store.js'
 import { runSharedJob, recoverSharedJob, expireSharedLeases } from '../shared/job-worker.js'
-import { createFencedStorageAdapter, ensureAdminBindingSchema, ensureTenantStorageSchema, type TenantStorage } from '../shared/fenced-adapter.js'
+import { createFencedStorageAdapter, ensureTenantStorageSchema, type TenantStorage } from '../shared/fenced-adapter.js'
 import { bindJob } from '../shared/provisioning.js'
-import { bindAdminRow } from './helpers/shared-admin.js'
 import { createTenantBackup, approveSharedRestore, restoreBackupToNewTarget } from '../shared/shared-backup.js'
 import { ensureTenantDatabases, tenantDatabaseNames } from './live-tenant-databases.js'
 import { vendorAccount, replaceRoles } from './helpers/vendor-session.js'
@@ -95,11 +94,9 @@ else describe('shared restore queue', () => {
     const storage = await connect(database)
     try {
       await ensureTenantStorageSchema(storage)
-      await ensureAdminBindingSchema(storage)
       const fencing = (await storage.pool.query('SELECT tenant_id,fence::float8 AS fence FROM shared_fencing ORDER BY tenant_id')).rows as { tenant_id: string; fence: number }[]
       const effects = (await storage.pool.query('SELECT tenant_id,business_key,payload_digest,attempt_id::text AS attempt_id,fence::float8 AS fence FROM shared_effects ORDER BY tenant_id,business_key')).rows as { tenant_id: string; business_key: string }[]
-      const admin = (await storage.pool.query('SELECT tenant_id,login FROM shared_admin ORDER BY tenant_id')).rows as { tenant_id: string; login: string }[]
-      return { fencing, effects, admin }
+      return { fencing, effects }
     } finally { await storage.pool.end() }
   }
   const consumedAt = async (approvalId: string) => ((await pool.query('SELECT consumed_at FROM shared_restore_approvals WHERE id=$1', [approvalId])).rows[0]?.consumed_at ?? null) as Date | null
@@ -139,7 +136,6 @@ else describe('shared restore queue', () => {
     const storage = await connect(database)
     try {
       await ensureTenantStorageSchema(storage)
-      await ensureAdminBindingSchema(storage)
       await storage.pool.query("INSERT INTO shared_fencing(tenant_id,fence) VALUES('t99',0) ON CONFLICT DO NOTHING")
       await storage.pool.query('INSERT INTO shared_effects(tenant_id,business_key,payload_digest,attempt_id,fence) VALUES($1,$2,$3,$4,0) ON CONFLICT DO NOTHING',
         ['t99', JSON.stringify(['shared-v1','t99','provision','initial']), 'f'.repeat(64), randomUUID()])
@@ -174,8 +170,7 @@ else describe('shared restore queue', () => {
       const storage = await connect(database)
       try {
         await ensureTenantStorageSchema(storage)
-        await ensureAdminBindingSchema(storage)
-        await storage.pool.query('TRUNCATE shared_fencing, shared_effects, shared_admin, shared_tenant_policy')
+        await storage.pool.query('TRUNCATE shared_fencing, shared_effects, shared_tenant_policy')
       } finally { await storage.pool.end() }
     }
     await publishRegistryMutation(pool, registryPath, actor, { controlTenantId: tenantId, expectedSnapshotRevision: 0, target: { host: 't07.restore.invalid', tenantId: tenantSlug, database: sourceDatabase, filestore: sourceDatabase, enabled: true, registryRevision: 1 }, reason: 'Restore source tenant' })
@@ -186,8 +181,6 @@ else describe('shared restore queue', () => {
     const job = await enqueueSharedJob(pool, tenantId, actor, { schemaVersion: 1, operation: 'provision', requestId }, 'Restore source provision')
     const result = await runSharedJob(pool, job.id, adapter)
     if (result.state !== 'verified') throw new Error(`provision not verified: ${result.state}`)
-    const sourceStorage = await connect(sourceDatabase)
-    try { await bindAdminRow(sourceStorage, { tenantId: tenantSlug, requestId, login: 'admin.t07' }) } finally { await sourceStorage.pool.end() }
     const otherProvision = await enqueueSharedJob(pool, otherTenantId, actor, { schemaVersion: 1, operation: 'provision', requestId: randomUUID() }, 'Other tenant provision')
     const otherProvisioned = await runSharedJob(pool, otherProvision.id, adapter)
     if (otherProvisioned.state !== 'verified') throw new Error(`other provision not verified: ${otherProvisioned.state}`)
@@ -265,10 +258,9 @@ else describe('shared restore queue', () => {
     await expect(runSharedJob(pool, queued.id, adapter)).rejects.toThrow('shared_job_not_claimable')
     expect(await consumedAt(approvals.main)).toEqual(consumedFirst)
     const state = await tenantState(targetDatabase)
-    const tenantIds = [...new Set([...state.fencing, ...state.effects, ...state.admin].map((row) => row.tenant_id))]
+    const tenantIds = [...new Set([...state.fencing, ...state.effects].map((row) => row.tenant_id))]
     expect(tenantIds).toEqual([tenantSlug])
     expect(state.effects.length).toBeGreaterThan(0)
-    expect(state.admin.map((row) => row.login)).toEqual(['admin.t07'])
     // The second, independently provisioned tenant's data never reaches the target.
     const other = await tenantState(otherTenantDatabase)
     expect(other.effects.map((row) => row.tenant_id)).toEqual([otherTenantSlug])
@@ -414,7 +406,7 @@ else describe('shared restore queue', () => {
     expect(await jobState(queued.id)).toBe('needs_intervention')
     expect(await consumedAt(approvals.raceBound)).toBeNull()
     const state = await tenantState(raceBoundTarget)
-    expect([...state.fencing, ...state.effects, ...state.admin]).toEqual([])
+    expect([...state.fencing, ...state.effects]).toEqual([])
     // The same refusal through the authority primitive, still unconsumed.
     await expect(restoreBackupToNewTarget(pool, connect, { approvalId: approvals.raceBound, actor })).rejects.toThrow('restore_target_reserved')
     expect(await consumedAt(approvals.raceBound)).toBeNull()

@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url'
 import { migrate } from '../db.js'
 import { publishRegistryMutation } from '../shared/registry-store.js'
 import { runSharedJob } from '../shared/job-worker.js'
-import { createFencedStorageAdapter, ensureAdminBindingSchema, ensureTenantStorageSchema, type TenantStorage } from '../shared/fenced-adapter.js'
+import { createFencedStorageAdapter, ensureTenantStorageSchema, type TenantStorage } from '../shared/fenced-adapter.js'
 import { createSharedOrder, applyPaymentEvent, provisionPaidOrder, reconcilePaidOrder } from '../shared/shared-order.js'
 import { ensureTenantDatabases, tenantDatabaseNames } from './live-tenant-databases.js'
 import { vendorAccount, replaceRoles } from './helpers/vendor-session.js'
@@ -63,8 +63,7 @@ else describe('shared order and sandbox payment lifecycle', () => {
       await publishRegistryMutation(pool, registryPath, actor, { controlTenantId: tenant, expectedSnapshotRevision: index, target: { host: `t${nn}.order.invalid`, tenantId: `t${nn}`, database: tenantDatabases[index]!, filestore: tenantDatabases[index]!, enabled: true, registryRevision: 1 }, reason: `Order tenant ${nn}` })
       const storage = await connect(tenantDatabases[index]!)
       await ensureTenantStorageSchema(storage)
-      await ensureAdminBindingSchema(storage)
-      await storage.pool.query('TRUNCATE shared_fencing, shared_effects, shared_admin, shared_tenant_policy')
+      await storage.pool.query('TRUNCATE shared_fencing, shared_effects, shared_tenant_policy')
       await storage.pool.end()
     }
   })

@@ -72,16 +72,6 @@ export async function ensureTenantStorageSchema(storage: TenantStorage): Promise
   )`)
 }
 
-/** The first administrator's login bound to its provisioning request; backup and restore carry it. No password column exists. */
-export async function ensureAdminBindingSchema(storage: TenantStorage): Promise<void> {
-  await storage.pool.query(`CREATE TABLE IF NOT EXISTS shared_admin (
-    tenant_id text PRIMARY KEY,
-    request_id uuid NOT NULL,
-    login text NOT NULL,
-    bound_at timestamptz NOT NULL DEFAULT clock_timestamp()
-  )`)
-}
-
 /** Restore observation truth: the approval's target database is compared
  * against the verified backup digest. An empty target is absent; an exact
  * digest match is present; any other non-empty state is foreign data and must
@@ -96,16 +86,14 @@ async function observeRestore(control: Pool, connect: FencedStorageAdapterOption
   const storage = await connect(row.target_database)
   try {
     await ensureTenantStorageSchema(storage)
-    await ensureAdminBindingSchema(storage)
     const fencing = await storage.pool.query('SELECT tenant_id,fence::float8 AS fence FROM shared_fencing ORDER BY tenant_id')
     const effects = await storage.pool.query('SELECT tenant_id,business_key,payload_digest,attempt_id::text AS attempt_id,fence::float8 AS fence FROM shared_effects ORDER BY tenant_id,business_key')
-    const admin = await storage.pool.query('SELECT tenant_id,request_id::text AS request_id,login FROM shared_admin ORDER BY tenant_id')
     const policy = await storage.pool.query('SELECT tenant_id,policy_revision::float8 AS policy_revision,features FROM shared_tenant_policy ORDER BY tenant_id')
-    if (!fencing.rowCount && !effects.rowCount && !admin.rowCount && !policy.rowCount) return { state: 'absent' as const }
+    if (!fencing.rowCount && !effects.rowCount && !policy.rowCount) return { state: 'absent' as const }
     // Same readback shape and digest as restoreBackupToNewTarget: the digest
     // mirrors the stored snapshot's own key shape, so a pre-policy backup
     // (snapshot without a `policy` key) is compared without a policy key.
-    const applied: Record<string, unknown> = { schemaVersion: 1, tenantId: row.snapshot?.tenantId ?? null, fencing: fencing.rows, effects: effects.rows, admin: admin.rows }
+    const applied: Record<string, unknown> = { schemaVersion: 1, tenantId: row.snapshot?.tenantId ?? null, fencing: fencing.rows, effects: effects.rows }
     if (row.snapshot && typeof row.snapshot === 'object' && 'policy' in row.snapshot) applied.policy = policy.rows
     const appliedDigest = createHash('sha256').update(JSON.stringify(applied)).digest('hex')
     if (appliedDigest === row.database_sha256) {

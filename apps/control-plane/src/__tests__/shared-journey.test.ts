@@ -1,7 +1,7 @@
 // Package-7 live evidence: the complete shared-SaaS acceptance journey on
 // real PostgreSQL, one synthetic tenant end to end:
 // order (immutable quote) -> sandbox payment -> exactly one provision job ->
-// fenced effect in the tenant database -> first-admin binding -> active tenant
+// fenced effect in the tenant database -> active tenant
 // (activation itself is covered by the onboarding suites) -> paid order reconciled to
 // 'provisioned' -> verified backup -> approved restore into a NEW target
 // database with readback verification.
@@ -17,8 +17,7 @@ import { fileURLToPath } from 'node:url'
 import { migrate } from '../db.js'
 import { publishRegistryMutation } from '../shared/registry-store.js'
 import { runSharedJob } from '../shared/job-worker.js'
-import { createFencedStorageAdapter, ensureAdminBindingSchema, ensureTenantStorageSchema, type TenantStorage } from '../shared/fenced-adapter.js'
-import { bindAdminRow } from './helpers/shared-admin.js'
+import { createFencedStorageAdapter, ensureTenantStorageSchema, type TenantStorage } from '../shared/fenced-adapter.js'
 import { createSharedOrder, applyPaymentEvent, provisionPaidOrder, reconcilePaidOrder } from '../shared/shared-order.js'
 import { createTenantBackup, approveSharedRestore, restoreBackupToNewTarget } from '../shared/shared-backup.js'
 import { ensureTenantDatabases, tenantDatabaseNames } from './live-tenant-databases.js'
@@ -70,8 +69,7 @@ else describe('shared SaaS full journey', () => {
     for (const database of [sourceDatabase, restoreTarget]) {
       const storage = await connect(database)
       await ensureTenantStorageSchema(storage)
-      await ensureAdminBindingSchema(storage)
-      await storage.pool.query('TRUNCATE shared_fencing, shared_effects, shared_admin, shared_tenant_policy')
+      await storage.pool.query('TRUNCATE shared_fencing, shared_effects, shared_tenant_policy')
       await storage.pool.end()
     }
   })
@@ -91,10 +89,6 @@ else describe('shared SaaS full journey', () => {
     // 4. Fenced effect in the tenant database.
     const result = await runSharedJob(pool, provisioned.jobId, adapter)
     if (result.state !== 'verified') throw new Error(`journey provision not verified: ${result.state}`)
-    // 5. First-admin binding to the request identity.
-    const stored = (await pool.query('SELECT payload FROM shared_jobs WHERE id=$1', [provisioned.jobId])).rows[0].payload
-    const storage = await connect(sourceDatabase)
-    try { await bindAdminRow(storage, { tenantId: 't10', requestId: stored.requestId, login: 'admin.t10' }) } finally { await storage.pool.end() }
     // 6-7. Activation is reconcileOdooOnboardings (covered by its own suites); this journey starts from an active tenant.
     await pool.query("UPDATE tenants SET status='active',health_checked_at=now() WHERE id=$1", [tenantId])
     expect((await pool.query('SELECT status FROM tenants WHERE id=$1', [tenantId])).rows[0].status).toBe('active')
@@ -109,9 +103,9 @@ else describe('shared SaaS full journey', () => {
     expect(restored.applied).toBe(true)
     const target = await connect(restoreTarget)
     try {
-      const admin = (await target.pool.query('SELECT tenant_id,login FROM shared_admin')).rows as { tenant_id: string; login: string }[]
-      expect(admin).toHaveLength(1)
-      expect(admin[0]).toEqual({ tenant_id: 't10', login: 'admin.t10' })
+      const effects = (await target.pool.query('SELECT tenant_id FROM shared_effects')).rows as { tenant_id: string }[]
+      expect(effects.length).toBeGreaterThan(0)
+      expect(effects.every(row => row.tenant_id === 't10')).toBe(true)
     } finally { await target.pool.end() }
     // Full audit trail exists for the journey's gated decisions.
     const backupAudit = (await pool.query("SELECT count(*)::int AS count FROM audit_events WHERE action='shared_backup.verified' AND subject=$1", [backup.backupId])).rows[0].count

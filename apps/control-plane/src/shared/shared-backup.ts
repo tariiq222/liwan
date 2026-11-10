@@ -15,7 +15,7 @@ import { z } from 'zod'
 import type { SharedJob } from '@liwan/commercial-contracts/shared'
 import { transaction } from '../db.js'
 import type { TenantStorage } from './fenced-adapter.js'
-import { ensureAdminBindingSchema, ensureTenantStorageSchema } from './fenced-adapter.js'
+import { ensureTenantStorageSchema } from './fenced-adapter.js'
 import { REGISTRY_ADVISORY_LOCK } from './registry-store.js'
 import { actorHolds, actorLabel } from '../admin-auth/grants.js'
 
@@ -80,13 +80,7 @@ export async function assertRestoreTargetUnreserved(client: Pool | PoolClient, t
   if (reserved.rowCount) throw new Error('restore_target_reserved')
 }
 
-/** The target's restore tables must exist before they can be locked or read. */
-export async function ensureRestoreTargetSchema(storage: TenantStorage): Promise<void> {
-  await ensureTenantStorageSchema(storage)
-  await ensureAdminBindingSchema(storage)
-}
-
-/** A restore target must be NEW: no fencing, effect or admin row was ever
+/** A restore target must be NEW: no fencing, effect or policy row was ever
  * applied to it. One definition, shared by the enqueue pre-check and the effect
  * stage. The runner is the caller's connection, so the effect stage can run it
  * inside the exclusive table lock of the transaction that writes the snapshot. */
@@ -94,7 +88,6 @@ export async function assertRestoreTargetEmpty(runner: Pool | PoolClient): Promi
   const occupied = await runner.query(
     `SELECT (SELECT count(*) FROM shared_fencing)
           + (SELECT count(*) FROM shared_effects)
-          + (SELECT count(*) FROM shared_admin)
           + (SELECT count(*) FROM shared_tenant_policy) AS count`)
   if (Number(occupied.rows[0].count) > 0) throw new Error('restore_target_not_empty')
 }
@@ -112,7 +105,7 @@ export async function assertRestoreTargetInspectable(connect: ((database: string
   let storage: TenantStorage | undefined
   try {
     storage = await connect(targetDatabase)
-    await ensureRestoreTargetSchema(storage)
+    await ensureTenantStorageSchema(storage)
     await assertRestoreTargetEmpty(storage.pool)
   } catch (error) {
     if (!UNREACHABLE.has((error as { code?: string }).code ?? '')) throw error
@@ -173,13 +166,11 @@ export async function createTenantBackup(pool: Pool, connect: (database: string)
   let databaseSha256 = ''
   try {
     await ensureTenantStorageSchema(storage)
-    await ensureAdminBindingSchema(storage)
     snapshot = await transaction(storage.pool, async client => {
       const fencing = await client.query('SELECT tenant_id,fence::float8 AS fence FROM shared_fencing ORDER BY tenant_id')
       const effects = await client.query('SELECT tenant_id,business_key,payload_digest,attempt_id::text AS attempt_id,fence::float8 AS fence FROM shared_effects ORDER BY tenant_id,business_key')
-      const admin = await client.query('SELECT tenant_id,request_id::text AS request_id,login FROM shared_admin ORDER BY tenant_id')
       const policy = await client.query('SELECT tenant_id,policy_revision::float8 AS policy_revision,features FROM shared_tenant_policy ORDER BY tenant_id')
-      return { schemaVersion: 1, tenantId: authority.tenant_id, fencing: fencing.rows, effects: effects.rows, admin: admin.rows, policy: policy.rows }
+      return { schemaVersion: 1, tenantId: authority.tenant_id, fencing: fencing.rows, effects: effects.rows, policy: policy.rows }
     })
     databaseSha256 = digest(JSON.stringify(snapshot))
   } finally { await storage.pool.end() }
@@ -196,9 +187,8 @@ export async function createTenantBackup(pool: Pool, connect: (database: string)
   try {
     const fencing = await verifyStorage.pool.query('SELECT tenant_id,fence::float8 AS fence FROM shared_fencing ORDER BY tenant_id')
     const effects = await verifyStorage.pool.query('SELECT tenant_id,business_key,payload_digest,attempt_id::text AS attempt_id,fence::float8 AS fence FROM shared_effects ORDER BY tenant_id,business_key')
-    const admin = await verifyStorage.pool.query('SELECT tenant_id,request_id::text AS request_id,login FROM shared_admin ORDER BY tenant_id')
     const policy = await verifyStorage.pool.query('SELECT tenant_id,policy_revision::float8 AS policy_revision,features FROM shared_tenant_policy ORDER BY tenant_id')
-    const reread = { schemaVersion: 1, tenantId: authority.tenant_id, fencing: fencing.rows, effects: effects.rows, admin: admin.rows, policy: policy.rows }
+    const reread = { schemaVersion: 1, tenantId: authority.tenant_id, fencing: fencing.rows, effects: effects.rows, policy: policy.rows }
     if (digest(JSON.stringify(reread)) !== databaseSha256) throw new Error('backup_readback_mismatch')
   } finally { await verifyStorage.pool.end() }
   await transaction(pool, async client => {
@@ -280,7 +270,7 @@ export async function restoreBackupToNewTarget(pool: Pool, connect: (database: s
     if (!row.rowCount) throw new Error('restore_approval_unavailable')
     const approval = row.rows[0]
     await assertRestoreTargetUnreserved(client, approval.target_database)
-    const snapshot = approval.snapshot as { tenantId?: string; fencing: { tenant_id: string; fence: string }[]; effects: { tenant_id: string; business_key: string; payload_digest: string; attempt_id: string; fence: string }[]; admin: { tenant_id: string; request_id: string; login: string }[]; policy?: { tenant_id: string; policy_revision: string | number; features: Record<string, unknown> }[] }
+    const snapshot = approval.snapshot as { tenantId?: string; fencing: { tenant_id: string; fence: string }[]; effects: { tenant_id: string; business_key: string; payload_digest: string; attempt_id: string; fence: string }[]; policy?: { tenant_id: string; policy_revision: string | number; features: Record<string, unknown> }[] }
     // Pre-write verification: everything that can fail without touching the
     // target runs before the first tenant write — the reservation check above
     // and the target schema checks below. The snapshot digest itself CANNOT be
@@ -293,17 +283,16 @@ export async function restoreBackupToNewTarget(pool: Pool, connect: (database: s
     const storage = await connect(approval.target_database)
     let databaseSha256 = ''
     try {
-      await ensureRestoreTargetSchema(storage)
+      await ensureTenantStorageSchema(storage)
       // One tenant transaction: exclusive table lock, emptiness check, the
       // snapshot write and the readback verification are atomic, so no
       // concurrent writer can interleave and a mismatch rolls everything back.
       await transaction(storage.pool, async tenant => {
-        await tenant.query('LOCK TABLE shared_fencing, shared_effects, shared_admin, shared_tenant_policy IN EXCLUSIVE MODE')
+        await tenant.query('LOCK TABLE shared_fencing, shared_effects, shared_tenant_policy IN EXCLUSIVE MODE')
         await assertRestoreTargetEmpty(tenant)
         await input.hooks?.beforeWrite?.(tenant)
         for (const row of snapshot.fencing) await tenant.query('INSERT INTO shared_fencing(tenant_id,fence) VALUES($1,$2)', [row.tenant_id, row.fence])
         for (const row of snapshot.effects) await tenant.query('INSERT INTO shared_effects(tenant_id,business_key,payload_digest,attempt_id,fence) VALUES($1,$2,$3,$4,$5)', [row.tenant_id, row.business_key, row.payload_digest, row.attempt_id, row.fence])
-        for (const row of snapshot.admin) await tenant.query('INSERT INTO shared_admin(tenant_id,request_id,login) VALUES($1,$2,$3)', [row.tenant_id, row.request_id, row.login])
         // A pre-policy backup carries no `policy` key: restore its shape as-is.
         if ('policy' in snapshot) for (const row of snapshot.policy ?? []) await tenant.query('INSERT INTO shared_tenant_policy(tenant_id,policy_revision,features) VALUES($1,$2,$3::jsonb)', [row.tenant_id, row.policy_revision, JSON.stringify(row.features)])
         await input.hooks?.beforeReadback?.(tenant)
@@ -311,8 +300,7 @@ export async function restoreBackupToNewTarget(pool: Pool, connect: (database: s
         // digest shape mirrors the snapshot's own key shape.
         const fencing = await tenant.query('SELECT tenant_id,fence::float8 AS fence FROM shared_fencing ORDER BY tenant_id')
         const effects = await tenant.query('SELECT tenant_id,business_key,payload_digest,attempt_id::text AS attempt_id,fence::float8 AS fence FROM shared_effects ORDER BY tenant_id,business_key')
-        const admin = await tenant.query('SELECT tenant_id,request_id::text AS request_id,login FROM shared_admin ORDER BY tenant_id')
-        const applied: Record<string, unknown> = { schemaVersion: 1, tenantId: snapshot.tenantId, fencing: fencing.rows, effects: effects.rows, admin: admin.rows }
+        const applied: Record<string, unknown> = { schemaVersion: 1, tenantId: snapshot.tenantId, fencing: fencing.rows, effects: effects.rows }
         if ('policy' in snapshot) {
           const policy = await tenant.query('SELECT tenant_id,policy_revision::float8 AS policy_revision,features FROM shared_tenant_policy ORDER BY tenant_id')
           applied.policy = policy.rows
