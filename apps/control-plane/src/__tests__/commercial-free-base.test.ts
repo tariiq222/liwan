@@ -641,11 +641,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       await applyReceipt(pool, { order_id: upgrade.id, receipt: paid.receipt })
       expect((await attention(pool, true)).items.filter(i => i.customer_id === f.customer)).toEqual([])
       await processTrialLapses(pool, { now: at(60), adapter, subscription_id: f.subscription })
-      // The pinned user ceiling is still held (the upgrade repeated it), so the lapse keeps lowering only that limit and never
-      // closes what the customer paid for.
-      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'limits_pending' })
-      const reopened = (await pool.query('SELECT snapshot->\'entitlement\'->\'features\' AS features FROM subscription_revisions WHERE id=(SELECT applied_revision_id FROM subscriptions WHERE id=$1)', [f.subscription])).rows[0].features
-      for (const key of PAID_KEYS) expect(reopened[key], key).toBe(true)
+      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'superseded' })
     })
 
     it('is never invoiced, dunned or suspended; an unpaid renewal invoice of the old configuration is voided unless money could still arrive for it', async () => {
@@ -699,11 +695,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       for (const key of PAID_KEYS) expect(paid.job.authority.entitlement.features[key], key).toBe(true)
       await applyReceipt(pool, { order_id: upgrade.id, receipt: paid.receipt })
       await processTrialLapses(pool, { now: at(24), adapter, subscription_id: f.subscription })
-      // The pinned user ceiling is still held (the upgrade repeated it), so the lapse keeps lowering only that limit and never
-      // closes what the customer paid for.
-      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'limits_pending' })
-      const reopened = (await pool.query('SELECT snapshot->\'entitlement\'->\'features\' AS features FROM subscription_revisions WHERE id=(SELECT applied_revision_id FROM subscriptions WHERE id=$1)', [f.subscription])).rows[0].features
-      for (const key of PAID_KEYS) expect(reopened[key], key).toBe(true)
+      expect(await lapseRow(f.subscription)).toMatchObject({ state: 'superseded' })
     })
 
     describe('a held ceiling after an unrelated change (review F1)', () => {
@@ -757,6 +749,71 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
           expect(await lapseRow(f.subscription)).toMatchObject({ state: 'done' })
         })
       }
+      describe('requesting exactly a held quantity buys it (owner decision 2026-11-10)', () => {
+        const buy = async (f: F, over: Record<string, unknown>, when: Date) => {
+          const sub = await getSubscription(pool, f.customer)
+          return createQuoteForCustomer(pool, { customer_id: f.customer, request: { ...request(), bundle_revision_ids: [], kind: 'change', subscription_id: sub.id, expected_subscription_revision: sub.revision, ...over } }, when)
+        }
+        const payAndApply = async (f: F, quote: { id: string }) => {
+          const sub = await getSubscription(pool, f.customer)
+          const { order } = await acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: sub.revision, idempotency_key: randomUUID() }, vendor)
+          await pool.query("UPDATE orders SET payment_state='paid' WHERE id=$1", [order.id])
+          await enqueueOutbox(pool, { kind: 'fulfillment.enqueue', aggregate_id: order.id, dedupe_key: order.target_revision_id, payload: { order_id: order.id } })
+          await applyReceipt(pool, { order_id: order.id, receipt: (await pushed(f.tenant, order.id)).receipt })
+        }
+        it('users: priced as the excess over the included quantity, then permanent: a usage drop does not lower it and renewal invoices it', async () => {
+          const f = await endedTrial({ requested_users: 4 })
+          await locked(f)
+          const lowering = await judge(f, { 'users.limit': 4 }, at(1))
+          if (lowering) await applyOrder(f, lowering.id)
+          expect((await appliedSnapshot(f)).held_ceilings).toMatchObject({ 'users.limit': { held: 4, target: 3 } })
+          await freshUsage(f, at(2), { 'users.limit': 4 })
+          const quote = await buy(f, { requested_users: 4 }, at(2))
+          expect(quote.lines.filter(l => l.kind === 'users').map(l => l.quantity)).toContain(1)
+          expect(quote.due_now.minor).toBeGreaterThan(0)
+          await payAndApply(f, quote)
+          const bought = await appliedSnapshot(f)
+          expect(bought.held_ceilings).toBeUndefined()
+          expect(bought.pricing.paid_users).toBe(1)
+          expect(bought.entitlement.features['users.limit']).toBe(4)
+          const ordersBefore = (await pool.query("SELECT count(*)::int AS n FROM orders WHERE subscription_id=$1", [f.subscription])).rows[0].n
+          await freshUsage(f, at(30), { 'users.limit': 1 })
+          await processTrialLapses(pool, { now: at(30), adapter, subscription_id: f.subscription })
+          await processTrialLapses(pool, { now: at(31), adapter, subscription_id: f.subscription })
+          expect((await appliedSnapshot(f)).entitlement.features['users.limit']).toBe(4)
+          expect((await pool.query("SELECT count(*)::int AS n FROM orders WHERE subscription_id=$1", [f.subscription])).rows[0].n).toBe(ordersBefore)
+          const renewals = await renewNow(f)
+          expect(renewals).toHaveLength(1)
+          expect(renewals[0]!.due_now.minor).toBeGreaterThan(0)
+        })
+        it('storage: an off-step ceiling cannot itself be bought; the error names the next step, and that step is a purchase', async () => {
+          const f = await endedTrial({ requested_storage_mb: 30720 })
+          await locked(f)
+          const second = await judge(f, { 'storage.limit_mb': 25000 }, at(1))
+          await applyOrder(f, second.id)
+          await expect(buy(f, { requested_storage_mb: 25000 }, at(2))).rejects.toMatchObject({ code: 'storage_ceiling_not_purchasable:30720', status: 422 })
+          const quote = await buy(f, { requested_storage_mb: 30720 }, at(2))
+          expect(quote.lines.some(l => l.kind === 'storage' && l.amount.minor > 0)).toBe(true)
+          await payAndApply(f, quote)
+          const bought = await appliedSnapshot(f)
+          expect(bought.held_ceilings).toBeUndefined()
+          expect(bought.entitlement.features['storage.limit_mb']).toBe(30720)
+        })
+        it('the same request costs the same inside the window and after the lock', async () => {
+          const f = await endedTrial({ requested_users: 4 })
+          await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+          await freshUsage(f, at(1))
+          const inside = await buy(f, { requested_users: 4 }, at(1))
+          await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
+          const order = await lapseOrder(f.subscription)
+          await applyReceipt(pool, { order_id: order.id, receipt: (await pushed(f.tenant, order.id)).receipt })
+          await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
+          await freshUsage(f, at(1))
+          const after = await buy(f, { requested_users: 4 }, at(1))
+          expect(inside.due_now.minor).toBeGreaterThan(0)
+          expect(after.due_now.minor).toBe(inside.due_now.minor)
+        })
+      })
       it('one renewal that fails never stops the others, and the vendor sees which one', async () => {
         const made = []
         for (let i = 0; i < 3; i++) {
@@ -779,7 +836,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
         const items = (await attention(pool, true)).items.filter(i => i.customer_id === broken!.customer)
         expect(items).toContainEqual(expect.objectContaining({ kind: 'renewal_failed', detail: 'pinned_policy_missing' }))
         // The poisoned fixture must not break the other suites' renewal runs.
-        await pool.query("UPDATE subscriptions SET renewal_at='2099-01-01',revision=revision+1 WHERE id=$1", [broken!.subscription])
+        await pool.query("UPDATE subscriptions SET renewal_at='2099-01-01',renewal_failure=NULL,renewal_failed_at=NULL,revision=revision+1 WHERE id=$1", [broken!.subscription])
       })
     })
   })
@@ -921,22 +978,24 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: lapsedTrial.subscription })
       expect(await rate()).toBeLessThan(before!)
     })
-    it('F4: a renewal that is deliberately skipped or owes nothing is not listed as missed or soon', async () => {
-      const kinds = async (customer: string) => (await attention(pool, true)).items.filter(i => i.customer_id === customer).map(i => i.kind)
+    it('F4: a renewal that is deliberately skipped or owes nothing is not counted or listed as missed or soon', async () => {
+      // The list is capped and other suites fill it, so the uncapped renewal count is the measure.
+      const renewals = async () => (await attention(pool, true)).counts.renewals
+      const base = await renewals()
       const f = await endedTrial()
       await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
       await pool.query("UPDATE subscriptions SET renewal_at='2026-11-01',revision=revision+1 WHERE id=$1", [f.subscription])
-      expect(await kinds(f.customer)).not.toContain('renewal_missed')
+      expect(await renewals()).toBe(base)
       // Locked on the free base: it owes nothing at renewal.
       await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
       const order = await lapseOrder(f.subscription)
       await applyReceipt(pool, { order_id: order.id, receipt: (await pushed(f.tenant, order.id)).receipt })
-      expect(await kinds(f.customer)).not.toContain('renewal_missed')
+      expect(await renewals()).toBe(base)
       const owing = await endedTrial()
       await pool.query('UPDATE subscriptions SET trial_ends_at=$2,revision=revision+1 WHERE id=$1', [owing.subscription, new Date(now.getTime() + 5 * day)])
       await convertTrial(pool, { customer_id: owing.customer, now, adapter, returnOrigin: origin })
       await pool.query("UPDATE subscriptions SET state='active',renewal_at='2026-11-01',revision=revision+1 WHERE id=$1", [owing.subscription])
-      expect(await kinds(owing.customer)).toContain('renewal_missed')
+      expect(await renewals()).toBe(base + 1)
     })
     it('D: a storage ceiling pinned at off-step usage stays a ceiling: branch add, archive and restore quote and accept', async () => {
       const f = await endedTrial({ requested_storage_mb: 30720 })

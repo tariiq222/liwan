@@ -104,14 +104,21 @@ export function heldAgainst(features: Features, targets: Features): HeldCeilings
 }
 
 /**
- * What a change request really buys. A held ceiling is a temporary limit pinned at usage, never something purchased. A request
- * that merely repeats it (the customer's branch changes echo the entitlement they hold) asks for no purchase: it is priced and
- * compiled at the purchased quantity the marker records, and the ceiling is carried unchanged by `carryHeldCeilings`.
+ * What the subscription has PURCHASED of the limits a customer can ask to change: the quantity a held ceiling falls to, else
+ * the entitlement's own limit. A change that does not mention users or storage (a branch change) asks for exactly this, so a
+ * held ceiling is carried forward as held at no charge; a request that names the held quantity itself is a purchase of it.
  */
-export function purchasedQuantities(previous: Record<string, any> | null, requested: { users: number; storage_mb: number }) {
-  const held = heldCeilingsOf(previous)
-  const quantity = (key: string, wanted: number) => held[key] && previous!.entitlement.features[key] === wanted ? held[key]!.target : wanted
-  return { users: quantity('users.limit', requested.users), storage_mb: quantity('storage.limit_mb', requested.storage_mb) }
+export async function purchasedLimits(client: Pick<PoolClient, 'query'>, subscriptionId: string): Promise<{ users: number; storage_mb: number }> {
+  const snapshot = (await client.query('SELECT rv.snapshot FROM subscriptions s JOIN subscription_revisions rv ON rv.id=s.applied_revision_id WHERE s.id=$1', [subscriptionId])).rows[0]?.snapshot
+  const held = heldCeilingsOf(snapshot), features = snapshot?.entitlement?.features ?? {}
+  return { users: Number(held['users.limit']?.target ?? features['users.limit'] ?? 0), storage_mb: Number(held['storage.limit_mb']?.target ?? features['storage.limit_mb'] ?? 0) }
+}
+
+/** The smallest extra storage at or above `extraMb` that the plan's steps allow to buy. */
+export function nextStorageStepMb(extraMb: number, plan: { storage_step_mb: number; storage_step_threshold_mb: number; storage_large_step_mb: number }): number {
+  const small = Math.ceil(extraMb / plan.storage_step_mb) * plan.storage_step_mb
+  if (small < plan.storage_step_threshold_mb) return small
+  return Math.ceil(extraMb / plan.storage_large_step_mb) * plan.storage_large_step_mb
 }
 
 /** A ceiling the previous snapshot holds above what the new quantities give stays, and stays marked, until the lapse worker lowers it (usage fits). */
