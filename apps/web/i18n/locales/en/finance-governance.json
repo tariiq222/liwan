@@ -65,7 +65,7 @@
       "expiry": {
         "date": "Certificate expires",
         "expired": "The journal certificate has expired.",
-        "within": "The journal certificate expires today. | The journal certificate expires within {count} day. | The journal certificate expires within {count} days."
+        "within": "The journal certificate expires within {count} day. | The journal certificate expires within {count} days."
       },
       "backlog": {
         "overdueReporting": "{count} simplified documents issued over 12 hours ago are still awaiting reporting.",
