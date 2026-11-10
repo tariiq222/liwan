@@ -48,7 +48,7 @@ test('a pending trial lock offers retry and refreshes the applied outcome', asyn
   })
   let retries = 0
   await page.route('**/api/commercial/v1/subscription', route => route.fulfill({ json: {
-    ...fixtures.subscription, trial_ends_at: cutoff, trial_outcome: preview.outcome,
+    ...fixtures.subscription, trial_ends_at: null, trial_outcome: preview.outcome, trial_lapse_pending: preview.status === 'lock_pending',
   } }))
   await page.route('**/api/commercial/v1/trial/end-preview', route => route.fulfill({ json: preview }))
   await page.route('**/api/commercial/v1/trial/retry', route => {

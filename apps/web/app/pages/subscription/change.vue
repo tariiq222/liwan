@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Quote } from '@liwan/commercial-contracts'
 import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
-import { fitStorageMb, QUOTE_IS_EXPIRED, refusalCode, refusalKey, safeIdemAction, safePaymentRedirect, sameQuoteEconomics, storageOptions, storageUnlisted, trialBundleNames, trialEndActions, usersOverCap } from '@/utils/subscription'
+import { fitStorageMb, hasTrialPreview, QUOTE_IS_EXPIRED, refusalCode, refusalKey, safeIdemAction, safePaymentRedirect, sameQuoteEconomics, storageOptions, storageUnlisted, trialBundleNames, trialEndActions, usersOverCap } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t, locale } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('subscription.manage'))
@@ -10,7 +10,7 @@ const { data, error, pending, refresh } = await useAsyncData('subscription:chang
   const catalog = await api.catalog()
   // A customer without a subscription yet is exactly the trial candidate: absence is a state, not a page error.
   const sub = await api.subscription().catch((cause: any) => { if (isMissing(cause)) return null; throw cause })
-  const trial = sub?.applied && (sub.trial_ends_at || sub.trial_outcome)
+  const trial = hasTrialPreview(sub)
     ? await api.trialEndPreview().then(preview => ({ preview, failed: false }), () => ({ preview: null, failed: true }))
     : { preview: null, failed: false }
   return { sub, catalog, trial }

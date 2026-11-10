@@ -30,6 +30,8 @@ export const subscriptionViewSchema = z.strictObject({
   trial_ends_at: z.string().nullable(), grace_ends_at: z.string().nullable(),
   trial_outcome: trialOutcomeSchema.nullable().optional(),
   trial_reopenable: z.boolean().optional(),
+  // The trial ended but its lock settlement (pending/ordered lapse) has not finished; trial_ends_at is already cleared.
+  trial_lapse_pending: z.boolean().optional(),
 })
 
 const quantity = z.number().int().nonnegative()

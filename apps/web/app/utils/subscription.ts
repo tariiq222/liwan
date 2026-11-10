@@ -1,4 +1,4 @@
-import { daysBetween, MAX_USERS, riyadhDate, type Invoice, type Money, type Order, type Quote, type SubscriptionDisplayState, type SubscriptionState, type TrialEndPreview, type UsageMetric, type UsageSnapshot } from '@liwan/commercial-contracts'
+import { daysBetween, MAX_USERS, riyadhDate, type Invoice, type Money, type Order, type Quote, type SubscriptionDisplayState, type SubscriptionState, type SubscriptionView, type TrialEndPreview, type UsageMetric, type UsageSnapshot } from '@liwan/commercial-contracts'
 
 import { invoiceLineQuantities, type InvoiceLineView } from '@liwan/commercial-ui/app/utils/invoiceLines'
 import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
@@ -47,6 +47,11 @@ export function refusalKey(code: unknown): string | null {
   return code === 'tenant_upgrade_required' || code === 'tenant_binding_unavailable' || code === 'trial_order_unavailable'
     ? `subscription.trial.${code === 'tenant_upgrade_required' ? 'upgradeRequired' : 'notConfigured'}`
     : null
+}
+
+/** The trial-end preview exists while a trial runs, after it settles, and during an unresolved lapse (trial_ends_at is already cleared then). */
+export function hasTrialPreview(sub: SubscriptionView | null) {
+  return Boolean(sub?.applied && (sub.trial_ends_at || sub.trial_outcome || sub.trial_lapse_pending))
 }
 
 export function trialEndActions(status: TrialEndPreview['status'] | null, state: SubscriptionState | null, canManage: boolean) {

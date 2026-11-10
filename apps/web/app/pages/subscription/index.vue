@@ -2,7 +2,7 @@
 import { subscriptionStateBadge } from '@/utils/subscription'
 import { subscriptionDisplayState } from '@liwan/commercial-contracts'
 import { formatDate } from '@liwan/ui/app/utils/formatDate'
-import { formatSubscriptionMoney, orderOutcome, refusalCode, refusalKey, safePaymentRedirect, trialBundleNames, trialDaysRemaining, trialEndActions } from '@/utils/subscription'
+import { formatSubscriptionMoney, hasTrialPreview, orderOutcome, refusalCode, refusalKey, safePaymentRedirect, trialBundleNames, trialDaysRemaining, trialEndActions } from '@/utils/subscription'
 import { entitledFeaturePrefixes } from '@liwan/commercial-ui/app/utils/entitlementApps'
 import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
@@ -19,7 +19,7 @@ const { data, error, pending, refresh } = await useAsyncData('subscription:overv
     soft('usage', api.usage()), soft('branches', api.branches()),
     can('billing.read') ? soft('invoices', api.invoices()) : Promise.resolve(null),
   ])
-  const trial = sub?.applied && (sub.trial_ends_at || sub.trial_outcome) ? await soft('trial', api.trialEndPreview()) : null
+  const trial = hasTrialPreview(sub) ? await soft('trial', api.trialEndPreview()) : null
   const bundleNames = trial && (trial.kept.bundle_revision_ids.length || trial.locked_bundle_revision_ids.length)
     ? await api.catalog().then(catalog => trialBundleNames(catalog.bundles), () => ({}))
     : {}
