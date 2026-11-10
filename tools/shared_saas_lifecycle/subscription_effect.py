@@ -547,7 +547,10 @@ def check_downgrade(request, observed):
     limit = features.get(BRANCH_LIMIT)
     if limit is not None and not isinstance(limit, bool) and not settle:
         active = {b['branch_id'] for b in observed['branches'] if b['state'] == 'active' and not b.get('read_only', False)}
-        projected = (active - set(br['archive'])) | {b['branch_id'] for b in br['apply']} | set(br.get('restore', []))
+        kept_read_only = {b['branch_id'] for b in observed['branches'] if b['state'] == 'active' and b.get('read_only', False)}
+        # Re-applying a retained read-only branch binds nothing new and gives it no full seat.
+        applied = {b['branch_id'] for b in br['apply']} - kept_read_only
+        projected = (active - set(br['archive'])) | applied | set(br.get('restore', []))
         if len(projected) > limit:
             raise EffectError('downgrade_below_usage')
 

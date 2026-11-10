@@ -819,6 +819,16 @@ class TrialEndEffectTests(Base):
         with self.assertRaisesRegex(EffectError, 'downgrade_below_usage'):
             se.check_downgrade(request, observation(branches=[OptionalTrialEndKeysTest.BRANCH]))
 
+    def test_reapplying_a_retained_read_only_branch_takes_no_seat(self):
+        request = make_request()
+        request['entitlement']['features']['branches.extra_limit'] = 0
+        request['branches']['apply'] = [{'branch_id': B1, 'name': 'Branch'}]
+        se.check_downgrade(request, observation(branches=[dict(OptionalTrialEndKeysTest.BRANCH, read_only=True)]))
+        with self.assertRaisesRegex(EffectError, 'downgrade_below_usage'):
+            se.check_downgrade(request, observation(branches=[OptionalTrialEndKeysTest.BRANCH]))
+        with self.assertRaisesRegex(EffectError, 'downgrade_below_usage'):
+            se.check_downgrade(request, observation(branches=[]))
+
     def test_apply_payload_carries_expiry_and_settlement(self):
         request = self.request(excess_settle=True)
         values = _script_values(se.build_apply_script(request))
