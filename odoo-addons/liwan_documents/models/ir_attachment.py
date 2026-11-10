@@ -18,6 +18,13 @@ class IrAttachment(models.Model):
             return self.env['liwan.document'].browse(self.res_id)
         return self.env['liwan.document'].browse()
 
+    def _liwan_storage_record_ref(self):
+        document = self._liwan_document()
+        if document:
+            self._liwan_require_document_file()
+            return {'kind': 'document', 'id': document.id}
+        return super()._liwan_storage_record_ref()
+
     @api.model_create_multi
     def create(self, values):
         if not self.env.user._is_superuser():

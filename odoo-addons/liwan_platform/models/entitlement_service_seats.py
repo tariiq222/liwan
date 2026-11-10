@@ -101,8 +101,10 @@ class LiwanEntitlementSeats(models.AbstractModel):
         order. A choice the customer made is never overwritten by a restore, and nothing is reshuffled while the
         counts already fit. Returns True when it changed a flag.
         """
-        changed = self._liwan_settle_users()
-        return self._liwan_settle_branches() or changed
+        users_changed = self._liwan_settle_users()
+        branches_changed = self._liwan_settle_branches()
+        storage_changed = self._liwan_settle_storage()
+        return storage_changed or branches_changed or users_changed
 
     @api.model
     def _liwan_apply_flags(self, records, vals):
@@ -142,12 +144,12 @@ class LiwanEntitlementSeats(models.AbstractModel):
         return ordered, set((root_holders or holders).ids)
 
     @api.model
-    def _liwan_settle_users(self):
+    def _liwan_user_flag_changes(self):
         users, pending = self._liwan_seat_candidates()
         users.invalidate_recordset(['liwan_read_only', 'liwan_seat_choice', 'liwan_seat_priority'])
         capacity = self._liwan_capacity(USER_LIMIT, len(users) + len(pending))
         if capacity is None:
-            return False
+            return users.browse(), users.browse()
         full = users.filtered(lambda user: not user.liwan_read_only)
         if len(full) > capacity:
             ordered, holders = self._liwan_user_keep_order(full)
@@ -157,36 +159,56 @@ class LiwanEntitlementSeats(models.AbstractModel):
                 # The last full access administrator stays full even under a limit of zero: nobody else could buy or pick seats.
                 kept = [*kept[:max(capacity - 1, 0)], held[0]]
             demote = full.filtered(lambda user: user not in kept)
-            self._liwan_apply_flags(demote, {'liwan_read_only': True, 'liwan_seat_choice': 'auto'})
-            return bool(demote)
+            return demote, users.browse()
         reopenable = sorted(
             (user for user in users - full if user.liwan_seat_choice == 'auto'),
             key=lambda user: (user.liwan_seat_priority or UNSET_PRIORITY, user.create_date, user.id),
         )[:max(0, capacity - len(full) - len(pending))]
-        self._liwan_apply_flags(self.env['res.users'].browse([user.id for user in reopenable]), {'liwan_read_only': False})
-        return bool(reopenable)
+        return users.browse(), users.browse([user.id for user in reopenable])
 
     @api.model
-    def _liwan_settle_branches(self):
+    def _liwan_actor_read_only(self, user, *, trial_due=None):
+        read_only = user.liwan_read_only
+        if trial_due is None:
+            trial_due = self._liwan_post_trial_due()
+        if not trial_due:
+            return read_only
+        demote, reopen = self._liwan_user_flag_changes()
+        return user.id in demote.ids or (read_only and user.id not in reopen.ids)
+
+    @api.model
+    def _liwan_settle_users(self):
+        demote, reopen = self._liwan_user_flag_changes()
+        self._liwan_apply_flags(demote, {'liwan_read_only': True, 'liwan_seat_choice': 'auto'})
+        self._liwan_apply_flags(reopen, {'liwan_read_only': False})
+        return bool(demote or reopen)
+
+    @api.model
+    def _liwan_branch_flag_changes(self):
         branches = self._liwan_branches()
         branches.invalidate_recordset(['read_only', 'seat_choice', 'restore_priority'])
         capacity = self._liwan_capacity(BRANCH_LIMIT, len(branches))
         if capacity is None:
-            return False
+            return branches.browse(), branches.browse()
         full = branches.filtered(lambda branch: not branch.read_only)
         if len(full) > capacity:
             ordered = sorted(full, key=lambda branch: (branch.seat_choice != 'customer', branch.create_date, branch.id))
             demote = full.filtered(lambda branch: branch not in ordered[:capacity])
-            self._liwan_apply_flags(demote, {'read_only': True, 'seat_choice': 'auto'})
-            return bool(demote)
-        if DEFER_BRANCH_REOPENING in self.env.cr.cache:
-            return False
+            return demote, branches.browse()
         reopenable = sorted(
             (branch for branch in branches - full if branch.seat_choice == 'auto'),
             key=lambda branch: (branch.restore_priority or UNSET_PRIORITY, branch.create_date, branch.id),
         )[:capacity - len(full)]
-        self._liwan_apply_flags(branches.browse([branch.id for branch in reopenable]), {'read_only': False})
-        return bool(reopenable)
+        return branches.browse(), branches.browse([branch.id for branch in reopenable])
+
+    @api.model
+    def _liwan_settle_branches(self):
+        demote, reopen = self._liwan_branch_flag_changes()
+        if DEFER_BRANCH_REOPENING in self.env.cr.cache:
+            reopen = reopen.browse()
+        self._liwan_apply_flags(demote, {'read_only': True, 'seat_choice': 'auto'})
+        self._liwan_apply_flags(reopen, {'read_only': False})
+        return bool(demote or reopen)
 
     @api.model
     def _liwan_assert_branch_admin(self):

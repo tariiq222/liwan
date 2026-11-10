@@ -4,6 +4,7 @@ from . import (
     base,
     entitlement_service,
     entitlement_service_seats,
+    entitlement_service_storage,
     feature_registry,
     ir_attachment,
     ir_binary,
