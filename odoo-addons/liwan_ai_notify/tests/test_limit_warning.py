@@ -66,25 +66,59 @@ class TestAiLimitWarning(AiProbe, LiwanApiCase):
         self.assertEqual(self._bell(self.employee), [])
         self.assertEqual(len(self._bell(self.manager)), 1)
 
-    def test_platform_tokens_warn_when_the_crossing_usage_is_recorded(self):
-        self._set_feature('ai.tokens.monthly', 100)
-        usage = {
-            'conversation_id': 'r_warn', 'call_id': '0f1e2d3c4b5a6908', 'kind': 'plan', 'capability': 'standard', 'billing': 'platform', 'provider': 'acme-ai', 'model': 'acme-1',
-            'outcome': 'ok', 'input_tokens': 90, 'output_tokens': 30, 'cost': None, 'charge': None, 'called_at': self._now(),
+    def _record(self, charge, billing='platform', **values):
+        """One usage row as the recorder account writes it (only the recorder carries a cost and a charge)."""
+        self._calls = getattr(self, '_calls', 0) + 1
+        item = {
+            'conversation_id': 'r_warn', 'call_id': f'{self._calls:016x}', 'kind': 'plan', 'capability': 'standard', 'billing': billing,
+            'provider': 'acme-ai', 'model': 'acme-1', 'outcome': 'ok', 'input_tokens': 9, 'output_tokens': 3, 'cost': charge,
+            'charge': charge, 'called_at': self._now(), **values,
         }
-        self.assertEqual(self.api('POST', '/api/v1/ai/usage', {'items': [usage]}).status_code, 200)
-        items = self._bell(self.manager)
-        self.assertEqual(len(items), 1)
-        self.assertIn('tokens', items[0]['title'])
+        recorder = self.env.ref('liwan_ai.user_ai_usage')
+        self.env['liwan.ai.usage'].with_user(recorder)._liwan_ai_record_for([item], self.employee.id, self.employee.company_id.id)
+        self.env['liwan.ai.usage']._liwan_cron_warn_balance()
 
-    def test_tenant_key_usage_never_warns_about_platform_tokens(self):
-        self._set_feature('ai.tokens.monthly', 100)
-        usage = {
-            'conversation_id': 'r_warn', 'call_id': '0f1e2d3c4b5a690a', 'kind': 'plan', 'capability': 'standard', 'billing': 'tenant_key', 'provider': 'acme-ai', 'model': 'acme-1',
-            'outcome': 'ok', 'input_tokens': 90, 'output_tokens': 30, 'cost': None, 'charge': None, 'called_at': self._now(),
-        }
-        self.api('POST', '/api/v1/ai/usage', {'items': [usage]})
-        self.assertEqual(self._bell(self.manager), [])
+    def _balance_bells(self):
+        return [item['title'] for item in self._bell(self.manager) if item['kind'] == 'ai.limit_warning']
+
+    def test_the_balance_warns_once_below_a_fifth_and_once_at_zero(self):
+        self._set_feature('ai.balance.granted', 1000)
+        self._record(700)
+        self.assertEqual(self._balance_bells(), [])
+        self._record(150)
+        self.assertEqual(len(self._balance_bells()), 1)
+        self.assertIn('20%', self._balance_bells()[0])
+        self._record(10)
+        self.assertEqual(len(self._balance_bells()), 1)
+        self._record(200)
+        bells = self._balance_bells()
+        self.assertEqual(len(bells), 2)
+        self.assertTrue(any('نفد' in title for title in bells))
+        self._record(50)
+        self.assertEqual(len(self._balance_bells()), 2)
+        self.assertEqual(self._bell(self.employee), [])
+
+    def test_a_top_up_arms_both_warnings_again(self):
+        self._set_feature('ai.balance.granted', 1000)
+        self._record(1000)
+        self.assertEqual(len(self._balance_bells()), 1)
+        self._set_feature('ai.balance.granted', 5000)
+        self._record(3900)
+        self.assertEqual(len(self._balance_bells()), 2)
+        self._record(100)
+        self.assertEqual(len(self._balance_bells()), 3)
+        self._set_feature('ai.balance.granted', 9000)
+        self._record(3500)
+        self.assertEqual(len(self._balance_bells()), 4)
+        self._record(50)
+        self.assertEqual(len(self._balance_bells()), 4)
+
+    def test_a_tenant_without_a_balance_and_the_tenant_key_never_warn_about_the_balance(self):
+        self._set_feature('ai.balance.granted', None)
+        self._record(10_000)
+        self._set_feature('ai.balance.granted', 100)
+        self._record(None, billing='tenant_key', cost=None)
+        self.assertEqual(self._balance_bells(), [])
 
     def _now(self):
         return datetime.now(timezone.utc).isoformat()

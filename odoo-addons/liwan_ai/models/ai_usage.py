@@ -20,7 +20,7 @@ USAGE_KINDS = ('plan', 'title', 'route')
 # What kind of task a call served (the AI service's ``Capability`` and the zod ``AiCapabilitySchema``).
 USAGE_CAPABILITIES = ('quick', 'standard', 'analysis', 'writing')
 USAGE_OUTCOMES = ('ok', 'failed', 'retried', 'aborted')
-# Who paid a provider call: the platform within the package (counted against ai.tokens.monthly), the tenant's own key,
+# Who paid a provider call: the platform within the package (paid from the free allowance and the prepaid balance), the tenant's own key,
 # or the vendor's assistance budget (the free setup and help agents run on the platform provider outside the package,
 # spec §6.5); the AI service names that last billing ``setup``.
 USAGE_BILLINGS = ('platform', 'tenant_key', 'setup')
@@ -100,9 +100,9 @@ class LiwanAiUsage(models.Model):
     _order = 'called_at desc, id desc'
     _liwan_scope = 'company'
 
-    company_id = fields.Many2one('res.company', required=True, index=True, ondelete='cascade',
+    company_id = fields.Many2one('res.company', required=True, index=True, ondelete='restrict',
                                  default=lambda self: self.env.company)
-    user_id = fields.Many2one('res.users', required=True, index=True, ondelete='cascade',
+    user_id = fields.Many2one('res.users', required=True, index=True, ondelete='restrict',
                               default=lambda self: self.env.user)
     conversation_id = fields.Char(required=True, index=True)
     # The provider's own id of the call (16 hex): the wire's identity of the row, so a re-sent batch adds nothing.
@@ -123,6 +123,9 @@ class LiwanAiUsage(models.Model):
     cost_reported = fields.Boolean()
     charge = fields.Integer()
     charge_reported = fields.Boolean()
+    # The part of ``charge`` taken from the prepaid balance; the rest was covered by the free allowance of the call's window.
+    # Set by the server when the recorder reports the row (``_liwan_ai_record``), never accepted from the wire.
+    charge_paid = fields.Integer()
     called_at = fields.Datetime(required=True, index=True)
 
     # The own-rows rule filters on user_id and orders by called_at; a monthly per-user sum reads the same.
@@ -221,12 +224,13 @@ class LiwanAiUsage(models.Model):
             'cost_reported': values['cost'] is not None,
             'charge': values['charge'] or 0,
             'charge_reported': values['charge'] is not None,
+            'charge_paid': 0,
             'called_at': called_at.replace(tzinfo=None),
         }
 
     @api.model
     def _liwan_platform_tokens_used(self):
-        """Input plus output tokens of the platform-billed calls of the whole tenant since the start of this UTC month.
+        """Input plus output tokens of the platform-billed calls of the whole tenant since the start of this month (root company's timezone).
 
         Plain SQL like the monthly message count: the limit is the tenant's, so it spans every company and user.
         """
@@ -285,14 +289,27 @@ class LiwanAiUsage(models.Model):
                 error.liwan_index = index
                 raise
         created = []
+        balance = self.env['liwan.ai.balance']
+        profile = self.env['liwan.entitlement.service']._liwan_profile()
+        if service and any(row['billing'] == 'platform' and row['charge_reported'] for row in rows):
+            # Settling a charge reads the free allowance the rows of the window already used. Odoo runs REPEATABLE READ, so a
+            # batch whose snapshot is older than the previous batch's commit would count too little: the tenant's quota fence
+            # (the write the message check also uses) makes it fail serialization and be replayed on fresh data. The recorder
+            # lock the route holds keeps two batches from running this section at once.
+            profile._liwan_bump_quota_revision()
         for index, row in enumerate(rows):
             existing = self._liwan_ai_existing(row)
             if existing:
                 created.append(existing.id)
                 continue
+            if service:
+                row['charge_paid'] = balance._liwan_ai_charge_paid(row)
             try:
                 with self.env.cr.savepoint():
                     created.append(super().create([row]).id)
+                    if row['charge_paid']:
+                        # In the locked section (fence above): the running total moves with the row that holds the amount.
+                        profile._liwan_add_ai_paid(row['charge_paid'])
             except UniqueViolation:
                 # A concurrent report of the same attempt won the insert: that row is the record of this attempt too.
                 existing = self._liwan_ai_existing(row)

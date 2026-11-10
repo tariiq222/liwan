@@ -50,16 +50,34 @@ const AiLimitValueSchema = z.number().int().nonnegative().nullable() // null mea
 export const AiProviderModeSchema = z.enum(['platform', 'tenant_key'])
 export type AiProviderMode = z.infer<typeof AiProviderModeSchema>
 
+/** Why a new run of the paid assistant is refused now: the balance (and free allowance) is used up, or the monthly spend ceiling is reached. */
+export const AiBlockedSchema = z.enum(['ai_balance_empty', 'ai_spend_ceiling']).nullable()
+const AiResetSchema = z.iso.datetime({ offset: true }).nullable()
+
 /** What a run needs from the tenant's AI policy (Odoo `liwan_ai`); the Nuxt server passes it to the AI service. */
 export const AiPolicySchema = z.object({
   provider_mode: AiProviderModeSchema,
   /** The tenant signed the current AI acknowledgement: no provider runs a request without it (spec 2026-11-04 §6.8). */
   consent_signed: z.boolean(),
-  tokens_monthly: AiLimitValueSchema,
-  tokens_used: z.number().int().nonnegative(),
   output_tokens_per_run: AiLimitValueSchema,
   /** The tenant's own ceiling on the input tokens of one request (issue #554); null means no ceiling of its own. */
   input_tokens_per_run: AiLimitValueSchema,
+  /**
+   * The prepaid balance of the paid assistant, in cost units (0.00001 USD). Every user gets what is needed to refuse and explain:
+   * `blocked` (the refusal a new run meets now, or null), `blocked_resets_at` (when that refusal lifts: the free allowance
+   * renewal for `ai_balance_empty`, the month's end for `ai_spend_ceiling`) and `allowance_resets_at`. The figures below are
+   * billing data and go only to a holder of `ai.settings.manage`; for anyone else they are null, as they are for a tenant with
+   * no balance (customer-hosted) or, for `spend_ceiling`, no ceiling.
+   */
+  blocked: AiBlockedSchema,
+  blocked_resets_at: AiResetSchema,
+  allowance_resets_at: AiResetSchema,
+  balance_granted: AiLimitValueSchema,
+  balance_left: AiLimitValueSchema,
+  allowance: AiLimitValueSchema,
+  allowance_left: AiLimitValueSchema,
+  spend_ceiling: AiLimitValueSchema,
+  spend_this_month: AiLimitValueSchema,
 }).strict()
 export type AiPolicy = z.infer<typeof AiPolicySchema>
 
@@ -201,7 +219,8 @@ export type AiUsageServiceBatch = z.infer<typeof AiUsageServiceBatchSchema>
  * `max_age_hours` bounds `called_at`; the web spool gives a row up after an hour, far inside it.
  */
 export const AI_USAGE_SERVICE_LIMITS = { max_row_tokens: 100_000_000, max_request_tokens: 200_000_000, max_age_hours: 24 } as const
-export const AiUsageRowSchema = z.object({ id: z.number().int().positive(), ...AiUsageFields }).strict().refine(tokensComeInPairs, TOKENS_IN_PAIRS).refine(costFollowsTokens, COST_FOLLOWS_TOKENS).refine(pricedByBilling, PRICED_BY_BILLING)
+/** `charge_paid`: the part of the charge taken from the prepaid balance, set by Odoo only (never part of a report). */
+export const AiUsageRowSchema = z.object({ id: z.number().int().positive(), ...AiUsageFields, charge_paid: z.number().int().nonnegative().max(AI_MAX_COST_UNITS) }).strict().refine(tokensComeInPairs, TOKENS_IN_PAIRS).refine(costFollowsTokens, COST_FOLLOWS_TOKENS).refine(pricedByBilling, PRICED_BY_BILLING)
 export type AiUsageRow = z.infer<typeof AiUsageRowSchema>
 export const AiUsageBatchResponseSchema = z.object({ items: z.array(AiUsageRowSchema), total: z.number().int().nonnegative() }).strict()
 export type AiUsageBatchResponse = z.infer<typeof AiUsageBatchResponseSchema>
@@ -294,10 +313,15 @@ const AiMessagesPerUserSchema = z.number().int().min(0).max(AI_MESSAGES_PER_USER
 export const AI_INPUT_TOKENS_PER_RUN_MAX = 2_000_000
 const AiInputTokensPerRunSchema = z.number().int().min(0).max(AI_INPUT_TOKENS_PER_RUN_MAX)
 
+/** The tenant's ceiling on what the paid assistant may take from the balance in a calendar month, in cost units (0.00001 USD); 0 means none. */
+export const AI_MONTHLY_SPEND_CEILING_MAX = 2_147_483_647
+const AiMonthlySpendCeilingSchema = z.number().int().min(0).max(AI_MONTHLY_SPEND_CEILING_MAX)
+
 export const AiSettingsSchema = z.object({
   provider_mode: AiProviderModeSchema,
   messages_per_user_monthly: AiMessagesPerUserSchema,
   input_tokens_per_run: AiInputTokensPerRunSchema,
+  monthly_spend_ceiling: AiMonthlySpendCeilingSchema,
   external_send: AiExternalSendSchema,
   /** Whether the assistant may search company records (knowledge retrieval); applies only while the consent is valid. */
   knowledge_enabled: z.boolean(),
@@ -326,6 +350,7 @@ export const AiSettingsPatchSchema = z.object({
   provider_mode: AiProviderModeSchema.optional(),
   messages_per_user_monthly: AiMessagesPerUserSchema.optional(),
   input_tokens_per_run: AiInputTokensPerRunSchema.optional(),
+  monthly_spend_ceiling: AiMonthlySpendCeilingSchema.optional(),
   external_send: AiExternalSendSchema.optional(),
   knowledge_enabled: z.boolean().optional(),
   revision: z.number().int().positive(),

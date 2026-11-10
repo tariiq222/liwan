@@ -13,7 +13,7 @@ POLICY_FIELDS = frozenset({
     'solution', 'tier', 'status', 'valid_until', 'commercial_valid_until', 'commercial_valid_until_revision', 'features',
     'retained_read_features', 'terminology', 'policy_revision',
     'quota_revision', 'support_access_enabled', 'commercial_mode', 'entitlement_source',
-    'commercial_revision_id', 'commercial_digest', 'commercial_applied_at',
+    'commercial_revision_id', 'commercial_digest', 'commercial_applied_at', 'ai_trial_start', 'ai_trial_end',
 })
 NOTIFICATION_READ_PATH = re.compile(r'/api/v1/notifications/\d+/read')
 OPERATOR_CONTEXT = 'liwan_platform.operator_policy'
@@ -482,7 +482,7 @@ class LiwanEntitlementService(models.AbstractModel):
             ))
 
     @api.model
-    def _liwan_validate_features(self, features, installed_modules=None):
+    def _liwan_validate_features(self, features, installed_modules=None, commercial_mode=None):
         if features is None:
             return {}
         if not isinstance(features, dict):
@@ -497,7 +497,9 @@ class LiwanEntitlementService(models.AbstractModel):
             required = module_id == 'liwan_platform' or module_id in installed
             if item['type'] == 'boolean' and required:
                 required_boolean.append(key)
-            if (item['type'] == 'limit' and required
+            # A key marked `saas_only` is delivered by the control plane; an installation under a local policy omits it.
+            saas_only_omitted = item.get('saas_only') and commercial_mode == 'non_saas'
+            if (item['type'] == 'limit' and required and not saas_only_omitted
                     and (key != 'branches.extra_limit' or key in features)):
                 # Legacy signed policies omit only this later platform limit.
                 required_limit.append(key)

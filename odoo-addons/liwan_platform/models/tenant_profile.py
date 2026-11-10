@@ -6,6 +6,7 @@ from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 
 from odoo.addons.liwan_platform.commercial_config import SOURCES, load_classification
+from odoo.addons.liwan_platform.models.bigint import BigInteger
 from odoo.addons.liwan_platform.models.entitlement_service import (
     OPERATOR_CONTEXT,
     POLICY_FIELDS,
@@ -77,6 +78,19 @@ class LiwanTenantProfile(models.Model):
     commercial_revision_id = fields.Char()
     commercial_digest = fields.Char()
     commercial_applied_at = fields.Datetime()
+    # The tenant's trial period for the AI assistant's free allowance (naive UTC); both null means no trial. Written by
+    # the policy delivery, read by liwan_ai through `models/usage_window.py`.
+    ai_trial_start = fields.Datetime()
+    ai_trial_end = fields.Datetime()
+    # Running total of the AI charges taken from the prepaid balance (cost units, never decreasing): the sum of every
+    # `liwan.ai.usage.charge_paid`, kept by `_liwan_add_ai_paid` under the profile row lock so no check sums the ledger.
+    ai_paid_total = BigInteger(required=True, default=0)
+    _ai_paid_total_positive = models.Constraint('CHECK(ai_paid_total >= 0)', 'the AI paid total cannot be negative')
+    _ai_trial_period = models.Constraint(
+        'CHECK ((ai_trial_start IS NULL AND ai_trial_end IS NULL) '
+        'OR (ai_trial_start IS NOT NULL AND ai_trial_end > ai_trial_start))',
+        'the AI trial needs a start and a later end, or neither',
+    )
 
     _singleton = models.Constraint(
         'UNIQUE(singleton_key)',
@@ -271,6 +285,12 @@ class LiwanTenantProfile(models.Model):
         self.invalidate_recordset()
         return self.browse(self.id)
 
+    def _liwan_add_ai_paid(self, amount):
+        """Add ``amount`` cost units to the running total of AI charges paid from the balance, under the row lock."""
+        self.ensure_one()
+        locked = self._liwan_lock()
+        locked.write({'ai_paid_total': locked.ai_paid_total + amount})
+
     def _liwan_bump_quota_revision(self):
         self.ensure_one()
         locked = self._liwan_lock()
@@ -339,7 +359,7 @@ class LiwanTenantProfile(models.Model):
         if 'status' in next_vals and next_vals['status'] not in ('active', 'suspended'):
             raise ValidationError(self.env._('liwan_platform: status must be active or suspended'))
         if 'features' in next_vals:
-            next_vals['features'] = service._liwan_validate_features(next_vals['features'])
+            next_vals['features'] = service._liwan_validate_features(next_vals['features'], commercial_mode=self.commercial_mode)
             previous = self.retained_read_features or []
             if 'retained_read_features' in next_vals:
                 retained = service._liwan_validate_retained(

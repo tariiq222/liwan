@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import { createError } from 'h3'
-import { AiTenantConfigSchema } from '@liwan/contracts'
+import { AiTenantConfigSchema, type AiPolicy } from '@liwan/contracts'
 import type { RunSession } from './session'
 import { serviceFetch } from './upstream'
 
@@ -25,15 +25,29 @@ export function runPolicy(session: RunSession): ServicePolicy {
 }
 
 /**
+ * A new run on the vendor's provider is refused when Odoo says it is `blocked` in the policy (the free allowance and the balance
+ * are used up, or the monthly spend ceiling is reached; Odoo decides the order, see `_liwan_ai_blocked`). The refusal is the one
+ * Odoo's own pre-run check raises: 403, `{ code, message, details: { resets_at } }`. The figures behind it are not in the policy
+ * of an ordinary user, so this reads only `blocked`.
+ */
+function assertBalance(policy: AiPolicy): void {
+  if (policy.blocked === null) return
+  const message = policy.blocked === 'ai_spend_ceiling' ? 'the monthly spend ceiling of the assistant is reached' : 'the assistant balance is used up'
+  throw createError({ statusCode: 403, data: { code: policy.blocked, message, details: { resets_at: policy.blocked_resets_at } } })
+}
+
+/**
  * Refuses a request the service would refuse, before the message is counted or a write is claimed: any request of a tenant
  * that has not signed the current AI acknowledgement (403 `ai_consent_required`, whatever the provider, spec 2026-11-04 §6.8),
- * or a tenant-key policy without a key (409 `ai_tenant_key_missing`). The service checks both again; this only keeps a refused
- * request from spending the user's quota or running a tool.
+ * a new run of the paid assistant with no balance left (`assertBalance`), or a tenant-key policy without a key (409
+ * `ai_tenant_key_missing`). The service checks the first and last again; this only keeps a refused request from spending the
+ * user's quota or running a tool. A run in progress (`resuming`) is never stopped by the balance: it may overdraw it.
  */
-export async function assertRunnable(event: H3Event, session: RunSession): Promise<void> {
+export async function assertRunnable(event: H3Event, session: RunSession, { resuming = false } = {}): Promise<void> {
   if (!session.policy.consent_signed) {
     throw createError({ statusCode: 403, data: { code: 'ai_consent_required', message: 'the organization has not signed the AI acknowledgement' } })
   }
+  if (providerMode(session) === 'platform' && !resuming) assertBalance(session.policy)
   if (providerMode(session) !== 'tenant_key') return
   const response = await serviceFetch(event, 'GET', '/v1/tenant/config', session.owner)
   if (!response.ok) throw createError({ statusCode: 502, data: { code: 'ai_upstream', message: `AI service status ${response.status}` } })

@@ -4,13 +4,14 @@ from odoo.addons.liwan_ai.models.ai_settings import (
     EXTERNAL_SEND_MODES,
     MAX_INPUT_TOKENS_PER_RUN,
     MAX_MESSAGES_PER_USER,
+    MAX_SPEND_CEILING,
     PROVIDER_MODES,
 )
 from odoo.addons.liwan_ai.models.tool_registry import ASSIST_KINDS
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.serializers.common import iso
 
-SETTING_KEYS = frozenset({'provider_mode', 'messages_per_user_monthly', 'input_tokens_per_run', 'external_send', 'knowledge_enabled'})
+SETTING_KEYS = frozenset({'provider_mode', 'messages_per_user_monthly', 'input_tokens_per_run', 'monthly_spend_ceiling', 'external_send', 'knowledge_enabled'})
 CONSENT_KEYS = frozenset({'text_version', 'text_hash'})
 
 
@@ -33,6 +34,7 @@ def dump_settings(env):
         'provider_mode': settings.provider_mode,
         'messages_per_user_monthly': settings.messages_per_user_monthly,
         'input_tokens_per_run': settings.input_tokens_per_run,
+        'monthly_spend_ceiling': settings.monthly_spend_ceiling,
         'external_send': settings.external_send,
         'knowledge_enabled': settings.knowledge_enabled,
         'revision': settings.revision,
@@ -44,7 +46,7 @@ def dump_settings(env):
             'signed': dump_consent(env['liwan.ai.consent']._liwan_valid()),
         },
         'usage': {
-            'month': audit._liwan_ai_month_start().strftime('%Y-%m'),
+            'month': audit._liwan_ai_month_label(),
             'messages_used': audit._liwan_ai_count_messages(),
             'messages_limit': entitlement._liwan_limit_value('ai.messages.monthly'),
             'assist_used': audit._liwan_ai_count_messages(kinds=ASSIST_KINDS),
@@ -90,6 +92,10 @@ def parse_settings_patch(payload):
         cap = values['input_tokens_per_run']
         if not isinstance(cap, int) or isinstance(cap, bool) or not 0 <= cap <= MAX_INPUT_TOKENS_PER_RUN:
             raise ApiError(422, 'invalid', f'input_tokens_per_run must be 0 to {MAX_INPUT_TOKENS_PER_RUN}', field='input_tokens_per_run')
+    if 'monthly_spend_ceiling' in values:
+        cap = values['monthly_spend_ceiling']
+        if not isinstance(cap, int) or isinstance(cap, bool) or not 0 <= cap <= MAX_SPEND_CEILING:
+            raise ApiError(422, 'invalid', f'monthly_spend_ceiling must be 0 to {MAX_SPEND_CEILING}', field='monthly_spend_ceiling')
     return values, revision
 
 

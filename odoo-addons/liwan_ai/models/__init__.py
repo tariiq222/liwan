@@ -5,6 +5,7 @@ from . import (
     agent_registry,
     ai_agent_setting,
     ai_audit,
+    ai_balance,
     ai_consent,
     ai_settings,
     ai_tool_setting,

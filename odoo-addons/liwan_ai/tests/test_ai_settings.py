@@ -186,16 +186,12 @@ class TestAiSettings(AiProbe, LiwanApiCase):
         self._raw_usage('platform', 7, last_month)
         self.assertEqual(Usage._liwan_platform_tokens_used(), 100)
 
-    def test_the_token_limit_stops_a_platform_run_at_the_limit_only(self):
+    def test_the_retired_token_limit_no_longer_stops_a_platform_run(self):
+        # The balance replaced the monthly token limit (spec 2026-11-10 §5.4): the key stays registered, nothing enforces it.
         self.authenticate('api_emp', 'api_emp_pass_123')
+        self._set_feature('ai.balance.granted', None)
         self._raw_usage('platform', 100, None)
-        self._set_feature('ai.tokens.monthly', 101)
-        self.assertEqual(self.api('POST', '/api/v1/ai/audit', MESSAGE).status_code, 200)
         self._set_feature('ai.tokens.monthly', 100)
-        refused = self.api('POST', '/api/v1/ai/audit', MESSAGE)
-        self.assertEqual(refused.status_code, 403, refused.text)
-        self.assertEqual(refused.json()['details']['limit_key'], 'ai.tokens.monthly')
-        self.env['liwan.ai.settings']._liwan_current().provider_mode = 'tenant_key'
         self.assertEqual(self.api('POST', '/api/v1/ai/audit', MESSAGE).status_code, 200)
 
     def test_the_usage_block_shows_the_free_agents_budget_apart_from_the_package_messages(self):

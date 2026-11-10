@@ -1,4 +1,4 @@
-import { AI_USAGE_BATCH_MAX, AiCompanyNoteListSchema, AiNoteListSchema, AiNoteSchema, AiAgentPatchSchema, AiAgentSettingsSchema, AiAuditRequestSchema, AiKeyPutSchema, AiKnowledgeRebuildSchema, AiMonitoringSchema, AiRetentionPutSchema, AiSettingsPatchSchema, AiSettingsSchema, AiTenantConfigSchema, AiDraftPayloadSchema, AiEventSchema, AiModelCallEventSchema, AiModelUsageEventSchema, AiRunListQuerySchema, AiRunListSchema, AiRunPatchSchema, AiRunStatusSchema, AiStartRequestSchema, AiToolsResponseSchema, AiUsageBatchResponseSchema, AiUsageBatchSchema, AiUsageRecordSchema, AiUsageRowSchema, AiUsageServiceBatchSchema } from '../index'
+import { AI_USAGE_BATCH_MAX, AiPolicySchema, AiCompanyNoteListSchema, AiNoteListSchema, AiNoteSchema, AiAgentPatchSchema, AiAgentSettingsSchema, AiAuditRequestSchema, AiKeyPutSchema, AiKnowledgeRebuildSchema, AiMonitoringSchema, AiRetentionPutSchema, AiSettingsPatchSchema, AiSettingsSchema, AiTenantConfigSchema, AiDraftPayloadSchema, AiEventSchema, AiModelCallEventSchema, AiModelUsageEventSchema, AiRunListQuerySchema, AiRunListSchema, AiRunPatchSchema, AiRunStatusSchema, AiStartRequestSchema, AiToolsResponseSchema, AiUsageBatchResponseSchema, AiUsageBatchSchema, AiUsageRecordSchema, AiUsageRowSchema, AiUsageServiceBatchSchema } from '../index'
 
 const READ = {
   name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'مهامي', en: 'My tasks' },
@@ -9,14 +9,25 @@ const PMO_AGENT = { key: 'pmo', name: { ar: 'وكيل المشاريع', en: 'Pr
 
 describe('LiwanOS AI contracts', () => {
   it('parses the tools response with limits', () => {
-    const parsed = AiToolsResponseSchema.parse({ items: [READ], total: 1, agents: [PMO_AGENT], limits: { tool_calls_per_run: 8, messages_monthly: null, messages_used: 2, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null, input_tokens_per_run: null } }, blocked_fields: ['wage'] })
+    const parsed = AiToolsResponseSchema.parse({ items: [READ], total: 1, agents: [PMO_AGENT], limits: { tool_calls_per_run: 8, messages_monthly: null, messages_used: 2, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: false, balance_granted: null, balance_left: null, allowance: null, allowance_left: null, allowance_resets_at: null, blocked: null, blocked_resets_at: null, spend_ceiling: null, spend_this_month: null, output_tokens_per_run: null, input_tokens_per_run: null } }, blocked_fields: ['wage'] })
     expect(parsed.items[0]!.route?.method).toBe('GET')
     expect(parsed.limits.messages_monthly).toBeNull()
   })
 
+  it('carries the balance figures for a manager and only the refusal for anyone else', () => {
+    const base = { provider_mode: 'platform', consent_signed: true, output_tokens_per_run: 8000, input_tokens_per_run: 100000 }
+    const manager = { ...base, balance_granted: 5_000_000, balance_left: 1_200_000, allowance: 500_000, allowance_left: 0, allowance_resets_at: '2026-11-15T21:00:00Z', spend_ceiling: 2_000_000, spend_this_month: 300_000, blocked: null, blocked_resets_at: null }
+    const other = { ...base, balance_granted: null, balance_left: null, allowance: null, allowance_left: null, allowance_resets_at: '2026-11-15T21:00:00Z', spend_ceiling: null, spend_this_month: null, blocked: 'ai_balance_empty', blocked_resets_at: '2026-11-15T21:00:00Z' }
+    expect(AiPolicySchema.parse(manager).balance_left).toBe(1_200_000)
+    expect(AiPolicySchema.parse(other).blocked).toBe('ai_balance_empty')
+    expect(AiPolicySchema.parse({ ...other, blocked: 'ai_spend_ceiling', blocked_resets_at: '2026-12-01T00:00:00Z' }).blocked).toBe('ai_spend_ceiling')
+    for (const retired of [{ tokens_monthly: null }, { tokens_used: 0 }]) expect(() => AiPolicySchema.parse({ ...manager, ...retired })).toThrow()
+    for (const bad of [{ balance_left: -1 }, { blocked: 'ai_consent_required' }, { blocked: undefined }, { allowance_resets_at: 'tomorrow' }, { balance_granted: undefined }]) expect(() => AiPolicySchema.parse({ ...manager, ...bad })).toThrow()
+  })
+
   it('rejects a draft tool with a route and an unknown kind', () => {
-    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'draft' }], total: 1, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null, input_tokens_per_run: null } }, blocked_fields: ['wage'] })).toThrow()
-    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'delete' }], total: 1, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: false, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: null, input_tokens_per_run: null } }, blocked_fields: ['wage'] })).toThrow()
+    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'draft' }], total: 1, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: false, balance_granted: null, balance_left: null, allowance: null, allowance_left: null, allowance_resets_at: null, blocked: null, blocked_resets_at: null, spend_ceiling: null, spend_this_month: null, output_tokens_per_run: null, input_tokens_per_run: null } }, blocked_fields: ['wage'] })).toThrow()
+    expect(() => AiToolsResponseSchema.parse({ items: [{ ...READ, kind: 'delete' }], total: 1, agents: [], limits: { tool_calls_per_run: null, messages_monthly: null, messages_used: 0, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: false, balance_granted: null, balance_left: null, allowance: null, allowance_left: null, allowance_resets_at: null, blocked: null, blocked_resets_at: null, spend_ceiling: null, spend_this_month: null, output_tokens_per_run: null, input_tokens_per_run: null } }, blocked_fields: ['wage'] })).toThrow()
   })
 
   it('types every SSE event by name', () => {
@@ -135,7 +146,7 @@ describe('LiwanOS AI usage contracts', () => {
     expect(AiUsageRecordSchema.parse({ ...record, billing: 'setup', cost: 1, charge: null }).cost).toBe(1)
     expect(AiUsageRecordSchema.parse({ ...record, billing: 'tenant_key', cost: null, charge: null }).cost).toBeNull()
     expect(() => AiUsageRecordSchema.parse({ ...record, input_tokens: null, output_tokens: null })).toThrow()
-    expect(AiUsageRowSchema.parse({ ...record, id: 5, cost: null, charge: null }).cost).toBeNull()
+    expect(AiUsageRowSchema.parse({ ...record, id: 5, cost: null, charge: null, charge_paid: 0 }).cost).toBeNull()
   })
 
   it('keeps the model events out of the browser stream', () => {
@@ -166,13 +177,17 @@ describe('LiwanOS AI usage contracts', () => {
       expect(() => AiUsageRecordSchema.parse({ ...record, call_id }), call_id).toThrow()
     }
     expect(AiUsageRecordSchema.safeParse({ ...record, call_id: undefined }).success).toBe(false)
-    expect(AiUsageRowSchema.parse({ ...record, id: 5 }).id).toBe(5)
-    expect(AiUsageBatchResponseSchema.parse({ items: [{ ...record, id: 5 }], total: 1 }).total).toBe(1)
+    expect(AiUsageRowSchema.parse({ ...record, id: 5, charge_paid: 3 }).charge_paid).toBe(3)
+    expect(AiUsageBatchResponseSchema.parse({ items: [{ ...record, id: 5, charge_paid: 0 }], total: 1 }).total).toBe(1)
+    // The part taken from the balance is the server's: a report never carries it, and a stored row always does.
+    expect(() => AiUsageRecordSchema.parse({ ...record, charge_paid: 1 })).toThrow()
+    expect(() => AiUsageRowSchema.parse({ ...record, id: 5 })).toThrow()
+    expect(() => AiUsageRowSchema.parse({ ...record, id: 5, charge_paid: -1 })).toThrow()
   })
 
   it('parses the AI settings with the consent text and the month usage', () => {
     const settings = {
-      provider_mode: 'platform', messages_per_user_monthly: 0, input_tokens_per_run: 100000, external_send: 'draft_only', knowledge_enabled: false, revision: 1,
+      provider_mode: 'platform', messages_per_user_monthly: 0, input_tokens_per_run: 100000, monthly_spend_ceiling: 0, external_send: 'draft_only', knowledge_enabled: false, revision: 1,
       consent: { required_version: '2026-11-05-draft', text_ar: 'نص', text_en: 'text', text_hash: 'a'.repeat(64), signed: null },
       usage: { month: '2026-11', messages_used: 3, messages_limit: null, assist_used: 4, assist_limit: 300, tokens_used: 120, tokens_limit: 2000000, output_tokens_per_run: 8000 },
     }
@@ -186,6 +201,9 @@ describe('LiwanOS AI usage contracts', () => {
     expect(() => AiSettingsPatchSchema.parse({ input_tokens_per_run: -1, revision: 1 })).toThrow()
     expect(() => AiSettingsPatchSchema.parse({ input_tokens_per_run: 2_000_001, revision: 1 })).toThrow()
     expect(() => AiSettingsPatchSchema.parse({ knowledge_enabled: 'yes', revision: 1 })).toThrow()
+    expect(AiSettingsPatchSchema.parse({ monthly_spend_ceiling: 500000, revision: 1 }).monthly_spend_ceiling).toBe(500000)
+    for (const monthly_spend_ceiling of [-1, 1.5, 2_147_483_648, null]) expect(() => AiSettingsPatchSchema.parse({ monthly_spend_ceiling, revision: 1 })).toThrow()
+    expect(() => AiSettingsSchema.parse({ ...settings, monthly_spend_ceiling: undefined })).toThrow()
     expect(AiKnowledgeRebuildSchema.parse({ queued: true }).queued).toBe(true)
     expect(() => AiKnowledgeRebuildSchema.parse({ queued: false })).toThrow()
   })

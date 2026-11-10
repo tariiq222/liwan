@@ -44,7 +44,7 @@ const TOOLS = {
   ],
   total: 3,
   agents: [],
-  limits: { tool_calls_per_run: 8, messages_monthly: 100, messages_used: 1, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: true, tokens_monthly: null, tokens_used: 0, output_tokens_per_run: 8000, input_tokens_per_run: 100000 } }, blocked_fields: [],
+  limits: { tool_calls_per_run: 8, messages_monthly: 100, messages_used: 1, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: true, balance_granted: null, balance_left: null, allowance: null, allowance_left: null, allowance_resets_at: null, blocked: null, blocked_resets_at: null, spend_ceiling: null, spend_this_month: null, output_tokens_per_run: 8000, input_tokens_per_run: 100000 } }, blocked_fields: [],
 }
 const ME = { id: 42, name: 'سارة', company: { id: 1, name: 'ليوان' } }
 

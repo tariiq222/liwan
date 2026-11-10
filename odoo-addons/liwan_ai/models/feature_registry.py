@@ -13,6 +13,11 @@ class LiwanAiFeatureRegistry(models.AbstractModel):
             {'key': 'ai.tool_calls.per_run', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai'},
             # Platform-provider runs only: a tenant on its own key pays its provider and keeps the message limit alone.
             {'key': 'ai.tokens.monthly', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai'},
+            # The prepaid balance (spec 2026-11-10 §5): the cumulative top-ups, and the free allowance per trial window and per
+            # month after the trial, all in cost units. A customer-hosted installation (`non_saas`) has no balance whatever these hold, and its local policy may omit them.
+            {'key': 'ai.balance.granted', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai', 'saas_only': True},
+            {'key': 'ai.allowance.trial', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai', 'saas_only': True},
+            {'key': 'ai.allowance.monthly', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai', 'saas_only': True},
             {'key': 'ai.output_tokens.per_run', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai'},
             # The free agents' (setup and help) one monthly budget, set by the vendor in the package (spec 2026-11-04 §6.10).
             {'key': 'ai.assist.monthly', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai'},
