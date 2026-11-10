@@ -101,9 +101,9 @@ describe('synthetic task reads and bounded HR avatar assets', () => {
     const paged = DependencyCandidateListSchema.parse(await (await mock.get('/api/v1/tasks/101/dependencies/candidates?limit=1&offset=1')).json())
     expect(paged.items).toHaveLength(1)
     expect(paged.total).toBe(3)
-    const unlimited = DependencyCandidateListSchema.parse(await (await mock.get('/api/v1/tasks/101/dependencies/candidates?limit=0')).json())
-    expect(unlimited.items).toHaveLength(3)
-    expect(unlimited.total).toBe(3)
+    const defaulted = DependencyCandidateListSchema.parse(await (await mock.get('/api/v1/tasks/101/dependencies/candidates?limit=0')).json())
+    const implicit = DependencyCandidateListSchema.parse(await (await mock.get('/api/v1/tasks/101/dependencies/candidates')).json())
+    expect(defaulted).toEqual(implicit)
   })
 
   it('leaves unknown task reads as 404 and does not turn the reads into mutation endpoints', async () => {
