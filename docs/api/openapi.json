@@ -101917,8 +101917,13 @@
       }
     },
     "securitySchemes": {
+      "bearerAuth": {
+        "description": "API key in the Authorization header for machine routes; a session cookie alone answers 401.",
+        "scheme": "bearer",
+        "type": "http"
+      },
       "sessionCookie": {
-        "description": "Odoo session cookie; browser traffic is same-origin, no bearer tokens.",
+        "description": "Odoo session cookie; browser traffic is same-origin.",
         "in": "cookie",
         "name": "session_id",
         "type": "apiKey"
@@ -104798,7 +104803,7 @@
         },
         "security": [
           {
-            "sessionCookie": []
+            "bearerAuth": []
           }
         ],
         "summary": "Record the usage rows of a finished run for the user who made the calls, without that user's session.",
@@ -132340,6 +132345,7 @@
     },
     "/api/v1/inbox/hooks/tiktok": {
       "post": {
+        "description": "Provider webhook (machine to machine, no session). Authorized by the provider's signed delivery, not by a cookie or API key; a bad signature answers 403.",
         "operationId": "liwan_inbox.TikTokHookController.receive.post",
         "responses": {
           "200": {
@@ -132352,11 +132358,7 @@
             "$ref": "#/components/responses/Invalid"
           }
         },
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
+        "security": [],
         "summary": "receive",
         "tags": [
           "liwan_inbox"
@@ -132379,6 +132381,7 @@
     },
     "/api/v1/inbox/hooks/whatsapp": {
       "get": {
+        "description": "Provider webhook (machine to machine, no session). Authorized by the provider's signed delivery, not by a cookie or API key; a bad signature answers 403.",
         "operationId": "liwan_inbox.WhatsAppHookController.verify.get",
         "responses": {
           "200": {
@@ -132391,11 +132394,7 @@
             "$ref": "#/components/responses/Invalid"
           }
         },
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
+        "security": [],
         "summary": "verify",
         "tags": [
           "liwan_inbox"
@@ -132416,6 +132415,7 @@
         }
       },
       "post": {
+        "description": "Provider webhook (machine to machine, no session). Authorized by the provider's signed delivery, not by a cookie or API key; a bad signature answers 403.",
         "operationId": "liwan_inbox.WhatsAppHookController.receive.post",
         "responses": {
           "200": {
@@ -132428,11 +132428,7 @@
             "$ref": "#/components/responses/Invalid"
           }
         },
-        "security": [
-          {
-            "sessionCookie": []
-          }
-        ],
+        "security": [],
         "summary": "receive",
         "tags": [
           "liwan_inbox"
