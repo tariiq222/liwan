@@ -167,6 +167,26 @@ export const AiUsageRecordSchema = z.object(AiUsageFields).strict().refine(token
 export type AiUsageRecord = z.infer<typeof AiUsageRecordSchema>
 export const AiUsageBatchSchema = z.object({ items: z.array(AiUsageRecordSchema).min(1).max(AI_USAGE_BATCH_MAX) }).strict()
 export type AiUsageBatch = z.infer<typeof AiUsageBatchSchema>
+/**
+ * The same batch as `POST /api/v1/ai/usage/service` records it: the Nuxt server reports it with the tenant's technical
+ * recorder key, so the batch names the user who made the calls and the company they were made in (`user_company_id`, not `company_id`:
+ * a payload `company_id` is the platform's own pinned-company guard). A row never names its own owner.
+ */
+export const AiUsageServiceBatchSchema = z.object({
+  user_id: z.number().int().positive(), user_company_id: z.number().int().positive(),
+  items: z.array(AiUsageRecordSchema).min(1).max(AI_USAGE_BATCH_MAX),
+}).strict()
+export type AiUsageServiceBatch = z.infer<typeof AiUsageServiceBatchSchema>
+/**
+ * The size rules of `POST /api/v1/ai/usage/service` (odoo-addons/liwan_ai/models/ai_usage.py), so the Nuxt server splits its
+ * requests the way Odoo admits them. A row is one provider call, and no tighter number is a safe per-row bound: a per-run input
+ * ceiling is checked between calls and 0 disables it. The only per-row bound is the AI service's own wire contract (`max_row_tokens`,
+ * both counts); everything else is aggregate: `max_request_tokens` is the tenant-wide tokens-per-minute budget, two maximal rows, so
+ * any one valid row fits an empty window and a request above it must be split. Odoo cannot import this file: a test
+ * (apps/web/server/utils/ai/__tests__/usageCeilings.test.ts) reads Odoo and the AI service and fails when they drift.
+ * `max_age_hours` bounds `called_at`; the web spool gives a row up after an hour, far inside it.
+ */
+export const AI_USAGE_SERVICE_LIMITS = { max_row_tokens: 100_000_000, max_request_tokens: 200_000_000, max_age_hours: 24 } as const
 export const AiUsageRowSchema = z.object({ id: z.number().int().positive(), ...AiUsageFields }).strict().refine(tokensComeInPairs, TOKENS_IN_PAIRS)
 export type AiUsageRow = z.infer<typeof AiUsageRowSchema>
 export const AiUsageBatchResponseSchema = z.object({ items: z.array(AiUsageRowSchema), total: z.number().int().nonnegative() }).strict()

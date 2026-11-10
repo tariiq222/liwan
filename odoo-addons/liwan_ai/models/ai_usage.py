@@ -14,6 +14,8 @@ from odoo.addons.liwan_ai.models.ai_audit import (
     raise_invalid,
 )
 
+# The one route the usage recorder's API key may reach (models/ir_http.py registers it with the platform guard).
+USAGE_SERVICE_PATH = '/api/v1/ai/usage/service'
 USAGE_KINDS = ('plan', 'title')
 USAGE_OUTCOMES = ('ok', 'failed', 'retried', 'aborted')
 # Who paid a provider call: the platform within the package (counted against ai.tokens.monthly), the tenant's own key,
@@ -29,6 +31,22 @@ PROVIDER_PATTERN = re.compile(r'[a-z][a-z0-9_-]{0,31}')
 CONTROL_CHARACTERS = re.compile(r'[\x00-\x1f\x7f-\x9f]')
 MAX_MODEL_LENGTH = 128
 MAX_TOKENS = 100_000_000
+# What a row is and how large one can be (issue #557). A row is ONE provider call (`call_id` is the provider attempt, apps/ai-service
+# contracts.py ModelUsageEvent), not a run. The executor does not bound one call tighter than the wire: `input_tokens_per_run=0`
+# disables the per-run input ceiling, and the ceilings (graph.py) are checked BETWEEN calls, so the call that crosses one still
+# finishes with the whole history sent. The only trustworthy per-row bound is therefore the AI service's own contract
+# (`le=100_000_000` on both counts, mirrored by MAX_TOKENS here and by the zod schema); a test reads that contract and fails if it
+# grows past MAX_TOKENS. Nothing smaller is enforced per row: a smaller number would refuse legitimate usage.
+#
+# Abuse protection on the service route (a stolen key could report 64 rows of MAX_TOKENS and use up ``ai.tokens.monthly`` for the
+# whole tenant) is therefore an AGGREGATE bound on what the recorder inserted in the last minute, tenant-wide, counted under the
+# recorder lock (controllers/ai.py): rows, and tokens. The token ceiling is two full rows' worth (input plus output of one maximal
+# row), so any single valid row fits an empty window; it is an engineering sanity value far above any provider's per-account
+# rate, not a derived limit, and is single-sourced with the Nuxt splitter in packages/contracts (a drift test compares them).
+# Age: the web spool gives a row up after an hour (apps/web usage.ts), so a day is generous and keeps a row in its month.
+SERVICE_MAX_AGE = timedelta(hours=24)
+SERVICE_MAX_ROWS_PER_MINUTE = 600  # exact: the route serializes admission per recorder (controllers/ai.py), so parallel requests cannot overshoot
+SERVICE_MAX_TOKENS_PER_MINUTE = 2 * MAX_TOKENS
 FUTURE_TOLERANCE = timedelta(minutes=5)
 # RFC 3339 with an offset, the same instants the zod contract's iso datetime({offset: true}) accepts.
 RFC3339 = re.compile(
@@ -62,8 +80,9 @@ def parse_called_at(value):
 class LiwanAiUsage(models.Model):
     """One row per AI provider call, owned by the user who made it.
 
-    Written by the Nuxt executor as the user (``/api/v1/ai/usage``); never
-    elevated. The calls already happened, so ``create`` applies no limit: it
+    Written by the Nuxt executor, either as the user (``/api/v1/ai/usage``, their session) or, once their session no
+    longer matters, as the tenant's technical recorder account for that user (``/api/v1/ai/usage/service``); never
+    elevated by ``sudo()``. The calls already happened, so ``create`` applies no limit: it
     only validates and derives the owner. Record rules mirror the audit's: each
     user sees their own rows, the access audit readers see their company's.
     """
@@ -95,8 +114,8 @@ class LiwanAiUsage(models.Model):
     _user_conversation_call_uniq = models.UniqueIndex('(user_id, conversation_id, call_id)')
 
     @api.model
-    def _liwan_ai_prepare(self, values):
-        """Validate one wire payload and return the create values.
+    def _liwan_ai_prepare(self, values, user, company, service=False):
+        """Validate one wire payload and return the create values for ``user`` in ``company``.
 
         Raises ``ValidationError`` with ``liwan_field`` for a bad value.
         """
@@ -145,9 +164,12 @@ class LiwanAiUsage(models.Model):
             invalid('called_at', 'called_at must be an ISO-8601 datetime with an offset')
         if called_at > datetime.now(timezone.utc) + FUTURE_TOLERANCE:
             invalid('called_at', 'called_at must not be more than 5 minutes in the future')
+        if service:
+            if called_at < datetime.now(timezone.utc) - SERVICE_MAX_AGE:
+                invalid('called_at', 'called_at must be within the last 24 hours on this route')
         return {
-            'company_id': self.env.company.id,
-            'user_id': self.env.user.id,
+            'company_id': company.id,
+            'user_id': user.id,
             'conversation_id': conversation_id,
             'call_id': call_id,
             'kind': kind,
@@ -176,23 +198,53 @@ class LiwanAiUsage(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        """Record the attempts of a batch as the signed-in user, each row once (the browser-session path)."""
+        self.env['liwan.entitlement.service'].require('ai.enabled')
+        self.env['liwan.access.service']._liwan_require_capability(AI_USE)
+        return self._liwan_ai_record(vals_list, self.env.user, self.env.company)
+
+    @api.model
+    def _liwan_ai_record_for(self, vals_list, user_id, company_id):
+        """Record the attempts of a batch for ``user_id`` as the technical recorder (the service-identity path).
+
+        The caller is the recorder account, which holds no AI capability; what it may write is bound by its own ACL
+        and by the checks below: the user must exist (a leaver's calls still happened), be an internal user, and
+        belong to ``company_id``, so a row is never attributed to a user or company it does not belong to. The whole
+        write runs in that one company, so its record rules apply to it and to no other.
+        """
+        self.env['liwan.entitlement.service'].require('ai.enabled')
+        if not isinstance(user_id, int) or isinstance(user_id, bool):
+            raise_invalid(self.env, 'user_id', 'user_id must be an integer')
+        if not isinstance(company_id, int) or isinstance(company_id, bool):
+            raise_invalid(self.env, 'user_company_id', 'user_company_id must be an integer')
+        if company_id not in self.env.user.company_ids.ids:
+            raise_invalid(self.env, 'user_company_id', 'user_company_id must be a company of this tenant')
+        scoped = self.with_context(allowed_company_ids=[company_id], liwan_pinned_company_ids=[company_id])
+        # One search answers all three questions: it finds the user only if internal and a member of the company.
+        user = scoped.env['res.users'].with_context(active_test=False).search([
+            ('id', '=', user_id), ('share', '=', False), ('company_ids', 'in', [company_id]),
+        ], limit=1)
+        if not user:
+            raise_invalid(self.env, 'user_id', 'user_id must be an internal user of user_company_id')
+        return scoped._liwan_ai_record(vals_list, user, scoped.env['res.company'].browse(company_id), service=True)
+
+    @api.model
+    def _liwan_ai_record(self, vals_list, user, company, service=False):
         """Record the attempts of a batch, each row once; a row this user already reported is not counted again.
 
         The spool retries a batch whose answer it never saw, so the same attempt can arrive twice (issue #557). The unique
         index on (user, conversation, call) is the guard: a refused insert rolls back only its own savepoint and the batch
         answers success with the rows that already exist, so the retry is settled rather than repeated.
         """
-        self.env['liwan.entitlement.service'].require('ai.enabled')
-        self.env['liwan.access.service']._liwan_require_capability(AI_USE)
         rows = []
         for index, values in enumerate(vals_list):
             try:
-                rows.append(self._liwan_ai_prepare(values))
+                rows.append(self._liwan_ai_prepare(values, user, company, service=service))
             except ValidationError as error:
                 error.liwan_index = index
                 raise
         created = []
-        for row in rows:
+        for index, row in enumerate(rows):
             existing = self._liwan_ai_existing(row)
             if existing:
                 created.append(existing.id)
@@ -204,9 +256,54 @@ class LiwanAiUsage(models.Model):
                 # A concurrent report of the same attempt won the insert: that row is the record of this attempt too.
                 existing = self._liwan_ai_existing(row)
                 if not existing:
-                    raise
+                    # The index is unique per user, whatever the company: the same attempt is already held under another
+                    # company (a user who switched company mid-run). It is answered as a conflict, naming nothing of that row.
+                    error = ValidationError(self.env._('This call was already reported.'))
+                    error.liwan_field, error.liwan_code, error.liwan_status, error.liwan_index = 'call_id', 'duplicate', 409, index
+                    raise error from None
                 created.append(existing.id)
         return self.browse(created)
+
+    @staticmethod
+    def _liwan_ai_tokens_of(items):
+        """The tokens a raw request claims (anything that is not a valid count counts 0; validation refuses it later)."""
+        return sum(
+            value for item in items if isinstance(item, dict)
+            for value in (item.get('input_tokens'), item.get('output_tokens')) if is_token_count(value)
+        )
+
+    @api.model
+    def _liwan_ai_admission(self, items):
+        """``None`` when the recorder may add ``items`` now, ``'rate_limited'`` when it must wait, ``'too_large'`` when it must split."""
+        claimed = self._liwan_ai_tokens_of(items)
+        if claimed > SERVICE_MAX_TOKENS_PER_MINUTE:
+            return 'too_large'
+        rows_left, tokens_left = self._liwan_ai_recorder_budget_left()
+        return 'rate_limited' if len(items) > rows_left or claimed > tokens_left else None
+
+    @api.model
+    def _liwan_ai_recorder_budget_left(self):
+        """``(rows, tokens)`` the recorder may still add in this minute, tenant-wide.
+
+        Counted from the ledger itself, so it needs no counter store; the ``called_at`` bound only lets the index on it
+        narrow the scan, since a service row is never older than ``SERVICE_MAX_AGE``. The request is pinned to the recorder's
+        current company and its branches, so each company the recorder may write to is counted in its own context (the record
+        rule and the company fence stay in force, no ``sudo()``): a key cannot spread its rows over another top-level company
+        to escape either ceiling. The caller holds the recorder lock, so the read and the insert are one critical section.
+        """
+        now = fields.Datetime.now()
+        domain = [
+            ('create_uid', '=', self.env.uid),
+            ('called_at', '>=', now - SERVICE_MAX_AGE - timedelta(minutes=1)),
+            ('create_date', '>=', now - timedelta(minutes=1)),
+        ]
+        rows = tokens = 0
+        for company_id in self.env.user.company_ids.ids:
+            scoped = self.with_context(allowed_company_ids=[company_id], liwan_pinned_company_ids=[company_id])
+            [[count, input_sum, output_sum]] = scoped._read_group(domain, [], ['__count', 'input_tokens:sum', 'output_tokens:sum'])
+            rows += count
+            tokens += (input_sum or 0) + (output_sum or 0)
+        return SERVICE_MAX_ROWS_PER_MINUTE - rows, SERVICE_MAX_TOKENS_PER_MINUTE - tokens
 
     @api.model
     def _liwan_ai_existing(self, row):

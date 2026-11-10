@@ -60,7 +60,7 @@ policies() {
   node --test deploy/shared/release-guard.test.mjs deploy/shared/release-assets.test.mjs deploy/shared/release-routes.test.mjs deploy/releases/test_dedicated_guard.mjs \
     deploy/shared/guard.test.mjs deploy/shared/boundary-regressions.test.mjs deploy/shared/guard-rate-limit.test.mjs \
     deploy/shared/securityHeaders.test.mjs deploy/shared/registry-recover.test.mjs \
-    deploy/shared/image-routes.test.mjs deploy/shared/tiktok-relay.test.mjs tools/shared_isolation_acceptance/ssr-boundary.test.mjs
+    deploy/shared/image-routes.test.mjs deploy/shared/tiktok-relay.test.mjs deploy/shared/image-closure.test.mjs tools/shared_isolation_acceptance/ssr-boundary.test.mjs
 }
 
 # `npm test`: the tools tests and every workspace's unit tests. Two web tests drive Chromium, so only this part installs it.

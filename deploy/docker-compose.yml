@@ -32,6 +32,9 @@ services:
       NUXT_AI_SERVICE_TOKEN: "${AI_SERVICE_TOKEN:-}"
       # web only: the ai service must never hold the key that opens the tokens it is given.
       NUXT_AI_TOKEN_KEY: "${AI_TOKEN_KEY:-}"
+      # web only: the API key of the tenant's technical AI usage account (provision.sh mints it). With it the usage ledger is
+      # recorded for a user whose session already ended; without it web reports with the user's session as before.
+      LIWAN_AI_USAGE_KEY: "${LIWAN_AI_USAGE_KEY:-}"
     expose: ["3000"]
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]

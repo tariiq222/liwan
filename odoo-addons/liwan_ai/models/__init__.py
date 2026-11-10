@@ -12,6 +12,7 @@ from . import (
     feature_registry,
     help_agent,
     help_guide,
+    ir_http,
     knowledge_cursor,
     knowledge_indexer,
     knowledge_pending,

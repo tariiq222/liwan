@@ -28,3 +28,6 @@ access_ai_knowledge_pending_indexer,ai.knowledge.pending indexer,model_liwan_ai_
 access_ai_knowledge_pending_manage,ai.knowledge.pending settings manager,model_liwan_ai_knowledge_pending,group_cap_ai_settings_manage,1,0,0,1
 access_ai_knowledge_pending_system,ai.knowledge.pending system,model_liwan_ai_knowledge_pending,base.group_system,1,1,1,1
 access_res_company_ai_indexer,res.company ai indexer,base.model_res_company,group_ai_indexer,1,0,0,0
+access_ai_usage_recorder,ai.usage recorder,model_liwan_ai_usage,group_cap_ai_usage_record,1,0,1,0
+access_res_users_ai_usage_recorder,res.users ai usage recorder,base.model_res_users,group_cap_ai_usage_record,1,0,0,0
+access_res_company_ai_usage_recorder,res.company ai usage recorder,base.model_res_company,group_cap_ai_usage_record,1,0,0,0
