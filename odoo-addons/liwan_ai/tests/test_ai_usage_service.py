@@ -216,6 +216,8 @@ class TestAiUsageService(AiProbe, LiwanApiCase):
         admin = new_test_user(self.env, login='usage_admin', groups='base.group_system')
         service = self.env['liwan.access.service']
         self.assertIn(AI_USAGE_RECORD, service.with_user(support)._liwan_capability_keys(support))
+        # Worst case: these users also hold the recorder's ACL group, so only the identity check stands between their key and the ledger.
+        (support | admin).write({'group_ids': [Command.link(self.env.ref('liwan_ai.group_cap_ai_usage_record').id)]})
         for user in (support, admin):
             with self.subTest(user=user.login):
                 response = self._post(self._batch(), key=self._key(user))
