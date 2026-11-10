@@ -2,10 +2,10 @@ import { z } from 'zod'
 
 /** The vendor "today" list: concrete things that need the vendor's action, most urgent first. */
 export const ATTENTION_LIMIT = 20
-export const attentionKinds = ['past_due', 'billing_blocked', 'stalled_activation', 'operation_failed', 'setup_required', 'renewal_missed', 'renewal_soon'] as const
+export const attentionKinds = ['past_due', 'refund_rejected', 'billing_blocked', 'stalled_activation', 'operation_failed', 'setup_required', 'renewal_missed', 'renewal_soon'] as const
 export const attentionKindSchema = z.enum(attentionKinds)
 
-/** `billing_blocked` is a subscription whose invoice cannot be issued because its customer has no usable payment return origin. `detail` is a machine value (order fulfillment state or operation type), translated by the client. `since` is when the situation began (the renewal date, as the start of that day in the business time zone, for the renewal kinds). */
+/** `refund_rejected` is a provider refund the refund worker could not turn into a credit note (money already left; `detail` is the machine reason) and stays until a credit note for that attempt exists. `billing_blocked` is a subscription whose invoice cannot be issued because its customer has no usable payment return origin. `detail` is a machine value (order fulfillment state or operation type), translated by the client. `since` is when the situation began (the renewal date, as the start of that day in the business time zone, for the renewal kinds). */
 export const attentionItemSchema = z.strictObject({
   kind: attentionKindSchema,
   customer_id: z.uuid().nullable(),

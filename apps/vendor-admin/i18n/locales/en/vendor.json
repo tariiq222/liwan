@@ -65,6 +65,7 @@
       "duration": "less than a day | one day | {count} days",
       "kinds": {
         "past_due": "Overdue for {duration}",
+        "refund_rejected": "A provider refund could not be recorded ({operation}): the money left and there is no credit note",
         "billing_blocked": "Invoice cannot be issued for {duration}: no valid payment return address",
         "stalled_failed": "Activation failed and needs you",
         "stalled_waiting": "Activation stalled for {duration}",
@@ -73,8 +74,16 @@
         "renewal_missed": "Renewal date passed {duration} ago and not renewed",
         "renewal_soon": "Renews within {duration}"
       },
+      "refundReasons": {
+        "refund_exceeds_payment": "refunded more than was paid",
+        "refund_currency_mismatch": "refund currency differs from the payment",
+        "refund_amount_missing": "the provider gave no refunded amount",
+        "payment_attempt_missing": "payment attempt not found",
+        "attempt_id_missing": "no payment attempt id"
+      },
       "actions": {
         "past_due": "Open the invoice",
+        "refund_rejected": "Open the invoice",
         "billing_blocked": "Open the subscription",
         "stalled_activation": "Open the workspace",
         "operation_failed": "Open the operation",

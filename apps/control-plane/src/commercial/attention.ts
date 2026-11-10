@@ -29,6 +29,19 @@ const subjectsSql = `WITH latest AS (
     OR (fulfillment_state IN ('queued','applying') AND order_created_at < now() - make_interval(hours => $1::int))
 ), setup AS (
   SELECT * FROM latest WHERE commercial_setup_required OR subscription_id IS NULL
+), rejected_refunds AS (
+  -- A refund the worker closed as failed. It stays until a credit note for that attempt exists (a later, valid
+  -- cumulative refund event makes one); there is no operator action that resolves it otherwise.
+  SELECT DISTINCT ON (ob.aggregate_id) ob.aggregate_id, ob.processed_at, ob.payload->>'error' AS reason, a.invoice_id,
+    o.customer_id, COALESCE(c.name, ob.aggregate_id) AS name, c.tenant_id
+  FROM commercial_outbox ob
+  LEFT JOIN payment_attempts a ON a.id::text = ob.payload->>'attempt_id'
+  LEFT JOIN orders o ON o.id::text = ob.aggregate_id
+  LEFT JOIN customers c ON c.id = o.customer_id
+  WHERE ob.kind IN ('payment.intervention','reconcile.refund') AND ob.status='failed' AND ob.payload ? 'error'
+    AND NOT EXISTS (SELECT 1 FROM invoice_adjustments ia WHERE ia.kind='credit_note' AND ia.status<>'void'
+      AND ia.reason LIKE '%(attempt ' || a.id::text || ')')
+  ORDER BY ob.aggregate_id, ob.processed_at DESC
 ), blocked AS (
   SELECT * FROM latest WHERE billing_blocked_at IS NOT NULL AND state IN ('active','past_due')
 ), renewing AS (
@@ -46,12 +59,13 @@ const subjectsSql = `WITH latest AS (
   ORDER BY op.tenant_id, op.created_at DESC, op.id
 ), subjects AS (
   SELECT 1 AS rank,'past_due' AS kind, customer_id, tenant_id, NULL::uuid AS operation_id, invoice_id, name, ${iso('due_at')} AS since, NULL::text AS detail, due_at AS sort_at FROM overdue WHERE $3::boolean
-  UNION ALL SELECT 2,'billing_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('billing_blocked_at')}, NULL, billing_blocked_at FROM blocked
-  UNION ALL SELECT 3,'stalled_activation', customer_id, tenant_id, NULL, NULL, name, ${iso('order_created_at')}, fulfillment_state, order_created_at FROM stalled
-  UNION ALL SELECT 4,'operation_failed', customer_id, tenant_id, id, NULL, name, ${iso('updated_at')}, type, updated_at FROM failed_ops
-  UNION ALL SELECT 5,'setup_required', customer_id, tenant_id, NULL, NULL, name, ${iso('customer_created_at')}, NULL, customer_created_at FROM setup
-  UNION ALL SELECT 6,'renewal_missed', customer_id, tenant_id, NULL, NULL, name, ${iso(renewalInstant)}, NULL, ${renewalInstant} FROM renewing WHERE renewal_at < ${businessToday}
-  UNION ALL SELECT 7,'renewal_soon', customer_id, tenant_id, NULL, NULL, name, ${iso(renewalInstant)}, NULL, ${renewalInstant} FROM renewing WHERE renewal_at >= ${businessToday}
+  UNION ALL SELECT 2,'refund_rejected', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE $3::boolean
+  UNION ALL SELECT 3,'billing_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('billing_blocked_at')}, NULL, billing_blocked_at FROM blocked
+  UNION ALL SELECT 4,'stalled_activation', customer_id, tenant_id, NULL, NULL, name, ${iso('order_created_at')}, fulfillment_state, order_created_at FROM stalled
+  UNION ALL SELECT 5,'operation_failed', customer_id, tenant_id, id, NULL, name, ${iso('updated_at')}, type, updated_at FROM failed_ops
+  UNION ALL SELECT 6,'setup_required', customer_id, tenant_id, NULL, NULL, name, ${iso('customer_created_at')}, NULL, customer_created_at FROM setup
+  UNION ALL SELECT 7,'renewal_missed', customer_id, tenant_id, NULL, NULL, name, ${iso(renewalInstant)}, NULL, ${renewalInstant} FROM renewing WHERE renewal_at < ${businessToday}
+  UNION ALL SELECT 8,'renewal_soon', customer_id, tenant_id, NULL, NULL, name, ${iso(renewalInstant)}, NULL, ${renewalInstant} FROM renewing WHERE renewal_at >= ${businessToday}
 )`
 
 const countsSql = `SELECT
