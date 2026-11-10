@@ -10,9 +10,9 @@ from odoo.addons.liwan_api.tests.common import LiwanApiCase
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 ITEM = {
-    'conversation_id': 'r_test_01', 'call_id': '0f1e2d3c4b5a6978', 'kind': 'plan', 'billing': 'platform',
+    'conversation_id': 'r_test_01', 'call_id': '0f1e2d3c4b5a6978', 'kind': 'plan', 'capability': 'standard', 'billing': 'platform',
     'provider': 'acme-ai', 'model': 'acme-large-1',
-    'outcome': 'ok', 'input_tokens': 120, 'output_tokens': 45, 'called_at': '2026-10-27T09:30:00+03:00',
+    'outcome': 'ok', 'input_tokens': 120, 'output_tokens': 45, 'cost': None, 'charge': None, 'called_at': '2026-10-27T09:30:00+03:00',
 }
 MESSAGE = {
     'conversation_id': 'r_test_01', 'kind': 'message', 'tool_name': None, 'input': None,
@@ -93,7 +93,7 @@ class TestAiUsage(AiProbe, LiwanApiCase):
         self.assertEqual(sum(row.input_tokens + row.output_tokens for row in self.Usage.search([])), 2 * (120 + 45))
 
     def test_a_repeated_attempt_in_one_batch_is_one_row(self):
-        response = self._post(ITEM, {**ITEM, 'outcome': 'failed', 'input_tokens': None, 'output_tokens': None})
+        response = self._post(ITEM, {**ITEM, 'outcome': 'failed', 'input_tokens': None, 'output_tokens': None, 'cost': None, 'charge': None})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['total'], 2)
         self.assertEqual([item['id'] for item in response.json()['items']], [response.json()['items'][0]['id']] * 2)
@@ -115,7 +115,7 @@ class TestAiUsage(AiProbe, LiwanApiCase):
         self._assert_422(self._post(missing), 'items.0.call_id')
 
     def test_null_tokens_are_not_reported(self):
-        body = self._post({**ITEM, 'input_tokens': None, 'output_tokens': None}).json()
+        body = self._post({**ITEM, 'input_tokens': None, 'output_tokens': None, 'cost': None, 'charge': None}).json()
         self.assertEqual((body['items'][0]['input_tokens'], body['items'][0]['output_tokens']), (None, None))
         row = self.Usage.browse(body['items'][0]['id'])
         self.assertEqual((row.tokens_reported, row.input_tokens, row.output_tokens), (False, 0, 0))
@@ -125,6 +125,23 @@ class TestAiUsage(AiProbe, LiwanApiCase):
         self.assertEqual((body['items'][0]['input_tokens'], body['items'][0]['output_tokens']), (0, 0))
         self.assertTrue(self.Usage.browse(body['items'][0]['id']).tokens_reported)
 
+    def test_the_session_route_refuses_a_cost_or_charge(self):
+        """Any user with ai.use reaches this route and those figures are deducted from the balance: only the recorder may write them."""
+        for change, field in (
+            ({'cost': 0}, 'cost'), ({'cost': 12}, 'cost'), ({'cost': 12, 'charge': 15}, 'cost'), ({'cost': 0, 'charge': 0}, 'cost'),
+            ({'charge': 5}, 'charge'),
+        ):
+            with self.subTest(change=change):
+                self._assert_422(self._post({**ITEM, **change}), f'items.0.{field}', 'invalid')
+        self.assertEqual(self._post({**ITEM, 'cost': None, 'charge': None}).status_code, 200)
+
+    def test_the_capability_is_stored_and_returned(self):
+        for index, capability in enumerate(('quick', 'standard', 'analysis', 'writing')):
+            with self.subTest(capability=capability):
+                body = self._post({**ITEM, 'capability': capability, 'call_id': f'{index + 1:016x}'}).json()
+                self.assertEqual(body['items'][0]['capability'], capability)
+                self.assertEqual(self.Usage.browse(body['items'][0]['id']).capability, capability)
+
     def test_invalid_items_are_422_and_write_nothing(self):
         future = (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()
         cases = (
@@ -132,6 +149,9 @@ class TestAiUsage(AiProbe, LiwanApiCase):
             ({'kind': 'message'}, 'kind', None),
             ({'kind': ['plan']}, 'kind', None),
             ({'outcome': 'maybe'}, 'outcome', None),
+            ({'capability': 'fast'}, 'capability', None),
+            ({'capability': None}, 'capability', None),
+            ({'capability': ['quick']}, 'capability', None),
             ({'billing': 'free'}, 'billing', None),
             ({'billing': None}, 'billing', None),
             ({'provider': 'Acme'}, 'provider', None),
@@ -150,6 +170,14 @@ class TestAiUsage(AiProbe, LiwanApiCase):
             ({'input_tokens': -1}, 'input_tokens', None),
             ({'output_tokens': 100_000_001}, 'output_tokens', None),
             ({'input_tokens': '5'}, 'input_tokens', None),
+            ({'cost': -1}, 'cost', None),
+            ({'cost': 1.5}, 'cost', None),
+            ({'cost': True}, 'cost', None),
+            ({'cost': '5'}, 'cost', None),
+            ({'cost': 2_147_483_648}, 'cost', None),
+            ({'charge': -1}, 'charge', None),
+            ({'charge': 2_147_483_648}, 'charge', None),
+            ({'cost': None, 'charge': 5}, 'charge', None),
             ({'conversation_id': 'a' * 65}, 'conversation_id', None),
             ({'conversation_id': ''}, 'conversation_id', None),
             ({'conversation_id': 'a\x00b'}, 'conversation_id', None),
@@ -225,6 +253,8 @@ class TestAiUsage(AiProbe, LiwanApiCase):
             ({'user_id': self.other.id}, 'user_id'),
             ({'company_id': self.env.company.id}, 'company_id'),
             ({'tokens_reported': True}, 'tokens_reported'),
+            ({'cost_reported': True}, 'cost_reported'),
+            ({'charge_reported': True}, 'charge_reported'),
         ):
             with self.assertRaises(Exception, msg=change) as caught:
                 usage.create({**ITEM, **change})
