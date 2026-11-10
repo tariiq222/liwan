@@ -20,7 +20,8 @@ function engineSolution() {
     // The base modules carry the platform; a core tier with no modules of its own is what the enrollment path expects.
     { id: 'core', name: 'Core', modules: [],
       features: ['limit:users.limit', 'limit:storage.limit_mb', 'limit:branches.extra_limit:0', 'boolean:tasks.enabled', 'boolean:chat.enabled',
-        'boolean:meetings.enabled', 'boolean:documents.enabled', 'boolean:operations.enabled', 'boolean:ai.enabled', 'boolean:ai.knowledge'] },
+        'boolean:meetings.enabled', 'boolean:documents.enabled', 'boolean:operations.enabled', 'boolean:ai.enabled', 'boolean:ai.knowledge',
+        'limit:ai.balance.granted:0', 'limit:ai.allowance.trial:0', 'limit:ai.allowance.monthly:0'] },
     { id: 'projects', name: 'Projects', sellable: true, modules: ['liwan_pmo'], features: ['boolean:pmo.enabled', 'boolean:pmo.change_control', 'boolean:pmo.baselines', 'boolean:pmo.evm', 'limit:projects.max_projects'] },
     { id: 'people', name: 'People', sellable: true, modules: ['liwan_hr'], features: ['boolean:hr.enabled', 'boolean:hr.recruitment', 'boolean:hr.shifts', 'boolean:hr.onboarding', 'boolean:hr.offboarding', 'boolean:hr.assets', 'boolean:hr.warnings', 'boolean:hr.insurance', 'boolean:hr.payroll'] },
     { id: 'finance', name: 'Finance', sellable: true, modules: ['liwan_finance'], features: ['boolean:finance.enabled'] },

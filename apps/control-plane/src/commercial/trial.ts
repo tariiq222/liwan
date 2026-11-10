@@ -7,7 +7,8 @@ import { acceptQuoteOn, orderView } from './orders.js'
 import { buildQuoteOn } from './quotes.js'
 import { trialEndsAt } from './renewals.js'
 import { expireTrials } from './trial-expiry.js'
-import { enqueueReconfigureJob } from '../shared/job-store.js'
+import { appliedDeliveryTarget, enqueueAppliedDelivery } from './delivery-target.js'
+import { deliveredEntitlement } from './ai-ledger.js'
 import { commercialExpiryDate } from './fulfillment.js'
 import { paymentAttemptView } from './payments.js'
 import type { ReturnOrigin } from './return-origin.js'
@@ -60,13 +61,10 @@ export async function startTrialOn(client: PoolClient, input: TrialInput) {
 
 /** Push the trial's Odoo hard expiry on every trial-date mutation, not only at fulfilment. */
 export async function pushCommercialExpiry(client: PoolClient, subscription_id: string, value: string | null) {
-  const row = (await client.query(`SELECT s.*,r.snapshot
-    FROM subscriptions s JOIN subscription_revisions r ON r.id=s.applied_revision_id
-    WHERE s.id=$1`, [subscription_id])).rows[0]
-  if (!row?.applied_revision_id) return
-  const binding = (await client.query('SELECT * FROM shared_registry_bindings WHERE control_tenant_id=$1 AND enabled=true', [row.tenant_id])).rows[0]
+  const target = await appliedDeliveryTarget(client, subscription_id)
+  if (!target) return
+  const { row, binding, order } = target
   if (!binding) throw new CommercialHttpError('tenant_binding_unavailable', 409)
-  const order = (await client.query("SELECT id,fulfillment_state FROM orders WHERE subscription_id=$1 AND target_revision_id=$2 ORDER BY created_at DESC,id DESC LIMIT 1", [subscription_id, row.applied_revision_id])).rows[0]
   // A queued/applying order will push the current trial date itself when it applies; refusing here
   // would break an extension issued during enrolment, and bumping the revision with no job would
   // leave a gap with no recorded request.
@@ -74,14 +72,10 @@ export async function pushCommercialExpiry(client: PoolClient, subscription_id: 
   if (!order) throw new CommercialHttpError('trial_order_unavailable', 409)
   const revision = Number(row.commercial_expiry_revision) + 1
   await client.query('UPDATE subscriptions SET commercial_expiry_revision=$2,revision=revision+1 WHERE id=$1', [subscription_id, revision])
-  const operation_id = randomUUID()
-  await enqueueReconfigureJob(client, { schemaVersion: 1, operation: 'reconfigure', requestId: operation_id,
-    controlTenantId: row.tenant_id, host: binding.host,
-    binding: { tenantId: binding.tenant_id, database: binding.database_name, filestore: binding.filestore, registryRevision: Number(binding.registry_revision) },
-    authority: { order_id: order.id, operation_id, previous_revision_id: row.applied_revision_id, target_revision_id: row.applied_revision_id,
-      entitlement: { modules: row.snapshot.entitlement.modules, features: row.snapshot.entitlement.features,
-        digest: row.snapshot.entitlement.digest, compiler_version: row.snapshot.entitlement.compiler_version },
-      branches: { apply: [], archive: [] }, commercial_valid_until: value, commercial_valid_until_revision: revision } })
+  // The tenant effect rewrites the AI keys it is sent, so this delivery carries the live ones like every other.
+  const entitlement = await deliveredEntitlement(client, row.customer_id, { modules: row.snapshot.entitlement.modules, features: row.snapshot.entitlement.features,
+    digest: row.snapshot.entitlement.digest, compiler_version: row.snapshot.entitlement.compiler_version })
+  await enqueueAppliedDelivery(client, { row, binding, order }, entitlement, { commercial_valid_until: value, commercial_valid_until_revision: revision }, false)
 }
 
 /** Customer conversion: end the trial now and return the first invoice's hosted attempt. */

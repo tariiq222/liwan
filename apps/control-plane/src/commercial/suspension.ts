@@ -6,6 +6,8 @@ import { commercialExpiryDate } from './fulfillment.js'
 import { pushCommercialExpiry } from './trial.js'
 
 export type TenantStatus = 'active' | 'suspended'
+/** The tenant status a subscription asks for: only `suspended` stops the tenant; every other state (cancelled included) lets it in. */
+export const tenantStatusSql = (alias: string) => `CASE WHEN ${alias}.state='suspended' THEN 'suspended' ELSE 'active' END`
 /** Writes the tenant's Odoo profile status (the shared worker's Odoo adapter); resolves once Odoo confirmed it. */
 export type TenantStatusRunner = (input: { tenant_id: string; status: TenantStatus }) => Promise<unknown>
 
@@ -67,7 +69,7 @@ async function pushUnderLock(pool: Pool, row: { id: string; tenant_id: string },
   try {
     locked = (await client.query('SELECT pg_try_advisory_lock(hashtextextended($1,0)) AS ok', [`tenant-status:${row.tenant_id}`])).rows[0].ok === true
     if (!locked) return null
-    const current = (await client.query(`SELECT CASE WHEN state='suspended' THEN 'suspended' ELSE 'active' END AS wanted,tenant_status_pushed AS pushed
+    const current = (await client.query(`SELECT ${tenantStatusSql('subscriptions')} AS wanted,tenant_status_pushed AS pushed
       FROM subscriptions WHERE id=$1 AND tenant_id IS NOT NULL`, [row.id])).rows[0] as { wanted: TenantStatus; pushed: TenantStatus | null } | undefined
     if (!current || current.pushed === current.wanted) return 'skipped'
     await runner({ tenant_id: row.tenant_id, status: current.wanted })
@@ -94,9 +96,9 @@ const BACKOFF_SQL = "now() + LEAST(power(2, tenant_status_failures), 60) * inter
  */
 export async function syncTenantStatus(pool: Pool, input: { runner: TenantStatusRunner; limit?: number; budgetMs?: number; busy?: () => Promise<boolean>; log?: (message: string, error?: unknown) => void }) {
   const started = Date.now(), budget = input.budgetMs ?? 90_000
-  const due = (await pool.query(`SELECT s.id,s.tenant_id,CASE WHEN s.state='suspended' THEN 'suspended' ELSE 'active' END AS wanted FROM subscriptions s
+  const due = (await pool.query(`SELECT s.id,s.tenant_id,${tenantStatusSql('s')} AS wanted FROM subscriptions s
     JOIN shared_registry_bindings b ON b.control_tenant_id=s.tenant_id AND b.enabled=true
-    WHERE s.tenant_status_pushed IS DISTINCT FROM CASE WHEN s.state='suspended' THEN 'suspended' ELSE 'active' END
+    WHERE s.tenant_status_pushed IS DISTINCT FROM ${tenantStatusSql('s')}
       AND (s.tenant_status_next_at IS NULL OR s.tenant_status_next_at <= now())
     ORDER BY s.tenant_status_next_at NULLS FIRST, s.id LIMIT $1`, [input.limit ?? 5])).rows as { id: string; tenant_id: string; wanted: TenantStatus }[]
   const pushed: string[] = [], failed: string[] = []

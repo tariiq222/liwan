@@ -51,6 +51,9 @@ export const sharedReconfigureJobSchema = z.strictObject({
     // cutoff `valid_until` stays untouched. Optional so older jobs still parse.
     commercial_valid_until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
     commercial_valid_until_revision: z.number().int().nonnegative().optional(),
+    // Set only by the control plane's AI push: the job changes nothing but the derived AI keys of the already applied
+    // revision, and is authorized by that revision rather than by the payment state of the order that created it.
+    ai_push: z.literal(true).optional(),
   }),
   restore: z.boolean().optional(), restoreId: z.uuid().optional(),
 })

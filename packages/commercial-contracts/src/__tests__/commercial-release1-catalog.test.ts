@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { catalogApplicationsFromSolution } from '../commercial/catalog.js'
 import { compileEntitlements } from '../commercial/entitlements.js'
+import { AI_ENTITLEMENT_KEYS } from '../commercial/ai-topup.js'
 import type { BundleRevision, CatalogRelease, PlanRevision } from '../commercial/types.js'
 
 const read = (name: string) => JSON.parse(readFileSync(new URL(`../../../../deploy/catalog/solutions/${name}`, import.meta.url), 'utf8'))
@@ -61,6 +62,20 @@ describe('release 1 catalog composition (platform_v4)', () => {
 })
 
 describe('release 1 entitlement boundaries', () => {
+  it('compiles the derived AI keys closed, demands none of them from a plan, and refuses a plan or terms that set one', () => {
+    const release = releaseOf()
+    const base = plan(release, [])
+    for (const key of AI_ENTITLEMENT_KEYS) expect(features([])[key], key).toBe(0)
+    // AI_LIMITS carries none of them and compiles: a plan is never asked for a derived value.
+    expect(Object.keys(base.platform_limits).filter(k => AI_ENTITLEMENT_KEYS.includes(k))).toEqual([])
+    const compile = (platform_limits: Record<string, number | null>, terms: unknown = null) =>
+      compileEntitlements({ release, plan: { ...base, platform_limits }, bundles: [], terms: terms as never, quantities: { users: 3, storage_mb: 5120 } })
+    for (const key of AI_ENTITLEMENT_KEYS) {
+      expect(() => compile({ ...AI_LIMITS, [key]: 5 }), key).toThrow(expect.objectContaining({ code: 'platform_limit_derived' }))
+      expect(() => compile(AI_LIMITS, { limits: { [key]: 5 } }), key).toThrow(expect.objectContaining({ code: 'platform_limit_derived' }))
+    }
+  })
+
   it('opens the included set and closes everything unsold for a customer that buys nothing', () => {
     const open = features([])
     for (const key of INCLUDED) expect(open[key], key).toBe(true)
@@ -118,7 +133,16 @@ describe('the release keeps the previous catalogs untouched', () => {
   it('declares no AI limit the AI addon does not register', () => {
     const registered = read('platform_v4.json').tiers.find((tier: { id: string }) => tier.id === 'core').features as string[]
     const ai = registered.filter(entry => entry.split(':')[1]!.startsWith('ai.') && entry.startsWith('limit:'))
-    expect(ai.map(entry => entry.split(':')[1])) .toEqual(['ai.messages.monthly', 'ai.tool_calls.per_run', 'ai.tokens.monthly', 'ai.assist.monthly', 'ai.output_tokens.per_run'])
+    expect(ai.map(entry => entry.split(':')[1])).toEqual(['ai.messages.monthly', 'ai.tool_calls.per_run', 'ai.tokens.monthly', 'ai.assist.monthly', 'ai.output_tokens.per_run', ...AI_ENTITLEMENT_KEYS])
     expect(registered).not.toContain('limit:ai.setup.monthly')
+  })
+
+  it('declares exactly the AI keys the AI addon registers, and the delivered ones are registered closed', () => {
+    const registry = readFileSync(new URL('../../../../odoo-addons/liwan_ai/models/feature_registry.py', import.meta.url), 'utf8')
+    const registeredKeys = [...registry.matchAll(/'key': '(ai\.[a-z_.]+)'/g)].map(m => m[1])
+    const core = read('platform_v4.json').tiers.find((tier: { id: string }) => tier.id === 'core').features as string[]
+    const declared = core.map(entry => entry.split(':')[1]!).filter(key => key.startsWith('ai.'))
+    expect([...declared].sort()).toEqual([...registeredKeys].sort())
+    for (const key of AI_ENTITLEMENT_KEYS) expect(core, key).toContain(`limit:${key}:0`)
   })
 })

@@ -25,6 +25,8 @@ export type ComputeQuoteInput = {
   proration_cycle_days?: number
   /** A one-time assisted onboarding on a first order only, at the vendor's own fee; never on a renewal. */
   onboarding?: { amount: Money } | null
+  /** A one-time AI balance top-up: charged now, never in a renewal, never prorated. */
+  ai_topup?: { amount: Money; units: number; usd_rate: string } | null
 }
 
 const MB_PER_GB = 1024
@@ -154,6 +156,15 @@ export function computeQuote(input: ComputeQuoteInput): Quote {
       throw new CommercialError('currency_mismatch', 'onboarding')
     dueNow += input.onboarding.amount.minor
     add('onboarding', 'onboarding', 'Onboarding', 1, input.onboarding.amount.minor, 'now', plan.id, period.start, period.end)
+  }
+
+  // The AI top-up is likewise a charge-now item only: it is not a renewal line and takes no part in proration.
+  if (input.ai_topup) {
+    if (input.ai_topup.amount.currency !== currency || input.ai_topup.amount.exponent !== exponent)
+      throw new CommercialError('currency_mismatch', 'ai_topup_minor')
+    dueNow += input.ai_topup.amount.minor
+    add('ai_topup', 'ai_topup', 'AI balance top-up', 1, input.ai_topup.amount.minor, 'now', plan.id, kind === 'new' ? period.start : input.effective_date, period.end)
+    lines[lines.length - 1]!.ai_topup = { units: input.ai_topup.units, usd_rate: input.ai_topup.usd_rate }
   }
 
   const tax = (base_: number, key: string, timing: 'now' | 'renewal', start: string, end: string) => {

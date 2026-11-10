@@ -7,7 +7,8 @@ import { z } from 'zod'
 import type { SharedJob } from '@liwan/commercial-contracts/shared'
 import { isTransientDatabaseError, transaction } from '../db.js'
 import { resolveProvisionTarget } from './onboarding.js'
-import { requireJobAuthority } from './job-store.js'
+import { observeTenantNext } from '../commercial/ai-ledger.js'
+import { findBlockingJob, lockTenantJobs, requireJobAuthority } from './job-store.js'
 import { bindJob, businessKey, payloadDigest, reconcileSharedJob, verifiedReceipt } from './provisioning.js'
 import { commercialRestoreGate, finalizeVerifiedRestore, revalidateCommercialRestorePublication } from './shared-backup.js'
 import { runSubscriptionReconfigure, type SubscriptionAdapter } from './subscription-reconfigure.js'
@@ -47,15 +48,21 @@ function nextSequence(sequence: number): number {
 export async function expireSharedLeases(pool: Pool): Promise<number> {
   // The transition and its audit succeed or roll back together. Preserve the
   // last intent journal so read-only recovery can reconcile a crashed effect.
+  // An AI balance push carries no order and is re-sent by the periodic sweep, so an expired one is failed (which blocks
+  // nothing) instead of quarantined; everything else goes to needs_intervention.
   const result = await pool.query(`WITH expired AS (
-    UPDATE shared_jobs SET state='needs_intervention',fence=fence+1,lease_until=NULL
+    UPDATE shared_jobs SET state=CASE WHEN payload->'authority'->>'ai_push'='true' THEN 'failed' ELSE 'needs_intervention' END,fence=fence+1,lease_until=NULL
     WHERE state='running' AND lease_until<=clock_timestamp()
-    RETURNING id,attempt_id,fence
-  ) INSERT INTO audit_events(id,actor,action,subject,reason)
+    RETURNING id,control_tenant_id,attempt_id,fence,state
+  ), audited AS (
+    INSERT INTO audit_events(id,actor,action,subject,reason)
     SELECT gen_random_uuid(),'shared-worker','shared_job.lease_expired',id::text,
-      'Lease expired; quarantined attempt ' || attempt_id::text || ' at fence ' || fence::text
-    FROM expired`)
-  return result.rowCount ?? 0
+      'Lease expired; ' || CASE WHEN state='failed' THEN 'failed AI push' ELSE 'quarantined' END || ' attempt ' || attempt_id::text || ' at fence ' || fence::text
+    FROM expired RETURNING 1
+  ) SELECT id,control_tenant_id,state FROM expired`)
+  for (const row of result.rows) if (row.state === 'failed') await observeTenantNext(pool, row.control_tenant_id)
+  for (const row of result.rows) if (row.state === 'failed') console.error('[control-plane] AI balance push %s for tenant %s failed: lease expired; the sweep re-sends', row.id, row.control_tenant_id)
+  return result.rows.length
 }
 export async function recoverSharedJob(pool: Pool, id: string, actor: { issuer: string; actorUid: number }, reason: string, adapter?: SharedFencedAdapter, onVerified?: (client: PoolClient) => Promise<void>) {
   if (!adapter) throw new Error('shared_adapter_unavailable')
@@ -165,9 +172,8 @@ export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFence
     const result = await client.query("SELECT * FROM shared_jobs WHERE id=$1 AND state='queued' AND (lease_until IS NULL OR lease_until<=clock_timestamp()) FOR UPDATE", [id])
     if (!result.rowCount) throw new Error('shared_job_not_claimable')
     const row = result.rows[0]
-    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [row.control_tenant_id])
-    const unresolved = await client.query("SELECT id FROM shared_jobs WHERE control_tenant_id=$1 AND id<>$2 AND state IN ('running','needs_intervention') LIMIT 1", [row.control_tenant_id,id])
-    if (unresolved.rowCount) throw new Error('shared_reconciliation_required')
+    await lockTenantJobs(client, row.control_tenant_id)
+    if (await findBlockingJob(client, row.control_tenant_id, { id, aiPush: false })) throw new Error('shared_reconciliation_required')
     try { await requireWorkerAuthority(client, row) }
     catch (error) {
       if (!(error instanceof Error) || error.message !== 'enrollment_authority_invalid') throw error
