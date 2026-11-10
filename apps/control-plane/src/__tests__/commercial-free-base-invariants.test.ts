@@ -15,6 +15,9 @@ import { recordUsage } from '../commercial/usage.js'
 import { getSubscription } from '../commercial/subscriptions.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
+import { applyDunning } from '../commercial/renewals.js'
+import { attention } from '../commercial/attention.js'
+import { syncTenantStatus } from '../commercial/suspension.js'
 
 /**
  * The invariants of the free base after a trial (issue 491, design note section D), each as a state-level test. The scenario
@@ -221,4 +224,125 @@ suite('free base invariants (issue 491)', () => {
       } finally { vi.useRealTimers() }
     })
   })
+
+  describe('I10 and I14: the lock keeps every numeric limit and clears the hard expiry', () => {
+    it('the lock order carries the trial limits unchanged, closes the paid keys, and every push of the lapse has no expiry', async () => {
+      const f = await endedTrial({ requested_users: 10, requested_storage_mb: 30720 })
+      const trial = (await applied(f.subscription)).entitlement.features as Record<string, unknown>
+      await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+      await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
+      const order = (await lapseOrders(f.subscription)).at(-1)
+      const job = await applyOrder(f, order.id)
+      const lock = job.authority.entitlement.features as Record<string, unknown>
+      for (const [key, value] of Object.entries(trial)) if (typeof value === 'number') expect(lock[key], key).toBe(value)
+      for (const key of PAID_KEYS) expect(lock[key], key).toBe(false)
+      const expiries = (await pool.query("SELECT payload->'authority'->'commercial_valid_until' AS v FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'operation'='reconfigure'", [f.tenant])).rows
+      expect(expiries.length).toBeGreaterThanOrEqual(2)
+      for (const e of expiries) expect(e.v).toBeNull()
+    })
+  })
+
+  describe('I7: the trial end never blocks sign-in', () => {
+    it('the tenant status stays active through the lapse and the lock', async () => {
+      const f = await endedTrial()
+      const pushed: string[] = []
+      await locked(f)
+      await syncTenantStatus(pool, { runner: async i => { if (i.tenant_id === f.tenant) pushed.push(i.status) } })
+      expect(pushed).not.toContain('suspended')
+      expect(await row(f.subscription)).toMatchObject({ state: 'active', manual_suspension: false })
+    })
+  })
+
+  describe('I3: a state where the paid applications are still writable is visible to the vendor', () => {
+    it('a lock order that sits queued (the shared worker is down) is listed once it is overdue', async () => {
+      const f = await endedTrial()
+      await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+      await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
+      const order = (await lapseOrders(f.subscription)).at(-1)
+      await pool.query("UPDATE orders SET created_at=now() - interval '25 hours' WHERE id=$1", [order.id])
+      await pool.query("UPDATE trial_lapses SET state='superseded' WHERE subscription_id<>$1", [f.subscription])
+      const items = (await attention(pool, true)).items.filter(i => i.customer_id === f.customer)
+      expect(items).toContainEqual(expect.objectContaining({ kind: 'stalled_activation' }))
+    })
+  })
+
+  describe('I5: one failing subscription never stops another trial from lapsing or locking', () => {
+    it('a poisoned snapshot fails alone in the expiry loop and in the lock loop', async () => {
+      const broken = await endedTrial(), healthy = await endedTrial()
+      await pool.query('ALTER TABLE subscription_revisions DISABLE TRIGGER USER')
+      await pool.query("UPDATE subscription_revisions SET snapshot=jsonb_set(snapshot,'{entitlement,catalog_release_id}','\"not-a-uuid\"') WHERE id=(SELECT applied_revision_id FROM subscriptions WHERE id=$1)", [broken.subscription])
+      await pool.query('ALTER TABLE subscription_revisions ENABLE TRIGGER USER')
+      await expireTrials(pool, { now, adapter, returnOrigin: origin }).catch(() => undefined)
+      expect(await lapseRow(healthy.subscription)).toMatchObject({ state: 'pending' })
+      await processTrialLapses(pool, { now, adapter }).catch(() => undefined)
+      expect(await lapseOrders(healthy.subscription)).toHaveLength(1)
+      // The broken one is parked: leave it out of every later tick of the suite.
+      await pool.query("UPDATE subscriptions SET trial_ends_at=now() + interval '400 days',revision=revision+1 WHERE id=$1 AND state='trialing'", [broken.subscription])
+      await pool.query("UPDATE trial_lapses SET state='superseded' WHERE subscription_id=$1", [broken.subscription])
+    })
+  })
+
+  describe('I6: what is quoted is what the renewal invoices', () => {
+    it('a bought user: the quote\'s next renewal equals the renewal order', async () => {
+      const f = await endedTrial({ requested_users: 4 })
+      await locked(f)
+      const quote = await quoteChange(f, { requested_users: 4 }, at(2))
+      await payAndApply(f, await accept(f, quote))
+      await pool.query("UPDATE subscriptions SET renewal_at='2026-11-01',revision=revision+1 WHERE id=$1", [f.subscription])
+      const renewals = await generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+      expect(renewals[0]!.due_now.minor).toBe(quote.next_renewal.minor)
+    })
+    it('kept branches: priced as the quote said once the customer buys one', async () => {
+      const f = await endedTrial({}, plans.priced)
+      for (const name of ['one', 'two', 'three']) await pool.query("INSERT INTO commercial_branches(id,subscription_id,tenant_id,name,kind,billing,state) VALUES($1,$2,$3,$4,'extra','paid','active')", [randomUUID(), f.subscription, f.tenant, name])
+      await locked(f)
+      vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(now)
+      let quote
+      try {
+        quote = await createBranchQuote(pool, f.customer, JSON.stringify({ add: [{ name: 'fourth' }] }))
+        const order = await accept(f, quote)
+        await pool.query('UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,revision=revision+1 WHERE id=$1', [f.subscription])
+        await pool.query("UPDATE orders SET payment_state='paid',fulfillment_state='applied' WHERE id=$1", [order.id])
+      } finally { vi.useRealTimers() }
+      await pool.query("UPDATE subscriptions SET renewal_at='2026-11-01',revision=revision+1 WHERE id=$1", [f.subscription])
+      const renewals = await generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+      expect(renewals[0]!.due_now.minor).toBe(quote.next_renewal.minor)
+    })
+  })
+
+  describe('I1 and I4: no reader prices the trial configuration after the trial end, and the free base is never dunned', () => {
+    /** An unpaid renewal-kind invoice already overdue: the strongest input dunning can get. */
+    async function overdueInvoice(f: F) {
+      const orderId = randomUUID(), invoiceId = randomUUID()
+      await pool.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,expected_applied_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent)
+        VALUES($1,$2,$3,'renewal',$4,(SELECT applied_revision_id FROM subscriptions WHERE id=$3),NULL,'awaiting_payment','not_started',$5,'x',34500,'SAR',2)`, [orderId, f.customer, f.subscription, randomUUID(), `overdue-${orderId}`])
+      await pool.query(`INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end)
+        VALUES($1,$2,$3,$4,'renewal','SAR',2,30000,4500,34500,'2026-10-01','2026-11-01')`, [invoiceId, f.customer, f.subscription, orderId])
+    }
+    for (const stage of ['window (lapsed, no lock order)', 'lock in flight', 'locked'] as const) {
+      it(`${stage}: quotes price from the free base, branch changes follow the lock, renewal and dunning skip the trial price`, async () => {
+        const f = await endedTrial()
+        await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })
+        if (stage !== 'window (lapsed, no lock order)') await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
+        if (stage === 'locked') { const order = (await lapseOrders(f.subscription)).at(-1); await applyOrder(f, order.id); await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription }) }
+        await freshUsage(f, at(0))
+        // Reader 1: a quote for exactly the trial configuration is a purchase of every application, never a zero-due re-purchase.
+        expect((await quoteChange(f, {}, now, [bundle.id])).due_now.minor).toBeGreaterThan(0)
+        // Reader 2: a branch change waits for the lock while it is owed, and never carries the applications once it is applied.
+        vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(now)
+        try {
+          if (stage === 'locked') expect((await createBranchQuote(pool, f.customer, JSON.stringify({ add: [{ name: 'x' }] }))).lines.filter(l => l.kind === 'bundle')).toEqual([])
+          else await expect(createBranchQuote(pool, f.customer, JSON.stringify({ add: [{ name: 'x' }] }))).rejects.toMatchObject({ code: 'lock_pending' })
+        } finally { vi.useRealTimers() }
+        // Readers 3 and 4: renewal and dunning.
+        await pool.query("UPDATE subscriptions SET renewal_at='2026-11-01',revision=revision+1 WHERE id=$1", [f.subscription])
+        for (const order of await generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })) expect(order.due_now.minor).toBe(0)
+        await overdueInvoice(f)
+        expect(await applyDunning(pool, { now: new Date(now.getTime() + 60 * day) })).not.toContainEqual(expect.objectContaining({ subscription_id: f.subscription }))
+        expect(await row(f.subscription)).toMatchObject({ state: 'active', manual_suspension: false })
+        await pool.query("UPDATE subscriptions SET renewal_at='2099-01-01',revision=revision+1 WHERE id=$1", [f.subscription])
+      })
+    }
+  })
+
 })

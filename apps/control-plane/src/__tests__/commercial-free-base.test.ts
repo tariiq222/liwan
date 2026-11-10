@@ -224,7 +224,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     })
   })
 
-  describe('lowering that does not go through (issue 491, A1)', () => {
+  describe('a lock that does not go through (issue 491, A1)', () => {
     it('push fails once, is superseded without blocking the customer, and succeeds on the retry after backoff', async () => {
       const f = await endedTrial()
       await expireTrials(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription })

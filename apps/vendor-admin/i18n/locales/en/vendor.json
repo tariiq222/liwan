@@ -67,7 +67,7 @@
         "past_due": "Overdue for {duration}",
         "refund_rejected": "A provider refund could not be recorded ({operation}): the money left and there is no credit note",
         "billing_blocked": "Invoice cannot be issued for {duration}: no valid payment return address",
-        "free_base_blocked": "The trial ended {duration} ago but lowering to the free base is blocked ({operation}); the company is not locked",
+        "free_base_blocked": "The trial ended {duration} ago but locking onto the free base is blocked ({operation}); the company is not locked",
         "renewal_failed": "The renewal could not be generated ({operation}); other renewals are not affected",
         "free_base_holding": "The customer keeps more than the plan includes ({operation}): free until they name a quantity or buy a branch; nothing is lowered or deleted",
         "stalled_failed": "Activation failed and needs you",
