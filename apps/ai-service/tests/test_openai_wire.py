@@ -54,7 +54,7 @@ def serve_fake():
 
 def service_client(base_url, provider="openai", stream_usage=None, **extra):
     settings = Settings.from_env({**platform_env(provider, "gpt-test", api_key="sk-test", base_url=base_url), "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true", **extra})
-    model = build_platform_model(settings, PlatformProvider(provider, "gpt-test", base_url, "sk-test", 1, stream_usage))
+    model = build_platform_model(settings, PlatformProvider(provider, base_url, "sk-test", stream_usage), "gpt-test")
     app = make_memory_app(model, settings)
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai")
 

@@ -13,6 +13,7 @@ from liwan_ai_service import service, usage
 from liwan_ai_service.contracts import ModelCallEvent, ModelUsageEvent, RunRequest
 from liwan_ai_service.errors import is_transient_provider_error
 from liwan_ai_service.graph import initial_state, run_config
+from liwan_ai_service.usage import ModelIdentity
 from tests.fakes import (
     BoundGraph,
     FlakyChatModel,
@@ -353,3 +354,10 @@ async def test_a_run_whose_price_overflows_still_answers():
     assert answer.content == "تم"
     done = [item["data"] for item in emitted if item["event"] == "model_usage"][0]
     assert done["outcome"] == "ok" and done["cost"] is None and done["charge"] is None
+
+
+def test_an_identity_carries_a_cached_input_price_and_refuses_a_negative_one():
+    assert ModelIdentity("openai", "m", "platform", cached_input_units=125_000).cached_input_units == 125_000
+    assert ModelIdentity("openai", "m", "platform").cached_input_units is None
+    with pytest.raises(ValueError, match="cached_input_units"):
+        ModelIdentity("openai", "m", "platform", cached_input_units=-1)
