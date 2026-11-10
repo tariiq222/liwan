@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Quote } from '@liwan/commercial-contracts'
 import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
-import { fitStorageMb, QUOTE_IS_EXPIRED, refusalCode, refusalKey, safeIdemAction, safePaymentRedirect, sameQuoteEconomics, storageOptions, storageUnlisted, usersOverCap } from '@/utils/subscription'
+import { fitStorageMb, QUOTE_IS_EXPIRED, refusalCode, refusalKey, safeIdemAction, safePaymentRedirect, sameQuoteEconomics, storageOptions, storageUnlisted, trialBundleNames, trialEndActions, usersOverCap } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t, locale } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('subscription.manage'))
@@ -10,10 +10,16 @@ const { data, error, pending, refresh } = await useAsyncData('subscription:chang
   const catalog = await api.catalog()
   // A customer without a subscription yet is exactly the trial candidate: absence is a state, not a page error.
   const sub = await api.subscription().catch((cause: any) => { if (isMissing(cause)) return null; throw cause })
-  return { sub, catalog }
+  const trial = sub?.applied && (sub.trial_ends_at || sub.trial_outcome)
+    ? await api.trialEndPreview().then(preview => ({ preview, failed: false }), () => ({ preview: null, failed: true }))
+    : { preview: null, failed: false }
+  return { sub, catalog, trial }
 }, { immediate: allowed.value })
 const plans = computed<Array<Record<string, any>>>(() => data.value?.catalog.plans ?? [])
 const bundles = computed(() => data.value?.catalog.bundles ?? [])
+const trialPreview = computed(() => data.value?.trial.preview ?? null)
+const bundleNames = computed(() => trialBundleNames(bundles.value))
+const orderBlocked = computed(() => trialEndActions(trialPreview.value?.status ?? null, data.value?.sub?.state ?? null, allowed.value).blocked)
 const planId = ref(''); const bundleIds = ref<string[]>([]); const cadenceKey = ref(''); const users = ref(1); const storageMb = ref(0); const extra = ref(0)
 const quote = ref<Quote | null>(null); const previewPending = ref(false); const previewError = ref('')
 const notice = ref<'expired' | 'conflict' | 'changed' | 'failed' | 'start' | 'refused' | null>(null); const refusal = ref<string | null>(null); const busy = ref(false); const redirecting = ref(false)
@@ -104,7 +110,7 @@ watch(storageChoices, (options) => {
 let timer: ReturnType<typeof setTimeout> | undefined; let seq = 0
 async function runPreview() {
   const value = body.value
-  if (!value || !hydrated.value) return
+  if (!value || !hydrated.value || orderBlocked.value) return
   if (overCap.value) { quote.value = null; previewError.value = t('subscription.change.usersCapNote'); return }
   const { subscription_id: _subscription, ...previewBody } = value
   const mine = ++seq
@@ -145,7 +151,7 @@ async function startTrial() {
 }
 async function accept() {
   const value = body.value; const sub = data.value?.sub
-  if (!hydrated.value || busy.value || !value || overCap.value) return
+  if (!hydrated.value || busy.value || !value || overCap.value || orderBlocked.value) return
   if (quote.value && QUOTE_IS_EXPIRED(quote.value)) { notice.value = 'expired'; void runPreview(); return }
   busy.value = true; notice.value = null
   try {
@@ -179,8 +185,12 @@ definePageMeta({ middleware: 'customer-commercial' })
   <SharedSettingsPage>
     <SharedPageHeader :title="t('subscription.change.title')" back-to="/subscription" />
     <SharedForbiddenState v-if="!allowed" />
-    <SharedPageState v-else :loading="pending" :error="error" :empty="!pending && !error && !plans.length" :empty-text="t('subscription.change.empty')" @retry="refresh">
-      <form class="grid items-start gap-(--liwan-gap-card) lg:grid-cols-[minmax(0,1fr)_22rem]" @submit.prevent="accept">
+    <SharedPageState v-else :loading="pending" :error="error" :empty="!pending && !error && !orderBlocked && !plans.length" :empty-text="t('subscription.change.empty')" @retry="refresh">
+      <UAlert v-if="orderBlocked" class="mb-4" color="warning" variant="subtle" :title="t('subscription.trialEnd.ordersBlocked')">
+        <template #actions><UButton to="/subscription#trial-end" size="sm" color="neutral" variant="outline">{{ t('subscription.trialEnd.openRecovery') }}</UButton></template>
+      </UAlert>
+      <UAlert v-if="data?.trial.failed" class="mb-4" color="warning" variant="subtle" :title="t('subscription.trialEnd.previewFailed')" />
+      <form v-if="!orderBlocked" class="grid items-start gap-(--liwan-gap-card) lg:grid-cols-[minmax(0,1fr)_22rem]" @submit.prevent="accept">
         <div class="grid gap-(--liwan-gap-card)">
           <SharedFormSection panel :title="t('subscription.change.plan')">
             <div class="space-y-5">
@@ -218,7 +228,10 @@ definePageMeta({ middleware: 'customer-commercial' })
             <SharedCommercePriceBreakdown :quote="quote" :pending="previewPending" :error="previewError" @retry="retryPreview" />
           </SharedRecordSection>
           <UAlert v-if="notice" role="alert" :color="notice === 'failed' || notice === 'refused' ? 'error' : 'warning'" variant="subtle" :title="t(noticeKey)">
-            <template v-if="notice !== 'failed'" #actions><UButton size="sm" color="neutral" variant="outline" :disabled="busy" @click="retryPreview">{{ t('subscription.change.requote') }}</UButton></template>
+            <template v-if="notice !== 'failed'" #actions>
+              <UButton v-if="refusal?.startsWith('subscription.trialEnd.details.')" to="/subscription#trial-end" size="sm" color="neutral" variant="outline">{{ t('subscription.trialEnd.openRecovery') }}</UButton>
+              <UButton v-else size="sm" color="neutral" variant="outline" :disabled="busy" @click="retryPreview">{{ t('subscription.change.requote') }}</UButton>
+            </template>
           </UAlert>
           <p v-if="redirecting" role="status" class="text-sm text-muted">{{ t('subscription.change.redirecting') }}</p>
           <SharedFormActions>
@@ -227,6 +240,10 @@ definePageMeta({ middleware: 'customer-commercial' })
           </SharedFormActions>
         </aside>
       </form>
+      <div v-if="trialPreview" class="mt-4">
+        <p class="mb-2 text-sm text-muted">{{ t('subscription.trialEnd.currentSelection') }}</p>
+        <SubscriptionTrialEndPanel :preview="trialPreview" :bundle-names="bundleNames" />
+      </div>
       <SharedUnsavedChanges :dirty="dirty" />
     </SharedPageState>
   </SharedSettingsPage>

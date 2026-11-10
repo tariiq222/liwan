@@ -14,6 +14,7 @@ const router = useRouter()
 const { t, locale } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
+const seats = useAdminUserSeats(computed(() => can('access.users.grant')))
 const forbidden = computed(() => !can('access.users.read'))
 const filters = reactive<AdminUserListParams>({
   q: String(route.query.q ?? ''),
@@ -108,6 +109,10 @@ function clearSearch() { filters.q = ''; updateFilters() }
           </FilterBar>
         </div>
       </template>
+      <p v-if="seats.data.value" class="px-(--liwan-card-pad) py-3 text-sm text-muted">
+        {{ t(seats.data.value.limit === null ? 'access.seats.heldWithoutLimit' : 'access.seats.held', { used: seats.data.value.used, limit: seats.data.value.limit }) }}
+        · {{ t('access.seats.readOnlyCount', { count: seats.data.value.read_only }) }}
+      </p>
       <UserTable
         id="results"
         :users="items"

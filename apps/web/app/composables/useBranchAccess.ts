@@ -1,8 +1,8 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
-  BranchPolicySchema, BranchPolicyInputSchema, BranchPresetInputSchema, UserBranchAccessSchema, UserBranchAccessInputSchema,
-  type BranchPolicyInput, type BranchPresetInput, type UserBranchAccessInput,
+  BranchPolicySchema, BranchPolicyInputSchema, BranchPresetInputSchema, BranchSeatChangeInputSchema, BranchSeatListSchema, BranchSeatSchema, UserBranchAccessSchema, UserBranchAccessInputSchema,
+  type BranchPolicyInput, type BranchPresetInput, type BranchSeatChangeInput, type UserBranchAccessInput,
 } from '@liwan/contracts'
 import { accessRefreshWait, refreshMeInNuxtContext } from './useAdminUsers'
 
@@ -13,6 +13,27 @@ export function useBranchPolicy(enabled: MaybeRefOrGetter<boolean>) {
     queryKey: computed(() => ['access', 'branch-policy', me.value?.id, me.value?.company.id]),
     enabled: computed(() => !!me.value && toValue(enabled)),
     queryFn: ({ signal }) => $api('/api/v1/admin/access/branches', { schema: BranchPolicySchema, signal }),
+  })
+}
+
+export function useBranchSeats(enabled: MaybeRefOrGetter<boolean>) {
+  const { $api } = useApi()
+  const { me } = useMe()
+  return useQuery({
+    queryKey: computed(() => ['access', 'branch-seats', me.value?.id, me.value?.company.id]),
+    enabled: computed(() => !!me.value && toValue(enabled)),
+    queryFn: ({ signal }) => $api('/api/v1/admin/branches', { schema: BranchSeatListSchema, signal }),
+  })
+}
+
+export function useSetBranchSeat() {
+  const { $api } = useApi()
+  const refresh = branchMutationRefresh()
+  return useMutation({
+    gcTime: 0,
+    mutationFn: ({ id, body }: { id: number; body: BranchSeatChangeInput }) =>
+      $api(`/api/v1/admin/branches/${id}/seat`, { method: 'PATCH', body: BranchSeatChangeInputSchema.parse(body), schema: BranchSeatSchema }),
+    onSuccess: refresh,
   })
 }
 

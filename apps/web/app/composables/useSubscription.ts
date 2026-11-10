@@ -1,4 +1,4 @@
-import type { Branch, Order, BranchSummary, Invoice, PaymentAttempt, Quote, SubscriptionView, UsageSnapshot } from '@liwan/commercial-contracts'
+import { trialEndPreviewSchema, type Branch, type Order, type BranchSummary, type Invoice, type PaymentAttempt, type Quote, type SubscriptionView, type UsageSnapshot } from '@liwan/commercial-contracts'
 import { deriveCustomerCapabilities } from '@/utils/customerCapabilities'
 import { csrfTokenFor, forgetIdempotencyKey, idempotencyKey, safePaymentRedirect, sanitizeBody } from '@/utils/subscription'
 
@@ -41,6 +41,8 @@ export function useSubscriptionApi() {
     quote: (body: unknown) => request<Quote>('quotes', { method: 'POST', body }),
     /** Prices the same request in memory; the control plane never writes a quote row for it. */
     preview: (body: unknown) => request<Quote>('preview', { method: 'POST', body }),
+    trialEndPreview: async () => trialEndPreviewSchema.parse(await request<unknown>('trial/end-preview')),
+    retryTrialEnd: async () => trialEndPreviewSchema.parse(await request<unknown>('trial/retry', { method: 'POST', body: {} })),
     startTrial: (body: unknown) => request<{ order: NonNullable<SubscriptionView['pending_order']>; subscription: SubscriptionView }>('trial', { method: 'POST', body }),
     convertTrial: () => request<{ order: NonNullable<SubscriptionView['pending_order']> | null; attempt: PaymentAttempt | null; pending: boolean }>('trial/convert', { method: 'POST', body: {} }),
     branchQuote: (body: unknown) => request<Quote & { branches?: Branch[] }>('branch-quotes', { method: 'POST', body }),
@@ -58,7 +60,11 @@ export function useSubscriptionApi() {
 
 /** Customer commercial capabilities for display gating only; the BFF recomputes them from the session. */
 export function useCustomerCapabilities() {
-  const { capabilities } = useAccess()
-  const caps = computed(() => deriveCustomerCapabilities(capabilities.value))
-  return { caps, can: (c: string) => (caps.value as string[]).includes(c) }
+  const { me } = useMe()
+  const readOnly = computed(() => me.value?.read_only === true)
+  const caps = computed(() => {
+    const derived = deriveCustomerCapabilities(me.value?.capabilities)
+    return readOnly.value ? derived.filter(capability => capability !== 'subscription.manage' && capability !== 'branches.manage') : derived
+  })
+  return { caps, readOnly, can: (c: string) => (caps.value as string[]).includes(c) }
 }

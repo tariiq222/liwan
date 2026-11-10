@@ -127,7 +127,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'shared/data/AttachmentList.vue', 'shared/form/CommentComposer.vue', 'shared/data/CommentThread.vue', 'shared/data/Checklist.vue',
     'shared/commerce/PriceBreakdown.vue',
     'subscription/UsagePanel.vue', 'subscription/AutoRenewControl.vue',
-    'subscription/BranchSummary.vue',
+    'subscription/BranchSummary.vue', 'subscription/TrialEndPanel.vue',
     'shared/data/ChartPanel.vue', 'shared/layout/DashboardPage.vue',
     'shared/layout/TimelineFrame.vue', 'shared/layout/TimelineControls.vue', 'shared/layout/ConversationLayout.vue',
     'shared/data/InvoiceLines.vue', 'shared/data/PersonAvatar.vue', 'pmo/tasks/TaskKpiStrip.vue', 'pmo/projects/ProjectKpiStrip.vue',

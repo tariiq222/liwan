@@ -1,22 +1,23 @@
 <script setup lang="ts">
-import { QUOTE_IS_EXPIRED, safeIdemAction } from '@/utils/subscription'
-import { safePaymentRedirect } from '@/utils/subscription'
+import { QUOTE_IS_EXPIRED, refusalCode, refusalKey, safeIdemAction, safePaymentRedirect } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('branches.manage'))
 const { data: sub, error, pending, refresh } = await useAsyncData('subscription:branch-new', () => api.subscription(), { immediate: allowed.value })
 const names = ref<string[]>(['']); const quote = ref<any>(null); const busy = ref(false); const failure = ref<unknown>(null); const placed = ref(false)
+const failureCode = computed(() => refusalCode(failure.value))
+const trialBlock = computed(() => failureCode.value === 'lock_pending' || failureCode.value === 'trial_ending')
 const dirty = computed(() => !placed.value && names.value.some(n => n.trim()))
 const clean = computed(() => names.value.map(n => n.trim()).filter(Boolean))
 const action = computed(() => safeIdemAction('branch', sub.value?.id ?? '', sub.value?.revision ?? 0, clean.value.join('|')))
 watch(clean, () => { quote.value = null })
 async function review() {
-  if (busy.value || !clean.value.length || !sub.value) return
+  if (!hydrated.value || !allowed.value || busy.value || !clean.value.length || !sub.value) return
   busy.value = true; failure.value = null
   try { quote.value = await api.branchQuote({ subscription_id: sub.value.id, expected_subscription_revision: sub.value.revision, add: clean.value.map(name => ({ name })), archive: [] }) } catch (c) { failure.value = c } finally { busy.value = false }
 }
 async function accept() {
-  if (busy.value || !quote.value || !sub.value) return
+  if (!hydrated.value || !allowed.value || busy.value || !quote.value || !sub.value) return
   if (QUOTE_IS_EXPIRED(quote.value)) { quote.value = null; return }
   busy.value = true; failure.value = null
   try {
@@ -43,7 +44,9 @@ definePageMeta({ middleware: 'customer-commercial' })
           <UButton v-if="names.length > 1" color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('subscription.branches.remove')" @click="names.splice(i, 1)" />
         </div>
         <UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" :disabled="!hydrated" @click="names.push('')">{{ t('subscription.branches.addName') }}</UButton>
-        <UAlert v-if="failure" color="error" variant="subtle" :title="t('subscription.change.failed')" />
+        <UAlert v-if="failure" color="error" variant="subtle" :title="t(refusalKey(failureCode) ?? 'subscription.change.failed')">
+          <template v-if="trialBlock" #actions><UButton to="/subscription#trial-end" size="sm" color="neutral" variant="outline">{{ t('subscription.trialEnd.openRecovery') }}</UButton></template>
+        </UAlert>
         <SharedCommercePriceBreakdown :quote="quote" :pending="busy" />
         <SharedFormActions>
           <UButton type="submit" :color="quote ? 'neutral' : 'primary'" :variant="quote ? 'outline' : 'solid'" :disabled="!hydrated || busy || !clean.length" :loading="busy && !quote">{{ t('subscription.branches.review') }}</UButton>

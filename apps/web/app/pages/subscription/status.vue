@@ -24,7 +24,11 @@ const order = computed(() => {
   return loaded.value?.read ?? (open && open.id === orderId.value ? open : null)
 })
 const outcome = computed(() => (order.value ? orderOutcome(order.value) : null))
-const display = computed(() => (data.value ? subscriptionDisplayState(data.value) : null))
+const display = computed(() => {
+  const sub = data.value
+  if (!sub) return null
+  return outcome.value === 'recovering' && sub.pending_order?.id === order.value?.id ? 'activating' : subscriptionDisplayState(sub)
+})
 // Only when the read failed and the order is no longer open: its result is unknown, which is not a failure.
 const readFailed = computed(() => !order.value && Boolean(loaded.value?.readFailed))
 const settled = computed(() => !!data.value && !order.value && Boolean(orderId.value) && !readFailed.value)
@@ -38,14 +42,14 @@ onMounted(() => {
   const stopAt = Date.now() + POLL_LIMIT_MS
   timer = setInterval(() => {
     if (Date.now() > stopAt) return clearInterval(timer)
-    if (!pending.value && (outcome.value === 'processing' || outcome.value === 'awaiting_payment')) void refresh()
+    if (!pending.value && (outcome.value === 'processing' || outcome.value === 'recovering' || outcome.value === 'awaiting_payment')) void refresh()
   }, POLL_INTERVAL_MS)
 })
 onBeforeUnmount(() => clearInterval(timer))
-const OUTCOME_COLOR = { applied: 'success', processing: 'info', awaiting_payment: 'warning', cancelled: 'neutral', payment_failed: 'error', activation_failed: 'error', refund: 'error' } as const
+const OUTCOME_COLOR = { applied: 'success', processing: 'info', recovering: 'info', awaiting_payment: 'warning', cancelled: 'neutral', payment_failed: 'error', activation_failed: 'error', refund: 'error' } as const
 const payBusy = ref(false); const payError = ref<string | undefined>()
 async function continuePayment() {
-  if (!order.value || payBusy.value) return
+  if (!hydrated.value || !canRetry.value || !order.value || payBusy.value) return
   payBusy.value = true; payError.value = undefined
   try {
     const attempt = await api.payment(order.value.id, `status:${order.value.id}`)
@@ -59,7 +63,7 @@ const canCancel = computed(() => outcome.value === 'awaiting_payment' && order.v
 const cancelOpen = ref(false); const cancelReason = ref(''); const cancelBusy = ref(false); const cancelError = ref<string | undefined>()
 const validReason = computed(() => cancelReason.value.trim().length >= 3 && cancelReason.value.trim().length <= 1000)
 async function cancelFirstOrder() {
-  if (!order.value || cancelBusy.value || !validReason.value) return
+  if (!hydrated.value || !canCancel.value || !order.value || cancelBusy.value || !validReason.value) return
   cancelBusy.value = true; cancelError.value = undefined
   try { await api.cancelOrder(order.value.id, cancelReason.value); cancelOpen.value = false; cancelReason.value = ''; await refresh() }
   catch { cancelError.value = t('subscription.status.cancelFailed') } finally { cancelBusy.value = false }
@@ -94,7 +98,7 @@ definePageMeta({ middleware: 'customer-commercial' })
           <div class="flex flex-wrap gap-2">
             <UButton v-if="canCancel && !cancelOpen" color="error" variant="outline" :disabled="!hydrated" @click="cancelOpen = true">{{ t('subscription.status.cancel.action') }}</UButton>
             <UButton v-if="canRetry" :disabled="!hydrated || payBusy" :loading="payBusy" @click="continuePayment">{{ t('subscription.status.retryPayment') }}</UButton>
-            <UButton v-if="!order || outcome === 'applied' || outcome === 'cancelled' || outcome === 'payment_failed'" to="/subscription" color="neutral" variant="outline">{{ t('subscription.status.viewSubscription') }}</UButton>
+            <UButton v-if="!order || outcome === 'applied' || outcome === 'cancelled' || outcome === 'payment_failed' || outcome === 'activation_failed' || outcome === 'refund'" to="/subscription" color="neutral" variant="outline">{{ t('subscription.status.viewSubscription') }}</UButton>
             <UButton color="neutral" variant="outline" :disabled="!hydrated" @click="refresh()">{{ t('subscription.status.refresh') }}</UButton>
           </div>
         </div>

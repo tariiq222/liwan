@@ -24,7 +24,10 @@ const FILES = [
   'app/pages/subscription/index.vue',
   'app/pages/subscription/change.vue',
   'app/pages/subscription/status.vue',
+  'app/pages/subscription/branches.vue',
+  'app/pages/subscription/branches/new.vue',
   'app/components/subscription/UsagePanel.vue',
+  'app/components/subscription/TrialEndPanel.vue',
   'app/components/subscription/BranchSummary.vue',
 ]
 const literalKeys = (path: string) => [...read(path).matchAll(/\bt\('([a-zA-Z][\w.]*)'/g)].map(match => match[1]!)
