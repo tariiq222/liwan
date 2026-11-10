@@ -9,10 +9,11 @@ from .res_company import GLOBAL_TAX_ROUNDING, SAUDI_COUNTRY_CODE
 _logger = logging.getLogger(__name__)
 
 SETUP_MANAGE = 'finance.setup.manage'
-# The hard lock date is irreversible in stock Odoo, so it is never writable here.
+# The hard lock date is irreversible in stock Odoo, which refuses to lower or remove it; only the confirmed
+# ``/setup/fiscal/lock`` route passes it here.
 COMPANY_FISCAL_FIELDS = frozenset({
     'fiscalyear_last_day', 'fiscalyear_last_month',
-    'fiscalyear_lock_date', 'tax_lock_date', 'sale_lock_date', 'purchase_lock_date',
+    'fiscalyear_lock_date', 'tax_lock_date', 'sale_lock_date', 'purchase_lock_date', 'hard_lock_date',
     'tax_calculation_rounding_method', 'transfer_account_id',
 })
 
