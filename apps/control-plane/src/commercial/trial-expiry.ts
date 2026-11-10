@@ -4,7 +4,8 @@ import { transaction } from '../db.js'
 import { generateRenewals } from './renewals.js'
 import { randomUUID } from 'node:crypto'
 import { freeBaseOf } from './free-base.js'
-import { pushCommercialExpiry } from './expiry-push.js'
+import { EXPIRY_CLEARING_REASON, pushCommercialExpiry } from './expiry-push.js'
+import { CommercialHttpError } from './lifecycle.js'
 import type { ReturnOrigin } from './return-origin.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 
@@ -14,7 +15,8 @@ import type { PaymentAdapter } from './payment-adapter.js'
  *
  * A trial that lapses on a plan with a free base (owner decision 2026-11-09, issue 491) keeps the subscription
  * `active`: nothing is invoiced, no grace period starts, and the trial's hard expiry is cleared in Odoo in the same
- * transaction, so that expiry can never lock a tenant whatever happens next. Lowering the entitlement to the base is the
+ * transaction, so that expiry can never lock a tenant whatever happens next (when the tenant cannot take the push yet, the lapse
+ * still stands and records `expiry_clearing:<code>`; `processTrialLapses` retries it and the vendor sees it). Lowering the entitlement to the base is the
  * retried second step in `trial-lapse.ts`. A trial the customer converts (`convert`), or on a plan with nothing free,
  * moves to past_due and the existing renewal path issues the first invoice and a hosted payment attempt; the renewals
  * unique key keeps a repeated run from issuing a second invoice. Ending the trial never depends on the invoice: a customer
@@ -44,7 +46,15 @@ export async function expireTrials(pool: Pool, input: { now: Date; adapter: Paym
           await client.query('INSERT INTO trial_lapses(subscription_id,trial_revision_id,period_start,lapsed_at,next_attempt_at) VALUES($1,$2,$3,$4,$4)', [id, row.applied_revision_id, start, input.now])
           await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
             [randomUUID(), 'system:trial-expiry', 'trial.lapsed_to_free_base', id, 'Trial ended: the subscription stays active on the free base', JSON.stringify({ trial_revision_id: row.applied_revision_id })])
-          await pushCommercialExpiry(client, id, null)
+          // A push the tenant cannot take yet (no binding, no applied order) must not undo the lapse: the lapse row records the
+          // reason, the vendor attention list shows it, and `processTrialLapses` retries the push on its normal cadence.
+          await client.query('SAVEPOINT expiry_clearing')
+          try { await pushCommercialExpiry(client, id, null) }
+          catch (error) {
+            if (!(error instanceof CommercialHttpError)) throw error
+            await client.query('ROLLBACK TO SAVEPOINT expiry_clearing')
+            await client.query('UPDATE trial_lapses SET reason=$2 WHERE subscription_id=$1', [id, `${EXPIRY_CLEARING_REASON}:${error.code}`])
+          }
           lapsed.push(id)
           return
         }
