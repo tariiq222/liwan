@@ -60,11 +60,13 @@ def validate_tenant(value):
     return value
 
 
-def _iso_datetime(value):
+def _aware_iso_datetime(value):
+    """An ISO datetime with an explicit UTC offset or Z; naive and date-only strings are refused."""
     try:
-        return isinstance(value, str) and bool(datetime.fromisoformat(value.replace('Z', '+00:00')))
+        parsed = datetime.fromisoformat(value.replace('Z', '+00:00')) if isinstance(value, str) else None
     except ValueError:
         return False
+    return parsed is not None and parsed.utcoffset() is not None
 
 
 def validate_trial_end_keys(request):
@@ -72,12 +74,16 @@ def validate_trial_end_keys(request):
     if 'excess_settle' in request and type(request['excess_settle']) is not bool:
         raise EffectError('input_invalid')
     trial_end = request.get('trial_ends_at')
-    if trial_end is not None and not _iso_datetime(trial_end):
+    if trial_end is not None and not _aware_iso_datetime(trial_end):
         raise EffectError('input_invalid')
     if 'post_trial_features' in request:
         validate_features(request['post_trial_features'])
     if 'post_trial_modules' in request:
-        odoo_effect.validate_modules(request['post_trial_modules'])
+        modules = request['post_trial_modules']
+        # Not acted on yet: shape only, so an empty list or a module newer than this host is valid.
+        if (not isinstance(modules, list) or len(modules) > 256 or len(set(map(str, modules))) != len(modules)
+                or not all(isinstance(name, str) and odoo_effect.MODULE_ID.fullmatch(name) for name in modules)):
+            raise EffectError('modules_invalid')
     digest = request.get('post_trial_digest')
     if 'post_trial_digest' in request and (not isinstance(digest, str) or not DIGEST_RE.fullmatch(digest)):
         raise EffectError('entitlement_invalid')
@@ -330,8 +336,8 @@ def validate_observation(value):
     for flag in ('post_trial_supported', 'excess_supported'):
         if flag in value and type(value[flag]) is not bool:
             raise EffectError('observation_invalid')
-    if 'excess' in value and (not isinstance(value['excess'], dict)
-                              or not all(isinstance(k, str) and FEATURE_RE.fullmatch(k) and type(v) is int and v >= 0
+    if 'excess' in value and (not isinstance(value['excess'], dict) or len(value['excess']) > 256
+                              or not all(isinstance(k, str) and FEATURE_RE.fullmatch(k) and type(v) is int and 0 <= v <= 1000000000
                                          for k, v in value['excess'].items())):
         raise EffectError('observation_invalid')
     odoo_effect.validate_database(value['database'])

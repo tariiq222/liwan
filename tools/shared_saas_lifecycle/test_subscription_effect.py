@@ -660,10 +660,21 @@ class OptionalTrialEndKeysTest(unittest.TestCase):
         'post_trial_features': {'users.limit': 3, 'pmo.enabled': False},
         'post_trial_modules': ['liwan_core'], 'post_trial_digest': 'd' * 64,
     }
-    INVALID_REQUEST = {
-        'excess_settle': 'yes', 'trial_ends_at': 1700000000, 'post_trial_features': [],
-        'post_trial_modules': 'liwan_core', 'post_trial_digest': 'xyz',
-    }
+    INVALID_REQUEST = (
+        ('excess_settle', 'yes', 'input_invalid'), ('excess_settle', None, 'input_invalid'),
+        ('excess_settle', 1, 'input_invalid'),
+        ('trial_ends_at', 1700000000, 'input_invalid'), ('trial_ends_at', 'garbage', 'input_invalid'),
+        ('trial_ends_at', '2026-12-01', 'input_invalid'), ('trial_ends_at', '2026-12-01T00:00:00', 'input_invalid'),
+        ('post_trial_features', [], 'features_invalid'), ('post_trial_features', None, 'features_invalid'),
+        ('post_trial_features', {'Bad Key': True}, 'features_invalid'),
+        ('post_trial_modules', 'liwan_core', 'modules_invalid'), ('post_trial_modules', None, 'modules_invalid'),
+        ('post_trial_modules', ['liwan_core', 'liwan_core'], 'modules_invalid'),
+        ('post_trial_modules', ['liwan_core', 7], 'modules_invalid'),
+        ('post_trial_modules', ['Not-An-Addon'], 'modules_invalid'),
+        ('post_trial_modules', ['liwan_x'] * 2, 'modules_invalid'),
+        ('post_trial_modules', ['liwan_m%d' % i for i in range(257)], 'modules_invalid'),
+        ('post_trial_digest', 'xyz', 'entitlement_invalid'), ('post_trial_digest', None, 'entitlement_invalid'),
+    )
     BRANCH = {'branch_id': B1, 'state': 'active', 'odoo_company_id': 2, 'active': True, 'parent_is_root': True}
 
     def test_request_accepts_each_valid_key(self):
@@ -673,10 +684,20 @@ class OptionalTrialEndKeysTest(unittest.TestCase):
         se.validate_reconfigure(make_request(trial_ends_at=None))
         se.validate_reconfigure(make_request(**self.VALID_REQUEST))
 
-    def test_request_rejects_each_wrong_type(self):
-        for key, value in self.INVALID_REQUEST.items():
-            with self.subTest(key=key), self.assertRaises(EffectError):
+    def test_request_rejects_each_wrong_type_with_its_code(self):
+        for key, value, code in self.INVALID_REQUEST:
+            with self.subTest(key=key, value=value), self.assertRaisesRegex(EffectError, code):
                 se.validate_reconfigure(make_request(**{key: value}))
+
+    def test_post_trial_modules_is_shape_only(self):
+        for modules in ([], ['liwan_not_on_this_host'], ['customer_acme_x', 'liwan_core']):
+            with self.subTest(modules=modules):
+                se.validate_reconfigure(make_request(post_trial_modules=modules))
+
+    def test_trial_ends_at_needs_an_explicit_timezone(self):
+        for text in ('2026-12-01T00:00:00Z', '2026-12-01T00:00:00+03:00', '2026-12-01T00:00:00.5+00:00'):
+            with self.subTest(text=text):
+                se.validate_reconfigure(make_request(trial_ends_at=text))
 
     def test_request_without_keys_is_unchanged(self):
         request = make_request()
@@ -687,9 +708,19 @@ class OptionalTrialEndKeysTest(unittest.TestCase):
     def test_request_still_ignores_other_unknown_keys(self):
         se.validate_reconfigure(make_request(unrelated_key=object()))
 
+    def test_new_keys_change_neither_apply_script_nor_verify(self):
+        plain, extended = make_request(), make_request(**self.VALID_REQUEST)
+        self.assertEqual(se.build_apply_script(plain), se.build_apply_script(extended))
+        matching = observation(commercial_revision_id=TARGET, commercial_digest=DIGEST,
+                               features=plain['entitlement']['features'])
+        for seen in (matching, observation()):
+            with self.subTest(matches=seen is matching):
+                self.assertEqual(se.verify(plain, seen), se.verify(extended, seen))
+        self.assertTrue(se.verify(extended, matching))
+
     def test_observation_accepts_each_valid_key(self):
         for over in ({'post_trial_supported': True}, {'excess_supported': False},
-                     {'excess': {'users.limit': 0, 'storage.limit_mb': 4}},
+                     {'excess': {'users.limit': 0, 'storage.limit_mb': 1000000000}}, {'excess': {}},
                      {'branches': [dict(self.BRANCH, read_only=True)]}):
             with self.subTest(over=sorted(over)):
                 se.validate_observation(observation(**over))
@@ -697,6 +728,8 @@ class OptionalTrialEndKeysTest(unittest.TestCase):
     def test_observation_rejects_each_wrong_type(self):
         for over in ({'post_trial_supported': 1}, {'excess_supported': None},
                      {'excess': []}, {'excess': {'users.limit': -1}}, {'excess': {'users.limit': True}},
+                     {'excess': {'users.limit': 1000000001}},
+                     {'excess': {'k%d' % i: 0 for i in range(257)}},
                      {'excess': {'Bad Key': 1}},
                      {'branches': [dict(self.BRANCH, read_only='no')]}):
             with self.subTest(over=over), self.assertRaisesRegex(EffectError, 'observation_invalid'):
