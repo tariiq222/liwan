@@ -231,10 +231,21 @@ async function recordRefund(pool: Pool, { adjustment_id, actor, request }: { adj
     // payment after cancellation, a failed fulfilment) never had a window.
     const updated = (await client.query("UPDATE invoice_adjustments SET status='refunded',refund_reference=$2,refunded_by=$3,refunded_at=now() WHERE id=$1 RETURNING *",
       [note.id, request.external_reference, actorLabel(actor)])).rows[0]
+    if (updated.origin === 'system' && updated.created_by === 'commercial-fulfillment') await settleUndeliveredOrder(client, note.invoice_id)
     await audit(client, actor, 'invoice.credit_refunded', note.id, request.reason,
       { invoice_id: note.invoice_id, external_reference: request.external_reference, amount_minor: Number(note.amount_minor), currency: note.currency })
     return adjustmentView(updated)
   })
+}
+
+/**
+ * A fulfilment-failure note refunded by hand (a bank transfer has no provider refund) finishes the order the recovery
+ * left in refund_pending, and closes its automatic outbox row, once the invoice is credited in full.
+ */
+async function settleUndeliveredOrder(client: PoolClient, invoiceId: string) {
+  const settled = (await client.query(`UPDATE orders o SET payment_state='refunded' FROM invoices i
+    WHERE i.id=$1 AND o.id=i.order_id AND o.payment_state='refund_pending' AND ${creditedMinorSql('i.id')}>=i.total_minor RETURNING o.id`, [invoiceId])).rows[0]
+  if (settled) await client.query("UPDATE commercial_outbox SET status='done',processed_at=now() WHERE kind='reconcile.refund' AND aggregate_id=$1 AND dedupe_key='fulfillment-undelivered' AND status='pending'", [settled.id])
 }
 
 /**

@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Pool } from 'pg'
 import { sharedReconfigureJobSchema, type SharedReconfigureJob } from '@liwan/commercial-contracts/shared'
 import { recoverPaidFulfillment } from '../commercial/paid-fulfillment-recovery.js'
+import { refundCreditNote } from '../commercial/settlements.js'
 import { transaction } from '../db.js'
 import { recoverableTrialPredecessors } from '../shared/commercial-recovery.js'
 import { enqueueReconfigureJob } from '../shared/job-store.js'
@@ -36,7 +37,7 @@ suite('trial delivery recovery with durable predecessor and binding authority', 
   type Fixture = Awaited<ReturnType<typeof fixture>>
 
   async function order(f: Fixture, options: {
-    prefix: string; revision: number; digit: string; paid?: boolean; journal?: 'possible'|'prewrite'; branch?: boolean
+    prefix: string; revision: number; digit: string; paid?: boolean; journal?: 'possible'|'prewrite'; branch?: boolean; plain?: boolean; provider?: string
   }) {
     const orderId = randomUUID(), target = randomUUID(), operation = randomUUID(), quote = randomUUID()
     const entitlement = policy(options.digit.repeat(64))
@@ -53,7 +54,7 @@ suite('trial delivery recovery with durable predecessor and binding authority', 
       authority: {
         order_id: orderId, operation_id: operation, previous_revision_id: f.applied, target_revision_id: target, entitlement,
         branches: { apply: [], archive: options.branch ? [randomUUID()] : [] },
-        ...(options.prefix === 'trial-lapse' ? { trial_ends_at: null, excess_settle: true as const } : {
+        ...(options.plain ? {} : options.prefix === 'trial-lapse' ? { trial_ends_at: null, excess_settle: true as const } : {
           trial_ends_at: cutoff, post_trial_features: entitlement.features, post_trial_modules: entitlement.modules, post_trial_digest: 'e'.repeat(64),
         }),
       },
@@ -66,7 +67,7 @@ suite('trial delivery recovery with durable predecessor and binding authority', 
     if (options.paid) {
       const invoice = randomUUID(), attempt = randomUUID()
       await pool.query("INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end) VALUES($1,$2,$3,$4,'change','paid','SAR',2,100,0,100,'2026-11-01','2026-12-01')", [invoice, f.customer, f.subscription, orderId])
-      await pool.query("INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,amount_minor,currency,exponent,status) VALUES($1,$2,$3,'simulator','simulator',100,'SAR',2,'succeeded')", [attempt, orderId, invoice])
+      await pool.query("INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,amount_minor,currency,exponent,status) VALUES($1,$2,$3,$4,$5,100,'SAR',2,'succeeded')", [attempt, orderId, invoice, options.provider ?? 'simulator', options.provider ? 'live' : 'simulator'])
       await pool.query('UPDATE orders SET paid_attempt_id=$2 WHERE id=$1', [orderId, attempt])
     }
     return { orderId, target, job, jobId: queued.id }
@@ -130,6 +131,29 @@ suite('trial delivery recovery with durable predecessor and binding authority', 
     expect((await pool.query('SELECT state FROM shared_jobs WHERE id=$1', [b.jobId])).rows[0].state).toBe('needs_intervention')
     expect((await pool.query('SELECT target_revision_id FROM subscriptions WHERE id=$1', [f.subscription])).rows[0].target_revision_id).toBe(b.target)
     expect((await pool.query("SELECT 1 FROM commercial_outbox WHERE aggregate_id=$1 AND kind='reconcile.refund'", [b.orderId])).rowCount).toBe(0)
+  })
+
+  it('keeps a possibly written paid non-trial policy change fenced instead of refunding the revision Odoo may hold', async () => {
+    const f = await fixture()
+    const b = await order(f, { prefix: 'paid-change', revision: 2, digit: 'b', paid: true, journal: 'possible', plain: true })
+    await target(f, b.target)
+    await recoverPaidFulfillment(pool, recoveryTime)
+    expect(await state(b.orderId)).toMatchObject({ payment_state: 'paid', cancelled: false, fulfillment_state: 'queued' })
+    expect((await pool.query('SELECT target_revision_id FROM subscriptions WHERE id=$1', [f.subscription])).rows[0].target_revision_id).toBe(b.target)
+    expect((await pool.query("SELECT 1 FROM commercial_outbox WHERE aggregate_id=$1 AND kind='reconcile.refund'", [b.orderId])).rowCount).toBe(0)
+  })
+
+  it('lets an operator settle a bank-transfer order left in refund_pending by recording the credit note refund', async () => {
+    const f = await fixture()
+    const b = await order(f, { prefix: 'paid-trial-change', revision: 2, digit: 'b', paid: true, journal: 'possible', provider: 'bank_transfer' })
+    await target(f, b.target)
+    await recoverPaidFulfillment(pool, recoveryTime)
+    expect(await state(b.orderId)).toMatchObject({ payment_state: 'refund_pending', cancelled: true })
+    const note = (await pool.query("SELECT ia.id FROM invoice_adjustments ia JOIN invoices i ON i.id=ia.invoice_id WHERE i.order_id=$1 AND ia.status='pending'", [b.orderId])).rows[0]
+    await refundCreditNote(pool, { adjustment_id: note.id, actor: { issuer: 'vendor-test', actorUid: 7 }, request: { external_reference: 'BANK-OUT-1', reason: 'Returned by bank transfer' } })
+    expect((await state(b.orderId)).payment_state).toBe('refunded')
+    expect((await pool.query("SELECT status FROM commercial_outbox WHERE aggregate_id=$1 AND kind='reconcile.refund'", [b.orderId])).rows)
+      .toEqual([{ status: 'done' }])
   })
 
   it.each(['trial-bootstrap','trial-reopen'])('rebinds proven pre-write %s without changing the audited order and cutoff', async prefix => {

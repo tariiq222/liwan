@@ -157,8 +157,11 @@ export async function recoverPaidFulfillment(pool: Pool, now = new Date()) {
         }
         if (order.payment_state === 'paid' && job) {
           const branches = delivery?.authority.branches
-          const topologyUncertain = !branches || branches.apply.length || branches.archive.length || branches.restore?.length
-          if (topologyUncertain && (!delivery || !provenPreWrite(job, delivery))) {
+          // Only an abandoned paid trial-time policy write with no branch operation may be refunded unreconciled: the
+          // trial-lapse delivery then names its recorded digests as predecessors. Any other possible write stays fenced.
+          const trialPolicyOnly = Boolean(delivery?.authority.trial_ends_at) && branches
+            && !branches.apply.length && !branches.archive.length && !branches.restore?.length
+          if (!trialPolicyOnly && (!delivery || !provenPreWrite(job, delivery))) {
             if (delivery) await queueSameDelivery(client, order, job, delivery, now, currentTarget)
             else await deferRecovery(client, order.id, now)
             return
