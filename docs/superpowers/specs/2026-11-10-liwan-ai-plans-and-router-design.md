@@ -143,7 +143,7 @@ Consequences for the design:
 
 ### 5.6 Cost and charge per call
 
-- One unit is 0.00001 USD. A price entered in USD per million tokens is first converted to units per million tokens (`price × 100,000`, an integer), then `cost = ceil((input_tokens × input_units + cached_tokens × cached_units + output_tokens × output_units) / 1,000,000)`. Example: 1,000 input tokens at 3 USD per million cost 0.003 USD and are stored as 300 units.
+- One unit is 0.00001 USD. A price entered in USD per million tokens is first converted to units per million tokens (`price × 100,000`, an integer), then `cost = ceil((uncached_input_tokens × input_units + cached_tokens × cached_units + output_tokens × output_units) / 1,000,000)`. Providers report a total input count that includes cached input, so `uncached_input_tokens = input_tokens − cached_tokens`; a cached token is priced once, at the cached rate. Example: 1,000 input tokens at 3 USD per million cost 0.003 USD and are stored as 300 units.
 - `charge = ceil(cost × (1 + margin))`. Both values are computed in the AI service, which holds the prices and the margin, and both are stored on the usage row with the capability.
 - A call with no reported tokens stores no cost and no charge.
 - The vendor sees cost against charge per tenant, capability and model. The customer sees charges only.
