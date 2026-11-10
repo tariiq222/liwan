@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { AppointmentPublicBooking } from '@liwan/contracts'
-import { addDays, bookingLinkOf, canChange, collectSlots, formatDay, formatMoment, formatSlot, formatSlotTime, isInvalidBookingLink, localDay, refusalStatus, slotsByDay, windowDays } from '../appointmentBook'
+import { addDays, bookingLinkOf, canChange, collectSlots, formatDay, formatMoment, formatSlot, formatSlotTime, isBusyRefusal, isInvalidBookingLink, localDay, refusalStatus, slotsByDay, windowDays } from '../appointmentBook'
 
 describe('bookingLinkOf', () => {
   it('reads the booking and token of a well-formed address', () => {
@@ -29,6 +29,16 @@ describe('refusals', () => {
     expect(isInvalidBookingLink({ status: 404 })).toBe(true)
     for (const status of [403, 409, 422, 429, 500]) expect(isInvalidBookingLink({ status })).toBe(false)
     expect(isInvalidBookingLink(undefined)).toBe(false)
+  })
+})
+
+describe('busy refusals', () => {
+  it('reads the rate limit and the edge buffer giving up as busy, and nothing else', () => {
+    expect(isBusyRefusal({ status: 429 })).toBe(true)
+    expect(isBusyRefusal({ status: 502 })).toBe(true)
+    expect(isBusyRefusal({ status: 503 })).toBe(false)
+    expect(isBusyRefusal({ status: 404 })).toBe(false)
+    expect(isBusyRefusal(new Error('x'))).toBe(false)
   })
 })
 
