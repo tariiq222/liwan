@@ -118,3 +118,54 @@ describe('computeQuote metered lines', () => {
     expect(q.next_renewal.minor).toBe(Math.round((50000 + 17500 + 10000) * 1.15))
   })
 })
+
+describe('computeQuote during a trial (L6)', () => {
+  // A 14-day trial 2026-10-25 -> 2026-11-08. The cycle that follows it is 30 days monthly (11-08 -> 12-08)
+  // and 365 days yearly (2026-11-08 -> 2027-11-08): the daily rate inside the trial is the rate after it.
+  const Y = { unit: 'year', count: 1 } as const
+  const trialPlan = plan({ included_users: 3, prices: [{ cadence: M, amount: sar(50000) }, { cadence: Y, amount: sar(600000) }],
+    user_prices: [{ cadence: M, amount: sar(10000) }, { cadence: Y, amount: sar(120000) }] })
+  const current = { plan_revision_id: id(4), bundle_revision_ids: [] as string[], paid_extra_branches: 0, base_minor: 50000, bundle_minor: {}, branch_unit_minor: 50000,
+    paid_users: 0, paid_storage_gb: 0, user_unit_minor: 0, storage_unit_minor: 0 }
+  const period = { start: '2026-10-25', end: '2026-11-08' }
+  const buy = (cadence: typeof M | typeof Y, effective_date: string, proration_cycle_days?: number) =>
+    computeQuote(base({ kind: 'change', plan: trialPlan, cadence, requested_extra_branches: 1, requested_users: 5, current, effective_date, period, proration_cycle_days }))
+  const userDelta = (q: ReturnType<typeof buy>) => q.lines.find(l => l.key === 'users:delta')!.amount.minor
+
+  it('monthly: the added delta is days left over the 30-day cycle that follows the trial', () => {
+    const cases: [string, number][] = [['2026-10-25', 9333], ['2026-10-26', 8667], ['2026-11-01', 4667], ['2026-11-07', 667]]
+    for (const [day, minor] of cases) {
+      const q = buy(M, day, 30)
+      expect(userDelta(q)).toBe(minor)
+      expect(q.due_now.minor).toBe(minor + Math.round(minor * 0.15))
+    }
+  })
+  it('annual: the added delta is days left over the 365-day cycle that follows the trial', () => {
+    const cases: [string, number][] = [['2026-10-25', 9205], ['2026-10-26', 8548], ['2026-11-01', 4603], ['2026-11-07', 658]]
+    for (const [day, minor] of cases) expect(userDelta(buy(Y, day, 365))).toBe(minor)
+  })
+  it('without the input a trial delta is pro-rated over the trial length, as before', () => {
+    expect(userDelta(buy(M, '2026-10-26'))).toBe(18571)
+    expect(userDelta(buy(M, '2026-10-26', 14))).toBe(18571)
+  })
+  it('an input equal to the period length leaves the quote byte-identical', () => {
+    expect(buy(M, '2026-10-26', 14).digest).toBe(buy(M, '2026-10-26').digest)
+  })
+  it('a trial longer than the cycle after it prices whole cycles in full and the rest by days', () => {
+    // 40 days left, 30-day cycle: 20000 * 40 / 30 = 26666.67
+    const q = computeQuote(base({ kind: 'change', plan: trialPlan, cadence: M, requested_extra_branches: 1, requested_users: 5, current, effective_date: '2026-10-25',
+      period: { start: '2026-10-25', end: '2026-12-04' }, proration_cycle_days: 30 }))
+    expect(userDelta(q)).toBe(26667)
+  })
+  it('keeps the renewal side untouched', () => {
+    const q = buy(M, '2026-10-26', 30)
+    expect(q.next_renewal_at).toBe('2026-11-08')
+    expect(q.next_renewal.minor).toBe(buy(M, '2026-10-26').next_renewal.minor)
+  })
+  it('refuses a cycle length that is not a positive whole number of days', () => {
+    for (const bad of [0, -1, 1.5]) expect(err(() => buy(M, '2026-10-26', bad))).toBe('invalid_billing_period')
+  })
+  it('still refuses an effective date past the trial period end', () => {
+    expect(err(() => buy(M, '2026-11-09', 30))).toBe('invalid_billing_period')
+  })
+})

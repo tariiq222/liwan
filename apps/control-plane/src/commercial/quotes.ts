@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { Pool } from 'pg'
 import { CommercialError, compileEntitlements, computeQuote } from '@liwan/commercial-contracts/server'
 import { paidStorageGb, paidUnits } from '@liwan/commercial-contracts'
-import { addCadence, riyadhDate, quotePreviewRequestSchema, quoteRequestSchema, quoteSchema, type CustomerTermsRevision, type Quote } from '@liwan/commercial-contracts'
+import { addCadence, daysBetween, riyadhDate, quotePreviewRequestSchema, quoteRequestSchema, quoteSchema, type CustomerTermsRevision, type Quote } from '@liwan/commercial-contracts'
 import { loadCustomerTerms } from './customer-terms.js'
 import type { PoolClient } from 'pg'
 import { policyWire } from './policies.js'
@@ -121,7 +121,7 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
     if (!fee || Number(fee.onboarding_fee_minor) <= 0) throw bad('onboarding_unavailable', 'onboarding')
     onboarding = { amount: { currency: fee.onboarding_currency, exponent: Number(fee.onboarding_exponent), minor: Number(fee.onboarding_fee_minor) } }
   }
-  let current: any, applied: any
+  let current: any, applied: any, prorationCycleDays: number | undefined
   const effective = process.env.NODE_ENV !== 'production' && input.effective_date ? input.effective_date : riyadhDate(now)
   let period = { start: effective, end: addCadence(effective, input.cadence, 1) }
   if (input.kind === 'change') {
@@ -130,6 +130,8 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
     if (!applied) throw bad('subscription_required', 'kind', 409)
     if (JSON.stringify(applied.cadence) !== JSON.stringify(input.cadence)) throw bad('cadence_change_unsupported', 'cadence')
     period = { start: applied.period_start, end: applied.period_end }
+    // While trialing, a purchase is priced at the daily rate of the cycle that follows the trial, not per trial day.
+    if (s.state === 'trialing') prorationCycleDays = daysBetween(period.end, addCadence(period.end, input.cadence, 1))
     current = applied.pricing
     if (!current) {
       const old = (await client.query('SELECT payload FROM commercial_quotes WHERE id=$1', [applied.quote_id])).rows[0]?.payload
@@ -154,7 +156,7 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
   try {
     const quote = computeQuote({ ...sources, kind: input.kind, cadence: input.cadence, requested_extra_branches: input.requested_extra_branches,
       requested_users: input.requested_users, requested_storage_mb: input.requested_storage_mb,
-      current, effective_date: effective, period, ids: { id: randomUUID(), customer_id: value.customer_id, subscription_id: s?.id ?? null, expected_subscription_revision: s?.revision ?? 0 },
+      current, effective_date: effective, period, proration_cycle_days: prorationCycleDays, ids: { id: randomUUID(), customer_id: value.customer_id, subscription_id: s?.id ?? null, expected_subscription_revision: s?.revision ?? 0 },
       expires_at: new Date(now.getTime() + TTL_MS).toISOString(), entitlement_digest: entitlement.digest, onboarding })
     if (persist && !value.previewTerms) await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [quote.id, value.customer_id, JSON.stringify(quote), quote.digest, quote.expires_at])
     return quoteSchema.parse(quote)
