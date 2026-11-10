@@ -15,6 +15,7 @@ defineOptions({ name: 'ProjectFinanceEntryEdit' })
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const hydrated = useHydrated()
 const toast = useToast()
 const projectId = computed(() => parsePositiveId(route.params.id))
 const entryId = computed(() => parsePositiveId(route.params.entryId))
@@ -79,7 +80,7 @@ function retry() {
       <template v-else>
         <UAlert v-if="refreshError" color="error" variant="soft" :title="t('projects.finance.refreshError')">
           <template #actions>
-            <UButton color="neutral" variant="outline" type="button" @click="retry">{{ t('app.retry') }}</UButton>
+            <UButton color="neutral" variant="outline" type="button" :disabled="!hydrated" @click="retry">{{ t('app.retry') }}</UButton>
           </template>
         </UAlert>
         <FinanceEntryForm

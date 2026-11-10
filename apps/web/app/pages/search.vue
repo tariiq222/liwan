@@ -8,6 +8,7 @@ import { useNav } from '@/composables/nav/shellModules'
 import { useAppSearch } from '@/composables/useAppSearch'
 import { manifestRoutePrefixes } from '@/modules/surfaces'
 const { t } = useI18n()
+const hydrated = useHydrated()
 const { me } = useMe()
 const { can } = useAccess()
 const { $api } = useApi()
@@ -66,7 +67,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
           <header class="bg-elevated/40 px-(--liwan-card-pad-dense) py-2"><h2 class="text-sm font-semibold text-highlighted">{{ t(section.provider.labelKey) }}</h2></header>
           <div class="flex flex-wrap items-center gap-3 px-(--liwan-card-pad-dense) py-3">
             <p class="text-sm text-error">{{ t('search.error') }}</p>
-            <UButton type="button" color="neutral" variant="outline" size="sm" :label="t('notifications.retry')" @click="section.refetch()" />
+            <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('notifications.retry')" @click="section.refetch()" />
           </div>
         </section>
         <section v-if="query.trim() && section.visible.value && section.rows.value.length" class="min-w-0 border-t border-default first:border-t-0 [[data-slot=list-card-filters]+&]:border-t-0">
@@ -79,7 +80,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
         </div>
         <div v-if="(section.truncated.value && section.provider.truncatedKey) || section.hasNext.value" class="flex flex-wrap items-center gap-3 border-t border-default px-(--liwan-card-pad-dense) py-3">
             <p v-if="section.truncated.value && section.provider.truncatedKey" role="status" class="text-sm text-muted">{{ t(section.provider.truncatedKey) }}</p>
-            <UButton v-if="section.hasNext.value" type="button" color="neutral" variant="outline" size="sm" :loading="section.fetchingNext.value" :disabled="section.fetchingNext.value" :label="t('app.loadMore')" @click="section.fetchNext()" />
+            <UButton v-if="section.hasNext.value" type="button" color="neutral" variant="outline" size="sm" :loading="section.fetchingNext.value" :disabled="!hydrated || section.fetchingNext.value" :label="t('app.loadMore')" @click="section.fetchNext()" />
         </div>
       </section>
       </template>
@@ -98,6 +99,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
             variant="ghost"
             size="sm"
             data-testid="search-nav-toggle"
+            :disabled="!hydrated"
             :aria-expanded="showAllNav"
             :label="showAllNav ? t('nav.goToShowLess') : t('nav.goToShowAll', { count: nav.length })"
             @click="showAllNav = !showAllNav"
