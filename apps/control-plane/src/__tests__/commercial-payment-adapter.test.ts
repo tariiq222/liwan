@@ -1,6 +1,6 @@
 // Unit test (no DB, no network): payment adapter contracts with injected fetch.
 import { describe, expect, it } from 'vitest'
-import { PaymentError, paymentAdapterFromEnv, assertReturnUrl } from '../commercial/payment-adapter.js'
+import { PaymentError, paymentAdapterFromEnv, assertReturnUrl, refundedAmount } from '../commercial/payment-adapter.js'
 import { MoyasarAdapter, confirmEvent } from '../commercial/moyasar-adapter.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 
@@ -99,6 +99,14 @@ describe('MoyasarAdapter', () => {
     expect(await code(confirmEvent(mk({}, [{ ...pay, amount: 1 }]).a, ev, { tokenCharge: true }))).toBe('event_mismatch')
     // Without the marker the same event is looked up as an invoice, which does not exist for a payment id.
     expect(await code(confirmEvent(mk({}, [{ http: 404 }]).a, ev))).toBe('not_found')
+  })
+  it('carries the cumulative refunded figure of a payment, and none when the provider gave none', async () => {
+    const refunded = (await mk({}, [{ id: 'pay_1', status: 'refunded', amount: 5000, refunded: 2000, currency: 'SAR' }]).a.lookupPayment('pay_1'))
+    expect(refunded.refunded).toEqual({ currency: 'SAR', exponent: 2, minor: 2000 })
+    expect(refundedAmount(refunded).minor).toBe(2000)
+    const whole = await mk({}, [{ id: 'pay_2', status: 'refunded', amount: 5000, currency: 'SAR' }]).a.lookupPayment('pay_2')
+    expect(whole.refunded).toBeUndefined()
+    expect(refundedAmount(whole).minor).toBe(5000)
   })
   it('refund and chargeToken shapes', async () => {
     const r = mk({}, [{ id: 'pay_1', status: 'refunded', amount: 5000, refunded: 2000, currency: 'SAR' }])

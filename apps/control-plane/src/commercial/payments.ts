@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { nextOrderState, type OrderStateInput } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { CommercialHttpError, iso } from './lifecycle.js'
-import { assertReturnUrl, toBytes, type AdapterHeaders, type PaymentAdapter, type ProviderEvent } from './payment-adapter.js'
+import { assertReturnUrl, refundedAmount, toBytes, type AdapterHeaders, type PaymentAdapter, type ProviderEvent } from './payment-adapter.js'
 import { confirmEvent } from './moyasar-adapter.js'
 import { enqueueOutbox } from './outbox.js'
 import type { ReturnOrigin } from './return-origin.js'
@@ -61,6 +61,12 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
       [randomUUID(),'system','payment.duplicate_refunded',order.id,'Duplicate payment refunded at the provider',JSON.stringify({ attempt_id: attempt.id, event_id: event.event_id, payment_id: event.payment_id })])
     return 'accepted'
   }
+  // A further refund of the payment that paid the order (a second partial refund) finds the order already refunded,
+  // which the order state machine ignores; the money still has to reach the operator.
+  if (event.status === 'refunded' && order.paid_attempt_id === attempt.id && order.payment_state === 'refunded') {
+    await flagRefundAfterFulfillment(client, order, attempt, event)
+    return 'accepted'
+  }
   const type = event.status === 'succeeded' ? 'payment_succeeded' : event.status === 'refunded' ? 'payment_refunded'
     : event.status === 'failed' ? 'payment_failed' : 'payment_pending'
   const next = nextOrderState(order as OrderStateInput, { type })
@@ -96,17 +102,26 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
       if (order.kind === 'renewal') await onRenewalPaid(client, order.id)
     }
   } else if (event.status === 'refunded') {
-    if (order.fulfillment_state === 'applied') {
-      const reason = 'Payment refunded after fulfillment — manual review'
-      const inserted = await enqueueOutbox(client, { kind: 'payment.intervention', aggregate_id: order.id,
-        dedupe_key: attempt.id, payload: { order_id: order.id, attempt_id: attempt.id, reason } })
-      if (inserted) await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
-        [randomUUID(),'system','payment.intervention',order.id,reason,JSON.stringify({ attempt_id: attempt.id, event_id: event.event_id })])
-    }
+    await flagRefundAfterFulfillment(client, order, attempt, event)
   } else if (event.status === 'failed') {
     await client.query("UPDATE payment_attempts SET status='failed',updated_at=now() WHERE id=$1", [attempt.id])
   }
   return 'accepted'
+}
+
+/**
+ * The provider refunded the payment of an order that was already applied: the money is gone but the subscription
+ * stays. One outbox row per distinct cumulative refunded figure (a replay of the same state adds nothing, a further
+ * partial refund adds one); the refund worker turns it into a pending credit note for the new part.
+ */
+async function flagRefundAfterFulfillment(client: PoolClient, order: any, attempt: any, event: ProviderEvent) {
+  if (order.fulfillment_state !== 'applied') return
+  const refunded = refundedAmount(event)
+  const reason = 'Payment refunded after fulfillment — manual review'
+  const inserted = await enqueueOutbox(client, { kind: 'payment.intervention', aggregate_id: order.id,
+    dedupe_key: `${attempt.id}:${refunded.minor}`, payload: { order_id: order.id, attempt_id: attempt.id, reason, refunded } })
+  if (inserted) await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
+    [randomUUID(),'system','payment.intervention',order.id,reason,JSON.stringify({ attempt_id: attempt.id, event_id: event.event_id, refunded_minor: refunded.minor })])
 }
 
 /** Only authoritative adapter-fetched events may enter this settlement boundary. */

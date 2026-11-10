@@ -18,7 +18,7 @@ export type SimulatorConfig = {
   webhookSecret?: string
   defaultOutcome?: SimOutcome
 }
-type SimAttempt = { input: CreateAttemptInput; ref: string; payment_id: string; status: ProviderEventStatus; outcome: SimOutcome }
+type SimAttempt = { input: CreateAttemptInput; ref: string; payment_id: string; status: ProviderEventStatus; outcome: SimOutcome; refunded: number }
 export type WebhookOverrides = {
   status?: ProviderEventStatus; amount?: Money; merchant?: string; secret?: string; eventId?: string; live?: boolean
 }
@@ -61,7 +61,7 @@ export class SimulatorAdapter implements PaymentAdapter {
     const n = ++this.seq
     const a: SimAttempt = {
       input: i, ref: `sim_inv_${this.instance}_${n}`, payment_id: `sim_pay_${this.instance}_${n}`, status: 'pending',
-      outcome: this.outcomes.get(i.attempt_id) ?? this.defaultOutcome,
+      outcome: this.outcomes.get(i.attempt_id) ?? this.defaultOutcome, refunded: 0,
     }
     this.attempts.set(a.ref, a); this.byAttempt.set(i.attempt_id, a)
     if (a.outcome === 'timeout') throw new PaymentError('timeout', 'simulated timeout (attempt recorded)')
@@ -82,7 +82,7 @@ export class SimulatorAdapter implements PaymentAdapter {
         attempt_id: row.id, order_id: row.order_id, amount: { minor: Number(row.amount_minor), currency: row.currency, exponent: row.exponent },
         description: `LiwanOS order ${row.order_id}`, success_url: '', back_url: '', callback_url: '', expires_at: new Date(Date.now() + 3_600_000).toISOString(),
       },
-      ref, payment_id: ref.replace('sim_inv_', 'sim_pay_'), status: 'pending', outcome: this.defaultOutcome,
+      ref, payment_id: ref.replace('sim_inv_', 'sim_pay_'), status: 'pending', outcome: this.defaultOutcome, refunded: 0,
     }
     this.attempts.set(ref, a); this.byAttempt.set(row.id, a)
     return true
@@ -106,7 +106,8 @@ export class SimulatorAdapter implements PaymentAdapter {
       provider: 'simulator', event_id: o.eventId ?? `sim_evt_${a.ref}_${status}`,
       provider_ref: a.ref, payment_id: a.payment_id, attempt_id: a.input.attempt_id,
       merchant_account: o.merchant ?? this.merchantAccount, live: o.live ?? false, status,
-      amount: o.amount ?? a.input.amount, occurred_at: new Date(Date.UTC(2026, 0, 1, 0, 0, this.seq)).toISOString(),
+      amount: o.amount ?? a.input.amount,
+      ...(status === 'refunded' && a.refunded > 0 ? { refunded: { ...a.input.amount, minor: a.refunded } } : {}), occurred_at: new Date(Date.UTC(2026, 0, 1, 0, 0, this.seq)).toISOString(),
       raw_type: TYPE[status], simulated: true,
     }
   }
@@ -119,7 +120,7 @@ export class SimulatorAdapter implements PaymentAdapter {
     return toBytes(JSON.stringify({
       id: ev.event_id, type: ev.raw_type, created_at: ev.occurred_at, secret_token: o.secret ?? this.webhookSecret,
       account_name: ev.merchant_account, live: ev.live, simulated: true,
-      data: { id: a.payment_id, invoice_id: a.ref, status, amount: ev.amount.minor, currency: ev.amount.currency, metadata: { attempt_id: a.input.attempt_id } },
+      data: { id: a.payment_id, invoice_id: a.ref, status, amount: ev.amount.minor, currency: ev.amount.currency, ...(ev.refunded ? { refunded: ev.refunded.minor } : {}), metadata: { attempt_id: a.input.attempt_id } },
     }))
   }
 
@@ -142,7 +143,8 @@ export class SimulatorAdapter implements PaymentAdapter {
       provider: 'simulator', event_id: p.id, provider_ref: d.invoice_id, payment_id: d.id,
       attempt_id: d.metadata?.attempt_id ?? null, merchant_account: p.account_name, live: p.live,
       status: d.status as ProviderEventStatus,
-      amount: { currency: d.currency, exponent: 2, minor: d.amount }, occurred_at: p.created_at, raw_type: p.type, simulated: true,
+      amount: { currency: d.currency, exponent: 2, minor: d.amount },
+      ...(Number.isInteger(d.refunded) ? { refunded: { currency: d.currency, exponent: 2, minor: d.refunded } } : {}), occurred_at: p.created_at, raw_type: p.type, simulated: true,
     }
   }
 
@@ -167,10 +169,12 @@ export class SimulatorAdapter implements PaymentAdapter {
   async refund(paymentRef: string, amount?: Money): Promise<RefundResult> {
     const a = [...this.attempts.values()].find(x => x.payment_id === paymentRef)
     if (!a) throw new PaymentError('not_found', paymentRef)
-    if (a.status !== 'succeeded') throw new PaymentError('provider_error', 'payment not paid')
-    const refunded = amount ?? a.input.amount
-    if (refunded.minor > a.input.amount.minor) throw new PaymentError('invalid_amount')
-    if (refunded.minor === a.input.amount.minor) a.status = 'refunded'
+    if (a.status !== 'succeeded' && a.status !== 'refunded') throw new PaymentError('provider_error', 'payment not paid')
+    const refunded = amount ?? { ...a.input.amount, minor: a.input.amount.minor - a.refunded }
+    if (refunded.minor <= 0 || a.refunded + refunded.minor > a.input.amount.minor) throw new PaymentError('invalid_amount')
+    // Like the provider, any refund makes the payment `refunded`; the cumulative figure says how much.
+    a.refunded += refunded.minor
+    a.status = 'refunded'
     return { payment_id: paymentRef, status: 'refunded', refunded }
   }
 

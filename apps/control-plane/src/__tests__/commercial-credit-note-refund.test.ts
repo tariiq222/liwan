@@ -123,21 +123,69 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
     const { getInvoice } = await import('../commercial/invoices.js')
     expect(Object.keys((await getInvoice(pool, f.invoice))!)).not.toContain('adjustments')
   })
-  it('turns a refund after fulfillment into a pending credit note the operator can close', async () => {
+  const refundedPayload = (f: { order: string; attempt: string }, minor: number, extra: Record<string, unknown> = {}) =>
+    ({ order_id: f.order, attempt_id: f.attempt, reason: 'Payment refunded after fulfillment — manual review', refunded: { currency: 'SAR', exponent: 2, minor }, ...extra })
+  const enqueueRefund = (f: { order: string; attempt: string }, payload: unknown, key = randomUUID()) =>
+    enqueueOutbox(pool as never, { kind: 'payment.intervention', aggregate_id: f.order, dedupe_key: key, payload })
+  const notesOf = async (invoice: string) => (await pool.query('SELECT * FROM invoice_adjustments WHERE invoice_id=$1 ORDER BY amount_minor', [invoice])).rows
+  const outboxOf = async (order: string) => (await pool.query("SELECT status,payload FROM commercial_outbox WHERE kind='payment.intervention' AND aggregate_id=$1 ORDER BY created_at", [order])).rows
+
+  it('turns a full refund after fulfillment into a pending credit note the operator can close', async () => {
     const f = await failedOrder('applied')
-    await pool.query('INSERT INTO commercial_outbox(id,kind,aggregate_id,dedupe_key,payload) VALUES($1,$2,$3,$4,$5)',
-      [randomUUID(), 'payment.intervention', f.order, f.attempt, JSON.stringify({ order_id: f.order, attempt_id: f.attempt, reason: 'Payment refunded after fulfillment — manual review' })])
+    await enqueueRefund(f, refundedPayload(f, 11500))
     expect(await processRefundOutbox(pool)).toBe(1)
-    const notes = (await pool.query('SELECT * FROM invoice_adjustments WHERE invoice_id=$1', [f.invoice])).rows
+    const notes = await notesOf(f.invoice)
     expect(notes).toHaveLength(1)
     expect(notes[0]).toMatchObject({ kind: 'credit_note', status: 'pending', origin: 'system', amount_minor: '11500', currency: 'SAR' })
     expect((await pool.query('SELECT status FROM invoices WHERE id=$1', [f.invoice])).rows[0].status).toBe('credit_pending')
-    expect((await pool.query("SELECT status FROM commercial_outbox WHERE kind='payment.intervention' AND aggregate_id=$1", [f.order])).rows[0].status).toBe('done')
-    // The same event delivered again changes nothing, and the note closes with the provider's reference like any other.
-    expect(await processRefundOutbox(pool)).toBe(0)
-    await enqueueOutbox(pool as never, { kind: 'payment.intervention', aggregate_id: f.order, dedupe_key: `${f.attempt}-again`, payload: { order_id: f.order, attempt_id: f.attempt } })
-    expect(await processRefundOutbox(pool)).toBe(1)
-    expect((await pool.query('SELECT count(*)::int AS n FROM invoice_adjustments WHERE invoice_id=$1', [f.invoice])).rows[0].n).toBe(1)
+    expect((await outboxOf(f.order))[0].status).toBe('done')
     await expect(call(notes[0].id, ok)).resolves.toMatchObject({ status: 200, data: { status: 'refunded' } })
+  })
+  it('credits only the refunded part of a partial refund and lets the operator record it', async () => {
+    const f = await failedOrder('applied')
+    await enqueueRefund(f, refundedPayload(f, 4000))
+    await processRefundOutbox(pool)
+    const notes = await notesOf(f.invoice)
+    expect(notes.map(n => n.amount_minor)).toEqual(['4000'])
+    await expect(call(notes[0].id, ok)).resolves.toMatchObject({ status: 200, data: { status: 'refunded', amount: { minor: 4000 } } })
+  })
+  it('credits each further partial refund by its own part and never more than was paid', async () => {
+    const f = await failedOrder('applied')
+    await enqueueRefund(f, refundedPayload(f, 4000))
+    await processRefundOutbox(pool)
+    await enqueueRefund(f, refundedPayload(f, 11500))
+    await processRefundOutbox(pool)
+    expect((await notesOf(f.invoice)).map(n => n.amount_minor)).toEqual(['4000', '7500'])
+    // A replay of an earlier state, and the final state again, add nothing.
+    await enqueueRefund(f, refundedPayload(f, 4000)); await enqueueRefund(f, refundedPayload(f, 11500))
+    await processRefundOutbox(pool)
+    expect((await notesOf(f.invoice)).map(n => n.amount_minor)).toEqual(['4000', '7500'])
+    expect((await notesOf(f.invoice)).reduce((sum, n) => sum + Number(n.amount_minor), 0)).toBe(11500)
+  })
+  it('rejects a refund above what was paid, or in another currency, with a visible reason and no note', async () => {
+    const f = await failedOrder('applied')
+    await enqueueRefund(f, refundedPayload(f, 12000))
+    await enqueueRefund(f, { ...refundedPayload(f, 5000), refunded: { currency: 'USD', exponent: 2, minor: 5000 } })
+    await enqueueRefund(f, { order_id: f.order, attempt_id: f.attempt, reason: 'No figure' })
+    await processRefundOutbox(pool)
+    expect(await notesOf(f.invoice)).toHaveLength(0)
+    const rows = await outboxOf(f.order)
+    expect(rows.map(r => r.status)).toEqual(['failed', 'failed', 'failed'])
+    expect(rows.map(r => r.payload.error).sort()).toEqual(['refund_amount_missing', 'refund_currency_mismatch', 'refund_exceeds_payment'])
+    expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='payment.refund_rejected' AND subject=$1", [f.order])).rows[0].n).toBe(3)
+  })
+  it('rejects a malformed row and still processes every other row of the batch', async () => {
+    const good = await failedOrder('applied')
+    const orphan = { order: randomUUID(), attempt: randomUUID() }
+    await enqueueRefund(orphan, refundedPayload(orphan, 5000))
+    await enqueueRefund(orphan, { order_id: orphan.order, refunded: { currency: 'SAR', exponent: 2, minor: 5000 } })
+    await enqueueRefund(good, refundedPayload(good, 11500))
+    await pool.query("UPDATE commercial_outbox SET created_at=now() + interval '1 second' WHERE aggregate_id=$1", [good.order])
+    expect(await processRefundOutbox(pool)).toBe(3)
+    expect((await outboxOf(orphan.order)).map(r => [r.status, r.payload.error]).sort()).toEqual([['failed', 'attempt_id_missing'], ['failed', 'payment_attempt_missing']])
+    expect((await notesOf(good.invoice)).map(n => n.amount_minor)).toEqual(['11500'])
+    expect((await outboxOf(good.order))[0].status).toBe('done')
+    // Nothing is left pending, so the next pass has nothing to stall on.
+    expect(await processRefundOutbox(pool)).toBe(0)
   })
 })
