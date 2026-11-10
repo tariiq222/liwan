@@ -744,6 +744,40 @@ suite('live PostgreSQL platform provider routes', () => {
     expect((await call('GET', '')).body.setting.models.m).toMatchObject({ model: 'm2', usage_reported: false })
   })
 
+  it('moves a model to another provider and removes the old one in one save, leaving no orphan', async () => {
+    const two = { oai: { preset: 'openai', api_key: KEY }, ds: { preset: 'deepseek', api_key: `${KEY}-2` } }
+    const priced = { input_price: '1', output_price: '2' }
+    const first = { margin_bps: 0, providers: two, models: { m: { provider: 'oai', model: 'gpt-4o', ...priced } }, routes: {}, reason: 'Two providers' }
+    expect((await call('PATCH', '', first)).status).toBe(200)
+    const moved = await call('PATCH', '', { margin_bps: 0, providers: { ds: { preset: 'deepseek' } }, models: { m: { provider: 'ds', model: 'deepseek-chat', ...priced } }, routes: {}, reason: 'Move the model' })
+    expect(moved.status).toBe(200)
+    expect(moved.body.setting.models).toEqual({ m: expect.objectContaining({ provider: 'ds', model: 'deepseek-chat', usage_reported: false }) })
+    expect(Object.keys(moved.body.setting.providers)).toEqual(['ds'])
+    expect((await pool.query('SELECT 1 FROM ai_model m LEFT JOIN ai_provider p ON p.id = m.provider_id WHERE p.id IS NULL')).rowCount).toBe(0)
+    expect((await pool.query('SELECT id FROM ai_provider')).rows).toEqual([{ id: 'ds' }])
+  })
+
+  it('removes a model together with the route cell that used it', async () => {
+    await routedSave()
+    await call('PATCH', '', { ...config1({ default: 'mid' }, { providers: { oai: { preset: 'openai' } } }), models: { mid: { provider: 'oai', model: 'gpt-4o', input_price: '2.5', output_price: '10' }, extra: { provider: 'oai', model: 'gpt-4o-mini' } } })
+    const withCell = { ...config1({ default: 'mid', best: { writing: 'extra' } }, { providers: { oai: { preset: 'openai' } } }), models: { mid: { provider: 'oai', model: 'gpt-4o', input_price: '2.5', output_price: '10' }, extra: { provider: 'oai', model: 'gpt-4o-mini', input_price: '1', output_price: '1' } } }
+    expect((await call('PATCH', '', withCell)).body.code).toBe('model_not_tested')  // the cell cannot route an untested model: the removal below is what matters
+    await pool.query("INSERT INTO ai_model(id, provider_id, model, input_price, output_price, usage_reported) VALUES('extra2','oai','x',1,1,true)")
+    await pool.query("INSERT INTO ai_route(quality, capability, model_id) VALUES('best','writing','extra2')")
+    const removed = await call('PATCH', '', config1({ default: 'mid' }, { providers: { oai: { preset: 'openai' } } }))
+    expect(removed.status).toBe(200)
+    expect(removed.body.setting.routes).toEqual({ default: 'mid' })
+    expect(Object.keys(removed.body.setting.models)).toEqual(['mid'])
+    expect((await pool.query('SELECT 1 FROM ai_route WHERE model_id NOT IN (SELECT id FROM ai_model)')).rowCount).toBe(0)
+  })
+
+  it('refuses removing a provider a kept model still uses with the validation error, not a database error', async () => {
+    await call('PATCH', '', config1())
+    const refused = await call('PATCH', '', { margin_bps: 2000, providers: {}, models: config1().models, routes: {}, reason: 'Remove the provider' })
+    expect(refused).toEqual({ status: 422, body: { code: 'unknown_provider' } })
+    expect((await call('GET', '')).body.setting.providers).toHaveProperty('oai')
+  })
+
   it('carries the single provider of the old table forward as provider and model "main" on the default route, and leaves no old table', async () => {
     const sealed = Buffer.from('sealed-key-box')
     await pool.query('DROP TABLE ai_route, ai_model, ai_provider, ai_provider_config')

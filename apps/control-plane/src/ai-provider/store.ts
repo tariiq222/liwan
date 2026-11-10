@@ -64,9 +64,8 @@ export function routeRows(routes: AiRoutes): Array<[string, string, string]> {
 export async function writeConfig(db: Db, next: NewConfig): Promise<void> {
   const providerIds = next.providers.map(provider => provider.id)
   const modelIds = next.models.map(model => model.id)
-  await db.query('DELETE FROM ai_route')
-  await db.query('DELETE FROM ai_model WHERE id <> ALL($1::text[])', [modelIds])
-  await db.query('DELETE FROM ai_provider WHERE id <> ALL($1::text[])', [providerIds])
+  // Order matters (the foreign keys stay immediate): providers and models are upserted first, so a retained model already points at its
+  // new provider; routes are replaced next; only then do the models, and last the providers, that are no longer present go.
   for (const provider of next.providers) {
     await db.query(
       `INSERT INTO ai_provider(id, preset, provider, base_url, stream_usage, api_key_sealed, api_key_last4) VALUES($1,$2,$3,$4,$5,$6,$7)
@@ -82,7 +81,10 @@ export async function writeConfig(db: Db, next: NewConfig): Promise<void> {
       [model.id, model.providerId, model.model, model.inputPrice, model.cachedInputPrice, model.outputPrice, model.keepUsageReported],
     )
   }
+  await db.query('DELETE FROM ai_route')
   for (const [quality, capability, modelId] of routeRows(next.routes)) await db.query('INSERT INTO ai_route(quality, capability, model_id) VALUES($1,$2,$3)', [quality, capability, modelId])
+  await db.query('DELETE FROM ai_model WHERE id <> ALL($1::text[])', [modelIds])
+  await db.query('DELETE FROM ai_provider WHERE id <> ALL($1::text[])', [providerIds])
   await db.query(
     `INSERT INTO ai_provider_config(singleton, revision, margin_bps, updated_by, updated_at) VALUES(true,$1,$2,$3,now())
      ON CONFLICT (singleton) DO UPDATE SET revision=$1, margin_bps=$2, updated_by=$3, updated_at=now()`,
