@@ -16,6 +16,7 @@ import { deliveredEntitlement, grantedUnits } from '../commercial/ai-ledger.js'
 import { requestInvoiceRefund } from '../commercial/settlements.js'
 import { extendTrial, pushCommercialExpiry } from '../commercial/trial.js'
 import { transaction } from '../db.js'
+import { expireSharedLeases } from '../shared/job-worker.js'
 import { reconcileAfterRestore, fakeObserveRunner } from '../shared/subscription-reconcile.js'
 import { enqueueReconfigureJob } from '../shared/job-store.js'
 import { assertReconfigureAuthority, runSubscriptionReconfigure } from '../shared/subscription-reconfigure.js'
@@ -531,6 +532,63 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
       await runSubscriptionReconfigure(pool, (await jobId(change.id, false))!, runner)
       await expect(runSubscriptionReconfigure(pool, stale!, runner)).resolves.toMatchObject({ receipt: { superseded: true } })
       expect(await queued(id)).toHaveLength(0)
+    })
+
+    it('an AI push whose claim committed without a journal is requeued at lease expiry, never quarantined, and a following paid order runs', async () => {
+      const { id, o } = await appliedTopup()
+      await patchSettings({ trial_allowance_minor: 1000 })
+      const push = await jobId(o.id, true)
+      // The crash window: the claim transaction committed (running, leased) and the worker stopped before any journal.
+      await pool.query("UPDATE shared_jobs SET state='running',attempt_id=gen_random_uuid(),fence=fence+1,lease_until=clock_timestamp()-interval '1 second' WHERE id=$1", [push])
+      await expireSharedLeases(pool)
+      expect((await pool.query('SELECT state FROM shared_jobs WHERE id=$1', [push])).rows[0].state).toBe('queued')
+      expect(await stuck(id)).toBe(0)
+      const change = await paidChange(id)
+      await processFulfillmentOutbox(pool, { limit: 1000 })
+      for (const job of await queued(id)) await runSubscriptionReconfigure(pool, job, runner)
+      expect((await pool.query('SELECT state FROM shared_jobs WHERE id=$1', [push])).rows[0].state).toBe('verified')
+      expect((await pool.query('SELECT applied_revision_id=$2 AS applied FROM subscriptions WHERE customer_id=$1', [id, change.target_revision_id])).rows[0].applied).toBe(true)
+      expect(await stuck(id)).toBe(0)
+    })
+
+    describe('restore reconcile', () => {
+      /** An approved restore target for the tenant, so a restore reconcile job can run. */
+      async function approvedRestore(id: string) {
+        const row = (await pool.query('SELECT s.tenant_id,s.applied_revision_id,r.snapshot,b.database_name,b.tenant_id AS slug FROM subscriptions s JOIN subscription_revisions r ON r.id=s.applied_revision_id JOIN shared_registry_bindings b ON b.control_tenant_id=s.tenant_id WHERE s.customer_id=$1', [id])).rows[0]
+        const backup = randomUUID(), restore = randomUUID()
+        await pool.query("INSERT INTO shared_backups(id,control_tenant_id,tenant_id,database_name,filestore,snapshot,database_sha256,filestore_sha256,artifact_path,consistency,created_by) VALUES($1,$2,$3,$4,$4,'{}'::jsonb,$5,$5,'/tmp/fixture-backup','verified','integration-fake:7')", [backup, row.tenant_id, row.slug, row.database_name, 'c'.repeat(64)])
+        await pool.query("INSERT INTO shared_restore_approvals(id,backup_id,control_tenant_id,target_database,reason,expires_at) VALUES($1,$2,$3,$4,'integration fixture',now()+interval '1 hour')", [restore, backup, row.tenant_id, row.database_name])
+        const observed = (features: Record<string, unknown>) => fakeObserveRunner({ commercial_revision_id: row.applied_revision_id, commercial_digest: row.snapshot.entitlement.digest, status: 'active', commercial_valid_until: null, branches: [], features: features as never })
+        return { tenant: row.tenant_id as string, restore, observed }
+      }
+      const aiOf = (features: Record<string, unknown>) => Object.fromEntries(KEYS.map(k => [k, features[k]]))
+
+      it('values changed after a restore reconcile job was queued are delivered by that job', async () => {
+        const { id } = await appliedTopup()
+        const { tenant, restore, observed } = await approvedRestore(id)
+        const first = await reconcileAfterRestore(pool, { tenant_id: tenant, restore_id: restore, runner: observed({ ...aiOf(delivered.at(-1)!.features), 'ai.balance.granted': 0 }) })
+        expect(first.ready).toBe(false)
+        await patchSettings({ trial_allowance_minor: 1000 })
+        await expect(runSubscriptionReconfigure(pool, first.job_id!, runner)).resolves.toMatchObject({ state: 'verified' })
+        expect(delivered.at(-1)!.features).toMatchObject({ 'ai.allowance.trial': 266_666, 'ai.balance.granted': 666_666 })
+      })
+
+      it('values changed after a reconcile completed get a new delivery at the next readiness check, which then ends ready', async () => {
+        const { id } = await appliedTopup()
+        const { tenant, restore, observed } = await approvedRestore(id)
+        const first = await reconcileAfterRestore(pool, { tenant_id: tenant, restore_id: restore, runner: observed({ ...aiOf(delivered.at(-1)!.features), 'ai.balance.granted': 0 }) })
+        await runSubscriptionReconfigure(pool, first.job_id!, runner)
+        const restored = aiOf(delivered.at(-1)!.features)
+        expect(await reconcileAfterRestore(pool, { tenant_id: tenant, restore_id: restore, runner: observed(restored) })).toEqual({ ready: true })
+        await patchSettings({ trial_allowance_minor: 2000 })
+        const second = await reconcileAfterRestore(pool, { tenant_id: tenant, restore_id: restore, runner: observed(restored) })
+        expect(second).toMatchObject({ ready: false })
+        expect(second.reason).toBeUndefined()
+        expect(second.job_id).not.toBe(first.job_id)
+        await runSubscriptionReconfigure(pool, second.job_id!, runner)
+        expect(delivered.at(-1)!.features['ai.allowance.trial']).toBe(533_333)
+        expect(await reconcileAfterRestore(pool, { tenant_id: tenant, restore_id: restore, runner: observed(aiOf(delivered.at(-1)!.features)) })).toEqual({ ready: true })
+      })
     })
 
     it('a failed AI push does not block the next paid order, and is logged', async () => {

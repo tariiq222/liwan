@@ -43,9 +43,12 @@ async function assertAiPushAuthority(client:PoolClient,job:SharedReconfigureJob)
   if(authority.branches.apply.length || authority.branches.archive.length || authority.branches.restore?.length || Object.hasOwn(authority,'commercial_valid_until') || Object.hasOwn(authority,'commercial_valid_until_revision'))throw Error('ai_push_invalid')
   await assertCurrentBinding(client,job)
 }
-/** The job with the live AI keys of the customer's ledger and settings, read at execution time instead of when it was queued. */
+/**
+ * The job with the live AI keys of the customer's ledger and settings, read at execution time instead of when it was
+ * queued. A restore job gets them too: its stored payload (and so its identity digest) is untouched, only what the
+ * runner is handed changes.
+ */
 async function withLiveAiFeatures(client:PoolClient,job:SharedReconfigureJob):Promise<SharedReconfigureJob> {
-  if(job.restore)return job
   const customer=(await client.query('SELECT customer_id FROM orders WHERE id=$1',[job.authority.order_id])).rows[0]?.customer_id
   if(!customer)return job
   return {...job,authority:{...job.authority,entitlement:await deliveredEntitlement(client,customer,job.authority.entitlement)}}

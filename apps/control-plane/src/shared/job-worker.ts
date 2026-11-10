@@ -47,6 +47,16 @@ function nextSequence(sequence: number): number {
 export async function expireSharedLeases(pool: Pool): Promise<number> {
   // The transition and its audit succeed or roll back together. Preserve the
   // last intent journal so read-only recovery can reconcile a crashed effect.
+  // An AI balance push is idempotent (it delivers the live values) and carries no order, so an expired one goes back to the
+  // queue instead of being quarantined: it can never sit in needs_intervention and block the tenant.
+  const requeued = await pool.query(`WITH requeued AS (
+    UPDATE shared_jobs SET state='queued',fence=fence+1,lease_until=NULL
+    WHERE state='running' AND lease_until<=clock_timestamp() AND payload->'authority'->>'ai_push'='true'
+    RETURNING id,attempt_id,fence
+  ) INSERT INTO audit_events(id,actor,action,subject,reason)
+    SELECT gen_random_uuid(),'shared-worker','shared_job.lease_expired_requeued',id::text,
+      'Lease expired; requeued AI push attempt ' || attempt_id::text || ' at fence ' || fence::text
+    FROM requeued`)
   const result = await pool.query(`WITH expired AS (
     UPDATE shared_jobs SET state='needs_intervention',fence=fence+1,lease_until=NULL
     WHERE state='running' AND lease_until<=clock_timestamp()
@@ -55,7 +65,7 @@ export async function expireSharedLeases(pool: Pool): Promise<number> {
     SELECT gen_random_uuid(),'shared-worker','shared_job.lease_expired',id::text,
       'Lease expired; quarantined attempt ' || attempt_id::text || ' at fence ' || fence::text
     FROM expired`)
-  return result.rowCount ?? 0
+  return (requeued.rowCount ?? 0) + (result.rowCount ?? 0)
 }
 export async function recoverSharedJob(pool: Pool, id: string, actor: { issuer: string; actorUid: number }, reason: string, adapter?: SharedFencedAdapter, onVerified?: (client: PoolClient) => Promise<void>) {
   if (!adapter) throw new Error('shared_adapter_unavailable')

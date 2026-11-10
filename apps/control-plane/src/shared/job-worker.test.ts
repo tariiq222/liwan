@@ -138,10 +138,13 @@ it('rejects a foreign effect readback instead of persisting a verified receipt',
   await expect(runSharedJob(f.pool,id,{observe:async()=>applied ? {...f.present,binding:{...f.job.binding,tenantId:'foreign'}} : {state:'absent'},applyFenced:async()=>{applied=true} })).rejects.toThrow('tenant_binding_mismatch')
   expect(f.row.receipt).toBeUndefined(); expect(f.row.state).toBe('needs_intervention')
 })
-it('expires shared leases to intervention, never back to queued', async () => {
-  const query=vi.fn(async(_sql:string)=>({rowCount:2,rows:[]}))
-  expect(await expireSharedLeases({query} as unknown as Pool)).toBe(2)
-  const sql=query.mock.calls[0]?.[0] as string
+it('expires shared leases to intervention, never back to queued, except an idempotent AI push', async () => {
+  const query=vi.fn(async(sql:string)=>({rowCount:sql.includes('requeued')?1:2,rows:[]}))
+  expect(await expireSharedLeases({query} as unknown as Pool)).toBe(3)
+  const requeue=query.mock.calls[0]?.[0] as string
+  expect(requeue).toContain("state='queued'")
+  expect(requeue).toContain("ai_push'='true'")
+  const sql=query.mock.calls[1]?.[0] as string
   expect(sql).toContain("state='needs_intervention'")
   expect(sql).toContain('fence=fence+1')
   expect(sql).toContain('lease_until<=clock_timestamp()')

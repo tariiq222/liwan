@@ -3,6 +3,7 @@ import { resolvePackageAuthority } from '../packages.js'
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
+import { AI_ENTITLEMENT_KEYS } from '@liwan/commercial-contracts'
 import { sharedPolicySchema, type TenantBinding } from '@liwan/commercial-contracts/shared'
 import { transaction } from '../db.js'
 import { derivePolicy } from './catalog-features.js'
@@ -51,7 +52,9 @@ export async function enqueueReconfigureJob(client: PoolClient, value: unknown, 
   const job = sharedReconfigureJobSchema.parse(value)
   const expiry = Object.hasOwn(job.authority, 'commercial_valid_until') ? `:commercial:${job.authority.commercial_valid_until ?? 'none'}:order:${job.authority.order_id}` : ''
   // `unique`: a push of live state (not an order's one-time effect) must never be swallowed as a replay of an earlier one.
-  const key = `${job.controlTenantId}:${job.authority.target_revision_id}${job.restore ? ':restore:'+job.restoreId : ''}${expiry}${opts.unique ? ':push:'+job.authority.operation_id : ''}`
+  // A restore reconcile delivers a ledger state too: a later readiness check that finds different AI values needs its own job.
+  const aiState = job.restore ? ':ai:' + AI_ENTITLEMENT_KEYS.map(k => String(job.authority.entitlement.features[k])).join(',') : ''
+  const key = `${job.controlTenantId}:${job.authority.target_revision_id}${job.restore ? ':restore:'+job.restoreId+aiState : ''}${expiry}${opts.unique ? ':push:'+job.authority.operation_id : ''}`
   const digest = createHash('sha256').update(JSON.stringify(job)).digest('hex')
   await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [job.controlTenantId])
   const existing = await client.query('SELECT id,state,payload FROM shared_jobs WHERE control_tenant_id=$1 AND business_key=$2', [job.controlTenantId,key])
