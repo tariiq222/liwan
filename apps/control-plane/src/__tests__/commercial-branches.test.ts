@@ -56,6 +56,29 @@ suite('commercial branches & usage (B4)', () => {
     await expect(requestedExtraBranches(pool, { subscription_id: s, add: 0, archive: [sum.items[0].id] })).rejects.toMatchObject({ code: 'branch_not_found' })
   })
 
+  it('quote, reservation and restore count the same billed population: a read-only branch is not billed', async () => {
+    const { s, t } = await newSub(0)
+    const extra = (name: string, state: string, readOnly: boolean, company: number | null) => pool.query(
+      "INSERT INTO commercial_branches(id,subscription_id,tenant_id,name,kind,billing,state,odoo_company_id,read_only,archived_at) VALUES($1,$2,$3,$4,'extra','paid',$5,$6,$7,$8)",
+      [randomUUID(), s, t, name, state, company, readOnly, state === 'archived' ? new Date() : null])
+    await extra('billed', 'active', false, 11)
+    await extra('over the limit', 'active', true, 12)
+    await extra('gone', 'archived', false, 13)
+    const summary = await listBranches(pool, s)
+    expect(summary.paid).toBe(1)
+    // One billed branch plus the one added: the quote prices two, and the reservation validates against the same two.
+    expect(await requestedExtraBranches(pool, { subscription_id: s, add: 1, archive: [], restore: [] })).toBe(2)
+    const created = await tx(c => reserveBranchesForOrder(c, { order_id: randomUUID(), subscription_id: s, tenant_id: t, adds: [{ name: 'new' }], quoted_paid: 2, operation_id: 'op-ro' }))
+    expect(created.map(b => b.billing)).toEqual(['paid'])
+    const gone = (await listBranches(pool, s)).items.find(b => b.name === 'gone')!
+    expect(await requestedExtraBranches(pool, { subscription_id: s, add: 0, archive: [], restore: [gone.id] })).toBe(3)
+    const restored = await tx(c => restoreBranchesForOrder(c, { order_id: randomUUID(), subscription_id: s, ids: [gone.id], quoted_paid: 3, operation_id: 'op-ro-restore' }))
+    expect(restored).toHaveLength(1)
+    // Archiving the read-only branch frees no billed slot.
+    const over = (await listBranches(pool, s)).items.find(b => b.name === 'over the limit')!
+    expect(await requestedExtraBranches(pool, { subscription_id: s, add: 0, archive: [over.id] })).toBe(3)
+  })
+
   it('quoted_paid mismatch → 409 requote_required and no rows; duplicate name → branch_name_taken', async () => {
     const { s, t } = await newSub(1)
     await expect(tx(c => reserveBranchesForOrder(c, { order_id: randomUUID(), subscription_id: s, tenant_id: t, adds: [{ name: 'x' }, { name: 'y' }], quoted_paid: 0, operation_id: 'o' })))
