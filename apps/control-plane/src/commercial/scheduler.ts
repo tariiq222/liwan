@@ -1,7 +1,7 @@
 import type { Pool } from 'pg'
 import type { Config } from '../config.js'
 import { processFulfillmentOutbox } from './fulfillment.js'
-import { claimOutbox, completeOutbox, failOutbox } from './outbox.js'
+import { claimOutbox, completeOutbox, failOutbox, releaseOutbox } from './outbox.js'
 import { onSubscriptionActivated, sendInvitationOutbox } from './invitations.js'
 import { reconcileUnknownAttempts } from './payments.js'
 import { recoverInterrupted } from '../shared/subscription-reconcile.js'
@@ -86,9 +86,10 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
     async tick(): Promise<void> {
       ticks++
       jobCounts = {}
-      await job('fulfillment', () => processFulfillmentOutbox(pool, { limit: 20, enrollment: { config } }))
+      await job('fulfillment', () => processFulfillmentOutbox(pool, { limit: 20, enrollment: { config }, signal: o.signal }))
       await job('invitation.issue', async () => {
         for (const row of await claimOutbox(pool, ['invitation.issue'], 20)) {
+          if (o.signal?.aborted) { await releaseOutbox(pool, row.id); continue }
           try {
             await onSubscriptionActivated(pool, (row.payload as { subscription_id: string }).subscription_id)
             await completeOutbox(pool, row.id)

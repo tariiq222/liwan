@@ -11,13 +11,13 @@ import { createAdminPasswordRunner } from './shared/admin-password-runner.js'
 import { loadSharedRuntimeConfig } from './shared/runtime-config.js'
 import { startInternalEffectServer } from './shared/internal-effect-server.js'
 import { runSharedWorker } from './shared/job-runner.js'
+import { onShutdownSignal } from './shutdown.js'
 const config=getConfig()
 if(!await sharedOnboardingEnabled(config))throw Error('shared_adapter_unavailable')
 const pool=new Pool({connectionString:config.databaseUrl,max:8})
 attachPoolErrorHandler(pool)
 const controller=new AbortController()
-process.once('SIGTERM',()=>controller.abort())
-process.once('SIGINT',()=>controller.abort())
+onShutdownSignal(()=>controller.abort())
 let scheduler:ReturnType<typeof createCommercialScheduler>|undefined
 try{
   await migrate(pool)

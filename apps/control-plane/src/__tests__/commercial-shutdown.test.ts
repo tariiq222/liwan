@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { spawn } from 'node:child_process'
 import { createCommercialScheduler } from '../commercial/scheduler.js'
 import { sendInvitationOutbox } from '../commercial/invitations.js'
 import { sendTrialNotices } from '../commercial/trial-notices.js'
@@ -70,5 +71,43 @@ describe('worker shutdown during a scheduler tick', () => {
     calls.length = 0
     await scheduler.tick() // already aborted: nothing starts at all
     expect(calls).toEqual([])
+  })
+
+  it.each(['fulfillment.enqueue', 'invitation.issue'])('gives every claimed %s row back when the signal arrives with the batch', async kind => {
+    vi.spyOn(console, 'debug').mockImplementation(() => {})
+    const controller = new AbortController()
+    const claimed = ['a', 'b'].map((id, n) => ({ id: `row-${id}`, created_at: new Date(1000 + n), aggregate_id: `agg-${id}`, payload: { subscription_id: `sub-${id}` } }))
+    const { pool, calls } = recordingPool((sql, params) => {
+      if (sql.includes('FOR UPDATE SKIP LOCKED') && (params[0] as string[]).includes(kind)) { controller.abort(); return { rows: claimed } }
+      return { rows: [] }
+    })
+    const scheduler = createCommercialScheduler({ pool: pool as never, config: {} as never, env: {}, log: () => {}, signal: controller.signal })
+    await scheduler.tick()
+    const released = calls.filter(c => c.sql.includes('SET next_attempt_at = now() WHERE')).map(c => c.params[0])
+    expect(released).toEqual(['row-a', 'row-b'])
+    // Nothing else ran for the batch: only the claim(s) and the two releases.
+    expect(calls.filter(c => !c.sql.includes('FOR UPDATE SKIP LOCKED') && !c.sql.includes('SET next_attempt_at = now() WHERE'))).toEqual([])
+  })
+})
+
+describe('shutdown signal handler', () => {
+  it('survives a repeated signal, so a repeated stop cannot end a worker mid-operation', async () => {
+    const root = new URL('../..', import.meta.url).pathname
+    const code = `import { onShutdownSignal } from './src/shutdown.ts'
+let seen = 0
+onShutdownSignal(() => { process.stdout.write('got ' + (++seen) + '\\n') })
+process.stdout.write('ready\\n')
+setTimeout(() => process.exit(0), 5000)`
+    const child = spawn(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', code], { cwd: root, stdio: ['ignore', 'pipe', 'inherit'] })
+    let out = ''
+    child.stdout.on('data', d => { out += d })
+    const until = (text: string) => new Promise<void>(resolve => { const t = setInterval(() => { if (out.includes(text)) { clearInterval(t); resolve() } }, 10) })
+    const exited = new Promise<number | null>(resolve => child.once('exit', (code, signal) => resolve(signal ? null : code)))
+    await until('ready')
+    child.kill('SIGTERM'); await until('got 1')
+    child.kill('SIGTERM'); await until('got 2')
+    child.kill('SIGKILL')
+    await exited
+    expect(out).toContain('got 2')
   })
 })
