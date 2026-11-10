@@ -16,8 +16,6 @@ import { migrate } from '../db.js'
 import { publishRegistryMutation } from '../shared/registry-store.js'
 import { runSharedJob } from '../shared/job-worker.js'
 import { createFencedStorageAdapter, ensureTenantStorageSchema, type TenantStorage } from '../shared/fenced-adapter.js'
-import { bindJob, payloadDigest } from '../shared/provisioning.js'
-import { bootstrapFirstAdmin, ensureAdminBindingSchema, inspectTenantReadiness, activateSharedTenant } from '../shared/provision-readiness.js'
 import { createSharedOrder, applyPaymentEvent, provisionPaidOrder, reconcilePaidOrder } from '../shared/shared-order.js'
 import { ensureTenantDatabases, tenantDatabaseNames } from './live-tenant-databases.js'
 import { vendorAccount, replaceRoles } from './helpers/vendor-session.js'
@@ -65,8 +63,7 @@ else describe('shared order and sandbox payment lifecycle', () => {
       await publishRegistryMutation(pool, registryPath, actor, { controlTenantId: tenant, expectedSnapshotRevision: index, target: { host: `t${nn}.order.invalid`, tenantId: `t${nn}`, database: tenantDatabases[index]!, filestore: tenantDatabases[index]!, enabled: true, registryRevision: 1 }, reason: `Order tenant ${nn}` })
       const storage = await connect(tenantDatabases[index]!)
       await ensureTenantStorageSchema(storage)
-      await ensureAdminBindingSchema(storage)
-      await storage.pool.query('TRUNCATE shared_fencing, shared_effects, shared_admin, shared_tenant_policy')
+      await storage.pool.query('TRUNCATE shared_fencing, shared_effects, shared_tenant_policy')
       await storage.pool.end()
     }
   })
@@ -118,15 +115,11 @@ else describe('shared order and sandbox payment lifecycle', () => {
     expect(retry.jobId).toBe(first.jobId)
     const jobs = (await pool.query("SELECT count(*)::int AS count FROM shared_jobs WHERE control_tenant_id=$1", [tenantA])).rows[0].count
     expect(Number(jobs)).toBe(1)
-    // Provision through the real worker, bind the admin, activate, then reconcile.
+    // Provision through the real worker, activate, then reconcile.
     const result = await runSharedJob(pool, first.jobId, adapter)
     if (result.state !== 'verified') throw new Error(`order provision not verified: ${result.state}`)
-    const stored = (await pool.query('SELECT payload FROM shared_jobs WHERE id=$1', [first.jobId])).rows[0].payload
-    const storage = await connect(tenantDatabases[0]!)
-    try { await bootstrapFirstAdmin(storage, { tenantId: 't08', requestId: stored.requestId, login: 'admin.t08', expectedEffectDigest: payloadDigest(bindJob(stored)) }) } finally { await storage.pool.end() }
-    const report = await inspectTenantReadiness(pool, connect, tenantA)
-    expect(report.ready).toBe(true)
-    expect((await activateSharedTenant(pool, tenantA, report, actor)).activated).toBe(true)
+    // Activation is reconcileOdooOnboardings (covered by its own suites); this order test starts from an active tenant.
+    await pool.query("UPDATE tenants SET status='active',health_checked_at=now() WHERE id=$1", [tenantA])
     const reconciled = await reconcilePaidOrder(pool, order.orderId)
     expect(reconciled.status).toBe('provisioned')
   })

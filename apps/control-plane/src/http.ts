@@ -28,6 +28,7 @@ import { accountsHttp } from './admin-auth/accounts-http.js'
 import { aiProviderHttp } from './ai-provider/http.js'
 import { defaultWebAuthn, type WebAuthnLib } from './admin-auth/webauthn.js'
 import { enqueueSharedJob } from './shared/job-store.js'
+import { requestSharedJobRecovery, UnsupportedRecoveryOperation } from './shared/job-recovery.js'
 import { createHash, randomUUID } from 'node:crypto'
 import { requirePublishableSource } from './shared/catalog-source.js'
 import { readFile, stat } from 'node:fs/promises'
@@ -429,6 +430,14 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         const result=await requestRestorePublication(pool,loadSharedRuntimeConfig(config.sharedRuntimeConfigPath),{issuer:vendorActorIssuer(config.installationId),actorUid:auth.actor},publication[1]!,publication[2]!,input.reason)
         return respond(res,result.status==='queued'?202:200,result)
       }
+      const sharedRecover = pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/jobs/(${UUID})/recover$`))
+      if (method === 'POST' && sharedRecover) {
+        requireCapability(auth, 'vendor.operations.run')
+        requireStepUp(auth)
+        if (process.env.LIWAN_TENANCY_MODE !== 'shared') throw new ApiError(503, 'shared_execution_unavailable', 'Shared runtime is unavailable')
+        const result = await requestSharedJobRecovery(pool, sharedRecover[1]!, sharedRecover[2]!, { issuer: vendorActorIssuer(config.installationId), actorUid: auth.actor }, parseJson(raw, reasonRequestSchema).reason)
+        return respond(res, result.replay ? 200 : 202, result)
+      }
       const realProgress=pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/jobs/(${UUID})$`))
       const realApproval=pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/restore-approvals$`))
       if((method==='GET' && realProgress)||(method==='POST' && realApproval)){
@@ -632,8 +641,8 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       }
       throw new ApiError(404, 'not_found', 'Endpoint not found')
     } catch (error) {
-      const known = error instanceof Error && ['shared_job_unavailable','shared_backup_unavailable','shared_restore_approval_unavailable','shared_artifact_mismatch','shared_job_forbidden','tenant_operations_unavailable','restore_target_reserved','shared_replay_forbidden','shared_onboarding_forbidden','idempotency_conflict','published_catalog_missing','catalog_tier_missing','shared_adapter_unavailable','shared_onboarding_missing'].includes(error.message) ? new ApiError(error.message.endsWith('forbidden') ? 403 : error.message === 'shared_adapter_unavailable' ? 503 : error.message === 'shared_onboarding_missing' ? 404 : 409,error.message,'Shared onboarding request rejected') : null
-      const failure = known ?? (error instanceof PackageError ? new ApiError(error.status,error.code,error.detail??'Package request rejected',error.field) : error instanceof z.ZodError ? new ApiError(422,'invalid','Invalid request body',String(error.issues[0]?.path[0]??'body')) : error instanceof ApiError ? error : error instanceof RegistryError ? new ApiError(error.status, error.code, 'Registry operation rejected') : new ApiError(503, 'service_unavailable', 'Control service is unavailable'))
+      const known = error instanceof Error && ['shared_job_unavailable','shared_backup_unavailable','shared_restore_approval_unavailable','shared_artifact_mismatch','shared_job_forbidden','tenant_operations_unavailable','restore_target_reserved','shared_replay_forbidden','shared_onboarding_forbidden','idempotency_conflict','published_catalog_missing','catalog_tier_missing','shared_adapter_unavailable','shared_onboarding_missing','shared_job_not_recoverable'].includes(error.message) ? new ApiError(error.message.endsWith('forbidden') ? 403 : error.message === 'shared_adapter_unavailable' ? 503 : error.message === 'shared_onboarding_missing' ? 404 : 409,error.message,'Shared onboarding request rejected') : null
+      const failure = error instanceof UnsupportedRecoveryOperation ? new ApiError(409, error.message, error.detail) : known ?? (error instanceof PackageError ? new ApiError(error.status,error.code,error.detail??'Package request rejected',error.field) : error instanceof z.ZodError ? new ApiError(422,'invalid','Invalid request body',String(error.issues[0]?.path[0]??'body')) : error instanceof ApiError ? error : error instanceof RegistryError ? new ApiError(error.status, error.code, 'Registry operation rejected') : new ApiError(503, 'service_unavailable', 'Control service is unavailable'))
       if (error instanceof CommercialHttpError) return respond(res, error.status, { code: error.code, message: error.code, ...(error.field ? { field: error.field } : {}), ...(error.issues.length ? { issues: error.issues } : {}) })
       return respond(res, failure.status, { code: failure.code, message: failure.message, ...(failure.field ? { field: failure.field } : {}) })
     }

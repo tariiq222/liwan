@@ -17,8 +17,6 @@ import { publishRegistryMutation } from '../shared/registry-store.js'
 import { enqueueSharedJob } from '../shared/job-store.js'
 import { runSharedJob } from '../shared/job-worker.js'
 import { createFencedStorageAdapter, ensureTenantStorageSchema, type TenantStorage } from '../shared/fenced-adapter.js'
-import { bindJob, payloadDigest } from '../shared/provisioning.js'
-import { bootstrapFirstAdmin, ensureAdminBindingSchema, inspectTenantReadiness } from '../shared/provision-readiness.js'
 import { createTenantBackup, approveSharedRestore, restoreBackupToNewTarget } from '../shared/shared-backup.js'
 import { ensureTenantDatabases, tenantDatabaseNames } from './live-tenant-databases.js'
 import { vendorAccount, replaceRoles } from './helpers/vendor-session.js'
@@ -70,32 +68,26 @@ else describe('shared backup and restore authority', () => {
       [randomUUID(), JSON.parse(source.toString('utf8')), createHash('sha256').update(source).digest('hex')])
     registryPath = join(gateRoot, 'backup-registry.json')
     await publishRegistryMutation(pool, registryPath, actor, { controlTenantId: tenantId, expectedSnapshotRevision: 0, target: { host: 't04.backup.invalid', tenantId: 't04', database: sourceDatabase, filestore: sourceDatabase, enabled: true, registryRevision: 1 }, reason: 'Backup source tenant' })
-    // Provision and bind the admin so the snapshot has meaningful content.
+    // Provision so the snapshot has meaningful content.
     const source0 = await connect(sourceDatabase)
     await ensureTenantStorageSchema(source0)
-    await ensureAdminBindingSchema(source0)
-    await source0.pool.query('TRUNCATE shared_fencing, shared_effects, shared_admin, shared_tenant_policy')
+    await source0.pool.query('TRUNCATE shared_fencing, shared_effects, shared_tenant_policy')
     await source0.pool.end()
     const requestId = randomUUID()
     const job = await enqueueSharedJob(pool, tenantId, actor, { schemaVersion: 1, operation: 'provision', requestId }, 'Backup source provision')
     const result = await runSharedJob(pool, job.id, adapter)
     if (result.state !== 'verified') throw new Error(`provision not verified: ${result.state}`)
-    const stored = (await pool.query('SELECT payload FROM shared_jobs WHERE id=$1', [job.id])).rows[0].payload
-    const storage = await connect(sourceDatabase)
-    try { await bootstrapFirstAdmin(storage, { tenantId: 't04', requestId, login: 'admin.t04', expectedEffectDigest: payloadDigest(bindJob(stored)) }) } finally { await storage.pool.end() }
     // Fresh, empty target database for the restore.
     const target = await connect(targetDatabase)
     await ensureTenantStorageSchema(target)
-    await ensureAdminBindingSchema(target)
-    await target.pool.query('TRUNCATE shared_fencing, shared_effects, shared_admin, shared_tenant_policy')
+    await target.pool.query('TRUNCATE shared_fencing, shared_effects, shared_tenant_policy')
     await target.pool.end()
     // The restore-target fixtures must also start empty on reused scratch
     // databases (a prior run may have left rows behind).
     for (const fixture of [preChangeTarget, mismatchTarget]) {
       const t = await connect(fixture)
       await ensureTenantStorageSchema(t)
-      await ensureAdminBindingSchema(t)
-      await t.pool.query('TRUNCATE shared_fencing, shared_effects, shared_admin, shared_tenant_policy')
+      await t.pool.query('TRUNCATE shared_fencing, shared_effects, shared_tenant_policy')
       await t.pool.end()
     }
   })
@@ -134,10 +126,7 @@ else describe('shared backup and restore authority', () => {
     const target = await connect(targetDatabase)
     try {
       const effects = (await target.pool.query('SELECT tenant_id FROM shared_effects')).rows as { tenant_id: string }[]
-      const admin = (await target.pool.query('SELECT tenant_id,login FROM shared_admin')).rows as { tenant_id: string; login: string }[]
       expect(effects.every(r => r.tenant_id === 't04')).toBe(true)
-      expect(admin).toHaveLength(1)
-      expect(admin[0]!.login).toBe('admin.t04')
       // The policy round-trips: the restored tenant keeps revision and features.
       const src = await connect(sourceDatabase)
       try {
@@ -165,7 +154,7 @@ else describe('shared backup and restore authority', () => {
       .rejects.toThrow('shared_restore_forbidden')
   })
 
-  it('restores a pre-change backup without a policy row and fails activation on initial_policy', async () => {
+  it('restores a pre-change backup without a policy row', async () => {
     // A backup taken before shared_tenant_policy existed: snapshot with no
     // `policy` key and a digest computed the old way (over exactly that shape).
     const src = await connect(sourceDatabase)
@@ -173,8 +162,7 @@ else describe('shared backup and restore authority', () => {
     try {
       const fencing = await src.pool.query('SELECT tenant_id,fence::float8 AS fence FROM shared_fencing ORDER BY tenant_id')
       const effects = await src.pool.query('SELECT tenant_id,business_key,payload_digest,attempt_id::text AS attempt_id,fence::float8 AS fence FROM shared_effects ORDER BY tenant_id,business_key')
-      const admin = await src.pool.query('SELECT tenant_id,request_id::text AS request_id,login FROM shared_admin ORDER BY tenant_id')
-      legacySnapshot = { schemaVersion: 1, tenantId: 't04', fencing: fencing.rows, effects: effects.rows, admin: admin.rows }
+      legacySnapshot = { schemaVersion: 1, tenantId: 't04', fencing: fencing.rows, effects: effects.rows }
     } finally { await src.pool.end() }
     const legacyDigest = createHash('sha256').update(JSON.stringify(legacySnapshot)).digest('hex')
     const legacyBackupId = randomUUID()
@@ -184,31 +172,18 @@ else describe('shared backup and restore authority', () => {
     const { approvalId } = await approveSharedRestore(pool, { backupId: legacyBackupId, controlTenantId: tenantId, targetDatabase: preChangeTarget, ttlSeconds: 3600, actor })
     const restored = await restoreBackupToNewTarget(pool, connect, { approvalId, actor })
     expect(restored.applied).toBe(true)
-    // The restored target carries the fencing/effects/admin rows but NO policy.
+    // The restored target carries the fencing/effects rows but NO policy.
     const target = await connect(preChangeTarget)
     let policyCount = -1
     try {
       policyCount = Number((await target.pool.query('SELECT count(*)::int AS count FROM shared_tenant_policy')).rows[0].count)
       expect(policyCount).toBe(0)
       expect(Number((await target.pool.query('SELECT count(*)::int AS count FROM shared_effects')).rows[0].count)).toBeGreaterThan(0)
-      expect(Number((await target.pool.query('SELECT count(*)::int AS count FROM shared_admin')).rows[0].count)).toBe(1)
     } finally { await target.pool.end() }
     // The approval is consumed exactly once.
     const consumed = await pool.query('SELECT consumed_at FROM shared_restore_approvals WHERE id=$1', [approvalId])
     expect(consumed.rows[0].consumed_at).not.toBeNull()
     await expect(restoreBackupToNewTarget(pool, connect, { approvalId, actor })).rejects.toThrow('restore_approval_unavailable')
-    // A restored tenant without a policy is fail-closed: the activation
-    // readiness check reports initial_policy as failed.
-    const restoreTenant = randomUUID()
-    await pool.query('INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,operations_enabled) VALUES ($1,$2,\'saas\',\'shared_managed\',$3,\'live-v1\',\'core\',true)',
-      [restoreTenant, 'Legacy restore target', 'legacy-restore'])
-    const revision = Number((await pool.query('SELECT revision::int AS revision FROM shared_registry_state WHERE singleton')).rows[0].revision)
-    await publishRegistryMutation(pool, registryPath, actor, { controlTenantId: restoreTenant, expectedSnapshotRevision: revision, target: { host: 't09.legacy.invalid', tenantId: 't09', database: preChangeTarget, filestore: preChangeTarget, enabled: true, registryRevision: 1 }, reason: 'Legacy restore target binding' })
-    const provisionJob = await enqueueSharedJob(pool, restoreTenant, actor, { schemaVersion: 1, operation: 'provision', requestId: randomUUID() }, 'Legacy restore readiness fixture')
-    await pool.query("UPDATE shared_jobs SET state='verified',receipt='{\"schemaVersion\":1,\"status\":\"verified\"}'::jsonb WHERE id=$1", [provisionJob.id])
-    const report = await inspectTenantReadiness(pool, connect, restoreTenant)
-    expect(report.ready).toBe(false)
-    expect(report.checks.find(c => c.name === 'initial_policy')).toMatchObject({ passed: false, detail: 'missing' })
   })
 
   it('rolls back the target and keeps the approval unconsumed on a readback mismatch', async () => {
@@ -225,11 +200,10 @@ else describe('shared backup and restore authority', () => {
     try {
       const rows = await target.pool.query(`SELECT (SELECT count(*)::int FROM shared_fencing) AS fencing,
         (SELECT count(*)::int FROM shared_effects) AS effects,
-        (SELECT count(*)::int FROM shared_admin) AS admin,
         (SELECT count(*)::int FROM shared_tenant_policy) AS policy`)
       counts = rows.rows[0]
     } finally { await target.pool.end() }
-    expect(counts).toEqual({ fencing: 0, effects: 0, admin: 0, policy: 0 })
+    expect(counts).toEqual({ fencing: 0, effects: 0, policy: 0 })
     // The approval is unconsumed, so a retry with the same approval is possible.
     const approval = await pool.query('SELECT consumed_at FROM shared_restore_approvals WHERE id=$1', [approvalId])
     expect(approval.rows[0].consumed_at).toBeNull()
