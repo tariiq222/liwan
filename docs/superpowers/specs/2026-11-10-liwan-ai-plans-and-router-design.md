@@ -129,7 +129,7 @@ Vendor-editable values, never hard-coded. Starting values:
 
 ### 5.6 Cost recording (vendor only)
 
-- Every model call records its capability and an integer cost computed in the AI service from the vendor's prices: `ceil((input × input_price + output × output_price) / 1,000,000)`, one unit = 0.00001 USD. A call with no reported tokens or no price stores no cost.
+- Every model call records its capability and an integer cost computed in the AI service from the vendor's prices. One cost unit is 0.00001 USD. A price entered in USD per million tokens is first converted to units per million tokens (`price × 100,000`, an integer), then `cost = ceil((input_tokens × input_units + output_tokens × output_units) / 1,000,000)`. Example: 1,000 input tokens at 3 USD per million cost 0.003 USD and are stored as 300 units. A call with no reported tokens or no price stores no cost.
 - The cost is for the vendor: what each tenant cost against what it paid, and calls, tokens and cost per capability and model. It never appears to the customer and takes no part in limits.
 - Wire changes reach all three strict contract copies (service, `packages/contracts`, Odoo `liwan.ai.usage`) in one release.
 
