@@ -75,6 +75,10 @@ class AiController(http.Controller):
         entitlement = request.env['liwan.entitlement.service']
         return dump_audit_receipt(row, Audit._liwan_ai_count_messages(), entitlement._liwan_limit_value('ai.messages.monthly'))
 
+    # Two routes carry one fact (a run's usage rows) while the shared SaaS registry has no per-tenant recorder key. This session
+    # route is the fallback for those deployments and for a run reported without the key. REMOVE IT, with the cookie spool in
+    # apps/web/server/utils/ai/usage.ts and `create`'s session branch, in the change that delivers that key (tracked in #557);
+    # record_usage_service below is then the only path.
     @http.route('/api/v1/ai/usage', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature(AI_FEATURE, operation='write')
