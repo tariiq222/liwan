@@ -37,7 +37,7 @@ describe('commercial catalog and entitlement compiler', () => {
     const result = compileEntitlements({ ...input, terms: { id: id(9), customer_id: id(10), reason: 'Special terms', limits: { 'projects.max_projects': 1 } } })
     expect(result.modules).toEqual(['liwan_api', 'liwan_chat', 'liwan_core', 'liwan_hr', 'liwan_meetings', 'liwan_platform', 'liwan_pmo'])
     expect(result.features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.enabled': true, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 1, 'storage.limit_mb': 0, 'users.limit': 20 })
-    expect(result.compiler_version).toBe('commercial-compiler/3')
+    expect(result.compiler_version).toBe('commercial-compiler/4')
     expect(input.quantities.users).toBe(20)
   })
   it('closes every application the plan leaves out (booleans false, limits 0)', () => {

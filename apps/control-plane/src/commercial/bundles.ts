@@ -1,11 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { compileEntitlements } from '@liwan/commercial-contracts/server'
-import { bundleViewSchema, bundleCreateSchema, bundleEditSchema, lifecycleActionSchema, type BundleView, type BundleRevision, type CatalogRelease, type PlanRevision, type Price } from '@liwan/commercial-contracts'
+import { AI_ENTITLEMENT_KEYS, bundleViewSchema, bundleCreateSchema, bundleEditSchema, lifecycleActionSchema, type BundleView, type BundleRevision, type CatalogRelease, type PlanRevision, type Price } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { audit, CommercialHttpError, digestOf, iso, lockRevision, nextVersion, pageParams, referenceCount, requireStatus, statusSql, toIssue, type CommercialActor, type Kind } from './lifecycle.js'
 import { getRelease } from './catalog-releases.js'
 
+/** Platform limits no plan, bundle or terms revision sets: capacity the customer chooses, and the AI keys the ledger delivers. */
+export const DERIVED_LIMITS: readonly string[] = ['branches.extra_limit', 'users.limit', 'storage.limit_mb', ...AI_ENTITLEMENT_KEYS]
 export const BUNDLE_KIND: Kind = { table: 'bundle_revisions', parent: 'commercial_bundles', parentCol: 'bundle_id', label: 'bundle' }
 type Row = Record<string, any>
 const FIELDS = 'r.*, (SELECT count(*)::int FROM revision_references x WHERE x.revision_id=r.id) AS customer_count'
@@ -44,7 +46,7 @@ export function bundleIssues(row: Row, release: CatalogRelease): { code: string;
   if (row.audience.kind === 'customer' && !row.audience.customer_id) issues.push({ code: 'audience_invalid', field: 'audience' })
   const rev = bundleRevision(row)
   // Validation-only plan: every core limit is explicitly unlimited so a bundle is judged on its own content.
-  const coreLimits = Object.fromEntries(release.applications.filter(a => !a.selectable).flatMap(a => a.features.filter(f => f.kind === 'limit' && !['users.limit', 'storage.limit_mb', 'branches.extra_limit'].includes(f.key)).map(f => [f.key, null])))
+  const coreLimits = Object.fromEntries(release.applications.filter(a => !a.selectable).flatMap(a => a.features.filter(f => f.kind === 'limit' && !DERIVED_LIMITS.includes(f.key)).map(f => [f.key, null])))
   const plan = {
     id: '00000000-0000-4000-8000-0000000000aa', plan_id: 'x', version: 1, edit_revision: 1, name: 'validation', status: 'draft', available: false,
     audience: { kind: 'public' }, prices: [], term_months: 1, platform_limits: coreLimits, included_bundle_revision_ids: [row.id], optional_bundle_revision_ids: [],

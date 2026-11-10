@@ -1,19 +1,18 @@
-import type { AiProviderCurrent, AiProviderModels, AiProviderPresetList, AiProviderTestResult } from '@liwan/commercial-contracts'
-import type { ModelsFields, ProbeFields, SaveFields } from '../utils/aiProvider'
+import type { AiProviderCurrent, AiProviderModels, AiProviderPresetList, AiProviderSave, AiProviderTestResult } from '@liwan/commercial-contracts'
 
 type Request = <T>(path: string, options?: { method?: string, body?: unknown }) => Promise<T>
 
 const ROOT = 'platform/ai-provider'
 
-/** The platform AI provider calls. The key is only ever sent, never read back; the body carries only the fields the form filled. */
+/** The platform AI calls. A key is only ever sent (in a save), never read back. `models` and `test` name a saved provider; the control plane uses its stored key. */
 export function createAiProvider(request: Request) {
   const send = <T>(path: string, method: string, body: object) => request<T>(`${ROOT}${path}`, { method, body })
   return {
     current: () => request<AiProviderCurrent>(ROOT),
     presets: () => request<AiProviderPresetList>(`${ROOT}/presets`),
-    models: (fields: ModelsFields) => send<AiProviderModels>('/models', 'POST', fields),
-    test: (fields: ProbeFields & { model: string }) => send<AiProviderTestResult>('/test', 'POST', fields),
-    save: (fields: SaveFields) => send<AiProviderCurrent>('', 'PATCH', fields),
+    models: (provider: string) => send<AiProviderModels>('/models', 'POST', { provider }),
+    test: (provider: string, model: string) => send<AiProviderTestResult>('/test', 'POST', { provider, model }),
+    save: (body: AiProviderSave) => send<AiProviderCurrent>('', 'PATCH', body),
   }
 }
 

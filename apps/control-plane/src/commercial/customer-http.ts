@@ -20,6 +20,7 @@ import { bankTransferInstructions } from './bank-transfer.js'
 import { listBranches, requestedExtraBranches } from './branches.js'
 import { getUsage } from './usage.js'
 import { createPaymentAttempt, verifyReturnedAttempt } from './payments.js'
+import { aiTopupCatalog } from './ai-billing-settings.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import type { ReturnOrigin } from './return-origin.js'
 export type PaymentRuntime = {adapter: PaymentAdapter | null; returnOrigin: ReturnOrigin | null}
@@ -33,7 +34,7 @@ export async function customerCatalog(pool: Pool, customerId: string) {
   const plans = (await pool.query("SELECT * FROM plan_revisions WHERE status='published' AND available AND (audience_customer_id IS NULL OR audience_customer_id=$1) ORDER BY name,id", [customerId])).rows
   const bundles = (await pool.query("SELECT * FROM bundle_revisions WHERE status='published' AND available AND (audience_customer_id IS NULL OR audience_customer_id=$1) ORDER BY name,id", [customerId])).rows
   const releaseId = bundles[0]?.catalog_release_id ?? (await pool.query('SELECT id FROM catalog_releases ORDER BY created_at DESC,id LIMIT 1')).rows[0]?.id
-  return { plans: plans.map(r=>planWire(r)), bundles: bundles.map(r=>bundleWire(r)), release: releaseId ? await getRelease(pool,releaseId) : null }
+  return { plans: plans.map(r=>planWire(r)), bundles: bundles.map(r=>bundleWire(r)), release: releaseId ? await getRelease(pool,releaseId) : null, ai_topup: await aiTopupCatalog(pool) }
 }
 const branchInput = z.strictObject({ add: z.array(z.strictObject({name:z.string().trim().min(1).max(200)})).default([]), archive: z.array(z.uuid()).default([]), restore: z.array(z.uuid()).default([]) })
 export async function createBranchQuote(pool: Pool, customerId: string, raw: string) {
@@ -111,7 +112,7 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   if (m==='GET' && path==='/subscription') {requireCapability(principal,'subscription.read');return {status:200,data:await getSubscription(pool,customerId)}}
   if (m==='GET' && path==='/catalog') {requireCapability(principal,'subscription.read');return {status:200,data:await customerCatalog(pool,customerId)}}
   if (m==='POST' && path==='/trial/convert') {requireCapability(principal,'subscription.manage');const payment=needPayment(runtime);return {status:201,data:await convertTrial(pool,{customer_id:customerId,now:new Date(),adapter:payment.adapter,returnOrigin:payment.returnOrigin})}}
-  if (m==='POST' && path==='/trial') {requireCapability(principal,'subscription.manage');return {status:201,data:await startTrial(pool,{customer_id:customerId,request:parseBody(input.raw,quoteRequestSchema.omit({subscription_id:true})),principal})}}
+  if (m==='POST' && path==='/trial') {requireCapability(principal,'subscription.manage');return {status:201,data:await startTrial(pool,{customer_id:customerId,request:parseBody(input.raw,quoteRequestSchema.omit({subscription_id:true,ai_topup_minor:true})),principal})}}
   if (m==='POST' && path==='/quotes') {requireCapability(principal,'subscription.manage');return {status:201,data:await createQuoteForCustomer(pool,{customer_id:customerId,request:{...parseBody(input.raw,quoteRequestSchema),effective_date:undefined}})}}
   if (m==='POST' && path==='/preview') {
     requireCapability(principal,'subscription.read')

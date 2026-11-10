@@ -12,6 +12,7 @@ import { onboardSharedTenant } from '../shared/onboarding.js'
 import { commercialEnrollmentActor } from '../shared/commercial-enrollment-authority.js'
 import { enqueueOutbox } from './outbox.js'
 import { hasReachableManager } from './orders.js'
+import { deliveredEntitlement, markTopupRefunded } from './ai-ledger.js'
 
 /** The Odoo hard expiry: trial end plus the plan's grace, on the UTC calendar Odoo compares. */
 export function commercialExpiryDate(trialEndsAt: string | Date, graceDays: number): string {
@@ -108,7 +109,11 @@ export async function failFulfillmentOn(client: PoolClient, input: { order_id: s
   const type = INTERVENTION_CODES.includes(input.code) ? 'fulfillment_needs_intervention' : 'fulfillment_failed'
   const next = nextOrderState(started, { type })
   await client.query('UPDATE orders SET fulfillment_state=$2 WHERE id=$1', [order.id, next.fulfillment_state])
-  if(type==='fulfillment_failed' && order.payment_state==='paid')await recordFulfillmentFailure(client,{order_id:order.id,reason:input.code,actor:'commercial-fulfillment'})
+  if(type==='fulfillment_failed' && order.payment_state==='paid'){
+    await recordFulfillmentFailure(client,{order_id:order.id,reason:input.code,actor:'commercial-fulfillment'})
+    // The money is credited back, so the AI balance it bought must stop counting.
+    await markTopupRefunded(client,order.id,'system',`fulfillment failed: ${input.code}`)
+  }
 }
 
 /** Worker-only runtime configuration; omit actor to use paid-subscription service authority.
@@ -269,8 +274,8 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
         const expiryRevision = Number(order.commercial_expiry_revision) + 1
         await client.query('UPDATE subscriptions SET commercial_expiry_revision=$2,revision=revision+1 WHERE id=$1', [order.subscription_id, expiryRevision])
         const authority:FulfillmentAuthority={order_id:order.id,operation_id:effect.rows[0].operation_id,previous_revision_id:order.applied_revision_id,
-          target_revision_id:order.target_revision_id,entitlement:{modules:order.snapshot.entitlement.modules,features:order.snapshot.entitlement.features,
-            digest:order.snapshot.entitlement.digest,compiler_version:order.snapshot.entitlement.compiler_version},
+          target_revision_id:order.target_revision_id,entitlement:await deliveredEntitlement(client,order.customer_id,{modules:order.snapshot.entitlement.modules,features:order.snapshot.entitlement.features,
+            digest:order.snapshot.entitlement.digest,compiler_version:order.snapshot.entitlement.compiler_version}),
           branches:{apply:ordered.filter(x=>x.odoo_company_id===null).map(x=>({branch_id:x.id,name:x.name})),archive:order.snapshot.branch_archive_ids??order.snapshot.branches?.archive??[],
             ...(ordered.some(x=>x.odoo_company_id!==null)?{restore:ordered.filter(x=>x.odoo_company_id!==null).map(x=>x.id)}:{})},
           commercial_valid_until: await commercialValidUntil(client, order),

@@ -1,7 +1,11 @@
 import type { Pool } from 'pg'
+import { AI_ENTITLEMENT_KEYS } from '@liwan/commercial-contracts'
 import { recordUsage } from './usage.js'
+import { sweepAi } from './ai-ledger.js'
+import { tenantStatusSql } from './suspension.js'
 
-export type UsageObservation = { database: string; observed_at: string; usage: Record<string, number>; limit_gates: Record<string, string[]> }
+/** `ai` is the three derived AI values the tenant holds, when its profile carries them (an older tenant does not). */
+export type UsageObservation = { database: string; observed_at: string; usage: Record<string, number>; limit_gates: Record<string, string[]>; ai?: Record<string, number> }
 /** The runner must stop its work when SIGNAL aborts; its raw result is validated by acceptObservation. */
 export type UsageObserveRunner = (input: { tenant_id: string; database: string; signal?: AbortSignal }) => Promise<unknown>
 
@@ -19,7 +23,6 @@ export const USAGE_LOCK_CLASS = 1397969235
 export const USAGE_LOCK_OBJECT = 1
 // Same set as the Python validate_observation: a sample without these is partial.
 const REQUIRED = ['users.limit', 'storage.limit_mb', 'branches.extra_limit']
-const LIVE_STATES = ['trialing', 'active', 'past_due']
 
 /** The observation, when it is fresh usage of DATABASE keyed by limit keys with a gate list for every metric; otherwise null. */
 export function acceptObservation(observed: unknown, database: string, now: Date): UsageObservation | null {
@@ -39,11 +42,23 @@ export function acceptObservation(observed: unknown, database: string, now: Date
   // Gates must cover exactly the observed metrics; a partial sample would make the downgrade check misjudge a reopen.
   if (gateEntries.length !== entries.length || !entries.every(([key]) => Object.hasOwn(gates, key))) return null
   if (!gateEntries.every(([, list]) => Array.isArray(list) && list.length <= 64 && list.every(g => typeof g === 'string' && LIMIT_KEY.test(g)))) return null
+  const ai = observedAi(value.features)
+  if (ai === null) return null
   return {
     database, observed_at: value.observed_at,
+    ...(ai ? { ai } : {}),
     usage: Object.fromEntries(entries) as Record<string, number>,
     limit_gates: Object.fromEntries(gateEntries.map(([key, list]) => [key, [...(list as string[])]])),
   }
+}
+
+/** The tenant's three AI values from its feature map: undefined when it has none of them, null when any is malformed. */
+function observedAi(features: unknown): Record<string, number> | undefined | null {
+  if (!features || typeof features !== 'object' || Array.isArray(features)) return undefined
+  const held = features as Record<string, unknown>
+  if (!AI_ENTITLEMENT_KEYS.some(key => Object.hasOwn(held, key))) return undefined
+  if (!AI_ENTITLEMENT_KEYS.every(key => typeof held[key] === 'number' && Number.isSafeInteger(held[key]) && (held[key] as number) >= 0)) return null
+  return Object.fromEntries(AI_ENTITLEMENT_KEYS.map(key => [key, held[key] as number]))
 }
 
 /** Runs WORK with an AbortSignal that aborts after MS; the rejection says observe_timeout. */
@@ -58,7 +73,7 @@ async function withDeadline<T>(work: (signal: AbortSignal) => Promise<T>, ms: nu
   try { return await Promise.race([work(controller.signal), timeout, stopped]) } finally { clearTimeout(timer); stop?.removeEventListener('abort', onStop) }
 }
 
-/** Persist Odoo's observed usage for live shared tenants (trialing/active/past_due, operations enabled), the
+/** Persist Odoo's observed usage for every shared tenant that can still be used (any state but suspended, operations enabled), the
  * least recently ATTEMPTED first, at most LIMIT tenants and BUDGET_MS per run (each observation bounded and
  * cancelled on timeout), so a run is short and a failing tenant cannot starve the others. Only one run
  * collects at a time across workers (advisory lock; a second caller returns { locked: true }).
@@ -80,10 +95,10 @@ export async function collectUsage(pool: Pool, input: { runner: UsageObserveRunn
           FROM subscriptions s
           JOIN tenants t ON t.id=s.tenant_id AND t.operations_enabled=true
           JOIN shared_registry_bindings b ON b.control_tenant_id=s.tenant_id AND b.enabled=true
-          WHERE s.applied_revision_id IS NOT NULL AND s.state = ANY($2::text[])
+          WHERE s.applied_revision_id IS NOT NULL AND ${tenantStatusSql('s')}='active'
           ORDER BY b.control_tenant_id, s.id) x
         LEFT JOIN usage_collection_attempts a ON a.tenant_id=x.tenant_id
-        ORDER BY a.attempted_at ASC NULLS FIRST, x.tenant_id LIMIT $1`, [input.limit ?? DEFAULT_LIMIT, LIVE_STATES])).rows as Array<{ tenant_id: string; database_name: string; registry_revision: string }>
+        ORDER BY a.attempted_at ASC NULLS FIRST, x.tenant_id LIMIT $1`, [input.limit ?? DEFAULT_LIMIT])).rows as Array<{ tenant_id: string; database_name: string; registry_revision: string }>
       const deadline = clock() + (input.budget_ms ?? BUDGET_MS)
       for (const target of targets) {
         if (clock() >= deadline || input.signal?.aborted) break
@@ -103,6 +118,8 @@ export async function collectUsage(pool: Pool, input: { runner: UsageObserveRunn
           if (!still.rowCount) { result.skipped++; continue }
           await recordUsage(pool, { tenant_id: target.tenant_id, observed_at: new Date(observed.observed_at), metrics: observed.usage, limit_gates: observed.limit_gates, source: 'odoo.observe' })
           result.recorded++
+          // The level-triggered check: what the tenant holds against the ledger. A failure here must not lose the sample.
+          if (observed.ai) await sweepAi(pool, target, observed.ai, log).catch(error => log(`tenant ${target.tenant_id}: ai sweep: ${error instanceof Error ? error.message : 'sweep_failed'}`))
         } catch (error) {
           result.skipped++
           log(`tenant ${target.tenant_id}: ${error instanceof Error ? error.message : 'observe_failed'}`)

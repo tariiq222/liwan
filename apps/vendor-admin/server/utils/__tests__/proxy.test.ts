@@ -205,8 +205,8 @@ describe('vendor API proxy', () => {
     const spy = vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms: number) => { timeouts.push(ms); return new AbortController().signal })
     try {
       stubUpstream(() => json(200, { ok: true }))
-      await post('/platform/ai-provider/models', { body: { preset: 'openai' } })
-      await post('/platform/ai-provider/test', { body: { preset: 'openai', model: 'm' } })
+      await post('/platform/ai-provider/models', { body: { provider: 'oai' } })
+      await post('/platform/ai-provider/test', { body: { provider: 'oai', model: 'm' } })
       await get('/platform/ai-provider/presets')
       await get('/context')
     } finally { spy.mockRestore() }

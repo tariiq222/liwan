@@ -20,7 +20,7 @@ it('persists one provisioning business key across distinct request IDs', async (
     if (sql.includes('FROM shared_registry_bindings')) return result([{...binding,host:'a.invalid'}])
     if (sql.includes('FROM tenants')) return result([{id:request.requestId,catalog_version:'v1',catalog_tier:'core'}])
     if (sql.includes('FROM catalog_entries')) return result([{source_sha256:'a'.repeat(64),solution}])
-    if (sql.includes("state IN ('running','needs_intervention')")) return result([])
+    if (sql.includes("blocker.state='running'")) return result([])
     if (sql.includes('FROM shared_jobs')) return result(stored)
     if (sql.startsWith('INSERT INTO shared_jobs')) { inserts++;stored.push({id:params[0],payload_digest:params[4],state:'queued',issuer:params[5],actor_uid:params[6]});return result() }
     if (sql.startsWith('UPDATE shared_onboardings SET job_id=')) return result()
@@ -54,7 +54,7 @@ it('enqueues and replays signed HTTP backup through actual store with registry-o
     if(sql.includes('FROM vendor_account_roles'))return result([{role:'operations'}])
     if(sql.includes('FROM tenants'))return result([{}])
     if(sql.includes('FROM shared_registry_bindings'))return result([{...binding,host:'a.invalid'}])
-    if(sql.includes("state IN ('running','needs_intervention')"))return result()
+    if(sql.includes("blocker.state='running'"))return result()
     if(sql.includes('FROM shared_jobs'))return result(inserted.map(p=>({id:p[0],payload_digest:p[4],state:'queued',issuer:p[5],actor_uid:p[6]})))
     if(sql.startsWith('INSERT INTO shared_jobs')){inserted.push(params);return result()}
     if(sql.startsWith('INSERT INTO audit_events'))return result()
@@ -137,7 +137,7 @@ function restoreFixture(approval: Record<string, unknown> | null, flags: { dupli
       if(!approval || (sql.includes('WHERE a.id=$1 AND a.consumed_at IS NULL') && !available))return result()
       return result([{...approval,approval_available:available}])
     }
-    if (sql.includes("state IN ('running','needs_intervention')")) return result([])
+    if (sql.includes("blocker.state='running'")) return result([])
     if (sql.includes("payload->>'approvalId'")) return flags.duplicate ? result([{ok:1}]) : result([])
     if (sql.includes('FROM shared_jobs')) return result(stored.filter((row)=>row.business_key===params[1]))
     if (sql.startsWith('INSERT INTO shared_jobs')) { stored.push({id:params[0],payload:params[3],payload_digest:params[4],state:'queued',issuer:params[5],actor_uid:params[6],business_key:params[2]}); return result() }

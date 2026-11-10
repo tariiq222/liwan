@@ -160,9 +160,11 @@ export const pricingPolicySchema = z.strictObject({
   ]),
 })
 export const quoteLineSchema = z.strictObject({
-  key: z.string(), kind: z.enum(['base', 'bundle', 'branch', 'users', 'storage', 'onboarding', 'discount', 'tax', 'adjustment']),
+  key: z.string(), kind: z.enum(['base', 'bundle', 'branch', 'users', 'storage', 'onboarding', 'ai_topup', 'discount', 'tax', 'adjustment']),
   timing: z.enum(['now', 'renewal']), description: z.string(), quantity: z.number().int().min(0).max(MAX),
   amount: moneySchema, period_start: isoDate, period_end: isoDate, source_revision_id: revisionIdSchema,
+  /** On the `ai_topup` line only: what the customer was shown it buys, so payment grants exactly that whatever the rate does later. */
+  ai_topup: z.strictObject({ units: z.number().int().min(0).max(1_000_000_000), usd_rate: z.string().regex(/^\d{1,4}(?:\.\d{1,6})?$/) }).optional(),
 })
 export const quoteSchema = z.strictObject({
   id: z.string(), customer_id: z.string(), subscription_id: z.string().nullable(),
@@ -211,6 +213,8 @@ export const quoteRequestSchema = z.strictObject({
   effective_date: isoDate.optional(),
   /** The optional one-time assisted onboarding on a first order; the vendor's own fee prices it. */
   onboarding: z.boolean().optional(),
+  /** A one-time AI balance top-up in SAR minor units; must be one of the amounts the vendor offers. Never recurring. */
+  ai_topup_minor: z.number().int().min(1).max(MAX).optional(),
 })
 
 export type RevisionId = z.infer<typeof revisionIdSchema>

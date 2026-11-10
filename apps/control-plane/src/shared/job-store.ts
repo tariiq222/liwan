@@ -44,15 +44,36 @@ export async function requireJobAuthority(client: PoolClient, controlTenantId: s
   const tenant = await client.query("SELECT id FROM tenants WHERE id=$1 AND commercial_mode='saas' AND operations_enabled=true FOR SHARE", [controlTenantId])
   if (!tenant.rowCount) throw new Error('tenant_operations_unavailable')
 }
+/** Serializes everything that decides, queues or claims a job for one tenant. The one key every such path takes. */
+export async function lockTenantJobs(client: Pick<PoolClient, 'query'>, controlTenantId: string) {
+  await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [controlTenantId])
+}
+/**
+ * The one rule for what blocks a job from running: a `running` job of the same tenant always does; a job in
+ * `needs_intervention` does too, except for an AI push, which writes only the three derived AI values on the already
+ * applied revision and must not wait for an operator. SQL fragment over the blocking row alias and a boolean SQL
+ * expression that says whether the candidate job is an AI push.
+ */
+// Safe by construction: the tenant effect refuses an `ai_push` (stale_target) unless the tenant is already on the target
+// revision with its digest, and then rewrites only the three AI keys (tools/shared_saas_lifecycle/subscription_effect.py).
+export const blockingJobSql = (blocker: string, candidateIsAiPush: string) =>
+  `(${blocker}.state='running' OR (${blocker}.state='needs_intervention' AND NOT COALESCE(${candidateIsAiPush},false)))`
+/** The id of a job that blocks the candidate (null when none does). `exceptId` is the candidate itself. */
+export async function findBlockingJob(client: Pick<PoolClient, 'query'>, controlTenantId: string, candidate: { id?: string; aiPush: boolean }): Promise<string | null> {
+  const found = await client.query(`SELECT blocker.id FROM shared_jobs blocker WHERE blocker.control_tenant_id=$1 AND blocker.id IS DISTINCT FROM $2::uuid AND ${blockingJobSql('blocker', '$3::boolean')} LIMIT 1`,
+    [controlTenantId, candidate.id ?? null, candidate.aiPush])
+  return found.rows[0]?.id ?? null
+}
 /** Internal paid-order path: authority comes from locked commercial records, not a vendor/browser actor. */
-export async function enqueueReconfigureJob(client: PoolClient, value: unknown) {
+export async function enqueueReconfigureJob(client: PoolClient, value: unknown, opts: { unique?: boolean } = {}) {
   const { sharedReconfigureJobSchema } = await import('@liwan/commercial-contracts/shared')
   const { createHash } = await import('node:crypto')
   const job = sharedReconfigureJobSchema.parse(value)
   const expiry = Object.hasOwn(job.authority, 'commercial_valid_until') ? `:commercial:${job.authority.commercial_valid_until ?? 'none'}:order:${job.authority.order_id}` : ''
-  const key = `${job.controlTenantId}:${job.authority.target_revision_id}${job.restore ? ':restore:'+job.restoreId : ''}${expiry}`
+  // `unique`: a push of live state (not an order's one-time effect) must never be swallowed as a replay of an earlier one.
+  const key = `${job.controlTenantId}:${job.authority.target_revision_id}${job.restore ? ':restore:'+job.restoreId : ''}${expiry}${opts.unique ? ':push:'+job.authority.operation_id : ''}`
   const digest = createHash('sha256').update(JSON.stringify(job)).digest('hex')
-  await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [job.controlTenantId])
+  await lockTenantJobs(client, job.controlTenantId)
   const existing = await client.query('SELECT id,state,payload FROM shared_jobs WHERE control_tenant_id=$1 AND business_key=$2', [job.controlTenantId,key])
   if (existing.rowCount) {
     if (existing.rows[0].payload.authority.target_revision_id !== job.authority.target_revision_id || existing.rows[0].payload.authority.entitlement.digest !== job.authority.entitlement.digest) throw Error('idempotency_conflict')
@@ -115,7 +136,7 @@ export async function enqueueSharedJob(pool: Pool, controlTenantId: string, acto
       : bindQueuedRequest(authoritative, target)
     const key = businessKey(job), digest = payloadDigest(job)
     // Serialize enqueue/approval consumption for this tenant, in addition to SQL uniqueness.
-    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [controlTenantId])
+    await lockTenantJobs(client, controlTenantId)
     const existing = await client.query('SELECT id,payload_digest,state,issuer,actor_uid FROM shared_jobs WHERE control_tenant_id=$1 AND business_key=$2', [controlTenantId,key])
     if (existing.rowCount) {
       if (existing.rows[0].issuer !== actor.issuer || Number(existing.rows[0].actor_uid) !== actor.actorUid) throw new Error('shared_replay_forbidden')
@@ -127,8 +148,7 @@ export async function enqueueSharedJob(pool: Pool, controlTenantId: string, acto
     // replay of the immutable job above. Source/approval/actor/digest were
     // reconstructed and compared before reaching this point.
     if (job.operation === 'restore' && !restoreApprovalAvailable) throw new Error('shared_restore_approval_unavailable')
-    const unresolved = await client.query("SELECT id FROM shared_jobs WHERE control_tenant_id=$1 AND state IN ('running','needs_intervention') LIMIT 1", [controlTenantId])
-    if (unresolved.rowCount) throw new Error('shared_reconciliation_required')
+    if (await findBlockingJob(client, controlTenantId, { aiPush: false })) throw new Error('shared_reconciliation_required')
     if (job.operation === 'provision') {
       const catalog = await client.query("SELECT source_sha256,solution FROM catalog_entries WHERE version=$1 AND status='published' FOR SHARE", [job.catalog.version])
       const entry = catalog.rows[0]

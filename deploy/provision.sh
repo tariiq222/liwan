@@ -28,7 +28,8 @@ if grep -Eq '^COMPOSE_PROFILES=([^#]*,)?ai(,|$|[[:space:]])' .env; then
   [ -n "$(env_file_value AI_MODEL)" ] \
     || { echo "provision: COMPOSE_PROFILES enables ai but AI_MODEL is not set in deploy/.env; the AI platform provider file needs AI_MODEL, AI_PROVIDER (default ollama) and, except for ollama, AI_API_KEY" >&2; exit 1; }
   # The AI service reads its platform provider only from a file (AI_PLATFORM_PROVIDER_FILE), mode 600 and owned by the ai user
-  # (so provisioning runs as root, or fails); it is written from AI_PROVIDER, AI_MODEL, AI_API_KEY and AI_BASE_URL of .env, which no container receives.
+  # (so provisioning runs as root, or fails); it is written in the multi-provider format (one provider, one model, the default route) from AI_PROVIDER, AI_MODEL,
+  # AI_API_KEY, AI_BASE_URL and the optional AI_STREAM_USAGE, AI_PRICE_INPUT, AI_PRICE_OUTPUT and AI_MARGIN_BPS of .env, which no container receives.
   # The directory is mounted into `ai` (docker-compose.yml) and, by default, stays out of Git (data/).
   # The directory is the one Compose mounts into `ai`: LIWAN_AI_PLATFORM_DIR from the environment, else from deploy/.env, else ./data/ai
   # (relative to deploy/, like Compose's own `${LIWAN_AI_PLATFORM_DIR:-./data/ai}`).

@@ -69,7 +69,7 @@ suite('commercial first enrollment on scratch PostgreSQL', () => {
     expect(processed.find(x=>x.order_id===s.order)).toMatchObject({job_id:expect.any(String)})
     await process()
     const reconfigure = (await pool.query("SELECT payload FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'operation'='reconfigure'", [customer.tenant_id])).rows
-    expect(reconfigure).toHaveLength(1); expect(reconfigure[0].payload.authority.entitlement).toEqual({modules:s.entitlement.modules,features:s.entitlement.features,digest:s.entitlement.digest,compiler_version:s.entitlement.compiler_version})
+    expect(reconfigure).toHaveLength(1); expect(reconfigure[0].payload.authority.entitlement).toEqual({modules:s.entitlement.modules,features:{...s.entitlement.features,'ai.balance.granted':0,'ai.allowance.trial':133333,'ai.allowance.monthly':0},digest:s.entitlement.digest,compiler_version:s.entitlement.compiler_version})
     expect(reconfigure[0].payload.authority.branches.archive).toEqual([s.archive])
     expect((await pool.query('SELECT state FROM commercial_branches WHERE id=$1',[s.archive])).rows[0].state).toBe('active')
     expect((await pool.query('SELECT status FROM commercial_outbox WHERE aggregate_id=$1', [s.order])).rows[0].status).toBe('done')
