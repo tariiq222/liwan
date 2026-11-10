@@ -56,6 +56,7 @@ VENDOR_ADMIN_SKIPPED_DIRS = {'node_modules', '.nuxt', '.output', 'dist', 'storyb
 VENDOR_ADMIN_TEST_DIRS = {'test', 'tests', 'e2e'}
 FORBIDDEN_SEGMENTS = {'apps', 'odoo-addons', 'control-plane'}
 COMMERCIAL_IMPORT = re.compile(r"""(?:from|import)\s*\(?['"]@liwan/commercial-contracts""")
+CUSTOMER_COMMERCIAL_MODULE = 'apps/web/server/utils/customer-commercial'
 CUSTOMER_KIND = re.compile(r'\b(?:government|is_gov|gov_)', re.IGNORECASE)
 SQL_TABLE = re.compile(
     r'\b(?:FROM|JOIN|UPDATE|INSERT\s+INTO|DELETE\s+FROM)\s+(?:ONLY\s+)?'
@@ -395,6 +396,27 @@ def import_specifiers(text: str, rel: str | None = None) -> list[str]:
     return found
 
 
+def commercial_path_allowed(path: str, allowances: list[str]) -> bool:
+    """A slash-terminated entry covers a directory; any other entry covers exactly one file."""
+    return any(path.startswith(entry) if entry.endswith('/') else path == entry for entry in allowances)
+
+
+def commercial_imports(text: str, rel: str) -> int:
+    """Count commercial contract imports and imports of the customer server helper."""
+    aliases = {
+        '~/': 'apps/web/app/', '@/': 'apps/web/app/',
+        '~~/': 'apps/web/', '@@/': 'apps/web/', '#server/': 'apps/web/server/',
+    }
+    total = count(COMMERCIAL_IMPORT, text)
+    for specifier in import_specifiers(text, rel):
+        prefix = specifier.partition('/')[0] + '/'
+        if prefix in aliases:
+            specifier = posixpath.normpath(aliases[prefix] + specifier[len(prefix):])
+        if specifier in (CUSTOMER_COMMERCIAL_MODULE, CUSTOMER_COMMERCIAL_MODULE + '.ts', CUSTOMER_COMMERCIAL_MODULE + '.js'):
+            total += 1
+    return total
+
+
 WEB_APP_DIR = 'apps/web/app/'
 # Shell composables outside composables/nav: the navigation, rail, palette and shortcut models every module shares.
 SHELL_COMPOSABLES = ('useShellModel.ts', 'useShellNavigation.ts', 'useShellShortcuts.ts', 'useQuickViews.ts', 'usePalette.ts')
@@ -670,10 +692,10 @@ def layers_weakened(old: dict, new: dict, root: Path) -> list[str]:
         elif addon not in new_ranks and (root / 'odoo-addons' / addon).is_dir():
             problems.append(f'{addon} removed from arch_layers.json')
     old_commercial, new_commercial = old.get('commercial', {}), new.get('commercial', {})
-    old_allowed = set(old_commercial.get('allowed', []))
+    old_allowed = old_commercial.get('allowed', [])
     problems += [
-        f'commercial allowed list grew: {prefix}' for prefix in new_commercial.get('allowed', [])
-        if prefix not in old_allowed
+        f'commercial allowed list grew: {path}' for path in new_commercial.get('allowed', [])
+        if not commercial_path_allowed(path, old_allowed)
     ]
     new_pages = new_commercial.get('pages', {})
     problems += [
@@ -811,8 +833,8 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
                 continue
             text = _read(path)
             _put(v['R5'], f'control-plane import {rel}', count(CONTROL_PLANE_IMPORT, text))
-            if not rel.startswith(tuple(commercial['allowed'])):
-                _put(v['R5'], f'commercial import {rel}', count(COMMERCIAL_IMPORT, text))
+            if not commercial_path_allowed(rel, commercial['allowed']):
+                _put(v['R5'], f'commercial import {rel}', commercial_imports(text, rel))
             _put(v['R6'], rel, count(CUSTOMER_KIND, text))
     for directory, middleware in commercial['pages'].items():
         folder = web / 'app' / 'pages' / directory

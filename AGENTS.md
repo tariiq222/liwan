@@ -193,8 +193,10 @@ never add an entry or raise a count to make a check pass.
   services ← applications ← bridges ← `customer_<name>_*`.
 - **R5** The product runs without the control plane. Nothing in `odoo-addons` or `apps/web/app` imports
   from `apps/control-plane`; no new file references the control plane. `apps/vendor-admin` is the only vendor
-  client of the control plane; the customer-commercial paths (`/subscription`, `apps/web/server/api/commercial`,
-  `apps/web/server/utils/customer-commercial.ts`) remain the sole customer-side exception.
+  client of the control plane. Customer subscriptions and invitations use the commercial integration
+  through `apps/web/server/api/commercial/`, `apps/web/server/api/invitations/`, and
+  `apps/web/server/utils/customer-commercial.ts`. The allowed paths for commercial contract and helper
+  imports are listed in `tools/arch_layers.json`; a directory entry ends in `/`, and a file entry matches exactly.
 - **R6** No condition on a customer name or customer type. Differences come from `commercial_mode`,
   entitlements and `customer_<name>_*` addons.
 - **R7** No new `sudo()` outside the documented cases. `tools/arch_documented_sudo.json` is the single
@@ -296,11 +298,17 @@ cross-addon links.
 - Arabic (`ar`) is the default locale and the UI is RTL-first. User-facing
   strings use `$t()`/`t()` and the owning locale namespace.
 - API routes use `type='json2'`, `auth='user'`, explicit methods, and the
-  shared `api_handler`. The one exception is the public namespace `/api/v1/public/` (owner decision
+  shared `api_handler`. The public namespace `/api/v1/public/` is a documented exception (owner decision
   D3, 2026-10-28): routes for anonymous visitors, `auth='public'` and `save_session=False`, authorized by a
   per-document access token or a gateway signature, never by a session (the Nuxt proxy forwards them
   without cookies); gateway callbacks there may be `type='http'`. Each is listed with its reason in
-  `tools/route_gate_allowlist.json`. Return serializer-whitelisted shapes and structured
+  `tools/route_gate_allowlist.json`. The existing Inbox callbacks are a separate exception (owner
+  decision 2026-11-10). `GET` and `POST` on `/api/v1/inbox/hooks/whatsapp` and `POST` on
+  `/api/v1/inbox/hooks/tiktok` use `type='http'`, `auth='inbox_hook'` and `save_session=False`.
+  WhatsApp `GET` checks the provider verification token. Both `POST` operations verify the
+  provider signature. These callbacks use the dedicated hook identity without session
+  authentication and are listed in `tools/route_gate_allowlist.json`.
+  Return serializer-whitelisted shapes and structured
   errors with a real HTTP status: 403 `forbidden`, 404 `not_found`, and 422
   `invalid` where applicable. Browser traffic uses the session cookie, not a
   bearer token.

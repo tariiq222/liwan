@@ -199,7 +199,9 @@
       "apps/web/app/components/vendor/",
       "apps/web/app/components/subscription/",
       "apps/web/app/components/shared/commerce/",
-      "apps/web/server/"
+      "apps/web/server/api/commercial/",
+      "apps/web/server/api/invitations/",
+      "apps/web/server/utils/customer-commercial.ts"
     ]
   }
 }
