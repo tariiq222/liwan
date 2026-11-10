@@ -340,11 +340,11 @@ it.each(['shared', 'dedicated'] as const)('%s BFF auth retains pending MFA, rota
   try {
     const login = Buffer.from('{"login":"mfa","password":"synthetic"}')
     const padded = Buffer.concat([login, Buffer.alloc(65536 - login.length, 32)])
-    const first = await wire.call('/api/auth/login', padded, { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin', 'x-forwarded-proto': 'https' })
+    const first = await wire.call('/api/auth/login', padded, { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' })
     expect(first.status).toBe(200)
     expect(first.body).toEqual({ ok: false, mfa: 'code' })
     expect(first.headers['set-cookie']![0]).toContain('session_id=pending-wire')
-    expect(first.headers['set-cookie']![0]).toContain('Secure')
+    expect(/; Secure/.test(first.headers['set-cookie']![0]!)).toBe(mode === 'shared')
     const code = Buffer.from('{"code":"123456"}')
     const mfa = await wire.call('/api/auth/verify', Buffer.concat([code, Buffer.alloc(1024 - code.length, 32)]), { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin', cookie: 'session_id=pending-wire' })
     expect(mfa.status).toBe(200)

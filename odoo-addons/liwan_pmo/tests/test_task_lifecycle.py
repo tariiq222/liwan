@@ -244,6 +244,21 @@ class TestTaskLifecycle(LiwanPmoCase):
         ).json()
         self.assertEqual((empty['total'], empty['items']), (3, []))
 
+    def test_archive_list_zero_limit_returns_the_default_page(self):
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        for index in range(3):
+            created = self.api('POST', '/api/v1/tasks', {
+                'name': f'Zero limit archive {index}', 'project_id': self.project.id,
+            })
+            self.assertEqual(created.status_code, 201)
+            self.assertEqual(self.api('POST', f'/api/v1/tasks/{created.json()["id"]}/archive', {}).status_code, 200)
+        url = f'/api/v1/tasks/archived?project_id={self.project.id}&q=Zero limit archive'
+        zero = self.api('GET', f'{url}&limit=0').json()
+        self.assertEqual(zero['total'], 3)
+        self.assertEqual(len(zero['items']), 3)
+        self.assertEqual([item['id'] for item in zero['items']],
+                         [item['id'] for item in self.api('GET', url).json()['items']])
+
     def test_archive_list_hides_cross_company_and_hidden_tasks(self):
         company_b = self.env['res.company'].create({'name': 'Archive company B'})
         self.manager.write({'company_ids': [(4, company_b.id)]})

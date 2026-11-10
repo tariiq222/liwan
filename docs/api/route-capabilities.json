@@ -4000,7 +4000,13 @@
     "GET /api/v1/inbox/channels/{channel_id}/flows": {
       "addon": "liwan_inbox",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "inbox.conversations.reply",
+        "inbox.flows.manage",
+        "inbox.automation.manage",
+        "inbox.templates.manage",
+        "inbox.channels.manage"
+      ],
       "capability_match": "any",
       "capability_source": "decorator",
       "feature_keys": [
@@ -4060,7 +4066,12 @@
     "GET /api/v1/inbox/channels/{channel_id}/templates": {
       "addon": "liwan_inbox",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "inbox.conversations.read",
+        "inbox.templates.manage",
+        "inbox.channels.manage",
+        "inbox.campaigns.manage"
+      ],
       "capability_match": "any",
       "capability_source": "decorator",
       "feature_keys": [
@@ -4262,7 +4273,13 @@
     "GET /api/v1/inbox/flows/{flow_id}": {
       "addon": "liwan_inbox",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "inbox.conversations.reply",
+        "inbox.flows.manage",
+        "inbox.automation.manage",
+        "inbox.templates.manage",
+        "inbox.channels.manage"
+      ],
       "capability_match": "any",
       "capability_source": "decorator",
       "feature_keys": [
@@ -4498,7 +4515,12 @@
     "GET /api/v1/inbox/templates/{template_id}": {
       "addon": "liwan_inbox",
       "auth": "user",
-      "capability_keys": [],
+      "capability_keys": [
+        "inbox.conversations.read",
+        "inbox.templates.manage",
+        "inbox.channels.manage",
+        "inbox.campaigns.manage"
+      ],
       "capability_match": "any",
       "capability_source": "decorator",
       "feature_keys": [

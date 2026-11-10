@@ -70,6 +70,9 @@ const waiting = waitingStates.map(([state, mode], index) => ({
     errors: state === 'rejected' ? [{ code: 'BR-KSA-17', message: 'the buyer name is missing' }] : [],
     warnings: state === 'retry' ? [{ code: 'W-01', message: 'ZATCA did not answer; it is retried' }] : [],
     qr_present: false,
+    retry_count: state === 'retry' ? 2 : 0,
+    last_attempt_at: state === 'retry' ? '2026-09-11T08:00:00Z' : null,
+    next_retry_at: state === 'retry' ? '2026-09-11T08:05:00Z' : null,
   },
 }))
 function waitingDocuments(url) {

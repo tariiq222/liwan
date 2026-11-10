@@ -40,6 +40,9 @@
         "limit:ai.tokens.monthly",
         "limit:ai.assist.monthly:100",
         "limit:ai.output_tokens.per_run",
+        "limit:ai.balance.granted:0",
+        "limit:ai.allowance.trial:0",
+        "limit:ai.allowance.monthly:0",
         "boolean:payments.enabled"
       ]
     },

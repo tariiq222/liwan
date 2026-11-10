@@ -225,7 +225,8 @@ function cookiesForBrowser(cookies, codec, tenant, { odoo = true, writeDevice = 
 // Header values, cookies, tokens and the query string are never logged; a path segment is kept only as a short lowercase word or a numeric id, any other segment (a token) becomes `*`.
 const auditPath = url => String(url ?? '').split('?')[0].split('#')[0].slice(0, 200).split('/').map(s => /^(?:[a-z][a-z0-9_-]{0,31}|\d{1,12})?$/.test(s) ? s : '*').join('/')
 function auditRefusal(req, error) {
-  if (error.statusCode === 503) return // unavailable is not a boundary refusal
+  // Only the stuck registry barrier is audited among the 503s: a monitor tells it from a tenant refusal by its reason code.
+  if (error.statusCode === 503 && error.code !== 'tenant_registry_unavailable') return
   const reason = /^[a-z_]{1,64}$/.test(error.message) ? error.message : 'unknown'
   console.error(JSON.stringify({
     event: 'tenant_boundary_rejected',

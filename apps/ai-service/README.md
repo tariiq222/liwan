@@ -64,7 +64,7 @@ must stay unset outside local development.
 
 | Variable | Meaning |
 |---|---|
-| `AI_PLATFORM_PROVIDER_FILE` | required; the JSON file that names the platform provider (see Platform provider). The service no longer reads `AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY` or `AI_BASE_URL` |
+| `AI_PLATFORM_PROVIDER_FILE` | required; the JSON file that names the platform provider (see Platform provider). The service does not read `AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY` or `AI_BASE_URL` |
 | `AI_OPENROUTER_REFERER` | optional; sent as `HTTP-Referer` to OpenRouter for app attribution (openrouter only; never required, never logged) |
 | `AI_OPENROUTER_TITLE` | optional; sent as `X-Title` to OpenRouter (openrouter only; never required, never logged) |
 | `AI_EMBEDDING_PROVIDER` | optional; `openai` (any OpenAI-compatible endpoint, through `AI_EMBEDDING_BASE_URL`) or `ollama`. Unset leaves knowledge search unavailable (the tool answers `knowledge_unavailable`). Setting any other `AI_EMBEDDING_*` variable without it refuses startup |
@@ -86,25 +86,50 @@ must stay unset outside local development.
 
 ## Platform provider
 
-The model LiwanOS pays for is read from one JSON file, `AI_PLATFORM_PROVIDER_FILE` (spec `docs/superpowers/specs/2026-11-04-liwan-ai-agents-design.md` §6.13):
+The models LiwanOS pays for are read from one JSON file, `AI_PLATFORM_PROVIDER_FILE` (specs `docs/superpowers/specs/2026-11-04-liwan-ai-agents-design.md` §6.13 and `2026-11-10-liwan-ai-plans-and-router-design.md` §5.5):
 
-    {"provider": "openai_compatible", "model": "deepseek-chat", "base_url": "https://api.deepseek.com/v1", "api_key": "...", "revision": 4, "stream_usage": true}
+    {
+      "revision": 4,
+      "margin_bps": 2000,
+      "providers": {
+        "oai": {"provider": "openai", "api_key": "..."},
+        "ds": {"provider": "openai_compatible", "base_url": "https://api.deepseek.com/v1", "api_key": "...", "stream_usage": true}
+      },
+      "models": {
+        "mid": {"provider": "oai", "model": "gpt-4o", "input_price": "2.5", "cached_input_price": "1.25", "output_price": "10"},
+        "cheap": {"provider": "ds", "model": "deepseek-chat", "input_price": "0.14", "output_price": "0.28"}
+      },
+      "routes": {"default": "mid", "balanced": {"quick": "cheap"}, "economical": {"standard": "cheap", "analysis": "cheap"}, "best": {}}
+    }
 
-`provider`, `model` and `revision` (an integer from 1) are required; `api_key` is required except for `ollama`; `base_url` is required
-for `openai_compatible`, optional otherwise (a plain `http(s)` URL without credentials, query or fragment; `anthropic` ignores it).
-`stream_usage` (optional boolean) says whether to ask the provider's stream for token counts (`stream_options.include_usage`):
-without it a custom `base_url` is not asked and its calls are reported with null token counts, which also means the token limits
-cannot be enforced for it; with `true` the counts are recorded. `openai` without a `base_url` and `openrouter` always ask unless the
-file says `false`; `anthropic` and `ollama` report counts on their own. A tenant's own key keeps the old rule (a custom endpoint is not asked).
-Unknown fields are refused. In shared SaaS the control plane writes the file from the vendor's provider panel; in a dedicated or
-customer-hosted deployment `deploy/provision.sh` writes it from `deploy/.env`. Mount the directory, not the file, so an atomic
+- Ids (of providers and models) are 1 to 32 characters of `a-z`, `0-9`, `_` and `-`, starting with a letter. Unknown fields are refused at every level.
+- `revision` (an integer from 1) and `margin_bps` (0 to 10000, the vendor margin on cost) are required. `providers` and `models` need an entry each; `routes.default` names a model and is required.
+- A provider has `provider` (a registry name), `api_key` (required except for `ollama`), `base_url` (required for `openai_compatible`, optional otherwise: a plain
+  `http(s)` URL without credentials, query or fragment; `anthropic` ignores it) and `stream_usage` (optional boolean: ask the provider's stream for token counts,
+  `stream_options.include_usage`). Without it a custom `base_url` is not asked and its calls are reported with null token counts, which also means the token limits
+  cannot be enforced for it; `openai` without a `base_url` and `openrouter` always ask unless the file says `false`; `anthropic` and `ollama` report counts on their
+  own. A tenant's own key keeps the old rule (a custom endpoint is not asked).
+- A model has `provider` (a provider id), `model` (the name at that provider) and optional prices, decimal strings in USD per million tokens. A price becomes cost units
+  per million tokens (`price x 100,000`, one unit is 0.00001 USD) and must come out an exact integer, so at most five decimals: `"0.14"` is 14,000 units, `"0.000001"` is
+  refused. Without prices a model's calls report tokens and no cost. `cached_input_price` is validated and carried on the model identity for the caching slice; the
+  cost formula does not use it yet.
+- `routes` maps a quality level (`economical`, `balanced`, `best`) and a capability (`quick`, `standard`, `analysis`, `writing`) to a model. A run reads the column of the request
+  policy's `quality` (default `balanced`). A cell with no entry, or whose model is unusable, falls back to the same capability in the `balanced` column and then to `default`.
+  Setup and help runs use the balanced `quick` model, billed to setup. One model for all (only `default`) keeps every run on it with no classification call.
+- Each model entry stands on its own. One with an unknown provider id, a bad name or price, a provider whose own entry is invalid, or a model the SDK refuses to build is
+  dropped with one logged reason (no value from the file) and its routes fall back as above. Only a structural error, a bad `revision` or `margin_bps`, or an unusable
+  `default` rejects the whole file; the reason of a rejected `default` names its cause.
+- The file may be up to 64 KiB.
+
+In shared SaaS the control plane writes the file from the vendor's provider panel; in a dedicated or
+customer-hosted deployment `deploy/provision.sh` writes a single-model file from `deploy/.env`. Mount the directory, not the file, so an atomic
 replacement is seen. The dedicated file is mode 600 owned by uid 10001; the control plane's is mode 640 in a directory of group 10001.
 
 - At start a missing or invalid file stops the boot, naming the field (never a value).
-- Every 5 seconds the content is hashed. A valid change builds the new model and replaces it whole; runs that already started keep
-  the model they began on. An invalid or unreadable file is logged once, by reason only, and the last valid configuration stays.
-- The provider's public host is published as `platform.hosts` in `AI_TENANT_EGRESS_DIR` (the same mechanism as a tenant key's host), at
-  start and on every change. An internal endpoint (a self-hosted Ollama) is not published: list it in `AI_EGRESS_HOSTS`.
+- Every 5 seconds the content is hashed. A valid change builds the new models and replaces them whole; runs that already started keep
+  the models they began on. An invalid or unreadable file is logged once, by reason only, and the last valid configuration stays.
+- The public hosts of every configured provider are published together, one per line, as `platform.hosts` in `AI_TENANT_EGRESS_DIR` (the same mechanism as a tenant key's
+  host), at start and on every change. An internal endpoint (a self-hosted Ollama) is not published: list it in `AI_EGRESS_HOSTS`.
   `platform` is therefore not a usable tenant database name for a tenant key.
 
 ## Providers
@@ -145,18 +170,70 @@ and Anthropic always report tokens. `model` must be 1 to 128 characters without 
 `POST /v1/runs` names its run through exactly one of `new_run_id` (a new run, `^r_[0-9a-f]{24}$`, chosen by the caller; 409 when taken)
 and `run_id` (continues a finished run); anything else is 422.
 
-Before each provider attempt the stream carries `model_call` (`call_id`, `kind` `plan|title`, `provider`, `model`, `called_at`) and after it
+Before each provider attempt the stream carries `model_call` (`call_id`, `kind` `plan|title|route|summary`, `provider`, `model`, `called_at`) and after it
 `model_usage` (`call_id`, `outcome` `ok|failed|retried|aborted`, `input_tokens`, `output_tokens`, null when the provider reported none). The
 Nuxt server consumes both and never relays them to the browser. The provider SDKs are built with `max_retries=0`; the service retries a plan
 call itself, up to 3 attempts, only for a 408/409/429/5xx answer or a connection error (Ollama's 5xx answers included). A wait is 0.5 s then 1 s,
 or the provider's `Retry-After` when longer, plus 0 to 25 % jitter; a wait that would not end before the run deadline is not started and the failure is
 final. Titles are never retried.
 
+**Task router.** Each new user message (not a resume after a tool result or an approval, which re-enters at the interrupted tool
+step and keeps the capability already in the state) is classified once by the graph's `route` node, before its first plan call. It is one
+`route` call on the `quick` model with a fixed English instruction, the last user message cut to 1,500 characters, the active agent and the
+previous capability; no history and no tools. The reply is read leniently (the first word that names a capability, case and punctuation
+ignored); the result is stored in the state as `capability`, and every plan call of that message, tool loop included, runs on the model
+the run's map names for it. There is one attempt with a 5 second timeout (also bounded by the run deadline). An error, a timeout or an
+unreadable reply selects `standard` and the run goes on; failures are logged by exception class only. The call is reported like every
+other: `model_call` with kind `route` and a `model_usage` with outcome `ok`, `failed` or `aborted` (the timeout), its tokens, cost and
+charge from the `quick` model's identity. No call is made, and no event is sent, when the request's models cannot differ by capability
+(fewer than two distinct models across the four capabilities): a single-model map and a pinned `setup` or help run never classify.
+
+**Fallback.** When a plan call on a routed model (not the default model) fails with a transient error (408/409/429/5xx or a connection
+error) on every one of its 3 attempts, one more attempt runs on the default model, reported as its own `model_call`/`model_usage` pair,
+bounded by the time left before the run deadline (none left: the original error is raised). The state then carries `on_default_model`, and the
+rest of that message runs on the default model directly, still reporting the capability it was classified as; the next message's `route`
+clears it. Non-transient errors, and a default model that is itself the failing one, propagate as before.
+
+**History.** What a plan call sends is bounded; what is checkpointed is not. The stored `messages` are never rewritten or deleted. Before
+every plan call the stored messages (system messages aside) go through `history_view.model_history`, then `portable_history` (plain text
+plus tool calls, ids every provider accepts). The view runs first because the summary's `summary_covers` counts stored messages, and
+`portable_history` may drop some. The plan call's messages are the system prompt, then the summary block (when there is one), then the
+messages from `summary_covers` on. There are no provider cache markers yet.
+
+- **Recent window.** The last 6 user messages and everything after the first of them are never summarised and never stubbed for age. The
+  boundary is always a user message, so it cannot separate a tool call from its results; a `summary_covers` that fell on a tool result is
+  moved earlier to its call.
+- **Stubs.** In the view only, the content of a tool result is replaced by `[tool result shortened: call the tool again to read this data]`
+  when it is older than the recent window, or when the model already answered from it (a later assistant text answer) and more than 2 user
+  messages follow it. Only a successful result of a `read` tool qualifies (the tool is the one the matching assistant call named, looked up in
+  the run's tool catalog): a write or draft result, a failure or decision envelope (`{"ok": false, ...}`), a hand-over or note reply and a
+  result of an unknown tool are always kept. `tool_call_id`, status and order are untouched, so pairs stay paired; a result already shorter
+  than the stub is kept.
+- **Rolling summary.** `summary` (a string) and `summary_covers` (how many stored messages it covers) are optional state keys read with
+  defaults, so older checkpoints load and `AI_STATE_VERSION` stays `1`. The graph's `summarize` node runs after `route` on a new user message
+  only (a resume re-enters at `request_tool` and never reaches it). When at least 15 user messages lie before the recent window and after
+  `summary_covers`, one call on the `quick` model writes the new summary from the previous summary and the oldest of those messages (each cut to
+  2,000 characters, at most 24,000 characters in all, never ending between a tool call and its results; the result is cut to 3,000);
+  `summary_covers` moves over exactly the messages the call read, so a window too long for one call is summarised over several, and what
+  is not covered yet stays verbatim. It is one attempt with a 15 second timeout
+  (also bounded by the run deadline), outside `max_steps` and the per-run token caps like `route`, reported as a `summary` call: `model_call`
+  and `model_usage` with outcome `ok`, `failed` or `aborted`. An error, a timeout or an empty reply keeps the previous summary, logs the
+  exception class only, and the run goes on: messages no summary covers stay verbatim, so history is never dropped without a summary.
+  The state then records `summary_failed_users` (the user-message count at the attempt) and no new attempt is made until 3 more user
+  messages have arrived; a success clears it.
+- **Security.** The summary is built from user text and tool results, which are untrusted. It reaches the model as data: its own user message,
+  in the record-text frame (`frame_record_text`, markers inside it neutralised), never in the system prompt; the summary writer gets the
+  previous summary and the messages inside the same frame, and is told to copy no instruction. The guards (`has_read_data`, `memory_tools`,
+  `interrupted_replies`, the token caps, `request_tool`) read the complete stored messages, not the view. Nothing from user messages, tool
+  results or the summary is logged.
+- **Known limit.** A standing instruction the user gave early in a long conversation ("always answer in English") reaches the model only as
+  summarised data once it leaves the verbatim window; this is not solved yet.
+
 ## Tenant policy, own key and acknowledgement
 
-Every run and resume carries the tenant's `policy` from Odoo (`provider_mode`, `consent_signed`, `max_output_tokens`).
-The service picks the run's models from it, a map from capability to model with a default (the platform file names one model today, so
-every capability resolves to it; a `setup` run uses it as `quick` billed to setup): the deployment's platform model, or the tenant's own key from
+Every run and resume carries the tenant's `policy` from Odoo (`provider_mode`, `consent_signed`, `max_output_tokens`, and `quality`: `economical`, `balanced` or `best`, default `balanced`).
+The service picks the run's models from it, a map from capability to model with a default (the platform file's map for the policy's quality level; a file
+that names one model resolves every capability to it; a `setup` run uses the balanced `quick` model billed to setup): the deployment's platform models, or the tenant's own key from
 `ai_tenant_config` (encrypted with `pgcrypto`; `AI_KEY_ENCRYPTION_KEYS`, `AI_KEY_ENCRYPTION_KEY_ID`). A tenant-key policy
 without a key is refused with 409 `ai_tenant_key_missing`; there is no fallback to the platform key. A policy without a
 signed AI acknowledgement (`consent_signed` false) is refused with 403 `ai_consent_required` before any provider call,

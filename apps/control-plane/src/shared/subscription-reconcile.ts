@@ -4,11 +4,14 @@ import type { Pool } from 'pg'
 import { transaction } from '../db.js'
 import { enqueueReconfigureJob } from './job-store.js'
 import { listBranches } from '../commercial/branches.js'
+import { aiValuesCurrent, deliveredEntitlement } from '../commercial/ai-ledger.js'
 
 export type ObserveRunner = (input: {tenant_id:string;database:string;restore_id?:string;signal?:AbortSignal}) => Promise<{
   commercial_revision_id:string|null;commercial_digest:string|null;
   status:'active'|'suspended';commercial_valid_until:string|null;
   branches:{branch_id:string;odoo_company_id:number|null;active:boolean}[]
+  /** The tenant's current feature values, when the observation carries them (the Odoo observation does). */
+  features?:Record<string,boolean|number|null>
 }>
 export function fakeObserveRunner(result: Awaited<ReturnType<ObserveRunner>>): ObserveRunner {
   return async () => structuredClone(result)
@@ -49,14 +52,26 @@ export async function reconcileAfterRestore(pool: Pool, input: {tenant_id:string
     const status=row.state==='suspended'?'suspended':'active'
     if(observed.status!==status || observed.commercial_valid_until!==expiry)
       return {ready:false,reason:'commercial_lifecycle_mismatch'}
-    if(observed.commercial_revision_id===row.applied_revision_id && observed.commercial_digest===row.snapshot.entitlement.digest)return {ready:true}
+    // A backup older than a top-up (or a refund) restores the revision but the AI values of its day: they are ledger values,
+    // not part of the digest, so they are compared on their own.
+    const aiCurrent=!observed.features || await aiValuesCurrent(client,row.snapshot.customer_id,observed.features)
+    if(observed.commercial_revision_id===row.applied_revision_id && observed.commercial_digest===row.snapshot.entitlement.digest && aiCurrent)return {ready:true}
+    // What the restored database holds decides. A repair that only differs in the AI values reuses one still outstanding
+    // for this restore target; otherwise it is a new delivery, even if an earlier repair completed (it delivered the
+    // values of its own claim, which may no longer be the live ones).
+    const aiOnly=observed.commercial_revision_id===row.applied_revision_id && observed.commercial_digest===row.snapshot.entitlement.digest
+    if(aiOnly){
+      const outstanding=await client.query(`SELECT id FROM shared_jobs WHERE control_tenant_id=$1 AND state IN ('queued','running') AND payload->>'restore'='true'
+        AND payload->>'restoreId'=$2 AND payload->'binding'->>'database'=$3 ORDER BY created_at LIMIT 1`,[input.tenant_id,input.restore_id??null,input.target?.database??row.database_name])
+      if(outstanding.rowCount)return {ready:false,job_id:outstanding.rows[0].id as string}
+    }
     const order=await client.query("SELECT id FROM orders WHERE subscription_id=$1 AND target_revision_id=$2 AND fulfillment_state='applied' ORDER BY created_at DESC LIMIT 1",[row.id,row.applied_revision_id])
     if(!order.rowCount)return {ready:false,reason:'applied_order_missing'}
     const branches=await listBranches(client,row.id)
     const authority={order_id:order.rows[0].id,operation_id:randomUUID(),previous_revision_id:observed.commercial_revision_id,target_revision_id:row.applied_revision_id,
-      entitlement:row.snapshot.entitlement,branches:{apply:branches.items.filter(b=>b.state==='active' && b.kind==='extra').map(b=>({branch_id:b.id,name:b.name})),archive:branches.items.filter(b=>b.state==='archived').map(b=>b.id)}}
+      entitlement:await deliveredEntitlement(client,row.snapshot.customer_id,{modules:row.snapshot.entitlement.modules,features:row.snapshot.entitlement.features,digest:row.snapshot.entitlement.digest,compiler_version:row.snapshot.entitlement.compiler_version}),branches:{apply:branches.items.filter(b=>b.state==='active' && b.kind==='extra').map(b=>({branch_id:b.id,name:b.name})),archive:branches.items.filter(b=>b.state==='archived').map(b=>b.id)}}
     const job=await enqueueReconfigureJob(client,{schemaVersion:1,operation:'reconfigure',requestId:authority.operation_id,controlTenantId:input.tenant_id,host:input.target?.host??row.host,
-      binding:{tenantId:row.tenant_id,database:input.target?.database??row.database_name,filestore:input.target?.filestore??row.filestore,registryRevision:Number(row.registry_revision)},authority,restore:true,restoreId:input.restore_id??order.rows[0].id})
+      binding:{tenantId:row.tenant_id,database:input.target?.database??row.database_name,filestore:input.target?.filestore??row.filestore,registryRevision:Number(row.registry_revision)},authority,restore:true,restoreId:input.restore_id??order.rows[0].id},{unique:aiOnly})
     return {ready:false,job_id:job.id,...(['needs_intervention','verified'].includes(job.state)?{reason:'commercial_reconcile_failed'}:{})}
   })
 }

@@ -49,7 +49,7 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   the app groups inside them; Track A packages are read-only history. Every
   application of the release is installed in every shared-SaaS tenant, and a
   policy or compiled entitlement carries every key of every release application
-  (closed: `false` / `0`; catalog `deploy/catalog/solutions/platform_v4.json`, `commercial-compiler/3`).
+  (closed: `false` / `0`; catalog `deploy/catalog/solutions/platform_v4.json`, `commercial-compiler/4`).
   `_liwan_validate_features` stays strict; operator scripts complete a target with
   `_liwan_close_unlisted_features`, and `liwan.tenant.profile._register_hook`
   registers a newly installed application's keys closed. Usage is collected per

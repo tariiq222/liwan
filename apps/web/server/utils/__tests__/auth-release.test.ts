@@ -94,6 +94,8 @@ describe('dedicated release authentication transport', () => {
     expect(calls).toHaveLength(1)
     expect(calls[0]).toMatchObject({ path: target, headers: { host, 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '2', ...pin, cookie: 'session_id=existing-session' } })
     const cookies = response.headers.getSetCookie()
+    expect(cookies).not.toHaveLength(0)
+    for (const cookie of cookies) expect(cookie).toMatch(/;\s*Secure(?:;|$)/i)
     if (path === '/logout') expect(cookies.some(cookie => cookie.startsWith('session_id=;') && cookie.includes('Max-Age=0'))).toBe(true)
     else expect(cookies.some(cookie => cookie.startsWith('session_id=rotated-session'))).toBe(true)
     if (path === '/login') expect(JSON.parse(calls[0]!.body).params.db).toBe('liwan_scratch_dedicated_auth')

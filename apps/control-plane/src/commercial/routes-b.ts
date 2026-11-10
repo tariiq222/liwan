@@ -26,6 +26,10 @@ import { SimulatorAdapter } from './payment-simulator.js'
 import { refundCreditNote, requestInvoiceRefund } from './settlements.js'
 import { confirmBankTransfer, parseBankTransferInput } from './bank-transfer.js'
 import { billingSettings, billingSettingsInputSchema, setBillingSettings } from './billing-settings.js'
+import { refundTopup, topupRefundBodySchema } from './ai-topup.js'
+import { aiBillingSettings } from './ai-ledger.js'
+import { setAiBillingSettings } from './ai-billing-settings.js'
+import { aiBillingSettingsInputSchema } from '@liwan/commercial-contracts'
 
 export async function paymentEventsHttp(pool: Pool, input: {method:string;pathname:string;raw:string;headers:IncomingHttpHeaders}, runtime?: PaymentRuntime) {
   const hit=/^\/v1\/commercial\/payment-events\/([^/]+)$/.exec(input.pathname)
@@ -161,6 +165,23 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     need(input,'vendor.billing.manage')
     if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
     return {status:200,data:await setBillingSettings(pool,{...parseBody(input.raw,billingSettingsInputSchema),operator:principal.actor_id})}
+  }
+  // Vendor-wide AI billing: the top-up amounts on offer, the conversion rate and the free allowances.
+  if(path==='/ai-billing-settings'){
+    need(input,'vendor.read')
+    if(m==='GET')return {status:200,data:await aiBillingSettings(pool)}
+    if(m!=='PATCH'&&m!=='POST')throw new CommercialHttpError('not_found',404)
+    need(input,'vendor.billing.manage')
+    if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
+    return {status:200,data:await setAiBillingSettings(pool,{...parseBody(input.raw,aiBillingSettingsInputSchema),operator:principal.actor_id})}
+  }
+  // Refund of an AI top-up order: inside the refund window and only if none of it was used (the operator states the used units).
+  const topupRefund=/^\/ai-topups\/([^/]+)\/refund$/.exec(path)
+  if(topupRefund&&m==='POST'){
+    need(input,'vendor.billing.manage')
+    if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
+    if(!z.uuid().safeParse(topupRefund[1]).success)throw new CommercialHttpError('not_found',404)
+    return {status:200,data:await refundTopup(pool,{order_id:topupRefund[1]!,actor:{issuer:input.issuer,actorUid:input.actor},...parseBody(input.raw,topupRefundBodySchema)})}
   }
   const payment=/^\/orders\/([^/]+)\/payment-attempts$/.exec(path)
   if(payment&&(m==='POST'||m==='GET')){

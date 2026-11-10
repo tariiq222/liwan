@@ -26,6 +26,12 @@ export const FinanceZatcaSubmissionSchema = z.object({
   errors: z.array(FinanceZatcaMessageSchema),
   warnings: z.array(FinanceZatcaMessageSchema),
   qr_present: z.boolean(),
+  /** Manual retries made so far. */
+  retry_count: z.number().int().nonnegative(),
+  /** The last manual send; null before any. */
+  last_attempt_at: z.string().datetime().nullable(),
+  /** When the next retry is allowed (an escalating spacing after the last send); null before any manual send and once final. */
+  next_retry_at: z.string().datetime().nullable(),
 }).strict()
 
 /**
@@ -66,7 +72,7 @@ export const FinanceZatcaWaitingDocumentListSchema = list(FinanceZatcaWaitingDoc
 
 export const FinanceZatcaErrorCodeSchema = z.enum([
   'zatca_unavailable', 'zatca_rejected', 'zatca_local_error', 'zatca_unauthorized', 'zatca_mode_not_allowed',
-  'zatca_not_onboarded', 'zatca_not_applicable', 'company_profile_incomplete',
+  'zatca_not_onboarded', 'zatca_not_applicable', 'company_profile_incomplete', 'retry_too_soon',
 ])
 
 export type FinanceZatcaMessage = z.infer<typeof FinanceZatcaMessageSchema>

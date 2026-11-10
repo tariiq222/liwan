@@ -10,6 +10,7 @@ import { usePayableDocument } from '@/composables/usePayableDocument'
 definePageMeta({ layout: false, access: 'public' })
 
 const { t } = useI18n()
+const hydrated = useHydrated()
 const { kind, link, windowOpen, data: payable, error, isLoading, isError, refetch } = usePayableDocument({ settle: true })
 
 const text = (name: string) => t(`payments.pay.${kind.value}.${name}`)
@@ -38,7 +39,7 @@ const payTo = computed(() => (link.value ? { path: `/pay/${link.value.kind}/${li
     </div>
     <div v-else-if="isError" class="grid gap-4">
       <UAlert role="alert" color="warning" variant="subtle" icon="i-lucide-cloud-off" :title="text('states.unavailable.title')" :description="text('states.unavailable.body')" data-testid="pay-unavailable" />
-      <UButton color="neutral" variant="outline" class="w-full justify-center" icon="i-lucide-refresh-cw" :label="t('payments.pay.retry')" @click="() => refetch()" />
+      <UButton color="neutral" variant="outline" class="w-full justify-center" icon="i-lucide-refresh-cw" :label="t('payments.pay.retry')" :disabled="!hydrated" @click="() => refetch()" />
     </div>
     <SharedLoadingSkeleton v-else-if="isLoading" />
   </SharedStandalonePage>

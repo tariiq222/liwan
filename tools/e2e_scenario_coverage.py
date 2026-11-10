@@ -23,6 +23,8 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+import api_surface
+
 ROOT = Path(__file__).resolve().parent.parent
 SCENARIOS = ROOT / 'e2e' / 'scenarios'
 WEB_PAGES = ROOT / 'apps' / 'web' / 'app' / 'pages'
@@ -76,10 +78,13 @@ def _value(node, constants):
         return None
 
 
-def routes_in_source(source):
-    """Every (method, path) declared by an @http.route decorator in SOURCE."""
+def routes_in_source(source, path):
+    """Every (method, path) declared by an @http.route decorator in SOURCE, the text of the module at PATH.
+
+    A route path may be a string constant the module imports from another addon module.
+    """
     tree = ast.parse(source)
-    constants = {}
+    constants = api_surface.resolvable_constants(path, tree)
     for node in tree.body:
         if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
             value = _value(node.value, constants)
@@ -109,7 +114,7 @@ def routes_in_source(source):
 def addon_routes():
     by_addon = defaultdict(set)
     for path in sorted(ADDONS.glob('liwan_*/controllers/**/*.py')):
-        by_addon[path.relative_to(ADDONS).parts[0]] |= routes_in_source(path.read_text(encoding='utf-8'))
+        by_addon[path.relative_to(ADDONS).parts[0]] |= routes_in_source(path.read_text(encoding='utf-8'), path)
     return by_addon
 
 

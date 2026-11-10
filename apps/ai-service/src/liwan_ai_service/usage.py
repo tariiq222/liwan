@@ -8,10 +8,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+import re
 import secrets
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from decimal import Decimal
 from email.utils import parsedate_to_datetime
 from typing import Any
 
@@ -37,12 +39,33 @@ BACKOFF_SECONDS = (0.5, 1.0)  # before the second and the third attempt
 JITTER = 0.25  # each wait grows by a random 0 to 25 %, so concurrent runs do not retry in step
 TOKENS_PER_PRICE = 1_000_000  # prices are per million tokens
 BPS = 10_000  # basis points in 100 %
+UNITS_PER_USD = 100_000  # one cost unit is 0.00001 USD
+PRICE = re.compile(r"[0-9]{1,9}(\.[0-9]{1,9})?")  # a plain decimal in USD per million tokens
 Tokens = tuple[int | None, int | None]
 Emit = Callable[[dict[str, Any]], None]  # takes ``{"event": name, "data": payload}``; the graph passes LangGraph's custom stream writer
 
 
 def _is_count(value: object) -> bool:
     return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+
+def price_units(price: str) -> int:
+    """A price in USD per million tokens as cost units per million tokens (``price * 100,000``).
+
+    The result must be an exact integer within the shared maximum, so a price finer than one unit is refused instead of rounded;
+    anything but a plain decimal raises ``ValueError``.
+    """
+    if not isinstance(price, str) or not PRICE.fullmatch(price):
+        msg = "a price is a plain decimal number of USD per million tokens"
+        raise ValueError(msg)
+    units = Decimal(price) * UNITS_PER_USD
+    if units != units.to_integral_value():
+        msg = "a price has at most five decimal places (one cost unit is 0.00001 USD)"
+        raise ValueError(msg)
+    if units > MAX_COST_UNITS:
+        msg = "a price is above the shared maximum"
+        raise ValueError(msg)
+    return int(units)
 
 
 @dataclass(frozen=True)
@@ -54,9 +77,10 @@ class ModelIdentity:
     input_units: int | None = None  # price per million input tokens in cost units; None while unknown
     output_units: int | None = None  # price per million output tokens in cost units; None while unknown
     margin_bps: int = 0  # the vendor margin on cost, in basis points (2000 = 20 %)
+    cached_input_units: int | None = None  # price per million cached input tokens; carried for the caching slice, not yet in the cost
 
     def __post_init__(self) -> None:
-        for name in ("input_units", "output_units"):
+        for name in ("input_units", "cached_input_units", "output_units"):
             value = getattr(self, name)
             if value is not None and not _is_count(value):
                 msg = f"{name} must be None or a non-negative integer"
@@ -146,10 +170,35 @@ def retry_wait(error: BaseException, attempt: int) -> float:
     return wait * (1 + random.uniform(0, JITTER))  # noqa: S311 - jitter, not security
 
 
+async def invoke_once(
+    kind: ModelCallKind, model: BaseChatModel, messages: list[BaseMessage], identity: ModelIdentity, emit: Emit, timeout_seconds: float,
+    deadline_at: float | None = None,
+) -> AIMessage:
+    """A side call (``route`` or ``summary``): one attempt, reported as a ``kind`` call.
+
+    The outcome is ``aborted`` when it outlasts ``timeout_seconds`` or the run deadline.
+
+    A failure is reported and then raised; the caller decides what a failed call means.
+    """
+    call_id = new_call_id()
+    emit(call_event(call_id, kind, identity))
+    seconds = timeout_seconds if deadline_at is None else min(timeout_seconds, deadline_at - asyncio.get_running_loop().time())
+    timeout = asyncio.timeout(seconds)
+    try:
+        async with timeout:
+            response = await model.ainvoke(messages)
+    except Exception as error:
+        emit(usage_event(call_id, "aborted" if isinstance(error, TimeoutError) and timeout.expired() else "failed", identity))
+        raise
+    emit(usage_event(call_id, "ok", identity, tokens_of([response])))
+    return response
+
+
 async def invoke_planned(
     model: Runnable, messages: list[BaseMessage], identity: ModelIdentity, emit: Emit, deadline_at: float | None = None,
+    attempts: int = PLAN_ATTEMPTS,
 ) -> AIMessage:
-    """The planning call: up to ``PLAN_ATTEMPTS`` attempts, each reported.
+    """The planning call: up to ``attempts`` attempts (``PLAN_ATTEMPTS`` unless the caller bounds it), each reported.
 
     A wait honours the provider's ``Retry-After`` and is jittered; one that would not end before ``deadline_at`` (the run deadline, on
     the event loop clock; None: unbounded) is not started: the failure is final instead.
@@ -157,13 +206,13 @@ async def invoke_planned(
     Only a failure that comes before any output is retried: the transient classes (408/409/429/5xx answers, connections that
     could not be made) are all raised when the request is answered, before the first token streams.
     """
-    for attempt in range(PLAN_ATTEMPTS):
+    for attempt in range(attempts):
         call_id = new_call_id()
         emit(call_event(call_id, "plan", identity))
         try:
             response = await model.ainvoke(messages)
         except Exception as error:
-            wait = retry_wait(error, attempt) if attempt < PLAN_ATTEMPTS - 1 and is_transient_provider_error(error) else None
+            wait = retry_wait(error, attempt) if attempt < attempts - 1 and is_transient_provider_error(error) else None
             if wait is not None and deadline_at is not None and wait >= deadline_at - asyncio.get_running_loop().time():
                 wait = None  # the run deadline comes first: no point waiting for an attempt it would cut
             emit(usage_event(call_id, "failed" if wait is None else "retried", identity))
