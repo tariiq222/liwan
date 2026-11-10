@@ -68,7 +68,7 @@ historical evidence, not UI policy.
 
 ## Local development
 
-The canonical checkout is `/Users/tariq/code/webvue`. A
+The canonical checkout is `/Users/tariq/code/liwan`. A
 temporary worktree may be used for a bounded task. Always point the Odoo
 addons path at that chosen LiwanOS worktree; `/Users/tariq/code/odoo` is the
 read-only Odoo 19 upstream source checkout. Authorized commands may use an
