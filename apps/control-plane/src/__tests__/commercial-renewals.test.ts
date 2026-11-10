@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
-import { setup, client, money, monthly } from './commercial-helpers.js'
+import { setup, client, money, monthly, url } from './commercial-helpers.js'
 import { acceptQuote } from '../commercial/orders.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
@@ -10,8 +10,6 @@ import { verifyReturnedAttempt } from '../commercial/payments.js'
 import { CommercialHttpError } from '../commercial/lifecycle.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
 
-const url=process.env.CONTROL_TEST_DATABASE_URL
-if(url && new URL(url).pathname!=='/liwan_control_scratch_payfinal') throw new Error('renewal tests require own scratch DB')
 const suite=url?describe:describe.skip
 suite('live PostgreSQL pinned subscription renewals',()=>{
   const pool=new Pool({connectionString:url,max:8}),api=client(pool)
@@ -38,7 +36,7 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     const {order}=await acceptQuote(pool,{quote_id:quote.id,expected_subscription_revision:0,idempotency_key:randomUUID()},vendor)
     await pool.query("UPDATE orders SET payment_state='paid',fulfillment_state='applied' WHERE id=$1",[order.id])
     await pool.query("UPDATE invoices SET status='paid',paid_at=now() WHERE order_id=$1",[order.id])
-    await pool.query("UPDATE subscriptions SET applied_revision_id=target_revision_id,state='active',renewal_at='2026-10-01',revision=revision+1 WHERE id=$1",[order.subscription_id])
+    await pool.query("UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,state='active',renewal_at='2026-10-01',revision=revision+1 WHERE id=$1",[order.subscription_id])
     return {customer,id:order.subscription_id}
   }
   const args=(adapter:SimulatorAdapter)=>({now,adapter,returnOrigin: fixedReturnOrigin('https://liwan.test')})
