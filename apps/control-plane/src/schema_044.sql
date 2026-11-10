@@ -72,4 +72,3 @@ UPDATE subscriptions SET suspension_pending_since=now()
 
 CREATE TRIGGER a_track_suspension_delivery BEFORE UPDATE ON subscriptions
   FOR EACH ROW EXECUTE FUNCTION track_suspension_delivery();
-

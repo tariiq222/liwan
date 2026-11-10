@@ -10,6 +10,7 @@ import { actorLabel } from '../admin-auth/grants.js'
 import { billingSettings } from './billing-settings.js'
 import { claimOutbox, completeOutbox, deferOutbox } from './outbox.js'
 import { creditedMinorSql, DUPLICATE_PAYMENT_REASON } from './refund-credit.js'
+import { markTopupRefunded } from './ai-ledger.js'
 
 export async function processRefundOutbox(pool: Pool, adapter?: PaymentAdapter): Promise<number> {
   let automatic = 0
@@ -232,6 +233,17 @@ async function recordRefund(pool: Pool, { adjustment_id, actor, request }: { adj
   })
 }
 
+/**
+ * The one refund-window rule. The owner's meaning: a payment on Riyadh day D is refundable through the END of day D+days,
+ * and closed from the day after. Whole calendar days, not 24-hour blocks, so a payment made late on its own day still
+ * gets the full window. A window of 0 days means the vendor offers none.
+ */
+export function refundWindow(succeededAt: Date, days: number, now = new Date()): { open: boolean; until: string } {
+  const paidOn = riyadhDate(succeededAt)
+  const until = new Date(Date.parse(`${paidOn}T12:00:00+03:00`) + days * 86_400_000).toISOString().slice(0, 10)
+  return { open: days > 0 && daysBetween(paidOn, riyadhDate(now)) <= days, until: `${until}T23:59:59+03:00` }
+}
+
 export type Refundability = { refundable: boolean; first_payment: boolean; until: string | null; window_days: number }
 
 /**
@@ -269,6 +281,8 @@ export async function requestInvoiceRefund(pool: Pool, { invoice_id, actor, reas
       VALUES($1,$2,$3,'credit_note',$4,$5,$6,$7,'pending',$8,'vendor') RETURNING *`,
     [id, invoice.id, invoice.customer_id, reason, invoice.total_minor, invoice.currency, invoice.exponent, actorLabel(actor)])).rows[0]
     await audit(client, actor, 'invoice.refund_requested', invoice.id, reason, { adjustment_id: id, amount_minor: Number(invoice.total_minor), currency: invoice.currency })
+    // The whole invoice goes back, so an AI top-up it paid for stops counting (and the tenant is told).
+    if (invoice.order_id) await markTopupRefunded(client, invoice.order_id, actorLabel(actor), reason)
     return adjustmentView(row)
   })
 }
@@ -301,13 +315,8 @@ export async function refundEligibility(client: Pick<Pool, 'query'>, customerId:
     ORDER BY a.succeeded_at NULLS LAST,a.id LIMIT 1`, [customerId])).rows[0]
   if (!first || first.id !== paying.id) return { refundable: false, first_payment: false, until: null, window_days: days }
   if (!paying.succeeded_at) return { refundable: false, first_payment: false, until: null, window_days: days }
-  // The owner's meaning: a payment on Riyadh day D is refundable through the END of day D+14, and closed from day 15.
-  // So the test is `elapsed <= 14` — whole calendar days, not 14 x 24 hours from the minute of payment, so a payment
-  // made late on its own day still gets the full 14 days after it. A window of 0 days means the vendor offers none.
-  const paidOn = riyadhDate(new Date(paying.succeeded_at))
-  const until = new Date(Date.parse(`${paidOn}T12:00:00+03:00`) + days * 86_400_000).toISOString().slice(0, 10)
-  const elapsed = daysBetween(paidOn, riyadhDate(new Date()))
-  return { refundable: days > 0 && elapsed <= days, first_payment: true, until: `${until}T23:59:59+03:00`, window_days: days }
+  const window = refundWindow(new Date(paying.succeeded_at), days)
+  return { refundable: window.open, first_payment: true, until: window.until, window_days: days }
 }
 
 /**
@@ -341,15 +350,13 @@ export async function refundEligibilityForInvoices(client: Pick<Pool, 'query'>, 
     SELECT p.invoice_id, p.customer_id, p.succeeded_at, (f.attempt_id = p.attempt_id) AS is_first
     FROM paid p LEFT JOIN firsts f ON f.customer_id = p.customer_id
     WHERE p.rn = 1`, [invoiceIds])).rows
-  const today = riyadhDate(new Date())
+  const now = new Date()
   for (const row of rows) {
     if (!row.succeeded_at) continue // never a 1970 window
-    const paidOn = riyadhDate(new Date(row.succeeded_at))
-    const until = new Date(Date.parse(`${paidOn}T12:00:00+03:00`) + days * 86_400_000).toISOString().slice(0, 10)
-    const elapsed = daysBetween(paidOn, today)
+    const window = refundWindow(new Date(row.succeeded_at), days, now)
     out.set(row.invoice_id as string, {
-      refundable: Boolean(row.is_first) && days > 0 && elapsed <= days,
-      first_payment: Boolean(row.is_first), until: `${until}T23:59:59+03:00`, window_days: days,
+      refundable: Boolean(row.is_first) && window.open,
+      first_payment: Boolean(row.is_first), until: window.until, window_days: days,
     })
   }
   return out

@@ -2,4 +2,3 @@
 
 /** A trial's end notices: this many days before it ends (only thresholds below the trial's own length are sent). */
 export const TRIAL_NOTICE_DAYS = [3, 1] as const
-

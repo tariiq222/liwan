@@ -16,6 +16,11 @@ class LiwanAiFeatureRegistry(models.AbstractModel):
             {'key': 'ai.output_tokens.per_run', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai'},
             # The free agents' (setup and help) one monthly budget, set by the vendor in the package (spec 2026-11-04 §6.10).
             {'key': 'ai.assist.monthly', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai'},
+            # AI balance (spec 2026-11-10 5.1 to 5.4), in cost units. Derived by the control plane from its top-up ledger and
+            # vendor settings and delivered with every entitlement; no plan sets them. Nothing reads them yet.
+            {'key': 'ai.balance.granted', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai'},
+            {'key': 'ai.allowance.trial', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai'},
+            {'key': 'ai.allowance.monthly', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai'},
             # Knowledge retrieval over the company's records (spec 2026-11-04 §6.3); the tenant also turns it on in the settings.
             {'key': 'ai.knowledge', 'type': 'boolean', 'owner': 'liwan_ai', 'module': 'liwan_ai'},
         )

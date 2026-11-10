@@ -2,6 +2,7 @@ import type { Pool, PoolClient } from 'pg'
 import { nextOrderState } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { enqueueOutbox } from './outbox.js'
+import { markTopupRefunded } from './ai-ledger.js'
 import { recordFulfillmentFailure } from './settlements.js'
 
 const RETRY_MINUTES = [5, 15, 60]
@@ -43,6 +44,7 @@ export async function recoverPaidFulfillment(pool: Pool, now = new Date()) {
           return
         }
         if (job?.state === 'needs_intervention') await client.query("UPDATE shared_jobs SET state='failed',lease_until=NULL WHERE id=$1", [job.id])
+        await markTopupRefunded(client, order.id, 'system', 'fulfillment not delivered')
         await recordFulfillmentFailure(client, { order_id: order.id, reason: order.fulfillment_failure_code ?? 'fulfillment_not_delivered', actor: 'commercial-fulfillment' })
         await client.query("UPDATE orders SET payment_state='refund_pending',fulfillment_state='failed',cancelled=true,fulfillment_retry_at=NULL WHERE id=$1", [order.id])
         await client.query('UPDATE subscriptions SET target_revision_id=NULL,revision=revision+1 WHERE id=$1 AND target_revision_id=$2', [subscription.id, order.target_revision_id])

@@ -56,6 +56,10 @@ export const sharedReconfigureJobSchema = z.strictObject({
     post_trial_modules: sharedPolicySchema.shape.modules.optional(),
     post_trial_digest: digest.optional(),
     excess_settle: z.literal(true).optional(),
+    // Set only by the control plane's AI push: the job changes nothing but the derived AI keys of the already applied
+    // revision, and is authorized by that revision rather than by the payment state of the order that created it.
+    ai_push: z.literal(true).optional(),
+    ai_expected_post_trial_digest: digest.optional(),
   }),
   restore: z.boolean().optional(), restoreId: z.uuid().optional(), origin: z.literal('trial-end').optional(),
 })

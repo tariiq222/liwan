@@ -13,6 +13,7 @@ import type { PaymentAdapter } from './payment-adapter.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { getSubscription } from './subscriptions.js'
 import { pushCommercialExpiry } from './expiry-push.js'
+export { pushCommercialExpiry } from './expiry-push.js'
 
 /** A customer has one trial, so its order key is fixed per customer (RFC 9562 version 8): a resent start replays it. */
 function trialOrderKey(customerId: string) {

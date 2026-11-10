@@ -7,6 +7,8 @@ import { CommercialHttpError, iso } from './lifecycle.js'
 import { assertReturnUrl, refundedAmount, toBytes, type AdapterHeaders, type PaymentAdapter, type ProviderEvent } from './payment-adapter.js'
 import { confirmEvent } from './moyasar-adapter.js'
 import { enqueueOutbox } from './outbox.js'
+import { markTopupRefunded, recordPaidTopup } from './ai-ledger.js'
+import { recordFulfillmentFailure } from './settlements.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { onRenewalPaid } from './renewals.js'
 import { isPaidFirstOrder, requireReachableManager } from './orders.js'
@@ -97,11 +99,22 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
       await enqueueOutbox(client, { kind: 'reconcile.refund', aggregate_id: order.id, dedupe_key: event.event_id,
         payload: { order_id: order.id, attempt_id: attempt.id, payment_id: event.payment_id, event_id: event.event_id, automatic: order.automatic_refund === true } })
     } else {
-      await enqueueOutbox(client, { kind: 'fulfillment.enqueue', aggregate_id: order.id, dedupe_key: order.target_revision_id,
-        payload: { order_id: order.id, subscription_id: order.subscription_id, target_revision_id: order.target_revision_id } })
-      if (order.kind === 'renewal') await onRenewalPaid(client, order.id)
+      // An AI top-up joins the ledger in the same transaction that settles its payment, before fulfilment is queued.
+      if (await recordPaidTopup(client, order) === 'over_cap') {
+        // The purchase would take the customer past what an entitlement can carry. The webhook is still acknowledged: the
+        // paid order is failed like any paid order that cannot be fulfilled, which credits the money back.
+        const started = nextOrderState({ ...order, ...next } as OrderStateInput, { type: 'fulfillment_started' })
+        await client.query('UPDATE orders SET fulfillment_state=$2 WHERE id=$1', [order.id, nextOrderState(started, { type: 'fulfillment_failed' }).fulfillment_state])
+        await recordFulfillmentFailure(client, { order_id: order.id, reason: 'ai_balance_limit_exceeded', actor: 'commercial-fulfillment' })
+      } else {
+        await enqueueOutbox(client, { kind: 'fulfillment.enqueue', aggregate_id: order.id, dedupe_key: order.target_revision_id,
+          payload: { order_id: order.id, subscription_id: order.subscription_id, target_revision_id: order.target_revision_id } })
+        if (order.kind === 'renewal') await onRenewalPaid(client, order.id)
+      }
     }
   } else if (event.status === 'refunded') {
+    // A refund or chargeback of a top-up order takes the balance back, whole: a provider refund is not reported per purchase.
+    await markTopupRefunded(client, order.id, 'system', 'payment refunded at the provider')
     await flagRefundAfterFulfillment(client, order, attempt, event)
   } else if (event.status === 'failed') {
     await client.query("UPDATE payment_attempts SET status='failed',updated_at=now() WHERE id=$1", [attempt.id])

@@ -3,7 +3,7 @@ import type { Pool, PoolClient } from 'pg'
 import { planViewSchema, planCreateSchema, planEditSchema, lifecycleActionSchema, storageStepsAligned, STORAGE_STEP_MISALIGNED, type PlanView, type PlanRevision, type Price } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { audit, CommercialHttpError, digestOf, iso, lockRevision, nextVersion, pageParams, referenceCount, requireStatus, statusSql, type CommercialActor, type Kind } from './lifecycle.js'
-import { priceIssues, bundleRevision, loadRelease } from './bundles.js'
+import { DERIVED_LIMITS, priceIssues, bundleRevision, loadRelease } from './bundles.js'
 import { compileEntitlements, CommercialError } from '@liwan/commercial-contracts/server'
 
 export const PLAN_KIND: Kind = { table: 'plan_revisions', parent: 'commercial_plans', parentCol: 'plan_id', label: 'plan' }
@@ -39,7 +39,6 @@ const cadenceMonths = (c: { unit: string; count: number }) => c.unit === 'year' 
 const isoExponent = (c: string) => { try { return new Intl.NumberFormat('en', { style: 'currency', currency: c }).resolvedOptions().maximumFractionDigits ?? 2 } catch { return 2 } }
 const key = (p: Price) => `${p.cadence.unit}:${p.cadence.count}`
 
-export const DERIVED_LIMITS = ['branches.extra_limit', 'users.limit', 'storage.limit_mb']
 // The AI assistant is part of the platform base (owner decision 2026-11-05) and free with a monthly quota, so every
 // plan carries each AI limit the release declares as a vendor-editable value (owner decision 2026-11-06): the vendor
 // console's plan form sets them, the seeds carry the release amounts, and an explicit null means unlimited.

@@ -1,5 +1,5 @@
 import type { Pool, PoolClient } from 'pg'
-import type { UsageSnapshot, UsageMetric } from '@liwan/commercial-contracts'
+import { AI_ENTITLEMENT_KEYS, type UsageSnapshot, type UsageMetric } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
 
@@ -76,7 +76,7 @@ export function usageOf(row: SnapshotRow | undefined, limits: Record<string, num
   const stored: Record<string, number | null> = row?.metrics ?? {}
   const freshness = !row || row.freshness === 'unavailable' ? 'unavailable'
     : row.freshness === 'stale' || now.getTime() - observed!.getTime() > FRESH_MS ? 'stale' : 'fresh'
-  const metrics: UsageMetric[] = Object.keys(limits).map(key => {
+  const metrics: UsageMetric[] = Object.keys(limits).filter(key => !AI_ENTITLEMENT_KEYS.includes(key)).map(key => {
     const legacy = LEGACY_COUNTERS[key]
     const counter = !(key in stored) && legacy && legacy.key in stored ? legacy : { key, unit: UNITS[key] ?? 'count', scale: 1 }
     const v = freshness === 'unavailable' ? null : stored[counter.key]

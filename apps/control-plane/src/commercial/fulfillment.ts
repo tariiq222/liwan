@@ -14,6 +14,7 @@ import { enqueueOutbox } from './outbox.js'
 import type { SharedReconfigureJob } from '@liwan/commercial-contracts/shared'
 import { keptAtTrialEnd } from './free-base.js'
 import { hasReachableManager } from './orders.js'
+import { deliveredEntitlement } from './ai-ledger.js'
 
 /** The Odoo hard expiry: trial end plus the plan's grace, on the UTC calendar Odoo compares. */
 export function commercialExpiryDate(trialEndsAt: string | Date, graceDays: number): string {
@@ -35,7 +36,8 @@ export async function commercialValidUntil(client: Pool | PoolClient, order: Rec
 export type FulfillmentAuthority = SharedReconfigureJob['authority']
 
 export async function trialAuthority(client: PoolClient, subscription: Record<string, any>, snapshot: Record<string, any>, cutoff: Date) {
-  const { entitlement } = await keptAtTrialEnd(client, { subscription, snapshot, cutoff, start: riyadhDate(cutoff) })
+  const lock = await keptAtTrialEnd(client, { subscription, snapshot, cutoff, start: riyadhDate(cutoff) })
+  const entitlement = await deliveredEntitlement(client, subscription.customer_id, lock.entitlement)
   return { trial_ends_at: cutoff.toISOString(), post_trial_features: entitlement.features,
     post_trial_modules: entitlement.modules, post_trial_digest: entitlement.digest }
 }
@@ -282,8 +284,8 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
         const trialPolicy = trialCutoff ? await trialAuthority(client, { ...order, id: order.subscription_id }, order.snapshot, trialCutoff)
           : { trial_ends_at: null, ...(lock ? { excess_settle: true as const } : {}) }
         const authority:FulfillmentAuthority={order_id:order.id,operation_id:effect.rows[0].operation_id,previous_revision_id:order.applied_revision_id,
-          target_revision_id:order.target_revision_id,entitlement:{modules:order.snapshot.entitlement.modules,features:order.snapshot.entitlement.features,
-            digest:order.snapshot.entitlement.digest,compiler_version:order.snapshot.entitlement.compiler_version},
+          target_revision_id:order.target_revision_id,entitlement:await deliveredEntitlement(client,order.customer_id,{modules:order.snapshot.entitlement.modules,features:order.snapshot.entitlement.features,
+            digest:order.snapshot.entitlement.digest,compiler_version:order.snapshot.entitlement.compiler_version}),
           branches:{apply:ordered.filter(x=>x.odoo_company_id===null).map(x=>({branch_id:x.id,name:x.name})),archive:order.snapshot.branch_archive_ids??order.snapshot.branches?.archive??[],
             ...(ordered.some(x=>x.odoo_company_id!==null)?{restore:ordered.filter(x=>x.odoo_company_id!==null).map(x=>x.id)}:{})},
           ...trialPolicy, commercial_valid_until: null,
