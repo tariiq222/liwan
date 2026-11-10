@@ -4,7 +4,7 @@ import { AI_ENTITLEMENT_KEYS } from '@liwan/commercial-contracts'
 import { sharedReconfigureJobSchema, type SharedReconfigureJob } from '@liwan/commercial-contracts/shared'
 import { transaction } from '../db.js'
 import { applyReceipt, failFulfillmentOn, type SubscriptionReceipt } from '../commercial/fulfillment.js'
-import { deliveredEntitlement, pushAiEntitlement } from '../commercial/ai-ledger.js'
+import { deliveredEntitlement, pushAiEntitlement, pushAiIfStale } from '../commercial/ai-ledger.js'
 import type { ObserveRunner } from './subscription-reconcile.js'
 
 export type SubscriptionRunner = (input: {job:SharedReconfigureJob;action:'observe'|'reconfigure';attemptId:string;fence:number;assertOwned:()=>Promise<void>}) => Promise<unknown>
@@ -138,6 +138,12 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
     await transaction(pool,async client=>{
       const done=await client.query("UPDATE shared_jobs SET state='verified',receipt=$4,lease_until=NULL,journal=$5 WHERE id=$1 AND attempt_id=$2 AND fence=$3 AND state='running' AND lease_until>clock_timestamp() RETURNING id",[id,claim.attemptId,claim.fence,receipt,{stage:'verified',operation_id:claim.job.authority.operation_id}])
       if(!done.rowCount)throw Error('shared_lease_lost')
+      // Values read at claim time may have changed while the job ran: the delivered AI values are checked against the
+      // live ones here, in the completing transaction, and a push follows when they differ.
+      if(!claim.job.restore){
+        const customer=(await client.query('SELECT customer_id FROM orders WHERE id=$1',[claim.job.authority.order_id])).rows[0]?.customer_id
+        if(customer)await pushAiIfStale(client,customer,claim.job.authority.entitlement.features)
+      }
     })
     return {state:'verified',receipt}
   }catch(error){

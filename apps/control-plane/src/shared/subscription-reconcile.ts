@@ -4,7 +4,7 @@ import type { Pool } from 'pg'
 import { transaction } from '../db.js'
 import { enqueueReconfigureJob } from './job-store.js'
 import { listBranches } from '../commercial/branches.js'
-import { deliveredEntitlement, liveAiFeatures } from '../commercial/ai-ledger.js'
+import { aiValuesCurrent, deliveredEntitlement } from '../commercial/ai-ledger.js'
 
 export type ObserveRunner = (input: {tenant_id:string;database:string;restore_id?:string;signal?:AbortSignal}) => Promise<{
   commercial_revision_id:string|null;commercial_digest:string|null;
@@ -54,8 +54,7 @@ export async function reconcileAfterRestore(pool: Pool, input: {tenant_id:string
       return {ready:false,reason:'commercial_lifecycle_mismatch'}
     // A backup older than a top-up (or a refund) restores the revision but the AI values of its day: they are ledger values,
     // not part of the digest, so they are compared on their own.
-    const live=await liveAiFeatures(client,row.snapshot.customer_id)
-    const aiCurrent=!observed.features || Object.entries(live).every(([key,value])=>observed.features![key]===value)
+    const aiCurrent=!observed.features || await aiValuesCurrent(client,row.snapshot.customer_id,observed.features)
     if(observed.commercial_revision_id===row.applied_revision_id && observed.commercial_digest===row.snapshot.entitlement.digest && aiCurrent)return {ready:true}
     const order=await client.query("SELECT id FROM orders WHERE subscription_id=$1 AND target_revision_id=$2 AND fulfillment_state='applied' ORDER BY created_at DESC LIMIT 1",[row.id,row.applied_revision_id])
     if(!order.rowCount)return {ready:false,reason:'applied_order_missing'}

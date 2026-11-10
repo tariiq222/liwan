@@ -529,6 +529,68 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
       await expect(check(job => { job.authority.order_id = other.o.id })).rejects.toThrow('order_not_released')
     })
 
+    /** A runner that changes something while the job is between its claim and its completion. */
+    const runnerDuring = (hook: () => Promise<unknown>) => async (input: { job: any }) => { await hook(); return runner(input) }
+
+    it('a refund while a renewal is outstanding still reaches the tenant, and paying the renewal keeps the values', async () => {
+      const id = await customer()
+      const o = (await order(id, newRequest(paid, 2500))).order
+      await pay(id, o.id); await applyViaWorker(o.id)
+      await pool.query("UPDATE subscriptions SET state='active',renewal_at='2026-11-01',revision=revision+1 WHERE customer_id=$1", [id])
+      await generateRenewals(pool, { now: new Date('2026-11-06T08:00:00Z'), adapter, returnOrigin: runtime.returnOrigin })
+      const renewal = (await pool.query("SELECT id,fulfillment_state FROM orders WHERE customer_id=$1 AND kind='renewal'", [id])).rows[0]
+      expect(renewal.fulfillment_state).not.toBe('applied')
+      await providerRefund(o.id)
+      const push = await jobId(o.id, true)
+      expect(push).toBeTruthy()
+      await expect(runSubscriptionReconfigure(pool, push!, runner)).resolves.toMatchObject({ state: 'verified' })
+      expect(delivered.at(-1)).toMatchObject({ ai_push: true, features: { 'ai.balance.granted': 0 } })
+      const jobsBefore = (await jobs(id)).length
+      await pay(id, renewal.id)
+      await processFulfillmentOutbox(pool, { limit: 1000 })
+      expect((await pool.query('SELECT fulfillment_state FROM orders WHERE id=$1', [renewal.id])).rows[0].fulfillment_state).toBe('applied')
+      expect(await jobs(id)).toHaveLength(jobsBefore)
+      expect(await queued(id)).toHaveLength(0)
+      expect(await stuck(id)).toBe(0)
+    })
+
+    it('an allowance changed while a plan change runs is pushed when the change completes, and that push ends the chain', async () => {
+      const { id } = await appliedTopup()
+      const change = await paidChange(id)
+      await processFulfillmentOutbox(pool, { limit: 1000 })
+      const during = runnerDuring(async () => { await pool.query('UPDATE ai_billing_settings SET trial_allowance_minor=1000') })
+      await runSubscriptionReconfigure(pool, (await jobId(change.id, false))!, during as never)
+      expect(delivered.at(-1)).toMatchObject({ order_id: change.id, ai_push: false, features: { 'ai.allowance.trial': 133_333 } })
+      const next = await queued(id)
+      expect(next).toHaveLength(1)
+      await runSubscriptionReconfigure(pool, next[0]!, runner)
+      expect(delivered.at(-1)).toMatchObject({ ai_push: true, features: { 'ai.allowance.trial': 266_666, 'ai.balance.granted': 666_666 } })
+      expect(await queued(id)).toHaveLength(0)
+      expect(await stuck(id)).toBe(0)
+    })
+
+    it('a refund while a plan change runs is pushed when the change completes', async () => {
+      const { id, o } = await appliedTopup()
+      const change = await paidChange(id)
+      await processFulfillmentOutbox(pool, { limit: 1000 })
+      await runSubscriptionReconfigure(pool, (await jobId(change.id, false))!, runnerDuring(() => providerRefund(o.id)) as never)
+      expect(delivered.at(-1)).toMatchObject({ order_id: change.id, features: { 'ai.balance.granted': 666_666 } })
+      const next = await queued(id)
+      expect(next).toHaveLength(1)
+      await runSubscriptionReconfigure(pool, next[0]!, runner)
+      expect(delivered.at(-1)).toMatchObject({ ai_push: true, features: { 'ai.balance.granted': 0 } })
+      expect(await queued(id)).toHaveLength(0)
+    })
+
+    it('unchanged values queue nothing when a plan change completes', async () => {
+      const { id } = await appliedTopup()
+      const change = await paidChange(id)
+      await processFulfillmentOutbox(pool, { limit: 1000 })
+      await runSubscriptionReconfigure(pool, (await jobId(change.id, false))!, runner)
+      expect(await queued(id)).toHaveLength(0)
+      expect((await pool.query("SELECT count(*)::int AS n FROM shared_jobs j JOIN customers c ON c.tenant_id=j.control_tenant_id WHERE c.id=$1 AND j.payload->'authority'->>'ai_push' IS NOT NULL", [id])).rows[0].n).toBe(0)
+    })
+
     it('values that change after a fulfilment job was queued are delivered when it runs', async () => {
       const id = await customer()
       const o = (await order(id, newRequest(free, 2500))).order
