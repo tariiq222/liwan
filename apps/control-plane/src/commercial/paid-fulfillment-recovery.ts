@@ -18,7 +18,9 @@ const permanentFailure = (code: string | null) => Boolean(code && (PERMANENT.inc
 /** A known non-retryable refusal releases the target on the next pass. Others retry at 5, 15 and 60 minutes. */
 export async function scheduleFulfillmentRecovery(client: PoolClient, order: Record<string, any>, code: string) {
   const minutes = permanentFailure(code) ? 0 : RETRY_MINUTES[order.fulfillment_retries] ?? 0
-  await client.query(`UPDATE orders SET fulfillment_retry_at=CASE WHEN $2::int>0 THEN now()+make_interval(mins=>$2::int) ELSE NULL END,fulfillment_failure_code=$3 WHERE id=$1`,
+  // A recovery floor set by queueSameDelivery outlives a failure that would release the order at once, so a fenced job is not retried every tick.
+  await client.query(`UPDATE orders SET fulfillment_retry_at=CASE WHEN $2::int>0 THEN now()+make_interval(mins=>$2::int)
+    WHEN fulfillment_retry_at>now() THEN fulfillment_retry_at ELSE NULL END,fulfillment_failure_code=$3 WHERE id=$1`,
     [order.id, minutes, code])
 }
 
@@ -79,7 +81,9 @@ async function queueSameDelivery(client: PoolClient, order: RecoveryOrder, job: 
   // The host will verify the exact old effect before running it again. Its original branch ids and operation id stay fenced.
   const next = nextOrderState(order, { type: 'fulfillment_retry' })
   await client.query("UPDATE shared_jobs SET state='queued',lease_until=NULL WHERE id=$1", [job.id])
-  await client.query('UPDATE orders SET fulfillment_state=$2,fulfillment_retry_at=NULL WHERE id=$1', [order.id, next.fulfillment_state])
+  // The same fenced job is not retried again before the slowest backoff step has passed, however it fails.
+  await client.query('UPDATE orders SET fulfillment_state=$2,fulfillment_retry_at=$3 WHERE id=$1',
+    [order.id, next.fulfillment_state, new Date(now.getTime() + RETRY_MINUTES[RETRY_MINUTES.length - 1] * 60_000)])
 }
 
 async function requeueTrialPolicy(client: PoolClient, order: RecoveryOrder, subscription: Record<string, any>,
@@ -176,6 +180,8 @@ export async function recoverPaidFulfillment(pool: Pool, now = new Date()) {
           await client.query("UPDATE orders SET payment_state='refund_pending' WHERE id=$1", [order.id])
           await enqueueOutbox(client, { kind: 'reconcile.refund', aggregate_id: order.id, dedupe_key: 'fulfillment-undelivered',
             payload: { attempt_id: order.paid_attempt_id, automatic: true } })
+          // The renewal period this order was to buy is not bought: free it so the next run invoices it again.
+          await client.query("UPDATE renewals SET status='superseded' WHERE order_id=$1", [order.id])
         }
         await client.query("UPDATE orders SET fulfillment_state='failed',cancelled=true,fulfillment_retry_at=NULL WHERE id=$1", [order.id])
         await client.query('UPDATE subscriptions SET target_revision_id=NULL,revision=revision+1 WHERE id=$1 AND target_revision_id=$2', [subscription.id, order.target_revision_id])

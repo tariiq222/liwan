@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Pool } from 'pg'
 import { sharedReconfigureJobSchema, type SharedReconfigureJob } from '@liwan/commercial-contracts/shared'
-import { recoverPaidFulfillment } from '../commercial/paid-fulfillment-recovery.js'
+import { recoverPaidFulfillment, scheduleFulfillmentRecovery } from '../commercial/paid-fulfillment-recovery.js'
 import { refundCreditNote } from '../commercial/settlements.js'
 import { transaction } from '../db.js'
 import { recoverableTrialPredecessors } from '../shared/commercial-recovery.js'
@@ -187,5 +187,33 @@ suite('trial delivery recovery with durable predecessor and binding authority', 
     expect((await pool.query('SELECT state FROM shared_jobs WHERE id=$1', [a.jobId])).rows[0].state).toBe('failed')
     expect((await pool.query('SELECT action,reason,metadata FROM audit_events WHERE id=$1', [audit])).rows[0])
       .toEqual({ action, reason: 'Original audited trial intent', metadata })
+  })
+  it('F2 frees the renewal period of a paid order cancelled for undelivered fulfilment so it is invoiced again', async () => {
+    const f = await fixture()
+    const b = await order(f, { prefix: 'paid-trial-change', revision: 2, digit: 'b', paid: true, journal: 'possible', provider: 'bank_transfer' })
+    await target(f, b.target)
+    await pool.query("INSERT INTO trial_lapses(subscription_id,trial_revision_id,period_start,ended_at,state) VALUES($1,$2,'2026-11-19',$3,'pending')", [f.subscription, f.applied, cutoff])
+    await pool.query("INSERT INTO renewals(id,subscription_id,period_start,period_end,order_id,status) VALUES($1,$2,'2026-11-19','2026-12-19',$3,'paid')", [randomUUID(), f.subscription, b.orderId])
+    await recoverPaidFulfillment(pool, recoveryTime)
+    expect(await state(b.orderId)).toMatchObject({ payment_state: 'refund_pending', cancelled: true })
+    expect((await pool.query('SELECT status FROM renewals WHERE order_id=$1', [b.orderId])).rows).toEqual([{ status: 'superseded' }])
+    // The period has no live renewal any more: a new one for it can be created.
+    await expect(pool.query("INSERT INTO renewals(id,subscription_id,period_start,period_end) VALUES($1,$2,'2026-11-19','2026-12-19')", [randomUUID(), f.subscription])).resolves.toBeTruthy()
+  })
+
+  it('F3 does not retry a fenced uncertain job again on every tick after it fails once more', async () => {
+    const f = await fixture()
+    const b = await order(f, { prefix: 'paid-branches', revision: 2, digit: 'b', paid: true, journal: 'possible', branch: true })
+    await target(f, b.target)
+    await recoverPaidFulfillment(pool, recoveryTime)
+    expect(await state(b.orderId)).toMatchObject({ fulfillment_state: 'queued', fulfillment_retry_at: new Date(recoveryTime.getTime() + 60 * 60_000) })
+    // The host fails the same job again, with the retries already used up.
+    await pool.query("UPDATE shared_jobs SET state='needs_intervention' WHERE id=$1", [b.jobId])
+    await pool.query("UPDATE orders SET fulfillment_state='needs_intervention',fulfillment_retries=3 WHERE id=$1", [b.orderId])
+    await transaction(pool, tx => scheduleFulfillmentRecovery(tx, { id: b.orderId, fulfillment_retries: 3 }, 'observed_mismatch'))
+    await recoverPaidFulfillment(pool, new Date(recoveryTime.getTime() + 30 * 60_000))
+    expect((await pool.query('SELECT state FROM shared_jobs WHERE id=$1', [b.jobId])).rows[0].state).toBe('needs_intervention')
+    await recoverPaidFulfillment(pool, new Date(recoveryTime.getTime() + 61 * 60_000))
+    expect((await pool.query('SELECT state FROM shared_jobs WHERE id=$1', [b.jobId])).rows[0].state).toBe('queued')
   })
 })
