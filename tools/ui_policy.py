@@ -513,13 +513,22 @@ def auto_import_errors(current: dict[str, str]) -> list[str]:
     return list(dict.fromkeys(errors))
 
 
-# DESIGN.md: a record or a form is a routed page. The header search is the one
-# approved dialog; the project route sheet was the second and is gone.
-OVERLAY_TAG = re.compile(r'</?(?:Dialog|AlertDialog|Sheet|Drawer|CommandDialog)(?:\s|>|/)')
+# DESIGN.md §5 lists the approved dialogs and drawers. Records and edits are routed pages.
+OVERLAY_TAG = re.compile(
+    r'</?(?:(?:Lazy)?(?:Dialog|AlertDialog|Sheet|Drawer|CommandDialog|UModal|USlideover|UDialog)'
+    r'|(?:lazy-)?u-(?:modal|slideover|dialog))(?=[\s>/])'
+)
 OVERLAY_IMPORT = re.compile(r'components/ui/(?:dialog|alert-dialog|sheet|drawer)(?:["\'/]|$)'
                             r'|components/ui/command/CommandDialog(?:\.vue)?["\']')
 NATIVE_POPUP = re.compile(r'(?:\bwindow\s*\.\s*)?\b(?:alert|confirm|prompt)\s*\(')
-OVERLAY_OWNERS = {COMPONENTS + 'shell/GlobalSearch.vue'}
+SEARCH_OVERLAY_OWNER = COMPONENTS + 'shell/GlobalSearch.vue'
+OVERLAY_OWNERS = {
+    SEARCH_OVERLAY_OWNER,
+    COMPONENTS + 'shell/AppDrawer.vue',
+    UI_COMPONENTS + 'shared/layout/CreatePanel.vue',
+    UI_COMPONENTS + 'shared/form/UnsavedChanges.vue',
+    VENDOR_ADMIN_COMPONENTS + 'AdminMobileNav.vue',
+}
 OVERLAY_ROOTS = (PAGES, LAYOUTS, *COMPONENT_ROOTS)
 
 
@@ -551,7 +560,7 @@ def keyboard_layer_errors(current: dict[str, str]) -> list[str]:
         if not path.startswith(APP_SOURCES) or not path.endswith(('.vue', '.ts')) or '/__tests__/' in path:
             continue
         text = COMMENTS.sub('', source)
-        if path not in OVERLAY_OWNERS and COMMAND_PALETTE_TAG.search(text):
+        if path != SEARCH_OVERLAY_OWNER and COMMAND_PALETTE_TAG.search(text):
             errors.append(path + ': a command palette (UCommandPalette, UDashboardSearch, UContentSearch) renders only in the header palette (shell/GlobalSearch.vue)')
         if DEFINE_SHORTCUTS.search(text):
             errors.append(path + ': defineShortcuts bypasses the shell keymap; use composables/shortcuts/keymap.ts')

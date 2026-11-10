@@ -191,7 +191,7 @@ export function signCustomerForward(input: { method: string; path: string; rawBo
 
 /** The tenant this request is bound to: the verified host binding in shared mode, the configured id in dedicated mode. */
 function boundTenantId(tenant: ReturnType<typeof tenantRequest>, config: CustomerConfig): string | undefined {
-  return tenant ? tenant.tenantId ?? (tenant as any).tenant_id ?? (tenant as any).id : config.customerCommercialTenantId
+  return tenant ? tenant.tenantId : config.customerCommercialTenantId
 }
 
 export async function customerPrincipal(event: H3Event, config: CustomerConfig): Promise<CustomerPrincipal> {

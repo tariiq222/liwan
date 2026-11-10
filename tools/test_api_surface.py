@@ -91,6 +91,38 @@ class TestFeatureMetadata(unittest.TestCase):
             constants = api_surface.resolvable_constants(controller, ast.parse(controller.read_text()))
             self.assertEqual(constants.get('READ_ORDERS'), 'payments.orders.read')
 
+    def test_a_tuple_built_from_constant_names_resolves_when_spread(self):
+        """Issue #470: ``PICK = (REPLY, MANAGE_FLOWS)`` with imported names gates ``requires_capability(*PICK)``."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'models').mkdir()
+            (root / 'models' / 'access_service.py').write_text(
+                "REPLY = 'inbox.reply'\nMANAGE_FLOWS = 'inbox.flows.manage'\n")
+            controller = root / 'controllers.py'
+            controller.write_text(
+                "from .models.access_service import REPLY, MANAGE_FLOWS\n"
+                "LOCAL = 'inbox.local'\n"
+                "PICK = (REPLY, MANAGE_FLOWS, LOCAL, 'inbox.literal')\n"
+                "BROKEN = (REPLY, UNDEFINED)\n"
+                "class P:\n"
+                "    @requires_capability(*PICK, match='any')\n"
+                "    def pick(self): pass\n"
+                "    @requires_capability(*BROKEN)\n"
+                "    def broken(self): pass\n"
+            )
+            tree = ast.parse(controller.read_text())
+            constants = api_surface.resolvable_constants(controller, tree)
+            self.assertEqual(constants['PICK'], ('inbox.reply', 'inbox.flows.manage', 'inbox.local', 'inbox.literal'))
+            self.assertNotIn('BROKEN', constants)
+            decorators = {
+                node.name: node.decorator_list[0] for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
+            }
+            self.assertEqual(
+                route_gate_policy._literal_keys(decorators['pick'], constants),
+                ['inbox.reply', 'inbox.flows.manage', 'inbox.local', 'inbox.literal'],
+            )
+            self.assertEqual(route_gate_policy._literal_keys(decorators['broken'], constants), [])
+
     def test_an_unresolvable_key_is_reported_not_silently_empty(self):
         """A name that is not a constant stays out of the list; the route therefore fails the policy gate."""
         tree = ast.parse("class P:\n    @requires_feature(UNDEFINED, operation='read')\n    def r(self): pass\n")
