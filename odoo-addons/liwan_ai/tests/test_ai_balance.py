@@ -259,6 +259,16 @@ class TestAiBalance(AiProbe, LiwanApiCase):
         refused = self._send()
         self.assertEqual((refused.status_code, refused.json()['code']), (403, 'ai_spend_ceiling'))
 
+    def test_the_ceiling_exemption_counts_the_runs_already_in_flight(self):
+        # With the ceiling reached, two runs in flight leave room for one reserve: the allowance must cover all three, not one.
+        self._set_features({GRANTED: 10_000_000, MONTHLY: 2 * RUN_RESERVE})
+        self.env['liwan.ai.settings']._liwan_current().monthly_spend_ceiling = 100
+        self._raw(100, 100, fields.Datetime.now())
+        self.assertEqual(self._send(conversation_id='r_in_flight_1').status_code, 200)
+        self.assertEqual(self._send(conversation_id='r_in_flight_2').status_code, 200)
+        refused = self._send(conversation_id='r_in_flight_3')
+        self.assertEqual((refused.status_code, refused.json()['code']), (403, 'ai_spend_ceiling'))
+
     def test_the_ceiling_stops_paid_spend_only_and_the_free_allowance_comes_first(self):
         self._set_features({GRANTED: 10_000_000, MONTHLY: 2 * RUN_RESERVE})
         self.env['liwan.ai.settings']._liwan_current().monthly_spend_ceiling = 100

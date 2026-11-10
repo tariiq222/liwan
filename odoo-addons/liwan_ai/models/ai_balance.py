@@ -175,9 +175,12 @@ class LiwanAiBalance(models.AbstractModel):
         """
         if state['balance_granted'] is None:
             return None, None
-        if state['allowance_left'] + state['balance_left'] < (state['in_flight'] + new_runs) * RUN_RESERVE:
+        reserved = (state['in_flight'] + new_runs) * RUN_RESERVE
+        if state['allowance_left'] + state['balance_left'] < reserved:
             return BALANCE_EMPTY, state['allowance_resets_at']
-        if state['allowance_left'] >= RUN_RESERVE:
+        # The exemption needs the allowance to cover every reserved run, not this one alone: the balance above already covers the
+        # in-flight runs, so testing the allowance against one reserve would let them each pass and then settle on the balance.
+        if state['allowance_left'] >= reserved:
             return None, None
         if state['spend_ceiling'] and state['spend_this_month'] >= state['spend_ceiling']:
             return SPEND_CEILING, state['spend_resets_at']
