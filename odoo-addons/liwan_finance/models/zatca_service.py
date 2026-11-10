@@ -11,14 +11,16 @@ raw ZATCA response leaves this model.
 import logging
 import re
 
-from odoo import api, models
+from odoo import api, fields, models
 from odoo.exceptions import MissingError, UserError
 
 from odoo.addons.liwan_api.controllers.common import ApiError
+from odoo.addons.liwan_api.serializers.common import iso
 from odoo.addons.liwan_finance.serializers.zatca import (
     dump_zatca_readiness,
     dump_zatca_submission,
     plain_text,
+    retry_allowed_at,
     zatca_document,
 )
 
@@ -134,7 +136,15 @@ class LiwanFinanceZatca(models.AbstractModel):
             raise ApiError(422, 'invalid_state', 'the document was already accepted by ZATCA')
         if not retry and document.blocking_level == 'error':
             raise ApiError(422, 'invalid_state', 'ZATCA rejected the document; correct it and retry')
+        if retry:
+            allowed_at = retry_allowed_at(document)
+            if allowed_at and fields.Datetime.now() < allowed_at:
+                raise ApiError(
+                    422, 'retry_too_soon', 'the document was sent too recently; retry after next_retry_at',
+                    details={'next_retry_at': iso(allowed_at), 'retry_count': document.liwan_zatca_retry_count},
+                )
         elevated_move = self.sudo().with_context(lang='en_US').env['account.move'].browse(move.id)
+        self._liwan_record_attempt(zatca_document(elevated_move), retry)
         if retry:
             self._liwan_retry_zatca_document(elevated_move)
         try:
@@ -152,6 +162,14 @@ class LiwanFinanceZatca(models.AbstractModel):
         )
         self.env['liwan.finance.audit.event']._liwan_log('zatca_submitted', move, outcome=state)
         return move
+
+    @api.model
+    def _liwan_record_attempt(self, document, retry):
+        """Stamp a manual send on the document and count it when it is a retry; a send that raises rolls this back with it."""
+        values = {'liwan_zatca_last_attempt_at': fields.Datetime.now()}
+        if retry:
+            values['liwan_zatca_retry_count'] = document.liwan_zatca_retry_count + 1
+        document.write(values)
 
     def _liwan_retry_zatca_document(self, move):
         """Clear the stored failure of the ZATCA document of ``move``, leaving every other EDI format of the move untouched.

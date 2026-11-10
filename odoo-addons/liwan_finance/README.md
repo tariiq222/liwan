@@ -581,7 +581,7 @@ There is no route that changes the mode.
   Stock folds every failure into one text, so the 502/422 split reads that text (a `[NNN]` status marker other than
   400, or connection-error words); a transport failure during the compliance checks is indistinguishable from a rejection and answers 422.
 - `GET /invoices/<id>/zatca` and the `submission` block of the invoice detail `zatca`:
-  `{state, mode, errors, warnings, qr_present}`. `state`: `not_applicable` (draft, or no ZATCA document), `pending`
+  `{state, mode, errors, warnings, qr_present, retry_count, last_attempt_at, next_retry_at}`. `state`: `not_applicable` (draft, or no ZATCA document), `pending`
   (posted, waiting; the stock cron also sends it), `accepted` (`warnings` hold ZATCA's warnings), `rejected` (ZATCA's
   validation errors in `errors: [{code, message}]`), `retry` (no verdict yet: ZATCA unreachable, a 5xx, or warnings
   only; ZATCA's codes are shown when it gave any, else a generic message; stock keeps the chain index only when ZATCA
@@ -592,6 +592,10 @@ There is no route that changes the mode.
   by stock only in the chatter, so they are read from the newest alert box of the invoice (best effort).
 - `POST /invoices/<id>/zatca/submit` and `/retry`: send that one posted invoice now (no waiting for the cron).
   `submit` refuses a rejected document (`invalid_state`: correct it and retry); `retry` clears the stock error first.
+  Every manual send stamps `last_attempt_at` on the document; `retry` also adds one to `retry_count` and is spaced by an
+  escalating wait after the previous send, 30 s, 2 min, 5 min, 15 min and then 1 h (`RETRY_SPACING_SECONDS`, the last value is
+  the cap). An earlier retry is 422 `retry_too_soon` with `details.next_retry_at` and nothing is sent or counted. `retry` honours
+  `Idempotency-Key`; the web client sends `zatca-retry-<invoice id>-<retry_count>`.
   An accepted document, or one being sent by another process, is 422 `invalid_state`; a draft or non-ZATCA document 422 `zatca_not_applicable`; a journal
   that lost its onboarding 422 `zatca_not_onboarded`. Answer: the submission block. Otherwise the answer is an error
   carrying `details.submission`, committed (stock keeps the rejected XML and the chain index of a document ZATCA may

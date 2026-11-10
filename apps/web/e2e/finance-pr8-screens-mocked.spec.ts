@@ -37,6 +37,14 @@ for (const locale of ['ar', 'en'] as const) {
       expect(errors, 'no page error and no console error').toEqual([])
     })
 
+    test('ZATCA work queue shows the manual retry count of a document that was retried', async ({ page }) => {
+      await open(page, '/settings/apps/finance?tab=zatca')
+      const retries = page.getByTestId('finance-zatca-work-retries-301')
+      await expect(retries).toBeVisible()
+      await expect(retries).toContainText('2')
+      await expect(page.getByTestId('finance-zatca-work-retries-300')).toHaveCount(0)
+    })
+
     for (const { screen, path } of SCREENS) {
       test(`${screen} opens`, async ({ page }) => {
         await open(page, path)
