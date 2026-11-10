@@ -36,6 +36,21 @@ class TestAiLimitWarning(AiProbe, LiwanApiCase):
     def _bell(self, user):
         return self.env['liwan.notify.service'].with_user(user)._liwan_list(50)['items']
 
+    def _raw(self, charge, paid):
+        """A ledger row written directly, so its paid part lands on the balance without spending the free allowance."""
+        self._raw_calls = getattr(self, '_raw_calls', 0) + 1
+        self.env.cr.execute(
+            "INSERT INTO liwan_ai_usage (company_id, user_id, conversation_id, call_id, kind, capability, billing, provider, model,"
+            " outcome, input_tokens, output_tokens, tokens_reported, cost, cost_reported, charge, charge_reported, charge_paid,"
+            " called_at, allowance_window_start) VALUES (%s, %s, 'r_warn_raw', %s, 'plan', 'standard', 'platform', 'acme-ai',"
+            " 'acme-1', 'ok', 1, 1, true, %s, true, %s, true, %s, %s, %s)",
+            [self.env.company.id, self.employee.id, f'{self._raw_calls:016x}', charge, charge, paid,
+             datetime.now(timezone.utc).replace(tzinfo=None),
+             self.env['liwan.ai.balance']._liwan_ai_window(datetime.now(timezone.utc).replace(tzinfo=None))[1]],
+        )
+        if paid:
+            self.env.ref('liwan_platform.tenant_profile').sudo()._liwan_add_ai_paid(paid)
+
     def test_managers_are_told_once_a_month_at_eighty_percent(self):
         self._set_feature('ai.messages.monthly', 5)
         for index in range(3):
@@ -113,6 +128,20 @@ class TestAiLimitWarning(AiProbe, LiwanApiCase):
         self.assertEqual(len(self._balance_bells()), 4)
         self._record(5_000)
         self.assertEqual(len(self._balance_bells()), 4)
+
+    def test_the_empty_warning_waits_until_the_allowance_cannot_pay_a_run(self):
+        self._set_feature('ai.balance.granted', 100_000)
+        self._set_feature('ai.allowance.monthly', 10_000)
+        self._raw(96_000, 96_000)  # from the balance: 4,000 left, the whole allowance still there
+        self.env['liwan.ai.usage']._liwan_cron_warn_balance()
+        bells = self._balance_bells()
+        self.assertEqual(len(bells), 1)
+        self.assertIn('20%', bells[0])
+        self._raw(10_000, 0)  # uses up the allowance; the balance did not move
+        self.env['liwan.ai.usage']._liwan_cron_warn_balance()
+        bells = self._balance_bells()
+        self.assertEqual(len(bells), 2)
+        self.assertTrue(any('نفد' in title for title in bells))
 
     def test_a_tenant_without_a_balance_and_the_tenant_key_never_warn_about_the_balance(self):
         self._set_feature('ai.balance.granted', None)

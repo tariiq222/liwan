@@ -127,13 +127,15 @@ class LiwanAiLimitUsage(models.Model):
         capability and nothing else) and nothing here may be elevated. Each warning is keyed by the granted total it was judged
         against, so a top-up (a larger total) arms both again; running it again changes nothing until the balance crosses a
         threshold. A tenant without a balance never warns. "Empty" is judged against ``RUN_RESERVE``, the amount every new paid run
-        must find (``liwan.ai.balance._liwan_ai_blocked``): below it the paid assistant stops although a few units may remain.
+        must find (``liwan.ai.balance._liwan_ai_blocked``), and only once the free allowance cannot cover it either: a balance
+        below the reserve does not stop the assistant while the allowance still pays, and a warning sent then would also use up
+        the once-per-total key before the assistant actually stops.
         """
         state = self.env['liwan.ai.balance']._liwan_ai_balance_state()
         granted, left = state['balance_granted'], state['balance_left']
         if not granted:
             return
-        if left < RUN_RESERVE:
+        if left + (state['allowance_left'] or 0) < RUN_RESERVE:
             self.env['liwan.ai.audit']._liwan_deliver_warnings(['balance_empty'], period=granted)
         elif left < BALANCE_LOW_RATIO * granted:
             self.env['liwan.ai.audit']._liwan_deliver_warnings(['balance_low'], period=granted)
