@@ -300,13 +300,20 @@ def test_a_usage_event_without_tokens_or_prices_carries_no_cost():
     assert data["cost"] is None and data["charge"] is None and data["input_tokens"] == 1_000
 
 
-def test_the_capability_is_standard_unless_the_call_is_a_title_or_a_setup_run():
+def test_a_call_reports_the_capability_of_the_identity_it_runs_on():
     plain = usage.ModelIdentity("ollama", "m", "platform")
     assert plain.capability == "standard" and plain.margin_bps == 0 and plain.input_units is None
     assert usage.call_event("ab" * 8, "plan", plain)["data"]["capability"] == "standard"
     assert usage.call_event("ab" * 8, "plan", replace(plain, capability="analysis"))["data"]["capability"] == "analysis"
-    assert usage.call_event("ab" * 8, "title", replace(plain, capability="analysis"))["data"]["capability"] == "quick"
-    assert usage.call_event("ab" * 8, "plan", replace(plain, billing="setup"))["data"]["capability"] == "quick"
+    assert usage.call_event("ab" * 8, "title", replace(plain, capability="quick"))["data"]["capability"] == "quick"
+
+
+async def test_a_setup_run_reports_every_call_as_quick_and_billed_to_setup():
+    async with make_client(ScriptedChatModel([ai_text("تم")], title_responses=[ai_text("مهامي")])) as client:
+        body = {**fresh(), "policy": {**fresh()["policy"], "provider_mode": "setup"}}
+        events = parse_sse((await client.post("/v1/runs", json=body, headers=HEADERS)).text)
+    calls = [data for name, data in events if name == "model_call"]
+    assert [(call["kind"], call["capability"], call["billing"]) for call in calls] == [("plan", "quick", "setup"), ("title", "quick", "setup")]
 
 
 async def test_a_priced_run_reports_cost_and_charge_on_its_plan_and_title_calls():

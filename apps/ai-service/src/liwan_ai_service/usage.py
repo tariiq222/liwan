@@ -50,7 +50,7 @@ class ModelIdentity:
     provider: str
     model: str
     billing: Billing  # whose account pays: the platform's, the tenant's own key, or the vendor's setup budget
-    capability: Capability = "standard"  # the kind of task the model was chosen for (see ``capability_of`` for title and setup calls)
+    capability: Capability = "standard"  # the kind of task the model serves (see ``RunModels.for_capability``)
     input_units: int | None = None  # price per million input tokens in cost units; None while unknown
     output_units: int | None = None  # price per million output tokens in cost units; None while unknown
     margin_bps: int = 0  # the vendor margin on cost, in basis points (2000 = 20 %)
@@ -95,14 +95,9 @@ def call_charge(cost: int | None, margin_bps: int) -> int | None:
     return charge if charge <= MAX_COST_UNITS else None
 
 
-def capability_of(kind: ModelCallKind, identity: ModelIdentity) -> Capability:
-    """Titles and the vendor's setup and help runs are always ``quick``; any other call reports the capability its model was chosen for."""
-    return "quick" if kind == "title" or identity.billing == "setup" else identity.capability
-
-
 def call_event(call_id: str, kind: ModelCallKind, identity: ModelIdentity) -> dict[str, Any]:
     event = ModelCallEvent(
-        call_id=call_id, kind=kind, capability=capability_of(kind, identity), billing=identity.billing, provider=identity.provider,
+        call_id=call_id, kind=kind, capability=identity.capability, billing=identity.billing, provider=identity.provider,
         model=identity.model, called_at=datetime.now(UTC),
     )
     return {"event": "model_call", "data": event.model_dump(mode="json")}

@@ -13,8 +13,9 @@ from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, Syst
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 
 from liwan_ai_service.control import MemoryControlState
-from liwan_ai_service.graph import RUN_MODEL_KEY, build_graph
+from liwan_ai_service.graph import RUN_MODELS_KEY, build_graph
 from liwan_ai_service.platform_provider import PlatformModel, PlatformProvider
+from liwan_ai_service.routing import RunModels
 from liwan_ai_service.service import create_app
 from liwan_ai_service.store import MemoryRunStore
 from liwan_ai_service.tenancy import MemoryDirectory
@@ -77,14 +78,14 @@ async def open_test_state(database_url: str):
 
 
 class BoundGraph:
-    """A tenant graph driven directly by a test: every config it is given carries ``model`` as the request's model."""
+    """A tenant graph driven directly by a test: every config it is given carries ``model`` as the request's only model, or ``run_models`` when given."""
 
-    def __init__(self, model, checkpointer, identity: ModelIdentity = IDENTITY) -> None:
+    def __init__(self, model, checkpointer, identity: ModelIdentity = IDENTITY, run_models: RunModels | None = None) -> None:
         self.graph = build_graph(checkpointer)
-        self.run_model = RunModel(model, identity)
+        self.run_models = run_models or RunModels(RunModel(model, identity))
 
     def _config(self, config):
-        return {**config, "configurable": {**config["configurable"], RUN_MODEL_KEY: self.run_model}}
+        return {**config, "configurable": {**config["configurable"], RUN_MODELS_KEY: self.run_models}}
 
     async def ainvoke(self, graph_input, config, **kwargs):
         return await self.graph.ainvoke(graph_input, self._config(config), **kwargs)
