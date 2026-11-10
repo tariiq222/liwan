@@ -24,9 +24,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
+from deploy import backup, restore_verify
 from deploy import backup_pipeline as bp
 from deploy import restore_drill as drill
-from deploy import restore_verify
 from deploy.s3_client import FilesystemStore
 
 TENANT = 'acme'
@@ -133,7 +133,7 @@ class DrillCase(unittest.TestCase):
         return self.capture_into(self.store, TENANT, now=now, kind=kind)
 
     def capture_into(self, store, tenant: str, *, now: datetime,
-                     kind: str = 'hourly') -> bp.BackupManifest:
+                     kind: str = 'hourly', alter_after_manifest: bool = False) -> bp.BackupManifest:
         """A real capture whose encrypted bytes are produced by the pipeline itself."""
         filestore = self.root / 'data' / 'filestore' / 'liwan_scratch'
         filestore.mkdir(parents=True, exist_ok=True)
@@ -146,6 +146,12 @@ class DrillCase(unittest.TestCase):
             (output / 'filestore' / 'ab').mkdir(parents=True, exist_ok=True)
             (output / 'database.dump').write_bytes(DUMP_BYTES)
             (output / 'filestore' / 'ab' / 'cdef').write_bytes(ATTACHMENT_BYTES)
+            # The manifest deploy/backup.py itself writes, from its own helpers.
+            backup.write_manifest(output / 'manifest.json', backup.candidate_manifest_payload(
+                db='liwan_scratch', store=filestore, backup_dir=output, http_observation=None))
+            if alter_after_manifest:
+                # Same size, different bytes: the file changed after backup.py pinned it.
+                (output / 'filestore' / 'ab' / 'cdef').write_bytes(b'x' * len(ATTACHMENT_BYTES))
             return Completed()
 
         return bp.capture(
@@ -208,10 +214,10 @@ class TestSuccessfulDrill(DrillCase):
     def test_the_source_manifest_digest_names_the_manifest_it_read(self):
         runner = Runner()
         record = self.run_drill(runner=runner)
-        staged = runner.staged['manifest.json']
         self.assertFalse(runner.backup_dir.exists())
-        self.assertEqual(record['source_manifest_sha256'], hashlib.sha256(staged).hexdigest())
-        self.assertEqual(staged, self.store.get(self.manifest_key()))
+        self.assertEqual(
+            record['source_manifest_sha256'], hashlib.sha256(self.store.get(self.manifest_key())).hexdigest(),
+        )
 
     def test_the_rpo_uses_the_artifact_capture_time(self):
         record = self.run_drill(now=datetime.fromisoformat(STAMP) + timedelta(minutes=30))
@@ -261,7 +267,10 @@ class TestSuccessfulDrill(DrillCase):
         self.run_drill(runner=runner)
         self.assertEqual(runner.staged['database.dump'], DUMP_BYTES)
         self.assertEqual(runner.staged['filestore/ab/cdef'], ATTACHMENT_BYTES)
-        self.assertEqual(runner.staged['manifest.json'], self.store.get(self.manifest_key()))
+        pinned = json.loads(runner.staged['manifest.json'])
+        self.assertEqual(pinned['database_dump_sha256'], hashlib.sha256(DUMP_BYTES).hexdigest())
+        self.assertEqual(pinned['filestore_file_count'], 1)
+        self.assertNotEqual(runner.staged['manifest.json'], self.store.get(self.manifest_key()))
         self.assertFalse(runner.backup_dir.exists())
 
     def test_the_passphrase_never_appears_in_any_argv(self):
@@ -279,6 +288,51 @@ class TestSuccessfulDrill(DrillCase):
         self.assertEqual(record['artifact_key'], bp.artifact_prefix(
             TENANT, 'daily', daily.captured_at,
         ) + bp.ARTIFACT_CIPHERTEXT_NAME)
+
+
+class VerifyingRunner(RecordingRunner):
+    """Runs the real ``restore_verify.perform_restore``; only PostgreSQL is faked."""
+
+    MODULES = 'liwan_api\nliwan_core\n'
+
+    def __init__(self) -> None:
+        super().__init__(self._restore)
+
+    def _restore(self, arguments, **_kwargs) -> Completed:
+        options = dict(zip(arguments[2::2], arguments[3::2]))
+        with patch.object(restore_verify, 'expected_modules', return_value=['liwan_api', 'liwan_core']):
+            result = restore_verify.perform_restore(
+                backup_dir=options['--backup-dir'], target_db=options['--target-db'],
+                target_filestore=options['--target-filestore'], pg_restore=options['--pg-restore'],
+                psql=options['--psql'], pg_user=options['--pg-user'], runner=self._postgres,
+            )
+        return Completed(returncode=0 if result['restore_verified'] else 1)
+
+    def _postgres(self, argv, input=None, **_kwargs) -> Completed:
+        if Path(argv[0]).name != 'psql' or input is not None:
+            return Completed()
+        sql = argv[argv.index('-c') + 1]
+        if 'ir_attachment' in sql:
+            return Completed(stdout='ab/cdef\n')
+        return Completed(stdout='0\n' if 'count(*)' in sql else self.MODULES)
+
+
+class TestManifestIsVerified(DrillCase):
+    """The drill hands restore_verify the manifest backup.py wrote, and nothing mocks the check."""
+
+    def test_the_extracted_backup_passes_the_real_integrity_check(self):
+        record = self.run_drill(runner=VerifyingRunner())
+        self.assertTrue(record['restore_verified'])
+        self.assertEqual(record['checks']['backup_integrity_mismatches'], [])
+        self.assertEqual(record['checks']['filestore_files_expected'], 1)
+        self.assertEqual(record['checks']['filestore_files_actual'], 1)
+
+    def test_a_file_altered_after_capture_is_reported_and_not_verified(self):
+        self.store = FilesystemStore(self.root / 'altered-bucket')
+        self.capture_into(self.store, TENANT, now=datetime.fromisoformat(STAMP), alter_after_manifest=True)
+        record = self.run_drill(runner=VerifyingRunner())
+        self.assertFalse(record['restore_verified'])
+        self.assertEqual(record['checks']['backup_integrity_mismatches'], ['filestore_sha256'])
 
 
 class TestRefusals(DrillCase):

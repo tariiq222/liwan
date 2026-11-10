@@ -3,7 +3,9 @@
 
 Writes restore-verification.json beside the backup. Never edits manifest.json:
 the capture-time consistency claim stays UNVERIFIED; this records that the copy
-was actually restored and what was checked.
+was actually restored and what was checked. The dump and the filestore are first
+compared with the SHA-256 digests and file count the manifest pinned, so a file
+that changed after the copy is a failed restore, not a verified one.
 """
 from __future__ import annotations
 
@@ -16,6 +18,11 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+try:  # imported as deploy.<module> (repository tests, PYTHONPATH=.)
+    from deploy import backup
+except ImportError:  # executed as a script from deploy/ (PYTHONPATH=deploy)
+    import backup
 
 FORBIDDEN_DB_RE = re.compile(r'(?:^|_)(odoo19|production|prod|postgres|template0|template1)(?:_|$)', re.IGNORECASE)
 DB_NAME_RE = re.compile(r'^[A-Za-z][A-Za-z0-9_]*$')
@@ -52,6 +59,56 @@ def expected_modules() -> list[str]:
 
 class RestoreError(Exception):
     """Validation or restore failure; no verification record claims success."""
+
+
+def load_manifest_integrity(manifest: Path) -> dict:
+    """The manifest, if it pins the dump and the filestore bytes as backup.py writes them.
+
+    A manifest without the digests and the file count is not a backup.py manifest: there is
+    nothing to verify the copy against, so it is refused before any database is touched.
+    """
+    try:
+        payload = json.loads(manifest.read_text(encoding='utf-8'))
+    except ValueError as error:
+        raise RestoreError(f'manifest.json is not valid JSON: {error}') from None
+    count = payload.get('filestore_file_count') if isinstance(payload, dict) else None
+    if not (
+        isinstance(payload, dict)
+        and all(isinstance(payload.get(key), str) and backup.SHA256_RE.fullmatch(payload[key])
+                for key in ('database_dump_sha256', 'filestore_sha256'))
+        and isinstance(count, int) and not isinstance(count, bool) and count >= 0
+    ):
+        message = (
+            'manifest.json does not pin the backup: it needs database_dump_sha256, '
+            'filestore_sha256 and filestore_file_count as deploy/backup.py writes them'
+        )
+        raise RestoreError(message)
+    return payload
+
+
+def check_backup_integrity(manifest: dict, dump: Path, store: Path) -> dict:
+    """Compare the dump and the filestore with what the manifest pinned.
+
+    A symlink or special file in the backup raises :class:`RestoreError`; a digest or count
+    that differs is listed in ``mismatches`` so the restore record shows it and cannot verify.
+    """
+    if dump.is_symlink():
+        message = 'database.dump is a symlink: a restore reads a regular file only'
+        raise RestoreError(message)
+    try:
+        filestore_sha256, file_count = backup.filestore_digest(store)
+    except backup.BackupError as error:
+        raise RestoreError(f'the backup filestore cannot be restored: {error}') from None
+    actual = {
+        'database_dump_sha256': backup.sha256_file(dump),
+        'filestore_sha256': filestore_sha256,
+        'filestore_file_count': file_count,
+    }
+    return {
+        'mismatches': [key for key, value in actual.items() if manifest[key] != value],
+        'filestore_files_expected': manifest['filestore_file_count'],
+        'filestore_files_actual': file_count,
+    }
 
 
 def validate_target_db(name: str) -> str:
@@ -93,9 +150,10 @@ def _tenant_database_sql(database: str, role: str) -> tuple[str, str]:
 def perform_restore(*, backup_dir, target_db, target_filestore, pg_restore, psql,
                     pg_host=None, pg_port=None, pg_user=None, runner=subprocess.run) -> dict:
     db = validate_target_db(target_db)
-    backup = Path(backup_dir)
-    dump, store, manifest = backup / 'database.dump', backup / 'filestore', backup / 'manifest.json'
-    if not (backup.is_absolute() and dump.is_file() and store.is_dir() and manifest.is_file()):
+    backup_path = Path(backup_dir)
+    dump, store = backup_path / backup.DUMP_NAME, backup_path / backup.FILESTORE_NAME
+    manifest = backup_path / 'manifest.json'
+    if not (backup_path.is_absolute() and dump.is_file() and store.is_dir() and manifest.is_file()):
         message = 'backup directory must be absolute and contain database.dump, filestore/ and manifest.json'
         raise RestoreError(message)
     destination = Path(target_filestore)
@@ -106,6 +164,8 @@ def perform_restore(*, backup_dir, target_db, target_filestore, pg_restore, psql
         'pg_restore': _tool(pg_restore, 'pg_restore'),
         'psql': _tool(psql, 'psql'),
     }
+    source_manifest = load_manifest_integrity(manifest)
+    integrity = check_backup_integrity(source_manifest, dump, store)
     conn = _conn(pg_host, pg_port, pg_user)
     # The restored database stays open to the role the restore connects as once PUBLIC is closed.
     if not pg_user:
@@ -131,7 +191,7 @@ def perform_restore(*, backup_dir, target_db, target_filestore, pg_restore, psql
     run([tools['pg_restore'], *conn, '--no-owner', '--no-acl', '--exit-on-error',
          '--single-transaction', '-d', db, str(dump)])
     destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(str(store), str(destination), symlinks=True)
+    shutil.copytree(str(store), str(destination))
 
     def query(sql):
         return run([tools['psql'], *conn, '-d', db, '-At', '-v', 'ON_ERROR_STOP=1', '-c', sql])
@@ -143,11 +203,17 @@ def perform_restore(*, backup_dir, target_db, target_filestore, pg_restore, psql
     referenced = [line for line in query(SQL_ATTACHMENTS).splitlines() if line]
     missing = [name for name in referenced if not (destination / name).is_file()]
     result = {
-        'restore_verified': bool(expected) and not missing_modules and stuck == 0 and not missing,
+        'restore_verified': (
+            bool(expected) and not missing_modules and stuck == 0 and not missing
+            and not integrity['mismatches']
+        ),
         'verified_at': datetime.now(timezone.utc).isoformat(),
         'restored_into': db,
-        'source_manifest': json.loads(manifest.read_text(encoding='utf-8')),
+        'source_manifest': source_manifest,
         'checks': {
+            'backup_integrity_mismatches': integrity['mismatches'],
+            'filestore_files_expected': integrity['filestore_files_expected'],
+            'filestore_files_actual': integrity['filestore_files_actual'],
             'liwan_modules_installed': len(installed_names),
             'liwan_modules_expected': len(expected),
             'missing_modules': missing_modules,
@@ -157,7 +223,7 @@ def perform_restore(*, backup_dir, target_db, target_filestore, pg_restore, psql
         },
         'not_covered': ['capture-time quiescence', 'encryption', 'offsite copy', 'retention', 'RPO', 'RTO'],
     }
-    (backup / 'restore-verification.json').write_text(
+    (backup_path / 'restore-verification.json').write_text(
         json.dumps(result, indent=2, ensure_ascii=False), encoding='utf-8',
     )
     return result
