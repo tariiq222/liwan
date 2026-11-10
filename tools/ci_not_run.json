@@ -106,6 +106,7 @@
     {
       "reason": "vendor-admin Playwright prod project (npm run e2e in apps/vendor-admin builds Nuxt and drives a mock control plane); deploy/ci/vendor-admin.sh runs only lint, vitest and the build, so no stage runs them",
       "files": [
+        "apps/vendor-admin/e2e/ai-provider.spec.ts",
         "apps/vendor-admin/e2e/auth.spec.ts",
         "apps/vendor-admin/e2e/bundles.spec.ts",
         "apps/vendor-admin/e2e/clients.spec.ts",
