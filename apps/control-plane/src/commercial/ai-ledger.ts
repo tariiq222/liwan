@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { AI_ENTITLEMENT_KEYS, AI_UNITS_MAX, aiEntitlementFeatures, quoteSchema, sarMinorToAiUnits, type AiBillingSettings } from '@liwan/commercial-contracts'
+import { transaction } from '../db.js'
+import { lockTenantJobs } from '../shared/job-store.js'
 import { appliedDeliveryTarget, enqueueAppliedDelivery } from './delivery-target.js'
 
 type Q = Pick<Pool, 'query'>
@@ -45,56 +47,65 @@ export async function deliveredEntitlement<E extends { features: Record<string, 
 }
 
 /**
- * Pushes the live AI keys to the customer's tenant on its applied revision, as an AI-only job (`ai_push`), authorised by
- * the order that applied that revision. Returns false only when there is nothing to push to (no applied revision, binding
- * or applying order). It is never held back by other orders: a push claimed after a newer revision applied completes as
- * superseded and queues one fresh push, and `pushAiIfStale` converges the values after every delivery. A push still
- * queued for the same revision with the same values is reused, so repeats collapse into one job.
+ * Queues an AI-only push (`ai_push`) of the live AI keys to the customer's tenant, authorised by the order that applied
+ * its current revision. Returns false only when there is nothing to push to (no tenant, applied revision, binding or
+ * applying order). Every job reads the live values when it is claimed, so one queued, dispatchable push is always
+ * enough: if one already exists for this binding and revision, none is added. The tenant lock is taken before anything
+ * is read, the same lock a claim and a completion take, so a ledger event and a worker cannot miss each other.
  */
 export async function pushAiEntitlement(client: PoolClient, customerId: string): Promise<boolean> {
-  const subscription = (await client.query('SELECT id FROM subscriptions WHERE customer_id=$1', [customerId])).rows[0]
-  const target = subscription ? await appliedDeliveryTarget(client, subscription.id, 'applied') : null
+  const subscription = (await client.query('SELECT id,tenant_id FROM subscriptions WHERE customer_id=$1', [customerId])).rows[0]
+  if (!subscription?.tenant_id) return false
+  await lockTenantJobs(client, subscription.tenant_id)
+  const target = await appliedDeliveryTarget(client, subscription.id, 'applied')
   if (!target?.binding || !target.order) return false
+  const { binding } = target
+  const queued = await client.query(`SELECT 1 FROM shared_jobs WHERE control_tenant_id=$1 AND state='queued' AND payload->'authority'->>'ai_push'='true'
+    AND payload->'authority'->>'target_revision_id'=$2
+    AND payload->'binding'=jsonb_build_object('tenantId',$3::text,'database',$4::text,'filestore',$5::text,'registryRevision',$6::bigint)`,
+  [subscription.tenant_id, target.row.applied_revision_id, binding.tenant_id, binding.database_name, binding.filestore, binding.registry_revision])
+  if (queued.rowCount) return true
   const { snapshot } = target.row
   const entitlement = await deliveredEntitlement(client, customerId, { modules: snapshot.entitlement.modules, features: snapshot.entitlement.features,
     digest: snapshot.entitlement.digest, compiler_version: snapshot.entitlement.compiler_version })
-  const values = Object.fromEntries(Object.entries(entitlement.features).filter(([key]) => AI_ENTITLEMENT_KEYS.includes(key)))
-  const queued = await client.query(`SELECT 1 FROM shared_jobs WHERE control_tenant_id=$1 AND state='queued' AND payload->'authority'->>'ai_push'='true'
-    AND payload->'authority'->>'target_revision_id'=$2 AND payload->'authority'->'entitlement'->'features' @> $3::jsonb`,
-  [target.row.tenant_id, target.row.applied_revision_id, JSON.stringify(values)])
-  if (queued.rowCount) return true
-  await enqueueAppliedDelivery(client, { ...target, binding: target.binding, order: target.order }, entitlement, null, true, true)
+  await enqueueAppliedDelivery(client, { ...target, binding, order: target.order }, entitlement, null, true, true)
   return true
 }
 
 /** The one comparison: whether the three AI values a tenant holds (or was just sent) equal the customer's live ones. */
 export async function aiValuesCurrent(client: Q, customerId: string, held: Record<string, unknown>): Promise<boolean> {
-  const live = await liveAiFeatures(client, customerId)
-  return Object.entries(live).every(([key, value]) => held[key] === value)
+  return aiDifferences(await liveAiFeatures(client, customerId), held).length === 0
 }
+const aiDifferences = (live: Record<string, number>, held: Record<string, unknown>) => Object.keys(live).filter(key => held[key] !== live[key])
 
-/** The AI values the tenant last received for its applied revision: the journal of the newest verified (non-restore) delivery. */
-export async function lastDeliveredAi(client: Q, tenantId: string, revisionId: string): Promise<Record<string, unknown>> {
-  const last = await client.query(`SELECT journal->'ai_delivered' AS delivered FROM shared_jobs WHERE control_tenant_id=$1 AND state='verified'
-    AND payload->'authority'->>'target_revision_id'=$2 AND COALESCE(payload->>'restore','false')='false' AND journal ? 'ai_delivered'
-    ORDER BY created_at DESC,id DESC LIMIT 1`, [tenantId, revisionId])
-  return last.rows[0]?.delivered ?? {}
+/**
+ * After a delivery: the values it carried are compared with the live ones, read under the tenant lock, and a push
+ * follows when they differ. Equal values queue nothing, so a push's own completion ends the chain.
+ */
+export async function pushAiIfStale(client: PoolClient, customerId: string, delivered: Record<string, unknown>): Promise<boolean> {
+  const tenant = (await client.query('SELECT tenant_id FROM subscriptions WHERE customer_id=$1', [customerId])).rows[0]?.tenant_id
+  if (!tenant) return false
+  await lockTenantJobs(client, tenant)
+  return !await aiValuesCurrent(client, customerId, delivered) && await pushAiEntitlement(client, customerId)
 }
 
 /**
- * Called after any change to the customer's ledger total. Whatever state the purchase behind the change is in, the tenant
- * may already hold its units (through any delivery against the applied revision), so the values it last received are
- * compared with the live ones and a push follows when they differ. A customer with no applied tenant target is left alone.
+ * The level-triggered sweep, run by the usage collector for each tenant it observed: what the tenant holds is compared
+ * with the live ledger (under the tenant lock and the unchanged-binding check) and a push is queued when they differ.
+ * A correction here means an event path missed a change, so it is logged with the tenant and the keys, nothing else.
  */
-export async function convergeAi(client: PoolClient, customerId: string): Promise<boolean> {
-  const sub = (await client.query('SELECT tenant_id,applied_revision_id FROM subscriptions WHERE customer_id=$1', [customerId])).rows[0]
-  if (!sub?.tenant_id || !sub.applied_revision_id) return false
-  return pushAiIfStale(client, customerId, await lastDeliveredAi(client, sub.tenant_id, sub.applied_revision_id))
-}
-
-/** The one reconciliation rule: when the delivered AI values differ from the live ones, push the live ones. Equal values queue nothing, so it cannot loop. */
-export async function pushAiIfStale(client: PoolClient, customerId: string, delivered: Record<string, unknown>): Promise<boolean> {
-  return !await aiValuesCurrent(client, customerId, delivered) && await pushAiEntitlement(client, customerId)
+export async function sweepAi(pool: Pool, target: { tenant_id: string; database_name: string; registry_revision: string }, held: Record<string, number>, log: (message: string) => void): Promise<boolean> {
+  return transaction(pool, async client => {
+    await lockTenantJobs(client, target.tenant_id)
+    const bound = await client.query('SELECT 1 FROM shared_registry_bindings WHERE control_tenant_id=$1 AND enabled=true AND database_name=$2 AND registry_revision=$3',
+      [target.tenant_id, target.database_name, target.registry_revision])
+    const customer = (await client.query('SELECT customer_id FROM subscriptions WHERE tenant_id=$1', [target.tenant_id])).rows[0]?.customer_id
+    if (!bound.rowCount || !customer) return false
+    const differing = aiDifferences(await liveAiFeatures(client, customer), held)
+    if (!differing.length) return false
+    log(`AI values of tenant ${target.tenant_id} differed from the ledger (${differing.join(', ')}); queued a correction`)
+    return pushAiEntitlement(client, customer)
+  })
 }
 
 export type TopupRecord = 'none' | 'recorded' | 'over_cap'
@@ -120,12 +131,12 @@ export async function recordPaidTopup(client: PoolClient, order: { id: string; c
 /**
  * Lowers the ledger for a top-up that is refunded however the refund happens (vendor action, generic invoice refund,
  * provider refund, failed fulfilment). Idempotent. The tenant may hold the units whatever state the purchase's own
- * fulfilment is in, so convergence runs regardless of it.
+ * fulfilment is in, so a push is queued regardless of it.
  */
 export async function markTopupRefunded(client: PoolClient, orderId: string, by: string, reason: string): Promise<boolean> {
   const row = (await client.query(`UPDATE ai_topups t SET refunded_at=now(),refunded_by=$2,refund_reason=$3 FROM orders o
     WHERE t.order_id=$1 AND o.id=t.order_id AND t.refunded_at IS NULL RETURNING t.customer_id`, [orderId, by, reason])).rows[0]
   if (!row) return false
-  await convergeAi(client, row.customer_id)
+  await pushAiEntitlement(client, row.customer_id)
   return true
 }

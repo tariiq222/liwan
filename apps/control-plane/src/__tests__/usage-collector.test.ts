@@ -20,6 +20,14 @@ describe('usage observation gate (no database)', () => {
   it('accepts a fresh, limit-keyed observation of the bound database with its gates', () => {
     expect(acceptObservation(ok(db), db, NOW)).toEqual(ok(db))
   })
+  it('carries the tenant\'s three AI values when its feature map has them, ignores a map without them, and refuses a malformed one', () => {
+    const ai = { 'ai.balance.granted': 5, 'ai.allowance.trial': 6, 'ai.allowance.monthly': 0 }
+    expect(acceptObservation(ok(db, { features: { 'users.limit': 3, ...ai } }), db, NOW)).toEqual({ ...ok(db), ai })
+    expect(acceptObservation(ok(db, { features: { 'users.limit': 3 } }), db, NOW)).toEqual(ok(db))
+    expect(acceptObservation(ok(db, { features: { ...ai, 'ai.balance.granted': -1 } }), db, NOW)).toBeNull()
+    expect(acceptObservation(ok(db, { features: { 'ai.balance.granted': 5 } }), db, NOW)).toBeNull()
+    expect(acceptObservation(ok(db, { features: { ...ai, 'ai.allowance.trial': 1.5 } }), db, NOW)).toBeNull()
+  })
   it.each([
     ['another tenant database', ok('liwan_scratch_' + 'b'.repeat(32))],
     ['a stale sample', ok(db, { observed_at: '2026-10-07T09:44:59Z' })],

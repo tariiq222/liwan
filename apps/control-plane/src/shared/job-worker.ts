@@ -7,12 +7,11 @@ import { z } from 'zod'
 import type { SharedJob } from '@liwan/commercial-contracts/shared'
 import { isTransientDatabaseError, transaction } from '../db.js'
 import { resolveProvisionTarget } from './onboarding.js'
-import { requireJobAuthority } from './job-store.js'
+import { findBlockingJob, lockTenantJobs, requireJobAuthority } from './job-store.js'
 import { bindJob, businessKey, payloadDigest, reconcileSharedJob, verifiedReceipt } from './provisioning.js'
 import { commercialRestoreGate, finalizeVerifiedRestore, revalidateCommercialRestorePublication } from './shared-backup.js'
 import { runSubscriptionReconfigure, type SubscriptionAdapter } from './subscription-reconfigure.js'
 import { actorLabel } from '../admin-auth/grants.js'
-import { pushAiEntitlement } from '../commercial/ai-ledger.js'
 
 /** The physical adapter must atomically enforce fence validity at each mutation.
  * A caller-provided callback or a preflight lease check alone is NOT sufficient.
@@ -45,69 +44,23 @@ function nextSequence(sequence: number): number {
   if (!Number.isSafeInteger(sequence) || sequence < 0 || sequence >= Number.MAX_SAFE_INTEGER) throw new Error('shared_sequence_invalid')
   return sequence + 1
 }
-/**
- * How long a replacement AI push is held after a started one died. The tenant apply script is bounded by
- * `timeout=180` in tools/shared_saas_lifecycle/subscription_effect.py (`run_script`); an AI-only push installs no module,
- * so that is the longest its effect can still run. Mirrors that value plus a margin.
- */
-const TENANT_APPLY_TIMEOUT_SECONDS = 180
-const AI_PUSH_HOLD_SECONDS = TENANT_APPLY_TIMEOUT_SECONDS + 20
 export async function expireSharedLeases(pool: Pool): Promise<number> {
   // The transition and its audit succeed or roll back together. Preserve the
   // last intent journal so read-only recovery can reconcile a crashed effect.
-  // An AI balance push is idempotent (it delivers the live values) and carries no order, so it is never quarantined:
-  // it can never sit in needs_intervention and block the tenant. What happens to it depends on how far it got.
-  //  - Started (journal.stage='started'): its tenant effect may still be running (the child outlives a dead worker for up
-  //    to the effect's own 180 s apply timeout), and a late finish would overwrite newer values with the ones it captured.
-  //    It is failed, never re-run, and one fresh push is queued but held back (lease_until) past that timeout, so the
-  //    two attempts cannot overlap. A healthy worker renews its lease every 15 s, so this is only a dead or hung worker.
-  //  - Not started (the claim committed and the worker stopped before the journal): nothing ran, so it is requeued.
-  const startedIds = (await pool.query(`SELECT id FROM shared_jobs WHERE state='running' AND lease_until<=clock_timestamp()
-    AND payload->'authority'->>'ai_push'='true' AND journal->>'stage'='started' ORDER BY created_at,id`)).rows.map(r => r.id as string)
-  let failedPushes = 0
-  for (const id of startedIds) {
-    try {
-      // One transaction per job: failing it, its audit row and the held replacement commit together or not at all, and an
-      // error on one row is logged without stopping the others (the job stays expired-running for the next pass).
-      const failed = await transaction(pool, async client => {
-        const row = (await client.query(`SELECT id,control_tenant_id,attempt_id,fence FROM shared_jobs WHERE id=$1 AND state='running' AND lease_until<=clock_timestamp()
-          AND payload->'authority'->>'ai_push'='true' AND journal->>'stage'='started' FOR UPDATE SKIP LOCKED`, [id])).rows[0]
-        if (!row) return null
-        await client.query(`UPDATE shared_jobs SET state='failed',fence=fence+1,lease_until=NULL,journal=COALESCE(journal,'{}'::jsonb)||'{"error_code":"ai_push_lease_expired"}'::jsonb WHERE id=$1`, [id])
-        await client.query("INSERT INTO audit_events(id,actor,action,subject,reason) VALUES(gen_random_uuid(),'shared-worker','shared_job.lease_expired_failed',$1,$2)",
-          [id, `Lease expired; failed started AI push attempt ${row.attempt_id} at fence ${row.fence}`])
-        const customer = (await client.query('SELECT customer_id FROM subscriptions WHERE tenant_id=$1', [row.control_tenant_id])).rows[0]?.customer_id
-        if (customer) await pushAiEntitlement(client, customer)
-        // Every queued AI push of the tenant waits until the dead attempt's effect has certainly timed out.
-        await client.query(`UPDATE shared_jobs SET lease_until=GREATEST(COALESCE(lease_until,clock_timestamp()),clock_timestamp()+make_interval(secs=>$2))
-          WHERE control_tenant_id=$1 AND state='queued' AND payload->'authority'->>'ai_push'='true'`, [row.control_tenant_id, AI_PUSH_HOLD_SECONDS])
-        return row
-      })
-      if (failed) {
-        failedPushes++
-        console.error(`[control-plane] AI balance push ${failed.id} for tenant ${failed.control_tenant_id} failed: ai_push_lease_expired; queued a fresh push`)
-      }
-    } catch (error) {
-      console.error(`[control-plane] AI balance push ${id} could not be failed and replaced; it is retried on the next pass`, error)
-    }
-  }
-  const requeued = await pool.query(`WITH requeued AS (
-    UPDATE shared_jobs SET state='queued',fence=fence+1,lease_until=NULL
-    WHERE state='running' AND lease_until<=clock_timestamp() AND payload->'authority'->>'ai_push'='true' AND journal->>'stage' IS DISTINCT FROM 'started'
-    RETURNING id,attempt_id,fence
-  ) INSERT INTO audit_events(id,actor,action,subject,reason)
-    SELECT gen_random_uuid(),'shared-worker','shared_job.lease_expired_requeued',id::text,
-      'Lease expired; requeued AI push attempt ' || attempt_id::text || ' at fence ' || fence::text
-    FROM requeued`)
+  // An AI balance push carries no order and is re-sent by the periodic sweep, so an expired one is failed (which blocks
+  // nothing) instead of quarantined; everything else goes to needs_intervention.
   const result = await pool.query(`WITH expired AS (
-    UPDATE shared_jobs SET state='needs_intervention',fence=fence+1,lease_until=NULL
-    WHERE state='running' AND lease_until<=clock_timestamp() AND payload->'authority'->>'ai_push' IS DISTINCT FROM 'true'
-    RETURNING id,attempt_id,fence
-  ) INSERT INTO audit_events(id,actor,action,subject,reason)
+    UPDATE shared_jobs SET state=CASE WHEN payload->'authority'->>'ai_push'='true' THEN 'failed' ELSE 'needs_intervention' END,fence=fence+1,lease_until=NULL
+    WHERE state='running' AND lease_until<=clock_timestamp()
+    RETURNING id,control_tenant_id,attempt_id,fence,state
+  ), audited AS (
+    INSERT INTO audit_events(id,actor,action,subject,reason)
     SELECT gen_random_uuid(),'shared-worker','shared_job.lease_expired',id::text,
-      'Lease expired; quarantined attempt ' || attempt_id::text || ' at fence ' || fence::text
-    FROM expired`)
-  return failedPushes + (requeued.rowCount ?? 0) + (result.rowCount ?? 0)
+      'Lease expired; ' || CASE WHEN state='failed' THEN 'failed AI push' ELSE 'quarantined' END || ' attempt ' || attempt_id::text || ' at fence ' || fence::text
+    FROM expired RETURNING 1
+  ) SELECT id,control_tenant_id,state FROM expired`)
+  for (const row of result.rows) if (row.state === 'failed') console.error('[control-plane] AI balance push %s for tenant %s failed: lease expired; the sweep re-sends', row.id, row.control_tenant_id)
+  return result.rows.length
 }
 export async function recoverSharedJob(pool: Pool, id: string, actor: { issuer: string; actorUid: number }, reason: string, adapter?: SharedFencedAdapter, onVerified?: (client: PoolClient) => Promise<void>) {
   if (!adapter) throw new Error('shared_adapter_unavailable')
@@ -217,9 +170,8 @@ export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFence
     const result = await client.query("SELECT * FROM shared_jobs WHERE id=$1 AND state='queued' AND (lease_until IS NULL OR lease_until<=clock_timestamp()) FOR UPDATE", [id])
     if (!result.rowCount) throw new Error('shared_job_not_claimable')
     const row = result.rows[0]
-    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [row.control_tenant_id])
-    const unresolved = await client.query("SELECT id FROM shared_jobs WHERE control_tenant_id=$1 AND id<>$2 AND state IN ('running','needs_intervention') LIMIT 1", [row.control_tenant_id,id])
-    if (unresolved.rowCount) throw new Error('shared_reconciliation_required')
+    await lockTenantJobs(client, row.control_tenant_id)
+    if (await findBlockingJob(client, row.control_tenant_id, { id, aiPush: false })) throw new Error('shared_reconciliation_required')
     try { await requireWorkerAuthority(client, row) }
     catch (error) {
       if (!(error instanceof Error) || error.message !== 'enrollment_authority_invalid') throw error

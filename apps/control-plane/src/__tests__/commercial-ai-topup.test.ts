@@ -12,11 +12,13 @@ import { fixedReturnOrigin } from '../commercial/return-origin.js'
 import { applyReceipt, failFulfillment, processFulfillmentOutbox } from '../commercial/fulfillment.js'
 import { generateRenewals } from '../commercial/renewals.js'
 import { customerCatalog } from '../commercial/customer-http.js'
-import { deliveredEntitlement, grantedUnits } from '../commercial/ai-ledger.js'
+import { deliveredEntitlement, grantedUnits, markTopupRefunded } from '../commercial/ai-ledger.js'
 import { requestInvoiceRefund } from '../commercial/settlements.js'
 import { extendTrial, pushCommercialExpiry } from '../commercial/trial.js'
 import { transaction } from '../db.js'
 import { expireSharedLeases } from '../shared/job-worker.js'
+import { dispatchSharedOnce } from '../shared/job-dispatcher.js'
+import { collectUsage } from '../commercial/usage-collector.js'
 import { reconcileAfterRestore, fakeObserveRunner } from '../shared/subscription-reconcile.js'
 import { enqueueReconfigureJob } from '../shared/job-store.js'
 import { assertReconfigureAuthority, runSubscriptionReconfigure } from '../shared/subscription-reconfigure.js'
@@ -497,32 +499,6 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
       expect(await stuck(id)).toBe(0)
     })
 
-    it('a push read against the old revision after the change completed is superseded and re-queued for the current one', async () => {
-      const { id, o } = await appliedTopup()
-      const change = await paidChange(id)
-      await processFulfillmentOutbox(pool, { limit: 1000 })
-      await runSubscriptionReconfigure(pool, (await jobId(change.id, false))!, runner)
-      expect(await queued(id)).toHaveLength(0)
-      const oldRevision = (await pool.query('SELECT payload FROM shared_jobs WHERE payload->>\'operation\'=\'reconfigure\' AND payload->\'authority\'->>\'order_id\'=$1', [o.id])).rows[0].payload.authority.target_revision_id
-      // A refund committed after the completion check, whose push was built against the revision that was applied before.
-      await pool.query('UPDATE ai_topups SET refunded_at=now(),refunded_by=\'system\',refund_reason=\'race\' WHERE customer_id=$1', [id])
-      const tenant = (await pool.query('SELECT tenant_id FROM customers WHERE id=$1', [id])).rows[0].tenant_id
-      const oldApplied = (await pool.query('SELECT payload FROM shared_jobs WHERE id=$1', [await jobId(o.id, false)])).rows[0].payload
-      const stale = structuredClone(oldApplied)
-      stale.requestId = stale.authority.operation_id = randomUUID()
-      stale.authority.ai_push = true
-      stale.authority.previous_revision_id = stale.authority.target_revision_id = oldRevision
-      stale.authority.entitlement.features = { ...stale.authority.entitlement.features, 'ai.balance.granted': 0 }
-      const staleId = (await transaction(pool, c => enqueueReconfigureJob(c, stale, { unique: true }))).id
-      await expect(runSubscriptionReconfigure(pool, staleId, runner)).resolves.toMatchObject({ state: 'verified', receipt: { superseded: true } })
-      const next = await queued(id)
-      expect(next).toHaveLength(1)
-      await runSubscriptionReconfigure(pool, next[0]!, runner)
-      expect(delivered.at(-1)).toMatchObject({ ai_push: true, features: { 'ai.balance.granted': 0 } })
-      expect(await queued(id)).toHaveLength(0)
-      expect(await stuck(id)).toBe(0)
-    })
-
     it('a superseded push queues nothing when the current revision already holds the live values', async () => {
       const { id, o } = await appliedTopup()
       await patchSettings({ trial_allowance_minor: 1000 })
@@ -555,98 +531,162 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
       expect(await stuck(id)).toBe(0)
     })
 
-    it('an AI push whose claim committed without a journal is requeued at lease expiry, never quarantined, and a following paid order runs', async () => {
+    it('an expired AI push is failed (blocks nothing); the sweep re-sends', async () => {
       const { id, o } = await appliedTopup()
       await patchSettings({ trial_allowance_minor: 1000 })
-      const push = await jobId(o.id, true)
-      // The crash window: the claim transaction committed (running, leased) and the worker stopped before any journal.
-      await pool.query("UPDATE shared_jobs SET state='running',attempt_id=gen_random_uuid(),fence=fence+1,lease_until=clock_timestamp()-interval '1 second' WHERE id=$1", [push])
-      await expireSharedLeases(pool)
-      expect((await pool.query('SELECT state FROM shared_jobs WHERE id=$1', [push])).rows[0].state).toBe('queued')
-      expect(await stuck(id)).toBe(0)
-      const change = await paidChange(id)
-      await processFulfillmentOutbox(pool, { limit: 1000 })
-      for (const job of await queued(id)) await runSubscriptionReconfigure(pool, job, runner)
-      expect((await pool.query('SELECT state FROM shared_jobs WHERE id=$1', [push])).rows[0].state).toBe('verified')
-      expect((await pool.query('SELECT applied_revision_id=$2 AS applied FROM subscriptions WHERE customer_id=$1', [id, change.target_revision_id])).rows[0].applied).toBe(true)
-      expect(await stuck(id)).toBe(0)
-    })
-
-    it('an AI push that had started when its lease expired is failed, never re-run, and a fresh push is held back past the effect timeout', async () => {
-      const { id, o } = await appliedTopup()
-      await patchSettings({ trial_allowance_minor: 1000 })
-      const push = await jobId(o.id, true)
+      const push = (await jobId(o.id, true))!
       await pool.query(`UPDATE shared_jobs SET state='running',attempt_id=gen_random_uuid(),fence=fence+1,lease_until=clock_timestamp()-interval '1 second',journal='{"stage":"started"}'::jsonb WHERE id=$1`, [push])
       const log = vi.spyOn(console, 'error').mockImplementation(() => {})
       await expireSharedLeases(pool)
-      expect(log).toHaveBeenCalledWith(expect.stringContaining(`AI balance push ${push} for tenant`))
       log.mockRestore()
-      expect((await pool.query('SELECT state,journal->>\'error_code\' AS code FROM shared_jobs WHERE id=$1', [push])).rows[0]).toEqual({ state: 'failed', code: 'ai_push_lease_expired' })
+      expect((await pool.query('SELECT state FROM shared_jobs WHERE id=$1', [push])).rows[0].state).toBe('failed')
       expect(await stuck(id)).toBe(0)
-      const fresh = (await pool.query(`SELECT j.id,j.lease_until > clock_timestamp() + interval '150 seconds' AS held FROM shared_jobs j JOIN customers c ON c.tenant_id=j.control_tenant_id WHERE c.id=$1 AND j.state='queued'`, [id])).rows
-      expect(fresh).toHaveLength(1)
-      expect(fresh[0].held).toBe(true)
-      expect(fresh[0].id).not.toBe(push)
-      // The held push and a following paid order both still run (the claim itself does not read the hold; the dispatcher does).
       const change = await paidChange(id)
       await processFulfillmentOutbox(pool, { limit: 1000 })
-      await runSubscriptionReconfigure(pool, (await jobId(change.id, false))!, runner)
-      await runSubscriptionReconfigure(pool, fresh[0].id, runner)
-      expect(await stuck(id)).toBe(0)
+      await expect(runSubscriptionReconfigure(pool, (await jobId(change.id, false))!, runner)).resolves.toMatchObject({ state: 'verified' })
     })
 
-    describe('expired started AI pushes', () => {
-      const expireStarted = (push: string) => pool.query(`UPDATE shared_jobs SET state='running',attempt_id=gen_random_uuid(),fence=fence+1,lease_until=clock_timestamp()-interval '1 second',journal='{"stage":"started"}'::jsonb WHERE id=$1`, [push])
-      const blockInserts = async (tenantFilter: string) => {
-        await pool.query(`CREATE OR REPLACE FUNCTION zz_block_push() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
-          IF NEW.payload->'authority'->>'ai_push'='true' AND ${tenantFilter} THEN RAISE EXCEPTION 'injected'; END IF; RETURN NEW; END $$`)
-        await pool.query('CREATE TRIGGER zz_block_push BEFORE INSERT ON shared_jobs FOR EACH ROW EXECUTE FUNCTION zz_block_push()')
-      }
-      const unblock = () => pool.query('DROP TRIGGER IF EXISTS zz_block_push ON shared_jobs')
-      const state = async (job: string) => (await pool.query('SELECT state FROM shared_jobs WHERE id=$1', [job])).rows[0].state
+    describe('the sweep and the one push rule', () => {
+      /** What a tenant's profile reports through the usage observation. */
+      const observation = (database: string, ai: Record<string, number>) => ({ database, observed_at: new Date().toISOString(),
+        usage: { 'users.limit': 1, 'storage.limit_mb': 0, 'branches.extra_limit': 0 }, limit_gates: { 'users.limit': [], 'storage.limit_mb': [], 'branches.extra_limit': [] }, features: ai })
+      const databaseOf = async (id: string) => (await pool.query('SELECT b.database_name FROM subscriptions s JOIN shared_registry_bindings b ON b.control_tenant_id=s.tenant_id WHERE s.customer_id=$1', [id])).rows[0].database_name as string
+      const sweep = async (held: Record<string, Record<string, number>>, log: (m: string) => void = () => {}) =>
+        collectUsage(pool, { runner: async ({ database }) => held[database] ? observation(database, held[database]!) : null, log })
+      const aiPushes = async (id: string) => (await pool.query(`SELECT j.id FROM shared_jobs j JOIN customers c ON c.tenant_id=j.control_tenant_id WHERE c.id=$1 AND j.state='queued' AND j.payload->'authority'->>'ai_push'='true' ORDER BY j.created_at,j.id`, [id])).rows.map((r: any) => r.id as string)
+      const refundTopup = (order_id: string) => transaction(pool, c => markTopupRefunded(c, order_id, 'system', 'test refund'))
+      const live = { 'ai.balance.granted': 666_666, 'ai.allowance.trial': 133_333, 'ai.allowance.monthly': 0 }
 
-      it('a failure between failing the job and queueing its replacement leaves neither done, and the next pass handles it', async () => {
+      it('a push that failed because the tenant was unreachable is re-queued by the next collector run, and then delivers', async () => {
         const { id, o } = await appliedTopup()
-        await patchSettings({ trial_allowance_minor: 1000 })
-        const push = (await jobId(o.id, true))!
-        await expireStarted(push)
-        await blockInserts('true')
+        await refundTopup(o.id)
+        const push = (await aiPushes(id))[0]!
         const log = vi.spyOn(console, 'error').mockImplementation(() => {})
-        try { await expireSharedLeases(pool) } finally { log.mockRestore(); await unblock() }
-        expect(await state(push)).toBe('running')
-        await expireSharedLeases(pool)
-        expect(await state(push)).toBe('failed')
-        expect((await queued(id)).length).toBe(1)
+        await expect(runSubscriptionReconfigure(pool, push, async () => { throw new Error('runtime_timeout') })).rejects.toThrow('runtime_timeout')
+        log.mockRestore()
+        expect((await pool.query('SELECT state FROM shared_jobs WHERE id=$1', [push])).rows[0].state).toBe('failed')
+        expect(await aiPushes(id)).toHaveLength(0)
+        const lines: string[] = []
+        await sweep({ [await databaseOf(id)]: live }, m => lines.push(m))
+        const next = await aiPushes(id)
+        expect(next).toHaveLength(1)
+        await runSubscriptionReconfigure(pool, next[0]!, runner)
+        expect(delivered.at(-1)).toMatchObject({ ai_push: true, features: { 'ai.balance.granted': 0 } })
       })
 
-      it('an error on one expired push does not stop the next one', async () => {
+      it('a tenant that holds more than the ledger while every job is verified is lowered by the sweep', async () => {
+        const { id } = await appliedTopup()
+        const lines: string[] = []
+        await sweep({ [await databaseOf(id)]: { ...live, 'ai.balance.granted': 9_999_999 } }, m => lines.push(m))
+        expect(lines.some(l => l.includes('ai.balance.granted') && l.includes('queued a correction'))).toBe(true)
+        const [push] = await aiPushes(id)
+        await runSubscriptionReconfigure(pool, push!, runner)
+        expect(delivered.at(-1)).toMatchObject({ ai_push: true, features: { 'ai.balance.granted': 666_666 } })
+      })
+
+      it('queues nothing, and logs nothing, when the tenant already holds the live values', async () => {
+        const { id } = await appliedTopup()
+        const lines: string[] = []
+        await sweep({ [await databaseOf(id)]: live }, m => lines.push(m))
+        expect(lines.filter(l => l.includes('queued a correction'))).toHaveLength(0)
+        expect(await aiPushes(id)).toHaveLength(0)
+      })
+
+      it('a refund committing while a push is being claimed is seen by that claim', async () => {
+        const { id, o } = await appliedTopup()
+        await patchSettings({ trial_allowance_minor: 1000 })
+        const [push] = await aiPushes(id)
+        const client = await pool.connect()
+        try {
+          await client.query('BEGIN')
+          await markTopupRefunded(client, o.id, 'system', 'during claim')
+          const claim = runSubscriptionReconfigure(pool, push!, runner)
+          await new Promise(resolve => setTimeout(resolve, 300))
+          await client.query('COMMIT')
+          await claim
+        } finally { client.release() }
+        expect(delivered.at(-1)).toMatchObject({ order_id: o.id, features: { 'ai.balance.granted': 0 } })
+      })
+
+      it('a refund committing while a delivery completes is converged by its completion check', async () => {
+        const { id, o } = await appliedTopup()
+        await patchSettings({ trial_allowance_minor: 1000 })
+        const [push] = await aiPushes(id)
+        const client = await pool.connect()
+        try {
+          const during = async (input: { job: any }) => {
+            await client.query('BEGIN')
+            await markTopupRefunded(client, o.id, 'system', 'during completion')
+            setTimeout(() => { void client.query('COMMIT') }, 300)
+            return runner(input)
+          }
+          await runSubscriptionReconfigure(pool, push!, during as never)
+        } finally { await new Promise(resolve => setTimeout(resolve, 400)); client.release() }
+        const next = await aiPushes(id)
+        expect(next).toHaveLength(1)
+        await runSubscriptionReconfigure(pool, next[0]!, runner)
+        expect(delivered.at(-1)).toMatchObject({ ai_push: true, features: { 'ai.balance.granted': 0 } })
+        expect(await aiPushes(id)).toHaveLength(0)
+      })
+
+      it('a ledger change while the binding is disabled is corrected by the first sweep after it is enabled', async () => {
+        const { id, o } = await appliedTopup()
+        // The registry guard refuses direct edits; lift it for the one statement that flips the flag.
+        const setEnabled = async (enabled: boolean) => {
+          await pool.query('ALTER TABLE shared_registry_bindings DISABLE TRIGGER USER')
+          try { await pool.query('UPDATE shared_registry_bindings SET enabled=$2 WHERE control_tenant_id=(SELECT tenant_id FROM customers WHERE id=$1)', [id, enabled]) } finally { await pool.query('ALTER TABLE shared_registry_bindings ENABLE TRIGGER USER') }
+        }
+        await setEnabled(false)
+        await refundTopup(o.id)
+        expect(await aiPushes(id)).toHaveLength(0)
+        await setEnabled(true)
+        await sweep({ [await databaseOf(id)]: live })
+        const [push] = await aiPushes(id)
+        expect(push).toBeTruthy()
+        await runSubscriptionReconfigure(pool, push!, runner)
+        expect(delivered.at(-1)).toMatchObject({ ai_push: true, features: { 'ai.balance.granted': 0 } })
+      })
+
+      it('a settings change with one tenant unreachable converges the others now and that one at the sweep', async () => {
         const a = await appliedTopup(), b = await appliedTopup()
         await patchSettings({ trial_allowance_minor: 1000 })
-        const pa = (await jobId(a.o.id, true))!, pb = (await jobId(b.o.id, true))!
-        await expireStarted(pa); await expireStarted(pb)
-        const tenantA = (await pool.query('SELECT tenant_id FROM customers WHERE id=$1', [a.id])).rows[0].tenant_id
-        await blockInserts(`NEW.control_tenant_id='${tenantA}'::uuid`)
         const log = vi.spyOn(console, 'error').mockImplementation(() => {})
-        try { await expireSharedLeases(pool) } finally { log.mockRestore(); await unblock() }
-        expect(await state(pa)).toBe('running')
-        expect(await state(pb)).toBe('failed')
-        expect((await queued(b.id)).length).toBe(1)
+        await expect(runSubscriptionReconfigure(pool, (await aiPushes(a.id))[0]!, async () => { throw new Error('runtime_timeout') })).rejects.toThrow('runtime_timeout')
+        log.mockRestore()
+        await runSubscriptionReconfigure(pool, (await aiPushes(b.id))[0]!, runner)
+        expect(delivered.at(-1)).toMatchObject({ ai_push: true, features: { 'ai.allowance.trial': 266_666 } })
+        expect(await aiPushes(a.id)).toHaveLength(0)
+        await sweep({ [await databaseOf(a.id)]: live })
+        await runSubscriptionReconfigure(pool, (await aiPushes(a.id))[0]!, runner)
+        expect(delivered.at(-1)).toMatchObject({ ai_push: true, features: { 'ai.allowance.trial': 266_666 } })
       })
 
-      it('holds every queued AI push of the tenant, including one already scheduled earlier', async () => {
-        const { id, o } = await appliedTopup()
+      it('a push runs when the tenant only has a job in needs_intervention, and waits behind a running one', async () => {
+        const { id } = await appliedTopup()
+        // Jobs left by earlier tests belong to other tenants; the dispatcher picks the oldest queued job of any tenant.
+        await pool.query("UPDATE shared_jobs SET state='failed' WHERE state='queued' AND control_tenant_id NOT IN (SELECT tenant_id FROM customers WHERE id=$1)", [id])
+        const change = await paidChange(id)
+        await processFulfillmentOutbox(pool, { limit: 1000 })
+        const blocker = (await jobId(change.id, false))!
+        await pool.query("UPDATE shared_jobs SET state='needs_intervention' WHERE id=$1", [blocker])
         await patchSettings({ trial_allowance_minor: 1000 })
-        const dead = (await jobId(o.id, true))!
+        const adapter = { subscriptionRunner: runner } as never
+        await expect(dispatchSharedOnce(pool, adapter)).resolves.toMatchObject({ state: 'verified' })
+        expect(delivered.at(-1)).toMatchObject({ ai_push: true, features: { 'ai.allowance.trial': 266_666 } })
+        await pool.query("UPDATE shared_jobs SET state='running',attempt_id=gen_random_uuid(),lease_until=clock_timestamp()+interval '60 seconds' WHERE id=$1", [blocker])
         await patchSettings({ trial_allowance_minor: 2000 })
-        const early = (await jobId(o.id, true))!
-        expect(early).not.toBe(dead)
-        await pool.query("UPDATE shared_jobs SET lease_until=clock_timestamp()+interval '10 seconds' WHERE id=$1", [early])
-        await expireStarted(dead)
-        await expireSharedLeases(pool)
-        const held = (await pool.query(`SELECT j.id,j.lease_until > clock_timestamp() + interval '150 seconds' AS held FROM shared_jobs j JOIN customers c ON c.tenant_id=j.control_tenant_id WHERE c.id=$1 AND j.state='queued'`, [id])).rows
-        expect(held.length).toBeGreaterThanOrEqual(1)
-        expect(held.every((r: any) => r.held)).toBe(true)
-        expect(held.map((r: any) => r.id)).toContain(early)
+        const [push] = await aiPushes(id)
+        await expect(dispatchSharedOnce(pool, adapter)).resolves.toMatchObject({ state: 'idle' })
+        await expect(runSubscriptionReconfigure(pool, push!, runner)).rejects.toThrow('shared_reconciliation_required')
+      })
+
+      it('a queued push for a stale registry revision does not stand in for a new one', async () => {
+        const { id } = await appliedTopup()
+        await patchSettings({ trial_allowance_minor: 1000 })
+        expect(await aiPushes(id)).toHaveLength(1)
+        await pool.query('UPDATE shared_registry_bindings SET registry_revision=registry_revision+1 WHERE control_tenant_id=(SELECT tenant_id FROM customers WHERE id=$1)', [id])
+        await patchSettings({ trial_allowance_minor: 2000 })
+        expect(await aiPushes(id)).toHaveLength(2)
       })
     })
 
@@ -676,6 +716,29 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
         await expect(transaction(pool, c => assertReconfigureAuthority(c, tampered))).rejects.toThrow('order_not_released')
         await expect(runSubscriptionReconfigure(pool, repair.job_id!, runner)).resolves.toMatchObject({ state: 'verified' })
         expect(delivered.at(-1)!.features).toMatchObject({ 'ai.balance.granted': 0 })
+        expect(await reconcileAfterRestore(pool, { tenant_id: tenant, restore_id: restore, runner: observed(aiOf(delivered.at(-1)!.features)) })).toEqual({ ready: true })
+      })
+
+      it('allowance A, a repair queued, B before its claim, back to A: the next readiness check queues and runs a new repair and ends ready', async () => {
+        const { id } = await appliedTopup()
+        const { tenant, restore, observed } = await approvedRestore(id)
+        const startA = aiOf(delivered.at(-1)!.features)
+        const stale = { ...startA, 'ai.balance.granted': 0 }
+        const first = await reconcileAfterRestore(pool, { tenant_id: tenant, restore_id: restore, runner: observed(stale) })
+        expect(first.ready).toBe(false)
+        // A queued repair is reused while it is outstanding.
+        expect((await reconcileAfterRestore(pool, { tenant_id: tenant, restore_id: restore, runner: observed(stale) })).job_id).toBe(first.job_id)
+        await patchSettings({ trial_allowance_minor: 1000 })
+        await runSubscriptionReconfigure(pool, first.job_id!, runner)
+        const heldB = aiOf(delivered.at(-1)!.features)
+        expect(heldB['ai.allowance.trial']).toBe(266_666)
+        await patchSettings({ trial_allowance_minor: 500 })
+        const second = await reconcileAfterRestore(pool, { tenant_id: tenant, restore_id: restore, runner: observed(heldB) })
+        expect(second.ready).toBe(false)
+        expect(second.reason).toBeUndefined()
+        expect(second.job_id).not.toBe(first.job_id)
+        await runSubscriptionReconfigure(pool, second.job_id!, runner)
+        expect(delivered.at(-1)!.features['ai.allowance.trial']).toBe(133_333)
         expect(await reconcileAfterRestore(pool, { tenant_id: tenant, restore_id: restore, runner: observed(aiOf(delivered.at(-1)!.features)) })).toEqual({ ready: true })
       })
 
