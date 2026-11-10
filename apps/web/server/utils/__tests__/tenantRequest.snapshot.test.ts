@@ -35,7 +35,8 @@ it.each(['pending', 'disabled', 'revision'] as const)('rejects a %s publication 
   expect(tenantRequest(event)?.database).toBe('tenant')
   if (kind === 'pending') fs.writeFileSync(`${path}.pending`, '')
   else publish(kind === 'disabled' ? { enabled: false } : { registryRevision: 2 })
-  expect(() => tenantRequest(event)).toThrow('tenant_boundary_rejected')
+  // A barrier means the registry is unavailable (503); a changed identity is a boundary refusal (403).
+  expect(() => tenantRequest(event)).toThrow(kind === 'pending' ? 'tenant_registry_unavailable' : 'tenant_boundary_rejected')
 })
 
 it('rejects publication completed between snapshot identity and pending-marker checks', async () => {
@@ -47,7 +48,8 @@ it('rejects publication completed between snapshot identity and pending-marker c
     if (++checks === 2) publish({ enabled: false, registryRevision: 2 })
     return actual.lstatSync(...args)
   }) as typeof fs.lstatSync)
-  try { expect(() => tenantRequest(event)).toThrow('tenant_boundary_rejected') }
+  // The file changed between the two identity checks: an uncertain read is unavailable, never served.
+  try { expect(() => tenantRequest(event)).toThrow('tenant_registry_unavailable') }
   finally { vi.mocked(fs.lstatSync).mockImplementation(actual.lstatSync) }
 })
 
@@ -68,8 +70,10 @@ it.each(['pending', 'disabled', 'revision', 'rebind'] as const)('refuses %s publ
   tenantRequest(event); tenantRequest(other)
   if (kind === 'pending') fs.writeFileSync(`${path}.pending`, '')
   else publish(kind === 'disabled' ? { enabled: false } : kind === 'revision' ? { registryRevision: 2 } : { database: 'replacement', filestore: 'replacement' })
-  expect(() => tenantRequest(event)).toThrow('tenant_boundary_rejected')
-  expect(() => tenantRequest(other)).toThrow('tenant_boundary_rejected')
+  // A barrier is an unavailable registry for both events; a changed identity is a boundary refusal for both.
+  const expected = kind === 'pending' ? 'tenant_registry_unavailable' : 'tenant_boundary_rejected'
+  expect(() => tenantRequest(event)).toThrow(expected)
+  expect(() => tenantRequest(other)).toThrow(expected)
 })
 it('does not use a shared snapshot from another registry path or changed signature', () => {
   const first = fixture()

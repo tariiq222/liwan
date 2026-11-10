@@ -73,7 +73,7 @@ test('health probe uses only loopback TCP with timeout and fails invalid configu
   assert.equal(result.status, 1); assert.equal(result.stdout, ''); assert.equal(result.stderr, '')
 })
 test('all executable MJS files parse without opening a listener', () => {
-  for (const file of ['guard.mjs', 'start.mjs', 'healthcheck.mjs', 'tiktok-relay.mjs']) {
+  for (const file of ['guard.mjs', 'start.mjs', 'healthcheck.mjs', 'tiktok-relay.mjs', 'registry-recover.mjs']) {
     const result = spawnSync(process.execPath, ['--check', new URL(file, import.meta.url).pathname], { encoding: 'utf8' })
     assert.equal(result.status, 0, result.stderr)
   }

@@ -220,7 +220,7 @@ function cookiesForBrowser(cookies, codec, tenant, { odoo = true, writeDevice = 
 // Header values, cookies, tokens and the query string are never logged; a path segment is kept only as a short lowercase word or a numeric id, any other segment (a token) becomes `*`.
 const auditPath = url => String(url ?? '').split('?')[0].split('#')[0].slice(0, 200).split('/').map(s => /^(?:[a-z][a-z0-9_-]{0,31}|\d{1,12})?$/.test(s) ? s : '*').join('/')
 function auditRefusal(req, error) {
-  if (error.statusCode === 503) return // maintenance or release-unavailable is not a boundary refusal
+  if (error.statusCode === 503) return // unavailable is not a boundary refusal
   const reason = /^[a-z_]{1,64}$/.test(error.message) ? error.message : 'unknown'
   console.error(JSON.stringify({
     event: 'tenant_boundary_rejected',
@@ -229,6 +229,20 @@ function auditRefusal(req, error) {
     path: auditPath(req.url),
     host: String(req.headers?.host ?? '').slice(0, 200)
   }))
+}
+/**
+ * A stuck publication barrier is an unavailable service, not a security refusal: answer 503 with a
+ * machine-readable code so clients and operators can tell the two apart. Every other refusal keeps
+ * the 403 `tenant_boundary_rejected` contract. Release/maintenance 503s keep their plain-text body.
+ */
+export function refusalResponse(error) {
+  if (error?.statusCode === 503) {
+    if (error.code === 'tenant_registry_unavailable') {
+      return { statusCode: 503, contentType: 'application/json', body: JSON.stringify({ code: 'tenant_registry_unavailable', message: 'The tenant registry is not currently published. The service is unavailable, not refusing this tenant.' }) }
+    }
+    return { statusCode: 503, contentType: 'text/plain; charset=utf-8', body: 'tenant_maintenance_or_release_unavailable' }
+  }
+  return { statusCode: 403, contentType: 'text/plain; charset=utf-8', body: 'tenant_boundary_rejected' }
 }
 export function createGuard({ registryPath, restoreRegistryPath = '', proxyToken, prospectHost = '', keys, activeKid, odooUrl, webUrl, wsUrl = odooUrl, restoreOdooUrl = '', restoreWsUrl = restoreOdooUrl, releaseRoutesDir, releaseAssetsDir }) {
   if (releaseAssetsDir !== undefined) {
@@ -265,7 +279,13 @@ export function createGuard({ registryPath, restoreRegistryPath = '', proxyToken
   }
   const server = http.createServer(async (req, res) => {
     let p
-    try { p = plan(req) } catch (error) { auditRefusal(req, error); res.writeHead(error.statusCode === 503 ? 503 : 403); res.end(error.statusCode === 503 ? 'tenant_maintenance_or_release_unavailable' : 'tenant_boundary_rejected'); return }
+    try { p = plan(req) } catch (error) {
+      auditRefusal(req, error)
+      const refusal = refusalResponse(error)
+      res.writeHead(refusal.statusCode, { 'content-type': refusal.contentType })
+      res.end(refusal.body)
+      return
+    }
     if (p.status) {
       try {
         const route = readReleaseRoute(releaseRoutesDir, p.tenant.tenantId, true)

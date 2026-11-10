@@ -94,15 +94,16 @@ export async function publishRegistryMutation(pool: Pool, path: string, actor: R
     const reserved = await client.query('SELECT control_tenant_id FROM shared_registry_hosts WHERE host=$1', [target.host])
     if (reserved.rowCount && reserved.rows[0].control_tenant_id !== input.controlTenantId) throw new RegistryError('registry_host_reserved')
     if (!await revalidateCommercialRestorePublication(client, input.controlTenantId, commercial.snapshot)) throw new RegistryError('commercial_reconciliation_pending')
-    // Barrier precedes SQL writes/commit. Any subsequent failure requires explicit recovery.
-    await beginPublication(path)
+    const next = input.expectedSnapshotRevision + 1
+    // Barrier precedes SQL writes/commit and names the snapshot revision it will publish, so offline
+    // recovery can tell a registry file that already carries it from one that predates the commit.
+    await beginPublication(path, next)
     if (previous) {
       await client.query('UPDATE shared_registry_bindings SET host=$1,enabled=$2,registry_revision=$3 WHERE control_tenant_id=$4', [target.host,target.enabled,target.registryRevision,input.controlTenantId])
     } else {
       await client.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$5,$6,$7)', [input.controlTenantId,target.tenantId,target.host,target.database,target.filestore,target.enabled,target.registryRevision])
     }
     await client.query('INSERT INTO shared_registry_hosts(host,control_tenant_id) VALUES($1,$2) ON CONFLICT DO NOTHING', [target.host,input.controlTenantId])
-    const next = input.expectedSnapshotRevision + 1
     await client.query('UPDATE shared_registry_state SET revision=$1 WHERE singleton=true', [next])
     await client.query('INSERT INTO shared_registry_audit(snapshot_revision,control_tenant_id,actor_uid,issuer,reason,before_target,after_target) VALUES($1,$2,$3,$4,$5,$6,$7)', [next,input.controlTenantId,actor.actorUid,actor.issuer,input.reason,previous,target])
     await client.query('COMMIT')
