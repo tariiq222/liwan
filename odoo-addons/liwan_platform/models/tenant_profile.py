@@ -334,6 +334,10 @@ class LiwanTenantProfile(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        if any(vals.get('ai_paid_total') for vals in vals_list):
+            # A new tenant has spent nothing: the total moves only through `_liwan_add_ai_paid` (the write guard is below),
+            # and a start above zero would block the assistant for a tenant that never used it.
+            raise ValidationError(self.env._('The AI paid total starts at zero and moves only through the AI deduction.'))
         if self.search([], limit=1) or len(vals_list) != 1:
             raise ValidationError(self.env._('liwan tenant profile is a singleton.'))
         if not self.env.su:

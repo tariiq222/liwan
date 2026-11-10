@@ -1,9 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """The bell rows a tenant's AI settings managers get: once a month per message limit when usage reaches 80% of it, and per
-granted balance total when the prepaid balance falls below 20% of it and again when it reaches zero.
+granted balance total when the prepaid balance falls below 20% of it and again when it can no longer pay a run.
 
-No sudo: the sender's message audit delivers it in the sender's environment, and a row shows only to a user
-who still holds ``ai.settings.manage``.
+No sudo: a limit warning is delivered in the environment of the message that crossed the threshold, and the balance warnings by
+a cron as the superuser, because the recorder that deducts the charges holds one capability and cannot read the managers. A row
+shows only to a user who still holds ``ai.settings.manage``.
 """
 from odoo import api, fields, models
 from odoo.tools import html2plaintext

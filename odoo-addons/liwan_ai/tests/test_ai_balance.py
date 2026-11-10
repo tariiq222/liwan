@@ -251,6 +251,14 @@ class TestAiBalance(AiProbe, LiwanApiCase):
         settings.monthly_spend_ceiling = 0
         self.assertEqual(self._send(conversation_id='r_no_ceiling').status_code, 200)
 
+    def test_a_reached_ceiling_stops_a_run_the_allowance_cannot_pay_on_its_own(self):
+        # A remaining allowance below one run's reserve can only pay part of the run, so the rest would cross the ceiling.
+        self._set_features({GRANTED: 10_000_000, MONTHLY: RUN_RESERVE - 1})
+        self.env['liwan.ai.settings']._liwan_current().monthly_spend_ceiling = 100
+        self._raw(100, 100, fields.Datetime.now())
+        refused = self._send()
+        self.assertEqual((refused.status_code, refused.json()['code']), (403, 'ai_spend_ceiling'))
+
     def test_the_ceiling_stops_paid_spend_only_and_the_free_allowance_comes_first(self):
         self._set_features({GRANTED: 10_000_000, MONTHLY: 2 * RUN_RESERVE})
         self.env['liwan.ai.settings']._liwan_current().monthly_spend_ceiling = 100
@@ -414,6 +422,24 @@ class TestAiBalance(AiProbe, LiwanApiCase):
         self.assertEqual((self.profile.ai_paid_total, self.Balance._liwan_ai_paid_total()), (rows_sum, rows_sum))
         self.assertGreater(rows_sum, 0)
         self.assertEqual(self.Balance._liwan_ai_state()['balance_left'], 1_000_000 - rows_sum)
+
+    def test_a_profile_cannot_start_with_a_spent_total(self):
+        with self.assertRaisesRegex(ValidationError, 'starts at zero'):
+            self.env['liwan.tenant.profile'].sudo().create({'ai_paid_total': 5})
+
+    def test_the_migration_backfills_the_allowance_window(self):
+        path = Path(__file__).parents[1] / 'migrations' / '19.0.1.15.0' / 'pre-balance.py'
+        spec = importlib.util.spec_from_file_location('pre_balance_window', path)
+        migration = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(migration)
+        called_at = fields.Datetime.now()
+        self._raw(30, 12, called_at, add_to_total=False)
+        self._raw(30, 0, called_at, billing='tenant_key', add_to_total=False)
+        self.env.cr.execute('UPDATE liwan_ai_usage SET allowance_window_start = NULL')
+        migration.migrate(self.env.cr, '19.0.1.14.0')
+        self.env.cr.execute('SELECT billing, allowance_window_start FROM liwan_ai_usage ORDER BY id')
+        # A charged platform row settles against the Riyadh month the migration stored; an own-key row records no window.
+        self.assertEqual(self.env.cr.fetchall(), [('platform', self.Balance._liwan_ai_window(called_at)[1]), ('tenant_key', None)])
 
     def test_the_running_total_outgrows_a_32_bit_integer(self):
         self.profile.sudo()._liwan_add_ai_paid(3_000_000_000)

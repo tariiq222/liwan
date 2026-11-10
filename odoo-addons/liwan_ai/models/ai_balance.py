@@ -22,8 +22,10 @@ ALLOWANCE_MONTHLY = 'ai.allowance.monthly'
 BALANCE_EMPTY = 'ai_balance_empty'
 SPEND_CEILING = 'ai_spend_ceiling'
 # How long a run can stay in flight: the timeout the Nuxt server sends the AI service as `limits.timeout_seconds`
-# (TIMEOUT_SECONDS in apps/web/server/utils/ai/session.ts). A message younger than this may still be running, uncharged.
-RUN_TIMEOUT = timedelta(seconds=120)
+# (TIMEOUT_SECONDS in apps/web/server/utils/ai/session.ts, pinned to this number by the web test `usageCeilings`). A message
+# younger than this may still be running, uncharged.
+RUN_TIMEOUT_SECONDS = 120
+RUN_TIMEOUT = timedelta(seconds=RUN_TIMEOUT_SECONDS)
 # What a new run must be able to pay for, per run in flight, in cost units (0.00001 USD). It is the cost of a heavy realistic run,
 # not the theoretical maximum of the per-request caps (which would be about 0.50 USD and would make the last third of a small
 # allowance unusable): about 15,000 input tokens and 700 output tokens on a mid-size model at 2 and 10 USD per million is
@@ -166,16 +168,16 @@ class LiwanAiBalance(models.AbstractModel):
 
         Reservation first: the free allowance and the balance together must cover ``RUN_RESERVE`` for every run already in
         flight and every new one, so a tenant with almost nothing left cannot start many runs at once and overdraw without
-        limit; below that the refusal is the empty balance's. Then the order is the rule: a run the free allowance can still pay
-        for takes nothing from the balance, so a reached ceiling does not stop it; once the allowance is used up the run is paid,
-        and the tenant's ceiling refuses it. A tenant without a balance is never blocked. ``resets_at`` (naive UTC) is when the
-        free allowance renews, or the month's end for the ceiling.
+        limit; below that the refusal is the empty balance's. Then the order is the rule: a run the free allowance can pay for
+        on its own takes nothing from the balance, so a reached ceiling does not stop it; below that reserve the run is paid (at
+        least partly) from the balance, and the tenant's ceiling refuses it. A tenant without a balance is never blocked.
+        ``resets_at`` (naive UTC) is when the free allowance renews, or the month's end for the ceiling.
         """
         if state['balance_granted'] is None:
             return None, None
         if state['allowance_left'] + state['balance_left'] < (state['in_flight'] + new_runs) * RUN_RESERVE:
             return BALANCE_EMPTY, state['allowance_resets_at']
-        if state['allowance_left'] > 0:
+        if state['allowance_left'] >= RUN_RESERVE:
             return None, None
         if state['spend_ceiling'] and state['spend_this_month'] >= state['spend_ceiling']:
             return SPEND_CEILING, state['spend_resets_at']

@@ -121,5 +121,14 @@ class TestAiLimitWarning(AiProbe, LiwanApiCase):
         self._record(None, billing='tenant_key', cost=None)
         self.assertEqual(self._balance_bells(), [])
 
+    def test_the_balance_cron_runs_the_method_it_names(self):
+        # The scheduler is not triggered here (it would run in its own transaction, outside this test's setup): pin the record
+        # instead, so a rename of the method or of the model breaks this test rather than the nightly cron.
+        cron = self.env.ref('liwan_ai_notify.ir_cron_ai_balance_warning')
+        self.assertEqual(cron.model_id.model, 'liwan.ai.usage')
+        self.assertEqual(cron.code.strip(), 'model._liwan_cron_warn_balance()')
+        self.assertTrue(callable(getattr(self.env['liwan.ai.usage'], '_liwan_cron_warn_balance', None)))
+        self.assertTrue(cron.active)
+
     def _now(self):
         return datetime.now(timezone.utc).isoformat()
