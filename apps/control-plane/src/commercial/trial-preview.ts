@@ -40,9 +40,11 @@ export async function trialEndPreview(pool: Pool, customerId: string, now = new 
   [row.id, start])).rows[0]?.payload : null
   const users = usage.metrics.find(metric => metric.key === 'users.limit')?.used
   const available = usage.freshness === 'fresh'
-  const sample = available ? (await pool.query(`SELECT excess,metrics->'attachment_bytes' AS storage_bytes FROM usage_snapshots
+  const sample = available ? (await pool.query(`SELECT excess,metrics->'attachment_bytes' AS storage_bytes,
+      metrics->'blocked_storage_bytes' AS blocked_storage_bytes FROM usage_snapshots
     WHERE tenant_id=$1 AND observed_at=$2 ORDER BY id DESC LIMIT 1`, [row.tenant_id, usage.observed_at])).rows[0] : null
   const storageBytes = typeof sample?.storage_bytes === 'number' ? sample.storage_bytes : null
+  const blocked = typeof sample?.blocked_storage_bytes === 'number' ? sample.blocked_storage_bytes : null
   const observed = sample?.excess
   // Observed usage is the full-access count. Seats already read-only also consume a position in the preview.
   const totalUsers = users == null ? null : users + Number(observed?.['users.limit'] ?? 0)
@@ -53,7 +55,8 @@ export async function trialEndPreview(pool: Pool, customerId: string, now = new 
     limits,
     excess: {
       users: available && totalUsers != null ? Math.max(0, totalUsers - limits.users) : null,
-      storage_bytes: storageBytes == null ? null : Math.max(0, storageBytes - limits.storage_mb * MB),
+      storage_bytes: row.lapse_state === 'done' || convertedApplied ? blocked
+        : storageBytes == null ? null : Math.max(0, storageBytes - limits.storage_mb * MB),
       extra_branches: Math.max(0, lock.liveBranches - limits.extra_branches),
       sampled_at: usage.observed_at, source: available ? 'usage_snapshot' : 'unavailable', item_details: 'unavailable',
     },

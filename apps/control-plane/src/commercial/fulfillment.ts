@@ -5,6 +5,7 @@ import { nextOrderState, riyadhDate, type EffectReceipt } from '@liwan/commercia
 import { activateBranches, archiveBranches, listBranches } from './branches.js'
 import { claimOutbox, completeOutbox, deferOutbox, failOutbox, releaseOutbox, type OutboxRow } from './outbox.js'
 import { schedulePaidRecovery } from './paid-fulfillment-recovery.js'
+import { recoverableTrialPredecessors } from '../shared/commercial-recovery.js'
 import { enqueueReconfigureJob } from '../shared/job-store.js'
 import type { Config } from '../config.js'
 import type { RegistryActor } from '../shared/registry-store.js'
@@ -283,12 +284,13 @@ export async function processFulfillmentOutbox(pool: Pool, options: { limit?: nu
           ? new Date(order.lapsed_at ?? order.trial_ends_at) : null
         const trialPolicy = trialCutoff ? await trialAuthority(client, { ...order, id: order.subscription_id }, order.snapshot, trialCutoff)
           : { trial_ends_at: null, ...(lock ? { excess_settle: true as const } : {}) }
+        const predecessors = lock ? await recoverableTrialPredecessors(client, order.id) : []
         const authority:FulfillmentAuthority={order_id:order.id,operation_id:effect.rows[0].operation_id,previous_revision_id:order.applied_revision_id,
           target_revision_id:order.target_revision_id,entitlement:await deliveredEntitlement(client,order.customer_id,{modules:order.snapshot.entitlement.modules,features:order.snapshot.entitlement.features,
             digest:order.snapshot.entitlement.digest,compiler_version:order.snapshot.entitlement.compiler_version}),
           branches:{apply:ordered.filter(x=>x.odoo_company_id===null).map(x=>({branch_id:x.id,name:x.name})),archive:order.snapshot.branch_archive_ids??order.snapshot.branches?.archive??[],
             ...(ordered.some(x=>x.odoo_company_id!==null)?{restore:ordered.filter(x=>x.odoo_company_id!==null).map(x=>x.id)}:{})},
-          ...trialPolicy, commercial_valid_until: null,
+          ...trialPolicy, ...(predecessors.length ? { recoverable_predecessors: predecessors } : {}), commercial_valid_until: null,
           commercial_valid_until_revision: expiryRevision}
         const job=await enqueueReconfigureJob(client,{schemaVersion:1,operation:'reconfigure',requestId:authority.operation_id,controlTenantId:order.tenant_id,
           ...(lock ? { origin: 'trial-end' as const } : {}), host:b.host,binding:{tenantId:b.tenant_id,database:b.database_name,filestore:b.filestore,registryRevision:Number(b.registry_revision)},authority})

@@ -1,9 +1,29 @@
-import type { Pool } from 'pg'
+import type { Pool, PoolClient } from 'pg'
 import { transaction } from '../db.js'
 
 const SYSTEM_RETRY_MINUTES = [5, 15, 60, 180, 360]
-const PRE_WRITE_REFUSALS = ['stale_target', 'order_not_released', 'tenant_binding_mismatch', 'input_invalid',
-  'tenant_upgrade_required', 'commercial_expiry_revision_stale', 'entitlement_invalid', 'features_invalid', 'downgrade_below_usage']
+export const PRE_WRITE_REFUSALS = ['stale_target', 'order_not_released', 'tenant_binding_mismatch', 'input_invalid',
+  'tenant_upgrade_required', 'recovery_predecessor_invalid', 'commercial_expiry_revision_stale', 'entitlement_invalid', 'features_invalid', 'downgrade_below_usage']
+
+type TrialPredecessor = { revision_id: string; digest: string }
+
+/** An abandoned lock is a possible host predecessor only for another attempt of the same lapse. */
+export async function recoverableTrialPredecessors(client: Pick<PoolClient, 'query'>, orderId: string): Promise<TrialPredecessor[]> {
+  return (await client.query(`SELECT previous.target_revision_id AS revision_id,j.payload#>>'{authority,entitlement,digest}' AS digest
+    FROM orders current JOIN subscriptions s ON s.id=current.subscription_id
+    JOIN orders previous ON previous.subscription_id=current.subscription_id AND previous.id<>current.id
+      AND previous.expected_applied_revision_id=current.expected_applied_revision_id AND previous.effective_at=current.effective_at
+      AND previous.kind='change' AND previous.cancelled AND previous.fulfillment_state='failed'
+      AND previous.idempotency_key LIKE 'trial-lapse:'||s.id::text||':%'
+    JOIN fulfillment_effects e ON e.order_id=previous.id
+    JOIN shared_jobs j ON j.id=e.job_id AND j.control_tenant_id=s.tenant_id
+    WHERE current.id=$1 AND current.kind='change' AND current.idempotency_key LIKE 'trial-lapse:'||s.id::text||':%'
+      AND j.state='failed' AND j.payload->>'origin'='trial-end'
+      AND j.payload#>>'{authority,order_id}'=previous.id::text
+      AND j.payload#>>'{authority,target_revision_id}'=previous.target_revision_id::text
+      AND (j.journal->>'may_have_written'='true' OR j.journal->>'stage'='started' OR j.journal->>'error_code' <> ALL($2::text[]))
+    ORDER BY previous.target_revision_id`, [orderId, PRE_WRITE_REFUSALS])).rows
+}
 
 /** Terminal stale effects cannot write again. System effects which might have written reuse their immutable operation. */
 export async function recoverCommercialSystemJobs(pool: Pool, now = new Date()) {

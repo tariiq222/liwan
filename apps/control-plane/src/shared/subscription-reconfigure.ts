@@ -5,6 +5,7 @@ import { sharedReconfigureJobSchema, type SharedReconfigureJob } from '@liwan/co
 import { transaction } from '../db.js'
 import { applyReceipt, failFulfillmentOn, type SubscriptionReceipt } from '../commercial/fulfillment.js'
 import { deliveredEntitlement, observeTenantNext, pushAiIfStale } from '../commercial/ai-ledger.js'
+import { PRE_WRITE_REFUSALS, recoverableTrialPredecessors } from './commercial-recovery.js'
 import { findBlockingJob, lockTenantJobs } from './job-store.js'
 import type { ObserveRunner } from './subscription-reconcile.js'
 
@@ -86,6 +87,13 @@ export async function assertReconfigureAuthority(client:PoolClient,job:SharedRec
   const renewalOfApplied = row.target_revision_id === null && row.applied_revision_id === job.authority.target_revision_id
   if((job.restore || row.fulfillment_state==='applied' || renewalOfApplied ? row.applied_revision_id : row.target_revision_id)!==job.authority.target_revision_id)throw Error('stale_target')
   if(row.snapshot.entitlement?.digest!==job.authority.entitlement.digest)throw Error('observed_mismatch')
+  if (job.authority.recoverable_predecessors) {
+    if (job.origin !== 'trial-end' || job.restore || job.authority.excess_settle !== true || job.authority.trial_ends_at !== null)
+      throw Error('recovery_predecessor_invalid')
+    const allowed = await recoverableTrialPredecessors(client, job.authority.order_id)
+    if (!job.authority.recoverable_predecessors.every(v => allowed.some(a => a.revision_id === v.revision_id && a.digest === v.digest)))
+      throw Error('recovery_predecessor_invalid')
+  }
   if(job.restore){
     const approved=await client.query(`SELECT 1 FROM shared_restore_approvals a LEFT JOIN shared_jobs j ON j.payload->>'approvalId'=a.id::text
       WHERE (a.id=$1 OR j.id=$1) AND a.control_tenant_id=$2 AND a.target_database=$3`,[job.restoreId,job.controlTenantId,job.binding.database])
@@ -140,15 +148,19 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
     return action(client)
   })
   const assertOwned=()=>owned(async client=>{await client.query("UPDATE shared_jobs SET lease_until=clock_timestamp()+interval '120 seconds' WHERE id=$1",[id])})
+  let effectReturned = false
   try {
     await assertOwned()
     await owned(async client=>{
-      await client.query("UPDATE shared_jobs SET journal=$2 WHERE id=$1",[id,{stage:'started',operation_id:claim.job.authority.operation_id,attemptId:claim.attemptId}])
+      await client.query(`UPDATE shared_jobs SET journal=$2::jsonb || jsonb_build_object('may_have_written',
+        COALESCE(journal->>'may_have_written'='true' OR journal->>'stage'='started',false)) WHERE id=$1`,
+      [id,{stage:'started',operation_id:claim.job.authority.operation_id,attemptId:claim.attemptId}])
       if(!claim.job.restore && !claim.job.authority.ai_push)await client.query("UPDATE orders SET fulfillment_state='applying' WHERE id=$1 AND fulfillment_state='queued'",[claim.job.authority.order_id])
     })
     // Python always observes first. Same immutable operation_id returns the
     // existing receipt after a crash; it never duplicates modules/branches.
     const receipt=await runner({...claim,action:'reconfigure',assertOwned}) as SubscriptionReceipt
+    effectReturned = true
     await assertOwned()
     const authority = claim.job.authority
     const digest = receipt.observed_entitlement_digest
@@ -185,9 +197,10 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
         const terminal=claim.job.authority.ai_push?'failed':'needs_intervention'
         if(claim.job.authority.ai_push)console.error('[control-plane] AI balance push %s for tenant %s failed: %s',id,claim.job.controlTenantId,code)
         if(claim.job.authority.ai_push)await observeTenantNext(client,claim.job.controlTenantId)
-        const refused=await client.query(`UPDATE shared_jobs SET state=$5,lease_until=NULL,journal=$4
+        const refused=await client.query(`UPDATE shared_jobs SET state=$5,lease_until=NULL,
+          journal=$4::jsonb || jsonb_build_object('may_have_written',COALESCE(journal->>'may_have_written'='true',false) OR $6::boolean)
           WHERE id=$1 AND attempt_id=$2 AND fence=$3 AND state='running' AND lease_until>clock_timestamp() RETURNING id`,
-        [id,claim.attemptId,claim.fence,{stage:terminal,operation_id:claim.job.authority.operation_id,error_code:code},terminal])
+        [id,claim.attemptId,claim.fence,{stage:terminal,operation_id:claim.job.authority.operation_id,error_code:code},terminal,effectReturned || !PRE_WRITE_REFUSALS.includes(code)])
         if(!refused.rowCount)throw Error('shared_lease_lost')
         if(!claim.job.restore && !claim.job.authority.ai_push)await failFulfillmentOn(client,{order_id:claim.job.authority.order_id,code})
         if(!claim.job.restore && code==='tenant_upgrade_required'){

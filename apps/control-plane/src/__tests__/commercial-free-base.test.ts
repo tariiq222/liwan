@@ -7,7 +7,7 @@ import { convertTrial, extendTrial, startTrial } from '../commercial/trial.js'
 import { endTrialOn, expireTrials } from '../commercial/trial-expiry.js'
 import { processTrialLapses } from '../commercial/trial-lapse.js'
 import { attention } from '../commercial/attention.js'
-import { runSubscriptionReconfigure, type SubscriptionRunner } from '../shared/subscription-reconfigure.js'
+import { assertReconfigureAuthority, runSubscriptionReconfigure, type SubscriptionRunner } from '../shared/subscription-reconfigure.js'
 import { applyDunning, generateRenewals } from '../commercial/renewals.js'
 import { applyReceipt, processFulfillmentOutbox } from '../commercial/fulfillment.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
@@ -378,6 +378,52 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     await lock(f)
   })
 
+  it('authorizes only exact unacknowledged predecessors after bounded post-write recovery', async () => {
+    const f = await endedTrial()
+    const earlierPaid = await change(f, { requested_users: 4 }, beforeEnd)
+    const unrelated = await pushed(f.tenant, earlierPaid.order.id)
+    expect(await runJob(earlierPaid.order.id, okRunner)).toMatchObject({ state: 'verified' })
+    const laterPaid = await change(f, { requested_users: 5 }, new Date(beforeEnd.getTime()+86_400_000))
+    expect(await runJob(laterPaid.order.id, okRunner)).toMatchObject({ state: 'verified' })
+    await lapse(f)
+    await lower(f)
+    const original = await lapseOrder(f.subscription)
+    const first = await pushed(f.tenant, original.id)
+    // The first host write committed, then the connection lost its receipt.
+    const installed = { revision_id: original.target_revision_id, digest: first.job.authority.entitlement.digest }
+    expect(await runJob(original.id, failingRunner('shared_effect_unverified'))).toMatchObject({ message: 'shared_effect_unverified' })
+    let minutes = 0
+    for (const delay of [5, 15, 60, 180, 360]) {
+      await recoverCommercialSystemJobs(pool, later(minutes))
+      minutes += delay
+      await recoverCommercialSystemJobs(pool, later(minutes))
+      const error = delay === 360 ? 'tenant_binding_mismatch' : 'shared_effect_unverified'
+      expect(await runJob(original.id, failingRunner(error))).toMatchObject({ message: error })
+    }
+    await recoverCommercialSystemJobs(pool, later(minutes))
+    await processTrialLapses(pool, { now: later(minutes), subscription_id: f.subscription })
+    minutes += 5
+    await lower(f, later(minutes))
+    const second = await lapseOrder(f.subscription)
+    expect(second.id).not.toBe(original.id)
+    // This replacement is refused before a write, so the first revision remains the actual Odoo predecessor.
+    expect(await runJob(second.id, failingRunner('tenant_binding_mismatch'))).toMatchObject({ message: 'tenant_binding_mismatch' })
+    await recoverCommercialSystemJobs(pool, later(minutes))
+    await processTrialLapses(pool, { now: later(minutes), subscription_id: f.subscription })
+    minutes += 5
+    await lower(f, later(minutes))
+    const third = await lapseOrder(f.subscription)
+    const candidate = await pushed(f.tenant, third.id)
+    expect(candidate.job.authority.recoverable_predecessors).toEqual([installed])
+    await expect(transaction(pool, client => assertReconfigureAuthority(client, {
+      ...candidate.job, authority: { ...candidate.job.authority,
+        recoverable_predecessors: [{ revision_id: earlierPaid.order.target_revision_id, digest: unrelated.job.authority.entitlement.digest }] },
+    }))).rejects.toThrow('recovery_predecessor_invalid')
+    expect(await runJob(third.id, okRunner)).toMatchObject({ state: 'verified' })
+    await processTrialLapses(pool, { now: later(minutes), subscription_id: f.subscription })
+    expect(await lapseRow(f.subscription)).toMatchObject({ state: 'done', order_seq: 3 })
+  })
+
   it('returns an unpaid kept subset to free base after first invoice grace (T9)', async () => {
     const f = await endedTrial()
     const paid = await change(f, { requested_users: 5 }, beforeEnd)
@@ -424,11 +470,13 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     await pool.query('UPDATE tenants SET post_trial_supported=NULL,excess_supported=NULL WHERE id=$1', [f.tenant])
     const binding = (await pool.query('SELECT database_name FROM shared_registry_bindings WHERE control_tenant_id=$1', [f.tenant])).rows[0]
     const usage = { 'users.limit': 3, 'storage.limit_mb': 0, 'branches.extra_limit': 0 }
-    await collectUsage(pool, { limit: 100, runner: async input => input.tenant_id === f.tenant ? {
+    const observe = async (blockedStorageBytes?: number) => collectUsage(pool, { limit: 100, runner: async input => input.tenant_id === f.tenant ? {
       database: binding.database_name, observed_at: new Date().toISOString(), usage,
       limit_gates: Object.fromEntries(Object.keys(usage).map(key => [key, []])),
       post_trial_supported: true, excess_supported: true, storage_bytes: 20480 * 1024 * 1024 + 17,
+      ...(blockedStorageBytes === undefined ? {} : { blocked_storage_bytes: blockedStorageBytes }),
     } : null })
+    await observe()
     expect(await lapse(f)).toMatchObject({ deferred: [f.subscription] })
     expect(await trialEndPreview(pool, f.customer)).toMatchObject({ excess: { storage_bytes: 17, source: 'usage_snapshot' } })
     const job = (await pool.query("SELECT id,payload FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'origin'='trial-end'", [f.tenant])).rows[0]
@@ -437,6 +485,12 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       ...await okRunner(input), post_trial_supported: true, excess_supported: true,
     }))
     expect(await lapse(f)).toMatchObject({ lapsed: [f.subscription] })
+    await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
+    expect(await runJob((await lapseOrder(f.subscription)).id, okRunner)).toMatchObject({ state: 'verified' })
+    await processTrialLapses(pool, { now, adapter, subscription_id: f.subscription })
+    expect(await trialEndPreview(pool, f.customer)).toMatchObject({ excess: { storage_bytes: null } })
+    await observe(33)
+    expect(await trialEndPreview(pool, f.customer)).toMatchObject({ excess: { storage_bytes: 33, source: 'usage_snapshot' } })
   })
 
   it('rolls back expiry and its lapse together if the transaction crashes (T12)', async () => {

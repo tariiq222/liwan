@@ -10,6 +10,7 @@ import { tenantStatusSql } from './suspension.js'
 const observedLifecycle = z.object({
   post_trial_supported: z.boolean().optional(), excess_supported: z.boolean().optional(),
   storage_bytes: z.number().int().nonnegative().optional(),
+  blocked_storage_bytes: z.number().int().nonnegative().optional(),
   excess: z.record(z.string(), z.number().int().nonnegative()).optional(),
   branches: z.array(z.object({ branch_id: z.uuid(), read_only: z.boolean().optional() })).optional(),
 })
@@ -54,7 +55,7 @@ export function acceptObservation(observed: unknown, database: string, now: Date
   if (!gateEntries.every(([, list]) => Array.isArray(list) && list.length <= 64 && list.every(g => typeof g === 'string' && LIMIT_KEY.test(g)))) return null
   const ai = observedAi(value.features)
   if (ai === null) return null
-  const hasLifecycle = 'post_trial_supported' in value || 'excess_supported' in value || 'storage_bytes' in value
+  const hasLifecycle = 'post_trial_supported' in value || 'excess_supported' in value || 'storage_bytes' in value || 'blocked_storage_bytes' in value
   const lifecycle = observedLifecycle.safeParse(hasLifecycle ? value : {})
   if (!lifecycle.success) return null
   return {
@@ -62,7 +63,8 @@ export function acceptObservation(observed: unknown, database: string, now: Date
     database, observed_at: value.observed_at,
     ...(ai ? { ai } : {}),
     usage: { ...Object.fromEntries(entries) as Record<string, number>,
-      ...(lifecycle.data.storage_bytes !== undefined ? { attachment_bytes: lifecycle.data.storage_bytes } : {}) },
+      ...(lifecycle.data.storage_bytes !== undefined ? { attachment_bytes: lifecycle.data.storage_bytes } : {}),
+      ...(lifecycle.data.blocked_storage_bytes !== undefined ? { blocked_storage_bytes: lifecycle.data.blocked_storage_bytes } : {}) },
     limit_gates: Object.fromEntries(gateEntries.map(([key, list]) => [key, [...(list as string[])]])),
   }
 }
