@@ -56,6 +56,20 @@ class StagesForTest(unittest.TestCase):
             self.assert_stages(pattern.replace('*', 'x'), ('static',))
         self.assert_stages('tools/test_ci_scope.py', ('static',))
 
+    def test_inventory_register_and_scenario_coverage_select_static(self):
+        # Read by tools/test_test_inventory.py and by e2e/scenarios; no image, stage script or application opens them.
+        for path in ('tools/ci_not_run.json', 'tools/e2e_scenario_coverage.py', 'tools/test_test_inventory.py',
+                     'tools/test_e2e_scenario_coverage.py'):
+            self.assert_stages(path, ('static',))
+
+    def test_deploy_alerts_and_top_level_deploy_tests_select_static(self):
+        for path in ('deploy/alerts.py', 'deploy/test_alerts.py', 'deploy/test_ci_stages.py'):
+            self.assert_stages(path, ('static',))
+        # Only these two files are static-only; the rest of deploy/ still feeds the images and the stages.
+        for path in ('deploy/backup.py', 'deploy/alerts_helper.py', 'deploy/ci/odoo.sh', 'deploy/shared/guard.mjs',
+                     'deploy/shared/guard.test.mjs', 'deploy/control-plane/test_resource_guard.py', 'deploy/staging/test_x.py'):
+            self.assert_stages(path, ALL)
+
     def test_tools_that_steps_or_apps_run_select_all_thirteen(self):
         for path in ('tools/liwan_cli/module_closure.py', 'tools/liwan_cli/managed_policy.py',
                      'tools/shared_saas_lifecycle/run.py', 'tools/shared_saas_lifecycle/test_run.py',

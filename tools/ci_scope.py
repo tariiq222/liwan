@@ -36,8 +36,8 @@ STAGES = ('static', 'ai-service', 'control-plane', 'vendor-admin', 'odoo',
 # is unmapped on purpose, so a new tool runs all thirteen stages until it is listed here.
 STATIC_ONLY_TOOLS = (
     'tools/test_*', 'tools/api_surface.py', 'tools/arch_baseline.json', 'tools/arch_documented_sudo.json',
-    'tools/arch_policy.py', 'tools/check_fast.py', 'tools/contracts_jsonschema.mjs',
-    'tools/docs_policy.py', 'tools/e2e_isolated.mjs', 'tools/git_policy.py', 'tools/hooks.py',
+    'tools/arch_policy.py', 'tools/check_fast.py', 'tools/ci_not_run.json', 'tools/contracts_jsonschema.mjs',
+    'tools/docs_policy.py', 'tools/e2e_isolated.mjs', 'tools/e2e_scenario_coverage.py', 'tools/git_policy.py', 'tools/hooks.py',
     'tools/jev_review.mjs', 'tools/migration_guard.py', 'tools/new_app.py',
     'tools/new_app_templates/*', 'tools/no_external_refs.py', 'tools/odoo_test.py',
     'tools/secret_guard.py', 'tools/semgrep_gate.py', 'tools/sudo_gate.py', 'tools/ts_loader.mjs',
@@ -71,6 +71,8 @@ RULES = (
     ('tools/upgrade_log_guard.py', STAGES),  # the upgrade step
     ('deploy/ci/static.sh', ()),             # only the static job runs it (and the light profile below)
     ('deploy/ci/lib/docs-static.sh', ()),
+    ('deploy/alerts.py', ()),                # the alert sender: read by deploy/test_alerts.py and OPERATIONS.md, no image, stage or app
+    ('deploy/test_*.py', ()),                # top-level deploy tests, run only by `unittest deploy/test_*.py` in the static job
     ('deploy/*', STAGES),                    # deploy/ci/*.sh, ci-test.sh, classification.py, the image Dockerfile
     ('odoo-addons/*', STAGES),               # the Odoo steps, the image and the static ruff run
     ('packages/contracts/*', STAGES),
