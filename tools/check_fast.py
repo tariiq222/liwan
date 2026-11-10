@@ -42,8 +42,7 @@ def plan(changed, base):
         steps.append(('ruff', ['ruff', 'check', 'odoo-addons']))
     if touched('tools/'):
         steps.append(('tools_unittest', [PY, '-B', '-m', 'unittest', 'discover', '-s', 'tools', '-p', 'test_*.py']))
-    if touched('odoo-addons/', 'tools/api_surface.py', 'docs/api/'):
-        # Stale on a task branch that adds a route (it may not regenerate the files); the orchestrator regenerates.
+    if touched('tools/api_surface.py', 'docs/api/'):
         steps.append(('api_surface', [PY, '-B', 'tools/api_surface.py', '--check']))
     if touched('packages/contracts/'):
         steps.append(('contracts_test', ['npm', '-w', 'packages/contracts', 'run', 'test']))

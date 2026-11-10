@@ -25,13 +25,13 @@ class TestCheckFast(unittest.TestCase):
             self.assertIn(name, base)
         self.assertEqual(len(base), 6)
 
-    def test_addon_change_adds_ruff_and_api_surface(self):
-        self.assertEqual(set(names(['odoo-addons/liwan_hr/a.py'])) - set(names([])), {'ruff', 'api_surface'})
+    def test_addon_change_adds_ruff_only(self):
+        self.assertEqual(set(names(['odoo-addons/liwan_hr/a.py'])) - set(names([])), {'ruff'})
 
-    def test_api_surface_runs_for_addons_its_tool_and_generated_files(self):
-        for path in ('odoo-addons/liwan_hr/a.py', 'tools/api_surface.py', 'docs/api/openapi.json'):
+    def test_api_surface_runs_for_its_tool_and_generated_files_only(self):
+        for path in ('tools/api_surface.py', 'docs/api/openapi.json'):
             self.assertIn('api_surface', names([path]))
-        self.assertNotIn('api_surface', names(['apps/web/app/a.vue', 'tools/x.py']))
+        self.assertNotIn('api_surface', names(['odoo-addons/liwan_hr/a.py', 'apps/web/app/a.vue', 'tools/x.py']))
         self.assertEqual(dict(plan(['docs/api/openapi.json'], 'main'))['api_surface'],
                          ['python3', '-B', 'tools/api_surface.py', '--check'])
 
