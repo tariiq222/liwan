@@ -1,7 +1,7 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { mkdtemp, readdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Pool, type PoolClient } from 'pg'
@@ -9,6 +9,7 @@ import type { VendorCapability } from '@liwan/commercial-contracts'
 import { migrate } from '../db.js'
 import type { Config } from '../config.js'
 import { aiProviderHttp } from '../ai-provider/http.js'
+import { syncProviderFile } from '../ai-provider/sync.js'
 import { listModels, MODELS_BUDGET_MS, ProviderCallError, TEST_BUDGET_MS, testCompletion, type Fetcher, type ProbeTarget } from '../ai-provider/client.js'
 import { addressClass, cleanEndpoint, checkEndpoint, EndpointError, type Resolver } from '../ai-provider/endpoint.js'
 import { guardedFetcher } from '../ai-provider/guarded-fetch.js'
@@ -312,13 +313,28 @@ suite('live PostgreSQL platform provider routes', () => {
     } catch (e) { const c = e as { status?: number; code?: string; message: string }; if (c.status) return { status: c.status, body: { code: c.code } as any }; throw e }
   }
   const providerFile = () => join(dir, 'platform-provider.json')
+  const fileJson = async () => JSON.parse(await readFile(providerFile(), 'utf8'))
+  const withUsage = () => recorder(() => sse(CHUNK, USAGE, '[DONE]'))
+
+  /** A configuration with one OpenAI provider and one priced model, `routes` as given. */
+  const config1 = (routes: object = {}, over: object = {}) => ({
+    margin_bps: 2000, providers: { oai: { preset: 'openai', api_key: KEY } },
+    models: { mid: { provider: 'oai', model: 'gpt-4o', input_price: '2.5', output_price: '10' } }, routes, reason: 'Set up the platform provider', ...over,
+  })
+  /** Saves the configuration unrouted, tests its model so the service may charge for it, then saves it routed: returns the second answer. */
+  async function routedSave(routes: object = { default: 'mid' }, over: object = {}, options: Parameters<typeof call>[3] = {}) {
+    const draft = await call('PATCH', '', config1({}, over), options)
+    expect(draft.status).toBe(200)
+    expect((await call('POST', '/test', { provider: 'oai', model: 'gpt-4o' }, { fetch: withUsage().fetcher })).body).toMatchObject({ ok: true, usage_reported: true })
+    return call('PATCH', '', config1(routes, { providers: { oai: { preset: 'openai' } }, ...over }), options)
+  }
 
   beforeAll(async () => { await migrate(pool) })
   afterAll(async () => { await pool.end() })
   beforeEach(async () => {
     dir = await mkdtemp(join(tmpdir(), 'ai-provider-'))
     config = { admin: { secretKey: SECRET, rpId: 'localhost', origin: 'http://localhost', rpName: 'LiwanOS' }, aiPlatformProviderPath: providerFile() } as unknown as Config
-    await pool.query('TRUNCATE ai_platform_provider')
+    await pool.query('TRUNCATE ai_route, ai_model, ai_provider, ai_provider_config')
     await pool.query("DELETE FROM audit_events WHERE action LIKE 'ai.platform_provider.%'")
   })
 
@@ -329,7 +345,7 @@ suite('live PostgreSQL platform provider routes', () => {
     for (const [method, path] of [['GET', ''], ['PATCH', ''], ['GET', '/presets'], ['POST', '/models'], ['POST', '/test']] as const) {
       await expect(call(method, path, method === 'GET' ? undefined : {}, { auth: auth(['vendor.read', 'vendor.operations.run', 'vendor.accounts.manage'], { method }) }), `${method} ${path}`).rejects.toThrow('forbidden')
     }
-    await expect(call('PATCH', '', { preset: 'openai' }, { auth: auth(undefined, { method: 'PATCH', stepUpFresh: false }) })).rejects.toThrow('step_up_required')
+    await expect(call('PATCH', '', config1(), { auth: auth(undefined, { method: 'PATCH', stepUpFresh: false }) })).rejects.toThrow('step_up_required')
     expect((await call('DELETE', '')).status).toBe(404)
     expect((await call('GET', '/models')).status).toBe(404)
   })
@@ -344,84 +360,165 @@ suite('live PostgreSQL platform provider routes', () => {
     expect((await call('GET', '')).body).toEqual({ setting: null })
   })
 
-  it('saves with a write-only key: sealed at rest, last four in the answer, the file for the AI service written, the save audited without the key', async () => {
-    const saved = await call('PATCH', '', { preset: 'deepseek', model: 'deepseek-chat', api_key: KEY, reason: 'Switch the platform provider' })
+  it('saves a draft with write-only keys: sealed at rest, last four in the answer, no file until a default model is routed, the save audited with counts and no key', async () => {
+    const saved = await call('PATCH', '', config1())
     expect(saved.status).toBe(200)
-    expect(saved.body.setting).toMatchObject({ preset: 'deepseek', provider: 'openai_compatible', model: 'deepseek-chat', base_url: 'https://api.deepseek.com/v1', stream_usage: true, key: { configured: true, last4: '6789' }, revision: 1, updated_by: 'account:7', delivery: 'delivered' })
+    expect(saved.body.setting).toMatchObject({
+      revision: 1, margin_bps: 2000, updated_by: 'account:7', delivery: 'incomplete', routes: {},
+      providers: { oai: { preset: 'openai', provider: 'openai', base_url: null, stream_usage: true, key: { configured: true, last4: '6789' } } },
+      models: { mid: { provider: 'oai', model: 'gpt-4o', input_price: '2.5', cached_input_price: null, output_price: '10', usage_reported: false } },
+    })
     expect(JSON.stringify(saved.body)).not.toContain(KEY)
-    expect(JSON.parse(await readFile(providerFile(), 'utf8'))).toEqual({ provider: 'openai_compatible', model: 'deepseek-chat', base_url: 'https://api.deepseek.com/v1', api_key: KEY, stream_usage: true, revision: 1 })
-    expect((await stat(providerFile())).mode & 0o777).toBe(0o640)
-    const row = (await pool.query('SELECT api_key_sealed FROM ai_platform_provider')).rows[0]
+    await expect(readFile(providerFile(), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+    const row = (await pool.query('SELECT api_key_sealed FROM ai_provider')).rows[0]
     expect(row.api_key_sealed.toString('utf8')).not.toContain(KEY)
     expect(JSON.stringify((await call('GET', '')).body)).not.toContain(KEY)
     const audit = (await pool.query("SELECT actor, subject, reason, metadata FROM audit_events WHERE action='ai.platform_provider.saved'")).rows
     expect(audit).toHaveLength(1)
-    expect(audit[0]).toMatchObject({ actor: 'account:7', subject: 'platform-ai-provider', reason: 'Switch the platform provider' })
-    expect(audit[0].metadata).toMatchObject({ preset: 'deepseek', model: 'deepseek-chat', revision: 1, key_changed: true, stream_usage: true })
+    expect(audit[0]).toMatchObject({ actor: 'account:7', subject: 'platform-ai-provider', reason: 'Set up the platform provider' })
+    expect(audit[0].metadata).toEqual({ revision: 1, margin_bps: 2000, providers: 1, models: 1, routes: 0, key_changed: true, keys_changed: 1, delivered: false, complete: false })
     expect(JSON.stringify(audit)).not.toContain(KEY)
   })
 
-  it('keeps the stored key while the preset and endpoint stay, raises the revision, and asks for a key when they change', async () => {
-    await call('PATCH', '', { preset: 'groq', model: 'llama-3.3-70b', api_key: KEY, reason: 'First choice' })
-    const again = await call('PATCH', '', { preset: 'groq', model: 'llama-3.1-8b', reason: 'Cheaper model' })
-    expect(again.body.setting).toMatchObject({ model: 'llama-3.1-8b', revision: 2, key: { configured: true, last4: '6789' } })
-    expect(JSON.parse(await readFile(providerFile(), 'utf8'))).toMatchObject({ api_key: KEY, revision: 2 })
-    const other = await call('PATCH', '', { preset: 'xai', model: 'grok', reason: 'Another provider' })
+  it('routes a model for charged use only when it is priced and its last test saw token counts, and writes the file for the service when a default is routed', async () => {
+    await call('PATCH', '', config1())
+    expect((await call('PATCH', '', config1({ default: 'mid' }, { providers: { oai: { preset: 'openai' } } }))).body.code).toBe('model_not_tested')
+    const unpriced = { models: { mid: { provider: 'oai', model: 'gpt-4o', input_price: '2.5' } } }
+    expect((await call('PATCH', '', config1({ default: 'mid' }, { ...unpriced, providers: { oai: { preset: 'openai' } } }))).body.code).toBe('model_not_priced')
+    expect((await call('PATCH', '', config1({ default: 'ghost' }))).body.code).toBe('unknown_model')
+    expect((await call('PATCH', '', config1({}, { models: { mid: { provider: 'nope', model: 'gpt-4o' } } }))).body.code).toBe('unknown_provider')
+    expect((await call('GET', '')).body.setting.revision).toBe(1)  // nothing above changed anything
+    // A test that saw no token counts leaves the model unroutable.
+    const silent = recorder(() => sse(CHUNK, '[DONE]'))
+    expect((await call('POST', '/test', { provider: 'oai', model: 'gpt-4o' }, { fetch: silent.fetcher })).body).toMatchObject({ ok: true, usage_reported: false })
+    expect((await call('PATCH', '', config1({ default: 'mid' }, { providers: { oai: { preset: 'openai' } } }))).body.code).toBe('model_not_tested')
+    expect((await call('POST', '/test', { provider: 'oai', model: 'gpt-4o' }, { fetch: withUsage().fetcher })).body).toMatchObject({ usage_reported: true })
+    const routed = await call('PATCH', '', config1({ default: 'mid' }, { providers: { oai: { preset: 'openai' } } }))
+    expect(routed.status).toBe(200)
+    expect(routed.body.setting).toMatchObject({ revision: 2, delivery: 'delivered', routes: { default: 'mid' }, models: { mid: { usage_reported: true } } })
+    expect(await fileJson()).toEqual({
+      revision: 2, margin_bps: 2000,
+      providers: { oai: { provider: 'openai', api_key: KEY, stream_usage: true } },
+      models: { mid: { provider: 'oai', model: 'gpt-4o', input_price: '2.5', output_price: '10' } },
+      routes: { default: 'mid' },
+    })
+    expect((await stat(providerFile())).mode & 0o777).toBe(0o640)
+    const audit = (await pool.query("SELECT metadata FROM audit_events WHERE action='ai.platform_provider.saved' ORDER BY created_at DESC, id LIMIT 1")).rows[0]
+    expect(audit.metadata).toMatchObject({ revision: 2, routes: 1, key_changed: false, keys_changed: 0, delivered: true, complete: true })
+  })
+
+  it('writes several providers, models and quality columns, only the providers and models some route uses, with prices as plain decimals', async () => {
+    const body = {
+      margin_bps: 1500,
+      providers: { oai: { preset: 'openai', api_key: KEY }, ds: { preset: 'deepseek', api_key: `${KEY}-2` }, idle: { preset: 'groq', api_key: `${KEY}-3` } },
+      models: {
+        mid: { provider: 'oai', model: 'gpt-4o', input_price: '2.50', cached_input_price: '1.25', output_price: '10.00000' },
+        cheap: { provider: 'ds', model: 'deepseek-chat', input_price: '0.14', output_price: '0.28' },
+        spare: { provider: 'idle', model: 'llama', input_price: '0.05', output_price: '0.08' },
+      },
+      routes: {}, reason: 'Two providers and a map',
+    }
+    await call('PATCH', '', body)
+    for (const [provider, model] of [['oai', 'gpt-4o'], ['ds', 'deepseek-chat']]) await call('POST', '/test', { provider, model }, { fetch: withUsage().fetcher })
+    const routes = { default: 'mid', balanced: { quick: 'cheap' }, economical: { standard: 'cheap', analysis: 'cheap' }, best: {} }
+    const stripped = { ...body, providers: Object.fromEntries(Object.entries(body.providers).map(([id, p]) => [id, { preset: p.preset }])) }
+    const saved = await call('PATCH', '', { ...stripped, routes })
+    expect(saved.body.setting).toMatchObject({ delivery: 'delivered', routes: { default: 'mid', balanced: { quick: 'cheap' }, economical: { standard: 'cheap', analysis: 'cheap' } } })
+    expect(saved.body.setting.models.mid).toMatchObject({ input_price: '2.5', cached_input_price: '1.25', output_price: '10' })
+    expect(await fileJson()).toEqual({
+      revision: 2, margin_bps: 1500,
+      providers: { oai: { provider: 'openai', api_key: KEY, stream_usage: true }, ds: { provider: 'openai_compatible', base_url: 'https://api.deepseek.com/v1', api_key: `${KEY}-2`, stream_usage: true } },
+      models: { mid: { provider: 'oai', model: 'gpt-4o', input_price: '2.5', cached_input_price: '1.25', output_price: '10' }, cheap: { provider: 'ds', model: 'deepseek-chat', input_price: '0.14', output_price: '0.28' } },
+      routes: { default: 'mid', balanced: { quick: 'cheap' }, economical: { standard: 'cheap', analysis: 'cheap' } },
+    })
+  })
+
+  it('keeps a stored key while its preset and endpoint stay, asks for a key when they change, and drops a test result when the model or its provider changes', async () => {
+    await routedSave()
+    const again = await call('PATCH', '', config1({ default: 'mid' }, { providers: { oai: { preset: 'openai' } }, margin_bps: 1000 }))
+    expect(again.body.setting).toMatchObject({ margin_bps: 1000, revision: 3, providers: { oai: { key: { configured: true, last4: '6789' } } } })
+    expect((await fileJson())).toMatchObject({ providers: { oai: { api_key: KEY } }, revision: 3 })
+    const other = await call('PATCH', '', config1({ default: 'mid' }, { providers: { oai: { preset: 'xai' } } }))
     expect(other).toEqual({ status: 422, body: { code: 'api_key_required' } })
-    expect((await call('GET', '')).body.setting.revision).toBe(2)
+    const renamed = await call('PATCH', '', config1({ default: 'mid' }, { providers: { oai: { preset: 'openai' } }, models: { mid: { provider: 'oai', model: 'gpt-4o-mini', input_price: '2.5', output_price: '10' } } }))
+    expect(renamed.body.code).toBe('model_not_tested')  // another model name was never tested
+    expect((await call('GET', '')).body.setting.revision).toBe(3)
+    const extra = await call('PATCH', '', config1({ default: 'mid' }, { providers: { oai: { preset: 'openai' } }, models: { mid: { provider: 'oai', model: 'gpt-4o', input_price: '2.5', output_price: '10' }, other: { provider: 'oai', model: 'gpt-4o-mini' } } }))
+    expect(extra.body.setting.models).toMatchObject({ mid: { usage_reported: true }, other: { usage_reported: false } })  // the tested model keeps its result, the new one has none
   })
 
   it('stores a self-hosted endpoint without a key, and refuses what a preset cannot take', async () => {
-    const ollama = await call('PATCH', '', { preset: 'ollama', model: 'qwen2.5:7b', base_url: 'http://ollama:11434/', reason: 'Self-hosted model' })
-    expect(ollama.body.setting).toMatchObject({ provider: 'ollama', base_url: 'http://ollama:11434', stream_usage: false, key: { configured: false, last4: null } })
-    expect(JSON.parse(await readFile(providerFile(), 'utf8'))).toEqual({ provider: 'ollama', model: 'qwen2.5:7b', base_url: 'http://ollama:11434', revision: 1 })
-    const reasons = (preset: string, extra: object) => call('PATCH', '', { preset, model: 'm', reason: 'Checking', ...extra })
-    expect((await reasons('ollama', {})).body.code).toBe('invalid_base_url')
-    expect((await reasons('ollama', { base_url: 'https://u:p@h.example' })).body.code).toBe('invalid_base_url')
-    expect((await reasons('ollama', { base_url: 'http://ollama:11434', api_key: KEY })).body.code).toBe('api_key_not_allowed')
-    expect((await reasons('openai', { api_key: KEY, base_url: 'https://elsewhere.example/v1' })).body.code).toBe('invalid_base_url')
-    expect((await reasons('nope', { api_key: KEY })).body.code).toBe('invalid_preset')
-    expect((await reasons('custom', { api_key: KEY, base_url: 'https://llm.example.com/v1' })).status).toBe(200)
+    const ollama = await call('PATCH', '', { margin_bps: 0, providers: { local: { preset: 'ollama', base_url: 'http://ollama:11434/' } }, models: { q: { provider: 'local', model: 'qwen2.5:7b' } }, routes: {}, reason: 'Self-hosted model' })
+    expect(ollama.body.setting.providers.local).toMatchObject({ provider: 'ollama', base_url: 'http://ollama:11434', stream_usage: false, key: { configured: false, last4: null } })
+    const reasons = (extra: object) => call('PATCH', '', { margin_bps: 0, providers: { p: extra }, models: {}, routes: {}, reason: 'Checking' })
+    expect((await reasons({ preset: 'ollama' })).body.code).toBe('invalid_base_url')
+    expect((await reasons({ preset: 'ollama', base_url: 'https://u:p@h.example' })).body.code).toBe('invalid_base_url')
+    expect((await reasons({ preset: 'ollama', base_url: 'http://ollama:11434', api_key: KEY })).body.code).toBe('api_key_not_allowed')
+    expect((await reasons({ preset: 'openai', api_key: KEY, base_url: 'https://elsewhere.example/v1' })).body.code).toBe('invalid_base_url')
+    expect((await reasons({ preset: 'nope', api_key: KEY })).body.code).toBe('invalid_preset')
+    expect((await reasons({ preset: 'custom', api_key: KEY, base_url: 'https://llm.example.com/v1' })).status).toBe(200)
   })
 
   it('writes the named providers without an endpoint and with their own token-count rule', async () => {
-    const saved = await call('PATCH', '', { preset: 'openai', model: 'gpt-4o', api_key: KEY, reason: 'Native OpenAI' })
-    expect(saved.body.setting).toMatchObject({ preset: 'openai', provider: 'openai', base_url: null, stream_usage: true })
-    expect(JSON.parse(await readFile(providerFile(), 'utf8'))).toEqual({ provider: 'openai', model: 'gpt-4o', api_key: KEY, stream_usage: true, revision: 1 })
-    await call('PATCH', '', { preset: 'anthropic', model: 'claude-sonnet-4-5', api_key: KEY, reason: 'Anthropic' })
-    expect(JSON.parse(await readFile(providerFile(), 'utf8'))).toEqual({ provider: 'anthropic', model: 'claude-sonnet-4-5', api_key: KEY, revision: 2 })  // reports counts on its own
-    await call('PATCH', '', { preset: 'openrouter', model: 'anthropic/claude-sonnet-4.5', api_key: KEY, reason: 'OpenRouter' })
-    expect(JSON.parse(await readFile(providerFile(), 'utf8'))).toMatchObject({ provider: 'openrouter', stream_usage: true })
-    expect(JSON.parse(await readFile(providerFile(), 'utf8'))).not.toHaveProperty('base_url')
+    const base = { margin_bps: 0, models: { m: { provider: 'p', model: 'x', input_price: '1', output_price: '2' } }, reason: 'Named providers' }
+    for (const [preset, model] of [['openai', 'gpt-4o'], ['anthropic', 'claude-sonnet-4-5'], ['openrouter', 'anthropic/claude-sonnet-4.5']] as const) {
+      await pool.query('TRUNCATE ai_route, ai_model, ai_provider, ai_provider_config')  // each preset starts from nothing
+      expect((await call('PATCH', '', { ...base, providers: { p: { preset, api_key: KEY } }, models: { m: { provider: 'p', model, input_price: '1', output_price: '2' } }, routes: {} })).status).toBe(200)
+      const counts = preset === 'anthropic' ? recorder(() => sse({ usage: { input_tokens: 9, output_tokens: 1 } })) : withUsage()
+      await call('POST', '/test', { provider: 'p', model }, { fetch: counts.fetcher })
+      const routed = await call('PATCH', '', { ...base, providers: { p: { preset, api_key: KEY } }, models: { m: { provider: 'p', model, input_price: '1', output_price: '2' } }, routes: { default: 'm' } })
+      expect(routed.status, preset).toBe(200)
+      const written = (await fileJson()).providers.p
+      expect(written).not.toHaveProperty('base_url')
+      if (preset === 'anthropic') expect(written).toEqual({ provider: 'anthropic', api_key: KEY })  // reports counts on its own
+      else expect(written).toMatchObject({ provider: preset, stream_usage: true })
+    }
   })
 
   it('lets the vendor tick the token-count option of a custom endpoint only, keeps it across saves, and refuses a contradiction of a fixed preset', async () => {
-    const custom = { preset: 'custom', model: 'm', api_key: KEY, base_url: 'https://llm.example.com/v1' }
-    expect((await call('PATCH', '', { ...custom, reason: 'Custom endpoint' })).body.setting.stream_usage).toBe(false)
-    expect(JSON.parse(await readFile(providerFile(), 'utf8'))).toMatchObject({ stream_usage: false })
-    expect((await call('PATCH', '', { ...custom, stream_usage: true, reason: 'It reports usage' })).body.setting.stream_usage).toBe(true)
-    expect(JSON.parse(await readFile(providerFile(), 'utf8'))).toMatchObject({ provider: 'openai_compatible', stream_usage: true })
-    const kept = await call('PATCH', '', { preset: 'custom', model: 'm2', base_url: 'https://llm.example.com/v1', reason: 'New model' })
-    expect(kept.body.setting).toMatchObject({ stream_usage: true, model: 'm2' })
-    expect((await call('PATCH', '', { preset: 'groq', model: 'm', api_key: KEY, stream_usage: false, reason: 'Turn it off' })).body.code).toBe('invalid_stream_usage')
-    expect((await call('PATCH', '', { preset: 'groq', model: 'm', api_key: KEY, stream_usage: true, reason: 'Same as default' })).status).toBe(200)
-    expect((await call('POST', '/test', { preset: 'groq', model: 'm', api_key: KEY, stream_usage: false }, { fetch: recorder(() => sse(CHUNK, USAGE)).fetcher })).body.code).toBe('invalid_stream_usage')
+    const custom = { preset: 'custom', api_key: KEY, base_url: 'https://llm.example.com/v1' }
+    const body = (provider: object) => ({ margin_bps: 0, providers: { c: provider }, models: { m: { provider: 'c', model: 'm', input_price: '1', output_price: '1' } }, routes: {}, reason: 'Custom endpoint' })
+    expect((await call('PATCH', '', body(custom))).body.setting.providers.c.stream_usage).toBe(false)
+    expect((await call('PATCH', '', body({ ...custom, stream_usage: true }))).body.setting.providers.c.stream_usage).toBe(true)
+    const kept = await call('PATCH', '', body({ preset: 'custom', base_url: 'https://llm.example.com/v1' }))
+    expect(kept.body.setting.providers.c.stream_usage).toBe(true)
+    expect((await call('PATCH', '', body({ preset: 'groq', api_key: KEY, stream_usage: false }))).body.code).toBe('invalid_stream_usage')
+    expect((await call('PATCH', '', body({ preset: 'groq', api_key: KEY, stream_usage: true }))).status).toBe(200)
+  })
+
+  it('asks the stream for token counts as the saved option says, and records what the reply carried', async () => {
+    const custom = { margin_bps: 0, providers: { c: { preset: 'custom', api_key: KEY, base_url: 'https://llm.example.com/v1' } }, models: { m: { provider: 'c', model: 'm' } }, routes: {}, reason: 'Custom endpoint' }
+    await call('PATCH', '', custom)
+    const without = recorder(() => sse(CHUNK, '[DONE]'))
+    expect((await call('POST', '/test', { provider: 'c', model: 'm' }, { fetch: without.fetcher })).body).toMatchObject({ ok: true, usage_reported: false })
+    expect(JSON.parse(without.seen[0]!.init.body as string)).not.toHaveProperty('stream_options')
+    await call('PATCH', '', { ...custom, providers: { c: { preset: 'custom', base_url: 'https://llm.example.com/v1', stream_usage: true } } })
+    const asked = withUsage()
+    expect((await call('POST', '/test', { provider: 'c', model: 'm' }, { fetch: asked.fetcher })).body).toMatchObject({ ok: true, usage_reported: true })
+    expect(JSON.parse(asked.seen[0]!.init.body as string)).toMatchObject({ stream: true, stream_options: { include_usage: true } })
+    expect((await call('GET', '')).body.setting.models.m.usage_reported).toBe(true)
+    const refuses: Fetcher = async () => new Response('stream_options is not supported', { status: 400 })
+    expect((await call('POST', '/test', { provider: 'c', model: 'm' }, { fetch: refuses })).body).toEqual({ ok: false, code: 'stream_usage_refused' })
+    expect((await call('GET', '')).body.setting.models.m.usage_reported).toBe(true)  // a failed test changes nothing
+    // Changing what the stream is asked for makes the earlier result stale.
+    await call('PATCH', '', { ...custom, providers: { c: { preset: 'custom', base_url: 'https://llm.example.com/v1', stream_usage: false } } })
+    expect((await call('GET', '')).body.setting.models.m.usage_reported).toBe(false)
   })
 
   it('rolls the whole save back when the file cannot be written, and reports a stale file as pending', async () => {
+    await routedSave()
     const broken = { ...config, aiPlatformProviderPath: join(dir, 'missing-dir', 'platform-provider.json') } as Config
-    const failed = await call('PATCH', '', { preset: 'openai', model: 'gpt-4o', api_key: KEY, reason: 'Switch provider' }, { config: broken })
+    const failed = await call('PATCH', '', config1({ default: 'mid' }, { providers: { oai: { preset: 'openai' } }, margin_bps: 999 }), { config: broken })
     expect(failed).toEqual({ status: 503, body: { code: 'provider_file_unavailable' } })
-    expect((await call('GET', '')).body).toEqual({ setting: null })
-    expect((await pool.query("SELECT 1 FROM audit_events WHERE action='ai.platform_provider.saved'")).rowCount).toBe(0)
-    await call('PATCH', '', { preset: 'openai', model: 'gpt-4o', api_key: KEY, reason: 'Switch provider' })
-    await writeFile(providerFile(), JSON.stringify({ provider: 'openai_compatible', model: 'gpt-4o', revision: 0 }))
+    expect((await call('GET', '')).body.setting).toMatchObject({ revision: 2, margin_bps: 2000 })
+    expect((await pool.query("SELECT 1 FROM audit_events WHERE action='ai.platform_provider.saved'")).rowCount).toBe(2)
+    await writeFile(providerFile(), JSON.stringify({ revision: 0 }))
     expect((await call('GET', '')).body.setting.delivery).toBe('pending')
     expect((await call('GET', '', undefined, { config: { ...config, aiPlatformProviderPath: undefined } as Config })).body.setting.delivery).toBe('unconfigured')
   })
 
   it('writes the audit entry before the file and the file last, right before COMMIT, and restores the previous file when COMMIT fails', async () => {
-    await call('PATCH', '', { preset: 'groq', model: 'first', api_key: KEY, reason: 'First choice' })
+    await routedSave()
     const before = await readFile(providerFile(), 'utf8')
     const order: string[] = []
     const failing: Pool = {
@@ -432,74 +529,85 @@ suite('live PostgreSQL platform provider routes', () => {
         return run()
       }),
     } as unknown as Pool
-    await expect(call('PATCH', '', { preset: 'groq', model: 'second', reason: 'Second choice' }, { pool: failing })).rejects.toThrow('commit failed')
+    await expect(call('PATCH', '', config1({ default: 'mid' }, { providers: { oai: { preset: 'openai' } }, margin_bps: 777 }), { pool: failing })).rejects.toThrow('commit failed')
     expect(order).toEqual(['audit (file already new: false)', 'commit (file already new: true)'])
     expect(await readFile(providerFile(), 'utf8')).toBe(before)  // the previous content is back
-    expect((await call('GET', '')).body.setting).toMatchObject({ model: 'first', revision: 1 })
-    expect((await pool.query("SELECT 1 FROM audit_events WHERE action='ai.platform_provider.saved'")).rowCount).toBe(1)
+    expect((await call('GET', '')).body.setting).toMatchObject({ margin_bps: 2000, revision: 2 })
+    expect((await pool.query("SELECT 1 FROM audit_events WHERE action='ai.platform_provider.saved'")).rowCount).toBe(2)
   })
 
-  it('removes the file again when the very first save fails at COMMIT, and sweeps temporary files a crashed write left behind', async () => {
+  it('removes the file again when the first routed save fails at COMMIT, and sweeps temporary files a crashed write left behind', async () => {
+    await call('PATCH', '', config1())
+    await call('POST', '/test', { provider: 'oai', model: 'gpt-4o' }, { fetch: withUsage().fetcher })
     const failing: Pool = { query: pool.query.bind(pool), connect: async () => withQueryHook(await pool.connect(), async (sql, run) => { if (sql === 'COMMIT') throw new Error('commit failed'); return run() }) } as unknown as Pool
     await writeFile(join(dir, '.platform-provider.crashed.tmp'), '{"api_key":"left over"}')
-    await expect(call('PATCH', '', { preset: 'groq', model: 'm', api_key: KEY, reason: 'First choice' }, { pool: failing })).rejects.toThrow('commit failed')
+    const routed = config1({ default: 'mid' }, { providers: { oai: { preset: 'openai' } } })
+    await expect(call('PATCH', '', routed, { pool: failing })).rejects.toThrow('commit failed')
     await expect(readFile(providerFile(), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
     expect(await readdir(dir)).toEqual([])  // the stale temporary file is gone too
     await writeFile(join(dir, '.platform-provider.crashed2.tmp'), 'x')
     await writeFile(join(dir, 'unrelated.txt'), 'keep')
-    await call('PATCH', '', { preset: 'groq', model: 'm', api_key: KEY, reason: 'First choice' })
+    await call('PATCH', '', routed)
     expect((await readdir(dir)).sort()).toEqual(['platform-provider.json', 'unrelated.txt'])
   })
 
-  it('audits every models and test call with the preset, the host and the outcome, and never the key', async () => {
+  it('audits every models and test call with the provider, the preset, the host and the outcome, and never the key', async () => {
     const reply = recorder(({ url: u }) => (u.endsWith('/models') ? json({ data: [{ id: 'm1' }] }) : sse(CHUNK, USAGE)))
-    await call('POST', '/models', { preset: 'groq', api_key: KEY }, { fetch: reply.fetcher })
-    await call('POST', '/test', { preset: 'groq', model: 'm1', api_key: KEY }, { fetch: reply.fetcher })
-    await call('POST', '/test', { preset: 'deepseek', model: 'm1', api_key: KEY }, { fetch: async () => new Response('no', { status: 401 }) })
-    await call('POST', '/test', { preset: 'xai', model: 'm1' }, { fetch: reply.fetcher })
-    await call('POST', '/models', { preset: 'custom', base_url: 'https://169.254.169.254.nip.io/v1', api_key: KEY }, { resolve: async () => ['169.254.169.254'] })
+    await call('PATCH', '', {
+      margin_bps: 0, reason: 'Providers to probe', routes: {}, models: {},
+      providers: { g: { preset: 'groq', api_key: KEY }, d: { preset: 'deepseek', api_key: KEY }, x: { preset: 'custom', base_url: 'https://llm.example.com/v1', api_key: KEY } },
+    })
+    await call('POST', '/models', { provider: 'g' }, { fetch: reply.fetcher })
+    await call('POST', '/test', { provider: 'g', model: 'm1' }, { fetch: reply.fetcher })
+    await call('POST', '/test', { provider: 'd', model: 'm1' }, { fetch: async () => new Response('no', { status: 401 }) })
+    await call('POST', '/test', { provider: 'x', model: 'm1' }, { fetch: reply.fetcher })
+    await call('POST', '/models', { provider: 'x' }, { resolve: async () => ['169.254.169.254'] })
     const rows = (await pool.query("SELECT action, subject, reason, actor, metadata FROM audit_events WHERE action IN ('ai.platform_provider.models_listed','ai.platform_provider.tested') ORDER BY created_at, id")).rows
     expect(rows.map(r => [r.action.split('.').pop(), r.metadata])).toEqual([
-      ['models_listed', { preset: 'groq', host: 'api.groq.com', outcome: 'ok' }],
-      ['tested', { preset: 'groq', host: 'api.groq.com', outcome: 'ok' }],
-      ['tested', { preset: 'deepseek', host: 'api.deepseek.com', outcome: 'unauthorized' }],
-      ['tested', { preset: 'xai', host: 'api.x.ai', outcome: 'key_missing' }],
-      ['models_listed', { preset: 'custom', host: '169.254.169.254.nip.io', outcome: 'invalid_base_url' }],
+      ['models_listed', { provider: 'g', preset: 'groq', host: 'api.groq.com', outcome: 'ok' }],
+      ['tested', { provider: 'g', preset: 'groq', host: 'api.groq.com', model: 'm1', outcome: 'ok' }],
+      ['tested', { provider: 'd', preset: 'deepseek', host: 'api.deepseek.com', model: 'm1', outcome: 'unauthorized' }],
+      ['tested', { provider: 'x', preset: 'custom', host: 'llm.example.com', model: 'm1', outcome: 'ok' }],
+      ['models_listed', { provider: 'x', preset: 'custom', host: 'llm.example.com', outcome: 'invalid_base_url' }],
     ])
     expect(rows.every(r => r.subject === 'platform-ai-provider' && r.actor === 'account:7')).toBe(true)
     expect(JSON.stringify(rows)).not.toContain(KEY)
   })
 
-  it('refuses a custom endpoint that is, or resolves to, an internal address, in models, test and save, but lets Ollama reach a private host', async () => {
+  it('refuses a custom endpoint that is, or resolves to, an internal address, in save, and again in models and test if the name has moved, but lets Ollama reach a private host', async () => {
     const internal = { 'internal.example.com': ['10.0.0.9'], '169.254.169.254.nip.io': ['169.254.169.254'] }
     const resolve: Resolver = async host => { if (host in internal) return internal[host as keyof typeof internal]; return ['93.184.216.34'] }
     for (const base_url of ['https://169.254.169.254.nip.io/v1', 'https://internal.example.com/v1', 'https://[::ffff:169.254.169.254]/v1', 'https://localhost/v1', 'https://0.0.0.0/v1', 'https://[fd00:ec2::254]/v1', 'http://llm.example.com/v1']) {
-      const custom = { preset: 'custom', base_url, api_key: KEY }
-      expect((await call('POST', '/models', custom, { resolve })).body.code, base_url).toBe('invalid_base_url')
-      expect((await call('POST', '/test', { ...custom, model: 'm' }, { resolve })).body.code, base_url).toBe('invalid_base_url')
-      expect((await call('PATCH', '', { ...custom, model: 'm', reason: 'Custom endpoint' }, { resolve })).body.code, base_url).toBe('invalid_base_url')
+      const saved = await call('PATCH', '', { margin_bps: 0, providers: { c: { preset: 'custom', base_url, api_key: KEY } }, models: {}, routes: {}, reason: 'Custom endpoint' }, { resolve })
+      expect(saved.body.code, base_url).toBe('invalid_base_url')
     }
     expect((await call('GET', '')).body).toEqual({ setting: null })
+    const save = (base_url: string) => call('PATCH', '', { margin_bps: 0, providers: { local: { preset: 'ollama', base_url } }, models: {}, routes: {}, reason: 'Internal Ollama' }, { resolve })
+    expect((await save('http://10.0.0.5:11434')).status).toBe(200)
+    expect((await save('http://169.254.169.254')).body.code).toBe('invalid_base_url')
     const ok = recorder(() => json({ models: [{ name: 'qwen' }] }))
-    expect((await call('POST', '/models', { preset: 'ollama', base_url: 'http://10.0.0.5:11434' }, { fetch: ok.fetcher, resolve })).body.items).toEqual([{ id: 'qwen' }])
-    expect((await call('POST', '/models', { preset: 'ollama', base_url: 'http://169.254.169.254' }, { fetch: ok.fetcher, resolve })).body.code).toBe('invalid_base_url')
-    expect((await call('PATCH', '', { preset: 'ollama', model: 'qwen', base_url: 'http://10.0.0.5:11434', reason: 'Internal Ollama' }, { resolve })).status).toBe(200)
+    expect((await call('POST', '/models', { provider: 'local' }, { fetch: ok.fetcher, resolve })).body.items).toEqual([{ id: 'qwen' }])
+    // A saved public name that later resolves to an internal address is refused when it is used.
+    await call('PATCH', '', { margin_bps: 0, providers: { c: { preset: 'custom', base_url: 'https://llm.example.com/v1', api_key: KEY } }, models: {}, routes: {}, reason: 'Custom endpoint' }, { resolve })
+    const moved: Resolver = async () => ['10.0.0.9']
+    expect((await call('POST', '/models', { provider: 'c' }, { resolve: moved })).body.code).toBe('invalid_base_url')
+    expect((await call('POST', '/test', { provider: 'c', model: 'm' }, { resolve: moved })).body.code).toBe('invalid_base_url')
   })
 
-  it('refuses a custom endpoint on a non-443 port in models, test and save with the stable code invalid_base_url_port, but not Ollama on its port', async () => {
+  it('refuses a custom endpoint on a non-443 port in save with the stable code invalid_base_url_port, but not Ollama on its port', async () => {
     const resolve: Resolver = async () => ['93.184.216.34']
+    const body = (provider: object) => ({ margin_bps: 0, providers: { c: provider }, models: {}, routes: {}, reason: 'Odd port' })
     const custom = { preset: 'custom', base_url: 'https://provider.example:8443/v1', api_key: KEY }
-    expect((await call('POST', '/models', custom, { resolve })).body.code).toBe('invalid_base_url_port')
-    expect((await call('POST', '/test', { ...custom, model: 'm' }, { resolve })).body.code).toBe('invalid_base_url_port')
-    expect((await call('PATCH', '', { ...custom, model: 'm', reason: 'Odd port' }, { resolve })).body.code).toBe('invalid_base_url_port')
+    expect((await call('PATCH', '', body(custom), { resolve })).body.code).toBe('invalid_base_url_port')
     expect((await call('GET', '')).body).toEqual({ setting: null })
-    expect((await call('PATCH', '', { ...custom, base_url: 'https://provider.example:443/v1', model: 'm', reason: 'Default port' }, { resolve })).body.setting.base_url).toBe('https://provider.example/v1')
-    expect((await call('PATCH', '', { preset: 'ollama', model: 'qwen', base_url: 'http://10.0.0.5:11434', reason: 'Internal Ollama' }, { resolve })).status).toBe(200)
+    expect((await call('PATCH', '', body({ ...custom, base_url: 'https://provider.example:443/v1' }), { resolve })).body.setting.providers.c.base_url).toBe('https://provider.example/v1')
+    expect((await call('PATCH', '', body({ preset: 'ollama', base_url: 'http://10.0.0.5:11434' }), { resolve })).status).toBe(200)
   })
 
   it('holds the save lock until a failed save has restored the file, so a waiting save is not overwritten by the late restore', async () => {
-    await call('PATCH', '', { preset: 'groq', model: 'first', api_key: KEY, reason: 'First choice' })
+    await routedSave()
     const first = await readFile(providerFile(), 'utf8')
+    const again = (margin_bps: number) => config1({ default: 'mid' }, { providers: { oai: { preset: 'openai' } }, margin_bps })
     let reachedCommit!: () => void
     const atCommit = new Promise<void>((resolve) => { reachedCommit = resolve })
     let failCommit!: () => void
@@ -509,62 +617,154 @@ suite('live PostgreSQL platform provider routes', () => {
       if (sql === 'ROLLBACK') { const done = await run(); await new Promise(resolve => setTimeout(resolve, 400)); return done }  // widen the window between the rollback and the restore
       return run()
     }) } as unknown as Pool
-    const loser = call('PATCH', '', { preset: 'groq', model: 'loser', reason: 'Fails at COMMIT' }, { pool: failing })
+    const loser = call('PATCH', '', again(1111), { pool: failing })
     const loserOutcome = loser.then(() => 'saved', (error: Error) => error.message)
     await atCommit
     expect(await readFile(providerFile(), 'utf8')).not.toBe(first)  // the losing save's file is in place, its COMMIT pending
     let winnerDone = false
-    const winner = call('PATCH', '', { preset: 'groq', model: 'winner', reason: 'Waits for the lock' }).then((result) => { winnerDone = true; return result })
+    const winner = call('PATCH', '', again(2222)).then((result) => { winnerDone = true; return result })
     await new Promise(resolve => setTimeout(resolve, 300))
     expect(winnerDone).toBe(false)  // the winner waits: the lock is not the transaction's, it outlives the rollback
     failCommit()
     expect(await loserOutcome).toBe('commit failed')
     const won = await winner
-    expect(won.body.setting).toMatchObject({ model: 'winner', revision: 2 })
-    expect(JSON.parse(await readFile(providerFile(), 'utf8'))).toMatchObject({ model: 'winner', revision: 2 })  // not the loser's restored content
-    expect((await call('GET', '')).body.setting).toMatchObject({ model: 'winner', revision: 2, delivery: 'delivered' })
+    expect(won.body.setting).toMatchObject({ margin_bps: 2222, revision: 3 })
+    expect(await fileJson()).toMatchObject({ margin_bps: 2222, revision: 3 })  // not the loser's restored content
+    expect((await call('GET', '')).body.setting).toMatchObject({ margin_bps: 2222, revision: 3, delivery: 'delivered' })
   })
 
   it('needs the control plane secret to take a key', async () => {
     const noSecret = { ...config, admin: undefined } as Config
-    expect((await call('PATCH', '', { preset: 'openai', model: 'm', api_key: KEY, reason: 'No secret here' }, { config: noSecret })).body.code).toBe('secret_key_unavailable')
+    expect((await call('PATCH', '', config1(), { config: noSecret })).body.code).toBe('secret_key_unavailable')
   })
 
-  it('lists models and tests a connection with the key it was given, or the stored one only for the stored preset and endpoint', async () => {
+  it('answers a models or test call for a provider that is not saved with unknown_provider', async () => {
+    const { fetcher, seen } = recorder(() => json({ data: [] }))
+    expect((await call('POST', '/models', { provider: 'oai' }, { fetch: fetcher })).body.code).toBe('unknown_provider')
+    expect((await call('POST', '/test', { provider: 'oai', model: 'gpt-4o' }, { fetch: fetcher })).body.code).toBe('unknown_provider')
+    expect(seen).toEqual([])
+  })
+
+  it('tests with the stored key, reports a missing one without calling out, and an unreadable key as unavailable', async () => {
     const { fetcher, seen } = recorder(({ url: u }) => u.endsWith('/models') ? json({ data: [{ id: 'm1' }] }) : sse(CHUNK))
-    expect((await call('POST', '/models', { preset: 'openai' }, { fetch: fetcher })).body.code).toBe('api_key_required')
-    const listed = await call('POST', '/models', { preset: 'openai', api_key: KEY }, { fetch: fetcher })
+    await call('PATCH', '', { margin_bps: 0, providers: { oai: { preset: 'openai', api_key: KEY }, ollama: { preset: 'ollama', base_url: 'http://ollama:11434' } }, models: {}, routes: {}, reason: 'Providers' })
+    const listed = await call('POST', '/models', { provider: 'oai' }, { fetch: fetcher })
     expect(listed.body).toEqual({ items: [{ id: 'm1' }], total: 1 })
     expect((seen[0]!.init.headers as Record<string, string>).authorization).toBe(`Bearer ${KEY}`)
-    await call('PATCH', '', { preset: 'openai', model: 'gpt-4o', api_key: KEY, reason: 'Switch provider' })
+    expect((await call('POST', '/test', { provider: 'oai', model: 'gpt-4o' }, { fetch: fetcher })).body).toEqual({ ok: true, latency_ms: expect.any(Number), usage_reported: false })
+    expect((seen[1]!.init.headers as Record<string, string>).authorization).toBe(`Bearer ${KEY}`)
+    expect((await call('POST', '/test', { provider: 'ollama', model: 'qwen' }, { fetch: fetcher })).body).toMatchObject({ ok: true })
+    // A provider row without a sealed key (a preset that needs one) is answered without any call.
+    await pool.query("UPDATE ai_provider SET api_key_sealed=NULL, api_key_last4=NULL WHERE id='oai'")
     seen.length = 0
-    expect((await call('POST', '/test', { preset: 'openai', model: 'gpt-4o' }, { fetch: fetcher })).body).toEqual({ ok: true, latency_ms: expect.any(Number), usage_reported: false })
-    expect((seen[0]!.init.headers as Record<string, string>).authorization).toBe(`Bearer ${KEY}`)  // the stored key, same preset
-    expect((await call('POST', '/test', { preset: 'groq', model: 'm' }, { fetch: fetcher })).body).toEqual({ ok: false, code: 'key_missing' })  // never sent to another host
-    expect((await call('POST', '/test', { preset: 'ollama', model: 'qwen', base_url: 'http://ollama:11434' }, { fetch: fetcher })).body).toMatchObject({ ok: true })
-  })
-
-  it('tells the vendor whether the reply carried token counts, asking for them as the saved or ticked option says', async () => {
-    const withUsage = recorder(() => sse(CHUNK, USAGE, '[DONE]'))
-    expect((await call('POST', '/test', { preset: 'deepseek', model: 'm', api_key: KEY }, { fetch: withUsage.fetcher })).body).toMatchObject({ ok: true, usage_reported: true })
-    expect(JSON.parse(withUsage.seen[0]!.init.body as string)).toMatchObject({ stream: true, stream_options: { include_usage: true } })
-    const without = recorder(() => sse(CHUNK, '[DONE]'))
-    const custom = { preset: 'custom', model: 'm', api_key: KEY, base_url: 'https://llm.example.com/v1' }
-    expect((await call('POST', '/test', custom, { fetch: without.fetcher })).body).toMatchObject({ ok: true, usage_reported: false })
-    expect(JSON.parse(without.seen[0]!.init.body as string)).not.toHaveProperty('stream_options')
-    expect((await call('POST', '/test', { ...custom, stream_usage: true }, { fetch: withUsage.fetcher })).body).toMatchObject({ ok: true, usage_reported: true })
-    expect(JSON.parse(withUsage.seen[1]!.init.body as string)).toHaveProperty('stream_options')
-    const refuses: Fetcher = async () => new Response('stream_options is not supported', { status: 400 })
-    expect((await call('POST', '/test', { ...custom, stream_usage: true }, { fetch: refuses })).body).toEqual({ ok: false, code: 'stream_usage_refused' })
+    expect((await call('POST', '/test', { provider: 'oai', model: 'gpt-4o' }, { fetch: fetcher })).body).toEqual({ ok: false, code: 'key_missing' })
+    expect((await call('POST', '/models', { provider: 'oai' }, { fetch: fetcher })).body.code).toBe('api_key_required')
+    expect(seen).toEqual([])
   })
 
   it('answers a failing test with a stable code only, and a failing model list with a coded error', async () => {
+    await call('PATCH', '', { margin_bps: 0, providers: { oai: { preset: 'openai', api_key: KEY } }, models: {}, routes: {}, reason: 'Providers' })
     const unauthorized: Fetcher = async () => new Response(`bad key ${KEY}`, { status: 401 })
-    const test = await call('POST', '/test', { preset: 'openai', model: 'gpt-4o', api_key: KEY }, { fetch: unauthorized })
+    const test = await call('POST', '/test', { provider: 'oai', model: 'gpt-4o' }, { fetch: unauthorized })
     expect(test).toEqual({ status: 200, body: { ok: false, code: 'unauthorized' } })
-    expect((await call('POST', '/models', { preset: 'openai', api_key: KEY }, { fetch: unauthorized })).body.code).toBe('provider_unauthorized')
+    expect((await call('POST', '/models', { provider: 'oai' }, { fetch: unauthorized })).body.code).toBe('provider_unauthorized')
     const down: Fetcher = async () => { throw new TypeError(`fetch failed for ${KEY}`) }
-    expect((await call('POST', '/models', { preset: 'openai', api_key: KEY }, { fetch: down })).body.code).toBe('provider_unreachable')
+    expect((await call('POST', '/models', { provider: 'oai' }, { fetch: down })).body.code).toBe('provider_unreachable')
     expect(JSON.stringify(test)).not.toContain(KEY)
+  })
+
+  it('refuses a save without a default once one was delivered, but allows a first-time draft', async () => {
+    await call('PATCH', '', config1())  // never routed: a draft is fine
+    expect((await call('PATCH', '', config1({}, { margin_bps: 1000 }))).status).toBe(200)
+    await call('POST', '/test', { provider: 'oai', model: 'gpt-4o' }, { fetch: withUsage().fetcher })
+    expect((await call('PATCH', '', config1({ default: 'mid' }, { providers: { oai: { preset: 'openai' } } }))).status).toBe(200)
+    const dropped = await call('PATCH', '', config1({}, { providers: { oai: { preset: 'openai' } } }))
+    expect(dropped).toEqual({ status: 422, body: { code: 'default_required' } })
+    expect((await call('GET', '')).body.setting).toMatchObject({ delivery: 'delivered', routes: { default: 'mid' } })
+  })
+
+  it('does not call a file in the old shape delivered, even with the same revision', async () => {
+    await routedSave()
+    expect((await call('GET', '')).body.setting.delivery).toBe('delivered')
+    await writeFile(providerFile(), JSON.stringify({ provider: 'openai', model: 'gpt-4o', api_key: KEY, revision: 2 }))
+    expect((await call('GET', '')).body.setting.delivery).toBe('pending')
+  })
+
+  it('writes the file at start from a complete stored configuration when it is missing or in the old shape, leaves an identical one, and does nothing for an incomplete one', async () => {
+    expect(await syncProviderFile(pool, config)).toBe('incomplete')  // nothing stored
+    await call('PATCH', '', config1())
+    expect(await syncProviderFile(pool, config)).toBe('incomplete')  // a draft
+    await expect(readFile(providerFile(), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(await syncProviderFile(pool, { ...config, aiPlatformProviderPath: undefined } as Config)).toBe('unconfigured')
+    // The carried-forward shape: a default route to an unpriced, untested model, and an old-format file on disk.
+    await pool.query("INSERT INTO ai_route(quality, capability, model_id) VALUES('default','default','mid')")
+    await writeFile(providerFile(), JSON.stringify({ provider: 'openai', model: 'gpt-4o', api_key: KEY, revision: 1 }))
+    expect(await syncProviderFile(pool, config)).toBe('written')
+    const written = await fileJson()
+    expect(written).toMatchObject({ revision: 1, margin_bps: 2000, providers: { oai: { provider: 'openai', api_key: KEY } }, models: { mid: { provider: 'oai', model: 'gpt-4o' } }, routes: { default: 'mid' } })
+    expect((await stat(providerFile())).mode & 0o777).toBe(0o640)
+    const before = await stat(providerFile())
+    expect(await syncProviderFile(pool, config)).toBe('unchanged')
+    expect((await stat(providerFile())).ino).toBe(before.ino)
+    expect((await call('GET', '')).body.setting.delivery).toBe('delivered')
+    await rm(providerFile())
+    expect(await syncProviderFile(pool, config)).toBe('written')
+  })
+
+  it('does not crash the start when the file cannot be written or the key cannot be opened', async () => {
+    await call('PATCH', '', config1())
+    await pool.query("INSERT INTO ai_route(quality, capability, model_id) VALUES('default','default','mid')")
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      expect(await syncProviderFile(pool, { ...config, aiPlatformProviderPath: join(dir, 'missing', 'platform-provider.json') } as Config)).toBe('failed')
+      expect(await syncProviderFile(pool, { ...config, admin: undefined } as Config)).toBe('failed')
+      expect(quiet.mock.calls.flat().join(' ')).not.toContain(KEY)
+    } finally { quiet.mockRestore() }
+  })
+
+  it('records a test result only if the provider and model are still what was tested', async () => {
+    const custom = { margin_bps: 0, providers: { c: { preset: 'custom', api_key: KEY, base_url: 'https://llm.example.com/v1', stream_usage: true } }, models: { m: { provider: 'c', model: 'm' } }, routes: {}, reason: 'Custom endpoint' }
+    await call('PATCH', '', custom)
+    expect((await call('POST', '/test', { provider: 'c', model: 'm' }, { fetch: withUsage().fetcher })).body).toMatchObject({ usage_reported: true })
+    expect((await call('GET', '')).body.setting.models.m.usage_reported).toBe(true)
+    // While the provider answers, the vendor stops asking the stream for token counts: the answer must not be recorded.
+    const changing: Fetcher = async () => {
+      await call('PATCH', '', { ...custom, providers: { c: { preset: 'custom', base_url: 'https://llm.example.com/v1', stream_usage: false } } })
+      return sse(CHUNK, USAGE, '[DONE]')
+    }
+    expect((await call('POST', '/test', { provider: 'c', model: 'm' }, { fetch: changing })).body).toMatchObject({ ok: true, usage_reported: true })
+    expect((await call('GET', '')).body.setting.models.m.usage_reported).toBe(false)
+    // Likewise when the model is renamed meanwhile.
+    await call('POST', '/test', { provider: 'c', model: 'm' }, { fetch: recorder(() => sse(CHUNK, '[DONE]')).fetcher })
+    const renaming: Fetcher = async () => {
+      await call('PATCH', '', { ...custom, providers: { c: { preset: 'custom', base_url: 'https://llm.example.com/v1', stream_usage: false } }, models: { m: { provider: 'c', model: 'm2' } } })
+      return sse(CHUNK, USAGE, '[DONE]')
+    }
+    await call('POST', '/test', { provider: 'c', model: 'm' }, { fetch: renaming })
+    expect((await call('GET', '')).body.setting.models.m).toMatchObject({ model: 'm2', usage_reported: false })
+  })
+
+  it('carries the single provider of the old table forward as provider and model "main" on the default route, and leaves no old table', async () => {
+    const sealed = Buffer.from('sealed-key-box')
+    await pool.query('DROP TABLE ai_route, ai_model, ai_provider, ai_provider_config')
+    await pool.query(await readFile(new URL('../schema_032.sql', import.meta.url), 'utf8'))
+    await pool.query(
+      `INSERT INTO ai_platform_provider(preset, provider, model, base_url, stream_usage, api_key_sealed, api_key_last4, revision, updated_by) VALUES('deepseek','openai_compatible','deepseek-chat','https://api.deepseek.com/v1',true,$1,'6789',7,'account:3')`,
+      [sealed],
+    )
+    await pool.query(await readFile(new URL('../schema_042.sql', import.meta.url), 'utf8'))
+    expect((await pool.query("SELECT to_regclass('ai_platform_provider') AS gone")).rows[0].gone).toBeNull()
+    const migrated = (await call('GET', '')).body.setting
+    expect(migrated).toMatchObject({
+      revision: 7, margin_bps: 0, updated_by: 'account:3', delivery: 'pending', routes: { default: 'main' },
+      providers: { main: { preset: 'deepseek', provider: 'openai_compatible', base_url: 'https://api.deepseek.com/v1', stream_usage: true, key: { configured: true, last4: '6789' } } },
+      models: { main: { provider: 'main', model: 'deepseek-chat', input_price: null, cached_input_price: null, output_price: null, usage_reported: false } },
+    })
+    expect((await pool.query('SELECT api_key_sealed FROM ai_provider')).rows[0].api_key_sealed.equals(sealed)).toBe(true)
+    // An empty old table carries nothing forward.
+    await pool.query('DROP TABLE ai_route, ai_model, ai_provider, ai_provider_config')
+    await pool.query(await readFile(new URL('../schema_032.sql', import.meta.url), 'utf8'))
+    await pool.query(await readFile(new URL('../schema_042.sql', import.meta.url), 'utf8'))
+    expect((await call('GET', '')).body).toEqual({ setting: null })
   })
 })

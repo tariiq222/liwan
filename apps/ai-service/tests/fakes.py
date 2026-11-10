@@ -14,7 +14,7 @@ from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResu
 
 from liwan_ai_service.control import MemoryControlState
 from liwan_ai_service.graph import RUN_MODELS_KEY, build_graph
-from liwan_ai_service.platform_provider import PlatformModel, PlatformProvider
+from liwan_ai_service.platform_provider import QUALITIES, PlatformActive, PlatformModel
 from liwan_ai_service.router import ROUTE_RULES
 from liwan_ai_service.routing import RunModels
 from liwan_ai_service.service import create_app
@@ -50,7 +50,8 @@ class SeededStates(TenantStates):
 
 def platform_of(model, provider: str = "ollama", name: str = "m", api_key: str | None = None) -> PlatformModel:
     """The platform provider whose model is the test's own (no file behind it, so nothing is watched)."""
-    return PlatformModel(PlatformProvider(provider, name, None, api_key, 1), model)
+    run_models = RunModels(RunModel(model, ModelIdentity(provider, name, "platform")))
+    return PlatformModel(PlatformActive(1, dict.fromkeys(QUALITIES, run_models), (), frozenset({api_key} if api_key else ())))
 
 
 def make_memory_app(model, settings, *, store=None, checkpointer=None, control=None, states=None, embedder=None):

@@ -57,7 +57,7 @@ from liwan_ai_service.graph import (
 )
 from liwan_ai_service.knowledge import QUEUE_MAX_AGE_HOURS, KnowledgeStore
 from liwan_ai_service.memory import MemoryFull, Note
-from liwan_ai_service.platform_provider import PlatformModel, PlatformProvider, PlatformProviderError, open_platform_model, watch_platform_provider
+from liwan_ai_service.platform_provider import PlatformActive, PlatformModel, PlatformProviderError, open_platform_model, watch_platform_provider
 from liwan_ai_service.provider_registry import REGISTRY
 from liwan_ai_service.providers import build_tenant_model
 from liwan_ai_service.records import records_from_results
@@ -67,7 +67,7 @@ from liwan_ai_service.sse import format_event
 from liwan_ai_service.store import ACTIVE, EXECUTING, RunRecord, is_stale
 from liwan_ai_service.tenancy import UnknownTenant, directory_for
 from liwan_ai_service.tenant_config import KeyUnavailable, TenantConfig
-from liwan_ai_service.tenant_egress import INVALID, BaseUrlRefusedError, TenantEgress, check_base_url, platform_host
+from liwan_ai_service.tenant_egress import INVALID, BaseUrlRefusedError, TenantEgress, check_base_url
 from liwan_ai_service.tenant_state import TenantState, TenantStates, TenantStateUnavailable
 from liwan_ai_service.titles import TITLE_TIMEOUT_SECONDS, generate_title, title_from
 from liwan_ai_service.usage import ModelIdentity, RunModel, call_event, new_call_id, usage_event
@@ -282,9 +282,9 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
         if not policy.consent_signed:
             raise HTTPException(403, "ai_consent_required")
         if policy.provider_mode == "platform":
-            chosen = platform.current.models
+            chosen = platform.current.quality[policy.quality]
         elif policy.provider_mode == "setup":
-            quick = platform.current.models.for_capability("quick")
+            quick = platform.current.quality["balanced"].for_capability("quick")
             chosen = RunModels.pinned(RunModel(quick.model, replace(quick.identity, billing="setup")))
         else:
             try:
@@ -628,7 +628,7 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
                 configured=key.configured, provider=key.provider, model=key.model, last4=key.last4, updated_at=key.updated_at,
                 base_url=key.base_url,
             ),
-            platform=PlatformView(provider=platform.current.provider.provider, model=platform.current.provider.model),
+            platform=PlatformView(provider=platform.current.default.provider, model=platform.current.default.model),
             providers=[
                 ProviderView(name=spec.name, needs_api_key=spec.needs_api_key, needs_base_url=spec.needs_base_url) for spec in REGISTRY.values()
             ],
@@ -740,19 +740,19 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
                 log.warning("tenant egress host of %s not withdrawn: %s", tenant.database, type(error).__name__)
             return config_view(cleared)
 
-    async def publish_platform_host(provider: PlatformProvider) -> None:
-        """Tell ai-egress which public host the platform provider needs (none for an internal endpoint, an explicit AI_EGRESS_HOSTS entry)."""
+    async def publish_platform_hosts(active: PlatformActive) -> None:
+        """Tell ai-egress which public hosts the platform providers need (none for an internal endpoint, an explicit AI_EGRESS_HOSTS entry)."""
         try:
-            await egress.publish_platform(platform_host(provider.provider, provider.base_url))
+            await egress.publish_platform(active.hosts)
         except OSError as error:
-            log.warning("platform provider egress host not published: %s", type(error).__name__)
+            log.warning("platform provider egress hosts not published: %s", type(error).__name__)
 
     async def sync_egress() -> None:
-        await publish_platform_host(platform.current.provider)
+        await publish_platform_hosts(platform.current)
         await egress.sync(states)
 
     app.state.sync_egress = sync_egress
-    app.state.watch_platform = lambda: watch_platform_provider(platform, settings, publish_platform_host)
+    app.state.watch_platform = lambda: watch_platform_provider(platform, settings, publish_platform_hosts)
     app.include_router(api)
     return app
 

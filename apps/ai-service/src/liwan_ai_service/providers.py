@@ -12,10 +12,10 @@ if TYPE_CHECKING:
     from liwan_ai_service.platform_provider import PlatformProvider
 
 
-def build_platform_model(settings: Settings, platform: PlatformProvider) -> BaseChatModel:
-    """The platform provider's model: its own endpoint and token-count choice from the file, else the provider's defaults."""
+def build_platform_model(settings: Settings, platform: PlatformProvider, model: str) -> BaseChatModel:
+    """A model on one of the platform's providers: its own endpoint and token-count choice from the file, else the provider's defaults."""
     spec = REGISTRY[platform.provider]
-    return spec.build(settings, platform.model, platform.api_key, platform.base_url or spec.default_base_url, platform.stream_usage)
+    return spec.build(settings, model, platform.api_key, platform.base_url or spec.default_base_url, platform.stream_usage)
 
 
 def build_tenant_model(settings: Settings, provider: str, model: str, api_key: str, base_url: str | None = None) -> BaseChatModel:

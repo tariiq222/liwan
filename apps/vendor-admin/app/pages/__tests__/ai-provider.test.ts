@@ -5,31 +5,39 @@ import { describe, expect, it } from 'vitest'
 const page = readFileSync(resolve(import.meta.dirname, '../ai-provider.vue'), 'utf8')
 
 describe('AI provider page', () => {
-  it('is gated on the AI capability', () => {
+  it('presents the models as the shared data table', () => {
+    expect(page).toContain('<SharedDataTable v-if="draft.models.length"')
+  })
+
+  it('is gated on the AI capability and protects unsaved changes', () => {
     expect(page).toContain("capability: 'vendor.ai.manage'")
+    expect(page).toContain('<SharedUnsavedChanges :dirty="dirty" />')
   })
 
-  it('warns, once a test has passed, when the provider returned no token counts', () => {
-    const alert = page.slice(page.indexOf('data-testid="ai-provider-no-usage"') - 400, page.indexOf('data-testid="ai-provider-no-usage"'))
-    expect(alert).toMatch(/tested && testResult\?\.ok && !testResult\.usage_reported/)
-    expect(alert).toContain("aiProvider.form.noUsageTitle")
+  it('lists and tests only models of a saved provider and a saved model, and says why when it cannot', () => {
+    expect(page).toContain(':disabled="disabled || !modelSaved(setting, model) || !providerReady(model.provider)"')
+    expect(page).toContain('data-testid="ai-provider-save-first"')
+    expect(page).toContain('data-testid="ai-model-save-first"')
   })
 
-  it('offers the token-count option only for a preset that lets the vendor choose it', () => {
-    expect(page).toMatch(/v-if="preset\.stream_usage_editable"[^>]*>\s*<UCheckbox v-model="draft\.stream_usage"/)
+  it('marks a model that cannot serve charged runs and warns when quick is unmapped', () => {
+    expect(page).toContain('data-testid="ai-model-unusable"')
+    expect(page).toContain('v-if="quickUnmapped(draft.routes)"')
   })
 
-  it('says that only the Ollama preset may use a private address', () => {
-    expect(page).toContain("preset.provider === 'ollama' ? 'aiProvider.form.baseUrlHintPrivate' : 'aiProvider.form.baseUrlHintPublic'")
+  it('offers only usable models to a route and shows the effective model of an inheriting cell', () => {
+    expect(page).toContain('const usableIds = computed(() => draft.models.filter(m => modelUsable(setting.value, m)).map(m => m.id))')
+    expect(page).toContain("t('aiProvider.routes.inheritsFrom', { model: inheritedName(quality, capability) })")
   })
 
-  it('lists models with the models fields and never the test and save options', () => {
-    expect(page).toContain('api.models(modelsFields(draft, preset.value))')
-    expect(page).not.toContain('api.models(probeFields')
+  it('cannot remove a provider a model uses, and never keeps a key after a save', () => {
+    expect(page).toContain('modelsOfProvider(draft, provider.id).length > 0')
+    expect(page).toMatch(/data\.value = \{ presets: presets\.value, setting: saved\.setting \}\s+restore\(\)/)
   })
 
-  it('cannot save before a passing test of the current values', () => {
-    expect(page).toContain(':disabled="!hydrated || Boolean(busy) || !tested"')
-    expect(page).toContain('testSignature(draft)')
+  it('shows each server validation error next to its section and saves through one confirmed PATCH', () => {
+    for (const section of ['providers', 'models', 'routes']) expect(page).toContain(`failure('${section}')`)
+    expect(page).toContain('api.save(savePayload(draft, presets.value, reason.value))')
+    expect(page).toContain('<SharedInlineConfirm')
   })
 })

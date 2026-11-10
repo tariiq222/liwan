@@ -64,7 +64,7 @@ must stay unset outside local development.
 
 | Variable | Meaning |
 |---|---|
-| `AI_PLATFORM_PROVIDER_FILE` | required; the JSON file that names the platform provider (see Platform provider). The service no longer reads `AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY` or `AI_BASE_URL` |
+| `AI_PLATFORM_PROVIDER_FILE` | required; the JSON file that names the platform provider (see Platform provider). The service does not read `AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY` or `AI_BASE_URL` |
 | `AI_OPENROUTER_REFERER` | optional; sent as `HTTP-Referer` to OpenRouter for app attribution (openrouter only; never required, never logged) |
 | `AI_OPENROUTER_TITLE` | optional; sent as `X-Title` to OpenRouter (openrouter only; never required, never logged) |
 | `AI_EMBEDDING_PROVIDER` | optional; `openai` (any OpenAI-compatible endpoint, through `AI_EMBEDDING_BASE_URL`) or `ollama`. Unset leaves knowledge search unavailable (the tool answers `knowledge_unavailable`). Setting any other `AI_EMBEDDING_*` variable without it refuses startup |
@@ -86,25 +86,50 @@ must stay unset outside local development.
 
 ## Platform provider
 
-The model LiwanOS pays for is read from one JSON file, `AI_PLATFORM_PROVIDER_FILE` (spec `docs/superpowers/specs/2026-11-04-liwan-ai-agents-design.md` §6.13):
+The models LiwanOS pays for are read from one JSON file, `AI_PLATFORM_PROVIDER_FILE` (specs `docs/superpowers/specs/2026-11-04-liwan-ai-agents-design.md` §6.13 and `2026-11-10-liwan-ai-plans-and-router-design.md` §5.5):
 
-    {"provider": "openai_compatible", "model": "deepseek-chat", "base_url": "https://api.deepseek.com/v1", "api_key": "...", "revision": 4, "stream_usage": true}
+    {
+      "revision": 4,
+      "margin_bps": 2000,
+      "providers": {
+        "oai": {"provider": "openai", "api_key": "..."},
+        "ds": {"provider": "openai_compatible", "base_url": "https://api.deepseek.com/v1", "api_key": "...", "stream_usage": true}
+      },
+      "models": {
+        "mid": {"provider": "oai", "model": "gpt-4o", "input_price": "2.5", "cached_input_price": "1.25", "output_price": "10"},
+        "cheap": {"provider": "ds", "model": "deepseek-chat", "input_price": "0.14", "output_price": "0.28"}
+      },
+      "routes": {"default": "mid", "balanced": {"quick": "cheap"}, "economical": {"standard": "cheap", "analysis": "cheap"}, "best": {}}
+    }
 
-`provider`, `model` and `revision` (an integer from 1) are required; `api_key` is required except for `ollama`; `base_url` is required
-for `openai_compatible`, optional otherwise (a plain `http(s)` URL without credentials, query or fragment; `anthropic` ignores it).
-`stream_usage` (optional boolean) says whether to ask the provider's stream for token counts (`stream_options.include_usage`):
-without it a custom `base_url` is not asked and its calls are reported with null token counts, which also means the token limits
-cannot be enforced for it; with `true` the counts are recorded. `openai` without a `base_url` and `openrouter` always ask unless the
-file says `false`; `anthropic` and `ollama` report counts on their own. A tenant's own key keeps the old rule (a custom endpoint is not asked).
-Unknown fields are refused. In shared SaaS the control plane writes the file from the vendor's provider panel; in a dedicated or
-customer-hosted deployment `deploy/provision.sh` writes it from `deploy/.env`. Mount the directory, not the file, so an atomic
+- Ids (of providers and models) are 1 to 32 characters of `a-z`, `0-9`, `_` and `-`, starting with a letter. Unknown fields are refused at every level.
+- `revision` (an integer from 1) and `margin_bps` (0 to 10000, the vendor margin on cost) are required. `providers` and `models` need an entry each; `routes.default` names a model and is required.
+- A provider has `provider` (a registry name), `api_key` (required except for `ollama`), `base_url` (required for `openai_compatible`, optional otherwise: a plain
+  `http(s)` URL without credentials, query or fragment; `anthropic` ignores it) and `stream_usage` (optional boolean: ask the provider's stream for token counts,
+  `stream_options.include_usage`). Without it a custom `base_url` is not asked and its calls are reported with null token counts, which also means the token limits
+  cannot be enforced for it; `openai` without a `base_url` and `openrouter` always ask unless the file says `false`; `anthropic` and `ollama` report counts on their
+  own. A tenant's own key keeps the old rule (a custom endpoint is not asked).
+- A model has `provider` (a provider id), `model` (the name at that provider) and optional prices, decimal strings in USD per million tokens. A price becomes cost units
+  per million tokens (`price x 100,000`, one unit is 0.00001 USD) and must come out an exact integer, so at most five decimals: `"0.14"` is 14,000 units, `"0.000001"` is
+  refused. Without prices a model's calls report tokens and no cost. `cached_input_price` is validated and carried on the model identity for the caching slice; the
+  cost formula does not use it yet.
+- `routes` maps a quality level (`economical`, `balanced`, `best`) and a capability (`quick`, `standard`, `analysis`, `writing`) to a model. A run reads the column of the request
+  policy's `quality` (default `balanced`). A cell with no entry, or whose model is unusable, falls back to the same capability in the `balanced` column and then to `default`.
+  Setup and help runs use the balanced `quick` model, billed to setup. One model for all (only `default`) keeps every run on it with no classification call.
+- Each model entry stands on its own. One with an unknown provider id, a bad name or price, a provider whose own entry is invalid, or a model the SDK refuses to build is
+  dropped with one logged reason (no value from the file) and its routes fall back as above. Only a structural error, a bad `revision` or `margin_bps`, or an unusable
+  `default` rejects the whole file; the reason of a rejected `default` names its cause.
+- The file may be up to 64 KiB.
+
+In shared SaaS the control plane writes the file from the vendor's provider panel; in a dedicated or
+customer-hosted deployment `deploy/provision.sh` writes a single-model file from `deploy/.env`. Mount the directory, not the file, so an atomic
 replacement is seen. The dedicated file is mode 600 owned by uid 10001; the control plane's is mode 640 in a directory of group 10001.
 
 - At start a missing or invalid file stops the boot, naming the field (never a value).
-- Every 5 seconds the content is hashed. A valid change builds the new model and replaces it whole; runs that already started keep
-  the model they began on. An invalid or unreadable file is logged once, by reason only, and the last valid configuration stays.
-- The provider's public host is published as `platform.hosts` in `AI_TENANT_EGRESS_DIR` (the same mechanism as a tenant key's host), at
-  start and on every change. An internal endpoint (a self-hosted Ollama) is not published: list it in `AI_EGRESS_HOSTS`.
+- Every 5 seconds the content is hashed. A valid change builds the new models and replaces them whole; runs that already started keep
+  the models they began on. An invalid or unreadable file is logged once, by reason only, and the last valid configuration stays.
+- The public hosts of every configured provider are published together, one per line, as `platform.hosts` in `AI_TENANT_EGRESS_DIR` (the same mechanism as a tenant key's
+  host), at start and on every change. An internal endpoint (a self-hosted Ollama) is not published: list it in `AI_EGRESS_HOSTS`.
   `platform` is therefore not a usable tenant database name for a tenant key.
 
 ## Providers
@@ -174,9 +199,9 @@ provider accepts); the stored messages are not rewritten.
 
 ## Tenant policy, own key and acknowledgement
 
-Every run and resume carries the tenant's `policy` from Odoo (`provider_mode`, `consent_signed`, `max_output_tokens`).
-The service picks the run's models from it, a map from capability to model with a default (the platform file names one model today, so
-every capability resolves to it; a `setup` run uses it as `quick` billed to setup): the deployment's platform model, or the tenant's own key from
+Every run and resume carries the tenant's `policy` from Odoo (`provider_mode`, `consent_signed`, `max_output_tokens`, and `quality`: `economical`, `balanced` or `best`, default `balanced`).
+The service picks the run's models from it, a map from capability to model with a default (the platform file's map for the policy's quality level; a file
+that names one model resolves every capability to it; a `setup` run uses the balanced `quick` model billed to setup): the deployment's platform models, or the tenant's own key from
 `ai_tenant_config` (encrypted with `pgcrypto`; `AI_KEY_ENCRYPTION_KEYS`, `AI_KEY_ENCRYPTION_KEY_ID`). A tenant-key policy
 without a key is refused with 409 `ai_tenant_key_missing`; there is no fallback to the platform key. A policy without a
 signed AI acknowledgement (`consent_signed` false) is refused with 403 `ai_consent_required` before any provider call,
