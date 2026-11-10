@@ -3,15 +3,23 @@ set +x
 set +v
 set -euo pipefail
 mode="${1:-}"; name="${2:-}"
-case "$mode:$name" in start:api|start:worker|start:runtime|stop:api|stop:worker|stop:runtime|status:api|status:worker|status:runtime|recover:runtime) ;; *) printf 'Usage: local-process.sh start|stop|status|recover api|worker|runtime\n' >&2; exit 2;; esac
+case "$mode:$name" in start:api|start:worker|start:shared-worker|start:runtime|stop:api|stop:worker|stop:shared-worker|stop:runtime|status:api|status:worker|status:shared-worker|status:runtime|recover:runtime) ;; *) printf 'Usage: local-process.sh start|stop|status|recover api|worker|shared-worker|runtime\n' >&2; exit 2;; esac
 HOME_DIR="${LIWAN_CONTROL_HOME:-$HOME/.local/share/liwan-saas-control-local}"
 ROOT="${LIWAN_REPOSITORY_ROOT:-$(cd "$(dirname "$0")/../.." && pwd -P)}"
 NODE_BIN="${LIWAN_NODE_BIN:-/opt/homebrew/opt/node@22/bin}"
 state="$HOME_DIR/processes"; mkdir -p "$HOME_DIR"; chmod 700 "$HOME_DIR"; [[ ! -e "$state" || ( -d "$state" && ! -L "$state" ) ]] || { printf 'Process path is not a private directory; refusing.\n' >&2; exit 12; }; [[ -d "$state" ]] || mkdir -m 700 "$state"; chmod 700 "$state"
-RECORD_NAMES=(generation runtime.pid runtime.start api.pid api.start api.generation worker.pid worker.start worker.generation)
+# `shared-worker` is the commercial scheduler (`run-local.sh` starts it only for
+# LIWAN_TENANCY_MODE=shared); a dedicated generation never records it.
+RECORD_NAMES=(generation runtime.pid runtime.start api.pid api.start api.generation worker.pid worker.start worker.generation shared-worker.pid shared-worker.start shared-worker.generation)
 if [[ -z "${LIWAN_PROCESS_LOCK_FD:-}" ]]; then exec python3 "$(dirname "$0")/process_lock.py" --hold /bin/bash "$0" "$@"; fi
 proc_start() { ps -p "$1" -o lstart= 2>/dev/null | xargs || true; }
-expected() { case "$1" in api) printf '%s' "$NODE_BIN/node $ROOT/node_modules/tsx/dist/cli.mjs $ROOT/apps/control-plane/src/main.ts";; worker) printf '%s' "$NODE_BIN/node $ROOT/node_modules/tsx/dist/cli.mjs $ROOT/apps/control-plane/src/worker-main.ts";; runtime) printf '%s' "bash $ROOT/deploy/control-plane/run-local.sh";; esac; }
+expected() { case "$1" in api) printf '%s' "$NODE_BIN/node $ROOT/node_modules/tsx/dist/cli.mjs $ROOT/apps/control-plane/src/main.ts";; worker) printf '%s' "$NODE_BIN/node $ROOT/node_modules/tsx/dist/cli.mjs $ROOT/apps/control-plane/src/worker-main.ts";; shared-worker) printf '%s' "$NODE_BIN/node $ROOT/node_modules/tsx/dist/cli.mjs $ROOT/apps/control-plane/src/shared-worker-main.ts";; runtime) printf '%s' "bash $ROOT/deploy/control-plane/run-local.sh";; esac; }
+# The shared worker is a shared-tenancy process: refuse to start it in a dedicated
+# runtime even when an operator names it directly. runtime.env is the operator-owned
+# private file local-process.sh already sources to launch children.
+shared_mode() {
+ ( unset LIWAN_TENANCY_MODE; set -a; . "$HOME_DIR/runtime.env"; set +a; test "${LIWAN_TENANCY_MODE:-}" = shared )
+}
 command_matches() {
  local name="$1" command="$2" expected_command index
  local -a actual expected_argv
@@ -67,13 +75,16 @@ start_one() {
  [[ ! -e "$state/$n.pid" && ! -e "$state/$n.start" ]] || { printf 'Existing %s owner record; refusing duplicate start.\n' "$n" >&2; return 3; }
  [[ -f "$HOME_DIR/runtime.env" ]] || { printf 'Missing private runtime environment.\n' >&2; return 4; }
  if [[ "$n" == runtime ]]; then
-   if valid api || valid worker; then printf 'Existing child process; refusing overlap.\n' >&2; return 5; fi
+   if valid api || valid worker || valid shared-worker; then printf 'Existing child process; refusing overlap.\n' >&2; return 5; fi
    (umask 077; exec 3>&- bash "$ROOT/deploy/control-plane/run-local.sh" runtime) >>"$HOME_DIR/logs/runtime.log" 2>&1 &
  else
    valid runtime && { printf 'Runtime supervisor owns children.\n' >&2; return 6; }
    [[ -f "$state/generation" ]] || { printf 'Runtime generation marker missing.\n' >&2; return 7; }
+   # A dedicated runtime has no tenant registry or shared runtime config, so the
+   # shared worker would refuse its own start; refuse here instead of orphaning it.
+   if [[ "$n" == shared-worker ]] && ! shared_mode; then printf 'Shared worker requires LIWAN_TENANCY_MODE=shared in runtime.env.\n' >&2; return 13; fi
    cat "$state/generation" > "$state/$n.generation"; chmod 600 "$state/$n.generation"
-   script=main; [[ "$n" != worker ]] || script=worker-main
+   case "$n" in worker) script=worker-main;; shared-worker) script=shared-worker-main;; *) script=main;; esac
    (umask 077; set -a; . "$HOME_DIR/runtime.env"; set +a; export PATH="$NODE_BIN:$PATH"; close_lock_descriptors; exec "$NODE_BIN/node" "$ROOT/node_modules/tsx/dist/cli.mjs" "$ROOT/apps/control-plane/src/$script.ts") >>"$HOME_DIR/logs/$n.log" 2>&1 &
  fi
  pid=$!; printf '%s\n' "$pid" > "$state/$n.pid"
@@ -112,21 +123,25 @@ PY
 # ESRCH-absent. Reused-live, mismatched, EPERM/uncertain or incomplete records
 # refuse. Sets OWNER_STATE_<name>; returns 1 on any uncertainty.
 prevalidate_owners() {
- local n pid gen
- printf -v OWNER_STATE_runtime '%s' missing
- printf -v OWNER_STATE_api '%s' missing
- printf -v OWNER_STATE_worker '%s' missing
+ local n pid gen names
+ for n in runtime api worker shared-worker; do printf -v "OWNER_STATE_${n//-/_}" '%s' missing; done
+ # A dedicated generation recorded no shared worker; its absence is not damage.
+ names="runtime api worker"
+ if [[ -f "$state/shared-worker.pid" || -f "$state/shared-worker.start" || -f "$state/shared-worker.generation" ]]; then names="$names shared-worker"; fi
  [[ -f "$state/generation" && -f "$state/api.generation" && -f "$state/worker.generation" ]] || { printf 'Generation records are incomplete; refusing partial stop.\n' >&2; return 1; }
  gen="$(<"$state/generation")"
  [[ "$gen" =~ ^[a-f0-9]{32}$ && "$(<"$state/api.generation")" == "$gen" && "$(<"$state/worker.generation")" == "$gen" ]] || { printf 'Generation records are incoherent; refusing partial stop.\n' >&2; return 1; }
- for n in runtime api worker; do
+ if [[ "$names" == *shared-worker* ]]; then
+  [[ -f "$state/shared-worker.generation" && "$(<"$state/shared-worker.generation")" == "$gen" ]] || { printf 'Generation records are incoherent; refusing partial stop.\n' >&2; return 1; }
+ fi
+ for n in $names; do
   [[ -f "$state/$n.pid" && -f "$state/$n.start" ]] || { printf 'Owner %s record is incomplete; refusing partial stop.\n' "$n" >&2; return 1; }
   if valid "$n"; then
-   printf -v "OWNER_STATE_$n" '%s' live
+   printf -v "OWNER_STATE_${n//-/_}" '%s' live
   else
    pid="$(<"$state/$n.pid")"
    if [[ "$pid" =~ ^[0-9]+$ ]] && [[ "$(owner_absent "$pid")" == absent ]]; then
-    printf -v "OWNER_STATE_$n" '%s' dead
+    printf -v "OWNER_STATE_${n//-/_}" '%s' dead
    else
     printf 'Owner %s is neither exactly owned nor provably gone; refusing signal.\n' "$n" >&2
     return 1
@@ -135,6 +150,8 @@ prevalidate_owners() {
  done
  return 0
 }
+# Owner state of one prevalidated name; `-` is not legal in a shell variable name.
+owner_state() { local var="OWNER_STATE_${1//-/_}"; printf '%s' "${!var}"; }
 
 # Preserve the complete historical record set before touching anything. Used only
 # when at least one owner is already gone; copied, never edited or invented.
@@ -166,17 +183,24 @@ case "$mode" in
  stop)
     if [[ "$name" == runtime ]]; then
       prevalidate_owners || exit 10
-      if [[ "$OWNER_STATE_runtime" == dead && "$OWNER_STATE_api" == dead && "$OWNER_STATE_worker" == dead ]]; then
+      names="runtime api worker"; [[ "$(owner_state shared-worker)" == missing ]] || names="$names shared-worker"
+      all_dead=1 mixed=0
+      for n in $names; do
+        case "$(owner_state "$n")" in
+          dead) mixed=1;;
+          live) all_dead=0;;
+        esac
+      done
+      if [[ "$all_dead" == 1 ]]; then
         recover_dead_generation || exit $?
         printf 'Owned runtime stopped; dead generation archived; DB/data retained.\n'
         exit 0
       fi
-      mixed=0
-      [[ "$OWNER_STATE_runtime" == dead || "$OWNER_STATE_api" == dead || "$OWNER_STATE_worker" == dead ]] && mixed=1
       if [[ "$mixed" == 1 ]]; then archive="$(archive_record_set "$(<"$state/generation")")" || exit 10; fi
-      [[ "$OWNER_STATE_api" == live ]] && { stop_one api || exit $?; }
-      [[ "$OWNER_STATE_worker" == live ]] && { stop_one worker || exit $?; }
-      if [[ "$OWNER_STATE_runtime" == live ]]; then
+      for n in api worker shared-worker; do
+        [[ "$(owner_state "$n")" == live ]] && { stop_one "$n" || exit $?; }
+      done
+      if [[ "$(owner_state runtime)" == live ]]; then
         pid="$(<"$state/runtime.pid")"; start="$(<"$state/runtime.start")"
         printf '%s %s\n' "$pid" "$(<"$state/generation")" > "$state/stop-handoff"
         chmod 600 "$state/stop-handoff"
@@ -186,10 +210,11 @@ case "$mode" in
       fi
       rm -f "$state/runtime.pid" "$state/runtime.start" "$state/stop-handoff" "$state/generation" \
             "$state/api.pid" "$state/api.start" "$state/api.generation" \
-            "$state/worker.pid" "$state/worker.start" "$state/worker.generation"
+            "$state/worker.pid" "$state/worker.start" "$state/worker.generation" \
+            "$state/shared-worker.pid" "$state/shared-worker.start" "$state/shared-worker.generation"
       if [[ "$mixed" == 1 ]]; then printf 'Owned runtime stopped; dead owner records archived; DB/data retained.\n'
       else printf 'Owned runtime stopped; DB/data retained.\n'; fi
     else stop_one "$name"; fi;;
- status) valid "$name" || { printf '%s process is not confirmed.\n' "$name" >&2; exit 1; }; printf '%s exact argv/start-time ownership verified.\n' "$name"; if [[ "$name" == runtime ]]; then valid api && valid worker || { printf 'Child identity mismatch.\n' >&2; exit 2; }; curl -fsS http://127.0.0.1:14179/healthz >/dev/null && printf 'API/database HTTP 200.\n' || exit 3; fi;;
- *) printf 'Usage: local-process.sh start|stop|status|recover api|worker|runtime\n' >&2; exit 2;;
+ status) valid "$name" || { printf '%s process is not confirmed.\n' "$name" >&2; exit 1; }; printf '%s exact argv/start-time ownership verified.\n' "$name"; if [[ "$name" == runtime ]]; then valid api && valid worker || { printf 'Child identity mismatch.\n' >&2; exit 2; }; if [[ -f "$state/shared-worker.pid" ]]; then valid shared-worker || { printf 'Shared worker identity mismatch.\n' >&2; exit 2; }; fi; curl -fsS http://127.0.0.1:14179/healthz >/dev/null && printf 'API/database HTTP 200.\n' || exit 3; fi;;
+ *) printf 'Usage: local-process.sh start|stop|status|recover api|worker|shared-worker|runtime\n' >&2; exit 2;;
 esac

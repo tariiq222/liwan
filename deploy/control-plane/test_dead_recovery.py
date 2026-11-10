@@ -17,10 +17,11 @@ SCRIPT = Path(__file__).with_name('local-process.sh')
 GENERATION = '97d4e3cab7f5de8e0121352e66b351ce'
 
 
-def make_generation(state: Path, pids: dict[str, int], generation: str = GENERATION) -> None:
+def make_generation(state: Path, pids: dict[str, int], generation: str = GENERATION,
+                    processes: tuple[str, ...] = ('runtime', 'api', 'worker')) -> None:
     state.mkdir(parents=True, exist_ok=True)
     (state / 'generation').write_text(generation + '\n')
-    for name in ('runtime', 'api', 'worker'):
+    for name in processes:
         (state / f'{name}.pid').write_text(f'{pids[name]}\n')
         (state / f'{name}.start').write_text('Wed 23 Sep 03:38:51 2026\n')
         if name != 'runtime':
@@ -124,6 +125,45 @@ class DeadGenerationRecovery(unittest.TestCase):
             self.assertTrue((archives[0] / 'generation').is_file())
             self.assertFalse(state.exists())
 
+
+    def test_shared_generation_with_the_scheduler_process_is_archived(self):
+        """A shared runtime records twelve names; that shape is complete, not damage."""
+        with tempfile.TemporaryDirectory(prefix='liwan-shared-generation-canary-') as tmp:
+            root = Path(tmp); state = root / 'processes'
+            processes = ('runtime', 'api', 'worker', 'shared-worker')
+            make_generation(state, dict(zip(processes, (99001201, 99001202, 99001203, 99001204))),
+                            processes=processes)
+            result = self.invoke(root)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            archives = list(root.glob(f'processes-archive-{GENERATION}-*'))
+            self.assertEqual(len(archives), 1)
+            self.assertEqual(sorted(p.name for p in archives[0].iterdir()), sorted(
+                [f'{n}.{suffix}' for n in processes for suffix in ('pid', 'start')]
+                + ['api.generation', 'worker.generation', 'shared-worker.generation', 'generation']))
+            self.assertEqual(list(state.iterdir()), [])
+
+    def test_shared_generation_with_a_stale_scheduler_marker_preserves_every_record(self):
+        with tempfile.TemporaryDirectory(prefix='liwan-shared-mixed-canary-') as tmp:
+            root = Path(tmp); state = root / 'processes'
+            processes = ('runtime', 'api', 'worker', 'shared-worker')
+            make_generation(state, dict(zip(processes, (99001301, 99001302, 99001303, 99001304))),
+                            processes=processes)
+            (state / 'shared-worker.generation').write_text('0123456789abcdef0123456789abcdef\n')
+            before = {p.name: p.read_bytes() for p in state.iterdir()}
+            result = self.invoke(root)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual({p.name: p.read_bytes() for p in state.iterdir()}, before)
+
+    def test_a_ninth_record_generation_missing_only_the_scheduler_is_incomplete(self):
+        """api/worker plus a lone shared-worker.pid is a mixture, not either shape."""
+        with tempfile.TemporaryDirectory(prefix='liwan-partial-shared-canary-') as tmp:
+            root = Path(tmp); state = root / 'processes'
+            make_generation(state, {'runtime': 99001401, 'api': 99001402, 'worker': 99001403})
+            (state / 'shared-worker.pid').write_text('99001404\n')
+            before = {p.name: p.read_bytes() for p in state.iterdir()}
+            result = self.invoke(root)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual({p.name: p.read_bytes() for p in state.iterdir()}, before)
 
     def test_pid_reappearing_between_checks_prevents_archive(self):
         with tempfile.TemporaryDirectory(prefix='liwan-pid-race-canary-') as tmp:

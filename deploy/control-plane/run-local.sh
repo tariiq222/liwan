@@ -41,17 +41,42 @@ for _ in $(seq 1 60); do if docker exec liwan-saas-control-local-control-db-1 pg
 set -a; . "$HOME_DIR/runtime.env"; set +a
 "$NPM" -w apps/control-plane run migrate >/dev/null
 # The lock descriptor remains held while all process owner records are published.
+# The shared control-plane worker (src/shared-worker-main.ts) owns the commercial
+# scheduler: trial expiry, renewals, dunning, refunds and the tenant status push to
+# Odoo. Without it a suspension or renewal never reaches Odoo, so a shared runtime
+# starts it and a dedicated runtime starts exactly api + worker as before.
+# runtime.env owns the tenancy mode: local-process.sh launches every child from it.
+# Drop the inherited value so nothing exported in the operator's shell can make this
+# decision disagree with the children, then read the file once for both.
+runtime_tenancy_mode="$(
+  unset LIWAN_TENANCY_MODE
+  set -a; . "$HOME_DIR/runtime.env"; set +a
+  printf '%s' "${LIWAN_TENANCY_MODE:-}"
+)"
+unset LIWAN_TENANCY_MODE
+shared_worker=0
+if [[ "$runtime_tenancy_mode" == shared ]]; then
+  # Both paths are validated absolute by getConfig(); an absent one makes the worker
+  # exit at startup with shared_adapter_unavailable. Refuse before starting anything.
+  for name in LIWAN_SHARED_RUNTIME_CONFIG LIWAN_TENANT_REGISTRY_PATH; do
+    [[ -n "${!name:-}" ]] && [[ "${!name}" == /* ]] || { printf 'Shared mode requires an absolute %s in runtime.env.\n' "$name" >&2; exit 8; }
+  done
+  shared_worker=1
+fi
 "$DEPLOY/local-process.sh" start api
 "$DEPLOY/local-process.sh" start worker
+[[ "$shared_worker" == 0 ]] || "$DEPLOY/local-process.sh" start shared-worker
 printf '%s\n' "$$" > "$HOME_DIR/processes/runtime.pid"
 ps -p $$ -o lstart= | xargs > "$HOME_DIR/processes/runtime.start"
 chmod 600 "$HOME_DIR/processes/runtime."{pid,start} "$HOME_DIR/processes/generation"
-for n in api worker; do printf '%s\n' "$generation" > "$HOME_DIR/processes/$n.generation"; chmod 600 "$HOME_DIR/processes/$n.generation"; done
+children=(api worker); [[ "$shared_worker" == 0 ]] || children+=(shared-worker)
+for n in "${children[@]}"; do printf '%s\n' "$generation" > "$HOME_DIR/processes/$n.generation"; chmod 600 "$HOME_DIR/processes/$n.generation"; done
 source "$DEPLOY/runtime-trap.sh"
 trap 'control_runtime_trap || exit $?; exit 0' TERM INT
 for _ in $(seq 1 30); do curl -fsS http://127.0.0.1:14179/healthz >/dev/null 2>&1 && break; sleep 1; done
 curl -fsS http://127.0.0.1:14179/healthz >/dev/null || { printf 'API readiness failed.\n' >&2; exit 9; }
-printf 'Local control API ready at 127.0.0.1:14179; worker running.\n'
+if [[ "$shared_worker" == 0 ]]; then printf 'Local control API ready at 127.0.0.1:14179; worker running.\n'
+else printf 'Local control API ready at 127.0.0.1:14179; worker and shared worker (commercial scheduler) running.\n'; fi
 exec 3>&-
 unset LIWAN_PROCESS_LOCK_FD
 while :; do sleep 2; done

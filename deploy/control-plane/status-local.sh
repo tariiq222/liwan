@@ -22,12 +22,16 @@ valid() {
  [[ -f "$state/$name.pid" && -f "$state/$name.start" ]] || return 1
  pid="$(<"$state/$name.pid")"; start="$(<"$state/$name.start")"; start="$(printf '%s' "$start" | xargs)"; [[ "$pid" =~ ^[0-9]+$ && -n "$start" ]] || return 1
  actual="$(proc_start "$pid")"; [[ "$actual" == "$start" ]] || return 1
- case "$name" in runtime) expected="";; api) expected="$NODE_BIN/node $ROOT/node_modules/tsx/dist/cli.mjs $ROOT/apps/control-plane/src/main.ts";; worker) expected="$NODE_BIN/node $ROOT/node_modules/tsx/dist/cli.mjs $ROOT/apps/control-plane/src/worker-main.ts";; esac
+ case "$name" in runtime) expected="";; api) expected="$NODE_BIN/node $ROOT/node_modules/tsx/dist/cli.mjs $ROOT/apps/control-plane/src/main.ts";; worker) expected="$NODE_BIN/node $ROOT/node_modules/tsx/dist/cli.mjs $ROOT/apps/control-plane/src/worker-main.ts";; shared-worker) expected="$NODE_BIN/node $ROOT/node_modules/tsx/dist/cli.mjs $ROOT/apps/control-plane/src/shared-worker-main.ts";; esac
  command="$(ps -p "$pid" -o command= 2>/dev/null || true)"
  if [[ "$name" == runtime ]]; then runtime_command_ok "$command" || return 1
  else [[ "$command" == "$expected" ]] || return 1; fi
  if [[ "$name" != runtime ]]; then [[ -f "$state/$name.generation" && -f "$state/generation" ]] || return 1; gen="$(<"$state/$name.generation")"; [[ "$gen" == "$(<"$state/generation")" && "$gen" =~ ^[a-f0-9]{32}$ ]] || return 1; fi
 }
-for name in runtime api worker; do valid "$name" || { printf '%s exact process identity not confirmed.\n' "$name" >&2; exit 2; }; done
+# The shared worker exists only in a shared-tenancy generation; its record is then mandatory.
+names=(runtime api worker)
+[[ ! -f "$state/shared-worker.pid" ]] || names+=(shared-worker)
+for name in "${names[@]}"; do valid "$name" || { printf '%s exact process identity not confirmed.\n' "$name" >&2; exit 2; }; done
 printf 'Runtime/API/worker exact argv, start times and generation ownership verified.\n'
+[[ ! -f "$state/shared-worker.pid" ]] || printf 'Shared worker (commercial scheduler) exact argv, start time and generation ownership verified.\n'
 curl -fsS http://127.0.0.1:14179/healthz >/dev/null && printf 'Control API/database health HTTP 200.\n' || { printf 'Control API unavailable.\n' >&2; exit 3; }
