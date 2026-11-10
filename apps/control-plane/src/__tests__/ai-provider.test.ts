@@ -778,6 +778,58 @@ suite('live PostgreSQL platform provider routes', () => {
     expect((await call('GET', '')).body.setting.providers).toHaveProperty('oai')
   })
 
+  /** The state the migration leaves: provider oai, an unpriced untested model `main`, routed as the default, and a file in the current shape. */
+  async function migratedState() {
+    await call('PATCH', '', { margin_bps: 2000, providers: { oai: { preset: 'openai', api_key: KEY } }, models: { main: { provider: 'oai', model: 'gpt-4o' } }, routes: {}, reason: 'As migrated' })
+    await pool.query("INSERT INTO ai_route(quality, capability, model_id) VALUES('default','default','main')")
+  }
+  const second = (over: object = {}, models: object = {}) => ({
+    margin_bps: 2000, reason: 'Switch the default',
+    providers: { oai: { preset: 'openai' }, ds: { preset: 'deepseek', api_key: `${KEY}-2` } },
+    models: { main: { provider: 'oai', model: 'gpt-4o' }, m2: { provider: 'ds', model: 'deepseek-chat', input_price: '0.14', output_price: '0.28' }, ...models },
+    routes: { default: 'main' }, ...over,
+  })
+
+  it('lets the vendor leave an unavailable migrated default behind in two saves: add and test a replacement, then switch', async () => {
+    await migratedState()
+    const added = await call('PATCH', '', second())  // the migrated default is untouched: accepted although unpriced and untested
+    expect(added.status).toBe(200)
+    expect(added.body.setting.routes).toEqual({ default: 'main' })
+    expect((await call('POST', '/test', { provider: 'ds', model: 'deepseek-chat' }, { fetch: withUsage().fetcher })).body).toMatchObject({ usage_reported: true })
+    const switched = await call('PATCH', '', second({ routes: { default: 'm2' }, providers: { oai: { preset: 'openai' }, ds: { preset: 'deepseek' } } }))
+    expect(switched.status).toBe(200)
+    expect(switched.body.setting).toMatchObject({ delivery: 'delivered', routes: { default: 'm2' } })
+    expect((await fileJson()).routes).toEqual({ default: 'm2' })
+    const cleaned = await call('PATCH', '', { margin_bps: 2000, reason: 'Drop the old one', providers: { ds: { preset: 'deepseek' } }, models: { m2: second().models.m2 }, routes: { default: 'm2' } })
+    expect(cleaned.status).toBe(200)
+    expect(Object.keys(cleaned.body.setting.models)).toEqual(['m2'])
+  })
+
+  it('still refuses a route changed to a model that is untested or unpriced', async () => {
+    await migratedState()
+    await call('PATCH', '', second())
+    expect((await call('PATCH', '', second({ routes: { default: 'm2' } }))).body.code).toBe('model_not_tested')
+    expect((await call('PATCH', '', second({ routes: { default: 'main', best: { writing: 'm2' } } }))).body.code).toBe('model_not_tested')  // a new cell too
+    expect((await call('PATCH', '', second({ routes: { default: 'main', best: { writing: 'main' } } }))).body.code).toBe('model_not_priced')
+    expect((await call('GET', '')).body.setting.routes).toEqual({ default: 'main' })
+  })
+
+  it('treats the route of the migrated model as changed when its name or its provider endpoint is edited', async () => {
+    await migratedState()
+    const renamed = second({}, { main: { provider: 'oai', model: 'gpt-4o-mini', input_price: '1', output_price: '2' } })
+    expect((await call('PATCH', '', renamed)).body.code).toBe('model_not_tested')
+    const moved = second({}, { main: { provider: 'ds', model: 'gpt-4o', input_price: '1', output_price: '2' } })
+    expect((await call('PATCH', '', moved)).body.code).toBe('model_not_tested')
+    // An unchanged name with a changed provider endpoint (a custom provider) resets the result as well.
+    await pool.query('TRUNCATE ai_route, ai_model, ai_provider, ai_provider_config')
+    await call('PATCH', '', { margin_bps: 0, providers: { c: { preset: 'custom', api_key: KEY, base_url: 'https://llm.example.com/v1' } }, models: { main: { provider: 'c', model: 'm' } }, routes: {}, reason: 'Custom provider' })
+    await pool.query("INSERT INTO ai_route(quality, capability, model_id) VALUES('default','default','main')")
+    const sameEndpoint = { margin_bps: 0, providers: { c: { preset: 'custom', base_url: 'https://llm.example.com/v1' } }, models: { main: { provider: 'c', model: 'm' } }, routes: { default: 'main' }, reason: 'Unchanged' }
+    expect((await call('PATCH', '', sameEndpoint)).status).toBe(200)
+    const otherEndpoint = { ...sameEndpoint, providers: { c: { preset: 'custom', base_url: 'https://other.example.com/v1', api_key: KEY } } }
+    expect((await call('PATCH', '', otherEndpoint)).body.code).toBe('model_not_priced')
+  })
+
   it('carries the single provider of the old table forward as provider and model "main" on the default route, and leaves no old table', async () => {
     const sealed = Buffer.from('sealed-key-box')
     await pool.query('DROP TABLE ai_route, ai_model, ai_provider, ai_provider_config')

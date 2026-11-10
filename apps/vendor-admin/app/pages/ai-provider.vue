@@ -4,7 +4,7 @@ import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import type { AiCapability, AiQuality } from '@liwan/commercial-contracts'
 import {
   AI_CAPABILITIES, AI_QUALITY_LEVELS, aiProviderErrorKey, aiProviderErrorSection, cellKey, chargeForOneDollar, configDirty, draftFromSetting, effectiveModel, freeId, idProblem, ltr, marginBps,
-  modelSaved, modelsOfProvider, modelUsable, priceValid, providerSaved, quickUnmapped, saveBlockers, savePayload, unusableReason, type ConfigDraft, type ModelDraft, type ProviderDraft, type Section,
+  modelSaved, modelsOfProvider, modelUsable, priceFilled, priceValid, providerSaved, quickUnmapped, saveBlockers, savePayload, unusableReason, type ConfigDraft, type ModelDraft, type ProviderDraft, type Section,
 } from '@/utils/aiProvider'
 import { useAiProvider } from '@/composables/useAiProvider'
 
@@ -25,6 +25,9 @@ const presetOf = (id: string) => presets.value.find(item => item.id === id)
 
 const draft = reactive<ConfigDraft>(draftFromSetting(setting.value))
 const restore = () => Object.assign(draft, draftFromSetting(setting.value))
+// A draft exists once data has arrived once: a first load that failed is filled by the retry, while a refetch after a test keeps unsaved edits.
+const draftLoaded = ref(Boolean(data.value))
+watch(data, (loaded) => { if (loaded && !draftLoaded.value) { restore(); draftLoaded.value = true } })
 const loadedModels = ref<Record<string, string[]>>({})
 interface TestView { ok: boolean, usage: boolean, ms: number, code: string }
 const testViews = ref<Record<string, TestView>>({})
@@ -50,6 +53,10 @@ const modelOptions = (current: string) => [...new Set([...usableIds.value, ...(c
 const cellOptions = (current: string) => [{ label: t('aiProvider.routes.inherit'), value: INHERIT }, ...modelOptions(current)]
 const providerIds = computed(() => draft.providers.map(p => p.id))
 const modelIds = computed(() => draft.models.map(m => m.id))
+const unpricedRouted = computed(() => {
+  const routed = new Set([draft.routes.default, ...Object.values(draft.routes.cells)].filter(Boolean))
+  return draft.models.filter(m => routed.has(m.id) && !(priceFilled(m.input_price) && priceFilled(m.output_price))).map(m => m.id)
+})
 const providerReady = (id: string) => draft.providers.some(p => p.id === id && providerSaved(setting.value, p, presets.value))
 const columns = computed<TableColumn<ModelDraft>[]>(() => [
   { id: 'id', header: t('aiProvider.models.colId') },
@@ -252,6 +259,7 @@ const blockerKey = computed(() => (blockers.value[0] ? `aiProvider.save.blockers
       <UFormField class="max-w-sm" :label="t('aiProvider.routes.default')" :help="t('aiProvider.routes.defaultHint')" required>
         <USelect :model-value="draft.routes.default || undefined" :items="modelOptions(draft.routes.default)" :placeholder="t('aiProvider.routes.defaultPlaceholder')" class="w-full" :disabled="disabled" data-testid="ai-provider-default" @update:model-value="draft.routes.default = $event as string" />
       </UFormField>
+      <UAlert v-if="unpricedRouted.length" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('aiProvider.routes.unpricedTitle')" :description="t('aiProvider.routes.unpricedWarning', { models: ltr(unpricedRouted.join(', ')) })" data-testid="ai-provider-unpriced-warning" />
       <UAlert v-if="quickUnmapped(draft.routes)" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('aiProvider.routes.quickWarningTitle')" :description="t('aiProvider.routes.quickWarning')" data-testid="ai-provider-quick-warning" />
       <div class="space-y-4">
         <div v-for="capability in AI_CAPABILITIES" :key="capability" class="space-y-2">

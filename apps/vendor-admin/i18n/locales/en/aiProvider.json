@@ -101,7 +101,9 @@
         "best": "Best"
       },
       "quickWarningTitle": "Quick is not mapped in the balanced level",
-      "quickWarning": "Help, setup, titles and classification will run on the default model."
+      "quickWarning": "Help, setup, titles and classification will run on the default model.",
+      "unpricedTitle": "A routed model has no price",
+      "unpricedWarning": "{models} has no price, so its use is not charged. Price it and test it, then route it again to charge for it."
     },
     "save": {
       "title": "Save",

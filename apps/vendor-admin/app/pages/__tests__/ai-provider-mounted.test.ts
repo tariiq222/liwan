@@ -32,12 +32,15 @@ const saved = (): Setting => ({
   routes: { default: 'mid', balanced: { quick: 'local' } },
 })
 
-async function page(options: { saveFails?: unknown } = {}) {
+async function page(options: { saveFails?: unknown, failFirstLoad?: boolean } = {}) {
   const filename = resolve(import.meta.dirname, '../ai-provider.vue')
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const script = stripImports(compileScript(descriptor, { id: 'ai-provider-mounted' }).content).replace('export default', 'return')
   const api = {
-    current: vi.fn(async () => ({ setting: saved() })),
+    current: vi.fn(async () => {
+      if (options.failFirstLoad && api.current.mock.calls.length === 1) throw { statusCode: 503 }
+      return { setting: saved() }
+    }),
     presets: vi.fn(async () => ({ items: [openai, custom], total: 2 })),
     models: vi.fn(async () => ({ items: [{ id: 'gpt-4o' }], total: 1 })),
     test: vi.fn(async () => ({ ok: true as const, latency_ms: 12, usage_reported: true })),
@@ -53,7 +56,7 @@ async function page(options: { saveFails?: unknown } = {}) {
     formatDateTime: (value: string) => value, definePageMeta: () => {}, useHydrated: () => Vue.ref(true), useI18n: () => ({ t }), useAiProvider: () => api,
     useAsyncData: async (_key: string, fn: () => Promise<unknown>) => {
       const data = Vue.ref<unknown>(null); const error = Vue.ref<unknown>(null); const pending = Vue.ref(false)
-      const refresh = vi.fn(async () => { data.value = await fn() })
+      const refresh = vi.fn(async () => { try { data.value = await fn(); error.value = null } catch (cause) { error.value = cause } })
       await refresh()
       return { data, error, pending, refresh }
     },
@@ -151,5 +154,36 @@ describe('AI provider page, mounted', () => {
     p.state.reason.value = 'A change'
     await p.state.save()
     expect((await p.rendered()).html).toContain('data-testid="ai-provider-error"')
+  })
+
+  it('fills the form when a retry succeeds after the first load failed', async () => {
+    const p = await page({ failFirstLoad: true })
+    expect(p.state.draft.providers).toEqual([])
+    await p.state.refresh()
+    expect(p.state.draft.providers.map((x: { id: string }) => x.id)).toEqual(['oai', 'llm'])
+    expect(p.state.draft.models.map((x: { id: string }) => x.id)).toEqual(['mid', 'local'])
+    expect(p.state.draft.margin_percent).toBe('20')
+    expect(p.state.draft.routes.default).toBe('mid')
+    expect(p.state.draft.routes.cells['balanced.quick']).toBe('local')
+  })
+
+  it('keeps unsaved edits when the setting is refetched after a test', async () => {
+    const p = await page()
+    p.state.draft.margin_percent = '35'
+    p.state.draft.models[0].model = 'edited'
+    await p.state.testModel(p.state.draft.models[1])
+    expect(p.api.test).toHaveBeenCalledTimes(1)
+    expect(p.api.current).toHaveBeenCalledTimes(2)  // the refetch happened
+    expect(p.state.draft.margin_percent).toBe('35')
+    expect(p.state.draft.models[0].model).toBe('edited')
+  })
+
+  it('warns, naming the model, when a routed model has no price', async () => {
+    const p = await page()
+    expect((await p.rendered()).html).not.toContain('ai-provider-unpriced-warning')
+    p.state.draft.models[0].output_price = ''
+    const html = (await p.rendered()).html
+    expect(html).toContain('ai-provider-unpriced-warning')
+    expect(html).toContain(aiUtils.ltr('mid'))
   })
 })

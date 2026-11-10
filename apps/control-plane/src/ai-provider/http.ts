@@ -11,7 +11,7 @@ import { checkEndpoint, EndpointError, type Resolver } from './endpoint.js'
 import { guardedFetcher } from './guarded-fetch.js'
 import { findPreset, PRESETS, publicPreset, type Preset } from './presets.js'
 import {
-  AI_PROVIDER_SAVE_LOCK, isComplete, openKey, providerFileContent, readConfig, recordUsageReported, replaceProviderFile, routedModelIds, routeRows, sealKey, settingOf, writeConfig,
+  AI_PROVIDER_SAVE_LOCK, isComplete, openKey, providerFileContent, readConfig, recordUsageReported, replaceProviderFile, routeRows, sealKey, settingOf, writeConfig,
   type NewConfig, type StoredConfig, type StoredProvider,
 } from './store.js'
 
@@ -197,11 +197,16 @@ async function validated(request: z.infer<typeof aiProviderSaveSchema>, stored: 
   for (const [, , modelId] of routeRows(request.routes)) if (!modelsById.has(modelId)) throw fail(422, 'unknown_model')
   // Once a default model has been delivered, a save that drops it would leave the service silently on the old file.
   if (!request.routes.default && stored && isComplete(stored)) throw fail(422, 'default_required')
-  // A model serves charged use only when it is priced and its last test saw token counts (spec 2026-11-10 §4: no real numbers, no real charge).
-  for (const modelId of routedModelIds(request.routes)) {
-    const model = modelsById.get(modelId)!
+  // The rule guards changes, not existing state: a route that is new, or points at another model, or at a model whose name or provider
+  // endpoint changed (which resets its test result), must reach a priced model whose last test saw token counts (spec 2026-11-10 §4).
+  // A route unchanged from the stored configuration is accepted as it is: a configuration carried forward from the single-provider
+  // table keeps its unpriced default (its calls are not charged) until the vendor switches the default to a model that passes.
+  const storedRoutes = new Set(routeRows(stored?.routes ?? {}).map(row => row.join('|')))
+  for (const row of routeRows(request.routes)) {
+    const model = modelsById.get(row[2])!
+    if (storedRoutes.has(row.join('|')) && model.keepUsageReported) continue
     if (model.inputPrice === null || model.outputPrice === null) throw fail(422, 'model_not_priced')
-    if (!model.keepUsageReported || !storedModels.get(modelId)?.usageReported) throw fail(422, 'model_not_tested')
+    if (!model.keepUsageReported || !storedModels.get(row[2])?.usageReported) throw fail(422, 'model_not_tested')
   }
   return { providers, keys, models, keyChanges }
 }
