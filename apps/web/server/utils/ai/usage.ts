@@ -29,7 +29,7 @@ class UsageSpoolExpired extends Error {}
 class UsageKeyMalformed extends Error {}
 /** Logged by count only: the run's user or company is not a usable id, so its rows could not be reported as that user. */
 class UsageOwnerInvalid extends Error {}
-/** Logged by count only: Odoo refused the batch as invalid (422); a retry cannot succeed, so the rows are dropped, never retried forever. */
+/** Logged by count only: Odoo refused the batch as invalid (422) or as already held under another company (409); a retry cannot succeed, so the rows are dropped, never retried forever. */
 class UsageRejected extends Error {}
 
 /**
@@ -167,7 +167,7 @@ async function sendSpooled(event: H3Event, session: string): Promise<void> {
  * Reports every due row of the service owners with the recorder key, one batch per user and company in the order the rows were
  * observed (at most `AI_USAGE_BATCH_MAX` each). A batch leaves the spool only once Odoo answered 200. A refusal that a retry
  * cannot fix (401/403: the key is wrong or revoked, so nothing else would pass either) defers every due row and stops; an
- * invalid batch (422) is dropped and logged by count; a timeout, a 5xx or a dead connection keeps the batch and the rows behind
+ * invalid (422) or duplicate (409) batch is dropped and logged by count; a timeout, a 5xx or a dead connection keeps the batch and the rows behind
  * it of the same owner for the retry window. A re-sent batch is settled by the `call_id` Odoo holds once per user and conversation.
  */
 async function sendServiceSpooled(event: H3Event, key: string): Promise<void> {
@@ -180,8 +180,8 @@ async function sendServiceSpooled(event: H3Event, key: string): Promise<void> {
       const batch = due.slice(start, start + AI_USAGE_BATCH_MAX)
       try {
         const receipt = await odooServiceUsageJson(event, key, { user_id: owner.user, user_company_id: owner.company, items: batch.map(entry => entry.row) })
-        if (receipt.status === 422) {
-          logFailure(`usage report of ${batch.length} rows was refused as invalid (422) and dropped`, new UsageRejected())
+        if (receipt.status === 422 || receipt.status === 409) {
+          logFailure(`usage report of ${batch.length} rows was refused as ${receipt.status === 409 ? 'a duplicate (409)' : 'invalid (422)'} and dropped`, new UsageRejected())
           removeSpooled(batch)
           continue
         }

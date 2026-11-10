@@ -151,6 +151,19 @@ class TestAiUsageService(AiProbe, LiwanApiCase):
             finally:
                 connection.close()
 
+    def test_the_same_call_held_under_another_company_is_a_409_that_names_nothing(self):
+        self.employee.write({'company_ids': [Command.link(self.other_company.id)]})
+        self.assertEqual(self._post(self._batch(self.employee, self.other_company)).status_code, 200)
+        response = self._post(self._batch(self.employee, self.employee.company_id))
+        self.assertEqual(response.status_code, 409, response.text)
+        body = response.json()
+        self.assertEqual((body['code'], body['field']), ('duplicate', 'items.0.call_id'))
+        self.assertNotIn(self.other_company.name, response.text)
+        self.assertNotIn(str(self.other_company.id), response.text)
+        # Nothing was added under the second company, and the first row is untouched.
+        self.assertEqual(self.Usage.search([]).company_id, self.other_company)
+        self.assertEqual(self.Usage.search_count([]), 1)
+
     def test_a_user_holding_every_capability_is_still_refused(self):
         """liwan_core gives vendor support (and the superuser) every capability; only the recorder itself may report."""
         support = new_test_user(self.env, login='usage_support', groups='liwan_core.group_vendor_support')

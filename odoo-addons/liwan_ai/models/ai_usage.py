@@ -225,7 +225,7 @@ class LiwanAiUsage(models.Model):
                 error.liwan_index = index
                 raise
         created = []
-        for row in rows:
+        for index, row in enumerate(rows):
             existing = self._liwan_ai_existing(row)
             if existing:
                 created.append(existing.id)
@@ -237,7 +237,11 @@ class LiwanAiUsage(models.Model):
                 # A concurrent report of the same attempt won the insert: that row is the record of this attempt too.
                 existing = self._liwan_ai_existing(row)
                 if not existing:
-                    raise
+                    # The index is unique per user, whatever the company: the same attempt is already held under another
+                    # company (a user who switched company mid-run). It is answered as a conflict, naming nothing of that row.
+                    error = ValidationError(self.env._('This call was already reported.'))
+                    error.liwan_field, error.liwan_code, error.liwan_status, error.liwan_index = 'call_id', 'duplicate', 409, index
+                    raise error from None
                 created.append(existing.id)
         return self.browse(created)
 

@@ -465,6 +465,16 @@ describe('usage ledger reporting with the recorder key', () => {
     expect(serviceCalls()).toHaveLength(1)
   })
 
+  it('drops a batch Odoo reports as already held under another company (409) after logging it', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    odooServiceUsageJson.mockResolvedValueOnce({ status: 409, body: { code: 'duplicate', field: 'items.0.call_id' } })
+    await flushed(ledgerOf(2, 450), noSession, { user: '45', company: '2' })
+    expect(logged(spy)).toEqual(['[liwan-ai] usage report of 2 rows was refused as a duplicate (409) and dropped: UsageRejected'])
+    advance(RETRY_AFTER_MS + 1)
+    await flushed(createUsageLedger(), noSession, { user: '46', company: '2' })
+    expect(serviceCalls()).toHaveLength(1)
+  })
+
   it('refuses to guess an owner: an unusable user or company is logged and nothing is sent', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     for (const who of [{ user: '', company: '1' }, { user: 'abc', company: '1' }, { user: '7', company: '0' }, { user: '-7', company: '1' }, { user: '7;1', company: '1' }]) await flushed(ledgerOf(1, 500), noSession, who)

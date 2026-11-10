@@ -21,7 +21,7 @@ MAX_USAGE_ITEMS = 64
 
 
 def as_api_error(error, collection=None):
-    """The 422 ``ApiError`` for a ``ValidationError`` carrying a field, else the error itself.
+    """The ``ApiError`` (422, or the error's own ``liwan_status`` such as 409) for a ``ValidationError`` carrying a field, else the error itself.
 
     A batch ``create`` tags the failing row with ``liwan_index``; the field then reads ``<collection>.<i>.<field>``.
     """
@@ -31,7 +31,7 @@ def as_api_error(error, collection=None):
     index = getattr(error, 'liwan_index', None)
     if collection is not None and index is not None:
         field = f'{collection}.{index}.{field}'
-    return ApiError(422, getattr(error, 'liwan_code', 'invalid'), str(error), field=field)
+    return ApiError(getattr(error, 'liwan_status', 422), getattr(error, 'liwan_code', 'invalid'), str(error), field=field)
 
 
 class AiController(http.Controller):
