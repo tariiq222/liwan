@@ -14,6 +14,11 @@ import re
 from odoo import api, fields, models
 from odoo.exceptions import MissingError, UserError
 
+from .res_company import (
+    SANDBOX_API_MODE,
+    SAUDI_COUNTRY_CODE,
+    ZATCA_ENVIRONMENT_PERMISSION,
+)
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.serializers.common import iso
 from odoo.addons.liwan_finance.serializers.zatca import (
@@ -28,18 +33,22 @@ _logger = logging.getLogger(__name__)
 
 CONNECTION_KIND = 'zatca'
 CONNECTION_PROVIDER = 'ZATCA'
-SANDBOX = 'sandbox'
+MODE_REFUSALS = {
+    'preprod': ('zatca_simulation_not_released', 'ZATCA simulation has not been released'),
+    'prod': ('zatca_production_not_released', 'ZATCA production has not been released'),
+}
 ONBOARDING_UNAVAILABLE = 'ZATCA could not be reached; try again later'
 ONBOARDING_FAILED = 'ZATCA refused the onboarding'
 # What the certificate request needs from the company (stock asks for these and names them in English when one is missing).
 CSR_COMPANY_FIELDS = ('vat', 'street', 'city', 'state_id')
 # Stock turns every onboarding failure into one text (English: the wizard runs with lang en_US). A "[NNN]"
 # marker other than 400 is an HTTP answer stock did not interpret (its text may hold the raw body), and a
-# requests exception shows as its own text; both are "ZATCA unavailable". Only the 400 answer, which carries
-# no marker, and stock's own short messages are echoed.
+# requests exception shows as its own text. Neither the raw response nor the OTP is echoed.
 STATUS_MARKER = re.compile(r'\[(\d{3})\]')
 TRANSPORT_TEXT = re.compile(r'timed out|timeout|connection|max retries|name or service|temporary failure|ssl', re.IGNORECASE)
 BUSY_TEXT = 'being sent by another process'
+INVALID_OTP = re.compile(r'invalid[ -]+otp', re.IGNORECASE)
+EXPIRED_OTP = re.compile(r'otp[^.]*expired|expired[^.]*otp', re.IGNORECASE)
 SALE_MOVE_TYPES = ('out_invoice', 'out_refund')
 INVOICE_MOVE_TYPES = (*SALE_MOVE_TYPES, 'in_invoice', 'in_refund')
 
@@ -49,10 +58,35 @@ class LiwanFinanceZatca(models.AbstractModel):
     _description = 'LiwanOS finance ZATCA e-invoicing'
 
     @api.model
+    def _liwan_lock_environment(self, company):
+        if not company._liwan_try_lock_zatca():
+            raise ApiError(409, 'zatca_environment_busy', 'another ZATCA operation is running for this company')
+
+    @api.model
     def _liwan_require_sandbox(self):
-        """Live ZATCA calls are limited to the sandbox until the preprod and production policy exists."""
-        if self.env.company.l10n_sa_api_mode != SANDBOX:
+        """Keep the approved elevated flows confined to the developer sandbox."""
+        company = self.env.company
+        self._liwan_lock_environment(company)
+        if company._liwan_zatca_runtime_mode() != SANDBOX_API_MODE:
             raise ApiError(422, 'zatca_mode_not_allowed', 'only the ZATCA sandbox api mode is allowed')
+
+    @api.model
+    def _liwan_request_environment(self, mode):
+        """Validate the current-company request without allowing an unreleased environment."""
+        self.env['liwan.access.service']._liwan_require_capability(ZATCA_ENVIRONMENT_PERMISSION)
+        company = self.env.company
+        if (company.account_fiscal_country_id or company.country_id).code != SAUDI_COUNTRY_CODE:
+            raise ApiError(422, 'zatca_not_applicable', 'ZATCA applies only to a Saudi company')
+        self._liwan_lock_environment(company)
+        current = company._liwan_zatca_runtime_mode()
+        if current == mode == SANDBOX_API_MODE:
+            return {'api_mode': current, 'changed': False}
+        code, message = MODE_REFUSALS.get(mode, ('zatca_mode_not_allowed', 'changing the ZATCA environment is unavailable'))
+        _logger.warning(
+            'finance.zatca.mode_refused company=%s user=%s current=%s target=%s code=%s',
+            company.id, self.env.uid, current, mode, code,
+        )
+        raise ApiError(422, code, message)
 
     @api.model
     def _liwan_onboarding_failed(self, journal, status, code, message):
@@ -95,13 +129,19 @@ class LiwanFinanceZatca(models.AbstractModel):
         self._liwan_require_sandbox()
         self._liwan_require_company_profile(journal.company_id)
         elevated = self.sudo().with_context(lang='en_US')
-        elevated.env['l10n_sa_edi.otp.wizard'].create({'journal_id': journal.id, 'l10n_sa_otp': otp}).validate()
+        # Stock validate uses the wizard fields and journal, so an in-memory transient keeps the OTP out of the database.
+        elevated.env['l10n_sa_edi.otp.wizard'].new({'journal_id': journal.id, 'l10n_sa_otp': otp}).validate()
         if not journal._l10n_sa_ready_to_submit_einvoices():
             text = plain_text(elevated.env['account.journal'].browse(journal.id).l10n_sa_csr_errors)
             marker = STATUS_MARKER.search(text)
             if (marker and marker.group(1) != '400') or TRANSPORT_TEXT.search(text):
                 self._liwan_onboarding_failed(journal, 502, 'zatca_unavailable', ONBOARDING_UNAVAILABLE)
-            self._liwan_onboarding_failed(journal, 422, 'zatca_rejected', text or ONBOARDING_FAILED)
+            message = ONBOARDING_FAILED
+            if EXPIRED_OTP.search(text):
+                message = 'The ZATCA one-time password has expired'
+            elif INVALID_OTP.search(text):
+                message = 'Invalid OTP'
+            self._liwan_onboarding_failed(journal, 422, 'zatca_rejected', message)
         readiness = dump_zatca_readiness(self.env.company)
         done = sum(row['onboarded'] for row in readiness['journals'])
         elevated.env['liwan.integration.connection']._liwan_set_connection_state(

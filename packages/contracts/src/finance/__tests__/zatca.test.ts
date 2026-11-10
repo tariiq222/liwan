@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   FinanceZatcaBacklogSchema,
   FinanceZatcaErrorCodeSchema,
+  FinanceZatcaModeInputSchema,
   FinanceZatcaOnboardInputSchema,
   FinanceZatcaStatusSchema,
   FinanceZatcaSubmissionSchema,
@@ -22,9 +23,10 @@ const BACKLOG = { to_send: 3, retry: 1, rejected: 2, blocked: 0 }
 const STATUS = {
   api_mode: 'sandbox',
   private_key_present: true,
-  journals: [{ journal: { id: 7, name: 'Sales' }, onboarded: true, state: 'onboarded' }],
+  journals: [{ journal: { id: 7, name: 'Sales' }, onboarded: true, state: 'onboarded', expires_at: '2026-11-30T13:00:00Z', expiry_warning_days: 30 }],
   onboarded: true,
   backlog: BACKLOG,
+  overdue_reporting: 2,
 }
 
 describe('finance ZATCA contracts', () => {
@@ -73,6 +75,12 @@ describe('finance ZATCA contracts', () => {
     expect(() => FinanceZatcaOnboardInputSchema.parse({ otp: 123345 })).toThrow()
     expect(() => FinanceZatcaOnboardInputSchema.parse({ otp: '123345', mode: 'prod' })).toThrow()
     expect(() => FinanceZatcaOnboardInputSchema.parse({})).toThrow()
+  })
+
+  it('requires the exact environment name and accepts no company or credential inputs', () => {
+    expect(FinanceZatcaModeInputSchema.parse({ mode: 'preprod', confirmation: 'SIMULATION' })).toEqual({ mode: 'preprod', confirmation: 'SIMULATION' })
+    expect(FinanceZatcaModeInputSchema.safeParse({ mode: 'prod', confirmation: 'SIMULATION' }).success).toBe(false)
+    expect(FinanceZatcaModeInputSchema.safeParse({ mode: 'sandbox', confirmation: 'SANDBOX', company_id: 3 }).success).toBe(false)
   })
 
   it('names the stable ZATCA error codes', () => {

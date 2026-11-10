@@ -57,7 +57,18 @@
       }
     },
     "zatca": {
+      "environment": {
+        "title": "ZATCA environment",
+        "modes": { "sandbox": "Developer sandbox", "preprod": "FATOORA simulation", "prod": "FATOORA production" },
+        "releaseGate": "Only the developer sandbox is available. Simulation and production are closed pending release approval."
+      },
+      "expiry": {
+        "date": "Certificate expires",
+        "expired": "The journal certificate has expired.",
+        "within": "The journal certificate expires within {days} days."
+      },
       "backlog": {
+        "overdueReporting": "{count} simplified documents issued over 12 hours ago are still awaiting reporting.",
         "title": "Waiting invoices",
         "hint": "Invoices ZATCA has not accepted yet. Rejected and blocked ones need a manual correction.",
         "to_send": "Waiting to send",
@@ -93,6 +104,9 @@
         "zatca_local_error": "The request failed before it reached ZATCA.",
         "zatca_unauthorized": "ZATCA refused the journal certificate. Connect the journal again.",
         "zatca_mode_not_allowed": "This environment is not allowed for onboarding in this phase.",
+        "zatca_environment_busy": "Another ZATCA operation is running for this company. Try again shortly.",
+        "zatca_simulation_not_released": "Simulation has not been released.",
+        "zatca_production_not_released": "Production has not been released.",
         "zatca_not_onboarded": "The journal is not connected to ZATCA.",
         "zatca_not_applicable": "This document is not a posted e-invoice.",
         "company_profile_incomplete": "Complete the company tax number and address (street and city) in the company profile before linking to ZATCA."

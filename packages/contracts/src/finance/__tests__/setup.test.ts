@@ -10,7 +10,7 @@ import {
 const ZATCA = {
   api_mode: 'sandbox',
   private_key_present: true,
-  journals: [{ journal: { id: 7, name: 'Sales' }, onboarded: false, state: 'compliance_checked' }],
+  journals: [{ journal: { id: 7, name: 'Sales' }, onboarded: false, state: 'compliance_checked', expires_at: null, expiry_warning_days: null }],
   onboarded: false,
 }
 const SETUP = {

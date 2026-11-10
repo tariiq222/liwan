@@ -28,7 +28,7 @@ from odoo.addons.liwan_finance.serializers.zatca import (
 
 STATUS = '/api/v1/finance/zatca/status'
 SUBMISSION_KEYS = {'state', 'mode', 'errors', 'warnings', 'qr_present', 'retry_count', 'last_attempt_at', 'next_retry_at'}
-JOURNAL_KEYS = {'journal', 'onboarded', 'state'}
+JOURNAL_KEYS = {'journal', 'onboarded', 'state', 'expires_at', 'expiry_warning_days'}
 ONBOARDING_ENDPOINTS = ['compliance'] + ['compliance/invoices'] * 6 + ['production/csids']
 
 
@@ -57,10 +57,10 @@ class TestFinanceZatcaOnboarding(LiwanZatcaCase):
         self.assertEqual((status['api_mode'], status['private_key_present'], status['onboarded']), ('sandbox', True, True))
         self.assertNoSecrets(self.api('GET', STATUS))
 
-    def test_the_stock_edi_cron_is_active_and_runs_daily_with_an_immediate_trigger_per_submission(self):
+    def test_the_stock_edi_cron_is_active_and_runs_hourly_with_an_immediate_trigger_per_submission(self):
         cron = self.env.ref('account_edi.ir_cron_edi_network')
         self.assertTrue(cron.active)
-        self.assertEqual((cron.interval_number, cron.interval_type), (1, 'days'))
+        self.assertEqual((cron.interval_number, cron.interval_type), (1, 'hours'))
 
     def test_the_status_reports_the_backlog_of_the_current_company_only(self):
         self.onboarded_journal()
@@ -81,6 +81,12 @@ class TestFinanceZatcaOnboarding(LiwanZatcaCase):
         self.assertEqual(status['backlog'], {'to_send': 1, 'retry': 1, 'rejected': 1, 'blocked': 1})
         self.assertEqual(secret_keys(status), set())
 
+    def test_status_counts_old_simplified_documents_awaiting_reporting(self):
+        self.onboarded_journal()
+        self.sale_invoice()
+        self.sale_invoice(partner=self.b2c_buyer)
+        self.assertEqual(self._status()['overdue_reporting'], 1)
+
     def test_the_status_backlog_needs_the_zatca_read_capability(self):
         self.login_as('zatca_reader')
         self.assertIn('backlog', self.api('GET', STATUS).json())
@@ -97,6 +103,12 @@ class TestFinanceZatcaOnboarding(LiwanZatcaCase):
         event = self.env['liwan.finance.audit.event'].search([('action', '=', 'zatca_onboarded')])
         self.assertEqual((event.company_id, event.res_model, event.res_id, event.create_uid), (self.company, 'account.journal', self.sale_journal.id, self.manager))
         self.assertNotIn(SANDBOX_OTP, ' '.join(logs.output) + str(event.read()))
+
+    def test_onboarding_does_not_persist_an_otp_wizard(self):
+        Wizard = self.env['l10n_sa_edi.otp.wizard']
+        before = Wizard.search_count([('journal_id', '=', self.sale_journal.id)])
+        self.onboarded_journal()
+        self.assertEqual(Wizard.search_count([('journal_id', '=', self.sale_journal.id)]), before)
 
     def test_a_refused_onboarding_logs_a_warning_without_the_otp(self):
         self.zatca.answers['compliance'] = answer(400, {'message': 'Invalid OTP'})
@@ -135,10 +147,13 @@ class TestFinanceZatcaOnboarding(LiwanZatcaCase):
         self.assertFalse(self.sale_journal._l10n_sa_ready_to_submit_einvoices())
 
     def test_a_rejected_otp_is_422_zatca_rejected_and_changes_nothing(self):
-        self.zatca.answers['compliance'] = answer(400, {'errors': [{'code': 'Invalid-OTP', 'message': 'Invalid OTP'}]})
-        result = self.onboard()
+        self.zatca.answers['compliance'] = answer(400, {'errors': [{'code': 'Invalid-OTP', 'message': f'Invalid OTP {SANDBOX_OTP}'}]})
+        with self.assertLogs('odoo.addons.l10n_sa_edi.models.account_journal', 'WARNING') as logs:
+            result = self.onboard()
+        self.assertNotIn(SANDBOX_OTP, ' '.join(logs.output))
         self.assertRefused(result, 422, 'zatca_rejected')
         self.assertIn('Invalid OTP', result.json()['message'])
+        self.assertNotIn(SANDBOX_OTP, result.text)
         self.assertNoSecrets(result)
         self.assertFalse(self.sale_journal._l10n_sa_ready_to_submit_einvoices())
         self.assertEqual(self._connection().state, 'not_configured')

@@ -38,7 +38,7 @@ const setup = {
   fiscal: { fiscalyear_last_day: 31, fiscalyear_last_month: 12, fiscalyear_lock_date: '2025-12-31', tax_lock_date: null, sale_lock_date: null, purchase_lock_date: null, hard_lock_date: null },
   journals: { sale: 1, purchase: 1, bank: 1, cash: 1 },
   taxes: { sale_count: 4, purchase_count: 4, vat_15_present: true },
-  zatca: { api_mode: 'sandbox', private_key_present: false, journals: [{ journal: SALES_JOURNAL, onboarded: false, state: 'not_started' }], onboarded: false },
+  zatca: { api_mode: 'sandbox', private_key_present: false, journals: [{ journal: SALES_JOURNAL, onboarded: false, state: 'not_started', expires_at: null, expiry_warning_days: null }], onboarded: false },
   ready: false,
   blockers: ['company_registry_missing', 'zatca_not_onboarded'],
 }

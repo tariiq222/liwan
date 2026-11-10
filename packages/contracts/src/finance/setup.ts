@@ -13,6 +13,8 @@ export const FinanceSetupBlockerSchema = z.enum([
   'company_address_incomplete', 'zatca_not_onboarded',
 ])
 
+export const FinanceZatcaModeSchema = z.enum(['sandbox', 'preprod', 'prod'])
+
 export const FinanceZatcaJournalStateSchema = z.enum(['not_started', 'compliance_checked', 'onboarded'])
 
 /** Status only: no key material, CSR, CSID or secret is part of this shape. */
@@ -20,10 +22,12 @@ export const FinanceZatcaJournalSchema = z.object({
   journal: ref,
   onboarded: z.boolean(),
   state: FinanceZatcaJournalStateSchema,
+  expires_at: z.iso.datetime().nullable(),
+  expiry_warning_days: z.literal([0, 1, 7, 30]).nullable(),
 }).strict()
 
 export const FinanceZatcaReadinessSchema = z.object({
-  api_mode: z.enum(['sandbox', 'preprod', 'prod']),
+  api_mode: FinanceZatcaModeSchema,
   private_key_present: z.boolean(),
   journals: z.array(FinanceZatcaJournalSchema),
   onboarded: z.boolean(),

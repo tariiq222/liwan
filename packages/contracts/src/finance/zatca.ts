@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { FinanceZatcaReadinessSchema } from './setup'
+import { FinanceZatcaModeSchema, FinanceZatcaReadinessSchema } from './setup'
 import { day, FinanceRefSchema, list } from './shared'
 
 /** A ZATCA validation message: the rule code when ZATCA gave one, and its text. */
@@ -49,6 +49,19 @@ export const FinanceZatcaBacklogSchema = z.object({
 /** GET /finance/zatca/status: the onboarding readiness and the submission backlog. */
 export const FinanceZatcaStatusSchema = FinanceZatcaReadinessSchema.extend({
   backlog: FinanceZatcaBacklogSchema,
+  overdue_reporting: z.number().int().nonnegative(),
+}).strict()
+
+/** The mode request binds the exact target name and never carries a company or credential. */
+const environmentNames = { sandbox: 'SANDBOX', preprod: 'SIMULATION', prod: 'PRODUCTION' } as const
+export const FinanceZatcaModeInputSchema = z.object({
+  mode: FinanceZatcaModeSchema,
+  confirmation: z.string(),
+}).strict().refine(value => value.confirmation === environmentNames[value.mode], { path: ['confirmation'] })
+
+export const FinanceZatcaModeResultSchema = z.object({
+  api_mode: FinanceZatcaModeSchema,
+  changed: z.boolean(),
 }).strict()
 
 /** POST /finance/zatca/journals/{id}/onboard: the six-digit one-time password of the Fatoora portal. */
@@ -72,6 +85,7 @@ export const FinanceZatcaWaitingDocumentListSchema = list(FinanceZatcaWaitingDoc
 
 export const FinanceZatcaErrorCodeSchema = z.enum([
   'zatca_unavailable', 'zatca_rejected', 'zatca_local_error', 'zatca_unauthorized', 'zatca_mode_not_allowed',
+  'zatca_environment_busy', 'zatca_simulation_not_released', 'zatca_production_not_released',
   'zatca_not_onboarded', 'zatca_not_applicable', 'company_profile_incomplete', 'retry_too_soon',
 ])
 

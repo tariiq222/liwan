@@ -49,10 +49,11 @@ const zatcaStatus = {
   private_key_present: true,
   onboarded: false,
   journals: [
-    { journal: { id: 21, name: 'مبيعات الرياض' }, onboarded: true, state: 'onboarded' },
-    { journal: { id: 22, name: 'مبيعات جدة' }, onboarded: false, state: 'not_started' },
-    { journal: { id: 23, name: 'مبيعات الدمام' }, onboarded: false, state: 'compliance_checked' },
+    { journal: { id: 21, name: 'مبيعات الرياض' }, onboarded: true, state: 'onboarded', expires_at: null, expiry_warning_days: null },
+    { journal: { id: 22, name: 'مبيعات جدة' }, onboarded: false, state: 'not_started', expires_at: null, expiry_warning_days: null },
+    { journal: { id: 23, name: 'مبيعات الدمام' }, onboarded: false, state: 'compliance_checked', expires_at: null, expiry_warning_days: null },
   ],
+  overdue_reporting: 0,
   backlog: { to_send: 4, retry: 2, rejected: 1, blocked: 0 },
 }
 

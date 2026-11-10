@@ -240,6 +240,14 @@
         <field name="group_xmlid">liwan_finance.group_cap_finance_zatca_read</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
+    <record id="permission_finance_zatca_environment" model="liwan.access.permission">
+        <field name="key">finance.zatca.environment</field><field name="domain">finance</field>
+        <field name="resource">zatca</field><field name="action">environment</field>
+        <field name="name_ar">تغيير بيئة زاتكا</field><field name="name_en">Change the ZATCA environment</field>
+        <field name="description_ar">تغيير بيئة الفوترة الإلكترونية للشركة الحالية</field><field name="description_en">Change the e-invoicing environment for the current company</field>
+        <field name="group_xmlid">liwan_finance.group_cap_finance_zatca_environment</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
     <record id="permission_finance_zatca_manage" model="liwan.access.permission">
         <field name="key">finance.zatca.manage</field><field name="domain">finance</field>
         <field name="resource">zatca</field><field name="action">manage</field>

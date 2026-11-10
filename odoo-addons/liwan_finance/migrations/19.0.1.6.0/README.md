@@ -1,0 +1,1 @@
+The addon data loader installs the distinct environment permission and updates only the two cadence fields of the stock EDI cron on installation and upgrade. No stored company, journal or EDI data is rewritten.

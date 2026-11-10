@@ -3,6 +3,8 @@ from odoo import api, models
 from odoo.exceptions import ValidationError
 
 SANDBOX_API_MODE = 'sandbox'
+ZATCA_MODE_FIELD = 'l10n_sa_api_mode'
+ZATCA_ENVIRONMENT_PERMISSION = 'finance.zatca.environment'
 SAUDI_COUNTRY_CODE = 'SA'
 GLOBAL_TAX_ROUNDING = 'round_globally'
 # A branch shares the chart of accounts of its root and owns its journals: one of each of these kinds, like the root's first.
@@ -17,7 +19,9 @@ class ResCompany(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        mode_default = self.default_get([ZATCA_MODE_FIELD]).get(ZATCA_MODE_FIELD, SANDBOX_API_MODE)
         for vals in vals_list:
+            self._liwan_require_released_zatca_mode(vals.get(ZATCA_MODE_FIELD, mode_default))
             if 'tax_calculation_rounding_method' in vals:
                 continue
             country = self.env['res.country'].browse(
@@ -93,15 +97,36 @@ class ResCompany(models.Model):
                     'Saudi companies must calculate taxes globally at invoice level.',
                 ))
 
+    def write(self, vals):
+        if ZATCA_MODE_FIELD not in vals:
+            return super().write(vals)
+        self.check_access('write')
+        mode = vals[ZATCA_MODE_FIELD]
+        self._liwan_require_released_zatca_mode(mode)
+        if any(company.l10n_sa_api_mode != mode for company in self):
+            raise ValidationError(self.env._('Changing the ZATCA environment is unavailable.'))
+        # Stock resets journal certificates and the hash even when the supplied mode is identical.
+        remaining = {key: value for key, value in vals.items() if key != ZATCA_MODE_FIELD}
+        return super().write(remaining) if remaining else True
+
+    @api.model
+    def _liwan_require_released_zatca_mode(self, mode):
+        if mode != SANDBOX_API_MODE:
+            raise ValidationError(self.env._('Only the ZATCA sandbox API mode is currently available.'))
+
     @api.constrains('l10n_sa_api_mode')
     def _check_zatca_api_mode_is_sandbox(self):
-        """No company leaves the ZATCA sandbox until the simulation and production policy is approved.
-
-        Stock EDI cron sends every pending document in the company's own api mode, so the routes'
-        refusal alone cannot confine it; the mode itself is confined here.
-        """
         for company in self:
-            if company.l10n_sa_api_mode != SANDBOX_API_MODE:
-                raise ValidationError(self.env._(
-                    'Only the ZATCA sandbox api mode is allowed until the simulation and production policy is approved.',
-                ))
+            self._liwan_require_released_zatca_mode(company.l10n_sa_api_mode)
+
+    def _liwan_try_lock_zatca(self):
+        """One company-level fence for the native wizard, EDI callback and Liwan operations."""
+        self.ensure_one()
+        if not self.try_lock_for_update(allow_referencing=True):
+            return False
+        self.invalidate_recordset([ZATCA_MODE_FIELD])
+        return True
+
+    def _liwan_zatca_runtime_mode(self):
+        self.ensure_one()
+        return self.l10n_sa_api_mode
