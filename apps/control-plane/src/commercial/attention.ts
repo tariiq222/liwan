@@ -59,16 +59,21 @@ const subjectsSql = `WITH latest AS (
   SELECT * FROM latest WHERE billing_blocked_at IS NOT NULL AND state IN ('active','past_due')
 ), lowering AS (
   -- A trial that lapsed onto the free base but could not be lowered yet: the tenant is usable (its hard expiry is already
-  -- cleared); \`reason\` is the machine reason of the last attempt.
+  -- cleared); reason is the machine reason of the last attempt. It clears the moment the customer's own order is applied.
   SELECT c.id AS customer_id, c.name, c.tenant_id, l.lapsed_at, l.reason FROM trial_lapses l
-  JOIN subscriptions s ON s.id=l.subscription_id JOIN customers c ON c.id=s.customer_id
+  JOIN subscriptions s ON s.id=l.subscription_id AND s.applied_revision_id=l.trial_revision_id JOIN customers c ON c.id=s.customer_id
   WHERE l.state IN ('pending','ordered','limits_pending') AND l.reason IS NOT NULL
 ), limits_waiting AS (
   -- The settled over-limit state: the paid applications are locked, existing data is untouched, and only some limits wait for
-  -- usage to fit. Nothing needs the vendor; \`detail\` says what exceeds.
-  SELECT c.id AS customer_id, c.name, c.tenant_id, l.lapsed_at, l.limits_note FROM trial_lapses l
-  JOIN subscriptions s ON s.id=l.subscription_id JOIN customers c ON c.id=s.customer_id
-  WHERE l.state='limits_pending' AND l.reason IS NULL
+  -- usage to fit, or extra branches above the plan's included ones stay active (the leak is accepted; the vendor can follow up
+  -- commercially). Nothing here needs the vendor; detail says what exceeds.
+  SELECT c.id AS customer_id, c.name, c.tenant_id, l.lapsed_at,
+    concat_ws(',', CASE WHEN l.state='limits_pending' AND l.reason IS NULL AND s.applied_revision_id=l.trial_revision_id THEN l.limits_note END,
+      CASE WHEN b.n > (r.snapshot->>'included_extra_branches')::int THEN 'branches.extra:'||b.n||'>'||(r.snapshot->>'included_extra_branches') END) AS detail
+  FROM trial_lapses l JOIN subscriptions s ON s.id=l.subscription_id JOIN customers c ON c.id=s.customer_id
+  JOIN subscription_revisions r ON r.id=s.applied_revision_id
+  CROSS JOIN LATERAL (SELECT count(*)::int AS n FROM commercial_branches cb WHERE cb.subscription_id=s.id AND cb.kind='extra' AND cb.state IN ('active','pending')) b
+  WHERE (l.state='limits_pending' AND s.applied_revision_id=l.trial_revision_id) OR (l.state IN ('limits_pending','done') AND r.snapshot->>'free_base'='true')
 ), unrouted AS (
   -- A stored payment method the customer turned off but no payment attempt could name the provider of: nobody will forget it
   -- at the provider until an operator routes it.
@@ -94,7 +99,7 @@ const subjectsSql = `WITH latest AS (
   UNION ALL SELECT 2,'payment_method_unrevoked', customer_id, tenant_id, NULL, NULL, name, ${iso('created_at')}, NULL, created_at FROM unrouted WHERE $3::boolean
   UNION ALL SELECT 3,'billing_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('billing_blocked_at')}, NULL, billing_blocked_at FROM blocked
   UNION ALL SELECT 3,'free_base_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('lapsed_at')}, reason, lapsed_at FROM lowering
-  UNION ALL SELECT 9,'free_base_limits_pending', customer_id, tenant_id, NULL, NULL, name, ${iso('lapsed_at')}, limits_note, lapsed_at FROM limits_waiting
+  UNION ALL SELECT 9,'free_base_limits_pending', customer_id, tenant_id, NULL, NULL, name, ${iso('lapsed_at')}, detail, lapsed_at FROM limits_waiting WHERE detail <> ''
   UNION ALL SELECT 4,'stalled_activation', customer_id, tenant_id, NULL, NULL, name, ${iso('order_created_at')}, fulfillment_state, order_created_at FROM stalled
   UNION ALL SELECT 5,'operation_failed', customer_id, tenant_id, id, NULL, name, ${iso('updated_at')}, type, updated_at FROM failed_ops
   UNION ALL SELECT 6,'setup_required', customer_id, tenant_id, NULL, NULL, name, ${iso('customer_created_at')}, NULL, customer_created_at FROM setup

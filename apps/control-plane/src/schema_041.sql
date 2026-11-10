@@ -17,6 +17,8 @@ CREATE TABLE trial_lapses (
   from_limits boolean NOT NULL DEFAULT false,
   order_id uuid REFERENCES orders(id),
   attempts integer NOT NULL DEFAULT 0 CHECK(attempts >= 0),
+  -- Orders issued so far, never reset: the order key is derived from it, so a retry can never meet an old key.
+  order_seq integer NOT NULL DEFAULT 0 CHECK(order_seq >= 0),
   next_attempt_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   reason text,
   CHECK(state <> 'ordered' OR order_id IS NOT NULL)

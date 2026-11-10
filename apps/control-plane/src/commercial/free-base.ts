@@ -59,9 +59,9 @@ export async function freeBaseOf(client: Pick<PoolClient, 'query'>, input: { sub
  * (the usage itself, so the host's downgrade check passes and Odoo refuses any addition), and a limit that cannot be judged
  * keeps its previous value. Limits usage fits drop to the free value as usual.
  */
-export function freeBaseAtCeilings(free: FreeBase, ceilings: Record<string, number | null>): FreeBase['entitlement'] {
-  return sealEntitlement({ catalog_release_id: free.entitlement.catalog_release_id, modules: free.entitlement.modules,
-    features: { ...free.entitlement.features, ...ceilings } as Record<string, boolean | number | null> })
+export function freeBaseAtCeilings(free: FreeBase, ceilings: ReadonlyMap<string, number | null>): FreeBase['entitlement'] {
+  const features = Object.fromEntries(Object.entries(free.entitlement.features).map(([key, value]) => [key, ceilings.has(key) ? ceilings.get(key)! : value])) as Record<string, boolean | number | null>
+  return sealEntitlement({ catalog_release_id: free.entitlement.catalog_release_id, modules: free.entitlement.modules, features })
 }
 
 /**
@@ -79,7 +79,9 @@ export async function orderFreeBase(client: PoolClient, input: { subscription: R
   const { branch_archive_ids: _archive, branch_restore_ids: _restore, ...kept } = snapshot
   const plan = (await client.query('SELECT included_users,included_storage_mb FROM plan_revisions WHERE id=$1', [snapshot.plan_revision_id])).rows[0]
   const next = { ...kept, bundle_revision_ids: quote.bundle_revision_ids, terms_revision_id: null, period_start: free.start, period_end: free.end,
-    extra_branch_count: quote.requested_extra_branches, entitlement, quote_id: quote.id, free_base: true,
+    // The real number of extra branches, whatever the free base prices: later branch calculations start from the real set.
+    extra_branch_count: (await client.query("SELECT count(*)::int AS n FROM commercial_branches WHERE subscription_id=$1 AND kind='extra' AND state IN ('active','pending')", [subscription.id])).rows[0].n,
+    entitlement, quote_id: quote.id, free_base: true,
     pricing: pricingBaseline(quote, { extra_branches: snapshot.included_extra_branches, users: plan.included_users, storage_mb: plan.included_storage_mb }) }
   const revisionId = randomUUID()
   await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)',

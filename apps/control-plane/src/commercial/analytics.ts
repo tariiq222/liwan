@@ -48,6 +48,8 @@ async function loadBook(db: Ask): Promise<Book> {
        JOIN plan_revisions p ON p.id = (r.snapshot->>'plan_revision_id')::uuid
        LEFT JOIN fulfillment_effects fe ON fe.order_id = o.id
       WHERE o.fulfillment_state = 'applied' AND NOT o.cancelled AND r.snapshot->'pricing' IS NOT NULL
+        -- A trial that lapsed onto the free base never billed: what was applied up to the lapse is not revenue, even before the base is.
+        AND NOT EXISTS (SELECT 1 FROM trial_lapses l WHERE l.subscription_id = o.subscription_id AND COALESCE(fe.applied_at, o.effective_at, o.created_at) <= l.lapsed_at)
       ORDER BY o.subscription_id, r.revision`)).rows
   const tally = new Map<string, { n: number, exponent: number }>()
   for (const row of rows) tally.set(row.currency, { n: (tally.get(row.currency)?.n ?? 0) + 1, exponent: row.exponent })

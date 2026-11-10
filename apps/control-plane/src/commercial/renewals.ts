@@ -83,7 +83,7 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
       if (!policy) throw new Error('pinned_policy_missing')
       sources.policy = policyWire(policy)
       const limits = snapshot.entitlement?.features ?? {}
-      const quote = computeQuote({ ...sources,kind:'new',cadence:snapshot.cadence,requested_extra_branches:snapshot.extra_branch_count,
+      const quote = computeQuote({ ...sources,kind:'new',cadence:snapshot.cadence,requested_extra_branches:snapshot.free_base ? Math.min(snapshot.extra_branch_count, sources.plan.included_extra_branches) : snapshot.extra_branch_count,
         // The free base held above its free limits is still free: its quantities are the plan's included ones, never the ceiling it keeps.
         requested_users: snapshot.free_base ? sources.plan.included_users : Number(limits['users.limit'] ?? 0), requested_storage_mb: snapshot.free_base ? sources.plan.included_storage_mb : Number(limits['storage.limit_mb'] ?? 0),
         effective_date:start,period:{start,end},ids:{ id:randomUUID(),customer_id:sub.customer_id,subscription_id:sub.id,expected_subscription_revision:sub.revision },

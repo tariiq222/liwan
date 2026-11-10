@@ -59,10 +59,11 @@ export async function assertDowngradeFitsUsage(client: Pick<PoolClient, 'query'>
  * What a fall to the free limits would meet today, read from the latest stored usage sample (the same source and the same
  * rule as `assertDowngradeFitsUsage`, but it reports instead of refusing). `over` lists every lowered limit the tenant
  * already exceeds; `unavailable` lists every lowered limit that cannot be judged because there is no fresh sample or the
- * sample lacks that key or its gates. A limit whose application the target closes is never judged, as in the host tool.
+ * sample lacks that key or its gates. `skipSample` reads no sample at all, so every lowered limit is unavailable (the first lock
+ * never depends on usage). A limit whose application the target closes is never judged, as in the host tool.
  */
-export async function usageAgainstFreeLimits(client: Pick<PoolClient, 'query'>, input: { tenant_id: string | null; previous: Features; target: Features; now: Date }) {
-  const row = input.tenant_id ? (await client.query('SELECT observed_at,metrics,freshness,limit_gates FROM usage_snapshots WHERE tenant_id=$1 ORDER BY observed_at DESC,id DESC LIMIT 1', [input.tenant_id])).rows[0] : null
+export async function usageAgainstFreeLimits(client: Pick<PoolClient, 'query'>, input: { tenant_id: string | null; previous: Features; target: Features; now: Date; skipSample?: boolean }) {
+  const row = input.tenant_id && !input.skipSample ? (await client.query('SELECT observed_at,metrics,freshness,limit_gates FROM usage_snapshots WHERE tenant_id=$1 ORDER BY observed_at DESC,id DESC LIMIT 1', [input.tenant_id])).rows[0] : null
   const fresh = Boolean(row) && row.freshness === 'fresh' && input.now.getTime() - new Date(row.observed_at).getTime() <= FRESH_MS
   const over: { key: string; used: number; free: number }[] = [], unavailable: string[] = []
   for (const key of Object.keys(input.target).sort()) {

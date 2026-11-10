@@ -13,7 +13,9 @@ const LABELS: Record<string, { ar: (n: number) => string; en: (n: number) => str
 const label = (key: string, n: number, lang: 'ar' | 'en') => LABELS[key]?.[lang](n) ?? `${key}: ${n}`
 
 /** The text of the notice: what exceeds the free base, what that means, and that nothing is deleted. Exported for tests. */
-export function overLimitText(over: OverLimit[]): string {
+export function overLimitText(over: OverLimit[], generic = false): string {
+  if (generic) return 'انتهت تجربتك وانتقلت شركتك إلى القاعدة المجانية. التطبيقات المدفوعة مقفلة للقراءة والتصدير فقط. لم نتمكن بعد من قراءة استخدامك، لذا ستُراجَع الحدود حين يتوفر، ولم يُحذف أو يُؤرشف أي شيء من مستخدميك أو بياناتك. يمكنك الاشتراك في أي وقت لإعادة فتح التطبيقات.\n'
+    + 'Your trial ended and your company moved to the free base. The paid applications are locked to read and export only. We could not read your usage yet, so the limits will be reviewed once it is available; nothing of your users or data was deleted or archived. You can subscribe at any time to reopen the applications.'
   const ar = over.map(o => `${label(o.key, o.used, 'ar')} والقاعدة المجانية تشمل ${label(o.key, o.free, 'ar')}`).join('؛ ')
   const en = over.map(o => `${label(o.key, o.used, 'en')} in use, the free base includes ${label(o.key, o.free, 'en')}`).join('; ')
   return `انتهت تجربتك وانتقلت شركتك إلى القاعدة المجانية، واستخدامك يتجاوز حدودها: ${ar}. التطبيقات المدفوعة مقفلة للقراءة والتصدير فقط. لم يُحذف أو يُؤرشف أي شيء من مستخدميك أو بياناتك، ويُمنع فقط إضافة المزيد فوق الحد. تُخفَّض الحدود تلقائيًا حين يعود استخدامك ضمنها، ويمكنك الاشتراك في أي وقت لإعادة فتح التطبيقات.\n`
@@ -33,7 +35,7 @@ export async function sendOverLimitNotices(pool: Pool, input: { mail: MailAdapte
     if (!await leaseOutboxRow(pool, row.id)) continue
     if (!row.admin_login) { await failOutbox(pool, row.id, 'no_recipient'); continue }
     try {
-      await input.mail.send({ to: row.admin_login, subject: 'انتقلت شركتك إلى القاعدة المجانية واستخدامك يتجاوز حدودها', text: overLimitText(row.payload.over as OverLimit[]), message_id: `over-limit-${row.id}@liwan` })
+      await input.mail.send({ to: row.admin_login, subject: 'انتقلت شركتك إلى القاعدة المجانية واستخدامك يتجاوز حدودها', text: overLimitText(row.payload.over as OverLimit[], row.payload.generic === true), message_id: `over-limit-${row.id}@liwan` })
       await completeOutbox(pool, row.id)
       sent++
     } catch (error) { await deferOutbox(pool, row.id, error instanceof Error ? error.message.slice(0, 200) : 'over_limit_notice_failed') }
