@@ -6,6 +6,7 @@ import { client, money, monthly, setup, url } from './commercial-helpers.js'
 import { convertTrial, endTrial, startTrial } from '../commercial/trial.js'
 import { expireTrials } from '../commercial/trial-expiry.js'
 import { processTrialLapses } from '../commercial/trial-lapse.js'
+import { owesAtRenewal } from '../commercial/free-base.js'
 import { attention } from '../commercial/attention.js'
 import { runSubscriptionReconfigure } from '../shared/subscription-reconfigure.js'
 import { applyDunning, generateRenewals } from '../commercial/renewals.js'
@@ -306,6 +307,22 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     expect(converted.order).toBeTruthy()
     expect((await row(f.subscription)).state).toBe('past_due')
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [f.customer])).rows[0].n).toBe(1)
+  })
+
+  it('dunning never skips a subscription that owes a paid add-on or a paid base: only a free renewal is exempt', async () => {
+    // Paid add-on on a free plan: the customer converted, so the first invoice is for the chosen application.
+    const addon = await endedTrial()
+    await pool.query("UPDATE subscriptions SET trial_ends_at=$2,revision=revision+1 WHERE id=$1", [addon.subscription, new Date(now.getTime() + 5 * 86_400_000)])
+    await convertTrial(pool, { customer_id: addon.customer, now, adapter, returnOrigin: origin })
+    const due = (await pool.query("SELECT max(due_at) AS at FROM invoices WHERE subscription_id=$1 AND status='issued'", [addon.subscription])).rows[0].at
+    const afterDue = new Date(new Date(due).getTime() + 1000), afterGrace = new Date(new Date(due).getTime() + 8 * 86_400_000)
+    expect(await applyDunning(pool, { now: afterDue })).toContainEqual({ subscription_id: addon.subscription, state: 'past_due' })
+    expect(await applyDunning(pool, { now: afterGrace })).toContainEqual({ subscription_id: addon.subscription, state: 'suspended' })
+    // The same plan on the free base is exempt, even with an overdue upgrade invoice (covered by the full-cycle test); a
+    // snapshot that records no pricing at all is treated as owing.
+    const row = (await pool.query("SELECT sr.snapshot->'pricing' AS pricing FROM subscriptions s JOIN subscription_revisions sr ON sr.id=s.applied_revision_id WHERE s.id=$1", [addon.subscription])).rows[0]
+    expect(owesAtRenewal(row.pricing)).toBe(true)
+    expect(owesAtRenewal(undefined)).toBe(true)
   })
 
   it('renews the free base without a return origin and never flags it billing-blocked', async () => {

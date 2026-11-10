@@ -12,6 +12,7 @@ import { syncTenantStatus, type TenantStatusRunner } from './suspension.js'
 import { returnOriginFromEnv, unusableReturnOrigin } from './return-origin.js'
 import { sendTrialNotices } from './trial-notices.js'
 import { sendRenewalNotices } from './renewal-notices.js'
+import { processTokenRevocations } from './token-revocations.js'
 import * as settlements from './settlements.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import type { MailAdapter } from './mail-adapter.js'
@@ -107,6 +108,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
       if (ticks % reconcileEvery === 0) {
         if (o.paymentAdapter) {
           const adapter = o.paymentAdapter
+          await job('token-revocations', () => processTokenRevocations(pool, adapter, { log }))
           await job('reconcile-payments', async () => {
             const results = await reconcileUnknownAttempts(pool, adapter, { clock })
             const failures: Record<string, number> = {}

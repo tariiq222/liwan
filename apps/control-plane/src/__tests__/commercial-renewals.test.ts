@@ -78,7 +78,9 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
   it('no consent never charges; charge response waits for lookup and paid renewal waits for receipt',async()=>{
     const no=await subscription(),yes=await subscription()
     await pool.query('UPDATE subscriptions SET provider_token_ref=$2,revision=revision+1 WHERE id=$1',[no.id,'token'])
-    await pool.query('UPDATE subscriptions SET auto_renew_enabled=true,auto_renew_consent_at=$2,provider_token_ref=$3,revision=revision+1 WHERE id=$1',[yes.id,now,'token'])
+    // Consent was given on 1 Sep and the renewal notice for 1 Oct went out on 20 Sep: the method may be charged.
+    await pool.query('UPDATE subscriptions SET auto_renew_enabled=true,auto_renew_consent_at=$2,provider_token_ref=$3,revision=revision+1 WHERE id=$1',[yes.id,'2026-09-01T00:00:00Z','token'])
+    await pool.query("INSERT INTO commercial_outbox(id,kind,aggregate_id,dedupe_key,status,payload) VALUES($1,'renewal.notice',$2,$3,'done',$4)",[randomUUID(),yes.id,`renewal-notice:${yes.id}:2026-10-01`,{sent_at:'2026-09-20T09:00:00.000Z'}])
     const adapter=new SimulatorAdapter().addToken('token'),charge=vi.spyOn(adapter,'chargeToken')
     await generateRenewals(pool,args(adapter))
     expect(charge).toHaveBeenCalledTimes(1)

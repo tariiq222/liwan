@@ -1,9 +1,24 @@
 import type { Pool } from 'pg'
 import { daysBetween, riyadhDate } from '@liwan/commercial-contracts'
 import type { MailAdapter } from './mail-adapter.js'
-import { completeOutbox, enqueueOutbox, failOutbox } from './outbox.js'
+import { completeOutbox, enqueueOutbox, failOutbox, leaseOutboxRow } from './outbox.js'
 import { RENEWAL_NOTICE_DAYS } from './notice-timings.js'
 import { owesAtRenewal } from './free-base.js'
+
+/** The outbox key of the notice for one subscription and renewal date. */
+export const renewalNoticeKey = (subscriptionId: string, renewalDate: string) => `renewal-notice:${subscriptionId}:${renewalDate}`
+
+/**
+ * Whether a stored method may be charged on `renewalDate`: the notice for exactly that date was really sent (`sentAt` is
+ * set only by a delivered mail), at least `RENEWAL_NOTICE_DAYS` calendar days before it, and after the customer's current
+ * consent, so a method enabled inside the notice window, or re-enabled after the notice, is paid by the customer once.
+ */
+export function renewalNoticeCovers(sentAt: string | null, consentAt: Date | string, renewalDate: string): boolean {
+  if (!sentAt) return false
+  const sent = new Date(sentAt), consent = new Date(consentAt)
+  if (Number.isNaN(sent.getTime()) || sent.getTime() < consent.getTime()) return false
+  return daysBetween(riyadhDate(sent), renewalDate) >= RENEWAL_NOTICE_DAYS
+}
 
 /**
  * One email per subscription and renewal date, sent once the renewal is within `RENEWAL_NOTICE_DAYS`, to a customer
@@ -25,17 +40,17 @@ export async function sendRenewalNotices(pool: Pool, input: { now: Date; mail: M
     if (input.signal?.aborted) return sent
     if (!owesAtRenewal(row.snapshot.pricing)) continue
     const renewalAt = riyadhDate(row.renewal_at instanceof Date ? row.renewal_at : new Date(`${row.renewal_at}T00:00:00+03:00`))
-    const dedupe = `renewal-notice:${row.id}:${renewalAt}`
+    const dedupe = renewalNoticeKey(row.id, renewalAt)
     const inserted = await enqueueOutbox(pool, { kind: 'renewal.notice', aggregate_id: row.id, dedupe_key: dedupe,
       payload: { subscription_id: row.id, renewal_at: renewalAt } })
     const outbox = (await pool.query("SELECT id,status FROM commercial_outbox WHERE kind='renewal.notice' AND aggregate_id=$1 AND dedupe_key=$2", [row.id, dedupe])).rows[0]
     // Only a row that has not been delivered is worked on: a done row is the notice already sent.
-    if (!inserted) {
-      if (!outbox || !['failed', 'pending'].includes(outbox.status)) continue
-      if (outbox.status === 'failed') await pool.query("UPDATE commercial_outbox SET status='pending',processed_at=NULL,payload=payload-'error' WHERE id=$1", [outbox.id])
-    }
+    if (!inserted && (!outbox || !['failed', 'pending'].includes(outbox.status))) continue
+    if (!inserted && outbox.status === 'failed') await pool.query("UPDATE commercial_outbox SET status='pending',processed_at=NULL,payload=payload-'error',next_attempt_at=now() WHERE id=$1", [outbox.id])
+    if (!await leaseOutboxRow(pool, outbox.id)) continue
+    // Nobody to tell is not a notice: the row fails, and the method is not charged for this date.
+    if (!row.admin_login) { await failOutbox(pool, outbox.id, 'no_recipient'); continue }
     sent++
-    if (!row.admin_login) { await completeOutbox(pool, outbox.id); continue }
     const quote = (await pool.query('SELECT payload FROM commercial_quotes WHERE id=$1', [row.snapshot.quote_id])).rows[0]?.payload
     const amount = quote?.next_renewal
     const daysLeft = daysBetween(today, renewalAt)
@@ -44,6 +59,8 @@ export async function sendRenewalNotices(pool: Pool, input: { now: Date; mail: M
         + (amount ? ` وسيُخصم ${(amount.minor / 10 ** amount.exponent).toFixed(amount.exponent)} ${amount.currency} من وسيلة الدفع المحفوظة.` : ' من وسيلة الدفع المحفوظة.')
         + ' يمكنك إيقاف التجديد التلقائي في أي وقت من صفحة الاشتراك قبل هذا التاريخ.'
       await input.mail.send({ to: row.admin_login, subject: 'تجديد اشتراكك في LiwanOS قريبًا', text, message_id: `renewal-${row.id}-${dedupe}@liwan` })
+      // The delivery time is what lets the renewal charge the stored method.
+      await pool.query("UPDATE commercial_outbox SET payload=payload||jsonb_build_object('sent_at',$2::text) WHERE id=$1", [outbox.id, input.now.toISOString()])
       await completeOutbox(pool, outbox.id)
     } catch (error) {
       await failOutbox(pool, outbox.id, error instanceof Error ? error.message.slice(0, 200) : 'renewal_notice_failed')

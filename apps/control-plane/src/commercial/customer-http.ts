@@ -136,7 +136,7 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
     requireCapability(principal,'subscription.manage')
     if(!z.uuid().safeParse(payment[1]).success || !(await pool.query('SELECT id FROM orders WHERE id=$1 AND customer_id=$2',[payment[1],customerId])).rowCount)throw new CommercialHttpError('not_found',404)
     const body=parseBody(input.raw,createPaymentAttemptRequestSchema)
-    return {status:201,data:await createPaymentAttempt(pool,{order_id:payment[1]!,customer_id:customerId,...needPayment(runtime),save_payment_method:body.save_payment_method!==undefined})}
+    return {status:201,data:await createPaymentAttempt(pool,{order_id:payment[1]!,customer_id:customerId,...needPayment(runtime),...(body.save_payment_method?{save_payment_method:{actor:principal.actor_id}}:{})})}
   }
   const cancel=/^\/orders\/([^/]+)\/cancel$/.exec(path)
   if(m==='POST'&&cancel){
@@ -165,17 +165,16 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
     requireCapability(principal,'subscription.manage')
     // Turning it on needs a payment the customer makes with the consent (payment-attempts); only turning it off lives here.
     parseBody(input.raw,autoRenewOffRequestSchema)
-    const token=await transaction(pool,async client=>{
+    await transaction(pool,async client=>{
       const r=await client.query('SELECT * FROM subscriptions WHERE customer_id=$1 FOR UPDATE',[customerId]);if(!r.rowCount)throw new CommercialHttpError('not_found',404)
       const s=r.rows[0]
-      if(!s.auto_renew_enabled&&!s.provider_token_ref)return null
-      // The method is forgotten with the consent: nothing is charged after this, and a new opt-in needs a new consent.
+      if(!s.auto_renew_enabled&&!s.provider_token_ref)return
+      // The method is forgotten with the consent: nothing is charged after this, and a new opt-in needs a new consent. The
+      // provider is told by the worker from the row written here, so a crash cannot leave the method behind.
       await client.query('UPDATE subscriptions SET auto_renew_enabled=false,auto_renew_consent_at=NULL,provider_token_ref=NULL,revision=revision+1 WHERE id=$1',[s.id])
-      await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',[randomUUID(),`customer:${customerId}`,'subscription.auto_renew_disabled',s.id,'Customer turned automatic renewal off',JSON.stringify({})])
-      return s.provider_token_ref as string|null
+      if(s.provider_token_ref)await client.query('INSERT INTO token_revocations(id,subscription_id,provider,token) VALUES($1,$2,$3,$4)',[randomUUID(),s.id,runtime?.adapter?.provider??'unknown',s.provider_token_ref])
+      await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',[randomUUID(),`customer:${customerId}`,'subscription.auto_renew_disabled',s.id,'Customer turned automatic renewal off',JSON.stringify({turned_off_by:principal.actor_id})])
     })
-    // Best effort and after the commit: a provider that cannot revoke now leaves an unused token, never a charge.
-    if(token&&runtime?.adapter?.deleteToken)await runtime.adapter.deleteToken(token).catch(()=>console.error('[customer-http] could not revoke a stored payment method at the provider'))
     return {status:200,data:await getSubscription(pool,customerId)}
   }
   throw new CommercialHttpError('not_found',404)

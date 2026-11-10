@@ -8,10 +8,11 @@ import { client, money, monthly, setup, url } from './commercial-helpers.js'
 import { convertTrial, startTrial } from '../commercial/trial.js'
 import { applyConfirmedEvent, createPaymentAttempt, verifyReturnedAttempt } from '../commercial/payments.js'
 import { applyDunning, generateRenewals } from '../commercial/renewals.js'
-import { sendRenewalNotices } from '../commercial/renewal-notices.js'
+import { renewalNoticeKey, sendRenewalNotices } from '../commercial/renewal-notices.js'
 import { getSubscription } from '../commercial/subscriptions.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
+import { processTokenRevocations } from '../commercial/token-revocations.js'
 import { RENEWAL_NOTICE_DAYS } from '../commercial/notice-timings.js'
 import { owesAtRenewal } from '../commercial/free-base.js'
 import type { PaymentAdapter } from '../commercial/payment-adapter.js'
@@ -76,7 +77,7 @@ suite('automatic renewal on a stored payment method (issue 492)', () => {
   const attemptRow = async (id: string) => (await pool.query('SELECT * FROM payment_attempts WHERE id=$1', [id])).rows[0]
   /** The customer pays the invoice on a fresh attempt that carries (or not) the consent, and the provider settles it. */
   async function payWithConsent(f: Awaited<ReturnType<typeof converted>>, save: boolean) {
-    const view = await createPaymentAttempt(pool, { order_id: f.order.id, customer_id: f.customer, adapter: f.adapter, returnOrigin: origin, ...(save ? { save_payment_method: true } : {}) })
+    const view = await createPaymentAttempt(pool, { order_id: f.order.id, customer_id: f.customer, adapter: f.adapter, returnOrigin: origin, ...(save ? { save_payment_method: { actor: "7" } } : {}) })
     const row = await attemptRow(view.id)
     const event = f.adapter.settle(row.provider_ref, 'succeeded')
     return { row, event }
@@ -94,7 +95,10 @@ suite('automatic renewal on a stored payment method (issue 492)', () => {
     expect((await applyConfirmedEvent(pool, event))).toBe('accepted')
     const stored = await sub(f.subscription.id)
     expect(stored).toMatchObject({ auto_renew_enabled: true, provider_token_ref: event.payment_method_token })
-    expect(stored.auto_renew_consent_at.getTime()).toBe(row.save_payment_method_consent_at.getTime())
+    // The consent counts from the payment, not from when the attempt was opened, and records who gave it.
+    expect(stored.auto_renew_consent_at.getTime()).toBeGreaterThanOrEqual(row.save_payment_method_consent_at.getTime())
+    expect(row.save_payment_method_actor).toBe('7')
+    expect((await pool.query("SELECT metadata FROM audit_events WHERE action='subscription.auto_renew_enabled' AND subject=$1", [f.subscription.id])).rows[0].metadata).toMatchObject({ consented_by: '7' })
     // The token reaches no view, event row or audit record.
     const view = await getSubscription(pool, f.customer)
     expect(view.auto_renew).toMatchObject({ enabled: true, token_ref_present: true })
@@ -126,26 +130,35 @@ suite('automatic renewal on a stored payment method (issue 492)', () => {
 
   it('refuses the consent where nothing can honour it: a plan that forbids it, an adapter that cannot store', async () => {
     const forbidden = await converted(noRenewPlan)
-    await expect(createPaymentAttempt(pool, { order_id: forbidden.order.id, customer_id: forbidden.customer, adapter: forbidden.adapter, returnOrigin: origin, save_payment_method: true }))
+    await expect(createPaymentAttempt(pool, { order_id: forbidden.order.id, customer_id: forbidden.customer, adapter: forbidden.adapter, returnOrigin: origin, save_payment_method: { actor: "7" } }))
       .rejects.toMatchObject({ status: 409, code: 'auto_renew_not_allowed' })
     const f = await converted()
     const noStorage = Object.create(f.adapter, { storesPaymentMethod: { value: false } }) as PaymentAdapter
-    await expect(createPaymentAttempt(pool, { order_id: f.order.id, customer_id: f.customer, adapter: noStorage, returnOrigin: origin, save_payment_method: true }))
+    await expect(createPaymentAttempt(pool, { order_id: f.order.id, customer_id: f.customer, adapter: noStorage, returnOrigin: origin, save_payment_method: { actor: "7" } }))
       .rejects.toMatchObject({ status: 409, code: 'payment_method_storage_unavailable' })
     expect((await attemptRow(f.attempt.id)).status).not.toBe('canceled')
   })
 
-  /** An active subscription holding a stored token whose renewal is due, charged by an adapter in another process. */
+  /** An active subscription holding a stored token whose renewal (19 Nov) is due, consent given on 1 Nov. */
   async function dueWithToken(token: string) {
     const f = await converted()
     const { event } = await payWithConsent(f, true)
     await applyConfirmedEvent(pool, event)
-    await pool.query("UPDATE subscriptions SET state='active',renewal_at='2026-11-01',provider_token_ref=$2,revision=revision+1 WHERE id=$1", [f.subscription.id, token])
+    await pool.query("UPDATE subscriptions SET state='active',renewal_at='2026-11-19',provider_token_ref=$2,auto_renew_consent_at='2026-11-01T00:00:00Z',revision=revision+1 WHERE id=$1", [f.subscription.id, token])
     return { ...f, token }
   }
+  /** The renewal notice for 19 Nov, delivered at `sentAt` (nine days before by default), or in a state that is not a delivery. */
+  async function notice(f: { subscription: { id: string } }, sentAt: string | null, status: 'done' | 'failed' = 'done') {
+    await pool.query("DELETE FROM commercial_outbox WHERE kind='renewal.notice' AND aggregate_id=$1", [f.subscription.id])
+    await pool.query("INSERT INTO commercial_outbox(id,kind,aggregate_id,dedupe_key,status,payload) VALUES($1,'renewal.notice',$2,$3,$4,$5)",
+      [randomUUID(), f.subscription.id, renewalNoticeKey(f.subscription.id, '2026-11-19'), status, sentAt ? { sent_at: sentAt } : {}])
+  }
+  const NOTICE_OK = '2026-11-10T09:00:00.000Z'
+  const tokenCharges = async (f: { subscription: { id: string } }) => (await pool.query("SELECT count(*)::int AS n FROM payment_attempts a JOIN orders o ON o.id=a.order_id WHERE o.subscription_id=$1 AND o.kind='renewal' AND a.token_charge", [f.subscription.id])).rows[0].n
 
   it('charges the stored token at renewal through an adapter that never saw the checkout (another process)', async () => {
     const f = await dueWithToken('sim_tok_0a0b0c0d_7')
+    await notice(f, NOTICE_OK)
     const worker = new SimulatorAdapter()
     const charge = vi.spyOn(worker, 'chargeToken')
     const generated = await generateRenewals(pool, { now, adapter: worker, returnOrigin: origin, subscription_id: f.subscription.id })
@@ -161,6 +174,67 @@ suite('automatic renewal on a stored payment method (issue 492)', () => {
     // A repeated run neither charges nor invoices again.
     await generateRenewals(pool, { now, adapter: worker, returnOrigin: origin, subscription_id: f.subscription.id })
     expect(charge).toHaveBeenCalledTimes(1)
+  })
+
+  describe('the stored method is charged only when it was announced in time', () => {
+    const hosted = async (f: Awaited<ReturnType<typeof dueWithToken>>, adapter = new SimulatorAdapter()) => {
+      const charge = vi.spyOn(adapter, 'chargeToken')
+      await generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription.id })
+      expect(charge).not.toHaveBeenCalled()
+      expect(await tokenCharges(f)).toBe(0)
+      expect((await pool.query("SELECT a.status FROM payment_attempts a JOIN orders o ON o.id=a.order_id WHERE o.subscription_id=$1 AND o.kind='renewal' ORDER BY a.created_at DESC LIMIT 1", [f.subscription.id])).rows[0].status).toBe('redirected')
+      expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='renewal.token_charge_skipped' AND subject=$1", [f.subscription.id])).rows[0].n).toBe(1)
+    }
+    it('the normal case: notice delivered nine days before, after the consent: charged', async () => {
+      const f = await dueWithToken('sim_tok_0a0b0c0d_21')
+      await notice(f, NOTICE_OK)
+      await generateRenewals(pool, { now, adapter: new SimulatorAdapter(), returnOrigin: origin, subscription_id: f.subscription.id })
+      expect(await tokenCharges(f)).toBe(1)
+    })
+    it('no notice row at all', async () => { await hosted(await dueWithToken('sim_tok_0a0b0c0d_22')) })
+    it('a notice that failed to send (a week of send failures)', async () => {
+      const f = await dueWithToken('sim_tok_0a0b0c0d_23')
+      await notice(f, null, 'failed')
+      await hosted(f)
+    })
+    it('a customer with no address to tell: the row fails as no_recipient and nothing is charged', async () => {
+      const f = await dueWithToken('sim_tok_0a0b0c0d_24')
+      await pool.query('UPDATE customers SET admin_login=NULL WHERE id=$1', [f.customer])
+      await sendRenewalNotices(pool, { now: new Date('2026-11-12T09:00:00Z'), mail: { send: async () => {} } as any })
+      expect((await pool.query("SELECT status,payload->>'error' AS error FROM commercial_outbox WHERE kind='renewal.notice' AND aggregate_id=$1", [f.subscription.id])).rows[0]).toEqual({ status: 'failed', error: 'no_recipient' })
+      await hosted(f)
+    })
+    it('auto-renew enabled less than seven days before the renewal: the late notice does not cover it', async () => {
+      const f = await dueWithToken('sim_tok_0a0b0c0d_25')
+      await pool.query("UPDATE subscriptions SET auto_renew_consent_at='2026-11-15T00:00:00Z',revision=revision+1 WHERE id=$1", [f.subscription.id])
+      await notice(f, '2026-11-15T09:00:00.000Z')
+      await hosted(f)
+    })
+    it('a notice sent before the consent was given again', async () => {
+      const f = await dueWithToken('sim_tok_0a0b0c0d_26')
+      await notice(f, '2026-10-20T09:00:00.000Z')
+      await hosted(f)
+    })
+    it('a notice for another renewal date does not count', async () => {
+      const f = await dueWithToken('sim_tok_0a0b0c0d_27')
+      await notice(f, NOTICE_OK)
+      await pool.query("UPDATE commercial_outbox SET dedupe_key=$2 WHERE kind='renewal.notice' AND aggregate_id=$1", [f.subscription.id, renewalNoticeKey(f.subscription.id, '2026-10-19')])
+      await hosted(f)
+    })
+    it('turn-off racing the charge: the state is read again inside the charge transaction', async () => {
+      const f = await dueWithToken('sim_tok_0a0b0c0d_28')
+      await notice(f, NOTICE_OK)
+      const adapter = new SimulatorAdapter()
+      const charge = vi.spyOn(adapter, 'chargeToken')
+      // The customer turns it off after the token check and before the charge.
+      vi.spyOn(adapter, 'getToken').mockImplementation(async id => {
+        await pool.query('UPDATE subscriptions SET auto_renew_enabled=false,auto_renew_consent_at=NULL,provider_token_ref=NULL,revision=revision+1 WHERE id=$1', [f.subscription.id])
+        return { id, status: 'active', active: true }
+      })
+      await generateRenewals(pool, { now, adapter, returnOrigin: origin, subscription_id: f.subscription.id })
+      expect(charge).not.toHaveBeenCalled()
+      expect(await tokenCharges(f)).toBe(0)
+    })
   })
 
   it('follows the dunning path when the token no longer works: a hosted payment, then past_due, never a silent retry', async () => {
@@ -190,6 +264,69 @@ suite('automatic renewal on a stored payment method (issue 492)', () => {
     expect(owesAtRenewal({ ...none, bundle_minor: { a: 19900 } })).toBe(true)
     expect(owesAtRenewal({ ...none, user_unit_minor: 2900 })).toBe(true)
     expect(owesAtRenewal(undefined)).toBe(true)
+  })
+
+  describe('consent follows the request, in both directions', () => {
+    const open = async (f: Awaited<ReturnType<typeof converted>>, save: boolean) => {
+      const view = await createPaymentAttempt(pool, { order_id: f.order.id, customer_id: f.customer, adapter: f.adapter, returnOrigin: origin, ...(save ? { save_payment_method: { actor: '7' } } : {}) })
+      return attemptRow(view.id)
+    }
+    it('a plain request never reuses an attempt that carries a consent; the consent attempt is cancelled and replaced', async () => {
+      const f = await converted()
+      const withConsent = await open(f, true)
+      const plain = await open(f, false)
+      expect(plain.id).not.toBe(withConsent.id)
+      expect(plain.save_payment_method).toBe(false)
+      expect((await attemptRow(withConsent.id)).status).toBe('canceled')
+      // Paying the plain attempt stores nothing.
+      await applyConfirmedEvent(pool, f.adapter.settle(plain.provider_ref, 'succeeded'))
+      expect(await sub(f.subscription.id)).toMatchObject({ auto_renew_enabled: false, provider_token_ref: null })
+    })
+    it('a consent request replaces a plain attempt, and a repeated request of the same kind reuses its attempt', async () => {
+      const f = await converted()
+      const consent = await open(f, true)
+      expect((await open(f, true)).id).toBe(consent.id)
+      const plain = await open(f, false)
+      expect((await open(f, false)).id).toBe(plain.id)
+      expect((await open(f, true)).id).not.toBe(plain.id)
+    })
+  })
+
+  describe('the stored method, replaced and revoked', () => {
+    it('a new method replaces the old one and the old one is queued for the provider to forget; the revocation is retried until it succeeds', async () => {
+      const f = await dueWithToken('sim_tok_0a0b0c0d_31')
+      // A later payment with consent stores a new token and queues the previous one for revocation.
+      const second = await converted()
+      await pool.query('UPDATE subscriptions SET provider_token_ref=$2,auto_renew_enabled=true,auto_renew_consent_at=now(),revision=revision+1 WHERE id=$1', [second.subscription.id, 'sim_tok_0a0b0c0d_41'])
+      const { event } = await payWithConsent(second, true)
+      await applyConfirmedEvent(pool, event)
+      expect((await pool.query('SELECT token FROM token_revocations WHERE subscription_id=$1', [second.subscription.id])).rows.map(r => r.token)).toEqual(['sim_tok_0a0b0c0d_41'])
+      expect((await sub(second.subscription.id)).provider_token_ref).toBe(event.payment_method_token)
+      // The provider is down: the row stays, the failure is logged without the token, and it backs off.
+      const logs: string[] = []
+      const down = new SimulatorAdapter(); vi.spyOn(down, 'deleteToken').mockRejectedValue(new Error('provider down'))
+      expect(await processTokenRevocations(pool, down, { log: m => logs.push(m) })).toBeGreaterThan(0)
+      expect(logs.join(' ')).not.toContain('sim_tok_')
+      const kept = (await pool.query('SELECT attempts,next_attempt_at FROM token_revocations WHERE subscription_id=$1', [second.subscription.id])).rows[0]
+      expect(kept.attempts).toBe(1)
+      expect(kept.next_attempt_at.getTime()).toBeGreaterThan(Date.now())
+      // Due again: the provider forgets it and the row is gone.
+      await pool.query('UPDATE token_revocations SET next_attempt_at=now() WHERE subscription_id=$1', [second.subscription.id])
+      const up = new SimulatorAdapter(); const revoke = vi.spyOn(up, 'deleteToken')
+      await processTokenRevocations(pool, up)
+      expect(revoke).toHaveBeenCalledWith('sim_tok_0a0b0c0d_41')
+      expect((await pool.query('SELECT count(*)::int AS n FROM token_revocations WHERE subscription_id=$1', [second.subscription.id])).rows[0].n).toBe(0)
+      expect(f.token).toBeTruthy()
+    })
+    it('money on the refund path never starts auto-renew', async () => {
+      const f = await converted()
+      const { row, event } = await payWithConsent(f, true)
+      // The order was cancelled while the customer was paying: the payment is reviewed for a refund, not honoured.
+      await pool.query('UPDATE orders SET cancelled=true WHERE id=$1', [f.order.id])
+      await applyConfirmedEvent(pool, event)
+      expect(await sub(f.subscription.id)).toMatchObject({ auto_renew_enabled: false, provider_token_ref: null })
+      expect(row.save_payment_method).toBe(true)
+    })
   })
 
   describe('the notice before the charge', () => {
@@ -247,6 +384,11 @@ suite('automatic renewal on a stored payment method (issue 492)', () => {
       expect(body.auto_renew).toMatchObject({ enabled: false, consent_at: null, token_ref_present: false })
       expect(JSON.stringify(body)).not.toContain(f.token)
       expect(await sub(f.subscription.id)).toMatchObject({ auto_renew_enabled: false, auto_renew_consent_at: null, provider_token_ref: null })
+      // The provider is told by the worker from the row written in the same transaction: a crash here loses nothing.
+      expect((await pool.query('SELECT token FROM token_revocations WHERE subscription_id=$1', [f.subscription.id])).rows.map(r => r.token)).toEqual([f.token])
+      const revoke = vi.spyOn(new SimulatorAdapter(), 'deleteToken')
+      const worker = new SimulatorAdapter(); const spy = vi.spyOn(worker, 'deleteToken'); await processTokenRevocations(pool, worker)
+      expect(spy).toHaveBeenCalledWith(f.token); expect(revoke).not.toHaveBeenCalled()
       expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='subscription.auto_renew_disabled' AND subject=$1", [f.subscription.id])).rows[0].n).toBe(1)
       // Turning it off again changes nothing; turning it on here is refused outright.
       expect((await call(f.tenant, '/v1/customer/auto-renew', { enabled: false })).status).toBe(200)
