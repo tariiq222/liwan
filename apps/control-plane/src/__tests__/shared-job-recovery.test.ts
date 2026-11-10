@@ -10,7 +10,7 @@ import { migrate } from '../db.js'
 import { publishRegistryMutation } from '../shared/registry-store.js'
 import { enqueueSharedJob } from '../shared/job-store.js'
 import { expireSharedLeases, type SharedFencedAdapter } from '../shared/job-worker.js'
-import { processJobRecoveries, requestSharedJobRecovery } from '../shared/job-recovery.js'
+import { processJobRecoveries, RECOVERABLE_OPERATIONS, requestSharedJobRecovery, UnsupportedRecoveryOperation } from '../shared/job-recovery.js'
 import { businessKey, payloadDigest } from '../shared/provisioning.js'
 import { vendorAccount } from './helpers/vendor-session.js'
 import { vendorActorIssuer } from '../admin-auth/grants.js'
@@ -119,5 +119,36 @@ else describe('shared job recovery', () => {
     expect(await processJobRecoveries(pool, present)).toBe(1)
     expect(await recovery(id)).toMatchObject({ state: 'failed', error: 'shared_job_not_recoverable' })
     expect((await pool.query("SELECT reason FROM audit_events WHERE action='shared_job.recovery_completed' AND subject=$1", [id])).rows[0].reason).toBe('failed: shared_job_not_recoverable')
+  })
+  /** A job of any operation parked in needs_intervention (the payload is only read for its operation here). */
+  async function stuckJob(operation: string | null) {
+    const id = randomUUID()
+    const payload = operation === null ? { schemaVersion: 1 } : { schemaVersion: 1, operation }
+    await pool.query("INSERT INTO shared_jobs(id,control_tenant_id,business_key,payload,payload_digest,issuer,actor_uid,reason,state) VALUES($1,$2,$3,$4,$5,$6,7,'Fixture','needs_intervention')",
+      [id, tenant, `fixture-${id}`, payload, 'a'.repeat(64), issuer])
+    return id
+  }
+  it('accepts exactly the operations the worker can reconcile, and nothing else', async () => {
+    expect([...RECOVERABLE_OPERATIONS]).toEqual(['provision', 'backup', 'restore'])
+    for (const operation of RECOVERABLE_OPERATIONS) {
+      const id = await stuckJob(operation)
+      await expect(requestSharedJobRecovery(pool, tenant, id, operator, reason)).resolves.toMatchObject({ state: 'pending', replay: false })
+      await pool.query("UPDATE shared_job_recoveries SET state='failed',error='fixture',completed_at=now() WHERE job_id=$1", [id])
+    }
+  })
+  it.each(['reconfigure', 'teleport', null])('refuses a stuck %s job at the endpoint before recording anything', async operation => {
+    const id = await stuckJob(operation)
+    const refusal = await requestSharedJobRecovery(pool, tenant, id, operator, reason).catch(error => error)
+    expect(refusal).toBeInstanceOf(UnsupportedRecoveryOperation)
+    expect(refusal).toMatchObject({ message: 'shared_job_not_recoverable', detail: `Recovery does not support the '${operation ?? 'unknown'}' operation` })
+    expect((await pool.query('SELECT count(*)::int AS n FROM shared_job_recoveries WHERE job_id=$1', [id])).rows[0].n).toBe(0)
+    expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='shared_job.recovery_requested' AND subject=$1", [id])).rows[0].n).toBe(0)
+  })
+  it('does not hand an unsupported operation to the adapter if a request for one is ever found pending', async () => {
+    const id = await stuckJob('reconfigure')
+    await pool.query("INSERT INTO shared_job_recoveries(job_id,issuer,actor_uid,reason) VALUES($1,$2,7,$3)", [id, issuer, reason])
+    const observe: SharedFencedAdapter = { observe: async () => { throw new Error('must not observe') }, applyFenced: async () => { throw new Error('must not apply') } }
+    expect(await processJobRecoveries(pool, observe)).toBe(1)
+    expect(await recovery(id)).toMatchObject({ state: 'failed', error: 'operation_unsupported:reconfigure' })
   })
 })

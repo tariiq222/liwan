@@ -2,9 +2,9 @@ import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest'
 import type { Pool } from 'pg'
 import { signMock as signServiceRequest, mockSessionQuery } from './helpers/vendor-session.js'
 import { createApp } from '../http.js'
-import { requestSharedJobRecovery } from '../shared/job-recovery.js'
+import { requestSharedJobRecovery, UnsupportedRecoveryOperation } from '../shared/job-recovery.js'
 import { vendorActorIssuer } from '../admin-auth/grants.js'
-vi.mock('../shared/job-recovery.js', () => ({ requestSharedJobRecovery: vi.fn() }))
+vi.mock('../shared/job-recovery.js', async importOriginal => ({ ...(await importOriginal<typeof import('../shared/job-recovery.js')>()), requestSharedJobRecovery: vi.fn() }))
 const key = 'shared-recover-http-synthetic-key-'.repeat(2)
 const tenant = 'ad03d956-efef-4f80-baf3-9c23ea46e945'
 const job = 'b68cb353-8e9b-4ad7-84a3-b634a8f346ca'
@@ -48,6 +48,14 @@ it('answers 409 when the job cannot be recovered', async () => {
   const response = await post({ reason: 'Operator checked the worker host' })
   expect(response.status).toBe(409)
   expect((await response.json()).code).toBe('shared_job_not_recoverable')
+})
+it.each(['reconfigure', undefined])('answers 409 naming the unsupported operation (%s)', async operation => {
+  vi.mocked(requestSharedJobRecovery).mockRejectedValue(new UnsupportedRecoveryOperation(operation))
+  const response = await post({ reason: 'Operator checked the worker host' })
+  expect(response.status).toBe(409)
+  const body = await response.json()
+  expect(body.code).toBe('shared_job_not_recoverable')
+  expect(body.message).toContain(`'${operation ?? 'unknown'}'`)
 })
 it('answers 403 when the store refuses the operator', async () => {
   vi.mocked(requestSharedJobRecovery).mockRejectedValue(new Error('shared_job_forbidden'))
