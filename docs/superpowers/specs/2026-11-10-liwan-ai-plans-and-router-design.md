@@ -28,8 +28,14 @@ A task router sends each message to the cheapest model that suits it, and long c
 | D8 | A free allowance during the trial that renews every 5 days, so a new tenant can try the strong models. After the trial there is a permanent free allowance, which the vendor sets and may set to zero. |
 | D9 | Build the full task router now, controlled from the vendor's provider panel. |
 | D10 | Long conversations are handled by summarising old history, shortening old tool results, provider prompt caching and a "start a new conversation" prompt. |
+| D11 | Margin: 20%, one rate for every model, vendor-editable. |
+| D12 | Free allowance: the equivalent of 5 SAR per 5-day window during the trial, and zero after it. Help and setup agents stay free. |
+| D13 | Top-ups of 25, 50, 100, 250 and 500 SAR, minimum 25. Unused balance does not expire while the tenant is active and is refunded only inside the existing 14-day window and only if untouched. |
+| D14 | The tenant chooses a quality level for the assistant: economical, balanced (default) or best. |
+| D15 | Chat attachments (PDF, Word) come after launch. |
+| D16 | If time runs short before launch: ship the balance, the long-conversation controls and two models (a cheap one and a mid one), and switch the rest of the mapping on afterwards. |
 
-Defaults chosen by the design author, open to the owner (§7): the exact margin, top-up amounts, expiry and refund of unused balance.
+D11 to D16 are the design author's recommendations, which the owner accepted on 2026-11-10. The amounts in D11 to D13 are vendor settings and can change without code.
 
 ## 3. Current state (verified 2026-11-10)
 
@@ -87,7 +93,7 @@ Consequences for the design:
 ### 5.1 Balance and charging
 
 - Every model call on the vendor's provider in an ordinary conversation is charged: planning calls, the classification call, titles and summaries. Help and setup conversations are never charged. Own-key calls are never charged.
-- Charge per call = the call's cost (§5.6) plus the margin in force when the call ran, rounded up to the cost unit. The margin is one vendor-set rate (20% to start, D3 allows 15 to 25%).
+- Charge per call = the call's cost (§5.6) plus the margin in force when the call ran, rounded up to the cost unit. The margin is one vendor-set rate, 20% at launch (D11).
 - A provider attempt that fails reports no tokens and is not charged, so a request that fails on LiwanOS's side costs the customer nothing.
 - The balance is a ledger in the tenant database: grants (top-ups, delivered by the control plane as one cumulative total) minus charges (the usage rows). The tenant enforces it locally; nothing asks the control plane at run time (R5).
 - A run starts only when the tenant has free allowance or balance left. A run in progress may overdraw by at most its own cost, which the per-request output cap, input ceiling and tool-call limit bound.
@@ -97,7 +103,7 @@ Consequences for the design:
 ### 5.2 Free allowance
 
 - The free allowance is a value, not a message count, in the same cost unit as the balance. It is used before the balance and does not accumulate: what is left when a window ends is gone.
-- During the trial: a vendor-set allowance per 5-day window, counted from the trial start. After the trial: a vendor-set allowance per calendar month, which may be zero.
+- During the trial: a vendor-set allowance per 5-day window, counted from the trial start, the equivalent of 5 SAR at launch (about 200 to 300 messages with §5.7 applied). After the trial: a vendor-set allowance per calendar month, zero at launch (D12).
 - One clock: the control plane pushes the trial start and end into the tenant profile through the existing revisioned delivery, and the check reads only that. A vendor extension of the trial extends the allowance with it.
 - The free allowance runs on the same router as paid use, so a new tenant sees the strong models.
 - The seeded free plan carries no commercial trial today. Whether sign-up always opens a trial, or the delivery carries an AI trial period of its own, is settled in slice 6 (§7).
@@ -105,7 +111,8 @@ Consequences for the design:
 ### 5.3 Selling a top-up
 
 - A top-up is a one-time line in the existing quote, order, invoice and payment chain, like the onboarding fee. It is not a recurring line and takes no part in renewals, proration or cadence.
-- The vendor sets the top-up amounts on offer and a minimum (to start: 25, 50, 100, 250 and 500 SAR). The customer pays in SAR.
+- The vendor sets the top-up amounts on offer and a minimum (at launch: 25, 50, 100, 250 and 500 SAR, minimum 25). The customer pays in SAR.
+- Unused balance does not expire while the tenant is active. A top-up is refunded only inside the existing 14-day refund window and only if none of it was used (D13).
 - On payment, the control plane adds the amount to the customer's cumulative granted total and delivers the new total to the tenant with the entitlement. A refunded top-up lowers the total.
 - Purchase page: `apps/web/app/pages/subscription/ai.vue`, the only location rule R5 allows for customer commerce. `/ai`, the AI settings page and the stopped notice link to it and import nothing commercial.
 - A tenant with no paid subscription buys through a zero-priced base plan revision. Slice 7 tests a top-up as the first order on such a tenant, including the rule that a paid first order needs a reachable manager.
@@ -129,6 +136,7 @@ Consequences for the design:
 - No classification call when it cannot change the outcome: setup and help runs use `quick`, titles use `quick`, own-key runs have one model, and a vendor who maps only a default model gets no extra call. The last case is the kill switch and the shape of a dedicated single-model install.
 - The capability is stored in the run state as a plain string and reset on each new message. A resume after a tool result or an approval reads it from state and never classifies again. The model object never enters state. New state keys are read with defaults; whether `AI_STATE_VERSION` changes is decided in slice 3.
 - Vendor mapping: several providers with their keys, a list of models with input, cached-input and output price per million tokens, and a map from capability to model with a required default. A model can be mapped for charged runs only after a test call that reports token counts. The singleton table, the single-model file and the single-model page are replaced in place. An invalid model entry is dropped and its routes fall to the default; only a structural error or a bad default rejects the file, and then the last valid configuration stays.
+- Quality level (D14): a tenant setting with three values, economical, balanced and best (scope: tenant; default: balanced; changed by `ai.settings.manage`; applies to the next message). The vendor's map has one model per capability and quality level; an empty cell falls back to the balanced one. The setting is sent with the run policy, so the service picks the column and the customer pays what that column costs.
 - Fallback: when the routed model exhausts its retries on a transient provider error, one attempt runs on the default model and the rest of that message stays on the default.
 - Egress: the hosts of every configured provider are published for the allowlist proxy.
 - History portability: a pure function normalises checkpointed history before every model call (plain text plus tool calls, provider metadata dropped, tool-call ids remapped where a provider would refuse them). The checkpoint is not rewritten. This is the riskiest part of the design and is built first.
@@ -182,18 +190,14 @@ One owner per file; a slice that shares a file with an earlier one merges after 
 | 13 | Vendor report: cost against charge per tenant, capability and model | 2 | after launch |
 | 14 | Attachments through retrieval | scanner | after launch |
 
-Slices 1, 2 and 7 start in parallel. If time runs short, the router ships with only a default model mapped and the mapping is switched on afterwards with no code change.
+Slices 1, 2 and 7 start in parallel. If time runs short (D16), launch needs slices 1 to 3, 5 to 11 and a map of two models (cheap for `quick`, mid as the default); the classifier, the other capabilities and the quality levels are switched on afterwards through the vendor panel.
 
 ## 7. Open items
 
 | Item | Default in this document |
 | --- | --- |
-| Margin | 20%, one rate for every model, vendor-editable |
-| Top-up amounts | 25, 50, 100, 250, 500 SAR |
-| Unused balance | Does not expire while the tenant is active; refunded only inside the existing 14-day window and only if untouched |
 | Conversion rate | 3.75 SAR per USD, vendor-editable |
 | Automatic top-up from a saved card | Not at launch |
-| A tenant choice between cheaper and stronger answers | Not at launch; the router decides |
 | Trial clock for a tenant that signs up on the free plan | To settle in slice 6 |
 | Payment gateway fee | Not verified; to confirm with the chosen gateway before fixing the minimum top-up |
 | Arabic quality and tool calling of the cheap models | To verify in the evaluation before any mapping is switched on |
