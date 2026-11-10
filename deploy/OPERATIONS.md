@@ -313,7 +313,18 @@ databases do not wait on each other. The lock is released if the process dies.
 The lock file lives in `liwan-backup-locks/` under the system temporary
 directory, created `0700`; it is refused unless the current user owns it. Two
 users, or a service with a private `/tmp`, do not share that directory: give
-every caller the same absolute `--lock-dir` that all of them can write.
+every caller the same absolute `--lock-dir`.
+
+A shared `--lock-dir` must be an existing directory on a local filesystem that
+every caller can create files in (for example a group-writable directory with
+the sticky bit). The lock file is created `0644`, whatever the umask, and is
+opened read-only, because `flock` needs no write access; the file holds no
+data. So the first caller creates it and every other user can lock it later,
+whoever created it. Callers need read access to the file: if another user
+left it unreadable, or replaced it with a symlink, a FIFO or any non-regular
+file, the run stops with `cannot open the backup lock` or `is not a regular
+file` instead of waiting. NFS is not supported for the lock directory, since
+an exclusive `flock` on NFS needs a file opened for writing.
 
 ### Verifying the copy
 

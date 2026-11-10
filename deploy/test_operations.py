@@ -846,6 +846,48 @@ class TestBackupLock(BackupCase):
         self.assertIn('already running', stderr.getvalue())
         self.assertFalse((self.root / 'out').exists())
 
+    def lock_path(self) -> Path:
+        return self.locks / f'{self.DB}.lock'
+
+    def test_the_lock_file_is_created_0644_whatever_the_umask(self) -> None:
+        previous = os.umask(0o077)
+        try:
+            with backup.database_lock(self.DB, str(self.locks)):
+                pass
+        finally:
+            os.umask(previous)
+        self.assertEqual(self.lock_path().stat().st_mode & 0o777, 0o644)
+
+    def test_a_lock_file_the_caller_cannot_write_is_lockable_again(self) -> None:
+        """Another user's leftover file: flock needs no write access, so a read-only file works."""
+        self.backup('first')
+        self.lock_path().chmod(0o444)
+        self.assertTrue(self.backup('second').is_file())
+        with backup.database_lock(self.DB, str(self.locks)):
+            with self.assertRaisesRegex(backup.BackupError, 'already running'):
+                self.backup('third')
+        self.assertEqual(self.lock_path().stat().st_mode & 0o777, 0o444)
+
+    def test_a_lock_file_that_cannot_be_opened_is_an_explicit_error(self) -> None:
+        with patch('os.open', side_effect=PermissionError(13, 'Permission denied')):
+            with self.assertRaisesRegex(backup.BackupError, 'cannot open the backup lock .*Permission denied'):
+                with backup.database_lock(self.DB, str(self.locks)):
+                    pass
+
+    def test_a_fifo_in_place_of_the_lock_file_is_refused_without_hanging(self) -> None:
+        os.mkfifo(self.lock_path())
+        with self.assertRaisesRegex(backup.BackupError, 'not a regular file'):
+            with backup.database_lock(self.DB, str(self.locks)):
+                pass
+
+    def test_a_symlink_in_place_of_the_lock_file_is_refused(self) -> None:
+        target = self.root / 'elsewhere'
+        target.write_text('x')
+        self.lock_path().symlink_to(target)
+        with self.assertRaisesRegex(backup.BackupError, 'cannot open the backup lock'):
+            with backup.database_lock(self.DB, str(self.locks)):
+                pass
+
     def test_the_default_lock_directory_is_private_and_owned_by_this_user(self) -> None:
         with patch('tempfile.gettempdir', return_value=str(self.root)):
             directory = backup.lock_directory(None)

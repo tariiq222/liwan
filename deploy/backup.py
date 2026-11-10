@@ -43,6 +43,7 @@ FILESTORE_NAME = 'filestore'
 HASH_BLOCK_BYTES = 1024 * 1024
 SHA256_RE = re.compile(r'[a-f0-9]{64}')
 LOCK_DIR_NAME = 'liwan-backup-locks'
+LOCK_FILE_MODE = 0o644
 FORBIDDEN_DB_EXACT = frozenset({
     'odoo19',
     'production',
@@ -340,6 +341,36 @@ def lock_directory(lock_dir: str | None) -> Path:
     return directory
 
 
+def open_lock_file(path: Path) -> int:
+    """Open (creating it if needed) the lock file read-only and return its descriptor.
+
+    ``flock`` needs no write access, and the file holds no data, so it is created ``0644``
+    (set explicitly, the umask must not narrow it) and a second user can lock the file the
+    first one left behind. A symlink is refused, and so is anything but a regular file; the
+    open never blocks, so a FIFO planted in a shared directory cannot hang the run.
+    """
+    flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+    try:
+        try:
+            descriptor, created = os.open(path, flags | os.O_CREAT | os.O_EXCL, LOCK_FILE_MODE), True
+        except FileExistsError:
+            descriptor, created = os.open(path, flags), False
+    except OSError as error:
+        fail(f'cannot open the backup lock {path}: {error.strerror}')
+    try:
+        if created:
+            os.fchmod(descriptor, LOCK_FILE_MODE)
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            fail(f'the backup lock {path} is not a regular file')
+    except OSError as error:
+        os.close(descriptor)
+        fail(f'cannot prepare the backup lock {path}: {error.strerror}')
+    except BackupError:
+        os.close(descriptor)
+        raise
+    return descriptor
+
+
 @contextmanager
 def database_lock(db: str, lock_dir: str | None) -> Iterator[None]:
     """Hold an exclusive, non-blocking ``flock`` on this database's lock file.
@@ -349,10 +380,7 @@ def database_lock(db: str, lock_dir: str | None) -> Iterator[None]:
     refused at once; runs for other databases do not wait on it.
     """
     path = lock_directory(lock_dir) / f'{db}.lock'
-    try:
-        descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
-    except OSError as error:
-        fail(f'cannot open the backup lock {path}: {error.strerror}')
+    descriptor = open_lock_file(path)
     try:
         try:
             fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
