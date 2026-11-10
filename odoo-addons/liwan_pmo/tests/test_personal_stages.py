@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo.tests import tagged
+from odoo.tests import new_test_user, tagged
 
 from .common import LiwanPmoCase
 
@@ -15,6 +15,21 @@ class TestPersonalStagesAndLookups(LiwanPmoCase):
         self.assertEqual([s['sequence'] for s in body['items']], sorted(s['sequence'] for s in body['items']))
         self.assertEqual(set(body['items'][0]), {'id', 'name', 'sequence', 'fold'})
         self.assertEqual(self.api('GET', '/api/v1/me/personal-stages').json(), body, 'idempotent')
+
+    def test_a_read_only_user_gets_their_own_personal_stages_on_the_first_read(self):
+        """The first read seeds the caller's own stages; that is the person's bookkeeping, not a business write."""
+        fresh = new_test_user(
+            self.env, login='ro_stage_user', password='ro_stage_user_pass_123', groups='liwan_core.group_employee',
+            liwan_mobile='+966590000031',
+        )
+        # An account that predates the application, or came up while it was off, has no stages yet.
+        self.env.cr.execute('DELETE FROM project_task_user_rel WHERE user_id = %s', [fresh.id])
+        self.env.cr.execute('DELETE FROM project_task_type WHERE user_id = %s', [fresh.id])
+        self.env.invalidate_all()
+        self.env['liwan.entitlement.service'].sudo()._liwan_apply_flags(fresh, {'liwan_read_only': True})
+        self.authenticate('ro_stage_user', 'ro_stage_user_pass_123')
+        response = self.api('GET', '/api/v1/me/personal-stages')
+        self.assertEqual((response.status_code, response.json()['total']), (200, 7), response.text)
 
     def test_the_stage_list_is_paged_with_a_true_total(self):
         self.authenticate('api_emp', 'api_emp_pass_123')

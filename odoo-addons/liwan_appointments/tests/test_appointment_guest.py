@@ -379,6 +379,22 @@ class TestAppointmentGuest(LiwanAppointmentsCase):
         self.assertEqual(self.invited.state, 'confirmed')
         self.assertEqual(self.invited.meeting_id.start.strftime(UTC_FORMAT), body['start'])
 
+    def test_a_read_only_branch_shows_the_booking_but_refuses_every_change_cleanly(self):
+        scheduled = self._schedule(self.invited)
+        self.assertEqual(scheduled.status_code, 200, scheduled.text)
+        other = self._invited(self.booking_type)
+        free_slot = self._slots(other)[0]
+        self.env['liwan.tenant.branch'].create({
+            'branch_uid': 'booking-ro', 'company_id': self.env.company.id, 'operation_id': 'op-booking', 'read_only': True,
+        })
+        self.assertEqual(self._call('GET', self.invited).status_code, 200)
+        self.assertEqual(self._call('GET', other, '/slots', **self._window()).status_code, 200)
+        for response in (self._schedule(other, free_slot), self._call('POST', self.invited, '/cancel')):
+            self._error(response, 403, 'branch_read_only')
+            self.assertIn('للقراءة فقط', response.json()['message'])
+        self.assertFalse(other.start)
+        self.assertEqual(self.invited.state, 'confirmed')
+
     def test_the_requester_confirms_when_the_company_asks_for_it(self):
         self._settings(requester_confirmation=True)
         body = self._schedule(self.invited).json()

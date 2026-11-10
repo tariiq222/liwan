@@ -8,6 +8,10 @@ from odoo.tools import mute_logger
 from .test_read_only_excess import ExcessCase
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
+from odoo.addons.liwan_platform.models.read_only_guard import (
+    INBOUND_EVENT_CONTEXT,
+    INBOUND_EVENT_TOKEN,
+)
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -82,6 +86,24 @@ class TestReadOnlyUserGuard(ExcessCase):
         self._refused(lambda: own.write({'liwan_read_only': False}))
         self.assertTrue(self.readonly.liwan_read_only)
 
+    def test_bus_notifications_and_the_font_size_preference_stay_writable(self):
+        """`bus._sendone` queues as the acting user and `PATCH /me/appearance` writes the font size: both are the person's own."""
+        self.env['bus.bus'].with_user(self.readonly)._sendone(self.readonly.partner_id, 'liwan_test', {'ok': True})
+        own = self.env['res.users'].with_user(self.readonly).sudo().browse(self.readonly.id)
+        own.write({'liwan_font_size': 'large'})
+        self.assertEqual(self.readonly.liwan_font_size, 'large')
+
+    def test_a_registered_allowance_covers_plumbing_models_and_seed_contexts_only(self):
+        token = object()
+        allowances = {'plumbing': frozenset({'res.partner.category'}), 'own': frozenset(), 'seed': {'liwan_test_seed': token}}
+        self.patch(type(self.service), '_liwan_read_only_allowances', lambda model: allowances)
+        categories = self.env['res.partner.category'].with_user(self.readonly).sudo()
+        self.assertTrue(categories.create({'name': 'bookkeeping'}).exists())
+        partners = self.env['res.partner'].with_user(self.readonly).sudo()
+        self._refused(lambda: partners.create({'name': 'business'}))
+        self.assertTrue(partners.with_context(liwan_test_seed=token).create({'name': 'seeded default'}).exists())
+        self._refused(lambda: partners.with_context(liwan_test_seed=object()).create({'name': 'forged'}))
+
 
 @tagged('post_install', '-at_install', 'liwan')
 class TestReadOnlyBranches(ExcessCase):
@@ -142,6 +164,13 @@ class TestReadOnlyBranches(ExcessCase):
         self.env['res.partner'].create({'name': 'seeded', 'company_id': company.id})
         company.write({'name': 'renamed by the operator'})
 
+    def test_archiving_a_branch_reopens_the_next_read_only_one(self):
+        self._apply(['b1', 'b2', 'b3'])
+        self._set_limit('branches.extra_limit', 2)
+        self.assertTrue(self._branch('b3').read_only)
+        self._branch('b1').write({'state': 'archived'})
+        self.assertFalse(self._branch('b3').read_only)
+
     def test_identity_records_of_a_read_only_branch_stay_administrable(self):
         company = self.env['res.company'].browse(self._apply(['b1'])[0]['odoo_company_id'])
         self.service._liwan_apply_flags(self._branch('b1'), {'read_only': True})
@@ -161,6 +190,39 @@ class TestReadOnlyBranches(ExcessCase):
         self.service._liwan_set_branch_seat(self._branch('b2').company_id.id, read_only=False)
         with self.assertRaises(LiwanAccessRule):
             self.service._liwan_set_branch_seat(company.id, read_only=False)
+
+    def test_attachments_messages_and_followers_hang_on_the_company_of_their_record(self):
+        """Their own company column is the uploader's or empty: the record they hang on binds them."""
+        company = self.env['res.company'].browse(self._apply(['b1'])[0]['odoo_company_id'])
+        partner = self.env['res.partner'].create({'name': 'branch contact', 'company_id': company.id})
+        headquarters = self.env['res.partner'].create({
+            'name': 'hq contact', 'company_id': self.record.root_company_id.id,
+        })
+        self.service._liwan_apply_flags(self._branch('b1'), {'read_only': True})
+        attachments = self.env['ir.attachment'].with_user(self.manager).sudo()
+        values = {'name': 'a.txt', 'raw': b'x', 'mimetype': 'text/plain', 'res_model': 'res.partner'}
+        for action in (
+            lambda: attachments.create({**values, 'res_id': partner.id}),
+            lambda: partner.with_user(self.manager).sudo().message_post(body='hello'),
+            lambda: partner.with_user(self.manager).sudo().message_subscribe(partner_ids=self.manager.partner_id.ids),
+        ):
+            with self.assertRaises(LiwanAccessRule) as caught:
+                action()
+            self.assertEqual(caught.exception.code, 'branch_read_only')
+        self.assertTrue(attachments.create({**values, 'res_id': headquarters.id}).exists())
+        self.assertTrue(headquarters.with_user(self.manager).sudo().message_post(body='hello').exists())
+
+    def test_an_inbound_event_is_recorded_in_a_read_only_branch_for_its_own_request_only(self):
+        company = self.env['res.company'].browse(self._apply(['b1'])[0]['odoo_company_id'])
+        self.service._liwan_apply_flags(self._branch('b1'), {'read_only': True})
+        partners = self.env['res.partner'].with_user(self.manager).sudo()
+        recorded = partners.with_context(**{INBOUND_EVENT_CONTEXT: INBOUND_EVENT_TOKEN}).create({
+            'name': 'inbound', 'company_id': company.id,
+        })
+        self.assertTrue(recorded.exists())
+        for forged in ('1', True, object()):
+            with self.assertRaises(LiwanAccessRule):
+                partners.with_context(**{INBOUND_EVENT_CONTEXT: forged}).create({'name': 'forged', 'company_id': company.id})
 
 
 @tagged('post_install', '-at_install', 'liwan', 'liwan_seat_concurrency')

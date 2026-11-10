@@ -1,10 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
 
-from .res_users import INVITEE_CONTEXT
+from .res_users import GRANT, INVITEE_CONTEXT
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
-
-GRANT = 'access.users.grant'
 
 
 class LiwanPlatformAccessService(models.AbstractModel):
@@ -42,10 +40,13 @@ class LiwanPlatformAccessService(models.AbstractModel):
     def _liwan_disable_user(self, user, expected_version):
         if self._liwan_has_capability(user, GRANT, company=user.company_id):
             user._liwan_seat_holders()._liwan_assert_grant_holder_survives()
-        result = super()._liwan_disable_user(user, expected_version)
-        # The freed seat reopens the next read-only account in order.
-        self.env['liwan.entitlement.service']._liwan_settle_users()
-        return result
+        return super()._liwan_disable_user(user, expected_version)
+
+    @api.model
+    def _liwan_assert_admin_survives(self, company, excluding_user=None):
+        """A read-only account cannot administer, so it does not count as a surviving access administrator."""
+        read_only = self.env['res.users'].search([('liwan_read_only', '=', True)])
+        return super()._liwan_assert_admin_survives(company, excluding_user=read_only | (excluding_user or read_only.browse()))
 
     @api.model
     def _liwan_set_seat(self, user, expected_version, read_only=None, priority=None):

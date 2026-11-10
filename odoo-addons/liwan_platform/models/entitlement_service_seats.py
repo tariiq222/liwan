@@ -8,11 +8,11 @@ disabled, until the customer buys it, frees a seat or picks who stays full.
 from odoo import api, models
 
 from .read_only_guard import SETTLE_MARKER
+from .res_users import GRANT
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 USER_LIMIT = 'users.limit'
 BRANCH_LIMIT = 'branches.extra_limit'
-GRANT = 'access.users.grant'
 UNSET_PRIORITY = float('inf')
 
 
@@ -27,8 +27,9 @@ class LiwanEntitlementSeats(models.AbstractModel):
         (``_liwan_excluded_user_ids``). A pending invitee claims a full seat only when the invitation is accepted.
         """
         # Read for the tenant, not as the caller: the public acceptance route and a branch administrator hold
-        # no `res.users` read, and the answer is only ids the seat arithmetic needs.
-        users = self.env['res.users'].sudo().search([
+        # no `res.users` read, and the answer is only ids the seat arithmetic needs. Active accounts only, whatever
+        # `active_test` the caller's context carries (an access operation browses its target with it off).
+        users = self.env['res.users'].sudo().with_context(active_test=True).search([
             ('share', '=', False), ('id', 'not in', list(self._liwan_excluded_user_ids())),
         ])
         pending = users.browse(list(self.env['liwan.access.service']._liwan_awaiting_users(users)))
@@ -57,6 +58,17 @@ class LiwanEntitlementSeats(models.AbstractModel):
     @api.model
     def _liwan_full_seat_ids(self):
         return self._liwan_seat_users().filtered(lambda user: not user.liwan_read_only).ids
+
+    @api.model
+    def _liwan_read_only_allowances(self):
+        """What a read-only identity or branch may still write, registered by the owning addons through super().
+
+        ``plumbing``: models whose writes are the system's own bookkeeping, never fenced.
+        ``own``: models whose rows carry a ``user_id``; the acting user's own rows (a view log, personal stages)
+        stay writable.
+        ``seed``: context key -> token an addon sets while it seeds defaults on the first read of a page.
+        """
+        return {'plumbing': frozenset(), 'own': frozenset(), 'seed': {}}
 
     @api.model
     def _liwan_branches(self):
@@ -142,16 +154,16 @@ class LiwanEntitlementSeats(models.AbstractModel):
             ordered, holders = self._liwan_user_keep_order(full)
             kept = ordered[:capacity]
             held = [user for user in ordered if user.id in holders]
-            if capacity and held and not any(user.id in holders for user in kept):
-                kept = [*kept[:-1], held[0]]
+            if held and not any(user.id in holders for user in kept):
+                # The last full access administrator stays full even under a limit of zero: nobody else could buy or pick seats.
+                kept = [*kept[:max(capacity - 1, 0)], held[0]]
             demote = full.filtered(lambda user: user not in kept)
             self._liwan_apply_flags(demote, {'liwan_read_only': True, 'liwan_seat_choice': 'auto'})
-            return True
-        free = capacity - len(full)
+            return bool(demote)
         reopenable = sorted(
             (user for user in users - full if user.liwan_seat_choice == 'auto'),
             key=lambda user: (user.liwan_seat_priority or UNSET_PRIORITY, user.create_date, user.id),
-        )[:free]
+        )[:capacity - len(full)]
         self._liwan_apply_flags(self.env['res.users'].browse([user.id for user in reopenable]), {'liwan_read_only': False})
         return bool(reopenable)
 
@@ -167,7 +179,7 @@ class LiwanEntitlementSeats(models.AbstractModel):
             ordered = sorted(full, key=lambda branch: (branch.seat_choice != 'customer', branch.create_date, branch.id))
             demote = full.filtered(lambda branch: branch not in ordered[:capacity])
             self._liwan_apply_flags(demote, {'read_only': True, 'seat_choice': 'auto'})
-            return True
+            return bool(demote)
         reopenable = sorted(
             (branch for branch in branches - full if branch.seat_choice == 'auto'),
             key=lambda branch: (branch.restore_priority or UNSET_PRIORITY, branch.create_date, branch.id),
@@ -176,15 +188,20 @@ class LiwanEntitlementSeats(models.AbstractModel):
         return bool(reopenable)
 
     @api.model
-    def _liwan_set_branch_seat(self, company_id, read_only=None, priority=None):
-        """Make a branch full or read-only, or set its reopening priority; the headquarters company is never a branch."""
-        profile = self._liwan_profile()
-        root = profile.root_company_id
+    def _liwan_assert_branch_admin(self):
+        """Branch seats belong to the company administration of the root company, never to a branch's own administrator."""
+        root = self._liwan_profile().root_company_id
         if self.env.company != root or not self.env['liwan.access.service']._liwan_has_capability(
             self.env.user, 'settings.company.manage', company=root,
         ):
             code = 'forbidden'
             raise LiwanAccessRule(code, 'branch seats require company administration of the root company', status=403)
+
+    @api.model
+    def _liwan_set_branch_seat(self, company_id, read_only=None, priority=None):
+        """Make a branch full or read-only, or set its reopening priority; the headquarters company is never a branch."""
+        self._liwan_assert_branch_admin()
+        profile = self._liwan_profile()
         branch = self._liwan_branches().filtered(lambda item: item.company_id.id == company_id)
         if not branch:
             code = 'not_found'

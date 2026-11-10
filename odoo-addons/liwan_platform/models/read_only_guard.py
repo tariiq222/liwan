@@ -10,11 +10,22 @@ The acting identity is ``env.uid``:
 * ``sudo()`` and ``with_user`` keep or change the uid, never the rule: code that runs ``sudo()`` for a
   read-only user is still that user, and a job that runs ``with_user(read_only_user)`` is refused. Code that
   runs as the superuser and only carries a user's id as data is outside the ORM's reach.
-* A record bound to a read-only branch company refuses writes from every non-superuser identity.
+* A record bound to a read-only branch company refuses writes from every non-superuser identity. A record is
+  bound to a company by its own ``company_id`` or, for attachments, messages, followers and activities, by the
+  record it hangs on.
+* Applications register what a read has to write (own bookkeeping rows, defaults seeded on first read) through
+  ``liwan.entitlement.service._liwan_read_only_allowances``; the platform names none of their models.
+* Inbound events from outside (a gateway callback) are recorded whatever the branch's state: the route sets
+  ``INBOUND_EVENT_CONTEXT`` to ``INBOUND_EVENT_TOKEN`` for its own request, which lifts only the branch fence.
 """
 import odoo
 
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
+
+# A route that records an event from outside (money already on its way) sets this context key to the token below for
+# its request. Only the branch fence is lifted: the acting identity of such a route is never a flagged user.
+INBOUND_EVENT_CONTEXT = 'liwan_platform.inbound_event'
+INBOUND_EVENT_TOKEN = object()
 
 # Set (as ``cr.precommit.data`` key) while the settle writes seat and branch flags.
 SETTLE_MARKER = 'liwan_platform.settle_excess'
@@ -31,6 +42,7 @@ PLUMBING_MODELS = frozenset({
     'res.device.log',  # one row per request of a session
     'ir.logging',  # server-side log rows
     'bus.presence',  # online presence
+    'bus.bus',  # `bus._sendone` queues a notification as the acting user; every bell and live update goes through it
     'liwan.login.code',  # the second-step code
     'liwan.login.code.quota',  # its attempt counter
     'liwan.login.device',  # remembered devices (the person can forget their own)
@@ -41,7 +53,7 @@ PLUMBING_MODELS = frozenset({
 NOTIFICATION_READ_FIELDS = frozenset({'is_read', 'read_date'})
 # A read-only user may keep their own credentials, number and display preferences.
 OWN_USER_FIELDS = frozenset({
-    'password', 'liwan_mobile', 'lang', 'tz', 'liwan_appearance_mode', 'login_date',
+    'password', 'liwan_mobile', 'lang', 'tz', 'liwan_appearance_mode', 'liwan_font_size', 'login_date',
 })
 # The language and time zone of a user are stored on their contact too.
 OWN_PARTNER_FIELDS = frozenset({'lang', 'tz'})
@@ -101,11 +113,22 @@ def _allowed_for_read_only_user(records, keys, vals_list=None):
     return False
 
 
-def _bound_companies(records):
-    """The companies the RECORDS belong to; the company itself for ``res.company``.
+# Records that hang on another record: the (model, id) fields to follow to it. The company of the record they hang
+# on binds them, whatever company the row itself carries (an attachment defaults to its uploader's company and a
+# message has none).
+PARENT_REFERENCES = {
+    'ir.attachment': ('res_model', 'res_id'),
+    'mail.message': ('model', 'res_id'),
+    'mail.followers': ('res_model', 'res_id'),
+    'mail.activity': ('res_model', 'res_id'),
+}
 
-    Read elevated: the acting user may hold the write grant on a row without the record-rule read of its
-    company column, and the answer (a company id) reveals nothing the write itself would not.
+
+def _own_companies(records):
+    """The company column of RECORDS (the company itself for ``res.company``), read elevated.
+
+    The acting user may hold the write grant on a row without the record-rule read of its company column, and the
+    answer (a company id) reveals nothing the write itself would not.
     """
     if records._name == 'res.company':
         return records
@@ -115,8 +138,46 @@ def _bound_companies(records):
     return records.sudo().company_id
 
 
-def _refuse(code, message):
-    raise LiwanAccessRule(code, message, status=403)
+def _parent_companies(records):
+    """The companies of the records that RECORDS hang on (see ``PARENT_REFERENCES``)."""
+    pair = PARENT_REFERENCES.get(records._name)
+    if not pair:
+        return records.env['res.company']
+    model_field, id_field = pair
+    ids_by_model = {}
+    for row in records.sudo():
+        model, res_id = row[model_field], row[id_field]
+        if model and res_id and model in records.env and model not in BRANCH_EXEMPT_MODELS:
+            ids_by_model.setdefault(model, set()).add(res_id)
+    companies = records.env['res.company']
+    for model, ids in ids_by_model.items():
+        companies |= _own_companies(records.env[model].browse(ids).exists())
+    return companies
+
+
+def _bound_companies(records):
+    """The companies the RECORDS belong to: their own and, for the records that hang on another, that one's."""
+    return _own_companies(records) | _parent_companies(records)
+
+
+def _registered_allowance(records, vals_list):
+    """True when an application registered this write as a read's own bookkeeping (see the module docstring)."""
+    env = records.env
+    allowances = env['liwan.entitlement.service']._liwan_read_only_allowances()
+    if records._name in allowances['plumbing']:
+        return True
+    if any(env.context.get(key) is token for key, token in allowances['seed'].items()):
+        return True
+    if records._name in allowances['own']:
+        user = env.user
+        if records:
+            return all(owner == user for owner in records.mapped('user_id'))
+        return bool(vals_list) and all(vals.get('user_id') == user.id for vals in vals_list)
+    return False
+
+
+def _refuse(code):
+    raise LiwanAccessRule(code, status=403)
 
 
 def _target_company_ids(vals, vals_list):
@@ -136,17 +197,19 @@ def assert_writable(records, operation, vals=None, vals_list=None):
         return
     model = records._name
     keys = set(vals or ())
-    if _settle_write(env, model, keys):
+    if _settle_write(env, model, keys) or _allowed_for_read_only_user(records, keys, vals_list):
         return
-    own_exempt = _allowed_for_read_only_user(records, keys, vals_list)
     # A create checks the identity before the insert; the second call, with the new rows, only asks about the company.
     identity_checked = operation == 'create' and bool(records)
-    if not identity_checked and not own_exempt and env.user.liwan_read_only:
-        _refuse('user_read_only', 'this account is read-only')
-    if own_exempt or model in PLUMBING_MODELS or model in BRANCH_EXEMPT_MODELS:
+    if not identity_checked and env.user.liwan_read_only:
+        if not _registered_allowance(records, vals_list):
+            _refuse('user_read_only')
         return
-    if records and _bound_companies(records).filtered('liwan_read_only'):
-        _refuse('branch_read_only', 'this branch is read-only')
+    if model in BRANCH_EXEMPT_MODELS or env.context.get(INBOUND_EVENT_CONTEXT) is INBOUND_EVENT_TOKEN:
+        return
     targets = _target_company_ids(vals, vals_list)
-    if targets and env['res.company'].browse(targets).filtered('liwan_read_only'):
-        _refuse('branch_read_only', 'this branch is read-only')
+    in_read_only_branch = bool(records and _bound_companies(records).filtered('liwan_read_only')) or bool(
+        targets and env['res.company'].browse(targets).filtered('liwan_read_only'),
+    )
+    if in_read_only_branch and not _registered_allowance(records, vals_list):
+        _refuse('branch_read_only')

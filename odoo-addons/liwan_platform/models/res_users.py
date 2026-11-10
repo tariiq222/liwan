@@ -4,6 +4,7 @@ from odoo import api, fields, models
 from .read_only_guard import SETTLE_MARKER
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
+GRANT = 'access.users.grant'
 SEAT_KEYS = frozenset({'active', 'share', 'liwan_read_only'})
 # Set while the access service creates an invitee: the seat is claimed when the invitation is accepted.
 INVITEE_CONTEXT = 'liwan_platform.invitee_create'
@@ -72,7 +73,7 @@ class LiwanPlatformResUsers(models.Model):
             leaving = self.filtered(lambda user, company=company: user.company_id == company)
             remaining = self.browse(self.env['liwan.entitlement.service']._liwan_full_seat_ids()) - leaving
             if not any(
-                user.company_id == company and access._liwan_has_capability(user, 'access.users.grant', company=company)
+                user.company_id == company and access._liwan_has_capability(user, GRANT, company=company)
                 for user in remaining
             ):
                 msg = 'last_access_admin'
@@ -87,7 +88,14 @@ class LiwanPlatformResUsers(models.Model):
         if 'liwan_read_only' in vals and vals['liwan_read_only'] and not self.env.cr.precommit.data.get(SETTLE_MARKER):
             self._liwan_seat_holders()._liwan_assert_grant_holder_survives()
         self._liwan_user_quota_delta(records=self, write_vals=vals)
-        return super().write(vals)
+        result = super().write(vals)
+        self._liwan_settle_after_activation_change(vals)
+        return result
+
+    def _liwan_settle_after_activation_change(self, vals):
+        """A disabled account frees its seat and a reactivated one may need none: settle once the flag is written."""
+        if 'active' in vals and not self.env.cr.precommit.data.get(SETTLE_MARKER):
+            self.env['liwan.entitlement.service']._liwan_settle_users()
 
     def _liwan_access_create(self, vals, capability='access.users.grant'):
         self._liwan_user_quota_delta(vals_list=[vals])
@@ -95,7 +103,9 @@ class LiwanPlatformResUsers(models.Model):
 
     def _liwan_access_write(self, vals, capability):
         self._liwan_user_quota_delta(records=self, write_vals=vals)
-        return super()._liwan_access_write(vals, capability=capability)
+        result = super()._liwan_access_write(vals, capability=capability)
+        self._liwan_settle_after_activation_change(vals)
+        return result
 
     def _login(self, credential, user_agent_env):
         auth_info = super()._login(credential, user_agent_env)

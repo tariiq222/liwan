@@ -1,9 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo import Command
 from odoo.exceptions import AccessError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
+from odoo.addons.liwan_platform.models.res_users import GRANT
 
 ASSIGNMENT_ROLE = 'liwan_core.role_employee'
 
@@ -203,3 +205,41 @@ class TestSeatToggle(ExcessCase):
         _base, users = self._four_users_over_a_limit_of_three()
         self.access.with_user(self.admin)._liwan_disable_user(users[0].with_user(self.admin), self._version(users[0]))
         self.assertFalse(users[3].liwan_read_only)
+
+    def test_an_access_write_that_disables_an_account_frees_its_seat(self):
+        """The settle follows the account's `active` flag, not one route (the HR archive goes through `_liwan_access_write`)."""
+        _base, users = self._four_users_over_a_limit_of_three()
+        users[0]._liwan_access_write({'active': False}, 'access.users.disable')
+        self.assertFalse(users[3].liwan_read_only)
+
+    def test_a_plain_orm_write_that_disables_an_account_frees_its_seat(self):
+        _base, users = self._four_users_over_a_limit_of_three()
+        users[0].write({'active': False})
+        self.assertFalse(users[3].liwan_read_only)
+
+    def test_a_limit_of_zero_keeps_one_full_access_administrator(self):
+        self._four_users_over_a_limit_of_three()
+        self._set_limit('users.limit', 0)
+        full = self.env['res.users'].browse(self.service._liwan_full_seat_ids())
+        self.assertEqual(len(full), 1)
+        self.assertTrue(self.access._liwan_has_capability(full, GRANT, company=full.company_id))
+        self.assertFalse(self.service._liwan_settle_excess(), 'the settle is idempotent')
+        self._set_limit('users.limit', None)
+        self.assertEqual(len(self.service._liwan_seat_users().filtered('liwan_read_only')), 0)
+
+    def test_a_read_only_administrator_is_not_a_surviving_access_administrator(self):
+        company = self.env['res.company'].create({'name': 'Survival Co'})
+        role = self.env.ref('liwan_core.role_system_admin')
+        full_admin, read_only_admin = (
+            new_test_user(
+                self.env, login=f'survival_{index}', groups='base.group_user',
+                company_id=company.id, company_ids=[Command.set(company.ids)],
+            ) for index in range(2)
+        )
+        for user in (full_admin, read_only_admin):
+            self.env['liwan.access.assignment'].create({'user_id': user.id, 'role_id': role.id, 'company_id': company.id})
+        self.service._liwan_apply_flags(read_only_admin, {'liwan_read_only': True})
+        with self.assertRaises(LiwanAccessRule) as caught:
+            self.access._liwan_assert_admin_survives(company, excluding_user=full_admin)
+        self.assertEqual(caught.exception.code, 'last_access_admin')
+        self.access._liwan_assert_admin_survives(company, excluding_user=read_only_admin)

@@ -5,6 +5,7 @@ from odoo.exceptions import MissingError, ValidationError
 from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.common import ApiError, get_record
+from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 READ_CAPABILITY = 'appointments.bookings.read'
 WRITE_CAPABILITY = 'appointments.bookings.write'
@@ -99,5 +100,8 @@ def slot_conflicts():
     ``ConcurrencyError`` propagates so Odoo's request retry replays the request."""
     try:
         yield
+    except LiwanAccessRule:
+        # A read-only branch is not a slot conflict: api_handler answers its own 403.
+        raise
     except ValidationError as error:
         raise ApiError(409, 'conflict', 'the slot is not available') from error

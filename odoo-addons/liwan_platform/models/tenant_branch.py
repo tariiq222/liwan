@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import fields, models
 
+from .read_only_guard import SETTLE_MARKER
+
 
 class LiwanTenantBranch(models.Model):
     _name = 'liwan.tenant.branch'
@@ -36,3 +38,10 @@ class LiwanTenantBranch(models.Model):
     _restore_priority_positive = models.Constraint(
         'CHECK(restore_priority >= 0)', 'liwan branch restore priority cannot be negative',
     )
+
+    def write(self, vals):
+        result = super().write(vals)
+        if 'state' in vals and not self.env.cr.precommit.data.get(SETTLE_MARKER):
+            # An archived branch frees its seat: the next read-only branch reopens.
+            self.env['liwan.entitlement.service']._liwan_settle_branches()
+        return result
