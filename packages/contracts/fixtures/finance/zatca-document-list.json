@@ -14,8 +14,11 @@
       },
       "submission": {
         "errors": [],
+        "last_attempt_at": null,
         "mode": "clearance",
+        "next_retry_at": null,
         "qr_present": false,
+        "retry_count": 0,
         "state": "pending",
         "warnings": []
       }
@@ -39,8 +42,11 @@
             "message": "ZATCA could not be reached or answered unexpectedly; retry later"
           }
         ],
+        "last_attempt_at": "2026-01-01T00:00:00Z",
         "mode": "clearance",
+        "next_retry_at": "2026-01-01T00:00:00Z",
         "qr_present": false,
+        "retry_count": 1,
         "state": "retry",
         "warnings": []
       }
@@ -64,8 +70,11 @@
             "message": "The invoice type code is not valid"
           }
         ],
+        "last_attempt_at": null,
         "mode": "clearance",
+        "next_retry_at": null,
         "qr_present": false,
+        "retry_count": 0,
         "state": "rejected",
         "warnings": []
       }
@@ -89,8 +98,11 @@
             "message": "signing failed"
           }
         ],
+        "last_attempt_at": null,
         "mode": "clearance",
+        "next_retry_at": null,
         "qr_present": false,
+        "retry_count": 0,
         "state": "blocked",
         "warnings": []
       }

@@ -152,13 +152,22 @@ export function useCreateFinanceCreditNote() {
     $api(`/api/v1/finance/invoices/${id}/credit-note`, { method: 'POST', body, headers: { 'Idempotency-Key': key }, schema: FinanceInvoiceDetailSchema }), input => input.id)
 }
 
-/** The submission answer is a committed state even when ZATCA says no: the caller reads the record again either way. */
+/**
+ * The submission answer is a committed state even when ZATCA says no: the caller reads the record again either way. A retry
+ * carries a key naming the invoice and the retries already made, so a press repeated after a lost answer replays the first
+ * answer while the next real retry (a higher count) is a new request.
+ */
 export function useFinanceZatcaSubmit() {
   const { $api } = useApi()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, retry }: { id: number; retry: boolean }) =>
-      $api(`/api/v1/finance/invoices/${id}/zatca/${retry ? 'retry' : 'submit'}`, { method: 'POST', body: {}, schema: FinanceZatcaSubmissionSchema }),
+    mutationFn: ({ id, retry, retryCount }: { id: number; retry: boolean; retryCount: number }) =>
+      $api(`/api/v1/finance/invoices/${id}/zatca/${retry ? 'retry' : 'submit'}`, {
+        method: 'POST',
+        body: {},
+        ...(retry ? { headers: { 'Idempotency-Key': `zatca-retry-${id}-${retryCount}` } } : {}),
+        schema: FinanceZatcaSubmissionSchema,
+      }),
     onSettled: () => qc.invalidateQueries({ queryKey: financeInvoiceKeys.all }),
   })
 }
