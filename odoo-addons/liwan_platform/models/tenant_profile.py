@@ -377,7 +377,12 @@ class LiwanTenantProfile(models.Model):
             raise ValidationError(self.env._('liwan_platform: revisions cannot be negative'))
         if 'quota_revision' in next_vals and next_vals['quota_revision'] < 0:
             raise ValidationError(self.env._('liwan_platform: revisions cannot be negative'))
+        storage_policy_changed = 'features' in next_vals or bool(TRIAL_POLICY_FIELDS.intersection(next_vals))
+        if storage_policy_changed:
+            service._liwan_invalidate_storage_plan()
         result = super().write(next_vals)
+        if storage_policy_changed:
+            service._liwan_invalidate_storage_plan()
         if 'features' in next_vals:
             service._liwan_settle_excess()
         return result
