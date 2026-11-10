@@ -52,6 +52,30 @@ describe('capability mapping', () => {
 })
 
 describe('customer commercial BFF', () => {
+  it.each([
+    { method: 'GET', path: 'trial/end-preview', needs: 'subscription.read' },
+    { method: 'POST', path: 'trial/retry', needs: 'subscription.manage' },
+  ])('forwards $method $path with its server-owned capability', async ({ method, path, needs }) => {
+    expect(customerRoute(method, path)).toEqual({ upstream: `/v1/customer/${path}`, needs })
+    const raw = setup({ method, url: `https://acme.example/api/commercial/v1/${path}`, body: method === 'POST' ? '{}' : undefined })
+    expect(await forwardCustomerRequest({} as never)).toEqual({ ok: true })
+    expect(raw.mock.calls[0]?.[0]).toBe(`https://control.example/v1/customer/${path}`)
+  })
+  it('keeps trial preview readable but refuses a read-only trial retry before forwarding', async () => {
+    const raw = setup({ method: 'POST', url: 'https://acme.example/api/commercial/v1/trial/retry', body: '{}' })
+    vi.mocked($fetch).mockResolvedValueOnce({ ...me(['settings.branding.manage']), read_only: true })
+    await expect(forwardCustomerRequest({} as never)).rejects.toMatchObject({ statusCode: 403, data: { code: 'user_read_only' } })
+    expect(raw).not.toHaveBeenCalled()
+    const reads = setup({ url: 'https://acme.example/api/commercial/v1/trial/end-preview' })
+    vi.mocked($fetch).mockResolvedValueOnce({ ...me(['access.users.read']), read_only: true })
+    expect(await forwardCustomerRequest({} as never)).toEqual({ ok: true })
+    expect(reads).toHaveBeenCalledOnce()
+  })
+  it('requires subscription management for trial retry', async () => {
+    const raw = setup({ method: 'POST', url: 'https://acme.example/api/commercial/v1/trial/retry', body: '{}', caps: ['access.users.read'] })
+    await expect(forwardCustomerRequest({} as never)).rejects.toMatchObject({ statusCode: 403 })
+    expect(raw).not.toHaveBeenCalled()
+  })
   it.each([undefined, 500, 503])('reports a principal transport failure (%s) as temporary unavailable', async statusCode => {
     setup()
     vi.mocked($fetch).mockRejectedValueOnce(Object.assign(new Error('upstream unavailable'), { statusCode }))

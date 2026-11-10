@@ -62,6 +62,8 @@ const ROUTES: Route[] = [
   { method: 'POST', pattern: /^quotes$/ },
   { method: 'POST', pattern: /^trial$/ },
   { method: 'POST', pattern: /^trial\/convert$/ },
+  { method: 'GET', pattern: /^trial\/end-preview$/ },
+  { method: 'POST', pattern: /^trial\/retry$/ },
   { method: 'POST', pattern: /^preview$/ },
   { method: 'POST', pattern: /^orders$/ },
   { method: 'GET', pattern: /^orders\/[A-Za-z0-9_-]{1,128}$/ },
@@ -78,7 +80,7 @@ const ROUTES: Route[] = [
 ]
 /** Capability each route needs (authoritative check also repeats in the control plane). */
 const NEEDS: Array<[RegExp, string, CustomerCommercialCapability]> = [
-  [/^quotes$|^orders|^auto-renew$|^trial(\/convert)?$/, 'POST', 'subscription.manage'],
+  [/^quotes$|^orders|^auto-renew$|^trial(\/(convert|retry))?$/, 'POST', 'subscription.manage'],
   [/^preview$/, 'POST', 'subscription.read'],
   [/^branch-quotes$/, 'POST', 'branches.manage'],
   [/^invoices/, 'GET', 'billing.read'],

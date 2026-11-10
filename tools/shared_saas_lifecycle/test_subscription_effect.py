@@ -973,11 +973,12 @@ class TrialEndEffectTests(Base):
         self.assertTrue(se.verify(request, seen))
 
     def test_storage_bytes_are_exact_and_safely_typed(self):
-        seen = observation(storage_bytes=1048577)
-        self.assertEqual(se.validate_observation(seen)['storage_bytes'], 1048577)
-        for invalid in (True, -1, 1.5, 9007199254740992):
-            with self.subTest(invalid=invalid), self.assertRaisesRegex(EffectError, 'observation_invalid'):
-                se.validate_observation(observation(storage_bytes=invalid))
+        for field in ('storage_bytes', 'blocked_storage_bytes'):
+            seen = observation(**{field: 1048577})
+            self.assertEqual(se.validate_observation(seen)[field], 1048577)
+            for invalid in (True, -1, 1.5, 9007199254740992):
+                with self.subTest(field=field, invalid=invalid), self.assertRaisesRegex(EffectError, 'observation_invalid'):
+                    se.validate_observation(observation(**{field: invalid}))
 
     def test_settlement_preserves_the_proven_last_admin_floor_only(self):
         request = make_request(excess_settle=True)
@@ -987,6 +988,47 @@ class TrialEndEffectTests(Base):
         self.assertTrue(se.verify(request, seen))
         seen['usage']['users.limit'] = 2
         self.assertFalse(se.verify(request, seen))
+
+    def recovery_request(self):
+        return make_request(excess_settle=True, trial_ends_at=None, recoverable_predecessors=[
+            {'revision_id': OTHER, 'digest': 'e' * 64},
+            {'revision_id': B1, 'digest': 'f' * 64},
+        ])
+
+    def test_recovery_accepts_any_exact_authorized_unacknowledged_ancestor(self):
+        request = self.recovery_request()
+        after = applied_state(request, post_trial_supported=True, excess_supported=True,
+                              excess={'users.limit': 0, 'branches.extra_limit': 0})
+        before = observation(commercial_revision_id=OTHER, commercial_digest='e' * 64,
+                             post_trial_supported=True, excess_supported=True)
+        runner = FakeRunner(before, apply_state=after)
+        self.assertEqual(self.effect(runner).reconfigure(request)['target_revision_id'], TARGET)
+        self.assertEqual(runner.applies, 1)
+        self.assertEqual(_script_values(next(script for stage, _, script in runner.scripts if stage == 'apply'))['recoverable_predecessors'], request['recoverable_predecessors'])
+
+    def test_recovery_never_accepts_an_unrelated_revision_or_wrong_digest(self):
+        for revision, digest in ((B2, 'e' * 64), (OTHER, 'f' * 64)):
+            runner = FakeRunner(observation(commercial_revision_id=revision, commercial_digest=digest,
+                                           post_trial_supported=True, excess_supported=True))
+            with self.subTest(revision=revision, digest=digest), self.assertRaisesRegex(EffectError, 'stale_target'):
+                self.effect(runner).reconfigure(self.recovery_request())
+            self.assertEqual(runner.applies, 0)
+
+    def test_locked_apply_rechecks_authorized_predecessor_pair(self):
+        result, profile, _events = self.execute_apply(self.recovery_request(), current=OTHER, digest='e' * 64)
+        self.assertEqual(result, {'applied': True})
+        self.assertEqual(profile.commercial_revision_id, TARGET)
+        result, _profile, events = self.execute_apply(self.recovery_request(), current=OTHER, digest='f' * 64)
+        self.assertEqual(result, {'error_code': 'stale_target'})
+        self.assertNotIn('commit', events)
+
+    def test_recovery_lineage_is_only_accepted_for_system_settlement(self):
+        for over in ({'excess_settle': False}, {'trial_ends_at': '2026-12-01T00:00:00Z'},
+                     {'ai_push': True}, {'restore': {}}, {'post_trial_features': {}},
+                     {'recoverable_predecessors': [{'revision_id': OTHER, 'digest': 'bad'}]},
+                     {'recoverable_predecessors': [{'revision_id': TARGET, 'digest': DIGEST}]}):
+            with self.subTest(over=over), self.assertRaises(EffectError):
+                se.validate_reconfigure({**self.recovery_request(), **over})
 
 
 class OptionalTrialEndKeysTest(unittest.TestCase):

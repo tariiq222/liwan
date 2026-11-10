@@ -34,7 +34,7 @@ SCRIPT_ERRORS = frozenset({
 BRANCH_LIMIT = 'branches.extra_limit'
 TRIAL_POLICY_KEYS = ('trial_ends_at', 'post_trial_features', 'post_trial_modules', 'post_trial_digest')
 EXCESS_LIMITS = frozenset({'users.limit', 'storage.limit_mb', BRANCH_LIMIT})
-OPTIONAL_OBSERVATION_KEYS = frozenset({'post_trial_supported', 'excess_supported', 'excess_settled', 'excess', 'storage_bytes', *TRIAL_POLICY_KEYS})
+OPTIONAL_OBSERVATION_KEYS = frozenset({'post_trial_supported', 'excess_supported', 'excess_settled', 'excess', 'storage_bytes', 'blocked_storage_bytes', *TRIAL_POLICY_KEYS})
 BRANCH_ITEM_KEYS = frozenset({'branch_id', 'state', 'odoo_company_id', 'active', 'parent_is_root'})
 
 
@@ -110,6 +110,21 @@ def validate_reconfigure(request):
         raise EffectError('entitlement_invalid')
     odoo_effect.validate_modules(ent['modules'])
     validate_features(ent['features'])
+    if 'recoverable_predecessors' in request:
+        lineage = request['recoverable_predecessors']
+        if (request.get('excess_settle') is not True or 'trial_ends_at' not in request or request['trial_ends_at'] is not None
+                or 'ai_push' in request or 'restore' in request or any(key in request for key in TRIAL_POLICY_KEYS[1:])
+                or not isinstance(lineage, list)):
+            raise EffectError('input_invalid')
+        identifiers = set()
+        for item in lineage:
+            if (not isinstance(item, dict) or set(item) != {'revision_id', 'digest'}
+                    or not isinstance(item['digest'], str) or not DIGEST_RE.fullmatch(item['digest'])):
+                raise EffectError('input_invalid')
+            revision_id = _uuid(item['revision_id'], 'input_invalid')
+            if revision_id in identifiers or revision_id == request['target_revision_id']:
+                raise EffectError('input_invalid')
+            identifiers.add(revision_id)
     ai_post_digest = request.get('ai_expected_post_trial_digest')
     if 'ai_expected_post_trial_digest' in request and (
             request.get('ai_push') is not True or not isinstance(ai_post_digest, str)
@@ -241,6 +256,8 @@ def collect(profile):
     result['excess_settled'] = result['excess_supported'] and service._liwan_excess_is_settled()
     if hasattr(service, '_liwan_count_storage_bytes'):
         result['storage_bytes'] = int(service._liwan_count_storage_bytes())
+    if hasattr(service, '_liwan_blocked_storage_bytes'):
+        result['blocked_storage_bytes'] = int(service._liwan_blocked_storage_bytes())
     if result['post_trial_supported']:
         from odoo import fields
         result.update({key: getattr(profile, key) for key in trial_keys})
@@ -291,7 +308,9 @@ try:
         ai_digests.add(values['ai_expected_post_trial_digest'])
     if values.get('ai_push') and (current != values['target_revision_id'] or (profile.commercial_digest or None) not in ai_digests):
         refuse('stale_target')
-    if current not in (None, values['previous_revision_id'], values['target_revision_id']):
+    recoverable = any(item['revision_id'] == current and item['digest'] == profile.commercial_digest
+                      for item in values.get('recoverable_predecessors', ()))
+    if current not in (None, values['previous_revision_id'], values['target_revision_id']) and not recoverable:
         refuse('stale_target')
     accepted_digests = {values['digest']}
     if values.get('ai_push'):
@@ -399,6 +418,8 @@ def build_apply_script(request):
     if 'commercial_valid_until_revision' in request:
         values['commercial_valid_until_revision'] = request['commercial_valid_until_revision']
     values.update({key: request[key] for key in (*TRIAL_POLICY_KEYS, 'excess_settle') if key in request})
+    if 'recoverable_predecessors' in request:
+        values['recoverable_predecessors'] = request['recoverable_predecessors']
     if request.get('ai_push') is True:
         values['ai_push'] = True
         if 'ai_expected_post_trial_digest' in request:
@@ -430,8 +451,9 @@ def validate_observation(value):
     for flag in ('post_trial_supported', 'excess_supported', 'excess_settled'):
         if flag in value and type(value[flag]) is not bool:
             raise EffectError('observation_invalid')
-    if 'storage_bytes' in value and (type(value['storage_bytes']) is not int or not 0 <= value['storage_bytes'] <= 9007199254740991):
-        raise EffectError('observation_invalid')
+    for key in ('storage_bytes', 'blocked_storage_bytes'):
+        if key in value and (type(value[key]) is not int or not 0 <= value[key] <= 9007199254740991):
+            raise EffectError('observation_invalid')
     trial_policy = {key: value[key] for key in TRIAL_POLICY_KEYS if key in value}
     if trial_policy:
         if trial_policy.get('post_trial_digest') is None:
@@ -678,7 +700,7 @@ class SubscriptionEffect:
     def receipt(self, request, observed, installed, not_granted=None):
         by_id = {b['branch_id']: b for b in observed['branches']}
         extra = {'roles_not_granted': True, 'roles_not_granted_reason': not_granted} if not_granted else {}
-        extra.update({key: observed[key] for key in ('post_trial_supported', 'excess_supported', 'excess', 'storage_bytes') if key in observed})
+        extra.update({key: observed[key] for key in ('post_trial_supported', 'excess_supported', 'excess', 'storage_bytes', 'blocked_storage_bytes') if key in observed})
         if observed.get('excess_supported') is True:
             extra['branch_read_only'] = [{'branch_id': branch['branch_id'], 'read_only': branch['read_only']}
                                        for branch in observed['branches'] if 'read_only' in branch]
@@ -724,7 +746,9 @@ class SubscriptionEffect:
             ai_digests.add(request['ai_expected_post_trial_digest'])
         if request.get('ai_push') and (current != target or observed['commercial_digest'] not in ai_digests):
             raise EffectError('stale_target')
-        if current not in (None, request['previous_revision_id'], target):
+        recoverable = any(item['revision_id'] == current and item['digest'] == observed['commercial_digest']
+                          for item in request.get('recoverable_predecessors', ()))
+        if current not in (None, request['previous_revision_id'], target) and not recoverable:
             raise EffectError('stale_target')
         effective, expired = _effective_entitlement(request, self.clock())
         accepted_digests = {request['entitlement']['digest'], effective['digest']}

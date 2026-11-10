@@ -320,7 +320,7 @@ export const SeatUsageSchema = z.object({
   used: z.number().int().nonnegative(),
   /** `null` when the subscription has no user limit. */
   limit: z.number().int().nonnegative().nullable(),
-  /** Accounts above the limit that are read-only; `used` counts full seats only. */
+  /** Read-only accounts above the limit; `used` counts full seats plus seats reserved by pending invitations. */
   read_only: z.number().int().nonnegative(),
 }).strict()
 export type SeatUsage = z.infer<typeof SeatUsageSchema>
