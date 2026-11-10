@@ -475,7 +475,9 @@ class ReconfigureTests(Base):
         # registry that the real service reads (the Odoo test of liwan_ai drives the service itself).
         registry = (Path(__file__).resolve().parents[2] / 'odoo-addons/liwan_ai/models/feature_registry.py').read_text()
         for key in keys:
-            self.assertIn(f"{{'key': '{key}', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai'}}", registry)
+            # The entry may carry further flags after these pairs (`saas_only` marks a key the control plane delivers and a
+            # local policy may omit); what must hold is that the key is registered as this addon's limit.
+            self.assertIn(f"'key': '{key}', 'type': 'limit', 'owner': 'liwan_ai', 'module': 'liwan_ai'", registry)
 
     def test_apply_script_grants_newly_opened_roles_to_the_enrolment_admin_only(self):
         script = se.build_apply_script(make_request(admin_login='boss@acme.test'))
