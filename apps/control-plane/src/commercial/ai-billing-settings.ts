@@ -4,7 +4,7 @@ import { AI_TOPUP_CURRENCY, AI_TOPUP_EXPONENT, CommercialError, aiBillingSetting
   type AiBillingSettings, type AiBillingSettingsInput, type AiTopupCatalog } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
-import { aiBillingSettings, pushAiEntitlement } from './ai-ledger.js'
+import { aiBillingSettings, convergeAi } from './ai-ledger.js'
 
 const COLUMNS = 'topup_amounts_minor,topup_minimum_minor,usd_rate,trial_allowance_minor,monthly_allowance_minor' as const
 const view = (row: Record<string, any>): AiBillingSettings => ({ topup_amounts_minor: (row.topup_amounts_minor as unknown[]).map(Number), topup_minimum_minor: Number(row.topup_minimum_minor),
@@ -37,7 +37,7 @@ export async function setAiBillingSettings(pool: Pool, input: AiBillingSettingsI
     let pushed = 0
     if (allowanceUnits(view(before)).join() !== allowanceUnits(view(updated)).join()) {
       const customers = (await client.query('SELECT customer_id FROM subscriptions WHERE applied_revision_id IS NOT NULL ORDER BY id')).rows
-      for (const { customer_id } of customers) if (await pushAiEntitlement(client, customer_id)) pushed++
+      for (const { customer_id } of customers) if (await convergeAi(client, customer_id)) pushed++
     }
     return { ...view(updated), pushed_tenants: pushed }
   })

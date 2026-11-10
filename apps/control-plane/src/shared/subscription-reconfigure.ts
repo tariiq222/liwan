@@ -4,7 +4,7 @@ import { AI_ENTITLEMENT_KEYS } from '@liwan/commercial-contracts'
 import { sharedReconfigureJobSchema, type SharedReconfigureJob } from '@liwan/commercial-contracts/shared'
 import { transaction } from '../db.js'
 import { applyReceipt, failFulfillmentOn, type SubscriptionReceipt } from '../commercial/fulfillment.js'
-import { deliveredEntitlement, pushAiIfStale } from '../commercial/ai-ledger.js'
+import { deliveredEntitlement, lastDeliveredAi, pushAiIfStale } from '../commercial/ai-ledger.js'
 import type { ObserveRunner } from './subscription-reconcile.js'
 
 export type SubscriptionRunner = (input: {job:SharedReconfigureJob;action:'observe'|'reconfigure';attemptId:string;fence:number;assertOwned:()=>Promise<void>}) => Promise<unknown>
@@ -24,6 +24,9 @@ async function assertCurrentBinding(client:PoolClient,job:SharedReconfigureJob) 
   if(!b || b.database_name!==job.binding.database || b.tenant_id!==job.binding.tenantId || Number(b.registry_revision)!==job.binding.registryRevision || b.host!==job.host)throw Error('tenant_binding_mismatch')
 }
 const featuresWithoutAi=(features:Record<string,unknown>)=>JSON.stringify(Object.entries(features).filter(([k])=>!AI_ENTITLEMENT_KEYS.includes(k)).sort(([a],[b])=>a<b?-1:a>b?1:0))
+/** The modules and every non-AI feature of the delivered entitlement equal the revision's snapshot: only the AI keys may differ. */
+const sameExceptAi=(snapshot:{modules:unknown;features:Record<string,unknown>},delivered:{modules:unknown;features:Record<string,unknown>})=>
+  JSON.stringify(snapshot.modules)===JSON.stringify(delivered.modules) && featuresWithoutAi(snapshot.features)===featuresWithoutAi(delivered.features)
 /**
  * An AI push changes nothing but the derived AI keys of the revision the subscription has already applied, so that
  * revision authorizes it, not the payment state of the order that created it (a refunded top-up must still lower the
@@ -39,7 +42,7 @@ async function assertAiPushAuthority(client:PoolClient,job:SharedReconfigureJob)
   if(row.applied_revision_id!==authority.target_revision_id || authority.previous_revision_id!==authority.target_revision_id)throw Error('stale_target')
   const snapshot=row.snapshot.entitlement
   if(snapshot?.digest!==authority.entitlement.digest)throw Error('observed_mismatch')
-  if(JSON.stringify(snapshot.modules)!==JSON.stringify(authority.entitlement.modules) || featuresWithoutAi(snapshot.features)!==featuresWithoutAi(authority.entitlement.features))throw Error('ai_push_invalid')
+  if(!sameExceptAi(snapshot,authority.entitlement))throw Error('ai_push_invalid')
   if(authority.branches.apply.length || authority.branches.archive.length || authority.branches.restore?.length || Object.hasOwn(authority,'commercial_valid_until') || Object.hasOwn(authority,'commercial_valid_until_revision'))throw Error('ai_push_invalid')
   await assertCurrentBinding(client,job)
 }
@@ -59,7 +62,11 @@ export async function assertReconfigureAuthority(client:PoolClient,job:SharedRec
     FROM subscriptions s JOIN orders o ON o.subscription_id=s.id JOIN subscription_revisions r ON r.id=$3
     WHERE s.tenant_id=$1 AND o.id=$2 AND r.subscription_id=s.id FOR SHARE OF s,o`,[job.controlTenantId,job.authority.order_id,job.authority.target_revision_id])
   const row=result.rows[0]
-  if(!row || !['paid','not_required'].includes(row.payment_state) || row.cancelled)throw Error('order_not_released')
+  // A restore repair whose only difference from the applied state is the AI keys is authorised by the applied revision
+  // itself (the order that applied it may have been refunded since); every other restore keeps the order rule.
+  const aiOnlyRestore=Boolean(job.restore && row && row.applied_revision_id===job.authority.target_revision_id
+    && row.snapshot.entitlement?.digest===job.authority.entitlement.digest && sameExceptAi(row.snapshot.entitlement,job.authority.entitlement))
+  if(!row || (!aiOnlyRestore && (!['paid','not_required'].includes(row.payment_state) || row.cancelled)))throw Error('order_not_released')
   // A paid trial renewal legitimately reuses the applied revision while the order is still
   // queued, so accepting only `target_revision_id` would mark it stale before the effect runs.
   const renewalOfApplied = row.target_revision_id === null && row.applied_revision_id === job.authority.target_revision_id
@@ -104,9 +111,7 @@ export async function runSubscriptionReconfigure(pool:Pool,id:string,runner?:Sub
       if(current.applied_revision_id!==job.authority.target_revision_id){
         const receipt:SupersededReceipt={superseded:true,applied_revision_id:current.applied_revision_id}
         await client.query("UPDATE shared_jobs SET state='verified',receipt=$2,lease_until=NULL,journal=$3 WHERE id=$1",[id,receipt,{stage:'verified',operation_id:job.authority.operation_id,superseded:true}])
-        const last=await client.query(`SELECT journal->'ai_delivered' AS delivered FROM shared_jobs WHERE control_tenant_id=$1 AND state='verified'
-          AND payload->'authority'->>'target_revision_id'=$2 AND journal ? 'ai_delivered' ORDER BY created_at DESC,id DESC LIMIT 1`,[job.controlTenantId,current.applied_revision_id])
-        await pushAiIfStale(client,current.customer_id,last.rows[0]?.delivered??{})
+        await pushAiIfStale(client,current.customer_id,await lastDeliveredAi(client,job.controlTenantId,current.applied_revision_id))
         return {superseded:receipt}
       }
     }

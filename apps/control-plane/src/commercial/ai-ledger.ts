@@ -73,6 +73,25 @@ export async function aiValuesCurrent(client: Q, customerId: string, held: Recor
   return Object.entries(live).every(([key, value]) => held[key] === value)
 }
 
+/** The AI values the tenant last received for its applied revision: the journal of the newest verified (non-restore) delivery. */
+export async function lastDeliveredAi(client: Q, tenantId: string, revisionId: string): Promise<Record<string, unknown>> {
+  const last = await client.query(`SELECT journal->'ai_delivered' AS delivered FROM shared_jobs WHERE control_tenant_id=$1 AND state='verified'
+    AND payload->'authority'->>'target_revision_id'=$2 AND COALESCE(payload->>'restore','false')='false' AND journal ? 'ai_delivered'
+    ORDER BY created_at DESC,id DESC LIMIT 1`, [tenantId, revisionId])
+  return last.rows[0]?.delivered ?? {}
+}
+
+/**
+ * Called after any change to the customer's ledger total. Whatever state the purchase behind the change is in, the tenant
+ * may already hold its units (through any delivery against the applied revision), so the values it last received are
+ * compared with the live ones and a push follows when they differ. A customer with no applied tenant target is left alone.
+ */
+export async function convergeAi(client: PoolClient, customerId: string): Promise<boolean> {
+  const sub = (await client.query('SELECT tenant_id,applied_revision_id FROM subscriptions WHERE customer_id=$1', [customerId])).rows[0]
+  if (!sub?.tenant_id || !sub.applied_revision_id) return false
+  return pushAiIfStale(client, customerId, await lastDeliveredAi(client, sub.tenant_id, sub.applied_revision_id))
+}
+
 /** The one reconciliation rule: when the delivered AI values differ from the live ones, push the live ones. Equal values queue nothing, so it cannot loop. */
 export async function pushAiIfStale(client: PoolClient, customerId: string, delivered: Record<string, unknown>): Promise<boolean> {
   return !await aiValuesCurrent(client, customerId, delivered) && await pushAiEntitlement(client, customerId)
@@ -100,13 +119,13 @@ export async function recordPaidTopup(client: PoolClient, order: { id: string; c
 
 /**
  * Lowers the ledger for a top-up that is refunded however the refund happens (vendor action, generic invoice refund,
- * provider refund, failed fulfilment). Idempotent. When the tenant already received the top-up its new total is pushed
- * at once; a top-up that never reached the tenant needs no push.
+ * provider refund, failed fulfilment). Idempotent. The tenant may hold the units whatever state the purchase's own
+ * fulfilment is in, so convergence runs regardless of it.
  */
 export async function markTopupRefunded(client: PoolClient, orderId: string, by: string, reason: string): Promise<boolean> {
   const row = (await client.query(`UPDATE ai_topups t SET refunded_at=now(),refunded_by=$2,refund_reason=$3 FROM orders o
-    WHERE t.order_id=$1 AND o.id=t.order_id AND t.refunded_at IS NULL RETURNING t.customer_id,o.fulfillment_state`, [orderId, by, reason])).rows[0]
+    WHERE t.order_id=$1 AND o.id=t.order_id AND t.refunded_at IS NULL RETURNING t.customer_id`, [orderId, by, reason])).rows[0]
   if (!row) return false
-  if (row.fulfillment_state === 'applied') await pushAiEntitlement(client, row.customer_id)
+  await convergeAi(client, row.customer_id)
   return true
 }

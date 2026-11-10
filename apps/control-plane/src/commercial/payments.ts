@@ -7,7 +7,7 @@ import { CommercialHttpError, iso } from './lifecycle.js'
 import { assertReturnUrl, refundedAmount, toBytes, type AdapterHeaders, type PaymentAdapter, type ProviderEvent } from './payment-adapter.js'
 import { confirmEvent } from './moyasar-adapter.js'
 import { enqueueOutbox } from './outbox.js'
-import { markTopupRefunded, pushAiEntitlement, recordPaidTopup } from './ai-ledger.js'
+import { markTopupRefunded, recordPaidTopup } from './ai-ledger.js'
 import { recordFulfillmentFailure } from './settlements.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { onRenewalPaid } from './renewals.js'
@@ -106,7 +106,6 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
         const started = nextOrderState({ ...order, ...next } as OrderStateInput, { type: 'fulfillment_started' })
         await client.query('UPDATE orders SET fulfillment_state=$2 WHERE id=$1', [order.id, nextOrderState(started, { type: 'fulfillment_failed' }).fulfillment_state])
         await recordFulfillmentFailure(client, { order_id: order.id, reason: 'ai_balance_limit_exceeded', actor: 'commercial-fulfillment' })
-        await pushAiEntitlement(client, order.customer_id)
       } else {
         await enqueueOutbox(client, { kind: 'fulfillment.enqueue', aggregate_id: order.id, dedupe_key: order.target_revision_id,
           payload: { order_id: order.id, subscription_id: order.subscription_id, target_revision_id: order.target_revision_id } })
@@ -115,8 +114,7 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
     }
   } else if (event.status === 'refunded') {
     // A refund or chargeback of a top-up order takes the balance back, whole: a provider refund is not reported per purchase.
-    // Refunding a paid order that was holding back a balance push (a pending change) frees the push it owed.
-    if (!await markTopupRefunded(client, order.id, 'system', 'payment refunded at the provider')) await pushAiEntitlement(client, order.customer_id)
+    await markTopupRefunded(client, order.id, 'system', 'payment refunded at the provider')
     await flagRefundAfterFulfillment(client, order, attempt, event)
   } else if (event.status === 'failed') {
     await client.query("UPDATE payment_attempts SET status='failed',updated_at=now() WHERE id=$1", [attempt.id])
