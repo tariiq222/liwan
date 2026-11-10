@@ -46,7 +46,7 @@ async function noticesOf(pool: Pool, row: Record<string, any>, input: { now: Dat
     // A failed send, or one interrupted after the row was queued but before delivery, is retried on the next run;
     // only a completed row is left alone.
     if (!inserted && (!existing || !['failed', 'pending'].includes(existing.status))) continue
-    if (!inserted && existing.status === 'failed') await pool.query("UPDATE commercial_outbox SET status='pending',processed_at=NULL,payload=payload-'error',next_attempt_at=now() WHERE id=$1", [existing.id])
+    if (!inserted && existing.status === 'failed') await pool.query("UPDATE commercial_outbox SET status='pending',processed_at=NULL,payload=payload-'error',next_attempt_at=now() WHERE id=$1 AND status='failed'", [existing.id])
     if (input.signal?.aborted) return sent
     const leaseUntil = await leaseOutboxRow(pool, existing.id)
     if (!leaseUntil) continue

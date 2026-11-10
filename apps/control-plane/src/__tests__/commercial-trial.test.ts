@@ -314,6 +314,28 @@ suite('commercial trial', () => {
     expect(await sendTrialNotices(pool, { now, mail })).toBe(0)
     expect((await pool.query("SELECT status FROM commercial_outbox WHERE kind='trial.notice' AND status='failed'")).rowCount).toBe(0)
   })
+
+  it('never reopens a notice completed after another worker read the failed row', async () => {
+    const c = await trialAt(now, 3)
+    await onlyTrial(c.id)
+    await sendTrialNotices(pool, { now, mail: { send: async () => { throw new Error('smtp_down') } } })
+    let completed = false
+    const competingPool = {
+      async query(sql: string, params?: unknown[]) {
+        const result = await pool.query(sql, params)
+        if (!completed && sql.startsWith('SELECT id,status FROM commercial_outbox') && result.rows[0]?.status === 'failed') {
+          completed = true
+          await pool.query("UPDATE commercial_outbox SET status='done',processed_at=now() WHERE id=$1", [result.rows[0].id])
+        }
+        return result
+      },
+    } as unknown as Pool
+    const sent: unknown[] = []
+    const mail = { send: async (message: unknown) => { sent.push(message); return { accepted: true, provider_message_id: 'duplicate' } } }
+    expect(await sendTrialNotices(competingPool, { now, mail })).toBe(0)
+    expect(completed).toBe(true)
+    expect(sent).toHaveLength(0)
+  })
   it('sends the trial end plus grace to Odoo and clears it for a paid order', async () => {
     const client = { query: async () => ({ rows: [{ grace_days: 7 }] }) } as never
     const trial = { kind: 'new', payment_state: 'not_required', trial_ends_at: '2026-11-01T09:00:00Z', snapshot: { plan_revision_id: 'p' } }
