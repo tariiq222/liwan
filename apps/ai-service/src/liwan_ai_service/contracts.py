@@ -287,6 +287,10 @@ class RunList(Strict):
 
 
 ModelCallKind = Literal["plan", "title"]
+# What kind of task a call served; the router (a later slice) picks it, until then every plan call is ``standard``.
+Capability = Literal["quick", "standard", "analysis", "writing"]
+# Cost units are 0.00001 USD; the bound is the largest value of Odoo's integer column.
+MAX_COST_UNITS = 2_147_483_647
 ModelCallOutcome = Literal["ok", "failed", "retried", "aborted"]
 
 
@@ -295,6 +299,7 @@ class ModelCallEvent(Strict):
 
     call_id: str = Field(pattern=CALL_ID)
     kind: ModelCallKind
+    capability: Capability
     billing: Billing
     provider: str = Field(pattern=PROVIDER_NAME)
     model: str = Field(pattern=MODEL_NAME)
@@ -302,17 +307,33 @@ class ModelCallEvent(Strict):
 
 
 class ModelUsageEvent(Strict):
-    """``model_usage``: how the attempt ``call_id`` ended; both token counts are set, or both are null."""
+    """``model_usage``: how the attempt ``call_id`` ended; both token counts are set, or both are null.
+
+    ``cost`` (what the call cost the vendor) and ``charge`` (cost plus the vendor margin) are in cost units of 0.00001 USD. Both are
+    null without token counts; ``charge`` is also null where the vendor pays for the call (``setup``) or the tenant's own key does.
+    """
 
     call_id: str = Field(pattern=CALL_ID)
     outcome: ModelCallOutcome
     input_tokens: int | None = Field(ge=0, le=100_000_000)
     output_tokens: int | None = Field(ge=0, le=100_000_000)
+    cost: int | None = Field(ge=0, le=MAX_COST_UNITS)
+    charge: int | None = Field(ge=0, le=MAX_COST_UNITS)
 
     @model_validator(mode="after")
     def _tokens_come_in_pairs(self) -> ModelUsageEvent:
         if (self.input_tokens is None) != (self.output_tokens is None):
             msg = "input_tokens and output_tokens are both set or both null"
+            raise ValueError(msg)
+        return self
+
+    @model_validator(mode="after")
+    def _cost_follows_tokens(self) -> ModelUsageEvent:
+        if self.cost is not None and self.input_tokens is None:
+            msg = "cost needs token counts"
+            raise ValueError(msg)
+        if self.charge is not None and self.cost is None:
+            msg = "charge needs a cost"
             raise ValueError(msg)
         return self
 

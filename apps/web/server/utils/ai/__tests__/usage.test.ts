@@ -7,8 +7,8 @@ const odooJson = vi.hoisted(() => vi.fn())
 const odooServiceUsageJson = vi.hoisted(() => vi.fn())
 vi.mock('../upstream', async importOriginal => ({ ...await importOriginal<typeof import('../upstream')>(), odooJson, odooServiceUsageJson }))
 
-const callEvent = (id: string, extra: Record<string, unknown> = {}) => ({ call_id: id.padStart(16, '0'), kind: 'plan', billing: 'platform', provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5', called_at: '2026-10-27T10:00:00Z', ...extra })
-const usageEvent = (id: string, extra: Record<string, unknown> = {}) => ({ call_id: id.padStart(16, '0'), outcome: 'ok', input_tokens: 120, output_tokens: 7, ...extra })
+const callEvent = (id: string, extra: Record<string, unknown> = {}) => ({ call_id: id.padStart(16, '0'), kind: 'plan', capability: 'standard', billing: 'platform', provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5', called_at: '2026-10-27T10:00:00Z', ...extra })
+const usageEvent = (id: string, extra: Record<string, unknown> = {}) => ({ call_id: id.padStart(16, '0'), outcome: 'ok', input_tokens: 120, output_tokens: 7, cost: 4, charge: 5, ...extra })
 /** Each test reports as its own session, because the spool is per session and one test must never retry another's rows. */
 const ledgerEvent = (session: string) => ({ node: { req: { headers: { cookie: `session_id=${session}` } } } }) as unknown as H3Event
 /** A request carrying a whole cookie jar, for when another cookie rides along with the session. */
@@ -51,7 +51,7 @@ describe('usage ledger', () => {
   it('pairs a call with its usage and reports one row per attempt', async () => {
     const ledger = createUsageLedger()
     expect(ledger.observe('model_call', callEvent('a1'))).toBe(true)
-    expect(ledger.observe('model_usage', usageEvent('a1', { outcome: 'retried', input_tokens: null, output_tokens: null }))).toBe(true)
+    expect(ledger.observe('model_usage', usageEvent('a1', { outcome: 'retried', input_tokens: null, output_tokens: null, cost: null, charge: null }))).toBe(true)
     ledger.observe('model_call', callEvent('b2'))
     ledger.observe('model_usage', usageEvent('b2'))
     ledger.observe('model_call', callEvent('c3', { kind: 'title' }))
@@ -67,6 +67,20 @@ describe('usage ledger', () => {
       ['00000000000000a1', 'plan', 'retried', null, null, 'r_1'], ['00000000000000b2', 'plan', 'ok', 120, 7, 'r_1'], ['00000000000000c3', 'title', 'ok', 20, 3, 'r_1'],
     ])
     expect(body.items[0]).toMatchObject({ provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5', called_at: '2026-10-27T10:00:00Z' })
+  })
+
+  it('skips a model_usage whose charge has no cost and closes that call as aborted', async () => {
+    const ledger = createUsageLedger()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    ledger.observe('model_call', callEvent('a1'))
+    ledger.observe('model_usage', usageEvent('a1', { cost: null, charge: 5 }))
+    await ledger.flush(event, 'r_bad')
+    expect(sent()[0]!.body.items).toEqual([expect.objectContaining({ outcome: 'aborted', cost: null, charge: null })])
+  })
+
+  it('strips cost and charge on the cookie path, which Odoo refuses from a session', async () => {
+    await ledgerOf(2).flush(ledgerEvent('cookie-cost'), 'r_cookie')
+    expect(sent()[0]!.body.items.map(item => [item.cost, item.charge])).toEqual([[null, null], [null, null]])
   })
 
   it('does not consume the events of the browser stream', () => {
@@ -404,6 +418,27 @@ describe('usage ledger reporting with the recorder key', () => {
     expect(call!.body.items.map(item => [item.call_id, item.conversation_id])).toEqual([['0000000000000000', 'r_gone'], ['0000000000000001', 'r_gone']])
     // The wire names the owner once, on the batch; a row never carries one.
     for (const item of call!.body.items) expect(Object.keys(item)).not.toContain('user_id')
+  })
+
+  it('reports the capability, cost and charge of each attempt, null where the service sent none', async () => {
+    const ledger = createUsageLedger()
+    ledger.observe('model_call', callEvent('a1', { capability: 'analysis' }))
+    ledger.observe('model_usage', usageEvent('a1', { cost: 315, charge: 378 }))
+    ledger.observe('model_call', callEvent('b2', { kind: 'title', capability: 'quick', billing: 'setup' }))
+    ledger.observe('model_usage', usageEvent('b2', { cost: 0, charge: null }))
+    ledger.observe('model_call', callEvent('c3', { billing: 'tenant_key' }))
+    ledger.observe('model_usage', usageEvent('c3', { cost: null, charge: null }))
+    ledger.observe('model_call', callEvent('d4'))  // never answered: closed as aborted without a cost
+    ledger.endStream()
+    await flushed(ledger, noSession, SOMEONE, 'r_cost')
+    expect(serviceCalls()[0]!.body.items.map(item => [item.capability, item.cost, item.charge])).toEqual([
+      ['analysis', 315, 378], ['quick', 0, null], ['standard', null, null], ['standard', null, null],
+    ])
+  })
+
+  it('keeps the cost and charge on the recorder-key path', async () => {
+    await flushed(ledgerOf(1), noSession)
+    expect(serviceCalls()[0]!.body.items).toEqual([expect.objectContaining({ cost: 4, charge: 5 })])
   })
 
   it('records a run whose browser went away mid-stream (every open attempt aborted) and one whose cookie is expired', async () => {

@@ -170,6 +170,29 @@ file of the scanned roots). `npm run check:audit` runs there too. `tools/secret_
 private key blocks and config-file literals; the exact files exempted are listed with reasons in `LITERAL_EXCEPTIONS`. Plain
 `NAME = 'literal'` assignments in application code, `docs/`, Markdown and git history are not scanned.
 
+### Test inventory
+
+Every test file in the repository runs in a CI stage or is registered with a reason. `tools/test_test_inventory.py`
+(inside the `python3 -B -m unittest discover -s tools -p 'test_*.py'` run) lists the tracked `test_*.py`, `*.test.mjs|js|ts`,
+`*.spec.ts|mjs`, `*.e2e.ts` and `*.rtl.ts` files outside `odoo-addons/` (addon tests are covered by
+`tools/test_addon_test_imports.py`) and fails on any file that no CI script executes and that is not in
+`tools/ci_not_run.json`.
+
+What counts as executed is read from the sources CI runs, not listed in the test: the `unittest`, `node --test`,
+`pytest`, `vitest` and `playwright test` commands in `deploy/ci/**/*.sh` (and the deploy scripts they call), the
+`package.json` scripts those commands start, the vitest `include`/`exclude` of each workspace, the Playwright spec lists
+(`apps/web/e2e/ci-mock-specs.txt`, `ci-mock-long-list-specs.txt`, `REAL_ODOO_SPECS` in `deploy/ci/e2e-odoo.sh`) and the
+`testDir`/`testMatch` of `apps/web/playwright.rtl.config.ts`. A new file under an existing glob, list or workspace needs nothing
+else; a new runner is picked up when its command appears in a CI script. Vitest filters and Playwright `projects` are not
+interpreted.
+
+`tools/ci_not_run.json` is `{"not_run": [{"reason": "...", "files": ["..."]}]}`. It only shrinks: an entry whose file is
+gone, or that a CI script runs after all, fails the test, as do a reason of fewer than five words or a placeholder (`TODO`,
+`later`), the same reason in two groups, a file listed twice and an unsorted `files` list. To add a file to a stage, wire
+its runner into a `deploy/ci` script and delete its entry in the same change. To keep a file out, say what keeps it out
+(a missing service or built artifact, a guard variable no stage sets, a path pinned to one machine); a test that fails
+because it is stale is registered with `stale: <what fails>` until the owner decides to repair or delete it.
+
 ### Review evidence
 
 Review follows `REVIEW.md` using the selected available agent or a human.

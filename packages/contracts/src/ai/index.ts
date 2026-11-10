@@ -138,6 +138,9 @@ export type AiEvent = z.infer<typeof AiEventSchema>
  */
 export const AI_USAGE_BATCH_MAX = 64
 export const AiModelCallKindSchema = z.enum(['plan', 'title'])
+/** What kind of task a call served; the same four values as the AI service's `Capability` and Odoo's `USAGE_CAPABILITIES`. */
+export const AiCapabilitySchema = z.enum(['quick', 'standard', 'analysis', 'writing'])
+export type AiCapability = z.infer<typeof AiCapabilitySchema>
 /** Whose account paid a call: the platform's, the tenant's own key, or the vendor's setup budget (the free setup agent). */
 export const AiBillingSchema = z.enum([...AiProviderModeSchema.options, 'setup'])
 export const AiModelCallOutcomeSchema = z.enum(['ok', 'failed', 'retried', 'aborted'])
@@ -145,25 +148,36 @@ const AiCallIdSchema = z.string().regex(/^[0-9a-f]{16}$/)
 const AiProviderNameSchema = z.string().regex(/^[a-z][a-z0-9_-]{0,31}$/)
 const AiModelNameSchema = z.string().min(1).max(128).refine(value => !/[\u0000-\u001f\u007f-\u009f]/.test(value), 'no control characters')
 const AiTokenCountSchema = z.number().int().nonnegative().max(100_000_000).nullable()
+/** Cost units (one unit is 0.00001 USD): what a call cost the vendor and what the tenant is charged; the bound is Odoo's integer column. */
+export const AI_MAX_COST_UNITS = 2_147_483_647
+const AiCostUnitsSchema = z.number().int().nonnegative().max(AI_MAX_COST_UNITS).nullable()
 const tokensComeInPairs = (value: { input_tokens: number | null, output_tokens: number | null }) => (value.input_tokens === null) === (value.output_tokens === null)
 const TOKENS_IN_PAIRS = { message: 'input_tokens and output_tokens are both set or both null', path: ['output_tokens'] }
+/** A cost needs token counts and a charge needs a cost; a setup call has a cost and no charge (the vendor pays it). */
+const costFollowsTokens = (value: { input_tokens: number | null, cost: number | null, charge: number | null }) => (value.cost === null || value.input_tokens !== null) && (value.charge === null || value.cost !== null)
+/** A call on the tenant's own key has no cost or charge, and a setup call has no charge. */
+const pricedByBilling = (value: { billing: string, cost: number | null, charge: number | null }) => value.billing === 'tenant_key' ? value.cost === null && value.charge === null : value.billing !== 'setup' || value.charge === null
+const PRICED_BY_BILLING = { message: 'tenant_key calls carry no cost or charge and setup calls carry no charge', path: ['charge'] }
+const COST_FOLLOWS_TOKENS = { message: 'cost needs token counts and charge needs a cost', path: ['cost'] }
 
 export const AiModelCallEventSchema = z.object({
-  call_id: AiCallIdSchema, kind: AiModelCallKindSchema, billing: AiBillingSchema, provider: AiProviderNameSchema, model: AiModelNameSchema,
+  call_id: AiCallIdSchema, kind: AiModelCallKindSchema, capability: AiCapabilitySchema, billing: AiBillingSchema, provider: AiProviderNameSchema, model: AiModelNameSchema,
   called_at: z.iso.datetime({ offset: true }),
 }).strict()
 export type AiModelCallEvent = z.infer<typeof AiModelCallEventSchema>
 export const AiModelUsageEventSchema = z.object({
   call_id: AiCallIdSchema, outcome: AiModelCallOutcomeSchema, input_tokens: AiTokenCountSchema, output_tokens: AiTokenCountSchema,
-}).strict().refine(tokensComeInPairs, TOKENS_IN_PAIRS)
+  cost: AiCostUnitsSchema, charge: AiCostUnitsSchema,
+}).strict().refine(tokensComeInPairs, TOKENS_IN_PAIRS).refine(costFollowsTokens, COST_FOLLOWS_TOKENS)
 export type AiModelUsageEvent = z.infer<typeof AiModelUsageEventSchema>
 
 const AiUsageFields = {
-  conversation_id: z.string().min(1).max(64), call_id: AiCallIdSchema, kind: AiModelCallKindSchema, billing: AiBillingSchema, provider: AiProviderNameSchema, model: AiModelNameSchema,
-  outcome: AiModelCallOutcomeSchema, input_tokens: AiTokenCountSchema, output_tokens: AiTokenCountSchema, called_at: z.iso.datetime({ offset: true }),
+  conversation_id: z.string().min(1).max(64), call_id: AiCallIdSchema, kind: AiModelCallKindSchema, capability: AiCapabilitySchema, billing: AiBillingSchema,
+  provider: AiProviderNameSchema, model: AiModelNameSchema, outcome: AiModelCallOutcomeSchema, input_tokens: AiTokenCountSchema, output_tokens: AiTokenCountSchema,
+  cost: AiCostUnitsSchema, charge: AiCostUnitsSchema, called_at: z.iso.datetime({ offset: true }),
 }
 /** One provider attempt as `POST /api/v1/ai/usage` records it. */
-export const AiUsageRecordSchema = z.object(AiUsageFields).strict().refine(tokensComeInPairs, TOKENS_IN_PAIRS)
+export const AiUsageRecordSchema = z.object(AiUsageFields).strict().refine(tokensComeInPairs, TOKENS_IN_PAIRS).refine(costFollowsTokens, COST_FOLLOWS_TOKENS).refine(pricedByBilling, PRICED_BY_BILLING)
 export type AiUsageRecord = z.infer<typeof AiUsageRecordSchema>
 export const AiUsageBatchSchema = z.object({ items: z.array(AiUsageRecordSchema).min(1).max(AI_USAGE_BATCH_MAX) }).strict()
 export type AiUsageBatch = z.infer<typeof AiUsageBatchSchema>
@@ -187,7 +201,7 @@ export type AiUsageServiceBatch = z.infer<typeof AiUsageServiceBatchSchema>
  * `max_age_hours` bounds `called_at`; the web spool gives a row up after an hour, far inside it.
  */
 export const AI_USAGE_SERVICE_LIMITS = { max_row_tokens: 100_000_000, max_request_tokens: 200_000_000, max_age_hours: 24 } as const
-export const AiUsageRowSchema = z.object({ id: z.number().int().positive(), ...AiUsageFields }).strict().refine(tokensComeInPairs, TOKENS_IN_PAIRS)
+export const AiUsageRowSchema = z.object({ id: z.number().int().positive(), ...AiUsageFields }).strict().refine(tokensComeInPairs, TOKENS_IN_PAIRS).refine(costFollowsTokens, COST_FOLLOWS_TOKENS).refine(pricedByBilling, PRICED_BY_BILLING)
 export type AiUsageRow = z.infer<typeof AiUsageRowSchema>
 export const AiUsageBatchResponseSchema = z.object({ items: z.array(AiUsageRowSchema), total: z.number().int().nonnegative() }).strict()
 export type AiUsageBatchResponse = z.infer<typeof AiUsageBatchResponseSchema>

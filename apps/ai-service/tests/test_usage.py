@@ -1,5 +1,6 @@
 """Every provider attempt is reported: ``model_call`` before, ``model_usage`` after; plan calls retry transient failures."""
 import asyncio
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from email.utils import format_datetime
 
@@ -137,6 +138,8 @@ async def test_a_run_streams_its_plan_and_title_pairs_in_order():
     assert plan_call["call_id"] == plan_usage["call_id"] and title_call["call_id"] == title_usage["call_id"] != plan_call["call_id"]
     assert (plan_usage["outcome"], plan_usage["input_tokens"], plan_usage["output_tokens"]) == ("ok", 50, 6)
     assert (title_usage["outcome"], title_usage["input_tokens"], title_usage["output_tokens"]) == ("ok", 20, 3)
+    assert (plan_call["capability"], title_call["capability"]) == ("standard", "quick")
+    assert all(item["cost"] is None and item["charge"] is None for item in (plan_usage, title_usage))  # no prices configured yet
 
 
 async def test_a_title_that_times_out_is_aborted(monkeypatch):
@@ -261,3 +264,92 @@ async def test_a_backoff_longer_than_the_time_left_gives_up_but_a_shorter_one_re
     assert isinstance(error, openai.APIStatusError) and sleeps == []
     _, error = await plan_events(FlakyChatModel([ai_text("تم")], failures=[status_error(500)]), deadline_in=60)
     assert error is None and len(sleeps) == 1
+
+
+def test_cost_and_charge_are_integers_rounded_up():
+    assert usage.call_cost((1_000, 0), 300_000, 1_500_000) == 300  # 1,000 input tokens at 3 USD per million
+    assert usage.call_cost((1_000, 10), 300_000, 1_500_000) == 315
+    assert usage.call_cost((1, 0), 1, 0) == 1  # 1 / 1,000,000 of a unit is rounded up
+    assert usage.call_cost((0, 0), 300_000, 1_500_000) == 0
+    assert usage.call_charge(300, 2_000) == 360 and usage.call_charge(1, 2_000) == 2 and usage.call_charge(0, 2_000) == 0
+    assert usage.call_charge(300, 0) == 300
+
+
+def test_cost_and_charge_are_null_without_tokens_or_a_price_and_zero_for_a_free_price():
+    assert usage.call_cost((None, None), 300_000, 1_500_000) is None
+    assert usage.call_cost((10, 10), None, 1_500_000) is None and usage.call_cost((10, 10), 300_000, None) is None
+    assert usage.call_cost((10, 10), 0, 0) == 0 and usage.call_charge(usage.call_cost((10, 10), 0, 0), 2_000) == 0
+    assert usage.call_charge(None, 2_000) is None
+
+
+PRICED = {"input_units": 300_000, "output_units": 1_500_000, "margin_bps": 2_000}
+
+
+@pytest.mark.parametrize(("billing", "cost", "charge"), [("platform", 300, 360), ("setup", 300, None), ("tenant_key", None, None)])
+def test_a_usage_event_prices_the_call_by_who_pays(billing, cost, charge):
+    identity = usage.ModelIdentity("ollama", "m", billing, **PRICED)
+    data = usage.usage_event("ab" * 8, "ok", identity, (1_000, 0))["data"]
+    assert (data["cost"], data["charge"]) == (cost, charge)
+
+
+def test_a_usage_event_without_tokens_or_prices_carries_no_cost():
+    priced = usage.ModelIdentity("ollama", "m", "platform", **PRICED)
+    assert usage.usage_event("ab" * 8, "failed", priced)["data"]["cost"] is None
+    unpriced = usage.ModelIdentity("ollama", "m", "platform")
+    data = usage.usage_event("ab" * 8, "ok", unpriced, (1_000, 5))["data"]
+    assert data["cost"] is None and data["charge"] is None and data["input_tokens"] == 1_000
+
+
+def test_a_call_reports_the_capability_of_the_identity_it_runs_on():
+    plain = usage.ModelIdentity("ollama", "m", "platform")
+    assert plain.capability == "standard" and plain.margin_bps == 0 and plain.input_units is None
+    assert usage.call_event("ab" * 8, "plan", plain)["data"]["capability"] == "standard"
+    assert usage.call_event("ab" * 8, "plan", replace(plain, capability="analysis"))["data"]["capability"] == "analysis"
+    assert usage.call_event("ab" * 8, "title", replace(plain, capability="quick"))["data"]["capability"] == "quick"
+
+
+async def test_a_setup_run_reports_every_call_as_quick_and_billed_to_setup():
+    async with make_client(ScriptedChatModel([ai_text("تم")], title_responses=[ai_text("مهامي")])) as client:
+        body = {**fresh(), "policy": {**fresh()["policy"], "provider_mode": "setup"}}
+        events = parse_sse((await client.post("/v1/runs", json=body, headers=HEADERS)).text)
+    calls = [data for name, data in events if name == "model_call"]
+    assert [(call["kind"], call["capability"], call["billing"]) for call in calls] == [("plan", "quick", "setup"), ("title", "quick", "setup")]
+
+
+async def test_a_priced_run_reports_cost_and_charge_on_its_plan_and_title_calls():
+    identity = usage.ModelIdentity("ollama", "m", "platform", **PRICED)
+    graph = BoundGraph(ScriptedChatModel([ai_usage(ai_text("تم"), 1_000, 10)]), InMemorySaver(), identity)
+    request = RunRequest.model_validate({**fresh(), "tools": []})
+    events = [payload async for mode, payload in graph.astream(initial_state(request), run_config(new_id(), 6, None), stream_mode=["custom"]) if mode == "custom"]
+    done = events[1]["data"]
+    assert events[0]["data"]["capability"] == "standard" and (done["cost"], done["charge"]) == (315, 378)
+
+
+def test_a_model_identity_refuses_prices_and_margins_that_are_not_counts():
+    for bad in ({"input_units": -1}, {"output_units": 1.5}, {"input_units": True}, {"margin_bps": -1}, {"margin_bps": None}, {"margin_bps": 0.5}):
+        with pytest.raises(ValueError):
+            usage.ModelIdentity("ollama", "m", "platform", **bad)
+    assert usage.ModelIdentity("ollama", "m", "platform", input_units=0, output_units=0).margin_bps == 0
+
+
+def test_a_cost_or_charge_above_the_shared_maximum_is_null_and_logged(caplog):
+    huge = usage.ModelIdentity("ollama", "m", "platform", input_units=300_000_000, output_units=0, margin_bps=0)
+    assert usage.call_cost((100_000_000, 0), 300_000_000, 0) is None
+    with caplog.at_level("WARNING", logger="liwan_ai_service"):
+        data = usage.usage_event("ab" * 8, "ok", huge, (100_000_000, 0))["data"]
+    assert data["cost"] is None and data["charge"] is None and "ollama/m" in caplog.text
+    caplog.clear()
+    edge = usage.ModelIdentity("ollama", "m", "platform", input_units=2_000_000_000, output_units=0, margin_bps=2_000)  # cost fits, charge does not
+    with caplog.at_level("WARNING", logger="liwan_ai_service"):
+        data = usage.usage_event("ab" * 8, "ok", edge, (1_000_000, 0))["data"]
+    assert (data["cost"], data["charge"]) == (2_000_000_000, None) and "ollama/m" in caplog.text
+
+
+async def test_a_run_whose_price_overflows_still_answers():
+    identity = usage.ModelIdentity("ollama", "m", "platform", input_units=300_000_000, output_units=0)
+    model = ScriptedChatModel([ai_usage(ai_text("تم"), 100_000_000, 1)])
+    emitted = []
+    answer = await usage.invoke_planned(model, [], identity, emitted.append)
+    assert answer.content == "تم"
+    done = [item["data"] for item in emitted if item["event"] == "model_usage"][0]
+    assert done["outcome"] == "ok" and done["cost"] is None and done["charge"] is None

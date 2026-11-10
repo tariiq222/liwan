@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { createGuard } from './guard.mjs'
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8')
@@ -10,12 +10,7 @@ test('guard image includes all runtime import paths and unprivileged native Node
   const docker = read('Dockerfile')
   assert.match(docker, /FROM node:24\.22\.1-alpine@sha256:[0-9a-f]{64}/)
   assert.match(docker, /USER node/)
-  for (const file of ['guard.mjs', 'start.mjs', 'healthcheck.mjs', 'tiktok-relay.mjs']) assert.ok(docker.includes(`deploy/shared/${file}`))
-  for (const file of ['tenantRegistry.ts', 'tenantHostResolver.ts']) {
-    const path = `../../apps/web/server/utils/${file}`
-    assert.ok(existsSync(new URL(path, import.meta.url)))
-    assert.ok(docker.includes(`apps/web/server/utils/${file}`))
-  }
+  // Which files the image copies is checked against the real import closure by image-closure.test.mjs.
   // The bindings volume inherits node's ownership from this image path, so the relay can write it.
   assert.match(docker, /mkdir -p \/var\/lib\/liwan && chown node:node \/var\/lib\/liwan/)
   assert.match(docker, /HEALTHCHECK.*healthcheck.mjs/)
@@ -32,7 +27,7 @@ test('rate module is present in actual proxy build recipe and exactly the declar
   assert.match(recipe, /github.com\/mholt\/caddy-ratelimit@v0\.1\.0/)
   assert.match(recipe, /http.handlers.rate_limit/)
   const config = read('Caddyfile')
-  const zones = ['liwan_auth', 'liwan_provider_hook', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo_image', 'liwan_odoo', 'liwan_web', 'liwan_tiktok']
+  const zones = ['liwan_auth', 'liwan_provider_hook', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo_image', 'liwan_odoo', 'liwan_signup', 'liwan_web', 'liwan_tiktok']
   const declared = [...config.matchAll(/^\s*zone\s+(\S+)\s*\{/gm)].map(match => match[1])
   assert.equal(declared.length, zones.length)
   for (const name of zones) assert.equal(declared.filter(zone => zone === name).length, 1, name)

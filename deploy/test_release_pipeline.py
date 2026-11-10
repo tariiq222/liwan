@@ -15,10 +15,8 @@ class ReleasePipelineTests(unittest.TestCase):
 
     def test_static_keeps_dedicated_and_shared_guard_regressions(self):
         script = commands('static')
-        for name in ('deploy/shared/release-guard.test.mjs',
-                     'deploy/shared/release-assets.test.mjs',
-                     'deploy/shared/release-routes.test.mjs',
-                     'deploy/releases/test_dedicated_guard.mjs'):
+        # The glob picks up release-guard, release-assets, release-routes and every later deploy/shared test.
+        for name in ('deploy/shared/*.test.mjs', 'deploy/releases/test_dedicated_guard.mjs'):
             self.assertIn(name, script)
 
 

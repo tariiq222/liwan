@@ -96,24 +96,44 @@ describe('LiwanOS AI contracts', () => {
 })
 
 describe('LiwanOS AI usage contracts', () => {
-  const call = { call_id: 'ab12cd34ef56ab78', kind: 'plan', billing: 'platform', provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5', called_at: '2026-10-27T10:00:00Z' }
-  const usage = { call_id: 'ab12cd34ef56ab78', outcome: 'ok', input_tokens: 120, output_tokens: 7 }
-  const record = { conversation_id: 'r_1', call_id: 'ab12cd34ef56ab78', kind: 'plan', billing: 'platform', provider: 'openrouter', model: 'm', outcome: 'ok', input_tokens: 1, output_tokens: 2, called_at: '2026-10-27T10:00:00+03:00' }
+  const call = { call_id: 'ab12cd34ef56ab78', kind: 'plan', capability: 'standard', billing: 'platform', provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5', called_at: '2026-10-27T10:00:00Z' }
+  const usage = { call_id: 'ab12cd34ef56ab78', outcome: 'ok', input_tokens: 120, output_tokens: 7, cost: 4, charge: 5 }
+  const record = { conversation_id: 'r_1', call_id: 'ab12cd34ef56ab78', kind: 'plan', capability: 'standard', billing: 'platform', provider: 'openrouter', model: 'm', outcome: 'ok', input_tokens: 1, output_tokens: 2, cost: 3, charge: 4, called_at: '2026-10-27T10:00:00+03:00' }
 
   it('parses a model_call and rejects loose ids, providers, models and offsets', () => {
     expect(AiModelCallEventSchema.parse(call).kind).toBe('plan')
-    for (const bad of [{ call_id: 'AB12' }, { kind: 'other' }, { provider: 'Open AI' }, { model: '' }, { model: 'a'.repeat(129) }, { model: 'a\nb' }, { model: 'a\u0085b' }, { model: 'a\u009fb' }, { model: 'a\u007fb' }, { called_at: '2026-10-27T10:00:00' }, { extra: 1 }]) {
+    for (const bad of [{ call_id: 'AB12' }, { kind: 'other' }, { capability: 'fast' }, { capability: null }, { capability: undefined }, { provider: 'Open AI' }, { model: '' }, { model: 'a'.repeat(129) }, { model: 'a\nb' }, { model: 'a\u0085b' }, { model: 'a\u009fb' }, { model: 'a\u007fb' }, { called_at: '2026-10-27T10:00:00' }, { extra: 1 }]) {
       expect(() => AiModelCallEventSchema.parse({ ...call, ...bad })).toThrow()
     }
   })
 
   it('pairs the token counts and bounds them', () => {
     expect(AiModelUsageEventSchema.parse(usage).output_tokens).toBe(7)
-    expect(AiModelUsageEventSchema.parse({ ...usage, outcome: 'aborted', input_tokens: null, output_tokens: null }).input_tokens).toBeNull()
+    expect(AiModelUsageEventSchema.parse({ ...usage, outcome: 'aborted', input_tokens: null, output_tokens: null, cost: null, charge: null }).input_tokens).toBeNull()
     for (const bad of [{ output_tokens: null }, { input_tokens: null }, { input_tokens: -1 }, { input_tokens: 1.5 }, { output_tokens: 100_000_001 }, { outcome: 'lost' }]) {
       expect(() => AiModelUsageEventSchema.parse({ ...usage, ...bad })).toThrow()
     }
     expect(() => AiUsageRecordSchema.parse({ ...record, input_tokens: null })).toThrow()
+  })
+
+  it('ties cost and charge to the token counts', () => {
+    for (const good of [{ cost: 0, charge: 0 }, { cost: 7, charge: null }, { cost: null, charge: null }, { cost: 2_147_483_647, charge: 2_147_483_647 }]) {
+      expect(AiModelUsageEventSchema.parse({ ...usage, ...good }).cost).toBe(good.cost)
+      expect(AiUsageRecordSchema.parse({ ...record, ...good }).charge).toBe(good.charge)
+    }
+    for (const bad of [{ charge: 1, cost: null }, { cost: -1 }, { cost: 1.5 }, { charge: 2_147_483_648 }, { cost: undefined }, { charge: undefined }]) {
+      expect(() => AiModelUsageEventSchema.parse({ ...usage, ...bad })).toThrow()
+      expect(() => AiUsageRecordSchema.parse({ ...record, ...bad })).toThrow()
+    }
+    expect(() => AiModelUsageEventSchema.parse({ ...usage, input_tokens: null, output_tokens: null })).toThrow()
+    // A usage record also knows its billing: the tenant's own key has no cost or charge, and a setup call has no charge.
+    for (const bad of [{ billing: 'tenant_key', cost: 1, charge: null }, { billing: 'tenant_key', cost: null, charge: 1 }, { billing: 'setup', cost: 1, charge: 1 }]) {
+      expect(() => AiUsageRecordSchema.parse({ ...record, ...bad })).toThrow()
+    }
+    expect(AiUsageRecordSchema.parse({ ...record, billing: 'setup', cost: 1, charge: null }).cost).toBe(1)
+    expect(AiUsageRecordSchema.parse({ ...record, billing: 'tenant_key', cost: null, charge: null }).cost).toBeNull()
+    expect(() => AiUsageRecordSchema.parse({ ...record, input_tokens: null, output_tokens: null })).toThrow()
+    expect(AiUsageRowSchema.parse({ ...record, id: 5, cost: null, charge: null }).cost).toBeNull()
   })
 
   it('keeps the model events out of the browser stream', () => {

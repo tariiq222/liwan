@@ -143,14 +143,27 @@ def test_a_new_run_id_has_the_service_shape():
 
 
 def test_model_events_are_strict_and_pair_their_tokens():
-    call = {"call_id": "ab" * 8, "kind": "plan", "billing": "platform", "provider": "openrouter", "model": "anthropic/claude-sonnet-4.5", "called_at": "2026-10-27T10:00:00Z"}
+    call = {"call_id": "ab" * 8, "kind": "plan", "capability": "standard", "billing": "platform", "provider": "openrouter", "model": "anthropic/claude-sonnet-4.5", "called_at": "2026-10-27T10:00:00Z"}
     assert ModelCallEvent.model_validate(call).kind == "plan"
-    for bad in ({"kind": "other"}, {"billing": "free"}, {"provider": "Open AI"}, {"model": ""}, {"model": "a\nb"}, {"model": "a\x85b"}, {"model": "a\x9fb"}, {"model": "a\x7fb"}, {"call_id": "xyz"}, {"called_at": "2026-10-27T10:00:00"}, {"extra": 1}):
+    for bad in ({"kind": "other"}, {"capability": "fast"}, {"capability": None}, {"billing": "free"}, {"provider": "Open AI"}, {"model": ""}, {"model": "a\nb"}, {"model": "a\x85b"}, {"model": "a\x9fb"}, {"model": "a\x7fb"}, {"call_id": "xyz"}, {"called_at": "2026-10-27T10:00:00"}, {"extra": 1}):
         with pytest.raises(ValidationError):
             ModelCallEvent.model_validate({**call, **bad})
-    usage = {"call_id": "ab" * 8, "outcome": "ok", "input_tokens": 3, "output_tokens": 5}
+    usage = {"call_id": "ab" * 8, "outcome": "ok", "input_tokens": 3, "output_tokens": 5, "cost": 4, "charge": 5}
     assert ModelUsageEvent.model_validate(usage).output_tokens == 5
-    assert ModelUsageEvent.model_validate({**usage, "input_tokens": None, "output_tokens": None}).input_tokens is None
+    no_tokens = {"input_tokens": None, "output_tokens": None, "cost": None, "charge": None}
+    assert ModelUsageEvent.model_validate({**usage, **no_tokens}).input_tokens is None
     for bad in ({"output_tokens": None}, {"input_tokens": -1}, {"outcome": "lost"}, {"output_tokens": 100_000_001}):
         with pytest.raises(ValidationError):
             ModelUsageEvent.model_validate({**usage, **bad})
+
+
+def test_usage_cost_and_charge_follow_the_tokens():
+    usage = {"call_id": "ab" * 8, "outcome": "ok", "input_tokens": 3, "output_tokens": 5}
+    for good in ({"cost": 0, "charge": 0}, {"cost": 7, "charge": None}, {"cost": None, "charge": None}, {"cost": 2_147_483_647, "charge": 2_147_483_647}):
+        assert ModelUsageEvent.model_validate({**usage, **good}).cost == good["cost"]
+    for bad in (
+        {"charge": 1}, {"cost": None, "charge": 1}, {"cost": -1, "charge": 0}, {"cost": 0, "charge": 2_147_483_648},
+        {"input_tokens": None, "output_tokens": None, "cost": 1, "charge": None},
+    ):
+        with pytest.raises(ValidationError):
+            ModelUsageEvent.model_validate({"cost": None, "charge": None, **usage, **bad})

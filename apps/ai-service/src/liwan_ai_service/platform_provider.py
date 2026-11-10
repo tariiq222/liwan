@@ -24,6 +24,7 @@ from langchain_core.language_models import BaseChatModel
 from liwan_ai_service.contracts import MODEL_NAME, PROVIDER_NAME
 from liwan_ai_service.provider_registry import REGISTRY
 from liwan_ai_service.providers import build_platform_model
+from liwan_ai_service.routing import RunModels
 from liwan_ai_service.settings import PLATFORM_PROVIDER_FILE, Settings, SettingsError
 from liwan_ai_service.tenant_egress import PRINTABLE_ASCII
 from liwan_ai_service.usage import ModelIdentity, RunModel
@@ -131,7 +132,7 @@ class PlatformModel:
     @dataclass(frozen=True)
     class Active:
         provider: PlatformProvider
-        run_model: RunModel
+        models: RunModels
 
     def __init__(self, provider: PlatformProvider, model: BaseChatModel, *, digest: str | None = None) -> None:
         self.current = self._active(provider, model)
@@ -140,7 +141,7 @@ class PlatformModel:
 
     @staticmethod
     def _active(provider: PlatformProvider, model: BaseChatModel) -> PlatformModel.Active:
-        return PlatformModel.Active(provider, RunModel(model, ModelIdentity(provider.provider, provider.model, "platform")))
+        return PlatformModel.Active(provider, RunModels(RunModel(model, ModelIdentity(provider.provider, provider.model, "platform"))))
 
     @property
     def secrets(self) -> tuple[str, ...]:

@@ -61,6 +61,7 @@ from liwan_ai_service.platform_provider import PlatformModel, PlatformProvider, 
 from liwan_ai_service.provider_registry import REGISTRY
 from liwan_ai_service.providers import build_tenant_model
 from liwan_ai_service.records import records_from_results
+from liwan_ai_service.routing import RunModels
 from liwan_ai_service.settings import GENERATION_ID, Settings, SettingsError
 from liwan_ai_service.sse import format_event
 from liwan_ai_service.store import ACTIVE, EXECUTING, RunRecord, is_stale
@@ -137,7 +138,7 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
         raise SettingsError("AI_GENERATION_ID", "AI_GENERATION_ID is invalid")
     # A tenant's model on its own key, by tenant database, with the key's version and the key (redacted from every log
     # line, like the platform key). A new or removed key replaces or drops the entry.
-    tenant_models: dict[str, tuple[Any, RunModel, str]] = {}
+    tenant_models: dict[str, tuple[Any, RunModels, str]] = {}
     egress = TenantEgress(settings.tenant_egress_dir)
     app = FastAPI(title="LiwanOS AI service", docs_url=None, redoc_url=None)
 
@@ -271,8 +272,8 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
     def log_failure(run_id: str, error: Exception, what: str = "failed") -> None:
         log.error("run %s %s: %s: %s", run_id, what, type(error).__name__, redact(str(error), secrets()))
 
-    async def run_model_for(tenant: TenantState, policy: Policy) -> RunModel:
-        """The model this request runs on, from the tenant's policy; refused before any provider sees the tenant's data.
+    async def run_models_for(tenant: TenantState, policy: Policy) -> RunModels:
+        """The models this request runs on, from the tenant's policy; refused before any provider sees the tenant's data.
 
         No provider receives a request before the tenant signed the current AI acknowledgement, whoever's key it is
         (spec 2026-11-04 §6.8). A tenant-key policy never falls back to the platform key: without a key the request is
@@ -281,10 +282,10 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
         if not policy.consent_signed:
             raise HTTPException(403, "ai_consent_required")
         if policy.provider_mode == "platform":
-            chosen = platform.current.run_model
+            chosen = platform.current.models
         elif policy.provider_mode == "setup":
-            current = platform.current.run_model
-            chosen = RunModel(current.model, replace(current.identity, billing="setup"))
+            quick = platform.current.models.for_capability("quick")
+            chosen = RunModels.pinned(RunModel(quick.model, replace(quick.identity, billing="setup")))
         else:
             try:
                 key = await tenant.config.load_key(settings.keyring)
@@ -295,7 +296,7 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
             cached = tenant_models.get(tenant.database)
             if cached is None or cached[0] != key.updated_at:
                 built = build_tenant_model(settings, key.provider, key.model, key.api_key, key.base_url)
-                cached = (key.updated_at, RunModel(built, ModelIdentity(key.provider, key.model, "tenant_key")), key.api_key)
+                cached = (key.updated_at, RunModels(RunModel(built, ModelIdentity(key.provider, key.model, "tenant_key"))), key.api_key)
                 tenant_models[tenant.database] = cached
             chosen = cached[1]
         return chosen
@@ -341,7 +342,7 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
         detail = redact(str(error), secrets())
         log.warning("run %s could not be titled: %s: %s", run_id, type(error).__name__, detail)
 
-    async def name_run(tenant: TenantState, run_id: str, messages: list, run_model: RunModel) -> AsyncIterator[bytes]:
+    async def name_run(tenant: TenantState, run_id: str, messages: list, run_models: RunModels) -> AsyncIterator[bytes]:
         """Replace the provisional title with a model-written one after the first answer; best effort, never blocks the run's outcome.
 
         The title call is reported like the plan calls: ``model_call`` before it, ``model_usage`` after it (``aborted`` on its timeout).
@@ -351,17 +352,18 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
         record = await tenant.store.get(run_id)
         if len(humans) != 1 or answer is None or record is None or record.title_locked:
             return
+        titler = run_models.for_capability("quick")
         call_id = new_call_id()
-        yield format_event(*_pair(call_event(call_id, "title", run_model.identity)))
+        yield format_event(*_pair(call_event(call_id, "title", titler.identity)))
         outcome, generated = "ok", None
         timeout = asyncio.timeout(TITLE_TIMEOUT_SECONDS)
         try:
             async with timeout:
-                generated = await generate_title(run_model.model, text_of(humans[0].content), text_of(answer.content))
+                generated = await generate_title(titler.model, text_of(humans[0].content), text_of(answer.content))
         except Exception as error:  # noqa: BLE001 - a missing title is not a failed run: the provisional title stays, the cause is logged
             outcome = "aborted" if isinstance(error, TimeoutError) and timeout.expired() else "failed"
             log_title_failure(run_id, error)
-        yield format_event(*_pair(usage_event(call_id, outcome, generated.tokens if generated else (None, None))))
+        yield format_event(*_pair(usage_event(call_id, outcome, titler.identity, generated.tokens if generated else (None, None))))
         if generated is None:
             return
         if generated.title is None:
@@ -424,13 +426,13 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
     app.state.drain_knowledge = drain_knowledge
 
     async def stream(tenant: TenantState, run_id: str, lease: str | None, graph_input: Any, limits: dict[str, int],
-                     run_model: RunModel, run_memory: RunMemory, run_knowledge: RunKnowledge | None,
+                     run_models: RunModels, run_memory: RunMemory, run_knowledge: RunKnowledge | None,
                      settling: list[asyncio.Task]) -> AsyncIterator[bytes]:
         # ``decided`` is assigned BEFORE the event that announces it is yielded: a client that vanishes while that event is sent
         # closes the generator at the yield, and the run must already carry its outcome.
         decided: tuple[str, str | None] | None = None
         deadline = asyncio.timeout(limits["timeout_seconds"])
-        config = run_config(run_id, limits["max_steps"], deadline.when(), run_model, run_memory, run_knowledge)
+        config = run_config(run_id, limits["max_steps"], deadline.when(), run_models, run_memory, run_knowledge)
         try:
             yield format_event("run", {"run_id": run_id})
             events_of = tenant.graph.astream(graph_input, config, stream_mode=["messages", "updates", "custom"])
@@ -464,7 +466,7 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
                     answer_text = text_of(last.content) if last else ""
                     yield format_event("answer", {"text": answer_text, "records": records_from_results(values["results"], answer_text)})
                     # After the answer is on the wire, before the stream ends: the list refetch sees the title.
-                    async for event in name_run(tenant, run_id, values["messages"], run_model):
+                    async for event in name_run(tenant, run_id, values["messages"], run_models):
                         yield event
         except Exception as error:  # noqa: BLE001 - every failure must reach the client as an event, without its text
             if isinstance(error, TimeoutError) and deadline.expired():  # the run's deadline; a provider's own TimeoutError is a failure
@@ -480,7 +482,7 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
         yield format_event("done", {"status": status})
 
     def run_stream(held: contextlib.AsyncExitStack, tenant: TenantState, run_id: str, lease: str | None, graph_input: Any,
-                   limits: dict[str, int], run_model: RunModel, run_memory: RunMemory,
+                   limits: dict[str, int], run_models: RunModels, run_memory: RunMemory,
                    run_knowledge: RunKnowledge | None) -> StreamingResponse:
         """Stream one run; the tenant state stays held until the stream is closed and its status is recorded."""
         settling: list[asyncio.Task] = []
@@ -490,7 +492,7 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
             await held.aclose()
 
         return ClosingStreamingResponse(
-            stream(tenant, run_id, lease, graph_input, limits, run_model, run_memory, run_knowledge, settling), release=release,
+            stream(tenant, run_id, lease, graph_input, limits, run_models, run_memory, run_knowledge, settling), release=release,
             media_type="text/event-stream", headers={"cache-control": "no-store", "x-accel-buffering": "no"},
         )
 
@@ -514,7 +516,7 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
         if request.tenant != who.tenant or request.user_ref != who.user_ref:
             raise HTTPException(422, "tenant/user headers must match the body")
         async with held_tenant_state(who) as (held, tenant):
-            run_model = await run_model_for(tenant, request.policy)
+            run_models = await run_models_for(tenant, request.policy)
             # A leaver reported since the last request is forgotten before any prompt could carry their notes.
             await tenant.memory.drain_outbox()
             notes = await tenant.memory.for_prompt(who.user_ref, request.company)
@@ -534,7 +536,7 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
                 if record is None:
                     raise HTTPException(409, "a run with this new_run_id already exists")
                 lease, graph_input = record.lease, initial_state(request)
-            return run_stream(held.pop_all(), tenant, record.run_id, lease, graph_input, request.limits.model_dump(), run_model, run_memory,
+            return run_stream(held.pop_all(), tenant, record.run_id, lease, graph_input, request.limits.model_dump(), run_models, run_memory,
                               knowledge_for(tenant, request.company))
 
     @api.post("/v1/runs/{run_id}/resume", dependencies=[Depends(admitted_work)])
@@ -545,7 +547,7 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
             pending = pending_of(state)
             if pending is None or pending.call_id != body.call_id:
                 raise HTTPException(409, "no pending call with this call_id")
-            run_model = await run_model_for(tenant, body.policy)
+            run_models = await run_models_for(tenant, body.policy)
             if await is_draining() and record.status not in (EXECUTING, "waiting_tool"):
                 raise HTTPException(503, "AI generation is draining; resume on the accepting generation")
             if record.status == EXECUTING and body.result.decision == "rejected":  # only the claimer resumes a claimed call, never with a decision
@@ -564,7 +566,7 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
             company = state.values.get("company")
             notes = await tenant.memory.for_prompt(who.user_ref, company)
             run_memory = RunMemory(tenant.memory, who.user_ref, company, notes.user, notes.company)
-            return run_stream(held.pop_all(), tenant, record.run_id, lease, resume, state.values["limits"], run_model, run_memory,
+            return run_stream(held.pop_all(), tenant, record.run_id, lease, resume, state.values["limits"], run_models, run_memory,
                               knowledge_for(tenant, company))
 
     @api.post("/v1/runs/{run_id}/claim", dependencies=[Depends(new_work)])
