@@ -41,7 +41,7 @@ export const ROLE_REFS = {
 }
 
 const user = (id: number, name: string, login: string, roles: typeof ROLE_REFS[keyof typeof ROLE_REFS][], active = true) => ({
-  id, name, login, mobile: null, invitation: null, active, protected: false, version: `u${id}`,
+  id, name, login, mobile: null, invitation: null, active, protected: false, read_only: false, seat_choice: 'auto', seat_priority: 0, version: `u${id}`,
   employee: id === 13 ? null : { id: id - 6, name, department: null },
   assignments: roles.map((role, index) => ({ id: id * 10 + index + 1, role, scope: COMPANY })),
 })

@@ -605,6 +605,21 @@ class TestHrWarnings(LiwanHrCase):
         })
         self.assert_status(res, 201)
 
+    def test_a_read_only_hr_manager_still_reads_the_seeded_types(self):
+        _company, user, _employee = self._fresh_company_hr('warn_fresh_ro')
+        self.env['liwan.entitlement.service'].sudo()._liwan_apply_flags(user, {'liwan_read_only': True})
+        listed = self.assert_status(self.call(user, 'GET', TYPES), 200).json()
+        self.assertEqual([item['severity'] for item in listed['items']], [10, 20, 30, 40])
+
+    def test_the_first_read_of_a_read_only_branch_still_seeds_its_types(self):
+        company, user, _employee = self._fresh_company_hr('warn_fresh_branch')
+        self.env['liwan.tenant.branch'].create({
+            'branch_uid': 'warn-ro-branch', 'company_id': company.id, 'operation_id': 'op-warn', 'read_only': True,
+        })
+        self.assertTrue(company.liwan_read_only)
+        listed = self.assert_status(self.call(user, 'GET', TYPES), 200).json()
+        self.assertEqual(len(listed['items']), 4)
+
     def test_the_first_create_seeds_and_a_plain_employee_never_does(self):
         company, user, _employee = self._fresh_company_hr('warn_fresh_b')
         Type = self.env['liwan.hr.warning.type'].with_context(active_test=False)

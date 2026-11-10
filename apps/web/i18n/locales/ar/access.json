@@ -322,6 +322,7 @@
         "userRolesChanged": "تغيير الأدوار",
         "userDisabled": "إيقاف الوصول",
         "userReactivated": "إعادة تفعيل الوصول",
+        "userSeatChanged": "تغيير مقعد المستخدم",
         "userPasswordReset": "إعادة تعيين كلمة المرور",
         "employeeArchived": "إيقاف وصول موظف مؤرشف",
         "roleCreated": "إنشاء دور",

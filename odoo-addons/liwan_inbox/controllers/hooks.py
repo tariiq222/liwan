@@ -22,6 +22,10 @@ from odoo.addons.liwan_api.controllers.common import (
 )
 from odoo.addons.liwan_inbox.adapters import whatsapp
 from odoo.addons.liwan_inbox.models.constants import WHATSAPP_FEATURE
+from odoo.addons.liwan_platform.models.read_only_guard import (
+    INBOUND_EVENT_CONTEXT,
+    INBOUND_EVENT_TOKEN,
+)
 
 MAX_BODY_BYTES = 1024 * 1024
 SIGNATURE_HEADER = 'X-Hub-Signature-256'
@@ -112,6 +116,7 @@ class WhatsAppHookController(http.Controller):
         verified = channels.filtered(lambda channel: signed_by(channel, raw, signature))
         if not verified:
             reject_webhook()
+        events = env['liwan.inbox.event'].with_context(**{INBOUND_EVENT_CONTEXT: INBOUND_EVENT_TOKEN})
         for channel in verified:
-            env['liwan.inbox.event']._liwan_store(channel, raw)
+            events._liwan_store(channel, raw)
         return request.make_response('ok', headers=[('Content-Type', 'text/plain; charset=utf-8')])

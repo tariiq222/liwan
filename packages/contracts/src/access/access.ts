@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { MIN_PASSWORD_LENGTH } from '../common/password'
+import { MAX_SEAT_PRIORITY } from './seats'
 
 export const LocalizedLabelSchema = z.object({ ar: z.string(), en: z.string().nullable() }).strict()
 
@@ -274,13 +275,19 @@ export const AdminUserSummarySchema = z.object({
   employee: EmployeeRefSchema.nullable().optional(),
   active: z.boolean(),
   protected: z.boolean(),
+  /** Above the purchased user limit: the account reads and exports but takes no writes. */
+  read_only: z.boolean(),
+  /** Who decided `read_only`: the automatic settle, or the administrator who picked it. */
+  seat_choice: z.enum(['auto', 'customer']),
+  /** The administrator's order for reopening read-only accounts when seats are added; `0` means not set. */
+  seat_priority: z.number().int().nonnegative().max(MAX_SEAT_PRIORITY),
   assignments: z.array(RoleAssignmentSchema),
   version: z.string().min(1),
 }).strict()
 export type AdminUserSummary = z.infer<typeof AdminUserSummarySchema>
 export const AdminUserDetailSchema = AdminUserSummarySchema.extend({
   capabilities: z.array(EffectiveCapabilitySchema),
-  allowed_actions: z.array(z.enum(['read', 'assign_roles', 'send_reset_link', 'disable', 'reactivate', 'resend_invitation', 'edit_invitation', 'cancel_invitation'])),
+  allowed_actions: z.array(z.enum(['read', 'assign_roles', 'send_reset_link', 'disable', 'reactivate', 'resend_invitation', 'edit_invitation', 'cancel_invitation', 'set_seat'])),
 }).strict()
 export type AdminUserDetail = z.infer<typeof AdminUserDetailSchema>
 export const AdminUserListSchema = z.object({ items: z.array(AdminUserSummarySchema), total: z.number().int().nonnegative() }).strict()
@@ -313,13 +320,15 @@ export const SeatUsageSchema = z.object({
   used: z.number().int().nonnegative(),
   /** `null` when the subscription has no user limit. */
   limit: z.number().int().nonnegative().nullable(),
+  /** Accounts above the limit that are read-only; `used` counts full seats only. */
+  read_only: z.number().int().nonnegative(),
 }).strict()
 export type SeatUsage = z.infer<typeof SeatUsageSchema>
 
 export const AuditActionSchema = z.enum([
   'user.granted', 'user.invited', 'user.invitation_resent', 'user.invitation_login_changed', 'user.invitation_cancelled',
   'user.reset_link_sent', 'user.password_set', 'user.employee_linked', 'user.roles_changed', 'user.disabled', 'user.reactivated',
-  'user.password_reset', 'user.mobile_set', 'user.reset_link_requested', 'user.second_step_reset',
+  'user.password_reset', 'user.mobile_set', 'user.seat_changed', 'user.reset_link_requested', 'user.second_step_reset',
   'user.branch_roles_changed', 'branch.policy_changed',
   'company.profile_changed', 'company.branding_changed', 'company.vat_registration_changed',
   'employee.archived_access_disabled', 'role.created',

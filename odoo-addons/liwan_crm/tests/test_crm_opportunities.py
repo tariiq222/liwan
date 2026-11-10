@@ -293,6 +293,14 @@ class TestCrmOpportunities(LiwanCrmCase):
         self.assertEqual(set(body['items'][0]), {'id', 'user', 'opportunity_id', 'viewed_at'})
         self.assertEqual(body['items'][0]['opportunity_id'], lead.id)
 
+    def test_a_read_only_agent_still_logs_their_own_opening(self):
+        lead = self.make_lead(self.agent)
+        self.set_visibility('own', view_log_enabled=True)
+        self.env['liwan.entitlement.service'].sudo()._liwan_apply_flags(self.agent, {'liwan_read_only': True})
+        response = self.as_agent().api('POST', f'{URL}/{lead.id}/seen', {})
+        self.assertEqual(response.status_code, 204, response.text)
+        self.assertEqual(self.env['liwan.crm.view.log'].search([('lead_id', '=', lead.id)]).user_id, self.agent)
+
     def test_the_seen_route_requires_reading_the_opportunity(self):
         lead = self.make_lead(self.agent)
         self.set_visibility('own', view_log_enabled=True)

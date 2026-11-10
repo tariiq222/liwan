@@ -194,7 +194,7 @@ function boundTenantId(tenant: ReturnType<typeof tenantRequest>, config: Custome
   return tenant ? tenant.tenantId : config.customerCommercialTenantId
 }
 
-export async function customerPrincipal(event: H3Event, config: CustomerConfig): Promise<CustomerPrincipal> {
+export async function customerPrincipal(event: H3Event, config: CustomerConfig, write = false): Promise<CustomerPrincipal> {
   const cookie = getHeader(event, 'cookie')
   if (!cookie) fail(401, 'unauthorized', 'A signed-in company session is required')
   const tenant = tenantRequest(event)
@@ -215,6 +215,7 @@ export async function customerPrincipal(event: H3Event, config: CustomerConfig):
   }
   const parsed = MeSchema.safeParse(me)
   if (!parsed.success) fail(401, 'unauthorized', 'The company session is not valid')
+  if (write && parsed.data.read_only) fail(403, 'user_read_only', 'This account has read-only access')
   return { actor_id: String(parsed.data.id), kind: 'customer', tenant_id: String(tenantId), capabilities: deriveCustomerCapabilities(parsed.data.capabilities) }
 }
 
@@ -232,7 +233,8 @@ export async function forwardCustomerRequest(event: H3Event): Promise<unknown> {
   if (isMutation) assertCustomerMutationOrigin(event, config)
   else ensureCsrfCookie(event)
 
-  const principal = await customerPrincipal(event, config)
+  const write = isMutation && route.upstream !== '/v1/customer/preview'
+  const principal = await customerPrincipal(event, config, write)
   if (!principal.capabilities.includes(route.needs)) fail(403, 'forbidden', 'You do not have access to this subscription action')
 
   let rawBody: string | undefined

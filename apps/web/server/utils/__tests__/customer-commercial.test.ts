@@ -83,6 +83,21 @@ describe('customer commercial BFF', () => {
     const forged = Buffer.from(JSON.stringify({ ...principal, tenant_id: 'tenant-other' })).toString('base64')
     expect(verifyServiceRequest({ method: 'GET', path: '/v1/customer/subscription', body: signedBodyFor(forged, undefined), key: KEY, headers: h })).toBeNull()
   })
+  it('does not forward commercial writes by a read-only account', async () => {
+    const raw = setup({ method: 'POST', url: 'https://acme.example/api/commercial/v1/orders/abc/payment-attempts', body: '{}' })
+    vi.mocked($fetch).mockResolvedValueOnce({ ...me(['settings.branding.manage']), read_only: true })
+    await expect(forwardCustomerRequest({} as never)).rejects.toMatchObject({ statusCode: 403, data: { code: 'user_read_only' } })
+    expect(raw).not.toHaveBeenCalled()
+  })
+  it.each([
+    { method: 'GET', path: 'subscription' },
+    { method: 'POST', path: 'preview', body: '{}' },
+  ])('keeps $method $path available to a read-only account', async ({ method, path, body }) => {
+    const raw = setup({ method, url: `https://acme.example/api/commercial/v1/${path}`, body })
+    vi.mocked($fetch).mockResolvedValueOnce({ ...me(['settings.branding.manage']), read_only: true })
+    expect(await forwardCustomerRequest({} as never)).toEqual({ ok: true })
+    expect(raw).toHaveBeenCalledOnce()
+  })
   it('keeps the control-plane refusal code on a 409', async () => {
     const raw = setup({ url: 'https://acme.example/api/commercial/v1/trial', method: 'POST', body: '{"plan_id":"p"}' })
     raw.mockRejectedValueOnce(Object.assign(new Error('refused'), { statusCode: 409, data: { code: 'tenant_upgrade_required', message: 'tenant needs an upgrade' } }))

@@ -1,10 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import logging
 import re
+from contextlib import contextmanager
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 
+from .entitlement_service_seats import DEFER_BRANCH_REOPENING
 from odoo.addons.liwan_platform.commercial_config import SOURCES, load_classification
 from odoo.addons.liwan_platform.models.entitlement_service import (
     OPERATOR_CONTEXT,
@@ -366,12 +368,33 @@ class LiwanTenantProfile(models.Model):
             raise ValidationError(self.env._('liwan_platform: revisions cannot be negative'))
         if 'quota_revision' in next_vals and next_vals['quota_revision'] < 0:
             raise ValidationError(self.env._('liwan_platform: revisions cannot be negative'))
-        return super().write(next_vals)
+        result = super().write(next_vals)
+        if 'features' in next_vals:
+            service._liwan_settle_excess()
+        return result
 
     def _liwan_require_operator(self):
         self.ensure_one()
         if not (self.env.su and self.env.context.get(OPERATOR_CONTEXT)):
             raise AccessError(self.env._('A trusted local operator is required.'))
+
+    @contextmanager
+    def _liwan_defer_branch_reopening(self):
+        """Reserve full seats for ordered branches before reopening automatic excess."""
+        self._liwan_require_operator()
+        cr = self.env.cr
+        if DEFER_BRANCH_REOPENING in cr.cache:
+            yield
+            return
+        with cr.savepoint():
+            self._liwan_lock()
+            # Mid-operation flushes can run and clear precommit callbacks.
+            cr.cache[DEFER_BRANCH_REOPENING] = True
+            try:
+                yield
+            finally:
+                cr.cache.pop(DEFER_BRANCH_REOPENING)
+            self.env['liwan.entitlement.service']._liwan_settle_branches()
 
     def _liwan_grant_opened_admin_roles(self, login, roles_before):
         """Give the enrolment administrator the roles a policy change newly opened.
@@ -449,7 +472,7 @@ class LiwanTenantProfile(models.Model):
                 raise ValidationError(msg)
         new_uids = [uid for uid in requested if uid not in by_uid]
         if new_uids:
-            active_count = Branch.search_count([('state', '=', 'active')])
+            active_count = self.env['liwan.entitlement.service']._liwan_count_full_branches()
             self.env['liwan.entitlement.service'].require_within_limit(
                 'branches.extra_limit', active_count + len(new_uids),
             )
@@ -496,7 +519,7 @@ class LiwanTenantProfile(models.Model):
             raise ValidationError(msg)
         if branch.state == 'active':
             return branch.company_id
-        active_count = self.env['liwan.tenant.branch'].search_count([('state', '=', 'active')])
+        active_count = self.env['liwan.entitlement.service']._liwan_count_full_branches()
         self.env['liwan.entitlement.service'].require_within_limit(
             'branches.extra_limit', active_count + 1,
         )

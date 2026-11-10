@@ -10,6 +10,7 @@ from odoo.addons.liwan_api.controllers.common import (
     parse_positive_int,
     requires_feature,
 )
+from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_payments.models.payer_service import CheckoutOpen
 from odoo.addons.liwan_payments.serializers.payer import (
     dump_payable_invoice,
@@ -105,6 +106,9 @@ class PayerController(http.Controller):
             redirect = payer._liwan_start(document, provider_id, method_id)
         except CheckoutOpen as error:
             raise ApiError(409, 'payment_in_progress', str(error)) from error
+        except LiwanAccessRule:
+            # A read-only branch takes no new payment: api_handler answers its own 403 with the Arabic message.
+            raise
         except UserError as error:
             raise ApiError(422, 'payment_unavailable', str(error)) from error
         return {'redirect': redirect}

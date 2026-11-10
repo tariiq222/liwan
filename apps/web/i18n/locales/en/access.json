@@ -322,6 +322,7 @@
         "userRolesChanged": "Roles changed",
         "userDisabled": "Access disabled",
         "userReactivated": "Access reactivated",
+        "userSeatChanged": "User seat changed",
         "userPasswordReset": "Password reset",
         "employeeArchived": "Archived employee access disabled",
         "roleCreated": "Role created",
