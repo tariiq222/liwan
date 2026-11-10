@@ -4,8 +4,10 @@ import json
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
+from odoo import SUPERUSER_ID, api
 from odoo.exceptions import AccessDenied
 from odoo.fields import Command
+from odoo.sql_db import db_connect
 from odoo.tests import new_test_user, tagged
 from odoo.tests.common import HOST, TEST_CURSOR_COOKIE_NAME
 from odoo.tools import config
@@ -342,3 +344,38 @@ class TestAiUsageService(AiProbe, LiwanApiCase):
         response = self._post(self._batch())
         self.assertEqual(response.status_code, 403, response.text)
         self.assertFalse(self.Usage.search([]))
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestAiUsageServiceLock(AiProbe, LiwanApiCase):
+    """The recorder's budget is spent under a row lock (issue #557). Its own class: the lock must be free when the test starts,
+    and the shared fixtures above write the recorder's row (company sync), which a second connection could not then lock."""
+
+    def setUp(self):
+        super().setUp()
+        self._install_probe()
+        self.recorder = self.env.ref('liwan_ai.user_ai_usage')
+        self.key = self.env['res.users.apikeys'].with_user(self.recorder)._generate('rpc', 'lock test', datetime.now() + timedelta(days=1))
+        self.Usage = self.env['liwan.ai.usage']
+        self.opener.cookies.clear()
+
+    def _post(self, body):
+        return self.url_open(USAGE_SERVICE_PATH, json=body, headers={'Content-Type': 'application/json', 'Authorization': f'bearer {self.key}'})
+
+    def test_a_parallel_report_is_refused_while_another_holds_the_recorder_lock(self):
+        """Admission and insertion are serialized per recorder, so parallel requests cannot each spend the same budget."""
+        cursor = db_connect(self.env.cr.dbname).cursor()
+        try:
+            other = api.Environment(cursor, SUPERUSER_ID, {})
+            # A second real connection plays the request that is mid-flight: it holds the recorder's row until it ends.
+            other['res.users'].browse(self.recorder.id).lock_for_update(allow_referencing=True)
+            refused = self._post({'user_id': self.employee.id, 'user_company_id': self.employee.company_id.id, 'items': [dict(ITEM, call_id=f'{60:016x}')]})
+            self.assertEqual(refused.status_code, 429, refused.text)
+            self.assertEqual((refused.json()['code'], refused.json()['details']), ('rate_limited', {'retry_after_seconds': 1}))
+            self.assertFalse(self.Usage.search([]))
+            # Ordinary users are not held up by it: the recorder's lock is on the recorder's row alone.
+            self.env['res.users'].browse(self.employee.id).lock_for_update()
+        finally:
+            cursor.rollback()
+            cursor.close()
+        self.assertEqual(self._post({'user_id': self.employee.id, 'user_company_id': self.employee.company_id.id, 'items': [dict(ITEM, call_id=f'{60:016x}')]}).status_code, 200)

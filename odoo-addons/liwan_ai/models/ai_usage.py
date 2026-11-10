@@ -44,7 +44,7 @@ SERVICE_MAX_INPUT_TOKENS = MAX_INPUT_TOKENS_PER_RUN
 SERVICE_MAX_OUTPUT_TOKENS = 1_000_000
 SERVICE_MAX_BATCH_TOKENS = 4 * (SERVICE_MAX_INPUT_TOKENS + SERVICE_MAX_OUTPUT_TOKENS)
 SERVICE_MAX_AGE = timedelta(hours=24)
-SERVICE_MAX_ROWS_PER_MINUTE = 600
+SERVICE_MAX_ROWS_PER_MINUTE = 600  # exact: the route serializes admission per recorder (controllers/ai.py), so parallel requests cannot overshoot
 FUTURE_TOLERANCE = timedelta(minutes=5)
 # RFC 3339 with an offset, the same instants the zod contract's iso datetime({offset: true}) accepts.
 RFC3339 = re.compile(

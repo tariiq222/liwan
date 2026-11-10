@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import http
-from odoo.exceptions import ValidationError
+from odoo.exceptions import LockError, ValidationError
 from odoo.http import request
 
 from odoo.addons.liwan_ai.models.access_service import AI_USAGE_RECORD, AI_USE
@@ -129,6 +129,15 @@ class AiController(http.Controller):
             if not isinstance(item, dict):
                 raise ApiError(422, 'invalid', 'each item must be an object', field=f'items.{index}')
         Usage = request.env['liwan.ai.usage']
+        # Admission and insertion are one critical section per recorder: the row budget below is read before the rows are
+        # written, so two parallel requests would each see the same remaining budget. The recorder's own user row is locked
+        # through the ORM until this transaction ends; a request that cannot get it is refused at once (the lock skips, it
+        # never waits, so nothing queues or deadlocks) and `web` retries it. ``allow_referencing`` is a FOR NO KEY UPDATE lock:
+        # the rows inserted here reference this user (create_uid) and the API key lookup reads it, and neither is blocked.
+        try:
+            request.env.user.lock_for_update(allow_referencing=True)
+        except LockError:
+            raise ApiError(429, 'rate_limited', 'another usage report is being recorded', details={'retry_after_seconds': 1}) from None
         if len(items) > Usage._liwan_ai_recorder_rows_left():
             raise ApiError(429, 'rate_limited', 'too many usage rows in the last minute', details={'retry_after_seconds': 60})
         try:
