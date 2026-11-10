@@ -105,7 +105,7 @@ merged result and supplies release evidence.
 
 | Command | What it does |
 | --- | --- |
-| `npm run check:fast` | Optional local shortcut: policy checks and checks for layers changed against `main` (`tools/check_fast.py`). Root `package.json`, `package-lock.json` or the CI workflow also select the full `npm test`. Use `-- --dry-run` to see the plan without running checks. |
+| `npm run check:fast` | Optional local shortcut: policy checks and checks for layers changed against `main` (`tools/check_fast.py`). Root `package.json`, `package-lock.json` or the CI workflow also select the full `npm test`. A change under `odoo-addons/`, `tools/api_surface.py` or `docs/api/` also runs `tools/api_surface.py --check`; on a task branch that adds a route it fails until the orchestrator regenerates the files. Use `-- --dry-run` to see the plan without running checks. |
 | `npm run test:odoo` | Odoo tests of the changed addons and their dependents on a scratch database cloned from a cached template (`tools/odoo_test.py`). Options: `--addons a,b`, `--all`, `--base`, `--dry-run`, `--keep-db`. |
 | `python3 -B tools/test_slot.py -- <command>` | Machine-wide test queue shared by every session and worktree: at most `LIWAN_TEST_SLOTS` (default 2) heavy checks run at once, the rest wait and print who holds the slots. `npm test`, `npm run test:odoo`, `npm run check:fast`, the `npm run e2e*` scripts and `npm -w apps/web run lint` already take a slot; wrap any other heavy command (a direct `odoo-bin` test run, `vitest`, Playwright, `vue-tsc`) in it. A command inside a held slot takes no second one. `--status` lists the holders. From a worktree that predates it, call it by the main checkout path. |
 | `npm run wt -- new <area>-<slug> --owner <who> --task <what> --scope <path>` | New task worktree with its own `node_modules`/`.nuxt`, free ports and a scratch DB name in the git-ignored `.env.worktree`, and its ownership claim; accepts any valid branch name as a base and refuses scopes that overlap another active claim unless `--allow-overlap "<reason>"` (`tools/wt.py`, rules in `docs/parallel-work.md`). |
@@ -201,7 +201,9 @@ and `merge_group` events; a merge-queue entry is selected from the queue base to
 
 Every push to `main`, the nightly schedule and `workflow_dispatch` with `full: true` run all thirteen stages with all
 six shards and every isolation group, so a cross-module regression the narrowed pull request could not see is
-caught on `main`.
+caught on `main`. The nightly run alone also runs `python3 -B tools/api_surface.py --check` in the static policies part
+(it keys on `GITHUB_EVENT_NAME=schedule`), because task branches may not regenerate `docs/api` and a pull request
+that adds a route would otherwise fail a check it cannot fix.
 
 A manual `workflow_dispatch` run with `full: true` runs all thirteen stages whatever the change. A
 `release/19.0.X.Y.Z` tag is cut only from a `main` commit whose `ci` run was such a full run with all
